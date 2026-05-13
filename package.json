@@ -1,0 +1,8 @@
+{
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1045.0",
+    "multer": "^2.1.1",
+    "music-metadata": "^11.12.3",
+    "uuid": "^14.0.0"
+  }
+}
