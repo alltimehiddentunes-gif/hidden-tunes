@@ -1,8 +1,8 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const HIDDEN_TUNES_API_BASE_URL = "https://hidden-tunes-backend.onrender.com";
+const HIDDEN_TUNES_API_BASE_URL = "https://hidden-tunes-api.onrender.com";
 const HIDDEN_TUNES_LYRICS_API_BASE_URL =
-  "https://hidden-tunes-backend.onrender.com";
+  "https://hidden-tunes-api.onrender.com";
 
 const CACHE_KEY = "hidden_tunes_cloud_songs_cache_v4";
 const CACHE_TIME_KEY = "hidden_tunes_cloud_songs_cache_time_v4";
@@ -810,8 +810,10 @@ function normalizeLyricsResponse(
     synced_lrc: data?.synced_lrc || data?.syncedLrc || data?.lrc || null,
     syncedLrc: data?.syncedLrc || data?.synced_lrc || data?.lrc || null,
     lrc: data?.lrc || data?.synced_lrc || data?.syncedLrc || null,
-    plain_lyrics: data?.plain_lyrics || data?.plainLyrics || data?.lyrics || null,
-    plainLyrics: data?.plainLyrics || data?.plain_lyrics || data?.lyrics || null,
+    plain_lyrics:
+      data?.plain_lyrics || data?.plainLyrics || data?.lyrics || null,
+    plainLyrics:
+      data?.plainLyrics || data?.plain_lyrics || data?.lyrics || null,
     lyrics: data?.lyrics || data?.plain_lyrics || data?.plainLyrics || null,
     lyrics_url: data?.lyrics_url || data?.lyricsUrl || null,
     lyricsUrl: data?.lyricsUrl || data?.lyrics_url || null,
@@ -874,6 +876,5 @@ export async function getHiddenTunesLyrics(songId: string) {
 export {
   FALLBACK_ARTWORK,
   HIDDEN_TUNES_API_BASE_URL,
-  HIDDEN_TUNES_LYRICS_API_BASE_URL
+  HIDDEN_TUNES_LYRICS_API_BASE_URL,
 };
-
