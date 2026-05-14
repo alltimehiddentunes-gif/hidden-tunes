@@ -16,6 +16,17 @@ type UploaderProfile = {
   created_at: string | null;
 };
 
+type CreateUploaderApiResponse = {
+  success: boolean;
+  error?: string;
+  message?: string;
+  mode?: string;
+  preview?: {
+    email: string;
+    role: string;
+  };
+};
+
 const ALLOWED_UPLOADER_ROLES: UploaderRole[] = ["upload_manager", "owner"];
 
 function isValidEmail(value: string) {
@@ -37,6 +48,7 @@ export default function AdminUploadersPage() {
   const [newUploaderEmail, setNewUploaderEmail] = useState("");
   const [newUploaderRole, setNewUploaderRole] =
     useState<UploaderRole>("upload_manager");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [formMessage, setFormMessage] = useState<string | null>(null);
 
@@ -91,8 +103,10 @@ export default function AdminUploadersPage() {
     validateOwnerAccessAndLoadUploaders();
   }, [router]);
 
-  function handleCreateUploaderShell(event: FormEvent<HTMLFormElement>) {
+  async function handleCreateUploaderShell(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (isSubmitting) return;
 
     setFormError(null);
     setFormMessage(null);
@@ -112,9 +126,39 @@ export default function AdminUploadersPage() {
       return;
     }
 
-    setFormMessage(
-      `Validated UI preview only: ${cleanedEmail} is ready to be prepared as ${newUploaderRole}. No database changes were made.`
-    );
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch("/api/admin/create-uploader", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: cleanedEmail,
+          role: newUploaderRole,
+        }),
+      });
+
+      const result = (await response.json()) as CreateUploaderApiResponse;
+
+      if (!response.ok || !result.success) {
+        setFormError(
+          result.error || "The uploader preview request could not be completed."
+        );
+        return;
+      }
+
+      setFormMessage(
+        result.message ||
+          `Backend preview complete: ${cleanedEmail} is ready to be prepared as ${newUploaderRole}. No database changes were made.`
+      );
+    } catch (error) {
+      console.error("CREATE UPLOADER PREVIEW ERROR", error);
+      setFormError("Network error while previewing uploader creation.");
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   if (isLoading) {
@@ -156,9 +200,9 @@ export default function AdminUploadersPage() {
           <div>
             <h2 className="text-xl font-semibold">Create Uploader</h2>
             <p className="mt-2 text-sm leading-6 text-white/60">
-              UI-only owner form shell with validation. This still does not
-              create users, write to Supabase, edit profiles, or change upload
-              permissions yet.
+              Validated owner form connected to the mock backend route. This
+              still does not create users, write to Supabase, edit profiles, or
+              change upload permissions yet.
             </p>
           </div>
 
@@ -170,13 +214,14 @@ export default function AdminUploadersPage() {
               <input
                 type="email"
                 value={newUploaderEmail}
+                disabled={isSubmitting}
                 onChange={(event) => {
                   setNewUploaderEmail(event.target.value);
                   setFormError(null);
                   setFormMessage(null);
                 }}
                 placeholder="team@example.com"
-                className="w-full rounded-xl border border-white/10 bg-black/50 px-4 py-3 text-sm text-white outline-none transition placeholder:text-white/30 focus:border-yellow-500/40"
+                className="w-full rounded-xl border border-white/10 bg-black/50 px-4 py-3 text-sm text-white outline-none transition placeholder:text-white/30 focus:border-yellow-500/40 disabled:cursor-not-allowed disabled:opacity-60"
               />
             </div>
 
@@ -186,6 +231,7 @@ export default function AdminUploadersPage() {
               </label>
               <select
                 value={newUploaderRole}
+                disabled={isSubmitting}
                 onChange={(event) => {
                   const value = event.target.value;
 
@@ -196,7 +242,7 @@ export default function AdminUploadersPage() {
                   setFormError(null);
                   setFormMessage(null);
                 }}
-                className="w-full rounded-xl border border-white/10 bg-black/50 px-4 py-3 text-sm text-white outline-none transition focus:border-yellow-500/40"
+                className="w-full rounded-xl border border-white/10 bg-black/50 px-4 py-3 text-sm text-white outline-none transition focus:border-yellow-500/40 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <option value="upload_manager">Upload Manager</option>
                 <option value="owner">Owner</option>
@@ -205,9 +251,10 @@ export default function AdminUploadersPage() {
 
             <button
               type="submit"
-              className="w-full rounded-xl bg-yellow-400 px-4 py-3 text-sm font-bold text-black transition hover:bg-yellow-300"
+              disabled={isSubmitting}
+              className="w-full rounded-xl bg-yellow-400 px-4 py-3 text-sm font-bold text-black transition hover:bg-yellow-300 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Validate Create Flow
+              {isSubmitting ? "Checking Backend..." : "Preview Backend Flow"}
             </button>
           </form>
 
@@ -224,8 +271,8 @@ export default function AdminUploadersPage() {
           )}
 
           <div className="mt-5 rounded-xl border border-white/10 bg-black/40 p-4 text-sm leading-6 text-white/50">
-            Next later step: connect this validated form safely to a controlled
-            owner-only creation action after validation is tested.
+            Current step: frontend and backend are connected in preview mode
+            only. Real uploader creation remains disabled.
           </div>
         </div>
 
@@ -301,8 +348,8 @@ export default function AdminUploadersPage() {
           )}
 
           <div className="mt-6 rounded-xl border border-white/10 bg-black/40 p-4 text-sm text-white/50">
-            Current mode: read-only uploader profile dashboard plus validated
-            UI-only create form shell.
+            Current mode: read-only uploader profile dashboard plus mock API
+            preview connection.
           </div>
         </div>
       </section>
