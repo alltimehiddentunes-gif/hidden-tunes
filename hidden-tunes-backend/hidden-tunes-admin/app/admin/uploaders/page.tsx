@@ -73,6 +73,22 @@ export default function AdminUploadersPage() {
     [newUploaderEmail]
   );
 
+  const uploaderSummary = useMemo(
+    () => ({
+      total: uploaders.length,
+      active: uploaders.filter((uploader) => uploader.status === "active")
+        .length,
+      disabled: uploaders.filter((uploader) => uploader.status === "disabled")
+        .length,
+      owners: uploaders.filter((uploader) => uploader.role === "owner")
+        .length,
+      uploadManagers: uploaders.filter(
+        (uploader) => uploader.role === "upload_manager"
+      ).length,
+    }),
+    [uploaders]
+  );
+
   async function loadUploaders() {
     const { data, error } = await supabase
       .from("uploader_profiles")
@@ -390,6 +406,26 @@ export default function AdminUploadersPage() {
               {statusMessage}
             </div>
           )}
+
+          <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+            {[
+              ["Total Uploaders", uploaderSummary.total],
+              ["Active", uploaderSummary.active],
+              ["Disabled", uploaderSummary.disabled],
+              ["Owners", uploaderSummary.owners],
+              ["Upload Managers", uploaderSummary.uploadManagers],
+            ].map(([label, value]) => (
+              <div
+                key={label}
+                className="rounded-2xl border border-white/10 bg-black/30 p-4"
+              >
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/40">
+                  {label}
+                </p>
+                <p className="mt-3 text-3xl font-black text-white">{value}</p>
+              </div>
+            ))}
+          </div>
 
           {!errorMessage && uploaders.length === 0 && (
             <div className="mt-6 rounded-xl border border-white/10 bg-black/40 p-4 text-sm text-white/50">
