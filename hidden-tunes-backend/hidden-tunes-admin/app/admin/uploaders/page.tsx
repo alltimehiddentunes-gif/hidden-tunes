@@ -65,6 +65,8 @@ export default function AdminUploadersPage() {
   );
   const [statusError, setStatusError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [pendingDisableUploader, setPendingDisableUploader] =
+    useState<UploaderProfile | null>(null);
 
   const cleanedEmail = useMemo(
     () => newUploaderEmail.trim().toLowerCase(),
@@ -232,6 +234,26 @@ export default function AdminUploadersPage() {
     } finally {
       setUpdatingUploaderId(null);
     }
+  }
+
+  function handleRequestDisableUploader(uploader: UploaderProfile) {
+    setStatusError(null);
+    setStatusMessage(null);
+
+    if (uploader.role === "owner") {
+      setStatusError("Owner accounts cannot be disabled.");
+      return;
+    }
+
+    setPendingDisableUploader(uploader);
+  }
+
+  async function handleConfirmDisableUploader() {
+    if (!pendingDisableUploader) return;
+
+    const uploader = pendingDisableUploader;
+    setPendingDisableUploader(null);
+    await handleUpdateUploaderStatus(uploader, "disabled");
   }
 
   if (isLoading) {
@@ -447,10 +469,7 @@ export default function AdminUploadersPage() {
                                 type="button"
                                 disabled={!canDisable || isUpdating}
                                 onClick={() =>
-                                  handleUpdateUploaderStatus(
-                                    uploader,
-                                    "disabled"
-                                  )
+                                  handleRequestDisableUploader(uploader)
                                 }
                                 className="rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-200 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-40"
                               >
@@ -470,6 +489,48 @@ export default function AdminUploadersPage() {
           )}
         </div>
       </section>
+
+      {pendingDisableUploader && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-red-500/20 bg-[#101017] p-6 shadow-2xl">
+            <p className="text-xs font-bold uppercase tracking-[0.25em] text-red-300">
+              Disable uploader
+            </p>
+
+            <h2 className="mt-3 text-2xl font-bold text-white">
+              Remove admin access?
+            </h2>
+
+            <p className="mt-3 text-sm leading-6 text-white/60">
+              Disabling {pendingDisableUploader.email || "this uploader"} will
+              immediately remove their Hidden Tunes admin access and force them
+              back to the login screen.
+            </p>
+
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                disabled={updatingUploaderId === pendingDisableUploader.id}
+                onClick={() => setPendingDisableUploader(null)}
+                className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                disabled={updatingUploaderId === pendingDisableUploader.id}
+                onClick={handleConfirmDisableUploader}
+                className="rounded-xl border border-red-500/20 bg-red-500/20 px-4 py-3 text-sm font-bold text-red-100 transition hover:bg-red-500/30 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {updatingUploaderId === pendingDisableUploader.id
+                  ? "Disabling..."
+                  : "Disable Access"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
