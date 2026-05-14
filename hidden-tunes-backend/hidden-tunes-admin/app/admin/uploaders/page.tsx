@@ -1,10 +1,12 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { getUploaderProfile, supabase } from "@/lib/auth";
 import { canManageUploaders } from "@/lib/adminPermissions";
+
+type UploaderRole = "upload_manager" | "owner";
 
 type UploaderProfile = {
   id: string;
@@ -13,6 +15,16 @@ type UploaderProfile = {
   status: string | null;
   created_at: string | null;
 };
+
+const ALLOWED_UPLOADER_ROLES: UploaderRole[] = ["upload_manager", "owner"];
+
+function isValidEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
+function isAllowedUploaderRole(value: string): value is UploaderRole {
+  return ALLOWED_UPLOADER_ROLES.includes(value as UploaderRole);
+}
 
 export default function AdminUploadersPage() {
   const router = useRouter();
@@ -23,8 +35,15 @@ export default function AdminUploadersPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const [newUploaderEmail, setNewUploaderEmail] = useState("");
-  const [newUploaderRole, setNewUploaderRole] = useState("upload_manager");
+  const [newUploaderRole, setNewUploaderRole] =
+    useState<UploaderRole>("upload_manager");
+  const [formError, setFormError] = useState<string | null>(null);
   const [formMessage, setFormMessage] = useState<string | null>(null);
+
+  const cleanedEmail = useMemo(
+    () => newUploaderEmail.trim().toLowerCase(),
+    [newUploaderEmail]
+  );
 
   useEffect(() => {
     async function validateOwnerAccessAndLoadUploaders() {
@@ -75,8 +94,26 @@ export default function AdminUploadersPage() {
   function handleCreateUploaderShell(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
+    setFormError(null);
+    setFormMessage(null);
+
+    if (!cleanedEmail) {
+      setFormError("Enter the uploader email before previewing the flow.");
+      return;
+    }
+
+    if (!isValidEmail(cleanedEmail)) {
+      setFormError("Enter a valid uploader email address.");
+      return;
+    }
+
+    if (!isAllowedUploaderRole(newUploaderRole)) {
+      setFormError("Select a valid uploader role.");
+      return;
+    }
+
     setFormMessage(
-      `UI shell only: ${newUploaderEmail || "No email entered"} would be prepared as ${newUploaderRole}. No database changes were made.`
+      `Validated UI preview only: ${cleanedEmail} is ready to be prepared as ${newUploaderRole}. No database changes were made.`
     );
   }
 
@@ -119,8 +156,9 @@ export default function AdminUploadersPage() {
           <div>
             <h2 className="text-xl font-semibold">Create Uploader</h2>
             <p className="mt-2 text-sm leading-6 text-white/60">
-              UI-only owner form shell. This does not create users, write to
-              Supabase, edit profiles, or change upload permissions yet.
+              UI-only owner form shell with validation. This still does not
+              create users, write to Supabase, edit profiles, or change upload
+              permissions yet.
             </p>
           </div>
 
@@ -132,7 +170,11 @@ export default function AdminUploadersPage() {
               <input
                 type="email"
                 value={newUploaderEmail}
-                onChange={(event) => setNewUploaderEmail(event.target.value)}
+                onChange={(event) => {
+                  setNewUploaderEmail(event.target.value);
+                  setFormError(null);
+                  setFormMessage(null);
+                }}
                 placeholder="team@example.com"
                 className="w-full rounded-xl border border-white/10 bg-black/50 px-4 py-3 text-sm text-white outline-none transition placeholder:text-white/30 focus:border-yellow-500/40"
               />
@@ -144,7 +186,16 @@ export default function AdminUploadersPage() {
               </label>
               <select
                 value={newUploaderRole}
-                onChange={(event) => setNewUploaderRole(event.target.value)}
+                onChange={(event) => {
+                  const value = event.target.value;
+
+                  if (isAllowedUploaderRole(value)) {
+                    setNewUploaderRole(value);
+                  }
+
+                  setFormError(null);
+                  setFormMessage(null);
+                }}
                 className="w-full rounded-xl border border-white/10 bg-black/50 px-4 py-3 text-sm text-white outline-none transition focus:border-yellow-500/40"
               >
                 <option value="upload_manager">Upload Manager</option>
@@ -156,9 +207,15 @@ export default function AdminUploadersPage() {
               type="submit"
               className="w-full rounded-xl bg-yellow-400 px-4 py-3 text-sm font-bold text-black transition hover:bg-yellow-300"
             >
-              Preview Create Flow
+              Validate Create Flow
             </button>
           </form>
+
+          {formError && (
+            <div className="mt-5 rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm leading-6 text-red-200">
+              {formError}
+            </div>
+          )}
 
           {formMessage && (
             <div className="mt-5 rounded-xl border border-yellow-500/20 bg-yellow-500/10 p-4 text-sm leading-6 text-yellow-200">
@@ -167,8 +224,8 @@ export default function AdminUploadersPage() {
           )}
 
           <div className="mt-5 rounded-xl border border-white/10 bg-black/40 p-4 text-sm leading-6 text-white/50">
-            Next later step: connect this form safely to a controlled owner-only
-            creation action after the UI is tested.
+            Next later step: connect this validated form safely to a controlled
+            owner-only creation action after validation is tested.
           </div>
         </div>
 
@@ -244,8 +301,8 @@ export default function AdminUploadersPage() {
           )}
 
           <div className="mt-6 rounded-xl border border-white/10 bg-black/40 p-4 text-sm text-white/50">
-            Current mode: read-only uploader profile dashboard plus UI-only
-            create form shell.
+            Current mode: read-only uploader profile dashboard plus validated
+            UI-only create form shell.
           </div>
         </div>
       </section>
