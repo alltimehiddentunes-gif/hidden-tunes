@@ -125,8 +125,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       mode: "secure-mock-preview",
-      message:
-        "Secure owner validation passed. No uploader was created.",
+      message: "Secure owner validation passed. No uploader was created.",
       preview: {
         email,
         role,
