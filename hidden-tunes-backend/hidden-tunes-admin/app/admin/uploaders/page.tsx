@@ -129,10 +129,22 @@ export default function AdminUploadersPage() {
     setIsSubmitting(true);
 
     try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      const accessToken = session?.access_token;
+
+      if (!accessToken) {
+        setFormError("Missing authenticated uploader session.");
+        return;
+      }
+
       const response = await fetch("/api/admin/create-uploader", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
           email: cleanedEmail,
@@ -200,9 +212,9 @@ export default function AdminUploadersPage() {
           <div>
             <h2 className="text-xl font-semibold">Create Uploader</h2>
             <p className="mt-2 text-sm leading-6 text-white/60">
-              Validated owner form connected to the mock backend route. This
-              still does not create users, write to Supabase, edit profiles, or
-              change upload permissions yet.
+              Validated owner form connected to the secured mock backend route.
+              This still does not create users, write to Supabase, edit
+              profiles, or change upload permissions yet.
             </p>
           </div>
 
@@ -254,7 +266,7 @@ export default function AdminUploadersPage() {
               disabled={isSubmitting}
               className="w-full rounded-xl bg-yellow-400 px-4 py-3 text-sm font-bold text-black transition hover:bg-yellow-300 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isSubmitting ? "Checking Backend..." : "Preview Backend Flow"}
+              {isSubmitting ? "Checking Owner Access..." : "Preview Secure Flow"}
             </button>
           </form>
 
@@ -271,8 +283,8 @@ export default function AdminUploadersPage() {
           )}
 
           <div className="mt-5 rounded-xl border border-white/10 bg-black/40 p-4 text-sm leading-6 text-white/50">
-            Current step: frontend and backend are connected in preview mode
-            only. Real uploader creation remains disabled.
+            Current step: frontend and backend are connected with server-side
+            owner verification. Real uploader creation remains disabled.
           </div>
         </div>
 
@@ -348,8 +360,8 @@ export default function AdminUploadersPage() {
           )}
 
           <div className="mt-6 rounded-xl border border-white/10 bg-black/40 p-4 text-sm text-white/50">
-            Current mode: read-only uploader profile dashboard plus mock API
-            preview connection.
+            Current mode: read-only uploader profile dashboard plus secure mock
+            API preview connection.
           </div>
         </div>
       </section>
