@@ -28,6 +28,14 @@ type CreateUploaderApiResponse = {
   };
 };
 
+type UploaderStatus = "active" | "disabled";
+
+type UpdateUploaderStatusApiResponse = {
+  success: boolean;
+  error?: string;
+  message?: string;
+};
+
 const ALLOWED_UPLOADER_ROLES: UploaderRole[] = ["upload_manager", "owner"];
 
 function isValidEmail(value: string) {
@@ -52,6 +60,11 @@ export default function AdminUploadersPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [formMessage, setFormMessage] = useState<string | null>(null);
+  const [updatingUploaderId, setUpdatingUploaderId] = useState<string | null>(
+    null
+  );
+  const [statusError, setStatusError] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   const cleanedEmail = useMemo(
     () => newUploaderEmail.trim().toLowerCase(),
@@ -171,6 +184,63 @@ export default function AdminUploadersPage() {
       setFormError("Network error while creating uploader.");
     } finally {
       setIsSubmitting(false);
+    }
+  }
+
+  async function handleUpdateUploaderStatus(
+    uploader: UploaderProfile,
+    status: UploaderStatus
+  ) {
+    if (updatingUploaderId) return;
+
+    setStatusError(null);
+    setStatusMessage(null);
+
+    if (uploader.role === "owner" && status === "disabled") {
+      setStatusError("Owner accounts cannot be disabled.");
+      return;
+    }
+
+    setUpdatingUploaderId(uploader.id);
+
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      const accessToken = session?.access_token;
+
+      if (!accessToken) {
+        setStatusError("Missing authenticated uploader session.");
+        return;
+      }
+
+      const response = await fetch("/api/admin/update-uploader-status", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          uploaderId: uploader.id,
+          status,
+        }),
+      });
+
+      const result = (await response.json()) as UpdateUploaderStatusApiResponse;
+
+      if (!response.ok || !result.success) {
+        setStatusError(result.error || "Uploader status could not be updated.");
+        return;
+      }
+
+      setStatusMessage(result.message || "Uploader status updated.");
+      await loadUploaders();
+    } catch (error) {
+      console.error("UPDATE UPLOADER STATUS ERROR", error);
+      setStatusError("Network error while updating uploader status.");
+    } finally {
+      setUpdatingUploaderId(null);
     }
   }
 
@@ -297,6 +367,18 @@ export default function AdminUploadersPage() {
             </div>
           )}
 
+          {statusError && (
+            <div className="mt-6 rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-200">
+              {statusError}
+            </div>
+          )}
+
+          {statusMessage && (
+            <div className="mt-6 rounded-xl border border-yellow-500/20 bg-yellow-500/10 p-4 text-sm text-yellow-200">
+              {statusMessage}
+            </div>
+          )}
+
           {!errorMessage && uploaders.length === 0 && (
             <div className="mt-6 rounded-xl border border-white/10 bg-black/40 p-4 text-sm text-white/50">
               No uploader profiles found yet.
@@ -312,32 +394,86 @@ export default function AdminUploadersPage() {
                     <th className="px-4 py-3 font-medium">Role</th>
                     <th className="px-4 py-3 font-medium">Status</th>
                     <th className="px-4 py-3 font-medium">Created</th>
+                    <th className="px-4 py-3 font-medium">Actions</th>
                   </tr>
                 </thead>
 
                 <tbody className="divide-y divide-white/10">
-                  {uploaders.map((uploader) => (
-                    <tr key={uploader.id} className="bg-black/20">
-                      <td className="px-4 py-4 text-white/85">
-                        {uploader.email || "No email"}
-                      </td>
-                      <td className="px-4 py-4">
-                        <span className="rounded-full border border-yellow-500/20 bg-yellow-500/10 px-3 py-1 text-xs text-yellow-300">
-                          {uploader.role || "No role"}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4">
-                        <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/70">
-                          {uploader.status || "No status"}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4 text-white/50">
-                        {uploader.created_at
-                          ? new Date(uploader.created_at).toLocaleDateString()
-                          : "Unknown"}
-                      </td>
-                    </tr>
-                  ))}
+                  {uploaders.map((uploader) => {
+                    const isUpdating = updatingUploaderId === uploader.id;
+                    const canActivate =
+                      uploader.role === "upload_manager" &&
+                      uploader.status === "disabled";
+                    const canDisable =
+                      uploader.role === "upload_manager" &&
+                      uploader.status === "active";
+
+                    return (
+                      <tr key={uploader.id} className="bg-black/20">
+                        <td className="px-4 py-4 text-white/85">
+                          {uploader.email || "No email"}
+                        </td>
+                        <td className="px-4 py-4">
+                          <span className="rounded-full border border-yellow-500/20 bg-yellow-500/10 px-3 py-1 text-xs text-yellow-300">
+                            {uploader.role || "No role"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4">
+                          <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/70">
+                            {uploader.status || "No status"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4 text-white/50">
+                          {uploader.created_at
+                            ? new Date(
+                                uploader.created_at
+                              ).toLocaleDateString()
+                            : "Unknown"}
+                        </td>
+                        <td className="px-4 py-4">
+                          {uploader.role === "owner" ? (
+                            <span className="text-xs text-white/40">
+                              Protected
+                            </span>
+                          ) : (
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                disabled={!canActivate || isUpdating}
+                                onClick={() =>
+                                  handleUpdateUploaderStatus(
+                                    uploader,
+                                    "active"
+                                  )
+                                }
+                                className="rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-3 py-2 text-xs font-semibold text-yellow-300 transition hover:bg-yellow-500/20 disabled:cursor-not-allowed disabled:opacity-40"
+                              >
+                                {isUpdating && canActivate
+                                  ? "Activating..."
+                                  : "Activate"}
+                              </button>
+
+                              <button
+                                type="button"
+                                disabled={!canDisable || isUpdating}
+                                onClick={() =>
+                                  handleUpdateUploaderStatus(
+                                    uploader,
+                                    "disabled"
+                                  )
+                                }
+                                className="rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-200 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-40"
+                              >
+                                {isUpdating && canDisable
+                                  ? "Disabling..."
+                                  : "Disable"}
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
