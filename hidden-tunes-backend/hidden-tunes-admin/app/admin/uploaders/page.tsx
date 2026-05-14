@@ -21,7 +21,8 @@ type CreateUploaderApiResponse = {
   error?: string;
   message?: string;
   mode?: string;
-  preview?: {
+  uploader?: {
+    userId: string;
     email: string;
     role: string;
   };
@@ -57,6 +58,21 @@ export default function AdminUploadersPage() {
     [newUploaderEmail]
   );
 
+  async function loadUploaders() {
+    const { data, error } = await supabase
+      .from("uploader_profiles")
+      .select("id, email, role, status, created_at")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      setErrorMessage(error.message);
+      setUploaders([]);
+      return;
+    }
+
+    setUploaders((data || []) as UploaderProfile[]);
+  }
+
   useEffect(() => {
     async function validateOwnerAccessAndLoadUploaders() {
       setErrorMessage(null);
@@ -84,26 +100,14 @@ export default function AdminUploadersPage() {
       }
 
       setUserRole(profile.role || null);
-
-      const { data, error } = await supabase
-        .from("uploader_profiles")
-        .select("id, email, role, status, created_at")
-        .order("created_at", { ascending: false });
-
-      if (error) {
-        setErrorMessage(error.message);
-        setUploaders([]);
-      } else {
-        setUploaders((data || []) as UploaderProfile[]);
-      }
-
+      await loadUploaders();
       setIsLoading(false);
     }
 
     validateOwnerAccessAndLoadUploaders();
   }, [router]);
 
-  async function handleCreateUploaderShell(event: FormEvent<HTMLFormElement>) {
+  async function handleCreateUploader(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (isSubmitting) return;
@@ -112,7 +116,7 @@ export default function AdminUploadersPage() {
     setFormMessage(null);
 
     if (!cleanedEmail) {
-      setFormError("Enter the uploader email before previewing the flow.");
+      setFormError("Enter the uploader email.");
       return;
     }
 
@@ -155,19 +159,16 @@ export default function AdminUploadersPage() {
       const result = (await response.json()) as CreateUploaderApiResponse;
 
       if (!response.ok || !result.success) {
-        setFormError(
-          result.error || "The uploader preview request could not be completed."
-        );
+        setFormError(result.error || "Uploader could not be created.");
         return;
       }
 
-      setFormMessage(
-        result.message ||
-          `Backend preview complete: ${cleanedEmail} is ready to be prepared as ${newUploaderRole}. No database changes were made.`
-      );
+      setFormMessage(result.message || "Uploader created successfully.");
+      setNewUploaderEmail("");
+      await loadUploaders();
     } catch (error) {
-      console.error("CREATE UPLOADER PREVIEW ERROR", error);
-      setFormError("Network error while previewing uploader creation.");
+      console.error("CREATE UPLOADER ERROR", error);
+      setFormError("Network error while creating uploader.");
     } finally {
       setIsSubmitting(false);
     }
@@ -209,16 +210,13 @@ export default function AdminUploadersPage() {
 
       <section className="mx-auto grid max-w-7xl gap-6 px-6 py-8 lg:grid-cols-[420px_1fr]">
         <div className="rounded-2xl border border-yellow-500/10 bg-white/[0.03] p-6">
-          <div>
-            <h2 className="text-xl font-semibold">Create Uploader</h2>
-            <p className="mt-2 text-sm leading-6 text-white/60">
-              Validated owner form connected to the secured mock backend route.
-              This still does not create users, write to Supabase, edit
-              profiles, or change upload permissions yet.
-            </p>
-          </div>
+          <h2 className="text-xl font-semibold">Create Uploader</h2>
+          <p className="mt-2 text-sm leading-6 text-white/60">
+            Creates a Supabase auth user and inserts the matching uploader
+            profile. Upload permissions are still not activated yet.
+          </p>
 
-          <form onSubmit={handleCreateUploaderShell} className="mt-6 space-y-5">
+          <form onSubmit={handleCreateUploader} className="mt-6 space-y-5">
             <div>
               <label className="mb-2 block text-sm font-medium text-white/70">
                 Uploader Email
@@ -246,11 +244,7 @@ export default function AdminUploadersPage() {
                 disabled={isSubmitting}
                 onChange={(event) => {
                   const value = event.target.value;
-
-                  if (isAllowedUploaderRole(value)) {
-                    setNewUploaderRole(value);
-                  }
-
+                  if (isAllowedUploaderRole(value)) setNewUploaderRole(value);
                   setFormError(null);
                   setFormMessage(null);
                 }}
@@ -266,7 +260,7 @@ export default function AdminUploadersPage() {
               disabled={isSubmitting}
               className="w-full rounded-xl bg-yellow-400 px-4 py-3 text-sm font-bold text-black transition hover:bg-yellow-300 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isSubmitting ? "Checking Owner Access..." : "Preview Secure Flow"}
+              {isSubmitting ? "Creating Uploader..." : "Create Uploader"}
             </button>
           </form>
 
@@ -281,21 +275,14 @@ export default function AdminUploadersPage() {
               {formMessage}
             </div>
           )}
-
-          <div className="mt-5 rounded-xl border border-white/10 bg-black/40 p-4 text-sm leading-6 text-white/50">
-            Current step: frontend and backend are connected with server-side
-            owner verification. Real uploader creation remains disabled.
-          </div>
         </div>
 
         <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <h2 className="text-xl font-semibold">Uploader Profiles</h2>
-
               <p className="mt-2 max-w-2xl text-sm leading-6 text-white/60">
-                Read-only view of existing uploader profiles. No team member
-                records are being changed yet.
+                Existing uploader profiles.
               </p>
             </div>
 
@@ -334,19 +321,16 @@ export default function AdminUploadersPage() {
                       <td className="px-4 py-4 text-white/85">
                         {uploader.email || "No email"}
                       </td>
-
                       <td className="px-4 py-4">
                         <span className="rounded-full border border-yellow-500/20 bg-yellow-500/10 px-3 py-1 text-xs text-yellow-300">
                           {uploader.role || "No role"}
                         </span>
                       </td>
-
                       <td className="px-4 py-4">
                         <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/70">
                           {uploader.status || "No status"}
                         </span>
                       </td>
-
                       <td className="px-4 py-4 text-white/50">
                         {uploader.created_at
                           ? new Date(uploader.created_at).toLocaleDateString()
@@ -358,11 +342,6 @@ export default function AdminUploadersPage() {
               </table>
             </div>
           )}
-
-          <div className="mt-6 rounded-xl border border-white/10 bg-black/40 p-4 text-sm text-white/50">
-            Current mode: read-only uploader profile dashboard plus secure mock
-            API preview connection.
-          </div>
         </div>
       </section>
     </main>
