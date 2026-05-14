@@ -1,8 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { signInUploader, getUploaderProfile } from "@/lib/auth";
+
+import {
+  getUploaderProfile,
+  signInUploader,
+  supabase,
+} from "@/lib/auth";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -10,7 +15,32 @@ export default function AdminLoginPage() {
   const [email, setEmail] = useState("admin@hiddentunes.com");
   const [password, setPassword] = useState("");
   const [isSigningIn, setIsSigningIn] = useState(false);
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    async function checkExistingSession() {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session?.user) {
+        setIsCheckingSession(false);
+        return;
+      }
+
+      const { profile } = await getUploaderProfile(session.user.id);
+
+      if (profile?.status === "active") {
+        router.replace("/admin/upload");
+        return;
+      }
+
+      setIsCheckingSession(false);
+    }
+
+    checkExistingSession();
+  }, [router]);
 
   async function handleLogin(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -18,7 +48,10 @@ export default function AdminLoginPage() {
     setIsSigningIn(true);
     setError("");
 
-    const { data, error: signInError } = await signInUploader(email, password);
+    const { data, error: signInError } = await signInUploader(
+      email,
+      password
+    );
 
     if (signInError || !data.user) {
       setError(signInError?.message || "Login failed");
@@ -26,24 +59,26 @@ export default function AdminLoginPage() {
       return;
     }
 
-    const { profile, error: profileError } = await getUploaderProfile(
-      data.user.id
-    );
+    const { profile, error: profileError } =
+      await getUploaderProfile(data.user.id);
 
     if (profileError || !profile || profile.status !== "active") {
-      console.log("PROFILE CHECK FAILED", {
-        userId: data.user.id,
-        email: data.user.email,
-        profile,
-        profileError,
-      });
-
       setError("This account is not allowed to access Hidden Tunes Admin.");
       setIsSigningIn(false);
       return;
     }
 
-    router.push("/admin/upload");
+    router.replace("/admin/upload");
+  }
+
+  if (isCheckingSession) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#050508] text-white">
+        <div className="rounded-3xl border border-white/10 bg-[#101017] px-8 py-6 text-sm text-white/60">
+          Checking secure session...
+        </div>
+      </main>
+    );
   }
 
   return (
@@ -67,6 +102,7 @@ export default function AdminLoginPage() {
             <span className="text-xs font-bold uppercase tracking-widest text-white/45">
               Email
             </span>
+
             <input
               value={email}
               onChange={(event) => setEmail(event.target.value)}
@@ -80,6 +116,7 @@ export default function AdminLoginPage() {
             <span className="text-xs font-bold uppercase tracking-widest text-white/45">
               Password
             </span>
+
             <input
               value={password}
               onChange={(event) => setPassword(event.target.value)}

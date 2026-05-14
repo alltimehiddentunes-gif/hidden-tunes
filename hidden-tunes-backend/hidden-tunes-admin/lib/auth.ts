@@ -1,5 +1,7 @@
 import { supabase } from "./supabaseClient";
 
+export { supabase };
+
 export async function signInUploader(
   email: string,
   password: string
