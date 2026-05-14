@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { getUploaderProfile, supabase } from "@/lib/auth";
@@ -21,6 +21,10 @@ export default function AdminUploadersPage() {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [uploaders, setUploaders] = useState<UploaderProfile[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const [newUploaderEmail, setNewUploaderEmail] = useState("");
+  const [newUploaderRole, setNewUploaderRole] = useState("upload_manager");
+  const [formMessage, setFormMessage] = useState<string | null>(null);
 
   useEffect(() => {
     async function validateOwnerAccessAndLoadUploaders() {
@@ -68,6 +72,14 @@ export default function AdminUploadersPage() {
     validateOwnerAccessAndLoadUploaders();
   }, [router]);
 
+  function handleCreateUploaderShell(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    setFormMessage(
+      `UI shell only: ${newUploaderEmail || "No email entered"} would be prepared as ${newUploaderRole}. No database changes were made.`
+    );
+  }
+
   if (isLoading) {
     return (
       <main className="min-h-screen bg-black flex items-center justify-center text-white">
@@ -102,7 +114,64 @@ export default function AdminUploadersPage() {
         </div>
       </div>
 
-      <section className="mx-auto max-w-7xl px-6 py-8">
+      <section className="mx-auto grid max-w-7xl gap-6 px-6 py-8 lg:grid-cols-[420px_1fr]">
+        <div className="rounded-2xl border border-yellow-500/10 bg-white/[0.03] p-6">
+          <div>
+            <h2 className="text-xl font-semibold">Create Uploader</h2>
+            <p className="mt-2 text-sm leading-6 text-white/60">
+              UI-only owner form shell. This does not create users, write to
+              Supabase, edit profiles, or change upload permissions yet.
+            </p>
+          </div>
+
+          <form onSubmit={handleCreateUploaderShell} className="mt-6 space-y-5">
+            <div>
+              <label className="mb-2 block text-sm font-medium text-white/70">
+                Uploader Email
+              </label>
+              <input
+                type="email"
+                value={newUploaderEmail}
+                onChange={(event) => setNewUploaderEmail(event.target.value)}
+                placeholder="team@example.com"
+                className="w-full rounded-xl border border-white/10 bg-black/50 px-4 py-3 text-sm text-white outline-none transition placeholder:text-white/30 focus:border-yellow-500/40"
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-white/70">
+                Role
+              </label>
+              <select
+                value={newUploaderRole}
+                onChange={(event) => setNewUploaderRole(event.target.value)}
+                className="w-full rounded-xl border border-white/10 bg-black/50 px-4 py-3 text-sm text-white outline-none transition focus:border-yellow-500/40"
+              >
+                <option value="upload_manager">Upload Manager</option>
+                <option value="owner">Owner</option>
+              </select>
+            </div>
+
+            <button
+              type="submit"
+              className="w-full rounded-xl bg-yellow-400 px-4 py-3 text-sm font-bold text-black transition hover:bg-yellow-300"
+            >
+              Preview Create Flow
+            </button>
+          </form>
+
+          {formMessage && (
+            <div className="mt-5 rounded-xl border border-yellow-500/20 bg-yellow-500/10 p-4 text-sm leading-6 text-yellow-200">
+              {formMessage}
+            </div>
+          )}
+
+          <div className="mt-5 rounded-xl border border-white/10 bg-black/40 p-4 text-sm leading-6 text-white/50">
+            Next later step: connect this form safely to a controlled owner-only
+            creation action after the UI is tested.
+          </div>
+        </div>
+
         <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
@@ -175,7 +244,8 @@ export default function AdminUploadersPage() {
           )}
 
           <div className="mt-6 rounded-xl border border-white/10 bg-black/40 p-4 text-sm text-white/50">
-            Next safe step will be owner-only invite/create uploader controls.
+            Current mode: read-only uploader profile dashboard plus UI-only
+            create form shell.
           </div>
         </div>
       </section>
