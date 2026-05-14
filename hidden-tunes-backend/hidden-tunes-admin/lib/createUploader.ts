@@ -27,11 +27,6 @@ export function isAllowedUploaderRole(role: string): role is UploaderRole {
   return role === "owner" || role === "upload_manager";
 }
 
-export function generateTemporaryPassword() {
-  const randomPart = globalThis.crypto.randomUUID().replace(/-/g, "");
-  return `HiddenTunes-${randomPart.slice(0, 16)}!`;
-}
-
 export async function createUploaderPreview(
   input: CreateUploaderInput
 ): Promise<CreateUploaderResult> {
@@ -78,22 +73,46 @@ export async function createSupabaseUploaderAuthUser(
     };
   }
 
-  const temporaryPassword = generateTemporaryPassword();
-
-  const { data, error } = await supabaseAdmin.auth.admin.createUser({
+  const { data, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(
     email,
-    password: temporaryPassword,
-    email_confirm: true,
-    user_metadata: {
-      role: input.role,
-      created_by: "hidden_tunes_admin",
-    },
-  });
+    {
+      data: {
+        role: input.role,
+        created_by: "hidden_tunes_admin",
+      },
+    }
+  );
 
-  if (error || !data.user) {
+  if (error) {
     return {
       success: false,
-      error: error?.message || "Failed to create uploader auth user.",
+      error: error.message || "Failed to invite uploader auth user.",
+    };
+  }
+
+  if (!data.user?.id) {
+    return {
+      success: false,
+      error:
+        "Supabase invite did not return an auth user id. Uploader profile was not created.",
+    };
+  }
+
+  const { error: metadataError } = await supabaseAdmin.auth.admin.updateUserById(
+    data.user.id,
+    {
+      user_metadata: {
+        ...(data.user.user_metadata || {}),
+        role: input.role,
+        created_by: "hidden_tunes_admin",
+      },
+    }
+  );
+
+  if (metadataError) {
+    return {
+      success: false,
+      error: metadataError.message || "Failed to update uploader metadata.",
     };
   }
 

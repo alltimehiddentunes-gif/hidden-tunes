@@ -152,8 +152,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      mode: "live-auth-and-profile-created",
-      message: "Uploader auth user and uploader profile created.",
+      mode: "supabase-invite-and-profile-created",
+      message: "Uploader invite email sent and uploader profile created.",
       uploader: {
         userId: authResult.userId,
         email: authResult.email,

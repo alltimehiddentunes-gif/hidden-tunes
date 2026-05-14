@@ -85,8 +85,9 @@ export default function AdminLoginPage() {
         <h1 className="text-3xl font-black">Secure Login</h1>
 
         <p className="mt-3 text-sm leading-6 text-white/55">
-          Sign in with an active owner or uploader account. Disabled accounts
-          are signed out automatically.
+          Invited uploaders should complete password setup from their Supabase
+          invite email, then sign in here. Disabled accounts are signed out
+          automatically.
         </p>
 
         <div className="mt-6 flex flex-col gap-4">

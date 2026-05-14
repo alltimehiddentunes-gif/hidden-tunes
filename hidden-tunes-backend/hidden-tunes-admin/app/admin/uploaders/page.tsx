@@ -201,7 +201,7 @@ export default function AdminUploadersPage() {
 
       setFormMessage(
         result.message ||
-          `Uploader ${cleanedEmail} was created and marked active.`
+          `Invite email sent to ${cleanedEmail} and uploader profile created.`
       );
       setCreatedUploaderNotice({
         email: result.uploader?.email || cleanedEmail,
@@ -350,8 +350,8 @@ export default function AdminUploadersPage() {
         <div className="rounded-2xl border border-yellow-500/10 bg-white/[0.03] p-6">
           <h2 className="text-xl font-semibold">Create Uploader</h2>
           <p className="mt-2 text-sm leading-6 text-white/60">
-            Creates a Supabase auth user and inserts the matching uploader
-            profile. Upload permissions are still not activated yet.
+            Sends a Supabase invite email and creates the matching uploader
+            profile.
           </p>
 
           <form onSubmit={handleCreateUploader} className="mt-6 space-y-5">
@@ -417,7 +417,7 @@ export default function AdminUploadersPage() {
           {createdUploaderNotice && (
             <div className="mt-5 rounded-2xl border border-white/10 bg-black/35 p-5">
               <p className="text-xs font-bold uppercase tracking-[0.25em] text-yellow-300">
-                Uploader ready
+                Invite sent
               </p>
 
               <p className="mt-3 break-words text-lg font-bold text-white">
@@ -425,8 +425,9 @@ export default function AdminUploadersPage() {
               </p>
 
               <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.03] p-4 text-sm leading-6 text-white/65">
-                This {createdUploaderNotice.role.replace("_", " ")} account is
-                active and can sign in at{" "}
+                Supabase sent an invite email to this{" "}
+                {createdUploaderNotice.role.replace("_", " ")}. They must open
+                the invite email, complete password setup, then sign in at{" "}
                 <span className="font-semibold text-white">/admin/login</span>.
                 If the account is disabled later, admin access is removed
                 immediately and active sessions are sent back to login.
