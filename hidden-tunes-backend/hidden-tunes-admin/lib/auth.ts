@@ -2,6 +2,14 @@ import { supabase } from "./supabaseClient";
 
 export { supabase };
 
+export type UploaderProfile = {
+  id: string;
+  email: string | null;
+  role: string | null;
+  status: string | null;
+  [key: string]: unknown;
+};
+
 export async function signInUploader(
   email: string,
   password: string
@@ -38,7 +46,36 @@ export async function getUploaderProfile(userId: string) {
   });
 
   return {
-    profile: data,
+    profile: data as UploaderProfile | null,
     error,
+  };
+}
+
+export async function getActiveUploaderSession() {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  if (!session?.user) {
+    return {
+      session: null,
+      profile: null,
+    };
+  }
+
+  const { profile } = await getUploaderProfile(session.user.id);
+
+  if (!profile || profile.status !== "active") {
+    await supabase.auth.signOut();
+
+    return {
+      session: null,
+      profile: null,
+    };
+  }
+
+  return {
+    session,
+    profile,
   };
 }

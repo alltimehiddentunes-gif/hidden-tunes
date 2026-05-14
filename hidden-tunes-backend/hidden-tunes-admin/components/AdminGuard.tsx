@@ -4,7 +4,7 @@ import { ReactNode, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import {
-  getUploaderProfile,
+  getActiveUploaderSession,
   supabase,
 } from "@/lib/auth";
 
@@ -21,19 +21,9 @@ export default function AdminGuard({
 
   useEffect(() => {
     async function validateSession() {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      const { profile } = await getActiveUploaderSession();
 
-      if (!session?.user) {
-        router.replace("/admin/login");
-        return;
-      }
-
-      const { profile } = await getUploaderProfile(session.user.id);
-
-      if (!profile || profile.status !== "active") {
-        await supabase.auth.signOut();
+      if (!profile) {
         router.replace("/admin/login");
         return;
       }

@@ -4,9 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import {
-  getUploaderProfile,
+  getActiveUploaderSession,
   signInUploader,
-  supabase,
 } from "@/lib/auth";
 
 export default function AdminLoginPage() {
@@ -20,18 +19,9 @@ export default function AdminLoginPage() {
 
   useEffect(() => {
     async function checkExistingSession() {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      const { profile } = await getActiveUploaderSession();
 
-      if (!session?.user) {
-        setIsCheckingSession(false);
-        return;
-      }
-
-      const { profile } = await getUploaderProfile(session.user.id);
-
-      if (profile?.status === "active") {
+      if (profile) {
         router.replace("/admin/upload");
         return;
       }
@@ -59,10 +49,9 @@ export default function AdminLoginPage() {
       return;
     }
 
-    const { profile, error: profileError } =
-      await getUploaderProfile(data.user.id);
+    const { profile } = await getActiveUploaderSession();
 
-    if (profileError || !profile || profile.status !== "active") {
+    if (!profile) {
       setError("This account is not allowed to access Hidden Tunes Admin.");
       setIsSigningIn(false);
       return;

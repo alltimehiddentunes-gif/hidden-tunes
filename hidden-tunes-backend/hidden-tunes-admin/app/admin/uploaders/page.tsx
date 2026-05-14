@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { getUploaderProfile, supabase } from "@/lib/auth";
+import { getActiveUploaderSession, supabase } from "@/lib/auth";
 import { canManageUploaders } from "@/lib/adminPermissions";
 
 type UploaderRole = "upload_manager" | "owner";
@@ -90,19 +90,9 @@ export default function AdminUploadersPage() {
     async function validateOwnerAccessAndLoadUploaders() {
       setErrorMessage(null);
 
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      const { profile } = await getActiveUploaderSession();
 
-      if (!session?.user) {
-        router.replace("/admin/login");
-        return;
-      }
-
-      const { profile } = await getUploaderProfile(session.user.id);
-
-      if (!profile || profile.status !== "active") {
-        await supabase.auth.signOut();
+      if (!profile) {
         router.replace("/admin/login");
         return;
       }
