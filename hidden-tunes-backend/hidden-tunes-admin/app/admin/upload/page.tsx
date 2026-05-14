@@ -12,6 +12,7 @@ import {
 
 import {
   canManageUploaders,
+  canUploadMusic,
 } from "@/lib/adminPermissions";
 
 export default function AdminUploadPage() {
@@ -26,6 +27,11 @@ export default function AdminUploadPage() {
       const { profile } = await getActiveUploaderSession();
 
       if (!profile) {
+        router.replace("/admin/login");
+        return;
+      }
+
+      if (!canUploadMusic(profile.role)) {
         router.replace("/admin/login");
         return;
       }
@@ -72,6 +78,7 @@ export default function AdminUploadPage() {
 
             {canManageUploaders(userRole) && (
               <button
+                onClick={() => router.push("/admin/uploaders")}
                 className="rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-2 text-sm font-medium text-yellow-300 transition hover:bg-yellow-500/20"
               >
                 Manage Uploaders
