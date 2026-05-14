@@ -89,6 +89,8 @@ export default function AdminUploadersPage() {
     [uploaders]
   );
 
+  const isStatusUpdating = updatingUploaderId !== null;
+
   async function loadUploaders() {
     const { data, error } = await supabase
       .from("uploader_profiles")
@@ -101,6 +103,7 @@ export default function AdminUploadersPage() {
       return;
     }
 
+    setErrorMessage(null);
     setUploaders((data || []) as UploaderProfile[]);
   }
 
@@ -135,6 +138,8 @@ export default function AdminUploadersPage() {
 
     setFormError(null);
     setFormMessage(null);
+    setStatusError(null);
+    setStatusMessage(null);
 
     if (!cleanedEmail) {
       setFormError("Enter the uploader email.");
@@ -180,16 +185,23 @@ export default function AdminUploadersPage() {
       const result = (await response.json()) as CreateUploaderApiResponse;
 
       if (!response.ok || !result.success) {
-        setFormError(result.error || "Uploader could not be created.");
+        setFormError(
+          result.error || "Uploader could not be created. Please try again."
+        );
         return;
       }
 
-      setFormMessage(result.message || "Uploader created successfully.");
+      setFormMessage(
+        result.message ||
+          `Uploader ${cleanedEmail} was created and marked active.`
+      );
       setNewUploaderEmail("");
       await loadUploaders();
     } catch (error) {
       console.error("CREATE UPLOADER ERROR", error);
-      setFormError("Network error while creating uploader.");
+      setFormError(
+        "Network error while creating uploader. Check your connection and try again."
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -199,14 +211,16 @@ export default function AdminUploadersPage() {
     uploader: UploaderProfile,
     status: UploaderStatus
   ) {
-    if (updatingUploaderId) return;
+    if (updatingUploaderId) return false;
 
     setStatusError(null);
     setStatusMessage(null);
+    setFormError(null);
+    setFormMessage(null);
 
     if (uploader.role === "owner" && status === "disabled") {
       setStatusError("Owner accounts cannot be disabled.");
-      return;
+      return false;
     }
 
     setUpdatingUploaderId(uploader.id);
@@ -220,7 +234,7 @@ export default function AdminUploadersPage() {
 
       if (!accessToken) {
         setStatusError("Missing authenticated uploader session.");
-        return;
+        return false;
       }
 
       const response = await fetch("/api/admin/update-uploader-status", {
@@ -238,21 +252,35 @@ export default function AdminUploadersPage() {
       const result = (await response.json()) as UpdateUploaderStatusApiResponse;
 
       if (!response.ok || !result.success) {
-        setStatusError(result.error || "Uploader status could not be updated.");
-        return;
+        setStatusError(
+          result.error ||
+            "Uploader status could not be updated. Refresh and try again."
+        );
+        return false;
       }
 
-      setStatusMessage(result.message || "Uploader status updated.");
+      const uploaderLabel = uploader.email || "Uploader";
+      setStatusMessage(
+        status === "disabled"
+          ? `${uploaderLabel} is disabled and no longer has admin access.`
+          : `${uploaderLabel} is active and can use allowed admin tools.`
+      );
       await loadUploaders();
+      return true;
     } catch (error) {
       console.error("UPDATE UPLOADER STATUS ERROR", error);
-      setStatusError("Network error while updating uploader status.");
+      setStatusError(
+        "Network error while updating uploader status. Check your connection and try again."
+      );
+      return false;
     } finally {
       setUpdatingUploaderId(null);
     }
   }
 
   function handleRequestDisableUploader(uploader: UploaderProfile) {
+    if (updatingUploaderId) return;
+
     setStatusError(null);
     setStatusMessage(null);
 
@@ -268,8 +296,8 @@ export default function AdminUploadersPage() {
     if (!pendingDisableUploader) return;
 
     const uploader = pendingDisableUploader;
-    setPendingDisableUploader(null);
     await handleUpdateUploaderStatus(uploader, "disabled");
+    setPendingDisableUploader(null);
   }
 
   if (isLoading) {
@@ -429,13 +457,14 @@ export default function AdminUploadersPage() {
 
           {!errorMessage && uploaders.length === 0 && (
             <div className="mt-6 rounded-xl border border-white/10 bg-black/40 p-4 text-sm text-white/50">
-              No uploader profiles found yet.
+              No uploader profiles found yet. Create the first uploader to
+              begin managing team access.
             </div>
           )}
 
           {!errorMessage && uploaders.length > 0 && (
-            <div className="mt-6 overflow-hidden rounded-2xl border border-white/10">
-              <table className="w-full border-collapse text-left text-sm">
+            <div className="mt-6 overflow-x-auto rounded-2xl border border-white/10">
+              <table className="w-full min-w-[760px] border-collapse text-left text-sm">
                 <thead className="bg-white/[0.04] text-white/50">
                   <tr>
                     <th className="px-4 py-3 font-medium">Email</th>
@@ -487,7 +516,7 @@ export default function AdminUploadersPage() {
                             <div className="flex flex-wrap gap-2">
                               <button
                                 type="button"
-                                disabled={!canActivate || isUpdating}
+                                disabled={!canActivate || isStatusUpdating}
                                 onClick={() =>
                                   handleUpdateUploaderStatus(
                                     uploader,
@@ -503,7 +532,7 @@ export default function AdminUploadersPage() {
 
                               <button
                                 type="button"
-                                disabled={!canDisable || isUpdating}
+                                disabled={!canDisable || isStatusUpdating}
                                 onClick={() =>
                                   handleRequestDisableUploader(uploader)
                                 }
@@ -539,14 +568,15 @@ export default function AdminUploadersPage() {
 
             <p className="mt-3 text-sm leading-6 text-white/60">
               Disabling {pendingDisableUploader.email || "this uploader"} will
-              immediately remove their Hidden Tunes admin access and force them
-              back to the login screen.
+              immediately remove their Hidden Tunes admin access, block future
+              dashboard use, and force their active sessions back to the login
+              screen.
             </p>
 
             <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
               <button
                 type="button"
-                disabled={updatingUploaderId === pendingDisableUploader.id}
+                disabled={isStatusUpdating}
                 onClick={() => setPendingDisableUploader(null)}
                 className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
               >
@@ -555,7 +585,7 @@ export default function AdminUploadersPage() {
 
               <button
                 type="button"
-                disabled={updatingUploaderId === pendingDisableUploader.id}
+                disabled={isStatusUpdating}
                 onClick={handleConfirmDisableUploader}
                 className="rounded-xl border border-red-500/20 bg-red-500/20 px-4 py-3 text-sm font-bold text-red-100 transition hover:bg-red-500/30 disabled:cursor-not-allowed disabled:opacity-50"
               >
