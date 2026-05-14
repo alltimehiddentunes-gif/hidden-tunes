@@ -52,7 +52,9 @@ export default function AdminLoginPage() {
     const { profile } = await getActiveUploaderSession();
 
     if (!profile) {
-      setError("This account is not allowed to access Hidden Tunes Admin.");
+      setError(
+        "This account is not active for Hidden Tunes Admin. Disabled accounts lose access immediately."
+      );
       setIsSigningIn(false);
       return;
     }
@@ -83,7 +85,8 @@ export default function AdminLoginPage() {
         <h1 className="text-3xl font-black">Secure Login</h1>
 
         <p className="mt-3 text-sm leading-6 text-white/55">
-          Sign in with an approved uploader or owner account.
+          Sign in with an active owner or uploader account. Disabled accounts
+          are signed out automatically.
         </p>
 
         <div className="mt-6 flex flex-col gap-4">

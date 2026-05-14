@@ -36,6 +36,11 @@ type UpdateUploaderStatusApiResponse = {
   message?: string;
 };
 
+type CreatedUploaderNotice = {
+  email: string;
+  role: string;
+} | null;
+
 const ALLOWED_UPLOADER_ROLES: UploaderRole[] = ["upload_manager", "owner"];
 
 function isValidEmail(value: string) {
@@ -60,6 +65,8 @@ export default function AdminUploadersPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [formMessage, setFormMessage] = useState<string | null>(null);
+  const [createdUploaderNotice, setCreatedUploaderNotice] =
+    useState<CreatedUploaderNotice>(null);
   const [updatingUploaderId, setUpdatingUploaderId] = useState<string | null>(
     null
   );
@@ -138,6 +145,7 @@ export default function AdminUploadersPage() {
 
     setFormError(null);
     setFormMessage(null);
+    setCreatedUploaderNotice(null);
     setStatusError(null);
     setStatusMessage(null);
 
@@ -195,6 +203,10 @@ export default function AdminUploadersPage() {
         result.message ||
           `Uploader ${cleanedEmail} was created and marked active.`
       );
+      setCreatedUploaderNotice({
+        email: result.uploader?.email || cleanedEmail,
+        role: result.uploader?.role || newUploaderRole,
+      });
       setNewUploaderEmail("");
       await loadUploaders();
     } catch (error) {
@@ -399,6 +411,26 @@ export default function AdminUploadersPage() {
           {formMessage && (
             <div className="mt-5 rounded-xl border border-yellow-500/20 bg-yellow-500/10 p-4 text-sm leading-6 text-yellow-200">
               {formMessage}
+            </div>
+          )}
+
+          {createdUploaderNotice && (
+            <div className="mt-5 rounded-2xl border border-white/10 bg-black/35 p-5">
+              <p className="text-xs font-bold uppercase tracking-[0.25em] text-yellow-300">
+                Uploader ready
+              </p>
+
+              <p className="mt-3 break-words text-lg font-bold text-white">
+                {createdUploaderNotice.email}
+              </p>
+
+              <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.03] p-4 text-sm leading-6 text-white/65">
+                This {createdUploaderNotice.role.replace("_", " ")} account is
+                active and can sign in at{" "}
+                <span className="font-semibold text-white">/admin/login</span>.
+                If the account is disabled later, admin access is removed
+                immediately and active sessions are sent back to login.
+              </div>
             </div>
           )}
         </div>
