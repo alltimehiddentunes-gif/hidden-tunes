@@ -888,6 +888,7 @@ export default function ExploreScreen() {
                   onPress={() => openGenre(genre as GenreItem)}
                 >
                   <View style={styles.genreWorldGlow} />
+                  <View style={styles.genreAccentLine} />
 
                   <View style={styles.genreArtworkStack}>
                     <HTImage
@@ -902,7 +903,11 @@ export default function ExploreScreen() {
                   </View>
 
                   <View style={styles.genreWorldTop}>
-                    <Text style={styles.genreEmoji}>{genre.emoji}</Text>
+                    <View style={styles.genreIndexBadge}>
+                      <Text style={styles.genreIndexText}>
+                        {String(index + 1).padStart(2, "0")}
+                      </Text>
+                    </View>
                     <View style={styles.genreVibePill}>
                       <Text numberOfLines={1} style={styles.genreVibeText}>
                         {genre.vibe}
@@ -1435,24 +1440,22 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   genreGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
+    gap: 14,
     marginBottom: 28,
   },
   genreWorldCard: {
-    width: "47%",
-    minHeight: 202,
-    borderRadius: 30,
-    padding: 14,
-    backgroundColor: "rgba(255,255,255,0.07)",
+    width: "100%",
+    minHeight: 184,
+    borderRadius: 32,
+    padding: 18,
+    backgroundColor: "rgba(255,255,255,0.058)",
     borderWidth: 1,
-    borderColor: "rgba(168,85,247,0.22)",
+    borderColor: "rgba(255,255,255,0.12)",
     justifyContent: "space-between",
     overflow: "hidden",
     shadowColor: "#A855F7",
-    shadowOpacity: 0.16,
-    shadowRadius: 18,
+    shadowOpacity: 0.12,
+    shadowRadius: 20,
     shadowOffset: {
       width: 0,
       height: 10,
@@ -1460,16 +1463,26 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   genreWorldCardAlt: {
-    borderColor: "rgba(34,211,238,0.2)",
+    borderColor: "rgba(34,211,238,0.13)",
   },
   genreWorldGlow: {
     position: "absolute",
-    right: -56,
-    top: -52,
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    backgroundColor: "rgba(168,85,247,0.18)",
+    right: -74,
+    top: -76,
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: "rgba(168,85,247,0.14)",
+  },
+  genreAccentLine: {
+    position: "absolute",
+    left: 0,
+    top: 24,
+    bottom: 24,
+    width: 2,
+    borderRadius: 2,
+    backgroundColor: COLORS.primary,
+    opacity: 0.72,
   },
   genreWorldTop: {
     flexDirection: "row",
@@ -1479,43 +1492,56 @@ const styles = StyleSheet.create({
   },
   genreArtworkStack: {
     position: "absolute",
-    right: 12,
-    top: 44,
-    width: 88,
-    height: 86,
+    right: 18,
+    top: 34,
+    width: 126,
+    height: 116,
   },
   genreArtwork: {
     position: "absolute",
     right: 0,
-    top: 10,
-    width: 66,
-    height: 66,
-    borderRadius: 22,
+    top: 8,
+    width: 92,
+    height: 92,
+    borderRadius: 28,
     backgroundColor: COLORS.card,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.14)",
   },
   genreArtworkMid: {
-    right: 14,
-    top: 6,
-    opacity: 0.78,
+    right: 20,
+    top: 4,
+    opacity: 0.62,
     transform: [{ rotate: "-7deg" }],
   },
   genreArtworkBack: {
-    right: 28,
-    top: 2,
-    opacity: 0.42,
+    right: 40,
+    top: 0,
+    opacity: 0.28,
     transform: [{ rotate: "-13deg" }],
   },
-  genreEmoji: {
-    fontSize: 28,
+  genreIndexBadge: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: "rgba(0,0,0,0.36)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  genreIndexText: {
+    color: COLORS.text,
+    fontSize: 12,
+    fontWeight: "900",
+    letterSpacing: 1,
   },
   genreVibePill: {
-    maxWidth: 92,
+    maxWidth: 150,
     borderRadius: 999,
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-    backgroundColor: "rgba(0,0,0,0.34)",
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    backgroundColor: "rgba(0,0,0,0.28)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.1)",
   },
@@ -1526,33 +1552,34 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   genreWorldContent: {
-    marginTop: 70,
+    marginTop: 40,
+    paddingRight: 118,
     zIndex: 2,
   },
   genreTitle: {
     color: COLORS.text,
-    fontSize: 20,
+    fontSize: 25,
     fontWeight: "900",
-    letterSpacing: -0.4,
+    letterSpacing: -0.7,
   },
   genrePreview: {
     color: COLORS.textMuted,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "800",
-    lineHeight: 16,
+    lineHeight: 18,
     marginTop: 8,
   },
   genreCtaRow: {
     alignSelf: "flex-start",
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 7,
     borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    backgroundColor: "rgba(0,0,0,0.32)",
+    paddingHorizontal: 0,
+    paddingVertical: 4,
+    backgroundColor: "transparent",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
+    borderColor: "transparent",
     zIndex: 2,
   },
   genreCtaText: {
