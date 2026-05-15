@@ -20,6 +20,7 @@ import { router } from "expo-router";
 import MediaCard from "../../components/MediaCard";
 import NeonEQ from "../../components/NeonEQ";
 import HTImage from "../../components/HTImage";
+import LiveWaveform from "../../components/LiveWaveform";
 
 import { COLORS, GRADIENTS } from "../../constants/theme";
 import { usePlayer } from "../../context/PlayerContext";
@@ -405,6 +406,12 @@ function HomeScreen() {
                         {heroTrack.artist}
                       </Text>
 
+                      {heroShowingCurrentSong && (
+                        <View style={styles.heroWaveform}>
+                          <LiveWaveform isPlaying={isPlaying} size="small" />
+                        </View>
+                      )}
+
                       <View style={styles.playButton}>
                         <Ionicons
                           name={heroShowingCurrentSong && isPlaying ? "pause" : "play"}
@@ -773,6 +780,12 @@ const styles = StyleSheet.create({
     marginBottom: 18,
     fontSize: 14,
     fontWeight: "700",
+  },
+
+  heroWaveform: {
+    height: 28,
+    marginBottom: 18,
+    overflow: "hidden",
   },
 
   heroEmpty: {
