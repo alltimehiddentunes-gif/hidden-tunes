@@ -32,8 +32,19 @@ import { FALLBACK_ARTWORK, getArtworkUri } from "../../utils/artwork";
 
 const { width } = Dimensions.get("window");
 const FEATURED_CARD_WIDTH = width * 0.72;
+const HERO_CARD_WIDTH = width - 40;
 const INITIAL_HOME_SONG_ROWS = 24;
 const HOME_SONG_ROWS_INCREMENT = 24;
+
+type HeroCard = {
+  key: string;
+  label: string;
+  title: string;
+  subtitle: string;
+  song: HiddenTunesNormalizedSong;
+  icon: keyof typeof Ionicons.glyphMap;
+  isCurrent?: boolean;
+};
 
 function getSongImage(song: any) {
   return getArtworkUri(song, FALLBACK_ARTWORK);
@@ -71,7 +82,7 @@ function dedupeSongs(songs: HiddenTunesNormalizedSong[]) {
 }
 
 function HomeScreen() {
-  const { playSong, currentSong, isPlaying } = usePlayer() as any;
+  const { playSong, currentSong, isPlaying, recentlyPlayed } = usePlayer() as any;
 
   const isLoadingRef = useRef(false);
   const scrollRef = useRef<ScrollView>(null);
@@ -85,10 +96,6 @@ function HomeScreen() {
   const [visibleSongCount, setVisibleSongCount] = useState(INITIAL_HOME_SONG_ROWS);
 
   const defaultHeroTrack = featuredSongs[0];
-  const heroTrack = useMemo(() => {
-    return currentSong ? safeSong(currentSong) : defaultHeroTrack;
-  }, [currentSong, defaultHeroTrack]);
-  const heroShowingCurrentSong = Boolean(currentSong);
 
   useScrollToTop(scrollRef);
 
@@ -162,6 +169,89 @@ function HomeScreen() {
     [featuredSongs]
   );
 
+  const heroCards = useMemo<HeroCard[]>(() => {
+    const cards: HeroCard[] = [];
+    const firstGenreSong = featuredSongs.find((song) => Boolean(song.genre));
+    const firstMoodSong = featuredSongs.find((song) => Boolean(song.mood));
+    const hiddenTunesPick = featuredSongs[1] || defaultHeroTrack;
+    const recentSong = Array.isArray(recentlyPlayed)
+      ? recentlyPlayed.find((song: any) => song?.streamUrl || song?.url || song?.audioUrl)
+      : null;
+
+    if (currentSong) {
+      const song = safeSong(currentSong);
+
+      cards.push({
+        key: `current-${song.id}`,
+        label: "NOW PLAYING",
+        title: song.title,
+        subtitle: song.artist || "Hidden Tunes",
+        song,
+        icon: "pulse",
+        isCurrent: true,
+      });
+    }
+
+    if (defaultHeroTrack) {
+      cards.push({
+        key: `new-${defaultHeroTrack.id}`,
+        label: "NEW UPLOAD",
+        title: defaultHeroTrack.title,
+        subtitle: defaultHeroTrack.artist || "Fresh from the cloud",
+        song: defaultHeroTrack,
+        icon: "cloud-done",
+      });
+    }
+
+    if (hiddenTunesPick && hiddenTunesPick.id !== defaultHeroTrack?.id) {
+      cards.push({
+        key: `pick-${hiddenTunesPick.id}`,
+        label: "HIDDEN TUNES PICK",
+        title: hiddenTunesPick.title,
+        subtitle: hiddenTunesPick.artist || "Editor pick",
+        song: hiddenTunesPick,
+        icon: "sparkles",
+      });
+    }
+
+    if (firstGenreSong) {
+      cards.push({
+        key: `genre-${firstGenreSong.genre}-${firstGenreSong.id}`,
+        label: String(firstGenreSong.genre || "GENRE").toUpperCase(),
+        title: firstGenreSong.title,
+        subtitle: firstGenreSong.artist || "Genre discovery",
+        song: firstGenreSong,
+        icon: "albums",
+      });
+    }
+
+    if (firstMoodSong) {
+      cards.push({
+        key: `mood-${firstMoodSong.mood}-${firstMoodSong.id}`,
+        label: `${String(firstMoodSong.mood || "Mood").toUpperCase()} MOOD`,
+        title: firstMoodSong.title,
+        subtitle: firstMoodSong.artist || "Mood discovery",
+        song: firstMoodSong,
+        icon: "radio",
+      });
+    }
+
+    if (recentSong) {
+      const song = safeSong(recentSong);
+
+      cards.push({
+        key: `recent-${song.id}`,
+        label: "RECENTLY PLAYED",
+        title: song.title,
+        subtitle: song.artist || "Back in rotation",
+        song,
+        icon: "time",
+      });
+    }
+
+    return cards.slice(0, 6);
+  }, [currentSong, defaultHeroTrack, featuredSongs, recentlyPlayed]);
+
   const playFeaturedSong = useCallback(
     async (song: HiddenTunesNormalizedSong) => {
       const normalized = safeSong(song);
@@ -184,16 +274,88 @@ function HomeScreen() {
     );
   }, [featuredSongs.length]);
 
-  const handleHeroPress = useCallback(() => {
-    if (!heroTrack) return;
+  const handleHeroPress = useCallback(
+    (card: HeroCard) => {
+      if (card.isCurrent) {
+        router.push("/player" as any);
+        return;
+      }
 
-    if (heroShowingCurrentSong) {
-      router.push("/player" as any);
-      return;
-    }
+      playFeaturedSong(card.song);
+    },
+    [playFeaturedSong]
+  );
 
-    playFeaturedSong(heroTrack);
-  }, [heroShowingCurrentSong, heroTrack, playFeaturedSong]);
+  const renderHeroCard = useCallback(
+    ({ item, index }: { item: HeroCard; index: number }) => {
+      const active = item.isCurrent || currentSong?.id === String(item.song.id);
+
+      return (
+        <View style={styles.heroSlide}>
+          <LinearGradient colors={GRADIENTS.neon} style={styles.heroBorder}>
+            <TouchableOpacity
+              activeOpacity={0.92}
+              style={styles.heroCard}
+              onPress={() => handleHeroPress(item)}
+            >
+              <HTImage uri={getSongImage(item.song)} style={styles.heroImage} />
+
+              <LinearGradient
+                colors={["transparent", "rgba(0,0,0,0.98)"]}
+                style={styles.overlay}
+              >
+                <View style={styles.livePill}>
+                  {active ? (
+                    <NeonEQ isPlaying={isPlaying && item.isCurrent} size="small" />
+                  ) : (
+                    <Ionicons name={item.icon} size={13} color={COLORS.primary} />
+                  )}
+
+                  <Text style={styles.liveText}>{item.label}</Text>
+                </View>
+
+                <Text numberOfLines={1} style={styles.heroSong}>
+                  {item.title}
+                </Text>
+
+                <Text numberOfLines={1} style={styles.heroArtist}>
+                  {item.subtitle}
+                </Text>
+
+                {item.isCurrent && (
+                  <View style={styles.heroWaveform}>
+                    <LiveWaveform isPlaying={isPlaying} size="small" />
+                  </View>
+                )}
+
+                <View style={styles.heroBottomRow}>
+                  <View style={styles.playButton}>
+                    <Ionicons
+                      name={item.isCurrent && isPlaying ? "pause" : "play"}
+                      size={18}
+                      color="#000"
+                    />
+                    <Text style={styles.playText}>
+                      {item.isCurrent ? "OPEN PLAYER" : "PLAY"}
+                    </Text>
+                  </View>
+
+                  {heroCards.length > 1 && (
+                    <View style={styles.heroCountPill}>
+                      <Text style={styles.heroCountText}>
+                        {index + 1}/{heroCards.length}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              </LinearGradient>
+            </TouchableOpacity>
+          </LinearGradient>
+        </View>
+      );
+    },
+    [currentSong?.id, handleHeroPress, heroCards.length, isPlaying]
+  );
 
   const renderSongRow = useCallback(
     (song: HiddenTunesNormalizedSong, index: number) => {
@@ -371,60 +533,24 @@ function HomeScreen() {
               },
             ]}
           >
-            <LinearGradient colors={GRADIENTS.neon} style={styles.heroBorder}>
-              <TouchableOpacity
-                activeOpacity={0.92}
-                style={styles.heroCard}
-                onPress={handleHeroPress}
-              >
-                {heroTrack ? (
-                  <>
-                    <HTImage
-                      uri={getSongImage(heroTrack)}
-                      style={styles.heroImage}
-                    />
-
-                    <LinearGradient
-                      colors={["transparent", "rgba(0,0,0,0.98)"]}
-                      style={styles.overlay}
-                    >
-                      <View style={styles.livePill}>
-                        <NeonEQ
-                          isPlaying={isPlaying && heroShowingCurrentSong}
-                          size="small"
-                        />
-                        <Text style={styles.liveText}>
-                          {heroShowingCurrentSong ? "NOW PLAYING" : "CLOUD FEATURED"}
-                        </Text>
-                      </View>
-
-                      <Text numberOfLines={1} style={styles.heroSong}>
-                        {heroTrack.title}
-                      </Text>
-
-                      <Text numberOfLines={1} style={styles.heroArtist}>
-                        {heroTrack.artist}
-                      </Text>
-
-                      {heroShowingCurrentSong && (
-                        <View style={styles.heroWaveform}>
-                          <LiveWaveform isPlaying={isPlaying} size="small" />
-                        </View>
-                      )}
-
-                      <View style={styles.playButton}>
-                        <Ionicons
-                          name={heroShowingCurrentSong && isPlaying ? "pause" : "play"}
-                          size={18}
-                          color="#000"
-                        />
-                        <Text style={styles.playText}>
-                          {heroShowingCurrentSong ? "OPEN PLAYER" : "PLAY"}
-                        </Text>
-                      </View>
-                    </LinearGradient>
-                  </>
-                ) : (
+            {heroCards.length > 0 ? (
+              <FlatList
+                horizontal
+                data={heroCards}
+                keyExtractor={(item) => item.key}
+                renderItem={renderHeroCard}
+                showsHorizontalScrollIndicator={false}
+                snapToInterval={HERO_CARD_WIDTH}
+                decelerationRate="fast"
+                pagingEnabled
+                initialNumToRender={2}
+                maxToRenderPerBatch={2}
+                windowSize={3}
+                removeClippedSubviews
+              />
+            ) : (
+              <LinearGradient colors={GRADIENTS.neon} style={styles.heroBorder}>
+                <View style={styles.heroCard}>
                   <View style={styles.heroEmpty}>
                     <Ionicons name="cloud-upload" size={44} color={COLORS.primary} />
                     <Text style={styles.heroEmptyText}>No cloud track yet</Text>
@@ -432,9 +558,9 @@ function HomeScreen() {
                       Upload a song in Admin, then pull down to refresh.
                     </Text>
                   </View>
-                )}
-              </TouchableOpacity>
-            </LinearGradient>
+                </View>
+              </LinearGradient>
+            )}
           </Animated.View>
 
           <View style={styles.catalogPill}>
@@ -722,6 +848,10 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
   },
 
+  heroSlide: {
+    width: HERO_CARD_WIDTH,
+  },
+
   heroBorder: {
     height: 318,
     borderRadius: 34,
@@ -824,6 +954,29 @@ const styles = StyleSheet.create({
     color: "#000",
     fontWeight: "900",
     marginLeft: 8,
+  },
+
+  heroBottomRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+
+  heroCountPill: {
+    minHeight: 34,
+    borderRadius: 17,
+    paddingHorizontal: 12,
+    backgroundColor: "rgba(0,0,0,0.58)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  heroCountText: {
+    color: COLORS.text,
+    fontSize: 11,
+    fontWeight: "900",
   },
 
   catalogPill: {
