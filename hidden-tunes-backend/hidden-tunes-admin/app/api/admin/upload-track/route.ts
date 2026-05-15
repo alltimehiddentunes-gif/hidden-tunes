@@ -7,6 +7,10 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
+
 function slugify(value: string) {
   return String(value || "")
     .toLowerCase()
@@ -70,6 +74,41 @@ function generateEstimatedLrc(rawLyrics: string, durationSeconds: number) {
       return `${formatLrcTime(time)} ${line}`;
     })
     .join("\n");
+}
+
+function normalizeLyricsPayload({
+  legacyLyricsText,
+  plainLyricsText,
+  syncedLrcText,
+  durationSeconds,
+}: {
+  legacyLyricsText: string;
+  plainLyricsText: string;
+  syncedLrcText: string;
+  durationSeconds: number;
+}) {
+  let plainLyrics = plainLyricsText || null;
+  let syncedLrc = syncedLrcText || null;
+
+  if (!plainLyrics && !syncedLrc && legacyLyricsText) {
+    const detectedType = detectLyricsType(legacyLyricsText);
+
+    if (detectedType === "lrc") {
+      syncedLrc = legacyLyricsText;
+    } else {
+      plainLyrics = legacyLyricsText;
+    }
+  }
+
+  if (plainLyrics && !syncedLrc) {
+    syncedLrc = generateEstimatedLrc(plainLyrics, durationSeconds);
+  }
+
+  return {
+    plainLyrics,
+    syncedLrc,
+    hasLyrics: Boolean(plainLyrics || syncedLrc),
+  };
 }
 
 async function upsertArtist(name: string, slug: string, imageUrl: string) {
@@ -144,6 +183,8 @@ export async function POST(req: NextRequest) {
     const artworkKey = body.artworkKey ? String(body.artworkKey) : null;
 
     const lyricsText = String(body.lyricsText || "").trim();
+    const plainLyricsText = String(body.plainLyricsText || "").trim();
+    const syncedLrcText = String(body.syncedLrcText || "").trim();
 
     if (!title || !artistName || !audioUrl || !audioKey) {
       return NextResponse.json(
@@ -177,27 +218,21 @@ export async function POST(req: NextRequest) {
     let lyricsUrl: string | null = null;
     let lyricsKey: string | null = null;
     let lyricsType: "lrc" | null = null;
-    let syncedLrc: string | null = null;
-    let plainLyrics: string | null = null;
+    const normalizedLyrics = normalizeLyricsPayload({
+      legacyLyricsText: lyricsText,
+      plainLyricsText,
+      syncedLrcText,
+      durationSeconds,
+    });
 
-    if (lyricsText) {
-      const detectedType = detectLyricsType(lyricsText);
-
+    if (normalizedLyrics.hasLyrics && normalizedLyrics.syncedLrc) {
       lyricsType = "lrc";
-
-      if (detectedType === "lrc") {
-        syncedLrc = lyricsText;
-        plainLyrics = null;
-      } else {
-        plainLyrics = lyricsText;
-        syncedLrc = generateEstimatedLrc(lyricsText, durationSeconds);
-      }
 
       lyricsKey = `lyrics/${artistSlug}/${songId}-${titleSlug}.lrc`;
 
       lyricsUrl = await uploadToR2({
         key: lyricsKey,
-        body: Buffer.from(syncedLrc, "utf-8"),
+        body: Buffer.from(normalizedLyrics.syncedLrc, "utf-8"),
         contentType: "text/plain; charset=utf-8",
       });
     }
@@ -255,25 +290,40 @@ export async function POST(req: NextRequest) {
 
     if (songError) throw songError;
 
+    let uploadWarning: string | null = null;
+
     if (lyricsUrl && lyricsType) {
       const { error: lyricsError } = await supabaseAdmin
         .from("track_lyrics")
         .insert({
           song_id: song.id,
           lyrics_type: lyricsType,
-          plain_lyrics: plainLyrics,
-          synced_lrc: syncedLrc,
+          plain_lyrics: normalizedLyrics.plainLyrics,
+          synced_lrc: normalizedLyrics.syncedLrc,
           word_sync_json: null,
           r2_lyrics_key: lyricsKey,
           lyrics_url: lyricsUrl,
-          source: plainLyrics ? "auto_estimated_lrc" : "admin_upload",
+          source:
+            normalizedLyrics.plainLyrics && !syncedLrcText
+              ? "auto_estimated_lrc"
+              : "admin_upload",
         });
 
-      if (lyricsError) throw lyricsError;
+      if (lyricsError) {
+        uploadWarning =
+          "Track saved, but lyrics database insertion failed. The uploaded song is preserved; check track_lyrics before retrying.";
+
+        console.error("Upload lyrics insert failed after song save:", {
+          songId: song.id,
+          lyricsKey,
+          lyricsError,
+        });
+      }
     }
 
     return NextResponse.json({
       success: true,
+      warning: uploadWarning,
       track: {
         id: song.id,
         title: song.title,
@@ -322,13 +372,13 @@ export async function POST(req: NextRequest) {
         is_online: song.is_online ?? song.isOnline ?? true,
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Upload metadata save failed:", error);
 
     return NextResponse.json(
       {
         success: false,
-        error: error?.message || "Upload metadata save failed.",
+        error: getErrorMessage(error, "Upload metadata save failed."),
       },
       { status: 500 }
     );

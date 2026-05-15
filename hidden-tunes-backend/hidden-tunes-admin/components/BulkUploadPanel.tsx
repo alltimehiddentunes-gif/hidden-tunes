@@ -19,6 +19,7 @@ type TrackUploadItem = {
   status: UploadStatus;
   progress: number;
   error?: string;
+  warning?: string;
 };
 
 type SignedUploadResponse = {
@@ -28,6 +29,24 @@ type SignedUploadResponse = {
   publicUrl: string;
   error?: string;
 };
+
+class UploadStepError extends Error {
+  step: string;
+
+  constructor(step: string, message: string) {
+    super(message);
+    this.name = "UploadStepError";
+    this.step = step;
+  }
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
+
+function getUploadStep(error: unknown) {
+  return error instanceof UploadStepError ? error.step : "upload";
+}
 
 const API_UPLOAD_URL = "/api/admin/upload-track";
 const API_SIGNED_UPLOAD_URL = "/api/upload-url";
@@ -148,6 +167,13 @@ async function getSignedUploadUrl(file: File, folder: string) {
     | null;
 
   if (!response.ok || !data?.success || !data.signedUrl) {
+    console.error("Hidden Tunes upload sign-url failed", {
+      folder,
+      fileName: file.name,
+      status: response.status,
+      error: data?.error,
+    });
+
     throw new Error(
       data?.error || `Failed to create upload URL. Status ${response.status}`
     );
@@ -166,6 +192,7 @@ function uploadFileDirectToR2(
 
     xhr.open("PUT", signedUrl);
     xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
+    xhr.timeout = 1000 * 60 * 30;
 
     xhr.upload.onprogress = (event) => {
       if (!event.lengthComputable || !onProgress) return;
@@ -180,11 +207,25 @@ function uploadFileDirectToR2(
         return;
       }
 
-      reject(new Error(`R2 upload failed with status ${xhr.status}`));
+      reject(
+        new Error(
+          `R2 upload failed with status ${xhr.status}${
+            xhr.responseText ? `: ${xhr.responseText.slice(0, 160)}` : ""
+          }`
+        )
+      );
     };
 
     xhr.onerror = () => {
       reject(new Error("Network error while uploading to R2"));
+    };
+
+    xhr.ontimeout = () => {
+      reject(new Error("R2 upload timed out before completion"));
+    };
+
+    xhr.onabort = () => {
+      reject(new Error("R2 upload was cancelled"));
     };
 
     xhr.send(file);
@@ -196,9 +237,25 @@ async function uploadFileToR2(
   folder: string,
   onProgress?: (progress: number) => void
 ) {
-  const uploadInfo = await getSignedUploadUrl(file, folder);
+  let uploadInfo: SignedUploadResponse;
 
-  await uploadFileDirectToR2(file, uploadInfo.signedUrl, onProgress);
+  try {
+    uploadInfo = await getSignedUploadUrl(file, folder);
+  } catch (error: unknown) {
+    throw new UploadStepError(
+      `${folder} signed URL`,
+      getErrorMessage(error, `Failed to prepare ${folder} upload`)
+    );
+  }
+
+  try {
+    await uploadFileDirectToR2(file, uploadInfo.signedUrl, onProgress);
+  } catch (error: unknown) {
+    throw new UploadStepError(
+      `${folder} R2 upload`,
+      getErrorMessage(error, `Failed to upload ${file.name} to R2`)
+    );
+  }
 
   return {
     key: uploadInfo.key,
@@ -371,11 +428,21 @@ export default function BulkUploadPanel() {
       status: "uploading",
       progress: 5,
       error: undefined,
+      warning: undefined,
     });
 
     try {
       const artworkToUpload = item.artworkFile || globalArtwork;
-      const lyricsToRead = item.lrcFile || globalLrc || item.lyricsFile || globalLyrics;
+      const plainLyricsToRead = item.lyricsFile || globalLyrics;
+      const syncedLrcToRead = item.lrcFile || globalLrc;
+
+      console.log("Hidden Tunes upload started", {
+        title: item.title,
+        audioFile: item.file.name,
+        artworkFile: artworkToUpload?.name || null,
+        lyricsFile: plainLyricsToRead?.name || null,
+        lrcFile: syncedLrcToRead?.name || null,
+      });
 
       updateItem(item.id, { progress: 10 });
 
@@ -407,7 +474,18 @@ export default function BulkUploadPanel() {
 
       updateItem(item.id, { progress: 88 });
 
-      const lyricsText = await readTextFile(lyricsToRead);
+      let plainLyricsText = "";
+      let syncedLrcText = "";
+
+      try {
+        plainLyricsText = await readTextFile(plainLyricsToRead);
+        syncedLrcText = await readTextFile(syncedLrcToRead);
+      } catch (error: unknown) {
+        throw new UploadStepError(
+          "lyrics read",
+          getErrorMessage(error, "Failed to read TXT or LRC lyrics file")
+        );
+      }
 
       const response = await fetch(API_UPLOAD_URL, {
         method: "POST",
@@ -428,7 +506,9 @@ export default function BulkUploadPanel() {
           artworkUrl: artworkUpload?.publicUrl || null,
           artworkKey: artworkUpload?.key || null,
 
-          lyricsText,
+          lyricsText: syncedLrcText || plainLyricsText,
+          plainLyricsText,
+          syncedLrcText,
         }),
       });
 
@@ -437,23 +517,48 @@ export default function BulkUploadPanel() {
       const data = await response.json().catch(() => null);
 
       if (!response.ok || !data?.success) {
-        throw new Error(
+        console.error("Hidden Tunes catalog save failed", {
+          title: item.title,
+          status: response.status,
+          data,
+        });
+
+        throw new UploadStepError(
+          "Supabase catalog save",
           data?.error ||
             data?.message ||
             `Metadata save failed with status ${response.status}`
         );
       }
 
+      if (data?.warning) {
+        console.warn("Hidden Tunes upload completed with warning", {
+          title: item.title,
+          warning: data.warning,
+        });
+      }
+
       updateItem(item.id, {
         status: "success",
         progress: 100,
         error: undefined,
+        warning: data?.warning,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const step = getUploadStep(error);
+      const message = getErrorMessage(error, "Upload failed");
+
+      console.error("Hidden Tunes upload failed", {
+        title: item.title,
+        step,
+        message,
+        error,
+      });
+
       updateItem(item.id, {
         status: "error",
         progress: 0,
-        error: error?.message || "Upload failed",
+        error: `${step}: ${message}`,
       });
     }
   }
@@ -880,6 +985,12 @@ export default function BulkUploadPanel() {
                       {item.error && (
                         <p className="mt-3 rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
                           {item.error}
+                        </p>
+                      )}
+
+                      {item.warning && (
+                        <p className="mt-3 rounded-2xl border border-yellow-400/20 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-100">
+                          {item.warning}
                         </p>
                       )}
                     </div>
