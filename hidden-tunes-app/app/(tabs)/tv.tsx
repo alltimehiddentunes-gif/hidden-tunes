@@ -17,11 +17,14 @@ import { router } from "expo-router";
 
 import { COLORS, GRADIENTS } from "@/constants/theme";
 import {
-  fetchChannelVideos,
-  searchYouTubeMusic,
+  fetchChannelVideosPage,
+  fetchRelatedYouTubeVideosPage,
+  searchYouTubeMusicPage,
   type YouTubeVideo,
 } from "@/services/youtube";
 import { FALLBACK_ARTWORK } from "@/utils/artwork";
+
+type TVMode = "channel" | "search";
 
 function getVideoId(item: YouTubeVideo) {
   return String(item.videoId || item.id || "").replace("youtube-", "").trim();
@@ -29,6 +32,22 @@ function getVideoId(item: YouTubeVideo) {
 
 function getCover(item: YouTubeVideo) {
   return item.thumbnail || item.artwork || item.cover || FALLBACK_ARTWORK;
+}
+
+function mergeVideos(current: YouTubeVideo[], incoming: YouTubeVideo[]) {
+  const seen = new Set(current.map((item) => getVideoId(item)).filter(Boolean));
+  const merged = [...current];
+
+  incoming.forEach((item) => {
+    const videoId = getVideoId(item);
+
+    if (!videoId || seen.has(videoId)) return;
+
+    seen.add(videoId);
+    merged.push(item);
+  });
+
+  return merged;
 }
 
 const TVSkeleton = memo(function TVSkeleton() {
@@ -98,62 +117,220 @@ const TVVideoCard = memo(function TVVideoCard({
 export default function HiddenTunesTVScreen() {
   const listRef = useRef<FlatList<YouTubeVideo>>(null);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const activeRequestRef = useRef(0);
 
   const [videos, setVideos] = useState<YouTubeVideo[]>([]);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searching, setSearching] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [loadingRelated, setLoadingRelated] = useState(false);
   const [pressedVideoId, setPressedVideoId] = useState<string | null>(null);
-  const [mode, setMode] = useState<"channel" | "search">("channel");
+  const [mode, setMode] = useState<TVMode>("channel");
+  const [nextPageToken, setNextPageToken] = useState<string | undefined>();
+  const [relatedPageToken, setRelatedPageToken] = useState<string | undefined>();
+  const [relatedSeedId, setRelatedSeedId] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
 
   const titleCopy = useMemo(() => {
     if (mode === "search" && query.trim()) return `Search: ${query.trim()}`;
     return "Official Hidden Tunes channel";
   }, [mode, query]);
 
+  const statusCopy = useMemo(() => {
+    if (loadingRelated) return "Finding related embedded videos...";
+    if (videos.length > 0) {
+      return `${videos.length} videos ready for embedded playback`;
+    }
+
+    return "Videos will appear here";
+  }, [loadingRelated, videos.length]);
+
+  const loadRelatedVideos = useCallback(
+    async (
+      seedVideoId: string,
+      pageToken = "",
+      append = true,
+      requestId = activeRequestRef.current
+    ) => {
+      if (!seedVideoId) return;
+
+      try {
+        setLoadingRelated(true);
+
+        const page = await fetchRelatedYouTubeVideosPage(seedVideoId, pageToken);
+
+        if (page.error) {
+          console.log("Hidden Tunes TV related videos warning:", page.error);
+        }
+
+        if (activeRequestRef.current !== requestId) return;
+
+        if (page.videos.length > 0) {
+          setVideos((current) =>
+            append ? mergeVideos(current, page.videos) : page.videos
+          );
+        }
+
+        setRelatedPageToken(page.nextPageToken);
+      } finally {
+        setLoadingRelated(false);
+      }
+    },
+    []
+  );
+
   const loadChannelVideos = useCallback(async (showLoader = true) => {
+    const requestId = activeRequestRef.current + 1;
+    activeRequestRef.current = requestId;
+
     try {
       if (showLoader) setLoading(true);
+      setErrorMessage("");
       setMode("channel");
+      setNextPageToken(undefined);
+      setRelatedPageToken(undefined);
+      setRelatedSeedId("");
 
-      const data = await fetchChannelVideos();
-      setVideos(Array.isArray(data) ? data : []);
+      const page = await fetchChannelVideosPage();
+
+      if (activeRequestRef.current !== requestId) return;
+
+      setVideos(page.videos);
+      setNextPageToken(page.nextPageToken);
+
+      if (page.error) {
+        setErrorMessage(page.error);
+      }
+
+      const firstVideoId = getVideoId(page.videos[0]);
+      setRelatedSeedId(firstVideoId);
+
       listRef.current?.scrollToOffset({ offset: 0, animated: false });
+
+      if (firstVideoId) {
+        await loadRelatedVideos(firstVideoId, "", true, requestId);
+      }
     } catch (error) {
-      console.log("Hidden Tunes TV channel load error:", error);
+      const message =
+        error instanceof Error ? error.message : "Hidden Tunes TV failed to load.";
+
+      console.log("Hidden Tunes TV channel load error:", message);
+      setErrorMessage(message);
       setVideos([]);
     } finally {
-      setLoading(false);
-      setRefreshing(false);
-      setSearching(false);
+      if (activeRequestRef.current === requestId) {
+        setLoading(false);
+        setRefreshing(false);
+        setSearching(false);
+      }
     }
-  }, []);
+  }, [loadRelatedVideos]);
 
-  const runSearch = useCallback(async (text: string) => {
-    const safeText = text.trim();
+  const runSearch = useCallback(
+    async (text: string) => {
+      const safeText = text.trim();
 
-    if (!safeText) {
-      await loadChannelVideos(false);
-      return;
-    }
+      if (!safeText) {
+        await loadChannelVideos(false);
+        return;
+      }
+
+      const requestId = activeRequestRef.current + 1;
+      activeRequestRef.current = requestId;
+
+      try {
+        setSearching(true);
+        setErrorMessage("");
+        setMode("search");
+        setNextPageToken(undefined);
+        setRelatedPageToken(undefined);
+        setRelatedSeedId("");
+
+        const page = await searchYouTubeMusicPage(safeText);
+
+        if (activeRequestRef.current !== requestId) return;
+
+        setVideos(page.videos);
+        setNextPageToken(page.nextPageToken);
+
+        if (page.error) {
+          setErrorMessage(page.error);
+        }
+
+        const firstVideoId = getVideoId(page.videos[0]);
+        setRelatedSeedId(firstVideoId);
+
+        listRef.current?.scrollToOffset({ offset: 0, animated: false });
+
+        if (firstVideoId) {
+          await loadRelatedVideos(firstVideoId, "", true, requestId);
+        }
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Hidden Tunes TV search failed.";
+
+        console.log("Hidden Tunes TV search error:", message);
+        setErrorMessage(message);
+        setVideos([]);
+      } finally {
+        if (activeRequestRef.current === requestId) {
+          setLoading(false);
+          setRefreshing(false);
+          setSearching(false);
+        }
+      }
+    },
+    [loadChannelVideos, loadRelatedVideos]
+  );
+
+  const loadMore = useCallback(async () => {
+    if (loadingMore) return;
+
+    const pageToken = nextPageToken || relatedPageToken || "";
+
+    if (!pageToken) return;
 
     try {
-      setSearching(true);
-      setMode("search");
+      setLoadingMore(true);
+      setErrorMessage("");
 
-      const data = await searchYouTubeMusic(safeText);
-      setVideos(Array.isArray(data) ? data : []);
-      listRef.current?.scrollToOffset({ offset: 0, animated: false });
+      const page =
+        nextPageToken && mode === "search"
+          ? await searchYouTubeMusicPage(query, nextPageToken)
+          : nextPageToken
+          ? await fetchChannelVideosPage(nextPageToken)
+          : await fetchRelatedYouTubeVideosPage(relatedSeedId, relatedPageToken);
+
+      setVideos((current) => mergeVideos(current, page.videos));
+
+      if (nextPageToken) {
+        setNextPageToken(page.nextPageToken);
+      } else {
+        setRelatedPageToken(page.nextPageToken);
+      }
+
+      if (page.error) {
+        setErrorMessage(page.error);
+      }
     } catch (error) {
-      console.log("Hidden Tunes TV search error:", error);
-      setVideos([]);
+      const message =
+        error instanceof Error ? error.message : "Hidden Tunes TV could not load more.";
+
+      console.log("Hidden Tunes TV load more error:", message);
+      setErrorMessage(message);
     } finally {
-      setLoading(false);
-      setRefreshing(false);
-      setSearching(false);
+      setLoadingMore(false);
     }
-  }, [loadChannelVideos]);
+  }, [
+    loadingMore,
+    mode,
+    nextPageToken,
+    query,
+    relatedPageToken,
+    relatedSeedId,
+  ]);
 
   const debouncedSearch = useCallback(
     (text: string) => {
@@ -240,6 +417,42 @@ export default function HiddenTunesTVScreen() {
     [openVideo, pressedVideoId]
   );
 
+  const footer = useMemo(() => {
+    const canLoadMore = Boolean(nextPageToken || relatedPageToken);
+
+    if (!canLoadMore && !loadingRelated) return <View style={{ height: 12 }} />;
+
+    return (
+      <View style={styles.footer}>
+        {loadingRelated && (
+          <View style={styles.relatedPill}>
+            <ActivityIndicator color={COLORS.primary} size="small" />
+            <Text style={styles.relatedText}>Adding related discovery...</Text>
+          </View>
+        )}
+
+        {canLoadMore && (
+          <TouchableOpacity
+            activeOpacity={0.86}
+            style={[styles.loadMoreButton, loadingMore && styles.disabledButton]}
+            onPress={loadMore}
+            disabled={loadingMore}
+          >
+            {loadingMore ? (
+              <ActivityIndicator color="#000" size="small" />
+            ) : (
+              <Ionicons name="add" size={18} color="#000" />
+            )}
+
+            <Text style={styles.loadMoreText}>
+              {loadingMore ? "Loading More" : "Load More Videos"}
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  }, [loadMore, loadingMore, loadingRelated, nextPageToken, relatedPageToken]);
+
   useEffect(() => {
     loadChannelVideos(true);
 
@@ -274,7 +487,7 @@ export default function HiddenTunesTVScreen() {
         <TextInput
           value={query}
           onChangeText={debouncedSearch}
-          placeholder="Search Hidden Tunes TV or all YouTube..."
+          placeholder="Search videos, artists, genres or music..."
           placeholderTextColor={COLORS.textDim}
           returnKeyType="search"
           autoCorrect={false}
@@ -299,6 +512,13 @@ export default function HiddenTunesTVScreen() {
           <Ionicons name="logo-youtube" size={20} color="#ff0033" />
         )}
       </View>
+
+      {errorMessage.length > 0 && (
+        <View style={styles.errorBox}>
+          <Ionicons name="alert-circle-outline" size={18} color={COLORS.primary} />
+          <Text style={styles.errorText}>{errorMessage}</Text>
+        </View>
+      )}
 
       {loading ? (
         <TVSkeleton />
@@ -327,19 +547,17 @@ export default function HiddenTunesTVScreen() {
           ListHeaderComponent={
             <View style={styles.feedHeader}>
               <Text style={styles.feedTitle}>{titleCopy}</Text>
-              <Text style={styles.feedSub}>
-                {videos.length > 0
-                  ? `${videos.length} videos ready for embedded playback`
-                  : "Videos will appear here"}
-              </Text>
+              <Text style={styles.feedSub}>{statusCopy}</Text>
             </View>
           }
+          ListFooterComponent={footer}
           ListEmptyComponent={
             <View style={styles.emptyBox}>
               <Ionicons name="tv-outline" size={46} color={COLORS.textMuted} />
               <Text style={styles.emptyTitle}>No TV videos found</Text>
               <Text style={styles.emptyText}>
-                Try another search, or pull down to reload the official channel.
+                Try another search, check the YouTube API key/quota, or pull down
+                to reload the official channel.
               </Text>
             </View>
           }
@@ -405,7 +623,7 @@ const styles = StyleSheet.create({
     height: 56,
     borderRadius: 28,
     paddingHorizontal: 17,
-    marginBottom: 18,
+    marginBottom: 12,
     backgroundColor: "rgba(255,255,255,0.07)",
     borderWidth: 1,
     borderColor: "rgba(168,85,247,0.24)",
@@ -419,6 +637,27 @@ const styles = StyleSheet.create({
     marginLeft: 10,
     fontSize: 14,
     fontWeight: "800",
+  },
+
+  errorBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderRadius: 18,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 12,
+    backgroundColor: "rgba(255,0,51,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(255,0,51,0.26)",
+  },
+
+  errorText: {
+    flex: 1,
+    color: COLORS.text,
+    fontSize: 12,
+    fontWeight: "800",
+    lineHeight: 17,
   },
 
   list: {
@@ -526,6 +765,51 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 6,
     fontWeight: "700",
+  },
+
+  footer: {
+    alignItems: "center",
+    paddingTop: 6,
+    paddingBottom: 18,
+  },
+
+  relatedPill: {
+    minHeight: 40,
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    marginBottom: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "rgba(255,255,255,0.07)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+  },
+
+  relatedText: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    fontWeight: "800",
+  },
+
+  loadMoreButton: {
+    minHeight: 48,
+    borderRadius: 24,
+    paddingHorizontal: 18,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: COLORS.primary,
+  },
+
+  disabledButton: {
+    opacity: 0.7,
+  },
+
+  loadMoreText: {
+    color: "#000",
+    fontSize: 13,
+    fontWeight: "900",
   },
 
   skeletonWrap: {

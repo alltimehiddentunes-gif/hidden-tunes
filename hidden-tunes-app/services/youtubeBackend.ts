@@ -1,6 +1,7 @@
 import { YOUTUBE_CONFIG } from "../constants/youtube";
 
 const API_BASE_URL = "https://www.googleapis.com/youtube/v3";
+const DEFAULT_MAX_RESULTS = 20;
 
 export type BackendYouTubeTrack = {
   id: string;
@@ -26,6 +27,12 @@ export type BackendStatus = {
   online: boolean;
   statusText: string;
   baseUrl: string;
+};
+
+export type YouTubePage = {
+  tracks: BackendYouTubeTrack[];
+  nextPageToken?: string;
+  error?: string;
 };
 
 function extractYouTubeId(value: any): string {
@@ -136,6 +143,8 @@ function safeTracks(data: unknown): BackendYouTubeTrack[] {
 
   const rawTracks: unknown[] = Array.isArray(payload)
     ? payload
+    : Array.isArray(payload?.items)
+    ? payload.items
     : Array.isArray(payload?.tracks)
     ? payload.tracks
     : Array.isArray(payload?.results)
@@ -155,30 +164,109 @@ function hasYouTubeApiConfig() {
   return Boolean(YOUTUBE_CONFIG.API_KEY && YOUTUBE_CONFIG.CHANNEL_ID);
 }
 
-async function fetchJson(url: string): Promise<any | null> {
-  if (!hasYouTubeApiConfig()) return null;
+function getYouTubeConfigError() {
+  if (!YOUTUBE_CONFIG.API_KEY && !YOUTUBE_CONFIG.CHANNEL_ID) {
+    return "Missing YouTube API key and channel ID.";
+  }
+
+  if (!YOUTUBE_CONFIG.API_KEY) return "Missing YouTube API key.";
+  if (!YOUTUBE_CONFIG.CHANNEL_ID) return "Missing Hidden Tunes YouTube channel ID.";
+
+  return "";
+}
+
+function getYouTubeErrorMessage(status: number, body: string) {
+  try {
+    const parsed = JSON.parse(body);
+    const message = parsed?.error?.message || "";
+    const reason = parsed?.error?.errors?.[0]?.reason || "";
+
+    if (message || reason) {
+      return `YouTube API ${status}: ${message || reason}`;
+    }
+  } catch {}
+
+  if (status === 403) return "YouTube API quota or permission limit reached.";
+  if (status === 400) return "YouTube API rejected this request.";
+
+  return `YouTube API request failed with status ${status}.`;
+}
+
+function buildSearchUrl(params: Record<string, string | number | undefined>) {
+  const query = new URLSearchParams({
+    part: "snippet",
+    type: "video",
+    videoEmbeddable: "true",
+    safeSearch: "moderate",
+    key: YOUTUBE_CONFIG.API_KEY,
+  });
+
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === undefined || value === "") return;
+    query.set(key, String(value));
+  });
+
+  return `${API_BASE_URL}/search?${query.toString()}`;
+}
+
+async function fetchYouTubePage(url: string, label: string): Promise<YouTubePage> {
+  const configError = getYouTubeConfigError();
+
+  if (configError || !hasYouTubeApiConfig()) {
+    console.log(`Hidden Tunes TV ${label} config error:`, configError);
+    return {
+      tracks: [],
+      error: configError || "Missing YouTube API configuration.",
+    };
+  }
 
   try {
     const response = await fetch(url);
     const text = await response.text();
 
     if (!response.ok) {
-      return null;
+      const message = getYouTubeErrorMessage(response.status, text);
+      console.log(`Hidden Tunes TV ${label} request failed:`, message);
+      return {
+        tracks: [],
+        error: message,
+      };
     }
 
-    if (!text.trim()) return null;
+    if (!text.trim()) {
+      console.log(`Hidden Tunes TV ${label} empty response.`);
+      return {
+        tracks: [],
+        error: "YouTube returned an empty response.",
+      };
+    }
 
-    return JSON.parse(text);
-  } catch {
-    return null;
+    const data = JSON.parse(text);
+
+    return {
+      tracks: safeTracks(data),
+      nextPageToken: data?.nextPageToken,
+    };
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "YouTube request failed.";
+
+    console.log(`Hidden Tunes TV ${label} request error:`, message);
+
+    return {
+      tracks: [],
+      error: message,
+    };
   }
 }
 
 export async function checkYouTubeBackendStatus(): Promise<BackendStatus> {
-  if (!hasYouTubeApiConfig()) {
+  const configError = getYouTubeConfigError();
+
+  if (configError) {
     return {
       online: false,
-      statusText: "Missing YouTube config",
+      statusText: configError,
       baseUrl: API_BASE_URL,
     };
   }
@@ -190,73 +278,87 @@ export async function checkYouTubeBackendStatus(): Promise<BackendStatus> {
   };
 }
 
+export async function getHiddenTunesYouTubeCatalogPage(
+  pageToken = "",
+  limit = YOUTUBE_CONFIG.MAX_RESULTS || 12
+): Promise<YouTubePage> {
+  const safeLimit = Math.min(Number(limit || DEFAULT_MAX_RESULTS), 50);
+
+  return fetchYouTubePage(
+    buildSearchUrl({
+      channelId: YOUTUBE_CONFIG.CHANNEL_ID,
+      maxResults: safeLimit,
+      order: "date",
+      pageToken,
+    }),
+    "channel feed"
+  );
+}
+
 export async function getHiddenTunesYouTubeCatalog(): Promise<
   BackendYouTubeTrack[]
 > {
-  if (!hasYouTubeApiConfig()) return [];
-
-  const data = await fetchJson(
-    `${API_BASE_URL}/search?part=snippet&channelId=${encodeURIComponent(
-      YOUTUBE_CONFIG.CHANNEL_ID
-    )}&maxResults=${Math.min(
-      YOUTUBE_CONFIG.MAX_RESULTS || 12,
-      20
-    )}&order=date&type=video&videoEmbeddable=true&key=${encodeURIComponent(
-      YOUTUBE_CONFIG.API_KEY
-    )}`
-  );
-
-  return safeTracks(data);
+  const page = await getHiddenTunesYouTubeCatalogPage();
+  return page.tracks;
 }
 
 export async function fetchHiddenTunesFeed(
-  limit = 20
+  limit = DEFAULT_MAX_RESULTS
 ): Promise<BackendYouTubeTrack[]> {
-  if (!hasYouTubeApiConfig()) return [];
+  const page = await getHiddenTunesYouTubeCatalogPage("", limit);
+  return page.tracks;
+}
 
-  const safeLimit = Math.min(Number(limit || 20), 20);
+export async function searchYouTubeBackendPage(
+  query: string,
+  pageToken = "",
+  limit = DEFAULT_MAX_RESULTS
+): Promise<YouTubePage> {
+  const safeQuery = String(query || "").trim();
 
-  const data = await fetchJson(
-    `${API_BASE_URL}/search?part=snippet&channelId=${encodeURIComponent(
-      YOUTUBE_CONFIG.CHANNEL_ID
-    )}&maxResults=${safeLimit}&order=date&type=video&videoEmbeddable=true&key=${encodeURIComponent(
-      YOUTUBE_CONFIG.API_KEY
-    )}`
+  if (!safeQuery) return { tracks: [] };
+
+  return fetchYouTubePage(
+    buildSearchUrl({
+      q: safeQuery,
+      maxResults: Math.min(Number(limit || DEFAULT_MAX_RESULTS), 50),
+      pageToken,
+    }),
+    `search "${safeQuery}"`
   );
-
-  return safeTracks(data);
 }
 
 export async function searchYouTubeBackend(
   query: string
 ): Promise<BackendYouTubeTrack[]> {
-  if (!hasYouTubeApiConfig()) return [];
+  const page = await searchYouTubeBackendPage(query);
+  return page.tracks;
+}
 
-  const safeQuery = String(query || "").trim();
+export async function getRelatedYouTubeVideosPage(
+  videoId: string,
+  pageToken = "",
+  limit = 10
+): Promise<YouTubePage> {
+  const safeVideoId = extractYouTubeId(videoId);
 
-  if (!safeQuery) return [];
+  if (!safeVideoId) return { tracks: [] };
 
-  const data = await fetchJson(
-    `${API_BASE_URL}/search?part=snippet&type=video&videoEmbeddable=true&safeSearch=moderate&maxResults=20&q=${encodeURIComponent(
-      safeQuery
-    )}&key=${encodeURIComponent(YOUTUBE_CONFIG.API_KEY)}`
+  return fetchYouTubePage(
+    buildSearchUrl({
+      relatedToVideoId: safeVideoId,
+      maxResults: Math.min(Number(limit || 10), 25),
+      pageToken,
+    }),
+    `related videos for ${safeVideoId}`
   );
-
-  return safeTracks(data);
 }
 
 export async function getTrendingYouTubeBackend(): Promise<
   BackendYouTubeTrack[]
 > {
-  if (!hasYouTubeApiConfig()) return [];
-
-  const data = await fetchJson(
-    `${API_BASE_URL}/search?part=snippet&type=video&videoEmbeddable=true&safeSearch=moderate&maxResults=20&q=${encodeURIComponent(
-      "Hidden Tunes music"
-    )}&key=${encodeURIComponent(YOUTUBE_CONFIG.API_KEY)}`
-  );
-
-  return safeTracks(data);
+  const page = await searchYouTubeBackendPage("Hidden Tunes music");
+  return page.tracks;
 }
 
 export async function getYouTubeBackendStream(_videoId: string): Promise<string> {

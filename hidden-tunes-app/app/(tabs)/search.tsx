@@ -34,10 +34,8 @@ import { usePlayer } from "../../context/PlayerContext";
 import { HIDDEN_TUNES_GENRES } from "../../utils/genres";
 
 import { searchArchiveAudio } from "../../services/archiveSearch";
-import {
-  searchYouTubeBackend,
-  type BackendYouTubeTrack,
-} from "../../services/youtubeBackend";
+import type { BackendYouTubeTrack } from "../../services/youtubeBackend";
+import { searchYouTubeMusic } from "../../services/youtube";
 import {
   normalizeArchiveTrack,
   normalizeAudiusTrack,
@@ -565,7 +563,7 @@ export default function SearchScreen() {
 
       if (source === "all" || source === "youtube") {
         try {
-          const youtubeResults = await searchYouTubeBackend(safeText);
+          const youtubeResults = await searchYouTubeMusic(safeText);
 
           const cleanYoutubeResults = youtubeResults
             .map((track) => normalizeYouTubeResult(track))

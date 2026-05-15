@@ -1,13 +1,23 @@
 import {
   getHiddenTunesYouTubeCatalog,
+  getHiddenTunesYouTubeCatalogPage,
+  getRelatedYouTubeVideosPage,
   searchYouTubeBackend,
+  searchYouTubeBackendPage,
   BackendYouTubeTrack,
+  YouTubePage,
 } from "./youtubeBackend";
 
 export interface YouTubeVideo extends BackendYouTubeTrack {
   cover: string;
   publishedAt: string;
 }
+
+export type YouTubeVideoPage = {
+  videos: YouTubeVideo[];
+  nextPageToken?: string;
+  error?: string;
+};
 
 function normalizeYouTubeVideo(item: BackendYouTubeTrack): YouTubeVideo {
   return {
@@ -17,10 +27,26 @@ function normalizeYouTubeVideo(item: BackendYouTubeTrack): YouTubeVideo {
   };
 }
 
+function normalizePage(page: YouTubePage): YouTubeVideoPage {
+  return {
+    videos: page.tracks.map(normalizeYouTubeVideo),
+    nextPageToken: page.nextPageToken,
+    error: page.error,
+  };
+}
+
 export async function fetchChannelVideos(): Promise<YouTubeVideo[]> {
   const results = await getHiddenTunesYouTubeCatalog();
 
   return results.map(normalizeYouTubeVideo);
+}
+
+export async function fetchChannelVideosPage(
+  pageToken = ""
+): Promise<YouTubeVideoPage> {
+  const page = await getHiddenTunesYouTubeCatalogPage(pageToken);
+
+  return normalizePage(page);
 }
 
 export async function searchYouTubeMusic(
@@ -31,4 +57,24 @@ export async function searchYouTubeMusic(
   const results = await searchYouTubeBackend(`${query} music`);
 
   return results.map(normalizeYouTubeVideo);
+}
+
+export async function searchYouTubeMusicPage(
+  query: string,
+  pageToken = ""
+): Promise<YouTubeVideoPage> {
+  if (!query.trim()) return { videos: [] };
+
+  const page = await searchYouTubeBackendPage(`${query} music`, pageToken);
+
+  return normalizePage(page);
+}
+
+export async function fetchRelatedYouTubeVideosPage(
+  videoId: string,
+  pageToken = ""
+): Promise<YouTubeVideoPage> {
+  const page = await getRelatedYouTubeVideosPage(videoId, pageToken);
+
+  return normalizePage(page);
 }
