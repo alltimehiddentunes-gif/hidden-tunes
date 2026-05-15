@@ -12,17 +12,28 @@ type UploaderStatus = "active" | "disabled";
 
 const ALLOWED_UPLOADER_STATUSES: UploaderStatus[] = ["active", "disabled"];
 
-const supabaseUrl =
-  process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ||
-  process.env.SUPABASE_URL?.trim() ||
-  "";
-
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() || "";
-
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
 function isAllowedUploaderStatus(value: string): value is UploaderStatus {
   return ALLOWED_UPLOADER_STATUSES.includes(value as UploaderStatus);
+}
+
+function getSupabaseAuthConfig() {
+  const supabaseUrl =
+    process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ||
+    process.env.SUPABASE_URL?.trim() ||
+    "";
+  const supabaseAnonKey =
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() || "";
+
+  const missingVariables = [
+    !supabaseUrl ? "NEXT_PUBLIC_SUPABASE_URL or SUPABASE_URL" : null,
+    !supabaseAnonKey ? "NEXT_PUBLIC_SUPABASE_ANON_KEY" : null,
+  ].filter(Boolean) as string[];
+
+  return {
+    supabaseUrl,
+    supabaseAnonKey,
+    missingVariables,
+  };
 }
 
 export async function POST(request: NextRequest) {
@@ -41,6 +52,23 @@ export async function POST(request: NextRequest) {
     }
 
     const supabaseServerAdmin = getSupabaseAdmin();
+    const authConfig = getSupabaseAuthConfig();
+
+    if (authConfig.missingVariables.length > 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Missing Supabase auth environment variables.",
+          missingVariables: authConfig.missingVariables,
+        },
+        { status: 500 }
+      );
+    }
+
+    const supabase = createClient(
+      authConfig.supabaseUrl,
+      authConfig.supabaseAnonKey
+    );
 
     const authHeader = request.headers.get("authorization");
 
@@ -82,7 +110,7 @@ export async function POST(request: NextRequest) {
           success: false,
           error: `Uploader profile not found for auth user ${user.id}.`,
           details: requesterProfileError?.message || null,
-          checkedProjectUrl: supabaseUrl,
+          checkedProjectUrl: authConfig.supabaseUrl,
         },
         { status: 403 }
       );
