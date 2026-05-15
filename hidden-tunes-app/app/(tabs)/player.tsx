@@ -536,7 +536,7 @@ const styles = StyleSheet.create({
   content: {
     paddingTop: 60,
     paddingHorizontal: 24,
-    paddingBottom: 150,
+    paddingBottom: 250,
   },
 
   emptyContainer: {
