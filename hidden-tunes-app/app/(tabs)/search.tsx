@@ -363,7 +363,7 @@ export default function SearchScreen() {
   const [loading, setLoading] = useState(false);
   const [loadingCloud, setLoadingCloud] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [activeSource, setActiveSource] = useState<SearchType>("hidden");
+  const [activeSource, setActiveSource] = useState<SearchType>("all");
 
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [cloudSongs, setCloudSongs] = useState<NativeSearchTrack[]>([]);
@@ -409,7 +409,7 @@ export default function SearchScreen() {
   useEffect(() => {
     loadRecentSearches();
     loadCloudDiscovery(true);
-    searchTracks("Caasi Wills", "hidden");
+    searchTracks("Caasi Wills", "all");
 
     return () => {
       if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
@@ -1070,7 +1070,7 @@ export default function SearchScreen() {
         <View style={styles.headerTextBox}>
           <Text style={styles.title}>Search</Text>
           <Text style={styles.subtitle}>
-            Songs, artists, albums, genres and sources
+            Hidden Tunes catalog first, YouTube TV fallback when needed
           </Text>
         </View>
       </View>
@@ -1080,7 +1080,7 @@ export default function SearchScreen() {
           <Ionicons name="search" size={20} color={COLORS.cyan} />
 
           <TextInput
-            placeholder="Search songs, artists, albums or genres..."
+            placeholder="Search Hidden Tunes first, then YouTube TV..."
             placeholderTextColor={COLORS.textDim}
             style={styles.input}
             value={query}

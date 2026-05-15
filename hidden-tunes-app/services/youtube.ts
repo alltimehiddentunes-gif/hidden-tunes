@@ -1,4 +1,5 @@
 import {
+  getHiddenTunesYouTubeCatalog,
   searchYouTubeBackend,
   BackendYouTubeTrack,
 } from "./youtubeBackend";
@@ -17,7 +18,7 @@ function normalizeYouTubeVideo(item: BackendYouTubeTrack): YouTubeVideo {
 }
 
 export async function fetchChannelVideos(): Promise<YouTubeVideo[]> {
-  const results = await searchYouTubeBackend("Hidden Tunes music");
+  const results = await getHiddenTunesYouTubeCatalog();
 
   return results.map(normalizeYouTubeVideo);
 }

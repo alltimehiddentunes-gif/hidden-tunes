@@ -1,6 +1,6 @@
-const API_BASE_URL = "https://hidden-tunes-backend.onrender.com";
+import { YOUTUBE_CONFIG } from "../constants/youtube";
 
-const YOUTUBE_BACKEND_ENABLED = false;
+const API_BASE_URL = "https://www.googleapis.com/youtube/v3";
 
 export type BackendYouTubeTrack = {
   id: string;
@@ -60,10 +60,16 @@ function normalizeBackendTrack(item: unknown): BackendYouTubeTrack | null {
   if (!item || typeof item !== "object") return null;
 
   const track = item as Record<string, any>;
+  const snippet = (track.snippet || {}) as Record<string, any>;
+  const thumbnails = (snippet.thumbnails || {}) as Record<string, any>;
+  const apiId = track.id as Record<string, any> | string | undefined;
 
   const videoId = extractYouTubeId(
     track.videoId ||
       track.id ||
+      (typeof apiId === "object" ? apiId.videoId : "") ||
+      snippet.resourceId?.videoId ||
+      snippet.videoId ||
       track.video_id ||
       track.url ||
       track.webpage_url ||
@@ -75,9 +81,10 @@ function normalizeBackendTrack(item: unknown): BackendYouTubeTrack | null {
   const artist = String(
     track.artist ||
       track.channelTitle ||
+      snippet.channelTitle ||
       track.uploader ||
       track.channel ||
-      "YouTube"
+      "Hidden Tunes TV"
   );
 
   const thumbnail = String(
@@ -85,13 +92,17 @@ function normalizeBackendTrack(item: unknown): BackendYouTubeTrack | null {
       track.cover ||
       track.image ||
       track.artwork ||
+      thumbnails.maxres?.url ||
+      thumbnails.high?.url ||
+      thumbnails.medium?.url ||
+      thumbnails.default?.url ||
       `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
   );
 
   return {
     id: `youtube-${videoId}`,
     videoId,
-    title: String(track.title || "YouTube Music"),
+    title: String(track.title || snippet.title || "Hidden Tunes TV"),
     artist,
     channelTitle: String(track.channelTitle || artist),
     thumbnail,
@@ -140,8 +151,12 @@ function safeTracks(data: unknown): BackendYouTubeTrack[] {
   return dedupeTracks(normalizedTracks);
 }
 
+function hasYouTubeApiConfig() {
+  return Boolean(YOUTUBE_CONFIG.API_KEY && YOUTUBE_CONFIG.CHANNEL_ID);
+}
+
 async function fetchJson(url: string): Promise<any | null> {
-  if (!YOUTUBE_BACKEND_ENABLED) return null;
+  if (!hasYouTubeApiConfig()) return null;
 
   try {
     const response = await fetch(url);
@@ -160,46 +175,35 @@ async function fetchJson(url: string): Promise<any | null> {
 }
 
 export async function checkYouTubeBackendStatus(): Promise<BackendStatus> {
-  if (!YOUTUBE_BACKEND_ENABLED) {
+  if (!hasYouTubeApiConfig()) {
     return {
       online: false,
-      statusText: "Disabled",
+      statusText: "Missing YouTube config",
       baseUrl: API_BASE_URL,
     };
   }
 
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/health`);
-
-    if (!response.ok) {
-      return {
-        online: false,
-        statusText: `Offline (${response.status})`,
-        baseUrl: API_BASE_URL,
-      };
-    }
-
-    return {
-      online: true,
-      statusText: "Online",
-      baseUrl: API_BASE_URL,
-    };
-  } catch {
-    return {
-      online: false,
-      statusText: "Offline",
-      baseUrl: API_BASE_URL,
-    };
-  }
+  return {
+    online: true,
+    statusText: "YouTube Data API ready",
+    baseUrl: API_BASE_URL,
+  };
 }
 
 export async function getHiddenTunesYouTubeCatalog(): Promise<
   BackendYouTubeTrack[]
 > {
-  if (!YOUTUBE_BACKEND_ENABLED) return [];
+  if (!hasYouTubeApiConfig()) return [];
 
   const data = await fetchJson(
-    `${API_BASE_URL}/api/youtube/hidden-tunes?limit=20`
+    `${API_BASE_URL}/search?part=snippet&channelId=${encodeURIComponent(
+      YOUTUBE_CONFIG.CHANNEL_ID
+    )}&maxResults=${Math.min(
+      YOUTUBE_CONFIG.MAX_RESULTS || 12,
+      20
+    )}&order=date&type=video&videoEmbeddable=true&key=${encodeURIComponent(
+      YOUTUBE_CONFIG.API_KEY
+    )}`
   );
 
   return safeTracks(data);
@@ -208,12 +212,16 @@ export async function getHiddenTunesYouTubeCatalog(): Promise<
 export async function fetchHiddenTunesFeed(
   limit = 20
 ): Promise<BackendYouTubeTrack[]> {
-  if (!YOUTUBE_BACKEND_ENABLED) return [];
+  if (!hasYouTubeApiConfig()) return [];
 
   const safeLimit = Math.min(Number(limit || 20), 20);
 
   const data = await fetchJson(
-    `${API_BASE_URL}/api/youtube/hidden-tunes?limit=${safeLimit}`
+    `${API_BASE_URL}/search?part=snippet&channelId=${encodeURIComponent(
+      YOUTUBE_CONFIG.CHANNEL_ID
+    )}&maxResults=${safeLimit}&order=date&type=video&videoEmbeddable=true&key=${encodeURIComponent(
+      YOUTUBE_CONFIG.API_KEY
+    )}`
   );
 
   return safeTracks(data);
@@ -222,16 +230,16 @@ export async function fetchHiddenTunesFeed(
 export async function searchYouTubeBackend(
   query: string
 ): Promise<BackendYouTubeTrack[]> {
-  if (!YOUTUBE_BACKEND_ENABLED) return [];
+  if (!hasYouTubeApiConfig()) return [];
 
   const safeQuery = String(query || "").trim();
 
   if (!safeQuery) return [];
 
   const data = await fetchJson(
-    `${API_BASE_URL}/api/youtube/search?q=${encodeURIComponent(
+    `${API_BASE_URL}/search?part=snippet&type=video&videoEmbeddable=true&safeSearch=moderate&maxResults=20&q=${encodeURIComponent(
       safeQuery
-    )}&limit=20`
+    )}&key=${encodeURIComponent(YOUTUBE_CONFIG.API_KEY)}`
   );
 
   return safeTracks(data);
@@ -240,9 +248,13 @@ export async function searchYouTubeBackend(
 export async function getTrendingYouTubeBackend(): Promise<
   BackendYouTubeTrack[]
 > {
-  if (!YOUTUBE_BACKEND_ENABLED) return [];
+  if (!hasYouTubeApiConfig()) return [];
 
-  const data = await fetchJson(`${API_BASE_URL}/api/youtube/trending?limit=20`);
+  const data = await fetchJson(
+    `${API_BASE_URL}/search?part=snippet&type=video&videoEmbeddable=true&safeSearch=moderate&maxResults=20&q=${encodeURIComponent(
+      "Hidden Tunes music"
+    )}&key=${encodeURIComponent(YOUTUBE_CONFIG.API_KEY)}`
+  );
 
   return safeTracks(data);
 }

@@ -28,6 +28,10 @@ import {
   refreshHiddenTunesSongs,
   type HiddenTunesNormalizedSong,
 } from "../../services/hiddenTunesApi";
+import {
+  fetchChannelVideos,
+  type YouTubeVideo,
+} from "../../services/youtube";
 import { FALLBACK_ARTWORK, getArtworkUri } from "../../utils/artwork";
 
 const { width } = Dimensions.get("window");
@@ -36,6 +40,7 @@ const HERO_CARD_WIDTH = width - 40;
 const INITIAL_HOME_SONG_ROWS = 24;
 const HOME_SONG_ROWS_INCREMENT = 24;
 const HERO_AUTO_SLIDE_MS = 7000;
+const HOME_TV_CARD_WIDTH = width * 0.74;
 
 type HeroCard = {
   key: string;
@@ -82,6 +87,14 @@ function dedupeSongs(songs: HiddenTunesNormalizedSong[]) {
   });
 }
 
+function getYouTubeVideoId(item: YouTubeVideo) {
+  return String(item.videoId || item.id || "").replace("youtube-", "").trim();
+}
+
+function getYouTubeCover(item: YouTubeVideo) {
+  return item.thumbnail || item.artwork || item.cover || FALLBACK_ARTWORK;
+}
+
 function HomeScreen() {
   const { playSong, currentSong, isPlaying, recentlyPlayed } = usePlayer() as any;
 
@@ -96,6 +109,9 @@ function HomeScreen() {
 
   const [featuredSongs, setFeaturedSongs] = useState<HiddenTunesNormalizedSong[]>([]);
   const [loadingSongs, setLoadingSongs] = useState(true);
+  const [tvVideos, setTvVideos] = useState<YouTubeVideo[]>([]);
+  const [loadingTvVideos, setLoadingTvVideos] = useState(true);
+  const [pressedTvVideoId, setPressedTvVideoId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [visibleSongCount, setVisibleSongCount] = useState(INITIAL_HOME_SONG_ROWS);
   const [heroIndex, setHeroIndex] = useState(0);
@@ -125,8 +141,23 @@ function HomeScreen() {
     }
   }, []);
 
+  const loadTvVideos = useCallback(async () => {
+    try {
+      setLoadingTvVideos(true);
+
+      const videos = await fetchChannelVideos();
+      setTvVideos(Array.isArray(videos) ? videos.slice(0, 8) : []);
+    } catch (error) {
+      console.log("Load Hidden Tunes TV videos error:", error);
+      setTvVideos([]);
+    } finally {
+      setLoadingTvVideos(false);
+    }
+  }, []);
+
   useEffect(() => {
     loadFeaturedSongs(true);
+    loadTvVideos();
 
     Animated.parallel([
       Animated.timing(fadeAnim, {
@@ -167,7 +198,7 @@ function HomeScreen() {
     return () => {
       heroGlowLoop.stop();
     };
-  }, [fadeAnim, heroGlowAnim, heroScale, loadFeaturedSongs, slideAnim]);
+  }, [fadeAnim, heroGlowAnim, heroScale, loadFeaturedSongs, loadTvVideos, slideAnim]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -343,6 +374,53 @@ function HomeScreen() {
       Math.min(featuredSongs.length, current + HOME_SONG_ROWS_INCREMENT)
     );
   }, [featuredSongs.length]);
+
+  const openTvVideo = useCallback(
+    (video: YouTubeVideo) => {
+      const videoId = getYouTubeVideoId(video);
+
+      if (!videoId) return;
+
+      setPressedTvVideoId(videoId);
+
+      const queue = tvVideos
+        .map((item) => {
+          const id = getYouTubeVideoId(item);
+
+          return {
+            id,
+            videoId: id,
+            title: item.title || "Hidden Tunes TV",
+            artist: item.artist || item.channelTitle || "Hidden Tunes TV",
+            channelTitle: item.channelTitle || item.artist || "Hidden Tunes TV",
+            thumbnail: getYouTubeCover(item),
+          };
+        })
+        .filter((item) => item.videoId.length === 11);
+
+      const startIndex = Math.max(
+        0,
+        queue.findIndex((item) => item.videoId === videoId)
+      );
+
+      router.push({
+        pathname: "/youtube-player",
+        params: {
+          id: videoId,
+          videoId,
+          title: video.title || "Hidden Tunes TV",
+          artist: video.artist || video.channelTitle || "Hidden Tunes TV",
+          channelTitle: video.channelTitle || video.artist || "Hidden Tunes TV",
+          thumbnail: getYouTubeCover(video),
+          startIndex: String(startIndex),
+          queue: JSON.stringify(queue),
+        },
+      } as any);
+
+      setTimeout(() => setPressedTvVideoId(null), 800);
+    },
+    [tvVideos]
+  );
 
   const handleHeroPress = useCallback(
     (card: HeroCard) => {
@@ -715,9 +793,107 @@ function HomeScreen() {
               icon="logo-youtube"
               title="TV"
               color="#ff0033"
-              onPress={() => router.push("/youtube-feed" as any)}
+              onPress={() => router.push("/tv" as any)}
             />
           </View>
+
+          <View style={styles.sectionRow}>
+            <View>
+              <Text style={styles.sectionTitle}>Hidden Tunes TV</Text>
+              <Text style={styles.sectionSub}>
+                Official channel videos and legal YouTube discovery
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              onPress={() => router.push("/tv" as any)}
+              style={styles.tvOpenButton}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="tv" size={18} color="#000" />
+              <Text style={styles.tvOpenText}>Open TV</Text>
+            </TouchableOpacity>
+          </View>
+
+          {loadingTvVideos ? (
+            <View style={styles.tvSkeletonRow}>
+              {[0, 1].map((item) => (
+                <View key={`home-tv-skeleton-${item}`} style={styles.tvSkeletonCard} />
+              ))}
+            </View>
+          ) : tvVideos.length > 0 ? (
+            <FlatList
+              horizontal
+              data={tvVideos}
+              keyExtractor={(item, index) =>
+                `${getYouTubeVideoId(item) || "tv"}-${index}`
+              }
+              showsHorizontalScrollIndicator={false}
+              snapToInterval={HOME_TV_CARD_WIDTH + 16}
+              decelerationRate="fast"
+              contentContainerStyle={styles.tvSlider}
+              initialNumToRender={3}
+              maxToRenderPerBatch={3}
+              windowSize={4}
+              removeClippedSubviews
+              renderItem={({ item }) => {
+                const videoId = getYouTubeVideoId(item);
+                const pressed = pressedTvVideoId === videoId;
+
+                return (
+                  <TouchableOpacity
+                    activeOpacity={0.88}
+                    style={[styles.tvCard, pressed && styles.tvCardPressed]}
+                    onPress={() => openTvVideo(item)}
+                  >
+                    <HTImage uri={getYouTubeCover(item)} style={styles.tvCover} />
+
+                    <LinearGradient
+                      colors={["transparent", "rgba(0,0,0,0.94)"]}
+                      style={styles.tvOverlay}
+                    >
+                      <View style={styles.tvBadge}>
+                        <Ionicons name="tv" size={13} color="#fff" />
+                        <Text style={styles.tvBadgeText}>HIDDEN TUNES TV</Text>
+                      </View>
+
+                      <Text numberOfLines={2} style={styles.tvTitle}>
+                        {item.title || "Hidden Tunes TV"}
+                      </Text>
+
+                      <Text numberOfLines={1} style={styles.tvChannel}>
+                        {item.channelTitle || item.artist || "Hidden Tunes"}
+                      </Text>
+
+                      <View style={styles.tvPlayRow}>
+                        <View style={styles.tvPlayButton}>
+                          {pressed ? (
+                            <ActivityIndicator color="#000" size="small" />
+                          ) : (
+                            <Ionicons name="play" size={17} color="#000" />
+                          )}
+                        </View>
+
+                        <Text style={styles.tvPlayText}>Watch inside app</Text>
+                      </View>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                );
+              }}
+            />
+          ) : (
+            <TouchableOpacity
+              activeOpacity={0.86}
+              style={styles.tvEmptyCard}
+              onPress={() => router.push("/tv" as any)}
+            >
+              <Ionicons name="logo-youtube" size={26} color="#ff0033" />
+              <Text style={styles.tvEmptyTitle}>Hidden Tunes TV is ready</Text>
+              <Text style={styles.tvEmptyText}>
+                Open TV to search broad YouTube videos with embedded playback.
+              </Text>
+            </TouchableOpacity>
+          )}
 
           <View style={styles.sectionRow}>
             <View>
@@ -1257,6 +1433,152 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.1)",
+  },
+
+  tvOpenButton: {
+    minHeight: 42,
+    borderRadius: 21,
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+  },
+
+  tvOpenText: {
+    color: "#000",
+    fontSize: 12,
+    fontWeight: "900",
+  },
+
+  tvSlider: {
+    paddingLeft: 20,
+    paddingRight: 28,
+  },
+
+  tvCard: {
+    width: HOME_TV_CARD_WIDTH,
+    height: 218,
+    borderRadius: 30,
+    overflow: "hidden",
+    marginRight: 16,
+    backgroundColor: COLORS.card,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+  },
+
+  tvCardPressed: {
+    borderColor: "rgba(255,0,51,0.7)",
+    transform: [{ scale: 0.99 }],
+  },
+
+  tvCover: {
+    width: "100%",
+    height: "100%",
+    position: "absolute",
+  },
+
+  tvOverlay: {
+    flex: 1,
+    justifyContent: "flex-end",
+    padding: 16,
+  },
+
+  tvBadge: {
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    minHeight: 28,
+    borderRadius: 14,
+    paddingHorizontal: 10,
+    backgroundColor: "rgba(0,0,0,0.62)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.13)",
+    marginBottom: 10,
+  },
+
+  tvBadgeText: {
+    color: COLORS.text,
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 0.8,
+  },
+
+  tvTitle: {
+    color: COLORS.text,
+    fontSize: 18,
+    fontWeight: "900",
+    lineHeight: 23,
+  },
+
+  tvChannel: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    fontWeight: "700",
+    marginTop: 5,
+  },
+
+  tvPlayRow: {
+    marginTop: 13,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  tvPlayButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: COLORS.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 9,
+  },
+
+  tvPlayText: {
+    color: COLORS.text,
+    fontSize: 12,
+    fontWeight: "900",
+  },
+
+  tvSkeletonRow: {
+    paddingLeft: 20,
+    flexDirection: "row",
+    gap: 16,
+  },
+
+  tvSkeletonCard: {
+    width: HOME_TV_CARD_WIDTH,
+    height: 218,
+    borderRadius: 30,
+    backgroundColor: "rgba(255,255,255,0.07)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+  },
+
+  tvEmptyCard: {
+    marginHorizontal: 20,
+    minHeight: 120,
+    borderRadius: 28,
+    padding: 18,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+  },
+
+  tvEmptyTitle: {
+    color: COLORS.text,
+    fontSize: 17,
+    fontWeight: "900",
+    marginTop: 10,
+  },
+
+  tvEmptyText: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    fontWeight: "700",
+    lineHeight: 18,
+    marginTop: 6,
   },
 
   loadingBox: {

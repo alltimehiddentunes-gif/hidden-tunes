@@ -1,10 +1,12 @@
-import { useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
   Image,
+  RefreshControl,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -15,132 +17,330 @@ import { router } from "expo-router";
 
 import { COLORS, GRADIENTS } from "@/constants/theme";
 import {
-  getHiddenTunesYouTubeCatalog,
-  type BackendYouTubeTrack,
-} from "@/services/youtubeBackend";
+  fetchChannelVideos,
+  searchYouTubeMusic,
+  type YouTubeVideo,
+} from "@/services/youtube";
 import { FALLBACK_ARTWORK } from "@/utils/artwork";
 
-function getVideoId(item: BackendYouTubeTrack) {
+function getVideoId(item: YouTubeVideo) {
   return String(item.videoId || item.id || "").replace("youtube-", "").trim();
 }
 
+function getCover(item: YouTubeVideo) {
+  return item.thumbnail || item.artwork || item.cover || FALLBACK_ARTWORK;
+}
+
+const TVSkeleton = memo(function TVSkeleton() {
+  return (
+    <View style={styles.skeletonWrap}>
+      {[0, 1, 2].map((item) => (
+        <View key={`tv-skeleton-${item}`} style={styles.skeletonCard}>
+          <View style={styles.skeletonImage} />
+          <View style={styles.skeletonLineWide} />
+          <View style={styles.skeletonLine} />
+        </View>
+      ))}
+    </View>
+  );
+});
+
+const TVVideoCard = memo(function TVVideoCard({
+  item,
+  pressed,
+  onPress,
+}: {
+  item: YouTubeVideo;
+  pressed: boolean;
+  onPress: (item: YouTubeVideo) => void;
+}) {
+  return (
+    <TouchableOpacity
+      activeOpacity={0.86}
+      style={[styles.videoCard, pressed && styles.videoCardPressed]}
+      onPress={() => onPress(item)}
+    >
+      <View style={styles.thumbnailBox}>
+        <Image source={{ uri: getCover(item) }} style={styles.thumbnail} />
+
+        <LinearGradient
+          colors={["transparent", "rgba(0,0,0,0.86)"]}
+          style={styles.thumbnailShade}
+        />
+
+        <View style={styles.playOverlay}>
+          {pressed ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Ionicons name="play" size={28} color="#fff" />
+          )}
+        </View>
+
+        <View style={styles.badge}>
+          <Ionicons name="tv" size={13} color="#fff" />
+          <Text style={styles.badgeText}>HIDDEN TUNES TV</Text>
+        </View>
+      </View>
+
+      <View style={styles.videoInfo}>
+        <Text numberOfLines={2} style={styles.videoTitle}>
+          {item.title || "Hidden Tunes TV"}
+        </Text>
+
+        <Text numberOfLines={1} style={styles.channel}>
+          {item.channelTitle || item.artist || "Hidden Tunes"}
+        </Text>
+      </View>
+    </TouchableOpacity>
+  );
+});
+
 export default function HiddenTunesTVScreen() {
-  const [videos, setVideos] = useState<BackendYouTubeTrack[]>([]);
+  const listRef = useRef<FlatList<YouTubeVideo>>(null);
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const [videos, setVideos] = useState<YouTubeVideo[]>([]);
+  const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [searching, setSearching] = useState(false);
+  const [pressedVideoId, setPressedVideoId] = useState<string | null>(null);
+  const [mode, setMode] = useState<"channel" | "search">("channel");
 
-  async function loadVideos() {
+  const titleCopy = useMemo(() => {
+    if (mode === "search" && query.trim()) return `Search: ${query.trim()}`;
+    return "Official Hidden Tunes channel";
+  }, [mode, query]);
+
+  const loadChannelVideos = useCallback(async (showLoader = true) => {
     try {
-      setLoading(true);
+      if (showLoader) setLoading(true);
+      setMode("channel");
 
-      const data = await getHiddenTunesYouTubeCatalog();
+      const data = await fetchChannelVideos();
       setVideos(Array.isArray(data) ? data : []);
+      listRef.current?.scrollToOffset({ offset: 0, animated: false });
     } catch (error) {
-      console.log("Hidden Tunes TV load error:", error);
+      console.log("Hidden Tunes TV channel load error:", error);
       setVideos([]);
     } finally {
       setLoading(false);
+      setRefreshing(false);
+      setSearching(false);
     }
-  }
+  }, []);
 
-  function openVideo(item: BackendYouTubeTrack) {
-    const videoId = getVideoId(item);
+  const runSearch = useCallback(async (text: string) => {
+    const safeText = text.trim();
 
-    if (!videoId) {
-      console.log("Missing Hidden Tunes TV videoId:", item);
+    if (!safeText) {
+      await loadChannelVideos(false);
       return;
     }
 
-    router.push({
-      pathname: "/youtube-player",
-      params: {
-        id: videoId,
-        videoId,
-        title: item.title || "Hidden Tunes TV",
-        artist: item.artist || item.channelTitle || "Hidden Tunes",
-        channelTitle: item.channelTitle || item.artist || "Hidden Tunes",
-        thumbnail:
-          item.thumbnail || item.artwork || item.cover || FALLBACK_ARTWORK,
-      },
-    } as any);
-  }
+    try {
+      setSearching(true);
+      setMode("search");
+
+      const data = await searchYouTubeMusic(safeText);
+      setVideos(Array.isArray(data) ? data : []);
+      listRef.current?.scrollToOffset({ offset: 0, animated: false });
+    } catch (error) {
+      console.log("Hidden Tunes TV search error:", error);
+      setVideos([]);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+      setSearching(false);
+    }
+  }, [loadChannelVideos]);
+
+  const debouncedSearch = useCallback(
+    (text: string) => {
+      setQuery(text);
+
+      if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+
+      searchTimerRef.current = setTimeout(() => {
+        runSearch(text);
+      }, 420);
+    },
+    [runSearch]
+  );
+
+  const openVideo = useCallback(
+    (item: YouTubeVideo) => {
+      const videoId = getVideoId(item);
+
+      if (!videoId) {
+        console.log("Missing Hidden Tunes TV videoId:", item);
+        return;
+      }
+
+      setPressedVideoId(videoId);
+
+      const queue = videos
+        .map((video) => {
+          const id = getVideoId(video);
+
+          return {
+            id,
+            videoId: id,
+            title: video.title || "Hidden Tunes TV",
+            artist: video.artist || video.channelTitle || "Hidden Tunes TV",
+            channelTitle: video.channelTitle || video.artist || "Hidden Tunes TV",
+            thumbnail: getCover(video),
+          };
+        })
+        .filter((video) => video.videoId.length === 11);
+
+      const startIndex = Math.max(
+        0,
+        queue.findIndex((video) => video.videoId === videoId)
+      );
+
+      router.push({
+        pathname: "/youtube-player",
+        params: {
+          id: videoId,
+          videoId,
+          title: item.title || "Hidden Tunes TV",
+          artist: item.artist || item.channelTitle || "Hidden Tunes TV",
+          channelTitle: item.channelTitle || item.artist || "Hidden Tunes TV",
+          thumbnail: getCover(item),
+          startIndex: String(startIndex),
+          queue: JSON.stringify(queue),
+        },
+      } as any);
+
+      setTimeout(() => setPressedVideoId(null), 800);
+    },
+    [videos]
+  );
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+
+    if (mode === "search" && query.trim()) {
+      await runSearch(query);
+      return;
+    }
+
+    await loadChannelVideos(false);
+  }, [loadChannelVideos, mode, query, runSearch]);
+
+  const renderVideo = useCallback(
+    ({ item }: { item: YouTubeVideo }) => (
+      <TVVideoCard
+        item={item}
+        pressed={pressedVideoId === getVideoId(item)}
+        onPress={openVideo}
+      />
+    ),
+    [openVideo, pressedVideoId]
+  );
 
   useEffect(() => {
-    loadVideos();
-  }, []);
+    loadChannelVideos(true);
+
+    return () => {
+      if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    };
+  }, [loadChannelVideos]);
 
   return (
     <LinearGradient colors={GRADIENTS.main} style={styles.container}>
       <View style={styles.header}>
-        <View>
+        <View style={styles.headerCopy}>
+          <Text style={styles.kicker}>LEGAL VIDEO DISCOVERY</Text>
           <Text style={styles.title}>Hidden Tunes TV</Text>
-          <Text style={styles.subtitle}>Only videos from your channel</Text>
+          <Text style={styles.subtitle}>
+            Official channel first. Broad YouTube discovery when you search.
+          </Text>
         </View>
 
         <TouchableOpacity
           style={styles.refreshButton}
-          onPress={loadVideos}
+          onPress={() => loadChannelVideos(true)}
           activeOpacity={0.85}
         >
           <Ionicons name="refresh" size={22} color={COLORS.text} />
         </TouchableOpacity>
       </View>
 
+      <View style={styles.searchBox}>
+        <Ionicons name="search" size={19} color={COLORS.cyan} />
+
+        <TextInput
+          value={query}
+          onChangeText={debouncedSearch}
+          placeholder="Search Hidden Tunes TV or all YouTube..."
+          placeholderTextColor={COLORS.textDim}
+          returnKeyType="search"
+          autoCorrect={false}
+          autoCapitalize="none"
+          style={styles.searchInput}
+          onSubmitEditing={() => runSearch(query)}
+        />
+
+        {searching ? (
+          <ActivityIndicator size="small" color={COLORS.primary} />
+        ) : query.length > 0 ? (
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => {
+              setQuery("");
+              loadChannelVideos(false);
+            }}
+          >
+            <Ionicons name="close-circle" size={22} color={COLORS.textMuted} />
+          </TouchableOpacity>
+        ) : (
+          <Ionicons name="logo-youtube" size={20} color="#ff0033" />
+        )}
+      </View>
+
       {loading ? (
-        <View style={styles.loadingBox}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.loadingText}>Loading Hidden Tunes TV...</Text>
-        </View>
+        <TVSkeleton />
       ) : (
         <FlatList
+          ref={listRef}
           data={videos}
           keyExtractor={(item, index) =>
-            `${item.videoId || item.id || "hidden-tv"}-${index}`
+            `${getVideoId(item) || "hidden-tv"}-${index}`
           }
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 170 }}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              activeOpacity={0.85}
-              style={styles.videoCard}
-              onPress={() => openVideo(item)}
-            >
-              <View style={styles.thumbnailBox}>
-                <Image
-                  source={{
-                    uri:
-                      item.thumbnail ||
-                      item.artwork ||
-                      item.cover ||
-                      FALLBACK_ARTWORK,
-                  }}
-                  style={styles.thumbnail}
-                />
-
-                <View style={styles.playOverlay}>
-                  <Ionicons name="play" size={30} color="#fff" />
-                </View>
-
-                <View style={styles.badge}>
-                  <Ionicons name="logo-youtube" size={14} color="#fff" />
-                  <Text style={styles.badgeText}>HIDDEN TV</Text>
-                </View>
-              </View>
-
-              <View style={styles.videoInfo}>
-                <Text numberOfLines={2} style={styles.videoTitle}>
-                  {item.title || "Hidden Tunes Video"}
-                </Text>
-
-                <Text numberOfLines={1} style={styles.channel}>
-                  {item.channelTitle || item.artist || "Hidden Tunes"}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          )}
+          contentContainerStyle={styles.list}
+          renderItem={renderVideo}
+          initialNumToRender={5}
+          maxToRenderPerBatch={5}
+          updateCellsBatchingPeriod={80}
+          windowSize={7}
+          removeClippedSubviews
+          refreshControl={
+            <RefreshControl
+              tintColor={COLORS.primary}
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+            />
+          }
+          ListHeaderComponent={
+            <View style={styles.feedHeader}>
+              <Text style={styles.feedTitle}>{titleCopy}</Text>
+              <Text style={styles.feedSub}>
+                {videos.length > 0
+                  ? `${videos.length} videos ready for embedded playback`
+                  : "Videos will appear here"}
+              </Text>
+            </View>
+          }
           ListEmptyComponent={
             <View style={styles.emptyBox}>
-              <Ionicons name="tv-outline" size={42} color={COLORS.textMuted} />
-              <Text style={styles.emptyText}>No Hidden Tunes videos found.</Text>
+              <Ionicons name="tv-outline" size={46} color={COLORS.textMuted} />
+              <Text style={styles.emptyTitle}>No TV videos found</Text>
+              <Text style={styles.emptyText}>
+                Try another search, or pull down to reload the official channel.
+              </Text>
             </View>
           }
         />
@@ -160,7 +360,20 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 24,
+    marginBottom: 18,
+  },
+
+  headerCopy: {
+    flex: 1,
+    paddingRight: 14,
+  },
+
+  kicker: {
+    color: COLORS.primary,
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 1,
+    marginBottom: 6,
   },
 
   title: {
@@ -171,8 +384,10 @@ const styles = StyleSheet.create({
 
   subtitle: {
     color: COLORS.textMuted,
-    fontSize: 14,
+    fontSize: 13,
+    lineHeight: 19,
     marginTop: 5,
+    fontWeight: "700",
   },
 
   refreshButton: {
@@ -182,32 +397,69 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.08)",
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
   },
 
-  loadingBox: {
-    marginTop: 80,
+  searchBox: {
+    height: 56,
+    borderRadius: 28,
+    paddingHorizontal: 17,
+    marginBottom: 18,
+    backgroundColor: "rgba(255,255,255,0.07)",
+    borderWidth: 1,
+    borderColor: "rgba(168,85,247,0.24)",
+    flexDirection: "row",
     alignItems: "center",
   },
 
-  loadingText: {
+  searchInput: {
+    flex: 1,
+    color: COLORS.text,
+    marginLeft: 10,
+    fontSize: 14,
+    fontWeight: "800",
+  },
+
+  list: {
+    paddingBottom: 170,
+  },
+
+  feedHeader: {
+    marginBottom: 14,
+  },
+
+  feedTitle: {
+    color: COLORS.text,
+    fontSize: 20,
+    fontWeight: "900",
+  },
+
+  feedSub: {
     color: COLORS.textMuted,
-    marginTop: 14,
+    fontSize: 12,
     fontWeight: "700",
+    marginTop: 5,
   },
 
   videoCard: {
     backgroundColor: "rgba(255,255,255,0.06)",
-    borderRadius: 26,
+    borderRadius: 28,
     padding: 12,
     marginBottom: 18,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.1)",
   },
 
+  videoCardPressed: {
+    borderColor: "rgba(255,0,51,0.72)",
+    transform: [{ scale: 0.99 }],
+  },
+
   thumbnailBox: {
     width: "100%",
-    height: 190,
-    borderRadius: 22,
+    height: 194,
+    borderRadius: 24,
     overflow: "hidden",
     backgroundColor: "#111",
   },
@@ -217,37 +469,43 @@ const styles = StyleSheet.create({
     height: "100%",
   },
 
+  thumbnailShade: {
+    ...StyleSheet.absoluteFillObject,
+  },
+
   playOverlay: {
     position: "absolute",
     top: "50%",
     left: "50%",
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    marginLeft: -32,
-    marginTop: -32,
-    backgroundColor: "rgba(255,0,51,0.9)",
+    width: 62,
+    height: 62,
+    borderRadius: 31,
+    marginLeft: -31,
+    marginTop: -31,
+    backgroundColor: "rgba(255,0,51,0.92)",
     alignItems: "center",
     justifyContent: "center",
   },
 
   badge: {
     position: "absolute",
-    right: 12,
+    left: 12,
     bottom: 12,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(255,0,51,0.95)",
+    backgroundColor: "rgba(0,0,0,0.68)",
     paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingVertical: 7,
     borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.14)",
   },
 
   badgeText: {
     color: "#fff",
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "900",
-    marginLeft: 5,
+    marginLeft: 6,
   },
 
   videoInfo: {
@@ -267,16 +525,62 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
     fontSize: 13,
     marginTop: 6,
+    fontWeight: "700",
+  },
+
+  skeletonWrap: {
+    paddingTop: 6,
+  },
+
+  skeletonCard: {
+    borderRadius: 28,
+    padding: 12,
+    marginBottom: 18,
+    backgroundColor: "rgba(255,255,255,0.055)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+  },
+
+  skeletonImage: {
+    height: 194,
+    borderRadius: 24,
+    backgroundColor: "rgba(255,255,255,0.09)",
+  },
+
+  skeletonLineWide: {
+    width: "78%",
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    marginTop: 15,
+  },
+
+  skeletonLine: {
+    width: "46%",
+    height: 11,
+    borderRadius: 6,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    marginTop: 10,
   },
 
   emptyBox: {
-    marginTop: 90,
+    marginTop: 70,
     alignItems: "center",
+    paddingHorizontal: 24,
+  },
+
+  emptyTitle: {
+    color: COLORS.text,
+    marginTop: 14,
+    fontSize: 20,
+    fontWeight: "900",
   },
 
   emptyText: {
     color: COLORS.textMuted,
-    marginTop: 12,
+    marginTop: 8,
     fontWeight: "700",
+    lineHeight: 20,
+    textAlign: "center",
   },
 });
