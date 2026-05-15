@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
-import { r2 } from "@/lib/r2";
+import { getR2Client, getR2Config } from "@/lib/r2";
 
 function cleanFileName(fileName: string) {
   return String(fileName || "upload")
@@ -37,9 +37,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!process.env.R2_BUCKET_NAME || !process.env.R2_PUBLIC_BASE_URL) {
+    const r2Config = getR2Config();
+
+    if (r2Config.missingVariables.length > 0) {
       return NextResponse.json(
-        { error: "Missing R2 environment variables" },
+        {
+          error: "Missing R2 environment variables",
+          missingVariables: r2Config.missingVariables,
+        },
         { status: 500 }
       );
     }
@@ -47,12 +52,12 @@ export async function POST(req: NextRequest) {
     const key = `${folder}/${Date.now()}-${fileName}`;
 
     const command = new PutObjectCommand({
-      Bucket: process.env.R2_BUCKET_NAME,
+      Bucket: r2Config.bucketName,
       Key: key,
       ContentType: fileType,
     });
 
-    const signedUrl = await getSignedUrl(r2, command, {
+    const signedUrl = await getSignedUrl(getR2Client(), command, {
       expiresIn: 60 * 10,
     });
 
@@ -60,7 +65,7 @@ export async function POST(req: NextRequest) {
       success: true,
       signedUrl,
       key,
-      publicUrl: `${process.env.R2_PUBLIC_BASE_URL.replace(/\/+$/, "")}/${key}`,
+      publicUrl: `${r2Config.publicBaseUrl.replace(/\/+$/, "")}/${key}`,
     });
   } catch (error) {
     console.error("Upload URL generation failed:", error);
