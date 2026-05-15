@@ -35,7 +35,6 @@ import { HIDDEN_TUNES_GENRES } from "../../utils/genres";
 
 import { searchArchiveAudio } from "../../services/archiveSearch";
 import type { BackendYouTubeTrack } from "../../services/youtubeBackend";
-import { searchYouTubeMusic } from "../../services/youtube";
 import {
   normalizeArchiveTrack,
   normalizeAudiusTrack,
@@ -540,6 +539,16 @@ export default function SearchScreen() {
       setLoading(true);
       await saveRecentSearch(safeText);
 
+      if (source === "youtube") {
+        setLoading(false);
+        setRefreshing(false);
+        router.push({
+          pathname: "/tv",
+          params: { q: safeText },
+        } as any);
+        return;
+      }
+
       const finalResults: SearchResultTrack[] = [];
 
       if (source === "all" || source === "hidden") {
@@ -558,20 +567,6 @@ export default function SearchScreen() {
           );
         } catch (error) {
           console.log("Hidden Tunes cloud search error:", error);
-        }
-      }
-
-      if (source === "all" || source === "youtube") {
-        try {
-          const youtubeResults = await searchYouTubeMusic(safeText);
-
-          const cleanYoutubeResults = youtubeResults
-            .map((track) => normalizeYouTubeResult(track))
-            .filter((track) => track.videoId.length === 11);
-
-          finalResults.push(...dedupeByKey(cleanYoutubeResults));
-        } catch (error) {
-          console.log("YouTube backend search error:", error);
         }
       }
 

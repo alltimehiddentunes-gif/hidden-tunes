@@ -2,6 +2,7 @@ import { YOUTUBE_CONFIG } from "../constants/youtube";
 
 const API_BASE_URL = "https://www.googleapis.com/youtube/v3";
 const DEFAULT_MAX_RESULTS = 50;
+const YOUTUBE_DATA_API_ENABLED = false;
 
 export type BackendYouTubeTrack = {
   id: string;
@@ -210,6 +211,17 @@ function buildSearchUrl(params: Record<string, string | number | undefined>) {
 }
 
 async function fetchYouTubePage(url: string, label: string): Promise<YouTubePage> {
+  if (!YOUTUBE_DATA_API_ENABLED) {
+    console.log(
+      `Hidden Tunes TV ${label} skipped: YouTube Data API is disabled. Use in-app YouTube WebView discovery.`
+    );
+
+    return {
+      tracks: [],
+      error: "YouTube Data API discovery is disabled. Use Hidden Tunes TV web search.",
+    };
+  }
+
   const configError = getYouTubeConfigError();
 
   if (configError || !hasYouTubeApiConfig()) {
@@ -261,6 +273,14 @@ async function fetchYouTubePage(url: string, label: string): Promise<YouTubePage
 }
 
 export async function checkYouTubeBackendStatus(): Promise<BackendStatus> {
+  if (!YOUTUBE_DATA_API_ENABLED) {
+    return {
+      online: false,
+      statusText: "YouTube Data API disabled; TV uses WebView discovery",
+      baseUrl: API_BASE_URL,
+    };
+  }
+
   const configError = getYouTubeConfigError();
 
   if (configError) {

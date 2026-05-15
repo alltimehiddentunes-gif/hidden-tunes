@@ -235,14 +235,20 @@ export default function YouTubePlayerScreen() {
   }
 
   function playNext() {
-    if (queue.length <= 1) return;
+    if (queue.length <= 1) {
+      setPlayerStatus("No TV queue yet. Open Hidden Tunes TV to choose another video.");
+      return;
+    }
 
     const next = currentIndex + 1;
     playAtIndex(next >= queue.length ? 0 : next);
   }
 
   function playPrevious() {
-    if (queue.length <= 1) return;
+    if (queue.length <= 1) {
+      setPlayerStatus("No previous video in this TV queue.");
+      return;
+    }
 
     const previous = currentIndex - 1;
     playAtIndex(previous < 0 ? queue.length - 1 : previous);
@@ -703,9 +709,20 @@ export default function YouTubePlayerScreen() {
         </View>
 
         <Text style={styles.notice}>
-          TV videos autoplay through your Hidden Tunes queue. Native audio stays
-          reserved for R2, Audius and Archive.
+          Use the in-app controls for queued TV videos. Single web-selected
+          videos can also be controlled directly inside the YouTube frame.
         </Text>
+
+        {queue.length <= 1 && (
+          <TouchableOpacity
+            activeOpacity={0.86}
+            style={styles.tvSearchButton}
+            onPress={() => router.push("/tv" as any)}
+          >
+            <Ionicons name="tv" size={17} color="#000" />
+            <Text style={styles.tvSearchText}>Find Another TV Video</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <ScrollView style={styles.queueList} showsVerticalScrollIndicator={false}>
@@ -931,6 +948,24 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 17,
     marginTop: 16,
+  },
+
+  tvSearchButton: {
+    alignSelf: "center",
+    minHeight: 42,
+    borderRadius: 21,
+    marginTop: 14,
+    paddingHorizontal: 16,
+    backgroundColor: COLORS.primary,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+
+  tvSearchText: {
+    color: "#000",
+    fontSize: 12,
+    fontWeight: "900",
   },
 
   queueList: {
