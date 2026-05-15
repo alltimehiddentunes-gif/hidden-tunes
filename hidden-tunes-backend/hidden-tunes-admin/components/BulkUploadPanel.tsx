@@ -48,6 +48,10 @@ function getUploadStep(error: unknown) {
   return error instanceof UploadStepError ? error.step : "upload";
 }
 
+function getSafeErrorName(error: unknown) {
+  return error instanceof Error ? error.name : typeof error;
+}
+
 const API_UPLOAD_URL = "/api/admin/upload-track";
 const API_SIGNED_UPLOAD_URL = "/api/upload-url";
 
@@ -189,8 +193,10 @@ function uploadFileDirectToR2(
 ) {
   return new Promise<void>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
+    const uploadHost = new URL(signedUrl).host;
 
     xhr.open("PUT", signedUrl);
+    xhr.withCredentials = false;
     xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
     xhr.timeout = 1000 * 60 * 30;
 
@@ -217,7 +223,11 @@ function uploadFileDirectToR2(
     };
 
     xhr.onerror = () => {
-      reject(new Error("Network error while uploading to R2"));
+      reject(
+        new Error(
+          `Browser could not complete the direct R2 upload to ${uploadHost}. This usually means the Cloudflare R2 bucket CORS policy is missing this admin origin, PUT, or Content-Type.`
+        )
+      );
     };
 
     xhr.ontimeout = () => {
@@ -517,7 +527,7 @@ export default function BulkUploadPanel() {
       const data = await response.json().catch(() => null);
 
       if (!response.ok || !data?.success) {
-        console.error("Hidden Tunes catalog save failed", {
+        console.warn("Hidden Tunes catalog save failed", {
           title: item.title,
           status: response.status,
           data,
@@ -548,11 +558,11 @@ export default function BulkUploadPanel() {
       const step = getUploadStep(error);
       const message = getErrorMessage(error, "Upload failed");
 
-      console.error("Hidden Tunes upload failed", {
+      console.warn("Hidden Tunes upload failed", {
         title: item.title,
         step,
         message,
-        error,
+        errorName: getSafeErrorName(error),
       });
 
       updateItem(item.id, {
