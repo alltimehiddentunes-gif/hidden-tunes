@@ -66,6 +66,51 @@ function isYouTubeUrl(url: string) {
   );
 }
 
+const interceptYouTubeClicksScript = `
+  (function () {
+    if (window.__hiddenTunesTvClickInterceptor) return true;
+    window.__hiddenTunesTvClickInterceptor = true;
+
+    function sendVideo(href) {
+      try {
+        window.ReactNativeWebView.postMessage(JSON.stringify({
+          type: "youtube_video_link",
+          href: href
+        }));
+      } catch (error) {}
+    }
+
+    function findVideoHref(target) {
+      var node = target;
+
+      while (node && node !== document.body) {
+        if (node.href) {
+          var href = String(node.href);
+          if (href.indexOf("/watch") >= 0 || href.indexOf("/shorts/") >= 0 || href.indexOf("youtu.be/") >= 0) {
+            return href;
+          }
+        }
+
+        node = node.parentNode;
+      }
+
+      return "";
+    }
+
+    document.addEventListener("click", function (event) {
+      var href = findVideoHref(event.target);
+
+      if (!href) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      sendVideo(href);
+    }, true);
+
+    true;
+  })();
+`;
+
 export default function HiddenTunesTVScreen() {
   const params = useLocalSearchParams();
   const webViewRef = useRef<WebView | null>(null);
@@ -171,6 +216,30 @@ export default function HiddenTunesTVScreen() {
     [openEmbeddedVideo]
   );
 
+  const handleWebViewMessage = useCallback(
+    (event: any) => {
+      const rawMessage = String(event.nativeEvent.data || "");
+
+      try {
+        const message = JSON.parse(rawMessage);
+
+        if (message.type !== "youtube_video_link") return;
+
+        const videoId = extractVideoId(message.href);
+
+        if (videoId) {
+          openEmbeddedVideo(videoId, message.href);
+        }
+      } catch (error) {
+        console.log("Hidden Tunes TV WebView message error:", {
+          error,
+          rawMessage,
+        });
+      }
+    },
+    [openEmbeddedVideo]
+  );
+
   useEffect(() => {
     if (!initialQuery) return;
 
@@ -268,6 +337,9 @@ export default function HiddenTunesTVScreen() {
           setSupportMultipleWindows={false}
           mixedContentMode="always"
           originWhitelist={["*"]}
+          injectedJavaScript={interceptYouTubeClicksScript}
+          injectedJavaScriptBeforeContentLoaded={interceptYouTubeClicksScript}
+          onMessage={handleWebViewMessage}
           userAgent="Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
           onShouldStartLoadWithRequest={handleNavigation}
           onLoadStart={() => {

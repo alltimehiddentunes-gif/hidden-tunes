@@ -8,10 +8,13 @@ import {
 } from "react-native";
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { router, useLocalSearchParams } from "expo-router";
-import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import WebView from "react-native-webview";
+import { LinearGradient } from "expo-linear-gradient";
+import { router, useLocalSearchParams } from "expo-router";
+import YoutubePlayer, {
+  PLAYER_STATES,
+  type YoutubeIframeRef,
+} from "react-native-youtube-iframe";
 
 import { COLORS, GRADIENTS } from "../constants/theme";
 import { usePlayer } from "../context/PlayerContext";
@@ -25,7 +28,6 @@ type YouTubeQueueItem = {
   thumbnail: string;
 };
 
-const YOUTUBE_ORIGIN = "https://hiddentunes.com";
 const YOUTUBE_MINI_KEY = "hidden_tunes_current_youtube";
 
 function sanitizeYouTubeVideoId(value: any) {
@@ -57,7 +59,7 @@ function normalizeQueueItem(item: any): YouTubeQueueItem | null {
 
 export default function YouTubePlayerScreen() {
   const params = useLocalSearchParams();
-  const webViewRef = useRef<WebView | null>(null);
+  const youtubeRef = useRef<YoutubeIframeRef | null>(null);
 
   const { stopPlayback } = usePlayer() as any;
 
@@ -118,9 +120,8 @@ export default function YouTubePlayerScreen() {
 
   const [currentIndex, setCurrentIndex] = useState(startIndex);
   const [playerStatus, setPlayerStatus] = useState("Loading YouTube player...");
-  const [isVideoPlaying, setIsVideoPlaying] = useState(false);
-  const [webViewReady, setWebViewReady] = useState(false);
-  const [simpleEmbedMode, setSimpleEmbedMode] = useState(false);
+  const [isVideoPlaying, setIsVideoPlaying] = useState(true);
+  const [playerReady, setPlayerReady] = useState(false);
 
   const queue = parsedQueue;
   const currentVideo = queue[currentIndex] || queue[0];
@@ -150,9 +151,8 @@ export default function YouTubePlayerScreen() {
 
     startedAtRef.current = Date.now();
     autoNextLockRef.current = false;
-    setIsVideoPlaying(false);
-    setWebViewReady(false);
-    setSimpleEmbedMode(false);
+    setIsVideoPlaying(true);
+    setPlayerReady(false);
     setPlayerStatus("Loading YouTube player...");
 
     if (errorSkipTimerRef.current) {
@@ -181,45 +181,6 @@ export default function YouTubePlayerScreen() {
     }
   }
 
-  function runPlayerCommand(command: "play" | "pause" | "mute" | "unmute") {
-    const js = `
-      try {
-        if (window.player && "${command}" === "play" && typeof window.player.playVideo === "function") {
-          window.player.playVideo();
-        }
-
-        if (window.player && "${command}" === "pause" && typeof window.player.pauseVideo === "function") {
-          window.player.pauseVideo();
-        }
-
-        if (window.player && "${command}" === "mute" && typeof window.player.mute === "function") {
-          window.player.mute();
-        }
-
-        if (window.player && "${command}" === "unmute" && typeof window.player.unMute === "function") {
-          window.player.unMute();
-        }
-
-        if (!window.player) {
-          window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({
-            type: "command_error",
-            command: "${command}",
-            message: "YouTube player is not ready yet."
-          }));
-        }
-      } catch (error) {
-        window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({
-          type: "command_error",
-          command: "${command}",
-          message: String(error)
-        }));
-      }
-      true;
-    `;
-
-    webViewRef.current?.injectJavaScript(js);
-  }
-
   function playAtIndex(index: number) {
     if (!queue.length) return;
 
@@ -227,9 +188,8 @@ export default function YouTubePlayerScreen() {
 
     startedAtRef.current = Date.now();
     autoNextLockRef.current = false;
-    setIsVideoPlaying(false);
-    setWebViewReady(false);
-    setSimpleEmbedMode(false);
+    setIsVideoPlaying(true);
+    setPlayerReady(false);
     setPlayerStatus("Loading YouTube player...");
     setCurrentIndex(safeIndex);
   }
@@ -255,32 +215,23 @@ export default function YouTubePlayerScreen() {
   }
 
   function togglePlayPause() {
-    if (simpleEmbedMode) {
-      setPlayerStatus("Use the YouTube controls inside the video.");
-      return;
-    }
-
-    if (!webViewReady) {
+    if (!playerReady) {
       setPlayerStatus("Player is still loading. Try again in a moment.");
       return;
     }
 
-    if (isVideoPlaying) {
-      runPlayerCommand("pause");
-      setIsVideoPlaying(false);
-      setPlayerStatus("Paused");
-    } else {
-      runPlayerCommand("play");
-      setIsVideoPlaying(true);
-      setPlayerStatus("Playing");
-    }
+    setIsVideoPlaying((playing) => {
+      const next = !playing;
+      setPlayerStatus(next ? "Playing" : "Paused");
+      return next;
+    });
   }
 
   function safeAutoNext(reason: string, allowEarlySkip = false) {
     const watchedMs = Date.now() - startedAtRef.current;
     const watchedSeconds = Math.floor(watchedMs / 1000);
 
-    console.log("YouTube WebView auto-next check:", {
+    console.log("YouTube iframe auto-next check:", {
       reason,
       watchedSeconds,
       allowEarlySkip,
@@ -289,12 +240,13 @@ export default function YouTubePlayerScreen() {
     if (autoNextLockRef.current) return;
 
     if (!allowEarlySkip && watchedMs < 3000) {
-      console.log("Blocked early WebView auto-next:", reason);
+      console.log("Blocked early YouTube auto-next:", reason);
       setPlayerStatus("Waiting for stable playback before auto-next...");
       return;
     }
 
     if (queue.length <= 1) {
+      setIsVideoPlaying(false);
       setPlayerStatus("Video ended.");
       return;
     }
@@ -313,7 +265,13 @@ export default function YouTubePlayerScreen() {
   }
 
   function scheduleErrorSkip() {
-    if (queue.length <= 1) return;
+    if (queue.length <= 1) {
+      setIsVideoPlaying(false);
+      setPlayerStatus(
+        "This YouTube video cannot play in the embedded player. Choose another TV video."
+      );
+      return;
+    }
 
     if (errorSkipTimerRef.current) {
       clearTimeout(errorSkipTimerRef.current);
@@ -326,234 +284,46 @@ export default function YouTubePlayerScreen() {
     }, 1800);
   }
 
-  function handleWebViewMessage(event: any) {
-    const rawMessage = String(event.nativeEvent.data || "");
+  function handlePlayerStateChange(state: PLAYER_STATES) {
+    if (state === PLAYER_STATES.PLAYING) {
+      setIsVideoPlaying(true);
+      setPlayerReady(true);
+      setPlayerStatus("Playing");
+      return;
+    }
 
-    try {
-      const message = JSON.parse(rawMessage);
+    if (state === PLAYER_STATES.PAUSED) {
+      setIsVideoPlaying(false);
+      setPlayerStatus("Paused");
+      return;
+    }
 
-      if (message.type === "ready") {
-        setWebViewReady(true);
-        setPlayerStatus("Ready. Tap play if the video does not start.");
-        return;
-      }
+    if (state === PLAYER_STATES.BUFFERING) {
+      setPlayerStatus("Buffering...");
+      return;
+    }
 
-      if (message.type === "playing") {
-        setIsVideoPlaying(true);
-        setPlayerStatus("Playing");
-        return;
-      }
+    if (state === PLAYER_STATES.ENDED) {
+      setIsVideoPlaying(false);
+      safeAutoNext("youtube-ended");
+      return;
+    }
 
-      if (message.type === "paused") {
-        setIsVideoPlaying(false);
-        setPlayerStatus("Paused");
-        return;
-      }
-
-      if (message.type === "ended") {
-        setIsVideoPlaying(false);
-        safeAutoNext("youtube-ended");
-        return;
-      }
-
-      if (message.type === "error") {
-        console.log("YouTube iframe error:", message);
-        setIsVideoPlaying(false);
-        setPlayerStatus(
-          `YouTube embed error ${message.code || ""}. Trying the next video...`
-        );
-        scheduleErrorSkip();
-        return;
-      }
-
-      if (message.type === "command_error") {
-        console.log("YouTube command error:", message);
-        setPlayerStatus(message.message || "YouTube player command failed.");
-
-        if (message.command === "load") {
-          setSimpleEmbedMode(true);
-          setPlayerStatus("Using fallback YouTube embed player.");
-        }
-      }
-    } catch {
-      console.log("YouTube raw message:", rawMessage);
+    if (state === PLAYER_STATES.VIDEO_CUED) {
+      setPlayerReady(true);
+      setPlayerStatus("Ready. Tap play if the video does not start.");
     }
   }
 
-  const embedHtml = `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta
-          name="viewport"
-          content="width=device-width, initial-scale=1.0, maximum-scale=1.0"
-        />
+  function handlePlayerError(error: string) {
+    console.log("YouTube iframe error:", {
+      videoId,
+      error,
+    });
 
-        <style>
-          html, body {
-            margin: 0;
-            padding: 0;
-            background: #000;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-          }
-
-          #player {
-            width: 100vw;
-            height: 100vh;
-          }
-
-          .tap-cover {
-            position: fixed;
-            inset: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: rgba(0,0,0,0.01);
-            z-index: 5;
-          }
-
-          .tap-button {
-            width: 84px;
-            height: 84px;
-            border-radius: 42px;
-            border: 0;
-            background: rgba(255,0,51,0.92);
-            color: #fff;
-            font-size: 34px;
-            line-height: 84px;
-            text-align: center;
-          }
-        </style>
-      </head>
-
-      <body>
-        <div id="player"></div>
-        <div id="tapCover" class="tap-cover">
-          <button id="tapButton" class="tap-button">▶</button>
-        </div>
-
-        <script>
-          var tag = document.createElement("script");
-          tag.src = "https://www.youtube.com/iframe_api";
-          var firstScriptTag = document.getElementsByTagName("script")[0];
-          firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
-
-          window.player = null;
-          var hasPlayed = false;
-          var ready = false;
-
-          function hideTapCover() {
-            var cover = document.getElementById("tapCover");
-            if (cover) cover.style.display = "none";
-          }
-
-          function showTapCover() {
-            var cover = document.getElementById("tapCover");
-            if (cover) cover.style.display = "flex";
-          }
-
-          function sendMessage(payload) {
-            try {
-              if (window.ReactNativeWebView) {
-                window.ReactNativeWebView.postMessage(JSON.stringify(payload));
-              }
-            } catch (error) {}
-          }
-
-          function playFromUserTap() {
-            try {
-              if (window.player && typeof window.player.playVideo === "function") {
-                window.player.playVideo();
-              }
-            } catch (error) {
-              sendMessage({
-                type: "command_error",
-                command: "tap_play",
-                message: String(error)
-              });
-            }
-          }
-
-          var tapButton = document.getElementById("tapButton");
-          if (tapButton) {
-            tapButton.addEventListener("click", playFromUserTap);
-            tapButton.addEventListener("touchend", function(event) {
-              event.preventDefault();
-              playFromUserTap();
-            });
-          }
-
-          window.onYouTubeIframeAPIReady = function() {
-            window.player = new YT.Player("player", {
-              width: "100%",
-              height: "100%",
-              videoId: "${videoId}",
-              host: "https://www.youtube.com",
-              playerVars: {
-                autoplay: 1,
-                controls: 1,
-                playsinline: 1,
-                rel: 0,
-                modestbranding: 1,
-                fs: 1,
-                enablejsapi: 1
-              },
-              events: {
-                onReady: function(event) {
-                  ready = true;
-                  sendMessage({ type: "ready" });
-                  try {
-                    event.target.playVideo();
-                  } catch (error) {
-                    showTapCover();
-                  }
-                },
-                onStateChange: function(event) {
-                  if (event.data === YT.PlayerState.PLAYING) {
-                    hasPlayed = true;
-                    hideTapCover();
-                    sendMessage({ type: "playing" });
-                  }
-
-                  if (event.data === YT.PlayerState.PAUSED) {
-                    if (ready && !hasPlayed) showTapCover();
-                    sendMessage({ type: "paused" });
-                  }
-
-                  if (event.data === YT.PlayerState.ENDED) {
-                    if (hasPlayed) {
-                      sendMessage({ type: "ended" });
-                    }
-                  }
-                },
-                onError: function(event) {
-                  showTapCover();
-                  sendMessage({
-                    type: "error",
-                    code: event.data
-                  });
-                }
-              }
-            });
-          };
-
-          setTimeout(function() {
-            if (!ready) {
-              sendMessage({
-                type: "command_error",
-                command: "load",
-                message: "YouTube iframe API did not become ready."
-              });
-            }
-          }, 8000);
-        </script>
-      </body>
-    </html>
-  `;
-
-  const simpleEmbedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1&playsinline=1&controls=1&rel=0&modestbranding=1&fs=1`;
+    setIsVideoPlaying(false);
+    scheduleErrorSkip();
+  }
 
   return (
     <LinearGradient colors={GRADIENTS.main} style={styles.container}>
@@ -570,7 +340,7 @@ export default function YouTubePlayerScreen() {
         </TouchableOpacity>
 
         <View style={styles.topTextBox}>
-          <Text style={styles.label}>YOUTUBE WEBVIEW</Text>
+          <Text style={styles.label}>YOUTUBE EMBED</Text>
           <Text numberOfLines={1} style={styles.topTitle}>
             Hidden Tunes TV
           </Text>
@@ -587,58 +357,34 @@ export default function YouTubePlayerScreen() {
 
       <View style={styles.playerFrame}>
         {videoId ? (
-          <WebView
-            ref={webViewRef}
-            key={`${videoId}-${simpleEmbedMode ? "simple" : "api"}`}
-            originWhitelist={["*"]}
-            source={
-              simpleEmbedMode
-                ? { uri: simpleEmbedUrl }
-                : {
-                    html: embedHtml,
-                    baseUrl: YOUTUBE_ORIGIN,
-                  }
-            }
-            javaScriptEnabled
-            domStorageEnabled
-            allowsInlineMediaPlayback
-            mediaPlaybackRequiresUserAction={false}
-            allowsProtectedMedia
-            allowsFullscreenVideo
-            setSupportMultipleWindows={false}
-            mixedContentMode="always"
-            userAgent="Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
-            onMessage={simpleEmbedMode ? undefined : handleWebViewMessage}
-            onLoadStart={() => {
-              setWebViewReady(false);
-              setPlayerStatus(
-                simpleEmbedMode
-                  ? "Loading fallback YouTube embed..."
-                  : "Loading YouTube player..."
-              );
+          <YoutubePlayer
+            ref={youtubeRef}
+            key={videoId}
+            height={230}
+            videoId={videoId}
+            play={isVideoPlaying}
+            forceAndroidAutoplay
+            useLocalHTML
+            initialPlayerParams={{
+              controls: true,
+              rel: false,
+              preventFullScreen: false,
+              iv_load_policy: 3,
             }}
-            onLoadEnd={() => {
-              console.log("YouTube WebView loaded:", {
-                videoId,
-                mode: simpleEmbedMode ? "simple-embed" : "iframe-api",
-              });
-
-              if (simpleEmbedMode) {
-                setWebViewReady(true);
-                setPlayerStatus("Fallback embed ready. Tap video if needed.");
-              }
+            webViewStyle={styles.youtubeWebView}
+            webViewProps={{
+              allowsInlineMediaPlayback: true,
+              allowsFullscreenVideo: true,
+              mediaPlaybackRequiresUserAction: false,
+              setSupportMultipleWindows: false,
+              mixedContentMode: "always",
             }}
-            onError={(error) => {
-              console.log("YouTube WebView error:", error.nativeEvent);
-              setPlayerStatus("WebView error. Tap next.");
-              scheduleErrorSkip();
+            onReady={() => {
+              setPlayerReady(true);
+              setPlayerStatus("Ready. Tap play if the video does not start.");
             }}
-            onHttpError={(error) => {
-              console.log("YouTube WebView HTTP error:", error.nativeEvent);
-              setPlayerStatus("YouTube HTTP error. Tap next.");
-              scheduleErrorSkip();
-            }}
-            style={styles.webview}
+            onChangeState={handlePlayerStateChange}
+            onError={handlePlayerError}
           />
         ) : (
           <View style={styles.noVideoBox}>
@@ -655,7 +401,7 @@ export default function YouTubePlayerScreen() {
       <View style={styles.infoCard}>
         <View style={styles.youtubePill}>
           <Ionicons name="logo-youtube" size={14} color="#fff" />
-          <Text style={styles.youtubePillText}>Autoplay TV Queue</Text>
+          <Text style={styles.youtubePillText}>Embedded TV Player</Text>
         </View>
 
         <Text numberOfLines={2} style={styles.title}>
@@ -709,8 +455,8 @@ export default function YouTubePlayerScreen() {
         </View>
 
         <Text style={styles.notice}>
-          Use the in-app controls for queued TV videos. Single web-selected
-          videos can also be controlled directly inside the YouTube frame.
+          Hidden Tunes TV uses official YouTube embedded playback. Some videos
+          may still block embeds, but no YouTube Data API quota is used here.
         </Text>
 
         {queue.length <= 1 && (
@@ -729,7 +475,7 @@ export default function YouTubePlayerScreen() {
         <View style={styles.queueHeader}>
           <Text style={styles.queueHeaderTitle}>Up Next</Text>
           <Text style={styles.queueHeaderSub}>
-            Hidden Tunes channel autoplay queue
+            Hidden Tunes TV queue
           </Text>
         </View>
 
@@ -845,8 +591,7 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.12)",
   },
 
-  webview: {
-    flex: 1,
+  youtubeWebView: {
     backgroundColor: "#000",
   },
 
