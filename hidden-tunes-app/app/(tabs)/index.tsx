@@ -92,6 +92,7 @@ function HomeScreen() {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(18)).current;
   const heroScale = useRef(new Animated.Value(0.96)).current;
+  const heroGlowAnim = useRef(new Animated.Value(0.42)).current;
 
   const [featuredSongs, setFeaturedSongs] = useState<HiddenTunesNormalizedSong[]>([]);
   const [loadingSongs, setLoadingSongs] = useState(true);
@@ -145,7 +146,28 @@ function HomeScreen() {
         useNativeDriver: true,
       }),
     ]).start();
-  }, [fadeAnim, heroScale, loadFeaturedSongs, slideAnim]);
+
+    const heroGlowLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(heroGlowAnim, {
+          toValue: 1,
+          duration: 2200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(heroGlowAnim, {
+          toValue: 0.42,
+          duration: 2200,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+
+    heroGlowLoop.start();
+
+    return () => {
+      heroGlowLoop.stop();
+    };
+  }, [fadeAnim, heroGlowAnim, heroScale, loadFeaturedSongs, slideAnim]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -265,6 +287,18 @@ function HomeScreen() {
     setHeroIndex(0);
     heroListRef.current?.scrollToOffset({ offset: 0, animated: false });
   }, [firstHeroKey]);
+
+  useEffect(() => {
+    if (!isPlaying || !currentSong || heroCards.length === 0) return;
+
+    heroIndexRef.current = 0;
+    setHeroIndex(0);
+
+    heroListRef.current?.scrollToOffset({
+      offset: 0,
+      animated: true,
+    });
+  }, [currentSong, heroCards.length, isPlaying]);
 
   useFocusEffect(
     useCallback(() => {
@@ -543,7 +577,7 @@ function HomeScreen() {
               <HTImage
                 source={FALLBACK_ARTWORK}
                 style={styles.logoImage}
-                contentFit="contain"
+                contentFit="cover"
               />
             </View>
 
@@ -585,6 +619,23 @@ function HomeScreen() {
               },
             ]}
           >
+            <Animated.View
+              pointerEvents="none"
+              style={[
+                styles.heroBoxGlow,
+                {
+                  opacity: heroGlowAnim,
+                  transform: [
+                    {
+                      scale: heroGlowAnim.interpolate({
+                        inputRange: [0.42, 1],
+                        outputRange: [0.98, 1.035],
+                      }),
+                    },
+                  ],
+                },
+              ]}
+            />
             {heroCards.length > 0 ? (
               <FlatList
                 ref={heroListRef}
@@ -835,17 +886,17 @@ const styles = StyleSheet.create({
   },
 
   logoBox: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     borderWidth: 1,
     borderColor: "rgba(168,85,247,0.5)",
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "rgba(168,85,247,0.1)",
     shadowColor: COLORS.primary,
-    shadowOpacity: 0.28,
-    shadowRadius: 14,
+    shadowOpacity: 0.22,
+    shadowRadius: 12,
     shadowOffset: {
       width: 0,
       height: 0,
@@ -856,16 +907,16 @@ const styles = StyleSheet.create({
 
   logoGlow: {
     position: "absolute",
-    width: 62,
-    height: 62,
-    borderRadius: 31,
+    width: 70,
+    height: 70,
+    borderRadius: 35,
     backgroundColor: "rgba(168,85,247,0.16)",
   },
 
   logoImage: {
-    width: 39,
-    height: 39,
-    borderRadius: 20,
+    width: 58,
+    height: 58,
+    borderRadius: 29,
   },
 
   logoText: {
@@ -937,6 +988,25 @@ const styles = StyleSheet.create({
   heroOuter: {
     marginTop: 24,
     marginHorizontal: 20,
+    position: "relative",
+  },
+
+  heroBoxGlow: {
+    position: "absolute",
+    left: -8,
+    right: -8,
+    top: -8,
+    height: 334,
+    borderRadius: 42,
+    backgroundColor: "rgba(168,85,247,0.2)",
+    shadowColor: COLORS.primary,
+    shadowOpacity: 0.45,
+    shadowRadius: 24,
+    shadowOffset: {
+      width: 0,
+      height: 0,
+    },
+    elevation: 8,
   },
 
   heroDots: {
