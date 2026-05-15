@@ -23,12 +23,12 @@ type TVMode = "channel" | "search";
 type YouTubeVideo = YouTubeService.YouTubeVideo;
 type YouTubeVideoPage = YouTubeService.YouTubeVideoPage;
 
-function getVideoId(item: YouTubeVideo) {
-  return String(item.videoId || item.id || "").replace("youtube-", "").trim();
+function getVideoId(item?: Partial<YouTubeVideo> | null) {
+  return String(item?.videoId || item?.id || "").replace("youtube-", "").trim();
 }
 
-function getCover(item: YouTubeVideo) {
-  return item.thumbnail || item.artwork || item.cover || FALLBACK_ARTWORK;
+function getCover(item?: Partial<YouTubeVideo> | null) {
+  return item?.thumbnail || item?.artwork || item?.cover || FALLBACK_ARTWORK;
 }
 
 function mergeVideos(current: YouTubeVideo[], incoming: YouTubeVideo[]) {
