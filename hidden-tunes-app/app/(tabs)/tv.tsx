@@ -16,15 +16,12 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 
 import { COLORS, GRADIENTS } from "@/constants/theme";
-import {
-  fetchChannelVideosPage,
-  fetchRelatedYouTubeVideosPage,
-  searchYouTubeMusicPage,
-  type YouTubeVideo,
-} from "@/services/youtube";
+import * as YouTubeService from "../../services/youtube";
 import { FALLBACK_ARTWORK } from "@/utils/artwork";
 
 type TVMode = "channel" | "search";
+type YouTubeVideo = YouTubeService.YouTubeVideo;
+type YouTubeVideoPage = YouTubeService.YouTubeVideoPage;
 
 function getVideoId(item: YouTubeVideo) {
   return String(item.videoId || item.id || "").replace("youtube-", "").trim();
@@ -48,6 +45,52 @@ function mergeVideos(current: YouTubeVideo[], incoming: YouTubeVideo[]) {
   });
 
   return merged;
+}
+
+async function getChannelPage(pageToken = ""): Promise<YouTubeVideoPage> {
+  if (typeof YouTubeService.fetchChannelVideosPage === "function") {
+    return YouTubeService.fetchChannelVideosPage(pageToken);
+  }
+
+  console.log(
+    "Hidden Tunes TV fallback: fetchChannelVideosPage unavailable, using fetchChannelVideos."
+  );
+
+  const videos = await YouTubeService.fetchChannelVideos();
+
+  return { videos };
+}
+
+async function getSearchPage(
+  query: string,
+  pageToken = ""
+): Promise<YouTubeVideoPage> {
+  if (typeof YouTubeService.searchYouTubeMusicPage === "function") {
+    return YouTubeService.searchYouTubeMusicPage(query, pageToken);
+  }
+
+  console.log(
+    "Hidden Tunes TV fallback: searchYouTubeMusicPage unavailable, using searchYouTubeMusic."
+  );
+
+  const videos = await YouTubeService.searchYouTubeMusic(query);
+
+  return { videos };
+}
+
+async function getRelatedPage(
+  videoId: string,
+  pageToken = ""
+): Promise<YouTubeVideoPage> {
+  if (typeof YouTubeService.fetchRelatedYouTubeVideosPage === "function") {
+    return YouTubeService.fetchRelatedYouTubeVideosPage(videoId, pageToken);
+  }
+
+  console.log(
+    "Hidden Tunes TV fallback: related videos unavailable until the new service bundle is active."
+  );
+
+  return { videos: [] };
 }
 
 const TVSkeleton = memo(function TVSkeleton() {
@@ -159,7 +202,7 @@ export default function HiddenTunesTVScreen() {
       try {
         setLoadingRelated(true);
 
-        const page = await fetchRelatedYouTubeVideosPage(seedVideoId, pageToken);
+        const page = await getRelatedPage(seedVideoId, pageToken);
 
         if (page.error) {
           console.log("Hidden Tunes TV related videos warning:", page.error);
@@ -193,7 +236,7 @@ export default function HiddenTunesTVScreen() {
       setRelatedPageToken(undefined);
       setRelatedSeedId("");
 
-      const page = await fetchChannelVideosPage();
+      const page = await getChannelPage();
 
       if (activeRequestRef.current !== requestId) return;
 
@@ -248,7 +291,7 @@ export default function HiddenTunesTVScreen() {
         setRelatedPageToken(undefined);
         setRelatedSeedId("");
 
-        const page = await searchYouTubeMusicPage(safeText);
+        const page = await getSearchPage(safeText);
 
         if (activeRequestRef.current !== requestId) return;
 
@@ -298,10 +341,10 @@ export default function HiddenTunesTVScreen() {
 
       const page =
         nextPageToken && mode === "search"
-          ? await searchYouTubeMusicPage(query, nextPageToken)
+          ? await getSearchPage(query, nextPageToken)
           : nextPageToken
-          ? await fetchChannelVideosPage(nextPageToken)
-          : await fetchRelatedYouTubeVideosPage(relatedSeedId, relatedPageToken);
+          ? await getChannelPage(nextPageToken)
+          : await getRelatedPage(relatedSeedId, relatedPageToken);
 
       setVideos((current) => mergeVideos(current, page.videos));
 
