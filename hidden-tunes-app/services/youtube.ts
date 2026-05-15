@@ -54,7 +54,7 @@ export async function searchYouTubeMusic(
 ): Promise<YouTubeVideo[]> {
   if (!query.trim()) return [];
 
-  const results = await searchYouTubeBackend(`${query} music`);
+  const results = await searchYouTubeBackend(query);
 
   return results.map(normalizeYouTubeVideo);
 }
@@ -65,7 +65,7 @@ export async function searchYouTubeMusicPage(
 ): Promise<YouTubeVideoPage> {
   if (!query.trim()) return { videos: [] };
 
-  const page = await searchYouTubeBackendPage(`${query} music`, pageToken);
+  const page = await searchYouTubeBackendPage(query, pageToken, 50);
 
   return normalizePage(page);
 }

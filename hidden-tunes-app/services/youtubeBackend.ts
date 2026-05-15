@@ -1,7 +1,7 @@
 import { YOUTUBE_CONFIG } from "../constants/youtube";
 
 const API_BASE_URL = "https://www.googleapis.com/youtube/v3";
-const DEFAULT_MAX_RESULTS = 20;
+const DEFAULT_MAX_RESULTS = 50;
 
 export type BackendYouTubeTrack = {
   id: string;
