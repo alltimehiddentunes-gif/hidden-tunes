@@ -83,7 +83,11 @@ function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [visibleSongCount, setVisibleSongCount] = useState(INITIAL_HOME_SONG_ROWS);
 
-  const heroTrack = featuredSongs[0];
+  const defaultHeroTrack = featuredSongs[0];
+  const heroTrack = useMemo(() => {
+    return currentSong ? safeSong(currentSong) : defaultHeroTrack;
+  }, [currentSong, defaultHeroTrack]);
+  const heroShowingCurrentSong = Boolean(currentSong);
 
   useScrollToTop(scrollRef);
 
@@ -178,6 +182,17 @@ function HomeScreen() {
       Math.min(featuredSongs.length, current + HOME_SONG_ROWS_INCREMENT)
     );
   }, [featuredSongs.length]);
+
+  const handleHeroPress = useCallback(() => {
+    if (!heroTrack) return;
+
+    if (heroShowingCurrentSong) {
+      router.push("/player" as any);
+      return;
+    }
+
+    playFeaturedSong(heroTrack);
+  }, [heroShowingCurrentSong, heroTrack, playFeaturedSong]);
 
   const renderSongRow = useCallback(
     (song: HiddenTunesNormalizedSong, index: number) => {
@@ -359,7 +374,7 @@ function HomeScreen() {
               <TouchableOpacity
                 activeOpacity={0.92}
                 style={styles.heroCard}
-                onPress={() => heroTrack && playFeaturedSong(heroTrack)}
+                onPress={handleHeroPress}
               >
                 {heroTrack ? (
                   <>
@@ -374,10 +389,12 @@ function HomeScreen() {
                     >
                       <View style={styles.livePill}>
                         <NeonEQ
-                          isPlaying={isPlaying && currentSong?.id === heroTrack.id}
+                          isPlaying={isPlaying && heroShowingCurrentSong}
                           size="small"
                         />
-                        <Text style={styles.liveText}>CLOUD FEATURED</Text>
+                        <Text style={styles.liveText}>
+                          {heroShowingCurrentSong ? "NOW PLAYING" : "CLOUD FEATURED"}
+                        </Text>
                       </View>
 
                       <Text numberOfLines={1} style={styles.heroSong}>
@@ -389,8 +406,14 @@ function HomeScreen() {
                       </Text>
 
                       <View style={styles.playButton}>
-                        <Ionicons name="play" size={18} color="#000" />
-                        <Text style={styles.playText}>PLAY</Text>
+                        <Ionicons
+                          name={heroShowingCurrentSong && isPlaying ? "pause" : "play"}
+                          size={18}
+                          color="#000"
+                        />
+                        <Text style={styles.playText}>
+                          {heroShowingCurrentSong ? "OPEN PLAYER" : "PLAY"}
+                        </Text>
                       </View>
                     </LinearGradient>
                   </>
