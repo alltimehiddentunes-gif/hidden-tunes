@@ -1,5 +1,6 @@
 import express from "express";
 import { supabase } from "../services/supabase.js";
+import { handleLyricsRequest } from "./lyrics.js";
 
 const router = express.Router();
 
@@ -185,5 +186,7 @@ router.get("/", async (req, res) => {
     });
   }
 });
+
+router.get("/:id/lyrics", handleLyricsRequest);
 
 export default router;
