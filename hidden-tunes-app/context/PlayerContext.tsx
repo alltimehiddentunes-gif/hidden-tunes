@@ -1354,10 +1354,30 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const togglePlayPause = useCallback(async () => {
     const sound = soundRef.current;
-    if (!sound || isChangingTrackRef.current) return;
+
+    if (isChangingTrackRef.current) return;
+
+    if (!sound) {
+      const restoredSong = currentSongRef.current;
+
+      if (restoredSong) {
+        await loadAndPlay(restoredSong);
+      }
+
+      return;
+    }
 
     const status = await sound.getStatusAsync();
-    if (!status.isLoaded) return;
+
+    if (!status.isLoaded) {
+      const restoredSong = currentSongRef.current;
+
+      if (restoredSong) {
+        await loadAndPlay(restoredSong);
+      }
+
+      return;
+    }
 
     if (status.isPlaying) {
       await sound.pauseAsync();
@@ -1366,7 +1386,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       await sound.playAsync();
       setIsPlaying(true);
     }
-  }, [setIsPlaying]);
+  }, [loadAndPlay, setIsPlaying]);
 
   const seekTo = useCallback(
     async (millis: number) => {
