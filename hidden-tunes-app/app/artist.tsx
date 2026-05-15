@@ -20,6 +20,7 @@ import {
   searchYouTubeBackend,
   BackendYouTubeTrack,
 } from "../services/youtubeBackend";
+import { FALLBACK_ARTWORK } from "../utils/artwork";
 
 type AlbumPreview = {
   id: string;
@@ -28,9 +29,6 @@ type AlbumPreview = {
   thumbnail: string;
   query: string;
 };
-
-const FALLBACK_THUMBNAIL =
-  "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=1000";
 
 export default function ArtistScreen() {
   const params = useLocalSearchParams();
@@ -61,12 +59,12 @@ export default function ArtistScreen() {
 
   const artistImage = useMemo(() => {
     const firstTrackWithImage = tracks.find((item) => item.thumbnail);
-    return firstTrackWithImage?.thumbnail || FALLBACK_THUMBNAIL;
+    return firstTrackWithImage?.thumbnail || FALLBACK_ARTWORK;
   }, [tracks]);
 
   const albums: AlbumPreview[] = useMemo(() => {
     return tracks.slice(0, 8).map((track, index) => {
-      const safeThumbnail = track.thumbnail || artistImage || FALLBACK_THUMBNAIL;
+      const safeThumbnail = track.thumbnail || artistImage || FALLBACK_ARTWORK;
 
       return {
         id: `${track.id || "artist-track"}-album-${index}`,
@@ -86,7 +84,7 @@ export default function ArtistScreen() {
         videoId: track.id || "",
         title: track.title || "Unknown Song",
         artist: track.artist || artist || "Unknown Artist",
-        thumbnail: track.thumbnail || artistImage || FALLBACK_THUMBNAIL,
+        thumbnail: track.thumbnail || artistImage || FALLBACK_ARTWORK,
       },
     });
   }
@@ -310,7 +308,7 @@ export default function ArtistScreen() {
               </Text>
 
               <Image
-                source={{ uri: item.thumbnail || artistImage || FALLBACK_THUMBNAIL }}
+                source={{ uri: item.thumbnail || artistImage || FALLBACK_ARTWORK }}
                 style={styles.cover}
               />
 

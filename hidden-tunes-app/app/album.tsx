@@ -19,16 +19,14 @@ import {
   searchYouTubeBackend,
   BackendYouTubeTrack,
 } from "../services/youtubeBackend";
-
-const FALLBACK_THUMBNAIL =
-  "https://images.unsplash.com/photo-1511379938547-c1f69419868d";
+import { FALLBACK_ARTWORK } from "../utils/artwork";
 
 export default function AlbumScreen() {
   const params = useLocalSearchParams();
 
   const album = String(params.album || params.title || "Album");
   const artist = String(params.artist || "Unknown Artist");
-  const thumbnail = String(params.thumbnail || FALLBACK_THUMBNAIL);
+  const thumbnail = String(params.thumbnail || FALLBACK_ARTWORK);
   const query = String(params.query || `${artist} ${album} album songs`);
 
   const [tracks, setTracks] = useState<BackendYouTubeTrack[]>([]);
@@ -60,7 +58,7 @@ export default function AlbumScreen() {
         videoId: track.id || "",
         title: track.title || "Unknown Song",
         artist: track.artist || artist || "Unknown Artist",
-        thumbnail: track.thumbnail || thumbnail || FALLBACK_THUMBNAIL,
+        thumbnail: track.thumbnail || thumbnail || FALLBACK_ARTWORK,
       },
     });
   }
@@ -158,7 +156,7 @@ export default function AlbumScreen() {
               </Text>
 
               <Image
-                source={{ uri: item.thumbnail || thumbnail || FALLBACK_THUMBNAIL }}
+                source={{ uri: item.thumbnail || thumbnail || FALLBACK_ARTWORK }}
                 style={styles.cover}
               />
 

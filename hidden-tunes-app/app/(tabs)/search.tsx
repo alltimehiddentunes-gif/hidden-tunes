@@ -52,7 +52,7 @@ import {
   type HiddenTunesArtist,
   type HiddenTunesCloudPlaylist,
 } from "../../services/hiddenTunesApi";
-import { getArtworkUri } from "../../utils/artwork";
+import { FALLBACK_ARTWORK, getArtworkUri } from "../../utils/artwork";
 
 type SearchType = "all" | "hidden" | "audius" | "archive" | "youtube";
 
@@ -95,9 +95,6 @@ type GenreItem = {
 };
 
 const SEARCH_HISTORY_KEY = "hidden_tunes_recent_searches_v4";
-
-const FALLBACK_COVER =
-  "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=800";
 
 const TRENDING_SEARCHES = [
   "Caasi Wills",
@@ -175,7 +172,7 @@ function isYouTubeTrack(item: any): item is BackendYouTubeTrack {
 }
 
 function getCover(item: Partial<SearchResultTrack> | any) {
-  return getArtworkUri(item, FALLBACK_COVER);
+  return getArtworkUri(item, FALLBACK_ARTWORK);
 }
 
 function getArtist(item: Partial<SearchResultTrack> | any) {

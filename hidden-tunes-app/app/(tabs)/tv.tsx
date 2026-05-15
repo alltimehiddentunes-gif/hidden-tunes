@@ -18,9 +18,7 @@ import {
   getHiddenTunesYouTubeCatalog,
   type BackendYouTubeTrack,
 } from "@/services/youtubeBackend";
-
-const FALLBACK_THUMBNAIL =
-  "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=1000";
+import { FALLBACK_ARTWORK } from "@/utils/artwork";
 
 function getVideoId(item: BackendYouTubeTrack) {
   return String(item.videoId || item.id || "").replace("youtube-", "").trim();
@@ -61,7 +59,7 @@ export default function HiddenTunesTVScreen() {
         artist: item.artist || item.channelTitle || "Hidden Tunes",
         channelTitle: item.channelTitle || item.artist || "Hidden Tunes",
         thumbnail:
-          item.thumbnail || item.artwork || item.cover || FALLBACK_THUMBNAIL,
+          item.thumbnail || item.artwork || item.cover || FALLBACK_ARTWORK,
       },
     } as any);
   }
@@ -113,7 +111,7 @@ export default function HiddenTunesTVScreen() {
                       item.thumbnail ||
                       item.artwork ||
                       item.cover ||
-                      FALLBACK_THUMBNAIL,
+                      FALLBACK_ARTWORK,
                   }}
                   style={styles.thumbnail}
                 />

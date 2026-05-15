@@ -31,7 +31,7 @@ import { getHiddenTunesLyrics } from "../../services/hiddenTunesApi";
 import LiveWaveform from "../../components/LiveWaveform";
 import AddToPlaylistModal from "../../components/AddToPlaylistModal";
 import HTImage from "../../components/HTImage";
-import { getArtworkValue } from "../../utils/artwork";
+import { FALLBACK_ARTWORK, getArtworkValue } from "../../utils/artwork";
 
 function formatTime(ms: number) {
   const totalSeconds = Math.floor((ms || 0) / 1000);
@@ -294,9 +294,11 @@ export default function PlayerScreen() {
                   contentFit="cover"
                 />
               ) : (
-                <LinearGradient colors={GRADIENTS.soft} style={styles.artworkFallback}>
-                  <Ionicons name="musical-notes" size={72} color={COLORS.primary} />
-                </LinearGradient>
+                <HTImage
+                  source={FALLBACK_ARTWORK}
+                  style={styles.artworkFallback}
+                  contentFit="cover"
+                />
               )}
             </Animated.View>
           </LinearGradient>

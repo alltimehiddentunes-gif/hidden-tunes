@@ -26,9 +26,7 @@ import {
   type HiddenTunesArtist,
   type HiddenTunesNormalizedSong,
 } from "../../services/hiddenTunesApi";
-
-const FALLBACK_ARTWORK =
-  "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=1000";
+import { FALLBACK_ARTWORK } from "../../utils/artwork";
 
 function getArtwork(item: any) {
   return item?.artwork || item?.cover || item?.thumbnail || FALLBACK_ARTWORK;

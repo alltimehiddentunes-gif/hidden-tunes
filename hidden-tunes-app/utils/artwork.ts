@@ -1,5 +1,8 @@
-export const FALLBACK_ARTWORK =
-  "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=1000";
+import { Image } from "react-native";
+
+const HIDDEN_TUNES_LOGO = require("../assets/images/logo.png");
+
+export const FALLBACK_ARTWORK = Image.resolveAssetSource(HIDDEN_TUNES_LOGO).uri;
 
 const EMPTY_URL_VALUES = new Set(["", "null", "undefined", "[object object]"]);
 

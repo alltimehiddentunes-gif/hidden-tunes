@@ -16,10 +16,7 @@ import HTImage from "../components/HTImage";
 import NeonEQ from "../components/NeonEQ";
 import { COLORS, GRADIENTS } from "../constants/theme";
 import { usePlayer } from "../context/PlayerContext";
-import { getArtworkUri } from "../utils/artwork";
-
-const FALLBACK_ARTWORK =
-  "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=1000";
+import { FALLBACK_ARTWORK, getArtworkUri } from "../utils/artwork";
 
 function getArtist(item: any) {
   return item?.artist || item?.user?.name || item?.channelTitle || "Hidden Tunes";

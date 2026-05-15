@@ -20,7 +20,7 @@ import HTImage from "../../components/HTImage";
 import { COLORS, GRADIENTS } from "../../constants/theme";
 import { usePlayer } from "../../context/PlayerContext";
 import { HIDDEN_TUNES_GENRES } from "../../utils/genres";
-import { getArtworkUri } from "../../utils/artwork";
+import { FALLBACK_ARTWORK, getArtworkUri } from "../../utils/artwork";
 
 import {
   getTrendingYouTubeBackend,
@@ -46,9 +46,6 @@ type GenreItem = {
   query: string;
   emoji?: string;
 };
-
-const FALLBACK_ARTWORK =
-  "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=1000";
 
 const CARD_WIDTH = 150;
 const CARD_GAP = 14;

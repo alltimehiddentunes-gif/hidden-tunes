@@ -30,9 +30,7 @@ import {
   guessGenreFromText,
   guessMoodFromText,
 } from "../services/musicNormalizer";
-
-const FALLBACK_THUMBNAIL =
-  "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=1000";
+import { FALLBACK_ARTWORK } from "../utils/artwork";
 
 function cleanQuery(value: string) {
   return String(value || "")
@@ -48,7 +46,7 @@ function getArtwork(song: any) {
     song?.cover ||
     song?.thumbnail ||
     song?.image ||
-    FALLBACK_THUMBNAIL
+    FALLBACK_ARTWORK
   );
 }
 
@@ -101,7 +99,7 @@ function getTrackArtist(track: Partial<BackendYouTubeTrack>) {
 
 function getTrackThumbnail(track: Partial<BackendYouTubeTrack>) {
   return String(
-    track.thumbnail || track.artwork || track.cover || FALLBACK_THUMBNAIL
+    track.thumbnail || track.artwork || track.cover || FALLBACK_ARTWORK
   );
 }
 

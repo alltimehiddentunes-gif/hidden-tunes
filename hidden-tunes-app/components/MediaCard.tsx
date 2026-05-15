@@ -11,6 +11,7 @@ import { Ionicons } from "@expo/vector-icons";
 
 import { COLORS, GRADIENTS } from "../constants/theme";
 import HTImage from "./HTImage";
+import { FALLBACK_ARTWORK } from "../utils/artwork";
 
 type MediaCardProps = {
   title: string;
@@ -40,14 +41,6 @@ function MediaCard({
   }, [size]);
 
   const artworkRadius = useMemo(() => artworkSize * 0.24, [artworkSize]);
-
-  const iconName = useMemo(() => {
-    if (type === "playlist") return "library";
-    if (type === "album") return "albums";
-    if (type === "artist") return "person";
-    if (type === "radio") return "radio";
-    return "musical-note";
-  }, [type]);
 
   const imageSource = useMemo(() => {
     if (!image) return null;
@@ -95,13 +88,11 @@ function MediaCard({
             contentFit="cover"
           />
         ) : (
-          <LinearGradient colors={GRADIENTS.soft} style={emptyArtworkStyle}>
-            <Ionicons
-              name={iconName as any}
-              size={artworkSize * 0.42}
-              color={COLORS.primary}
-            />
-          </LinearGradient>
+          <HTImage
+            source={FALLBACK_ARTWORK}
+            style={emptyArtworkStyle}
+            contentFit="cover"
+          />
         )}
 
         <View style={[styles.info, size === "large" && styles.largeInfo]}>

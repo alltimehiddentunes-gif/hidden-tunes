@@ -7,7 +7,7 @@ import { FALLBACK_ARTWORK, getArtworkValue } from "../utils/artwork";
 type Props = {
   uri?: string | null;
   source?: any;
-  fallback?: string;
+  fallback?: any;
   style?: StyleProp<ImageStyle>;
   contentFit?: "cover" | "contain" | "fill" | "none" | "scale-down";
 };

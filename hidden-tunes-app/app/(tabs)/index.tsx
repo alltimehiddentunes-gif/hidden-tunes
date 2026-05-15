@@ -27,18 +27,15 @@ import {
   refreshHiddenTunesSongs,
   type HiddenTunesNormalizedSong,
 } from "../../services/hiddenTunesApi";
-import { getArtworkUri } from "../../utils/artwork";
+import { FALLBACK_ARTWORK, getArtworkUri } from "../../utils/artwork";
 
 const { width } = Dimensions.get("window");
 const FEATURED_CARD_WIDTH = width * 0.72;
 const INITIAL_HOME_SONG_ROWS = 24;
 const HOME_SONG_ROWS_INCREMENT = 24;
 
-const FALLBACK_COVER =
-  "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=1000";
-
 function getSongImage(song: any) {
-  return getArtworkUri(song, FALLBACK_COVER);
+  return getArtworkUri(song, FALLBACK_ARTWORK);
 }
 
 function safeSong(song: any): HiddenTunesNormalizedSong {

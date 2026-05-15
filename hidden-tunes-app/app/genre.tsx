@@ -22,6 +22,7 @@ import {
   searchHiddenTunesSongs,
   type HiddenTunesNormalizedSong,
 } from "../services/hiddenTunesApi";
+import { FALLBACK_ARTWORK } from "../utils/artwork";
 
 type AlbumPreview = {
   id: string;
@@ -31,16 +32,13 @@ type AlbumPreview = {
   query: string;
 };
 
-const FALLBACK_THUMBNAIL =
-  "https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=1000";
-
 function getArtwork(song: any) {
   return (
     song?.artwork ||
     song?.cover ||
     song?.thumbnail ||
     song?.image ||
-    FALLBACK_THUMBNAIL
+    FALLBACK_ARTWORK
   );
 }
 

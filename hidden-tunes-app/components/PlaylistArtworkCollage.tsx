@@ -1,8 +1,9 @@
 import { Image, StyleSheet, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { Ionicons } from "@expo/vector-icons";
 
-import { COLORS, GRADIENTS } from "../constants/theme";
+import { GRADIENTS } from "../constants/theme";
+import HTImage from "./HTImage";
+import { FALLBACK_ARTWORK } from "../utils/artwork";
 
 type Props = {
   tracks: any[];
@@ -28,7 +29,11 @@ export default function PlaylistArtworkCollage({ tracks, size = 82 }: Props) {
           },
         ]}
       >
-        <Ionicons name="musical-notes" size={size * 0.42} color={COLORS.textMuted} />
+        <HTImage
+          source={FALLBACK_ARTWORK}
+          style={styles.logoFallback}
+          contentFit="cover"
+        />
       </LinearGradient>
     );
   }
@@ -93,5 +98,11 @@ const styles = StyleSheet.create({
   empty: {
     alignItems: "center",
     justifyContent: "center",
+    overflow: "hidden",
+  },
+
+  logoFallback: {
+    width: "100%",
+    height: "100%",
   },
 });

@@ -10,6 +10,8 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 
 import { COLORS, GRADIENTS } from "../constants/theme";
+import HTImage from "./HTImage";
+import { FALLBACK_ARTWORK } from "../utils/artwork";
 
 type Props = {
   title: string;
@@ -42,13 +44,11 @@ export default function UnifiedMediaCard({
               style={styles.image}
             />
           ) : (
-            <LinearGradient colors={GRADIENTS.soft} style={styles.fallback}>
-              <Ionicons
-                name="musical-notes"
-                size={25}
-                color={COLORS.primary}
-              />
-            </LinearGradient>
+            <HTImage
+              source={FALLBACK_ARTWORK}
+              style={styles.fallback}
+              contentFit="cover"
+            />
           )}
         </View>
 

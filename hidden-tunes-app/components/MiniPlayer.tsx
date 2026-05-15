@@ -22,7 +22,7 @@ import { router } from "expo-router";
 import { COLORS, GRADIENTS } from "../constants/theme";
 import { usePlayer } from "../context/PlayerContext";
 import HTImage from "./HTImage";
-import { getArtworkValue } from "../utils/artwork";
+import { FALLBACK_ARTWORK, getArtworkValue } from "../utils/artwork";
 
 type YouTubeMini = {
   id: string;
@@ -249,13 +249,11 @@ function MiniPlayer() {
                 <Ionicons name="logo-youtube" size={30} color="#fff" />
               </View>
             ) : (
-              <LinearGradient colors={GRADIENTS.soft} style={styles.youtubeCover}>
-                <Ionicons
-                  name="musical-notes"
-                  size={26}
-                  color={COLORS.primary}
-                />
-              </LinearGradient>
+              <HTImage
+                source={FALLBACK_ARTWORK}
+                style={styles.youtubeCover}
+                contentFit="cover"
+              />
             )}
 
             {(isPlaying || isYoutubeMode) && <View style={styles.liveDot} />}
