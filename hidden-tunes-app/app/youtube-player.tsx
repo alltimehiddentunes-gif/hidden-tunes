@@ -11,6 +11,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
+import WebView from "react-native-webview";
 import YoutubePlayer, {
   PLAYER_STATES,
   type YoutubeIframeRef,
@@ -66,6 +67,7 @@ export default function YouTubePlayerScreen() {
   const startedAtRef = useRef<number>(Date.now());
   const autoNextLockRef = useRef(false);
   const errorSkipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const initialVideoId = sanitizeYouTubeVideoId(params.videoId || params.id);
   const initialTitle = String(params.title || "YouTube Music");
@@ -122,6 +124,7 @@ export default function YouTubePlayerScreen() {
   const [playerStatus, setPlayerStatus] = useState("Loading YouTube player...");
   const [isVideoPlaying, setIsVideoPlaying] = useState(true);
   const [playerReady, setPlayerReady] = useState(false);
+  const [directEmbedMode, setDirectEmbedMode] = useState(false);
 
   const queue = parsedQueue;
   const currentVideo = queue[currentIndex] || queue[0];
@@ -143,6 +146,10 @@ export default function YouTubePlayerScreen() {
       if (errorSkipTimerRef.current) {
         clearTimeout(errorSkipTimerRef.current);
       }
+
+      if (fallbackTimerRef.current) {
+        clearTimeout(fallbackTimerRef.current);
+      }
     };
   }, []);
 
@@ -153,12 +160,23 @@ export default function YouTubePlayerScreen() {
     autoNextLockRef.current = false;
     setIsVideoPlaying(true);
     setPlayerReady(false);
+    setDirectEmbedMode(false);
     setPlayerStatus("Loading YouTube player...");
 
     if (errorSkipTimerRef.current) {
       clearTimeout(errorSkipTimerRef.current);
       errorSkipTimerRef.current = null;
     }
+
+    if (fallbackTimerRef.current) {
+      clearTimeout(fallbackTimerRef.current);
+    }
+
+    fallbackTimerRef.current = setTimeout(() => {
+      setDirectEmbedMode(true);
+      setPlayerReady(true);
+      setPlayerStatus("Using direct YouTube embed. Tap the video to play.");
+    }, 7000);
   }, [videoId, title, artist, thumbnail]);
 
   async function saveYouTubeMini() {
@@ -190,6 +208,7 @@ export default function YouTubePlayerScreen() {
     autoNextLockRef.current = false;
     setIsVideoPlaying(true);
     setPlayerReady(false);
+    setDirectEmbedMode(false);
     setPlayerStatus("Loading YouTube player...");
     setCurrentIndex(safeIndex);
   }
@@ -215,6 +234,11 @@ export default function YouTubePlayerScreen() {
   }
 
   function togglePlayPause() {
+    if (directEmbedMode) {
+      setPlayerStatus("Use the YouTube controls inside the video.");
+      return;
+    }
+
     if (!playerReady) {
       setPlayerStatus("Player is still loading. Try again in a moment.");
       return;
@@ -264,28 +288,13 @@ export default function YouTubePlayerScreen() {
     }, 1800);
   }
 
-  function scheduleErrorSkip() {
-    if (queue.length <= 1) {
-      setIsVideoPlaying(false);
-      setPlayerStatus(
-        "This YouTube video cannot play in the embedded player. Choose another TV video."
-      );
-      return;
-    }
-
-    if (errorSkipTimerRef.current) {
-      clearTimeout(errorSkipTimerRef.current);
-    }
-
-    setPlayerStatus("This video cannot be embedded. Skipping...");
-
-    errorSkipTimerRef.current = setTimeout(() => {
-      safeAutoNext("youtube-error", true);
-    }, 1800);
-  }
-
   function handlePlayerStateChange(state: PLAYER_STATES) {
     if (state === PLAYER_STATES.PLAYING) {
+      if (fallbackTimerRef.current) {
+        clearTimeout(fallbackTimerRef.current);
+        fallbackTimerRef.current = null;
+      }
+
       setIsVideoPlaying(true);
       setPlayerReady(true);
       setPlayerStatus("Playing");
@@ -322,8 +331,12 @@ export default function YouTubePlayerScreen() {
     });
 
     setIsVideoPlaying(false);
-    scheduleErrorSkip();
+    setDirectEmbedMode(true);
+    setPlayerReady(true);
+    setPlayerStatus("Trying direct YouTube embed. Tap the video to play.");
   }
+
+  const directEmbedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1&playsinline=1&controls=1&rel=0&fs=1`;
 
   return (
     <LinearGradient colors={GRADIENTS.main} style={styles.container}>
@@ -356,13 +369,41 @@ export default function YouTubePlayerScreen() {
       </View>
 
       <View style={styles.playerFrame}>
-        {videoId ? (
+        {videoId && directEmbedMode ? (
+          <WebView
+            key={`direct-${videoId}`}
+            source={{ uri: directEmbedUrl }}
+            javaScriptEnabled
+            domStorageEnabled
+            allowsInlineMediaPlayback
+            allowsFullscreenVideo
+            allowsProtectedMedia
+            mediaPlaybackRequiresUserAction={false}
+            setSupportMultipleWindows={false}
+            mixedContentMode="always"
+            originWhitelist={["*"]}
+            onLoadEnd={() => {
+              setPlayerReady(true);
+              setPlayerStatus("Direct YouTube embed ready. Tap video if needed.");
+            }}
+            onError={(event) => {
+              console.log("YouTube direct embed WebView error:", event.nativeEvent);
+              setPlayerStatus("YouTube embed failed. Choose another TV video.");
+            }}
+            onHttpError={(event) => {
+              console.log("YouTube direct embed HTTP error:", event.nativeEvent);
+              setPlayerStatus("YouTube returned an embed error.");
+            }}
+            style={styles.youtubeWebView}
+          />
+        ) : videoId ? (
           <YoutubePlayer
             ref={youtubeRef}
             key={videoId}
             height={230}
             videoId={videoId}
             play={isVideoPlaying}
+            baseUrlOverride="https://www.youtube.com"
             forceAndroidAutoplay
             useLocalHTML
             initialPlayerParams={{
@@ -375,11 +416,19 @@ export default function YouTubePlayerScreen() {
             webViewProps={{
               allowsInlineMediaPlayback: true,
               allowsFullscreenVideo: true,
+              allowsProtectedMedia: true,
+              javaScriptEnabled: true,
+              domStorageEnabled: true,
               mediaPlaybackRequiresUserAction: false,
               setSupportMultipleWindows: false,
               mixedContentMode: "always",
             }}
             onReady={() => {
+              if (fallbackTimerRef.current) {
+                clearTimeout(fallbackTimerRef.current);
+                fallbackTimerRef.current = null;
+              }
+
               setPlayerReady(true);
               setPlayerStatus("Ready. Tap play if the video does not start.");
             }}
@@ -458,6 +507,21 @@ export default function YouTubePlayerScreen() {
           Hidden Tunes TV uses official YouTube embedded playback. Some videos
           may still block embeds, but no YouTube Data API quota is used here.
         </Text>
+
+        {!directEmbedMode && (
+          <TouchableOpacity
+            activeOpacity={0.86}
+            style={styles.secondaryButton}
+            onPress={() => {
+              setDirectEmbedMode(true);
+              setPlayerReady(true);
+              setPlayerStatus("Using direct YouTube embed. Tap the video to play.");
+            }}
+          >
+            <Ionicons name="logo-youtube" size={16} color={COLORS.text} />
+            <Text style={styles.secondaryButtonText}>Try Direct Embed</Text>
+          </TouchableOpacity>
+        )}
 
         {queue.length <= 1 && (
           <TouchableOpacity
@@ -709,6 +773,26 @@ const styles = StyleSheet.create({
 
   tvSearchText: {
     color: "#000",
+    fontSize: 12,
+    fontWeight: "900",
+  },
+
+  secondaryButton: {
+    alignSelf: "center",
+    minHeight: 40,
+    borderRadius: 20,
+    marginTop: 12,
+    paddingHorizontal: 15,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+
+  secondaryButtonText: {
+    color: COLORS.text,
     fontSize: 12,
     fontWeight: "900",
   },
