@@ -51,6 +51,7 @@ import {
   type HiddenTunesArtist,
   type HiddenTunesCloudPlaylist,
 } from "../../services/hiddenTunesApi";
+import { getArtworkUri } from "../../utils/artwork";
 
 type SearchType = "all" | "hidden" | "audius" | "archive" | "youtube";
 
@@ -173,9 +174,7 @@ function isYouTubeTrack(item: any): item is BackendYouTubeTrack {
 }
 
 function getCover(item: Partial<SearchResultTrack> | any) {
-  return (
-    item?.artwork || item?.cover || item?.thumbnail || item?.image || FALLBACK_COVER
-  );
+  return getArtworkUri(item, FALLBACK_COVER);
 }
 
 function getArtist(item: Partial<SearchResultTrack> | any) {

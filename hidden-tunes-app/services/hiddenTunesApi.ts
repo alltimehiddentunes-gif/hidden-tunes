@@ -1,5 +1,11 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+import {
+  FALLBACK_ARTWORK,
+  getArtworkUri,
+  normalizeArtworkUrl,
+} from "../utils/artwork";
+
 const HIDDEN_TUNES_API_BASE_URL = "https://hidden-tunes-api.onrender.com";
 const HIDDEN_TUNES_LYRICS_API_BASE_URL =
   "https://hidden-tunes-api.onrender.com";
@@ -14,9 +20,6 @@ const CACHE_MAX_AGE_MS = 1000 * 60 * 5;
 
 const HOME_SONG_LIMIT = 30;
 const SEARCH_SONG_LIMIT = 30;
-
-const FALLBACK_ARTWORK =
-  "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=1000";
 
 const BROKEN_PROMISE_FALLBACK = {
   id: "broken-promise-caasi-wills",
@@ -52,9 +55,15 @@ export type HiddenTunesCloudSong = {
   mood?: string | null;
   artwork?: string | null;
   artworkUrl?: string | null;
+  artwork_url?: string | null;
   cover?: string | null;
+  coverUrl?: string | null;
   cover_url?: string | null;
+  image?: string | null;
+  imageUrl?: string | null;
   image_url?: string | null;
+  albumCover?: string | null;
+  album_cover?: string | null;
   url?: string | null;
   audioUrl?: string | null;
   audio_url?: string | null;
@@ -183,7 +192,7 @@ function isSafeRemoteUrl(value: unknown) {
 
 function safeUrl(value: unknown, fallback = FALLBACK_ARTWORK) {
   if (!isSafeRemoteUrl(value)) return fallback;
-  return String(value).trim();
+  return normalizeArtworkUrl(value, fallback);
 }
 
 function safeAudioUrl(value: unknown) {
@@ -242,19 +251,7 @@ function normalizeAlbumTitle(song: HiddenTunesCloudSong) {
 }
 
 function normalizeArtwork(song: HiddenTunesCloudSong) {
-  const possible =
-    song.artwork ||
-    song.artworkUrl ||
-    song.cover ||
-    song.cover_url ||
-    song.image_url ||
-    song.albums?.artwork ||
-    song.albums?.artwork_url ||
-    song.albums?.cover_url ||
-    song.artists?.artwork ||
-    song.artists?.image_url;
-
-  return safeUrl(possible);
+  return getArtworkUri(song);
 }
 
 function normalizeAudioUrl(song: HiddenTunesCloudSong) {
@@ -425,12 +422,7 @@ async function isArtistsCacheFresh() {
 
 function normalizeHiddenTunesArtist(rawArtist: any): HiddenTunesArtist | null {
   const name = cleanString(rawArtist?.name, "Unknown Artist");
-  const artwork = safeUrl(
-    rawArtist?.artwork ||
-      rawArtist?.image_url ||
-      rawArtist?.cover ||
-      rawArtist?.thumbnail
-  );
+  const artwork = getArtworkUri(rawArtist);
 
   const id = cleanString(rawArtist?.id, slugify(name));
   const slug = cleanString(rawArtist?.slug, slugify(name));

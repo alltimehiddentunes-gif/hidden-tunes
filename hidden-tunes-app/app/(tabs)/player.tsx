@@ -1,7 +1,6 @@
 import React, { memo, useCallback, useEffect, useMemo, useState } from "react";
 
 import {
-  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -31,6 +30,8 @@ import { getHiddenTunesLyrics } from "../../services/hiddenTunesApi";
 
 import LiveWaveform from "../../components/LiveWaveform";
 import AddToPlaylistModal from "../../components/AddToPlaylistModal";
+import HTImage from "../../components/HTImage";
+import { getArtworkValue } from "../../utils/artwork";
 
 function formatTime(ms: number) {
   const totalSeconds = Math.floor((ms || 0) / 1000);
@@ -127,13 +128,7 @@ export default function PlayerScreen() {
 
   const artworkSource = useMemo(() => {
     if (!currentSong) return null;
-
-    const artwork =
-      currentSong.artwork || currentSong.cover || currentSong.thumbnail || null;
-
-    if (!artwork) return null;
-
-    return typeof artwork === "string" ? { uri: artwork } : artwork;
+    return getArtworkValue(currentSong);
   }, [currentSong]);
 
   useEffect(() => {
@@ -293,11 +288,10 @@ export default function PlayerScreen() {
           <LinearGradient colors={GRADIENTS.neon} style={styles.artworkBorder}>
             <Animated.View style={[styles.artworkWrapper, artworkAnimated]}>
               {artworkSource ? (
-                <Image
+                <HTImage
                   source={artworkSource}
                   style={styles.artwork}
-                  resizeMode="cover"
-                  fadeDuration={160}
+                  contentFit="cover"
                 />
               ) : (
                 <LinearGradient colors={GRADIENTS.soft} style={styles.artworkFallback}>

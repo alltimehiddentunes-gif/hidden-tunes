@@ -1,5 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+import { getArtworkValue } from "../utils/artwork";
+
 const RECENTLY_PLAYED_KEY = "hidden_tunes_recently_played";
 
 export type RecentlyPlayedTrack = {
@@ -9,6 +11,16 @@ export type RecentlyPlayedTrack = {
   channelTitle?: string;
   thumbnail?: string;
   cover?: any;
+  artwork?: string;
+  coverUrl?: string;
+  cover_url?: string;
+  artworkUrl?: string;
+  artwork_url?: string;
+  image?: any;
+  imageUrl?: string;
+  image_url?: string;
+  albumCover?: string;
+  album_cover?: string;
   streamUrl?: string;
   sourceName?: string;
   type?: "local" | "audius" | "archive" | "youtube";
@@ -48,6 +60,8 @@ export async function addToRecentlyPlayed(song: any) {
   const existing = current.find(
     (item) => item.id === song.id
   );
+  const artwork = getArtworkValue(song);
+  const artworkUri = typeof artwork === "string" ? artwork : undefined;
 
   const normalized: RecentlyPlayedTrack = {
     id: song.id,
@@ -61,9 +75,29 @@ export async function addToRecentlyPlayed(song: any) {
 
     channelTitle: song.channelTitle,
 
-    thumbnail: song.thumbnail,
+    thumbnail: song.thumbnail || artworkUri,
 
-    cover: song.cover || song.thumbnail,
+    cover: song.cover || artwork,
+
+    artwork: song.artwork || artworkUri,
+
+    coverUrl: song.coverUrl || song.cover_url || artworkUri,
+
+    cover_url: song.cover_url || song.coverUrl || artworkUri,
+
+    artworkUrl: song.artworkUrl || song.artwork_url || artworkUri,
+
+    artwork_url: song.artwork_url || song.artworkUrl || artworkUri,
+
+    image: song.image || artwork,
+
+    imageUrl: song.imageUrl || song.image_url || artworkUri,
+
+    image_url: song.image_url || song.imageUrl || artworkUri,
+
+    albumCover: song.albumCover || song.album_cover || artworkUri,
+
+    album_cover: song.album_cover || song.albumCover || artworkUri,
 
     streamUrl: song.streamUrl,
 

@@ -35,6 +35,7 @@ import {
   getSmartQueue,
   saveSmartQueue,
 } from "../services/smartQueue";
+import { getArtworkValue } from "../utils/artwork";
 
 export type SyncedLyricLine = {
   time: number;
@@ -48,8 +49,17 @@ export type AppSong = {
   user?: { name?: string };
   channelTitle?: string;
   cover?: any;
+  coverUrl?: string;
+  cover_url?: string;
   thumbnail?: string;
   artwork?: string;
+  artworkUrl?: string;
+  artwork_url?: string;
+  image?: any;
+  imageUrl?: string;
+  image_url?: string;
+  albumCover?: string;
+  album_cover?: string;
   audio?: any;
   url?: string;
   streamUrl?: string;
@@ -392,7 +402,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         song.sourceName ||
         "Unknown Artist";
 
-      const image = song.artwork || song.cover || song.thumbnail;
+      const image = getArtworkValue(song);
+      const imageUri = typeof image === "string" ? image : undefined;
       const normalizedId = makeSafeSongId(song);
       const youtube = isYouTubeSong(song);
       const playableUrl = getPlayableUri(song);
@@ -413,8 +424,17 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         user: song.user || { name: artist },
         channelTitle: song.channelTitle || artist,
         cover: image,
-        thumbnail: song.thumbnail || image,
-        artwork: song.artwork || image,
+        thumbnail: song.thumbnail || imageUri,
+        artwork: song.artwork || imageUri,
+        coverUrl: song.coverUrl || song.cover_url || imageUri,
+        cover_url: song.cover_url || song.coverUrl || imageUri,
+        artworkUrl: song.artworkUrl || song.artwork_url || imageUri,
+        artwork_url: song.artwork_url || song.artworkUrl || imageUri,
+        image: song.image || image,
+        imageUrl: song.imageUrl || song.image_url || imageUri,
+        image_url: song.image_url || song.imageUrl || imageUri,
+        albumCover: song.albumCover || song.album_cover || imageUri,
+        album_cover: song.album_cover || song.albumCover || imageUri,
         streamUrl: youtube ? undefined : playableUrl || undefined,
         url: youtube ? undefined : playableUrl || undefined,
         sourceName: youtube

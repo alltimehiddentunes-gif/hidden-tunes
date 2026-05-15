@@ -6,11 +6,11 @@ import {
   View,
 } from "react-native";
 
-import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 
 import { COLORS, GRADIENTS } from "../constants/theme";
+import HTImage from "./HTImage";
 
 type MediaCardProps = {
   title: string;
@@ -89,12 +89,10 @@ function MediaCard({
         style={[styles.card, size === "large" && styles.largeCard]}
       >
         {imageSource ? (
-          <Image
+          <HTImage
             source={imageSource}
             style={artworkStyle}
             contentFit="cover"
-            transition={120}
-            cachePolicy="memory-disk"
           />
         ) : (
           <LinearGradient colors={GRADIENTS.soft} style={emptyArtworkStyle}>

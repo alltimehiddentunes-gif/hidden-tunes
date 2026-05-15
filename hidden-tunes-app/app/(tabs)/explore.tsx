@@ -19,6 +19,7 @@ import HTImage from "../../components/HTImage";
 import { COLORS, GRADIENTS } from "../../constants/theme";
 import { usePlayer } from "../../context/PlayerContext";
 import { HIDDEN_TUNES_GENRES } from "../../utils/genres";
+import { getArtworkUri } from "../../utils/artwork";
 
 import {
   getTrendingYouTubeBackend,
@@ -57,13 +58,7 @@ function getSafeVideoId(track: BackendYouTubeTrack) {
 }
 
 function getSongArtwork(song: any) {
-  return (
-    song?.artwork ||
-    song?.cover ||
-    song?.thumbnail ||
-    song?.image ||
-    FALLBACK_ARTWORK
-  );
+  return getArtworkUri(song, FALLBACK_ARTWORK);
 }
 
 function safeSong(song: any): HiddenTunesNormalizedSong {
@@ -802,15 +797,7 @@ export default function ExploreScreen() {
                         } as any)
                       }
                     >
-                      <HTImage
-                        uri={
-                          item.artwork ||
-                          item.cover ||
-                          item.thumbnail ||
-                          FALLBACK_ARTWORK
-                        }
-                        style={styles.cloudCover}
-                      />
+                      <HTImage uri={getSongArtwork(item)} style={styles.cloudCover} />
 
                       <Text numberOfLines={1} style={styles.cloudTitle}>
                         {item.title || item.name || "Playlist"}
@@ -854,10 +841,7 @@ export default function ExploreScreen() {
                         } as any)
                       }
                     >
-                      <HTImage
-                        uri={item.artwork || item.cover || FALLBACK_ARTWORK}
-                        style={styles.cloudCover}
-                      />
+                      <HTImage uri={getSongArtwork(item)} style={styles.cloudCover} />
 
                       <Text numberOfLines={1} style={styles.cloudTitle}>
                         {item.title || item.name || "Album"}
@@ -904,10 +888,7 @@ export default function ExploreScreen() {
                         } as any)
                       }
                     >
-                      <HTImage
-                        uri={item.artwork || item.cover || FALLBACK_ARTWORK}
-                        style={styles.artistCloudImage}
-                      />
+                      <HTImage uri={getSongArtwork(item)} style={styles.artistCloudImage} />
 
                       <Text numberOfLines={1} style={styles.cloudTitle}>
                         {item.name || "Artist"}

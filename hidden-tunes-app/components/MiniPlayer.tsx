@@ -7,7 +7,6 @@ import React, {
   useState,
 } from "react";
 import {
-  Image,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -22,6 +21,8 @@ import { router } from "expo-router";
 
 import { COLORS, GRADIENTS } from "../constants/theme";
 import { usePlayer } from "../context/PlayerContext";
+import HTImage from "./HTImage";
+import { getArtworkValue } from "../utils/artwork";
 
 type YouTubeMini = {
   id: string;
@@ -110,7 +111,10 @@ function MiniPlayer() {
   }, [position, duration, isYoutubeMode]);
 
   const progressFillStyle = useMemo(
-    () => [styles.progressFill, { width: `${progress * 100}%` }],
+    () => [
+      styles.progressFill,
+      { width: `${progress * 100}%` as `${number}%` },
+    ],
     [progress]
   );
 
@@ -145,19 +149,12 @@ function MiniPlayer() {
 
   const cover = useMemo(() => {
     if (isYoutubeMode) return youtubeVideo?.thumbnail;
-    return currentSong?.cover || currentSong?.thumbnail || currentSong?.artwork;
+    return getArtworkValue(currentSong);
   }, [
     isYoutubeMode,
     youtubeVideo?.thumbnail,
-    currentSong?.cover,
-    currentSong?.thumbnail,
-    currentSong?.artwork,
+    currentSong,
   ]);
-
-  const imageSource = useMemo(() => {
-    if (!cover) return null;
-    return typeof cover === "string" ? { uri: cover } : cover;
-  }, [cover]);
 
   const openPlayer = useCallback(() => {
     if (isYoutubeMode && youtubeVideo?.id) {
@@ -241,12 +238,11 @@ function MiniPlayer() {
       <LinearGradient colors={GRADIENTS.neon} style={styles.border}>
         <BlurView intensity={64} tint="dark" style={styles.container}>
           <View style={styles.coverWrap}>
-            {imageSource ? (
-              <Image
-                source={imageSource}
+            {cover ? (
+              <HTImage
+                source={cover}
                 style={styles.cover}
-                resizeMode="cover"
-                fadeDuration={80}
+                contentFit="cover"
               />
             ) : isYoutubeMode ? (
               <View style={styles.youtubeCover}>

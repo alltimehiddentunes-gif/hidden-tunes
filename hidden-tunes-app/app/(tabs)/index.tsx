@@ -4,7 +4,6 @@ import {
   Animated,
   Dimensions,
   FlatList,
-  Image,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -19,6 +18,7 @@ import { router } from "expo-router";
 
 import MediaCard from "../../components/MediaCard";
 import NeonEQ from "../../components/NeonEQ";
+import HTImage from "../../components/HTImage";
 
 import { COLORS, GRADIENTS } from "../../constants/theme";
 import { usePlayer } from "../../context/PlayerContext";
@@ -26,6 +26,7 @@ import {
   refreshHiddenTunesSongs,
   type HiddenTunesNormalizedSong,
 } from "../../services/hiddenTunesApi";
+import { getArtworkUri } from "../../utils/artwork";
 
 const { width } = Dimensions.get("window");
 const FEATURED_CARD_WIDTH = width * 0.72;
@@ -34,7 +35,7 @@ const FALLBACK_COVER =
   "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=1000";
 
 function getSongImage(song: any) {
-  return song?.artwork || song?.cover || song?.thumbnail || FALLBACK_COVER;
+  return getArtworkUri(song, FALLBACK_COVER);
 }
 
 function safeSong(song: any): HiddenTunesNormalizedSong {
@@ -208,7 +209,7 @@ function HomeScreen() {
           style={[styles.featuredCard, active && styles.featuredCardActive]}
           onPress={() => playFeaturedSong(item)}
         >
-          <Image source={{ uri: getSongImage(item) }} style={styles.featuredCover} />
+          <HTImage uri={getSongImage(item)} style={styles.featuredCover} />
 
           <LinearGradient
             colors={["transparent", "rgba(0,0,0,0.96)"]}
@@ -343,8 +344,8 @@ function HomeScreen() {
               >
                 {heroTrack ? (
                   <>
-                    <Image
-                      source={{ uri: getSongImage(heroTrack) }}
+                    <HTImage
+                      uri={getSongImage(heroTrack)}
                       style={styles.heroImage}
                     />
 

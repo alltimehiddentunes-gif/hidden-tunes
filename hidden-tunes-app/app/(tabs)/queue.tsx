@@ -19,13 +19,14 @@ import MediaCard from "../../components/MediaCard";
 import NeonEQ from "../../components/NeonEQ";
 
 import { clearSmartQueue } from "../../services/smartQueue";
+import { getArtworkValue } from "../../utils/artwork";
 
 function getArtist(item: any) {
   return item?.artist || item?.user?.name || item?.channelTitle || "Unknown Artist";
 }
 
 function getImage(item: any) {
-  return item?.cover || item?.thumbnail || item?.artwork || null;
+  return getArtworkValue(item);
 }
 
 const QueueItem = memo(function QueueItem({

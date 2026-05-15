@@ -1,32 +1,47 @@
 import { Image } from "expo-image";
-import React, { memo } from "react";
+import React, { memo, useEffect, useMemo, useState } from "react";
 import { ImageStyle, StyleProp } from "react-native";
+
+import { FALLBACK_ARTWORK, getArtworkValue } from "../utils/artwork";
 
 type Props = {
   uri?: string | null;
+  source?: any;
   fallback?: string;
   style?: StyleProp<ImageStyle>;
   contentFit?: "cover" | "contain" | "fill" | "none" | "scale-down";
 };
 
-const DEFAULT_FALLBACK =
-  "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=1000";
-
 function HTImage({
   uri,
-  fallback = DEFAULT_FALLBACK,
+  source,
+  fallback = FALLBACK_ARTWORK,
   style,
   contentFit = "cover",
 }: Props) {
-  const source = uri && String(uri).trim() ? uri : fallback;
+  const [failed, setFailed] = useState(false);
+
+  const resolvedSource = useMemo(() => {
+    if (failed) return { uri: fallback };
+
+    const candidate = source ?? uri;
+    const artwork = getArtworkValue(candidate, fallback);
+
+    return typeof artwork === "string" ? { uri: artwork } : artwork;
+  }, [failed, fallback, source, uri]);
+
+  useEffect(() => {
+    setFailed(false);
+  }, [source, uri]);
 
   return (
     <Image
-      source={{ uri: source }}
+      source={resolvedSource}
       style={style}
       contentFit={contentFit}
       cachePolicy="disk"
       transition={120}
+      onError={() => setFailed(true)}
     />
   );
 }
