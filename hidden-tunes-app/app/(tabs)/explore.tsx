@@ -1,4 +1,4 @@
-import React, { memo, useCallback, useEffect, useMemo, useState } from "react";
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -11,6 +11,7 @@ import {
 } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
+import { useScrollToTop } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 
@@ -63,7 +64,14 @@ function getSongArtwork(song: any) {
 
 function safeSong(song: any): HiddenTunesNormalizedSong {
   const artwork = getSongArtwork(song);
-  const streamUrl = String(song?.streamUrl || song?.url || song?.audioUrl || "");
+  const streamUrl = String(
+    song?.streamUrl ||
+      song?.url ||
+      song?.audioUrl ||
+      song?.audio_url ||
+      song?.previewUrl ||
+      ""
+  );
 
   return {
     ...song,
@@ -194,6 +202,8 @@ export default function ExploreScreen() {
     toggleSmartAutoplay,
   } = usePlayer() as any;
 
+  const listRef = useRef<FlatList<BackendYouTubeTrack>>(null);
+
   const [tracks, setTracks] = useState<BackendYouTubeTrack[]>([]);
   const [cloudSongs, setCloudSongs] = useState<HiddenTunesNormalizedSong[]>([]);
   const [albums, setAlbums] = useState<HiddenTunesAlbum[]>([]);
@@ -202,6 +212,8 @@ export default function ExploreScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showHeavySections, setShowHeavySections] = useState(false);
+
+  useScrollToTop(listRef);
 
   const loadSecondarySections = useCallback(async (forceRefresh = false) => {
     try {
@@ -377,7 +389,11 @@ export default function ExploreScreen() {
     async (song: HiddenTunesNormalizedSong) => {
       try {
         const normalized = safeSong(song);
-        const queue = dedupeSongs(cloudSongs.map(safeSong));
+        const baseQueue = dedupeSongs(cloudSongs.map(safeSong));
+        const queueHasSong = baseQueue.some((item) => item.id === normalized.id);
+        const queue = queueHasSong
+          ? baseQueue
+          : dedupeSongs([normalized, ...baseQueue]);
 
         const startIndex = Math.max(
           0,
@@ -487,6 +503,7 @@ export default function ExploreScreen() {
   return (
     <LinearGradient colors={GRADIENTS.main} style={styles.container}>
       <FlatList
+        ref={listRef}
         data={listTracks}
         keyExtractor={(item, index) => `${item.videoId || item.id || "track"}-${index}`}
         showsVerticalScrollIndicator={false}

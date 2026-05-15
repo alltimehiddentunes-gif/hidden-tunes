@@ -13,6 +13,7 @@ import {
 } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
+import { useScrollToTop } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 
@@ -73,6 +74,7 @@ function HomeScreen() {
   const { playSong, currentSong, isPlaying } = usePlayer() as any;
 
   const isLoadingRef = useRef(false);
+  const scrollRef = useRef<ScrollView>(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(18)).current;
   const heroScale = useRef(new Animated.Value(0.96)).current;
@@ -82,6 +84,8 @@ function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const heroTrack = featuredSongs[0];
+
+  useScrollToTop(scrollRef);
 
   const loadFeaturedSongs = useCallback(async (showLoader = true) => {
     if (isLoadingRef.current) return;
@@ -283,6 +287,7 @@ function HomeScreen() {
         ]}
       >
         <ScrollView
+          ref={scrollRef}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
           refreshControl={

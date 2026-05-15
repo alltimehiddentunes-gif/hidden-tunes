@@ -1,4 +1,4 @@
-import React, { memo, useCallback, useMemo, useState } from "react";
+import React, { memo, useCallback, useMemo, useRef, useState } from "react";
 import {
   Alert,
   FlatList,
@@ -10,6 +10,7 @@ import {
 
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
+import { useScrollToTop } from "@react-navigation/native";
 import { router } from "expo-router";
 
 import { COLORS, GRADIENTS } from "../../constants/theme";
@@ -94,7 +95,10 @@ export default function QueueScreen() {
     toggleSmartAutoplay,
   } = usePlayer() as any;
 
+  const listRef = useRef<FlatList<any>>(null);
   const [clearingSmart, setClearingSmart] = useState(false);
+
+  useScrollToTop(listRef);
 
   const queue = useMemo(() => {
     if (!activeQueue?.length) return [];
@@ -408,6 +412,7 @@ export default function QueueScreen() {
       </View>
 
       <FlatList
+        ref={listRef}
         data={upNext}
         keyExtractor={keyExtractor}
         contentContainerStyle={styles.listContent}

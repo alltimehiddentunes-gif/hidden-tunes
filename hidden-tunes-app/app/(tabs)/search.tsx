@@ -22,6 +22,7 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
+import { useScrollToTop } from "@react-navigation/native";
 import { router, useFocusEffect } from "expo-router";
 
 import NeonEQ from "../../components/NeonEQ";
@@ -358,6 +359,7 @@ export default function SearchScreen() {
   const { playSong, stopPlayback, currentSong, isPlaying } = usePlayer() as any;
 
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const resultListRef = useRef<FlatList<SearchResultTrack>>(null);
 
   const [query, setQuery] = useState("Caasi Wills");
   const [results, setResults] = useState<SearchResultTrack[]>([]);
@@ -404,6 +406,8 @@ export default function SearchScreen() {
   }, [playableResults, cloudSongs]);
 
   const emptySearchMode = query.trim().length < 3;
+
+  useScrollToTop(resultListRef);
 
   useEffect(() => {
     loadRecentSearches();
@@ -1162,6 +1166,7 @@ export default function SearchScreen() {
         </View>
       ) : (
         <FlatList
+          ref={resultListRef}
           data={results}
           keyExtractor={(item, index) =>
             item.id
