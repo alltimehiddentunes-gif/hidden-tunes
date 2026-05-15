@@ -68,8 +68,16 @@ type GenreItem = {
 
 type GenreWorld = GenreItem & {
   vibe: string;
-  preview: string[];
-  artwork: string[];
+  previews: GenrePreviewItem[];
+};
+
+type GenrePreviewItem = {
+  id: string;
+  type: "song" | "artist" | "album" | "genre";
+  title: string;
+  subtitle: string;
+  artwork: string;
+  payload?: any;
 };
 
 const CARD_WIDTH = 150;
@@ -134,6 +142,18 @@ function getGenreVibe(genre: GenreItem) {
   }
 
   return "Curated world";
+}
+
+function getGenreTokens(genre: GenreItem) {
+  return `${genre.id || ""} ${genre.title || ""} ${genre.query || ""}`
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((token) => token.length > 2);
+}
+
+function matchesGenreTokens(text: string, tokens: string[]) {
+  const clean = text.toLowerCase();
+  return tokens.some((token) => clean.includes(token));
 }
 
 const CloudSongCard = memo(function CloudSongCard({
@@ -386,54 +406,74 @@ export default function ExploreScreen() {
   const genreWorlds = useMemo<GenreWorld[]>(() => {
     return HIDDEN_TUNES_GENRES.map((genre) => {
       const genreItem = genre as GenreItem;
-      const genreText = `${genreItem.id || ""} ${genreItem.title || ""} ${
-        genreItem.query || ""
-      }`.toLowerCase();
+      const genreTokens = getGenreTokens(genreItem);
 
       const relatedSongs = cloudSongs.filter((song) => {
         const songText = `${song.title || ""} ${song.artist || ""} ${
           song.genre || ""
         } ${song.mood || ""} ${song.album || ""}`.toLowerCase();
 
-        return genreText
-          .split(/[^a-z0-9]+/)
-          .filter(Boolean)
-          .some((token) => token.length > 2 && songText.includes(token));
+        return matchesGenreTokens(songText, genreTokens);
       });
 
       const relatedArtists = artists.filter((artist: any) => {
         const artistText = `${artist.name || ""} ${artist.genre || ""}`.toLowerCase();
-        return genreText
-          .split(/[^a-z0-9]+/)
-          .filter(Boolean)
-          .some((token) => token.length > 2 && artistText.includes(token));
+        return matchesGenreTokens(artistText, genreTokens);
       });
 
-      const artwork = relatedSongs
-        .slice(0, 3)
-        .map((song) => getSongArtwork(song))
-        .filter(Boolean);
+      const relatedAlbums = albums.filter((album: any) => {
+        const albumText = `${album.title || ""} ${album.name || ""} ${
+          album.artist || ""
+        } ${album.genre || ""}`.toLowerCase();
+        return matchesGenreTokens(albumText, genreTokens);
+      });
 
-      const preview = [
-        ...relatedSongs
-          .slice(0, 3)
-          .map((song) => `${song.artist || "Hidden Tunes"} - ${song.title}`),
-        ...relatedArtists
-          .slice(0, 2)
-          .map((artist: any) => `${artist.name || "Artist"} radio`),
-      ].filter(Boolean);
+      const previews: GenrePreviewItem[] = [
+        ...relatedSongs.slice(0, 3).map((song) => ({
+          id: `song-${song.id}`,
+          type: "song" as const,
+          title: song.title || genreItem.title,
+          subtitle: song.artist || "Hidden Tunes",
+          artwork: getSongArtwork(song),
+          payload: song,
+        })),
+        ...relatedArtists.slice(0, 2).map((artist: any) => ({
+          id: `artist-${artist.id || artist.name}`,
+          type: "artist" as const,
+          title: artist.name || "Artist",
+          subtitle: "Artist world",
+          artwork: getSongArtwork(artist),
+          payload: artist,
+        })),
+        ...relatedAlbums.slice(0, 2).map((album: any) => ({
+          id: `album-${album.id || album.title || album.name}`,
+          type: "album" as const,
+          title: album.title || album.name || "Album",
+          subtitle: album.artist || "Album journey",
+          artwork: getSongArtwork(album),
+          payload: album,
+        })),
+      ];
 
       return {
         ...genreItem,
         vibe: getGenreVibe(genreItem),
-        preview:
-          preview.length > 0
-            ? preview
-            : [`${genreItem.title} discoveries`, "Fresh catalog energy"],
-        artwork,
+        previews:
+          previews.length > 0
+            ? previews
+            : [
+                {
+                  id: `genre-${genreItem.id}`,
+                  type: "genre",
+                  title: genreItem.title,
+                  subtitle: "Fresh catalog energy",
+                  artwork: FALLBACK_ARTWORK,
+                  payload: genreItem,
+                },
+              ],
       };
     });
-  }, [artists, cloudSongs]);
+  }, [albums, artists, cloudSongs]);
 
   useFocusEffect(
     useCallback(() => {
@@ -510,6 +550,34 @@ export default function ExploreScreen() {
       }
     },
     [cloudSongs, playSong]
+  );
+
+  const openGenrePreview = useCallback(
+    (genre: GenreItem, preview: GenrePreviewItem) => {
+      if (preview.type === "song" && preview.payload) {
+        openCloudSong(preview.payload as HiddenTunesNormalizedSong);
+        return;
+      }
+
+      if (preview.type === "artist" && preview.payload?.id) {
+        router.push({
+          pathname: "/artist/[id]",
+          params: { id: preview.payload.id },
+        } as any);
+        return;
+      }
+
+      if (preview.type === "album" && preview.payload?.id) {
+        router.push({
+          pathname: "/album/[id]",
+          params: { id: preview.payload.id },
+        } as any);
+        return;
+      }
+
+      openGenre(genre);
+    },
+    [openCloudSong, openGenre]
   );
 
   const openSmartPick = useCallback(
@@ -870,12 +938,13 @@ export default function ExploreScreen() {
 
             <View style={styles.genreGrid}>
               {genreWorlds.map((genre, index) => {
-                const preview =
-                  genre.preview[genrePreviewIndex % genre.preview.length] ||
-                  `${genre.title} discoveries`;
-                const primaryArtwork = genre.artwork[0] || FALLBACK_ARTWORK;
-                const secondaryArtwork = genre.artwork[1] || primaryArtwork;
-                const tertiaryArtwork = genre.artwork[2] || secondaryArtwork;
+                const previews = genre.previews;
+                const previewIndex = genrePreviewIndex % previews.length;
+                const primaryPreview = previews[previewIndex];
+                const secondaryPreview =
+                  previews[(previewIndex + 1) % previews.length] || primaryPreview;
+                const tertiaryPreview =
+                  previews[(previewIndex + 2) % previews.length] || secondaryPreview;
 
                 return (
                 <TouchableOpacity
@@ -885,21 +954,21 @@ export default function ExploreScreen() {
                     styles.genreWorldCard,
                     index % 2 === 1 && styles.genreWorldCardAlt,
                   ]}
-                  onPress={() => openGenre(genre as GenreItem)}
+                  onPress={() => openGenrePreview(genre as GenreItem, primaryPreview)}
                 >
                   <View style={styles.genreWorldGlow} />
                   <View style={styles.genreAccentLine} />
 
                   <View style={styles.genreArtworkStack}>
                     <HTImage
-                      uri={tertiaryArtwork}
+                      uri={tertiaryPreview.artwork}
                       style={[styles.genreArtwork, styles.genreArtworkBack]}
                     />
                     <HTImage
-                      uri={secondaryArtwork}
+                      uri={secondaryPreview.artwork}
                       style={[styles.genreArtwork, styles.genreArtworkMid]}
                     />
-                    <HTImage uri={primaryArtwork} style={styles.genreArtwork} />
+                    <HTImage uri={primaryPreview.artwork} style={styles.genreArtwork} />
                   </View>
 
                   <View style={styles.genreWorldTop}>
@@ -916,12 +985,16 @@ export default function ExploreScreen() {
                   </View>
 
                   <View style={styles.genreWorldContent}>
-                    <Text numberOfLines={1} style={styles.genreTitle}>
+                    <Text numberOfLines={1} style={styles.genreWorldLabel}>
                       {genre.title}
                     </Text>
 
+                    <Text numberOfLines={1} style={styles.genreTitle}>
+                      {primaryPreview.title}
+                    </Text>
+
                     <Text numberOfLines={1} style={styles.genrePreview}>
-                      {preview}
+                      {primaryPreview.subtitle}
                     </Text>
                   </View>
 
@@ -1555,6 +1628,14 @@ const styles = StyleSheet.create({
     marginTop: 40,
     paddingRight: 118,
     zIndex: 2,
+  },
+  genreWorldLabel: {
+    color: COLORS.primary,
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 1.3,
+    marginBottom: 7,
+    textTransform: "uppercase",
   },
   genreTitle: {
     color: COLORS.text,
