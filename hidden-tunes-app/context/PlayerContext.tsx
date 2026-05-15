@@ -10,6 +10,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { AppState, AppStateStatus } from "react-native";
 
 import { BackendYouTubeTrack } from "../services/youtubeBackend";
 
@@ -159,6 +160,7 @@ const ACTIVE_QUEUE_MODE_KEY = "hidden_tunes_active_queue_mode";
 const PLAYBACK_UPDATE_INTERVAL_MS = 1200;
 const POSITION_STATE_UPDATE_MIN_MS = 1200;
 const POSITION_SAVE_INTERVAL_MS = 12000;
+const POSITION_SAVE_DISTANCE_MS = 5000;
 const DURATION_UPDATE_THRESHOLD_MS = 1500;
 
 function parseSyncedLyrics(input?: string | null): SyncedLyricLine[] {
@@ -205,8 +207,22 @@ function getCurrentLyricLine(
 export function PlayerProvider({ children }: { children: ReactNode }) {
   const soundRef = useRef<Audio.Sound | null>(null);
   const isChangingTrackRef = useRef(false);
+  const isMountedRef = useRef(true);
+  const loadRequestIdRef = useRef(0);
+  const loadAndPlayRef = useRef<((song: AppSong) => Promise<void>) | null>(
+    null
+  );
+  const extendQueueWithSmartTracksRef = useRef<(() => Promise<boolean>) | null>(
+    null
+  );
+  const unloadPromiseRef = useRef<Promise<void> | null>(null);
   const lastPositionSaveRef = useRef(0);
+  const lastSavedPositionRef = useRef(0);
   const lastPositionStateUpdateRef = useRef(0);
+  const lastActiveQueuePersistRef = useRef("");
+  const lastCurrentSongPersistRef = useRef("");
+  const storageValueCacheRef = useRef<Record<string, string>>({});
+  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
 
   const positionMillisRef = useRef(0);
   const durationMillisRef = useRef(0);
@@ -272,6 +288,36 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const setIsPlaying = useCallback((value: boolean) => {
     isPlayingRef.current = value;
     setIsPlayingState(value);
+  }, []);
+
+  const setStoredValueIfChanged = useCallback(
+    async (key: string, value: string) => {
+      if (storageValueCacheRef.current[key] === value) return;
+
+      storageValueCacheRef.current[key] = value;
+      await AsyncStorage.setItem(key, value);
+    },
+    []
+  );
+
+  const removeStoredValues = useCallback(async (keys: string[]) => {
+    for (const key of keys) {
+      delete storageValueCacheRef.current[key];
+    }
+
+    await AsyncStorage.multiRemove(keys);
+  }, []);
+
+  const savePlaybackPosition = useCallback(async (millis: number) => {
+    const safeMillis = Math.max(0, Math.floor(millis || 0));
+
+    try {
+      lastSavedPositionRef.current = safeMillis;
+      storageValueCacheRef.current[POSITION_KEY] = String(safeMillis);
+      await AsyncStorage.setItem(POSITION_KEY, String(safeMillis));
+    } catch (error) {
+      console.log("Save playback position error:", error);
+    }
   }, []);
 
   const sanitizeYouTubeVideoId = useCallback((value: any) => {
@@ -488,15 +534,33 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const unloadCurrentSound = useCallback(async () => {
-    try {
-      if (soundRef.current) {
-        soundRef.current.setOnPlaybackStatusUpdate(null);
-        await soundRef.current.unloadAsync();
-        soundRef.current = null;
-      }
-    } catch (error) {
-      console.log("Unload sound error:", error);
+    if (unloadPromiseRef.current) {
+      await unloadPromiseRef.current;
+      return;
     }
+
+    const sound = soundRef.current;
+    soundRef.current = null;
+
+    if (!sound) return;
+
+    unloadPromiseRef.current = (async () => {
+      try {
+        sound.setOnPlaybackStatusUpdate(null);
+
+        try {
+          await sound.stopAsync();
+        } catch {}
+
+        await sound.unloadAsync();
+      } catch (error) {
+        console.log("Unload sound error:", error);
+      } finally {
+        unloadPromiseRef.current = null;
+      }
+    })();
+
+    await unloadPromiseRef.current;
   }, []);
 
   const saveCurrentSong = useCallback(
@@ -504,12 +568,17 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       if (isYouTubeSong(song)) return;
 
       try {
-        await AsyncStorage.setItem(CURRENT_SONG_KEY, JSON.stringify(song));
+        const serialized = JSON.stringify(song);
+
+        if (lastCurrentSongPersistRef.current === serialized) return;
+
+        lastCurrentSongPersistRef.current = serialized;
+        await setStoredValueIfChanged(CURRENT_SONG_KEY, serialized);
       } catch (error) {
         console.log("Save current song error:", error);
       }
     },
-    [isYouTubeSong]
+    [isYouTubeSong, setStoredValueIfChanged]
   );
 
   const saveRecentlyPlayed = useCallback(async (song: AppSong) => {
@@ -524,11 +593,23 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const persistActiveQueue = useCallback(
     async (queue: AppSong[], index: number, mode: ActiveQueueMode) => {
       try {
+        const normalizedQueue = queue.map(normalizeSong);
+        const serializedQueue = JSON.stringify(normalizedQueue);
+        const persistKey = `${serializedQueue}|${index}|${mode}`;
+
+        if (lastActiveQueuePersistRef.current === persistKey) return;
+
+        lastActiveQueuePersistRef.current = persistKey;
+
         await AsyncStorage.multiSet([
-          [ACTIVE_QUEUE_KEY, JSON.stringify(queue.map(normalizeSong))],
+          [ACTIVE_QUEUE_KEY, serializedQueue],
           [ACTIVE_QUEUE_INDEX_KEY, String(index)],
           [ACTIVE_QUEUE_MODE_KEY, mode],
         ]);
+
+        storageValueCacheRef.current[ACTIVE_QUEUE_KEY] = serializedQueue;
+        storageValueCacheRef.current[ACTIVE_QUEUE_INDEX_KEY] = String(index);
+        storageValueCacheRef.current[ACTIVE_QUEUE_MODE_KEY] = mode;
       } catch (error) {
         console.log("Persist active queue error:", error);
       }
@@ -644,6 +725,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+      const extended = await extendQueueWithSmartTracksRef.current?.();
+
+      if (!extended) {
+        setIsPlaying(false);
+      }
+
       return;
     }
 
@@ -654,15 +741,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     activeQueueIndexRef.current = safeIndex;
 
     await persistActiveQueue(queue, safeIndex, activeQueueModeRef.current);
-    await AsyncStorage.removeItem(POSITION_KEY);
+    await removeStoredValues([POSITION_KEY]);
 
-    await loadAndPlay(song);
+    await loadAndPlayRef.current?.(song);
   }, [
     isYouTubeSong,
     getNextQueueIndex,
     setIsPlaying,
     normalizeSong,
     persistActiveQueue,
+    removeStoredValues,
   ]);
 
   const handlePlaybackStatusUpdate = useCallback(
@@ -699,36 +787,45 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         setIsPlayingState(nextIsPlaying);
       }
 
-      if (now - lastPositionSaveRef.current > POSITION_SAVE_INTERVAL_MS) {
+      if (
+        now - lastPositionSaveRef.current > POSITION_SAVE_INTERVAL_MS &&
+        Math.abs(nextPosition - lastSavedPositionRef.current) >=
+          POSITION_SAVE_DISTANCE_MS
+      ) {
         lastPositionSaveRef.current = now;
-
-        try {
-          await AsyncStorage.setItem(POSITION_KEY, String(nextPosition));
-        } catch (error) {
-          console.log("Save playback position error:", error);
-        }
+        await savePlaybackPosition(nextPosition);
       }
 
       if (status.didJustFinish && !isChangingTrackRef.current) {
         try {
-          await AsyncStorage.removeItem(POSITION_KEY);
+          await removeStoredValues([POSITION_KEY]);
         } catch {}
 
         if (repeatModeRef.current === "one") {
-          await soundRef.current?.setPositionAsync(0);
-          await soundRef.current?.playAsync();
+          const activeSound = soundRef.current;
+
+          if (activeSound) {
+            await activeSound.setPositionAsync(0);
+            await activeSound.playAsync();
+          }
+
           return;
         }
 
         await nextSong();
       }
     },
-    [nextSong]
+    [nextSong, removeStoredValues, savePlaybackPosition]
   );
 
   const loadAndPlay = useCallback(
     async (song: AppSong) => {
+      let requestId = 0;
+
       try {
+        requestId = loadRequestIdRef.current + 1;
+        loadRequestIdRef.current = requestId;
+
         const normalizedSong = normalizeSong(song);
 
         if (isYouTubeSong(normalizedSong)) {
@@ -744,6 +841,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         setIsLoading(true);
 
         await unloadCurrentSound();
+
+        if (loadRequestIdRef.current !== requestId || !isMountedRef.current) {
+          return;
+        }
 
         const playableUri = getPlayableUri(normalizedSong);
 
@@ -773,6 +874,17 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           handlePlaybackStatusUpdate
         );
 
+        if (loadRequestIdRef.current !== requestId || !isMountedRef.current) {
+          sound.setOnPlaybackStatusUpdate(null);
+
+          try {
+            await sound.stopAsync();
+          } catch {}
+
+          await sound.unloadAsync();
+          return;
+        }
+
         soundRef.current = sound;
 
         try {
@@ -791,6 +903,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           console.log("Restore playback position error:", error);
         }
 
+        if (loadRequestIdRef.current !== requestId || !isMountedRef.current) {
+          return;
+        }
+
         setCurrentSong(normalizedSong);
         currentSongRef.current = normalizedSong;
         setIsPlaying(true);
@@ -802,8 +918,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         console.log("Load and play error:", error);
         setIsPlaying(false);
       } finally {
-        setIsLoading(false);
-        isChangingTrackRef.current = false;
+        if (isMountedRef.current) {
+          setIsLoading(false);
+        }
+
+        if (loadRequestIdRef.current === requestId) {
+          isChangingTrackRef.current = false;
+        }
       }
     },
     [
@@ -831,12 +952,20 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       activeQueueIndexRef.current = safeIndex;
 
       await persistActiveQueue(queue, safeIndex, activeQueueModeRef.current);
-      await AsyncStorage.removeItem(POSITION_KEY);
+      await removeStoredValues([POSITION_KEY]);
 
       await loadAndPlay(song);
     },
-    [isYouTubeSong, normalizeSong, persistActiveQueue, loadAndPlay]
+    [
+      isYouTubeSong,
+      normalizeSong,
+      persistActiveQueue,
+      removeStoredValues,
+      loadAndPlay,
+    ]
   );
+
+  loadAndPlayRef.current = loadAndPlay;
 
   const extendQueueWithSmartTracks = useCallback(async () => {
     try {
@@ -869,7 +998,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       const nextIndex = currentQueue.length;
 
       await syncActiveQueue(updatedQueue, nextIndex, "smart");
-      await AsyncStorage.removeItem(POSITION_KEY);
+      await removeStoredValues([POSITION_KEY]);
       await loadAndPlay(updatedQueue[nextIndex]);
 
       return true;
@@ -877,7 +1006,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       console.log("Smart autoplay extend error:", error);
       return false;
     }
-  }, [isYouTubeSong, normalizeSong, getPlayableUri, loadAndPlay]);
+  }, [
+    isYouTubeSong,
+    normalizeSong,
+    getPlayableUri,
+    syncActiveQueue,
+    removeStoredValues,
+    loadAndPlay,
+  ]);
+
+  extendQueueWithSmartTracksRef.current = extendQueueWithSmartTracks;
 
   const previousSong = useCallback(async () => {
     const queue = activeQueueRef.current.filter((song) => !isYouTubeSong(song));
@@ -906,14 +1044,21 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
       setRadioMode(false);
       radioModeRef.current = false;
-      await AsyncStorage.setItem(RADIO_MODE_KEY, "false");
+      await setStoredValueIfChanged(RADIO_MODE_KEY, "false");
 
       await syncActiveQueue(nativeQueue, safeIndex, "standard");
-      await AsyncStorage.removeItem(POSITION_KEY);
+      await removeStoredValues([POSITION_KEY]);
 
       await loadAndPlay(nativeQueue[safeIndex]);
     },
-    [normalizeSong, isYouTubeSong, syncActiveQueue, loadAndPlay]
+    [
+      normalizeSong,
+      isYouTubeSong,
+      setStoredValueIfChanged,
+      syncActiveQueue,
+      removeStoredValues,
+      loadAndPlay,
+    ]
   );
 
   const playSong = useCallback(
@@ -961,7 +1106,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         await syncActiveQueue([normalizedSong], 0, "standard");
       }
 
-      await AsyncStorage.removeItem(POSITION_KEY);
+      await removeStoredValues([POSITION_KEY]);
       await loadAndPlay(normalizedSong);
     },
     [
@@ -970,6 +1115,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       playQueue,
       persistActiveQueue,
       syncActiveQueue,
+      removeStoredValues,
       loadAndPlay,
     ]
   );
@@ -1008,7 +1154,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
       setRadioMode(false);
       radioModeRef.current = false;
-      await AsyncStorage.setItem(RADIO_MODE_KEY, "false");
+      await setStoredValueIfChanged(RADIO_MODE_KEY, "false");
 
       setYouTubeQueue(normalizedTracks);
       setYouTubeQueueIndex(safeIndex);
@@ -1017,7 +1163,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
       await persistYouTubeQueue(normalizedTracks, safeIndex);
     },
-    [normalizeYouTubeTrack, persistYouTubeQueue]
+    [normalizeYouTubeTrack, setStoredValueIfChanged, persistYouTubeQueue]
   );
 
   const playRadioAtIndex = useCallback(
@@ -1139,15 +1285,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     try {
       isChangingTrackRef.current = true;
 
-      if (soundRef.current) {
-        try {
-          soundRef.current.setOnPlaybackStatusUpdate(null);
-          await soundRef.current.stopAsync();
-        } catch {}
-
-        await soundRef.current.unloadAsync();
-        soundRef.current = null;
-      }
+      loadRequestIdRef.current += 1;
+      await unloadCurrentSound();
 
       setIsPlaying(false);
       setIsLoading(false);
@@ -1157,25 +1296,33 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       currentSongRef.current = null;
       setCurrentSong(null);
 
-      await AsyncStorage.multiRemove([CURRENT_SONG_KEY, POSITION_KEY]);
+      lastCurrentSongPersistRef.current = "";
+      await removeStoredValues([CURRENT_SONG_KEY, POSITION_KEY]);
     } catch (error) {
       console.log("Stop playback error:", error);
     } finally {
       isChangingTrackRef.current = false;
     }
-  }, [setIsPlaying, setPositionMillis, setDurationMillis]);
+  }, [
+    unloadCurrentSound,
+    setIsPlaying,
+    setPositionMillis,
+    setDurationMillis,
+    removeStoredValues,
+  ]);
 
   const togglePlayPause = useCallback(async () => {
-    if (!soundRef.current) return;
+    const sound = soundRef.current;
+    if (!sound || isChangingTrackRef.current) return;
 
-    const status = await soundRef.current.getStatusAsync();
+    const status = await sound.getStatusAsync();
     if (!status.isLoaded) return;
 
     if (status.isPlaying) {
-      await soundRef.current.pauseAsync();
+      await sound.pauseAsync();
       setIsPlaying(false);
     } else {
-      await soundRef.current.playAsync();
+      await sound.playAsync();
       setIsPlaying(true);
     }
   }, [setIsPlaying]);
@@ -1184,14 +1331,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     async (millis: number) => {
       if (!soundRef.current) return;
 
-      await soundRef.current.setPositionAsync(millis);
-      setPositionMillis(millis);
+      const safeMillis = Math.max(0, Math.floor(millis || 0));
 
-      try {
-        await AsyncStorage.setItem(POSITION_KEY, String(millis));
-      } catch {}
+      await soundRef.current.setPositionAsync(safeMillis);
+      setPositionMillis(safeMillis);
+
+      await savePlaybackPosition(safeMillis);
     },
-    [setPositionMillis]
+    [setPositionMillis, savePlaybackPosition]
   );
 
   const setVolume = useCallback(async (value: number) => {
@@ -1200,12 +1347,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setVolumeState(safeValue);
     volumeRef.current = safeValue;
 
-    await AsyncStorage.setItem(VOLUME_KEY, String(safeValue));
+    await setStoredValueIfChanged(VOLUME_KEY, String(safeValue));
 
     if (!isMutedRef.current && soundRef.current) {
       await soundRef.current.setVolumeAsync(safeValue);
     }
-  }, []);
+  }, [setStoredValueIfChanged]);
 
   const toggleMute = useCallback(async () => {
     const nextMuted = !isMutedRef.current;
@@ -1213,21 +1360,21 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setIsMuted(nextMuted);
     isMutedRef.current = nextMuted;
 
-    await AsyncStorage.setItem(MUTED_KEY, String(nextMuted));
+    await setStoredValueIfChanged(MUTED_KEY, String(nextMuted));
 
     if (soundRef.current) {
       await soundRef.current.setVolumeAsync(nextMuted ? 0 : volumeRef.current);
     }
-  }, []);
+  }, [setStoredValueIfChanged]);
 
   const toggleShuffle = useCallback(() => {
     setShuffle((prev) => {
       const next = !prev;
       shuffleRef.current = next;
-      AsyncStorage.setItem(SHUFFLE_KEY, String(next));
+      setStoredValueIfChanged(SHUFFLE_KEY, String(next));
       return next;
     });
-  }, []);
+  }, [setStoredValueIfChanged]);
 
   const toggleRepeatMode = useCallback(() => {
     setRepeatMode((prev) => {
@@ -1235,11 +1382,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         prev === "off" ? "one" : prev === "one" ? "all" : "off";
 
       repeatModeRef.current = next;
-      AsyncStorage.setItem(REPEAT_MODE_KEY, next);
+      setStoredValueIfChanged(REPEAT_MODE_KEY, next);
 
       return next;
     });
-  }, []);
+  }, [setStoredValueIfChanged]);
 
   const toggleSmartAutoplay = useCallback(async () => {
     const next = !smartAutoplayEnabledRef.current;
@@ -1247,8 +1394,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     smartAutoplayEnabledRef.current = next;
     setSmartAutoplayEnabled(next);
 
-    await AsyncStorage.setItem(SMART_AUTOPLAY_KEY, String(next));
-  }, []);
+    await setStoredValueIfChanged(SMART_AUTOPLAY_KEY, String(next));
+  }, [setStoredValueIfChanged]);
 
   const toggleFavorite = useCallback(
     async (song: AppSong) => {
@@ -1262,9 +1409,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         : [normalizedSong, ...favorites];
 
       setFavorites(updated);
-      await AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(updated));
+      await setStoredValueIfChanged(FAVORITES_KEY, JSON.stringify(updated));
     },
-    [favorites, normalizeSong]
+    [favorites, normalizeSong, setStoredValueIfChanged]
   );
 
   const isFavorite = useCallback(
@@ -1286,12 +1433,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     activeQueueIndexRef.current = 0;
     activeQueueModeRef.current = "standard";
 
-    await AsyncStorage.multiRemove([
+    await removeStoredValues([
       ACTIVE_QUEUE_KEY,
       ACTIVE_QUEUE_INDEX_KEY,
       ACTIVE_QUEUE_MODE_KEY,
     ]);
-  }, []);
+  }, [removeStoredValues]);
 
   const restoreSavedData = useCallback(async () => {
     try {
@@ -1351,6 +1498,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         const millis = Number(savedPosition);
         if (!Number.isNaN(millis)) {
           positionMillisRef.current = millis;
+          lastSavedPositionRef.current = millis;
           setPositionMillisState(millis);
         }
       }
@@ -1467,13 +1615,39 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, [normalizeSong, isYouTubeSong, normalizeYouTubeTrack]);
 
   useEffect(() => {
+    isMountedRef.current = true;
+
     configureAudio();
     restoreSavedData();
 
     return () => {
+      isMountedRef.current = false;
+      loadRequestIdRef.current += 1;
       unloadCurrentSound();
     };
   }, [configureAudio, restoreSavedData, unloadCurrentSound]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      const previousState = appStateRef.current;
+      appStateRef.current = nextState;
+
+      if (
+        previousState === "active" &&
+        (nextState === "inactive" || nextState === "background")
+      ) {
+        savePlaybackPosition(positionMillisRef.current);
+      }
+
+      if (nextState === "active") {
+        configureAudio();
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [configureAudio, savePlaybackPosition]);
 
   useEffect(() => {
     currentSongRef.current = currentSong;
