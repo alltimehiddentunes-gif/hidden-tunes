@@ -1,5 +1,5 @@
-import React, { memo, useEffect, useMemo } from "react";
-import { View, StyleSheet } from "react-native";
+import React, { memo, useEffect, useMemo, useState } from "react";
+import { AppState, StyleSheet, View } from "react-native";
 import type { ViewStyle } from "react-native";
 
 import Animated, {
@@ -38,16 +38,28 @@ function LiveWaveform({
   color = COLORS.primary,
 }: LiveWaveformProps) {
   const progress = useSharedValue(0);
+  const [appActive, setAppActive] = useState(AppState.currentState === "active");
+  const shouldAnimate = isPlaying && appActive;
 
   useEffect(() => {
-    if (isPlaying) {
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      setAppActive(nextState === "active");
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (shouldAnimate) {
       progress.value = withRepeat(withTiming(1, { duration: 1200 }), -1, true);
       return;
     }
 
     cancelAnimation(progress);
     progress.value = withTiming(0, { duration: 260 });
-  }, [isPlaying, progress]);
+  }, [shouldAnimate, progress]);
 
   const barHeight = useMemo(() => {
     if (size === "small") return 24;
@@ -73,7 +85,7 @@ function LiveWaveform({
           key={index}
           index={index}
           progress={progress}
-          isPlaying={isPlaying}
+          isPlaying={shouldAnimate}
           color={color}
           barHeight={barHeight}
           barWidth={barWidth}
