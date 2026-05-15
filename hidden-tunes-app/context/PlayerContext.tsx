@@ -167,8 +167,8 @@ const ACTIVE_QUEUE_KEY = "hidden_tunes_active_queue";
 const ACTIVE_QUEUE_INDEX_KEY = "hidden_tunes_active_queue_index";
 const ACTIVE_QUEUE_MODE_KEY = "hidden_tunes_active_queue_mode";
 
-const PLAYBACK_UPDATE_INTERVAL_MS = 1200;
-const POSITION_STATE_UPDATE_MIN_MS = 1200;
+const PLAYBACK_UPDATE_INTERVAL_MS = 2000;
+const POSITION_STATE_UPDATE_MIN_MS = 2000;
 const POSITION_SAVE_INTERVAL_MS = 12000;
 const POSITION_SAVE_DISTANCE_MS = 5000;
 const DURATION_UPDATE_THRESHOLD_MS = 1500;
