@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
+import { getSupabaseAdmin, getSupabaseAdminConfig } from "@/lib/supabaseAdmin";
+
 type UpdateUploaderStatusRequest = {
   uploaderId?: string;
   status?: string;
@@ -16,16 +18,8 @@ const supabaseUrl =
   "";
 
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() || "";
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() || "";
 
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
-const supabaseServerAdmin = createClient(supabaseUrl, serviceRoleKey, {
-  auth: {
-    persistSession: false,
-    autoRefreshToken: false,
-  },
-});
 
 function isAllowedUploaderStatus(value: string): value is UploaderStatus {
   return ALLOWED_UPLOADER_STATUSES.includes(value as UploaderStatus);
@@ -33,6 +27,21 @@ function isAllowedUploaderStatus(value: string): value is UploaderStatus {
 
 export async function POST(request: NextRequest) {
   try {
+    const adminConfig = getSupabaseAdminConfig();
+
+    if (adminConfig.missingVariables.length > 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Missing Supabase admin environment variables.",
+          missingVariables: adminConfig.missingVariables,
+        },
+        { status: 500 }
+      );
+    }
+
+    const supabaseServerAdmin = getSupabaseAdmin();
+
     const authHeader = request.headers.get("authorization");
 
     if (!authHeader?.startsWith("Bearer ")) {

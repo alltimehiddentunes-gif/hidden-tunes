@@ -6,6 +6,7 @@ import {
   isAllowedUploaderRole,
   normalizeUploaderEmail,
 } from "@/lib/createUploader";
+import { getSupabaseAdmin, getSupabaseAdminConfig } from "@/lib/supabaseAdmin";
 import { createUploaderProfile } from "@/lib/uploaderProfilesAdmin";
 
 type CreateUploaderRequest = {
@@ -19,16 +20,8 @@ const supabaseUrl =
   "";
 
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() || "";
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() || "";
 
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
-const supabaseServerAdmin = createClient(supabaseUrl, serviceRoleKey, {
-  auth: {
-    persistSession: false,
-    autoRefreshToken: false,
-  },
-});
 
 function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
@@ -36,6 +29,21 @@ function isValidEmail(value: string) {
 
 export async function POST(request: NextRequest) {
   try {
+    const adminConfig = getSupabaseAdminConfig();
+
+    if (adminConfig.missingVariables.length > 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Missing Supabase admin environment variables.",
+          missingVariables: adminConfig.missingVariables,
+        },
+        { status: 500 }
+      );
+    }
+
+    const supabaseServerAdmin = getSupabaseAdmin();
+
     const authHeader = request.headers.get("authorization");
 
     if (!authHeader?.startsWith("Bearer ")) {

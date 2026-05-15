@@ -1,4 +1,4 @@
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
 export type UploaderRole = "owner" | "upload_manager";
 
@@ -72,6 +72,8 @@ export async function createSupabaseUploaderAuthUser(
       error: "Invalid uploader role.",
     };
   }
+
+  const supabaseAdmin = getSupabaseAdmin();
 
   const { data, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(
     email,
