@@ -13,7 +13,7 @@ import {
 } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
-import { useScrollToTop } from "@react-navigation/native";
+import { useFocusEffect, useScrollToTop } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 
@@ -35,6 +35,7 @@ const FEATURED_CARD_WIDTH = width * 0.72;
 const HERO_CARD_WIDTH = width - 40;
 const INITIAL_HOME_SONG_ROWS = 24;
 const HOME_SONG_ROWS_INCREMENT = 24;
+const HERO_AUTO_SLIDE_MS = 7000;
 
 type HeroCard = {
   key: string;
@@ -86,6 +87,8 @@ function HomeScreen() {
 
   const isLoadingRef = useRef(false);
   const scrollRef = useRef<ScrollView>(null);
+  const heroListRef = useRef<FlatList<HeroCard>>(null);
+  const heroIndexRef = useRef(0);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(18)).current;
   const heroScale = useRef(new Animated.Value(0.96)).current;
@@ -94,6 +97,7 @@ function HomeScreen() {
   const [loadingSongs, setLoadingSongs] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [visibleSongCount, setVisibleSongCount] = useState(INITIAL_HOME_SONG_ROWS);
+  const [heroIndex, setHeroIndex] = useState(0);
 
   const defaultHeroTrack = featuredSongs[0];
 
@@ -252,6 +256,38 @@ function HomeScreen() {
     return cards.slice(0, 6);
   }, [currentSong, defaultHeroTrack, featuredSongs, recentlyPlayed]);
 
+  const shouldAutoSlideHero =
+    heroCards.length > 1 && !currentSong && !isPlaying;
+  const firstHeroKey = heroCards[0]?.key;
+
+  useEffect(() => {
+    heroIndexRef.current = 0;
+    setHeroIndex(0);
+    heroListRef.current?.scrollToOffset({ offset: 0, animated: false });
+  }, [firstHeroKey]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!shouldAutoSlideHero) return undefined;
+
+      const timer = setInterval(() => {
+        const nextIndex = (heroIndexRef.current + 1) % heroCards.length;
+
+        heroIndexRef.current = nextIndex;
+        setHeroIndex(nextIndex);
+
+        heroListRef.current?.scrollToOffset({
+          offset: HERO_CARD_WIDTH * nextIndex,
+          animated: true,
+        });
+      }, HERO_AUTO_SLIDE_MS);
+
+      return () => {
+        clearInterval(timer);
+      };
+    }, [heroCards.length, shouldAutoSlideHero])
+  );
+
   const playFeaturedSong = useCallback(
     async (song: HiddenTunesNormalizedSong) => {
       const normalized = safeSong(song);
@@ -356,6 +392,17 @@ function HomeScreen() {
     },
     [currentSong?.id, handleHeroPress, heroCards.length, isPlaying]
   );
+
+  const handleHeroMomentumEnd = useCallback((event: any) => {
+    const offset = event.nativeEvent.contentOffset.x || 0;
+    const nextIndex = Math.max(
+      0,
+      Math.min(heroCards.length - 1, Math.round(offset / HERO_CARD_WIDTH))
+    );
+
+    heroIndexRef.current = nextIndex;
+    setHeroIndex(nextIndex);
+  }, [heroCards.length]);
 
   const renderSongRow = useCallback(
     (song: HiddenTunesNormalizedSong, index: number) => {
@@ -492,7 +539,12 @@ function HomeScreen() {
         >
           <View style={styles.header}>
             <View style={styles.logoBox}>
-              <Ionicons name="musical-notes" size={24} color={COLORS.primary} />
+              <View style={styles.logoGlow} />
+              <HTImage
+                source={FALLBACK_ARTWORK}
+                style={styles.logoImage}
+                contentFit="contain"
+              />
             </View>
 
             <View>
@@ -535,6 +587,7 @@ function HomeScreen() {
           >
             {heroCards.length > 0 ? (
               <FlatList
+                ref={heroListRef}
                 horizontal
                 data={heroCards}
                 keyExtractor={(item) => item.key}
@@ -547,6 +600,7 @@ function HomeScreen() {
                 maxToRenderPerBatch={2}
                 windowSize={3}
                 removeClippedSubviews
+                onMomentumScrollEnd={handleHeroMomentumEnd}
               />
             ) : (
               <LinearGradient colors={GRADIENTS.neon} style={styles.heroBorder}>
@@ -562,6 +616,20 @@ function HomeScreen() {
               </LinearGradient>
             )}
           </Animated.View>
+
+          {heroCards.length > 1 && (
+            <View style={styles.heroDots}>
+              {heroCards.map((item, index) => (
+                <View
+                  key={`hero-dot-${item.key}`}
+                  style={[
+                    styles.heroDot,
+                    index === heroIndex && styles.heroDotActive,
+                  ]}
+                />
+              ))}
+            </View>
+          )}
 
           <View style={styles.catalogPill}>
             <Ionicons name="cloud-done" size={16} color={COLORS.primary} />
@@ -775,6 +843,29 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "rgba(168,85,247,0.1)",
+    shadowColor: COLORS.primary,
+    shadowOpacity: 0.28,
+    shadowRadius: 14,
+    shadowOffset: {
+      width: 0,
+      height: 0,
+    },
+    elevation: 5,
+    overflow: "hidden",
+  },
+
+  logoGlow: {
+    position: "absolute",
+    width: 62,
+    height: 62,
+    borderRadius: 31,
+    backgroundColor: "rgba(168,85,247,0.16)",
+  },
+
+  logoImage: {
+    width: 39,
+    height: 39,
+    borderRadius: 20,
   },
 
   logoText: {
@@ -846,6 +937,26 @@ const styles = StyleSheet.create({
   heroOuter: {
     marginTop: 24,
     marginHorizontal: 20,
+  },
+
+  heroDots: {
+    marginTop: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+  },
+
+  heroDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "rgba(255,255,255,0.24)",
+  },
+
+  heroDotActive: {
+    width: 22,
+    backgroundColor: COLORS.primary,
   },
 
   heroSlide: {
