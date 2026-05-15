@@ -11,7 +11,7 @@ import {
 } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
-import { useScrollToTop } from "@react-navigation/native";
+import { useFocusEffect, useScrollToTop } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 
@@ -39,12 +39,37 @@ import {
 } from "../../services/hiddenTunesApi";
 
 const MOODS = ["Afrobeats", "Amapiano", "Afro Soul", "Dancehall"];
+const GENRE_PREVIEW_MS = 6800;
+
+const GENRE_VIBES: Record<string, string> = {
+  afrobeats: "Street energy",
+  amapiano: "After-hours pulse",
+  "afro-soul": "Velvet vocals",
+  dancehall: "Island heat",
+  hiphop: "Night drive",
+  "hip-hop": "Night drive",
+  rnb: "Late night",
+  "r&b": "Late night",
+  pop: "Bright hooks",
+  electronic: "Neon motion",
+  gospel: "Lifted spirit",
+  reggae: "Warm breeze",
+  soul: "Deep feeling",
+  jazz: "Smoke room",
+  rock: "Big stage",
+};
 
 type GenreItem = {
   id: string;
   title: string;
   query: string;
   emoji?: string;
+};
+
+type GenreWorld = GenreItem & {
+  vibe: string;
+  preview: string[];
+  artwork: string[];
 };
 
 const CARD_WIDTH = 150;
@@ -95,6 +120,20 @@ function dedupeSongs(songs: HiddenTunesNormalizedSong[]) {
     seen.add(key);
     return Boolean(song.streamUrl || song.url);
   });
+}
+
+function normalizeGenreKey(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+}
+
+function getGenreVibe(genre: GenreItem) {
+  const key = normalizeGenreKey(`${genre.id || ""} ${genre.title || ""} ${genre.query || ""}`);
+
+  for (const [match, vibe] of Object.entries(GENRE_VIBES)) {
+    if (key.includes(match)) return vibe;
+  }
+
+  return "Curated world";
 }
 
 const CloudSongCard = memo(function CloudSongCard({
@@ -209,6 +248,7 @@ export default function ExploreScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showHeavySections, setShowHeavySections] = useState(false);
+  const [genrePreviewIndex, setGenrePreviewIndex] = useState(0);
 
   useScrollToTop(listRef);
 
@@ -342,6 +382,72 @@ export default function ExploreScreen() {
       .map((item) => item.song)
       .slice(0, 10);
   }, [cloudSongs, recentlyPlayed]);
+
+  const genreWorlds = useMemo<GenreWorld[]>(() => {
+    return HIDDEN_TUNES_GENRES.map((genre) => {
+      const genreItem = genre as GenreItem;
+      const genreText = `${genreItem.id || ""} ${genreItem.title || ""} ${
+        genreItem.query || ""
+      }`.toLowerCase();
+
+      const relatedSongs = cloudSongs.filter((song) => {
+        const songText = `${song.title || ""} ${song.artist || ""} ${
+          song.genre || ""
+        } ${song.mood || ""} ${song.album || ""}`.toLowerCase();
+
+        return genreText
+          .split(/[^a-z0-9]+/)
+          .filter(Boolean)
+          .some((token) => token.length > 2 && songText.includes(token));
+      });
+
+      const relatedArtists = artists.filter((artist: any) => {
+        const artistText = `${artist.name || ""} ${artist.genre || ""}`.toLowerCase();
+        return genreText
+          .split(/[^a-z0-9]+/)
+          .filter(Boolean)
+          .some((token) => token.length > 2 && artistText.includes(token));
+      });
+
+      const artwork = relatedSongs
+        .slice(0, 3)
+        .map((song) => getSongArtwork(song))
+        .filter(Boolean);
+
+      const preview = [
+        ...relatedSongs
+          .slice(0, 3)
+          .map((song) => `${song.artist || "Hidden Tunes"} - ${song.title}`),
+        ...relatedArtists
+          .slice(0, 2)
+          .map((artist: any) => `${artist.name || "Artist"} radio`),
+      ].filter(Boolean);
+
+      return {
+        ...genreItem,
+        vibe: getGenreVibe(genreItem),
+        preview:
+          preview.length > 0
+            ? preview
+            : [`${genreItem.title} discoveries`, "Fresh catalog energy"],
+        artwork,
+      };
+    });
+  }, [artists, cloudSongs]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (genreWorlds.length === 0) return undefined;
+
+      const timer = setInterval(() => {
+        setGenrePreviewIndex((current) => current + 1);
+      }, GENRE_PREVIEW_MS);
+
+      return () => {
+        clearInterval(timer);
+      };
+    }, [genreWorlds.length])
+  );
 
   const openGenre = useCallback((genre: GenreItem) => {
     router.push({
@@ -758,24 +864,69 @@ export default function ExploreScreen() {
             )}
 
             <View style={styles.genreHeader}>
-              <Text style={styles.sectionTitle}>Browse genres</Text>
-              <Text style={styles.sectionSub}>Albums, singles and deep discovery</Text>
+              <Text style={styles.sectionTitle}>Genre Worlds</Text>
+              <Text style={styles.sectionSub}>Curated destinations from your catalog</Text>
             </View>
 
             <View style={styles.genreGrid}>
-              {HIDDEN_TUNES_GENRES.map((genre) => (
+              {genreWorlds.map((genre, index) => {
+                const preview =
+                  genre.preview[genrePreviewIndex % genre.preview.length] ||
+                  `${genre.title} discoveries`;
+                const primaryArtwork = genre.artwork[0] || FALLBACK_ARTWORK;
+                const secondaryArtwork = genre.artwork[1] || primaryArtwork;
+                const tertiaryArtwork = genre.artwork[2] || secondaryArtwork;
+
+                return (
                 <TouchableOpacity
                   key={genre.id}
                   activeOpacity={0.86}
-                  style={styles.genreCard}
+                  style={[
+                    styles.genreWorldCard,
+                    index % 2 === 1 && styles.genreWorldCardAlt,
+                  ]}
                   onPress={() => openGenre(genre as GenreItem)}
                 >
-                  <Text style={styles.genreEmoji}>{genre.emoji}</Text>
-                  <Text numberOfLines={1} style={styles.genreTitle}>
-                    {genre.title}
-                  </Text>
+                  <View style={styles.genreWorldGlow} />
+
+                  <View style={styles.genreArtworkStack}>
+                    <HTImage
+                      uri={tertiaryArtwork}
+                      style={[styles.genreArtwork, styles.genreArtworkBack]}
+                    />
+                    <HTImage
+                      uri={secondaryArtwork}
+                      style={[styles.genreArtwork, styles.genreArtworkMid]}
+                    />
+                    <HTImage uri={primaryArtwork} style={styles.genreArtwork} />
+                  </View>
+
+                  <View style={styles.genreWorldTop}>
+                    <Text style={styles.genreEmoji}>{genre.emoji}</Text>
+                    <View style={styles.genreVibePill}>
+                      <Text numberOfLines={1} style={styles.genreVibeText}>
+                        {genre.vibe}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.genreWorldContent}>
+                    <Text numberOfLines={1} style={styles.genreTitle}>
+                      {genre.title}
+                    </Text>
+
+                    <Text numberOfLines={1} style={styles.genrePreview}>
+                      {preview}
+                    </Text>
+                  </View>
+
+                  <View style={styles.genreCtaRow}>
+                    <Text style={styles.genreCtaText}>Explore vibe</Text>
+                    <Ionicons name="arrow-forward" size={14} color={COLORS.primary} />
+                  </View>
                 </TouchableOpacity>
-              ))}
+                );
+              })}
             </View>
 
             {showHeavySections && playlists.length > 0 && (
@@ -1289,22 +1440,125 @@ const styles = StyleSheet.create({
     gap: 12,
     marginBottom: 28,
   },
-  genreCard: {
+  genreWorldCard: {
     width: "47%",
-    minHeight: 92,
-    borderRadius: 24,
-    padding: 16,
-    backgroundColor: "rgba(255,255,255,0.065)",
+    minHeight: 202,
+    borderRadius: 30,
+    padding: 14,
+    backgroundColor: "rgba(255,255,255,0.07)",
+    borderWidth: 1,
+    borderColor: "rgba(168,85,247,0.22)",
+    justifyContent: "space-between",
+    overflow: "hidden",
+    shadowColor: "#A855F7",
+    shadowOpacity: 0.16,
+    shadowRadius: 18,
+    shadowOffset: {
+      width: 0,
+      height: 10,
+    },
+    elevation: 4,
+  },
+  genreWorldCardAlt: {
+    borderColor: "rgba(34,211,238,0.2)",
+  },
+  genreWorldGlow: {
+    position: "absolute",
+    right: -56,
+    top: -52,
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    backgroundColor: "rgba(168,85,247,0.18)",
+  },
+  genreWorldTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    zIndex: 2,
+  },
+  genreArtworkStack: {
+    position: "absolute",
+    right: 12,
+    top: 44,
+    width: 88,
+    height: 86,
+  },
+  genreArtwork: {
+    position: "absolute",
+    right: 0,
+    top: 10,
+    width: 66,
+    height: 66,
+    borderRadius: 22,
+    backgroundColor: COLORS.card,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.14)",
+  },
+  genreArtworkMid: {
+    right: 14,
+    top: 6,
+    opacity: 0.78,
+    transform: [{ rotate: "-7deg" }],
+  },
+  genreArtworkBack: {
+    right: 28,
+    top: 2,
+    opacity: 0.42,
+    transform: [{ rotate: "-13deg" }],
+  },
+  genreEmoji: {
+    fontSize: 28,
+  },
+  genreVibePill: {
+    maxWidth: 92,
+    borderRadius: 999,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    backgroundColor: "rgba(0,0,0,0.34)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.1)",
-    justifyContent: "space-between",
   },
-  genreEmoji: { fontSize: 26 },
+  genreVibeText: {
+    color: COLORS.text,
+    fontSize: 9,
+    fontWeight: "900",
+    letterSpacing: 0.5,
+  },
+  genreWorldContent: {
+    marginTop: 70,
+    zIndex: 2,
+  },
   genreTitle: {
     color: COLORS.text,
-    fontSize: 15,
+    fontSize: 20,
     fontWeight: "900",
-    marginTop: 12,
+    letterSpacing: -0.4,
+  },
+  genrePreview: {
+    color: COLORS.textMuted,
+    fontSize: 11,
+    fontWeight: "800",
+    lineHeight: 16,
+    marginTop: 8,
+  },
+  genreCtaRow: {
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    backgroundColor: "rgba(0,0,0,0.32)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+    zIndex: 2,
+  },
+  genreCtaText: {
+    color: COLORS.text,
+    fontSize: 11,
+    fontWeight: "900",
   },
   loader: {
     height: 190,
