@@ -33,7 +33,7 @@ type LyricLine = {
 };
 
 const ITEM_HEIGHT = 58;
-const LYRICS_SYNC_OFFSET_MS = 2200;
+const LYRICS_SYNC_OFFSET_MS = -350;
 const MAX_LYRIC_CHARS = 34;
 const MIN_SCROLL_INDEX_JUMP = 2;
 const MIN_ACTIVE_UPDATE_MS = 650;
