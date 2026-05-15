@@ -536,7 +536,7 @@ const styles = StyleSheet.create({
   content: {
     paddingTop: 60,
     paddingHorizontal: 24,
-    paddingBottom: 205,
+    paddingBottom: 190,
   },
 
   emptyContainer: {
@@ -627,7 +627,7 @@ const styles = StyleSheet.create({
 
   artworkGlow: {
     alignSelf: "center",
-    marginTop: 38,
+    marginTop: 28,
     shadowColor: "#A855F7",
     shadowOpacity: 0.26,
     shadowRadius: 20,
@@ -639,18 +639,18 @@ const styles = StyleSheet.create({
   },
 
   artworkBorder: {
-    width: 314,
-    height: 314,
-    borderRadius: 157,
+    width: 294,
+    height: 294,
+    borderRadius: 147,
     padding: 3,
     alignItems: "center",
     justifyContent: "center",
   },
 
   artworkWrapper: {
-    width: 308,
-    height: 308,
-    borderRadius: 154,
+    width: 288,
+    height: 288,
+    borderRadius: 144,
     overflow: "hidden",
     backgroundColor: COLORS.card,
   },
@@ -667,7 +667,7 @@ const styles = StyleSheet.create({
   },
 
   songInfo: {
-    marginTop: 34,
+    marginTop: 24,
     flexDirection: "row",
     alignItems: "center",
     gap: 14,
@@ -794,8 +794,8 @@ const styles = StyleSheet.create({
   },
 
   waveformContainer: {
-    marginTop: 28,
-    marginBottom: 10,
+    marginTop: 20,
+    marginBottom: 6,
   },
 
   sliderContainer: {
@@ -822,7 +822,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginTop: 34,
+    marginTop: 26,
   },
 
   iconButton: {
@@ -852,7 +852,7 @@ const styles = StyleSheet.create({
   },
 
   extraActions: {
-    marginTop: 24,
+    marginTop: 18,
     flexDirection: "row",
     gap: 10,
   },
@@ -877,7 +877,7 @@ const styles = StyleSheet.create({
   },
 
   volumeSection: {
-    marginTop: 20,
+    marginTop: 16,
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
