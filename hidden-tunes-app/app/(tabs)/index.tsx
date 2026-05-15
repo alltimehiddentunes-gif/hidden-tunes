@@ -886,9 +886,9 @@ const styles = StyleSheet.create({
   },
 
   logoBox: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 68,
+    height: 68,
+    borderRadius: 34,
     borderWidth: 1,
     borderColor: "rgba(168,85,247,0.5)",
     alignItems: "center",
@@ -907,16 +907,16 @@ const styles = StyleSheet.create({
 
   logoGlow: {
     position: "absolute",
-    width: 70,
-    height: 70,
-    borderRadius: 35,
+    width: 76,
+    height: 76,
+    borderRadius: 38,
     backgroundColor: "rgba(168,85,247,0.16)",
   },
 
   logoImage: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
+    width: 82,
+    height: 82,
+    borderRadius: 41,
   },
 
   logoText: {
