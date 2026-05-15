@@ -73,8 +73,8 @@ function normalizeBackendTrack(item: unknown): BackendYouTubeTrack | null {
 
   const videoId = extractYouTubeId(
     track.videoId ||
-      track.id ||
       (typeof apiId === "object" ? apiId.videoId : "") ||
+      (typeof apiId === "string" ? apiId : "") ||
       snippet.resourceId?.videoId ||
       snippet.videoId ||
       track.video_id ||
