@@ -219,6 +219,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const isChangingTrackRef = useRef(false);
   const isMountedRef = useRef(true);
   const loadRequestIdRef = useRef(0);
+  const queueTransitionRef = useRef(false);
   const loadAndPlayRef = useRef<((song: AppSong) => Promise<void>) | null>(
     null
   );
@@ -732,39 +733,57 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     []
   );
 
+  const runQueueTransition = useCallback(async (transition: () => Promise<void>) => {
+    if (queueTransitionRef.current) return;
+
+    queueTransitionRef.current = true;
+
+    try {
+      await transition();
+    } finally {
+      queueTransitionRef.current = false;
+    }
+  }, []);
+
   const nextSong = useCallback(async () => {
-    const queue = activeQueueRef.current.filter((song) => !isYouTubeSong(song));
+    await runQueueTransition(async () => {
+      const queue = activeQueueRef.current.filter((song) => !isYouTubeSong(song));
 
-    if (!queue.length) return;
+      if (!queue.length) return;
 
-    const nextIndex = getNextQueueIndex(activeQueueIndexRef.current, queue.length);
+      const nextIndex = getNextQueueIndex(
+        activeQueueIndexRef.current,
+        queue.length
+      );
 
-    if (nextIndex === -1) {
-      if (!smartAutoplayEnabledRef.current) {
-        setIsPlaying(false);
+      if (nextIndex === -1) {
+        if (!smartAutoplayEnabledRef.current) {
+          setIsPlaying(false);
+          return;
+        }
+
+        const extended = await extendQueueWithSmartTracksRef.current?.();
+
+        if (!extended) {
+          setIsPlaying(false);
+        }
+
         return;
       }
 
-      const extended = await extendQueueWithSmartTracksRef.current?.();
+      const safeIndex = Math.max(0, Math.min(nextIndex, queue.length - 1));
+      const song = normalizeSong(queue[safeIndex]);
 
-      if (!extended) {
-        setIsPlaying(false);
-      }
+      setActiveQueueIndex(safeIndex);
+      activeQueueIndexRef.current = safeIndex;
 
-      return;
-    }
+      await persistActiveQueue(queue, safeIndex, activeQueueModeRef.current);
+      await removeStoredValues([POSITION_KEY]);
 
-    const safeIndex = Math.max(0, Math.min(nextIndex, queue.length - 1));
-    const song = normalizeSong(queue[safeIndex]);
-
-    setActiveQueueIndex(safeIndex);
-    activeQueueIndexRef.current = safeIndex;
-
-    await persistActiveQueue(queue, safeIndex, activeQueueModeRef.current);
-    await removeStoredValues([POSITION_KEY]);
-
-    await loadAndPlayRef.current?.(song);
+      await loadAndPlayRef.current?.(song);
+    });
   }, [
+    runQueueTransition,
     isYouTubeSong,
     getNextQueueIndex,
     setIsPlaying,
@@ -1038,19 +1057,21 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   extendQueueWithSmartTracksRef.current = extendQueueWithSmartTracks;
 
   const previousSong = useCallback(async () => {
-    const queue = activeQueueRef.current.filter((song) => !isYouTubeSong(song));
+    await runQueueTransition(async () => {
+      const queue = activeQueueRef.current.filter((song) => !isYouTubeSong(song));
 
-    if (!queue.length) return;
+      if (!queue.length) return;
 
-    const previousIndex = getPreviousQueueIndex(
-      activeQueueIndexRef.current,
-      queue.length
-    );
+      const previousIndex = getPreviousQueueIndex(
+        activeQueueIndexRef.current,
+        queue.length
+      );
 
-    if (previousIndex === -1) return;
+      if (previousIndex === -1) return;
 
-    await playQueueAtIndex(previousIndex);
-  }, [isYouTubeSong, getPreviousQueueIndex, playQueueAtIndex]);
+      await playQueueAtIndex(previousIndex);
+    });
+  }, [runQueueTransition, isYouTubeSong, getPreviousQueueIndex, playQueueAtIndex]);
 
   const playQueue = useCallback(
     async (queue: AppSong[], startIndex = 0) => {
