@@ -536,7 +536,7 @@ const styles = StyleSheet.create({
   content: {
     paddingTop: 60,
     paddingHorizontal: 24,
-    paddingBottom: 250,
+    paddingBottom: 205,
   },
 
   emptyContainer: {
@@ -877,7 +877,7 @@ const styles = StyleSheet.create({
   },
 
   volumeSection: {
-    marginTop: 28,
+    marginTop: 20,
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
