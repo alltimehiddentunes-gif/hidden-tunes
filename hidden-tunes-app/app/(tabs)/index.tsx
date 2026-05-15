@@ -31,6 +31,8 @@ import { getArtworkUri } from "../../utils/artwork";
 
 const { width } = Dimensions.get("window");
 const FEATURED_CARD_WIDTH = width * 0.72;
+const INITIAL_HOME_SONG_ROWS = 24;
+const HOME_SONG_ROWS_INCREMENT = 24;
 
 const FALLBACK_COVER =
   "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=1000";
@@ -82,6 +84,7 @@ function HomeScreen() {
   const [featuredSongs, setFeaturedSongs] = useState<HiddenTunesNormalizedSong[]>([]);
   const [loadingSongs, setLoadingSongs] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [visibleSongCount, setVisibleSongCount] = useState(INITIAL_HOME_SONG_ROWS);
 
   const heroTrack = featuredSongs[0];
 
@@ -97,6 +100,7 @@ function HomeScreen() {
 
       const songs = await refreshHiddenTunesSongs();
       setFeaturedSongs(dedupeSongs((songs || []).map(safeSong)));
+      setVisibleSongCount(INITIAL_HOME_SONG_ROWS);
     } catch (error) {
       console.log("Load featured songs error:", error);
       setFeaturedSongs([]);
@@ -137,6 +141,13 @@ function HomeScreen() {
 
   const newestSongs = useMemo(() => featuredSongs.slice(0, 12), [featuredSongs]);
 
+  const visibleAllSongs = useMemo(
+    () => featuredSongs.slice(0, visibleSongCount),
+    [featuredSongs, visibleSongCount]
+  );
+
+  const hasMoreCloudSongs = visibleSongCount < featuredSongs.length;
+
   const afroSongs = useMemo(
     () =>
       featuredSongs
@@ -164,6 +175,12 @@ function HomeScreen() {
     },
     [featuredSongs, playSong]
   );
+
+  const showMoreCloudSongs = useCallback(() => {
+    setVisibleSongCount((current) =>
+      Math.min(featuredSongs.length, current + HOME_SONG_ROWS_INCREMENT)
+    );
+  }, [featuredSongs.length]);
 
   const renderSongRow = useCallback(
     (song: HiddenTunesNormalizedSong, index: number) => {
@@ -487,12 +504,25 @@ function HomeScreen() {
 
           <View style={styles.sectionRowSmall}>
             <Text style={styles.sectionTitle}>All Cloud Songs</Text>
-            <Text style={styles.sectionSub}>Everything uploaded to Hidden Tunes</Text>
+            <Text style={styles.sectionSub}>
+              Showing {visibleAllSongs.length} of {featuredSongs.length} uploads
+            </Text>
           </View>
 
           <View style={styles.mediaList}>
-            {featuredSongs.map((song, index) => renderSongRow(song, index))}
+            {visibleAllSongs.map((song, index) => renderSongRow(song, index))}
           </View>
+
+          {hasMoreCloudSongs && (
+            <TouchableOpacity
+              activeOpacity={0.86}
+              style={styles.showMoreButton}
+              onPress={showMoreCloudSongs}
+            >
+              <Ionicons name="albums-outline" size={18} color="#000" />
+              <Text style={styles.showMoreText}>Show More Songs</Text>
+            </TouchableOpacity>
+          )}
 
           <View style={{ height: 140 }} />
         </ScrollView>
@@ -1046,5 +1076,23 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
     alignItems: "center",
     justifyContent: "center",
+  },
+
+  showMoreButton: {
+    alignSelf: "center",
+    marginTop: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderRadius: 999,
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 20,
+    paddingVertical: 13,
+  },
+
+  showMoreText: {
+    color: "#000",
+    fontSize: 13,
+    fontWeight: "900",
   },
 });
