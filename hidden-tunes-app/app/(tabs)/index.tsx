@@ -257,7 +257,7 @@ function HomeScreen() {
   }, [currentSong, defaultHeroTrack, featuredSongs, recentlyPlayed]);
 
   const shouldAutoSlideHero =
-    heroCards.length > 1 && !currentSong && !isPlaying;
+    heroCards.length > 1 && !isPlaying;
   const firstHeroKey = heroCards[0]?.key;
 
   useEffect(() => {
