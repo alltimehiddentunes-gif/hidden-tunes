@@ -215,7 +215,7 @@ function MiniPlayer() {
   );
 
   const badgeIconName = useMemo(() => {
-    if (isYoutubeMode) return "logo-youtube";
+    if (isYoutubeMode) return "tv";
     if (radioMode) return "radio";
     return "pulse";
   }, [isYoutubeMode, radioMode]);
@@ -246,7 +246,7 @@ function MiniPlayer() {
               />
             ) : isYoutubeMode ? (
               <View style={styles.youtubeCover}>
-                <Ionicons name="logo-youtube" size={30} color="#fff" />
+                <Ionicons name="tv" size={30} color="#fff" />
               </View>
             ) : (
               <HTImage

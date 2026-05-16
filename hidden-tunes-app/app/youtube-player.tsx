@@ -30,6 +30,13 @@ type YouTubeQueueItem = {
 };
 
 const YOUTUBE_MINI_KEY = "hidden_tunes_current_youtube";
+const BLOCKED_EXTERNAL_SCHEMES = [
+  "youtube://",
+  "vnd.youtube:",
+  "intent://",
+  "market://",
+  "itms-apps://",
+];
 
 function sanitizeYouTubeVideoId(value: any) {
   const text = String(value || "").replace("youtube-", "").trim();
@@ -38,6 +45,51 @@ function sanitizeYouTubeVideoId(value: any) {
 
   const match = text.match(/[a-zA-Z0-9_-]{11}/);
   return match ? match[0] : "";
+}
+
+function extractVideoIdFromUrl(value: unknown) {
+  const raw = String(value || "").replace("youtube-", "").trim();
+
+  if (!raw) return "";
+  if (/^[a-zA-Z0-9_-]{11}$/.test(raw)) return raw;
+
+  try {
+    const url = new URL(raw);
+    const watchId = url.searchParams.get("v") || "";
+    if (/^[a-zA-Z0-9_-]{11}$/.test(watchId)) return watchId;
+
+    const shortsMatch = url.pathname.match(/\/shorts\/([a-zA-Z0-9_-]{11})/);
+    if (shortsMatch?.[1]) return shortsMatch[1];
+
+    const embedMatch = url.pathname.match(/\/embed\/([a-zA-Z0-9_-]{11})/);
+    if (embedMatch?.[1]) return embedMatch[1];
+
+    if (url.hostname.includes("youtu.be")) {
+      const id = url.pathname.replace("/", "").trim();
+      if (/^[a-zA-Z0-9_-]{11}$/.test(id)) return id;
+    }
+  } catch {}
+
+  const match = raw.match(/[a-zA-Z0-9_-]{11}/);
+  return match ? match[0] : "";
+}
+
+function isBlockedExternalUrl(url: string) {
+  const clean = url.toLowerCase().trim();
+  return BLOCKED_EXTERNAL_SCHEMES.some((scheme) => clean.startsWith(scheme));
+}
+
+function isAllowedEmbedUrl(url: string) {
+  const clean = url.toLowerCase();
+  return (
+    clean.startsWith("about:blank") ||
+    clean.includes("youtube.com/embed/") ||
+    clean.includes("youtube-nocookie.com/embed/") ||
+    clean.includes("googlevideo.com") ||
+    clean.includes("gstatic.com") ||
+    clean.includes("google.com") ||
+    clean.includes("ytimg.com")
+  );
 }
 
 function normalizeQueueItem(item: any): YouTubeQueueItem | null {
@@ -72,7 +124,7 @@ export default function YouTubePlayerScreen() {
   const initialVideoId = sanitizeYouTubeVideoId(params.videoId || params.id);
   const initialTitle = String(params.title || "YouTube Music");
   const initialArtist = String(
-    params.artist || params.channelTitle || "YouTube"
+    params.artist || params.channelTitle || "Hidden Tunes TV"
   );
 
   const parsedQueue: YouTubeQueueItem[] = useMemo(() => {
@@ -85,7 +137,7 @@ export default function YouTubePlayerScreen() {
           .filter((item): item is YouTubeQueueItem => item !== null);
       }
     } catch (error) {
-      console.log("YouTube queue parse error:", error);
+      console.log("Hidden Tunes TV queue parse error:", error);
     }
 
     const fallbackItem = normalizeQueueItem({
@@ -121,7 +173,9 @@ export default function YouTubePlayerScreen() {
   }, [params.startIndex, parsedQueue, initialVideoId]);
 
   const [currentIndex, setCurrentIndex] = useState(startIndex);
-  const [playerStatus, setPlayerStatus] = useState("Loading YouTube player...");
+  const [playerStatus, setPlayerStatus] = useState(
+    "Loading Hidden Tunes TV player..."
+  );
   const [isVideoPlaying, setIsVideoPlaying] = useState(true);
   const [playerReady, setPlayerReady] = useState(false);
   const [directEmbedMode, setDirectEmbedMode] = useState(false);
@@ -161,7 +215,7 @@ export default function YouTubePlayerScreen() {
     setIsVideoPlaying(true);
     setPlayerReady(false);
     setDirectEmbedMode(false);
-    setPlayerStatus("Loading YouTube player...");
+    setPlayerStatus("Loading Hidden Tunes TV player...");
 
     if (errorSkipTimerRef.current) {
       clearTimeout(errorSkipTimerRef.current);
@@ -175,7 +229,7 @@ export default function YouTubePlayerScreen() {
     fallbackTimerRef.current = setTimeout(() => {
       setDirectEmbedMode(true);
       setPlayerReady(true);
-      setPlayerStatus("Using direct YouTube embed. Tap the video to play.");
+      setPlayerStatus("Retrying inside Hidden Tunes TV. Tap the video to play.");
     }, 7000);
   }, [videoId, title, artist, thumbnail]);
 
@@ -209,7 +263,7 @@ export default function YouTubePlayerScreen() {
     setIsVideoPlaying(true);
     setPlayerReady(false);
     setDirectEmbedMode(false);
-    setPlayerStatus("Loading YouTube player...");
+    setPlayerStatus("Loading Hidden Tunes TV player...");
     setCurrentIndex(safeIndex);
   }
 
@@ -235,7 +289,7 @@ export default function YouTubePlayerScreen() {
 
   function togglePlayPause() {
     if (directEmbedMode) {
-      setPlayerStatus("Use the YouTube controls inside the video.");
+      setPlayerStatus("Use the in-app video controls.");
       return;
     }
 
@@ -325,18 +379,58 @@ export default function YouTubePlayerScreen() {
   }
 
   function handlePlayerError(error: string) {
-    console.log("YouTube iframe error:", {
+    console.log("Hidden Tunes TV iframe error:", {
       videoId,
       error,
     });
 
     setIsVideoPlaying(false);
-    setDirectEmbedMode(true);
+    setDirectEmbedMode(false);
     setPlayerReady(true);
-    setPlayerStatus("Trying direct YouTube embed. Tap the video to play.");
+    setPlayerStatus("This video cannot play inside Hidden Tunes TV. Try another result.");
   }
 
   const directEmbedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1&playsinline=1&controls=1&rel=0&fs=1`;
+
+  function handleInAppWebViewNavigation(request: { url: string }) {
+    const requestUrl = String(request.url || "");
+
+    if (!requestUrl) return true;
+    if (isBlockedExternalUrl(requestUrl)) {
+      setPlayerStatus("Hidden Tunes TV blocked an external app handoff.");
+      return false;
+    }
+
+    const linkedVideoId = extractVideoIdFromUrl(requestUrl);
+
+    if (
+      linkedVideoId &&
+      linkedVideoId !== videoId &&
+      (requestUrl.includes("/watch") ||
+        requestUrl.includes("/shorts/") ||
+        requestUrl.includes("youtu.be/"))
+    ) {
+      router.replace({
+        pathname: "/youtube-player",
+        params: {
+          id: linkedVideoId,
+          videoId: linkedVideoId,
+          title: "Hidden Tunes TV",
+          artist: "Hidden Tunes TV",
+          channelTitle: "Hidden Tunes TV",
+          thumbnail: `https://img.youtube.com/vi/${linkedVideoId}/hqdefault.jpg`,
+        },
+      } as any);
+      return false;
+    }
+
+    if (!isAllowedEmbedUrl(requestUrl)) {
+      setPlayerStatus("Hidden Tunes TV kept playback inside the app.");
+      return false;
+    }
+
+    return true;
+  }
 
   return (
     <LinearGradient colors={GRADIENTS.main} style={styles.container}>
@@ -353,7 +447,7 @@ export default function YouTubePlayerScreen() {
         </TouchableOpacity>
 
         <View style={styles.topTextBox}>
-          <Text style={styles.label}>YOUTUBE EMBED</Text>
+          <Text style={styles.label}>HIDDEN TUNES TV</Text>
           <Text numberOfLines={1} style={styles.topTitle}>
             Hidden Tunes TV
           </Text>
@@ -384,16 +478,21 @@ export default function YouTubePlayerScreen() {
             originWhitelist={["*"]}
             onLoadEnd={() => {
               setPlayerReady(true);
-              setPlayerStatus("Direct YouTube embed ready. Tap video if needed.");
+              setPlayerStatus("In-app TV player ready. Tap video if needed.");
             }}
             onError={(event) => {
-              console.log("YouTube direct embed WebView error:", event.nativeEvent);
-              setPlayerStatus("YouTube embed failed. Choose another TV video.");
+              console.log("Hidden Tunes TV embed WebView error:", event.nativeEvent);
+              setPlayerStatus(
+                "This video cannot play inside Hidden Tunes TV. Try another result."
+              );
             }}
             onHttpError={(event) => {
-              console.log("YouTube direct embed HTTP error:", event.nativeEvent);
-              setPlayerStatus("YouTube returned an embed error.");
+              console.log("Hidden Tunes TV embed HTTP error:", event.nativeEvent);
+              setPlayerStatus(
+                "This video cannot play inside Hidden Tunes TV. Try another result."
+              );
             }}
+            onShouldStartLoadWithRequest={handleInAppWebViewNavigation}
             style={styles.youtubeWebView}
           />
         ) : videoId ? (
@@ -422,6 +521,7 @@ export default function YouTubePlayerScreen() {
               mediaPlaybackRequiresUserAction: false,
               setSupportMultipleWindows: false,
               mixedContentMode: "always",
+              onShouldStartLoadWithRequest: handleInAppWebViewNavigation,
             }}
             onReady={() => {
               if (fallbackTimerRef.current) {
@@ -449,8 +549,8 @@ export default function YouTubePlayerScreen() {
 
       <View style={styles.infoCard}>
         <View style={styles.youtubePill}>
-          <Ionicons name="logo-youtube" size={14} color="#fff" />
-          <Text style={styles.youtubePillText}>Embedded TV Player</Text>
+          <Ionicons name="tv" size={14} color="#000" />
+          <Text style={styles.youtubePillText}>Hidden Tunes TV Player</Text>
         </View>
 
         <Text numberOfLines={2} style={styles.title}>
@@ -463,8 +563,8 @@ export default function YouTubePlayerScreen() {
 
         <Text style={styles.queueText}>
           {queue.length > 1
-            ? `${currentIndex + 1} of ${queue.length} in YouTube queue`
-            : "Single YouTube play"}
+            ? `${currentIndex + 1} of ${queue.length} in TV queue`
+            : "Single TV play"}
         </Text>
 
         <Text style={styles.statusText}>{playerStatus}</Text>
@@ -504,8 +604,8 @@ export default function YouTubePlayerScreen() {
         </View>
 
         <Text style={styles.notice}>
-          Hidden Tunes TV uses official YouTube embedded playback. Some videos
-          may still block embeds, but no YouTube Data API quota is used here.
+          Hidden Tunes TV uses official embedded playback inside the app. Some
+          videos may still block embeds.
         </Text>
 
         {!directEmbedMode && (
@@ -515,11 +615,11 @@ export default function YouTubePlayerScreen() {
             onPress={() => {
               setDirectEmbedMode(true);
               setPlayerReady(true);
-              setPlayerStatus("Using direct YouTube embed. Tap the video to play.");
+              setPlayerStatus("Retrying inside Hidden Tunes TV. Tap the video to play.");
             }}
           >
-            <Ionicons name="logo-youtube" size={16} color={COLORS.text} />
-            <Text style={styles.secondaryButtonText}>Try Direct Embed</Text>
+            <Ionicons name="refresh" size={16} color={COLORS.text} />
+            <Text style={styles.secondaryButtonText}>Retry inside Hidden Tunes</Text>
           </TouchableOpacity>
         )}
 
@@ -567,7 +667,7 @@ export default function YouTubePlayerScreen() {
                 </Text>
 
                 <Text numberOfLines={1} style={styles.queueArtist}>
-                  {item.artist || item.channelTitle || "YouTube"}
+                {item.artist || item.channelTitle || "Hidden Tunes TV"}
                 </Text>
               </View>
 
@@ -685,7 +785,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    backgroundColor: "#ff0033",
+    backgroundColor: COLORS.primary,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 999,
@@ -693,7 +793,7 @@ const styles = StyleSheet.create({
   },
 
   youtubePillText: {
-    color: "#fff",
+    color: "#000",
     fontSize: 11,
     fontWeight: "900",
   },

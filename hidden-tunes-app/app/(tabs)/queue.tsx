@@ -128,7 +128,7 @@ export default function QueueScreen() {
   const queueModeLabel = useMemo(() => {
     if (activeQueueMode === "smart") return "Smart autoplay is extending your queue";
     if (activeQueueMode === "radio") return "Personal radio is running";
-    if (activeQueueMode === "youtube") return "YouTube queue is ready";
+    if (activeQueueMode === "youtube") return "Hidden Tunes TV queue is ready";
     if (queue.length > 0) return "Persistent queue is ready";
     return "Your next tracks";
   }, [activeQueueMode, queue.length]);

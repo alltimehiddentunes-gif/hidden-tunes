@@ -30,7 +30,7 @@ export default function YouTubeFeedScreen() {
       const data = await fetchChannelVideos();
       setVideos(data || []);
     } catch (error) {
-      console.log("YouTube TV load error:", error);
+      console.log("Hidden Tunes TV load error:", error);
       setVideos([]);
     } finally {
       setLoading(false);
@@ -76,7 +76,7 @@ export default function YouTubeFeedScreen() {
 
         <View>
           <Text style={styles.title}>Hidden Tunes TV</Text>
-          <Text style={styles.subtitle}>Latest YouTube uploads</Text>
+          <Text style={styles.subtitle}>Latest TV uploads</Text>
         </View>
       </View>
 
@@ -87,10 +87,10 @@ export default function YouTubeFeedScreen() {
         </View>
       ) : videos.length === 0 ? (
         <View style={styles.center}>
-          <Ionicons name="logo-youtube" size={60} color="#ff0033" />
-          <Text style={styles.emptyTitle}>No YouTube videos found</Text>
+          <Ionicons name="tv" size={60} color={COLORS.primary} />
+          <Text style={styles.emptyTitle}>No TV videos found</Text>
           <Text style={styles.emptyText}>
-            Add your real YouTube API key and channel ID inside constants/youtube.ts.
+            Open Hidden Tunes TV and search for another video.
           </Text>
         </View>
       ) : (
@@ -127,8 +127,8 @@ export default function YouTubeFeedScreen() {
                 </Text>
 
                 <View style={styles.watchRow}>
-                  <Ionicons name="logo-youtube" size={18} color="#ff0033" />
-                  <Text style={styles.watchText}>Watch now</Text>
+                  <Ionicons name="tv" size={18} color={COLORS.primary} />
+                  <Text style={styles.watchText}>Play inside TV</Text>
                 </View>
               </View>
             </TouchableOpacity>

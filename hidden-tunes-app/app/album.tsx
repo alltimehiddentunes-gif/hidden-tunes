@@ -170,8 +170,8 @@ export default function AlbumScreen() {
                 </Text>
 
                 <View style={styles.metaRow}>
-                  <Ionicons name="logo-youtube" size={13} color="#ff3b30" />
-                  <Text style={styles.metaText}>YouTube Audio</Text>
+                  <Ionicons name="tv" size={13} color="#ff3b30" />
+                  <Text style={styles.metaText}>Hidden Tunes TV</Text>
                 </View>
               </View>
 

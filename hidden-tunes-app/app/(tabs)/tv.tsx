@@ -17,6 +17,13 @@ import { COLORS, GRADIENTS } from "@/constants/theme";
 import { YOUTUBE_CONFIG } from "@/constants/youtube";
 
 const YOUTUBE_HOME_URL = "https://m.youtube.com";
+const BLOCKED_EXTERNAL_SCHEMES = [
+  "youtube://",
+  "vnd.youtube:",
+  "intent://",
+  "market://",
+  "itms-apps://",
+];
 
 function extractVideoId(value: unknown) {
   const raw = String(value || "").replace("youtube-", "").trim();
@@ -64,6 +71,11 @@ function isYouTubeUrl(url: string) {
     url.includes("youtu.be") ||
     url.includes("youtube-nocookie.com")
   );
+}
+
+function isBlockedExternalUrl(url: string) {
+  const clean = url.toLowerCase().trim();
+  return BLOCKED_EXTERNAL_SCHEMES.some((scheme) => clean.startsWith(scheme));
 }
 
 const interceptYouTubeClicksScript = `
@@ -123,23 +135,18 @@ export default function HiddenTunesTVScreen() {
   const [loading, setLoading] = useState(true);
   const [statusText, setStatusText] = useState(
     initialQuery
-      ? `Searching YouTube for "${initialQuery}"`
-      : "Official YouTube discovery, no Data API quota"
+      ? `Searching Hidden Tunes TV for "${initialQuery}"`
+      : "Hidden Tunes TV discovery is ready"
   );
 
   const headerLabel = useMemo(() => {
-    if (webUrl.includes("/results?")) return "YouTube web search";
-    if (webUrl.includes("/channel/")) return "Official channel";
-    return "YouTube web discovery";
+    if (webUrl.includes("/results?")) return "TV search";
+    if (webUrl.includes("/channel/")) return "Hidden Tunes TV channel";
+    return "Hidden Tunes TV discovery";
   }, [webUrl]);
 
   const openEmbeddedVideo = useCallback((videoId: string, sourceUrl = "") => {
     if (!videoId) return;
-
-    console.log("Hidden Tunes TV opening embedded video:", {
-      videoId,
-      sourceUrl,
-    });
 
     router.push({
       pathname: "/youtube-player",
@@ -147,8 +154,8 @@ export default function HiddenTunesTVScreen() {
         id: videoId,
         videoId,
         title: "Hidden Tunes TV",
-        artist: "YouTube",
-        channelTitle: "YouTube",
+        artist: "Hidden Tunes TV",
+        channelTitle: "Hidden Tunes TV",
         thumbnail: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
       },
     } as any);
@@ -160,7 +167,7 @@ export default function HiddenTunesTVScreen() {
 
       if (!clean) {
         setWebUrl(buildChannelUrl());
-        setStatusText("Official YouTube discovery, no Data API quota");
+        setStatusText("Hidden Tunes TV discovery is ready");
         return;
       }
 
@@ -172,7 +179,7 @@ export default function HiddenTunesTVScreen() {
       }
 
       setWebUrl(buildSearchUrl(clean));
-      setStatusText(`Searching YouTube for "${clean}"`);
+      setStatusText(`Searching Hidden Tunes TV for "${clean}"`);
     },
     [openEmbeddedVideo, query]
   );
@@ -180,7 +187,7 @@ export default function HiddenTunesTVScreen() {
   const resetToChannel = useCallback(() => {
     setQuery("");
     setWebUrl(buildChannelUrl());
-    setStatusText("Official YouTube discovery, no Data API quota");
+    setStatusText("Hidden Tunes TV discovery is ready");
   }, []);
 
   const handleNavigation = useCallback(
@@ -189,8 +196,13 @@ export default function HiddenTunesTVScreen() {
 
       if (!requestUrl) return true;
 
+      if (isBlockedExternalUrl(requestUrl)) {
+        setStatusText("Hidden Tunes TV blocked an external app handoff.");
+        return false;
+      }
+
       if (!isYouTubeUrl(requestUrl)) {
-        console.log("Hidden Tunes TV blocked non-YouTube navigation:", requestUrl);
+        setStatusText("Hidden Tunes TV blocked an external page.");
         return false;
       }
 
@@ -245,18 +257,18 @@ export default function HiddenTunesTVScreen() {
 
     setQuery(initialQuery);
     setWebUrl(buildSearchUrl(initialQuery));
-    setStatusText(`Searching YouTube for "${initialQuery}"`);
+    setStatusText(`Searching Hidden Tunes TV for "${initialQuery}"`);
   }, [initialQuery]);
 
   return (
     <LinearGradient colors={GRADIENTS.main} style={styles.container}>
       <View style={styles.header}>
         <View style={styles.headerCopy}>
-          <Text style={styles.kicker}>NO DATA API QUOTA</Text>
+          <Text style={styles.kicker}>IN-APP TV DISCOVERY</Text>
           <Text style={styles.title}>Hidden Tunes TV</Text>
           <Text style={styles.subtitle}>
-            Browse YouTube web search inside Hidden Tunes, then play with the
-            official embedded player.
+            Search broad TV results inside Hidden Tunes, then play with the
+            official in-app embedded player.
           </Text>
         </View>
 
@@ -275,7 +287,7 @@ export default function HiddenTunesTVScreen() {
         <TextInput
           value={query}
           onChangeText={setQuery}
-          placeholder="Search YouTube or paste a video link..."
+          placeholder="Search TV videos or paste a video link..."
           placeholderTextColor={COLORS.textDim}
           returnKeyType="search"
           autoCorrect={false}
@@ -295,7 +307,7 @@ export default function HiddenTunesTVScreen() {
             <Ionicons name="close-circle" size={22} color={COLORS.textMuted} />
           </TouchableOpacity>
         ) : (
-          <Ionicons name="logo-youtube" size={20} color="#ff0033" />
+          <Ionicons name="tv" size={20} color={COLORS.primary} />
         )}
       </View>
 
@@ -305,7 +317,7 @@ export default function HiddenTunesTVScreen() {
         onPress={() => submitSearch(query)}
       >
         <Ionicons name="search" size={18} color="#000" />
-        <Text style={styles.searchButtonText}>Search YouTube Web</Text>
+        <Text style={styles.searchButtonText}>Search Hidden Tunes TV</Text>
       </TouchableOpacity>
 
       <View style={styles.statusRow}>
@@ -344,20 +356,18 @@ export default function HiddenTunesTVScreen() {
           onShouldStartLoadWithRequest={handleNavigation}
           onLoadStart={() => {
             setLoading(true);
-            console.log("Hidden Tunes TV WebView loading:", webUrl);
           }}
           onLoadEnd={() => {
             setLoading(false);
-            console.log("Hidden Tunes TV WebView loaded:", webUrl);
           }}
           onError={(event) => {
             setLoading(false);
             console.log("Hidden Tunes TV WebView error:", event.nativeEvent);
-            setStatusText("YouTube web discovery failed to load. Try again.");
+            setStatusText("Hidden Tunes TV failed to load. Try again.");
           }}
           onHttpError={(event) => {
             console.log("Hidden Tunes TV WebView HTTP error:", event.nativeEvent);
-            setStatusText("YouTube returned an HTTP error. Try another search.");
+            setStatusText("Hidden Tunes TV returned an HTTP error. Try another search.");
           }}
           style={styles.webview}
         />

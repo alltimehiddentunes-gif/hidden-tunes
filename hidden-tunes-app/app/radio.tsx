@@ -471,12 +471,12 @@ export default function RadioScreen() {
 
                   <View style={styles.metaRow}>
                     <Ionicons
-                      name={hasCloudSongs ? "cloud-done" : "logo-youtube"}
+                      name={hasCloudSongs ? "cloud-done" : "tv"}
                       size={13}
                       color={hasCloudSongs ? COLORS.primary : "#ff3b30"}
                     />
                     <Text style={styles.metaText}>
-                      {hasCloudSongs ? "Hidden Tunes Cloud" : "YouTube WebView"}
+                      {hasCloudSongs ? "Hidden Tunes Cloud" : "Hidden Tunes TV"}
                     </Text>
                   </View>
                 </View>

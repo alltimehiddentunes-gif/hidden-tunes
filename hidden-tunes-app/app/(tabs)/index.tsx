@@ -715,7 +715,7 @@ function HomeScreen() {
             />
 
             <PremiumCard
-              icon="logo-youtube"
+              icon="tv"
               title="TV"
               color="#ff0033"
               onPress={() => router.push("/tv" as any)}
@@ -726,7 +726,7 @@ function HomeScreen() {
             <View>
               <Text style={styles.sectionTitle}>Hidden Tunes TV</Text>
               <Text style={styles.sectionSub}>
-                YouTube web discovery with no Data API quota
+                In-app video discovery and embedded playback
               </Text>
             </View>
 
@@ -745,11 +745,11 @@ function HomeScreen() {
             style={styles.tvEmptyCard}
             onPress={() => router.push("/tv" as any)}
           >
-            <Ionicons name="logo-youtube" size={26} color="#ff0033" />
-            <Text style={styles.tvEmptyTitle}>Search YouTube inside Hidden Tunes</Text>
+            <Ionicons name="tv" size={26} color={COLORS.primary} />
+            <Text style={styles.tvEmptyTitle}>Search Hidden Tunes TV</Text>
             <Text style={styles.tvEmptyText}>
-              Browse YouTube web results without using your API quota. Selected
-              videos open in the in-app embedded player.
+              Browse broad TV results inside Hidden Tunes. Selected videos open
+              in the in-app embedded player.
             </Text>
           </TouchableOpacity>
 

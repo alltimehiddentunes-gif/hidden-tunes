@@ -130,8 +130,8 @@ export default function FavoritesScreen() {
                   <View style={styles.badgeRow}>
                     {isYouTube ? (
                       <>
-                        <Ionicons name="logo-youtube" size={13} color="#ff0033" />
-                        <Text style={styles.badgeText}>YouTube WebView</Text>
+                        <Ionicons name="tv" size={13} color="#ff0033" />
+                        <Text style={styles.badgeText}>Hidden Tunes TV</Text>
                       </>
                     ) : (
                       <>

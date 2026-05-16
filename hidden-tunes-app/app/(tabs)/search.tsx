@@ -328,7 +328,7 @@ const SearchResultRow = memo(function SearchResultRow({
             onPress={onPress}
           >
             <Ionicons
-              name={youtube ? "logo-youtube" : "play"}
+              name={youtube ? "tv" : "play"}
               size={20}
               color={youtube ? "#fff" : "#000"}
             />
@@ -338,13 +338,13 @@ const SearchResultRow = memo(function SearchResultRow({
 
       <View style={styles.sourceBadge}>
         <Ionicons
-          name={youtube ? "logo-youtube" : "cloud-done"}
+          name={youtube ? "tv" : "cloud-done"}
           size={13}
           color={sourceColorValue}
         />
 
         <Text style={[styles.sourceBadgeText, { color: sourceColorValue }]}>
-          {youtube ? "YouTube WebView" : sourceName}
+          {youtube ? "Hidden Tunes TV" : sourceName}
         </Text>
       </View>
     </View>
@@ -896,7 +896,7 @@ export default function SearchScreen() {
         onPress={() => openTvFallback(safeQuery)}
       >
         <View style={styles.tvFallbackIcon}>
-          <Ionicons name="logo-youtube" size={24} color="#fff" />
+          <Ionicons name="tv" size={24} color="#fff" />
         </View>
 
         <View style={styles.tvFallbackTextBox}>
@@ -906,7 +906,7 @@ export default function SearchScreen() {
               "No Hidden Tunes matches yet — showing Hidden Tunes TV results."}
           </Text>
           <Text style={styles.tvFallbackSub} numberOfLines={1}>
-            Search YouTube web discovery for {safeQuery} inside the app
+            Search Hidden Tunes TV for {safeQuery} inside the app
           </Text>
         </View>
 
