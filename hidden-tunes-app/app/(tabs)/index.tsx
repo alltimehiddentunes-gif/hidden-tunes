@@ -40,6 +40,12 @@ import {
   rankArtistsForListener,
   rankSongsForListener,
 } from "../../services/listenerRanking";
+import {
+  buildGenreSpotlights,
+  buildMoodRooms,
+  buildMoreLikeThisMood,
+  buildRecentlyDiscovered,
+} from "../../services/smartDiscovery";
 import { FALLBACK_ARTWORK, getArtworkUri } from "../../utils/artwork";
 
 const { width } = Dimensions.get("window");
@@ -276,7 +282,10 @@ function HomeScreen() {
     [featuredSongs, preferenceMaps]
   );
 
-  const newestSongs = useMemo(() => featuredSongs.slice(0, 12), [featuredSongs]);
+  const newestSongs = useMemo(
+    () => buildRecentlyDiscovered(featuredSongs, 12),
+    [featuredSongs]
+  );
 
   const visibleAllSongs = useMemo(
     () => rankedSongs.slice(0, visibleSongCount),
@@ -285,24 +294,19 @@ function HomeScreen() {
 
   const hasMoreCloudSongs = visibleSongCount < featuredSongs.length;
 
-  const afroSongs = useMemo(
-    () =>
-      featuredSongs
-        .filter((song) =>
-          `${song.genre || ""} ${song.mood || ""} ${song.title || ""}`
-            .toLowerCase()
-            .includes("afro")
-        )
-        .slice(0, 10),
-    [featuredSongs]
+  const moreLikeThisMood = useMemo(
+    () => buildMoreLikeThisMood(featuredSongs, currentSong, recentlyPlayed, 6),
+    [currentSong, featuredSongs, recentlyPlayed]
   );
 
-  const moodRoomSongs = useMemo(
-    () =>
-      featuredSongs
-        .filter((song) => Boolean(song.mood))
-        .slice(0, 6),
-    [featuredSongs]
+  const moodRooms = useMemo(
+    () => buildMoodRooms(featuredSongs, preferenceMaps, 2),
+    [featuredSongs, preferenceMaps]
+  );
+
+  const genreSpotlights = useMemo(
+    () => buildGenreSpotlights(featuredSongs, preferenceMaps, 2),
+    [featuredSongs, preferenceMaps]
   );
 
   const heroCards = useMemo<HeroCard[]>(() => {
@@ -943,6 +947,23 @@ function HomeScreen() {
             </>
           )}
 
+          {moreLikeThisMood.songs.length > 0 && (
+            <>
+              <View style={styles.sectionRowSmall}>
+                <Text style={styles.sectionTitle}>More Like This Mood</Text>
+                <Text style={styles.sectionSub}>
+                  More songs carrying {moreLikeThisMood.mood}
+                </Text>
+              </View>
+
+              <View style={styles.mediaList}>
+                {moreLikeThisMood.songs.map((song, index) =>
+                  renderSongRow(song, index)
+                )}
+              </View>
+            </>
+          )}
+
           {rankedArtists.length > 0 && (
             <>
               <View style={styles.sectionRowSmall}>
@@ -1031,7 +1052,7 @@ function HomeScreen() {
 
           <View style={styles.sectionRow}>
             <View>
-              <Text style={styles.sectionTitle}>Fresh From The Vault</Text>
+              <Text style={styles.sectionTitle}>Recently Discovered</Text>
               <Text style={styles.sectionSub}>
                 New uploads ready for your next queue
               </Text>
@@ -1074,33 +1095,33 @@ function HomeScreen() {
             />
           )}
 
-          {afroSongs.length > 0 && (
-            <>
+          {moodRooms.map((room) => (
+            <View key={room.id}>
               <View style={styles.sectionRowSmall}>
-                <Text style={styles.sectionTitle}>Afro Energy</Text>
-                <Text style={styles.sectionSub}>Afrobeat, Afro-fusion, and warm movement</Text>
+                <Text style={styles.sectionTitle}>{room.title}</Text>
+                <Text style={styles.sectionSub}>{room.subtitle}</Text>
               </View>
 
               <View style={styles.mediaList}>
-                {afroSongs.map((song, index) => renderSongRow(song, index))}
+                {room.songs.slice(0, 4).map((song, index) => renderSongRow(song, index))}
               </View>
-            </>
-          )}
+            </View>
+          ))}
 
-          {moodRoomSongs.length > 0 && (
-            <>
+          {genreSpotlights.map((spotlight) => (
+            <View key={spotlight.id}>
               <View style={styles.sectionRowSmall}>
-                <Text style={styles.sectionTitle}>Mood Rooms</Text>
-                <Text style={styles.sectionSub}>
-                  Songs grouped by the feeling they carry
-                </Text>
+                <Text style={styles.sectionTitle}>{spotlight.title}</Text>
+                <Text style={styles.sectionSub}>{spotlight.subtitle}</Text>
               </View>
 
               <View style={styles.mediaList}>
-                {moodRoomSongs.map((song, index) => renderSongRow(song, index))}
+                {spotlight.songs
+                  .slice(0, 4)
+                  .map((song, index) => renderSongRow(song, index))}
               </View>
-            </>
-          )}
+            </View>
+          ))}
 
           <View style={styles.sectionRowSmall}>
             <Text style={styles.sectionTitle}>Full Catalog</Text>

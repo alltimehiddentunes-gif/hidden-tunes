@@ -19,7 +19,6 @@ import AddToPlaylistButton from "../../components/AddToPlaylistButton";
 import HTImage from "../../components/HTImage";
 import { COLORS, GRADIENTS } from "../../constants/theme";
 import { usePlayer } from "../../context/PlayerContext";
-import { HIDDEN_TUNES_GENRES } from "../../utils/genres";
 import { FALLBACK_ARTWORK, getArtworkUri } from "../../utils/artwork";
 
 import {
@@ -47,41 +46,20 @@ import {
   rankAlbumsForListener,
   rankArtistsForListener,
   rankSongsForListener,
-  scoreGenre,
 } from "../../services/listenerRanking";
+import {
+  buildBecauseYouListened,
+  buildGenreSpotlights,
+  buildMoodRooms,
+} from "../../services/smartDiscovery";
 
-const MOODS = ["Afrobeats", "Amapiano", "Afro Soul", "Dancehall"];
 const GENRE_PREVIEW_MS = 6800;
-
-const GENRE_VIBES: Record<string, string> = {
-  afrobeats: "Street energy",
-  amapiano: "After-hours pulse",
-  "afro-soul": "Velvet vocals",
-  dancehall: "Island heat",
-  hiphop: "Night drive",
-  "hip-hop": "Night drive",
-  rnb: "Late night",
-  "r&b": "Late night",
-  pop: "Bright hooks",
-  electronic: "Neon motion",
-  gospel: "Lifted spirit",
-  reggae: "Warm breeze",
-  soul: "Deep feeling",
-  jazz: "Smoke room",
-  rock: "Big stage",
-};
 
 type GenreItem = {
   id: string;
   title: string;
-  query: string;
+  query?: string;
   emoji?: string;
-};
-
-type GenreWorld = GenreItem & {
-  vibe: string;
-  preview: string[];
-  artwork: string[];
 };
 
 const CARD_WIDTH = 150;
@@ -133,20 +111,6 @@ function dedupeSongs(songs: HiddenTunesNormalizedSong[]) {
     seen.add(key);
     return Boolean(song.streamUrl || song.url);
   });
-}
-
-function normalizeGenreKey(value: string) {
-  return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
-}
-
-function getGenreVibe(genre: GenreItem) {
-  const key = normalizeGenreKey(`${genre.id || ""} ${genre.title || ""} ${genre.query || ""}`);
-
-  for (const [match, vibe] of Object.entries(GENRE_VIBES)) {
-    if (key.includes(match)) return vibe;
-  }
-
-  return "Curated world";
 }
 
 const CloudSongCard = memo(function CloudSongCard({
@@ -478,99 +442,23 @@ export default function ExploreScreen() {
   const smartPicks = useMemo(() => {
     if (!rankedCloudSongs.length) return [];
 
-    const recentText = Array.isArray(recentlyPlayed)
-      ? recentlyPlayed
-          .slice(0, 8)
-          .map(
-            (item: any) =>
-              `${item.title || ""} ${item.artist || ""} ${item.genre || ""} ${
-                item.mood || ""
-              }`
-          )
-          .join(" ")
-          .toLowerCase()
-      : "";
+    return buildBecauseYouListened(
+      rankedCloudSongs,
+      Array.isArray(recentlyPlayed) ? recentlyPlayed : [],
+      Array.isArray(favorites) ? favorites : [],
+      10
+    );
+  }, [favorites, rankedCloudSongs, recentlyPlayed]);
 
-    return rankedCloudSongs
-      .map((song: any) => {
-        const text = `${song.title || ""} ${song.artist || ""} ${
-          song.genre || ""
-        } ${song.mood || ""} ${song.album || ""}`.toLowerCase();
+  const moodRooms = useMemo(
+    () => buildMoodRooms(cloudSongs, preferenceMaps, 6),
+    [cloudSongs, preferenceMaps]
+  );
 
-        let score = 0;
-
-        if (recentText.includes(String(song.artist || "").toLowerCase())) score += 5;
-        if (song.genre && recentText.includes(song.genre.toLowerCase())) score += 4;
-        if (song.mood && recentText.includes(song.mood.toLowerCase())) score += 4;
-        if (text.includes("afro")) score += 3;
-        if (text.includes("amapiano")) score += 3;
-        if (text.includes("soul")) score += 2;
-        if (text.includes("emotional")) score += 2;
-        if (text.includes("love")) score += 1;
-
-        return { song, score };
-      })
-      .sort((a, b) => b.score - a.score)
-      .map((item) => item.song)
-      .slice(0, 10);
-  }, [rankedCloudSongs, recentlyPlayed]);
-
-  const genreWorlds = useMemo<GenreWorld[]>(() => {
-    const worlds = HIDDEN_TUNES_GENRES.map((genre) => {
-      const genreItem = genre as GenreItem;
-      const genreText = `${genreItem.id || ""} ${genreItem.title || ""} ${
-        genreItem.query || ""
-      }`.toLowerCase();
-
-      const relatedSongs = cloudSongs.filter((song) => {
-        const songText = `${song.title || ""} ${song.artist || ""} ${
-          song.genre || ""
-        } ${song.mood || ""} ${song.album || ""}`.toLowerCase();
-
-        return genreText
-          .split(/[^a-z0-9]+/)
-          .filter(Boolean)
-          .some((token) => token.length > 2 && songText.includes(token));
-      });
-
-      const relatedArtists = artists.filter((artist: any) => {
-        const artistText = `${artist.name || ""} ${artist.genre || ""}`.toLowerCase();
-        return genreText
-          .split(/[^a-z0-9]+/)
-          .filter(Boolean)
-          .some((token) => token.length > 2 && artistText.includes(token));
-      });
-
-      const artwork = relatedSongs
-        .slice(0, 3)
-        .map((song) => getSongArtwork(song))
-        .filter(Boolean);
-
-      const preview = [
-        ...relatedSongs
-          .slice(0, 3)
-          .map((song) => `${song.artist || "Hidden Tunes"} - ${song.title}`),
-        ...relatedArtists
-          .slice(0, 2)
-          .map((artist: any) => `${artist.name || "Artist"} radio`),
-      ].filter(Boolean);
-
-      const catalogCount = relatedSongs.length + relatedArtists.length;
-
-      return {
-        ...genreItem,
-        vibe: getGenreVibe(genreItem),
-        score: scoreGenre(genreItem.title, preferenceMaps, catalogCount),
-        preview:
-          preview.length > 0
-            ? preview
-            : [`${genreItem.title} discoveries`, "Fresh energy"],
-        artwork,
-      };
-    });
-
-    return worlds.sort((a: any, b: any) => b.score - a.score);
-  }, [artists, cloudSongs, preferenceMaps]);
+  const genreWorlds = useMemo(
+    () => buildGenreSpotlights(cloudSongs, preferenceMaps, 6),
+    [cloudSongs, preferenceMaps]
+  );
 
   useFocusEffect(
     useCallback(() => {
@@ -587,12 +475,16 @@ export default function ExploreScreen() {
   );
 
   const openGenre = useCallback((genre: GenreItem) => {
+    const title = String(genre.title || "").trim();
+
+    if (!title) return;
+
     router.push({
       pathname: "/genre",
       params: {
-        id: genre.id,
-        title: genre.title,
-        query: genre.query,
+        id: genre.id || title,
+        title,
+        query: genre.query || title,
       },
     } as any);
   }, []);
@@ -882,17 +774,17 @@ export default function ExploreScreen() {
 
             <FlatList
               horizontal
-              data={MOODS}
-              keyExtractor={(item) => item}
+              data={moodRooms}
+              keyExtractor={(item) => item.id}
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.chips}
               renderItem={({ item }) => (
                 <TouchableOpacity
                   style={styles.chip}
                   activeOpacity={0.85}
-                  onPress={() => openMood(item)}
+                  onPress={() => openMood(item.title)}
                 >
-                  <Text style={styles.chipText}>{item}</Text>
+                  <Text style={styles.chipText}>{item.title}</Text>
                 </TouchableOpacity>
               )}
             />
@@ -996,8 +888,8 @@ export default function ExploreScreen() {
             )}
 
             <View style={styles.genreHeader}>
-              <Text style={styles.sectionTitle}>Mood Worlds</Text>
-              <Text style={styles.sectionSub}>Browse the sound by energy and emotion</Text>
+              <Text style={styles.sectionTitle}>Genre Spotlights</Text>
+              <Text style={styles.sectionSub}>Built from original catalog genre labels</Text>
             </View>
 
             <View style={styles.genreGrid}>
@@ -1017,7 +909,13 @@ export default function ExploreScreen() {
                     styles.genreWorldCard,
                     index % 2 === 1 && styles.genreWorldCardAlt,
                   ]}
-                  onPress={() => openGenre(genre as GenreItem)}
+                  onPress={() =>
+                    openGenre({
+                      id: genre.title,
+                      title: genre.title,
+                      query: genre.title,
+                    })
+                  }
                 >
                   <View style={styles.genreWorldGlow} />
                   <View style={styles.genreAccentLine} />
@@ -1042,7 +940,7 @@ export default function ExploreScreen() {
                     </View>
                     <View style={styles.genreVibePill}>
                       <Text numberOfLines={1} style={styles.genreVibeText}>
-                        {genre.vibe}
+                        {genre.songs.length} songs
                       </Text>
                     </View>
                   </View>
@@ -1058,7 +956,7 @@ export default function ExploreScreen() {
                   </View>
 
                   <View style={styles.genreCtaRow}>
-                    <Text style={styles.genreCtaText}>Explore vibe</Text>
+                    <Text style={styles.genreCtaText}>Explore genre</Text>
                     <Ionicons name="arrow-forward" size={14} color={COLORS.primary} />
                   </View>
                 </TouchableOpacity>
