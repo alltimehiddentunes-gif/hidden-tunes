@@ -40,8 +40,8 @@ import {
   normalizeAudiusTrack,
 } from "../../services/musicNormalizer";
 import {
-  searchHiddenTunesSongs,
-  getHiddenTunesSongs,
+  searchHiddenTunesSongsPage,
+  getHiddenTunesSongsPage,
   getHiddenTunesAlbums,
   getHiddenTunesArtists,
   getHiddenTunesCloudPlaylists,
@@ -365,6 +365,9 @@ export default function SearchScreen() {
   const [activeSource, setActiveSource] = useState<SearchType>("all");
   const [tvFallbackQuery, setTvFallbackQuery] = useState("");
   const [tvFallbackReason, setTvFallbackReason] = useState("");
+  const [searchPage, setSearchPage] = useState(1);
+  const [hasMoreHiddenResults, setHasMoreHiddenResults] = useState(false);
+  const [loadingMoreResults, setLoadingMoreResults] = useState(false);
 
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [cloudSongs, setCloudSongs] = useState<NativeSearchTrack[]>([]);
@@ -474,7 +477,7 @@ export default function SearchScreen() {
       if (showLoader) setLoadingCloud(true);
 
       const [songs, albums, artists, playlists] = await Promise.all([
-        getHiddenTunesSongs({ forceRefresh: false }),
+        getHiddenTunesSongsPage({ page: 1, limit: 40 }).then((page) => page.songs),
         getHiddenTunesAlbums({ forceRefresh: false }),
         getHiddenTunesArtists({ forceRefresh: false }),
         getHiddenTunesCloudPlaylists(),
@@ -490,12 +493,12 @@ export default function SearchScreen() {
               type: "r2",
             })
           )
-        ).slice(0, 40)
+        )
       );
 
-      setCloudAlbums((albums || []).slice(0, 10));
-      setCloudArtists((artists || []).slice(0, 10));
-      setCloudPlaylists((playlists || []).slice(0, 10));
+      setCloudAlbums(albums || []);
+      setCloudArtists(artists || []);
+      setCloudPlaylists(playlists || []);
     } catch (error) {
       console.log("Cloud discovery load error:", error);
     } finally {
@@ -554,6 +557,8 @@ export default function SearchScreen() {
     setQuery(text);
     setTvFallbackQuery("");
     setTvFallbackReason("");
+    setSearchPage(1);
+    setHasMoreHiddenResults(false);
 
     if (!safeText || safeText.length < 3) {
       setResults([]);
@@ -579,7 +584,9 @@ export default function SearchScreen() {
 
       if (source === "all" || source === "hidden") {
         try {
-          const hiddenTunesResults = await searchHiddenTunesSongs(safeText);
+          const hiddenTunesPage = await searchHiddenTunesSongsPage(safeText, 1, 30);
+          const hiddenTunesResults = hiddenTunesPage.songs;
+          setHasMoreHiddenResults(hiddenTunesPage.hasMore);
 
           finalResults.push(
             ...hiddenTunesResults.map((item: any) =>
@@ -663,7 +670,7 @@ export default function SearchScreen() {
 
       const normalizedResults = dedupeByKey(
         finalResults.map((item) => normalizeSearchTrack(item))
-      ).slice(0, 36);
+      );
 
       if (
         source === "all" &&
@@ -693,6 +700,55 @@ export default function SearchScreen() {
       setRefreshing(false);
     }
   }
+
+  const loadMoreHiddenSearchResults = useCallback(async () => {
+    const safeText = query.trim();
+
+    if (
+      loadingMoreResults ||
+      !hasMoreHiddenResults ||
+      safeText.length < 3 ||
+      activeSource === "youtube" ||
+      activeSource === "audius" ||
+      activeSource === "archive"
+    ) {
+      return;
+    }
+
+    try {
+      setLoadingMoreResults(true);
+
+      const nextPage = searchPage + 1;
+      const page = await searchHiddenTunesSongsPage(safeText, nextPage, 30);
+      const nextResults = page.songs.map((item: any) =>
+        normalizeNativeResult({
+          ...item,
+          source: "hidden-tunes",
+          sourceName: "Hidden Tunes",
+          type: "r2",
+        })
+      );
+
+      setResults((current) =>
+        dedupeByKey([
+          ...current,
+          ...nextResults.map((item) => normalizeSearchTrack(item)),
+        ])
+      );
+      setSearchPage(nextPage);
+      setHasMoreHiddenResults(page.hasMore);
+    } catch (error) {
+      console.log("Load more Hidden Tunes search results error:", error);
+    } finally {
+      setLoadingMoreResults(false);
+    }
+  }, [
+    activeSource,
+    hasMoreHiddenResults,
+    loadingMoreResults,
+    query,
+    searchPage,
+  ]);
 
   function debouncedSearch(text: string, source: SearchType = activeSource) {
     setQuery(text);
@@ -1264,6 +1320,8 @@ export default function SearchScreen() {
           windowSize={7}
           updateCellsBatchingPeriod={90}
           removeClippedSubviews
+          onEndReached={loadMoreHiddenSearchResults}
+          onEndReachedThreshold={0.45}
           refreshControl={
             <RefreshControl
               tintColor={COLORS.primary}
@@ -1330,6 +1388,14 @@ export default function SearchScreen() {
               </Text>
               {renderTvFallbackCard()}
             </View>
+          }
+          ListFooterComponent={
+            loadingMoreResults ? (
+              <View style={styles.loadMoreFooter}>
+                <ActivityIndicator size="small" color={COLORS.primary} />
+                <Text style={styles.loadMoreText}>Loading more Hidden Tunes...</Text>
+              </View>
+            ) : null
           }
           renderItem={renderResult}
         />
@@ -1766,5 +1832,17 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
     marginTop: 8,
     textAlign: "center",
+  },
+  loadMoreFooter: {
+    minHeight: 74,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 10,
+  },
+  loadMoreText: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    fontWeight: "800",
   },
 });

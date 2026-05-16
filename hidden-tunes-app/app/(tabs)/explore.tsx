@@ -31,13 +31,22 @@ import {
   getHiddenTunesAlbums,
   getHiddenTunesArtists,
   getHiddenTunesCloudPlaylists,
-  getHiddenTunesSongs,
+  getHiddenTunesSongsPage,
   refreshHiddenTunesSongs,
+  extractHiddenTunesAlbums,
+  extractHiddenTunesArtists,
   type HiddenTunesAlbum,
   type HiddenTunesArtist,
   type HiddenTunesCloudPlaylist,
   type HiddenTunesNormalizedSong,
 } from "../../services/hiddenTunesApi";
+import {
+  buildListenerPreferenceMaps,
+  rankAlbumsForListener,
+  rankArtistsForListener,
+  rankSongsForListener,
+  scoreGenre,
+} from "../../services/listenerRanking";
 
 const MOODS = ["Afrobeats", "Amapiano", "Afro Soul", "Dancehall"];
 const GENRE_PREVIEW_MS = 6800;
@@ -235,6 +244,7 @@ export default function ExploreScreen() {
     playSong,
     currentSong,
     recentlyPlayed,
+    favorites,
     smartAutoplayEnabled,
     toggleSmartAutoplay,
   } = usePlayer() as any;
@@ -250,6 +260,9 @@ export default function ExploreScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [showHeavySections, setShowHeavySections] = useState(false);
   const [genrePreviewIndex, setGenrePreviewIndex] = useState(0);
+  const [songPage, setSongPage] = useState(1);
+  const [hasMoreSongs, setHasMoreSongs] = useState(true);
+  const [loadingMoreSongs, setLoadingMoreSongs] = useState(false);
 
   useScrollToTop(listRef);
 
@@ -265,13 +278,13 @@ export default function ExploreScreen() {
 
       setAlbums(
         albumResults.status === "fulfilled" && Array.isArray(albumResults.value)
-          ? albumResults.value.slice(0, 10)
+          ? albumResults.value
           : []
       );
 
       setArtists(
         artistResults.status === "fulfilled" && Array.isArray(artistResults.value)
-          ? artistResults.value.slice(0, 10)
+          ? artistResults.value
           : []
       );
 
@@ -300,13 +313,17 @@ export default function ExploreScreen() {
 
         const songResults = forceRefresh
           ? await refreshHiddenTunesSongs()
-          : await getHiddenTunesSongs({ forceRefresh: false });
+          : (await getHiddenTunesSongsPage({ page: 1, limit: 30 })).songs;
 
         const nextSongs = Array.isArray(songResults)
           ? dedupeSongs(songResults.map(safeSong))
           : [];
 
         setCloudSongs(nextSongs);
+        setSongPage(1);
+        setHasMoreSongs(nextSongs.length >= 30);
+        setAlbums(extractHiddenTunesAlbums(nextSongs));
+        setArtists(extractHiddenTunesArtists(nextSongs));
         setLoading(false);
         setRefreshing(false);
 
@@ -332,11 +349,72 @@ export default function ExploreScreen() {
     await loadExplore(false, true);
   }, [loadExplore]);
 
+  const loadMoreSongs = useCallback(async () => {
+    if (loadingMoreSongs || !hasMoreSongs) return;
+
+    try {
+      setLoadingMoreSongs(true);
+
+      const nextPage = songPage + 1;
+      const page = await getHiddenTunesSongsPage({
+        page: nextPage,
+        limit: 30,
+      });
+      const nextSongs = dedupeSongs([
+        ...cloudSongs,
+        ...(page.songs || []).map(safeSong),
+      ]);
+
+      setCloudSongs(nextSongs);
+      setSongPage(nextPage);
+      setHasMoreSongs(page.hasMore);
+      setAlbums(extractHiddenTunesAlbums(nextSongs));
+      setArtists((current) => {
+        const derived = extractHiddenTunesArtists(nextSongs);
+        const seen = new Set<string>();
+        return [...current, ...derived].filter((artist) => {
+          const key = String(artist.id || artist.slug || artist.name).toLowerCase();
+          if (!key || seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+      });
+    } catch (error) {
+      console.log("Explore load more songs error:", error);
+    } finally {
+      setLoadingMoreSongs(false);
+    }
+  }, [cloudSongs, hasMoreSongs, loadingMoreSongs, songPage]);
+
   const featured = tracks[0];
 
   const listTracks = useMemo(() => tracks.slice(1, 7), [tracks]);
 
-  const visibleCloudSongs = useMemo(() => cloudSongs.slice(0, 18), [cloudSongs]);
+  const preferenceMaps = useMemo(
+    () =>
+      buildListenerPreferenceMaps(
+        Array.isArray(recentlyPlayed) ? recentlyPlayed : [],
+        Array.isArray(favorites) ? favorites : []
+      ),
+    [favorites, recentlyPlayed]
+  );
+
+  const rankedCloudSongs = useMemo(
+    () => rankSongsForListener(cloudSongs, preferenceMaps),
+    [cloudSongs, preferenceMaps]
+  );
+
+  const visibleCloudSongs = useMemo(() => rankedCloudSongs, [rankedCloudSongs]);
+
+  const rankedAlbums = useMemo(
+    () => rankAlbumsForListener(albums, preferenceMaps),
+    [albums, preferenceMaps]
+  );
+
+  const rankedArtists = useMemo(
+    () => rankArtistsForListener(artists, preferenceMaps),
+    [artists, preferenceMaps]
+  );
 
   const continueSongs = useMemo(() => {
     const mappedRecent = Array.isArray(recentlyPlayed)
@@ -347,7 +425,7 @@ export default function ExploreScreen() {
   }, [recentlyPlayed, cloudSongs]);
 
   const smartPicks = useMemo(() => {
-    if (!cloudSongs.length) return [];
+    if (!rankedCloudSongs.length) return [];
 
     const recentText = Array.isArray(recentlyPlayed)
       ? recentlyPlayed
@@ -362,7 +440,7 @@ export default function ExploreScreen() {
           .toLowerCase()
       : "";
 
-    return cloudSongs
+    return rankedCloudSongs
       .map((song: any) => {
         const text = `${song.title || ""} ${song.artist || ""} ${
           song.genre || ""
@@ -384,10 +462,10 @@ export default function ExploreScreen() {
       .sort((a, b) => b.score - a.score)
       .map((item) => item.song)
       .slice(0, 10);
-  }, [cloudSongs, recentlyPlayed]);
+  }, [rankedCloudSongs, recentlyPlayed]);
 
   const genreWorlds = useMemo<GenreWorld[]>(() => {
-    return HIDDEN_TUNES_GENRES.map((genre) => {
+    const worlds = HIDDEN_TUNES_GENRES.map((genre) => {
       const genreItem = genre as GenreItem;
       const genreText = `${genreItem.id || ""} ${genreItem.title || ""} ${
         genreItem.query || ""
@@ -426,9 +504,12 @@ export default function ExploreScreen() {
           .map((artist: any) => `${artist.name || "Artist"} radio`),
       ].filter(Boolean);
 
+      const catalogCount = relatedSongs.length + relatedArtists.length;
+
       return {
         ...genreItem,
         vibe: getGenreVibe(genreItem),
+        score: scoreGenre(genreItem.title, preferenceMaps, catalogCount),
         preview:
           preview.length > 0
             ? preview
@@ -436,7 +517,9 @@ export default function ExploreScreen() {
         artwork,
       };
     });
-  }, [artists, cloudSongs]);
+
+    return worlds.sort((a: any, b: any) => b.score - a.score);
+  }, [artists, cloudSongs, preferenceMaps]);
 
   useFocusEffect(
     useCallback(() => {
@@ -626,6 +709,8 @@ export default function ExploreScreen() {
         maxToRenderPerBatch={5}
         windowSize={7}
         updateCellsBatchingPeriod={70}
+        onEndReached={loadMoreSongs}
+        onEndReachedThreshold={0.45}
         ListHeaderComponent={
           <>
             <View style={styles.topBar}>
@@ -785,7 +870,7 @@ export default function ExploreScreen() {
               <>
                 <View style={styles.rowHeader}>
                   <View>
-                    <Text style={styles.sectionTitle}>Smart Picks</Text>
+                  <Text style={styles.sectionTitle}>Made For You</Text>
                     <Text style={styles.sectionSub}>
                       Based on your catalog and listening
                     </Text>
@@ -846,8 +931,8 @@ export default function ExploreScreen() {
             {visibleCloudSongs.length > 0 && (
               <>
                 <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>Hidden Tunes Cloud</Text>
-                  <Text style={styles.sectionSub}>Your latest R2/Supabase uploads</Text>
+                  <Text style={styles.sectionTitle}>Recently Added</Text>
+                  <Text style={styles.sectionSub}>Your R2/Supabase uploads, still scrollable</Text>
                 </View>
 
                 <FlatList
@@ -867,8 +952,8 @@ export default function ExploreScreen() {
             )}
 
             <View style={styles.genreHeader}>
-              <Text style={styles.sectionTitle}>Genre Worlds</Text>
-              <Text style={styles.sectionSub}>Curated destinations from your catalog</Text>
+              <Text style={styles.sectionTitle}>Your Top Genres</Text>
+              <Text style={styles.sectionSub}>Preference-ranked destinations from your catalog</Text>
             </View>
 
             <View style={styles.genreGrid}>
@@ -990,13 +1075,13 @@ export default function ExploreScreen() {
             {showHeavySections && albums.length > 0 && (
               <>
                 <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>Cloud Albums</Text>
+                  <Text style={styles.sectionTitle}>Albums For You</Text>
                   <Text style={styles.sectionSub}>Real albums from your catalog</Text>
                 </View>
 
                 <FlatList
                   horizontal
-                  data={albums}
+                  data={rankedAlbums}
                   keyExtractor={(item: any) => `album-${item.id}`}
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={styles.cloudRow}
@@ -1032,13 +1117,13 @@ export default function ExploreScreen() {
             {showHeavySections && artists.length > 0 && (
               <>
                 <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>Cloud Artists</Text>
-                  <Text style={styles.sectionSub}>Artist pages and discography</Text>
+                  <Text style={styles.sectionTitle}>All Artists</Text>
+                  <Text style={styles.sectionSub}>Preference-ranked pages and discography</Text>
                 </View>
 
                 <FlatList
                   horizontal
-                  data={artists}
+                  data={rankedArtists}
                   keyExtractor={(item: any) => `artist-${item.id}`}
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={styles.cloudRow}
@@ -1131,6 +1216,14 @@ export default function ExploreScreen() {
               </View>
             )}
           </>
+        }
+        ListFooterComponent={
+          loadingMoreSongs ? (
+            <View style={styles.loadMoreFooter}>
+              <ActivityIndicator size="small" color={COLORS.primary} />
+              <Text style={styles.loadMoreText}>Loading more catalog...</Text>
+            </View>
+          ) : null
         }
         renderItem={renderYouTubeTrack}
       />
@@ -1750,5 +1843,17 @@ const styles = StyleSheet.create({
   emptyText: {
     color: COLORS.textMuted,
     marginTop: 8,
+  },
+  loadMoreFooter: {
+    minHeight: 74,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 10,
+  },
+  loadMoreText: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    fontWeight: "800",
   },
 });

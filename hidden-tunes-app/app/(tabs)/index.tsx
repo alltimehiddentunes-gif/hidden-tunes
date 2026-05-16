@@ -26,9 +26,18 @@ import { COLORS, GRADIENTS } from "../../constants/theme";
 import { usePlayer } from "../../context/PlayerContext";
 import {
   getHiddenTunesSongs,
+  getHiddenTunesSongsPage,
+  extractHiddenTunesAlbums,
+  extractHiddenTunesArtists,
   refreshHiddenTunesSongs,
   type HiddenTunesNormalizedSong,
 } from "../../services/hiddenTunesApi";
+import {
+  buildListenerPreferenceMaps,
+  rankAlbumsForListener,
+  rankArtistsForListener,
+  rankSongsForListener,
+} from "../../services/listenerRanking";
 import { FALLBACK_ARTWORK, getArtworkUri } from "../../utils/artwork";
 
 const { width } = Dimensions.get("window");
@@ -84,7 +93,8 @@ function dedupeSongs(songs: HiddenTunesNormalizedSong[]) {
 }
 
 function HomeScreen() {
-  const { playSong, currentSong, isPlaying, recentlyPlayed } = usePlayer() as any;
+  const { playSong, currentSong, isPlaying, recentlyPlayed, favorites } =
+    usePlayer() as any;
 
   const isLoadingRef = useRef(false);
   const scrollRef = useRef<ScrollView>(null);
@@ -99,6 +109,9 @@ function HomeScreen() {
   const [loadingSongs, setLoadingSongs] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [visibleSongCount, setVisibleSongCount] = useState(INITIAL_HOME_SONG_ROWS);
+  const [songPage, setSongPage] = useState(1);
+  const [hasMoreSongPages, setHasMoreSongPages] = useState(true);
+  const [loadingMoreSongs, setLoadingMoreSongs] = useState(false);
   const [heroIndex, setHeroIndex] = useState(0);
 
   const defaultHeroTrack = featuredSongs[0];
@@ -118,9 +131,12 @@ function HomeScreen() {
         : await refreshHiddenTunesSongs();
       setFeaturedSongs(dedupeSongs((songs || []).map(safeSong)));
       setVisibleSongCount(INITIAL_HOME_SONG_ROWS);
+      setSongPage(1);
+      setHasMoreSongPages((songs || []).length >= 30);
     } catch (error) {
       console.log("Load featured songs error:", error);
       setFeaturedSongs([]);
+      setHasMoreSongPages(false);
     } finally {
       isLoadingRef.current = false;
       setLoadingSongs(false);
@@ -177,11 +193,37 @@ function HomeScreen() {
     await loadFeaturedSongs(false);
   }, [loadFeaturedSongs]);
 
+  const preferenceMaps = useMemo(
+    () =>
+      buildListenerPreferenceMaps(
+        Array.isArray(recentlyPlayed) ? recentlyPlayed : [],
+        Array.isArray(favorites) ? favorites : []
+      ),
+    [favorites, recentlyPlayed]
+  );
+
+  const rankedSongs = useMemo(
+    () => rankSongsForListener(featuredSongs, preferenceMaps),
+    [featuredSongs, preferenceMaps]
+  );
+
+  const rankedAlbums = useMemo(
+    () =>
+      rankAlbumsForListener(extractHiddenTunesAlbums(featuredSongs), preferenceMaps),
+    [featuredSongs, preferenceMaps]
+  );
+
+  const rankedArtists = useMemo(
+    () =>
+      rankArtistsForListener(extractHiddenTunesArtists(featuredSongs), preferenceMaps),
+    [featuredSongs, preferenceMaps]
+  );
+
   const newestSongs = useMemo(() => featuredSongs.slice(0, 12), [featuredSongs]);
 
   const visibleAllSongs = useMemo(
-    () => featuredSongs.slice(0, visibleSongCount),
-    [featuredSongs, visibleSongCount]
+    () => rankedSongs.slice(0, visibleSongCount),
+    [rankedSongs, visibleSongCount]
   );
 
   const hasMoreCloudSongs = visibleSongCount < featuredSongs.length;
@@ -341,11 +383,62 @@ function HomeScreen() {
     [featuredSongs, playSong]
   );
 
-  const showMoreCloudSongs = useCallback(() => {
-    setVisibleSongCount((current) =>
-      Math.min(featuredSongs.length, current + HOME_SONG_ROWS_INCREMENT)
-    );
-  }, [featuredSongs.length]);
+  const loadMoreCloudSongs = useCallback(async () => {
+    if (loadingMoreSongs) return;
+
+    if (visibleSongCount < featuredSongs.length) {
+      setVisibleSongCount((current) =>
+        Math.min(featuredSongs.length, current + HOME_SONG_ROWS_INCREMENT)
+      );
+      return;
+    }
+
+    if (!hasMoreSongPages) return;
+
+    try {
+      setLoadingMoreSongs(true);
+
+      const nextPage = songPage + 1;
+      const page = await getHiddenTunesSongsPage({
+        page: nextPage,
+        limit: 30,
+      });
+      const nextSongs = dedupeSongs([
+        ...featuredSongs,
+        ...(page.songs || []).map(safeSong),
+      ]);
+
+      setFeaturedSongs(nextSongs);
+      setVisibleSongCount((current) =>
+        Math.min(nextSongs.length, current + HOME_SONG_ROWS_INCREMENT)
+      );
+      setSongPage(nextPage);
+      setHasMoreSongPages(page.hasMore);
+    } catch (error) {
+      console.log("Load more Home songs error:", error);
+    } finally {
+      setLoadingMoreSongs(false);
+    }
+  }, [
+    featuredSongs,
+    hasMoreSongPages,
+    loadingMoreSongs,
+    songPage,
+    visibleSongCount,
+  ]);
+
+  const handleHomeScroll = useCallback(
+    (event: any) => {
+      const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+      const distanceFromBottom =
+        contentSize.height - (contentOffset.y + layoutMeasurement.height);
+
+      if (distanceFromBottom < 360) {
+        loadMoreCloudSongs();
+      }
+    },
+    [loadMoreCloudSongs]
+  );
 
   const handleHeroPress = useCallback(
     (card: HeroCard) => {
@@ -566,6 +659,8 @@ function HomeScreen() {
           ref={scrollRef}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
+          onScroll={handleHomeScroll}
+          scrollEventThrottle={400}
           refreshControl={
             <RefreshControl
               tintColor={COLORS.primary}
@@ -753,9 +848,108 @@ function HomeScreen() {
             </Text>
           </TouchableOpacity>
 
+          {rankedSongs.length > 0 && (
+            <>
+              <View style={styles.sectionRowSmall}>
+                <Text style={styles.sectionTitle}>Made For You</Text>
+                <Text style={styles.sectionSub}>
+                  Ranked from your plays, favorites, and fresh uploads
+                </Text>
+              </View>
+
+              <View style={styles.mediaList}>
+                {rankedSongs.slice(0, 6).map((song, index) => renderSongRow(song, index))}
+              </View>
+            </>
+          )}
+
+          {rankedArtists.length > 0 && (
+            <>
+              <View style={styles.sectionRowSmall}>
+                <Text style={styles.sectionTitle}>Artists You Play Most</Text>
+                <Text style={styles.sectionSub}>
+                  All artists keep loading as you scroll
+                </Text>
+              </View>
+
+              <FlatList
+                horizontal
+                data={rankedArtists.slice(0, 18)}
+                keyExtractor={(item) => `home-artist-${item.id}`}
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.artistRow}
+                initialNumToRender={4}
+                maxToRenderPerBatch={4}
+                windowSize={5}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    activeOpacity={0.88}
+                    style={styles.artistCard}
+                    onPress={() =>
+                      router.push({
+                        pathname: "/artist/[id]",
+                        params: { id: item.id },
+                      } as any)
+                    }
+                  >
+                    <HTImage uri={getSongImage(item)} style={styles.artistImage} />
+                    <Text numberOfLines={1} style={styles.artistName}>
+                      {item.name}
+                    </Text>
+                    <Text numberOfLines={1} style={styles.artistMeta}>
+                      {item.tracks?.length || 0} songs
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              />
+            </>
+          )}
+
+          {rankedAlbums.length > 0 && (
+            <>
+              <View style={styles.sectionRowSmall}>
+                <Text style={styles.sectionTitle}>Albums For You</Text>
+                <Text style={styles.sectionSub}>
+                  Album queues stay inside the selected album
+                </Text>
+              </View>
+
+              <FlatList
+                horizontal
+                data={rankedAlbums.slice(0, 18)}
+                keyExtractor={(item) => `home-album-${item.id}`}
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.artistRow}
+                initialNumToRender={4}
+                maxToRenderPerBatch={4}
+                windowSize={5}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    activeOpacity={0.88}
+                    style={styles.albumCard}
+                    onPress={() =>
+                      router.push({
+                        pathname: "/album/[id]",
+                        params: { id: item.id },
+                      } as any)
+                    }
+                  >
+                    <HTImage uri={getSongImage(item)} style={styles.albumImage} />
+                    <Text numberOfLines={1} style={styles.artistName}>
+                      {item.title}
+                    </Text>
+                    <Text numberOfLines={1} style={styles.artistMeta}>
+                      {item.artist}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              />
+            </>
+          )}
+
           <View style={styles.sectionRow}>
             <View>
-              <Text style={styles.sectionTitle}>Latest Uploads</Text>
+              <Text style={styles.sectionTitle}>Recently Added</Text>
               <Text style={styles.sectionSub}>
                 Fresh songs from Supabase and Cloudflare R2
               </Text>
@@ -819,14 +1013,24 @@ function HomeScreen() {
             {visibleAllSongs.map((song, index) => renderSongRow(song, index))}
           </View>
 
-          {hasMoreCloudSongs && (
+          {(hasMoreCloudSongs || hasMoreSongPages) && (
             <TouchableOpacity
               activeOpacity={0.86}
-              style={styles.showMoreButton}
-              onPress={showMoreCloudSongs}
+              style={[
+                styles.showMoreButton,
+                loadingMoreSongs && styles.showMoreButtonDisabled,
+              ]}
+              onPress={loadMoreCloudSongs}
+              disabled={loadingMoreSongs}
             >
-              <Ionicons name="albums-outline" size={18} color="#000" />
-              <Text style={styles.showMoreText}>Show More Songs</Text>
+              {loadingMoreSongs ? (
+                <ActivityIndicator size="small" color="#000" />
+              ) : (
+                <Ionicons name="albums-outline" size={18} color="#000" />
+              )}
+              <Text style={styles.showMoreText}>
+                {loadingMoreSongs ? "Loading more..." : "Load More Songs"}
+              </Text>
             </TouchableOpacity>
           )}
 
@@ -1513,6 +1717,60 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
 
+  artistRow: {
+    paddingLeft: 20,
+    paddingRight: 28,
+    gap: 14,
+  },
+
+  artistCard: {
+    width: 140,
+    borderRadius: 24,
+    padding: 12,
+    backgroundColor: "rgba(255,255,255,0.065)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+    alignItems: "center",
+  },
+
+  albumCard: {
+    width: 150,
+    borderRadius: 24,
+    padding: 12,
+    backgroundColor: "rgba(255,255,255,0.065)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+  },
+
+  artistImage: {
+    width: 104,
+    height: 104,
+    borderRadius: 52,
+    backgroundColor: COLORS.card,
+    marginBottom: 12,
+  },
+
+  albumImage: {
+    width: "100%",
+    height: 126,
+    borderRadius: 18,
+    backgroundColor: COLORS.card,
+    marginBottom: 12,
+  },
+
+  artistName: {
+    color: COLORS.text,
+    fontSize: 14,
+    fontWeight: "900",
+  },
+
+  artistMeta: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    fontWeight: "700",
+    marginTop: 5,
+  },
+
   rowPlayButton: {
     width: 42,
     height: 42,
@@ -1532,6 +1790,10 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
     paddingHorizontal: 20,
     paddingVertical: 13,
+  },
+
+  showMoreButtonDisabled: {
+    opacity: 0.7,
   },
 
   showMoreText: {

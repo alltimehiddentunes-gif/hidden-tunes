@@ -21,6 +21,8 @@ const CACHE_MAX_AGE_MS = 1000 * 60 * 5;
 
 const HOME_SONG_LIMIT = 30;
 const SEARCH_SONG_LIMIT = 30;
+export const HIDDEN_TUNES_SONG_PAGE_SIZE = 30;
+export const HIDDEN_TUNES_ARTIST_PAGE_SIZE = 50;
 
 const BROKEN_PROMISE_FALLBACK = {
   id: "broken-promise-caasi-wills",
@@ -152,6 +154,22 @@ export type HiddenTunesCloudPlaylist = {
   description?: string;
   artwork: string;
   tracks: HiddenTunesNormalizedSong[];
+};
+
+export type HiddenTunesSongPage = {
+  songs: HiddenTunesNormalizedSong[];
+  page: number;
+  limit: number;
+  hasMore: boolean;
+  nextPage: number;
+};
+
+export type HiddenTunesArtistPage = {
+  artists: HiddenTunesArtist[];
+  page: number;
+  limit: number;
+  hasMore: boolean;
+  nextPage: number;
 };
 
 export type HiddenTunesLyricsResponse = {
@@ -306,6 +324,57 @@ function normalizeRawArtistArray(data: any): any[] {
   return [];
 }
 
+function buildSongsUrl(options?: {
+  page?: number;
+  limit?: number;
+  query?: string;
+  artistId?: string;
+  albumId?: string;
+  genre?: string;
+}) {
+  const page = Math.max(Number(options?.page) || 1, 1);
+  const limit = Math.min(
+    Math.max(Number(options?.limit) || HIDDEN_TUNES_SONG_PAGE_SIZE, 1),
+    100
+  );
+  const params = new URLSearchParams({
+    limit: String(limit),
+    page: String(page),
+  });
+  const query = String(options?.query || "").trim();
+  const artistId = String(options?.artistId || "").trim();
+  const albumId = String(options?.albumId || "").trim();
+  const genre = String(options?.genre || "").trim();
+
+  if (query) params.set("q", query);
+  if (artistId) params.set("artistId", artistId);
+  if (albumId) params.set("albumId", albumId);
+  if (genre) params.set("genre", genre);
+
+  return `${HIDDEN_TUNES_API_BASE_URL}/api/songs?${params.toString()}`;
+}
+
+function buildArtistsUrl(options?: {
+  page?: number;
+  limit?: number;
+  query?: string;
+}) {
+  const page = Math.max(Number(options?.page) || 1, 1);
+  const limit = Math.min(
+    Math.max(Number(options?.limit) || HIDDEN_TUNES_ARTIST_PAGE_SIZE, 1),
+    500
+  );
+  const params = new URLSearchParams({
+    limit: String(limit),
+    page: String(page),
+  });
+  const query = String(options?.query || "").trim();
+
+  if (query) params.set("q", query);
+
+  return `${HIDDEN_TUNES_API_BASE_URL}/api/artists?${params.toString()}`;
+}
+
 function dedupeSongs(songs: HiddenTunesNormalizedSong[]) {
   const seen = new Set<string>();
 
@@ -323,6 +392,15 @@ function sortSongsNewestFirst(songs: HiddenTunesNormalizedSong[]) {
     const aTime = new Date(a.createdAt || a.updatedAt || 0).getTime();
     return bTime - aTime;
   });
+}
+
+function mergeSongPages(
+  existing: HiddenTunesNormalizedSong[],
+  incoming: HiddenTunesNormalizedSong[]
+) {
+  return applySmartArtworkFallbacks(
+    sortSongsNewestFirst(dedupeSongs([...existing, ...incoming]))
+  );
 }
 
 function mergeWithFallbackSongs(songs: HiddenTunesNormalizedSong[]) {
@@ -592,6 +670,90 @@ export async function clearHiddenTunesArtistsCache() {
   await AsyncStorage.multiRemove([ARTISTS_CACHE_KEY, ARTISTS_CACHE_TIME_KEY]);
 }
 
+export async function getHiddenTunesSongsPage(options?: {
+  page?: number;
+  limit?: number;
+  query?: string;
+  artistId?: string;
+  albumId?: string;
+  genre?: string;
+  forceRefresh?: boolean;
+}): Promise<HiddenTunesSongPage> {
+  const page = Math.max(Number(options?.page) || 1, 1);
+  const limit = Math.min(
+    Math.max(Number(options?.limit) || HIDDEN_TUNES_SONG_PAGE_SIZE, 1),
+    100
+  );
+  const query = String(options?.query || "").trim();
+  const artistId = String(options?.artistId || "").trim();
+  const albumId = String(options?.albumId || "").trim();
+  const genre = String(options?.genre || "").trim();
+  const isGlobalCatalog = !query && !artistId && !albumId && !genre;
+
+  try {
+    const response = await fetchWithTimeout(
+      buildSongsUrl({ page, limit, query, artistId, albumId, genre })
+    );
+
+    if (!response.ok) {
+      throw new Error(`Hidden Tunes songs page API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const rawSongs = normalizeRawSongArray(data);
+    const normalized = rawSongs
+      .map((song: HiddenTunesCloudSong, index: number) =>
+        normalizeHiddenTunesSong(song, index + (page - 1) * limit)
+      )
+      .filter(Boolean) as HiddenTunesNormalizedSong[];
+    const songs = applySmartArtworkFallbacks(dedupeSongs(normalized));
+
+    if (isGlobalCatalog) {
+      const existing =
+        page === 1
+          ? []
+          : songsMemoryCache && songsMemoryCache.length > 0
+          ? songsMemoryCache
+          : await readCachedSongs();
+      const merged = page === 1 ? finalizeSongs(songs) : mergeSongPages(existing, songs);
+
+      await writeCachedSongs(merged);
+    }
+
+    return {
+      songs,
+      page,
+      limit,
+      hasMore: songs.length >= limit,
+      nextPage: page + 1,
+    };
+  } catch (error) {
+    console.log("Hidden Tunes songs page fallback:", error);
+
+    if (!isGlobalCatalog) {
+      return {
+        songs: [],
+        page,
+        limit,
+        hasMore: false,
+        nextPage: page + 1,
+      };
+    }
+
+    const cached = await readCachedSongs();
+    const start = (page - 1) * limit;
+    const songs = cached.slice(start, start + limit);
+
+    return {
+      songs,
+      page,
+      limit,
+      hasMore: start + limit < cached.length,
+      nextPage: page + 1,
+    };
+  }
+}
+
 export async function getHiddenTunesSongs(options?: { forceRefresh?: boolean }) {
   const forceRefresh = options?.forceRefresh ?? false;
 
@@ -774,14 +936,59 @@ export async function getHiddenTunesAlbums(options?: { forceRefresh?: boolean })
 export async function getHiddenTunesAlbumById(id: string) {
   const albums = await getHiddenTunesAlbums({ forceRefresh: false });
   const cleanId = slugify(id);
-
-  return (
+  const cachedAlbum =
     albums.find(
       (album) =>
         album.id === cleanId ||
         album.slug === cleanId ||
         slugify(album.title) === cleanId
-    ) || null
+    ) || null;
+
+  const albumId = cachedAlbum?.id || id;
+
+  try {
+    const firstPage = await getHiddenTunesSongsPage({
+      page: 1,
+      limit: 100,
+      albumId,
+    });
+
+    let allTracks = firstPage.songs;
+    let nextPage = firstPage.nextPage;
+    let hasMore = firstPage.hasMore;
+
+    while (hasMore && nextPage <= 10) {
+      const page = await getHiddenTunesSongsPage({
+        page: nextPage,
+        limit: 100,
+        albumId,
+      });
+
+      allTracks = mergeSongPages(allTracks, page.songs);
+      hasMore = page.hasMore;
+      nextPage = page.nextPage;
+    }
+
+    if (allTracks.length > 0) {
+      const [album] = extractHiddenTunesAlbums(allTracks);
+
+      if (album) {
+        return {
+          ...album,
+          id: cachedAlbum?.id || album.id,
+          slug: cachedAlbum?.slug || album.slug,
+          title: cachedAlbum?.title || album.title,
+          artwork: cachedAlbum?.artwork || album.artwork,
+          tracks: allTracks,
+        };
+      }
+    }
+  } catch (error) {
+    console.log("Hidden Tunes album page fallback:", error);
+  }
+
+  return (
+    cachedAlbum || null
   );
 }
 
@@ -843,18 +1050,159 @@ export async function getHiddenTunesArtists(options?: {
   }
 }
 
+export async function getHiddenTunesArtistsPage(options?: {
+  page?: number;
+  limit?: number;
+  query?: string;
+}): Promise<HiddenTunesArtistPage> {
+  const page = Math.max(Number(options?.page) || 1, 1);
+  const limit = Math.min(
+    Math.max(Number(options?.limit) || HIDDEN_TUNES_ARTIST_PAGE_SIZE, 1),
+    500
+  );
+  const query = String(options?.query || "").trim();
+
+  try {
+    const response = await fetchWithTimeout(buildArtistsUrl({ page, limit, query }));
+
+    if (!response.ok) {
+      throw new Error(`Hidden Tunes artists page API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const rawArtists = normalizeRawArtistArray(data);
+    const artists = rawArtists
+      .map((artist) => normalizeHiddenTunesArtist(artist))
+      .filter(Boolean) as HiddenTunesArtist[];
+
+    if (!query) {
+      const existing =
+        page === 1
+          ? []
+          : artistsMemoryCache && artistsMemoryCache.length > 0
+          ? artistsMemoryCache
+          : await readCachedArtists();
+      const seen = new Set<string>();
+      const merged = [...existing, ...artists].filter((artist) => {
+        const key = String(artist.id || artist.slug || artist.name).toLowerCase();
+        if (!key || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+
+      await writeCachedArtists(merged);
+    }
+
+    return {
+      artists,
+      page,
+      limit,
+      hasMore: artists.length >= limit,
+      nextPage: page + 1,
+    };
+  } catch (error) {
+    console.log("Hidden Tunes artists page fallback:", error);
+
+    if (query) {
+      return {
+        artists: [],
+        page,
+        limit,
+        hasMore: false,
+        nextPage: page + 1,
+      };
+    }
+
+    const cached = await readCachedArtists();
+    const start = (page - 1) * limit;
+    const artists = cached.slice(start, start + limit);
+
+    return {
+      artists,
+      page,
+      limit,
+      hasMore: start + limit < cached.length,
+      nextPage: page + 1,
+    };
+  }
+}
+
+export async function searchHiddenTunesSongsPage(
+  query: string,
+  page = 1,
+  limit = SEARCH_SONG_LIMIT
+) {
+  const cleanQuery = query.trim().toLowerCase();
+
+  if (!cleanQuery) {
+    return await getHiddenTunesSongsPage({ page, limit });
+  }
+
+  return await getHiddenTunesSongsPage({
+    page,
+    limit,
+    query: cleanQuery,
+  });
+}
+
 export async function getHiddenTunesArtistById(id: string) {
   const artists = await getHiddenTunesArtists({ forceRefresh: false });
   const cleanId = slugify(id);
-
-  return (
+  const cachedArtist =
     artists.find(
       (artist) =>
         artist.id === id ||
         artist.id === cleanId ||
         artist.slug === cleanId ||
         slugify(artist.name) === cleanId
-    ) || null
+    ) || null;
+  const artistId = cachedArtist?.id || id;
+
+  try {
+    const firstPage = await getHiddenTunesSongsPage({
+      page: 1,
+      limit: 100,
+      artistId,
+    });
+
+    let allTracks = firstPage.songs;
+    let nextPage = firstPage.nextPage;
+    let hasMore = firstPage.hasMore;
+
+    while (hasMore && nextPage <= 10) {
+      const page = await getHiddenTunesSongsPage({
+        page: nextPage,
+        limit: 100,
+        artistId,
+      });
+
+      allTracks = mergeSongPages(allTracks, page.songs);
+      hasMore = page.hasMore;
+      nextPage = page.nextPage;
+    }
+
+    if (allTracks.length > 0) {
+      const [artist] = extractHiddenTunesArtists(allTracks);
+
+      if (artist) {
+        return {
+          ...artist,
+          id: cachedArtist?.id || artist.id,
+          slug: cachedArtist?.slug || artist.slug,
+          name: cachedArtist?.name || artist.name,
+          artwork: cachedArtist?.artwork || artist.artwork,
+          bio: cachedArtist?.bio || artist.bio,
+          created_at: cachedArtist?.created_at || artist.created_at,
+          tracks: allTracks,
+        };
+      }
+    }
+  } catch (error) {
+    console.log("Hidden Tunes artist page fallback:", error);
+  }
+
+  return (
+    cachedArtist || null
   );
 }
 

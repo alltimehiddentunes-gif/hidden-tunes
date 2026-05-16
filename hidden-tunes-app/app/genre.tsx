@@ -18,8 +18,7 @@ import { COLORS, GRADIENTS } from "../constants/theme";
 import { usePlayer } from "../context/PlayerContext";
 
 import {
-  getHiddenTunesSongs,
-  searchHiddenTunesSongs,
+  getHiddenTunesSongsPage,
   type HiddenTunesNormalizedSong,
 } from "../services/hiddenTunesApi";
 import { FALLBACK_ARTWORK } from "../utils/artwork";
@@ -137,6 +136,9 @@ export default function GenreScreen() {
 
   const [cloudTracks, setCloudTracks] = useState<HiddenTunesNormalizedSong[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   const aliases = useMemo(() => {
     return Array.from(
@@ -152,34 +154,51 @@ export default function GenreScreen() {
     try {
       setLoading(true);
 
-      let combinedSongs: HiddenTunesNormalizedSong[] = [];
-
-      for (const searchTerm of aliases) {
-        const results = await searchHiddenTunesSongs(searchTerm);
-
-        if (Array.isArray(results)) {
-          combinedSongs = [...combinedSongs, ...results.map(safeSong)];
-        }
-      }
-
-      if (combinedSongs.length === 0) {
-        const allSongs = await getHiddenTunesSongs({ forceRefresh: false });
-
-        if (Array.isArray(allSongs)) {
-          combinedSongs = allSongs
-            .map(safeSong)
-            .filter((song) => songMatchesGenre(song, aliases));
-        }
-      }
+      const genrePage = await getHiddenTunesSongsPage({
+        page: 1,
+        limit: 30,
+        genre: query,
+      });
+      const combinedSongs = genrePage.songs
+        .map(safeSong)
+        .filter((song) => songMatchesGenre(song, aliases));
 
       setCloudTracks(dedupeSongs(combinedSongs));
+      setPage(1);
+      setHasMore(genrePage.hasMore);
     } catch (error) {
       console.log("Genre load error:", error);
       setCloudTracks([]);
     } finally {
       setLoading(false);
     }
-  }, [aliases]);
+  }, [aliases, query]);
+
+  const loadMoreTracks = useCallback(async () => {
+    if (loadingMore || !hasMore) return;
+
+    try {
+      setLoadingMore(true);
+
+      const nextPage = page + 1;
+      const genrePage = await getHiddenTunesSongsPage({
+        page: nextPage,
+        limit: 30,
+        genre: query,
+      });
+      const combinedSongs = genrePage.songs
+        .map(safeSong)
+        .filter((song) => songMatchesGenre(song, aliases));
+
+      setCloudTracks((current) => dedupeSongs([...current, ...combinedSongs]));
+      setPage(nextPage);
+      setHasMore(genrePage.hasMore);
+    } catch (error) {
+      console.log("Genre load more error:", error);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [aliases, hasMore, loadingMore, page, query]);
 
   useEffect(() => {
     loadGenreTracks();
@@ -280,6 +299,8 @@ export default function GenreScreen() {
           }
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
+          onEndReached={loadMoreTracks}
+          onEndReachedThreshold={0.45}
           ListHeaderComponent={
             <>
               <View style={styles.radioCard}>
@@ -363,6 +384,14 @@ export default function GenreScreen() {
                 Upload songs with this genre, mood, or tag.
               </Text>
             </View>
+          }
+          ListFooterComponent={
+            loadingMore ? (
+              <View style={styles.loadMoreFooter}>
+                <ActivityIndicator size="small" color={COLORS.primary} />
+                <Text style={styles.loadMoreText}>Loading more {title}...</Text>
+              </View>
+            ) : null
           }
           renderItem={({ item, index }: any) => {
             const artwork = getArtwork(item);
@@ -624,5 +653,17 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
     marginTop: 8,
     textAlign: "center",
+  },
+  loadMoreFooter: {
+    minHeight: 74,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 10,
+  },
+  loadMoreText: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    fontWeight: "800",
   },
 });

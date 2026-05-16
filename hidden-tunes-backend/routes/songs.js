@@ -114,6 +114,9 @@ router.get("/", async (req, res) => {
         : (page - 1) * limit;
 
     const query = String(req.query.q || req.query.search || "").trim();
+    const artistId = String(req.query.artistId || req.query.artist_id || "").trim();
+    const albumId = String(req.query.albumId || req.query.album_id || "").trim();
+    const genre = String(req.query.genre || "").trim();
 
     let request = supabase
       .from("songs")
@@ -161,6 +164,18 @@ router.get("/", async (req, res) => {
       request = request.or(
         `title.ilike.%${query}%,artist.ilike.%${query}%,artist_name.ilike.%${query}%,album.ilike.%${query}%,album_title.ilike.%${query}%,genre.ilike.%${query}%,mood.ilike.%${query}%`
       );
+    }
+
+    if (artistId) {
+      request = request.eq("artist_id", artistId);
+    }
+
+    if (albumId) {
+      request = request.eq("album_id", albumId);
+    }
+
+    if (genre) {
+      request = request.or(`genre.ilike.%${genre}%,mood.ilike.%${genre}%`);
     }
 
     const { data, error } = await request;
