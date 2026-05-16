@@ -41,7 +41,7 @@ import {
 } from "../../services/musicNormalizer";
 import {
   searchHiddenTunesSongs,
-  refreshHiddenTunesSongs,
+  getHiddenTunesSongs,
   getHiddenTunesAlbums,
   getHiddenTunesArtists,
   getHiddenTunesCloudPlaylists,
@@ -474,9 +474,9 @@ export default function SearchScreen() {
       if (showLoader) setLoadingCloud(true);
 
       const [songs, albums, artists, playlists] = await Promise.all([
-        refreshHiddenTunesSongs(),
-        getHiddenTunesAlbums({ forceRefresh: true }),
-        getHiddenTunesArtists({ forceRefresh: true }),
+        getHiddenTunesSongs({ forceRefresh: false }),
+        getHiddenTunesAlbums({ forceRefresh: false }),
+        getHiddenTunesArtists({ forceRefresh: false }),
         getHiddenTunesCloudPlaylists(),
       ]);
 

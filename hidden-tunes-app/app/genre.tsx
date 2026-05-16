@@ -18,7 +18,7 @@ import { COLORS, GRADIENTS } from "../constants/theme";
 import { usePlayer } from "../context/PlayerContext";
 
 import {
-  refreshHiddenTunesSongs,
+  getHiddenTunesSongs,
   searchHiddenTunesSongs,
   type HiddenTunesNormalizedSong,
 } from "../services/hiddenTunesApi";
@@ -163,7 +163,7 @@ export default function GenreScreen() {
       }
 
       if (combinedSongs.length === 0) {
-        const allSongs = await refreshHiddenTunesSongs();
+        const allSongs = await getHiddenTunesSongs({ forceRefresh: false });
 
         if (Array.isArray(allSongs)) {
           combinedSongs = allSongs

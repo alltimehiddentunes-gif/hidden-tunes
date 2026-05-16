@@ -32,6 +32,8 @@ import {
 } from "../services/musicNormalizer";
 import { FALLBACK_ARTWORK } from "../utils/artwork";
 
+type RadioTrack = HiddenTunesNormalizedSong | BackendYouTubeTrack;
+
 function cleanQuery(value: string) {
   return String(value || "")
     .replace(/\s+music$/i, "")
@@ -311,7 +313,7 @@ export default function RadioScreen() {
   }
 
   const hasCloudSongs = cloudTracks.length > 0;
-  const activeTracks = hasCloudSongs ? cloudTracks : youtubeTracks;
+  const activeTracks: RadioTrack[] = hasCloudSongs ? cloudTracks : youtubeTracks;
 
   return (
     <LinearGradient colors={GRADIENTS.main} style={styles.container}>
@@ -394,11 +396,12 @@ export default function RadioScreen() {
           <Text style={styles.loadingText}>Building discovery radio...</Text>
         </View>
       ) : (
-        <FlatList
+        <FlatList<RadioTrack>
           data={activeTracks}
-          keyExtractor={(item: any, index) =>
-            `${item.id || item.videoId || "radio"}-${index}`
-          }
+          keyExtractor={(item, index) => {
+            const videoId = "videoId" in item ? item.videoId : "";
+            return `${item.id || videoId || "radio"}-${index}`;
+          }}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
           ListHeaderComponent={
@@ -434,8 +437,10 @@ export default function RadioScreen() {
               </Text>
             </View>
           }
-          renderItem={({ item, index }: any) => {
-            const artwork = hasCloudSongs ? getArtwork(item) : getTrackThumbnail(item);
+          renderItem={({ item, index }) => {
+            const artwork = hasCloudSongs
+              ? getArtwork(item)
+              : getTrackThumbnail(item as BackendYouTubeTrack);
 
             return (
               <TouchableOpacity
@@ -459,7 +464,9 @@ export default function RadioScreen() {
                   </Text>
 
                   <Text style={styles.artist} numberOfLines={1}>
-                    {hasCloudSongs ? item.artist : getTrackArtist(item)}
+                    {hasCloudSongs
+                      ? item.artist
+                      : getTrackArtist(item as BackendYouTubeTrack)}
                   </Text>
 
                   <View style={styles.metaRow}>

@@ -5,6 +5,10 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
+
 export async function GET(
   _req: NextRequest,
   context: { params: Promise<{ id: string }> }
@@ -43,13 +47,13 @@ export async function GET(
       lyrics_url: data.lyrics_url,
       source: data.source,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Lyrics fetch failed:", error);
 
     return NextResponse.json(
       {
         success: false,
-        error: error?.message || "Lyrics fetch failed.",
+        error: getErrorMessage(error, "Lyrics fetch failed."),
       },
       { status: 500 }
     );

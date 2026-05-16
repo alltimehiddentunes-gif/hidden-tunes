@@ -25,6 +25,7 @@ import LiveWaveform from "../../components/LiveWaveform";
 import { COLORS, GRADIENTS } from "../../constants/theme";
 import { usePlayer } from "../../context/PlayerContext";
 import {
+  getHiddenTunesSongs,
   refreshHiddenTunesSongs,
   type HiddenTunesNormalizedSong,
 } from "../../services/hiddenTunesApi";
@@ -112,7 +113,9 @@ function HomeScreen() {
 
       if (showLoader) setLoadingSongs(true);
 
-      const songs = await refreshHiddenTunesSongs();
+      const songs = showLoader
+        ? await getHiddenTunesSongs({ forceRefresh: false })
+        : await refreshHiddenTunesSongs();
       setFeaturedSongs(dedupeSongs((songs || []).map(safeSong)));
       setVisibleSongCount(INITIAL_HOME_SONG_ROWS);
     } catch (error) {

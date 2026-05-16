@@ -11,6 +11,10 @@ function slugify(value: string) {
     .replace(/^-+|-+$/g, "");
 }
 
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -106,13 +110,13 @@ export async function POST(req: NextRequest) {
       album,
       song,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("complete-song error:", error);
 
     return NextResponse.json(
       {
         error: "Song completion failed",
-        details: error?.message || String(error),
+        details: getErrorMessage(error, String(error)),
       },
       { status: 500 }
     );

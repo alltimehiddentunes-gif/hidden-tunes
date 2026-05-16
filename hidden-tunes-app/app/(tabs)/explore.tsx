@@ -31,6 +31,7 @@ import {
   getHiddenTunesAlbums,
   getHiddenTunesArtists,
   getHiddenTunesCloudPlaylists,
+  getHiddenTunesSongs,
   refreshHiddenTunesSongs,
   type HiddenTunesAlbum,
   type HiddenTunesArtist,
@@ -297,7 +298,9 @@ export default function ExploreScreen() {
       try {
         if (showLoader) setLoading(true);
 
-        const songResults = await refreshHiddenTunesSongs();
+        const songResults = forceRefresh
+          ? await refreshHiddenTunesSongs()
+          : await getHiddenTunesSongs({ forceRefresh: false });
 
         const nextSongs = Array.isArray(songResults)
           ? dedupeSongs(songResults.map(safeSong))

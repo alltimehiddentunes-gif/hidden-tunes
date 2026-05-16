@@ -3,6 +3,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   FALLBACK_ARTWORK,
   getArtworkUri,
+  isRemoteArtworkUrl,
   normalizeArtworkUrl,
 } from "../utils/artwork";
 
@@ -36,6 +37,14 @@ const BROKEN_PROMISE_FALLBACK = {
     "https://pub-1c2252e3609040f19ac16c1f6ed481e6.r2.dev/albums/cover.jpg",
   is_public: true,
 };
+
+let songsMemoryCache: HiddenTunesNormalizedSong[] | null = null;
+let songsMemoryCacheTime = 0;
+let songsFetchPromise: Promise<HiddenTunesNormalizedSong[]> | null = null;
+
+let artistsMemoryCache: HiddenTunesArtist[] | null = null;
+let artistsMemoryCacheTime = 0;
+let artistsFetchPromise: Promise<HiddenTunesArtist[]> | null = null;
 
 export type HiddenTunesCloudSong = {
   id?: string;
@@ -195,6 +204,22 @@ function safeUrl(value: unknown, fallback = FALLBACK_ARTWORK) {
   return normalizeArtworkUrl(value, fallback);
 }
 
+function isFreshMemoryCache(timestamp: number) {
+  return timestamp > 0 && Date.now() - timestamp < CACHE_MAX_AGE_MS;
+}
+
+function hasRealArtwork(value: unknown) {
+  return isRemoteArtworkUrl(value);
+}
+
+function artworkGroupKey(...values: unknown[]) {
+  const first = values.find(
+    (value) => typeof value === "string" && value.trim().length > 0
+  );
+
+  return slugify(String(first || ""));
+}
+
 function safeAudioUrl(value: unknown) {
   if (!isSafeRemoteUrl(value)) return undefined;
   return String(value).trim();
@@ -317,6 +342,48 @@ function mergeWithFallbackSongs(songs: HiddenTunesNormalizedSong[]) {
   return sortSongsNewestFirst(dedupeSongs(merged));
 }
 
+function applySmartArtworkFallbacks(songs: HiddenTunesNormalizedSong[]) {
+  const albumArtwork = new Map<string, string>();
+  const artistArtwork = new Map<string, string>();
+
+  songs.forEach((song) => {
+    if (!hasRealArtwork(song.artwork)) return;
+
+    const albumKey = artworkGroupKey(song.albumId, song.artist, song.album);
+    const artistKey = artworkGroupKey(song.artistId, song.artist);
+
+    if (albumKey && !albumArtwork.has(albumKey)) {
+      albumArtwork.set(albumKey, song.artwork);
+    }
+
+    if (artistKey && !artistArtwork.has(artistKey)) {
+      artistArtwork.set(artistKey, song.artwork);
+    }
+  });
+
+  return songs.map((song) => {
+    if (hasRealArtwork(song.artwork)) return song;
+
+    const albumKey = artworkGroupKey(song.albumId, song.artist, song.album);
+    const artistKey = artworkGroupKey(song.artistId, song.artist);
+    const resolvedArtwork =
+      albumArtwork.get(albumKey) || artistArtwork.get(artistKey);
+
+    if (!resolvedArtwork) return song;
+
+    return {
+      ...song,
+      artwork: resolvedArtwork,
+      cover: resolvedArtwork,
+      thumbnail: resolvedArtwork,
+    };
+  });
+}
+
+function finalizeSongs(songs: HiddenTunesNormalizedSong[]) {
+  return applySmartArtworkFallbacks(mergeWithFallbackSongs(songs));
+}
+
 async function fetchWithTimeout(url: string, timeoutMs = 8000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -337,10 +404,10 @@ async function fetchWithTimeout(url: string, timeoutMs = 8000) {
 async function readCachedSongs() {
   try {
     const cached = await AsyncStorage.getItem(CACHE_KEY);
-    if (!cached) return mergeWithFallbackSongs([]);
+    if (!cached) return finalizeSongs([]);
 
     const parsed = JSON.parse(cached);
-    if (!Array.isArray(parsed)) return mergeWithFallbackSongs([]);
+    if (!Array.isArray(parsed)) return finalizeSongs([]);
 
     const normalized = parsed
       .map((song: HiddenTunesCloudSong, index: number) =>
@@ -348,15 +415,22 @@ async function readCachedSongs() {
       )
       .filter(Boolean) as HiddenTunesNormalizedSong[];
 
-    return mergeWithFallbackSongs(normalized);
+    const songs = finalizeSongs(normalized);
+    songsMemoryCache = songs;
+    songsMemoryCacheTime = Date.now();
+
+    return songs;
   } catch (error) {
     console.log("Hidden Tunes cache read error:", error);
-    return mergeWithFallbackSongs([]);
+    return finalizeSongs([]);
   }
 }
 
 async function writeCachedSongs(songs: HiddenTunesNormalizedSong[]) {
   try {
+    songsMemoryCache = songs;
+    songsMemoryCacheTime = Date.now();
+
     await AsyncStorage.multiSet([
       [CACHE_KEY, JSON.stringify(songs)],
       [CACHE_TIME_KEY, String(Date.now())],
@@ -388,7 +462,11 @@ async function readCachedArtists() {
     const parsed = JSON.parse(cached);
     if (!Array.isArray(parsed)) return [];
 
-    return parsed as HiddenTunesArtist[];
+    const artists = parsed as HiddenTunesArtist[];
+    artistsMemoryCache = artists;
+    artistsMemoryCacheTime = Date.now();
+
+    return artists;
   } catch (error) {
     console.log("Hidden Tunes artists cache read error:", error);
     return [];
@@ -397,6 +475,9 @@ async function readCachedArtists() {
 
 async function writeCachedArtists(artists: HiddenTunesArtist[]) {
   try {
+    artistsMemoryCache = artists;
+    artistsMemoryCacheTime = Date.now();
+
     await AsyncStorage.multiSet([
       [ARTISTS_CACHE_KEY, JSON.stringify(artists)],
       [ARTISTS_CACHE_TIME_KEY, String(Date.now())],
@@ -498,21 +579,39 @@ export function normalizeHiddenTunesSong(
 }
 
 export async function clearHiddenTunesSongsCache() {
+  songsMemoryCache = null;
+  songsMemoryCacheTime = 0;
+  songsFetchPromise = null;
   await AsyncStorage.multiRemove([CACHE_KEY, CACHE_TIME_KEY]);
 }
 
 export async function clearHiddenTunesArtistsCache() {
+  artistsMemoryCache = null;
+  artistsMemoryCacheTime = 0;
+  artistsFetchPromise = null;
   await AsyncStorage.multiRemove([ARTISTS_CACHE_KEY, ARTISTS_CACHE_TIME_KEY]);
 }
 
 export async function getHiddenTunesSongs(options?: { forceRefresh?: boolean }) {
   const forceRefresh = options?.forceRefresh ?? false;
 
+  if (
+    !forceRefresh &&
+    songsMemoryCache &&
+    isFreshMemoryCache(songsMemoryCacheTime)
+  ) {
+    return songsMemoryCache;
+  }
+
+  if (!forceRefresh && songsFetchPromise) {
+    return songsFetchPromise;
+  }
+
   if (!forceRefresh && (await isCacheFresh())) {
     return await readCachedSongs();
   }
 
-  try {
+  songsFetchPromise = (async () => {
     const response = await fetchWithTimeout(
       `${HIDDEN_TUNES_API_BASE_URL}/api/songs?limit=${HOME_SONG_LIMIT}&page=1`
     );
@@ -530,14 +629,20 @@ export async function getHiddenTunesSongs(options?: { forceRefresh?: boolean }) 
       )
       .filter(Boolean) as HiddenTunesNormalizedSong[];
 
-    const withFallback = mergeWithFallbackSongs(normalized);
+    const withFallback = finalizeSongs(normalized);
 
     await writeCachedSongs(withFallback);
 
     return withFallback;
+  })();
+
+  try {
+    return await songsFetchPromise;
   } catch (error) {
     console.log("Hidden Tunes API fallback to cache:", error);
     return await readCachedSongs();
+  } finally {
+    songsFetchPromise = null;
   }
 }
 
@@ -567,11 +672,13 @@ export async function searchHiddenTunesSongs(query: string) {
     const data = await response.json();
     const rawSongs = normalizeRawSongArray(data);
 
-    return rawSongs
+    return applySmartArtworkFallbacks(
+      rawSongs
       .map((song: HiddenTunesCloudSong, index: number) =>
         normalizeHiddenTunesSong(song, index)
       )
-      .filter(Boolean) as HiddenTunesNormalizedSong[];
+      .filter(Boolean) as HiddenTunesNormalizedSong[]
+    );
   } catch (error) {
     console.log("Hidden Tunes backend search fallback:", error);
 
@@ -604,7 +711,8 @@ export function extractHiddenTunesAlbums(songs: HiddenTunesNormalizedSong[]) {
   });
 
   return Array.from(albums.entries()).map(([key, tracks]) => {
-    const firstTrack = tracks[0];
+    const firstTrack =
+      tracks.find((track) => hasRealArtwork(track.artwork)) || tracks[0];
 
     return {
       id: slugify(key),
@@ -634,7 +742,8 @@ export function extractHiddenTunesArtists(songs: HiddenTunesNormalizedSong[]) {
   });
 
   return Array.from(artists.entries()).map(([key, tracks]) => {
-    const firstTrack = tracks[0];
+    const firstTrack =
+      tracks.find((track) => hasRealArtwork(track.artwork)) || tracks[0];
     const name = firstTrack?.artist || "Unknown Artist";
 
     return {
@@ -663,7 +772,7 @@ export async function getHiddenTunesAlbums(options?: { forceRefresh?: boolean })
 }
 
 export async function getHiddenTunesAlbumById(id: string) {
-  const albums = await getHiddenTunesAlbums({ forceRefresh: true });
+  const albums = await getHiddenTunesAlbums({ forceRefresh: false });
   const cleanId = slugify(id);
 
   return (
@@ -681,12 +790,24 @@ export async function getHiddenTunesArtists(options?: {
 }) {
   const forceRefresh = options?.forceRefresh ?? false;
 
+  if (
+    !forceRefresh &&
+    artistsMemoryCache &&
+    isFreshMemoryCache(artistsMemoryCacheTime)
+  ) {
+    return artistsMemoryCache;
+  }
+
+  if (!forceRefresh && artistsFetchPromise) {
+    return artistsFetchPromise;
+  }
+
   if (!forceRefresh && (await isArtistsCacheFresh())) {
     const cachedArtists = await readCachedArtists();
     if (cachedArtists.length > 0) return cachedArtists;
   }
 
-  try {
+  artistsFetchPromise = (async () => {
     const response = await fetchWithTimeout(
       `${HIDDEN_TUNES_API_BASE_URL}/api/artists`
     );
@@ -705,6 +826,10 @@ export async function getHiddenTunesArtists(options?: {
     await writeCachedArtists(artists);
 
     return artists;
+  })();
+
+  try {
+    return await artistsFetchPromise;
   } catch (error) {
     console.log("Hidden Tunes artists API fallback:", error);
 
@@ -713,11 +838,13 @@ export async function getHiddenTunesArtists(options?: {
 
     const songs = await getHiddenTunesSongs({ forceRefresh: false });
     return extractHiddenTunesArtists(songs);
+  } finally {
+    artistsFetchPromise = null;
   }
 }
 
 export async function getHiddenTunesArtistById(id: string) {
-  const artists = await getHiddenTunesArtists({ forceRefresh: true });
+  const artists = await getHiddenTunesArtists({ forceRefresh: false });
   const cleanId = slugify(id);
 
   return (
@@ -732,7 +859,7 @@ export async function getHiddenTunesArtistById(id: string) {
 }
 
 export async function getHiddenTunesCloudPlaylists() {
-  const songs = await getHiddenTunesSongs({ forceRefresh: true });
+  const songs = await getHiddenTunesSongs({ forceRefresh: false });
 
   const afroSongs = songs.filter((song) =>
     `${song.genre || ""} ${song.mood || ""} ${song.title || ""}`

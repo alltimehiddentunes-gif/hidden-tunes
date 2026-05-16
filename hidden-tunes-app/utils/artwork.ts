@@ -24,6 +24,10 @@ export function isHttpsArtworkUrl(value: unknown) {
   }
 }
 
+export function isRemoteArtworkUrl(value: unknown) {
+  return isHttpsArtworkUrl(value);
+}
+
 export function normalizeArtworkUrl(
   value: unknown,
   fallback = FALLBACK_ARTWORK
