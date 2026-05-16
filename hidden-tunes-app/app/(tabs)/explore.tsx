@@ -803,10 +803,10 @@ export default function ExploreScreen() {
                 </TouchableOpacity>
               </View>
 
-              <Text style={styles.smartHeroTitle}>Your premium music engine</Text>
+              <Text style={styles.smartHeroTitle}>Find your next favorite feeling</Text>
 
               <Text style={styles.smartHeroSubtitle}>
-                Smart picks, playlists, and smooth queue continuation.
+                Mood-led picks, creator worlds, and queues that keep the vibe moving.
               </Text>
 
               <View style={styles.smartHeroActions}>
@@ -914,9 +914,9 @@ export default function ExploreScreen() {
               <>
                 <View style={styles.rowHeader}>
                   <View>
-                  <Text style={styles.sectionTitle}>Made For You</Text>
+                  <Text style={styles.sectionTitle}>Because You Listened</Text>
                     <Text style={styles.sectionSub}>
-                      Based on your listening
+                      Songs connected to your recent plays and saved favorites
                     </Text>
                   </View>
 
@@ -945,9 +945,9 @@ export default function ExploreScreen() {
               <>
                 <View style={styles.rowHeader}>
                   <View>
-                    <Text style={styles.sectionTitle}>Recently Played</Text>
+                    <Text style={styles.sectionTitle}>Return To The Feeling</Text>
                     <Text style={styles.sectionSub}>
-                      Quick access to your latest songs
+                      Your latest songs, ready to continue
                     </Text>
                   </View>
 
@@ -975,8 +975,8 @@ export default function ExploreScreen() {
             {visibleCloudSongs.length > 0 && (
               <>
                 <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>Recently Added</Text>
-                  <Text style={styles.sectionSub}>Fresh tracks ready to play</Text>
+                  <Text style={styles.sectionTitle}>Fresh From The Vault</Text>
+                  <Text style={styles.sectionSub}>New uploads with room to grow</Text>
                 </View>
 
                 <FlatList
@@ -996,8 +996,8 @@ export default function ExploreScreen() {
             )}
 
             <View style={styles.genreHeader}>
-              <Text style={styles.sectionTitle}>Your Top Genres</Text>
-              <Text style={styles.sectionSub}>Based on your listening</Text>
+              <Text style={styles.sectionTitle}>Mood Worlds</Text>
+              <Text style={styles.sectionSub}>Browse the sound by energy and emotion</Text>
             </View>
 
             <View style={styles.genreGrid}>
@@ -1070,8 +1070,8 @@ export default function ExploreScreen() {
               <>
                 <View style={styles.rowHeader}>
                   <View>
-                    <Text style={styles.sectionTitle}>Playlists For You</Text>
-                    <Text style={styles.sectionSub}>Built around your music</Text>
+                    <Text style={styles.sectionTitle}>Listening Rooms</Text>
+                    <Text style={styles.sectionSub}>Playlists shaped around your taste</Text>
                   </View>
 
                   <TouchableOpacity onPress={() => router.push("/cloud-playlists" as any)}>
@@ -1119,8 +1119,8 @@ export default function ExploreScreen() {
             {showHeavySections && albums.length > 0 && (
               <>
                 <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>Albums For You</Text>
-                  <Text style={styles.sectionSub}>Albums picked for you</Text>
+                  <Text style={styles.sectionTitle}>Deep Cuts & Albums</Text>
+                  <Text style={styles.sectionSub}>Releases worth hearing beyond one track</Text>
                 </View>
 
                 <FlatList
@@ -1161,8 +1161,8 @@ export default function ExploreScreen() {
             {showHeavySections && artists.length > 0 && (
               <>
                 <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>All Artists</Text>
-                  <Text style={styles.sectionSub}>More artists as you scroll</Text>
+                  <Text style={styles.sectionTitle}>Creators To Follow</Text>
+                  <Text style={styles.sectionSub}>Voices building the Hidden Tunes catalog</Text>
                 </View>
 
                 <FlatList
@@ -1248,15 +1248,15 @@ export default function ExploreScreen() {
             {!loading && !featured && !cloudSongs.length ? (
               <View style={styles.empty}>
                 <Ionicons name="musical-notes-outline" size={58} color={COLORS.textMuted} />
-                <Text style={styles.emptyTitle}>No songs yet</Text>
-                <Text style={styles.emptyText}>Pull down to refresh.</Text>
+                <Text style={styles.emptyTitle}>Discovery is warming up</Text>
+                <Text style={styles.emptyText}>Pull down to refresh the catalog.</Text>
               </View>
             ) : null}
 
             {showHeavySections && !loading && tracks.length > 0 && (
               <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Hot right now</Text>
-                <Text style={styles.sectionSub}>Hidden Tunes TV</Text>
+                <Text style={styles.sectionTitle}>Visual Discovery</Text>
+                <Text style={styles.sectionSub}>Hidden Tunes TV picks inside the app</Text>
               </View>
             )}
           </>

@@ -297,6 +297,14 @@ function HomeScreen() {
     [featuredSongs]
   );
 
+  const moodRoomSongs = useMemo(
+    () =>
+      featuredSongs
+        .filter((song) => Boolean(song.mood))
+        .slice(0, 6),
+    [featuredSongs]
+  );
+
   const heroCards = useMemo<HeroCard[]>(() => {
     const cards: HeroCard[] = [];
     const firstGenreSong = featuredSongs.find((song) => Boolean(song.genre));
@@ -749,10 +757,10 @@ function HomeScreen() {
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.heroTitle}>Hidden Sound.</Text>
+          <Text style={styles.heroTitle}>Find the feeling.</Text>
 
           <Text style={styles.heroSubtitle}>
-            Your music, ready when you are.
+            New voices, familiar moods, and songs that stay with you.
           </Text>
 
           <TouchableOpacity
@@ -914,18 +922,18 @@ function HomeScreen() {
             onPress={() => router.push("/tv" as any)}
           >
             <Ionicons name="tv" size={26} color={COLORS.primary} />
-            <Text style={styles.tvEmptyTitle}>Search Hidden Tunes TV</Text>
+              <Text style={styles.tvEmptyTitle}>Watch the story behind the sound</Text>
             <Text style={styles.tvEmptyText}>
-              Explore videos inside Hidden Tunes.
+              Explore videos without leaving Hidden Tunes.
             </Text>
           </TouchableOpacity>
 
           {rankedSongs.length > 0 && (
             <>
               <View style={styles.sectionRowSmall}>
-                <Text style={styles.sectionTitle}>Made For You</Text>
+                <Text style={styles.sectionTitle}>Because You Listened</Text>
                 <Text style={styles.sectionSub}>
-                  Based on your listening
+                  Picks shaped by your favorites and recent plays
                 </Text>
               </View>
 
@@ -938,9 +946,9 @@ function HomeScreen() {
           {rankedArtists.length > 0 && (
             <>
               <View style={styles.sectionRowSmall}>
-                <Text style={styles.sectionTitle}>Artists You Play Most</Text>
+                <Text style={styles.sectionTitle}>Creators In Your Orbit</Text>
                 <Text style={styles.sectionSub}>
-                  More artists appear as you scroll
+                  Artists rising through your listening history
                 </Text>
               </View>
 
@@ -981,9 +989,9 @@ function HomeScreen() {
           {rankedAlbums.length > 0 && (
             <>
               <View style={styles.sectionRowSmall}>
-                <Text style={styles.sectionTitle}>Albums For You</Text>
+                <Text style={styles.sectionTitle}>Albums Worth Staying With</Text>
                 <Text style={styles.sectionSub}>
-                  Albums picked for you
+                  Releases with more to discover
                 </Text>
               </View>
 
@@ -1023,9 +1031,9 @@ function HomeScreen() {
 
           <View style={styles.sectionRow}>
             <View>
-              <Text style={styles.sectionTitle}>Recently Added</Text>
+              <Text style={styles.sectionTitle}>Fresh From The Vault</Text>
               <Text style={styles.sectionSub}>
-                Fresh tracks for you
+                New uploads ready for your next queue
               </Text>
             </View>
 
@@ -1069,8 +1077,8 @@ function HomeScreen() {
           {afroSongs.length > 0 && (
             <>
               <View style={styles.sectionRowSmall}>
-                <Text style={styles.sectionTitle}>Afro Picks</Text>
-                <Text style={styles.sectionSub}>Afrobeat and Afro-fusion</Text>
+                <Text style={styles.sectionTitle}>Afro Energy</Text>
+                <Text style={styles.sectionSub}>Afrobeat, Afro-fusion, and warm movement</Text>
               </View>
 
               <View style={styles.mediaList}>
@@ -1079,10 +1087,25 @@ function HomeScreen() {
             </>
           )}
 
+          {moodRoomSongs.length > 0 && (
+            <>
+              <View style={styles.sectionRowSmall}>
+                <Text style={styles.sectionTitle}>Mood Rooms</Text>
+                <Text style={styles.sectionSub}>
+                  Songs grouped by the feeling they carry
+                </Text>
+              </View>
+
+              <View style={styles.mediaList}>
+                {moodRoomSongs.map((song, index) => renderSongRow(song, index))}
+              </View>
+            </>
+          )}
+
           <View style={styles.sectionRowSmall}>
-            <Text style={styles.sectionTitle}>All Songs</Text>
+            <Text style={styles.sectionTitle}>Full Catalog</Text>
             <Text style={styles.sectionSub}>
-              Showing {visibleAllSongs.length} of {featuredSongs.length}
+              {visibleAllSongs.length} of {featuredSongs.length} songs unlocked
             </Text>
           </View>
 

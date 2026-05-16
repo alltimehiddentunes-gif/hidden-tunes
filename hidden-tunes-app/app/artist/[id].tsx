@@ -150,7 +150,7 @@ export default function ArtistScreen() {
     return (
       <LinearGradient colors={GRADIENTS.main as any} style={styles.center}>
         <ActivityIndicator color={COLORS.primary} />
-        <Text style={styles.loadingText}>Loading artist...</Text>
+        <Text style={styles.loadingText}>Opening artist world...</Text>
       </LinearGradient>
     );
   }
@@ -159,8 +159,8 @@ export default function ArtistScreen() {
     return (
       <LinearGradient colors={GRADIENTS.main as any} style={styles.center}>
         <Ionicons name="person-circle-outline" size={70} color={COLORS.textMuted} />
-        <Text style={styles.emptyTitle}>Artist not found</Text>
-        <Text style={styles.emptyText}>Refresh Home/Search and try again.</Text>
+        <Text style={styles.emptyTitle}>Artist world unavailable</Text>
+        <Text style={styles.emptyText}>Refresh the catalog or return to Search.</Text>
 
         <TouchableOpacity style={styles.emptyButton} onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={18} color="#000" />
@@ -206,7 +206,7 @@ export default function ArtistScreen() {
 
           <View style={styles.artistBadge}>
             <Ionicons name="cloud-done" size={14} color={COLORS.primary} />
-            <Text style={styles.artistBadgeText}>HIDDEN TUNES ARTIST</Text>
+            <Text style={styles.artistBadgeText}>CREATOR WORLD</Text>
           </View>
 
           <Text style={styles.name}>{artist.name}</Text>
@@ -240,8 +240,8 @@ export default function ArtistScreen() {
         {albums.length > 0 && (
           <>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Albums</Text>
-              <Text style={styles.sectionSub}>Albums and releases</Text>
+              <Text style={styles.sectionTitle}>Releases</Text>
+              <Text style={styles.sectionSub}>Albums and projects from this creator</Text>
             </View>
 
             <FlatList
@@ -275,16 +275,16 @@ export default function ArtistScreen() {
         )}
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Popular Songs</Text>
-          <Text style={styles.sectionSub}>Tap a song to start artist queue</Text>
+          <Text style={styles.sectionTitle}>Essential Tracks</Text>
+          <Text style={styles.sectionSub}>Start a queue from this artist world</Text>
         </View>
 
         {tracks.length === 0 ? (
           <View style={styles.emptyTracks}>
             <Ionicons name="musical-notes-outline" size={52} color={COLORS.textMuted} />
-            <Text style={styles.emptyTitle}>No songs for this artist</Text>
+            <Text style={styles.emptyTitle}>No songs here yet</Text>
             <Text style={styles.emptyText}>
-              Try refreshing this artist.
+              This artist world is still waiting for tracks.
             </Text>
           </View>
         ) : (

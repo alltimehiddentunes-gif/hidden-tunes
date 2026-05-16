@@ -126,11 +126,11 @@ export default function QueueScreen() {
   }, [queue, nowPlaying, activeQueueIndex]);
 
   const queueModeLabel = useMemo(() => {
-    if (activeQueueMode === "smart") return "Smart autoplay is extending your queue";
-    if (activeQueueMode === "radio") return "Personal radio is running";
+    if (activeQueueMode === "smart") return "Smart picks are extending the mood";
+    if (activeQueueMode === "radio") return "Your radio room is running";
     if (activeQueueMode === "youtube") return "Hidden Tunes TV queue is ready";
-    if (queue.length > 0) return "Persistent queue is ready";
-    return "Your next tracks";
+    if (queue.length > 0) return "Your queue is ready";
+    return "Build your next listening room";
   }, [activeQueueMode, queue.length]);
 
   const modeShort = useMemo(() => {
@@ -241,12 +241,12 @@ export default function QueueScreen() {
 
           <View style={styles.smartPanelInfo}>
             <Text style={styles.smartPanelTitle}>
-              Smart Autoplay {smartAutoplayEnabled ? "On" : "Off"}
+              Smart Continuation {smartAutoplayEnabled ? "On" : "Off"}
             </Text>
 
             <Text style={styles.smartPanelSubtitle}>
               {smartAutoplayEnabled
-                ? "When the queue ends, Hidden Tunes adds related songs."
+                ? "When a queue ends, Hidden Tunes looks for a related next feeling."
                 : "Playback stops when the queue reaches the end."}
             </Text>
           </View>
@@ -308,7 +308,7 @@ export default function QueueScreen() {
         </View>
 
         <View style={styles.nowPlayingSection}>
-          <Text style={styles.sectionLabel}>Now Playing</Text>
+          <Text style={styles.sectionLabel}>Current Moment</Text>
 
           {nowPlaying ? (
             <View style={styles.nowPlayingCard}>
@@ -353,15 +353,17 @@ export default function QueueScreen() {
           ) : (
             <View style={styles.emptyNowCard}>
               <Ionicons name="musical-notes-outline" size={42} color={COLORS.textMuted} />
-              <Text style={styles.emptyNowText}>Nothing playing yet</Text>
+              <Text style={styles.emptyNowText}>Start a song to shape this queue</Text>
             </View>
           )}
         </View>
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Up Next</Text>
+          <Text style={styles.sectionTitle}>Coming Up</Text>
           <Text style={styles.sectionSub}>
-            {upNext.length > 0 ? `${upNext.length} tracks waiting` : "No upcoming tracks"}
+            {upNext.length > 0
+              ? `${upNext.length} tracks waiting`
+              : "Add songs from Search, Explore, or Radio"}
           </Text>
         </View>
       </>
@@ -420,9 +422,9 @@ export default function QueueScreen() {
         ListEmptyComponent={
           <View style={styles.emptyBox}>
             <Ionicons name="albums-outline" size={56} color={COLORS.textMuted} />
-            <Text style={styles.emptyTitle}>Queue is empty</Text>
+            <Text style={styles.emptyTitle}>Your listening room is empty</Text>
             <Text style={styles.emptyText}>
-              Search a song, start radio, or play a playlist to build your queue.
+              Search a song, start radio, or play a playlist to set the mood.
             </Text>
 
             <TouchableOpacity

@@ -143,7 +143,7 @@ export default function AlbumScreen() {
     return (
       <LinearGradient colors={GRADIENTS.main as any} style={styles.center}>
         <ActivityIndicator color={COLORS.primary} />
-        <Text style={styles.loadingText}>Loading album...</Text>
+        <Text style={styles.loadingText}>Opening album experience...</Text>
       </LinearGradient>
     );
   }
@@ -152,8 +152,8 @@ export default function AlbumScreen() {
     return (
       <LinearGradient colors={GRADIENTS.main as any} style={styles.center}>
         <Ionicons name="disc-outline" size={64} color={COLORS.textMuted} />
-        <Text style={styles.emptyTitle}>Album not found</Text>
-        <Text style={styles.emptyText}>Refresh Home/Search and try again.</Text>
+        <Text style={styles.emptyTitle}>Album unavailable</Text>
+        <Text style={styles.emptyText}>Refresh the catalog or return to Search.</Text>
 
         <TouchableOpacity style={styles.emptyButton} onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={18} color="#000" />
@@ -202,7 +202,7 @@ export default function AlbumScreen() {
 
               <View style={styles.albumBadge}>
                 <Ionicons name="cloud-done" size={14} color={COLORS.primary} />
-                <Text style={styles.albumBadgeText}>HIDDEN TUNES CLOUD</Text>
+                <Text style={styles.albumBadgeText}>ALBUM EXPERIENCE</Text>
               </View>
 
               <Text style={styles.title}>{album.title}</Text>
@@ -248,17 +248,17 @@ export default function AlbumScreen() {
             </View>
 
             <View style={styles.trackHeader}>
-              <Text style={styles.trackHeaderTitle}>Songs</Text>
-              <Text style={styles.trackHeaderSub}>Tap a track to start album queue</Text>
+              <Text style={styles.trackHeaderTitle}>Tracklist</Text>
+              <Text style={styles.trackHeaderSub}>Start the release from any song</Text>
             </View>
           </>
         }
         ListEmptyComponent={
           <View style={styles.emptyTracks}>
             <Ionicons name="musical-notes-outline" size={52} color={COLORS.textMuted} />
-            <Text style={styles.emptyTitle}>No tracks in this album</Text>
+            <Text style={styles.emptyTitle}>This release is waiting for tracks</Text>
             <Text style={styles.emptyText}>
-              Add songs to this album from the admin upload system.
+              Check back after the catalog refreshes.
             </Text>
           </View>
         }

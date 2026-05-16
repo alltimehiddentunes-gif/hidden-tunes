@@ -275,7 +275,7 @@ export default function GenreScreen() {
             {title}
           </Text>
           <Text style={styles.subtitle} numberOfLines={1}>
-            Music for this vibe
+            A room built around this feeling
           </Text>
         </View>
 
@@ -291,7 +291,7 @@ export default function GenreScreen() {
       {loading ? (
         <View style={styles.loader}>
           <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.loadingText}>Loading {title}...</Text>
+          <Text style={styles.loadingText}>Finding {title} songs...</Text>
         </View>
       ) : (
         <FlatList
@@ -311,9 +311,9 @@ export default function GenreScreen() {
                 </View>
 
                 <View style={styles.radioInfo}>
-                  <Text style={styles.radioTitle}>{title} Radio</Text>
+                  <Text style={styles.radioTitle}>{title} Listening Room</Text>
                   <Text style={styles.radioSubtitle} numberOfLines={1}>
-                    Keep listening to {title}
+                    Keep the {title} feeling moving
                   </Text>
                 </View>
 
@@ -330,9 +330,9 @@ export default function GenreScreen() {
               {albums.length > 0 && (
                 <View style={styles.albumSection}>
                   <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Albums</Text>
+                    <Text style={styles.sectionTitle}>Releases In This Mood</Text>
                     <Text style={styles.sectionSub}>
-                      Albums from this vibe
+                      Albums and projects connected to this vibe
                     </Text>
                   </View>
 
@@ -367,9 +367,9 @@ export default function GenreScreen() {
               )}
 
               <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Songs</Text>
+                <Text style={styles.sectionTitle}>Songs In This Room</Text>
                 <Text style={styles.sectionSub}>
-                  Songs for {title}
+                  Tracks carrying the {title} feeling
                 </Text>
               </View>
             </>
@@ -381,9 +381,9 @@ export default function GenreScreen() {
                 size={58}
                 color={COLORS.textMuted}
               />
-              <Text style={styles.emptyTitle}>No songs yet</Text>
+              <Text style={styles.emptyTitle}>No songs in this room yet</Text>
               <Text style={styles.emptyText}>
-                Try another genre.
+                Try another mood or refresh the catalog.
               </Text>
             </View>
           }

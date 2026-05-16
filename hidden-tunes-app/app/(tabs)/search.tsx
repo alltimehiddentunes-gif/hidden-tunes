@@ -996,10 +996,10 @@ export default function SearchScreen() {
         <View style={styles.tvFallbackTextBox}>
           <Text style={styles.tvFallbackKicker}>Hidden Tunes TV</Text>
           <Text style={styles.tvFallbackTitle} numberOfLines={2}>
-            {tvFallbackReason || "No song matches yet. Showing Hidden Tunes TV."}
+            {tvFallbackReason || "No song matches yet. Expand with Hidden Tunes TV."}
           </Text>
           <Text style={styles.tvFallbackSub} numberOfLines={1}>
-            Find more for {safeQuery}
+            Keep exploring {safeQuery}
           </Text>
         </View>
 
@@ -1024,8 +1024,8 @@ export default function SearchScreen() {
           <View style={styles.discoverySection}>
             <View style={styles.sectionHeaderRow}>
               <View>
-                <Text style={styles.sectionTitle}>Recent searches</Text>
-                <Text style={styles.sectionSub}>Jump back into your last vibe</Text>
+                <Text style={styles.sectionTitle}>Recently Felt</Text>
+                <Text style={styles.sectionSub}>Jump back into your last search mood</Text>
               </View>
 
               <TouchableOpacity onPress={clearRecentSearches}>
@@ -1041,8 +1041,8 @@ export default function SearchScreen() {
 
         <View style={styles.discoverySection}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Trending searches</Text>
-            <Text style={styles.sectionSub}>Fast ideas for your next search</Text>
+            <Text style={styles.sectionTitle}>Trending Moods</Text>
+            <Text style={styles.sectionSub}>Fast paths into the catalog</Text>
           </View>
 
           <View style={styles.chipWrap}>
@@ -1052,8 +1052,8 @@ export default function SearchScreen() {
 
         <View style={styles.discoverySection}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Smart recommendations</Text>
-            <Text style={styles.sectionSub}>Search ideas for your next queue</Text>
+            <Text style={styles.sectionTitle}>Search Sparks</Text>
+            <Text style={styles.sectionSub}>Ideas that can become your next queue</Text>
           </View>
 
           <View style={styles.recommendGrid}>
@@ -1088,8 +1088,8 @@ export default function SearchScreen() {
 
         <View style={styles.discoverySection}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Continue listening</Text>
-            <Text style={styles.sectionSub}>Ready to play</Text>
+            <Text style={styles.sectionTitle}>Continue The Thread</Text>
+            <Text style={styles.sectionSub}>Songs ready to restart the moment</Text>
           </View>
 
           {loadingCloud ? (
@@ -1128,8 +1128,8 @@ export default function SearchScreen() {
         {cloudAlbums.length > 0 && (
           <View style={styles.discoverySection}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Hidden Tunes Albums</Text>
-              <Text style={styles.sectionSub}>Albums ready to play</Text>
+              <Text style={styles.sectionTitle}>Albums With Depth</Text>
+              <Text style={styles.sectionSub}>Releases ready for a longer listen</Text>
             </View>
 
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -1163,8 +1163,8 @@ export default function SearchScreen() {
         {cloudArtists.length > 0 && (
           <View style={styles.discoverySection}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Artists</Text>
-              <Text style={styles.sectionSub}>Artists in your library</Text>
+              <Text style={styles.sectionTitle}>Creator Worlds</Text>
+              <Text style={styles.sectionSub}>Artists shaping your library</Text>
             </View>
 
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -1198,8 +1198,8 @@ export default function SearchScreen() {
         {cloudPlaylists.length > 0 && (
           <View style={styles.discoverySection}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Playlists</Text>
-              <Text style={styles.sectionSub}>Curated for you</Text>
+              <Text style={styles.sectionTitle}>Listening Rooms</Text>
+              <Text style={styles.sectionSub}>Curated paths through the catalog</Text>
             </View>
 
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -1250,7 +1250,7 @@ export default function SearchScreen() {
         <View style={styles.headerTextBox}>
           <Text style={styles.title}>Search</Text>
           <Text style={styles.subtitle}>
-            Search songs, artists, albums, and TV
+            Search songs, moods, artists, albums, and TV
           </Text>
         </View>
       </View>
@@ -1260,7 +1260,7 @@ export default function SearchScreen() {
           <Ionicons name="search" size={20} color={COLORS.cyan} />
 
           <TextInput
-            placeholder="Search Hidden Tunes..."
+            placeholder="Search a song, mood, artist..."
             placeholderTextColor={COLORS.textDim}
             style={styles.input}
             value={query}
@@ -1325,7 +1325,7 @@ export default function SearchScreen() {
         </View>
 
         <View style={styles.radioInfo}>
-          <Text style={styles.radioTitle}>Start Radio</Text>
+          <Text style={styles.radioTitle}>Start a mood radio</Text>
           <Text style={styles.radioSubtitle} numberOfLines={1}>
             Build a queue from {query.trim() || "afrobeats"}
           </Text>
@@ -1376,7 +1376,7 @@ export default function SearchScreen() {
               {matchedGenres.length > 0 && (
                 <View style={styles.genreSection}>
                   <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Genres</Text>
+                <Text style={styles.sectionTitle}>Mood Lanes</Text>
                     <Text style={styles.sectionSub}>
                       Browse by vibe
                     </Text>
@@ -1408,13 +1408,13 @@ export default function SearchScreen() {
               {renderTvFallbackCard()}
 
               <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Hidden Tunes Songs</Text>
+                <Text style={styles.sectionTitle}>Hidden Tunes Matches</Text>
                 <Text style={styles.sectionSub}>
                   {results.length > 0
                     ? `${results.length} tracks found • ${
                         activeSource === "youtube" ? "TV" : "ready"
                       }`
-                    : "Start typing to search"}
+                    : "Start typing to discover"}
                 </Text>
               </View>
             </>
@@ -1422,9 +1422,9 @@ export default function SearchScreen() {
           ListEmptyComponent={
             <View style={styles.emptyBox}>
               <Ionicons name="musical-notes-outline" size={56} color={COLORS.textMuted} />
-              <Text style={styles.emptyTitle}>No songs yet</Text>
+              <Text style={styles.emptyTitle}>No close match yet</Text>
               <Text style={styles.emptyText}>
-                Find more on Hidden Tunes TV.
+                Try another mood, artist, or open Hidden Tunes TV.
               </Text>
               {renderTvFallbackCard()}
             </View>
