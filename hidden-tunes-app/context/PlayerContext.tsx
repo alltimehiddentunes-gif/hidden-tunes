@@ -221,6 +221,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const loadRequestIdRef = useRef(0);
   const queueTransitionRef = useRef(false);
   const autoAdvanceRef = useRef(false);
+  const lastFinishEventRef = useRef({
+    songId: "",
+    handledAt: 0,
+  });
   const loadAndPlayRef = useRef<((song: AppSong) => Promise<void>) | null>(
     null
   );
@@ -734,6 +738,26 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     []
   );
 
+  const getActiveQueuePlaybackState = useCallback(() => {
+    const queue = activeQueueRef.current.filter((song) => !isYouTubeSong(song));
+    const currentId = currentSongRef.current?.id;
+    const currentIndex = currentId
+      ? queue.findIndex((song) => song.id === currentId)
+      : -1;
+    const safeIndex =
+      currentIndex >= 0
+        ? currentIndex
+        : Math.max(
+            0,
+            Math.min(activeQueueIndexRef.current, Math.max(queue.length - 1, 0))
+          );
+
+    return {
+      queue,
+      safeIndex,
+    };
+  }, [isYouTubeSong]);
+
   const runQueueTransition = useCallback(async (transition: () => Promise<void>) => {
     if (queueTransitionRef.current) return;
 
@@ -748,12 +772,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const nextSong = useCallback(async () => {
     await runQueueTransition(async () => {
-      const queue = activeQueueRef.current.filter((song) => !isYouTubeSong(song));
+      const { queue, safeIndex: currentIndex } = getActiveQueuePlaybackState();
 
       if (!queue.length) return;
 
       const nextIndex = getNextQueueIndex(
-        activeQueueIndexRef.current,
+        currentIndex,
         queue.length
       );
 
@@ -785,13 +809,34 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     });
   }, [
     runQueueTransition,
-    isYouTubeSong,
+    getActiveQueuePlaybackState,
     getNextQueueIndex,
     setIsPlaying,
     normalizeSong,
     persistActiveQueue,
     removeStoredValues,
   ]);
+
+  const handleTrackFinished = useCallback(async () => {
+    try {
+      if (repeatModeRef.current === "one") {
+        const activeSound = soundRef.current;
+
+        if (activeSound) {
+          await activeSound.setPositionAsync(0);
+          await activeSound.playAsync();
+          setIsPlaying(true);
+        }
+
+        return;
+      }
+
+      await nextSong();
+    } finally {
+      void removeStoredValues([POSITION_KEY]);
+      autoAdvanceRef.current = false;
+    }
+  }, [nextSong, removeStoredValues, setIsPlaying]);
 
   const handlePlaybackStatusUpdate = useCallback(
     async (status: AVPlaybackStatus) => {
@@ -827,6 +872,31 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         setIsPlayingState(nextIsPlaying);
       }
 
+      if (status.didJustFinish && !isChangingTrackRef.current) {
+        const songId = currentSongRef.current?.id || "";
+
+        if (autoAdvanceRef.current) return;
+
+        if (
+          lastFinishEventRef.current.songId === songId &&
+          now - lastFinishEventRef.current.handledAt < 1500
+        ) {
+          return;
+        }
+
+        lastFinishEventRef.current = {
+          songId,
+          handledAt: now,
+        };
+        autoAdvanceRef.current = true;
+
+        setTimeout(() => {
+          void handleTrackFinished();
+        }, 0);
+
+        return;
+      }
+
       if (
         now - lastPositionSaveRef.current > POSITION_SAVE_INTERVAL_MS &&
         Math.abs(nextPosition - lastSavedPositionRef.current) >=
@@ -835,37 +905,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         lastPositionSaveRef.current = now;
         await savePlaybackPosition(nextPosition);
       }
-
-      if (status.didJustFinish && !isChangingTrackRef.current) {
-        if (autoAdvanceRef.current) return;
-
-        autoAdvanceRef.current = true;
-
-        if (repeatModeRef.current === "one") {
-          const activeSound = soundRef.current;
-
-          if (activeSound) {
-            await activeSound.setPositionAsync(0);
-            await activeSound.playAsync();
-            setIsPlaying(true);
-          }
-
-          void removeStoredValues([POSITION_KEY]).finally(() => {
-            autoAdvanceRef.current = false;
-          });
-
-          return;
-        }
-
-        try {
-          await nextSong();
-        } finally {
-          void removeStoredValues([POSITION_KEY]);
-          autoAdvanceRef.current = false;
-        }
-      }
     },
-    [nextSong, removeStoredValues, savePlaybackPosition, setIsPlaying]
+    [handleTrackFinished, savePlaybackPosition]
   );
 
   const loadAndPlay = useCallback(
@@ -1070,12 +1111,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const previousSong = useCallback(async () => {
     await runQueueTransition(async () => {
-      const queue = activeQueueRef.current.filter((song) => !isYouTubeSong(song));
+      const { queue, safeIndex: currentIndex } = getActiveQueuePlaybackState();
 
       if (!queue.length) return;
 
       const previousIndex = getPreviousQueueIndex(
-        activeQueueIndexRef.current,
+        currentIndex,
         queue.length
       );
 
@@ -1083,7 +1124,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
       await playQueueAtIndex(previousIndex);
     });
-  }, [runQueueTransition, isYouTubeSong, getPreviousQueueIndex, playQueueAtIndex]);
+  }, [
+    runQueueTransition,
+    getActiveQueuePlaybackState,
+    getPreviousQueueIndex,
+    playQueueAtIndex,
+  ]);
 
   const playQueue = useCallback(
     async (queue: AppSong[], startIndex = 0) => {
@@ -1134,7 +1180,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
         await playQueue(
           nativeQueue,
-          index ?? Math.max(0, foundIndex >= 0 ? foundIndex : 0)
+          foundIndex >= 0 ? foundIndex : index ?? 0
         );
         return;
       }
