@@ -59,7 +59,7 @@ export default function MusicFeedScreen() {
 
         <View style={styles.headerTextBox}>
           <Text style={styles.title}>Hidden Tunes</Text>
-          <Text style={styles.subtitle}>Premium live songs from your website</Text>
+          <Text style={styles.subtitle}>Curated streams from the catalog</Text>
         </View>
 
         <TouchableOpacity style={styles.refreshButton} onPress={refreshSongs}>
@@ -70,7 +70,7 @@ export default function MusicFeedScreen() {
       {loading ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.loadingText}>Loading premium streams...</Text>
+          <Text style={styles.loadingText}>Loading your music...</Text>
         </View>
       ) : songs.length === 0 ? (
         <View style={styles.center}>
@@ -78,10 +78,10 @@ export default function MusicFeedScreen() {
             <Ionicons name="musical-notes" size={58} color={COLORS.primary} />
           </View>
 
-          <Text style={styles.emptyTitle}>No songs found</Text>
+          <Text style={styles.emptyTitle}>Nothing here yet</Text>
 
           <Text style={styles.emptyText}>
-            Add your music list to https://hiddentunes.com/songs.json
+            New releases will appear here as they are added to Hidden Tunes.
           </Text>
         </View>
       ) : (
@@ -102,12 +102,12 @@ export default function MusicFeedScreen() {
               <LinearGradient colors={GRADIENTS.neon} style={styles.feedBorder}>
                 <View style={styles.feedInner}>
                   <View>
-                    <Text style={styles.feedLabel}>WEBSITE STREAMING</Text>
+                    <Text style={styles.feedLabel}>CATALOG STREAMS</Text>
                     <Text style={styles.feedTitle}>
-                      {songs.length} Premium Tracks
+                      {songs.length} tracks ready
                     </Text>
                     <Text style={styles.feedText}>
-                      Live from your HiddenTunes.com music library.
+                      Stream the latest from Hidden Tunes.
                     </Text>
                   </View>
 
@@ -145,7 +145,7 @@ export default function MusicFeedScreen() {
                       color={active ? COLORS.cyan : COLORS.primary}
                     />
                     <Text style={styles.streamText}>
-                      {active ? "Now streaming" : "Website stream"}
+                      {active ? "Now playing" : "Tap to play"}
                     </Text>
                   </View>
                 </View>

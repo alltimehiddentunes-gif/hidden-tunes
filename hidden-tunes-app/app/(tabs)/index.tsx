@@ -133,8 +133,7 @@ function HomeScreen() {
       setVisibleSongCount(INITIAL_HOME_SONG_ROWS);
       setSongPage(1);
       setHasMoreSongPages((songs || []).length >= 30);
-    } catch (error) {
-      console.log("Load featured songs error:", error);
+    } catch {
       setFeaturedSongs([]);
       setHasMoreSongPages(false);
     } finally {
@@ -415,7 +414,6 @@ function HomeScreen() {
       setSongPage(nextPage);
       setHasMoreSongPages(page.hasMore);
     } catch (error) {
-      console.log("Load more Home songs error:", error);
     } finally {
       setLoadingMoreSongs(false);
     }
@@ -964,7 +962,7 @@ function HomeScreen() {
           {loadingSongs ? (
             <View style={styles.loadingBox}>
               <ActivityIndicator size="small" color={COLORS.primary} />
-              <Text style={styles.loadingText}>Loading...</Text>
+              <Text style={styles.loadingText}>Loading catalog...</Text>
             </View>
           ) : featuredSongs.length === 0 ? (
             <View style={styles.emptyBox}>

@@ -21,7 +21,7 @@ import {
 export default function ProfileScreen() {
   const [backendStatus, setBackendStatus] = useState<BackendStatus>({
     online: false,
-    statusText: "Checking...",
+    statusText: "",
     baseUrl: "",
   });
 
@@ -79,12 +79,12 @@ export default function ProfileScreen() {
           />
 
           <View style={styles.statusTextWrap}>
-            <Text style={styles.statusTitle}>YouTube Backend</Text>
+            <Text style={styles.statusTitle}>Hidden Tunes TV</Text>
 
             <Text style={styles.statusSubtitle}>
               {backendStatus.online
-                ? "Streaming server connected"
-                : "Streaming server offline"}
+                ? "Ready to play"
+                : "Tap refresh to retry"}
             </Text>
           </View>
 
@@ -95,7 +95,7 @@ export default function ProfileScreen() {
 
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
-            <Text style={styles.statNumber}>∞</Text>
+            <Text style={styles.statNumber}>All</Text>
             <Text style={styles.statLabel}>Songs</Text>
           </View>
 
@@ -172,15 +172,15 @@ export default function ProfileScreen() {
 
           <ProfileItem
             icon="cloud-upload"
-            title="Admin Upload"
-            subtitle="Upload MP3, artwork, and synced lyrics"
+            title="Upload"
+            subtitle="Add music to Hidden Tunes"
             onPress={() => router.push("/admin/upload" as any)}
           />
 
           <ProfileItem
             icon="shield-checkmark"
             title="Privacy Policy"
-            subtitle="Store-ready legal page"
+            subtitle="How Hidden Tunes protects you"
             onPress={() => {}}
           />
 
@@ -193,11 +193,11 @@ export default function ProfileScreen() {
 
           <ProfileItem
             icon="cloud"
-            title="Backend Status"
+            title="TV Status"
             subtitle={
               backendStatus.online
-                ? "Streaming server online"
-                : "Streaming server offline"
+                ? "Ready"
+                : "Try again"
             }
             onPress={checkBackend}
           />

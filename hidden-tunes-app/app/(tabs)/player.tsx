@@ -213,9 +213,7 @@ export default function PlayerScreen() {
           lyrics: plainLyrics || syncedLyrics || "No lyrics available.",
         },
       });
-    } catch (error) {
-      console.log("Open lyrics failed:", error);
-
+    } catch {
       router.push({
         pathname: "/lyrics",
         params: {

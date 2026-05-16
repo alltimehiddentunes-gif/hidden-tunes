@@ -29,8 +29,7 @@ export default function YouTubeFeedScreen() {
       setLoading(true);
       const data = await fetchChannelVideos();
       setVideos(data || []);
-    } catch (error) {
-      console.log("Hidden Tunes TV load error:", error);
+    } catch {
       setVideos([]);
     } finally {
       setLoading(false);
@@ -45,10 +44,7 @@ export default function YouTubeFeedScreen() {
           item?.snippet?.resourceId?.videoId ||
           item?.snippet?.videoId;
 
-    if (!videoId) {
-      console.log("Missing YouTube videoId:", item);
-      return;
-    }
+    if (!videoId) return;
 
     router.push({
       pathname: "/youtube-player",
@@ -76,7 +72,7 @@ export default function YouTubeFeedScreen() {
 
         <View>
           <Text style={styles.title}>Hidden Tunes TV</Text>
-          <Text style={styles.subtitle}>Latest TV uploads</Text>
+          <Text style={styles.subtitle}>Latest picks from the channel</Text>
         </View>
       </View>
 
@@ -88,9 +84,9 @@ export default function YouTubeFeedScreen() {
       ) : videos.length === 0 ? (
         <View style={styles.center}>
           <Ionicons name="tv" size={60} color={COLORS.primary} />
-          <Text style={styles.emptyTitle}>No TV videos found</Text>
+          <Text style={styles.emptyTitle}>No videos right now</Text>
           <Text style={styles.emptyText}>
-            Open Hidden Tunes TV and search for another video.
+            Open Hidden Tunes TV to search and watch inside the app.
           </Text>
         </View>
       ) : (
@@ -128,7 +124,7 @@ export default function YouTubeFeedScreen() {
 
                 <View style={styles.watchRow}>
                   <Ionicons name="tv" size={18} color={COLORS.primary} />
-                  <Text style={styles.watchText}>Play inside TV</Text>
+                  <Text style={styles.watchText}>Watch in app</Text>
                 </View>
               </View>
             </TouchableOpacity>

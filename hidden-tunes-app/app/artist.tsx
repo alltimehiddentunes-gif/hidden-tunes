@@ -287,9 +287,9 @@ export default function ArtistScreen() {
                 size={60}
                 color={COLORS.textMuted}
               />
-              <Text style={styles.emptyTitle}>No artist songs found</Text>
+              <Text style={styles.emptyTitle}>No songs yet</Text>
               <Text style={styles.emptyText}>
-                Check your backend, then tap refresh.
+                Try refreshing this artist.
               </Text>
             </View>
           ) : null

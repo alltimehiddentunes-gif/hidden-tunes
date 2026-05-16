@@ -29,7 +29,11 @@
         "foregroundImage": "./assets/images/icon.png",
         "backgroundColor": "#000000"
       },
-      "permissions": ["WAKE_LOCK"],
+      "permissions": [
+        "WAKE_LOCK",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_MEDIA_PLAYBACK"
+      ],
       "blockedPermissions": [
         "android.permission.RECORD_AUDIO"
       ]
@@ -44,6 +48,7 @@
     },
     "extra": {
       "router": {},
+      "useTrackPlayer": false,
       "eas": {
         "projectId": "fe4c3d8e-238e-4c61-ad53-36406dd5fecf"
       }

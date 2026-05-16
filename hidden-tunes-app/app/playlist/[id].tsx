@@ -428,7 +428,7 @@ export default function PlaylistDetailScreen() {
               <View style={styles.managementRow}>
                 <View style={styles.managePill}>
                   <Ionicons name="flash" size={14} color={COLORS.primary} />
-                  <Text style={styles.managePillText}>Generated from catalog</Text>
+                  <Text style={styles.managePillText}>Made for you</Text>
                 </View>
               </View>
             )}
@@ -438,7 +438,7 @@ export default function PlaylistDetailScreen() {
 
               <Text style={styles.helperText}>
                 {smart
-                  ? "Smart mixes update automatically from your catalog"
+                ? "Smart mixes update as you listen"
                   : "Playlist queue saves automatically"}
               </Text>
             </View>
@@ -456,7 +456,7 @@ export default function PlaylistDetailScreen() {
 
             <Text style={styles.emptyText}>
               {smart
-                ? "This smart mix needs more matching songs in your catalog."
+                ? "This smart mix needs more matching songs."
                 : "Add songs from Search, Explore, Radio, or Player using the plus button."}
             </Text>
           </View>

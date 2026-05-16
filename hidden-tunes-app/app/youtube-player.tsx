@@ -136,9 +136,7 @@ export default function YouTubePlayerScreen() {
           .map((item) => normalizeQueueItem(item))
           .filter((item): item is YouTubeQueueItem => item !== null);
       }
-    } catch (error) {
-      console.log("Hidden Tunes TV queue parse error:", error);
-    }
+    } catch {}
 
     const fallbackItem = normalizeQueueItem({
       id: initialVideoId,
@@ -173,9 +171,7 @@ export default function YouTubePlayerScreen() {
   }, [params.startIndex, parsedQueue, initialVideoId]);
 
   const [currentIndex, setCurrentIndex] = useState(startIndex);
-  const [playerStatus, setPlayerStatus] = useState(
-    "Loading Hidden Tunes TV player..."
-  );
+  const [playerStatus, setPlayerStatus] = useState("Preparing video...");
   const [isVideoPlaying, setIsVideoPlaying] = useState(true);
   const [playerReady, setPlayerReady] = useState(false);
   const [directEmbedMode, setDirectEmbedMode] = useState(false);
@@ -215,7 +211,7 @@ export default function YouTubePlayerScreen() {
     setIsVideoPlaying(true);
     setPlayerReady(false);
     setDirectEmbedMode(false);
-    setPlayerStatus("Loading Hidden Tunes TV player...");
+    setPlayerStatus("Preparing video...");
 
     if (errorSkipTimerRef.current) {
       clearTimeout(errorSkipTimerRef.current);
@@ -229,7 +225,7 @@ export default function YouTubePlayerScreen() {
     fallbackTimerRef.current = setTimeout(() => {
       setDirectEmbedMode(true);
       setPlayerReady(true);
-      setPlayerStatus("Retrying inside Hidden Tunes TV. Tap the video to play.");
+      setPlayerStatus("Tap the video to start playback.");
     }, 7000);
   }, [videoId, title, artist, thumbnail]);
 
@@ -248,9 +244,7 @@ export default function YouTubePlayerScreen() {
           thumbnail,
         })
       );
-    } catch (error) {
-      console.log("Save YouTube mini error:", error);
-    }
+    } catch {}
   }
 
   function playAtIndex(index: number) {
@@ -263,13 +257,13 @@ export default function YouTubePlayerScreen() {
     setIsVideoPlaying(true);
     setPlayerReady(false);
     setDirectEmbedMode(false);
-    setPlayerStatus("Loading Hidden Tunes TV player...");
+    setPlayerStatus("Preparing video...");
     setCurrentIndex(safeIndex);
   }
 
   function playNext() {
     if (queue.length <= 1) {
-      setPlayerStatus("No TV queue yet. Open Hidden Tunes TV to choose another video.");
+      setPlayerStatus("Add more videos from Hidden Tunes TV to keep watching.");
       return;
     }
 
@@ -279,7 +273,7 @@ export default function YouTubePlayerScreen() {
 
   function playPrevious() {
     if (queue.length <= 1) {
-      setPlayerStatus("No previous video in this TV queue.");
+      setPlayerStatus("You're at the start of this queue.");
       return;
     }
 
@@ -289,12 +283,12 @@ export default function YouTubePlayerScreen() {
 
   function togglePlayPause() {
     if (directEmbedMode) {
-      setPlayerStatus("Use the in-app video controls.");
+      setPlayerStatus("Use the on-screen video controls.");
       return;
     }
 
     if (!playerReady) {
-      setPlayerStatus("Player is still loading. Try again in a moment.");
+      setPlayerStatus("Almost ready. Try again in a moment.");
       return;
     }
 
@@ -317,7 +311,7 @@ export default function YouTubePlayerScreen() {
 
     if (queue.length <= 1) {
       setIsVideoPlaying(false);
-      setPlayerStatus("Video ended.");
+      setPlayerStatus("Finished.");
       return;
     }
 
@@ -366,20 +360,17 @@ export default function YouTubePlayerScreen() {
 
     if (state === PLAYER_STATES.VIDEO_CUED) {
       setPlayerReady(true);
-      setPlayerStatus("Ready. Tap play if the video does not start.");
+      setPlayerStatus("Ready when you are. Tap play if needed.");
     }
   }
 
-  function handlePlayerError(error: string) {
-    console.log("Hidden Tunes TV iframe error:", {
-      videoId,
-      error,
-    });
-
+  function handlePlayerError(_error: string) {
     setIsVideoPlaying(false);
     setDirectEmbedMode(false);
     setPlayerReady(true);
-    setPlayerStatus("This video cannot play inside Hidden Tunes TV. Try another result.");
+    setPlayerStatus(
+      "This video is not available for in-app playback. Try another pick."
+    );
   }
 
   const directEmbedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1&playsinline=1&controls=1&rel=0&fs=1`;
@@ -389,7 +380,7 @@ export default function YouTubePlayerScreen() {
 
     if (!requestUrl) return true;
     if (isBlockedExternalUrl(requestUrl)) {
-      setPlayerStatus("Hidden Tunes TV blocked an external app handoff.");
+      setPlayerStatus("Playback stays inside Hidden Tunes.");
       return false;
     }
 
@@ -417,7 +408,7 @@ export default function YouTubePlayerScreen() {
     }
 
     if (!isAllowedEmbedUrl(requestUrl)) {
-      setPlayerStatus("Hidden Tunes TV kept playback inside the app.");
+      setPlayerStatus("Playback stays inside Hidden Tunes.");
       return false;
     }
 
@@ -470,18 +461,16 @@ export default function YouTubePlayerScreen() {
             originWhitelist={["*"]}
             onLoadEnd={() => {
               setPlayerReady(true);
-              setPlayerStatus("In-app TV player ready. Tap video if needed.");
+              setPlayerStatus("Ready when you are. Tap the video if needed.");
             }}
-            onError={(event) => {
-              console.log("Hidden Tunes TV embed WebView error:", event.nativeEvent);
+            onError={() => {
               setPlayerStatus(
-                "This video cannot play inside Hidden Tunes TV. Try another result."
+                "This video is not available for in-app playback. Try another pick."
               );
             }}
-            onHttpError={(event) => {
-              console.log("Hidden Tunes TV embed HTTP error:", event.nativeEvent);
+            onHttpError={() => {
               setPlayerStatus(
-                "This video cannot play inside Hidden Tunes TV. Try another result."
+                "This video is not available for in-app playback. Try another pick."
               );
             }}
             onShouldStartLoadWithRequest={handleInAppWebViewNavigation}
@@ -522,7 +511,7 @@ export default function YouTubePlayerScreen() {
               }
 
               setPlayerReady(true);
-              setPlayerStatus("Ready. Tap play if the video does not start.");
+              setPlayerStatus("Ready when you are. Tap play if needed.");
             }}
             onChangeState={handlePlayerStateChange}
             onError={handlePlayerError}
@@ -534,7 +523,7 @@ export default function YouTubePlayerScreen() {
               size={42}
               color={COLORS.textMuted}
             />
-            <Text style={styles.noVideoText}>No valid YouTube video ID.</Text>
+            <Text style={styles.noVideoText}>This video is not available right now.</Text>
           </View>
         )}
       </View>
@@ -542,7 +531,7 @@ export default function YouTubePlayerScreen() {
       <View style={styles.infoCard}>
         <View style={styles.youtubePill}>
           <Ionicons name="tv" size={14} color="#000" />
-          <Text style={styles.youtubePillText}>Hidden Tunes TV Player</Text>
+          <Text style={styles.youtubePillText}>Now Playing</Text>
         </View>
 
         <Text numberOfLines={2} style={styles.title}>
@@ -556,7 +545,7 @@ export default function YouTubePlayerScreen() {
         <Text style={styles.queueText}>
           {queue.length > 1
             ? `${currentIndex + 1} of ${queue.length} in TV queue`
-            : "Single TV play"}
+            : "Now playing"}
         </Text>
 
         <Text style={styles.statusText}>{playerStatus}</Text>
@@ -596,8 +585,8 @@ export default function YouTubePlayerScreen() {
         </View>
 
         <Text style={styles.notice}>
-          Hidden Tunes TV uses official embedded playback inside the app. Some
-          videos may still block embeds.
+          Some videos are not licensed for in-app playback. Skip to the next
+          pick if you see an unavailable message.
         </Text>
 
         {!directEmbedMode && (
@@ -607,11 +596,11 @@ export default function YouTubePlayerScreen() {
             onPress={() => {
               setDirectEmbedMode(true);
               setPlayerReady(true);
-              setPlayerStatus("Retrying inside Hidden Tunes TV. Tap the video to play.");
+              setPlayerStatus("Tap the video to start playback.");
             }}
           >
             <Ionicons name="refresh" size={16} color={COLORS.text} />
-            <Text style={styles.secondaryButtonText}>Retry inside Hidden Tunes</Text>
+            <Text style={styles.secondaryButtonText}>Try alternate player</Text>
           </TouchableOpacity>
         )}
 

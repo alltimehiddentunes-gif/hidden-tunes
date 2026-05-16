@@ -124,7 +124,7 @@ export default function AlbumScreen() {
       {loading ? (
         <View style={styles.loader}>
           <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.loadingText}>Loading album tracks...</Text>
+          <Text style={styles.loadingText}>Loading...</Text>
         </View>
       ) : (
         <FlatList
@@ -139,9 +139,9 @@ export default function AlbumScreen() {
                 size={56}
                 color={COLORS.textMuted}
               />
-              <Text style={styles.emptyTitle}>No album tracks found</Text>
+              <Text style={styles.emptyTitle}>No songs yet</Text>
               <Text style={styles.emptyText}>
-                Check your backend, then tap refresh.
+                Try refreshing this album.
               </Text>
             </View>
           }

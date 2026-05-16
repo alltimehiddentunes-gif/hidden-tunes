@@ -40,6 +40,22 @@ import {
   getSmartQueue,
   saveSmartQueue,
 } from "../services/smartQueue";
+import { isTrackPlayerFeatureEnabled } from "../constants/playbackConfig";
+import {
+  activateTrackPlayerPlayback,
+  bridgeGetActiveIndex,
+  bridgeGetProgress,
+  bridgeResetPlayback,
+  bridgeSeekTo,
+  bridgeSetProgressInterval,
+  bridgeSetVolume,
+  bridgeSkipToNext,
+  bridgeSkipToPrevious,
+  bridgeSyncRepeatMode,
+  bridgeTogglePlayPause,
+  shouldUseTrackPlayerPlayback,
+  subscribeBridgeEvents,
+} from "../services/playbackBridge";
 import { getArtworkValue } from "../utils/artwork";
 
 export type SyncedLyricLine = {
@@ -173,10 +189,32 @@ const ACTIVE_QUEUE_INDEX_KEY = "hidden_tunes_active_queue_index";
 const ACTIVE_QUEUE_MODE_KEY = "hidden_tunes_active_queue_mode";
 
 const PLAYBACK_UPDATE_INTERVAL_MS = 2000;
+const PLAYBACK_UPDATE_INTERVAL_BACKGROUND_MS = 500;
 const POSITION_STATE_UPDATE_MIN_MS = 2000;
+const POSITION_STATE_UPDATE_BACKGROUND_MS = 500;
 const POSITION_SAVE_INTERVAL_MS = 12000;
 const POSITION_SAVE_DISTANCE_MS = 5000;
 const DURATION_UPDATE_THRESHOLD_MS = 1500;
+const TRACK_END_THRESHOLD_MS = 750;
+const MIN_DURATION_FOR_POSITION_FINISH_MS = 4000;
+const PRELOAD_BEFORE_END_MS = 15000;
+const FINISH_DEBOUNCE_MS = 1500;
+
+function isBackgroundAppState(state: AppStateStatus) {
+  return state === "background" || state === "inactive";
+}
+
+function getProgressUpdateIntervalMs(state: AppStateStatus) {
+  return isBackgroundAppState(state)
+    ? PLAYBACK_UPDATE_INTERVAL_BACKGROUND_MS
+    : PLAYBACK_UPDATE_INTERVAL_MS;
+}
+
+function getPositionStateUpdateMinMs(state: AppStateStatus) {
+  return isBackgroundAppState(state)
+    ? POSITION_STATE_UPDATE_BACKGROUND_MS
+    : POSITION_STATE_UPDATE_MIN_MS;
+}
 
 function parseSyncedLyrics(input?: string | null): SyncedLyricLine[] {
   if (!input || typeof input !== "string") return [];
@@ -244,6 +282,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const lastCurrentSongPersistRef = useRef("");
   const storageValueCacheRef = useRef<Record<string, string>>({});
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+  const preloadedSoundRef = useRef<Audio.Sound | null>(null);
+  const preloadedSongIdRef = useRef<string | null>(null);
+  const preloadInFlightRef = useRef(false);
+  const pendingSmartExtendRef = useRef(false);
+  const trackPlayerActiveRef = useRef(false);
+  const handleTrackFinishedRef = useRef<(() => Promise<void>) | null>(null);
 
   const positionMillisRef = useRef(0);
   const durationMillisRef = useRef(0);
@@ -566,7 +610,34 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const clearPreloadedSound = useCallback(async () => {
+    const preloaded = preloadedSoundRef.current;
+    preloadedSoundRef.current = null;
+    preloadedSongIdRef.current = null;
+    preloadInFlightRef.current = false;
+
+    if (!preloaded) return;
+
+    try {
+      preloaded.setOnPlaybackStatusUpdate(null);
+
+      try {
+        await preloaded.stopAsync();
+      } catch {}
+
+      await preloaded.unloadAsync();
+    } catch (error) {
+      console.log("Clear preloaded sound error:", error);
+    }
+  }, []);
+
   const unloadCurrentSound = useCallback(async () => {
+    if (trackPlayerActiveRef.current) {
+      trackPlayerActiveRef.current = false;
+      await bridgeResetPlayback();
+      return;
+    }
+
     if (unloadPromiseRef.current) {
       await unloadPromiseRef.current;
       return;
@@ -594,6 +665,26 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     })();
 
     await unloadPromiseRef.current;
+  }, []);
+
+  const applyProgressUpdateInterval = useCallback(async () => {
+    if (trackPlayerActiveRef.current) {
+      await bridgeSetProgressInterval(appStateRef.current);
+      return;
+    }
+
+    const sound = soundRef.current;
+    if (!sound) return;
+
+    try {
+      await sound.setStatusAsync({
+        progressUpdateIntervalMillis: getProgressUpdateIntervalMs(
+          appStateRef.current
+        ),
+      });
+    } catch (error) {
+      console.log("Apply progress update interval error:", error);
+    }
   }, []);
 
   const saveCurrentSong = useCallback(
@@ -788,7 +879,141 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const getUpcomingSong = useCallback((): AppSong | null => {
+    const { queue, safeIndex } = getActiveQueuePlaybackState();
+
+    if (!queue.length || repeatModeRef.current === "one") return null;
+
+    const nextIndex = getNextQueueIndex(safeIndex, queue.length);
+
+    if (nextIndex < 0) return null;
+
+    return normalizeSong(queue[nextIndex]);
+  }, [getActiveQueuePlaybackState, getNextQueueIndex, normalizeSong]);
+
+  const syncStateFromTrackPlayerIndex = useCallback(
+    (index: number, runSideEffects = true) => {
+      const { queue } = getActiveQueuePlaybackState();
+
+      if (!queue.length || index < 0 || index >= queue.length) return;
+
+      const song = normalizeSong(queue[index]);
+
+      setCurrentSong(song);
+      currentSongRef.current = song;
+      setActiveQueueIndex(index);
+      activeQueueIndexRef.current = index;
+
+      if (runSideEffects) {
+        savePlaybackSideEffects(song);
+      }
+    },
+    [getActiveQueuePlaybackState, normalizeSong, savePlaybackSideEffects]
+  );
+
+  const preloadUpcomingTrack = useCallback(
+    async (upcomingSong: AppSong) => {
+      if (trackPlayerActiveRef.current) return;
+      if (preloadInFlightRef.current) return;
+      if (preloadedSongIdRef.current === upcomingSong.id) return;
+
+      const playableUri = getPlayableUri(upcomingSong);
+
+      if (!playableUri && !upcomingSong.audio) return;
+
+      preloadInFlightRef.current = true;
+
+      try {
+        await clearPreloadedSound();
+
+        const source = upcomingSong.audio
+          ? upcomingSong.audio
+          : { uri: playableUri! };
+
+        const { sound } = await Audio.Sound.createAsync(source, {
+          shouldPlay: false,
+          volume: 0,
+        });
+
+        if (preloadedSoundRef.current) {
+          try {
+            await sound.unloadAsync();
+          } catch {}
+
+          return;
+        }
+
+        preloadedSoundRef.current = sound;
+        preloadedSongIdRef.current = upcomingSong.id;
+      } catch (error) {
+        console.log("Preload upcoming track error:", error);
+      } finally {
+        preloadInFlightRef.current = false;
+      }
+    },
+    [clearPreloadedSound, getPlayableUri]
+  );
+
+  const takePreloadedSound = useCallback(async (songId: string) => {
+    if (preloadedSongIdRef.current !== songId || !preloadedSoundRef.current) {
+      return null;
+    }
+
+    const sound = preloadedSoundRef.current;
+    preloadedSoundRef.current = null;
+    preloadedSongIdRef.current = null;
+    preloadInFlightRef.current = false;
+
+    return sound;
+  }, []);
+
   const nextSong = useCallback(async () => {
+    if (trackPlayerActiveRef.current) {
+      await runQueueTransition(async () => {
+        const { queue, safeIndex: currentIndex } = getActiveQueuePlaybackState();
+
+        if (!queue.length) return;
+
+        const nextIndex = getNextQueueIndex(currentIndex, queue.length);
+
+        if (nextIndex === -1) {
+          if (!smartAutoplayEnabledRef.current) {
+            setIsPlaying(false);
+            return;
+          }
+
+          if (isBackgroundAppState(appStateRef.current)) {
+            pendingSmartExtendRef.current = true;
+            setIsPlaying(false);
+            return;
+          }
+
+          const extended = await extendQueueWithSmartTracksRef.current?.();
+
+          if (!extended) {
+            setIsPlaying(false);
+          }
+
+          return;
+        }
+
+        try {
+          await bridgeSkipToNext();
+          const activeIndex = await bridgeGetActiveIndex();
+
+          if (activeIndex !== null) {
+            syncStateFromTrackPlayerIndex(activeIndex);
+            void persistActiveQueue(queue, activeIndex, activeQueueModeRef.current);
+            void removeStoredValues([POSITION_KEY]);
+          }
+        } catch (error) {
+          console.log("TrackPlayer next error:", error);
+        }
+      });
+
+      return;
+    }
+
     await runQueueTransition(async () => {
       const { queue, safeIndex: currentIndex } = getActiveQueuePlaybackState();
 
@@ -801,6 +1026,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
       if (nextIndex === -1) {
         if (!smartAutoplayEnabledRef.current) {
+          setIsPlaying(false);
+          return;
+        }
+
+        if (isBackgroundAppState(appStateRef.current)) {
+          pendingSmartExtendRef.current = true;
           setIsPlaying(false);
           return;
         }
@@ -833,6 +1064,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     normalizeSong,
     persistActiveQueue,
     removeStoredValues,
+    syncStateFromTrackPlayerIndex,
   ]);
 
   const handleTrackFinished = useCallback(async () => {
@@ -856,8 +1088,112 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }
   }, [nextSong, removeStoredValues, setIsPlaying]);
 
+  handleTrackFinishedRef.current = handleTrackFinished;
+
+  const scheduleTrackAdvance = useCallback(() => {
+    if (isChangingTrackRef.current || autoAdvanceRef.current) return;
+
+    const songId = currentSongRef.current?.id || "";
+    const now = Date.now();
+
+    if (
+      lastFinishEventRef.current.songId === songId &&
+      now - lastFinishEventRef.current.handledAt < FINISH_DEBOUNCE_MS
+    ) {
+      return;
+    }
+
+    lastFinishEventRef.current = {
+      songId,
+      handledAt: now,
+    };
+    autoAdvanceRef.current = true;
+
+    setTimeout(() => {
+      void handleTrackFinishedRef.current?.();
+    }, 0);
+  }, []);
+
+  const flushPendingSmartExtend = useCallback(async () => {
+    if (!pendingSmartExtendRef.current) return;
+
+    pendingSmartExtendRef.current = false;
+
+    if (!smartAutoplayEnabledRef.current) return;
+
+    const { queue, safeIndex } = getActiveQueuePlaybackState();
+
+    if (!queue.length) return;
+
+    if (getNextQueueIndex(safeIndex, queue.length) >= 0) {
+      await scheduleTrackAdvance();
+      return;
+    }
+
+    const extended = await extendQueueWithSmartTracksRef.current?.();
+
+    if (!extended) {
+      setIsPlaying(false);
+    }
+  }, [
+    getActiveQueuePlaybackState,
+    getNextQueueIndex,
+    scheduleTrackAdvance,
+    setIsPlaying,
+  ]);
+
+  const catchUpPlaybackIfEnded = useCallback(async () => {
+    if (trackPlayerActiveRef.current) {
+      try {
+        const progress = await bridgeGetProgress();
+
+        if (
+          repeatModeRef.current !== "one" &&
+          progress.durationMillis >= MIN_DURATION_FOR_POSITION_FINISH_MS &&
+          progress.positionMillis >=
+            progress.durationMillis - TRACK_END_THRESHOLD_MS
+        ) {
+          scheduleTrackAdvance();
+        }
+      } catch (error) {
+        console.log("TrackPlayer catch up error:", error);
+      }
+
+      return;
+    }
+
+    const sound = soundRef.current;
+
+    if (!sound || isChangingTrackRef.current || autoAdvanceRef.current) return;
+
+    try {
+      const status = await sound.getStatusAsync();
+
+      if (!status.isLoaded) return;
+
+      const position = status.positionMillis || 0;
+      const duration = status.durationMillis || 0;
+
+      if (status.didJustFinish) {
+        scheduleTrackAdvance();
+        return;
+      }
+
+      if (
+        repeatModeRef.current !== "one" &&
+        duration >= MIN_DURATION_FOR_POSITION_FINISH_MS &&
+        position >= duration - TRACK_END_THRESHOLD_MS
+      ) {
+        scheduleTrackAdvance();
+      }
+    } catch (error) {
+      console.log("Catch up playback error:", error);
+    }
+  }, [scheduleTrackAdvance]);
+
   const handlePlaybackStatusUpdate = useCallback(
     async (status: AVPlaybackStatus) => {
+      if (trackPlayerActiveRef.current) return;
       if (!status.isLoaded) return;
 
       const nextPosition = status.positionMillis || 0;
@@ -865,11 +1201,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       const nextIsPlaying = status.isPlaying || false;
       const previousPosition = positionMillisRef.current;
       const now = Date.now();
+      const positionStateMinMs = getPositionStateUpdateMinMs(
+        appStateRef.current
+      );
 
       positionMillisRef.current = nextPosition;
 
       if (
-        now - lastPositionStateUpdateRef.current >= POSITION_STATE_UPDATE_MIN_MS ||
+        now - lastPositionStateUpdateRef.current >= positionStateMinMs ||
         Math.abs(nextPosition - previousPosition) > 1800
       ) {
         lastPositionStateUpdateRef.current = now;
@@ -891,28 +1230,35 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       }
 
       if (status.didJustFinish && !isChangingTrackRef.current) {
-        const songId = currentSongRef.current?.id || "";
-
-        if (autoAdvanceRef.current) return;
-
-        if (
-          lastFinishEventRef.current.songId === songId &&
-          now - lastFinishEventRef.current.handledAt < 1500
-        ) {
-          return;
-        }
-
-        lastFinishEventRef.current = {
-          songId,
-          handledAt: now,
-        };
-        autoAdvanceRef.current = true;
-
-        setTimeout(() => {
-          void handleTrackFinished();
-        }, 0);
-
+        scheduleTrackAdvance();
         return;
+      }
+
+      const nearTrackEnd =
+        repeatModeRef.current !== "one" &&
+        !isChangingTrackRef.current &&
+        nextDuration >= MIN_DURATION_FOR_POSITION_FINISH_MS &&
+        nextPosition > 0 &&
+        nextPosition >= nextDuration - TRACK_END_THRESHOLD_MS;
+
+      const playbackEndedWhileNearEnd =
+        nearTrackEnd &&
+        !nextIsPlaying &&
+        previousPosition >= nextDuration - TRACK_END_THRESHOLD_MS * 2;
+
+      if (playbackEndedWhileNearEnd) {
+        scheduleTrackAdvance();
+      } else if (
+        nextIsPlaying &&
+        nextDuration >= MIN_DURATION_FOR_POSITION_FINISH_MS &&
+        nextPosition >= nextDuration - PRELOAD_BEFORE_END_MS &&
+        nextPosition < nextDuration - TRACK_END_THRESHOLD_MS
+      ) {
+        const upcomingSong = getUpcomingSong();
+
+        if (upcomingSong) {
+          void preloadUpcomingTrack(upcomingSong);
+        }
       }
 
       if (
@@ -924,7 +1270,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         await savePlaybackPosition(nextPosition);
       }
     },
-    [handleTrackFinished, savePlaybackPosition]
+    [
+      scheduleTrackAdvance,
+      getUpcomingSong,
+      preloadUpcomingTrack,
+      savePlaybackPosition,
+    ]
   );
 
   const loadAndPlay = useCallback(
@@ -949,16 +1300,107 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
         isChangingTrackRef.current = true;
         setIsLoading(true);
-        void configureAudio();
 
         const shouldRestorePosition =
           currentSongRef.current?.id === normalizedSong.id;
+
+        const useNativeQueue = await shouldUseTrackPlayerPlayback();
+
+        if (useNativeQueue) {
+          try {
+            const { queue } = getActiveQueuePlaybackState();
+
+            if (!queue.length) {
+              setIsPlaying(false);
+              return;
+            }
+
+            let playIndex = queue.findIndex((item) => item.id === normalizedSong.id);
+
+            if (playIndex < 0) {
+              playIndex = Math.max(
+                0,
+                Math.min(activeQueueIndexRef.current, queue.length - 1)
+              );
+            }
+
+            let startPositionMillis = 0;
+
+            if (shouldRestorePosition) {
+              try {
+                const savedPosition = await AsyncStorage.getItem(POSITION_KEY);
+                const millis = Number(savedPosition);
+
+                if (!Number.isNaN(millis) && millis > 0) {
+                  startPositionMillis = millis;
+                }
+              } catch (error) {
+                console.log("Restore TrackPlayer position error:", error);
+              }
+            }
+
+            if (
+              preloadedSongIdRef.current &&
+              preloadedSongIdRef.current !== normalizedSong.id
+            ) {
+              await clearPreloadedSound();
+            }
+
+            await unloadCurrentSound();
+
+            if (loadRequestIdRef.current !== requestId || !isMountedRef.current) {
+              return;
+            }
+
+            const playedIndex = await activateTrackPlayerPlayback({
+              songs: queue,
+              startIndex: playIndex,
+              repeatMode: repeatModeRef.current,
+              volume: volumeRef.current,
+              muted: isMutedRef.current,
+              startPositionMillis,
+            });
+
+            trackPlayerActiveRef.current = true;
+            syncStateFromTrackPlayerIndex(playedIndex);
+
+            const progress = await bridgeGetProgress();
+            setPositionMillis(progress.positionMillis);
+            setDurationMillis(progress.durationMillis);
+            setIsPlaying(progress.isPlaying);
+            await bridgeSetProgressInterval(appStateRef.current);
+            void removeStoredValues([POSITION_KEY]);
+          } catch (error) {
+            console.log("TrackPlayer load and play error:", error);
+            trackPlayerActiveRef.current = false;
+            setIsPlaying(false);
+          } finally {
+            if (isMountedRef.current) {
+              setIsLoading(false);
+            }
+
+            if (loadRequestIdRef.current === requestId) {
+              isChangingTrackRef.current = false;
+            }
+          }
+
+          return;
+        }
+
+        void configureAudio();
 
         setCurrentSong(normalizedSong);
         currentSongRef.current = normalizedSong;
         setIsPlaying(true);
         setPositionMillis(0);
         setDurationMillis(0);
+
+        if (
+          preloadedSongIdRef.current &&
+          preloadedSongIdRef.current !== normalizedSong.id
+        ) {
+          await clearPreloadedSound();
+        }
 
         await unloadCurrentSound();
 
@@ -984,15 +1426,30 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           return;
         }
 
-        const { sound } = await Audio.Sound.createAsync(
-          source,
-          {
-            shouldPlay: true,
-            volume: isMutedRef.current ? 0 : volumeRef.current,
-            progressUpdateIntervalMillis: PLAYBACK_UPDATE_INTERVAL_MS,
-          },
-          handlePlaybackStatusUpdate
+        const progressUpdateIntervalMillis = getProgressUpdateIntervalMs(
+          appStateRef.current
         );
+        let sound = await takePreloadedSound(normalizedSong.id);
+
+        if (sound) {
+          sound.setOnPlaybackStatusUpdate(handlePlaybackStatusUpdate);
+          await sound.setStatusAsync({
+            progressUpdateIntervalMillis,
+            volume: isMutedRef.current ? 0 : volumeRef.current,
+          });
+          await sound.playAsync();
+        } else {
+          const created = await Audio.Sound.createAsync(
+            source,
+            {
+              shouldPlay: true,
+              volume: isMutedRef.current ? 0 : volumeRef.current,
+              progressUpdateIntervalMillis,
+            },
+            handlePlaybackStatusUpdate
+          );
+          sound = created.sound;
+        }
 
         if (loadRequestIdRef.current !== requestId || !isMountedRef.current) {
           sound.setOnPlaybackStatusUpdate(null);
@@ -1029,6 +1486,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
         setIsPlaying(true);
         savePlaybackSideEffects(normalizedSong);
+        await applyProgressUpdateInterval();
       } catch (error) {
         console.log("Load and play error:", error);
         setIsPlaying(false);
@@ -1045,13 +1503,19 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     [
       normalizeSong,
       isYouTubeSong,
+      clearPreloadedSound,
       unloadCurrentSound,
+      getActiveQueuePlaybackState,
       getPlayableUri,
       handlePlaybackStatusUpdate,
+      takePreloadedSound,
+      applyProgressUpdateInterval,
+      syncStateFromTrackPlayerIndex,
       setIsPlaying,
       setPositionMillis,
       setDurationMillis,
       savePlaybackSideEffects,
+      removeStoredValues,
       configureAudio,
     ]
   );
@@ -1135,6 +1599,30 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   extendQueueWithSmartTracksRef.current = extendQueueWithSmartTracks;
 
   const previousSong = useCallback(async () => {
+    if (trackPlayerActiveRef.current) {
+      await runQueueTransition(async () => {
+        try {
+          await bridgeSkipToPrevious();
+          const activeIndex = await bridgeGetActiveIndex();
+
+          if (activeIndex !== null) {
+            const { queue } = getActiveQueuePlaybackState();
+            syncStateFromTrackPlayerIndex(activeIndex);
+            void persistActiveQueue(
+              queue,
+              activeIndex,
+              activeQueueModeRef.current
+            );
+            void removeStoredValues([POSITION_KEY]);
+          }
+        } catch (error) {
+          console.log("TrackPlayer previous error:", error);
+        }
+      });
+
+      return;
+    }
+
     await runQueueTransition(async () => {
       const { queue, safeIndex: currentIndex } = getActiveQueuePlaybackState();
 
@@ -1154,6 +1642,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     getActiveQueuePlaybackState,
     getPreviousQueueIndex,
     playQueueAtIndex,
+    syncStateFromTrackPlayerIndex,
+    persistActiveQueue,
+    removeStoredValues,
   ]);
 
   const playQueue = useCallback(
@@ -1449,8 +1940,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const stopPlayback = useCallback(async () => {
     try {
       isChangingTrackRef.current = true;
+      pendingSmartExtendRef.current = false;
 
       loadRequestIdRef.current += 1;
+      trackPlayerActiveRef.current = false;
+      await clearPreloadedSound();
       await unloadCurrentSound();
 
       setIsPlaying(false);
@@ -1469,6 +1963,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       isChangingTrackRef.current = false;
     }
   }, [
+    clearPreloadedSound,
     unloadCurrentSound,
     setIsPlaying,
     setPositionMillis,
@@ -1477,6 +1972,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   ]);
 
   const togglePlayPause = useCallback(async () => {
+    if (trackPlayerActiveRef.current) {
+      if (isChangingTrackRef.current) return;
+
+      const playing = await bridgeTogglePlayPause();
+      setIsPlaying(playing);
+      return;
+    }
+
     const sound = soundRef.current;
 
     if (isChangingTrackRef.current) return;
@@ -1514,9 +2017,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const seekTo = useCallback(
     async (millis: number) => {
-      if (!soundRef.current) return;
-
       const safeMillis = Math.max(0, Math.floor(millis || 0));
+
+      if (trackPlayerActiveRef.current) {
+        await bridgeSeekTo(safeMillis);
+        setPositionMillis(safeMillis);
+        await savePlaybackPosition(safeMillis);
+        return;
+      }
+
+      if (!soundRef.current) return;
 
       await soundRef.current.setPositionAsync(safeMillis);
       setPositionMillis(safeMillis);
@@ -1534,6 +2044,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
     await setStoredValueIfChanged(VOLUME_KEY, String(safeValue));
 
+    if (trackPlayerActiveRef.current) {
+      await bridgeSetVolume(safeValue, isMutedRef.current);
+      return;
+    }
+
     if (!isMutedRef.current && soundRef.current) {
       await soundRef.current.setVolumeAsync(safeValue);
     }
@@ -1546,6 +2061,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     isMutedRef.current = nextMuted;
 
     await setStoredValueIfChanged(MUTED_KEY, String(nextMuted));
+
+    if (trackPlayerActiveRef.current) {
+      await bridgeSetVolume(volumeRef.current, nextMuted);
+      return;
+    }
 
     if (soundRef.current) {
       await soundRef.current.setVolumeAsync(nextMuted ? 0 : volumeRef.current);
@@ -1568,6 +2088,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
       repeatModeRef.current = next;
       setStoredValueIfChanged(REPEAT_MODE_KEY, next);
+      void bridgeSyncRepeatMode(next);
 
       return next;
     });
@@ -1800,6 +2321,79 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, [normalizeSong, isYouTubeSong, normalizeYouTubeTrack]);
 
   useEffect(() => {
+    if (!isTrackPlayerFeatureEnabled()) return;
+
+    return subscribeBridgeEvents({
+      onProgress: (progress) => {
+        if (!trackPlayerActiveRef.current) return;
+
+        const now = Date.now();
+        const previousPosition = positionMillisRef.current;
+
+        positionMillisRef.current = progress.positionMillis;
+
+        const positionStateMinMs = getPositionStateUpdateMinMs(
+          appStateRef.current
+        );
+
+        if (
+          now - lastPositionStateUpdateRef.current >= positionStateMinMs ||
+          Math.abs(progress.positionMillis - previousPosition) > 1800
+        ) {
+          lastPositionStateUpdateRef.current = now;
+          setPositionMillisState(progress.positionMillis);
+        }
+
+        if (progress.durationMillis > 0) {
+          durationMillisRef.current = progress.durationMillis;
+          setDurationMillisState(progress.durationMillis);
+        }
+
+        if (progress.isPlaying !== isPlayingRef.current) {
+          isPlayingRef.current = progress.isPlaying;
+          setIsPlayingState(progress.isPlaying);
+        }
+
+        if (
+          now - lastPositionSaveRef.current > POSITION_SAVE_INTERVAL_MS &&
+          Math.abs(progress.positionMillis - lastSavedPositionRef.current) >=
+            POSITION_SAVE_DISTANCE_MS
+        ) {
+          lastPositionSaveRef.current = now;
+          void savePlaybackPosition(progress.positionMillis);
+        }
+      },
+      onActiveTrackChanged: (index) => {
+        if (!trackPlayerActiveRef.current || index === null) return;
+        if (isChangingTrackRef.current) return;
+
+        syncStateFromTrackPlayerIndex(index);
+        autoAdvanceRef.current = false;
+
+        const { queue } = getActiveQueuePlaybackState();
+        void persistActiveQueue(queue, index, activeQueueModeRef.current);
+        void removeStoredValues([POSITION_KEY]);
+      },
+      onQueueEnded: () => {
+        if (!trackPlayerActiveRef.current) return;
+        if (repeatModeRef.current !== "off") return;
+
+        scheduleTrackAdvance();
+      },
+      onPlaybackError: (message) => {
+        console.log("TrackPlayer playback error:", message);
+      },
+    });
+  }, [
+    savePlaybackPosition,
+    syncStateFromTrackPlayerIndex,
+    getActiveQueuePlaybackState,
+    persistActiveQueue,
+    removeStoredValues,
+    scheduleTrackAdvance,
+  ]);
+
+  useEffect(() => {
     isMountedRef.current = true;
 
     configureAudio();
@@ -1819,21 +2413,31 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
       if (
         previousState === "active" &&
-        (nextState === "inactive" || nextState === "background")
+        isBackgroundAppState(nextState)
       ) {
         configureAudio();
         savePlaybackPosition(positionMillisRef.current);
+        void applyProgressUpdateInterval();
       }
 
       if (nextState === "active") {
         configureAudio();
+        void applyProgressUpdateInterval();
+        void catchUpPlaybackIfEnded();
+        void flushPendingSmartExtend();
       }
     });
 
     return () => {
       subscription.remove();
     };
-  }, [configureAudio, savePlaybackPosition]);
+  }, [
+    configureAudio,
+    savePlaybackPosition,
+    applyProgressUpdateInterval,
+    catchUpPlaybackIfEnded,
+    flushPendingSmartExtend,
+  ]);
 
   useEffect(() => {
     currentSongRef.current = currentSong;

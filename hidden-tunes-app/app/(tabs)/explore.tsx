@@ -300,7 +300,6 @@ export default function ExploreScreen() {
           : []
       );
     } catch (error) {
-      console.log("Explore secondary load error:", error);
     } finally {
       setShowHeavySections(true);
     }
@@ -331,7 +330,6 @@ export default function ExploreScreen() {
           loadSecondarySections(forceRefresh);
         });
       } catch (error) {
-        console.log("Explore load error:", error);
         setLoading(false);
         setRefreshing(false);
       }
@@ -380,7 +378,6 @@ export default function ExploreScreen() {
         });
       });
     } catch (error) {
-      console.log("Explore load more songs error:", error);
     } finally {
       setLoadingMoreSongs(false);
     }
@@ -592,7 +589,6 @@ export default function ExploreScreen() {
         await playSong(normalized as any, queue as any, startIndex);
         router.push("/player" as any);
       } catch (error) {
-        console.log("Open cloud song error:", error);
       }
     },
     [cloudSongs, playSong]
@@ -615,7 +611,6 @@ export default function ExploreScreen() {
         await playSong(normalized as any, smartQueue as any, startIndex);
         router.push("/player" as any);
       } catch (error) {
-        console.log("Open smart pick error:", error);
       }
     },
     [cloudSongs, playSong, smartPicks]
@@ -636,7 +631,6 @@ export default function ExploreScreen() {
       await playSong(normalized as any, queue as any, startIndex);
       router.push("/player" as any);
     } catch (error) {
-      console.log("Resume song error:", error);
       router.push("/player" as any);
     }
   }, [cloudSongs, currentSong, playSong]);
@@ -852,7 +846,7 @@ export default function ExploreScreen() {
             {loading ? (
               <View style={styles.loader}>
                 <ActivityIndicator size="large" color={COLORS.primary} />
-                <Text style={styles.loadingText}>Loading...</Text>
+                <Text style={styles.loadingText}>Loading picks...</Text>
               </View>
             ) : null}
 

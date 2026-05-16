@@ -168,7 +168,7 @@ export default function RadioScreen() {
   const [cloudTracks, setCloudTracks] = useState<HiddenTunesNormalizedSong[]>([]);
   const [youtubeTracks, setYoutubeTracks] = useState<BackendYouTubeTrack[]>([]);
   const [loading, setLoading] = useState(true);
-  const [statusText, setStatusText] = useState("Building radio...");
+  const [statusText, setStatusText] = useState("Curating your station...");
 
   const radioGenre = useMemo(() => {
     return genre || guessGenreFromText(`${title} ${artist} ${query}`);
@@ -185,7 +185,7 @@ export default function RadioScreen() {
   async function loadRadio() {
     try {
       setLoading(true);
-      setStatusText("Searching Hidden Tunes cloud...");
+      setStatusText("Finding tracks for you...");
 
       const searchQueries = Array.from(
         new Set(
@@ -220,11 +220,11 @@ export default function RadioScreen() {
 
       if (uniqueCloudSongs.length > 0) {
         setYoutubeTracks([]);
-        setStatusText(`${uniqueCloudSongs.length} Hidden Tunes songs ready`);
+        setStatusText(`${uniqueCloudSongs.length} tracks ready`);
         return;
       }
 
-      setStatusText("Cloud empty. Trying YouTube fallback...");
+      setStatusText("Expanding your station...");
 
       const youtubeQueries = [
         `${query} music`,
@@ -242,14 +242,13 @@ export default function RadioScreen() {
       setYoutubeTracks(uniqueYouTube);
       setStatusText(
         uniqueYouTube.length > 0
-          ? `${uniqueYouTube.length} YouTube videos ready`
-          : "No radio tracks found"
+          ? `${uniqueYouTube.length} TV videos ready`
+          : "No tracks found for this vibe"
       );
-    } catch (error) {
-      console.log("Radio load error:", error);
+    } catch {
       setCloudTracks([]);
       setYoutubeTracks([]);
-      setStatusText("Radio failed. Check backend connection.");
+      setStatusText("Something went wrong. Try again.");
     } finally {
       setLoading(false);
     }
@@ -262,18 +261,13 @@ export default function RadioScreen() {
 
       await playSong(normalized as any, queue as any, index);
       router.push("/player" as any);
-    } catch (error) {
-      console.log("Open radio cloud song error:", error);
-    }
+    } catch {}
   }
 
   function openYouTubeTrack(track: BackendYouTubeTrack, index: number) {
     const videoId = getTrackVideoId(track);
 
-    if (!videoId) {
-      console.log("Missing radio video ID:", track);
-      return;
-    }
+    if (!videoId) return;
 
     const queue = youtubeTracks
       .map((item) => ({
@@ -329,7 +323,7 @@ export default function RadioScreen() {
         <View style={styles.headerCenter}>
           <Text style={styles.headerTitle}>Hidden Radio</Text>
           <Text style={styles.headerSub}>
-            {hasCloudSongs ? "Cloud music queue" : "Discovery queue"}
+            {hasCloudSongs ? "Music queue" : "Discovery queue"}
           </Text>
         </View>
 
@@ -393,7 +387,7 @@ export default function RadioScreen() {
       {loading ? (
         <View style={styles.loader}>
           <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.loadingText}>Building discovery radio...</Text>
+          <Text style={styles.loadingText}>Curating your station...</Text>
         </View>
       ) : (
         <FlatList<RadioTrack>
@@ -411,7 +405,7 @@ export default function RadioScreen() {
                 <Text style={styles.sectionSub}>
                   {hasCloudSongs
                     ? `${cloudTracks.length} Hidden Tunes songs`
-                    : `${youtubeTracks.length} YouTube videos`}
+                    : `${youtubeTracks.length} TV videos`}
                 </Text>
               </View>
 
@@ -476,7 +470,7 @@ export default function RadioScreen() {
                       color={hasCloudSongs ? COLORS.primary : "#ff3b30"}
                     />
                     <Text style={styles.metaText}>
-                      {hasCloudSongs ? "Hidden Tunes Cloud" : "Hidden Tunes TV"}
+                      {hasCloudSongs ? "Hidden Tunes" : "Hidden Tunes TV"}
                     </Text>
                   </View>
                 </View>

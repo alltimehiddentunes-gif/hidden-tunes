@@ -223,7 +223,7 @@ export default function PlaylistsScreen() {
           <Text style={styles.meta} numberOfLines={2}>
             {item.tracks.length} track{item.tracks.length === 1 ? "" : "s"} ·{" "}
             {smart
-              ? item.description || "Auto-generated from your catalog"
+              ? item.description || "Made for you"
               : `Updated ${formatDate(item.updatedAt)}`}
           </Text>
         </View>
@@ -332,7 +332,7 @@ export default function PlaylistsScreen() {
                   <View>
                     <Text style={styles.sectionTitle}>Smart Mixes</Text>
                     <Text style={styles.sectionSubtitle}>
-                      Auto-built from your cloud catalog
+                      Made from your listening
                     </Text>
                   </View>
 

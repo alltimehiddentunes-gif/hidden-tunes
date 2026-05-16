@@ -47,8 +47,8 @@ export default function CloudPlaylistsScreen() {
         </TouchableOpacity>
 
         <View>
-          <Text style={styles.title}>Cloud Playlists</Text>
-          <Text style={styles.subtitle}>Powered by your Hidden Tunes catalog</Text>
+          <Text style={styles.title}>Playlists</Text>
+          <Text style={styles.subtitle}>Curated for your listening</Text>
         </View>
       </View>
 
@@ -62,7 +62,7 @@ export default function CloudPlaylistsScreen() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.list}
           ListEmptyComponent={
-            <Text style={styles.empty}>No cloud playlists found yet.</Text>
+            <Text style={styles.empty}>No playlists yet.</Text>
           }
           renderItem={({ item }) => (
             <TouchableOpacity

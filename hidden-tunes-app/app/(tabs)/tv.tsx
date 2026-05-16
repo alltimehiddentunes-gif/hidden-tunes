@@ -134,9 +134,7 @@ export default function HiddenTunesTVScreen() {
   );
   const [loading, setLoading] = useState(true);
   const [statusText, setStatusText] = useState(
-    initialQuery
-      ? `Searching Hidden Tunes TV for "${initialQuery}"`
-      : "Hidden Tunes TV discovery is ready"
+    initialQuery ? `Searching for "${initialQuery}"` : "Ready to discover"
   );
 
   const headerLabel = useMemo(() => {
@@ -167,7 +165,7 @@ export default function HiddenTunesTVScreen() {
 
       if (!clean) {
         setWebUrl(buildChannelUrl());
-        setStatusText("Hidden Tunes TV discovery is ready");
+        setStatusText("Ready to discover");
         return;
       }
 
@@ -179,7 +177,7 @@ export default function HiddenTunesTVScreen() {
       }
 
       setWebUrl(buildSearchUrl(clean));
-      setStatusText(`Searching Hidden Tunes TV for "${clean}"`);
+      setStatusText(`Searching for "${clean}"`);
     },
     [openEmbeddedVideo, query]
   );
@@ -197,12 +195,12 @@ export default function HiddenTunesTVScreen() {
       if (!requestUrl) return true;
 
       if (isBlockedExternalUrl(requestUrl)) {
-        setStatusText("Staying inside Hidden Tunes TV.");
+        setStatusText("Links open inside Hidden Tunes.");
         return false;
       }
 
       if (!isYouTubeUrl(requestUrl)) {
-        setStatusText("This page cannot open here.");
+        setStatusText("This page is not available here.");
         return false;
       }
 
@@ -242,12 +240,7 @@ export default function HiddenTunesTVScreen() {
         if (videoId) {
           openEmbeddedVideo(videoId, message.href);
         }
-      } catch (error) {
-        console.log("Hidden Tunes TV WebView message error:", {
-          error,
-          rawMessage,
-        });
-      }
+      } catch {}
     },
     [openEmbeddedVideo]
   );
@@ -257,14 +250,14 @@ export default function HiddenTunesTVScreen() {
 
     setQuery(initialQuery);
     setWebUrl(buildSearchUrl(initialQuery));
-    setStatusText(`Searching Hidden Tunes TV for "${initialQuery}"`);
+    setStatusText(`Searching for "${initialQuery}"`);
   }, [initialQuery]);
 
   return (
     <LinearGradient colors={GRADIENTS.main} style={styles.container}>
       <View style={styles.header}>
         <View style={styles.headerCopy}>
-          <Text style={styles.kicker}>IN-APP TV DISCOVERY</Text>
+          <Text style={styles.kicker}>DISCOVER</Text>
           <Text style={styles.title}>Hidden Tunes TV</Text>
           <Text style={styles.subtitle}>
             Search and play videos inside Hidden Tunes.
@@ -359,13 +352,11 @@ export default function HiddenTunesTVScreen() {
           onLoadEnd={() => {
             setLoading(false);
           }}
-          onError={(event) => {
+          onError={() => {
             setLoading(false);
-            console.log("Hidden Tunes TV WebView error:", event.nativeEvent);
-            setStatusText("Hidden Tunes TV failed to load. Try again.");
+            setStatusText("Could not load TV. Pull to refresh or try again.");
           }}
-          onHttpError={(event) => {
-            console.log("Hidden Tunes TV WebView HTTP error:", event.nativeEvent);
+          onHttpError={() => {
             setStatusText("Something went wrong. Try another search.");
           }}
           style={styles.webview}

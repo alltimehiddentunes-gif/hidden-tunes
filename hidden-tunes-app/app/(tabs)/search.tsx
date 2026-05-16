@@ -431,7 +431,6 @@ export default function SearchScreen() {
       const saved = await AsyncStorage.getItem(SEARCH_HISTORY_KEY);
       if (saved) setRecentSearches(JSON.parse(saved));
     } catch (error) {
-      console.log("Recent searches load error:", error);
     }
   }
 
@@ -463,7 +462,6 @@ export default function SearchScreen() {
 
       await AsyncStorage.setItem(TV_DISCOVERY_CACHE_KEY, JSON.stringify(next));
     } catch (error) {
-      console.log("Hidden Tunes TV discovery cache write error:", error);
     }
   }
 
@@ -500,7 +498,6 @@ export default function SearchScreen() {
       setCloudArtists(artists || []);
       setCloudPlaylists(playlists || []);
     } catch (error) {
-      console.log("Cloud discovery load error:", error);
     } finally {
       setLoadingCloud(false);
       setRefreshing(false);
@@ -599,7 +596,6 @@ export default function SearchScreen() {
             )
           );
         } catch (error) {
-          console.log("Hidden Tunes cloud search error:", error);
         }
       }
 
@@ -641,7 +637,6 @@ export default function SearchScreen() {
             );
           }
         } catch (error) {
-          console.log("Audius search error:", error);
         }
       }
 
@@ -664,7 +659,6 @@ export default function SearchScreen() {
             )
           );
         } catch (error) {
-          console.log("Archive search error:", error);
         }
       }
 
@@ -688,7 +682,6 @@ export default function SearchScreen() {
 
       setResults(normalizedResults);
     } catch (error) {
-      console.log("Search error:", error);
       setResults([]);
       setTvFallbackQuery(safeText);
       setTvFallbackReason(
@@ -738,7 +731,6 @@ export default function SearchScreen() {
       setSearchPage(nextPage);
       setHasMoreHiddenResults(page.hasMore);
     } catch (error) {
-      console.log("Load more Hidden Tunes search results error:", error);
     } finally {
       setLoadingMoreResults(false);
     }
@@ -855,7 +847,6 @@ export default function SearchScreen() {
         const videoId = getYoutubeVideoId(normalizedTrack);
 
         if (!videoId) {
-          console.log("Missing YouTube video ID:", item);
           return;
         }
 

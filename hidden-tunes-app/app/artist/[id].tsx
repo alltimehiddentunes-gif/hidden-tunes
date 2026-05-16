@@ -241,7 +241,7 @@ export default function ArtistScreen() {
           <>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Albums</Text>
-              <Text style={styles.sectionSub}>Discography from your cloud catalog</Text>
+              <Text style={styles.sectionSub}>Albums and releases</Text>
             </View>
 
             <FlatList
@@ -284,7 +284,7 @@ export default function ArtistScreen() {
             <Ionicons name="musical-notes-outline" size={52} color={COLORS.textMuted} />
             <Text style={styles.emptyTitle}>No songs for this artist</Text>
             <Text style={styles.emptyText}>
-              Upload songs with this artist name from the admin system.
+              Try refreshing this artist.
             </Text>
           </View>
         ) : (

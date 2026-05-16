@@ -200,7 +200,6 @@ export default function QueueScreen() {
               setClearingSmart(true);
               await clearSmartQueue();
             } catch (error) {
-              console.log("Clear smart queue memory error:", error);
             } finally {
               setClearingSmart(false);
             }
