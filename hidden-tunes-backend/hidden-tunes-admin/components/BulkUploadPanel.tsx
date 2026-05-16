@@ -30,6 +30,9 @@ type SignedUploadResponse = {
   error?: string;
 };
 
+const FALLBACK_ARTIST = "Hidden Tunes";
+const FALLBACK_ALBUM = "Singles";
+
 class UploadStepError extends Error {
   step: string;
 
@@ -84,7 +87,7 @@ function guessMetadata(file: File) {
   }
 
   return {
-    artist: "Caasi Wills",
+    artist: "",
     title: name || "Untitled Song",
   };
 }
@@ -291,10 +294,10 @@ export default function BulkUploadPanel() {
 
   const [items, setItems] = useState<TrackUploadItem[]>([]);
   const [isDragging, setIsDragging] = useState(false);
-  const [defaultArtist, setDefaultArtist] = useState("Caasi Wills");
-  const [defaultAlbum, setDefaultAlbum] = useState("Singles");
-  const [defaultGenre, setDefaultGenre] = useState("Afrobeat");
-  const [defaultMood, setDefaultMood] = useState("Premium");
+  const [defaultArtist, setDefaultArtist] = useState("");
+  const [defaultAlbum, setDefaultAlbum] = useState(FALLBACK_ALBUM);
+  const [defaultGenre, setDefaultGenre] = useState("");
+  const [defaultMood, setDefaultMood] = useState("");
   const [globalArtwork, setGlobalArtwork] = useState<File | null>(null);
   const [globalLyrics, setGlobalLyrics] = useState<File | null>(null);
   const [globalLrc, setGlobalLrc] = useState<File | null>(null);
@@ -329,6 +332,10 @@ export default function BulkUploadPanel() {
   function findMatchingFile(file: File, map: Map<string, File>) {
     const key = matchKey(file.name);
     return map.get(key) || null;
+  }
+
+  function getFallbackArtist() {
+    return defaultArtist.trim() || FALLBACK_ARTIST;
   }
 
   async function addFiles(files: FileList | File[]) {
@@ -369,12 +376,12 @@ export default function BulkUploadPanel() {
         id: makeId(),
         file,
         title: guessed.title,
-        artist: guessed.artist || defaultArtist,
-        album: defaultAlbum,
+        artist: guessed.artist || getFallbackArtist(),
+        album: defaultAlbum || FALLBACK_ALBUM,
         genre: defaultGenre,
         mood: defaultMood,
         duration,
-        artworkFile: findMatchingFile(file, nextArtworkMap) || globalArtwork,
+        artworkFile: findMatchingFile(file, nextArtworkMap),
         lyricsFile: findMatchingFile(file, nextLyricsMap) || globalLyrics,
         lrcFile: findMatchingFile(file, nextLrcMap) || globalLrc,
         status: "ready",
@@ -387,8 +394,7 @@ export default function BulkUploadPanel() {
         ...item,
         artworkFile:
           item.artworkFile ||
-          findMatchingFile(item.file, nextArtworkMap) ||
-          globalArtwork,
+          findMatchingFile(item.file, nextArtworkMap),
         lyricsFile:
           item.lyricsFile ||
           findMatchingFile(item.file, nextLyricsMap) ||
@@ -421,8 +427,7 @@ export default function BulkUploadPanel() {
         ...item,
         artworkFile:
           findMatchingFile(item.file, artworkMap) ||
-          item.artworkFile ||
-          globalArtwork,
+          item.artworkFile,
         lyricsFile:
           findMatchingFile(item.file, lyricsMap) ||
           item.lyricsFile ||
@@ -442,7 +447,7 @@ export default function BulkUploadPanel() {
     });
 
     try {
-      const artworkToUpload = item.artworkFile || globalArtwork;
+      const artworkToUpload = item.artworkFile || null;
       const plainLyricsToRead = item.lyricsFile || globalLyrics;
       const syncedLrcToRead = item.lrcFile || globalLrc;
 
@@ -504,8 +509,8 @@ export default function BulkUploadPanel() {
         },
         body: JSON.stringify({
           title: item.title,
-          artist: item.artist || defaultArtist,
-          album: item.album || defaultAlbum,
+          artist: item.artist || getFallbackArtist(),
+          album: item.album || defaultAlbum || FALLBACK_ALBUM,
           genre: item.genre || defaultGenre,
           mood: item.mood || defaultMood,
           duration: item.duration,
@@ -589,19 +594,40 @@ export default function BulkUploadPanel() {
     setIsUploadingAll(false);
   }
 
-  function applyDefaultsToAll() {
+  function applyDefaultArtistToAll() {
+    const artist = defaultArtist.trim();
+
+    if (!artist) return;
+
     setItems((current) =>
       current.map((item) => ({
         ...item,
-        artist: item.artist || defaultArtist,
-        album: item.album || defaultAlbum,
-        genre: item.genre || defaultGenre,
-        mood: item.mood || defaultMood,
-        artworkFile:
-          item.artworkFile || findMatchingFile(item.file, artworkMap) || globalArtwork,
+        artist,
+      }))
+    );
+  }
+
+  function applyAlbumDefaultsToAll() {
+    setItems((current) =>
+      current.map((item) => ({
+        ...item,
+        album: defaultAlbum.trim() || item.album || FALLBACK_ALBUM,
+        genre: defaultGenre.trim() || item.genre,
+        mood: defaultMood.trim() || item.mood,
         lyricsFile:
           item.lyricsFile || findMatchingFile(item.file, lyricsMap) || globalLyrics,
         lrcFile: item.lrcFile || findMatchingFile(item.file, lrcMap) || globalLrc,
+      }))
+    );
+  }
+
+  function applyAlbumArtworkToAll() {
+    if (!globalArtwork) return;
+
+    setItems((current) =>
+      current.map((item) => ({
+        ...item,
+        artworkFile: globalArtwork,
       }))
     );
   }
@@ -665,13 +691,18 @@ export default function BulkUploadPanel() {
               <div className="mt-5 flex flex-col gap-4">
                 <label className="space-y-2">
                   <span className="text-xs font-bold uppercase tracking-widest text-white/45">
-                    Artist
+                    Album / default artist
                   </span>
                   <input
                     value={defaultArtist}
                     onChange={(event) => setDefaultArtist(event.target.value)}
+                    placeholder="Optional. Leave blank to preserve extracted artists."
                     className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm outline-none transition focus:border-yellow-400"
                   />
+                  <span className="block text-xs leading-5 text-white/40">
+                    Blank means existing song artists stay untouched. Unknown
+                    songs fall back to Hidden Tunes only at upload time.
+                  </span>
                 </label>
 
                 <label className="space-y-2">
@@ -692,6 +723,7 @@ export default function BulkUploadPanel() {
                   <input
                     value={defaultGenre}
                     onChange={(event) => setDefaultGenre(event.target.value)}
+                    placeholder="Optional"
                     className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm outline-none transition focus:border-yellow-400"
                   />
                 </label>
@@ -703,16 +735,31 @@ export default function BulkUploadPanel() {
                   <input
                     value={defaultMood}
                     onChange={(event) => setDefaultMood(event.target.value)}
+                    placeholder="Optional"
                     className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm outline-none transition focus:border-yellow-400"
                   />
                 </label>
 
                 <button
-                  onClick={applyDefaultsToAll}
-                  className="rounded-2xl bg-white px-4 py-3 text-sm font-black text-black transition hover:scale-[1.01]"
+                  onClick={applyDefaultArtistToAll}
+                  disabled={!defaultArtist.trim()}
+                  className="rounded-2xl bg-white px-4 py-3 text-sm font-black text-black transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                  Apply Defaults To All
+                  Apply Default Artist To All
                 </button>
+
+                <button
+                  onClick={applyAlbumDefaultsToAll}
+                  className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-black text-white/80 transition hover:border-yellow-400"
+                >
+                  Apply Album, Genre & Mood To All
+                </button>
+
+                <p className="text-xs leading-5 text-white/45">
+                  Artist is intentional: the button only applies the artist
+                  currently typed above. It will never silently force Caasi
+                  Wills or any genre.
+                </p>
               </div>
             </div>
 
@@ -730,6 +777,14 @@ export default function BulkUploadPanel() {
                       ? `${bulkArtworkFiles.length} images selected`
                       : globalArtwork?.name || "Choose one or many images"}
                   </span>
+                </button>
+
+                <button
+                  onClick={applyAlbumArtworkToAll}
+                  disabled={!globalArtwork || !items.length}
+                  className="rounded-2xl border border-yellow-400/30 bg-yellow-300/10 px-4 py-3 text-left text-sm font-black text-yellow-200 transition hover:bg-yellow-300/15 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Use This Artwork For All Album Songs
                 </button>
 
                 <button
@@ -764,8 +819,9 @@ export default function BulkUploadPanel() {
                 </button>
 
                 <p className="text-xs leading-5 text-white/45">
-                  Best format: Lonely Road.mp3 + Lonely Road.jpg. Large songs
-                  now upload directly to Cloudflare R2 to avoid Vercel limits.
+                  Singles still match by filename: Lonely Road.mp3 + Lonely
+                  Road.jpg. For albums, choose one image and press Use This
+                  Artwork For All Album Songs.
                 </p>
 
                 <input
@@ -781,9 +837,7 @@ export default function BulkUploadPanel() {
 
                     if (!files.length) return;
 
-                    if (files.length === 1) {
-                      setGlobalArtwork(files[0]);
-                    }
+                    if (files.length === 1) setGlobalArtwork(files[0]);
 
                     setBulkArtworkFiles((current) => [...current, ...files]);
                   }}

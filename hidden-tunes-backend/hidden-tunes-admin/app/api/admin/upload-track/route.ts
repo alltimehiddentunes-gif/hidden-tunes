@@ -7,6 +7,11 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+const FALLBACK_ARTIST = "Hidden Tunes";
+const FALLBACK_ALBUM = "Singles";
+const FALLBACK_GENRE = "Uncategorized";
+const FALLBACK_MOOD = "Unspecified";
+
 function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
 }
@@ -169,10 +174,16 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
 
     const title = String(body.title || body.titleOverride || "").trim();
-    const artistName = String(body.artist || body.defaultArtist || "").trim();
-    const albumTitle = String(body.album || body.defaultAlbum || "Singles").trim();
-    const genre = String(body.genre || body.defaultGenre || "Afrobeat").trim();
-    const mood = String(body.mood || body.defaultMood || "Premium").trim();
+    const artistName = String(
+      body.artist || body.defaultArtist || FALLBACK_ARTIST
+    ).trim();
+    const albumTitle = String(
+      body.album || body.defaultAlbum || FALLBACK_ALBUM
+    ).trim();
+    const genre = String(
+      body.genre || body.defaultGenre || FALLBACK_GENRE
+    ).trim();
+    const mood = String(body.mood || body.defaultMood || FALLBACK_MOOD).trim();
 
     const durationSeconds = Math.round(Number(body.duration || 0));
 
