@@ -23,6 +23,7 @@ const HOME_SONG_LIMIT = 30;
 const SEARCH_SONG_LIMIT = 30;
 export const HIDDEN_TUNES_SONG_PAGE_SIZE = 30;
 export const HIDDEN_TUNES_ARTIST_PAGE_SIZE = 50;
+const CATALOG_LOG_PREFIX = "Hidden Tunes catalog";
 
 const BROKEN_PROMISE_FALLBACK = {
   id: "broken-promise-caasi-wills",
@@ -224,6 +225,15 @@ function safeUrl(value: unknown, fallback = FALLBACK_ARTWORK) {
 
 function isFreshMemoryCache(timestamp: number) {
   return timestamp > 0 && Date.now() - timestamp < CACHE_MAX_AGE_MS;
+}
+
+function logCatalog(message: string, details?: Record<string, unknown>) {
+  if (details) {
+    console.log(`${CATALOG_LOG_PREFIX}: ${message}`, details);
+    return;
+  }
+
+  console.log(`${CATALOG_LOG_PREFIX}: ${message}`);
 }
 
 function hasRealArtwork(value: unknown) {
@@ -482,7 +492,10 @@ async function fetchWithTimeout(url: string, timeoutMs = 8000) {
 async function readCachedSongs() {
   try {
     const cached = await AsyncStorage.getItem(CACHE_KEY);
-    if (!cached) return finalizeSongs([]);
+    if (!cached) {
+      logCatalog("song cache empty");
+      return finalizeSongs([]);
+    }
 
     const parsed = JSON.parse(cached);
     if (!Array.isArray(parsed)) return finalizeSongs([]);
@@ -497,6 +510,11 @@ async function readCachedSongs() {
     songsMemoryCache = songs;
     songsMemoryCacheTime = Date.now();
 
+    logCatalog("song cache read", {
+      totalLoaded: songs.length,
+      cacheKey: CACHE_KEY,
+    });
+
     return songs;
   } catch (error) {
     console.log("Hidden Tunes cache read error:", error);
@@ -508,6 +526,11 @@ async function writeCachedSongs(songs: HiddenTunesNormalizedSong[]) {
   try {
     songsMemoryCache = songs;
     songsMemoryCacheTime = Date.now();
+
+    logCatalog("song cache write", {
+      totalLoaded: songs.length,
+      cacheKey: CACHE_KEY,
+    });
 
     await AsyncStorage.multiSet([
       [CACHE_KEY, JSON.stringify(songs)],
@@ -535,7 +558,10 @@ async function isCacheFresh() {
 async function readCachedArtists() {
   try {
     const cached = await AsyncStorage.getItem(ARTISTS_CACHE_KEY);
-    if (!cached) return [];
+    if (!cached) {
+      logCatalog("artist cache empty");
+      return [];
+    }
 
     const parsed = JSON.parse(cached);
     if (!Array.isArray(parsed)) return [];
@@ -543,6 +569,11 @@ async function readCachedArtists() {
     const artists = parsed as HiddenTunesArtist[];
     artistsMemoryCache = artists;
     artistsMemoryCacheTime = Date.now();
+
+    logCatalog("artist cache read", {
+      totalLoaded: artists.length,
+      cacheKey: ARTISTS_CACHE_KEY,
+    });
 
     return artists;
   } catch (error) {
@@ -555,6 +586,11 @@ async function writeCachedArtists(artists: HiddenTunesArtist[]) {
   try {
     artistsMemoryCache = artists;
     artistsMemoryCacheTime = Date.now();
+
+    logCatalog("artist cache write", {
+      totalLoaded: artists.length,
+      cacheKey: ARTISTS_CACHE_KEY,
+    });
 
     await AsyncStorage.multiSet([
       [ARTISTS_CACHE_KEY, JSON.stringify(artists)],
@@ -689,11 +725,20 @@ export async function getHiddenTunesSongsPage(options?: {
   const albumId = String(options?.albumId || "").trim();
   const genre = String(options?.genre || "").trim();
   const isGlobalCatalog = !query && !artistId && !albumId && !genre;
+  const url = buildSongsUrl({ page, limit, query, artistId, albumId, genre });
+
+  logCatalog("request songs page", {
+    url,
+    page,
+    limit,
+    query: query || undefined,
+    artistId: artistId || undefined,
+    albumId: albumId || undefined,
+    genre: genre || undefined,
+  });
 
   try {
-    const response = await fetchWithTimeout(
-      buildSongsUrl({ page, limit, query, artistId, albumId, genre })
-    );
+    const response = await fetchWithTimeout(url);
 
     if (!response.ok) {
       throw new Error(`Hidden Tunes songs page API error: ${response.status}`);
@@ -718,6 +763,25 @@ export async function getHiddenTunesSongsPage(options?: {
       const merged = page === 1 ? finalizeSongs(songs) : mergeSongPages(existing, songs);
 
       await writeCachedSongs(merged);
+
+      logCatalog("merged songs page", {
+        page,
+        limit,
+        pageLoaded: songs.length,
+        totalLoaded: merged.length,
+        hasMore: songs.length >= limit,
+      });
+    } else {
+      logCatalog("loaded filtered songs page", {
+        page,
+        limit,
+        pageLoaded: songs.length,
+        hasMore: songs.length >= limit,
+        query: query || undefined,
+        artistId: artistId || undefined,
+        albumId: albumId || undefined,
+        genre: genre || undefined,
+      });
     }
 
     return {
@@ -728,7 +792,12 @@ export async function getHiddenTunesSongsPage(options?: {
       nextPage: page + 1,
     };
   } catch (error) {
-    console.log("Hidden Tunes songs page fallback:", error);
+    logCatalog("songs page API error", {
+      page,
+      limit,
+      url,
+      error: error instanceof Error ? error.message : String(error),
+    });
 
     if (!isGlobalCatalog) {
       return {
@@ -743,6 +812,14 @@ export async function getHiddenTunesSongsPage(options?: {
     const cached = await readCachedSongs();
     const start = (page - 1) * limit;
     const songs = cached.slice(start, start + limit);
+
+    logCatalog("songs page cache fallback", {
+      page,
+      limit,
+      pageLoaded: songs.length,
+      totalLoaded: cached.length,
+      hasMore: start + limit < cached.length,
+    });
 
     return {
       songs,
@@ -762,6 +839,9 @@ export async function getHiddenTunesSongs(options?: { forceRefresh?: boolean }) 
     songsMemoryCache &&
     isFreshMemoryCache(songsMemoryCacheTime)
   ) {
+    logCatalog("using memory song cache", {
+      totalLoaded: songsMemoryCache.length,
+    });
     return songsMemoryCache;
   }
 
@@ -770,32 +850,19 @@ export async function getHiddenTunesSongs(options?: { forceRefresh?: boolean }) 
   }
 
   if (!forceRefresh && (await isCacheFresh())) {
+    logCatalog("using fresh stored song cache");
     return await readCachedSongs();
   }
 
   songsFetchPromise = (async () => {
-    const response = await fetchWithTimeout(
-      `${HIDDEN_TUNES_API_BASE_URL}/api/songs?limit=${HOME_SONG_LIMIT}&page=1`
-    );
+    const page = await getHiddenTunesSongsPage({
+      page: 1,
+      limit: HOME_SONG_LIMIT,
+    });
 
-    if (!response.ok) {
-      throw new Error(`Hidden Tunes API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const rawSongs = normalizeRawSongArray(data);
-
-    const normalized = rawSongs
-      .map((song: HiddenTunesCloudSong, index: number) =>
-        normalizeHiddenTunesSong(song, index)
-      )
-      .filter(Boolean) as HiddenTunesNormalizedSong[];
-
-    const withFallback = finalizeSongs(normalized);
-
-    await writeCachedSongs(withFallback);
-
-    return withFallback;
+    return songsMemoryCache && songsMemoryCache.length > page.songs.length
+      ? songsMemoryCache
+      : finalizeSongs(page.songs);
   })();
 
   try {
@@ -1002,6 +1069,9 @@ export async function getHiddenTunesArtists(options?: {
     artistsMemoryCache &&
     isFreshMemoryCache(artistsMemoryCacheTime)
   ) {
+    logCatalog("using memory artist cache", {
+      totalLoaded: artistsMemoryCache.length,
+    });
     return artistsMemoryCache;
   }
 
@@ -1015,24 +1085,14 @@ export async function getHiddenTunesArtists(options?: {
   }
 
   artistsFetchPromise = (async () => {
-    const response = await fetchWithTimeout(
-      `${HIDDEN_TUNES_API_BASE_URL}/api/artists`
-    );
+    const page = await getHiddenTunesArtistsPage({
+      page: 1,
+      limit: HIDDEN_TUNES_ARTIST_PAGE_SIZE,
+    });
 
-    if (!response.ok) {
-      throw new Error(`Hidden Tunes artists API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const rawArtists = normalizeRawArtistArray(data);
-
-    const artists = rawArtists
-      .map((artist) => normalizeHiddenTunesArtist(artist))
-      .filter(Boolean) as HiddenTunesArtist[];
-
-    await writeCachedArtists(artists);
-
-    return artists;
+    return artistsMemoryCache && artistsMemoryCache.length > page.artists.length
+      ? artistsMemoryCache
+      : page.artists;
   })();
 
   try {
@@ -1061,9 +1121,17 @@ export async function getHiddenTunesArtistsPage(options?: {
     500
   );
   const query = String(options?.query || "").trim();
+  const url = buildArtistsUrl({ page, limit, query });
+
+  logCatalog("request artists page", {
+    url,
+    page,
+    limit,
+    query: query || undefined,
+  });
 
   try {
-    const response = await fetchWithTimeout(buildArtistsUrl({ page, limit, query }));
+    const response = await fetchWithTimeout(url);
 
     if (!response.ok) {
       throw new Error(`Hidden Tunes artists page API error: ${response.status}`);
@@ -1091,6 +1159,22 @@ export async function getHiddenTunesArtistsPage(options?: {
       });
 
       await writeCachedArtists(merged);
+
+      logCatalog("merged artists page", {
+        page,
+        limit,
+        pageLoaded: artists.length,
+        totalLoaded: merged.length,
+        hasMore: artists.length >= limit,
+      });
+    } else {
+      logCatalog("loaded filtered artists page", {
+        page,
+        limit,
+        pageLoaded: artists.length,
+        hasMore: artists.length >= limit,
+        query,
+      });
     }
 
     return {
@@ -1101,7 +1185,12 @@ export async function getHiddenTunesArtistsPage(options?: {
       nextPage: page + 1,
     };
   } catch (error) {
-    console.log("Hidden Tunes artists page fallback:", error);
+    logCatalog("artists page API error", {
+      page,
+      limit,
+      url,
+      error: error instanceof Error ? error.message : String(error),
+    });
 
     if (query) {
       return {
@@ -1116,6 +1205,14 @@ export async function getHiddenTunesArtistsPage(options?: {
     const cached = await readCachedArtists();
     const start = (page - 1) * limit;
     const artists = cached.slice(start, start + limit);
+
+    logCatalog("artists page cache fallback", {
+      page,
+      limit,
+      pageLoaded: artists.length,
+      totalLoaded: cached.length,
+      hasMore: start + limit < cached.length,
+    });
 
     return {
       artists,
