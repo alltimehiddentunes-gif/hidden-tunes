@@ -616,6 +616,17 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const savePlaybackSideEffects = useCallback(
+    (song: AppSong) => {
+      void saveCurrentSong(song);
+      void saveRecentlyPlayed(song);
+      void addToSmartQueue(song as any).catch((error) => {
+        console.log("Add smart queue error:", error);
+      });
+    },
+    [saveCurrentSong, saveRecentlyPlayed]
+  );
+
   const persistActiveQueue = useCallback(
     async (queue: AppSong[], index: number, mode: ActiveQueueMode) => {
       try {
@@ -932,6 +943,15 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         isChangingTrackRef.current = true;
         setIsLoading(true);
 
+        const shouldRestorePosition =
+          currentSongRef.current?.id === normalizedSong.id;
+
+        setCurrentSong(normalizedSong);
+        currentSongRef.current = normalizedSong;
+        setIsPlaying(true);
+        setPositionMillis(0);
+        setDurationMillis(0);
+
         await unloadCurrentSound();
 
         if (loadRequestIdRef.current !== requestId || !isMountedRef.current) {
@@ -982,7 +1002,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         try {
           const savedPosition = await AsyncStorage.getItem(POSITION_KEY);
 
-          if (savedPosition && currentSongRef.current?.id === normalizedSong.id) {
+          if (savedPosition && shouldRestorePosition) {
             const millis = Number(savedPosition);
 
             if (!Number.isNaN(millis) && millis > 0) {
@@ -999,13 +1019,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           return;
         }
 
-        setCurrentSong(normalizedSong);
-        currentSongRef.current = normalizedSong;
         setIsPlaying(true);
-
-        await saveCurrentSong(normalizedSong);
-        await saveRecentlyPlayed(normalizedSong);
-        await addToSmartQueue(normalizedSong as any);
+        savePlaybackSideEffects(normalizedSong);
       } catch (error) {
         console.log("Load and play error:", error);
         setIsPlaying(false);
@@ -1026,8 +1041,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       getPlayableUri,
       handlePlaybackStatusUpdate,
       setIsPlaying,
-      saveCurrentSong,
-      saveRecentlyPlayed,
+      setPositionMillis,
+      setDurationMillis,
+      savePlaybackSideEffects,
     ]
   );
 
@@ -1043,8 +1059,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       setActiveQueueIndex(safeIndex);
       activeQueueIndexRef.current = safeIndex;
 
-      await persistActiveQueue(queue, safeIndex, activeQueueModeRef.current);
-      await removeStoredValues([POSITION_KEY]);
+      void persistActiveQueue(queue, safeIndex, activeQueueModeRef.current);
+      void removeStoredValues([POSITION_KEY]);
 
       await loadAndPlay(song);
     },
@@ -1143,12 +1159,31 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
       setRadioMode(false);
       radioModeRef.current = false;
-      await setStoredValueIfChanged(RADIO_MODE_KEY, "false");
+      void setStoredValueIfChanged(RADIO_MODE_KEY, "false");
 
-      await syncActiveQueue(nativeQueue, safeIndex, "standard");
-      await removeStoredValues([POSITION_KEY]);
+      void syncActiveQueue(nativeQueue, safeIndex, "standard");
+      void removeStoredValues([POSITION_KEY]);
 
-      await loadAndPlay(nativeQueue[safeIndex]);
+      const selectedSong = nativeQueue[safeIndex];
+      const currentLoadedSound = soundRef.current;
+
+      if (currentSongRef.current?.id === selectedSong.id && currentLoadedSound) {
+        try {
+          const status = await currentLoadedSound.getStatusAsync();
+
+          if (status.isLoaded) {
+            if (!status.isPlaying) {
+              await currentLoadedSound.playAsync();
+            }
+
+            setIsPlaying(true);
+            savePlaybackSideEffects(selectedSong);
+            return;
+          }
+        } catch {}
+      }
+
+      await loadAndPlay(selectedSong);
     },
     [
       normalizeSong,
@@ -1157,6 +1192,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       syncActiveQueue,
       removeStoredValues,
       loadAndPlay,
+      setIsPlaying,
+      savePlaybackSideEffects,
     ]
   );
 
@@ -1185,6 +1222,24 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+      const currentLoadedSound = soundRef.current;
+
+      if (currentSongRef.current?.id === normalizedSong.id && currentLoadedSound) {
+        try {
+          const status = await currentLoadedSound.getStatusAsync();
+
+          if (status.isLoaded) {
+            if (!status.isPlaying) {
+              await currentLoadedSound.playAsync();
+            }
+
+            setIsPlaying(true);
+            savePlaybackSideEffects(normalizedSong);
+            return;
+          }
+        } catch {}
+      }
+
       const existingQueue = activeQueueRef.current.filter(
         (item) => !isYouTubeSong(item)
       );
@@ -1196,16 +1251,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       if (existingIndex >= 0) {
         setActiveQueueIndex(existingIndex);
         activeQueueIndexRef.current = existingIndex;
-        await persistActiveQueue(
+        void persistActiveQueue(
           existingQueue,
           existingIndex,
           activeQueueModeRef.current
         );
       } else {
-        await syncActiveQueue([normalizedSong], 0, "standard");
+        void syncActiveQueue([normalizedSong], 0, "standard");
       }
 
-      await removeStoredValues([POSITION_KEY]);
+      void removeStoredValues([POSITION_KEY]);
       await loadAndPlay(normalizedSong);
     },
     [
@@ -1216,6 +1271,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       syncActiveQueue,
       removeStoredValues,
       loadAndPlay,
+      setIsPlaying,
+      savePlaybackSideEffects,
     ]
   );
 
