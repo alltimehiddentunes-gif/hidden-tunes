@@ -28,7 +28,7 @@ export default function IndexScreen() {
         } else {
           setTarget("/onboarding");
         }
-      } catch (error) {
+      } catch {
         setTarget("/onboarding");
       }
     };

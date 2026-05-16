@@ -32,6 +32,7 @@ import {
   getHiddenTunesArtists,
   getHiddenTunesCloudPlaylists,
   getHiddenTunesSongsPage,
+  hydrateHiddenTunesCatalogCache,
   refreshHiddenTunesSongs,
   extractHiddenTunesAlbums,
   extractHiddenTunesArtists,
@@ -40,6 +41,7 @@ import {
   type HiddenTunesCloudPlaylist,
   type HiddenTunesNormalizedSong,
 } from "../../services/hiddenTunesApi";
+import { preloadImages } from "../../utils/imagePreloader";
 import {
   buildListenerPreferenceMaps,
   rankAlbumsForListener,
@@ -305,36 +307,66 @@ export default function ExploreScreen() {
     }
   }, []);
 
+  const applyExploreSongs = useCallback((nextSongs: HiddenTunesNormalizedSong[]) => {
+    setCloudSongs(nextSongs);
+    setSongPage(1);
+    setHasMoreSongs(nextSongs.length >= 24);
+    setAlbums(extractHiddenTunesAlbums(nextSongs));
+    setArtists(extractHiddenTunesArtists(nextSongs));
+
+    void preloadImages(
+      nextSongs
+        .slice(0, 4)
+        .flatMap((song) => [song.artwork, song.cover, song.thumbnail])
+    );
+  }, []);
+
   const loadExplore = useCallback(
     async (showLoader = true, forceRefresh = false) => {
       try {
-        if (showLoader) setLoading(true);
+        let showedCachedCatalog = false;
+
+        if (!forceRefresh) {
+          const cached = await hydrateHiddenTunesCatalogCache();
+
+          if (cached.length) {
+            applyExploreSongs(dedupeSongs(cached.slice(0, 24).map(safeSong)));
+            setLoading(false);
+            setRefreshing(false);
+            showedCachedCatalog = true;
+          } else if (showLoader) {
+            setLoading(true);
+          }
+        } else if (showLoader) {
+          setLoading(true);
+        }
 
         const songResults = forceRefresh
           ? await refreshHiddenTunesSongs()
-          : (await getHiddenTunesSongsPage({ page: 1, limit: 30 })).songs;
+          : (await getHiddenTunesSongsPage({ page: 1, limit: 24 })).songs;
 
         const nextSongs = Array.isArray(songResults)
           ? dedupeSongs(songResults.map(safeSong))
           : [];
 
-        setCloudSongs(nextSongs);
-        setSongPage(1);
-        setHasMoreSongs(nextSongs.length >= 30);
-        setAlbums(extractHiddenTunesAlbums(nextSongs));
-        setArtists(extractHiddenTunesArtists(nextSongs));
+        applyExploreSongs(nextSongs);
         setLoading(false);
         setRefreshing(false);
 
-        InteractionManager.runAfterInteractions(() => {
-          loadSecondarySections(forceRefresh);
-        });
-      } catch (error) {
+        if (!showedCachedCatalog) {
+          InteractionManager.runAfterInteractions(() => {
+            loadSecondarySections(forceRefresh);
+          });
+          return;
+        }
+
+        void loadSecondarySections(forceRefresh);
+      } catch {
         setLoading(false);
         setRefreshing(false);
       }
     },
-    [loadSecondarySections]
+    [applyExploreSongs, loadSecondarySections]
   );
 
   useEffect(() => {

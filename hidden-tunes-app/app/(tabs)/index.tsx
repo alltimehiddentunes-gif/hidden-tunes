@@ -29,9 +29,11 @@ import {
   getHiddenTunesSongsPage,
   extractHiddenTunesAlbums,
   extractHiddenTunesArtists,
+  hydrateHiddenTunesCatalogCache,
   refreshHiddenTunesSongs,
   type HiddenTunesNormalizedSong,
 } from "../../services/hiddenTunesApi";
+import { preloadImages } from "../../utils/imagePreloader";
 import {
   buildListenerPreferenceMaps,
   rankAlbumsForListener,
@@ -43,7 +45,7 @@ import { FALLBACK_ARTWORK, getArtworkUri } from "../../utils/artwork";
 const { width } = Dimensions.get("window");
 const FEATURED_CARD_WIDTH = width * 0.72;
 const HERO_CARD_WIDTH = width - 40;
-const INITIAL_HOME_SONG_ROWS = 12;
+const INITIAL_HOME_SONG_ROWS = 8;
 const HOME_SONG_ROWS_INCREMENT = 12;
 const HERO_AUTO_SLIDE_MS = 7000;
 
@@ -118,30 +120,66 @@ function HomeScreen() {
 
   useScrollToTop(scrollRef);
 
-  const loadFeaturedSongs = useCallback(async (showLoader = true) => {
-    if (isLoadingRef.current) return;
+  const applyFeaturedSongs = useCallback((songs: HiddenTunesNormalizedSong[]) => {
+    const nextSongs = dedupeSongs((songs || []).map(safeSong));
 
-    try {
-      isLoadingRef.current = true;
+    setFeaturedSongs(nextSongs);
+    setVisibleSongCount(INITIAL_HOME_SONG_ROWS);
+    setSongPage(1);
+    setHasMoreSongPages(nextSongs.length >= 20);
 
-      if (showLoader) setLoadingSongs(true);
-
-      const songs = showLoader
-        ? await getHiddenTunesSongs({ forceRefresh: false })
-        : await refreshHiddenTunesSongs();
-      setFeaturedSongs(dedupeSongs((songs || []).map(safeSong)));
-      setVisibleSongCount(INITIAL_HOME_SONG_ROWS);
-      setSongPage(1);
-      setHasMoreSongPages((songs || []).length >= 30);
-    } catch {
-      setFeaturedSongs([]);
-      setHasMoreSongPages(false);
-    } finally {
-      isLoadingRef.current = false;
-      setLoadingSongs(false);
-      setRefreshing(false);
-    }
+    void preloadImages(
+      nextSongs
+        .slice(0, 4)
+        .flatMap((song) => [song.artwork, song.cover, song.thumbnail])
+    );
   }, []);
+
+  const loadFeaturedSongs = useCallback(
+    async (showLoader = true, forceRefresh = false) => {
+      if (isLoadingRef.current && !forceRefresh) return;
+
+      try {
+        isLoadingRef.current = true;
+
+        let showedCachedCatalog = false;
+
+        if (!forceRefresh) {
+          const cached = await hydrateHiddenTunesCatalogCache();
+
+          if (cached.length) {
+            applyFeaturedSongs(cached);
+            setLoadingSongs(false);
+            showedCachedCatalog = true;
+          } else if (showLoader) {
+            setLoadingSongs(true);
+          }
+        } else if (showLoader) {
+          setLoadingSongs(true);
+        }
+
+        const songs = forceRefresh
+          ? await refreshHiddenTunesSongs()
+          : await getHiddenTunesSongs({ forceRefresh: false });
+
+        applyFeaturedSongs(songs);
+
+        if (!showedCachedCatalog && !songs.length) {
+          setHasMoreSongPages(false);
+        }
+      } catch {
+        if (!featuredSongs.length) {
+          setFeaturedSongs([]);
+          setHasMoreSongPages(false);
+        }
+      } finally {
+        isLoadingRef.current = false;
+        setLoadingSongs(false);
+        setRefreshing(false);
+      }
+    },
+    [applyFeaturedSongs, featuredSongs.length]
+  );
 
   useEffect(() => {
     loadFeaturedSongs(true);
@@ -165,31 +203,36 @@ function HomeScreen() {
       }),
     ]).start();
 
-    const heroGlowLoop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(heroGlowAnim, {
-          toValue: 1,
-          duration: 2200,
-          useNativeDriver: true,
-        }),
-        Animated.timing(heroGlowAnim, {
-          toValue: 0.42,
-          duration: 2200,
-          useNativeDriver: true,
-        }),
-      ])
-    );
-
-    heroGlowLoop.start();
-
-    return () => {
-      heroGlowLoop.stop();
-    };
   }, [fadeAnim, heroGlowAnim, heroScale, loadFeaturedSongs, slideAnim]);
+
+  useFocusEffect(
+    useCallback(() => {
+      const heroGlowLoop = Animated.loop(
+        Animated.sequence([
+          Animated.timing(heroGlowAnim, {
+            toValue: 1,
+            duration: 2600,
+            useNativeDriver: true,
+          }),
+          Animated.timing(heroGlowAnim, {
+            toValue: 0.42,
+            duration: 2600,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+
+      heroGlowLoop.start();
+
+      return () => {
+        heroGlowLoop.stop();
+      };
+    }, [heroGlowAnim])
+  );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await loadFeaturedSongs(false);
+    await loadFeaturedSongs(false, true);
   }, [loadFeaturedSongs]);
 
   const preferenceMaps = useMemo(

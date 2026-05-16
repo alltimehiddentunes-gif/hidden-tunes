@@ -15,7 +15,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { AppState, AppStateStatus } from "react-native";
+import { AppState, AppStateStatus, InteractionManager } from "react-native";
 
 import { BackendYouTubeTrack } from "../services/youtubeBackend";
 
@@ -189,9 +189,9 @@ const ACTIVE_QUEUE_INDEX_KEY = "hidden_tunes_active_queue_index";
 const ACTIVE_QUEUE_MODE_KEY = "hidden_tunes_active_queue_mode";
 
 const PLAYBACK_UPDATE_INTERVAL_MS = 2000;
-const PLAYBACK_UPDATE_INTERVAL_BACKGROUND_MS = 500;
+const PLAYBACK_UPDATE_INTERVAL_BACKGROUND_MS = 2000;
 const POSITION_STATE_UPDATE_MIN_MS = 2000;
-const POSITION_STATE_UPDATE_BACKGROUND_MS = 500;
+const POSITION_STATE_UPDATE_BACKGROUND_MS = 2000;
 const POSITION_SAVE_INTERVAL_MS = 12000;
 const POSITION_SAVE_DISTANCE_MS = 5000;
 const DURATION_UPDATE_THRESHOLD_MS = 1500;
@@ -2397,9 +2397,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     isMountedRef.current = true;
 
     configureAudio();
-    restoreSavedData();
+
+    const restoreTask = InteractionManager.runAfterInteractions(() => {
+      void restoreSavedData();
+    });
 
     return () => {
+      restoreTask.cancel();
       isMountedRef.current = false;
       loadRequestIdRef.current += 1;
       unloadCurrentSound();

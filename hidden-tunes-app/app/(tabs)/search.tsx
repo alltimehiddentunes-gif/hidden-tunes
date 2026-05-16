@@ -23,7 +23,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useScrollToTop } from "@react-navigation/native";
-import { router, useFocusEffect } from "expo-router";
+import { router } from "expo-router";
 
 import NeonEQ from "../../components/NeonEQ";
 import AddToPlaylistButton from "../../components/AddToPlaylistButton";
@@ -42,9 +42,12 @@ import {
 import {
   searchHiddenTunesSongsPage,
   getHiddenTunesSongsPage,
+  hydrateHiddenTunesCatalogCache,
   getHiddenTunesAlbums,
   getHiddenTunesArtists,
   getHiddenTunesCloudPlaylists,
+  extractHiddenTunesAlbums,
+  extractHiddenTunesArtists,
   type HiddenTunesAlbum,
   type HiddenTunesArtist,
   type HiddenTunesCloudPlaylist,
@@ -357,7 +360,7 @@ export default function SearchScreen() {
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const resultListRef = useRef<FlatList<SearchResultTrack>>(null);
 
-  const [query, setQuery] = useState("Caasi Wills");
+  const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResultTrack[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingCloud, setLoadingCloud] = useState(false);
@@ -413,18 +416,11 @@ export default function SearchScreen() {
   useEffect(() => {
     loadRecentSearches();
     loadCloudDiscovery(true);
-    searchTracks("Caasi Wills", "all");
 
     return () => {
       if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
     };
   }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      loadCloudDiscovery(false);
-    }, [])
-  );
 
   async function loadRecentSearches() {
     try {
@@ -474,12 +470,31 @@ export default function SearchScreen() {
     try {
       if (showLoader) setLoadingCloud(true);
 
-      const [songs, albums, artists, playlists] = await Promise.all([
-        getHiddenTunesSongsPage({ page: 1, limit: 40 }).then((page) => page.songs),
-        getHiddenTunesAlbums({ forceRefresh: false }),
-        getHiddenTunesArtists({ forceRefresh: false }),
-        getHiddenTunesCloudPlaylists(),
-      ]);
+      const cached = await hydrateHiddenTunesCatalogCache();
+
+      if (cached.length) {
+        setCloudSongs(
+          dedupeByKey(
+            cached.slice(0, 24).map((item: any) =>
+              normalizeNativeResult({
+                ...item,
+                source: "hidden-tunes",
+                sourceName: "Hidden Tunes",
+                type: "r2",
+              })
+            )
+          )
+        );
+        setCloudAlbums(extractHiddenTunesAlbums(cached));
+        setCloudArtists(
+          extractHiddenTunesArtists(cached).slice(0, 12) as any
+        );
+        setLoadingCloud(false);
+      }
+
+      const songs = await getHiddenTunesSongsPage({ page: 1, limit: 24 }).then(
+        (page) => page.songs
+      );
 
       setCloudSongs(
         dedupeByKey(
@@ -494,10 +509,24 @@ export default function SearchScreen() {
         )
       );
 
-      setCloudAlbums(albums || []);
-      setCloudArtists(artists || []);
-      setCloudPlaylists(playlists || []);
-    } catch (error) {
+      void Promise.allSettled([
+        getHiddenTunesAlbums({ forceRefresh: false }),
+        getHiddenTunesArtists({ forceRefresh: false }),
+        getHiddenTunesCloudPlaylists(),
+      ]).then(([albumsResult, artistsResult, playlistsResult]) => {
+        if (albumsResult.status === "fulfilled") {
+          setCloudAlbums(albumsResult.value || []);
+        }
+
+        if (artistsResult.status === "fulfilled") {
+          setCloudArtists(artistsResult.value || []);
+        }
+
+        if (playlistsResult.status === "fulfilled") {
+          setCloudPlaylists(playlistsResult.value || []);
+        }
+      });
+    } catch {
     } finally {
       setLoadingCloud(false);
       setRefreshing(false);
