@@ -460,6 +460,9 @@ export default function ExploreScreen() {
     [cloudSongs, preferenceMaps]
   );
 
+  const primaryMoodRoom = moodRooms[0];
+  const primaryGenreWorld = genreWorlds[0];
+
   useFocusEffect(
     useCallback(() => {
       if (genreWorlds.length === 0) return undefined;
@@ -695,10 +698,10 @@ export default function ExploreScreen() {
                 </TouchableOpacity>
               </View>
 
-              <Text style={styles.smartHeroTitle}>Find your next favorite feeling</Text>
+              <Text style={styles.smartHeroTitle}>Enter a listening room</Text>
 
               <Text style={styles.smartHeroSubtitle}>
-                Mood-led picks, creator worlds, and queues that keep the vibe moving.
+                Personal picks, exact genre spotlights, and mood rooms built from the catalog you already have.
               </Text>
 
               <View style={styles.smartHeroActions}>
@@ -715,7 +718,7 @@ export default function ExploreScreen() {
                   disabled={!cloudSongs.length}
                 >
                   <Ionicons name="play" size={17} color="#000" />
-                  <Text style={styles.smartHeroPrimaryText}>Play Smart Picks</Text>
+                  <Text style={styles.smartHeroPrimaryText}>Start Discovery</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -772,22 +775,38 @@ export default function ExploreScreen() {
               </>
             )}
 
-            <FlatList
-              horizontal
-              data={moodRooms}
-              keyExtractor={(item) => item.id}
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.chips}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={styles.chip}
-                  activeOpacity={0.85}
-                  onPress={() => openMood(item.title)}
-                >
-                  <Text style={styles.chipText}>{item.title}</Text>
-                </TouchableOpacity>
-              )}
-            />
+            {moodRooms.length > 0 && (
+              <View style={styles.moodRailSection}>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>Mood Rooms</Text>
+                  <Text style={styles.sectionSub}>
+                    {primaryMoodRoom
+                      ? `Start with ${primaryMoodRoom.title} or choose a nearby feeling`
+                      : "Choose a feeling from existing mood labels"}
+                  </Text>
+                </View>
+
+                <FlatList
+                  horizontal
+                  data={moodRooms}
+                  keyExtractor={(item) => item.id}
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.chips}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity
+                      style={[
+                        styles.chip,
+                        item.id === primaryMoodRoom?.id && styles.chipFeatured,
+                      ]}
+                      activeOpacity={0.85}
+                      onPress={() => openMood(item.title)}
+                    >
+                      <Text style={styles.chipText}>{item.title}</Text>
+                    </TouchableOpacity>
+                  )}
+                />
+              </View>
+            )}
 
             {loading ? (
               <ExploreSkeletonRail />
@@ -888,8 +907,12 @@ export default function ExploreScreen() {
             )}
 
             <View style={styles.genreHeader}>
-              <Text style={styles.sectionTitle}>Genre Spotlights</Text>
-              <Text style={styles.sectionSub}>Built from original catalog genre labels</Text>
+              <Text style={styles.sectionTitle}>Original Genre Spotlights</Text>
+              <Text style={styles.sectionSub}>
+                {primaryGenreWorld
+                  ? `${primaryGenreWorld.title} and nearby catalog lanes, shown without renaming genres`
+                  : "Built only from original catalog genre labels"}
+              </Text>
             </View>
 
             <View style={styles.genreGrid}>
@@ -1315,8 +1338,8 @@ const styles = StyleSheet.create({
   },
   chips: {
     gap: 10,
-    paddingTop: 22,
-    paddingBottom: 22,
+    paddingTop: 2,
+    paddingBottom: 24,
   },
   chip: {
     paddingHorizontal: 16,
@@ -1326,10 +1349,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.1)",
   },
+  chipFeatured: {
+    backgroundColor: "rgba(168,85,247,0.18)",
+    borderColor: "rgba(168,85,247,0.34)",
+  },
   chipText: {
     color: COLORS.text,
     fontSize: 13,
     fontWeight: "700",
+  },
+  moodRailSection: {
+    marginTop: 22,
   },
   catalogStats: {
     flexDirection: "row",

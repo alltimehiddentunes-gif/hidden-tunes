@@ -309,6 +309,48 @@ function HomeScreen() {
     [featuredSongs, preferenceMaps]
   );
 
+  const primaryMoodRoom = moodRooms[0];
+  const primaryGenreSpotlight = genreSpotlights[0];
+
+  const listeningBrief = useMemo(() => {
+    if (currentSong) {
+      return {
+        label: "Continue Listening",
+        title: currentSong.title || "Your current song",
+        subtitle:
+          currentSong.artist ||
+          currentSong.user?.name ||
+          "Keep the feeling moving",
+        icon: "pulse" as keyof typeof Ionicons.glyphMap,
+      };
+    }
+
+    if (primaryMoodRoom) {
+      return {
+        label: "Mood Room",
+        title: primaryMoodRoom.title,
+        subtitle: primaryMoodRoom.subtitle,
+        icon: "radio" as keyof typeof Ionicons.glyphMap,
+      };
+    }
+
+    if (primaryGenreSpotlight) {
+      return {
+        label: "Original Genre",
+        title: primaryGenreSpotlight.title,
+        subtitle: primaryGenreSpotlight.subtitle,
+        icon: "albums" as keyof typeof Ionicons.glyphMap,
+      };
+    }
+
+    return {
+      label: "Discovery",
+      title: "Premium listening starts here",
+      subtitle: "Fresh songs, creator worlds, and moods ready to play.",
+      icon: "sparkles" as keyof typeof Ionicons.glyphMap,
+    };
+  }, [currentSong, primaryGenreSpotlight, primaryMoodRoom]);
+
   const heroCards = useMemo<HeroCard[]>(() => {
     const cards: HeroCard[] = [];
     const firstGenreSong = featuredSongs.find((song) => Boolean(song.genre));
@@ -761,10 +803,10 @@ function HomeScreen() {
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.heroTitle}>Find the feeling.</Text>
+          <Text style={styles.heroTitle}>Hidden listening.</Text>
 
           <Text style={styles.heroSubtitle}>
-            New voices, familiar moods, and songs that stay with you.
+            Curated moods, quiet gems, and your next session.
           </Text>
 
           <TouchableOpacity
@@ -871,6 +913,30 @@ function HomeScreen() {
               {featuredSongs.length} songs ready
             </Text>
           </View>
+
+          <TouchableOpacity
+            activeOpacity={0.88}
+            style={styles.listeningBrief}
+            onPress={() =>
+              currentSong ? router.push("/player" as any) : router.push("/explore")
+            }
+          >
+            <View style={styles.listeningBriefIcon}>
+              <Ionicons name={listeningBrief.icon} size={20} color={COLORS.primary} />
+            </View>
+
+            <View style={styles.listeningBriefText}>
+              <Text style={styles.listeningBriefLabel}>{listeningBrief.label}</Text>
+              <Text numberOfLines={1} style={styles.listeningBriefTitle}>
+                {listeningBrief.title}
+              </Text>
+              <Text numberOfLines={2} style={styles.listeningBriefSub}>
+                {listeningBrief.subtitle}
+              </Text>
+            </View>
+
+            <Ionicons name="arrow-forward" size={18} color={COLORS.textMuted} />
+          </TouchableOpacity>
 
           <View style={styles.grid}>
             <PremiumCard
@@ -1095,33 +1161,39 @@ function HomeScreen() {
             />
           )}
 
-          {moodRooms.map((room) => (
-            <View key={room.id}>
+          {primaryMoodRoom && (
+            <View>
               <View style={styles.sectionRowSmall}>
-                <Text style={styles.sectionTitle}>{room.title}</Text>
-                <Text style={styles.sectionSub}>{room.subtitle}</Text>
+                <Text style={styles.sectionTitle}>Mood Rooms</Text>
+                <Text style={styles.sectionSub}>
+                  Start with {primaryMoodRoom.title} and keep the feeling close
+                </Text>
               </View>
 
               <View style={styles.mediaList}>
-                {room.songs.slice(0, 4).map((song, index) => renderSongRow(song, index))}
-              </View>
-            </View>
-          ))}
-
-          {genreSpotlights.map((spotlight) => (
-            <View key={spotlight.id}>
-              <View style={styles.sectionRowSmall}>
-                <Text style={styles.sectionTitle}>{spotlight.title}</Text>
-                <Text style={styles.sectionSub}>{spotlight.subtitle}</Text>
-              </View>
-
-              <View style={styles.mediaList}>
-                {spotlight.songs
+                {primaryMoodRoom.songs
                   .slice(0, 4)
                   .map((song, index) => renderSongRow(song, index))}
               </View>
             </View>
-          ))}
+          )}
+
+          {primaryGenreSpotlight && (
+            <View>
+              <View style={styles.sectionRowSmall}>
+                <Text style={styles.sectionTitle}>Original Genre Spotlights</Text>
+                <Text style={styles.sectionSub}>
+                  {primaryGenreSpotlight.title} selections using unchanged catalog genres
+                </Text>
+              </View>
+
+              <View style={styles.mediaList}>
+                {primaryGenreSpotlight.songs
+                  .slice(0, 4)
+                  .map((song, index) => renderSongRow(song, index))}
+              </View>
+            </View>
+          )}
 
           <View style={styles.sectionRowSmall}>
             <Text style={styles.sectionTitle}>Full Catalog</Text>
@@ -1307,19 +1379,19 @@ const styles = StyleSheet.create({
 
   heroTitle: {
     color: COLORS.text,
-    fontSize: 46,
+    fontSize: 38,
     fontWeight: "900",
     paddingHorizontal: 20,
-    marginTop: 30,
-    letterSpacing: -1.2,
+    marginTop: 26,
+    letterSpacing: -0.8,
   },
 
   heroSubtitle: {
     color: COLORS.textMuted,
-    fontSize: 15,
-    lineHeight: 22,
+    fontSize: 14,
+    lineHeight: 20,
     paddingHorizontal: 20,
-    marginTop: 10,
+    marginTop: 8,
     fontWeight: "700",
   },
 
@@ -1565,6 +1637,57 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     fontSize: 12,
     fontWeight: "900",
+  },
+
+  listeningBrief: {
+    marginTop: 14,
+    marginHorizontal: 20,
+    minHeight: 96,
+    borderRadius: 28,
+    padding: 15,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.065)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+  },
+
+  listeningBriefIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 19,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.08)",
+    marginRight: 13,
+  },
+
+  listeningBriefText: {
+    flex: 1,
+    paddingRight: 10,
+  },
+
+  listeningBriefLabel: {
+    color: COLORS.primary,
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+  },
+
+  listeningBriefTitle: {
+    color: COLORS.text,
+    fontSize: 16,
+    fontWeight: "900",
+    marginTop: 5,
+  },
+
+  listeningBriefSub: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    fontWeight: "700",
+    lineHeight: 18,
+    marginTop: 4,
   },
 
   grid: {
