@@ -92,6 +92,8 @@ type GenreItem = {
 };
 
 const SEARCH_HISTORY_KEY = "hidden_tunes_recent_searches_v4";
+const TV_DISCOVERY_CACHE_KEY = "hidden_tunes_tv_discovery_queries_v1";
+const WEAK_RESULT_THRESHOLD = 4;
 
 const TRENDING_SEARCHES = [
   "Caasi Wills",
@@ -361,6 +363,8 @@ export default function SearchScreen() {
   const [loadingCloud, setLoadingCloud] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [activeSource, setActiveSource] = useState<SearchType>("all");
+  const [tvFallbackQuery, setTvFallbackQuery] = useState("");
+  const [tvFallbackReason, setTvFallbackReason] = useState("");
 
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [cloudSongs, setCloudSongs] = useState<NativeSearchTrack[]>([]);
@@ -439,6 +443,25 @@ export default function SearchScreen() {
 
     setRecentSearches(next);
     await AsyncStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(next));
+  }
+
+  async function saveTvDiscoveryQuery(text: string) {
+    const clean = text.trim();
+    if (!clean || clean.length < 2) return;
+
+    try {
+      const saved = await AsyncStorage.getItem(TV_DISCOVERY_CACHE_KEY);
+      const parsed = saved ? JSON.parse(saved) : [];
+      const current = Array.isArray(parsed) ? parsed : [];
+      const next = [clean, ...current.filter((item) => item !== clean)].slice(
+        0,
+        20
+      );
+
+      await AsyncStorage.setItem(TV_DISCOVERY_CACHE_KEY, JSON.stringify(next));
+    } catch (error) {
+      console.log("Hidden Tunes TV discovery cache write error:", error);
+    }
   }
 
   async function clearRecentSearches() {
@@ -529,6 +552,8 @@ export default function SearchScreen() {
     const safeText = String(text || "").trim();
 
     setQuery(text);
+    setTvFallbackQuery("");
+    setTvFallbackReason("");
 
     if (!safeText || safeText.length < 3) {
       setResults([]);
@@ -540,6 +565,7 @@ export default function SearchScreen() {
       await saveRecentSearch(safeText);
 
       if (source === "youtube") {
+        await saveTvDiscoveryQuery(safeText);
         setLoading(false);
         setRefreshing(false);
         router.push({
@@ -635,15 +661,33 @@ export default function SearchScreen() {
         }
       }
 
-      setResults(
-        dedupeByKey(finalResults.map((item) => normalizeSearchTrack(item))).slice(
-          0,
-          36
-        )
-      );
+      const normalizedResults = dedupeByKey(
+        finalResults.map((item) => normalizeSearchTrack(item))
+      ).slice(0, 36);
+
+      if (
+        source === "all" &&
+        normalizedResults.filter((item) => !isYouTubeTrack(item)).length <
+          WEAK_RESULT_THRESHOLD
+      ) {
+        setTvFallbackQuery(safeText);
+        setTvFallbackReason(
+          normalizedResults.length > 0
+            ? "Hidden Tunes matches are limited — expand with Hidden Tunes TV."
+            : "No Hidden Tunes matches yet — showing Hidden Tunes TV results."
+        );
+        await saveTvDiscoveryQuery(safeText);
+      }
+
+      setResults(normalizedResults);
     } catch (error) {
       console.log("Search error:", error);
       setResults([]);
+      setTvFallbackQuery(safeText);
+      setTvFallbackReason(
+        "No Hidden Tunes matches yet — showing Hidden Tunes TV results."
+      );
+      await saveTvDiscoveryQuery(safeText);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -728,6 +772,23 @@ export default function SearchScreen() {
       },
     } as any);
   }, [query]);
+
+  const openTvFallback = useCallback(
+    (value = tvFallbackQuery || query) => {
+      const safeQuery = String(value || "").trim();
+
+      if (!safeQuery) {
+        router.push("/tv" as any);
+        return;
+      }
+
+      router.push({
+        pathname: "/tv",
+        params: { q: safeQuery },
+      } as any);
+    },
+    [query, tvFallbackQuery]
+  );
 
   const handlePress = useCallback(
     async (item: SearchResultTrack) => {
@@ -822,6 +883,39 @@ export default function SearchScreen() {
     ),
     [activeSource]
   );
+
+  const renderTvFallbackCard = useCallback(() => {
+    const safeQuery = tvFallbackQuery || query.trim();
+
+    if (!safeQuery || safeQuery.length < 3) return null;
+
+    return (
+      <TouchableOpacity
+        activeOpacity={0.88}
+        style={styles.tvFallbackCard}
+        onPress={() => openTvFallback(safeQuery)}
+      >
+        <View style={styles.tvFallbackIcon}>
+          <Ionicons name="logo-youtube" size={24} color="#fff" />
+        </View>
+
+        <View style={styles.tvFallbackTextBox}>
+          <Text style={styles.tvFallbackKicker}>Hidden Tunes TV</Text>
+          <Text style={styles.tvFallbackTitle} numberOfLines={2}>
+            {tvFallbackReason ||
+              "No Hidden Tunes matches yet — showing Hidden Tunes TV results."}
+          </Text>
+          <Text style={styles.tvFallbackSub} numberOfLines={1}>
+            Search YouTube web discovery for {safeQuery} inside the app
+          </Text>
+        </View>
+
+        <View style={styles.tvFallbackButton}>
+          <Ionicons name="arrow-forward" size={18} color="#000" />
+        </View>
+      </TouchableOpacity>
+    );
+  }, [openTvFallback, query, tvFallbackQuery, tvFallbackReason]);
 
   function renderDiscovery() {
     return (
@@ -941,7 +1035,7 @@ export default function SearchScreen() {
         {cloudAlbums.length > 0 && (
           <View style={styles.discoverySection}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Cloud albums</Text>
+              <Text style={styles.sectionTitle}>Hidden Tunes Albums</Text>
               <Text style={styles.sectionSub}>Your own catalog structure</Text>
             </View>
 
@@ -976,7 +1070,7 @@ export default function SearchScreen() {
         {cloudArtists.length > 0 && (
           <View style={styles.discoverySection}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Cloud artists</Text>
+              <Text style={styles.sectionTitle}>Artists</Text>
               <Text style={styles.sectionSub}>Artists from Hidden Tunes cloud</Text>
             </View>
 
@@ -1213,8 +1307,10 @@ export default function SearchScreen() {
                 </View>
               )}
 
+              {renderTvFallbackCard()}
+
               <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Results</Text>
+                <Text style={styles.sectionTitle}>Hidden Tunes Songs</Text>
                 <Text style={styles.sectionSub}>
                   {results.length > 0
                     ? `${results.length} tracks found • ${
@@ -1228,8 +1324,11 @@ export default function SearchScreen() {
           ListEmptyComponent={
             <View style={styles.emptyBox}>
               <Ionicons name="musical-notes-outline" size={56} color={COLORS.textMuted} />
-              <Text style={styles.emptyTitle}>No tracks found</Text>
-              <Text style={styles.emptyText}>Try another search or switch source.</Text>
+              <Text style={styles.emptyTitle}>No Hidden Tunes matches yet</Text>
+              <Text style={styles.emptyText}>
+                Showing Hidden Tunes TV results instead.
+              </Text>
+              {renderTvFallbackCard()}
             </View>
           }
           renderItem={renderResult}
@@ -1599,6 +1698,58 @@ const styles = StyleSheet.create({
     marginLeft: 5,
     fontSize: 11,
     fontWeight: "900",
+  },
+  tvFallbackCard: {
+    minHeight: 104,
+    borderRadius: 26,
+    padding: 15,
+    marginBottom: 20,
+    backgroundColor: "rgba(255,0,51,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(255,0,51,0.28)",
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  tvFallbackIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: "#ff0033",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 13,
+  },
+  tvFallbackTextBox: {
+    flex: 1,
+  },
+  tvFallbackKicker: {
+    color: "#ff6b86",
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 1,
+    textTransform: "uppercase",
+  },
+  tvFallbackTitle: {
+    color: COLORS.text,
+    fontSize: 15,
+    fontWeight: "900",
+    marginTop: 5,
+    lineHeight: 20,
+  },
+  tvFallbackSub: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    fontWeight: "700",
+    marginTop: 5,
+  },
+  tvFallbackButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: COLORS.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: 10,
   },
   emptyBox: {
     minHeight: 260,
