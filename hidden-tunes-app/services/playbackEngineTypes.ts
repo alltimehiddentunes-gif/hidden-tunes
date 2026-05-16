@@ -65,6 +65,7 @@ export type PlaybackEngine = {
   reset: () => Promise<void>;
   play: () => Promise<void>;
   pause: () => Promise<void>;
+  stop: () => Promise<void>;
   togglePlayPause: () => Promise<boolean>;
   seekTo: (millis: number) => Promise<void>;
   setVolume: (volume: number, muted: boolean) => Promise<void>;
