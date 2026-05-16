@@ -29,7 +29,11 @@
         "foregroundImage": "./assets/images/icon.png",
         "backgroundColor": "#000000"
       },
-      "permissions": ["WAKE_LOCK"],
+      "permissions": [
+        "WAKE_LOCK",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_MEDIA_PLAYBACK"
+      ],
       "blockedPermissions": [
         "android.permission.RECORD_AUDIO"
       ]
