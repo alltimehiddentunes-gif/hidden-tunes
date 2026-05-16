@@ -30,6 +30,13 @@ function getImage(item: any) {
   return getArtworkValue(item);
 }
 
+function getContextTags(item: any) {
+  return [item?.album, item?.mood, item?.genre]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean)
+    .slice(0, 2);
+}
+
 const QueueItem = memo(function QueueItem({
   item,
   active,
@@ -139,6 +146,29 @@ export default function QueueScreen() {
     if (activeQueueMode === "radio") return "Radio";
     return "Queue";
   }, [activeQueueMode]);
+
+  const nextUpPreview = useMemo(() => upNext[0] || null, [upNext]);
+
+  const sessionFlowLabel = useMemo(() => {
+    if (nowPlaying && nextUpPreview) {
+      return `${nowPlaying.title || "Current song"} flows into ${
+        nextUpPreview.title || "the next track"
+      }`;
+    }
+
+    if (nowPlaying && smartAutoplayEnabled) {
+      return "Smart continuation is ready when this queue ends";
+    }
+
+    if (nowPlaying) return "This is the final track in the current queue";
+
+    return "Start a song to shape a premium listening session";
+  }, [nextUpPreview, nowPlaying, smartAutoplayEnabled]);
+
+  const nowPlayingTags = useMemo(
+    () => (nowPlaying ? getContextTags(nowPlaying) : []),
+    [nowPlaying]
+  );
 
   const playQueueItem = useCallback(
     async (item: any) => {
@@ -307,6 +337,19 @@ export default function QueueScreen() {
           </View>
         </View>
 
+        <View style={styles.sessionFlowCard}>
+          <View style={styles.sessionFlowIcon}>
+            <Ionicons name="git-branch-outline" size={19} color={COLORS.primary} />
+          </View>
+
+          <View style={styles.sessionFlowTextBox}>
+            <Text style={styles.sessionFlowTitle}>Session Flow</Text>
+            <Text numberOfLines={2} style={styles.sessionFlowText}>
+              {sessionFlowLabel}
+            </Text>
+          </View>
+        </View>
+
         <View style={styles.nowPlayingSection}>
           <Text style={styles.sectionLabel}>Current Moment</Text>
 
@@ -349,6 +392,18 @@ export default function QueueScreen() {
                   <Ionicons name="stop" size={18} color={COLORS.text} />
                 </TouchableOpacity>
               </View>
+
+              {nowPlayingTags.length > 0 && (
+                <View style={styles.contextTagRow}>
+                  {nowPlayingTags.map((tag) => (
+                    <View key={`queue-context-${tag}`} style={styles.contextTag}>
+                      <Text numberOfLines={1} style={styles.contextTagText}>
+                        {tag}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              )}
             </View>
           ) : (
             <View style={styles.emptyNowCard}>
@@ -362,7 +417,9 @@ export default function QueueScreen() {
           <Text style={styles.sectionTitle}>Coming Up</Text>
           <Text style={styles.sectionSub}>
             {upNext.length > 0
-              ? `${upNext.length} tracks waiting`
+              ? nextUpPreview?.title
+                ? `Next: ${nextUpPreview.title}`
+                : `${upNext.length} tracks waiting`
               : "Add songs from Search, Explore, or Radio"}
           </Text>
         </View>
@@ -378,6 +435,9 @@ export default function QueueScreen() {
       activeQueueMode,
       modeShort,
       nowPlaying,
+      nextUpPreview?.title,
+      nowPlayingTags,
+      sessionFlowLabel,
       radioMode,
       playQueueItem,
       previousSong,
@@ -650,6 +710,45 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 
+  sessionFlowCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    borderRadius: 24,
+    padding: 14,
+    marginBottom: 22,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.09)",
+  },
+
+  sessionFlowIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.075)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  sessionFlowTextBox: {
+    flex: 1,
+  },
+
+  sessionFlowTitle: {
+    color: COLORS.text,
+    fontSize: 14,
+    fontWeight: "900",
+  },
+
+  sessionFlowText: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 4,
+    fontWeight: "700",
+  },
+
   nowPlayingSection: {
     marginBottom: 22,
   },
@@ -674,6 +773,31 @@ const styles = StyleSheet.create({
     marginTop: -4,
     marginBottom: 10,
     justifyContent: "center",
+  },
+
+  contextTagRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 2,
+    marginBottom: 10,
+    paddingHorizontal: 4,
+  },
+
+  contextTag: {
+    maxWidth: "48%",
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: "rgba(255,255,255,0.065)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.09)",
+  },
+
+  contextTagText: {
+    color: COLORS.text,
+    fontSize: 11,
+    fontWeight: "900",
   },
 
   controlButton: {

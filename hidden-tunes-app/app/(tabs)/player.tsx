@@ -91,6 +91,8 @@ export default function PlayerScreen() {
     youtubeQueue,
     radioQueue,
     activeQueueMode,
+    activeQueue,
+    activeQueueIndex,
   } = usePlayer() as any;
 
   const [playlistModalVisible, setPlaylistModalVisible] = useState(false);
@@ -111,8 +113,15 @@ export default function PlayerScreen() {
     if (activeQueueMode === "smart") return "SMART AUTOPLAY";
     if (radioMode && radioQueue?.length) return "RADIO MODE";
     if (youtubeQueue?.length) return `${youtubeQueue.length} IN QUEUE`;
+    if (activeQueue?.length) return `${activeQueue.length} TRACK SESSION`;
     return "NOW PLAYING";
-  }, [activeQueueMode, radioMode, radioQueue?.length, youtubeQueue?.length]);
+  }, [
+    activeQueue?.length,
+    activeQueueMode,
+    radioMode,
+    radioQueue?.length,
+    youtubeQueue?.length,
+  ]);
 
   const artist = useMemo(() => {
     if (!currentSong) return "Hidden Tunes";
@@ -130,6 +139,45 @@ export default function PlayerScreen() {
     if (!currentSong) return null;
     return getArtworkValue(currentSong);
   }, [currentSong]);
+
+  const listeningContext = useMemo(() => {
+    if (!currentSong) return [];
+
+    return [
+      currentSong.album,
+      currentSong.mood,
+      currentSong.genre,
+      currentSong.sourceName,
+    ]
+      .map((item) => String(item || "").trim())
+      .filter(Boolean)
+      .slice(0, 3);
+  }, [currentSong]);
+
+  const nextUpSong = useMemo(() => {
+    if (!Array.isArray(activeQueue) || activeQueue.length === 0) return null;
+
+    const nextIndex =
+      typeof activeQueueIndex === "number" ? activeQueueIndex + 1 : 1;
+
+    return activeQueue[nextIndex] || null;
+  }, [activeQueue, activeQueueIndex]);
+
+  const sessionFlowText = useMemo(() => {
+    if (nextUpSong?.title) {
+      return `Next: ${nextUpSong.title}`;
+    }
+
+    if (smartAutoplayEnabled) {
+      return "Smart continuation can extend the session.";
+    }
+
+    if (activeQueue?.length) {
+      return "You are near the end of this queue.";
+    }
+
+    return "Start from discovery to build a longer session.";
+  }, [activeQueue?.length, nextUpSong?.title, smartAutoplayEnabled]);
 
   useEffect(() => {
     if (!isPlaying) {
@@ -236,10 +284,10 @@ export default function PlayerScreen() {
           <Ionicons name="musical-notes-outline" size={64} color={COLORS.primary} />
         </View>
 
-        <Text style={styles.emptyText}>Nothing Playing</Text>
+        <Text style={styles.emptyText}>Ready when you are</Text>
 
         <Text style={styles.emptySubText}>
-          Start a song from Search, Radio, or your playlists.
+          Start from Search or Explore and Hidden Tunes will keep the session close.
         </Text>
 
         <TouchableOpacity
@@ -248,7 +296,7 @@ export default function PlayerScreen() {
           onPress={() => router.push("/search")}
         >
           <Ionicons name="search" size={18} color="#000" />
-          <Text style={styles.emptyButtonText}>Find Music</Text>
+          <Text style={styles.emptyButtonText}>Start Listening</Text>
         </TouchableOpacity>
       </LinearGradient>
     );
@@ -326,6 +374,18 @@ export default function PlayerScreen() {
           </TouchableOpacity>
         </View>
 
+        {listeningContext.length > 0 && (
+          <View style={styles.contextPillRow}>
+            {listeningContext.map((item) => (
+              <View key={`context-${item}`} style={styles.contextPill}>
+                <Text numberOfLines={1} style={styles.contextPillText}>
+                  {item}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
+
         <View style={styles.statusRow}>
           <View style={styles.statusPill}>
             <Ionicons
@@ -368,7 +428,7 @@ export default function PlayerScreen() {
         <View style={styles.smartInfoCard}>
           <View style={styles.smartInfoIcon}>
             <Ionicons
-              name="sparkles"
+              name={nextUpSong ? "play-skip-forward" : "sparkles"}
               size={18}
               color={smartAutoplayEnabled ? COLORS.primary : COLORS.textMuted}
             />
@@ -376,13 +436,11 @@ export default function PlayerScreen() {
 
           <View style={styles.smartInfoTextWrap}>
             <Text style={styles.smartInfoTitle}>
-              Smart Autoplay {smartAutoplayEnabled ? "On" : "Off"}
+              {nextUpSong ? "Up Next" : `Smart Autoplay ${smartAutoplayEnabled ? "On" : "Off"}`}
             </Text>
 
-            <Text style={styles.smartInfoSubtitle}>
-              {smartAutoplayEnabled
-                ? "Related songs keep playing."
-                : "Stops at queue end."}
+            <Text numberOfLines={2} style={styles.smartInfoSubtitle}>
+              {sessionFlowText}
             </Text>
           </View>
         </View>
@@ -700,6 +758,29 @@ const styles = StyleSheet.create({
 
   favoriteActive: {
     backgroundColor: "rgba(168,85,247,0.15)",
+  },
+
+  contextPillRow: {
+    marginTop: 14,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+
+  contextPill: {
+    maxWidth: "48%",
+    borderRadius: 999,
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+    backgroundColor: "rgba(255,255,255,0.065)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.09)",
+  },
+
+  contextPillText: {
+    color: COLORS.text,
+    fontSize: 11,
+    fontWeight: "900",
   },
 
   statusRow: {
