@@ -338,9 +338,9 @@ export default function PlayerScreen() {
 
             <Text style={styles.statusText}>
               {isLoading
-                ? "Loading stream"
+                ? "Loading"
                 : isPlaying
-                ? "Premium playback active"
+                ? "Playing"
                 : "Paused"}
             </Text>
           </View>
@@ -378,13 +378,13 @@ export default function PlayerScreen() {
 
           <View style={styles.smartInfoTextWrap}>
             <Text style={styles.smartInfoTitle}>
-              Smart Autoplay {smartAutoplayEnabled ? "Enabled" : "Disabled"}
+              Smart Autoplay {smartAutoplayEnabled ? "On" : "Off"}
             </Text>
 
             <Text style={styles.smartInfoSubtitle}>
               {smartAutoplayEnabled
-                ? "When your queue ends, Hidden Tunes continues with related songs."
-                : "Playback stops when your queue ends."}
+                ? "Related songs keep playing."
+                : "Stops at queue end."}
             </Text>
           </View>
         </View>

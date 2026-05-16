@@ -43,8 +43,8 @@ import { FALLBACK_ARTWORK, getArtworkUri } from "../../utils/artwork";
 const { width } = Dimensions.get("window");
 const FEATURED_CARD_WIDTH = width * 0.72;
 const HERO_CARD_WIDTH = width - 40;
-const INITIAL_HOME_SONG_ROWS = 24;
-const HOME_SONG_ROWS_INCREMENT = 24;
+const INITIAL_HOME_SONG_ROWS = 12;
+const HOME_SONG_ROWS_INCREMENT = 12;
 const HERO_AUTO_SLIDE_MS = 7000;
 
 type HeroCard = {
@@ -268,7 +268,7 @@ function HomeScreen() {
         key: `new-${defaultHeroTrack.id}`,
         label: "NEW UPLOAD",
         title: defaultHeroTrack.title,
-        subtitle: defaultHeroTrack.artist || "Fresh from the cloud",
+        subtitle: defaultHeroTrack.artist || "Fresh for you",
         song: defaultHeroTrack,
         icon: "cloud-done",
       });
@@ -600,11 +600,11 @@ function HomeScreen() {
               {active ? (
                 <NeonEQ isPlaying={isPlaying} size="small" />
               ) : (
-                <Ionicons name="cloud-done" size={13} color={COLORS.primary} />
+                <Ionicons name="sparkles" size={13} color={COLORS.primary} />
               )}
 
               <Text style={styles.featuredBadgeText}>
-                {active ? "NOW PLAYING" : "R2 CLOUD"}
+                {active ? "NOW PLAYING" : "HIDDEN TUNES"}
               </Text>
             </View>
 
@@ -623,7 +623,7 @@ function HomeScreen() {
                   size={13}
                   color={COLORS.text}
                 />
-                <Text style={styles.autoNextText}>Auto-next ready</Text>
+                <Text style={styles.autoNextText}>Playing next</Text>
               </View>
 
               <View style={styles.featuredPlay}>
@@ -681,7 +681,7 @@ function HomeScreen() {
 
             <View>
               <Text style={styles.logoText}>Hidden Tunes</Text>
-              <Text style={styles.logoSub}>R2 Cloud Audio</Text>
+              <Text style={styles.logoSub}>Premium Audio</Text>
             </View>
 
             <TouchableOpacity
@@ -696,7 +696,7 @@ function HomeScreen() {
           <Text style={styles.heroTitle}>Hidden Sound.</Text>
 
           <Text style={styles.heroSubtitle}>
-            Your own cloud catalog. Fast playback. Premium discovery.
+            Your music, ready when you are.
           </Text>
 
           <TouchableOpacity
@@ -705,7 +705,7 @@ function HomeScreen() {
             onPress={() => router.push("/search")}
           >
             <Ionicons name="search" size={20} color={COLORS.cyan} />
-            <Text style={styles.searchText}>Search your cloud music...</Text>
+            <Text style={styles.searchText}>Search Hidden Tunes...</Text>
             <Ionicons name="sparkles" size={18} color={COLORS.primary} />
           </TouchableOpacity>
 
@@ -755,10 +755,10 @@ function HomeScreen() {
               <LinearGradient colors={GRADIENTS.neon} style={styles.heroBorder}>
                 <View style={styles.heroCard}>
                   <View style={styles.heroEmpty}>
-                    <Ionicons name="cloud-upload" size={44} color={COLORS.primary} />
-                    <Text style={styles.heroEmptyText}>No cloud track yet</Text>
+                    <Ionicons name="musical-notes-outline" size={44} color={COLORS.primary} />
+                    <Text style={styles.heroEmptyText}>No songs yet</Text>
                     <Text style={styles.heroEmptySub}>
-                      Upload a song in Admin, then pull down to refresh.
+                      Pull down to refresh.
                     </Text>
                   </View>
                 </View>
@@ -783,7 +783,7 @@ function HomeScreen() {
           <View style={styles.catalogPill}>
             <Ionicons name="cloud-done" size={16} color={COLORS.primary} />
             <Text style={styles.catalogPillText}>
-              {featuredSongs.length} cloud songs loaded
+              {featuredSongs.length} songs ready
             </Text>
           </View>
 
@@ -821,7 +821,7 @@ function HomeScreen() {
             <View>
               <Text style={styles.sectionTitle}>Hidden Tunes TV</Text>
               <Text style={styles.sectionSub}>
-                In-app video discovery and embedded playback
+                Music videos and live discovery
               </Text>
             </View>
 
@@ -843,8 +843,7 @@ function HomeScreen() {
             <Ionicons name="tv" size={26} color={COLORS.primary} />
             <Text style={styles.tvEmptyTitle}>Search Hidden Tunes TV</Text>
             <Text style={styles.tvEmptyText}>
-              Browse broad TV results inside Hidden Tunes. Selected videos open
-              in the in-app embedded player.
+              Explore videos inside Hidden Tunes.
             </Text>
           </TouchableOpacity>
 
@@ -853,7 +852,7 @@ function HomeScreen() {
               <View style={styles.sectionRowSmall}>
                 <Text style={styles.sectionTitle}>Made For You</Text>
                 <Text style={styles.sectionSub}>
-                  Ranked from your plays, favorites, and fresh uploads
+                  Based on your listening
                 </Text>
               </View>
 
@@ -868,7 +867,7 @@ function HomeScreen() {
               <View style={styles.sectionRowSmall}>
                 <Text style={styles.sectionTitle}>Artists You Play Most</Text>
                 <Text style={styles.sectionSub}>
-                  All artists keep loading as you scroll
+                  More artists appear as you scroll
                 </Text>
               </View>
 
@@ -881,6 +880,7 @@ function HomeScreen() {
                 initialNumToRender={4}
                 maxToRenderPerBatch={4}
                 windowSize={5}
+                removeClippedSubviews
                 renderItem={({ item }) => (
                   <TouchableOpacity
                     activeOpacity={0.88}
@@ -910,7 +910,7 @@ function HomeScreen() {
               <View style={styles.sectionRowSmall}>
                 <Text style={styles.sectionTitle}>Albums For You</Text>
                 <Text style={styles.sectionSub}>
-                  Album queues stay inside the selected album
+                  Albums picked for you
                 </Text>
               </View>
 
@@ -923,6 +923,7 @@ function HomeScreen() {
                 initialNumToRender={4}
                 maxToRenderPerBatch={4}
                 windowSize={5}
+                removeClippedSubviews
                 renderItem={({ item }) => (
                   <TouchableOpacity
                     activeOpacity={0.88}
@@ -951,7 +952,7 @@ function HomeScreen() {
             <View>
               <Text style={styles.sectionTitle}>Recently Added</Text>
               <Text style={styles.sectionSub}>
-                Fresh songs from Supabase and Cloudflare R2
+                Fresh tracks for you
               </Text>
             </View>
 
@@ -963,13 +964,13 @@ function HomeScreen() {
           {loadingSongs ? (
             <View style={styles.loadingBox}>
               <ActivityIndicator size="small" color={COLORS.primary} />
-              <Text style={styles.loadingText}>Loading cloud songs...</Text>
+              <Text style={styles.loadingText}>Loading...</Text>
             </View>
           ) : featuredSongs.length === 0 ? (
             <View style={styles.emptyBox}>
-              <Text style={styles.emptyTitle}>No cloud tracks found</Text>
+              <Text style={styles.emptyTitle}>No songs yet</Text>
               <Text style={styles.emptyText}>
-                Upload a song from the Admin screen, then refresh Home.
+                Pull down to refresh.
               </Text>
             </View>
           ) : (
@@ -992,8 +993,8 @@ function HomeScreen() {
           {afroSongs.length > 0 && (
             <>
               <View style={styles.sectionRowSmall}>
-                <Text style={styles.sectionTitle}>Afro Cloud Picks</Text>
-                <Text style={styles.sectionSub}>Afrobeat and Afro-fusion uploads</Text>
+                <Text style={styles.sectionTitle}>Afro Picks</Text>
+                <Text style={styles.sectionSub}>Afrobeat and Afro-fusion</Text>
               </View>
 
               <View style={styles.mediaList}>
@@ -1003,9 +1004,9 @@ function HomeScreen() {
           )}
 
           <View style={styles.sectionRowSmall}>
-            <Text style={styles.sectionTitle}>All Cloud Songs</Text>
+            <Text style={styles.sectionTitle}>All Songs</Text>
             <Text style={styles.sectionSub}>
-              Showing {visibleAllSongs.length} of {featuredSongs.length} uploads
+              Showing {visibleAllSongs.length} of {featuredSongs.length}
             </Text>
           </View>
 
@@ -1029,7 +1030,7 @@ function HomeScreen() {
                 <Ionicons name="albums-outline" size={18} color="#000" />
               )}
               <Text style={styles.showMoreText}>
-                {loadingMoreSongs ? "Loading more..." : "Load More Songs"}
+                {loadingMoreSongs ? "Loading more..." : "Find more"}
               </Text>
             </TouchableOpacity>
           )}

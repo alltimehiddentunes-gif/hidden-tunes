@@ -275,7 +275,7 @@ export default function GenreScreen() {
             {title}
           </Text>
           <Text style={styles.subtitle} numberOfLines={1}>
-            Hidden Tunes cloud catalog
+            Music for this vibe
           </Text>
         </View>
 
@@ -313,7 +313,7 @@ export default function GenreScreen() {
                 <View style={styles.radioInfo}>
                   <Text style={styles.radioTitle}>{title} Radio</Text>
                   <Text style={styles.radioSubtitle} numberOfLines={1}>
-                    Endless discovery from {title}
+                    Keep listening to {title}
                   </Text>
                 </View>
 
@@ -332,7 +332,7 @@ export default function GenreScreen() {
                   <View style={styles.sectionHeader}>
                     <Text style={styles.sectionTitle}>Albums</Text>
                     <Text style={styles.sectionSub}>
-                      Artist collections from this genre
+                      Albums from this vibe
                     </Text>
                   </View>
 
@@ -369,7 +369,7 @@ export default function GenreScreen() {
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>Songs</Text>
                 <Text style={styles.sectionSub}>
-                  Hidden Tunes results for {title}
+                  Songs for {title}
                 </Text>
               </View>
             </>
@@ -381,9 +381,9 @@ export default function GenreScreen() {
                 size={58}
                 color={COLORS.textMuted}
               />
-              <Text style={styles.emptyTitle}>No tracks found</Text>
+              <Text style={styles.emptyTitle}>No songs yet</Text>
               <Text style={styles.emptyText}>
-                Upload songs with this genre, mood, or tag.
+                Try another genre.
               </Text>
             </View>
           }
@@ -391,7 +391,7 @@ export default function GenreScreen() {
             loadingMore ? (
               <View style={styles.loadMoreFooter}>
                 <ActivityIndicator size="small" color={COLORS.primary} />
-                <Text style={styles.loadMoreText}>Loading more {title}...</Text>
+                <Text style={styles.loadMoreText}>Loading more...</Text>
               </View>
             ) : hasMore ? (
               <TouchableOpacity
@@ -434,7 +434,7 @@ export default function GenreScreen() {
                       size={13}
                       color={COLORS.primary}
                     />
-                    <Text style={styles.metaText}>Hidden Tunes Cloud</Text>
+                    <Text style={styles.metaText}>Hidden Tunes</Text>
                   </View>
                 </View>
 

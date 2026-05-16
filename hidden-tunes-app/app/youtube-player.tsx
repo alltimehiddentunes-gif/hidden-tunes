@@ -305,21 +305,13 @@ export default function YouTubePlayerScreen() {
     });
   }
 
-  function safeAutoNext(reason: string, allowEarlySkip = false) {
+  function safeAutoNext(_reason: string, allowEarlySkip = false) {
     const watchedMs = Date.now() - startedAtRef.current;
-    const watchedSeconds = Math.floor(watchedMs / 1000);
-
-    console.log("YouTube iframe auto-next check:", {
-      reason,
-      watchedSeconds,
-      allowEarlySkip,
-    });
 
     if (autoNextLockRef.current) return;
 
     if (!allowEarlySkip && watchedMs < 3000) {
-      console.log("Blocked early YouTube auto-next:", reason);
-      setPlayerStatus("Waiting for stable playback before auto-next...");
+      setPlayerStatus("Playing next...");
       return;
     }
 

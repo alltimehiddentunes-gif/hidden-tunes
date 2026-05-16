@@ -197,12 +197,12 @@ export default function HiddenTunesTVScreen() {
       if (!requestUrl) return true;
 
       if (isBlockedExternalUrl(requestUrl)) {
-        setStatusText("Hidden Tunes TV blocked an external app handoff.");
+        setStatusText("Staying inside Hidden Tunes TV.");
         return false;
       }
 
       if (!isYouTubeUrl(requestUrl)) {
-        setStatusText("Hidden Tunes TV blocked an external page.");
+        setStatusText("This page cannot open here.");
         return false;
       }
 
@@ -267,8 +267,7 @@ export default function HiddenTunesTVScreen() {
           <Text style={styles.kicker}>IN-APP TV DISCOVERY</Text>
           <Text style={styles.title}>Hidden Tunes TV</Text>
           <Text style={styles.subtitle}>
-            Search broad TV results inside Hidden Tunes, then play with the
-            official in-app embedded player.
+            Search and play videos inside Hidden Tunes.
           </Text>
         </View>
 
@@ -287,7 +286,7 @@ export default function HiddenTunesTVScreen() {
         <TextInput
           value={query}
           onChangeText={setQuery}
-          placeholder="Search TV videos or paste a video link..."
+          placeholder="Search TV videos..."
           placeholderTextColor={COLORS.textDim}
           returnKeyType="search"
           autoCorrect={false}
@@ -333,7 +332,7 @@ export default function HiddenTunesTVScreen() {
         {loading && (
           <View style={styles.loadingOverlay}>
             <ActivityIndicator color={COLORS.primary} />
-            <Text style={styles.loadingText}>Loading YouTube...</Text>
+            <Text style={styles.loadingText}>Loading...</Text>
           </View>
         )}
 
@@ -367,7 +366,7 @@ export default function HiddenTunesTVScreen() {
           }}
           onHttpError={(event) => {
             console.log("Hidden Tunes TV WebView HTTP error:", event.nativeEvent);
-            setStatusText("Hidden Tunes TV returned an HTTP error. Try another search.");
+            setStatusText("Something went wrong. Try another search.");
           }}
           style={styles.webview}
         />

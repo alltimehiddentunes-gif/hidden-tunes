@@ -958,11 +958,10 @@ export default function SearchScreen() {
         <View style={styles.tvFallbackTextBox}>
           <Text style={styles.tvFallbackKicker}>Hidden Tunes TV</Text>
           <Text style={styles.tvFallbackTitle} numberOfLines={2}>
-            {tvFallbackReason ||
-              "No Hidden Tunes matches yet — showing Hidden Tunes TV results."}
+            {tvFallbackReason || "No song matches yet. Showing Hidden Tunes TV."}
           </Text>
           <Text style={styles.tvFallbackSub} numberOfLines={1}>
-            Search Hidden Tunes TV for {safeQuery} inside the app
+            Find more for {safeQuery}
           </Text>
         </View>
 
@@ -979,7 +978,7 @@ export default function SearchScreen() {
         <View style={styles.cloudStatus}>
           <Ionicons name="cloud-done" size={16} color={COLORS.primary} />
           <Text style={styles.cloudStatusText}>
-            {cloudSongs.length} Hidden Tunes cloud songs ready
+            {cloudSongs.length} songs ready
           </Text>
         </View>
 
@@ -1005,7 +1004,7 @@ export default function SearchScreen() {
         <View style={styles.discoverySection}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Trending searches</Text>
-            <Text style={styles.sectionSub}>Fast discovery, Demus-style</Text>
+            <Text style={styles.sectionSub}>Fast ideas for your next search</Text>
           </View>
 
           <View style={styles.chipWrap}>
@@ -1052,13 +1051,13 @@ export default function SearchScreen() {
         <View style={styles.discoverySection}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Continue listening</Text>
-            <Text style={styles.sectionSub}>Queue-ready R2 cloud songs</Text>
+            <Text style={styles.sectionSub}>Ready to play</Text>
           </View>
 
           {loadingCloud ? (
             <View style={styles.loadingMini}>
               <ActivityIndicator color={COLORS.primary} />
-              <Text style={styles.loadingText}>Loading cloud catalog...</Text>
+              <Text style={styles.loadingText}>Loading...</Text>
             </View>
           ) : (
             continueListening.map((track) => (
@@ -1092,7 +1091,7 @@ export default function SearchScreen() {
           <View style={styles.discoverySection}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Hidden Tunes Albums</Text>
-              <Text style={styles.sectionSub}>Your own catalog structure</Text>
+              <Text style={styles.sectionSub}>Albums ready to play</Text>
             </View>
 
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -1127,7 +1126,7 @@ export default function SearchScreen() {
           <View style={styles.discoverySection}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Artists</Text>
-              <Text style={styles.sectionSub}>Artists from Hidden Tunes cloud</Text>
+              <Text style={styles.sectionSub}>Artists in your library</Text>
             </View>
 
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -1161,8 +1160,8 @@ export default function SearchScreen() {
         {cloudPlaylists.length > 0 && (
           <View style={styles.discoverySection}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Cloud playlists</Text>
-              <Text style={styles.sectionSub}>Premium curated playlists</Text>
+              <Text style={styles.sectionTitle}>Playlists</Text>
+              <Text style={styles.sectionSub}>Curated for you</Text>
             </View>
 
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -1213,7 +1212,7 @@ export default function SearchScreen() {
         <View style={styles.headerTextBox}>
           <Text style={styles.title}>Search</Text>
           <Text style={styles.subtitle}>
-            Hidden Tunes catalog first, YouTube TV fallback when needed
+            Search songs, artists, albums, and TV
           </Text>
         </View>
       </View>
@@ -1223,7 +1222,7 @@ export default function SearchScreen() {
           <Ionicons name="search" size={20} color={COLORS.cyan} />
 
           <TextInput
-            placeholder="Search Hidden Tunes first, then YouTube TV..."
+            placeholder="Search Hidden Tunes..."
             placeholderTextColor={COLORS.textDim}
             style={styles.input}
             value={query}
@@ -1290,7 +1289,7 @@ export default function SearchScreen() {
         <View style={styles.radioInfo}>
           <Text style={styles.radioTitle}>Start Radio</Text>
           <Text style={styles.radioSubtitle} numberOfLines={1}>
-            Build an endless queue from “{query.trim() || "afrobeats"}”
+            Build a queue from {query.trim() || "afrobeats"}
           </Text>
         </View>
 
@@ -1302,7 +1301,7 @@ export default function SearchScreen() {
       {loading ? (
         <View style={styles.loadingBox}>
           <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.loadingText}>Searching music engine...</Text>
+          <Text style={styles.loadingText}>Searching...</Text>
         </View>
       ) : (
         <FlatList
@@ -1338,7 +1337,7 @@ export default function SearchScreen() {
                   <View style={styles.sectionHeader}>
                     <Text style={styles.sectionTitle}>Genres</Text>
                     <Text style={styles.sectionSub}>
-                      Browse the core Hidden Tunes categories
+                      Browse by vibe
                     </Text>
                   </View>
 
@@ -1372,9 +1371,9 @@ export default function SearchScreen() {
                 <Text style={styles.sectionSub}>
                   {results.length > 0
                     ? `${results.length} tracks found • ${
-                        activeSource === "youtube" ? "WebView playback" : "queue-ready"
+                        activeSource === "youtube" ? "TV" : "ready"
                       }`
-                    : "Search results will appear here"}
+                    : "Start typing to search"}
                 </Text>
               </View>
             </>
@@ -1382,9 +1381,9 @@ export default function SearchScreen() {
           ListEmptyComponent={
             <View style={styles.emptyBox}>
               <Ionicons name="musical-notes-outline" size={56} color={COLORS.textMuted} />
-              <Text style={styles.emptyTitle}>No Hidden Tunes matches yet</Text>
+              <Text style={styles.emptyTitle}>No songs yet</Text>
               <Text style={styles.emptyText}>
-                Showing Hidden Tunes TV results instead.
+                Find more on Hidden Tunes TV.
               </Text>
               {renderTvFallbackCard()}
             </View>
@@ -1393,7 +1392,7 @@ export default function SearchScreen() {
             loadingMoreResults ? (
               <View style={styles.loadMoreFooter}>
                 <ActivityIndicator size="small" color={COLORS.primary} />
-                <Text style={styles.loadMoreText}>Loading more Hidden Tunes...</Text>
+                <Text style={styles.loadMoreText}>Loading more...</Text>
               </View>
             ) : hasMoreHiddenResults ? (
               <TouchableOpacity

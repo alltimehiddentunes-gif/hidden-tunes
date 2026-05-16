@@ -152,8 +152,8 @@ const CloudSongCard = memo(function CloudSongCard({
   onPress,
 }: {
   song: HiddenTunesNormalizedSong;
-  badge: "R2" | "RECENT" | "SMART";
-  onPress: (song: HiddenTunesNormalizedSong, badge: "R2" | "RECENT" | "SMART") => void;
+  badge: "PLAY" | "RECENT" | "SMART";
+  onPress: (song: HiddenTunesNormalizedSong, badge: "PLAY" | "RECENT" | "SMART") => void;
 }) {
   return (
     <TouchableOpacity
@@ -513,7 +513,7 @@ export default function ExploreScreen() {
         preview:
           preview.length > 0
             ? preview
-            : [`${genreItem.title} discoveries`, "Fresh catalog energy"],
+            : [`${genreItem.title} discoveries`, "Fresh energy"],
         artwork,
       };
     });
@@ -642,7 +642,7 @@ export default function ExploreScreen() {
   }, [cloudSongs, currentSong, playSong]);
 
   const handleCloudCardPress = useCallback(
-    (song: HiddenTunesNormalizedSong, badge: "R2" | "RECENT" | "SMART") => {
+    (song: HiddenTunesNormalizedSong, badge: "PLAY" | "RECENT" | "SMART") => {
       if (badge === "SMART") {
         openSmartPick(song);
       } else {
@@ -668,7 +668,7 @@ export default function ExploreScreen() {
 
   const renderCloudSong = useCallback(
     ({ item }: { item: HiddenTunesNormalizedSong }) => (
-      <CloudSongCard song={item} badge="R2" onPress={handleCloudCardPress} />
+      <CloudSongCard song={item} badge="PLAY" onPress={handleCloudCardPress} />
     ),
     [handleCloudCardPress]
   );
@@ -755,11 +755,10 @@ export default function ExploreScreen() {
                 </TouchableOpacity>
               </View>
 
-              <Text style={styles.smartHeroTitle}>Your premium cloud music engine</Text>
+              <Text style={styles.smartHeroTitle}>Your premium music engine</Text>
 
               <Text style={styles.smartHeroSubtitle}>
-                R2 playback, Supabase catalog, smart picks, playlists and endless
-                queue continuation.
+                Smart picks, playlists, and smooth queue continuation.
               </Text>
 
               <View style={styles.smartHeroActions}>
@@ -853,7 +852,7 @@ export default function ExploreScreen() {
             {loading ? (
               <View style={styles.loader}>
                 <ActivityIndicator size="large" color={COLORS.primary} />
-                <Text style={styles.loadingText}>Loading explore catalog...</Text>
+                <Text style={styles.loadingText}>Loading...</Text>
               </View>
             ) : null}
 
@@ -861,7 +860,7 @@ export default function ExploreScreen() {
               <View style={styles.catalogStats}>
                 <Ionicons name="cloud-done" size={16} color={COLORS.primary} />
                 <Text style={styles.catalogStatsText}>
-                  {cloudSongs.length} cloud songs loaded from Hidden Tunes
+                  {cloudSongs.length} songs ready
                 </Text>
               </View>
             )}
@@ -872,7 +871,7 @@ export default function ExploreScreen() {
                   <View>
                   <Text style={styles.sectionTitle}>Made For You</Text>
                     <Text style={styles.sectionSub}>
-                      Based on your catalog and listening
+                      Based on your listening
                     </Text>
                   </View>
 
@@ -932,7 +931,7 @@ export default function ExploreScreen() {
               <>
                 <View style={styles.sectionHeader}>
                   <Text style={styles.sectionTitle}>Recently Added</Text>
-                  <Text style={styles.sectionSub}>Your R2/Supabase uploads, still scrollable</Text>
+                  <Text style={styles.sectionSub}>Fresh tracks ready to play</Text>
                 </View>
 
                 <FlatList
@@ -953,7 +952,7 @@ export default function ExploreScreen() {
 
             <View style={styles.genreHeader}>
               <Text style={styles.sectionTitle}>Your Top Genres</Text>
-              <Text style={styles.sectionSub}>Preference-ranked destinations from your catalog</Text>
+              <Text style={styles.sectionSub}>Based on your listening</Text>
             </View>
 
             <View style={styles.genreGrid}>
@@ -1026,8 +1025,8 @@ export default function ExploreScreen() {
               <>
                 <View style={styles.rowHeader}>
                   <View>
-                    <Text style={styles.sectionTitle}>Cloud Playlists</Text>
-                    <Text style={styles.sectionSub}>Auto-built from your catalog</Text>
+                    <Text style={styles.sectionTitle}>Playlists For You</Text>
+                    <Text style={styles.sectionSub}>Built around your music</Text>
                   </View>
 
                   <TouchableOpacity onPress={() => router.push("/cloud-playlists" as any)}>
@@ -1064,7 +1063,7 @@ export default function ExploreScreen() {
                       <Text numberOfLines={1} style={styles.cloudArtist}>
                         {Array.isArray(item.tracks)
                           ? `${item.tracks.length} tracks`
-                          : "Cloud playlist"}
+                          : "Playlist"}
                       </Text>
                     </TouchableOpacity>
                   )}
@@ -1076,7 +1075,7 @@ export default function ExploreScreen() {
               <>
                 <View style={styles.sectionHeader}>
                   <Text style={styles.sectionTitle}>Albums For You</Text>
-                  <Text style={styles.sectionSub}>Real albums from your catalog</Text>
+                  <Text style={styles.sectionSub}>Albums picked for you</Text>
                 </View>
 
                 <FlatList
@@ -1118,7 +1117,7 @@ export default function ExploreScreen() {
               <>
                 <View style={styles.sectionHeader}>
                   <Text style={styles.sectionTitle}>All Artists</Text>
-                  <Text style={styles.sectionSub}>Preference-ranked pages and discography</Text>
+                  <Text style={styles.sectionSub}>More artists as you scroll</Text>
                 </View>
 
                 <FlatList
@@ -1181,7 +1180,7 @@ export default function ExploreScreen() {
 
                 <View style={styles.heroBadge}>
                   <Ionicons name="flame" size={14} color="#ffcc66" />
-                  <Text style={styles.heroBadgeText}>Fallback discovery</Text>
+                  <Text style={styles.heroBadgeText}>Hidden Tunes TV</Text>
                 </View>
 
                 <View style={styles.heroContent}>
@@ -1195,7 +1194,7 @@ export default function ExploreScreen() {
 
                   <View style={styles.heroAction}>
                     <Ionicons name="play" size={18} color="#000" />
-                    <Text style={styles.heroActionText}>Open video</Text>
+                    <Text style={styles.heroActionText}>Play</Text>
                   </View>
                 </View>
               </TouchableOpacity>
@@ -1204,15 +1203,15 @@ export default function ExploreScreen() {
             {!loading && !featured && !cloudSongs.length ? (
               <View style={styles.empty}>
                 <Ionicons name="musical-notes-outline" size={58} color={COLORS.textMuted} />
-                <Text style={styles.emptyTitle}>No Songs Loaded</Text>
-                <Text style={styles.emptyText}>Upload a song, then pull down to refresh.</Text>
+                <Text style={styles.emptyTitle}>No songs yet</Text>
+                <Text style={styles.emptyText}>Pull down to refresh.</Text>
               </View>
             ) : null}
 
             {showHeavySections && !loading && tracks.length > 0 && (
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>Hot right now</Text>
-                <Text style={styles.sectionSub}>YouTube fallback discovery</Text>
+                <Text style={styles.sectionSub}>Hidden Tunes TV</Text>
               </View>
             )}
           </>
@@ -1221,7 +1220,7 @@ export default function ExploreScreen() {
           loadingMoreSongs ? (
             <View style={styles.loadMoreFooter}>
               <ActivityIndicator size="small" color={COLORS.primary} />
-              <Text style={styles.loadMoreText}>Loading more catalog...</Text>
+              <Text style={styles.loadMoreText}>Loading more...</Text>
             </View>
           ) : hasMoreSongs ? (
             <TouchableOpacity
@@ -1230,7 +1229,7 @@ export default function ExploreScreen() {
               onPress={loadMoreSongs}
             >
               <Ionicons name="albums-outline" size={17} color="#000" />
-              <Text style={styles.loadMoreButtonText}>Load more catalog</Text>
+              <Text style={styles.loadMoreButtonText}>Find more</Text>
             </TouchableOpacity>
           ) : null
         }
