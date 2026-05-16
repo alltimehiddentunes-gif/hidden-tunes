@@ -30,6 +30,13 @@ type SignedUploadResponse = {
   error?: string;
 };
 
+type ServerUploadResponse = {
+  success: boolean;
+  key: string;
+  publicUrl: string;
+  error?: string;
+};
+
 const FALLBACK_ARTIST = "Hidden Tunes";
 const FALLBACK_ALBUM = "Singles";
 
@@ -51,12 +58,9 @@ function getUploadStep(error: unknown) {
   return error instanceof UploadStepError ? error.step : "upload";
 }
 
-function getSafeErrorName(error: unknown) {
-  return error instanceof Error ? error.name : typeof error;
-}
-
 const API_UPLOAD_URL = "/api/admin/upload-track";
 const API_SIGNED_UPLOAD_URL = "/api/upload-url";
+const API_SERVER_UPLOAD_URL = "/api/admin/upload-file";
 
 function makeId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -65,6 +69,7 @@ function makeId() {
 function cleanName(value: string) {
   return value
     .replace(/\.[^/.]+$/, "")
+    .replace(/^\d+\s*[.\-_ ]+\s*/, "")
     .replace(/[_-]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
@@ -72,6 +77,32 @@ function cleanName(value: string) {
 
 function matchKey(value: string) {
   return cleanName(value).toLowerCase();
+}
+
+function buildMatchKeys(value: string) {
+  const base = matchKey(value);
+  const keys = new Set<string>();
+
+  if (base) keys.add(base);
+
+  const noBrackets = base
+    .replace(/\([^)]*\)/g, "")
+    .replace(/\[[^\]]*\]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (noBrackets) keys.add(noBrackets);
+
+  const parts = base
+    .split(" - ")
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (parts.length > 1) {
+    keys.add(parts[parts.length - 1]);
+  }
+
+  return Array.from(keys);
 }
 
 function guessMetadata(file: File) {
@@ -150,7 +181,11 @@ function buildFileMap(files: File[]) {
   const map = new Map<string, File>();
 
   files.forEach((file) => {
-    map.set(matchKey(file.name), file);
+    buildMatchKeys(file.name).forEach((key) => {
+      if (!map.has(key)) {
+        map.set(key, file);
+      }
+    });
   });
 
   return map;
@@ -245,6 +280,69 @@ function uploadFileDirectToR2(
   });
 }
 
+function uploadFileViaAdminRoute(
+  file: File,
+  folder: string,
+  onProgress?: (progress: number) => void
+) {
+  return new Promise<{ key: string; publicUrl: string }>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    const formData = new FormData();
+
+    formData.append("file", file);
+    formData.append("folder", folder);
+
+    xhr.open("POST", API_SERVER_UPLOAD_URL);
+    xhr.timeout = 1000 * 60 * 30;
+
+    xhr.upload.onprogress = (event) => {
+      if (!event.lengthComputable || !onProgress) return;
+
+      const percent = Math.round((event.loaded / event.total) * 100);
+      onProgress(percent);
+    };
+
+    xhr.onload = () => {
+      const data = (() => {
+        try {
+          return JSON.parse(xhr.responseText || "{}") as ServerUploadResponse;
+        } catch {
+          return null;
+        }
+      })();
+
+      if (xhr.status >= 200 && xhr.status < 300 && data?.success) {
+        resolve({
+          key: data.key,
+          publicUrl: data.publicUrl,
+        });
+        return;
+      }
+
+      reject(
+        new Error(
+          data?.error ||
+            `Server fallback upload failed with status ${xhr.status}`
+        )
+      );
+    };
+
+    xhr.onerror = () => {
+      reject(new Error("Server fallback upload could not reach the admin API"));
+    };
+
+    xhr.ontimeout = () => {
+      reject(new Error("Server fallback upload timed out before completion"));
+    };
+
+    xhr.onabort = () => {
+      reject(new Error("Server fallback upload was cancelled"));
+    };
+
+    xhr.send(formData);
+  });
+}
+
 async function uploadFileToR2(
   file: File,
   folder: string,
@@ -264,10 +362,20 @@ async function uploadFileToR2(
   try {
     await uploadFileDirectToR2(file, uploadInfo.signedUrl, onProgress);
   } catch (error: unknown) {
-    throw new UploadStepError(
-      `${folder} R2 upload`,
-      getErrorMessage(error, `Failed to upload ${file.name} to R2`)
-    );
+    try {
+      return await uploadFileViaAdminRoute(file, folder, onProgress);
+    } catch (fallbackError: unknown) {
+      throw new UploadStepError(
+        `${folder} R2 upload`,
+        `${getErrorMessage(
+          error,
+          `Failed to upload ${file.name} directly to R2`
+        )} Server fallback also failed: ${getErrorMessage(
+          fallbackError,
+          "admin upload API failed"
+        )}`
+      );
+    }
   }
 
   return {
@@ -330,8 +438,12 @@ export default function BulkUploadPanel() {
   }, [items]);
 
   function findMatchingFile(file: File, map: Map<string, File>) {
-    const key = matchKey(file.name);
-    return map.get(key) || null;
+    for (const key of buildMatchKeys(file.name)) {
+      const match = map.get(key);
+      if (match) return match;
+    }
+
+    return null;
   }
 
   function getFallbackArtist() {
@@ -371,6 +483,9 @@ export default function BulkUploadPanel() {
     for (const file of audioFiles) {
       const guessed = guessMetadata(file);
       const duration = await getAudioDuration(file);
+      const matchedArtwork = findMatchingFile(file, nextArtworkMap) || globalArtwork;
+      const matchedLyrics = findMatchingFile(file, nextLyricsMap) || globalLyrics;
+      const matchedLrc = findMatchingFile(file, nextLrcMap) || globalLrc;
 
       prepared.push({
         id: makeId(),
@@ -381,20 +496,31 @@ export default function BulkUploadPanel() {
         genre: defaultGenre,
         mood: defaultMood,
         duration,
-        artworkFile: findMatchingFile(file, nextArtworkMap),
-        lyricsFile: findMatchingFile(file, nextLyricsMap) || globalLyrics,
-        lrcFile: findMatchingFile(file, nextLrcMap) || globalLrc,
+        artworkFile: matchedArtwork,
+        lyricsFile: matchedLyrics,
+        lrcFile: matchedLrc,
         status: "ready",
         progress: 0,
+        warning: matchedArtwork
+          ? undefined
+          : "No matching artwork yet. Select matching artwork or apply album artwork before upload.",
       });
     }
 
     setItems((current) => {
+      const existingAudioKeys = new Set(
+        current.flatMap((item) => buildMatchKeys(item.file.name))
+      );
+      const newItems = prepared.filter(
+        (item) =>
+          !buildMatchKeys(item.file.name).some((key) => existingAudioKeys.has(key))
+      );
       const updated = current.map((item) => ({
         ...item,
         artworkFile:
           item.artworkFile ||
-          findMatchingFile(item.file, nextArtworkMap),
+          findMatchingFile(item.file, nextArtworkMap) ||
+          globalArtwork,
         lyricsFile:
           item.lyricsFile ||
           findMatchingFile(item.file, nextLyricsMap) ||
@@ -403,7 +529,7 @@ export default function BulkUploadPanel() {
           item.lrcFile || findMatchingFile(item.file, nextLrcMap) || globalLrc,
       }));
 
-      return [...prepared, ...updated];
+      return [...newItems, ...updated];
     });
   }
 
@@ -423,18 +549,24 @@ export default function BulkUploadPanel() {
 
   function matchAssetsToExistingSongs() {
     setItems((current) =>
-      current.map((item) => ({
-        ...item,
-        artworkFile:
+      current.map((item) => {
+        const artworkFile =
           findMatchingFile(item.file, artworkMap) ||
-          item.artworkFile,
-        lyricsFile:
-          findMatchingFile(item.file, lyricsMap) ||
-          item.lyricsFile ||
-          globalLyrics,
-        lrcFile:
-          findMatchingFile(item.file, lrcMap) || item.lrcFile || globalLrc,
-      }))
+          item.artworkFile ||
+          globalArtwork;
+
+        return {
+          ...item,
+          artworkFile,
+          lyricsFile:
+            findMatchingFile(item.file, lyricsMap) ||
+            item.lyricsFile ||
+            globalLyrics,
+          lrcFile:
+            findMatchingFile(item.file, lrcMap) || item.lrcFile || globalLrc,
+          warning: artworkFile ? undefined : item.warning,
+        };
+      })
     );
   }
 
@@ -447,17 +579,9 @@ export default function BulkUploadPanel() {
     });
 
     try {
-      const artworkToUpload = item.artworkFile || null;
+      const artworkToUpload = item.artworkFile || globalArtwork || null;
       const plainLyricsToRead = item.lyricsFile || globalLyrics;
       const syncedLrcToRead = item.lrcFile || globalLrc;
-
-      console.log("Hidden Tunes upload started", {
-        title: item.title,
-        audioFile: item.file.name,
-        artworkFile: artworkToUpload?.name || null,
-        lyricsFile: plainLyricsToRead?.name || null,
-        lrcFile: syncedLrcToRead?.name || null,
-      });
 
       updateItem(item.id, { progress: 10 });
 
@@ -502,55 +626,56 @@ export default function BulkUploadPanel() {
         );
       }
 
-      const response = await fetch(API_UPLOAD_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          title: item.title,
-          artist: item.artist || getFallbackArtist(),
-          album: item.album || defaultAlbum || FALLBACK_ALBUM,
-          genre: item.genre || defaultGenre,
-          mood: item.mood || defaultMood,
-          duration: item.duration,
+      let response: Response;
 
-          audioUrl: audioUpload.publicUrl,
-          audioKey: audioUpload.key,
+      try {
+        response = await fetch(API_UPLOAD_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            title: item.title,
+            artist: item.artist || getFallbackArtist(),
+            album: item.album || defaultAlbum || FALLBACK_ALBUM,
+            genre: item.genre || defaultGenre,
+            mood: item.mood || defaultMood,
+            duration: item.duration,
 
-          artworkUrl: artworkUpload?.publicUrl || null,
-          artworkKey: artworkUpload?.key || null,
+            audioUrl: audioUpload.publicUrl,
+            audioKey: audioUpload.key,
 
-          lyricsText: syncedLrcText || plainLyricsText,
-          plainLyricsText,
-          syncedLrcText,
-        }),
-      });
+            artworkUrl: artworkUpload?.publicUrl || null,
+            artworkKey: artworkUpload?.key || null,
+
+            lyricsText: syncedLrcText || plainLyricsText,
+            plainLyricsText,
+            syncedLrcText,
+          }),
+        });
+      } catch (error: unknown) {
+        throw new UploadStepError(
+          "Supabase catalog save",
+          `Could not reach the admin upload API. Check that the admin dev server is running on the same origin. ${getErrorMessage(
+            error,
+            "Network request failed"
+          )}`
+        );
+      }
 
       updateItem(item.id, { progress: 95 });
 
       const data = await response.json().catch(() => null);
 
       if (!response.ok || !data?.success) {
-        console.warn("Hidden Tunes catalog save failed", {
-          title: item.title,
-          status: response.status,
-          data,
-        });
-
         throw new UploadStepError(
           "Supabase catalog save",
-          data?.error ||
+          response.status === 409
+            ? data?.error || "Duplicate song blocked by catalog safety check"
+            : data?.error ||
             data?.message ||
             `Metadata save failed with status ${response.status}`
         );
-      }
-
-      if (data?.warning) {
-        console.warn("Hidden Tunes upload completed with warning", {
-          title: item.title,
-          warning: data.warning,
-        });
       }
 
       updateItem(item.id, {
@@ -562,13 +687,6 @@ export default function BulkUploadPanel() {
     } catch (error: unknown) {
       const step = getUploadStep(error);
       const message = getErrorMessage(error, "Upload failed");
-
-      console.warn("Hidden Tunes upload failed", {
-        title: item.title,
-        step,
-        message,
-        errorName: getSafeErrorName(error),
-      });
 
       updateItem(item.id, {
         status: "error",
@@ -587,11 +705,13 @@ export default function BulkUploadPanel() {
 
     setIsUploadingAll(true);
 
-    for (const item of pending) {
-      await uploadSingle(item);
+    try {
+      for (const item of pending) {
+        await uploadSingle(item);
+      }
+    } finally {
+      setIsUploadingAll(false);
     }
-
-    setIsUploadingAll(false);
   }
 
   function applyDefaultArtistToAll() {
@@ -628,6 +748,7 @@ export default function BulkUploadPanel() {
       current.map((item) => ({
         ...item,
         artworkFile: globalArtwork,
+        warning: undefined,
       }))
     );
   }
@@ -839,7 +960,26 @@ export default function BulkUploadPanel() {
 
                     if (files.length === 1) setGlobalArtwork(files[0]);
 
-                    setBulkArtworkFiles((current) => [...current, ...files]);
+                    const nextFiles = [...bulkArtworkFiles, ...files];
+                    const nextMap = buildFileMap(nextFiles);
+                    const albumArtwork = files.length === 1 ? files[0] : globalArtwork;
+
+                    setBulkArtworkFiles(nextFiles);
+                    setItems((current) =>
+                      current.map((item) => {
+                        const artworkFile =
+                          findMatchingFile(item.file, nextMap) ||
+                          item.artworkFile ||
+                          albumArtwork;
+
+                        return {
+                          ...item,
+                          artworkFile,
+                          warning: artworkFile ? undefined : item.warning,
+                        };
+                      })
+                    );
+                    event.target.value = "";
                   }}
                 />
 
@@ -860,7 +1000,21 @@ export default function BulkUploadPanel() {
                       setGlobalLyrics(files[0]);
                     }
 
-                    setBulkLyricsFiles((current) => [...current, ...files]);
+                    const nextFiles = [...bulkLyricsFiles, ...files];
+                    const nextMap = buildFileMap(nextFiles);
+                    const fallbackLyrics = files.length === 1 ? files[0] : globalLyrics;
+
+                    setBulkLyricsFiles(nextFiles);
+                    setItems((current) =>
+                      current.map((item) => ({
+                        ...item,
+                        lyricsFile:
+                          findMatchingFile(item.file, nextMap) ||
+                          item.lyricsFile ||
+                          fallbackLyrics,
+                      }))
+                    );
+                    event.target.value = "";
                   }}
                 />
 
@@ -881,7 +1035,21 @@ export default function BulkUploadPanel() {
                       setGlobalLrc(files[0]);
                     }
 
-                    setBulkLrcFiles((current) => [...current, ...files]);
+                    const nextFiles = [...bulkLrcFiles, ...files];
+                    const nextMap = buildFileMap(nextFiles);
+                    const fallbackLrc = files.length === 1 ? files[0] : globalLrc;
+
+                    setBulkLrcFiles(nextFiles);
+                    setItems((current) =>
+                      current.map((item) => ({
+                        ...item,
+                        lrcFile:
+                          findMatchingFile(item.file, nextMap) ||
+                          item.lrcFile ||
+                          fallbackLrc,
+                      }))
+                    );
+                    event.target.value = "";
                   }}
                 />
               </div>
@@ -915,6 +1083,7 @@ export default function BulkUploadPanel() {
                 accept="audio/*,.mp3,.wav,.m4a,image/*,.jpg,.jpeg,.png,.webp,.txt,.lyrics,.lrc"
                 onChange={(event) => {
                   if (event.target.files) addFiles(event.target.files);
+                  event.target.value = "";
                 }}
               />
 
@@ -1062,7 +1231,9 @@ export default function BulkUploadPanel() {
                     <div className="flex min-w-[150px] flex-row gap-2 xl:flex-col">
                       <button
                         onClick={() => uploadSingle(item)}
-                        disabled={item.status === "uploading"}
+                        disabled={
+                          item.status === "uploading" || item.status === "success"
+                        }
                         className="flex-1 rounded-2xl bg-white px-4 py-3 text-sm font-black text-black disabled:opacity-40"
                       >
                         {item.status === "success"

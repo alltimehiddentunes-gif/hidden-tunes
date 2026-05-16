@@ -169,6 +169,54 @@ async function upsertAlbum(
   return data;
 }
 
+async function findDuplicateSong({
+  audioKey,
+  audioUrl,
+  title,
+  artistId,
+  albumId,
+}: {
+  audioKey: string;
+  audioUrl: string;
+  title: string;
+  artistId?: string;
+  albumId?: string;
+}) {
+  if (audioKey) {
+    const { data } = await supabaseAdmin
+      .from("songs")
+      .select("id,title")
+      .eq("r2_audio_key", audioKey)
+      .maybeSingle();
+
+    if (data) return data;
+  }
+
+  if (audioUrl) {
+    const { data } = await supabaseAdmin
+      .from("songs")
+      .select("id,title")
+      .eq("audio_url", audioUrl)
+      .maybeSingle();
+
+    if (data) return data;
+  }
+
+  if (title && artistId && albumId) {
+    const { data } = await supabaseAdmin
+      .from("songs")
+      .select("id,title")
+      .eq("title", title)
+      .eq("artist_id", artistId)
+      .eq("album_id", albumId)
+      .maybeSingle();
+
+    if (data) return data;
+  }
+
+  return null;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -207,8 +255,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const songId = randomUUID();
-
     const artistSlug = slugify(artistName) || "unknown-artist";
     const titleSlug = slugify(title) || "untitled-song";
     const albumSlug = slugify(albumTitle) || "singles";
@@ -225,6 +271,25 @@ export async function POST(req: NextRequest) {
     const artworkSource: "custom" | "fallback" = artworkUrlFromClient
       ? "custom"
       : "fallback";
+
+    const directDuplicate = await findDuplicateSong({
+      audioKey,
+      audioUrl,
+      title,
+    });
+
+    if (directDuplicate) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Duplicate upload blocked. "${directDuplicate.title}" is already in the catalog.`,
+          duplicateSongId: directDuplicate.id,
+        },
+        { status: 409 }
+      );
+    }
+
+    const songId = randomUUID();
 
     let lyricsUrl: string | null = null;
     let lyricsKey: string | null = null;
@@ -250,6 +315,25 @@ export async function POST(req: NextRequest) {
 
     const artist = await upsertArtist(artistName, artistSlug, artworkUrl);
     const album = await upsertAlbum(albumTitle, albumSlug, artist.id, artworkUrl);
+
+    const metadataDuplicate = await findDuplicateSong({
+      audioKey,
+      audioUrl,
+      title,
+      artistId: artist.id,
+      albumId: album.id,
+    });
+
+    if (metadataDuplicate) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Duplicate song blocked. "${metadataDuplicate.title}" already exists for this artist and album.`,
+          duplicateSongId: metadataDuplicate.id,
+        },
+        { status: 409 }
+      );
+    }
 
     const { data: song, error: songError } = await supabaseAdmin
       .from("songs")
