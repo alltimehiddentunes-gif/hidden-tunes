@@ -141,7 +141,7 @@ export default function PlayerScreen() {
 
     rotate.value = withRepeat(
       withTiming(360, {
-        duration: 26000,
+        duration: 42000,
       }),
       -1,
       false
@@ -149,8 +149,8 @@ export default function PlayerScreen() {
 
     pulse.value = withRepeat(
       withSequence(
-        withTiming(1.025, { duration: 1800 }),
-        withTiming(1, { duration: 1800 })
+        withTiming(1.012, { duration: 2400 }),
+        withTiming(1, { duration: 2400 })
       ),
       -1,
       false

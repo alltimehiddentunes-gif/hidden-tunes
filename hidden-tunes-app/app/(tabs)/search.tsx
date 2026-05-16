@@ -97,6 +97,7 @@ type GenreItem = {
 const SEARCH_HISTORY_KEY = "hidden_tunes_recent_searches_v4";
 const TV_DISCOVERY_CACHE_KEY = "hidden_tunes_tv_discovery_queries_v1";
 const WEAK_RESULT_THRESHOLD = 4;
+const SEARCH_SKELETON_KEYS = ["one", "two", "three", "four"];
 
 const TRENDING_SEARCHES = [
   "Caasi Wills",
@@ -353,6 +354,23 @@ const SearchResultRow = memo(function SearchResultRow({
     </View>
   );
 });
+
+function SearchSkeletonRows() {
+  return (
+    <View style={styles.searchSkeletonList}>
+      {SEARCH_SKELETON_KEYS.map((item) => (
+        <View key={`search-skeleton-${item}`} style={styles.searchSkeletonRow}>
+          <View style={styles.searchSkeletonArtwork} />
+          <View style={styles.searchSkeletonText}>
+            <View style={styles.searchSkeletonLineLarge} />
+            <View style={styles.searchSkeletonLineSmall} />
+          </View>
+          <View style={styles.searchSkeletonButton} />
+        </View>
+      ))}
+    </View>
+  );
+}
 
 export default function SearchScreen() {
   const { playSong, stopPlayback, currentSong, isPlaying } = usePlayer() as any;
@@ -1077,7 +1095,7 @@ export default function SearchScreen() {
           {loadingCloud ? (
             <View style={styles.loadingMini}>
               <ActivityIndicator color={COLORS.primary} />
-              <Text style={styles.loadingText}>Loading...</Text>
+              <Text style={styles.loadingMiniText}>Preparing songs...</Text>
             </View>
           ) : (
             continueListening.map((track) => (
@@ -1320,8 +1338,11 @@ export default function SearchScreen() {
 
       {loading ? (
         <View style={styles.loadingBox}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.loadingText}>Searching...</Text>
+          <View style={styles.loadingTitleRow}>
+            <ActivityIndicator size="small" color={COLORS.primary} />
+            <Text style={styles.loadingText}>Finding the best matches...</Text>
+          </View>
+          <SearchSkeletonRows />
         </View>
       ) : (
         <FlatList
@@ -1568,8 +1589,17 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   loadingBox: {
-    marginTop: 40,
+    marginTop: 18,
+    borderRadius: 28,
+    padding: 16,
+    backgroundColor: "rgba(255,255,255,0.055)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+  },
+  loadingTitleRow: {
+    flexDirection: "row",
     alignItems: "center",
+    marginBottom: 14,
   },
   loadingMini: {
     minHeight: 100,
@@ -1578,9 +1608,55 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: "rgba(255,255,255,0.06)",
   },
-  loadingText: {
+  loadingMiniText: {
     color: COLORS.textMuted,
     marginTop: 12,
+    fontWeight: "800",
+  },
+  loadingText: {
+    color: COLORS.textMuted,
+    marginLeft: 10,
+    fontWeight: "800",
+  },
+  searchSkeletonList: {
+    gap: 10,
+  },
+  searchSkeletonRow: {
+    minHeight: 74,
+    borderRadius: 22,
+    padding: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.055)",
+  },
+  searchSkeletonArtwork: {
+    width: 50,
+    height: 50,
+    borderRadius: 15,
+    backgroundColor: "rgba(255,255,255,0.1)",
+  },
+  searchSkeletonText: {
+    flex: 1,
+    marginLeft: 12,
+    gap: 8,
+  },
+  searchSkeletonLineLarge: {
+    width: "76%",
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "rgba(255,255,255,0.12)",
+  },
+  searchSkeletonLineSmall: {
+    width: "48%",
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "rgba(255,255,255,0.08)",
+  },
+  searchSkeletonButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "rgba(255,255,255,0.09)",
   },
   cloudStatus: {
     flexDirection: "row",

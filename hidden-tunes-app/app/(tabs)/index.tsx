@@ -48,6 +48,7 @@ const HERO_CARD_WIDTH = width - 40;
 const INITIAL_HOME_SONG_ROWS = 8;
 const HOME_SONG_ROWS_INCREMENT = 12;
 const HERO_AUTO_SLIDE_MS = 7000;
+const HOME_SKELETON_KEYS = ["first", "second", "third"];
 
 type HeroCard = {
   key: string;
@@ -92,6 +93,20 @@ function dedupeSongs(songs: HiddenTunesNormalizedSong[]) {
     seen.add(key);
     return Boolean(song.streamUrl || song.url);
   });
+}
+
+function HomeSkeletonCards() {
+  return (
+    <View style={styles.skeletonRow}>
+      {HOME_SKELETON_KEYS.map((item) => (
+        <View key={`home-skeleton-${item}`} style={styles.skeletonCard}>
+          <View style={styles.skeletonArtwork} />
+          <View style={styles.skeletonLineLarge} />
+          <View style={styles.skeletonLineSmall} />
+        </View>
+      ))}
+    </View>
+  );
 }
 
 function HomeScreen() {
@@ -796,11 +811,28 @@ function HomeScreen() {
               <LinearGradient colors={GRADIENTS.neon} style={styles.heroBorder}>
                 <View style={styles.heroCard}>
                   <View style={styles.heroEmpty}>
-                    <Ionicons name="musical-notes-outline" size={44} color={COLORS.primary} />
-                    <Text style={styles.heroEmptyText}>No songs yet</Text>
-                    <Text style={styles.heroEmptySub}>
-                      Pull down to refresh.
-                    </Text>
+                    {loadingSongs ? (
+                      <>
+                        <View style={styles.heroSkeletonIcon} />
+                        <View style={styles.heroSkeletonLineWide} />
+                        <View style={styles.heroSkeletonLine} />
+                        <Text style={styles.heroEmptySub}>
+                          Preparing your catalog...
+                        </Text>
+                      </>
+                    ) : (
+                      <>
+                        <Ionicons
+                          name="musical-notes-outline"
+                          size={44}
+                          color={COLORS.primary}
+                        />
+                        <Text style={styles.heroEmptyText}>No songs yet</Text>
+                        <Text style={styles.heroEmptySub}>
+                          Pull down to refresh.
+                        </Text>
+                      </>
+                    )}
                   </View>
                 </View>
               </LinearGradient>
@@ -1004,8 +1036,11 @@ function HomeScreen() {
 
           {loadingSongs ? (
             <View style={styles.loadingBox}>
-              <ActivityIndicator size="small" color={COLORS.primary} />
-              <Text style={styles.loadingText}>Loading catalog...</Text>
+              <View style={styles.loadingTitleRow}>
+                <ActivityIndicator size="small" color={COLORS.primary} />
+                <Text style={styles.loadingText}>Preparing fresh tracks...</Text>
+              </View>
+              <HomeSkeletonCards />
             </View>
           ) : featuredSongs.length === 0 ? (
             <View style={styles.emptyBox}>
@@ -1403,6 +1438,31 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
 
+  heroSkeletonIcon: {
+    width: 72,
+    height: 72,
+    borderRadius: 24,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+    marginBottom: 18,
+  },
+
+  heroSkeletonLineWide: {
+    width: "64%",
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: "rgba(255,255,255,0.12)",
+    marginBottom: 10,
+  },
+
+  heroSkeletonLine: {
+    width: "42%",
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: "rgba(255,255,255,0.08)",
+  },
+
   playButton: {
     backgroundColor: COLORS.primary,
     alignSelf: "flex-start",
@@ -1585,14 +1645,55 @@ const styles = StyleSheet.create({
     padding: 18,
     borderRadius: 22,
     backgroundColor: "rgba(255,255,255,0.055)",
+  },
+
+  loadingTitleRow: {
     flexDirection: "row",
     alignItems: "center",
+    marginBottom: 16,
   },
 
   loadingText: {
     color: COLORS.textMuted,
     marginLeft: 10,
     fontWeight: "700",
+  },
+
+  skeletonRow: {
+    flexDirection: "row",
+    gap: 12,
+  },
+
+  skeletonCard: {
+    flex: 1,
+    minHeight: 138,
+    borderRadius: 20,
+    padding: 10,
+    backgroundColor: "rgba(255,255,255,0.055)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.07)",
+  },
+
+  skeletonArtwork: {
+    height: 78,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    marginBottom: 12,
+  },
+
+  skeletonLineLarge: {
+    width: "84%",
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "rgba(255,255,255,0.12)",
+    marginBottom: 8,
+  },
+
+  skeletonLineSmall: {
+    width: "56%",
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "rgba(255,255,255,0.08)",
   },
 
   emptyBox: {

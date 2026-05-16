@@ -134,10 +134,10 @@ export default function QueueScreen() {
   }, [activeQueueMode, queue.length]);
 
   const modeShort = useMemo(() => {
-    if (activeQueueMode === "smart") return "AI";
-    if (activeQueueMode === "youtube") return "YT";
-    if (activeQueueMode === "radio") return "FM";
-    return "HQ";
+    if (activeQueueMode === "smart") return "Smart";
+    if (activeQueueMode === "youtube") return "TV";
+    if (activeQueueMode === "radio") return "Radio";
+    return "Queue";
   }, [activeQueueMode]);
 
   const playQueueItem = useCallback(
@@ -188,8 +188,8 @@ export default function QueueScreen() {
 
   const handleClearSmartMemory = useCallback(() => {
     Alert.alert(
-      "Clear Smart Memory",
-      "This clears the saved smart autoplay memory. Your playlists and current queue will not be deleted.",
+      "Reset Smart Picks",
+      "This resets saved smart autoplay picks. Your playlists and current queue stay in place.",
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -276,7 +276,7 @@ export default function QueueScreen() {
           >
             <Ionicons name="sparkles-outline" size={17} color={COLORS.text} />
             <Text style={styles.smartActionText}>
-              {clearingSmart ? "Clearing..." : "Clear Smart Memory"}
+              {clearingSmart ? "Resetting..." : "Reset Smart Picks"}
             </Text>
           </TouchableOpacity>
 

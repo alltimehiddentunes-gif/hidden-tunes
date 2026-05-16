@@ -87,6 +87,7 @@ type GenreWorld = GenreItem & {
 const CARD_WIDTH = 150;
 const CARD_GAP = 14;
 const ARTIST_CARD_WIDTH = 142;
+const EXPLORE_SKELETON_KEYS = ["one", "two", "three"];
 
 function getSafeVideoId(track: BackendYouTubeTrack) {
   return String(track.videoId || track.id || "").replace("youtube-", "").trim();
@@ -240,6 +241,27 @@ const YouTubeTrackCard = memo(function YouTubeTrackCard({
     </TouchableOpacity>
   );
 });
+
+function ExploreSkeletonRail() {
+  return (
+    <View style={styles.skeletonPanel}>
+      <View style={styles.skeletonTitleRow}>
+        <ActivityIndicator size="small" color={COLORS.primary} />
+        <Text style={styles.loadingText}>Preparing discovery...</Text>
+      </View>
+
+      <View style={styles.skeletonRail}>
+        {EXPLORE_SKELETON_KEYS.map((item) => (
+          <View key={`explore-skeleton-${item}`} style={styles.skeletonCard}>
+            <View style={styles.skeletonArtwork} />
+            <View style={styles.skeletonLineLarge} />
+            <View style={styles.skeletonLineSmall} />
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
 
 export default function ExploreScreen() {
   const {
@@ -876,10 +898,7 @@ export default function ExploreScreen() {
             />
 
             {loading ? (
-              <View style={styles.loader}>
-                <ActivityIndicator size="large" color={COLORS.primary} />
-                <Text style={styles.loadingText}>Loading picks...</Text>
-              </View>
+              <ExploreSkeletonRail />
             ) : null}
 
             {!loading && cloudSongs.length > 0 && (
@@ -1722,9 +1741,61 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+
+  skeletonPanel: {
+    minHeight: 190,
+    borderRadius: 28,
+    padding: 16,
+    marginBottom: 22,
+    backgroundColor: "rgba(255,255,255,0.055)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+  },
+
+  skeletonTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+
+  skeletonRail: {
+    flexDirection: "row",
+    gap: 12,
+  },
+
+  skeletonCard: {
+    flex: 1,
+    minHeight: 126,
+    borderRadius: 20,
+    padding: 10,
+    backgroundColor: "rgba(255,255,255,0.055)",
+  },
+
+  skeletonArtwork: {
+    height: 70,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    marginBottom: 12,
+  },
+
+  skeletonLineLarge: {
+    width: "82%",
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "rgba(255,255,255,0.12)",
+    marginBottom: 8,
+  },
+
+  skeletonLineSmall: {
+    width: "58%",
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "rgba(255,255,255,0.08)",
+  },
+
   loadingText: {
     color: COLORS.textMuted,
-    marginTop: 14,
+    marginLeft: 10,
     fontSize: 14,
   },
   heroWrap: {

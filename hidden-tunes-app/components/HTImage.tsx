@@ -21,14 +21,19 @@ function HTImage({
 }: Props) {
   const [failed, setFailed] = useState(false);
 
+  const fallbackSource = useMemo(() => {
+    const artwork = getArtworkValue(fallback, FALLBACK_ARTWORK);
+    return typeof artwork === "string" ? { uri: artwork } : artwork;
+  }, [fallback]);
+
   const resolvedSource = useMemo(() => {
-    if (failed) return { uri: fallback };
+    if (failed) return fallbackSource;
 
     const candidate = source ?? uri;
     const artwork = getArtworkValue(candidate, fallback);
 
     return typeof artwork === "string" ? { uri: artwork } : artwork;
-  }, [failed, fallback, source, uri]);
+  }, [failed, fallback, fallbackSource, source, uri]);
 
   useEffect(() => {
     setFailed(false);
@@ -40,7 +45,8 @@ function HTImage({
       style={style}
       contentFit={contentFit}
       cachePolicy="disk"
-      transition={120}
+      placeholder={fallbackSource}
+      transition={180}
       onError={() => setFailed(true)}
     />
   );
