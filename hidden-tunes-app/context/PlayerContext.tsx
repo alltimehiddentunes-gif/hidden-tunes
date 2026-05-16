@@ -199,6 +199,9 @@ const TRACK_END_THRESHOLD_MS = 750;
 const MIN_DURATION_FOR_POSITION_FINISH_MS = 4000;
 const PRELOAD_BEFORE_END_MS = 15000;
 const FINISH_DEBOUNCE_MS = 1500;
+const FINISH_WATCHDOG_GRACE_MS = 650;
+const FINISH_WATCHDOG_MIN_DELAY_MS = 350;
+const FINISH_WATCHDOG_MAX_DELAY_MS = 30000;
 
 function isBackgroundAppState(state: AppStateStatus) {
   return state === "background" || state === "inactive";
@@ -288,6 +291,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const pendingSmartExtendRef = useRef(false);
   const trackPlayerActiveRef = useRef(false);
   const handleTrackFinishedRef = useRef<(() => Promise<void>) | null>(null);
+  const finishWatchdogTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
+  const finishWatchdogSongIdRef = useRef("");
 
   const positionMillisRef = useRef(0);
   const durationMillisRef = useRef(0);
@@ -967,6 +974,15 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     return sound;
   }, []);
 
+  const clearFinishWatchdog = useCallback(() => {
+    if (finishWatchdogTimeoutRef.current) {
+      clearTimeout(finishWatchdogTimeoutRef.current);
+      finishWatchdogTimeoutRef.current = null;
+    }
+
+    finishWatchdogSongIdRef.current = "";
+  }, []);
+
   const nextSong = useCallback(async () => {
     if (trackPlayerActiveRef.current) {
       await runQueueTransition(async () => {
@@ -1084,14 +1100,22 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       await nextSong();
     } finally {
       void removeStoredValues([POSITION_KEY]);
+      clearFinishWatchdog();
       autoAdvanceRef.current = false;
     }
-  }, [nextSong, removeStoredValues, setIsPlaying]);
+  }, [nextSong, removeStoredValues, setIsPlaying, clearFinishWatchdog]);
 
   handleTrackFinishedRef.current = handleTrackFinished;
 
   const scheduleTrackAdvance = useCallback(() => {
     if (isChangingTrackRef.current || autoAdvanceRef.current) return;
+
+    if (finishWatchdogTimeoutRef.current) {
+      clearTimeout(finishWatchdogTimeoutRef.current);
+      finishWatchdogTimeoutRef.current = null;
+    }
+
+    finishWatchdogSongIdRef.current = "";
 
     const songId = currentSongRef.current?.id || "";
     const now = Date.now();
@@ -1113,6 +1137,89 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       void handleTrackFinishedRef.current?.();
     }, 0);
   }, []);
+
+  const armFinishWatchdog = useCallback(
+    (position: number, duration: number, playing: boolean) => {
+      if (trackPlayerActiveRef.current) return;
+
+      if (
+        !playing ||
+        repeatModeRef.current === "one" ||
+        duration < MIN_DURATION_FOR_POSITION_FINISH_MS ||
+        position <= 0 ||
+        position >= duration
+      ) {
+        clearFinishWatchdog();
+        return;
+      }
+
+      const songId = currentSongRef.current?.id || "";
+      if (!songId) {
+        clearFinishWatchdog();
+        return;
+      }
+
+      const remainingMs = duration - position;
+      const delay = Math.max(
+        FINISH_WATCHDOG_MIN_DELAY_MS,
+        Math.min(
+          remainingMs + FINISH_WATCHDOG_GRACE_MS,
+          FINISH_WATCHDOG_MAX_DELAY_MS
+        )
+      );
+
+      if (finishWatchdogTimeoutRef.current) {
+        clearTimeout(finishWatchdogTimeoutRef.current);
+      }
+
+      finishWatchdogSongIdRef.current = songId;
+      finishWatchdogTimeoutRef.current = setTimeout(() => {
+        finishWatchdogTimeoutRef.current = null;
+
+        if (finishWatchdogSongIdRef.current !== currentSongRef.current?.id) {
+          return;
+        }
+
+        const sound = soundRef.current;
+        if (!sound || isChangingTrackRef.current || autoAdvanceRef.current) {
+          return;
+        }
+
+        void sound
+          .getStatusAsync()
+          .then((status) => {
+            if (
+              !status.isLoaded ||
+              finishWatchdogSongIdRef.current !== currentSongRef.current?.id
+            ) {
+              return;
+            }
+
+            const statusPosition = status.positionMillis || 0;
+            const statusDuration = status.durationMillis || duration;
+            const nearEnd =
+              statusDuration >= MIN_DURATION_FOR_POSITION_FINISH_MS &&
+              statusPosition >= statusDuration - TRACK_END_THRESHOLD_MS;
+
+            if (status.didJustFinish || (!status.isPlaying && nearEnd)) {
+              scheduleTrackAdvance();
+              return;
+            }
+
+            if (status.isPlaying && nearEnd) {
+              armFinishWatchdog(statusPosition, statusDuration, true);
+              return;
+            }
+
+            armFinishWatchdog(statusPosition, statusDuration, status.isPlaying);
+          })
+          .catch((error) => {
+            console.log("Finish watchdog error:", error);
+          });
+      }, delay);
+    },
+    [clearFinishWatchdog, scheduleTrackAdvance]
+  );
 
   const flushPendingSmartExtend = useCallback(async () => {
     if (!pendingSmartExtendRef.current) return;
@@ -1229,6 +1336,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         setIsPlayingState(nextIsPlaying);
       }
 
+      armFinishWatchdog(nextPosition, nextDuration, nextIsPlaying);
+
       if (status.didJustFinish && !isChangingTrackRef.current) {
         scheduleTrackAdvance();
         return;
@@ -1272,6 +1381,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     },
     [
       scheduleTrackAdvance,
+      armFinishWatchdog,
       getUpcomingSong,
       preloadUpcomingTrack,
       savePlaybackPosition,
@@ -1288,6 +1398,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
         const normalizedSong = normalizeSong(song);
         autoAdvanceRef.current = false;
+        clearFinishWatchdog();
 
         if (isYouTubeSong(normalizedSong)) {
           console.log(
@@ -1517,6 +1628,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       savePlaybackSideEffects,
       removeStoredValues,
       configureAudio,
+      clearFinishWatchdog,
     ]
   );
 
@@ -1941,6 +2053,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     try {
       isChangingTrackRef.current = true;
       pendingSmartExtendRef.current = false;
+      clearFinishWatchdog();
 
       loadRequestIdRef.current += 1;
       trackPlayerActiveRef.current = false;
@@ -1969,6 +2082,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setPositionMillis,
     setDurationMillis,
     removeStoredValues,
+    clearFinishWatchdog,
   ]);
 
   const togglePlayPause = useCallback(async () => {
@@ -2406,9 +2520,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       restoreTask.cancel();
       isMountedRef.current = false;
       loadRequestIdRef.current += 1;
+      clearFinishWatchdog();
       unloadCurrentSound();
     };
-  }, [configureAudio, restoreSavedData, unloadCurrentSound]);
+  }, [configureAudio, restoreSavedData, unloadCurrentSound, clearFinishWatchdog]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (nextState) => {
