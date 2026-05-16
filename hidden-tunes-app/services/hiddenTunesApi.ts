@@ -23,7 +23,6 @@ const HOME_SONG_LIMIT = 30;
 const SEARCH_SONG_LIMIT = 30;
 export const HIDDEN_TUNES_SONG_PAGE_SIZE = 30;
 export const HIDDEN_TUNES_ARTIST_PAGE_SIZE = 50;
-const CATALOG_LOG_PREFIX = "Hidden Tunes catalog";
 
 const BROKEN_PROMISE_FALLBACK = {
   id: "broken-promise-caasi-wills",
@@ -225,15 +224,6 @@ function safeUrl(value: unknown, fallback = FALLBACK_ARTWORK) {
 
 function isFreshMemoryCache(timestamp: number) {
   return timestamp > 0 && Date.now() - timestamp < CACHE_MAX_AGE_MS;
-}
-
-function logCatalog(message: string, details?: Record<string, unknown>) {
-  if (details) {
-    console.log(`${CATALOG_LOG_PREFIX}: ${message}`, details);
-    return;
-  }
-
-  console.log(`${CATALOG_LOG_PREFIX}: ${message}`);
 }
 
 function hasRealArtwork(value: unknown) {
@@ -493,7 +483,6 @@ async function readCachedSongs() {
   try {
     const cached = await AsyncStorage.getItem(CACHE_KEY);
     if (!cached) {
-      logCatalog("song cache empty");
       return finalizeSongs([]);
     }
 
@@ -510,11 +499,6 @@ async function readCachedSongs() {
     songsMemoryCache = songs;
     songsMemoryCacheTime = Date.now();
 
-    logCatalog("song cache read", {
-      totalLoaded: songs.length,
-      cacheKey: CACHE_KEY,
-    });
-
     return songs;
   } catch (error) {
     console.log("Hidden Tunes cache read error:", error);
@@ -526,11 +510,6 @@ async function writeCachedSongs(songs: HiddenTunesNormalizedSong[]) {
   try {
     songsMemoryCache = songs;
     songsMemoryCacheTime = Date.now();
-
-    logCatalog("song cache write", {
-      totalLoaded: songs.length,
-      cacheKey: CACHE_KEY,
-    });
 
     await AsyncStorage.multiSet([
       [CACHE_KEY, JSON.stringify(songs)],
@@ -559,7 +538,6 @@ async function readCachedArtists() {
   try {
     const cached = await AsyncStorage.getItem(ARTISTS_CACHE_KEY);
     if (!cached) {
-      logCatalog("artist cache empty");
       return [];
     }
 
@@ -569,11 +547,6 @@ async function readCachedArtists() {
     const artists = parsed as HiddenTunesArtist[];
     artistsMemoryCache = artists;
     artistsMemoryCacheTime = Date.now();
-
-    logCatalog("artist cache read", {
-      totalLoaded: artists.length,
-      cacheKey: ARTISTS_CACHE_KEY,
-    });
 
     return artists;
   } catch (error) {
@@ -586,11 +559,6 @@ async function writeCachedArtists(artists: HiddenTunesArtist[]) {
   try {
     artistsMemoryCache = artists;
     artistsMemoryCacheTime = Date.now();
-
-    logCatalog("artist cache write", {
-      totalLoaded: artists.length,
-      cacheKey: ARTISTS_CACHE_KEY,
-    });
 
     await AsyncStorage.multiSet([
       [ARTISTS_CACHE_KEY, JSON.stringify(artists)],
@@ -727,16 +695,6 @@ export async function getHiddenTunesSongsPage(options?: {
   const isGlobalCatalog = !query && !artistId && !albumId && !genre;
   const url = buildSongsUrl({ page, limit, query, artistId, albumId, genre });
 
-  logCatalog("request songs page", {
-    url,
-    page,
-    limit,
-    query: query || undefined,
-    artistId: artistId || undefined,
-    albumId: albumId || undefined,
-    genre: genre || undefined,
-  });
-
   try {
     const response = await fetchWithTimeout(url);
 
@@ -763,25 +721,6 @@ export async function getHiddenTunesSongsPage(options?: {
       const merged = page === 1 ? finalizeSongs(songs) : mergeSongPages(existing, songs);
 
       await writeCachedSongs(merged);
-
-      logCatalog("merged songs page", {
-        page,
-        limit,
-        pageLoaded: songs.length,
-        totalLoaded: merged.length,
-        hasMore: songs.length >= limit,
-      });
-    } else {
-      logCatalog("loaded filtered songs page", {
-        page,
-        limit,
-        pageLoaded: songs.length,
-        hasMore: songs.length >= limit,
-        query: query || undefined,
-        artistId: artistId || undefined,
-        albumId: albumId || undefined,
-        genre: genre || undefined,
-      });
     }
 
     return {
@@ -792,7 +731,7 @@ export async function getHiddenTunesSongsPage(options?: {
       nextPage: page + 1,
     };
   } catch (error) {
-    logCatalog("songs page API error", {
+    console.log("Hidden Tunes songs page API error:", {
       page,
       limit,
       url,
@@ -813,14 +752,6 @@ export async function getHiddenTunesSongsPage(options?: {
     const start = (page - 1) * limit;
     const songs = cached.slice(start, start + limit);
 
-    logCatalog("songs page cache fallback", {
-      page,
-      limit,
-      pageLoaded: songs.length,
-      totalLoaded: cached.length,
-      hasMore: start + limit < cached.length,
-    });
-
     return {
       songs,
       page,
@@ -839,9 +770,6 @@ export async function getHiddenTunesSongs(options?: { forceRefresh?: boolean }) 
     songsMemoryCache &&
     isFreshMemoryCache(songsMemoryCacheTime)
   ) {
-    logCatalog("using memory song cache", {
-      totalLoaded: songsMemoryCache.length,
-    });
     return songsMemoryCache;
   }
 
@@ -850,7 +778,6 @@ export async function getHiddenTunesSongs(options?: { forceRefresh?: boolean }) 
   }
 
   if (!forceRefresh && (await isCacheFresh())) {
-    logCatalog("using fresh stored song cache");
     return await readCachedSongs();
   }
 
@@ -1070,9 +997,6 @@ export async function getHiddenTunesArtists(options?: {
     artistsMemoryCache &&
     isFreshMemoryCache(artistsMemoryCacheTime)
   ) {
-    logCatalog("using memory artist cache", {
-      totalLoaded: artistsMemoryCache.length,
-    });
     return artistsMemoryCache;
   }
 
@@ -1124,13 +1048,6 @@ export async function getHiddenTunesArtistsPage(options?: {
   const query = String(options?.query || "").trim();
   const url = buildArtistsUrl({ page, limit, query });
 
-  logCatalog("request artists page", {
-    url,
-    page,
-    limit,
-    query: query || undefined,
-  });
-
   try {
     const response = await fetchWithTimeout(url);
 
@@ -1160,22 +1077,6 @@ export async function getHiddenTunesArtistsPage(options?: {
       });
 
       await writeCachedArtists(merged);
-
-      logCatalog("merged artists page", {
-        page,
-        limit,
-        pageLoaded: artists.length,
-        totalLoaded: merged.length,
-        hasMore: artists.length >= limit,
-      });
-    } else {
-      logCatalog("loaded filtered artists page", {
-        page,
-        limit,
-        pageLoaded: artists.length,
-        hasMore: artists.length >= limit,
-        query,
-      });
     }
 
     return {
@@ -1186,7 +1087,7 @@ export async function getHiddenTunesArtistsPage(options?: {
       nextPage: page + 1,
     };
   } catch (error) {
-    logCatalog("artists page API error", {
+    console.log("Hidden Tunes artists page API error:", {
       page,
       limit,
       url,
@@ -1206,14 +1107,6 @@ export async function getHiddenTunesArtistsPage(options?: {
     const cached = await readCachedArtists();
     const start = (page - 1) * limit;
     const artists = cached.slice(start, start + limit);
-
-    logCatalog("artists page cache fallback", {
-      page,
-      limit,
-      pageLoaded: artists.length,
-      totalLoaded: cached.length,
-      hasMore: start + limit < cached.length,
-    });
 
     return {
       artists,

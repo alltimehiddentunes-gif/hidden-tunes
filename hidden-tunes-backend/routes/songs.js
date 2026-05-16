@@ -178,16 +178,6 @@ router.get("/", async (req, res) => {
       request = request.or(`genre.ilike.%${genre}%,mood.ilike.%${genre}%`);
     }
 
-    console.log("Songs route page request", {
-      page,
-      limit,
-      offset,
-      query: query || undefined,
-      artistId: artistId || undefined,
-      albumId: albumId || undefined,
-      genre: genre || undefined,
-    });
-
     const { data, error } = await request;
 
     if (error) {
@@ -205,14 +195,6 @@ router.get("/", async (req, res) => {
     }
 
     const normalizedSongs = (data || []).map(normalizeSong);
-
-    console.log("Songs route page response", {
-      page,
-      limit,
-      offset,
-      returned: normalizedSongs.length,
-      hasMore: normalizedSongs.length >= limit,
-    });
 
     return res.json(normalizedSongs);
   } catch (error) {

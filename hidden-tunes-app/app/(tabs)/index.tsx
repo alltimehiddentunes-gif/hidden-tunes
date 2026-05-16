@@ -408,13 +408,6 @@ function HomeScreen() {
         ...(page.songs || []).map(safeSong),
       ]);
 
-      console.log("Hidden Tunes Home catalog load more", {
-        page: nextPage,
-        pageLoaded: page.songs.length,
-        totalLoaded: nextSongs.length,
-        hasMore: page.hasMore,
-      });
-
       setFeaturedSongs(nextSongs);
       setVisibleSongCount((current) =>
         Math.min(nextSongs.length, current + HOME_SONG_ROWS_INCREMENT)

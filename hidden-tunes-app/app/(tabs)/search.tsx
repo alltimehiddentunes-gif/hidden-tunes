@@ -729,13 +729,6 @@ export default function SearchScreen() {
         })
       );
 
-      console.log("Hidden Tunes Search catalog load more", {
-        query: safeText,
-        page: nextPage,
-        pageLoaded: nextResults.length,
-        hasMore: page.hasMore,
-      });
-
       setResults((current) =>
         dedupeByKey([
           ...current,

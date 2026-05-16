@@ -163,12 +163,6 @@ export default function GenreScreen() {
         .map(safeSong)
         .filter((song) => songMatchesGenre(song, aliases));
 
-      console.log("Hidden Tunes Genre catalog first page", {
-        genre: query,
-        pageLoaded: combinedSongs.length,
-        hasMore: genrePage.hasMore,
-      });
-
       setCloudTracks(dedupeSongs(combinedSongs));
       setPage(1);
       setHasMore(genrePage.hasMore);
@@ -197,14 +191,6 @@ export default function GenreScreen() {
         .filter((song) => songMatchesGenre(song, aliases));
 
       const nextTracks = dedupeSongs([...cloudTracks, ...combinedSongs]);
-
-      console.log("Hidden Tunes Genre catalog load more", {
-        genre: query,
-        page: nextPage,
-        pageLoaded: combinedSongs.length,
-        totalLoaded: nextTracks.length,
-        hasMore: genrePage.hasMore,
-      });
 
       setCloudTracks(nextTracks);
       setPage(nextPage);

@@ -365,13 +365,6 @@ export default function ExploreScreen() {
         ...(page.songs || []).map(safeSong),
       ]);
 
-      console.log("Hidden Tunes Explore catalog load more", {
-        page: nextPage,
-        pageLoaded: page.songs.length,
-        totalLoaded: nextSongs.length,
-        hasMore: page.hasMore,
-      });
-
       setCloudSongs(nextSongs);
       setSongPage(nextPage);
       setHasMoreSongs(page.hasMore);
