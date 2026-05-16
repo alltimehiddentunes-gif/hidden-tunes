@@ -1,5 +1,10 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Audio, AVPlaybackStatus } from "expo-av";
+import {
+  Audio,
+  AVPlaybackStatus,
+  InterruptionModeAndroid,
+  InterruptionModeIOS,
+} from "expo-av";
 import {
   createContext,
   ReactNode,
@@ -549,9 +554,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     try {
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: false,
+        interruptionModeIOS: InterruptionModeIOS.DoNotMix,
         staysActiveInBackground: true,
         playsInSilentModeIOS: true,
-        shouldDuckAndroid: true,
+        interruptionModeAndroid: InterruptionModeAndroid.DoNotMix,
+        shouldDuckAndroid: false,
         playThroughEarpieceAndroid: false,
       });
     } catch (error) {
@@ -942,6 +949,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
         isChangingTrackRef.current = true;
         setIsLoading(true);
+        void configureAudio();
 
         const shouldRestorePosition =
           currentSongRef.current?.id === normalizedSong.id;
@@ -1044,6 +1052,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       setPositionMillis,
       setDurationMillis,
       savePlaybackSideEffects,
+      configureAudio,
     ]
   );
 
@@ -1812,6 +1821,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         previousState === "active" &&
         (nextState === "inactive" || nextState === "background")
       ) {
+        configureAudio();
         savePlaybackPosition(positionMillisRef.current);
       }
 
