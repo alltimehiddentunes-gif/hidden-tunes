@@ -163,6 +163,12 @@ export default function GenreScreen() {
         .map(safeSong)
         .filter((song) => songMatchesGenre(song, aliases));
 
+      console.log("Hidden Tunes Genre catalog first page", {
+        genre: query,
+        pageLoaded: combinedSongs.length,
+        hasMore: genrePage.hasMore,
+      });
+
       setCloudTracks(dedupeSongs(combinedSongs));
       setPage(1);
       setHasMore(genrePage.hasMore);
@@ -190,7 +196,17 @@ export default function GenreScreen() {
         .map(safeSong)
         .filter((song) => songMatchesGenre(song, aliases));
 
-      setCloudTracks((current) => dedupeSongs([...current, ...combinedSongs]));
+      const nextTracks = dedupeSongs([...cloudTracks, ...combinedSongs]);
+
+      console.log("Hidden Tunes Genre catalog load more", {
+        genre: query,
+        page: nextPage,
+        pageLoaded: combinedSongs.length,
+        totalLoaded: nextTracks.length,
+        hasMore: genrePage.hasMore,
+      });
+
+      setCloudTracks(nextTracks);
       setPage(nextPage);
       setHasMore(genrePage.hasMore);
     } catch (error) {
@@ -198,7 +214,7 @@ export default function GenreScreen() {
     } finally {
       setLoadingMore(false);
     }
-  }, [aliases, hasMore, loadingMore, page, query]);
+  }, [aliases, cloudTracks, hasMore, loadingMore, page, query]);
 
   useEffect(() => {
     loadGenreTracks();
@@ -391,6 +407,15 @@ export default function GenreScreen() {
                 <ActivityIndicator size="small" color={COLORS.primary} />
                 <Text style={styles.loadMoreText}>Loading more {title}...</Text>
               </View>
+            ) : hasMore ? (
+              <TouchableOpacity
+                activeOpacity={0.86}
+                style={styles.loadMoreButton}
+                onPress={loadMoreTracks}
+              >
+                <Ionicons name="albums-outline" size={17} color="#000" />
+                <Text style={styles.loadMoreButtonText}>Load more {title}</Text>
+              </TouchableOpacity>
             ) : null
           }
           renderItem={({ item, index }: any) => {
@@ -665,5 +690,22 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
     fontSize: 12,
     fontWeight: "800",
+  },
+  loadMoreButton: {
+    alignSelf: "center",
+    minHeight: 46,
+    borderRadius: 999,
+    paddingHorizontal: 18,
+    marginTop: 8,
+    marginBottom: 22,
+    backgroundColor: COLORS.primary,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  loadMoreButtonText: {
+    color: "#000",
+    fontSize: 13,
+    fontWeight: "900",
   },
 });

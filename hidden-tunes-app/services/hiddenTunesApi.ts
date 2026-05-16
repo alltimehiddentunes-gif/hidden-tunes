@@ -944,7 +944,7 @@ export function extractHiddenTunesAlbums(songs: HiddenTunesNormalizedSong[]) {
       tracks.find((track) => hasRealArtwork(track.artwork)) || tracks[0];
 
     return {
-      id: slugify(key),
+      id: String(key),
       title: firstTrack?.album || "Singles",
       slug: slugify(firstTrack?.album || key),
       artist: firstTrack?.artist || "Various Artists",
@@ -976,7 +976,7 @@ export function extractHiddenTunesArtists(songs: HiddenTunesNormalizedSong[]) {
     const name = firstTrack?.artist || "Unknown Artist";
 
     return {
-      id: slugify(key),
+      id: String(key),
       name,
       slug: slugify(name),
       artwork: safeUrl(firstTrack?.artwork),
@@ -1006,7 +1006,8 @@ export async function getHiddenTunesAlbumById(id: string) {
   const cachedAlbum =
     albums.find(
       (album) =>
-        album.id === cleanId ||
+        album.id === id ||
+        slugify(album.id) === cleanId ||
         album.slug === cleanId ||
         slugify(album.title) === cleanId
     ) || null;
@@ -1249,7 +1250,7 @@ export async function getHiddenTunesArtistById(id: string) {
     artists.find(
       (artist) =>
         artist.id === id ||
-        artist.id === cleanId ||
+        slugify(artist.id) === cleanId ||
         artist.slug === cleanId ||
         slugify(artist.name) === cleanId
     ) || null;

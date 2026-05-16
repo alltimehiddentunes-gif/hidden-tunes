@@ -365,6 +365,13 @@ export default function ExploreScreen() {
         ...(page.songs || []).map(safeSong),
       ]);
 
+      console.log("Hidden Tunes Explore catalog load more", {
+        page: nextPage,
+        pageLoaded: page.songs.length,
+        totalLoaded: nextSongs.length,
+        hasMore: page.hasMore,
+      });
+
       setCloudSongs(nextSongs);
       setSongPage(nextPage);
       setHasMoreSongs(page.hasMore);
@@ -1223,6 +1230,15 @@ export default function ExploreScreen() {
               <ActivityIndicator size="small" color={COLORS.primary} />
               <Text style={styles.loadMoreText}>Loading more catalog...</Text>
             </View>
+          ) : hasMoreSongs ? (
+            <TouchableOpacity
+              activeOpacity={0.86}
+              style={styles.loadMoreButton}
+              onPress={loadMoreSongs}
+            >
+              <Ionicons name="albums-outline" size={17} color="#000" />
+              <Text style={styles.loadMoreButtonText}>Load more catalog</Text>
+            </TouchableOpacity>
           ) : null
         }
         renderItem={renderYouTubeTrack}
@@ -1855,5 +1871,22 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
     fontSize: 12,
     fontWeight: "800",
+  },
+  loadMoreButton: {
+    alignSelf: "center",
+    minHeight: 46,
+    borderRadius: 999,
+    paddingHorizontal: 18,
+    marginTop: 8,
+    marginBottom: 22,
+    backgroundColor: COLORS.primary,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  loadMoreButtonText: {
+    color: "#000",
+    fontSize: 13,
+    fontWeight: "900",
   },
 });

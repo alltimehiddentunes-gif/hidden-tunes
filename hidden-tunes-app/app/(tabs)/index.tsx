@@ -408,6 +408,13 @@ function HomeScreen() {
         ...(page.songs || []).map(safeSong),
       ]);
 
+      console.log("Hidden Tunes Home catalog load more", {
+        page: nextPage,
+        pageLoaded: page.songs.length,
+        totalLoaded: nextSongs.length,
+        hasMore: page.hasMore,
+      });
+
       setFeaturedSongs(nextSongs);
       setVisibleSongCount((current) =>
         Math.min(nextSongs.length, current + HOME_SONG_ROWS_INCREMENT)
@@ -874,7 +881,7 @@ function HomeScreen() {
 
               <FlatList
                 horizontal
-                data={rankedArtists.slice(0, 18)}
+                data={rankedArtists}
                 keyExtractor={(item) => `home-artist-${item.id}`}
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.artistRow}
@@ -916,7 +923,7 @@ function HomeScreen() {
 
               <FlatList
                 horizontal
-                data={rankedAlbums.slice(0, 18)}
+                data={rankedAlbums}
                 keyExtractor={(item) => `home-album-${item.id}`}
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.artistRow}
