@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 
 import { uploadToR2 } from "@/lib/r2";
+import { requireUploadPermission } from "@/lib/requireUploadPermission";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
@@ -219,6 +220,12 @@ async function findDuplicateSong({
 
 export async function POST(req: NextRequest) {
   try {
+    const permission = await requireUploadPermission(req);
+
+    if (permission.errorResponse) {
+      return permission.errorResponse;
+    }
+
     const body = await req.json();
 
     const title = String(body.title || body.titleOverride || "").trim();

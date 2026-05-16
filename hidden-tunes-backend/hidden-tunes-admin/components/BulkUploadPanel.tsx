@@ -2,6 +2,8 @@
 
 import { useMemo, useRef, useState } from "react";
 
+import { supabase } from "@/lib/auth";
+
 type UploadStatus = "idle" | "ready" | "uploading" | "success" | "error";
 
 type TrackUploadItem = {
@@ -191,10 +193,32 @@ function buildFileMap(files: File[]) {
   return map;
 }
 
-async function getSignedUploadUrl(file: File, folder: string) {
+async function getUploadAccessToken() {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  const accessToken = session?.access_token;
+
+  if (!accessToken) {
+    throw new UploadStepError(
+      "admin auth",
+      "Your admin session is missing or expired. Sign in again before uploading."
+    );
+  }
+
+  return accessToken;
+}
+
+async function getSignedUploadUrl(
+  file: File,
+  folder: string,
+  accessToken: string
+) {
   const response = await fetch(API_SIGNED_UPLOAD_URL, {
     method: "POST",
     headers: {
+      Authorization: `Bearer ${accessToken}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
@@ -283,6 +307,7 @@ function uploadFileDirectToR2(
 function uploadFileViaAdminRoute(
   file: File,
   folder: string,
+  accessToken: string,
   onProgress?: (progress: number) => void
 ) {
   return new Promise<{ key: string; publicUrl: string }>((resolve, reject) => {
@@ -293,6 +318,7 @@ function uploadFileViaAdminRoute(
     formData.append("folder", folder);
 
     xhr.open("POST", API_SERVER_UPLOAD_URL);
+    xhr.setRequestHeader("Authorization", `Bearer ${accessToken}`);
     xhr.timeout = 1000 * 60 * 30;
 
     xhr.upload.onprogress = (event) => {
@@ -346,12 +372,13 @@ function uploadFileViaAdminRoute(
 async function uploadFileToR2(
   file: File,
   folder: string,
+  accessToken: string,
   onProgress?: (progress: number) => void
 ) {
   let uploadInfo: SignedUploadResponse;
 
   try {
-    uploadInfo = await getSignedUploadUrl(file, folder);
+    uploadInfo = await getSignedUploadUrl(file, folder, accessToken);
   } catch (error: unknown) {
     throw new UploadStepError(
       `${folder} signed URL`,
@@ -363,7 +390,12 @@ async function uploadFileToR2(
     await uploadFileDirectToR2(file, uploadInfo.signedUrl, onProgress);
   } catch (error: unknown) {
     try {
-      return await uploadFileViaAdminRoute(file, folder, onProgress);
+      return await uploadFileViaAdminRoute(
+        file,
+        folder,
+        accessToken,
+        onProgress
+      );
     } catch (fallbackError: unknown) {
       throw new UploadStepError(
         `${folder} R2 upload`,
@@ -579,6 +611,7 @@ export default function BulkUploadPanel() {
     });
 
     try {
+      const accessToken = await getUploadAccessToken();
       const artworkToUpload = item.artworkFile || globalArtwork || null;
       const plainLyricsToRead = item.lyricsFile || globalLyrics;
       const syncedLrcToRead = item.lrcFile || globalLrc;
@@ -588,6 +621,7 @@ export default function BulkUploadPanel() {
       const audioUpload = await uploadFileToR2(
         item.file,
         "songs",
+        accessToken,
         (directProgress) => {
           updateItem(item.id, {
             progress: Math.min(65, 10 + Math.round(directProgress * 0.55)),
@@ -603,6 +637,7 @@ export default function BulkUploadPanel() {
         artworkUpload = await uploadFileToR2(
           artworkToUpload,
           "covers",
+          accessToken,
           (directProgress) => {
             updateItem(item.id, {
               progress: Math.min(85, 70 + Math.round(directProgress * 0.15)),
@@ -632,6 +667,7 @@ export default function BulkUploadPanel() {
         response = await fetch(API_UPLOAD_URL, {
           method: "POST",
           headers: {
+            Authorization: `Bearer ${accessToken}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({

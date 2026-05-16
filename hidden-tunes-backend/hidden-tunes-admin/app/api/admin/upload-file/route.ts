@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { uploadToR2 } from "@/lib/r2";
+import { requireUploadPermission } from "@/lib/requireUploadPermission";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -30,6 +31,12 @@ function getErrorMessage(error: unknown, fallback: string) {
 
 export async function POST(req: NextRequest) {
   try {
+    const permission = await requireUploadPermission(req);
+
+    if (permission.errorResponse) {
+      return permission.errorResponse;
+    }
+
     const formData = await req.formData();
     const file = formData.get("file");
     const folder = cleanFolder(String(formData.get("folder") || "songs"));

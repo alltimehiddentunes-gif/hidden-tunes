@@ -1,5 +1,5 @@
-import BulkUploadPanel from "@/components/BulkUploadPanel";
+import { redirect } from "next/navigation";
 
 export default function HomePage() {
-  return <BulkUploadPanel />;
+  redirect("/admin/upload");
 }

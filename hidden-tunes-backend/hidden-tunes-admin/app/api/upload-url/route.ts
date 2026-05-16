@@ -4,6 +4,7 @@ import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 import { getR2Client, getR2Config } from "@/lib/r2";
+import { requireUploadPermission } from "@/lib/requireUploadPermission";
 
 function cleanFileName(fileName: string) {
   return String(fileName || "upload")
@@ -24,6 +25,12 @@ function cleanFolder(folder: string) {
 
 export async function POST(req: NextRequest) {
   try {
+    const permission = await requireUploadPermission(req);
+
+    if (permission.errorResponse) {
+      return permission.errorResponse;
+    }
+
     const body = await req.json();
 
     const fileName = cleanFileName(body.fileName);

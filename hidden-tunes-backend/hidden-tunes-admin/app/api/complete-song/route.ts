@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { requireUploadPermission } from "@/lib/requireUploadPermission";
 
 function slugify(value: string) {
   return value
@@ -17,6 +18,12 @@ function getErrorMessage(error: unknown, fallback: string) {
 
 export async function POST(req: NextRequest) {
   try {
+    const permission = await requireUploadPermission(req);
+
+    if (permission.errorResponse) {
+      return permission.errorResponse;
+    }
+
     const body = await req.json();
 
     const title = String(body.title || "").trim();
