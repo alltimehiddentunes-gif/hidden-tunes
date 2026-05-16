@@ -220,6 +220,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const isMountedRef = useRef(true);
   const loadRequestIdRef = useRef(0);
   const queueTransitionRef = useRef(false);
+  const autoAdvanceRef = useRef(false);
   const loadAndPlayRef = useRef<((song: AppSong) => Promise<void>) | null>(
     null
   );
@@ -777,10 +778,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       setActiveQueueIndex(safeIndex);
       activeQueueIndexRef.current = safeIndex;
 
-      await persistActiveQueue(queue, safeIndex, activeQueueModeRef.current);
-      await removeStoredValues([POSITION_KEY]);
-
       await loadAndPlayRef.current?.(song);
+
+      void persistActiveQueue(queue, safeIndex, activeQueueModeRef.current);
+      void removeStoredValues([POSITION_KEY]);
     });
   }, [
     runQueueTransition,
@@ -836,9 +837,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       }
 
       if (status.didJustFinish && !isChangingTrackRef.current) {
-        try {
-          await removeStoredValues([POSITION_KEY]);
-        } catch {}
+        if (autoAdvanceRef.current) return;
+
+        autoAdvanceRef.current = true;
 
         if (repeatModeRef.current === "one") {
           const activeSound = soundRef.current;
@@ -846,15 +847,25 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           if (activeSound) {
             await activeSound.setPositionAsync(0);
             await activeSound.playAsync();
+            setIsPlaying(true);
           }
+
+          void removeStoredValues([POSITION_KEY]).finally(() => {
+            autoAdvanceRef.current = false;
+          });
 
           return;
         }
 
-        await nextSong();
+        try {
+          await nextSong();
+        } finally {
+          void removeStoredValues([POSITION_KEY]);
+          autoAdvanceRef.current = false;
+        }
       }
     },
-    [nextSong, removeStoredValues, savePlaybackPosition]
+    [nextSong, removeStoredValues, savePlaybackPosition, setIsPlaying]
   );
 
   const loadAndPlay = useCallback(
@@ -866,6 +877,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         loadRequestIdRef.current = requestId;
 
         const normalizedSong = normalizeSong(song);
+        autoAdvanceRef.current = false;
 
         if (isYouTubeSong(normalizedSong)) {
           console.log(
