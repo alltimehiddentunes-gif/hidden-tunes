@@ -8,9 +8,42 @@ export const dynamic = "force-dynamic";
 
 type AlbumRow = Record<string, string | number | null | undefined>;
 type SongRow = Record<string, string | number | boolean | null | undefined>;
+type SortMode = "newest" | "oldest" | "title_asc" | "title_desc";
+
+const DEFAULT_PAGE_SIZE = 50;
+const MAX_PAGE_SIZE = 100;
 
 function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
+}
+
+function stringOrNull(value: unknown) {
+  const text = String(value || "").trim();
+  return text || null;
+}
+
+function parsePositiveInteger(value: string | null, fallback: number) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 1) return fallback;
+  return Math.floor(parsed);
+}
+
+function cleanFilter(value: string | null) {
+  const cleaned = String(value || "").trim();
+  return cleaned && cleaned !== "all" ? cleaned : null;
+}
+
+function parseSort(value: string | null): SortMode {
+  if (
+    value === "oldest" ||
+    value === "title_asc" ||
+    value === "title_desc" ||
+    value === "newest"
+  ) {
+    return value;
+  }
+
+  return "newest";
 }
 
 function latestDate(values: Array<string | null | undefined>) {
@@ -38,9 +71,18 @@ function mostCommonGenre(songs: SongRow[]) {
   );
 }
 
-function stringOrNull(value: unknown) {
-  const text = String(value || "").trim();
-  return text || null;
+async function loadMatchingArtistIds(searchQuery: string) {
+  const { data, error } = await supabaseAdmin
+    .from("artists")
+    .select("id")
+    .ilike("name", `%${searchQuery}%`)
+    .limit(200);
+
+  if (error) throw error;
+
+  return ((data || []) as unknown as AlbumRow[])
+    .map((artist) => String(artist.id || ""))
+    .filter(Boolean);
 }
 
 export async function GET(request: NextRequest) {
@@ -51,10 +93,21 @@ export async function GET(request: NextRequest) {
       return permission.errorResponse;
     }
 
-    // Keep the first page bounded for the 50k+ catalog path. The UI is prepared
-    // to add cursor pagination without changing the response shape.
-    const pageSize = 120;
-    const { data: albums, error: albumsError } = await supabaseAdmin
+    const params = request.nextUrl.searchParams;
+    const page = parsePositiveInteger(params.get("page"), 1);
+    const pageSize = Math.min(
+      parsePositiveInteger(params.get("pageSize"), DEFAULT_PAGE_SIZE),
+      MAX_PAGE_SIZE
+    );
+    const searchQuery = String(params.get("search") || "").trim();
+    const reviewStatus = cleanFilter(params.get("status"));
+    const licenseDeclaration = cleanFilter(params.get("license"));
+    const scanFilter = cleanFilter(params.get("scan"));
+    const sort = parseSort(params.get("sort"));
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+
+    let query = supabaseAdmin
       .from("albums")
       .select(
         [
@@ -69,10 +122,51 @@ export async function GET(request: NextRequest) {
           "license_declaration",
           "copyright_scan_status",
           "duplicate_scan_status",
-        ].join(",")
-      )
-      .order("created_at", { ascending: false })
-      .limit(pageSize);
+        ].join(","),
+        { count: "exact" }
+      );
+
+    if (reviewStatus) {
+      query = query.eq("review_status", reviewStatus);
+    }
+
+    if (licenseDeclaration) {
+      query = query.eq("license_declaration", licenseDeclaration);
+    }
+
+    if (scanFilter === "copyright_flagged") {
+      query = query.eq("copyright_scan_status", "flagged");
+    } else if (scanFilter === "duplicate_flagged") {
+      query = query.eq("duplicate_scan_status", "flagged");
+    } else if (scanFilter === "copyright_not_scanned") {
+      query = query.eq("copyright_scan_status", "not_scanned");
+    } else if (scanFilter === "duplicate_not_scanned") {
+      query = query.eq("duplicate_scan_status", "not_scanned");
+    }
+
+    if (searchQuery) {
+      const matchingArtistIds = await loadMatchingArtistIds(searchQuery);
+      const escapedSearch = searchQuery.replace(/[%_]/g, "\\$&");
+      const clauses = [`title.ilike.%${escapedSearch}%`];
+
+      if (matchingArtistIds.length > 0) {
+        clauses.push(`artist_id.in.(${matchingArtistIds.join(",")})`);
+      }
+
+      query = query.or(clauses.join(","));
+    }
+
+    if (sort === "oldest") {
+      query = query.order("created_at", { ascending: true });
+    } else if (sort === "title_asc") {
+      query = query.order("title", { ascending: true });
+    } else if (sort === "title_desc") {
+      query = query.order("title", { ascending: false });
+    } else {
+      query = query.order("created_at", { ascending: false });
+    }
+
+    const { data: albums, error: albumsError, count } = await query.range(from, to);
 
     if (albumsError) throw albumsError;
 
@@ -167,13 +261,20 @@ export async function GET(request: NextRequest) {
       };
     });
 
+    const total = count || 0;
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
     return NextResponse.json({
       success: true,
       releases,
       pagination: {
+        page,
         pageSize,
         returned: releases.length,
-        nextCursor: null,
+        total,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1,
       },
     });
   } catch (error: unknown) {
