@@ -1,8 +1,10 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
+  ActivityIndicator,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -14,6 +16,14 @@ import { router } from "expo-router";
 import { COLORS, GRADIENTS } from "../constants/theme";
 
 type IconName = keyof typeof Ionicons.glyphMap;
+
+type CreatedSubmission = {
+  id: string;
+  title: string;
+  artist_name: string;
+  status: string;
+  submitted_at: string | null;
+};
 
 type SubmissionState = {
   title: string;
@@ -61,15 +71,83 @@ const SUBMISSION_STATES: SubmissionState[] = [
   },
 ];
 
+const ARTIST_SUBMISSIONS_API_URL =
+  "https://admin.hiddentunes.com/api/artist-submissions";
+
 export default function ArtistSubmissionsScreen() {
+  const [title, setTitle] = useState("");
+  const [artistName, setArtistName] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [statusMessage, setStatusMessage] = useState("");
+  const [statusTone, setStatusTone] = useState<"neutral" | "success" | "error">(
+    "neutral"
+  );
+  const [createdSubmissions, setCreatedSubmissions] = useState<
+    CreatedSubmission[]
+  >([]);
+
   const summary = useMemo(
     () => ({
       total: SUBMISSION_STATES.length,
-      active: 0,
-      ready: "Foundation",
+      active: createdSubmissions.length,
+      ready: "Protected",
     }),
-    []
+    [createdSubmissions.length]
   );
+
+  async function handleSubmit() {
+    const cleanTitle = title.trim();
+    const cleanArtistName = artistName.trim();
+
+    if (!cleanTitle || !cleanArtistName) {
+      setStatusTone("error");
+      setStatusMessage("Add both a title and artist name before submitting.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setStatusTone("neutral");
+    setStatusMessage("Submitting to Hidden Tunes review...");
+
+    try {
+      const response = await fetch(ARTIST_SUBMISSIONS_API_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          title: cleanTitle,
+          artist_name: cleanArtistName,
+        }),
+      });
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok || !payload?.success) {
+        throw new Error(
+          payload?.error ||
+            "Submission could not be created. Sign-in may not be ready on mobile yet."
+        );
+      }
+
+      setCreatedSubmissions((current) => [
+        payload.submission as CreatedSubmission,
+        ...current,
+      ]);
+      setTitle("");
+      setArtistName("");
+      setStatusTone("success");
+      setStatusMessage("Submission created and sent for review.");
+    } catch (error) {
+      setStatusTone("error");
+      setStatusMessage(
+        error instanceof Error
+          ? error.message
+          : "Submission could not be created."
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
 
   return (
     <LinearGradient colors={GRADIENTS.main} style={styles.container}>
@@ -123,9 +201,84 @@ export default function ArtistSubmissionsScreen() {
           </Text>
         </View>
 
+        <View style={styles.formCard}>
+          <Text style={styles.formTitle}>Start a Submission</Text>
+          <Text style={styles.formDescription}>
+            Send only basic release details for review. Audio and artwork upload
+            are intentionally disabled in this phase.
+          </Text>
+
+          <Text style={styles.inputLabel}>Title</Text>
+          <TextInput
+            value={title}
+            onChangeText={setTitle}
+            placeholder="Song or release title"
+            placeholderTextColor="rgba(255,255,255,0.34)"
+            style={styles.input}
+            maxLength={140}
+            editable={!isSubmitting}
+          />
+
+          <Text style={styles.inputLabel}>Artist name</Text>
+          <TextInput
+            value={artistName}
+            onChangeText={setArtistName}
+            placeholder="Artist or group name"
+            placeholderTextColor="rgba(255,255,255,0.34)"
+            style={styles.input}
+            maxLength={140}
+            editable={!isSubmitting}
+          />
+
+          {statusMessage ? (
+            <View style={[styles.statusBox, styles[`${statusTone}Status`]]}>
+              <Text style={styles.statusText}>{statusMessage}</Text>
+            </View>
+          ) : null}
+
+          <TouchableOpacity
+            activeOpacity={0.88}
+            style={[
+              styles.submitButton,
+              isSubmitting ? styles.submitButtonDisabled : null,
+            ]}
+            onPress={handleSubmit}
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? (
+              <ActivityIndicator color="#050508" />
+            ) : (
+              <Text style={styles.submitButtonText}>Submit for Review</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        {createdSubmissions.length > 0 ? (
+          <View style={styles.createdList}>
+            <Text style={styles.createdTitle}>Submitted This Session</Text>
+            {createdSubmissions.map((submission) => (
+              <View key={submission.id} style={styles.createdCard}>
+                <View>
+                  <Text style={styles.createdSubmissionTitle}>
+                    {submission.title}
+                  </Text>
+                  <Text style={styles.createdSubmissionArtist}>
+                    {submission.artist_name}
+                  </Text>
+                </View>
+                <View style={styles.pendingBadge}>
+                  <Text style={styles.pendingBadgeText}>
+                    {submission.status.replace("_", " ")}
+                  </Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        ) : null}
+
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Submission Pipeline</Text>
-          <Text style={styles.sectionSubtitle}>Local UI preview only</Text>
+          <Text style={styles.sectionSubtitle}>Review-first workflow</Text>
         </View>
 
         <View style={styles.stateList}>
@@ -139,8 +292,9 @@ export default function ArtistSubmissionsScreen() {
           <View style={styles.safetyTextWrap}>
             <Text style={styles.safetyTitle}>Safe foundation phase</Text>
             <Text style={styles.safetyText}>
-              This screen does not upload files, change catalog data, publish music,
-              or call admin APIs. It only prepares the mobile workspace layout.
+              This screen does not upload files, change catalog data, or publish
+              music. The server must approve the signed-in artist profile before
+              a submission record can be created.
             </Text>
           </View>
         </View>
@@ -296,6 +450,133 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 21,
     marginTop: 8,
+  },
+  formCard: {
+    marginTop: 18,
+    borderRadius: 30,
+    padding: 20,
+    backgroundColor: "rgba(255,255,255,0.065)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+  },
+  formTitle: {
+    color: COLORS.text,
+    fontSize: 22,
+    fontWeight: "900",
+    letterSpacing: -0.4,
+  },
+  formDescription: {
+    color: COLORS.textMuted,
+    fontSize: 13,
+    lineHeight: 20,
+    marginTop: 7,
+    marginBottom: 18,
+  },
+  inputLabel: {
+    color: COLORS.text,
+    fontSize: 12,
+    fontWeight: "900",
+    marginBottom: 8,
+    marginTop: 12,
+    textTransform: "uppercase",
+    letterSpacing: 1,
+  },
+  input: {
+    minHeight: 54,
+    borderRadius: 18,
+    paddingHorizontal: 16,
+    color: COLORS.text,
+    fontSize: 15,
+    fontWeight: "700",
+    backgroundColor: "rgba(0,0,0,0.24)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+  },
+  statusBox: {
+    marginTop: 16,
+    borderRadius: 18,
+    padding: 13,
+    borderWidth: 1,
+  },
+  neutralStatus: {
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderColor: "rgba(255,255,255,0.12)",
+  },
+  successStatus: {
+    backgroundColor: "rgba(34,197,94,0.1)",
+    borderColor: "rgba(34,197,94,0.22)",
+  },
+  errorStatus: {
+    backgroundColor: "rgba(239,68,68,0.1)",
+    borderColor: "rgba(239,68,68,0.22)",
+  },
+  statusText: {
+    color: COLORS.text,
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: "800",
+  },
+  submitButton: {
+    minHeight: 54,
+    marginTop: 16,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: COLORS.primary,
+  },
+  submitButtonDisabled: {
+    opacity: 0.64,
+  },
+  submitButtonText: {
+    color: "#050508",
+    fontSize: 14,
+    fontWeight: "900",
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+  },
+  createdList: {
+    marginTop: 20,
+    gap: 10,
+  },
+  createdTitle: {
+    color: COLORS.text,
+    fontSize: 18,
+    fontWeight: "900",
+  },
+  createdCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderRadius: 24,
+    padding: 16,
+    backgroundColor: "rgba(34,197,94,0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(34,197,94,0.18)",
+  },
+  createdSubmissionTitle: {
+    color: COLORS.text,
+    fontSize: 15,
+    fontWeight: "900",
+  },
+  createdSubmissionArtist: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    fontWeight: "700",
+    marginTop: 4,
+  },
+  pendingBadge: {
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    backgroundColor: "rgba(245,158,11,0.14)",
+    borderWidth: 1,
+    borderColor: "rgba(245,158,11,0.28)",
+  },
+  pendingBadgeText: {
+    color: "#fde68a",
+    fontSize: 10,
+    fontWeight: "900",
+    textTransform: "uppercase",
   },
   sectionHeader: {
     marginTop: 28,
