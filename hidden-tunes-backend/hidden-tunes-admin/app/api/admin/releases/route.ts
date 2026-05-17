@@ -13,6 +13,36 @@ function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
 }
 
+function latestDate(values: Array<string | null | undefined>) {
+  const timestamps = values
+    .filter(Boolean)
+    .map((value) => new Date(String(value)).getTime())
+    .filter((value) => Number.isFinite(value));
+
+  if (timestamps.length === 0) return null;
+
+  return new Date(Math.max(...timestamps)).toISOString();
+}
+
+function mostCommonGenre(songs: SongRow[]) {
+  const counts = new Map<string, number>();
+
+  songs.forEach((song) => {
+    const genre = String(song.genre || "").trim();
+    if (!genre) return;
+    counts.set(genre, (counts.get(genre) || 0) + 1);
+  });
+
+  return (
+    Array.from(counts.entries()).sort((a, b) => b[1] - a[1])[0]?.[0] || null
+  );
+}
+
+function stringOrNull(value: unknown) {
+  const text = String(value || "").trim();
+  return text || null;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const permission = await requireUploadPermission(request);
@@ -21,11 +51,28 @@ export async function GET(request: NextRequest) {
       return permission.errorResponse;
     }
 
+    // Keep the first page bounded for the 50k+ catalog path. The UI is prepared
+    // to add cursor pagination without changing the response shape.
+    const pageSize = 120;
     const { data: albums, error: albumsError } = await supabaseAdmin
       .from("albums")
-      .select("id, title, slug, artist_id, artwork_url, release_year, created_at")
+      .select(
+        [
+          "id",
+          "title",
+          "slug",
+          "artist_id",
+          "artwork_url",
+          "release_year",
+          "created_at",
+          "review_status",
+          "license_declaration",
+          "copyright_scan_status",
+          "duplicate_scan_status",
+        ].join(",")
+      )
       .order("created_at", { ascending: false })
-      .limit(80);
+      .limit(pageSize);
 
     if (albumsError) throw albumsError;
 
@@ -49,7 +96,7 @@ export async function GET(request: NextRequest) {
           ? supabaseAdmin
               .from("songs")
               .select(
-                "id,album_id,title,audio_url,url,artwork_url,cover_url,has_lyrics,lyrics_url,duration,duration_seconds,created_at"
+                "id,album_id,title,genre,audio_url,url,artwork_url,cover_url,has_lyrics,lyrics_url,duration,duration_seconds,created_at"
               )
               .in("album_id", albumIds)
           : Promise.resolve({ data: [], error: null }),
@@ -70,13 +117,15 @@ export async function GET(request: NextRequest) {
       const releaseSongs = songRows.filter(
         (song) => String(song.album_id || "") === String(album.id)
       );
+      const firstSong = releaseSongs[0] || null;
       const artist = artistMap.get(String(album.artist_id || ""));
+      const firstArtworkSong = releaseSongs.find((song) =>
+        Boolean(song.artwork_url || song.cover_url)
+      );
       const artworkUrl =
         album.artwork_url ||
-        releaseSongs.find((song) => Boolean(song.artwork_url || song.cover_url))
-          ?.artwork_url ||
-        releaseSongs.find((song) => Boolean(song.artwork_url || song.cover_url))
-          ?.cover_url ||
+        firstArtworkSong?.artwork_url ||
+        firstArtworkSong?.cover_url ||
         artist?.image_url ||
         null;
       const totalDuration = releaseSongs.reduce(
@@ -84,6 +133,10 @@ export async function GET(request: NextRequest) {
           total + Number(song.duration_seconds || song.duration || 0),
         0
       );
+      const updatedAt =
+        latestDate(releaseSongs.map((song) => String(song.created_at || ""))) ||
+        String(album.created_at || "") ||
+        null;
 
       return {
         id: album.id,
@@ -93,8 +146,11 @@ export async function GET(request: NextRequest) {
         artworkUrl,
         releaseYear: album.release_year || null,
         createdAt: album.created_at || null,
+        updatedAt,
         trackCount: releaseSongs.length,
         totalDuration,
+        primaryGenre: mostCommonGenre(releaseSongs),
+        primaryTrackId: firstSong?.id || null,
         audioReadyCount: releaseSongs.filter((song) =>
           Boolean(song.audio_url || song.url)
         ).length,
@@ -104,12 +160,21 @@ export async function GET(request: NextRequest) {
         lyricsReadyCount: releaseSongs.filter((song) =>
           Boolean(song.has_lyrics || song.lyrics_url)
         ).length,
+        reviewStatus: stringOrNull(album.review_status),
+        licenseDeclaration: stringOrNull(album.license_declaration),
+        copyrightScanStatus: stringOrNull(album.copyright_scan_status),
+        duplicateScanStatus: stringOrNull(album.duplicate_scan_status),
       };
     });
 
     return NextResponse.json({
       success: true,
       releases,
+      pagination: {
+        pageSize,
+        returned: releases.length,
+        nextCursor: null,
+      },
     });
   } catch (error: unknown) {
     return NextResponse.json(

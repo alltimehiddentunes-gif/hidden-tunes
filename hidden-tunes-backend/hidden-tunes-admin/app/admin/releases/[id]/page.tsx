@@ -5,6 +5,11 @@ import { useParams, useRouter } from "next/navigation";
 
 import AdminShell from "@/components/AdminShell";
 import { getActiveUploaderSession, supabase } from "@/lib/auth";
+import {
+  formatRightsValue,
+  RIGHTS_REVIEW_LATER_PHASE_NOTE,
+  type RightsReviewMetadata,
+} from "@/lib/rightsReview";
 
 type ReleaseTrack = {
   id: string;
@@ -36,6 +41,7 @@ type ReleaseDetail = {
   artworkUrl: string | null;
   releaseYear: string | number | null;
   createdAt: string | null;
+  rightsReview?: RightsReviewMetadata | null;
   tracks: ReleaseTrack[];
 };
 
@@ -101,6 +107,25 @@ function statusClass(status: string) {
     return "border-emerald-300/20 bg-emerald-400/10 text-emerald-100";
   }
   if (status === "Needs audio" || status === "Needs artwork") {
+    return "border-yellow-300/25 bg-yellow-300/10 text-yellow-100";
+  }
+  return "border-white/10 bg-white/[0.06] text-white/62";
+}
+
+function reviewTone(value: string | null | undefined) {
+  const normalized = String(value || "").toLowerCase();
+
+  if (normalized === "approved" || normalized === "published" || normalized === "clear") {
+    return "border-emerald-300/20 bg-emerald-400/10 text-emerald-100";
+  }
+  if (
+    normalized.includes("flagged") ||
+    normalized === "rejected" ||
+    normalized === "takedown_requested"
+  ) {
+    return "border-red-300/20 bg-red-500/10 text-red-100";
+  }
+  if (normalized === "pending_review" || normalized === "draft") {
     return "border-yellow-300/25 bg-yellow-300/10 text-yellow-100";
   }
   return "border-white/10 bg-white/[0.06] text-white/62";
@@ -453,6 +478,8 @@ export default function AdminReleaseDetailPage() {
               <HealthRow label="Lyrics" value={`${assetHealth.lyrics}/${release.tracks.length}`} />
             </div>
           </div>
+
+          <RightsReviewPanel rightsReview={release.rightsReview} />
         </aside>
 
         <section className="rounded-[2.1rem] border border-white/10 bg-[#101017]/92 p-4 shadow-2xl sm:p-5">
@@ -665,12 +692,95 @@ export default function AdminReleaseDetailPage() {
   );
 }
 
-function MetricCard({ label, value }: { label: string; value: string }) {
+function RightsReviewPanel({
+  rightsReview,
+}: {
+  rightsReview?: RightsReviewMetadata | null;
+}) {
   return (
-    <div className="rounded-3xl border border-white/10 bg-white/[0.055] p-4">
-      <p className="text-2xl font-black tracking-[-0.04em]">{value}</p>
-      <p className="mt-1 text-xs font-bold uppercase tracking-widest text-white/38">
+    <div className="rounded-[2.1rem] border border-yellow-300/15 bg-gradient-to-br from-yellow-300/[0.08] via-[#101017] to-[#101017] p-5 shadow-2xl">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.28em] text-yellow-300">
+            Rights & Review
+          </p>
+          <h2 className="mt-2 text-2xl font-black tracking-[-0.04em]">
+            Display-only safety metadata
+          </h2>
+        </div>
+        <span
+          className={`rounded-full border px-3 py-2 text-[10px] font-black uppercase tracking-[0.16em] ${reviewTone(
+            rightsReview?.reviewStatus
+          )}`}
+        >
+          {formatRightsValue(rightsReview?.reviewStatus, "Not reviewed")}
+        </span>
+      </div>
+
+      <p className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-3 text-xs leading-5 text-white/50">
+        {RIGHTS_REVIEW_LATER_PHASE_NOTE}
+      </p>
+
+      <div className="mt-5 grid gap-3">
+        <ReviewField
+          label="Review status"
+          value={formatRightsValue(rightsReview?.reviewStatus, "Not reviewed")}
+        />
+        <ReviewField
+          label="License declaration"
+          value={formatRightsValue(rightsReview?.licenseDeclaration, "Unknown")}
+        />
+        <ReviewField
+          label="License notes"
+          value={rightsReview?.licenseNotes || "No notes provided"}
+          multiline
+        />
+        <ReviewField
+          label="Copyright scan status"
+          value={formatRightsValue(rightsReview?.copyrightScanStatus, "Unknown")}
+        />
+        <ReviewField
+          label="Copyright scan provider"
+          value={rightsReview?.copyrightScanProvider || "Not connected"}
+        />
+        <ReviewField
+          label="Duplicate scan status"
+          value={formatRightsValue(rightsReview?.duplicateScanStatus, "Unknown")}
+        />
+        <ReviewField
+          label="Duplicate match track id"
+          value={rightsReview?.duplicateMatchTrackId || "No match recorded"}
+        />
+        <ReviewField
+          label="Rejection reason"
+          value={rightsReview?.rejectionReason || "No rejection reason"}
+          multiline
+        />
+      </div>
+    </div>
+  );
+}
+
+function ReviewField({
+  label,
+  value,
+  multiline = false,
+}: {
+  label: string;
+  value: string;
+  multiline?: boolean;
+}) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-black/22 px-4 py-3">
+      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/34">
         {label}
+      </p>
+      <p
+        className={`mt-1 text-sm font-bold text-white/76 ${
+          multiline ? "whitespace-pre-wrap leading-6" : "truncate"
+        }`}
+      >
+        {value}
       </p>
     </div>
   );
