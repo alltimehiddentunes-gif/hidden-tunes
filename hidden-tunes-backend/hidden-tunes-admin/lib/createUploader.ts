@@ -19,6 +19,15 @@ export type CreateUploaderResult =
       error: string;
     };
 
+const DEFAULT_ADMIN_SITE_URL = "https://admin.hiddentunes.com";
+
+function getAdminSiteUrl() {
+  return (
+    process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/+$/, "") ||
+    DEFAULT_ADMIN_SITE_URL
+  );
+}
+
 export function normalizeUploaderEmail(email: string) {
   return String(email || "").trim().toLowerCase();
 }
@@ -78,6 +87,7 @@ export async function createSupabaseUploaderAuthUser(
   const { data, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(
     email,
     {
+      redirectTo: `${getAdminSiteUrl()}/admin/login`,
       data: {
         role: input.role,
         created_by: "hidden_tunes_admin",
