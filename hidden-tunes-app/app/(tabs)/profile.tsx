@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
-  Linking,
   View,
   Text,
   StyleSheet,
@@ -33,8 +32,6 @@ type DashboardAction = {
   accent: string;
   onPress: () => void;
 };
-
-const ADMIN_BASE_URL = "https://admin.hiddentunes.com";
 
 const ROLE_COPY: Record<
   UserRole,
@@ -107,14 +104,8 @@ export default function ProfileScreen() {
     Alert.alert(title, "This dashboard area is prepared for a later phase.");
   }
 
-  function openAdminPath(path: string) {
-    Linking.openURL(`${ADMIN_BASE_URL}${path}`).catch(() => {
-      Alert.alert("Admin link unavailable", "Open the admin dashboard directly.");
-    });
-  }
-
   const dashboardActions = useMemo(
-    () => getDashboardActions(userRole, openPlaceholder, openAdminPath),
+    () => getDashboardActions(userRole, openPlaceholder),
     [userRole]
   );
   const roleCopy = ROLE_COPY[userRole];
@@ -305,8 +296,7 @@ export default function ProfileScreen() {
 
 function getDashboardActions(
   role: UserRole,
-  openPlaceholder: (title: string) => void,
-  openAdminPath: (path: string) => void
+  openPlaceholder: (title: string) => void
 ): DashboardAction[] {
   if (role === "artist") {
     return [
@@ -322,28 +312,28 @@ function getDashboardActions(
         title: "Upload Music",
         subtitle: "Prepare a new artist submission.",
         accent: COLORS.primary,
-        onPress: () => openAdminPath("/admin/upload"),
+        onPress: () => router.push("/artist-submissions" as never),
       },
       {
         icon: "image",
         title: "Lyrics & Artwork",
         subtitle: "Manage presentation assets.",
         accent: "#22d3ee",
-        onPress: () => openPlaceholder("Lyrics & Artwork"),
+        onPress: () => router.push("/artist-submissions" as never),
       },
       {
         icon: "hourglass",
         title: "Pending Review",
         subtitle: "See releases awaiting approval.",
         accent: "#f59e0b",
-        onPress: () => openPlaceholder("Pending Review"),
+        onPress: () => router.push("/artist-submissions" as never),
       },
       {
         icon: "checkmark-done",
         title: "Approved Releases",
         subtitle: "View accepted catalog items.",
         accent: "#22c55e",
-        onPress: () => openPlaceholder("Approved Releases"),
+        onPress: () => router.push("/artist-submissions" as never),
       },
     ];
   }
