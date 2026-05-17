@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   ScrollView,
@@ -14,7 +14,12 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 
 import { COLORS, GRADIENTS } from "../constants/theme";
-import { getCurrentSupabaseAccessToken } from "../services/mobileSupabaseAuth";
+import {
+  getCurrentSupabaseAccessToken,
+  getCurrentSupabaseSessionSummary,
+  signInArtistWithPassword,
+  signOutArtistSession,
+} from "../services/mobileSupabaseAuth";
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
@@ -78,6 +83,16 @@ const ARTIST_SUBMISSIONS_API_URL =
 export default function ArtistSubmissionsScreen() {
   const [title, setTitle] = useState("");
   const [artistName, setArtistName] = useState("");
+  const [creatorEmail, setCreatorEmail] = useState("");
+  const [creatorPassword, setCreatorPassword] = useState("");
+  const [sessionEmail, setSessionEmail] = useState<string | null>(null);
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
+  const [isSigningIn, setIsSigningIn] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
+  const [authMessage, setAuthMessage] = useState("");
+  const [authTone, setAuthTone] = useState<"neutral" | "success" | "error">(
+    "neutral"
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
   const [statusTone, setStatusTone] = useState<"neutral" | "success" | "error">(
@@ -91,10 +106,98 @@ export default function ArtistSubmissionsScreen() {
     () => ({
       total: SUBMISSION_STATES.length,
       active: createdSubmissions.length,
-      ready: "Protected",
+      ready: sessionEmail ? "Signed in" : "Signed out",
     }),
-    [createdSubmissions.length]
+    [createdSubmissions.length, sessionEmail]
   );
+
+  useEffect(() => {
+    let ignore = false;
+
+    async function loadSession() {
+      const session = await getCurrentSupabaseSessionSummary();
+
+      if (ignore) return;
+
+      setSessionEmail(session.email);
+      setAuthTone(session.isSignedIn ? "success" : "neutral");
+      setAuthMessage(
+        session.isSignedIn
+          ? "Creator session ready. Publishing still requires admin approval."
+          : ""
+      );
+      setIsCheckingSession(false);
+    }
+
+    loadSession();
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  async function handleCreatorSignIn() {
+    const cleanEmail = creatorEmail.trim();
+
+    if (!cleanEmail || !creatorPassword) {
+      setAuthTone("error");
+      setAuthMessage("Enter your creator email and password to continue.");
+      return;
+    }
+
+    setIsSigningIn(true);
+    setAuthTone("neutral");
+    setAuthMessage("Opening secure creator session...");
+
+    try {
+      const result = await signInArtistWithPassword(cleanEmail, creatorPassword);
+
+      if (result.error || !result.email) {
+        throw new Error(result.error || "Could not sign in.");
+      }
+
+      setSessionEmail(result.email);
+      setCreatorPassword("");
+      setAuthTone("success");
+      setAuthMessage(
+        "Signed in. You can now send submissions for review."
+      );
+    } catch (error) {
+      setSessionEmail(null);
+      setAuthTone("error");
+      setAuthMessage(
+        error instanceof Error ? error.message : "Could not sign in."
+      );
+    } finally {
+      setIsSigningIn(false);
+    }
+  }
+
+  async function handleCreatorSignOut() {
+    setIsSigningOut(true);
+    setAuthTone("neutral");
+    setAuthMessage("Signing out of Creator Access...");
+
+    try {
+      const result = await signOutArtistSession();
+
+      if (result.error) {
+        throw new Error(result.error);
+      }
+
+      setSessionEmail(null);
+      setCreatorPassword("");
+      setAuthTone("neutral");
+      setAuthMessage("Signed out.");
+    } catch (error) {
+      setAuthTone("error");
+      setAuthMessage(
+        error instanceof Error ? error.message : "Could not sign out."
+      );
+    } finally {
+      setIsSigningOut(false);
+    }
+  }
 
   async function handleSubmit() {
     const cleanTitle = title.trim();
@@ -212,7 +315,117 @@ export default function ArtistSubmissionsScreen() {
           </Text>
         </View>
 
-        <View style={styles.formCard}>
+        <View style={styles.creatorAccessCard}>
+          <View style={styles.creatorAccessGlow} />
+          <View style={styles.creatorHeader}>
+            <View style={styles.creatorIcon}>
+              <Ionicons name="key" size={22} color={COLORS.primary} />
+            </View>
+            <View style={styles.creatorHeaderText}>
+              <Text style={styles.creatorEyebrow}>Creator Access</Text>
+              <Text style={styles.creatorTitle}>
+                Sign in to manage submissions, review feedback, and prepare
+                releases for approval.
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.sessionRow}>
+            <View>
+              <Text style={styles.sessionLabel}>Session status</Text>
+              <Text style={styles.sessionValue}>
+                {isCheckingSession
+                  ? "Checking session..."
+                  : sessionEmail
+                    ? `Signed in as ${sessionEmail}`
+                    : "Signed out"}
+              </Text>
+            </View>
+            <View
+              style={[
+                styles.sessionDot,
+                sessionEmail ? styles.sessionDotActive : null,
+              ]}
+            />
+          </View>
+
+          {!sessionEmail ? (
+            <View style={styles.creatorForm}>
+              <Text style={styles.inputLabel}>Email</Text>
+              <TextInput
+                value={creatorEmail}
+                onChangeText={setCreatorEmail}
+                placeholder="artist@example.com"
+                placeholderTextColor="rgba(255,255,255,0.34)"
+                style={styles.input}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                editable={!isSigningIn && !isCheckingSession}
+              />
+
+              <Text style={styles.inputLabel}>Password</Text>
+              <TextInput
+                value={creatorPassword}
+                onChangeText={setCreatorPassword}
+                placeholder="Password"
+                placeholderTextColor="rgba(255,255,255,0.34)"
+                style={styles.input}
+                secureTextEntry
+                editable={!isSigningIn && !isCheckingSession}
+              />
+
+              <TouchableOpacity
+                activeOpacity={0.88}
+                style={[
+                  styles.creatorButton,
+                  isSigningIn || isCheckingSession
+                    ? styles.submitButtonDisabled
+                    : null,
+                ]}
+                onPress={handleCreatorSignIn}
+                disabled={isSigningIn || isCheckingSession}
+              >
+                {isSigningIn ? (
+                  <ActivityIndicator color="#050508" />
+                ) : (
+                  <Text style={styles.submitButtonText}>Sign In</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity
+              activeOpacity={0.88}
+              style={[
+                styles.signOutButton,
+                isSigningOut ? styles.submitButtonDisabled : null,
+              ]}
+              onPress={handleCreatorSignOut}
+              disabled={isSigningOut}
+            >
+              {isSigningOut ? (
+                <ActivityIndicator color={COLORS.text} />
+              ) : (
+                <Text style={styles.signOutButtonText}>Sign Out</Text>
+              )}
+            </TouchableOpacity>
+          )}
+
+          {authMessage ? (
+            <View style={[styles.statusBox, styles[`${authTone}Status`]]}>
+              <Text style={styles.statusText}>{authMessage}</Text>
+            </View>
+          ) : null}
+
+          <View style={styles.trustRow}>
+            <Ionicons name="shield-checkmark" size={16} color={COLORS.primary} />
+            <Text style={styles.trustText}>
+              Publishing still requires admin approval.
+            </Text>
+          </View>
+        </View>
+
+        {sessionEmail ? (
+          <View style={styles.formCard}>
           <Text style={styles.formTitle}>Start a Submission</Text>
           <Text style={styles.formDescription}>
             Send only basic release details for review. Audio and artwork upload
@@ -262,7 +475,8 @@ export default function ArtistSubmissionsScreen() {
               <Text style={styles.submitButtonText}>Submit for Review</Text>
             )}
           </TouchableOpacity>
-        </View>
+          </View>
+        ) : null}
 
         {createdSubmissions.length > 0 ? (
           <View style={styles.createdList}>
@@ -461,6 +675,129 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 21,
     marginTop: 8,
+  },
+  creatorAccessCard: {
+    marginTop: 18,
+    borderRadius: 32,
+    padding: 20,
+    backgroundColor: "rgba(255,255,255,0.07)",
+    borderWidth: 1,
+    borderColor: "rgba(250,204,21,0.16)",
+    overflow: "hidden",
+  },
+  creatorAccessGlow: {
+    position: "absolute",
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: "rgba(250,204,21,0.12)",
+    right: -90,
+    top: -90,
+  },
+  creatorHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+  creatorIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(250,204,21,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(250,204,21,0.22)",
+    marginRight: 14,
+  },
+  creatorHeaderText: {
+    flex: 1,
+  },
+  creatorEyebrow: {
+    color: COLORS.primary,
+    fontSize: 12,
+    fontWeight: "900",
+    letterSpacing: 1.4,
+    textTransform: "uppercase",
+  },
+  creatorTitle: {
+    color: COLORS.text,
+    fontSize: 18,
+    fontWeight: "900",
+    lineHeight: 25,
+    marginTop: 7,
+    letterSpacing: -0.25,
+  },
+  sessionRow: {
+    marginTop: 18,
+    borderRadius: 22,
+    padding: 15,
+    backgroundColor: "rgba(0,0,0,0.24)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  sessionLabel: {
+    color: COLORS.textMuted,
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 1,
+    textTransform: "uppercase",
+  },
+  sessionValue: {
+    color: COLORS.text,
+    fontSize: 13,
+    fontWeight: "900",
+    marginTop: 5,
+  },
+  sessionDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: "rgba(255,255,255,0.24)",
+  },
+  sessionDotActive: {
+    backgroundColor: "#22c55e",
+  },
+  creatorForm: {
+    marginTop: 4,
+  },
+  creatorButton: {
+    minHeight: 54,
+    marginTop: 16,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: COLORS.primary,
+  },
+  signOutButton: {
+    minHeight: 52,
+    marginTop: 16,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.065)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+  },
+  signOutButtonText: {
+    color: COLORS.text,
+    fontSize: 13,
+    fontWeight: "900",
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+  },
+  trustRow: {
+    marginTop: 14,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  trustText: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    fontWeight: "800",
+    marginLeft: 8,
   },
   formCard: {
     marginTop: 18,
