@@ -144,7 +144,8 @@ async function upsertAlbum(
   title: string,
   slug: string,
   artistId: string,
-  artworkUrl: string
+  artworkUrl: string,
+  uploadedByUserId: string
 ) {
   const { data: existing } = await supabaseAdmin
     .from("albums")
@@ -162,6 +163,7 @@ async function upsertAlbum(
       slug,
       artist_id: artistId,
       artwork_url: artworkUrl,
+      uploaded_by_user_id: uploadedByUserId,
     })
     .select("*")
     .single();
@@ -226,6 +228,7 @@ export async function POST(req: NextRequest) {
       return permission.errorResponse;
     }
 
+    const uploadedByUserId = permission.user.id;
     const body = await req.json();
 
     const title = String(body.title || body.titleOverride || "").trim();
@@ -321,7 +324,13 @@ export async function POST(req: NextRequest) {
     }
 
     const artist = await upsertArtist(artistName, artistSlug, artworkUrl);
-    const album = await upsertAlbum(albumTitle, albumSlug, artist.id, artworkUrl);
+    const album = await upsertAlbum(
+      albumTitle,
+      albumSlug,
+      artist.id,
+      artworkUrl,
+      uploadedByUserId
+    );
 
     const metadataDuplicate = await findDuplicateSong({
       audioKey,
@@ -352,6 +361,7 @@ export async function POST(req: NextRequest) {
 
         artist_id: artist.id,
         album_id: album.id,
+        uploaded_by_user_id: uploadedByUserId,
 
         artist: artist.name,
         album: album.title,
@@ -454,6 +464,9 @@ export async function POST(req: NextRequest) {
         cover_url: song.cover_url || song.artwork_url || artworkUrl,
 
         artworkSource,
+
+        uploadedByUserId: song.uploaded_by_user_id || uploadedByUserId,
+        uploaded_by_user_id: song.uploaded_by_user_id || uploadedByUserId,
 
         hasLyrics: Boolean(song.has_lyrics),
         has_lyrics: Boolean(song.has_lyrics),

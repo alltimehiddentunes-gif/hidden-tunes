@@ -30,6 +30,9 @@ type ReleaseSummary = {
   audioReadyCount: number;
   artworkReadyCount: number;
   lyricsReadyCount: number;
+  uploadedByUserId?: string | null;
+  uploaderEmail?: string | null;
+  uploaderRole?: string | null;
   reviewStatus?: string | null;
   licenseDeclaration?: string | null;
   copyrightScanStatus?: string | null;
@@ -144,6 +147,8 @@ export default function AdminReleasesPage() {
   const [pageError, setPageError] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [uploaderInput, setUploaderInput] = useState("");
+  const [uploaderQuery, setUploaderQuery] = useState("");
   const [reviewStatus, setReviewStatus] = useState("all");
   const [licenseFilter, setLicenseFilter] = useState("all");
   const [scanFilter, setScanFilter] = useState("all");
@@ -156,7 +161,7 @@ export default function AdminReleasesPage() {
     () => ({
       loaded: releases.length,
       tracks: releases.reduce((total, release) => total + release.trackCount, 0),
-      ready: releases.filter((release) => releaseAssetStatus(release) === "Ready")
+      knownUploaders: releases.filter((release) => release.uploadedByUserId)
         .length,
       rights: releases.filter((release) => release.reviewStatus).length,
     }),
@@ -184,6 +189,7 @@ export default function AdminReleasesPage() {
     });
 
     if (searchQuery.trim()) params.set("search", searchQuery.trim());
+    if (uploaderQuery.trim()) params.set("uploader", uploaderQuery.trim());
     if (reviewStatus !== "all") params.set("status", reviewStatus);
     if (licenseFilter !== "all") params.set("license", licenseFilter);
     if (scanFilter !== "all") params.set("scan", scanFilter);
@@ -206,7 +212,16 @@ export default function AdminReleasesPage() {
       page: data.pagination?.page || page,
       pageSize: data.pagination?.pageSize || DEFAULT_PAGINATION.pageSize,
     });
-  }, [licenseFilter, page, reviewStatus, router, scanFilter, searchQuery, sortMode]);
+  }, [
+    licenseFilter,
+    page,
+    reviewStatus,
+    router,
+    scanFilter,
+    searchQuery,
+    sortMode,
+    uploaderQuery,
+  ]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -216,6 +231,15 @@ export default function AdminReleasesPage() {
 
     return () => window.clearTimeout(timer);
   }, [searchInput]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setPage(1);
+      setUploaderQuery(uploaderInput.trim());
+    }, 280);
+
+    return () => window.clearTimeout(timer);
+  }, [uploaderInput]);
 
   useEffect(() => {
     let ignore = false;
@@ -257,10 +281,17 @@ export default function AdminReleasesPage() {
     router.push(`/admin/releases/${release.id}/tracks/${release.primaryTrackId}/lyrics`);
   }
 
+  const hasActiveFilter =
+    searchQuery ||
+    uploaderQuery ||
+    reviewStatus !== "all" ||
+    licenseFilter !== "all" ||
+    scanFilter !== "all";
+
   return (
     <AdminShell
       title="Releases"
-      description="A compact music operations dashboard for managing a growing catalog without gallery-style overload."
+      description="A compact music operations dashboard with uploader ownership visibility."
       actions={
         <button
           onClick={() => router.push("/admin/upload")}
@@ -274,15 +305,22 @@ export default function AdminReleasesPage() {
         <MetricCard label="Total Results" value={compactNumber(pagination.total)} />
         <MetricCard label="Loaded Page" value={String(totals.loaded)} />
         <MetricCard label="Tracks Loaded" value={compactNumber(totals.tracks)} />
-        <MetricCard label="Rights Rows" value={String(totals.rights)} />
+        <MetricCard label="Known Uploaders" value={String(totals.knownUploaders)} />
       </section>
 
       <section className="mb-4 rounded-[1.7rem] border border-white/10 bg-[#101017]/92 p-3 shadow-2xl">
-        <div className="grid gap-2 xl:grid-cols-[1.4fr_0.75fr_0.75fr_0.85fr_0.7fr_auto_auto]">
+        <div className="grid gap-2 xl:grid-cols-[1.2fr_1fr_0.72fr_0.72fr_0.82fr_0.68fr_auto_auto]">
           <input
             value={searchInput}
             onChange={(event) => setSearchInput(event.target.value)}
-            placeholder="Search release title or artist..."
+            placeholder="Search release title, artist, or uploader..."
+            className="h-11 rounded-2xl border border-white/10 bg-black/30 px-4 text-sm outline-none transition placeholder:text-white/30 focus:border-yellow-300/50"
+          />
+
+          <input
+            value={uploaderInput}
+            onChange={(event) => setUploaderInput(event.target.value)}
+            placeholder="Filter uploader email..."
             className="h-11 rounded-2xl border border-white/10 bg-black/30 px-4 text-sm outline-none transition placeholder:text-white/30 focus:border-yellow-300/50"
           />
 
@@ -372,7 +410,7 @@ export default function AdminReleasesPage() {
             Page {pagination.page} of {pagination.totalPages} / showing{" "}
             {pagination.returned} releases at {pagination.pageSize} per page.
           </p>
-          <p>Rights badges are display-only. Scanning remains a later phase.</p>
+          <p>Uploader ownership appears for releases created after tracking began.</p>
         </div>
       </section>
 
@@ -385,7 +423,7 @@ export default function AdminReleasesPage() {
       {isLoading ? (
         <LoadingRows />
       ) : releases.length === 0 ? (
-        searchQuery || reviewStatus !== "all" || licenseFilter !== "all" || scanFilter !== "all" ? (
+        hasActiveFilter ? (
           <NoMatchesState />
         ) : (
           <EmptyState onUpload={() => router.push("/admin/upload")} />
@@ -395,12 +433,22 @@ export default function AdminReleasesPage() {
           releases={releases}
           onOpen={(release) => router.push(`/admin/releases/${release.id}`)}
           onLyrics={openLyrics}
+          onUploader={(release) =>
+            release.uploadedByUserId
+              ? router.push(`/admin/uploaders/${release.uploadedByUserId}/releases`)
+              : undefined
+          }
         />
       ) : (
         <CompactGrid
           releases={releases}
           onOpen={(release) => router.push(`/admin/releases/${release.id}`)}
           onLyrics={openLyrics}
+          onUploader={(release) =>
+            release.uploadedByUserId
+              ? router.push(`/admin/uploaders/${release.uploadedByUserId}/releases`)
+              : undefined
+          }
         />
       )}
 
@@ -419,21 +467,23 @@ function CompactReleaseTable({
   releases,
   onOpen,
   onLyrics,
+  onUploader,
 }: {
   releases: ReleaseSummary[];
   onOpen: (release: ReleaseSummary) => void;
   onLyrics: (release: ReleaseSummary) => void;
+  onUploader: (release: ReleaseSummary) => void | undefined;
 }) {
   return (
     <section className="overflow-hidden rounded-[1.7rem] border border-white/10 bg-[#101017]/92 shadow-2xl">
-      <div className="hidden grid-cols-[minmax(260px,1.45fr)_0.45fr_0.65fr_0.82fr_0.82fr_0.82fr_0.82fr_0.72fr_128px] gap-3 border-b border-white/10 px-4 py-3 text-[10px] font-black uppercase tracking-[0.18em] text-white/35 2xl:grid">
+      <div className="hidden grid-cols-[minmax(260px,1.35fr)_0.62fr_0.86fr_0.68fr_0.78fr_0.78fr_0.78fr_0.68fr_128px] gap-3 border-b border-white/10 px-4 py-3 text-[10px] font-black uppercase tracking-[0.18em] text-white/35 2xl:grid">
         <span>Release</span>
         <span>Tracks</span>
+        <span>Uploader</span>
         <span>Genre</span>
         <span>Review</span>
         <span>License</span>
         <span>Copyright</span>
-        <span>Duplicate</span>
         <span>Date</span>
         <span>Action</span>
       </div>
@@ -445,6 +495,7 @@ function CompactReleaseTable({
             release={release}
             onOpen={() => onOpen(release)}
             onLyrics={() => onLyrics(release)}
+            onUploader={() => onUploader(release)}
           />
         ))}
       </div>
@@ -456,15 +507,18 @@ function ReleaseRow({
   release,
   onOpen,
   onLyrics,
+  onUploader,
 }: {
   release: ReleaseSummary;
   onOpen: () => void;
   onLyrics: () => void;
+  onUploader: () => void | undefined;
 }) {
   return (
-    <article className="grid gap-3 px-4 py-3 transition hover:bg-white/[0.035] 2xl:grid-cols-[minmax(260px,1.45fr)_0.45fr_0.65fr_0.82fr_0.82fr_0.82fr_0.82fr_0.72fr_128px] 2xl:items-center">
+    <article className="grid gap-3 px-4 py-3 transition hover:bg-white/[0.035] 2xl:grid-cols-[minmax(260px,1.35fr)_0.62fr_0.86fr_0.68fr_0.78fr_0.78fr_0.78fr_0.68fr_128px] 2xl:items-center">
       <ReleaseIdentity release={release} />
       <InfoCell label="Tracks" value={String(release.trackCount)} />
+      <UploaderCell release={release} onPress={onUploader} />
       <InfoCell label="Genre" value={release.primaryGenre || "Unknown"} />
       <RightsBadge
         label="Review"
@@ -484,12 +538,6 @@ function ReleaseRow({
         fallback="Unknown"
         kind="scan"
       />
-      <RightsBadge
-        label="Duplicate"
-        value={release.duplicateScanStatus}
-        fallback="Unknown"
-        kind="scan"
-      />
       <InfoCell label="Date" value={formatDate(release.updatedAt || release.createdAt)} />
       <QuickActions
         canEditLyrics={Boolean(release.primaryTrackId)}
@@ -504,10 +552,12 @@ function CompactGrid({
   releases,
   onOpen,
   onLyrics,
+  onUploader,
 }: {
   releases: ReleaseSummary[];
   onOpen: (release: ReleaseSummary) => void;
   onLyrics: (release: ReleaseSummary) => void;
+  onUploader: (release: ReleaseSummary) => void | undefined;
 }) {
   return (
     <section className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
@@ -522,6 +572,10 @@ function CompactGrid({
             <MiniStat label="Tracks" value={String(release.trackCount)} />
             <MiniStat label="Genre" value={release.primaryGenre || "Unknown"} />
             <MiniStat label="Date" value={formatDate(release.updatedAt || release.createdAt)} />
+          </div>
+
+          <div className="mt-4">
+            <UploaderCell release={release} onPress={() => onUploader(release)} />
           </div>
 
           <div className="mt-4 grid gap-2 sm:grid-cols-2">
@@ -591,6 +645,37 @@ function ReleaseIdentity({ release }: { release: ReleaseSummary }) {
           {assetStatus}
         </span>
       </div>
+    </div>
+  );
+}
+
+function UploaderCell({
+  release,
+  onPress,
+}: {
+  release: ReleaseSummary;
+  onPress: () => void | undefined;
+}) {
+  const hasUploader = Boolean(release.uploadedByUserId);
+
+  return (
+    <div className="min-w-0">
+      <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-white/30 2xl:hidden">
+        Uploader
+      </p>
+      <button
+        type="button"
+        disabled={!hasUploader}
+        onClick={onPress}
+        className="max-w-full text-left disabled:cursor-default"
+      >
+        <p className="truncate text-sm font-black text-white/72">
+          {release.uploaderEmail || "Unknown uploader"}
+        </p>
+        <p className="truncate text-xs font-bold text-white/36">
+          {release.uploaderRole || (hasUploader ? "Unknown role" : "Legacy row")}
+        </p>
+      </button>
     </div>
   );
 }
@@ -716,8 +801,8 @@ function EmptyState({ onUpload }: { onUpload: () => void }) {
         Uploads will appear as compact operations rows
       </h2>
       <p className="mx-auto mt-4 max-w-xl text-sm leading-6 text-white/55">
-        Once music is uploaded, this dashboard will show release state, rights
-        metadata, scan readiness, and quick navigation in one dense view.
+        Once music is uploaded, this dashboard will show release state, uploader
+        ownership, rights metadata, and quick navigation in one dense view.
       </p>
       <button
         onClick={onUpload}
@@ -739,8 +824,8 @@ function NoMatchesState() {
         No releases match your filters.
       </h2>
       <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-white/50">
-        Adjust the search, status, license, scan, or sort controls and refresh
-        the current operations view.
+        Adjust search, uploader, status, license, scan, or sort controls and
+        refresh the current operations view.
       </p>
     </section>
   );

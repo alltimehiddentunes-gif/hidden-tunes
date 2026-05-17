@@ -11,6 +11,13 @@ import {
   type RightsReviewMetadata,
 } from "@/lib/rightsReview";
 
+type ReleaseUploader = {
+  id: string | null;
+  email: string | null;
+  role: string | null;
+  status: string | null;
+};
+
 type ReleaseTrack = {
   id: string;
   title: string;
@@ -30,6 +37,7 @@ type ReleaseTrack = {
   sourceType: string | null;
   isOnline: boolean;
   createdAt: string | null;
+  uploadedByUserId?: string | null;
 };
 
 type ReleaseDetail = {
@@ -41,6 +49,7 @@ type ReleaseDetail = {
   artworkUrl: string | null;
   releaseYear: string | number | null;
   createdAt: string | null;
+  uploader?: ReleaseUploader | null;
   rightsReview?: RightsReviewMetadata | null;
   tracks: ReleaseTrack[];
 };
@@ -84,6 +93,18 @@ function formatDuration(seconds: number) {
   const minutes = Math.floor(seconds / 60);
   const remainingSeconds = Math.floor(seconds % 60);
   return `${minutes}:${String(remainingSeconds).padStart(2, "0")}`;
+}
+
+function formatDate(value: string | null) {
+  if (!value) return "Unknown date";
+  const time = new Date(value).getTime();
+  if (!Number.isFinite(time)) return "Unknown date";
+
+  return new Intl.DateTimeFormat("en", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(new Date(time));
 }
 
 function getParamId(value: string | string[] | undefined) {
@@ -479,6 +500,16 @@ export default function AdminReleaseDetailPage() {
             </div>
           </div>
 
+          <UploaderInfoCard
+            uploader={release.uploader}
+            createdAt={release.createdAt}
+            onViewUploads={() =>
+              release.uploader?.id
+                ? router.push(`/admin/uploaders/${release.uploader.id}/releases`)
+                : undefined
+            }
+          />
+
           <RightsReviewPanel rightsReview={release.rightsReview} />
         </aside>
 
@@ -689,6 +720,51 @@ export default function AdminReleaseDetailPage() {
         </div>
       ) : null}
     </AdminShell>
+  );
+}
+
+function UploaderInfoCard({
+  uploader,
+  createdAt,
+  onViewUploads,
+}: {
+  uploader?: ReleaseUploader | null;
+  createdAt: string | null;
+  onViewUploads: () => void | undefined;
+}) {
+  const hasUploader = Boolean(uploader?.id);
+
+  return (
+    <div className="rounded-[2.1rem] border border-white/10 bg-[#101017]/92 p-5 shadow-2xl">
+      <p className="text-xs font-black uppercase tracking-[0.28em] text-yellow-300">
+        Uploaded By
+      </p>
+      <h2 className="mt-2 truncate text-2xl font-black tracking-[-0.04em]">
+        {uploader?.email || "Unknown uploader"}
+      </h2>
+      <div className="mt-4 grid gap-3">
+        <ReviewField label="Role" value={uploader?.role || "Unknown role"} />
+        <ReviewField
+          label="Uploader ID"
+          value={uploader?.id || "No uploader id recorded"}
+        />
+        <ReviewField label="Upload date" value={formatDate(createdAt)} />
+      </div>
+
+      {!hasUploader ? (
+        <p className="mt-4 rounded-2xl border border-white/10 bg-white/[0.035] p-3 text-xs leading-5 text-white/48">
+          This release was created before uploader ownership tracking.
+        </p>
+      ) : (
+        <button
+          type="button"
+          onClick={onViewUploads}
+          className="mt-4 w-full rounded-2xl border border-yellow-300/25 bg-yellow-300/10 px-4 py-3 text-xs font-black uppercase tracking-widest text-yellow-100 transition hover:-translate-y-0.5"
+        >
+          View uploader uploads
+        </button>
+      )}
+    </div>
   );
 }
 

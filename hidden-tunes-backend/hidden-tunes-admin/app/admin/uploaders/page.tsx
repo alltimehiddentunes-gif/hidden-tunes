@@ -268,7 +268,7 @@ export default function AdminUploadersPage() {
   return (
     <AdminShell
       title="Uploaders"
-      description="Invite upload managers, keep owner access protected, and disable uploader access without touching catalog data."
+      description="Invite upload managers, view uploader-owned releases, and keep owner access protected."
       actions={
         <button
           onClick={() => router.push("/admin/upload")}
@@ -385,6 +385,15 @@ export default function AdminUploadersPage() {
                     >
                       {uploader.status || "unknown"}
                     </span>
+
+                    <button
+                      onClick={() =>
+                        router.push(`/admin/uploaders/${uploader.id}/releases`)
+                      }
+                      className="rounded-full border border-yellow-300/25 bg-yellow-300/10 px-4 py-2 text-xs font-black uppercase tracking-widest text-yellow-100 transition hover:-translate-y-0.5"
+                    >
+                      View uploads
+                    </button>
 
                     {uploader.status !== "active" ? (
                       <button

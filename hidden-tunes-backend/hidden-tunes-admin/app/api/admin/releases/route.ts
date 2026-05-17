@@ -8,6 +8,7 @@ export const dynamic = "force-dynamic";
 
 type AlbumRow = Record<string, string | number | null | undefined>;
 type SongRow = Record<string, string | number | boolean | null | undefined>;
+type UploaderRow = Record<string, string | null | undefined>;
 type SortMode = "newest" | "oldest" | "title_asc" | "title_desc";
 
 const DEFAULT_PAGE_SIZE = 50;
@@ -85,6 +86,42 @@ async function loadMatchingArtistIds(searchQuery: string) {
     .filter(Boolean);
 }
 
+async function loadMatchingUploaderIds(searchQuery: string) {
+  const { data, error } = await supabaseAdmin
+    .from("uploader_profiles")
+    .select("id")
+    .ilike("email", `%${searchQuery}%`)
+    .limit(200);
+
+  if (error) throw error;
+
+  return ((data || []) as unknown as UploaderRow[])
+    .map((uploader) => String(uploader.id || ""))
+    .filter(Boolean);
+}
+
+async function loadUploaderMap(uploaderIds: string[]) {
+  const uniqueIds = Array.from(new Set(uploaderIds.filter(Boolean)));
+
+  if (uniqueIds.length === 0) {
+    return new Map<string, UploaderRow>();
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from("uploader_profiles")
+    .select("id, email, role, status")
+    .in("id", uniqueIds);
+
+  if (error) throw error;
+
+  return new Map(
+    ((data || []) as unknown as UploaderRow[]).map((uploader) => [
+      String(uploader.id),
+      uploader,
+    ])
+  );
+}
+
 export async function GET(request: NextRequest) {
   try {
     const permission = await requireUploadPermission(request);
@@ -103,6 +140,8 @@ export async function GET(request: NextRequest) {
     const reviewStatus = cleanFilter(params.get("status"));
     const licenseDeclaration = cleanFilter(params.get("license"));
     const scanFilter = cleanFilter(params.get("scan"));
+    const uploaderId = cleanFilter(params.get("uploaderId"));
+    const uploaderSearch = cleanFilter(params.get("uploader"));
     const sort = parseSort(params.get("sort"));
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
@@ -118,6 +157,7 @@ export async function GET(request: NextRequest) {
           "artwork_url",
           "release_year",
           "created_at",
+          "uploaded_by_user_id",
           "review_status",
           "license_declaration",
           "copyright_scan_status",
@@ -134,6 +174,19 @@ export async function GET(request: NextRequest) {
       query = query.eq("license_declaration", licenseDeclaration);
     }
 
+    if (uploaderId) {
+      query = query.eq("uploaded_by_user_id", uploaderId);
+    }
+
+    if (uploaderSearch) {
+      const matchingUploaderIds = await loadMatchingUploaderIds(uploaderSearch);
+      if (matchingUploaderIds.length === 0) {
+        query = query.eq("uploaded_by_user_id", "__no_matching_uploader__");
+      } else {
+        query = query.in("uploaded_by_user_id", matchingUploaderIds);
+      }
+    }
+
     if (scanFilter === "copyright_flagged") {
       query = query.eq("copyright_scan_status", "flagged");
     } else if (scanFilter === "duplicate_flagged") {
@@ -145,12 +198,19 @@ export async function GET(request: NextRequest) {
     }
 
     if (searchQuery) {
-      const matchingArtistIds = await loadMatchingArtistIds(searchQuery);
+      const [matchingArtistIds, matchingUploaderIds] = await Promise.all([
+        loadMatchingArtistIds(searchQuery),
+        loadMatchingUploaderIds(searchQuery),
+      ]);
       const escapedSearch = searchQuery.replace(/[%_]/g, "\\$&");
       const clauses = [`title.ilike.%${escapedSearch}%`];
 
       if (matchingArtistIds.length > 0) {
         clauses.push(`artist_id.in.(${matchingArtistIds.join(",")})`);
+      }
+
+      if (matchingUploaderIds.length > 0) {
+        clauses.push(`uploaded_by_user_id.in.(${matchingUploaderIds.join(",")})`);
       }
 
       query = query.or(clauses.join(","));
@@ -177,24 +237,31 @@ export async function GET(request: NextRequest) {
     const artistIds = albumRows
       .map((album) => String(album.artist_id || ""))
       .filter(Boolean);
+    const uploaderIds = albumRows
+      .map((album) => String(album.uploaded_by_user_id || ""))
+      .filter(Boolean);
 
-    const [{ data: artists, error: artistsError }, { data: songs, error: songsError }] =
-      await Promise.all([
-        artistIds.length
-          ? supabaseAdmin
-              .from("artists")
-              .select("id, name, image_url")
-              .in("id", artistIds)
-          : Promise.resolve({ data: [], error: null }),
-        albumIds.length
-          ? supabaseAdmin
-              .from("songs")
-              .select(
-                "id,album_id,title,genre,audio_url,url,artwork_url,cover_url,has_lyrics,lyrics_url,duration,duration_seconds,created_at"
-              )
-              .in("album_id", albumIds)
-          : Promise.resolve({ data: [], error: null }),
-      ]);
+    const [
+      { data: artists, error: artistsError },
+      { data: songs, error: songsError },
+      uploaderMap,
+    ] = await Promise.all([
+      artistIds.length
+        ? supabaseAdmin
+            .from("artists")
+            .select("id, name, image_url")
+            .in("id", artistIds)
+        : Promise.resolve({ data: [], error: null }),
+      albumIds.length
+        ? supabaseAdmin
+            .from("songs")
+            .select(
+              "id,album_id,title,genre,audio_url,url,artwork_url,cover_url,has_lyrics,lyrics_url,duration,duration_seconds,created_at"
+            )
+            .in("album_id", albumIds)
+        : Promise.resolve({ data: [], error: null }),
+      loadUploaderMap(uploaderIds),
+    ]);
 
     if (artistsError) throw artistsError;
     if (songsError) throw songsError;
@@ -213,6 +280,7 @@ export async function GET(request: NextRequest) {
       );
       const firstSong = releaseSongs[0] || null;
       const artist = artistMap.get(String(album.artist_id || ""));
+      const uploader = uploaderMap.get(String(album.uploaded_by_user_id || ""));
       const firstArtworkSong = releaseSongs.find((song) =>
         Boolean(song.artwork_url || song.cover_url)
       );
@@ -254,6 +322,9 @@ export async function GET(request: NextRequest) {
         lyricsReadyCount: releaseSongs.filter((song) =>
           Boolean(song.has_lyrics || song.lyrics_url)
         ).length,
+        uploadedByUserId: stringOrNull(album.uploaded_by_user_id),
+        uploaderEmail: uploader?.email || "Unknown uploader",
+        uploaderRole: uploader?.role || null,
         reviewStatus: stringOrNull(album.review_status),
         licenseDeclaration: stringOrNull(album.license_declaration),
         copyrightScanStatus: stringOrNull(album.copyright_scan_status),

@@ -8,6 +8,7 @@ export const dynamic = "force-dynamic";
 
 type AlbumRow = Record<string, string | number | null | undefined>;
 type SongRow = Record<string, string | number | boolean | null | undefined>;
+type UploaderRow = Record<string, string | null | undefined>;
 
 type RouteContext = {
   params: Promise<{
@@ -53,6 +54,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
           "artwork_url",
           "release_year",
           "created_at",
+          "uploaded_by_user_id",
           "review_status",
           "license_declaration",
           "license_notes",
@@ -77,53 +79,67 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
     const albumRow = album as unknown as AlbumRow;
 
-    const { data: artist, error: artistError } = await supabaseAdmin
-      .from("artists")
-      .select("id, name, slug, image_url")
-      .eq("id", albumRow.artist_id)
-      .maybeSingle();
+    const [
+      { data: artist, error: artistError },
+      { data: tracks, error: tracksError },
+      { data: uploader, error: uploaderError },
+    ] = await Promise.all([
+      supabaseAdmin
+        .from("artists")
+        .select("id, name, slug, image_url")
+        .eq("id", albumRow.artist_id)
+        .maybeSingle(),
+      supabaseAdmin
+        .from("songs")
+        .select(
+          [
+            "id",
+            "title",
+            "slug",
+            "artist",
+            "artist_name",
+            "album",
+            "album_title",
+            "genre",
+            "mood",
+            "duration",
+            "duration_seconds",
+            "audio_url",
+            "url",
+            "cover_url",
+            "artwork_url",
+            "r2_audio_key",
+            "r2_cover_key",
+            "lyrics_url",
+            "has_lyrics",
+            "lyrics_type",
+            "lyrics_updated_at",
+            "source_name",
+            "source_type",
+            "type",
+            "is_online",
+            "isOnline",
+            "created_at",
+            "uploaded_by_user_id",
+          ].join(",")
+        )
+        .eq("album_id", releaseId)
+        .order("created_at", { ascending: true }),
+      albumRow.uploaded_by_user_id
+        ? supabaseAdmin
+            .from("uploader_profiles")
+            .select("id, email, role, status")
+            .eq("id", albumRow.uploaded_by_user_id)
+            .maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
+    ]);
 
     if (artistError) throw artistError;
-
-    const { data: tracks, error: tracksError } = await supabaseAdmin
-      .from("songs")
-      .select(
-        [
-          "id",
-          "title",
-          "slug",
-          "artist",
-          "artist_name",
-          "album",
-          "album_title",
-          "genre",
-          "mood",
-          "duration",
-          "duration_seconds",
-          "audio_url",
-          "url",
-          "cover_url",
-          "artwork_url",
-          "r2_audio_key",
-          "r2_cover_key",
-          "lyrics_url",
-          "has_lyrics",
-          "lyrics_type",
-          "lyrics_updated_at",
-          "source_name",
-          "source_type",
-          "type",
-          "is_online",
-          "isOnline",
-          "created_at",
-        ].join(",")
-      )
-      .eq("album_id", releaseId)
-      .order("created_at", { ascending: true });
-
     if (tracksError) throw tracksError;
+    if (uploaderError) throw uploaderError;
 
     const songRows = (tracks || []) as unknown as SongRow[];
+    const uploaderRow = uploader as unknown as UploaderRow | null;
 
     const normalizedTracks = songRows.map((track, index) => ({
       id: track.id,
@@ -146,6 +162,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
       sourceType: track.source_type || track.type || "r2",
       isOnline: track.is_online ?? track.isOnline ?? true,
       createdAt: track.created_at || null,
+      uploadedByUserId: track.uploaded_by_user_id || null,
     }));
 
     return NextResponse.json({
@@ -163,6 +180,12 @@ export async function GET(request: NextRequest, context: RouteContext) {
           null,
         releaseYear: albumRow.release_year || null,
         createdAt: albumRow.created_at || null,
+        uploader: {
+          id: stringOrNull(albumRow.uploaded_by_user_id),
+          email: uploaderRow?.email || "Unknown uploader",
+          role: uploaderRow?.role || null,
+          status: uploaderRow?.status || null,
+        },
         rightsReview: {
           reviewStatus: stringOrNull(albumRow.review_status),
           licenseDeclaration: stringOrNull(albumRow.license_declaration),
