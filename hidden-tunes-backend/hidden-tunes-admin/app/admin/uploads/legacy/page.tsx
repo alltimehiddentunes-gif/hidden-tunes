@@ -112,12 +112,18 @@ export default function LegacyUploadsPage() {
     [releases, selectedReleaseIds]
   );
 
-  async function getAccessToken() {
+  async function getRequiredAccessToken() {
     const {
       data: { session },
     } = await supabase.auth.getSession();
 
-    return session?.access_token || "";
+    const accessToken = session?.access_token;
+
+    if (!accessToken) {
+      throw new Error("Your admin session expired. Sign in again.");
+    }
+
+    return accessToken;
   }
 
   const loadLegacyUploads = useCallback(async () => {
@@ -132,11 +138,12 @@ export default function LegacyUploadsPage() {
       return;
     }
 
-    const token = await getAccessToken();
-    if (!token) throw new Error("Your admin session expired. Sign in again.");
+    const accessToken = await getRequiredAccessToken();
 
     const response = await fetch("/api/admin/uploads/legacy", {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
     });
     const data = (await response.json().catch(() => null)) as
       | LegacyUploadsResponse
@@ -232,14 +239,13 @@ export default function LegacyUploadsPage() {
     setNotice("");
 
     try {
-      const token = await getAccessToken();
-      if (!token) throw new Error("Your admin session expired. Sign in again.");
+      const accessToken = await getRequiredAccessToken();
 
       const response = await fetch("/api/admin/uploads/legacy", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
           releaseIds: pendingAssignment.releaseIds,
