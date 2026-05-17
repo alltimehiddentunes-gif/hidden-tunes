@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-export type UserRole = "listener" | "artist";
+export type UserRole = "listener" | "artist" | "uploader" | "admin" | "owner";
 export type EnergyPreference = "calm" | "balanced" | "energetic";
 export type DiscoveryStyle = "familiar" | "balanced" | "adventurous";
 
@@ -29,6 +29,23 @@ export const DEFAULT_LISTENER_PREFERENCES: OnboardingPreferences = {
   preferredEnergy: "balanced",
   discoveryStyle: "balanced",
 };
+
+const USER_ROLES: UserRole[] = [
+  "listener",
+  "artist",
+  "uploader",
+  "admin",
+  "owner",
+];
+
+export function normalizeUserRole(value: string | null | undefined): UserRole {
+  return USER_ROLES.includes(value as UserRole) ? (value as UserRole) : "listener";
+}
+
+export async function getStoredUserRole() {
+  const storedRole = await AsyncStorage.getItem(ONBOARDING_STORAGE_KEYS.userRole);
+  return normalizeUserRole(storedRole);
+}
 
 export async function hasCompletedOnboarding() {
   const [completed, legacyCompleted] = await AsyncStorage.multiGet([
