@@ -1,0 +1,123 @@
+import { NextRequest, NextResponse } from "next/server";
+
+import { requireUploadPermission } from "@/lib/requireUploadPermission";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+type AlbumRow = Record<string, string | number | null | undefined>;
+type SongRow = Record<string, string | number | boolean | null | undefined>;
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    const permission = await requireUploadPermission(request);
+
+    if (permission.errorResponse) {
+      return permission.errorResponse;
+    }
+
+    const { data: albums, error: albumsError } = await supabaseAdmin
+      .from("albums")
+      .select("id, title, slug, artist_id, artwork_url, release_year, created_at")
+      .order("created_at", { ascending: false })
+      .limit(80);
+
+    if (albumsError) throw albumsError;
+
+    const albumRows = (albums || []) as unknown as AlbumRow[];
+    const albumIds = albumRows
+      .map((album) => String(album.id || ""))
+      .filter(Boolean);
+    const artistIds = albumRows
+      .map((album) => String(album.artist_id || ""))
+      .filter(Boolean);
+
+    const [{ data: artists, error: artistsError }, { data: songs, error: songsError }] =
+      await Promise.all([
+        artistIds.length
+          ? supabaseAdmin
+              .from("artists")
+              .select("id, name, image_url")
+              .in("id", artistIds)
+          : Promise.resolve({ data: [], error: null }),
+        albumIds.length
+          ? supabaseAdmin
+              .from("songs")
+              .select(
+                "id,album_id,title,audio_url,url,artwork_url,cover_url,has_lyrics,lyrics_url,duration,duration_seconds,created_at"
+              )
+              .in("album_id", albumIds)
+          : Promise.resolve({ data: [], error: null }),
+      ]);
+
+    if (artistsError) throw artistsError;
+    if (songsError) throw songsError;
+
+    const artistMap = new Map(
+      ((artists || []) as unknown as AlbumRow[]).map((artist) => [
+        String(artist.id),
+        artist,
+      ])
+    );
+    const songRows = (songs || []) as unknown as SongRow[];
+
+    const releases = albumRows.map((album) => {
+      const releaseSongs = songRows.filter(
+        (song) => String(song.album_id || "") === String(album.id)
+      );
+      const artist = artistMap.get(String(album.artist_id || ""));
+      const artworkUrl =
+        album.artwork_url ||
+        releaseSongs.find((song) => Boolean(song.artwork_url || song.cover_url))
+          ?.artwork_url ||
+        releaseSongs.find((song) => Boolean(song.artwork_url || song.cover_url))
+          ?.cover_url ||
+        artist?.image_url ||
+        null;
+      const totalDuration = releaseSongs.reduce(
+        (total, song) =>
+          total + Number(song.duration_seconds || song.duration || 0),
+        0
+      );
+
+      return {
+        id: album.id,
+        title: album.title || "Untitled Release",
+        slug: album.slug || null,
+        artist: artist?.name || "Unknown Artist",
+        artworkUrl,
+        releaseYear: album.release_year || null,
+        createdAt: album.created_at || null,
+        trackCount: releaseSongs.length,
+        totalDuration,
+        audioReadyCount: releaseSongs.filter((song) =>
+          Boolean(song.audio_url || song.url)
+        ).length,
+        artworkReadyCount: releaseSongs.filter((song) =>
+          Boolean(song.artwork_url || song.cover_url)
+        ).length,
+        lyricsReadyCount: releaseSongs.filter((song) =>
+          Boolean(song.has_lyrics || song.lyrics_url)
+        ).length,
+      };
+    });
+
+    return NextResponse.json({
+      success: true,
+      releases,
+    });
+  } catch (error: unknown) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: getErrorMessage(error, "Failed to load releases."),
+      },
+      { status: 500 }
+    );
+  }
+}
