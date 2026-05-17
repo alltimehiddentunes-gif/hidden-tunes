@@ -71,6 +71,17 @@ function logSupabaseQueryError(queryName: LegacyQueryName, error: unknown) {
   });
 }
 
+function safeClientErrorDetails(queryName: LegacyQueryName, error: unknown) {
+  const details = getSupabaseErrorDetails(error);
+
+  return {
+    query: queryName,
+    code: details.code || null,
+    message: details.message || null,
+    hint: details.hint || null,
+  };
+}
+
 function legacyReadError(queryName: LegacyQueryName, error: unknown) {
   logSupabaseQueryError(queryName, error);
 
@@ -79,10 +90,7 @@ function legacyReadError(queryName: LegacyQueryName, error: unknown) {
       success: false,
       error:
         "Unable to load legacy uploads because the server could not read albums/songs/uploader_profiles.",
-      details: {
-        query: queryName,
-        code: getSupabaseErrorDetails(error).code || null,
-      },
+      details: safeClientErrorDetails(queryName, error),
     },
     { status: 500 }
   );
@@ -379,8 +387,10 @@ export async function GET(request: NextRequest) {
       ),
     });
   } catch (error: unknown) {
+    const message = getErrorMessage(error, "Failed to load legacy uploads.");
+
     console.error("[legacy-uploads-api] Unexpected GET failure", {
-      message: getErrorMessage(error, "Failed to load legacy uploads."),
+      message,
     });
 
     return NextResponse.json(
@@ -390,6 +400,8 @@ export async function GET(request: NextRequest) {
         details: {
           query: "unexpected GET failure",
           code: null,
+          message,
+          hint: null,
         },
       },
       { status: 500 }
