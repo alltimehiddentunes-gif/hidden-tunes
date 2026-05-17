@@ -38,6 +38,10 @@ export function canManageUploaders(role?: string | null) {
   return role === "owner";
 }
 
+export function canManageUploaderOwnership(role?: string | null) {
+  return role === "owner" || role === "admin";
+}
+
 export function canUploadMusic(role?: string | null) {
   return UPLOAD_ROLES.includes(role as AdminRole);
 }

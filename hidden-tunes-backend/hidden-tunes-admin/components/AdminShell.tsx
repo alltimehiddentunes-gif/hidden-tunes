@@ -8,7 +8,10 @@ import {
   supabase,
   type UploaderProfile,
 } from "@/lib/auth";
-import { canManageUploaders } from "@/lib/adminPermissions";
+import {
+  canManageUploaderOwnership,
+  canManageUploaders,
+} from "@/lib/adminPermissions";
 
 type AdminShellProps = {
   children: ReactNode;
@@ -30,6 +33,12 @@ const NAV_ITEMS = [
     label: "Releases",
     description: "Release operations",
     roles: "all",
+  },
+  {
+    href: "/admin/uploads/legacy",
+    label: "Legacy Uploads",
+    description: "Ownership backfill",
+    roles: "ownership",
   },
   {
     href: "/admin/uploaders",
@@ -82,9 +91,11 @@ export default function AdminShell({
     );
   }
 
-  const visibleNavItems = NAV_ITEMS.filter(
-    (item) => item.roles === "all" || canManageUploaders(profile?.role)
-  );
+  const visibleNavItems = NAV_ITEMS.filter((item) => {
+    if (item.roles === "all") return true;
+    if (item.roles === "owner") return canManageUploaders(profile?.role);
+    return canManageUploaderOwnership(profile?.role);
+  });
 
   return (
     <main className="min-h-screen overflow-hidden bg-[#050508] text-white">
@@ -110,7 +121,7 @@ export default function AdminShell({
             </div>
           </div>
 
-          <nav className="mt-5 grid gap-2 sm:grid-cols-3 lg:grid-cols-1">
+          <nav className="mt-5 grid gap-2 sm:grid-cols-4 lg:grid-cols-1">
             {visibleNavItems.map((item) => {
               const active =
                 pathname === item.href ||
