@@ -35,6 +35,12 @@ const NAV_ITEMS = [
     roles: "all",
   },
   {
+    href: "/admin/submissions",
+    label: "Submissions",
+    description: "Artist review queue",
+    roles: "ownership",
+  },
+  {
     href: "/admin/uploads/legacy",
     label: "Legacy Uploads",
     description: "Ownership backfill",
