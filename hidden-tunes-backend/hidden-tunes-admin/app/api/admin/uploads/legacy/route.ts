@@ -16,6 +16,11 @@ type AssignOwnershipBody = {
   uploaderId?: unknown;
 };
 
+type OwnershipCountResult = {
+  count: number | null;
+  error: unknown;
+};
+
 type SupabaseLikeError = {
   message?: string;
   code?: string;
@@ -24,6 +29,8 @@ type SupabaseLikeError = {
 };
 
 type LegacyQueryName =
+  | "albums ownership schema check"
+  | "songs ownership schema check"
   | "legacy albums/releases query"
   | "unowned songs query"
   | "active uploaders query"
@@ -59,6 +66,19 @@ function getErrorMessage(error: unknown, fallback: string) {
   return details.message || fallback;
 }
 
+function logSupabaseQueryStart(queryName: LegacyQueryName) {
+  console.info("[legacy-uploads-api] Starting Supabase query", {
+    query: queryName,
+  });
+}
+
+function logSupabaseQuerySuccess(queryName: LegacyQueryName, rowCount?: number) {
+  console.info("[legacy-uploads-api] Supabase query succeeded", {
+    query: queryName,
+    rowCount: typeof rowCount === "number" ? rowCount : null,
+  });
+}
+
 function logSupabaseQueryError(queryName: LegacyQueryName, error: unknown) {
   const details = getSupabaseErrorDetails(error);
 
@@ -82,6 +102,23 @@ function safeClientErrorDetails(queryName: LegacyQueryName, error: unknown) {
   };
 }
 
+function requiredOwnershipSchemaError(
+  queryName: LegacyQueryName,
+  error: unknown
+) {
+  logSupabaseQueryError(queryName, error);
+
+  return NextResponse.json(
+    {
+      success: false,
+      error:
+        "Legacy ownership backfill requires uploaded_by_user_id columns on albums and songs before it can run safely.",
+      details: safeClientErrorDetails(queryName, error),
+    },
+    { status: 409 }
+  );
+}
+
 function legacyReadError(queryName: LegacyQueryName, error: unknown) {
   logSupabaseQueryError(queryName, error);
 
@@ -94,6 +131,129 @@ function legacyReadError(queryName: LegacyQueryName, error: unknown) {
     },
     { status: 500 }
   );
+}
+
+function normalizeCountDiagnostic(name: string, result: OwnershipCountResult) {
+  if (result.error) {
+    const details = getSupabaseErrorDetails(result.error);
+
+    console.error("[legacy-uploads-api] Ownership count diagnostic failed", {
+      name,
+      code: details.code || null,
+      message: details.message || null,
+      hint: details.hint || null,
+      details: details.details || null,
+    });
+
+    return {
+      name,
+      ok: false,
+      count: null,
+      code: details.code || null,
+      message: details.message || null,
+      hint: details.hint || null,
+    };
+  }
+
+  return {
+    name,
+    ok: true,
+    count: result.count || 0,
+    code: null,
+    message: null,
+    hint: null,
+  };
+}
+
+async function loadOwnershipDiagnostics() {
+  const [
+    totalAlbums,
+    totalSongs,
+    nullAlbums,
+    nullSongs,
+    ownedAlbums,
+    ownedSongs,
+  ] = await Promise.all([
+    supabaseAdmin
+      .from("albums")
+      .select("id", { count: "exact", head: true }) as PromiseLike<OwnershipCountResult>,
+    supabaseAdmin
+      .from("songs")
+      .select("id", { count: "exact", head: true }) as PromiseLike<OwnershipCountResult>,
+    supabaseAdmin
+      .from("albums")
+      .select("id", { count: "exact", head: true })
+      .is("uploaded_by_user_id", null) as PromiseLike<OwnershipCountResult>,
+    supabaseAdmin
+      .from("songs")
+      .select("id", { count: "exact", head: true })
+      .is("uploaded_by_user_id", null) as PromiseLike<OwnershipCountResult>,
+    supabaseAdmin
+      .from("albums")
+      .select("id", { count: "exact", head: true })
+      .not("uploaded_by_user_id", "is", null) as PromiseLike<OwnershipCountResult>,
+    supabaseAdmin
+      .from("songs")
+      .select("id", { count: "exact", head: true })
+      .not("uploaded_by_user_id", "is", null) as PromiseLike<OwnershipCountResult>,
+  ]);
+
+  const diagnostics = {
+    totalAlbums: normalizeCountDiagnostic("total albums", totalAlbums),
+    totalSongs: normalizeCountDiagnostic("total songs", totalSongs),
+    nullAlbums: normalizeCountDiagnostic(
+      "albums with NULL uploaded_by_user_id",
+      nullAlbums
+    ),
+    nullSongs: normalizeCountDiagnostic(
+      "songs with NULL uploaded_by_user_id",
+      nullSongs
+    ),
+    ownedAlbums: normalizeCountDiagnostic(
+      "albums with owned uploaded_by_user_id",
+      ownedAlbums
+    ),
+    ownedSongs: normalizeCountDiagnostic(
+      "songs with owned uploaded_by_user_id",
+      ownedSongs
+    ),
+  };
+
+  console.info("[legacy-uploads-api] Ownership diagnostics", diagnostics);
+
+  return diagnostics;
+}
+
+async function ensureOwnershipColumnsExist() {
+  logSupabaseQueryStart("albums ownership schema check");
+  const albumOwnershipColumnCheck = await supabaseAdmin
+    .from("albums")
+    .select("uploaded_by_user_id")
+    .limit(0);
+
+  if (albumOwnershipColumnCheck.error) {
+    return requiredOwnershipSchemaError(
+      "albums ownership schema check",
+      albumOwnershipColumnCheck.error
+    );
+  }
+  logSupabaseQuerySuccess("albums ownership schema check", 0);
+
+  logSupabaseQueryStart("songs ownership schema check");
+  const songOwnershipColumnCheck = await supabaseAdmin
+    .from("songs")
+    .select("uploaded_by_user_id")
+    .limit(0);
+
+  if (songOwnershipColumnCheck.error) {
+    return requiredOwnershipSchemaError(
+      "songs ownership schema check",
+      songOwnershipColumnCheck.error
+    );
+  }
+  logSupabaseQuerySuccess("songs ownership schema check", 0);
+
+  return null;
 }
 
 function latestDate(values: Array<string | null | undefined>) {
@@ -179,6 +339,7 @@ async function loadLegacyReleaseSongs(albumIds: string[]) {
     };
   }
 
+  logSupabaseQueryStart("legacy release songs query");
   const { data, error } = await supabaseAdmin
     .from("songs")
     .select(
@@ -187,6 +348,10 @@ async function loadLegacyReleaseSongs(albumIds: string[]) {
     .in("album_id", albumIds);
 
   if (!error) {
+    logSupabaseQuerySuccess(
+      "legacy release songs query",
+      Array.isArray(data) ? data.length : 0
+    );
     return {
       data: (data || []) as unknown as SongRow[],
       errorResponse: null,
@@ -205,6 +370,7 @@ async function loadLegacyReleaseSongs(albumIds: string[]) {
     "[legacy-uploads-api] Retrying legacy release songs query without cover_url."
   );
 
+  logSupabaseQueryStart("legacy release songs fallback query");
   const fallback = await supabaseAdmin
     .from("songs")
     .select("id,album_id,title,genre,created_at,artwork_url,uploaded_by_user_id")
@@ -219,6 +385,10 @@ async function loadLegacyReleaseSongs(albumIds: string[]) {
       ),
     };
   }
+  logSupabaseQuerySuccess(
+    "legacy release songs fallback query",
+    Array.isArray(fallback.data) ? fallback.data.length : 0
+  );
 
   return {
     data: (fallback.data || []) as unknown as SongRow[],
@@ -232,6 +402,12 @@ export async function GET(request: NextRequest) {
 
     if (errorResponse) return errorResponse;
 
+    const ownershipSchemaError = await ensureOwnershipColumnsExist();
+    if (ownershipSchemaError) return ownershipSchemaError;
+
+    const ownershipDiagnostics = await loadOwnershipDiagnostics();
+
+    logSupabaseQueryStart("legacy albums/releases query");
     const albumLegacyResult = await supabaseAdmin
       .from("albums")
       .select(
@@ -247,7 +423,12 @@ export async function GET(request: NextRequest) {
         albumLegacyResult.error
       );
     }
+    logSupabaseQuerySuccess(
+      "legacy albums/releases query",
+      Array.isArray(albumLegacyResult.data) ? albumLegacyResult.data.length : 0
+    );
 
+    logSupabaseQueryStart("unowned songs query");
     const songLegacyResult = await supabaseAdmin
       .from("songs")
       .select("album_id")
@@ -258,7 +439,12 @@ export async function GET(request: NextRequest) {
     if (songLegacyResult.error) {
       return legacyReadError("unowned songs query", songLegacyResult.error);
     }
+    logSupabaseQuerySuccess(
+      "unowned songs query",
+      Array.isArray(songLegacyResult.data) ? songLegacyResult.data.length : 0
+    );
 
+    logSupabaseQueryStart("active uploaders query");
     const uploadersResult = await supabaseAdmin
       .from("uploader_profiles")
       .select("id,email,role,status")
@@ -268,6 +454,10 @@ export async function GET(request: NextRequest) {
     if (uploadersResult.error) {
       return legacyReadError("active uploaders query", uploadersResult.error);
     }
+    logSupabaseQuerySuccess(
+      "active uploaders query",
+      Array.isArray(uploadersResult.data) ? uploadersResult.data.length : 0
+    );
 
     const albumLegacy = (albumLegacyResult.data || []) as unknown as AlbumRow[];
     const songLegacyAlbumIds = Array.from(
@@ -284,6 +474,7 @@ export async function GET(request: NextRequest) {
       ...songLegacyAlbumIds.filter((albumId) => !existingAlbumIds.has(albumId)),
     ].filter(Boolean);
 
+    logSupabaseQueryStart("legacy album hydration query");
     const hydratedAlbumsResult =
       albumIdsToHydrate.length > 0
         ? await supabaseAdmin
@@ -300,6 +491,12 @@ export async function GET(request: NextRequest) {
         hydratedAlbumsResult.error
       );
     }
+    logSupabaseQuerySuccess(
+      "legacy album hydration query",
+      Array.isArray(hydratedAlbumsResult.data)
+        ? hydratedAlbumsResult.data.length
+        : 0
+    );
 
     const albumRows = (hydratedAlbumsResult.data || []) as unknown as AlbumRow[];
     const albumIds = albumRows.map((album) => String(album.id)).filter(Boolean);
@@ -307,6 +504,7 @@ export async function GET(request: NextRequest) {
       .map((album) => String(album.artist_id || ""))
       .filter(Boolean);
 
+    logSupabaseQueryStart("legacy artists query");
     const artistsResult =
       artistIds.length > 0
         ? await supabaseAdmin
@@ -318,6 +516,10 @@ export async function GET(request: NextRequest) {
     if (artistsResult.error) {
       return legacyReadError("legacy artists query", artistsResult.error);
     }
+    logSupabaseQuerySuccess(
+      "legacy artists query",
+      Array.isArray(artistsResult.data) ? artistsResult.data.length : 0
+    );
 
     const releaseSongsResult = await loadLegacyReleaseSongs(albumIds);
 
@@ -385,6 +587,19 @@ export async function GET(request: NextRequest) {
           status: uploader.status,
         })
       ),
+      diagnostics: {
+        ownership: ownershipDiagnostics,
+        legacyQuery: {
+          legacyAlbumRows: albumLegacy.length,
+          unownedSongRows: ((songLegacyResult.data || []) as unknown as SongRow[])
+            .length,
+          unownedSongAlbumIds: songLegacyAlbumIds.length,
+          albumIdsToHydrate: albumIdsToHydrate.length,
+          hydratedAlbums: albumRows.length,
+          releaseSongs: songRows.length,
+          returnedReleases: releases.length,
+        },
+      },
     });
   } catch (error: unknown) {
     const message = getErrorMessage(error, "Failed to load legacy uploads.");
@@ -414,6 +629,9 @@ export async function POST(request: NextRequest) {
     const { errorResponse } = await requireOwnershipManager(request);
 
     if (errorResponse) return errorResponse;
+
+    const ownershipSchemaError = await ensureOwnershipColumnsExist();
+    if (ownershipSchemaError) return ownershipSchemaError;
 
     const body = (await request.json()) as AssignOwnershipBody;
     const releaseIds = normalizeReleaseIds(body.releaseIds);
