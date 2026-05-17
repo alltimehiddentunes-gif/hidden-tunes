@@ -16,8 +16,76 @@ type AssignOwnershipBody = {
   uploaderId?: unknown;
 };
 
+type SupabaseLikeError = {
+  message?: string;
+  code?: string;
+  hint?: string;
+  details?: string;
+};
+
+type LegacyQueryName =
+  | "legacy albums/releases query"
+  | "unowned songs query"
+  | "active uploaders query"
+  | "legacy album hydration query"
+  | "legacy artists query"
+  | "legacy release songs query"
+  | "legacy release songs fallback query"
+  | "assign uploader lookup query"
+  | "assign albums ownership query"
+  | "assign songs ownership query";
+
+function getSupabaseErrorDetails(error: unknown): SupabaseLikeError {
+  if (!error || typeof error !== "object") {
+    return {
+      message: error instanceof Error ? error.message : String(error || ""),
+    };
+  }
+
+  const value = error as SupabaseLikeError;
+
+  return {
+    message: value.message || "Unknown Supabase error.",
+    code: value.code,
+    hint: value.hint,
+    details: value.details,
+  };
+}
+
 function getErrorMessage(error: unknown, fallback: string) {
-  return error instanceof Error ? error.message : fallback;
+  if (error instanceof Error) return error.message;
+
+  const details = getSupabaseErrorDetails(error);
+  return details.message || fallback;
+}
+
+function logSupabaseQueryError(queryName: LegacyQueryName, error: unknown) {
+  const details = getSupabaseErrorDetails(error);
+
+  console.error("[legacy-uploads-api] Supabase query failed", {
+    query: queryName,
+    code: details.code || null,
+    message: details.message || null,
+    hint: details.hint || null,
+    details: details.details || null,
+  });
+}
+
+function legacyReadError(queryName: LegacyQueryName, error: unknown) {
+  logSupabaseQueryError(queryName, error);
+
+  return NextResponse.json(
+    {
+      success: false,
+      error:
+        "Unable to load legacy uploads because the server could not read albums/songs/uploader_profiles.",
+      details: {
+        query: queryName,
+        code: getSupabaseErrorDetails(error).code || null,
+      },
+    },
+    { status: 500 }
+  );
 }
 
 function latestDate(values: Array<string | null | undefined>) {
@@ -57,6 +125,15 @@ function normalizeReleaseIds(value: unknown) {
   ).slice(0, 100);
 }
 
+function isMissingColumnError(error: unknown, columnName: string) {
+  const details = getSupabaseErrorDetails(error);
+  const text = `${details.message || ""} ${details.details || ""} ${
+    details.hint || ""
+  }`.toLowerCase();
+
+  return text.includes(columnName.toLowerCase()) && text.includes("column");
+}
+
 async function requireOwnershipManager(request: NextRequest) {
   const permission = await requireUploadPermission(request);
 
@@ -86,46 +163,108 @@ async function requireOwnershipManager(request: NextRequest) {
   };
 }
 
+async function loadLegacyReleaseSongs(albumIds: string[]) {
+  if (albumIds.length === 0) {
+    return {
+      data: [] as SongRow[],
+      errorResponse: null,
+    };
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from("songs")
+    .select(
+      "id,album_id,title,genre,created_at,artwork_url,cover_url,uploaded_by_user_id"
+    )
+    .in("album_id", albumIds);
+
+  if (!error) {
+    return {
+      data: (data || []) as unknown as SongRow[],
+      errorResponse: null,
+    };
+  }
+
+  if (!isMissingColumnError(error, "cover_url")) {
+    return {
+      data: [] as SongRow[],
+      errorResponse: legacyReadError("legacy release songs query", error),
+    };
+  }
+
+  logSupabaseQueryError("legacy release songs query", error);
+  console.warn(
+    "[legacy-uploads-api] Retrying legacy release songs query without cover_url."
+  );
+
+  const fallback = await supabaseAdmin
+    .from("songs")
+    .select("id,album_id,title,genre,created_at,artwork_url,uploaded_by_user_id")
+    .in("album_id", albumIds);
+
+  if (fallback.error) {
+    return {
+      data: [] as SongRow[],
+      errorResponse: legacyReadError(
+        "legacy release songs fallback query",
+        fallback.error
+      ),
+    };
+  }
+
+  return {
+    data: (fallback.data || []) as unknown as SongRow[],
+    errorResponse: null,
+  };
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { errorResponse } = await requireOwnershipManager(request);
 
     if (errorResponse) return errorResponse;
 
-    const [
-      { data: albumLegacyRows, error: albumLegacyError },
-      { data: songLegacyRows, error: songLegacyError },
-      { data: uploaders, error: uploadersError },
-    ] = await Promise.all([
-      supabaseAdmin
-        .from("albums")
-        .select(
-          "id,title,slug,artist_id,artwork_url,created_at,review_status,license_declaration"
-        )
-        .is("uploaded_by_user_id", null)
-        .order("created_at", { ascending: false })
-        .limit(150),
-      supabaseAdmin
-        .from("songs")
-        .select("album_id")
-        .is("uploaded_by_user_id", null)
-        .not("album_id", "is", null)
-        .limit(500),
-      supabaseAdmin
-        .from("uploader_profiles")
-        .select("id,email,role,status")
-        .eq("status", "active")
-        .order("email", { ascending: true }),
-    ]);
+    const albumLegacyResult = await supabaseAdmin
+      .from("albums")
+      .select(
+        "id,title,slug,artist_id,artwork_url,created_at,review_status,license_declaration"
+      )
+      .is("uploaded_by_user_id", null)
+      .order("created_at", { ascending: false })
+      .limit(150);
 
-    if (albumLegacyError) throw albumLegacyError;
-    if (songLegacyError) throw songLegacyError;
-    if (uploadersError) throw uploadersError;
+    if (albumLegacyResult.error) {
+      return legacyReadError(
+        "legacy albums/releases query",
+        albumLegacyResult.error
+      );
+    }
 
-    const albumLegacy = (albumLegacyRows || []) as unknown as AlbumRow[];
+    const songLegacyResult = await supabaseAdmin
+      .from("songs")
+      .select("album_id")
+      .is("uploaded_by_user_id", null)
+      .not("album_id", "is", null)
+      .limit(500);
+
+    if (songLegacyResult.error) {
+      return legacyReadError("unowned songs query", songLegacyResult.error);
+    }
+
+    const uploadersResult = await supabaseAdmin
+      .from("uploader_profiles")
+      .select("id,email,role,status")
+      .eq("status", "active")
+      .order("email", { ascending: true });
+
+    if (uploadersResult.error) {
+      return legacyReadError("active uploaders query", uploadersResult.error);
+    }
+
+    const albumLegacy = (albumLegacyResult.data || []) as unknown as AlbumRow[];
     const songLegacyAlbumIds = Array.from(
       new Set(
-        ((songLegacyRows || []) as unknown as SongRow[])
+        ((songLegacyResult.data || []) as unknown as SongRow[])
           .map((song) => String(song.album_id || ""))
           .filter(Boolean)
       )
@@ -137,7 +276,7 @@ export async function GET(request: NextRequest) {
       ...songLegacyAlbumIds.filter((albumId) => !existingAlbumIds.has(albumId)),
     ].filter(Boolean);
 
-    const { data: hydratedAlbums, error: hydratedAlbumsError } =
+    const hydratedAlbumsResult =
       albumIdsToHydrate.length > 0
         ? await supabaseAdmin
             .from("albums")
@@ -147,44 +286,44 @@ export async function GET(request: NextRequest) {
             .in("id", albumIdsToHydrate)
         : { data: [], error: null };
 
-    if (hydratedAlbumsError) throw hydratedAlbumsError;
+    if (hydratedAlbumsResult.error) {
+      return legacyReadError(
+        "legacy album hydration query",
+        hydratedAlbumsResult.error
+      );
+    }
 
-    const albumRows = (hydratedAlbums || []) as unknown as AlbumRow[];
+    const albumRows = (hydratedAlbumsResult.data || []) as unknown as AlbumRow[];
     const albumIds = albumRows.map((album) => String(album.id)).filter(Boolean);
     const artistIds = albumRows
       .map((album) => String(album.artist_id || ""))
       .filter(Boolean);
 
-    const [
-      { data: artists, error: artistsError },
-      { data: songs, error: songsError },
-    ] = await Promise.all([
-      artistIds.length
-        ? supabaseAdmin
+    const artistsResult =
+      artistIds.length > 0
+        ? await supabaseAdmin
             .from("artists")
             .select("id,name,image_url")
             .in("id", artistIds)
-        : Promise.resolve({ data: [], error: null }),
-      albumIds.length
-        ? supabaseAdmin
-            .from("songs")
-            .select(
-              "id,album_id,title,genre,created_at,artwork_url,cover_url,uploaded_by_user_id"
-            )
-            .in("album_id", albumIds)
-        : Promise.resolve({ data: [], error: null }),
-    ]);
+        : { data: [], error: null };
 
-    if (artistsError) throw artistsError;
-    if (songsError) throw songsError;
+    if (artistsResult.error) {
+      return legacyReadError("legacy artists query", artistsResult.error);
+    }
+
+    const releaseSongsResult = await loadLegacyReleaseSongs(albumIds);
+
+    if (releaseSongsResult.errorResponse) {
+      return releaseSongsResult.errorResponse;
+    }
 
     const artistMap = new Map(
-      ((artists || []) as unknown as AlbumRow[]).map((artist) => [
+      ((artistsResult.data || []) as unknown as AlbumRow[]).map((artist) => [
         String(artist.id),
         artist,
       ])
     );
-    const songRows = (songs || []) as unknown as SongRow[];
+    const songRows = releaseSongsResult.data;
 
     const releases = albumRows
       .map((album) => {
@@ -230,18 +369,28 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       releases,
-      uploaders: ((uploaders || []) as unknown as UploaderRow[]).map((uploader) => ({
-        id: uploader.id,
-        email: uploader.email,
-        role: uploader.role,
-        status: uploader.status,
-      })),
+      uploaders: ((uploadersResult.data || []) as unknown as UploaderRow[]).map(
+        (uploader) => ({
+          id: uploader.id,
+          email: uploader.email,
+          role: uploader.role,
+          status: uploader.status,
+        })
+      ),
     });
   } catch (error: unknown) {
+    console.error("[legacy-uploads-api] Unexpected GET failure", {
+      message: getErrorMessage(error, "Failed to load legacy uploads."),
+    });
+
     return NextResponse.json(
       {
         success: false,
-        error: getErrorMessage(error, "Failed to load legacy uploads."),
+        error: "Failed to load legacy uploads.",
+        details: {
+          query: "unexpected GET failure",
+          code: null,
+        },
       },
       { status: 500 }
     );
@@ -278,7 +427,10 @@ export async function POST(request: NextRequest) {
       .eq("id", uploaderId)
       .maybeSingle();
 
-    if (uploaderError) throw uploaderError;
+    if (uploaderError) {
+      logSupabaseQueryError("assign uploader lookup query", uploaderError);
+      throw uploaderError;
+    }
 
     if (!uploader) {
       return NextResponse.json(
@@ -294,7 +446,10 @@ export async function POST(request: NextRequest) {
       .is("uploaded_by_user_id", null)
       .select("id");
 
-    if (albumsError) throw albumsError;
+    if (albumsError) {
+      logSupabaseQueryError("assign albums ownership query", albumsError);
+      throw albumsError;
+    }
 
     const { data: updatedSongs, error: songsError } = await supabaseAdmin
       .from("songs")
@@ -303,7 +458,10 @@ export async function POST(request: NextRequest) {
       .is("uploaded_by_user_id", null)
       .select("id");
 
-    if (songsError) throw songsError;
+    if (songsError) {
+      logSupabaseQueryError("assign songs ownership query", songsError);
+      throw songsError;
+    }
 
     return NextResponse.json({
       success: true,
