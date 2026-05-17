@@ -14,6 +14,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 
 import { COLORS, GRADIENTS } from "../constants/theme";
+import { getCurrentSupabaseAccessToken } from "../services/mobileSupabaseAuth";
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
@@ -110,9 +111,19 @@ export default function ArtistSubmissionsScreen() {
     setStatusMessage("Submitting to Hidden Tunes review...");
 
     try {
+      const { accessToken, error: tokenError } =
+        await getCurrentSupabaseAccessToken();
+
+      if (!accessToken) {
+        throw new Error(
+          tokenError || "Sign in as an artist to submit music for review."
+        );
+      }
+
       const response = await fetch(ARTIST_SUBMISSIONS_API_URL, {
         method: "POST",
         headers: {
+          Authorization: `Bearer ${accessToken}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
