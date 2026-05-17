@@ -315,7 +315,7 @@ function getDashboardActions(
         title: "My Submissions",
         subtitle: "Track releases prepared for review.",
         accent: "#a855f7",
-        onPress: () => openPlaceholder("My Submissions"),
+        onPress: () => router.push("/artist-submissions" as never),
       },
       {
         icon: "cloud-upload",
