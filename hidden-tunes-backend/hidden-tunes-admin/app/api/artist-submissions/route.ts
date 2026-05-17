@@ -22,6 +22,19 @@ type SubmissionBody = {
 const ARTIST_SUBMISSION_ROLES = new Set(["artist", "creator"]);
 const MAX_TITLE_LENGTH = 140;
 const MAX_ARTIST_NAME_LENGTH = 140;
+const SUBMISSION_SELECT_FIELDS = [
+  "id",
+  "artist_user_id",
+  "title",
+  "artist_name",
+  "status",
+  "admin_notes",
+  "submitted_at",
+  "reviewed_at",
+  "reviewed_by_user_id",
+  "created_at",
+  "updated_at",
+].join(",");
 
 function getSupabaseAuthConfig() {
   const supabaseUrl =
@@ -181,6 +194,42 @@ async function requireArtistSubmissionPermission(
   };
 }
 
+export async function GET(request: NextRequest) {
+  try {
+    const permission = await requireArtistSubmissionPermission(request);
+
+    if (permission.errorResponse) {
+      return permission.errorResponse;
+    }
+
+    const { data, error } = await getSupabaseAdmin()
+      .from("artist_submissions")
+      .select(SUBMISSION_SELECT_FIELDS)
+      .eq("artist_user_id", permission.profile.id)
+      .order("created_at", { ascending: false })
+      .limit(100);
+
+    if (error) {
+      return jsonError(
+        "Failed to load artist submissions.",
+        500,
+        error.message
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      submissions: data || [],
+    });
+  } catch (error) {
+    return jsonError(
+      "Unexpected artist submissions API error.",
+      500,
+      error instanceof Error ? error.message : String(error)
+    );
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const permission = await requireArtistSubmissionPermission(request);
@@ -214,9 +263,7 @@ export async function POST(request: NextRequest) {
         status: "pending_review",
         submitted_at: now,
       })
-      .select(
-        "id, artist_user_id, title, artist_name, status, submitted_at, reviewed_at, created_at, updated_at"
-      )
+      .select(SUBMISSION_SELECT_FIELDS)
       .single();
 
     if (error) {

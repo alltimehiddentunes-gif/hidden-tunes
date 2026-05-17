@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   ScrollView,
@@ -23,12 +23,23 @@ import {
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
-type CreatedSubmission = {
+type ArtistSubmissionStatus =
+  | "draft"
+  | "pending_review"
+  | "needs_changes"
+  | "approved"
+  | "rejected";
+
+type ArtistSubmission = {
   id: string;
   title: string;
   artist_name: string;
-  status: string;
+  status: ArtistSubmissionStatus | string;
+  admin_notes?: string | null;
   submitted_at: string | null;
+  reviewed_at?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
 };
 
 type SubmissionState = {
@@ -80,6 +91,47 @@ const SUBMISSION_STATES: SubmissionState[] = [
 const ARTIST_SUBMISSIONS_API_URL =
   "https://admin.hiddentunes.com/api/artist-submissions";
 
+const STATUS_COPY: Record<
+  ArtistSubmissionStatus,
+  { label: string; description: string; accent: string }
+> = {
+  draft: {
+    label: "Draft",
+    description: "Saved for later. Submit when the release details are ready.",
+    accent: COLORS.textMuted,
+  },
+  pending_review: {
+    label: "Pending Review",
+    description: "Hidden Tunes is reviewing this submission.",
+    accent: "#f59e0b",
+  },
+  needs_changes: {
+    label: "Needs Changes",
+    description: "Review feedback is available. Editing opens in a later phase.",
+    accent: "#22d3ee",
+  },
+  approved: {
+    label: "Approved",
+    description: "Approved for a future admin-controlled publishing workflow.",
+    accent: "#22c55e",
+  },
+  rejected: {
+    label: "Rejected",
+    description: "This submission was declined by review.",
+    accent: "#ef4444",
+  },
+};
+
+function getSubmissionStatusCopy(status: string) {
+  return (
+    STATUS_COPY[status as ArtistSubmissionStatus] || {
+      label: status.replace("_", " ") || "Unknown",
+      description: "Status details will appear here when review updates.",
+      accent: COLORS.textMuted,
+    }
+  );
+}
+
 export default function ArtistSubmissionsScreen() {
   const [title, setTitle] = useState("");
   const [artistName, setArtistName] = useState("");
@@ -94,22 +146,60 @@ export default function ArtistSubmissionsScreen() {
     "neutral"
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingSubmissions, setIsLoadingSubmissions] = useState(false);
+  const [submissionsError, setSubmissionsError] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
   const [statusTone, setStatusTone] = useState<"neutral" | "success" | "error">(
     "neutral"
   );
-  const [createdSubmissions, setCreatedSubmissions] = useState<
-    CreatedSubmission[]
-  >([]);
+  const [submissions, setSubmissions] = useState<ArtistSubmission[]>([]);
 
   const summary = useMemo(
     () => ({
       total: SUBMISSION_STATES.length,
-      active: createdSubmissions.length,
+      active: submissions.length,
       ready: sessionEmail ? "Signed in" : "Signed out",
     }),
-    [createdSubmissions.length, sessionEmail]
+    [submissions.length, sessionEmail]
   );
+
+  const loadArtistSubmissions = useCallback(async (accessToken?: string) => {
+    setIsLoadingSubmissions(true);
+    setSubmissionsError("");
+
+    try {
+      const tokenResult = accessToken
+        ? { accessToken, error: null }
+        : await getCurrentSupabaseAccessToken();
+
+      if (!tokenResult.accessToken) {
+        throw new Error(
+          tokenResult.error || "Sign in as an artist to submit music for review."
+        );
+      }
+
+      const response = await fetch(ARTIST_SUBMISSIONS_API_URL, {
+        headers: {
+          Authorization: `Bearer ${tokenResult.accessToken}`,
+        },
+      });
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || "Could not load artist submissions.");
+      }
+
+      setSubmissions((payload.submissions || []) as ArtistSubmission[]);
+    } catch (error) {
+      setSubmissionsError(
+        error instanceof Error
+          ? error.message
+          : "Could not load artist submissions."
+      );
+    } finally {
+      setIsLoadingSubmissions(false);
+    }
+  }, []);
 
   useEffect(() => {
     let ignore = false;
@@ -127,6 +217,10 @@ export default function ArtistSubmissionsScreen() {
           : ""
       );
       setIsCheckingSession(false);
+
+      if (session.isSignedIn) {
+        loadArtistSubmissions();
+      }
     }
 
     loadSession();
@@ -134,7 +228,7 @@ export default function ArtistSubmissionsScreen() {
     return () => {
       ignore = true;
     };
-  }, []);
+  }, [loadArtistSubmissions]);
 
   async function handleCreatorSignIn() {
     const cleanEmail = creatorEmail.trim();
@@ -162,6 +256,7 @@ export default function ArtistSubmissionsScreen() {
       setAuthMessage(
         "Signed in. You can now send submissions for review."
       );
+      loadArtistSubmissions();
     } catch (error) {
       setSessionEmail(null);
       setAuthTone("error");
@@ -187,6 +282,8 @@ export default function ArtistSubmissionsScreen() {
 
       setSessionEmail(null);
       setCreatorPassword("");
+      setSubmissions([]);
+      setSubmissionsError("");
       setAuthTone("neutral");
       setAuthMessage("Signed out.");
     } catch (error) {
@@ -243,14 +340,15 @@ export default function ArtistSubmissionsScreen() {
         );
       }
 
-      setCreatedSubmissions((current) => [
-        payload.submission as CreatedSubmission,
+      setSubmissions((current) => [
+        payload.submission as ArtistSubmission,
         ...current,
       ]);
       setTitle("");
       setArtistName("");
       setStatusTone("success");
       setStatusMessage("Submission created and sent for review.");
+      loadArtistSubmissions(accessToken);
     } catch (error) {
       setStatusTone("error");
       setStatusMessage(
@@ -478,26 +576,65 @@ export default function ArtistSubmissionsScreen() {
           </View>
         ) : null}
 
-        {createdSubmissions.length > 0 ? (
-          <View style={styles.createdList}>
-            <Text style={styles.createdTitle}>Submitted This Session</Text>
-            {createdSubmissions.map((submission) => (
-              <View key={submission.id} style={styles.createdCard}>
-                <View>
-                  <Text style={styles.createdSubmissionTitle}>
-                    {submission.title}
-                  </Text>
-                  <Text style={styles.createdSubmissionArtist}>
-                    {submission.artist_name}
-                  </Text>
-                </View>
-                <View style={styles.pendingBadge}>
-                  <Text style={styles.pendingBadgeText}>
-                    {submission.status.replace("_", " ")}
-                  </Text>
-                </View>
+        {sessionEmail ? (
+          <View style={styles.submissionsPanel}>
+            <View style={styles.submissionsHeader}>
+              <View>
+                <Text style={styles.createdTitle}>My Submissions</Text>
+                <Text style={styles.submissionsSubtitle}>
+                  Synced from the Hidden Tunes review queue.
+                </Text>
               </View>
-            ))}
+
+              <TouchableOpacity
+                activeOpacity={0.86}
+                style={styles.refreshButton}
+                onPress={() => loadArtistSubmissions()}
+                disabled={isLoadingSubmissions}
+              >
+                {isLoadingSubmissions ? (
+                  <ActivityIndicator size="small" color={COLORS.text} />
+                ) : (
+                  <Ionicons name="refresh" size={17} color={COLORS.text} />
+                )}
+              </TouchableOpacity>
+            </View>
+
+            {submissionsError ? (
+              <View style={[styles.statusBox, styles.errorStatus]}>
+                <Text style={styles.statusText}>{submissionsError}</Text>
+              </View>
+            ) : null}
+
+            {isLoadingSubmissions && submissions.length === 0 ? (
+              <View style={styles.emptySubmissionsCard}>
+                <ActivityIndicator color={COLORS.primary} />
+                <Text style={styles.emptySubmissionsText}>
+                  Loading your submissions...
+                </Text>
+              </View>
+            ) : submissions.length > 0 ? (
+              <View style={styles.submissionList}>
+                {submissions.map((submission) => (
+                  <SubmissionCard key={submission.id} submission={submission} />
+                ))}
+              </View>
+            ) : (
+              <View style={styles.emptySubmissionsCard}>
+                <Ionicons
+                  name="albums-outline"
+                  size={24}
+                  color={COLORS.primary}
+                />
+                <Text style={styles.emptySubmissionsTitle}>
+                  No submissions yet
+                </Text>
+                <Text style={styles.emptySubmissionsText}>
+                  Start with basic release details. Audio, artwork, edits, and
+                  resubmission tools come later.
+                </Text>
+              </View>
+            )}
           </View>
         ) : null}
 
@@ -556,6 +693,56 @@ function SubmissionStateCard({ state }: { state: SubmissionState }) {
         <Text style={styles.countText}>{state.countLabel}</Text>
       </View>
     </TouchableOpacity>
+  );
+}
+
+function SubmissionCard({ submission }: { submission: ArtistSubmission }) {
+  const status = getSubmissionStatusCopy(String(submission.status || ""));
+  const submittedAt = submission.submitted_at
+    ? new Date(submission.submitted_at).toLocaleDateString()
+    : "Not submitted";
+
+  return (
+    <View style={styles.submissionCard}>
+      <View style={styles.submissionCardTop}>
+        <View style={styles.submissionTitleWrap}>
+          <Text style={styles.createdSubmissionTitle}>{submission.title}</Text>
+          <Text style={styles.createdSubmissionArtist}>
+            {submission.artist_name}
+          </Text>
+        </View>
+
+        <View
+          style={[
+            styles.statusBadge,
+            {
+              backgroundColor: `${status.accent}22`,
+              borderColor: `${status.accent}44`,
+            },
+          ]}
+        >
+          <Text style={[styles.statusBadgeText, { color: status.accent }]}>
+            {status.label}
+          </Text>
+        </View>
+      </View>
+
+      <Text style={styles.submissionDescription}>{status.description}</Text>
+
+      {submission.admin_notes ? (
+        <View style={styles.adminNotesBox}>
+          <Text style={styles.adminNotesLabel}>Review notes</Text>
+          <Text style={styles.adminNotesText}>{submission.admin_notes}</Text>
+        </View>
+      ) : null}
+
+      <View style={styles.submissionFooter}>
+        <Text style={styles.submissionDate}>Submitted {submittedAt}</Text>
+        <View style={styles.disabledActionPill}>
+          <Text style={styles.disabledActionText}>Edit later</Text>
+        </View>
+      </View>
+    </View>
   );
 }
 
@@ -882,8 +1069,37 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.8,
   },
-  createdList: {
+  submissionsPanel: {
     marginTop: 20,
+    borderRadius: 30,
+    padding: 18,
+    backgroundColor: "rgba(255,255,255,0.055)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+  },
+  submissionsHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  submissionsSubtitle: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    fontWeight: "700",
+    marginTop: 4,
+  },
+  refreshButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.07)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+  },
+  submissionList: {
+    marginTop: 14,
     gap: 10,
   },
   createdTitle: {
@@ -891,15 +1107,21 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "900",
   },
-  createdCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+  submissionCard: {
     borderRadius: 24,
     padding: 16,
-    backgroundColor: "rgba(34,197,94,0.08)",
+    backgroundColor: "rgba(0,0,0,0.22)",
     borderWidth: 1,
-    borderColor: "rgba(34,197,94,0.18)",
+    borderColor: "rgba(255,255,255,0.1)",
+  },
+  submissionCardTop: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  submissionTitleWrap: {
+    flex: 1,
   },
   createdSubmissionTitle: {
     color: COLORS.text,
@@ -912,19 +1134,91 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     marginTop: 4,
   },
-  pendingBadge: {
+  statusBadge: {
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 7,
-    backgroundColor: "rgba(245,158,11,0.14)",
     borderWidth: 1,
-    borderColor: "rgba(245,158,11,0.28)",
   },
-  pendingBadgeText: {
-    color: "#fde68a",
+  statusBadgeText: {
     fontSize: 10,
     fontWeight: "900",
     textTransform: "uppercase",
+  },
+  submissionDescription: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 11,
+  },
+  adminNotesBox: {
+    marginTop: 12,
+    borderRadius: 18,
+    padding: 12,
+    backgroundColor: "rgba(255,255,255,0.055)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+  },
+  adminNotesLabel: {
+    color: COLORS.primary,
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 1,
+    textTransform: "uppercase",
+  },
+  adminNotesText: {
+    color: COLORS.text,
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 6,
+  },
+  submissionFooter: {
+    marginTop: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  submissionDate: {
+    color: COLORS.textMuted,
+    fontSize: 11,
+    fontWeight: "800",
+  },
+  disabledActionPill: {
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    backgroundColor: "rgba(255,255,255,0.055)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.09)",
+    opacity: 0.65,
+  },
+  disabledActionText: {
+    color: COLORS.textMuted,
+    fontSize: 10,
+    fontWeight: "900",
+    textTransform: "uppercase",
+  },
+  emptySubmissionsCard: {
+    marginTop: 14,
+    borderRadius: 24,
+    padding: 18,
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.2)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.09)",
+  },
+  emptySubmissionsTitle: {
+    color: COLORS.text,
+    fontSize: 15,
+    fontWeight: "900",
+    marginTop: 10,
+  },
+  emptySubmissionsText: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 8,
+    textAlign: "center",
   },
   sectionHeader: {
     marginTop: 28,
