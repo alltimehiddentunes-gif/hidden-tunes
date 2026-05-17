@@ -7,13 +7,11 @@ import {
   View,
 } from "react-native";
 
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Redirect } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 
 import { COLORS, GRADIENTS } from "../constants/theme";
-
-const ONBOARDING_KEY = "hidden_tunes_onboarding_seen";
+import { hasCompletedOnboarding } from "../services/onboardingPreferences";
 
 export default function IndexScreen() {
   const [target, setTarget] = useState<string | null>(null);
@@ -21,13 +19,8 @@ export default function IndexScreen() {
   useEffect(() => {
     const checkOnboarding = async () => {
       try {
-        const seen = await AsyncStorage.getItem(ONBOARDING_KEY);
-
-        if (seen === "true") {
-          setTarget("/(tabs)");
-        } else {
-          setTarget("/onboarding");
-        }
+        const completed = await hasCompletedOnboarding();
+        setTarget(completed ? "/(tabs)" : "/onboarding");
       } catch {
         setTarget("/onboarding");
       }
@@ -51,12 +44,12 @@ export default function IndexScreen() {
 
       <Text style={styles.logo}>Hidden Tunes</Text>
 
-      <Text style={styles.subtitle}>Neon Audio</Text>
+      <Text style={styles.subtitle}>Preparing your sound</Text>
 
       <ActivityIndicator
         size="large"
         color={COLORS.primary}
-        style={{ marginTop: 34 }}
+        style={styles.loader}
       />
     </LinearGradient>
   );
@@ -98,5 +91,9 @@ const styles = StyleSheet.create({
     fontSize: 15,
     marginTop: 10,
     fontWeight: "700",
+  },
+
+  loader: {
+    marginTop: 34,
   },
 });
