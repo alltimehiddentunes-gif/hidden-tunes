@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, type User } from "@supabase/supabase-js";
 
+import { uploadToR2 } from "@/lib/r2";
 import { getSupabaseAdmin, getSupabaseAdminConfig } from "@/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
@@ -13,29 +14,10 @@ type ArtistSubmissionProfile = {
   status: string | null;
 };
 
-type SubmissionBody = {
-  id?: unknown;
-  title?: unknown;
-  artist_name?: unknown;
-  artistName?: unknown;
-  description?: unknown;
-  genre?: unknown;
-  mood?: unknown;
-  release_notes?: unknown;
-  releaseNotes?: unknown;
-  lyrics_text?: unknown;
-  lyricsText?: unknown;
-  resubmit?: unknown;
-};
-
 const ARTIST_SUBMISSION_ROLES = new Set(["artist", "creator"]);
-const ARTIST_EDITABLE_STATUSES = new Set(["draft", "needs_changes"]);
-const MAX_TITLE_LENGTH = 140;
-const MAX_ARTIST_NAME_LENGTH = 140;
-const MAX_SHORT_METADATA_LENGTH = 120;
-const MAX_DESCRIPTION_LENGTH = 1200;
-const MAX_RELEASE_NOTES_LENGTH = 2000;
-const MAX_LYRICS_LENGTH = 12000;
+const ATTACHABLE_STATUSES = new Set(["draft", "needs_changes"]);
+const MAX_AUDIO_BYTES = 120 * 1024 * 1024;
+
 const SUBMISSION_SELECT_FIELDS = [
   "id",
   "artist_user_id",
@@ -90,31 +72,15 @@ function jsonError(error: string, status: number, details?: unknown) {
   );
 }
 
-function cleanString(value: unknown, maxLength: number) {
-  if (typeof value !== "string") return "";
-  return value.trim().replace(/\s+/g, " ").slice(0, maxLength);
-}
+function cleanFileName(fileName: string) {
+  const safeName = String(fileName || "artist-submission-audio")
+    .trim()
+    .replace(/[^\w.\-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 160);
 
-function cleanOptionalText(value: unknown, maxLength: number) {
-  if (typeof value !== "string") return null;
-  const cleaned = value.trim().slice(0, maxLength);
-  return cleaned || null;
-}
-
-function readSubmissionDetails(body: SubmissionBody) {
-  return {
-    description: cleanOptionalText(body.description, MAX_DESCRIPTION_LENGTH),
-    genre: cleanOptionalText(body.genre, MAX_SHORT_METADATA_LENGTH),
-    mood: cleanOptionalText(body.mood, MAX_SHORT_METADATA_LENGTH),
-    release_notes: cleanOptionalText(
-      body.release_notes || body.releaseNotes,
-      MAX_RELEASE_NOTES_LENGTH
-    ),
-    lyrics_text: cleanOptionalText(
-      body.lyrics_text || body.lyricsText,
-      MAX_LYRICS_LENGTH
-    ),
-  };
+  return safeName || "artist-submission-audio";
 }
 
 async function requireArtistSubmissionPermission(
@@ -166,7 +132,7 @@ async function requireArtistSubmissionPermission(
       user: null,
       profile: null,
       errorResponse: jsonError(
-        "Artist submission requires a signed-in account token.",
+        "Artist submission audio requires a signed-in account token.",
         401
       ),
     };
@@ -226,7 +192,7 @@ async function requireArtistSubmissionPermission(
       user: null,
       profile: null,
       errorResponse: jsonError(
-        "This account is not allowed to create artist submissions.",
+        "This account is not allowed to attach artist submission audio.",
         403
       ),
     };
@@ -239,42 +205,6 @@ async function requireArtistSubmissionPermission(
   };
 }
 
-export async function GET(request: NextRequest) {
-  try {
-    const permission = await requireArtistSubmissionPermission(request);
-
-    if (permission.errorResponse) {
-      return permission.errorResponse;
-    }
-
-    const { data, error } = await getSupabaseAdmin()
-      .from("artist_submissions")
-      .select(SUBMISSION_SELECT_FIELDS)
-      .eq("artist_user_id", permission.profile.id)
-      .order("created_at", { ascending: false })
-      .limit(100);
-
-    if (error) {
-      return jsonError(
-        "Failed to load artist submissions.",
-        500,
-        error.message
-      );
-    }
-
-    return NextResponse.json({
-      success: true,
-      submissions: data || [],
-    });
-  } catch (error) {
-    return jsonError(
-      "Unexpected artist submissions API error.",
-      500,
-      error instanceof Error ? error.message : String(error)
-    );
-  }
-}
-
 export async function POST(request: NextRequest) {
   try {
     const permission = await requireArtistSubmissionPermission(request);
@@ -283,95 +213,31 @@ export async function POST(request: NextRequest) {
       return permission.errorResponse;
     }
 
-    const body = (await request.json().catch(() => ({}))) as SubmissionBody;
-    const title = cleanString(body.title, MAX_TITLE_LENGTH);
-    const artistName = cleanString(
-      body.artist_name || body.artistName,
-      MAX_ARTIST_NAME_LENGTH
-    );
-    const details = readSubmissionDetails(body);
+    const formData = await request.formData();
+    const submissionId = String(formData.get("submissionId") || "").trim();
+    const file = formData.get("file");
 
-    if (!title) {
-      return jsonError("Submission title is required.", 400);
-    }
-
-    if (!artistName) {
-      return jsonError("Artist name is required.", 400);
-    }
-
-    const now = new Date().toISOString();
-    const { data, error } = await getSupabaseAdmin()
-      .from("artist_submissions")
-      .insert({
-        artist_user_id: permission.profile.id,
-        title,
-        artist_name: artistName,
-        ...details,
-        status: "pending_review",
-        submitted_at: now,
-      })
-      .select(SUBMISSION_SELECT_FIELDS)
-      .single();
-
-    if (error) {
-      return jsonError(
-        "Failed to create artist submission.",
-        500,
-        error.message
-      );
-    }
-
-    return NextResponse.json(
-      {
-        success: true,
-        submission: data,
-      },
-      { status: 201 }
-    );
-  } catch (error) {
-    return jsonError(
-      "Unexpected artist submission API error.",
-      500,
-      error instanceof Error ? error.message : String(error)
-    );
-  }
-}
-
-export async function PATCH(request: NextRequest) {
-  try {
-    const permission = await requireArtistSubmissionPermission(request);
-
-    if (permission.errorResponse) {
-      return permission.errorResponse;
-    }
-
-    const body = (await request.json().catch(() => ({}))) as SubmissionBody;
-    const id = cleanString(body.id, 80);
-    const title = cleanString(body.title, MAX_TITLE_LENGTH);
-    const artistName = cleanString(
-      body.artist_name || body.artistName,
-      MAX_ARTIST_NAME_LENGTH
-    );
-    const details = readSubmissionDetails(body);
-    const shouldResubmit = body.resubmit === true;
-
-    if (!id) {
+    if (!submissionId) {
       return jsonError("Submission id is required.", 400);
     }
 
-    if (!title) {
-      return jsonError("Submission title is required.", 400);
+    if (!(file instanceof File)) {
+      return jsonError("Missing audio file.", 400);
     }
 
-    if (!artistName) {
-      return jsonError("Artist name is required.", 400);
+    if (file.size > MAX_AUDIO_BYTES) {
+      return jsonError("Audio file is too large for draft attachment.", 413);
+    }
+
+    if (file.type && !file.type.startsWith("audio/")) {
+      return jsonError("Only audio files can be attached.", 400);
     }
 
     const { data: existingSubmission, error: loadError } =
       await getSupabaseAdmin()
         .from("artist_submissions")
         .select("id, status")
-        .eq("id", id)
+        .eq("id", submissionId)
         .eq("artist_user_id", permission.profile.id)
         .maybeSingle();
 
@@ -383,38 +249,38 @@ export async function PATCH(request: NextRequest) {
       return jsonError("Submission not found for this artist account.", 404);
     }
 
-    if (!ARTIST_EDITABLE_STATUSES.has(String(existingSubmission.status || ""))) {
+    if (!ATTACHABLE_STATUSES.has(String(existingSubmission.status || ""))) {
       return jsonError(
-        "Only draft or needs changes submissions can be edited by artists.",
+        "Audio can only be attached to draft or needs changes submissions.",
         403
       );
     }
 
-    const updatePayload: Record<string, string> = {
-      title,
-      artist_name: artistName,
-    };
-    const optionalDetailsPayload: Record<string, string | null> = details;
-
-    if (shouldResubmit) {
-      updatePayload.status = "pending_review";
-      updatePayload.submitted_at = new Date().toISOString();
-    }
+    const fileName = cleanFileName(file.name);
+    const key = `artist-submissions/${permission.profile.id}/${submissionId}/${Date.now()}-${fileName}`;
+    const body = Buffer.from(await file.arrayBuffer());
+    const publicUrl = await uploadToR2({
+      key,
+      body,
+      contentType: file.type || "application/octet-stream",
+    });
 
     const { data, error } = await getSupabaseAdmin()
       .from("artist_submissions")
       .update({
-        ...updatePayload,
-        ...optionalDetailsPayload,
+        audio_url: publicUrl,
+        audio_filename: fileName,
+        audio_size_bytes: file.size,
+        audio_mime_type: file.type || "application/octet-stream",
       })
-      .eq("id", id)
+      .eq("id", submissionId)
       .eq("artist_user_id", permission.profile.id)
       .select(SUBMISSION_SELECT_FIELDS)
       .single();
 
     if (error) {
       return jsonError(
-        "Failed to update artist submission.",
+        "Audio uploaded, but submission metadata could not be updated.",
         500,
         error.message
       );
@@ -426,7 +292,7 @@ export async function PATCH(request: NextRequest) {
     });
   } catch (error) {
     return jsonError(
-      "Unexpected artist submission update error.",
+      "Unexpected artist submission audio error.",
       500,
       error instanceof Error ? error.message : String(error)
     );

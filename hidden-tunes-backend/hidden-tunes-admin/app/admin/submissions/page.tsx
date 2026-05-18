@@ -25,6 +25,10 @@ type ArtistSubmission = {
   mood: string | null;
   release_notes: string | null;
   lyrics_text: string | null;
+  audio_url: string | null;
+  audio_filename: string | null;
+  audio_size_bytes: number | null;
+  audio_mime_type: string | null;
   status: SubmissionStatus | string;
   admin_notes: string | null;
   submitted_at: string | null;
@@ -139,6 +143,13 @@ function formatDate(value: string | null) {
     day: "numeric",
     year: "numeric",
   }).format(new Date(time));
+}
+
+function formatFileSize(bytes: number | null) {
+  if (!bytes || bytes < 1) return "Size unknown";
+  const megabytes = bytes / (1024 * 1024);
+  if (megabytes >= 1) return `${megabytes.toFixed(1)} MB`;
+  return `${Math.max(1, Math.round(bytes / 1024))} KB`;
 }
 
 function statusLabel(value: string | null | undefined) {
@@ -544,6 +555,44 @@ export default function AdminSubmissionsPage() {
                       </p>
                     </div>
                   )}
+
+                  <div className="mt-5 rounded-3xl border border-yellow-300/15 bg-yellow-300/[0.055] p-4">
+                    <p className="text-xs font-black uppercase tracking-[0.18em] text-yellow-300">
+                      Audio Draft Attachment
+                    </p>
+                    {submission.audio_url ? (
+                      <div className="mt-4 rounded-2xl border border-white/10 bg-black/25 p-4">
+                        <p className="text-sm font-black text-white">
+                          {submission.audio_filename || "Attached audio"}
+                        </p>
+                        <p className="mt-1 text-xs font-bold text-white/45">
+                          {formatFileSize(submission.audio_size_bytes)} /{" "}
+                          {submission.audio_mime_type || "audio"}
+                        </p>
+                        <audio
+                          controls
+                          preload="metadata"
+                          className="mt-4 w-full"
+                        >
+                          <source
+                            src={submission.audio_url}
+                            type={submission.audio_mime_type || undefined}
+                          />
+                          Your browser does not support the audio preview.
+                        </audio>
+                        <p className="mt-3 break-all text-xs leading-5 text-white/32">
+                          {submission.audio_url}
+                        </p>
+                        <p className="mt-3 text-xs font-bold leading-5 text-yellow-50/70">
+                          Review preview only — this audio is not published.
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="mt-4 text-sm leading-6 text-white/42">
+                        No audio draft has been attached to this submission yet.
+                      </p>
+                    )}
+                  </div>
 
                   <label className="mt-5 block">
                     <span className="text-xs font-black uppercase tracking-[0.18em] text-white/38">

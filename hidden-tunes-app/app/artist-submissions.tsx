@@ -10,6 +10,7 @@ import {
 } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
+import * as DocumentPicker from "expo-document-picker";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 
@@ -34,12 +35,31 @@ type ArtistSubmission = {
   id: string;
   title: string;
   artist_name: string;
+  description?: string | null;
+  genre?: string | null;
+  mood?: string | null;
+  release_notes?: string | null;
+  lyrics_text?: string | null;
+  audio_url?: string | null;
+  audio_filename?: string | null;
+  audio_size_bytes?: number | null;
+  audio_mime_type?: string | null;
   status: ArtistSubmissionStatus | string;
   admin_notes?: string | null;
   submitted_at: string | null;
   reviewed_at?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
+};
+
+type SubmissionEditDraft = {
+  title: string;
+  artistName: string;
+  description: string;
+  genre: string;
+  mood: string;
+  releaseNotes: string;
+  lyricsText: string;
 };
 
 type SubmissionState = {
@@ -90,6 +110,7 @@ const SUBMISSION_STATES: SubmissionState[] = [
 
 const ARTIST_SUBMISSIONS_API_URL =
   "https://admin.hiddentunes.com/api/artist-submissions";
+const ARTIST_SUBMISSION_AUDIO_API_URL = `${ARTIST_SUBMISSIONS_API_URL}/audio`;
 
 const STATUS_COPY: Record<
   ArtistSubmissionStatus,
@@ -132,9 +153,53 @@ function getSubmissionStatusCopy(status: string) {
   );
 }
 
+function canArtistEditSubmission(status: string) {
+  return status === "draft" || status === "needs_changes";
+}
+
+function canArtistAttachAudio(status: string) {
+  return status === "draft" || status === "needs_changes";
+}
+
+function formatFileSize(bytes?: number | null) {
+  if (!bytes || bytes < 1) return "Size unknown";
+  const megabytes = bytes / (1024 * 1024);
+  if (megabytes >= 1) return `${megabytes.toFixed(1)} MB`;
+  return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+}
+
+function buildSubmissionDraft(submission?: ArtistSubmission): SubmissionEditDraft {
+  return {
+    title: submission?.title || "",
+    artistName: submission?.artist_name || "",
+    description: submission?.description || "",
+    genre: submission?.genre || "",
+    mood: submission?.mood || "",
+    releaseNotes: submission?.release_notes || "",
+    lyricsText: submission?.lyrics_text || "",
+  };
+}
+
+function buildSubmissionDetailsPayload(draft: SubmissionEditDraft) {
+  return {
+    title: draft.title.trim(),
+    artist_name: draft.artistName.trim(),
+    description: draft.description.trim(),
+    genre: draft.genre.trim(),
+    mood: draft.mood.trim(),
+    release_notes: draft.releaseNotes.trim(),
+    lyrics_text: draft.lyricsText.trim(),
+  };
+}
+
 export default function ArtistSubmissionsScreen() {
   const [title, setTitle] = useState("");
   const [artistName, setArtistName] = useState("");
+  const [description, setDescription] = useState("");
+  const [genre, setGenre] = useState("");
+  const [mood, setMood] = useState("");
+  const [releaseNotes, setReleaseNotes] = useState("");
+  const [lyricsText, setLyricsText] = useState("");
   const [creatorEmail, setCreatorEmail] = useState("");
   const [creatorPassword, setCreatorPassword] = useState("");
   const [sessionEmail, setSessionEmail] = useState<string | null>(null);
@@ -153,6 +218,12 @@ export default function ArtistSubmissionsScreen() {
     "neutral"
   );
   const [submissions, setSubmissions] = useState<ArtistSubmission[]>([]);
+  const [editingSubmissionId, setEditingSubmissionId] = useState("");
+  const [updatingSubmissionId, setUpdatingSubmissionId] = useState("");
+  const [attachingAudioId, setAttachingAudioId] = useState("");
+  const [editDrafts, setEditDrafts] = useState<Record<string, SubmissionEditDraft>>(
+    {}
+  );
 
   const summary = useMemo(
     () => ({
@@ -297,10 +368,17 @@ export default function ArtistSubmissionsScreen() {
   }
 
   async function handleSubmit() {
-    const cleanTitle = title.trim();
-    const cleanArtistName = artistName.trim();
+    const submissionDraft = buildSubmissionDetailsPayload({
+      title,
+      artistName,
+      description,
+      genre,
+      mood,
+      releaseNotes,
+      lyricsText,
+    });
 
-    if (!cleanTitle || !cleanArtistName) {
+    if (!submissionDraft.title || !submissionDraft.artist_name) {
       setStatusTone("error");
       setStatusMessage("Add both a title and artist name before submitting.");
       return;
@@ -327,8 +405,7 @@ export default function ArtistSubmissionsScreen() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          title: cleanTitle,
-          artist_name: cleanArtistName,
+          ...submissionDraft,
         }),
       });
       const payload = await response.json().catch(() => null);
@@ -346,6 +423,11 @@ export default function ArtistSubmissionsScreen() {
       ]);
       setTitle("");
       setArtistName("");
+      setDescription("");
+      setGenre("");
+      setMood("");
+      setReleaseNotes("");
+      setLyricsText("");
       setStatusTone("success");
       setStatusMessage("Submission created and sent for review.");
       loadArtistSubmissions(accessToken);
@@ -358,6 +440,184 @@ export default function ArtistSubmissionsScreen() {
       );
     } finally {
       setIsSubmitting(false);
+    }
+  }
+
+  function startEditingSubmission(submission: ArtistSubmission) {
+    setEditingSubmissionId(submission.id);
+    setStatusMessage("");
+    setStatusTone("neutral");
+    setEditDrafts((current) => ({
+      ...current,
+      [submission.id]: buildSubmissionDraft(submission),
+    }));
+  }
+
+  function cancelEditingSubmission(submissionId: string) {
+    setEditingSubmissionId("");
+    setEditDrafts((current) => {
+      const next = { ...current };
+      delete next[submissionId];
+      return next;
+    });
+  }
+
+  function updateSubmissionDraft(
+    submissionId: string,
+    field: keyof SubmissionEditDraft,
+    value: string
+  ) {
+    setEditDrafts((current) => ({
+      ...current,
+      [submissionId]: {
+        title: current[submissionId]?.title || "",
+        artistName: current[submissionId]?.artistName || "",
+        description: current[submissionId]?.description || "",
+        genre: current[submissionId]?.genre || "",
+        mood: current[submissionId]?.mood || "",
+        releaseNotes: current[submissionId]?.releaseNotes || "",
+        lyricsText: current[submissionId]?.lyricsText || "",
+        [field]: value,
+      },
+    }));
+  }
+
+  async function resubmitEditedSubmission(submission: ArtistSubmission) {
+    const draft = editDrafts[submission.id] || buildSubmissionDraft(submission);
+    const submissionDraft = buildSubmissionDetailsPayload(draft);
+
+    if (!submissionDraft.title || !submissionDraft.artist_name) {
+      setStatusTone("error");
+      setStatusMessage("Add both a title and artist name before resubmitting.");
+      return;
+    }
+
+    setUpdatingSubmissionId(submission.id);
+    setStatusTone("neutral");
+    setStatusMessage("Resubmitting for review...");
+
+    try {
+      const { accessToken, error: tokenError } =
+        await getCurrentSupabaseAccessToken();
+
+      if (!accessToken) {
+        throw new Error(
+          tokenError || "Sign in as an artist to submit music for review."
+        );
+      }
+
+      const response = await fetch(ARTIST_SUBMISSIONS_API_URL, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          id: submission.id,
+          ...submissionDraft,
+          resubmit: true,
+        }),
+      });
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok || !payload?.success || !payload.submission) {
+        throw new Error(payload?.error || "Submission could not be resubmitted.");
+      }
+
+      const updatedSubmission = payload.submission as ArtistSubmission;
+
+      setSubmissions((current) =>
+        current.map((item) =>
+          item.id === updatedSubmission.id ? updatedSubmission : item
+        )
+      );
+      cancelEditingSubmission(submission.id);
+      setStatusTone("success");
+      setStatusMessage("Submission updated and resubmitted for review.");
+      loadArtistSubmissions(accessToken);
+    } catch (error) {
+      setStatusTone("error");
+      setStatusMessage(
+        error instanceof Error
+          ? error.message
+          : "Submission could not be resubmitted."
+      );
+    } finally {
+      setUpdatingSubmissionId("");
+    }
+  }
+
+  async function attachAudioToSubmission(submission: ArtistSubmission) {
+    setAttachingAudioId(submission.id);
+    setStatusTone("neutral");
+    setStatusMessage("Selecting audio attachment...");
+
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: "audio/*",
+        copyToCacheDirectory: true,
+        multiple: false,
+      });
+
+      if (result.canceled) {
+        setStatusMessage("");
+        return;
+      }
+
+      const asset = result.assets[0];
+      if (!asset?.uri) {
+        throw new Error("Could not read selected audio file.");
+      }
+
+      const { accessToken, error: tokenError } =
+        await getCurrentSupabaseAccessToken();
+
+      if (!accessToken) {
+        throw new Error(
+          tokenError || "Sign in as an artist to submit music for review."
+        );
+      }
+
+      setStatusMessage("Uploading audio draft attachment...");
+
+      const formData = new FormData();
+      formData.append("submissionId", submission.id);
+      formData.append("file", {
+        uri: asset.uri,
+        name: asset.name || "artist-submission-audio",
+        type: asset.mimeType || "audio/mpeg",
+      } as unknown as Blob);
+
+      const response = await fetch(ARTIST_SUBMISSION_AUDIO_API_URL, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: formData,
+      });
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok || !payload?.success || !payload.submission) {
+        throw new Error(payload?.error || "Audio could not be attached.");
+      }
+
+      const updatedSubmission = payload.submission as ArtistSubmission;
+
+      setSubmissions((current) =>
+        current.map((item) =>
+          item.id === updatedSubmission.id ? updatedSubmission : item
+        )
+      );
+      setStatusTone("success");
+      setStatusMessage("Audio attached for review. It is not published.");
+      loadArtistSubmissions(accessToken);
+    } catch (error) {
+      setStatusTone("error");
+      setStatusMessage(
+        error instanceof Error ? error.message : "Audio could not be attached."
+      );
+    } finally {
+      setAttachingAudioId("");
     }
   }
 
@@ -552,6 +812,72 @@ export default function ArtistSubmissionsScreen() {
             editable={!isSubmitting}
           />
 
+          <Text style={styles.inputLabel}>Description</Text>
+          <TextInput
+            value={description}
+            onChangeText={setDescription}
+            placeholder="Describe the song, story, or release idea"
+            placeholderTextColor="rgba(255,255,255,0.34)"
+            style={[styles.input, styles.multilineInput]}
+            multiline
+            textAlignVertical="top"
+            maxLength={1200}
+            editable={!isSubmitting}
+          />
+
+          <View style={styles.twoColumnInputs}>
+            <View style={styles.twoColumnInput}>
+              <Text style={styles.inputLabel}>Genre</Text>
+              <TextInput
+                value={genre}
+                onChangeText={setGenre}
+                placeholder="Afrobeats, R&B..."
+                placeholderTextColor="rgba(255,255,255,0.34)"
+                style={styles.input}
+                maxLength={120}
+                editable={!isSubmitting}
+              />
+            </View>
+            <View style={styles.twoColumnInput}>
+              <Text style={styles.inputLabel}>Mood</Text>
+              <TextInput
+                value={mood}
+                onChangeText={setMood}
+                placeholder="Emotional, chill..."
+                placeholderTextColor="rgba(255,255,255,0.34)"
+                style={styles.input}
+                maxLength={120}
+                editable={!isSubmitting}
+              />
+            </View>
+          </View>
+
+          <Text style={styles.inputLabel}>Release notes</Text>
+          <TextInput
+            value={releaseNotes}
+            onChangeText={setReleaseNotes}
+            placeholder="Credits, rollout notes, review context"
+            placeholderTextColor="rgba(255,255,255,0.34)"
+            style={[styles.input, styles.multilineInput]}
+            multiline
+            textAlignVertical="top"
+            maxLength={2000}
+            editable={!isSubmitting}
+          />
+
+          <Text style={styles.inputLabel}>Lyrics text</Text>
+          <TextInput
+            value={lyricsText}
+            onChangeText={setLyricsText}
+            placeholder="Paste draft lyrics or hook ideas"
+            placeholderTextColor="rgba(255,255,255,0.34)"
+            style={[styles.input, styles.lyricsInput]}
+            multiline
+            textAlignVertical="top"
+            maxLength={12000}
+            editable={!isSubmitting}
+          />
+
           {statusMessage ? (
             <View style={[styles.statusBox, styles[`${statusTone}Status`]]}>
               <Text style={styles.statusText}>{statusMessage}</Text>
@@ -616,7 +942,19 @@ export default function ArtistSubmissionsScreen() {
             ) : submissions.length > 0 ? (
               <View style={styles.submissionList}>
                 {submissions.map((submission) => (
-                  <SubmissionCard key={submission.id} submission={submission} />
+                  <SubmissionCard
+                    key={submission.id}
+                    submission={submission}
+                    draft={editDrafts[submission.id]}
+                    isEditing={editingSubmissionId === submission.id}
+                    isUpdating={updatingSubmissionId === submission.id}
+                    isAttachingAudio={attachingAudioId === submission.id}
+                    onStartEdit={startEditingSubmission}
+                    onCancelEdit={cancelEditingSubmission}
+                    onChangeDraft={updateSubmissionDraft}
+                    onResubmit={resubmitEditedSubmission}
+                    onAttachAudio={attachAudioToSubmission}
+                  />
                 ))}
               </View>
             ) : (
@@ -696,8 +1034,36 @@ function SubmissionStateCard({ state }: { state: SubmissionState }) {
   );
 }
 
-function SubmissionCard({ submission }: { submission: ArtistSubmission }) {
+function SubmissionCard({
+  submission,
+  draft,
+  isEditing,
+  isUpdating,
+  isAttachingAudio,
+  onStartEdit,
+  onCancelEdit,
+  onChangeDraft,
+  onResubmit,
+  onAttachAudio,
+}: {
+  submission: ArtistSubmission;
+  draft?: SubmissionEditDraft;
+  isEditing: boolean;
+  isUpdating: boolean;
+  isAttachingAudio: boolean;
+  onStartEdit: (submission: ArtistSubmission) => void;
+  onCancelEdit: (submissionId: string) => void;
+  onChangeDraft: (
+    submissionId: string,
+    field: keyof SubmissionEditDraft,
+    value: string
+  ) => void;
+  onResubmit: (submission: ArtistSubmission) => void;
+  onAttachAudio: (submission: ArtistSubmission) => void;
+}) {
   const status = getSubmissionStatusCopy(String(submission.status || ""));
+  const canEdit = canArtistEditSubmission(String(submission.status || ""));
+  const canAttachAudio = canArtistAttachAudio(String(submission.status || ""));
   const submittedAt = submission.submitted_at
     ? new Date(submission.submitted_at).toLocaleDateString()
     : "Not submitted";
@@ -729,6 +1095,187 @@ function SubmissionCard({ submission }: { submission: ArtistSubmission }) {
 
       <Text style={styles.submissionDescription}>{status.description}</Text>
 
+      {submission.genre || submission.mood ? (
+        <View style={styles.metadataPillRow}>
+          {submission.genre ? (
+            <View style={styles.metadataPill}>
+              <Text style={styles.metadataPillText}>{submission.genre}</Text>
+            </View>
+          ) : null}
+          {submission.mood ? (
+            <View style={styles.metadataPill}>
+              <Text style={styles.metadataPillText}>{submission.mood}</Text>
+            </View>
+          ) : null}
+        </View>
+      ) : null}
+
+      {submission.description ? (
+        <Text style={styles.submissionDetailText}>{submission.description}</Text>
+      ) : null}
+
+      {submission.release_notes ? (
+        <View style={styles.detailPreviewBox}>
+          <Text style={styles.adminNotesLabel}>Release notes</Text>
+          <Text style={styles.adminNotesText}>{submission.release_notes}</Text>
+        </View>
+      ) : null}
+
+      <View style={styles.audioAttachmentBox}>
+        <View style={styles.audioAttachmentHeader}>
+          <View style={styles.audioIcon}>
+            <Ionicons name="musical-note" size={16} color={COLORS.primary} />
+          </View>
+          <View style={styles.audioTextWrap}>
+            <Text style={styles.audioTitle}>Audio draft attachment</Text>
+            <Text style={styles.audioSubtitle}>
+              For review only. This does not publish or play in the app.
+            </Text>
+          </View>
+        </View>
+
+        {submission.audio_filename ? (
+          <View style={styles.audioMetaCard}>
+            <Text style={styles.audioFileName}>{submission.audio_filename}</Text>
+            <Text style={styles.audioFileMeta}>
+              {formatFileSize(submission.audio_size_bytes)} /{" "}
+              {submission.audio_mime_type || "audio"}
+            </Text>
+          </View>
+        ) : (
+          <Text style={styles.audioEmptyText}>
+            No audio attached yet. Add a draft file only when the submission is
+            ready for review feedback.
+          </Text>
+        )}
+
+        {canAttachAudio ? (
+          <TouchableOpacity
+            activeOpacity={0.86}
+            style={[
+              styles.attachAudioButton,
+              isAttachingAudio ? styles.submitButtonDisabled : null,
+            ]}
+            onPress={() => onAttachAudio(submission)}
+            disabled={isAttachingAudio}
+          >
+            {isAttachingAudio ? (
+              <ActivityIndicator color="#050508" />
+            ) : (
+              <Text style={styles.attachAudioButtonText}>
+                {submission.audio_filename ? "Replace Audio" : "Attach Audio"}
+              </Text>
+            )}
+          </TouchableOpacity>
+        ) : null}
+      </View>
+
+      {isEditing ? (
+        <View style={styles.editSubmissionBox}>
+          <Text style={styles.inputLabel}>Title</Text>
+          <TextInput
+            value={draft?.title ?? submission.title}
+            onChangeText={(value) =>
+              onChangeDraft(submission.id, "title", value)
+            }
+            placeholder="Song or release title"
+            placeholderTextColor="rgba(255,255,255,0.34)"
+            style={styles.input}
+            maxLength={140}
+            editable={!isUpdating}
+          />
+
+          <Text style={styles.inputLabel}>Artist name</Text>
+          <TextInput
+            value={draft?.artistName ?? submission.artist_name}
+            onChangeText={(value) =>
+              onChangeDraft(submission.id, "artistName", value)
+            }
+            placeholder="Artist or group name"
+            placeholderTextColor="rgba(255,255,255,0.34)"
+            style={styles.input}
+            maxLength={140}
+            editable={!isUpdating}
+          />
+
+          <Text style={styles.inputLabel}>Description</Text>
+          <TextInput
+            value={draft?.description ?? submission.description ?? ""}
+            onChangeText={(value) =>
+              onChangeDraft(submission.id, "description", value)
+            }
+            placeholder="Describe the song, story, or release idea"
+            placeholderTextColor="rgba(255,255,255,0.34)"
+            style={[styles.input, styles.multilineInput]}
+            multiline
+            textAlignVertical="top"
+            maxLength={1200}
+            editable={!isUpdating}
+          />
+
+          <View style={styles.twoColumnInputs}>
+            <View style={styles.twoColumnInput}>
+              <Text style={styles.inputLabel}>Genre</Text>
+              <TextInput
+                value={draft?.genre ?? submission.genre ?? ""}
+                onChangeText={(value) =>
+                  onChangeDraft(submission.id, "genre", value)
+                }
+                placeholder="Afrobeats, R&B..."
+                placeholderTextColor="rgba(255,255,255,0.34)"
+                style={styles.input}
+                maxLength={120}
+                editable={!isUpdating}
+              />
+            </View>
+            <View style={styles.twoColumnInput}>
+              <Text style={styles.inputLabel}>Mood</Text>
+              <TextInput
+                value={draft?.mood ?? submission.mood ?? ""}
+                onChangeText={(value) =>
+                  onChangeDraft(submission.id, "mood", value)
+                }
+                placeholder="Emotional, chill..."
+                placeholderTextColor="rgba(255,255,255,0.34)"
+                style={styles.input}
+                maxLength={120}
+                editable={!isUpdating}
+              />
+            </View>
+          </View>
+
+          <Text style={styles.inputLabel}>Release notes</Text>
+          <TextInput
+            value={draft?.releaseNotes ?? submission.release_notes ?? ""}
+            onChangeText={(value) =>
+              onChangeDraft(submission.id, "releaseNotes", value)
+            }
+            placeholder="Credits, rollout notes, review context"
+            placeholderTextColor="rgba(255,255,255,0.34)"
+            style={[styles.input, styles.multilineInput]}
+            multiline
+            textAlignVertical="top"
+            maxLength={2000}
+            editable={!isUpdating}
+          />
+
+          <Text style={styles.inputLabel}>Lyrics text</Text>
+          <TextInput
+            value={draft?.lyricsText ?? submission.lyrics_text ?? ""}
+            onChangeText={(value) =>
+              onChangeDraft(submission.id, "lyricsText", value)
+            }
+            placeholder="Paste draft lyrics or hook ideas"
+            placeholderTextColor="rgba(255,255,255,0.34)"
+            style={[styles.input, styles.lyricsInput]}
+            multiline
+            textAlignVertical="top"
+            maxLength={12000}
+            editable={!isUpdating}
+          />
+        </View>
+      ) : null}
+
       {submission.admin_notes ? (
         <View style={styles.adminNotesBox}>
           <Text style={styles.adminNotesLabel}>Review notes</Text>
@@ -738,9 +1285,47 @@ function SubmissionCard({ submission }: { submission: ArtistSubmission }) {
 
       <View style={styles.submissionFooter}>
         <Text style={styles.submissionDate}>Submitted {submittedAt}</Text>
-        <View style={styles.disabledActionPill}>
-          <Text style={styles.disabledActionText}>Edit later</Text>
-        </View>
+        {canEdit ? (
+          isEditing ? (
+            <View style={styles.editActionRow}>
+              <TouchableOpacity
+                activeOpacity={0.86}
+                style={styles.cancelEditButton}
+                onPress={() => onCancelEdit(submission.id)}
+                disabled={isUpdating}
+              >
+                <Text style={styles.cancelEditText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                activeOpacity={0.86}
+                style={[
+                  styles.resubmitButton,
+                  isUpdating ? styles.submitButtonDisabled : null,
+                ]}
+                onPress={() => onResubmit(submission)}
+                disabled={isUpdating}
+              >
+                {isUpdating ? (
+                  <ActivityIndicator color="#050508" />
+                ) : (
+                  <Text style={styles.resubmitButtonText}>Resubmit</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity
+              activeOpacity={0.86}
+              style={styles.editActionPill}
+              onPress={() => onStartEdit(submission)}
+            >
+              <Text style={styles.editActionText}>Edit</Text>
+            </TouchableOpacity>
+          )
+        ) : (
+          <View style={styles.disabledActionPill}>
+            <Text style={styles.disabledActionText}>Locked</Text>
+          </View>
+        )}
       </View>
     </View>
   );
@@ -1027,6 +1612,23 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.1)",
   },
+  multilineInput: {
+    minHeight: 104,
+    paddingTop: 14,
+    paddingBottom: 14,
+  },
+  lyricsInput: {
+    minHeight: 150,
+    paddingTop: 14,
+    paddingBottom: 14,
+  },
+  twoColumnInputs: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  twoColumnInput: {
+    flex: 1,
+  },
   statusBox: {
     marginTop: 16,
     borderRadius: 18,
@@ -1151,6 +1753,125 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     marginTop: 11,
   },
+  metadataPillRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 12,
+  },
+  metadataPill: {
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    backgroundColor: "rgba(250,204,21,0.1)",
+    borderWidth: 1,
+    borderColor: "rgba(250,204,21,0.2)",
+  },
+  metadataPillText: {
+    color: COLORS.primary,
+    fontSize: 10,
+    fontWeight: "900",
+    textTransform: "uppercase",
+  },
+  submissionDetailText: {
+    color: COLORS.text,
+    fontSize: 12,
+    lineHeight: 19,
+    marginTop: 12,
+  },
+  detailPreviewBox: {
+    marginTop: 12,
+    borderRadius: 18,
+    padding: 12,
+    backgroundColor: "rgba(255,255,255,0.045)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.09)",
+  },
+  audioAttachmentBox: {
+    marginTop: 12,
+    borderRadius: 22,
+    padding: 14,
+    backgroundColor: "rgba(250,204,21,0.075)",
+    borderWidth: 1,
+    borderColor: "rgba(250,204,21,0.16)",
+  },
+  audioAttachmentHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  audioIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(250,204,21,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(250,204,21,0.22)",
+    marginRight: 10,
+  },
+  audioTextWrap: {
+    flex: 1,
+  },
+  audioTitle: {
+    color: COLORS.text,
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  audioSubtitle: {
+    color: COLORS.textMuted,
+    fontSize: 11,
+    lineHeight: 16,
+    marginTop: 3,
+  },
+  audioMetaCard: {
+    marginTop: 12,
+    borderRadius: 16,
+    padding: 12,
+    backgroundColor: "rgba(0,0,0,0.22)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+  },
+  audioFileName: {
+    color: COLORS.text,
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  audioFileMeta: {
+    color: COLORS.textMuted,
+    fontSize: 11,
+    fontWeight: "700",
+    marginTop: 4,
+  },
+  audioEmptyText: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 12,
+  },
+  attachAudioButton: {
+    minHeight: 42,
+    marginTop: 12,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: COLORS.primary,
+  },
+  attachAudioButtonText: {
+    color: "#050508",
+    fontSize: 12,
+    fontWeight: "900",
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+  },
+  editSubmissionBox: {
+    marginTop: 14,
+    borderRadius: 22,
+    padding: 14,
+    backgroundColor: "rgba(255,255,255,0.055)",
+    borderWidth: 1,
+    borderColor: "rgba(250,204,21,0.14)",
+  },
   adminNotesBox: {
     marginTop: 12,
     borderRadius: 18,
@@ -1177,11 +1898,61 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    gap: 10,
   },
   submissionDate: {
     color: COLORS.textMuted,
     fontSize: 11,
     fontWeight: "800",
+  },
+  editActionPill: {
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: "rgba(250,204,21,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(250,204,21,0.26)",
+  },
+  editActionText: {
+    color: COLORS.primary,
+    fontSize: 10,
+    fontWeight: "900",
+    textTransform: "uppercase",
+  },
+  editActionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  cancelEditButton: {
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: "rgba(255,255,255,0.055)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+  },
+  cancelEditText: {
+    color: COLORS.textMuted,
+    fontSize: 10,
+    fontWeight: "900",
+    textTransform: "uppercase",
+  },
+  resubmitButton: {
+    minHeight: 34,
+    minWidth: 96,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: COLORS.primary,
+  },
+  resubmitButtonText: {
+    color: "#050508",
+    fontSize: 10,
+    fontWeight: "900",
+    textTransform: "uppercase",
   },
   disabledActionPill: {
     borderRadius: 999,
