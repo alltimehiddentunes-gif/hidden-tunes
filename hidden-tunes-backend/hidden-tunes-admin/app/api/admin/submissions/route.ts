@@ -266,7 +266,9 @@ export async function PATCH(request: NextRequest) {
 
     const { data: existingSubmission, error: existingError } = await supabaseAdmin
       .from("artist_submissions")
-      .select("id, status, admin_notes")
+      .select(
+        "id, title, artist_name, audio_url, artwork_url, status, admin_notes"
+      )
       .eq("id", id)
       .maybeSingle();
 
@@ -280,6 +282,18 @@ export async function PATCH(request: NextRequest) {
 
     if (!existingSubmission) {
       return jsonError("Artist submission not found.", 404);
+    }
+
+    const reviewReadiness = getReviewReadiness(
+      existingSubmission as unknown as Record<string, unknown>
+    );
+
+    if (status === "approved" && !reviewReadiness.is_review_ready) {
+      return jsonError(
+        "Submission must include title, artist name, audio, and artwork before approval.",
+        400,
+        reviewReadiness.missing_requirements
+      );
     }
 
     const previousStatus = String(existingSubmission.status || "");

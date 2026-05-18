@@ -1327,6 +1327,52 @@ function SubmissionCard({
         </View>
       ) : null}
 
+      <View style={styles.uploadInstructionsBox}>
+        <View style={styles.uploadInstructionsHeader}>
+          <View style={styles.uploadInstructionsIcon}>
+            <Ionicons name="sparkles" size={16} color={COLORS.primary} />
+          </View>
+          <View style={styles.uploadInstructionsTextWrap}>
+            <Text style={styles.uploadInstructionsTitle}>
+              Prepare clean review files
+            </Text>
+            <Text style={styles.uploadInstructionsSubtitle}>
+              Keep the title, audio filename, and artwork filename aligned so
+              review feels smooth.
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.uploadExampleBox}>
+          <Text style={styles.uploadExampleLabel}>Best format</Text>
+          <Text style={styles.uploadExampleText}>
+            {'"Song Title.mp3" + "Song Title.jpg"'}
+          </Text>
+          <Text style={styles.uploadExampleText}>
+            {'Example: "Lonely Road.mp3" + "Lonely Road.jpg"'}
+          </Text>
+        </View>
+
+        <View style={styles.uploadInstructionList}>
+          <Text style={styles.uploadInstructionText}>
+            Audio and artwork should match this submission title.
+          </Text>
+          <Text style={styles.uploadInstructionText}>
+            Use the same spelling for title, audio filename, and artwork
+            filename.
+          </Text>
+          <Text style={styles.uploadInstructionText}>
+            {'Avoid random filenames like "audio123.mp3" or "IMG_0045.jpg".'}
+          </Text>
+          <Text style={styles.uploadInstructionText}>
+            Lyrics are optional but recommended.
+          </Text>
+          <Text style={styles.uploadInstructionText}>
+            Your submission will not go live until admin approval.
+          </Text>
+        </View>
+      </View>
+
       <View style={styles.artworkAttachmentBox}>
         <View style={styles.audioAttachmentHeader}>
           <View style={styles.artworkIcon}>
@@ -2152,6 +2198,75 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.045)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.09)",
+  },
+  uploadInstructionsBox: {
+    marginTop: 12,
+    borderRadius: 22,
+    padding: 14,
+    backgroundColor: "rgba(255,255,255,0.055)",
+    borderWidth: 1,
+    borderColor: "rgba(250,204,21,0.16)",
+  },
+  uploadInstructionsHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+  uploadInstructionsIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(250,204,21,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(250,204,21,0.22)",
+    marginRight: 10,
+  },
+  uploadInstructionsTextWrap: {
+    flex: 1,
+  },
+  uploadInstructionsTitle: {
+    color: COLORS.text,
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  uploadInstructionsSubtitle: {
+    color: COLORS.textMuted,
+    fontSize: 11,
+    lineHeight: 16,
+    marginTop: 3,
+  },
+  uploadExampleBox: {
+    marginTop: 12,
+    borderRadius: 16,
+    padding: 12,
+    backgroundColor: "rgba(250,204,21,0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(250,204,21,0.16)",
+  },
+  uploadExampleLabel: {
+    color: COLORS.primary,
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 1,
+    textTransform: "uppercase",
+  },
+  uploadExampleText: {
+    color: COLORS.text,
+    fontSize: 12,
+    fontWeight: "800",
+    lineHeight: 18,
+    marginTop: 5,
+  },
+  uploadInstructionList: {
+    marginTop: 12,
+    gap: 7,
+  },
+  uploadInstructionText: {
+    color: COLORS.textMuted,
+    fontSize: 11,
+    lineHeight: 17,
+    fontWeight: "700",
   },
   audioAttachmentBox: {
     marginTop: 12,

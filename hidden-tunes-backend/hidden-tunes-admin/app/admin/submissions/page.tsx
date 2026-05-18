@@ -512,20 +512,38 @@ export default function AdminSubmissionsPage() {
                     </div>
 
                     <div className="grid gap-2 sm:grid-cols-3 xl:min-w-[420px]">
-                      {REVIEW_ACTIONS.map((action) => (
-                        <button
-                          key={action.status}
-                          onClick={() =>
-                            updateSubmissionStatus(submission, action.status)
-                          }
-                          disabled={updatingId === submission.id}
-                          className={`rounded-2xl border px-4 py-3 text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-50 ${action.tone}`}
-                        >
-                          {updatingId === submission.id
-                            ? "Saving..."
-                            : action.label}
-                        </button>
-                      ))}
+                      {REVIEW_ACTIONS.map((action) => {
+                        const approvalBlocked =
+                          action.status === "approved" &&
+                          !submission.is_review_ready;
+                        const isDisabled =
+                          updatingId === submission.id || approvalBlocked;
+
+                        return (
+                          <div key={action.status}>
+                            <button
+                              onClick={() =>
+                                updateSubmissionStatus(
+                                  submission,
+                                  action.status
+                                )
+                              }
+                              disabled={isDisabled}
+                              className={`w-full rounded-2xl border px-4 py-3 text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-50 ${action.tone}`}
+                            >
+                              {updatingId === submission.id
+                                ? "Saving..."
+                                : action.label}
+                            </button>
+                            {approvalBlocked ? (
+                              <p className="mt-2 text-xs font-bold leading-5 text-yellow-100/72">
+                                Add {missingRequirementLabels.join(", ")} before
+                                approval.
+                              </p>
+                            ) : null}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
 
