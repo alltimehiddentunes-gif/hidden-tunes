@@ -1,20 +1,79 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import AdminShell from "@/components/AdminShell";
 import { canManageUploaderOwnership } from "@/lib/adminPermissions";
-import { getActiveUploaderSession } from "@/lib/auth";
+import { getActiveUploaderSession, supabase } from "@/lib/auth";
 
-type SubmissionStatus = {
-  value: string;
+type SubmissionStatus =
+  | "draft"
+  | "pending_review"
+  | "needs_changes"
+  | "approved"
+  | "rejected";
+
+type StatusFilter = "all" | SubmissionStatus;
+
+type ArtistSubmission = {
+  id: string;
+  title: string;
+  artist_name: string;
+  description: string | null;
+  genre: string | null;
+  mood: string | null;
+  release_notes: string | null;
+  lyrics_text: string | null;
+  status: SubmissionStatus | string;
+  admin_notes: string | null;
+  submitted_at: string | null;
+  reviewed_at: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+  artist_user_id: string | null;
+  reviewed_by_user_id: string | null;
+  events?: ArtistSubmissionEvent[];
+};
+
+type ArtistSubmissionEvent = {
+  id: string;
+  submission_id: string | null;
+  actor_user_id: string | null;
+  actor_role: string | null;
+  event_type: string;
+  previous_status: string | null;
+  new_status: string | null;
+  note: string | null;
+  created_at: string | null;
+};
+
+type SubmissionsResponse = {
+  success: boolean;
+  submissions?: ArtistSubmission[];
+  error?: string;
+};
+
+type UpdateSubmissionResponse = {
+  success: boolean;
+  submission?: ArtistSubmission;
+  error?: string;
+};
+
+type SubmissionStatusOption = {
+  value: StatusFilter;
   label: string;
   description: string;
   tone: string;
 };
 
-const SUBMISSION_STATUSES: SubmissionStatus[] = [
+const SUBMISSION_STATUSES: SubmissionStatusOption[] = [
+  {
+    value: "all",
+    label: "All",
+    description: "Every artist submission in the review workspace.",
+    tone: "border-white/10 bg-white/[0.055] text-white/64",
+  },
   {
     value: "draft",
     label: "Drafts",
@@ -47,46 +106,230 @@ const SUBMISSION_STATUSES: SubmissionStatus[] = [
   },
 ];
 
+const REVIEW_ACTIONS: Array<{
+  status: Exclude<SubmissionStatus, "draft">;
+  label: string;
+  tone: string;
+}> = [
+  {
+    status: "needs_changes",
+    label: "Needs Changes",
+    tone: "border-cyan-300/25 text-cyan-100 hover:bg-cyan-400/10",
+  },
+  {
+    status: "approved",
+    label: "Approve",
+    tone: "border-emerald-300/25 text-emerald-100 hover:bg-emerald-400/10",
+  },
+  {
+    status: "rejected",
+    label: "Reject",
+    tone: "border-red-300/25 text-red-100 hover:bg-red-500/10",
+  },
+];
+
+function formatDate(value: string | null) {
+  if (!value) return "Not set";
+
+  const time = new Date(value).getTime();
+  if (!Number.isFinite(time)) return "Not set";
+
+  return new Intl.DateTimeFormat("en", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(new Date(time));
+}
+
+function statusLabel(value: string | null | undefined) {
+  const match = SUBMISSION_STATUSES.find((status) => status.value === value);
+  return match?.label || String(value || "Unknown").replace("_", " ");
+}
+
+function statusTone(value: string | null | undefined) {
+  const match = SUBMISSION_STATUSES.find((status) => status.value === value);
+  return match?.tone || "border-white/10 bg-white/[0.055] text-white/64";
+}
+
+function formatEventType(value: string | null | undefined) {
+  return String(value || "review_updated").replace(/_/g, " ");
+}
+
+function hasReviewDetails(submission: ArtistSubmission) {
+  return Boolean(
+    submission.description ||
+      submission.genre ||
+      submission.mood ||
+      submission.release_notes ||
+      submission.lyrics_text
+  );
+}
+
 export default function AdminSubmissionsPage() {
   const router = useRouter();
+  const [submissions, setSubmissions] = useState<ArtistSubmission[]>([]);
+  const [notesDrafts, setNotesDrafts] = useState<Record<string, string>>({});
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [isChecking, setIsChecking] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
+  const [updatingId, setUpdatingId] = useState("");
   const [pageError, setPageError] = useState("");
+  const [notice, setNotice] = useState("");
 
   const summary = useMemo(
     () => ({
-      states: SUBMISSION_STATUSES.length,
-      liveReads: 0,
+      total: submissions.length,
+      pending: submissions.filter(
+        (submission) => submission.status === "pending_review"
+      ).length,
       publishing: "Disabled",
     }),
-    []
+    [submissions]
   );
+
+  async function getRequiredAccessToken() {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    const accessToken = session?.access_token;
+
+    if (!accessToken) {
+      throw new Error("Your admin session expired. Sign in again.");
+    }
+
+    return accessToken;
+  }
+
+  const loadSubmissions = useCallback(async () => {
+    const { profile } = await getActiveUploaderSession();
+
+    if (!profile) {
+      router.replace("/admin/login");
+      return;
+    }
+
+    if (!canManageUploaderOwnership(profile.role)) {
+      setPageError("Only owners and admins can review artist submissions.");
+      setIsChecking(false);
+      setIsLoading(false);
+      return;
+    }
+
+    setIsChecking(false);
+    setIsLoading(true);
+    setPageError("");
+
+    const accessToken = await getRequiredAccessToken();
+    const params = new URLSearchParams();
+    if (statusFilter !== "all") params.set("status", statusFilter);
+
+    const response = await fetch(`/api/admin/submissions?${params.toString()}`, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+    const payload = (await response.json().catch(() => null)) as
+      | SubmissionsResponse
+      | null;
+
+    if (!response.ok || !payload?.success) {
+      throw new Error(payload?.error || "Could not load artist submissions.");
+    }
+
+    const nextSubmissions = payload.submissions || [];
+    setSubmissions(nextSubmissions);
+    setNotesDrafts((current) => {
+      const next: Record<string, string> = {};
+      nextSubmissions.forEach((submission) => {
+        next[submission.id] =
+          current[submission.id] ?? submission.admin_notes ?? "";
+      });
+      return next;
+    });
+    setIsLoading(false);
+  }, [router, statusFilter]);
 
   useEffect(() => {
     let ignore = false;
 
-    async function checkAccess() {
-      const { profile } = await getActiveUploaderSession();
-
-      if (!profile) {
-        router.replace("/admin/login");
-        return;
-      }
-
-      if (!canManageUploaderOwnership(profile.role)) {
+    async function boot() {
+      try {
+        await loadSubmissions();
+      } catch (error) {
         if (!ignore) {
-          setPageError("Only owners and admins can review artist submissions.");
+          setPageError(
+            error instanceof Error
+              ? error.message
+              : "Artist submissions could not load."
+          );
+          setIsChecking(false);
+          setIsLoading(false);
         }
       }
-
-      if (!ignore) setIsChecking(false);
     }
 
-    checkAccess();
+    boot();
 
     return () => {
       ignore = true;
     };
-  }, [router]);
+  }, [loadSubmissions]);
+
+  async function updateSubmissionStatus(
+    submission: ArtistSubmission,
+    status: Exclude<SubmissionStatus, "draft">
+  ) {
+    setUpdatingId(submission.id);
+    setNotice("");
+    setPageError("");
+
+    try {
+      const accessToken = await getRequiredAccessToken();
+      const response = await fetch("/api/admin/submissions", {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          id: submission.id,
+          status,
+          admin_notes: notesDrafts[submission.id] ?? "",
+        }),
+      });
+      const payload = (await response.json().catch(() => null)) as
+        | UpdateSubmissionResponse
+        | null;
+
+      if (!response.ok || !payload?.success || !payload.submission) {
+        throw new Error(payload?.error || "Could not update submission.");
+      }
+
+      const updatedSubmission = payload.submission;
+
+      setSubmissions((current) =>
+        current.map((item) =>
+          item.id === updatedSubmission.id ? updatedSubmission : item
+        )
+      );
+      setNotesDrafts((current) => ({
+        ...current,
+        [updatedSubmission.id]: updatedSubmission.admin_notes || "",
+      }));
+      setNotice(
+        `${updatedSubmission.title} marked ${statusLabel(
+          updatedSubmission.status
+        ).toLowerCase()}.`
+      );
+    } catch (error) {
+      setPageError(
+        error instanceof Error ? error.message : "Could not update submission."
+      );
+    } finally {
+      setUpdatingId("");
+    }
+  }
 
   return (
     <AdminShell
@@ -113,52 +356,280 @@ export default function AdminSubmissionsPage() {
       ) : (
         <>
           <section className="mb-4 grid gap-3 sm:grid-cols-3">
-            <Metric label="Workflow States" value={String(summary.states)} />
-            <Metric label="Live Reads" value={String(summary.liveReads)} />
+            <Metric label="Loaded Submissions" value={String(summary.total)} />
+            <Metric label="Pending Review" value={String(summary.pending)} />
             <Metric label="Publishing" value={summary.publishing} />
           </section>
 
           <section className="mb-4 rounded-[2rem] border border-white/10 bg-[#101017]/92 p-6 shadow-2xl">
             <p className="text-xs font-black uppercase tracking-[0.28em] text-yellow-300">
-              Foundation Phase
+              Review Controls
             </p>
             <h2 className="mt-3 text-3xl font-black tracking-[-0.04em]">
               Submissions stay separate from releases.
             </h2>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-white/52">
-              The new `artist_submissions` table is designed to stage artist
-              intent before review. This page does not upload audio, change R2
-              assets, create albums, create songs, or publish anything directly.
+              Approval here does not publish to the public catalog yet. These
+              controls only update `artist_submissions.status`, admin notes,
+              and review metadata for the artist-facing workflow.
+            </p>
+            <p className="mt-3 max-w-3xl text-sm font-bold leading-6 text-yellow-100/78">
+              Approval still does not publish this submission to the catalog.
             </p>
           </section>
 
-          <section className="grid gap-3 xl:grid-cols-5">
+          <section className="mb-4 flex flex-wrap gap-2 rounded-[1.7rem] border border-white/10 bg-white/[0.035] p-3">
             {SUBMISSION_STATUSES.map((status) => (
-              <article
+              <button
                 key={status.value}
-                className="rounded-[1.6rem] border border-white/10 bg-white/[0.045] p-4"
+                onClick={() => setStatusFilter(status.value)}
+                className={`rounded-2xl border px-4 py-3 text-left transition ${
+                  statusFilter === status.value
+                    ? "border-yellow-300/35 bg-yellow-300/12 text-white"
+                    : "border-white/10 bg-white/[0.04] text-white/58 hover:border-white/20 hover:text-white"
+                }`}
               >
-                <span
-                  className={`inline-flex rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] ${status.tone}`}
-                >
-                  {status.value}
-                </span>
-                <h3 className="mt-4 text-xl font-black tracking-[-0.03em]">
-                  {status.label}
-                </h3>
-                <p className="mt-2 text-sm leading-6 text-white/48">
+                <span className="block text-sm font-black">{status.label}</span>
+                <span className="mt-1 block max-w-[220px] text-xs leading-5 text-white/42">
                   {status.description}
-                </p>
-              </article>
+                </span>
+              </button>
             ))}
           </section>
 
+          {notice ? (
+            <section className="mb-4 rounded-[1.4rem] border border-emerald-300/20 bg-emerald-400/10 p-4 text-sm font-bold text-emerald-100">
+              {notice}
+            </section>
+          ) : null}
+
           <section className="mt-4 rounded-[1.7rem] border border-yellow-300/15 bg-yellow-300/[0.06] p-5">
             <p className="text-sm font-bold leading-6 text-yellow-50/78">
-              Next safe step after applying SQL: add a read-only API that lists
-              `artist_submissions` for owner/admin review. Publishing into
-              `albums` or `songs` should remain a later, explicit workflow.
+              Approval here does not publish to the public catalog yet. No
+              albums, songs, R2 assets, or upload-track flows are changed by this
+              queue.
             </p>
+          </section>
+
+          <section className="mt-4 grid gap-3">
+            {isLoading ? (
+              <div className="rounded-[1.7rem] border border-white/10 bg-[#101017]/92 p-5 text-sm font-bold text-white/50">
+                Loading artist submissions...
+              </div>
+            ) : submissions.length === 0 ? (
+              <div className="rounded-[1.7rem] border border-white/10 bg-[#101017]/92 p-8 text-center">
+                <p className="text-2xl font-black tracking-[-0.04em]">
+                  No submissions found
+                </p>
+                <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-white/45">
+                  Artist-created submissions will appear here after mobile
+                  creator accounts send releases for review.
+                </p>
+              </div>
+            ) : (
+              submissions.map((submission) => (
+                <article
+                  key={submission.id}
+                  className="rounded-[1.8rem] border border-white/10 bg-[#101017]/92 p-5 shadow-2xl"
+                >
+                  <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span
+                          className={`rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] ${statusTone(
+                            submission.status
+                          )}`}
+                        >
+                          {statusLabel(submission.status)}
+                        </span>
+                        <span className="rounded-full border border-white/10 bg-white/[0.045] px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-white/42">
+                          {formatDate(submission.submitted_at)}
+                        </span>
+                      </div>
+                      <h3 className="mt-4 text-2xl font-black tracking-[-0.04em]">
+                        {submission.title}
+                      </h3>
+                      <p className="mt-1 text-sm font-bold text-white/50">
+                        {submission.artist_name}
+                      </p>
+                      <p className="mt-3 max-w-2xl break-all text-xs leading-5 text-white/35">
+                        Artist user: {submission.artist_user_id || "Unknown"}
+                      </p>
+                      <p className="mt-1 text-xs leading-5 text-white/35">
+                        Reviewed: {formatDate(submission.reviewed_at)}
+                      </p>
+                    </div>
+
+                    <div className="grid gap-2 sm:grid-cols-3 xl:min-w-[420px]">
+                      {REVIEW_ACTIONS.map((action) => (
+                        <button
+                          key={action.status}
+                          onClick={() =>
+                            updateSubmissionStatus(submission, action.status)
+                          }
+                          disabled={updatingId === submission.id}
+                          className={`rounded-2xl border px-4 py-3 text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-50 ${action.tone}`}
+                        >
+                          {updatingId === submission.id
+                            ? "Saving..."
+                            : action.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {hasReviewDetails(submission) ? (
+                    <div className="mt-5 grid gap-3 xl:grid-cols-[1.1fr_0.9fr]">
+                      <div className="rounded-3xl border border-white/10 bg-black/24 p-4">
+                        <p className="text-xs font-black uppercase tracking-[0.18em] text-yellow-300">
+                          Submission Details
+                        </p>
+
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          {submission.genre ? (
+                            <span className="rounded-full border border-yellow-300/20 bg-yellow-300/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-yellow-100">
+                              {submission.genre}
+                            </span>
+                          ) : null}
+                          {submission.mood ? (
+                            <span className="rounded-full border border-purple-300/20 bg-purple-400/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-purple-100">
+                              {submission.mood}
+                            </span>
+                          ) : null}
+                        </div>
+
+                        {submission.description ? (
+                          <div className="mt-4">
+                            <p className="text-[11px] font-black uppercase tracking-[0.16em] text-white/35">
+                              Description
+                            </p>
+                            <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-white/62">
+                              {submission.description}
+                            </p>
+                          </div>
+                        ) : null}
+
+                        {submission.release_notes ? (
+                          <div className="mt-4">
+                            <p className="text-[11px] font-black uppercase tracking-[0.16em] text-white/35">
+                              Release Notes
+                            </p>
+                            <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-white/62">
+                              {submission.release_notes}
+                            </p>
+                          </div>
+                        ) : null}
+                      </div>
+
+                      <div className="rounded-3xl border border-white/10 bg-black/24 p-4">
+                        <p className="text-xs font-black uppercase tracking-[0.18em] text-yellow-300">
+                          Lyrics Text
+                        </p>
+                        {submission.lyrics_text ? (
+                          <p className="mt-4 max-h-80 overflow-y-auto whitespace-pre-wrap rounded-2xl border border-white/10 bg-black/25 p-4 text-sm leading-6 text-white/62">
+                            {submission.lyrics_text}
+                          </p>
+                        ) : (
+                          <p className="mt-4 text-sm leading-6 text-white/35">
+                            No lyrics text provided yet.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="mt-5 rounded-3xl border border-white/10 bg-black/20 p-4">
+                      <p className="text-sm font-bold leading-6 text-white/42">
+                        No expanded metadata has been added yet. Review can
+                        still proceed from the basic title and artist details.
+                      </p>
+                    </div>
+                  )}
+
+                  <label className="mt-5 block">
+                    <span className="text-xs font-black uppercase tracking-[0.18em] text-white/38">
+                      Admin notes
+                    </span>
+                    <textarea
+                      value={notesDrafts[submission.id] ?? ""}
+                      onChange={(event) =>
+                        setNotesDrafts((current) => ({
+                          ...current,
+                          [submission.id]: event.target.value,
+                        }))
+                      }
+                      placeholder="Add review feedback for the artist. Notes are saved when you choose a status action."
+                      className="mt-2 min-h-28 w-full resize-y rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm leading-6 text-white outline-none transition placeholder:text-white/28 focus:border-yellow-300/35"
+                    />
+                  </label>
+
+                  <div className="mt-5 rounded-3xl border border-white/10 bg-black/20 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-black uppercase tracking-[0.18em] text-yellow-300">
+                          Review History
+                        </p>
+                        <p className="mt-1 text-xs leading-5 text-white/38">
+                          Read-only audit trail for admin review changes.
+                        </p>
+                      </div>
+                      <span className="rounded-full border border-white/10 bg-white/[0.045] px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-white/42">
+                        {submission.events?.length || 0} events
+                      </span>
+                    </div>
+
+                    {submission.events?.length ? (
+                      <div className="mt-4 grid gap-3">
+                        {submission.events.map((event) => (
+                          <div
+                            key={event.id}
+                            className="rounded-2xl border border-white/10 bg-white/[0.035] p-4"
+                          >
+                            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                              <div>
+                                <p className="text-sm font-black capitalize text-white/82">
+                                  {formatEventType(event.event_type)}
+                                </p>
+                                <p className="mt-1 text-xs text-white/38">
+                                  {formatDate(event.created_at)} by{" "}
+                                  {event.actor_role || "reviewer"}
+                                </p>
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                {event.previous_status ? (
+                                  <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-white/45">
+                                    {statusLabel(event.previous_status)}
+                                  </span>
+                                ) : null}
+                                {event.new_status ? (
+                                  <span
+                                    className={`rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] ${statusTone(
+                                      event.new_status
+                                    )}`}
+                                  >
+                                    {statusLabel(event.new_status)}
+                                  </span>
+                                ) : null}
+                              </div>
+                            </div>
+
+                            {event.note ? (
+                              <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-white/58">
+                                {event.note}
+                              </p>
+                            ) : null}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="mt-4 rounded-2xl border border-white/10 bg-white/[0.035] p-4 text-sm leading-6 text-white/42">
+                        No review history has been recorded for this submission
+                        yet.
+                      </p>
+                    )}
+                  </div>
+                </article>
+              ))
+            )}
           </section>
         </>
       )}
