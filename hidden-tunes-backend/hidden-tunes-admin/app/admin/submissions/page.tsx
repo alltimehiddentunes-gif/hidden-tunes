@@ -104,6 +104,23 @@ type PublishDryRunResponse = {
   error?: string;
 };
 
+type PublishResponse = {
+  success: boolean;
+  warning?: string | null;
+  published?: {
+    album_id: string | null;
+    song_id: string | null;
+    published_at: string | null;
+  };
+  error?: string;
+  blocking_reasons?: string[];
+};
+
+type PublishConfirmationState = {
+  submission: ArtistSubmission;
+  step: "impact" | "typed";
+} | null;
+
 type SubmissionStatusOption = {
   value: StatusFilter;
   label: string;
@@ -240,6 +257,10 @@ export default function AdminSubmissionsPage() {
   const [updatingId, setUpdatingId] = useState("");
   const [checkingPreflightId, setCheckingPreflightId] = useState("");
   const [checkingDryRunId, setCheckingDryRunId] = useState("");
+  const [publishingId, setPublishingId] = useState("");
+  const [publishConfirmation, setPublishConfirmation] =
+    useState<PublishConfirmationState>(null);
+  const [publishConfirmText, setPublishConfirmText] = useState("");
   const [pageError, setPageError] = useState("");
   const [notice, setNotice] = useState("");
   const [preflightResults, setPreflightResults] = useState<
@@ -248,6 +269,9 @@ export default function AdminSubmissionsPage() {
   const [dryRunResults, setDryRunResults] = useState<
     Record<string, PublishDryRunResponse>
   >({});
+  const [publishResults, setPublishResults] = useState<
+    Record<string, PublishResponse>
+  >({});
 
   const summary = useMemo(
     () => ({
@@ -255,7 +279,7 @@ export default function AdminSubmissionsPage() {
       pending: submissions.filter(
         (submission) => submission.status === "pending_review"
       ).length,
-      publishing: "Disabled",
+      publishing: "Preflight gated",
     }),
     [submissions]
   );
@@ -488,6 +512,61 @@ export default function AdminSubmissionsPage() {
     }
   }
 
+  function startPublishConfirmation(submission: ArtistSubmission) {
+    setPublishConfirmText("");
+    setPublishConfirmation({
+      submission,
+      step: "impact",
+    });
+  }
+
+  function closePublishConfirmation() {
+    setPublishConfirmation(null);
+    setPublishConfirmText("");
+  }
+
+  async function publishSubmission(submission: ArtistSubmission) {
+    setPublishingId(submission.id);
+    setNotice("");
+    setPageError("");
+
+    try {
+      const accessToken = await getRequiredAccessToken();
+      const response = await fetch(
+        `/api/admin/submissions/${submission.id}/publish`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      );
+      const payload = (await response.json().catch(() => null)) as
+        | PublishResponse
+        | null;
+
+      if (!response.ok || !payload?.success || !payload.published) {
+        throw new Error(payload?.error || "Submission could not be published.");
+      }
+
+      setPublishResults((current) => ({
+        ...current,
+        [submission.id]: payload,
+      }));
+      setNotice(
+        `${submission.title} published to catalog. Album ${payload.published.album_id}, song ${payload.published.song_id}.`
+      );
+      closePublishConfirmation();
+      loadSubmissions();
+    } catch (error) {
+      setPageError(
+        error instanceof Error ? error.message : "Submission could not be published."
+      );
+    } finally {
+      setPublishingId("");
+    }
+  }
+
   return (
     <AdminShell
       eyebrow="Artist Submissions"
@@ -590,6 +669,10 @@ export default function AdminSubmissionsPage() {
                 );
                 const preflightResult = preflightResults[submission.id];
                 const dryRunResult = dryRunResults[submission.id];
+                const publishResult = publishResults[submission.id];
+                const canShowPublishButton =
+                  submission.status === "approved" &&
+                  preflightResult?.can_publish === true;
 
                 return (
                   <article
@@ -939,6 +1022,56 @@ export default function AdminSubmissionsPage() {
                         ) : null}
                       </div>
                     ) : null}
+
+                    {canShowPublishButton ? (
+                      <div className="mt-4 rounded-2xl border border-red-300/20 bg-red-500/10 p-4">
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                          <div>
+                            <p className="text-sm font-black text-red-50">
+                              Final publish is available.
+                            </p>
+                            <p className="mt-1 text-xs font-bold leading-5 text-red-50/62">
+                              This action creates public catalog album and song
+                              rows. It requires two confirmations.
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => startPublishConfirmation(submission)}
+                            disabled={publishingId === submission.id}
+                            className="rounded-2xl bg-red-400 px-5 py-3 text-sm font-black text-black transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {publishingId === submission.id
+                              ? "Publishing..."
+                              : "Publish to Catalog"}
+                          </button>
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {publishResult?.published ? (
+                      <div className="mt-4 rounded-2xl border border-emerald-300/20 bg-emerald-400/10 p-4">
+                        <p className="text-sm font-black text-emerald-100">
+                          Published successfully.
+                        </p>
+                        <div className="mt-3 grid gap-2 md:grid-cols-3">
+                          <p className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs font-bold text-white/70">
+                            Album ID: {publishResult.published.album_id}
+                          </p>
+                          <p className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs font-bold text-white/70">
+                            Song ID: {publishResult.published.song_id}
+                          </p>
+                          <p className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs font-bold text-white/70">
+                            Published:{" "}
+                            {formatDate(publishResult.published.published_at)}
+                          </p>
+                        </div>
+                        {publishResult.warning ? (
+                          <p className="mt-3 rounded-xl border border-yellow-300/20 bg-yellow-300/10 px-3 py-2 text-xs font-bold leading-5 text-yellow-50/80">
+                            {publishResult.warning}
+                          </p>
+                        ) : null}
+                      </div>
+                    ) : null}
                   </div>
 
                   {hasReviewDetails(submission) ? (
@@ -1176,6 +1309,88 @@ export default function AdminSubmissionsPage() {
           </section>
         </>
       )}
+
+      {publishConfirmation ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-xl rounded-[2rem] border border-red-300/20 bg-[#101017] p-6 shadow-2xl">
+            {publishConfirmation.step === "impact" ? (
+              <>
+                <p className="text-xs font-black uppercase tracking-[0.22em] text-red-200">
+                  Final Publish Confirmation
+                </p>
+                <h2 className="mt-3 text-2xl font-black tracking-[-0.04em] text-white">
+                  This will create a public catalog release.
+                </h2>
+                <p className="mt-3 text-sm leading-6 text-white/58">
+                  Hidden Tunes will create one album and one song from this
+                  approved artist submission. This is not an approval action; it
+                  publishes catalog rows.
+                </p>
+                <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
+                  <button
+                    onClick={closePublishConfirmation}
+                    className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-black text-white/62 transition hover:text-white"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() =>
+                      setPublishConfirmation({
+                        submission: publishConfirmation.submission,
+                        step: "typed",
+                      })
+                    }
+                    className="rounded-2xl bg-red-400 px-4 py-3 text-sm font-black text-black transition hover:-translate-y-0.5"
+                  >
+                    Continue
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-xs font-black uppercase tracking-[0.22em] text-red-200">
+                  Type PUBLISH To Confirm
+                </p>
+                <h2 className="mt-3 text-2xl font-black tracking-[-0.04em] text-white">
+                  Publish {publishConfirmation.submission.title}
+                </h2>
+                <p className="mt-3 text-sm leading-6 text-white/58">
+                  Type <span className="font-black text-white">PUBLISH</span> to
+                  create public catalog rows for this submission.
+                </p>
+                <input
+                  value={publishConfirmText}
+                  onChange={(event) => setPublishConfirmText(event.target.value)}
+                  placeholder="PUBLISH"
+                  className="mt-5 w-full rounded-2xl border border-white/10 bg-black/35 px-4 py-3 text-sm font-black tracking-[0.18em] text-white outline-none placeholder:text-white/24 focus:border-red-300/35"
+                />
+                <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
+                  <button
+                    onClick={closePublishConfirmation}
+                    className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-black text-white/62 transition hover:text-white"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() =>
+                      publishSubmission(publishConfirmation.submission)
+                    }
+                    disabled={
+                      publishConfirmText !== "PUBLISH" ||
+                      publishingId === publishConfirmation.submission.id
+                    }
+                    className="rounded-2xl bg-red-400 px-4 py-3 text-sm font-black text-black transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {publishingId === publishConfirmation.submission.id
+                      ? "Publishing..."
+                      : "Publish Now"}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      ) : null}
     </AdminShell>
   );
 }
