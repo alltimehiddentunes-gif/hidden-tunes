@@ -459,11 +459,11 @@ export default function AdminReleaseDetailPage() {
         </div>
       }
     >
-      <section className="grid gap-5 xl:grid-cols-[380px_1fr]">
-        <aside className="flex flex-col gap-5">
-          <div className="overflow-hidden rounded-[2.1rem] border border-white/10 bg-[#101017]/92 shadow-2xl">
+      <section className="flex w-full min-w-0 max-w-full flex-col gap-5 overflow-x-hidden">
+        <aside className="grid w-full min-w-0 max-w-full gap-5 xl:grid-cols-2 2xl:grid-cols-4">
+          <div className="min-w-0 rounded-[2.1rem] border border-white/10 bg-[#101017]/92 shadow-2xl">
             <div
-              className="aspect-square bg-[#111118] bg-cover bg-center"
+              className="aspect-square rounded-t-[2.1rem] bg-[#111118] bg-cover bg-center"
               style={{
                 backgroundImage: release.artworkUrl
                   ? `url("${release.artworkUrl}")`
@@ -486,7 +486,7 @@ export default function AdminReleaseDetailPage() {
             </div>
           </div>
 
-          <div className="rounded-[2.1rem] border border-white/10 bg-[#101017]/92 p-5 shadow-2xl">
+          <div className="min-w-0 rounded-[2.1rem] border border-white/10 bg-[#101017]/92 p-5 shadow-2xl">
             <p className="text-xs font-black uppercase tracking-[0.28em] text-yellow-300">
               Asset Health
             </p>
@@ -513,22 +513,22 @@ export default function AdminReleaseDetailPage() {
           <RightsReviewPanel rightsReview={release.rightsReview} />
         </aside>
 
-        <section className="rounded-[2.1rem] border border-white/10 bg-[#101017]/92 p-4 shadow-2xl sm:p-5">
-          <div className="flex flex-col gap-3 border-b border-white/10 pb-5 sm:flex-row sm:items-end sm:justify-between">
-            <div>
+        <section className="w-full min-w-0 max-w-full overflow-x-hidden rounded-[2.1rem] border border-white/10 bg-[#101017]/92 p-4 shadow-2xl sm:p-5">
+          <div className="flex min-w-0 flex-col gap-3 border-b border-white/10 pb-5 sm:flex-row sm:items-end sm:justify-between">
+            <div className="min-w-0">
               <p className="text-xs font-black uppercase tracking-[0.28em] text-yellow-300">
                 Track Workspace
               </p>
-              <h2 className="mt-2 text-3xl font-black tracking-[-0.04em]">
+              <h2 className="mt-2 break-words text-3xl font-black tracking-[-0.04em]">
                 Release assets
               </h2>
             </div>
-            <p className="text-sm text-white/45">
+            <p className="max-w-xl break-words text-sm text-white/45">
               Replace files safely or edit lyrics without leaving the release.
             </p>
           </div>
 
-          <div className="mt-5 flex flex-col gap-4">
+          <div className="mt-5 flex w-full min-w-0 max-w-full flex-col gap-4">
             {release.tracks.map((track, index) => {
               const state = trackStates[track.id];
               const isBusy = state?.status === "uploading";
@@ -536,10 +536,10 @@ export default function AdminReleaseDetailPage() {
               return (
                 <article
                   key={track.id}
-                  className="rounded-[1.7rem] border border-white/10 bg-black/24 p-4 transition hover:border-yellow-300/20"
+                  className="w-full min-w-0 max-w-full rounded-[1.7rem] border border-white/10 bg-black/24 p-4 transition hover:border-yellow-300/20"
                 >
-                  <div className="grid gap-4 xl:grid-cols-[88px_1fr_300px]">
-                    <div>
+                  <div className="grid w-full min-w-0 max-w-full gap-4 sm:grid-cols-[72px_minmax(0,1fr)]">
+                    <div className="min-w-0">
                       <div
                         className="h-16 w-16 rounded-2xl border border-white/10 bg-[#15151d] bg-cover bg-center shadow-xl"
                         style={{
@@ -548,25 +548,25 @@ export default function AdminReleaseDetailPage() {
                             : "linear-gradient(135deg,rgba(250,204,21,0.18),rgba(255,255,255,0.04))",
                         }}
                       />
-                      <p className="mt-3 text-xs font-black uppercase tracking-widest text-white/35">
+                      <p className="mt-3 break-words text-xs font-black uppercase tracking-widest text-white/35">
                         Track {String(index + 1).padStart(2, "0")}
                       </p>
                     </div>
 
-                    <div>
-                      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                        <div>
-                          <h3 className="text-2xl font-black tracking-[-0.035em]">
+                    <div className="min-w-0 max-w-full">
+                      <div className="flex min-w-0 max-w-full flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                        <div className="min-w-0">
+                          <h3 className="break-words text-2xl font-black tracking-[-0.035em] [overflow-wrap:anywhere]">
                             {track.title}
                           </h3>
-                          <p className="mt-1 text-sm font-semibold text-white/48">
+                          <p className="mt-1 break-words text-sm font-semibold text-white/48 [overflow-wrap:anywhere]">
                             {formatDuration(track.duration)} / {assetSummary(track)}
                           </p>
                         </div>
                         <StatusBadge status={trackStatus(track)} />
                       </div>
 
-                      <div className="mt-4 flex flex-wrap gap-2">
+                      <div className="mt-4 flex min-w-0 max-w-full flex-wrap gap-2">
                         <AssetPill label="Audio" active={Boolean(track.audioUrl)} />
                         <AssetPill
                           label="Artwork"
@@ -587,8 +587,8 @@ export default function AdminReleaseDetailPage() {
                                 : "border-yellow-400/20 bg-yellow-500/10 text-yellow-100"
                           }`}
                         >
-                          <div className="flex items-center justify-between gap-4">
-                            <span>{state.message}</span>
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                            <span className="break-words">{state.message}</span>
                             {state.status === "uploading" ? (
                               <span className="font-black">{state.progress}%</span>
                             ) : null}
@@ -605,14 +605,14 @@ export default function AdminReleaseDetailPage() {
                       ) : null}
                     </div>
 
-                    <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
+                    <div className="grid w-full min-w-0 max-w-full grid-cols-[repeat(auto-fit,minmax(120px,1fr))] gap-2 sm:col-span-2">
                       <button
                         onClick={() =>
                           router.push(
                             `/admin/releases/${release.id}/tracks/${track.id}/lyrics`
                           )
                         }
-                        className="rounded-2xl border border-white/10 bg-white/[0.055] px-4 py-3 text-sm font-black text-white/82 transition hover:-translate-y-0.5 hover:border-white/25"
+                        className="min-w-0 whitespace-normal rounded-2xl border border-white/10 bg-white/[0.055] px-4 py-3 text-sm font-black leading-5 text-white/82 transition hover:-translate-y-0.5 hover:border-white/25 [overflow-wrap:anywhere]"
                       >
                         Edit Plain Lyrics
                       </button>
@@ -622,12 +622,12 @@ export default function AdminReleaseDetailPage() {
                             `/admin/releases/${release.id}/tracks/${track.id}/synced-lyrics`
                           )
                         }
-                        className="rounded-2xl border border-white/10 bg-white/[0.055] px-4 py-3 text-sm font-black text-white/82 transition hover:-translate-y-0.5 hover:border-white/25"
+                        className="min-w-0 whitespace-normal rounded-2xl border border-white/10 bg-white/[0.055] px-4 py-3 text-sm font-black leading-5 text-white/82 transition hover:-translate-y-0.5 hover:border-white/25 [overflow-wrap:anywhere]"
                       >
                         Edit Synced Lyrics
                       </button>
                       <label
-                        className={`cursor-pointer rounded-2xl border px-4 py-3 text-center text-sm font-black transition ${
+                        className={`min-w-0 cursor-pointer whitespace-normal rounded-2xl border px-4 py-3 text-center text-sm font-black leading-5 transition [overflow-wrap:anywhere] ${
                           isBusy
                             ? "pointer-events-none border-white/10 bg-white/[0.03] text-white/30"
                             : "border-yellow-300/25 bg-yellow-300/10 text-yellow-100 hover:-translate-y-0.5"
@@ -646,7 +646,7 @@ export default function AdminReleaseDetailPage() {
                         />
                       </label>
                       <label
-                        className={`cursor-pointer rounded-2xl border px-4 py-3 text-center text-sm font-black transition ${
+                        className={`min-w-0 cursor-pointer whitespace-normal rounded-2xl border px-4 py-3 text-center text-sm font-black leading-5 transition [overflow-wrap:anywhere] ${
                           isBusy
                             ? "pointer-events-none border-white/10 bg-white/[0.03] text-white/30"
                             : "border-white/10 bg-white/[0.055] text-white/82 hover:-translate-y-0.5 hover:border-white/25"
@@ -667,7 +667,7 @@ export default function AdminReleaseDetailPage() {
                       <a
                         href={track.audioUrl || undefined}
                         download
-                        className={`rounded-2xl border px-4 py-3 text-center text-sm font-black transition ${
+                        className={`min-w-0 whitespace-normal rounded-2xl border px-4 py-3 text-center text-sm font-black leading-5 transition [overflow-wrap:anywhere] ${
                           track.audioUrl
                             ? "border-emerald-300/20 bg-emerald-400/10 text-emerald-100 hover:-translate-y-0.5"
                             : "pointer-events-none border-white/10 bg-white/[0.03] text-white/30"
@@ -735,11 +735,11 @@ function UploaderInfoCard({
   const hasUploader = Boolean(uploader?.id);
 
   return (
-    <div className="rounded-[2.1rem] border border-white/10 bg-[#101017]/92 p-5 shadow-2xl">
+    <div className="min-w-0 rounded-[2.1rem] border border-white/10 bg-[#101017]/92 p-5 shadow-2xl">
       <p className="text-xs font-black uppercase tracking-[0.28em] text-yellow-300">
         Uploaded By
       </p>
-      <h2 className="mt-2 truncate text-2xl font-black tracking-[-0.04em]">
+      <h2 className="mt-2 break-all text-2xl font-black tracking-[-0.04em]">
         {uploader?.email || "Unknown uploader"}
       </h2>
       <div className="mt-4 grid gap-3">
@@ -759,7 +759,7 @@ function UploaderInfoCard({
         <button
           type="button"
           onClick={onViewUploads}
-          className="mt-4 w-full rounded-2xl border border-yellow-300/25 bg-yellow-300/10 px-4 py-3 text-xs font-black uppercase tracking-widest text-yellow-100 transition hover:-translate-y-0.5"
+          className="mt-4 w-full min-w-0 whitespace-normal rounded-2xl border border-yellow-300/25 bg-yellow-300/10 px-4 py-3 text-xs font-black uppercase tracking-widest text-yellow-100 transition hover:-translate-y-0.5 [overflow-wrap:anywhere]"
         >
           View uploader uploads
         </button>
@@ -774,13 +774,13 @@ function RightsReviewPanel({
   rightsReview?: RightsReviewMetadata | null;
 }) {
   return (
-    <div className="rounded-[2.1rem] border border-yellow-300/15 bg-gradient-to-br from-yellow-300/[0.08] via-[#101017] to-[#101017] p-5 shadow-2xl">
-      <div className="flex items-start justify-between gap-4">
-        <div>
+    <div className="min-w-0 rounded-[2.1rem] border border-yellow-300/15 bg-gradient-to-br from-yellow-300/[0.08] via-[#101017] to-[#101017] p-5 shadow-2xl">
+      <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
           <p className="text-xs font-black uppercase tracking-[0.28em] text-yellow-300">
             Rights & Review
           </p>
-          <h2 className="mt-2 text-2xl font-black tracking-[-0.04em]">
+          <h2 className="mt-2 break-words text-2xl font-black tracking-[-0.04em]">
             Display-only safety metadata
           </h2>
         </div>
@@ -793,7 +793,7 @@ function RightsReviewPanel({
         </span>
       </div>
 
-      <p className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-3 text-xs leading-5 text-white/50">
+      <p className="mt-4 break-words rounded-2xl border border-white/10 bg-black/20 p-3 text-xs leading-5 text-white/50 [overflow-wrap:anywhere]">
         {RIGHTS_REVIEW_LATER_PHASE_NOTE}
       </p>
 
@@ -847,13 +847,13 @@ function ReviewField({
   multiline?: boolean;
 }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-black/22 px-4 py-3">
+    <div className="min-w-0 rounded-2xl border border-white/10 bg-black/22 px-4 py-3">
       <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/34">
         {label}
       </p>
       <p
         className={`mt-1 text-sm font-bold text-white/76 ${
-          multiline ? "whitespace-pre-wrap leading-6" : "truncate"
+          multiline ? "whitespace-pre-wrap break-words leading-6" : "break-all"
         }`}
       >
         {value}
@@ -888,7 +888,7 @@ function HealthRow({ label, value }: { label: string; value: string }) {
 function AssetPill({ label, active }: { label: string; active: boolean }) {
   return (
     <span
-      className={`rounded-full border px-3 py-1 text-xs font-black ${
+      className={`max-w-full break-words rounded-full border px-3 py-1 text-xs font-black [overflow-wrap:anywhere] ${
         active
           ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-100"
           : "border-white/10 bg-white/[0.04] text-white/35"
