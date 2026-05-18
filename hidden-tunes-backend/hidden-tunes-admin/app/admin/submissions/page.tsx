@@ -87,6 +87,23 @@ type PublishPreflightResponse = {
   error?: string;
 };
 
+type CatalogDryRunPayload = Record<string, string | number | boolean | null>;
+
+type PublishDryRunResponse = {
+  success: boolean;
+  can_publish?: boolean;
+  blocking_reasons?: string[];
+  warnings?: string[];
+  duplicate_matches?: PublishPreflightDuplicateMatch[];
+  payloads?: {
+    album: CatalogDryRunPayload;
+    song: CatalogDryRunPayload;
+    lyrics: CatalogDryRunPayload | null;
+  } | null;
+  copy?: string;
+  error?: string;
+};
+
 type SubmissionStatusOption = {
   value: StatusFilter;
   label: string;
@@ -222,10 +239,14 @@ export default function AdminSubmissionsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState("");
   const [checkingPreflightId, setCheckingPreflightId] = useState("");
+  const [checkingDryRunId, setCheckingDryRunId] = useState("");
   const [pageError, setPageError] = useState("");
   const [notice, setNotice] = useState("");
   const [preflightResults, setPreflightResults] = useState<
     Record<string, PublishPreflightResponse>
+  >({});
+  const [dryRunResults, setDryRunResults] = useState<
+    Record<string, PublishDryRunResponse>
   >({});
 
   const summary = useMemo(
@@ -426,6 +447,47 @@ export default function AdminSubmissionsPage() {
     }
   }
 
+  async function previewCatalogPayload(submission: ArtistSubmission) {
+    setCheckingDryRunId(submission.id);
+    setNotice("");
+    setPageError("");
+
+    try {
+      const accessToken = await getRequiredAccessToken();
+      const response = await fetch(
+        `/api/admin/submissions/${submission.id}/publish/dry-run`,
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      );
+      const payload = (await response.json().catch(() => null)) as
+        | PublishDryRunResponse
+        | null;
+
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || "Publish dry run could not run.");
+      }
+
+      setDryRunResults((current) => ({
+        ...current,
+        [submission.id]: payload,
+      }));
+      setNotice(
+        payload.can_publish
+          ? `${submission.title} catalog payload preview is ready. Nothing has been published.`
+          : `${submission.title} cannot generate a publish payload until blockers are cleared.`
+      );
+    } catch (error) {
+      setPageError(
+        error instanceof Error ? error.message : "Publish dry run could not run."
+      );
+    } finally {
+      setCheckingDryRunId("");
+    }
+  }
+
   return (
     <AdminShell
       eyebrow="Artist Submissions"
@@ -527,6 +589,7 @@ export default function AdminSubmissionsPage() {
                   submission.missing_requirements || []
                 );
                 const preflightResult = preflightResults[submission.id];
+                const dryRunResult = dryRunResults[submission.id];
 
                 return (
                   <article
@@ -675,15 +738,26 @@ export default function AdminSubmissionsPage() {
                           catalog rows.
                         </p>
                       </div>
-                      <button
-                        onClick={() => checkPublishPreflight(submission)}
-                        disabled={checkingPreflightId === submission.id}
-                        className="rounded-2xl border border-purple-200/25 px-4 py-3 text-sm font-black text-purple-50 transition hover:bg-purple-300/10 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        {checkingPreflightId === submission.id
-                          ? "Checking..."
-                          : "Check publish readiness"}
-                      </button>
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <button
+                          onClick={() => checkPublishPreflight(submission)}
+                          disabled={checkingPreflightId === submission.id}
+                          className="rounded-2xl border border-purple-200/25 px-4 py-3 text-sm font-black text-purple-50 transition hover:bg-purple-300/10 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {checkingPreflightId === submission.id
+                            ? "Checking..."
+                            : "Check publish readiness"}
+                        </button>
+                        <button
+                          onClick={() => previewCatalogPayload(submission)}
+                          disabled={checkingDryRunId === submission.id}
+                          className="rounded-2xl border border-yellow-300/25 px-4 py-3 text-sm font-black text-yellow-50 transition hover:bg-yellow-300/10 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {checkingDryRunId === submission.id
+                            ? "Previewing..."
+                            : "Preview catalog payload"}
+                        </button>
+                      </div>
                     </div>
 
                     {preflightResult ? (
@@ -781,6 +855,87 @@ export default function AdminSubmissionsPage() {
                             found. Publishing remains disabled until a later
                             phase.
                           </p>
+                        ) : null}
+                      </div>
+                    ) : null}
+
+                    {dryRunResult ? (
+                      <div
+                        className={`mt-4 rounded-2xl border p-4 ${
+                          dryRunResult.can_publish
+                            ? "border-yellow-300/20 bg-yellow-300/10"
+                            : "border-red-300/20 bg-red-500/10"
+                        }`}
+                      >
+                        <p className="text-sm font-black text-yellow-50">
+                          Dry run only — nothing has been published.
+                        </p>
+
+                        {!dryRunResult.can_publish ? (
+                          <div className="mt-4">
+                            <p className="text-[11px] font-black uppercase tracking-[0.16em] text-red-100/75">
+                              Dry run blockers
+                            </p>
+                            <div className="mt-2 grid gap-2">
+                              {(dryRunResult.blocking_reasons || []).map(
+                                (reason) => (
+                                  <p
+                                    key={reason}
+                                    className="rounded-xl border border-red-300/15 bg-black/20 px-3 py-2 text-xs font-bold leading-5 text-red-50/75"
+                                  >
+                                    {reason}
+                                  </p>
+                                )
+                              )}
+                            </div>
+                          </div>
+                        ) : null}
+
+                        {dryRunResult.payloads ? (
+                          <div className="mt-4 grid gap-3 xl:grid-cols-3">
+                            <PayloadPreviewCard
+                              title="Proposed Album"
+                              payload={dryRunResult.payloads.album}
+                            />
+                            <PayloadPreviewCard
+                              title="Proposed Song"
+                              payload={dryRunResult.payloads.song}
+                            />
+                            {dryRunResult.payloads.lyrics ? (
+                              <PayloadPreviewCard
+                                title="Proposed Lyrics"
+                                payload={dryRunResult.payloads.lyrics}
+                              />
+                            ) : (
+                              <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                                <p className="text-xs font-black uppercase tracking-[0.16em] text-white/38">
+                                  Proposed Lyrics
+                                </p>
+                                <p className="mt-3 text-sm leading-6 text-white/45">
+                                  No lyrics payload will be proposed because
+                                  this submission has no lyrics text.
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        ) : null}
+
+                        {dryRunResult.warnings?.length ? (
+                          <div className="mt-4">
+                            <p className="text-[11px] font-black uppercase tracking-[0.16em] text-white/40">
+                              Dry run warnings
+                            </p>
+                            <div className="mt-2 grid gap-2">
+                              {dryRunResult.warnings.map((warning) => (
+                                <p
+                                  key={warning}
+                                  className="rounded-xl border border-white/10 bg-white/[0.045] px-3 py-2 text-xs font-bold leading-5 text-white/56"
+                                >
+                                  {warning}
+                                </p>
+                              ))}
+                            </div>
+                          </div>
                         ) : null}
                       </div>
                     ) : null}
@@ -1032,6 +1187,37 @@ function Metric({ label, value }: { label: string; value: string }) {
       <p className="mt-1 text-xs font-bold uppercase tracking-widest text-white/38">
         {label}
       </p>
+    </div>
+  );
+}
+
+function PayloadPreviewCard({
+  title,
+  payload,
+}: {
+  title: string;
+  payload: CatalogDryRunPayload;
+}) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+      <p className="text-xs font-black uppercase tracking-[0.16em] text-yellow-100/75">
+        {title}
+      </p>
+      <div className="mt-3 grid gap-2">
+        {Object.entries(payload).map(([key, value]) => (
+          <div
+            key={key}
+            className="rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2"
+          >
+            <p className="text-[10px] font-black uppercase tracking-[0.14em] text-white/35">
+              {key}
+            </p>
+            <p className="mt-1 break-words text-xs font-bold leading-5 text-white/70">
+              {value === null ? "null" : String(value)}
+            </p>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
