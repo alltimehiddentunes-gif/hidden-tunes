@@ -70,6 +70,23 @@ type UpdateSubmissionResponse = {
   error?: string;
 };
 
+type PublishPreflightDuplicateMatch = {
+  type: string;
+  table: string;
+  id: string | null;
+  title: string | null;
+  details: string | null;
+};
+
+type PublishPreflightResponse = {
+  success: boolean;
+  can_publish?: boolean;
+  blocking_reasons?: string[];
+  warnings?: string[];
+  duplicate_matches?: PublishPreflightDuplicateMatch[];
+  error?: string;
+};
+
 type SubmissionStatusOption = {
   value: StatusFilter;
   label: string;
@@ -204,8 +221,12 @@ export default function AdminSubmissionsPage() {
   const [isChecking, setIsChecking] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState("");
+  const [checkingPreflightId, setCheckingPreflightId] = useState("");
   const [pageError, setPageError] = useState("");
   const [notice, setNotice] = useState("");
+  const [preflightResults, setPreflightResults] = useState<
+    Record<string, PublishPreflightResponse>
+  >({});
 
   const summary = useMemo(
     () => ({
@@ -362,6 +383,49 @@ export default function AdminSubmissionsPage() {
     }
   }
 
+  async function checkPublishPreflight(submission: ArtistSubmission) {
+    setCheckingPreflightId(submission.id);
+    setNotice("");
+    setPageError("");
+
+    try {
+      const accessToken = await getRequiredAccessToken();
+      const response = await fetch(
+        `/api/admin/submissions/${submission.id}/publish/preflight`,
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      );
+      const payload = (await response.json().catch(() => null)) as
+        | PublishPreflightResponse
+        | null;
+
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || "Publish preflight could not run.");
+      }
+
+      setPreflightResults((current) => ({
+        ...current,
+        [submission.id]: payload,
+      }));
+      setNotice(
+        payload.can_publish
+          ? `${submission.title} passed publish preflight. No catalog publish action has been added yet.`
+          : `${submission.title} needs attention before future publishing.`
+      );
+    } catch (error) {
+      setPageError(
+        error instanceof Error
+          ? error.message
+          : "Publish preflight could not run."
+      );
+    } finally {
+      setCheckingPreflightId("");
+    }
+  }
+
   return (
     <AdminShell
       eyebrow="Artist Submissions"
@@ -462,6 +526,7 @@ export default function AdminSubmissionsPage() {
                 const missingRequirementLabels = getMissingRequirementLabels(
                   submission.missing_requirements || []
                 );
+                const preflightResult = preflightResults[submission.id];
 
                 return (
                   <article
@@ -596,6 +661,129 @@ export default function AdminSubmissionsPage() {
                         publish the submission.
                       </p>
                     )}
+                  </div>
+
+                  <div className="mt-5 rounded-3xl border border-purple-300/15 bg-purple-400/[0.055] p-4">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                      <div>
+                        <p className="text-xs font-black uppercase tracking-[0.18em] text-purple-100">
+                          Publish Preflight
+                        </p>
+                        <p className="mt-2 max-w-3xl text-sm leading-6 text-white/54">
+                          Read-only check for a future publish workflow. This
+                          does not create albums, songs, R2 assets, or public
+                          catalog rows.
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => checkPublishPreflight(submission)}
+                        disabled={checkingPreflightId === submission.id}
+                        className="rounded-2xl border border-purple-200/25 px-4 py-3 text-sm font-black text-purple-50 transition hover:bg-purple-300/10 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {checkingPreflightId === submission.id
+                          ? "Checking..."
+                          : "Check publish readiness"}
+                      </button>
+                    </div>
+
+                    {preflightResult ? (
+                      <div
+                        className={`mt-4 rounded-2xl border p-4 ${
+                          preflightResult.can_publish
+                            ? "border-emerald-300/20 bg-emerald-400/10"
+                            : "border-yellow-300/20 bg-black/20"
+                        }`}
+                      >
+                        <p
+                          className={`text-sm font-black ${
+                            preflightResult.can_publish
+                              ? "text-emerald-100"
+                              : "text-yellow-100"
+                          }`}
+                        >
+                          {preflightResult.can_publish
+                            ? "Preflight passed for future publishing."
+                            : "Preflight found blockers."}
+                        </p>
+
+                        {preflightResult.blocking_reasons?.length ? (
+                          <div className="mt-4">
+                            <p className="text-[11px] font-black uppercase tracking-[0.16em] text-yellow-100/75">
+                              Blocking reasons
+                            </p>
+                            <div className="mt-2 grid gap-2">
+                              {preflightResult.blocking_reasons.map((reason) => (
+                                <p
+                                  key={reason}
+                                  className="rounded-xl border border-yellow-300/15 bg-yellow-300/10 px-3 py-2 text-xs font-bold leading-5 text-yellow-50/80"
+                                >
+                                  {reason}
+                                </p>
+                              ))}
+                            </div>
+                          </div>
+                        ) : null}
+
+                        {preflightResult.warnings?.length ? (
+                          <div className="mt-4">
+                            <p className="text-[11px] font-black uppercase tracking-[0.16em] text-white/40">
+                              Warnings
+                            </p>
+                            <div className="mt-2 grid gap-2">
+                              {preflightResult.warnings.map((warning) => (
+                                <p
+                                  key={warning}
+                                  className="rounded-xl border border-white/10 bg-white/[0.045] px-3 py-2 text-xs font-bold leading-5 text-white/56"
+                                >
+                                  {warning}
+                                </p>
+                              ))}
+                            </div>
+                          </div>
+                        ) : null}
+
+                        {preflightResult.duplicate_matches?.length ? (
+                          <div className="mt-4">
+                            <p className="text-[11px] font-black uppercase tracking-[0.16em] text-red-100/75">
+                              Duplicate matches
+                            </p>
+                            <div className="mt-2 grid gap-2">
+                              {preflightResult.duplicate_matches.map(
+                                (match, index) => (
+                                  <div
+                                    key={`${match.table}-${match.id}-${index}`}
+                                    className="rounded-xl border border-red-300/15 bg-red-500/10 px-3 py-2"
+                                  >
+                                    <p className="text-xs font-black text-red-50">
+                                      {match.table} / {match.type}
+                                    </p>
+                                    <p className="mt-1 text-xs leading-5 text-red-50/64">
+                                      {match.title || "Untitled match"}{" "}
+                                      {match.id ? `(${match.id})` : ""}
+                                    </p>
+                                    {match.details ? (
+                                      <p className="mt-1 text-xs leading-5 text-red-50/45">
+                                        {match.details}
+                                      </p>
+                                    ) : null}
+                                  </div>
+                                )
+                              )}
+                            </div>
+                          </div>
+                        ) : null}
+
+                        {!preflightResult.blocking_reasons?.length &&
+                        !preflightResult.warnings?.length &&
+                        !preflightResult.duplicate_matches?.length ? (
+                          <p className="mt-3 text-xs font-bold leading-5 text-emerald-100/75">
+                            No blockers, warnings, or duplicate matches were
+                            found. Publishing remains disabled until a later
+                            phase.
+                          </p>
+                        ) : null}
+                      </div>
+                    ) : null}
                   </div>
 
                   {hasReviewDetails(submission) ? (
