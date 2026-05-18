@@ -154,7 +154,22 @@ async function upsertAlbum(
     .eq("artist_id", artistId)
     .maybeSingle();
 
-  if (existing) return existing;
+  if (existing) {
+    if (!existing.uploaded_by_user_id) {
+      const { data: updated, error: updateError } = await supabaseAdmin
+        .from("albums")
+        .update({ uploaded_by_user_id: uploadedByUserId })
+        .eq("id", existing.id)
+        .is("uploaded_by_user_id", null)
+        .select("*")
+        .single();
+
+      if (updateError) throw updateError;
+      return updated || existing;
+    }
+
+    return existing;
+  }
 
   const { data, error } = await supabaseAdmin
     .from("albums")
@@ -228,7 +243,7 @@ export async function POST(req: NextRequest) {
       return permission.errorResponse;
     }
 
-    const uploadedByUserId = permission.user.id;
+    const uploadedByUserId = permission.profile.id;
     const body = await req.json();
 
     const title = String(body.title || body.titleOverride || "").trim();

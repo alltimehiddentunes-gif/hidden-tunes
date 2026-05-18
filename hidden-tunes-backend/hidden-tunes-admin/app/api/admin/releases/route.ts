@@ -122,6 +122,27 @@ async function loadUploaderMap(uploaderIds: string[]) {
   );
 }
 
+async function loadAlbumIdsForUploaderSongs(uploaderId: string) {
+  if (!uploaderId) return [] as string[];
+
+  const { data, error } = await supabaseAdmin
+    .from("songs")
+    .select("album_id, uploaded_by_user_id")
+    .eq("uploaded_by_user_id", uploaderId)
+    .not("album_id", "is", null)
+    .limit(1000);
+
+  if (error) throw error;
+
+  return Array.from(
+    new Set(
+      ((data || []) as unknown as SongRow[])
+        .map((song) => String(song.album_id || ""))
+        .filter(Boolean)
+    )
+  );
+}
+
 export async function GET(request: NextRequest) {
   try {
     const permission = await requireUploadPermission(request);
@@ -145,6 +166,9 @@ export async function GET(request: NextRequest) {
     const sort = parseSort(params.get("sort"));
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
+    const uploaderSongAlbumIds = uploaderId
+      ? await loadAlbumIdsForUploaderSongs(uploaderId)
+      : [];
 
     let query = supabaseAdmin
       .from("albums")
@@ -175,7 +199,15 @@ export async function GET(request: NextRequest) {
     }
 
     if (uploaderId) {
-      query = query.eq("uploaded_by_user_id", uploaderId);
+      if (uploaderSongAlbumIds.length > 0) {
+        query = query.or(
+          `uploaded_by_user_id.eq.${uploaderId},id.in.(${uploaderSongAlbumIds.join(
+            ","
+          )})`
+        );
+      } else {
+        query = query.eq("uploaded_by_user_id", uploaderId);
+      }
     }
 
     if (uploaderSearch) {
@@ -230,6 +262,16 @@ export async function GET(request: NextRequest) {
 
     if (albumsError) throw albumsError;
 
+    if (uploaderId) {
+      console.info("Admin releases uploader ownership filter", {
+        requesterProfileId: permission.profile.id,
+        requesterAuthUserId: permission.user.id,
+        releaseFilterUploaderId: uploaderId,
+        songOwnedAlbumIds: uploaderSongAlbumIds.length,
+        returnedAlbums: albums?.length || 0,
+      });
+    }
+
     const albumRows = (albums || []) as unknown as AlbumRow[];
     const albumIds = albumRows
       .map((album) => String(album.id || ""))
@@ -256,7 +298,7 @@ export async function GET(request: NextRequest) {
         ? supabaseAdmin
             .from("songs")
             .select(
-              "id,album_id,title,genre,audio_url,url,artwork_url,cover_url,has_lyrics,lyrics_url,duration,duration_seconds,created_at"
+              "id,album_id,title,genre,audio_url,url,artwork_url,cover_url,has_lyrics,lyrics_url,duration,duration_seconds,created_at,uploaded_by_user_id"
             )
             .in("album_id", albumIds)
         : Promise.resolve({ data: [], error: null }),
