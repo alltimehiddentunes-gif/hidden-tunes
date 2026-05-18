@@ -9,6 +9,7 @@ import {
   ScrollView,
 } from "react-native";
 
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
@@ -20,6 +21,7 @@ import {
 } from "../../services/youtubeBackend";
 import {
   getStoredUserRole,
+  ONBOARDING_STORAGE_KEYS,
   type UserRole,
 } from "../../services/onboardingPreferences";
 
@@ -73,6 +75,14 @@ const ROLE_COPY: Record<
   },
 };
 
+const DEVELOPER_ROLE_OPTIONS: UserRole[] = [
+  "listener",
+  "artist",
+  "uploader",
+  "admin",
+  "owner",
+];
+
 export default function ProfileScreen() {
   const [backendStatus, setBackendStatus] = useState<BackendStatus>({
     online: false,
@@ -98,6 +108,18 @@ export default function ProfileScreen() {
   async function checkBackend() {
     const status = await checkYouTubeBackendStatus();
     setBackendStatus(status);
+  }
+
+  async function previewDeveloperRole(role: UserRole) {
+    try {
+      await AsyncStorage.setItem(ONBOARDING_STORAGE_KEYS.userRole, role);
+      setUserRole(role);
+    } catch {
+      Alert.alert(
+        "Role preview unavailable",
+        "Hidden Tunes could not save the local developer role preview."
+      );
+    }
   }
 
   function openPlaceholder(title: string) {
@@ -193,6 +215,51 @@ export default function ProfileScreen() {
           <Text style={styles.dashboardEyebrow}>{roleCopy.eyebrow}</Text>
           <Text style={styles.dashboardTitle}>{roleCopy.label} Dashboard</Text>
           <Text style={styles.dashboardDescription}>{roleCopy.description}</Text>
+        </View>
+
+        <View style={styles.developerPreviewCard}>
+          <View style={styles.developerPreviewHeader}>
+            <View>
+              <Text style={styles.developerPreviewEyebrow}>
+                Developer role preview
+              </Text>
+              <Text style={styles.developerPreviewText}>
+                Local UI testing only. This writes AsyncStorage key user_role and
+                does not grant backend permissions.
+              </Text>
+              <Text style={styles.developerPreviewCurrentRole}>
+                Current role: {ROLE_COPY[userRole].label}
+              </Text>
+            </View>
+            <Ionicons name="construct" size={22} color={COLORS.primary} />
+          </View>
+
+          <View style={styles.rolePreviewGrid}>
+            {DEVELOPER_ROLE_OPTIONS.map((role) => {
+              const isActive = userRole === role;
+
+              return (
+                <TouchableOpacity
+                  key={role}
+                  activeOpacity={0.84}
+                  style={[
+                    styles.rolePreviewButton,
+                    isActive && styles.rolePreviewButtonActive,
+                  ]}
+                  onPress={() => previewDeveloperRole(role)}
+                >
+                  <Text
+                    style={[
+                      styles.rolePreviewButtonText,
+                      isActive && styles.rolePreviewButtonTextActive,
+                    ]}
+                  >
+                    {ROLE_COPY[role].label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </View>
 
         <View style={styles.dashboardGrid}>
@@ -689,6 +756,65 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 20,
     marginTop: 9,
+  },
+  developerPreviewCard: {
+    marginTop: 14,
+    borderRadius: 28,
+    padding: 18,
+    backgroundColor: "rgba(34,197,94,0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(34,197,94,0.22)",
+  },
+  developerPreviewHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  developerPreviewEyebrow: {
+    color: COLORS.primary,
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 1.6,
+    textTransform: "uppercase",
+  },
+  developerPreviewText: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 8,
+  },
+  developerPreviewCurrentRole: {
+    color: COLORS.text,
+    fontSize: 13,
+    fontWeight: "900",
+    marginTop: 10,
+  },
+  rolePreviewGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 9,
+    marginTop: 14,
+  },
+  rolePreviewButton: {
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    backgroundColor: "rgba(255,255,255,0.07)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.11)",
+  },
+  rolePreviewButtonActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  rolePreviewButtonText: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  rolePreviewButtonTextActive: {
+    color: "#000",
   },
   dashboardGrid: {
     marginTop: 14,
