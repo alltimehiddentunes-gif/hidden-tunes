@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Image,
   ScrollView,
   StyleSheet,
   Text,
@@ -44,7 +45,13 @@ type ArtistSubmission = {
   audio_filename?: string | null;
   audio_size_bytes?: number | null;
   audio_mime_type?: string | null;
+  artwork_url?: string | null;
+  artwork_filename?: string | null;
+  artwork_size_bytes?: number | null;
+  artwork_mime_type?: string | null;
   status: ArtistSubmissionStatus | string;
+  is_review_ready?: boolean;
+  missing_requirements?: string[];
   admin_notes?: string | null;
   submitted_at: string | null;
   reviewed_at?: string | null;
@@ -111,6 +118,26 @@ const SUBMISSION_STATES: SubmissionState[] = [
 const ARTIST_SUBMISSIONS_API_URL =
   "https://admin.hiddentunes.com/api/artist-submissions";
 const ARTIST_SUBMISSION_AUDIO_API_URL = `${ARTIST_SUBMISSIONS_API_URL}/audio`;
+const ARTIST_SUBMISSION_ARTWORK_API_URL = `${ARTIST_SUBMISSIONS_API_URL}/artwork`;
+
+const REVIEW_REQUIREMENTS = [
+  { key: "title", label: "Title", description: "Add the song or release title." },
+  {
+    key: "artist_name",
+    label: "Artist name",
+    description: "Add the public artist name.",
+  },
+  {
+    key: "audio",
+    label: "Audio",
+    description: "Attach a review-only audio draft.",
+  },
+  {
+    key: "artwork",
+    label: "Artwork",
+    description: "Attach review-only cover artwork.",
+  },
+];
 
 const STATUS_COPY: Record<
   ArtistSubmissionStatus,
@@ -161,11 +188,30 @@ function canArtistAttachAudio(status: string) {
   return status === "draft" || status === "needs_changes";
 }
 
+function canArtistAttachArtwork(status: string) {
+  return status === "draft" || status === "needs_changes";
+}
+
 function formatFileSize(bytes?: number | null) {
   if (!bytes || bytes < 1) return "Size unknown";
   const megabytes = bytes / (1024 * 1024);
   if (megabytes >= 1) return `${megabytes.toFixed(1)} MB`;
   return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+}
+
+function getReadinessState(submission: ArtistSubmission) {
+  const missingRequirements = new Set(submission.missing_requirements || []);
+  const completedCount = REVIEW_REQUIREMENTS.length - missingRequirements.size;
+
+  return {
+    isReady:
+      submission.is_review_ready ??
+      (completedCount === REVIEW_REQUIREMENTS.length &&
+        REVIEW_REQUIREMENTS.length > 0),
+    completedCount,
+    totalCount: REVIEW_REQUIREMENTS.length,
+    missingRequirements,
+  };
 }
 
 function buildSubmissionDraft(submission?: ArtistSubmission): SubmissionEditDraft {
@@ -221,6 +267,7 @@ export default function ArtistSubmissionsScreen() {
   const [editingSubmissionId, setEditingSubmissionId] = useState("");
   const [updatingSubmissionId, setUpdatingSubmissionId] = useState("");
   const [attachingAudioId, setAttachingAudioId] = useState("");
+  const [attachingArtworkId, setAttachingArtworkId] = useState("");
   const [editDrafts, setEditDrafts] = useState<Record<string, SubmissionEditDraft>>(
     {}
   );
@@ -621,6 +668,80 @@ export default function ArtistSubmissionsScreen() {
     }
   }
 
+  async function attachArtworkToSubmission(submission: ArtistSubmission) {
+    setAttachingArtworkId(submission.id);
+    setStatusTone("neutral");
+    setStatusMessage("Selecting artwork attachment...");
+
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: "image/*",
+        copyToCacheDirectory: true,
+        multiple: false,
+      });
+
+      if (result.canceled) {
+        setStatusMessage("");
+        return;
+      }
+
+      const asset = result.assets[0];
+      if (!asset?.uri) {
+        throw new Error("Could not read selected artwork file.");
+      }
+
+      const { accessToken, error: tokenError } =
+        await getCurrentSupabaseAccessToken();
+
+      if (!accessToken) {
+        throw new Error(
+          tokenError || "Sign in as an artist to submit music for review."
+        );
+      }
+
+      setStatusMessage("Uploading artwork draft attachment...");
+
+      const formData = new FormData();
+      formData.append("submissionId", submission.id);
+      formData.append("file", {
+        uri: asset.uri,
+        name: asset.name || "artist-submission-artwork",
+        type: asset.mimeType || "image/jpeg",
+      } as unknown as Blob);
+
+      const response = await fetch(ARTIST_SUBMISSION_ARTWORK_API_URL, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: formData,
+      });
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok || !payload?.success || !payload.submission) {
+        throw new Error(payload?.error || "Artwork could not be attached.");
+      }
+
+      const updatedSubmission = payload.submission as ArtistSubmission;
+
+      setSubmissions((current) =>
+        current.map((item) =>
+          item.id === updatedSubmission.id ? updatedSubmission : item
+        )
+      );
+      setStatusTone("success");
+      setStatusMessage("Artwork attached for review. It is not published.");
+      loadArtistSubmissions(accessToken);
+    } catch (error) {
+      setStatusTone("error");
+      setStatusMessage(
+        error instanceof Error ? error.message : "Artwork could not be attached."
+      );
+    } finally {
+      setAttachingArtworkId("");
+    }
+  }
+
   return (
     <LinearGradient colors={GRADIENTS.main} style={styles.container}>
       <ScrollView
@@ -786,8 +907,8 @@ export default function ArtistSubmissionsScreen() {
           <View style={styles.formCard}>
           <Text style={styles.formTitle}>Start a Submission</Text>
           <Text style={styles.formDescription}>
-            Send only basic release details for review. Audio and artwork upload
-            are intentionally disabled in this phase.
+            Send release details for review first. Audio and artwork can be
+            attached to editable submissions, but nothing publishes from here.
           </Text>
 
           <Text style={styles.inputLabel}>Title</Text>
@@ -949,11 +1070,13 @@ export default function ArtistSubmissionsScreen() {
                     isEditing={editingSubmissionId === submission.id}
                     isUpdating={updatingSubmissionId === submission.id}
                     isAttachingAudio={attachingAudioId === submission.id}
+                    isAttachingArtwork={attachingArtworkId === submission.id}
                     onStartEdit={startEditingSubmission}
                     onCancelEdit={cancelEditingSubmission}
                     onChangeDraft={updateSubmissionDraft}
                     onResubmit={resubmitEditedSubmission}
                     onAttachAudio={attachAudioToSubmission}
+                    onAttachArtwork={attachArtworkToSubmission}
                   />
                 ))}
               </View>
@@ -992,9 +1115,9 @@ export default function ArtistSubmissionsScreen() {
           <View style={styles.safetyTextWrap}>
             <Text style={styles.safetyTitle}>Safe foundation phase</Text>
             <Text style={styles.safetyText}>
-              This screen does not upload files, change catalog data, or publish
-              music. The server must approve the signed-in artist profile before
-              a submission record can be created.
+              Attachments stay on artist submissions for review only. This screen
+              does not change catalog data or publish music, and the server must
+              approve the signed-in artist profile before changes are accepted.
             </Text>
           </View>
         </View>
@@ -1040,17 +1163,20 @@ function SubmissionCard({
   isEditing,
   isUpdating,
   isAttachingAudio,
+  isAttachingArtwork,
   onStartEdit,
   onCancelEdit,
   onChangeDraft,
   onResubmit,
   onAttachAudio,
+  onAttachArtwork,
 }: {
   submission: ArtistSubmission;
   draft?: SubmissionEditDraft;
   isEditing: boolean;
   isUpdating: boolean;
   isAttachingAudio: boolean;
+  isAttachingArtwork: boolean;
   onStartEdit: (submission: ArtistSubmission) => void;
   onCancelEdit: (submissionId: string) => void;
   onChangeDraft: (
@@ -1060,10 +1186,13 @@ function SubmissionCard({
   ) => void;
   onResubmit: (submission: ArtistSubmission) => void;
   onAttachAudio: (submission: ArtistSubmission) => void;
+  onAttachArtwork: (submission: ArtistSubmission) => void;
 }) {
   const status = getSubmissionStatusCopy(String(submission.status || ""));
   const canEdit = canArtistEditSubmission(String(submission.status || ""));
   const canAttachAudio = canArtistAttachAudio(String(submission.status || ""));
+  const canAttachArtwork = canArtistAttachArtwork(String(submission.status || ""));
+  const readiness = getReadinessState(submission);
   const submittedAt = submission.submitted_at
     ? new Date(submission.submitted_at).toLocaleDateString()
     : "Not submitted";
@@ -1095,6 +1224,83 @@ function SubmissionCard({
 
       <Text style={styles.submissionDescription}>{status.description}</Text>
 
+      <View
+        style={[
+          styles.readinessBox,
+          readiness.isReady ? styles.readinessBoxReady : null,
+        ]}
+      >
+        <View style={styles.readinessHeader}>
+          <View>
+            <Text style={styles.readinessEyebrow}>Review readiness</Text>
+            <Text style={styles.readinessTitle}>
+              {readiness.isReady ? "Ready for review" : "Needs a few details"}
+            </Text>
+          </View>
+          <View
+            style={[
+              styles.readinessBadge,
+              readiness.isReady ? styles.readinessBadgeReady : null,
+            ]}
+          >
+            <Text
+              style={[
+                styles.readinessBadgeText,
+                readiness.isReady ? styles.readinessBadgeTextReady : null,
+              ]}
+            >
+              {readiness.completedCount}/{readiness.totalCount}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.readinessTrack}>
+          <View
+            style={[
+              styles.readinessProgress,
+              {
+                width: `${Math.round(
+                  (readiness.completedCount / readiness.totalCount) * 100
+                )}%`,
+              },
+            ]}
+          />
+        </View>
+
+        <View style={styles.readinessChecklist}>
+          {REVIEW_REQUIREMENTS.map((requirement) => {
+            const isMissing = readiness.missingRequirements.has(requirement.key);
+
+            return (
+              <View key={requirement.key} style={styles.readinessItem}>
+                <View
+                  style={[
+                    styles.readinessCheck,
+                    !isMissing ? styles.readinessCheckDone : null,
+                  ]}
+                >
+                  <Ionicons
+                    name={isMissing ? "ellipse-outline" : "checkmark"}
+                    size={14}
+                    color={isMissing ? COLORS.textMuted : "#050508"}
+                  />
+                </View>
+                <View style={styles.readinessItemTextWrap}>
+                  <Text style={styles.readinessItemLabel}>
+                    {requirement.label}
+                  </Text>
+                  {isMissing ? (
+                    <Text style={styles.readinessItemDescription}>
+                      {requirement.description}
+                    </Text>
+                  ) : null}
+                </View>
+              </View>
+            );
+          })}
+        </View>
+      </View>
+
       {submission.genre || submission.mood ? (
         <View style={styles.metadataPillRow}>
           {submission.genre ? (
@@ -1120,6 +1326,64 @@ function SubmissionCard({
           <Text style={styles.adminNotesText}>{submission.release_notes}</Text>
         </View>
       ) : null}
+
+      <View style={styles.artworkAttachmentBox}>
+        <View style={styles.audioAttachmentHeader}>
+          <View style={styles.artworkIcon}>
+            <Ionicons name="image" size={16} color="#38bdf8" />
+          </View>
+          <View style={styles.audioTextWrap}>
+            <Text style={styles.audioTitle}>Artwork draft attachment</Text>
+            <Text style={styles.audioSubtitle}>
+              Review only. This artwork is not published to the catalog.
+            </Text>
+          </View>
+        </View>
+
+        {submission.artwork_url ? (
+          <View style={styles.artworkPreviewCard}>
+            <Image
+              source={{ uri: submission.artwork_url }}
+              style={styles.artworkPreviewImage}
+              resizeMode="cover"
+            />
+            <View style={styles.artworkMetaContent}>
+              <Text style={styles.audioFileName}>
+                {submission.artwork_filename || "Attached artwork"}
+              </Text>
+              <Text style={styles.audioFileMeta}>
+                {formatFileSize(submission.artwork_size_bytes)} /{" "}
+                {submission.artwork_mime_type || "image"}
+              </Text>
+              <Text style={styles.artworkReviewOnlyText}>Review only</Text>
+            </View>
+          </View>
+        ) : (
+          <Text style={styles.audioEmptyText}>
+            No artwork attached yet. Add a draft cover image for review only.
+          </Text>
+        )}
+
+        {canAttachArtwork ? (
+          <TouchableOpacity
+            activeOpacity={0.86}
+            style={[
+              styles.attachArtworkButton,
+              isAttachingArtwork ? styles.submitButtonDisabled : null,
+            ]}
+            onPress={() => onAttachArtwork(submission)}
+            disabled={isAttachingArtwork}
+          >
+            {isAttachingArtwork ? (
+              <ActivityIndicator color="#050508" />
+            ) : (
+              <Text style={styles.attachAudioButtonText}>
+                {submission.artwork_url ? "Replace Artwork" : "Attach Artwork"}
+              </Text>
+            )}
+          </TouchableOpacity>
+        ) : null}
+      </View>
 
       <View style={styles.audioAttachmentBox}>
         <View style={styles.audioAttachmentHeader}>
@@ -1753,6 +2017,108 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     marginTop: 11,
   },
+  readinessBox: {
+    marginTop: 12,
+    borderRadius: 22,
+    padding: 14,
+    backgroundColor: "rgba(250,204,21,0.075)",
+    borderWidth: 1,
+    borderColor: "rgba(250,204,21,0.16)",
+  },
+  readinessBoxReady: {
+    backgroundColor: "rgba(34,197,94,0.09)",
+    borderColor: "rgba(34,197,94,0.24)",
+  },
+  readinessHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  readinessEyebrow: {
+    color: COLORS.textMuted,
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 1,
+    textTransform: "uppercase",
+  },
+  readinessTitle: {
+    color: COLORS.text,
+    fontSize: 15,
+    fontWeight: "900",
+    marginTop: 4,
+  },
+  readinessBadge: {
+    minWidth: 50,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    alignItems: "center",
+    backgroundColor: "rgba(250,204,21,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(250,204,21,0.24)",
+  },
+  readinessBadgeReady: {
+    backgroundColor: "rgba(34,197,94,0.18)",
+    borderColor: "rgba(34,197,94,0.34)",
+  },
+  readinessBadgeText: {
+    color: COLORS.primary,
+    fontSize: 11,
+    fontWeight: "900",
+  },
+  readinessBadgeTextReady: {
+    color: "#86efac",
+  },
+  readinessTrack: {
+    height: 7,
+    marginTop: 13,
+    borderRadius: 999,
+    overflow: "hidden",
+    backgroundColor: "rgba(255,255,255,0.09)",
+  },
+  readinessProgress: {
+    height: "100%",
+    borderRadius: 999,
+    backgroundColor: COLORS.primary,
+  },
+  readinessChecklist: {
+    marginTop: 12,
+    gap: 9,
+  },
+  readinessItem: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+  readinessCheck: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+    marginRight: 9,
+  },
+  readinessCheckDone: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  readinessItemTextWrap: {
+    flex: 1,
+  },
+  readinessItemLabel: {
+    color: COLORS.text,
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  readinessItemDescription: {
+    color: COLORS.textMuted,
+    fontSize: 11,
+    lineHeight: 16,
+    marginTop: 2,
+  },
   metadataPillRow: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -1795,6 +2161,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(250,204,21,0.16)",
   },
+  artworkAttachmentBox: {
+    marginTop: 12,
+    borderRadius: 22,
+    padding: 14,
+    backgroundColor: "rgba(56,189,248,0.075)",
+    borderWidth: 1,
+    borderColor: "rgba(56,189,248,0.18)",
+  },
   audioAttachmentHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -1808,6 +2182,17 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(250,204,21,0.12)",
     borderWidth: 1,
     borderColor: "rgba(250,204,21,0.22)",
+    marginRight: 10,
+  },
+  artworkIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(56,189,248,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(56,189,248,0.24)",
     marginRight: 10,
   },
   audioTextWrap: {
@@ -1831,6 +2216,34 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.22)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.08)",
+  },
+  artworkPreviewCard: {
+    marginTop: 12,
+    borderRadius: 18,
+    padding: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.22)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+  },
+  artworkPreviewImage: {
+    width: 76,
+    height: 76,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.08)",
+  },
+  artworkMetaContent: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  artworkReviewOnlyText: {
+    color: "#7dd3fc",
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 0.8,
+    marginTop: 7,
+    textTransform: "uppercase",
   },
   audioFileName: {
     color: COLORS.text,
@@ -1856,6 +2269,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: COLORS.primary,
+  },
+  attachArtworkButton: {
+    minHeight: 42,
+    marginTop: 12,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#38bdf8",
   },
   attachAudioButtonText: {
     color: "#050508",

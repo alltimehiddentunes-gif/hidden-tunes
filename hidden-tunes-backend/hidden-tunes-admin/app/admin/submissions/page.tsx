@@ -29,7 +29,13 @@ type ArtistSubmission = {
   audio_filename: string | null;
   audio_size_bytes: number | null;
   audio_mime_type: string | null;
+  artwork_url: string | null;
+  artwork_filename: string | null;
+  artwork_size_bytes: number | null;
+  artwork_mime_type: string | null;
   status: SubmissionStatus | string;
+  is_review_ready: boolean;
+  missing_requirements: string[];
   admin_notes: string | null;
   submitted_at: string | null;
   reviewed_at: string | null;
@@ -132,6 +138,13 @@ const REVIEW_ACTIONS: Array<{
   },
 ];
 
+const REVIEW_REQUIREMENTS = [
+  { key: "title", label: "Title" },
+  { key: "artist_name", label: "Artist name" },
+  { key: "audio", label: "Audio draft" },
+  { key: "artwork", label: "Artwork draft" },
+];
+
 function formatDate(value: string | null) {
   if (!value) return "Not set";
 
@@ -150,6 +163,13 @@ function formatFileSize(bytes: number | null) {
   const megabytes = bytes / (1024 * 1024);
   if (megabytes >= 1) return `${megabytes.toFixed(1)} MB`;
   return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+}
+
+function getMissingRequirementLabels(missingRequirements: string[]) {
+  const missing = new Set(missingRequirements || []);
+  return REVIEW_REQUIREMENTS.filter((requirement) =>
+    missing.has(requirement.key)
+  ).map((requirement) => requirement.label);
 }
 
 function statusLabel(value: string | null | undefined) {
@@ -438,11 +458,20 @@ export default function AdminSubmissionsPage() {
                 </p>
               </div>
             ) : (
-              submissions.map((submission) => (
-                <article
-                  key={submission.id}
-                  className="rounded-[1.8rem] border border-white/10 bg-[#101017]/92 p-5 shadow-2xl"
-                >
+              submissions.map((submission) => {
+                const missingRequirementLabels = getMissingRequirementLabels(
+                  submission.missing_requirements || []
+                );
+
+                return (
+                  <article
+                    key={submission.id}
+                    className={`rounded-[1.8rem] border p-5 shadow-2xl ${
+                      submission.is_review_ready
+                        ? "border-white/10 bg-[#101017]/92"
+                        : "border-yellow-300/25 bg-yellow-300/[0.045]"
+                    }`}
+                  >
                   <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
@@ -455,6 +484,17 @@ export default function AdminSubmissionsPage() {
                         </span>
                         <span className="rounded-full border border-white/10 bg-white/[0.045] px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-white/42">
                           {formatDate(submission.submitted_at)}
+                        </span>
+                        <span
+                          className={`rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] ${
+                            submission.is_review_ready
+                              ? "border-emerald-300/25 bg-emerald-400/10 text-emerald-100"
+                              : "border-yellow-300/25 bg-yellow-300/10 text-yellow-100"
+                          }`}
+                        >
+                          {submission.is_review_ready
+                            ? "Review Ready"
+                            : "Incomplete"}
                         </span>
                       </div>
                       <h3 className="mt-4 text-2xl font-black tracking-[-0.04em]">
@@ -487,6 +527,57 @@ export default function AdminSubmissionsPage() {
                         </button>
                       ))}
                     </div>
+                  </div>
+
+                  <div
+                    className={`mt-5 rounded-3xl border p-4 ${
+                      submission.is_review_ready
+                        ? "border-emerald-300/20 bg-emerald-400/10"
+                        : "border-yellow-300/20 bg-yellow-300/10"
+                    }`}
+                  >
+                    <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                      <div>
+                        <p
+                          className={`text-xs font-black uppercase tracking-[0.18em] ${
+                            submission.is_review_ready
+                              ? "text-emerald-100"
+                              : "text-yellow-100"
+                          }`}
+                        >
+                          {submission.is_review_ready
+                            ? "Ready For Review"
+                            : "Missing Requirements"}
+                        </p>
+                        <p className="mt-2 text-sm leading-6 text-white/58">
+                          Readiness is computed from title, artist name, audio,
+                          and artwork. Lyrics are optional for now.
+                        </p>
+                      </div>
+                      <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-white/52">
+                        {REVIEW_REQUIREMENTS.length -
+                          missingRequirementLabels.length}
+                        /{REVIEW_REQUIREMENTS.length} complete
+                      </span>
+                    </div>
+
+                    {missingRequirementLabels.length > 0 ? (
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {missingRequirementLabels.map((requirement) => (
+                          <span
+                            key={requirement}
+                            className="rounded-full border border-yellow-300/20 bg-black/20 px-3 py-1 text-xs font-bold text-yellow-100"
+                          >
+                            Missing {requirement}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="mt-4 text-sm font-bold text-emerald-100/80">
+                        Required review assets are present. This still does not
+                        publish the submission.
+                      </p>
+                    )}
                   </div>
 
                   {hasReviewDetails(submission) ? (
@@ -594,6 +685,47 @@ export default function AdminSubmissionsPage() {
                     )}
                   </div>
 
+                  <div className="mt-5 rounded-3xl border border-sky-300/15 bg-sky-400/[0.055] p-4">
+                    <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-200">
+                      Artwork Draft Attachment
+                    </p>
+                    {submission.artwork_url ? (
+                      <div className="mt-4 grid gap-4 rounded-2xl border border-white/10 bg-black/25 p-4 md:grid-cols-[180px_1fr]">
+                        <div
+                          role="img"
+                          aria-label={
+                            submission.artwork_filename ||
+                            "Artist submission artwork preview"
+                          }
+                          className="aspect-square w-full rounded-2xl border border-white/10 bg-cover bg-center"
+                          style={{
+                            backgroundImage: `url("${submission.artwork_url}")`,
+                          }}
+                        />
+                        <div>
+                          <p className="text-sm font-black text-white">
+                            {submission.artwork_filename || "Attached artwork"}
+                          </p>
+                          <p className="mt-1 text-xs font-bold text-white/45">
+                            {formatFileSize(submission.artwork_size_bytes)} /{" "}
+                            {submission.artwork_mime_type || "image"}
+                          </p>
+                          <p className="mt-3 break-all text-xs leading-5 text-white/32">
+                            {submission.artwork_url}
+                          </p>
+                          <p className="mt-3 text-xs font-bold leading-5 text-sky-50/75">
+                            Review only — this artwork is not published to songs,
+                            albums, or the public catalog.
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="mt-4 text-sm leading-6 text-white/42">
+                        No artwork draft has been attached to this submission yet.
+                      </p>
+                    )}
+                  </div>
+
                   <label className="mt-5 block">
                     <span className="text-xs font-black uppercase tracking-[0.18em] text-white/38">
                       Admin notes
@@ -676,8 +808,9 @@ export default function AdminSubmissionsPage() {
                       </p>
                     )}
                   </div>
-                </article>
-              ))
+                  </article>
+                );
+              })
             )}
           </section>
         </>

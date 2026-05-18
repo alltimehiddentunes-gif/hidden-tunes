@@ -87,6 +87,38 @@ function cleanFileName(fileName: string) {
   return safeName || "artist-submission-artwork";
 }
 
+function getReviewReadiness(submission: Record<string, unknown>) {
+  const missingRequirements: string[] = [];
+
+  if (!String(submission.title || "").trim()) {
+    missingRequirements.push("title");
+  }
+
+  if (!String(submission.artist_name || "").trim()) {
+    missingRequirements.push("artist_name");
+  }
+
+  if (!String(submission.audio_url || "").trim()) {
+    missingRequirements.push("audio");
+  }
+
+  if (!String(submission.artwork_url || "").trim()) {
+    missingRequirements.push("artwork");
+  }
+
+  return {
+    is_review_ready: missingRequirements.length === 0,
+    missing_requirements: missingRequirements,
+  };
+}
+
+function withReviewReadiness<T extends Record<string, unknown>>(submission: T) {
+  return {
+    ...submission,
+    ...getReviewReadiness(submission),
+  };
+}
+
 async function requireArtistSubmissionPermission(
   request: NextRequest
 ): Promise<
@@ -292,7 +324,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      submission: data,
+      submission: withReviewReadiness(data as unknown as Record<string, unknown>),
     });
   } catch (error) {
     return jsonError(

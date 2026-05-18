@@ -32,6 +32,10 @@ const SUBMISSION_SELECT_FIELDS = [
   "audio_filename",
   "audio_size_bytes",
   "audio_mime_type",
+  "artwork_url",
+  "artwork_filename",
+  "artwork_size_bytes",
+  "artwork_mime_type",
   "status",
   "admin_notes",
   "submitted_at",
@@ -81,6 +85,38 @@ function cleanFileName(fileName: string) {
     .slice(0, 160);
 
   return safeName || "artist-submission-audio";
+}
+
+function getReviewReadiness(submission: Record<string, unknown>) {
+  const missingRequirements: string[] = [];
+
+  if (!String(submission.title || "").trim()) {
+    missingRequirements.push("title");
+  }
+
+  if (!String(submission.artist_name || "").trim()) {
+    missingRequirements.push("artist_name");
+  }
+
+  if (!String(submission.audio_url || "").trim()) {
+    missingRequirements.push("audio");
+  }
+
+  if (!String(submission.artwork_url || "").trim()) {
+    missingRequirements.push("artwork");
+  }
+
+  return {
+    is_review_ready: missingRequirements.length === 0,
+    missing_requirements: missingRequirements,
+  };
+}
+
+function withReviewReadiness<T extends Record<string, unknown>>(submission: T) {
+  return {
+    ...submission,
+    ...getReviewReadiness(submission),
+  };
 }
 
 async function requireArtistSubmissionPermission(
@@ -288,7 +324,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      submission: data,
+      submission: withReviewReadiness(data as unknown as Record<string, unknown>),
     });
   } catch (error) {
     return jsonError(

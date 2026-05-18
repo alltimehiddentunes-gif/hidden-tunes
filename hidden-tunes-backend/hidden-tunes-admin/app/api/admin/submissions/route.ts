@@ -95,6 +95,38 @@ function normalizeNullableText(value: unknown) {
   return cleaned || null;
 }
 
+function getReviewReadiness(submission: Record<string, unknown>) {
+  const missingRequirements: string[] = [];
+
+  if (!String(submission.title || "").trim()) {
+    missingRequirements.push("title");
+  }
+
+  if (!String(submission.artist_name || "").trim()) {
+    missingRequirements.push("artist_name");
+  }
+
+  if (!String(submission.audio_url || "").trim()) {
+    missingRequirements.push("audio");
+  }
+
+  if (!String(submission.artwork_url || "").trim()) {
+    missingRequirements.push("artwork");
+  }
+
+  return {
+    is_review_ready: missingRequirements.length === 0,
+    missing_requirements: missingRequirements,
+  };
+}
+
+function withReviewReadiness<T extends Record<string, unknown>>(submission: T) {
+  return {
+    ...submission,
+    ...getReviewReadiness(submission),
+  };
+}
+
 async function attachSubmissionEvents(
   submissions: Array<Record<string, unknown>>
 ) {
@@ -106,7 +138,7 @@ async function attachSubmissionEvents(
     return submissions.map((submission) => ({
       ...submission,
       events: [] as SubmissionEventRow[],
-    }));
+    })).map(withReviewReadiness);
   }
 
   const { data, error } = await supabaseAdmin
@@ -131,10 +163,12 @@ async function attachSubmissionEvents(
     ]);
   });
 
-  return submissions.map((submission) => ({
-    ...submission,
-    events: eventsBySubmission.get(String(submission.id || "")) || [],
-  }));
+  return submissions
+    .map((submission) => ({
+      ...submission,
+      events: eventsBySubmission.get(String(submission.id || "")) || [],
+    }))
+    .map(withReviewReadiness);
 }
 
 function getReviewEventType(statusChanged: boolean, notesChanged: boolean) {
