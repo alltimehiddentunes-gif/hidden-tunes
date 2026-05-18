@@ -36,24 +36,80 @@ export function normalizeArtworkUrl(
   return encodeURI(cleanArtworkString(String(value)));
 }
 
-export function getArtworkValue(item: any, fallback = FALLBACK_ARTWORK): any {
-  if (!item) return fallback;
+function pushArtworkCandidate(candidates: any[], value: unknown) {
+  if (!value) return;
+
+  if (typeof value === "string") {
+    if (isHttpsArtworkUrl(value)) {
+      candidates.push(normalizeArtworkUrl(value));
+    }
+    return;
+  }
+
+  if (typeof value === "object") {
+    candidates.push(value);
+  }
+}
+
+function artworkCandidateKey(candidate: any) {
+  if (typeof candidate === "string") return candidate;
+  if (typeof candidate === "number") return String(candidate);
+
+  try {
+    return JSON.stringify(candidate);
+  } catch {
+    return String(candidate);
+  }
+}
+
+export function getArtworkCandidates(item: any, fallback = FALLBACK_ARTWORK): any[] {
+  const candidates: any[] = [];
+
+  if (!item) return [fallback];
 
   if (typeof item === "string") {
-    return normalizeArtworkUrl(item, fallback);
+    pushArtworkCandidate(candidates, item);
+    return candidates.length ? candidates : [fallback];
   }
 
   if (typeof item !== "object") {
-    return item;
+    return [item];
   }
 
-  const candidates = [
+  const rawCandidates = [
     item.artwork,
     item.artworkUrl,
     item.artwork_url,
     item.cover,
     item.coverUrl,
     item.cover_url,
+    item.albumArtwork,
+    item.album_artwork,
+    item.albumArtworkUrl,
+    item.album_artwork_url,
+    item.album_cover_url,
+    item.album?.artwork,
+    item.album?.artworkUrl,
+    item.album?.artwork_url,
+    item.album?.cover,
+    item.album?.coverUrl,
+    item.album?.cover_url,
+    item.album?.image,
+    item.album?.image_url,
+    item.album?.thumbnail,
+    item.artistArtwork,
+    item.artist_artwork,
+    item.artistArtworkUrl,
+    item.artist_artwork_url,
+    item.artist_image_url,
+    item.artist?.artwork,
+    item.artist?.artworkUrl,
+    item.artist?.artwork_url,
+    item.artist?.image,
+    item.artist?.imageUrl,
+    item.artist?.image_url,
+    item.artist?.cover,
+    item.artist?.thumbnail,
     item.image,
     item.imageUrl,
     item.image_url,
@@ -75,21 +131,35 @@ export function getArtworkValue(item: any, fallback = FALLBACK_ARTWORK): any {
     item.artists?.thumbnail,
   ];
 
-  for (const candidate of candidates) {
-    if (!candidate) continue;
+  rawCandidates.forEach((candidate) => pushArtworkCandidate(candidates, candidate));
 
-    if (typeof candidate === "string") {
-      if (isHttpsArtworkUrl(candidate)) {
-        return normalizeArtworkUrl(candidate, fallback);
-      }
+  const seen = new Set<string>();
+  const uniqueCandidates = candidates.filter((candidate) => {
+    const key = artworkCandidateKey(candidate);
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 
-      continue;
-    }
+  return uniqueCandidates.length ? uniqueCandidates : [fallback];
+}
 
-    return candidate;
-  }
+export function resolveArtwork(item: any, fallback = FALLBACK_ARTWORK) {
+  const candidates = getArtworkCandidates(item, fallback);
+  const value = candidates[0] || fallback;
+  const source = value === fallback ? "fallback_logo" : "catalog";
 
-  return fallback;
+  return {
+    value,
+    uri: typeof value === "string" ? value : fallback,
+    source,
+    candidates,
+    hasArtwork: value !== fallback,
+  };
+}
+
+export function getArtworkValue(item: any, fallback = FALLBACK_ARTWORK): any {
+  return resolveArtwork(item, fallback).value;
 }
 
 export function getArtworkUri(item: any, fallback = FALLBACK_ARTWORK) {

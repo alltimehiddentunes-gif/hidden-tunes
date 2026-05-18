@@ -1,3 +1,6 @@
+import { getCanonicalGenreTitle, normalizeCatalogKey } from "../utils/catalogResolver";
+import { getArtworkUri } from "../utils/artwork";
+
 export type DiscoverySong = {
   id?: string;
   title?: string;
@@ -36,7 +39,7 @@ export type SmartDiscoverySection<T extends DiscoverySong = DiscoverySong> = {
 const DEFAULT_SECTION_LIMIT = 10;
 
 function cleanKey(value: unknown) {
-  return String(value || "").trim().toLowerCase();
+  return normalizeCatalogKey(value);
 }
 
 function displayValue(value: unknown) {
@@ -59,7 +62,7 @@ function dedupeSongs<T extends DiscoverySong>(songs: T[]) {
 }
 
 function artworkFor(song: DiscoverySong) {
-  return String(song.artwork || song.cover || song.thumbnail || "").trim();
+  return getArtworkUri(song, "");
 }
 
 function uploadedAt(song: DiscoverySong) {
@@ -90,7 +93,10 @@ function groupByExactField<T extends DiscoverySong>(
   const groups = new Map<string, T[]>();
 
   songs.forEach((song) => {
-    const value = displayValue(song[field]) || fallbackTitle;
+    const value =
+      field === "genre"
+        ? getCanonicalGenreTitle(song[field]) || fallbackTitle
+        : displayValue(song[field]) || fallbackTitle;
     const current = groups.get(value) || [];
     current.push(song);
     groups.set(value, current);

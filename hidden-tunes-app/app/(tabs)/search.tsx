@@ -285,7 +285,6 @@ const SearchResultRow = memo(function SearchResultRow({
 }) {
   const normalized = normalizeSearchTrack(item);
   const youtube = isYouTubeTrack(normalized);
-  const cover = String(getCover(normalized));
   const artist = String(getArtist(normalized));
   const title = String(normalized.title || "Unknown Song");
   const sourceName = String(normalized.sourceName || "Hidden Tunes");
@@ -295,7 +294,7 @@ const SearchResultRow = memo(function SearchResultRow({
       <MediaCard
         title={title}
         subtitle={`${artist} • ${sourceName}`}
-        image={cover}
+        image={normalized}
         type={youtube ? "radio" : "song"}
         size="medium"
         showPlayButton={false}
@@ -1149,7 +1148,7 @@ export default function SearchScreen() {
                   <MediaCard
                     title={album.title || album.name || "Album"}
                     subtitle={album.artist || "Hidden Tunes"}
-                    image={getCover(album)}
+                    image={album}
                     type="album"
                     size="small"
                     showPlayButton={false}
@@ -1184,7 +1183,7 @@ export default function SearchScreen() {
                   <MediaCard
                     title={artist.name || "Artist"}
                     subtitle={artist.genre || "Hidden Tunes"}
-                    image={getCover(artist)}
+                    image={artist}
                     type="artist"
                     size="small"
                     showPlayButton={false}
@@ -1219,7 +1218,7 @@ export default function SearchScreen() {
                   <MediaCard
                     title={playlist.title || playlist.name || "Playlist"}
                     subtitle={playlist.description || "Hidden Tunes"}
-                    image={getCover(playlist)}
+                    image={playlist}
                     type="playlist"
                     size="small"
                     showPlayButton={false}

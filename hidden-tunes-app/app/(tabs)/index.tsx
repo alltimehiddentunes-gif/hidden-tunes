@@ -574,7 +574,7 @@ function HomeScreen() {
               style={styles.heroCard}
               onPress={() => handleHeroPress(item)}
             >
-              <HTImage uri={getSongImage(item.song)} style={styles.heroImage} />
+              <HTImage source={item.song} style={styles.heroImage} />
 
               <LinearGradient
                 colors={["transparent", "rgba(0,0,0,0.98)"]}
@@ -692,7 +692,7 @@ function HomeScreen() {
           style={[styles.featuredCard, active && styles.featuredCardActive]}
           onPress={() => playFeaturedSong(item)}
         >
-          <HTImage uri={getSongImage(item)} style={styles.featuredCover} />
+          <HTImage source={item} style={styles.featuredCover} />
 
           <LinearGradient
             colors={["transparent", "rgba(0,0,0,0.96)"]}
@@ -1060,7 +1060,7 @@ function HomeScreen() {
                       } as any)
                     }
                   >
-                    <HTImage uri={getSongImage(item)} style={styles.artistImage} />
+                    <HTImage source={item} style={styles.artistImage} />
                     <Text numberOfLines={1} style={styles.artistName}>
                       {item.name}
                     </Text>
@@ -1103,7 +1103,7 @@ function HomeScreen() {
                       } as any)
                     }
                   >
-                    <HTImage uri={getSongImage(item)} style={styles.albumImage} />
+                    <HTImage source={item} style={styles.albumImage} />
                     <Text numberOfLines={1} style={styles.artistName}>
                       {item.title}
                     </Text>

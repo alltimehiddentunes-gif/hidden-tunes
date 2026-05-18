@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
-  Image,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -17,6 +16,7 @@ import { Ionicons } from "@expo/vector-icons";
 
 import NeonEQ from "../../components/NeonEQ";
 import AddToPlaylistButton from "../../components/AddToPlaylistButton";
+import HTImage from "../../components/HTImage";
 
 import { COLORS, GRADIENTS } from "../../constants/theme";
 import { usePlayer } from "../../context/PlayerContext";
@@ -26,10 +26,10 @@ import {
   type HiddenTunesArtist,
   type HiddenTunesNormalizedSong,
 } from "../../services/hiddenTunesApi";
-import { FALLBACK_ARTWORK } from "../../utils/artwork";
+import { getArtworkUri } from "../../utils/artwork";
 
 function getArtwork(item: any) {
-  return item?.artwork || item?.cover || item?.thumbnail || FALLBACK_ARTWORK;
+  return getArtworkUri(item);
 }
 
 function formatDuration(seconds?: number) {
@@ -198,8 +198,9 @@ export default function ArtistScreen() {
 
         <View style={styles.hero}>
           <View style={styles.avatarWrap}>
-            <Image
-              source={{ uri: artist.artwork || getArtwork(tracks[0]) }}
+            <HTImage
+              source={artist}
+              candidates={[tracks[0]]}
               style={styles.avatar}
             />
           </View>
@@ -256,8 +257,9 @@ export default function ArtistScreen() {
                   activeOpacity={0.86}
                   onPress={() => openAlbum(item)}
                 >
-                  <Image
-                    source={{ uri: item.artwork || getArtwork(item.tracks?.[0]) }}
+                  <HTImage
+                    source={item}
+                    candidates={[item.tracks?.[0]]}
                     style={styles.albumCover}
                   />
 
@@ -306,7 +308,7 @@ export default function ArtistScreen() {
                   )}
                 </View>
 
-                <Image source={{ uri: getArtwork(track) }} style={styles.trackCover} />
+                <HTImage source={track} style={styles.trackCover} />
 
                 <View style={styles.trackInfo}>
                   <Text style={styles.trackTitle} numberOfLines={1}>

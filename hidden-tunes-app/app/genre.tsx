@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
-  Image,
   ScrollView,
   StyleSheet,
   Text,
@@ -16,12 +15,20 @@ import { router, useLocalSearchParams } from "expo-router";
 
 import { COLORS, GRADIENTS } from "../constants/theme";
 import { usePlayer } from "../context/PlayerContext";
+import HTImage from "../components/HTImage";
 
 import {
   getHiddenTunesSongsPage,
+  hydrateHiddenTunesCatalogCache,
   type HiddenTunesNormalizedSong,
 } from "../services/hiddenTunesApi";
-import { FALLBACK_ARTWORK } from "../utils/artwork";
+import { getArtworkUri } from "../utils/artwork";
+import {
+  filterSongsByCatalogLabel,
+  getCanonicalGenreTitle,
+  getCatalogResolverDebugInfo,
+  logCatalogResolverDebug,
+} from "../utils/catalogResolver";
 
 type AlbumPreview = {
   id: string;
@@ -32,13 +39,7 @@ type AlbumPreview = {
 };
 
 function getArtwork(song: any) {
-  return (
-    song?.artwork ||
-    song?.cover ||
-    song?.thumbnail ||
-    song?.image ||
-    FALLBACK_ARTWORK
-  );
+  return getArtworkUri(song);
 }
 
 function cleanGenreQuery(value: string) {
@@ -46,51 +47,6 @@ function cleanGenreQuery(value: string) {
     .replace(/\s+music$/i, "")
     .replace(/\s+songs$/i, "")
     .trim();
-}
-
-function normalizeText(value: any) {
-  return String(value || "")
-    .toLowerCase()
-    .replace(/&/g, "and")
-    .replace(/[^a-z0-9]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function getGenreAliases(value: string) {
-  const clean = normalizeText(cleanGenreQuery(value));
-
-  const aliasMap: Record<string, string[]> = {
-    afrobeats: ["afrobeats", "afrobeat", "afro beat", "afro beats", "afro"],
-    afrobeat: ["afrobeat", "afrobeats", "afro beat", "afro beats", "afro"],
-    amapiano: ["amapiano", "piano"],
-    "afro soul": ["afro soul", "afrosoul", "soul", "afro"],
-    afrosoul: ["afro soul", "afrosoul", "soul", "afro"],
-    dancehall: ["dancehall", "dance hall"],
-  };
-
-  return Array.from(
-    new Set([clean, ...(aliasMap[clean] || []), clean.replace(/\s+/g, "")])
-  ).filter(Boolean);
-}
-
-function songMatchesGenre(song: any, aliases: string[]) {
-  const haystack = normalizeText(
-    [
-      song?.title,
-      song?.artist,
-      song?.album,
-      song?.genre,
-      song?.mood,
-      song?.tags,
-      song?.description,
-    ].join(" ")
-  );
-
-  return aliases.some((alias) => {
-    const safeAlias = normalizeText(alias);
-    return safeAlias && haystack.includes(safeAlias);
-  });
 }
 
 function safeSong(song: any): HiddenTunesNormalizedSong {
@@ -129,10 +85,11 @@ export default function GenreScreen() {
   const params = useLocalSearchParams();
   const { playSong } = usePlayer() as any;
 
-  const title = String(params.title || "Genre");
-  const rawQuery = String(params.query || title || "music");
+  const rawTitle = String(params.title || "Genre");
+  const rawQuery = String(params.query || rawTitle || "music");
   const query = cleanGenreQuery(rawQuery);
   const genreId = String(params.id || "");
+  const title = getCanonicalGenreTitle(rawTitle) || rawTitle;
 
   const [cloudTracks, setCloudTracks] = useState<HiddenTunesNormalizedSong[]>([]);
   const [loading, setLoading] = useState(true);
@@ -140,39 +97,69 @@ export default function GenreScreen() {
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
 
-  const aliases = useMemo(() => {
-    return Array.from(
-      new Set([
-        ...getGenreAliases(query),
-        ...getGenreAliases(title),
-        ...getGenreAliases(genreId),
-      ])
-    ).filter(Boolean);
-  }, [query, title, genreId]);
+  const matchGenreSongs = useCallback(
+    (songs: HiddenTunesNormalizedSong[]) => {
+      const labels = [title, query, genreId].filter(Boolean);
+      const matches = labels.flatMap((label) =>
+        filterSongsByCatalogLabel(songs, label, "genre")
+      );
+      return dedupeSongs(matches);
+    },
+    [genreId, query, title]
+  );
 
   const loadGenreTracks = useCallback(async () => {
     try {
-      setLoading(true);
+      if (!cloudTracks.length) setLoading(true);
+
+      const cachedSongs = (await hydrateHiddenTunesCatalogCache()).map(safeSong);
+      const cachedMatches = dedupeSongs(matchGenreSongs(cachedSongs));
+
+      if (cachedMatches.length) {
+        setCloudTracks(cachedMatches);
+      }
 
       const genrePage = await getHiddenTunesSongsPage({
         page: 1,
-        limit: 30,
-        genre: query,
+        limit: 36,
+        genre: title,
       });
-      const combinedSongs = genrePage.songs
-        .map(safeSong)
-        .filter((song) => songMatchesGenre(song, aliases));
+      let combinedSongs = dedupeSongs(matchGenreSongs(genrePage.songs.map(safeSong)));
+      let fallbackUsed = false;
 
-      setCloudTracks(dedupeSongs(combinedSongs));
+      if (!combinedSongs.length && !cachedMatches.length) {
+        const fallbackPage = await getHiddenTunesSongsPage({
+          page: 1,
+          limit: 60,
+        });
+        combinedSongs = dedupeSongs(matchGenreSongs(fallbackPage.songs.map(safeSong)));
+        fallbackUsed = combinedSongs.length > 0;
+      }
+
+      const nextTracks = combinedSongs.length ? combinedSongs : cachedMatches;
+
+      setCloudTracks(nextTracks);
       setPage(1);
       setHasMore(genrePage.hasMore);
+      logCatalogResolverDebug(
+        "genre-page-load",
+        getCatalogResolverDebugInfo({
+          label: title || query,
+          type: "genre",
+          songs: [...cachedSongs, ...genrePage.songs],
+          matchedSongs: nextTracks,
+          fallbackUsed,
+          artworkSource: "song_album_artist",
+          finalArtworkUrl: getArtwork(nextTracks[0]),
+        })
+      );
     } catch (error) {
       console.log("Genre load error:", error);
-      setCloudTracks([]);
+      if (!cloudTracks.length) setCloudTracks([]);
     } finally {
       setLoading(false);
     }
-  }, [aliases, query]);
+  }, [cloudTracks.length, matchGenreSongs, query, title]);
 
   const loadMoreTracks = useCallback(async () => {
     if (loadingMore || !hasMore) return;
@@ -183,12 +170,10 @@ export default function GenreScreen() {
       const nextPage = page + 1;
       const genrePage = await getHiddenTunesSongsPage({
         page: nextPage,
-        limit: 30,
-        genre: query,
+        limit: 36,
+        genre: title,
       });
-      const combinedSongs = genrePage.songs
-        .map(safeSong)
-        .filter((song) => songMatchesGenre(song, aliases));
+      const combinedSongs = matchGenreSongs(genrePage.songs.map(safeSong));
 
       const nextTracks = dedupeSongs([...cloudTracks, ...combinedSongs]);
 
@@ -200,7 +185,7 @@ export default function GenreScreen() {
     } finally {
       setLoadingMore(false);
     }
-  }, [aliases, cloudTracks, hasMore, loadingMore, page, query]);
+  }, [cloudTracks, hasMore, loadingMore, matchGenreSongs, page, title]);
 
   useEffect(() => {
     loadGenreTracks();
@@ -348,10 +333,7 @@ export default function GenreScreen() {
                         style={styles.albumCard}
                         onPress={() => openAlbum(album)}
                       >
-                        <Image
-                          source={{ uri: album.thumbnail }}
-                          style={styles.albumCover}
-                        />
+                        <HTImage source={album} style={styles.albumCover} />
 
                         <Text style={styles.albumTitle} numberOfLines={2}>
                           {album.album}
@@ -417,7 +399,11 @@ export default function GenreScreen() {
                   {String(index + 1).padStart(2, "0")}
                 </Text>
 
-                <Image source={{ uri: artwork }} style={styles.cover} />
+                <HTImage
+                  source={item}
+                  candidates={[artwork]}
+                  style={styles.cover}
+                />
 
                 <View style={styles.info}>
                   <Text style={styles.trackTitle} numberOfLines={1}>

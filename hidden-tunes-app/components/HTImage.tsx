@@ -2,42 +2,74 @@ import { Image } from "expo-image";
 import React, { memo, useEffect, useMemo, useState } from "react";
 import { ImageStyle, StyleProp } from "react-native";
 
-import { FALLBACK_ARTWORK, getArtworkValue } from "../utils/artwork";
+import {
+  FALLBACK_ARTWORK,
+  getArtworkCandidates,
+  getArtworkValue,
+} from "../utils/artwork";
 
 type Props = {
   uri?: string | null;
   source?: any;
+  candidates?: any[];
   fallback?: any;
   style?: StyleProp<ImageStyle>;
   contentFit?: "cover" | "contain" | "fill" | "none" | "scale-down";
 };
 
+function candidateKey(item: any) {
+  if (typeof item === "string") return item;
+  if (typeof item === "number") return String(item);
+
+  try {
+    return JSON.stringify(item);
+  } catch {
+    return String(item);
+  }
+}
+
 function HTImage({
   uri,
   source,
+  candidates,
   fallback = FALLBACK_ARTWORK,
   style,
   contentFit = "cover",
 }: Props) {
-  const [failed, setFailed] = useState(false);
+  const [candidateIndex, setCandidateIndex] = useState(0);
 
   const fallbackSource = useMemo(() => {
     const artwork = getArtworkValue(fallback, FALLBACK_ARTWORK);
     return typeof artwork === "string" ? { uri: artwork } : artwork;
   }, [fallback]);
 
-  const resolvedSource = useMemo(() => {
-    if (failed) return fallbackSource;
-
+  const resolvedCandidates = useMemo(() => {
+    const explicitCandidates = Array.isArray(candidates)
+      ? candidates.flatMap((candidate) => getArtworkCandidates(candidate, fallback))
+      : [];
     const candidate = source ?? uri;
+    const implicitCandidates = getArtworkCandidates(candidate, fallback);
+    const combined = [...explicitCandidates, ...implicitCandidates, fallback];
+    const seen = new Set<string>();
+
+    return combined.filter((item) => {
+      const key = candidateKey(item);
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [candidates, fallback, source, uri]);
+
+  const resolvedSource = useMemo(() => {
+    const candidate = resolvedCandidates[candidateIndex] || fallback;
     const artwork = getArtworkValue(candidate, fallback);
 
     return typeof artwork === "string" ? { uri: artwork } : artwork;
-  }, [failed, fallback, fallbackSource, source, uri]);
+  }, [candidateIndex, fallback, resolvedCandidates]);
 
   useEffect(() => {
-    setFailed(false);
-  }, [source, uri]);
+    setCandidateIndex(0);
+  }, [candidates, source, uri]);
 
   return (
     <Image
@@ -47,7 +79,11 @@ function HTImage({
       cachePolicy="disk"
       placeholder={fallbackSource}
       transition={180}
-      onError={() => setFailed(true)}
+      onError={() =>
+        setCandidateIndex((current) =>
+          current < resolvedCandidates.length - 1 ? current + 1 : current
+        )
+      }
     />
   );
 }

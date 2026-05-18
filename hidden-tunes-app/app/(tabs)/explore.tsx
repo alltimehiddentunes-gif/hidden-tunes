@@ -128,7 +128,7 @@ const CloudSongCard = memo(function CloudSongCard({
       style={styles.cloudCard}
       onPress={() => onPress(song, badge)}
     >
-      <HTImage uri={getSongArtwork(song)} style={styles.cloudCover} />
+      <HTImage source={song} style={styles.cloudCover} />
 
       <Text numberOfLines={1} style={styles.cloudTitle}>
         {song.title}
@@ -179,10 +179,7 @@ const YouTubeTrackCard = memo(function YouTubeTrackCard({
     >
       <Text style={styles.rank}>{String(index + 2).padStart(2, "0")}</Text>
 
-      <HTImage
-        uri={item.thumbnail || item.artwork || FALLBACK_ARTWORK}
-        style={styles.cover}
-      />
+      <HTImage source={item} style={styles.cover} />
 
       <View style={styles.info}>
         <Text style={styles.trackTitle} numberOfLines={1}>
@@ -751,7 +748,7 @@ export default function ExploreScreen() {
                   style={styles.continueCard}
                   onPress={resumeCurrentSong}
                 >
-                  <HTImage uri={getSongArtwork(currentSong)} style={styles.continueImage} />
+                  <HTImage source={currentSong} style={styles.continueImage} />
 
                   <View style={styles.continueInfo}>
                     <Text style={styles.continueKicker}>NOW PLAYING</Text>
@@ -1020,7 +1017,7 @@ export default function ExploreScreen() {
                         } as any)
                       }
                     >
-                      <HTImage uri={getSongArtwork(item)} style={styles.cloudCover} />
+                      <HTImage source={item} style={styles.cloudCover} />
 
                       <Text numberOfLines={1} style={styles.cloudTitle}>
                         {item.title || item.name || "Playlist"}
@@ -1064,7 +1061,7 @@ export default function ExploreScreen() {
                         } as any)
                       }
                     >
-                      <HTImage uri={getSongArtwork(item)} style={styles.cloudCover} />
+                      <HTImage source={item} style={styles.cloudCover} />
 
                       <Text numberOfLines={1} style={styles.cloudTitle}>
                         {item.title || item.name || "Album"}
@@ -1111,7 +1108,7 @@ export default function ExploreScreen() {
                         } as any)
                       }
                     >
-                      <HTImage uri={getSongArtwork(item)} style={styles.artistCloudImage} />
+                      <HTImage source={item} style={styles.artistCloudImage} />
 
                       <Text numberOfLines={1} style={styles.cloudTitle}>
                         {item.name || "Artist"}
@@ -1134,10 +1131,7 @@ export default function ExploreScreen() {
                 onPress={() => openYouTubeTrack(featured)}
                 style={styles.heroWrap}
               >
-                <HTImage
-                  uri={featured.thumbnail || featured.artwork || FALLBACK_ARTWORK}
-                  style={styles.heroImage}
-                />
+                <HTImage source={featured} style={styles.heroImage} />
 
                 <LinearGradient
                   colors={["transparent", "rgba(0,0,0,0.92)"]}

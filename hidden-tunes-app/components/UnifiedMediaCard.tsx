@@ -1,10 +1,4 @@
-import {
-  Image,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
@@ -38,18 +32,11 @@ export default function UnifiedMediaCard({
     <TouchableOpacity activeOpacity={0.88} onPress={onPress} style={styles.wrap}>
       <LinearGradient colors={GRADIENTS.card} style={styles.card}>
         <View style={styles.imageWrap}>
-          {source ? (
-            <Image
-              source={typeof source === "string" ? { uri: source } : source}
-              style={styles.image}
-            />
-          ) : (
-            <HTImage
-              source={FALLBACK_ARTWORK}
-              style={styles.fallback}
-              contentFit="cover"
-            />
-          )}
+          <HTImage
+            source={source || FALLBACK_ARTWORK}
+            style={source ? styles.image : styles.fallback}
+            contentFit="cover"
+          />
         </View>
 
         <View style={styles.textWrap}>

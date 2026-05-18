@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
-  Image,
   RefreshControl,
   StyleSheet,
   Text,
@@ -16,6 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 
 import NeonEQ from "../../components/NeonEQ";
 import AddToPlaylistButton from "../../components/AddToPlaylistButton";
+import HTImage from "../../components/HTImage";
 
 import { COLORS, GRADIENTS } from "../../constants/theme";
 import { usePlayer } from "../../context/PlayerContext";
@@ -24,10 +24,10 @@ import {
   type HiddenTunesAlbum,
   type HiddenTunesNormalizedSong,
 } from "../../services/hiddenTunesApi";
-import { FALLBACK_ARTWORK } from "../../utils/artwork";
+import { getArtworkUri } from "../../utils/artwork";
 
 function getArtwork(item: any) {
-  return item?.artwork || item?.cover || item?.thumbnail || FALLBACK_ARTWORK;
+  return getArtworkUri(item);
 }
 
 function formatDuration(seconds?: number) {
@@ -194,10 +194,7 @@ export default function AlbumScreen() {
 
             <View style={styles.hero}>
               <View style={styles.coverWrap}>
-                <Image
-                  source={{ uri: album.artwork || getArtwork(tracks[0]) }}
-                  style={styles.cover}
-                />
+                <HTImage source={album} candidates={[tracks[0]]} style={styles.cover} />
               </View>
 
               <View style={styles.albumBadge}>
@@ -279,7 +276,7 @@ export default function AlbumScreen() {
                 )}
               </View>
 
-              <Image source={{ uri: getArtwork(item) }} style={styles.trackCover} />
+              <HTImage source={item} style={styles.trackCover} />
 
               <View style={styles.trackInfo}>
                 <Text style={styles.trackTitle} numberOfLines={1}>

@@ -86,7 +86,7 @@ const RecentRow = memo(function RecentRow({
       style={[styles.trackCard, active && styles.trackCardActive]}
       onPress={handlePress}
     >
-      <HTImage uri={item.cover || item.artwork || item.thumbnail} style={styles.cover} />
+      <HTImage source={item} style={styles.cover} />
 
       <View style={styles.trackInfo}>
         <Text numberOfLines={1} style={styles.trackTitle}>
