@@ -298,21 +298,21 @@ export default function LegacyUploadsPage() {
         <Metric label="Selected" value={String(summary.selected)} />
       </section>
 
-      <section className="mb-4 rounded-[1.7rem] border border-white/10 bg-[#101017]/92 p-4 shadow-2xl">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div>
+      <section className="mb-4 min-w-0 rounded-[1.7rem] border border-white/10 bg-[#101017]/92 p-4 shadow-2xl">
+        <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0">
             <p className="text-xs font-black uppercase tracking-[0.24em] text-yellow-300">
               Bulk assignment
             </p>
-            <p className="mt-2 text-sm text-white/48">
+            <p className="mt-2 break-words text-sm text-white/48">
               Select multiple legacy releases, choose one uploader, then confirm.
             </p>
           </div>
-          <div className="flex flex-col gap-2 sm:flex-row">
+          <div className="flex min-w-0 flex-col gap-2 sm:w-full sm:flex-row sm:flex-wrap lg:w-auto lg:max-w-[520px]">
             <select
               value={bulkUploaderId}
               onChange={(event) => setBulkUploaderId(event.target.value)}
-              className="rounded-2xl border border-white/10 bg-black/35 px-4 py-3 text-sm outline-none transition focus:border-yellow-300"
+              className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-black/35 px-4 py-3 text-sm outline-none transition focus:border-yellow-300"
             >
               <option value="">Select uploader</option>
               {uploaders.map((uploader) => (
@@ -324,7 +324,7 @@ export default function LegacyUploadsPage() {
             <button
               onClick={openBulkAssignment}
               disabled={selectedReleaseIds.length === 0 || !bulkUploaderId}
-              className="rounded-2xl bg-yellow-300 px-5 py-3 text-sm font-black text-black transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-40"
+              className="min-w-0 whitespace-normal rounded-2xl bg-yellow-300 px-5 py-3 text-sm font-black leading-5 text-black transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-40"
             >
               Assign selected
             </button>
@@ -355,8 +355,8 @@ export default function LegacyUploadsPage() {
           </p>
         </section>
       ) : (
-        <section className="overflow-hidden rounded-[1.7rem] border border-white/10 bg-[#101017]/92 shadow-2xl">
-          <div className="hidden grid-cols-[48px_minmax(260px,1.4fr)_0.5fr_0.7fr_0.8fr_0.8fr_0.8fr_260px] gap-3 border-b border-white/10 px-4 py-3 text-[10px] font-black uppercase tracking-[0.18em] text-white/35 xl:grid">
+        <section className="min-w-0 max-w-full rounded-[1.7rem] border border-white/10 bg-[#101017]/92 shadow-2xl">
+          <div className="hidden grid-cols-[48px_minmax(0,1.4fr)_minmax(80px,0.5fr)_minmax(100px,0.7fr)_minmax(110px,0.8fr)_minmax(110px,0.8fr)_minmax(110px,0.8fr)_minmax(220px,260px)] gap-3 border-b border-white/10 px-4 py-3 text-[10px] font-black uppercase tracking-[0.18em] text-white/35 2xl:grid">
             <button onClick={toggleAll} className="text-left text-white/45">
               All
             </button>
@@ -372,7 +372,7 @@ export default function LegacyUploadsPage() {
             {releases.map((release) => (
               <article
                 key={release.id}
-                className="grid gap-3 px-4 py-4 transition hover:bg-white/[0.035] xl:grid-cols-[48px_minmax(260px,1.4fr)_0.5fr_0.7fr_0.8fr_0.8fr_0.8fr_260px] xl:items-center"
+                className="grid min-w-0 max-w-full gap-3 px-4 py-4 transition hover:bg-white/[0.035] md:grid-cols-[32px_minmax(0,1fr)] 2xl:grid-cols-[48px_minmax(0,1.4fr)_minmax(80px,0.5fr)_minmax(100px,0.7fr)_minmax(110px,0.8fr)_minmax(110px,0.8fr)_minmax(110px,0.8fr)_minmax(220px,260px)] 2xl:items-center"
               >
                 <input
                   type="checkbox"
@@ -381,8 +381,12 @@ export default function LegacyUploadsPage() {
                   className="h-4 w-4 accent-yellow-300"
                 />
                 <ReleaseIdentity release={release} />
-                <InfoCell label="Tracks" value={String(release.trackCount)} />
-                <InfoCell label="Genre" value={release.primaryGenre || "Unknown"} />
+                <div className="md:col-start-2 2xl:col-start-auto">
+                  <InfoCell label="Tracks" value={String(release.trackCount)} />
+                </div>
+                <div className="md:col-start-2 2xl:col-start-auto">
+                  <InfoCell label="Genre" value={release.primaryGenre || "Unknown"} />
+                </div>
                 <StatusBadge
                   label="Review"
                   value={release.reviewStatus}
@@ -393,8 +397,10 @@ export default function LegacyUploadsPage() {
                   value={release.licenseDeclaration}
                   fallback="Unknown"
                 />
-                <InfoCell label="Date" value={formatDate(release.updatedAt || release.createdAt)} />
-                <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                <div className="md:col-start-2 2xl:col-start-auto">
+                  <InfoCell label="Date" value={formatDate(release.updatedAt || release.createdAt)} />
+                </div>
+                <div className="grid min-w-0 max-w-full gap-2 sm:grid-cols-[minmax(0,1fr)_auto] md:col-start-2 2xl:col-start-auto">
                   <select
                     value={rowUploaderSelections[release.id] || ""}
                     onChange={(event) =>
@@ -403,7 +409,7 @@ export default function LegacyUploadsPage() {
                         [release.id]: event.target.value,
                       }))
                     }
-                    className="rounded-2xl border border-white/10 bg-black/35 px-3 py-2 text-xs outline-none transition focus:border-yellow-300"
+                    className="min-w-0 rounded-2xl border border-white/10 bg-black/35 px-3 py-2 text-xs outline-none transition focus:border-yellow-300"
                   >
                     <option value="">Select uploader</option>
                     {uploaders.map((uploader) => (
@@ -414,7 +420,7 @@ export default function LegacyUploadsPage() {
                   </select>
                   <button
                     onClick={() => openSingleAssignment(release)}
-                    className="rounded-2xl border border-yellow-300/25 bg-yellow-300/10 px-4 py-2 text-xs font-black uppercase tracking-widest text-yellow-100"
+                    className="min-w-0 whitespace-normal rounded-2xl border border-yellow-300/25 bg-yellow-300/10 px-4 py-2 text-xs font-black uppercase tracking-widest text-yellow-100"
                   >
                     Assign
                   </button>
@@ -441,7 +447,7 @@ export default function LegacyUploadsPage() {
               </span>{" "}
               legacy releases to{" "}
               <span className="font-black text-white">
-                {pendingAssignment.uploaderEmail}
+                <span className="break-all">{pendingAssignment.uploaderEmail}</span>
               </span>
               . This will only update rows with no owner.
             </p>
@@ -480,11 +486,13 @@ function ReleaseIdentity({ release }: { release: LegacyRelease }) {
         }}
       />
       <div className="min-w-0">
-        <h2 className="truncate text-base font-black tracking-[-0.02em]">
+        <h2 className="break-words text-base font-black tracking-[-0.02em]">
           {release.title}
         </h2>
-        <p className="truncate text-sm font-bold text-white/50">{release.artist}</p>
-        <p className="mt-1 truncate text-xs font-bold text-white/35">
+        <p className="break-words text-sm font-bold text-white/50">
+          {release.artist}
+        </p>
+        <p className="mt-1 break-words text-xs font-bold text-white/35">
           Current owner: {release.currentOwner}
         </p>
       </div>
@@ -502,8 +510,8 @@ function StatusBadge({
   fallback: string;
 }) {
   return (
-    <div className="min-w-0">
-      <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-white/30 xl:hidden">
+    <div className="min-w-0 md:col-start-2 2xl:col-start-auto">
+      <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-white/30 2xl:hidden">
         {label}
       </p>
       <span
@@ -511,7 +519,7 @@ function StatusBadge({
           value || null
         )}`}
       >
-        <span className="truncate">{formatRightsValue(value, fallback)}</span>
+        <span className="break-words">{formatRightsValue(value, fallback)}</span>
       </span>
     </div>
   );
@@ -520,18 +528,18 @@ function StatusBadge({
 function InfoCell({ label, value }: { label: string; value: string }) {
   return (
     <div className="min-w-0">
-      <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-white/30 xl:hidden">
+      <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-white/30 2xl:hidden">
         {label}
       </p>
-      <p className="truncate text-sm font-bold text-white/66">{value}</p>
+      <p className="break-words text-sm font-bold text-white/66">{value}</p>
     </div>
   );
 }
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-3xl border border-white/10 bg-white/[0.055] p-4">
-      <p className="text-3xl font-black tracking-[-0.04em]">{value}</p>
+    <div className="min-w-0 rounded-3xl border border-white/10 bg-white/[0.055] p-4">
+      <p className="break-words text-3xl font-black tracking-[-0.04em]">{value}</p>
       <p className="mt-1 text-xs font-bold uppercase tracking-widest text-white/38">
         {label}
       </p>
@@ -542,7 +550,7 @@ function Metric({ label, value }: { label: string; value: string }) {
 function Notice({ tone, message }: { tone: "success" | "error"; message: string }) {
   return (
     <section
-      className={`mb-4 rounded-[1.7rem] border p-4 text-sm ${
+      className={`mb-4 break-words rounded-[1.7rem] border p-4 text-sm ${
         tone === "success"
           ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-100"
           : "border-red-400/20 bg-red-500/10 text-red-100"
