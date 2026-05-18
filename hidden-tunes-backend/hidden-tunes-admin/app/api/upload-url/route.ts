@@ -57,11 +57,12 @@ export async function POST(req: NextRequest) {
     }
 
     const key = `${folder}/${Date.now()}-${fileName}`;
+    const contentType = fileType || "application/octet-stream";
 
     const command = new PutObjectCommand({
       Bucket: r2Config.bucketName,
       Key: key,
-      ContentType: fileType,
+      ContentType: contentType,
     });
 
     const signedUrl = await getSignedUrl(getR2Client(), command, {
@@ -72,6 +73,8 @@ export async function POST(req: NextRequest) {
       success: true,
       signedUrl,
       key,
+      bucket: r2Config.bucketName,
+      contentType,
       publicUrl: `${r2Config.publicBaseUrl.replace(/\/+$/, "")}/${key}`,
     });
   } catch (error) {

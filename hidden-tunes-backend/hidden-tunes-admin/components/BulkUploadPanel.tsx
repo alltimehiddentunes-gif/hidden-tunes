@@ -29,6 +29,8 @@ type SignedUploadResponse = {
   signedUrl: string;
   key: string;
   publicUrl: string;
+  bucket?: string;
+  contentType?: string;
   error?: string;
 };
 
@@ -36,6 +38,8 @@ type ServerUploadResponse = {
   success: boolean;
   key: string;
   publicUrl: string;
+  bucket?: string;
+  contentType?: string;
   error?: string;
 };
 
@@ -250,16 +254,18 @@ async function getSignedUploadUrl(
 
 function uploadFileDirectToR2(
   file: File,
-  signedUrl: string,
+  uploadInfo: SignedUploadResponse,
   onProgress?: (progress: number) => void
 ) {
   return new Promise<void>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    const uploadHost = new URL(signedUrl).host;
+    const uploadHost = new URL(uploadInfo.signedUrl).host;
+    const contentType =
+      uploadInfo.contentType || file.type || "application/octet-stream";
 
-    xhr.open("PUT", signedUrl);
+    xhr.open("PUT", uploadInfo.signedUrl);
     xhr.withCredentials = false;
-    xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
+    xhr.setRequestHeader("Content-Type", contentType);
     xhr.timeout = 1000 * 60 * 30;
 
     xhr.upload.onprogress = (event) => {
@@ -271,9 +277,25 @@ function uploadFileDirectToR2(
 
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) {
+        console.info("Hidden Tunes direct R2 upload succeeded", {
+          key: uploadInfo.key,
+          bucket: uploadInfo.bucket || "unknown",
+          contentType,
+          status: xhr.status,
+          target: uploadHost,
+        });
         resolve();
         return;
       }
+
+      console.error("Hidden Tunes direct R2 upload failed", {
+        key: uploadInfo.key,
+        bucket: uploadInfo.bucket || "unknown",
+        contentType,
+        status: xhr.status,
+        target: uploadHost,
+        responseText: xhr.responseText?.slice(0, 500) || "",
+      });
 
       reject(
         new Error(
@@ -285,6 +307,13 @@ function uploadFileDirectToR2(
     };
 
     xhr.onerror = () => {
+      console.error("Hidden Tunes direct R2 upload network/CORS error", {
+        key: uploadInfo.key,
+        bucket: uploadInfo.bucket || "unknown",
+        contentType,
+        target: uploadHost,
+      });
+
       reject(
         new Error(
           `Browser could not complete the direct R2 upload to ${uploadHost}. This usually means the Cloudflare R2 bucket CORS policy is missing this admin origin, PUT, or Content-Type.`
@@ -308,6 +337,7 @@ function uploadFileViaAdminRoute(
   file: File,
   folder: string,
   accessToken: string,
+  uploadInfo: SignedUploadResponse,
   onProgress?: (progress: number) => void
 ) {
   return new Promise<{ key: string; publicUrl: string }>((resolve, reject) => {
@@ -316,6 +346,7 @@ function uploadFileViaAdminRoute(
 
     formData.append("file", file);
     formData.append("folder", folder);
+    formData.append("key", uploadInfo.key);
 
     xhr.open("POST", API_SERVER_UPLOAD_URL);
     xhr.setRequestHeader("Authorization", `Bearer ${accessToken}`);
@@ -338,12 +369,33 @@ function uploadFileViaAdminRoute(
       })();
 
       if (xhr.status >= 200 && xhr.status < 300 && data?.success) {
+        console.info("Hidden Tunes server fallback R2 upload succeeded", {
+          key: data.key,
+          bucket: data.bucket || uploadInfo.bucket || "unknown",
+          contentType:
+            data.contentType ||
+            uploadInfo.contentType ||
+            file.type ||
+            "application/octet-stream",
+          status: xhr.status,
+        });
+
         resolve({
           key: data.key,
           publicUrl: data.publicUrl,
         });
         return;
       }
+
+      console.error("Hidden Tunes server fallback R2 upload failed", {
+        key: uploadInfo.key,
+        bucket: uploadInfo.bucket || "unknown",
+        contentType:
+          uploadInfo.contentType || file.type || "application/octet-stream",
+        status: xhr.status,
+        responseText: xhr.responseText?.slice(0, 500) || "",
+        error: data?.error,
+      });
 
       reject(
         new Error(
@@ -354,6 +406,12 @@ function uploadFileViaAdminRoute(
     };
 
     xhr.onerror = () => {
+      console.error("Hidden Tunes server fallback upload network error", {
+        key: uploadInfo.key,
+        bucket: uploadInfo.bucket || "unknown",
+        contentType:
+          uploadInfo.contentType || file.type || "application/octet-stream",
+      });
       reject(new Error("Server fallback upload could not reach the admin API"));
     };
 
@@ -387,13 +445,22 @@ async function uploadFileToR2(
   }
 
   try {
-    await uploadFileDirectToR2(file, uploadInfo.signedUrl, onProgress);
+    await uploadFileDirectToR2(file, uploadInfo, onProgress);
   } catch (error: unknown) {
+    console.warn("Hidden Tunes direct R2 upload failed; trying server fallback", {
+      key: uploadInfo.key,
+      bucket: uploadInfo.bucket || "unknown",
+      contentType:
+        uploadInfo.contentType || file.type || "application/octet-stream",
+      directUploadStatus: getErrorMessage(error, "direct upload failed"),
+    });
+
     try {
       return await uploadFileViaAdminRoute(
         file,
         folder,
         accessToken,
+        uploadInfo,
         onProgress
       );
     } catch (fallbackError: unknown) {
