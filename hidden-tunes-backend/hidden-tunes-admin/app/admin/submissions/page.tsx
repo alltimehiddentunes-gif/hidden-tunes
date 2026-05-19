@@ -677,7 +677,7 @@ export default function AdminSubmissionsPage() {
                 return (
                   <article
                     key={submission.id}
-                    className={`rounded-[1.8rem] border p-5 shadow-2xl ${
+                    className={`min-w-0 rounded-[1.8rem] border p-5 shadow-2xl ${
                       submission.is_review_ready
                         ? "border-white/10 bg-[#101017]/92"
                         : "border-yellow-300/25 bg-yellow-300/[0.045]"
@@ -708,10 +708,10 @@ export default function AdminSubmissionsPage() {
                             : "Incomplete"}
                         </span>
                       </div>
-                      <h3 className="mt-4 text-2xl font-black tracking-[-0.04em]">
+                      <h3 className="mt-4 break-words text-2xl font-black tracking-[-0.04em]">
                         {submission.title}
                       </h3>
-                      <p className="mt-1 text-sm font-bold text-white/50">
+                      <p className="mt-1 break-words text-sm font-bold text-white/50">
                         {submission.artist_name}
                       </p>
                       <p className="mt-3 max-w-2xl break-all text-xs leading-5 text-white/35">
@@ -722,7 +722,7 @@ export default function AdminSubmissionsPage() {
                       </p>
                     </div>
 
-                    <div className="grid gap-2 sm:grid-cols-3 xl:min-w-[420px]">
+                    <div className="grid min-w-0 gap-2 sm:grid-cols-3 xl:w-full xl:max-w-[520px]">
                       {REVIEW_ACTIONS.map((action) => {
                         const approvalBlocked =
                           action.status === "approved" &&
@@ -810,18 +810,18 @@ export default function AdminSubmissionsPage() {
                   </div>
 
                   <div className="mt-5 rounded-3xl border border-purple-300/15 bg-purple-400/[0.055] p-4">
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                      <div>
+                    <div className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                      <div className="min-w-0">
                         <p className="text-xs font-black uppercase tracking-[0.18em] text-purple-100">
                           Publish Preflight
                         </p>
-                        <p className="mt-2 max-w-3xl text-sm leading-6 text-white/54">
+                        <p className="mt-2 max-w-3xl break-words text-sm leading-6 text-white/54">
                           Read-only check for a future publish workflow. This
                           does not create albums, songs, R2 assets, or public
                           catalog rows.
                         </p>
                       </div>
-                      <div className="grid gap-2 sm:grid-cols-2">
+                      <div className="grid min-w-0 gap-2 sm:grid-cols-2">
                         <button
                           onClick={() => checkPublishPreflight(submission)}
                           disabled={checkingPreflightId === submission.id}
@@ -975,7 +975,7 @@ export default function AdminSubmissionsPage() {
                         ) : null}
 
                         {dryRunResult.payloads ? (
-                          <div className="mt-4 grid gap-3 xl:grid-cols-3">
+                          <div className="mt-4 grid min-w-0 gap-3 xl:grid-cols-3">
                             <PayloadPreviewCard
                               title="Proposed Album"
                               payload={dryRunResult.payloads.album}
@@ -1025,12 +1025,12 @@ export default function AdminSubmissionsPage() {
 
                     {canShowPublishButton ? (
                       <div className="mt-4 rounded-2xl border border-red-300/20 bg-red-500/10 p-4">
-                        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                          <div>
+                        <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                          <div className="min-w-0">
                             <p className="text-sm font-black text-red-50">
                               Final publish is available.
                             </p>
-                            <p className="mt-1 text-xs font-bold leading-5 text-red-50/62">
+                            <p className="mt-1 break-words text-xs font-bold leading-5 text-red-50/62">
                               This action creates public catalog album and song
                               rows. It requires two confirmations.
                             </p>
@@ -1414,7 +1414,7 @@ function PayloadPreviewCard({
   payload: CatalogDryRunPayload;
 }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+    <div className="min-w-0 rounded-2xl border border-white/10 bg-black/20 p-4">
       <p className="text-xs font-black uppercase tracking-[0.16em] text-yellow-100/75">
         {title}
       </p>

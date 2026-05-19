@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { requireUploadPermission } from "@/lib/requireUploadPermission";
+import {
+  applyNormalizedGenreToSongInsert,
+  normalizeIncomingGenrePayload,
+} from "@/lib/uploadGenreTaxonomy";
 
 function slugify(value: string) {
   return value
@@ -73,37 +77,41 @@ export async function POST(req: NextRequest) {
 
     if (albumError) throw albumError;
 
+    const normalizedGenre = normalizeIncomingGenrePayload(body);
+
     const { data: song, error: songError } = await supabaseAdmin
       .from("songs")
       .upsert(
-        {
-          artist_id: artist.id,
-          album_id: album.id,
+        applyNormalizedGenreToSongInsert(
+          {
+            artist_id: artist.id,
+            album_id: album.id,
 
-          title,
-          slug: songSlug,
-          artist_name: artistName,
-          album_title: albumTitle,
-          genre: body.genre || "Afrobeat",
-          mood: body.mood || "Premium",
+            title,
+            slug: songSlug,
+            artist_name: artistName,
+            album_title: albumTitle,
+            mood: body.mood || "Premium",
 
-          duration_seconds: Number(body.durationSeconds || 0),
-          track_number: body.trackNumber || null,
-          explicit: Boolean(body.explicit || false),
+            duration_seconds: Number(body.durationSeconds || 0),
+            track_number: body.trackNumber || null,
+            explicit: Boolean(body.explicit || false),
 
-          audio_url: body.audioUrl,
-          artwork_url: body.artworkUrl || null,
-          r2_audio_key: body.r2AudioKey,
-          r2_artwork_key: body.r2ArtworkKey || null,
+            audio_url: body.audioUrl,
+            artwork_url: body.artworkUrl || null,
+            r2_audio_key: body.r2AudioKey,
+            r2_artwork_key: body.r2ArtworkKey || null,
 
-          lyrics: body.lyrics || null,
-          synced_lyrics: body.syncedLyrics || null,
+            lyrics: body.lyrics || null,
+            synced_lyrics: body.syncedLyrics || null,
 
-          source_name: "Hidden Tunes",
-          type: "r2",
-          is_online: true,
-          is_downloadable: true,
-        },
+            source_name: "Hidden Tunes",
+            type: "r2",
+            is_online: true,
+            is_downloadable: true,
+          },
+          normalizedGenre
+        ),
         { onConflict: "artist_id,slug" }
       )
       .select("*")

@@ -2,7 +2,13 @@
 
 import { useMemo, useRef, useState } from "react";
 
+import ControlledGenreFields from "@/components/ControlledGenreFields";
 import { supabase } from "@/lib/auth";
+import {
+  buildNormalizedGenrePayload,
+  getDefaultMainGenreId,
+  getDefaultSubgenreId,
+} from "@/lib/uploadGenreTaxonomy";
 
 type UploadStatus = "idle" | "ready" | "uploading" | "success" | "error";
 
@@ -12,6 +18,8 @@ type TrackUploadItem = {
   title: string;
   artist: string;
   album: string;
+  mainGenreId: string;
+  subgenreId: string;
   genre: string;
   mood: string;
   duration: number;
@@ -45,6 +53,16 @@ type ServerUploadResponse = {
 
 const FALLBACK_ARTIST = "Hidden Tunes";
 const FALLBACK_ALBUM = "Singles";
+
+function resolveGenreFields(mainGenreId: string, subgenreId: string) {
+  const payload = buildNormalizedGenrePayload({ mainGenreId, subgenreId });
+
+  return {
+    mainGenreId,
+    subgenreId,
+    genre: payload?.genre || "",
+  };
+}
 
 class UploadStepError extends Error {
   step: string;
@@ -503,7 +521,8 @@ export default function BulkUploadPanel() {
   const [isDragging, setIsDragging] = useState(false);
   const [defaultArtist, setDefaultArtist] = useState("");
   const [defaultAlbum, setDefaultAlbum] = useState(FALLBACK_ALBUM);
-  const [defaultGenre, setDefaultGenre] = useState("");
+  const [defaultMainGenreId, setDefaultMainGenreId] = useState(getDefaultMainGenreId);
+  const [defaultSubgenreId, setDefaultSubgenreId] = useState(getDefaultSubgenreId);
   const [defaultMood, setDefaultMood] = useState("");
   const [globalArtwork, setGlobalArtwork] = useState<File | null>(null);
   const [globalLyrics, setGlobalLyrics] = useState<File | null>(null);
@@ -592,7 +611,7 @@ export default function BulkUploadPanel() {
         title: guessed.title,
         artist: guessed.artist || getFallbackArtist(),
         album: defaultAlbum || FALLBACK_ALBUM,
-        genre: defaultGenre,
+        ...resolveGenreFields(defaultMainGenreId, defaultSubgenreId),
         mood: defaultMood,
         duration,
         artworkFile: matchedArtwork,
@@ -728,6 +747,16 @@ export default function BulkUploadPanel() {
         );
       }
 
+      const genrePayload =
+        buildNormalizedGenrePayload({
+          mainGenreId: item.mainGenreId || defaultMainGenreId,
+          subgenreId: item.subgenreId || defaultSubgenreId,
+        }) ||
+        buildNormalizedGenrePayload({
+          mainGenreId: defaultMainGenreId,
+          subgenreId: defaultSubgenreId,
+        });
+
       let response: Response;
 
       try {
@@ -741,7 +770,12 @@ export default function BulkUploadPanel() {
             title: item.title,
             artist: item.artist || getFallbackArtist(),
             album: item.album || defaultAlbum || FALLBACK_ALBUM,
-            genre: item.genre || defaultGenre,
+            genre: genrePayload?.genre,
+            mainGenreId: genrePayload?.mainGenreId,
+            subgenreId: genrePayload?.subgenreId,
+            mainGenre: genrePayload?.mainGenre,
+            subGenre: genrePayload?.subGenre,
+            genreSlug: genrePayload?.genreSlug,
             mood: item.mood || defaultMood,
             duration: item.duration,
 
@@ -831,11 +865,13 @@ export default function BulkUploadPanel() {
   }
 
   function applyAlbumDefaultsToAll() {
+    const resolvedGenre = resolveGenreFields(defaultMainGenreId, defaultSubgenreId);
+
     setItems((current) =>
       current.map((item) => ({
         ...item,
         album: defaultAlbum.trim() || item.album || FALLBACK_ALBUM,
-        genre: defaultGenre.trim() || item.genre,
+        ...resolvedGenre,
         mood: defaultMood.trim() || item.mood,
         lyricsFile:
           item.lyricsFile || findMatchingFile(item.file, lyricsMap) || globalLyrics,
@@ -857,27 +893,27 @@ export default function BulkUploadPanel() {
   }
 
   return (
-    <main className="min-h-screen bg-[#050508] text-white">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 py-6 sm:px-6 lg:px-8">
-        <header className="rounded-[2rem] border border-white/10 bg-gradient-to-br from-[#17171f] via-[#0b0b10] to-black p-6 shadow-2xl">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-            <div>
+    <main className="min-h-screen overflow-x-hidden bg-[#050508] text-white">
+      <div className="mx-auto flex w-full max-w-7xl min-w-0 flex-col gap-8 px-3 py-5 sm:px-6 lg:px-8">
+        <header className="min-w-0 rounded-[2rem] border border-white/10 bg-gradient-to-br from-[#17171f] via-[#0b0b10] to-black p-5 shadow-2xl sm:p-6">
+          <div className="flex min-w-0 flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+            <div className="min-w-0">
               <p className="mb-2 text-sm font-semibold uppercase tracking-[0.3em] text-yellow-400">
                 Hidden Tunes Admin
               </p>
 
-              <h1 className="text-3xl font-black tracking-tight sm:text-5xl">
+              <h1 className="break-words text-3xl font-black tracking-tight sm:text-5xl">
                 Bulk Upload Studio
               </h1>
 
-              <p className="mt-3 max-w-2xl text-sm leading-6 text-white/60 sm:text-base">
+              <p className="mt-3 max-w-2xl break-words text-sm leading-6 text-white/60 sm:text-base">
                 Upload songs, matching artwork, lyrics, synced LRC files, create
                 artists and albums, store tracks directly in Cloudflare R2, and
                 insert catalog records into Supabase.
               </p>
             </div>
 
-            <div className="grid grid-cols-4 gap-3 rounded-3xl border border-white/10 bg-white/[0.04] p-3 text-center">
+            <div className="grid min-w-0 grid-cols-2 gap-3 rounded-3xl border border-white/10 bg-white/[0.04] p-3 text-center sm:grid-cols-4">
               <div>
                 <p className="text-2xl font-black">{stats.total}</p>
                 <p className="text-xs text-white/45">Total</p>
@@ -907,9 +943,9 @@ export default function BulkUploadPanel() {
           </div>
         </header>
 
-        <section className="grid gap-6 lg:grid-cols-[380px_1fr]">
-          <aside className="flex flex-col gap-5">
-            <div className="rounded-[2rem] border border-white/10 bg-[#101017] p-5 shadow-xl">
+        <section className="grid min-w-0 gap-6 lg:grid-cols-[minmax(280px,380px)_minmax(0,1fr)]">
+          <aside className="flex min-w-0 flex-col gap-5">
+            <div className="min-w-0 rounded-[2rem] border border-white/10 bg-[#101017] p-5 shadow-xl">
               <h2 className="text-lg font-black">Default Metadata</h2>
 
               <div className="mt-5 flex flex-col gap-4">
@@ -940,17 +976,15 @@ export default function BulkUploadPanel() {
                   />
                 </label>
 
-                <label className="space-y-2">
-                  <span className="text-xs font-bold uppercase tracking-widest text-white/45">
-                    Genre
-                  </span>
-                  <input
-                    value={defaultGenre}
-                    onChange={(event) => setDefaultGenre(event.target.value)}
-                    placeholder="Optional"
-                    className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm outline-none transition focus:border-yellow-400"
-                  />
-                </label>
+                <ControlledGenreFields
+                  mainGenreId={defaultMainGenreId}
+                  subgenreId={defaultSubgenreId}
+                  onMainGenreChange={(mainGenreId, subgenreId) => {
+                    setDefaultMainGenreId(mainGenreId);
+                    setDefaultSubgenreId(subgenreId);
+                  }}
+                  onSubgenreChange={setDefaultSubgenreId}
+                />
 
                 <label className="space-y-2">
                   <span className="text-xs font-bold uppercase tracking-widest text-white/45">
@@ -987,7 +1021,7 @@ export default function BulkUploadPanel() {
               </div>
             </div>
 
-            <div className="rounded-[2rem] border border-white/10 bg-[#101017] p-5 shadow-xl">
+            <div className="min-w-0 rounded-[2rem] border border-white/10 bg-[#101017] p-5 shadow-xl">
               <h2 className="text-lg font-black">Assets</h2>
 
               <div className="mt-5 flex flex-col gap-3">
@@ -1159,7 +1193,7 @@ export default function BulkUploadPanel() {
             </div>
           </aside>
 
-          <section className="flex flex-col gap-5">
+          <section className="flex min-w-0 flex-col gap-5">
             <div
               onDragOver={(event) => {
                 event.preventDefault();
@@ -1172,7 +1206,7 @@ export default function BulkUploadPanel() {
                 addFiles(event.dataTransfer.files);
               }}
               onClick={() => inputRef.current?.click()}
-              className={`cursor-pointer rounded-[2rem] border border-dashed p-8 text-center transition ${
+              className={`min-w-0 cursor-pointer rounded-[2rem] border border-dashed p-6 text-center transition sm:p-8 ${
                 isDragging
                   ? "border-yellow-300 bg-yellow-300/10"
                   : "border-white/15 bg-[#101017]"
@@ -1194,28 +1228,28 @@ export default function BulkUploadPanel() {
                 ↑
               </div>
 
-              <h2 className="mt-5 text-2xl font-black">
+              <h2 className="mt-5 break-words text-2xl font-black">
                 Drag & drop songs and artwork here
               </h2>
 
-              <p className="mt-2 text-sm text-white/50">
+              <p className="mt-2 break-words text-sm text-white/50">
                 Supports MP3, WAV, M4A, JPG, PNG, WEBP, TXT, and LRC. Matching
                 files by the same name are paired automatically.
               </p>
             </div>
 
-            <div className="flex flex-col gap-3 sm:flex-row">
+            <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap">
               <button
                 onClick={uploadAll}
                 disabled={!items.length || isUploadingAll}
-                className="flex-1 rounded-2xl bg-yellow-300 px-5 py-4 text-sm font-black text-black transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-40"
+                className="min-w-0 flex-1 rounded-2xl bg-yellow-300 px-5 py-4 text-sm font-black text-black transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {isUploadingAll ? "Uploading..." : "Upload All To Hidden Tunes"}
               </button>
 
               <button
                 onClick={clearCompleted}
-                className="rounded-2xl border border-white/10 px-5 py-4 text-sm font-black text-white/80 transition hover:border-white/30"
+                className="min-w-0 rounded-2xl border border-white/10 px-5 py-4 text-sm font-black text-white/80 transition hover:border-white/30"
               >
                 Clear Completed
               </button>
@@ -1225,16 +1259,16 @@ export default function BulkUploadPanel() {
               {items.map((item) => (
                 <article
                   key={item.id}
-                  className="rounded-[1.75rem] border border-white/10 bg-[#101017] p-4 shadow-xl"
+                  className="min-w-0 rounded-[1.75rem] border border-white/10 bg-[#101017] p-4 shadow-xl"
                 >
-                  <div className="flex flex-col gap-4 xl:flex-row xl:items-start">
-                    <div className="flex-1">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="text-xs font-bold uppercase tracking-widest text-white/40">
+                  <div className="flex min-w-0 flex-col gap-4 xl:flex-row xl:items-start">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0">
+                          <p className="break-all text-xs font-bold uppercase tracking-widest text-white/40">
                             {item.file.name}
                           </p>
-                          <h3 className="mt-1 text-xl font-black">
+                          <h3 className="mt-1 break-words text-xl font-black">
                             {item.title}
                           </h3>
                         </div>
@@ -1247,7 +1281,7 @@ export default function BulkUploadPanel() {
                         </button>
                       </div>
 
-                      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                      <div className="mt-4 grid min-w-0 gap-3 md:grid-cols-2 xl:grid-cols-3">
                         <input
                           value={item.title}
                           onChange={(event) =>
@@ -1275,36 +1309,53 @@ export default function BulkUploadPanel() {
                           className="rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm outline-none focus:border-yellow-400"
                         />
 
-                        <input
-                          value={item.genre}
-                          onChange={(event) =>
-                            updateItem(item.id, { genre: event.target.value })
+                      </div>
+
+                      <div className="mt-3">
+                        <ControlledGenreFields
+                          compact
+                          mainGenreId={item.mainGenreId}
+                          subgenreId={item.subgenreId}
+                          disabled={item.status === "uploading"}
+                          onMainGenreChange={(mainGenreId, subgenreId) =>
+                            updateItem(
+                              item.id,
+                              resolveGenreFields(mainGenreId, subgenreId)
+                            )
                           }
-                          placeholder="Genre"
-                          className="rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm outline-none focus:border-yellow-400"
+                          onSubgenreChange={(subgenreId) =>
+                            updateItem(
+                              item.id,
+                              resolveGenreFields(item.mainGenreId, subgenreId)
+                            )
+                          }
                         />
                       </div>
 
                       <div className="mt-4 flex flex-wrap gap-2 text-xs text-white/50">
-                        <span className="rounded-full bg-white/[0.06] px-3 py-1">
+                        <span className="break-all rounded-full bg-white/[0.06] px-3 py-1">
                           Duration: {item.duration}s
                         </span>
 
-                        <span className="rounded-full bg-white/[0.06] px-3 py-1">
+                        <span className="break-all rounded-full bg-white/[0.06] px-3 py-1">
+                          Genre: {item.genre || "—"}
+                        </span>
+
+                        <span className="break-all rounded-full bg-white/[0.06] px-3 py-1">
                           Mood: {item.mood}
                         </span>
 
-                        <span className="rounded-full bg-white/[0.06] px-3 py-1">
+                        <span className="break-all rounded-full bg-white/[0.06] px-3 py-1">
                           Artwork:{" "}
                           {item.artworkFile?.name || globalArtwork?.name || "No"}
                         </span>
 
-                        <span className="rounded-full bg-white/[0.06] px-3 py-1">
+                        <span className="break-all rounded-full bg-white/[0.06] px-3 py-1">
                           Lyrics:{" "}
                           {item.lyricsFile?.name || globalLyrics?.name || "No"}
                         </span>
 
-                        <span className="rounded-full bg-white/[0.06] px-3 py-1">
+                        <span className="break-all rounded-full bg-white/[0.06] px-3 py-1">
                           LRC: {item.lrcFile?.name || globalLrc?.name || "No"}
                         </span>
                       </div>
@@ -1319,19 +1370,19 @@ export default function BulkUploadPanel() {
                       )}
 
                       {item.error && (
-                        <p className="mt-3 rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+                        <p className="mt-3 break-words rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
                           {item.error}
                         </p>
                       )}
 
                       {item.warning && (
-                        <p className="mt-3 rounded-2xl border border-yellow-400/20 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-100">
+                        <p className="mt-3 break-words rounded-2xl border border-yellow-400/20 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-100">
                           {item.warning}
                         </p>
                       )}
                     </div>
 
-                    <div className="flex min-w-[150px] flex-row gap-2 xl:flex-col">
+                    <div className="flex min-w-0 flex-row gap-2 xl:w-[150px] xl:flex-col">
                       <button
                         onClick={() => uploadSingle(item)}
                         disabled={

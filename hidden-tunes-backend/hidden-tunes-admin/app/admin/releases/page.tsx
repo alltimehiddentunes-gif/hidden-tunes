@@ -309,7 +309,7 @@ export default function AdminReleasesPage() {
       </section>
 
       <section className="mb-4 rounded-[1.7rem] border border-white/10 bg-[#101017]/92 p-3 shadow-2xl">
-        <div className="grid gap-2 xl:grid-cols-[1.2fr_1fr_0.72fr_0.72fr_0.82fr_0.68fr_auto_auto]">
+        <div className="grid min-w-0 gap-2 md:grid-cols-2 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(130px,0.72fr)_minmax(130px,0.72fr)_minmax(150px,0.82fr)_minmax(130px,0.68fr)_auto_auto]">
           <input
             value={searchInput}
             onChange={(event) => setSearchInput(event.target.value)}
@@ -475,7 +475,7 @@ function CompactReleaseTable({
   onUploader: (release: ReleaseSummary) => void | undefined;
 }) {
   return (
-    <section className="overflow-hidden rounded-[1.7rem] border border-white/10 bg-[#101017]/92 shadow-2xl">
+    <section className="min-w-0 overflow-hidden rounded-[1.7rem] border border-white/10 bg-[#101017]/92 shadow-2xl">
       <div className="hidden grid-cols-[minmax(260px,1.35fr)_0.62fr_0.86fr_0.68fr_0.78fr_0.78fr_0.78fr_0.68fr_128px] gap-3 border-b border-white/10 px-4 py-3 text-[10px] font-black uppercase tracking-[0.18em] text-white/35 2xl:grid">
         <span>Release</span>
         <span>Tracks</span>
@@ -515,7 +515,7 @@ function ReleaseRow({
   onUploader: () => void | undefined;
 }) {
   return (
-    <article className="grid gap-3 px-4 py-3 transition hover:bg-white/[0.035] 2xl:grid-cols-[minmax(260px,1.35fr)_0.62fr_0.86fr_0.68fr_0.78fr_0.78fr_0.78fr_0.68fr_128px] 2xl:items-center">
+    <article className="grid min-w-0 gap-3 px-4 py-3 transition hover:bg-white/[0.035] 2xl:grid-cols-[minmax(0,1.35fr)_minmax(84px,0.62fr)_minmax(120px,0.86fr)_minmax(96px,0.68fr)_minmax(110px,0.78fr)_minmax(110px,0.78fr)_minmax(110px,0.78fr)_minmax(96px,0.68fr)_minmax(96px,128px)] 2xl:items-center">
       <ReleaseIdentity release={release} />
       <InfoCell label="Tracks" value={String(release.trackCount)} />
       <UploaderCell release={release} onPress={onUploader} />
@@ -560,11 +560,11 @@ function CompactGrid({
   onUploader: (release: ReleaseSummary) => void | undefined;
 }) {
   return (
-    <section className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
+    <section className="grid min-w-0 gap-3 md:grid-cols-2 2xl:grid-cols-3">
       {releases.map((release) => (
         <article
           key={release.id}
-          className="rounded-[1.5rem] border border-white/10 bg-[#101017]/92 p-4 shadow-xl transition hover:-translate-y-0.5 hover:border-yellow-300/20"
+          className="min-w-0 rounded-[1.5rem] border border-white/10 bg-[#101017]/92 p-4 shadow-xl transition hover:-translate-y-0.5 hover:border-yellow-300/20"
         >
           <ReleaseIdentity release={release} />
 
@@ -632,10 +632,12 @@ function ReleaseIdentity({ release }: { release: ReleaseSummary }) {
         }}
       />
       <div className="min-w-0">
-        <h2 className="truncate text-base font-black tracking-[-0.02em]">
+        <h2 className="break-words text-base font-black tracking-[-0.02em]">
           {release.title}
         </h2>
-        <p className="truncate text-sm font-bold text-white/50">{release.artist}</p>
+        <p className="break-words text-sm font-bold text-white/50">
+          {release.artist}
+        </p>
         <span
           className={`mt-1 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.14em] ${badgeTone(
             assetStatus,
@@ -669,10 +671,10 @@ function UploaderCell({
         onClick={onPress}
         className="max-w-full text-left disabled:cursor-default"
       >
-        <p className="truncate text-sm font-black text-white/72">
+        <p className="break-all text-sm font-black text-white/72">
           {release.uploaderEmail || "Unknown uploader"}
         </p>
-        <p className="truncate text-xs font-bold text-white/36">
+        <p className="break-words text-xs font-bold text-white/36">
           {release.uploaderRole || (hasUploader ? "Unknown role" : "Legacy row")}
         </p>
       </button>
@@ -703,7 +705,7 @@ function RightsBadge({
         )}`}
         title={`${label}: ${formatRightsValue(value, fallback)}`}
       >
-        <span className="truncate">{formatRightsValue(value, fallback)}</span>
+        <span className="break-words">{formatRightsValue(value, fallback)}</span>
       </span>
     </div>
   );
@@ -719,17 +721,17 @@ function QuickActions({
   onLyrics: () => void;
 }) {
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex min-w-0 flex-wrap gap-2">
       <button
         onClick={onOpen}
-        className="rounded-full bg-yellow-300 px-4 py-2 text-xs font-black uppercase tracking-widest text-black transition hover:-translate-y-0.5"
+        className="min-w-0 rounded-full bg-yellow-300 px-4 py-2 text-xs font-black uppercase tracking-widest text-black transition hover:-translate-y-0.5"
       >
         Open
       </button>
       <button
         onClick={onLyrics}
         disabled={!canEditLyrics}
-        className="rounded-full border border-white/10 bg-white/[0.055] px-4 py-2 text-xs font-black uppercase tracking-widest text-white/65 transition hover:border-white/25 disabled:cursor-not-allowed disabled:opacity-35"
+        className="min-w-0 rounded-full border border-white/10 bg-white/[0.055] px-4 py-2 text-xs font-black uppercase tracking-widest text-white/65 transition hover:border-white/25 disabled:cursor-not-allowed disabled:opacity-35"
       >
         Lyrics
       </button>
@@ -747,12 +749,12 @@ function PaginationControls({
   onNext: () => void;
 }) {
   return (
-    <section className="mt-4 flex flex-col gap-3 rounded-[1.5rem] border border-white/10 bg-[#101017]/80 p-3 sm:flex-row sm:items-center sm:justify-between">
-      <p className="text-sm font-semibold text-white/50">
+    <section className="mt-4 flex min-w-0 flex-col gap-3 rounded-[1.5rem] border border-white/10 bg-[#101017]/80 p-3 sm:flex-row sm:items-center sm:justify-between">
+      <p className="break-words text-sm font-semibold text-white/50">
         Showing page {pagination.page} of {pagination.totalPages} for{" "}
         {compactNumber(pagination.total)} matching releases.
       </p>
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <button
           onClick={onPrevious}
           disabled={!pagination.hasPreviousPage}
@@ -848,7 +850,7 @@ function InfoCell({ label, value }: { label: string; value: string }) {
       <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-white/30 2xl:hidden">
         {label}
       </p>
-      <p className="truncate text-sm font-bold text-white/66">{value}</p>
+      <p className="break-words text-sm font-bold text-white/66">{value}</p>
     </div>
   );
 }
@@ -856,7 +858,7 @@ function InfoCell({ label, value }: { label: string; value: string }) {
 function MiniStat({ label, value }: { label: string; value: string }) {
   return (
     <div className="min-w-0 rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-3">
-      <p className="truncate text-sm font-black">{value}</p>
+      <p className="break-words text-sm font-black">{value}</p>
       <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-white/35">
         {label}
       </p>

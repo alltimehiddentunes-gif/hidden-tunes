@@ -13,6 +13,32 @@ type RouteContext = {
   }>;
 };
 
+type SongRow = {
+  id: string;
+  album_id: string | null;
+  title: string | null;
+  artwork_url?: string | null;
+  cover_url?: string | null;
+  lyrics_url?: string | null;
+};
+
+type AlbumRow = {
+  id: string;
+  title: string | null;
+  artwork_url?: string | null;
+};
+
+type LyricsRow = {
+  song_id: string;
+  lyrics_type: string | null;
+  plain_lyrics: string | null;
+  synced_lrc: string | null;
+  word_sync_json: unknown | null;
+  r2_lyrics_key: string | null;
+  lyrics_url: string | null;
+  source: string | null;
+};
+
 function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
 }
@@ -25,13 +51,24 @@ function hasLrcTimestamps(value: string) {
 async function getTrack(releaseId: string, trackId: string) {
   const { data, error } = await supabaseAdmin
     .from("songs")
-    .select("id, album_id, title, lyrics_url")
+    .select("id, album_id, title, artwork_url, cover_url, lyrics_url")
     .eq("id", trackId)
     .eq("album_id", releaseId)
     .maybeSingle();
 
   if (error) throw error;
-  return data;
+  return data as SongRow | null;
+}
+
+async function getRelease(releaseId: string) {
+  const { data, error } = await supabaseAdmin
+    .from("albums")
+    .select("id, title, artwork_url")
+    .eq("id", releaseId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data as AlbumRow | null;
 }
 
 async function getLyrics(trackId: string) {
@@ -42,7 +79,7 @@ async function getLyrics(trackId: string) {
     .maybeSingle();
 
   if (error) throw error;
-  return data;
+  return data as LyricsRow | null;
 }
 
 export async function GET(request: NextRequest, context: RouteContext) {
@@ -54,22 +91,33 @@ export async function GET(request: NextRequest, context: RouteContext) {
     }
 
     const { id, trackId } = await context.params;
-    const track = await getTrack(id, trackId);
+    const [release, track] = await Promise.all([
+      getRelease(id),
+      getTrack(id, trackId),
+    ]);
 
-    if (!track) {
+    if (!release || !track) {
       return NextResponse.json(
-        { success: false, error: "Track not found for this release." },
+        { success: false, error: "Release or track was not found." },
         { status: 404 }
       );
     }
 
     const lyrics = await getLyrics(trackId);
+    const artworkUrl =
+      track.artwork_url || track.cover_url || release.artwork_url || null;
 
     return NextResponse.json({
       success: true,
+      release: {
+        id: release.id,
+        title: release.title || "Untitled Release",
+        artworkUrl: release.artwork_url || null,
+      },
       track: {
         id: track.id,
-        title: track.title,
+        title: track.title || "Untitled Track",
+        artworkUrl,
       },
       lyrics: {
         plainLyrics: lyrics?.plain_lyrics || "",
@@ -124,7 +172,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
     if (!track) {
       return NextResponse.json(
-        { success: false, error: "Track not found for this release." },
+        { success: false, error: "Track was not found for this release." },
         { status: 404 }
       );
     }

@@ -4,13 +4,16 @@ import { randomUUID } from "crypto";
 import { uploadToR2 } from "@/lib/r2";
 import { requireUploadPermission } from "@/lib/requireUploadPermission";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import {
+  applyNormalizedGenreToSongInsert,
+  normalizeIncomingGenrePayload,
+} from "@/lib/uploadGenreTaxonomy";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const FALLBACK_ARTIST = "Hidden Tunes";
 const FALLBACK_ALBUM = "Singles";
-const FALLBACK_GENRE = "Uncategorized";
 const FALLBACK_MOOD = "Unspecified";
 
 function getErrorMessage(error: unknown, fallback: string) {
@@ -253,9 +256,7 @@ export async function POST(req: NextRequest) {
     const albumTitle = String(
       body.album || body.defaultAlbum || FALLBACK_ALBUM
     ).trim();
-    const genre = String(
-      body.genre || body.defaultGenre || FALLBACK_GENRE
-    ).trim();
+    const normalizedGenre = normalizeIncomingGenrePayload(body);
     const mood = String(body.mood || body.defaultMood || FALLBACK_MOOD).trim();
 
     const durationSeconds = Math.round(Number(body.duration || 0));
@@ -368,50 +369,54 @@ export async function POST(req: NextRequest) {
 
     const { data: song, error: songError } = await supabaseAdmin
       .from("songs")
-      .insert({
-        id: songId,
+      .insert(
+        applyNormalizedGenreToSongInsert(
+          {
+            id: songId,
 
-        title,
-        slug: `${artistSlug}-${titleSlug}-${songId.slice(0, 8)}`,
+            title,
+            slug: `${artistSlug}-${titleSlug}-${songId.slice(0, 8)}`,
 
-        artist_id: artist.id,
-        album_id: album.id,
-        uploaded_by_user_id: uploadedByUserId,
+            artist_id: artist.id,
+            album_id: album.id,
+            uploaded_by_user_id: uploadedByUserId,
 
-        artist: artist.name,
-        album: album.title,
+            artist: artist.name,
+            album: album.title,
 
-        artist_name: artist.name,
-        album_title: album.title,
+            artist_name: artist.name,
+            album_title: album.title,
 
-        genre,
-        mood,
+            mood,
 
-        duration: durationSeconds,
-        duration_seconds: durationSeconds,
+            duration: durationSeconds,
+            duration_seconds: durationSeconds,
 
-        audio_url: audioUrl,
-        cover_url: artworkUrl,
+            audio_url: audioUrl,
+            cover_url: artworkUrl,
 
-        url: audioUrl,
-        artwork_url: artworkUrl,
+            url: audioUrl,
+            artwork_url: artworkUrl,
 
-        r2_audio_key: audioKey,
-        r2_cover_key: artworkKey,
+            r2_audio_key: audioKey,
+            r2_cover_key: artworkKey,
 
-        lyrics_url: lyricsUrl,
-        has_lyrics: Boolean(lyricsUrl),
-        lyrics_type: lyricsType,
-        lyrics_updated_at: lyricsUrl ? new Date().toISOString() : null,
+            lyrics_url: lyricsUrl,
+            has_lyrics: Boolean(lyricsUrl),
+            lyrics_type: lyricsType,
+            lyrics_updated_at: lyricsUrl ? new Date().toISOString() : null,
 
-        source_name: "Hidden Tunes",
-        source_type: "r2",
+            source_name: "Hidden Tunes",
+            source_type: "r2",
 
-        type: "r2",
+            type: "r2",
 
-        is_online: true,
-        isOnline: true,
-      })
+            is_online: true,
+            isOnline: true,
+          },
+          normalizedGenre
+        )
+      )
       .select("*")
       .single();
 

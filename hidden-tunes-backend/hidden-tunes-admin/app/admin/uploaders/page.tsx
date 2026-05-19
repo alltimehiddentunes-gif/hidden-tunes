@@ -278,16 +278,16 @@ export default function AdminUploadersPage() {
         </button>
       }
     >
-      <section className="grid gap-5 xl:grid-cols-[420px_1fr]">
-        <aside className="flex flex-col gap-5">
-          <div className="rounded-[2.1rem] border border-white/10 bg-[#101017]/92 p-5 shadow-2xl">
+      <section className="grid min-w-0 gap-5 xl:grid-cols-[minmax(280px,420px)_minmax(0,1fr)]">
+        <aside className="flex min-w-0 flex-col gap-5">
+          <div className="min-w-0 rounded-[2.1rem] border border-white/10 bg-[#101017]/92 p-5 shadow-2xl">
             <p className="text-xs font-black uppercase tracking-[0.28em] text-yellow-300">
               Create Access
             </p>
-            <h2 className="mt-3 text-3xl font-black tracking-[-0.04em]">
+            <h2 className="mt-3 break-words text-3xl font-black tracking-[-0.04em]">
               Invite uploader
             </h2>
-            <p className="mt-3 text-sm leading-6 text-white/55">
+            <p className="mt-3 break-words text-sm leading-6 text-white/55">
               Invitations use Supabase Auth and create the matching uploader
               profile for the selected role.
             </p>
@@ -334,7 +334,7 @@ export default function AdminUploadersPage() {
             </form>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid min-w-0 grid-cols-2 gap-3">
             <Metric label="Total" value={String(summary.total)} />
             <Metric label="Active" value={String(summary.active)} />
             <Metric label="Disabled" value={String(summary.disabled)} />
@@ -342,17 +342,17 @@ export default function AdminUploadersPage() {
           </div>
         </aside>
 
-        <section className="rounded-[2.1rem] border border-white/10 bg-[#101017]/92 p-5 shadow-2xl">
-          <div className="flex flex-col gap-3 border-b border-white/10 pb-5 sm:flex-row sm:items-end sm:justify-between">
-            <div>
+        <section className="min-w-0 rounded-[2.1rem] border border-white/10 bg-[#101017]/92 p-5 shadow-2xl">
+          <div className="flex min-w-0 flex-col gap-3 border-b border-white/10 pb-5 sm:flex-row sm:items-end sm:justify-between">
+            <div className="min-w-0">
               <p className="text-xs font-black uppercase tracking-[0.28em] text-yellow-300">
                 Team Access
               </p>
-              <h2 className="mt-2 text-3xl font-black tracking-[-0.04em]">
+              <h2 className="mt-2 break-words text-3xl font-black tracking-[-0.04em]">
                 Active profiles
               </h2>
             </div>
-            <p className="text-sm text-white/45">
+            <p className="max-w-xl break-words text-sm text-white/45">
               Owner accounts cannot be disabled from this screen.
             </p>
           </div>
@@ -365,17 +365,17 @@ export default function AdminUploadersPage() {
             {uploaders.map((uploader) => (
               <article
                 key={uploader.id}
-                className="rounded-[1.5rem] border border-white/10 bg-black/24 p-4"
+                className="min-w-0 rounded-[1.5rem] border border-white/10 bg-black/24 p-4"
               >
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                  <div>
-                    <p className="text-lg font-black">{uploader.email}</p>
-                    <p className="mt-1 text-sm text-white/45">
+                <div className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="min-w-0">
+                    <p className="break-all text-lg font-black">{uploader.email}</p>
+                    <p className="mt-1 break-words text-sm text-white/45">
                       {uploader.role || "unknown"} / {formatDate(uploader.created_at)}
                     </p>
                   </div>
 
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex min-w-0 flex-wrap gap-2">
                     <span
                       className={`rounded-full px-3 py-2 text-xs font-black uppercase tracking-widest ${
                         uploader.status === "active"
@@ -390,7 +390,7 @@ export default function AdminUploadersPage() {
                       onClick={() =>
                         router.push(`/admin/uploaders/${uploader.id}/releases`)
                       }
-                      className="rounded-full border border-yellow-300/25 bg-yellow-300/10 px-4 py-2 text-xs font-black uppercase tracking-widest text-yellow-100 transition hover:-translate-y-0.5"
+                      className="min-w-0 rounded-full border border-yellow-300/25 bg-yellow-300/10 px-4 py-2 text-xs font-black uppercase tracking-widest text-yellow-100 transition hover:-translate-y-0.5"
                     >
                       View uploads
                     </button>
@@ -399,7 +399,7 @@ export default function AdminUploadersPage() {
                       <button
                         disabled={updatingUploaderId === uploader.id}
                         onClick={() => updateUploaderStatus(uploader, "active")}
-                        className="rounded-full border border-emerald-300/20 bg-emerald-400/10 px-4 py-2 text-xs font-black uppercase tracking-widest text-emerald-100 disabled:opacity-40"
+                        className="min-w-0 rounded-full border border-emerald-300/20 bg-emerald-400/10 px-4 py-2 text-xs font-black uppercase tracking-widest text-emerald-100 disabled:opacity-40"
                       >
                         Activate
                       </button>
@@ -410,7 +410,7 @@ export default function AdminUploadersPage() {
                           updatingUploaderId === uploader.id
                         }
                         onClick={() => setPendingDisableUploader(uploader)}
-                        className="rounded-full border border-red-300/20 bg-red-400/10 px-4 py-2 text-xs font-black uppercase tracking-widest text-red-100 disabled:cursor-not-allowed disabled:opacity-35"
+                        className="min-w-0 rounded-full border border-red-300/20 bg-red-400/10 px-4 py-2 text-xs font-black uppercase tracking-widest text-red-100 disabled:cursor-not-allowed disabled:opacity-35"
                       >
                         Disable
                       </button>
@@ -433,7 +433,7 @@ export default function AdminUploadersPage() {
               Disable uploader access?
             </h2>
             <p className="mt-3 text-sm leading-6 text-white/60">
-              {pendingDisableUploader.email} will no longer be able to upload or
+              <span className="break-all">{pendingDisableUploader.email}</span> will no longer be able to upload or
               manage admin tools.
             </p>
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
@@ -462,8 +462,8 @@ export default function AdminUploadersPage() {
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-3xl border border-white/10 bg-white/[0.045] p-4">
-      <p className="text-3xl font-black tracking-[-0.04em]">{value}</p>
+    <div className="min-w-0 rounded-3xl border border-white/10 bg-white/[0.045] p-4">
+      <p className="break-words text-3xl font-black tracking-[-0.04em]">{value}</p>
       <p className="mt-1 text-xs font-bold uppercase tracking-widest text-white/38">
         {label}
       </p>
@@ -474,7 +474,7 @@ function Metric({ label, value }: { label: string; value: string }) {
 function Notice({ tone, message }: { tone: "success" | "error"; message: string }) {
   return (
     <p
-      className={`rounded-2xl border px-4 py-3 text-sm ${
+      className={`break-words rounded-2xl border px-4 py-3 text-sm ${
         tone === "success"
           ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-100"
           : "border-red-400/20 bg-red-500/10 text-red-100"

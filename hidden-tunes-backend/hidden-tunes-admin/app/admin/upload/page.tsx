@@ -29,7 +29,7 @@ export default function AdminUploadPage() {
         </div>
       }
     >
-      <div className="rounded-[2.2rem] border border-white/10 bg-[#101017]/75 p-2 shadow-2xl">
+      <div className="min-w-0 rounded-[2.2rem] border border-white/10 bg-[#101017]/75 p-2 shadow-2xl">
         <BulkUploadPanel />
       </div>
     </AdminShell>

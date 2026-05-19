@@ -241,7 +241,7 @@ export default function UploaderReleasesPage() {
           </p>
         </section>
       ) : (
-        <section className="overflow-hidden rounded-[1.7rem] border border-white/10 bg-[#101017]/92 shadow-2xl">
+        <section className="min-w-0 overflow-hidden rounded-[1.7rem] border border-white/10 bg-[#101017]/92 shadow-2xl">
           <div className="hidden grid-cols-[minmax(260px,1.4fr)_0.5fr_0.7fr_0.8fr_0.8fr_0.8fr_120px] gap-3 border-b border-white/10 px-4 py-3 text-[10px] font-black uppercase tracking-[0.18em] text-white/35 xl:grid">
             <span>Release</span>
             <span>Tracks</span>
@@ -255,7 +255,7 @@ export default function UploaderReleasesPage() {
             {releases.map((release) => (
               <article
                 key={release.id}
-                className="grid gap-3 px-4 py-3 transition hover:bg-white/[0.035] xl:grid-cols-[minmax(260px,1.4fr)_0.5fr_0.7fr_0.8fr_0.8fr_0.8fr_120px] xl:items-center"
+              className="grid min-w-0 gap-3 px-4 py-3 transition hover:bg-white/[0.035] xl:grid-cols-[minmax(0,1.4fr)_minmax(80px,0.5fr)_minmax(100px,0.7fr)_minmax(110px,0.8fr)_minmax(110px,0.8fr)_minmax(110px,0.8fr)_minmax(88px,120px)] xl:items-center"
               >
                 <ReleaseIdentity release={release} />
                 <InfoCell label="Tracks" value={String(release.trackCount)} />
@@ -291,7 +291,7 @@ export default function UploaderReleasesPage() {
           <p className="text-sm font-semibold text-white/50">
             Page {pagination.page} of {pagination.totalPages}
           </p>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <button
               onClick={() => setPage((value) => Math.max(1, value - 1))}
               disabled={!pagination.hasPreviousPage}
@@ -325,10 +325,12 @@ function ReleaseIdentity({ release }: { release: ReleaseSummary }) {
         }}
       />
       <div className="min-w-0">
-        <h2 className="truncate text-base font-black tracking-[-0.02em]">
+        <h2 className="break-words text-base font-black tracking-[-0.02em]">
           {release.title}
         </h2>
-        <p className="truncate text-sm font-bold text-white/50">{release.artist}</p>
+        <p className="break-words text-sm font-bold text-white/50">
+          {release.artist}
+        </p>
       </div>
     </div>
   );
@@ -353,7 +355,7 @@ function StatusBadge({
           value
         )}`}
       >
-        <span className="truncate">{formatRightsValue(value, fallback)}</span>
+        <span className="break-words">{formatRightsValue(value, fallback)}</span>
       </span>
     </div>
   );
@@ -365,7 +367,7 @@ function InfoCell({ label, value }: { label: string; value: string }) {
       <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-white/30 xl:hidden">
         {label}
       </p>
-      <p className="truncate text-sm font-bold text-white/66">{value}</p>
+      <p className="break-words text-sm font-bold text-white/66">{value}</p>
     </div>
   );
 }
