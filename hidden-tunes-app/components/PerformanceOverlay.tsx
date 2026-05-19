@@ -7,6 +7,7 @@ import {
   logPerformanceDiagnosticsOverlay,
 } from "../utils/performanceLogs";
 import { getImagePrefetchStatus } from "../utils/imagePreloader";
+import { getRenderDiagnostics } from "../utils/renderDiagnostics";
 
 function PerformanceOverlayPanel() {
   const [expanded, setExpanded] = useState(false);
@@ -27,8 +28,12 @@ function PerformanceOverlayPanel() {
   }, [tick]);
 
   const diagnostics = getPerformanceDiagnostics();
+  const renderDiagnostics = getRenderDiagnostics();
   const lastScreen = getLastScreenSnapshot();
   const prefetch = getImagePrefetchStatus();
+  const topRenderCounts = Object.entries(renderDiagnostics.rerenderCounts)
+    .sort((left, right) => right[1] - left[1])
+    .slice(0, 4);
 
   return (
     <View pointerEvents="box-none" style={styles.wrap}>
@@ -65,6 +70,15 @@ function PerformanceOverlayPanel() {
             <Text style={styles.line}>
               Artwork fails: {diagnostics.artworkFailures}
             </Text>
+            <Text style={styles.line}>
+              Render samples: {diagnostics.renderRerenderSamples} /{" "}
+              {diagnostics.renderTrackedComponents} comps
+            </Text>
+            {topRenderCounts.map(([name, count]) => (
+              <Text key={name} style={styles.line}>
+                {name}: {count}
+              </Text>
+            ))}
             {diagnostics.slowEndpointWarnings > 0 ? (
               <Text style={styles.warning}>
                 Slow endpoints: {diagnostics.slowEndpointWarnings}

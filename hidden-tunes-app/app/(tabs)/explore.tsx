@@ -63,10 +63,12 @@ import {
   startPerformanceTimer,
 } from "../../utils/performanceLogs";
 import {
+  getHorizontalListPerformanceSettings,
   getListPerformanceSettings,
   markFastScrolling,
   scheduleNavigationPrewarm,
 } from "../../utils/performanceMode";
+import { trackRenderProbe } from "../../utils/renderDiagnostics";
 import {
   openGenreCatalog,
   openMoodCatalog,
@@ -274,9 +276,18 @@ export default function ExploreScreen() {
   const [loadingMoreSongs, setLoadingMoreSongs] = useState(false);
 
   useScrollToTop(listRef);
+  useEffect(() => trackRenderProbe("ExploreScreen"), []);
+
   const listPerformance = useMemo(
     () => getListPerformanceSettings(Math.max(cloudSongs.length, tracks.length)),
     [cloudSongs.length, tracks.length]
+  );
+  const horizontalRailTuning = useMemo(
+    () =>
+      getHorizontalListPerformanceSettings(
+        Math.max(albums.length, artists.length, playlists.length)
+      ),
+    [albums.length, artists.length, playlists.length]
   );
 
   const loadCatalogSecondarySections = useCallback(async (forceRefresh = false) => {
@@ -963,9 +974,10 @@ export default function ExploreScreen() {
                   contentContainerStyle={styles.cloudRow}
                   renderItem={renderSmartPick}
                   getItemLayout={getCloudItemLayout}
-                  initialNumToRender={4}
-                  maxToRenderPerBatch={4}
-                  windowSize={5}
+                  initialNumToRender={horizontalRailTuning.initialNumToRender}
+                  maxToRenderPerBatch={horizontalRailTuning.maxToRenderPerBatch}
+                  windowSize={horizontalRailTuning.windowSize}
+                  updateCellsBatchingPeriod={horizontalRailTuning.updateCellsBatchingPeriod}
                   removeClippedSubviews
                 />
               </>
@@ -994,9 +1006,10 @@ export default function ExploreScreen() {
                   contentContainerStyle={styles.cloudRow}
                   renderItem={renderRecentSong}
                   getItemLayout={getCloudItemLayout}
-                  initialNumToRender={4}
-                  maxToRenderPerBatch={4}
-                  windowSize={5}
+                  initialNumToRender={horizontalRailTuning.initialNumToRender}
+                  maxToRenderPerBatch={horizontalRailTuning.maxToRenderPerBatch}
+                  windowSize={horizontalRailTuning.windowSize}
+                  updateCellsBatchingPeriod={horizontalRailTuning.updateCellsBatchingPeriod}
                   removeClippedSubviews
                 />
               </>
@@ -1017,9 +1030,10 @@ export default function ExploreScreen() {
                   contentContainerStyle={styles.cloudRow}
                   renderItem={renderCloudSong}
                   getItemLayout={getCloudItemLayout}
-                  initialNumToRender={4}
-                  maxToRenderPerBatch={4}
-                  windowSize={5}
+                  initialNumToRender={horizontalRailTuning.initialNumToRender}
+                  maxToRenderPerBatch={horizontalRailTuning.maxToRenderPerBatch}
+                  windowSize={horizontalRailTuning.windowSize}
+                  updateCellsBatchingPeriod={horizontalRailTuning.updateCellsBatchingPeriod}
                   removeClippedSubviews
                 />
               </>
@@ -1125,9 +1139,11 @@ export default function ExploreScreen() {
                   keyExtractor={(item: any) => `playlist-${item.id}`}
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={styles.cloudRow}
-                  initialNumToRender={4}
-                  maxToRenderPerBatch={4}
-                  windowSize={5}
+                  initialNumToRender={horizontalRailTuning.initialNumToRender}
+                  maxToRenderPerBatch={horizontalRailTuning.maxToRenderPerBatch}
+                  windowSize={horizontalRailTuning.windowSize}
+                  updateCellsBatchingPeriod={horizontalRailTuning.updateCellsBatchingPeriod}
+                  removeClippedSubviews
                   renderItem={({ item }: any) => (
                     <TouchableOpacity
                       activeOpacity={0.88}
@@ -1169,9 +1185,11 @@ export default function ExploreScreen() {
                   keyExtractor={(item: any) => `album-${item.id}`}
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={styles.cloudRow}
-                  initialNumToRender={4}
-                  maxToRenderPerBatch={4}
-                  windowSize={5}
+                  initialNumToRender={horizontalRailTuning.initialNumToRender}
+                  maxToRenderPerBatch={horizontalRailTuning.maxToRenderPerBatch}
+                  windowSize={horizontalRailTuning.windowSize}
+                  updateCellsBatchingPeriod={horizontalRailTuning.updateCellsBatchingPeriod}
+                  removeClippedSubviews
                   renderItem={({ item }: any) => (
                     <TouchableOpacity
                       activeOpacity={0.88}
@@ -1211,9 +1229,11 @@ export default function ExploreScreen() {
                   keyExtractor={(item: any) => `artist-${item.id}`}
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={styles.cloudRow}
-                  initialNumToRender={4}
-                  maxToRenderPerBatch={4}
-                  windowSize={5}
+                  initialNumToRender={horizontalRailTuning.initialNumToRender}
+                  maxToRenderPerBatch={horizontalRailTuning.maxToRenderPerBatch}
+                  windowSize={horizontalRailTuning.windowSize}
+                  updateCellsBatchingPeriod={horizontalRailTuning.updateCellsBatchingPeriod}
+                  removeClippedSubviews
                   getItemLayout={(_, index) => ({
                     length: ARTIST_CARD_WIDTH + CARD_GAP,
                     offset: (ARTIST_CARD_WIDTH + CARD_GAP) * index,

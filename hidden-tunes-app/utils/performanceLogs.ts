@@ -1,3 +1,5 @@
+import { getRenderDiagnostics } from "./renderDiagnostics";
+
 type PerformanceLogDetails = Record<string, string | number | boolean | undefined>;
 
 type MetricSummary = {
@@ -135,6 +137,8 @@ export function getLastScreenSnapshot() {
 }
 
 export function getPerformanceDiagnostics() {
+  const renderDiagnostics = getRenderDiagnostics();
+
   return {
     cacheHitRate:
       metrics.cacheHits + metrics.cacheMisses > 0
@@ -153,6 +157,8 @@ export function getPerformanceDiagnostics() {
     lastScreenName: lastScreenSnapshot?.screen,
     lastScreenReadyMs: lastScreenSnapshot?.readyMs,
     lastScreenItemCount: lastScreenSnapshot?.itemCount,
+    renderRerenderSamples: renderDiagnostics.totalRerenderSamples,
+    renderTrackedComponents: renderDiagnostics.trackedComponents,
   };
 }
 

@@ -36,9 +36,11 @@ import {
   startPerformanceTimer,
 } from "../../utils/performanceLogs";
 import {
+  createStableKeyExtractor,
   getListPerformanceSettings,
   markFastScrolling,
 } from "../../utils/performanceMode";
+import { trackRenderProbe } from "../../utils/renderDiagnostics";
 import {
   loadAlbumDetailSnapshot,
   saveAlbumDetailSnapshot,
@@ -136,6 +138,12 @@ export default function AlbumScreen() {
     () => getListPerformanceSettings(tracks.length),
     [tracks.length]
   );
+  const trackKeyExtractor = useMemo(
+    () => createStableKeyExtractor("album-track"),
+    []
+  );
+
+  useEffect(() => trackRenderProbe("AlbumScreen"), []);
 
   const loadAlbum = useCallback(
     async (showLoader = true) => {
@@ -311,7 +319,7 @@ export default function AlbumScreen() {
 
       <FlatList
         data={tracks}
-        keyExtractor={(item, index) => `${item.id}-${index}`}
+        keyExtractor={trackKeyExtractor}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.list}
         initialNumToRender={listPerformance.initialNumToRender}

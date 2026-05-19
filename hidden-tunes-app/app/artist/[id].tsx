@@ -3,7 +3,6 @@ import {
   ActivityIndicator,
   FlatList,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -14,8 +13,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
-import NeonEQ from "../../components/NeonEQ";
-import AddToPlaylistButton from "../../components/AddToPlaylistButton";
+import ArtistTrackRow from "../../components/catalog/ArtistTrackRow";
 import HTImage from "../../components/HTImage";
 
 import { COLORS, GRADIENTS } from "../../constants/theme";
@@ -37,7 +35,13 @@ import {
   logTapToPlay,
   startPerformanceTimer,
 } from "../../utils/performanceLogs";
-import { markFastScrolling } from "../../utils/performanceMode";
+import { trackRenderProbe } from "../../utils/renderDiagnostics";
+import {
+  createStableKeyExtractor,
+  getHorizontalListPerformanceSettings,
+  getListPerformanceSettings,
+  markFastScrolling,
+} from "../../utils/performanceMode";
 import {
   loadArtistDetailSnapshot,
   saveArtistDetailSnapshot,
@@ -127,6 +131,20 @@ export default function ArtistScreen() {
   );
 
   const albums = useMemo(() => artist?.albums || [], [artist?.albums]);
+  const listPerformance = useMemo(
+    () => getListPerformanceSettings(tracks.length),
+    [tracks.length]
+  );
+  const albumListTuning = useMemo(
+    () => getHorizontalListPerformanceSettings(albums.length),
+    [albums.length]
+  );
+  const trackKeyExtractor = useMemo(
+    () => createStableKeyExtractor("artist-track"),
+    []
+  );
+
+  useEffect(() => trackRenderProbe("ArtistScreen"), []);
 
   const loadArtist = useCallback(
     async (showLoader = true) => {
@@ -234,19 +252,22 @@ export default function ArtistScreen() {
     await loadArtist(false);
   }
 
-  async function handlePlay(track: HiddenTunesNormalizedSong) {
-    const tapStartedAt = startPerformanceTimer();
-    const normalized = safeSong(track);
+  const handlePlay = useCallback(
+    async (track: HiddenTunesNormalizedSong) => {
+      const tapStartedAt = startPerformanceTimer();
+      const normalized = safeSong(track);
 
-    const startIndex = Math.max(
-      0,
-      tracks.findIndex((item) => item.id === normalized.id)
-    );
+      const startIndex = Math.max(
+        0,
+        tracks.findIndex((item) => item.id === normalized.id)
+      );
 
-    await playSong(normalized as any, tracks as any, startIndex);
-    logTapToPlay("artist", tapStartedAt, { id: normalized.id });
-    router.push("/player" as any);
-  }
+      await playSong(normalized as any, tracks as any, startIndex);
+      logTapToPlay("artist", tapStartedAt, { id: normalized.id });
+      router.push("/player" as any);
+    },
+    [playSong, tracks]
+  );
 
   async function playArtist() {
     if (!tracks.length) return;
@@ -273,6 +294,22 @@ export default function ArtistScreen() {
       params: { id: album.id },
     } as any);
   }
+
+  const renderTrackItem = useCallback(
+    ({ item, index }: { item: HiddenTunesNormalizedSong; index: number }) => (
+      <ArtistTrackRow
+        track={item}
+        index={index}
+        active={currentSong?.id === item.id}
+        isPlaying={isPlaying}
+        metaLine={`${item.album || artist?.name || ""}${
+          item.duration ? ` • ${formatDuration(item.duration)}` : ""
+        }`}
+        onPress={handlePlay}
+      />
+    ),
+    [artist?.name, currentSong?.id, handlePlay, isPlaying]
+  );
 
   if (loading) {
     return (
@@ -312,9 +349,16 @@ export default function ArtistScreen() {
       <View style={styles.glowPurple} />
       <View style={styles.glowCyan} />
 
-      <ScrollView
+      <FlatList
+        data={tracks}
+        keyExtractor={trackKeyExtractor}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}
+        initialNumToRender={listPerformance.initialNumToRender}
+        maxToRenderPerBatch={listPerformance.maxToRenderPerBatch}
+        windowSize={listPerformance.windowSize}
+        updateCellsBatchingPeriod={listPerformance.updateCellsBatchingPeriod}
+        removeClippedSubviews
         onScrollBeginDrag={() => markFastScrolling(true)}
         onMomentumScrollBegin={() => markFastScrolling(true)}
         onMomentumScrollEnd={() => markFastScrolling(false)}
@@ -325,7 +369,9 @@ export default function ArtistScreen() {
             onRefresh={onRefresh}
           />
         }
-      >
+        renderItem={renderTrackItem}
+        ListHeaderComponent={
+          <>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <Ionicons name="chevron-back" size={26} color={COLORS.text} />
@@ -388,9 +434,14 @@ export default function ArtistScreen() {
             <FlatList
               horizontal
               data={albums}
-              keyExtractor={(item, index) => `${item.id}-${index}`}
+              keyExtractor={(item) => `artist-album-${item.id}`}
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.albumList}
+              initialNumToRender={albumListTuning.initialNumToRender}
+              maxToRenderPerBatch={albumListTuning.maxToRenderPerBatch}
+              windowSize={albumListTuning.windowSize}
+              updateCellsBatchingPeriod={albumListTuning.updateCellsBatchingPeriod}
+              removeClippedSubviews
               renderItem={({ item }) => (
                 <TouchableOpacity
                   style={styles.albumCard}
@@ -420,8 +471,9 @@ export default function ArtistScreen() {
           <Text style={styles.sectionTitle}>Essential Tracks</Text>
           <Text style={styles.sectionSub}>Start a queue from this artist world</Text>
         </View>
-
-        {tracks.length === 0 ? (
+          </>
+        }
+        ListEmptyComponent={
           <View style={styles.emptyTracks}>
             <Ionicons name="musical-notes-outline" size={52} color={COLORS.textMuted} />
             <Text style={styles.emptyTitle}>No songs here yet</Text>
@@ -429,51 +481,8 @@ export default function ArtistScreen() {
               This artist world is still waiting for tracks.
             </Text>
           </View>
-        ) : (
-          tracks.map((track, index) => {
-            const active = currentSong?.id === track.id;
-
-            return (
-              <TouchableOpacity
-                key={`${track.id}-${index}`}
-                style={[styles.trackRow, active && styles.trackRowActive]}
-                onPress={() => handlePlay(track)}
-                activeOpacity={0.86}
-              >
-                <View style={styles.trackNumberBox}>
-                  {active ? (
-                    <NeonEQ isPlaying={isPlaying} size="small" />
-                  ) : (
-                    <Text style={styles.trackNumber}>{index + 1}</Text>
-                  )}
-                </View>
-
-                <HTImage source={track} style={styles.trackCover} />
-
-                <View style={styles.trackInfo}>
-                  <Text style={styles.trackTitle} numberOfLines={1}>
-                    {track.title}
-                  </Text>
-
-                  <Text style={styles.trackArtist} numberOfLines={1}>
-                    {track.album || artist.name}{" "}
-                    {track.duration ? `• ${formatDuration(track.duration)}` : ""}
-                  </Text>
-                </View>
-
-                <AddToPlaylistButton track={track as any} />
-
-                <Ionicons
-                  name={active && isPlaying ? "pause-circle" : "play-circle"}
-                  size={30}
-                  color={COLORS.primary}
-                  style={styles.playIcon}
-                />
-              </TouchableOpacity>
-            );
-          })
-        )}
-      </ScrollView>
+        }
+      />
     </LinearGradient>
   );
 }

@@ -18,6 +18,8 @@ import { useFocusEffect, useScrollToTop } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 
+import CatalogSongRow from "../../components/catalog/CatalogSongRow";
+import NestedSongList from "../../components/catalog/NestedSongList";
 import MediaCard from "../../components/MediaCard";
 import NeonEQ from "../../components/NeonEQ";
 import HTImage from "../../components/HTImage";
@@ -58,7 +60,10 @@ import {
   logTapToPlay,
   startPerformanceTimer,
 } from "../../utils/performanceLogs";
+import { trackRenderProbe } from "../../utils/renderDiagnostics";
 import {
+  LIST_ITEM_HEIGHTS,
+  getHorizontalListPerformanceSettings,
   markFastScrolling,
   scheduleNavigationPrewarm,
 } from "../../utils/performanceMode";
@@ -161,6 +166,8 @@ function HomeScreen() {
   const [heroIndex, setHeroIndex] = useState(0);
   const [deferredSectionsReady, setDeferredSectionsReady] = useState(false);
   const deferredSectionsScheduledRef = useRef(false);
+
+  useEffect(() => trackRenderProbe("HomeScreen"), []);
 
   const defaultHeroTrack = featuredSongs[0];
 
@@ -774,42 +781,57 @@ function HomeScreen() {
     setHeroIndex(nextIndex);
   }, [heroCards.length]);
 
-  const renderSongRow = useCallback(
-    (song: HiddenTunesNormalizedSong, index: number) => {
-      const active = currentSong?.id === String(song.id);
+  const renderCatalogSongItem = useCallback(
+    ({ item }: { item: HiddenTunesNormalizedSong }) => {
+      const active = currentSong?.id === String(item.id);
 
       return (
-        <View
-          key={`featured-row-${song.id}-${index}`}
-          style={[styles.mediaShell, active && styles.mediaShellActive]}
-        >
-          <MediaCard
-            title={song.title}
-            subtitle={`${song.artist} • ${song.album || "Hidden Tunes"}`}
-            image={getSongImage(song)}
-            type="song"
-            size="medium"
-            showPlayButton={false}
-            onPress={() => playFeaturedSong(song)}
+        <View style={[styles.mediaShell, active && styles.mediaShellActive]}>
+          <CatalogSongRow
+            song={item}
+            image={getSongImage(item)}
+            active={active}
+            isPlaying={isPlaying}
+            onPress={playFeaturedSong}
           />
-
-          <View style={styles.mediaAction}>
-            {active ? (
-              <NeonEQ isPlaying={isPlaying} size="small" />
-            ) : (
-              <TouchableOpacity
-                activeOpacity={0.85}
-                style={styles.rowPlayButton}
-                onPress={() => playFeaturedSong(song)}
-              >
-                <Ionicons name="play" size={18} color="#000" />
-              </TouchableOpacity>
-            )}
-          </View>
         </View>
       );
     },
     [currentSong?.id, isPlaying, playFeaturedSong]
+  );
+
+  const renderSongRow = useCallback(
+    (song: HiddenTunesNormalizedSong) => {
+      const active = currentSong?.id === String(song.id);
+
+      return (
+        <View style={[styles.mediaShell, active && styles.mediaShellActive]}>
+          <CatalogSongRow
+            song={song}
+            image={getSongImage(song)}
+            active={active}
+            isPlaying={isPlaying}
+            onPress={playFeaturedSong}
+          />
+        </View>
+      );
+    },
+    [currentSong?.id, isPlaying, playFeaturedSong]
+  );
+
+  const horizontalArtistListTuning = useMemo(
+    () => getHorizontalListPerformanceSettings(rankedArtists.length),
+    [rankedArtists.length]
+  );
+
+  const horizontalAlbumListTuning = useMemo(
+    () => getHorizontalListPerformanceSettings(rankedAlbums.length),
+    [rankedAlbums.length]
+  );
+
+  const featuredSliderTuning = useMemo(
+    () => getHorizontalListPerformanceSettings(newestSongs.length),
+    [newestSongs.length]
   );
 
   const renderFeaturedItem = useCallback(
@@ -1147,7 +1169,7 @@ function HomeScreen() {
               </View>
 
               <View style={styles.mediaList}>
-                {rankedSongs.slice(0, 6).map((song, index) => renderSongRow(song, index))}
+                {rankedSongs.slice(0, 6).map((song) => renderSongRow(song))}
               </View>
             </>
           )}
@@ -1162,9 +1184,7 @@ function HomeScreen() {
               </View>
 
               <View style={styles.mediaList}>
-                {moreLikeThisMood.songs.map((song, index) =>
-                  renderSongRow(song, index)
-                )}
+                {moreLikeThisMood.songs.map((song) => renderSongRow(song))}
               </View>
             </>
           )}
@@ -1184,9 +1204,12 @@ function HomeScreen() {
                 keyExtractor={(item) => `home-artist-${item.id}`}
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.artistRow}
-                initialNumToRender={4}
-                maxToRenderPerBatch={4}
-                windowSize={5}
+                initialNumToRender={horizontalArtistListTuning.initialNumToRender}
+                maxToRenderPerBatch={horizontalArtistListTuning.maxToRenderPerBatch}
+                windowSize={horizontalArtistListTuning.windowSize}
+                updateCellsBatchingPeriod={
+                  horizontalArtistListTuning.updateCellsBatchingPeriod
+                }
                 removeClippedSubviews
                 renderItem={({ item }) => (
                   <TouchableOpacity
@@ -1227,9 +1250,12 @@ function HomeScreen() {
                 keyExtractor={(item) => `home-album-${item.id}`}
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.artistRow}
-                initialNumToRender={4}
-                maxToRenderPerBatch={4}
-                windowSize={5}
+                initialNumToRender={horizontalAlbumListTuning.initialNumToRender}
+                maxToRenderPerBatch={horizontalAlbumListTuning.maxToRenderPerBatch}
+                windowSize={horizontalAlbumListTuning.windowSize}
+                updateCellsBatchingPeriod={
+                  horizontalAlbumListTuning.updateCellsBatchingPeriod
+                }
                 removeClippedSubviews
                 renderItem={({ item }) => (
                   <TouchableOpacity
@@ -1295,9 +1321,10 @@ function HomeScreen() {
               decelerationRate="fast"
               contentContainerStyle={styles.featuredSlider}
               renderItem={renderFeaturedItem}
-              initialNumToRender={4}
-              maxToRenderPerBatch={4}
-              windowSize={5}
+              initialNumToRender={featuredSliderTuning.initialNumToRender}
+              maxToRenderPerBatch={featuredSliderTuning.maxToRenderPerBatch}
+              windowSize={featuredSliderTuning.windowSize}
+              updateCellsBatchingPeriod={featuredSliderTuning.updateCellsBatchingPeriod}
               removeClippedSubviews
             />
           )}
@@ -1327,9 +1354,7 @@ function HomeScreen() {
               </TouchableOpacity>
 
               <View style={styles.mediaList}>
-                {primaryMoodRoom.songs
-                  .slice(0, 4)
-                  .map((song, index) => renderSongRow(song, index))}
+                {primaryMoodRoom.songs.slice(0, 4).map((song) => renderSongRow(song))}
               </View>
             </View>
           )}
@@ -1359,7 +1384,7 @@ function HomeScreen() {
               <View style={styles.mediaList}>
                 {primaryGenreSpotlight.songs
                   .slice(0, 4)
-                  .map((song, index) => renderSongRow(song, index))}
+                  .map((song) => renderSongRow(song))}
               </View>
             </View>
           )}
@@ -1373,9 +1398,14 @@ function HomeScreen() {
                 </Text>
               </View>
 
-              <View style={styles.mediaList}>
-                {visibleAllSongs.map((song, index) => renderSongRow(song, index))}
-              </View>
+              <NestedSongList
+                screen="home_full_catalog"
+                data={visibleAllSongs}
+                itemHeight={LIST_ITEM_HEIGHTS.catalogSongRow}
+                keyPrefix="home-catalog"
+                renderItem={renderCatalogSongItem}
+                contentContainerStyle={styles.mediaList}
+              />
             </>
           ) : null}
 

@@ -15,6 +15,7 @@ import { router, useLocalSearchParams } from "expo-router";
 
 import { COLORS, GRADIENTS } from "../constants/theme";
 import { usePlayer } from "../context/PlayerContext";
+import GenreTrackRow from "../components/catalog/GenreTrackRow";
 import HTImage from "../components/HTImage";
 
 import {
@@ -37,7 +38,9 @@ import {
   logTapToPlay,
   startPerformanceTimer,
 } from "../utils/performanceLogs";
+import { trackRenderProbe } from "../utils/renderDiagnostics";
 import {
+  createStableKeyExtractor,
   getListPerformanceSettings,
   markFastScrolling,
 } from "../utils/performanceMode";
@@ -104,6 +107,13 @@ export default function GenreScreen() {
   const genreId = String(params.id || "");
   const catalogType = String(params.type || "genre") as CatalogResolverType;
   const title = getCanonicalGenreTitle(rawTitle) || rawTitle;
+
+  useEffect(() => trackRenderProbe("GenreScreen"), []);
+
+  const trackKeyExtractor = useMemo(
+    () => createStableKeyExtractor("genre-track"),
+    []
+  );
 
   const catalogOptions = useMemo(
     () => ({
@@ -286,6 +296,13 @@ export default function GenreScreen() {
     [cloudTracks, playSong]
   );
 
+  const renderGenreTrackItem = useCallback(
+    ({ item }: { item: HiddenTunesNormalizedSong }) => (
+      <GenreTrackRow item={item} onPress={openCloudTrack} />
+    ),
+    [openCloudTrack]
+  );
+
   function openAlbum(album: AlbumPreview) {
     router.push({
       pathname: "/album",
@@ -348,9 +365,7 @@ export default function GenreScreen() {
       ) : (
         <FlatList
           data={cloudTracks}
-          keyExtractor={(item: any, index) =>
-            `${item.id || item.videoId || "track"}-${index}`
-          }
+          keyExtractor={trackKeyExtractor}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
           initialNumToRender={listPerformance.initialNumToRender}
@@ -454,28 +469,7 @@ export default function GenreScreen() {
               </View>
             ) : null
           }
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              activeOpacity={0.88}
-              style={styles.trackCard}
-              onPress={() => openCloudTrack(item)}
-            >
-              <HTImage source={item} style={styles.trackCover} />
-
-              <View style={styles.trackInfo}>
-                <Text numberOfLines={1} style={styles.trackTitle}>
-                  {item.title}
-                </Text>
-                <Text numberOfLines={1} style={styles.trackArtist}>
-                  {item.artist}
-                </Text>
-              </View>
-
-              <View style={styles.playCircle}>
-                <Ionicons name="play" size={16} color="#000" />
-              </View>
-            </TouchableOpacity>
-          )}
+          renderItem={renderGenreTrackItem}
         />
       )}
     </LinearGradient>

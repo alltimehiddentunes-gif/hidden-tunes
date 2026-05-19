@@ -19,6 +19,15 @@ AppState.addEventListener("change", (state) => {
   }
 });
 
+export const LIST_ITEM_HEIGHTS = {
+  catalogSongRow: 118,
+  artistTrackRow: 78,
+  genreTrackRow: 84,
+  searchResultRow: 92,
+  horizontalAlbumCard: 196,
+  horizontalArtistCard: 168,
+} as const;
+
 export function markFastScrolling(active = true) {
   fastScrollingUntil = active ? Date.now() + FAST_SCROLL_COOLDOWN_MS : 0;
 }
@@ -68,6 +77,41 @@ export function getListPerformanceSettings(itemCount: number) {
     windowSize: 9,
     updateCellsBatchingPeriod: 70,
     removeClippedSubviews: true,
+  };
+}
+
+export function getHorizontalListPerformanceSettings(itemCount: number) {
+  if (itemCount >= 24) {
+    return {
+      initialNumToRender: 4,
+      maxToRenderPerBatch: 4,
+      windowSize: 4,
+      updateCellsBatchingPeriod: 90,
+      removeClippedSubviews: true,
+    };
+  }
+
+  return {
+    initialNumToRender: 5,
+    maxToRenderPerBatch: 5,
+    windowSize: 5,
+    updateCellsBatchingPeriod: 70,
+    removeClippedSubviews: true,
+  };
+}
+
+export function getNestedSongListLayout(itemHeight: number) {
+  return (_item: unknown, index: number) => ({
+    length: itemHeight,
+    offset: itemHeight * index,
+    index,
+  });
+}
+
+export function createStableKeyExtractor(prefix: string) {
+  return (item: { id?: string; streamUrl?: string; url?: string }, index: number) => {
+    const stableId = String(item?.id || item?.streamUrl || item?.url || "").trim();
+    return stableId ? `${prefix}-${stableId}` : `${prefix}-row-${index}`;
   };
 }
 

@@ -8,6 +8,7 @@ import {
   getArtworkValue,
 } from "../utils/artwork";
 import { recordArtworkFailure } from "../utils/performanceLogs";
+import { isFastScrolling } from "../utils/performanceMode";
 
 type Props = {
   uri?: string | null;
@@ -39,6 +40,7 @@ function HTImage({
 }: Props) {
   const [candidateIndex, setCandidateIndex] = useState(0);
   const [stablePlaceholder, setStablePlaceholder] = useState<any>(null);
+  const [fastScrolling, setFastScrolling] = useState(isFastScrolling());
 
   const fallbackSource = useMemo(() => {
     const artwork = getArtworkValue(fallback, FALLBACK_ARTWORK);
@@ -69,6 +71,11 @@ function HTImage({
     return typeof artwork === "string" ? { uri: artwork } : artwork;
   }, [candidateIndex, fallback, resolvedCandidates]);
 
+  const recyclingKey = useMemo(() => {
+    const key = candidateKey(resolvedSource);
+    return key || "fallback-artwork";
+  }, [resolvedSource]);
+
   useEffect(() => {
     setCandidateIndex(0);
   }, [candidates, source, uri]);
@@ -79,15 +86,29 @@ function HTImage({
     }
   }, [fallbackSource, stablePlaceholder]);
 
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const next = isFastScrolling();
+      setFastScrolling((current) => (current === next ? current : next));
+    }, 200);
+
+    return () => clearInterval(timer);
+  }, []);
+
   return (
     <Image
       source={resolvedSource}
+      recyclingKey={recyclingKey}
       style={style}
       contentFit={contentFit}
       cachePolicy="disk"
       placeholder={stablePlaceholder || fallbackSource}
-      transition={180}
-      onLoad={() => setStablePlaceholder(resolvedSource)}
+      transition={fastScrolling ? 0 : 180}
+      onLoad={() => {
+        if (!fastScrolling) {
+          setStablePlaceholder(resolvedSource);
+        }
+      }}
       onError={() => {
         recordArtworkFailure({
           candidateIndex,

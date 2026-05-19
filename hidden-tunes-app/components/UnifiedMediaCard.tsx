@@ -1,3 +1,4 @@
+import { memo, useMemo } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 import { LinearGradient } from "expo-linear-gradient";
@@ -17,7 +18,7 @@ type Props = {
   onRightPress?: () => void;
 };
 
-export default function UnifiedMediaCard({
+function UnifiedMediaCard({
   title,
   subtitle,
   image,
@@ -26,7 +27,10 @@ export default function UnifiedMediaCard({
   onPress,
   onRightPress,
 }: Props) {
-  const source = imageUri ? { uri: imageUri } : image;
+  const source = useMemo(() => {
+    if (imageUri) return { uri: imageUri };
+    return image;
+  }, [image, imageUri]);
 
   return (
     <TouchableOpacity activeOpacity={0.88} onPress={onPress} style={styles.wrap}>
@@ -62,6 +66,8 @@ export default function UnifiedMediaCard({
     </TouchableOpacity>
   );
 }
+
+export default memo(UnifiedMediaCard);
 
 const styles = StyleSheet.create({
   wrap: {

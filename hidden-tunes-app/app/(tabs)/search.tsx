@@ -62,9 +62,11 @@ import {
   startPerformanceTimer,
 } from "../../utils/performanceLogs";
 import {
+  createStableKeyExtractor,
   getListPerformanceSettings,
   markFastScrolling,
 } from "../../utils/performanceMode";
+import { trackRenderProbe } from "../../utils/renderDiagnostics";
 import {
   getCachedSearchResults,
   setCachedSearchResults,
@@ -452,6 +454,13 @@ export default function SearchScreen() {
   const emptySearchMode = query.trim().length < 3;
 
   useScrollToTop(resultListRef);
+  useEffect(() => trackRenderProbe("SearchScreen"), []);
+
+  const resultKeyExtractor = useMemo(
+    () => createStableKeyExtractor("search-result"),
+    []
+  );
+
   const resultListPerformance = useMemo(
     () => getListPerformanceSettings(results.length),
     [results.length]
@@ -1461,11 +1470,7 @@ export default function SearchScreen() {
         <FlatList
           ref={resultListRef}
           data={results}
-          keyExtractor={(item, index) =>
-            item.id
-              ? `${item.source || item.sourceName}-${String(item.id)}`
-              : `track-${index}`
-          }
+          keyExtractor={resultKeyExtractor}
           contentContainerStyle={{ paddingBottom: 180 }}
           showsVerticalScrollIndicator={false}
           initialNumToRender={resultListPerformance.initialNumToRender}
