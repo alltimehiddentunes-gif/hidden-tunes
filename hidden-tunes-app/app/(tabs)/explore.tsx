@@ -67,6 +67,10 @@ import {
   markFastScrolling,
   scheduleNavigationPrewarm,
 } from "../../utils/performanceMode";
+import {
+  openGenreCatalog,
+  openMoodCatalog,
+} from "../../utils/catalogNavigation";
 
 const GENRE_PREVIEW_MS = 6800;
 
@@ -598,25 +602,15 @@ export default function ExploreScreen() {
 
     if (!title) return;
 
-    router.push({
-      pathname: "/genre",
-      params: {
-        id: genre.id || title,
-        title,
-        query: genre.query || title,
-      },
-    } as any);
+    openGenreCatalog({
+      id: genre.id || title,
+      title,
+      query: genre.query || title,
+    });
   }, []);
 
   const openMood = useCallback((mood: string) => {
-    router.push({
-      pathname: "/genre",
-      params: {
-        id: mood.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
-        title: mood,
-        query: `${mood} music`,
-      },
-    } as any);
+    openMoodCatalog(mood);
   }, []);
 
   const openYouTubeTrack = useCallback((track: BackendYouTubeTrack) => {

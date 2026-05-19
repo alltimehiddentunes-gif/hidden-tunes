@@ -334,3 +334,95 @@ export function logCatalogResolverDebug<T extends CatalogSongLike>(
     console.log(`[HiddenTunesCatalogResolver] ${message}`, info);
   }
 }
+
+export type CatalogTarget = {
+  type: CatalogResolverType;
+  id: string;
+  title: string;
+  query: string;
+  labels: string[];
+  cacheKey: string;
+};
+
+export type CatalogEmptyStateReason =
+  | "content_available"
+  | "awaiting_cache_and_api"
+  | "cache_api_and_resolver_empty";
+
+export function buildCatalogTarget(input: {
+  type?: CatalogResolverType;
+  id?: string;
+  title?: string;
+  query?: string;
+}): CatalogTarget {
+  const type = input.type || "genre";
+  const rawTitle = String(input.title || input.query || input.id || "").trim();
+  const canonical = type === "genre" ? resolveCanonicalGenre(rawTitle) : null;
+  const title = canonical?.title || rawTitle || "Catalog";
+  const query = String(input.query || canonical?.query || title).trim();
+  const id = String(input.id || canonical?.id || normalizeCatalogKey(title)).trim();
+  const labels = Array.from(
+    new Set(
+      [title, query, id, ...(canonical?.aliases || []), rawTitle]
+        .map((value) => String(value || "").trim())
+        .filter(Boolean)
+    )
+  );
+
+  return {
+    type,
+    id,
+    title,
+    query,
+    labels,
+    cacheKey: `${type}:${normalizeCatalogKey(labels.join("|"))}`,
+  };
+}
+
+export function matchSongsForCatalogTarget<T extends CatalogSongLike>(
+  songs: T[],
+  target: CatalogTarget
+): T[] {
+  const seen = new Set<string>();
+  const matches: T[] = [];
+
+  target.labels.forEach((label) => {
+    filterSongsByCatalogLabel(songs, label, target.type).forEach((song) => {
+      const key = String((song as { id?: unknown }).id || "")
+        .toLowerCase()
+        .trim();
+
+      if (!key || seen.has(key)) return;
+
+      seen.add(key);
+      matches.push(song);
+    });
+  });
+
+  return matches;
+}
+
+export function resolveCatalogEmptyState(input: {
+  hasCheckedFallbacks: boolean;
+  isLoading: boolean;
+  resolvedCount: number;
+}) {
+  if (input.resolvedCount > 0) {
+    return {
+      showEmpty: false,
+      reason: "content_available" as CatalogEmptyStateReason,
+    };
+  }
+
+  if (!input.hasCheckedFallbacks || input.isLoading) {
+    return {
+      showEmpty: false,
+      reason: "awaiting_cache_and_api" as CatalogEmptyStateReason,
+    };
+  }
+
+  return {
+    showEmpty: true,
+    reason: "cache_api_and_resolver_empty" as CatalogEmptyStateReason,
+  };
+}

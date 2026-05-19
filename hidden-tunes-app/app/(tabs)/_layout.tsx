@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, useEffect } from "react";
 import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
@@ -6,6 +6,10 @@ import { StyleSheet, View } from "react-native";
 
 import MiniPlayer from "../../components/MiniPlayer";
 import PerformanceOverlay from "../../components/PerformanceOverlay";
+import { ensureCatalogViewPersistenceHydrated } from "../../services/unifiedCatalog";
+import { prefetchHiddenTunesCatalog } from "../../services/hiddenTunesApi";
+import { prefetchGenreCatalogNavigation } from "../../utils/catalogNavigation";
+import { HIDDEN_TUNES_GENRES } from "../../utils/genres";
 
 type TabIconProps = {
   focused: boolean;
@@ -45,6 +49,20 @@ function TabIcon({
 const MemoTabIcon = memo(TabIcon);
 
 export default function TabLayout() {
+  useEffect(() => {
+    void ensureCatalogViewPersistenceHydrated();
+    prefetchHiddenTunesCatalog();
+
+    const warmGenres = HIDDEN_TUNES_GENRES.slice(0, 3);
+    warmGenres.forEach((genre) => {
+      prefetchGenreCatalogNavigation({
+        id: genre.id,
+        title: genre.title,
+        query: genre.query,
+      });
+    });
+  }, []);
+
   return (
     <>
       <Tabs

@@ -18,16 +18,16 @@ import { usePlayer } from "../context/PlayerContext";
 import HTImage from "../components/HTImage";
 
 import {
-  getHiddenTunesSongsPage,
-  hydrateHiddenTunesCatalogCache,
-  type HiddenTunesNormalizedSong,
-} from "../services/hiddenTunesApi";
+  ensureCatalogViewPersistenceHydrated,
+  getInstantCatalogView,
+  loadCatalogView,
+} from "../services/unifiedCatalog";
+import type { HiddenTunesNormalizedSong } from "../services/hiddenTunesApi";
 import { getArtworkUri } from "../utils/artwork";
 import {
-  filterSongsByCatalogLabel,
   getCanonicalGenreTitle,
-  getCatalogResolverDebugInfo,
-  logCatalogResolverDebug,
+  resolveCatalogEmptyState,
+  type CatalogResolverType,
 } from "../utils/catalogResolver";
 import {
   logApiRefresh,
@@ -102,117 +102,99 @@ export default function GenreScreen() {
   const rawQuery = String(params.query || rawTitle || "music");
   const query = cleanGenreQuery(rawQuery);
   const genreId = String(params.id || "");
+  const catalogType = String(params.type || "genre") as CatalogResolverType;
   const title = getCanonicalGenreTitle(rawTitle) || rawTitle;
 
-  const [cloudTracks, setCloudTracks] = useState<HiddenTunesNormalizedSong[]>([]);
-  const [loading, setLoading] = useState(true);
+  const catalogOptions = useMemo(
+    () => ({
+      type: catalogType,
+      id: genreId,
+      title,
+      query,
+    }),
+    [catalogType, genreId, query, title]
+  );
+
+  const instantView = useMemo(
+    () => getInstantCatalogView(catalogOptions),
+    [catalogOptions]
+  );
+
+  const [cloudTracks, setCloudTracks] = useState<HiddenTunesNormalizedSong[]>(
+    () => (instantView?.songs || []).map(safeSong)
+  );
+  const [loading, setLoading] = useState(() => !(instantView?.songs.length || 0));
   const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
+  const [hasMore, setHasMore] = useState(instantView?.hasMore ?? true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasCheckedFallbacks, setHasCheckedFallbacks] = useState(false);
+
   const listPerformance = useMemo(
     () => getListPerformanceSettings(cloudTracks.length),
     [cloudTracks.length]
   );
 
-  const matchGenreSongs = useCallback(
-    (songs: HiddenTunesNormalizedSong[]) => {
-      const labels = [title, query, genreId].filter(Boolean);
-      const matches = labels.flatMap((label) =>
-        filterSongsByCatalogLabel(songs, label, "genre")
-      );
-      return dedupeSongs(matches);
-    },
-    [genreId, query, title]
+  const emptyState = useMemo(
+    () =>
+      resolveCatalogEmptyState({
+        hasCheckedFallbacks,
+        isLoading: loading,
+        resolvedCount: cloudTracks.length,
+      }),
+    [cloudTracks.length, hasCheckedFallbacks, loading]
   );
 
   const loadGenreTracks = useCallback(async () => {
-    let showedCachedMatches = false;
     const refreshStart = startPerformanceTimer();
 
     try {
       setHasCheckedFallbacks(false);
       if (!cloudTracks.length) setLoading(true);
 
-      const cachedSongs = (await hydrateHiddenTunesCatalogCache()).map(safeSong);
-      const cachedMatches = dedupeSongs(matchGenreSongs(cachedSongs));
+      const result = await loadCatalogView({
+        ...catalogOptions,
+        page: 1,
+      });
 
-      if (cachedMatches.length) {
-        setCloudTracks(cachedMatches);
-        setLoading(false);
-        showedCachedMatches = true;
+      setCloudTracks(result.songs.map(safeSong));
+      setPage(1);
+      setHasMore(result.hasMore);
+
+      if (result.showedCached) {
         logCacheResult("genre", true, {
           label: title,
-          count: cachedMatches.length,
+          count: result.songs.length,
+          cacheKey: result.target.cacheKey,
         });
         logScreenReady("genre", screenStartedAt, {
           cache: "hit",
-          count: cachedMatches.length,
+          count: result.songs.length,
         });
         logPerformanceSummary("genre", {
           cache: "hit",
           firstContentMs: Date.now() - screenStartedAt,
-          itemCount: cachedMatches.length,
+          itemCount: result.songs.length,
         });
       } else {
         logCacheResult("genre", false, { label: title });
-      }
-
-      const genrePage = await getHiddenTunesSongsPage({
-        page: 1,
-        limit: 36,
-        genre: title,
-      });
-      let combinedSongs = dedupeSongs(matchGenreSongs(genrePage.songs.map(safeSong)));
-      let fallbackUsed = false;
-
-      if (!combinedSongs.length && !cachedMatches.length) {
-        const fallbackPage = await getHiddenTunesSongsPage({
-          page: 1,
-          limit: 60,
-        });
-        combinedSongs = dedupeSongs(matchGenreSongs(fallbackPage.songs.map(safeSong)));
-        fallbackUsed = combinedSongs.length > 0;
-      }
-
-      const nextTracks = combinedSongs.length ? combinedSongs : cachedMatches;
-
-      setCloudTracks(nextTracks);
-      setPage(1);
-      setHasMore(genrePage.hasMore);
-      logApiRefresh("genre", refreshStart, {
-        label: title,
-        count: nextTracks.length,
-        fallbackUsed,
-      });
-      logPerformanceSummary("genre", {
-        cache: showedCachedMatches ? "hit" : "miss",
-        apiRefreshMs: Date.now() - refreshStart,
-        itemCount: nextTracks.length,
-        emptyStateReason: nextTracks.length
-          ? "content_available"
-          : "cache_api_and_fallback_empty",
-      });
-
-      if (!showedCachedMatches) {
         logScreenReady("genre", screenStartedAt, {
           cache: "miss",
-          count: nextTracks.length,
+          count: result.songs.length,
+        });
+        logPerformanceSummary("genre", {
+          cache: "miss",
+          firstContentMs: Date.now() - screenStartedAt,
+          itemCount: result.songs.length,
+          emptyStateReason: result.emptyStateReason,
         });
       }
 
-      logCatalogResolverDebug(
-        "genre-page-load",
-        getCatalogResolverDebugInfo({
-          label: title || query,
-          type: "genre",
-          songs: [...cachedSongs, ...genrePage.songs],
-          matchedSongs: nextTracks,
-          fallbackUsed,
-          artworkSource: "song_album_artist",
-          finalArtworkUrl: getArtwork(nextTracks[0]),
-        })
-      );
+      logApiRefresh("genre", refreshStart, {
+        label: title,
+        count: result.songs.length,
+        fallbackUsed: result.fallbackUsed,
+        cacheKey: result.target.cacheKey,
+      });
     } catch (error) {
       console.log("Genre load error:", error);
       if (!cloudTracks.length) setCloudTracks([]);
@@ -220,7 +202,7 @@ export default function GenreScreen() {
       setHasCheckedFallbacks(true);
       setLoading(false);
     }
-  }, [cloudTracks.length, matchGenreSongs, query, screenStartedAt, title]);
+  }, [catalogOptions, cloudTracks.length, screenStartedAt, title]);
 
   const loadMoreTracks = useCallback(async () => {
     if (loadingMore || !hasMore) return;
@@ -229,24 +211,44 @@ export default function GenreScreen() {
       setLoadingMore(true);
 
       const nextPage = page + 1;
-      const genrePage = await getHiddenTunesSongsPage({
+      const result = await loadCatalogView({
+        ...catalogOptions,
         page: nextPage,
-        limit: 36,
-        genre: title,
       });
-      const combinedSongs = matchGenreSongs(genrePage.songs.map(safeSong));
 
-      const nextTracks = dedupeSongs([...cloudTracks, ...combinedSongs]);
+      const nextTracks = dedupeSongs([
+        ...cloudTracks,
+        ...result.songs.map(safeSong),
+      ]);
 
       setCloudTracks(nextTracks);
       setPage(nextPage);
-      setHasMore(genrePage.hasMore);
+      setHasMore(result.hasMore);
     } catch (error) {
       console.log("Genre load more error:", error);
     } finally {
       setLoadingMore(false);
     }
-  }, [cloudTracks, hasMore, loadingMore, matchGenreSongs, page, title]);
+  }, [catalogOptions, cloudTracks, hasMore, loadingMore, page]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void ensureCatalogViewPersistenceHydrated().then(() => {
+      if (cancelled) return;
+
+      const hydratedInstant = getInstantCatalogView(catalogOptions);
+      if (!hydratedInstant?.songs.length) return;
+
+      setCloudTracks(hydratedInstant.songs.map(safeSong));
+      setHasMore(hydratedInstant.hasMore);
+      setLoading(false);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [catalogOptions]);
 
   useEffect(() => {
     loadGenreTracks();
@@ -318,7 +320,9 @@ export default function GenreScreen() {
         </TouchableOpacity>
 
         <View style={styles.headerText}>
-          <Text style={styles.kicker}>GENRE</Text>
+          <Text style={styles.kicker}>
+            {catalogType === "mood" ? "MOOD" : "GENRE"}
+          </Text>
           <Text style={styles.title} numberOfLines={1}>
             {title}
           </Text>
@@ -428,18 +432,18 @@ export default function GenreScreen() {
             </>
           }
           ListEmptyComponent={
-            hasCheckedFallbacks ? (
-            <View style={styles.empty}>
-              <Ionicons
-                name="musical-notes-outline"
-                size={58}
-                color={COLORS.textMuted}
-              />
-              <Text style={styles.emptyTitle}>No songs in this room yet</Text>
-              <Text style={styles.emptyText}>
-                Try another mood or refresh the catalog.
-              </Text>
-            </View>
+            emptyState.showEmpty ? (
+              <View style={styles.empty}>
+                <Ionicons
+                  name="musical-notes-outline"
+                  size={58}
+                  color={COLORS.textMuted}
+                />
+                <Text style={styles.emptyTitle}>No songs in this room yet</Text>
+                <Text style={styles.emptyText}>
+                  Try another mood or refresh the catalog.
+                </Text>
+              </View>
             ) : null
           }
           ListFooterComponent={
@@ -448,61 +452,30 @@ export default function GenreScreen() {
                 <ActivityIndicator size="small" color={COLORS.primary} />
                 <Text style={styles.loadMoreText}>Loading more...</Text>
               </View>
-            ) : hasMore ? (
-              <TouchableOpacity
-                activeOpacity={0.86}
-                style={styles.loadMoreButton}
-                onPress={loadMoreTracks}
-              >
-                <Ionicons name="albums-outline" size={17} color="#000" />
-                <Text style={styles.loadMoreButtonText}>Load more {title}</Text>
-              </TouchableOpacity>
             ) : null
           }
-          renderItem={({ item, index }: any) => {
-            const artwork = getArtwork(item);
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              activeOpacity={0.88}
+              style={styles.trackCard}
+              onPress={() => openCloudTrack(item)}
+            >
+              <HTImage source={item} style={styles.trackCover} />
 
-            return (
-              <TouchableOpacity
-                activeOpacity={0.86}
-                style={styles.trackCard}
-                onPress={() => openCloudTrack(item as HiddenTunesNormalizedSong)}
-              >
-                <Text style={styles.rank}>
-                  {String(index + 1).padStart(2, "0")}
+              <View style={styles.trackInfo}>
+                <Text numberOfLines={1} style={styles.trackTitle}>
+                  {item.title}
                 </Text>
+                <Text numberOfLines={1} style={styles.trackArtist}>
+                  {item.artist}
+                </Text>
+              </View>
 
-                <HTImage
-                  source={item}
-                  candidates={[artwork]}
-                  style={styles.cover}
-                />
-
-                <View style={styles.info}>
-                  <Text style={styles.trackTitle} numberOfLines={1}>
-                    {item.title || "Unknown Song"}
-                  </Text>
-
-                  <Text style={styles.artist} numberOfLines={1}>
-                    {item.artist || "Unknown Artist"}
-                  </Text>
-
-                  <View style={styles.metaRow}>
-                    <Ionicons
-                      name="cloud-done"
-                      size={13}
-                      color={COLORS.primary}
-                    />
-                    <Text style={styles.metaText}>Hidden Tunes</Text>
-                  </View>
-                </View>
-
-                <View style={styles.playCircle}>
-                  <Ionicons name="play" size={16} color={COLORS.text} />
-                </View>
-              </TouchableOpacity>
-            );
-          }}
+              <View style={styles.playCircle}>
+                <Ionicons name="play" size={16} color="#000" />
+              </View>
+            </TouchableOpacity>
+          )}
         />
       )}
     </LinearGradient>
@@ -512,38 +485,33 @@ export default function GenreScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: {
-    paddingTop: 64,
+    paddingTop: 58,
     paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingBottom: 14,
     flexDirection: "row",
     alignItems: "center",
+    gap: 12,
   },
   backButton: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    backgroundColor: "rgba(255,255,255,0.08)",
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    backgroundColor: "rgba(255,255,255,0.06)",
   },
-  headerText: {
-    flex: 1,
-    marginLeft: 14,
-    marginRight: 12,
-  },
+  headerText: { flex: 1 },
   kicker: {
     color: COLORS.primary,
     fontSize: 11,
-    fontWeight: "900",
-    letterSpacing: 2,
+    fontWeight: "800",
+    letterSpacing: 1.2,
   },
   title: {
     color: COLORS.text,
-    fontSize: 30,
+    fontSize: 28,
     fontWeight: "900",
-    marginTop: 3,
+    marginTop: 2,
   },
   subtitle: {
     color: COLORS.textMuted,
@@ -551,62 +519,61 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   refreshButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "rgba(255,255,255,0.08)",
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    backgroundColor: "rgba(255,255,255,0.06)",
   },
   loader: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
+    gap: 12,
   },
   loadingText: {
     color: COLORS.textMuted,
-    marginTop: 14,
     fontSize: 14,
   },
   listContent: {
     paddingHorizontal: 20,
-    paddingBottom: 165,
+    paddingBottom: 120,
   },
   radioCard: {
     flexDirection: "row",
     alignItems: "center",
+    gap: 12,
     padding: 16,
-    borderRadius: 28,
-    marginBottom: 30,
-    backgroundColor: "rgba(255,255,255,0.065)",
+    borderRadius: 22,
+    backgroundColor: "rgba(255,255,255,0.05)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.11)",
+    borderColor: "rgba(255,255,255,0.08)",
+    marginBottom: 18,
   },
   radioIcon: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
-    backgroundColor: "rgba(255,255,255,0.08)",
+    width: 52,
+    height: 52,
+    borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 14,
+    backgroundColor: "rgba(255,0,51,0.12)",
   },
   radioInfo: { flex: 1 },
   radioTitle: {
     color: COLORS.text,
-    fontSize: 17,
-    fontWeight: "900",
+    fontSize: 16,
+    fontWeight: "800",
   },
   radioSubtitle: {
     color: COLORS.textMuted,
     fontSize: 12,
-    marginTop: 5,
+    marginTop: 3,
   },
   radioButton: {
     flexDirection: "row",
     alignItems: "center",
+    gap: 6,
     backgroundColor: COLORS.primary,
     paddingHorizontal: 14,
     paddingVertical: 10,
@@ -614,143 +581,98 @@ const styles = StyleSheet.create({
   },
   radioButtonText: {
     color: "#000",
+    fontWeight: "800",
     fontSize: 12,
-    fontWeight: "900",
-    marginLeft: 5,
   },
-  albumSection: { marginBottom: 30 },
-  sectionHeader: { marginBottom: 16 },
+  albumSection: { marginBottom: 10 },
+  sectionHeader: { marginBottom: 12, marginTop: 4 },
   sectionTitle: {
     color: COLORS.text,
-    fontSize: 22,
-    fontWeight: "900",
+    fontSize: 18,
+    fontWeight: "800",
   },
   sectionSub: {
     color: COLORS.textMuted,
-    fontSize: 13,
-    marginTop: 5,
+    fontSize: 12,
+    marginTop: 4,
   },
-  albumRow: {
-    gap: 14,
-    paddingRight: 20,
+  albumRow: { gap: 12, paddingBottom: 8 },
+  albumCard: {
+    width: 132,
   },
-  albumCard: { width: 145 },
   albumCover: {
-    width: 145,
-    height: 145,
-    borderRadius: 26,
-    backgroundColor: COLORS.card,
+    width: 132,
+    height: 132,
+    borderRadius: 18,
+    marginBottom: 8,
   },
   albumTitle: {
     color: COLORS.text,
-    fontSize: 14,
-    fontWeight: "900",
-    marginTop: 10,
-    lineHeight: 18,
+    fontSize: 13,
+    fontWeight: "700",
   },
   albumArtist: {
     color: COLORS.textMuted,
-    fontSize: 12,
-    marginTop: 5,
+    fontSize: 11,
+    marginTop: 3,
   },
   trackCard: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 14,
-    borderRadius: 26,
-    marginBottom: 14,
-    backgroundColor: "rgba(255,255,255,0.055)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.09)",
+    gap: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255,255,255,0.06)",
   },
-  rank: {
-    width: 30,
-    color: "rgba(255,255,255,0.32)",
-    fontSize: 15,
-    fontWeight: "900",
+  trackCover: {
+    width: 58,
+    height: 58,
+    borderRadius: 14,
   },
-  cover: {
-    width: 70,
-    height: 70,
-    borderRadius: 18,
-    backgroundColor: COLORS.card,
-  },
-  info: {
-    flex: 1,
-    marginLeft: 14,
-  },
+  trackInfo: { flex: 1 },
   trackTitle: {
     color: COLORS.text,
     fontSize: 15,
-    fontWeight: "800",
-  },
-  artist: {
-    color: COLORS.textMuted,
-    fontSize: 13,
-    marginTop: 5,
-  },
-  metaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 8,
-  },
-  metaText: {
-    color: COLORS.textMuted,
-    fontSize: 11,
     fontWeight: "700",
-    marginLeft: 5,
+  },
+  trackArtist: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    marginTop: 3,
   },
   playCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: "rgba(255,255,255,0.1)",
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: COLORS.primary,
     alignItems: "center",
     justifyContent: "center",
   },
   empty: {
-    height: 420,
     alignItems: "center",
-    justifyContent: "center",
+    paddingVertical: 48,
+    gap: 10,
   },
   emptyTitle: {
     color: COLORS.text,
-    fontSize: 21,
-    fontWeight: "900",
-    marginTop: 18,
+    fontSize: 18,
+    fontWeight: "800",
   },
   emptyText: {
     color: COLORS.textMuted,
-    marginTop: 8,
+    fontSize: 13,
     textAlign: "center",
+    paddingHorizontal: 24,
   },
   loadMoreFooter: {
-    minHeight: 74,
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    flexDirection: "row",
     gap: 10,
+    paddingVertical: 18,
   },
   loadMoreText: {
     color: COLORS.textMuted,
-    fontSize: 12,
-    fontWeight: "800",
-  },
-  loadMoreButton: {
-    alignSelf: "center",
-    minHeight: 46,
-    borderRadius: 999,
-    paddingHorizontal: 18,
-    marginTop: 8,
-    marginBottom: 22,
-    backgroundColor: COLORS.primary,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  loadMoreButtonText: {
-    color: "#000",
     fontSize: 13,
-    fontWeight: "900",
   },
 });

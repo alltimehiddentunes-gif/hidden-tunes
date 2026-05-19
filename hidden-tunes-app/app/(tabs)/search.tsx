@@ -69,6 +69,7 @@ import {
   getCachedSearchResults,
   setCachedSearchResults,
 } from "../../utils/searchQueryCache";
+import { openGenreCatalog } from "../../utils/catalogNavigation";
 
 type SearchType = "all" | "hidden" | "audius" | "archive" | "youtube";
 
@@ -913,14 +914,11 @@ export default function SearchScreen() {
   }
 
   const openGenre = useCallback((genre: GenreItem) => {
-    router.push({
-      pathname: "/genre",
-      params: {
-        id: genre.id,
-        title: genre.title,
-        query: genre.query,
-      },
-    } as any);
+    openGenreCatalog({
+      id: genre.id,
+      title: genre.title,
+      query: genre.query,
+    });
   }, []);
 
   const openAlbumFromTrack = useCallback((item: SearchResultTrack) => {

@@ -62,6 +62,11 @@ import {
   markFastScrolling,
   scheduleNavigationPrewarm,
 } from "../../utils/performanceMode";
+import {
+  openGenreCatalog,
+  openMoodCatalog,
+  scheduleGenreCatalogPrewarm,
+} from "../../utils/catalogNavigation";
 
 const { width } = Dimensions.get("window");
 const FEATURED_CARD_WIDTH = width * 0.72;
@@ -413,6 +418,27 @@ function HomeScreen() {
       }),
     ]);
   }, [featuredSongs.length, rankedAlbums, rankedArtists]);
+
+  useEffect(() => {
+    if (!primaryGenreSpotlight?.title) return undefined;
+
+    return scheduleGenreCatalogPrewarm({
+      id: primaryGenreSpotlight.id.replace(/^genre-/, ""),
+      title: primaryGenreSpotlight.title,
+      query: primaryGenreSpotlight.title,
+    });
+  }, [primaryGenreSpotlight?.id, primaryGenreSpotlight?.title]);
+
+  useEffect(() => {
+    if (!primaryMoodRoom?.title) return undefined;
+
+    return scheduleGenreCatalogPrewarm({
+      type: "mood",
+      id: primaryMoodRoom.id.replace(/^mood-/, ""),
+      title: primaryMoodRoom.title,
+      query: `${primaryMoodRoom.title} music`,
+    });
+  }, [primaryMoodRoom?.id, primaryMoodRoom?.title]);
 
   const listeningBrief = useMemo(() => {
     if (currentSong) {
@@ -1281,12 +1307,24 @@ function HomeScreen() {
 
           {deferredSectionsReady && primaryMoodRoom && (
             <View>
-              <View style={styles.sectionRowSmall}>
-                <Text style={styles.sectionTitle}>Mood Rooms</Text>
-                <Text style={styles.sectionSub}>
-                  Start with {primaryMoodRoom.title} and keep the feeling close
-                </Text>
-              </View>
+              <TouchableOpacity
+                activeOpacity={0.88}
+                style={styles.sectionRowSmall}
+                onPress={() =>
+                  openMoodCatalog(
+                    primaryMoodRoom.title,
+                    `${primaryMoodRoom.title} music`
+                  )
+                }
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.sectionTitle}>Mood Rooms</Text>
+                  <Text style={styles.sectionSub}>
+                    Start with {primaryMoodRoom.title} and keep the feeling close
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
+              </TouchableOpacity>
 
               <View style={styles.mediaList}>
                 {primaryMoodRoom.songs
@@ -1298,12 +1336,25 @@ function HomeScreen() {
 
           {deferredSectionsReady && primaryGenreSpotlight && (
             <View>
-              <View style={styles.sectionRowSmall}>
-                <Text style={styles.sectionTitle}>Original Genre Spotlights</Text>
-                <Text style={styles.sectionSub}>
-                  {primaryGenreSpotlight.title} selections using unchanged catalog genres
-                </Text>
-              </View>
+              <TouchableOpacity
+                activeOpacity={0.88}
+                style={styles.sectionRowSmall}
+                onPress={() =>
+                  openGenreCatalog({
+                    id: primaryGenreSpotlight.id.replace(/^genre-/, ""),
+                    title: primaryGenreSpotlight.title,
+                    query: primaryGenreSpotlight.title,
+                  })
+                }
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.sectionTitle}>Original Genre Spotlights</Text>
+                  <Text style={styles.sectionSub}>
+                    {primaryGenreSpotlight.title} selections using unchanged catalog genres
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
+              </TouchableOpacity>
 
               <View style={styles.mediaList}>
                 {primaryGenreSpotlight.songs

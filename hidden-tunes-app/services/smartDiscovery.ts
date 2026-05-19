@@ -1,4 +1,8 @@
-import { getCanonicalGenreTitle, normalizeCatalogKey } from "../utils/catalogResolver";
+import {
+  filterSongsByCatalogLabel,
+  getCanonicalGenreTitle,
+  normalizeCatalogKey,
+} from "../utils/catalogResolver";
 import { getArtworkUri } from "../utils/artwork";
 
 export type DiscoverySong = {
@@ -162,9 +166,9 @@ export function buildMoreLikeThisMood<T extends DiscoverySong>(
   }
 
   const currentKey = currentSong ? songKey(currentSong) : "";
-  const related = dedupeSongs(
-    songs.filter((song) => displayValue(song.mood) === seedMood)
-  ).filter((song) => songKey(song) !== currentKey);
+  const related = dedupeSongs(filterSongsByCatalogLabel(songs, seedMood, "mood")).filter(
+    (song) => songKey(song) !== currentKey
+  );
 
   return {
     mood: seedMood,
@@ -221,7 +225,18 @@ export function buildGenreSpotlights<T extends DiscoverySong>(
   limit = 6
 ) {
   const songsWithGenre = dedupeSongs(songs).filter((song) => displayValue(song.genre));
-  const groups = groupByExactField(songsWithGenre, "genre", "Genre Missing");
+  const canonicalTitles = Array.from(
+    new Set(
+      songsWithGenre.map((song) => getCanonicalGenreTitle(song.genre) || displayValue(song.genre))
+    )
+  ).filter(Boolean);
+
+  const groups = new Map<string, T[]>();
+
+  canonicalTitles.forEach((title) => {
+    const matched = filterSongsByCatalogLabel(songsWithGenre, title, "genre");
+    if (matched.length) groups.set(title, matched);
+  });
 
   return Array.from(groups.entries())
     .filter(([title, groupSongs]) => title !== "Genre Missing" && groupSongs.length > 0)
