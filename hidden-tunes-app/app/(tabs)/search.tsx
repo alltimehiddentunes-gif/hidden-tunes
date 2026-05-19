@@ -53,6 +53,22 @@ import {
   type HiddenTunesCloudPlaylist,
 } from "../../services/hiddenTunesApi";
 import { FALLBACK_ARTWORK, getArtworkUri } from "../../utils/artwork";
+import {
+  logApiRefresh,
+  logCacheResult,
+  logPerformanceSummary,
+  logScreenReady,
+  logTapToPlay,
+  startPerformanceTimer,
+} from "../../utils/performanceLogs";
+import {
+  getListPerformanceSettings,
+  markFastScrolling,
+} from "../../utils/performanceMode";
+import {
+  getCachedSearchResults,
+  setCachedSearchResults,
+} from "../../utils/searchQueryCache";
 
 type SearchType = "all" | "hidden" | "audius" | "archive" | "youtube";
 
@@ -98,6 +114,7 @@ const SEARCH_HISTORY_KEY = "hidden_tunes_recent_searches_v4";
 const TV_DISCOVERY_CACHE_KEY = "hidden_tunes_tv_discovery_queries_v1";
 const WEAK_RESULT_THRESHOLD = 4;
 const SEARCH_SKELETON_KEYS = ["one", "two", "three", "four"];
+const SEARCH_DEBOUNCE_MS = 560;
 
 const TRENDING_SEARCHES = [
   "Caasi Wills",
@@ -375,7 +392,10 @@ export default function SearchScreen() {
   const { playSong, stopPlayback, currentSong, isPlaying } = usePlayer() as any;
 
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchRequestIdRef = useRef(0);
+  const searchDebounceGenerationRef = useRef(0);
   const resultListRef = useRef<FlatList<SearchResultTrack>>(null);
+  const screenStartedAt = useRef(startPerformanceTimer()).current;
 
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResultTrack[]>([]);
@@ -388,6 +408,8 @@ export default function SearchScreen() {
   const [searchPage, setSearchPage] = useState(1);
   const [hasMoreHiddenResults, setHasMoreHiddenResults] = useState(false);
   const [loadingMoreResults, setLoadingMoreResults] = useState(false);
+  const [hasCheckedSearchFallbacks, setHasCheckedSearchFallbacks] =
+    useState(false);
 
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [cloudSongs, setCloudSongs] = useState<NativeSearchTrack[]>([]);
@@ -429,6 +451,10 @@ export default function SearchScreen() {
   const emptySearchMode = query.trim().length < 3;
 
   useScrollToTop(resultListRef);
+  const resultListPerformance = useMemo(
+    () => getListPerformanceSettings(results.length),
+    [results.length]
+  );
 
   useEffect(() => {
     loadRecentSearches();
@@ -484,6 +510,8 @@ export default function SearchScreen() {
   }
 
   async function loadCloudDiscovery(showLoader = true) {
+    const refreshStart = startPerformanceTimer();
+
     try {
       if (showLoader) setLoadingCloud(true);
 
@@ -507,6 +535,18 @@ export default function SearchScreen() {
           extractHiddenTunesArtists(cached).slice(0, 12) as any
         );
         setLoadingCloud(false);
+        logCacheResult("search", true, { count: cached.length });
+        logScreenReady("search", screenStartedAt, {
+          cache: "hit",
+          count: cached.length,
+        });
+        logPerformanceSummary("search", {
+          cache: "hit",
+          firstContentMs: Date.now() - screenStartedAt,
+          itemCount: cached.length,
+        });
+      } else {
+        logCacheResult("search", false);
       }
 
       const songs = await getHiddenTunesSongsPage({ page: 1, limit: 24 }).then(
@@ -525,6 +565,24 @@ export default function SearchScreen() {
           )
         )
       );
+      logApiRefresh("search_discovery", refreshStart, {
+        count: songs.length,
+      });
+
+      if (!cached.length) {
+        logScreenReady("search", screenStartedAt, {
+          cache: "miss",
+          count: songs.length,
+        });
+        logPerformanceSummary("search", {
+          cache: "miss",
+          apiRefreshMs: Date.now() - refreshStart,
+          itemCount: songs.length,
+          emptyStateReason: songs.length
+            ? "content_available"
+            : "cache_api_and_fallback_empty",
+        });
+      }
 
       void Promise.allSettled([
         getHiddenTunesAlbums({ forceRefresh: false }),
@@ -596,23 +654,52 @@ export default function SearchScreen() {
 
   async function searchTracks(text: string, source: SearchType = activeSource) {
     const safeText = String(text || "").trim();
+    const requestId = ++searchRequestIdRef.current;
+    const refreshStart = startPerformanceTimer();
 
     setQuery(text);
     setTvFallbackQuery("");
     setTvFallbackReason("");
     setSearchPage(1);
     setHasMoreHiddenResults(false);
+    setHasCheckedSearchFallbacks(false);
 
     if (!safeText || safeText.length < 3) {
       setResults([]);
+      setHasCheckedSearchFallbacks(true);
       return;
     }
 
-    try {
+    const cachedResults = await getCachedSearchResults<SearchResultTrack>(
+      safeText,
+      source
+    );
+    let showedCachedResults = false;
+
+    if (
+      cachedResults?.length &&
+      requestId === searchRequestIdRef.current
+    ) {
+      setResults(cachedResults);
+      setHasCheckedSearchFallbacks(true);
+      setLoading(false);
+      showedCachedResults = true;
+      logCacheResult("search_results", true, {
+        query: safeText,
+        source,
+        count: cachedResults.length,
+      });
+    } else {
       setLoading(true);
+      logCacheResult("search_results", false, { query: safeText, source });
+    }
+
+    try {
       await saveRecentSearch(safeText);
 
       if (source === "youtube") {
+        if (requestId !== searchRequestIdRef.current) return;
+
         await saveTvDiscoveryQuery(safeText);
         setLoading(false);
         setRefreshing(false);
@@ -711,6 +798,11 @@ export default function SearchScreen() {
       const normalizedResults = dedupeByKey(
         finalResults.map((item) => normalizeSearchTrack(item))
       );
+      logApiRefresh("search_results", refreshStart, {
+        query: safeText,
+        source,
+        count: normalizedResults.length,
+      });
 
       if (
         source === "all" &&
@@ -726,15 +818,34 @@ export default function SearchScreen() {
         await saveTvDiscoveryQuery(safeText);
       }
 
+      if (requestId !== searchRequestIdRef.current) return;
+
       setResults(normalizedResults);
+      await setCachedSearchResults(safeText, source, normalizedResults);
+      logPerformanceSummary("search_results", {
+        cache: showedCachedResults ? "hit" : "miss",
+        apiRefreshMs: Date.now() - refreshStart,
+        itemCount: normalizedResults.length,
+        emptyStateReason: normalizedResults.length
+          ? "content_available"
+          : "cache_api_and_fallback_empty",
+      });
     } catch (error) {
-      setResults([]);
+      if (requestId !== searchRequestIdRef.current) return;
+
+      if (!showedCachedResults) {
+        setResults([]);
+      }
+
       setTvFallbackQuery(safeText);
       setTvFallbackReason(
         "No Hidden Tunes matches yet — showing Hidden Tunes TV results."
       );
       await saveTvDiscoveryQuery(safeText);
     } finally {
+      if (requestId !== searchRequestIdRef.current) return;
+
+      setHasCheckedSearchFallbacks(true);
       setLoading(false);
       setRefreshing(false);
     }
@@ -793,9 +904,12 @@ export default function SearchScreen() {
 
     if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
 
+    const generation = ++searchDebounceGenerationRef.current;
+
     searchTimeoutRef.current = setTimeout(() => {
+      if (generation !== searchDebounceGenerationRef.current) return;
       searchTracks(text, source);
-    }, 520);
+    }, SEARCH_DEBOUNCE_MS);
   }
 
   const openGenre = useCallback((genre: GenreItem) => {
@@ -920,6 +1034,7 @@ export default function SearchScreen() {
         return;
       }
 
+      const tapStartedAt = startPerformanceTimer();
       const normalizedTrack = normalizeNativeResult(item);
       const queue = playableResults.length > 0 ? playableResults : cloudSongs;
 
@@ -929,6 +1044,7 @@ export default function SearchScreen() {
       );
 
       await playSong(normalizedTrack, queue, startIndex);
+      logTapToPlay("search", tapStartedAt, { id: normalizedTrack.id });
       router.push("/player" as any);
     },
     [buildYouTubeQueue, cloudSongs, playSong, playableResults, stopPlayback]
@@ -1354,11 +1470,14 @@ export default function SearchScreen() {
           }
           contentContainerStyle={{ paddingBottom: 180 }}
           showsVerticalScrollIndicator={false}
-          initialNumToRender={8}
-          maxToRenderPerBatch={6}
-          windowSize={7}
-          updateCellsBatchingPeriod={90}
+          initialNumToRender={resultListPerformance.initialNumToRender}
+          maxToRenderPerBatch={resultListPerformance.maxToRenderPerBatch}
+          windowSize={resultListPerformance.windowSize}
+          updateCellsBatchingPeriod={resultListPerformance.updateCellsBatchingPeriod}
           removeClippedSubviews
+          onScrollBeginDrag={() => markFastScrolling(true)}
+          onMomentumScrollBegin={() => markFastScrolling(true)}
+          onMomentumScrollEnd={() => markFastScrolling(false)}
           onEndReached={loadMoreHiddenSearchResults}
           onEndReachedThreshold={0.45}
           refreshControl={
@@ -1419,6 +1538,7 @@ export default function SearchScreen() {
             </>
           }
           ListEmptyComponent={
+            query.trim().length >= 3 && hasCheckedSearchFallbacks ? (
             <View style={styles.emptyBox}>
               <Ionicons name="musical-notes-outline" size={56} color={COLORS.textMuted} />
               <Text style={styles.emptyTitle}>No close match yet</Text>
@@ -1427,6 +1547,7 @@ export default function SearchScreen() {
               </Text>
               {renderTvFallbackCard()}
             </View>
+            ) : null
           }
           ListFooterComponent={
             loadingMoreResults ? (

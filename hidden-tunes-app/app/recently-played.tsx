@@ -1,4 +1,4 @@
-import React, { memo, useCallback, useMemo } from "react";
+import React, { memo, useCallback, useEffect, useMemo, useRef } from "react";
 import {
   FlatList,
   StyleSheet,
@@ -17,6 +17,16 @@ import NeonEQ from "../components/NeonEQ";
 import { COLORS, GRADIENTS } from "../constants/theme";
 import { usePlayer } from "../context/PlayerContext";
 import { FALLBACK_ARTWORK, getArtworkUri } from "../utils/artwork";
+import {
+  logPerformanceSummary,
+  logScreenReady,
+  logTapToPlay,
+  startPerformanceTimer,
+} from "../utils/performanceLogs";
+import {
+  getListPerformanceSettings,
+  markFastScrolling,
+} from "../utils/performanceMode";
 
 function getArtist(item: any) {
   return item?.artist || item?.user?.name || item?.channelTitle || "Hidden Tunes";
@@ -120,13 +130,33 @@ const RecentRow = memo(function RecentRow({
 
 function RecentlyPlayedScreen() {
   const { recentlyPlayed, currentSong, isPlaying, playSong } = usePlayer() as any;
+  const screenStartedAt = useRef(startPerformanceTimer()).current;
 
   const tracks = useMemo(() => {
     return dedupePlayableTracks(Array.isArray(recentlyPlayed) ? recentlyPlayed : []);
   }, [recentlyPlayed]);
+  const listPerformance = useMemo(
+    () => getListPerformanceSettings(tracks.length),
+    [tracks.length]
+  );
+
+  useEffect(() => {
+    logScreenReady("recently_played", screenStartedAt, {
+      count: tracks.length,
+    });
+    logPerformanceSummary("recently_played", {
+      cache: "memory",
+      firstContentMs: Date.now() - screenStartedAt,
+      itemCount: tracks.length,
+      emptyStateReason: tracks.length
+        ? "content_available"
+        : "no_recently_played_tracks",
+    });
+  }, [screenStartedAt, tracks.length]);
 
   const playRecentTrack = useCallback(
     async (item: any) => {
+      const tapStartedAt = startPerformanceTimer();
       const normalized = normalizeRecentTrack(item);
       const queue = tracks.length > 0
         ? tracks
@@ -138,6 +168,7 @@ function RecentlyPlayedScreen() {
       );
 
       await playSong(normalized as any, queue as any, startIndex);
+      logTapToPlay("recently_played", tapStartedAt, { id: normalized.id });
       router.push("/player" as any);
     },
     [playSong, tracks]
@@ -185,10 +216,14 @@ function RecentlyPlayedScreen() {
         renderItem={renderItem}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
-        initialNumToRender={10}
-        maxToRenderPerBatch={8}
-        windowSize={7}
+        initialNumToRender={listPerformance.initialNumToRender}
+        maxToRenderPerBatch={listPerformance.maxToRenderPerBatch}
+        windowSize={listPerformance.windowSize}
+        updateCellsBatchingPeriod={listPerformance.updateCellsBatchingPeriod}
         removeClippedSubviews
+        onScrollBeginDrag={() => markFastScrolling(true)}
+        onMomentumScrollBegin={() => markFastScrolling(true)}
+        onMomentumScrollEnd={() => markFastScrolling(false)}
         ListEmptyComponent={
           <View style={styles.emptyBox}>
             <Ionicons name="time-outline" size={58} color={COLORS.textMuted} />

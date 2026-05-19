@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -20,11 +20,29 @@ import HTImage from "../../components/HTImage";
 import { COLORS, GRADIENTS } from "../../constants/theme";
 import { usePlayer } from "../../context/PlayerContext";
 import {
+  extractHiddenTunesAlbums,
   getHiddenTunesAlbumById,
+  hydrateHiddenTunesCatalogCache,
   type HiddenTunesAlbum,
   type HiddenTunesNormalizedSong,
 } from "../../services/hiddenTunesApi";
 import { getArtworkUri } from "../../utils/artwork";
+import {
+  logApiRefresh,
+  logCacheResult,
+  logPerformanceSummary,
+  logScreenReady,
+  logTapToPlay,
+  startPerformanceTimer,
+} from "../../utils/performanceLogs";
+import {
+  getListPerformanceSettings,
+  markFastScrolling,
+} from "../../utils/performanceMode";
+import {
+  loadAlbumDetailSnapshot,
+  saveAlbumDetailSnapshot,
+} from "../../utils/detailSnapshots";
 
 function getArtwork(item: any) {
   return getArtworkUri(item);
@@ -75,13 +93,38 @@ function safeSong(song: HiddenTunesNormalizedSong): HiddenTunesNormalizedSong {
   };
 }
 
+function normalizeLookup(value: unknown) {
+  return String(value || "")
+    .toLowerCase()
+    .trim()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function findAlbumById(albums: HiddenTunesAlbum[], id: string) {
+  const cleanId = normalizeLookup(id);
+
+  return (
+    albums.find(
+      (album) =>
+        album.id === id ||
+        normalizeLookup(album.id) === cleanId ||
+        normalizeLookup(album.slug) === cleanId ||
+        normalizeLookup(album.title) === cleanId
+    ) || null
+  );
+}
+
 export default function AlbumScreen() {
   const { id } = useLocalSearchParams();
   const { playSong, currentSong, isPlaying } = usePlayer() as any;
+  const screenStartedAt = useRef(startPerformanceTimer()).current;
 
   const [album, setAlbum] = useState<HiddenTunesAlbum | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [hasCheckedFallbacks, setHasCheckedFallbacks] = useState(false);
 
   const tracks = useMemo(
     () => (album?.tracks || []).map(safeSong),
@@ -89,25 +132,108 @@ export default function AlbumScreen() {
   );
 
   const totalDuration = useMemo(() => getTotalDuration(tracks), [tracks]);
+  const listPerformance = useMemo(
+    () => getListPerformanceSettings(tracks.length),
+    [tracks.length]
+  );
+
+  const loadAlbum = useCallback(
+    async (showLoader = true) => {
+      const albumId = String(id || "");
+      let showedCachedAlbum = false;
+      const refreshStart = startPerformanceTimer();
+
+      try {
+        setHasCheckedFallbacks(false);
+        if (showLoader) setLoading(true);
+
+        const snapshotAlbum = await loadAlbumDetailSnapshot(albumId);
+        if (snapshotAlbum) {
+          setAlbum(snapshotAlbum);
+          setLoading(false);
+          showedCachedAlbum = true;
+          logCacheResult("album", true, {
+            id: albumId,
+            tracks: snapshotAlbum.tracks.length,
+            snapshot: true,
+          });
+          logScreenReady("album", screenStartedAt, {
+            cache: "hit",
+            tracks: snapshotAlbum.tracks.length,
+          });
+          logPerformanceSummary("album", {
+            cache: "hit",
+            firstContentMs: Date.now() - screenStartedAt,
+            itemCount: snapshotAlbum.tracks.length,
+          });
+        }
+
+        const cachedSongs = await hydrateHiddenTunesCatalogCache();
+        const cachedAlbum = findAlbumById(extractHiddenTunesAlbums(cachedSongs), albumId);
+
+        if (cachedAlbum && !showedCachedAlbum) {
+          setAlbum(cachedAlbum);
+          setLoading(false);
+          showedCachedAlbum = true;
+          logCacheResult("album", true, {
+            id: albumId,
+            tracks: cachedAlbum.tracks.length,
+          });
+          logScreenReady("album", screenStartedAt, {
+            cache: "hit",
+            tracks: cachedAlbum.tracks.length,
+          });
+          logPerformanceSummary("album", {
+            cache: "hit",
+            firstContentMs: Date.now() - screenStartedAt,
+            itemCount: cachedAlbum.tracks.length,
+          });
+        } else if (!showedCachedAlbum) {
+          logCacheResult("album", false, { id: albumId });
+        }
+
+        const data = await getHiddenTunesAlbumById(albumId);
+        logApiRefresh("album", refreshStart, {
+          id: albumId,
+          found: Boolean(data),
+          tracks: data?.tracks.length || 0,
+        });
+        logPerformanceSummary("album", {
+          cache: showedCachedAlbum ? "hit" : "miss",
+          apiRefreshMs: Date.now() - refreshStart,
+          itemCount: data?.tracks.length || 0,
+          emptyStateReason: data
+            ? "content_available"
+            : "cache_api_and_fallback_empty",
+        });
+
+        if (data) {
+          setAlbum(data);
+          void saveAlbumDetailSnapshot(data);
+          if (!showedCachedAlbum) {
+            logScreenReady("album", screenStartedAt, {
+              cache: "miss",
+              tracks: data.tracks.length,
+            });
+          }
+        } else if (!showedCachedAlbum) {
+          setAlbum(null);
+        }
+      } catch (error) {
+        console.log("Load album error:", error);
+        if (!showedCachedAlbum) setAlbum(null);
+      } finally {
+        setHasCheckedFallbacks(true);
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [id, screenStartedAt]
+  );
 
   useEffect(() => {
     loadAlbum(true);
-  }, [id]);
-
-  async function loadAlbum(showLoader = true) {
-    try {
-      if (showLoader) setLoading(true);
-
-      const data = await getHiddenTunesAlbumById(String(id));
-      setAlbum(data);
-    } catch (error) {
-      console.log("Load album error:", error);
-      setAlbum(null);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }
+  }, [id, loadAlbum]);
 
   async function onRefresh() {
     setRefreshing(true);
@@ -115,6 +241,7 @@ export default function AlbumScreen() {
   }
 
   async function handlePlay(track: HiddenTunesNormalizedSong) {
+    const tapStartedAt = startPerformanceTimer();
     const normalized = safeSong(track);
     const startIndex = Math.max(
       0,
@@ -122,12 +249,15 @@ export default function AlbumScreen() {
     );
 
     await playSong(normalized as any, tracks as any, startIndex);
+    logTapToPlay("album", tapStartedAt, { id: normalized.id });
     router.push("/player" as any);
   }
 
   async function playAlbum() {
     if (!tracks.length) return;
+    const tapStartedAt = startPerformanceTimer();
     await playSong(tracks[0] as any, tracks as any, 0);
+    logTapToPlay("album", tapStartedAt, { id: tracks[0]?.id });
     router.push("/player" as any);
   }
 
@@ -135,7 +265,9 @@ export default function AlbumScreen() {
     if (!tracks.length) return;
 
     const shuffled = shuffleSongs(tracks);
+    const tapStartedAt = startPerformanceTimer();
     await playSong(shuffled[0] as any, shuffled as any, 0);
+    logTapToPlay("album", tapStartedAt, { id: shuffled[0]?.id });
     router.push("/player" as any);
   }
 
@@ -148,7 +280,7 @@ export default function AlbumScreen() {
     );
   }
 
-  if (!album) {
+  if (!album && hasCheckedFallbacks) {
     return (
       <LinearGradient colors={GRADIENTS.main as any} style={styles.center}>
         <Ionicons name="disc-outline" size={64} color={COLORS.textMuted} />
@@ -163,6 +295,15 @@ export default function AlbumScreen() {
     );
   }
 
+  if (!album) {
+    return (
+      <LinearGradient colors={GRADIENTS.main as any} style={styles.center}>
+        <ActivityIndicator color={COLORS.primary} />
+        <Text style={styles.loadingText}>Checking cached album...</Text>
+      </LinearGradient>
+    );
+  }
+
   return (
     <LinearGradient colors={GRADIENTS.main as any} style={styles.screen}>
       <View style={styles.glowPurple} />
@@ -173,6 +314,14 @@ export default function AlbumScreen() {
         keyExtractor={(item, index) => `${item.id}-${index}`}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.list}
+        initialNumToRender={listPerformance.initialNumToRender}
+        maxToRenderPerBatch={listPerformance.maxToRenderPerBatch}
+        windowSize={listPerformance.windowSize}
+        updateCellsBatchingPeriod={listPerformance.updateCellsBatchingPeriod}
+        removeClippedSubviews
+        onScrollBeginDrag={() => markFastScrolling(true)}
+        onMomentumScrollBegin={() => markFastScrolling(true)}
+        onMomentumScrollEnd={() => markFastScrolling(false)}
         refreshControl={
           <RefreshControl
             tintColor={COLORS.primary}

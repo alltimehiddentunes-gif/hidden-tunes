@@ -248,7 +248,13 @@ export function buildSongSearchKeys(song: CatalogSongLike) {
 }
 
 export function buildSongGenreKeys(song: CatalogSongLike) {
-  return Array.from(new Set(getComparableKeys(song.genre))).filter(Boolean);
+  const genre = song.genre;
+  const canonical = resolveCanonicalGenre(genre);
+  const values = canonical
+    ? [genre, canonical.id, canonical.title, canonical.query, ...canonical.aliases]
+    : [genre];
+
+  return Array.from(new Set(values.flatMap(getComparableKeys))).filter(Boolean);
 }
 
 export function songMatchesCatalogLabel(
@@ -261,7 +267,13 @@ export function songMatchesCatalogLabel(
 
   if (type === "genre") {
     const genreKeys = buildSongGenreKeys(song);
-    return aliases.some((alias) => genreKeys.includes(alias));
+    return aliases.some((alias) =>
+      genreKeys.some((key) => {
+        if (key === alias) return true;
+        if (alias.length <= 3 || key.length <= 3) return false;
+        return key.includes(alias) || alias.includes(key);
+      })
+    );
   }
 
   const songKeys = buildSongSearchKeys(song);

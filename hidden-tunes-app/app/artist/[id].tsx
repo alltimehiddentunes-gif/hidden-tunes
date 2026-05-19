@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -21,12 +21,27 @@ import HTImage from "../../components/HTImage";
 import { COLORS, GRADIENTS } from "../../constants/theme";
 import { usePlayer } from "../../context/PlayerContext";
 import {
+  extractHiddenTunesArtists,
   getHiddenTunesArtistById,
+  hydrateHiddenTunesCatalogCache,
   type HiddenTunesAlbum,
   type HiddenTunesArtist,
   type HiddenTunesNormalizedSong,
 } from "../../services/hiddenTunesApi";
 import { getArtworkUri } from "../../utils/artwork";
+import {
+  logApiRefresh,
+  logCacheResult,
+  logPerformanceSummary,
+  logScreenReady,
+  logTapToPlay,
+  startPerformanceTimer,
+} from "../../utils/performanceLogs";
+import { markFastScrolling } from "../../utils/performanceMode";
+import {
+  loadArtistDetailSnapshot,
+  saveArtistDetailSnapshot,
+} from "../../utils/detailSnapshots";
 
 function getArtwork(item: any) {
   return getArtworkUri(item);
@@ -73,13 +88,38 @@ function safeSong(song: HiddenTunesNormalizedSong): HiddenTunesNormalizedSong {
   };
 }
 
+function normalizeLookup(value: unknown) {
+  return String(value || "")
+    .toLowerCase()
+    .trim()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function findArtistById(artists: HiddenTunesArtist[], id: string) {
+  const cleanId = normalizeLookup(id);
+
+  return (
+    artists.find(
+      (artist) =>
+        artist.id === id ||
+        normalizeLookup(artist.id) === cleanId ||
+        normalizeLookup(artist.slug) === cleanId ||
+        normalizeLookup(artist.name) === cleanId
+    ) || null
+  );
+}
+
 export default function ArtistScreen() {
   const { id } = useLocalSearchParams();
   const { playSong, currentSong, isPlaying } = usePlayer() as any;
+  const screenStartedAt = useRef(startPerformanceTimer()).current;
 
   const [artist, setArtist] = useState<HiddenTunesArtist | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [hasCheckedFallbacks, setHasCheckedFallbacks] = useState(false);
 
   const tracks = useMemo(
     () => (artist?.tracks || []).map(safeSong),
@@ -88,24 +128,106 @@ export default function ArtistScreen() {
 
   const albums = useMemo(() => artist?.albums || [], [artist?.albums]);
 
+  const loadArtist = useCallback(
+    async (showLoader = true) => {
+      const artistId = String(id || "");
+      let showedCachedArtist = false;
+      const refreshStart = startPerformanceTimer();
+
+      try {
+        setHasCheckedFallbacks(false);
+        if (showLoader) setLoading(true);
+
+        const snapshotArtist = await loadArtistDetailSnapshot(artistId);
+        if (snapshotArtist) {
+          setArtist(snapshotArtist);
+          setLoading(false);
+          showedCachedArtist = true;
+          logCacheResult("artist", true, {
+            id: artistId,
+            tracks: snapshotArtist.tracks.length,
+            snapshot: true,
+          });
+          logScreenReady("artist", screenStartedAt, {
+            cache: "hit",
+            tracks: snapshotArtist.tracks.length,
+          });
+          logPerformanceSummary("artist", {
+            cache: "hit",
+            firstContentMs: Date.now() - screenStartedAt,
+            itemCount: snapshotArtist.tracks.length,
+          });
+        }
+
+        const cachedSongs = await hydrateHiddenTunesCatalogCache();
+        const cachedArtist = findArtistById(
+          extractHiddenTunesArtists(cachedSongs),
+          artistId
+        );
+
+        if (cachedArtist && !showedCachedArtist) {
+          setArtist(cachedArtist);
+          setLoading(false);
+          showedCachedArtist = true;
+          logCacheResult("artist", true, {
+            id: artistId,
+            tracks: cachedArtist.tracks.length,
+          });
+          logScreenReady("artist", screenStartedAt, {
+            cache: "hit",
+            tracks: cachedArtist.tracks.length,
+          });
+          logPerformanceSummary("artist", {
+            cache: "hit",
+            firstContentMs: Date.now() - screenStartedAt,
+            itemCount: cachedArtist.tracks.length,
+          });
+        } else if (!showedCachedArtist) {
+          logCacheResult("artist", false, { id: artistId });
+        }
+
+        const data = await getHiddenTunesArtistById(artistId);
+        logApiRefresh("artist", refreshStart, {
+          id: artistId,
+          found: Boolean(data),
+          tracks: data?.tracks.length || 0,
+        });
+        logPerformanceSummary("artist", {
+          cache: showedCachedArtist ? "hit" : "miss",
+          apiRefreshMs: Date.now() - refreshStart,
+          itemCount: data?.tracks.length || 0,
+          emptyStateReason: data
+            ? "content_available"
+            : "cache_api_and_fallback_empty",
+        });
+
+        if (data) {
+          setArtist(data);
+          void saveArtistDetailSnapshot(data);
+          if (!showedCachedArtist) {
+            logScreenReady("artist", screenStartedAt, {
+              cache: "miss",
+              tracks: data.tracks.length,
+            });
+          }
+        } else if (!showedCachedArtist) {
+          setArtist(null);
+        }
+      } catch (error) {
+        console.log("Load artist error:", error);
+        if (!showedCachedArtist) setArtist(null);
+      } finally {
+        setHasCheckedFallbacks(true);
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [id, screenStartedAt]
+  );
+
   useEffect(() => {
     loadArtist(true);
-  }, [id]);
-
-  async function loadArtist(showLoader = true) {
-    try {
-      if (showLoader) setLoading(true);
-
-      const data = await getHiddenTunesArtistById(String(id));
-      setArtist(data);
-    } catch (error) {
-      console.log("Load artist error:", error);
-      setArtist(null);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }
+  }, [id, loadArtist]);
 
   async function onRefresh() {
     setRefreshing(true);
@@ -113,6 +235,7 @@ export default function ArtistScreen() {
   }
 
   async function handlePlay(track: HiddenTunesNormalizedSong) {
+    const tapStartedAt = startPerformanceTimer();
     const normalized = safeSong(track);
 
     const startIndex = Math.max(
@@ -121,13 +244,16 @@ export default function ArtistScreen() {
     );
 
     await playSong(normalized as any, tracks as any, startIndex);
+    logTapToPlay("artist", tapStartedAt, { id: normalized.id });
     router.push("/player" as any);
   }
 
   async function playArtist() {
     if (!tracks.length) return;
 
+    const tapStartedAt = startPerformanceTimer();
     await playSong(tracks[0] as any, tracks as any, 0);
+    logTapToPlay("artist", tapStartedAt, { id: tracks[0]?.id });
     router.push("/player" as any);
   }
 
@@ -135,7 +261,9 @@ export default function ArtistScreen() {
     if (!tracks.length) return;
 
     const shuffled = shuffleSongs(tracks);
+    const tapStartedAt = startPerformanceTimer();
     await playSong(shuffled[0] as any, shuffled as any, 0);
+    logTapToPlay("artist", tapStartedAt, { id: shuffled[0]?.id });
     router.push("/player" as any);
   }
 
@@ -155,7 +283,7 @@ export default function ArtistScreen() {
     );
   }
 
-  if (!artist) {
+  if (!artist && hasCheckedFallbacks) {
     return (
       <LinearGradient colors={GRADIENTS.main as any} style={styles.center}>
         <Ionicons name="person-circle-outline" size={70} color={COLORS.textMuted} />
@@ -170,6 +298,15 @@ export default function ArtistScreen() {
     );
   }
 
+  if (!artist) {
+    return (
+      <LinearGradient colors={GRADIENTS.main as any} style={styles.center}>
+        <ActivityIndicator color={COLORS.primary} />
+        <Text style={styles.loadingText}>Checking cached artist...</Text>
+      </LinearGradient>
+    );
+  }
+
   return (
     <LinearGradient colors={GRADIENTS.main as any} style={styles.screen}>
       <View style={styles.glowPurple} />
@@ -178,6 +315,9 @@ export default function ArtistScreen() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}
+        onScrollBeginDrag={() => markFastScrolling(true)}
+        onMomentumScrollBegin={() => markFastScrolling(true)}
+        onMomentumScrollEnd={() => markFastScrolling(false)}
         refreshControl={
           <RefreshControl
             tintColor={COLORS.primary}

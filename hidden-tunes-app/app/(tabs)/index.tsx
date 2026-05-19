@@ -4,6 +4,7 @@ import {
   Animated,
   Dimensions,
   FlatList,
+  InteractionManager,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -27,6 +28,8 @@ import { usePlayer } from "../../context/PlayerContext";
 import {
   getHiddenTunesSongs,
   getHiddenTunesSongsPage,
+  getHiddenTunesAlbumById,
+  getHiddenTunesArtistById,
   extractHiddenTunesAlbums,
   extractHiddenTunesArtists,
   hydrateHiddenTunesCatalogCache,
@@ -47,6 +50,18 @@ import {
   buildRecentlyDiscovered,
 } from "../../services/smartDiscovery";
 import { FALLBACK_ARTWORK, getArtworkUri } from "../../utils/artwork";
+import {
+  logApiRefresh,
+  logCacheResult,
+  logPerformanceSummary,
+  logScreenReady,
+  logTapToPlay,
+  startPerformanceTimer,
+} from "../../utils/performanceLogs";
+import {
+  markFastScrolling,
+  scheduleNavigationPrewarm,
+} from "../../utils/performanceMode";
 
 const { width } = Dimensions.get("window");
 const FEATURED_CARD_WIDTH = width * 0.72;
@@ -123,6 +138,7 @@ function HomeScreen() {
   const scrollRef = useRef<ScrollView>(null);
   const heroListRef = useRef<FlatList<HeroCard>>(null);
   const heroIndexRef = useRef(0);
+  const screenStartedAt = useRef(startPerformanceTimer()).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(18)).current;
   const heroScale = useRef(new Animated.Value(0.96)).current;
@@ -131,11 +147,15 @@ function HomeScreen() {
   const [featuredSongs, setFeaturedSongs] = useState<HiddenTunesNormalizedSong[]>([]);
   const [loadingSongs, setLoadingSongs] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [hasCheckedCatalogFallbacks, setHasCheckedCatalogFallbacks] =
+    useState(false);
   const [visibleSongCount, setVisibleSongCount] = useState(INITIAL_HOME_SONG_ROWS);
   const [songPage, setSongPage] = useState(1);
   const [hasMoreSongPages, setHasMoreSongPages] = useState(true);
   const [loadingMoreSongs, setLoadingMoreSongs] = useState(false);
   const [heroIndex, setHeroIndex] = useState(0);
+  const [deferredSectionsReady, setDeferredSectionsReady] = useState(false);
+  const deferredSectionsScheduledRef = useRef(false);
 
   const defaultHeroTrack = featuredSongs[0];
 
@@ -166,24 +186,56 @@ function HomeScreen() {
         let showedCachedCatalog = false;
 
         if (!forceRefresh) {
+          setHasCheckedCatalogFallbacks(false);
           const cached = await hydrateHiddenTunesCatalogCache();
 
           if (cached.length) {
             applyFeaturedSongs(cached);
             setLoadingSongs(false);
             showedCachedCatalog = true;
+            logCacheResult("home", true, { count: cached.length });
+            logScreenReady("home", screenStartedAt, {
+              cache: "hit",
+              count: cached.length,
+            });
+            logPerformanceSummary("home", {
+              cache: "hit",
+              firstContentMs: Date.now() - screenStartedAt,
+              itemCount: cached.length,
+            });
           } else if (showLoader) {
             setLoadingSongs(true);
+            logCacheResult("home", false);
           }
         } else if (showLoader) {
           setLoadingSongs(true);
         }
 
+        const refreshStart = startPerformanceTimer();
         const songs = forceRefresh
           ? await refreshHiddenTunesSongs()
           : await getHiddenTunesSongs({ forceRefresh: false });
 
         applyFeaturedSongs(songs);
+        logApiRefresh("home", refreshStart, {
+          count: songs.length,
+          forceRefresh,
+        });
+        logPerformanceSummary("home", {
+          cache: showedCachedCatalog ? "hit" : "miss",
+          apiRefreshMs: Date.now() - refreshStart,
+          itemCount: songs.length,
+          emptyStateReason: songs.length
+            ? "content_available"
+            : "cache_api_and_fallback_empty",
+        });
+
+        if (!showedCachedCatalog) {
+          logScreenReady("home", screenStartedAt, {
+            cache: "miss",
+            count: songs.length,
+          });
+        }
 
         if (!showedCachedCatalog && !songs.length) {
           setHasMoreSongPages(false);
@@ -195,11 +247,12 @@ function HomeScreen() {
         }
       } finally {
         isLoadingRef.current = false;
+        setHasCheckedCatalogFallbacks(true);
         setLoadingSongs(false);
         setRefreshing(false);
       }
     },
-    [applyFeaturedSongs, featuredSongs.length]
+    [applyFeaturedSongs, featuredSongs.length, screenStartedAt]
   );
 
   useEffect(() => {
@@ -250,6 +303,21 @@ function HomeScreen() {
       };
     }, [heroGlowAnim])
   );
+
+  const scheduleDeferredHomeSections = useCallback(() => {
+    if (deferredSectionsScheduledRef.current) return;
+    deferredSectionsScheduledRef.current = true;
+
+    InteractionManager.runAfterInteractions(() => {
+      setDeferredSectionsReady(true);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (featuredSongs.length > 0) {
+      scheduleDeferredHomeSections();
+    }
+  }, [featuredSongs.length, scheduleDeferredHomeSections]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -311,6 +379,40 @@ function HomeScreen() {
 
   const primaryMoodRoom = moodRooms[0];
   const primaryGenreSpotlight = genreSpotlights[0];
+
+  useEffect(() => {
+    if (!featuredSongs.length) return;
+
+    void preloadImages([
+      ...newestSongs.slice(0, 4).flatMap((song) => [song.artwork, song.cover]),
+      ...rankedAlbums.slice(0, 3).map((album) => album.artwork),
+      ...rankedArtists.slice(0, 3).map((artist) => artist.artwork),
+      ...visibleAllSongs.slice(0, 4).flatMap((song) => [song.artwork, song.cover]),
+      ...(primaryGenreSpotlight?.songs || [])
+        .slice(0, 3)
+        .flatMap((song) => [song.artwork, song.cover]),
+    ]);
+  }, [
+    featuredSongs.length,
+    newestSongs,
+    primaryGenreSpotlight?.songs,
+    rankedAlbums,
+    rankedArtists,
+    visibleAllSongs,
+  ]);
+
+  useEffect(() => {
+    if (!featuredSongs.length) return undefined;
+
+    return scheduleNavigationPrewarm([
+      ...rankedArtists.slice(0, 2).map((artist) => () => {
+        void getHiddenTunesArtistById(artist.id);
+      }),
+      ...rankedAlbums.slice(0, 2).map((album) => () => {
+        void getHiddenTunesAlbumById(album.id);
+      }),
+    ]);
+  }, [featuredSongs.length, rankedAlbums, rankedArtists]);
 
   const listeningBrief = useMemo(() => {
     if (currentSong) {
@@ -480,6 +582,7 @@ function HomeScreen() {
 
   const playFeaturedSong = useCallback(
     async (song: HiddenTunesNormalizedSong) => {
+      const tapStartedAt = startPerformanceTimer();
       const normalized = safeSong(song);
       const queue = dedupeSongs(featuredSongs.map(safeSong));
 
@@ -489,6 +592,7 @@ function HomeScreen() {
       );
 
       await playSong(normalized as any, queue as any, startIndex);
+      logTapToPlay("home", tapStartedAt, { id: normalized.id });
       router.push("/player" as any);
     },
     [featuredSongs, playSong]
@@ -770,6 +874,9 @@ function HomeScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
           onScroll={handleHomeScroll}
+          onScrollBeginDrag={() => markFastScrolling(true)}
+          onMomentumScrollBegin={() => markFastScrolling(true)}
+          onMomentumScrollEnd={() => markFastScrolling(false)}
           scrollEventThrottle={400}
           refreshControl={
             <RefreshControl
@@ -865,7 +972,7 @@ function HomeScreen() {
               <LinearGradient colors={GRADIENTS.neon} style={styles.heroBorder}>
                 <View style={styles.heroCard}>
                   <View style={styles.heroEmpty}>
-                    {loadingSongs ? (
+                    {loadingSongs || !hasCheckedCatalogFallbacks ? (
                       <>
                         <View style={styles.heroSkeletonIcon} />
                         <View style={styles.heroSkeletonLineWide} />
@@ -968,37 +1075,43 @@ function HomeScreen() {
             />
           </View>
 
-          <View style={styles.sectionRow}>
-            <View>
-              <Text style={styles.sectionTitle}>Hidden Tunes TV</Text>
-              <Text style={styles.sectionSub}>
-                Music videos and live discovery
-              </Text>
-            </View>
+          {deferredSectionsReady ? (
+            <>
+              <View style={styles.sectionRow}>
+                <View>
+                  <Text style={styles.sectionTitle}>Hidden Tunes TV</Text>
+                  <Text style={styles.sectionSub}>
+                    Music videos and live discovery
+                  </Text>
+                </View>
 
-            <TouchableOpacity
-              onPress={() => router.push("/tv" as any)}
-              style={styles.tvOpenButton}
-              activeOpacity={0.85}
-            >
-              <Ionicons name="tv" size={18} color="#000" />
-              <Text style={styles.tvOpenText}>Open TV</Text>
-            </TouchableOpacity>
-          </View>
+                <TouchableOpacity
+                  onPress={() => router.push("/tv" as any)}
+                  style={styles.tvOpenButton}
+                  activeOpacity={0.85}
+                >
+                  <Ionicons name="tv" size={18} color="#000" />
+                  <Text style={styles.tvOpenText}>Open TV</Text>
+                </TouchableOpacity>
+              </View>
 
-          <TouchableOpacity
-            activeOpacity={0.86}
-            style={styles.tvEmptyCard}
-            onPress={() => router.push("/tv" as any)}
-          >
-            <Ionicons name="tv" size={26} color={COLORS.primary} />
-              <Text style={styles.tvEmptyTitle}>Watch the story behind the sound</Text>
-            <Text style={styles.tvEmptyText}>
-              Explore videos without leaving Hidden Tunes.
-            </Text>
-          </TouchableOpacity>
+              <TouchableOpacity
+                activeOpacity={0.86}
+                style={styles.tvEmptyCard}
+                onPress={() => router.push("/tv" as any)}
+              >
+                <Ionicons name="tv" size={26} color={COLORS.primary} />
+                <Text style={styles.tvEmptyTitle}>
+                  Watch the story behind the sound
+                </Text>
+                <Text style={styles.tvEmptyText}>
+                  Explore videos without leaving Hidden Tunes.
+                </Text>
+              </TouchableOpacity>
+            </>
+          ) : null}
 
-          {rankedSongs.length > 0 && (
+          {deferredSectionsReady && rankedSongs.length > 0 && (
             <>
               <View style={styles.sectionRowSmall}>
                 <Text style={styles.sectionTitle}>Because You Listened</Text>
@@ -1013,7 +1126,7 @@ function HomeScreen() {
             </>
           )}
 
-          {moreLikeThisMood.songs.length > 0 && (
+          {deferredSectionsReady && moreLikeThisMood.songs.length > 0 && (
             <>
               <View style={styles.sectionRowSmall}>
                 <Text style={styles.sectionTitle}>More Like This Mood</Text>
@@ -1030,7 +1143,7 @@ function HomeScreen() {
             </>
           )}
 
-          {rankedArtists.length > 0 && (
+          {deferredSectionsReady && rankedArtists.length > 0 && (
             <>
               <View style={styles.sectionRowSmall}>
                 <Text style={styles.sectionTitle}>Creators In Your Orbit</Text>
@@ -1073,7 +1186,7 @@ function HomeScreen() {
             </>
           )}
 
-          {rankedAlbums.length > 0 && (
+          {deferredSectionsReady && rankedAlbums.length > 0 && (
             <>
               <View style={styles.sectionRowSmall}>
                 <Text style={styles.sectionTitle}>Albums Worth Staying With</Text>
@@ -1116,18 +1229,20 @@ function HomeScreen() {
             </>
           )}
 
-          <View style={styles.sectionRow}>
-            <View>
-              <Text style={styles.sectionTitle}>Recently Discovered</Text>
-              <Text style={styles.sectionSub}>
-                New uploads ready for your next queue
-              </Text>
-            </View>
+          {deferredSectionsReady ? (
+            <>
+              <View style={styles.sectionRow}>
+                <View>
+                  <Text style={styles.sectionTitle}>Recently Discovered</Text>
+                  <Text style={styles.sectionSub}>
+                    New uploads ready for your next queue
+                  </Text>
+                </View>
 
-            <TouchableOpacity onPress={onRefresh} style={styles.refreshMini}>
-              <Ionicons name="refresh" size={20} color={COLORS.text} />
-            </TouchableOpacity>
-          </View>
+                <TouchableOpacity onPress={onRefresh} style={styles.refreshMini}>
+                  <Ionicons name="refresh" size={20} color={COLORS.text} />
+                </TouchableOpacity>
+              </View>
 
           {loadingSongs ? (
             <View style={styles.loadingBox}>
@@ -1137,7 +1252,7 @@ function HomeScreen() {
               </View>
               <HomeSkeletonCards />
             </View>
-          ) : featuredSongs.length === 0 ? (
+          ) : featuredSongs.length === 0 && hasCheckedCatalogFallbacks ? (
             <View style={styles.emptyBox}>
               <Text style={styles.emptyTitle}>No songs yet</Text>
               <Text style={styles.emptyText}>
@@ -1161,7 +1276,10 @@ function HomeScreen() {
             />
           )}
 
-          {primaryMoodRoom && (
+            </>
+          ) : null}
+
+          {deferredSectionsReady && primaryMoodRoom && (
             <View>
               <View style={styles.sectionRowSmall}>
                 <Text style={styles.sectionTitle}>Mood Rooms</Text>
@@ -1178,7 +1296,7 @@ function HomeScreen() {
             </View>
           )}
 
-          {primaryGenreSpotlight && (
+          {deferredSectionsReady && primaryGenreSpotlight && (
             <View>
               <View style={styles.sectionRowSmall}>
                 <Text style={styles.sectionTitle}>Original Genre Spotlights</Text>
@@ -1195,18 +1313,22 @@ function HomeScreen() {
             </View>
           )}
 
-          <View style={styles.sectionRowSmall}>
-            <Text style={styles.sectionTitle}>Full Catalog</Text>
-            <Text style={styles.sectionSub}>
-              {visibleAllSongs.length} of {featuredSongs.length} songs unlocked
-            </Text>
-          </View>
+          {deferredSectionsReady ? (
+            <>
+              <View style={styles.sectionRowSmall}>
+                <Text style={styles.sectionTitle}>Full Catalog</Text>
+                <Text style={styles.sectionSub}>
+                  {visibleAllSongs.length} of {featuredSongs.length} songs unlocked
+                </Text>
+              </View>
 
-          <View style={styles.mediaList}>
-            {visibleAllSongs.map((song, index) => renderSongRow(song, index))}
-          </View>
+              <View style={styles.mediaList}>
+                {visibleAllSongs.map((song, index) => renderSongRow(song, index))}
+              </View>
+            </>
+          ) : null}
 
-          {(hasMoreCloudSongs || hasMoreSongPages) && (
+          {deferredSectionsReady && (hasMoreCloudSongs || hasMoreSongPages) && (
             <TouchableOpacity
               activeOpacity={0.86}
               style={[

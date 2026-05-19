@@ -31,6 +31,8 @@ import {
   getHiddenTunesArtists,
   getHiddenTunesCloudPlaylists,
   getHiddenTunesSongsPage,
+  getHiddenTunesAlbumById,
+  getHiddenTunesArtistById,
   hydrateHiddenTunesCatalogCache,
   refreshHiddenTunesSongs,
   extractHiddenTunesAlbums,
@@ -52,6 +54,19 @@ import {
   buildGenreSpotlights,
   buildMoodRooms,
 } from "../../services/smartDiscovery";
+import {
+  logApiRefresh,
+  logCacheResult,
+  logPerformanceSummary,
+  logScreenReady,
+  logTapToPlay,
+  startPerformanceTimer,
+} from "../../utils/performanceLogs";
+import {
+  getListPerformanceSettings,
+  markFastScrolling,
+  scheduleNavigationPrewarm,
+} from "../../utils/performanceMode";
 
 const GENRE_PREVIEW_MS = 6800;
 
@@ -235,6 +250,7 @@ export default function ExploreScreen() {
   } = usePlayer() as any;
 
   const listRef = useRef<FlatList<BackendYouTubeTrack>>(null);
+  const screenStartedAt = useRef(startPerformanceTimer()).current;
 
   const [tracks, setTracks] = useState<BackendYouTubeTrack[]>([]);
   const [cloudSongs, setCloudSongs] = useState<HiddenTunesNormalizedSong[]>([]);
@@ -243,23 +259,29 @@ export default function ExploreScreen() {
   const [playlists, setPlaylists] = useState<HiddenTunesCloudPlaylist[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [hasCheckedDiscoveryFallbacks, setHasCheckedDiscoveryFallbacks] =
+    useState(false);
   const [showHeavySections, setShowHeavySections] = useState(false);
+  const [showTvSection, setShowTvSection] = useState(false);
+  const [loadingTvSection, setLoadingTvSection] = useState(false);
   const [genrePreviewIndex, setGenrePreviewIndex] = useState(0);
   const [songPage, setSongPage] = useState(1);
   const [hasMoreSongs, setHasMoreSongs] = useState(true);
   const [loadingMoreSongs, setLoadingMoreSongs] = useState(false);
 
   useScrollToTop(listRef);
+  const listPerformance = useMemo(
+    () => getListPerformanceSettings(Math.max(cloudSongs.length, tracks.length)),
+    [cloudSongs.length, tracks.length]
+  );
 
-  const loadSecondarySections = useCallback(async (forceRefresh = false) => {
+  const loadCatalogSecondarySections = useCallback(async (forceRefresh = false) => {
     try {
-      const [albumResults, artistResults, playlistResults, youtubeResults] =
-        await Promise.allSettled([
-          getHiddenTunesAlbums({ forceRefresh }),
-          getHiddenTunesArtists({ forceRefresh }),
-          getHiddenTunesCloudPlaylists(),
-          getTrendingYouTubeBackend(),
-        ]);
+      const [albumResults, artistResults, playlistResults] = await Promise.allSettled([
+        getHiddenTunesAlbums({ forceRefresh }),
+        getHiddenTunesArtists({ forceRefresh }),
+        getHiddenTunesCloudPlaylists(),
+      ]);
 
       setAlbums(
         albumResults.status === "fulfilled" && Array.isArray(albumResults.value)
@@ -278,17 +300,33 @@ export default function ExploreScreen() {
           ? playlistResults.value.slice(0, 8)
           : []
       );
-
-      setTracks(
-        youtubeResults.status === "fulfilled" && Array.isArray(youtubeResults.value)
-          ? youtubeResults.value.slice(0, 10)
-          : []
-      );
     } catch (error) {
     } finally {
       setShowHeavySections(true);
     }
   }, []);
+
+  const loadTvSection = useCallback(async () => {
+    try {
+      setLoadingTvSection(true);
+      const youtubeResults = await getTrendingYouTubeBackend();
+
+      setTracks(
+        Array.isArray(youtubeResults) ? youtubeResults.slice(0, 10) : []
+      );
+    } catch (error) {
+      setTracks([]);
+    } finally {
+      setLoadingTvSection(false);
+      setShowTvSection(true);
+    }
+  }, []);
+
+  const scheduleTvSectionLoad = useCallback(() => {
+    InteractionManager.runAfterInteractions(() => {
+      void loadTvSection();
+    });
+  }, [loadTvSection]);
 
   const applyExploreSongs = useCallback((nextSongs: HiddenTunesNormalizedSong[]) => {
     setCloudSongs(nextSongs);
@@ -308,6 +346,7 @@ export default function ExploreScreen() {
     async (showLoader = true, forceRefresh = false) => {
       try {
         let showedCachedCatalog = false;
+        setHasCheckedDiscoveryFallbacks(false);
 
         if (!forceRefresh) {
           const cached = await hydrateHiddenTunesCatalogCache();
@@ -317,13 +356,25 @@ export default function ExploreScreen() {
             setLoading(false);
             setRefreshing(false);
             showedCachedCatalog = true;
+            logCacheResult("explore", true, { count: cached.length });
+            logScreenReady("explore", screenStartedAt, {
+              cache: "hit",
+              count: cached.length,
+            });
+            logPerformanceSummary("explore", {
+              cache: "hit",
+              firstContentMs: Date.now() - screenStartedAt,
+              itemCount: cached.length,
+            });
           } else if (showLoader) {
             setLoading(true);
+            logCacheResult("explore", false);
           }
         } else if (showLoader) {
           setLoading(true);
         }
 
+        const refreshStart = startPerformanceTimer();
         const songResults = forceRefresh
           ? await refreshHiddenTunesSongs()
           : (await getHiddenTunesSongsPage({ page: 1, limit: 24 })).songs;
@@ -333,23 +384,47 @@ export default function ExploreScreen() {
           : [];
 
         applyExploreSongs(nextSongs);
+        logApiRefresh("explore", refreshStart, {
+          count: nextSongs.length,
+          forceRefresh,
+        });
+        logPerformanceSummary("explore", {
+          cache: showedCachedCatalog ? "hit" : "miss",
+          apiRefreshMs: Date.now() - refreshStart,
+          itemCount: nextSongs.length,
+          emptyStateReason: nextSongs.length
+            ? "content_available"
+            : "cache_api_and_fallback_empty",
+        });
+
+        if (!showedCachedCatalog) {
+          logScreenReady("explore", screenStartedAt, {
+            cache: "miss",
+            count: nextSongs.length,
+          });
+        }
+
         setLoading(false);
         setRefreshing(false);
 
-        if (!showedCachedCatalog) {
-          InteractionManager.runAfterInteractions(() => {
-            loadSecondarySections(forceRefresh);
-          });
-          return;
-        }
-
-        void loadSecondarySections(forceRefresh);
+        InteractionManager.runAfterInteractions(() => {
+          void loadCatalogSecondarySections(forceRefresh);
+        });
+        scheduleTvSectionLoad();
       } catch {
         setLoading(false);
         setRefreshing(false);
+        setHasCheckedDiscoveryFallbacks(true);
+      } finally {
+        setHasCheckedDiscoveryFallbacks(true);
       }
     },
-    [applyExploreSongs, loadSecondarySections]
+    [
+      applyExploreSongs,
+      loadCatalogSecondarySections,
+      scheduleTvSectionLoad,
+      screenStartedAt,
+    ]
   );
 
   useEffect(() => {
@@ -359,6 +434,8 @@ export default function ExploreScreen() {
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     setShowHeavySections(false);
+    setShowTvSection(false);
+    setTracks([]);
     await loadExplore(false, true);
   }, [loadExplore]);
 
@@ -460,6 +537,48 @@ export default function ExploreScreen() {
   const primaryMoodRoom = moodRooms[0];
   const primaryGenreWorld = genreWorlds[0];
 
+  useEffect(() => {
+    if (!cloudSongs.length && !albums.length && !artists.length) return;
+
+    void preloadImages([
+      ...continueSongs.slice(0, 4).flatMap((song) => [song.artwork, song.cover]),
+      ...visibleCloudSongs
+        .slice(0, 4)
+        .flatMap((song) => [song.artwork, song.cover]),
+      ...rankedAlbums.slice(0, 4).map((album) => album.artwork),
+      ...rankedArtists.slice(0, 4).map((artist) => artist.artwork),
+      ...genreWorlds
+        .slice(0, 2)
+        .flatMap((spotlight) =>
+          spotlight.songs.slice(0, 2).flatMap((song) => [song.artwork, song.cover])
+        ),
+    ]);
+  }, [
+    albums.length,
+    artists.length,
+    cloudSongs.length,
+    continueSongs,
+    genreWorlds,
+    rankedAlbums,
+    rankedArtists,
+    visibleCloudSongs,
+  ]);
+
+  useEffect(() => {
+    if (!cloudSongs.length && !rankedAlbums.length && !rankedArtists.length) {
+      return undefined;
+    }
+
+    return scheduleNavigationPrewarm([
+      ...rankedArtists.slice(0, 2).map((artist) => () => {
+        void getHiddenTunesArtistById(artist.id);
+      }),
+      ...rankedAlbums.slice(0, 2).map((album) => () => {
+        void getHiddenTunesAlbumById(album.id);
+      }),
+    ]);
+  }, [cloudSongs.length, rankedAlbums, rankedArtists]);
+
   useFocusEffect(
     useCallback(() => {
       if (genreWorlds.length === 0) return undefined;
@@ -520,6 +639,7 @@ export default function ExploreScreen() {
   const openCloudSong = useCallback(
     async (song: HiddenTunesNormalizedSong) => {
       try {
+        const tapStartedAt = startPerformanceTimer();
         const normalized = safeSong(song);
         const baseQueue = dedupeSongs(cloudSongs.map(safeSong));
         const queueHasSong = baseQueue.some((item) => item.id === normalized.id);
@@ -533,6 +653,7 @@ export default function ExploreScreen() {
         );
 
         await playSong(normalized as any, queue as any, startIndex);
+        logTapToPlay("explore", tapStartedAt, { id: normalized.id });
         router.push("/player" as any);
       } catch (error) {
       }
@@ -543,6 +664,7 @@ export default function ExploreScreen() {
   const openSmartPick = useCallback(
     async (song: HiddenTunesNormalizedSong) => {
       try {
+        const tapStartedAt = startPerformanceTimer();
         const smartQueue = dedupeSongs(
           (smartPicks.length > 0 ? smartPicks : cloudSongs).map(safeSong)
         );
@@ -555,6 +677,7 @@ export default function ExploreScreen() {
         );
 
         await playSong(normalized as any, smartQueue as any, startIndex);
+        logTapToPlay("explore", tapStartedAt, { id: normalized.id, smart: true });
         router.push("/player" as any);
       } catch (error) {
       }
@@ -566,6 +689,7 @@ export default function ExploreScreen() {
     if (!currentSong) return;
 
     try {
+      const tapStartedAt = startPerformanceTimer();
       const normalized = safeSong(currentSong);
       const queue = dedupeSongs(cloudSongs.map(safeSong));
 
@@ -575,6 +699,7 @@ export default function ExploreScreen() {
       );
 
       await playSong(normalized as any, queue as any, startIndex);
+      logTapToPlay("explore", tapStartedAt, { id: normalized.id, resume: true });
       router.push("/player" as any);
     } catch (error) {
       router.push("/player" as any);
@@ -633,7 +758,7 @@ export default function ExploreScreen() {
     <LinearGradient colors={GRADIENTS.main} style={styles.container}>
       <FlatList
         ref={listRef}
-        data={listTracks}
+        data={showTvSection ? listTracks : []}
         keyExtractor={(item, index) => `${item.videoId || item.id || "track"}-${index}`}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
@@ -645,10 +770,13 @@ export default function ExploreScreen() {
           />
         }
         removeClippedSubviews
-        initialNumToRender={5}
-        maxToRenderPerBatch={5}
-        windowSize={7}
-        updateCellsBatchingPeriod={70}
+        initialNumToRender={listPerformance.initialNumToRender}
+        maxToRenderPerBatch={listPerformance.maxToRenderPerBatch}
+        windowSize={listPerformance.windowSize}
+        updateCellsBatchingPeriod={listPerformance.updateCellsBatchingPeriod}
+        onScrollBeginDrag={() => markFastScrolling(true)}
+        onMomentumScrollBegin={() => markFastScrolling(true)}
+        onMomentumScrollEnd={() => markFastScrolling(false)}
         onEndReached={loadMoreSongs}
         onEndReachedThreshold={0.45}
         ListHeaderComponent={
@@ -1125,7 +1253,7 @@ export default function ExploreScreen() {
               </>
             )}
 
-            {showHeavySections && !loading && featured ? (
+            {showTvSection && !loading && featured ? (
               <TouchableOpacity
                 activeOpacity={0.88}
                 onPress={() => openYouTubeTrack(featured)}
@@ -1160,7 +1288,10 @@ export default function ExploreScreen() {
               </TouchableOpacity>
             ) : null}
 
-            {!loading && !featured && !cloudSongs.length ? (
+            {!loading &&
+            hasCheckedDiscoveryFallbacks &&
+            !featured &&
+            !cloudSongs.length ? (
               <View style={styles.empty}>
                 <Ionicons name="musical-notes-outline" size={58} color={COLORS.textMuted} />
                 <Text style={styles.emptyTitle}>Discovery is warming up</Text>
@@ -1168,7 +1299,14 @@ export default function ExploreScreen() {
               </View>
             ) : null}
 
-            {showHeavySections && !loading && tracks.length > 0 && (
+            {loadingTvSection && !showTvSection ? (
+              <View style={styles.tvLoadingRow}>
+                <ActivityIndicator size="small" color={COLORS.primary} />
+                <Text style={styles.loadingText}>Loading Hidden Tunes TV...</Text>
+              </View>
+            ) : null}
+
+            {showTvSection && !loading && tracks.length > 0 && (
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>Visual Discovery</Text>
                 <Text style={styles.sectionSub}>Hidden Tunes TV picks inside the app</Text>
@@ -1719,6 +1857,12 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
     marginLeft: 10,
     fontSize: 14,
+  },
+  tvLoadingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 18,
+    paddingVertical: 8,
   },
   heroWrap: {
     height: 320,

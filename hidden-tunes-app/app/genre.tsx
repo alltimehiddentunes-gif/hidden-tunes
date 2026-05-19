@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -29,6 +29,18 @@ import {
   getCatalogResolverDebugInfo,
   logCatalogResolverDebug,
 } from "../utils/catalogResolver";
+import {
+  logApiRefresh,
+  logCacheResult,
+  logPerformanceSummary,
+  logScreenReady,
+  logTapToPlay,
+  startPerformanceTimer,
+} from "../utils/performanceLogs";
+import {
+  getListPerformanceSettings,
+  markFastScrolling,
+} from "../utils/performanceMode";
 
 type AlbumPreview = {
   id: string;
@@ -84,6 +96,7 @@ function dedupeSongs(songs: HiddenTunesNormalizedSong[]) {
 export default function GenreScreen() {
   const params = useLocalSearchParams();
   const { playSong } = usePlayer() as any;
+  const screenStartedAt = useRef(startPerformanceTimer()).current;
 
   const rawTitle = String(params.title || "Genre");
   const rawQuery = String(params.query || rawTitle || "music");
@@ -96,6 +109,11 @@ export default function GenreScreen() {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [hasCheckedFallbacks, setHasCheckedFallbacks] = useState(false);
+  const listPerformance = useMemo(
+    () => getListPerformanceSettings(cloudTracks.length),
+    [cloudTracks.length]
+  );
 
   const matchGenreSongs = useCallback(
     (songs: HiddenTunesNormalizedSong[]) => {
@@ -109,7 +127,11 @@ export default function GenreScreen() {
   );
 
   const loadGenreTracks = useCallback(async () => {
+    let showedCachedMatches = false;
+    const refreshStart = startPerformanceTimer();
+
     try {
+      setHasCheckedFallbacks(false);
       if (!cloudTracks.length) setLoading(true);
 
       const cachedSongs = (await hydrateHiddenTunesCatalogCache()).map(safeSong);
@@ -117,6 +139,23 @@ export default function GenreScreen() {
 
       if (cachedMatches.length) {
         setCloudTracks(cachedMatches);
+        setLoading(false);
+        showedCachedMatches = true;
+        logCacheResult("genre", true, {
+          label: title,
+          count: cachedMatches.length,
+        });
+        logScreenReady("genre", screenStartedAt, {
+          cache: "hit",
+          count: cachedMatches.length,
+        });
+        logPerformanceSummary("genre", {
+          cache: "hit",
+          firstContentMs: Date.now() - screenStartedAt,
+          itemCount: cachedMatches.length,
+        });
+      } else {
+        logCacheResult("genre", false, { label: title });
       }
 
       const genrePage = await getHiddenTunesSongsPage({
@@ -141,6 +180,27 @@ export default function GenreScreen() {
       setCloudTracks(nextTracks);
       setPage(1);
       setHasMore(genrePage.hasMore);
+      logApiRefresh("genre", refreshStart, {
+        label: title,
+        count: nextTracks.length,
+        fallbackUsed,
+      });
+      logPerformanceSummary("genre", {
+        cache: showedCachedMatches ? "hit" : "miss",
+        apiRefreshMs: Date.now() - refreshStart,
+        itemCount: nextTracks.length,
+        emptyStateReason: nextTracks.length
+          ? "content_available"
+          : "cache_api_and_fallback_empty",
+      });
+
+      if (!showedCachedMatches) {
+        logScreenReady("genre", screenStartedAt, {
+          cache: "miss",
+          count: nextTracks.length,
+        });
+      }
+
       logCatalogResolverDebug(
         "genre-page-load",
         getCatalogResolverDebugInfo({
@@ -157,9 +217,10 @@ export default function GenreScreen() {
       console.log("Genre load error:", error);
       if (!cloudTracks.length) setCloudTracks([]);
     } finally {
+      setHasCheckedFallbacks(true);
       setLoading(false);
     }
-  }, [cloudTracks.length, matchGenreSongs, query, title]);
+  }, [cloudTracks.length, matchGenreSongs, query, screenStartedAt, title]);
 
   const loadMoreTracks = useCallback(async () => {
     if (loadingMore || !hasMore) return;
@@ -204,6 +265,7 @@ export default function GenreScreen() {
   const openCloudTrack = useCallback(
     async (song: HiddenTunesNormalizedSong) => {
       try {
+        const tapStartedAt = startPerformanceTimer();
         const queue = dedupeSongs(cloudTracks.map(safeSong));
         const normalized = safeSong(song);
 
@@ -213,6 +275,7 @@ export default function GenreScreen() {
         );
 
         await playSong(normalized as any, queue as any, startIndex);
+        logTapToPlay("genre", tapStartedAt, { id: normalized.id });
         router.push("/player" as any);
       } catch (error) {
         console.log("Open genre cloud song error:", error);
@@ -286,6 +349,14 @@ export default function GenreScreen() {
           }
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
+          initialNumToRender={listPerformance.initialNumToRender}
+          maxToRenderPerBatch={listPerformance.maxToRenderPerBatch}
+          windowSize={listPerformance.windowSize}
+          updateCellsBatchingPeriod={listPerformance.updateCellsBatchingPeriod}
+          removeClippedSubviews
+          onScrollBeginDrag={() => markFastScrolling(true)}
+          onMomentumScrollBegin={() => markFastScrolling(true)}
+          onMomentumScrollEnd={() => markFastScrolling(false)}
           onEndReached={loadMoreTracks}
           onEndReachedThreshold={0.45}
           ListHeaderComponent={
@@ -357,6 +428,7 @@ export default function GenreScreen() {
             </>
           }
           ListEmptyComponent={
+            hasCheckedFallbacks ? (
             <View style={styles.empty}>
               <Ionicons
                 name="musical-notes-outline"
@@ -368,6 +440,7 @@ export default function GenreScreen() {
                 Try another mood or refresh the catalog.
               </Text>
             </View>
+            ) : null
           }
           ListFooterComponent={
             loadingMore ? (

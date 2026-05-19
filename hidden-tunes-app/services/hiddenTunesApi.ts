@@ -6,6 +6,13 @@ import {
   isRemoteArtworkUrl,
   normalizeArtworkUrl,
 } from "../utils/artwork";
+import {
+  logApiRefresh,
+  logCacheResult,
+  recordSlowEndpointWarning,
+  startPerformanceTimer,
+} from "../utils/performanceLogs";
+import { isAppActiveForWork } from "../utils/performanceMode";
 
 const HIDDEN_TUNES_API_BASE_URL = "https://hidden-tunes-api.onrender.com";
 const HIDDEN_TUNES_LYRICS_API_BASE_URL =
@@ -20,6 +27,8 @@ const ARTISTS_CACHE_TIME_KEY = "hidden_tunes_cloud_artists_cache_time_v1";
 const CACHE_MAX_AGE_MS = 1000 * 60 * 5;
 const NETWORK_FETCH_TIMEOUT_MS = 5500;
 const BACKGROUND_REFRESH_MIN_INTERVAL_MS = 1000 * 60 * 15;
+const SLOW_ENDPOINT_WARNING_MS = 4200;
+const FAILED_ENDPOINT_COOLDOWN_MS = 1000 * 30;
 
 const HOME_SONG_LIMIT = 20;
 const SEARCH_SONG_LIMIT = 24;
@@ -47,6 +56,7 @@ let songsMemoryCacheTime = 0;
 let songsFetchPromise: Promise<HiddenTunesNormalizedSong[]> | null = null;
 let songsBackgroundRefreshPromise: Promise<void> | null = null;
 let songsBackgroundRefreshAttemptTime = 0;
+const endpointFailures = new Map<string, { failedAt: number; count: number }>();
 
 let artistsMemoryCache: HiddenTunesArtist[] | null = null;
 let artistsMemoryCacheTime = 0;
@@ -474,6 +484,7 @@ function isNormalizedCatalogSong(value: unknown): value is HiddenTunesNormalized
 }
 
 function scheduleCatalogBackgroundRefresh() {
+  if (!isAppActiveForWork()) return;
   if (songsBackgroundRefreshPromise || songsFetchPromise) return;
 
   const now = Date.now();
@@ -499,14 +510,36 @@ export async function hydrateHiddenTunesCatalogCache(): Promise<
   HiddenTunesNormalizedSong[]
 > {
   if (songsMemoryCache?.length) {
+    logCacheResult("catalog", true, {
+      source: "memory",
+      count: songsMemoryCache.length,
+    });
     return songsMemoryCache;
   }
 
-  return readCachedSongs();
+  const cached = await readCachedSongs();
+  logCacheResult("catalog", cached.length > 0, {
+    source: "storage",
+    count: cached.length,
+  });
+  return cached;
 }
 
 export function getHiddenTunesCatalogSnapshot(): HiddenTunesNormalizedSong[] {
   return songsMemoryCache?.length ? songsMemoryCache : [];
+}
+
+export async function getHiddenTunesCatalogCacheInfo() {
+  if (!songsMemoryCache?.length) {
+    await readCachedSongs();
+  }
+
+  return {
+    count: songsMemoryCache?.length || 0,
+    cachedAt: songsMemoryCacheTime || 0,
+    ageMs: songsMemoryCacheTime ? Date.now() - songsMemoryCacheTime : 0,
+    isFresh: songsMemoryCacheTime ? isFreshMemoryCache(songsMemoryCacheTime) : false,
+  };
 }
 
 export function prefetchHiddenTunesCatalog() {
@@ -518,17 +551,57 @@ export function prefetchHiddenTunesCatalog() {
 }
 
 async function fetchWithTimeout(url: string, timeoutMs = NETWORK_FETCH_TIMEOUT_MS) {
+  const endpointKey = url.split("?")[0];
+  const endpointFailure = endpointFailures.get(endpointKey);
+
+  if (
+    endpointFailure &&
+    Date.now() - endpointFailure.failedAt < FAILED_ENDPOINT_COOLDOWN_MS
+  ) {
+    throw new Error(
+      `Endpoint cooling down after ${endpointFailure.count} failures: ${endpointKey}`
+    );
+  }
+
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const startedAt = Date.now();
 
   try {
-    return await fetch(url, {
+    const response = await fetch(url, {
       method: "GET",
       headers: {
         Accept: "application/json",
       },
       signal: controller.signal,
     });
+
+    const elapsedMs = Date.now() - startedAt;
+    if (elapsedMs >= SLOW_ENDPOINT_WARNING_MS) {
+      recordSlowEndpointWarning({
+        endpoint: endpointKey,
+        elapsedMs,
+      });
+    }
+
+    if (response.ok) {
+      endpointFailures.delete(endpointKey);
+    } else if (response.status >= 500 || response.status === 429) {
+      const previous = endpointFailures.get(endpointKey);
+      endpointFailures.set(endpointKey, {
+        failedAt: Date.now(),
+        count: (previous?.count || 0) + 1,
+      });
+    }
+
+    return response;
+  } catch (error) {
+    const previous = endpointFailures.get(endpointKey);
+    endpointFailures.set(endpointKey, {
+      failedAt: Date.now(),
+      count: (previous?.count || 0) + 1,
+    });
+    throw error;
   } finally {
     clearTimeout(timer);
   }
@@ -766,6 +839,7 @@ export async function getHiddenTunesSongsPage(options?: {
   const url = buildSongsUrl({ page, limit, query, artistId, albumId, genre });
 
   try {
+    const refreshStart = startPerformanceTimer();
     const response = await fetchWithTimeout(url);
 
     if (!response.ok) {
@@ -792,6 +866,13 @@ export async function getHiddenTunesSongsPage(options?: {
 
       await writeCachedSongs(merged);
     }
+
+    logApiRefresh("catalog_page", refreshStart, {
+      page,
+      limit,
+      count: songs.length,
+      scope: isGlobalCatalog ? "global" : "filtered",
+    });
 
     return {
       songs,
@@ -836,6 +917,11 @@ export async function getHiddenTunesSongs(options?: { forceRefresh?: boolean }) 
   const forceRefresh = options?.forceRefresh ?? false;
 
   if (!forceRefresh && songsMemoryCache?.length) {
+    logCacheResult("catalog", true, {
+      source: "memory",
+      count: songsMemoryCache.length,
+    });
+
     if (!isFreshMemoryCache(songsMemoryCacheTime)) {
       scheduleCatalogBackgroundRefresh();
     }
@@ -847,12 +933,21 @@ export async function getHiddenTunesSongs(options?: { forceRefresh?: boolean }) 
     const cached = await readCachedSongs();
 
     if (cached.length) {
+      logCacheResult("catalog", true, {
+        source: "storage",
+        count: cached.length,
+      });
+
       if (!isFreshMemoryCache(songsMemoryCacheTime)) {
         scheduleCatalogBackgroundRefresh();
       }
 
       return cached;
     }
+    logCacheResult("catalog", false, {
+      source: "storage",
+      count: 0,
+    });
   }
 
   if (!forceRefresh && songsFetchPromise) {
@@ -881,8 +976,18 @@ export async function getHiddenTunesSongs(options?: { forceRefresh?: boolean }) 
 }
 
 export async function refreshHiddenTunesSongs() {
-  await clearHiddenTunesSongsCache();
-  return await getHiddenTunesSongs({ forceRefresh: true });
+  if (!isAppActiveForWork()) {
+    return await getHiddenTunesSongs({ forceRefresh: false });
+  }
+
+  await getHiddenTunesSongsPage({
+    page: 1,
+    limit: HOME_SONG_LIMIT,
+  });
+
+  return songsMemoryCache?.length
+    ? songsMemoryCache
+    : await getHiddenTunesSongs({ forceRefresh: false });
 }
 
 export async function searchHiddenTunesSongs(query: string) {
@@ -1207,11 +1312,56 @@ export async function searchHiddenTunesSongsPage(
     return await getHiddenTunesSongsPage({ page, limit });
   }
 
-  return await getHiddenTunesSongsPage({
+  const apiPage = await getHiddenTunesSongsPage({
     page,
     limit,
     query: cleanQuery,
   });
+
+  if (apiPage.songs.length > 0) {
+    return apiPage;
+  }
+
+  const cached = await readCachedSongs();
+  const filtered = cached.filter((song) => {
+    const searchable = [
+      song.title,
+      song.artist,
+      song.album,
+      song.genre,
+      song.mood,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+
+    return searchable.includes(cleanQuery);
+  });
+  const start = (Math.max(page, 1) - 1) * limit;
+  const songs = filtered.slice(start, start + limit);
+
+  if (songs.length > 0) {
+    logCacheResult("search", true, {
+      query: cleanQuery,
+      page,
+      count: songs.length,
+    });
+
+    return {
+      songs,
+      page,
+      limit,
+      hasMore: start + limit < filtered.length,
+      nextPage: page + 1,
+    };
+  }
+
+  logCacheResult("search", false, {
+    query: cleanQuery,
+    page,
+  });
+
+  return apiPage;
 }
 
 export async function getHiddenTunesArtistById(id: string) {

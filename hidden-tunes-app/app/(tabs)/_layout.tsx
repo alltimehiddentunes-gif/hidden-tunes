@@ -5,6 +5,7 @@ import { BlurView } from "expo-blur";
 import { StyleSheet, View } from "react-native";
 
 import MiniPlayer from "../../components/MiniPlayer";
+import PerformanceOverlay from "../../components/PerformanceOverlay";
 
 type TabIconProps = {
   focused: boolean;
@@ -181,6 +182,7 @@ export default function TabLayout() {
       </Tabs>
 
       <MiniPlayer />
+      <PerformanceOverlay />
     </>
   );
 }

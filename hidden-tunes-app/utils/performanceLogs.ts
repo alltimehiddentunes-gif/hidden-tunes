@@ -1,0 +1,206 @@
+type PerformanceLogDetails = Record<string, string | number | boolean | undefined>;
+
+type MetricSummary = {
+  cacheHits: number;
+  cacheMisses: number;
+  screenReadyTotal: number;
+  screenReadyCount: number;
+  apiRefreshTotal: number;
+  apiRefreshCount: number;
+  artworkFailures: number;
+  slowEndpointWarnings: number;
+};
+
+const metrics: MetricSummary = {
+  cacheHits: 0,
+  cacheMisses: 0,
+  screenReadyTotal: 0,
+  screenReadyCount: 0,
+  apiRefreshTotal: 0,
+  apiRefreshCount: 0,
+  artworkFailures: 0,
+  slowEndpointWarnings: 0,
+};
+
+type LastScreenSnapshot = {
+  screen: string;
+  readyMs: number;
+  cache: string;
+  itemCount: number;
+  apiRefreshMs?: number;
+  updatedAt: number;
+};
+
+let lastScreenSnapshot: LastScreenSnapshot | null = null;
+
+function shouldLogPerformance() {
+  return typeof __DEV__ === "undefined" || __DEV__;
+}
+
+export function nowMs() {
+  return Date.now();
+}
+
+export function startPerformanceTimer() {
+  return nowMs();
+}
+
+export function logPerformanceEvent(
+  event: string,
+  details: PerformanceLogDetails = {}
+) {
+  if (!shouldLogPerformance()) return;
+
+  console.log("[HiddenTunes:perf]", event, details);
+}
+
+export function logScreenReady(
+  screen: string,
+  startedAt: number,
+  details: PerformanceLogDetails = {}
+) {
+  const readyMs = nowMs() - startedAt;
+  metrics.screenReadyTotal += readyMs;
+  metrics.screenReadyCount += 1;
+
+  lastScreenSnapshot = {
+    screen,
+    readyMs,
+    cache: String(details.cache || "unknown"),
+    itemCount: Number(details.count || details.itemCount || details.tracks || 0),
+    updatedAt: nowMs(),
+  };
+
+  logPerformanceEvent("screen_ready", {
+    screen,
+    readyMs,
+    ...details,
+  });
+}
+
+export function logApiRefresh(
+  screen: string,
+  startedAt: number,
+  details: PerformanceLogDetails = {}
+) {
+  const refreshMs = nowMs() - startedAt;
+  metrics.apiRefreshTotal += refreshMs;
+  metrics.apiRefreshCount += 1;
+
+  if (lastScreenSnapshot?.screen === screen) {
+    lastScreenSnapshot = {
+      ...lastScreenSnapshot,
+      apiRefreshMs: refreshMs,
+      updatedAt: nowMs(),
+    };
+  }
+
+  logPerformanceEvent("api_refresh", {
+    screen,
+    refreshMs,
+    ...details,
+  });
+}
+
+export function logCacheResult(
+  screen: string,
+  hit: boolean,
+  details: PerformanceLogDetails = {}
+) {
+  if (hit) {
+    metrics.cacheHits += 1;
+  } else {
+    metrics.cacheMisses += 1;
+  }
+
+  logPerformanceEvent("cache_result", {
+    screen,
+    cache: hit ? "hit" : "miss",
+    ...details,
+  });
+}
+
+export function recordArtworkFailure(details: PerformanceLogDetails = {}) {
+  metrics.artworkFailures += 1;
+  logPerformanceEvent("artwork_failure", details);
+}
+
+export function recordSlowEndpointWarning(details: PerformanceLogDetails = {}) {
+  metrics.slowEndpointWarnings += 1;
+  logPerformanceEvent("slow_endpoint", details);
+}
+
+export function getLastScreenSnapshot() {
+  return lastScreenSnapshot;
+}
+
+export function getPerformanceDiagnostics() {
+  return {
+    cacheHitRate:
+      metrics.cacheHits + metrics.cacheMisses > 0
+        ? Math.round(
+            (metrics.cacheHits / (metrics.cacheHits + metrics.cacheMisses)) * 100
+          )
+        : 0,
+    averageScreenReadyMs: metrics.screenReadyCount
+      ? Math.round(metrics.screenReadyTotal / metrics.screenReadyCount)
+      : 0,
+    averageApiRefreshMs: metrics.apiRefreshCount
+      ? Math.round(metrics.apiRefreshTotal / metrics.apiRefreshCount)
+      : 0,
+    artworkFailures: metrics.artworkFailures,
+    slowEndpointWarnings: metrics.slowEndpointWarnings,
+    lastScreenName: lastScreenSnapshot?.screen,
+    lastScreenReadyMs: lastScreenSnapshot?.readyMs,
+    lastScreenItemCount: lastScreenSnapshot?.itemCount,
+  };
+}
+
+export function logPerformanceDiagnosticsOverlay(screen = "global") {
+  logPerformanceEvent("diagnostics_overlay", {
+    screen,
+    ...getPerformanceDiagnostics(),
+  });
+}
+
+export function logTapToPlay(
+  screen: string,
+  startedAt: number,
+  details: PerformanceLogDetails = {}
+) {
+  logPerformanceEvent("tap_to_play", {
+    screen,
+    tapToPlayMs: nowMs() - startedAt,
+    ...details,
+  });
+}
+
+export function logPerformanceSummary(
+  screen: string,
+  details: {
+    cache: "hit" | "miss" | "memory" | "storage" | "none";
+    firstContentMs?: number;
+    apiRefreshMs?: number;
+    itemCount: number;
+    emptyStateReason?: string;
+  } & PerformanceLogDetails
+) {
+  lastScreenSnapshot = {
+    screen,
+    readyMs: Number(details.firstContentMs || lastScreenSnapshot?.readyMs || 0),
+    cache: details.cache,
+    itemCount: details.itemCount,
+    apiRefreshMs: details.apiRefreshMs,
+    updatedAt: nowMs(),
+  };
+
+  logPerformanceEvent("summary", {
+    screen,
+    cache: details.cache,
+    firstContentMs: details.firstContentMs,
+    apiRefreshMs: details.apiRefreshMs,
+    itemCount: details.itemCount,
+    emptyStateReason: details.emptyStateReason || "content_available",
+    ...getPerformanceDiagnostics(),
+  });
+}
