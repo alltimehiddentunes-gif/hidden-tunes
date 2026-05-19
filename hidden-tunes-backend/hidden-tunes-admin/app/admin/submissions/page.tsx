@@ -4,8 +4,15 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import AdminShell from "@/components/AdminShell";
+import ControlledGenreFields from "@/components/ControlledGenreFields";
 import { canManageUploaderOwnership } from "@/lib/adminPermissions";
 import { getActiveUploaderSession, supabase } from "@/lib/auth";
+import {
+  buildGenreSavePayload,
+  getGenreSelectionFromLegacyLabel,
+  resolveGenreFields,
+  type ControlledGenreDraft,
+} from "@/lib/controlledGenreState";
 
 type SubmissionStatus =
   | "draft"
@@ -114,6 +121,10 @@ type PublishResponse = {
   };
   error?: string;
   blocking_reasons?: string[];
+};
+
+type GenreDraftState = ControlledGenreDraft & {
+  legacyOverride: string;
 };
 
 type PublishConfirmationState = {
@@ -251,6 +262,10 @@ export default function AdminSubmissionsPage() {
   const router = useRouter();
   const [submissions, setSubmissions] = useState<ArtistSubmission[]>([]);
   const [notesDrafts, setNotesDrafts] = useState<Record<string, string>>({});
+  const [genreDrafts, setGenreDrafts] = useState<Record<string, GenreDraftState>>(
+    {}
+  );
+  const [savingGenreId, setSavingGenreId] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [isChecking, setIsChecking] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
@@ -344,6 +359,21 @@ export default function AdminSubmissionsPage() {
       });
       return next;
     });
+    setGenreDrafts((current) => {
+      const next = { ...current };
+
+      nextSubmissions.forEach((submission) => {
+        if (!next[submission.id]) {
+          const selection = getGenreSelectionFromLegacyLabel(submission.genre);
+          next[submission.id] = {
+            ...selection,
+            legacyOverride: "",
+          };
+        }
+      });
+
+      return next;
+    });
     setIsLoading(false);
   }, [router, statusFilter]);
 
@@ -372,6 +402,72 @@ export default function AdminSubmissionsPage() {
       ignore = true;
     };
   }, [loadSubmissions]);
+
+  function updateGenreDraft(submissionId: string, patch: Partial<GenreDraftState>) {
+    setGenreDrafts((current) => ({
+      ...current,
+      [submissionId]: {
+        ...getGenreSelectionFromLegacyLabel(null),
+        ...current[submissionId],
+        legacyOverride: current[submissionId]?.legacyOverride || "",
+        ...patch,
+      },
+    }));
+  }
+
+  async function saveSubmissionGenre(submission: ArtistSubmission) {
+    const draft = genreDrafts[submission.id];
+    if (!draft) return;
+
+    setSavingGenreId(submission.id);
+    setNotice("");
+    setPageError("");
+
+    try {
+      const accessToken = await getRequiredAccessToken();
+      const payload = buildGenreSavePayload(draft);
+      const response = await fetch("/api/admin/submissions", {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          id: submission.id,
+          ...payload,
+          legacyGenreOverride: draft.legacyOverride.trim() || undefined,
+        }),
+      });
+      const result = (await response.json().catch(() => null)) as
+        | UpdateSubmissionResponse
+        | null;
+
+      if (!response.ok || !result?.success || !result.submission) {
+        throw new Error(result?.error || "Could not save submission genre.");
+      }
+
+      const updatedSubmission = result.submission;
+
+      setSubmissions((current) =>
+        current.map((item) =>
+          item.id === updatedSubmission.id ? updatedSubmission : item
+        )
+      );
+      updateGenreDraft(updatedSubmission.id, {
+        ...getGenreSelectionFromLegacyLabel(updatedSubmission.genre),
+        legacyOverride: "",
+      });
+      setNotice(
+        `${updatedSubmission.title} genre saved as ${updatedSubmission.genre || payload.genre}.`
+      );
+    } catch (error) {
+      setPageError(
+        error instanceof Error ? error.message : "Could not save submission genre."
+      );
+    } finally {
+      setSavingGenreId("");
+    }
+  }
 
   async function updateSubmissionStatus(
     submission: ArtistSubmission,
@@ -1074,25 +1170,75 @@ export default function AdminSubmissionsPage() {
                     ) : null}
                   </div>
 
+                  <div className="mt-5 rounded-3xl border border-white/10 bg-black/24 p-4">
+                    <p className="text-xs font-black uppercase tracking-[0.18em] text-yellow-300">
+                      Controlled Genre (pre-publish)
+                    </p>
+                    <p className="mt-2 text-xs leading-5 text-white/42">
+                      Normalize genre before approval or catalog publish so mobile
+                      navigation stays clean.
+                    </p>
+                    {(() => {
+                      const genreDraft =
+                        genreDrafts[submission.id] ||
+                        ({
+                          ...getGenreSelectionFromLegacyLabel(submission.genre),
+                          legacyOverride: "",
+                        } satisfies GenreDraftState);
+
+                      return (
+                        <div className="mt-4">
+                          <ControlledGenreFields
+                            compact
+                            disabled={savingGenreId === submission.id}
+                            mainGenreId={genreDraft.mainGenreId}
+                            subgenreId={genreDraft.subgenreId}
+                            legacyGenreLabel={genreDraft.legacyGenre}
+                            legacyOverride={genreDraft.legacyOverride}
+                            onLegacyOverrideChange={(legacyOverride) =>
+                              updateGenreDraft(submission.id, { legacyOverride })
+                            }
+                            onMainGenreChange={(mainGenreId, subgenreId) =>
+                              updateGenreDraft(submission.id, {
+                                ...resolveGenreFields(mainGenreId, subgenreId),
+                              })
+                            }
+                            onSubgenreChange={(subgenreId) =>
+                              updateGenreDraft(submission.id, {
+                                ...resolveGenreFields(
+                                  genreDraft.mainGenreId,
+                                  subgenreId
+                                ),
+                              })
+                            }
+                          />
+                          <button
+                            type="button"
+                            onClick={() => saveSubmissionGenre(submission)}
+                            disabled={savingGenreId === submission.id}
+                            className="mt-4 rounded-2xl bg-yellow-300 px-4 py-3 text-sm font-black text-black transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {savingGenreId === submission.id
+                              ? "Saving Genre..."
+                              : "Save Genre"}
+                          </button>
+                        </div>
+                      );
+                    })()}
+                    {submission.mood ? (
+                      <p className="mt-4 text-xs font-bold text-white/45">
+                        Mood (unchanged here):{" "}
+                        <span className="text-purple-100">{submission.mood}</span>
+                      </p>
+                    ) : null}
+                  </div>
+
                   {hasReviewDetails(submission) ? (
                     <div className="mt-5 grid gap-3 xl:grid-cols-[1.1fr_0.9fr]">
                       <div className="rounded-3xl border border-white/10 bg-black/24 p-4">
                         <p className="text-xs font-black uppercase tracking-[0.18em] text-yellow-300">
                           Submission Details
                         </p>
-
-                        <div className="mt-4 flex flex-wrap gap-2">
-                          {submission.genre ? (
-                            <span className="rounded-full border border-yellow-300/20 bg-yellow-300/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-yellow-100">
-                              {submission.genre}
-                            </span>
-                          ) : null}
-                          {submission.mood ? (
-                            <span className="rounded-full border border-purple-300/20 bg-purple-400/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-purple-100">
-                              {submission.mood}
-                            </span>
-                          ) : null}
-                        </div>
 
                         {submission.description ? (
                           <div className="mt-4">

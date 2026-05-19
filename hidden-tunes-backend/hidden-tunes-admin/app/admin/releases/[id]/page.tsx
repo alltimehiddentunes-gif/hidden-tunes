@@ -4,7 +4,14 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 
 import AdminShell from "@/components/AdminShell";
+import ControlledGenreFields from "@/components/ControlledGenreFields";
 import { getActiveUploaderSession, supabase } from "@/lib/auth";
+import {
+  buildGenreSavePayload,
+  getGenreSelectionFromLegacyLabel,
+  resolveGenreFields,
+  type ControlledGenreDraft,
+} from "@/lib/controlledGenreState";
 import {
   formatRightsValue,
   RIGHTS_REVIEW_LATER_PHASE_NOTE,
@@ -86,6 +93,10 @@ type TrackUploadState = {
   status: "idle" | "uploading" | "success" | "error";
   progress: number;
   message: string;
+};
+
+type GenreDraftState = ControlledGenreDraft & {
+  legacyOverride: string;
 };
 
 function formatDuration(seconds: number) {
@@ -173,6 +184,10 @@ export default function AdminReleaseDetailPage() {
   const [trackStates, setTrackStates] = useState<Record<string, TrackUploadState>>(
     {}
   );
+  const [genreDrafts, setGenreDrafts] = useState<Record<string, GenreDraftState>>(
+    {}
+  );
+  const [savingGenreTrackId, setSavingGenreTrackId] = useState("");
 
   const totalDuration = useMemo(
     () =>
@@ -217,6 +232,21 @@ export default function AdminReleaseDetailPage() {
       }
 
       setRelease(data.release);
+      setGenreDrafts((current) => {
+        const next = { ...current };
+
+        data.release?.tracks.forEach((track) => {
+          if (!next[track.id]) {
+            const selection = getGenreSelectionFromLegacyLabel(track.genre);
+            next[track.id] = {
+              ...selection,
+              legacyOverride: "",
+            };
+          }
+        });
+
+        return next;
+      });
     },
     [releaseId]
   );
@@ -323,6 +353,95 @@ export default function AdminReleaseDetailPage() {
       xhr.onabort = () => reject(new Error("Replacement upload was cancelled."));
       xhr.send(formData);
     });
+  }
+
+  function updateGenreDraft(trackId: string, patch: Partial<GenreDraftState>) {
+    setGenreDrafts((current) => ({
+      ...current,
+      [trackId]: {
+        ...getGenreSelectionFromLegacyLabel(null),
+        ...current[trackId],
+        legacyOverride: current[trackId]?.legacyOverride || "",
+        ...patch,
+      },
+    }));
+  }
+
+  async function saveTrackGenre(track: ReleaseTrack) {
+    if (!release || !accessToken) return;
+
+    const draft = genreDrafts[track.id];
+    if (!draft) return;
+
+    setSavingGenreTrackId(track.id);
+    setTrackUploadState(track.id, {
+      status: "uploading",
+      progress: 20,
+      message: "Saving controlled genre...",
+    });
+
+    try {
+      const payload = buildGenreSavePayload(draft);
+
+      const response = await fetch(
+        `/api/admin/releases/${release.id}/tracks/${track.id}/metadata`,
+        {
+          method: "PATCH",
+          headers: {
+            ...authHeader(accessToken),
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            ...payload,
+            legacyGenreOverride: draft.legacyOverride.trim() || undefined,
+          }),
+        }
+      );
+      const data = (await response.json().catch(() => null)) as UpdateResponse & {
+        genre?: { genre?: string };
+      } | null;
+
+      if (!response.ok || !data?.success) {
+        throw new Error(data?.error || "Genre could not be saved.");
+      }
+
+      const nextGenre = data.track?.genre || payload.genre;
+
+      setRelease((current) => {
+        if (!current) return current;
+
+        return {
+          ...current,
+          tracks: current.tracks.map((currentTrack) =>
+            currentTrack.id === track.id
+              ? { ...currentTrack, genre: nextGenre }
+              : currentTrack
+          ),
+        };
+      });
+
+      updateGenreDraft(track.id, {
+        ...resolveGenreFields(payload.mainGenreId, payload.subgenreId),
+        genre: nextGenre,
+        legacyGenre: draft.legacyGenre,
+        legacyOverride: "",
+      });
+
+      setTrackUploadState(track.id, {
+        status: "success",
+        progress: 100,
+        message: data.message || "Genre saved with controlled taxonomy.",
+      });
+    } catch (error: unknown) {
+      setTrackUploadState(track.id, {
+        status: "error",
+        progress: 0,
+        message:
+          error instanceof Error ? error.message : "Genre update failed.",
+      });
+    } finally {
+      setSavingGenreTrackId("");
+    }
   }
 
   async function confirmSwap() {
@@ -524,7 +643,8 @@ export default function AdminReleaseDetailPage() {
               </h2>
             </div>
             <p className="max-w-xl break-words text-sm text-white/45">
-              Replace files safely or edit lyrics without leaving the release.
+              Replace files safely, edit controlled genres, or edit lyrics without
+              leaving the release.
             </p>
           </div>
 
@@ -532,6 +652,13 @@ export default function AdminReleaseDetailPage() {
             {release.tracks.map((track, index) => {
               const state = trackStates[track.id];
               const isBusy = state?.status === "uploading";
+              const genreDraft =
+                genreDrafts[track.id] ||
+                ({
+                  ...getGenreSelectionFromLegacyLabel(track.genre),
+                  legacyOverride: "",
+                } satisfies GenreDraftState);
+              const isSavingGenre = savingGenreTrackId === track.id;
 
               return (
                 <article
@@ -575,6 +702,47 @@ export default function AdminReleaseDetailPage() {
                         <AssetPill label="Lyrics" active={track.hasLyrics} />
                         {track.genre ? <AssetPill label={track.genre} active /> : null}
                         {track.mood ? <AssetPill label={track.mood} active /> : null}
+                      </div>
+
+                      <div className="mt-4 rounded-2xl border border-white/10 bg-black/30 p-4">
+                        <p className="text-xs font-black uppercase tracking-[0.18em] text-yellow-300">
+                          Catalog Genre
+                        </p>
+                        <div className="mt-3">
+                          <ControlledGenreFields
+                            compact
+                            disabled={isBusy || isSavingGenre}
+                            mainGenreId={genreDraft.mainGenreId}
+                            subgenreId={genreDraft.subgenreId}
+                            legacyGenreLabel={genreDraft.legacyGenre}
+                            legacyOverride={genreDraft.legacyOverride}
+                            onLegacyOverrideChange={(legacyOverride) =>
+                              updateGenreDraft(track.id, { legacyOverride })
+                            }
+                            onMainGenreChange={(mainGenreId, subgenreId) =>
+                              updateGenreDraft(track.id, {
+                                ...resolveGenreFields(mainGenreId, subgenreId),
+                              })
+                            }
+                            onSubgenreChange={(subgenreId) =>
+                              updateGenreDraft(track.id, {
+                                ...resolveGenreFields(
+                                  genreDraft.mainGenreId,
+                                  subgenreId
+                                ),
+                              })
+                            }
+                            helperText="Saved genre updates the catalog song row used by mobile navigation."
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => saveTrackGenre(track)}
+                          disabled={isBusy || isSavingGenre}
+                          className="mt-4 rounded-2xl bg-yellow-300 px-4 py-3 text-sm font-black text-black transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {isSavingGenre ? "Saving Genre..." : "Save Genre"}
+                        </button>
                       </div>
 
                       {state?.message ? (

@@ -4,6 +4,7 @@ import { useMemo, useRef, useState } from "react";
 
 import ControlledGenreFields from "@/components/ControlledGenreFields";
 import { supabase } from "@/lib/auth";
+import { resolveGenreFields } from "@/lib/controlledGenreState";
 import {
   buildNormalizedGenrePayload,
   getDefaultMainGenreId,
@@ -53,16 +54,6 @@ type ServerUploadResponse = {
 
 const FALLBACK_ARTIST = "Hidden Tunes";
 const FALLBACK_ALBUM = "Singles";
-
-function resolveGenreFields(mainGenreId: string, subgenreId: string) {
-  const payload = buildNormalizedGenrePayload({ mainGenreId, subgenreId });
-
-  return {
-    mainGenreId,
-    subgenreId,
-    genre: payload?.genre || "",
-  };
-}
 
 class UploadStepError extends Error {
   step: string;

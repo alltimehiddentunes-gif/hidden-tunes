@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { canManageUploaderOwnership } from "@/lib/adminPermissions";
 import { requireUploadPermission } from "@/lib/requireUploadPermission";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { normalizeIncomingGenrePayload } from "@/lib/uploadGenreTaxonomy";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -294,6 +295,9 @@ function buildDryRunPayloads(submission: SubmissionRow, actorUserId: string) {
   const artworkUrl = String(submission.artwork_url || "").trim();
   const audioUrl = String(submission.audio_url || "").trim();
   const lyricsText = String(submission.lyrics_text || "").trim();
+  const normalizedGenre = normalizeIncomingGenrePayload({
+    genre: submission.genre,
+  });
 
   const albumPayload: CatalogPayload = {
     title: albumTitle,
@@ -313,7 +317,10 @@ function buildDryRunPayloads(submission: SubmissionRow, actorUserId: string) {
     artist_name: artistName,
     album: albumTitle,
     album_title: albumTitle,
-    genre: String(submission.genre || "").trim() || null,
+    genre: normalizedGenre.genre,
+    mainGenre: normalizedGenre.mainGenre,
+    subGenre: normalizedGenre.subGenre,
+    genreSlug: normalizedGenre.genreSlug,
     mood: String(submission.mood || "").trim() || null,
     audio_url: audioUrl,
     url: audioUrl,

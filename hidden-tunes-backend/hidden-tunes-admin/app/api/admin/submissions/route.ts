@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { canManageUploaderOwnership } from "@/lib/adminPermissions";
+import { hasStructuredGenrePayload } from "@/lib/controlledGenreState";
 import { requireUploadPermission } from "@/lib/requireUploadPermission";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import {
+  applyNormalizedGenreToSongInsert,
+  normalizeIncomingGenrePayload,
+} from "@/lib/uploadGenreTaxonomy";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,6 +17,13 @@ type UpdateSubmissionBody = {
   status?: unknown;
   admin_notes?: unknown;
   adminNotes?: unknown;
+  mainGenreId?: unknown;
+  subgenreId?: unknown;
+  genre?: unknown;
+  mainGenre?: unknown;
+  subGenre?: unknown;
+  genreSlug?: unknown;
+  legacyGenreOverride?: unknown;
 };
 
 type SubmissionEventRow = {
@@ -198,6 +210,21 @@ async function requireAdminSubmissionReviewPermission(request: NextRequest) {
   return permission;
 }
 
+function buildSubmissionGenrePatch(body: UpdateSubmissionBody) {
+  const normalizedGenre = normalizeIncomingGenrePayload({
+    mainGenreId: body.mainGenreId,
+    subgenreId: body.subgenreId,
+    genre: body.genre,
+    mainGenre: body.mainGenre,
+    subGenre: body.subGenre,
+    genreSlug: body.genreSlug,
+    legacyGenreOverride: body.legacyGenreOverride,
+    defaultGenre: body.legacyGenreOverride || body.genre,
+  });
+
+  return applyNormalizedGenreToSongInsert({}, normalizedGenre);
+}
+
 export async function GET(request: NextRequest) {
   try {
     const permission = await requireAdminSubmissionReviewPermission(request);
@@ -255,19 +282,20 @@ export async function PATCH(request: NextRequest) {
     const id = cleanText(body.id, 80);
     const status = cleanText(body.status, 40);
     const adminNotes = normalizeNullableText(body.admin_notes || body.adminNotes);
+    const metadataOnly = !status && hasStructuredGenrePayload(body);
 
     if (!id) {
       return jsonError("Submission id is required.", 400);
     }
 
-    if (!status || !REVIEW_STATUSES.has(status)) {
+    if (!metadataOnly && (!status || !REVIEW_STATUSES.has(status))) {
       return jsonError("A valid review status is required.", 400);
     }
 
     const { data: existingSubmission, error: existingError } = await supabaseAdmin
       .from("artist_submissions")
       .select(
-        "id, title, artist_name, audio_url, artwork_url, status, admin_notes"
+        "id, title, artist_name, audio_url, artwork_url, status, admin_notes, genre"
       )
       .eq("id", id)
       .maybeSingle();
@@ -282,6 +310,37 @@ export async function PATCH(request: NextRequest) {
 
     if (!existingSubmission) {
       return jsonError("Artist submission not found.", 404);
+    }
+
+    if (metadataOnly) {
+      const genrePatch = buildSubmissionGenrePatch(body);
+
+      const { data, error } = await supabaseAdmin
+        .from("artist_submissions")
+        .update({
+          ...genrePatch,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", id)
+        .select(SUBMISSION_SELECT_FIELDS)
+        .single();
+
+      if (error) {
+        return jsonError(
+          "Failed to update submission genre.",
+          500,
+          error.message
+        );
+      }
+
+      const submissionsWithEvents = await attachSubmissionEvents([
+        data as unknown as Record<string, unknown>,
+      ]);
+
+      return NextResponse.json({
+        success: true,
+        submission: submissionsWithEvents[0] || data,
+      });
     }
 
     const reviewReadiness = getReviewReadiness(
@@ -300,6 +359,9 @@ export async function PATCH(request: NextRequest) {
     const previousNotes = normalizeNullableText(existingSubmission.admin_notes);
     const statusChanged = previousStatus !== status;
     const notesChanged = previousNotes !== adminNotes;
+    const genrePatch = hasStructuredGenrePayload(body)
+      ? buildSubmissionGenrePatch(body)
+      : {};
 
     const { data, error } = await supabaseAdmin
       .from("artist_submissions")
@@ -308,6 +370,7 @@ export async function PATCH(request: NextRequest) {
         admin_notes: adminNotes,
         reviewed_at: new Date().toISOString(),
         reviewed_by_user_id: permission.profile.id,
+        ...genrePatch,
       })
       .eq("id", id)
       .select(SUBMISSION_SELECT_FIELDS)

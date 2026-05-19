@@ -4,6 +4,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { canManageUploaderOwnership } from "@/lib/adminPermissions";
 import { requireUploadPermission } from "@/lib/requireUploadPermission";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import {
+  applyNormalizedGenreToSongInsert,
+  normalizeIncomingGenrePayload,
+} from "@/lib/uploadGenreTaxonomy";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -427,39 +431,47 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const songId = randomUUID();
     createdSongId = songId;
 
+    const normalizedGenre = normalizeIncomingGenrePayload({
+      genre: submissionRow.genre,
+    });
+
     const { data: song, error: songError } = await supabaseAdmin
       .from("songs")
-      .insert({
-        id: songId,
-        title,
-        slug: `${artistSlug}-${titleSlug}-${songId.slice(0, 8)}`,
-        artist_id: artistId,
-        album_id: createdAlbumId,
-        uploaded_by_user_id: permission.user.id,
-        artist: artistName,
-        album: albumTitle,
-        artist_name: artistName,
-        album_title: albumTitle,
-        genre: String(submissionRow.genre || "").trim() || null,
-        mood: String(submissionRow.mood || "").trim() || null,
-        duration: 0,
-        duration_seconds: 0,
-        audio_url: audioUrl,
-        url: audioUrl,
-        cover_url: artworkUrl,
-        artwork_url: artworkUrl,
-        lyrics_url: null,
-        has_lyrics: Boolean(lyricsText),
-        lyrics_type: lyricsText ? "plain" : null,
-        lyrics_updated_at: lyricsText ? new Date().toISOString() : null,
-        source_name: "Hidden Tunes",
-        source_type: "r2",
-        type: "r2",
-        is_online: true,
-        isOnline: true,
-        review_status: "approved",
-        source_artist_submission_id: submissionId,
-      })
+      .insert(
+        applyNormalizedGenreToSongInsert(
+          {
+            id: songId,
+            title,
+            slug: `${artistSlug}-${titleSlug}-${songId.slice(0, 8)}`,
+            artist_id: artistId,
+            album_id: createdAlbumId,
+            uploaded_by_user_id: permission.user.id,
+            artist: artistName,
+            album: albumTitle,
+            artist_name: artistName,
+            album_title: albumTitle,
+            mood: String(submissionRow.mood || "").trim() || null,
+            duration: 0,
+            duration_seconds: 0,
+            audio_url: audioUrl,
+            url: audioUrl,
+            cover_url: artworkUrl,
+            artwork_url: artworkUrl,
+            lyrics_url: null,
+            has_lyrics: Boolean(lyricsText),
+            lyrics_type: lyricsText ? "plain" : null,
+            lyrics_updated_at: lyricsText ? new Date().toISOString() : null,
+            source_name: "Hidden Tunes",
+            source_type: "r2",
+            type: "r2",
+            is_online: true,
+            isOnline: true,
+            review_status: "approved",
+            source_artist_submission_id: submissionId,
+          },
+          normalizedGenre
+        )
+      )
       .select("*")
       .single();
 

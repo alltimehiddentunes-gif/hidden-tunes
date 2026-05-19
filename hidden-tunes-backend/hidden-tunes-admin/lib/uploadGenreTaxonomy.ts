@@ -324,6 +324,7 @@ export function normalizeIncomingGenrePayload(body: {
   genreSlug?: unknown;
   genre?: unknown;
   defaultGenre?: unknown;
+  legacyGenreOverride?: unknown;
 }) {
   const structured = buildNormalizedGenrePayload({
     mainGenreId: String(body.mainGenreId || ""),
@@ -333,7 +334,11 @@ export function normalizeIncomingGenrePayload(body: {
   if (structured) return structured;
 
   const inferred = inferGenreSelectionFromLabel(
-    body.genre || body.defaultGenre || body.subGenre || body.mainGenre
+    body.legacyGenreOverride ||
+      body.genre ||
+      body.defaultGenre ||
+      body.subGenre ||
+      body.mainGenre
   );
 
   if (inferred) {
