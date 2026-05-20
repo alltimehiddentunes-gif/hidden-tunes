@@ -20,7 +20,11 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 
 import { COLORS, GRADIENTS } from "../constants/theme";
-import { usePlayer } from "../context/PlayerContext";
+import {
+  usePlayerActions,
+  usePlayerProgress,
+  usePlayerState,
+} from "../context/PlayerContext";
 import HTImage from "./HTImage";
 import { FALLBACK_ARTWORK, getArtworkValue } from "../utils/artwork";
 
@@ -35,19 +39,56 @@ type YouTubeMini = {
 const YOUTUBE_MINI_KEY = "hidden_tunes_current_youtube";
 const YOUTUBE_POLL_MS = 9000;
 
+const MiniPlayerProgress = memo(function MiniPlayerProgress({
+  isYoutubeMode,
+}: {
+  isYoutubeMode: boolean;
+}) {
+  const { position, duration } = usePlayerProgress();
+
+  const progress = useMemo(() => {
+    if (isYoutubeMode || !duration || duration <= 0) return 0;
+
+    const safeProgress = position / duration;
+
+    if (!Number.isFinite(safeProgress)) return 0;
+
+    return Math.max(0, Math.min(safeProgress, 1));
+  }, [position, duration, isYoutubeMode]);
+
+  const progressFillStyle = useMemo(
+    () => [
+      styles.progressFill,
+      { width: `${progress * 100}%` as `${number}%` },
+    ],
+    [progress]
+  );
+
+  if (isYoutubeMode) {
+    return (
+      <Text numberOfLines={1} style={styles.youtubeNote}>
+        Tap to reopen video
+      </Text>
+    );
+  }
+
+  return (
+    <View style={styles.progressTrack}>
+      <View style={progressFillStyle} />
+    </View>
+  );
+});
+
 function MiniPlayer() {
   const {
     currentSong,
     isPlaying,
     isLoading,
-    togglePlayPause,
-    nextSong,
-    position,
-    duration,
     radioMode,
     youtubeQueue,
     radioQueue,
-  } = usePlayer() as any;
+  } = usePlayerState();
+  const { togglePlayPause, nextSong } = usePlayerActions();
 
   const [youtubeVideo, setYoutubeVideo] = useState<YouTubeMini | null>(null);
 
@@ -100,24 +141,6 @@ function MiniPlayer() {
 
   const isYoutubeMode = !currentSong && !!youtubeVideo;
 
-  const progress = useMemo(() => {
-    if (isYoutubeMode || !duration || duration <= 0) return 0;
-
-    const safeProgress = position / duration;
-
-    if (!Number.isFinite(safeProgress)) return 0;
-
-    return Math.max(0, Math.min(safeProgress, 1));
-  }, [position, duration, isYoutubeMode]);
-
-  const progressFillStyle = useMemo(
-    () => [
-      styles.progressFill,
-      { width: `${progress * 100}%` as `${number}%` },
-    ],
-    [progress]
-  );
-
   const radioQueueLength = radioQueue?.length || 0;
   const youtubeQueueLength = youtubeQueue?.length || 0;
 
@@ -150,11 +173,7 @@ function MiniPlayer() {
   const cover = useMemo(() => {
     if (isYoutubeMode) return youtubeVideo?.thumbnail;
     return getArtworkValue(currentSong);
-  }, [
-    isYoutubeMode,
-    youtubeVideo?.thumbnail,
-    currentSong,
-  ]);
+  }, [isYoutubeMode, youtubeVideo?.thumbnail, currentSong]);
 
   const openPlayer = useCallback(() => {
     if (isYoutubeMode && youtubeVideo?.id) {
@@ -239,11 +258,7 @@ function MiniPlayer() {
         <BlurView intensity={64} tint="dark" style={styles.container}>
           <View style={styles.coverWrap}>
             {cover ? (
-              <HTImage
-                source={cover}
-                style={styles.cover}
-                contentFit="cover"
-              />
+              <HTImage source={cover} style={styles.cover} contentFit="cover" />
             ) : isYoutubeMode ? (
               <View style={styles.youtubeCover}>
                 <Ionicons name="tv" size={30} color="#fff" />
@@ -275,15 +290,7 @@ function MiniPlayer() {
               {artist}
             </Text>
 
-            {!isYoutubeMode ? (
-              <View style={styles.progressTrack}>
-                <View style={progressFillStyle} />
-              </View>
-            ) : (
-              <Text numberOfLines={1} style={styles.youtubeNote}>
-                Tap to reopen video
-              </Text>
-            )}
+            <MiniPlayerProgress isYoutubeMode={isYoutubeMode} />
           </View>
 
           {!isYoutubeMode && (

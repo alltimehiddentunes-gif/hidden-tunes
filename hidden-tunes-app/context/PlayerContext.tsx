@@ -6,10 +6,8 @@ import {
   InterruptionModeIOS,
 } from "expo-av";
 import {
-  createContext,
   ReactNode,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useRef,
@@ -82,6 +80,16 @@ import {
   repairQueueIndexForSong,
   shouldIgnoreDuplicatePlayRequest,
 } from "../utils/playbackGuards";
+import {
+  areSongQueuesEqual,
+  recordPlaybackProgressUpdate,
+  recordQueueReferenceChange,
+} from "../utils/playbackRenderDiagnostics";
+import {
+  PlayerActionsContext,
+  PlayerProgressContext,
+  PlayerStateContext,
+} from "./playerContextSlices";
 
 export type SyncedLyricLine = {
   time: number;
@@ -132,7 +140,7 @@ export type AppSong = {
 type RepeatMode = "off" | "one" | "all";
 type ActiveQueueMode = "standard" | "youtube" | "radio" | "smart";
 
-type PlayerContextType = {
+export type PlayerContextType = {
   currentSong: AppSong | null;
   isPlaying: boolean;
   isLoading: boolean;
@@ -193,8 +201,6 @@ type PlayerContextType = {
   isFavorite: (song: AppSong | null) => boolean;
   clearActiveQueue: () => Promise<void>;
 };
-
-const PlayerContext = createContext<PlayerContextType | undefined>(undefined);
 
 const CURRENT_SONG_KEY = "hidden_tunes_current_song";
 const FAVORITES_KEY = "hidden_tunes_favorites";
@@ -375,6 +381,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const setPositionMillis = useCallback((value: number) => {
     positionMillisRef.current = value;
+    recordPlaybackProgressUpdate();
     setPositionMillisState(value);
   }, []);
 
@@ -795,7 +802,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
       const safeIndex = Math.max(0, Math.min(index, normalizedQueue.length - 1));
 
-      setActiveQueue(normalizedQueue);
+      setActiveQueue((previousQueue) => {
+        const changed = !areSongQueuesEqual(previousQueue, normalizedQueue);
+        recordQueueReferenceChange("activeQueue", changed);
+        return changed ? normalizedQueue : previousQueue;
+      });
       setActiveQueueIndex(safeIndex);
       setActiveQueueMode(mode);
 
@@ -1455,6 +1466,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         Math.abs(nextPosition - previousPosition) > 1800
       ) {
         lastPositionStateUpdateRef.current = now;
+        recordPlaybackProgressUpdate();
         setPositionMillisState(nextPosition);
       }
 
@@ -2775,6 +2787,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           Math.abs(progress.positionMillis - previousPosition) > 1800
         ) {
           lastPositionStateUpdateRef.current = now;
+          recordPlaybackProgressUpdate();
           setPositionMillisState(progress.positionMillis);
         }
 
@@ -2939,51 +2952,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     radioIndexRef.current = radioIndex;
   }, [radioIndex]);
 
-  const providerValue = useMemo<PlayerContextType>(
+  const actionsValue = useMemo(
     () => ({
-      currentSong,
-      isPlaying,
-      isLoading,
-      positionMillis,
-      durationMillis,
-      position: positionMillis,
-      duration: durationMillis,
-      volume,
-      isMuted,
-      shuffle,
-      repeatMode,
-      smartAutoplayEnabled,
-
-      currentLyrics,
-      currentSyncedLyrics,
-      currentLyricLine,
-
-      songs,
-      onlineSongs,
-      activeQueue,
-      activeQueueIndex,
-      activeQueueMode,
-
-      favorites,
-      recentlyPlayed,
-
-      youtubeQueue,
-      youtubeQueueIndex,
-
-      radioQueue,
-      radioMode,
-      radioIndex,
-
       playSong,
       playQueue,
       playAudiusTrack,
       playYouTubeQueue,
-
       startRadio,
       startPersonalRadio,
       playNextRadioTrack,
       stopRadio,
-
       togglePlayPause,
       stopPlayback,
       nextSong,
@@ -2999,31 +2977,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       clearActiveQueue,
     }),
     [
-      currentSong,
-      isPlaying,
-      isLoading,
-      positionMillis,
-      durationMillis,
-      volume,
-      isMuted,
-      shuffle,
-      repeatMode,
-      smartAutoplayEnabled,
-      currentLyrics,
-      currentSyncedLyrics,
-      currentLyricLine,
-      songs,
-      onlineSongs,
-      activeQueue,
-      activeQueueIndex,
-      activeQueueMode,
-      favorites,
-      recentlyPlayed,
-      youtubeQueue,
-      youtubeQueueIndex,
-      radioQueue,
-      radioMode,
-      radioIndex,
       playSong,
       playQueue,
       playAudiusTrack,
@@ -3048,19 +3001,85 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     ]
   );
 
+  const stateValue = useMemo(
+    () => ({
+      currentSong,
+      isPlaying,
+      isLoading,
+      volume,
+      isMuted,
+      shuffle,
+      repeatMode,
+      smartAutoplayEnabled,
+      currentLyrics,
+      currentSyncedLyrics,
+      songs,
+      onlineSongs,
+      activeQueue,
+      activeQueueIndex,
+      activeQueueMode,
+      favorites,
+      recentlyPlayed,
+      youtubeQueue,
+      youtubeQueueIndex,
+      radioQueue,
+      radioMode,
+      radioIndex,
+    }),
+    [
+      currentSong,
+      isPlaying,
+      isLoading,
+      volume,
+      isMuted,
+      shuffle,
+      repeatMode,
+      smartAutoplayEnabled,
+      currentLyrics,
+      currentSyncedLyrics,
+      songs,
+      onlineSongs,
+      activeQueue,
+      activeQueueIndex,
+      activeQueueMode,
+      favorites,
+      recentlyPlayed,
+      youtubeQueue,
+      youtubeQueueIndex,
+      radioQueue,
+      radioMode,
+      radioIndex,
+    ]
+  );
+
+  const progressValue = useMemo(
+    () => ({
+      positionMillis,
+      durationMillis,
+      position: positionMillis,
+      duration: durationMillis,
+      currentLyricLine,
+    }),
+    [positionMillis, durationMillis, currentLyricLine]
+  );
+
   return (
-    <PlayerContext.Provider value={providerValue}>
-      {children}
-    </PlayerContext.Provider>
+    <PlayerActionsContext.Provider value={actionsValue}>
+      <PlayerStateContext.Provider value={stateValue}>
+        <PlayerProgressContext.Provider value={progressValue}>
+          {children}
+        </PlayerProgressContext.Provider>
+      </PlayerStateContext.Provider>
+    </PlayerActionsContext.Provider>
   );
 }
 
-export function usePlayer() {
-  const context = useContext(PlayerContext);
-
-  if (!context) {
-    throw new Error("usePlayer must be used inside PlayerProvider");
-  }
-
-  return context;
-}
+export {
+  usePlayer,
+  usePlayerActions,
+  usePlayerNowPlaying,
+  usePlayerProgress,
+  usePlayerState,
+  useStablePlayerAction,
+  useTrackPlaybackStatus,
+} from "./playerContextSlices";

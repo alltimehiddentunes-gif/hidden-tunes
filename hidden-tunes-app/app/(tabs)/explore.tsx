@@ -18,7 +18,11 @@ import { router } from "expo-router";
 import AddToPlaylistButton from "../../components/AddToPlaylistButton";
 import HTImage from "../../components/HTImage";
 import { COLORS, GRADIENTS } from "../../constants/theme";
-import { usePlayer } from "../../context/PlayerContext";
+import {
+  usePlayerActions,
+  usePlayerNowPlaying,
+  usePlayerState,
+} from "../../context/PlayerContext";
 import { FALLBACK_ARTWORK, getArtworkUri } from "../../utils/artwork";
 
 import {
@@ -246,14 +250,9 @@ function ExploreSkeletonRail() {
 }
 
 export default function ExploreScreen() {
-  const {
-    playSong,
-    currentSong,
-    recentlyPlayed,
-    favorites,
-    smartAutoplayEnabled,
-    toggleSmartAutoplay,
-  } = usePlayer() as any;
+  const { playSong, toggleSmartAutoplay } = usePlayerActions();
+  const { currentSong } = usePlayerNowPlaying();
+  const { recentlyPlayed, favorites, smartAutoplayEnabled } = usePlayerState();
 
   const listRef = useRef<FlatList<BackendYouTubeTrack>>(null);
   const screenStartedAt = useRef(startPerformanceTimer()).current;
@@ -497,8 +496,8 @@ export default function ExploreScreen() {
   const preferenceMaps = useMemo(
     () =>
       buildListenerPreferenceMaps(
-        Array.isArray(recentlyPlayed) ? recentlyPlayed : [],
-        Array.isArray(favorites) ? favorites : []
+        Array.isArray(recentlyPlayed) ? (recentlyPlayed as any) : [],
+        Array.isArray(favorites) ? (favorites as any) : []
       ),
     [favorites, recentlyPlayed]
   );

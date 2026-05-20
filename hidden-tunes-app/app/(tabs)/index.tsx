@@ -26,7 +26,11 @@ import HTImage from "../../components/HTImage";
 import LiveWaveform from "../../components/LiveWaveform";
 
 import { COLORS, GRADIENTS } from "../../constants/theme";
-import { usePlayer } from "../../context/PlayerContext";
+import {
+  usePlayerActions,
+  usePlayerNowPlaying,
+  usePlayerState,
+} from "../../context/PlayerContext";
 import {
   getHiddenTunesSongs,
   getHiddenTunesSongsPage,
@@ -141,8 +145,9 @@ function HomeSkeletonCards() {
 }
 
 function HomeScreen() {
-  const { playSong, currentSong, isPlaying, recentlyPlayed, favorites } =
-    usePlayer() as any;
+  const { playSong } = usePlayerActions();
+  const { currentSong, isPlaying } = usePlayerNowPlaying();
+  const { recentlyPlayed, favorites } = usePlayerState();
 
   const isLoadingRef = useRef(false);
   const scrollRef = useRef<ScrollView>(null);
@@ -339,8 +344,8 @@ function HomeScreen() {
   const preferenceMaps = useMemo(
     () =>
       buildListenerPreferenceMaps(
-        Array.isArray(recentlyPlayed) ? recentlyPlayed : [],
-        Array.isArray(favorites) ? favorites : []
+        Array.isArray(recentlyPlayed) ? (recentlyPlayed as any) : [],
+        Array.isArray(favorites) ? (favorites as any) : []
       ),
     [favorites, recentlyPlayed]
   );

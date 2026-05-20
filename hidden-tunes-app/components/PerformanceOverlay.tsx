@@ -7,6 +7,7 @@ import {
   logPerformanceDiagnosticsOverlay,
 } from "../utils/performanceLogs";
 import { getImagePrefetchStatus } from "../utils/imagePreloader";
+import { getPlaybackRenderDiagnostics } from "../utils/playbackRenderDiagnostics";
 import { getRenderDiagnostics } from "../utils/renderDiagnostics";
 
 function PerformanceOverlayPanel() {
@@ -29,11 +30,17 @@ function PerformanceOverlayPanel() {
 
   const diagnostics = getPerformanceDiagnostics();
   const renderDiagnostics = getRenderDiagnostics();
+  const playbackDiagnostics = getPlaybackRenderDiagnostics();
   const lastScreen = getLastScreenSnapshot();
   const prefetch = getImagePrefetchStatus();
   const topRenderCounts = Object.entries(renderDiagnostics.rerenderCounts)
     .sort((left, right) => right[1] - left[1])
     .slice(0, 4);
+  const topPlaybackSubscribers = Object.entries(
+    playbackDiagnostics.playbackSubscriberRenders
+  )
+    .sort((left, right) => right[1] - left[1])
+    .slice(0, 3);
 
   return (
     <View pointerEvents="box-none" style={styles.wrap}>
@@ -74,9 +81,28 @@ function PerformanceOverlayPanel() {
               Render samples: {diagnostics.renderRerenderSamples} /{" "}
               {diagnostics.renderTrackedComponents} comps
             </Text>
+            <Text style={styles.line}>
+              Playback ticks/min: {diagnostics.playbackProgressUpdatesPerMinute}
+            </Text>
+            <Text style={styles.line}>
+              Progress window: {diagnostics.playbackProgressUpdatesWindow}
+            </Text>
+            <Text style={styles.line}>
+              Playback subs: {diagnostics.playbackSubscriberRenders}
+            </Text>
+            {diagnostics.queueInvalidationWarnings > 0 ? (
+              <Text style={styles.warning}>
+                Queue churn: {diagnostics.queueInvalidationWarnings}
+              </Text>
+            ) : null}
             {topRenderCounts.map(([name, count]) => (
               <Text key={name} style={styles.line}>
                 {name}: {count}
+              </Text>
+            ))}
+            {topPlaybackSubscribers.map(([name, count]) => (
+              <Text key={`pb-${name}`} style={styles.line}>
+                pb:{name}: {count}
               </Text>
             ))}
             {diagnostics.slowEndpointWarnings > 0 ? (

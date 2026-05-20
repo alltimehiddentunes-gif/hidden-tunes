@@ -25,7 +25,11 @@ import Animated, {
 } from "react-native-reanimated";
 
 import { COLORS, GRADIENTS } from "../../constants/theme";
-import { usePlayer } from "../../context/PlayerContext";
+import {
+  usePlayerActions,
+  usePlayerProgress,
+  usePlayerState,
+} from "../../context/PlayerContext";
 import { getHiddenTunesLyrics } from "../../services/hiddenTunesApi";
 
 import LiveWaveform from "../../components/LiveWaveform";
@@ -67,33 +71,33 @@ export default function PlayerScreen() {
     currentSong,
     isPlaying,
     isLoading,
-    positionMillis,
-    durationMillis,
-    position,
-    duration,
-    togglePlayPause,
-    seekTo,
-    nextSong,
-    previousSong,
     volume,
-    setVolume,
     isMuted,
-    toggleMute,
     shuffle,
-    toggleShuffle,
     repeatMode,
-    toggleRepeatMode,
     smartAutoplayEnabled,
-    toggleSmartAutoplay,
-    toggleFavorite,
-    isFavorite,
     radioMode,
     youtubeQueue,
     radioQueue,
     activeQueueMode,
     activeQueue,
     activeQueueIndex,
-  } = usePlayer() as any;
+  } = usePlayerState();
+  const { positionMillis, durationMillis, position, duration } =
+    usePlayerProgress();
+  const {
+    togglePlayPause,
+    seekTo,
+    nextSong,
+    previousSong,
+    setVolume,
+    toggleMute,
+    toggleShuffle,
+    toggleRepeatMode,
+    toggleSmartAutoplay,
+    toggleFavorite,
+    isFavorite,
+  } = usePlayerActions();
 
   const [playlistModalVisible, setPlaylistModalVisible] = useState(false);
   const [selectedPlaylistTrack, setSelectedPlaylistTrack] = useState<any>(null);
@@ -231,7 +235,8 @@ export default function PlayerScreen() {
   }, []);
 
   const handleFavorite = useCallback(() => {
-    toggleFavorite?.(currentSong);
+    if (!currentSong) return;
+    toggleFavorite(currentSong);
   }, [toggleFavorite, currentSong]);
 
   const openLyrics = useCallback(async () => {

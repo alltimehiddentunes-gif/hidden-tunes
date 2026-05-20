@@ -18,7 +18,10 @@ import AddToPlaylistButton from "../../components/AddToPlaylistButton";
 import HTImage from "../../components/HTImage";
 
 import { COLORS, GRADIENTS } from "../../constants/theme";
-import { usePlayer } from "../../context/PlayerContext";
+import {
+  usePlayerActions,
+  usePlayerNowPlaying,
+} from "../../context/PlayerContext";
 import {
   extractHiddenTunesAlbums,
   getHiddenTunesAlbumById,
@@ -120,7 +123,8 @@ function findAlbumById(albums: HiddenTunesAlbum[], id: string) {
 
 export default function AlbumScreen() {
   const { id } = useLocalSearchParams();
-  const { playSong, currentSong, isPlaying } = usePlayer() as any;
+  const { playSong } = usePlayerActions();
+  const { currentSong, isPlaying } = usePlayerNowPlaying();
   const screenStartedAt = useRef(startPerformanceTimer()).current;
 
   const [album, setAlbum] = useState<HiddenTunesAlbum | null>(null);

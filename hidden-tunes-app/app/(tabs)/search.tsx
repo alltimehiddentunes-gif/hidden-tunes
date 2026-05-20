@@ -30,7 +30,10 @@ import AddToPlaylistButton from "../../components/AddToPlaylistButton";
 import MediaCard from "../../components/MediaCard";
 
 import { COLORS, GRADIENTS } from "../../constants/theme";
-import { usePlayer } from "../../context/PlayerContext";
+import {
+  usePlayerActions,
+  usePlayerNowPlaying,
+} from "../../context/PlayerContext";
 import { HIDDEN_TUNES_GENRES } from "../../utils/genres";
 
 import { searchArchiveAudio } from "../../services/archiveSearch";
@@ -392,7 +395,8 @@ function SearchSkeletonRows() {
 }
 
 export default function SearchScreen() {
-  const { playSong, stopPlayback, currentSong, isPlaying } = usePlayer() as any;
+  const { playSong, stopPlayback } = usePlayerActions();
+  const { currentSong, isPlaying } = usePlayerNowPlaying();
 
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchRequestIdRef = useRef(0);

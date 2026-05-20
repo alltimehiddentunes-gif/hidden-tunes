@@ -17,7 +17,10 @@ import ArtistTrackRow from "../../components/catalog/ArtistTrackRow";
 import HTImage from "../../components/HTImage";
 
 import { COLORS, GRADIENTS } from "../../constants/theme";
-import { usePlayer } from "../../context/PlayerContext";
+import {
+  usePlayerActions,
+  usePlayerNowPlaying,
+} from "../../context/PlayerContext";
 import {
   extractHiddenTunesArtists,
   getHiddenTunesArtistById,
@@ -117,7 +120,8 @@ function findArtistById(artists: HiddenTunesArtist[], id: string) {
 
 export default function ArtistScreen() {
   const { id } = useLocalSearchParams();
-  const { playSong, currentSong, isPlaying } = usePlayer() as any;
+  const { playSong } = usePlayerActions();
+  const { currentSong, isPlaying } = usePlayerNowPlaying();
   const screenStartedAt = useRef(startPerformanceTimer()).current;
 
   const [artist, setArtist] = useState<HiddenTunesArtist | null>(null);

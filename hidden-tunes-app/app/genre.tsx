@@ -14,7 +14,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 
 import { COLORS, GRADIENTS } from "../constants/theme";
-import { usePlayer } from "../context/PlayerContext";
+import { usePlayerActions } from "../context/PlayerContext";
 import GenreTrackRow from "../components/catalog/GenreTrackRow";
 import HTImage from "../components/HTImage";
 
@@ -98,7 +98,7 @@ function dedupeSongs(songs: HiddenTunesNormalizedSong[]) {
 
 export default function GenreScreen() {
   const params = useLocalSearchParams();
-  const { playSong } = usePlayer() as any;
+  const { playSong } = usePlayerActions();
   const screenStartedAt = useRef(startPerformanceTimer()).current;
 
   const rawTitle = String(params.title || "Genre");
