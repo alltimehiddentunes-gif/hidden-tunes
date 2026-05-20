@@ -12,21 +12,22 @@ import { LinearGradient } from "expo-linear-gradient";
 
 import { COLORS, GRADIENTS } from "../constants/theme";
 import { hasCompletedOnboarding } from "../services/onboardingPreferences";
+import { scheduleStartupTask } from "../utils/startupScheduler";
 
 export default function IndexScreen() {
   const [target, setTarget] = useState<string | null>(null);
 
   useEffect(() => {
-    const checkOnboarding = async () => {
+    const cancel = scheduleStartupTask("afterPaint", "onboarding_route_check", async () => {
       try {
         const completed = await hasCompletedOnboarding();
         setTarget(completed ? "/(tabs)" : "/onboarding");
       } catch {
         setTarget("/onboarding");
       }
-    };
+    });
 
-    checkOnboarding();
+    return cancel;
   }, []);
 
   if (target) {

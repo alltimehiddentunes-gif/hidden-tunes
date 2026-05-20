@@ -85,6 +85,7 @@ import {
   recordPlaybackProgressUpdate,
   recordQueueReferenceChange,
 } from "../utils/playbackRenderDiagnostics";
+import { markPlaybackRestoreComplete } from "../utils/startupDiagnostics";
 import {
   PlayerActionsContext,
   PlayerProgressContext,
@@ -2763,6 +2764,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       setRecentlyPlayed(upgradedRecent);
     } catch (error) {
       console.log("Restore player data error:", error);
+    } finally {
+      markPlaybackRestoreComplete();
     }
   }, [normalizeSong, isYouTubeSong, normalizeYouTubeTrack]);
 

@@ -1,8 +1,9 @@
 import { Stack } from "expo-router";
-import { memo, useMemo } from "react";
+import { memo, useEffect, useMemo } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import { PlayerProvider } from "../context/PlayerContext";
+import { markAppMounted } from "../utils/startupDiagnostics";
 
 const screenOptions = {
   headerShown: false,
@@ -15,6 +16,10 @@ const MemoizedPlayerProvider = memo(PlayerProvider);
 
 function RootLayout() {
   const memoizedScreenOptions = useMemo(() => screenOptions, []);
+
+  useEffect(() => {
+    markAppMounted("root_layout");
+  }, []);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

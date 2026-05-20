@@ -13,6 +13,7 @@ import {
   startPerformanceTimer,
 } from "../utils/performanceLogs";
 import { isAppActiveForWork } from "../utils/performanceMode";
+import { scheduleStartupTask } from "../utils/startupScheduler";
 
 const HIDDEN_TUNES_API_BASE_URL = "https://hidden-tunes-api.onrender.com";
 const HIDDEN_TUNES_LYRICS_API_BASE_URL =
@@ -543,8 +544,12 @@ export async function getHiddenTunesCatalogCacheInfo() {
 }
 
 export function prefetchHiddenTunesCatalog() {
-  void hydrateHiddenTunesCatalogCache().then((cached) => {
-    if (cached.length && isFreshMemoryCache(songsMemoryCacheTime)) return;
+  scheduleStartupTask("background", "catalog_api_background_refresh", async () => {
+    const cached = await hydrateHiddenTunesCatalogCache();
+
+    if (cached.length && isFreshMemoryCache(songsMemoryCacheTime)) {
+      return;
+    }
 
     scheduleCatalogBackgroundRefresh();
   });

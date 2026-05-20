@@ -32,6 +32,7 @@ import {
   usePlayerState,
 } from "../../context/PlayerContext";
 import {
+  getHiddenTunesCatalogSnapshot,
   getHiddenTunesSongs,
   getHiddenTunesSongsPage,
   getHiddenTunesAlbumById,
@@ -76,6 +77,11 @@ import {
   openMoodCatalog,
   scheduleGenreCatalogPrewarm,
 } from "../../utils/catalogNavigation";
+import {
+  markFirstApiRefreshComplete,
+  markFirstCachedContentVisible,
+} from "../../utils/startupDiagnostics";
+import { scheduleStartupTask } from "../../utils/startupScheduler";
 
 const { width } = Dimensions.get("window");
 const FEATURED_CARD_WIDTH = width * 0.72;
@@ -144,11 +150,18 @@ function HomeSkeletonCards() {
   );
 }
 
+function buildInitialHomeSongs() {
+  const snapshot = getHiddenTunesCatalogSnapshot();
+  if (!snapshot.length) return [] as HiddenTunesNormalizedSong[];
+  return dedupeSongs(snapshot.map(safeSong));
+}
+
 function HomeScreen() {
   const { playSong } = usePlayerActions();
   const { currentSong, isPlaying } = usePlayerNowPlaying();
   const { recentlyPlayed, favorites } = usePlayerState();
 
+  const initialFeaturedSongsRef = useRef(buildInitialHomeSongs());
   const isLoadingRef = useRef(false);
   const scrollRef = useRef<ScrollView>(null);
   const heroListRef = useRef<FlatList<HeroCard>>(null);
@@ -159,8 +172,12 @@ function HomeScreen() {
   const heroScale = useRef(new Animated.Value(0.96)).current;
   const heroGlowAnim = useRef(new Animated.Value(0.42)).current;
 
-  const [featuredSongs, setFeaturedSongs] = useState<HiddenTunesNormalizedSong[]>([]);
-  const [loadingSongs, setLoadingSongs] = useState(true);
+  const [featuredSongs, setFeaturedSongs] = useState<HiddenTunesNormalizedSong[]>(
+    () => initialFeaturedSongsRef.current
+  );
+  const [loadingSongs, setLoadingSongs] = useState(
+    () => initialFeaturedSongsRef.current.length === 0
+  );
   const [refreshing, setRefreshing] = useState(false);
   const [hasCheckedCatalogFallbacks, setHasCheckedCatalogFallbacks] =
     useState(false);
@@ -174,6 +191,22 @@ function HomeScreen() {
 
   useEffect(() => trackRenderProbe("HomeScreen"), []);
 
+  useEffect(() => {
+    if (!initialFeaturedSongsRef.current.length) return;
+
+    markFirstCachedContentVisible("home");
+    logScreenReady("home", screenStartedAt, {
+      cache: "hit",
+      count: initialFeaturedSongsRef.current.length,
+      source: "memory_snapshot",
+    });
+    logPerformanceSummary("home", {
+      cache: "hit",
+      firstContentMs: Date.now() - screenStartedAt,
+      itemCount: initialFeaturedSongsRef.current.length,
+    });
+  }, [screenStartedAt]);
+
   const defaultHeroTrack = featuredSongs[0];
 
   useScrollToTop(scrollRef);
@@ -186,10 +219,12 @@ function HomeScreen() {
     setSongPage(1);
     setHasMoreSongPages(nextSongs.length >= 20);
 
-    void preloadImages(
-      nextSongs
-        .slice(0, 4)
-        .flatMap((song) => [song.artwork, song.cover, song.thumbnail])
+    scheduleStartupTask("background", "home_primary_artwork_prefetch", () =>
+      preloadImages(
+        nextSongs
+          .slice(0, 2)
+          .flatMap((song) => [song.artwork, song.cover, song.thumbnail])
+      )
     );
   }, []);
 
@@ -200,16 +235,30 @@ function HomeScreen() {
       try {
         isLoadingRef.current = true;
 
-        let showedCachedCatalog = false;
+        let showedCachedCatalog = featuredSongs.length > 0;
 
         if (!forceRefresh) {
           setHasCheckedCatalogFallbacks(false);
+
+          const memorySnapshot = getHiddenTunesCatalogSnapshot();
+          if (memorySnapshot.length) {
+            applyFeaturedSongs(memorySnapshot);
+            setLoadingSongs(false);
+            showedCachedCatalog = true;
+            markFirstCachedContentVisible("home");
+            logCacheResult("home", true, {
+              count: memorySnapshot.length,
+              source: "memory",
+            });
+          }
+
           const cached = await hydrateHiddenTunesCatalogCache();
 
           if (cached.length) {
             applyFeaturedSongs(cached);
             setLoadingSongs(false);
             showedCachedCatalog = true;
+            markFirstCachedContentVisible("home");
             logCacheResult("home", true, { count: cached.length });
             logScreenReady("home", screenStartedAt, {
               cache: "hit",
@@ -220,7 +269,7 @@ function HomeScreen() {
               firstContentMs: Date.now() - screenStartedAt,
               itemCount: cached.length,
             });
-          } else if (showLoader) {
+          } else if (showLoader && !showedCachedCatalog) {
             setLoadingSongs(true);
             logCacheResult("home", false);
           }
@@ -228,34 +277,49 @@ function HomeScreen() {
           setLoadingSongs(true);
         }
 
-        const refreshStart = startPerformanceTimer();
-        const songs = forceRefresh
-          ? await refreshHiddenTunesSongs()
-          : await getHiddenTunesSongs({ forceRefresh: false });
+        const refreshCatalogFromApi = async () => {
+          const refreshStart = startPerformanceTimer();
+          const songs = forceRefresh
+            ? await refreshHiddenTunesSongs()
+            : await getHiddenTunesSongs({ forceRefresh: false });
 
-        applyFeaturedSongs(songs);
-        logApiRefresh("home", refreshStart, {
-          count: songs.length,
-          forceRefresh,
-        });
-        logPerformanceSummary("home", {
-          cache: showedCachedCatalog ? "hit" : "miss",
-          apiRefreshMs: Date.now() - refreshStart,
-          itemCount: songs.length,
-          emptyStateReason: songs.length
-            ? "content_available"
-            : "cache_api_and_fallback_empty",
-        });
+          applyFeaturedSongs(songs);
+          const refreshMs = Date.now() - refreshStart;
 
-        if (!showedCachedCatalog) {
-          logScreenReady("home", screenStartedAt, {
-            cache: "miss",
+          logApiRefresh("home", refreshStart, {
             count: songs.length,
+            forceRefresh,
           });
-        }
+          markFirstApiRefreshComplete("home", refreshMs);
+          logPerformanceSummary("home", {
+            cache: showedCachedCatalog ? "hit" : "miss",
+            apiRefreshMs: refreshMs,
+            itemCount: songs.length,
+            emptyStateReason: songs.length
+              ? "content_available"
+              : "cache_api_and_fallback_empty",
+          });
 
-        if (!showedCachedCatalog && !songs.length) {
-          setHasMoreSongPages(false);
+          if (!showedCachedCatalog) {
+            logScreenReady("home", screenStartedAt, {
+              cache: "miss",
+              count: songs.length,
+            });
+          }
+
+          if (!showedCachedCatalog && !songs.length) {
+            setHasMoreSongPages(false);
+          }
+        };
+
+        if (forceRefresh || !showedCachedCatalog) {
+          await refreshCatalogFromApi();
+        } else {
+          scheduleStartupTask(
+            "afterInteraction",
+            "home_catalog_api_refresh",
+            refreshCatalogFromApi
+          );
         }
       } catch {
         if (!featuredSongs.length) {
@@ -398,18 +462,21 @@ function HomeScreen() {
   const primaryGenreSpotlight = genreSpotlights[0];
 
   useEffect(() => {
-    if (!featuredSongs.length) return;
+    if (!featuredSongs.length || !deferredSectionsReady) return;
 
-    void preloadImages([
+    scheduleStartupTask("background", "home_section_artwork_prefetch", () =>
+      preloadImages([
       ...newestSongs.slice(0, 4).flatMap((song) => [song.artwork, song.cover]),
       ...rankedAlbums.slice(0, 3).map((album) => album.artwork),
       ...rankedArtists.slice(0, 3).map((artist) => artist.artwork),
       ...visibleAllSongs.slice(0, 4).flatMap((song) => [song.artwork, song.cover]),
       ...(primaryGenreSpotlight?.songs || [])
-        .slice(0, 3)
+        .slice(0, 2)
         .flatMap((song) => [song.artwork, song.cover]),
-    ]);
+      ])
+    );
   }, [
+    deferredSectionsReady,
     featuredSongs.length,
     newestSongs,
     primaryGenreSpotlight?.songs,

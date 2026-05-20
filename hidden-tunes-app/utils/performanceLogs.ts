@@ -1,5 +1,6 @@
 import { getPlaybackRenderDiagnostics } from "./playbackRenderDiagnostics";
 import { getRenderDiagnostics } from "./renderDiagnostics";
+import { getStartupDiagnostics } from "./startupDiagnostics";
 
 type PerformanceLogDetails = Record<string, string | number | boolean | undefined>;
 
@@ -140,6 +141,7 @@ export function getLastScreenSnapshot() {
 export function getPerformanceDiagnostics() {
   const renderDiagnostics = getRenderDiagnostics();
   const playbackDiagnostics = getPlaybackRenderDiagnostics();
+  const startupDiagnostics = getStartupDiagnostics();
 
   return {
     cacheHitRate:
@@ -167,6 +169,11 @@ export function getPerformanceDiagnostics() {
     playbackSubscriberRenders:
       playbackDiagnostics.totalPlaybackSubscriberRenders,
     queueInvalidationWarnings: playbackDiagnostics.queueInvalidationWarnings,
+    startupFirstCachedMs: startupDiagnostics.firstCachedContentMs ?? undefined,
+    startupFirstApiMs: startupDiagnostics.firstApiRefreshMs ?? undefined,
+    startupCompletedTasks: startupDiagnostics.completedTaskCount,
+    startupScheduledTasks: startupDiagnostics.scheduledTaskCount,
+    startupPlaybackRestoreMs: startupDiagnostics.playbackRestoreMs ?? undefined,
   };
 }
 

@@ -9,6 +9,7 @@ import {
 import { getImagePrefetchStatus } from "../utils/imagePreloader";
 import { getPlaybackRenderDiagnostics } from "../utils/playbackRenderDiagnostics";
 import { getRenderDiagnostics } from "../utils/renderDiagnostics";
+import { getStartupDiagnostics } from "../utils/startupDiagnostics";
 
 function PerformanceOverlayPanel() {
   const [expanded, setExpanded] = useState(false);
@@ -31,6 +32,7 @@ function PerformanceOverlayPanel() {
   const diagnostics = getPerformanceDiagnostics();
   const renderDiagnostics = getRenderDiagnostics();
   const playbackDiagnostics = getPlaybackRenderDiagnostics();
+  const startupDiagnostics = getStartupDiagnostics();
   const lastScreen = getLastScreenSnapshot();
   const prefetch = getImagePrefetchStatus();
   const topRenderCounts = Object.entries(renderDiagnostics.rerenderCounts)
@@ -58,12 +60,22 @@ function PerformanceOverlayPanel() {
           Cache: {lastScreen?.cache || "—"} ({diagnostics.cacheHitRate}% hit)
         </Text>
         <Text style={styles.line}>
-          API refresh: {lastScreen?.apiRefreshMs ?? diagnostics.averageApiRefreshMs}ms
+          Startup cache: {diagnostics.startupFirstCachedMs ?? "—"}ms
         </Text>
         <Text style={styles.line}>Items: {lastScreen?.itemCount ?? 0}</Text>
 
         {expanded ? (
           <>
+            <Text style={styles.line}>
+              Startup API: {diagnostics.startupFirstApiMs ?? "—"}ms
+            </Text>
+            <Text style={styles.line}>
+              Restore: {diagnostics.startupPlaybackRestoreMs ?? "—"}ms
+            </Text>
+            <Text style={styles.line}>
+              Startup tasks: {diagnostics.startupCompletedTasks} done /{" "}
+              {diagnostics.startupScheduledTasks} pending
+            </Text>
             <Text style={styles.line}>
               Avg ready: {diagnostics.averageScreenReadyMs}ms
             </Text>
@@ -85,9 +97,6 @@ function PerformanceOverlayPanel() {
               Playback ticks/min: {diagnostics.playbackProgressUpdatesPerMinute}
             </Text>
             <Text style={styles.line}>
-              Progress window: {diagnostics.playbackProgressUpdatesWindow}
-            </Text>
-            <Text style={styles.line}>
               Playback subs: {diagnostics.playbackSubscriberRenders}
             </Text>
             {diagnostics.queueInvalidationWarnings > 0 ? (
@@ -105,6 +114,16 @@ function PerformanceOverlayPanel() {
                 pb:{name}: {count}
               </Text>
             ))}
+            {startupDiagnostics.recentCompletedTasks.length > 0 ? (
+              <Text style={styles.line}>
+                Last task:{" "}
+                {
+                  startupDiagnostics.recentCompletedTasks[
+                    startupDiagnostics.recentCompletedTasks.length - 1
+                  ]?.name
+                }
+              </Text>
+            ) : null}
             {diagnostics.slowEndpointWarnings > 0 ? (
               <Text style={styles.warning}>
                 Slow endpoints: {diagnostics.slowEndpointWarnings}
