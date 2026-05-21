@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  InteractionManager,
   ScrollView,
   StyleSheet,
   Text,
@@ -227,21 +228,43 @@ export default function HiddenTunesTVScreen() {
         }
       }
 
-      bootstrap();
+      let frameId: number | null = null;
+
+      const interactionHandle = InteractionManager.runAfterInteractions(() => {
+        frameId = requestAnimationFrame(() => {
+          if (!active) return;
+          void bootstrap();
+        });
+      });
 
       return () => {
         active = false;
+        interactionHandle.cancel();
+        if (frameId !== null) {
+          cancelAnimationFrame(frameId);
+        }
       };
     }, [applyHomeCache, initialQuery, refreshHome, runCatalogSearch])
   );
 
   useEffect(() => {
+    const cleanQuery = query.trim();
+
+    if (!cleanQuery) {
+      setIsSearching(false);
+      setSearchResults([]);
+      setSearchEmpty(false);
+      setSearchHasMore(false);
+      setSearchPage(1);
+      return;
+    }
+
     if (searchDebounceRef.current) {
       clearTimeout(searchDebounceRef.current);
     }
 
     searchDebounceRef.current = setTimeout(() => {
-      runCatalogSearch(query, 1, false);
+      runCatalogSearch(cleanQuery, 1, false);
     }, SEARCH_DEBOUNCE_MS);
 
     return () => {

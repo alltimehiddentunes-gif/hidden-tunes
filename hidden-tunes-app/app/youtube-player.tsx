@@ -11,11 +11,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
-import WebView from "react-native-webview";
-import YoutubePlayer, {
-  PLAYER_STATES,
-  type YoutubeIframeRef,
-} from "react-native-youtube-iframe";
+import WebView, { type WebViewMessageEvent } from "react-native-webview";
 
 import { COLORS, GRADIENTS } from "../constants/theme";
 import { usePlayer } from "../context/PlayerContext";
@@ -30,6 +26,8 @@ type YouTubeQueueItem = {
 };
 
 const YOUTUBE_MINI_KEY = "hidden_tunes_current_youtube";
+const PRIMARY_EMBED_ORIGIN = "https://hiddentunes.com";
+const FALLBACK_EMBED_ORIGIN = "https://lonelycpp.github.io";
 const BLOCKED_EXTERNAL_SCHEMES = [
   "youtube://",
   "vnd.youtube:",
@@ -38,7 +36,7 @@ const BLOCKED_EXTERNAL_SCHEMES = [
   "itms-apps://",
 ];
 
-function sanitizeYouTubeVideoId(value: any) {
+function sanitizeYouTubeVideoId(value: unknown) {
   const text = String(value || "").replace("youtube-", "").trim();
 
   if (/^[a-zA-Z0-9_-]{11}$/.test(text)) return text;
@@ -88,12 +86,104 @@ function isAllowedEmbedUrl(url: string) {
     clean.includes("googlevideo.com") ||
     clean.includes("gstatic.com") ||
     clean.includes("google.com") ||
-    clean.includes("ytimg.com")
+    clean.includes("ytimg.com") ||
+    clean.startsWith(PRIMARY_EMBED_ORIGIN.toLowerCase()) ||
+    clean.startsWith(FALLBACK_EMBED_ORIGIN.toLowerCase())
   );
 }
 
+function buildEmbedPlayerHtml(
+  videoId: string,
+  pageOrigin: string,
+  autoplay = true
+) {
+  const autoplayFlag = autoplay ? "1" : "0";
+  const embedUrl =
+    `https://www.youtube.com/embed/${encodeURIComponent(videoId)}` +
+    `?playsinline=1&enablejsapi=1&origin=${encodeURIComponent(pageOrigin)}` +
+    `&rel=0&modestbranding=1&autoplay=${autoplayFlag}`;
+
+  return `<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
+    />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <style>
+      html, body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #000;
+      }
+      iframe {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        border: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <iframe
+      id="ht-youtube-player"
+      src="${embedUrl}"
+      title="Hidden Tunes TV"
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+      allowfullscreen
+      referrerpolicy="strict-origin-when-cross-origin"
+    ></iframe>
+    <script>
+      (function () {
+        function post(message) {
+          if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
+            window.ReactNativeWebView.postMessage(String(message));
+          }
+        }
+
+        window.addEventListener("message", function (event) {
+          if (!event || !event.origin || event.origin.indexOf("youtube") === -1) {
+            return;
+          }
+
+          try {
+            var payload =
+              typeof event.data === "string" ? JSON.parse(event.data) : event.data;
+
+            if (!payload || !payload.event) return;
+
+            if (payload.event === "onStateChange") {
+              if (payload.info === 1) post("playing");
+              if (payload.info === 2) post("paused");
+              if (payload.info === 0) post("ended");
+            }
+
+            if (payload.event === "onError") {
+              post("embed-error-" + String(payload.info || "unknown"));
+            }
+          } catch (error) {}
+        });
+
+        setTimeout(function () {
+          post("embed-timeout-check");
+        }, 12000);
+      })();
+    </script>
+  </body>
+</html>`;
+}
+
 function normalizeQueueItem(item: any): YouTubeQueueItem | null {
-  const videoId = sanitizeYouTubeVideoId(item?.videoId || item?.id);
+  const videoId = sanitizeYouTubeVideoId(
+    item?.videoId || item?.source_id || item?.id
+  );
 
   if (!videoId) return null;
 
@@ -112,16 +202,18 @@ function normalizeQueueItem(item: any): YouTubeQueueItem | null {
 
 export default function YouTubePlayerScreen() {
   const params = useLocalSearchParams();
-  const youtubeRef = useRef<YoutubeIframeRef | null>(null);
+  const webViewRef = useRef<WebView | null>(null);
 
   const { stopPlayback } = usePlayer() as any;
 
   const startedAtRef = useRef<number>(Date.now());
   const autoNextLockRef = useRef(false);
   const errorSkipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const fallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const playbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const initialVideoId = sanitizeYouTubeVideoId(params.videoId || params.id);
+  const initialVideoId = sanitizeYouTubeVideoId(
+    params.source_id || params.videoId || params.id
+  );
   const initialTitle = String(params.title || "YouTube Music");
   const initialArtist = String(
     params.artist || params.channelTitle || "Hidden Tunes TV"
@@ -141,6 +233,7 @@ export default function YouTubePlayerScreen() {
     const fallbackItem = normalizeQueueItem({
       id: initialVideoId,
       videoId: initialVideoId,
+      source_id: initialVideoId,
       title: initialTitle,
       artist: initialArtist,
       channelTitle: initialArtist,
@@ -174,7 +267,7 @@ export default function YouTubePlayerScreen() {
   const [playerStatus, setPlayerStatus] = useState("Preparing video...");
   const [isVideoPlaying, setIsVideoPlaying] = useState(true);
   const [playerReady, setPlayerReady] = useState(false);
-  const [directEmbedMode, setDirectEmbedMode] = useState(false);
+  const [embedPageOrigin, setEmbedPageOrigin] = useState(PRIMARY_EMBED_ORIGIN);
 
   const queue = parsedQueue;
   const currentVideo = queue[currentIndex] || queue[0];
@@ -189,6 +282,13 @@ export default function YouTubePlayerScreen() {
 
   const thumbnail = currentVideo?.thumbnail || String(params.thumbnail || "");
 
+  const playerReadyRef = useRef(false);
+
+  const embedHtml = useMemo(
+    () => (videoId ? buildEmbedPlayerHtml(videoId, embedPageOrigin, true) : ""),
+    [embedPageOrigin, videoId]
+  );
+
   useEffect(() => {
     stopPlayback?.();
 
@@ -197,8 +297,8 @@ export default function YouTubePlayerScreen() {
         clearTimeout(errorSkipTimerRef.current);
       }
 
-      if (fallbackTimerRef.current) {
-        clearTimeout(fallbackTimerRef.current);
+      if (playbackTimerRef.current) {
+        clearTimeout(playbackTimerRef.current);
       }
     };
   }, []);
@@ -209,8 +309,9 @@ export default function YouTubePlayerScreen() {
     startedAtRef.current = Date.now();
     autoNextLockRef.current = false;
     setIsVideoPlaying(true);
+    playerReadyRef.current = false;
+    setEmbedPageOrigin(PRIMARY_EMBED_ORIGIN);
     setPlayerReady(false);
-    setDirectEmbedMode(false);
     setPlayerStatus("Preparing video...");
 
     if (errorSkipTimerRef.current) {
@@ -218,15 +319,15 @@ export default function YouTubePlayerScreen() {
       errorSkipTimerRef.current = null;
     }
 
-    if (fallbackTimerRef.current) {
-      clearTimeout(fallbackTimerRef.current);
+    if (playbackTimerRef.current) {
+      clearTimeout(playbackTimerRef.current);
     }
 
-    fallbackTimerRef.current = setTimeout(() => {
-      setDirectEmbedMode(true);
-      setPlayerReady(true);
-      setPlayerStatus("Tap the video to start playback.");
-    }, 7000);
+    playbackTimerRef.current = setTimeout(() => {
+      if (!playerReadyRef.current) {
+        scheduleEmbedErrorSkip("embed-timeout");
+      }
+    }, 12000);
   }, [videoId, title, artist, thumbnail]);
 
   async function saveYouTubeMini() {
@@ -255,8 +356,9 @@ export default function YouTubePlayerScreen() {
     startedAtRef.current = Date.now();
     autoNextLockRef.current = false;
     setIsVideoPlaying(true);
+    playerReadyRef.current = false;
+    setEmbedPageOrigin(PRIMARY_EMBED_ORIGIN);
     setPlayerReady(false);
-    setDirectEmbedMode(false);
     setPlayerStatus("Preparing video...");
     setCurrentIndex(safeIndex);
   }
@@ -282,21 +384,39 @@ export default function YouTubePlayerScreen() {
   }
 
   function togglePlayPause() {
-    if (directEmbedMode) {
-      setPlayerStatus("Use the on-screen video controls.");
-      return;
-    }
-
     if (!playerReady) {
       setPlayerStatus("Almost ready. Try again in a moment.");
       return;
     }
 
-    setIsVideoPlaying((playing) => {
-      const next = !playing;
-      setPlayerStatus(next ? "Playing" : "Paused");
-      return next;
-    });
+    const nextPlaying = !isVideoPlaying;
+    const command = nextPlaying ? "playVideo" : "pauseVideo";
+
+    webViewRef.current?.injectJavaScript(`
+      (function () {
+        var frame = document.getElementById("ht-youtube-player");
+        if (!frame || !frame.contentWindow) return true;
+        frame.contentWindow.postMessage(
+          JSON.stringify({ event: "command", func: "${command}", args: "" }),
+          "*"
+        );
+        return true;
+      })();
+      true;
+    `);
+
+    setIsVideoPlaying(nextPlaying);
+    setPlayerStatus(nextPlaying ? "Playing" : "Paused");
+  }
+
+  function scheduleEmbedErrorSkip(reason: string) {
+    if (errorSkipTimerRef.current) return;
+
+    errorSkipTimerRef.current = setTimeout(() => {
+      errorSkipTimerRef.current = null;
+      setPlayerStatus("Skipping unavailable video...");
+      safeAutoNext(reason, true);
+    }, 900);
   }
 
   function safeAutoNext(_reason: string, allowEarlySkip = false) {
@@ -311,7 +431,7 @@ export default function YouTubePlayerScreen() {
 
     if (queue.length <= 1) {
       setIsVideoPlaying(false);
-      setPlayerStatus("Finished.");
+      setPlayerStatus("This video is unavailable in Hidden Tunes TV.");
       return;
     }
 
@@ -328,52 +448,63 @@ export default function YouTubePlayerScreen() {
     }, 1800);
   }
 
-  function handlePlayerStateChange(state: PLAYER_STATES) {
-    if (state === PLAYER_STATES.PLAYING) {
-      if (fallbackTimerRef.current) {
-        clearTimeout(fallbackTimerRef.current);
-        fallbackTimerRef.current = null;
+  function handleWebViewMessage(event: WebViewMessageEvent) {
+    const message = String(event.nativeEvent.data || "");
+
+    if (message === "playing") {
+      if (playbackTimerRef.current) {
+        clearTimeout(playbackTimerRef.current);
+        playbackTimerRef.current = null;
       }
 
+      playerReadyRef.current = true;
       setIsVideoPlaying(true);
       setPlayerReady(true);
       setPlayerStatus("Playing");
       return;
     }
 
-    if (state === PLAYER_STATES.PAUSED) {
+    if (message === "paused") {
       setIsVideoPlaying(false);
       setPlayerStatus("Paused");
       return;
     }
 
-    if (state === PLAYER_STATES.BUFFERING) {
-      setPlayerStatus("Buffering...");
-      return;
-    }
-
-    if (state === PLAYER_STATES.ENDED) {
+    if (message === "ended") {
       setIsVideoPlaying(false);
       safeAutoNext("youtube-ended");
       return;
     }
 
-    if (state === PLAYER_STATES.VIDEO_CUED) {
+    if (message === "embed-timeout-check" && !playerReadyRef.current) {
+      scheduleEmbedErrorSkip("embed-timeout");
+      return;
+    }
+
+    if (message.startsWith("embed-error-")) {
+      const errorCode = message.replace("embed-error-", "");
+      setIsVideoPlaying(false);
       setPlayerReady(true);
-      setPlayerStatus("Ready when you are. Tap play if needed.");
+
+      if (
+        (errorCode === "153" || errorCode === "150" || errorCode === "101") &&
+        embedPageOrigin === PRIMARY_EMBED_ORIGIN
+      ) {
+        setPlayerStatus("Retrying playback...");
+        setEmbedPageOrigin(FALLBACK_EMBED_ORIGIN);
+        return;
+      }
+
+      if (errorCode === "153" || errorCode === "150" || errorCode === "101") {
+        setPlayerStatus("Video unavailable here. Skipping to next...");
+        scheduleEmbedErrorSkip(`embed-error-${errorCode}`);
+        return;
+      }
+
+      setPlayerStatus("This video can't play here. Skipping to next...");
+      scheduleEmbedErrorSkip(message);
     }
   }
-
-  function handlePlayerError(_error: string) {
-    setIsVideoPlaying(false);
-    setDirectEmbedMode(false);
-    setPlayerReady(true);
-    setPlayerStatus(
-      "This video can't play inside the app. Try another from Hidden Tunes TV."
-    );
-  }
-
-  const directEmbedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1&playsinline=1&controls=1&rel=0&fs=1`;
 
   function handleInAppWebViewNavigation(request: { url: string }) {
     const requestUrl = String(request.url || "");
@@ -398,6 +529,7 @@ export default function YouTubePlayerScreen() {
         params: {
           id: linkedVideoId,
           videoId: linkedVideoId,
+          source_id: linkedVideoId,
           title: "Hidden Tunes TV",
           artist: "Hidden Tunes TV",
           channelTitle: "Hidden Tunes TV",
@@ -446,75 +578,57 @@ export default function YouTubePlayerScreen() {
       </View>
 
       <View style={styles.playerFrame}>
-        {videoId && directEmbedMode ? (
+        {videoId && embedHtml ? (
           <WebView
-            key={`direct-${videoId}`}
-            source={{ uri: directEmbedUrl }}
+            ref={webViewRef}
+            key={`tv-embed-${videoId}-${embedPageOrigin}`}
+            source={{
+              html: embedHtml,
+              baseUrl: embedPageOrigin,
+              headers: {
+                Referer: `${embedPageOrigin}/`,
+              },
+            }}
+            originWhitelist={["*"]}
             javaScriptEnabled
             domStorageEnabled
             allowsInlineMediaPlayback
             allowsFullscreenVideo
             allowsProtectedMedia
             mediaPlaybackRequiresUserAction={false}
-            setSupportMultipleWindows={false}
+            thirdPartyCookiesEnabled
             mixedContentMode="always"
-            originWhitelist={["*"]}
+            setSupportMultipleWindows={false}
+            sharedCookiesEnabled
+            startInLoadingState
             onLoadEnd={() => {
-              setPlayerReady(true);
-              setPlayerStatus("Ready when you are. Tap the video if needed.");
-            }}
-            onError={() => {
-              setPlayerStatus(
-                "This video can't play inside the app. Try another from Hidden Tunes TV."
-              );
-            }}
-            onHttpError={() => {
-              setPlayerStatus(
-                "This video can't play inside the app. Try another from Hidden Tunes TV."
-              );
-            }}
-            onShouldStartLoadWithRequest={handleInAppWebViewNavigation}
-            style={styles.youtubeWebView}
-          />
-        ) : videoId ? (
-          <YoutubePlayer
-            ref={youtubeRef}
-            key={videoId}
-            height={230}
-            videoId={videoId}
-            play={isVideoPlaying}
-            baseUrlOverride="https://www.youtube.com"
-            forceAndroidAutoplay
-            useLocalHTML
-            initialPlayerParams={{
-              controls: true,
-              rel: false,
-              preventFullScreen: false,
-              iv_load_policy: 3,
-            }}
-            webViewStyle={styles.youtubeWebView}
-            webViewProps={{
-              allowsInlineMediaPlayback: true,
-              allowsFullscreenVideo: true,
-              allowsProtectedMedia: true,
-              javaScriptEnabled: true,
-              domStorageEnabled: true,
-              mediaPlaybackRequiresUserAction: false,
-              setSupportMultipleWindows: false,
-              mixedContentMode: "always",
-              onShouldStartLoadWithRequest: handleInAppWebViewNavigation,
-            }}
-            onReady={() => {
-              if (fallbackTimerRef.current) {
-                clearTimeout(fallbackTimerRef.current);
-                fallbackTimerRef.current = null;
-              }
-
+              playerReadyRef.current = true;
               setPlayerReady(true);
               setPlayerStatus("Ready when you are. Tap play if needed.");
             }}
-            onChangeState={handlePlayerStateChange}
-            onError={handlePlayerError}
+            onError={() => {
+              if (embedPageOrigin === PRIMARY_EMBED_ORIGIN) {
+                setPlayerStatus("Retrying playback...");
+                setEmbedPageOrigin(FALLBACK_EMBED_ORIGIN);
+                return;
+              }
+
+              setPlayerStatus("Playback failed. Skipping to next...");
+              scheduleEmbedErrorSkip("webview-error");
+            }}
+            onHttpError={() => {
+              if (embedPageOrigin === PRIMARY_EMBED_ORIGIN) {
+                setPlayerStatus("Retrying playback...");
+                setEmbedPageOrigin(FALLBACK_EMBED_ORIGIN);
+                return;
+              }
+
+              setPlayerStatus("Playback failed. Skipping to next...");
+              scheduleEmbedErrorSkip("webview-http-error");
+            }}
+            onMessage={handleWebViewMessage}
+            onShouldStartLoadWithRequest={handleInAppWebViewNavigation}
+            style={styles.youtubeWebView}
           />
         ) : (
           <View style={styles.noVideoBox}>
@@ -524,7 +638,8 @@ export default function YouTubePlayerScreen() {
               color={COLORS.textMuted}
             />
             <Text style={styles.noVideoText}>
-              This video can&apos;t play inside the app. Try another from Hidden Tunes TV.
+              This video can&apos;t play inside Hidden Tunes. Try another from
+              Hidden Tunes TV.
             </Text>
           </View>
         )}
@@ -591,21 +706,6 @@ export default function YouTubePlayerScreen() {
           video.
         </Text>
 
-        {!directEmbedMode && (
-          <TouchableOpacity
-            activeOpacity={0.86}
-            style={styles.secondaryButton}
-            onPress={() => {
-              setDirectEmbedMode(true);
-              setPlayerReady(true);
-              setPlayerStatus("Tap the video to start playback.");
-            }}
-          >
-            <Ionicons name="refresh" size={16} color={COLORS.text} />
-            <Text style={styles.secondaryButtonText}>Try alternate player</Text>
-          </TouchableOpacity>
-        )}
-
         {queue.length <= 1 && (
           <TouchableOpacity
             activeOpacity={0.86}
@@ -621,9 +721,7 @@ export default function YouTubePlayerScreen() {
       <ScrollView style={styles.queueList} showsVerticalScrollIndicator={false}>
         <View style={styles.queueHeader}>
           <Text style={styles.queueHeaderTitle}>Up Next</Text>
-          <Text style={styles.queueHeaderSub}>
-            Hidden Tunes TV queue
-          </Text>
+          <Text style={styles.queueHeaderSub}>Hidden Tunes TV queue</Text>
         </View>
 
         {queue.map((item, index) => {
@@ -631,7 +729,7 @@ export default function YouTubePlayerScreen() {
 
           return (
             <TouchableOpacity
-              key={`${item.videoId || item.id}-${index}`}
+              key={`tv-queue-${item.videoId || item.id}`}
               style={[styles.queueItem, active && styles.queueItemActive]}
               onPress={() => playAtIndex(index)}
               activeOpacity={0.86}
@@ -650,7 +748,7 @@ export default function YouTubePlayerScreen() {
                 </Text>
 
                 <Text numberOfLines={1} style={styles.queueArtist}>
-                {item.artist || item.channelTitle || "Hidden Tunes TV"}
+                  {item.artist || item.channelTitle || "Hidden Tunes TV"}
                 </Text>
               </View>
 
@@ -856,26 +954,6 @@ const styles = StyleSheet.create({
 
   tvSearchText: {
     color: "#000",
-    fontSize: 12,
-    fontWeight: "900",
-  },
-
-  secondaryButton: {
-    alignSelf: "center",
-    minHeight: 40,
-    borderRadius: 20,
-    marginTop: 12,
-    paddingHorizontal: 15,
-    backgroundColor: "rgba(255,255,255,0.08)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-
-  secondaryButtonText: {
-    color: COLORS.text,
     fontSize: 12,
     fontWeight: "900",
   },

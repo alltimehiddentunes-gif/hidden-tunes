@@ -1,5 +1,4 @@
-import { getDeferredSchedulerMetrics } from "./deferredScheduler";
-import { logPerformanceEvent } from "./performanceEvents";
+import { logPerformanceEvent } from "./performanceLogs";
 
 type TimingKind = "tap_to_audio_start" | "next_track_transition" | "pause_resume";
 
@@ -39,15 +38,9 @@ let artworkPrefetchSuccesses = 0;
 let artworkPrefetchFailures = 0;
 let artworkPrefetchQueued = 0;
 
-let deferredTaskRejected = 0;
-let deferredPauseDuringPlayback = 0;
+let deferredTaskScheduled = 0;
+let deferredTaskCompleted = 0;
 let activeTimerCount = 0;
-
-const sourceResolutionSamples: number[] = [];
-const audioObjectCreateSamples: number[] = [];
-const playbackBeginSamples: number[] = [];
-let lastStartupTaskPressure = 0;
-let lastDeferredRunning = 0;
 
 let audioReloadCount = 0;
 let reloadWindowStartedAt = Date.now();
@@ -292,71 +285,22 @@ export function recordArtworkPrefetchFailure(count: number) {
 export function recordDeferredTaskScheduled() {
   if (!shouldTrack()) return;
 
-  const metrics = getDeferredSchedulerMetrics();
+  deferredTaskScheduled += 1;
 
-  if (metrics.schedulerQueueDepth >= DEFERRED_TASK_WARN) {
+  const activeDeferred = deferredTaskScheduled - deferredTaskCompleted;
+
+  if (activeDeferred >= DEFERRED_TASK_WARN) {
     warnOnce("too_many_deferred_tasks", {
-      activeDeferred: metrics.activeDeferred,
-      scheduled: metrics.scheduledDeferred,
-      queueDepth: metrics.schedulerQueueDepth,
+      activeDeferred,
+      scheduled: deferredTaskScheduled,
+      completed: deferredTaskCompleted,
     });
   }
 }
 
 export function recordDeferredTaskCompleted() {
   if (!shouldTrack()) return;
-}
-
-export function recordDeferredTaskRejected(name: string, reason: string) {
-  if (!shouldTrack()) return;
-
-  deferredTaskRejected += 1;
-
-  logPerformanceEvent("deferred_task_rejected", {
-    name,
-    reason,
-    totalRejected: deferredTaskRejected,
-  });
-}
-
-export function recordDeferredPauseDuringPlayback(name: string, reason: string) {
-  if (!shouldTrack()) return;
-
-  deferredPauseDuringPlayback += 1;
-
-  logPerformanceEvent("deferred_pause_during_playback", {
-    name,
-    reason,
-    total: deferredPauseDuringPlayback,
-  });
-}
-
-export function recordStartupTaskPressure(tracked: number, running: number) {
-  if (!shouldTrack()) return;
-
-  lastStartupTaskPressure = Math.max(0, tracked);
-  lastDeferredRunning = Math.max(0, running);
-}
-
-export function markPlaybackStartupPhase(
-  phase: "source_resolution_ms" | "audio_object_create_ms" | "playback_begin_ms",
-  durationMs: number,
-  details: Record<string, string | number | boolean | undefined> = {}
-) {
-  if (!shouldTrack()) return;
-
-  if (phase === "source_resolution_ms") {
-    pushSample(sourceResolutionSamples, durationMs);
-  } else if (phase === "audio_object_create_ms") {
-    pushSample(audioObjectCreateSamples, durationMs);
-  } else {
-    pushSample(playbackBeginSamples, durationMs);
-  }
-
-  logPerformanceEvent(phase, {
-    durationMs,
-    ...details,
-  });
+  deferredTaskCompleted += 1;
 }
 
 export function registerActiveTimer(label: string) {
@@ -427,7 +371,6 @@ export function getPlaybackStressDiagnostics() {
   const sessionDurationMs = playbackSessionStartedAt
     ? Date.now() - playbackSessionStartedAt
     : 0;
-  const scheduler = getDeferredSchedulerMetrics();
 
   return {
     avgTapToAudioStartMs: average(tapToAudioSamples),
@@ -444,25 +387,9 @@ export function getPlaybackStressDiagnostics() {
     artworkPrefetchSuccesses,
     artworkPrefetchFailures,
     artworkPrefetchQueued,
-    deferredTaskRejected,
-    deferredPauseDuringPlayback,
-    activeDeferredTasks: scheduler.activeDeferred,
-    scheduledDeferredTasks: scheduler.scheduledDeferred,
-    schedulerQueueDepth: scheduler.schedulerQueueDepth,
-    categoryCounts: scheduler.categoryCounts,
-    dedupedTasks: scheduler.dedupedTasks,
-    cancelledTasks: scheduler.cancelledTasks,
-    staleTaskClears: scheduler.staleTaskClears,
-    startupTaskPressure: scheduler.startupTaskPressure,
-    deferredRunning: scheduler.globalRunning,
-    avgSourceResolutionMs: average(sourceResolutionSamples),
-    avgAudioObjectCreateMs: average(audioObjectCreateSamples),
-    avgPlaybackBeginMs: average(playbackBeginSamples),
-    lastSourceResolutionMs:
-      sourceResolutionSamples[sourceResolutionSamples.length - 1] || 0,
-    lastAudioObjectCreateMs:
-      audioObjectCreateSamples[audioObjectCreateSamples.length - 1] || 0,
-    lastPlaybackBeginMs: playbackBeginSamples[playbackBeginSamples.length - 1] || 0,
+    deferredTaskScheduled,
+    deferredTaskCompleted,
+    activeDeferredTasks: Math.max(0, deferredTaskScheduled - deferredTaskCompleted),
     activeTimerCount,
     audioReloadCountWindow: audioReloadCount,
     queueLength: lastQueueLength,
@@ -488,14 +415,9 @@ export function resetPlaybackStressDiagnostics() {
   artworkPrefetchSuccesses = 0;
   artworkPrefetchFailures = 0;
   artworkPrefetchQueued = 0;
-  deferredTaskRejected = 0;
-  deferredPauseDuringPlayback = 0;
+  deferredTaskScheduled = 0;
+  deferredTaskCompleted = 0;
   activeTimerCount = 0;
-  sourceResolutionSamples.length = 0;
-  audioObjectCreateSamples.length = 0;
-  playbackBeginSamples.length = 0;
-  lastStartupTaskPressure = 0;
-  lastDeferredRunning = 0;
   audioReloadCount = 0;
   reloadWindowStartedAt = Date.now();
   lastQueueLength = 0;

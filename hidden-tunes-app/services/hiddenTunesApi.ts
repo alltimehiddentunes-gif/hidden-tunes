@@ -12,7 +12,6 @@ import {
   recordSlowEndpointWarning,
   startPerformanceTimer,
 } from "../utils/performanceLogs";
-import { shouldAllowCatalogRefresh } from "../utils/playbackStartupGate";
 import { isAppActiveForWork } from "../utils/performanceMode";
 import { scheduleStartupTask } from "../utils/startupScheduler";
 
@@ -487,7 +486,6 @@ function isNormalizedCatalogSong(value: unknown): value is HiddenTunesNormalized
 
 function scheduleCatalogBackgroundRefresh() {
   if (!isAppActiveForWork()) return;
-  if (!shouldAllowCatalogRefresh()) return;
   if (songsBackgroundRefreshPromise || songsFetchPromise) return;
 
   const now = Date.now();

@@ -1,14 +1,7 @@
-import { getHomeRenderDiagnostics } from "./homeRenderDiagnostics";
-import { getDeferredSchedulerMetrics } from "./deferredScheduler";
-import {
-  getPlaybackStartupBreakdownDiagnostics,
-  primePlaybackTapReceived,
-} from "./playbackStartupProfiling";
 import { getPlaybackRenderDiagnostics } from "./playbackRenderDiagnostics";
 import { getPlaybackStressDiagnostics } from "./playbackStressDiagnostics";
 import { getRenderDiagnostics } from "./renderDiagnostics";
 import { getStartupDiagnostics } from "./startupDiagnostics";
-import { logPerformanceEvent, nowMs } from "./performanceEvents";
 
 type PerformanceLogDetails = Record<string, string | number | boolean | undefined>;
 
@@ -44,30 +37,34 @@ type LastScreenSnapshot = {
 };
 
 let lastScreenSnapshot: LastScreenSnapshot | null = null;
-const artworkFailureCooldown = new Map<string, number>();
-const ARTWORK_FAILURE_COOLDOWN_MS = 8000;
-let lastDiagnosticsOverlayLogAt = 0;
-const DIAGNOSTICS_OVERLAY_MIN_MS = 4500;
 
 function shouldLogPerformance() {
   return typeof __DEV__ === "undefined" || __DEV__;
 }
 
-export { nowMs };
+export function nowMs() {
+  return Date.now();
+}
 
 export function startPerformanceTimer() {
   return nowMs();
 }
 
-const MAX_SCREEN_READY_MS = 6000;
+export function logPerformanceEvent(
+  event: string,
+  details: PerformanceLogDetails = {}
+) {
+  if (!shouldLogPerformance()) return;
+
+  console.log("[HiddenTunes:perf]", event, details);
+}
 
 export function logScreenReady(
   screen: string,
   startedAt: number,
   details: PerformanceLogDetails = {}
 ) {
-  const elapsed = nowMs() - startedAt;
-  const readyMs = Math.max(0, Math.min(MAX_SCREEN_READY_MS, elapsed));
+  const readyMs = nowMs() - startedAt;
   metrics.screenReadyTotal += readyMs;
   metrics.screenReadyCount += 1;
 
@@ -129,21 +126,8 @@ export function logCacheResult(
 }
 
 export function recordArtworkFailure(details: PerformanceLogDetails = {}) {
-  const cooldownKey = String(details.uri || details.recyclingKey || "global");
-  const now = nowMs();
-  const lastFailureAt = artworkFailureCooldown.get(cooldownKey) || 0;
-
-  if (now - lastFailureAt < ARTWORK_FAILURE_COOLDOWN_MS) {
-    return;
-  }
-
-  artworkFailureCooldown.set(cooldownKey, now);
   metrics.artworkFailures += 1;
-
-  logPerformanceEvent("artwork_failure", {
-    ...details,
-    cooldownKey,
-  });
+  logPerformanceEvent("artwork_failure", details);
 }
 
 export function recordSlowEndpointWarning(details: PerformanceLogDetails = {}) {
@@ -160,9 +144,6 @@ export function getPerformanceDiagnostics() {
   const playbackDiagnostics = getPlaybackRenderDiagnostics();
   const startupDiagnostics = getStartupDiagnostics();
   const stressDiagnostics = getPlaybackStressDiagnostics();
-  const homeDiagnostics = getHomeRenderDiagnostics();
-  const tapBreakdown = getPlaybackStartupBreakdownDiagnostics();
-  const scheduler = getDeferredSchedulerMetrics();
 
   return {
     cacheHitRate:
@@ -193,7 +174,7 @@ export function getPerformanceDiagnostics() {
     startupFirstCachedMs: startupDiagnostics.firstCachedContentMs ?? undefined,
     startupFirstApiMs: startupDiagnostics.firstApiRefreshMs ?? undefined,
     startupCompletedTasks: startupDiagnostics.completedTaskCount,
-    startupScheduledTasks: scheduler.scheduledDeferred,
+    startupScheduledTasks: startupDiagnostics.scheduledTaskCount,
     startupPlaybackRestoreMs: startupDiagnostics.playbackRestoreMs ?? undefined,
     avgTapToAudioStartMs: stressDiagnostics.avgTapToAudioStartMs,
     avgNextTrackTransitionMs: stressDiagnostics.avgNextTrackTransitionMs,
@@ -202,69 +183,19 @@ export function getPerformanceDiagnostics() {
       ? Math.round(stressDiagnostics.playbackSessionDurationMs / 60000)
       : 0,
     artworkPrefetchLoaded: stressDiagnostics.artworkPrefetchSuccesses,
-    activeDeferredTasks: scheduler.activeDeferred,
-    scheduledDeferredTasks: scheduler.scheduledDeferred,
-    schedulerQueueDepth: scheduler.schedulerQueueDepth,
-    categoryCountsArtwork: scheduler.categoryCounts.artwork,
-    categoryCountsStartup: scheduler.categoryCounts.startup,
-    categoryCountsRanking: scheduler.categoryCounts.ranking,
-    categoryCountsTv: scheduler.categoryCounts.tv,
-    categoryCountsPreload: scheduler.categoryCounts.preload,
-    categoryCountsDiagnostics: scheduler.categoryCounts.diagnostics,
-    categoryCountsNavigation: scheduler.categoryCounts.navigation,
-    dedupedTasks: scheduler.dedupedTasks,
-    cancelledTasks: scheduler.cancelledTasks,
-    staleTaskClears: scheduler.staleTaskClears,
+    activeDeferredTasks: stressDiagnostics.activeDeferredTasks,
     queueTortureWarnings: stressDiagnostics.queueTortureWarnings,
     audioReloadWindowCount: stressDiagnostics.audioReloadCountWindow,
     offlineCacheStartups: stressDiagnostics.offlineCacheStartupSuccesses,
     stressWarningCount: stressDiagnostics.stressWarnings.length,
-    avgSourceResolutionMs: stressDiagnostics.avgSourceResolutionMs,
-    avgAudioObjectCreateMs: stressDiagnostics.avgAudioObjectCreateMs,
-    avgPlaybackBeginMs: stressDiagnostics.avgPlaybackBeginMs,
-    deferredTaskRejected: stressDiagnostics.deferredTaskRejected,
-    deferredPauseDuringPlayback: stressDiagnostics.deferredPauseDuringPlayback,
-    startupTaskPressure: stressDiagnostics.startupTaskPressure,
-    deferredRunning: stressDiagnostics.deferredRunning,
-    homeRerenderCount: homeDiagnostics.homeRerenderCount,
-    stabilizedRowCount: homeDiagnostics.stabilizedRowCount,
-    memoizedRowCount: homeDiagnostics.memoizedRowCount,
-    requireCycleResolvedCount: homeDiagnostics.requireCycleResolvedCount,
-    ...tapBreakdown,
   };
 }
 
 export function logPerformanceDiagnosticsOverlay(screen = "global") {
-  if (!shouldLogPerformance()) return;
-
-  const now = nowMs();
-  if (now - lastDiagnosticsOverlayLogAt < DIAGNOSTICS_OVERLAY_MIN_MS) {
-    return;
-  }
-
-  lastDiagnosticsOverlayLogAt = now;
-
   logPerformanceEvent("diagnostics_overlay", {
     screen,
     ...getPerformanceDiagnostics(),
   });
-}
-
-export function beginUserTapToPlay(
-  screen: string,
-  songId?: string,
-  details: PerformanceLogDetails = {}
-) {
-  const tapReceivedAt = startPerformanceTimer();
-
-  primePlaybackTapReceived(tapReceivedAt, {
-    screen,
-    songId,
-    source: screen,
-    ...details,
-  });
-
-  return tapReceivedAt;
 }
 
 export function logTapToPlay(
@@ -298,16 +229,13 @@ export function logPerformanceSummary(
     updatedAt: nowMs(),
   };
 
-  const { cache, firstContentMs, apiRefreshMs, itemCount, emptyStateReason, ...rest } =
-    details;
-
   logPerformanceEvent("summary", {
     screen,
-    cache,
-    firstContentMs,
-    apiRefreshMs,
-    itemCount,
-    emptyStateReason: emptyStateReason || "content_available",
-    ...rest,
+    cache: details.cache,
+    firstContentMs: details.firstContentMs,
+    apiRefreshMs: details.apiRefreshMs,
+    itemCount: details.itemCount,
+    emptyStateReason: details.emptyStateReason || "content_available",
+    ...getPerformanceDiagnostics(),
   });
 }

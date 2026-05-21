@@ -35,7 +35,6 @@ import {
   logCacheResult,
   logPerformanceSummary,
   logScreenReady,
-  beginUserTapToPlay,
   logTapToPlay,
   startPerformanceTimer,
 } from "../utils/performanceLogs";
@@ -278,9 +277,9 @@ export default function GenreScreen() {
   const openCloudTrack = useCallback(
     async (song: HiddenTunesNormalizedSong) => {
       try {
-        const normalized = safeSong(song);
-        const tapStartedAt = beginUserTapToPlay("genre", normalized.id);
+        const tapStartedAt = startPerformanceTimer();
         const queue = dedupeSongs(cloudTracks.map(safeSong));
+        const normalized = safeSong(song);
 
         const startIndex = Math.max(
           0,

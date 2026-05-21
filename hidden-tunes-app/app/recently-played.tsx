@@ -20,7 +20,6 @@ import { FALLBACK_ARTWORK, getArtworkUri } from "../utils/artwork";
 import {
   logPerformanceSummary,
   logScreenReady,
-  beginUserTapToPlay,
   logTapToPlay,
   startPerformanceTimer,
 } from "../utils/performanceLogs";
@@ -157,8 +156,8 @@ function RecentlyPlayedScreen() {
 
   const playRecentTrack = useCallback(
     async (item: any) => {
+      const tapStartedAt = startPerformanceTimer();
       const normalized = normalizeRecentTrack(item);
-      const tapStartedAt = beginUserTapToPlay("recently_played", normalized.id);
       const queue = tracks.length > 0
         ? tracks
         : dedupePlayableTracks([normalized]);

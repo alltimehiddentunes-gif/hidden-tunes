@@ -1,10 +1,9 @@
+import { InteractionManager } from "react-native";
+
 import {
-  cancelDeferredTasksExcept,
-  scheduleDeferredTask,
-  type DeferredSchedulePhase,
-} from "./deferredScheduler";
-import { isPlaybackStartupActive } from "./playbackStartupGate";
-import { recordDeferredTaskRejected } from "./playbackStressDiagnostics";
+  recordDeferredTaskCompleted,
+  recordDeferredTaskScheduled,
+} from "./playbackStressDiagnostics";
 import {
   recordStartupTaskComplete,
   recordStartupTaskScheduled,
@@ -19,20 +18,7 @@ export type StartupPhase =
 type StartupTask = () => void | Promise<void>;
 
 const scheduledTaskNames = new Set<string>();
-
-function mapPhase(phase: StartupPhase): DeferredSchedulePhase {
-  switch (phase) {
-    case "critical":
-      return "immediate";
-    case "afterPaint":
-      return "afterPaint";
-    case "afterInteraction":
-      return "afterInteraction";
-    case "background":
-    default:
-      return "background";
-  }
-}
+const BACKGROUND_STARTUP_DELAY_MS = 720;
 
 export function scheduleStartupTask(
   phase: StartupPhase,
@@ -43,38 +29,71 @@ export function scheduleStartupTask(
     return () => {};
   }
 
-  if (phase !== "critical" && isPlaybackStartupActive()) {
-    recordDeferredTaskRejected(name, "playback_startup_active");
-    return () => {};
-  }
-
   scheduledTaskNames.add(name);
   recordStartupTaskScheduled(name, phase);
+  recordDeferredTaskScheduled();
 
-  const cancel = scheduleDeferredTask({
-    id: name,
-    phase: mapPhase(phase),
-    task: async () => {
-      if (phase !== "critical" && isPlaybackStartupActive()) {
-        recordDeferredTaskRejected(name, "playback_startup_at_run");
-        return;
-      }
+  let cancelled = false;
 
-      const startedAt = Date.now();
+  const runTask = async () => {
+    if (cancelled) return;
 
-      try {
-        await task();
-      } finally {
+    const startedAt = Date.now();
+
+    try {
+      await task();
+    } finally {
+      if (!cancelled) {
         recordStartupTaskComplete(name, phase, Date.now() - startedAt);
-        scheduledTaskNames.delete(name);
+        recordDeferredTaskCompleted();
       }
-    },
-  });
-
-  return () => {
-    scheduledTaskNames.delete(name);
-    cancel();
+    }
   };
+
+  let interactionHandle: { cancel: () => void } | null = null;
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  let frameId: number | null = null;
+
+  const cancel = () => {
+    cancelled = true;
+    interactionHandle?.cancel();
+    if (timeoutId) clearTimeout(timeoutId);
+    if (frameId !== null && typeof cancelAnimationFrame === "function") {
+      cancelAnimationFrame(frameId);
+    }
+  };
+
+  switch (phase) {
+    case "critical":
+      void runTask();
+      break;
+
+    case "afterPaint":
+      if (typeof requestAnimationFrame === "function") {
+        frameId = requestAnimationFrame(() => {
+          void runTask();
+        });
+      } else {
+        timeoutId = setTimeout(() => {
+          void runTask();
+        }, 0);
+      }
+      break;
+
+    case "afterInteraction":
+      interactionHandle = InteractionManager.runAfterInteractions(() => {
+        void runTask();
+      });
+      break;
+
+    case "background":
+      timeoutId = setTimeout(() => {
+        void runTask();
+      }, BACKGROUND_STARTUP_DELAY_MS);
+      break;
+  }
+
+  return cancel;
 }
 
 export function hasStartupTaskScheduled(name: string) {
@@ -83,8 +102,4 @@ export function hasStartupTaskScheduled(name: string) {
 
 export function getScheduledStartupTaskCount() {
   return scheduledTaskNames.size;
-}
-
-export function pauseStartupTasksForPlayback() {
-  cancelDeferredTasksExcept(["playback_"], "playback_priority");
 }

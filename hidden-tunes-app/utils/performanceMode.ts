@@ -1,11 +1,6 @@
 import { AppState } from "react-native";
 
-import {
-  isPlaybackStartupActive,
-  shouldAllowArtworkPrefetch,
-  shouldAllowNonEssentialWork,
-} from "./playbackStartupGate";
-import { scheduleDeferredTask } from "./deferredScheduler";
+import { recordDeferredTaskScheduled } from "./playbackStressDiagnostics";
 
 type PrewarmTask = () => void | Promise<void>;
 
@@ -13,7 +8,7 @@ const LARGE_LIST_THRESHOLD = 80;
 const VERY_LARGE_LIST_THRESHOLD = 180;
 const FAST_SCROLL_COOLDOWN_MS = 900;
 const PREWARM_DELAY_MS = 220;
-const PREWARM_TASK_LIMIT = 2;
+const PREWARM_TASK_LIMIT = 4;
 
 let fastScrollingUntil = 0;
 let prewarmToken = 0;
@@ -48,32 +43,13 @@ export function isAppActiveForWork() {
 }
 
 export function shouldRunNonEssentialWork() {
-  if (!appIsActive || isFastScrolling()) return false;
-
-  return shouldAllowNonEssentialWork();
+  return appIsActive && !isFastScrolling();
 }
 
 export function getPrefetchLimit(requested = 4) {
   if (!appIsActive) return 0;
-  if (isPlaybackStartupActive()) return 0;
-  if (!shouldAllowArtworkPrefetch()) return 0;
   if (isFastScrolling()) return Math.min(requested, 1);
-
-  return Math.min(requested, 2);
-}
-
-const INITIAL_HOME_VISIBLE_CAP = 12;
-
-export function getHomeNestedListSettings(itemCount: number) {
-  const capped = Math.max(1, Math.min(itemCount, INITIAL_HOME_VISIBLE_CAP));
-
-  return {
-    initialNumToRender: Math.min(6, capped),
-    maxToRenderPerBatch: 4,
-    windowSize: 5,
-    updateCellsBatchingPeriod: 100,
-    removeClippedSubviews: true,
-  };
+  return requested;
 }
 
 export function getListPerformanceSettings(itemCount: number) {
@@ -142,24 +118,26 @@ export function createStableKeyExtractor(prefix: string) {
 }
 
 export function scheduleNavigationPrewarm(tasks: PrewarmTask[]) {
-  if (!shouldRunNonEssentialWork()) return () => {};
+  recordDeferredTaskScheduled();
 
   prewarmToken += 1;
   const token = prewarmToken;
   const limitedTasks = tasks.slice(0, PREWARM_TASK_LIMIT);
 
-  return scheduleDeferredTask({
-    id: "navigation_prewarm_batch",
-    category: "navigation",
-    phase: "background",
-    delayMs: PREWARM_DELAY_MS,
-    task: async () => {
-      if (token !== prewarmToken || !shouldRunNonEssentialWork()) return;
+  const timer = setTimeout(() => {
+    if (token !== prewarmToken || !shouldRunNonEssentialWork()) return;
 
-      for (const task of limitedTasks) {
-        if (token !== prewarmToken || !shouldRunNonEssentialWork()) return;
-        await task();
-      }
-    },
-  });
+    limitedTasks.reduce<Promise<void>>(async (previous, task) => {
+      await previous;
+      if (token !== prewarmToken || !shouldRunNonEssentialWork()) return;
+      await task();
+    }, Promise.resolve());
+  }, PREWARM_DELAY_MS);
+
+  return () => {
+    clearTimeout(timer);
+    if (token === prewarmToken) {
+      prewarmToken += 1;
+    }
+  };
 }

@@ -1,4 +1,4 @@
-import { logPerformanceEvent } from "./performanceEvents";
+import { logPerformanceEvent } from "./performanceLogs";
 
 type QueueKey = "activeQueue" | "youtubeQueue" | "radioQueue";
 

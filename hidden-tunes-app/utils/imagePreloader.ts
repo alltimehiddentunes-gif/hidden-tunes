@@ -1,6 +1,5 @@
 import { Image } from "expo-image";
 
-import { shouldAllowArtworkPrefetch } from "./playbackStartupGate";
 import { getPrefetchLimit, shouldRunNonEssentialWork } from "./performanceMode";
 import {
   recordArtworkPrefetchAttempt,
@@ -11,13 +10,13 @@ import {
 
 const loadedImages = new Set<string>();
 const PRELOAD_BATCH_SIZE = 1;
-const PRELOAD_MAX_IMAGES = 2;
+const PRELOAD_MAX_IMAGES = 4;
 
 export async function preloadImages(
   images: Array<string | undefined | null>
 ) {
   try {
-    if (!shouldRunNonEssentialWork() || !shouldAllowArtworkPrefetch()) return;
+    if (!shouldRunNonEssentialWork()) return;
 
     const maxImages = getPrefetchLimit(PRELOAD_MAX_IMAGES);
     if (maxImages <= 0) return;
@@ -38,8 +37,6 @@ export async function preloadImages(
     recordArtworkPrefetchAttempt(validImages.length);
 
     for (let index = 0; index < validImages.length; index += PRELOAD_BATCH_SIZE) {
-      if (!shouldAllowArtworkPrefetch()) return;
-
       const batch = validImages.slice(index, index + PRELOAD_BATCH_SIZE);
 
       await Promise.all(
@@ -62,7 +59,7 @@ export function clearImagePreloadCache() {
 }
 
 export function getImagePrefetchStatus() {
-  const active = shouldRunNonEssentialWork() && shouldAllowArtworkPrefetch();
+  const active = shouldRunNonEssentialWork();
 
   return {
     active,

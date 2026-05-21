@@ -35,7 +35,6 @@ import {
   logCacheResult,
   logPerformanceSummary,
   logScreenReady,
-  beginUserTapToPlay,
   logTapToPlay,
   startPerformanceTimer,
 } from "../../utils/performanceLogs";
@@ -259,8 +258,8 @@ export default function ArtistScreen() {
 
   const handlePlay = useCallback(
     async (track: HiddenTunesNormalizedSong) => {
+      const tapStartedAt = startPerformanceTimer();
       const normalized = safeSong(track);
-      const tapStartedAt = beginUserTapToPlay("artist", normalized.id);
 
       const startIndex = Math.max(
         0,
@@ -277,7 +276,7 @@ export default function ArtistScreen() {
   async function playArtist() {
     if (!tracks.length) return;
 
-    const tapStartedAt = beginUserTapToPlay("artist", tracks[0]?.id);
+    const tapStartedAt = startPerformanceTimer();
     await playSong(tracks[0] as any, tracks as any, 0);
     logTapToPlay("artist", tapStartedAt, { id: tracks[0]?.id });
     router.push("/player" as any);
@@ -287,7 +286,7 @@ export default function ArtistScreen() {
     if (!tracks.length) return;
 
     const shuffled = shuffleSongs(tracks);
-    const tapStartedAt = beginUserTapToPlay("artist", shuffled[0]?.id);
+    const tapStartedAt = startPerformanceTimer();
     await playSong(shuffled[0] as any, shuffled as any, 0);
     logTapToPlay("artist", tapStartedAt, { id: shuffled[0]?.id });
     router.push("/player" as any);

@@ -113,8 +113,6 @@ function HTImage({
         recordArtworkFailure({
           candidateIndex,
           candidates: resolvedCandidates.length,
-          uri: typeof resolvedSource === "object" ? resolvedSource?.uri : undefined,
-          recyclingKey,
         });
         setCandidateIndex((current) =>
           current < resolvedCandidates.length - 1 ? current + 1 : current

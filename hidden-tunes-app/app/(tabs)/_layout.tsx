@@ -1,4 +1,5 @@
-import { memo } from "react";
+import { memo, useEffect } from "react";
+import { InteractionManager } from "react-native";
 import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
@@ -7,7 +8,6 @@ import { StyleSheet, View } from "react-native";
 import MiniPlayer from "../../components/MiniPlayer";
 import PerformanceOverlay from "../../components/PerformanceOverlay";
 import { runTabShellStartup } from "../../services/startupCoordinator";
-import { scheduleStartupTask } from "../../utils/startupScheduler";
 
 type TabIconProps = {
   focused: boolean;
@@ -52,27 +52,30 @@ function queueTabShellStartup() {
   if (tabShellStartupQueued) return;
   tabShellStartupQueued = true;
 
-  scheduleStartupTask("afterPaint", "tab_shell_startup", () => {
-    runTabShellStartup();
+  InteractionManager.runAfterInteractions(() => {
+    setTimeout(() => {
+      runTabShellStartup();
+    }, 0);
   });
 }
 
-queueTabShellStartup();
-
 export default function TabLayout() {
+  useEffect(() => {
+    queueTabShellStartup();
+  }, []);
+
   return (
     <>
       <Tabs
         screenOptions={{
           headerShown: false,
-
+          lazy: true,
+          freezeOnBlur: true,
           tabBarActiveTintColor: "#ffffff",
           tabBarInactiveTintColor: "#7e7e7e",
-
           tabBarBackground: () => (
             <BlurView intensity={76} tint="dark" style={styles.tabBarBackground} />
           ),
-
           tabBarStyle: styles.tabBar,
           tabBarLabelStyle: styles.tabBarLabel,
           tabBarItemStyle: styles.tabBarItem,
@@ -82,6 +85,7 @@ export default function TabLayout() {
           name="index"
           options={{
             title: "Home",
+            lazy: false,
             tabBarIcon: ({ color, focused }) => (
               <MemoTabIcon
                 focused={focused}

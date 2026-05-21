@@ -3,7 +3,6 @@ import { FlatList, FlatListProps, StyleProp, ViewStyle } from "react-native";
 
 import {
   createStableKeyExtractor,
-  getHomeNestedListSettings,
   getListPerformanceSettings,
   getNestedSongListLayout,
   markFastScrolling,
@@ -18,7 +17,6 @@ type NestedSongListProps<T> = {
   renderItem: NonNullable<FlatListProps<T>["renderItem"]>;
   contentContainerStyle?: StyleProp<ViewStyle>;
   ListFooterComponent?: FlatListProps<T>["ListFooterComponent"];
-  compact?: boolean;
 };
 
 function NestedSongListInner<T>({
@@ -29,16 +27,9 @@ function NestedSongListInner<T>({
   renderItem,
   contentContainerStyle,
   ListFooterComponent,
-  compact = false,
 }: NestedSongListProps<T>) {
   const mountStartedAt = useRef(Date.now()).current;
-  const tuning = useMemo(
-    () =>
-      compact
-        ? getHomeNestedListSettings(data.length)
-        : getListPerformanceSettings(data.length),
-    [compact, data.length]
-  );
+  const tuning = useMemo(() => getListPerformanceSettings(data.length), [data.length]);
   const getItemLayout = useMemo(
     () => getNestedSongListLayout(itemHeight),
     [itemHeight]

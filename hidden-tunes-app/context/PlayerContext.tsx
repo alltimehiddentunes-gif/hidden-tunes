@@ -71,7 +71,6 @@ import {
   logPauseResumeComplete,
   logPauseResumeStart,
   logPlaybackStarted,
-  logPlaybackStatusForProfiling,
   logPlaybackStalled,
   logQueueIndexMismatch,
   logRepeatModeState,
@@ -80,30 +79,9 @@ import {
   logTrackFinished,
 } from "../utils/playbackDiagnostics";
 import {
-  attachPlaybackProfileContext,
-  attachPlaybackPressureSnapshot,
-  beginPlaybackProfilePlayAsync,
-  beginPlaybackProfileSideEffects,
-  classifyPlaybackSource,
-  completePlaybackProfilePlayAsync,
-  completePlaybackProfileSideEffects,
-  markPlaybackProfileDuration,
-  markPlaybackProfileMilestone,
-  parseAudioUrlHost,
-} from "../utils/playbackStartupProfiling";
-import {
-  markPlaybackStartupPhase,
   recordQueueControl,
   updateActiveQueueLength,
 } from "../utils/playbackStressDiagnostics";
-import {
-  beginPlaybackStartup,
-  endPlaybackStartup,
-  noteAudioPreloadFinished,
-  noteAudioPreloadStarted,
-  scheduleAfterPlaybackConfirmed,
-  shouldAllowAudioPreload,
-} from "../utils/playbackStartupGate";
 import {
   rebuildQueueFromAvailableContext,
   repairQueueIndexForSong,
@@ -350,7 +328,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const preloadedSoundRef = useRef<Audio.Sound | null>(null);
   const preloadedSongIdRef = useRef<string | null>(null);
   const preloadInFlightRef = useRef(false);
-  const audioModeConfiguredRef = useRef(false);
   const pendingSmartExtendRef = useRef(false);
   const trackPlayerActiveRef = useRef(false);
   const handleTrackFinishedRef = useRef<(() => Promise<void>) | null>(null);
@@ -666,8 +643,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, [youtubeQueue, normalizeYouTubeTrack]);
 
   const configureAudio = useCallback(async () => {
-    if (audioModeConfiguredRef.current) return;
-
     try {
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: false,
@@ -678,7 +653,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         shouldDuckAndroid: false,
         playThroughEarpieceAndroid: false,
       });
-      audioModeConfiguredRef.current = true;
     } catch (error) {
       console.log("Configure audio error:", error);
     }
@@ -799,35 +773,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     [saveCurrentSong, saveRecentlyPlayed]
   );
 
-  const savePlaybackSideEffectsDeferred = useCallback(
-    (song: AppSong) => {
-      scheduleAfterPlaybackConfirmed(() => {
-        savePlaybackSideEffects(song);
-      });
-    },
-    [savePlaybackSideEffects]
-  );
-
-  const commitActiveQueuePlaybackRefs = useCallback(
-    (queue: AppSong[], index: number, mode: ActiveQueueMode) => {
-      const normalizedQueue = queue
-        .map(normalizeSong)
-        .filter((song) => !isYouTubeSong(song));
-
-      if (!normalizedQueue.length) return null;
-
-      const safeIndex = Math.max(0, Math.min(index, normalizedQueue.length - 1));
-
-      activeQueueRef.current = normalizedQueue;
-      activeQueueIndexRef.current = safeIndex;
-      activeQueueModeRef.current = mode;
-      updateActiveQueueLength(normalizedQueue.length);
-
-      return { normalizedQueue, safeIndex };
-    },
-    [normalizeSong, isYouTubeSong]
-  );
-
   const persistActiveQueue = useCallback(
     async (queue: AppSong[], index: number, mode: ActiveQueueMode) => {
       try {
@@ -882,36 +827,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       await saveSmartQueue(normalizedQueue as any);
     },
     [normalizeSong, isYouTubeSong, persistActiveQueue]
-  );
-
-  const commitActiveQueueStateDeferred = useCallback(
-    (
-      queue: AppSong[],
-      index: number,
-      mode: ActiveQueueMode,
-      options: { syncSmartQueue?: boolean } = {}
-    ) => {
-      const snapshot = commitActiveQueuePlaybackRefs(queue, index, mode);
-      if (!snapshot) return;
-
-      const { normalizedQueue, safeIndex } = snapshot;
-
-      scheduleAfterPlaybackConfirmed(async () => {
-        setActiveQueue((previousQueue) => {
-          const changed = !areSongQueuesEqual(previousQueue, normalizedQueue);
-          recordQueueReferenceChange("activeQueue", changed);
-          return changed ? normalizedQueue : previousQueue;
-        });
-        setActiveQueueIndex(safeIndex);
-        setActiveQueueMode(mode);
-        await persistActiveQueue(normalizedQueue, safeIndex, mode);
-
-        if (options.syncSmartQueue) {
-          await saveSmartQueue(normalizedQueue as any);
-        }
-      });
-    },
-    [commitActiveQueuePlaybackRefs, persistActiveQueue]
   );
 
   const persistYouTubeQueue = useCallback(
@@ -1064,16 +979,15 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       activeQueueIndexRef.current = index;
 
       if (runSideEffects) {
-        savePlaybackSideEffectsDeferred(song);
+        savePlaybackSideEffects(song);
       }
     },
-    [getActiveQueuePlaybackState, normalizeSong, savePlaybackSideEffectsDeferred]
+    [getActiveQueuePlaybackState, normalizeSong, savePlaybackSideEffects]
   );
 
   const preloadUpcomingTrack = useCallback(
     async (upcomingSong: AppSong) => {
       if (trackPlayerActiveRef.current) return;
-      if (!shouldAllowAudioPreload()) return;
       if (preloadInFlightRef.current) return;
       if (preloadedSongIdRef.current === upcomingSong.id) return;
 
@@ -1082,12 +996,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       if (!playableUri && !upcomingSong.audio) return;
 
       preloadInFlightRef.current = true;
-      noteAudioPreloadStarted();
 
       try {
-        if (preloadedSongIdRef.current && preloadedSongIdRef.current !== upcomingSong.id) {
-          await clearPreloadedSound();
-        }
+        await clearPreloadedSound();
 
         const source = upcomingSong.audio
           ? upcomingSong.audio
@@ -1112,7 +1023,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         console.log("Preload upcoming track error:", error);
       } finally {
         preloadInFlightRef.current = false;
-        noteAudioPreloadFinished();
       }
     },
     [clearPreloadedSound, getPlayableUri]
@@ -1552,15 +1462,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       if (trackPlayerActiveRef.current) return;
       if (!status.isLoaded) return;
 
-      logPlaybackStatusForProfiling(
-        {
-          isLoaded: status.isLoaded,
-          isPlaying: status.isPlaying,
-          positionMillis: status.positionMillis,
-        },
-        currentSongRef.current?.id
-      );
-
       const nextPosition = status.positionMillis || 0;
       const nextDuration = status.durationMillis || 0;
       const nextIsPlaying = status.isPlaying || false;
@@ -1629,7 +1530,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       ) {
         const upcomingSong = getUpcomingSong();
 
-        if (upcomingSong && shouldAllowAudioPreload()) {
+        if (upcomingSong) {
           void preloadUpcomingTrack(upcomingSong);
         }
       }
@@ -1655,10 +1556,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const loadAndPlay = useCallback(
     async (song: AppSong) => {
       let requestId = 0;
-
-      beginPlaybackStartup();
-      markPlaybackProfileMilestone("loadAndPlay_enter_ms");
-      attachPlaybackPressureSnapshot();
 
       try {
         const normalizedSong = normalizeSong(song);
@@ -1806,40 +1703,28 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           return;
         }
 
-        const audioModeStartedAt = Date.now();
-        const audioModeWasCached = audioModeConfiguredRef.current;
         void configureAudio();
-        markPlaybackProfileDuration("audio_mode_ms", Date.now() - audioModeStartedAt, {
-          cached: audioModeWasCached,
-          songId: normalizedSong.id,
-        });
 
-        const previousSongId = currentSongRef.current?.id;
-
-        currentSongRef.current = normalizedSong;
         setCurrentSong(normalizedSong);
-        positionMillisRef.current = 0;
-        durationMillisRef.current = 0;
+        currentSongRef.current = normalizedSong;
+        setIsPlaying(true);
+        setPositionMillis(0);
+        setDurationMillis(0);
 
-        const sourceResolveStartedAt = Date.now();
+        if (
+          preloadedSongIdRef.current &&
+          preloadedSongIdRef.current !== normalizedSong.id
+        ) {
+          await clearPreloadedSound();
+        }
+
+        await unloadCurrentSound();
+
+        if (loadRequestIdRef.current !== requestId || !isMountedRef.current) {
+          return;
+        }
+
         const playableUri = getPlayableUri(normalizedSong);
-        const sourceResolutionMs = Date.now() - sourceResolveStartedAt;
-        const playbackSourceType = classifyPlaybackSource(normalizedSong, playableUri);
-        const audioUrlHost = parseAudioUrlHost(playableUri);
-
-        markPlaybackStartupPhase("source_resolution_ms", sourceResolutionMs, {
-          songId: normalizedSong.id,
-        });
-        markPlaybackProfileDuration("source_resolution_ms", sourceResolutionMs, {
-          songId: normalizedSong.id,
-          playbackSourceType,
-          audioUrlHost,
-        });
-        attachPlaybackProfileContext({
-          audioUrlHost,
-          playbackSourceType,
-          queueLength: activeQueueRef.current.length,
-        });
 
         const source = normalizedSong.audio
           ? normalizedSong.audio
@@ -1864,39 +1749,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         const progressUpdateIntervalMillis = getProgressUpdateIntervalMs(
           appStateRef.current
         );
-
-        const needsUnload =
-          Boolean(soundRef.current) && previousSongId !== normalizedSong.id;
-
-        if (
-          preloadedSongIdRef.current &&
-          preloadedSongIdRef.current !== normalizedSong.id
-        ) {
-          await clearPreloadedSound();
-        }
-
-        if (needsUnload) {
-          const unloadStartedAt = Date.now();
-          await unloadCurrentSound();
-          markPlaybackProfileDuration(
-            "unload_previous_sound_ms",
-            Date.now() - unloadStartedAt,
-            { songId: normalizedSong.id, neededUnload: true }
-          );
-        } else {
-          markPlaybackProfileDuration("unload_previous_sound_ms", 0, {
-            songId: normalizedSong.id,
-            neededUnload: false,
-          });
-        }
-
-        if (loadRequestIdRef.current !== requestId || !isMountedRef.current) {
-          return;
-        }
-
-        const audioCreateStartedAt = Date.now();
         let sound = await takePreloadedSound(normalizedSong.id);
-        const usedPreloaded = Boolean(sound);
 
         if (sound) {
           sound.setOnPlaybackStatusUpdate(handlePlaybackStatusUpdate);
@@ -1904,11 +1757,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             progressUpdateIntervalMillis,
             volume: isMutedRef.current ? 0 : volumeRef.current,
           });
-          beginPlaybackProfilePlayAsync();
           await sound.playAsync();
-          completePlaybackProfilePlayAsync({ preloaded: true });
         } else {
-          beginPlaybackProfilePlayAsync();
           const created = await Audio.Sound.createAsync(
             source,
             {
@@ -1919,28 +1769,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             handlePlaybackStatusUpdate
           );
           sound = created.sound;
-          completePlaybackProfilePlayAsync({
-            preloaded: false,
-            playIncludedInCreate: true,
-          });
         }
-
-        const audioObjectCreateMs = Date.now() - audioCreateStartedAt;
-
-        markPlaybackStartupPhase("audio_object_create_ms", audioObjectCreateMs, {
-          songId: normalizedSong.id,
-          preloaded: usedPreloaded,
-        });
-        markPlaybackProfileDuration("audio_object_create_ms", audioObjectCreateMs, {
-          songId: normalizedSong.id,
-          usedPreloadedSound: usedPreloaded,
-        });
-        attachPlaybackProfileContext({
-          usedPreloadedSound: usedPreloaded,
-          skippedSameTrackReload: false,
-        });
-
-        const playbackBeginStartedAt = Date.now();
 
         if (loadRequestIdRef.current !== requestId || !isMountedRef.current) {
           sound.setOnPlaybackStatusUpdate(null);
@@ -1954,65 +1783,39 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         }
 
         soundRef.current = sound;
-        setIsPlaying(true);
-        setPositionMillis(0);
-        setDurationMillis(0);
-
-        markPlaybackStartupPhase(
-          "playback_begin_ms",
-          Date.now() - playbackBeginStartedAt,
-          { songId: normalizedSong.id, preloaded: usedPreloaded }
-        );
-
         logAudioLoadSuccess({
           songId: normalizedSong.id,
           requestId,
-          preloaded: usedPreloaded,
+          preloaded: preloadedSongIdRef.current === normalizedSong.id,
         });
+
+        try {
+          const savedPosition = await AsyncStorage.getItem(POSITION_KEY);
+
+          if (savedPosition && shouldRestorePosition) {
+            const millis = Number(savedPosition);
+
+            if (!Number.isNaN(millis) && millis > 0) {
+              await sound.setPositionAsync(millis);
+              positionMillisRef.current = millis;
+              setPositionMillisState(millis);
+            }
+          }
+        } catch (error) {
+          console.log("Restore playback position error:", error);
+        }
+
+        if (loadRequestIdRef.current !== requestId || !isMountedRef.current) {
+          return;
+        }
+
+        setIsPlaying(true);
         logPlaybackStarted({
           songId: normalizedSong.id,
           requestId,
-          engine: "expo_av",
         });
-
-        logPlaybackStatusForProfiling(
-          {
-            isLoaded: true,
-            isPlaying: true,
-            positionMillis: 0,
-          },
-          normalizedSong.id
-        );
-
-        scheduleAfterPlaybackConfirmed(async () => {
-          beginPlaybackProfileSideEffects();
-
-          try {
-            const savedPosition = await AsyncStorage.getItem(POSITION_KEY);
-
-            if (savedPosition && shouldRestorePosition) {
-              const millis = Number(savedPosition);
-
-              if (!Number.isNaN(millis) && millis > 0 && soundRef.current) {
-                await soundRef.current.setPositionAsync(millis);
-                positionMillisRef.current = millis;
-                setPositionMillisState(millis);
-              }
-            }
-          } catch (error) {
-            console.log("Restore playback position error:", error);
-          }
-
-          savePlaybackSideEffectsDeferred(normalizedSong);
-          await applyProgressUpdateInterval();
-
-          const upcomingSong = getUpcomingSong();
-          if (upcomingSong) {
-            void preloadUpcomingTrack(upcomingSong);
-          }
-
-          completePlaybackProfileSideEffects({ songId: normalizedSong.id });
-        });
+        savePlaybackSideEffects(normalizedSong);
+        await applyProgressUpdateInterval();
       } catch (error) {
         console.log("Load and play error:", error);
         logAudioLoadFailure({
@@ -2021,8 +1824,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         });
         setIsPlaying(false);
       } finally {
-        endPlaybackStartup();
-
         if (isMountedRef.current) {
           setIsLoading(false);
         }
@@ -2049,12 +1850,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       setIsPlaying,
       setPositionMillis,
       setDurationMillis,
-      savePlaybackSideEffectsDeferred,
+      savePlaybackSideEffects,
       removeStoredValues,
       configureAudio,
       clearFinishWatchdog,
-      getUpcomingSong,
-      preloadUpcomingTrack,
     ]
   );
 
@@ -2255,9 +2054,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       radioModeRef.current = false;
       void setStoredValueIfChanged(RADIO_MODE_KEY, "false");
 
-      commitActiveQueueStateDeferred(nativeQueue, safeIndex, "standard", {
-        syncSmartQueue: true,
-      });
+      void syncActiveQueue(nativeQueue, safeIndex, "standard");
       void removeStoredValues([POSITION_KEY]);
 
       const selectedSong = nativeQueue[safeIndex];
@@ -2273,11 +2070,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             }
 
             setIsPlaying(true);
-            logPlaybackStarted({
-              songId: selectedSong.id,
-              engine: "expo_av_resume",
-            });
-            savePlaybackSideEffectsDeferred(selectedSong);
+            savePlaybackSideEffects(selectedSong);
             return;
           }
         } catch {}
@@ -2289,12 +2082,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       normalizeSong,
       isYouTubeSong,
       setStoredValueIfChanged,
-      commitActiveQueuePlaybackRefs,
-      commitActiveQueueStateDeferred,
+      syncActiveQueue,
       removeStoredValues,
       loadAndPlay,
       setIsPlaying,
-      savePlaybackSideEffectsDeferred,
+      savePlaybackSideEffects,
     ]
   );
 
@@ -2328,8 +2120,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      const queuePrepareStartedAt = Date.now();
-
       if (queue?.length) {
         const nativeQueue = queue
           .map(normalizeSong)
@@ -2350,12 +2140,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           });
         }
 
-        markPlaybackProfileDuration(
-          "queue_prepare_ms",
-          Date.now() - queuePrepareStartedAt,
-          { songId: normalizedSong.id, queueLength: nativeQueue.length }
-        );
-
         recordQueueControl("play_song", nativeQueue.length, {
           songId: normalizedSong.id,
         });
@@ -2370,30 +2154,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           const status = await currentLoadedSound.getStatusAsync();
 
           if (status.isLoaded) {
-            markPlaybackProfileDuration(
-              "queue_prepare_ms",
-              Date.now() - queuePrepareStartedAt,
-              { songId: normalizedSong.id, path: "same_track_resume" }
-            );
-
             if (!status.isPlaying) {
-              beginPlaybackProfilePlayAsync();
               await currentLoadedSound.playAsync();
-              completePlaybackProfilePlayAsync({ resumed: true });
             }
 
             setIsPlaying(true);
-            attachPlaybackProfileContext({
-              skippedSameTrackReload: true,
-              usedPreloadedSound: true,
-              queueLength: activeQueueRef.current.length,
-            });
-            markPlaybackProfileMilestone("loadAndPlay_enter_ms");
-            logPlaybackStarted({
-              songId: normalizedSong.id,
-              engine: "expo_av_resume",
-            });
-            savePlaybackSideEffectsDeferred(normalizedSong);
+            savePlaybackSideEffects(normalizedSong);
             return;
           }
         } catch {}
@@ -2434,38 +2200,25 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
       const existingIndex = repaired.index;
 
-      markPlaybackProfileDuration(
-        "queue_prepare_ms",
-        Date.now() - queuePrepareStartedAt,
-        { songId: normalizedSong.id, queueLength: existingQueue.length }
-      );
-
-      const stateCommitStartedAt = Date.now();
-
       if (existingQueue.length) {
-        commitActiveQueuePlaybackRefs(
-          existingQueue,
-          existingIndex,
-          activeQueueModeRef.current
-        );
-        commitActiveQueueStateDeferred(
-          existingQueue,
-          existingIndex,
-          activeQueueModeRef.current,
-          { syncSmartQueue: rebuilt.rebuilt }
-        );
+        if (rebuilt.rebuilt) {
+          await syncActiveQueue(
+            existingQueue,
+            existingIndex,
+            activeQueueModeRef.current
+          );
+        } else {
+          setActiveQueueIndex(existingIndex);
+          activeQueueIndexRef.current = existingIndex;
+          void persistActiveQueue(
+            existingQueue,
+            existingIndex,
+            activeQueueModeRef.current
+          );
+        }
       } else {
-        commitActiveQueuePlaybackRefs([normalizedSong], 0, "standard");
-        commitActiveQueueStateDeferred([normalizedSong], 0, "standard", {
-          syncSmartQueue: true,
-        });
+        void syncActiveQueue([normalizedSong], 0, "standard");
       }
-
-      markPlaybackProfileDuration(
-        "state_commit_before_audio_ms",
-        Date.now() - stateCommitStartedAt,
-        { songId: normalizedSong.id, queueLength: existingQueue.length || 1 }
-      );
 
       void removeStoredValues([POSITION_KEY]);
       await loadAndPlay(normalizedSong);
@@ -2474,10 +2227,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       normalizeSong,
       isYouTubeSong,
       playQueue,
-      commitActiveQueuePlaybackRefs,
-      commitActiveQueueStateDeferred,
+      persistActiveQueue,
+      syncActiveQueue,
       removeStoredValues,
       loadAndPlay,
+      setIsPlaying,
+      savePlaybackSideEffects,
     ]
   );
 

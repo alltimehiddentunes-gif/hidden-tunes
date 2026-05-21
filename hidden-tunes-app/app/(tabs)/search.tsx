@@ -61,7 +61,6 @@ import {
   logCacheResult,
   logPerformanceSummary,
   logScreenReady,
-  beginUserTapToPlay,
   logTapToPlay,
   startPerformanceTimer,
 } from "../../utils/performanceLogs";
@@ -1046,8 +1045,8 @@ export default function SearchScreen() {
         return;
       }
 
+      const tapStartedAt = startPerformanceTimer();
       const normalizedTrack = normalizeNativeResult(item);
-      const tapStartedAt = beginUserTapToPlay("search", normalizedTrack.id);
       const queue = playableResults.length > 0 ? playableResults : cloudSongs;
 
       const startIndex = Math.max(

@@ -1,12 +1,4 @@
-import {
-  memo,
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { Fragment, memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
@@ -26,9 +18,8 @@ import { useFocusEffect, useScrollToTop } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 
+import CatalogSongRow from "../../components/catalog/CatalogSongRow";
 import NestedSongList from "../../components/catalog/NestedSongList";
-import { HomeAlbumCard, HomeArtistCard } from "../../components/home/HomeMediaCards";
-import HomeSongRow from "../../components/home/HomeSongRow";
 import MediaCard from "../../components/MediaCard";
 import NeonEQ from "../../components/NeonEQ";
 import HTImage from "../../components/HTImage";
@@ -69,16 +60,12 @@ import { FALLBACK_ARTWORK, getArtworkUri } from "../../utils/artwork";
 import {
   logApiRefresh,
   logCacheResult,
-  beginUserTapToPlay,
+  logPerformanceSummary,
+  logScreenReady,
   logTapToPlay,
   startPerformanceTimer,
 } from "../../utils/performanceLogs";
-import {
-  logHomeApiRefresh,
-  markHomePrimaryReady,
-  startHomePerfTimer,
-} from "../../utils/homePerformance";
-import { beginRenderProbe } from "../../utils/renderDiagnostics";
+import { trackRenderProbe } from "../../utils/renderDiagnostics";
 import {
   LIST_ITEM_HEIGHTS,
   getHorizontalListPerformanceSettings,
@@ -184,8 +171,7 @@ function HomeScreen() {
   const scrollRef = useRef<ScrollView>(null);
   const heroListRef = useRef<FlatList<HeroCard>>(null);
   const heroIndexRef = useRef(0);
-  const screenStartedAt = useRef(startHomePerfTimer()).current;
-  const currentSongId = currentSong?.id ? String(currentSong.id) : "";
+  const screenStartedAt = useRef(startPerformanceTimer()).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(18)).current;
   const heroScale = useRef(new Animated.Value(0.96)).current;
@@ -208,17 +194,23 @@ function HomeScreen() {
   const [deferredSectionsReady, setDeferredSectionsReady] = useState(false);
   const deferredSectionsScheduledRef = useRef(false);
 
-  useLayoutEffect(() => beginRenderProbe("HomeScreen"), []);
+  useEffect(() => trackRenderProbe("HomeScreen"), []);
 
   useEffect(() => {
     if (!initialFeaturedSongsRef.current.length) return;
 
+    markFirstCachedContentVisible("home");
     recordSnapshotFallbackUsage("home", initialFeaturedSongsRef.current.length);
     recordOfflineCacheStartup("home", initialFeaturedSongsRef.current.length);
-    markHomePrimaryReady(screenStartedAt, {
-      cache: "memory",
+    logScreenReady("home", screenStartedAt, {
+      cache: "hit",
       count: initialFeaturedSongsRef.current.length,
       source: "memory_snapshot",
+    });
+    logPerformanceSummary("home", {
+      cache: "hit",
+      firstContentMs: Date.now() - screenStartedAt,
+      itemCount: initialFeaturedSongsRef.current.length,
     });
   }, [screenStartedAt]);
 
@@ -260,37 +252,34 @@ function HomeScreen() {
             applyFeaturedSongs(memorySnapshot);
             setLoadingSongs(false);
             showedCachedCatalog = true;
+            markFirstCachedContentVisible("home");
             recordSnapshotFallbackUsage("home", memorySnapshot.length);
             recordOfflineCacheStartup("home", memorySnapshot.length);
             logCacheResult("home", true, {
               count: memorySnapshot.length,
               source: "memory",
             });
-            markHomePrimaryReady(screenStartedAt, {
-              cache: "memory",
-              count: memorySnapshot.length,
-              source: "memory_snapshot",
-            });
           }
 
-          void hydrateHiddenTunesCatalogCache().then((cached) => {
-            if (!cached.length) return;
+          const cached = await hydrateHiddenTunesCatalogCache();
 
+          if (cached.length) {
             applyFeaturedSongs(cached);
             setLoadingSongs(false);
+            showedCachedCatalog = true;
+            markFirstCachedContentVisible("home");
             recordOfflineCacheStartup("home", cached.length);
             logCacheResult("home", true, { count: cached.length });
-
-            if (!showedCachedCatalog) {
-              markHomePrimaryReady(screenStartedAt, {
-                cache: "storage",
-                count: cached.length,
-                source: "storage_hydrate",
-              });
-            }
-          });
-
-          if (showLoader && !showedCachedCatalog) {
+            logScreenReady("home", screenStartedAt, {
+              cache: "hit",
+              count: cached.length,
+            });
+            logPerformanceSummary("home", {
+              cache: "hit",
+              firstContentMs: Date.now() - screenStartedAt,
+              itemCount: cached.length,
+            });
+          } else if (showLoader && !showedCachedCatalog) {
             setLoadingSongs(true);
             logCacheResult("home", false);
           }
@@ -312,17 +301,19 @@ function HomeScreen() {
             forceRefresh,
           });
           markFirstApiRefreshComplete("home", refreshMs);
-          logHomeApiRefresh(refreshStart, {
+          logPerformanceSummary("home", {
             cache: showedCachedCatalog ? "hit" : "miss",
-            count: songs.length,
-            forceRefresh,
+            apiRefreshMs: refreshMs,
+            itemCount: songs.length,
+            emptyStateReason: songs.length
+              ? "content_available"
+              : "cache_api_and_fallback_empty",
           });
 
           if (!showedCachedCatalog) {
-            markHomePrimaryReady(screenStartedAt, {
+            logScreenReady("home", screenStartedAt, {
               cache: "miss",
               count: songs.length,
-              source: "api_refresh",
             });
           }
 
@@ -366,28 +357,35 @@ function HomeScreen() {
   );
 
   useEffect(() => {
-    loadFeaturedSongs(true);
+    const interactionHandle = InteractionManager.runAfterInteractions(() => {
+      requestAnimationFrame(() => {
+        void loadFeaturedSongs(true);
 
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 420,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 420,
-        useNativeDriver: true,
-      }),
-      Animated.spring(heroScale, {
-        toValue: 1,
-        friction: 9,
-        tension: 55,
-        useNativeDriver: true,
-      }),
-    ]).start();
+        Animated.parallel([
+          Animated.timing(fadeAnim, {
+            toValue: 1,
+            duration: 420,
+            useNativeDriver: true,
+          }),
+          Animated.timing(slideAnim, {
+            toValue: 0,
+            duration: 420,
+            useNativeDriver: true,
+          }),
+          Animated.spring(heroScale, {
+            toValue: 1,
+            friction: 9,
+            tension: 55,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      });
+    });
 
-  }, [fadeAnim, heroGlowAnim, heroScale, loadFeaturedSongs, slideAnim]);
+    return () => {
+      interactionHandle.cancel();
+    };
+  }, [fadeAnim, heroScale, loadFeaturedSongs, slideAnim]);
 
   useFocusEffect(
     useCallback(() => {
@@ -434,86 +432,58 @@ function HomeScreen() {
     await loadFeaturedSongs(false, true);
   }, [loadFeaturedSongs]);
 
-  const preferenceMaps = useMemo(() => {
-    if (!deferredSectionsReady) {
-      return buildListenerPreferenceMaps([], []);
-    }
+  const preferenceMaps = useMemo(
+    () =>
+      buildListenerPreferenceMaps(
+        Array.isArray(recentlyPlayed) ? (recentlyPlayed as any) : [],
+        Array.isArray(favorites) ? (favorites as any) : []
+      ),
+    [favorites, recentlyPlayed]
+  );
 
-    return buildListenerPreferenceMaps(
-      Array.isArray(recentlyPlayed) ? (recentlyPlayed as any) : [],
-      Array.isArray(favorites) ? (favorites as any) : []
-    );
-  }, [deferredSectionsReady, favorites, recentlyPlayed]);
+  const rankedSongs = useMemo(
+    () => rankSongsForListener(featuredSongs, preferenceMaps),
+    [featuredSongs, preferenceMaps]
+  );
 
-  const rankedCatalogSongs = useMemo(() => {
-    if (!deferredSectionsReady) {
-      return featuredSongs;
-    }
+  const rankedAlbums = useMemo(
+    () =>
+      rankAlbumsForListener(extractHiddenTunesAlbums(featuredSongs), preferenceMaps),
+    [featuredSongs, preferenceMaps]
+  );
 
-    return rankSongsForListener(featuredSongs, preferenceMaps);
-  }, [deferredSectionsReady, featuredSongs, preferenceMaps]);
+  const rankedArtists = useMemo(
+    () =>
+      rankArtistsForListener(extractHiddenTunesArtists(featuredSongs), preferenceMaps),
+    [featuredSongs, preferenceMaps]
+  );
 
-  const rankedAlbums = useMemo(() => {
-    if (!deferredSectionsReady) return [];
-
-    return rankAlbumsForListener(
-      extractHiddenTunesAlbums(featuredSongs),
-      preferenceMaps
-    );
-  }, [deferredSectionsReady, featuredSongs, preferenceMaps]);
-
-  const rankedArtists = useMemo(() => {
-    if (!deferredSectionsReady) return [];
-
-    return rankArtistsForListener(
-      extractHiddenTunesArtists(featuredSongs),
-      preferenceMaps
-    );
-  }, [deferredSectionsReady, featuredSongs, preferenceMaps]);
-
-  const newestSongs = useMemo(() => {
-    if (!deferredSectionsReady) return featuredSongs.slice(0, 6);
-
-    return buildRecentlyDiscovered(featuredSongs, 12);
-  }, [deferredSectionsReady, featuredSongs]);
-
-  const becauseYouListenedSongs = useMemo(() => {
-    if (!deferredSectionsReady) return [];
-
-    return rankedCatalogSongs.slice(0, 6);
-  }, [deferredSectionsReady, rankedCatalogSongs]);
+  const newestSongs = useMemo(
+    () => buildRecentlyDiscovered(featuredSongs, 12),
+    [featuredSongs]
+  );
 
   const visibleAllSongs = useMemo(
-    () => rankedCatalogSongs.slice(0, visibleSongCount),
-    [rankedCatalogSongs, visibleSongCount]
+    () => rankedSongs.slice(0, visibleSongCount),
+    [rankedSongs, visibleSongCount]
   );
 
   const hasMoreCloudSongs = visibleSongCount < featuredSongs.length;
 
-  const moreLikeThisMood = useMemo(() => {
-    if (!deferredSectionsReady) {
-      return { mood: "", songs: [] as HiddenTunesNormalizedSong[] };
-    }
-
-    return buildMoreLikeThisMood(featuredSongs, currentSong, recentlyPlayed, 6);
-  }, [currentSong, deferredSectionsReady, featuredSongs, recentlyPlayed]);
-
-  const moreLikeMoodSongs = useMemo(
-    () => moreLikeThisMood.songs,
-    [moreLikeThisMood.songs]
+  const moreLikeThisMood = useMemo(
+    () => buildMoreLikeThisMood(featuredSongs, currentSong, recentlyPlayed, 6),
+    [currentSong, featuredSongs, recentlyPlayed]
   );
 
-  const moodRooms = useMemo(() => {
-    if (!deferredSectionsReady) return [];
+  const moodRooms = useMemo(
+    () => buildMoodRooms(featuredSongs, preferenceMaps, 2),
+    [featuredSongs, preferenceMaps]
+  );
 
-    return buildMoodRooms(featuredSongs, preferenceMaps, 2);
-  }, [deferredSectionsReady, featuredSongs, preferenceMaps]);
-
-  const genreSpotlights = useMemo(() => {
-    if (!deferredSectionsReady) return [];
-
-    return buildGenreSpotlights(featuredSongs, preferenceMaps, 2);
-  }, [deferredSectionsReady, featuredSongs, preferenceMaps]);
+  const genreSpotlights = useMemo(
+    () => buildGenreSpotlights(featuredSongs, preferenceMaps, 2),
+    [featuredSongs, preferenceMaps]
+  );
 
   const primaryMoodRoom = moodRooms[0];
   const primaryGenreSpotlight = genreSpotlights[0];
@@ -543,17 +513,23 @@ function HomeScreen() {
   ]);
 
   useEffect(() => {
-    if (!featuredSongs.length) return undefined;
+    if (!featuredSongs.length || !deferredSectionsReady) return undefined;
 
-    return scheduleNavigationPrewarm([
-      ...rankedArtists.slice(0, 2).map((artist) => () => {
-        void getHiddenTunesArtistById(artist.id);
-      }),
-      ...rankedAlbums.slice(0, 2).map((album) => () => {
-        void getHiddenTunesAlbumById(album.id);
-      }),
-    ]);
-  }, [featuredSongs.length, rankedAlbums, rankedArtists]);
+    const interactionHandle = InteractionManager.runAfterInteractions(() => {
+      scheduleNavigationPrewarm([
+        ...rankedArtists.slice(0, 2).map((artist) => () => {
+          void getHiddenTunesArtistById(artist.id);
+        }),
+        ...rankedAlbums.slice(0, 2).map((album) => () => {
+          void getHiddenTunesAlbumById(album.id);
+        }),
+      ]);
+    });
+
+    return () => {
+      interactionHandle.cancel();
+    };
+  }, [deferredSectionsReady, featuredSongs.length, rankedAlbums, rankedArtists]);
 
   useEffect(() => {
     if (!primaryGenreSpotlight?.title) return undefined;
@@ -744,8 +720,8 @@ function HomeScreen() {
 
   const playFeaturedSong = useCallback(
     async (song: HiddenTunesNormalizedSong) => {
+      const tapStartedAt = startPerformanceTimer();
       const normalized = safeSong(song);
-      const tapStartedAt = beginUserTapToPlay("home", normalized.id);
       const queue = dedupeSongs(featuredSongs.map(safeSong));
 
       const startIndex = Math.max(
@@ -896,7 +872,7 @@ function HomeScreen() {
         </View>
       );
     },
-    [currentSongId, handleHeroPress, heroCards.length, isPlaying]
+    [currentSong?.id, handleHeroPress, heroCards.length, isPlaying]
   );
 
   const handleHeroMomentumEnd = useCallback((event: any) => {
@@ -911,30 +887,41 @@ function HomeScreen() {
   }, [heroCards.length]);
 
   const renderCatalogSongItem = useCallback(
-    ({ item }: { item: HiddenTunesNormalizedSong }) => (
-      <HomeSongRow
-        song={item}
-        image={getSongImage(item)}
-        active={currentSongId === String(item.id)}
-        isPlaying={isPlaying}
-        onPress={playFeaturedSong}
-      />
-    ),
-    [currentSongId, isPlaying, playFeaturedSong]
+    ({ item }: { item: HiddenTunesNormalizedSong }) => {
+      const active = currentSong?.id === String(item.id);
+
+      return (
+        <View style={[styles.mediaShell, active && styles.mediaShellActive]}>
+          <CatalogSongRow
+            song={item}
+            image={getSongImage(item)}
+            active={active}
+            isPlaying={isPlaying}
+            onPress={playFeaturedSong}
+          />
+        </View>
+      );
+    },
+    [currentSong?.id, isPlaying, playFeaturedSong]
   );
 
-  const renderHomeArtistItem = useCallback(
-    ({ item }: { item: (typeof rankedArtists)[number] }) => (
-      <HomeArtistCard item={item} />
-    ),
-    []
-  );
+  const renderSongRow = useCallback(
+    (song: HiddenTunesNormalizedSong, sectionId: string) => {
+      const active = currentSong?.id === String(song.id);
 
-  const renderHomeAlbumItem = useCallback(
-    ({ item }: { item: (typeof rankedAlbums)[number] }) => (
-      <HomeAlbumCard item={item} />
-    ),
-    []
+      return (
+        <View style={[styles.mediaShell, active && styles.mediaShellActive]}>
+          <CatalogSongRow
+            song={song}
+            image={getSongImage(song)}
+            active={active}
+            isPlaying={isPlaying}
+            onPress={playFeaturedSong}
+          />
+        </View>
+      );
+    },
+    [currentSong?.id, isPlaying, playFeaturedSong]
   );
 
   const horizontalArtistListTuning = useMemo(
@@ -1018,7 +1005,7 @@ function HomeScreen() {
         </TouchableOpacity>
       );
     },
-    [currentSongId, isPlaying, playFeaturedSong]
+    [currentSong?.id, isPlaying, playFeaturedSong]
   );
 
   return (
@@ -1212,33 +1199,44 @@ function HomeScreen() {
           </TouchableOpacity>
 
           <View style={styles.grid}>
-            <PremiumCard
-              icon="headset"
-              title="Music"
-              color={COLORS.primary}
-              onPress={() => router.push("/music-feed" as any)}
-            />
-
-            <PremiumCard
-              icon="search"
-              title="Search"
-              color={COLORS.cyan}
-              onPress={() => router.push("/search")}
-            />
-
-            <PremiumCard
-              icon="list"
-              title="Queue"
-              color={COLORS.pink}
-              onPress={() => router.push("/queue")}
-            />
-
-            <PremiumCard
-              icon="tv"
-              title="TV"
-              color="#ff0033"
-              onPress={() => router.push("/tv" as any)}
-            />
+            {[
+              {
+                key: "premium-music",
+                icon: "headset" as const,
+                title: "Music",
+                color: COLORS.primary,
+                onPress: () => router.push("/music-feed" as any),
+              },
+              {
+                key: "premium-search",
+                icon: "search" as const,
+                title: "Search",
+                color: COLORS.cyan,
+                onPress: () => router.push("/search"),
+              },
+              {
+                key: "premium-queue",
+                icon: "list" as const,
+                title: "Queue",
+                color: COLORS.pink,
+                onPress: () => router.push("/queue"),
+              },
+              {
+                key: "premium-tv",
+                icon: "tv" as const,
+                title: "TV",
+                color: "#ff0033",
+                onPress: () => router.push("/tv" as any),
+              },
+            ].map((card) => (
+              <PremiumCard
+                key={card.key}
+                icon={card.icon}
+                title={card.title}
+                color={card.color}
+                onPress={card.onPress}
+              />
+            ))}
           </View>
 
           {deferredSectionsReady ? (
@@ -1277,7 +1275,7 @@ function HomeScreen() {
             </>
           ) : null}
 
-          {deferredSectionsReady && becauseYouListenedSongs.length > 0 && (
+          {deferredSectionsReady && rankedSongs.length > 0 && (
             <>
               <View style={styles.sectionRowSmall}>
                 <Text style={styles.sectionTitle}>Because You Listened</Text>
@@ -1287,21 +1285,18 @@ function HomeScreen() {
               </View>
 
               <View style={styles.mediaList}>
-                {becauseYouListenedSongs.map((song) => (
-                  <HomeSongRow
-                    key={`home-listened-${song.id}`}
-                    song={song}
-                    image={getSongImage(song)}
-                    active={currentSongId === String(song.id)}
-                    isPlaying={isPlaying}
-                    onPress={playFeaturedSong}
-                  />
+                {rankedSongs.slice(0, 6).map((song) => (
+                  <Fragment
+                    key={`song-${String(song.id || song.title || song.streamUrl || "track")}-because-you-listened`}
+                  >
+                    {renderSongRow(song, "because-you-listened")}
+                  </Fragment>
                 ))}
               </View>
             </>
           )}
 
-          {deferredSectionsReady && moreLikeMoodSongs.length > 0 && (
+          {deferredSectionsReady && moreLikeThisMood.songs.length > 0 && (
             <>
               <View style={styles.sectionRowSmall}>
                 <Text style={styles.sectionTitle}>More Like This Mood</Text>
@@ -1311,15 +1306,12 @@ function HomeScreen() {
               </View>
 
               <View style={styles.mediaList}>
-                {moreLikeMoodSongs.map((song) => (
-                  <HomeSongRow
-                    key={`home-mood-like-${song.id}`}
-                    song={song}
-                    image={getSongImage(song)}
-                    active={currentSongId === String(song.id)}
-                    isPlaying={isPlaying}
-                    onPress={playFeaturedSong}
-                  />
+                {moreLikeThisMood.songs.map((song) => (
+                  <Fragment
+                    key={`song-${String(song.id || song.title || song.streamUrl || "track")}-more-like-this-mood`}
+                  >
+                    {renderSongRow(song, "more-like-this-mood")}
+                  </Fragment>
                 ))}
               </View>
             </>
@@ -1337,7 +1329,9 @@ function HomeScreen() {
               <FlatList
                 horizontal
                 data={rankedArtists}
-                keyExtractor={(item) => `home-artist-${item.id}`}
+                keyExtractor={(item) =>
+                  `artist-${item.id || item.name}-creators`
+                }
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.artistRow}
                 initialNumToRender={horizontalArtistListTuning.initialNumToRender}
@@ -1347,7 +1341,26 @@ function HomeScreen() {
                   horizontalArtistListTuning.updateCellsBatchingPeriod
                 }
                 removeClippedSubviews
-                renderItem={renderHomeArtistItem}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    activeOpacity={0.88}
+                    style={styles.artistCard}
+                    onPress={() =>
+                      router.push({
+                        pathname: "/artist/[id]",
+                        params: { id: item.id },
+                      } as any)
+                    }
+                  >
+                    <HTImage source={item} style={styles.artistImage} />
+                    <Text numberOfLines={1} style={styles.artistName}>
+                      {item.name}
+                    </Text>
+                    <Text numberOfLines={1} style={styles.artistMeta}>
+                      {item.tracks?.length || 0} songs
+                    </Text>
+                  </TouchableOpacity>
+                )}
               />
             </>
           )}
@@ -1364,7 +1377,9 @@ function HomeScreen() {
               <FlatList
                 horizontal
                 data={rankedAlbums}
-                keyExtractor={(item) => `home-album-${item.id}`}
+                keyExtractor={(item) =>
+                  `album-${item.id || item.title}-albums`
+                }
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.artistRow}
                 initialNumToRender={horizontalAlbumListTuning.initialNumToRender}
@@ -1374,7 +1389,26 @@ function HomeScreen() {
                   horizontalAlbumListTuning.updateCellsBatchingPeriod
                 }
                 removeClippedSubviews
-                renderItem={renderHomeAlbumItem}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    activeOpacity={0.88}
+                    style={styles.albumCard}
+                    onPress={() =>
+                      router.push({
+                        pathname: "/album/[id]",
+                        params: { id: item.id },
+                      } as any)
+                    }
+                  >
+                    <HTImage source={item} style={styles.albumImage} />
+                    <Text numberOfLines={1} style={styles.artistName}>
+                      {item.title}
+                    </Text>
+                    <Text numberOfLines={1} style={styles.artistMeta}>
+                      {item.artist}
+                    </Text>
+                  </TouchableOpacity>
+                )}
               />
             </>
           )}
@@ -1413,7 +1447,9 @@ function HomeScreen() {
             <FlatList
               horizontal
               data={newestSongs}
-              keyExtractor={(item) => `home-featured-${item.id}`}
+              keyExtractor={(item) =>
+                `song-${item.id || item.title}-recently-discovered`
+              }
               showsHorizontalScrollIndicator={false}
               snapToInterval={FEATURED_CARD_WIDTH + 16}
               decelerationRate="fast"
@@ -1431,7 +1467,9 @@ function HomeScreen() {
           ) : null}
 
           {deferredSectionsReady && primaryMoodRoom && (
-            <View>
+            <View
+              key={`section-${primaryMoodRoom.id || primaryMoodRoom.title}`}
+            >
               <TouchableOpacity
                 activeOpacity={0.88}
                 style={styles.sectionRowSmall}
@@ -1453,21 +1491,20 @@ function HomeScreen() {
 
               <View style={styles.mediaList}>
                 {primaryMoodRoom.songs.slice(0, 4).map((song) => (
-                  <HomeSongRow
-                    key={`home-mood-room-${song.id}`}
-                    song={song}
-                    image={getSongImage(song)}
-                    active={currentSongId === String(song.id)}
-                    isPlaying={isPlaying}
-                    onPress={playFeaturedSong}
-                  />
+                  <Fragment
+                    key={`song-${String(song.id || song.title || song.streamUrl || "track")}-mood-rooms`}
+                  >
+                    {renderSongRow(song, "mood-rooms")}
+                  </Fragment>
                 ))}
               </View>
             </View>
           )}
 
           {deferredSectionsReady && primaryGenreSpotlight && (
-            <View>
+            <View
+              key={`section-${primaryGenreSpotlight.id || primaryGenreSpotlight.title}`}
+            >
               <TouchableOpacity
                 activeOpacity={0.88}
                 style={styles.sectionRowSmall}
@@ -1490,14 +1527,11 @@ function HomeScreen() {
 
               <View style={styles.mediaList}>
                 {primaryGenreSpotlight.songs.slice(0, 4).map((song) => (
-                  <HomeSongRow
-                    key={`home-genre-spotlight-${song.id}`}
-                    song={song}
-                    image={getSongImage(song)}
-                    active={currentSongId === String(song.id)}
-                    isPlaying={isPlaying}
-                    onPress={playFeaturedSong}
-                  />
+                  <Fragment
+                    key={`song-${String(song.id || song.title || song.streamUrl || "track")}-genre-spotlights`}
+                  >
+                    {renderSongRow(song, "genre-spotlights")}
+                  </Fragment>
                 ))}
               </View>
             </View>
@@ -1519,7 +1553,6 @@ function HomeScreen() {
                 keyPrefix="home-catalog"
                 renderItem={renderCatalogSongItem}
                 contentContainerStyle={styles.mediaList}
-                compact
               />
             </>
           ) : null}

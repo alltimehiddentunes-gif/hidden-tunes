@@ -1,4 +1,4 @@
-import { logPerformanceEvent } from "./performanceEvents";
+import { logPerformanceEvent } from "./performanceLogs";
 
 type StartupPhase =
   | "critical"
@@ -25,7 +25,7 @@ const scheduledTasks = new Map<string, StartupTaskRecord>();
 const completedTasks: StartupTaskRecord[] = [];
 
 function shouldTrack() {
-  return typeof __DEV__ === "undefined" || __DEV__;
+  return false;
 }
 
 export function markAppMounted(source = "root_layout") {

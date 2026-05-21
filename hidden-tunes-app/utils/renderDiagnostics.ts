@@ -1,64 +1,33 @@
-import { logPerformanceEvent } from "./performanceEvents";
-import { recordHomeRerender } from "./homeRenderDiagnostics";
+import { logPerformanceEvent } from "./performanceLogs";
 
 const LONG_RENDER_MS = 24;
-const MAX_RENDER_PROBE_MS = 800;
 const LONG_LIST_MOUNT_MS = 120;
 
 const renderCounts = new Map<string, number>();
 
 function shouldTrackRenders() {
-  return typeof __DEV__ === "undefined" || __DEV__;
+  return false;
 }
 
-export function beginRenderProbe(componentName: string) {
+export function trackRenderProbe(componentName: string) {
   if (!shouldTrackRenders()) {
     return () => {};
   }
 
   const startedAt = Date.now();
-  const renders = (renderCounts.get(componentName) || 0) + 1;
-  renderCounts.set(componentName, renders);
-
-  if (componentName === "HomeScreen") {
-    recordHomeRerender();
-  }
+  renderCounts.set(componentName, (renderCounts.get(componentName) || 0) + 1);
 
   return () => {
     const durationMs = Date.now() - startedAt;
 
-    if (durationMs >= LONG_RENDER_MS && durationMs <= MAX_RENDER_PROBE_MS) {
+    if (durationMs >= LONG_RENDER_MS) {
       logPerformanceEvent("slow_render", {
         component: componentName,
         durationMs,
-        renders,
+        renders: renderCounts.get(componentName) || 0,
       });
     }
   };
-}
-
-export function trackRenderProbe(componentName: string) {
-  if (!shouldTrackRenders()) return;
-
-  const startedAt = Date.now();
-  const renders = (renderCounts.get(componentName) || 0) + 1;
-  renderCounts.set(componentName, renders);
-
-  if (componentName === "HomeScreen") {
-    recordHomeRerender();
-  }
-
-  requestAnimationFrame(() => {
-    const durationMs = Date.now() - startedAt;
-
-    if (durationMs >= LONG_RENDER_MS && durationMs <= MAX_RENDER_PROBE_MS) {
-      logPerformanceEvent("slow_render", {
-        component: componentName,
-        durationMs,
-        renders,
-      });
-    }
-  });
 }
 
 export function logListMountTiming(
