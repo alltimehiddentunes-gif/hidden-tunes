@@ -47,6 +47,12 @@ const NAV_ITEMS = [
     roles: "all",
   },
   {
+    href: "/admin/tv/discovery",
+    label: "TV Discovery",
+    description: "Seed bulk discovery plans",
+    roles: "all",
+  },
+  {
     href: "/admin/submissions",
     label: "Submissions",
     description: "Artist review queue",
