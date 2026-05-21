@@ -57,8 +57,12 @@ function PerformanceOverlayPanel() {
           {stressDiagnostics.tapToAudioSampleCount})
         </Text>
         <Text style={styles.line}>
-          Next: {diagnostics.avgNextTrackTransitionMs || "—"}ms | Pause:{" "}
-          {diagnostics.avgPauseResumeMs || "—"}ms
+          Create: {stressDiagnostics.avgAudioObjectCreateMs || "—"}ms | Begin:{" "}
+          {stressDiagnostics.avgPlaybackBeginMs || "—"}ms
+        </Text>
+        <Text style={styles.line}>
+          Deferred: {diagnostics.activeDeferredTasks} active /{" "}
+          {diagnostics.startupScheduledTasks} sched
         </Text>
         <Text style={styles.line}>
           Screen: {lastScreen?.screen || "—"} ({lastScreen?.readyMs ?? "—"}ms)
@@ -83,8 +87,13 @@ function PerformanceOverlayPanel() {
               {stressDiagnostics.artworkPrefetchAttempts} tries
             </Text>
             <Text style={styles.line}>
-              Deferred: {diagnostics.activeDeferredTasks} active | Timers:{" "}
-              {stressDiagnostics.activeTimerCount}
+              Deferred: {diagnostics.activeDeferredTasks} active | Rejected:{" "}
+              {diagnostics.deferredTaskRejected} | Paused:{" "}
+              {diagnostics.deferredPauseDuringPlayback}
+            </Text>
+            <Text style={styles.line}>
+              Source resolve: {stressDiagnostics.avgSourceResolutionMs || "—"}ms
+              | Pressure: {diagnostics.startupTaskPressure}
             </Text>
             <Text style={styles.line}>
               Reload window: {diagnostics.audioReloadWindowCount} | Queue stress:{" "}

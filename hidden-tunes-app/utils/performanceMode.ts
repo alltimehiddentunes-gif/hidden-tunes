@@ -1,5 +1,10 @@
 import { AppState } from "react-native";
 
+import {
+  isPlaybackStartupActive,
+  shouldAllowArtworkPrefetch,
+  shouldAllowNonEssentialWork,
+} from "./playbackStartupGate";
 import { recordDeferredTaskScheduled } from "./playbackStressDiagnostics";
 
 type PrewarmTask = () => void | Promise<void>;
@@ -8,7 +13,7 @@ const LARGE_LIST_THRESHOLD = 80;
 const VERY_LARGE_LIST_THRESHOLD = 180;
 const FAST_SCROLL_COOLDOWN_MS = 900;
 const PREWARM_DELAY_MS = 220;
-const PREWARM_TASK_LIMIT = 4;
+const PREWARM_TASK_LIMIT = 2;
 
 let fastScrollingUntil = 0;
 let prewarmToken = 0;
@@ -43,13 +48,18 @@ export function isAppActiveForWork() {
 }
 
 export function shouldRunNonEssentialWork() {
-  return appIsActive && !isFastScrolling();
+  if (!appIsActive || isFastScrolling()) return false;
+
+  return shouldAllowNonEssentialWork();
 }
 
 export function getPrefetchLimit(requested = 4) {
   if (!appIsActive) return 0;
+  if (isPlaybackStartupActive()) return 0;
+  if (!shouldAllowArtworkPrefetch()) return 0;
   if (isFastScrolling()) return Math.min(requested, 1);
-  return requested;
+
+  return Math.min(requested, 2);
 }
 
 export function getListPerformanceSettings(itemCount: number) {
@@ -118,6 +128,8 @@ export function createStableKeyExtractor(prefix: string) {
 }
 
 export function scheduleNavigationPrewarm(tasks: PrewarmTask[]) {
+  if (!shouldRunNonEssentialWork()) return () => {};
+
   recordDeferredTaskScheduled();
 
   prewarmToken += 1;

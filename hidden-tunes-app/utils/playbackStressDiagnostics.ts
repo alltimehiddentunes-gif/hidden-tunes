@@ -40,7 +40,15 @@ let artworkPrefetchQueued = 0;
 
 let deferredTaskScheduled = 0;
 let deferredTaskCompleted = 0;
+let deferredTaskRejected = 0;
+let deferredPauseDuringPlayback = 0;
 let activeTimerCount = 0;
+
+const sourceResolutionSamples: number[] = [];
+const audioObjectCreateSamples: number[] = [];
+const playbackBeginSamples: number[] = [];
+let lastStartupTaskPressure = 0;
+let lastDeferredRunning = 0;
 
 let audioReloadCount = 0;
 let reloadWindowStartedAt = Date.now();
@@ -303,6 +311,58 @@ export function recordDeferredTaskCompleted() {
   deferredTaskCompleted += 1;
 }
 
+export function recordDeferredTaskRejected(name: string, reason: string) {
+  if (!shouldTrack()) return;
+
+  deferredTaskRejected += 1;
+
+  logPerformanceEvent("deferred_task_rejected", {
+    name,
+    reason,
+    totalRejected: deferredTaskRejected,
+  });
+}
+
+export function recordDeferredPauseDuringPlayback(name: string, reason: string) {
+  if (!shouldTrack()) return;
+
+  deferredPauseDuringPlayback += 1;
+
+  logPerformanceEvent("deferred_pause_during_playback", {
+    name,
+    reason,
+    total: deferredPauseDuringPlayback,
+  });
+}
+
+export function recordStartupTaskPressure(tracked: number, running: number) {
+  if (!shouldTrack()) return;
+
+  lastStartupTaskPressure = Math.max(0, tracked);
+  lastDeferredRunning = Math.max(0, running);
+}
+
+export function markPlaybackStartupPhase(
+  phase: "source_resolution_ms" | "audio_object_create_ms" | "playback_begin_ms",
+  durationMs: number,
+  details: Record<string, string | number | boolean | undefined> = {}
+) {
+  if (!shouldTrack()) return;
+
+  if (phase === "source_resolution_ms") {
+    pushSample(sourceResolutionSamples, durationMs);
+  } else if (phase === "audio_object_create_ms") {
+    pushSample(audioObjectCreateSamples, durationMs);
+  } else {
+    pushSample(playbackBeginSamples, durationMs);
+  }
+
+  logPerformanceEvent(phase, {
+    durationMs,
+    ...details,
+  });
+}
+
 export function registerActiveTimer(label: string) {
   if (!shouldTrack()) return;
 
@@ -389,7 +449,19 @@ export function getPlaybackStressDiagnostics() {
     artworkPrefetchQueued,
     deferredTaskScheduled,
     deferredTaskCompleted,
+    deferredTaskRejected,
+    deferredPauseDuringPlayback,
     activeDeferredTasks: Math.max(0, deferredTaskScheduled - deferredTaskCompleted),
+    startupTaskPressure: lastStartupTaskPressure,
+    deferredRunning: lastDeferredRunning,
+    avgSourceResolutionMs: average(sourceResolutionSamples),
+    avgAudioObjectCreateMs: average(audioObjectCreateSamples),
+    avgPlaybackBeginMs: average(playbackBeginSamples),
+    lastSourceResolutionMs:
+      sourceResolutionSamples[sourceResolutionSamples.length - 1] || 0,
+    lastAudioObjectCreateMs:
+      audioObjectCreateSamples[audioObjectCreateSamples.length - 1] || 0,
+    lastPlaybackBeginMs: playbackBeginSamples[playbackBeginSamples.length - 1] || 0,
     activeTimerCount,
     audioReloadCountWindow: audioReloadCount,
     queueLength: lastQueueLength,
@@ -417,7 +489,14 @@ export function resetPlaybackStressDiagnostics() {
   artworkPrefetchQueued = 0;
   deferredTaskScheduled = 0;
   deferredTaskCompleted = 0;
+  deferredTaskRejected = 0;
+  deferredPauseDuringPlayback = 0;
   activeTimerCount = 0;
+  sourceResolutionSamples.length = 0;
+  audioObjectCreateSamples.length = 0;
+  playbackBeginSamples.length = 0;
+  lastStartupTaskPressure = 0;
+  lastDeferredRunning = 0;
   audioReloadCount = 0;
   reloadWindowStartedAt = Date.now();
   lastQueueLength = 0;

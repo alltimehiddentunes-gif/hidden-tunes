@@ -1,7 +1,15 @@
 import { InteractionManager } from "react-native";
 
 import {
+  cancelNonEssentialDeferredTasks,
+  isPlaybackStartupActive,
+  registerDeferredTask,
+  shouldAllowNonEssentialWork,
+  unregisterDeferredTask,
+} from "./playbackStartupGate";
+import {
   recordDeferredTaskCompleted,
+  recordDeferredTaskRejected,
   recordDeferredTaskScheduled,
 } from "./playbackStressDiagnostics";
 import {
@@ -29,6 +37,16 @@ export function scheduleStartupTask(
     return () => {};
   }
 
+  if (phase !== "critical" && isPlaybackStartupActive()) {
+    recordDeferredTaskRejected(name, "playback_startup_active");
+    return () => {};
+  }
+
+  if (phase !== "critical" && !shouldAllowNonEssentialWork()) {
+    recordDeferredTaskRejected(name, "deferred_pressure");
+    return () => {};
+  }
+
   scheduledTaskNames.add(name);
   recordStartupTaskScheduled(name, phase);
   recordDeferredTaskScheduled();
@@ -37,6 +55,13 @@ export function scheduleStartupTask(
 
   const runTask = async () => {
     if (cancelled) return;
+
+    if (phase !== "critical" && isPlaybackStartupActive()) {
+      recordDeferredTaskRejected(name, "playback_startup_at_run");
+      scheduledTaskNames.delete(name);
+      unregisterDeferredTask(name);
+      return;
+    }
 
     const startedAt = Date.now();
 
@@ -47,6 +72,9 @@ export function scheduleStartupTask(
         recordStartupTaskComplete(name, phase, Date.now() - startedAt);
         recordDeferredTaskCompleted();
       }
+
+      scheduledTaskNames.delete(name);
+      unregisterDeferredTask(name);
     }
   };
 
@@ -56,12 +84,19 @@ export function scheduleStartupTask(
 
   const cancel = () => {
     cancelled = true;
+    scheduledTaskNames.delete(name);
+    unregisterDeferredTask(name);
     interactionHandle?.cancel();
     if (timeoutId) clearTimeout(timeoutId);
     if (frameId !== null && typeof cancelAnimationFrame === "function") {
       cancelAnimationFrame(frameId);
     }
   };
+
+  if (!registerDeferredTask(name, cancel)) {
+    scheduledTaskNames.delete(name);
+    return () => {};
+  }
 
   switch (phase) {
     case "critical":
@@ -102,4 +137,8 @@ export function hasStartupTaskScheduled(name: string) {
 
 export function getScheduledStartupTaskCount() {
   return scheduledTaskNames.size;
+}
+
+export function pauseStartupTasksForPlayback() {
+  cancelNonEssentialDeferredTasks("playback_priority");
 }

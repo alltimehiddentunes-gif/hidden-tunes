@@ -188,6 +188,13 @@ export function getPerformanceDiagnostics() {
     audioReloadWindowCount: stressDiagnostics.audioReloadCountWindow,
     offlineCacheStartups: stressDiagnostics.offlineCacheStartupSuccesses,
     stressWarningCount: stressDiagnostics.stressWarnings.length,
+    avgSourceResolutionMs: stressDiagnostics.avgSourceResolutionMs,
+    avgAudioObjectCreateMs: stressDiagnostics.avgAudioObjectCreateMs,
+    avgPlaybackBeginMs: stressDiagnostics.avgPlaybackBeginMs,
+    deferredTaskRejected: stressDiagnostics.deferredTaskRejected,
+    deferredPauseDuringPlayback: stressDiagnostics.deferredPauseDuringPlayback,
+    startupTaskPressure: stressDiagnostics.startupTaskPressure,
+    deferredRunning: stressDiagnostics.deferredRunning,
   };
 }
 
