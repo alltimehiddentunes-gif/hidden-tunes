@@ -1,13 +1,27 @@
 import express from "express";
 import { supabase } from "../services/supabase.js";
+import {
+  createRequestTimer,
+  isRelationEmbedError,
+  logApiError,
+  logApiRequest,
+  logApiSuccess,
+  logApiWarning,
+  logSupabaseError,
+} from "../services/apiDiagnostics.js";
+import { escapeIlikePattern, normalizeArtistFilters } from "../services/queryGuards.js";
 
 const router = express.Router();
 
 const FALLBACK_ARTIST_IMAGE =
   "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=1000";
 
+function asObject(value) {
+  return value && typeof value === "object" && !Array.isArray(value) ? value : null;
+}
+
 function normalizeArtist(row, tracks = []) {
-  const artwork = row.image_url || FALLBACK_ARTIST_IMAGE;
+  const artwork = row?.image_url || FALLBACK_ARTIST_IMAGE;
 
   return {
     id: row.id,
@@ -19,18 +33,23 @@ function normalizeArtist(row, tracks = []) {
     thumbnail: artwork,
     bio: row.bio || "",
     created_at: row.created_at || null,
-    songCount: tracks.length,
-    tracks,
+    songCount: Array.isArray(tracks) ? tracks.length : 0,
+    tracks: Array.isArray(tracks) ? tracks : [],
     albums: [],
   };
 }
 
 function normalizeTrack(row) {
+  if (!row || typeof row !== "object") return null;
+
+  const artists = asObject(row.artists);
+  const albums = asObject(row.albums);
+
   const artwork =
     row.cover_url ||
-    row.albums?.cover_url ||
-    row.albums?.artwork_url ||
-    row.artists?.image_url ||
+    albums?.cover_url ||
+    albums?.artwork_url ||
+    artists?.image_url ||
     FALLBACK_ARTIST_IMAGE;
 
   const audioUrl = row.audio_url || row.url || null;
@@ -39,11 +58,11 @@ function normalizeTrack(row) {
     id: row.id,
     title: row.title || "Untitled",
     slug: row.slug || null,
-    artist: row.artists?.name || "Unknown Artist",
-    artistId: row.artist_id || row.artists?.id || null,
-    album: row.albums?.title || "Singles",
-    albumId: row.album_id || row.albums?.id || null,
-    genre: row.genre || row.albums?.genre || "Hidden Tunes",
+    artist: artists?.name || row.artist_name || row.artist || "Unknown Artist",
+    artistId: row.artist_id || artists?.id || null,
+    album: albums?.title || row.album_title || row.album || "Singles",
+    albumId: row.album_id || albums?.id || null,
+    genre: row.genre || albums?.genre || "Hidden Tunes",
     mood: row.mood || null,
     artwork,
     cover: artwork,
@@ -59,39 +78,169 @@ function normalizeTrack(row) {
   };
 }
 
+const ARTIST_SELECT = `
+  id,
+  name,
+  slug,
+  image_url,
+  bio,
+  created_at
+`;
+
+const TRACK_SELECT_WITH_RELATIONS = `
+  id,
+  title,
+  slug,
+  artist_id,
+  album_id,
+  genre,
+  mood,
+  duration,
+  duration_seconds,
+  url,
+  audio_url,
+  cover_url,
+  artist,
+  artist_name,
+  album,
+  album_title,
+  is_public,
+  created_at,
+  artists (
+    id,
+    name,
+    image_url
+  ),
+  albums (
+    id,
+    title,
+    cover_url,
+    artwork_url,
+    genre
+  )
+`;
+
+const TRACK_SELECT_LITE = `
+  id,
+  title,
+  slug,
+  artist_id,
+  album_id,
+  genre,
+  mood,
+  duration,
+  duration_seconds,
+  url,
+  audio_url,
+  cover_url,
+  artist,
+  artist_name,
+  album,
+  album_title,
+  is_public,
+  created_at
+`;
+
+async function fetchArtistTracks(artistIds) {
+  if (!artistIds.length) {
+    return {
+      songs: [],
+      selectMode: "none",
+      error: null,
+    };
+  }
+
+  const relationRequest = supabase
+    .from("songs")
+    .select(TRACK_SELECT_WITH_RELATIONS)
+    .in("artist_id", artistIds)
+    .eq("is_public", true)
+    .order("created_at", { ascending: false });
+
+  const relationResult = await relationRequest;
+
+  if (!relationResult.error) {
+    return {
+      songs: (relationResult.data || []).map(normalizeTrack).filter(Boolean),
+      selectMode: "relations",
+      error: null,
+    };
+  }
+
+  logSupabaseError("GET /api/artists", relationResult.error, {
+    stage: "artist_tracks_relations",
+    artistCount: artistIds.length,
+  });
+
+  if (!isRelationEmbedError(relationResult.error)) {
+    return {
+      songs: [],
+      selectMode: "relations_failed",
+      error: relationResult.error,
+    };
+  }
+
+  logApiWarning("GET /api/artists", {
+    warning: "artist_tracks_relations_fallback_to_lite",
+    message: relationResult.error.message,
+  });
+
+  const liteResult = await supabase
+    .from("songs")
+    .select(TRACK_SELECT_LITE)
+    .in("artist_id", artistIds)
+    .eq("is_public", true)
+    .order("created_at", { ascending: false });
+
+  if (!liteResult.error) {
+    return {
+      songs: (liteResult.data || []).map(normalizeTrack).filter(Boolean),
+      selectMode: "lite",
+      error: null,
+    };
+  }
+
+  logSupabaseError("GET /api/artists", liteResult.error, {
+    stage: "artist_tracks_lite",
+    artistCount: artistIds.length,
+  });
+
+  return {
+    songs: [],
+    selectMode: "lite_failed",
+    error: liteResult.error,
+  };
+}
+
 router.get("/", async (req, res) => {
+  const timer = createRequestTimer();
+  const filters = normalizeArtistFilters(req.query);
+
+  logApiRequest("GET /api/artists", {
+    filters,
+    page: filters.page,
+    limit: filters.limit,
+    offset: filters.offset,
+  });
+
   try {
-    const limit = Math.min(Math.max(Number(req.query.limit) || 100, 1), 500);
-    const page = Math.max(Number(req.query.page) || 1, 1);
-    const offset = (page - 1) * limit;
-
-    const query = String(req.query.q || req.query.search || "").trim();
-
     let artistRequest = supabase
       .from("artists")
-      .select(
-        `
-        id,
-        name,
-        slug,
-        image_url,
-        bio,
-        created_at
-      `
-      )
+      .select(ARTIST_SELECT)
       .order("name", { ascending: true })
-      .range(offset, offset + limit - 1);
+      .range(filters.offset, filters.offset + filters.limit - 1);
 
-    if (query) {
+    if (filters.search) {
+      const pattern = escapeIlikePattern(filters.search);
       artistRequest = artistRequest.or(
-        `name.ilike.%${query}%,slug.ilike.%${query}%`
+        `name.ilike.%${pattern}%,slug.ilike.%${pattern}%`
       );
     }
 
     const { data: artistRows, error: artistError } = await artistRequest;
 
     if (artistError) {
-      console.error("Artists fetch error:", artistError);
+      logSupabaseError("GET /api/artists", artistError, { stage: "artists" });
 
       return res.status(500).json({
         error: "Failed to fetch artists",
@@ -103,6 +252,14 @@ router.get("/", async (req, res) => {
     const artistIds = artists.map((artist) => artist.id).filter(Boolean);
 
     if (artistIds.length === 0) {
+      logApiSuccess("GET /api/artists", {
+        durationMs: timer.durationMs(),
+        resultCount: 0,
+        filters,
+        trackSelectMode: "none",
+        cacheState: "live_query",
+      });
+
       return res.json({
         success: true,
         count: 0,
@@ -110,55 +267,19 @@ router.get("/", async (req, res) => {
       });
     }
 
-    const { data: songRows, error: songError } = await supabase
-      .from("songs")
-      .select(
-        `
-        id,
-        title,
-        slug,
-        artist_id,
-        album_id,
-        genre,
-        mood,
-        duration,
-        duration_seconds,
-        url,
-        audio_url,
-        cover_url,
-        is_public,
-        created_at,
-        artists (
-          id,
-          name,
-          image_url
-        ),
-        albums (
-          id,
-          title,
-          cover_url,
-          artwork_url,
-          genre
-        )
-      `
-      )
-      .in("artist_id", artistIds)
-      .order("created_at", { ascending: false });
+    const trackResult = await fetchArtistTracks(artistIds);
 
-    if (songError) {
-      console.error("Artist songs fetch error:", songError);
-
-      return res.status(500).json({
-        error: "Failed to fetch artist songs",
-        details: songError.message,
+    if (trackResult.error) {
+      logApiWarning("GET /api/artists", {
+        warning: "partial_catalog_response_without_tracks",
+        message: trackResult.error.message,
+        selectMode: trackResult.selectMode,
       });
     }
 
-    const songs = Array.isArray(songRows) ? songRows.map(normalizeTrack) : [];
-
     const songsByArtistId = new Map();
 
-    songs.forEach((song) => {
+    trackResult.songs.forEach((song) => {
       const key = song.artistId;
       if (!key) return;
 
@@ -173,17 +294,31 @@ router.get("/", async (req, res) => {
       normalizeArtist(artist, songsByArtistId.get(artist.id) || [])
     );
 
+    logApiSuccess("GET /api/artists", {
+      durationMs: timer.durationMs(),
+      resultCount: normalizedArtists.length,
+      trackCount: trackResult.songs.length,
+      filters,
+      trackSelectMode: trackResult.selectMode,
+      partialCatalog: Boolean(trackResult.error),
+      cacheState: "live_query",
+    });
+
     return res.json({
       success: true,
       count: normalizedArtists.length,
       artists: normalizedArtists,
     });
   } catch (error) {
-    console.error("Artists route server error:", error);
+    logApiError("GET /api/artists", {
+      durationMs: timer.durationMs(),
+      message: error?.message || "unknown_error",
+      filters,
+    });
 
     return res.status(500).json({
       error: "Server error",
-      details: error.message,
+      details: error?.message || "Unknown server error",
     });
   }
 });

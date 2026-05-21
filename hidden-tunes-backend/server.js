@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 
 import songsRouter from "./routes/songs.js";
 import artistsRouter from "./routes/artists.js";
+import albumsRouter from "./routes/albums.js";
 import adminUploadRouter from "./routes/adminUpload.js";
 import lyricsRouter from "./routes/lyrics.js";
 
@@ -33,6 +34,7 @@ app.get("/health", (req, res) => {
 
 app.use("/api/songs", songsRouter);
 app.use("/api/artists", artistsRouter);
+app.use("/api/albums", albumsRouter);
 app.use("/api/lyrics", lyricsRouter);
 app.use("/api/admin", adminUploadRouter);
 
