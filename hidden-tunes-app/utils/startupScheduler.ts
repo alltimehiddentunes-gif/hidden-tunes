@@ -1,6 +1,10 @@
 import { InteractionManager } from "react-native";
 
 import {
+  recordDeferredTaskCompleted,
+  recordDeferredTaskScheduled,
+} from "./playbackStressDiagnostics";
+import {
   recordStartupTaskComplete,
   recordStartupTaskScheduled,
 } from "./startupDiagnostics";
@@ -27,6 +31,7 @@ export function scheduleStartupTask(
 
   scheduledTaskNames.add(name);
   recordStartupTaskScheduled(name, phase);
+  recordDeferredTaskScheduled();
 
   let cancelled = false;
 
@@ -40,6 +45,7 @@ export function scheduleStartupTask(
     } finally {
       if (!cancelled) {
         recordStartupTaskComplete(name, phase, Date.now() - startedAt);
+        recordDeferredTaskCompleted();
       }
     }
   };
@@ -92,4 +98,8 @@ export function scheduleStartupTask(
 
 export function hasStartupTaskScheduled(name: string) {
   return scheduledTaskNames.has(name);
+}
+
+export function getScheduledStartupTaskCount() {
+  return scheduledTaskNames.size;
 }

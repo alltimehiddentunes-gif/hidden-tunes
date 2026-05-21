@@ -78,6 +78,11 @@ import {
   scheduleGenreCatalogPrewarm,
 } from "../../utils/catalogNavigation";
 import {
+  recordEmptyStatePrevented,
+  recordOfflineCacheStartup,
+  recordSnapshotFallbackUsage,
+} from "../../utils/playbackStressDiagnostics";
+import {
   markFirstApiRefreshComplete,
   markFirstCachedContentVisible,
 } from "../../utils/startupDiagnostics";
@@ -195,6 +200,8 @@ function HomeScreen() {
     if (!initialFeaturedSongsRef.current.length) return;
 
     markFirstCachedContentVisible("home");
+    recordSnapshotFallbackUsage("home", initialFeaturedSongsRef.current.length);
+    recordOfflineCacheStartup("home", initialFeaturedSongsRef.current.length);
     logScreenReady("home", screenStartedAt, {
       cache: "hit",
       count: initialFeaturedSongsRef.current.length,
@@ -246,6 +253,8 @@ function HomeScreen() {
             setLoadingSongs(false);
             showedCachedCatalog = true;
             markFirstCachedContentVisible("home");
+            recordSnapshotFallbackUsage("home", memorySnapshot.length);
+            recordOfflineCacheStartup("home", memorySnapshot.length);
             logCacheResult("home", true, {
               count: memorySnapshot.length,
               source: "memory",
@@ -259,6 +268,7 @@ function HomeScreen() {
             setLoadingSongs(false);
             showedCachedCatalog = true;
             markFirstCachedContentVisible("home");
+            recordOfflineCacheStartup("home", cached.length);
             logCacheResult("home", true, { count: cached.length });
             logScreenReady("home", screenStartedAt, {
               cache: "hit",
@@ -309,6 +319,16 @@ function HomeScreen() {
 
           if (!showedCachedCatalog && !songs.length) {
             setHasMoreSongPages(false);
+          }
+
+          if (showedCachedCatalog && songs.length) {
+            recordEmptyStatePrevented(
+              "home",
+              "cache_then_api_refresh",
+              songs.length
+            );
+          } else if (showedCachedCatalog) {
+            recordEmptyStatePrevented("home", "cache_only_startup", songs.length);
           }
         };
 

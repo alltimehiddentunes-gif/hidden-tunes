@@ -1,5 +1,7 @@
 import { AppState } from "react-native";
 
+import { recordDeferredTaskScheduled } from "./playbackStressDiagnostics";
+
 type PrewarmTask = () => void | Promise<void>;
 
 const LARGE_LIST_THRESHOLD = 80;
@@ -116,6 +118,8 @@ export function createStableKeyExtractor(prefix: string) {
 }
 
 export function scheduleNavigationPrewarm(tasks: PrewarmTask[]) {
+  recordDeferredTaskScheduled();
+
   prewarmToken += 1;
   const token = prewarmToken;
   const limitedTasks = tasks.slice(0, PREWARM_TASK_LIMIT);

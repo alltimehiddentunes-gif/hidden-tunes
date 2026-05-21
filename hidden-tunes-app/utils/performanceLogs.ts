@@ -1,4 +1,5 @@
 import { getPlaybackRenderDiagnostics } from "./playbackRenderDiagnostics";
+import { getPlaybackStressDiagnostics } from "./playbackStressDiagnostics";
 import { getRenderDiagnostics } from "./renderDiagnostics";
 import { getStartupDiagnostics } from "./startupDiagnostics";
 
@@ -142,6 +143,7 @@ export function getPerformanceDiagnostics() {
   const renderDiagnostics = getRenderDiagnostics();
   const playbackDiagnostics = getPlaybackRenderDiagnostics();
   const startupDiagnostics = getStartupDiagnostics();
+  const stressDiagnostics = getPlaybackStressDiagnostics();
 
   return {
     cacheHitRate:
@@ -174,6 +176,18 @@ export function getPerformanceDiagnostics() {
     startupCompletedTasks: startupDiagnostics.completedTaskCount,
     startupScheduledTasks: startupDiagnostics.scheduledTaskCount,
     startupPlaybackRestoreMs: startupDiagnostics.playbackRestoreMs ?? undefined,
+    avgTapToAudioStartMs: stressDiagnostics.avgTapToAudioStartMs,
+    avgNextTrackTransitionMs: stressDiagnostics.avgNextTrackTransitionMs,
+    avgPauseResumeMs: stressDiagnostics.avgPauseResumeMs,
+    playbackSessionMinutes: stressDiagnostics.playbackSessionDurationMs
+      ? Math.round(stressDiagnostics.playbackSessionDurationMs / 60000)
+      : 0,
+    artworkPrefetchLoaded: stressDiagnostics.artworkPrefetchSuccesses,
+    activeDeferredTasks: stressDiagnostics.activeDeferredTasks,
+    queueTortureWarnings: stressDiagnostics.queueTortureWarnings,
+    audioReloadWindowCount: stressDiagnostics.audioReloadCountWindow,
+    offlineCacheStartups: stressDiagnostics.offlineCacheStartupSuccesses,
+    stressWarningCount: stressDiagnostics.stressWarnings.length,
   };
 }
 

@@ -1,5 +1,17 @@
 import type { AppStateStatus } from "react-native";
 
+import {
+  beginNextTrackTransition,
+  beginPauseResumeTiming,
+  beginTapToPlayTiming,
+  cancelPendingPlaybackTiming,
+  completePendingPlaybackTiming,
+  recordAudioReloadAttempt,
+  recordQueueControl,
+  registerActiveTimer,
+  unregisterActiveTimer,
+} from "./playbackStressDiagnostics";
+
 type PlaybackDiagDetails = Record<string, string | number | boolean | undefined>;
 
 export type PlaybackDiagnosticEvent =
@@ -39,10 +51,15 @@ export function logPlaybackDiagnostic(
 }
 
 export function logTapToPlayStart(details: PlaybackDiagDetails = {}) {
+  beginTapToPlayTiming(
+    details.songId ? String(details.songId) : undefined,
+    String(details.source || "tap")
+  );
   logPlaybackDiagnostic("tap_to_play_start", details);
 }
 
 export function logAudioLoadStart(details: PlaybackDiagDetails = {}) {
+  recordAudioReloadAttempt(details);
   logPlaybackDiagnostic("audio_load_start", details);
 }
 
@@ -55,6 +72,10 @@ export function logAudioLoadFailure(details: PlaybackDiagDetails = {}) {
 }
 
 export function logPlaybackStarted(details: PlaybackDiagDetails = {}) {
+  completePendingPlaybackTiming(
+    details.songId ? String(details.songId) : undefined,
+    details.engine ? String(details.engine) : undefined
+  );
   logPlaybackDiagnostic("playback_started", details);
 }
 
@@ -67,6 +88,17 @@ export function logTrackFinished(details: PlaybackDiagDetails = {}) {
 }
 
 export function logAutoNextAttempt(details: PlaybackDiagDetails = {}) {
+  const source = String(details.source || "auto_next");
+
+  if (source === "nextSong" || source === "previousSong") {
+    beginNextTrackTransition(source);
+    recordQueueControl(
+      source === "previousSong" ? "previous" : "next",
+      Number(details.queueLength || 0),
+      details
+    );
+  }
+
   logPlaybackDiagnostic("auto_next_attempt", details);
 }
 
@@ -75,6 +107,7 @@ export function logAutoNextSuccess(details: PlaybackDiagDetails = {}) {
 }
 
 export function logAutoNextFailure(details: PlaybackDiagDetails = {}) {
+  cancelPendingPlaybackTiming(String(details.reason || "auto_next_failure"));
   logPlaybackDiagnostic("auto_next_failure", details);
 }
 
@@ -82,6 +115,7 @@ export function logAutoNextSkipped(
   reason: string,
   details: PlaybackDiagDetails = {}
 ) {
+  cancelPendingPlaybackTiming(reason);
   logPlaybackDiagnostic("auto_next_skipped", { reason, ...details });
 }
 
@@ -90,10 +124,18 @@ export function logQueueIndexMismatch(details: PlaybackDiagDetails = {}) {
 }
 
 export function logRepeatModeState(mode: string, details: PlaybackDiagDetails = {}) {
+  recordQueueControl("repeat_toggle", Number(details.queueLength || 0), {
+    mode,
+    ...details,
+  });
   logPlaybackDiagnostic("repeat_mode_state", { mode, ...details });
 }
 
 export function logShuffleState(enabled: boolean, details: PlaybackDiagDetails = {}) {
+  recordQueueControl("shuffle_toggle", Number(details.queueLength || 0), {
+    enabled,
+    ...details,
+  });
   logPlaybackDiagnostic("shuffle_state", { enabled, ...details });
 }
 
@@ -110,13 +152,35 @@ export function logBackgroundStateChange(
 }
 
 export function logFinishWatchdogArmed(details: PlaybackDiagDetails = {}) {
+  registerActiveTimer("finish_watchdog");
   logPlaybackDiagnostic("finish_watchdog_armed", details);
 }
 
 export function logFinishWatchdogFired(details: PlaybackDiagDetails = {}) {
+  unregisterActiveTimer("finish_watchdog");
   logPlaybackDiagnostic("finish_watchdog_fired", details);
 }
 
 export function logDuplicatePlayIgnored(details: PlaybackDiagDetails = {}) {
+  cancelPendingPlaybackTiming("duplicate_play_ignored");
   logPlaybackDiagnostic("duplicate_play_ignored", details);
+}
+
+export function logManualQueueSkip(
+  direction: "next" | "previous",
+  details: PlaybackDiagDetails = {}
+) {
+  beginNextTrackTransition(direction);
+  recordQueueControl(direction, Number(details.queueLength || 0), details);
+}
+
+export function logPauseResumeStart(details: PlaybackDiagDetails = {}) {
+  beginPauseResumeTiming(String(details.source || "toggle"));
+}
+
+export function logPauseResumeComplete(details: PlaybackDiagDetails = {}) {
+  completePendingPlaybackTiming(
+    undefined,
+    details.engine ? String(details.engine) : "expo_av"
+  );
 }

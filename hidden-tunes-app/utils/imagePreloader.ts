@@ -1,6 +1,12 @@
 import { Image } from "expo-image";
 
 import { getPrefetchLimit, shouldRunNonEssentialWork } from "./performanceMode";
+import {
+  recordArtworkPrefetchAttempt,
+  recordArtworkPrefetchFailure,
+  recordArtworkPrefetchQueued,
+  recordArtworkPrefetchSuccess,
+} from "./playbackStressDiagnostics";
 
 const loadedImages = new Set<string>();
 const PRELOAD_BATCH_SIZE = 1;
@@ -27,6 +33,9 @@ export async function preloadImages(
 
     if (!validImages.length) return;
 
+    recordArtworkPrefetchQueued(validImages.length);
+    recordArtworkPrefetchAttempt(validImages.length);
+
     for (let index = 0; index < validImages.length; index += PRELOAD_BATCH_SIZE) {
       const batch = validImages.slice(index, index + PRELOAD_BATCH_SIZE);
 
@@ -35,7 +44,10 @@ export async function preloadImages(
           try {
             await Image.prefetch(img);
             loadedImages.add(img);
-          } catch {}
+            recordArtworkPrefetchSuccess(1);
+          } catch {
+            recordArtworkPrefetchFailure(1);
+          }
         })
       );
     }

@@ -8,6 +8,7 @@ import {
 } from "../utils/performanceLogs";
 import { getImagePrefetchStatus } from "../utils/imagePreloader";
 import { getPlaybackRenderDiagnostics } from "../utils/playbackRenderDiagnostics";
+import { getPlaybackStressDiagnostics } from "../utils/playbackStressDiagnostics";
 import { getRenderDiagnostics } from "../utils/renderDiagnostics";
 import { getStartupDiagnostics } from "../utils/startupDiagnostics";
 
@@ -33,16 +34,14 @@ function PerformanceOverlayPanel() {
   const renderDiagnostics = getRenderDiagnostics();
   const playbackDiagnostics = getPlaybackRenderDiagnostics();
   const startupDiagnostics = getStartupDiagnostics();
+  const stressDiagnostics = getPlaybackStressDiagnostics();
   const lastScreen = getLastScreenSnapshot();
   const prefetch = getImagePrefetchStatus();
   const topRenderCounts = Object.entries(renderDiagnostics.rerenderCounts)
     .sort((left, right) => right[1] - left[1])
-    .slice(0, 4);
-  const topPlaybackSubscribers = Object.entries(
-    playbackDiagnostics.playbackSubscriberRenders
-  )
-    .sort((left, right) => right[1] - left[1])
     .slice(0, 3);
+  const latestStressWarning =
+    stressDiagnostics.stressWarnings[stressDiagnostics.stressWarnings.length - 1];
 
   return (
     <View pointerEvents="box-none" style={styles.wrap}>
@@ -54,69 +53,61 @@ function PerformanceOverlayPanel() {
         <Text style={styles.title}>HT Perf</Text>
 
         <Text style={styles.line}>
+          Tap→audio: {diagnostics.avgTapToAudioStartMs || "—"}ms (
+          {stressDiagnostics.tapToAudioSampleCount})
+        </Text>
+        <Text style={styles.line}>
+          Next: {diagnostics.avgNextTrackTransitionMs || "—"}ms | Pause:{" "}
+          {diagnostics.avgPauseResumeMs || "—"}ms
+        </Text>
+        <Text style={styles.line}>
           Screen: {lastScreen?.screen || "—"} ({lastScreen?.readyMs ?? "—"}ms)
         </Text>
-        <Text style={styles.line}>
-          Cache: {lastScreen?.cache || "—"} ({diagnostics.cacheHitRate}% hit)
-        </Text>
-        <Text style={styles.line}>
-          Startup cache: {diagnostics.startupFirstCachedMs ?? "—"}ms
-        </Text>
-        <Text style={styles.line}>Items: {lastScreen?.itemCount ?? 0}</Text>
 
         {expanded ? (
           <>
             <Text style={styles.line}>
-              Startup API: {diagnostics.startupFirstApiMs ?? "—"}ms
+              Session: {diagnostics.playbackSessionMinutes}m | Queue:{" "}
+              {stressDiagnostics.queueLength}
             </Text>
             <Text style={styles.line}>
-              Restore: {diagnostics.startupPlaybackRestoreMs ?? "—"}ms
+              Startup cache: {diagnostics.startupFirstCachedMs ?? "—"}ms | API:{" "}
+              {diagnostics.startupFirstApiMs ?? "—"}ms
             </Text>
             <Text style={styles.line}>
-              Startup tasks: {diagnostics.startupCompletedTasks} done /{" "}
-              {diagnostics.startupScheduledTasks} pending
+              Offline starts: {diagnostics.offlineCacheStartups} | Snapshots:{" "}
+              {stressDiagnostics.snapshotFallbackUses}
             </Text>
             <Text style={styles.line}>
-              Avg ready: {diagnostics.averageScreenReadyMs}ms
+              Artwork: {prefetch.loadedCount} loaded /{" "}
+              {stressDiagnostics.artworkPrefetchAttempts} tries
             </Text>
             <Text style={styles.line}>
-              Avg refresh: {diagnostics.averageApiRefreshMs}ms
+              Deferred: {diagnostics.activeDeferredTasks} active | Timers:{" "}
+              {stressDiagnostics.activeTimerCount}
             </Text>
             <Text style={styles.line}>
-              Prefetch: {prefetch.paused ? "paused" : "active"} (
-              {prefetch.loadedCount})
+              Reload window: {diagnostics.audioReloadWindowCount} | Queue stress:{" "}
+              {diagnostics.queueTortureWarnings}
             </Text>
             <Text style={styles.line}>
-              Artwork fails: {diagnostics.artworkFailures}
+              Cache hit: {diagnostics.cacheHitRate}% | Render:{" "}
+              {diagnostics.renderRerenderSamples}
             </Text>
             <Text style={styles.line}>
-              Render samples: {diagnostics.renderRerenderSamples} /{" "}
-              {diagnostics.renderTrackedComponents} comps
+              Progress/min: {diagnostics.playbackProgressUpdatesPerMinute}
             </Text>
-            <Text style={styles.line}>
-              Playback ticks/min: {diagnostics.playbackProgressUpdatesPerMinute}
-            </Text>
-            <Text style={styles.line}>
-              Playback subs: {diagnostics.playbackSubscriberRenders}
-            </Text>
-            {diagnostics.queueInvalidationWarnings > 0 ? (
-              <Text style={styles.warning}>
-                Queue churn: {diagnostics.queueInvalidationWarnings}
-              </Text>
-            ) : null}
             {topRenderCounts.map(([name, count]) => (
               <Text key={name} style={styles.line}>
                 {name}: {count}
               </Text>
             ))}
-            {topPlaybackSubscribers.map(([name, count]) => (
-              <Text key={`pb-${name}`} style={styles.line}>
-                pb:{name}: {count}
-              </Text>
-            ))}
+            {latestStressWarning ? (
+              <Text style={styles.warning}>{latestStressWarning}</Text>
+            ) : null}
             {startupDiagnostics.recentCompletedTasks.length > 0 ? (
               <Text style={styles.line}>
-                Last task:{" "}
+                Last startup:{" "}
                 {
                   startupDiagnostics.recentCompletedTasks[
                     startupDiagnostics.recentCompletedTasks.length - 1
@@ -124,9 +115,9 @@ function PerformanceOverlayPanel() {
                 }
               </Text>
             ) : null}
-            {diagnostics.slowEndpointWarnings > 0 ? (
+            {playbackDiagnostics.queueInvalidationWarnings > 0 ? (
               <Text style={styles.warning}>
-                Slow endpoints: {diagnostics.slowEndpointWarnings}
+                Queue churn: {playbackDiagnostics.queueInvalidationWarnings}
               </Text>
             ) : null}
           </>
@@ -155,7 +146,7 @@ const styles = StyleSheet.create({
     elevation: 20,
   },
   panel: {
-    maxWidth: 220,
+    maxWidth: 230,
     backgroundColor: "rgba(8,8,12,0.92)",
     borderRadius: 12,
     borderWidth: 1,
@@ -164,7 +155,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   panelExpanded: {
-    maxWidth: 250,
+    maxWidth: 260,
   },
   title: {
     color: "#ff0033",
@@ -181,8 +172,8 @@ const styles = StyleSheet.create({
   },
   warning: {
     color: "#ffcc66",
-    fontSize: 10,
-    lineHeight: 14,
+    fontSize: 9,
+    lineHeight: 13,
     fontWeight: "700",
     marginTop: 2,
   },

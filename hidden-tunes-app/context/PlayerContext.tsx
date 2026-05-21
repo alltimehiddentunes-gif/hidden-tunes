@@ -67,6 +67,9 @@ import {
   logDuplicatePlayIgnored,
   logFinishWatchdogArmed,
   logFinishWatchdogFired,
+  logManualQueueSkip,
+  logPauseResumeComplete,
+  logPauseResumeStart,
   logPlaybackStarted,
   logPlaybackStalled,
   logQueueIndexMismatch,
@@ -75,6 +78,10 @@ import {
   logTapToPlayStart,
   logTrackFinished,
 } from "../utils/playbackDiagnostics";
+import {
+  recordQueueControl,
+  updateActiveQueueLength,
+} from "../utils/playbackStressDiagnostics";
 import {
   rebuildQueueFromAvailableContext,
   repairQueueIndexForSong,
@@ -814,6 +821,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       activeQueueRef.current = normalizedQueue;
       activeQueueIndexRef.current = safeIndex;
       activeQueueModeRef.current = mode;
+      updateActiveQueueLength(normalizedQueue.length);
 
       await persistActiveQueue(normalizedQueue, safeIndex, mode);
       await saveSmartQueue(normalizedQueue as any);
@@ -1043,10 +1051,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const nextSong = useCallback(async () => {
+    const { queue } = getActiveQueuePlaybackState();
+
     logAutoNextAttempt({
       source: "nextSong",
       repeatMode: repeatModeRef.current,
       shuffle: shuffleRef.current,
+      queueLength: queue.length,
     });
 
     if (trackPlayerActiveRef.current) {
@@ -1960,6 +1971,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   extendQueueWithSmartTracksRef.current = extendQueueWithSmartTracks;
 
   const previousSong = useCallback(async () => {
+    const { queue: previousQueue } = getActiveQueuePlaybackState();
+
+    logManualQueueSkip("previous", { queueLength: previousQueue.length });
+
     if (trackPlayerActiveRef.current) {
       await runQueueTransition(async () => {
         try {
@@ -2125,6 +2140,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           });
         }
 
+        recordQueueControl("play_song", nativeQueue.length, {
+          songId: normalizedSong.id,
+        });
         await playQueue(nativeQueue, repaired.index);
         return;
       }
@@ -2417,11 +2435,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   ]);
 
   const togglePlayPause = useCallback(async () => {
+    logPauseResumeStart({ source: "toggle_play_pause" });
+
     if (trackPlayerActiveRef.current) {
       if (isChangingTrackRef.current) return;
 
       const playing = await bridgeTogglePlayPause();
       setIsPlaying(playing);
+      logPauseResumeComplete({ engine: "track_player" });
       return;
     }
 
@@ -2436,6 +2457,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         await loadAndPlay(restoredSong);
       }
 
+      logPauseResumeComplete({ engine: "expo_av_restore" });
       return;
     }
 
@@ -2448,6 +2470,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         await loadAndPlay(restoredSong);
       }
 
+      logPauseResumeComplete({ engine: "expo_av_reload" });
       return;
     }
 
@@ -2458,6 +2481,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       await sound.playAsync();
       setIsPlaying(true);
     }
+
+    logPauseResumeComplete({ engine: "expo_av" });
   }, [loadAndPlay, setIsPlaying]);
 
   const seekTo = useCallback(
@@ -2522,7 +2547,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       const next = !prev;
       shuffleRef.current = next;
       setStoredValueIfChanged(SHUFFLE_KEY, String(next));
-      logShuffleState(next, { previous: prev });
+      logShuffleState(next, {
+        previous: prev,
+        queueLength: activeQueueRef.current.length,
+      });
       return next;
     });
   }, [setStoredValueIfChanged]);
@@ -2535,7 +2563,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       repeatModeRef.current = next;
       setStoredValueIfChanged(REPEAT_MODE_KEY, next);
       void bridgeSyncRepeatMode(next);
-      logRepeatModeState(next, { previous: prev });
+      logRepeatModeState(next, {
+        previous: prev,
+        queueLength: activeQueueRef.current.length,
+      });
 
       return next;
     });
