@@ -12,6 +12,11 @@ import { getPlaybackStressDiagnostics } from "../utils/playbackStressDiagnostics
 import { getRenderDiagnostics } from "../utils/renderDiagnostics";
 import { getStartupDiagnostics } from "../utils/startupDiagnostics";
 
+function formatMs(value: number | undefined) {
+  if (!value || value <= 0) return "—";
+  return String(Math.round(value));
+}
+
 function PerformanceOverlayPanel() {
   const [expanded, setExpanded] = useState(false);
   const [tick, setTick] = useState(0);
@@ -57,12 +62,19 @@ function PerformanceOverlayPanel() {
           {stressDiagnostics.tapToAudioSampleCount})
         </Text>
         <Text style={styles.line}>
-          Create: {stressDiagnostics.avgAudioObjectCreateMs || "—"}ms | Begin:{" "}
-          {stressDiagnostics.avgPlaybackBeginMs || "—"}ms
+          Q {formatMs(diagnostics.lastTapQueueMs)} | St{" "}
+          {formatMs(diagnostics.lastTapStateMs)} | Unl{" "}
+          {formatMs(diagnostics.lastTapUnloadMs)} | Cr{" "}
+          {formatMs(diagnostics.lastTapCreateMs)}
         </Text>
         <Text style={styles.line}>
-          Deferred: {diagnostics.activeDeferredTasks} active /{" "}
-          {diagnostics.startupScheduledTasks} sched
+          Play {formatMs(diagnostics.lastTapPlayAsyncMs)} | ▶{" "}
+          {formatMs(diagnostics.lastTapFirstPlayingMs)} | Pos{" "}
+          {formatMs(diagnostics.lastTapFirstPositionMs)}
+        </Text>
+        <Text style={styles.line}>
+          Def {diagnostics.activeDeferredTasks}/{diagnostics.scheduledDeferredTasks}{" "}
+          | stale {diagnostics.staleTaskClears} | dedup {diagnostics.dedupedTasks}
         </Text>
         <Text style={styles.line}>
           Screen: {lastScreen?.screen || "—"} ({lastScreen?.readyMs ?? "—"}ms)
@@ -70,6 +82,28 @@ function PerformanceOverlayPanel() {
 
         {expanded ? (
           <>
+            <Text style={styles.line}>
+              Pressure: {diagnostics.startupTaskPressure} | Cancelled:{" "}
+              {diagnostics.cancelledTasks}
+            </Text>
+            <Text style={styles.line}>
+              Resolve: {formatMs(diagnostics.lastTapSourceResolveMs)} | Mode:{" "}
+              {formatMs(diagnostics.lastTapAudioModeMs)} | FX:{" "}
+              {formatMs(diagnostics.lastTapSideEffectsMs)}
+            </Text>
+            <Text style={styles.line}>
+              Host: {diagnostics.lastAudioUrlHost} | Src:{" "}
+              {diagnostics.lastPlaybackSourceType} | Preload:{" "}
+              {diagnostics.lastUsedPreloadedSound ? "yes" : "no"}
+            </Text>
+            <Text style={styles.line}>
+              Skip reload: {diagnostics.lastSkippedSameTrackReload ? "yes" : "no"}{" "}
+              | {diagnostics.lastBreakdownReason}
+            </Text>
+            <Text style={styles.line}>
+              Create avg: {stressDiagnostics.avgAudioObjectCreateMs || "—"}ms |
+              Begin: {stressDiagnostics.avgPlaybackBeginMs || "—"}ms
+            </Text>
             <Text style={styles.line}>
               Session: {diagnostics.playbackSessionMinutes}m | Queue:{" "}
               {stressDiagnostics.queueLength}
@@ -79,25 +113,12 @@ function PerformanceOverlayPanel() {
               {diagnostics.startupFirstApiMs ?? "—"}ms
             </Text>
             <Text style={styles.line}>
-              Offline starts: {diagnostics.offlineCacheStartups} | Snapshots:{" "}
-              {stressDiagnostics.snapshotFallbackUses}
-            </Text>
-            <Text style={styles.line}>
               Artwork: {prefetch.loadedCount} loaded /{" "}
               {stressDiagnostics.artworkPrefetchAttempts} tries
             </Text>
             <Text style={styles.line}>
-              Deferred: {diagnostics.activeDeferredTasks} active | Rejected:{" "}
-              {diagnostics.deferredTaskRejected} | Paused:{" "}
+              Rejected: {diagnostics.deferredTaskRejected} | Paused:{" "}
               {diagnostics.deferredPauseDuringPlayback}
-            </Text>
-            <Text style={styles.line}>
-              Source resolve: {stressDiagnostics.avgSourceResolutionMs || "—"}ms
-              | Pressure: {diagnostics.startupTaskPressure}
-            </Text>
-            <Text style={styles.line}>
-              Reload window: {diagnostics.audioReloadWindowCount} | Queue stress:{" "}
-              {diagnostics.queueTortureWarnings}
             </Text>
             <Text style={styles.line}>
               Cache hit: {diagnostics.cacheHitRate}% | Render:{" "}
@@ -105,6 +126,10 @@ function PerformanceOverlayPanel() {
             </Text>
             <Text style={styles.line}>
               Progress/min: {diagnostics.playbackProgressUpdatesPerMinute}
+            </Text>
+            <Text style={styles.line}>
+              Home rerenders: {diagnostics.homeRerenderCount} | Rows stable:{" "}
+              {diagnostics.stabilizedRowCount} | Memo: {diagnostics.memoizedRowCount}
             </Text>
             {topRenderCounts.map(([name, count]) => (
               <Text key={name} style={styles.line}>
@@ -155,7 +180,7 @@ const styles = StyleSheet.create({
     elevation: 20,
   },
   panel: {
-    maxWidth: 230,
+    maxWidth: 248,
     backgroundColor: "rgba(8,8,12,0.92)",
     borderRadius: 12,
     borderWidth: 1,
@@ -164,7 +189,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   panelExpanded: {
-    maxWidth: 260,
+    maxWidth: 280,
   },
   title: {
     color: "#ff0033",

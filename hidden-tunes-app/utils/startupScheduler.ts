@@ -1,17 +1,10 @@
-import { InteractionManager } from "react-native";
-
 import {
-  cancelNonEssentialDeferredTasks,
-  isPlaybackStartupActive,
-  registerDeferredTask,
-  shouldAllowNonEssentialWork,
-  unregisterDeferredTask,
-} from "./playbackStartupGate";
-import {
-  recordDeferredTaskCompleted,
-  recordDeferredTaskRejected,
-  recordDeferredTaskScheduled,
-} from "./playbackStressDiagnostics";
+  cancelDeferredTasksExcept,
+  scheduleDeferredTask,
+  type DeferredSchedulePhase,
+} from "./deferredScheduler";
+import { isPlaybackStartupActive } from "./playbackStartupGate";
+import { recordDeferredTaskRejected } from "./playbackStressDiagnostics";
 import {
   recordStartupTaskComplete,
   recordStartupTaskScheduled,
@@ -26,7 +19,20 @@ export type StartupPhase =
 type StartupTask = () => void | Promise<void>;
 
 const scheduledTaskNames = new Set<string>();
-const BACKGROUND_STARTUP_DELAY_MS = 720;
+
+function mapPhase(phase: StartupPhase): DeferredSchedulePhase {
+  switch (phase) {
+    case "critical":
+      return "immediate";
+    case "afterPaint":
+      return "afterPaint";
+    case "afterInteraction":
+      return "afterInteraction";
+    case "background":
+    default:
+      return "background";
+  }
+}
 
 export function scheduleStartupTask(
   phase: StartupPhase,
@@ -42,93 +48,33 @@ export function scheduleStartupTask(
     return () => {};
   }
 
-  if (phase !== "critical" && !shouldAllowNonEssentialWork()) {
-    recordDeferredTaskRejected(name, "deferred_pressure");
-    return () => {};
-  }
-
   scheduledTaskNames.add(name);
   recordStartupTaskScheduled(name, phase);
-  recordDeferredTaskScheduled();
 
-  let cancelled = false;
+  const cancel = scheduleDeferredTask({
+    id: name,
+    phase: mapPhase(phase),
+    task: async () => {
+      if (phase !== "critical" && isPlaybackStartupActive()) {
+        recordDeferredTaskRejected(name, "playback_startup_at_run");
+        return;
+      }
 
-  const runTask = async () => {
-    if (cancelled) return;
+      const startedAt = Date.now();
 
-    if (phase !== "critical" && isPlaybackStartupActive()) {
-      recordDeferredTaskRejected(name, "playback_startup_at_run");
-      scheduledTaskNames.delete(name);
-      unregisterDeferredTask(name);
-      return;
-    }
-
-    const startedAt = Date.now();
-
-    try {
-      await task();
-    } finally {
-      if (!cancelled) {
+      try {
+        await task();
+      } finally {
         recordStartupTaskComplete(name, phase, Date.now() - startedAt);
-        recordDeferredTaskCompleted();
+        scheduledTaskNames.delete(name);
       }
+    },
+  });
 
-      scheduledTaskNames.delete(name);
-      unregisterDeferredTask(name);
-    }
-  };
-
-  let interactionHandle: { cancel: () => void } | null = null;
-  let timeoutId: ReturnType<typeof setTimeout> | null = null;
-  let frameId: number | null = null;
-
-  const cancel = () => {
-    cancelled = true;
+  return () => {
     scheduledTaskNames.delete(name);
-    unregisterDeferredTask(name);
-    interactionHandle?.cancel();
-    if (timeoutId) clearTimeout(timeoutId);
-    if (frameId !== null && typeof cancelAnimationFrame === "function") {
-      cancelAnimationFrame(frameId);
-    }
+    cancel();
   };
-
-  if (!registerDeferredTask(name, cancel)) {
-    scheduledTaskNames.delete(name);
-    return () => {};
-  }
-
-  switch (phase) {
-    case "critical":
-      void runTask();
-      break;
-
-    case "afterPaint":
-      if (typeof requestAnimationFrame === "function") {
-        frameId = requestAnimationFrame(() => {
-          void runTask();
-        });
-      } else {
-        timeoutId = setTimeout(() => {
-          void runTask();
-        }, 0);
-      }
-      break;
-
-    case "afterInteraction":
-      interactionHandle = InteractionManager.runAfterInteractions(() => {
-        void runTask();
-      });
-      break;
-
-    case "background":
-      timeoutId = setTimeout(() => {
-        void runTask();
-      }, BACKGROUND_STARTUP_DELAY_MS);
-      break;
-  }
-
-  return cancel;
 }
 
 export function hasStartupTaskScheduled(name: string) {
@@ -140,5 +86,5 @@ export function getScheduledStartupTaskCount() {
 }
 
 export function pauseStartupTasksForPlayback() {
-  cancelNonEssentialDeferredTasks("playback_priority");
+  cancelDeferredTasksExcept(["playback_"], "playback_priority");
 }

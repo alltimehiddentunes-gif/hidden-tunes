@@ -5,7 +5,7 @@ import {
   shouldAllowArtworkPrefetch,
   shouldAllowNonEssentialWork,
 } from "./playbackStartupGate";
-import { recordDeferredTaskScheduled } from "./playbackStressDiagnostics";
+import { scheduleDeferredTask } from "./deferredScheduler";
 
 type PrewarmTask = () => void | Promise<void>;
 
@@ -60,6 +60,20 @@ export function getPrefetchLimit(requested = 4) {
   if (isFastScrolling()) return Math.min(requested, 1);
 
   return Math.min(requested, 2);
+}
+
+const INITIAL_HOME_VISIBLE_CAP = 12;
+
+export function getHomeNestedListSettings(itemCount: number) {
+  const capped = Math.max(1, Math.min(itemCount, INITIAL_HOME_VISIBLE_CAP));
+
+  return {
+    initialNumToRender: Math.min(6, capped),
+    maxToRenderPerBatch: 4,
+    windowSize: 5,
+    updateCellsBatchingPeriod: 100,
+    removeClippedSubviews: true,
+  };
 }
 
 export function getListPerformanceSettings(itemCount: number) {
@@ -130,26 +144,22 @@ export function createStableKeyExtractor(prefix: string) {
 export function scheduleNavigationPrewarm(tasks: PrewarmTask[]) {
   if (!shouldRunNonEssentialWork()) return () => {};
 
-  recordDeferredTaskScheduled();
-
   prewarmToken += 1;
   const token = prewarmToken;
   const limitedTasks = tasks.slice(0, PREWARM_TASK_LIMIT);
 
-  const timer = setTimeout(() => {
-    if (token !== prewarmToken || !shouldRunNonEssentialWork()) return;
-
-    limitedTasks.reduce<Promise<void>>(async (previous, task) => {
-      await previous;
+  return scheduleDeferredTask({
+    id: "navigation_prewarm_batch",
+    category: "navigation",
+    phase: "background",
+    delayMs: PREWARM_DELAY_MS,
+    task: async () => {
       if (token !== prewarmToken || !shouldRunNonEssentialWork()) return;
-      await task();
-    }, Promise.resolve());
-  }, PREWARM_DELAY_MS);
 
-  return () => {
-    clearTimeout(timer);
-    if (token === prewarmToken) {
-      prewarmToken += 1;
-    }
-  };
+      for (const task of limitedTasks) {
+        if (token !== prewarmToken || !shouldRunNonEssentialWork()) return;
+        await task();
+      }
+    },
+  });
 }

@@ -71,6 +71,7 @@ import {
   logPauseResumeComplete,
   logPauseResumeStart,
   logPlaybackStarted,
+  logPlaybackStatusForProfiling,
   logPlaybackStalled,
   logQueueIndexMismatch,
   logRepeatModeState,
@@ -78,6 +79,18 @@ import {
   logTapToPlayStart,
   logTrackFinished,
 } from "../utils/playbackDiagnostics";
+import {
+  attachPlaybackProfileContext,
+  attachPlaybackPressureSnapshot,
+  beginPlaybackProfilePlayAsync,
+  beginPlaybackProfileSideEffects,
+  classifyPlaybackSource,
+  completePlaybackProfilePlayAsync,
+  completePlaybackProfileSideEffects,
+  markPlaybackProfileDuration,
+  markPlaybackProfileMilestone,
+  parseAudioUrlHost,
+} from "../utils/playbackStartupProfiling";
 import {
   markPlaybackStartupPhase,
   recordQueueControl,
@@ -1539,6 +1552,15 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       if (trackPlayerActiveRef.current) return;
       if (!status.isLoaded) return;
 
+      logPlaybackStatusForProfiling(
+        {
+          isLoaded: status.isLoaded,
+          isPlaying: status.isPlaying,
+          positionMillis: status.positionMillis,
+        },
+        currentSongRef.current?.id
+      );
+
       const nextPosition = status.positionMillis || 0;
       const nextDuration = status.durationMillis || 0;
       const nextIsPlaying = status.isPlaying || false;
@@ -1635,6 +1657,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       let requestId = 0;
 
       beginPlaybackStartup();
+      markPlaybackProfileMilestone("loadAndPlay_enter_ms");
+      attachPlaybackPressureSnapshot();
 
       try {
         const normalizedSong = normalizeSong(song);
@@ -1782,7 +1806,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           return;
         }
 
+        const audioModeStartedAt = Date.now();
+        const audioModeWasCached = audioModeConfiguredRef.current;
         void configureAudio();
+        markPlaybackProfileDuration("audio_mode_ms", Date.now() - audioModeStartedAt, {
+          cached: audioModeWasCached,
+          songId: normalizedSong.id,
+        });
 
         const previousSongId = currentSongRef.current?.id;
 
@@ -1793,11 +1823,23 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
         const sourceResolveStartedAt = Date.now();
         const playableUri = getPlayableUri(normalizedSong);
-        markPlaybackStartupPhase(
-          "source_resolution_ms",
-          Date.now() - sourceResolveStartedAt,
-          { songId: normalizedSong.id }
-        );
+        const sourceResolutionMs = Date.now() - sourceResolveStartedAt;
+        const playbackSourceType = classifyPlaybackSource(normalizedSong, playableUri);
+        const audioUrlHost = parseAudioUrlHost(playableUri);
+
+        markPlaybackStartupPhase("source_resolution_ms", sourceResolutionMs, {
+          songId: normalizedSong.id,
+        });
+        markPlaybackProfileDuration("source_resolution_ms", sourceResolutionMs, {
+          songId: normalizedSong.id,
+          playbackSourceType,
+          audioUrlHost,
+        });
+        attachPlaybackProfileContext({
+          audioUrlHost,
+          playbackSourceType,
+          queueLength: activeQueueRef.current.length,
+        });
 
         const source = normalizedSong.audio
           ? normalizedSong.audio
@@ -1834,7 +1876,18 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         }
 
         if (needsUnload) {
+          const unloadStartedAt = Date.now();
           await unloadCurrentSound();
+          markPlaybackProfileDuration(
+            "unload_previous_sound_ms",
+            Date.now() - unloadStartedAt,
+            { songId: normalizedSong.id, neededUnload: true }
+          );
+        } else {
+          markPlaybackProfileDuration("unload_previous_sound_ms", 0, {
+            songId: normalizedSong.id,
+            neededUnload: false,
+          });
         }
 
         if (loadRequestIdRef.current !== requestId || !isMountedRef.current) {
@@ -1851,8 +1904,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             progressUpdateIntervalMillis,
             volume: isMutedRef.current ? 0 : volumeRef.current,
           });
+          beginPlaybackProfilePlayAsync();
           await sound.playAsync();
+          completePlaybackProfilePlayAsync({ preloaded: true });
         } else {
+          beginPlaybackProfilePlayAsync();
           const created = await Audio.Sound.createAsync(
             source,
             {
@@ -1863,13 +1919,26 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             handlePlaybackStatusUpdate
           );
           sound = created.sound;
+          completePlaybackProfilePlayAsync({
+            preloaded: false,
+            playIncludedInCreate: true,
+          });
         }
 
-        markPlaybackStartupPhase(
-          "audio_object_create_ms",
-          Date.now() - audioCreateStartedAt,
-          { songId: normalizedSong.id, preloaded: usedPreloaded }
-        );
+        const audioObjectCreateMs = Date.now() - audioCreateStartedAt;
+
+        markPlaybackStartupPhase("audio_object_create_ms", audioObjectCreateMs, {
+          songId: normalizedSong.id,
+          preloaded: usedPreloaded,
+        });
+        markPlaybackProfileDuration("audio_object_create_ms", audioObjectCreateMs, {
+          songId: normalizedSong.id,
+          usedPreloadedSound: usedPreloaded,
+        });
+        attachPlaybackProfileContext({
+          usedPreloadedSound: usedPreloaded,
+          skippedSameTrackReload: false,
+        });
 
         const playbackBeginStartedAt = Date.now();
 
@@ -1906,7 +1975,18 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           engine: "expo_av",
         });
 
+        logPlaybackStatusForProfiling(
+          {
+            isLoaded: true,
+            isPlaying: true,
+            positionMillis: 0,
+          },
+          normalizedSong.id
+        );
+
         scheduleAfterPlaybackConfirmed(async () => {
+          beginPlaybackProfileSideEffects();
+
           try {
             const savedPosition = await AsyncStorage.getItem(POSITION_KEY);
 
@@ -1930,6 +2010,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           if (upcomingSong) {
             void preloadUpcomingTrack(upcomingSong);
           }
+
+          completePlaybackProfileSideEffects({ songId: normalizedSong.id });
         });
       } catch (error) {
         console.log("Load and play error:", error);
@@ -2246,6 +2328,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+      const queuePrepareStartedAt = Date.now();
+
       if (queue?.length) {
         const nativeQueue = queue
           .map(normalizeSong)
@@ -2266,6 +2350,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           });
         }
 
+        markPlaybackProfileDuration(
+          "queue_prepare_ms",
+          Date.now() - queuePrepareStartedAt,
+          { songId: normalizedSong.id, queueLength: nativeQueue.length }
+        );
+
         recordQueueControl("play_song", nativeQueue.length, {
           songId: normalizedSong.id,
         });
@@ -2280,11 +2370,25 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           const status = await currentLoadedSound.getStatusAsync();
 
           if (status.isLoaded) {
+            markPlaybackProfileDuration(
+              "queue_prepare_ms",
+              Date.now() - queuePrepareStartedAt,
+              { songId: normalizedSong.id, path: "same_track_resume" }
+            );
+
             if (!status.isPlaying) {
+              beginPlaybackProfilePlayAsync();
               await currentLoadedSound.playAsync();
+              completePlaybackProfilePlayAsync({ resumed: true });
             }
 
             setIsPlaying(true);
+            attachPlaybackProfileContext({
+              skippedSameTrackReload: true,
+              usedPreloadedSound: true,
+              queueLength: activeQueueRef.current.length,
+            });
+            markPlaybackProfileMilestone("loadAndPlay_enter_ms");
             logPlaybackStarted({
               songId: normalizedSong.id,
               engine: "expo_av_resume",
@@ -2330,6 +2434,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
       const existingIndex = repaired.index;
 
+      markPlaybackProfileDuration(
+        "queue_prepare_ms",
+        Date.now() - queuePrepareStartedAt,
+        { songId: normalizedSong.id, queueLength: existingQueue.length }
+      );
+
+      const stateCommitStartedAt = Date.now();
+
       if (existingQueue.length) {
         commitActiveQueuePlaybackRefs(
           existingQueue,
@@ -2348,6 +2460,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           syncSmartQueue: true,
         });
       }
+
+      markPlaybackProfileDuration(
+        "state_commit_before_audio_ms",
+        Date.now() - stateCommitStartedAt,
+        { songId: normalizedSong.id, queueLength: existingQueue.length || 1 }
+      );
 
       void removeStoredValues([POSITION_KEY]);
       await loadAndPlay(normalizedSong);

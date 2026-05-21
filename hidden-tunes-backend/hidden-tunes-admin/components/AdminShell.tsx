@@ -35,6 +35,18 @@ const NAV_ITEMS = [
     roles: "all",
   },
   {
+    href: "/admin/tv/sources",
+    label: "TV Sources",
+    description: "Metadata import sources",
+    roles: "all",
+  },
+  {
+    href: "/admin/tv/videos",
+    label: "TV Videos",
+    description: "TV catalog moderation",
+    roles: "all",
+  },
+  {
     href: "/admin/submissions",
     label: "Submissions",
     description: "Artist review queue",

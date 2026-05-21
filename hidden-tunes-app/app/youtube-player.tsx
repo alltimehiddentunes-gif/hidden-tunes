@@ -369,7 +369,7 @@ export default function YouTubePlayerScreen() {
     setDirectEmbedMode(false);
     setPlayerReady(true);
     setPlayerStatus(
-      "This video is not available for in-app playback. Try another pick."
+      "This video can't play inside the app. Try another from Hidden Tunes TV."
     );
   }
 
@@ -465,12 +465,12 @@ export default function YouTubePlayerScreen() {
             }}
             onError={() => {
               setPlayerStatus(
-                "This video is not available for in-app playback. Try another pick."
+                "This video can't play inside the app. Try another from Hidden Tunes TV."
               );
             }}
             onHttpError={() => {
               setPlayerStatus(
-                "This video is not available for in-app playback. Try another pick."
+                "This video can't play inside the app. Try another from Hidden Tunes TV."
               );
             }}
             onShouldStartLoadWithRequest={handleInAppWebViewNavigation}
@@ -523,7 +523,9 @@ export default function YouTubePlayerScreen() {
               size={42}
               color={COLORS.textMuted}
             />
-            <Text style={styles.noVideoText}>This video is not available right now.</Text>
+            <Text style={styles.noVideoText}>
+              This video can&apos;t play inside the app. Try another from Hidden Tunes TV.
+            </Text>
           </View>
         )}
       </View>
@@ -585,8 +587,8 @@ export default function YouTubePlayerScreen() {
         </View>
 
         <Text style={styles.notice}>
-          Some videos are not licensed for in-app playback. Skip to the next
-          pick if you see an unavailable message.
+          If playback fails, use Next to jump to another playable Hidden Tunes TV
+          video.
         </Text>
 
         {!directEmbedMode && (

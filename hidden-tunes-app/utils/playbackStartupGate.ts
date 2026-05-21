@@ -1,30 +1,26 @@
 import { InteractionManager } from "react-native";
 
-import { logPerformanceEvent } from "./performanceLogs";
+import {
+  cancelDeferredTasksExcept,
+  getDeferredSchedulerMetrics,
+  registerDeferredCancelable,
+  scheduleDeferredTask,
+  unregisterDeferredCancelable,
+} from "./deferredScheduler";
+import { logPerformanceEvent } from "./performanceEvents";
 import {
   recordDeferredPauseDuringPlayback,
   recordDeferredTaskRejected,
   recordStartupTaskPressure,
 } from "./playbackStressDiagnostics";
 
-type DeferredEntry = {
-  name: string;
-  cancel: () => void;
-  scheduledAt: number;
-};
-
 const PLAYBACK_STARTUP_HOLD_MS = 2800;
-const MAX_CONCURRENT_DEFERRED = 6;
-const MAX_TRACKED_DEFERRED = 20;
 const MAX_AUDIO_PRELOADS = 2;
 
 let playbackStartupDepth = 0;
 let playbackStartupHoldUntil = 0;
 let gateEpoch = 0;
-let deferredRunning = 0;
 let audioPreloadCount = 0;
-
-const deferredEntries = new Map<string, DeferredEntry>();
 
 function shouldTrack() {
   return typeof __DEV__ === "undefined" || __DEV__;
@@ -35,11 +31,12 @@ export function isPlaybackStartupActive() {
 }
 
 export function shouldAllowNonEssentialWork() {
-  if (!isPlaybackStartupActive()) {
-    return deferredRunning < MAX_CONCURRENT_DEFERRED;
+  if (isPlaybackStartupActive()) {
+    return false;
   }
 
-  return false;
+  const metrics = getDeferredSchedulerMetrics();
+  return metrics.globalRunning < 6 && metrics.schedulerQueueDepth < 8;
 }
 
 export function shouldAllowArtworkPrefetch() {
@@ -73,13 +70,15 @@ export function beginPlaybackStartup() {
   cancelNonEssentialDeferredTasks("playback_startup");
 
   if (shouldTrack()) {
+    const metrics = getDeferredSchedulerMetrics();
     logPerformanceEvent("playback_startup_begin", {
       depth: playbackStartupDepth,
       gateEpoch,
-      deferredRunning,
-      trackedDeferred: deferredEntries.size,
+      queueDepth: metrics.schedulerQueueDepth,
+      activeDeferred: metrics.activeDeferred,
+      globalRunning: metrics.globalRunning,
     });
-    recordStartupTaskPressure(deferredEntries.size, deferredRunning);
+    recordStartupTaskPressure(metrics.schedulerQueueDepth, metrics.globalRunning);
   }
 }
 
@@ -91,60 +90,39 @@ export function endPlaybackStartup() {
   }
 
   if (shouldTrack()) {
+    const metrics = getDeferredSchedulerMetrics();
     logPerformanceEvent("playback_startup_end", {
       depth: playbackStartupDepth,
       gateEpoch,
-      deferredRunning,
-      trackedDeferred: deferredEntries.size,
+      queueDepth: metrics.schedulerQueueDepth,
+      activeDeferred: metrics.activeDeferred,
+      globalRunning: metrics.globalRunning,
     });
-    recordStartupTaskPressure(deferredEntries.size, deferredRunning);
+    recordStartupTaskPressure(metrics.schedulerQueueDepth, metrics.globalRunning);
   }
 }
 
 export function registerDeferredTask(name: string, cancel: () => void) {
-  const existing = deferredEntries.get(name);
-
-  if (existing) {
-    existing.cancel();
-    deferredEntries.delete(name);
-  }
-
-  if (deferredEntries.size >= MAX_TRACKED_DEFERRED && !name.startsWith("playback_")) {
-    recordDeferredTaskRejected(name, "tracked_limit");
-    cancel();
-    return false;
-  }
-
-  deferredEntries.set(name, {
-    name,
-    cancel,
-    scheduledAt: Date.now(),
-  });
-
-  return true;
+  return registerDeferredCancelable(name, cancel);
 }
 
 export function unregisterDeferredTask(name: string) {
-  deferredEntries.delete(name);
+  unregisterDeferredCancelable(name);
 }
 
 export function cancelNonEssentialDeferredTasks(reason = "manual") {
   gateEpoch += 1;
-
-  deferredEntries.forEach((entry, name) => {
-    if (name.startsWith("playback_")) return;
-
-    entry.cancel();
-    deferredEntries.delete(name);
-    recordDeferredPauseDuringPlayback(name, reason);
-  });
+  cancelDeferredTasksExcept(["playback_"], reason);
 
   if (shouldTrack()) {
+    const metrics = getDeferredSchedulerMetrics();
     logPerformanceEvent("deferred_tasks_paused", {
       reason,
       gateEpoch,
-      remainingTracked: deferredEntries.size,
+      queueDepth: metrics.schedulerQueueDepth,
+      activeDeferred: metrics.activeDeferred,
     });
+    recordStartupTaskPressure(metrics.schedulerQueueDepth, metrics.globalRunning);
   }
 }
 
@@ -160,54 +138,52 @@ export async function runDeferredTask<T>(
     return undefined;
   }
 
-  if (deferredRunning >= MAX_CONCURRENT_DEFERRED) {
+  const metrics = getDeferredSchedulerMetrics();
+  if (metrics.globalRunning >= 6) {
     recordDeferredTaskRejected(name, "concurrency_limit");
     return undefined;
   }
 
-  deferredRunning += 1;
-
   try {
     return await task();
   } finally {
-    deferredRunning = Math.max(0, deferredRunning - 1);
     unregisterDeferredTask(name);
-    recordStartupTaskPressure(deferredEntries.size, deferredRunning);
+    const latest = getDeferredSchedulerMetrics();
+    recordStartupTaskPressure(latest.schedulerQueueDepth, latest.globalRunning);
   }
 }
 
 export function scheduleAfterPlaybackConfirmed(task: () => void | Promise<void>) {
   const runEpoch = gateEpoch;
-  const taskName = `playback_post_start_${Date.now()}`;
 
-  const handle = InteractionManager.runAfterInteractions(() => {
-    if (isPlaybackStartupActive() && runEpoch !== gateEpoch) {
-      recordDeferredTaskRejected(taskName, "stale_epoch");
-      return;
-    }
+  return scheduleDeferredTask({
+    id: "playback_post_start_side_effects",
+    category: "startup",
+    phase: "afterInteraction",
+    task: async () => {
+      if (isPlaybackStartupActive() && runEpoch !== gateEpoch) {
+        recordDeferredTaskRejected(
+          "playback_post_start_side_effects",
+          "stale_epoch"
+        );
+        return;
+      }
 
-    void (async () => {
       await task();
-    })();
+    },
   });
-
-  registerDeferredTask(taskName, () => {
-    handle.cancel();
-  });
-
-  return () => {
-    handle.cancel();
-    unregisterDeferredTask(taskName);
-  };
 }
 
 export function getPlaybackStartupGateStatus() {
+  const metrics = getDeferredSchedulerMetrics();
+
   return {
     playbackStartupDepth,
     playbackStartupActive: isPlaybackStartupActive(),
-    deferredRunning,
-    trackedDeferred: deferredEntries.size,
+    deferredRunning: metrics.globalRunning,
+    trackedDeferred: metrics.schedulerQueueDepth,
     audioPreloadCount,
     gateEpoch,
+    ...metrics,
   };
 }

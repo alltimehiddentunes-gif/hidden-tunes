@@ -1,6 +1,13 @@
 import type { AppStateStatus } from "react-native";
 
 import {
+  beginPlaybackStartupProfile,
+  cancelPlaybackStartupProfile,
+  markPlaybackProfilePlaybackStartedLog,
+  notifyPlaybackProfileStatusUpdate,
+  primePlaybackTapReceived,
+} from "./playbackStartupProfiling";
+import {
   beginNextTrackTransition,
   beginPauseResumeTiming,
   beginTapToPlayTiming,
@@ -50,11 +57,14 @@ export function logPlaybackDiagnostic(
   });
 }
 
+export { primePlaybackTapReceived };
+
 export function logTapToPlayStart(details: PlaybackDiagDetails = {}) {
   beginTapToPlayTiming(
     details.songId ? String(details.songId) : undefined,
     String(details.source || "tap")
   );
+  beginPlaybackStartupProfile(details);
   logPlaybackDiagnostic("tap_to_play_start", details);
 }
 
@@ -68,15 +78,28 @@ export function logAudioLoadSuccess(details: PlaybackDiagDetails = {}) {
 }
 
 export function logAudioLoadFailure(details: PlaybackDiagDetails = {}) {
+  cancelPlaybackStartupProfile(String(details.reason || "audio_load_failure"));
   logPlaybackDiagnostic("audio_load_failure", details);
 }
 
 export function logPlaybackStarted(details: PlaybackDiagDetails = {}) {
+  markPlaybackProfilePlaybackStartedLog();
   completePendingPlaybackTiming(
     details.songId ? String(details.songId) : undefined,
     details.engine ? String(details.engine) : undefined
   );
   logPlaybackDiagnostic("playback_started", details);
+}
+
+export function logPlaybackStatusForProfiling(
+  status: {
+    isLoaded?: boolean;
+    isPlaying?: boolean;
+    positionMillis?: number;
+  },
+  songId?: string
+) {
+  notifyPlaybackProfileStatusUpdate(status, songId);
 }
 
 export function logPlaybackStalled(details: PlaybackDiagDetails = {}) {
@@ -108,6 +131,7 @@ export function logAutoNextSuccess(details: PlaybackDiagDetails = {}) {
 
 export function logAutoNextFailure(details: PlaybackDiagDetails = {}) {
   cancelPendingPlaybackTiming(String(details.reason || "auto_next_failure"));
+  cancelPlaybackStartupProfile(String(details.reason || "auto_next_failure"));
   logPlaybackDiagnostic("auto_next_failure", details);
 }
 
@@ -116,6 +140,7 @@ export function logAutoNextSkipped(
   details: PlaybackDiagDetails = {}
 ) {
   cancelPendingPlaybackTiming(reason);
+  cancelPlaybackStartupProfile(reason);
   logPlaybackDiagnostic("auto_next_skipped", { reason, ...details });
 }
 
@@ -163,6 +188,7 @@ export function logFinishWatchdogFired(details: PlaybackDiagDetails = {}) {
 
 export function logDuplicatePlayIgnored(details: PlaybackDiagDetails = {}) {
   cancelPendingPlaybackTiming("duplicate_play_ignored");
+  cancelPlaybackStartupProfile("duplicate_play_ignored");
   logPlaybackDiagnostic("duplicate_play_ignored", details);
 }
 

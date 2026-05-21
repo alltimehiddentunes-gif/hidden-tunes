@@ -1,4 +1,4 @@
-import { logPerformanceEvent } from "./performanceLogs";
+import { logPerformanceEvent } from "./performanceEvents";
 
 type StartupPhase =
   | "critical"

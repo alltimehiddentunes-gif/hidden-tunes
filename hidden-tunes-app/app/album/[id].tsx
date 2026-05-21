@@ -35,6 +35,7 @@ import {
   logCacheResult,
   logPerformanceSummary,
   logScreenReady,
+  beginUserTapToPlay,
   logTapToPlay,
   startPerformanceTimer,
 } from "../../utils/performanceLogs";
@@ -253,8 +254,8 @@ export default function AlbumScreen() {
   }
 
   async function handlePlay(track: HiddenTunesNormalizedSong) {
-    const tapStartedAt = startPerformanceTimer();
     const normalized = safeSong(track);
+    const tapStartedAt = beginUserTapToPlay("album", normalized.id);
     const startIndex = Math.max(
       0,
       tracks.findIndex((item) => item.id === normalized.id)
@@ -267,7 +268,7 @@ export default function AlbumScreen() {
 
   async function playAlbum() {
     if (!tracks.length) return;
-    const tapStartedAt = startPerformanceTimer();
+    const tapStartedAt = beginUserTapToPlay("album", tracks[0]?.id);
     await playSong(tracks[0] as any, tracks as any, 0);
     logTapToPlay("album", tapStartedAt, { id: tracks[0]?.id });
     router.push("/player" as any);
@@ -277,7 +278,7 @@ export default function AlbumScreen() {
     if (!tracks.length) return;
 
     const shuffled = shuffleSongs(tracks);
-    const tapStartedAt = startPerformanceTimer();
+    const tapStartedAt = beginUserTapToPlay("album", shuffled[0]?.id);
     await playSong(shuffled[0] as any, shuffled as any, 0);
     logTapToPlay("album", tapStartedAt, { id: shuffled[0]?.id });
     router.push("/player" as any);
