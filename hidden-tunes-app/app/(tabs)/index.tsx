@@ -476,9 +476,11 @@ function HomeScreen() {
   );
 
   const moodRooms = useMemo(
-    () => buildMoodRooms(featuredSongs, preferenceMaps, 2),
+    () => buildMoodRooms(featuredSongs, preferenceMaps, 8),
     [featuredSongs, preferenceMaps]
   );
+
+  const [activeMoodId, setActiveMoodId] = useState<string | null>(null);
 
   const genreSpotlights = useMemo(
     () => buildGenreSpotlights(featuredSongs, preferenceMaps, 2),
@@ -487,6 +489,17 @@ function HomeScreen() {
 
   const primaryMoodRoom = moodRooms[0];
   const primaryGenreSpotlight = genreSpotlights[0];
+
+  const activeMoodRoom = useMemo(() => {
+    const targetId = activeMoodId || primaryMoodRoom?.id;
+    return moodRooms.find((room) => room.id === targetId) || primaryMoodRoom;
+  }, [activeMoodId, moodRooms, primaryMoodRoom]);
+
+  useEffect(() => {
+    if (primaryMoodRoom?.id) {
+      setActiveMoodId(primaryMoodRoom.id);
+    }
+  }, [primaryMoodRoom?.id]);
 
   useEffect(() => {
     if (!featuredSongs.length || !deferredSectionsReady) return;
@@ -1051,7 +1064,6 @@ function HomeScreen() {
 
             <View>
               <Text style={styles.logoText}>Hidden Tunes</Text>
-              <Text style={styles.logoSub}>Premium Audio</Text>
             </View>
 
             <TouchableOpacity
@@ -1064,10 +1076,6 @@ function HomeScreen() {
           </View>
 
           <Text style={styles.heroTitle}>Hidden listening.</Text>
-
-          <Text style={styles.heroSubtitle}>
-            Curated moods, quiet gems, and your next session.
-          </Text>
 
           <TouchableOpacity
             activeOpacity={0.9}
@@ -1190,9 +1198,6 @@ function HomeScreen() {
               <Text numberOfLines={1} style={styles.listeningBriefTitle}>
                 {listeningBrief.title}
               </Text>
-              <Text numberOfLines={2} style={styles.listeningBriefSub}>
-                {listeningBrief.subtitle}
-              </Text>
             </View>
 
             <Ionicons name="arrow-forward" size={18} color={COLORS.textMuted} />
@@ -1242,12 +1247,7 @@ function HomeScreen() {
           {deferredSectionsReady ? (
             <>
               <View style={styles.sectionRow}>
-                <View>
-                  <Text style={styles.sectionTitle}>Hidden Tunes TV</Text>
-                  <Text style={styles.sectionSub}>
-                    Music videos and live discovery
-                  </Text>
-                </View>
+                <Text style={styles.sectionTitle}>Hidden Tunes TV</Text>
 
                 <TouchableOpacity
                   onPress={() => router.push("/tv" as any)}
@@ -1264,25 +1264,15 @@ function HomeScreen() {
                 style={styles.tvEmptyCard}
                 onPress={() => router.push("/tv" as any)}
               >
-                <Ionicons name="tv" size={26} color={COLORS.primary} />
-                <Text style={styles.tvEmptyTitle}>
-                  Watch the story behind the sound
-                </Text>
-                <Text style={styles.tvEmptyText}>
-                  Explore videos without leaving Hidden Tunes.
-                </Text>
+                <Ionicons name="tv" size={30} color={COLORS.primary} />
+                <Text style={styles.tvEmptyTitle}>Open Hidden Tunes TV</Text>
               </TouchableOpacity>
             </>
           ) : null}
 
           {deferredSectionsReady && rankedSongs.length > 0 && (
             <>
-              <View style={styles.sectionRowSmall}>
-                <Text style={styles.sectionTitle}>Because You Listened</Text>
-                <Text style={styles.sectionSub}>
-                  Picks shaped by your favorites and recent plays
-                </Text>
-              </View>
+              <Text style={styles.sectionTitleBlock}>Because You Listened</Text>
 
               <View style={styles.mediaList}>
                 {rankedSongs.slice(0, 6).map((song) => (
@@ -1298,12 +1288,7 @@ function HomeScreen() {
 
           {deferredSectionsReady && moreLikeThisMood.songs.length > 0 && (
             <>
-              <View style={styles.sectionRowSmall}>
-                <Text style={styles.sectionTitle}>More Like This Mood</Text>
-                <Text style={styles.sectionSub}>
-                  More songs carrying {moreLikeThisMood.mood}
-                </Text>
-              </View>
+              <Text style={styles.sectionTitleBlock}>More Like This Mood</Text>
 
               <View style={styles.mediaList}>
                 {moreLikeThisMood.songs.map((song) => (
@@ -1319,12 +1304,7 @@ function HomeScreen() {
 
           {deferredSectionsReady && rankedArtists.length > 0 && (
             <>
-              <View style={styles.sectionRowSmall}>
-                <Text style={styles.sectionTitle}>Creators In Your Orbit</Text>
-                <Text style={styles.sectionSub}>
-                  Artists rising through your listening history
-                </Text>
-              </View>
+              <Text style={styles.sectionTitleBlock}>Creators In Your Orbit</Text>
 
               <FlatList
                 horizontal
@@ -1357,7 +1337,7 @@ function HomeScreen() {
                       {item.name}
                     </Text>
                     <Text numberOfLines={1} style={styles.artistMeta}>
-                      {item.tracks?.length || 0} songs
+                      {item.tracks?.length || 0}
                     </Text>
                   </TouchableOpacity>
                 )}
@@ -1367,12 +1347,7 @@ function HomeScreen() {
 
           {deferredSectionsReady && rankedAlbums.length > 0 && (
             <>
-              <View style={styles.sectionRowSmall}>
-                <Text style={styles.sectionTitle}>Albums Worth Staying With</Text>
-                <Text style={styles.sectionSub}>
-                  Releases with more to discover
-                </Text>
-              </View>
+              <Text style={styles.sectionTitleBlock}>Albums Worth Staying With</Text>
 
               <FlatList
                 horizontal
@@ -1416,12 +1391,7 @@ function HomeScreen() {
           {deferredSectionsReady ? (
             <>
               <View style={styles.sectionRow}>
-                <View>
-                  <Text style={styles.sectionTitle}>Recently Discovered</Text>
-                  <Text style={styles.sectionSub}>
-                    New uploads ready for your next queue
-                  </Text>
-                </View>
+                <Text style={styles.sectionTitle}>Recently Discovered</Text>
 
                 <TouchableOpacity onPress={onRefresh} style={styles.refreshMini}>
                   <Ionicons name="refresh" size={20} color={COLORS.text} />
@@ -1466,38 +1436,78 @@ function HomeScreen() {
             </>
           ) : null}
 
-          {deferredSectionsReady && primaryMoodRoom && (
-            <View
-              key={`section-${primaryMoodRoom.id || primaryMoodRoom.title}`}
-            >
-              <TouchableOpacity
-                activeOpacity={0.88}
-                style={styles.sectionRowSmall}
-                onPress={() =>
-                  openMoodCatalog(
-                    primaryMoodRoom.title,
-                    `${primaryMoodRoom.title} music`
-                  )
-                }
-              >
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.sectionTitle}>Mood Rooms</Text>
-                  <Text style={styles.sectionSub}>
-                    Start with {primaryMoodRoom.title} and keep the feeling close
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
-              </TouchableOpacity>
-
-              <View style={styles.mediaList}>
-                {primaryMoodRoom.songs.slice(0, 4).map((song) => (
-                  <Fragment
-                    key={`song-${String(song.id || song.title || song.streamUrl || "track")}-mood-rooms`}
+          {deferredSectionsReady && moodRooms.length > 0 && (
+            <View key="section-mood-rooms">
+              <View style={styles.sectionRow}>
+                <Text style={styles.sectionTitle}>Mood Rooms</Text>
+                {activeMoodRoom ? (
+                  <TouchableOpacity
+                    activeOpacity={0.85}
+                    onPress={() =>
+                      openMoodCatalog(
+                        activeMoodRoom.title,
+                        `${activeMoodRoom.title} music`
+                      )
+                    }
                   >
-                    {renderSongRow(song, "mood-rooms")}
-                  </Fragment>
-                ))}
+                    <Ionicons
+                      name="chevron-forward"
+                      size={20}
+                      color={COLORS.textMuted}
+                    />
+                  </TouchableOpacity>
+                ) : null}
               </View>
+
+              <FlatList
+                horizontal
+                data={moodRooms}
+                keyExtractor={(item) => `mood-${item.id}`}
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.moodRail}
+                renderItem={({ item }) => {
+                  const active = item.id === activeMoodRoom?.id;
+                  const artwork = item.artwork?.[0];
+
+                  return (
+                    <TouchableOpacity
+                      activeOpacity={0.88}
+                      style={[styles.moodCard, active && styles.moodCardActive]}
+                      onPress={() => setActiveMoodId(item.id)}
+                    >
+                      {artwork ? (
+                        <HTImage
+                          source={{ uri: String(artwork) }}
+                          style={styles.moodCardArt}
+                        />
+                      ) : (
+                        <View style={styles.moodCardArtFallback}>
+                          <Ionicons
+                            name="radio"
+                            size={22}
+                            color={COLORS.primary}
+                          />
+                        </View>
+                      )}
+                      <Text numberOfLines={2} style={styles.moodCardTitle}>
+                        {item.title}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                }}
+              />
+
+              {activeMoodRoom ? (
+                <View style={styles.mediaList}>
+                  {activeMoodRoom.songs.slice(0, 4).map((song) => (
+                    <Fragment
+                      key={`song-${String(song.id || song.title || song.streamUrl || "track")}-mood-rooms`}
+                    >
+                      {renderSongRow(song, "mood-rooms")}
+                    </Fragment>
+                  ))}
+                </View>
+              ) : null}
             </View>
           )}
 
@@ -1507,7 +1517,7 @@ function HomeScreen() {
             >
               <TouchableOpacity
                 activeOpacity={0.88}
-                style={styles.sectionRowSmall}
+                style={styles.sectionRow}
                 onPress={() =>
                   openGenreCatalog({
                     id: primaryGenreSpotlight.id.replace(/^genre-/, ""),
@@ -1516,13 +1526,8 @@ function HomeScreen() {
                   })
                 }
               >
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.sectionTitle}>Original Genre Spotlights</Text>
-                  <Text style={styles.sectionSub}>
-                    {primaryGenreSpotlight.title} selections using unchanged catalog genres
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
+                <Text style={styles.sectionTitle}>Genre Spotlights</Text>
+                <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
               </TouchableOpacity>
 
               <View style={styles.mediaList}>
@@ -1539,12 +1544,9 @@ function HomeScreen() {
 
           {deferredSectionsReady ? (
             <>
-              <View style={styles.sectionRowSmall}>
-                <Text style={styles.sectionTitle}>Full Catalog</Text>
-                <Text style={styles.sectionSub}>
-                  {visibleAllSongs.length} of {featuredSongs.length} songs unlocked
-                </Text>
-              </View>
+              <Text style={styles.sectionTitleBlock}>
+                Full Catalog · {visibleAllSongs.length}/{featuredSongs.length}
+              </Text>
 
               <NestedSongList
                 screen="home_full_catalog"
@@ -2078,8 +2080,8 @@ const styles = StyleSheet.create({
   },
 
   sectionRow: {
-    marginTop: 32,
-    marginBottom: 16,
+    marginTop: 40,
+    marginBottom: 18,
     paddingHorizontal: 20,
     flexDirection: "row",
     alignItems: "center",
@@ -2087,23 +2089,68 @@ const styles = StyleSheet.create({
   },
 
   sectionRowSmall: {
-    marginTop: 28,
-    marginBottom: 16,
+    marginTop: 40,
+    marginBottom: 18,
   },
 
   sectionTitle: {
     color: COLORS.text,
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: "900",
-    paddingHorizontal: 20,
   },
 
-  sectionSub: {
-    color: COLORS.textMuted,
-    fontSize: 12,
-    fontWeight: "700",
-    marginTop: 5,
+  sectionTitleBlock: {
+    color: COLORS.text,
+    fontSize: 22,
+    fontWeight: "900",
     paddingHorizontal: 20,
+    marginTop: 40,
+    marginBottom: 18,
+  },
+
+  moodRail: {
+    paddingLeft: 20,
+    paddingRight: 28,
+    gap: 14,
+    paddingBottom: 10,
+  },
+
+  moodCard: {
+    width: 112,
+    borderRadius: 24,
+    overflow: "hidden",
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+  },
+
+  moodCardActive: {
+    borderColor: "rgba(168,85,247,0.55)",
+    backgroundColor: "rgba(168,85,247,0.12)",
+  },
+
+  moodCardArt: {
+    width: "100%",
+    height: 96,
+    backgroundColor: COLORS.card,
+  },
+
+  moodCardArtFallback: {
+    width: "100%",
+    height: 96,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.05)",
+  },
+
+  moodCardTitle: {
+    color: COLORS.text,
+    fontSize: 12,
+    fontWeight: "900",
+    textAlign: "center",
+    paddingHorizontal: 10,
+    paddingVertical: 12,
+    lineHeight: 16,
   },
 
   refreshMini: {
@@ -2135,27 +2182,21 @@ const styles = StyleSheet.create({
 
   tvEmptyCard: {
     marginHorizontal: 20,
-    minHeight: 120,
+    minHeight: 108,
     borderRadius: 28,
-    padding: 18,
+    padding: 22,
     backgroundColor: "rgba(255,255,255,0.06)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.1)",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
   },
 
   tvEmptyTitle: {
     color: COLORS.text,
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: "900",
-    marginTop: 10,
-  },
-
-  tvEmptyText: {
-    color: COLORS.textMuted,
-    fontSize: 12,
-    fontWeight: "700",
-    lineHeight: 18,
-    marginTop: 6,
   },
 
   loadingBox: {
@@ -2240,7 +2281,7 @@ const styles = StyleSheet.create({
 
   featuredCard: {
     width: FEATURED_CARD_WIDTH,
-    height: 255,
+    height: 272,
     borderRadius: 32,
     marginRight: 16,
     overflow: "hidden",
@@ -2357,6 +2398,7 @@ const styles = StyleSheet.create({
 
   mediaList: {
     paddingHorizontal: 20,
+    marginTop: 4,
   },
 
   mediaShell: {
@@ -2385,9 +2427,9 @@ const styles = StyleSheet.create({
   },
 
   artistCard: {
-    width: 140,
-    borderRadius: 24,
-    padding: 12,
+    width: 148,
+    borderRadius: 26,
+    padding: 14,
     backgroundColor: "rgba(255,255,255,0.065)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.1)",
@@ -2395,26 +2437,26 @@ const styles = StyleSheet.create({
   },
 
   albumCard: {
-    width: 150,
-    borderRadius: 24,
-    padding: 12,
+    width: 162,
+    borderRadius: 26,
+    padding: 14,
     backgroundColor: "rgba(255,255,255,0.065)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.1)",
   },
 
   artistImage: {
-    width: 104,
-    height: 104,
-    borderRadius: 52,
+    width: 112,
+    height: 112,
+    borderRadius: 56,
     backgroundColor: COLORS.card,
     marginBottom: 12,
   },
 
   albumImage: {
     width: "100%",
-    height: 126,
-    borderRadius: 18,
+    height: 138,
+    borderRadius: 20,
     backgroundColor: COLORS.card,
     marginBottom: 12,
   },

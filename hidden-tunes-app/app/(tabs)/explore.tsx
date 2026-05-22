@@ -11,7 +11,7 @@ import {
 } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
-import { useFocusEffect, useIsFocused, useScrollToTop } from "@react-navigation/native";
+import { useIsFocused, useScrollToTop } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 
@@ -84,7 +84,6 @@ import {
   openMoodCatalog,
 } from "../../utils/catalogNavigation";
 
-const GENRE_PREVIEW_MS = 6800;
 
 type GenreItem = {
   id: string;
@@ -277,7 +276,6 @@ export default function ExploreScreen() {
   const [showHeavySections, setShowHeavySections] = useState(false);
   const [showTvSection, setShowTvSection] = useState(false);
   const [loadingTvSection, setLoadingTvSection] = useState(false);
-  const [genrePreviewIndex, setGenrePreviewIndex] = useState(0);
   const [songPage, setSongPage] = useState(1);
   const [hasMoreSongs, setHasMoreSongs] = useState(true);
   const [loadingMoreSongs, setLoadingMoreSongs] = useState(false);
@@ -631,20 +629,6 @@ export default function ExploreScreen() {
     ]);
   }, [cloudSongs.length, rankedAlbums, rankedArtists]);
 
-  useFocusEffect(
-    useCallback(() => {
-      if (genreWorlds.length === 0) return undefined;
-
-      const timer = setInterval(() => {
-        setGenrePreviewIndex((current) => current + 1);
-      }, GENRE_PREVIEW_MS);
-
-      return () => {
-        clearInterval(timer);
-      };
-    }, [genreWorlds.length])
-  );
-
   const openGenre = useCallback((genre: GenreItem) => {
     const title = String(genre.title || "").trim();
 
@@ -867,10 +851,6 @@ export default function ExploreScreen() {
 
               <Text style={styles.smartHeroTitle}>Enter a listening room</Text>
 
-              <Text style={styles.smartHeroSubtitle}>
-                Personal picks, exact genre spotlights, and mood rooms built from the catalog you already have.
-              </Text>
-
               <View style={styles.smartHeroActions}>
                 <TouchableOpacity
                   activeOpacity={0.86}
@@ -901,12 +881,7 @@ export default function ExploreScreen() {
             {currentSong && (
               <>
                 <View style={styles.rowHeader}>
-                  <View>
-                    <Text style={styles.sectionTitle}>Continue Listening</Text>
-                    <Text style={styles.sectionSub}>
-                      Jump back into your current stream
-                    </Text>
-                  </View>
+                  <Text style={styles.sectionTitle}>Continue Listening</Text>
 
                   <TouchableOpacity onPress={() => router.push("/player" as any)}>
                     <Text style={styles.seeAll}>Player</Text>
@@ -944,33 +919,47 @@ export default function ExploreScreen() {
 
             {moodRooms.length > 0 && (
               <View style={styles.moodRailSection}>
-                <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>Mood Rooms</Text>
-                  <Text style={styles.sectionSub}>
-                    {primaryMoodRoom
-                      ? `Start with ${primaryMoodRoom.title} or choose a nearby feeling`
-                      : "Choose a feeling from existing mood labels"}
-                  </Text>
-                </View>
+                <Text style={styles.sectionTitleBlock}>Mood Rooms</Text>
 
                 <FlatList
                   horizontal
                   data={moodRooms}
                   keyExtractor={(item) => item.id}
                   showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.chips}
-                  renderItem={({ item }) => (
-                    <TouchableOpacity
-                      style={[
-                        styles.chip,
-                        item.id === primaryMoodRoom?.id && styles.chipFeatured,
-                      ]}
-                      activeOpacity={0.85}
-                      onPress={() => openMood(item.title)}
-                    >
-                      <Text style={styles.chipText}>{item.title}</Text>
-                    </TouchableOpacity>
-                  )}
+                  contentContainerStyle={styles.moodRail}
+                  renderItem={({ item }) => {
+                    const active = item.id === primaryMoodRoom?.id;
+                    const artwork = item.artwork?.[0];
+
+                    return (
+                      <TouchableOpacity
+                        style={[
+                          styles.moodCard,
+                          active && styles.moodCardActive,
+                        ]}
+                        activeOpacity={0.88}
+                        onPress={() => openMood(item.title)}
+                      >
+                        {artwork ? (
+                          <HTImage
+                            source={{ uri: String(artwork) }}
+                            style={styles.moodCardArt}
+                          />
+                        ) : (
+                          <View style={styles.moodCardArtFallback}>
+                            <Ionicons
+                              name="radio"
+                              size={22}
+                              color={COLORS.primary}
+                            />
+                          </View>
+                        )}
+                        <Text numberOfLines={2} style={styles.moodCardTitle}>
+                          {item.title}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  }}
                 />
               </View>
             )}
@@ -991,12 +980,7 @@ export default function ExploreScreen() {
             {smartPicks.length > 0 && (
               <>
                 <View style={styles.rowHeader}>
-                  <View>
                   <Text style={styles.sectionTitle}>Because You Listened</Text>
-                    <Text style={styles.sectionSub}>
-                      Songs connected to your recent plays and saved favorites
-                    </Text>
-                  </View>
 
                   <TouchableOpacity onPress={() => router.push("/queue" as any)}>
                     <Text style={styles.seeAll}>Queue</Text>
@@ -1023,12 +1007,7 @@ export default function ExploreScreen() {
             {continueSongs.length > 0 && (
               <>
                 <View style={styles.rowHeader}>
-                  <View>
-                    <Text style={styles.sectionTitle}>Return To The Feeling</Text>
-                    <Text style={styles.sectionSub}>
-                      Your latest songs, ready to continue
-                    </Text>
-                  </View>
+                  <Text style={styles.sectionTitle}>Return To The Feeling</Text>
 
                   <TouchableOpacity onPress={() => router.push("/recently-played" as any)}>
                     <Text style={styles.seeAll}>See all</Text>
@@ -1054,10 +1033,7 @@ export default function ExploreScreen() {
 
             {visibleCloudSongs.length > 0 && (
               <>
-                <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>Fresh From The Vault</Text>
-                  <Text style={styles.sectionSub}>New uploads with room to grow</Text>
-                </View>
+                <Text style={styles.sectionTitleBlock}>Fresh From The Vault</Text>
 
                 <FlatList
                   horizontal
@@ -1076,20 +1052,10 @@ export default function ExploreScreen() {
               </>
             )}
 
-            <View style={styles.genreHeader}>
-              <Text style={styles.sectionTitle}>Original Genre Spotlights</Text>
-              <Text style={styles.sectionSub}>
-                {primaryGenreWorld
-                  ? `${primaryGenreWorld.title} and nearby catalog lanes, shown without renaming genres`
-                  : "Built only from original catalog genre labels"}
-              </Text>
-            </View>
+            <Text style={styles.sectionTitleBlock}>Genre Spotlights</Text>
 
             <View style={styles.genreGrid}>
               {genreWorlds.map((genre, index) => {
-                const preview =
-                  genre.preview[genrePreviewIndex % genre.preview.length] ||
-                  `${genre.title} discoveries`;
                 const primaryArtwork = genre.artwork[0] || FALLBACK_ARTWORK;
                 const secondaryArtwork = genre.artwork[1] || primaryArtwork;
                 const tertiaryArtwork = genre.artwork[2] || secondaryArtwork;
@@ -1142,15 +1108,10 @@ export default function ExploreScreen() {
                     <Text numberOfLines={1} style={styles.genreTitle}>
                       {genre.title}
                     </Text>
-
-                    <Text numberOfLines={1} style={styles.genrePreview}>
-                      {preview}
-                    </Text>
                   </View>
 
                   <View style={styles.genreCtaRow}>
-                    <Text style={styles.genreCtaText}>Explore genre</Text>
-                    <Ionicons name="arrow-forward" size={14} color={COLORS.primary} />
+                    <Ionicons name="arrow-forward" size={16} color={COLORS.primary} />
                   </View>
                 </TouchableOpacity>
                 );
@@ -1160,10 +1121,7 @@ export default function ExploreScreen() {
             {showHeavySections && playlists.length > 0 && (
               <>
                 <View style={styles.rowHeader}>
-                  <View>
-                    <Text style={styles.sectionTitle}>Listening Rooms</Text>
-                    <Text style={styles.sectionSub}>Playlists shaped around your taste</Text>
-                  </View>
+                  <Text style={styles.sectionTitle}>Listening Rooms</Text>
 
                   <TouchableOpacity onPress={() => router.push("/cloud-playlists" as any)}>
                     <Text style={styles.seeAll}>See all</Text>
@@ -1211,10 +1169,7 @@ export default function ExploreScreen() {
 
             {showHeavySections && albums.length > 0 && (
               <>
-                <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>Deep Cuts & Albums</Text>
-                  <Text style={styles.sectionSub}>Releases worth hearing beyond one track</Text>
-                </View>
+                <Text style={styles.sectionTitleBlock}>Deep Cuts & Albums</Text>
 
                 <FlatList
                   horizontal
@@ -1255,10 +1210,7 @@ export default function ExploreScreen() {
 
             {showHeavySections && artists.length > 0 && (
               <>
-                <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>Creators To Follow</Text>
-                  <Text style={styles.sectionSub}>Voices building the Hidden Tunes catalog</Text>
-                </View>
+                <Text style={styles.sectionTitleBlock}>Creators To Follow</Text>
 
                 <FlatList
                   horizontal
@@ -1358,10 +1310,7 @@ export default function ExploreScreen() {
             ) : null}
 
             {showTvSection && !loading && tracks.length > 0 && (
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Visual Discovery</Text>
-                <Text style={styles.sectionSub}>Hidden Tunes TV picks inside the app</Text>
-              </View>
+              <Text style={styles.sectionTitleBlock}>Visual Discovery</Text>
             )}
           </>
         }
@@ -1391,9 +1340,9 @@ export default function ExploreScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   listContent: {
-    paddingTop: 68,
+    paddingTop: 72,
     paddingHorizontal: 20,
-    paddingBottom: 165,
+    paddingBottom: 180,
   },
   topBar: {
     flexDirection: "row",
@@ -1423,10 +1372,10 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border || "rgba(255,255,255,0.12)",
   },
   smartHero: {
-    marginTop: 24,
+    marginTop: 28,
     borderRadius: 34,
-    padding: 22,
-    minHeight: 230,
+    padding: 24,
+    minHeight: 196,
     backgroundColor: "rgba(255,255,255,0.065)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.12)",
@@ -1519,30 +1468,46 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  chips: {
-    gap: 10,
-    paddingTop: 2,
-    paddingBottom: 24,
+  moodRail: {
+    gap: 14,
+    paddingBottom: 8,
   },
-  chip: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.07)",
+  moodCard: {
+    width: 112,
+    borderRadius: 24,
+    overflow: "hidden",
+    backgroundColor: "rgba(255,255,255,0.06)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.1)",
   },
-  chipFeatured: {
-    backgroundColor: "rgba(168,85,247,0.18)",
-    borderColor: "rgba(168,85,247,0.34)",
+  moodCardActive: {
+    borderColor: "rgba(168,85,247,0.55)",
+    backgroundColor: "rgba(168,85,247,0.12)",
   },
-  chipText: {
+  moodCardArt: {
+    width: "100%",
+    height: 96,
+    backgroundColor: COLORS.card,
+  },
+  moodCardArtFallback: {
+    width: "100%",
+    height: 96,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.05)",
+  },
+  moodCardTitle: {
     color: COLORS.text,
-    fontSize: 13,
-    fontWeight: "700",
+    fontSize: 12,
+    fontWeight: "900",
+    textAlign: "center",
+    paddingHorizontal: 10,
+    paddingVertical: 12,
+    lineHeight: 16,
   },
   moodRailSection: {
-    marginTop: 22,
+    marginTop: 8,
+    marginBottom: 8,
   },
   catalogStats: {
     flexDirection: "row",
@@ -1563,10 +1528,11 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
   rowHeader: {
-    marginBottom: 16,
+    marginTop: 36,
+    marginBottom: 18,
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-end",
+    alignItems: "center",
   },
   seeAll: {
     color: COLORS.primary,
@@ -1584,9 +1550,9 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   continueImage: {
-    width: 78,
-    height: 78,
-    borderRadius: 20,
+    width: 88,
+    height: 88,
+    borderRadius: 22,
     backgroundColor: COLORS.card,
   },
   continueInfo: {
@@ -1620,7 +1586,7 @@ const styles = StyleSheet.create({
   },
   cloudRow: {
     gap: CARD_GAP,
-    paddingBottom: 28,
+    paddingBottom: 32,
     paddingRight: 20,
   },
   cloudCard: {
@@ -1642,15 +1608,15 @@ const styles = StyleSheet.create({
   },
   cloudCover: {
     width: "100%",
-    height: 126,
-    borderRadius: 18,
+    height: 138,
+    borderRadius: 20,
     backgroundColor: COLORS.card,
     marginBottom: 12,
   },
   artistCloudImage: {
-    width: 112,
-    height: 112,
-    borderRadius: 56,
+    width: 118,
+    height: 118,
+    borderRadius: 59,
     backgroundColor: COLORS.card,
     marginBottom: 12,
   },
@@ -1984,17 +1950,19 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   sectionHeader: {
-    marginBottom: 16,
+    marginBottom: 18,
   },
   sectionTitle: {
     color: COLORS.text,
     fontSize: 22,
     fontWeight: "900",
   },
-  sectionSub: {
-    color: COLORS.textMuted,
-    fontSize: 13,
-    marginTop: 5,
+  sectionTitleBlock: {
+    color: COLORS.text,
+    fontSize: 22,
+    fontWeight: "900",
+    marginTop: 36,
+    marginBottom: 18,
   },
   trackCard: {
     flexDirection: "row",
