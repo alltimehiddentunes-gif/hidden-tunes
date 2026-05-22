@@ -42,7 +42,16 @@
       "bundler": "metro",
       "favicon": "./assets/images/icon.png"
     },
-    "plugins": ["expo-router"],
+    "plugins": [
+      "expo-router",
+      [
+        "expo-media-control",
+        {
+          "enableBackgroundAudio": true,
+          "audioSessionCategory": "playback"
+        }
+      ]
+    ],
     "experiments": {
       "typedRoutes": true
     },

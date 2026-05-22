@@ -2,6 +2,7 @@ import { Stack } from "expo-router";
 import { memo, useEffect, useMemo } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
+import RemoteMediaControlsBridge from "../components/RemoteMediaControlsBridge";
 import { PlayerProvider } from "../context/PlayerContext";
 import { markAppMounted } from "../utils/startupDiagnostics";
 
@@ -24,6 +25,7 @@ function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <MemoizedPlayerProvider>
+        <RemoteMediaControlsBridge />
         <Stack screenOptions={memoizedScreenOptions}>
           <Stack.Screen name="index" />
           <Stack.Screen name="onboarding" />

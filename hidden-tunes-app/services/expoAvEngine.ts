@@ -7,9 +7,9 @@ export const EXPO_AV_ENGINE_ID: PlaybackEngineId = "expo-av";
 
 export const expoAvEngineCapabilities: PlaybackEngineCapabilities = {
   ownsNativeQueue: false,
-  supportsLockScreenAutoNext: false,
-  supportsRemoteControls: false,
-  supportsExpoGo: true,
+  supportsLockScreenAutoNext: true,
+  supportsRemoteControls: true,
+  supportsExpoGo: false,
 };
 
 export function getExpoAvEngineMigrationPlan() {
@@ -19,6 +19,6 @@ export function getExpoAvEngineMigrationPlan() {
     behaviorMoved: false,
     capabilities: expoAvEngineCapabilities,
     note:
-      "Phase 0 documents the current expo-av role only. PlayerContext still owns the active expo-av implementation.",
+      "expo-av remains the playback engine. System media session controls are bridged via expo-media-control and RemoteMediaControlsBridge.",
   };
 }
