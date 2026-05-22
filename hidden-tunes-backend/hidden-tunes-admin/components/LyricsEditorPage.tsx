@@ -24,6 +24,7 @@ type LyricsResponse = {
     id: string;
     title: string;
     artworkUrl: string | null;
+    audioUrl?: string | null;
   };
   lyrics?: {
     plainLyrics: string;
@@ -61,6 +62,7 @@ export default function LyricsEditorPage({ mode }: LyricsEditorPageProps) {
   const [releaseTitle, setReleaseTitle] = useState("Release");
   const [trackTitle, setTrackTitle] = useState("Track");
   const [artworkUrl, setArtworkUrl] = useState<string | null>(null);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [value, setValue] = useState("");
   const [savedValue, setSavedValue] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -78,8 +80,8 @@ export default function LyricsEditorPage({ mode }: LyricsEditorPageProps) {
   );
   const editorTitle = isPlainMode ? "Plain Lyrics Editor" : "Synced Lyrics Editor";
   const editorDescription = isPlainMode
-    ? "Edit readable lyric text while preserving line breaks exactly for the listener experience."
-    : "Edit synced LRC text. Timing tools are not part of this phase.";
+    ? "Edit readable lyric text, then open Sync Lyrics to timestamp each line against the uploaded audio."
+    : "Edit synced LRC text directly, or use Sync Lyrics for manual timestamping.";
 
   const loadLyrics = useCallback(
     async (token: string) => {
@@ -106,6 +108,7 @@ export default function LyricsEditorPage({ mode }: LyricsEditorPageProps) {
       setReleaseTitle(data.release?.title || "Release");
       setTrackTitle(data.track?.title || "Track");
       setArtworkUrl(data.track?.artworkUrl || data.release?.artworkUrl || null);
+      setAudioUrl(data.track?.audioUrl || null);
       setValue(loadedValue);
       setSavedValue(loadedValue);
       setStatusMessage(loadedValue ? "Saved" : "Ready for lyrics");
@@ -172,6 +175,18 @@ export default function LyricsEditorPage({ mode }: LyricsEditorPageProps) {
     router.push(`/admin/releases/${releaseId}`);
   }
 
+  function openSyncEditor() {
+    if (isDirty) {
+      const shouldLeave = window.confirm(
+        "Save plain lyrics before syncing, or continue without saving?"
+      );
+
+      if (!shouldLeave) return;
+    }
+
+    router.push(`/admin/releases/${releaseId}/tracks/${trackId}/sync-lyrics`);
+  }
+
   async function handleSave() {
     setErrorMessage("");
     setStatusMessage("");
@@ -234,6 +249,23 @@ export default function LyricsEditorPage({ mode }: LyricsEditorPageProps) {
           >
             Back To Release
           </button>
+          {isPlainMode ? (
+            <button
+              onClick={openSyncEditor}
+              disabled={isLoading || !value.trim() || !audioUrl}
+              className="rounded-2xl border border-yellow-300/25 bg-yellow-300/10 px-5 py-3 text-sm font-black text-yellow-100 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Sync Lyrics
+            </button>
+          ) : (
+            <button
+              onClick={openSyncEditor}
+              disabled={isLoading || !audioUrl}
+              className="rounded-2xl border border-yellow-300/25 bg-yellow-300/10 px-5 py-3 text-sm font-black text-yellow-100 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Sync Lyrics
+            </button>
+          )}
           <button
             onClick={handleSave}
             disabled={isSaving || isLoading || !isDirty}
@@ -264,8 +296,8 @@ export default function LyricsEditorPage({ mode }: LyricsEditorPageProps) {
               </h2>
               <p className="mt-4 text-sm leading-6 text-white/55">
                 {isPlainMode
-                  ? "Plain lyrics are saved exactly as written, including line breaks and spacing."
-                  : "Synced lyrics remain a simple LRC textarea in this phase."}
+                  ? "Plain lyrics are saved exactly as written. Use Sync Lyrics to map each line to the uploaded audio."
+                  : "Synced lyrics can be edited here as raw LRC or rebuilt in the Sync Lyrics editor."}
               </p>
             </div>
           </div>
@@ -279,6 +311,7 @@ export default function LyricsEditorPage({ mode }: LyricsEditorPageProps) {
               <StatRow label="Words" value={String(wordCount)} />
               <StatRow label="Characters" value={String(characterCount)} />
               <StatRow label="Lines" value={String(lineCount)} />
+              <StatRow label="Audio" value={audioUrl ? "Ready" : "Missing"} />
             </div>
           </div>
         </aside>
@@ -341,6 +374,12 @@ export default function LyricsEditorPage({ mode }: LyricsEditorPageProps) {
                   <Notice tone="success" message={statusMessage} />
                 ) : null}
                 {errorMessage ? <Notice tone="error" message={errorMessage} /> : null}
+                {isPlainMode && !audioUrl ? (
+                  <Notice
+                    tone="error"
+                    message="Upload track audio before opening Sync Lyrics."
+                  />
+                ) : null}
               </div>
             </>
           )}

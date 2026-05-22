@@ -787,6 +787,17 @@ export default function AdminReleaseDetailPage() {
                       <button
                         onClick={() =>
                           router.push(
+                            `/admin/releases/${release.id}/tracks/${track.id}/sync-lyrics`
+                          )
+                        }
+                        disabled={!track.audioUrl}
+                        className="min-w-0 whitespace-normal rounded-2xl border border-yellow-300/25 bg-yellow-300/10 px-4 py-3 text-sm font-black leading-5 text-yellow-100 transition hover:-translate-y-0.5 hover:border-yellow-300/40 disabled:cursor-not-allowed disabled:opacity-45 [overflow-wrap:anywhere]"
+                      >
+                        Sync Lyrics
+                      </button>
+                      <button
+                        onClick={() =>
+                          router.push(
                             `/admin/releases/${release.id}/tracks/${track.id}/synced-lyrics`
                           )
                         }

@@ -19,6 +19,8 @@ type SongRow = {
   title: string | null;
   artwork_url?: string | null;
   cover_url?: string | null;
+  audio_url?: string | null;
+  url?: string | null;
   lyrics_url?: string | null;
 };
 
@@ -51,7 +53,9 @@ function hasLrcTimestamps(value: string) {
 async function getTrack(releaseId: string, trackId: string) {
   const { data, error } = await supabaseAdmin
     .from("songs")
-    .select("id, album_id, title, artwork_url, cover_url, lyrics_url")
+    .select(
+      "id, album_id, title, artwork_url, cover_url, audio_url, url, lyrics_url"
+    )
     .eq("id", trackId)
     .eq("album_id", releaseId)
     .maybeSingle();
@@ -106,6 +110,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
     const lyrics = await getLyrics(trackId);
     const artworkUrl =
       track.artwork_url || track.cover_url || release.artwork_url || null;
+    const audioUrl = String(track.audio_url || track.url || "").trim() || null;
 
     return NextResponse.json({
       success: true,
@@ -118,6 +123,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
         id: track.id,
         title: track.title || "Untitled Track",
         artworkUrl,
+        audioUrl,
       },
       lyrics: {
         plainLyrics: lyrics?.plain_lyrics || "",

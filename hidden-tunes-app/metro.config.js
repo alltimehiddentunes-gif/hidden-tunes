@@ -13,6 +13,8 @@ config.resolver.blockList = exclusionList([
   /[/\\]\.expo[/\\].*/,
   /[/\\]\.git[/\\].*/,
   new RegExp(`${appScriptsPath}[/\\\\].*`),
+  /[/\\]node_modules[/\\]@types[/\\]\.[^/\\]+[/\\]?/,
+  /[/\\]node_modules[/\\]\.pump-[^/\\]+[/\\]?/,
 ]);
 
 module.exports = config;
