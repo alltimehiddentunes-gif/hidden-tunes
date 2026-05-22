@@ -12,14 +12,18 @@
       "resizeMode": "contain",
       "backgroundColor": "#000000"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.hiddentunes.app",
       "buildNumber": "1.0.0",
       "icon": "./assets/images/icon.png",
       "infoPlist": {
-        "UIBackgroundModes": ["audio"]
+        "UIBackgroundModes": [
+          "audio"
+        ]
       }
     },
     "android": {
@@ -58,8 +62,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "fe4c3d8e-238e-4c61-ad53-36406dd5fecf"
+        "projectId": "9cf7fc48-6bf7-4ccc-8fe1-8b793530e70c"
       }
-    }
+    },
+    "owner": "hiddentunes_1"
   }
 }
