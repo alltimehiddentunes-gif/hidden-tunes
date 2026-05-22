@@ -67,6 +67,7 @@ import {
   logDuplicatePlayIgnored,
   logFinishWatchdogArmed,
   logFinishWatchdogFired,
+  logHTAutoNext,
   logManualQueueSkip,
   logPauseResumeComplete,
   logPauseResumeStart,
@@ -306,6 +307,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const loadRequestIdRef = useRef(0);
   const inFlightPlaySongIdRef = useRef<string | null>(null);
   const queueTransitionRef = useRef(false);
+  const queueTransitionTailRef = useRef(Promise.resolve());
   const autoAdvanceRef = useRef(false);
   const lastFinishEventRef = useRef({
     songId: "",
@@ -942,15 +944,23 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, [isYouTubeSong]);
 
   const runQueueTransition = useCallback(async (transition: () => Promise<void>) => {
-    if (queueTransitionRef.current) return;
+    const transitionTask = queueTransitionTailRef.current
+      .catch(() => undefined)
+      .then(async () => {
+        queueTransitionRef.current = true;
 
-    queueTransitionRef.current = true;
+        try {
+          await transition();
+        } finally {
+          queueTransitionRef.current = false;
+        }
+      });
 
-    try {
-      await transition();
-    } finally {
-      queueTransitionRef.current = false;
-    }
+    queueTransitionTailRef.current = transitionTask.catch((error) => {
+      console.log("Queue transition error:", error);
+    });
+
+    await transitionTask;
   }, []);
 
   const getUpcomingSong = useCallback((): AppSong | null => {
@@ -1136,6 +1146,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       );
 
       if (nextIndex === -1) {
+        logHTAutoNext("reason", {
+          reason: "no-next",
+          currentIndex,
+          queueLength: queue.length,
+          nextIndex: -1,
+        });
+
         if (!smartAutoplayEnabledRef.current) {
           logAutoNextSkipped("queue_ended_smart_autoplay_disabled", {
             queueLength: queue.length,
@@ -1171,6 +1188,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
       const safeIndex = Math.max(0, Math.min(nextIndex, queue.length - 1));
       const song = normalizeSong(queue[safeIndex]);
+
+      logHTAutoNext("currentIndex", { currentIndex });
+      logHTAutoNext("queueLength", { queueLength: queue.length });
+      logHTAutoNext("nextIndex", { nextIndex: safeIndex, nextSongId: song.id });
 
       setActiveQueueIndex(safeIndex);
       activeQueueIndexRef.current = safeIndex;
@@ -1234,16 +1255,33 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   handleTrackFinishedRef.current = handleTrackFinished;
 
   const scheduleTrackAdvance = useCallback(() => {
+    const { queue, safeIndex } = getActiveQueuePlaybackState();
+    const nextIndex = getNextQueueIndex(safeIndex, queue.length);
+
     if (isChangingTrackRef.current || autoAdvanceRef.current) {
       logAutoNextSkipped(
         isChangingTrackRef.current ? "already_changing_track" : "already_advancing",
         { songId: currentSongRef.current?.id }
       );
+      logHTAutoNext("reason", {
+        reason: isChangingTrackRef.current
+          ? "guard-blocked-changing-track"
+          : "guard-blocked-already-advancing",
+        currentIndex: safeIndex,
+        queueLength: queue.length,
+        nextIndex,
+      });
       return;
     }
 
     if (!soundRef.current && !trackPlayerActiveRef.current) {
       logAutoNextSkipped("sound_unloaded", { songId: currentSongRef.current?.id });
+      logHTAutoNext("reason", {
+        reason: "paused-no-sound",
+        currentIndex: safeIndex,
+        queueLength: queue.length,
+        nextIndex,
+      });
       return;
     }
 
@@ -1253,6 +1291,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       repeatMode: repeatModeRef.current,
       shuffle: shuffleRef.current,
     });
+
+    logHTAutoNext("currentIndex", { currentIndex: safeIndex });
+    logHTAutoNext("queueLength", { queueLength: queue.length });
+    logHTAutoNext("nextIndex", { nextIndex });
 
     if (finishWatchdogTimeoutRef.current) {
       clearTimeout(finishWatchdogTimeoutRef.current);
@@ -1268,6 +1310,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       lastFinishEventRef.current.songId === songId &&
       now - lastFinishEventRef.current.handledAt < FINISH_DEBOUNCE_MS
     ) {
+      logHTAutoNext("reason", {
+        reason: "guard-blocked-debounce",
+        songId,
+        currentIndex: safeIndex,
+        queueLength: queue.length,
+        nextIndex,
+      });
       return;
     }
 
@@ -1280,7 +1329,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setTimeout(() => {
       void handleTrackFinishedRef.current?.();
     }, 0);
-  }, []);
+  }, [getActiveQueuePlaybackState, getNextQueueIndex]);
 
   const armFinishWatchdog = useCallback(
     (position: number, duration: number, playing: boolean) => {
@@ -1499,6 +1548,15 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       armFinishWatchdog(nextPosition, nextDuration, nextIsPlaying);
 
       if (status.didJustFinish && !isChangingTrackRef.current) {
+        const { queue, safeIndex } = getActiveQueuePlaybackState();
+        const nextIndex = getNextQueueIndex(safeIndex, queue.length);
+
+        logHTAutoNext("didJustFinish", {
+          songId: currentSongRef.current?.id,
+          currentIndex: safeIndex,
+          queueLength: queue.length,
+          nextIndex,
+        });
         scheduleTrackAdvance();
         return;
       }
@@ -1547,6 +1605,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     [
       scheduleTrackAdvance,
       armFinishWatchdog,
+      getActiveQueuePlaybackState,
+      getNextQueueIndex,
       getUpcomingSong,
       preloadUpcomingTrack,
       savePlaybackPosition,
@@ -1586,6 +1646,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
         autoAdvanceRef.current = false;
         clearFinishWatchdog();
+
+        if (lastFinishEventRef.current.songId !== normalizedSong.id) {
+          lastFinishEventRef.current = { songId: "", handledAt: 0 };
+        }
 
         if (isYouTubeSong(normalizedSong)) {
           console.log(

@@ -184,3 +184,14 @@ export function logPauseResumeComplete(details: PlaybackDiagDetails = {}) {
     details.engine ? String(details.engine) : "expo_av"
   );
 }
+
+type HTAutoNextDetails = Record<string, string | number | boolean | undefined>;
+
+export function logHTAutoNext(
+  tag: "didJustFinish" | "currentIndex" | "queueLength" | "nextIndex" | "reason",
+  details: HTAutoNextDetails = {}
+) {
+  if (typeof __DEV__ !== "undefined" && !__DEV__) return;
+
+  console.log(`[HTAutoNext] ${tag}`, details);
+}
