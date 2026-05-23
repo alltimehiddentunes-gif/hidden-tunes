@@ -1328,20 +1328,8 @@ export async function searchHiddenTunesSongsPage(
   }
 
   const cached = await readCachedSongs();
-  const filtered = cached.filter((song) => {
-    const searchable = [
-      song.title,
-      song.artist,
-      song.album,
-      song.genre,
-      song.mood,
-    ]
-      .filter(Boolean)
-      .join(" ")
-      .toLowerCase();
-
-    return searchable.includes(cleanQuery);
-  });
+  const { rankCachedSongsForQuery } = await import("./universalSearchService");
+  const filtered = rankCachedSongsForQuery(cached, cleanQuery, 120);
   const start = (Math.max(page, 1) - 1) * limit;
   const songs = filtered.slice(start, start + limit);
 

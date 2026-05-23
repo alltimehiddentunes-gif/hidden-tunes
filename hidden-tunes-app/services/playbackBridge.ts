@@ -1,117 +1,146 @@
 import { AppStateStatus } from "react-native";
 
-export type TrackPlayerSongInput = {
-  id: string;
-  title: string;
-  artist?: string;
-  streamUrl?: string;
-  url?: string;
-  audioUrl?: string;
-  audio_url?: string;
-  audio?: { uri: string } | number;
-  coverUrl?: string;
-  artworkUrl?: string;
-  thumbnail?: string;
-  artwork?: string;
-};
+import { isTrackPlayerFeatureEnabled } from "../constants/playbackConfig";
+import {
+  PlaybackEngineEventHandlers,
+  PlaybackEngineProgress,
+  PlaybackEngineRepeatMode,
+  PlaybackEngineTrack,
+} from "./playbackEngineTypes";
+import {
+  ensureTrackPlayerReady,
+  getTrackPlayerActiveIndex,
+  getTrackPlayerProgress,
+  playTrackPlayerQueue,
+  resetTrackPlayerPlayback,
+  setTrackPlayerRepeatMode,
+  subscribeTrackPlayerEvents,
+  trackPlayerPause,
+  trackPlayerPlay,
+  trackPlayerSeekTo,
+  trackPlayerSetVolume,
+  trackPlayerSkipToNext,
+  trackPlayerSkipToPrevious,
+  trackPlayerTogglePlayPause,
+  updateTrackPlayerProgressInterval,
+} from "./trackPlayerEngine";
 
-export type PlayerRepeatMode = "off" | "one" | "all";
+export type TrackPlayerSongInput = PlaybackEngineTrack;
+export type PlayerRepeatMode = PlaybackEngineRepeatMode;
+export type PlaybackProgress = PlaybackEngineProgress;
+export type TrackPlayerEventHandlers = PlaybackEngineEventHandlers;
 
-export type PlaybackProgress = {
-  positionMillis: number;
-  durationMillis: number;
-  isPlaying: boolean;
-};
-
-export type TrackPlayerEventHandlers = {
-  onProgress?: (progress: PlaybackProgress) => void;
-  onActiveTrackChanged?: (index: number | null, trackId: string | null) => void;
-  onQueueEnded?: () => void;
-  onPlaybackError?: (message: string) => void;
-};
+let bridgeActive = false;
 
 export function isPlaybackBridgeActive(): boolean {
-  return false;
+  return bridgeActive && isTrackPlayerFeatureEnabled();
 }
 
 export function isNativeQueuePlaybackEnabled(): boolean {
-  return false;
+  return isPlaybackBridgeActive();
 }
 
 export async function shouldUseTrackPlayerPlayback(): Promise<boolean> {
-  return false;
+  if (!isTrackPlayerFeatureEnabled()) return false;
+  return ensureTrackPlayerReady();
 }
 
-export async function activateTrackPlayerPlayback(
-  _options: {
-    songs: TrackPlayerSongInput[];
-    startIndex: number;
-    repeatMode: PlayerRepeatMode;
-    volume: number;
-    muted: boolean;
-    startPositionMillis?: number;
-  }
-): Promise<number> {
-  return 0;
+export async function activateTrackPlayerPlayback(options: {
+  songs: TrackPlayerSongInput[];
+  startIndex: number;
+  repeatMode: PlayerRepeatMode;
+  volume: number;
+  muted: boolean;
+  startPositionMillis?: number;
+}): Promise<number> {
+  const playedIndex = await playTrackPlayerQueue(options);
+  bridgeActive = true;
+  return playedIndex;
 }
 
 export async function deactivateTrackPlayerPlayback(): Promise<void> {
-  return;
+  bridgeActive = false;
+  await resetTrackPlayerPlayback();
 }
 
 export async function bridgeResetPlayback(): Promise<void> {
-  return;
+  await deactivateTrackPlayerPlayback();
 }
 
 export async function bridgeSyncRepeatMode(
-  _mode: PlayerRepeatMode
+  mode: PlayerRepeatMode
 ): Promise<void> {
-  return;
+  if (!isPlaybackBridgeActive()) return;
+  await setTrackPlayerRepeatMode(mode);
 }
 
 export async function bridgeTogglePlayPause(): Promise<boolean> {
-  return false;
+  if (!isPlaybackBridgeActive()) return false;
+  return trackPlayerTogglePlayPause();
 }
 
-export async function bridgeSeekTo(_millis: number): Promise<void> {
-  return;
+export async function bridgeSeekTo(millis: number): Promise<void> {
+  if (!isPlaybackBridgeActive()) return;
+  await trackPlayerSeekTo(millis);
 }
 
 export async function bridgeSetVolume(
-  _volume: number,
-  _muted: boolean
+  volume: number,
+  muted: boolean
 ): Promise<void> {
-  return;
+  if (!isPlaybackBridgeActive()) return;
+  await trackPlayerSetVolume(volume, muted);
 }
 
 export async function bridgeSkipToNext(): Promise<void> {
-  return;
+  if (!isPlaybackBridgeActive()) return;
+  await trackPlayerSkipToNext();
 }
 
 export async function bridgeSkipToPrevious(): Promise<void> {
-  return;
+  if (!isPlaybackBridgeActive()) return;
+  await trackPlayerSkipToPrevious();
 }
 
 export async function bridgeGetProgress(): Promise<PlaybackProgress> {
-  return {
-    positionMillis: 0,
-    durationMillis: 0,
-    isPlaying: false,
-  };
+  if (!isPlaybackBridgeActive()) {
+    return {
+      positionMillis: 0,
+      durationMillis: 0,
+      isPlaying: false,
+    };
+  }
+
+  return getTrackPlayerProgress();
 }
 
 export async function bridgeGetActiveIndex(): Promise<number | null> {
-  return null;
+  if (!isPlaybackBridgeActive()) return null;
+  return getTrackPlayerActiveIndex();
 }
 
 export function subscribeBridgeEvents(
-  _handlers: TrackPlayerEventHandlers
+  handlers: TrackPlayerEventHandlers
 ): () => void {
-  return () => {};
+  if (!isTrackPlayerFeatureEnabled()) return () => {};
+  return subscribeTrackPlayerEvents(handlers);
 }
 
 export async function bridgeSetProgressInterval(
-  _appState: AppStateStatus
+  appState: AppStateStatus
 ): Promise<void> {
-  return;
+  if (!isTrackPlayerFeatureEnabled()) return;
+
+  const intervalSeconds = appState === "active" ? 0.5 : 1;
+  await updateTrackPlayerProgressInterval(intervalSeconds);
+}
+
+export async function bridgePlay(): Promise<void> {
+  if (!isPlaybackBridgeActive()) return;
+  await trackPlayerPlay();
+}
+
+export async function bridgePause(): Promise<void> {
+  if (!isPlaybackBridgeActive()) return;
+  await trackPlayerPause();
 }

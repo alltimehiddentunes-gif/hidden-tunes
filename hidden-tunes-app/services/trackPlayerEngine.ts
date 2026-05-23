@@ -1,3 +1,5 @@
+import { Platform } from "react-native";
+
 import { USE_NATIVE_TRACK_PLAYER } from "../constants/playbackConfig";
 import {
   PlaybackEngine,
@@ -25,6 +27,7 @@ type TrackPlayerTrack = {
 };
 
 let setupComplete = false;
+let optionsConfigured = false;
 let trackPlayerModulePromise: Promise<TrackPlayerModule | null> | null = null;
 
 function isNativeTrackPlayerEnabled() {
@@ -95,14 +98,69 @@ export function isTrackPlayerRuntimeAvailable(): boolean {
   return isNativeTrackPlayerEnabled();
 }
 
+async function configureTrackPlayerOptions(
+  progressUpdateEventInterval = 1
+): Promise<void> {
+  const TrackPlayer = await getTrackPlayerModule();
+  if (!TrackPlayer) return;
+
+  const { Capability, AppKilledPlaybackBehavior } = TrackPlayer;
+
+  await TrackPlayer.default.updateOptions({
+    progressUpdateEventInterval,
+    capabilities: [
+      Capability.Play,
+      Capability.Pause,
+      Capability.Stop,
+      Capability.SeekTo,
+      Capability.SkipToNext,
+      Capability.SkipToPrevious,
+    ],
+    notificationCapabilities: [
+      Capability.Play,
+      Capability.Pause,
+      Capability.SkipToNext,
+      Capability.SkipToPrevious,
+    ],
+    android: {
+      appKilledPlaybackBehavior: AppKilledPlaybackBehavior.ContinuePlayback,
+      alwaysPauseOnInterruption: false,
+    },
+  });
+
+  optionsConfigured = true;
+}
+
 export async function setupTrackPlayer(): Promise<boolean> {
   const TrackPlayer = await getTrackPlayerModule();
   if (!TrackPlayer) return false;
 
-  if (setupComplete) return true;
+  if (setupComplete) {
+    if (!optionsConfigured) {
+      await configureTrackPlayerOptions();
+    }
+
+    return true;
+  }
 
   try {
-    await TrackPlayer.default.setupPlayer();
+    await TrackPlayer.default.setupPlayer({
+      autoUpdateMetadata: true,
+      autoHandleInterruptions: true,
+    });
+
+    await configureTrackPlayerOptions();
+
+    if (Platform.OS === "android") {
+      try {
+        await TrackPlayer.default.acquireWakeLock();
+      } catch (wakeError) {
+        if (__DEV__) {
+          console.warn("Track Player wake lock failed:", wakeError);
+        }
+      }
+    }
+
     setupComplete = true;
     return true;
   } catch (error) {
@@ -116,6 +174,15 @@ export async function setupTrackPlayer(): Promise<boolean> {
 
 export async function ensureTrackPlayerReady(): Promise<boolean> {
   return setupTrackPlayer();
+}
+
+export async function updateTrackPlayerProgressInterval(
+  intervalSeconds: number
+): Promise<void> {
+  const ready = await setupTrackPlayer();
+  if (!ready) return;
+
+  await configureTrackPlayerOptions(Math.max(0.25, intervalSeconds));
 }
 
 export async function resetTrackPlayerPlayback(): Promise<void> {
@@ -143,14 +210,14 @@ export async function playTrackPlayerQueue(options: {
   if (!tracks.length) return 0;
 
   const safeIndex = Math.max(0, Math.min(options.startIndex, tracks.length - 1));
+  const startPositionSeconds =
+    options.startPositionMillis && options.startPositionMillis > 0
+      ? options.startPositionMillis / 1000
+      : undefined;
 
   await TrackPlayer.default.reset();
   await TrackPlayer.default.add(tracks);
-  await TrackPlayer.default.skip(safeIndex);
-
-  if (options.startPositionMillis && options.startPositionMillis > 0) {
-    await TrackPlayer.default.seekTo(options.startPositionMillis / 1000);
-  }
+  await TrackPlayer.default.skip(safeIndex, startPositionSeconds);
 
   await trackPlayerSetVolume(options.volume, options.muted);
   await setTrackPlayerRepeatMode(options.repeatMode);
@@ -169,8 +236,8 @@ export async function setTrackPlayerRepeatMode(
     mode === "one"
       ? TrackPlayer.RepeatMode.Track
       : mode === "all"
-      ? TrackPlayer.RepeatMode.Queue
-      : TrackPlayer.RepeatMode.Off;
+        ? TrackPlayer.RepeatMode.Queue
+        : TrackPlayer.RepeatMode.Off;
 
   await TrackPlayer.default.setRepeatMode(repeatMode);
 }
@@ -272,13 +339,113 @@ export async function trackPlayerSkipToPrevious(): Promise<void> {
 }
 
 export function subscribeTrackPlayerEvents(
-  _handlers: TrackPlayerEventHandlers
+  handlers: TrackPlayerEventHandlers
 ): () => void {
   if (!isNativeTrackPlayerEnabled()) return () => {};
 
-  // Phase 2 intentionally avoids wiring event listeners into PlayerContext.
-  // Native events become active only when the playback bridge is enabled later.
-  return () => {};
+  let disposed = false;
+  const subscriptions: Array<{ remove: () => void }> = [];
+
+  void (async () => {
+    const TrackPlayer = await getTrackPlayerModule();
+    if (!TrackPlayer || disposed) return;
+
+    const { Event, State } = TrackPlayer;
+
+    const resolveActiveTrack = async (payload?: { index?: number }) => {
+      let index =
+        typeof payload?.index === "number" ? payload.index : undefined;
+
+      if (typeof index !== "number") {
+        const activeIndex = await TrackPlayer.default.getActiveTrackIndex();
+        index = typeof activeIndex === "number" ? activeIndex : undefined;
+      }
+
+      if (typeof index !== "number") return;
+
+      const track = await TrackPlayer.default.getTrack(index);
+      const trackId =
+        track && typeof track.id === "string" ? String(track.id) : null;
+
+      handlers.onActiveTrackChanged?.(index, trackId);
+    };
+
+    subscriptions.push(
+      TrackPlayer.default.addEventListener(
+        Event.PlaybackProgressUpdated,
+        (event: { position?: number; duration?: number }) => {
+          const positionSeconds = event?.position ?? 0;
+          const durationSeconds = event?.duration ?? 0;
+
+          void (async () => {
+            let isPlaying = false;
+
+            try {
+              const playbackState =
+                await TrackPlayer.default.getPlaybackState();
+              isPlaying = playbackState.state === State.Playing;
+            } catch {
+              // Player may not be ready yet.
+            }
+
+            handlers.onProgress?.({
+              positionMillis: Math.max(
+                0,
+                Math.floor(positionSeconds * 1000)
+              ),
+              durationMillis: Math.max(
+                0,
+                Math.floor(durationSeconds * 1000)
+              ),
+              isPlaying,
+            });
+          })();
+        }
+      )
+    );
+
+    subscriptions.push(
+      TrackPlayer.default.addEventListener(
+        Event.PlaybackActiveTrackChanged,
+        (event?: { index?: number }) => {
+          void resolveActiveTrack(event);
+        }
+      )
+    );
+
+    subscriptions.push(
+      TrackPlayer.default.addEventListener(Event.PlaybackQueueEnded, () => {
+        handlers.onQueueEnded?.();
+      })
+    );
+
+    subscriptions.push(
+      TrackPlayer.default.addEventListener(
+        Event.PlaybackError,
+        (event?: { message?: string; code?: string }) => {
+          const message =
+            typeof event?.message === "string"
+              ? event.message
+              : typeof event?.code === "string"
+                ? event.code
+                : "playback_error";
+
+          handlers.onPlaybackError?.(message);
+        }
+      )
+    );
+  })();
+
+  return () => {
+    disposed = true;
+    subscriptions.forEach((subscription) => {
+      try {
+        subscription.remove();
+      } catch {
+        // ignore
+      }
+    });
+  };
 }
 
 export const trackPlayerEngine: PlaybackEngine = {

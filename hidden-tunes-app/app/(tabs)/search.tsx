@@ -49,11 +49,13 @@ import {
   getHiddenTunesAlbums,
   getHiddenTunesArtists,
   getHiddenTunesCloudPlaylists,
+  getHiddenTunesCatalogSnapshot,
   extractHiddenTunesAlbums,
   extractHiddenTunesArtists,
   type HiddenTunesAlbum,
   type HiddenTunesArtist,
   type HiddenTunesCloudPlaylist,
+  type HiddenTunesNormalizedSong,
 } from "../../services/hiddenTunesApi";
 import { FALLBACK_ARTWORK, getArtworkUri } from "../../utils/artwork";
 import {
@@ -75,6 +77,17 @@ import {
   setCachedSearchResults,
 } from "../../utils/searchQueryCache";
 import { openGenreCatalog } from "../../utils/catalogNavigation";
+import UniversalSearchGroupedResults from "../../components/UniversalSearchGroupedResults";
+import {
+  flattenTvHomeCache,
+  runUniversalCatalogSearch,
+  type UniversalSearchGroupedResults as GroupedSearchResults,
+} from "../../services/universalSearchService";
+import {
+  fetchTvCatalog,
+  loadTvHomeCache,
+  type HiddenTunesTvVideo,
+} from "../../services/tvCatalogApi";
 
 type SearchType = "all" | "hidden" | "audius" | "archive" | "youtube";
 
@@ -120,7 +133,20 @@ const SEARCH_HISTORY_KEY = "hidden_tunes_recent_searches_v4";
 const TV_DISCOVERY_CACHE_KEY = "hidden_tunes_tv_discovery_queries_v1";
 const WEAK_RESULT_THRESHOLD = 4;
 const SEARCH_SKELETON_KEYS = ["one", "two", "three", "four"];
-const SEARCH_DEBOUNCE_MS = 560;
+const SEARCH_DEBOUNCE_MS = 380;
+const LOCAL_SEARCH_MIN_CHARS = 2;
+const API_SEARCH_MIN_CHARS = 3;
+
+const EMPTY_GROUPED_RESULTS: GroupedSearchResults = {
+  topResults: [],
+  songs: [],
+  lyrics: [],
+  artists: [],
+  albums: [],
+  genreMoods: [],
+  tv: [],
+  hasAnyResults: false,
+};
 
 const TRENDING_SEARCHES = [
   "Caasi Wills",
@@ -425,6 +451,11 @@ export default function SearchScreen() {
   const [cloudPlaylists, setCloudPlaylists] = useState<HiddenTunesCloudPlaylist[]>(
     []
   );
+  const [fullCatalogSongs, setFullCatalogSongs] = useState<
+    HiddenTunesNormalizedSong[]
+  >([]);
+  const [tvIndexVideos, setTvIndexVideos] = useState<HiddenTunesTvVideo[]>([]);
+  const [tvSearchVideos, setTvSearchVideos] = useState<HiddenTunesTvVideo[]>([]);
 
   const matchedGenres = useMemo(() => {
     const safeQuery = query.trim().toLowerCase();
@@ -455,7 +486,41 @@ export default function SearchScreen() {
     return cloudSongs.slice(0, 8);
   }, [playableResults, cloudSongs]);
 
-  const emptySearchMode = query.trim().length < 3;
+  const trimmedQuery = query.trim();
+  const emptySearchMode = trimmedQuery.length < LOCAL_SEARCH_MIN_CHARS;
+  const showGroupedSearch = trimmedQuery.length >= LOCAL_SEARCH_MIN_CHARS;
+
+  const universalCatalog = useMemo(
+    () => ({
+      songs:
+        fullCatalogSongs.length > 0
+          ? fullCatalogSongs
+          : getHiddenTunesCatalogSnapshot(),
+      albums: cloudAlbums,
+      artists: cloudArtists,
+      genres: HIDDEN_TUNES_GENRES,
+      tvVideos: (() => {
+        const seen = new Set<string>();
+        return [...tvSearchVideos, ...tvIndexVideos].filter((video) => {
+          if (!video?.id || seen.has(video.id)) return false;
+          seen.add(video.id);
+          return true;
+        });
+      })(),
+    }),
+    [
+      cloudAlbums,
+      cloudArtists,
+      fullCatalogSongs,
+      tvIndexVideos,
+      tvSearchVideos,
+    ]
+  );
+
+  const groupedSearchResults = useMemo(() => {
+    if (!showGroupedSearch) return EMPTY_GROUPED_RESULTS;
+    return runUniversalCatalogSearch(universalCatalog, trimmedQuery);
+  }, [showGroupedSearch, trimmedQuery, universalCatalog]);
 
   useScrollToTop(resultListRef);
   useEffect(() => trackRenderProbe("SearchScreen"), []);
@@ -474,10 +539,34 @@ export default function SearchScreen() {
     loadRecentSearches();
     loadCloudDiscovery(true);
 
+    void loadTvHomeCache().then((cache) => {
+      if (!cache?.lanes?.length) return;
+      setTvIndexVideos(flattenTvHomeCache(cache.lanes));
+    });
+
     return () => {
       if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    const safeQuery = trimmedQuery;
+    if (safeQuery.length < LOCAL_SEARCH_MIN_CHARS) {
+      setTvSearchVideos([]);
+      return;
+    }
+
+    let cancelled = false;
+
+    void fetchTvCatalog({ q: safeQuery, limit: 40 }).then((response) => {
+      if (cancelled || !response.success) return;
+      setTvSearchVideos(response.videos || []);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [trimmedQuery]);
 
   async function loadRecentSearches() {
     try {
@@ -532,6 +621,7 @@ export default function SearchScreen() {
       const cached = await hydrateHiddenTunesCatalogCache();
 
       if (cached.length) {
+        setFullCatalogSongs(cached);
         setCloudSongs(
           dedupeByKey(
             cached.slice(0, 24).map((item: any) =>
@@ -566,6 +656,13 @@ export default function SearchScreen() {
       const songs = await getHiddenTunesSongsPage({ page: 1, limit: 24 }).then(
         (page) => page.songs
       );
+
+      const catalogSnapshot = getHiddenTunesCatalogSnapshot();
+      if (catalogSnapshot.length) {
+        setFullCatalogSongs(catalogSnapshot);
+      } else if (songs.length) {
+        setFullCatalogSongs(songs);
+      }
 
       setCloudSongs(
         dedupeByKey(
@@ -626,7 +723,7 @@ export default function SearchScreen() {
     setRefreshing(true);
     await loadCloudDiscovery(false);
 
-    if (query.trim().length >= 3) {
+    if (query.trim().length >= API_SEARCH_MIN_CHARS) {
       await searchTracks(query, activeSource);
     } else {
       setRefreshing(false);
@@ -678,9 +775,15 @@ export default function SearchScreen() {
     setHasMoreHiddenResults(false);
     setHasCheckedSearchFallbacks(false);
 
-    if (!safeText || safeText.length < 3) {
+    if (!safeText || safeText.length < LOCAL_SEARCH_MIN_CHARS) {
       setResults([]);
       setHasCheckedSearchFallbacks(true);
+      return;
+    }
+
+    if (safeText.length < API_SEARCH_MIN_CHARS) {
+      setHasCheckedSearchFallbacks(true);
+      setLoading(false);
       return;
     }
 
@@ -871,7 +974,7 @@ export default function SearchScreen() {
     if (
       loadingMoreResults ||
       !hasMoreHiddenResults ||
-      safeText.length < 3 ||
+      safeText.length < API_SEARCH_MIN_CHARS ||
       activeSource === "youtube" ||
       activeSource === "audius" ||
       activeSource === "archive"
@@ -919,10 +1022,27 @@ export default function SearchScreen() {
     if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
 
     const generation = ++searchDebounceGenerationRef.current;
+    const safeText = String(text || "").trim();
+
+    if (safeText.length < LOCAL_SEARCH_MIN_CHARS) {
+      setResults([]);
+      setHasCheckedSearchFallbacks(true);
+      setLoading(false);
+      return;
+    }
+
+    if (safeText.length < API_SEARCH_MIN_CHARS) {
+      setHasCheckedSearchFallbacks(true);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
 
     searchTimeoutRef.current = setTimeout(() => {
       if (generation !== searchDebounceGenerationRef.current) return;
-      searchTracks(text, source);
+      if (safeText.length >= API_SEARCH_MIN_CHARS) {
+        void searchTracks(text, source);
+      }
     }, SEARCH_DEBOUNCE_MS);
   }
 
@@ -1104,10 +1224,65 @@ export default function SearchScreen() {
     [activeSource]
   );
 
+  const openGroupedSong = useCallback(
+    (song: HiddenTunesNormalizedSong) => {
+      const track = normalizeNativeResult({
+        ...song,
+        source: "hidden-tunes",
+        sourceName: "Hidden Tunes",
+        type: "r2",
+      });
+
+      void handlePress(track as SearchResultTrack);
+    },
+    [handlePress]
+  );
+
+  const openGroupedArtist = useCallback((artist: HiddenTunesArtist) => {
+    router.push({
+      pathname: "/artist/[id]",
+      params: { id: String(artist.id) },
+    } as any);
+  }, []);
+
+  const openGroupedAlbum = useCallback((album: HiddenTunesAlbum) => {
+    router.push({
+      pathname: "/album/[id]",
+      params: { id: String(album.id) },
+    } as any);
+  }, []);
+
+  const openGroupedTv = useCallback((video: HiddenTunesTvVideo) => {
+    const videoId = sanitizeYouTubeVideoId(video.source_id || video.id);
+
+    if (videoId) {
+      void stopPlayback();
+      router.push({
+        pathname: "/youtube-player",
+        params: {
+          id: videoId,
+          videoId,
+          title: video.title,
+          artist: video.channel_name || "YouTube",
+          channelTitle: video.channel_name || "YouTube",
+          thumbnail:
+            video.thumbnail_url ||
+            `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
+        },
+      } as any);
+      return;
+    }
+
+    router.push({
+      pathname: "/tv",
+      params: { q: video.title },
+    } as any);
+  }, [stopPlayback]);
+
   const renderTvFallbackCard = useCallback(() => {
     const safeQuery = tvFallbackQuery || query.trim();
 
-    if (!safeQuery || safeQuery.length < 3) return null;
+    if (!safeQuery || safeQuery.length < API_SEARCH_MIN_CHARS) return null;
 
     return (
       <TouchableOpacity
@@ -1428,8 +1603,10 @@ export default function SearchScreen() {
                 const source = item.key;
                 setActiveSource(source);
 
-                if (query.trim().length >= 3) {
-                  searchTracks(query, source);
+                if (query.trim().length >= LOCAL_SEARCH_MIN_CHARS) {
+                  if (query.trim().length >= API_SEARCH_MIN_CHARS) {
+                    searchTracks(query, source);
+                  }
                 }
               }}
             >
@@ -1532,25 +1709,48 @@ export default function SearchScreen() {
 
               {renderTvFallbackCard()}
 
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Hidden Tunes Matches</Text>
-                <Text style={styles.sectionSub}>
-                  {results.length > 0
-                    ? `${results.length} tracks found • ${
-                        activeSource === "youtube" ? "TV" : "ready"
-                      }`
-                    : "Start typing to discover"}
-                </Text>
-              </View>
+              {showGroupedSearch ? (
+                <UniversalSearchGroupedResults
+                  grouped={groupedSearchResults}
+                  query={trimmedQuery}
+                  onSongPress={openGroupedSong}
+                  onLyricPress={openGroupedSong}
+                  onArtistPress={openGroupedArtist}
+                  onAlbumPress={openGroupedAlbum}
+                  onGenrePress={openGenre}
+                  onTvPress={openGroupedTv}
+                  onSuggestionPress={(text) => searchTracks(text, activeSource)}
+                  activeSongId={currentSong?.id}
+                  isPlaying={isPlaying}
+                />
+              ) : null}
+
+              {!showGroupedSearch || results.length > 0 ? (
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>
+                    {showGroupedSearch ? "More Matches" : "Hidden Tunes Matches"}
+                  </Text>
+                  <Text style={styles.sectionSub}>
+                    {results.length > 0
+                      ? `${results.length} tracks found • ${
+                          activeSource === "youtube" ? "TV" : "ready"
+                        }`
+                      : showGroupedSearch
+                        ? "Streaming and catalog matches"
+                        : "Start typing to discover"}
+                  </Text>
+                </View>
+              ) : null}
             </>
           }
           ListEmptyComponent={
-            query.trim().length >= 3 && hasCheckedSearchFallbacks ? (
+            showGroupedSearch ? null : query.trim().length >= API_SEARCH_MIN_CHARS &&
+              hasCheckedSearchFallbacks ? (
             <View style={styles.emptyBox}>
               <Ionicons name="musical-notes-outline" size={56} color={COLORS.textMuted} />
               <Text style={styles.emptyTitle}>No close match yet</Text>
               <Text style={styles.emptyText}>
-                Try another mood, artist, or open Hidden Tunes TV.
+                Try a lyric, mood, artist, genre, or phrase
               </Text>
               {renderTvFallbackCard()}
             </View>

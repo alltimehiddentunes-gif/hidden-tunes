@@ -68,6 +68,7 @@ import {
   logFinishWatchdogArmed,
   logFinishWatchdogFired,
   logHTAutoNext,
+  logHTLockAutoNext,
   logManualQueueSkip,
   logPauseResumeComplete,
   logPauseResumeStart,
@@ -229,7 +230,7 @@ const ACTIVE_QUEUE_INDEX_KEY = "hidden_tunes_active_queue_index";
 const ACTIVE_QUEUE_MODE_KEY = "hidden_tunes_active_queue_mode";
 
 const PLAYBACK_UPDATE_INTERVAL_MS = 2000;
-const PLAYBACK_UPDATE_INTERVAL_BACKGROUND_MS = 2000;
+const PLAYBACK_UPDATE_INTERVAL_BACKGROUND_MS = 1000;
 const POSITION_STATE_UPDATE_MIN_MS = 2000;
 const POSITION_STATE_UPDATE_BACKGROUND_MS = 2000;
 const POSITION_SAVE_INTERVAL_MS = 12000;
@@ -242,6 +243,9 @@ const FINISH_DEBOUNCE_MS = 1500;
 const FINISH_WATCHDOG_GRACE_MS = 650;
 const FINISH_WATCHDOG_MIN_DELAY_MS = 350;
 const FINISH_WATCHDOG_MAX_DELAY_MS = 30000;
+const LOCK_SCREEN_END_WINDOW_MS = 1500;
+const LOCK_FINISH_GRACE_MS = 900;
+const LOCK_END_CHECK_DELAY_MS = 400;
 
 function isBackgroundAppState(state: AppStateStatus) {
   return state === "background" || state === "inactive";
@@ -337,6 +341,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     null
   );
   const finishWatchdogSongIdRef = useRef("");
+  const finishWatchdogFireAtRef = useRef(0);
+  const lockScreenEndCheckRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
+  const armFinishWatchdogRef = useRef<
+    ((position: number, duration: number, playing: boolean) => void) | null
+  >(null);
 
   const positionMillisRef = useRef(0);
   const durationMillisRef = useRef(0);
@@ -1051,13 +1062,20 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     return sound;
   }, []);
 
-  const clearFinishWatchdog = useCallback(() => {
+  const clearFinishWatchdog = useCallback((reason = "unspecified") => {
     if (finishWatchdogTimeoutRef.current) {
       clearTimeout(finishWatchdogTimeoutRef.current);
       finishWatchdogTimeoutRef.current = null;
     }
 
+    if (lockScreenEndCheckRef.current) {
+      clearTimeout(lockScreenEndCheckRef.current);
+      lockScreenEndCheckRef.current = null;
+    }
+
     finishWatchdogSongIdRef.current = "";
+    finishWatchdogFireAtRef.current = 0;
+    logHTLockAutoNext("clear", { reason });
   }, []);
 
   const nextSong = useCallback(async () => {
@@ -1247,7 +1265,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       await nextSong();
     } finally {
       void removeStoredValues([POSITION_KEY]);
-      clearFinishWatchdog();
+      clearFinishWatchdog("track_finished");
       autoAdvanceRef.current = false;
     }
   }, [nextSong, removeStoredValues, setIsPlaying, clearFinishWatchdog]);
@@ -1296,12 +1314,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     logHTAutoNext("queueLength", { queueLength: queue.length });
     logHTAutoNext("nextIndex", { nextIndex });
 
-    if (finishWatchdogTimeoutRef.current) {
-      clearTimeout(finishWatchdogTimeoutRef.current);
-      finishWatchdogTimeoutRef.current = null;
-    }
-
-    finishWatchdogSongIdRef.current = "";
+    clearFinishWatchdog("schedule_advance");
 
     const songId = currentSongRef.current?.id || "";
     const now = Date.now();
@@ -1329,43 +1342,149 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setTimeout(() => {
       void handleTrackFinishedRef.current?.();
     }, 0);
-  }, [getActiveQueuePlaybackState, getNextQueueIndex]);
+  }, [getActiveQueuePlaybackState, getNextQueueIndex, clearFinishWatchdog]);
+
+  const runLockScreenEndCheck = useCallback(
+    async (sourceDuration?: number) => {
+      if (trackPlayerActiveRef.current) return;
+
+      const songId = currentSongRef.current?.id || "";
+      logHTLockAutoNext("check", {
+        songId,
+        source: sourceDuration ? "watchdog" : "end-check",
+      });
+
+      const sound = soundRef.current;
+      if (!sound || isChangingTrackRef.current || autoAdvanceRef.current) {
+        return;
+      }
+
+      try {
+        const status = await sound.getStatusAsync();
+
+        if (!status.isLoaded || currentSongRef.current?.id !== songId) {
+          return;
+        }
+
+        const statusPosition = status.positionMillis || 0;
+        const statusDuration = status.durationMillis || sourceDuration || 0;
+        const nearEnd =
+          statusDuration >= MIN_DURATION_FOR_POSITION_FINISH_MS &&
+          statusPosition >= statusDuration - LOCK_SCREEN_END_WINDOW_MS;
+
+        if (status.didJustFinish || (!status.isPlaying && nearEnd)) {
+          logHTLockAutoNext("force-advance", {
+            songId,
+            position: statusPosition,
+            duration: statusDuration,
+            didJustFinish: Boolean(status.didJustFinish),
+          });
+          scheduleTrackAdvance();
+          return;
+        }
+
+        if (
+          status.isPlaying &&
+          statusDuration >= MIN_DURATION_FOR_POSITION_FINISH_MS &&
+          statusPosition >= statusDuration - LOCK_SCREEN_END_WINDOW_MS
+        ) {
+          armFinishWatchdogRef.current?.(
+            statusPosition,
+            statusDuration,
+            true
+          );
+        }
+      } catch (error) {
+        console.log("Lock screen end check error:", error);
+      }
+    },
+    [scheduleTrackAdvance]
+  );
+
+  const scheduleLockScreenEndCheck = useCallback(
+    (delayMs: number) => {
+      if (lockScreenEndCheckRef.current) return;
+
+      lockScreenEndCheckRef.current = setTimeout(() => {
+        lockScreenEndCheckRef.current = null;
+        void runLockScreenEndCheck();
+      }, delayMs);
+    },
+    [runLockScreenEndCheck]
+  );
 
   const armFinishWatchdog = useCallback(
     (position: number, duration: number, playing: boolean) => {
       if (trackPlayerActiveRef.current) return;
 
       if (
-        !playing ||
         repeatModeRef.current === "one" ||
-        duration < MIN_DURATION_FOR_POSITION_FINISH_MS ||
-        position <= 0 ||
-        position >= duration
+        duration < MIN_DURATION_FOR_POSITION_FINISH_MS
       ) {
-        clearFinishWatchdog();
+        clearFinishWatchdog("repeat_or_short_track");
         return;
       }
 
       const songId = currentSongRef.current?.id || "";
       if (!songId) {
-        clearFinishWatchdog();
+        clearFinishWatchdog("missing_song");
         return;
       }
 
-      const remainingMs = duration - position;
+      const withinEndWindow =
+        position > 0 && position >= duration - LOCK_SCREEN_END_WINDOW_MS;
+
+      if (!playing) {
+        if (withinEndWindow) {
+          logHTLockAutoNext("armed", {
+            songId,
+            mode: "ended-near-end",
+            position,
+            duration,
+          });
+          scheduleLockScreenEndCheck(LOCK_END_CHECK_DELAY_MS);
+        } else {
+          clearFinishWatchdog("paused_before_end_window");
+        }
+        return;
+      }
+
+      if (!withinEndWindow) {
+        clearFinishWatchdog("outside_end_window");
+        return;
+      }
+
+      const remainingMs = Math.max(0, duration - position);
       const delay = Math.max(
         FINISH_WATCHDOG_MIN_DELAY_MS,
-        Math.min(
-          remainingMs + FINISH_WATCHDOG_GRACE_MS,
-          FINISH_WATCHDOG_MAX_DELAY_MS
-        )
+        Math.min(remainingMs + LOCK_FINISH_GRACE_MS, 15000)
       );
+      const fireAt = Date.now() + delay;
+
+      if (
+        finishWatchdogTimeoutRef.current &&
+        finishWatchdogSongIdRef.current === songId &&
+        finishWatchdogFireAtRef.current > 0 &&
+        fireAt >= finishWatchdogFireAtRef.current - 250
+      ) {
+        return;
+      }
 
       if (finishWatchdogTimeoutRef.current) {
         clearTimeout(finishWatchdogTimeoutRef.current);
       }
 
       finishWatchdogSongIdRef.current = songId;
+      finishWatchdogFireAtRef.current = fireAt;
+
+      logHTLockAutoNext("armed", {
+        songId,
+        delayMs: delay,
+        position,
+        duration,
+        background: isBackgroundAppState(appStateRef.current),
+      });
+
       logFinishWatchdogArmed({
         songId,
         delayMs: delay,
@@ -1375,59 +1494,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
       finishWatchdogTimeoutRef.current = setTimeout(() => {
         finishWatchdogTimeoutRef.current = null;
-
-        if (finishWatchdogSongIdRef.current !== currentSongRef.current?.id) {
-          return;
-        }
-
-        const sound = soundRef.current;
-        if (!sound || isChangingTrackRef.current || autoAdvanceRef.current) {
-          logAutoNextSkipped(
-            !sound ? "sound_unloaded" : "already_changing_or_advancing",
-            { source: "finish_watchdog" }
-          );
-          return;
-        }
-
-        logFinishWatchdogFired({
-          songId: currentSongRef.current?.id,
-        });
-
-        void sound
-          .getStatusAsync()
-          .then((status) => {
-            if (
-              !status.isLoaded ||
-              finishWatchdogSongIdRef.current !== currentSongRef.current?.id
-            ) {
-              return;
-            }
-
-            const statusPosition = status.positionMillis || 0;
-            const statusDuration = status.durationMillis || duration;
-            const nearEnd =
-              statusDuration >= MIN_DURATION_FOR_POSITION_FINISH_MS &&
-              statusPosition >= statusDuration - TRACK_END_THRESHOLD_MS;
-
-            if (status.didJustFinish || (!status.isPlaying && nearEnd)) {
-              scheduleTrackAdvance();
-              return;
-            }
-
-            if (status.isPlaying && nearEnd) {
-              armFinishWatchdog(statusPosition, statusDuration, true);
-              return;
-            }
-
-            armFinishWatchdog(statusPosition, statusDuration, status.isPlaying);
-          })
-          .catch((error) => {
-            console.log("Finish watchdog error:", error);
-          });
+        finishWatchdogFireAtRef.current = 0;
+        void runLockScreenEndCheck(duration);
       }, delay);
     },
-    [clearFinishWatchdog, scheduleTrackAdvance]
+    [clearFinishWatchdog, runLockScreenEndCheck, scheduleLockScreenEndCheck]
   );
+
+  armFinishWatchdogRef.current = armFinishWatchdog;
 
   const flushPendingSmartExtend = useCallback(async () => {
     if (!pendingSmartExtendRef.current) return;
@@ -1571,7 +1645,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       const playbackEndedWhileNearEnd =
         nearTrackEnd &&
         !nextIsPlaying &&
-        previousPosition >= nextDuration - TRACK_END_THRESHOLD_MS * 2;
+        (previousPosition >= nextDuration - LOCK_SCREEN_END_WINDOW_MS ||
+          nextPosition >= nextDuration - TRACK_END_THRESHOLD_MS);
 
       if (playbackEndedWhileNearEnd) {
         logPlaybackStalled({
@@ -1645,7 +1720,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         });
 
         autoAdvanceRef.current = false;
-        clearFinishWatchdog();
+        clearFinishWatchdog("load_and_play");
 
         if (lastFinishEventRef.current.songId !== normalizedSong.id) {
           lastFinishEventRef.current = { songId: "", handledAt: 0 };
@@ -2465,7 +2540,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     try {
       isChangingTrackRef.current = true;
       pendingSmartExtendRef.current = false;
-      clearFinishWatchdog();
+      clearFinishWatchdog("stop_playback");
 
       loadRequestIdRef.current += 1;
       inFlightPlaySongIdRef.current = null;
@@ -2539,6 +2614,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }
 
     if (status.isPlaying) {
+      clearFinishWatchdog("pause");
       await sound.pauseAsync();
       setIsPlaying(false);
     } else {
@@ -2547,7 +2623,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }
 
     logPauseResumeComplete({ engine: "expo_av" });
-  }, [loadAndPlay, setIsPlaying]);
+  }, [loadAndPlay, setIsPlaying, clearFinishWatchdog]);
 
   const seekTo = useCallback(
     async (millis: number) => {
@@ -2562,12 +2638,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
       if (!soundRef.current) return;
 
+      clearFinishWatchdog("seek");
       await soundRef.current.setPositionAsync(safeMillis);
       setPositionMillis(safeMillis);
+      positionMillisRef.current = safeMillis;
 
       await savePlaybackPosition(safeMillis);
     },
-    [setPositionMillis, savePlaybackPosition]
+    [setPositionMillis, savePlaybackPosition, clearFinishWatchdog]
   );
 
   const setVolume = useCallback(async (value: number) => {
@@ -2973,6 +3051,15 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         configureAudio();
         savePlaybackPosition(positionMillisRef.current);
         void applyProgressUpdateInterval();
+
+        if (isPlayingRef.current && soundRef.current) {
+          armFinishWatchdog(
+            positionMillisRef.current,
+            durationMillisRef.current,
+            true
+          );
+          void catchUpPlaybackIfEnded();
+        }
       }
 
       if (nextState === "active") {
@@ -2990,6 +3077,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     configureAudio,
     savePlaybackPosition,
     applyProgressUpdateInterval,
+    armFinishWatchdog,
     catchUpPlaybackIfEnded,
     flushPendingSmartExtend,
   ]);

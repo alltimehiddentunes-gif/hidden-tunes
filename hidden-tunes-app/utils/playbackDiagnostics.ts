@@ -195,3 +195,12 @@ export function logHTAutoNext(
 
   console.log(`[HTAutoNext] ${tag}`, details);
 }
+
+export function logHTLockAutoNext(
+  tag: "armed" | "check" | "force-advance" | "clear",
+  details: HTAutoNextDetails = {}
+) {
+  if (typeof __DEV__ !== "undefined" && !__DEV__) return;
+
+  console.log(`[HTLockAutoNext] ${tag}`, details);
+}
