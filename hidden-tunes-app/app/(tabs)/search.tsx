@@ -9,6 +9,7 @@ import React, {
 
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   RefreshControl,
   ScrollView,
@@ -329,9 +330,35 @@ function normalizeNativeResult(item: any): NativeSearchTrack {
   };
 }
 
+function hasPlayableAudio(song: Partial<NativeSearchTrack>) {
+  const audio =
+    song.audioUrl ||
+    song.audio_url ||
+    song.previewUrl ||
+    song.streamUrl ||
+    song.url;
+
+  return typeof audio === "string" && audio.trim().length > 0;
+}
+
 function normalizePlayableSong(item: any): NativeSearchTrack {
+  const stream =
+    item.audioUrl ||
+    item.audio_url ||
+    item.previewUrl ||
+    item.streamUrl ||
+    item.url ||
+    "";
+
+  const audioUrl = String(stream).trim();
+
   return normalizeNativeResult({
     ...item,
+    audioUrl,
+    audio_url: item.audio_url || audioUrl,
+    previewUrl: item.previewUrl || audioUrl,
+    streamUrl: item.streamUrl || audioUrl,
+    url: item.url || audioUrl,
     source: item.source || "hidden-tunes",
     sourceName: item.sourceName || "Hidden Tunes",
     type: item.type || "r2",
@@ -384,6 +411,15 @@ const SearchResultRow = memo(function SearchResultRow({
   const artist = String(getArtist(normalized));
   const title = String(normalized.title || "Unknown Song");
   const sourceName = String(normalized.sourceName || "Hidden Tunes");
+
+  if (__DEV__) {
+    console.log("[SearchRow] render", {
+      id: normalized.id,
+      title,
+      hasOnPress: Boolean(onPress),
+      hasAudio: hasPlayableAudio(normalized as Partial<NativeSearchTrack>),
+    });
+  }
 
   return (
     <View style={[styles.resultShell, active && styles.resultShellActive]}>
@@ -479,6 +515,7 @@ export default function SearchScreen() {
     songCount: number;
     index: CatalogSearchIndex;
   } | null>(null);
+  const searchTapAlertShownRef = useRef(false);
   const screenStartedAt = useRef(startPerformanceTimer()).current;
 
   const [query, setQuery] = useState("");
@@ -623,7 +660,7 @@ export default function SearchScreen() {
       collected.push(normalized);
     };
 
-    for (const song of collectGroupedSongPayloads(instantGroupedResults)) {
+    for (const song of collectGroupedSongPayloads(groupedSearchResults)) {
       addSong(song);
     }
 
@@ -651,30 +688,19 @@ export default function SearchScreen() {
       }
     }
 
-    for (const track of playableResults) {
-      addSong(track);
-      if (collected.length >= VISIBLE_SONG_LIMIT) break;
-    }
-
     if (__DEV__) {
       const localMs = Date.now() - startedAt;
       console.log("[Search:local]", {
         query: trimmedQuery,
         localResultCount: collected.length,
         localSearchMs: localMs,
-        source:
-          playableResults.length > 0
-            ? "catalog+network"
-            : catalogSongs.length > 0
-              ? "catalog/cache"
-              : "empty",
+        source: catalogSongs.length > 0 ? "catalog/cache" : "empty",
       });
     }
 
     return collected;
   }, [
-    instantGroupedResults,
-    playableResults,
+    groupedSearchResults,
     showGroupedSearch,
     trimmedQuery,
     universalCatalog.songs,
@@ -1250,46 +1276,67 @@ export default function SearchScreen() {
   );
 
   const handleSongResultPress = useCallback(
-    (song: NativeSearchTrack, index: number) => {
-      const queue =
-        visibleSongResults.length > 0 ? visibleSongResults : [normalizePlayableSong(song)];
-
+    (rawSong: HiddenTunesNormalizedSong | NativeSearchTrack | any, index: number) => {
+      const song = normalizePlayableSong(rawSong);
+      const queue = visibleSongResults.map((item) => normalizePlayableSong(item));
       const safeIndex = Math.max(
         0,
-        Math.min(
-          index >= 0 ? index : queue.findIndex((track) => track.id === song.id),
-          queue.length - 1
-        )
+        queue.findIndex((item) => String(item.id) === String(song.id))
       );
 
-      const playable = normalizePlayableSong(
-        queue[safeIndex]?.id === song.id ? queue[safeIndex] : song
-      );
+      const hasAudio = hasPlayableAudio(song);
 
-      if (__DEV__) {
-        console.log("[Search] result tap", {
-          id: playable?.id,
-          title: playable?.title,
-          index: safeIndex,
-          hasAudio: Boolean(
-            playable?.audioUrl || playable?.audio_url || playable?.previewUrl
-          ),
-        });
+      console.log("[SearchTap] pressed", {
+        id: song?.id,
+        title: song?.title,
+        index,
+        safeIndex,
+        queueLength: queue.length,
+        hasAudio,
+      });
+
+      if (__DEV__ && !searchTapAlertShownRef.current) {
+        searchTapAlertShownRef.current = true;
+        Alert.alert(
+          "Search tap",
+          `${song?.title || "Song"}\nqueue=${queue.length} index=${safeIndex >= 0 ? safeIndex : index}`
+        );
       }
+
+      if (!hasAudio) {
+        console.warn("[SearchTap] missing audio — playback skipped", {
+          id: song?.id,
+          title: song?.title,
+        });
+        return;
+      }
+
+      if (queue.length === 0) {
+        console.warn("[SearchTap] empty visibleSongResults queue", {
+          id: song?.id,
+          title: song?.title,
+        });
+        return;
+      }
+
+      if (safeIndex < 0) {
+        console.warn("[SearchTap] song not in visibleSongResults", {
+          id: song?.id,
+          title: song?.title,
+          queueLength: queue.length,
+        });
+        return;
+      }
+
+      const playIndex = safeIndex;
+
+      void playSong(song, queue, playIndex).catch((error: unknown) => {
+        console.warn("[SearchTap] playSong failed", error);
+      });
 
       requestAnimationFrame(() => {
         router.push("/player" as any);
       });
-
-      const tapStartedAt = startPerformanceTimer();
-
-      void playSong(playable, queue, safeIndex)
-        .finally(() => {
-          logTapToPlay("search", tapStartedAt, { id: playable.id });
-        })
-        .catch((error: unknown) => {
-          if (__DEV__) console.warn("[Search] playSong failed", error);
-        });
     },
     [playSong, visibleSongResults]
   );
@@ -1413,18 +1460,9 @@ export default function SearchScreen() {
         return;
       }
 
-      const normalizedTrack = normalizePlayableSong(item);
-      const startIndex = Math.max(
-        0,
-        visibleSongResults.findIndex((track) => track.id === normalizedTrack.id)
-      );
-
-      handleSongResultPress(
-        normalizedTrack,
-        startIndex >= 0 ? startIndex : 0
-      );
+      handleSongResultPress(item, 0);
     },
-    [buildYouTubeQueue, handleSongResultPress, stopPlayback, visibleSongResults]
+    [buildYouTubeQueue, handleSongResultPress, stopPlayback]
   );
 
   const renderResult = useCallback(
@@ -1440,12 +1478,7 @@ export default function SearchScreen() {
           return;
         }
 
-        const playable = normalizePlayableSong(item);
-        const queueIndex = visibleSongResults.findIndex(
-          (track) => track.id === playable.id
-        );
-
-        handleSongResultPress(playable, queueIndex >= 0 ? queueIndex : index);
+        handleSongResultPress(item, index);
       };
 
       return (
@@ -1488,15 +1521,10 @@ export default function SearchScreen() {
 
   const openGroupedSong = useCallback(
     (song: HiddenTunesNormalizedSong) => {
-      const track = normalizePlayableSong({
-        ...song,
-        source: "hidden-tunes",
-        sourceName: "Hidden Tunes",
-        type: "r2",
-      });
-
-      const index = visibleSongResults.findIndex((item) => item.id === track.id);
-      handleSongResultPress(track, index >= 0 ? index : 0);
+      const index = visibleSongResults.findIndex(
+        (item) => String(item.id) === String(song?.id)
+      );
+      handleSongResultPress(song, index >= 0 ? index : 0);
     },
     [handleSongResultPress, visibleSongResults]
   );
@@ -1666,7 +1694,7 @@ export default function SearchScreen() {
               <View key={track.id} style={styles.compactTrack}>
                 <TouchableOpacity
                   style={styles.compactTrackInfo}
-                  onPress={() => handlePress(track)}
+                  onPress={() => handleSongResultPress(track, 0)}
                 >
                   <Text numberOfLines={1} style={styles.compactTitle}>
                     {track.title}
@@ -1680,7 +1708,7 @@ export default function SearchScreen() {
 
                 <TouchableOpacity
                   style={styles.compactPlay}
-                  onPress={() => handlePress(track)}
+                  onPress={() => handleSongResultPress(track, 0)}
                 >
                   <Ionicons name="play" size={16} color="#000" />
                 </TouchableOpacity>
