@@ -678,9 +678,13 @@ export default function ExploreScreen() {
           queue.findIndex((item) => item.id === normalized.id)
         );
 
-        await playSong(normalized as any, queue as any, startIndex);
-        logTapToPlay("explore", tapStartedAt, { id: normalized.id });
-        router.push("/player" as any);
+        void playSong(normalized as any, queue as any, startIndex).finally(() => {
+          logTapToPlay("explore", tapStartedAt, { id: normalized.id });
+        });
+
+        requestAnimationFrame(() => {
+          router.push("/player" as any);
+        });
       } catch (error) {
       }
     },
@@ -702,9 +706,13 @@ export default function ExploreScreen() {
           smartQueue.findIndex((item) => item.id === normalized.id)
         );
 
-        await playSong(normalized as any, smartQueue as any, startIndex);
-        logTapToPlay("explore", tapStartedAt, { id: normalized.id, smart: true });
-        router.push("/player" as any);
+        void playSong(normalized as any, smartQueue as any, startIndex).finally(() => {
+          logTapToPlay("explore", tapStartedAt, { id: normalized.id, smart: true });
+        });
+
+        requestAnimationFrame(() => {
+          router.push("/player" as any);
+        });
       } catch (error) {
       }
     },
@@ -724,9 +732,13 @@ export default function ExploreScreen() {
         queue.findIndex((item) => item.id === normalized.id)
       );
 
-      await playSong(normalized as any, queue as any, startIndex);
-      logTapToPlay("explore", tapStartedAt, { id: normalized.id, resume: true });
-      router.push("/player" as any);
+      void playSong(normalized as any, queue as any, startIndex).finally(() => {
+        logTapToPlay("explore", tapStartedAt, { id: normalized.id, resume: true });
+      });
+
+      requestAnimationFrame(() => {
+        router.push("/player" as any);
+      });
     } catch (error) {
       router.push("/player" as any);
     }

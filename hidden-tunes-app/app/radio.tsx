@@ -31,6 +31,10 @@ import {
   guessMoodFromText,
 } from "../services/musicNormalizer";
 import { FALLBACK_ARTWORK } from "../utils/artwork";
+import {
+  logTapToPlay,
+  startPerformanceTimer,
+} from "../utils/performanceLogs";
 
 type RadioTrack = HiddenTunesNormalizedSong | BackendYouTubeTrack;
 
@@ -254,13 +258,23 @@ export default function RadioScreen() {
     }
   }
 
-  async function openCloudTrack(song: HiddenTunesNormalizedSong, index: number) {
+  function openCloudTrack(song: HiddenTunesNormalizedSong, index: number) {
     try {
+      const tapStartedAt = startPerformanceTimer();
       const queue = dedupeSongs(cloudTracks.map(safeSong));
       const normalized = safeSong(song);
 
-      await playSong(normalized as any, queue as any, index);
-      router.push("/player" as any);
+      void playSong(normalized as any, queue as any, index)
+        .finally(() => {
+          logTapToPlay("radio", tapStartedAt, { id: normalized.id });
+        })
+        .catch((error: unknown) => {
+          if (__DEV__) console.log("Radio play error:", error);
+        });
+
+      requestAnimationFrame(() => {
+        router.push("/player" as any);
+      });
     } catch {}
   }
 

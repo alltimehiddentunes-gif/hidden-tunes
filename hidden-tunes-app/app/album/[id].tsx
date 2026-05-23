@@ -252,7 +252,7 @@ export default function AlbumScreen() {
     await loadAlbum(false);
   }
 
-  async function handlePlay(track: HiddenTunesNormalizedSong) {
+  function handlePlay(track: HiddenTunesNormalizedSong) {
     const tapStartedAt = startPerformanceTimer();
     const normalized = safeSong(track);
     const startIndex = Math.max(
@@ -260,27 +260,53 @@ export default function AlbumScreen() {
       tracks.findIndex((item) => item.id === normalized.id)
     );
 
-    await playSong(normalized as any, tracks as any, startIndex);
-    logTapToPlay("album", tapStartedAt, { id: normalized.id });
-    router.push("/player" as any);
+    void playSong(normalized as any, tracks as any, startIndex)
+      .finally(() => {
+        logTapToPlay("album", tapStartedAt, { id: normalized.id });
+      })
+      .catch((error) => {
+        if (__DEV__) console.log("Album play error:", error);
+      });
+
+    requestAnimationFrame(() => {
+      router.push("/player" as any);
+    });
   }
 
-  async function playAlbum() {
+  function playAlbum() {
     if (!tracks.length) return;
     const tapStartedAt = startPerformanceTimer();
-    await playSong(tracks[0] as any, tracks as any, 0);
-    logTapToPlay("album", tapStartedAt, { id: tracks[0]?.id });
-    router.push("/player" as any);
+
+    void playSong(tracks[0] as any, tracks as any, 0)
+      .finally(() => {
+        logTapToPlay("album", tapStartedAt, { id: tracks[0]?.id });
+      })
+      .catch((error) => {
+        if (__DEV__) console.log("Album play-all error:", error);
+      });
+
+    requestAnimationFrame(() => {
+      router.push("/player" as any);
+    });
   }
 
-  async function playShuffle() {
+  function playShuffle() {
     if (!tracks.length) return;
 
     const shuffled = shuffleSongs(tracks);
     const tapStartedAt = startPerformanceTimer();
-    await playSong(shuffled[0] as any, shuffled as any, 0);
-    logTapToPlay("album", tapStartedAt, { id: shuffled[0]?.id });
-    router.push("/player" as any);
+
+    void playSong(shuffled[0] as any, shuffled as any, 0)
+      .finally(() => {
+        logTapToPlay("album", tapStartedAt, { id: shuffled[0]?.id });
+      })
+      .catch((error) => {
+        if (__DEV__) console.log("Album shuffle error:", error);
+      });
+
+    requestAnimationFrame(() => {
+      router.push("/player" as any);
+    });
   }
 
   if (loading) {

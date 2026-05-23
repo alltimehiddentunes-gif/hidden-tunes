@@ -1,5 +1,5 @@
 import { memo, useCallback } from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
 
@@ -24,10 +24,9 @@ function GenreTrackRow({ item, onPress }: GenreTrackRowProps) {
   }, [item, onPress]);
 
   return (
-    <TouchableOpacity
-      activeOpacity={0.88}
-      style={styles.card}
+    <Pressable
       onPress={handlePress}
+      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
     >
       <HTImage source={item} style={styles.cover} />
 
@@ -43,7 +42,7 @@ function GenreTrackRow({ item, onPress }: GenreTrackRowProps) {
       <View style={styles.playCircle}>
         <Ionicons name="play" size={16} color="#000" />
       </View>
-    </TouchableOpacity>
+    </Pressable>
   );
 }
 
@@ -62,6 +61,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.07)",
     backgroundColor: "rgba(255,255,255,0.03)",
+  },
+  cardPressed: {
+    backgroundColor: "rgba(168,85,247,0.14)",
+    borderColor: "rgba(168,85,247,0.35)",
+    transform: [{ scale: 0.985 }],
   },
   cover: {
     width: 56,

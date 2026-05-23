@@ -80,6 +80,15 @@ import {
 import { openGenreCatalog } from "../../utils/catalogNavigation";
 import UniversalSearchGroupedResults from "../../components/UniversalSearchGroupedResults";
 import {
+  invalidateCatalogSearchIndex,
+  runInstantCatalogSearch,
+} from "../../services/instantCatalogSearch";
+import {
+  buildCatalogSearchIndex,
+  searchCatalogIndex,
+  type CatalogSearchIndex,
+} from "../../utils/catalogSearchIndex";
+import {
   flattenTvHomeCache,
   runUniversalCatalogSearch,
   type UniversalSearchGroupedResults as GroupedSearchResults,
@@ -137,6 +146,7 @@ const SEARCH_SKELETON_KEYS = ["one", "two", "three", "four"];
 const SEARCH_DEBOUNCE_MS = 380;
 const LOCAL_SEARCH_MIN_CHARS = 2;
 const API_SEARCH_MIN_CHARS = 3;
+const VISIBLE_SONG_LIMIT = 28;
 
 const EMPTY_GROUPED_RESULTS: GroupedSearchResults = {
   topResults: [],
@@ -288,8 +298,13 @@ function normalizeNativeResult(item: any): NativeSearchTrack {
 
   const id = String(item.id || `${item.title || "track"}-${artist}-${source}`).trim();
 
-  const streamUrl = String(
-    item.streamUrl || item.url || item.audioUrl || item.audio_url || ""
+  const audioUrl = String(
+    item.audioUrl ||
+      item.audio_url ||
+      item.previewUrl ||
+      item.streamUrl ||
+      item.url ||
+      ""
   );
 
   return {
@@ -301,14 +316,45 @@ function normalizeNativeResult(item: any): NativeSearchTrack {
     cover,
     thumbnail: item.thumbnail || cover,
     artwork: item.artwork || cover,
-    url: streamUrl,
-    streamUrl,
+    audioUrl,
+    audio_url: item.audio_url || audioUrl,
+    previewUrl: item.previewUrl || audioUrl,
+    url: audioUrl,
+    streamUrl: audioUrl,
     duration: normalizeDuration(item.duration),
     source,
     sourceName,
     type,
     isOnline: true,
   };
+}
+
+function normalizePlayableSong(item: any): NativeSearchTrack {
+  return normalizeNativeResult({
+    ...item,
+    source: item.source || "hidden-tunes",
+    sourceName: item.sourceName || "Hidden Tunes",
+    type: item.type || "r2",
+  });
+}
+
+function collectGroupedSongPayloads(grouped: GroupedSearchResults) {
+  const songs: HiddenTunesNormalizedSong[] = [];
+
+  for (const hit of grouped.songs) {
+    if (hit.payload) songs.push(hit.payload as HiddenTunesNormalizedSong);
+  }
+
+  for (const hit of grouped.lyrics) {
+    if (hit.payload) songs.push(hit.payload as HiddenTunesNormalizedSong);
+  }
+
+  for (const hit of grouped.topResults) {
+    if (!hit.id.startsWith("song:") && !hit.id.startsWith("lyric:")) continue;
+    if (hit.payload) songs.push(hit.payload as HiddenTunesNormalizedSong);
+  }
+
+  return songs;
 }
 
 function normalizeSearchTrack(item: SearchResultTrack): SearchResultTrack {
@@ -429,6 +475,10 @@ export default function SearchScreen() {
   const searchRequestIdRef = useRef(0);
   const searchDebounceGenerationRef = useRef(0);
   const resultListRef = useRef<FlatList<SearchResultTrack>>(null);
+  const catalogIndexRef = useRef<{
+    songCount: number;
+    index: CatalogSearchIndex;
+  } | null>(null);
   const screenStartedAt = useRef(startPerformanceTimer()).current;
 
   const [query, setQuery] = useState("");
@@ -457,6 +507,8 @@ export default function SearchScreen() {
   >([]);
   const [tvIndexVideos, setTvIndexVideos] = useState<HiddenTunesTvVideo[]>([]);
   const [tvSearchVideos, setTvSearchVideos] = useState<HiddenTunesTvVideo[]>([]);
+  const [fuzzyGroupedResults, setFuzzyGroupedResults] =
+    useState<GroupedSearchResults | null>(null);
 
   const matchedGenres = useMemo(() => {
     const safeQuery = query.trim().toLowerCase();
@@ -525,10 +577,132 @@ export default function SearchScreen() {
     ]
   );
 
+  const instantGroupedResults = useMemo(() => {
+    if (!showGroupedSearch) return EMPTY_GROUPED_RESULTS;
+    return runInstantCatalogSearch(universalCatalog, trimmedQuery);
+  }, [showGroupedSearch, trimmedQuery, universalCatalog]);
+
   const groupedSearchResults = useMemo(() => {
     if (!showGroupedSearch) return EMPTY_GROUPED_RESULTS;
-    return runUniversalCatalogSearch(universalCatalog, trimmedQuery);
-  }, [showGroupedSearch, trimmedQuery, universalCatalog]);
+    if (!fuzzyGroupedResults?.hasAnyResults) return instantGroupedResults;
+
+    return {
+      ...fuzzyGroupedResults,
+      songs:
+        fuzzyGroupedResults.songs.length > 0
+          ? fuzzyGroupedResults.songs
+          : instantGroupedResults.songs,
+      topResults:
+        fuzzyGroupedResults.topResults.length > 0
+          ? fuzzyGroupedResults.topResults
+          : instantGroupedResults.topResults,
+      hasAnyResults:
+        fuzzyGroupedResults.hasAnyResults || instantGroupedResults.hasAnyResults,
+    };
+  }, [fuzzyGroupedResults, instantGroupedResults, showGroupedSearch]);
+
+  const visibleSongResults = useMemo(() => {
+    if (!showGroupedSearch) return [] as NativeSearchTrack[];
+
+    const startedAt = Date.now();
+    const seen = new Set<string>();
+    const collected: NativeSearchTrack[] = [];
+
+    const addSong = (raw: HiddenTunesNormalizedSong | NativeSearchTrack) => {
+      const normalized = normalizePlayableSong({
+        ...raw,
+        source: "hidden-tunes",
+        sourceName: "Hidden Tunes",
+        type: "r2",
+      });
+
+      if (!normalized.id || seen.has(normalized.id)) return;
+      if (collected.length >= VISIBLE_SONG_LIMIT) return;
+
+      seen.add(normalized.id);
+      collected.push(normalized);
+    };
+
+    for (const song of collectGroupedSongPayloads(instantGroupedResults)) {
+      addSong(song);
+    }
+
+    const catalogSongs = universalCatalog.songs;
+    if (collected.length < VISIBLE_SONG_LIMIT && catalogSongs.length > 0) {
+      if (
+        !catalogIndexRef.current ||
+        catalogIndexRef.current.songCount !== catalogSongs.length
+      ) {
+        catalogIndexRef.current = {
+          songCount: catalogSongs.length,
+          index: buildCatalogSearchIndex(catalogSongs),
+        };
+      }
+
+      const extraMatches = searchCatalogIndex(
+        catalogIndexRef.current.index,
+        trimmedQuery,
+        VISIBLE_SONG_LIMIT
+      );
+
+      for (const song of extraMatches) {
+        addSong(song);
+        if (collected.length >= VISIBLE_SONG_LIMIT) break;
+      }
+    }
+
+    for (const track of playableResults) {
+      addSong(track);
+      if (collected.length >= VISIBLE_SONG_LIMIT) break;
+    }
+
+    if (__DEV__) {
+      const localMs = Date.now() - startedAt;
+      console.log("[Search:local]", {
+        query: trimmedQuery,
+        localResultCount: collected.length,
+        localSearchMs: localMs,
+        source:
+          playableResults.length > 0
+            ? "catalog+network"
+            : catalogSongs.length > 0
+              ? "catalog/cache"
+              : "empty",
+      });
+    }
+
+    return collected;
+  }, [
+    instantGroupedResults,
+    playableResults,
+    showGroupedSearch,
+    trimmedQuery,
+    universalCatalog.songs,
+  ]);
+
+  useEffect(() => {
+    setFuzzyGroupedResults(null);
+  }, [trimmedQuery]);
+
+  useEffect(() => {
+    if (trimmedQuery.length < LOCAL_SEARCH_MIN_CHARS) {
+      setFuzzyGroupedResults(null);
+      return;
+    }
+
+    const handle = setTimeout(() => {
+      setFuzzyGroupedResults(runUniversalCatalogSearch(universalCatalog, trimmedQuery));
+    }, 140);
+
+    return () => clearTimeout(handle);
+  }, [trimmedQuery, universalCatalog]);
+
+  useEffect(() => {
+    if (fullCatalogSongs.length > 0) {
+      invalidateCatalogSearchIndex();
+      catalogIndexRef.current = null;
+    }
+  }, [fullCatalogSongs]);
 
   useScrollToTop(resultListRef);
   useEffect(() => trackRenderProbe("SearchScreen"), []);
@@ -629,6 +803,7 @@ export default function SearchScreen() {
       const cached = await hydrateHiddenTunesCatalogCache();
 
       if (cached.length) {
+        invalidateCatalogSearchIndex();
         setFullCatalogSongs(cached);
         setCloudSongs(
           dedupeByKey(
@@ -776,7 +951,6 @@ export default function SearchScreen() {
     const requestId = ++searchRequestIdRef.current;
     const refreshStart = startPerformanceTimer();
 
-    setQuery(text);
     setTvFallbackQuery("");
     setTvFallbackReason("");
     setSearchPage(1);
@@ -814,8 +988,10 @@ export default function SearchScreen() {
         source,
         count: cachedResults.length,
       });
-    } else {
+    } else if (safeText.length < LOCAL_SEARCH_MIN_CHARS) {
       setLoading(true);
+      logCacheResult("search_results", false, { query: safeText, source });
+    } else {
       logCacheResult("search_results", false, { query: safeText, source });
     }
 
@@ -1024,35 +1200,99 @@ export default function SearchScreen() {
     searchPage,
   ]);
 
-  function debouncedSearch(text: string, source: SearchType = activeSource) {
+  const handleQueryChange = useCallback((text: string) => {
     setQuery(text);
 
-    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
-
-    const generation = ++searchDebounceGenerationRef.current;
     const safeText = String(text || "").trim();
 
     if (safeText.length < LOCAL_SEARCH_MIN_CHARS) {
       setResults([]);
       setHasCheckedSearchFallbacks(true);
       setLoading(false);
-      return;
     }
+  }, []);
 
-    if (safeText.length < API_SEARCH_MIN_CHARS) {
-      setHasCheckedSearchFallbacks(true);
-      setLoading(false);
-    } else {
-      setLoading(true);
-    }
+  const commitSearch = useCallback(
+    (text: string, source: SearchType = activeSource) => {
+      handleQueryChange(text);
 
-    searchTimeoutRef.current = setTimeout(() => {
-      if (generation !== searchDebounceGenerationRef.current) return;
+      const safeText = String(text || "").trim();
       if (safeText.length >= API_SEARCH_MIN_CHARS) {
         void searchTracks(text, source);
       }
-    }, SEARCH_DEBOUNCE_MS);
-  }
+    },
+    [activeSource, handleQueryChange]
+  );
+
+  const scheduleNetworkSearch = useCallback(
+    (text: string, source: SearchType = activeSource) => {
+      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+
+      const generation = ++searchDebounceGenerationRef.current;
+      const safeText = String(text || "").trim();
+
+      if (safeText.length < API_SEARCH_MIN_CHARS) {
+        setHasCheckedSearchFallbacks(true);
+        setLoading(false);
+        return;
+      }
+
+      if (!showGroupedSearch) {
+        setLoading(true);
+      }
+
+      searchTimeoutRef.current = setTimeout(() => {
+        if (generation !== searchDebounceGenerationRef.current) return;
+        void searchTracks(text, source);
+      }, SEARCH_DEBOUNCE_MS);
+    },
+    [activeSource, showGroupedSearch]
+  );
+
+  const handleSongResultPress = useCallback(
+    (song: NativeSearchTrack, index: number) => {
+      const queue =
+        visibleSongResults.length > 0 ? visibleSongResults : [normalizePlayableSong(song)];
+
+      const safeIndex = Math.max(
+        0,
+        Math.min(
+          index >= 0 ? index : queue.findIndex((track) => track.id === song.id),
+          queue.length - 1
+        )
+      );
+
+      const playable = normalizePlayableSong(
+        queue[safeIndex]?.id === song.id ? queue[safeIndex] : song
+      );
+
+      if (__DEV__) {
+        console.log("[Search] result tap", {
+          id: playable?.id,
+          title: playable?.title,
+          index: safeIndex,
+          hasAudio: Boolean(
+            playable?.audioUrl || playable?.audio_url || playable?.previewUrl
+          ),
+        });
+      }
+
+      requestAnimationFrame(() => {
+        router.push("/player" as any);
+      });
+
+      const tapStartedAt = startPerformanceTimer();
+
+      void playSong(playable, queue, safeIndex)
+        .finally(() => {
+          logTapToPlay("search", tapStartedAt, { id: playable.id });
+        })
+        .catch((error: unknown) => {
+          if (__DEV__) console.warn("[Search] playSong failed", error);
+        });
+    },
+    [playSong, visibleSongResults]
+  );
 
   const openGenre = useCallback((genre: GenreItem) => {
     openGenreCatalog({
@@ -1173,35 +1413,47 @@ export default function SearchScreen() {
         return;
       }
 
-      const tapStartedAt = startPerformanceTimer();
-      const normalizedTrack = normalizeNativeResult(item);
-      const queue = playableResults.length > 0 ? playableResults : cloudSongs;
-
+      const normalizedTrack = normalizePlayableSong(item);
       const startIndex = Math.max(
         0,
-        queue.findIndex((track) => track.id === normalizedTrack.id)
+        visibleSongResults.findIndex((track) => track.id === normalizedTrack.id)
       );
 
-      await playSong(normalizedTrack, queue, startIndex);
-      logTapToPlay("search", tapStartedAt, { id: normalizedTrack.id });
-      router.push("/player" as any);
+      handleSongResultPress(
+        normalizedTrack,
+        startIndex >= 0 ? startIndex : 0
+      );
     },
-    [buildYouTubeQueue, cloudSongs, playSong, playableResults, stopPlayback]
+    [buildYouTubeQueue, handleSongResultPress, stopPlayback, visibleSongResults]
   );
 
   const renderResult = useCallback(
-    ({ item }: { item: SearchResultTrack }) => {
+    ({ item, index }: { item: SearchResultTrack; index: number }) => {
       const normalized = normalizeSearchTrack(item);
       const youtube = isYouTubeTrack(normalized);
       const active = currentSong?.id === normalized.id && !youtube;
       const sourceName = String(normalized.sourceName || "Hidden Tunes");
+
+      const onRowPress = () => {
+        if (youtube) {
+          void handlePress(item);
+          return;
+        }
+
+        const playable = normalizePlayableSong(item);
+        const queueIndex = visibleSongResults.findIndex(
+          (track) => track.id === playable.id
+        );
+
+        handleSongResultPress(playable, queueIndex >= 0 ? queueIndex : index);
+      };
 
       return (
         <SearchResultRow
           item={item}
           active={active}
           isPlaying={isPlaying}
-          onPress={() => handlePress(item)}
+          onPress={onRowPress}
           onArtistPress={() => openArtistFromTrack(item)}
           onAlbumPress={() => openAlbumFromTrack(item)}
           sourceColorValue={sourceColor(sourceName)}
@@ -1211,9 +1463,11 @@ export default function SearchScreen() {
     [
       currentSong?.id,
       handlePress,
+      handleSongResultPress,
       isPlaying,
       openAlbumFromTrack,
       openArtistFromTrack,
+      visibleSongResults,
     ]
   );
 
@@ -1223,7 +1477,7 @@ export default function SearchScreen() {
         key={text}
         activeOpacity={0.85}
         style={styles.smartChip}
-        onPress={() => searchTracks(text, activeSource)}
+        onPress={() => commitSearch(text, activeSource)}
       >
         <Ionicons name={icon} size={14} color={COLORS.primary} />
         <Text style={styles.smartChipText}>{text}</Text>
@@ -1234,16 +1488,17 @@ export default function SearchScreen() {
 
   const openGroupedSong = useCallback(
     (song: HiddenTunesNormalizedSong) => {
-      const track = normalizeNativeResult({
+      const track = normalizePlayableSong({
         ...song,
         source: "hidden-tunes",
         sourceName: "Hidden Tunes",
         type: "r2",
       });
 
-      void handlePress(track as SearchResultTrack);
+      const index = visibleSongResults.findIndex((item) => item.id === track.id);
+      handleSongResultPress(track, index >= 0 ? index : 0);
     },
-    [handlePress]
+    [handleSongResultPress, visibleSongResults]
   );
 
   const openGroupedArtist = useCallback((artist: HiddenTunesArtist) => {
@@ -1371,7 +1626,7 @@ export default function SearchScreen() {
                 key={item}
                 activeOpacity={0.9}
                 style={styles.recommendCard}
-                onPress={() => searchTracks(item, activeSource)}
+                onPress={() => commitSearch(item, activeSource)}
               >
                 <LinearGradient
                   colors={
@@ -1573,11 +1828,14 @@ export default function SearchScreen() {
             placeholderTextColor={COLORS.textDim}
             style={styles.input}
             value={query}
-            onChangeText={(text) => debouncedSearch(text, activeSource)}
+            onChangeText={(text) => {
+              handleQueryChange(text);
+              scheduleNetworkSearch(text, activeSource);
+            }}
             returnKeyType="search"
             autoCorrect={false}
             autoCapitalize="none"
-            onSubmitEditing={() => searchTracks(query, activeSource)}
+            onSubmitEditing={() => commitSearch(query, activeSource)}
           />
 
           {query.length > 0 && (
@@ -1613,7 +1871,7 @@ export default function SearchScreen() {
 
                 if (query.trim().length >= LOCAL_SEARCH_MIN_CHARS) {
                   if (query.trim().length >= API_SEARCH_MIN_CHARS) {
-                    searchTracks(query, source);
+                    commitSearch(query, source);
                   }
                 }
               }}
@@ -1647,7 +1905,7 @@ export default function SearchScreen() {
         </View>
       </TouchableOpacity>
 
-      {loading ? (
+      {loading && !showGroupedSearch ? (
         <View style={styles.loadingBox}>
           <View style={styles.loadingTitleRow}>
             <ActivityIndicator size="small" color={COLORS.primary} />
@@ -1717,6 +1975,15 @@ export default function SearchScreen() {
 
               {renderTvFallbackCard()}
 
+              {loading && showGroupedSearch ? (
+                <View style={styles.loadingInline}>
+                  <ActivityIndicator size="small" color={COLORS.primary} />
+                  <Text style={styles.loadingInlineText}>
+                    Finding more matches...
+                  </Text>
+                </View>
+              ) : null}
+
               {showGroupedSearch ? (
                 <UniversalSearchGroupedResults
                   grouped={groupedSearchResults}
@@ -1727,7 +1994,7 @@ export default function SearchScreen() {
                   onAlbumPress={openGroupedAlbum}
                   onGenrePress={openGenre}
                   onTvPress={openGroupedTv}
-                  onSuggestionPress={(text) => searchTracks(text, activeSource)}
+                  onSuggestionPress={(text) => commitSearch(text, activeSource)}
                   activeSongId={currentSong?.id}
                   isPlaying={isPlaying}
                 />
@@ -1930,6 +2197,17 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.055)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.08)",
+  },
+  loadingInline: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 12,
+    paddingHorizontal: 4,
+  },
+  loadingInlineText: {
+    color: COLORS.textMuted,
+    fontSize: 13,
   },
   loadingTitleRow: {
     flexDirection: "row",

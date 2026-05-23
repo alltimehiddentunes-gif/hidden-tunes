@@ -286,9 +286,13 @@ export default function GenreScreen() {
           queue.findIndex((item) => item.id === normalized.id)
         );
 
-        await playSong(normalized as any, queue as any, startIndex);
-        logTapToPlay("genre", tapStartedAt, { id: normalized.id });
-        router.push("/player" as any);
+        void playSong(normalized as any, queue as any, startIndex).finally(() => {
+          logTapToPlay("genre", tapStartedAt, { id: normalized.id });
+        });
+
+        requestAnimationFrame(() => {
+          router.push("/player" as any);
+        });
       } catch (error) {
         console.log("Open genre cloud song error:", error);
       }

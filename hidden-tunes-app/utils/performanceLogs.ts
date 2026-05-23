@@ -198,14 +198,43 @@ export function logPerformanceDiagnosticsOverlay(screen = "global") {
   });
 }
 
+const SLOW_SEARCH_THRESHOLD_MS = 80;
+const SLOW_TAP_TO_PLAY_THRESHOLD_MS = 80;
+
+export function logSlowInteraction(
+  kind: string,
+  durationMs: number,
+  details: PerformanceLogDetails = {}
+) {
+  if (!shouldLogPerformance()) return;
+
+  const threshold = kind.includes("tap")
+    ? SLOW_TAP_TO_PLAY_THRESHOLD_MS
+    : SLOW_SEARCH_THRESHOLD_MS;
+
+  if (durationMs < threshold) return;
+
+  console.warn("[HiddenTunes:perf:slow]", kind, {
+    durationMs: Math.round(durationMs),
+    ...details,
+  });
+}
+
 export function logTapToPlay(
   screen: string,
   startedAt: number,
   details: PerformanceLogDetails = {}
 ) {
+  const tapToPlayMs = nowMs() - startedAt;
+
   logPerformanceEvent("tap_to_play", {
     screen,
-    tapToPlayMs: nowMs() - startedAt,
+    tapToPlayMs,
+    ...details,
+  });
+
+  logSlowInteraction("tap_to_play", tapToPlayMs, {
+    screen,
     ...details,
   });
 }

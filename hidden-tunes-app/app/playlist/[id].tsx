@@ -158,7 +158,7 @@ export default function PlaylistDetailScreen() {
     return tracks.map(normalizeTrack);
   }, [tracks]);
 
-  async function playTrack(track: any) {
+  function playTrack(track: any) {
     if (!track || !normalizedTracks.length) return;
 
     const trackId = getTrackId(track);
@@ -167,18 +167,22 @@ export default function PlaylistDetailScreen() {
       normalizedTracks.findIndex((item: any) => item.id === trackId)
     );
 
-    await playSong(normalizeTrack(track), normalizedTracks, startIndex);
+    void playSong(normalizeTrack(track), normalizedTracks, startIndex).catch((error: unknown) => {
+      if (__DEV__) console.log("Playlist play error:", error);
+    });
   }
 
-  async function handlePlayAll() {
+  function handlePlayAll() {
     if (!normalizedTracks.length) return;
 
     if (playQueue) {
-      await playQueue(normalizedTracks, 0);
+      void playQueue(normalizedTracks, 0).catch((error: unknown) => {
+        if (__DEV__) console.log("Playlist play-all error:", error);
+      });
       return;
     }
 
-    await playTrack(normalizedTracks[0]);
+    playTrack(normalizedTracks[0]);
   }
 
   async function handleRemoveTrack(trackId: string) {
@@ -476,7 +480,7 @@ export default function PlaylistDetailScreen() {
                 type="song"
                 size="medium"
                 showPlayButton={false}
-                onPress={() => playSong(item, normalizedTracks, index)}
+                onPress={() => playTrack(item)}
               />
 
               <View style={styles.trackActions}>
@@ -488,7 +492,7 @@ export default function PlaylistDetailScreen() {
                   <TouchableOpacity
                     activeOpacity={0.85}
                     style={styles.playIconButton}
-                    onPress={() => playSong(item, normalizedTracks, index)}
+                    onPress={() => playTrack(item)}
                   >
                     <Ionicons name="play" size={18} color="#000" />
                   </TouchableOpacity>

@@ -17,15 +17,21 @@ export type TrackPlayerEventHandlers = PlaybackEngineEventHandlers;
 
 type TrackPlayerModule = typeof import("react-native-track-player");
 
+type TrackPlayerApi = TrackPlayerModule["default"];
+
 type TrackPlayerTrack = {
   id: string;
   url: string;
   title: string;
-  artist?: string;
-  album?: string;
+  artist: string;
+  album: string;
   artwork?: string;
   duration?: number;
 };
+
+const APP_DISPLAY_NAME = "Hidden Tunes";
+const INVALID_METADATA_PATTERN =
+  /sitemap|error|404|not found|html|xml|<!doctype/i;
 
 let setupComplete = false;
 let optionsConfigured = false;
@@ -33,6 +39,11 @@ let trackPlayerModulePromise: Promise<TrackPlayerModule | null> | null = null;
 
 function isNativeTrackPlayerEnabled() {
   return Boolean(USE_NATIVE_TRACK_PLAYER) && supportsNativeTrackPlayer();
+}
+
+function logTrackPlayer(message: string, details?: Record<string, unknown>) {
+  if (typeof __DEV__ === "undefined" || !__DEV__) return;
+  console.log(`[HiddenTunes:TrackPlayer] ${message}`, details || {});
 }
 
 async function getTrackPlayerModule(): Promise<TrackPlayerModule | null> {
@@ -51,9 +62,46 @@ async function getTrackPlayerModule(): Promise<TrackPlayerModule | null> {
   return trackPlayerModulePromise;
 }
 
+async function getTrackPlayerApi(): Promise<TrackPlayerApi | null> {
+  const module = await getTrackPlayerModule();
+  if (!module?.default) return null;
+  return module.default;
+}
+
+function sanitizeMetadataText(value: unknown, fallback: string) {
+  const text = String(value || "").trim();
+  if (!text) return fallback;
+  if (/^https?:\/\//i.test(text)) return fallback;
+  if (INVALID_METADATA_PATTERN.test(text)) return fallback;
+  return text.slice(0, 160);
+}
+
+function isLikelyAudioUrl(url: string) {
+  const value = url.trim().toLowerCase();
+  if (!/^https?:\/\//i.test(value)) return false;
+  if (INVALID_METADATA_PATTERN.test(value)) return false;
+  if (/\/sitemap|\.xml(\?|$)|\.html?(\?|$)/i.test(value)) return false;
+  return true;
+}
+
+function isValidArtworkUrl(url: string) {
+  const value = url.trim();
+  if (!/^https?:\/\//i.test(value)) return false;
+  if (INVALID_METADATA_PATTERN.test(value)) return false;
+  if (/\/sitemap|\.xml(\?|$)|\.html?(\?|$)/i.test(value)) return false;
+  return true;
+}
+
 function getSongUrl(song: TrackPlayerSongInput) {
-  const url = song.streamUrl || song.url || song.audioUrl || song.audio_url;
-  return typeof url === "string" && url.trim().length > 0 ? url.trim() : null;
+  const candidates = [song.streamUrl, song.url, song.audioUrl, song.audio_url];
+  for (const candidate of candidates) {
+    if (typeof candidate !== "string") continue;
+    const trimmed = candidate.trim();
+    if (trimmed.length > 0 && isLikelyAudioUrl(trimmed)) {
+      return trimmed;
+    }
+  }
+  return null;
 }
 
 function getArtwork(song: TrackPlayerSongInput) {
@@ -64,9 +112,10 @@ function getArtwork(song: TrackPlayerSongInput) {
     song.coverUrl ||
     song.thumbnail;
 
-  return typeof artwork === "string" && artwork.trim().length > 0
-    ? artwork.trim()
-    : undefined;
+  if (typeof artwork !== "string") return undefined;
+
+  const trimmed = artwork.trim();
+  return isValidArtworkUrl(trimmed) ? trimmed : undefined;
 }
 
 function normalizeDuration(duration: TrackPlayerSongInput["duration"]) {
@@ -82,17 +131,50 @@ function normalizeDuration(duration: TrackPlayerSongInput["duration"]) {
 
 export function songToTrack(song: TrackPlayerSongInput): TrackPlayerTrack | null {
   const url = getSongUrl(song);
-  if (!url) return null;
+  if (!url) {
+    if (__DEV__) {
+      logTrackPlayer("skip_track_missing_audio", {
+        id: song.id,
+        title: song.title,
+      });
+    }
+    return null;
+  }
 
-  return {
+  const title = sanitizeMetadataText(song.title, "Unknown Song");
+  const userName =
+    song.user && typeof song.user === "object" && "name" in song.user
+      ? (song.user as { name?: string }).name
+      : undefined;
+
+  const artist = sanitizeMetadataText(
+    song.artist || userName || song.channelTitle,
+    "Unknown Artist"
+  );
+  const album = sanitizeMetadataText(song.album || song.sourceName, APP_DISPLAY_NAME);
+
+  const track: TrackPlayerTrack = {
     id: String(song.id),
     url,
-    title: String(song.title || "Unknown Song"),
-    artist: song.artist,
-    album: song.album,
+    title,
+    artist,
+    album,
     artwork: getArtwork(song),
     duration: normalizeDuration(song.duration),
   };
+
+  if (__DEV__) {
+    logTrackPlayer("notification_metadata", {
+      id: track.id,
+      title: track.title,
+      artist: track.artist,
+      album: track.album,
+      hasArtwork: Boolean(track.artwork),
+      hasAudio: true,
+    });
+  }
+
+  return track;
 }
 
 export function isTrackPlayerRuntimeAvailable(): boolean {
@@ -107,12 +189,13 @@ export function isTrackPlayerNativeRuntimeSupported(): boolean {
 async function configureTrackPlayerOptions(
   progressUpdateEventInterval = 1
 ): Promise<void> {
-  const TrackPlayer = await getTrackPlayerModule();
-  if (!TrackPlayer) return;
+  const module = await getTrackPlayerModule();
+  const player = await getTrackPlayerApi();
+  if (!module || !player) return;
 
-  const { Capability, AppKilledPlaybackBehavior } = TrackPlayer;
+  const { Capability, AppKilledPlaybackBehavior } = module;
 
-  await TrackPlayer.default.updateOptions({
+  const options = {
     progressUpdateEventInterval,
     capabilities: [
       Capability.Play,
@@ -125,21 +208,51 @@ async function configureTrackPlayerOptions(
     notificationCapabilities: [
       Capability.Play,
       Capability.Pause,
+      Capability.Stop,
+      Capability.SkipToNext,
+      Capability.SkipToPrevious,
+    ],
+    compactCapabilities: [
+      Capability.Play,
+      Capability.Pause,
       Capability.SkipToNext,
       Capability.SkipToPrevious,
     ],
     android: {
-      appKilledPlaybackBehavior: AppKilledPlaybackBehavior.ContinuePlayback,
-      alwaysPauseOnInterruption: false,
+      appKilledPlaybackBehavior:
+        AppKilledPlaybackBehavior.StopPlaybackAndRemoveNotification,
+      alwaysPauseOnInterruption: true,
     },
-  });
+  };
+
+  const updateOptions = (player as { updateOptions?: (value: unknown) => Promise<void> })
+    .updateOptions;
+
+  try {
+    if (typeof updateOptions === "function") {
+      await updateOptions.call(player, options);
+      logTrackPlayer("update_options_applied", {
+        progressUpdateEventInterval,
+        appKilled: AppKilledPlaybackBehavior.StopPlaybackAndRemoveNotification,
+      });
+    } else {
+      logTrackPlayer("update_options_unavailable", {
+        note: "RNTP build has no updateOptions; relying on setupPlayer + playback service",
+      });
+    }
+  } catch (error) {
+    if (__DEV__) {
+      console.warn("[HiddenTunes:TrackPlayer] updateOptions failed:", error);
+    }
+  }
 
   optionsConfigured = true;
 }
 
 export async function setupTrackPlayer(): Promise<boolean> {
-  const TrackPlayer = await getTrackPlayerModule();
-  if (!TrackPlayer) return false;
+  const module = await getTrackPlayerModule();
+  const player = await getTrackPlayerApi();
+  if (!module || !player) return false;
 
   if (setupComplete) {
     if (!optionsConfigured) {
@@ -150,16 +263,23 @@ export async function setupTrackPlayer(): Promise<boolean> {
   }
 
   try {
-    await TrackPlayer.default.setupPlayer({
+    const { AppKilledPlaybackBehavior } = module;
+
+    await player.setupPlayer({
       autoUpdateMetadata: true,
       autoHandleInterruptions: true,
-    });
+      android: {
+        appKilledPlaybackBehavior:
+          AppKilledPlaybackBehavior.StopPlaybackAndRemoveNotification,
+        alwaysPauseOnInterruption: true,
+      },
+    } as Parameters<typeof player.setupPlayer>[0]);
 
     await configureTrackPlayerOptions();
 
     if (Platform.OS === "android") {
       try {
-        await TrackPlayer.default.acquireWakeLock();
+        await player.acquireWakeLock();
       } catch (wakeError) {
         if (__DEV__) {
           console.warn("Track Player wake lock failed:", wakeError);
@@ -168,6 +288,7 @@ export async function setupTrackPlayer(): Promise<boolean> {
     }
 
     setupComplete = true;
+    logTrackPlayer("setup_complete");
     return true;
   } catch (error) {
     if (__DEV__) {
@@ -192,10 +313,11 @@ export async function updateTrackPlayerProgressInterval(
 }
 
 export async function resetTrackPlayerPlayback(): Promise<void> {
-  const TrackPlayer = await getTrackPlayerModule();
-  if (!TrackPlayer) return;
+  const player = await getTrackPlayerApi();
+  if (!player) return;
 
-  await TrackPlayer.default.reset();
+  await player.stop();
+  await player.reset();
 }
 
 export async function playTrackPlayerQueue(options: {
@@ -209,8 +331,8 @@ export async function playTrackPlayerQueue(options: {
   const ready = await setupTrackPlayer();
   if (!ready) return Math.max(0, options.startIndex);
 
-  const TrackPlayer = await getTrackPlayerModule();
-  if (!TrackPlayer) return Math.max(0, options.startIndex);
+  const player = await getTrackPlayerApi();
+  if (!player) return Math.max(0, options.startIndex);
 
   const tracks = options.songs.map(songToTrack).filter(Boolean) as TrackPlayerTrack[];
   if (!tracks.length) return 0;
@@ -221,13 +343,29 @@ export async function playTrackPlayerQueue(options: {
       ? options.startPositionMillis / 1000
       : undefined;
 
-  await TrackPlayer.default.reset();
-  await TrackPlayer.default.add(tracks);
-  await TrackPlayer.default.skip(safeIndex, startPositionSeconds);
+  await player.reset();
+  await player.add(tracks);
+  await player.skip(safeIndex, startPositionSeconds);
 
   await trackPlayerSetVolume(options.volume, options.muted);
   await setTrackPlayerRepeatMode(options.repeatMode);
-  await TrackPlayer.default.play();
+  await player.play();
+
+  if (__DEV__) {
+    const active = tracks[safeIndex];
+    logTrackPlayer("queue_started", {
+      trackCount: tracks.length,
+      startIndex: safeIndex,
+      activeTrack: active
+        ? {
+            id: active.id,
+            title: active.title,
+            artist: active.artist,
+            album: active.album,
+          }
+        : null,
+    });
+  }
 
   return safeIndex;
 }
@@ -235,22 +373,24 @@ export async function playTrackPlayerQueue(options: {
 export async function setTrackPlayerRepeatMode(
   mode: PlayerRepeatMode
 ): Promise<void> {
-  const TrackPlayer = await getTrackPlayerModule();
-  if (!TrackPlayer) return;
+  const module = await getTrackPlayerModule();
+  const player = await getTrackPlayerApi();
+  if (!module || !player) return;
 
   const repeatMode =
     mode === "one"
-      ? TrackPlayer.RepeatMode.Track
+      ? module.RepeatMode.Track
       : mode === "all"
-        ? TrackPlayer.RepeatMode.Queue
-        : TrackPlayer.RepeatMode.Off;
+        ? module.RepeatMode.Queue
+        : module.RepeatMode.Off;
 
-  await TrackPlayer.default.setRepeatMode(repeatMode);
+  await player.setRepeatMode(repeatMode);
 }
 
 export async function getTrackPlayerProgress(): Promise<PlaybackProgress> {
-  const TrackPlayer = await getTrackPlayerModule();
-  if (!TrackPlayer) {
+  const module = await getTrackPlayerModule();
+  const player = await getTrackPlayerApi();
+  if (!module || !player) {
     return {
       positionMillis: 0,
       durationMillis: 0,
@@ -258,90 +398,91 @@ export async function getTrackPlayerProgress(): Promise<PlaybackProgress> {
     };
   }
 
-  const progress = await TrackPlayer.default.getProgress();
-  const playbackState = await TrackPlayer.default.getPlaybackState();
+  const progress = await player.getProgress();
+  const playbackState = await player.getPlaybackState();
 
   return {
     positionMillis: Math.max(0, Math.floor((progress.position || 0) * 1000)),
     durationMillis: Math.max(0, Math.floor((progress.duration || 0) * 1000)),
-    isPlaying: playbackState.state === TrackPlayer.State.Playing,
+    isPlaying: playbackState.state === module.State.Playing,
   };
 }
 
 export async function getTrackPlayerActiveIndex(): Promise<number | null> {
-  const TrackPlayer = await getTrackPlayerModule();
-  if (!TrackPlayer) return null;
+  const player = await getTrackPlayerApi();
+  if (!player) return null;
 
-  const activeTrackIndex = await TrackPlayer.default.getActiveTrackIndex();
+  const activeTrackIndex = await player.getActiveTrackIndex();
   return typeof activeTrackIndex === "number" ? activeTrackIndex : null;
 }
 
 export async function trackPlayerPlay(): Promise<void> {
-  const TrackPlayer = await getTrackPlayerModule();
-  if (!TrackPlayer) return;
+  const player = await getTrackPlayerApi();
+  if (!player) return;
 
-  await TrackPlayer.default.play();
+  await player.play();
 }
 
 export async function trackPlayerPause(): Promise<void> {
-  const TrackPlayer = await getTrackPlayerModule();
-  if (!TrackPlayer) return;
+  const player = await getTrackPlayerApi();
+  if (!player) return;
 
-  await TrackPlayer.default.pause();
+  await player.pause();
 }
 
 export async function trackPlayerStop(): Promise<void> {
-  const TrackPlayer = await getTrackPlayerModule();
-  if (!TrackPlayer) return;
+  const player = await getTrackPlayerApi();
+  if (!player) return;
 
-  await TrackPlayer.default.stop();
+  await player.stop();
 }
 
 export async function trackPlayerTogglePlayPause(): Promise<boolean> {
-  const TrackPlayer = await getTrackPlayerModule();
-  if (!TrackPlayer) return false;
+  const module = await getTrackPlayerModule();
+  const player = await getTrackPlayerApi();
+  if (!module || !player) return false;
 
-  const playbackState = await TrackPlayer.default.getPlaybackState();
+  const playbackState = await player.getPlaybackState();
 
-  if (playbackState.state === TrackPlayer.State.Playing) {
-    await TrackPlayer.default.pause();
+  if (playbackState.state === module.State.Playing) {
+    await player.pause();
     return false;
   }
 
-  await TrackPlayer.default.play();
+  await player.play();
   return true;
 }
 
 export async function trackPlayerSeekTo(millis: number): Promise<void> {
-  const TrackPlayer = await getTrackPlayerModule();
-  if (!TrackPlayer) return;
+  const player = await getTrackPlayerApi();
+  if (!player) return;
 
-  await TrackPlayer.default.seekTo(Math.max(0, millis) / 1000);
+  await player.seekTo(Math.max(0, millis) / 1000);
 }
 
 export async function trackPlayerSetVolume(
   volume: number,
   muted: boolean
 ): Promise<void> {
-  const TrackPlayer = await getTrackPlayerModule();
-  if (!TrackPlayer) return;
+  const player = await getTrackPlayerApi();
+  if (!player) return;
 
   const safeVolume = muted ? 0 : Math.max(0, Math.min(volume, 1));
-  await TrackPlayer.default.setVolume(safeVolume);
+  await player.setVolume(safeVolume);
 }
 
 export async function trackPlayerSkipToNext(): Promise<void> {
-  const TrackPlayer = await getTrackPlayerModule();
-  if (!TrackPlayer) return;
+  const player = await getTrackPlayerApi();
+  if (!player) return;
 
-  await TrackPlayer.default.skipToNext();
+  await player.skipToNext();
 }
 
 export async function trackPlayerSkipToPrevious(): Promise<void> {
-  const TrackPlayer = await getTrackPlayerModule();
-  if (!TrackPlayer) return;
+  const player = await getTrackPlayerApi();
+  if (!player) return;
 
-  await TrackPlayer.default.skipToPrevious();
+  await player.skipToPrevious();
 }
 
 export function subscribeTrackPlayerEvents(
@@ -353,23 +494,24 @@ export function subscribeTrackPlayerEvents(
   const subscriptions: Array<{ remove: () => void }> = [];
 
   void (async () => {
-    const TrackPlayer = await getTrackPlayerModule();
-    if (!TrackPlayer || disposed) return;
+    const module = await getTrackPlayerModule();
+    const player = await getTrackPlayerApi();
+    if (!module || !player || disposed) return;
 
-    const { Event, State } = TrackPlayer;
+    const { Event, State } = module;
 
     const resolveActiveTrack = async (payload?: { index?: number }) => {
       let index =
         typeof payload?.index === "number" ? payload.index : undefined;
 
       if (typeof index !== "number") {
-        const activeIndex = await TrackPlayer.default.getActiveTrackIndex();
+        const activeIndex = await player.getActiveTrackIndex();
         index = typeof activeIndex === "number" ? activeIndex : undefined;
       }
 
       if (typeof index !== "number") return;
 
-      const track = await TrackPlayer.default.getTrack(index);
+      const track = await player.getTrack(index);
       const trackId =
         track && typeof track.id === "string" ? String(track.id) : null;
 
@@ -377,7 +519,7 @@ export function subscribeTrackPlayerEvents(
     };
 
     subscriptions.push(
-      TrackPlayer.default.addEventListener(
+      player.addEventListener(
         Event.PlaybackProgressUpdated,
         (event: { position?: number; duration?: number }) => {
           const positionSeconds = event?.position ?? 0;
@@ -387,8 +529,7 @@ export function subscribeTrackPlayerEvents(
             let isPlaying = false;
 
             try {
-              const playbackState =
-                await TrackPlayer.default.getPlaybackState();
+              const playbackState = await player.getPlaybackState();
               isPlaying = playbackState.state === State.Playing;
             } catch {
               // Player may not be ready yet.
@@ -411,7 +552,7 @@ export function subscribeTrackPlayerEvents(
     );
 
     subscriptions.push(
-      TrackPlayer.default.addEventListener(
+      player.addEventListener(
         Event.PlaybackActiveTrackChanged,
         (event?: { index?: number }) => {
           void resolveActiveTrack(event);
@@ -420,13 +561,13 @@ export function subscribeTrackPlayerEvents(
     );
 
     subscriptions.push(
-      TrackPlayer.default.addEventListener(Event.PlaybackQueueEnded, () => {
+      player.addEventListener(Event.PlaybackQueueEnded, () => {
         handlers.onQueueEnded?.();
       })
     );
 
     subscriptions.push(
-      TrackPlayer.default.addEventListener(
+      player.addEventListener(
         Event.PlaybackError,
         (event?: { message?: string; code?: string }) => {
           const message =

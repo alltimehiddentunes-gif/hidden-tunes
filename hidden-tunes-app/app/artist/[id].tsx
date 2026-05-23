@@ -257,7 +257,7 @@ export default function ArtistScreen() {
   }
 
   const handlePlay = useCallback(
-    async (track: HiddenTunesNormalizedSong) => {
+    (track: HiddenTunesNormalizedSong) => {
       const tapStartedAt = startPerformanceTimer();
       const normalized = safeSong(track);
 
@@ -266,30 +266,56 @@ export default function ArtistScreen() {
         tracks.findIndex((item) => item.id === normalized.id)
       );
 
-      await playSong(normalized as any, tracks as any, startIndex);
-      logTapToPlay("artist", tapStartedAt, { id: normalized.id });
-      router.push("/player" as any);
+      void playSong(normalized as any, tracks as any, startIndex)
+        .finally(() => {
+          logTapToPlay("artist", tapStartedAt, { id: normalized.id });
+        })
+        .catch((error) => {
+          if (__DEV__) console.log("Artist play error:", error);
+        });
+
+      requestAnimationFrame(() => {
+        router.push("/player" as any);
+      });
     },
     [playSong, tracks]
   );
 
-  async function playArtist() {
+  function playArtist() {
     if (!tracks.length) return;
 
     const tapStartedAt = startPerformanceTimer();
-    await playSong(tracks[0] as any, tracks as any, 0);
-    logTapToPlay("artist", tapStartedAt, { id: tracks[0]?.id });
-    router.push("/player" as any);
+
+    void playSong(tracks[0] as any, tracks as any, 0)
+      .finally(() => {
+        logTapToPlay("artist", tapStartedAt, { id: tracks[0]?.id });
+      })
+      .catch((error) => {
+        if (__DEV__) console.log("Artist play-all error:", error);
+      });
+
+    requestAnimationFrame(() => {
+      router.push("/player" as any);
+    });
   }
 
-  async function playShuffle() {
+  function playShuffle() {
     if (!tracks.length) return;
 
     const shuffled = shuffleSongs(tracks);
     const tapStartedAt = startPerformanceTimer();
-    await playSong(shuffled[0] as any, shuffled as any, 0);
-    logTapToPlay("artist", tapStartedAt, { id: shuffled[0]?.id });
-    router.push("/player" as any);
+
+    void playSong(shuffled[0] as any, shuffled as any, 0)
+      .finally(() => {
+        logTapToPlay("artist", tapStartedAt, { id: shuffled[0]?.id });
+      })
+      .catch((error) => {
+        if (__DEV__) console.log("Artist shuffle error:", error);
+      });
+
+    requestAnimationFrame(() => {
+      router.push("/player" as any);
+    });
   }
 
   function openAlbum(album: HiddenTunesAlbum) {

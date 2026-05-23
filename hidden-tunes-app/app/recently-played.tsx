@@ -155,7 +155,7 @@ function RecentlyPlayedScreen() {
   }, [screenStartedAt, tracks.length]);
 
   const playRecentTrack = useCallback(
-    async (item: any) => {
+    (item: any) => {
       const tapStartedAt = startPerformanceTimer();
       const normalized = normalizeRecentTrack(item);
       const queue = tracks.length > 0
@@ -167,9 +167,17 @@ function RecentlyPlayedScreen() {
         queue.findIndex((track) => track.id === normalized.id)
       );
 
-      await playSong(normalized as any, queue as any, startIndex);
-      logTapToPlay("recently_played", tapStartedAt, { id: normalized.id });
-      router.push("/player" as any);
+      void playSong(normalized as any, queue as any, startIndex)
+        .finally(() => {
+          logTapToPlay("recently_played", tapStartedAt, { id: normalized.id });
+        })
+        .catch((error: unknown) => {
+          if (__DEV__) console.log("Recently played tap error:", error);
+        });
+
+      requestAnimationFrame(() => {
+        router.push("/player" as any);
+      });
     },
     [playSong, tracks]
   );

@@ -1,4 +1,5 @@
 import type { HiddenTunesGenre } from "../utils/genres";
+import { logSlowInteraction } from "../utils/performanceLogs";
 import {
   buildSearchDocument,
   collectSearchTags,
@@ -335,6 +336,7 @@ export function runUniversalCatalogSearch(
   catalog: UniversalSearchCatalog,
   query: string
 ): UniversalSearchGroupedResults {
+  const startedAt = Date.now();
   const cleanQuery = String(query || "").trim();
   if (cleanQuery.length < 2) return EMPTY_RESULTS;
 
@@ -372,7 +374,7 @@ export function runUniversalCatalogSearch(
     genreMoods.length > 0 ||
     tv.length > 0;
 
-  return {
+  const result = {
     topResults,
     songs: songResults.songs,
     lyrics: songResults.lyrics,
@@ -382,6 +384,14 @@ export function runUniversalCatalogSearch(
     tv,
     hasAnyResults,
   };
+
+  logSlowInteraction("search_fuzzy", Date.now() - startedAt, {
+    query: cleanQuery,
+    songCount: catalog.songs.length,
+    matchCount: songResults.songs.length + songResults.lyrics.length,
+  });
+
+  return result;
 }
 
 export function rankCachedSongsForQuery(

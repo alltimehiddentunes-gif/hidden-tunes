@@ -171,7 +171,7 @@ export default function QueueScreen() {
   );
 
   const playQueueItem = useCallback(
-    async (item: any) => {
+    (item: any) => {
       const index = typeof item.queueIndex === "number" ? item.queueIndex : 0;
       const artist = getArtist(item);
       const image = getImage(item);
@@ -187,20 +187,28 @@ export default function QueueScreen() {
         isOnline: item.isOnline ?? true,
       };
 
+      const playWithQueue = () => {
+        void playSong(normalized, queue, index).catch((error: unknown) => {
+          if (__DEV__) console.log("Queue play error:", error);
+        });
+      };
+
       if (
         queue.length > 0 &&
         (activeQueueMode === "standard" || activeQueueMode === "smart")
       ) {
-        await playSong(normalized, queue, index);
+        playWithQueue();
         return;
       }
 
       if (normalized.type === "youtube" || normalized.sourceName === "YouTube") {
-        await playAudiusTrack(normalized);
+        void playAudiusTrack(normalized).catch((error: unknown) => {
+          if (__DEV__) console.log("Queue YouTube/Audius play error:", error);
+        });
         return;
       }
 
-      await playSong(normalized, queue, index);
+      playWithQueue();
     },
     [queue, activeQueueMode, playSong, playAudiusTrack]
   );

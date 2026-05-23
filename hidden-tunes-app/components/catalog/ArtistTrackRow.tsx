@@ -1,5 +1,5 @@
 import { memo, useCallback } from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
 
@@ -39,10 +39,13 @@ function ArtistTrackRow({
   }, [onPress, track]);
 
   return (
-    <TouchableOpacity
-      activeOpacity={0.86}
-      style={[styles.row, active && styles.rowActive]}
+    <Pressable
       onPress={handlePress}
+      style={({ pressed }) => [
+        styles.row,
+        active && styles.rowActive,
+        pressed && styles.rowPressed,
+      ]}
     >
       <View style={styles.numberBox}>
         {active ? (
@@ -70,7 +73,7 @@ function ArtistTrackRow({
         size={30}
         color={COLORS.primary}
       />
-    </TouchableOpacity>
+    </Pressable>
   );
 }
 
@@ -96,6 +99,10 @@ const styles = StyleSheet.create({
   },
   rowActive: {
     backgroundColor: "rgba(250,204,21,0.08)",
+  },
+  rowPressed: {
+    backgroundColor: "rgba(168,85,247,0.12)",
+    transform: [{ scale: 0.99 }],
   },
   numberBox: {
     width: 28,

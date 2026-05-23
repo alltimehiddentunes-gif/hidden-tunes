@@ -836,8 +836,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       activeQueueModeRef.current = mode;
       updateActiveQueueLength(normalizedQueue.length);
 
-      await persistActiveQueue(normalizedQueue, safeIndex, mode);
-      await saveSmartQueue(normalizedQueue as any);
+      setTimeout(() => {
+        void persistActiveQueue(normalizedQueue, safeIndex, mode);
+        void saveSmartQueue(normalizedQueue as any);
+      }, 0);
     },
     [normalizeSong, isYouTubeSong, persistActiveQueue]
   );
@@ -1817,6 +1819,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             setIsPlaying(progress.isPlaying);
             await bridgeSetProgressInterval(appStateRef.current);
             void removeStoredValues([POSITION_KEY]);
+            setTimeout(() => {
+              savePlaybackSideEffects(normalizedSong);
+            }, 0);
           } catch (error) {
             console.log("TrackPlayer load and play error:", error);
             logAudioLoadFailure({
@@ -1953,7 +1958,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           songId: normalizedSong.id,
           requestId,
         });
-        savePlaybackSideEffects(normalizedSong);
+        setTimeout(() => {
+          savePlaybackSideEffects(normalizedSong);
+        }, 0);
         await applyProgressUpdateInterval();
       } catch (error) {
         console.log("Load and play error:", error);
@@ -2239,6 +2246,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         requestedIndex: index,
       });
 
+      if (currentSongRef.current?.id !== normalizedSong.id) {
+        setCurrentSong(normalizedSong);
+        currentSongRef.current = normalizedSong;
+        setIsLoading(true);
+        setIsPlaying(true);
+      }
+
       if (isYouTubeSong(normalizedSong)) {
         console.log("Blocked playSong for YouTube. Route to /youtube-player instead.");
         return;
@@ -2349,11 +2363,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         } else {
           setActiveQueueIndex(existingIndex);
           activeQueueIndexRef.current = existingIndex;
-          void persistActiveQueue(
-            existingQueue,
-            existingIndex,
-            activeQueueModeRef.current
-          );
+          setTimeout(() => {
+            void persistActiveQueue(
+              existingQueue,
+              existingIndex,
+              activeQueueModeRef.current
+            );
+          }, 0);
         }
       } else {
         void syncActiveQueue([normalizedSong], 0, "standard");

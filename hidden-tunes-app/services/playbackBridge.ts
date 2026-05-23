@@ -9,6 +9,10 @@ import {
   PlaybackEngineTrack,
 } from "./playbackEngineTypes";
 import {
+  registerTrackPlayerRemoteHandlers,
+  unregisterTrackPlayerRemoteHandlers,
+} from "./trackPlayerRemoteHandlers";
+import {
   ensureTrackPlayerReady,
   getTrackPlayerActiveIndex,
   getTrackPlayerProgress,
@@ -22,6 +26,7 @@ import {
   trackPlayerSetVolume,
   trackPlayerSkipToNext,
   trackPlayerSkipToPrevious,
+  trackPlayerStop,
   trackPlayerTogglePlayPause,
   updateTrackPlayerProgressInterval,
 } from "./trackPlayerEngine";
@@ -32,6 +37,23 @@ export type PlaybackProgress = PlaybackEngineProgress;
 export type TrackPlayerEventHandlers = PlaybackEngineEventHandlers;
 
 let bridgeActive = false;
+let mainThreadRemoteSubscriptions: Array<{ remove: () => void }> = [];
+
+function attachMainThreadRemoteHandlers() {
+  if (!isTrackPlayerFeatureEnabled() || !supportsNativeTrackPlayer()) return;
+
+  unregisterTrackPlayerRemoteHandlers(mainThreadRemoteSubscriptions);
+  mainThreadRemoteSubscriptions = registerTrackPlayerRemoteHandlers("main_app");
+
+  if (__DEV__) {
+    console.log("[HiddenTunes:TrackPlayer] main-app remote handlers attached");
+  }
+}
+
+function detachMainThreadRemoteHandlers() {
+  unregisterTrackPlayerRemoteHandlers(mainThreadRemoteSubscriptions);
+  mainThreadRemoteSubscriptions = [];
+}
 
 export function isPlaybackBridgeActive(): boolean {
   return bridgeActive && isTrackPlayerFeatureEnabled();
@@ -57,11 +79,14 @@ export async function activateTrackPlayerPlayback(options: {
 }): Promise<number> {
   const playedIndex = await playTrackPlayerQueue(options);
   bridgeActive = true;
+  attachMainThreadRemoteHandlers();
   return playedIndex;
 }
 
 export async function deactivateTrackPlayerPlayback(): Promise<void> {
   bridgeActive = false;
+  detachMainThreadRemoteHandlers();
+  await trackPlayerStop();
   await resetTrackPlayerPlayback();
 }
 

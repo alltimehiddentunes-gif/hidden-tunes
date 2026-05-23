@@ -105,11 +105,18 @@ export default function QueueScreen() {
               key={`${song.id}-${index}`}
               style={styles.queueItem}
               activeOpacity={0.85}
-              onPress={() =>
-                song.isOnline || song.streamUrl
-                  ? playAudiusTrack(song)
-                  : playSong(song)
-              }
+              onPress={() => {
+                if (song.isOnline || song.streamUrl) {
+                  void playAudiusTrack(song).catch((error) => {
+                    if (__DEV__) console.log("Legacy queue Audius play error:", error);
+                  });
+                  return;
+                }
+
+                void playSong(song).catch((error) => {
+                  if (__DEV__) console.log("Legacy queue play error:", error);
+                });
+              }}
             >
               <Text style={styles.queueNumber}>{index + 1}</Text>
 

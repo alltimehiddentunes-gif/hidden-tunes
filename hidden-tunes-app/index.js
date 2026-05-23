@@ -28,26 +28,36 @@ if (__DEV__ && isExpoGo()) {
   );
 }
 
+let trackPlayerServiceRegistered = false;
+
 if (USE_NATIVE_TRACK_PLAYER && canRegisterTrackPlayerPlaybackService()) {
-  try {
-    const TrackPlayer = require("react-native-track-player").default;
+  if (!trackPlayerServiceRegistered) {
+    try {
+      const TrackPlayer = require("react-native-track-player").default;
 
-    TrackPlayer.registerPlaybackService(() =>
-      require("./services/playbackServiceRegistration").default
+      TrackPlayer.registerPlaybackService(() =>
+        require("./services/playbackServiceRegistration").default
+      );
+
+      trackPlayerServiceRegistered = true;
+
+      if (__DEV__) {
+        console.info(
+          `[HiddenTunes][${getPlatformRuntimeLabel()}] Track Player service registered once (${getExpoRuntimeLabel()}).`
+        );
+      }
+    } catch (error) {
+      if (__DEV__) {
+        console.warn(
+          `[HiddenTunes][${getPlatformRuntimeLabel()}] Track Player registration skipped:`,
+          error
+        );
+      }
+    }
+  } else if (__DEV__) {
+    console.warn(
+      `[HiddenTunes][${getPlatformRuntimeLabel()}] Track Player service already registered — skipped duplicate.`
     );
-
-    if (__DEV__) {
-      console.info(
-        `[HiddenTunes][${getPlatformRuntimeLabel()}] Track Player service registered (${getExpoRuntimeLabel()}).`
-      );
-    }
-  } catch (error) {
-    if (__DEV__) {
-      console.warn(
-        `[HiddenTunes][${getPlatformRuntimeLabel()}] Track Player registration skipped:`,
-        error
-      );
-    }
   }
 }
 
