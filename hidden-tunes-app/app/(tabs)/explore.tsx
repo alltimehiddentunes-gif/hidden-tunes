@@ -56,8 +56,10 @@ import {
 } from "../../services/listenerRanking";
 import {
   buildBecauseYouListened,
+  buildCuratedDiscoverySections,
   buildGenreSpotlights,
   buildMoodRooms,
+  buildRecentlyDiscovered,
 } from "../../services/smartDiscovery";
 import {
   logApiRefresh,
@@ -233,6 +235,12 @@ const YouTubeTrackCard = memo(function YouTubeTrackCard({
   );
 });
 
+function buildInitialExploreSongs() {
+  const snapshot = getHiddenTunesCatalogSnapshot();
+  if (!snapshot.length) return [] as HiddenTunesNormalizedSong[];
+  return dedupeSongs(snapshot.map(safeSong));
+}
+
 function ExploreSkeletonRail() {
   return (
     <View style={styles.skeletonPanel}>
@@ -263,13 +271,19 @@ export default function ExploreScreen() {
   const listRef = useRef<FlatList<BackendYouTubeTrack>>(null);
   const screenStartedAt = useRef(startPerformanceTimer()).current;
   const initialExploreLoadRef = useRef(false);
+  const exploreHasSongsRef = useRef(false);
+  const loadExploreRef = useRef<
+    (showLoader?: boolean, forceRefresh?: boolean) => Promise<void>
+  >(async () => {});
 
   const [tracks, setTracks] = useState<BackendYouTubeTrack[]>([]);
-  const [cloudSongs, setCloudSongs] = useState<HiddenTunesNormalizedSong[]>([]);
+  const [cloudSongs, setCloudSongs] = useState<HiddenTunesNormalizedSong[]>(
+    () => buildInitialExploreSongs()
+  );
   const [albums, setAlbums] = useState<HiddenTunesAlbum[]>([]);
   const [artists, setArtists] = useState<HiddenTunesArtist[]>([]);
   const [playlists, setPlaylists] = useState<HiddenTunesCloudPlaylist[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => buildInitialExploreSongs().length === 0);
   const [refreshing, setRefreshing] = useState(false);
   const [hasCheckedDiscoveryFallbacks, setHasCheckedDiscoveryFallbacks] =
     useState(false);
@@ -343,6 +357,7 @@ export default function ExploreScreen() {
   }, []);
 
   const applyExploreSongs = useCallback((nextSongs: HiddenTunesNormalizedSong[]) => {
+    exploreHasSongsRef.current = nextSongs.length > 0;
     setCloudSongs(nextSongs);
     setSongPage(1);
     setHasMoreSongs(nextSongs.length >= 24);
@@ -361,15 +376,13 @@ export default function ExploreScreen() {
   const loadExplore = useCallback(
     async (showLoader = true, forceRefresh = false) => {
       try {
-        let showedCachedCatalog = cloudSongs.length > 0;
+        let showedCachedCatalog = exploreHasSongsRef.current;
         setHasCheckedDiscoveryFallbacks(false);
 
         if (!forceRefresh) {
           const memorySnapshot = getHiddenTunesCatalogSnapshot();
           if (memorySnapshot.length) {
-            applyExploreSongs(
-              dedupeSongs(memorySnapshot.slice(0, 24).map(safeSong))
-            );
+            applyExploreSongs(dedupeSongs(memorySnapshot.map(safeSong)));
             setLoading(false);
             setRefreshing(false);
             showedCachedCatalog = true;
@@ -383,7 +396,7 @@ export default function ExploreScreen() {
           const cached = await hydrateHiddenTunesCatalogCache();
 
           if (cached.length) {
-            applyExploreSongs(dedupeSongs(cached.slice(0, 24).map(safeSong)));
+            applyExploreSongs(dedupeSongs(cached.map(safeSong)));
             setLoading(false);
             setRefreshing(false);
             showedCachedCatalog = true;
@@ -456,6 +469,9 @@ export default function ExploreScreen() {
             "explore_catalog_api_refresh",
             refreshExploreFromApi
           );
+          InteractionManager.runAfterInteractions(() => {
+            void loadCatalogSecondarySections(false);
+          });
         }
       } catch {
         setLoading(false);
@@ -467,19 +483,20 @@ export default function ExploreScreen() {
     },
     [
       applyExploreSongs,
-      cloudSongs.length,
       loadCatalogSecondarySections,
       screenStartedAt,
     ]
   );
+
+  loadExploreRef.current = loadExplore;
 
   useEffect(() => {
     if (!isFocused) return;
     if (initialExploreLoadRef.current) return;
 
     initialExploreLoadRef.current = true;
-    loadExplore(true, false);
-  }, [isFocused, loadExplore]);
+    void loadExploreRef.current(true, false);
+  }, [isFocused]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -581,6 +598,16 @@ export default function ExploreScreen() {
 
   const genreWorlds = useMemo(
     () => buildGenreSpotlights(cloudSongs, preferenceMaps, 6),
+    [cloudSongs, preferenceMaps]
+  );
+
+  const recentlyAdded = useMemo(
+    () => buildRecentlyDiscovered(cloudSongs, 12),
+    [cloudSongs]
+  );
+
+  const curatedSections = useMemo(
+    () => buildCuratedDiscoverySections(cloudSongs, undefined, preferenceMaps),
     [cloudSongs, preferenceMaps]
   );
 
@@ -1043,14 +1070,16 @@ export default function ExploreScreen() {
               </>
             )}
 
-            {visibleCloudSongs.length > 0 && (
+            {recentlyAdded.length > 0 && (
               <>
-                <Text style={styles.sectionTitleBlock}>Fresh From The Vault</Text>
+                <View style={styles.rowHeader}>
+                  <Text style={styles.sectionTitle}>Recently Added</Text>
+                </View>
 
                 <FlatList
                   horizontal
-                  data={visibleCloudSongs}
-                  keyExtractor={(item) => `cloud-${item.id}`}
+                  data={recentlyAdded}
+                  keyExtractor={(item) => `recently-added-${item.id}`}
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={styles.cloudRow}
                   renderItem={renderCloudSong}
@@ -1064,8 +1093,49 @@ export default function ExploreScreen() {
               </>
             )}
 
+            {curatedSections.map((section) => (
+              <View key={`explore-curated-${section.id}`}>
+                <View style={styles.rowHeader}>
+                  <View style={styles.sectionHeadingStack}>
+                    <Text style={styles.sectionTitle}>{section.title}</Text>
+                    <Text style={styles.sectionSubtitle}>{section.subtitle}</Text>
+                  </View>
+
+                  {section.genreTitle ? (
+                    <TouchableOpacity
+                      onPress={() =>
+                        openGenre({
+                          id: section.genreTitle || section.id,
+                          title: section.genreTitle || section.title,
+                          query: section.genreTitle || section.title,
+                        })
+                      }
+                    >
+                      <Text style={styles.seeAll}>Open room</Text>
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+
+                <FlatList
+                  horizontal
+                  data={section.songs}
+                  keyExtractor={(item) => `curated-${section.id}-${item.id}`}
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.cloudRow}
+                  renderItem={renderCloudSong}
+                  getItemLayout={getCloudItemLayout}
+                  initialNumToRender={horizontalRailTuning.initialNumToRender}
+                  maxToRenderPerBatch={horizontalRailTuning.maxToRenderPerBatch}
+                  windowSize={horizontalRailTuning.windowSize}
+                  updateCellsBatchingPeriod={horizontalRailTuning.updateCellsBatchingPeriod}
+                  removeClippedSubviews
+                />
+              </View>
+            ))}
+
             <Text style={styles.sectionTitleBlock}>Genre Spotlights</Text>
 
+            {genreWorlds.length > 0 ? (
             <View style={styles.genreGrid}>
               {genreWorlds.map((genre, index) => {
                 const primaryArtwork = genre.artwork[0] || FALLBACK_ARTWORK;
@@ -1129,6 +1199,13 @@ export default function ExploreScreen() {
                 );
               })}
             </View>
+            ) : (
+              <View style={styles.sectionEmpty}>
+                <Text style={styles.sectionEmptyText}>
+                  Genre rooms are still loading from your catalog.
+                </Text>
+              </View>
+            )}
 
             {showHeavySections && playlists.length > 0 && (
               <>
@@ -1545,6 +1622,24 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+  },
+  sectionHeadingStack: {
+    flex: 1,
+    paddingRight: 12,
+  },
+  sectionSubtitle: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    marginTop: 4,
+    fontWeight: "600",
+  },
+  sectionEmpty: {
+    paddingHorizontal: 4,
+    paddingBottom: 18,
+  },
+  sectionEmptyText: {
+    color: COLORS.textMuted,
+    fontSize: 13,
   },
   seeAll: {
     color: COLORS.primary,

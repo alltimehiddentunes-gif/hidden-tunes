@@ -16,6 +16,7 @@ export type DiscoverySong = {
   album?: string;
   genre?: string;
   mood?: string;
+  tags?: unknown;
   streamUrl?: string;
   url?: string;
   audioUrl?: string;
@@ -38,13 +39,76 @@ export type SmartDiscoverySection<T extends DiscoverySong = DiscoverySong> = {
   id: string;
   title: string;
   subtitle: string;
+  genreTitle?: string;
   songs: T[];
   artwork: string[];
   preview: string[];
   score: number;
 };
 
+export type CuratedDiscoverySectionDefinition = {
+  id: string;
+  title: string;
+  subtitle: string;
+  genreTitles: string[];
+  moodHints?: string[];
+  limit?: number;
+};
+
 const DEFAULT_SECTION_LIMIT = 10;
+
+export const PRIORITY_DISCOVERY_SECTIONS: CuratedDiscoverySectionDefinition[] = [
+  {
+    id: "lo-fi-focus",
+    title: "Lo-Fi Focus",
+    subtitle: "Soft beats for study, work, and quiet focus",
+    genreTitles: ["Lo-Fi"],
+    limit: 8,
+  },
+  {
+    id: "background-instrumentals",
+    title: "Background Instrumentals",
+    subtitle: "Instrumentals that stay out of the way",
+    genreTitles: ["Instrumental"],
+    limit: 8,
+  },
+  {
+    id: "blues-soul-depth",
+    title: "Blues & Soul Depth",
+    subtitle: "Warm grooves with emotional weight",
+    genreTitles: ["Blues", "Soul"],
+    limit: 8,
+  },
+  {
+    id: "late-night-jazz",
+    title: "Late Night Jazz",
+    subtitle: "Smooth, late-hour listening rooms",
+    genreTitles: ["Jazz"],
+    limit: 8,
+  },
+  {
+    id: "country-stories",
+    title: "Country Stories",
+    subtitle: "Songs with room to breathe and narrative pull",
+    genreTitles: ["Country"],
+    limit: 8,
+  },
+  {
+    id: "afrobeats-energy",
+    title: "Afrobeats Energy",
+    subtitle: "Afrobeat, Afrobeats, and fusion fire",
+    genreTitles: ["Afrobeats"],
+    limit: 8,
+  },
+  {
+    id: "calm-instrumentals",
+    title: "Calm Instrumentals",
+    subtitle: "Gentle instrumentals for slow moments",
+    genreTitles: ["Instrumental", "Ambient"],
+    moodHints: ["calm", "focus", "sleep", "meditation"],
+    limit: 8,
+  },
+];
 
 function cleanKey(value: unknown) {
   return normalizeCatalogKey(value);
@@ -91,6 +155,28 @@ function preferenceScore(
     (maps?.genres?.get(cleanKey(song.mood)) || 0);
 
   return songScore + artistScore + albumScore + genreScore - index * 0.01;
+}
+
+function songGenreValues(song: DiscoverySong) {
+  const tags = Array.isArray(song.tags) ? song.tags : [];
+  return [song.genre, song.mood, ...tags];
+}
+
+function songMatchesCuratedSection<T extends DiscoverySong>(
+  song: T,
+  section: CuratedDiscoverySectionDefinition
+) {
+  const genreMatch = section.genreTitles.some((genreTitle) =>
+    genreListMatches(songGenreValues(song), genreTitle)
+  );
+
+  if (genreMatch) return true;
+
+  if (!section.moodHints?.length) return false;
+
+  return section.moodHints.some((hint) =>
+    filterSongsByCatalogLabel([song], hint, "mood").length > 0
+  );
 }
 
 function groupByExactField<T extends DiscoverySong>(
@@ -152,6 +238,32 @@ export function buildBecauseYouListened<T extends DiscoverySong>(
     .slice(0, limit);
 }
 
+export function buildContinueListening<T extends DiscoverySong>(
+  songs: T[],
+  recentlyPlayed: DiscoverySong[] = [],
+  currentSong?: DiscoverySong | null,
+  limit = DEFAULT_SECTION_LIMIT
+) {
+  const seeds = [
+    ...(currentSong ? [currentSong] : []),
+    ...recentlyPlayed,
+  ].map((song) => safeSongKey(song));
+
+  const seedKeys = new Set(seeds.filter(Boolean));
+
+  if (!seedKeys.size) {
+    return [] as T[];
+  }
+
+  return dedupeSongs(songs)
+    .filter((song) => seedKeys.has(safeSongKey(song)))
+    .slice(0, limit);
+}
+
+function safeSongKey(song: DiscoverySong) {
+  return String(song.id || song.streamUrl || song.url || "").trim();
+}
+
 export function buildMoreLikeThisMood<T extends DiscoverySong>(
   songs: T[],
   currentSong?: DiscoverySong | null,
@@ -187,6 +299,48 @@ export function buildRecentlyDiscovered<T extends DiscoverySong>(
   return dedupeSongs([...songs])
     .sort((a, b) => uploadedAt(b) - uploadedAt(a))
     .slice(0, limit);
+}
+
+export function buildCuratedDiscoverySections<T extends DiscoverySong>(
+  songs: T[],
+  sections: CuratedDiscoverySectionDefinition[] = PRIORITY_DISCOVERY_SECTIONS,
+  maps?: DiscoveryPreferenceMaps
+): SmartDiscoverySection<T>[] {
+  const pool = dedupeSongs(songs);
+
+  return sections
+    .map((section) => {
+      const matched = pool.filter((song) => songMatchesCuratedSection(song, section));
+
+      if (!matched.length) return null;
+
+      const ranked = matched
+        .map((song, index) => ({
+          song,
+          score: preferenceScore(song, maps, index) + uploadedAt(song) / 1_000_000_000,
+        }))
+        .sort((a, b) => b.score - a.score)
+        .map((item) => item.song)
+        .slice(0, section.limit || DEFAULT_SECTION_LIMIT);
+
+      if (!ranked.length) return null;
+
+      const built: SmartDiscoverySection<T> = {
+        id: section.id,
+        title: section.title,
+        subtitle: section.subtitle,
+        genreTitle: section.genreTitles[0],
+        songs: ranked,
+        artwork: ranked.map(artworkFor).filter(Boolean).slice(0, 3),
+        preview: ranked
+          .map((song) => displayValue(song.title) || "Hidden Tunes")
+          .slice(0, 3),
+        score: ranked.length,
+      };
+
+      return built;
+    })
+    .filter((section): section is SmartDiscoverySection<T> => section !== null);
 }
 
 export function buildMoodRooms<T extends DiscoverySong>(
@@ -235,7 +389,7 @@ export function buildGenreSpotlights<T extends DiscoverySong>(
   return getVisibleCoreGenres()
     .map((core) => {
       const groupSongs = songsWithGenre.filter((song) =>
-        genreListMatches([song.genre, song.mood], core.title)
+        genreListMatches(songGenreValues(song), core.title)
       );
 
       return {
@@ -257,7 +411,8 @@ export function buildGenreSpotlights<T extends DiscoverySong>(
         title,
         subtitle: `${groupSongs.length} ${
           groupSongs.length === 1 ? "song" : "songs"
-        } under the original ${title} genre`,
+        } in this room`,
+        genreTitle: title,
         songs: groupSongs.slice(0, DEFAULT_SECTION_LIMIT),
         artwork: groupSongs.map(artworkFor).filter(Boolean).slice(0, 3),
         preview: groupSongs

@@ -51,6 +51,8 @@ import {
   rankSongsForListener,
 } from "../../services/listenerRanking";
 import {
+  buildBecauseYouListened,
+  buildCuratedDiscoverySections,
   buildGenreSpotlights,
   buildMoodRooms,
   buildMoreLikeThisMood,
@@ -168,6 +170,11 @@ function HomeScreen() {
 
   const initialFeaturedSongsRef = useRef(buildInitialHomeSongs());
   const isLoadingRef = useRef(false);
+  const initialHomeLoadRef = useRef(false);
+  const featuredSongsCountRef = useRef(initialFeaturedSongsRef.current.length);
+  const loadFeaturedSongsRef = useRef<
+    (showLoader?: boolean, forceRefresh?: boolean) => Promise<void>
+  >(async () => {});
   const scrollRef = useRef<ScrollView>(null);
   const heroListRef = useRef<FlatList<HeroCard>>(null);
   const heroIndexRef = useRef(0);
@@ -221,6 +228,7 @@ function HomeScreen() {
   const applyFeaturedSongs = useCallback((songs: HiddenTunesNormalizedSong[]) => {
     const nextSongs = dedupeSongs((songs || []).map(safeSong));
 
+    featuredSongsCountRef.current = nextSongs.length;
     setFeaturedSongs(nextSongs);
     setVisibleSongCount(INITIAL_HOME_SONG_ROWS);
     setSongPage(1);
@@ -242,7 +250,7 @@ function HomeScreen() {
       try {
         isLoadingRef.current = true;
 
-        let showedCachedCatalog = featuredSongs.length > 0;
+        let showedCachedCatalog = featuredSongsCountRef.current > 0;
 
         if (!forceRefresh) {
           setHasCheckedCatalogFallbacks(false);
@@ -342,7 +350,7 @@ function HomeScreen() {
           );
         }
       } catch {
-        if (!featuredSongs.length) {
+        if (!featuredSongsCountRef.current) {
           setFeaturedSongs([]);
           setHasMoreSongPages(false);
         }
@@ -353,13 +361,18 @@ function HomeScreen() {
         setRefreshing(false);
       }
     },
-    [applyFeaturedSongs, featuredSongs.length, screenStartedAt]
+    [applyFeaturedSongs, screenStartedAt]
   );
 
+  loadFeaturedSongsRef.current = loadFeaturedSongs;
+
   useEffect(() => {
+    if (initialHomeLoadRef.current) return;
+    initialHomeLoadRef.current = true;
+
     const interactionHandle = InteractionManager.runAfterInteractions(() => {
       requestAnimationFrame(() => {
-        void loadFeaturedSongs(true);
+        void loadFeaturedSongsRef.current(true);
 
         Animated.parallel([
           Animated.timing(fadeAnim, {
@@ -385,7 +398,7 @@ function HomeScreen() {
     return () => {
       interactionHandle.cancel();
     };
-  }, [fadeAnim, heroScale, loadFeaturedSongs, slideAnim]);
+  }, [fadeAnim, heroScale, slideAnim]);
 
   useFocusEffect(
     useCallback(() => {
@@ -463,6 +476,22 @@ function HomeScreen() {
     [featuredSongs]
   );
 
+  const becauseYouListened = useMemo(
+    () =>
+      buildBecauseYouListened(
+        featuredSongs,
+        Array.isArray(recentlyPlayed) ? (recentlyPlayed as any) : [],
+        Array.isArray(favorites) ? (favorites as any) : [],
+        6
+      ),
+    [featuredSongs, favorites, recentlyPlayed]
+  );
+
+  const curatedSections = useMemo(
+    () => buildCuratedDiscoverySections(featuredSongs, undefined, preferenceMaps),
+    [featuredSongs, preferenceMaps]
+  );
+
   const visibleAllSongs = useMemo(
     () => rankedSongs.slice(0, visibleSongCount),
     [rankedSongs, visibleSongCount]
@@ -483,7 +512,7 @@ function HomeScreen() {
   const [activeMoodId, setActiveMoodId] = useState<string | null>(null);
 
   const genreSpotlights = useMemo(
-    () => buildGenreSpotlights(featuredSongs, preferenceMaps, 2),
+    () => buildGenreSpotlights(featuredSongs, preferenceMaps, 6),
     [featuredSongs, preferenceMaps]
   );
 
@@ -496,10 +525,10 @@ function HomeScreen() {
   }, [activeMoodId, moodRooms, primaryMoodRoom]);
 
   useEffect(() => {
-    if (primaryMoodRoom?.id) {
+    if (primaryMoodRoom?.id && !activeMoodId) {
       setActiveMoodId(primaryMoodRoom.id);
     }
-  }, [primaryMoodRoom?.id]);
+  }, [activeMoodId, primaryMoodRoom?.id]);
 
   useEffect(() => {
     if (!featuredSongs.length || !deferredSectionsReady) return;
@@ -1186,6 +1215,41 @@ function HomeScreen() {
             </Text>
           </View>
 
+          {currentSong ? (
+            <>
+              <View style={styles.sectionRow}>
+                <Text style={styles.sectionTitle}>Continue Listening</Text>
+                <TouchableOpacity onPress={() => router.push("/player" as any)}>
+                  <Text style={styles.seeAllLink}>Player</Text>
+                </TouchableOpacity>
+              </View>
+
+              <TouchableOpacity
+                activeOpacity={0.88}
+                style={styles.continueCard}
+                onPress={() => playFeaturedSong(safeSong(currentSong))}
+              >
+                <HTImage source={currentSong} style={styles.continueImage} />
+
+                <View style={styles.continueInfo}>
+                  <Text style={styles.continueKicker}>NOW PLAYING</Text>
+                  <Text numberOfLines={1} style={styles.continueTitle}>
+                    {currentSong.title || "Unknown Song"}
+                  </Text>
+                  <Text numberOfLines={1} style={styles.continueArtist}>
+                    {currentSong.artist ||
+                      currentSong.user?.name ||
+                      "Hidden Tunes"}
+                  </Text>
+                </View>
+
+                <View style={styles.continuePlay}>
+                  <Ionicons name="play" size={18} color="#000" />
+                </View>
+              </TouchableOpacity>
+            </>
+          ) : null}
+
           <TouchableOpacity
             activeOpacity={0.88}
             style={styles.listeningBrief}
@@ -1274,12 +1338,12 @@ function HomeScreen() {
             </>
           ) : null}
 
-          {deferredSectionsReady && rankedSongs.length > 0 && (
+          {deferredSectionsReady && becauseYouListened.length > 0 && (
             <>
               <Text style={styles.sectionTitleBlock}>Because You Listened</Text>
 
               <View style={styles.mediaList}>
-                {rankedSongs.slice(0, 6).map((song) => (
+                {becauseYouListened.map((song) => (
                   <Fragment
                     key={`song-${String(song.id || song.title || song.streamUrl || "track")}-because-you-listened`}
                   >
@@ -1395,7 +1459,7 @@ function HomeScreen() {
           {deferredSectionsReady ? (
             <>
               <View style={styles.sectionRow}>
-                <Text style={styles.sectionTitle}>Recently Discovered</Text>
+                <Text style={styles.sectionTitle}>Recently Added</Text>
 
                 <TouchableOpacity onPress={onRefresh} style={styles.refreshMini}>
                   <Ionicons name="refresh" size={20} color={COLORS.text} />
@@ -1439,6 +1503,52 @@ function HomeScreen() {
 
             </>
           ) : null}
+
+          {deferredSectionsReady &&
+            curatedSections.map((section) => (
+              <View key={`curated-${section.id}`}>
+                <View style={styles.sectionRow}>
+                  <View style={styles.sectionHeadingStack}>
+                    <Text style={styles.sectionTitle}>{section.title}</Text>
+                    <Text style={styles.sectionSubtitle}>{section.subtitle}</Text>
+                  </View>
+
+                  {section.genreTitle ? (
+                    <TouchableOpacity
+                      onPress={() =>
+                        openGenreCatalog({
+                          id: section.genreTitle,
+                          title: section.genreTitle,
+                          query: section.genreTitle,
+                        })
+                      }
+                    >
+                      <Text style={styles.seeAllLink}>Open room</Text>
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+
+                <FlatList
+                  horizontal
+                  data={section.songs}
+                  keyExtractor={(item) =>
+                    `curated-${section.id}-${item.id || item.title}`
+                  }
+                  showsHorizontalScrollIndicator={false}
+                  snapToInterval={FEATURED_CARD_WIDTH + 16}
+                  decelerationRate="fast"
+                  contentContainerStyle={styles.featuredSlider}
+                  renderItem={renderFeaturedItem}
+                  initialNumToRender={featuredSliderTuning.initialNumToRender}
+                  maxToRenderPerBatch={featuredSliderTuning.maxToRenderPerBatch}
+                  windowSize={featuredSliderTuning.windowSize}
+                  updateCellsBatchingPeriod={
+                    featuredSliderTuning.updateCellsBatchingPeriod
+                  }
+                  removeClippedSubviews
+                />
+              </View>
+            ))}
 
           {deferredSectionsReady && moodRooms.length > 0 && (
             <View key="section-mood-rooms">
@@ -2090,6 +2200,77 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+  },
+
+  sectionHeadingStack: {
+    flex: 1,
+    paddingRight: 12,
+  },
+
+  sectionSubtitle: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    marginTop: 4,
+    fontWeight: "600",
+  },
+
+  seeAllLink: {
+    color: COLORS.primary,
+    fontSize: 13,
+    fontWeight: "900",
+  },
+
+  continueCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 14,
+    marginHorizontal: 20,
+    marginBottom: 18,
+    borderRadius: 28,
+    backgroundColor: "rgba(255,255,255,0.075)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+  },
+
+  continueImage: {
+    width: 88,
+    height: 88,
+    borderRadius: 22,
+    backgroundColor: COLORS.card,
+  },
+
+  continueInfo: {
+    flex: 1,
+    marginLeft: 14,
+  },
+
+  continueKicker: {
+    color: COLORS.primary,
+    fontSize: 10,
+    letterSpacing: 1.5,
+    fontWeight: "900",
+    marginBottom: 6,
+  },
+
+  continueTitle: {
+    color: COLORS.text,
+    fontSize: 17,
+    fontWeight: "900",
+  },
+
+  continueArtist: {
+    color: COLORS.textMuted,
+    fontSize: 13,
+    marginTop: 5,
+  },
+
+  continuePlay: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: COLORS.primary,
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   sectionRowSmall: {
