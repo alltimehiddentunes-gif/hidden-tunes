@@ -22,8 +22,10 @@
       "icon": "./assets/images/icon.png",
       "infoPlist": {
         "UIBackgroundModes": [
+          "audio",
           "audio"
-        ]
+        ],
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {

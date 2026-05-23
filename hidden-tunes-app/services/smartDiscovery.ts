@@ -3,6 +3,10 @@ import {
   getCanonicalGenreTitle,
   normalizeCatalogKey,
 } from "../utils/catalogResolver";
+import {
+  genreListMatches,
+  getVisibleCoreGenres,
+} from "../utils/genreAliases";
 import { getArtworkUri } from "../utils/artwork";
 
 export type DiscoverySong = {
@@ -224,23 +228,24 @@ export function buildGenreSpotlights<T extends DiscoverySong>(
   maps?: DiscoveryPreferenceMaps,
   limit = 6
 ) {
-  const songsWithGenre = dedupeSongs(songs).filter((song) => displayValue(song.genre));
-  const canonicalTitles = Array.from(
-    new Set(
-      songsWithGenre.map((song) => getCanonicalGenreTitle(song.genre) || displayValue(song.genre))
-    )
-  ).filter(Boolean);
+  const songsWithGenre = dedupeSongs(songs).filter(
+    (song) => displayValue(song.genre) || displayValue(song.mood)
+  );
 
-  const groups = new Map<string, T[]>();
+  return getVisibleCoreGenres()
+    .map((core) => {
+      const groupSongs = songsWithGenre.filter((song) =>
+        genreListMatches([song.genre, song.mood], core.title)
+      );
 
-  canonicalTitles.forEach((title) => {
-    const matched = filterSongsByCatalogLabel(songsWithGenre, title, "genre");
-    if (matched.length) groups.set(title, matched);
-  });
-
-  return Array.from(groups.entries())
-    .filter(([title, groupSongs]) => title !== "Genre Missing" && groupSongs.length > 0)
-    .map(([title, groupSongs]) => {
+      return {
+        core,
+        groupSongs,
+      };
+    })
+    .filter(({ groupSongs }) => groupSongs.length > 0)
+    .map(({ core, groupSongs }) => {
+      const title = core.title;
       const score =
         groupSongs.reduce((total, song, index) => {
           return total + preferenceScore(song, maps, index);

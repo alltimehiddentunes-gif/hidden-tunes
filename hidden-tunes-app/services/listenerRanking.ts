@@ -3,6 +3,11 @@ import type {
   HiddenTunesArtist,
   HiddenTunesNormalizedSong,
 } from "./hiddenTunesApi";
+import {
+  getCanonicalGenre,
+  getCanonicalGenres,
+  normalizeGenreKey,
+} from "../utils/genreAliases";
 
 type ListenerTrack = Partial<HiddenTunesNormalizedSong> & {
   playCount?: number;
@@ -27,6 +32,22 @@ function addScore(map: Map<string, number>, key: unknown, score: number) {
   map.set(normalized, (map.get(normalized) || 0) + score);
 }
 
+function addGenrePreferenceScore(
+  map: Map<string, number>,
+  rawGenre: unknown,
+  score: number
+) {
+  const raw = String(rawGenre || "").trim();
+  if (!raw) return;
+
+  addScore(map, normalizeGenreKey(raw), score);
+
+  getCanonicalGenres(raw).forEach((coreTitle) => {
+    addScore(map, normalizeGenreKey(coreTitle), score);
+    addScore(map, clean(coreTitle), score);
+  });
+}
+
 function recencyScore(item: ListenerTrack, index: number) {
   const playCount = Number(item.playCount || 1);
   const recency = Math.max(1, 20 - index);
@@ -49,17 +70,42 @@ export function buildListenerPreferenceMaps(
     addScore(maps.songs, item.id || item.title, score);
     addScore(maps.artists, item.artist || item.artistId, score);
     addScore(maps.albums, item.album || item.albumId, score);
-    addScore(maps.genres, item.genre || item.mood, score);
+    addGenrePreferenceScore(maps.genres, item.genre, score);
+    addGenrePreferenceScore(maps.genres, item.mood, score);
   });
 
   favorites.forEach((item) => {
     addScore(maps.songs, item.id || item.title, 35);
     addScore(maps.artists, item.artist || item.artistId, 35);
     addScore(maps.albums, item.album || item.albumId, 35);
-    addScore(maps.genres, item.genre || item.mood, 35);
+    addGenrePreferenceScore(maps.genres, item.genre, 35);
+    addGenrePreferenceScore(maps.genres, item.mood, 35);
   });
 
   return maps;
+}
+
+function getGenrePreferenceBoost(
+  song: Partial<HiddenTunesNormalizedSong>,
+  maps: PreferenceMaps
+) {
+  const candidates = [song.genre, song.mood]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean);
+
+  let boost = 0;
+
+  candidates.forEach((value) => {
+    boost = Math.max(boost, maps.genres.get(normalizeGenreKey(value)) || 0);
+    boost = Math.max(boost, maps.genres.get(clean(value)) || 0);
+
+    getCanonicalGenres(value).forEach((coreTitle) => {
+      boost = Math.max(boost, maps.genres.get(normalizeGenreKey(coreTitle)) || 0);
+      boost = Math.max(boost, maps.genres.get(clean(coreTitle)) || 0);
+    });
+  });
+
+  return boost;
 }
 
 export function scoreSong(
@@ -74,7 +120,7 @@ export function scoreSong(
     (maps.songs.get(clean(song.id || song.title)) || 0) +
     (maps.artists.get(clean(song.artist || song.artistId)) || 0) +
     (maps.albums.get(clean(song.album || song.albumId)) || 0) +
-    (maps.genres.get(clean(song.genre || song.mood)) || 0) +
+    getGenrePreferenceBoost(song, maps) +
     recencyBoost -
     index * 0.01
   );
@@ -122,5 +168,15 @@ export function rankAlbumsForListener(
 }
 
 export function scoreGenre(title: string, maps: PreferenceMaps, catalogCount = 0) {
-  return (maps.genres.get(clean(title)) || 0) + catalogCount * 2;
+  const canonical = getCanonicalGenre(title) || title;
+
+  return (
+    Math.max(
+      maps.genres.get(clean(title)) || 0,
+      maps.genres.get(normalizeGenreKey(title)) || 0,
+      maps.genres.get(clean(canonical)) || 0,
+      maps.genres.get(normalizeGenreKey(canonical)) || 0
+    ) +
+    catalogCount * 2
+  );
 }

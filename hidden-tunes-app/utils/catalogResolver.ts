@@ -1,3 +1,13 @@
+import {
+  genreListMatches,
+  genreMatches,
+  getCanonicalGenre,
+  getCanonicalGenres,
+  getGenreAliases,
+  getVisibleCoreGenres,
+  normalizeGenreKey,
+} from "./genreAliases";
+
 export type CatalogResolverType =
   | "genre"
   | "mood"
@@ -27,134 +37,47 @@ export type CanonicalGenre = {
   aliases: string[];
 };
 
-export const CANONICAL_GENRES: CanonicalGenre[] = [
-  {
-    id: "afrobeats",
-    title: "Afrobeats",
-    query: "Afrobeats",
-    emoji: "🔥",
-    aliases: [
-      "Afrobeat",
-      "Afrobeats",
-      "Afro Beat",
-      "Afro Beats",
-      "Afropop",
-      "Afro-pop",
-    ],
-  },
-  {
-    id: "amapiano",
-    title: "Amapiano",
-    query: "Amapiano",
-    emoji: "🎹",
-    aliases: ["Amapiano", "Ama Piano"],
-  },
-  {
-    id: "gospel-worship",
-    title: "Gospel / Worship",
-    query: "Gospel Worship",
-    emoji: "🙏",
-    aliases: ["Gospel", "Worship", "Christian"],
-  },
-  {
-    id: "hip-hop-rap",
-    title: "Hip-Hop / Rap",
-    query: "Hip-Hop Rap",
-    emoji: "🎤",
-    aliases: ["Hip Hop", "Hiphop", "Hip-Hop", "Rap"],
-  },
-  {
-    id: "rnb-soul",
-    title: "R&B / Soul",
-    query: "R&B Soul",
-    emoji: "💜",
-    aliases: ["R&B", "RnB", "R and B", "Rhythm and Blues"],
-  },
-  {
-    id: "reggae-dancehall",
-    title: "Reggae / Dancehall",
-    query: "Reggae Dancehall",
-    emoji: "🟢",
-    aliases: ["Reggae", "Roots Reggae", "Dancehall", "Dance Hall"],
-  },
-  {
-    id: "highlife",
-    title: "Highlife",
-    query: "Highlife",
-    emoji: "🌞",
-    aliases: ["Highlife", "Hi-Life"],
-  },
-  {
-    id: "soul-blues",
-    title: "Soul Blues",
-    query: "Soul Blues",
-    emoji: "🎺",
-    aliases: ["Soul Blues", "Soul-Blues", "Blues"],
-  },
-  {
-    id: "lo-fi",
-    title: "Lo-fi",
-    query: "Lo-fi",
-    emoji: "🌃",
-    aliases: ["Lo-fi", "Lofi", "Lo Fi"],
-  },
-  {
-    id: "jazz",
-    title: "Jazz",
-    query: "Jazz",
-    emoji: "🎷",
-    aliases: ["Jazz"],
-  },
-  {
-    id: "pop",
-    title: "Pop",
-    query: "Pop",
-    emoji: "🌟",
-    aliases: ["Pop"],
-  },
-  {
-    id: "rock",
-    title: "Rock",
-    query: "Rock",
-    emoji: "🎸",
-    aliases: ["Rock"],
-  },
-  {
-    id: "country",
-    title: "Country",
-    query: "Country",
-    emoji: "🤠",
-    aliases: ["Country"],
-  },
-  {
-    id: "instrumental",
-    title: "Instrumental",
-    query: "Instrumental",
-    emoji: "🎧",
-    aliases: ["Instrumental"],
-  },
-  {
-    id: "electronic",
-    title: "Electronic",
-    query: "Electronic",
-    emoji: "🪩",
-    aliases: ["Electronic", "EDM", "House", "Techno", "Dance"],
-  },
-  {
-    id: "afro-house",
-    title: "Afro House",
-    query: "Afro House",
-    emoji: "🌍",
-    aliases: ["Afro House", "Afrohouse"],
-  },
-  {
-    id: "traditional-folk",
-    title: "Traditional / Folk",
-    query: "Traditional Folk",
-    emoji: "🪕",
-    aliases: ["Traditional", "Folk", "World"],
-  },
-];
+const GENRE_EMOJI: Record<string, string> = {
+  Afrobeats: "🔥",
+  "Hip-Hop": "🎤",
+  "R&B": "💜",
+  Soul: "🎷",
+  Gospel: "🙏",
+  Blues: "🎺",
+  Jazz: "🎷",
+  Reggae: "🟢",
+  Dancehall: "🟡",
+  Amapiano: "🎹",
+  House: "🌍",
+  EDM: "🪩",
+  Pop: "🌟",
+  Rock: "🎸",
+  Indie: "🎧",
+  Alternative: "🌙",
+  Country: "🤠",
+  Latin: "💃",
+  Classical: "🎻",
+  Folk: "🪕",
+  Trap: "🔊",
+  Drill: "⚡",
+  "Lo-Fi": "🌃",
+  Ambient: "🌫️",
+  Instrumental: "🎼",
+  Acoustic: "🪗",
+  Funk: "🕺",
+  Disco: "✨",
+  Soundtrack: "🎬",
+};
+
+export const CANONICAL_GENRES: CanonicalGenre[] = getVisibleCoreGenres().map(
+  (core) => ({
+    id: core.id,
+    title: core.title,
+    query: core.title,
+    emoji: GENRE_EMOJI[core.title] || "🎵",
+    aliases: getGenreAliases(core.title),
+  })
+);
 
 const GENRE_LOOKUP = new Map<string, CanonicalGenre>();
 
@@ -165,19 +88,11 @@ CANONICAL_GENRES.forEach((genre) => {
 });
 
 export function normalizeCatalogText(value: unknown) {
-  return String(value || "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/&/g, " and ")
-    .replace(/['’]/g, "")
-    .replace(/[^a-z0-9]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+  return normalizeGenreKey(value);
 }
 
 export function normalizeCatalogKey(value: unknown) {
-  return normalizeCatalogText(value).replace(/\s+/g, "");
+  return normalizeGenreKey(value).replace(/\s+/g, "");
 }
 
 function singularizeToken(token: string) {
@@ -209,12 +124,10 @@ export function getComparableKeys(value: unknown) {
 }
 
 export function resolveCanonicalGenre(value: unknown) {
-  const keys = getComparableKeys(value);
-  for (const key of keys) {
-    const match = GENRE_LOOKUP.get(key);
-    if (match) return match;
-  }
-  return null;
+  const title = getCanonicalGenre(value);
+  if (!title) return null;
+
+  return CANONICAL_GENRES.find((genre) => genre.title === title) || null;
 }
 
 export function getCanonicalGenreTitle(value: unknown) {
@@ -223,7 +136,15 @@ export function getCanonicalGenreTitle(value: unknown) {
 
 export function getCatalogMatchAliases(label: unknown, type: CatalogResolverType) {
   const raw = String(label || "").trim();
-  const canonical = type === "genre" ? resolveCanonicalGenre(raw) : null;
+
+  if (type === "genre") {
+    const canonicalTitle = getCanonicalGenre(raw) || raw;
+    const aliases = getGenreAliases(canonicalTitle);
+
+    return Array.from(new Set(aliases.flatMap(getComparableKeys))).filter(Boolean);
+  }
+
+  const canonical = resolveCanonicalGenre(raw);
   const aliases = canonical
     ? [canonical.title, canonical.query, canonical.id, ...canonical.aliases]
     : [raw];
@@ -248,13 +169,27 @@ export function buildSongSearchKeys(song: CatalogSongLike) {
 }
 
 export function buildSongGenreKeys(song: CatalogSongLike) {
-  const genre = song.genre;
-  const canonical = resolveCanonicalGenre(genre);
-  const values = canonical
-    ? [genre, canonical.id, canonical.title, canonical.query, ...canonical.aliases]
-    : [genre];
+  const rawValues = [
+    song.genre,
+    song.mood,
+    ...(Array.isArray(song.tags) ? song.tags : []),
+  ]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean);
 
-  return Array.from(new Set(values.flatMap(getComparableKeys))).filter(Boolean);
+  const merged = new Set<string>();
+
+  rawValues.forEach((value) => {
+    merged.add(value);
+    getCanonicalGenres(value).forEach((core) => {
+      merged.add(core);
+      getGenreAliases(core).forEach((alias) => merged.add(alias));
+    });
+  });
+
+  return Array.from(new Set(Array.from(merged).flatMap(getComparableKeys))).filter(
+    Boolean
+  );
 }
 
 export function songMatchesCatalogLabel(
@@ -262,19 +197,18 @@ export function songMatchesCatalogLabel(
   label: unknown,
   type: CatalogResolverType = "category"
 ) {
-  const aliases = getCatalogMatchAliases(label, type);
-  if (!aliases.length) return false;
+  const rawLabel = String(label || "").trim();
+  if (!rawLabel) return false;
 
   if (type === "genre") {
-    const genreKeys = buildSongGenreKeys(song);
-    return aliases.some((alias) =>
-      genreKeys.some((key) => {
-        if (key === alias) return true;
-        if (alias.length <= 3 || key.length <= 3) return false;
-        return key.includes(alias) || alias.includes(key);
-      })
+    return genreListMatches(
+      [song.genre, song.mood, ...(Array.isArray(song.tags) ? song.tags : [])],
+      rawLabel
     );
   }
+
+  const aliases = getCatalogMatchAliases(rawLabel, type);
+  if (!aliases.length) return false;
 
   const songKeys = buildSongSearchKeys(song);
   if (!songKeys.length) return false;
@@ -363,7 +297,13 @@ export function buildCatalogTarget(input: {
   const id = String(input.id || canonical?.id || normalizeCatalogKey(title)).trim();
   const labels = Array.from(
     new Set(
-      [title, query, id, ...(canonical?.aliases || []), rawTitle]
+      [
+        title,
+        query,
+        id,
+        rawTitle,
+        ...(type === "genre" ? getGenreAliases(title) : canonical?.aliases || []),
+      ]
         .map((value) => String(value || "").trim())
         .filter(Boolean)
     )
@@ -385,6 +325,23 @@ export function matchSongsForCatalogTarget<T extends CatalogSongLike>(
 ): T[] {
   const seen = new Set<string>();
   const matches: T[] = [];
+
+  if (target.type === "genre") {
+    songs.forEach((song) => {
+      if (!genreListMatches([song.genre, song.mood], target.title)) return;
+
+      const key = String((song as { id?: unknown }).id || "")
+        .toLowerCase()
+        .trim();
+
+      if (!key || seen.has(key)) return;
+
+      seen.add(key);
+      matches.push(song);
+    });
+
+    return matches;
+  }
 
   target.labels.forEach((label) => {
     filterSongsByCatalogLabel(songs, label, target.type).forEach((song) => {
@@ -426,3 +383,11 @@ export function resolveCatalogEmptyState(input: {
     reason: "cache_api_and_resolver_empty" as CatalogEmptyStateReason,
   };
 }
+
+export {
+  genreMatches,
+  genreListMatches,
+  getCanonicalGenres,
+  getGenreAliases,
+  getVisibleCoreGenres,
+} from "./genreAliases";

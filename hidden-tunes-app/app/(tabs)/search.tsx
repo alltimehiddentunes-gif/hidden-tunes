@@ -34,6 +34,7 @@ import {
   usePlayerActions,
   usePlayerNowPlaying,
 } from "../../context/PlayerContext";
+import { getCanonicalGenre } from "../../utils/genreAliases";
 import { HIDDEN_TUNES_GENRES } from "../../utils/genres";
 
 import { searchArchiveAudio } from "../../services/archiveSearch";
@@ -465,10 +466,17 @@ export default function SearchScreen() {
     }
 
     return HIDDEN_TUNES_GENRES.filter((genre) => {
+      const aliasMatch = (genre.aliases || []).some((alias) =>
+        alias.toLowerCase().includes(safeQuery)
+      );
+      const resolvesToGenre = getCanonicalGenre(safeQuery) === genre.title;
+
       return (
         genre.title.toLowerCase().includes(safeQuery) ||
         genre.id.toLowerCase().includes(safeQuery) ||
-        genre.query.toLowerCase().includes(safeQuery)
+        genre.query.toLowerCase().includes(safeQuery) ||
+        aliasMatch ||
+        resolvesToGenre
       );
     }).slice(0, 10);
   }, [query]);

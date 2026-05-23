@@ -6,7 +6,6 @@ export type HiddenTunesGenre = {
   query: string;
   emoji: string;
   aliases?: string[];
-  cover?: string;
 };
 
 export const HIDDEN_TUNES_GENRES: HiddenTunesGenre[] = CANONICAL_GENRES.map(
