@@ -64,9 +64,9 @@ function UniversalSearchGroupedResults({
     return (
       <View style={styles.emptyBox}>
         <Ionicons name="search-outline" size={52} color={COLORS.textMuted} />
-        <Text style={styles.emptyTitle}>No close match yet</Text>
+        <Text style={styles.emptyTitle}>Nothing matched yet</Text>
         <Text style={styles.emptyText}>
-          Try a lyric, mood, artist, genre, or phrase
+          Try another spelling, artist name, or mood — your catalog is still loading in the background.
         </Text>
         <View style={styles.chipWrap}>
           {UNIVERSAL_SEARCH_EMPTY_SUGGESTIONS.map((chip) => (

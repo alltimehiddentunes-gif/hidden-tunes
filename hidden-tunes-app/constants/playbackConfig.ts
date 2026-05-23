@@ -1,13 +1,16 @@
 /**
  * Native queue playback via react-native-track-player.
  *
- * WORKS IN: Development Client + EAS preview/production (Android & iOS).
+ * WORKS IN: EAS preview/production + Development Client (Android & iOS).
  * NEVER IN: Expo Go — RNTP is not bundled there; expo-av handles playback.
  *
- * INSTANT RELOAD (no rebuild):
- * - Set this flag true/false and reload Metro (`npm run start:dev-client`).
+ * DAILY ANDROID TESTING: use preview APK (`npm run build:preview:android`) — no Metro.
+ * DEV CLIENT + METRO: only when debugging native modules or instant reload.
  *
- * REBUILD developmentClient (Android + iOS) when:
+ * INSTANT RELOAD (no rebuild):
+ * - Set this flag true/false and reload Metro (`npm run start:dev-client:tunnel`).
+ *
+ * REBUILD preview or developmentClient when:
  * - Upgrading react-native-track-player
  * - Changing app.json native plugins or background audio permissions
  */

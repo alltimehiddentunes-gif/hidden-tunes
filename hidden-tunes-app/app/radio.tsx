@@ -252,7 +252,7 @@ export default function RadioScreen() {
     } catch {
       setCloudTracks([]);
       setYoutubeTracks([]);
-      setStatusText("Something went wrong. Try again.");
+      setStatusText("Couldn't load tracks right now. Pull to refresh.");
     } finally {
       setLoading(false);
     }

@@ -125,8 +125,16 @@ export function logCacheResult(
   });
 }
 
+let artworkFailureLogCount = 0;
+const MAX_ARTWORK_FAILURE_LOGS = 12;
+
 export function recordArtworkFailure(details: PerformanceLogDetails = {}) {
   metrics.artworkFailures += 1;
+
+  if (!shouldLogPerformance()) return;
+  if (artworkFailureLogCount >= MAX_ARTWORK_FAILURE_LOGS) return;
+
+  artworkFailureLogCount += 1;
   logPerformanceEvent("artwork_failure", details);
 }
 

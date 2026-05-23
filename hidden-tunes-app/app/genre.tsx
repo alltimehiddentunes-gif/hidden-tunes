@@ -417,6 +417,7 @@ export default function GenreScreen() {
 
                   <ScrollView
                     horizontal
+                    nestedScrollEnabled
                     showsHorizontalScrollIndicator={false}
                     contentContainerStyle={styles.albumRow}
                   >

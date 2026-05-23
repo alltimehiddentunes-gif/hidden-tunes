@@ -82,3 +82,9 @@ export async function setCachedSearchResults<T = unknown>(
 export function clearSearchQueryCache() {
   memoryCache.clear();
 }
+
+export function hasFreshSearchResults(query: string, source: SearchSource) {
+  const key = normalizeSearchQueryKey(query, source);
+  const memoryEntry = memoryCache.get(key);
+  return Boolean(memoryEntry && isFresh(memoryEntry.cachedAt));
+}

@@ -8,7 +8,7 @@ import { NativeModules, Platform } from "react-native";
  * - JS/TS/React components, styles, assets
  * - `USE_NATIVE_TRACK_PLAYER` flag toggles
  * - Player UI (MiniPlayer, screens) without native changes
- * Command: `npm run start:dev-client` (tunnel default)
+ * Command: `npm run start:dev-client:tunnel` (remote tunnel default)
  *
  * REBUILD REQUIRED — run both platforms when native config changes:
  * - `npm run build:dev-client:android`

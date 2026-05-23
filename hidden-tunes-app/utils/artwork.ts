@@ -5,6 +5,19 @@ const HIDDEN_TUNES_LOGO = require("../assets/images/logo.png");
 export const FALLBACK_ARTWORK = Image.resolveAssetSource(HIDDEN_TUNES_LOGO).uri;
 
 const EMPTY_URL_VALUES = new Set(["", "null", "undefined", "[object object]"]);
+const MAX_FAILED_ARTWORK_URLS = 512;
+const failedArtworkUrls = new Set<string>();
+
+function rememberFailedArtworkUrl(url: string) {
+  if (!url || url === FALLBACK_ARTWORK) return;
+
+  if (failedArtworkUrls.size >= MAX_FAILED_ARTWORK_URLS) {
+    const oldest = failedArtworkUrls.values().next().value;
+    if (oldest) failedArtworkUrls.delete(oldest);
+  }
+
+  failedArtworkUrls.add(url);
+}
 
 function cleanArtworkString(value: string) {
   return value.trim();
@@ -33,14 +46,36 @@ export function normalizeArtworkUrl(
   fallback = FALLBACK_ARTWORK
 ) {
   if (!isHttpsArtworkUrl(value)) return fallback;
-  return encodeURI(cleanArtworkString(String(value)));
+
+  const normalized = encodeURI(cleanArtworkString(String(value)));
+  if (isArtworkUrlFailed(normalized)) return fallback;
+
+  return normalized;
+}
+
+export function isArtworkUrlFailed(value: unknown) {
+  if (typeof value !== "string") return false;
+
+  const clean = cleanArtworkString(value);
+  if (!clean) return false;
+
+  return failedArtworkUrls.has(clean);
+}
+
+export function markArtworkUrlFailed(value: unknown) {
+  if (typeof value !== "string") return;
+
+  const clean = cleanArtworkString(value);
+  if (!isHttpsArtworkUrl(clean)) return;
+
+  rememberFailedArtworkUrl(clean);
 }
 
 function pushArtworkCandidate(candidates: any[], value: unknown) {
   if (!value) return;
 
   if (typeof value === "string") {
-    if (isHttpsArtworkUrl(value)) {
+    if (isHttpsArtworkUrl(value) && !isArtworkUrlFailed(value)) {
       candidates.push(normalizeArtworkUrl(value));
     }
     return;

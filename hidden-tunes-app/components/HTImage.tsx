@@ -1,11 +1,13 @@
 import { Image } from "expo-image";
-import React, { memo, useEffect, useMemo, useState } from "react";
+import React, { memo, useEffect, useMemo, useRef, useState } from "react";
 import { ImageStyle, StyleProp } from "react-native";
 
 import {
   FALLBACK_ARTWORK,
   getArtworkCandidates,
   getArtworkValue,
+  isArtworkUrlFailed,
+  markArtworkUrlFailed,
 } from "../utils/artwork";
 import { recordArtworkFailure } from "../utils/performanceLogs";
 import { isFastScrolling } from "../utils/performanceMode";
@@ -18,6 +20,8 @@ type Props = {
   style?: StyleProp<ImageStyle>;
   contentFit?: "cover" | "contain" | "fill" | "none" | "scale-down";
 };
+
+const MAX_ARTWORK_CANDIDATES = 4;
 
 function candidateKey(item: any) {
   if (typeof item === "string") return item;
@@ -41,6 +45,8 @@ function HTImage({
   const [candidateIndex, setCandidateIndex] = useState(0);
   const [stablePlaceholder, setStablePlaceholder] = useState<any>(null);
   const [fastScrolling, setFastScrolling] = useState(isFastScrolling());
+  const failureCountRef = useRef(0);
+  const gaveUpRef = useRef(false);
 
   const fallbackSource = useMemo(() => {
     const artwork = getArtworkValue(fallback, FALLBACK_ARTWORK);
@@ -56,12 +62,15 @@ function HTImage({
     const combined = [...explicitCandidates, ...implicitCandidates, fallback];
     const seen = new Set<string>();
 
-    return combined.filter((item) => {
-      const key = candidateKey(item);
-      if (!key || seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
+    return combined
+      .filter((item) => {
+        const key = candidateKey(item);
+        if (!key || seen.has(key)) return false;
+        if (typeof item === "string" && isArtworkUrlFailed(item)) return false;
+        seen.add(key);
+        return true;
+      })
+      .slice(0, MAX_ARTWORK_CANDIDATES);
   }, [candidates, fallback, source, uri]);
 
   const resolvedSource = useMemo(() => {
@@ -78,6 +87,8 @@ function HTImage({
 
   useEffect(() => {
     setCandidateIndex(0);
+    failureCountRef.current = 0;
+    gaveUpRef.current = false;
   }, [candidates, source, uri]);
 
   useEffect(() => {
@@ -110,13 +121,36 @@ function HTImage({
         }
       }}
       onError={() => {
-        recordArtworkFailure({
-          candidateIndex,
-          candidates: resolvedCandidates.length,
-        });
-        setCandidateIndex((current) =>
-          current < resolvedCandidates.length - 1 ? current + 1 : current
-        );
+        if (gaveUpRef.current) return;
+
+        const failedUrl =
+          typeof resolvedSource === "object" && resolvedSource?.uri
+            ? String(resolvedSource.uri)
+            : typeof resolvedSource === "string"
+              ? resolvedSource
+              : "";
+
+        if (failedUrl && failedUrl !== FALLBACK_ARTWORK) {
+          markArtworkUrlFailed(failedUrl);
+        }
+
+        failureCountRef.current += 1;
+
+        if (__DEV__ && failureCountRef.current === 1) {
+          recordArtworkFailure({
+            candidateIndex,
+            candidates: resolvedCandidates.length,
+          });
+        }
+
+        const nextIndex = candidateIndex + 1;
+        if (nextIndex >= resolvedCandidates.length) {
+          gaveUpRef.current = true;
+          setCandidateIndex(resolvedCandidates.length - 1);
+          return;
+        }
+
+        setCandidateIndex(nextIndex);
       }}
     />
   );

@@ -9,7 +9,6 @@ import React, {
 
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   RefreshControl,
   ScrollView,
@@ -35,6 +34,7 @@ import {
   usePlayerActions,
   usePlayerNowPlaying,
 } from "../../context/PlayerContext";
+import { useTrackPlaybackStatus } from "../../context/playerContextSlices";
 import { getCanonicalGenre } from "../../utils/genreAliases";
 import { HIDDEN_TUNES_GENRES } from "../../utils/genres";
 
@@ -71,11 +71,15 @@ import {
 import {
   createStableKeyExtractor,
   getListPerformanceSettings,
+  getNestedSongListLayout,
+  LIST_ITEM_HEIGHTS,
   markFastScrolling,
 } from "../../utils/performanceMode";
 import { trackRenderProbe } from "../../utils/renderDiagnostics";
 import {
   getCachedSearchResults,
+  hasFreshSearchResults,
+  normalizeSearchQueryKey,
   setCachedSearchResults,
 } from "../../utils/searchQueryCache";
 import { openGenreCatalog } from "../../utils/catalogNavigation";
@@ -148,6 +152,7 @@ const SEARCH_DEBOUNCE_MS = 380;
 const LOCAL_SEARCH_MIN_CHARS = 2;
 const API_SEARCH_MIN_CHARS = 3;
 const VISIBLE_SONG_LIMIT = 28;
+const NETWORK_SEARCH_DEDUPE_MS = 45_000;
 
 const EMPTY_GROUPED_RESULTS: GroupedSearchResults = {
   topResults: [],
@@ -341,6 +346,25 @@ function hasPlayableAudio(song: Partial<NativeSearchTrack>) {
   return typeof audio === "string" && audio.trim().length > 0;
 }
 
+function sourceColor(source?: string) {
+  if (source === "YouTube" || source === "youtube") return "#ff0033";
+  if (source === "Internet Archive" || source === "archive") {
+    return COLORS.pink || "#ec4899";
+  }
+  if (source === "Hidden Tunes" || source === "hidden-tunes") {
+    return COLORS.primary;
+  }
+
+  return COLORS.primary;
+}
+
+type SearchRowHandlers = {
+  handlePress: (item: SearchResultTrack) => void;
+  handleSongResultPress: (item: SearchResultTrack, index: number) => void;
+  openArtistFromTrack: (item: SearchResultTrack) => void;
+  openAlbumFromTrack: (item: SearchResultTrack) => void;
+};
+
 function normalizePlayableSong(item: any): NativeSearchTrack {
   const stream =
     item.audioUrl ||
@@ -391,38 +415,33 @@ function normalizeSearchTrack(item: SearchResultTrack): SearchResultTrack {
 
 const SearchResultRow = memo(function SearchResultRow({
   item,
-  active,
-  isPlaying,
-  onPress,
-  onArtistPress,
-  onAlbumPress,
-  sourceColorValue,
+  index,
+  handlersRef,
 }: {
   item: SearchResultTrack;
-  active: boolean;
-  isPlaying: boolean;
-  onPress: () => void;
-  onArtistPress: () => void;
-  onAlbumPress: () => void;
-  sourceColorValue: string;
+  index: number;
+  handlersRef: React.RefObject<SearchRowHandlers>;
 }) {
   const normalized = normalizeSearchTrack(item);
   const youtube = isYouTubeTrack(normalized);
+  const trackId = String(normalized.id || "");
+  const { isActive, isPlaying } = useTrackPlaybackStatus(youtube ? "" : trackId);
   const artist = String(getArtist(normalized));
   const title = String(normalized.title || "Unknown Song");
   const sourceName = String(normalized.sourceName || "Hidden Tunes");
+  const sourceColorValue = sourceColor(sourceName);
 
-  if (__DEV__) {
-    console.log("[SearchRow] render", {
-      id: normalized.id,
-      title,
-      hasOnPress: Boolean(onPress),
-      hasAudio: hasPlayableAudio(normalized as Partial<NativeSearchTrack>),
-    });
-  }
+  const onPress = () => {
+    if (youtube) {
+      void handlersRef.current?.handlePress(item);
+      return;
+    }
+
+    handlersRef.current?.handleSongResultPress(item, index);
+  };
 
   return (
-    <View style={[styles.resultShell, active && styles.resultShellActive]}>
+    <View style={[styles.resultShell, isActive && styles.resultShellActive]}>
       <MediaCard
         title={title}
         subtitle={`${artist} • ${sourceName}`}
@@ -437,7 +456,7 @@ const SearchResultRow = memo(function SearchResultRow({
         <TouchableOpacity
           activeOpacity={0.7}
           style={styles.artistButton}
-          onPress={onArtistPress}
+          onPress={() => handlersRef.current?.openArtistFromTrack(item)}
         >
           <Ionicons name="person-outline" size={17} color={COLORS.text} />
         </TouchableOpacity>
@@ -447,12 +466,12 @@ const SearchResultRow = memo(function SearchResultRow({
         <TouchableOpacity
           activeOpacity={0.82}
           style={styles.albumButton}
-          onPress={onAlbumPress}
+          onPress={() => handlersRef.current?.openAlbumFromTrack(item)}
         >
           <Ionicons name="albums-outline" size={18} color={COLORS.text} />
         </TouchableOpacity>
 
-        {active ? (
+        {isActive ? (
           <View style={styles.eqBox}>
             <NeonEQ isPlaying={isPlaying} size="small" />
           </View>
@@ -484,6 +503,10 @@ const SearchResultRow = memo(function SearchResultRow({
       </View>
     </View>
   );
+}, (prev, next) => {
+  const prevId = String((prev.item as any)?.id || "");
+  const nextId = String((next.item as any)?.id || "");
+  return prevId === nextId && prev.index === next.index;
 });
 
 function SearchSkeletonRows() {
@@ -505,17 +528,28 @@ function SearchSkeletonRows() {
 
 export default function SearchScreen() {
   const { playSong, stopPlayback } = usePlayerActions();
-  const { currentSong, isPlaying } = usePlayerNowPlaying();
+  const { currentSongId, isPlaying } = usePlayerNowPlaying();
 
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchRequestIdRef = useRef(0);
   const searchDebounceGenerationRef = useRef(0);
   const resultListRef = useRef<FlatList<SearchResultTrack>>(null);
+  const searchRowHandlersRef = useRef<SearchRowHandlers>({
+    handlePress: () => {},
+    handleSongResultPress: () => {},
+    openArtistFromTrack: () => {},
+    openAlbumFromTrack: () => {},
+  });
+  const inFlightSearchKeyRef = useRef<string | null>(null);
+  const lastCompletedSearchRef = useRef<{ key: string; at: number }>({
+    key: "",
+    at: 0,
+  });
+  const lastLocalSearchLogRef = useRef("");
   const catalogIndexRef = useRef<{
     songCount: number;
     index: CatalogSearchIndex;
   } | null>(null);
-  const searchTapAlertShownRef = useRef(false);
   const screenStartedAt = useRef(startPerformanceTimer()).current;
 
   const [query, setQuery] = useState("");
@@ -690,12 +724,16 @@ export default function SearchScreen() {
 
     if (__DEV__) {
       const localMs = Date.now() - startedAt;
-      console.log("[Search:local]", {
-        query: trimmedQuery,
-        localResultCount: collected.length,
-        localSearchMs: localMs,
-        source: catalogSongs.length > 0 ? "catalog/cache" : "empty",
-      });
+      const logKey = `${trimmedQuery}:${collected.length}:${catalogSongs.length}`;
+      if (lastLocalSearchLogRef.current !== logKey) {
+        lastLocalSearchLogRef.current = logKey;
+        console.log("[Search:local]", {
+          query: trimmedQuery,
+          localResultCount: collected.length,
+          localSearchMs: localMs,
+          source: catalogSongs.length > 0 ? "catalog/cache" : "empty",
+        });
+      }
     }
 
     return collected;
@@ -739,8 +777,13 @@ export default function SearchScreen() {
   );
 
   const resultListPerformance = useMemo(
-    () => getListPerformanceSettings(results.length),
+    () => getListPerformanceSettings(Math.min(results.length, VISIBLE_SONG_LIMIT)),
     [results.length]
+  );
+
+  const searchResultLayout = useMemo(
+    () => getNestedSongListLayout(LIST_ITEM_HEIGHTS.catalogSongRow),
+    []
   );
 
   useEffect(() => {
@@ -933,23 +976,11 @@ export default function SearchScreen() {
     await loadCloudDiscovery(false);
 
     if (query.trim().length >= API_SEARCH_MIN_CHARS) {
-      await searchTracks(query, activeSource);
+      await searchTracks(query, activeSource, { forceNetwork: true });
     } else {
       setRefreshing(false);
     }
   }, [activeSource, query]);
-
-  function sourceColor(source?: string) {
-    if (source === "YouTube" || source === "youtube") return "#ff0033";
-    if (source === "Internet Archive" || source === "archive") {
-      return COLORS.pink || "#ec4899";
-    }
-    if (source === "Hidden Tunes" || source === "hidden-tunes") {
-      return COLORS.primary;
-    }
-
-    return COLORS.primary;
-  }
 
   const buildYouTubeQueue = useCallback(() => {
     const queue: YouTubeQueueItem[] = results
@@ -972,10 +1003,16 @@ export default function SearchScreen() {
     return dedupeByKey(queue);
   }, [results]);
 
-  async function searchTracks(text: string, source: SearchType = activeSource) {
+  async function searchTracks(
+    text: string,
+    source: SearchType = activeSource,
+    options: { forceNetwork?: boolean } = {}
+  ) {
     const safeText = String(text || "").trim();
+    const searchKey = normalizeSearchQueryKey(safeText, source);
     const requestId = ++searchRequestIdRef.current;
     const refreshStart = startPerformanceTimer();
+    const forceNetwork = options.forceNetwork === true;
 
     setTvFallbackQuery("");
     setTvFallbackReason("");
@@ -995,6 +1032,23 @@ export default function SearchScreen() {
       return;
     }
 
+    if (
+      !forceNetwork &&
+      inFlightSearchKeyRef.current === searchKey
+    ) {
+      return;
+    }
+
+    if (
+      !forceNetwork &&
+      lastCompletedSearchRef.current.key === searchKey &&
+      Date.now() - lastCompletedSearchRef.current.at < NETWORK_SEARCH_DEDUPE_MS
+    ) {
+      setHasCheckedSearchFallbacks(true);
+      setLoading(false);
+      return;
+    }
+
     const cachedResults = await getCachedSearchResults<SearchResultTrack>(
       safeText,
       source
@@ -1002,6 +1056,7 @@ export default function SearchScreen() {
     let showedCachedResults = false;
 
     if (
+      !forceNetwork &&
       cachedResults?.length &&
       requestId === searchRequestIdRef.current
     ) {
@@ -1009,17 +1064,24 @@ export default function SearchScreen() {
       setHasCheckedSearchFallbacks(true);
       setLoading(false);
       showedCachedResults = true;
+      lastCompletedSearchRef.current = { key: searchKey, at: Date.now() };
       logCacheResult("search_results", true, {
         query: safeText,
         source,
         count: cachedResults.length,
       });
+
+      if (hasFreshSearchResults(safeText, source)) {
+        return;
+      }
     } else if (safeText.length < LOCAL_SEARCH_MIN_CHARS) {
       setLoading(true);
       logCacheResult("search_results", false, { query: safeText, source });
     } else {
       logCacheResult("search_results", false, { query: safeText, source });
     }
+
+    inFlightSearchKeyRef.current = searchKey;
 
     try {
       await saveRecentSearch(safeText);
@@ -1149,6 +1211,7 @@ export default function SearchScreen() {
 
       setResults(normalizedResults);
       await setCachedSearchResults(safeText, source, normalizedResults);
+      lastCompletedSearchRef.current = { key: searchKey, at: Date.now() };
       logPerformanceSummary("search_results", {
         cache: showedCachedResults ? "hit" : "miss",
         apiRefreshMs: Date.now() - refreshStart,
@@ -1171,6 +1234,10 @@ export default function SearchScreen() {
       await saveTvDiscoveryQuery(safeText);
     } finally {
       if (requestId !== searchRequestIdRef.current) return;
+
+      if (inFlightSearchKeyRef.current === searchKey) {
+        inFlightSearchKeyRef.current = null;
+      }
 
       setHasCheckedSearchFallbacks(true);
       setLoading(false);
@@ -1278,60 +1345,43 @@ export default function SearchScreen() {
   const handleSongResultPress = useCallback(
     (rawSong: HiddenTunesNormalizedSong | NativeSearchTrack | any, index: number) => {
       const song = normalizePlayableSong(rawSong);
-      const queue = visibleSongResults.map((item) => normalizePlayableSong(item));
-      const safeIndex = Math.max(
-        0,
-        queue.findIndex((item) => String(item.id) === String(song.id))
+      let queue = visibleSongResults.map((item) => normalizePlayableSong(item));
+      let playIndex = queue.findIndex(
+        (item) => String(item.id) === String(song.id)
       );
 
       const hasAudio = hasPlayableAudio(song);
 
-      console.log("[SearchTap] pressed", {
-        id: song?.id,
-        title: song?.title,
-        index,
-        safeIndex,
-        queueLength: queue.length,
-        hasAudio,
-      });
-
-      if (__DEV__ && !searchTapAlertShownRef.current) {
-        searchTapAlertShownRef.current = true;
-        Alert.alert(
-          "Search tap",
-          `${song?.title || "Song"}\nqueue=${queue.length} index=${safeIndex >= 0 ? safeIndex : index}`
-        );
+      if (__DEV__) {
+        console.log("[SearchTap] pressed", {
+          id: song?.id,
+          title: song?.title,
+          index,
+          playIndex,
+          queueLength: queue.length,
+          hasAudio,
+        });
       }
 
       if (!hasAudio) {
-        console.warn("[SearchTap] missing audio — playback skipped", {
-          id: song?.id,
-          title: song?.title,
-        });
+        if (__DEV__) {
+          console.warn("[SearchTap] missing audio — playback skipped", {
+            id: song?.id,
+            title: song?.title,
+          });
+        }
         return;
       }
 
-      if (queue.length === 0) {
-        console.warn("[SearchTap] empty visibleSongResults queue", {
-          id: song?.id,
-          title: song?.title,
-        });
-        return;
+      if (playIndex < 0) {
+        queue = [song];
+        playIndex = 0;
       }
-
-      if (safeIndex < 0) {
-        console.warn("[SearchTap] song not in visibleSongResults", {
-          id: song?.id,
-          title: song?.title,
-          queueLength: queue.length,
-        });
-        return;
-      }
-
-      const playIndex = safeIndex;
 
       void playSong(song, queue, playIndex).catch((error: unknown) => {
-        console.warn("[SearchTap] playSong failed", error);
+        if (__DEV__) {
+          console.warn("[SearchTap] playSong failed", error);
+        }
       });
 
       requestAnimationFrame(() => {
@@ -1466,43 +1516,22 @@ export default function SearchScreen() {
   );
 
   const renderResult = useCallback(
-    ({ item, index }: { item: SearchResultTrack; index: number }) => {
-      const normalized = normalizeSearchTrack(item);
-      const youtube = isYouTubeTrack(normalized);
-      const active = currentSong?.id === normalized.id && !youtube;
-      const sourceName = String(normalized.sourceName || "Hidden Tunes");
-
-      const onRowPress = () => {
-        if (youtube) {
-          void handlePress(item);
-          return;
-        }
-
-        handleSongResultPress(item, index);
-      };
-
-      return (
-        <SearchResultRow
-          item={item}
-          active={active}
-          isPlaying={isPlaying}
-          onPress={onRowPress}
-          onArtistPress={() => openArtistFromTrack(item)}
-          onAlbumPress={() => openAlbumFromTrack(item)}
-          sourceColorValue={sourceColor(sourceName)}
-        />
-      );
-    },
-    [
-      currentSong?.id,
-      handlePress,
-      handleSongResultPress,
-      isPlaying,
-      openAlbumFromTrack,
-      openArtistFromTrack,
-      visibleSongResults,
-    ]
+    ({ item, index }: { item: SearchResultTrack; index: number }) => (
+      <SearchResultRow
+        item={item}
+        index={index}
+        handlersRef={searchRowHandlersRef}
+      />
+    ),
+    []
   );
+
+  searchRowHandlersRef.current = {
+    handlePress,
+    handleSongResultPress,
+    openArtistFromTrack,
+    openAlbumFromTrack,
+  };
 
   const renderChip = useCallback(
     (text: string, icon: keyof typeof Ionicons.glyphMap) => (
@@ -1724,7 +1753,7 @@ export default function SearchScreen() {
               <Text style={styles.sectionSub}>Releases ready for a longer listen</Text>
             </View>
 
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <ScrollView horizontal nestedScrollEnabled showsHorizontalScrollIndicator={false}>
               {cloudAlbums.slice(0, 8).map((album: any, index) => (
                 <TouchableOpacity
                   key={String(album.id || album.albumId || index)}
@@ -1759,7 +1788,7 @@ export default function SearchScreen() {
               <Text style={styles.sectionSub}>Artists shaping your library</Text>
             </View>
 
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <ScrollView horizontal nestedScrollEnabled showsHorizontalScrollIndicator={false}>
               {cloudArtists.slice(0, 8).map((artist: any, index) => (
                 <TouchableOpacity
                   key={String(artist.id || artist.artistId || index)}
@@ -1794,7 +1823,7 @@ export default function SearchScreen() {
               <Text style={styles.sectionSub}>Curated paths through the catalog</Text>
             </View>
 
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <ScrollView horizontal nestedScrollEnabled showsHorizontalScrollIndicator={false}>
               {cloudPlaylists.slice(0, 8).map((playlist: any, index) => (
                 <TouchableOpacity
                   key={String(playlist.id || playlist.playlistId || index)}
@@ -1882,6 +1911,7 @@ export default function SearchScreen() {
 
       <ScrollView
         horizontal
+        nestedScrollEnabled
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.filterRow}
       >
@@ -1952,6 +1982,7 @@ export default function SearchScreen() {
           maxToRenderPerBatch={resultListPerformance.maxToRenderPerBatch}
           windowSize={resultListPerformance.windowSize}
           updateCellsBatchingPeriod={resultListPerformance.updateCellsBatchingPeriod}
+          getItemLayout={results.length > 0 ? searchResultLayout : undefined}
           removeClippedSubviews
           onScrollBeginDrag={() => markFastScrolling(true)}
           onMomentumScrollBegin={() => markFastScrolling(true)}
@@ -1980,6 +2011,7 @@ export default function SearchScreen() {
 
                   <ScrollView
                     horizontal
+                    nestedScrollEnabled
                     showsHorizontalScrollIndicator={false}
                     contentContainerStyle={styles.genreRow}
                   >
@@ -2023,7 +2055,7 @@ export default function SearchScreen() {
                   onGenrePress={openGenre}
                   onTvPress={openGroupedTv}
                   onSuggestionPress={(text) => commitSearch(text, activeSource)}
-                  activeSongId={currentSong?.id}
+                  activeSongId={currentSongId}
                   isPlaying={isPlaying}
                 />
               ) : null}
@@ -2051,9 +2083,9 @@ export default function SearchScreen() {
               hasCheckedSearchFallbacks ? (
             <View style={styles.emptyBox}>
               <Ionicons name="musical-notes-outline" size={56} color={COLORS.textMuted} />
-              <Text style={styles.emptyTitle}>No close match yet</Text>
+              <Text style={styles.emptyTitle}>Nothing matched yet</Text>
               <Text style={styles.emptyText}>
-                Try a lyric, mood, artist, genre, or phrase
+                Try another spelling, artist name, or mood — your catalog is still loading in the background.
               </Text>
               {renderTvFallbackCard()}
             </View>

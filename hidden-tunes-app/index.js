@@ -1,12 +1,12 @@
 /**
  * Hidden Tunes entry — Android & iOS
  *
- * DAILY DEV (instant reload, tunnel default):
- *   npm run start:dev-client
+ * DAILY ANDROID TESTING (standalone APK, no Metro):
+ *   npm run build:preview:android
  *
- * FIRST-TIME / NATIVE CHANGES (rebuild per platform):
- *   npm run build:dev-client:android
- *   npm run build:dev-client:ios
+ * NATIVE / INSTANT RELOAD (dev client + Metro):
+ *   npm run start:dev-client:tunnel
+ *   npm run build:dev-client:android  (first time / native changes)
  *
  * EXPO GO (either platform):
  *   Do NOT import or register react-native-track-player.
