@@ -1,6 +1,7 @@
 import { Platform } from "react-native";
 
 import { USE_NATIVE_TRACK_PLAYER } from "../constants/playbackConfig";
+import { supportsNativeTrackPlayer } from "../utils/expoRuntime";
 import {
   PlaybackEngine,
   PlaybackEngineEventHandlers,
@@ -31,7 +32,7 @@ let optionsConfigured = false;
 let trackPlayerModulePromise: Promise<TrackPlayerModule | null> | null = null;
 
 function isNativeTrackPlayerEnabled() {
-  return Boolean(USE_NATIVE_TRACK_PLAYER);
+  return Boolean(USE_NATIVE_TRACK_PLAYER) && supportsNativeTrackPlayer();
 }
 
 async function getTrackPlayerModule(): Promise<TrackPlayerModule | null> {
@@ -96,6 +97,11 @@ export function songToTrack(song: TrackPlayerSongInput): TrackPlayerTrack | null
 
 export function isTrackPlayerRuntimeAvailable(): boolean {
   return isNativeTrackPlayerEnabled();
+}
+
+/** False in Expo Go even when USE_NATIVE_TRACK_PLAYER is true. */
+export function isTrackPlayerNativeRuntimeSupported(): boolean {
+  return supportsNativeTrackPlayer();
 }
 
 async function configureTrackPlayerOptions(

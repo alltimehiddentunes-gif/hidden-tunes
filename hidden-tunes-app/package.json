@@ -6,6 +6,10 @@
     "start": "node --max-old-space-size=4096 ./node_modules/expo/bin/cli start --max-workers 1",
     "start:clear": "node --max-old-space-size=4096 ./node_modules/expo/bin/cli start --clear --max-workers 1",
     "start:expo": "expo start",
+    "start:dev-client": "npx expo start --dev-client --tunnel",
+    "start:dev-client:clear": "npx expo start -c --dev-client --tunnel",
+    "build:dev-client:android": "eas build --profile developmentClient --platform android",
+    "build:dev-client:ios": "eas build --profile developmentClient --platform ios",
     "reset-project": "node ./scripts/reset-project.js",
     "android": "expo run:android",
     "ios": "expo run:ios",
@@ -25,6 +29,7 @@
     "expo-av": "~16.0.8",
     "expo-blur": "~15.0.8",
     "expo-constants": "~18.0.13",
+    "expo-dev-client": "~6.0.21",
     "expo-document-picker": "~14.0.8",
     "expo-file-system": "~19.0.22",
     "expo-font": "~14.0.11",
@@ -65,7 +70,9 @@
   "expo": {
     "doctor": {
       "reactNativeDirectoryCheck": {
-        "exclude": ["react-native-track-player"]
+        "exclude": [
+          "react-native-track-player"
+        ]
       }
     }
   }

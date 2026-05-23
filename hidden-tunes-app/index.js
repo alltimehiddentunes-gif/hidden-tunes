@@ -1,20 +1,52 @@
+/**
+ * Hidden Tunes entry — Android & iOS
+ *
+ * DAILY DEV (instant reload, tunnel default):
+ *   npm run start:dev-client
+ *
+ * FIRST-TIME / NATIVE CHANGES (rebuild per platform):
+ *   npm run build:dev-client:android
+ *   npm run build:dev-client:ios
+ *
+ * EXPO GO (either platform):
+ *   Do NOT import or register react-native-track-player.
+ *   Expo Go lacks our native binary → expo-av fallback only.
+ *   Lock-screen native auto-next cannot be validated in Expo Go.
+ */
+
 const { USE_NATIVE_TRACK_PLAYER } = require("./constants/playbackConfig");
+const {
+  canRegisterTrackPlayerPlaybackService,
+  getExpoRuntimeLabel,
+  getPlatformRuntimeLabel,
+  isExpoGo,
+} = require("./utils/expoRuntime");
 
-if (USE_NATIVE_TRACK_PLAYER) {
+if (__DEV__ && isExpoGo()) {
+  console.info(
+    `[HiddenTunes][${getPlatformRuntimeLabel()}] Expo Go — Track Player disabled; expo-av fallback active.`
+  );
+}
+
+if (USE_NATIVE_TRACK_PLAYER && canRegisterTrackPlayerPlaybackService()) {
   try {
-    const Constants = require("expo-constants").default;
-    const isExpoGo = Constants?.appOwnership === "expo";
+    const TrackPlayer = require("react-native-track-player").default;
 
-    if (!isExpoGo) {
-      const TrackPlayer = require("react-native-track-player").default;
+    TrackPlayer.registerPlaybackService(() =>
+      require("./services/playbackServiceRegistration").default
+    );
 
-      TrackPlayer.registerPlaybackService(() =>
-        require("./services/playbackServiceRegistration").default
+    if (__DEV__) {
+      console.info(
+        `[HiddenTunes][${getPlatformRuntimeLabel()}] Track Player service registered (${getExpoRuntimeLabel()}).`
       );
     }
   } catch (error) {
     if (__DEV__) {
-      console.warn("Track Player service registration skipped:", error);
+      console.warn(
+        `[HiddenTunes][${getPlatformRuntimeLabel()}] Track Player registration skipped:`,
+        error
+      );
     }
   }
 }

@@ -7,17 +7,31 @@ import React, {
   useState,
 } from "react";
 import {
+  LayoutChangeEvent,
+  Pressable,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BlurView } from "expo-blur";
+import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
+import Animated, {
+  Easing,
+  FadeInDown,
+  FadeOutDown,
+  cancelAnimation,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withSpring,
+  withTiming,
+} from "react-native-reanimated";
 
 import { COLORS, GRADIENTS } from "../constants/theme";
 import {
@@ -27,6 +41,7 @@ import {
 } from "../context/PlayerContext";
 import HTImage from "./HTImage";
 import { FALLBACK_ARTWORK, getArtworkValue } from "../utils/artwork";
+import { isFastScrolling } from "../utils/performanceMode";
 
 type YouTubeMini = {
   id: string;
@@ -39,12 +54,161 @@ type YouTubeMini = {
 const YOUTUBE_MINI_KEY = "hidden_tunes_current_youtube";
 const YOUTUBE_POLL_MS = 9000;
 
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+function fireLightHaptic() {
+  if (isFastScrolling()) return;
+
+  void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+}
+
+const MiniControlButton = memo(function MiniControlButton({
+  onPress,
+  style,
+  children,
+  accessibilityLabel,
+}: {
+  onPress: () => void;
+  style?: object;
+  children: React.ReactNode;
+  accessibilityLabel?: string;
+}) {
+  const scale = useSharedValue(1);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  const handlePressIn = useCallback(() => {
+    scale.value = withSpring(0.9, { damping: 16, stiffness: 420 });
+  }, [scale]);
+
+  const handlePressOut = useCallback(() => {
+    scale.value = withSpring(1, { damping: 14, stiffness: 360 });
+  }, [scale]);
+
+  const handlePress = useCallback(() => {
+    fireLightHaptic();
+    onPress();
+  }, [onPress]);
+
+  return (
+    <Animated.View style={animatedStyle}>
+      <Pressable
+        accessibilityLabel={accessibilityLabel}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        onPress={handlePress}
+        style={style}
+      >
+        {children}
+      </Pressable>
+    </Animated.View>
+  );
+});
+
+const MiniPlayerArtwork = memo(function MiniPlayerArtwork({
+  cover,
+  isYoutubeMode,
+  isPlaying,
+  trackKey,
+}: {
+  cover?: string | null;
+  isYoutubeMode: boolean;
+  isPlaying: boolean;
+  trackKey: string;
+}) {
+  const glowOpacity = useSharedValue(0.34);
+  const glowScale = useSharedValue(1);
+
+  useEffect(() => {
+    if (!isPlaying && !isYoutubeMode) {
+      cancelAnimation(glowOpacity);
+      cancelAnimation(glowScale);
+      glowOpacity.value = withTiming(0.3, { duration: 220 });
+      glowScale.value = withTiming(1, { duration: 220 });
+      return;
+    }
+
+    glowOpacity.value = withRepeat(
+      withSequence(
+        withTiming(0.58, { duration: 1800, easing: Easing.inOut(Easing.quad) }),
+        withTiming(0.32, { duration: 1800, easing: Easing.inOut(Easing.quad) })
+      ),
+      -1,
+      false
+    );
+
+    glowScale.value = withRepeat(
+      withSequence(
+        withTiming(1.06, { duration: 1800, easing: Easing.inOut(Easing.quad) }),
+        withTiming(1, { duration: 1800, easing: Easing.inOut(Easing.quad) })
+      ),
+      -1,
+      false
+    );
+
+    return () => {
+      cancelAnimation(glowOpacity);
+      cancelAnimation(glowScale);
+    };
+  }, [glowOpacity, glowScale, isPlaying, isYoutubeMode]);
+
+  const glowStyle = useAnimatedStyle(() => ({
+    opacity: glowOpacity.value,
+    transform: [{ scale: glowScale.value }],
+  }));
+
+  return (
+    <View style={styles.coverWrap}>
+      <Animated.View style={[styles.coverGlowOuter, glowStyle]} pointerEvents="none">
+        <LinearGradient
+          colors={["rgba(168,85,247,0.55)", "rgba(236,72,153,0.35)", "rgba(34,211,238,0.2)"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.coverGlowFill}
+        />
+      </Animated.View>
+
+      <View style={styles.coverFrame}>
+        {cover ? (
+          <HTImage
+            key={trackKey}
+            source={cover}
+            style={styles.cover}
+            contentFit="cover"
+          />
+        ) : isYoutubeMode ? (
+          <View style={styles.youtubeCover}>
+            <Ionicons name="tv" size={30} color="#fff" />
+          </View>
+        ) : (
+          <HTImage
+            source={FALLBACK_ARTWORK}
+            style={styles.cover}
+            contentFit="cover"
+          />
+        )}
+      </View>
+
+      {(isPlaying || isYoutubeMode) && (
+        <Animated.View
+          entering={FadeInDown.duration(180)}
+          style={styles.liveDot}
+        />
+      )}
+    </View>
+  );
+});
+
 const MiniPlayerProgress = memo(function MiniPlayerProgress({
   isYoutubeMode,
 }: {
   isYoutubeMode: boolean;
 }) {
   const { position, duration } = usePlayerProgress();
+  const trackWidth = useSharedValue(0);
+  const progressValue = useSharedValue(0);
 
   const progress = useMemo(() => {
     if (isYoutubeMode || !duration || duration <= 0) return 0;
@@ -56,12 +220,22 @@ const MiniPlayerProgress = memo(function MiniPlayerProgress({
     return Math.max(0, Math.min(safeProgress, 1));
   }, [position, duration, isYoutubeMode]);
 
-  const progressFillStyle = useMemo(
-    () => [
-      styles.progressFill,
-      { width: `${progress * 100}%` as `${number}%` },
-    ],
-    [progress]
+  useEffect(() => {
+    progressValue.value = withTiming(progress, {
+      duration: isFastScrolling() ? 0 : 260,
+      easing: Easing.out(Easing.cubic),
+    });
+  }, [progress, progressValue]);
+
+  const fillStyle = useAnimatedStyle(() => ({
+    width: trackWidth.value * progressValue.value,
+  }));
+
+  const onTrackLayout = useCallback(
+    (event: LayoutChangeEvent) => {
+      trackWidth.value = event.nativeEvent.layout.width;
+    },
+    [trackWidth]
   );
 
   if (isYoutubeMode) {
@@ -73,9 +247,66 @@ const MiniPlayerProgress = memo(function MiniPlayerProgress({
   }
 
   return (
-    <View style={styles.progressTrack}>
-      <View style={progressFillStyle} />
+    <View style={styles.progressTrack} onLayout={onTrackLayout}>
+      <Animated.View style={[styles.progressFill, fillStyle]} />
+      <View style={styles.progressGlow} pointerEvents="none" />
     </View>
+  );
+});
+
+const MiniPlayerMetadata = memo(function MiniPlayerMetadata({
+  title,
+  artist,
+  queueLabel,
+  badgeIconName,
+  isYoutubeMode,
+}: {
+  title: string;
+  artist: string;
+  queueLabel: string;
+  badgeIconName: string;
+  isYoutubeMode: boolean;
+}) {
+  const opacity = useSharedValue(1);
+  const translateY = useSharedValue(0);
+  const identity = `${title}-${artist}`;
+
+  useEffect(() => {
+    opacity.value = 0.55;
+    translateY.value = 4;
+    opacity.value = withTiming(1, { duration: 240, easing: Easing.out(Easing.cubic) });
+    translateY.value = withTiming(0, { duration: 240, easing: Easing.out(Easing.cubic) });
+  }, [identity, opacity, translateY]);
+
+  const textStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ translateY: translateY.value }],
+  }));
+
+  const badgeStyle = useMemo(
+    () => [styles.badge, isYoutubeMode && styles.youtubeBadge],
+    [isYoutubeMode]
+  );
+
+  return (
+    <Animated.View style={[styles.info, textStyle]}>
+      <View style={styles.badgeRow}>
+        <View style={badgeStyle}>
+          <Ionicons name={badgeIconName as any} size={11} color="#fff" />
+          <Text style={styles.badgeText}>{queueLabel}</Text>
+        </View>
+      </View>
+
+      <Text numberOfLines={1} style={styles.title}>
+        {title}
+      </Text>
+
+      <Text numberOfLines={1} style={styles.artist}>
+        {artist}
+      </Text>
+
+      <MiniPlayerProgress isYoutubeMode={isYoutubeMode} />
+    </Animated.View>
   );
 });
 
@@ -175,6 +406,11 @@ function MiniPlayer() {
     return getArtworkValue(currentSong);
   }, [isYoutubeMode, youtubeVideo?.thumbnail, currentSong]);
 
+  const trackKey = useMemo(() => {
+    if (isYoutubeMode) return `yt-${youtubeVideo?.id || "none"}`;
+    return `song-${currentSong?.id || "none"}`;
+  }, [isYoutubeMode, youtubeVideo?.id, currentSong?.id]);
+
   const openPlayer = useCallback(() => {
     if (isYoutubeMode && youtubeVideo?.id) {
       router.push({
@@ -207,32 +443,6 @@ function MiniPlayer() {
     nextSong();
   }, [nextSong]);
 
-  const stopAndOpenPlayer = useCallback(
-    (event: any) => {
-      event.stopPropagation();
-      handleMainButton();
-    },
-    [handleMainButton]
-  );
-
-  const stopAndNext = useCallback(
-    (event: any) => {
-      event.stopPropagation();
-      handleNext();
-    },
-    [handleNext]
-  );
-
-  const badgeStyle = useMemo(
-    () => [styles.badge, isYoutubeMode && styles.youtubeBadge],
-    [isYoutubeMode]
-  );
-
-  const playButtonStyle = useMemo(
-    () => [styles.playButton, isYoutubeMode && styles.youtubeButton],
-    [isYoutubeMode]
-  );
-
   const badgeIconName = useMemo(() => {
     if (isYoutubeMode) return "tv";
     if (radioMode) return "radio";
@@ -246,77 +456,83 @@ function MiniPlayer() {
     return "play";
   }, [isYoutubeMode, isLoading, isPlaying]);
 
+  const playButtonStyle = useMemo(
+    () => [styles.playButton, isYoutubeMode && styles.youtubeButton],
+    [isYoutubeMode]
+  );
+
+  const shellScale = useSharedValue(1);
+
+  const shellStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: shellScale.value }],
+  }));
+
+  const onShellPressIn = useCallback(() => {
+    shellScale.value = withSpring(0.985, { damping: 18, stiffness: 380 });
+  }, [shellScale]);
+
+  const onShellPressOut = useCallback(() => {
+    shellScale.value = withSpring(1, { damping: 16, stiffness: 340 });
+  }, [shellScale]);
+
   if (!currentSong && !youtubeVideo) return null;
 
   return (
-    <TouchableOpacity
-      activeOpacity={0.92}
+    <Animated.View
+      entering={FadeInDown.duration(300).springify().damping(18).stiffness(220)}
+      exiting={FadeOutDown.duration(220)}
       style={styles.wrapper}
-      onPress={openPlayer}
     >
-      <LinearGradient colors={GRADIENTS.neon} style={styles.border}>
-        <BlurView intensity={64} tint="dark" style={styles.container}>
-          <View style={styles.coverWrap}>
-            {cover ? (
-              <HTImage source={cover} style={styles.cover} contentFit="cover" />
-            ) : isYoutubeMode ? (
-              <View style={styles.youtubeCover}>
-                <Ionicons name="tv" size={30} color="#fff" />
-              </View>
-            ) : (
-              <HTImage
-                source={FALLBACK_ARTWORK}
-                style={styles.youtubeCover}
-                contentFit="cover"
-              />
+      <AnimatedPressable
+        onPress={openPlayer}
+        onPressIn={onShellPressIn}
+        onPressOut={onShellPressOut}
+        style={shellStyle}
+      >
+        <LinearGradient colors={GRADIENTS.neon} style={styles.border}>
+          <BlurView intensity={52} tint="dark" style={styles.container}>
+            <View style={styles.sheen} pointerEvents="none" />
+
+            <MiniPlayerArtwork
+              cover={cover}
+              isYoutubeMode={isYoutubeMode}
+              isPlaying={isPlaying}
+              trackKey={trackKey}
+            />
+
+            <MiniPlayerMetadata
+              title={title}
+              artist={artist}
+              queueLabel={queueLabel}
+              badgeIconName={badgeIconName}
+              isYoutubeMode={isYoutubeMode}
+            />
+
+            {!isYoutubeMode && (
+              <MiniControlButton
+                accessibilityLabel="Next track"
+                onPress={handleNext}
+                style={styles.nextButton}
+              >
+                <Ionicons name="play-skip-forward" size={19} color={COLORS.text} />
+              </MiniControlButton>
             )}
 
-            {(isPlaying || isYoutubeMode) && <View style={styles.liveDot} />}
-          </View>
-
-          <View style={styles.info}>
-            <View style={styles.badgeRow}>
-              <View style={badgeStyle}>
-                <Ionicons name={badgeIconName as any} size={11} color="#fff" />
-                <Text style={styles.badgeText}>{queueLabel}</Text>
-              </View>
-            </View>
-
-            <Text numberOfLines={1} style={styles.title}>
-              {title}
-            </Text>
-
-            <Text numberOfLines={1} style={styles.artist}>
-              {artist}
-            </Text>
-
-            <MiniPlayerProgress isYoutubeMode={isYoutubeMode} />
-          </View>
-
-          {!isYoutubeMode && (
-            <TouchableOpacity
-              activeOpacity={0.85}
-              style={styles.nextButton}
-              onPress={stopAndNext}
+            <MiniControlButton
+              accessibilityLabel={isYoutubeMode ? "Open video" : "Play or pause"}
+              onPress={handleMainButton}
+              style={playButtonStyle}
             >
-              <Ionicons name="play-skip-forward" size={19} color={COLORS.text} />
-            </TouchableOpacity>
-          )}
-
-          <TouchableOpacity
-            activeOpacity={0.85}
-            style={playButtonStyle}
-            onPress={stopAndOpenPlayer}
-          >
-            <Ionicons
-              name={mainIconName as any}
-              size={isYoutubeMode ? 22 : 23}
-              color={isYoutubeMode ? "#fff" : "#000"}
-            />
-          </TouchableOpacity>
-        </BlurView>
-      </LinearGradient>
-    </TouchableOpacity>
+              <Ionicons
+                name={mainIconName as any}
+                size={isYoutubeMode ? 22 : 23}
+                color={isYoutubeMode ? "#fff" : "#000"}
+              />
+            </MiniControlButton>
+          </BlurView>
+        </LinearGradient>
+      </AnimatedPressable>
+    </Animated.View>
   );
 }
 
@@ -338,19 +554,47 @@ const styles = StyleSheet.create({
   },
 
   container: {
-    height: 86,
+    height: 88,
     borderRadius: 29,
     overflow: "hidden",
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 12,
-    backgroundColor: "rgba(5,5,8,0.88)",
+    backgroundColor: "rgba(5,5,8,0.92)",
+  },
+
+  sheen: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(255,255,255,0.03)",
   },
 
   coverWrap: {
+    width: 62,
+    height: 62,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  coverGlowOuter: {
+    position: "absolute",
+    width: 72,
+    height: 72,
+    borderRadius: 24,
+    overflow: "hidden",
+  },
+
+  coverGlowFill: {
+    flex: 1,
+  },
+
+  coverFrame: {
     width: 60,
     height: 60,
     borderRadius: 20,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.14)",
+    backgroundColor: COLORS.cardLight,
   },
 
   cover: {
@@ -371,8 +615,8 @@ const styles = StyleSheet.create({
 
   liveDot: {
     position: "absolute",
-    right: -2,
-    top: -2,
+    right: 0,
+    top: 0,
     width: 13,
     height: 13,
     borderRadius: 7,
@@ -383,8 +627,16 @@ const styles = StyleSheet.create({
 
   info: {
     flex: 1,
-    marginLeft: 13,
-    paddingRight: 8,
+    marginLeft: 12,
+    paddingRight: 6,
+    minWidth: 0,
+  },
+
+  progressSlot: {
+    position: "absolute",
+    left: 86,
+    right: 118,
+    bottom: 10,
   },
 
   badgeRow: {
@@ -418,12 +670,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "900",
     marginTop: 1,
+    letterSpacing: -0.2,
   },
 
   artist: {
     color: COLORS.textMuted,
     fontSize: 12,
-    marginTop: 3,
+    marginTop: 2,
     fontWeight: "700",
   },
 
@@ -448,14 +701,21 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
   },
 
+  progressGlow: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(192,132,252,0.08)",
+  },
+
   nextButton: {
     width: 42,
     height: 42,
     borderRadius: 21,
-    backgroundColor: "rgba(255,255,255,0.075)",
+    backgroundColor: "rgba(255,255,255,0.08)",
     alignItems: "center",
     justifyContent: "center",
     marginRight: 8,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.06)",
   },
 
   playButton: {
@@ -465,9 +725,15 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
     alignItems: "center",
     justifyContent: "center",
+    shadowColor: COLORS.primary,
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
   },
 
   youtubeButton: {
     backgroundColor: "#ff0033",
+    shadowColor: "#ff0033",
   },
 });

@@ -11,10 +11,13 @@ import {
 
 import Slider from "@react-native-community/slider";
 import { LinearGradient } from "expo-linear-gradient";
+import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 
 import Animated, {
+  Easing,
+  FadeInDown,
   cancelAnimation,
   useAnimatedStyle,
   useSharedValue,
@@ -36,6 +39,7 @@ import LiveWaveform from "../../components/LiveWaveform";
 import AddToPlaylistModal from "../../components/AddToPlaylistModal";
 import HTImage from "../../components/HTImage";
 import { FALLBACK_ARTWORK, getArtworkValue } from "../../utils/artwork";
+import { isFastScrolling } from "../../utils/performanceMode";
 
 function formatTime(ms: number) {
   const totalSeconds = Math.floor((ms || 0) / 1000);
@@ -45,24 +49,170 @@ function formatTime(ms: number) {
   return `${minutes}:${seconds < 10 ? "0" : ""}${seconds}`;
 }
 
-const PremiumIconButton = memo(function PremiumIconButton({ children, onPress }: any) {
+function fireLightHaptic() {
+  if (isFastScrolling()) return;
+
+  void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+}
+
+const AmbientGlow = memo(function AmbientGlow() {
+  const purple = useSharedValue(0.16);
+  const cyan = useSharedValue(0.1);
+
+  useEffect(() => {
+    purple.value = withRepeat(
+      withSequence(
+        withTiming(0.24, { duration: 3200, easing: Easing.inOut(Easing.quad) }),
+        withTiming(0.14, { duration: 3200, easing: Easing.inOut(Easing.quad) })
+      ),
+      -1,
+      false
+    );
+
+    cyan.value = withRepeat(
+      withSequence(
+        withTiming(0.16, { duration: 3800, easing: Easing.inOut(Easing.quad) }),
+        withTiming(0.08, { duration: 3800, easing: Easing.inOut(Easing.quad) })
+      ),
+      -1,
+      false
+    );
+
+    return () => {
+      cancelAnimation(purple);
+      cancelAnimation(cyan);
+    };
+  }, [purple, cyan]);
+
+  const purpleStyle = useAnimatedStyle(() => ({
+    opacity: purple.value,
+  }));
+
+  const cyanStyle = useAnimatedStyle(() => ({
+    opacity: cyan.value,
+  }));
+
+  return (
+    <>
+      <Animated.View style={[styles.glowPurple, purpleStyle]} />
+      <Animated.View style={[styles.glowCyan, cyanStyle]} />
+    </>
+  );
+});
+
+const PremiumIconButton = memo(function PremiumIconButton({
+  children,
+  onPress,
+}: {
+  children: React.ReactNode;
+  onPress?: () => void;
+}) {
   const scale = useSharedValue(1);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
   }));
 
+  const handlePressIn = useCallback(() => {
+    scale.value = withSpring(0.9, { damping: 16, stiffness: 420 });
+  }, [scale]);
+
+  const handlePressOut = useCallback(() => {
+    scale.value = withSpring(1, { damping: 14, stiffness: 360 });
+  }, [scale]);
+
   const handlePress = useCallback(() => {
+    fireLightHaptic();
     scale.value = withSequence(withSpring(0.9), withSpring(1));
     onPress?.();
   }, [onPress, scale]);
 
   return (
     <Animated.View style={animatedStyle}>
-      <TouchableOpacity activeOpacity={0.85} onPress={handlePress} style={styles.iconButton}>
+      <Pressable
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        onPress={handlePress}
+        style={styles.iconButton}
+      >
         {children}
-      </TouchableOpacity>
+      </Pressable>
     </Animated.View>
+  );
+});
+
+const PremiumPlayButton = memo(function PremiumPlayButton({
+  isPlaying,
+  isLoading,
+  onPress,
+}: {
+  isPlaying: boolean;
+  isLoading: boolean;
+  onPress: () => void;
+}) {
+  const scale = useSharedValue(1);
+  const ringOpacity = useSharedValue(0.24);
+
+  useEffect(() => {
+    if (!isPlaying) {
+      cancelAnimation(ringOpacity);
+      ringOpacity.value = withTiming(0.22, { duration: 220 });
+      return;
+    }
+
+    ringOpacity.value = withRepeat(
+      withSequence(
+        withTiming(0.46, { duration: 1400, easing: Easing.inOut(Easing.quad) }),
+        withTiming(0.18, { duration: 1400, easing: Easing.inOut(Easing.quad) })
+      ),
+      -1,
+      false
+    );
+
+    return () => {
+      cancelAnimation(ringOpacity);
+    };
+  }, [isPlaying, ringOpacity]);
+
+  const buttonStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  const ringStyle = useAnimatedStyle(() => ({
+    opacity: ringOpacity.value,
+  }));
+
+  const handlePressIn = useCallback(() => {
+    scale.value = withSpring(0.94, { damping: 16, stiffness: 420 });
+  }, [scale]);
+
+  const handlePressOut = useCallback(() => {
+    scale.value = withSpring(1, { damping: 14, stiffness: 360 });
+  }, [scale]);
+
+  const handlePress = useCallback(() => {
+    fireLightHaptic();
+    onPress();
+  }, [onPress]);
+
+  return (
+    <View style={styles.playButtonWrap}>
+      <Animated.View style={[styles.playButtonRing, ringStyle]} pointerEvents="none" />
+      <Animated.View style={buttonStyle}>
+        <Pressable
+          onPressIn={handlePressIn}
+          onPressOut={handlePressOut}
+          onPress={handlePress}
+          style={styles.playButton}
+        >
+          <Ionicons
+            name={isLoading ? "sync" : isPlaying ? "pause" : "play"}
+            size={38}
+            color="#000"
+          />
+        </Pressable>
+      </Animated.View>
+    </View>
   );
 });
 
@@ -105,6 +255,9 @@ export default function PlayerScreen() {
 
   const rotate = useSharedValue(0);
   const pulse = useSharedValue(1);
+  const metadataOpacity = useSharedValue(1);
+  const metadataTranslateY = useSharedValue(0);
+  const artworkHalo = useSharedValue(0.28);
 
   const playbackPosition = positionMillis ?? position ?? 0;
   const playbackDuration = durationMillis ?? duration ?? 1;
@@ -184,16 +337,33 @@ export default function PlayerScreen() {
   }, [activeQueue?.length, nextUpSong?.title, smartAutoplayEnabled]);
 
   useEffect(() => {
+    if (!currentSong?.id) return;
+
+    metadataOpacity.value = 0.6;
+    metadataTranslateY.value = 8;
+    metadataOpacity.value = withTiming(1, {
+      duration: 280,
+      easing: Easing.out(Easing.cubic),
+    });
+    metadataTranslateY.value = withTiming(0, {
+      duration: 280,
+      easing: Easing.out(Easing.cubic),
+    });
+  }, [currentSong?.id, metadataOpacity, metadataTranslateY]);
+
+  useEffect(() => {
     if (!isPlaying) {
       cancelAnimation(rotate);
       cancelAnimation(pulse);
+      cancelAnimation(artworkHalo);
       pulse.value = withTiming(1, { duration: 220 });
+      artworkHalo.value = withTiming(0.26, { duration: 220 });
       return;
     }
 
     rotate.value = withRepeat(
       withTiming(360, {
-        duration: 42000,
+        duration: 52000,
       }),
       -1,
       false
@@ -201,8 +371,17 @@ export default function PlayerScreen() {
 
     pulse.value = withRepeat(
       withSequence(
-        withTiming(1.012, { duration: 2400 }),
-        withTiming(1, { duration: 2400 })
+        withTiming(1.018, { duration: 2200, easing: Easing.inOut(Easing.quad) }),
+        withTiming(1, { duration: 2200, easing: Easing.inOut(Easing.quad) })
+      ),
+      -1,
+      false
+    );
+
+    artworkHalo.value = withRepeat(
+      withSequence(
+        withTiming(0.5, { duration: 2200, easing: Easing.inOut(Easing.quad) }),
+        withTiming(0.24, { duration: 2200, easing: Easing.inOut(Easing.quad) })
       ),
       -1,
       false
@@ -211,8 +390,9 @@ export default function PlayerScreen() {
     return () => {
       cancelAnimation(rotate);
       cancelAnimation(pulse);
+      cancelAnimation(artworkHalo);
     };
-  }, [isPlaying, rotate, pulse]);
+  }, [isPlaying, rotate, pulse, artworkHalo]);
 
   const artworkAnimated = useAnimatedStyle(() => ({
     transform: [
@@ -223,6 +403,15 @@ export default function PlayerScreen() {
         scale: isPlaying ? pulse.value : 1,
       },
     ],
+  }));
+
+  const artworkHaloStyle = useAnimatedStyle(() => ({
+    opacity: artworkHalo.value,
+  }));
+
+  const metadataAnimated = useAnimatedStyle(() => ({
+    opacity: metadataOpacity.value,
+    transform: [{ translateY: metadataTranslateY.value }],
   }));
 
   const openPlaylistModal = useCallback(() => {
@@ -283,7 +472,7 @@ export default function PlayerScreen() {
   if (!currentSong) {
     return (
       <LinearGradient colors={GRADIENTS.main} style={styles.emptyContainer}>
-        <View style={styles.glowPurple} />
+        <AmbientGlow />
 
         <View style={styles.emptyIcon}>
           <Ionicons name="musical-notes-outline" size={64} color={COLORS.primary} />
@@ -309,8 +498,7 @@ export default function PlayerScreen() {
 
   return (
     <LinearGradient colors={GRADIENTS.main} style={styles.container}>
-      <View style={styles.glowPurple} />
-      <View style={styles.glowCyan} />
+      <AmbientGlow />
 
       <ScrollView
         contentContainerStyle={styles.content}
@@ -335,11 +523,22 @@ export default function PlayerScreen() {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.artworkGlow}>
+        <Animated.View
+          entering={FadeInDown.duration(360).springify().damping(18)}
+          style={styles.artworkGlow}
+        >
+          <Animated.View style={[styles.artworkHalo, artworkHaloStyle]} pointerEvents="none">
+            <LinearGradient
+              colors={["rgba(168,85,247,0.5)", "rgba(236,72,153,0.28)", "rgba(34,211,238,0.16)"]}
+              style={styles.artworkHaloFill}
+            />
+          </Animated.View>
+
           <LinearGradient colors={GRADIENTS.neon} style={styles.artworkBorder}>
             <Animated.View style={[styles.artworkWrapper, artworkAnimated]}>
               {artworkSource ? (
                 <HTImage
+                  key={String(currentSong.id)}
                   source={artworkSource}
                   style={styles.artwork}
                   contentFit="cover"
@@ -353,9 +552,9 @@ export default function PlayerScreen() {
               )}
             </Animated.View>
           </LinearGradient>
-        </View>
+        </Animated.View>
 
-        <View style={styles.songInfo}>
+        <Animated.View style={[styles.songInfo, metadataAnimated]}>
           <View style={styles.songTextWrap}>
             <Text numberOfLines={1} style={styles.songTitle}>
               {currentSong.title}
@@ -377,7 +576,7 @@ export default function PlayerScreen() {
               color={favoriteActive ? COLORS.primary : COLORS.text}
             />
           </TouchableOpacity>
-        </View>
+        </Animated.View>
 
         {listeningContext.length > 0 && (
           <View style={styles.contextPillRow}>
@@ -485,13 +684,11 @@ export default function PlayerScreen() {
             <Ionicons name="play-skip-back" size={34} color={COLORS.text} />
           </PremiumIconButton>
 
-          <Pressable onPress={togglePlayPause} style={styles.playButton}>
-            <Ionicons
-              name={isLoading ? "sync" : isPlaying ? "pause" : "play"}
-              size={38}
-              color="#000"
-            />
-          </Pressable>
+          <PremiumPlayButton
+            isPlaying={isPlaying}
+            isLoading={isLoading}
+            onPress={togglePlayPause}
+          />
 
           <PremiumIconButton onPress={nextSong}>
             <Ionicons name="play-skip-forward" size={34} color={COLORS.text} />
@@ -581,7 +778,7 @@ const styles = StyleSheet.create({
     width: 300,
     height: 300,
     borderRadius: 150,
-    backgroundColor: "rgba(168,85,247,0.18)",
+    backgroundColor: "rgba(168,85,247,0.32)",
   },
 
   glowCyan: {
@@ -591,7 +788,7 @@ const styles = StyleSheet.create({
     width: 300,
     height: 300,
     borderRadius: 150,
-    backgroundColor: "rgba(34,211,238,0.1)",
+    backgroundColor: "rgba(34,211,238,0.22)",
   },
 
   content: {
@@ -689,14 +886,28 @@ const styles = StyleSheet.create({
   artworkGlow: {
     alignSelf: "center",
     marginTop: 28,
+    alignItems: "center",
+    justifyContent: "center",
     shadowColor: "#A855F7",
-    shadowOpacity: 0.26,
-    shadowRadius: 20,
+    shadowOpacity: 0.32,
+    shadowRadius: 24,
     shadowOffset: {
       width: 0,
-      height: 12,
+      height: 14,
     },
-    elevation: 6,
+    elevation: 8,
+  },
+
+  artworkHalo: {
+    position: "absolute",
+    width: 330,
+    height: 330,
+    borderRadius: 165,
+    overflow: "hidden",
+  },
+
+  artworkHaloFill: {
+    flex: 1,
   },
 
   artworkBorder: {
@@ -918,6 +1129,21 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
 
+  playButtonWrap: {
+    width: 92,
+    height: 92,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  playButtonRing: {
+    position: "absolute",
+    width: 92,
+    height: 92,
+    borderRadius: 46,
+    backgroundColor: "rgba(192,132,252,0.35)",
+  },
+
   playButton: {
     width: 82,
     height: 82,
@@ -926,13 +1152,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     shadowColor: COLORS.primary,
-    shadowOpacity: 0.34,
-    shadowRadius: 16,
+    shadowOpacity: 0.4,
+    shadowRadius: 18,
     shadowOffset: {
       width: 0,
       height: 10,
     },
-    elevation: 6,
+    elevation: 8,
   },
 
   extraActions: {

@@ -1,6 +1,7 @@
 import { AppStateStatus } from "react-native";
 
 import { isTrackPlayerFeatureEnabled } from "../constants/playbackConfig";
+import { supportsNativeTrackPlayer } from "../utils/expoRuntime";
 import {
   PlaybackEngineEventHandlers,
   PlaybackEngineProgress,
@@ -42,6 +43,7 @@ export function isNativeQueuePlaybackEnabled(): boolean {
 
 export async function shouldUseTrackPlayerPlayback(): Promise<boolean> {
   if (!isTrackPlayerFeatureEnabled()) return false;
+  if (!supportsNativeTrackPlayer()) return false;
   return ensureTrackPlayerReady();
 }
 
@@ -122,7 +124,10 @@ export async function bridgeGetActiveIndex(): Promise<number | null> {
 export function subscribeBridgeEvents(
   handlers: TrackPlayerEventHandlers
 ): () => void {
-  if (!isTrackPlayerFeatureEnabled()) return () => {};
+  if (!isTrackPlayerFeatureEnabled() || !supportsNativeTrackPlayer()) {
+    return () => {};
+  }
+
   return subscribeTrackPlayerEvents(handlers);
 }
 

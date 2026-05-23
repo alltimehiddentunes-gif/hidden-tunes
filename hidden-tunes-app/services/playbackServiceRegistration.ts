@@ -1,11 +1,30 @@
-import TrackPlayer, { Event, State } from "react-native-track-player";
+import {
+  canRegisterTrackPlayerPlaybackService,
+  getPlatformRuntimeLabel,
+  isExpoGo,
+} from "../utils/expoRuntime";
 
 /**
- * Headless playback service (Android) / background task (iOS).
- * Handles lock-screen and Bluetooth remote controls when the JS thread is throttled.
- * Queue auto-advance is native; this service keeps remotes working in background.
+ * Headless playback service (Android MusicService / iOS background audio).
+ * Remote controls when JS is throttled; queue auto-advance stays native.
+ *
+ * NEVER top-level-import react-native-track-player — Metro must not load RNTP
+ * in Expo Go on Android or iPhone. All access is require()-lazy inside this file.
  */
 export default async function PlaybackService() {
+  if (isExpoGo() || !canRegisterTrackPlayerPlaybackService()) {
+    if (__DEV__ && isExpoGo()) {
+      console.info(
+        `[HiddenTunes][${getPlatformRuntimeLabel()}] PlaybackService skipped (Expo Go).`
+      );
+    }
+
+    return;
+  }
+
+  const TrackPlayer = require("react-native-track-player").default;
+  const { Event, State } = require("react-native-track-player");
+
   TrackPlayer.addEventListener(Event.RemotePlay, () => {
     void TrackPlayer.play();
   });
