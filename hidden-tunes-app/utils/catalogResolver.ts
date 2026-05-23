@@ -328,7 +328,13 @@ export function matchSongsForCatalogTarget<T extends CatalogSongLike>(
 
   if (target.type === "genre") {
     songs.forEach((song) => {
-      if (!genreListMatches([song.genre, song.mood], target.title)) return;
+      const genreValues = [
+        song.genre,
+        song.mood,
+        ...(Array.isArray(song.tags) ? song.tags : []),
+      ];
+
+      if (!genreListMatches(genreValues, target.title)) return;
 
       const key = String((song as { id?: unknown }).id || "")
         .toLowerCase()

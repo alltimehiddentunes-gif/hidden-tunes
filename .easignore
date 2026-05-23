@@ -1,0 +1,22 @@
+# Monorepo: mobile preview builds only need the app package
+hidden-tunes-backend/
+docs/
+
+# Next.js / web build artifacts (not needed for Expo)
+**/.next/
+**/out/
+**/dist/
+**/web-build/
+
+# Dependencies are installed fresh on EAS
+**/node_modules/
+
+# Local native folders (prebuild runs on EAS when needed)
+hidden-tunes-app/android/
+hidden-tunes-app/ios/
+
+# Dev caches
+**/.expo/
+**/.turbo/
+**/.cache/
+*.tsbuildinfo

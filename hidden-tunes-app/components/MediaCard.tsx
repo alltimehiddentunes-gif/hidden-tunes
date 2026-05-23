@@ -11,12 +11,17 @@ import { Ionicons } from "@expo/vector-icons";
 
 import { COLORS, GRADIENTS } from "../constants/theme";
 import HTImage from "./HTImage";
-import { FALLBACK_ARTWORK } from "../utils/artwork";
+import {
+  FALLBACK_ARTWORK,
+  getArtworkCandidates,
+  resolveEntityArtwork,
+} from "../utils/artwork";
 
 type MediaCardProps = {
   title: string;
   subtitle?: string;
   image?: any;
+  artworkCandidates?: any[];
   type?: "song" | "playlist" | "album" | "artist" | "radio";
   size?: "small" | "medium" | "large";
   showPlayButton?: boolean;
@@ -28,6 +33,7 @@ function MediaCard({
   title,
   subtitle,
   image,
+  artworkCandidates,
   type = "song",
   size = "medium",
   showPlayButton = true,
@@ -42,10 +48,17 @@ function MediaCard({
 
   const artworkRadius = useMemo(() => artworkSize * 0.24, [artworkSize]);
 
-  const imageSource = useMemo(() => {
-    if (!image) return null;
-    return typeof image === "string" ? image : image;
-  }, [image]);
+  const resolvedArtwork = useMemo(() => {
+    if (Array.isArray(artworkCandidates) && artworkCandidates.length) {
+      return resolveEntityArtwork(image, artworkCandidates, FALLBACK_ARTWORK);
+    }
+
+    if (!image) return FALLBACK_ARTWORK;
+
+    const candidates = getArtworkCandidates(image, FALLBACK_ARTWORK);
+    const first = candidates[0];
+    return typeof first === "string" ? first : FALLBACK_ARTWORK;
+  }, [artworkCandidates, image]);
 
   const artworkStyle = useMemo(
     () => [
@@ -56,20 +69,16 @@ function MediaCard({
         borderRadius: artworkRadius,
       },
     ],
-    [artworkSize, artworkRadius]
+    [artworkRadius, artworkSize]
   );
 
-  const emptyArtworkStyle = useMemo(
-    () => [
-      styles.emptyArtwork,
-      {
-        width: artworkSize,
-        height: artworkSize,
-        borderRadius: artworkRadius,
-      },
-    ],
-    [artworkSize, artworkRadius]
-  );
+  const typeIcon = useMemo(() => {
+    if (type === "artist") return "person";
+    if (type === "album") return "albums";
+    if (type === "playlist") return "list";
+    if (type === "radio") return "radio";
+    return "musical-notes";
+  }, [type]);
 
   return (
     <TouchableOpacity
@@ -81,19 +90,19 @@ function MediaCard({
         colors={GRADIENTS.card}
         style={[styles.card, size === "large" && styles.largeCard]}
       >
-        {imageSource ? (
+        <View style={artworkStyle}>
           <HTImage
-            source={imageSource}
+            source={resolvedArtwork}
+            candidates={artworkCandidates}
             style={artworkStyle}
             contentFit="cover"
           />
-        ) : (
-          <HTImage
-            source={FALLBACK_ARTWORK}
-            style={emptyArtworkStyle}
-            contentFit="cover"
-          />
-        )}
+          {resolvedArtwork === FALLBACK_ARTWORK ? (
+            <View style={styles.artworkBadge}>
+              <Ionicons name={typeIcon} size={16} color={COLORS.primary} />
+            </View>
+          ) : null}
+        </View>
 
         <View style={[styles.info, size === "large" && styles.largeInfo]}>
           <Text
@@ -165,11 +174,21 @@ const styles = StyleSheet.create({
 
   artwork: {
     backgroundColor: "#111",
+    overflow: "hidden",
   },
 
-  emptyArtwork: {
+  artworkBadge: {
+    position: "absolute",
+    right: 8,
+    bottom: 8,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: "rgba(0,0,0,0.45)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
   },
 
   info: {

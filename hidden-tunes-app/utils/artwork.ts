@@ -220,3 +220,79 @@ export function getArtworkSource(item: any, fallback = FALLBACK_ARTWORK) {
   const artwork = getArtworkValue(item, fallback);
   return typeof artwork === "string" ? { uri: artwork } : artwork;
 }
+
+export function hasCatalogArtwork(
+  value: unknown,
+  fallback = FALLBACK_ARTWORK
+): boolean {
+  if (typeof value !== "string") return false;
+
+  return (
+    isHttpsArtworkUrl(value) &&
+    value !== fallback &&
+    !isArtworkUrlFailed(value)
+  );
+}
+
+export function pickBestArtworkFromSongs(
+  songs: Array<{
+    artwork?: unknown;
+    cover?: unknown;
+    thumbnail?: unknown;
+  }>,
+  fallback = FALLBACK_ARTWORK
+): string {
+  for (const song of songs) {
+    const candidates = getArtworkCandidates(song, fallback);
+
+    for (const candidate of candidates) {
+      if (typeof candidate === "string" && hasCatalogArtwork(candidate, fallback)) {
+        return candidate;
+      }
+    }
+  }
+
+  return fallback;
+}
+
+export function resolveEntityArtwork(
+  entity: any,
+  relatedSongs: Array<{
+    album?: unknown;
+    artist?: unknown;
+    artwork?: unknown;
+    cover?: unknown;
+    thumbnail?: unknown;
+  }> = [],
+  fallback = FALLBACK_ARTWORK
+) {
+  const directCandidates = getArtworkCandidates(entity, fallback);
+
+  for (const candidate of directCandidates) {
+    if (typeof candidate === "string" && hasCatalogArtwork(candidate, fallback)) {
+      return candidate;
+    }
+  }
+
+  const entityAlbum = String(entity?.album || entity?.title || "")
+    .trim()
+    .toLowerCase();
+  const entityArtist = String(entity?.artist || entity?.name || "")
+    .trim()
+    .toLowerCase();
+
+  const scopedSongs = relatedSongs.filter((song) => {
+    const songAlbum = String(song.album || "").trim().toLowerCase();
+    const songArtist = String(song.artist || "").trim().toLowerCase();
+
+    if (entityAlbum && songAlbum && songAlbum === entityAlbum) return true;
+    if (entityArtist && songArtist && songArtist === entityArtist) return true;
+
+    return false;
+  });
+
+  return pickBestArtworkFromSongs(
+    scopedSongs.length ? scopedSongs : relatedSongs,
+    fallback
+  );
+}

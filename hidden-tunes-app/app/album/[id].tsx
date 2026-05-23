@@ -29,7 +29,7 @@ import {
   type HiddenTunesAlbum,
   type HiddenTunesNormalizedSong,
 } from "../../services/hiddenTunesApi";
-import { getArtworkUri } from "../../utils/artwork";
+import { getArtworkUri, resolveEntityArtwork } from "../../utils/artwork";
 import {
   logApiRefresh,
   logCacheResult,
@@ -309,6 +309,11 @@ export default function AlbumScreen() {
     });
   }
 
+  const albumArtwork = useMemo(
+    () => resolveEntityArtwork(album, tracks),
+    [album, tracks]
+  );
+
   if (loading) {
     return (
       <LinearGradient colors={GRADIENTS.main as any} style={styles.center}>
@@ -381,7 +386,11 @@ export default function AlbumScreen() {
 
             <View style={styles.hero}>
               <View style={styles.coverWrap}>
-                <HTImage source={album} candidates={[tracks[0]]} style={styles.cover} />
+                <HTImage
+                  source={albumArtwork}
+                  candidates={tracks}
+                  style={styles.cover}
+                />
               </View>
 
               <View style={styles.albumBadge}>

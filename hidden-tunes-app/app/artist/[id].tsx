@@ -29,7 +29,7 @@ import {
   type HiddenTunesArtist,
   type HiddenTunesNormalizedSong,
 } from "../../services/hiddenTunesApi";
-import { getArtworkUri } from "../../utils/artwork";
+import { getArtworkUri, resolveEntityArtwork } from "../../utils/artwork";
 import {
   logApiRefresh,
   logCacheResult,
@@ -341,6 +341,11 @@ export default function ArtistScreen() {
     [artist?.name, currentSong?.id, handlePlay, isPlaying]
   );
 
+  const artistArtwork = useMemo(
+    () => resolveEntityArtwork(artist, tracks),
+    [artist, tracks]
+  );
+
   if (loading) {
     return (
       <LinearGradient colors={GRADIENTS.main as any} style={styles.center}>
@@ -415,8 +420,8 @@ export default function ArtistScreen() {
         <View style={styles.hero}>
           <View style={styles.avatarWrap}>
             <HTImage
-              source={artist}
-              candidates={[tracks[0]]}
+              source={artistArtwork}
+              candidates={tracks}
               style={styles.avatar}
             />
           </View>

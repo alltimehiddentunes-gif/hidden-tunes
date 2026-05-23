@@ -279,25 +279,85 @@ export async function loadCatalogView(
     if (page === 1 && !options.forceRefresh) {
       const cached = readUnifiedViewCache(target.cacheKey);
       if (cached?.entry.songs.length) {
-        showedCached = true;
-        matchedFromCache = cached.entry.songs.length;
-        persistedHit = cached.persistedHit;
-        viewFreshness = cached.freshness;
-        logCacheResult("catalog_view", true, {
-          cacheKey: target.cacheKey,
-          count: cached.entry.songs.length,
-          persisted: persistedHit,
-          freshness: cached.freshness,
-        });
-      } else {
-        logCacheResult("catalog_view", false, {
-          cacheKey: target.cacheKey,
-          page,
-        });
+        return buildResultFromCache(
+          target,
+          cached.entry,
+          cached.freshness,
+          cached.persistedHit
+        );
       }
+
+      logCacheResult("catalog_view", false, {
+        cacheKey: target.cacheKey,
+        page,
+      });
     }
 
     const hydrated = await hydrateHiddenTunesCatalogCache();
+    const snapshotMatches =
+      page === 1 ? matchSongsForCatalogTarget(hydrated, target) : [];
+
+    if (page === 1 && !options.forceRefresh && snapshotMatches.length) {
+      const pageSongs = snapshotMatches.slice(0, limit);
+      writeUnifiedViewCache(
+        target,
+        pageSongs,
+        snapshotMatches.length > limit,
+        false,
+        "catalog_snapshot"
+      );
+
+      logApiRefresh("catalog_view", refreshStart, {
+        cacheKey: target.cacheKey,
+        page,
+        count: pageSongs.length,
+        fallbackUsed: false,
+        persistedHit: false,
+        freshness: "catalog_snapshot",
+        source: "catalog_snapshot",
+      });
+
+      return {
+        target,
+        songs: pageSongs,
+        hasMore: snapshotMatches.length > limit,
+        page,
+        showedCached: true,
+        cacheHit: true,
+        persistedHit: false,
+        viewFreshness: "catalog_snapshot",
+        fallbackUsed: false,
+        sourceSongCount: hydrated.length,
+        matchedFromCache: pageSongs.length,
+        refreshResultCount: pageSongs.length,
+        emptyStateReason: "content_available",
+      };
+    }
+
+    if (page > 1 && target.type === "genre") {
+      const allMatches = matchSongsForCatalogTarget(hydrated, target);
+      const start = (page - 1) * limit;
+      const pageSongs = allMatches.slice(start, start + limit);
+
+      if (pageSongs.length) {
+        return {
+          target,
+          songs: pageSongs,
+          hasMore: start + limit < allMatches.length,
+          page,
+          showedCached: true,
+          cacheHit: true,
+          persistedHit: false,
+          viewFreshness: "catalog_snapshot",
+          fallbackUsed: false,
+          sourceSongCount: hydrated.length,
+          matchedFromCache: pageSongs.length,
+          refreshResultCount: pageSongs.length,
+          emptyStateReason: "content_available",
+        };
+      }
+    }
+
     const cachedMatches =
       page === 1 ? matchSongsForCatalogTarget(hydrated, target) : [];
 
