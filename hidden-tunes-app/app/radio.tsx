@@ -13,6 +13,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 
+import { TESTER_COPY } from "../constants/testerExperience";
 import { COLORS, GRADIENTS } from "../constants/theme";
 import { usePlayer } from "../context/PlayerContext";
 
@@ -252,7 +253,7 @@ export default function RadioScreen() {
     } catch {
       setCloudTracks([]);
       setYoutubeTracks([]);
-      setStatusText("Couldn't load tracks right now. Pull to refresh.");
+      setStatusText(TESTER_COPY.radioLoadFailed);
     } finally {
       setLoading(false);
     }

@@ -27,6 +27,7 @@ import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 
+import { TESTER_COPY } from "../constants/testerExperience";
 import {
   usePlayerActions,
   usePlayerNowPlaying,
@@ -491,7 +492,7 @@ export default function LyricsScreen() {
         setPlainLyrics(best.plain);
       } catch (err: any) {
         if (!mounted) return;
-        setError(err?.message || "Could not load lyrics.");
+        setError(TESTER_COPY.lyricsLoadFailed);
       } finally {
         if (mounted) setLoading(false);
       }

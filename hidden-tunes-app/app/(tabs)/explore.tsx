@@ -17,6 +17,7 @@ import { router } from "expo-router";
 
 import AddToPlaylistButton from "../../components/AddToPlaylistButton";
 import HTImage from "../../components/HTImage";
+import { TESTER_COPY } from "../../constants/testerExperience";
 import { COLORS, GRADIENTS } from "../../constants/theme";
 import {
   usePlayerActions,
@@ -1387,7 +1388,7 @@ export default function ExploreScreen() {
               <View style={styles.empty}>
                 <Ionicons name="musical-notes-outline" size={58} color={COLORS.textMuted} />
                 <Text style={styles.emptyTitle}>Discovery is warming up</Text>
-                <Text style={styles.emptyText}>Pull down to refresh the catalog.</Text>
+                <Text style={styles.emptyText}>{TESTER_COPY.catalogWarming}</Text>
               </View>
             ) : null}
 

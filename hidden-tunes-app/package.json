@@ -7,6 +7,7 @@
     "start:clear": "node --max-old-space-size=4096 ./node_modules/expo/bin/cli start --clear --max-workers 1",
     "start:expo": "expo start",
     "verify:tunnel-deps": "node ./scripts/verify-dev-tunnel-deps.js",
+    "verify:preview-config": "node ./scripts/verify-preview-config.js",
     "start:tunnel": "node ./scripts/start-expo-tunnel.js",
     "start:tunnel:clear": "node ./scripts/start-expo-tunnel.js --clear",
     "start:dev-client": "node ./scripts/start-expo-tunnel.js --dev-client",

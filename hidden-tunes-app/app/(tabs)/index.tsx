@@ -25,6 +25,7 @@ import NeonEQ from "../../components/NeonEQ";
 import HTImage from "../../components/HTImage";
 import LiveWaveform from "../../components/LiveWaveform";
 
+import { TESTER_COPY } from "../../constants/testerExperience";
 import { COLORS, GRADIENTS } from "../../constants/theme";
 import {
   usePlayerActions,
@@ -1476,10 +1477,8 @@ function HomeScreen() {
             </View>
           ) : featuredSongs.length === 0 && hasCheckedCatalogFallbacks ? (
             <View style={styles.emptyBox}>
-              <Text style={styles.emptyTitle}>No songs yet</Text>
-              <Text style={styles.emptyText}>
-                Pull down to refresh.
-              </Text>
+              <Text style={styles.emptyTitle}>Your listening room is warming up</Text>
+              <Text style={styles.emptyText}>{TESTER_COPY.catalogEmptyHome}</Text>
             </View>
           ) : (
             <FlatList

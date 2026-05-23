@@ -10,6 +10,7 @@ import {
 import { Redirect } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 
+import { APP_BRAND_NAME, TESTER_COPY } from "../constants/testerExperience";
 import { COLORS, GRADIENTS } from "../constants/theme";
 import { hasCompletedOnboarding } from "../services/onboardingPreferences";
 import { scheduleStartupTask } from "../utils/startupScheduler";
@@ -43,9 +44,9 @@ export default function IndexScreen() {
         />
       </View>
 
-      <Text style={styles.logo}>Hidden Tunes</Text>
+      <Text style={styles.logo}>{APP_BRAND_NAME}</Text>
 
-      <Text style={styles.subtitle}>Preparing your sound</Text>
+      <Text style={styles.subtitle}>{TESTER_COPY.splashSubtitle}</Text>
 
       <ActivityIndicator
         size="large"

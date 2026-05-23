@@ -18,6 +18,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 
 import TvVideoCard from "@/components/tv/TvVideoCard";
+import { TESTER_COPY } from "@/constants/testerExperience";
 import { COLORS, GRADIENTS } from "@/constants/theme";
 import {
   TV_DEFAULT_PAGE_LIMIT,
@@ -130,7 +131,7 @@ export default function HiddenTunesTVScreen() {
       setStatusMessage(null);
     } catch {
       if (!hydratedFromCacheRef.current) {
-        setStatusMessage("Could not refresh TV catalog right now.");
+        setStatusMessage(TESTER_COPY.tvCatalogRefresh);
       }
     } finally {
       setIsRefreshingHome(false);
@@ -170,7 +171,7 @@ export default function HiddenTunesTVScreen() {
 
         if (!response.success) {
           if (!append) {
-            setStatusMessage(response.error || "TV search failed.");
+            setStatusMessage(TESTER_COPY.tvSearchUnavailable);
           }
           return;
         }
@@ -184,7 +185,7 @@ export default function HiddenTunesTVScreen() {
         setStatusMessage(null);
       } catch {
         if (requestId === searchRequestRef.current && !append) {
-          setStatusMessage("TV search is unavailable right now.");
+          setStatusMessage(TESTER_COPY.tvSearchUnavailable);
         }
       } finally {
         if (requestId === searchRequestRef.current) {
