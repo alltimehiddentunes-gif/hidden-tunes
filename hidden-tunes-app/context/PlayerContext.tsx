@@ -3027,6 +3027,19 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           lastPositionSaveRef.current = now;
           void savePlaybackPosition(progress.positionMillis);
         }
+
+        const nearTrackEnd =
+          repeatModeRef.current !== "one" &&
+          !isChangingTrackRef.current &&
+          !autoAdvanceRef.current &&
+          progress.durationMillis >= MIN_DURATION_FOR_POSITION_FINISH_MS &&
+          progress.positionMillis > 0 &&
+          progress.positionMillis >=
+            progress.durationMillis - TRACK_END_THRESHOLD_MS;
+
+        if (nearTrackEnd && !progress.isPlaying) {
+          scheduleTrackAdvance();
+        }
       },
       onActiveTrackChanged: (index) => {
         if (!trackPlayerActiveRef.current || index === null) return;
@@ -3043,40 +3056,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         if (!trackPlayerActiveRef.current) return;
         if (repeatModeRef.current !== "off") return;
 
-        void (async () => {
-          const { queue, safeIndex } = getActiveQueuePlaybackState();
-          const activeIndex = await bridgeGetActiveIndex();
-          const baseIndex =
-            typeof activeIndex === "number" ? activeIndex : safeIndex;
-          const nextIndex = getNextQueueIndex(baseIndex, queue.length);
-
-          if (nextIndex >= 0) {
-            try {
-              const playedIndex = await bridgePlayQueueFromIndex({
-                songs: queue,
-                startIndex: nextIndex,
-                repeatMode: repeatModeRef.current,
-                volume: volumeRef.current,
-                muted: isMutedRef.current,
-                reason: "native_queue_ended_reload",
-              });
-
-              trackPlayerActiveRef.current = true;
-              syncStateFromTrackPlayerIndex(playedIndex);
-              void persistActiveQueue(
-                queue,
-                playedIndex,
-                activeQueueModeRef.current
-              );
-              void removeStoredValues([POSITION_KEY]);
-              return;
-            } catch (error) {
-              console.log("TrackPlayer queue reload error:", error);
-            }
-          }
-
-          scheduleTrackAdvance();
-        })();
+        scheduleTrackAdvance();
       },
       onPlaybackError: (message) => {
         console.log("TrackPlayer playback error:", message);
