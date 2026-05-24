@@ -2145,7 +2145,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       setActiveQueueIndex(safeIndex);
       activeQueueIndexRef.current = safeIndex;
 
-      void persistActiveQueue(queue, safeIndex, activeQueueModeRef.current);
+      await persistActiveQueue(queue, safeIndex, activeQueueModeRef.current);
       void removeStoredValues([POSITION_KEY]);
 
       await loadAndPlay(song);
