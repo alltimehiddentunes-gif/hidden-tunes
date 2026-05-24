@@ -19,8 +19,10 @@ const HIDDEN_TUNES_API_BASE_URL = "https://hidden-tunes-api.onrender.com";
 const HIDDEN_TUNES_LYRICS_API_BASE_URL =
   "https://hidden-tunes-api.onrender.com";
 
-const CACHE_KEY = "hidden_tunes_cloud_songs_cache_v4";
-const CACHE_TIME_KEY = "hidden_tunes_cloud_songs_cache_time_v4";
+const CACHE_KEY_V4 = "hidden_tunes_cloud_songs_cache_v4";
+const CACHE_TIME_KEY_V4 = "hidden_tunes_cloud_songs_cache_time_v4";
+const CACHE_KEY_V5 = "hidden_tunes_cloud_songs_cache_v5";
+const CACHE_TIME_KEY_V5 = "hidden_tunes_cloud_songs_cache_time_v5";
 
 const ARTISTS_CACHE_KEY = "hidden_tunes_cloud_artists_cache_v1";
 const ARTISTS_CACHE_TIME_KEY = "hidden_tunes_cloud_artists_cache_time_v1";
@@ -136,6 +138,27 @@ export type HiddenTunesNormalizedSong = {
   createdAt?: string;
   updatedAt?: string;
   raw?: HiddenTunesCloudSong;
+};
+
+type PersistedCatalogSongV5 = {
+  id: string;
+  title: string;
+  slug?: string;
+  artist: string;
+  album?: string;
+  albumId?: string;
+  artistId?: string;
+  artwork?: string;
+  cover?: string;
+  thumbnail?: string;
+  url?: string;
+  streamUrl?: string;
+  genre?: string;
+  mood?: string;
+  duration?: number;
+  createdAt?: string;
+  sourceName?: "Hidden Tunes";
+  type?: "r2";
 };
 
 export type HiddenTunesAlbum = {
@@ -486,6 +509,147 @@ function isNormalizedCatalogSong(value: unknown): value is HiddenTunesNormalized
   return song.sourceName === "Hidden Tunes" && Boolean(song.streamUrl || song.url);
 }
 
+function isPersistedCatalogSongV5(value: unknown): value is PersistedCatalogSongV5 {
+  if (!value || typeof value !== "object") return false;
+
+  const song = value as PersistedCatalogSongV5;
+  return Boolean(String(song.id || "").trim() && (song.streamUrl || song.url));
+}
+
+function toPersistedCatalogSongV5(
+  song: HiddenTunesNormalizedSong
+): PersistedCatalogSongV5 {
+  return {
+    id: String(song.id),
+    title: String(song.title || "Untitled"),
+    slug: song.slug,
+    artist: String(song.artist || "Hidden Tunes"),
+    album: song.album,
+    albumId: song.albumId,
+    artistId: song.artistId,
+    artwork: song.artwork,
+    cover: song.cover,
+    thumbnail: song.thumbnail,
+    url: song.url,
+    streamUrl: song.streamUrl,
+    genre: song.genre,
+    mood: song.mood,
+    duration: song.duration,
+    createdAt: song.createdAt,
+    sourceName: "Hidden Tunes",
+    type: "r2",
+  };
+}
+
+function fromPersistedCatalogSongV5(
+  song: PersistedCatalogSongV5
+): HiddenTunesNormalizedSong | null {
+  const streamUrl = String(song.streamUrl || song.url || "").trim();
+  if (!streamUrl) return null;
+
+  const artwork = normalizeArtworkUrl(
+    song.artwork || song.cover || song.thumbnail,
+    FALLBACK_ARTWORK
+  );
+
+  return {
+    id: String(song.id),
+    title: String(song.title || "Untitled"),
+    slug: song.slug,
+    artist: String(song.artist || "Hidden Tunes"),
+    artistId: song.artistId,
+    album: song.album || "Singles",
+    albumId: song.albumId,
+    genre: song.genre,
+    mood: song.mood,
+    artwork,
+    cover: artwork,
+    thumbnail: artwork,
+    url: streamUrl,
+    streamUrl,
+    duration: song.duration,
+    sourceName: "Hidden Tunes",
+    type: "r2",
+    isOnline: true,
+    isPublic: true,
+    createdAt: song.createdAt,
+  };
+}
+
+function parsePersistedCatalogSongV5Array(parsed: unknown) {
+  if (!Array.isArray(parsed)) return [];
+
+  return parsed
+    .filter(isPersistedCatalogSongV5)
+    .map(fromPersistedCatalogSongV5)
+    .filter(Boolean) as HiddenTunesNormalizedSong[];
+}
+
+async function readCacheTimestamp(timeKey: string) {
+  const cachedAt = await AsyncStorage.getItem(timeKey);
+  const parsedTime = Number(cachedAt);
+  return Number.isFinite(parsedTime) && parsedTime > 0 ? parsedTime : Date.now();
+}
+
+async function readCachedSongsV5FromStorage(): Promise<HiddenTunesNormalizedSong[] | null> {
+  try {
+    const cached = await AsyncStorage.getItem(CACHE_KEY_V5);
+    if (!cached) return null;
+
+    const parsed = JSON.parse(cached);
+    const songs = parsePersistedCatalogSongV5Array(parsed);
+    if (!songs.length) return null;
+
+    const cacheTimestamp = await readCacheTimestamp(CACHE_TIME_KEY_V5);
+    songsMemoryCache = songs;
+    songsMemoryCacheTime = cacheTimestamp;
+
+    return songs;
+  } catch (error) {
+    console.log("Hidden Tunes v5 cache read error:", error);
+    return null;
+  }
+}
+
+async function readCachedSongsV4FromStorage(): Promise<HiddenTunesNormalizedSong[]> {
+  try {
+    const cached = await AsyncStorage.getItem(CACHE_KEY_V4);
+    if (!cached) {
+      return finalizeSongs([]);
+    }
+
+    const parsed = JSON.parse(cached);
+    if (!Array.isArray(parsed)) return finalizeSongs([]);
+
+    const cacheTimestamp = await readCacheTimestamp(CACHE_TIME_KEY_V4);
+
+    if (
+      Array.isArray(parsed) &&
+      parsed.length > 0 &&
+      parsed.every(isNormalizedCatalogSong)
+    ) {
+      songsMemoryCache = parsed;
+      songsMemoryCacheTime = cacheTimestamp;
+      return parsed;
+    }
+
+    const normalized = parsed
+      .map((song: HiddenTunesCloudSong, index: number) =>
+        normalizeHiddenTunesSong(song, index)
+      )
+      .filter(Boolean) as HiddenTunesNormalizedSong[];
+
+    const songs = finalizeSongs(normalized);
+    songsMemoryCache = songs;
+    songsMemoryCacheTime = cacheTimestamp;
+
+    return songs;
+  } catch (error) {
+    console.log("Hidden Tunes v4 cache read error:", error);
+    return finalizeSongs([]);
+  }
+}
+
 function scheduleCatalogBackgroundRefresh() {
   if (!isAppActiveForWork()) return;
   if (songsBackgroundRefreshPromise || songsFetchPromise) return;
@@ -616,40 +780,12 @@ async function fetchWithTimeout(url: string, timeoutMs = NETWORK_FETCH_TIMEOUT_M
 
 async function readCachedSongsFromStorage() {
   try {
-    const cached = await AsyncStorage.getItem(CACHE_KEY);
-    if (!cached) {
-      return finalizeSongs([]);
+    const v5Songs = await readCachedSongsV5FromStorage();
+    if (v5Songs?.length) {
+      return finalizeSongs(v5Songs);
     }
 
-    const parsed = JSON.parse(cached);
-    if (!Array.isArray(parsed)) return finalizeSongs([]);
-
-    const cachedAt = await AsyncStorage.getItem(CACHE_TIME_KEY);
-    const parsedTime = Number(cachedAt);
-    const cacheTimestamp =
-      Number.isFinite(parsedTime) && parsedTime > 0 ? parsedTime : Date.now();
-
-    if (
-      Array.isArray(parsed) &&
-      parsed.length > 0 &&
-      parsed.every(isNormalizedCatalogSong)
-    ) {
-      songsMemoryCache = parsed;
-      songsMemoryCacheTime = cacheTimestamp;
-      return parsed;
-    }
-
-    const normalized = parsed
-      .map((song: HiddenTunesCloudSong, index: number) =>
-        normalizeHiddenTunesSong(song, index)
-      )
-      .filter(Boolean) as HiddenTunesNormalizedSong[];
-
-    const songs = finalizeSongs(normalized);
-    songsMemoryCache = songs;
-    songsMemoryCacheTime = cacheTimestamp;
-
-    return songs;
+    return await readCachedSongsV4FromStorage();
   } catch (error) {
     console.log("Hidden Tunes cache read error:", error);
     return finalizeSongs([]);
@@ -677,9 +813,12 @@ async function writeCachedSongs(songs: HiddenTunesNormalizedSong[]) {
     songsMemoryCache = songs;
     songsMemoryCacheTime = Date.now();
 
+    const persistedAt = String(Date.now());
+    const compactSongs = songs.map(toPersistedCatalogSongV5);
+
     await AsyncStorage.multiSet([
-      [CACHE_KEY, JSON.stringify(songs)],
-      [CACHE_TIME_KEY, String(Date.now())],
+      [CACHE_KEY_V5, JSON.stringify(compactSongs)],
+      [CACHE_TIME_KEY_V5, persistedAt],
     ]);
   } catch (error) {
     console.log("Hidden Tunes cache write error:", error);
@@ -688,7 +827,9 @@ async function writeCachedSongs(songs: HiddenTunesNormalizedSong[]) {
 
 async function isCacheFresh() {
   try {
-    const cachedAt = await AsyncStorage.getItem(CACHE_TIME_KEY);
+    const cachedAt =
+      (await AsyncStorage.getItem(CACHE_TIME_KEY_V5)) ||
+      (await AsyncStorage.getItem(CACHE_TIME_KEY_V4));
     if (!cachedAt) return false;
 
     const parsed = Number(cachedAt);
@@ -831,7 +972,12 @@ export async function clearHiddenTunesSongsCache() {
   songsMemoryCacheTime = 0;
   songsFetchPromise = null;
   catalogStorageHydratePromise = null;
-  await AsyncStorage.multiRemove([CACHE_KEY, CACHE_TIME_KEY]);
+  await AsyncStorage.multiRemove([
+    CACHE_KEY_V4,
+    CACHE_TIME_KEY_V4,
+    CACHE_KEY_V5,
+    CACHE_TIME_KEY_V5,
+  ]);
 }
 
 export async function clearHiddenTunesArtistsCache() {
