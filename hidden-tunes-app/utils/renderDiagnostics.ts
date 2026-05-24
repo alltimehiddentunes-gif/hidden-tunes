@@ -1,21 +1,31 @@
 import { logPerformanceEvent } from "./performanceLogs";
+import { isPerformanceVerificationEnabled } from "./performanceVerification";
 
 const LONG_RENDER_MS = 24;
 const LONG_LIST_MOUNT_MS = 120;
+const LONG_JS_TASK_MS = 80;
 
 const renderCounts = new Map<string, number>();
 
 function shouldTrackRenders() {
-  return false;
+  return isPerformanceVerificationEnabled();
+}
+
+export function incrementRenderCount(componentName: string) {
+  if (!shouldTrackRenders()) return;
+
+  renderCounts.set(componentName, (renderCounts.get(componentName) || 0) + 1);
 }
 
 export function trackRenderProbe(componentName: string) {
+  incrementRenderCount(componentName);
+
   if (!shouldTrackRenders()) {
     return () => {};
   }
 
   const startedAt = Date.now();
-  renderCounts.set(componentName, (renderCounts.get(componentName) || 0) + 1);
+  const renders = renderCounts.get(componentName) || 0;
 
   return () => {
     const durationMs = Date.now() - startedAt;
@@ -24,7 +34,15 @@ export function trackRenderProbe(componentName: string) {
       logPerformanceEvent("slow_render", {
         component: componentName,
         durationMs,
-        renders: renderCounts.get(componentName) || 0,
+        renders,
+      });
+    }
+
+    if (durationMs >= LONG_JS_TASK_MS) {
+      logPerformanceEvent("long_render_task", {
+        component: componentName,
+        durationMs,
+        renders,
       });
     }
   };

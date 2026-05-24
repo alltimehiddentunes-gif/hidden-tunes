@@ -81,7 +81,11 @@ import {
   markFastScrolling,
   scheduleNavigationPrewarm,
 } from "../../utils/performanceMode";
-import { trackRenderProbe } from "../../utils/renderDiagnostics";
+import {
+  createScrollJankHandler,
+  recordScreenOpen,
+  useRenderCountProbe,
+} from "../../utils/performanceVerification";
 import {
   openGenreCatalog,
   openMoodCatalog,
@@ -428,7 +432,7 @@ export default memo(function ExploreScreen() {
   const [loadingMoreSongs, setLoadingMoreSongs] = useState(false);
 
   useScrollToTop(listRef);
-  useEffect(() => trackRenderProbe("ExploreScreen"), []);
+  useRenderCountProbe("ExploreScreen");
 
   const listPerformance = useMemo(
     () => getListPerformanceSettings(Math.max(cloudSongs.length, tracks.length)),
@@ -538,6 +542,10 @@ export default memo(function ExploreScreen() {
             logScreenReady("explore", screenStartedAt, {
               cache: "hit",
               count: cached.length,
+            });
+            recordScreenOpen("explore", {
+              openMs: Date.now() - screenStartedAt,
+              firstContentMs: Date.now() - screenStartedAt,
             });
             logPerformanceSummary("explore", {
               cache: "hit",
@@ -1004,6 +1012,8 @@ export default memo(function ExploreScreen() {
     ),
     []
   );
+
+  const exploreScrollJankRef = useRef(createScrollJankHandler("explore"));
 
   const getCloudItemLayout = useCallback(
     (_: any, index: number) => ({
@@ -1501,6 +1511,7 @@ export default memo(function ExploreScreen() {
         maxToRenderPerBatch={listPerformance.maxToRenderPerBatch}
         windowSize={listPerformance.windowSize}
         updateCellsBatchingPeriod={listPerformance.updateCellsBatchingPeriod}
+        onScroll={() => exploreScrollJankRef.current()}
         onScrollBeginDrag={() => markFastScrolling(true)}
         onMomentumScrollBegin={() => markFastScrolling(true)}
         onMomentumScrollEnd={() => markFastScrolling(false)}

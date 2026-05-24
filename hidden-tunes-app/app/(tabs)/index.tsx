@@ -68,7 +68,11 @@ import {
   logTapToPlay,
   startPerformanceTimer,
 } from "../../utils/performanceLogs";
-import { trackRenderProbe } from "../../utils/renderDiagnostics";
+import {
+  createScrollJankHandler,
+  recordScreenOpen,
+  useRenderCountProbe,
+} from "../../utils/performanceVerification";
 import {
   LIST_ITEM_HEIGHTS,
   getHorizontalListPerformanceSettings,
@@ -202,7 +206,7 @@ function HomeScreen() {
   const [deferredSectionsReady, setDeferredSectionsReady] = useState(false);
   const deferredSectionsScheduledRef = useRef(false);
 
-  useEffect(() => trackRenderProbe("HomeScreen"), []);
+  useRenderCountProbe("HomeScreen");
 
   useEffect(() => {
     if (!initialFeaturedSongsRef.current.length) return;
@@ -210,11 +214,13 @@ function HomeScreen() {
     markFirstCachedContentVisible("home");
     recordSnapshotFallbackUsage("home", initialFeaturedSongsRef.current.length);
     recordOfflineCacheStartup("home", initialFeaturedSongsRef.current.length);
+    const firstContentMs = Date.now() - screenStartedAt;
     logScreenReady("home", screenStartedAt, {
       cache: "hit",
       count: initialFeaturedSongsRef.current.length,
       source: "memory_snapshot",
     });
+    recordScreenOpen("home", { openMs: firstContentMs, firstContentMs });
     logPerformanceSummary("home", {
       cache: "hit",
       firstContentMs: Date.now() - screenStartedAt,
@@ -826,8 +832,12 @@ function HomeScreen() {
     visibleSongCount,
   ]);
 
+  const homeScrollJankRef = useRef(createScrollJankHandler("home"));
+
   const handleHomeScroll = useCallback(
     (event: any) => {
+      homeScrollJankRef.current();
+
       const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
       const distanceFromBottom =
         contentSize.height - (contentOffset.y + layoutMeasurement.height);

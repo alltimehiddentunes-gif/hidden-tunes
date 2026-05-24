@@ -76,7 +76,11 @@ import {
   LIST_ITEM_HEIGHTS,
   markFastScrolling,
 } from "../../utils/performanceMode";
-import { trackRenderProbe } from "../../utils/renderDiagnostics";
+import {
+  recordScreenOpen,
+  recordSearchFirstResult,
+  useRenderCountProbe,
+} from "../../utils/performanceVerification";
 import {
   getCachedSearchResults,
   hasFreshSearchResults,
@@ -556,6 +560,8 @@ export default function SearchScreen() {
     songCount: number;
     index: CatalogSearchIndex;
   } | null>(null);
+  const searchTimingRef = useRef({ query: "", startedAt: 0 });
+  const searchFirstResultLoggedRef = useRef("");
   const screenStartedAt = useRef(startPerformanceTimer()).current;
 
   const [query, setQuery] = useState("");
@@ -801,7 +807,25 @@ export default function SearchScreen() {
   }, [fullCatalogSongs]);
 
   useScrollToTop(resultListRef);
-  useEffect(() => trackRenderProbe("SearchScreen"), []);
+
+  useRenderCountProbe("SearchScreen");
+
+  useEffect(() => {
+    searchTimingRef.current = { query: trimmedQuery, startedAt: Date.now() };
+    searchFirstResultLoggedRef.current = "";
+  }, [trimmedQuery]);
+
+  useEffect(() => {
+    if (trimmedQuery.length < LOCAL_SEARCH_MIN_CHARS) return;
+    if (!instantGroupedResults.hasAnyResults) return;
+    if (searchFirstResultLoggedRef.current === trimmedQuery) return;
+
+    searchFirstResultLoggedRef.current = trimmedQuery;
+    recordSearchFirstResult(
+      trimmedQuery,
+      Date.now() - searchTimingRef.current.startedAt
+    );
+  }, [instantGroupedResults.hasAnyResults, trimmedQuery]);
 
   const resultKeyExtractor = useMemo(
     () => createStableKeyExtractor("search-result"),
@@ -946,6 +970,10 @@ export default function SearchScreen() {
         logScreenReady("search", screenStartedAt, {
           cache: "hit",
           count: cached.length,
+        });
+        recordScreenOpen("search", {
+          openMs: Date.now() - screenStartedAt,
+          firstContentMs: Date.now() - screenStartedAt,
         });
         logPerformanceSummary("search", {
           cache: "hit",

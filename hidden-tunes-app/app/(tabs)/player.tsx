@@ -40,6 +40,7 @@ import AddToPlaylistModal from "../../components/AddToPlaylistModal";
 import HTImage from "../../components/HTImage";
 import { FALLBACK_ARTWORK, getArtworkValue } from "../../utils/artwork";
 import { isFastScrolling } from "../../utils/performanceMode";
+import { useRenderCountProbe } from "../../utils/performanceVerification";
 
 function formatTime(ms: number) {
   const totalSeconds = Math.floor((ms || 0) / 1000);
@@ -247,6 +248,8 @@ const PlayerProgressSection = memo(function PlayerProgressSection({
 });
 
 export default function PlayerScreen() {
+  useRenderCountProbe("PlayerScreen");
+
   const {
     currentSong,
     isPlaying,

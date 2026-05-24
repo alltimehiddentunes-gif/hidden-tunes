@@ -38,7 +38,10 @@ import {
   logTapToPlay,
   startPerformanceTimer,
 } from "../utils/performanceLogs";
-import { trackRenderProbe } from "../utils/renderDiagnostics";
+import {
+  recordScreenOpen,
+  useRenderCountProbe,
+} from "../utils/performanceVerification";
 import {
   createStableKeyExtractor,
   getListPerformanceSettings,
@@ -112,7 +115,7 @@ export default function GenreScreen() {
   const catalogType = String(params.type || "genre") as CatalogResolverType;
   const title = getCanonicalGenreTitle(rawTitle) || rawTitle;
 
-  useEffect(() => trackRenderProbe("GenreScreen"), []);
+  useRenderCountProbe("GenreScreen");
 
   const trackKeyExtractor = useMemo(
     () => createStableKeyExtractor("genre-track"),
@@ -200,6 +203,10 @@ export default function GenreScreen() {
           logScreenReady("genre", screenStartedAt, {
             cache: "hit",
             count: result.songs.length,
+          });
+          recordScreenOpen("genre", {
+            openMs: Date.now() - screenStartedAt,
+            firstContentMs: Date.now() - screenStartedAt,
           });
           logPerformanceSummary("genre", {
             cache: "hit",
