@@ -8,6 +8,7 @@ export type CreatorLyricsCatalogTrack = {
   artistName: string;
   albumTitle: string;
   artworkUrl: string | null;
+  durationSeconds: number | null;
 };
 
 type SongRow = {
@@ -21,6 +22,8 @@ type SongRow = {
   artwork_url?: string | null;
   cover_url?: string | null;
   uploaded_by_user_id: string | null;
+  duration?: number | null;
+  duration_seconds?: number | null;
 };
 
 type AlbumRow = {
@@ -28,6 +31,12 @@ type AlbumRow = {
   title: string | null;
   artist_id?: string | null;
 };
+
+function normalizeDurationSeconds(value: unknown) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+  return Math.round(parsed);
+}
 
 async function loadOwnedSongIds(userId: string) {
   const ownedIds = new Set<string>();
@@ -79,7 +88,7 @@ async function loadOwnedSongIds(userId: string) {
 
 async function loadEditableSongs(userId: string, role: string | null) {
   const selectFields =
-    "id, album_id, title, artist, artist_name, album, album_title, artwork_url, cover_url, uploaded_by_user_id";
+    "id, album_id, title, artist, artist_name, album, album_title, artwork_url, cover_url, uploaded_by_user_id, duration, duration_seconds";
 
   if (canEditAllTrackLyrics(role)) {
     const { data, error } = await supabaseAdmin
@@ -166,6 +175,7 @@ export async function loadCreatorLyricsCatalog(userId: string, role: string | nu
           String(song.artist || song.artist_name || artistFromAlbum || "Unknown Artist").trim(),
         albumTitle: String(song.album || song.album_title || album?.title || "Untitled Release").trim(),
         artworkUrl: song.artwork_url || song.cover_url || null,
+        durationSeconds: normalizeDurationSeconds(song.duration_seconds ?? song.duration),
       } satisfies CreatorLyricsCatalogTrack;
     })
     .filter((track) => track.releaseId && track.trackId);

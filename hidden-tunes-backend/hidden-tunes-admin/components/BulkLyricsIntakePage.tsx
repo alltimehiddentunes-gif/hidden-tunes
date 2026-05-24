@@ -3,10 +3,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import BulkAutoTimestampPanel from "@/components/BulkAutoTimestampPanel";
 import AdminShell from "@/components/AdminShell";
 import {
   applyManualBulkMatch,
   autoMatchBulkLyricsBlocks,
+  detectLyricsKind,
   getBulkMatchThresholds,
   parseBulkLyricsFiles,
   parsePastedBulkLyrics,
@@ -71,8 +73,16 @@ export default function BulkLyricsIntakePage() {
   const [isParsing, setIsParsing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [autoTimestampRowId, setAutoTimestampRowId] = useState<string | null>(null);
+  const [timestampedBlockIds, setTimestampedBlockIds] = useState<Record<string, boolean>>(
+    {}
+  );
 
   const thresholds = getBulkMatchThresholds();
+  const autoTimestampRow = useMemo(
+    () => rows.find((row) => row.block.id === autoTimestampRowId) || null,
+    [autoTimestampRowId, rows]
+  );
 
   const loadCatalog = useCallback(async (token: string) => {
     const response = await fetch("/api/admin/creator/bulk-lyrics/catalog", {
@@ -196,6 +206,32 @@ export default function BulkLyricsIntakePage() {
     );
   }
 
+  function findCatalogTrack(trackId: string | undefined) {
+    if (!trackId) return null;
+    return catalog.find((entry) => entry.trackId === trackId) || null;
+  }
+
+  function applyAutoTimestampConfirm(blockId: string, generatedLrc: string) {
+    setRows((current) =>
+      current.map((row) => {
+        if (row.block.id !== blockId) return row;
+        return {
+          ...row,
+          block: {
+            ...row.block,
+            content: generatedLrc,
+            kind: "synced" as BulkLyricsKind,
+          },
+        };
+      })
+    );
+    setTimestampedBlockIds((current) => ({ ...current, [blockId]: true }));
+    setAutoTimestampRowId(null);
+    setParseNote("Synced LRC draft applied. Review and save when ready.");
+    setSaveMessage(null);
+    setSaveError(null);
+  }
+
   function confirmPossibleMatch(rowId: string) {
     setRows((current) =>
       current.map((row) => {
@@ -263,7 +299,7 @@ export default function BulkLyricsIntakePage() {
   return (
     <AdminShell
       title="Bulk Lyrics Intake"
-      description="Import multiple plain or LRC lyrics files, auto-match songs, then save after review."
+      description="Import plain or LRC lyrics, auto-match songs, generate synced timestamps, then save after review."
       actions={
         <div className="flex flex-col gap-2 sm:flex-row">
           <button
@@ -301,7 +337,8 @@ export default function BulkLyricsIntakePage() {
             <p className="mt-2 max-w-3xl text-sm leading-7 text-white/58">
               Paste multiple blocks separated by blank lines or `---`. Import safe
               `.txt` / `.lrc` files. Matching uses filename, LRC tags, title, artist,
-              album, and fuzzy scores. Nothing is saved until you confirm.
+              album, and fuzzy scores. Plain rows can use Auto Timestamp before saving.
+              Nothing is saved until you confirm.
             </p>
             <p className="mt-2 text-xs text-white/40">
               Catalog: {catalog.length} editable songs · Match ≥
@@ -420,6 +457,11 @@ export default function BulkLyricsIntakePage() {
                       >
                         {row.block.kind === "synced" ? "LRC synced" : "Plain"}
                       </span>
+                      {timestampedBlockIds[row.block.id] ? (
+                        <span className="rounded-full border border-violet-300/25 bg-violet-400/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-violet-100">
+                          Timestamp draft
+                        </span>
+                      ) : null}
                       {row.score > 0 ? (
                         <span className="text-xs font-bold text-white/45">
                           Score {Math.round(row.score * 100)}%
@@ -483,6 +525,20 @@ export default function BulkLyricsIntakePage() {
                         Confirm possible match
                       </button>
                     ) : null}
+
+                    {row.status === "matched" &&
+                    row.match &&
+                    row.block.kind === "plain" &&
+                    detectLyricsKind(row.block.content) === "plain" ? (
+                      <button
+                        type="button"
+                        onClick={() => setAutoTimestampRowId(row.block.id)}
+                        className="mt-3 w-full rounded-2xl bg-gradient-to-r from-violet-300 via-fuchsia-300 to-amber-200 px-4 py-3 text-xs font-black uppercase tracking-widest text-black"
+                      >
+                        Auto Timestamp
+                      </button>
+                    ) : null}
+
                   </div>
                 </div>
               </article>
@@ -491,6 +547,17 @@ export default function BulkLyricsIntakePage() {
         </section>
       ) : isLoading ? (
         <div className="mt-5 h-40 animate-pulse rounded-[2rem] bg-white/[0.05]" />
+      ) : null}
+
+      {autoTimestampRow ? (
+        <BulkAutoTimestampPanel
+          row={autoTimestampRow}
+          track={findCatalogTrack(autoTimestampRow.match?.trackId)}
+          onClose={() => setAutoTimestampRowId(null)}
+          onConfirm={(generatedLrc) =>
+            applyAutoTimestampConfirm(autoTimestampRow.block.id, generatedLrc)
+          }
+        />
       ) : null}
     </AdminShell>
   );
