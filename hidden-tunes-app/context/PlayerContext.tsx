@@ -2145,7 +2145,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       setActiveQueueIndex(safeIndex);
       activeQueueIndexRef.current = safeIndex;
 
-      await persistActiveQueue(queue, safeIndex, activeQueueModeRef.current);
+      void persistActiveQueue(queue, safeIndex, activeQueueModeRef.current);
       void removeStoredValues([POSITION_KEY]);
 
       await loadAndPlay(song);
@@ -2297,7 +2297,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       void setStoredValueIfChanged(RADIO_MODE_KEY, "false");
 
       void syncActiveQueue(nativeQueue, safeIndex, "standard");
-      await persistActiveQueue(nativeQueue, safeIndex, "standard");
       void removeStoredValues([POSITION_KEY]);
 
       const selectedSong = nativeQueue[safeIndex];
@@ -2326,7 +2325,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       isYouTubeSong,
       setStoredValueIfChanged,
       syncActiveQueue,
-      persistActiveQueue,
       removeStoredValues,
       loadAndPlay,
       setIsPlaying,
