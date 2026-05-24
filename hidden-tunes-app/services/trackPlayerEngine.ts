@@ -660,10 +660,6 @@ export function subscribeTrackPlayerEvents(
           const positionMillis = Math.max(0, Math.floor(positionSeconds * 1000));
           const durationMillis = Math.max(0, Math.floor(durationSeconds * 1000));
 
-          if (durationMillis > 0 && positionMillis >= durationMillis - 500) {
-            lastKnownPlaying = false;
-          }
-
           handlers.onProgress?.({
             positionMillis,
             durationMillis,
