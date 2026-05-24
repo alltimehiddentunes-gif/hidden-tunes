@@ -32,6 +32,7 @@ import { isAppActiveForWork } from "../utils/performanceMode";
 
 const GENRE_PAGE_LIMIT = 36;
 const GENRE_FALLBACK_SCAN_LIMIT = 60;
+const HYDRATED_SNAPSHOT_SCAN_MAX = 150;
 
 type CatalogViewCacheEntry = {
   songs: HiddenTunesNormalizedSong[];
@@ -294,8 +295,12 @@ export async function loadCatalogView(
     }
 
     const hydrated = await hydrateHiddenTunesCatalogCache();
+    const canScanHydratedSnapshot =
+      hydrated.length > 0 && hydrated.length <= HYDRATED_SNAPSHOT_SCAN_MAX;
     const snapshotMatches =
-      page === 1 ? matchSongsForCatalogTarget(hydrated, target) : [];
+      page === 1 && canScanHydratedSnapshot
+        ? matchSongsForCatalogTarget(hydrated, target)
+        : [];
 
     if (page === 1 && !options.forceRefresh && snapshotMatches.length) {
       const pageSongs = snapshotMatches.slice(0, limit);
@@ -334,7 +339,7 @@ export async function loadCatalogView(
       };
     }
 
-    if (page > 1 && target.type === "genre") {
+    if (page > 1 && target.type === "genre" && canScanHydratedSnapshot) {
       const allMatches = matchSongsForCatalogTarget(hydrated, target);
       const start = (page - 1) * limit;
       const pageSongs = allMatches.slice(start, start + limit);
@@ -359,7 +364,9 @@ export async function loadCatalogView(
     }
 
     const cachedMatches =
-      page === 1 ? matchSongsForCatalogTarget(hydrated, target) : [];
+      page === 1 && canScanHydratedSnapshot
+        ? matchSongsForCatalogTarget(hydrated, target)
+        : [];
 
     if (!showedCached && cachedMatches.length) {
       showedCached = true;
