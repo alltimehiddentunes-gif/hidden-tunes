@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { requireUploadPermission } from "@/lib/requireUploadPermission";
+import { requireTrackLyricsPermission } from "@/lib/requireTrackLyricsPermission";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
@@ -88,13 +88,16 @@ async function getLyrics(trackId: string) {
 
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
-    const permission = await requireUploadPermission(request);
+    const { id, trackId } = await context.params;
+    const permission = await requireTrackLyricsPermission(request, {
+      trackId,
+      releaseId: id,
+    });
 
     if (permission.errorResponse) {
       return permission.errorResponse;
     }
 
-    const { id, trackId } = await context.params;
     const [release, track] = await Promise.all([
       getRelease(id),
       getTrack(id, trackId),
@@ -114,6 +117,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
     return NextResponse.json({
       success: true,
+      access: permission.access.reason,
       release: {
         id: release.id,
         title: release.title || "Untitled Release",
@@ -146,13 +150,16 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
 export async function PATCH(request: NextRequest, context: RouteContext) {
   try {
-    const permission = await requireUploadPermission(request);
+    const { id, trackId } = await context.params;
+    const permission = await requireTrackLyricsPermission(request, {
+      trackId,
+      releaseId: id,
+    });
 
     if (permission.errorResponse) {
       return permission.errorResponse;
     }
 
-    const { id, trackId } = await context.params;
     const body = await request.json();
     const mode = String(body.mode || "").trim();
     const value = String(body.value || "");
@@ -198,7 +205,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       word_sync_json: existingLyrics?.word_sync_json || null,
       r2_lyrics_key: existingLyrics?.r2_lyrics_key || null,
       lyrics_url: existingLyrics?.lyrics_url || track.lyrics_url || null,
-      source: "admin_editor",
+      source: "creator_lyrics_editor",
     };
 
     if (existingLyrics) {
@@ -234,6 +241,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         mode === "plain"
           ? "Plain lyrics saved."
           : "Synced lyrics saved.",
+      access: permission.access.reason,
       lyrics: {
         plainLyrics,
         syncedLrc,

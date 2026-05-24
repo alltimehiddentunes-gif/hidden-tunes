@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { requireUploadPermission } from "@/lib/requireUploadPermission";
+import { requireTrackLyricsPermission } from "@/lib/requireTrackLyricsPermission";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import {
   buildSyncedPayload,
@@ -164,7 +164,7 @@ async function mirrorLegacyTrackLyrics(
     word_sync_json: existingLegacy?.word_sync_json || null,
     r2_lyrics_key: existingLegacy?.r2_lyrics_key || null,
     lyrics_url: existingLegacy?.lyrics_url || track.lyrics_url || null,
-    source: "premium_synced_editor",
+    source: "creator_synced_editor",
   };
 
   if (existingLegacy) {
@@ -232,13 +232,15 @@ export async function GET(
   context: RouteContext
 ) {
   try {
-    const permission = await requireUploadPermission(request);
+    const { trackId } = await context.params;
+    const permission = await requireTrackLyricsPermission(request, {
+      trackId,
+    });
 
     if (permission.errorResponse) {
       return permission.errorResponse;
     }
 
-    const { trackId } = await context.params;
     const track = await getTrack(trackId);
 
     if (!track) {
@@ -260,6 +262,7 @@ export async function GET(
 
     return NextResponse.json({
       success: true,
+      access: permission.access.reason,
       release: release
         ? {
             id: release.id,
@@ -292,13 +295,15 @@ export async function POST(
   context: RouteContext
 ) {
   try {
-    const permission = await requireUploadPermission(request);
+    const { trackId } = await context.params;
+    const permission = await requireTrackLyricsPermission(request, {
+      trackId,
+    });
 
     if (permission.errorResponse) {
       return permission.errorResponse;
     }
 
-    const { trackId } = await context.params;
     const track = await getTrack(trackId);
 
     if (!track) {
@@ -355,6 +360,7 @@ export async function POST(
     return NextResponse.json({
       success: true,
       message: "Synced lyrics created.",
+      access: permission.access.reason,
       syncedLyrics: buildResponsePayload(data as SyncedLyricsRow, legacyRow),
     });
   } catch (error: unknown) {
@@ -373,13 +379,15 @@ export async function PATCH(
   context: RouteContext
 ) {
   try {
-    const permission = await requireUploadPermission(request);
+    const { trackId } = await context.params;
+    const permission = await requireTrackLyricsPermission(request, {
+      trackId,
+    });
 
     if (permission.errorResponse) {
       return permission.errorResponse;
     }
 
-    const { trackId } = await context.params;
     const track = await getTrack(trackId);
 
     if (!track) {
@@ -430,6 +438,7 @@ export async function PATCH(
     return NextResponse.json({
       success: true,
       message: "Synced lyrics saved.",
+      access: permission.access.reason,
       syncedLyrics: buildResponsePayload(data as SyncedLyricsRow, legacyRow),
     });
   } catch (error: unknown) {

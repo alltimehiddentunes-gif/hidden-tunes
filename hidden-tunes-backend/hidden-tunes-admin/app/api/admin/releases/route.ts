@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { canEditAllTrackLyrics } from "@/lib/adminPermissions";
 import { requireUploadPermission } from "@/lib/requireUploadPermission";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
@@ -161,7 +162,12 @@ export async function GET(request: NextRequest) {
     const reviewStatus = cleanFilter(params.get("status"));
     const licenseDeclaration = cleanFilter(params.get("license"));
     const scanFilter = cleanFilter(params.get("scan"));
-    const uploaderId = cleanFilter(params.get("uploaderId"));
+    const mine =
+      params.get("mine") === "1" || params.get("mine") === "true";
+    let uploaderId = cleanFilter(params.get("uploaderId"));
+    if (mine && !canEditAllTrackLyrics(permission.profile.role)) {
+      uploaderId = permission.profile.id;
+    }
     const uploaderSearch = cleanFilter(params.get("uploader"));
     const sort = parseSort(params.get("sort"));
     const from = (page - 1) * pageSize;

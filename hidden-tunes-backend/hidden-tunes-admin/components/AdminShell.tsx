@@ -9,6 +9,7 @@ import {
   type UploaderProfile,
 } from "@/lib/auth";
 import {
+  canAccessCreatorLyricsEditors,
   canManageUploaderOwnership,
   canManageUploaders,
 } from "@/lib/adminPermissions";
@@ -33,6 +34,12 @@ const NAV_ITEMS = [
     label: "Releases",
     description: "Release operations",
     roles: "all",
+  },
+  {
+    href: "/admin/creator/lyrics",
+    label: "Creator Lyrics",
+    description: "Plain & synced lyrics",
+    roles: "creator_lyrics",
   },
   {
     href: "/admin/tv/sources",
@@ -118,6 +125,9 @@ export default function AdminShell({
   const visibleNavItems = NAV_ITEMS.filter((item) => {
     if (item.roles === "all") return true;
     if (item.roles === "owner") return canManageUploaders(profile?.role);
+    if (item.roles === "creator_lyrics") {
+      return canAccessCreatorLyricsEditors(profile?.role);
+    }
     return canManageUploaderOwnership(profile?.role);
   });
 
