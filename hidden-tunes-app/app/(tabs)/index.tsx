@@ -35,27 +35,13 @@ import {
   getHiddenTunesSongsPage,
   getHiddenTunesAlbumById,
   getHiddenTunesArtistById,
-  extractHiddenTunesAlbums,
-  extractHiddenTunesArtists,
   hydrateHiddenTunesCatalogCache,
   refreshHiddenTunesSongs,
   type HiddenTunesNormalizedSong,
 } from "../../services/hiddenTunesApi";
 import { preloadImages } from "../../utils/imagePreloader";
-import {
-  buildListenerPreferenceMaps,
-  rankAlbumsForListener,
-  rankArtistsForListener,
-  rankSongsForListener,
-} from "../../services/listenerRanking";
-import {
-  buildBecauseYouListened,
-  buildCuratedDiscoverySections,
-  buildGenreSpotlights,
-  buildMoodRooms,
-  buildMoreLikeThisMood,
-  buildRecentlyDiscovered,
-} from "../../services/smartDiscovery";
+import { getSharedDiscoverySnapshot } from "../../services/discoveryCache";
+import { buildMoreLikeThisMood, type DiscoverySong } from "../../services/smartDiscovery";
 import { FALLBACK_ARTWORK, getArtworkUri } from "../../utils/artwork";
 import {
   logApiRefresh,
@@ -450,52 +436,34 @@ function HomeScreen() {
     await loadFeaturedSongs(false, true);
   }, [loadFeaturedSongs]);
 
-  const preferenceMaps = useMemo(
+  const listenerRecentlyPlayed = useMemo(
+    () => (Array.isArray(recentlyPlayed) ? recentlyPlayed : []) as DiscoverySong[],
+    [recentlyPlayed]
+  );
+
+  const listenerFavorites = useMemo(
+    () => (Array.isArray(favorites) ? favorites : []) as DiscoverySong[],
+    [favorites]
+  );
+
+  const sharedDiscovery = useMemo(
     () =>
-      buildListenerPreferenceMaps(
-        Array.isArray(recentlyPlayed) ? (recentlyPlayed as any) : [],
-        Array.isArray(favorites) ? (favorites as any) : []
-      ),
-    [favorites, recentlyPlayed]
+      getSharedDiscoverySnapshot({
+        songs: featuredSongs,
+        recentlyPlayed: listenerRecentlyPlayed,
+        favorites: listenerFavorites,
+      }),
+    [featuredSongs, listenerFavorites, listenerRecentlyPlayed]
   );
 
-  const rankedSongs = useMemo(
-    () => rankSongsForListener(featuredSongs, preferenceMaps),
-    [featuredSongs, preferenceMaps]
-  );
-
-  const rankedAlbums = useMemo(
-    () =>
-      rankAlbumsForListener(extractHiddenTunesAlbums(featuredSongs), preferenceMaps),
-    [featuredSongs, preferenceMaps]
-  );
-
-  const rankedArtists = useMemo(
-    () =>
-      rankArtistsForListener(extractHiddenTunesArtists(featuredSongs), preferenceMaps),
-    [featuredSongs, preferenceMaps]
-  );
-
-  const newestSongs = useMemo(
-    () => buildRecentlyDiscovered(featuredSongs, 12),
-    [featuredSongs]
-  );
-
-  const becauseYouListened = useMemo(
-    () =>
-      buildBecauseYouListened(
-        featuredSongs,
-        Array.isArray(recentlyPlayed) ? (recentlyPlayed as any) : [],
-        Array.isArray(favorites) ? (favorites as any) : [],
-        6
-      ),
-    [featuredSongs, favorites, recentlyPlayed]
-  );
-
-  const curatedSections = useMemo(
-    () => buildCuratedDiscoverySections(featuredSongs, undefined, preferenceMaps),
-    [featuredSongs, preferenceMaps]
-  );
+  const rankedSongs = sharedDiscovery.rankedSongs;
+  const rankedAlbums = sharedDiscovery.rankedAlbums;
+  const rankedArtists = sharedDiscovery.rankedArtists;
+  const newestSongs = sharedDiscovery.recentlyDiscovered;
+  const becauseYouListened = sharedDiscovery.becauseYouListenedRaw.slice(0, 6);
+  const curatedSections = sharedDiscovery.curatedSections;
+  const moodRooms = sharedDiscovery.moodRooms.slice(0, 8);
+  const genreSpotlights = sharedDiscovery.genreSpotlights;
 
   const visibleAllSongs = useMemo(
     () => rankedSongs.slice(0, visibleSongCount),
@@ -505,21 +473,11 @@ function HomeScreen() {
   const hasMoreCloudSongs = visibleSongCount < featuredSongs.length;
 
   const moreLikeThisMood = useMemo(
-    () => buildMoreLikeThisMood(featuredSongs, currentSong, recentlyPlayed, 6),
-    [currentSong, featuredSongs, recentlyPlayed]
-  );
-
-  const moodRooms = useMemo(
-    () => buildMoodRooms(featuredSongs, preferenceMaps, 8),
-    [featuredSongs, preferenceMaps]
+    () => buildMoreLikeThisMood(featuredSongs, currentSong, listenerRecentlyPlayed, 6),
+    [currentSong, featuredSongs, listenerRecentlyPlayed]
   );
 
   const [activeMoodId, setActiveMoodId] = useState<string | null>(null);
-
-  const genreSpotlights = useMemo(
-    () => buildGenreSpotlights(featuredSongs, preferenceMaps, 6),
-    [featuredSongs, preferenceMaps]
-  );
 
   const primaryMoodRoom = moodRooms[0];
   const primaryGenreSpotlight = genreSpotlights[0];

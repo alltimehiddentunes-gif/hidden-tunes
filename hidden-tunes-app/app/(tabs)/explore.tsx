@@ -49,19 +49,8 @@ import {
   type HiddenTunesNormalizedSong,
 } from "../../services/hiddenTunesApi";
 import { preloadImages } from "../../utils/imagePreloader";
-import {
-  buildListenerPreferenceMaps,
-  rankAlbumsForListener,
-  rankArtistsForListener,
-  rankSongsForListener,
-} from "../../services/listenerRanking";
-import {
-  buildBecauseYouListened,
-  buildCuratedDiscoverySections,
-  buildGenreSpotlights,
-  buildMoodRooms,
-  buildRecentlyDiscovered,
-} from "../../services/smartDiscovery";
+import { getSharedDiscoverySnapshot } from "../../services/discoveryCache";
+import type { DiscoverySong } from "../../services/smartDiscovery";
 import {
   logApiRefresh,
   logCacheResult,
@@ -687,70 +676,43 @@ export default memo(function ExploreScreen() {
 
   const listTracks = useMemo(() => tracks.slice(1, 7), [tracks]);
 
-  const preferenceMaps = useMemo(
+  const listenerRecentlyPlayed = useMemo(
+    () => (Array.isArray(recentlyPlayed) ? recentlyPlayed : []) as DiscoverySong[],
+    [recentlyPlayed]
+  );
+
+  const listenerFavorites = useMemo(
+    () => (Array.isArray(favorites) ? favorites : []) as DiscoverySong[],
+    [favorites]
+  );
+
+  const sharedDiscovery = useMemo(
     () =>
-      buildListenerPreferenceMaps(
-        Array.isArray(recentlyPlayed) ? (recentlyPlayed as any) : [],
-        Array.isArray(favorites) ? (favorites as any) : []
-      ),
-    [favorites, recentlyPlayed]
+      getSharedDiscoverySnapshot({
+        songs: cloudSongs,
+        recentlyPlayed: listenerRecentlyPlayed,
+        favorites: listenerFavorites,
+        albums,
+        artists,
+      }),
+    [albums, artists, cloudSongs, listenerFavorites, listenerRecentlyPlayed]
   );
 
-  const rankedCloudSongs = useMemo(
-    () => rankSongsForListener(cloudSongs, preferenceMaps),
-    [cloudSongs, preferenceMaps]
-  );
-
-  const visibleCloudSongs = useMemo(() => rankedCloudSongs, [rankedCloudSongs]);
-
-  const rankedAlbums = useMemo(
-    () => rankAlbumsForListener(albums, preferenceMaps),
-    [albums, preferenceMaps]
-  );
-
-  const rankedArtists = useMemo(
-    () => rankArtistsForListener(artists, preferenceMaps),
-    [artists, preferenceMaps]
-  );
+  const rankedCloudSongs = sharedDiscovery.rankedSongs;
+  const visibleCloudSongs = rankedCloudSongs;
+  const rankedAlbums = sharedDiscovery.rankedAlbums;
+  const rankedArtists = sharedDiscovery.rankedArtists;
+  const smartPicks = sharedDiscovery.becauseYouListenedRanked.slice(0, 10);
+  const moodRooms = sharedDiscovery.moodRooms.slice(0, 6);
+  const genreWorlds = sharedDiscovery.genreSpotlights;
+  const recentlyAdded = sharedDiscovery.recentlyDiscovered;
+  const curatedSections = sharedDiscovery.curatedSections;
 
   const continueSongs = useMemo(() => {
-    const mappedRecent = Array.isArray(recentlyPlayed)
-      ? recentlyPlayed.map(safeSong)
-      : [];
+    const mappedRecent = listenerRecentlyPlayed.map(safeSong);
 
     return dedupeSongs([...mappedRecent, ...cloudSongs]).slice(0, 10);
-  }, [recentlyPlayed, cloudSongs]);
-
-  const smartPicks = useMemo(() => {
-    if (!rankedCloudSongs.length) return [];
-
-    return buildBecauseYouListened(
-      rankedCloudSongs,
-      Array.isArray(recentlyPlayed) ? recentlyPlayed : [],
-      Array.isArray(favorites) ? favorites : [],
-      10
-    );
-  }, [favorites, rankedCloudSongs, recentlyPlayed]);
-
-  const moodRooms = useMemo(
-    () => buildMoodRooms(cloudSongs, preferenceMaps, 6),
-    [cloudSongs, preferenceMaps]
-  );
-
-  const genreWorlds = useMemo(
-    () => buildGenreSpotlights(cloudSongs, preferenceMaps, 6),
-    [cloudSongs, preferenceMaps]
-  );
-
-  const recentlyAdded = useMemo(
-    () => buildRecentlyDiscovered(cloudSongs, 12),
-    [cloudSongs]
-  );
-
-  const curatedSections = useMemo(
-    () => buildCuratedDiscoverySections(cloudSongs, undefined, preferenceMaps),
-    [cloudSongs, preferenceMaps]
-  );
+  }, [cloudSongs, listenerRecentlyPlayed]);
 
   const primaryMoodRoom = moodRooms[0];
   const primaryGenreWorld = genreWorlds[0];
