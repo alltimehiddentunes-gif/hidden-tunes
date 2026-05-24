@@ -5,16 +5,23 @@ import { useParams, useRouter } from "next/navigation";
 
 import AdminShell from "@/components/AdminShell";
 import { getActiveUploaderSession, supabase } from "@/lib/auth";
+import {
+  generateDraftSyncedLinesFromPlain,
+  validateAutoSyncInputs,
+} from "@/lib/syncedLyricsAutoSync";
 import { INTERLUDE_PRESETS } from "@/lib/syncedLyricsTypes";
-import type { SyncedLyricLineType } from "@/lib/syncedLyricsTypes";
+import type { SyncedLyricLine, SyncedLyricLineType } from "@/lib/syncedLyricsTypes";
 import {
   applyEvenTimestampMode,
   applySmartSpacingHelper,
   buildSyncedPayload,
   inferLineType,
+  insertInstrumentalGapBeforeIndex,
   mergePlainAndSyncedLines,
-  secondsToLrcTimestamp,
+  parseEditableTimestampInput,
+  shiftAllSyncedLineTimes,
   splitPlainLyricLines,
+  spreadLinesAcrossDuration,
 } from "@/lib/syncedLyricsUtils";
 
 type SyncLine = {
@@ -46,6 +53,9 @@ type ApiResponse = {
 
 const AUTOSAVE_MS = 1600;
 const SEEK_STEP_MS = 3000;
+const DEFAULT_INTRO_DELAY_SEC = 3;
+const DEFAULT_OUTRO_PADDING_SEC = 2;
+const DEFAULT_GAP_SEC = 5;
 
 function getParamId(value: string | string[] | undefined) {
   if (Array.isArray(value)) return value[0] || "";
@@ -74,6 +84,15 @@ function linesToSyncedJson(lines: SyncLine[]) {
       text: line.text.trim(),
       type: line.type,
     }));
+}
+
+function syncedJsonToEditorLines(syncedLines: SyncedLyricLine[]): SyncLine[] {
+  return syncedLines.map((line, index) => ({
+    id: `line-${index}-${Date.now()}`,
+    text: line.text,
+    timeMs: Math.round(line.time * 1000),
+    type: line.type,
+  }));
 }
 
 function buildEditorLines(plainLyrics: string, lyricsJson: ApiResponse["syncedLyrics"]) {
@@ -112,6 +131,10 @@ function serializeSnapshot(lines: SyncLine[], plainLyrics: string) {
   return JSON.stringify(payload);
 }
 
+function editorLinesToSyncedLines(lines: SyncLine[]): SyncedLyricLine[] {
+  return linesToSyncedJson(lines);
+}
+
 export default function PremiumSyncedLyricsEditorPage() {
   const router = useRouter();
   const params = useParams<{ id?: string | string[]; trackId?: string | string[] }>();
@@ -122,6 +145,7 @@ export default function PremiumSyncedLyricsEditorPage() {
   const waveformRef = useRef<HTMLDivElement | null>(null);
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const savedSnapshotRef = useRef("");
+  const serverPlainLyricsRef = useRef("");
   const keyboardEnabledRef = useRef(true);
 
   const [accessToken, setAccessToken] = useState("");
@@ -141,6 +165,11 @@ export default function PremiumSyncedLyricsEditorPage() {
   const [statusMessage, setStatusMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [showShortcuts, setShowShortcuts] = useState(true);
+  const [showLrcPreview, setShowLrcPreview] = useState(true);
+  const [introDelaySec, setIntroDelaySec] = useState(DEFAULT_INTRO_DELAY_SEC);
+  const [outroPaddingSec, setOutroPaddingSec] = useState(DEFAULT_OUTRO_PADDING_SEC);
+  const [instrumentalGapSec, setInstrumentalGapSec] = useState(DEFAULT_GAP_SEC);
+  const [spacingMode, setSpacingMode] = useState<"even" | "weighted">("weighted");
 
   const syncedPayload = useMemo(
     () => buildSyncedPayload(linesToSyncedJson(lines), plainLyrics),
@@ -157,8 +186,16 @@ export default function PremiumSyncedLyricsEditorPage() {
     [lines]
   );
 
-  const currentLine = lines[currentLineIndex] || null;
+  const hasServerPlainLyrics = Boolean(serverPlainLyricsRef.current.trim());
   const activeLineIndex = findActiveLineIndex(lines, playbackMs);
+  const durationSeconds =
+    (durationMs || (audioRef.current?.duration || 0) * 1000 || 0) / 1000;
+
+  const applySyncedLines = useCallback((syncedLines: SyncedLyricLine[]) => {
+    const nextLines = syncedJsonToEditorLines(syncedLines);
+    setLines(nextLines);
+    setPlainLyrics(syncedLines.map((line) => line.text).join("\n"));
+  }, []);
 
   const loadEditor = useCallback(
     async (token: string) => {
@@ -174,6 +211,7 @@ export default function PremiumSyncedLyricsEditorPage() {
       const loadedPlain = data.syncedLyrics?.plainLyrics || "";
       const nextLines = buildEditorLines(loadedPlain, data.syncedLyrics);
 
+      serverPlainLyricsRef.current = loadedPlain;
       setReleaseTitle(data.release?.title || "Release");
       setTrackTitle(data.track?.title || "Track");
       setArtworkUrl(data.track?.artworkUrl || data.release?.artworkUrl || null);
@@ -184,8 +222,8 @@ export default function PremiumSyncedLyricsEditorPage() {
       savedSnapshotRef.current = serializeSnapshot(nextLines, loadedPlain);
       setStatusMessage(
         data.syncedLyrics?.lyricsLrc
-          ? "Loaded premium synced lyrics."
-          : "Ready to stamp lyric timestamps."
+          ? "Loaded synced lyrics. Auto Sync creates a draft you can refine."
+          : "Ready to generate draft timestamps from plain lyrics."
       );
     },
     [trackId]
@@ -270,6 +308,7 @@ export default function PremiumSyncedLyricsEditorPage() {
 
         if (data.syncedLyrics?.version) setVersion(data.syncedLyrics.version);
         savedSnapshotRef.current = serializeSnapshot(lines, plainLyrics);
+        serverPlainLyricsRef.current = syncedPayload.plainLyrics;
         if (!silent) setStatusMessage(data.message || "Synced lyrics saved.");
         return true;
       } catch (error: unknown) {
@@ -325,6 +364,141 @@ export default function PremiumSyncedLyricsEditorPage() {
       )
     );
   }, []);
+
+  const updateLineText = useCallback((index: number, text: string) => {
+    setLines((current) =>
+      current.map((line, lineIndex) =>
+        lineIndex === index
+          ? { ...line, text, type: inferLineType(text) }
+          : line
+      )
+    );
+    setPlainLyrics((current) => {
+      const rows = splitPlainLyricLines(current);
+      if (index >= 0 && index < rows.length) {
+        rows[index] = text;
+      }
+      return rows.join("\n");
+    });
+  }, []);
+
+  const handleUsePlainLyrics = useCallback(() => {
+    const source = plainLyrics.trim() || serverPlainLyricsRef.current.trim();
+    if (!source) {
+      setErrorMessage("No plain lyrics available. Paste lyrics in the source box first.");
+      return;
+    }
+
+    if (syncedCount > 0) {
+      const ok = window.confirm(
+        "Use plain lyrics only? Existing timestamps will be cleared so you can auto-sync again."
+      );
+      if (!ok) return;
+    }
+
+    const plainLines = splitPlainLyricLines(source);
+    setPlainLyrics(source);
+    setLines(
+      plainLines.map((text, index) => ({
+        id: `line-${index}`,
+        text,
+        timeMs: null,
+        type: inferLineType(text),
+      }))
+    );
+    setStatusMessage("Plain lyrics loaded. Run Auto Sync Lyrics when ready.");
+  }, [plainLyrics, syncedCount]);
+
+  const handleAutoSyncLyrics = useCallback(() => {
+    const sourcePlain = plainLyrics.trim() || serverPlainLyricsRef.current.trim();
+    const validation = validateAutoSyncInputs(sourcePlain, durationSeconds);
+
+    if (!validation.ok) {
+      setErrorMessage(validation.error || "Auto sync could not start.");
+      return;
+    }
+
+    if (syncedCount > 0) {
+      const ok = window.confirm(
+        "Auto Sync Lyrics replaces existing timestamps with a draft estimate. You can adjust every line before saving. Continue?"
+      );
+      if (!ok) return;
+    }
+
+    if (validation.warning) {
+      setStatusMessage(validation.warning);
+    }
+
+    const draft = generateDraftSyncedLinesFromPlain({
+      plainLyrics: sourcePlain,
+      durationSeconds,
+      introDelaySeconds: introDelaySec,
+      outroPaddingSeconds: outroPaddingSec,
+      spacingMode,
+    });
+
+    applySyncedLines(draft);
+    setStatusMessage(
+      `Draft LRC generated for ${draft.length} lines. This is an estimate — play audio and adjust timestamps before saving.`
+    );
+    setErrorMessage("");
+  }, [
+    applySyncedLines,
+    durationSeconds,
+    introDelaySec,
+    outroPaddingSec,
+    plainLyrics,
+    spacingMode,
+    syncedCount,
+  ]);
+
+  const handleShiftAll = useCallback(
+    (deltaMs: number) => {
+      if (!lines.length) return;
+      const deltaSeconds = deltaMs / 1000;
+      const shifted = shiftAllSyncedLineTimes(editorLinesToSyncedLines(lines), deltaSeconds);
+      applySyncedLines(shifted);
+      setStatusMessage(`Shifted all timestamps by ${deltaMs > 0 ? "+" : ""}${deltaMs} ms.`);
+    },
+    [applySyncedLines, lines]
+  );
+
+  const handleSpreadAcrossDuration = useCallback(() => {
+    if (!durationSeconds) {
+      setErrorMessage("Load track audio before spreading lines across the full duration.");
+      return;
+    }
+    if (!lines.length) {
+      setErrorMessage("Add lyric lines before spreading timestamps.");
+      return;
+    }
+
+    const spread = spreadLinesAcrossDuration(
+      editorLinesToSyncedLines(lines),
+      durationSeconds,
+      introDelaySec,
+      outroPaddingSec
+    );
+    applySyncedLines(spread);
+    setStatusMessage("Lines spread evenly across track duration.");
+  }, [applySyncedLines, durationSeconds, introDelaySec, lines.length, outroPaddingSec]);
+
+  const handleInsertInstrumentalGap = useCallback(() => {
+    if (!lines.length) return;
+
+    const withGap = insertInstrumentalGapBeforeIndex(
+      editorLinesToSyncedLines(lines),
+      currentLineIndex,
+      instrumentalGapSec,
+      "♪ Instrumental ♪",
+      "instrumental"
+    );
+    applySyncedLines(withGap);
+    setCurrentLineIndex((index) => Math.min(withGap.length - 1, index + 1));
+    setStatusMessage(
+      `Instrumental gap inserted before line ${currentLineIndex + 1} and following lines shifted.`
+    );
+  }, [applySyncedLines, currentLineIndex, instrumentalGapSec, lines.length]);
 
   const stampCurrentLine = useCallback(() => {
     const audio = audioRef.current;
@@ -405,56 +579,26 @@ export default function PremiumSyncedLyricsEditorPage() {
   );
 
   const applyEvenMode = useCallback(() => {
-    const durationSec =
-      (durationMs || (audioRef.current?.duration || 0) * 1000 || 0) / 1000;
-    if (!durationSec) {
+    if (!durationSeconds) {
       setErrorMessage("Load track audio before using even timestamp mode.");
       return;
     }
 
-    const next = applyEvenTimestampMode(
-      lines.map((line) => ({
-        time: (line.timeMs || 0) / 1000,
-        text: line.text,
-        type: line.type,
-      })),
-      durationSec
-    );
-
-    setLines((current) =>
-      current.map((line, index) => ({
-        ...line,
-        timeMs: Math.round((next[index]?.time || 0) * 1000),
-      }))
-    );
+    const next = applyEvenTimestampMode(editorLinesToSyncedLines(lines), durationSeconds);
+    applySyncedLines(next);
     setStatusMessage("Even timestamps applied.");
-  }, [durationMs, lines]);
+  }, [applySyncedLines, durationSeconds, lines]);
 
   const applySmartSpacing = useCallback(() => {
-    const durationSec =
-      (durationMs || (audioRef.current?.duration || 0) * 1000 || 0) / 1000;
-    if (!durationSec) {
+    if (!durationSeconds) {
       setErrorMessage("Load track audio before using smart spacing.");
       return;
     }
 
-    const next = applySmartSpacingHelper(
-      lines.map((line) => ({
-        time: (line.timeMs || 0) / 1000,
-        text: line.text,
-        type: line.type,
-      })),
-      durationSec
-    );
-
-    setLines((current) =>
-      current.map((line, index) => ({
-        ...line,
-        timeMs: Math.round((next[index]?.time || 0) * 1000),
-      }))
-    );
+    const next = applySmartSpacingHelper(editorLinesToSyncedLines(lines), durationSeconds);
+    applySyncedLines(next);
     setStatusMessage("Smart spacing applied.");
-  }, [durationMs, lines]);
+  }, [applySyncedLines, durationSeconds, lines]);
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -495,8 +639,8 @@ export default function PremiumSyncedLyricsEditorPage() {
 
   return (
     <AdminShell
-      title="Premium Synced Lyrics"
-      description="Cinematic sync workspace with JSON + LRC export, keyboard controls, and autosave."
+      title="Edit Synced Lyrics"
+      description="Assisted LRC workflow: auto-generate draft timestamps, refine while audio plays, then save."
       actions={
         <EditorActions
           onBack={handleBack}
@@ -522,6 +666,7 @@ export default function PremiumSyncedLyricsEditorPage() {
             syncedCount={syncedCount}
             totalLines={lines.length}
             playback={formatClock(playbackMs)}
+            duration={formatClock(durationMs || null)}
             version={version}
             isDirty={isDirty}
             isSaving={isSaving}
@@ -547,10 +692,28 @@ export default function PremiumSyncedLyricsEditorPage() {
             onPlay={() => setIsPlaying(true)}
             onPause={() => setIsPlaying(false)}
           />
-          <AutoModePanel
+          <AutoSyncPanel
+            introDelaySec={introDelaySec}
+            outroPaddingSec={outroPaddingSec}
+            instrumentalGapSec={instrumentalGapSec}
+            spacingMode={spacingMode}
+            hasDuration={durationSeconds > 0}
+            hasPlainLyrics={Boolean(plainLyrics.trim() || hasServerPlainLyrics)}
+            disabled={isLoading}
+            onIntroDelayChange={setIntroDelaySec}
+            onOutroPaddingChange={setOutroPaddingSec}
+            onGapChange={setInstrumentalGapSec}
+            onSpacingModeChange={setSpacingMode}
+            onUsePlainLyrics={handleUsePlainLyrics}
+            onAutoSync={handleAutoSyncLyrics}
+          />
+          <BulkTimingPanel
+            disabled={isLoading || !lines.length}
+            onShift={handleShiftAll}
+            onSpread={handleSpreadAcrossDuration}
+            onInsertGap={handleInsertInstrumentalGap}
             onEven={applyEvenMode}
             onSmart={applySmartSpacing}
-            disabled={isLoading || !lines.length}
           />
           {showShortcuts ? (
             <ShortcutPanel onHide={() => setShowShortcuts(false)} />
@@ -559,126 +722,403 @@ export default function PremiumSyncedLyricsEditorPage() {
 
         <section className="rounded-[2rem] border border-white/10 bg-[#0b0b12]/95 p-5 shadow-2xl backdrop-blur-xl">
           {isLoading ? (
-            <div className="h-[720px] animate-pulse rounded-[1.5rem] bg-white/[0.05]" />
+            <EditorSkeleton />
           ) : (
             <>
               <header className="border-b border-white/10 pb-5">
                 <p className="text-xs font-black uppercase tracking-[0.32em] text-violet-300">
-                  Premium Sync Workspace
+                  Assisted Sync Workspace
                 </p>
                 <h2 className="mt-2 text-3xl font-black tracking-[-0.04em]">
-                  Timestamp every lyric moment
+                  Auto-sync draft, then refine
                 </h2>
+                <p className="mt-3 max-w-3xl text-sm leading-7 text-white/58">
+                  Auto Sync Lyrics creates estimated timestamps — not perfect speech alignment.
+                  Play the track, adjust lines, insert instrumental gaps, then save.
+                </p>
               </header>
 
-              <div className="mt-5 grid gap-4 lg:grid-cols-2">
-                <div>
-                  <label className="text-xs font-black uppercase tracking-[0.28em] text-white/40">
-                    Lyric Source
-                  </label>
-                  <textarea
-                    value={plainLyrics}
-                    onChange={(event) => {
-                      setPlainLyrics(event.target.value);
-                      rebuildLines(event.target.value);
-                    }}
-                    onFocus={() => {
-                      keyboardEnabledRef.current = false;
-                    }}
-                    onBlur={() => {
-                      keyboardEnabledRef.current = true;
-                    }}
-                    rows={14}
-                    className="mt-3 w-full rounded-[1.4rem] border border-white/10 bg-black/35 px-4 py-4 font-medium leading-7 text-white/90 outline-none transition focus:border-violet-300/40"
-                    placeholder="One lyric line per row."
-                  />
-                </div>
+              <PlainLyricsSource
+                plainLyrics={plainLyrics}
+                onChange={(value) => {
+                  setPlainLyrics(value);
+                  rebuildLines(value);
+                }}
+                onFocus={() => {
+                  keyboardEnabledRef.current = false;
+                }}
+                onBlur={() => {
+                  keyboardEnabledRef.current = true;
+                }}
+              />
 
-                <div>
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-xs font-black uppercase tracking-[0.28em] text-white/40">
-                      Parsed Lines
-                    </p>
-                    <span className="rounded-full bg-violet-400/10 px-3 py-1 text-xs font-black text-violet-100">
-                      Line {currentLineIndex + 1} / {lines.length}
-                    </span>
-                  </div>
-
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {INTERLUDE_PRESETS.map((preset) => (
-                      <button
-                        key={preset.id}
-                        type="button"
-                        onClick={() => insertInterlude(preset.text, preset.type)}
-                        className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-2 text-xs font-black uppercase tracking-wide text-white/78 transition hover:border-violet-300/30"
-                      >
-                        {preset.label}
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="mt-3 grid grid-cols-3 gap-2">
-                    <SmallAction label="Stamp" onClick={stampCurrentLine} />
-                    <SmallAction label="Skip" onClick={skipLine} />
-                    <SmallAction label="Undo" onClick={undoStamp} />
-                  </div>
-
-                  <div className="mt-4 max-h-[360px] overflow-y-auto rounded-[1.4rem] border border-white/10 bg-black/30 p-2">
-                    {lines.map((line, index) => {
-                      const isCurrent = index === currentLineIndex;
-                      const isActive = activeLineIndex === index && isPlaying;
-                      const isStamped = line.timeMs !== null;
-
-                      return (
-                        <button
-                          key={line.id}
-                          type="button"
-                          onClick={() => {
-                            setCurrentLineIndex(index);
-                            if (line.timeMs !== null && audioRef.current) {
-                              audioRef.current.currentTime = (line.timeMs || 0) / 1000;
-                              setPlaybackMs(line.timeMs || 0);
-                            }
-                          }}
-                          className={`mb-2 flex w-full items-start justify-between gap-4 rounded-[1.15rem] border px-4 py-4 text-left transition ${
-                            isCurrent || isActive
-                              ? "border-violet-300/45 bg-violet-400/10"
-                              : isStamped
-                                ? "border-emerald-300/20 bg-emerald-400/5"
-                                : "border-white/8 bg-white/[0.03]"
-                          }`}
-                        >
-                          <div className="min-w-0 flex-1">
-                            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/35">
-                              {index + 1} Â· {line.type}
-                            </p>
-                            <p className="mt-2 text-base font-bold leading-7 text-white/86">
-                              {line.text}
-                            </p>
-                          </div>
-                          <p className="font-mono text-sm font-black text-emerald-100">
-                            {formatClock(line.timeMs)}
-                          </p>
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  <div className="mt-4 rounded-[1.4rem] border border-white/10 bg-black/35 p-4">
-                    <p className="text-xs font-black uppercase tracking-[0.28em] text-violet-300">
-                      LRC Export
-                    </p>
-                    <pre className="mt-3 max-h-[160px] overflow-auto whitespace-pre-wrap font-mono text-sm leading-7 text-white/82">
-                      {syncedPayload.lyricsLrc || "Stamped lines export here."}
-                    </pre>
-                  </div>
-                </div>
+              <div className="mt-5 flex flex-wrap gap-2">
+                {INTERLUDE_PRESETS.map((preset) => (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    onClick={() => insertInterlude(preset.text, preset.type)}
+                    className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-2 text-xs font-black uppercase tracking-wide text-white/78 transition hover:border-violet-300/30"
+                  >
+                    {preset.label}
+                  </button>
+                ))}
               </div>
+
+              <div className="mt-3 grid grid-cols-3 gap-2">
+                <SmallAction label="Stamp" onClick={stampCurrentLine} />
+                <SmallAction label="Skip" onClick={skipLine} />
+                <SmallAction label="Undo" onClick={undoStamp} />
+              </div>
+
+              <TimestampTable
+                lines={lines}
+                currentLineIndex={currentLineIndex}
+                activeLineIndex={activeLineIndex}
+                isPlaying={isPlaying}
+                onSelectLine={(index) => {
+                  setCurrentLineIndex(index);
+                  const line = lines[index];
+                  if (line?.timeMs !== null && audioRef.current) {
+                    audioRef.current.currentTime = (line.timeMs || 0) / 1000;
+                    setPlaybackMs(line.timeMs || 0);
+                  }
+                }}
+                onTimestampChange={(index, value) => {
+                  const parsed = parseEditableTimestampInput(value);
+                  if (parsed === null && value.trim()) {
+                    setErrorMessage("Use mm:ss.xx or seconds for timestamps.");
+                    return;
+                  }
+                  updateLineTime(index, parsed === null ? null : Math.round(parsed * 1000));
+                }}
+                onTextChange={updateLineText}
+              />
+
+              <div className="mt-4 flex items-center justify-between gap-3">
+                <p className="text-xs font-black uppercase tracking-[0.28em] text-white/40">
+                  LRC Preview
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setShowLrcPreview((value) => !value)}
+                  className="rounded-full border border-white/10 px-3 py-1 text-xs font-black text-white/70"
+                >
+                  {showLrcPreview ? "Hide" : "Show"}
+                </button>
+              </div>
+
+              {showLrcPreview ? (
+                <div className="mt-3 rounded-[1.4rem] border border-white/10 bg-black/35 p-4">
+                  <pre className="max-h-[220px] overflow-auto whitespace-pre-wrap font-mono text-sm leading-7 text-white/82">
+                    {syncedPayload.lyricsLrc || "Synced lines export here after Auto Sync or manual stamping."}
+                  </pre>
+                </div>
+              ) : null}
             </>
           )}
         </section>
       </section>
     </AdminShell>
+  );
+}
+
+function EditorSkeleton() {
+  return <div className="h-[720px] animate-pulse rounded-[1.5rem] bg-white/[0.05]" />;
+}
+
+function PlainLyricsSource({
+  plainLyrics,
+  onChange,
+  onFocus,
+  onBlur,
+}: {
+  plainLyrics: string;
+  onChange: (value: string) => void;
+  onFocus: () => void;
+  onBlur: () => void;
+}) {
+  return (
+    <div className="mt-5">
+      <label className="text-xs font-black uppercase tracking-[0.28em] text-white/40">
+        Plain Lyrics Source
+      </label>
+      <textarea
+        value={plainLyrics}
+        onChange={(event) => onChange(event.target.value)}
+        onFocus={onFocus}
+        onBlur={onBlur}
+        rows={10}
+        className="mt-3 w-full rounded-[1.4rem] border border-white/10 bg-black/35 px-4 py-4 font-medium leading-7 text-white/90 outline-none transition focus:border-violet-300/40"
+        placeholder="Paste one lyric line per row, then click Auto Sync Lyrics."
+      />
+    </div>
+  );
+}
+
+function TimestampTable({
+  lines,
+  currentLineIndex,
+  activeLineIndex,
+  isPlaying,
+  onSelectLine,
+  onTimestampChange,
+  onTextChange,
+}: {
+  lines: SyncLine[];
+  currentLineIndex: number;
+  activeLineIndex: number;
+  isPlaying: boolean;
+  onSelectLine: (index: number) => void;
+  onTimestampChange: (index: number, value: string) => void;
+  onTextChange: (index: number, value: string) => void;
+}) {
+  return (
+    <div className="mt-4 overflow-hidden rounded-[1.4rem] border border-white/10 bg-black/30">
+      <div className="grid grid-cols-[110px_1fr_72px] gap-3 border-b border-white/10 px-4 py-3 text-[10px] font-black uppercase tracking-[0.22em] text-white/35">
+        <span>Timestamp</span>
+        <span>Line</span>
+        <span>#</span>
+      </div>
+      <div className="max-h-[420px] overflow-y-auto p-2">
+        {lines.map((line, index) => {
+          const isCurrent = index === currentLineIndex;
+          const isActive = activeLineIndex === index && isPlaying;
+          const isStamped = line.timeMs !== null;
+
+          return (
+            <div
+              key={line.id}
+              className={`mb-2 grid grid-cols-[110px_1fr_72px] items-center gap-3 rounded-[1.15rem] border px-3 py-3 ${
+                isCurrent || isActive
+                  ? "border-violet-300/45 bg-violet-400/10"
+                  : isStamped
+                    ? "border-emerald-300/20 bg-emerald-400/5"
+                    : "border-white/8 bg-white/[0.03]"
+              }`}
+            >
+              <input
+                value={line.timeMs === null ? "" : formatClock(line.timeMs)}
+                onChange={(event) => onTimestampChange(index, event.target.value)}
+                onFocus={() => onSelectLine(index)}
+                placeholder="00:00.00"
+                className="rounded-xl border border-white/10 bg-black/40 px-2 py-2 font-mono text-xs font-black text-emerald-100 outline-none focus:border-violet-300/35"
+              />
+              <input
+                value={line.text}
+                onChange={(event) => onTextChange(index, event.target.value)}
+                onFocus={() => onSelectLine(index)}
+                className="min-w-0 rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm font-bold text-white/86 outline-none focus:border-violet-300/35"
+              />
+              <button
+                type="button"
+                onClick={() => onSelectLine(index)}
+                className="rounded-xl border border-white/10 px-2 py-2 text-left text-[10px] font-black uppercase tracking-wide text-white/45"
+              >
+                {index + 1}
+                <span className="mt-1 block text-[9px] normal-case tracking-normal text-white/30">
+                  {line.type}
+                </span>
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function AutoSyncPanel({
+  introDelaySec,
+  outroPaddingSec,
+  instrumentalGapSec,
+  spacingMode,
+  hasDuration,
+  hasPlainLyrics,
+  disabled,
+  onIntroDelayChange,
+  onOutroPaddingChange,
+  onGapChange,
+  onSpacingModeChange,
+  onUsePlainLyrics,
+  onAutoSync,
+}: {
+  introDelaySec: number;
+  outroPaddingSec: number;
+  instrumentalGapSec: number;
+  spacingMode: "even" | "weighted";
+  hasDuration: boolean;
+  hasPlainLyrics: boolean;
+  disabled: boolean;
+  onIntroDelayChange: (value: number) => void;
+  onOutroPaddingChange: (value: number) => void;
+  onGapChange: (value: number) => void;
+  onSpacingModeChange: (value: "even" | "weighted") => void;
+  onUsePlainLyrics: () => void;
+  onAutoSync: () => void;
+}) {
+  return (
+    <div className="rounded-[2rem] border border-violet-300/15 bg-violet-400/[0.06] p-5">
+      <p className="text-xs font-black uppercase tracking-[0.28em] text-violet-200">
+        Auto Sync Lyrics
+      </p>
+      <p className="mt-2 text-sm leading-6 text-white/58">
+        Draft estimate only — refine while listening. Real speech alignment comes later.
+      </p>
+
+      {!hasDuration ? (
+        <p className="mt-3 rounded-2xl border border-amber-300/20 bg-amber-400/10 px-3 py-2 text-xs text-amber-100">
+          Audio duration not loaded yet. Auto sync will use a simple fallback until playback metadata arrives.
+        </p>
+      ) : null}
+
+      <div className="mt-4 grid grid-cols-2 gap-2">
+        <label className="text-[10px] font-black uppercase tracking-wide text-white/40">
+          Intro delay (s)
+          <input
+            type="number"
+            min={0}
+            step={0.5}
+            value={introDelaySec}
+            disabled={disabled}
+            onChange={(event) => onIntroDelayChange(Number(event.target.value) || 0)}
+            className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm font-bold text-white"
+          />
+        </label>
+        <label className="text-[10px] font-black uppercase tracking-wide text-white/40">
+          Outro padding (s)
+          <input
+            type="number"
+            min={0}
+            step={0.5}
+            value={outroPaddingSec}
+            disabled={disabled}
+            onChange={(event) => onOutroPaddingChange(Number(event.target.value) || 0)}
+            className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm font-bold text-white"
+          />
+        </label>
+      </div>
+
+      <label className="mt-3 block text-[10px] font-black uppercase tracking-wide text-white/40">
+        Gap length for instrumental insert (s)
+        <input
+          type="number"
+          min={0}
+          step={0.5}
+          value={instrumentalGapSec}
+          disabled={disabled}
+          onChange={(event) => onGapChange(Number(event.target.value) || 0)}
+          className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm font-bold text-white"
+        />
+      </label>
+
+      <div className="mt-3 flex gap-2">
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => onSpacingModeChange("weighted")}
+          className={`flex-1 rounded-2xl border px-3 py-2 text-xs font-black ${
+            spacingMode === "weighted"
+              ? "border-violet-300/40 bg-violet-300/15 text-violet-50"
+              : "border-white/10 bg-black/25 text-white/70"
+          }`}
+        >
+          Weighted
+        </button>
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => onSpacingModeChange("even")}
+          className={`flex-1 rounded-2xl border px-3 py-2 text-xs font-black ${
+            spacingMode === "even"
+              ? "border-violet-300/40 bg-violet-300/15 text-violet-50"
+              : "border-white/10 bg-black/25 text-white/70"
+          }`}
+        >
+          Even
+        </button>
+      </div>
+
+      <button
+        type="button"
+        disabled={disabled || !hasPlainLyrics}
+        onClick={onUsePlainLyrics}
+        className="mt-3 w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm font-black text-white/82 disabled:opacity-40"
+      >
+        Use Plain Lyrics
+      </button>
+
+      <button
+        type="button"
+        disabled={disabled || !hasPlainLyrics}
+        onClick={onAutoSync}
+        className="mt-2 w-full rounded-2xl bg-gradient-to-r from-violet-300 via-fuchsia-300 to-amber-200 px-4 py-3 text-sm font-black text-black disabled:opacity-40"
+      >
+        Auto Sync Lyrics
+      </button>
+    </div>
+  );
+}
+
+function BulkTimingPanel({
+  disabled,
+  onShift,
+  onSpread,
+  onInsertGap,
+  onEven,
+  onSmart,
+}: {
+  disabled: boolean;
+  onShift: (deltaMs: number) => void;
+  onSpread: () => void;
+  onInsertGap: () => void;
+  onEven: () => void;
+  onSmart: () => void;
+}) {
+  return (
+    <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-5">
+      <p className="text-xs font-black uppercase tracking-[0.28em] text-white/40">
+        Timing Tools
+      </p>
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <SmallAction label="-1000 ms" onClick={() => onShift(-1000)} disabled={disabled} />
+        <SmallAction label="+1000 ms" onClick={() => onShift(1000)} disabled={disabled} />
+        <SmallAction label="-100 ms" onClick={() => onShift(-100)} disabled={disabled} />
+        <SmallAction label="+100 ms" onClick={() => onShift(100)} disabled={disabled} />
+      </div>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={onSpread}
+        className="mt-2 w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-left text-sm font-black disabled:opacity-40"
+      >
+        Spread Lines Across Duration
+      </button>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={onInsertGap}
+        className="mt-2 w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-left text-sm font-black disabled:opacity-40"
+      >
+        Insert Instrumental Gap Before Current Line
+      </button>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={onEven}
+        className="mt-2 w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-left text-sm font-black disabled:opacity-40"
+      >
+        Even Timestamp Mode
+      </button>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={onSmart}
+        className="mt-2 w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-left text-sm font-black disabled:opacity-40"
+      >
+        Smart Spacing Helper
+      </button>
+    </div>
   );
 }
 
@@ -753,6 +1193,7 @@ function StatsPanel(props: {
   syncedCount: number;
   totalLines: number;
   playback: string;
+  duration: string;
   version: number;
   isDirty: boolean;
   isSaving: boolean;
@@ -764,6 +1205,7 @@ function StatsPanel(props: {
     <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-5">
       <StatRow label="Stamped" value={`${props.syncedCount}/${props.totalLines}`} />
       <StatRow label="Playback" value={props.playback} />
+      <StatRow label="Duration" value={props.duration} />
       <StatRow label="Version" value={`v${props.version}`} />
       <StatRow
         label="Status"
@@ -874,37 +1316,6 @@ function PlaybackPanel({
   );
 }
 
-function AutoModePanel({
-  onEven,
-  onSmart,
-  disabled,
-}: {
-  onEven: () => void;
-  onSmart: () => void;
-  disabled: boolean;
-}) {
-  return (
-    <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-5">
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={onEven}
-        className="w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-left text-sm font-black disabled:opacity-40"
-      >
-        Even Timestamp Mode
-      </button>
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={onSmart}
-        className="mt-2 w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-left text-sm font-black disabled:opacity-40"
-      >
-        Smart Spacing Helper
-      </button>
-    </div>
-  );
-}
-
 function ShortcutPanel({ onHide }: { onHide: () => void }) {
   return (
     <div className="rounded-[2rem] border border-white/10 bg-black/30 p-5 text-sm text-white/70">
@@ -914,17 +1325,26 @@ function ShortcutPanel({ onHide }: { onHide: () => void }) {
           Hide
         </button>
       </div>
-      <p className="mt-3">Space stamp Â· Shift+Space play Â· Enter skip Â· Backspace undo Â· â†/â†’ seek</p>
+      <p className="mt-3">Space stamp · Shift+Space play · Enter skip · Backspace undo · ←/→ seek</p>
     </div>
   );
 }
 
-function SmallAction({ label, onClick }: { label: string; onClick: () => void }) {
+function SmallAction({
+  label,
+  onClick,
+  disabled = false,
+}: {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-black text-white/82"
+      disabled={disabled}
+      className="rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-black text-white/82 disabled:opacity-40"
     >
       {label}
     </button>
@@ -944,4 +1364,3 @@ function Notice({ tone, message }: { tone: "success" | "error"; message: string 
     </p>
   );
 }
-

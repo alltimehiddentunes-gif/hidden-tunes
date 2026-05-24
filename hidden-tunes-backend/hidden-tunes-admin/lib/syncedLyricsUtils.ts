@@ -208,7 +208,7 @@ export function applySmartSpacingHelper(
     if (line.type === "silence") return 2.4;
     if (line.type === "instrumental" || line.type === "interlude") return 1.8;
     if (!line.text.trim()) return 1.6;
-    return 1;
+    return Math.max(1, line.text.trim().length / 18);
   });
 
   const totalWeight = weights.reduce((sum, weight) => sum + weight, 0) || usable.length;
@@ -222,6 +222,114 @@ export function applySmartSpacingHelper(
     cursor += weights[index] || 1;
     return next;
   });
+}
+
+export function shiftAllSyncedLineTimes(
+  lines: SyncedLyricLine[],
+  deltaSeconds: number
+) {
+  if (!Number.isFinite(deltaSeconds) || deltaSeconds === 0) return lines;
+
+  return sortSyncedLyricsByTime(lines).map((line) => ({
+    ...line,
+    time: clampTime(line.time + deltaSeconds),
+  }));
+}
+
+export function shiftSyncedLinesFromIndex(
+  lines: SyncedLyricLine[],
+  fromIndex: number,
+  deltaSeconds: number
+) {
+  if (!Number.isFinite(deltaSeconds) || deltaSeconds === 0) return lines;
+
+  return sortSyncedLyricsByTime(lines).map((line, index) =>
+    index >= fromIndex
+      ? { ...line, time: clampTime(line.time + deltaSeconds) }
+      : line
+  );
+}
+
+export function insertInstrumentalGapBeforeIndex(
+  lines: SyncedLyricLine[],
+  beforeIndex: number,
+  gapSeconds: number,
+  gapText = "♪ Instrumental ♪",
+  gapType: SyncedLyricLineType = "instrumental"
+) {
+  const ordered = sortSyncedLyricsByTime(lines);
+  const safeIndex = Math.max(0, Math.min(beforeIndex, ordered.length));
+  const gapDuration = Math.max(0, gapSeconds);
+
+  const anchorTime =
+    safeIndex > 0 ? ordered[safeIndex - 1]?.time ?? 0 : 0;
+
+  const gapLine: SyncedLyricLine = {
+    time: clampTime(anchorTime),
+    text: gapText,
+    type: gapType,
+  };
+
+  const withGap = [...ordered];
+  withGap.splice(safeIndex, 0, gapLine);
+
+  return withGap.map((line, index) =>
+    index > safeIndex
+      ? { ...line, time: clampTime(line.time + gapDuration) }
+      : line
+  );
+}
+
+export function spreadLinesAcrossDuration(
+  lines: SyncedLyricLine[],
+  durationSeconds: number,
+  introDelaySeconds = 0,
+  outroPaddingSeconds = 0
+) {
+  const usable = lines.filter((line) => line.text.trim());
+  if (!usable.length || !Number.isFinite(durationSeconds) || durationSeconds <= 0) {
+    return lines;
+  }
+
+  const intro = Math.max(0, introDelaySeconds);
+  const endTime = Math.max(intro + 0.5, durationSeconds - Math.max(0, outroPaddingSeconds));
+  const usableDuration = Math.max(0.5, endTime - intro);
+  const spacing = usableDuration / usable.length;
+
+  return usable.map((line, index) => ({
+    ...line,
+    time: clampTime(intro + spacing * index),
+  }));
+}
+
+export function parseEditableTimestampInput(value: string): number | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  if (/^\d+(\.\d+)?$/.test(trimmed)) {
+    const seconds = Number(trimmed);
+    return Number.isFinite(seconds) ? clampTime(seconds) : null;
+  }
+
+  const bracketMatch = trimmed.match(/^\[?(\d{1,2}):(\d{2})(?:[.:](\d{1,3}))?\]?$/);
+  if (bracketMatch) {
+    return lrcTimestampToSeconds(
+      Number(bracketMatch[1] || 0),
+      Number(bracketMatch[2] || 0),
+      bracketMatch[3] || "0"
+    );
+  }
+
+  const clockMatch = trimmed.match(/^(\d{1,2}):(\d{2})(?:[.:](\d{1,3}))?$/);
+  if (clockMatch) {
+    return lrcTimestampToSeconds(
+      Number(clockMatch[1] || 0),
+      Number(clockMatch[2] || 0),
+      clockMatch[3] || "0"
+    );
+  }
+
+  return null;
 }
 
 export function findActiveLineIndex(lines: SyncedLyricLine[], currentSeconds: number) {
