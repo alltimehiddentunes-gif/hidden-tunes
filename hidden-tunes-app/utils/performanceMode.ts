@@ -3,6 +3,7 @@ import { AppState } from "react-native";
 import { recordDeferredTaskScheduled } from "./playbackStressDiagnostics";
 
 type PrewarmTask = () => void | Promise<void>;
+type FastScrollListener = (isFastScrolling: boolean) => void;
 
 const LARGE_LIST_THRESHOLD = 80;
 const VERY_LARGE_LIST_THRESHOLD = 180;
@@ -12,6 +13,8 @@ const PREWARM_TASK_LIMIT = 4;
 
 let fastScrollingUntil = 0;
 let prewarmToken = 0;
+let fastScrollEndTimer: ReturnType<typeof setTimeout> | null = null;
+const fastScrollListeners = new Set<FastScrollListener>();
 let appIsActive = AppState.currentState === "active";
 
 AppState.addEventListener("change", (state) => {
@@ -20,6 +23,39 @@ AppState.addEventListener("change", (state) => {
     prewarmToken += 1;
   }
 });
+
+function notifyFastScrollListeners() {
+  const active = isFastScrolling();
+  fastScrollListeners.forEach((listener) => {
+    listener(active);
+  });
+}
+
+function scheduleFastScrollEndNotification() {
+  if (fastScrollEndTimer) {
+    clearTimeout(fastScrollEndTimer);
+    fastScrollEndTimer = null;
+  }
+
+  const remainingMs = fastScrollingUntil - Date.now();
+  if (remainingMs <= 0) {
+    return;
+  }
+
+  fastScrollEndTimer = setTimeout(() => {
+    fastScrollEndTimer = null;
+    notifyFastScrollListeners();
+  }, remainingMs + 16);
+}
+
+export function subscribeFastScrolling(listener: FastScrollListener) {
+  fastScrollListeners.add(listener);
+  listener(isFastScrolling());
+
+  return () => {
+    fastScrollListeners.delete(listener);
+  };
+}
 
 export const LIST_ITEM_HEIGHTS = {
   catalogSongRow: 118,
@@ -32,6 +68,17 @@ export const LIST_ITEM_HEIGHTS = {
 
 export function markFastScrolling(active = true) {
   fastScrollingUntil = active ? Date.now() + FAST_SCROLL_COOLDOWN_MS : 0;
+
+  if (fastScrollEndTimer) {
+    clearTimeout(fastScrollEndTimer);
+    fastScrollEndTimer = null;
+  }
+
+  notifyFastScrollListeners();
+
+  if (active) {
+    scheduleFastScrollEndNotification();
+  }
 }
 
 export function isFastScrolling() {

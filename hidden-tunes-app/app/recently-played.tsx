@@ -15,7 +15,11 @@ import AddToPlaylistButton from "../components/AddToPlaylistButton";
 import HTImage from "../components/HTImage";
 import NeonEQ from "../components/NeonEQ";
 import { COLORS, GRADIENTS } from "../constants/theme";
-import { usePlayer } from "../context/PlayerContext";
+import {
+  usePlayerActions,
+  usePlayerNowPlaying,
+  usePlayerState,
+} from "../context/PlayerContext";
 import { FALLBACK_ARTWORK, getArtworkUri } from "../utils/artwork";
 import {
   logPerformanceSummary,
@@ -129,7 +133,9 @@ const RecentRow = memo(function RecentRow({
 });
 
 function RecentlyPlayedScreen() {
-  const { recentlyPlayed, currentSong, isPlaying, playSong } = usePlayer() as any;
+  const { playSong } = usePlayerActions();
+  const { recentlyPlayed } = usePlayerState();
+  const { currentSong, isPlaying } = usePlayerNowPlaying();
   const screenStartedAt = useRef(startPerformanceTimer()).current;
 
   const tracks = useMemo(() => {

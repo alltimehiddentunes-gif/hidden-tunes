@@ -10,7 +10,7 @@ import {
   markArtworkUrlFailed,
 } from "../utils/artwork";
 import { recordArtworkFailure } from "../utils/performanceLogs";
-import { isFastScrolling } from "../utils/performanceMode";
+import { isFastScrolling, subscribeFastScrolling } from "../utils/performanceMode";
 
 type Props = {
   uri?: string | null;
@@ -122,12 +122,9 @@ function HTImage({
   }, [fallbackSource, stablePlaceholder]);
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      const next = isFastScrolling();
+    return subscribeFastScrolling((next) => {
       setFastScrolling((current) => (current === next ? current : next));
-    }, 200);
-
-    return () => clearInterval(timer);
+    });
   }, []);
 
   return (

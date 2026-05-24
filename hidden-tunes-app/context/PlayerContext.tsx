@@ -96,6 +96,7 @@ import {
 } from "../utils/playbackRenderDiagnostics";
 import { markPlaybackRestoreComplete } from "../utils/startupDiagnostics";
 import {
+  NowPlayingStoreSync,
   PlayerActionsContext,
   PlayerProgressContext,
   PlayerStateContext,
@@ -3269,6 +3270,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     <PlayerActionsContext.Provider value={actionsValue}>
       <PlayerStateContext.Provider value={stateValue}>
         <PlayerProgressContext.Provider value={progressValue}>
+          <NowPlayingStoreSync />
           {children}
         </PlayerProgressContext.Provider>
       </PlayerStateContext.Provider>

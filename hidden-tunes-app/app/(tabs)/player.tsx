@@ -216,6 +216,36 @@ const PremiumPlayButton = memo(function PremiumPlayButton({
   );
 });
 
+const PlayerProgressSection = memo(function PlayerProgressSection({
+  seekTo,
+}: {
+  seekTo: (value: number) => void | Promise<void>;
+}) {
+  const { positionMillis, durationMillis, position, duration } = usePlayerProgress();
+  const playbackPosition = positionMillis ?? position ?? 0;
+  const playbackDuration = durationMillis ?? duration ?? 1;
+
+  return (
+    <View style={styles.sliderContainer}>
+      <Slider
+        style={styles.mainSlider}
+        minimumValue={0}
+        maximumValue={playbackDuration || 1}
+        value={playbackPosition}
+        minimumTrackTintColor={COLORS.primary}
+        maximumTrackTintColor="#ffffff20"
+        thumbTintColor={COLORS.primary}
+        onSlidingComplete={seekTo}
+      />
+
+      <View style={styles.timeRow}>
+        <Text style={styles.timeText}>{formatTime(playbackPosition)}</Text>
+        <Text style={styles.timeText}>{formatTime(playbackDuration)}</Text>
+      </View>
+    </View>
+  );
+});
+
 export default function PlayerScreen() {
   const {
     currentSong,
@@ -233,8 +263,6 @@ export default function PlayerScreen() {
     activeQueue,
     activeQueueIndex,
   } = usePlayerState();
-  const { positionMillis, durationMillis, position, duration } =
-    usePlayerProgress();
   const {
     togglePlayPause,
     seekTo,
@@ -258,9 +286,6 @@ export default function PlayerScreen() {
   const metadataOpacity = useSharedValue(1);
   const metadataTranslateY = useSharedValue(0);
   const artworkHalo = useSharedValue(0.28);
-
-  const playbackPosition = positionMillis ?? position ?? 0;
-  const playbackDuration = durationMillis ?? duration ?? 1;
 
   const favoriteActive = useMemo(() => {
     return isFavorite?.(currentSong);
@@ -653,23 +678,7 @@ export default function PlayerScreen() {
           <LiveWaveform isPlaying={isPlaying} />
         </View>
 
-        <View style={styles.sliderContainer}>
-          <Slider
-            style={styles.mainSlider}
-            minimumValue={0}
-            maximumValue={playbackDuration || 1}
-            value={playbackPosition}
-            minimumTrackTintColor={COLORS.primary}
-            maximumTrackTintColor="#ffffff20"
-            thumbTintColor={COLORS.primary}
-            onSlidingComplete={seekTo}
-          />
-
-          <View style={styles.timeRow}>
-            <Text style={styles.timeText}>{formatTime(playbackPosition)}</Text>
-            <Text style={styles.timeText}>{formatTime(playbackDuration)}</Text>
-          </View>
-        </View>
+        <PlayerProgressSection seekTo={seekTo} />
 
         <View style={styles.controlsRow}>
           <PremiumIconButton onPress={toggleShuffle}>

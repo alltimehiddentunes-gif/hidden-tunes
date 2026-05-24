@@ -16,14 +16,18 @@ import { Ionicons } from "@expo/vector-icons";
 
 import NeonEQ from "@/components/NeonEQ";
 import { COLORS, GRADIENTS } from "@/constants/theme";
-import { usePlayer } from "@/context/PlayerContext";
+import {
+  usePlayerActions,
+  usePlayerNowPlaying,
+} from "@/context/PlayerContext";
 import {
   fetchHiddenTunesSongs,
   HiddenTunesSong,
 } from "@/services/hiddenTunes";
 
 export default function MusicFeedScreen() {
-  const { playAudiusTrack, currentSong, isPlaying } = usePlayer();
+  const { playAudiusTrack } = usePlayerActions();
+  const { currentSong, isPlaying } = usePlayerNowPlaying();
 
   const [songs, setSongs] = useState<HiddenTunesSong[]>([]);
   const [loading, setLoading] = useState(true);

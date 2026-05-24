@@ -14,7 +14,10 @@ import { useScrollToTop } from "@react-navigation/native";
 import { router } from "expo-router";
 
 import { COLORS, GRADIENTS } from "../../constants/theme";
-import { usePlayer } from "../../context/PlayerContext";
+import {
+  usePlayerActions,
+  usePlayerState,
+} from "../../context/PlayerContext";
 
 import MediaCard from "../../components/MediaCard";
 import NeonEQ from "../../components/NeonEQ";
@@ -86,21 +89,23 @@ const QueueItem = memo(function QueueItem({
 
 export default function QueueScreen() {
   const {
-    currentSong,
-    isPlaying,
     playSong,
     playAudiusTrack,
-    activeQueue,
-    activeQueueIndex,
-    activeQueueMode,
-    radioMode,
     nextSong,
     previousSong,
     stopPlayback,
     clearActiveQueue,
-    smartAutoplayEnabled,
     toggleSmartAutoplay,
-  } = usePlayer() as any;
+  } = usePlayerActions();
+  const {
+    currentSong,
+    isPlaying,
+    activeQueue,
+    activeQueueIndex,
+    activeQueueMode,
+    radioMode,
+    smartAutoplayEnabled,
+  } = usePlayerState();
 
   const listRef = useRef<FlatList<any>>(null);
   const [clearingSmart, setClearingSmart] = useState(false);

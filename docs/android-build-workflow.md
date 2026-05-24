@@ -20,6 +20,7 @@ If the app shows an **Expo dev server / connection / QR screen**, you installed 
 
 ```bash
 cd hidden-tunes-app
+npm run verify:preview-config
 npm run build:preview:android
 ```
 
@@ -102,9 +103,24 @@ Not for day-to-day testing on a personal device.
 
 Preview is configured as a **standalone internal APK** — not a dev client.
 
-`app.config.js` removes the `expo-dev-client` plugin from **preview** and **production** builds so the APK does not ship the dev launcher UI.
+`app.config.js` removes the `expo-dev-client` plugin from **preview** and **production** builds so the APK does not ship the dev launcher UI. Run `npm run verify:preview-config` locally to confirm before kicking off EAS.
 
 ---
+
+## Store-readiness foundation (preview QA)
+
+| Item | Preview build |
+|------|----------------|
+| App name (launcher) | **Hidden Tunes** (`app.json` → `name`) |
+| Android package | `com.hiddentunes.app` |
+| Icon / adaptive icon | `./assets/images/icon.png` on black |
+| Splash | Black background + icon (`expo-splash-screen` plugin) |
+| Permissions | Playback only — `WAKE_LOCK`, `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_MEDIA_PLAYBACK`; mic blocked |
+| Dev client plugin | **Stripped** on preview/production |
+| Notification metadata | Song title + artist via Track Player sanitization; album falls back to **Hidden Tunes** |
+| Offline / network copy | Calm tester copy in Home, Explore, Search, TV, Radio, Lyrics |
+
+Preview APKs bundle JS — no Metro, QR, tunnel, or `localhost` connection UI.
 
 ## npm scripts
 

@@ -14,7 +14,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import WebView, { type WebViewMessageEvent } from "react-native-webview";
 
 import { COLORS, GRADIENTS } from "../constants/theme";
-import { usePlayer } from "../context/PlayerContext";
+import { usePlayerActions } from "../context/PlayerContext";
 
 type YouTubeQueueItem = {
   id: string;
@@ -204,7 +204,7 @@ export default function YouTubePlayerScreen() {
   const params = useLocalSearchParams();
   const webViewRef = useRef<WebView | null>(null);
 
-  const { stopPlayback } = usePlayer() as any;
+  const { stopPlayback } = usePlayerActions();
 
   const startedAtRef = useRef<number>(Date.now());
   const autoNextLockRef = useRef(false);

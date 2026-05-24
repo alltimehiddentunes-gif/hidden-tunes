@@ -13,7 +13,11 @@ import { router } from "expo-router";
 
 import NeonEQ from "../../components/NeonEQ";
 import { COLORS, GRADIENTS } from "../../constants/theme";
-import { usePlayer } from "../../context/PlayerContext";
+import {
+  usePlayerActions,
+  usePlayerNowPlaying,
+  usePlayerState,
+} from "../../context/PlayerContext";
 
 function sanitizeYouTubeVideoId(value: any) {
   const text = String(value || "").replace("youtube-", "").trim();
@@ -25,13 +29,9 @@ function sanitizeYouTubeVideoId(value: any) {
 }
 
 export default function FavoritesScreen() {
-  const {
-    favorites,
-    currentSong,
-    isPlaying,
-    playAudiusTrack,
-    toggleFavorite,
-  } = usePlayer();
+  const { playAudiusTrack, toggleFavorite } = usePlayerActions();
+  const { favorites } = usePlayerState();
+  const { currentSong, isPlaying } = usePlayerNowPlaying();
 
   return (
     <LinearGradient colors={GRADIENTS.main} style={styles.container}>

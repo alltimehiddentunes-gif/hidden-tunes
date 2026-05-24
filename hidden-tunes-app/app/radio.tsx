@@ -15,7 +15,7 @@ import { router, useLocalSearchParams } from "expo-router";
 
 import { TESTER_COPY } from "../constants/testerExperience";
 import { COLORS, GRADIENTS } from "../constants/theme";
-import { usePlayer } from "../context/PlayerContext";
+import { usePlayerActions } from "../context/PlayerContext";
 
 import {
   searchYouTubeBackend,
@@ -159,7 +159,7 @@ function dedupeYouTubeTracks(tracks: Partial<BackendYouTubeTrack>[]) {
 
 export default function RadioScreen() {
   const params = useLocalSearchParams();
-  const { playSong } = usePlayer() as any;
+  const { playSong } = usePlayerActions();
 
   const title = String(params.title || "Hidden Tunes Radio");
   const artist = String(params.artist || "");

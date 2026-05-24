@@ -13,17 +13,16 @@ import { router } from "expo-router";
 
 import NeonEQ from "../components/NeonEQ";
 import { COLORS, GRADIENTS } from "../constants/theme";
-import { usePlayer } from "../context/PlayerContext";
+import {
+  usePlayerActions,
+  usePlayerNowPlaying,
+  usePlayerState,
+} from "../context/PlayerContext";
 
 export default function QueueScreen() {
-  const {
-    currentSong,
-    songs,
-    onlineSongs,
-    isPlaying,
-    playSong,
-    playAudiusTrack,
-  } = usePlayer();
+  const { playSong, playAudiusTrack } = usePlayerActions();
+  const { songs, onlineSongs } = usePlayerState();
+  const { currentSong, isPlaying } = usePlayerNowPlaying();
 
   const queueSongs = [...onlineSongs, ...songs];
   const nextSongs = queueSongs.filter(

@@ -16,7 +16,10 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 
 import { COLORS, GRADIENTS } from "../../constants/theme";
-import { usePlayer } from "../../context/PlayerContext";
+import {
+  usePlayerActions,
+  usePlayerNowPlaying,
+} from "../../context/PlayerContext";
 
 import MediaCard from "../../components/MediaCard";
 import PlaylistArtworkCollage from "../../components/PlaylistArtworkCollage";
@@ -63,7 +66,8 @@ export default function PlaylistDetailScreen() {
   const { id } = useLocalSearchParams();
   const playlistId = String(id);
 
-  const { playSong, playQueue, currentSong, isPlaying } = usePlayer() as any;
+  const { playSong, playQueue } = usePlayerActions();
+  const { currentSong, isPlaying } = usePlayerNowPlaying();
 
   const [playlist, setPlaylist] = useState<PlaylistDetail | null>(null);
   const [renameVisible, setRenameVisible] = useState(false);

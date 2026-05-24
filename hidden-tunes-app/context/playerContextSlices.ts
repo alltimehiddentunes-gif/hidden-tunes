@@ -4,9 +4,15 @@ import {
   useEffect,
   useMemo,
   useRef,
+  useSyncExternalStore,
 } from "react";
 
 import { trackPlaybackSubscriberRender } from "../utils/playbackRenderDiagnostics";
+import {
+  getNowPlayingSnapshot,
+  setNowPlayingSnapshot,
+  subscribeNowPlaying,
+} from "../utils/nowPlayingStore";
 
 import type { AppSong, PlayerContextType, SyncedLyricLine } from "./PlayerContext";
 
@@ -117,6 +123,18 @@ function usePlayerProgressContext(): PlayerProgressContextValue {
   return context;
 }
 
+export function NowPlayingStoreSync() {
+  const state = useContext(PlayerStateContext);
+  const currentSongId = String(state?.currentSong?.id || "");
+  const isPlaying = Boolean(state?.isPlaying);
+
+  useEffect(() => {
+    setNowPlayingSnapshot({ currentSongId, isPlaying });
+  }, [currentSongId, isPlaying]);
+
+  return null;
+}
+
 export function usePlayerActions(): PlayerActionsContextValue {
   const context = usePlayerActionsContext();
   usePlaybackRenderProbe("usePlayerActions");
@@ -151,17 +169,21 @@ export function usePlayerNowPlaying() {
 }
 
 export function useTrackPlaybackStatus(trackId: string) {
-  const { currentSong, isPlaying } = usePlayerState();
   const normalizedTrackId = String(trackId || "");
+  const snapshot = useSyncExternalStore(
+    subscribeNowPlaying,
+    getNowPlayingSnapshot,
+    getNowPlayingSnapshot
+  );
 
   return useMemo(() => {
-    const isActive = String(currentSong?.id || "") === normalizedTrackId;
+    const isActive = snapshot.currentSongId === normalizedTrackId;
 
     return {
       isActive,
-      isPlaying: isActive && isPlaying,
+      isPlaying: isActive && snapshot.isPlaying,
     };
-  }, [currentSong?.id, isPlaying, normalizedTrackId]);
+  }, [normalizedTrackId, snapshot.currentSongId, snapshot.isPlaying]);
 }
 
 export function usePlayer(): PlayerContextType {
