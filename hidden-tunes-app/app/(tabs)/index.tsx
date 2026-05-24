@@ -1,4 +1,4 @@
-import { Fragment, memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+﻿import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
@@ -6,7 +6,6 @@ import {
   FlatList,
   InteractionManager,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -19,8 +18,6 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 
 import CatalogSongRow from "../../components/catalog/CatalogSongRow";
-import NestedSongList from "../../components/catalog/NestedSongList";
-import MediaCard from "../../components/MediaCard";
 import NeonEQ from "../../components/NeonEQ";
 import HTImage from "../../components/HTImage";
 import LiveWaveform from "../../components/LiveWaveform";
@@ -74,11 +71,12 @@ import {
   useRenderCountProbe,
 } from "../../utils/performanceVerification";
 import {
-  LIST_ITEM_HEIGHTS,
   getHorizontalListPerformanceSettings,
+  getListPerformanceSettings,
   markFastScrolling,
   scheduleNavigationPrewarm,
 } from "../../utils/performanceMode";
+import { buildHomeFeedRows, type HomeFeedRow } from "../../utils/homeFeedRows";
 import {
   openGenreCatalog,
   openMoodCatalog,
@@ -180,7 +178,7 @@ function HomeScreen() {
   const loadFeaturedSongsRef = useRef<
     (showLoader?: boolean, forceRefresh?: boolean) => Promise<void>
   >(async () => {});
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<FlatList<HomeFeedRow>>(null);
   const heroListRef = useRef<FlatList<HeroCard>>(null);
   const heroIndexRef = useRef(0);
   const screenStartedAt = useRef(startPerformanceTimer()).current;
@@ -531,6 +529,48 @@ function HomeScreen() {
     return moodRooms.find((room) => room.id === targetId) || primaryMoodRoom;
   }, [activeMoodId, moodRooms, primaryMoodRoom]);
 
+  const showMoreButton =
+    deferredSectionsReady && (hasMoreCloudSongs || hasMoreSongPages);
+
+  const homeFeedRows = useMemo(
+    () =>
+      buildHomeFeedRows({
+        deferredSectionsReady,
+        becauseYouListened,
+        moreLikeThisMoodSongs: moreLikeThisMood.songs,
+        rankedArtistsCount: rankedArtists.length,
+        rankedAlbumsCount: rankedAlbums.length,
+        curatedSections,
+        moodRooms,
+        activeMoodRoom,
+        primaryGenreSpotlight,
+        visibleAllSongs,
+        featuredSongsCount: featuredSongs.length,
+        showMoreButton,
+      }),
+    [
+      activeMoodRoom,
+      becauseYouListened,
+      curatedSections,
+      deferredSectionsReady,
+      featuredSongs.length,
+      moodRooms,
+      moreLikeThisMood.songs,
+      primaryGenreSpotlight,
+      rankedAlbums.length,
+      rankedArtists.length,
+      showMoreButton,
+      visibleAllSongs,
+    ]
+  );
+
+  const homeListPerformance = useMemo(
+    () => getListPerformanceSettings(homeFeedRows.length),
+    [homeFeedRows.length]
+  );
+
+  const homeFeedKeyExtractor = useCallback((item: HomeFeedRow) => item.key, []);
+
   useEffect(() => {
     if (primaryMoodRoom?.id && !activeMoodId) {
       setActiveMoodId(primaryMoodRoom.id);
@@ -834,20 +874,9 @@ function HomeScreen() {
 
   const homeScrollJankRef = useRef(createScrollJankHandler("home"));
 
-  const handleHomeScroll = useCallback(
-    (event: any) => {
-      homeScrollJankRef.current();
-
-      const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
-      const distanceFromBottom =
-        contentSize.height - (contentOffset.y + layoutMeasurement.height);
-
-      if (distanceFromBottom < 360) {
-        loadMoreCloudSongs();
-      }
-    },
-    [loadMoreCloudSongs]
-  );
+  const handleHomeScroll = useCallback(() => {
+    homeScrollJankRef.current();
+  }, []);
 
   const handleHeroPress = useCallback(
     (card: HeroCard) => {
@@ -942,25 +971,6 @@ function HomeScreen() {
     heroIndexRef.current = nextIndex;
     setHeroIndex(nextIndex);
   }, [heroCards.length]);
-
-  const renderCatalogSongItem = useCallback(
-    ({ item }: { item: HiddenTunesNormalizedSong }) => {
-      const active = currentSong?.id === String(item.id);
-
-      return (
-        <View style={[styles.mediaShell, active && styles.mediaShellActive]}>
-          <CatalogSongRow
-            song={item}
-            image={getSongImage(item)}
-            active={active}
-            isPlaying={isPlaying}
-            onPress={playFeaturedSong}
-          />
-        </View>
-      );
-    },
-    [currentSong?.id, isPlaying, playFeaturedSong]
-  );
 
   const renderSongRow = useCallback(
     (song: HiddenTunesNormalizedSong, sectionId: string) => {
@@ -1065,269 +1075,14 @@ function HomeScreen() {
     [currentSong?.id, isPlaying, playFeaturedSong]
   );
 
-  return (
-    <LinearGradient colors={GRADIENTS.main} style={styles.container}>
-      <View style={styles.glowPurple} />
-      <View style={styles.glowCyan} />
-
-      <Animated.View
-        style={[
-          styles.animatedWrap,
-          {
-            opacity: fadeAnim,
-            transform: [{ translateY: slideAnim }],
-          },
-        ]}
-      >
-        <ScrollView
-          ref={scrollRef}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
-          onScroll={handleHomeScroll}
-          onScrollBeginDrag={() => markFastScrolling(true)}
-          onMomentumScrollBegin={() => markFastScrolling(true)}
-          onMomentumScrollEnd={() => markFastScrolling(false)}
-          scrollEventThrottle={400}
-          refreshControl={
-            <RefreshControl
-              tintColor={COLORS.primary}
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-            />
-          }
-        >
-          <View style={styles.header}>
-            <View style={styles.logoBox}>
-              <View style={styles.logoGlow} />
-              <HTImage
-                source={FALLBACK_ARTWORK}
-                style={styles.logoImage}
-                contentFit="cover"
-              />
-            </View>
-
-            <View>
-              <Text style={styles.logoText}>Hidden Tunes</Text>
-            </View>
-
-            <TouchableOpacity
-              style={styles.searchButton}
-              onPress={() => router.push("/search")}
-              activeOpacity={0.85}
-            >
-              <Ionicons name="search" size={22} color={COLORS.text} />
-            </TouchableOpacity>
-          </View>
-
-          <Text style={styles.heroTitle}>Hidden listening.</Text>
-
-          <TouchableOpacity
-            activeOpacity={0.9}
-            style={styles.searchBar}
-            onPress={() => router.push("/search")}
-          >
-            <Ionicons name="search" size={20} color={COLORS.cyan} />
-            <Text style={styles.searchText}>Search Hidden Tunes...</Text>
-            <Ionicons name="sparkles" size={18} color={COLORS.primary} />
-          </TouchableOpacity>
-
-          <Animated.View
-            style={[
-              styles.heroOuter,
-              {
-                transform: [{ scale: heroScale }],
-              },
-            ]}
-          >
-            <Animated.View
-              pointerEvents="none"
-              style={[
-                styles.heroBoxGlow,
-                {
-                  opacity: heroGlowAnim,
-                  transform: [
-                    {
-                      scale: heroGlowAnim.interpolate({
-                        inputRange: [0.42, 1],
-                        outputRange: [0.98, 1.035],
-                      }),
-                    },
-                  ],
-                },
-              ]}
-            />
-            {heroCards.length > 0 ? (
-              <FlatList
-                ref={heroListRef}
-                horizontal
-                data={heroCards}
-                keyExtractor={(item) => item.key}
-                renderItem={renderHeroCard}
-                showsHorizontalScrollIndicator={false}
-                snapToInterval={HERO_CARD_WIDTH}
-                decelerationRate="fast"
-                pagingEnabled
-                initialNumToRender={2}
-                maxToRenderPerBatch={2}
-                windowSize={3}
-                removeClippedSubviews
-                onMomentumScrollEnd={handleHeroMomentumEnd}
-              />
-            ) : (
-              <LinearGradient colors={GRADIENTS.neon} style={styles.heroBorder}>
-                <View style={styles.heroCard}>
-                  <View style={styles.heroEmpty}>
-                    {loadingSongs || !hasCheckedCatalogFallbacks ? (
-                      <>
-                        <View style={styles.heroSkeletonIcon} />
-                        <View style={styles.heroSkeletonLineWide} />
-                        <View style={styles.heroSkeletonLine} />
-                        <Text style={styles.heroEmptySub}>
-                          Preparing your catalog...
-                        </Text>
-                      </>
-                    ) : (
-                      <>
-                        <Ionicons
-                          name="musical-notes-outline"
-                          size={44}
-                          color={COLORS.primary}
-                        />
-                        <Text style={styles.heroEmptyText}>No songs yet</Text>
-                        <Text style={styles.heroEmptySub}>
-                          Pull down to refresh.
-                        </Text>
-                      </>
-                    )}
-                  </View>
-                </View>
-              </LinearGradient>
-            )}
-          </Animated.View>
-
-          {heroCards.length > 1 && (
-            <View style={styles.heroDots}>
-              {heroCards.map((item, index) => (
-                <View
-                  key={`hero-dot-${item.key}`}
-                  style={[
-                    styles.heroDot,
-                    index === heroIndex && styles.heroDotActive,
-                  ]}
-                />
-              ))}
-            </View>
-          )}
-
-          <View style={styles.catalogPill}>
-            <Ionicons name="cloud-done" size={16} color={COLORS.primary} />
-            <Text style={styles.catalogPillText}>
-              {featuredSongs.length} songs ready
-            </Text>
-          </View>
-
-          {currentSong ? (
-            <>
-              <View style={styles.sectionRow}>
-                <Text style={styles.sectionTitle}>Continue Listening</Text>
-                <TouchableOpacity onPress={() => router.push("/player" as any)}>
-                  <Text style={styles.seeAllLink}>Player</Text>
-                </TouchableOpacity>
-              </View>
-
-              <TouchableOpacity
-                activeOpacity={0.88}
-                style={styles.continueCard}
-                onPress={() => playFeaturedSong(safeSong(currentSong))}
-              >
-                <HTImage source={currentSong} style={styles.continueImage} />
-
-                <View style={styles.continueInfo}>
-                  <Text style={styles.continueKicker}>NOW PLAYING</Text>
-                  <Text numberOfLines={1} style={styles.continueTitle}>
-                    {currentSong.title || "Unknown Song"}
-                  </Text>
-                  <Text numberOfLines={1} style={styles.continueArtist}>
-                    {currentSong.artist ||
-                      currentSong.user?.name ||
-                      "Hidden Tunes"}
-                  </Text>
-                </View>
-
-                <View style={styles.continuePlay}>
-                  <Ionicons name="play" size={18} color="#000" />
-                </View>
-              </TouchableOpacity>
-            </>
-          ) : null}
-
-          <TouchableOpacity
-            activeOpacity={0.88}
-            style={styles.listeningBrief}
-            onPress={() =>
-              currentSong ? router.push("/player" as any) : router.push("/explore")
-            }
-          >
-            <View style={styles.listeningBriefIcon}>
-              <Ionicons name={listeningBrief.icon} size={20} color={COLORS.primary} />
-            </View>
-
-            <View style={styles.listeningBriefText}>
-              <Text style={styles.listeningBriefLabel}>{listeningBrief.label}</Text>
-              <Text numberOfLines={1} style={styles.listeningBriefTitle}>
-                {listeningBrief.title}
-              </Text>
-            </View>
-
-            <Ionicons name="arrow-forward" size={18} color={COLORS.textMuted} />
-          </TouchableOpacity>
-
-          <View style={styles.grid}>
-            {[
-              {
-                key: "premium-music",
-                icon: "headset" as const,
-                title: "Music",
-                color: COLORS.primary,
-                onPress: () => router.push("/music-feed" as any),
-              },
-              {
-                key: "premium-search",
-                icon: "search" as const,
-                title: "Search",
-                color: COLORS.cyan,
-                onPress: () => router.push("/search"),
-              },
-              {
-                key: "premium-queue",
-                icon: "list" as const,
-                title: "Queue",
-                color: COLORS.pink,
-                onPress: () => router.push("/queue"),
-              },
-              {
-                key: "premium-tv",
-                icon: "tv" as const,
-                title: "TV",
-                color: "#ff0033",
-                onPress: () => router.push("/tv" as any),
-              },
-            ].map((card) => (
-              <PremiumCard
-                key={card.key}
-                icon={card.icon}
-                title={card.title}
-                color={card.color}
-                onPress={card.onPress}
-              />
-            ))}
-          </View>
-
-          {deferredSectionsReady ? (
+  const renderHomeFeedRow = useCallback(
+    ({ item }: { item: HomeFeedRow }) => {
+      switch (item.kind) {
+        case "tv-section":
+          return (
             <>
               <View style={styles.sectionRow}>
                 <Text style={styles.sectionTitle}>Hidden Tunes TV</Text>
-
                 <TouchableOpacity
                   onPress={() => router.push("/tv" as any)}
                   style={styles.tvOpenButton}
@@ -1337,7 +1092,6 @@ function HomeScreen() {
                   <Text style={styles.tvOpenText}>Open TV</Text>
                 </TouchableOpacity>
               </View>
-
               <TouchableOpacity
                 activeOpacity={0.86}
                 style={styles.tvEmptyCard}
@@ -1347,202 +1101,115 @@ function HomeScreen() {
                 <Text style={styles.tvEmptyTitle}>Open Hidden Tunes TV</Text>
               </TouchableOpacity>
             </>
-          ) : null}
+          );
 
-          {deferredSectionsReady && becauseYouListened.length > 0 && (
-            <>
-              <Text style={styles.sectionTitleBlock}>Because You Listened</Text>
+        case "section-title":
+          return <Text style={styles.sectionTitleBlock}>{item.title}</Text>;
 
-              <View style={styles.mediaList}>
-                {becauseYouListened.map((song) => (
-                  <Fragment
-                    key={`song-${String(song.id || song.title || song.streamUrl || "track")}-because-you-listened`}
-                  >
-                    {renderSongRow(song, "because-you-listened")}
-                  </Fragment>
-                ))}
-              </View>
-            </>
-          )}
+        case "song":
+          return renderSongRow(item.song, item.sectionId);
 
-          {deferredSectionsReady && moreLikeThisMood.songs.length > 0 && (
-            <>
-              <Text style={styles.sectionTitleBlock}>More Like This Mood</Text>
+        case "artists-rail":
+          return (
+            <FlatList
+              horizontal
+              data={rankedArtists}
+              keyExtractor={(artist) => `artist-${artist.id || artist.name}-creators`}
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.artistRow}
+              initialNumToRender={horizontalArtistListTuning.initialNumToRender}
+              maxToRenderPerBatch={horizontalArtistListTuning.maxToRenderPerBatch}
+              windowSize={horizontalArtistListTuning.windowSize}
+              updateCellsBatchingPeriod={horizontalArtistListTuning.updateCellsBatchingPeriod}
+              removeClippedSubviews
+              nestedScrollEnabled
+              renderItem={({ item: artist }) => (
+                <TouchableOpacity
+                  activeOpacity={0.88}
+                  style={styles.artistCard}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/artist/[id]",
+                      params: { id: artist.id },
+                    } as any)
+                  }
+                >
+                  <HTImage source={artist} style={styles.artistImage} />
+                  <Text numberOfLines={1} style={styles.artistName}>
+                    {artist.name}
+                  </Text>
+                  <Text numberOfLines={1} style={styles.artistMeta}>
+                    {artist.tracks?.length || 0}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            />
+          );
 
-              <View style={styles.mediaList}>
-                {moreLikeThisMood.songs.map((song) => (
-                  <Fragment
-                    key={`song-${String(song.id || song.title || song.streamUrl || "track")}-more-like-this-mood`}
-                  >
-                    {renderSongRow(song, "more-like-this-mood")}
-                  </Fragment>
-                ))}
-              </View>
-            </>
-          )}
+        case "albums-rail":
+          return (
+            <FlatList
+              horizontal
+              data={rankedAlbums}
+              keyExtractor={(album) => `album-${album.id || album.title}-albums`}
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.artistRow}
+              initialNumToRender={horizontalAlbumListTuning.initialNumToRender}
+              maxToRenderPerBatch={horizontalAlbumListTuning.maxToRenderPerBatch}
+              windowSize={horizontalAlbumListTuning.windowSize}
+              updateCellsBatchingPeriod={horizontalAlbumListTuning.updateCellsBatchingPeriod}
+              removeClippedSubviews
+              nestedScrollEnabled
+              renderItem={({ item: album }) => (
+                <TouchableOpacity
+                  activeOpacity={0.88}
+                  style={styles.albumCard}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/album/[id]",
+                      params: { id: album.id },
+                    } as any)
+                  }
+                >
+                  <HTImage source={album} style={styles.albumImage} />
+                  <Text numberOfLines={1} style={styles.artistName}>
+                    {album.title}
+                  </Text>
+                  <Text numberOfLines={1} style={styles.artistMeta}>
+                    {album.artist}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            />
+          );
 
-          {deferredSectionsReady && rankedArtists.length > 0 && (
-            <>
-              <Text style={styles.sectionTitleBlock}>Creators In Your Orbit</Text>
-
-              <FlatList
-                horizontal
-                data={rankedArtists}
-                keyExtractor={(item) =>
-                  `artist-${item.id || item.name}-creators`
-                }
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.artistRow}
-                initialNumToRender={horizontalArtistListTuning.initialNumToRender}
-                maxToRenderPerBatch={horizontalArtistListTuning.maxToRenderPerBatch}
-                windowSize={horizontalArtistListTuning.windowSize}
-                updateCellsBatchingPeriod={
-                  horizontalArtistListTuning.updateCellsBatchingPeriod
-                }
-                removeClippedSubviews
-                renderItem={({ item }) => (
-                  <TouchableOpacity
-                    activeOpacity={0.88}
-                    style={styles.artistCard}
-                    onPress={() =>
-                      router.push({
-                        pathname: "/artist/[id]",
-                        params: { id: item.id },
-                      } as any)
-                    }
-                  >
-                    <HTImage source={item} style={styles.artistImage} />
-                    <Text numberOfLines={1} style={styles.artistName}>
-                      {item.name}
-                    </Text>
-                    <Text numberOfLines={1} style={styles.artistMeta}>
-                      {item.tracks?.length || 0}
-                    </Text>
-                  </TouchableOpacity>
-                )}
-              />
-            </>
-          )}
-
-          {deferredSectionsReady && rankedAlbums.length > 0 && (
-            <>
-              <Text style={styles.sectionTitleBlock}>Albums Worth Staying With</Text>
-
-              <FlatList
-                horizontal
-                data={rankedAlbums}
-                keyExtractor={(item) =>
-                  `album-${item.id || item.title}-albums`
-                }
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.artistRow}
-                initialNumToRender={horizontalAlbumListTuning.initialNumToRender}
-                maxToRenderPerBatch={horizontalAlbumListTuning.maxToRenderPerBatch}
-                windowSize={horizontalAlbumListTuning.windowSize}
-                updateCellsBatchingPeriod={
-                  horizontalAlbumListTuning.updateCellsBatchingPeriod
-                }
-                removeClippedSubviews
-                renderItem={({ item }) => (
-                  <TouchableOpacity
-                    activeOpacity={0.88}
-                    style={styles.albumCard}
-                    onPress={() =>
-                      router.push({
-                        pathname: "/album/[id]",
-                        params: { id: item.id },
-                      } as any)
-                    }
-                  >
-                    <HTImage source={item} style={styles.albumImage} />
-                    <Text numberOfLines={1} style={styles.artistName}>
-                      {item.title}
-                    </Text>
-                    <Text numberOfLines={1} style={styles.artistMeta}>
-                      {item.artist}
-                    </Text>
-                  </TouchableOpacity>
-                )}
-              />
-            </>
-          )}
-
-          {deferredSectionsReady ? (
+        case "recently-added":
+          return (
             <>
               <View style={styles.sectionRow}>
                 <Text style={styles.sectionTitle}>Recently Added</Text>
-
                 <TouchableOpacity onPress={onRefresh} style={styles.refreshMini}>
                   <Ionicons name="refresh" size={20} color={COLORS.text} />
                 </TouchableOpacity>
               </View>
-
-          {loadingSongs ? (
-            <View style={styles.loadingBox}>
-              <View style={styles.loadingTitleRow}>
-                <ActivityIndicator size="small" color={COLORS.primary} />
-                <Text style={styles.loadingText}>Preparing fresh tracks...</Text>
-              </View>
-              <HomeSkeletonCards />
-            </View>
-          ) : featuredSongs.length === 0 && hasCheckedCatalogFallbacks ? (
-            <View style={styles.emptyBox}>
-              <Text style={styles.emptyTitle}>Your listening room is warming up</Text>
-              <Text style={styles.emptyText}>{TESTER_COPY.catalogEmptyHome}</Text>
-            </View>
-          ) : (
-            <FlatList
-              horizontal
-              data={newestSongs}
-              keyExtractor={(item) =>
-                `song-${item.id || item.title}-recently-discovered`
-              }
-              showsHorizontalScrollIndicator={false}
-              snapToInterval={FEATURED_CARD_WIDTH + 16}
-              decelerationRate="fast"
-              contentContainerStyle={styles.featuredSlider}
-              renderItem={renderFeaturedItem}
-              initialNumToRender={featuredSliderTuning.initialNumToRender}
-              maxToRenderPerBatch={featuredSliderTuning.maxToRenderPerBatch}
-              windowSize={featuredSliderTuning.windowSize}
-              updateCellsBatchingPeriod={featuredSliderTuning.updateCellsBatchingPeriod}
-              removeClippedSubviews
-            />
-          )}
-
-            </>
-          ) : null}
-
-          {deferredSectionsReady &&
-            curatedSections.map((section) => (
-              <View key={`curated-${section.id}`}>
-                <View style={styles.sectionRow}>
-                  <View style={styles.sectionHeadingStack}>
-                    <Text style={styles.sectionTitle}>{section.title}</Text>
-                    <Text style={styles.sectionSubtitle}>{section.subtitle}</Text>
+              {loadingSongs ? (
+                <View style={styles.loadingBox}>
+                  <View style={styles.loadingTitleRow}>
+                    <ActivityIndicator size="small" color={COLORS.primary} />
+                    <Text style={styles.loadingText}>Preparing fresh tracks...</Text>
                   </View>
-
-                  {section.genreTitle ? (
-                    <TouchableOpacity
-                      onPress={() =>
-                        openGenreCatalog({
-                          id: section.genreTitle,
-                          title: section.genreTitle,
-                          query: section.genreTitle,
-                        })
-                      }
-                    >
-                      <Text style={styles.seeAllLink}>Open room</Text>
-                    </TouchableOpacity>
-                  ) : null}
+                  <HomeSkeletonCards />
                 </View>
-
+              ) : featuredSongs.length === 0 && hasCheckedCatalogFallbacks ? (
+                <View style={styles.emptyBox}>
+                  <Text style={styles.emptyTitle}>Your listening room is warming up</Text>
+                  <Text style={styles.emptyText}>{TESTER_COPY.catalogEmptyHome}</Text>
+                </View>
+              ) : (
                 <FlatList
                   horizontal
-                  data={section.songs}
-                  keyExtractor={(item) =>
-                    `curated-${section.id}-${item.id || item.title}`
-                  }
+                  data={newestSongs}
+                  keyExtractor={(song) => `song-${song.id || song.title}-recently-discovered`}
                   showsHorizontalScrollIndicator={false}
                   snapToInterval={FEATURED_CARD_WIDTH + 16}
                   decelerationRate="fast"
@@ -1551,138 +1218,142 @@ function HomeScreen() {
                   initialNumToRender={featuredSliderTuning.initialNumToRender}
                   maxToRenderPerBatch={featuredSliderTuning.maxToRenderPerBatch}
                   windowSize={featuredSliderTuning.windowSize}
-                  updateCellsBatchingPeriod={
-                    featuredSliderTuning.updateCellsBatchingPeriod
-                  }
+                  updateCellsBatchingPeriod={featuredSliderTuning.updateCellsBatchingPeriod}
                   removeClippedSubviews
+                  nestedScrollEnabled
                 />
-              </View>
-            ))}
+              )}
+            </>
+          );
 
-          {deferredSectionsReady && moodRooms.length > 0 && (
-            <View key="section-mood-rooms">
+        case "curated-section":
+          return (
+            <View>
               <View style={styles.sectionRow}>
-                <Text style={styles.sectionTitle}>Mood Rooms</Text>
-                {activeMoodRoom ? (
+                <View style={styles.sectionHeadingStack}>
+                  <Text style={styles.sectionTitle}>{item.section.title}</Text>
+                  <Text style={styles.sectionSubtitle}>{item.section.subtitle}</Text>
+                </View>
+                {item.section.genreTitle ? (
                   <TouchableOpacity
-                    activeOpacity={0.85}
                     onPress={() =>
-                      openMoodCatalog(
-                        activeMoodRoom.title,
-                        `${activeMoodRoom.title} music`
-                      )
+                      openGenreCatalog({
+                        id: item.section.genreTitle,
+                        title: item.section.genreTitle,
+                        query: item.section.genreTitle,
+                      })
                     }
                   >
-                    <Ionicons
-                      name="chevron-forward"
-                      size={20}
-                      color={COLORS.textMuted}
-                    />
+                    <Text style={styles.seeAllLink}>Open room</Text>
                   </TouchableOpacity>
                 ) : null}
               </View>
-
               <FlatList
                 horizontal
-                data={moodRooms}
-                keyExtractor={(item) => `mood-${item.id}`}
+                data={item.section.songs}
+                keyExtractor={(song) =>
+                  `curated-${item.section.id}-${song.id || song.title}`
+                }
                 showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.moodRail}
-                renderItem={({ item }) => {
-                  const active = item.id === activeMoodRoom?.id;
-                  const artwork = item.artwork?.[0];
-
-                  return (
-                    <TouchableOpacity
-                      activeOpacity={0.88}
-                      style={[styles.moodCard, active && styles.moodCardActive]}
-                      onPress={() => setActiveMoodId(item.id)}
-                    >
-                      {artwork ? (
-                        <HTImage
-                          source={{ uri: String(artwork) }}
-                          style={styles.moodCardArt}
-                        />
-                      ) : (
-                        <View style={styles.moodCardArtFallback}>
-                          <Ionicons
-                            name="radio"
-                            size={22}
-                            color={COLORS.primary}
-                          />
-                        </View>
-                      )}
-                      <Text numberOfLines={2} style={styles.moodCardTitle}>
-                        {item.title}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                }}
+                snapToInterval={FEATURED_CARD_WIDTH + 16}
+                decelerationRate="fast"
+                contentContainerStyle={styles.featuredSlider}
+                renderItem={renderFeaturedItem}
+                initialNumToRender={featuredSliderTuning.initialNumToRender}
+                maxToRenderPerBatch={featuredSliderTuning.maxToRenderPerBatch}
+                windowSize={featuredSliderTuning.windowSize}
+                updateCellsBatchingPeriod={featuredSliderTuning.updateCellsBatchingPeriod}
+                removeClippedSubviews
+                nestedScrollEnabled
               />
+            </View>
+          );
 
+        case "mood-rooms-header":
+          return (
+            <View style={styles.sectionRow}>
+              <Text style={styles.sectionTitle}>Mood Rooms</Text>
               {activeMoodRoom ? (
-                <View style={styles.mediaList}>
-                  {activeMoodRoom.songs.slice(0, 4).map((song) => (
-                    <Fragment
-                      key={`song-${String(song.id || song.title || song.streamUrl || "track")}-mood-rooms`}
-                    >
-                      {renderSongRow(song, "mood-rooms")}
-                    </Fragment>
-                  ))}
-                </View>
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  onPress={() =>
+                    openMoodCatalog(
+                      activeMoodRoom.title,
+                      `${activeMoodRoom.title} music`
+                    )
+                  }
+                >
+                  <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
+                </TouchableOpacity>
               ) : null}
             </View>
-          )}
+          );
 
-          {deferredSectionsReady && primaryGenreSpotlight && (
-            <View
-              key={`section-${primaryGenreSpotlight.id || primaryGenreSpotlight.title}`}
-            >
-              <TouchableOpacity
-                activeOpacity={0.88}
-                style={styles.sectionRow}
-                onPress={() =>
-                  openGenreCatalog({
-                    id: primaryGenreSpotlight.id.replace(/^genre-/, ""),
-                    title: primaryGenreSpotlight.title,
-                    query: primaryGenreSpotlight.title,
-                  })
-                }
-              >
-                <Text style={styles.sectionTitle}>Genre Spotlights</Text>
-                <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
-              </TouchableOpacity>
+        case "mood-rooms-rail":
+          return (
+            <FlatList
+              horizontal
+              data={moodRooms}
+              keyExtractor={(room) => `mood-${room.id}`}
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.moodRail}
+              nestedScrollEnabled
+              renderItem={({ item: room }) => {
+                const active = room.id === activeMoodRoom?.id;
+                const artwork = room.artwork?.[0];
 
-              <View style={styles.mediaList}>
-                {primaryGenreSpotlight.songs.slice(0, 4).map((song) => (
-                  <Fragment
-                    key={`song-${String(song.id || song.title || song.streamUrl || "track")}-genre-spotlights`}
+                return (
+                  <TouchableOpacity
+                    activeOpacity={0.88}
+                    style={[styles.moodCard, active && styles.moodCardActive]}
+                    onPress={() => setActiveMoodId(room.id)}
                   >
-                    {renderSongRow(song, "genre-spotlights")}
-                  </Fragment>
-                ))}
-              </View>
-            </View>
-          )}
+                    {artwork ? (
+                      <HTImage
+                        source={{ uri: String(artwork) }}
+                        style={styles.moodCardArt}
+                      />
+                    ) : (
+                      <View style={styles.moodCardArtFallback}>
+                        <Ionicons name="radio" size={22} color={COLORS.primary} />
+                      </View>
+                    )}
+                    <Text numberOfLines={2} style={styles.moodCardTitle}>
+                      {room.title}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              }}
+            />
+          );
 
-          {deferredSectionsReady ? (
-            <>
-              <Text style={styles.sectionTitleBlock}>
-                Full Catalog · {visibleAllSongs.length}/{featuredSongs.length}
-              </Text>
+        case "genre-spotlight-header":
+          return primaryGenreSpotlight ? (
+            <TouchableOpacity
+              activeOpacity={0.88}
+              style={styles.sectionRow}
+              onPress={() =>
+                openGenreCatalog({
+                  id: primaryGenreSpotlight.id.replace(/^genre-/, ""),
+                  title: primaryGenreSpotlight.title,
+                  query: primaryGenreSpotlight.title,
+                })
+              }
+            >
+              <Text style={styles.sectionTitle}>Genre Spotlights</Text>
+              <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
+            </TouchableOpacity>
+          ) : null;
 
-              <NestedSongList
-                screen="home_full_catalog"
-                data={visibleAllSongs}
-                itemHeight={LIST_ITEM_HEIGHTS.catalogSongRow}
-                keyPrefix="home-catalog"
-                renderItem={renderCatalogSongItem}
-                contentContainerStyle={styles.mediaList}
-              />
-            </>
-          ) : null}
+        case "catalog-header":
+          return (
+            <Text style={styles.sectionTitleBlock}>
+              Full Catalog Â· {visibleAllSongs.length}/{featuredSongs.length}
+            </Text>
+          );
 
-          {deferredSectionsReady && (hasMoreCloudSongs || hasMoreSongPages) && (
+        case "show-more":
+          return (
             <TouchableOpacity
               activeOpacity={0.86}
               style={[
@@ -1701,10 +1372,318 @@ function HomeScreen() {
                 {loadingMoreSongs ? "Loading more..." : "Find more"}
               </Text>
             </TouchableOpacity>
-          )}
+          );
 
-          <View style={{ height: 140 }} />
-        </ScrollView>
+        case "footer-spacer":
+          return <View style={{ height: 140 }} />;
+
+        default:
+          return null;
+      }
+    },
+    [
+      activeMoodRoom,
+      featuredSliderTuning,
+      featuredSongs.length,
+      hasCheckedCatalogFallbacks,
+      horizontalAlbumListTuning,
+      horizontalArtistListTuning,
+      loadingMoreSongs,
+      loadingSongs,
+      moodRooms,
+      newestSongs,
+      onRefresh,
+      primaryGenreSpotlight,
+      rankedAlbums,
+      rankedArtists,
+      renderFeaturedItem,
+      renderSongRow,
+      visibleAllSongs.length,
+      loadMoreCloudSongs,
+    ]
+  );
+
+  const listHeaderElement = useMemo(
+    () => (
+      <>
+        <View style={styles.header}>
+          <View style={styles.logoBox}>
+            <View style={styles.logoGlow} />
+            <HTImage
+              source={FALLBACK_ARTWORK}
+              style={styles.logoImage}
+              contentFit="cover"
+            />
+          </View>
+
+          <View>
+            <Text style={styles.logoText}>Hidden Tunes</Text>
+          </View>
+
+          <TouchableOpacity
+            style={styles.searchButton}
+            onPress={() => router.push("/search")}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="search" size={22} color={COLORS.text} />
+          </TouchableOpacity>
+        </View>
+
+        <Text style={styles.heroTitle}>Hidden listening.</Text>
+
+        <TouchableOpacity
+          activeOpacity={0.9}
+          style={styles.searchBar}
+          onPress={() => router.push("/search")}
+        >
+          <Ionicons name="search" size={20} color={COLORS.cyan} />
+          <Text style={styles.searchText}>Search Hidden Tunes...</Text>
+          <Ionicons name="sparkles" size={18} color={COLORS.primary} />
+        </TouchableOpacity>
+
+        <Animated.View
+          style={[
+            styles.heroOuter,
+            {
+              transform: [{ scale: heroScale }],
+            },
+          ]}
+        >
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              styles.heroBoxGlow,
+              {
+                opacity: heroGlowAnim,
+                transform: [
+                  {
+                    scale: heroGlowAnim.interpolate({
+                      inputRange: [0.42, 1],
+                      outputRange: [0.98, 1.035],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          />
+          {heroCards.length > 0 ? (
+            <FlatList
+              ref={heroListRef}
+              horizontal
+              data={heroCards}
+              keyExtractor={(item) => item.key}
+              renderItem={renderHeroCard}
+              showsHorizontalScrollIndicator={false}
+              snapToInterval={HERO_CARD_WIDTH}
+              decelerationRate="fast"
+              pagingEnabled
+              initialNumToRender={2}
+              maxToRenderPerBatch={2}
+              windowSize={3}
+              removeClippedSubviews
+              nestedScrollEnabled
+              onMomentumScrollEnd={handleHeroMomentumEnd}
+            />
+          ) : (
+            <LinearGradient colors={GRADIENTS.neon} style={styles.heroBorder}>
+              <View style={styles.heroCard}>
+                <View style={styles.heroEmpty}>
+                  {loadingSongs || !hasCheckedCatalogFallbacks ? (
+                    <>
+                      <View style={styles.heroSkeletonIcon} />
+                      <View style={styles.heroSkeletonLineWide} />
+                      <View style={styles.heroSkeletonLine} />
+                      <Text style={styles.heroEmptySub}>Preparing your catalog...</Text>
+                    </>
+                  ) : (
+                    <>
+                      <Ionicons
+                        name="musical-notes-outline"
+                        size={44}
+                        color={COLORS.primary}
+                      />
+                      <Text style={styles.heroEmptyText}>No songs yet</Text>
+                      <Text style={styles.heroEmptySub}>Pull down to refresh.</Text>
+                    </>
+                  )}
+                </View>
+              </View>
+            </LinearGradient>
+          )}
+        </Animated.View>
+
+        {heroCards.length > 1 ? (
+          <View style={styles.heroDots}>
+            {heroCards.map((item, index) => (
+              <View
+                key={`hero-dot-${item.key}`}
+                style={[styles.heroDot, index === heroIndex && styles.heroDotActive]}
+              />
+            ))}
+          </View>
+        ) : null}
+
+        <View style={styles.catalogPill}>
+          <Ionicons name="cloud-done" size={16} color={COLORS.primary} />
+          <Text style={styles.catalogPillText}>{featuredSongs.length} songs ready</Text>
+        </View>
+
+        {currentSong ? (
+          <>
+            <View style={styles.sectionRow}>
+              <Text style={styles.sectionTitle}>Continue Listening</Text>
+              <TouchableOpacity onPress={() => router.push("/player" as any)}>
+                <Text style={styles.seeAllLink}>Player</Text>
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              activeOpacity={0.88}
+              style={styles.continueCard}
+              onPress={() => playFeaturedSong(safeSong(currentSong))}
+            >
+              <HTImage source={currentSong} style={styles.continueImage} />
+
+              <View style={styles.continueInfo}>
+                <Text style={styles.continueKicker}>NOW PLAYING</Text>
+                <Text numberOfLines={1} style={styles.continueTitle}>
+                  {currentSong.title || "Unknown Song"}
+                </Text>
+                <Text numberOfLines={1} style={styles.continueArtist}>
+                  {currentSong.artist || currentSong.user?.name || "Hidden Tunes"}
+                </Text>
+              </View>
+
+              <View style={styles.continuePlay}>
+                <Ionicons name="play" size={18} color="#000" />
+              </View>
+            </TouchableOpacity>
+          </>
+        ) : null}
+
+        <TouchableOpacity
+          activeOpacity={0.88}
+          style={styles.listeningBrief}
+          onPress={() =>
+            currentSong ? router.push("/player" as any) : router.push("/explore")
+          }
+        >
+          <View style={styles.listeningBriefIcon}>
+            <Ionicons name={listeningBrief.icon} size={20} color={COLORS.primary} />
+          </View>
+
+          <View style={styles.listeningBriefText}>
+            <Text style={styles.listeningBriefLabel}>{listeningBrief.label}</Text>
+            <Text numberOfLines={1} style={styles.listeningBriefTitle}>
+              {listeningBrief.title}
+            </Text>
+          </View>
+
+          <Ionicons name="arrow-forward" size={18} color={COLORS.textMuted} />
+        </TouchableOpacity>
+
+        <View style={styles.grid}>
+          {[
+            {
+              key: "premium-music",
+              icon: "headset" as const,
+              title: "Music",
+              color: COLORS.primary,
+              onPress: () => router.push("/music-feed" as any),
+            },
+            {
+              key: "premium-search",
+              icon: "search" as const,
+              title: "Search",
+              color: COLORS.cyan,
+              onPress: () => router.push("/search"),
+            },
+            {
+              key: "premium-queue",
+              icon: "list" as const,
+              title: "Queue",
+              color: COLORS.pink,
+              onPress: () => router.push("/queue"),
+            },
+            {
+              key: "premium-tv",
+              icon: "tv" as const,
+              title: "TV",
+              color: "#ff0033",
+              onPress: () => router.push("/tv" as any),
+            },
+          ].map((card) => (
+            <PremiumCard
+              key={card.key}
+              icon={card.icon}
+              title={card.title}
+              color={card.color}
+              onPress={card.onPress}
+            />
+          ))}
+        </View>
+      </>
+    ),
+    [
+      currentSong,
+      featuredSongs.length,
+      handleHeroMomentumEnd,
+      hasCheckedCatalogFallbacks,
+      heroCards,
+      heroGlowAnim,
+      heroIndex,
+      heroScale,
+      listeningBrief.icon,
+      listeningBrief.label,
+      listeningBrief.title,
+      loadingSongs,
+      playFeaturedSong,
+      renderHeroCard,
+    ]
+  );
+
+  return (
+    <LinearGradient colors={GRADIENTS.main} style={styles.container}>
+      <View style={styles.glowPurple} />
+      <View style={styles.glowCyan} />
+
+      <Animated.View
+        style={[
+          styles.animatedWrap,
+          {
+            opacity: fadeAnim,
+            transform: [{ translateY: slideAnim }],
+          },
+        ]}
+      >
+        <FlatList
+          ref={scrollRef}
+          data={homeFeedRows}
+          keyExtractor={homeFeedKeyExtractor}
+          renderItem={renderHomeFeedRow}
+          ListHeaderComponent={listHeaderElement}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+          refreshControl={
+            <RefreshControl
+              tintColor={COLORS.primary}
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+            />
+          }
+          onScroll={handleHomeScroll}
+          scrollEventThrottle={400}
+          onScrollBeginDrag={() => markFastScrolling(true)}
+          onMomentumScrollBegin={() => markFastScrolling(true)}
+          onMomentumScrollEnd={() => markFastScrolling(false)}
+          onEndReached={loadMoreCloudSongs}
+          onEndReachedThreshold={0.35}
+          removeClippedSubviews={homeListPerformance.removeClippedSubviews}
+          initialNumToRender={homeListPerformance.initialNumToRender}
+          maxToRenderPerBatch={homeListPerformance.maxToRenderPerBatch}
+          windowSize={homeListPerformance.windowSize}
+          updateCellsBatchingPeriod={homeListPerformance.updateCellsBatchingPeriod}
+        />
       </Animated.View>
     </LinearGradient>
   );

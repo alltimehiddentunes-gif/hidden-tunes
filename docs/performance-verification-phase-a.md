@@ -69,9 +69,9 @@ Phase A did not migrate lists. Pilot FlashList only if manual verification shows
 
 Catalog fits memory index + API genre filter at current sizes. Revisit at **2k+ offline songs** or if cold-start + search latency regress.
 
-### Biggest remaining issue — **Home ScrollView nesting**
+### Biggest remaining issue — **Home discovery memo chain** (post-structural pass)
 
-Yes. Phase A reduced rerenders and tap/search/catalog costs, but Home’s outer `ScrollView` + non-virtualized nested lists remains the largest scroll/memory bottleneck.
+Home ScrollView nesting was replaced with a virtualized FlatList feed (`utils/homeFeedRows.ts`). Remaining CPU cost is discovery ranking + duplicate Home/Explore work.
 
 ## Manual verification checklist
 

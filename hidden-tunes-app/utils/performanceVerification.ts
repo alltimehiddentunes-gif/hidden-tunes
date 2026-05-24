@@ -341,7 +341,6 @@ export function getVerificationReport() {
       ),
     ],
     remainingBottlenecks: [
-      "Home ScrollView + nested FlatLists (virtualization ceiling)",
       "Home discovery memo chain on catalog/preference updates",
       "Home duplicate ranking work vs Explore",
       "Search network path still debounced separately from instant path",
@@ -349,7 +348,7 @@ export function getVerificationReport() {
     ],
     flashListRecommendation: "defer — pilot only if Search/Genre scroll jank persists after manual pass",
     sqliteRecommendation: "defer — catalog still fits memory index; revisit at 2k+ offline songs",
-    biggestRemainingIssue: "Home ScrollView nesting + discovery CPU chain",
+    biggestRemainingIssue: "Home discovery CPU chain + duplicate Explore ranking",
   };
 }
 
