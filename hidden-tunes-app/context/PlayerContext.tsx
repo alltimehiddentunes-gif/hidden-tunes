@@ -1622,6 +1622,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     if (!queue.length) return;
 
     if (getNextQueueIndex(safeIndex, queue.length) >= 0) {
+      if (trackPlayerActiveRef.current) {
+        await advanceTrackPlayerQueueFromJs("pending_smart_extend");
+        return;
+      }
+
       await scheduleTrackAdvance();
       return;
     }
@@ -1635,6 +1640,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     getActiveQueuePlaybackState,
     getNextQueueIndex,
     scheduleTrackAdvance,
+    advanceTrackPlayerQueueFromJs,
     setIsPlaying,
   ]);
 
