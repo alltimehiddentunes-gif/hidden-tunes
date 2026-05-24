@@ -10,6 +10,7 @@ import React, {
 import {
   ActivityIndicator,
   FlatList,
+  InteractionManager,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -149,6 +150,8 @@ const TV_DISCOVERY_CACHE_KEY = "hidden_tunes_tv_discovery_queries_v1";
 const WEAK_RESULT_THRESHOLD = 4;
 const SEARCH_SKELETON_KEYS = ["one", "two", "three", "four"];
 const SEARCH_DEBOUNCE_MS = 380;
+const FUZZY_SEARCH_DEBOUNCE_MS = 520;
+const TV_FETCH_DEBOUNCE_MS = 500;
 const LOCAL_SEARCH_MIN_CHARS = 2;
 const API_SEARCH_MIN_CHARS = 3;
 const VISIBLE_SONG_LIMIT = 28;
@@ -541,11 +544,14 @@ export default function SearchScreen() {
     openAlbumFromTrack: () => {},
   });
   const inFlightSearchKeyRef = useRef<string | null>(null);
+  const fuzzySearchGenerationRef = useRef(0);
+  const tvFetchGenerationRef = useRef(0);
+  const tvFetchInFlightRef = useRef<string | null>(null);
+  const fuzzySearchInFlightRef = useRef<string | null>(null);
   const lastCompletedSearchRef = useRef<{ key: string; at: number }>({
     key: "",
     at: 0,
   });
-  const lastLocalSearchLogRef = useRef("");
   const catalogIndexRef = useRef<{
     songCount: number;
     index: CatalogSearchIndex;
@@ -578,8 +584,10 @@ export default function SearchScreen() {
   >([]);
   const [tvIndexVideos, setTvIndexVideos] = useState<HiddenTunesTvVideo[]>([]);
   const [tvSearchVideos, setTvSearchVideos] = useState<HiddenTunesTvVideo[]>([]);
-  const [fuzzyGroupedResults, setFuzzyGroupedResults] =
-    useState<GroupedSearchResults | null>(null);
+  const [deferredFuzzySearch, setDeferredFuzzySearch] = useState<{
+    query: string;
+    results: GroupedSearchResults | null;
+  }>({ query: "", results: null });
 
   const matchedGenres = useMemo(() => {
     const safeQuery = query.trim().toLowerCase();
@@ -655,27 +663,35 @@ export default function SearchScreen() {
 
   const groupedSearchResults = useMemo(() => {
     if (!showGroupedSearch) return EMPTY_GROUPED_RESULTS;
-    if (!fuzzyGroupedResults?.hasAnyResults) return instantGroupedResults;
+
+    const instant = instantGroupedResults;
+    const deferred = deferredFuzzySearch;
+
+    if (
+      deferred.query !== trimmedQuery ||
+      !deferred.results?.hasAnyResults
+    ) {
+      return instant;
+    }
 
     return {
-      ...fuzzyGroupedResults,
+      ...deferred.results,
       songs:
-        fuzzyGroupedResults.songs.length > 0
-          ? fuzzyGroupedResults.songs
-          : instantGroupedResults.songs,
+        deferred.results.songs.length > 0
+          ? deferred.results.songs
+          : instant.songs,
       topResults:
-        fuzzyGroupedResults.topResults.length > 0
-          ? fuzzyGroupedResults.topResults
-          : instantGroupedResults.topResults,
+        deferred.results.topResults.length > 0
+          ? deferred.results.topResults
+          : instant.topResults,
       hasAnyResults:
-        fuzzyGroupedResults.hasAnyResults || instantGroupedResults.hasAnyResults,
+        deferred.results.hasAnyResults || instant.hasAnyResults,
     };
-  }, [fuzzyGroupedResults, instantGroupedResults, showGroupedSearch]);
+  }, [deferredFuzzySearch, instantGroupedResults, showGroupedSearch, trimmedQuery]);
 
   const visibleSongResults = useMemo(() => {
     if (!showGroupedSearch) return [] as NativeSearchTrack[];
 
-    const startedAt = Date.now();
     const seen = new Set<string>();
     const collected: NativeSearchTrack[] = [];
 
@@ -694,7 +710,7 @@ export default function SearchScreen() {
       collected.push(normalized);
     };
 
-    for (const song of collectGroupedSongPayloads(groupedSearchResults)) {
+    for (const song of collectGroupedSongPayloads(instantGroupedResults)) {
       addSong(song);
     }
 
@@ -722,43 +738,59 @@ export default function SearchScreen() {
       }
     }
 
-    if (__DEV__) {
-      const localMs = Date.now() - startedAt;
-      const logKey = `${trimmedQuery}:${collected.length}:${catalogSongs.length}`;
-      if (lastLocalSearchLogRef.current !== logKey) {
-        lastLocalSearchLogRef.current = logKey;
-        console.log("[Search:local]", {
-          query: trimmedQuery,
-          localResultCount: collected.length,
-          localSearchMs: localMs,
-          source: catalogSongs.length > 0 ? "catalog/cache" : "empty",
-        });
-      }
-    }
-
     return collected;
   }, [
-    groupedSearchResults,
+    instantGroupedResults,
     showGroupedSearch,
     trimmedQuery,
     universalCatalog.songs,
   ]);
 
   useEffect(() => {
-    setFuzzyGroupedResults(null);
+    setDeferredFuzzySearch({ query: "", results: null });
   }, [trimmedQuery]);
 
   useEffect(() => {
     if (trimmedQuery.length < LOCAL_SEARCH_MIN_CHARS) {
-      setFuzzyGroupedResults(null);
+      setDeferredFuzzySearch({ query: "", results: null });
       return;
     }
 
-    const handle = setTimeout(() => {
-      setFuzzyGroupedResults(runUniversalCatalogSearch(universalCatalog, trimmedQuery));
-    }, 140);
+    const generation = ++fuzzySearchGenerationRef.current;
+    const queryAtSchedule = trimmedQuery;
 
-    return () => clearTimeout(handle);
+    const timer = setTimeout(() => {
+      if (generation !== fuzzySearchGenerationRef.current) return;
+      if (fuzzySearchInFlightRef.current === queryAtSchedule) return;
+
+      fuzzySearchInFlightRef.current = queryAtSchedule;
+
+      InteractionManager.runAfterInteractions(() => {
+        if (generation !== fuzzySearchGenerationRef.current) return;
+        if (queryAtSchedule !== trimmedQuery) {
+          fuzzySearchInFlightRef.current = null;
+          return;
+        }
+
+        const results = runUniversalCatalogSearch(universalCatalog, queryAtSchedule);
+
+        if (generation !== fuzzySearchGenerationRef.current) return;
+        if (queryAtSchedule !== trimmedQuery) {
+          fuzzySearchInFlightRef.current = null;
+          return;
+        }
+
+        fuzzySearchInFlightRef.current = null;
+        setDeferredFuzzySearch({ query: queryAtSchedule, results });
+      });
+    }, FUZZY_SEARCH_DEBOUNCE_MS);
+
+    return () => {
+      clearTimeout(timer);
+      if (fuzzySearchInFlightRef.current === queryAtSchedule) {
+        fuzzySearchInFlightRef.current = null;
+      }
+    };
   }, [trimmedQuery, universalCatalog]);
 
   useEffect(() => {
@@ -807,15 +839,34 @@ export default function SearchScreen() {
       return;
     }
 
+    const generation = ++tvFetchGenerationRef.current;
+    const queryAtSchedule = safeQuery;
     let cancelled = false;
 
-    void fetchTvCatalog({ q: safeQuery, limit: 40 }).then((response) => {
-      if (cancelled || !response.success) return;
-      setTvSearchVideos(response.videos || []);
-    });
+    const timer = setTimeout(() => {
+      if (cancelled || generation !== tvFetchGenerationRef.current) return;
+      if (tvFetchInFlightRef.current === queryAtSchedule) return;
+
+      tvFetchInFlightRef.current = queryAtSchedule;
+
+      void fetchTvCatalog({ q: queryAtSchedule, limit: 40 }).then((response) => {
+        if (cancelled || generation !== tvFetchGenerationRef.current) return;
+        if (queryAtSchedule !== trimmedQuery) return;
+
+        tvFetchInFlightRef.current = null;
+
+        if (!response.success) return;
+        setTvSearchVideos(response.videos || []);
+      }).catch(() => {
+        if (!cancelled) {
+          tvFetchInFlightRef.current = null;
+        }
+      });
+    }, TV_FETCH_DEBOUNCE_MS);
 
     return () => {
       cancelled = true;
+      clearTimeout(timer);
     };
   }, [trimmedQuery]);
 

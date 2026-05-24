@@ -236,6 +236,138 @@ const YouTubeTrackCard = memo(function YouTubeTrackCard({
   );
 });
 
+type MoodRoomItem = {
+  id: string;
+  title: string;
+  artwork?: string[];
+};
+
+const MoodRoomCard = memo(function MoodRoomCard({
+  item,
+  active,
+  onPress,
+}: {
+  item: MoodRoomItem;
+  active: boolean;
+  onPress: (title: string) => void;
+}) {
+  const artwork = item.artwork?.[0];
+
+  return (
+    <TouchableOpacity
+      style={[styles.moodCard, active && styles.moodCardActive]}
+      activeOpacity={0.88}
+      onPress={() => onPress(item.title)}
+    >
+      {artwork ? (
+        <HTImage source={{ uri: String(artwork) }} style={styles.moodCardArt} />
+      ) : (
+        <View style={styles.moodCardArtFallback}>
+          <Ionicons name="radio" size={22} color={COLORS.primary} />
+        </View>
+      )}
+      <Text numberOfLines={2} style={styles.moodCardTitle}>
+        {item.title}
+      </Text>
+    </TouchableOpacity>
+  );
+});
+
+const ExploreNavCard = memo(function ExploreNavCard({
+  item,
+  title,
+  subtitle,
+  onPress,
+}: {
+  item: any;
+  title: string;
+  subtitle: string;
+  onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity activeOpacity={0.88} style={styles.cloudCard} onPress={onPress}>
+      <HTImage source={item} style={styles.cloudCover} />
+      <Text numberOfLines={1} style={styles.cloudTitle}>
+        {title}
+      </Text>
+      <Text numberOfLines={1} style={styles.cloudArtist}>
+        {subtitle}
+      </Text>
+    </TouchableOpacity>
+  );
+});
+
+const ExploreArtistNavCard = memo(function ExploreArtistNavCard({
+  item,
+  onPress,
+}: {
+  item: any;
+  onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity activeOpacity={0.88} style={styles.artistCloudCard} onPress={onPress}>
+      <HTImage source={item} style={styles.artistCloudImage} />
+      <Text numberOfLines={1} style={styles.cloudTitle}>
+        {item.name || "Artist"}
+      </Text>
+      <Text numberOfLines={1} style={styles.cloudArtist}>
+        {Array.isArray(item.tracks)
+          ? `${item.tracks.length} songs`
+          : item.genre || "Hidden Tunes"}
+      </Text>
+    </TouchableOpacity>
+  );
+});
+
+const ExploreContinueListening = memo(function ExploreContinueListening({
+  currentSong,
+  onResume,
+}: {
+  currentSong: any;
+  onResume: () => void;
+}) {
+  if (!currentSong) return null;
+
+  return (
+    <>
+      <View style={styles.rowHeader}>
+        <Text style={styles.sectionTitle}>Continue Listening</Text>
+
+        <TouchableOpacity onPress={() => router.push("/player" as any)}>
+          <Text style={styles.seeAll}>Player</Text>
+        </TouchableOpacity>
+      </View>
+
+      <TouchableOpacity
+        activeOpacity={0.88}
+        style={styles.continueCard}
+        onPress={onResume}
+      >
+        <HTImage source={currentSong} style={styles.continueImage} />
+
+        <View style={styles.continueInfo}>
+          <Text style={styles.continueKicker}>NOW PLAYING</Text>
+
+          <Text numberOfLines={1} style={styles.continueTitle}>
+            {currentSong.title || "Unknown Song"}
+          </Text>
+
+          <Text numberOfLines={1} style={styles.continueArtist}>
+            {currentSong.artist ||
+              currentSong.user?.name ||
+              currentSong.channelTitle ||
+              "Hidden Tunes"}
+          </Text>
+        </View>
+
+        <View style={styles.continuePlay}>
+          <Ionicons name="play" size={18} color="#000" />
+        </View>
+      </TouchableOpacity>
+    </>
+  );
+});
+
 function buildInitialExploreSongs() {
   const snapshot = getHiddenTunesCatalogSnapshot();
   if (!snapshot.length) return [] as HiddenTunesNormalizedSong[];
@@ -263,7 +395,7 @@ function ExploreSkeletonRail() {
   );
 }
 
-export default function ExploreScreen() {
+export default memo(function ExploreScreen() {
   const { playSong, toggleSmartAutoplay } = usePlayerActions();
   const { currentSong } = usePlayerNowPlaying();
   const { recentlyPlayed, favorites, smartAutoplayEnabled } = usePlayerState();
@@ -811,6 +943,68 @@ export default function ExploreScreen() {
     [openYouTubeTrack]
   );
 
+  const renderMoodRoom = useCallback(
+    ({ item }: { item: MoodRoomItem }) => (
+      <MoodRoomCard
+        item={item}
+        active={item.id === primaryMoodRoom?.id}
+        onPress={openMood}
+      />
+    ),
+    [openMood, primaryMoodRoom?.id]
+  );
+
+  const renderPlaylistItem = useCallback(
+    ({ item }: { item: HiddenTunesCloudPlaylist }) => (
+      <ExploreNavCard
+        item={item}
+        title={(item as any).title || (item as any).name || "Playlist"}
+        subtitle={
+          Array.isArray(item.tracks) ? `${item.tracks.length} tracks` : "Playlist"
+        }
+        onPress={() =>
+          router.push({
+            pathname: "/cloud-playlist/[id]",
+            params: { id: item.id },
+          } as any)
+        }
+      />
+    ),
+    []
+  );
+
+  const renderAlbumItem = useCallback(
+    ({ item }: { item: HiddenTunesAlbum }) => (
+      <ExploreNavCard
+        item={item}
+        title={(item as any).title || (item as any).name || "Album"}
+        subtitle={item.artist || "Hidden Tunes"}
+        onPress={() =>
+          router.push({
+            pathname: "/album/[id]",
+            params: { id: item.id },
+          } as any)
+        }
+      />
+    ),
+    []
+  );
+
+  const renderArtistItem = useCallback(
+    ({ item }: { item: HiddenTunesArtist }) => (
+      <ExploreArtistNavCard
+        item={item}
+        onPress={() =>
+          router.push({
+            pathname: "/artist/[id]",
+            params: { id: item.id },
+          } as any)
+        }
+      />
+    ),
+    []
+  );
+
   const getCloudItemLayout = useCallback(
     (_: any, index: number) => ({
       length: CARD_WIDTH + CARD_GAP,
@@ -820,34 +1014,10 @@ export default function ExploreScreen() {
     []
   );
 
-  return (
-    <LinearGradient colors={GRADIENTS.main} style={styles.container}>
-      <FlatList
-        ref={listRef}
-        data={showTvSection ? listTracks : []}
-        keyExtractor={(item, index) => `${item.videoId || item.id || "track"}-${index}`}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.listContent}
-        refreshControl={
-          <RefreshControl
-            tintColor={COLORS.primary}
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-          />
-        }
-        removeClippedSubviews
-        initialNumToRender={listPerformance.initialNumToRender}
-        maxToRenderPerBatch={listPerformance.maxToRenderPerBatch}
-        windowSize={listPerformance.windowSize}
-        updateCellsBatchingPeriod={listPerformance.updateCellsBatchingPeriod}
-        onScrollBeginDrag={() => markFastScrolling(true)}
-        onMomentumScrollBegin={() => markFastScrolling(true)}
-        onMomentumScrollEnd={() => markFastScrolling(false)}
-        onEndReached={loadMoreSongs}
-        onEndReachedThreshold={0.45}
-        ListHeaderComponent={
-          <>
-            <View style={styles.topBar}>
+  const listHeaderElement = useMemo(
+    () => (
+      <>
+        <View style={styles.topBar}>
               <View>
                 <Text style={styles.kicker}>EXPLORE</Text>
                 <Text style={styles.heading}>Hidden Tunes</Text>
@@ -918,44 +1088,10 @@ export default function ExploreScreen() {
               </View>
             </View>
 
-            {currentSong && (
-              <>
-                <View style={styles.rowHeader}>
-                  <Text style={styles.sectionTitle}>Continue Listening</Text>
-
-                  <TouchableOpacity onPress={() => router.push("/player" as any)}>
-                    <Text style={styles.seeAll}>Player</Text>
-                  </TouchableOpacity>
-                </View>
-
-                <TouchableOpacity
-                  activeOpacity={0.88}
-                  style={styles.continueCard}
-                  onPress={resumeCurrentSong}
-                >
-                  <HTImage source={currentSong} style={styles.continueImage} />
-
-                  <View style={styles.continueInfo}>
-                    <Text style={styles.continueKicker}>NOW PLAYING</Text>
-
-                    <Text numberOfLines={1} style={styles.continueTitle}>
-                      {currentSong.title || "Unknown Song"}
-                    </Text>
-
-                    <Text numberOfLines={1} style={styles.continueArtist}>
-                      {currentSong.artist ||
-                        currentSong.user?.name ||
-                        currentSong.channelTitle ||
-                        "Hidden Tunes"}
-                    </Text>
-                  </View>
-
-                  <View style={styles.continuePlay}>
-                    <Ionicons name="play" size={18} color="#000" />
-                  </View>
-                </TouchableOpacity>
-              </>
-            )}
+            <ExploreContinueListening
+              currentSong={currentSong}
+              onResume={resumeCurrentSong}
+            />
 
             {moodRooms.length > 0 && (
               <View style={styles.moodRailSection}>
@@ -967,39 +1103,7 @@ export default function ExploreScreen() {
                   keyExtractor={(item) => item.id}
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={styles.moodRail}
-                  renderItem={({ item }) => {
-                    const active = item.id === primaryMoodRoom?.id;
-                    const artwork = item.artwork?.[0];
-
-                    return (
-                      <TouchableOpacity
-                        style={[
-                          styles.moodCard,
-                          active && styles.moodCardActive,
-                        ]}
-                        activeOpacity={0.88}
-                        onPress={() => openMood(item.title)}
-                      >
-                        {artwork ? (
-                          <HTImage
-                            source={{ uri: String(artwork) }}
-                            style={styles.moodCardArt}
-                          />
-                        ) : (
-                          <View style={styles.moodCardArtFallback}>
-                            <Ionicons
-                              name="radio"
-                              size={22}
-                              color={COLORS.primary}
-                            />
-                          </View>
-                        )}
-                        <Text numberOfLines={2} style={styles.moodCardTitle}>
-                          {item.title}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  }}
+                  renderItem={renderMoodRoom}
                 />
               </View>
             )}
@@ -1229,30 +1333,7 @@ export default function ExploreScreen() {
                   windowSize={horizontalRailTuning.windowSize}
                   updateCellsBatchingPeriod={horizontalRailTuning.updateCellsBatchingPeriod}
                   removeClippedSubviews
-                  renderItem={({ item }: any) => (
-                    <TouchableOpacity
-                      activeOpacity={0.88}
-                      style={styles.cloudCard}
-                      onPress={() =>
-                        router.push({
-                          pathname: "/cloud-playlist/[id]",
-                          params: { id: item.id },
-                        } as any)
-                      }
-                    >
-                      <HTImage source={item} style={styles.cloudCover} />
-
-                      <Text numberOfLines={1} style={styles.cloudTitle}>
-                        {item.title || item.name || "Playlist"}
-                      </Text>
-
-                      <Text numberOfLines={1} style={styles.cloudArtist}>
-                        {Array.isArray(item.tracks)
-                          ? `${item.tracks.length} tracks`
-                          : "Playlist"}
-                      </Text>
-                    </TouchableOpacity>
-                  )}
+                  renderItem={renderPlaylistItem}
                 />
               </>
             )}
@@ -1272,28 +1353,7 @@ export default function ExploreScreen() {
                   windowSize={horizontalRailTuning.windowSize}
                   updateCellsBatchingPeriod={horizontalRailTuning.updateCellsBatchingPeriod}
                   removeClippedSubviews
-                  renderItem={({ item }: any) => (
-                    <TouchableOpacity
-                      activeOpacity={0.88}
-                      style={styles.cloudCard}
-                      onPress={() =>
-                        router.push({
-                          pathname: "/album/[id]",
-                          params: { id: item.id },
-                        } as any)
-                      }
-                    >
-                      <HTImage source={item} style={styles.cloudCover} />
-
-                      <Text numberOfLines={1} style={styles.cloudTitle}>
-                        {item.title || item.name || "Album"}
-                      </Text>
-
-                      <Text numberOfLines={1} style={styles.cloudArtist}>
-                        {item.artist || "Hidden Tunes"}
-                      </Text>
-                    </TouchableOpacity>
-                  )}
+                  renderItem={renderAlbumItem}
                 />
               </>
             )}
@@ -1318,30 +1378,7 @@ export default function ExploreScreen() {
                     offset: (ARTIST_CARD_WIDTH + CARD_GAP) * index,
                     index,
                   })}
-                  renderItem={({ item }: any) => (
-                    <TouchableOpacity
-                      activeOpacity={0.88}
-                      style={styles.artistCloudCard}
-                      onPress={() =>
-                        router.push({
-                          pathname: "/artist/[id]",
-                          params: { id: item.id },
-                        } as any)
-                      }
-                    >
-                      <HTImage source={item} style={styles.artistCloudImage} />
-
-                      <Text numberOfLines={1} style={styles.cloudTitle}>
-                        {item.name || "Artist"}
-                      </Text>
-
-                      <Text numberOfLines={1} style={styles.cloudArtist}>
-                        {Array.isArray(item.tracks)
-                          ? `${item.tracks.length} songs`
-                          : item.genre || "Hidden Tunes"}
-                      </Text>
-                    </TouchableOpacity>
-                  )}
+                  renderItem={renderArtistItem}
                 />
               </>
             )}
@@ -1402,8 +1439,74 @@ export default function ExploreScreen() {
             {showTvSection && !loading && tracks.length > 0 && (
               <Text style={styles.sectionTitleBlock}>Visual Discovery</Text>
             )}
-          </>
+      </>
+    ),
+    [
+      loading,
+      smartAutoplayEnabled,
+      currentSong,
+      cloudSongs,
+      moodRooms,
+      primaryMoodRoom?.id,
+      smartPicks,
+      continueSongs,
+      recentlyAdded,
+      curatedSections,
+      genreWorlds,
+      showHeavySections,
+      playlists,
+      rankedAlbums,
+      rankedArtists,
+      featured,
+      showTvSection,
+      loadingTvSection,
+      hasCheckedDiscoveryFallbacks,
+      tracks.length,
+      renderSmartPick,
+      renderRecentSong,
+      renderCloudSong,
+      renderMoodRoom,
+      renderPlaylistItem,
+      renderAlbumItem,
+      renderArtistItem,
+      horizontalRailTuning,
+      getCloudItemLayout,
+      onRefresh,
+      toggleSmartAutoplay,
+      resumeCurrentSong,
+      openYouTubeTrack,
+      openSmartPick,
+      openMood,
+      openGenre,
+    ]
+  );
+
+  return (
+    <LinearGradient colors={GRADIENTS.main} style={styles.container}>
+      <FlatList
+        ref={listRef}
+        data={showTvSection ? listTracks : []}
+        keyExtractor={(item, index) => `${item.videoId || item.id || "track"}-${index}`}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.listContent}
+        refreshControl={
+          <RefreshControl
+            tintColor={COLORS.primary}
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+          />
         }
+        removeClippedSubviews
+        initialNumToRender={listPerformance.initialNumToRender}
+        maxToRenderPerBatch={listPerformance.maxToRenderPerBatch}
+        windowSize={listPerformance.windowSize}
+        updateCellsBatchingPeriod={listPerformance.updateCellsBatchingPeriod}
+        onScrollBeginDrag={() => markFastScrolling(true)}
+        onMomentumScrollBegin={() => markFastScrolling(true)}
+        onMomentumScrollEnd={() => markFastScrolling(false)}
+        onEndReached={loadMoreSongs}
+        onEndReachedThreshold={0.45}
+        ListHeaderComponent={listHeaderElement}
         ListFooterComponent={
           loadingMoreSongs ? (
             <View style={styles.loadMoreFooter}>
@@ -1425,7 +1528,7 @@ export default function ExploreScreen() {
       />
     </LinearGradient>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
