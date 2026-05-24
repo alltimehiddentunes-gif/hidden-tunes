@@ -1,5 +1,5 @@
-import LyricsEditorPage from "@/components/LyricsEditorPage";
+import PremiumSyncedLyricsEditorPage from "@/components/PremiumSyncedLyricsEditorPage";
 
 export default function SyncedLyricsEditorRoute() {
-  return <LyricsEditorPage mode="synced" />;
+  return <PremiumSyncedLyricsEditorPage />;
 }
