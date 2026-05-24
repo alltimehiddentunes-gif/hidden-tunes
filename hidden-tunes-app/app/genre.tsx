@@ -321,18 +321,21 @@ export default function GenreScreen() {
       });
   }, [cloudTracks]);
 
+  const playQueue = useMemo(
+    () => dedupeSongs(cloudTracks.map(safeSong)),
+    [cloudTracks]
+  );
+
   const openCloudTrack = useCallback(
     async (song: HiddenTunesNormalizedSong) => {
       try {
         const tapStartedAt = startPerformanceTimer();
-        const queue = dedupeSongs(cloudTracks.map(safeSong));
         const normalized = safeSong(song);
-
-        const startIndex = queue.findIndex((item) => item.id === normalized.id);
+        const startIndex = playQueue.findIndex((item) => item.id === normalized.id);
 
         void playSong(
           normalized as any,
-          queue as any,
+          playQueue as any,
           startIndex >= 0 ? startIndex : 0
         ).finally(() => {
           logTapToPlay("genre", tapStartedAt, { id: normalized.id });
@@ -347,7 +350,7 @@ export default function GenreScreen() {
         }
       }
     },
-    [cloudTracks, playSong]
+    [playQueue, playSong]
   );
 
   const openCloudTrackRef = useRef(openCloudTrack);

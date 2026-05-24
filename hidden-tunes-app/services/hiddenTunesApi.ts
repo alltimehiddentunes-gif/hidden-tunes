@@ -55,6 +55,7 @@ const BROKEN_PROMISE_FALLBACK = {
 let songsMemoryCache: HiddenTunesNormalizedSong[] | null = null;
 let songsMemoryCacheTime = 0;
 let songsFetchPromise: Promise<HiddenTunesNormalizedSong[]> | null = null;
+let catalogStorageHydratePromise: Promise<HiddenTunesNormalizedSong[]> | null = null;
 let songsBackgroundRefreshPromise: Promise<void> | null = null;
 let songsBackgroundRefreshAttemptTime = 0;
 const endpointFailures = new Map<string, { failedAt: number; count: number }>();
@@ -612,7 +613,7 @@ async function fetchWithTimeout(url: string, timeoutMs = NETWORK_FETCH_TIMEOUT_M
   }
 }
 
-async function readCachedSongs() {
+async function readCachedSongsFromStorage() {
   try {
     const cached = await AsyncStorage.getItem(CACHE_KEY);
     if (!cached) {
@@ -652,6 +653,22 @@ async function readCachedSongs() {
     console.log("Hidden Tunes cache read error:", error);
     return finalizeSongs([]);
   }
+}
+
+async function readCachedSongs() {
+  if (songsMemoryCache?.length) {
+    return songsMemoryCache;
+  }
+
+  if (catalogStorageHydratePromise) {
+    return catalogStorageHydratePromise;
+  }
+
+  catalogStorageHydratePromise = readCachedSongsFromStorage().finally(() => {
+    catalogStorageHydratePromise = null;
+  });
+
+  return catalogStorageHydratePromise;
 }
 
 async function writeCachedSongs(songs: HiddenTunesNormalizedSong[]) {
@@ -812,6 +829,7 @@ export async function clearHiddenTunesSongsCache() {
   songsMemoryCache = null;
   songsMemoryCacheTime = 0;
   songsFetchPromise = null;
+  catalogStorageHydratePromise = null;
   await AsyncStorage.multiRemove([CACHE_KEY, CACHE_TIME_KEY]);
 }
 
