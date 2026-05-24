@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { canEditAllTrackLyrics } from "@/lib/adminPermissions";
 import { requireUploadPermission } from "@/lib/requireUploadPermission";
+import {
+  buildReleaseHealthSummary,
+  loadLyricsHealthMaps,
+} from "@/lib/releaseHealth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
@@ -304,7 +308,7 @@ export async function GET(request: NextRequest) {
         ? supabaseAdmin
             .from("songs")
             .select(
-              "id,album_id,title,genre,audio_url,url,artwork_url,cover_url,has_lyrics,lyrics_url,duration,duration_seconds,created_at,uploaded_by_user_id"
+              "id,album_id,title,genre,mood,audio_url,url,artwork_url,cover_url,has_lyrics,lyrics_url,lyrics_type,duration,duration_seconds,created_at,uploaded_by_user_id"
             )
             .in("album_id", albumIds)
         : Promise.resolve({ data: [], error: null }),
@@ -321,6 +325,11 @@ export async function GET(request: NextRequest) {
       ])
     );
     const songRows = (songs || []) as unknown as SongRow[];
+    const songIds = songRows
+      .map((song) => String(song.id || ""))
+      .filter(Boolean);
+    const { trackLyricsBySongId, syncedLyricsBySongId } =
+      await loadLyricsHealthMaps(songIds);
 
     const releases = albumRows.map((album) => {
       const releaseSongs = songRows.filter(
@@ -347,6 +356,13 @@ export async function GET(request: NextRequest) {
         latestDate(releaseSongs.map((song) => String(song.created_at || ""))) ||
         String(album.created_at || "") ||
         null;
+      const health = buildReleaseHealthSummary({
+        album,
+        artistName: artist?.name ? String(artist.name) : null,
+        songs: releaseSongs,
+        trackLyricsBySongId,
+        syncedLyricsBySongId,
+      });
 
       return {
         id: album.id,
@@ -367,9 +383,11 @@ export async function GET(request: NextRequest) {
         artworkReadyCount: releaseSongs.filter((song) =>
           Boolean(song.artwork_url || song.cover_url)
         ).length,
-        lyricsReadyCount: releaseSongs.filter((song) =>
-          Boolean(song.has_lyrics || song.lyrics_url)
-        ).length,
+        lyricsReadyCount: health.plainLyricsReadyCount,
+        plainLyricsReadyCount: health.plainLyricsReadyCount,
+        syncedLyricsReadyCount: health.syncedLyricsReadyCount,
+        metadataReadyCount: health.metadataReadyCount,
+        health,
         uploadedByUserId: stringOrNull(album.uploaded_by_user_id),
         uploaderEmail: uploader?.email || "Unknown uploader",
         uploaderRole: uploader?.role || null,

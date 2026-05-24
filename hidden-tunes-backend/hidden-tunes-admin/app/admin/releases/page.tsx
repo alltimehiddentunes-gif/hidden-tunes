@@ -4,6 +4,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import AdminShell from "@/components/AdminShell";
+import {
+  ReleaseHealthCompact,
+  type ReleaseHealthSummary,
+} from "@/components/ReleaseHealthPanel";
 import { getActiveUploaderSession, supabase } from "@/lib/auth";
 import {
   formatRightsValue,
@@ -30,6 +34,10 @@ type ReleaseSummary = {
   audioReadyCount: number;
   artworkReadyCount: number;
   lyricsReadyCount: number;
+  plainLyricsReadyCount?: number;
+  syncedLyricsReadyCount?: number;
+  metadataReadyCount?: number;
+  health?: ReleaseHealthSummary;
   uploadedByUserId?: string | null;
   uploaderEmail?: string | null;
   uploaderRole?: string | null;
@@ -164,6 +172,8 @@ export default function AdminReleasesPage() {
       knownUploaders: releases.filter((release) => release.uploadedByUserId)
         .length,
       rights: releases.filter((release) => release.reviewStatus).length,
+      fullyReady: releases.filter((release) => (release.health?.score || 0) >= 100)
+        .length,
     }),
     [releases]
   );
@@ -301,10 +311,11 @@ export default function AdminReleasesPage() {
         </button>
       }
     >
-      <section className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <MetricCard label="Total Results" value={compactNumber(pagination.total)} />
         <MetricCard label="Loaded Page" value={String(totals.loaded)} />
         <MetricCard label="Tracks Loaded" value={compactNumber(totals.tracks)} />
+        <MetricCard label="Fully Ready" value={String(totals.fullyReady)} />
         <MetricCard label="Known Uploaders" value={String(totals.knownUploaders)} />
       </section>
 
@@ -476,8 +487,9 @@ function CompactReleaseTable({
 }) {
   return (
     <section className="min-w-0 overflow-hidden rounded-[1.7rem] border border-white/10 bg-[#101017]/92 shadow-2xl">
-      <div className="hidden grid-cols-[minmax(260px,1.35fr)_0.62fr_0.86fr_0.68fr_0.78fr_0.78fr_0.78fr_0.68fr_128px] gap-3 border-b border-white/10 px-4 py-3 text-[10px] font-black uppercase tracking-[0.18em] text-white/35 2xl:grid">
+      <div className="hidden grid-cols-[minmax(240px,1.2fr)_minmax(180px,0.95fr)_0.58fr_0.82fr_0.66fr_0.74fr_0.74fr_0.74fr_0.64fr_120px] gap-3 border-b border-white/10 px-4 py-3 text-[10px] font-black uppercase tracking-[0.18em] text-white/35 2xl:grid">
         <span>Release</span>
+        <span>Health</span>
         <span>Tracks</span>
         <span>Uploader</span>
         <span>Genre</span>
@@ -515,8 +527,18 @@ function ReleaseRow({
   onUploader: () => void | undefined;
 }) {
   return (
-    <article className="grid min-w-0 gap-3 px-4 py-3 transition hover:bg-white/[0.035] 2xl:grid-cols-[minmax(0,1.35fr)_minmax(84px,0.62fr)_minmax(120px,0.86fr)_minmax(96px,0.68fr)_minmax(110px,0.78fr)_minmax(110px,0.78fr)_minmax(110px,0.78fr)_minmax(96px,0.68fr)_minmax(96px,128px)] 2xl:items-center">
+    <article className="grid min-w-0 gap-3 px-4 py-3 transition hover:bg-white/[0.035] 2xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.95fr)_minmax(72px,0.58fr)_minmax(112px,0.82fr)_minmax(92px,0.66fr)_minmax(104px,0.74fr)_minmax(104px,0.74fr)_minmax(104px,0.74fr)_minmax(92px,0.64fr)_minmax(88px,120px)] 2xl:items-center">
       <ReleaseIdentity release={release} />
+      <div className="min-w-0">
+        <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-white/30 2xl:hidden">
+          Health
+        </p>
+        {release.health ? (
+          <ReleaseHealthCompact health={release.health} />
+        ) : (
+          <InfoCell label="Health" value={releaseAssetStatus(release)} />
+        )}
+      </div>
       <InfoCell label="Tracks" value={String(release.trackCount)} />
       <UploaderCell release={release} onPress={onUploader} />
       <InfoCell label="Genre" value={release.primaryGenre || "Unknown"} />
@@ -573,6 +595,12 @@ function CompactGrid({
             <MiniStat label="Genre" value={release.primaryGenre || "Unknown"} />
             <MiniStat label="Date" value={formatDate(release.updatedAt || release.createdAt)} />
           </div>
+
+          {release.health ? (
+            <div className="mt-4">
+              <ReleaseHealthCompact health={release.health} />
+            </div>
+          ) : null}
 
           <div className="mt-4">
             <UploaderCell release={release} onPress={() => onUploader(release)} />

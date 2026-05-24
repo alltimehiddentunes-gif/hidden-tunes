@@ -5,6 +5,10 @@ import { useParams, useRouter } from "next/navigation";
 
 import AdminShell from "@/components/AdminShell";
 import ControlledGenreFields from "@/components/ControlledGenreFields";
+import {
+  ReleaseHealthPanel,
+  type ReleaseHealthSummary,
+} from "@/components/ReleaseHealthPanel";
 import { getActiveUploaderSession, supabase } from "@/lib/auth";
 import {
   buildGenreSavePayload,
@@ -39,6 +43,9 @@ type ReleaseTrack = {
   artworkKey: string | null;
   lyricsUrl: string | null;
   hasLyrics: boolean;
+  hasPlainLyrics?: boolean;
+  hasSyncedLyrics?: boolean;
+  metadataComplete?: boolean;
   lyricsType: string | null;
   sourceName: string | null;
   sourceType: string | null;
@@ -58,6 +65,7 @@ type ReleaseDetail = {
   createdAt: string | null;
   uploader?: ReleaseUploader | null;
   rightsReview?: RightsReviewMetadata | null;
+  health?: ReleaseHealthSummary;
   tracks: ReleaseTrack[];
 };
 
@@ -164,10 +172,15 @@ function reviewTone(value: string | null | undefined) {
 }
 
 function assetSummary(track: ReleaseTrack) {
+  const plainReady = track.hasPlainLyrics ?? track.hasLyrics;
+  const syncedReady = track.hasSyncedLyrics;
+
   return [
     track.audioUrl ? "Audio live" : "Audio missing",
     track.artworkUrl ? "Artwork live" : "Artwork missing",
-    track.hasLyrics ? "Lyrics ready" : "Lyrics not attached",
+    plainReady ? "Plain lyrics" : "Plain lyrics missing",
+    syncedReady ? "Synced lyrics" : "Synced lyrics missing",
+    track.metadataComplete === false ? "Metadata incomplete" : "Metadata ok",
   ].join(" / ");
 }
 
@@ -202,20 +215,6 @@ export default function AdminReleaseDetailPage() {
     if (release.tracks.some((track) => !track.audioUrl)) return "Needs audio";
     if (release.tracks.some((track) => !track.artworkUrl)) return "Needs artwork";
     return "Release ready";
-  }, [release]);
-
-  const assetHealth = useMemo(() => {
-    const tracks = release?.tracks || [];
-    const total = tracks.length || 1;
-    const audio = tracks.filter((track) => track.audioUrl).length;
-    const artwork = tracks.filter((track) => track.artworkUrl).length;
-
-    return {
-      audio,
-      artwork,
-      lyrics: tracks.filter((track) => track.hasLyrics).length,
-      score: Math.round(((audio + artwork) / (total * 2)) * 100),
-    };
   }, [release]);
 
   const loadRelease = useCallback(
@@ -593,31 +592,29 @@ export default function AdminReleaseDetailPage() {
               <div className="flex items-center justify-between gap-4">
                 <StatusBadge status={releaseStatus} />
                 <span className="text-sm font-black text-white/60">
-                  {assetHealth.score}% ready
+                  {release.health?.score ?? 0}% ready
                 </span>
               </div>
               <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/10">
                 <div
                   className="h-full rounded-full bg-gradient-to-r from-yellow-300 to-emerald-300"
-                  style={{ width: `${assetHealth.score}%` }}
+                  style={{ width: `${release.health?.score ?? 0}%` }}
                 />
               </div>
+              {release.health ? (
+                <p className="mt-3 text-xs font-bold text-white/40">
+                  {release.health.readinessLabel}
+                </p>
+              ) : null}
             </div>
           </div>
 
-          <div className="min-w-0 rounded-[2.1rem] border border-white/10 bg-[#101017]/92 p-5 shadow-2xl">
-            <p className="text-xs font-black uppercase tracking-[0.28em] text-yellow-300">
-              Asset Health
-            </p>
-            <div className="mt-5 flex flex-col gap-3">
-              <HealthRow label="Audio" value={`${assetHealth.audio}/${release.tracks.length}`} />
-              <HealthRow
-                label="Artwork"
-                value={`${assetHealth.artwork}/${release.tracks.length}`}
-              />
-              <HealthRow label="Lyrics" value={`${assetHealth.lyrics}/${release.tracks.length}`} />
-            </div>
-          </div>
+          {release.health ? (
+            <ReleaseHealthPanel
+              health={release.health}
+              trackCount={release.tracks.length}
+            />
+          ) : null}
 
           <UploaderInfoCard
             uploader={release.uploader}
@@ -1050,17 +1047,6 @@ function StatusBadge({ status }: { status: string }) {
     >
       {status}
     </span>
-  );
-}
-
-function HealthRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/25 px-4 py-3">
-      <span className="text-sm font-bold text-white/65">{label}</span>
-      <span className="rounded-full bg-white/[0.06] px-3 py-1 text-xs font-black text-white">
-        {value}
-      </span>
-    </div>
   );
 }
 

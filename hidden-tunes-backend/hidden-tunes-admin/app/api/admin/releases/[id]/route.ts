@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { requireUploadPermission } from "@/lib/requireUploadPermission";
+import {
+  buildReleaseHealthSummary,
+  buildTrackHealth,
+  loadLyricsHealthMaps,
+} from "@/lib/releaseHealth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
@@ -140,8 +145,17 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
     const songRows = (tracks || []) as unknown as SongRow[];
     const uploaderRow = uploader as unknown as UploaderRow | null;
+    const songIds = songRows.map((track) => String(track.id || "")).filter(Boolean);
+    const { trackLyricsBySongId, syncedLyricsBySongId } =
+      await loadLyricsHealthMaps(songIds);
 
-    const normalizedTracks = songRows.map((track, index) => ({
+    const normalizedTracks = songRows.map((track, index) => {
+      const trackId = String(track.id || "");
+      const lyrics = trackLyricsBySongId.get(trackId);
+      const synced = syncedLyricsBySongId.get(trackId);
+      const health = buildTrackHealth({ song: track, lyrics, synced });
+
+      return {
       id: track.id,
       title: track.title || `Track ${index + 1}`,
       artist: track.artist || track.artist_name || artist?.name || "Unknown Artist",
@@ -155,7 +169,10 @@ export async function GET(request: NextRequest, context: RouteContext) {
       audioKey: track.r2_audio_key || null,
       artworkKey: track.r2_cover_key || null,
       lyricsUrl: track.lyrics_url || null,
-      hasLyrics: Boolean(track.has_lyrics || track.lyrics_url),
+      hasLyrics: health.hasPlainLyrics,
+      hasPlainLyrics: health.hasPlainLyrics,
+      hasSyncedLyrics: health.hasSyncedLyrics,
+      metadataComplete: health.metadataComplete,
       lyricsType: track.lyrics_type || null,
       lyricsUpdatedAt: track.lyrics_updated_at || null,
       sourceName: track.source_name || "Hidden Tunes",
@@ -163,7 +180,17 @@ export async function GET(request: NextRequest, context: RouteContext) {
       isOnline: track.is_online ?? track.isOnline ?? true,
       createdAt: track.created_at || null,
       uploadedByUserId: track.uploaded_by_user_id || null,
-    }));
+      health,
+    };
+    });
+
+    const health = buildReleaseHealthSummary({
+      album: albumRow,
+      artistName: artist?.name ? String(artist.name) : null,
+      songs: songRows,
+      trackLyricsBySongId,
+      syncedLyricsBySongId,
+    });
 
     return NextResponse.json({
       success: true,
@@ -186,6 +213,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
           role: uploaderRow?.role || null,
           status: uploaderRow?.status || null,
         },
+        health,
         rightsReview: {
           reviewStatus: stringOrNull(albumRow.review_status),
           licenseDeclaration: stringOrNull(albumRow.license_declaration),
