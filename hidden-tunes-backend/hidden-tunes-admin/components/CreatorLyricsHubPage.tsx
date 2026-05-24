@@ -104,15 +104,24 @@ export default function CreatorLyricsHubPage() {
       title="Creator Lyrics"
       description="Edit plain and synced lyrics for songs you are allowed to manage."
       actions={
-        accessToken ? (
+        <div className="flex flex-col gap-2 sm:flex-row">
           <button
             type="button"
-            onClick={() => void loadTracks(accessToken)}
-            className="rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-3 text-sm font-black text-white/75"
+            onClick={() => router.push("/admin/creator/bulk-lyrics")}
+            className="rounded-2xl bg-gradient-to-r from-violet-300 via-fuchsia-300 to-amber-200 px-5 py-3 text-sm font-black text-black"
           >
-            Refresh
+            Bulk Lyrics Intake
           </button>
-        ) : null
+          {accessToken ? (
+            <button
+              type="button"
+              onClick={() => void loadTracks(accessToken)}
+              className="rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-3 text-sm font-black text-white/75"
+            >
+              Refresh
+            </button>
+          ) : null}
+        </div>
       }
     >
       {errorMessage ? (
