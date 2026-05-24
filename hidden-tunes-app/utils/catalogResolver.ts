@@ -368,6 +368,7 @@ export function matchSongsForCatalogTarget<T extends CatalogSongLike>(
 export function resolveCatalogEmptyState(input: {
   hasCheckedFallbacks: boolean;
   isLoading: boolean;
+  isRefreshing?: boolean;
   resolvedCount: number;
 }) {
   if (input.resolvedCount > 0) {
@@ -377,7 +378,7 @@ export function resolveCatalogEmptyState(input: {
     };
   }
 
-  if (!input.hasCheckedFallbacks || input.isLoading) {
+  if (input.isRefreshing || !input.hasCheckedFallbacks || input.isLoading) {
     return {
       showEmpty: false,
       reason: "awaiting_cache_and_api" as CatalogEmptyStateReason,

@@ -31,6 +31,10 @@ import {
   type CatalogResolverType,
 } from "../utils/catalogResolver";
 import {
+  shouldReplaceCatalogResults,
+  shouldResetCatalogFallbackGate,
+} from "../utils/catalogEmptyStateTiming";
+import {
   logApiRefresh,
   logCacheResult,
   logPerformanceSummary,
@@ -145,6 +149,7 @@ export default function GenreScreen() {
   const [cloudTracks, setCloudTracks] = useState<HiddenTunesNormalizedSong[]>(
     () => (instantView?.songs || []).map(safeSong)
   );
+  const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(() => !(instantView?.songs.length || 0));
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(instantView?.hasMore ?? true);
@@ -168,9 +173,10 @@ export default function GenreScreen() {
       resolveCatalogEmptyState({
         hasCheckedFallbacks,
         isLoading: loading,
+        isRefreshing: refreshing,
         resolvedCount: cloudTracks.length,
       }),
-    [cloudTracks.length, hasCheckedFallbacks, loading]
+    [cloudTracks.length, hasCheckedFallbacks, loading, refreshing]
   );
 
   const loadGenreTracks = useCallback(
@@ -178,11 +184,15 @@ export default function GenreScreen() {
       const refreshStart = startPerformanceTimer();
 
       try {
-        if (!forceRefresh) {
-          setLoading(false);
+        if (forceRefresh) {
+          setRefreshing(true);
+        } else if (!cloudTracks.length) {
+          setLoading(true);
         }
 
-        setHasCheckedFallbacks(false);
+        if (shouldResetCatalogFallbackGate(cloudTracks.length)) {
+          setHasCheckedFallbacks(false);
+        }
 
         const result = await loadCatalogView({
           ...catalogOptions,
@@ -190,7 +200,14 @@ export default function GenreScreen() {
           forceRefresh,
         });
 
-        setCloudTracks(result.songs.map(safeSong));
+        const nextTracks = result.songs.map(safeSong);
+        if (
+          shouldReplaceCatalogResults(nextTracks, cloudTracks.length, {
+            allowClearStale: forceRefresh,
+          })
+        ) {
+          setCloudTracks(nextTracks);
+        }
         setPage(1);
         setHasMore(result.hasMore);
 
@@ -240,9 +257,10 @@ export default function GenreScreen() {
       } finally {
         setHasCheckedFallbacks(true);
         setLoading(false);
+        setRefreshing(false);
       }
     },
-    [catalogOptions, screenStartedAt, title]
+    [catalogOptions, cloudTracks.length, screenStartedAt, title]
   );
 
   const loadGenreTracksRef = useRef(loadGenreTracks);
@@ -420,7 +438,7 @@ export default function GenreScreen() {
 
         <TouchableOpacity
           style={styles.refreshButton}
-          onPress={() => loadGenreTracksRef.current(true)}
+          onPress={() => void loadGenreTracksRef.current(true)}
           activeOpacity={0.85}
         >
           <Ionicons name="refresh" size={21} color={COLORS.text} />

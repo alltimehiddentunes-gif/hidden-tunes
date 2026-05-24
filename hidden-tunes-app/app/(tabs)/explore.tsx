@@ -65,6 +65,11 @@ import {
 } from "../../utils/startupDiagnostics";
 import { scheduleStartupTask } from "../../utils/startupScheduler";
 import {
+  shouldReplaceCatalogResults,
+  shouldResetCatalogFallbackGate,
+  shouldShowCatalogEmpty,
+} from "../../utils/catalogEmptyStateTiming";
+import {
   getHorizontalListPerformanceSettings,
   getListPerformanceSettings,
   markFastScrolling,
@@ -398,6 +403,7 @@ export default memo(function ExploreScreen() {
   const screenStartedAt = useRef(startPerformanceTimer()).current;
   const initialExploreLoadRef = useRef(false);
   const exploreHasSongsRef = useRef(false);
+  const exploreSongCountRef = useRef(0);
   const loadExploreRef = useRef<
     (showLoader?: boolean, forceRefresh?: boolean) => Promise<void>
   >(async () => {});
@@ -483,6 +489,7 @@ export default memo(function ExploreScreen() {
   }, []);
 
   const applyExploreSongs = useCallback((nextSongs: HiddenTunesNormalizedSong[]) => {
+    exploreSongCountRef.current = nextSongs.length;
     exploreHasSongsRef.current = nextSongs.length > 0;
     setCloudSongs(nextSongs);
     setSongPage(1);
@@ -503,7 +510,9 @@ export default memo(function ExploreScreen() {
     async (showLoader = true, forceRefresh = false) => {
       try {
         let showedCachedCatalog = exploreHasSongsRef.current;
-        setHasCheckedDiscoveryFallbacks(false);
+        if (shouldResetCatalogFallbackGate(exploreSongCountRef.current)) {
+          setHasCheckedDiscoveryFallbacks(false);
+        }
 
         if (!forceRefresh) {
           const memorySnapshot = getHiddenTunesCatalogSnapshot();
@@ -559,7 +568,13 @@ export default memo(function ExploreScreen() {
             ? dedupeSongs(songResults.map(safeSong))
             : [];
 
-          applyExploreSongs(nextSongs);
+          if (
+            shouldReplaceCatalogResults(nextSongs, exploreSongCountRef.current, {
+              allowClearStale: forceRefresh,
+            })
+          ) {
+            applyExploreSongs(nextSongs);
+          }
           const refreshMs = Date.now() - refreshStart;
 
           logApiRefresh("explore", refreshStart, {
@@ -1390,10 +1405,13 @@ export default memo(function ExploreScreen() {
               </TouchableOpacity>
             ) : null}
 
-            {!loading &&
-            hasCheckedDiscoveryFallbacks &&
-            !featured &&
-            !cloudSongs.length ? (
+            {shouldShowCatalogEmpty({
+              hasCheckedFallbacks: hasCheckedDiscoveryFallbacks,
+              isLoading: loading,
+              isRefreshing: refreshing,
+              resolvedCount: cloudSongs.length,
+            }) &&
+            !featured ? (
               <View style={styles.empty}>
                 <Ionicons name="musical-notes-outline" size={58} color={COLORS.textMuted} />
                 <Text style={styles.emptyTitle}>Discovery is warming up</Text>

@@ -78,6 +78,12 @@ import {
   markFirstCachedContentVisible,
 } from "../../utils/startupDiagnostics";
 import { scheduleStartupTask } from "../../utils/startupScheduler";
+import {
+  shouldReplaceCatalogResults,
+  shouldResetCatalogFallbackGate,
+  shouldShowCatalogEmpty,
+  shouldShowCatalogLoadingShell,
+} from "../../utils/catalogEmptyStateTiming";
 
 const { width } = Dimensions.get("window");
 const FEATURED_CARD_WIDTH = width * 0.72;
@@ -243,7 +249,7 @@ function HomeScreen() {
 
         let showedCachedCatalog = featuredSongsCountRef.current > 0;
 
-        if (!forceRefresh) {
+        if (!forceRefresh && shouldResetCatalogFallbackGate(featuredSongsCountRef.current)) {
           setHasCheckedCatalogFallbacks(false);
 
           const memorySnapshot = getHiddenTunesCatalogSnapshot();
@@ -292,7 +298,13 @@ function HomeScreen() {
             ? await refreshHiddenTunesSongs()
             : await getHiddenTunesSongs({ forceRefresh: false });
 
-          applyFeaturedSongs(songs);
+          if (
+            shouldReplaceCatalogResults(songs, featuredSongsCountRef.current, {
+              allowClearStale: forceRefresh,
+            })
+          ) {
+            applyFeaturedSongs(songs);
+          }
           const refreshMs = Date.now() - refreshStart;
 
           logApiRefresh("home", refreshStart, {
@@ -1150,7 +1162,12 @@ function HomeScreen() {
                   <Ionicons name="refresh" size={20} color={COLORS.text} />
                 </TouchableOpacity>
               </View>
-              {loadingSongs ? (
+              {shouldShowCatalogLoadingShell({
+                hasCheckedFallbacks: hasCheckedCatalogFallbacks,
+                isLoading: loadingSongs,
+                isRefreshing: refreshing,
+                resolvedCount: featuredSongs.length,
+              }) ? (
                 <View style={styles.loadingBox}>
                   <View style={styles.loadingTitleRow}>
                     <ActivityIndicator size="small" color={COLORS.primary} />
@@ -1158,7 +1175,12 @@ function HomeScreen() {
                   </View>
                   <HomeSkeletonCards />
                 </View>
-              ) : featuredSongs.length === 0 && hasCheckedCatalogFallbacks ? (
+              ) : shouldShowCatalogEmpty({
+                hasCheckedFallbacks: hasCheckedCatalogFallbacks,
+                isLoading: loadingSongs,
+                isRefreshing: refreshing,
+                resolvedCount: featuredSongs.length,
+              }) ? (
                 <View style={styles.emptyBox}>
                   <Text style={styles.emptyTitle}>Your listening room is warming up</Text>
                   <Text style={styles.emptyText}>{TESTER_COPY.catalogEmptyHome}</Text>
@@ -1446,14 +1468,24 @@ function HomeScreen() {
             <LinearGradient colors={GRADIENTS.neon} style={styles.heroBorder}>
               <View style={styles.heroCard}>
                 <View style={styles.heroEmpty}>
-                  {loadingSongs || !hasCheckedCatalogFallbacks ? (
+                  {shouldShowCatalogLoadingShell({
+                    hasCheckedFallbacks: hasCheckedCatalogFallbacks,
+                    isLoading: loadingSongs,
+                    isRefreshing: refreshing,
+                    resolvedCount: featuredSongs.length,
+                  }) ? (
                     <>
                       <View style={styles.heroSkeletonIcon} />
                       <View style={styles.heroSkeletonLineWide} />
                       <View style={styles.heroSkeletonLine} />
                       <Text style={styles.heroEmptySub}>Preparing your catalog...</Text>
                     </>
-                  ) : (
+                  ) : shouldShowCatalogEmpty({
+                    hasCheckedFallbacks: hasCheckedCatalogFallbacks,
+                    isLoading: loadingSongs,
+                    isRefreshing: refreshing,
+                    resolvedCount: featuredSongs.length,
+                  }) ? (
                     <>
                       <Ionicons
                         name="musical-notes-outline"
@@ -1463,7 +1495,7 @@ function HomeScreen() {
                       <Text style={styles.heroEmptyText}>No songs yet</Text>
                       <Text style={styles.heroEmptySub}>Pull down to refresh.</Text>
                     </>
-                  )}
+                  ) : null}
                 </View>
               </View>
             </LinearGradient>

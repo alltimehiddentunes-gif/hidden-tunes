@@ -30,6 +30,7 @@ import {
   type HiddenTunesNormalizedSong,
 } from "../../services/hiddenTunesApi";
 import { getArtworkUri, resolveEntityArtwork } from "../../utils/artwork";
+import { shouldResetCatalogFallbackGate } from "../../utils/catalogEmptyStateTiming";
 import {
   logApiRefresh,
   logCacheResult,
@@ -131,6 +132,7 @@ export default function AlbumScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [hasCheckedFallbacks, setHasCheckedFallbacks] = useState(false);
+  const albumRef = useRef<HiddenTunesAlbum | null>(null);
 
   const tracks = useMemo(
     () => (album?.tracks || []).map(safeSong),
@@ -149,15 +151,21 @@ export default function AlbumScreen() {
 
   useEffect(() => trackRenderProbe("AlbumScreen"), []);
 
+  useEffect(() => {
+    albumRef.current = album;
+  }, [album]);
+
   const loadAlbum = useCallback(
-    async (showLoader = true) => {
+    async (showLoader = true, allowClearOnMiss = false) => {
       const albumId = String(id || "");
       let showedCachedAlbum = false;
       const refreshStart = startPerformanceTimer();
 
       try {
-        setHasCheckedFallbacks(false);
-        if (showLoader) setLoading(true);
+        if (shouldResetCatalogFallbackGate(albumRef.current?.tracks?.length || 0)) {
+          setHasCheckedFallbacks(false);
+        }
+        if (showLoader && !albumRef.current) setLoading(true);
 
         const snapshotAlbum = await loadAlbumDetailSnapshot(albumId);
         if (snapshotAlbum) {
@@ -228,12 +236,12 @@ export default function AlbumScreen() {
               tracks: data.tracks.length,
             });
           }
-        } else if (!showedCachedAlbum) {
+        } else if (!showedCachedAlbum || allowClearOnMiss) {
           setAlbum(null);
         }
       } catch (error) {
         console.log("Load album error:", error);
-        if (!showedCachedAlbum) setAlbum(null);
+        if (!showedCachedAlbum || allowClearOnMiss) setAlbum(null);
       } finally {
         setHasCheckedFallbacks(true);
         setLoading(false);
@@ -249,7 +257,7 @@ export default function AlbumScreen() {
 
   async function onRefresh() {
     setRefreshing(true);
-    await loadAlbum(false);
+    await loadAlbum(false, true);
   }
 
   function handlePlay(track: HiddenTunesNormalizedSong) {
@@ -314,7 +322,7 @@ export default function AlbumScreen() {
     [album, tracks]
   );
 
-  if (loading) {
+  if (loading && !album) {
     return (
       <LinearGradient colors={GRADIENTS.main as any} style={styles.center}>
         <ActivityIndicator color={COLORS.primary} />
@@ -323,7 +331,7 @@ export default function AlbumScreen() {
     );
   }
 
-  if (!album && hasCheckedFallbacks) {
+  if (!album && hasCheckedFallbacks && !refreshing) {
     return (
       <LinearGradient colors={GRADIENTS.main as any} style={styles.center}>
         <Ionicons name="disc-outline" size={64} color={COLORS.textMuted} />

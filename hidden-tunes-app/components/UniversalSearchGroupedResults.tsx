@@ -20,6 +20,7 @@ type Props = {
   onSuggestionPress: (text: string) => void;
   activeSongId?: string | null;
   isPlaying?: boolean;
+  showEmpty?: boolean;
 };
 
 function MatchReasonPill({ reason }: { reason: UniversalMatchReason }) {
@@ -59,8 +60,13 @@ function UniversalSearchGroupedResults({
   onSuggestionPress,
   activeSongId,
   isPlaying,
+  showEmpty = false,
 }: Props) {
   if (!grouped.hasAnyResults) {
+    if (!showEmpty) {
+      return null;
+    }
+
     return (
       <View style={styles.emptyBox}>
         <Ionicons name="search-outline" size={52} color={COLORS.textMuted} />

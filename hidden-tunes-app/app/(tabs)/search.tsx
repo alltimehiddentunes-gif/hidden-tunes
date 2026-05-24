@@ -88,6 +88,7 @@ import {
   setCachedSearchResults,
 } from "../../utils/searchQueryCache";
 import { openGenreCatalog } from "../../utils/catalogNavigation";
+import { shouldShowCatalogEmpty } from "../../utils/catalogEmptyStateTiming";
 import UniversalSearchGroupedResults from "../../components/UniversalSearchGroupedResults";
 import {
   invalidateCatalogSearchIndex,
@@ -1097,8 +1098,6 @@ export default function SearchScreen() {
     setTvFallbackReason("");
     setSearchPage(1);
     setHasMoreHiddenResults(false);
-    setHasCheckedSearchFallbacks(false);
-
     if (!safeText || safeText.length < LOCAL_SEARCH_MIN_CHARS) {
       setResults([]);
       setHasCheckedSearchFallbacks(true);
@@ -2136,6 +2135,12 @@ export default function SearchScreen() {
                   onSuggestionPress={(text) => commitSearch(text, activeSource)}
                   activeSongId={currentSongId}
                   isPlaying={isPlaying}
+                  showEmpty={shouldShowCatalogEmpty({
+                    hasCheckedFallbacks: hasCheckedSearchFallbacks,
+                    isLoading: loading,
+                    isRefreshing: refreshing,
+                    resolvedCount: groupedSearchResults.hasAnyResults ? 1 : 0,
+                  })}
                 />
               ) : null}
 
@@ -2158,8 +2163,14 @@ export default function SearchScreen() {
             </>
           }
           ListEmptyComponent={
-            showGroupedSearch ? null : query.trim().length >= API_SEARCH_MIN_CHARS &&
-              hasCheckedSearchFallbacks ? (
+            showGroupedSearch
+              ? null
+              : shouldShowCatalogEmpty({
+                  hasCheckedFallbacks: hasCheckedSearchFallbacks,
+                  isLoading: loading,
+                  isRefreshing: refreshing,
+                  resolvedCount: results.length,
+                }) && query.trim().length >= API_SEARCH_MIN_CHARS ? (
             <View style={styles.emptyBox}>
               <Ionicons name="musical-notes-outline" size={56} color={COLORS.textMuted} />
               <Text style={styles.emptyTitle}>Nothing matched yet</Text>

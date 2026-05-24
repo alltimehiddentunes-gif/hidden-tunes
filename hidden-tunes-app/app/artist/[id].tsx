@@ -30,6 +30,7 @@ import {
   type HiddenTunesNormalizedSong,
 } from "../../services/hiddenTunesApi";
 import { getArtworkUri, resolveEntityArtwork } from "../../utils/artwork";
+import { shouldResetCatalogFallbackGate } from "../../utils/catalogEmptyStateTiming";
 import {
   logApiRefresh,
   logCacheResult,
@@ -128,6 +129,7 @@ export default function ArtistScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [hasCheckedFallbacks, setHasCheckedFallbacks] = useState(false);
+  const artistRef = useRef<HiddenTunesArtist | null>(null);
 
   const tracks = useMemo(
     () => (artist?.tracks || []).map(safeSong),
@@ -150,15 +152,21 @@ export default function ArtistScreen() {
 
   useEffect(() => trackRenderProbe("ArtistScreen"), []);
 
+  useEffect(() => {
+    artistRef.current = artist;
+  }, [artist]);
+
   const loadArtist = useCallback(
-    async (showLoader = true) => {
+    async (showLoader = true, allowClearOnMiss = false) => {
       const artistId = String(id || "");
       let showedCachedArtist = false;
       const refreshStart = startPerformanceTimer();
 
       try {
-        setHasCheckedFallbacks(false);
-        if (showLoader) setLoading(true);
+        if (shouldResetCatalogFallbackGate(artistRef.current?.tracks?.length || 0)) {
+          setHasCheckedFallbacks(false);
+        }
+        if (showLoader && !artistRef.current) setLoading(true);
 
         const snapshotArtist = await loadArtistDetailSnapshot(artistId);
         if (snapshotArtist) {
@@ -346,7 +354,7 @@ export default function ArtistScreen() {
     [artist, tracks]
   );
 
-  if (loading) {
+  if (loading && !artist) {
     return (
       <LinearGradient colors={GRADIENTS.main as any} style={styles.center}>
         <ActivityIndicator color={COLORS.primary} />
@@ -355,7 +363,7 @@ export default function ArtistScreen() {
     );
   }
 
-  if (!artist && hasCheckedFallbacks) {
+  if (!artist && hasCheckedFallbacks && !refreshing) {
     return (
       <LinearGradient colors={GRADIENTS.main as any} style={styles.center}>
         <Ionicons name="person-circle-outline" size={70} color={COLORS.textMuted} />
