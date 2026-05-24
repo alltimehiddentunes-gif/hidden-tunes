@@ -4,8 +4,10 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import AdminShell from "@/components/AdminShell";
+import { UploaderAnalyticsPanel } from "@/components/UploaderAnalyticsPanel";
 import { getActiveUploaderSession, supabase } from "@/lib/auth";
 import { canManageUploaders } from "@/lib/adminPermissions";
+import type { UploaderAnalyticsSummary } from "@/lib/uploaderAnalytics";
 
 type UploaderRole = "upload_manager" | "owner";
 
@@ -32,6 +34,12 @@ type UpdateUploaderStatusApiResponse = {
   success: boolean;
   error?: string;
   message?: string;
+};
+
+type UploaderAnalyticsApiResponse = {
+  success: boolean;
+  analytics?: Record<string, UploaderAnalyticsSummary>;
+  error?: string;
 };
 
 const ALLOWED_UPLOADER_ROLES: UploaderRole[] = ["upload_manager", "owner"];
@@ -72,6 +80,9 @@ export default function AdminUploadersPage() {
   );
   const [pendingDisableUploader, setPendingDisableUploader] =
     useState<UploaderProfile | null>(null);
+  const [analyticsByUploaderId, setAnalyticsByUploaderId] = useState<
+    Record<string, UploaderAnalyticsSummary>
+  >({});
 
   const cleanedEmail = useMemo(
     () => newUploaderEmail.trim().toLowerCase(),
@@ -107,11 +118,35 @@ export default function AdminUploadersPage() {
     if (error) {
       setErrorMessage(error.message);
       setUploaders([]);
+      setAnalyticsByUploaderId({});
       return;
     }
 
     setErrorMessage(null);
-    setUploaders((data || []) as UploaderProfile[]);
+    const nextUploaders = (data || []) as UploaderProfile[];
+    setUploaders(nextUploaders);
+
+    const accessToken = await getAccessToken();
+    if (!accessToken) {
+      setAnalyticsByUploaderId({});
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/admin/uploaders/analytics", {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      const result = (await response.json()) as UploaderAnalyticsApiResponse;
+
+      if (!response.ok || !result.success) {
+        setAnalyticsByUploaderId({});
+        return;
+      }
+
+      setAnalyticsByUploaderId(result.analytics || {});
+    } catch {
+      setAnalyticsByUploaderId({});
+    }
   }
 
   useEffect(() => {
@@ -417,6 +452,13 @@ export default function AdminUploadersPage() {
                     )}
                   </div>
                 </div>
+
+                {analyticsByUploaderId[uploader.id] ? (
+                  <UploaderAnalyticsPanel
+                    analytics={analyticsByUploaderId[uploader.id]}
+                    compact
+                  />
+                ) : null}
               </article>
             ))}
           </div>

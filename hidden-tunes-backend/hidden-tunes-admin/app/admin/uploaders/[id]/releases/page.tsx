@@ -4,8 +4,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 
 import AdminShell from "@/components/AdminShell";
+import { UploaderAnalyticsPanel } from "@/components/UploaderAnalyticsPanel";
 import { getActiveUploaderSession, supabase } from "@/lib/auth";
 import { formatRightsValue } from "@/lib/rightsReview";
+import type { UploaderAnalyticsSummary } from "@/lib/uploaderAnalytics";
 
 type ReleaseSummary = {
   id: string;
@@ -44,6 +46,12 @@ type UploaderProfile = {
   email: string | null;
   role: string | null;
   status: string | null;
+};
+
+type UploaderAnalyticsApiResponse = {
+  success: boolean;
+  analytics?: UploaderAnalyticsSummary;
+  error?: string;
 };
 
 const DEFAULT_PAGINATION: PaginationState = {
@@ -99,6 +107,7 @@ export default function UploaderReleasesPage() {
   const [page, setPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [pageError, setPageError] = useState("");
+  const [analytics, setAnalytics] = useState<UploaderAnalyticsSummary | null>(null);
 
   const summary = useMemo(
     () => ({
@@ -124,22 +133,28 @@ export default function UploaderReleasesPage() {
 
     if (!token) throw new Error("Your admin session expired. Sign in again.");
 
-    const [{ data: uploaderData, error: uploaderError }, releasesResponse] =
-      await Promise.all([
-        supabase
-          .from("uploader_profiles")
-          .select("id, email, role, status")
-          .eq("id", uploaderId)
-          .maybeSingle(),
-        fetch(
-          `/api/admin/releases?uploaderId=${encodeURIComponent(
-            uploaderId
-          )}&page=${page}&pageSize=50`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        ),
-      ]);
+    const [
+      { data: uploaderData, error: uploaderError },
+      releasesResponse,
+      analyticsResponse,
+    ] = await Promise.all([
+      supabase
+        .from("uploader_profiles")
+        .select("id, email, role, status")
+        .eq("id", uploaderId)
+        .maybeSingle(),
+      fetch(
+        `/api/admin/releases?uploaderId=${encodeURIComponent(
+          uploaderId
+        )}&page=${page}&pageSize=50`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      ),
+      fetch(`/api/admin/uploaders/${encodeURIComponent(uploaderId)}/analytics`, {
+        headers: { Authorization: `Bearer ${token}` },
+      }),
+    ]);
 
     if (uploaderError) throw uploaderError;
 
@@ -151,8 +166,17 @@ export default function UploaderReleasesPage() {
       throw new Error(releasesData?.error || "Could not load uploader releases.");
     }
 
+    const analyticsData = (await analyticsResponse.json().catch(() => null)) as
+      | UploaderAnalyticsApiResponse
+      | null;
+
     setUploader((uploaderData || null) as UploaderProfile | null);
     setReleases(releasesData.releases || []);
+    setAnalytics(
+      analyticsResponse.ok && analyticsData?.success && analyticsData.analytics
+        ? analyticsData.analytics
+        : null
+    );
     setPagination({
       ...DEFAULT_PAGINATION,
       ...releasesData.pagination,
@@ -212,10 +236,18 @@ export default function UploaderReleasesPage() {
       }
     >
       <section className="mb-4 grid gap-3 sm:grid-cols-3">
-        <Metric label="Releases" value={String(pagination.total)} />
-        <Metric label="Tracks" value={String(summary.tracks)} />
+        <Metric
+          label="Releases"
+          value={String(analytics?.totalReleases ?? pagination.total)}
+        />
+        <Metric
+          label="Tracks"
+          value={String(analytics?.totalTracks ?? summary.tracks)}
+        />
         <Metric label="Flagged" value={String(summary.flagged)} />
       </section>
+
+      {analytics ? <UploaderAnalyticsPanel analytics={analytics} /> : null}
 
       {pageError ? (
         <section className="mb-4 rounded-[1.7rem] border border-red-400/20 bg-red-500/10 p-5 text-sm text-red-100">
