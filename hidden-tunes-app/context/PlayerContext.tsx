@@ -58,6 +58,13 @@ import {
 } from "../services/playbackBridge";
 import { getArtworkValue } from "../utils/artwork";
 import {
+  getActiveLyricLine,
+  getBestLyricsPayload,
+  parseLrc,
+  resolveLyricsDisplay,
+  toSyncedLyricLines,
+} from "../utils/lyrics";
+import {
   logAudioLoadFailure,
   logAudioLoadStart,
   logAudioLoadSuccess,
@@ -267,44 +274,7 @@ function getPositionStateUpdateMinMs(state: AppStateStatus) {
 }
 
 function parseSyncedLyrics(input?: string | null): SyncedLyricLine[] {
-  if (!input || typeof input !== "string") return [];
-
-  return input
-    .split(/\r?\n/)
-    .map((line) => {
-      const match = line.match(/\[(\d{1,2}):(\d{2})(?:\.(\d{1,3}))?\](.*)/);
-      if (!match) return null;
-
-      const minutes = Number(match[1]);
-      const seconds = Number(match[2]);
-      const fraction = match[3] ? Number(match[3].padEnd(3, "0")) : 0;
-      const text = match[4]?.trim() || "";
-
-      if (!Number.isFinite(minutes) || !Number.isFinite(seconds)) return null;
-
-      return {
-        time: minutes * 60 * 1000 + seconds * 1000 + fraction,
-        text,
-      };
-    })
-    .filter(Boolean)
-    .sort((a, b) => a!.time - b!.time) as SyncedLyricLine[];
-}
-
-function getCurrentLyricLine(
-  lines: SyncedLyricLine[],
-  positionMillis: number
-): SyncedLyricLine | null {
-  if (!lines.length) return null;
-
-  let current: SyncedLyricLine | null = null;
-
-  for (const line of lines) {
-    if (line.time <= positionMillis + 150) current = line;
-    else break;
-  }
-
-  return current;
+  return toSyncedLyricLines(parseLrc(input || ""));
 }
 
 export function PlayerProvider({ children }: { children: ReactNode }) {
@@ -614,25 +584,59 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const currentLyrics = currentSong?.lyrics || "";
 
-  const currentSyncedLyrics = useMemo(() => {
-    return (
-      currentSong?.parsedLyrics ||
-      parseSyncedLyrics(
+  const currentLyricsDisplay = useMemo(() => {
+    const payload = getBestLyricsPayload({
+      synced_lrc:
         currentSong?.syncedLyrics ||
-          currentSong?.synced_lyrics ||
-          currentSong?.lrc
-      )
+        currentSong?.synced_lyrics ||
+        currentSong?.lrc,
+      plain_lyrics: currentLyrics,
+    });
+
+    return resolveLyricsDisplay(payload.synced, payload.plain);
+  }, [
+    currentLyrics,
+    currentSong?.lrc,
+    currentSong?.syncedLyrics,
+    currentSong?.synced_lyrics,
+  ]);
+
+  const currentSyncedLyrics = useMemo(() => {
+    if (currentSong?.parsedLyrics?.length) {
+      return currentSong.parsedLyrics;
+    }
+
+    if (currentLyricsDisplay.mode === "synced") {
+      return toSyncedLyricLines(currentLyricsDisplay.lines);
+    }
+
+    return parseSyncedLyrics(
+      currentSong?.syncedLyrics ||
+        currentSong?.synced_lyrics ||
+        currentSong?.lrc
     );
   }, [
+    currentLyricsDisplay.lines,
+    currentLyricsDisplay.mode,
+    currentSong?.lrc,
     currentSong?.parsedLyrics,
     currentSong?.syncedLyrics,
     currentSong?.synced_lyrics,
-    currentSong?.lrc,
   ]);
 
   const currentLyricLine = useMemo(() => {
-    return getCurrentLyricLine(currentSyncedLyrics, positionMillis);
-  }, [currentSyncedLyrics, positionMillis]);
+    const active = getActiveLyricLine(
+      currentLyricsDisplay.lines,
+      positionMillis,
+      currentLyricsDisplay.mode
+    );
+
+    return active ? { time: active.timeMs, text: active.text } : null;
+  }, [
+    currentLyricsDisplay.lines,
+    currentLyricsDisplay.mode,
+    positionMillis,
+  ]);
 
   const onlineSongs: AppSong[] = useMemo(() => {
     return youtubeQueue.map((track) => {

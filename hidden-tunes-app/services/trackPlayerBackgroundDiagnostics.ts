@@ -2,11 +2,19 @@
  * Headless playback-service diagnostics (runs outside main React tree).
  */
 
+import {
+  inspectNativeQueueConsistency,
+  observePlaybackStateTransition,
+  observeTrackPlayerEvent,
+  registerTrackPlayerEventListener,
+} from "../utils/playbackReliabilityDiagnostics";
+
 type TrackPlayerRuntime = {
   default: {
     getPlaybackState: () => Promise<{ state: number }>;
     getActiveTrackIndex: () => Promise<number | undefined>;
-    getQueue: () => Promise<unknown[]>;
+    getActiveTrack: () => Promise<Record<string, unknown> | null | undefined>;
+    getQueue: () => Promise<Array<{ id?: string; title?: string; artist?: string }>>;
     addEventListener: (
       event: string,
       listener: (payload?: Record<string, unknown>) => void
@@ -16,38 +24,55 @@ type TrackPlayerRuntime = {
   State: Record<string, number>;
 };
 
+const SERVICE_OWNER = "playback_service";
+
 function logService(event: string, details?: Record<string, unknown>) {
-  if (typeof __DEV__ === "undefined" || !__DEV__) return;
-  console.log(`[HiddenTunes:TrackPlayer] service:${event}`, {
-    at: Date.now(),
-    ...(details || {}),
-  });
+  observeTrackPlayerEvent(event, SERVICE_OWNER, details);
+}
+
+async function readServiceQueueSnapshot(TrackPlayer: TrackPlayerRuntime["default"]) {
+  const [activeIndex, queue, playbackState, activeTrack] = await Promise.all([
+    TrackPlayer.getActiveTrackIndex(),
+    TrackPlayer.getQueue(),
+    TrackPlayer.getPlaybackState(),
+    TrackPlayer.getActiveTrack(),
+  ]);
+
+  const queueLength = Array.isArray(queue) ? queue.length : 0;
+  const index = typeof activeIndex === "number" ? activeIndex : null;
+
+  return {
+    queueLength,
+    activeIndex: index,
+    activeTrackId:
+      activeTrack && typeof activeTrack.id === "string"
+        ? String(activeTrack.id)
+        : null,
+    actualTitle:
+      activeTrack && typeof activeTrack.title === "string"
+        ? String(activeTrack.title)
+        : null,
+    actualArtist:
+      activeTrack && typeof activeTrack.artist === "string"
+        ? String(activeTrack.artist)
+        : null,
+    queueTrackIds: Array.isArray(queue)
+      ? queue.map((track) => String(track.id || "")).filter(Boolean)
+      : [],
+    playbackState:
+      playbackState?.state !== undefined ? String(playbackState.state) : null,
+  };
 }
 
 async function logQueueSnapshot(
   TrackPlayer: TrackPlayerRuntime["default"],
   label: string
 ) {
-  if (typeof __DEV__ === "undefined" || !__DEV__) return;
-
-  try {
-    const [activeIndex, queue, playbackState] = await Promise.all([
-      TrackPlayer.getActiveTrackIndex(),
-      TrackPlayer.getQueue(),
-      TrackPlayer.getPlaybackState(),
-    ]);
-
-    logService(label, {
-      activeIndex:
-        typeof activeIndex === "number" ? activeIndex : null,
-      queueLength: Array.isArray(queue) ? queue.length : 0,
-      playbackState: playbackState?.state ?? null,
-    });
-  } catch (error) {
-    logService(`${label}_error`, {
-      message: String((error as Error)?.message || error),
-    });
-  }
+  await inspectNativeQueueConsistency(
+    label,
+    undefined,
+    async () => readServiceQueueSnapshot(TrackPlayer)
+  );
 }
 
 export function registerTrackPlayerServiceDiagnostics(): Array<{
@@ -64,34 +89,41 @@ export function registerTrackPlayerServiceDiagnostics(): Array<{
 
   const subscriptions: Array<{ remove: () => void }> = [];
 
-  subscriptions.push(
-    TrackPlayer.addEventListener(Event.PlaybackState, (event) => {
-      logService("playback_state", event || {});
-    })
-  );
+  const attach = (
+    eventName: string,
+    listener: (payload?: Record<string, unknown>) => void
+  ) => {
+    registerTrackPlayerEventListener(eventName, SERVICE_OWNER);
+    subscriptions.push(TrackPlayer.addEventListener(eventName, listener));
+  };
 
-  subscriptions.push(
-    TrackPlayer.addEventListener(
-      Event.PlaybackActiveTrackChanged,
-      (event) => {
-        logService("active_track_changed", event || {});
-        void logQueueSnapshot(TrackPlayer, "after_active_track_changed");
-      }
-    )
-  );
+  attach(Event.PlaybackState, (event) => {
+    const nextState =
+      event && typeof event.state !== "undefined" ? String(event.state) : "unknown";
 
-  subscriptions.push(
-    TrackPlayer.addEventListener(Event.PlaybackQueueEnded, (event) => {
-      logService("queue_ended", event || {});
-      void logQueueSnapshot(TrackPlayer, "after_queue_ended");
-    })
-  );
+    observePlaybackStateTransition(nextState, SERVICE_OWNER, {
+      raw: nextState,
+    });
+    logService("playback_state", event || {});
+  });
 
-  subscriptions.push(
-    TrackPlayer.addEventListener(Event.PlaybackError, (event) => {
-      logService("playback_error", event || {});
-    })
-  );
+  attach(Event.PlaybackActiveTrackChanged, (event) => {
+    logService("active_track_changed", event || {});
+    void logQueueSnapshot(TrackPlayer, "after_active_track_changed");
+  });
+
+  attach(Event.PlaybackQueueEnded, (event) => {
+    logService("queue_ended", event || {});
+    void logQueueSnapshot(TrackPlayer, "after_queue_ended");
+  });
+
+  attach(Event.PlaybackError, (event) => {
+    logService("playback_error", event || {});
+  });
+
+  attach(Event.PlaybackProgressUpdated, (event) => {
+    logService("progress_updated", event || {});
+  });
 
   void logQueueSnapshot(TrackPlayer, "service_started");
 

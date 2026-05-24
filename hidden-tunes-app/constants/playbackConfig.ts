@@ -16,6 +16,14 @@
  */
 export const USE_NATIVE_TRACK_PLAYER = true;
 
+/** Dev-only playback reliability instrumentation (no production logs). */
+export const ENABLE_PLAYBACK_RELIABILITY_DIAGNOSTICS =
+  typeof __DEV__ !== "undefined" ? __DEV__ : false;
+
 export function isTrackPlayerFeatureEnabled(): boolean {
   return USE_NATIVE_TRACK_PLAYER;
+}
+
+export function isPlaybackReliabilityDiagnosticsEnabled(): boolean {
+  return ENABLE_PLAYBACK_RELIABILITY_DIAGNOSTICS;
 }

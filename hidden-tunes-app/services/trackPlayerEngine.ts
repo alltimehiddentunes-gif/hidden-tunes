@@ -6,6 +6,13 @@ import {
   logTrackPlayerBg,
   logTrackPlayerQueue,
 } from "../utils/backgroundPlaybackLogs";
+import {
+  inspectNativeQueueConsistency,
+  observePlaybackStateTransition,
+  observeProgressUpdate,
+  observeTrackPlayerEvent,
+  registerTrackPlayerEventListener,
+} from "../utils/playbackReliabilityDiagnostics";
 import { supportsNativeTrackPlayer } from "../utils/expoRuntime";
 import {
   PlaybackEngine,
@@ -50,6 +57,9 @@ const ANDROID_STOP_FOREGROUND_GRACE_PERIOD_SECONDS = 3600;
 let setupComplete = false;
 let optionsConfigured = false;
 let trackPlayerModulePromise: Promise<TrackPlayerModule | null> | null = null;
+let openTrackPlayerEventSubscribers = 0;
+
+const MAIN_THREAD_EVENT_OWNER = "track_player_engine_main_thread";
 
 function isNativeTrackPlayerEnabled() {
   return Boolean(USE_NATIVE_TRACK_PLAYER) && supportsNativeTrackPlayer();
@@ -57,6 +67,59 @@ function isNativeTrackPlayerEnabled() {
 
 function logTrackPlayer(message: string, details?: Record<string, unknown>) {
   logTrackPlayerBg(message, details as Parameters<typeof logTrackPlayerBg>[1]);
+}
+
+export async function readTrackPlayerReliabilitySnapshot() {
+  const module = await getTrackPlayerModule();
+  const player = await getTrackPlayerApi();
+  if (!module || !player) return null;
+
+  try {
+    const [queue, activeIndex, playbackState, activeTrack] = await Promise.all([
+      player.getQueue(),
+      player.getActiveTrackIndex(),
+      player.getPlaybackState(),
+      player.getActiveTrack(),
+    ]);
+
+    const queueLength = Array.isArray(queue) ? queue.length : 0;
+    const index = typeof activeIndex === "number" ? activeIndex : null;
+
+    return {
+      queueLength,
+      activeIndex: index,
+      activeTrackId:
+        activeTrack && typeof activeTrack.id === "string"
+          ? String(activeTrack.id)
+          : null,
+      actualTitle:
+        activeTrack && typeof activeTrack.title === "string"
+          ? String(activeTrack.title)
+          : null,
+      actualArtist:
+        activeTrack && typeof activeTrack.artist === "string"
+          ? String(activeTrack.artist)
+          : null,
+      queueTrackIds: Array.isArray(queue)
+        ? queue
+            .map((track) =>
+              track && typeof track === "object" && "id" in track
+                ? String((track as { id?: string }).id || "")
+                : ""
+            )
+            .filter(Boolean)
+        : [],
+      playbackState:
+        playbackState?.state !== undefined
+          ? String(playbackState.state)
+          : null,
+    };
+  } catch (error) {
+    observeTrackPlayerEvent("queue_snapshot_read_failed", MAIN_THREAD_EVENT_OWNER, {
+      message: String((error as Error)?.message || error),
+    });
+    return null;
+  }
 }
 
 export async function getTrackPlayerQueueSnapshot(): Promise<TrackPlayerQueueSnapshot | null> {
@@ -446,6 +509,18 @@ export async function playTrackPlayerQueue(options: {
     activeTrackId: active?.id ?? null,
   });
 
+  await inspectNativeQueueConsistency(
+    "play_track_player_queue",
+    {
+      queueLength: tracks.length,
+      activeIndex: safeIndex,
+      trackId: active?.id ?? null,
+      title: active?.title ?? null,
+      artist: active?.artist ?? null,
+    },
+    readTrackPlayerReliabilitySnapshot
+  );
+
   return safeIndex;
 }
 
@@ -480,11 +555,14 @@ export async function getTrackPlayerProgress(): Promise<PlaybackProgress> {
   const progress = await player.getProgress();
   const playbackState = await player.getPlaybackState();
 
-  return {
+  const result = {
     positionMillis: Math.max(0, Math.floor((progress.position || 0) * 1000)),
     durationMillis: Math.max(0, Math.floor((progress.duration || 0) * 1000)),
     isPlaying: playbackState.state === module.State.Playing,
   };
+
+  observeProgressUpdate(result, "track_player_engine_get_progress");
+  return result;
 }
 
 export async function getTrackPlayerActiveIndex(): Promise<number | null> {
@@ -593,6 +671,13 @@ export function subscribeTrackPlayerEvents(
 ): () => void {
   if (!isNativeTrackPlayerEnabled()) return () => {};
 
+  openTrackPlayerEventSubscribers += 1;
+  if (openTrackPlayerEventSubscribers > 1) {
+    observeTrackPlayerEvent("duplicate_event_subscriber", MAIN_THREAD_EVENT_OWNER, {
+      openTrackPlayerEventSubscribers,
+    });
+  }
+
   let disposed = false;
   const subscriptions: Array<{ remove: () => void }> = [];
 
@@ -602,6 +687,19 @@ export function subscribeTrackPlayerEvents(
     if (!module || !player || disposed) return;
 
     const { Event, State } = module;
+
+    const attach = (
+      eventName: string,
+      listener: (payload?: unknown) => void
+    ) => {
+      registerTrackPlayerEventListener(eventName, MAIN_THREAD_EVENT_OWNER);
+      subscriptions.push(
+        player.addEventListener(
+          eventName as Parameters<typeof player.addEventListener>[0],
+          listener as Parameters<typeof player.addEventListener>[1]
+        )
+      );
+    };
 
     const resolveActiveTrack = async (payload?: { index?: number }) => {
       let index =
@@ -624,63 +722,60 @@ export function subscribeTrackPlayerEvents(
       });
 
       handlers.onActiveTrackChanged?.(index, trackId);
+      void inspectNativeQueueConsistency(
+        "active_track_changed",
+        {
+          activeIndex: index,
+          trackId,
+        },
+        readTrackPlayerReliabilitySnapshot
+      );
     };
 
-    subscriptions.push(
-      player.addEventListener(Event.PlaybackState, (event) => {
-        logTrackPlayer("playback_state", {
-          state:
-            event && typeof event === "object" && "state" in event
-              ? String((event as { state?: unknown }).state)
-              : undefined,
-        });
-      })
+    attach(Event.PlaybackState, (event) => {
+      const nextState =
+        event && typeof event === "object" && "state" in event
+          ? String((event as { state?: unknown }).state)
+          : "unknown";
+
+      observePlaybackStateTransition(nextState, MAIN_THREAD_EVENT_OWNER);
+      logTrackPlayer("playback_state", {
+        state: nextState,
+      });
+    });
+
+    attach(
+      Event.PlaybackProgressUpdated,
+      (payload?: unknown) => {
+        const event = (payload || {}) as { position?: number; duration?: number };
+        const positionSeconds = event?.position ?? 0;
+        const durationSeconds = event?.duration ?? 0;
+
+        void (async () => {
+          let isPlaying = false;
+
+          try {
+            const playbackState = await player.getPlaybackState();
+            isPlaying = playbackState.state === State.Playing;
+          } catch {
+            // Player may not be ready yet.
+          }
+
+          handlers.onProgress?.({
+            positionMillis: Math.max(0, Math.floor(positionSeconds * 1000)),
+            durationMillis: Math.max(0, Math.floor(durationSeconds * 1000)),
+            isPlaying,
+          });
+        })();
+      }
     );
 
-    subscriptions.push(
-      player.addEventListener(
-        Event.PlaybackProgressUpdated,
-        (event: { position?: number; duration?: number }) => {
-          const positionSeconds = event?.position ?? 0;
-          const durationSeconds = event?.duration ?? 0;
+    attach(Event.PlaybackActiveTrackChanged, (payload?: unknown) => {
+      const event = payload as { index?: number } | undefined;
+      void resolveActiveTrack(event);
+    });
 
-          void (async () => {
-            let isPlaying = false;
-
-            try {
-              const playbackState = await player.getPlaybackState();
-              isPlaying = playbackState.state === State.Playing;
-            } catch {
-              // Player may not be ready yet.
-            }
-
-            handlers.onProgress?.({
-              positionMillis: Math.max(
-                0,
-                Math.floor(positionSeconds * 1000)
-              ),
-              durationMillis: Math.max(
-                0,
-                Math.floor(durationSeconds * 1000)
-              ),
-              isPlaying,
-            });
-          })();
-        }
-      )
-    );
-
-    subscriptions.push(
-      player.addEventListener(
-        Event.PlaybackActiveTrackChanged,
-        (event?: { index?: number }) => {
-          void resolveActiveTrack(event);
-        }
-      )
-    );
-
-    subscriptions.push(
-      player.addEventListener(Event.PlaybackQueueEnded, (event) => {
+    attach(Event.PlaybackQueueEnded, (event) => {
         logTrackPlayerQueue("natural_queue_ended", {
           position:
             event && typeof event === "object" && "position" in event
@@ -693,29 +788,26 @@ export function subscribeTrackPlayerEvents(
         });
         void logQueueSnapshot("after_natural_queue_ended");
         handlers.onQueueEnded?.();
-      })
+      }
     );
 
-    subscriptions.push(
-      player.addEventListener(
-        Event.PlaybackError,
-        (event?: { message?: string; code?: string }) => {
-          const message =
-            typeof event?.message === "string"
-              ? event.message
-              : typeof event?.code === "string"
-                ? event.code
-                : "playback_error";
+    attach(Event.PlaybackError, (payload?: unknown) => {
+      const event = payload as { message?: string; code?: string } | undefined;
+      const message =
+        typeof event?.message === "string"
+          ? event.message
+          : typeof event?.code === "string"
+            ? event.code
+            : "playback_error";
 
-          logTrackPlayer("playback_error", { message, ...(event || {}) });
-          handlers.onPlaybackError?.(message);
-        }
-      )
-    );
+      logTrackPlayer("playback_error", { message, ...(event || {}) });
+      handlers.onPlaybackError?.(message);
+    });
   })();
 
   return () => {
     disposed = true;
+    openTrackPlayerEventSubscribers = Math.max(0, openTrackPlayerEventSubscribers - 1);
     subscriptions.forEach((subscription) => {
       try {
         subscription.remove();

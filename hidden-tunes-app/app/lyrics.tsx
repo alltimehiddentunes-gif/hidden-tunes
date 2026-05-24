@@ -27,6 +27,20 @@ import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 
+import {
+  getBestLyricsPayload,
+  getLyricsMemoryCache,
+  getLyricsSyncOffset,
+  LYRICS_ITEM_HEIGHT,
+  LYRICS_SYNC_OFFSET_MS,
+  resolveLyricsDisplay,
+  setLyricsMemoryCache,
+  findActiveLyricIndex,
+  formatLyricsTime,
+  type LyricLine,
+} from "../utils/lyrics";
+
+import LyricsEmptyState from "../components/LyricsEmptyState";
 import { TESTER_COPY } from "../constants/testerExperience";
 import {
   usePlayerActions,
@@ -35,134 +49,7 @@ import {
 } from "../context/playerContextSlices";
 import { getHiddenTunesLyrics } from "../services/hiddenTunesApi";
 
-type LyricLine = {
-  id: string;
-  timeMs: number;
-  text: string;
-};
-
-const ITEM_HEIGHT = 64;
-const LYRICS_SYNC_OFFSET_MS = -350;
-const MAX_LYRIC_CHARS = 34;
 const MANUAL_SCROLL_RESUME_MS = 4000;
-
-const lyricsMemoryCache = new Map<
-  string,
-  {
-    synced: string;
-    plain: string;
-  }
->();
-
-function splitLyricText(text: string) {
-  const clean = String(text || "").trim();
-  if (!clean) return [];
-
-  const words = clean.split(/\s+/);
-  const chunks: string[] = [];
-  let current = "";
-
-  words.forEach((word) => {
-    const next = current ? `${current} ${word}` : word;
-
-    if (next.length > MAX_LYRIC_CHARS && current) {
-      chunks.push(current);
-      current = word;
-    } else {
-      current = next;
-    }
-  });
-
-  if (current) chunks.push(current);
-  return chunks;
-}
-
-function parseLrc(lrc: string): LyricLine[] {
-  if (!lrc) return [];
-
-  const lines: LyricLine[] = [];
-
-  lrc.split(/\r?\n/).forEach((row, rowIndex) => {
-    const timeMatches = [
-      ...row.matchAll(/\[(\d{1,2}):(\d{2})(?:[.:](\d{1,3}))?\]/g),
-    ];
-
-    const text = row.replace(/\[(.*?)\]/g, "").trim();
-
-    if (!timeMatches.length || !text) return;
-
-    timeMatches.forEach((match, matchIndex) => {
-      const minutes = Number(match[1] || 0);
-      const seconds = Number(match[2] || 0);
-      const raw = match[3] || "0";
-
-      const fraction =
-        raw.length === 1
-          ? Number(raw) * 100
-          : raw.length === 2
-            ? Number(raw) * 10
-            : Number(raw.slice(0, 3));
-
-      const baseTime = minutes * 60 * 1000 + seconds * 1000 + fraction;
-      const chunks = splitLyricText(text);
-
-      chunks.forEach((chunk, chunkIndex) => {
-        lines.push({
-          id: `${rowIndex}-${matchIndex}-${chunkIndex}-${baseTime}`,
-          timeMs: baseTime + chunkIndex * 120,
-          text: chunk,
-        });
-      });
-    });
-  });
-
-  return lines.sort((a, b) => a.timeMs - b.timeMs);
-}
-
-function plainToLines(plainLyrics: string): LyricLine[] {
-  if (!plainLyrics) return [];
-
-  const visualLines: LyricLine[] = [];
-
-  plainLyrics
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .forEach((line, index) => {
-      const chunks = splitLyricText(line);
-
-      chunks.forEach((chunk, chunkIndex) => {
-        visualLines.push({
-          id: `plain-${index}-${chunkIndex}`,
-          text: chunk,
-          timeMs: index * 4000 + chunkIndex * 250,
-        });
-      });
-    });
-
-  return visualLines;
-}
-
-function getBestLyricsPayload(data: any) {
-  return {
-    synced: String(
-      data?.synced_lrc ||
-        data?.syncedLrc ||
-        data?.syncedLyrics ||
-        data?.lrc ||
-        data?.lyrics_lrc ||
-        ""
-    ),
-    plain: String(data?.plain_lyrics || data?.plainLyrics || data?.lyrics || ""),
-  };
-}
-
-function formatTime(ms: number) {
-  const safe = Math.max(0, Math.floor(ms / 1000));
-  const minutes = Math.floor(safe / 60);
-  const seconds = safe % 60;
-  return `${minutes}:${seconds < 10 ? "0" : ""}${seconds}`;
-}
 
 function getArtwork(song: any, params: any) {
   return (
@@ -178,24 +65,7 @@ function getArtwork(song: any, params: any) {
 }
 
 function findActiveIndex(lines: LyricLine[], activePosition: number) {
-  if (!lines.length) return -1;
-
-  let low = 0;
-  let high = lines.length - 1;
-  let answer = 0;
-
-  while (low <= high) {
-    const mid = Math.floor((low + high) / 2);
-
-    if (activePosition >= lines[mid].timeMs) {
-      answer = mid;
-      low = mid + 1;
-    } else {
-      high = mid - 1;
-    }
-  }
-
-  return answer;
+  return findActiveLyricIndex(lines, activePosition);
 }
 
 type LyricRowProps = {
@@ -367,14 +237,20 @@ export default function LyricsScreen() {
   const durationMs = Number(durationMillis || 0);
 
   const centerPadding = useMemo(
-    () => Math.max(140, screenHeight * 0.28 - ITEM_HEIGHT / 2),
+    () => Math.max(140, screenHeight * 0.28 - LYRICS_ITEM_HEIGHT / 2),
     [screenHeight]
   );
 
   const initialLyrics = useMemo(() => {
-    const fromCache = songId ? lyricsMemoryCache.get(songId) : null;
-
+    const fromCache = songId ? getLyricsMemoryCache(songId) : null;
     if (fromCache) return fromCache;
+
+    const fromParams = getBestLyricsPayload({
+      synced_lrc: params.syncedLyrics,
+      plain_lyrics: params.plainLyrics || params.lyrics,
+    });
+
+    if (fromParams.synced || fromParams.plain) return fromParams;
 
     return getBestLyricsPayload({
       synced_lrc:
@@ -383,7 +259,7 @@ export default function LyricsScreen() {
         (currentSong as any)?.lrc,
       plain_lyrics: (currentSong as any)?.lyrics,
     });
-  }, [currentSong, songId]);
+  }, [currentSong, params.lyrics, params.plainLyrics, params.syncedLyrics, songId]);
 
   const [loading, setLoading] = useState(
     !initialLyrics.synced && !initialLyrics.plain
@@ -419,7 +295,7 @@ export default function LyricsScreen() {
       scrollAnimFrameRef.current = requestAnimationFrame(() => {
         scrollAnimFrameRef.current = null;
         listRef.current?.scrollToOffset({
-          offset: Math.max(0, index * ITEM_HEIGHT),
+          offset: Math.max(0, index * LYRICS_ITEM_HEIGHT),
           animated,
         });
       });
@@ -439,13 +315,17 @@ export default function LyricsScreen() {
   }, [clearResumeSyncTimer, scrollToActiveLine]);
 
   useEffect(() => {
-    const cached = songId ? lyricsMemoryCache.get(songId) : null;
+    const cached = songId ? getLyricsMemoryCache(songId) : null;
     const best = cached || initialLyrics;
 
     setSyncedLrc(best.synced);
     setPlainLyrics(best.plain);
     setError("");
     setLoading(!best.synced && !best.plain);
+
+    if (songId && (best.synced || best.plain)) {
+      setLyricsMemoryCache(songId, best);
+    }
 
     activeIndexRef.current = -1;
     lastScrolledIndexRef.current = -1;
@@ -469,7 +349,7 @@ export default function LyricsScreen() {
         return;
       }
 
-      const cached = lyricsMemoryCache.get(songId);
+      const cached = getLyricsMemoryCache(songId);
 
       if (cached?.synced || cached?.plain) {
         setSyncedLrc(cached.synced);
@@ -484,12 +364,16 @@ export default function LyricsScreen() {
         const data = await getHiddenTunesLyrics(songId);
         const best = getBestLyricsPayload(data);
 
-        lyricsMemoryCache.set(songId, best);
+        setLyricsMemoryCache(songId, best);
 
         if (!mounted) return;
 
         setSyncedLrc(best.synced);
         setPlainLyrics(best.plain);
+
+        if (data.fetchFailed && !best.synced && !best.plain) {
+          setError(TESTER_COPY.lyricsLoadFailed);
+        }
       } catch (err: any) {
         if (!mounted) return;
         setError(TESTER_COPY.lyricsLoadFailed);
@@ -514,28 +398,32 @@ export default function LyricsScreen() {
     };
   }, [clearResumeSyncTimer]);
 
-  const syncedLines = useMemo(() => parseLrc(syncedLrc), [syncedLrc]);
-  const plainLines = useMemo(() => plainToLines(plainLyrics), [plainLyrics]);
+  const lyricsDisplay = useMemo(
+    () => resolveLyricsDisplay(syncedLrc, plainLyrics),
+    [plainLyrics, syncedLrc]
+  );
 
-  const hasSyncedLyrics = syncedLines.length > 0;
-  const lines = hasSyncedLyrics ? syncedLines : plainLines;
+  const { mode: lyricsMode, lines, hasSyncedLyrics } = lyricsDisplay;
+  const isSeekable = lyricsMode === "synced";
+  const hasTimedLyrics = lyricsMode !== "none";
 
   useEffect(() => {
-    if (!hasSyncedLyrics || !lines.length) return;
+    if (!hasTimedLyrics || !lines.length) return;
 
-    const activePosition = playbackPositionMs + LYRICS_SYNC_OFFSET_MS;
+    const activePosition =
+      playbackPositionMs + getLyricsSyncOffset(lyricsMode);
     const nextIndex = findActiveIndex(lines, activePosition);
 
     if (nextIndex === activeIndexRef.current) return;
 
     activeIndexRef.current = nextIndex;
     setActiveIndex(nextIndex);
-  }, [hasSyncedLyrics, lines, playbackPositionMs]);
+  }, [hasTimedLyrics, lines, lyricsMode, playbackPositionMs]);
 
   useEffect(() => {
-    if (!hasSyncedLyrics) return;
+    if (!hasTimedLyrics) return;
 
-    if (playbackPositionMs < 900) {
+    if (hasSyncedLyrics && playbackPositionMs < 900) {
       lastScrolledIndexRef.current = -1;
       activeIndexRef.current = 0;
       setActiveIndex(0);
@@ -552,19 +440,20 @@ export default function LyricsScreen() {
   }, [
     activeIndex,
     hasSyncedLyrics,
+    hasTimedLyrics,
     playbackPositionMs,
     scrollToActiveLine,
   ]);
 
   const handleLinePress = useCallback(
     (line: LyricLine) => {
-      if (!hasSyncedLyrics) return;
+      if (!isSeekable) return;
 
       const targetMs = Math.max(0, line.timeMs - LYRICS_SYNC_OFFSET_MS);
       void seekTo(targetMs);
       resumeLiveSync();
     },
-    [hasSyncedLyrics, resumeLiveSync, seekTo]
+    [isSeekable, resumeLiveSync, seekTo]
   );
 
   const handleScrollBeginDrag = useCallback(() => {
@@ -588,16 +477,17 @@ export default function LyricsScreen() {
   const listExtraData = useMemo(
     () => ({
       activeIndex,
-      hasSyncedLyrics,
+      hasTimedLyrics,
+      lyricsMode,
     }),
-    [activeIndex, hasSyncedLyrics]
+    [activeIndex, hasTimedLyrics, lyricsMode]
   );
 
   const renderItem = useCallback(
     ({ item, index }: { item: LyricLine; index: number }) => {
-      const active = hasSyncedLyrics && index === activeIndex;
-      const passed = hasSyncedLyrics && index < activeIndex;
-      const upcoming = hasSyncedLyrics && index > activeIndex;
+      const active = hasTimedLyrics && index === activeIndex;
+      const passed = hasTimedLyrics && index < activeIndex;
+      const upcoming = hasTimedLyrics && index > activeIndex;
 
       return (
         <LyricRow
@@ -605,12 +495,12 @@ export default function LyricsScreen() {
           active={active}
           passed={passed}
           upcoming={upcoming}
-          seekable={hasSyncedLyrics}
+          seekable={isSeekable}
           onPressLine={handleLinePress}
         />
       );
     },
-    [activeIndex, handleLinePress, hasSyncedLyrics]
+    [activeIndex, handleLinePress, hasTimedLyrics, isSeekable]
   );
 
   const lyricsContentStyle = useMemo(
@@ -654,21 +544,28 @@ export default function LyricsScreen() {
         </View>
 
         <View style={styles.metaRow}>
-          <View style={styles.syncBadge}>
-            <Ionicons
-              name={hasSyncedLyrics ? "radio" : "document-text"}
-              size={12}
-              color={hasSyncedLyrics ? "#101010" : "#F7D77A"}
-            />
-            <Text
+          {hasTimedLyrics ? (
+            <View
               style={[
-                styles.syncBadgeText,
-                !hasSyncedLyrics && styles.syncBadgeTextPlain,
+                styles.syncBadge,
+                !hasSyncedLyrics && styles.syncBadgePlain,
               ]}
             >
-              {hasSyncedLyrics ? "Live synced" : "Plain lyrics"}
-            </Text>
-          </View>
+              <Ionicons
+                name={hasSyncedLyrics ? "radio" : "document-text"}
+                size={12}
+                color={hasSyncedLyrics ? "#101010" : "#F7D77A"}
+              />
+              <Text
+                style={[
+                  styles.syncBadgeText,
+                  !hasSyncedLyrics && styles.syncBadgeTextPlain,
+                ]}
+              >
+                {hasSyncedLyrics ? "Live synced" : "Plain lyrics"}
+              </Text>
+            </View>
+          ) : null}
 
           <View style={styles.progressWrap}>
             <View style={styles.progressBar}>
@@ -678,10 +575,10 @@ export default function LyricsScreen() {
             </View>
             <View style={styles.timeRow}>
               <Text style={styles.timeText}>
-                {formatTime(playbackPositionMs)}
+                {formatLyricsTime(playbackPositionMs)}
               </Text>
               <Text style={styles.timeText}>
-                {durationMs ? formatTime(durationMs) : "--:--"}
+                {durationMs ? formatLyricsTime(durationMs) : "--:--"}
               </Text>
             </View>
           </View>
@@ -700,23 +597,13 @@ export default function LyricsScreen() {
               <Text style={styles.centerText}>Loading lyrics...</Text>
             </View>
           ) : error && !lines.length ? (
-            <View style={styles.centerState}>
-              <Ionicons name="alert-circle" size={34} color="#F7D77A" />
-              <Text style={styles.centerTitle}>Lyrics unavailable</Text>
-              <Text style={styles.centerText}>{error}</Text>
-            </View>
+            <LyricsEmptyState
+              variant="error"
+              title="Lyrics unavailable"
+              message={error}
+            />
           ) : !lines.length ? (
-            <View style={styles.centerState}>
-              <Ionicons
-                name="document-text-outline"
-                size={34}
-                color="#F7D77A"
-              />
-              <Text style={styles.centerTitle}>No lyrics found</Text>
-              <Text style={styles.centerText}>
-                Upload synced LRC or plain lyrics for this song.
-              </Text>
-            </View>
+            <LyricsEmptyState />
           ) : (
             <>
               {loading ? (
@@ -726,7 +613,7 @@ export default function LyricsScreen() {
                 </View>
               ) : null}
 
-              {userScrolledAway && hasSyncedLyrics ? (
+              {userScrolledAway && hasTimedLyrics ? (
                 <TouchableOpacity
                   style={styles.syncPill}
                   onPress={resumeLiveSync}
@@ -759,8 +646,8 @@ export default function LyricsScreen() {
                 updateCellsBatchingPeriod={80}
                 decelerationRate="fast"
                 getItemLayout={(_, index) => ({
-                  length: ITEM_HEIGHT,
-                  offset: ITEM_HEIGHT * index,
+                  length: LYRICS_ITEM_HEIGHT,
+                  offset: LYRICS_ITEM_HEIGHT * index,
                   index,
                 })}
               />
@@ -878,6 +765,12 @@ const styles = StyleSheet.create({
     gap: 5,
   },
 
+  syncBadgePlain: {
+    backgroundColor: "rgba(247,215,122,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(247,215,122,0.28)",
+  },
+
   syncBadgeText: {
     color: "#101010",
     fontSize: 10,
@@ -886,7 +779,6 @@ const styles = StyleSheet.create({
 
   syncBadgeTextPlain: {
     color: "#F7D77A",
-    backgroundColor: "rgba(247,215,122,0.12)",
   },
 
   progressWrap: {
@@ -954,7 +846,7 @@ const styles = StyleSheet.create({
   },
 
   lineWrap: {
-    height: ITEM_HEIGHT,
+    height: LYRICS_ITEM_HEIGHT,
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 6,

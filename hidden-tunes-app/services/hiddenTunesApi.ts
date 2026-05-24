@@ -201,6 +201,7 @@ export type HiddenTunesLyricsResponse = {
   lyrics_url?: string | null;
   lyricsUrl?: string | null;
   source?: string | null;
+  fetchFailed?: boolean;
 };
 
 const LYRICS_CACHE_PREFIX = "hidden_tunes_lyrics_cache_";
@@ -1567,6 +1568,7 @@ export async function getHiddenTunesLyrics(songId: string) {
     lyrics_url: null,
     lyricsUrl: null,
     source: null,
+    fetchFailed: true,
   };
 }
 

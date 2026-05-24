@@ -33,12 +33,13 @@ import {
   usePlayerProgress,
   usePlayerState,
 } from "../../context/PlayerContext";
-import { getHiddenTunesLyrics } from "../../services/hiddenTunesApi";
 
 import LiveWaveform from "../../components/LiveWaveform";
 import AddToPlaylistModal from "../../components/AddToPlaylistModal";
 import HTImage from "../../components/HTImage";
+import LyricsPreview from "../../components/LyricsPreview";
 import { FALLBACK_ARTWORK, getArtworkValue } from "../../utils/artwork";
+import { getBestLyricsPayload, setLyricsMemoryCache } from "../../utils/lyrics";
 import { isFastScrolling } from "../../utils/performanceMode";
 import { useRenderCountProbe } from "../../utils/performanceVerification";
 
@@ -282,7 +283,6 @@ export default function PlayerScreen() {
 
   const [playlistModalVisible, setPlaylistModalVisible] = useState(false);
   const [selectedPlaylistTrack, setSelectedPlaylistTrack] = useState<any>(null);
-  const [lyricsLoading, setLyricsLoading] = useState(false);
 
   const rotate = useSharedValue(0);
   const pulse = useSharedValue(1);
@@ -456,46 +456,33 @@ export default function PlayerScreen() {
     toggleFavorite(currentSong);
   }, [toggleFavorite, currentSong]);
 
-  const openLyrics = useCallback(async () => {
-    if (!currentSong || lyricsLoading) return;
+  const openLyrics = useCallback(() => {
+    if (!currentSong) return;
 
-    try {
-      setLyricsLoading(true);
-
-      const songId = String(currentSong.id || "");
-      const cloudLyrics = songId ? await getHiddenTunesLyrics(songId) : null;
-
-      const syncedLyrics =
-        cloudLyrics?.syncedLrc ||
+    const songId = String(currentSong.id || "");
+    const payload = getBestLyricsPayload({
+      synced_lrc:
         currentSong.syncedLyrics ||
         currentSong.synced_lyrics ||
-        currentSong.lrc ||
-        "";
+        currentSong.lrc,
+      plain_lyrics: currentSong.lyrics,
+    });
 
-      const plainLyrics = cloudLyrics?.plainLyrics || currentSong.lyrics || "";
-
-      router.push({
-        pathname: "/lyrics",
-        params: {
-          title: currentSong.title || "Unknown Song",
-          artist,
-          syncedLyrics,
-          lyrics: plainLyrics || syncedLyrics || "No lyrics available.",
-        },
-      });
-    } catch {
-      router.push({
-        pathname: "/lyrics",
-        params: {
-          title: currentSong.title || "Unknown Song",
-          artist,
-          lyrics: currentSong.lyrics || "No lyrics available.",
-        },
-      });
-    } finally {
-      setLyricsLoading(false);
+    if (songId) {
+      setLyricsMemoryCache(songId, payload);
     }
-  }, [currentSong, artist, lyricsLoading]);
+
+    router.push({
+      pathname: "/lyrics",
+      params: {
+        songId,
+        title: currentSong.title || "Unknown Song",
+        artist,
+        syncedLyrics: payload.synced,
+        plainLyrics: payload.plain,
+      },
+    });
+  }, [currentSong, artist]);
 
   if (!currentSong) {
     return (
@@ -605,6 +592,8 @@ export default function PlayerScreen() {
             />
           </TouchableOpacity>
         </Animated.View>
+
+        <LyricsPreview onPress={openLyrics} />
 
         {listeningContext.length > 0 && (
           <View style={styles.contextPillRow}>
@@ -726,15 +715,8 @@ export default function PlayerScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity activeOpacity={0.85} style={styles.extraAction} onPress={openLyrics}>
-            <Ionicons
-              name={lyricsLoading ? "sync" : "musical-notes"}
-              size={20}
-              color={COLORS.text}
-            />
-
-            <Text style={styles.extraActionText}>
-              {lyricsLoading ? "Loading" : "Lyrics"}
-            </Text>
+            <Ionicons name="musical-notes" size={20} color={COLORS.text} />
+            <Text style={styles.extraActionText}>Lyrics</Text>
           </TouchableOpacity>
 
           <TouchableOpacity

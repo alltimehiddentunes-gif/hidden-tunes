@@ -1,6 +1,10 @@
 import type { AppStateStatus } from "react-native";
 
 import { logBackgroundPlayback } from "./backgroundPlaybackLogs";
+import {
+  observeTrackPlayerEvent,
+  observePlaybackStateTransition,
+} from "./playbackReliabilityDiagnostics";
 
 import {
   beginNextTrackTransition,
@@ -50,6 +54,16 @@ export function logPlaybackDiagnostic(
     at: Date.now(),
     ...details,
   });
+
+  observeTrackPlayerEvent(event, "playback_diagnostics", details);
+
+  if (
+    event === "playback_started" ||
+    event === "playback_stalled" ||
+    event === "track_finished"
+  ) {
+    observePlaybackStateTransition(event, "playback_diagnostics", details);
+  }
 }
 
 export function logTapToPlayStart(details: PlaybackDiagDetails = {}) {
@@ -201,6 +215,7 @@ export function logHTAutoNext(
   if (typeof __DEV__ !== "undefined" && !__DEV__) return;
 
   console.log(`[HTAutoNext] ${tag}`, details);
+  observeTrackPlayerEvent(`ht_auto_next:${tag}`, "playback_diagnostics", details);
 }
 
 export function logHTLockAutoNext(
@@ -210,4 +225,7 @@ export function logHTLockAutoNext(
   if (typeof __DEV__ !== "undefined" && !__DEV__) return;
 
   console.log(`[HTLockAutoNext] ${tag}`, details);
+  observeTrackPlayerEvent(`ht_lock_auto_next:${tag}`, "playback_diagnostics", details);
 }
+
+export { getPlaybackReliabilitySummary } from "./playbackReliabilityDiagnostics";

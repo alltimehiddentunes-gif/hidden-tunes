@@ -6,6 +6,11 @@ import {
   logBackgroundPlayback,
   logTrackPlayerQueue,
 } from "../utils/backgroundPlaybackLogs";
+import {
+  inspectNativeQueueConsistency,
+  observePlaybackStateTransition,
+  observeProgressUpdate,
+} from "../utils/playbackReliabilityDiagnostics";
 import { supportsNativeTrackPlayer } from "../utils/expoRuntime";
 import {
   PlaybackEngineEventHandlers,
@@ -23,6 +28,7 @@ import {
   getTrackPlayerProgress,
   getTrackPlayerQueueSnapshot,
   playTrackPlayerQueue,
+  readTrackPlayerReliabilitySnapshot,
   resetTrackPlayerPlayback,
   setTrackPlayerRepeatMode,
   subscribeTrackPlayerEvents,
@@ -45,17 +51,34 @@ export type TrackPlayerEventHandlers = PlaybackEngineEventHandlers;
 let bridgeActive = false;
 let mainThreadRemoteSubscriptions: Array<{ remove: () => void }> = [];
 
+async function inspectBridgeQueue(
+  source: string,
+  expected?: {
+    queueLength?: number;
+    activeIndex?: number;
+    trackId?: string | null;
+    title?: string | null;
+    artist?: string | null;
+  }
+) {
+  await inspectNativeQueueConsistency(
+    source,
+    expected,
+    readTrackPlayerReliabilitySnapshot
+  );
+}
+
 function attachMainThreadRemoteHandlers() {
   if (!isTrackPlayerFeatureEnabled() || !supportsNativeTrackPlayer()) return;
 
-  unregisterTrackPlayerRemoteHandlers(mainThreadRemoteSubscriptions);
+  unregisterTrackPlayerRemoteHandlers(mainThreadRemoteSubscriptions, "main_app");
   mainThreadRemoteSubscriptions = registerTrackPlayerRemoteHandlers("main_app");
 
   logBackgroundPlayback("main_app_remote_handlers_attached");
 }
 
 function detachMainThreadRemoteHandlers() {
-  unregisterTrackPlayerRemoteHandlers(mainThreadRemoteSubscriptions);
+  unregisterTrackPlayerRemoteHandlers(mainThreadRemoteSubscriptions, "main_app");
   mainThreadRemoteSubscriptions = [];
 }
 
@@ -82,12 +105,30 @@ export async function activateTrackPlayerPlayback(options: {
   startPositionMillis?: number;
   reason?: string;
 }): Promise<number> {
+  const expectedTrack = options.songs[options.startIndex];
+
   const playedIndex = await playTrackPlayerQueue({
     ...options,
     reason: options.reason || "activate",
   });
+
   bridgeActive = true;
   attachMainThreadRemoteHandlers();
+
+  observePlaybackStateTransition("bridge_activated", "playback_bridge", {
+    reason: options.reason || "activate",
+    queueLength: options.songs.length,
+    playedIndex,
+  });
+
+  await inspectBridgeQueue("activate_track_player_playback", {
+    queueLength: options.songs.length,
+    activeIndex: playedIndex,
+    trackId: expectedTrack?.id ? String(expectedTrack.id) : null,
+    title: expectedTrack?.title ? String(expectedTrack.title) : null,
+    artist: expectedTrack?.artist ? String(expectedTrack.artist) : null,
+  });
+
   return playedIndex;
 }
 
@@ -107,6 +148,8 @@ export async function bridgePlayQueueFromIndex(options: {
   bridgeActive = true;
   attachMainThreadRemoteHandlers();
 
+  const expectedTrack = options.songs[options.startIndex];
+
   const playedIndex = await playTrackPlayerQueue({
     ...options,
     reason: options.reason || "reload_queue",
@@ -117,6 +160,14 @@ export async function bridgePlayQueueFromIndex(options: {
     playedIndex,
     queueLength: options.songs.length,
     reason: options.reason || "reload_queue",
+  });
+
+  await inspectBridgeQueue("bridge_play_queue_from_index", {
+    queueLength: options.songs.length,
+    activeIndex: playedIndex,
+    trackId: expectedTrack?.id ? String(expectedTrack.id) : null,
+    title: expectedTrack?.title ? String(expectedTrack.title) : null,
+    artist: expectedTrack?.artist ? String(expectedTrack.artist) : null,
   });
 
   return playedIndex;
@@ -135,6 +186,10 @@ export async function bridgeTrySkipToNext(): Promise<boolean> {
     advanced,
   });
 
+  await inspectBridgeQueue("bridge_try_skip_to_next", {
+    activeIndex: afterIndex ?? undefined,
+  });
+
   return advanced;
 }
 
@@ -144,6 +199,10 @@ export async function deactivateTrackPlayerPlayback(
   logBackgroundPlayback("deactivate_requested", {
     reason,
     stack: captureDevStackTrace(),
+  });
+
+  observePlaybackStateTransition("bridge_deactivated", "playback_bridge", {
+    reason,
   });
 
   bridgeActive = false;
@@ -184,11 +243,13 @@ export async function bridgeSetVolume(
 export async function bridgeSkipToNext(): Promise<void> {
   if (!isPlaybackBridgeActive()) return;
   await trackPlayerSkipToNext();
+  await inspectBridgeQueue("bridge_skip_to_next");
 }
 
 export async function bridgeSkipToPrevious(): Promise<void> {
   if (!isPlaybackBridgeActive()) return;
   await trackPlayerSkipToPrevious();
+  await inspectBridgeQueue("bridge_skip_to_previous");
 }
 
 export async function bridgeGetProgress(): Promise<PlaybackProgress> {
@@ -200,17 +261,34 @@ export async function bridgeGetProgress(): Promise<PlaybackProgress> {
     };
   }
 
-  return getTrackPlayerProgress();
+  const progress = await getTrackPlayerProgress();
+  observeProgressUpdate(progress, "bridge_get_progress");
+  return progress;
 }
 
 export async function bridgeGetActiveIndex(): Promise<number | null> {
   if (!isPlaybackBridgeActive()) return null;
-  return getTrackPlayerActiveIndex();
+
+  const activeIndex = await getTrackPlayerActiveIndex();
+  await inspectBridgeQueue("bridge_get_active_index", {
+    activeIndex: activeIndex ?? undefined,
+  });
+
+  return activeIndex;
 }
 
 export async function bridgeGetQueueSnapshot() {
   if (!isPlaybackBridgeActive()) return null;
-  return getTrackPlayerQueueSnapshot();
+
+  const snapshot = await getTrackPlayerQueueSnapshot();
+  if (snapshot) {
+    await inspectBridgeQueue("bridge_get_queue_snapshot", {
+      queueLength: snapshot.queueLength,
+      activeIndex: snapshot.activeIndex ?? undefined,
+    });
+  }
+
+  return snapshot;
 }
 
 export function subscribeBridgeEvents(
@@ -239,9 +317,15 @@ export async function bridgeSetProgressInterval(
 export async function bridgePlay(): Promise<void> {
   if (!isPlaybackBridgeActive()) return;
   await trackPlayerPlay();
+  observePlaybackStateTransition("playing", "playback_bridge", {
+    action: "bridge_play",
+  });
 }
 
 export async function bridgePause(): Promise<void> {
   if (!isPlaybackBridgeActive()) return;
   await trackPlayerPause();
+  observePlaybackStateTransition("paused", "playback_bridge", {
+    action: "bridge_pause",
+  });
 }
