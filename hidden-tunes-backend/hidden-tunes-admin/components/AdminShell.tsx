@@ -42,6 +42,12 @@ const NAV_ITEMS = [
     roles: "creator_lyrics",
   },
   {
+    href: "/admin/creator/bulk-lyrics",
+    label: "Bulk Lyrics",
+    description: "Import & auto-match",
+    roles: "creator_lyrics",
+  },
+  {
     href: "/admin/tv/sources",
     label: "TV Sources",
     description: "Metadata import sources",
