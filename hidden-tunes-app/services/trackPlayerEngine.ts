@@ -1,6 +1,11 @@
 import { Platform } from "react-native";
 
 import { USE_NATIVE_TRACK_PLAYER } from "../constants/playbackConfig";
+import {
+  captureDevStackTrace,
+  logTrackPlayerBg,
+  logTrackPlayerQueue,
+} from "../utils/backgroundPlaybackLogs";
 import { supportsNativeTrackPlayer } from "../utils/expoRuntime";
 import {
   PlaybackEngine,
@@ -29,9 +34,18 @@ type TrackPlayerTrack = {
   duration?: number;
 };
 
+export type TrackPlayerQueueSnapshot = {
+  queueLength: number;
+  activeIndex: number | null;
+  playbackState: string | null;
+};
+
 const APP_DISPLAY_NAME = "Hidden Tunes";
 const INVALID_METADATA_PATTERN =
   /sitemap|error|404|not found|html|xml|<!doctype/i;
+
+/** Keep foreground service alive through long lock-screen sessions. */
+const ANDROID_STOP_FOREGROUND_GRACE_PERIOD_SECONDS = 3600;
 
 let setupComplete = false;
 let optionsConfigured = false;
@@ -42,8 +56,57 @@ function isNativeTrackPlayerEnabled() {
 }
 
 function logTrackPlayer(message: string, details?: Record<string, unknown>) {
-  if (typeof __DEV__ === "undefined" || !__DEV__) return;
-  console.log(`[HiddenTunes:TrackPlayer] ${message}`, details || {});
+  logTrackPlayerBg(message, details as Parameters<typeof logTrackPlayerBg>[1]);
+}
+
+export async function getTrackPlayerQueueSnapshot(): Promise<TrackPlayerQueueSnapshot | null> {
+  const module = await getTrackPlayerModule();
+  const player = await getTrackPlayerApi();
+  if (!module || !player) return null;
+
+  try {
+    const [queue, activeIndex, playbackState] = await Promise.all([
+      player.getQueue(),
+      player.getActiveTrackIndex(),
+      player.getPlaybackState(),
+    ]);
+
+    return {
+      queueLength: Array.isArray(queue) ? queue.length : 0,
+      activeIndex:
+        typeof activeIndex === "number" ? activeIndex : null,
+      playbackState:
+        playbackState?.state !== undefined
+          ? String(playbackState.state)
+          : null,
+    };
+  } catch (error) {
+    logTrackPlayer("queue_snapshot_error", {
+      message: String((error as Error)?.message || error),
+    });
+    return null;
+  }
+}
+
+async function logQueueSnapshot(label: string) {
+  const snapshot = await getTrackPlayerQueueSnapshot();
+  if (!snapshot) return;
+
+  logTrackPlayerQueue(label, {
+    queueLength: snapshot.queueLength,
+    activeIndex: snapshot.activeIndex,
+    playbackState: snapshot.playbackState,
+  });
+}
+
+function buildAndroidPlayerOptions(
+  AppKilledPlaybackBehavior: TrackPlayerModule["AppKilledPlaybackBehavior"]
+) {
+  return {
+    appKilledPlaybackBehavior: AppKilledPlaybackBehavior.PausePlayback,
+    alwaysPauseOnInterruption: false,
+    stopForegroundGracePeriod: ANDROID_STOP_FOREGROUND_GRACE_PERIOD_SECONDS,
+  };
 }
 
 async function getTrackPlayerModule(): Promise<TrackPlayerModule | null> {
@@ -218,11 +281,7 @@ async function configureTrackPlayerOptions(
       Capability.SkipToNext,
       Capability.SkipToPrevious,
     ],
-    android: {
-      appKilledPlaybackBehavior:
-        AppKilledPlaybackBehavior.StopPlaybackAndRemoveNotification,
-      alwaysPauseOnInterruption: true,
-    },
+    android: buildAndroidPlayerOptions(AppKilledPlaybackBehavior),
   };
 
   const updateOptions = (player as { updateOptions?: (value: unknown) => Promise<void> })
@@ -233,7 +292,9 @@ async function configureTrackPlayerOptions(
       await updateOptions.call(player, options);
       logTrackPlayer("update_options_applied", {
         progressUpdateEventInterval,
-        appKilled: AppKilledPlaybackBehavior.StopPlaybackAndRemoveNotification,
+        appKilled: AppKilledPlaybackBehavior.PausePlayback,
+        alwaysPauseOnInterruption: false,
+        stopForegroundGracePeriod: ANDROID_STOP_FOREGROUND_GRACE_PERIOD_SECONDS,
       });
     } else {
       logTrackPlayer("update_options_unavailable", {
@@ -268,11 +329,7 @@ export async function setupTrackPlayer(): Promise<boolean> {
     await player.setupPlayer({
       autoUpdateMetadata: true,
       autoHandleInterruptions: true,
-      android: {
-        appKilledPlaybackBehavior:
-          AppKilledPlaybackBehavior.StopPlaybackAndRemoveNotification,
-        alwaysPauseOnInterruption: true,
-      },
+      android: buildAndroidPlayerOptions(AppKilledPlaybackBehavior),
     } as Parameters<typeof player.setupPlayer>[0]);
 
     await configureTrackPlayerOptions();
@@ -280,6 +337,7 @@ export async function setupTrackPlayer(): Promise<boolean> {
     if (Platform.OS === "android") {
       try {
         await player.acquireWakeLock();
+        logTrackPlayer("wake_lock_acquired");
       } catch (wakeError) {
         if (__DEV__) {
           console.warn("Track Player wake lock failed:", wakeError);
@@ -312,12 +370,21 @@ export async function updateTrackPlayerProgressInterval(
   await configureTrackPlayerOptions(Math.max(0.25, intervalSeconds));
 }
 
-export async function resetTrackPlayerPlayback(): Promise<void> {
+export async function resetTrackPlayerPlayback(
+  reason = "unknown"
+): Promise<void> {
+  logTrackPlayer("reset_requested", {
+    reason,
+    stack: captureDevStackTrace(),
+  });
+
   const player = await getTrackPlayerApi();
   if (!player) return;
 
   await player.stop();
   await player.reset();
+
+  logTrackPlayer("reset_complete", { reason });
 }
 
 export async function playTrackPlayerQueue(options: {
@@ -327,6 +394,7 @@ export async function playTrackPlayerQueue(options: {
   volume: number;
   muted: boolean;
   startPositionMillis?: number;
+  reason?: string;
 }): Promise<number> {
   const ready = await setupTrackPlayer();
   if (!ready) return Math.max(0, options.startIndex);
@@ -334,14 +402,33 @@ export async function playTrackPlayerQueue(options: {
   const player = await getTrackPlayerApi();
   if (!player) return Math.max(0, options.startIndex);
 
-  const tracks = options.songs.map(songToTrack).filter(Boolean) as TrackPlayerTrack[];
+  const tracks = options.songs
+    .map(songToTrack)
+    .filter(Boolean) as TrackPlayerTrack[];
   if (!tracks.length) return 0;
+
+  const skippedCount = Math.max(0, options.songs.length - tracks.length);
+  if (skippedCount > 0) {
+    logTrackPlayerQueue("tracks_skipped_missing_audio", {
+      requested: options.songs.length,
+      loaded: tracks.length,
+      skipped: skippedCount,
+      reason: options.reason || "load_queue",
+    });
+  }
 
   const safeIndex = Math.max(0, Math.min(options.startIndex, tracks.length - 1));
   const startPositionSeconds =
     options.startPositionMillis && options.startPositionMillis > 0
       ? options.startPositionMillis / 1000
       : undefined;
+
+  logTrackPlayerQueue("load_queue_start", {
+    reason: options.reason || "load_queue",
+    requested: options.songs.length,
+    trackCount: tracks.length,
+    startIndex: safeIndex,
+  });
 
   await player.reset();
   await player.add(tracks);
@@ -351,21 +438,13 @@ export async function playTrackPlayerQueue(options: {
   await setTrackPlayerRepeatMode(options.repeatMode);
   await player.play();
 
-  if (__DEV__) {
-    const active = tracks[safeIndex];
-    logTrackPlayer("queue_started", {
-      trackCount: tracks.length,
-      startIndex: safeIndex,
-      activeTrack: active
-        ? {
-            id: active.id,
-            title: active.title,
-            artist: active.artist,
-            album: active.album,
-          }
-        : null,
-    });
-  }
+  const active = tracks[safeIndex];
+  logTrackPlayerQueue("load_queue_complete", {
+    reason: options.reason || "load_queue",
+    trackCount: tracks.length,
+    startIndex: safeIndex,
+    activeTrackId: active?.id ?? null,
+  });
 
   return safeIndex;
 }
@@ -430,7 +509,12 @@ export async function trackPlayerPause(): Promise<void> {
   await player.pause();
 }
 
-export async function trackPlayerStop(): Promise<void> {
+export async function trackPlayerStop(reason = "unknown"): Promise<void> {
+  logTrackPlayer("stop_requested", {
+    reason,
+    stack: captureDevStackTrace(),
+  });
+
   const player = await getTrackPlayerApi();
   if (!player) return;
 
@@ -471,11 +555,30 @@ export async function trackPlayerSetVolume(
   await player.setVolume(safeVolume);
 }
 
-export async function trackPlayerSkipToNext(): Promise<void> {
+export async function trackPlayerSkipToNext(): Promise<boolean> {
   const player = await getTrackPlayerApi();
-  if (!player) return;
+  if (!player) return false;
 
-  await player.skipToNext();
+  const beforeIndex = await getTrackPlayerActiveIndex();
+
+  try {
+    await player.skipToNext();
+    const afterIndex = await getTrackPlayerActiveIndex();
+
+    logTrackPlayerQueue("skip_to_next", {
+      beforeIndex,
+      afterIndex,
+      advanced: afterIndex !== null && afterIndex !== beforeIndex,
+    });
+
+    return afterIndex !== null && afterIndex !== beforeIndex;
+  } catch (error) {
+    logTrackPlayerQueue("skip_to_next_failed", {
+      beforeIndex,
+      message: String((error as Error)?.message || error),
+    });
+    return false;
+  }
 }
 
 export async function trackPlayerSkipToPrevious(): Promise<void> {
@@ -515,8 +618,24 @@ export function subscribeTrackPlayerEvents(
       const trackId =
         track && typeof track.id === "string" ? String(track.id) : null;
 
+      logTrackPlayerQueue("active_track_changed", {
+        index,
+        trackId,
+      });
+
       handlers.onActiveTrackChanged?.(index, trackId);
     };
+
+    subscriptions.push(
+      player.addEventListener(Event.PlaybackState, (event) => {
+        logTrackPlayer("playback_state", {
+          state:
+            event && typeof event === "object" && "state" in event
+              ? String((event as { state?: unknown }).state)
+              : undefined,
+        });
+      })
+    );
 
     subscriptions.push(
       player.addEventListener(
@@ -561,7 +680,18 @@ export function subscribeTrackPlayerEvents(
     );
 
     subscriptions.push(
-      player.addEventListener(Event.PlaybackQueueEnded, () => {
+      player.addEventListener(Event.PlaybackQueueEnded, (event) => {
+        logTrackPlayerQueue("natural_queue_ended", {
+          position:
+            event && typeof event === "object" && "position" in event
+              ? Number((event as { position?: unknown }).position)
+              : undefined,
+          track:
+            event && typeof event === "object" && "track" in event
+              ? Number((event as { track?: unknown }).track)
+              : undefined,
+        });
+        void logQueueSnapshot("after_natural_queue_ended");
         handlers.onQueueEnded?.();
       })
     );
@@ -577,6 +707,7 @@ export function subscribeTrackPlayerEvents(
                 ? event.code
                 : "playback_error";
 
+          logTrackPlayer("playback_error", { message, ...(event || {}) });
           handlers.onPlaybackError?.(message);
         }
       )
@@ -612,6 +743,7 @@ export const trackPlayerEngine: PlaybackEngine = {
       volume: options.volume,
       muted: options.muted,
       startPositionMillis: options.startPositionMillis,
+      reason: "engine_load_queue",
     }),
   reset: resetTrackPlayerPlayback,
   play: trackPlayerPlay,
@@ -621,7 +753,9 @@ export const trackPlayerEngine: PlaybackEngine = {
   seekTo: trackPlayerSeekTo,
   setVolume: trackPlayerSetVolume,
   setRepeatMode: setTrackPlayerRepeatMode,
-  skipToNext: trackPlayerSkipToNext,
+  skipToNext: async () => {
+    await trackPlayerSkipToNext();
+  },
   skipToPrevious: trackPlayerSkipToPrevious,
   getProgress: getTrackPlayerProgress,
   getActiveIndex: getTrackPlayerActiveIndex,

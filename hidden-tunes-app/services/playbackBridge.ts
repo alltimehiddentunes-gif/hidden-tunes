@@ -1,6 +1,11 @@
 import { AppStateStatus } from "react-native";
 
 import { isTrackPlayerFeatureEnabled } from "../constants/playbackConfig";
+import {
+  captureDevStackTrace,
+  logBackgroundPlayback,
+  logTrackPlayerQueue,
+} from "../utils/backgroundPlaybackLogs";
 import { supportsNativeTrackPlayer } from "../utils/expoRuntime";
 import {
   PlaybackEngineEventHandlers,
@@ -16,6 +21,7 @@ import {
   ensureTrackPlayerReady,
   getTrackPlayerActiveIndex,
   getTrackPlayerProgress,
+  getTrackPlayerQueueSnapshot,
   playTrackPlayerQueue,
   resetTrackPlayerPlayback,
   setTrackPlayerRepeatMode,
@@ -45,9 +51,7 @@ function attachMainThreadRemoteHandlers() {
   unregisterTrackPlayerRemoteHandlers(mainThreadRemoteSubscriptions);
   mainThreadRemoteSubscriptions = registerTrackPlayerRemoteHandlers("main_app");
 
-  if (__DEV__) {
-    console.log("[HiddenTunes:TrackPlayer] main-app remote handlers attached");
-  }
+  logBackgroundPlayback("main_app_remote_handlers_attached");
 }
 
 function detachMainThreadRemoteHandlers() {
@@ -76,22 +80,80 @@ export async function activateTrackPlayerPlayback(options: {
   volume: number;
   muted: boolean;
   startPositionMillis?: number;
+  reason?: string;
 }): Promise<number> {
-  const playedIndex = await playTrackPlayerQueue(options);
+  const playedIndex = await playTrackPlayerQueue({
+    ...options,
+    reason: options.reason || "activate",
+  });
   bridgeActive = true;
   attachMainThreadRemoteHandlers();
   return playedIndex;
 }
 
-export async function deactivateTrackPlayerPlayback(): Promise<void> {
-  bridgeActive = false;
-  detachMainThreadRemoteHandlers();
-  await trackPlayerStop();
-  await resetTrackPlayerPlayback();
+export async function bridgePlayQueueFromIndex(options: {
+  songs: TrackPlayerSongInput[];
+  startIndex: number;
+  repeatMode: PlayerRepeatMode;
+  volume: number;
+  muted: boolean;
+  startPositionMillis?: number;
+  reason?: string;
+}): Promise<number> {
+  if (!isTrackPlayerFeatureEnabled() || !supportsNativeTrackPlayer()) {
+    return Math.max(0, options.startIndex);
+  }
+
+  bridgeActive = true;
+  attachMainThreadRemoteHandlers();
+
+  const playedIndex = await playTrackPlayerQueue({
+    ...options,
+    reason: options.reason || "reload_queue",
+  });
+
+  logTrackPlayerQueue("reload_queue_from_index", {
+    startIndex: options.startIndex,
+    playedIndex,
+    queueLength: options.songs.length,
+    reason: options.reason || "reload_queue",
+  });
+
+  return playedIndex;
 }
 
-export async function bridgeResetPlayback(): Promise<void> {
-  await deactivateTrackPlayerPlayback();
+export async function bridgeTrySkipToNext(): Promise<boolean> {
+  if (!isPlaybackBridgeActive()) return false;
+
+  const beforeIndex = await getTrackPlayerActiveIndex();
+  const advanced = await trackPlayerSkipToNext();
+  const afterIndex = await getTrackPlayerActiveIndex();
+
+  logTrackPlayerQueue("bridge_skip_to_next", {
+    beforeIndex,
+    afterIndex,
+    advanced,
+  });
+
+  return advanced;
+}
+
+export async function deactivateTrackPlayerPlayback(
+  reason = "unknown"
+): Promise<void> {
+  logBackgroundPlayback("deactivate_requested", {
+    reason,
+    stack: captureDevStackTrace(),
+  });
+
+  bridgeActive = false;
+  detachMainThreadRemoteHandlers();
+  await trackPlayerStop(`deactivate:${reason}`);
+  await resetTrackPlayerPlayback(`deactivate:${reason}`);
+}
+
+export async function bridgeResetPlayback(reason = "unknown"): Promise<void> {
+  await deactivateTrackPlayerPlayback(reason);
 }
 
 export async function bridgeSyncRepeatMode(
@@ -146,6 +208,11 @@ export async function bridgeGetActiveIndex(): Promise<number | null> {
   return getTrackPlayerActiveIndex();
 }
 
+export async function bridgeGetQueueSnapshot() {
+  if (!isPlaybackBridgeActive()) return null;
+  return getTrackPlayerQueueSnapshot();
+}
+
 export function subscribeBridgeEvents(
   handlers: TrackPlayerEventHandlers
 ): () => void {
@@ -162,6 +229,10 @@ export async function bridgeSetProgressInterval(
   if (!isTrackPlayerFeatureEnabled()) return;
 
   const intervalSeconds = appState === "active" ? 0.5 : 1;
+  logBackgroundPlayback("progress_interval_update", {
+    appState,
+    intervalSeconds,
+  });
   await updateTrackPlayerProgressInterval(intervalSeconds);
 }
 

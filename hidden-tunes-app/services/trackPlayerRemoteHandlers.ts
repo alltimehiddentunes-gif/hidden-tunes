@@ -16,7 +16,7 @@ type TrackPlayerRuntime = {
     getActiveTrack: () => Promise<Record<string, unknown> | null | undefined>;
     addEventListener: (
       event: string,
-      listener: (payload?: { position?: number }) => void
+      listener: (payload?: Record<string, unknown>) => void
     ) => { remove: () => void };
   };
   Event: Record<string, string>;
@@ -25,7 +25,10 @@ type TrackPlayerRuntime = {
 
 function logRemote(event: string, details?: Record<string, unknown>) {
   if (typeof __DEV__ === "undefined" || !__DEV__) return;
-  console.log(`[HiddenTunes:TrackPlayer:remote] ${event}`, details || {});
+  console.log(`[HiddenTunes:TrackPlayer] remote:${event}`, {
+    at: Date.now(),
+    ...(details || {}),
+  });
 }
 
 async function logActiveTrackMetadata(
@@ -135,9 +138,10 @@ export function registerTrackPlayerRemoteHandlers(
   );
 
   subscriptions.push(
-    TrackPlayer.addEventListener(Event.RemoteDuck, () => {
-      logRemote("remote_duck", { context });
-      void TrackPlayer.pause();
+    TrackPlayer.addEventListener(Event.RemoteDuck, (event) => {
+      logRemote("remote_duck", { context, ...(event || {}) });
+      // Do not force-pause on transient duck/interruption events.
+      // Lock-screen focus changes were stopping multi-track background sessions.
     })
   );
 

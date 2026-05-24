@@ -43,6 +43,7 @@ import {
   activateTrackPlayerPlayback,
   bridgeGetActiveIndex,
   bridgeGetProgress,
+  bridgePlayQueueFromIndex,
   bridgeResetPlayback,
   bridgeSeekTo,
   bridgeSetProgressInterval,
@@ -51,6 +52,7 @@ import {
   bridgeSkipToPrevious,
   bridgeSyncRepeatMode,
   bridgeTogglePlayPause,
+  bridgeTrySkipToNext,
   shouldUseTrackPlayerPlayback,
   subscribeBridgeEvents,
 } from "../services/playbackBridge";
@@ -696,7 +698,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const unloadCurrentSound = useCallback(async () => {
     if (trackPlayerActiveRef.current) {
       trackPlayerActiveRef.current = false;
-      await bridgeResetPlayback();
+      await bridgeResetPlayback("unload_current_sound");
       return;
     }
 
@@ -1136,14 +1138,33 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         }
 
         try {
-          await bridgeSkipToNext();
-          const activeIndex = await bridgeGetActiveIndex();
+          const advanced = await bridgeTrySkipToNext();
 
-          if (activeIndex !== null) {
-            syncStateFromTrackPlayerIndex(activeIndex);
-            void persistActiveQueue(queue, activeIndex, activeQueueModeRef.current);
-            void removeStoredValues([POSITION_KEY]);
+          if (advanced) {
+            const activeIndex = await bridgeGetActiveIndex();
+
+            if (activeIndex !== null) {
+              syncStateFromTrackPlayerIndex(activeIndex);
+              void persistActiveQueue(queue, activeIndex, activeQueueModeRef.current);
+              void removeStoredValues([POSITION_KEY]);
+            }
+
+            return;
           }
+
+          const playedIndex = await bridgePlayQueueFromIndex({
+            songs: queue,
+            startIndex: nextIndex,
+            repeatMode: repeatModeRef.current,
+            volume: volumeRef.current,
+            muted: isMutedRef.current,
+            reason: "auto_next_reload",
+          });
+
+          trackPlayerActiveRef.current = true;
+          syncStateFromTrackPlayerIndex(playedIndex);
+          void persistActiveQueue(queue, playedIndex, activeQueueModeRef.current);
+          void removeStoredValues([POSITION_KEY]);
         } catch (error) {
           console.log("TrackPlayer next error:", error);
           logAutoNextFailure({ reason: "track_player_next_error" });
@@ -3018,7 +3039,40 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         if (!trackPlayerActiveRef.current) return;
         if (repeatModeRef.current !== "off") return;
 
-        scheduleTrackAdvance();
+        void (async () => {
+          const { queue, safeIndex } = getActiveQueuePlaybackState();
+          const activeIndex = await bridgeGetActiveIndex();
+          const baseIndex =
+            typeof activeIndex === "number" ? activeIndex : safeIndex;
+          const nextIndex = getNextQueueIndex(baseIndex, queue.length);
+
+          if (nextIndex >= 0) {
+            try {
+              const playedIndex = await bridgePlayQueueFromIndex({
+                songs: queue,
+                startIndex: nextIndex,
+                repeatMode: repeatModeRef.current,
+                volume: volumeRef.current,
+                muted: isMutedRef.current,
+                reason: "native_queue_ended_reload",
+              });
+
+              trackPlayerActiveRef.current = true;
+              syncStateFromTrackPlayerIndex(playedIndex);
+              void persistActiveQueue(
+                queue,
+                playedIndex,
+                activeQueueModeRef.current
+              );
+              void removeStoredValues([POSITION_KEY]);
+              return;
+            } catch (error) {
+              console.log("TrackPlayer queue reload error:", error);
+            }
+          }
+
+          scheduleTrackAdvance();
+        })();
       },
       onPlaybackError: (message) => {
         console.log("TrackPlayer playback error:", message);
@@ -3031,6 +3085,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     persistActiveQueue,
     removeStoredValues,
     scheduleTrackAdvance,
+    getNextQueueIndex,
   ]);
 
   useEffect(() => {

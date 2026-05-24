@@ -1,5 +1,7 @@
 import type { AppStateStatus } from "react-native";
 
+import { logBackgroundPlayback } from "./backgroundPlaybackLogs";
+
 import {
   beginNextTrackTransition,
   beginPauseResumeTiming,
@@ -144,6 +146,11 @@ export function logBackgroundStateChange(
   nextState: AppStateStatus,
   details: PlaybackDiagDetails = {}
 ) {
+  logBackgroundPlayback("app_state_change", {
+    previousState,
+    nextState,
+    ...details,
+  });
   logPlaybackDiagnostic("background_state_change", {
     previousState,
     nextState,
