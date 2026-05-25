@@ -125,3 +125,31 @@ export function isAllowedTaxonomyValue<T extends readonly string[]>(
   if (!normalized) return false;
   return (options as readonly string[]).includes(normalized);
 }
+
+export type TaxonomySelectOption = {
+  value: string;
+  label: string;
+};
+
+export function buildTaxonomySelectOptions(
+  options: readonly string[],
+  currentValue: string | null | undefined
+): TaxonomySelectOption[] {
+  const normalized = String(currentValue || "").trim();
+  const selectOptions: TaxonomySelectOption[] = [{ value: "", label: "—" }];
+  const seen = new Set<string>();
+
+  for (const option of options) {
+    selectOptions.push({ value: option, label: option });
+    seen.add(option);
+  }
+
+  if (normalized && !seen.has(normalized)) {
+    selectOptions.push({
+      value: normalized,
+      label: `${normalized} (custom)`,
+    });
+  }
+
+  return selectOptions;
+}

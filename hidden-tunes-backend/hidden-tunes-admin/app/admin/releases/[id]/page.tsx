@@ -17,6 +17,17 @@ import {
   type ControlledGenreDraft,
 } from "@/lib/controlledGenreState";
 import {
+  ANALYSIS_SOURCE_OPTIONS,
+  ANALYSIS_STATUS_OPTIONS,
+  ATMOSPHERE_OPTIONS,
+  buildTaxonomySelectOptions,
+  EMOTION_OPTIONS,
+  INSTRUMENTATION_OPTIONS,
+  TEXTURE_OPTIONS,
+  TIME_OF_DAY_OPTIONS,
+  VOCAL_FEEL_OPTIONS,
+} from "@/lib/emotionalTaxonomy";
+import {
   formatRightsValue,
   RIGHTS_REVIEW_LATER_PHASE_NOTE,
   type RightsReviewMetadata,
@@ -1420,60 +1431,69 @@ function EmotionalMetadataEditor({
           />
         </label>
 
-        <EmotionalTextField
+        <EmotionalSelectField
           label="Atmosphere"
           value={draft.atmosphere}
           disabled={disabled}
-          placeholder="late-night"
+          options={buildTaxonomySelectOptions(ATMOSPHERE_OPTIONS, draft.atmosphere)}
           onChange={(value) => onFieldChange("atmosphere", value)}
         />
-        <EmotionalTextField
+        <EmotionalSelectField
           label="Emotion"
           value={draft.emotion}
           disabled={disabled}
-          placeholder="nostalgia"
+          options={buildTaxonomySelectOptions(EMOTION_OPTIONS, draft.emotion)}
           onChange={(value) => onFieldChange("emotion", value)}
         />
-        <EmotionalTextField
+        <EmotionalSelectField
           label="Texture"
           value={draft.texture}
           disabled={disabled}
-          placeholder="dreamy"
+          options={buildTaxonomySelectOptions(TEXTURE_OPTIONS, draft.texture)}
           onChange={(value) => onFieldChange("texture", value)}
         />
-        <EmotionalTextField
+        <EmotionalSelectField
           label="Time of day"
           value={draft.timeOfDay}
           disabled={disabled}
-          placeholder="night-drive"
+          options={buildTaxonomySelectOptions(TIME_OF_DAY_OPTIONS, draft.timeOfDay)}
           onChange={(value) => onFieldChange("timeOfDay", value)}
         />
-        <EmotionalTextField
+        <EmotionalSelectField
           label="Vocal feel"
           value={draft.vocalFeel}
           disabled={disabled}
-          placeholder="intimate"
+          options={buildTaxonomySelectOptions(VOCAL_FEEL_OPTIONS, draft.vocalFeel)}
           onChange={(value) => onFieldChange("vocalFeel", value)}
         />
-        <EmotionalTextField
+        <EmotionalSelectField
           label="Instrumentation"
           value={draft.instrumentation}
           disabled={disabled}
-          placeholder="piano, soft drums"
+          options={buildTaxonomySelectOptions(
+            INSTRUMENTATION_OPTIONS,
+            draft.instrumentation
+          )}
           onChange={(value) => onFieldChange("instrumentation", value)}
         />
-        <EmotionalTextField
+        <EmotionalSelectField
           label="Analysis status"
           value={draft.analysisStatus}
           disabled={disabled}
-          placeholder="manual"
+          options={buildTaxonomySelectOptions(
+            ANALYSIS_STATUS_OPTIONS,
+            draft.analysisStatus
+          )}
           onChange={(value) => onFieldChange("analysisStatus", value)}
         />
-        <EmotionalTextField
+        <EmotionalSelectField
           label="Analysis source"
           value={draft.analysisSource}
           disabled={disabled}
-          placeholder="admin_upload"
+          options={buildTaxonomySelectOptions(
+            ANALYSIS_SOURCE_OPTIONS,
+            draft.analysisSource
+          )}
           onChange={(value) => onFieldChange("analysisSource", value)}
         />
       </div>
@@ -1504,17 +1524,17 @@ function EmotionalMetadataEditor({
   );
 }
 
-function EmotionalTextField({
+function EmotionalSelectField({
   label,
   value,
   disabled,
-  placeholder,
+  options,
   onChange,
 }: {
   label: string;
   value: string;
   disabled: boolean;
-  placeholder: string;
+  options: { value: string; label: string }[];
   onChange: (value: string) => void;
 }) {
   return (
@@ -1522,14 +1542,18 @@ function EmotionalTextField({
       <span className="text-[11px] font-black uppercase tracking-[0.16em] text-white/40">
         {label}
       </span>
-      <input
-        type="text"
+      <select
         value={value}
         disabled={disabled}
         onChange={(event) => onChange(event.target.value)}
-        className={`${emotionalFieldClass} mt-1`}
-        placeholder={placeholder}
-      />
+        className={`${emotionalFieldClass} mt-1 appearance-none`}
+      >
+        {options.map((option) => (
+          <option key={`${label}-${option.value || "empty"}`} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
     </label>
   );
 }
