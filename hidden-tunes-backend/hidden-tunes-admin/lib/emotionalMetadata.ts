@@ -72,27 +72,28 @@ export function buildEmotionalMetadata(track: Record<string, unknown>) {
   };
 }
 
-function hasBodyField(body: Record<string, unknown>, keys: readonly string[]) {
-  return keys.some((key) => Object.prototype.hasOwnProperty.call(body, key));
-}
-
-function pickBodyField(body: Record<string, unknown>, keys: readonly string[]) {
+function pickPresentBodyField(
+  body: Record<string, unknown>,
+  keys: readonly string[]
+): { present: true; value: unknown } | { present: false } {
   for (const key of keys) {
-    if (Object.prototype.hasOwnProperty.call(body, key)) {
-      return body[key];
+    if (!Object.prototype.hasOwnProperty.call(body, key)) {
+      continue;
     }
+
+    if (body[key] === undefined) {
+      continue;
+    }
+
+    return { present: true, value: body[key] };
   }
 
-  return undefined;
+  return { present: false };
 }
 
 function parseOptionalEnergy(
   value: unknown
 ): { ok: true; value: number | null } | { ok: false; error: string } {
-  if (value === undefined) {
-    return { ok: false, error: "Missing energy value." };
-  }
-
   if (value === null || value === "") {
     return { ok: true, value: null };
   }
@@ -112,10 +113,6 @@ function parseOptionalEnergy(
 function parseOptionalTempoBpm(
   value: unknown
 ): { ok: true; value: number | null } | { ok: false; error: string } {
-  if (value === undefined) {
-    return { ok: false, error: "Missing tempo value." };
-  }
-
   if (value === null || value === "") {
     return { ok: true, value: null };
   }
@@ -135,10 +132,6 @@ function parseOptionalTempoBpm(
 function parseOptionalText(
   value: unknown
 ): { ok: true; value: string | null } | { ok: false; error: string } {
-  if (value === undefined) {
-    return { ok: false, error: "Missing text value." };
-  }
-
   if (value === null) {
     return { ok: true, value: null };
   }
@@ -152,13 +145,13 @@ export function validateEmotionalDraft(
 ): { ok: true } | { ok: false; error: string } {
   const energyText = draft.energy.trim();
   if (energyText !== "") {
-    const parsed = parseOptionalEnergy(energyText === "" ? null : Number(energyText));
+    const parsed = parseOptionalEnergy(Number(energyText));
     if (!parsed.ok) return parsed;
   }
 
   const tempoText = draft.tempoBpm.trim();
   if (tempoText !== "") {
-    const parsed = parseOptionalTempoBpm(tempoText === "" ? null : Number(tempoText));
+    const parsed = parseOptionalTempoBpm(Number(tempoText));
     if (!parsed.ok) return parsed;
   }
 
@@ -201,21 +194,42 @@ export function buildEmotionalRequestBody(
   return body;
 }
 
+export function buildEmotionalApplyItemBody(item: Record<string, unknown>) {
+  const body: Record<string, unknown> = {};
+
+  const assignIfDefined = (key: string, value: unknown) => {
+    if (value !== undefined) {
+      body[key] = value;
+    }
+  };
+
+  assignIfDefined("energy", item.energy);
+  assignIfDefined("tempoBpm", item.tempoBpm ?? item.tempo_bpm);
+  assignIfDefined("atmosphere", item.atmosphere);
+  assignIfDefined("emotion", item.emotion);
+  assignIfDefined("texture", item.texture);
+  assignIfDefined("timeOfDay", item.timeOfDay ?? item.time_of_day);
+  assignIfDefined("vocalFeel", item.vocalFeel ?? item.vocal_feel);
+  assignIfDefined("instrumentation", item.instrumentation);
+  assignIfDefined("analysisStatus", item.analysisStatus ?? item.analysis_status);
+  assignIfDefined("analysisSource", item.analysisSource ?? item.analysis_source);
+
+  return body;
+}
+
 export function buildEmotionalMetadataPatch(body: Record<string, unknown>) {
   const patch: Record<string, unknown> = {};
 
-  if (hasBodyField(body, EMOTIONAL_FIELD_ALIASES.energy)) {
-    const parsed = parseOptionalEnergy(
-      pickBodyField(body, EMOTIONAL_FIELD_ALIASES.energy)
-    );
+  const energyField = pickPresentBodyField(body, EMOTIONAL_FIELD_ALIASES.energy);
+  if (energyField.present) {
+    const parsed = parseOptionalEnergy(energyField.value);
     if (!parsed.ok) return { ok: false as const, error: parsed.error };
     patch.energy = parsed.value;
   }
 
-  if (hasBodyField(body, EMOTIONAL_FIELD_ALIASES.tempo_bpm)) {
-    const parsed = parseOptionalTempoBpm(
-      pickBodyField(body, EMOTIONAL_FIELD_ALIASES.tempo_bpm)
-    );
+  const tempoField = pickPresentBodyField(body, EMOTIONAL_FIELD_ALIASES.tempo_bpm);
+  if (tempoField.present) {
+    const parsed = parseOptionalTempoBpm(tempoField.value);
     if (!parsed.ok) return { ok: false as const, error: parsed.error };
     patch.tempo_bpm = parsed.value;
   }
@@ -232,9 +246,10 @@ export function buildEmotionalMetadataPatch(body: Record<string, unknown>) {
   ] as const;
 
   for (const field of textFields) {
-    if (!hasBodyField(body, EMOTIONAL_FIELD_ALIASES[field])) continue;
+    const textField = pickPresentBodyField(body, EMOTIONAL_FIELD_ALIASES[field]);
+    if (!textField.present) continue;
 
-    const parsed = parseOptionalText(pickBodyField(body, EMOTIONAL_FIELD_ALIASES[field]));
+    const parsed = parseOptionalText(textField.value);
     if (!parsed.ok) return { ok: false as const, error: parsed.error };
     patch[field] = parsed.value;
   }

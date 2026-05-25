@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import {
+  buildEmotionalApplyItemBody,
   buildEmotionalMetadata,
   buildEmotionalMetadataPatch,
 } from "@/lib/emotionalMetadata";
-import {
-  EMOTIONAL_ANALYSIS_APPLY_SOURCE,
-  EMOTIONAL_ANALYSIS_MAX_BATCH,
-} from "@/lib/emotionalTaxonomy";
+import { EMOTIONAL_ANALYSIS_QUEUE_MAX } from "@/lib/emotionalAnalysisQueue";
+import { EMOTIONAL_ANALYSIS_APPLY_SOURCE } from "@/lib/emotionalTaxonomy";
 import { requireUploadPermission } from "@/lib/requireUploadPermission";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
@@ -55,11 +54,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (items.length > EMOTIONAL_ANALYSIS_MAX_BATCH) {
+    if (items.length > EMOTIONAL_ANALYSIS_QUEUE_MAX) {
       return NextResponse.json(
         {
           success: false,
-          error: `Batch limit is ${EMOTIONAL_ANALYSIS_MAX_BATCH} songs per request.`,
+          error: `Batch limit is ${EMOTIONAL_ANALYSIS_QUEUE_MAX} songs per request.`,
         },
         { status: 400 }
       );
@@ -80,18 +79,13 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      const emotionalResult = buildEmotionalMetadataPatch({
-        energy: item.energy,
-        tempoBpm: item.tempoBpm ?? item.tempo_bpm,
-        atmosphere: item.atmosphere,
-        emotion: item.emotion,
-        texture: item.texture,
-        timeOfDay: item.timeOfDay ?? item.time_of_day,
-        vocalFeel: item.vocalFeel ?? item.vocal_feel,
-        instrumentation: item.instrumentation,
-        analysisStatus: "approved",
-        analysisSource: EMOTIONAL_ANALYSIS_APPLY_SOURCE,
-      });
+      const emotionalResult = buildEmotionalMetadataPatch(
+        buildEmotionalApplyItemBody({
+          ...item,
+          analysisStatus: "approved",
+          analysisSource: EMOTIONAL_ANALYSIS_APPLY_SOURCE,
+        })
+      );
 
       if (!emotionalResult.ok) {
         failures.push({ songId, error: emotionalResult.error });

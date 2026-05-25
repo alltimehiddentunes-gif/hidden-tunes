@@ -4,12 +4,17 @@ import {
   analyzeSongEmotionalMetadata,
   type EmotionalSongAnalysisResult,
 } from "@/lib/emotionalAudioAnalysis";
-import { EMOTIONAL_ANALYSIS_MAX_BATCH } from "@/lib/emotionalTaxonomy";
+import {
+  EMOTIONAL_ANALYSIS_QUEUE_MAX,
+  EMOTIONAL_ANALYSIS_THROTTLE_MS,
+  serverSleep,
+} from "@/lib/emotionalAnalysisQueue";
 import { requireUploadPermission } from "@/lib/requireUploadPermission";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 300;
 
 const SONG_SELECT =
   "id,title,audio_url,url,mood,genre,duration,duration_seconds";
@@ -51,11 +56,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (songIds.length > EMOTIONAL_ANALYSIS_MAX_BATCH) {
+    if (songIds.length > EMOTIONAL_ANALYSIS_QUEUE_MAX) {
       return NextResponse.json(
         {
           success: false,
-          error: `Batch limit is ${EMOTIONAL_ANALYSIS_MAX_BATCH} songs per request.`,
+          error: `Batch limit is ${EMOTIONAL_ANALYSIS_QUEUE_MAX} songs per request.`,
         },
         { status: 400 }
       );
@@ -74,7 +79,8 @@ export async function POST(request: NextRequest) {
 
     const results: EmotionalSongAnalysisResult[] = [];
 
-    for (const songId of songIds) {
+    for (let index = 0; index < songIds.length; index += 1) {
+      const songId = songIds[index];
       const song = songMap.get(songId);
 
       if (!song) {
@@ -94,21 +100,26 @@ export async function POST(request: NextRequest) {
           },
           suggestion: null,
         });
-        continue;
+      } else {
+        const analysis = await analyzeSongEmotionalMetadata({
+          id: String(song.id),
+          title: String(song.title || "Untitled"),
+          audio_url: song.audio_url,
+          url: song.url,
+          mood: song.mood,
+          genre: song.genre,
+          duration: song.duration,
+          duration_seconds: song.duration_seconds,
+        });
+
+        results.push(analysis);
       }
 
-      const analysis = await analyzeSongEmotionalMetadata({
-        id: String(song.id),
-        title: String(song.title || "Untitled"),
-        audio_url: song.audio_url,
-        url: song.url,
-        mood: song.mood,
-        genre: song.genre,
-        duration: song.duration,
-        duration_seconds: song.duration_seconds,
-      });
+      const hasMore = index < songIds.length - 1;
 
-      results.push(analysis);
+      if (hasMore) {
+        await serverSleep(EMOTIONAL_ANALYSIS_THROTTLE_MS);
+      }
     }
 
     const suggestedCount = results.filter(
@@ -119,7 +130,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       message: `Generated ${suggestedCount} suggestion(s). ${failedCount} failed.`,
-      maxBatchSize: EMOTIONAL_ANALYSIS_MAX_BATCH,
+      maxBatchSize: EMOTIONAL_ANALYSIS_QUEUE_MAX,
+      throttleMs: EMOTIONAL_ANALYSIS_THROTTLE_MS,
+      processedSequentially: true,
       results,
       summary: {
         requested: songIds.length,

@@ -111,7 +111,11 @@ export const ANALYSIS_SOURCE_OPTIONS = [
   "admin_approved_auto_audio_v1",
 ] as const;
 
-export const EMOTIONAL_ANALYSIS_MAX_BATCH = 10;
+import { EMOTIONAL_ANALYSIS_QUEUE_MAX } from "@/lib/emotionalAnalysisQueue";
+
+/** Alias for legacy imports; matches queue batch limit. */
+export const EMOTIONAL_ANALYSIS_MAX_BATCH = EMOTIONAL_ANALYSIS_QUEUE_MAX;
+
 export const EMOTIONAL_ANALYSIS_AUTO_SOURCE = "auto_audio_v1" as const;
 export const EMOTIONAL_ANALYSIS_APPLY_SOURCE =
   "admin_approved_auto_audio_v1" as const;
