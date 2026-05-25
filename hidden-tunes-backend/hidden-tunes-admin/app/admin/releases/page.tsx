@@ -179,18 +179,40 @@ export default function AdminReleasesPage() {
   );
 
   const loadReleases = useCallback(async () => {
-    const { profile } = await getActiveUploaderSession();
+    const { profile, session } = await getActiveUploaderSession();
     if (!profile) {
       router.replace("/admin/login");
       return;
     }
 
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    const token = session?.access_token;
+    let token = session?.access_token || "";
 
-    if (!token) throw new Error("Your admin session expired. Sign in again.");
+    if (!token) {
+      const { data: refreshed, error: refreshError } =
+        await supabase.auth.refreshSession();
+
+      if (!refreshError) {
+        token = refreshed.session?.access_token || "";
+      }
+    }
+
+    if (!token) {
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (!userError && user) {
+        const {
+          data: { session: latestSession },
+        } = await supabase.auth.getSession();
+        token = latestSession?.access_token || "";
+      }
+    }
+
+    if (!token) {
+      throw new Error("Your admin session expired. Sign in again.");
+    }
 
     const params = new URLSearchParams({
       page: String(page),
@@ -205,14 +227,28 @@ export default function AdminReleasesPage() {
     if (scanFilter !== "all") params.set("scan", scanFilter);
 
     const response = await fetch(`/api/admin/releases?${params.toString()}`, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      cache: "no-store",
     });
     const data = (await response.json().catch(() => null)) as
       | ReleasesResponse
       | null;
 
     if (!response.ok || !data?.success) {
-      throw new Error(data?.error || "Could not load releases.");
+      const apiError = data?.error || "Could not load releases.";
+
+      if (
+        response.status === 401 ||
+        apiError.toLowerCase().includes("missing authorization token") ||
+        apiError.toLowerCase().includes("unauthorized")
+      ) {
+        throw new Error("Your admin session expired. Sign in again.");
+      }
+
+      throw new Error(apiError);
     }
 
     setReleases(data.releases || []);
