@@ -43,6 +43,7 @@ import {
   activateTrackPlayerPlayback,
   bridgeGetActiveIndex,
   bridgeGetProgress,
+  bridgeInterruptForUserTap,
   bridgePlayQueueFromIndex,
   bridgeResetPlayback,
   bridgeSeekTo,
@@ -291,9 +292,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     songId: "",
     handledAt: 0,
   });
-  const loadAndPlayRef = useRef<((song: AppSong) => Promise<void>) | null>(
-    null
-  );
+  type LoadAndPlayOptions = {
+    /** Direct user tap — pause/stop current audio before loading the next track. */
+    userInitiated?: boolean;
+  };
+
+  const loadAndPlayRef = useRef<
+    ((song: AppSong, options?: LoadAndPlayOptions) => Promise<void>) | null
+  >(null);
   const extendQueueWithSmartTracksRef = useRef<(() => Promise<boolean>) | null>(
     null
   );
@@ -1088,6 +1094,41 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     logHTLockAutoNext("clear", { reason });
   }, []);
 
+  const interruptCurrentPlaybackForUserTap = useCallback(async () => {
+    clearFinishWatchdog("user_tap_interrupt");
+
+    if (trackPlayerActiveRef.current) {
+      try {
+        await bridgeInterruptForUserTap();
+        isPlayingRef.current = false;
+        setIsPlaying(false);
+      } catch (error) {
+        console.log("Interrupt TrackPlayer playback error:", error);
+      }
+      return;
+    }
+
+    const sound = soundRef.current;
+    if (!sound) return;
+
+    try {
+      const status = await sound.getStatusAsync();
+
+      if (!status.isLoaded) return;
+
+      sound.setOnPlaybackStatusUpdate(null);
+
+      try {
+        await sound.stopAsync();
+      } catch {}
+
+      isPlayingRef.current = false;
+      setIsPlaying(false);
+    } catch (error) {
+      console.log("Interrupt expo-av playback error:", error);
+    }
+  }, [clearFinishWatchdog, setIsPlaying]);
+
   const advanceTrackPlayerQueueFromJs = useCallback(
     async (source: string) => {
       if (!trackPlayerActiveRef.current) return;
@@ -1788,7 +1829,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   );
 
   const loadAndPlay = useCallback(
-    async (song: AppSong) => {
+    async (song: AppSong, options?: LoadAndPlayOptions) => {
       let requestId = 0;
 
       try {
@@ -1807,6 +1848,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             source: "loadAndPlay",
           });
           return;
+        }
+
+        if (options?.userInitiated) {
+          await interruptCurrentPlaybackForUserTap();
         }
 
         requestId = loadRequestIdRef.current + 1;
@@ -2083,6 +2128,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       normalizeSong,
       isYouTubeSong,
       clearPreloadedSound,
+      interruptCurrentPlaybackForUserTap,
       unloadCurrentSound,
       getActiveQueuePlaybackState,
       getPlayableUri,
@@ -2149,7 +2195,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       void persistActiveQueue(queue, safeIndex, activeQueueModeRef.current);
       void removeStoredValues([POSITION_KEY]);
 
-      await loadAndPlay(song);
+      await loadAndPlay(song, { userInitiated: true });
     },
     [
       isYouTubeSong,
@@ -2161,7 +2207,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     ]
   );
 
-  loadAndPlayRef.current = loadAndPlay;
+  loadAndPlayRef.current = (song, options) => loadAndPlay(song, options);
 
   const extendQueueWithSmartTracks = useCallback(async () => {
     try {
@@ -2319,7 +2365,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         } catch {}
       }
 
-      await loadAndPlay(selectedSong);
+      await loadAndPlay(selectedSong, { userInitiated: true });
     },
     [
       normalizeSong,
@@ -2473,7 +2519,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       }
 
       void removeStoredValues([POSITION_KEY]);
-      await loadAndPlay(normalizedSong);
+      await loadAndPlay(normalizedSong, { userInitiated: true });
     },
     [
       normalizeSong,
@@ -2501,11 +2547,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      await loadAndPlay({
-        ...normalizedSong,
-        type: normalizedSong.type || "audius",
-        isOnline: true,
-      });
+      await loadAndPlay(
+        {
+          ...normalizedSong,
+          type: normalizedSong.type || "audius",
+          isOnline: true,
+        },
+        { userInitiated: true }
+      );
     },
     [normalizeSong, isYouTubeSong, setIsPlaying, loadAndPlay]
   );
