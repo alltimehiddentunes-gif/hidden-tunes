@@ -20,6 +20,7 @@ import {
 import {
   ensureTrackPlayerReady,
   getTrackPlayerActiveIndex,
+  getTrackPlayerActiveTrackId,
   getTrackPlayerProgress,
   getTrackPlayerQueueSnapshot,
   playTrackPlayerQueue,
@@ -206,6 +207,11 @@ export async function bridgeGetProgress(): Promise<PlaybackProgress> {
 export async function bridgeGetActiveIndex(): Promise<number | null> {
   if (!isPlaybackBridgeActive()) return null;
   return getTrackPlayerActiveIndex();
+}
+
+export async function bridgeGetActiveTrackId(): Promise<string | null> {
+  if (!isPlaybackBridgeActive()) return null;
+  return getTrackPlayerActiveTrackId();
 }
 
 export async function bridgeGetQueueSnapshot() {
