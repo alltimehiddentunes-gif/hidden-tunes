@@ -42,7 +42,6 @@ import { isTrackPlayerFeatureEnabled } from "../constants/playbackConfig";
 import {
   activateTrackPlayerPlayback,
   bridgeGetActiveIndex,
-  bridgeGetActiveTrackId,
   bridgeGetProgress,
   bridgePlayQueueFromIndex,
   bridgeResetPlayback,
@@ -1016,41 +1015,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     [getActiveQueuePlaybackState, normalizeSong, savePlaybackSideEffects]
   );
 
-  const resolveQueueIndexFromNativeEvent = useCallback(
-    (nativeIndex: number, trackId: string | null) => {
-      const { queue } = getActiveQueuePlaybackState();
-      if (!queue.length) return -1;
-
-      const normalizedTrackId = trackId ? String(trackId).trim() : "";
-      if (normalizedTrackId) {
-        const byId = queue.findIndex(
-          (song) => String(song.id) === normalizedTrackId
-        );
-        if (byId >= 0) return byId;
-      }
-
-      if (
-        Number.isFinite(nativeIndex) &&
-        nativeIndex >= 0 &&
-        nativeIndex < queue.length
-      ) {
-        return nativeIndex;
-      }
-
-      return -1;
-    },
-    [getActiveQueuePlaybackState]
-  );
-
-  const syncStateFromNativeActiveTrack = useCallback(
-    (nativeIndex: number, trackId: string | null, runSideEffects = true) => {
-      const resolvedIndex = resolveQueueIndexFromNativeEvent(nativeIndex, trackId);
-      if (resolvedIndex < 0) return;
-      syncStateFromTrackPlayerIndex(resolvedIndex, runSideEffects);
-    },
-    [resolveQueueIndexFromNativeEvent, syncStateFromTrackPlayerIndex]
-  );
-
   const preloadUpcomingTrack = useCallback(
     async (upcomingSong: AppSong) => {
       if (trackPlayerActiveRef.current) return;
@@ -1179,34 +1143,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             return;
           }
 
-          if (
-            !shuffleRef.current &&
-            nextIndex === currentIndex + 1
-          ) {
-            const advanced = await bridgeTrySkipToNext();
-
-            if (advanced) {
-              const activeIndex = await bridgeGetActiveIndex();
-              const activeTrackId = await bridgeGetActiveTrackId();
-
-              if (activeIndex !== null) {
-                syncStateFromNativeActiveTrack(activeIndex, activeTrackId);
-                void persistActiveQueue(
-                  queue,
-                  activeQueueIndexRef.current,
-                  activeQueueModeRef.current
-                );
-                void removeStoredValues([POSITION_KEY]);
-                logAutoNextSuccess({
-                  reason: `${source}_native_skip`,
-                  nextIndex: activeQueueIndexRef.current,
-                  queueLength: queue.length,
-                });
-                return;
-              }
-            }
-          }
-
           const playedIndex = await bridgePlayQueueFromIndex({
             songs: queue,
             startIndex: nextIndex,
@@ -1217,16 +1153,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           });
 
           trackPlayerActiveRef.current = true;
-          syncStateFromNativeActiveTrack(playedIndex, null);
-          void persistActiveQueue(
-            queue,
-            activeQueueIndexRef.current,
-            activeQueueModeRef.current
-          );
+          syncStateFromTrackPlayerIndex(playedIndex);
+          void persistActiveQueue(queue, playedIndex, activeQueueModeRef.current);
           void removeStoredValues([POSITION_KEY]);
           logAutoNextSuccess({
             reason: source,
-            nextIndex: activeQueueIndexRef.current,
+            nextIndex: playedIndex,
             queueLength: queue.length,
           });
         });
@@ -1246,10 +1178,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       removeStoredValues,
       runQueueTransition,
       setIsPlaying,
-      syncStateFromNativeActiveTrack,
-      bridgeTrySkipToNext,
-      bridgeGetActiveIndex,
-      bridgeGetActiveTrackId,
+      syncStateFromTrackPlayerIndex,
     ]
   );
 
@@ -1311,19 +1240,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           const advanced = await bridgeTrySkipToNext();
 
           if (advanced) {
-            const activeIndex = await bridgeGetActiveIndex();
-            const activeTrackId = await bridgeGetActiveTrackId();
-
-            if (activeIndex !== null) {
-              syncStateFromNativeActiveTrack(activeIndex, activeTrackId);
-              void persistActiveQueue(
-                queue,
-                activeQueueIndexRef.current,
-                activeQueueModeRef.current
-              );
-              void removeStoredValues([POSITION_KEY]);
-              return;
-            }
+            syncStateFromTrackPlayerIndex(nextIndex);
+            void persistActiveQueue(queue, nextIndex, activeQueueModeRef.current);
+            void removeStoredValues([POSITION_KEY]);
+            return;
           }
 
           await advanceTrackPlayerQueueFromJs("next_song_reload");
@@ -1419,9 +1339,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     normalizeSong,
     persistActiveQueue,
     removeStoredValues,
-    syncStateFromNativeActiveTrack,
-    bridgeGetActiveIndex,
-    bridgeGetActiveTrackId,
+    syncStateFromTrackPlayerIndex,
     advanceTrackPlayerQueueFromJs,
   ]);
 
@@ -1979,7 +1897,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             });
 
             trackPlayerActiveRef.current = true;
-            syncStateFromNativeActiveTrack(playedIndex, normalizedSong.id);
+            syncStateFromTrackPlayerIndex(playedIndex);
             logAudioLoadSuccess({
               songId: normalizedSong.id,
               requestId,
@@ -2170,7 +2088,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       handlePlaybackStatusUpdate,
       takePreloadedSound,
       applyProgressUpdateInterval,
-      syncStateFromNativeActiveTrack,
+      syncStateFromTrackPlayerIndex,
       setIsPlaying,
       setPositionMillis,
       setDurationMillis,
@@ -2304,14 +2222,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         try {
           await bridgeSkipToPrevious();
           const activeIndex = await bridgeGetActiveIndex();
-          const activeTrackId = await bridgeGetActiveTrackId();
 
           if (activeIndex !== null) {
             const { queue } = getActiveQueuePlaybackState();
-            syncStateFromNativeActiveTrack(activeIndex, activeTrackId);
+            syncStateFromTrackPlayerIndex(activeIndex);
             void persistActiveQueue(
               queue,
-              activeQueueIndexRef.current,
+              activeIndex,
               activeQueueModeRef.current
             );
             void removeStoredValues([POSITION_KEY]);
@@ -2343,8 +2260,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     getActiveQueuePlaybackState,
     getPreviousQueueIndex,
     playQueueAtIndex,
-    syncStateFromNativeActiveTrack,
-    bridgeGetActiveTrackId,
+    syncStateFromTrackPlayerIndex,
     persistActiveQueue,
     removeStoredValues,
   ]);
@@ -3183,45 +3099,24 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         }
 
       },
-      onActiveTrackChanged: (index, trackId) => {
+      onActiveTrackChanged: (index) => {
         if (!trackPlayerActiveRef.current || index === null) return;
+        if (isChangingTrackRef.current) return;
 
-        syncStateFromNativeActiveTrack(index, trackId);
+        syncStateFromTrackPlayerIndex(index);
         autoAdvanceRef.current = false;
         isPlayingRef.current = true;
         setIsPlayingState(true);
 
         const { queue } = getActiveQueuePlaybackState();
-        void persistActiveQueue(
-          queue,
-          activeQueueIndexRef.current,
-          activeQueueModeRef.current
-        );
+        void persistActiveQueue(queue, index, activeQueueModeRef.current);
         void removeStoredValues([POSITION_KEY]);
       },
       onQueueEnded: () => {
         if (!trackPlayerActiveRef.current) return;
         if (repeatModeRef.current !== "off") return;
 
-        void (async () => {
-          try {
-            const progress = await bridgeGetProgress();
-            const activeIndex = await bridgeGetActiveIndex();
-            const activeTrackId = await bridgeGetActiveTrackId();
-
-            if (progress.isPlaying && activeIndex !== null) {
-              syncStateFromNativeActiveTrack(activeIndex, activeTrackId);
-              autoAdvanceRef.current = false;
-              isPlayingRef.current = true;
-              setIsPlayingState(true);
-              return;
-            }
-          } catch {
-            // Fall through to queue-window reload.
-          }
-
-          await advanceTrackPlayerQueueFromJs("native_queue_ended");
-        })();
+        void advanceTrackPlayerQueueFromJs("native_queue_ended");
       },
       onPlaybackError: (message) => {
         console.log("TrackPlayer playback error:", message);
@@ -3229,15 +3124,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     });
   }, [
     savePlaybackPosition,
-    syncStateFromNativeActiveTrack,
+    syncStateFromTrackPlayerIndex,
     getActiveQueuePlaybackState,
     persistActiveQueue,
     removeStoredValues,
     advanceTrackPlayerQueueFromJs,
-    bridgeGetProgress,
-    bridgeGetActiveIndex,
-    bridgeGetActiveTrackId,
-    setIsPlaying,
   ]);
 
   useEffect(() => {

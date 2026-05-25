@@ -495,27 +495,6 @@ export async function getTrackPlayerActiveIndex(): Promise<number | null> {
   return typeof activeTrackIndex === "number" ? activeTrackIndex : null;
 }
 
-export async function getTrackPlayerActiveTrackId(): Promise<string | null> {
-  const player = await getTrackPlayerApi();
-  if (!player) return null;
-
-  try {
-    const track = await player.getActiveTrack();
-    const rawId =
-      track && typeof track === "object" && "id" in track
-        ? (track as { id?: unknown }).id
-        : undefined;
-
-    if (typeof rawId === "string" || typeof rawId === "number") {
-      return String(rawId);
-    }
-
-    return null;
-  } catch {
-    return null;
-  }
-}
-
 export async function trackPlayerPlay(): Promise<void> {
   const player = await getTrackPlayerApi();
   if (!player) return;
