@@ -171,9 +171,19 @@ function HomeScreen() {
   const heroListRef = useRef<FlatList<HeroCard>>(null);
   const heroIndexRef = useRef(0);
   const screenStartedAt = useRef(startPerformanceTimer()).current;
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(18)).current;
-  const heroScale = useRef(new Animated.Value(0.96)).current;
+  const homeFirstContentRecordedRef = useRef(
+    initialFeaturedSongsRef.current.length > 0
+  );
+  const hasInitialCachedCatalog = initialFeaturedSongsRef.current.length > 0;
+  const fadeAnim = useRef(
+    new Animated.Value(hasInitialCachedCatalog ? 1 : 0)
+  ).current;
+  const slideAnim = useRef(
+    new Animated.Value(hasInitialCachedCatalog ? 0 : 18)
+  ).current;
+  const heroScale = useRef(
+    new Animated.Value(hasInitialCachedCatalog ? 1 : 0.96)
+  ).current;
   const heroGlowAnim = useRef(new Animated.Value(0.42)).current;
 
   const [featuredSongs, setFeaturedSongs] = useState<HiddenTunesNormalizedSong[]>(
@@ -195,25 +205,39 @@ function HomeScreen() {
 
   useRenderCountProbe("HomeScreen");
 
+  const markHomeCachedContentReady = useCallback(
+    (count: number, source: string) => {
+      if (homeFirstContentRecordedRef.current) return;
+
+      homeFirstContentRecordedRef.current = true;
+      markFirstCachedContentVisible("home");
+
+      const firstContentMs = Date.now() - screenStartedAt;
+      logScreenReady("home", screenStartedAt, {
+        cache: "hit",
+        count,
+        source,
+      });
+      recordScreenOpen("home", { openMs: firstContentMs, firstContentMs });
+      logPerformanceSummary("home", {
+        cache: "hit",
+        firstContentMs,
+        itemCount: count,
+      });
+    },
+    [screenStartedAt]
+  );
+
   useEffect(() => {
     if (!initialFeaturedSongsRef.current.length) return;
 
-    markFirstCachedContentVisible("home");
     recordSnapshotFallbackUsage("home", initialFeaturedSongsRef.current.length);
     recordOfflineCacheStartup("home", initialFeaturedSongsRef.current.length);
-    const firstContentMs = Date.now() - screenStartedAt;
-    logScreenReady("home", screenStartedAt, {
-      cache: "hit",
-      count: initialFeaturedSongsRef.current.length,
-      source: "memory_snapshot",
-    });
-    recordScreenOpen("home", { openMs: firstContentMs, firstContentMs });
-    logPerformanceSummary("home", {
-      cache: "hit",
-      firstContentMs: Date.now() - screenStartedAt,
-      itemCount: initialFeaturedSongsRef.current.length,
-    });
-  }, [screenStartedAt]);
+    markHomeCachedContentReady(
+      initialFeaturedSongsRef.current.length,
+      "memory_snapshot"
+    );
+  }, [markHomeCachedContentReady]);
 
   const defaultHeroTrack = featuredSongs[0];
 
@@ -237,14 +261,64 @@ function HomeScreen() {
     );
   }, []);
 
+  const finishInitialHomeLoadGate = useCallback(() => {
+    setHasCheckedCatalogFallbacks(true);
+    setLoadingSongs(false);
+    setRefreshing(false);
+  }, []);
+
+  const scheduleHydrateCatalogFromStorage = useCallback(() => {
+    scheduleStartupTask("background", "home_catalog_storage_hydrate", async () => {
+      try {
+        const cached = await hydrateHiddenTunesCatalogCache();
+
+        if (cached.length) {
+          if (
+            shouldReplaceCatalogResults(cached, featuredSongsCountRef.current, {
+              allowClearStale: false,
+            })
+          ) {
+            applyFeaturedSongs(cached);
+          }
+
+          if (!homeFirstContentRecordedRef.current) {
+            recordOfflineCacheStartup("home", cached.length);
+            markHomeCachedContentReady(cached.length, "storage");
+          }
+
+          logCacheResult("home", true, {
+            count: cached.length,
+            source: "storage",
+          });
+        } else {
+          logCacheResult("home", false);
+        }
+      } catch {
+        if (!featuredSongsCountRef.current) {
+          setFeaturedSongs([]);
+          setHasMoreSongPages(false);
+        }
+      } finally {
+        if (featuredSongsCountRef.current > 0) {
+          finishInitialHomeLoadGate();
+        }
+      }
+    });
+  }, [
+    applyFeaturedSongs,
+    finishInitialHomeLoadGate,
+    markHomeCachedContentReady,
+  ]);
+
   const loadFeaturedSongs = useCallback(
     async (showLoader = true, forceRefresh = false) => {
       if (isLoadingRef.current && !forceRefresh) return;
 
+      let showedCachedCatalog = featuredSongsCountRef.current > 0;
+      let shouldFinishLoadGate = showedCachedCatalog || forceRefresh;
+
       try {
         isLoadingRef.current = true;
-
-        let showedCachedCatalog = featuredSongsCountRef.current > 0;
 
         if (!forceRefresh && shouldResetCatalogFallbackGate(featuredSongsCountRef.current)) {
           setHasCheckedCatalogFallbacks(false);
@@ -254,38 +328,23 @@ function HomeScreen() {
             applyFeaturedSongs(memorySnapshot);
             setLoadingSongs(false);
             showedCachedCatalog = true;
-            markFirstCachedContentVisible("home");
+            shouldFinishLoadGate = true;
+            markHomeCachedContentReady(memorySnapshot.length, "memory");
             recordSnapshotFallbackUsage("home", memorySnapshot.length);
             recordOfflineCacheStartup("home", memorySnapshot.length);
             logCacheResult("home", true, {
               count: memorySnapshot.length,
               source: "memory",
             });
-          }
-
-          const cached = await hydrateHiddenTunesCatalogCache();
-
-          if (cached.length) {
-            applyFeaturedSongs(cached);
-            setLoadingSongs(false);
-            showedCachedCatalog = true;
-            markFirstCachedContentVisible("home");
-            recordOfflineCacheStartup("home", cached.length);
-            logCacheResult("home", true, { count: cached.length });
-            logScreenReady("home", screenStartedAt, {
-              cache: "hit",
-              count: cached.length,
-            });
-            logPerformanceSummary("home", {
-              cache: "hit",
-              firstContentMs: Date.now() - screenStartedAt,
-              itemCount: cached.length,
-            });
-          } else if (showLoader && !showedCachedCatalog) {
-            setLoadingSongs(true);
+            scheduleHydrateCatalogFromStorage();
+          } else {
+            if (showLoader) {
+              setLoadingSongs(true);
+            }
             logCacheResult("home", false);
+            scheduleHydrateCatalogFromStorage();
           }
-        } else if (showLoader) {
+        } else if (showLoader && !showedCachedCatalog) {
           setLoadingSongs(true);
         }
 
@@ -309,21 +368,19 @@ function HomeScreen() {
             forceRefresh,
           });
           markFirstApiRefreshComplete("home", refreshMs);
+
+          if (!homeFirstContentRecordedRef.current && songs.length > 0) {
+            markHomeCachedContentReady(songs.length, "api");
+          }
+
           logPerformanceSummary("home", {
-            cache: showedCachedCatalog ? "hit" : "miss",
+            cache: showedCachedCatalog || songs.length > 0 ? "hit" : "miss",
             apiRefreshMs: refreshMs,
             itemCount: songs.length,
             emptyStateReason: songs.length
               ? "content_available"
               : "cache_api_and_fallback_empty",
           });
-
-          if (!showedCachedCatalog) {
-            logScreenReady("home", screenStartedAt, {
-              cache: "miss",
-              count: songs.length,
-            });
-          }
 
           if (!showedCachedCatalog && !songs.length) {
             setHasMoreSongPages(false);
@@ -340,28 +397,45 @@ function HomeScreen() {
           }
         };
 
-        if (forceRefresh || !showedCachedCatalog) {
-          await refreshCatalogFromApi();
+        const runCatalogApiRefresh = async () => {
+          try {
+            await refreshCatalogFromApi();
+          } catch {
+            if (!featuredSongsCountRef.current) {
+              setFeaturedSongs([]);
+              setHasMoreSongPages(false);
+            }
+          } finally {
+            finishInitialHomeLoadGate();
+          }
+        };
+
+        if (forceRefresh) {
+          await runCatalogApiRefresh();
+          shouldFinishLoadGate = true;
         } else {
-          scheduleStartupTask(
-            "afterInteraction",
-            "home_catalog_api_refresh",
-            refreshCatalogFromApi
-          );
+          scheduleStartupTask("background", "home_catalog_api_refresh", runCatalogApiRefresh);
         }
       } catch {
         if (!featuredSongsCountRef.current) {
           setFeaturedSongs([]);
           setHasMoreSongPages(false);
         }
+        shouldFinishLoadGate = true;
       } finally {
         isLoadingRef.current = false;
-        setHasCheckedCatalogFallbacks(true);
-        setLoadingSongs(false);
-        setRefreshing(false);
+
+        if (shouldFinishLoadGate) {
+          finishInitialHomeLoadGate();
+        }
       }
     },
-    [applyFeaturedSongs, screenStartedAt]
+    [
+      applyFeaturedSongs,
+      finishInitialHomeLoadGate,
+      markHomeCachedContentReady,
+      scheduleHydrateCatalogFromStorage,
+    ]
   );
 
   loadFeaturedSongsRef.current = loadFeaturedSongs;
@@ -374,24 +448,26 @@ function HomeScreen() {
       requestAnimationFrame(() => {
         void loadFeaturedSongsRef.current(true);
 
-        Animated.parallel([
-          Animated.timing(fadeAnim, {
-            toValue: 1,
-            duration: 420,
-            useNativeDriver: true,
-          }),
-          Animated.timing(slideAnim, {
-            toValue: 0,
-            duration: 420,
-            useNativeDriver: true,
-          }),
-          Animated.spring(heroScale, {
-            toValue: 1,
-            friction: 9,
-            tension: 55,
-            useNativeDriver: true,
-          }),
-        ]).start();
+        if (!hasInitialCachedCatalog) {
+          Animated.parallel([
+            Animated.timing(fadeAnim, {
+              toValue: 1,
+              duration: 420,
+              useNativeDriver: true,
+            }),
+            Animated.timing(slideAnim, {
+              toValue: 0,
+              duration: 420,
+              useNativeDriver: true,
+            }),
+            Animated.spring(heroScale, {
+              toValue: 1,
+              friction: 9,
+              tension: 55,
+              useNativeDriver: true,
+            }),
+          ]).start();
+        }
       });
     });
 

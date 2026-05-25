@@ -57,6 +57,7 @@ import {
   subscribeBridgeEvents,
 } from "../services/playbackBridge";
 import { getArtworkValue } from "../utils/artwork";
+import { scheduleStartupTask } from "../utils/startupScheduler";
 import {
   getActiveLyricLine,
   getBestLyricsPayload,
@@ -3136,12 +3137,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
     configureAudio();
 
-    const restoreTask = InteractionManager.runAfterInteractions(() => {
-      void restoreSavedData();
-    });
+    const cancelRestoreTask = scheduleStartupTask(
+      "background",
+      "player_restore_saved_data",
+      async () => {
+        await restoreSavedData();
+      }
+    );
 
     return () => {
-      restoreTask.cancel();
+      cancelRestoreTask();
       isMountedRef.current = false;
       loadRequestIdRef.current += 1;
       clearFinishWatchdog();
