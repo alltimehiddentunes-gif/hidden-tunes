@@ -63,6 +63,11 @@ import {
   scheduleDelayedNonEssentialWork,
 } from "../../utils/backgroundWork";
 import {
+  logAudioPreloadTargetSelected,
+  pickHomeAudioPreloadTarget,
+} from "../../utils/audioPreloadTargeting";
+import { scheduleDebouncedAudioPreload } from "../../utils/audioPreloadScheduler";
+import {
   getHorizontalListPerformanceSettings,
   getListPerformanceSettings,
   markFastScrolling,
@@ -168,7 +173,7 @@ function buildInitialHomeSongs() {
 }
 
 function HomeScreen() {
-  const { playSong } = usePlayerActions();
+  const { playSong, preloadIdlePlayableTrack } = usePlayerActions();
   const { currentSong, isPlaying } = usePlayerNowPlaying();
   const { recentlyPlayed, favorites } = usePlayerState();
 
@@ -890,6 +895,43 @@ function HomeScreen() {
 
     return cards.slice(0, 6);
   }, [currentSong, defaultHeroTrack, featuredSongs, recentlyPlayed]);
+
+  const homeAudioPreloadTarget = useMemo(
+    () =>
+      pickHomeAudioPreloadTarget({
+        featuredCardSongs: heroCards.map((card) => card.song),
+        visibleCatalogSongs: visibleAllSongs,
+        heroFallback: defaultHeroTrack,
+      }),
+    [defaultHeroTrack, heroCards, visibleAllSongs]
+  );
+
+  useEffect(() => {
+    if (feedMountStage < 3 || !homeAudioPreloadTarget?.song?.id) return undefined;
+
+    const target = homeAudioPreloadTarget;
+    let cancelDebounce: (() => void) | undefined;
+
+    const cancelDelayed = scheduleDelayedNonEssentialWork(() => {
+      cancelDebounce = scheduleDebouncedAudioPreload(
+        `home:${target.song.id}:${target.tier}`,
+        () => {
+          logAudioPreloadTargetSelected("home", target);
+          scheduleStartupTask("idle", "home_idle_audio_preload", () => {
+            void preloadIdlePlayableTrack(target.song, {
+              source: `home:${target.tier}`,
+            });
+          });
+        },
+        { delayMs: 350 }
+      );
+    }, { delayMs: 1500 });
+
+    return () => {
+      cancelDelayed();
+      cancelDebounce?.();
+    };
+  }, [feedMountStage, homeAudioPreloadTarget, preloadIdlePlayableTrack]);
 
   const shouldAutoSlideHero =
     heroCards.length > 1 && !isPlaying;

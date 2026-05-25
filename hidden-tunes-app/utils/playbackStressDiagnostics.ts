@@ -1,3 +1,7 @@
+import {
+  isBasicPerfDiagnosticsEnabled,
+  isHeavyPerfDiagnosticsEnabled,
+} from "./devDiagnostics";
 import { logPerformanceEvent } from "./performanceLogs";
 
 type TimingKind = "tap_to_audio_start" | "next_track_transition" | "pause_resume";
@@ -56,8 +60,12 @@ const emptyStatePreventionReasons = new Map<string, number>();
 
 const stressWarnings: string[] = [];
 
-function shouldTrack() {
-  return typeof __DEV__ === "undefined" || __DEV__;
+function shouldTrackHeavy() {
+  return isHeavyPerfDiagnosticsEnabled();
+}
+
+function shouldTrackTapTiming() {
+  return isBasicPerfDiagnosticsEnabled() || isHeavyPerfDiagnosticsEnabled();
 }
 
 function pushSample(samples: number[], value: number) {
@@ -75,7 +83,7 @@ function average(samples: number[]) {
 }
 
 function warnOnce(code: string, details: Record<string, string | number | boolean | undefined> = {}) {
-  if (!shouldTrack()) return;
+  if (!shouldTrackHeavy()) return;
 
   const message = `${code}:${JSON.stringify(details)}`;
   if (stressWarnings.includes(message)) return;
@@ -113,7 +121,7 @@ function checkReloadLoop() {
 }
 
 export function beginTapToPlayTiming(songId?: string, source = "tap") {
-  if (!shouldTrack()) return;
+  if (!shouldTrackTapTiming()) return;
 
   pendingTiming = {
     kind: "tap_to_audio_start",
@@ -124,7 +132,7 @@ export function beginTapToPlayTiming(songId?: string, source = "tap") {
 }
 
 export function beginNextTrackTransition(source = "next") {
-  if (!shouldTrack()) return;
+  if (!shouldTrackHeavy()) return;
 
   pendingTiming = {
     kind: "next_track_transition",
@@ -134,7 +142,7 @@ export function beginNextTrackTransition(source = "next") {
 }
 
 export function beginPauseResumeTiming(source = "toggle") {
-  if (!shouldTrack()) return;
+  if (!shouldTrackHeavy()) return;
 
   pendingTiming = {
     kind: "pause_resume",
@@ -144,12 +152,17 @@ export function beginPauseResumeTiming(source = "toggle") {
 }
 
 export function completePendingPlaybackTiming(songId?: string, engine?: string) {
-  if (!shouldTrack() || !pendingTiming) return;
+  if (!pendingTiming) return;
 
   const durationMs = Date.now() - pendingTiming.startedAt;
   const kind = pendingTiming.kind;
 
   if (kind === "tap_to_audio_start") {
+    if (!shouldTrackTapTiming()) {
+      pendingTiming = null;
+      return;
+    }
+
     pushSample(tapToAudioSamples, durationMs);
     logPerformanceEvent("tap_to_audio_start_ms", {
       durationMs,
@@ -157,21 +170,28 @@ export function completePendingPlaybackTiming(songId?: string, engine?: string) 
       source: pendingTiming.source,
       engine,
     });
-  } else if (kind === "next_track_transition") {
-    pushSample(nextTrackSamples, durationMs);
-    logPerformanceEvent("next_track_transition_ms", {
-      durationMs,
-      songId,
-      source: pendingTiming.source,
-      engine,
-    });
-  } else if (kind === "pause_resume") {
-    pushSample(pauseResumeSamples, durationMs);
-    logPerformanceEvent("pause_resume_ms", {
-      durationMs,
-      source: pendingTiming.source,
-      engine,
-    });
+  } else {
+    if (!shouldTrackHeavy()) {
+      pendingTiming = null;
+      return;
+    }
+
+    if (kind === "next_track_transition") {
+      pushSample(nextTrackSamples, durationMs);
+      logPerformanceEvent("next_track_transition_ms", {
+        durationMs,
+        songId,
+        source: pendingTiming.source,
+        engine,
+      });
+    } else if (kind === "pause_resume") {
+      pushSample(pauseResumeSamples, durationMs);
+      logPerformanceEvent("pause_resume_ms", {
+        durationMs,
+        source: pendingTiming.source,
+        engine,
+      });
+    }
   }
 
   pendingTiming = null;
@@ -180,7 +200,7 @@ export function completePendingPlaybackTiming(songId?: string, engine?: string) 
 }
 
 export function cancelPendingPlaybackTiming(reason = "cancelled") {
-  if (!shouldTrack() || !pendingTiming) return;
+  if (!shouldTrackHeavy() || !pendingTiming) return;
 
   logPerformanceEvent("playback_timing_cancelled", {
     kind: pendingTiming.kind,
@@ -192,7 +212,7 @@ export function cancelPendingPlaybackTiming(reason = "cancelled") {
 }
 
 export function recordAudioReloadAttempt(details: Record<string, string | number | boolean | undefined> = {}) {
-  if (!shouldTrack()) return;
+  if (!shouldTrackHeavy()) return;
 
   checkReloadLoop();
   logPerformanceEvent("audio_reload_attempt", details);
@@ -203,7 +223,7 @@ export function recordQueueControl(
   queueLength: number,
   details: Record<string, string | number | boolean | undefined> = {}
 ) {
-  if (!shouldTrack()) return;
+  if (!shouldTrackHeavy()) return;
 
   const now = Date.now();
   lastQueueLength = queueLength;
@@ -238,7 +258,7 @@ export function recordQueueControl(
 }
 
 export function updateActiveQueueLength(queueLength: number) {
-  if (!shouldTrack()) return;
+  if (!shouldTrackHeavy()) return;
   lastQueueLength = queueLength;
 
   if (queueLength >= LARGE_QUEUE_WARN) {
@@ -247,7 +267,7 @@ export function updateActiveQueueLength(queueLength: number) {
 }
 
 export function recordArtworkPrefetchQueued(count: number) {
-  if (!shouldTrack()) return;
+  if (!shouldTrackHeavy()) return;
 
   artworkPrefetchQueued += count;
 
@@ -260,17 +280,17 @@ export function recordArtworkPrefetchQueued(count: number) {
 }
 
 export function recordArtworkPrefetchAttempt(count: number) {
-  if (!shouldTrack()) return;
+  if (!shouldTrackHeavy()) return;
   artworkPrefetchAttempts += count;
 }
 
 export function recordArtworkPrefetchSuccess(count: number) {
-  if (!shouldTrack()) return;
+  if (!shouldTrackHeavy()) return;
   artworkPrefetchSuccesses += count;
 }
 
 export function recordArtworkPrefetchFailure(count: number) {
-  if (!shouldTrack()) return;
+  if (!shouldTrackHeavy()) return;
 
   artworkPrefetchFailures += count;
 
@@ -283,7 +303,7 @@ export function recordArtworkPrefetchFailure(count: number) {
 }
 
 export function recordDeferredTaskScheduled() {
-  if (!shouldTrack()) return;
+  if (!shouldTrackHeavy()) return;
 
   deferredTaskScheduled += 1;
 
@@ -299,12 +319,12 @@ export function recordDeferredTaskScheduled() {
 }
 
 export function recordDeferredTaskCompleted() {
-  if (!shouldTrack()) return;
+  if (!shouldTrackHeavy()) return;
   deferredTaskCompleted += 1;
 }
 
 export function registerActiveTimer(label: string) {
-  if (!shouldTrack()) return;
+  if (!shouldTrackHeavy()) return;
 
   activeTimerCount += 1;
   logPerformanceEvent("active_timer_registered", {
@@ -314,7 +334,7 @@ export function registerActiveTimer(label: string) {
 }
 
 export function unregisterActiveTimer(label: string) {
-  if (!shouldTrack()) return;
+  if (!shouldTrackHeavy()) return;
 
   activeTimerCount = Math.max(0, activeTimerCount - 1);
   logPerformanceEvent("active_timer_unregistered", {
@@ -324,7 +344,7 @@ export function unregisterActiveTimer(label: string) {
 }
 
 export function recordOfflineCacheStartup(screen: string, itemCount: number) {
-  if (!shouldTrack()) return;
+  if (!shouldTrackHeavy()) return;
 
   offlineCacheStartupSuccesses += 1;
 
@@ -336,7 +356,7 @@ export function recordOfflineCacheStartup(screen: string, itemCount: number) {
 }
 
 export function recordSnapshotFallbackUsage(screen: string, itemCount: number) {
-  if (!shouldTrack()) return;
+  if (!shouldTrackHeavy()) return;
 
   snapshotFallbackUses += 1;
 
@@ -352,7 +372,7 @@ export function recordEmptyStatePrevented(
   reason: string,
   itemCount = 0
 ) {
-  if (!shouldTrack()) return;
+  if (!shouldTrackHeavy()) return;
 
   emptyStatePreventionReasons.set(
     reason,

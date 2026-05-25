@@ -1,3 +1,4 @@
+import { isHeavyPerfDiagnosticsEnabled } from "./devDiagnostics";
 import { logPerformanceEvent } from "./performanceLogs";
 
 type QueueKey = "activeQueue" | "youtubeQueue" | "radioQueue";
@@ -10,7 +11,7 @@ const queueInvalidationWarnings = { value: 0 };
 const queueReferenceChanges = new Map<QueueKey, number>();
 
 function shouldTrack() {
-  return typeof __DEV__ === "undefined" || __DEV__;
+  return isHeavyPerfDiagnosticsEnabled();
 }
 
 export function areSongQueuesEqual(

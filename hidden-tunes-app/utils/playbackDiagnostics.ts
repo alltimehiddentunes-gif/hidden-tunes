@@ -1,5 +1,6 @@
 import type { AppStateStatus } from "react-native";
 
+import { isHeavyPerfDiagnosticsEnabled } from "./devDiagnostics";
 import { logBackgroundPlayback } from "./backgroundPlaybackLogs";
 
 import {
@@ -199,6 +200,7 @@ export function logHTAutoNext(
   details: HTAutoNextDetails = {}
 ) {
   if (typeof __DEV__ !== "undefined" && !__DEV__) return;
+  if (!isHeavyPerfDiagnosticsEnabled()) return;
 
   console.log(`[HTAutoNext] ${tag}`, details);
 }
@@ -208,6 +210,7 @@ export function logHTLockAutoNext(
   details: HTAutoNextDetails = {}
 ) {
   if (typeof __DEV__ !== "undefined" && !__DEV__) return;
+  if (!isHeavyPerfDiagnosticsEnabled()) return;
 
   console.log(`[HTLockAutoNext] ${tag}`, details);
 }

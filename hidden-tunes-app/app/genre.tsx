@@ -53,6 +53,11 @@ import {
   LIST_ITEM_HEIGHTS,
   markFastScrolling,
 } from "../utils/performanceMode";
+import {
+  logAudioPreloadTargetSelected,
+  pickFirstPlayableTrack,
+} from "../utils/audioPreloadTargeting";
+import { scheduleDebouncedAudioPreload } from "../utils/audioPreloadScheduler";
 
 type AlbumPreview = {
   id: string;
@@ -108,7 +113,7 @@ function dedupeSongs(songs: HiddenTunesNormalizedSong[]) {
 
 export default function GenreScreen() {
   const params = useLocalSearchParams();
-  const { playSong } = usePlayerActions();
+  const { playSong, preloadIdlePlayableTrack } = usePlayerActions();
   const screenStartedAt = useRef(startPerformanceTimer()).current;
   const loadedCatalogKeyRef = useRef<string | null>(null);
 
@@ -178,6 +183,11 @@ export default function GenreScreen() {
       }),
     [cloudTracks.length, hasCheckedFallbacks, loading, refreshing]
   );
+
+  const genreAudioPreloadTarget = useMemo(() => {
+    const first = pickFirstPlayableTrack(cloudTracks);
+    return first ? { song: first, tier: "genre_first" as const } : null;
+  }, [cloudTracks]);
 
   const loadGenreTracks = useCallback(
     async (forceRefresh = false) => {
@@ -320,6 +330,32 @@ export default function GenreScreen() {
       cancelled = true;
     };
   }, [catalogCacheKey, catalogOptions]);
+
+  useEffect(() => {
+    if (loading || !hasCheckedFallbacks || !genreAudioPreloadTarget?.song?.id) {
+      return undefined;
+    }
+
+    const target = genreAudioPreloadTarget;
+
+    return scheduleDebouncedAudioPreload(
+      `genre:${catalogCacheKey}:${target.song.id}`,
+      () => {
+        logAudioPreloadTargetSelected("genre", {
+          song: target.song,
+          tier: target.tier,
+        });
+        void preloadIdlePlayableTrack(target.song, { source: "genre:first" });
+      },
+      { delayMs: 550 }
+    );
+  }, [
+    catalogCacheKey,
+    genreAudioPreloadTarget,
+    hasCheckedFallbacks,
+    loading,
+    preloadIdlePlayableTrack,
+  ]);
 
   const albums: AlbumPreview[] = useMemo(() => {
     const grouped = new Map<string, HiddenTunesNormalizedSong[]>();

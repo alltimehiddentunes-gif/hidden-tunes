@@ -1,3 +1,7 @@
+import {
+  isBasicPerfDiagnosticsEnabled,
+  isHeavyPerfDiagnosticsEnabled,
+} from "./devDiagnostics";
 import { getPlaybackRenderDiagnostics } from "./playbackRenderDiagnostics";
 import { getPlaybackStressDiagnostics } from "./playbackStressDiagnostics";
 import { getRenderDiagnostics } from "./renderDiagnostics";
@@ -38,8 +42,22 @@ type LastScreenSnapshot = {
 
 let lastScreenSnapshot: LastScreenSnapshot | null = null;
 
+const BASIC_PERF_EVENTS = new Set([
+  "screen_ready",
+  "tap_to_play",
+  "tap_to_audio_start_ms",
+  "slow_endpoint",
+]);
+
 function shouldLogPerformance() {
-  return typeof __DEV__ === "undefined" || __DEV__;
+  return isBasicPerfDiagnosticsEnabled();
+}
+
+function shouldLogPerformanceEvent(event: string) {
+  if (!isBasicPerfDiagnosticsEnabled()) return false;
+  if (BASIC_PERF_EVENTS.has(event)) return true;
+  if (event.startsWith("slow_")) return true;
+  return isHeavyPerfDiagnosticsEnabled();
 }
 
 export function nowMs() {
@@ -54,7 +72,7 @@ export function logPerformanceEvent(
   event: string,
   details: PerformanceLogDetails = {}
 ) {
-  if (!shouldLogPerformance()) return;
+  if (!shouldLogPerformanceEvent(event)) return;
 
   console.log("[HiddenTunes:perf]", event, details);
 }
@@ -200,6 +218,8 @@ export function getPerformanceDiagnostics() {
 }
 
 export function logPerformanceDiagnosticsOverlay(screen = "global") {
+  if (!isHeavyPerfDiagnosticsEnabled()) return;
+
   logPerformanceEvent("diagnostics_overlay", {
     screen,
     ...getPerformanceDiagnostics(),
@@ -265,6 +285,8 @@ export function logPerformanceSummary(
     apiRefreshMs: details.apiRefreshMs,
     updatedAt: nowMs(),
   };
+
+  if (!isHeavyPerfDiagnosticsEnabled()) return;
 
   logPerformanceEvent("summary", {
     screen,

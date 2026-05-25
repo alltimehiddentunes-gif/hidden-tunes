@@ -3,11 +3,12 @@ import { useLayoutEffect } from "react";
 import { getPerformanceDiagnostics, logPerformanceEvent } from "./performanceLogs";
 import { getPlaybackRenderDiagnostics } from "./playbackRenderDiagnostics";
 import { getPlaybackStressDiagnostics } from "./playbackStressDiagnostics";
+import { isHeavyPerfDiagnosticsEnabled } from "./devDiagnostics";
 import { getRenderDiagnostics, incrementRenderCount } from "./renderDiagnostics";
 
-/** Dev-only Phase A verification — no production impact. */
+/** Heavy perf verification (monitors, probes, overlay) — off by default in dev. */
 export function isPerformanceVerificationEnabled() {
-  return typeof __DEV__ !== "undefined" && __DEV__;
+  return isHeavyPerfDiagnosticsEnabled();
 }
 
 /** Audit-estimated pre–Phase A baselines for comparison. */

@@ -45,6 +45,11 @@ import {
   getListPerformanceSettings,
   markFastScrolling,
 } from "../../utils/performanceMode";
+import {
+  logAudioPreloadTargetSelected,
+  pickFirstPlayableTrack,
+} from "../../utils/audioPreloadTargeting";
+import { scheduleDebouncedAudioPreload } from "../../utils/audioPreloadScheduler";
 import { trackRenderProbe } from "../../utils/renderDiagnostics";
 import {
   loadAlbumDetailSnapshot,
@@ -125,7 +130,7 @@ function findAlbumById(albums: HiddenTunesAlbum[], id: string) {
 
 export default function AlbumScreen() {
   const { id } = useLocalSearchParams();
-  const { playSong } = usePlayerActions();
+  const { playSong, preloadIdlePlayableTrack } = usePlayerActions();
   const { currentSong, isPlaying } = usePlayerNowPlaying();
   const screenStartedAt = useRef(startPerformanceTimer()).current;
 
@@ -139,6 +144,11 @@ export default function AlbumScreen() {
     () => (album?.tracks || []).map(safeSong),
     [album?.tracks]
   );
+
+  const albumAudioPreloadTarget = useMemo(() => {
+    const first = pickFirstPlayableTrack(tracks);
+    return first ? { song: first, tier: "album_first" as const } : null;
+  }, [tracks]);
 
   const totalDuration = useMemo(() => getTotalDuration(tracks), [tracks]);
   const listPerformance = useMemo(
@@ -267,6 +277,33 @@ export default function AlbumScreen() {
   useEffect(() => {
     loadAlbum(true);
   }, [id, loadAlbum]);
+
+  useEffect(() => {
+    if (loading || !hasCheckedFallbacks || !albumAudioPreloadTarget?.song?.id) {
+      return undefined;
+    }
+
+    const albumId = String(id || "");
+    const target = albumAudioPreloadTarget;
+
+    return scheduleDebouncedAudioPreload(
+      `album:${albumId}:${target.song.id}`,
+      () => {
+        logAudioPreloadTargetSelected("album", {
+          song: target.song,
+          tier: target.tier,
+        });
+        void preloadIdlePlayableTrack(target.song, { source: "album:first" });
+      },
+      { delayMs: 550 }
+    );
+  }, [
+    albumAudioPreloadTarget,
+    hasCheckedFallbacks,
+    id,
+    loading,
+    preloadIdlePlayableTrack,
+  ]);
 
   async function onRefresh() {
     setRefreshing(true);

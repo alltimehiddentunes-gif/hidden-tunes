@@ -1,5 +1,5 @@
+import { isHeavyPerfDiagnosticsEnabled } from "./devDiagnostics";
 import { logPerformanceEvent } from "./performanceLogs";
-import { isPerformanceVerificationEnabled } from "./performanceVerification";
 
 const LONG_RENDER_MS = 24;
 const LONG_LIST_MOUNT_MS = 120;
@@ -8,7 +8,7 @@ const LONG_JS_TASK_MS = 80;
 const renderCounts = new Map<string, number>();
 
 function shouldTrackRenders() {
-  return isPerformanceVerificationEnabled();
+  return isHeavyPerfDiagnosticsEnabled();
 }
 
 export function incrementRenderCount(componentName: string) {

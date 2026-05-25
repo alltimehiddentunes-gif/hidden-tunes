@@ -228,6 +228,10 @@ export type PlayerContextType = {
   toggleFavorite: (song: AppSong) => Promise<void>;
   isFavorite: (song: AppSong | null) => boolean;
   clearActiveQueue: () => Promise<void>;
+  preloadIdlePlayableTrack: (
+    song: AppSong,
+    options?: { source?: string }
+  ) => Promise<void>;
 };
 
 const CURRENT_SONG_KEY = "hidden_tunes_current_song";
@@ -1088,6 +1092,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       return null;
     }
 
+    if (typeof __DEV__ !== "undefined" && __DEV__) {
+      console.log("[audio-preload] preload-hit", { songId });
+    }
+
     const sound = preloadedSoundRef.current;
     preloadedSoundRef.current = null;
     preloadedSongIdRef.current = null;
@@ -1095,6 +1103,84 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
     return sound;
   }, []);
+
+  const preloadIdlePlayableTrack = useCallback(
+    async (song: AppSong, options?: { source?: string }) => {
+      const source = options?.source || "idle";
+
+      const logSkip = (reason: string) => {
+        if (typeof __DEV__ !== "undefined" && __DEV__) {
+          console.log("[audio-preload] preload-skip", {
+            reason,
+            source,
+            songId: song?.id,
+          });
+        }
+      };
+
+      if (trackPlayerActiveRef.current) {
+        logSkip("native_queue_active");
+        return;
+      }
+
+      if (preloadInFlightRef.current) {
+        logSkip("preload_in_flight");
+        return;
+      }
+
+      if (isChangingTrackRef.current || inFlightPlaySongIdRef.current) {
+        logSkip("playback_loading");
+        return;
+      }
+
+      if (soundRef.current && isPlayingRef.current) {
+        logSkip("already_playing");
+        return;
+      }
+
+      const normalizedSong = normalizeSong(song);
+
+      if (isYouTubeSong(normalizedSong)) {
+        logSkip("youtube_track");
+        return;
+      }
+
+      const playableUri = getPlayableUri(normalizedSong);
+
+      if (!playableUri && !normalizedSong.audio) {
+        logSkip("invalid_url");
+        return;
+      }
+
+      if (
+        currentSongRef.current?.id === normalizedSong.id &&
+        soundRef.current
+      ) {
+        logSkip("already_current");
+        return;
+      }
+
+      if (preloadedSongIdRef.current === normalizedSong.id) {
+        logSkip("already_preloaded");
+        return;
+      }
+
+      if (typeof __DEV__ !== "undefined" && __DEV__) {
+        console.log("[audio-preload] preload-start", {
+          songId: normalizedSong.id,
+          source,
+        });
+      }
+
+      await preloadUpcomingTrack(normalizedSong);
+    },
+    [
+      getPlayableUri,
+      isYouTubeSong,
+      normalizeSong,
+      preloadUpcomingTrack,
+    ]
+  );
 
   const clearFinishWatchdog = useCallback((reason = "unspecified") => {
     if (finishWatchdogTimeoutRef.current) {
@@ -1138,7 +1224,18 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      if (preloadedSoundRef.current) {
+      const preservePreloadForTap =
+        Boolean(targetSongId) &&
+        targetSongId === preloadedSongIdRef.current &&
+        Boolean(preloadedSoundRef.current);
+
+      if (preservePreloadForTap) {
+        if (typeof __DEV__ !== "undefined" && __DEV__) {
+          console.log("[audio-preload] preload-preserved-for-tap", {
+            songId: targetSongId,
+          });
+        }
+      } else if (preloadedSoundRef.current) {
         try {
           await clearPreloadedSound();
         } catch (error) {
@@ -2128,6 +2225,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         const progressUpdateIntervalMillis = getProgressUpdateIntervalMs(
           appStateRef.current
         );
+        const usedPreloadedSound = Boolean(
+          preloadedSongIdRef.current === normalizedSong.id &&
+            preloadedSoundRef.current
+        );
         let sound = await takePreloadedSound(normalizedSong.id);
 
         if (sound) {
@@ -2165,7 +2266,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         logAudioLoadSuccess({
           songId: normalizedSong.id,
           requestId,
-          preloaded: preloadedSongIdRef.current === normalizedSong.id,
+          preloaded: usedPreloadedSound,
         });
 
         try {
@@ -3493,6 +3594,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       toggleFavorite,
       isFavorite,
       clearActiveQueue,
+      preloadIdlePlayableTrack,
     }),
     [
       playSong,
@@ -3516,6 +3618,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       toggleFavorite,
       isFavorite,
       clearActiveQueue,
+      preloadIdlePlayableTrack,
     ]
   );
 

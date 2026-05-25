@@ -39,6 +39,7 @@ export type PlayerActionsContextValue = Pick<
   | "toggleFavorite"
   | "isFavorite"
   | "clearActiveQueue"
+  | "preloadIdlePlayableTrack"
 >;
 
 export type PlayerStateContextValue = Pick<
