@@ -42,6 +42,24 @@ type EmotionalMetadata = {
   analysisSource: string | null;
 };
 
+type EmotionalMetadataDraft = {
+  energy: string;
+  tempoBpm: string;
+  atmosphere: string;
+  emotion: string;
+  texture: string;
+  timeOfDay: string;
+  vocalFeel: string;
+  instrumentation: string;
+  analysisStatus: string;
+  analysisSource: string;
+};
+
+type EmotionalSaveState = {
+  status: "idle" | "saving" | "success" | "error";
+  message: string;
+};
+
 type ReleaseTrack = {
   id: string;
   title: string;
@@ -100,6 +118,7 @@ type UpdateResponse = {
   success: boolean;
   message?: string;
   track?: Partial<ReleaseTrack>;
+  emotionalMetadata?: EmotionalMetadata | null;
   error?: string;
 };
 
@@ -243,6 +262,44 @@ function buildEmotionalMetadataEntries(metadata: EmotionalMetadata | null | unde
   return entries;
 }
 
+function emotionalMetadataToDraft(
+  metadata: EmotionalMetadata | null | undefined
+): EmotionalMetadataDraft {
+  return {
+    energy: metadata?.energy != null ? String(metadata.energy) : "",
+    tempoBpm: metadata?.tempoBpm != null ? String(metadata.tempoBpm) : "",
+    atmosphere: metadata?.atmosphere || "",
+    emotion: metadata?.emotion || "",
+    texture: metadata?.texture || "",
+    timeOfDay: metadata?.timeOfDay || "",
+    vocalFeel: metadata?.vocalFeel || "",
+    instrumentation: metadata?.instrumentation || "",
+    analysisStatus: metadata?.analysisStatus || "",
+    analysisSource: metadata?.analysisSource || "",
+  };
+}
+
+function buildEmotionalSavePayload(draft: EmotionalMetadataDraft) {
+  const energyText = draft.energy.trim();
+  const tempoText = draft.tempoBpm.trim();
+
+  return {
+    energy: energyText === "" ? "" : Number(energyText),
+    tempoBpm: tempoText === "" ? "" : Number(tempoText),
+    atmosphere: draft.atmosphere,
+    emotion: draft.emotion,
+    texture: draft.texture,
+    timeOfDay: draft.timeOfDay,
+    vocalFeel: draft.vocalFeel,
+    instrumentation: draft.instrumentation,
+    analysisStatus: draft.analysisStatus,
+    analysisSource: draft.analysisSource,
+  };
+}
+
+const emotionalFieldClass =
+  "w-full rounded-xl border border-white/10 bg-black/35 px-3 py-2 text-sm font-semibold text-white outline-none transition placeholder:text-white/25 focus:border-violet-300/40";
+
 export default function AdminReleaseDetailPage() {
   const router = useRouter();
   const params = useParams<{ id?: string | string[] }>();
@@ -260,6 +317,13 @@ export default function AdminReleaseDetailPage() {
     {}
   );
   const [savingGenreTrackId, setSavingGenreTrackId] = useState("");
+  const [emotionalDrafts, setEmotionalDrafts] = useState<
+    Record<string, EmotionalMetadataDraft>
+  >({});
+  const [savingEmotionalTrackId, setSavingEmotionalTrackId] = useState("");
+  const [emotionalSaveStates, setEmotionalSaveStates] = useState<
+    Record<string, EmotionalSaveState>
+  >({});
 
   const totalDuration = useMemo(
     () =>
@@ -305,6 +369,18 @@ export default function AdminReleaseDetailPage() {
 
         return next;
       });
+
+      setEmotionalDrafts(() => {
+        const next: Record<string, EmotionalMetadataDraft> = {};
+
+        data.release?.tracks.forEach((track) => {
+          next[track.id] = emotionalMetadataToDraft(track.emotionalMetadata);
+        });
+
+        return next;
+      });
+
+      setEmotionalSaveStates({});
     },
     [releaseId]
   );
@@ -499,6 +575,116 @@ export default function AdminReleaseDetailPage() {
       });
     } finally {
       setSavingGenreTrackId("");
+    }
+  }
+
+  function updateEmotionalDraft(
+    trackId: string,
+    patch: Partial<EmotionalMetadataDraft>
+  ) {
+    setEmotionalDrafts((current) => ({
+      ...current,
+      [trackId]: {
+        ...emotionalMetadataToDraft(null),
+        ...current[trackId],
+        ...patch,
+      },
+    }));
+  }
+
+  function setEmotionalSaveState(trackId: string, patch: Partial<EmotionalSaveState>) {
+    setEmotionalSaveStates((current) => ({
+      ...current,
+      [trackId]: {
+        ...(current[trackId] ?? { status: "idle", message: "" }),
+        ...patch,
+      },
+    }));
+  }
+
+  async function saveTrackEmotional(track: ReleaseTrack) {
+    if (!release || !accessToken) return;
+
+    const genreDraft =
+      genreDrafts[track.id] ||
+      ({
+        ...getGenreSelectionFromLegacyLabel(track.genre),
+        legacyOverride: "",
+      } satisfies GenreDraftState);
+    const emotionalDraft =
+      emotionalDrafts[track.id] ?? emotionalMetadataToDraft(track.emotionalMetadata);
+
+    setSavingEmotionalTrackId(track.id);
+    setEmotionalSaveState(track.id, {
+      status: "saving",
+      message: "Saving emotional metadata...",
+    });
+
+    try {
+      const genrePayload = buildGenreSavePayload(genreDraft);
+
+      const response = await fetch(
+        `/api/admin/releases/${release.id}/tracks/${track.id}/metadata`,
+        {
+          method: "PATCH",
+          headers: {
+            ...authHeader(accessToken),
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            ...genrePayload,
+            legacyGenreOverride: genreDraft.legacyOverride.trim() || undefined,
+            ...buildEmotionalSavePayload(emotionalDraft),
+          }),
+        }
+      );
+
+      const data = (await response.json().catch(() => null)) as UpdateResponse | null;
+
+      if (!response.ok || !data?.success) {
+        throw new Error(data?.error || "Emotional metadata could not be saved.");
+      }
+
+      const nextEmotional =
+        data.track?.emotionalMetadata || data.emotionalMetadata || null;
+      const nextGenre = data.track?.genre || track.genre;
+
+      setRelease((current) => {
+        if (!current) return current;
+
+        return {
+          ...current,
+          tracks: current.tracks.map((currentTrack) =>
+            currentTrack.id === track.id
+              ? {
+                  ...currentTrack,
+                  genre: nextGenre,
+                  emotionalMetadata: nextEmotional,
+                }
+              : currentTrack
+          ),
+        };
+      });
+
+      setEmotionalDrafts((current) => ({
+        ...current,
+        [track.id]: emotionalMetadataToDraft(nextEmotional),
+      }));
+
+      setEmotionalSaveState(track.id, {
+        status: "success",
+        message: "Emotional metadata saved.",
+      });
+    } catch (error: unknown) {
+      setEmotionalSaveState(track.id, {
+        status: "error",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Emotional metadata update failed.",
+      });
+    } finally {
+      setSavingEmotionalTrackId("");
     }
   }
 
@@ -715,6 +901,12 @@ export default function AdminReleaseDetailPage() {
                   legacyOverride: "",
                 } satisfies GenreDraftState);
               const isSavingGenre = savingGenreTrackId === track.id;
+              const isSavingEmotional = savingEmotionalTrackId === track.id;
+              const emotionalDraft =
+                emotionalDrafts[track.id] ??
+                emotionalMetadataToDraft(track.emotionalMetadata);
+              const emotionalSaveState = emotionalSaveStates[track.id];
+              const formDisabled = isBusy || isSavingGenre || isSavingEmotional;
 
               return (
                 <article
@@ -764,6 +956,16 @@ export default function AdminReleaseDetailPage() {
                         metadata={track.emotionalMetadata}
                       />
 
+                      <EmotionalMetadataEditor
+                        draft={emotionalDraft}
+                        disabled={formDisabled}
+                        saveState={emotionalSaveState}
+                        onFieldChange={(field, value) =>
+                          updateEmotionalDraft(track.id, { [field]: value })
+                        }
+                        onSave={() => saveTrackEmotional(track)}
+                      />
+
                       <div className="mt-4 rounded-2xl border border-white/10 bg-black/30 p-4">
                         <p className="text-xs font-black uppercase tracking-[0.18em] text-yellow-300">
                           Catalog Genre
@@ -771,7 +973,7 @@ export default function AdminReleaseDetailPage() {
                         <div className="mt-3">
                           <ControlledGenreFields
                             compact
-                            disabled={isBusy || isSavingGenre}
+                            disabled={formDisabled}
                             mainGenreId={genreDraft.mainGenreId}
                             subgenreId={genreDraft.subgenreId}
                             legacyGenreLabel={genreDraft.legacyGenre}
@@ -798,7 +1000,7 @@ export default function AdminReleaseDetailPage() {
                         <button
                           type="button"
                           onClick={() => saveTrackGenre(track)}
-                          disabled={isBusy || isSavingGenre}
+                          disabled={formDisabled}
                           className="mt-4 rounded-2xl bg-yellow-300 px-4 py-3 text-sm font-black text-black transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           {isSavingGenre ? "Saving Genre..." : "Save Genre"}
@@ -1141,7 +1343,7 @@ function EmotionalMetadataPanel({
   return (
     <div className="mt-4 rounded-2xl border border-violet-300/15 bg-violet-500/[0.06] p-4">
       <p className="text-xs font-black uppercase tracking-[0.18em] text-violet-200">
-        Emotional Metadata
+        Saved Emotional Metadata
       </p>
       <div className="mt-3 flex min-w-0 max-w-full flex-wrap gap-2">
         {entries.map((entry) => (
@@ -1155,5 +1357,179 @@ function EmotionalMetadataPanel({
         ))}
       </div>
     </div>
+  );
+}
+
+function EmotionalMetadataEditor({
+  draft,
+  disabled,
+  saveState,
+  onFieldChange,
+  onSave,
+}: {
+  draft: EmotionalMetadataDraft;
+  disabled: boolean;
+  saveState?: EmotionalSaveState;
+  onFieldChange: (field: keyof EmotionalMetadataDraft, value: string) => void;
+  onSave: () => void;
+}) {
+  const isSaving = saveState?.status === "saving";
+
+  return (
+    <div className="mt-4 rounded-2xl border border-violet-300/15 bg-black/30 p-4">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-xs font-black uppercase tracking-[0.18em] text-violet-200">
+          Edit Emotional Metadata
+        </p>
+        <p className="text-xs font-semibold text-white/35">
+          Manual tags only. Leave blank to clear.
+        </p>
+      </div>
+
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <label className="block min-w-0">
+          <span className="text-[11px] font-black uppercase tracking-[0.16em] text-white/40">
+            Energy (0-100)
+          </span>
+          <input
+            type="number"
+            min={0}
+            max={100}
+            step={1}
+            value={draft.energy}
+            disabled={disabled}
+            onChange={(event) => onFieldChange("energy", event.target.value)}
+            className={`${emotionalFieldClass} mt-1`}
+            placeholder="72"
+          />
+        </label>
+
+        <label className="block min-w-0">
+          <span className="text-[11px] font-black uppercase tracking-[0.16em] text-white/40">
+            Tempo BPM
+          </span>
+          <input
+            type="number"
+            min={1}
+            step={1}
+            value={draft.tempoBpm}
+            disabled={disabled}
+            onChange={(event) => onFieldChange("tempoBpm", event.target.value)}
+            className={`${emotionalFieldClass} mt-1`}
+            placeholder="98"
+          />
+        </label>
+
+        <EmotionalTextField
+          label="Atmosphere"
+          value={draft.atmosphere}
+          disabled={disabled}
+          placeholder="late-night"
+          onChange={(value) => onFieldChange("atmosphere", value)}
+        />
+        <EmotionalTextField
+          label="Emotion"
+          value={draft.emotion}
+          disabled={disabled}
+          placeholder="nostalgia"
+          onChange={(value) => onFieldChange("emotion", value)}
+        />
+        <EmotionalTextField
+          label="Texture"
+          value={draft.texture}
+          disabled={disabled}
+          placeholder="dreamy"
+          onChange={(value) => onFieldChange("texture", value)}
+        />
+        <EmotionalTextField
+          label="Time of day"
+          value={draft.timeOfDay}
+          disabled={disabled}
+          placeholder="night-drive"
+          onChange={(value) => onFieldChange("timeOfDay", value)}
+        />
+        <EmotionalTextField
+          label="Vocal feel"
+          value={draft.vocalFeel}
+          disabled={disabled}
+          placeholder="intimate"
+          onChange={(value) => onFieldChange("vocalFeel", value)}
+        />
+        <EmotionalTextField
+          label="Instrumentation"
+          value={draft.instrumentation}
+          disabled={disabled}
+          placeholder="piano, soft drums"
+          onChange={(value) => onFieldChange("instrumentation", value)}
+        />
+        <EmotionalTextField
+          label="Analysis status"
+          value={draft.analysisStatus}
+          disabled={disabled}
+          placeholder="manual"
+          onChange={(value) => onFieldChange("analysisStatus", value)}
+        />
+        <EmotionalTextField
+          label="Analysis source"
+          value={draft.analysisSource}
+          disabled={disabled}
+          placeholder="admin_upload"
+          onChange={(value) => onFieldChange("analysisSource", value)}
+        />
+      </div>
+
+      <button
+        type="button"
+        onClick={onSave}
+        disabled={disabled}
+        className="mt-4 rounded-2xl border border-violet-300/25 bg-violet-400/15 px-4 py-3 text-sm font-black text-violet-50 transition hover:-translate-y-0.5 hover:border-violet-300/40 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {isSaving ? "Saving Emotional Metadata..." : "Save Emotional Metadata"}
+      </button>
+
+      {saveState?.message ? (
+        <p
+          className={`mt-3 text-sm font-semibold ${
+            saveState.status === "error"
+              ? "text-red-200"
+              : saveState.status === "success"
+                ? "text-emerald-200"
+                : "text-violet-100/80"
+          }`}
+        >
+          {saveState.message}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function EmotionalTextField({
+  label,
+  value,
+  disabled,
+  placeholder,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  disabled: boolean;
+  placeholder: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="block min-w-0">
+      <span className="text-[11px] font-black uppercase tracking-[0.16em] text-white/40">
+        {label}
+      </span>
+      <input
+        type="text"
+        value={value}
+        disabled={disabled}
+        onChange={(event) => onChange(event.target.value)}
+        className={`${emotionalFieldClass} mt-1`}
+        placeholder={placeholder}
+      />
+    </label>
   );
 }

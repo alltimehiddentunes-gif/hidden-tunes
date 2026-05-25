@@ -4,6 +4,7 @@ import { randomUUID } from "crypto";
 import { uploadToR2 } from "@/lib/r2";
 import { requireUploadPermission } from "@/lib/requireUploadPermission";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { buildEmotionalMetadataPatch } from "@/lib/emotionalMetadata";
 import {
   applyNormalizedGenreToSongInsert,
   normalizeIncomingGenrePayload,
@@ -247,7 +248,16 @@ export async function POST(req: NextRequest) {
     }
 
     const uploadedByUserId = permission.profile.id;
-    const body = await req.json();
+    const body = (await req.json()) as Record<string, unknown>;
+
+    const emotionalResult = buildEmotionalMetadataPatch(body);
+
+    if (!emotionalResult.ok) {
+      return NextResponse.json(
+        { success: false, error: emotionalResult.error },
+        { status: 400 }
+      );
+    }
 
     const title = String(body.title || body.titleOverride || "").trim();
     const artistName = String(
@@ -413,6 +423,8 @@ export async function POST(req: NextRequest) {
 
             is_online: true,
             isOnline: true,
+
+            ...emotionalResult.patch,
           },
           normalizedGenre
         )

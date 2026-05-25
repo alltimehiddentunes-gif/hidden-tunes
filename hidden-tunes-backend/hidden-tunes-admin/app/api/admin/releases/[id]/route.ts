@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { buildEmotionalMetadata } from "@/lib/emotionalMetadata";
 import { requireUploadPermission } from "@/lib/requireUploadPermission";
 import {
   buildReleaseHealthSummary,
@@ -28,30 +29,6 @@ function getErrorMessage(error: unknown, fallback: string) {
 function stringOrNull(value: unknown) {
   const text = String(value || "").trim();
   return text || null;
-}
-
-function numberOrNull(value: unknown) {
-  if (typeof value === "number" && Number.isFinite(value)) {
-    return value;
-  }
-
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-function buildEmotionalMetadata(track: SongRow) {
-  return {
-    energy: numberOrNull(track.energy),
-    tempoBpm: numberOrNull(track.tempo_bpm),
-    atmosphere: stringOrNull(track.atmosphere),
-    emotion: stringOrNull(track.emotion),
-    texture: stringOrNull(track.texture),
-    timeOfDay: stringOrNull(track.time_of_day),
-    vocalFeel: stringOrNull(track.vocal_feel),
-    instrumentation: stringOrNull(track.instrumentation),
-    analysisStatus: stringOrNull(track.analysis_status),
-    analysisSource: stringOrNull(track.analysis_source),
-  };
 }
 
 export async function GET(request: NextRequest, context: RouteContext) {

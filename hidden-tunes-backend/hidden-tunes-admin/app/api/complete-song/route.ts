@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { requireUploadPermission } from "@/lib/requireUploadPermission";
+import { buildEmotionalMetadataPatch } from "@/lib/emotionalMetadata";
 import {
   applyNormalizedGenreToSongInsert,
   normalizeIncomingGenrePayload,
@@ -28,7 +29,16 @@ export async function POST(req: NextRequest) {
       return permission.errorResponse;
     }
 
-    const body = await req.json();
+    const body = (await req.json()) as Record<string, unknown>;
+
+    const emotionalResult = buildEmotionalMetadataPatch(body);
+
+    if (!emotionalResult.ok) {
+      return NextResponse.json(
+        { error: emotionalResult.error },
+        { status: 400 }
+      );
+    }
 
     const title = String(body.title || "").trim();
     const artistName = String(body.artistName || "Unknown Artist").trim();
@@ -109,6 +119,8 @@ export async function POST(req: NextRequest) {
             type: "r2",
             is_online: true,
             is_downloadable: true,
+
+            ...emotionalResult.patch,
           },
           normalizedGenre
         ),

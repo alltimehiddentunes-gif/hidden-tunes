@@ -6,6 +6,13 @@ import ControlledGenreFields from "@/components/ControlledGenreFields";
 import { supabase } from "@/lib/auth";
 import { resolveGenreFields } from "@/lib/controlledGenreState";
 import {
+  buildEmotionalRequestBody,
+  emptyEmotionalDraft,
+  hasEmotionalDraftValues,
+  validateEmotionalDraft,
+  type EmotionalMetadataDraft,
+} from "@/lib/emotionalMetadata";
+import {
   buildNormalizedGenrePayload,
   getDefaultMainGenreId,
   getDefaultSubgenreId,
@@ -23,6 +30,7 @@ type TrackUploadItem = {
   subgenreId: string;
   genre: string;
   mood: string;
+  emotional: EmotionalMetadataDraft;
   duration: number;
   artworkFile?: File | null;
   lyricsFile?: File | null;
@@ -54,6 +62,138 @@ type ServerUploadResponse = {
 
 const FALLBACK_ARTIST = "Hidden Tunes";
 const FALLBACK_ALBUM = "Singles";
+
+const emotionalFieldClass =
+  "w-full rounded-xl border border-white/10 bg-black/35 px-3 py-2 text-sm outline-none transition placeholder:text-white/25 focus:border-violet-300/40";
+
+function EmotionalUploadFields({
+  draft,
+  disabled,
+  onChange,
+}: {
+  draft: EmotionalMetadataDraft;
+  disabled?: boolean;
+  onChange: (patch: Partial<EmotionalMetadataDraft>) => void;
+}) {
+  return (
+    <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+      <label className="space-y-1 text-xs text-white/45">
+        Energy (0–100)
+        <input
+          type="number"
+          min={0}
+          max={100}
+          disabled={disabled}
+          value={draft.energy}
+          onChange={(event) => onChange({ energy: event.target.value })}
+          placeholder="Optional"
+          className={emotionalFieldClass}
+        />
+      </label>
+
+      <label className="space-y-1 text-xs text-white/45">
+        Tempo (BPM)
+        <input
+          type="number"
+          min={1}
+          disabled={disabled}
+          value={draft.tempoBpm}
+          onChange={(event) => onChange({ tempoBpm: event.target.value })}
+          placeholder="Optional"
+          className={emotionalFieldClass}
+        />
+      </label>
+
+      <label className="space-y-1 text-xs text-white/45">
+        Emotion
+        <input
+          disabled={disabled}
+          value={draft.emotion}
+          onChange={(event) => onChange({ emotion: event.target.value })}
+          placeholder="Optional"
+          className={emotionalFieldClass}
+        />
+      </label>
+
+      <label className="space-y-1 text-xs text-white/45">
+        Atmosphere
+        <input
+          disabled={disabled}
+          value={draft.atmosphere}
+          onChange={(event) => onChange({ atmosphere: event.target.value })}
+          placeholder="Optional"
+          className={emotionalFieldClass}
+        />
+      </label>
+
+      <label className="space-y-1 text-xs text-white/45">
+        Texture
+        <input
+          disabled={disabled}
+          value={draft.texture}
+          onChange={(event) => onChange({ texture: event.target.value })}
+          placeholder="Optional"
+          className={emotionalFieldClass}
+        />
+      </label>
+
+      <label className="space-y-1 text-xs text-white/45">
+        Time of day
+        <input
+          disabled={disabled}
+          value={draft.timeOfDay}
+          onChange={(event) => onChange({ timeOfDay: event.target.value })}
+          placeholder="Optional"
+          className={emotionalFieldClass}
+        />
+      </label>
+
+      <label className="space-y-1 text-xs text-white/45">
+        Vocal feel
+        <input
+          disabled={disabled}
+          value={draft.vocalFeel}
+          onChange={(event) => onChange({ vocalFeel: event.target.value })}
+          placeholder="Optional"
+          className={emotionalFieldClass}
+        />
+      </label>
+
+      <label className="space-y-1 text-xs text-white/45">
+        Instrumentation
+        <input
+          disabled={disabled}
+          value={draft.instrumentation}
+          onChange={(event) => onChange({ instrumentation: event.target.value })}
+          placeholder="Optional"
+          className={emotionalFieldClass}
+        />
+      </label>
+
+      <label className="space-y-1 text-xs text-white/45">
+        Analysis status
+        <input
+          disabled={disabled}
+          value={draft.analysisStatus}
+          onChange={(event) => onChange({ analysisStatus: event.target.value })}
+          placeholder="e.g. manual"
+          className={emotionalFieldClass}
+        />
+      </label>
+
+      <label className="space-y-1 text-xs text-white/45 sm:col-span-2 lg:col-span-3">
+        Analysis source
+        <input
+          disabled={disabled}
+          value={draft.analysisSource}
+          onChange={(event) => onChange({ analysisSource: event.target.value })}
+          placeholder="e.g. admin_upload"
+          className={emotionalFieldClass}
+        />
+      </label>
+    </div>
+  );
+}
 
 class UploadStepError extends Error {
   step: string;
@@ -515,6 +655,7 @@ export default function BulkUploadPanel() {
   const [defaultMainGenreId, setDefaultMainGenreId] = useState(getDefaultMainGenreId);
   const [defaultSubgenreId, setDefaultSubgenreId] = useState(getDefaultSubgenreId);
   const [defaultMood, setDefaultMood] = useState("");
+  const [defaultEmotional, setDefaultEmotional] = useState(emptyEmotionalDraft);
   const [globalArtwork, setGlobalArtwork] = useState<File | null>(null);
   const [globalLyrics, setGlobalLyrics] = useState<File | null>(null);
   const [globalLrc, setGlobalLrc] = useState<File | null>(null);
@@ -604,6 +745,9 @@ export default function BulkUploadPanel() {
         album: defaultAlbum || FALLBACK_ALBUM,
         ...resolveGenreFields(defaultMainGenreId, defaultSubgenreId),
         mood: defaultMood,
+        emotional: hasEmotionalDraftValues(defaultEmotional)
+          ? { ...defaultEmotional }
+          : emptyEmotionalDraft(),
         duration,
         artworkFile: matchedArtwork,
         lyricsFile: matchedLyrics,
@@ -748,6 +892,17 @@ export default function BulkUploadPanel() {
           subgenreId: defaultSubgenreId,
         });
 
+      const emotionalValidation = validateEmotionalDraft(item.emotional);
+
+      if (!emotionalValidation.ok) {
+        throw new UploadStepError(
+          "emotional metadata",
+          emotionalValidation.error
+        );
+      }
+
+      const emotionalPayload = buildEmotionalRequestBody(item.emotional);
+
       let response: Response;
 
       try {
@@ -779,6 +934,8 @@ export default function BulkUploadPanel() {
             lyricsText: syncedLrcText || plainLyricsText,
             plainLyricsText,
             syncedLrcText,
+
+            ...emotionalPayload,
           }),
         });
       } catch (error: unknown) {
@@ -864,6 +1021,9 @@ export default function BulkUploadPanel() {
         album: defaultAlbum.trim() || item.album || FALLBACK_ALBUM,
         ...resolvedGenre,
         mood: defaultMood.trim() || item.mood,
+        emotional: hasEmotionalDraftValues(defaultEmotional)
+          ? { ...defaultEmotional }
+          : item.emotional,
         lyricsFile:
           item.lyricsFile || findMatchingFile(item.file, lyricsMap) || globalLyrics,
         lrcFile: item.lrcFile || findMatchingFile(item.file, lrcMap) || globalLrc,
@@ -988,6 +1148,22 @@ export default function BulkUploadPanel() {
                     className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm outline-none transition focus:border-yellow-400"
                   />
                 </label>
+
+                <details className="rounded-2xl border border-violet-400/15 bg-violet-500/[0.04] px-4 py-3">
+                  <summary className="cursor-pointer text-sm font-bold text-violet-200/90">
+                    Emotional tags (optional)
+                  </summary>
+                  <p className="mt-2 text-xs leading-5 text-white/40">
+                    Leave blank to skip. Applied to new songs and via Apply Album
+                    defaults.
+                  </p>
+                  <EmotionalUploadFields
+                    draft={defaultEmotional}
+                    onChange={(patch) =>
+                      setDefaultEmotional((current) => ({ ...current, ...patch }))
+                    }
+                  />
+                </details>
 
                 <button
                   onClick={applyDefaultArtistToAll}
@@ -1322,6 +1498,22 @@ export default function BulkUploadPanel() {
                           }
                         />
                       </div>
+
+                      <details className="mt-3 rounded-2xl border border-violet-400/15 bg-violet-500/[0.04] px-4 py-3">
+                        <summary className="cursor-pointer text-sm font-bold text-violet-200/90">
+                          Emotional tags (optional)
+                          {hasEmotionalDraftValues(item.emotional) ? " · set" : ""}
+                        </summary>
+                        <EmotionalUploadFields
+                          draft={item.emotional}
+                          disabled={item.status === "uploading"}
+                          onChange={(patch) =>
+                            updateItem(item.id, {
+                              emotional: { ...item.emotional, ...patch },
+                            })
+                          }
+                        />
+                      </details>
 
                       <div className="mt-4 flex flex-wrap gap-2 text-xs text-white/50">
                         <span className="break-all rounded-full bg-white/[0.06] px-3 py-1">
