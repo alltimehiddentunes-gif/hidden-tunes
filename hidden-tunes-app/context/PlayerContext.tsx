@@ -247,6 +247,16 @@ const ACTIVE_QUEUE_KEY = "hidden_tunes_active_queue";
 const ACTIVE_QUEUE_INDEX_KEY = "hidden_tunes_active_queue_index";
 const ACTIVE_QUEUE_MODE_KEY = "hidden_tunes_active_queue_mode";
 
+function yieldToNextFrame(): Promise<void> {
+  return new Promise((resolve) => {
+    if (typeof requestAnimationFrame === "function") {
+      requestAnimationFrame(() => resolve());
+    } else {
+      setTimeout(resolve, 0);
+    }
+  });
+}
+
 const PLAYBACK_UPDATE_INTERVAL_MS = 2000;
 const PLAYBACK_UPDATE_INTERVAL_BACKGROUND_MS = 1000;
 const POSITION_STATE_UPDATE_MIN_MS = 2000;
@@ -3043,45 +3053,26 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     ]);
   }, [removeStoredValues]);
 
-  const restoreSavedData = useCallback(async () => {
+  const restoreSavedDataLight = useCallback(async () => {
+    console.log("[startup-ready] restore-light-start");
+
     try {
       const [
         savedSong,
-        savedFavorites,
-        savedQueue,
-        savedIndex,
         savedPosition,
-        savedRadioMode,
-        savedRadioIndex,
         savedRepeatMode,
         savedShuffle,
         savedVolume,
         savedMuted,
-        savedActiveQueue,
-        savedActiveQueueIndex,
-        savedActiveQueueMode,
         savedSmartAutoplay,
       ] = await Promise.all([
         AsyncStorage.getItem(CURRENT_SONG_KEY),
-        AsyncStorage.getItem(FAVORITES_KEY),
-        AsyncStorage.getItem(YOUTUBE_QUEUE_KEY),
-        AsyncStorage.getItem(YOUTUBE_QUEUE_INDEX_KEY),
         AsyncStorage.getItem(POSITION_KEY),
-        AsyncStorage.getItem(RADIO_MODE_KEY),
-        AsyncStorage.getItem(RADIO_INDEX_KEY),
         AsyncStorage.getItem(REPEAT_MODE_KEY),
         AsyncStorage.getItem(SHUFFLE_KEY),
         AsyncStorage.getItem(VOLUME_KEY),
         AsyncStorage.getItem(MUTED_KEY),
-        AsyncStorage.getItem(ACTIVE_QUEUE_KEY),
-        AsyncStorage.getItem(ACTIVE_QUEUE_INDEX_KEY),
-        AsyncStorage.getItem(ACTIVE_QUEUE_MODE_KEY),
         AsyncStorage.getItem(SMART_AUTOPLAY_KEY),
-      ]);
-
-      const [savedRadioQueue, upgradedRecent] = await Promise.all([
-        loadRadioQueue(),
-        loadRecentlyPlayed(),
       ]);
 
       const smartEnabled = savedSmartAutoplay !== "false";
@@ -3106,12 +3097,76 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         }
       }
 
+      if (
+        savedRepeatMode === "off" ||
+        savedRepeatMode === "one" ||
+        savedRepeatMode === "all"
+      ) {
+        setRepeatMode(savedRepeatMode);
+        repeatModeRef.current = savedRepeatMode;
+      }
+
+      if (savedShuffle === "true") {
+        setShuffle(true);
+        shuffleRef.current = true;
+      }
+
+      if (savedVolume) {
+        const parsedVolume = Number(savedVolume);
+        if (!Number.isNaN(parsedVolume)) {
+          setVolumeState(parsedVolume);
+          volumeRef.current = parsedVolume;
+        }
+      }
+
+      if (savedMuted === "true") {
+        setIsMuted(true);
+        isMutedRef.current = true;
+      }
+    } catch (error) {
+      console.log("Restore player data (light) error:", error);
+    } finally {
+      console.log("[startup-ready] restore-light-end");
+    }
+  }, [normalizeSong, isYouTubeSong]);
+
+  const restoreSavedDataHeavy = useCallback(async () => {
+    console.log("[startup-ready] restore-heavy-start");
+
+    try {
+      const [
+        savedFavorites,
+        savedQueue,
+        savedIndex,
+        savedRadioMode,
+        savedRadioIndex,
+        savedActiveQueue,
+        savedActiveQueueIndex,
+        savedActiveQueueMode,
+      ] = await Promise.all([
+        AsyncStorage.getItem(FAVORITES_KEY),
+        AsyncStorage.getItem(YOUTUBE_QUEUE_KEY),
+        AsyncStorage.getItem(YOUTUBE_QUEUE_INDEX_KEY),
+        AsyncStorage.getItem(RADIO_MODE_KEY),
+        AsyncStorage.getItem(RADIO_INDEX_KEY),
+        AsyncStorage.getItem(ACTIVE_QUEUE_KEY),
+        AsyncStorage.getItem(ACTIVE_QUEUE_INDEX_KEY),
+        AsyncStorage.getItem(ACTIVE_QUEUE_MODE_KEY),
+      ]);
+
+      const [savedRadioQueue, upgradedRecent] = await Promise.all([
+        loadRadioQueue(),
+        loadRecentlyPlayed(),
+      ]);
+
       if (savedFavorites) {
         const parsedFavorites = JSON.parse(savedFavorites);
         if (Array.isArray(parsedFavorites)) {
           setFavorites(parsedFavorites.map(normalizeSong));
         }
       }
+
+      await yieldToNextFrame();
 
       if (savedQueue) {
         const parsedQueue = JSON.parse(savedQueue);
@@ -3148,32 +3203,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      if (
-        savedRepeatMode === "off" ||
-        savedRepeatMode === "one" ||
-        savedRepeatMode === "all"
-      ) {
-        setRepeatMode(savedRepeatMode);
-        repeatModeRef.current = savedRepeatMode;
-      }
-
-      if (savedShuffle === "true") {
-        setShuffle(true);
-        shuffleRef.current = true;
-      }
-
-      if (savedVolume) {
-        const parsedVolume = Number(savedVolume);
-        if (!Number.isNaN(parsedVolume)) {
-          setVolumeState(parsedVolume);
-          volumeRef.current = parsedVolume;
-        }
-      }
-
-      if (savedMuted === "true") {
-        setIsMuted(true);
-        isMutedRef.current = true;
-      }
+      await yieldToNextFrame();
 
       if (savedActiveQueue) {
         const parsedActiveQueue = JSON.parse(savedActiveQueue);
@@ -3211,11 +3241,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         }
       }
 
+      await yieldToNextFrame();
+
       setRecentlyPlayed(upgradedRecent);
     } catch (error) {
-      console.log("Restore player data error:", error);
+      console.log("Restore player data (heavy) error:", error);
     } finally {
       markPlaybackRestoreComplete();
+      console.log("[startup-ready] restore-heavy-end");
     }
   }, [normalizeSong, isYouTubeSong, normalizeYouTubeTrack]);
 
@@ -3301,22 +3334,37 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
     configureAudio();
 
-    const cancelRestoreTask = scheduleStartupTask(
+    const cancelRestoreLightTask = scheduleStartupTask(
       "background",
-      "player_restore_saved_data",
+      "player_restore_saved_data_light",
       async () => {
-        await restoreSavedData();
+        await restoreSavedDataLight();
+      }
+    );
+
+    const cancelRestoreHeavyTask = scheduleStartupTask(
+      "deferred",
+      "player_restore_saved_data_heavy",
+      async () => {
+        await restoreSavedDataHeavy();
       }
     );
 
     return () => {
-      cancelRestoreTask();
+      cancelRestoreLightTask();
+      cancelRestoreHeavyTask();
       isMountedRef.current = false;
       loadRequestIdRef.current += 1;
       clearFinishWatchdog();
       unloadCurrentSound();
     };
-  }, [configureAudio, restoreSavedData, unloadCurrentSound, clearFinishWatchdog]);
+  }, [
+    configureAudio,
+    restoreSavedDataLight,
+    restoreSavedDataHeavy,
+    unloadCurrentSound,
+    clearFinishWatchdog,
+  ]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (nextState) => {

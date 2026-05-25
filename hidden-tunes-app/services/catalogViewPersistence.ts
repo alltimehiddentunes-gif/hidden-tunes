@@ -128,6 +128,13 @@ export function hasHydratedPersistedCatalogViews() {
 }
 
 export async function hydratePersistedCatalogViewCache() {
+  if (hasHydratedPersistedViews) {
+    logCatalogViewDiagnostics("persisted_hydrate_skipped_already_loaded", {
+      loaded: persistedViewCache.size,
+    });
+    return persistedViewCache.size;
+  }
+
   if (hydratePromise) return hydratePromise;
 
   hydratePromise = (async () => {

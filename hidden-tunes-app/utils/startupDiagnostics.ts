@@ -4,7 +4,8 @@ type StartupPhase =
   | "critical"
   | "afterPaint"
   | "afterInteraction"
-  | "background";
+  | "background"
+  | "deferred";
 
 type StartupTaskRecord = {
   name: string;

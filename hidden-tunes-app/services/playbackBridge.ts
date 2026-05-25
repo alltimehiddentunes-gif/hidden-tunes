@@ -77,6 +77,35 @@ export async function shouldUseTrackPlayerPlayback(): Promise<boolean> {
   return ensureTrackPlayerReady();
 }
 
+/** Startup-only: initialize RNTP (setupPlayer) without queue or playback side effects. */
+export async function prewarmTrackPlayerForStartup(): Promise<boolean> {
+  if (!isTrackPlayerFeatureEnabled() || !supportsNativeTrackPlayer()) {
+    return false;
+  }
+
+  if (typeof __DEV__ !== "undefined" && __DEV__) {
+    console.log("[startup-ready] rntp-prewarm-start");
+  }
+
+  try {
+    const ready = await ensureTrackPlayerReady();
+
+    if (typeof __DEV__ !== "undefined" && __DEV__) {
+      console.log("[startup-ready] rntp-prewarm-end", { ready });
+    }
+
+    return ready;
+  } catch (error) {
+    if (typeof __DEV__ !== "undefined" && __DEV__) {
+      console.log("[startup-ready] rntp-prewarm-error", {
+        message: String((error as Error)?.message || error),
+      });
+    }
+
+    return false;
+  }
+}
+
 export async function activateTrackPlayerPlayback(options: {
   songs: TrackPlayerSongInput[];
   startIndex: number;

@@ -13,12 +13,14 @@ export type StartupPhase =
   | "critical"
   | "afterPaint"
   | "afterInteraction"
-  | "background";
+  | "background"
+  | "deferred";
 
 type StartupTask = () => void | Promise<void>;
 
 const scheduledTaskNames = new Set<string>();
 const BACKGROUND_STARTUP_DELAY_MS = 720;
+const DEFERRED_STARTUP_DELAY_MS = 1500;
 
 export function scheduleStartupTask(
   phase: StartupPhase,
@@ -90,6 +92,12 @@ export function scheduleStartupTask(
       timeoutId = setTimeout(() => {
         void runTask();
       }, BACKGROUND_STARTUP_DELAY_MS);
+      break;
+
+    case "deferred":
+      timeoutId = setTimeout(() => {
+        void runTask();
+      }, DEFERRED_STARTUP_DELAY_MS);
       break;
   }
 
