@@ -53,21 +53,6 @@ const SONG_COLUMNS_CORE =
 const SONG_COLUMNS_EXTENDED =
   "id,album_id,title,genre,mood,audio_url,url,artwork_url,cover_url,has_lyrics,lyrics_url,lyrics_type,duration,duration_seconds,created_at,uploaded_by_user_id";
 
-type AlbumListQueryBuilder = {
-  order: (
-    column: string,
-    options: { ascending: boolean }
-  ) => AlbumListQueryBuilder;
-  range: (
-    from: number,
-    to: number
-  ) => Promise<{
-    data: unknown;
-    error: unknown;
-    count: number | null;
-  }>;
-};
-
 type AlbumListQueryContext = {
   reviewStatus: string | null;
   licenseDeclaration: string | null;
@@ -77,7 +62,12 @@ type AlbumListQueryContext = {
   uploaderSearch: string | null;
   searchQuery: string;
   sort: SortMode;
-  includeRightsColumns: boolean;
+};
+
+type AlbumSearchLookups = {
+  uploaderSearchIds: string[] | null;
+  searchArtistIds: string[];
+  searchUploaderIds: string[];
 };
 
 function stringOrNull(value: unknown) {
@@ -215,78 +205,184 @@ async function loadAlbumIdsForUploaderSongs(uploaderId: string) {
   );
 }
 
-async function buildAlbumListQuery(
-  selectColumns: string,
+async function loadAlbumSearchLookups(
   context: AlbumListQueryContext
-) {
-  let query = supabaseAdmin
-    .from("albums")
-    .select(selectColumns, { count: "exact" });
+): Promise<AlbumSearchLookups> {
+  if (context.uploaderSearch) {
+    const [uploaderSearchIds, searchArtistIds, searchUploaderIds] =
+      await Promise.all([
+        loadMatchingUploaderIds(context.uploaderSearch),
+        context.searchQuery
+          ? loadMatchingArtistIds(context.searchQuery)
+          : Promise.resolve([] as string[]),
+        context.searchQuery
+          ? loadMatchingUploaderIds(context.searchQuery)
+          : Promise.resolve([] as string[]),
+      ]);
 
-  if (context.includeRightsColumns) {
+    return {
+      uploaderSearchIds,
+      searchArtistIds,
+      searchUploaderIds,
+    };
+  }
+
+  if (!context.searchQuery) {
+    return {
+      uploaderSearchIds: null,
+      searchArtistIds: [],
+      searchUploaderIds: [],
+    };
+  }
+
+  const [searchArtistIds, searchUploaderIds] = await Promise.all([
+    loadMatchingArtistIds(context.searchQuery),
+    loadMatchingUploaderIds(context.searchQuery),
+  ]);
+
+  return {
+    uploaderSearchIds: null,
+    searchArtistIds,
+    searchUploaderIds,
+  };
+}
+
+function startAlbumListQuery(includeRightsColumns: boolean) {
+  return supabaseAdmin
+    .from("albums")
+    .select(albumSelectColumns(includeRightsColumns), { count: "exact" });
+}
+
+type AlbumListQuery = ReturnType<typeof startAlbumListQuery>;
+
+function applyAlbumListFilters(
+  query: AlbumListQuery,
+  context: AlbumListQueryContext,
+  lookups: AlbumSearchLookups,
+  includeRightsColumns: boolean
+): AlbumListQuery {
+  let filteredQuery: AlbumListQuery = query;
+
+  if (includeRightsColumns) {
+    const rightsQuery = filteredQuery as AlbumListQuery & {
+      eq: (column: string, value: string) => AlbumListQuery;
+    };
+
     if (context.reviewStatus) {
-      query = query.eq("review_status", context.reviewStatus);
+      filteredQuery = rightsQuery.eq("review_status", context.reviewStatus);
     }
 
     if (context.licenseDeclaration) {
-      query = query.eq("license_declaration", context.licenseDeclaration);
+      filteredQuery = (filteredQuery as typeof rightsQuery).eq(
+        "license_declaration",
+        context.licenseDeclaration
+      );
     }
 
     if (context.scanFilter === "copyright_flagged") {
-      query = query.eq("copyright_scan_status", "flagged");
+      filteredQuery = (filteredQuery as typeof rightsQuery).eq(
+        "copyright_scan_status",
+        "flagged"
+      );
     } else if (context.scanFilter === "duplicate_flagged") {
-      query = query.eq("duplicate_scan_status", "flagged");
+      filteredQuery = (filteredQuery as typeof rightsQuery).eq(
+        "duplicate_scan_status",
+        "flagged"
+      );
     } else if (context.scanFilter === "copyright_not_scanned") {
-      query = query.eq("copyright_scan_status", "not_scanned");
+      filteredQuery = (filteredQuery as typeof rightsQuery).eq(
+        "copyright_scan_status",
+        "not_scanned"
+      );
     } else if (context.scanFilter === "duplicate_not_scanned") {
-      query = query.eq("duplicate_scan_status", "not_scanned");
+      filteredQuery = (filteredQuery as typeof rightsQuery).eq(
+        "duplicate_scan_status",
+        "not_scanned"
+      );
     }
   }
 
   if (context.uploaderId) {
     if (context.uploaderSongAlbumIds.length > 0) {
-      query = query.or(
+      filteredQuery = filteredQuery.or(
         `uploaded_by_user_id.eq.${context.uploaderId},id.in.(${context.uploaderSongAlbumIds.join(
           ","
         )})`
       );
     } else {
-      query = query.eq("uploaded_by_user_id", context.uploaderId);
+      filteredQuery = filteredQuery.eq(
+        "uploaded_by_user_id",
+        context.uploaderId
+      );
     }
   }
 
-  if (context.uploaderSearch) {
-    const matchingUploaderIds = await loadMatchingUploaderIds(
-      context.uploaderSearch
-    );
-
-    if (matchingUploaderIds.length === 0) {
-      query = query.eq("uploaded_by_user_id", "__no_matching_uploader__");
+  if (lookups.uploaderSearchIds !== null) {
+    if (lookups.uploaderSearchIds.length === 0) {
+      filteredQuery = filteredQuery.eq(
+        "uploaded_by_user_id",
+        "__no_matching_uploader__"
+      );
     } else {
-      query = query.in("uploaded_by_user_id", matchingUploaderIds);
+      filteredQuery = filteredQuery.in(
+        "uploaded_by_user_id",
+        lookups.uploaderSearchIds
+      );
     }
   }
 
   if (context.searchQuery) {
-    const [matchingArtistIds, matchingUploaderIds] = await Promise.all([
-      loadMatchingArtistIds(context.searchQuery),
-      loadMatchingUploaderIds(context.searchQuery),
-    ]);
     const escapedSearch = context.searchQuery.replace(/[%_]/g, "\\$&");
     const clauses = [`title.ilike.%${escapedSearch}%`];
 
-    if (matchingArtistIds.length > 0) {
-      clauses.push(`artist_id.in.(${matchingArtistIds.join(",")})`);
+    if (lookups.searchArtistIds.length > 0) {
+      clauses.push(`artist_id.in.(${lookups.searchArtistIds.join(",")})`);
     }
 
-    if (matchingUploaderIds.length > 0) {
-      clauses.push(`uploaded_by_user_id.in.(${matchingUploaderIds.join(",")})`);
+    if (lookups.searchUploaderIds.length > 0) {
+      clauses.push(
+        `uploaded_by_user_id.in.(${lookups.searchUploaderIds.join(",")})`
+      );
     }
 
-    query = query.or(clauses.join(","));
+    filteredQuery = filteredQuery.or(clauses.join(","));
   }
 
-  return query as unknown as AlbumListQueryBuilder;
+  return filteredQuery;
+}
+
+function applyAlbumListSort(query: AlbumListQuery, sort: SortMode) {
+  if (sort === "oldest") {
+    return query.order("created_at", { ascending: true });
+  }
+
+  if (sort === "title_asc") {
+    return query.order("title", { ascending: true });
+  }
+
+  if (sort === "title_desc") {
+    return query.order("title", { ascending: false });
+  }
+
+  return query.order("created_at", { ascending: false });
+}
+
+async function queryAlbumListPage(
+  includeRightsColumns: boolean,
+  context: AlbumListQueryContext,
+  lookups: AlbumSearchLookups,
+  from: number,
+  to: number
+) {
+  const filteredQuery = applyAlbumListFilters(
+    startAlbumListQuery(includeRightsColumns),
+    context,
+    lookups,
+    includeRightsColumns
+  );
+
+  const sortedQuery = applyAlbumListSort(filteredQuery, context.sort);
+  return sortedQuery.range(from, to);
 }
 
 async function fetchAlbumListPage(
@@ -294,62 +390,24 @@ async function fetchAlbumListPage(
   from: number,
   to: number
 ) {
-  const fullContext: AlbumListQueryContext = {
-    ...context,
-    includeRightsColumns: true,
-  };
+  const lookups = await loadAlbumSearchLookups(context);
 
-  let query = (await buildAlbumListQuery(
-    albumSelectColumns(true),
-    fullContext
-  )) as AlbumListQueryBuilder;
-
-  if (fullContext.sort === "oldest") {
-    query = query.order("created_at", { ascending: true });
-  } else if (fullContext.sort === "title_asc") {
-    query = query.order("title", { ascending: true });
-  } else if (fullContext.sort === "title_desc") {
-    query = query.order("title", { ascending: false });
-  } else {
-    query = query.order("created_at", { ascending: false });
-  }
-
-  let result = await query.range(from, to);
+  let result = await queryAlbumListPage(true, context, lookups, from, to);
 
   if (result.error && isMissingSchemaColumnError(result.error)) {
-    if (hasRightsFilters(fullContext)) {
+    if (hasRightsFilters(context)) {
       throw new Error(
         "Rights review columns are missing on albums. Apply migration 20260525130000_albums_rights_review_metadata.sql, then reload releases."
       );
     }
 
-    const fallbackContext: AlbumListQueryContext = {
-      ...fullContext,
-      includeRightsColumns: false,
-    };
-
-    let fallbackQuery = await buildAlbumListQuery(
-      albumSelectColumns(false),
-      fallbackContext
-    ) as AlbumListQueryBuilder;
-
-    if (fallbackContext.sort === "oldest") {
-      fallbackQuery = fallbackQuery.order("created_at", { ascending: true });
-    } else if (fallbackContext.sort === "title_asc") {
-      fallbackQuery = fallbackQuery.order("title", { ascending: true });
-    } else if (fallbackContext.sort === "title_desc") {
-      fallbackQuery = fallbackQuery.order("title", { ascending: false });
-    } else {
-      fallbackQuery = fallbackQuery.order("created_at", { ascending: false });
-    }
-
-    result = await fallbackQuery.range(from, to);
+    result = await queryAlbumListPage(false, context, lookups, from, to);
   }
 
   if (result.error) throw result.error;
 
   return {
-    data: (result.data || []) as AlbumRow[],
+    data: (result.data || []) as unknown as AlbumRow[],
     count: result.count,
   };
 }
@@ -423,7 +481,6 @@ export async function GET(request: NextRequest) {
       uploaderSearch,
       searchQuery,
       sort,
-      includeRightsColumns: true,
     };
 
     const {
