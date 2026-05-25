@@ -246,12 +246,12 @@ export async function bridgePause(): Promise<void> {
   await trackPlayerPause();
 }
 
-/** Pause native output immediately without resetting the queue (user tap handoff). */
+/** Stop native output immediately without resetting the queue (user tap handoff). */
 export async function bridgeInterruptForUserTap(): Promise<void> {
   if (!isTrackPlayerFeatureEnabled() || !supportsNativeTrackPlayer()) return;
 
   const ready = await ensureTrackPlayerReady();
   if (!ready) return;
 
-  await trackPlayerPause();
+  await trackPlayerStop("user_tap_interrupt");
 }

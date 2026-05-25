@@ -39,6 +39,7 @@ import {
   saveSmartQueue,
 } from "../services/smartQueue";
 import { isTrackPlayerFeatureEnabled } from "../constants/playbackConfig";
+import { supportsNativeTrackPlayer } from "../utils/expoRuntime";
 import {
   activateTrackPlayerPlayback,
   bridgeGetActiveIndex,
@@ -1094,40 +1095,69 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     logHTLockAutoNext("clear", { reason });
   }, []);
 
-  const interruptCurrentPlaybackForUserTap = useCallback(async () => {
-    clearFinishWatchdog("user_tap_interrupt");
+  const interruptCurrentPlaybackForUserTap = useCallback(
+    async (targetSongId?: string) => {
+      const sound = soundRef.current;
 
-    if (trackPlayerActiveRef.current) {
-      try {
-        await bridgeInterruptForUserTap();
-        isPlayingRef.current = false;
-        setIsPlaying(false);
-      } catch (error) {
-        console.log("Interrupt TrackPlayer playback error:", error);
+      if (typeof __DEV__ !== "undefined" && __DEV__) {
+        console.log("[tap-interrupt]", {
+          trackPlayerActive: trackPlayerActiveRef.current,
+          hasCurrentSound: Boolean(sound),
+          hasPreloadedSound: Boolean(preloadedSoundRef.current),
+          currentSongId: currentSongRef.current?.id || null,
+          targetSongId: targetSongId || null,
+          nativeEnabled:
+            isTrackPlayerFeatureEnabled() && supportsNativeTrackPlayer(),
+        });
       }
-      return;
-    }
 
-    const sound = soundRef.current;
-    if (!sound) return;
+      clearFinishWatchdog("user_tap_interrupt");
 
-    try {
-      const status = await sound.getStatusAsync();
+      if (isTrackPlayerFeatureEnabled() && supportsNativeTrackPlayer()) {
+        try {
+          await bridgeInterruptForUserTap();
+        } catch (error) {
+          console.log("Interrupt TrackPlayer playback error:", error);
+        }
+      }
 
-      if (!status.isLoaded) return;
+      if (preloadedSoundRef.current) {
+        try {
+          await clearPreloadedSound();
+        } catch (error) {
+          console.log("Interrupt preloaded sound error:", error);
+        }
+      }
 
-      sound.setOnPlaybackStatusUpdate(null);
+      if (sound) {
+        try {
+          const status = await sound.getStatusAsync();
 
-      try {
-        await sound.stopAsync();
-      } catch {}
+          if (status.isLoaded) {
+            sound.setOnPlaybackStatusUpdate(null);
+
+            try {
+              await sound.stopAsync();
+            } catch {}
+
+            try {
+              await sound.unloadAsync();
+            } catch {}
+          }
+        } catch (error) {
+          console.log("Interrupt expo-av playback error:", error);
+        } finally {
+          if (soundRef.current === sound) {
+            soundRef.current = null;
+          }
+        }
+      }
 
       isPlayingRef.current = false;
       setIsPlaying(false);
-    } catch (error) {
-      console.log("Interrupt expo-av playback error:", error);
-    }
-  }, [clearFinishWatchdog, setIsPlaying]);
+    },
+    [clearFinishWatchdog, clearPreloadedSound, setIsPlaying]
+  );
 
   const advanceTrackPlayerQueueFromJs = useCallback(
     async (source: string) => {
@@ -1851,7 +1881,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         }
 
         if (options?.userInitiated) {
-          await interruptCurrentPlaybackForUserTap();
+          await interruptCurrentPlaybackForUserTap(normalizedSong.id);
         }
 
         requestId = loadRequestIdRef.current + 1;
@@ -2347,6 +2377,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       void removeStoredValues([POSITION_KEY]);
 
       const selectedSong = nativeQueue[safeIndex];
+
+      if (currentSongRef.current?.id !== selectedSong.id) {
+        await interruptCurrentPlaybackForUserTap(selectedSong.id);
+        setCurrentSong(selectedSong);
+        currentSongRef.current = selectedSong;
+        setIsLoading(true);
+      }
+
       const currentLoadedSound = soundRef.current;
 
       if (currentSongRef.current?.id === selectedSong.id && currentLoadedSound) {
@@ -2373,6 +2411,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       setStoredValueIfChanged,
       syncActiveQueue,
       removeStoredValues,
+      interruptCurrentPlaybackForUserTap,
       loadAndPlay,
       setIsPlaying,
       savePlaybackSideEffects,
@@ -2389,7 +2428,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         requestedIndex: index,
       });
 
-      if (currentSongRef.current?.id !== normalizedSong.id) {
+      const switchingToNewSong = currentSongRef.current?.id !== normalizedSong.id;
+
+      if (switchingToNewSong) {
+        await interruptCurrentPlaybackForUserTap(normalizedSong.id);
+      }
+
+      if (switchingToNewSong) {
         setCurrentSong(normalizedSong);
         currentSongRef.current = normalizedSong;
         setIsLoading(true);
@@ -2528,6 +2573,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       persistActiveQueue,
       syncActiveQueue,
       removeStoredValues,
+      interruptCurrentPlaybackForUserTap,
       loadAndPlay,
       setIsPlaying,
       savePlaybackSideEffects,
