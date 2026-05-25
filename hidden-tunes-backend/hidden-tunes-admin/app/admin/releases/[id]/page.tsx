@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 
 import AdminShell from "@/components/AdminShell";
 import ControlledGenreFields from "@/components/ControlledGenreFields";
+import EmotionalAnalysisReviewPanel from "@/components/EmotionalAnalysisReviewPanel";
 import {
   ReleaseHealthPanel,
   type ReleaseHealthSummary,
@@ -900,6 +901,23 @@ export default function AdminReleaseDetailPage() {
               leaving the release.
             </p>
           </div>
+
+          <EmotionalAnalysisReviewPanel
+            tracks={release.tracks.map((track) => ({
+              id: track.id,
+              title: track.title,
+              artist: track.artist,
+              mood: track.mood,
+              genre: track.genre,
+              audioUrl: track.audioUrl,
+            }))}
+            accessToken={accessToken}
+            disabled={!accessToken}
+            onApplied={async () => {
+              if (!accessToken) return;
+              await loadRelease(accessToken);
+            }}
+          />
 
           <div className="mt-5 flex w-full min-w-0 max-w-full flex-col gap-4">
             {release.tracks.map((track, index) => {

@@ -96,6 +96,8 @@ export const ANALYSIS_STATUS_OPTIONS = [
   "queued",
   "analyzing",
   "ready",
+  "suggested",
+  "approved",
   "failed",
   "manual",
 ] as const;
@@ -105,7 +107,14 @@ export const ANALYSIS_SOURCE_OPTIONS = [
   "admin_upload",
   "batch_v1",
   "external_provider",
+  "auto_audio_v1",
+  "admin_approved_auto_audio_v1",
 ] as const;
+
+export const EMOTIONAL_ANALYSIS_MAX_BATCH = 10;
+export const EMOTIONAL_ANALYSIS_AUTO_SOURCE = "auto_audio_v1" as const;
+export const EMOTIONAL_ANALYSIS_APPLY_SOURCE =
+  "admin_approved_auto_audio_v1" as const;
 
 export type AtmosphereOption = (typeof ATMOSPHERE_OPTIONS)[number];
 export type EmotionOption = (typeof EMOTION_OPTIONS)[number];
