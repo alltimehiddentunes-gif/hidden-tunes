@@ -30,6 +30,30 @@ function stringOrNull(value: unknown) {
   return text || null;
 }
 
+function numberOrNull(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function buildEmotionalMetadata(track: SongRow) {
+  return {
+    energy: numberOrNull(track.energy),
+    tempoBpm: numberOrNull(track.tempo_bpm),
+    atmosphere: stringOrNull(track.atmosphere),
+    emotion: stringOrNull(track.emotion),
+    texture: stringOrNull(track.texture),
+    timeOfDay: stringOrNull(track.time_of_day),
+    vocalFeel: stringOrNull(track.vocal_feel),
+    instrumentation: stringOrNull(track.instrumentation),
+    analysisStatus: stringOrNull(track.analysis_status),
+    analysisSource: stringOrNull(track.analysis_source),
+  };
+}
+
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
     const permission = await requireUploadPermission(request);
@@ -162,6 +186,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
       album: track.album || track.album_title || albumRow.title,
       genre: track.genre || null,
       mood: track.mood || null,
+      emotionalMetadata: buildEmotionalMetadata(track),
       duration: track.duration_seconds || track.duration || 0,
       audioUrl: track.audio_url || track.url || null,
       artworkUrl:

@@ -29,6 +29,19 @@ type ReleaseUploader = {
   status: string | null;
 };
 
+type EmotionalMetadata = {
+  energy: number | null;
+  tempoBpm: number | null;
+  atmosphere: string | null;
+  emotion: string | null;
+  texture: string | null;
+  timeOfDay: string | null;
+  vocalFeel: string | null;
+  instrumentation: string | null;
+  analysisStatus: string | null;
+  analysisSource: string | null;
+};
+
 type ReleaseTrack = {
   id: string;
   title: string;
@@ -36,6 +49,7 @@ type ReleaseTrack = {
   album: string;
   genre: string | null;
   mood: string | null;
+  emotionalMetadata?: EmotionalMetadata | null;
   duration: number;
   audioUrl: string | null;
   artworkUrl: string | null;
@@ -182,6 +196,51 @@ function assetSummary(track: ReleaseTrack) {
     syncedReady ? "Synced lyrics" : "Synced lyrics missing",
     track.metadataComplete === false ? "Metadata incomplete" : "Metadata ok",
   ].join(" / ");
+}
+
+function buildEmotionalMetadataEntries(metadata: EmotionalMetadata | null | undefined) {
+  if (!metadata) return [] as Array<{ key: string; label: string; value: string }>;
+
+  const entries: Array<{ key: string; label: string; value: string }> = [];
+
+  if (metadata.energy !== null && metadata.energy !== undefined) {
+    entries.push({ key: "energy", label: "Energy", value: String(metadata.energy) });
+  }
+
+  if (metadata.tempoBpm !== null && metadata.tempoBpm !== undefined) {
+    entries.push({
+      key: "tempoBpm",
+      label: "Tempo",
+      value: `${metadata.tempoBpm} BPM`,
+    });
+  }
+
+  const textFields: Array<{
+    key: keyof EmotionalMetadata;
+    label: string;
+  }> = [
+    { key: "atmosphere", label: "Atmosphere" },
+    { key: "emotion", label: "Emotion" },
+    { key: "texture", label: "Texture" },
+    { key: "timeOfDay", label: "Time of day" },
+    { key: "vocalFeel", label: "Vocal feel" },
+    { key: "instrumentation", label: "Instrumentation" },
+    { key: "analysisStatus", label: "Analysis status" },
+    { key: "analysisSource", label: "Analysis source" },
+  ];
+
+  for (const field of textFields) {
+    const value = metadata[field.key];
+    if (typeof value === "string" && value.trim()) {
+      entries.push({
+        key: field.key,
+        label: field.label,
+        value: value.trim(),
+      });
+    }
+  }
+
+  return entries;
 }
 
 export default function AdminReleaseDetailPage() {
@@ -701,6 +760,10 @@ export default function AdminReleaseDetailPage() {
                         {track.mood ? <AssetPill label={track.mood} active /> : null}
                       </div>
 
+                      <EmotionalMetadataPanel
+                        metadata={track.emotionalMetadata}
+                      />
+
                       <div className="mt-4 rounded-2xl border border-white/10 bg-black/30 p-4">
                         <p className="text-xs font-black uppercase tracking-[0.18em] text-yellow-300">
                           Catalog Genre
@@ -1061,5 +1124,36 @@ function AssetPill({ label, active }: { label: string; active: boolean }) {
     >
       {label}
     </span>
+  );
+}
+
+function EmotionalMetadataPanel({
+  metadata,
+}: {
+  metadata: EmotionalMetadata | null | undefined;
+}) {
+  const entries = buildEmotionalMetadataEntries(metadata);
+
+  if (!entries.length) {
+    return null;
+  }
+
+  return (
+    <div className="mt-4 rounded-2xl border border-violet-300/15 bg-violet-500/[0.06] p-4">
+      <p className="text-xs font-black uppercase tracking-[0.18em] text-violet-200">
+        Emotional Metadata
+      </p>
+      <div className="mt-3 flex min-w-0 max-w-full flex-wrap gap-2">
+        {entries.map((entry) => (
+          <span
+            key={entry.key}
+            className="max-w-full break-words rounded-full border border-violet-300/20 bg-violet-400/10 px-3 py-1 text-xs font-semibold text-violet-50 [overflow-wrap:anywhere]"
+          >
+            <span className="font-black text-violet-200/80">{entry.label}:</span>{" "}
+            {entry.value}
+          </span>
+        ))}
+      </div>
+    </div>
   );
 }
