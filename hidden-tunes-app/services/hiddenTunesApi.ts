@@ -58,6 +58,8 @@ let songsMemoryCache: HiddenTunesNormalizedSong[] | null = null;
 let songsMemoryCacheTime = 0;
 let songsFetchPromise: Promise<HiddenTunesNormalizedSong[]> | null = null;
 let catalogStorageHydratePromise: Promise<HiddenTunesNormalizedSong[]> | null = null;
+let coordinatedCatalogFirstPagePromise: Promise<HiddenTunesNormalizedSong[]> | null =
+  null;
 let songsBackgroundRefreshPromise: Promise<void> | null = null;
 let songsBackgroundRefreshAttemptTime = 0;
 const endpointFailures = new Map<string, { failedAt: number; count: number }>();
@@ -652,7 +654,13 @@ async function readCachedSongsV4FromStorage(): Promise<HiddenTunesNormalizedSong
 
 function scheduleCatalogBackgroundRefresh() {
   if (!isAppActiveForWork()) return;
-  if (songsBackgroundRefreshPromise || songsFetchPromise) return;
+  if (
+    songsBackgroundRefreshPromise ||
+    songsFetchPromise ||
+    coordinatedCatalogFirstPagePromise
+  ) {
+    return;
+  }
 
   const now = Date.now();
   if (now - songsBackgroundRefreshAttemptTime < BACKGROUND_REFRESH_MIN_INTERVAL_MS) {
@@ -671,6 +679,68 @@ function scheduleCatalogBackgroundRefresh() {
   })().finally(() => {
     songsBackgroundRefreshPromise = null;
   });
+}
+
+export async function fetchCoordinatedCatalogFirstPage(options?: {
+  limit?: number;
+  forceRefresh?: boolean;
+}): Promise<HiddenTunesNormalizedSong[]> {
+  const requestedLimit = Number(options?.limit) || HOME_SONG_LIMIT;
+  const limit = Math.min(
+    Math.max(requestedLimit, HOME_SONG_LIMIT),
+    HIDDEN_TUNES_SONG_PAGE_SIZE
+  );
+  const forceRefresh = options?.forceRefresh ?? false;
+
+  if (forceRefresh) {
+    await getHiddenTunesSongsPage({ page: 1, limit });
+    return songsMemoryCache?.length
+      ? songsMemoryCache
+      : finalizeSongs([]);
+  }
+
+  if (coordinatedCatalogFirstPagePromise) {
+    const songs = await coordinatedCatalogFirstPagePromise;
+    return songs.slice(0, limit);
+  }
+
+  if (songsFetchPromise) {
+    const songs = await songsFetchPromise;
+    return songs.slice(0, limit);
+  }
+
+  if (songsMemoryCache?.length && isFreshMemoryCache(songsMemoryCacheTime)) {
+    return songsMemoryCache.slice(0, limit);
+  }
+
+  coordinatedCatalogFirstPagePromise = (async () => {
+    try {
+      if (songsMemoryCache?.length) {
+        if (!isFreshMemoryCache(songsMemoryCacheTime)) {
+          scheduleCatalogBackgroundRefresh();
+        }
+        return songsMemoryCache;
+      }
+
+      const cached = await readCachedSongs();
+      if (cached.length) {
+        if (!isFreshMemoryCache(songsMemoryCacheTime)) {
+          scheduleCatalogBackgroundRefresh();
+        }
+        return cached;
+      }
+
+      const page = await getHiddenTunesSongsPage({ page: 1, limit });
+      return songsMemoryCache?.length
+        ? songsMemoryCache
+        : finalizeSongs(page.songs);
+    } finally {
+      coordinatedCatalogFirstPagePromise = null;
+    }
+  })();
+
+  const songs = await coordinatedCatalogFirstPagePromise;
+  return songs.slice(0, limit);
 }
 
 export async function hydrateHiddenTunesCatalogCache(): Promise<
@@ -1092,7 +1162,10 @@ export async function getHiddenTunesSongs(options?: { forceRefresh?: boolean }) 
       count: songsMemoryCache.length,
     });
 
-    if (!isFreshMemoryCache(songsMemoryCacheTime)) {
+    if (
+      !isFreshMemoryCache(songsMemoryCacheTime) &&
+      !coordinatedCatalogFirstPagePromise
+    ) {
       scheduleCatalogBackgroundRefresh();
     }
 
@@ -1108,7 +1181,10 @@ export async function getHiddenTunesSongs(options?: { forceRefresh?: boolean }) 
         count: cached.length,
       });
 
-      if (!isFreshMemoryCache(songsMemoryCacheTime)) {
+      if (
+        !isFreshMemoryCache(songsMemoryCacheTime) &&
+        !coordinatedCatalogFirstPagePromise
+      ) {
         scheduleCatalogBackgroundRefresh();
       }
 

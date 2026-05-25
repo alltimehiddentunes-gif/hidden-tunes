@@ -31,10 +31,8 @@ import {
 } from "../../context/PlayerContext";
 import {
   getHiddenTunesCatalogSnapshot,
-  getHiddenTunesSongs,
   getHiddenTunesSongsPage,
-  getHiddenTunesAlbumById,
-  getHiddenTunesArtistById,
+  fetchCoordinatedCatalogFirstPage,
   hydrateHiddenTunesCatalogCache,
   refreshHiddenTunesSongs,
   type HiddenTunesNormalizedSong,
@@ -60,7 +58,6 @@ import {
   getHorizontalListPerformanceSettings,
   getListPerformanceSettings,
   markFastScrolling,
-  scheduleNavigationPrewarm,
 } from "../../utils/performanceMode";
 import { buildHomeFeedRows, type HomeFeedRow } from "../../utils/homeFeedRows";
 import {
@@ -296,7 +293,7 @@ function HomeScreen() {
           const refreshStart = startPerformanceTimer();
           const songs = forceRefresh
             ? await refreshHiddenTunesSongs()
-            : await getHiddenTunesSongs({ forceRefresh: false });
+            : await fetchCoordinatedCatalogFirstPage();
 
           if (
             shouldReplaceCatalogResults(songs, featuredSongsCountRef.current, {
@@ -570,25 +567,6 @@ function HomeScreen() {
     rankedArtists,
     visibleAllSongs,
   ]);
-
-  useEffect(() => {
-    if (!featuredSongs.length || !deferredSectionsReady) return undefined;
-
-    const interactionHandle = InteractionManager.runAfterInteractions(() => {
-      scheduleNavigationPrewarm([
-        ...rankedArtists.slice(0, 2).map((artist) => () => {
-          void getHiddenTunesArtistById(artist.id);
-        }),
-        ...rankedAlbums.slice(0, 2).map((album) => () => {
-          void getHiddenTunesAlbumById(album.id);
-        }),
-      ]);
-    });
-
-    return () => {
-      interactionHandle.cancel();
-    };
-  }, [deferredSectionsReady, featuredSongs.length, rankedAlbums, rankedArtists]);
 
   useEffect(() => {
     if (!primaryGenreSpotlight?.title) return undefined;

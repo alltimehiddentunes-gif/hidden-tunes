@@ -25,6 +25,7 @@ import {
 import {
   extractHiddenTunesAlbums,
   getHiddenTunesAlbumById,
+  getHiddenTunesCatalogSnapshot,
   hydrateHiddenTunesCatalogCache,
   type HiddenTunesAlbum,
   type HiddenTunesNormalizedSong,
@@ -188,28 +189,40 @@ export default function AlbumScreen() {
           });
         }
 
-        const cachedSongs = await hydrateHiddenTunesCatalogCache();
-        const cachedAlbum = findAlbumById(extractHiddenTunesAlbums(cachedSongs), albumId);
+        if (!showedCachedAlbum) {
+          const memorySongs = getHiddenTunesCatalogSnapshot();
+          const memoryAlbum = memorySongs.length
+            ? findAlbumById(extractHiddenTunesAlbums(memorySongs), albumId)
+            : null;
 
-        if (cachedAlbum && !showedCachedAlbum) {
-          setAlbum(cachedAlbum);
-          setLoading(false);
-          showedCachedAlbum = true;
-          logCacheResult("album", true, {
-            id: albumId,
-            tracks: cachedAlbum.tracks.length,
-          });
-          logScreenReady("album", screenStartedAt, {
-            cache: "hit",
-            tracks: cachedAlbum.tracks.length,
-          });
-          logPerformanceSummary("album", {
-            cache: "hit",
-            firstContentMs: Date.now() - screenStartedAt,
-            itemCount: cachedAlbum.tracks.length,
-          });
-        } else if (!showedCachedAlbum) {
-          logCacheResult("album", false, { id: albumId });
+          const cachedSongs = memoryAlbum
+            ? memorySongs
+            : await hydrateHiddenTunesCatalogCache();
+          const cachedAlbum =
+            memoryAlbum ||
+            findAlbumById(extractHiddenTunesAlbums(cachedSongs), albumId);
+
+          if (cachedAlbum) {
+            setAlbum(cachedAlbum);
+            setLoading(false);
+            showedCachedAlbum = true;
+            logCacheResult("album", true, {
+              id: albumId,
+              tracks: cachedAlbum.tracks.length,
+              source: memoryAlbum ? "memory" : "storage",
+            });
+            logScreenReady("album", screenStartedAt, {
+              cache: "hit",
+              tracks: cachedAlbum.tracks.length,
+            });
+            logPerformanceSummary("album", {
+              cache: "hit",
+              firstContentMs: Date.now() - screenStartedAt,
+              itemCount: cachedAlbum.tracks.length,
+            });
+          } else {
+            logCacheResult("album", false, { id: albumId });
+          }
         }
 
         const data = await getHiddenTunesAlbumById(albumId);

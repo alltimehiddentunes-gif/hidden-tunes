@@ -36,8 +36,7 @@ import {
   getHiddenTunesArtists,
   getHiddenTunesCloudPlaylists,
   getHiddenTunesSongsPage,
-  getHiddenTunesAlbumById,
-  getHiddenTunesArtistById,
+  fetchCoordinatedCatalogFirstPage,
   getHiddenTunesCatalogSnapshot,
   hydrateHiddenTunesCatalogCache,
   refreshHiddenTunesSongs,
@@ -73,7 +72,6 @@ import {
   getHorizontalListPerformanceSettings,
   getListPerformanceSettings,
   markFastScrolling,
-  scheduleNavigationPrewarm,
 } from "../../utils/performanceMode";
 import {
   createScrollJankHandler,
@@ -562,7 +560,7 @@ export default memo(function ExploreScreen() {
           const refreshStart = startPerformanceTimer();
           const songResults = forceRefresh
             ? await refreshHiddenTunesSongs()
-            : (await getHiddenTunesSongsPage({ page: 1, limit: 24 })).songs;
+            : await fetchCoordinatedCatalogFirstPage({ limit: 24 });
 
           const nextSongs = Array.isArray(songResults)
             ? dedupeSongs(songResults.map(safeSong))
@@ -735,44 +733,33 @@ export default memo(function ExploreScreen() {
   useEffect(() => {
     if (!cloudSongs.length && !albums.length && !artists.length) return;
 
-    void preloadImages([
-      ...continueSongs.slice(0, 4).flatMap((song) => [song.artwork, song.cover]),
-      ...visibleCloudSongs
-        .slice(0, 4)
-        .flatMap((song) => [song.artwork, song.cover]),
-      ...rankedAlbums.slice(0, 4).map((album) => album.artwork),
-      ...rankedArtists.slice(0, 4).map((artist) => artist.artwork),
-      ...genreWorlds
-        .slice(0, 2)
-        .flatMap((spotlight) =>
-          spotlight.songs.slice(0, 2).flatMap((song) => [song.artwork, song.cover])
-        ),
-    ]);
+    return scheduleStartupTask("background", "explore_section_artwork_prefetch", () =>
+      preloadImages([
+        ...continueSongs.slice(0, 4).flatMap((song) => [song.artwork, song.cover]),
+        ...visibleCloudSongs
+          .slice(0, 4)
+          .flatMap((song) => [song.artwork, song.cover]),
+        ...rankedAlbums.slice(0, 4).map((album) => album.artwork),
+        ...rankedArtists.slice(0, 4).map((artist) => artist.artwork),
+        ...genreWorlds
+          .slice(0, 2)
+          .flatMap((spotlight) =>
+            spotlight.songs
+              .slice(0, 2)
+              .flatMap((song) => [song.artwork, song.cover])
+          ),
+      ])
+    );
   }, [
     albums.length,
     artists.length,
     cloudSongs.length,
-    continueSongs,
-    genreWorlds,
-    rankedAlbums,
-    rankedArtists,
-    visibleCloudSongs,
+    continueSongs.length,
+    genreWorlds.length,
+    rankedAlbums.length,
+    rankedArtists.length,
+    visibleCloudSongs.length,
   ]);
-
-  useEffect(() => {
-    if (!cloudSongs.length && !rankedAlbums.length && !rankedArtists.length) {
-      return undefined;
-    }
-
-    return scheduleNavigationPrewarm([
-      ...rankedArtists.slice(0, 2).map((artist) => () => {
-        void getHiddenTunesArtistById(artist.id);
-      }),
-      ...rankedAlbums.slice(0, 2).map((album) => () => {
-        void getHiddenTunesAlbumById(album.id);
-      }),
-    ]);
-  }, [cloudSongs.length, rankedAlbums, rankedArtists]);
 
   const openGenre = useCallback((genre: GenreItem) => {
     const title = String(genre.title || "").trim();

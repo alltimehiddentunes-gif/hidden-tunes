@@ -24,6 +24,7 @@ import {
 import {
   extractHiddenTunesArtists,
   getHiddenTunesArtistById,
+  getHiddenTunesCatalogSnapshot,
   hydrateHiddenTunesCatalogCache,
   type HiddenTunesAlbum,
   type HiddenTunesArtist,
@@ -189,31 +190,40 @@ export default function ArtistScreen() {
           });
         }
 
-        const cachedSongs = await hydrateHiddenTunesCatalogCache();
-        const cachedArtist = findArtistById(
-          extractHiddenTunesArtists(cachedSongs),
-          artistId
-        );
+        if (!showedCachedArtist) {
+          const memorySongs = getHiddenTunesCatalogSnapshot();
+          const memoryArtist = memorySongs.length
+            ? findArtistById(extractHiddenTunesArtists(memorySongs), artistId)
+            : null;
 
-        if (cachedArtist && !showedCachedArtist) {
-          setArtist(cachedArtist);
-          setLoading(false);
-          showedCachedArtist = true;
-          logCacheResult("artist", true, {
-            id: artistId,
-            tracks: cachedArtist.tracks.length,
-          });
-          logScreenReady("artist", screenStartedAt, {
-            cache: "hit",
-            tracks: cachedArtist.tracks.length,
-          });
-          logPerformanceSummary("artist", {
-            cache: "hit",
-            firstContentMs: Date.now() - screenStartedAt,
-            itemCount: cachedArtist.tracks.length,
-          });
-        } else if (!showedCachedArtist) {
-          logCacheResult("artist", false, { id: artistId });
+          const cachedSongs = memoryArtist
+            ? memorySongs
+            : await hydrateHiddenTunesCatalogCache();
+          const cachedArtist =
+            memoryArtist ||
+            findArtistById(extractHiddenTunesArtists(cachedSongs), artistId);
+
+          if (cachedArtist) {
+            setArtist(cachedArtist);
+            setLoading(false);
+            showedCachedArtist = true;
+            logCacheResult("artist", true, {
+              id: artistId,
+              tracks: cachedArtist.tracks.length,
+              source: memoryArtist ? "memory" : "storage",
+            });
+            logScreenReady("artist", screenStartedAt, {
+              cache: "hit",
+              tracks: cachedArtist.tracks.length,
+            });
+            logPerformanceSummary("artist", {
+              cache: "hit",
+              firstContentMs: Date.now() - screenStartedAt,
+              itemCount: cachedArtist.tracks.length,
+            });
+          } else {
+            logCacheResult("artist", false, { id: artistId });
+          }
         }
 
         const data = await getHiddenTunesArtistById(artistId);
