@@ -338,13 +338,46 @@ type SyncedRow = ReleaseHealthSyncedInput & { song_id?: string };
 
 async function supabaseAdminSafeTrackLyrics(songIds: string[]) {
   const { supabaseAdmin } = await import("@/lib/supabaseAdmin");
+  const { isMissingSchemaColumnError } = await import("@/lib/supabaseErrors");
+
+  const fullSelect =
+    "song_id, plain_lyrics, synced_lrc, word_sync_json, lyrics_type";
+  const coreSelect = "song_id, plain_lyrics, synced_lrc, word_sync_json";
+
   const { data, error } = await supabaseAdmin
     .from("track_lyrics")
-    .select("song_id, plain_lyrics, synced_lrc, word_sync_json, lyrics_type")
+    .select(fullSelect)
     .in("song_id", songIds);
 
-  if (error) throw error;
-  return (data || []) as LyricsRow[];
+  if (!error) {
+    return (data || []) as LyricsRow[];
+  }
+
+  if (isMissingSchemaColumnError(error)) {
+    const fallback = await supabaseAdmin
+      .from("track_lyrics")
+      .select(coreSelect)
+      .in("song_id", songIds);
+
+    if (fallback.error) {
+      if (isMissingSchemaColumnError(fallback.error)) {
+        return [] as LyricsRow[];
+      }
+      throw fallback.error;
+    }
+
+    return (fallback.data || []) as LyricsRow[];
+  }
+
+  if (
+    String(error.message || "")
+      .toLowerCase()
+      .includes("track_lyrics")
+  ) {
+    return [] as LyricsRow[];
+  }
+
+  throw error;
 }
 
 async function supabaseAdminSafeSyncedLyrics(songIds: string[]) {
