@@ -19,11 +19,15 @@ import {
 } from "./trackPlayerRemoteHandlers";
 import {
   ensureTrackPlayerReady,
+  fastSkipTrackPlayerToIndex,
+  getIntendedTrackPlayerTrackIds,
   getTrackPlayerActiveIndex,
   getTrackPlayerProgress,
   getTrackPlayerQueueSnapshot,
   playTrackPlayerQueue,
   resetTrackPlayerPlayback,
+  resolveTrackPlayerPlayIndex,
+  trackPlayerQueueIdsMatch,
   setTrackPlayerRepeatMode,
   subscribeTrackPlayerEvents,
   trackPlayerPause,
@@ -254,4 +258,79 @@ export async function bridgeInterruptForUserTap(): Promise<void> {
   if (!ready) return;
 
   await trackPlayerStop("user_tap_interrupt");
+}
+
+/** User tap only: skip to index when native queue already matches JS queue. */
+export async function bridgeTryUserTapFastPlay(options: {
+  songs: TrackPlayerSongInput[];
+  songId: string;
+  startIndex: number;
+  repeatMode: PlayerRepeatMode;
+  volume: number;
+  muted: boolean;
+  startPositionMillis?: number;
+}): Promise<{ playedIndex: number } | null> {
+  if (!isTrackPlayerFeatureEnabled() || !supportsNativeTrackPlayer()) {
+    return null;
+  }
+
+  const ready = await ensureTrackPlayerReady();
+  if (!ready) return null;
+
+  const intendedTrackIds = getIntendedTrackPlayerTrackIds(options.songs);
+  const snapshot = await getTrackPlayerQueueSnapshot();
+  const nativeTrackIds = snapshot?.trackIds ?? [];
+  const targetIndex = resolveTrackPlayerPlayIndex(
+    options.songs,
+    options.songId,
+    options.startIndex
+  );
+  const queueMatch = trackPlayerQueueIdsMatch(nativeTrackIds, intendedTrackIds);
+
+  let reason = "native_queue_match";
+
+  if (!intendedTrackIds.length) {
+    reason = "no_playable_tracks";
+  } else if (!nativeTrackIds.length) {
+    reason = "native_queue_empty";
+  } else if (!queueMatch) {
+    reason = "native_queue_mismatch";
+  }
+
+  if (typeof __DEV__ !== "undefined" && __DEV__) {
+    console.log("[tap-fast-path]", {
+      queueMatch,
+      targetIndex,
+      trackCount: intendedTrackIds.length,
+      reason,
+    });
+  }
+
+  if (!queueMatch || !intendedTrackIds.length) {
+    return null;
+  }
+
+  if (typeof __DEV__ !== "undefined" && __DEV__) {
+    console.log("[tap-timing] fast-skip-start", {
+      targetIndex,
+      trackCount: intendedTrackIds.length,
+    });
+  }
+
+  const playedIndex = await fastSkipTrackPlayerToIndex({
+    startIndex: targetIndex,
+    repeatMode: options.repeatMode,
+    volume: options.volume,
+    muted: options.muted,
+    startPositionMillis: options.startPositionMillis,
+  });
+
+  bridgeActive = true;
+  attachMainThreadRemoteHandlers();
+
+  if (typeof __DEV__ !== "undefined" && __DEV__) {
+    console.log("[tap-timing] fast-skip-end", { playedIndex });
+  }
+
+  return { playedIndex };
 }

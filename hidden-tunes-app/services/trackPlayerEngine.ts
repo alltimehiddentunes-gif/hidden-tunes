@@ -38,6 +38,7 @@ export type TrackPlayerQueueSnapshot = {
   queueLength: number;
   activeIndex: number | null;
   playbackState: string | null;
+  trackIds: string[];
 };
 
 const APP_DISPLAY_NAME = "Hidden Tunes";
@@ -71,14 +72,21 @@ export async function getTrackPlayerQueueSnapshot(): Promise<TrackPlayerQueueSna
       player.getPlaybackState(),
     ]);
 
+    const trackIds = Array.isArray(queue)
+      ? queue
+          .map((track) => String((track as { id?: unknown })?.id ?? "").trim())
+          .filter((id) => id.length > 0)
+      : [];
+
     return {
-      queueLength: Array.isArray(queue) ? queue.length : 0,
+      queueLength: trackIds.length,
       activeIndex:
         typeof activeIndex === "number" ? activeIndex : null,
       playbackState:
         playbackState?.state !== undefined
           ? String(playbackState.state)
           : null,
+      trackIds,
     };
   } catch (error) {
     logTrackPlayer("queue_snapshot_error", {
@@ -387,6 +395,89 @@ export async function resetTrackPlayerPlayback(
   logTrackPlayer("reset_complete", { reason });
 }
 
+export function getIntendedTrackPlayerTrackIds(
+  songs: TrackPlayerSongInput[]
+): string[] {
+  return (songs.map(songToTrack).filter(Boolean) as TrackPlayerTrack[]).map(
+    (track) => track.id
+  );
+}
+
+export function trackPlayerQueueIdsMatch(
+  nativeTrackIds: string[],
+  intendedTrackIds: string[]
+): boolean {
+  if (!intendedTrackIds.length || nativeTrackIds.length !== intendedTrackIds.length) {
+    return false;
+  }
+
+  for (let index = 0; index < intendedTrackIds.length; index += 1) {
+    if (String(nativeTrackIds[index]) !== String(intendedTrackIds[index])) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+export function resolveTrackPlayerPlayIndex(
+  songs: TrackPlayerSongInput[],
+  songId: string,
+  fallbackIndex: number
+): number {
+  const tracks = songs.map(songToTrack).filter(Boolean) as TrackPlayerTrack[];
+
+  if (!tracks.length) return 0;
+
+  const matchedIndex = tracks.findIndex((track) => track.id === String(songId));
+
+  if (matchedIndex >= 0) return matchedIndex;
+
+  return Math.max(0, Math.min(fallbackIndex, tracks.length - 1));
+}
+
+export async function fastSkipTrackPlayerToIndex(options: {
+  startIndex: number;
+  repeatMode: PlayerRepeatMode;
+  volume: number;
+  muted: boolean;
+  startPositionMillis?: number;
+}): Promise<number> {
+  const ready = await setupTrackPlayer();
+  if (!ready) return Math.max(0, options.startIndex);
+
+  const player = await getTrackPlayerApi();
+  if (!player) return Math.max(0, options.startIndex);
+
+  const snapshot = await getTrackPlayerQueueSnapshot();
+  const queueLength = snapshot?.trackIds.length || 0;
+
+  if (!queueLength) return 0;
+
+  const safeIndex = Math.max(0, Math.min(options.startIndex, queueLength - 1));
+  const startPositionSeconds =
+    options.startPositionMillis && options.startPositionMillis > 0
+      ? options.startPositionMillis / 1000
+      : undefined;
+
+  logTrackPlayerQueue("fast_skip_start", {
+    startIndex: safeIndex,
+    queueLength,
+  });
+
+  await player.skip(safeIndex, startPositionSeconds);
+  await trackPlayerSetVolume(options.volume, options.muted);
+  await setTrackPlayerRepeatMode(options.repeatMode);
+  await player.play();
+
+  logTrackPlayerQueue("fast_skip_complete", {
+    startIndex: safeIndex,
+    queueLength,
+  });
+
+  return safeIndex;
+}
+
 export async function playTrackPlayerQueue(options: {
   songs: TrackPlayerSongInput[];
   startIndex: number;
@@ -423,8 +514,16 @@ export async function playTrackPlayerQueue(options: {
       ? options.startPositionMillis / 1000
       : undefined;
 
+  const loadReason = options.reason || "load_queue";
+
+  if (typeof __DEV__ !== "undefined" && __DEV__) {
+    console.log("[tap-timing] full-reload-trackCount", tracks.length, {
+      reason: loadReason,
+    });
+  }
+
   logTrackPlayerQueue("load_queue_start", {
-    reason: options.reason || "load_queue",
+    reason: loadReason,
     requested: options.songs.length,
     trackCount: tracks.length,
     startIndex: safeIndex,

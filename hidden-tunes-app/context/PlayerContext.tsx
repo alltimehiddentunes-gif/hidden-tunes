@@ -55,6 +55,7 @@ import {
   bridgeSyncRepeatMode,
   bridgeTogglePlayPause,
   bridgeTrySkipToNext,
+  bridgeTryUserTapFastPlay,
   shouldUseTrackPlayerPlayback,
   subscribeBridgeEvents,
 } from "../services/playbackBridge";
@@ -198,7 +199,11 @@ export type PlayerContextType = {
   radioIndex: number;
 
   playSong: (song: AppSong, queue?: AppSong[], index?: number) => Promise<void>;
-  playQueue: (queue: AppSong[], startIndex?: number) => Promise<void>;
+  playQueue: (
+    queue: AppSong[],
+    startIndex?: number,
+    priorInterruptDone?: boolean
+  ) => Promise<void>;
   playAudiusTrack: (song: AppSong) => Promise<void>;
   playYouTubeQueue: (
     tracks: BackendYouTubeTrack[],
@@ -296,6 +301,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   type LoadAndPlayOptions = {
     /** Direct user tap — pause/stop current audio before loading the next track. */
     userInitiated?: boolean;
+    /** Set when playSong/playQueue already ran interrupt for this tap. */
+    userInterruptDone?: boolean;
   };
 
   const loadAndPlayRef = useRef<
@@ -1880,7 +1887,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           return;
         }
 
-        if (options?.userInitiated) {
+        if (options?.userInitiated && !options?.userInterruptDone) {
           await interruptCurrentPlaybackForUserTap(normalizedSong.id);
         }
 
@@ -1926,14 +1933,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               return;
             }
 
-            let playIndex = queue.findIndex((item) => item.id === normalizedSong.id);
-
-            if (playIndex < 0) {
-              playIndex = Math.max(
-                0,
-                Math.min(activeQueueIndexRef.current, queue.length - 1)
-              );
-            }
+            const requestedIndex = queue.findIndex(
+              (item) => item.id === normalizedSong.id
+            );
+            const fallbackIndex =
+              requestedIndex >= 0
+                ? requestedIndex
+                : Math.max(
+                    0,
+                    Math.min(activeQueueIndexRef.current, queue.length - 1)
+                  );
 
             let startPositionMillis = 0;
 
@@ -1957,20 +1966,64 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               await clearPreloadedSound();
             }
 
-            await unloadCurrentSound();
+            let playedIndex = fallbackIndex;
+
+            if (options?.userInitiated) {
+              const fastResult = await bridgeTryUserTapFastPlay({
+                songs: queue,
+                songId: normalizedSong.id,
+                startIndex: fallbackIndex,
+                repeatMode: repeatModeRef.current,
+                volume: volumeRef.current,
+                muted: isMutedRef.current,
+                startPositionMillis,
+              });
+
+              if (fastResult) {
+                playedIndex = fastResult.playedIndex;
+              } else {
+                await unloadCurrentSound();
+
+                if (
+                  loadRequestIdRef.current !== requestId ||
+                  !isMountedRef.current
+                ) {
+                  return;
+                }
+
+                playedIndex = await activateTrackPlayerPlayback({
+                  songs: queue,
+                  startIndex: fallbackIndex,
+                  repeatMode: repeatModeRef.current,
+                  volume: volumeRef.current,
+                  muted: isMutedRef.current,
+                  startPositionMillis,
+                  reason: "user_tap_full_reload",
+                });
+              }
+            } else {
+              await unloadCurrentSound();
+
+              if (
+                loadRequestIdRef.current !== requestId ||
+                !isMountedRef.current
+              ) {
+                return;
+              }
+
+              playedIndex = await activateTrackPlayerPlayback({
+                songs: queue,
+                startIndex: fallbackIndex,
+                repeatMode: repeatModeRef.current,
+                volume: volumeRef.current,
+                muted: isMutedRef.current,
+                startPositionMillis,
+              });
+            }
 
             if (loadRequestIdRef.current !== requestId || !isMountedRef.current) {
               return;
             }
-
-            const playedIndex = await activateTrackPlayerPlayback({
-              songs: queue,
-              startIndex: playIndex,
-              repeatMode: repeatModeRef.current,
-              volume: volumeRef.current,
-              muted: isMutedRef.current,
-              startPositionMillis,
-            });
 
             trackPlayerActiveRef.current = true;
             syncStateFromTrackPlayerIndex(playedIndex);
@@ -2159,6 +2212,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       isYouTubeSong,
       clearPreloadedSound,
       interruptCurrentPlaybackForUserTap,
+      bridgeTryUserTapFastPlay,
       unloadCurrentSound,
       getActiveQueuePlaybackState,
       getPlayableUri,
@@ -2343,7 +2397,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   ]);
 
   const playQueue = useCallback(
-    async (queue: AppSong[], startIndex = 0) => {
+    async (
+      queue: AppSong[],
+      startIndex = 0,
+      priorInterruptDone = false
+    ) => {
       const nativeQueue = queue
         .map(normalizeSong)
         .filter((song) => !isYouTubeSong(song));
@@ -2377,9 +2435,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       void removeStoredValues([POSITION_KEY]);
 
       const selectedSong = nativeQueue[safeIndex];
+      let interruptDone = priorInterruptDone;
 
       if (currentSongRef.current?.id !== selectedSong.id) {
-        await interruptCurrentPlaybackForUserTap(selectedSong.id);
+        if (!interruptDone) {
+          await interruptCurrentPlaybackForUserTap(selectedSong.id);
+        }
+
+        interruptDone = true;
         setCurrentSong(selectedSong);
         currentSongRef.current = selectedSong;
         setIsLoading(true);
@@ -2403,7 +2466,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         } catch {}
       }
 
-      await loadAndPlay(selectedSong, { userInitiated: true });
+      await loadAndPlay(selectedSong, {
+        userInitiated: true,
+        userInterruptDone: interruptDone,
+      });
     },
     [
       normalizeSong,
@@ -2484,7 +2550,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         recordQueueControl("play_song", nativeQueue.length, {
           songId: normalizedSong.id,
         });
-        await playQueue(nativeQueue, repaired.index);
+        await playQueue(nativeQueue, repaired.index, switchingToNewSong);
         return;
       }
 
@@ -2564,7 +2630,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       }
 
       void removeStoredValues([POSITION_KEY]);
-      await loadAndPlay(normalizedSong, { userInitiated: true });
+      await loadAndPlay(normalizedSong, {
+        userInitiated: true,
+        userInterruptDone: switchingToNewSong,
+      });
     },
     [
       normalizeSong,
