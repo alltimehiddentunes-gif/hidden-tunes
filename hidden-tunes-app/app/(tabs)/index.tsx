@@ -17,7 +17,10 @@ import { useFocusEffect, useScrollToTop } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 
-import CatalogSongRow from "../../components/catalog/CatalogSongRow";
+import {
+  HomeCatalogSongRow,
+  HomeFeaturedCard,
+} from "../../components/catalog/HomePlaybackRows";
 import NeonEQ from "../../components/NeonEQ";
 import HTImage from "../../components/HTImage";
 import LiveWaveform from "../../components/LiveWaveform";
@@ -59,7 +62,11 @@ import {
   getListPerformanceSettings,
   markFastScrolling,
 } from "../../utils/performanceMode";
-import { buildHomeFeedRows, type HomeFeedRow } from "../../utils/homeFeedRows";
+import {
+  buildHomeFeedRows,
+  type HomeFeedMountStage,
+  type HomeFeedRow,
+} from "../../utils/homeFeedRows";
 import {
   openGenreCatalog,
   openMoodCatalog,
@@ -200,8 +207,27 @@ function HomeScreen() {
   const [hasMoreSongPages, setHasMoreSongPages] = useState(true);
   const [loadingMoreSongs, setLoadingMoreSongs] = useState(false);
   const [heroIndex, setHeroIndex] = useState(0);
-  const [deferredSectionsReady, setDeferredSectionsReady] = useState(false);
+  const [feedMountStage, setFeedMountStage] = useState<HomeFeedMountStage>(0);
   const deferredSectionsScheduledRef = useRef(false);
+  const feedMountStageTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  const logHomeFeedStageReady = useCallback((stage: HomeFeedMountStage) => {
+    if (typeof __DEV__ === "undefined" || !__DEV__) return;
+    console.log(`[home-feed] stage-ready ${stage}`);
+  }, []);
+
+  const advanceFeedMountStage = useCallback(
+    (stage: HomeFeedMountStage) => {
+      if (stage < 1 || stage > 3) return;
+
+      setFeedMountStage((current) => {
+        if (current >= stage) return current;
+        logHomeFeedStageReady(stage);
+        return stage;
+      });
+    },
+    [logHomeFeedStageReady]
+  );
 
   useRenderCountProbe("HomeScreen");
 
@@ -505,9 +531,29 @@ function HomeScreen() {
     if (deferredSectionsScheduledRef.current) return;
     deferredSectionsScheduledRef.current = true;
 
+    const scheduleStage = (delayMs: number, stage: HomeFeedMountStage) => {
+      const timer = setTimeout(() => {
+        requestAnimationFrame(() => {
+          advanceFeedMountStage(stage);
+        });
+      }, delayMs);
+      feedMountStageTimersRef.current.push(timer);
+    };
+
     InteractionManager.runAfterInteractions(() => {
-      setDeferredSectionsReady(true);
+      requestAnimationFrame(() => {
+        advanceFeedMountStage(1);
+        scheduleStage(80, 2);
+        scheduleStage(160, 3);
+      });
     });
+  }, [advanceFeedMountStage]);
+
+  useEffect(() => {
+    return () => {
+      feedMountStageTimersRef.current.forEach(clearTimeout);
+      feedMountStageTimersRef.current = [];
+    };
   }, []);
 
   useEffect(() => {
@@ -573,12 +619,12 @@ function HomeScreen() {
   }, [activeMoodId, moodRooms, primaryMoodRoom]);
 
   const showMoreButton =
-    deferredSectionsReady && (hasMoreCloudSongs || hasMoreSongPages);
+    feedMountStage >= 3 && (hasMoreCloudSongs || hasMoreSongPages);
 
   const homeFeedRows = useMemo(
     () =>
       buildHomeFeedRows({
-        deferredSectionsReady,
+        feedMountStage,
         becauseYouListened,
         moreLikeThisMoodSongs: moreLikeThisMood.songs,
         rankedArtistsCount: rankedArtists.length,
@@ -595,7 +641,7 @@ function HomeScreen() {
       activeMoodRoom,
       becauseYouListened,
       curatedSections,
-      deferredSectionsReady,
+      feedMountStage,
       featuredSongs.length,
       moodRooms,
       moreLikeThisMood.songs,
@@ -621,7 +667,7 @@ function HomeScreen() {
   }, [activeMoodId, primaryMoodRoom?.id]);
 
   useEffect(() => {
-    if (!featuredSongs.length || !deferredSectionsReady) return;
+    if (!featuredSongs.length || feedMountStage < 3) return;
 
     scheduleStartupTask("background", "home_section_artwork_prefetch", () =>
       preloadImages([
@@ -635,7 +681,7 @@ function HomeScreen() {
       ])
     );
   }, [
-    deferredSectionsReady,
+    feedMountStage,
     featuredSongs.length,
     newestSongs,
     primaryGenreSpotlight?.songs,
@@ -997,22 +1043,14 @@ function HomeScreen() {
   }, [heroCards.length]);
 
   const renderSongRow = useCallback(
-    (song: HiddenTunesNormalizedSong, sectionId: string) => {
-      const active = currentSong?.id === String(song.id);
-
-      return (
-        <View style={[styles.mediaShell, active && styles.mediaShellActive]}>
-          <CatalogSongRow
-            song={song}
-            image={getSongImage(song)}
-            active={active}
-            isPlaying={isPlaying}
-            onPress={playFeaturedSong}
-          />
-        </View>
-      );
-    },
-    [currentSong?.id, isPlaying, playFeaturedSong]
+    (song: HiddenTunesNormalizedSong, _sectionId: string) => (
+      <HomeCatalogSongRow
+        song={song}
+        image={getSongImage(song)}
+        onPress={playFeaturedSong}
+      />
+    ),
+    [playFeaturedSong]
   );
 
   const horizontalArtistListTuning = useMemo(
@@ -1031,72 +1069,10 @@ function HomeScreen() {
   );
 
   const renderFeaturedItem = useCallback(
-    ({ item, index }: { item: HiddenTunesNormalizedSong; index: number }) => {
-      const active = currentSong?.id === String(item.id);
-
-      return (
-        <TouchableOpacity
-          activeOpacity={0.9}
-          style={[styles.featuredCard, active && styles.featuredCardActive]}
-          onPress={() => playFeaturedSong(item)}
-        >
-          <HTImage source={item} style={styles.featuredCover} />
-
-          <LinearGradient
-            colors={["transparent", "rgba(0,0,0,0.96)"]}
-            style={styles.featuredOverlay}
-          />
-
-          <View style={styles.featuredRank}>
-            <Text style={styles.featuredRankText}>
-              {String(index + 1).padStart(2, "0")}
-            </Text>
-          </View>
-
-          <View style={styles.featuredContent}>
-            <View style={styles.featuredBadge}>
-              {active ? (
-                <NeonEQ isPlaying={isPlaying} size="small" />
-              ) : (
-                <Ionicons name="sparkles" size={13} color={COLORS.primary} />
-              )}
-
-              <Text style={styles.featuredBadgeText}>
-                {active ? "NOW PLAYING" : "HIDDEN TUNES"}
-              </Text>
-            </View>
-
-            <Text numberOfLines={1} style={styles.featuredTitle}>
-              {item.title}
-            </Text>
-
-            <Text numberOfLines={1} style={styles.featuredArtist}>
-              {item.artist}
-            </Text>
-
-            <View style={styles.featuredBottom}>
-              <View style={styles.autoNextPill}>
-                <Ionicons
-                  name="play-skip-forward"
-                  size={13}
-                  color={COLORS.text}
-                />
-                <Text style={styles.autoNextText}>Playing next</Text>
-              </View>
-
-              <View style={styles.featuredPlay}>
-                <Ionicons
-                  name={active && isPlaying ? "pause" : "play"}
-                  size={18}
-                  color="#000"
-                />
-              </View>
-            </View>
-          </View>
-        </TouchableOpacity>
-      );
-    },
-    [currentSong?.id, isPlaying, playFeaturedSong]
+    ({ item, index }: { item: HiddenTunesNormalizedSong; index: number }) => (
+      <HomeFeaturedCard item={item} index={index} onPress={playFeaturedSong} />
+    ),
+    [playFeaturedSong]
   );
 
   const renderHomeFeedRow = useCallback(
