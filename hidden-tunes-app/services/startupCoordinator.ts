@@ -1,3 +1,4 @@
+import { logBackgroundWork } from "../utils/backgroundWork";
 import { HIDDEN_TUNES_GENRES } from "../utils/genres";
 import { prefetchGenreCatalogNavigation } from "../utils/catalogNavigation";
 import { scheduleStartupTask } from "../utils/startupScheduler";
@@ -23,7 +24,8 @@ export function runTabShellStartup() {
     await ensureCatalogViewPersistenceHydrated();
   });
 
-  scheduleStartupTask("background", "genre_prewarm_primary", async () => {
+  scheduleStartupTask("idle", "genre_prewarm_primary", async () => {
+    logBackgroundWork("delayed-genre-prewarm");
     const primaryGenre = HIDDEN_TUNES_GENRES[0];
     if (!primaryGenre) return;
 

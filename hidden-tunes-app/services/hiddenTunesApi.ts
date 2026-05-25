@@ -12,6 +12,11 @@ import {
   recordSlowEndpointWarning,
   startPerformanceTimer,
 } from "../utils/performanceLogs";
+import {
+  isWithinFirstInteractionWindow,
+  logBackgroundWork,
+  scheduleDelayedNonEssentialWork,
+} from "../utils/backgroundWork";
 import { isAppActiveForWork } from "../utils/performanceMode";
 import { scheduleStartupTask } from "../utils/startupScheduler";
 
@@ -652,7 +657,7 @@ async function readCachedSongsV4FromStorage(): Promise<HiddenTunesNormalizedSong
   }
 }
 
-function scheduleCatalogBackgroundRefresh() {
+function runCatalogBackgroundRefresh() {
   if (!isAppActiveForWork()) return;
   if (
     songsBackgroundRefreshPromise ||
@@ -678,6 +683,13 @@ function scheduleCatalogBackgroundRefresh() {
     } catch {}
   })().finally(() => {
     songsBackgroundRefreshPromise = null;
+  });
+}
+
+function scheduleCatalogBackgroundRefresh() {
+  scheduleDelayedNonEssentialWork(() => {
+    logBackgroundWork("delayed-catalog-refresh");
+    runCatalogBackgroundRefresh();
   });
 }
 
@@ -780,7 +792,7 @@ export async function getHiddenTunesCatalogCacheInfo() {
 }
 
 export function prefetchHiddenTunesCatalog() {
-  scheduleStartupTask("background", "catalog_api_background_refresh", async () => {
+  scheduleStartupTask("idle", "catalog_api_background_refresh", async () => {
     const cached = await hydrateHiddenTunesCatalogCache();
 
     if (cached.length && isFreshMemoryCache(songsMemoryCacheTime)) {
@@ -1076,6 +1088,24 @@ export async function getHiddenTunesSongsPage(options?: {
   const albumId = String(options?.albumId || "").trim();
   const genre = String(options?.genre || "").trim();
   const isGlobalCatalog = !query && !artistId && !albumId && !genre;
+  const forceRefresh = Boolean(options?.forceRefresh);
+
+  if (isGlobalCatalog && page > 1 && !forceRefresh && isWithinFirstInteractionWindow()) {
+    const cached = songsMemoryCache?.length
+      ? songsMemoryCache
+      : await readCachedSongs();
+    const start = (page - 1) * limit;
+    const songs = cached.slice(start, start + limit);
+
+    return {
+      songs,
+      page,
+      limit,
+      hasMore: start + limit < cached.length,
+      nextPage: page + 1,
+    };
+  }
+
   const url = buildSongsUrl({ page, limit, query, artistId, albumId, genre });
 
   try {

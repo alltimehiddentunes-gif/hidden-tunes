@@ -17,13 +17,12 @@ import { router } from "expo-router";
 
 import AddToPlaylistButton from "../../components/AddToPlaylistButton";
 import HTImage from "../../components/HTImage";
-import { TESTER_COPY } from "../../constants/testerExperience";
 import { COLORS, GRADIENTS } from "../../constants/theme";
-import {
-  usePlayerActions,
-  usePlayerNowPlaying,
-  usePlayerState,
-} from "../../context/PlayerContext";
+import { usePlayerActions, usePlayerState } from "../../context/PlayerContext";
+import ExploreListHeader, {
+  type ExploreListHeaderProps,
+  type ExploreMountStage,
+} from "../../components/explore/ExploreListHeader";
 import { FALLBACK_ARTWORK, getArtworkUri } from "../../utils/artwork";
 
 import {
@@ -62,11 +61,15 @@ import {
   markFirstApiRefreshComplete,
   markFirstCachedContentVisible,
 } from "../../utils/startupDiagnostics";
+import {
+  isWithinFirstInteractionWindow,
+  logBackgroundWork,
+  scheduleDelayedNonEssentialWork,
+} from "../../utils/backgroundWork";
 import { scheduleStartupTask } from "../../utils/startupScheduler";
 import {
   shouldReplaceCatalogResults,
   shouldResetCatalogFallbackGate,
-  shouldShowCatalogEmpty,
 } from "../../utils/catalogEmptyStateTiming";
 import {
   getHorizontalListPerformanceSettings,
@@ -94,8 +97,6 @@ type GenreItem = {
 const CARD_WIDTH = 150;
 const CARD_GAP = 14;
 const ARTIST_CARD_WIDTH = 142;
-const EXPLORE_SKELETON_KEYS = ["one", "two", "three"];
-
 function getSafeVideoId(track: BackendYouTubeTrack) {
   return String(track.videoId || track.id || "").replace("youtube-", "").trim();
 }
@@ -315,86 +316,15 @@ const ExploreArtistNavCard = memo(function ExploreArtistNavCard({
   );
 });
 
-const ExploreContinueListening = memo(function ExploreContinueListening({
-  currentSong,
-  onResume,
-}: {
-  currentSong: any;
-  onResume: () => void;
-}) {
-  if (!currentSong) return null;
-
-  return (
-    <>
-      <View style={styles.rowHeader}>
-        <Text style={styles.sectionTitle}>Continue Listening</Text>
-
-        <TouchableOpacity onPress={() => router.push("/player" as any)}>
-          <Text style={styles.seeAll}>Player</Text>
-        </TouchableOpacity>
-      </View>
-
-      <TouchableOpacity
-        activeOpacity={0.88}
-        style={styles.continueCard}
-        onPress={onResume}
-      >
-        <HTImage source={currentSong} style={styles.continueImage} />
-
-        <View style={styles.continueInfo}>
-          <Text style={styles.continueKicker}>NOW PLAYING</Text>
-
-          <Text numberOfLines={1} style={styles.continueTitle}>
-            {currentSong.title || "Unknown Song"}
-          </Text>
-
-          <Text numberOfLines={1} style={styles.continueArtist}>
-            {currentSong.artist ||
-              currentSong.user?.name ||
-              currentSong.channelTitle ||
-              "Hidden Tunes"}
-          </Text>
-        </View>
-
-        <View style={styles.continuePlay}>
-          <Ionicons name="play" size={18} color="#000" />
-        </View>
-      </TouchableOpacity>
-    </>
-  );
-});
-
 function buildInitialExploreSongs() {
   const snapshot = getHiddenTunesCatalogSnapshot();
   if (!snapshot.length) return [] as HiddenTunesNormalizedSong[];
   return dedupeSongs(snapshot.map(safeSong));
 }
 
-function ExploreSkeletonRail() {
-  return (
-    <View style={styles.skeletonPanel}>
-      <View style={styles.skeletonTitleRow}>
-        <ActivityIndicator size="small" color={COLORS.primary} />
-        <Text style={styles.loadingText}>Preparing discovery...</Text>
-      </View>
-
-      <View style={styles.skeletonRail}>
-        {EXPLORE_SKELETON_KEYS.map((item) => (
-          <View key={`explore-skeleton-${item}`} style={styles.skeletonCard}>
-            <View style={styles.skeletonArtwork} />
-            <View style={styles.skeletonLineLarge} />
-            <View style={styles.skeletonLineSmall} />
-          </View>
-        ))}
-      </View>
-    </View>
-  );
-}
-
 export default memo(function ExploreScreen() {
-  const { playSong, toggleSmartAutoplay } = usePlayerActions();
-  const { currentSong } = usePlayerNowPlaying();
-  const { recentlyPlayed, favorites, smartAutoplayEnabled } = usePlayerState();
+  const { playSong } = usePlayerActions();
+  const { recentlyPlayed, favorites } = usePlayerState();
   const isFocused = useIsFocused();
 
   const listRef = useRef<FlatList<BackendYouTubeTrack>>(null);
@@ -423,6 +353,57 @@ export default memo(function ExploreScreen() {
   const [songPage, setSongPage] = useState(1);
   const [hasMoreSongs, setHasMoreSongs] = useState(true);
   const [loadingMoreSongs, setLoadingMoreSongs] = useState(false);
+  const [exploreMountStage, setExploreMountStage] = useState<ExploreMountStage>(0);
+  const exploreStageScheduledRef = useRef(false);
+  const exploreStageTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  const logExploreStageReady = useCallback((stage: ExploreMountStage) => {
+    if (typeof __DEV__ === "undefined" || !__DEV__) return;
+    console.log(`[explore-stage] ready ${stage}`);
+  }, []);
+
+  const advanceExploreMountStage = useCallback(
+    (stage: ExploreMountStage) => {
+      if (stage < 1 || stage > 4) return;
+
+      setExploreMountStage((current) => {
+        if (current >= stage) return current;
+        logExploreStageReady(stage);
+        return stage;
+      });
+    },
+    [logExploreStageReady]
+  );
+
+  const scheduleExploreHeaderStages = useCallback(() => {
+    if (exploreStageScheduledRef.current) return;
+    exploreStageScheduledRef.current = true;
+
+    const scheduleStage = (delayMs: number, stage: ExploreMountStage) => {
+      const timer = setTimeout(() => {
+        requestAnimationFrame(() => {
+          advanceExploreMountStage(stage);
+        });
+      }, delayMs);
+      exploreStageTimersRef.current.push(timer);
+    };
+
+    InteractionManager.runAfterInteractions(() => {
+      requestAnimationFrame(() => {
+        advanceExploreMountStage(1);
+        scheduleStage(80, 2);
+        scheduleStage(160, 3);
+        scheduleStage(240, 4);
+      });
+    });
+  }, [advanceExploreMountStage]);
+
+  useEffect(() => {
+    return () => {
+      exploreStageTimersRef.current.forEach(clearTimeout);
+      exploreStageTimersRef.current = [];
+    };
+  }, []);
 
   useScrollToTop(listRef);
   useRenderCountProbe("ExploreScreen");
@@ -599,9 +580,18 @@ export default memo(function ExploreScreen() {
           setLoading(false);
           setRefreshing(false);
 
-          InteractionManager.runAfterInteractions(() => {
-            void loadCatalogSecondarySections(forceRefresh);
-          });
+          const scheduleSecondarySections = () => {
+            if (forceRefresh) {
+              void loadCatalogSecondarySections(forceRefresh);
+              return;
+            }
+
+            scheduleDelayedNonEssentialWork(() => {
+              void loadCatalogSecondarySections(false);
+            });
+          };
+
+          InteractionManager.runAfterInteractions(scheduleSecondarySections);
         };
 
         if (forceRefresh || !showedCachedCatalog) {
@@ -612,7 +602,7 @@ export default memo(function ExploreScreen() {
             "explore_catalog_api_refresh",
             refreshExploreFromApi
           );
-          InteractionManager.runAfterInteractions(() => {
+          scheduleDelayedNonEssentialWork(() => {
             void loadCatalogSecondarySections(false);
           });
         }
@@ -652,10 +642,13 @@ export default memo(function ExploreScreen() {
   const loadMoreSongs = useCallback(async () => {
     if (loadingMoreSongs || !hasMoreSongs) return;
 
+    const nextPage = songPage + 1;
+    if (nextPage > 1 && isWithinFirstInteractionWindow()) {
+      return;
+    }
+
     try {
       setLoadingMoreSongs(true);
-
-      const nextPage = songPage + 1;
       const page = await getHiddenTunesSongsPage({
         page: nextPage,
         limit: 30,
@@ -699,16 +692,63 @@ export default memo(function ExploreScreen() {
     [favorites]
   );
 
+  const discoveryListenersRef = useRef({
+    recentlyPlayed: listenerRecentlyPlayed,
+    favorites: listenerFavorites,
+  });
+  const [discoveryListenersVersion, setDiscoveryListenersVersion] = useState(0);
+
+  const applyDiscoveryListeners = useCallback(
+    (recentlyPlayedInput: DiscoverySong[], favoritesInput: DiscoverySong[]) => {
+      discoveryListenersRef.current = {
+        recentlyPlayed: recentlyPlayedInput,
+        favorites: favoritesInput,
+      };
+      setDiscoveryListenersVersion((current) => current + 1);
+    },
+    []
+  );
+
+  const cloudCatalogKey = useMemo(() => {
+    const first = cloudSongs[0];
+    const last = cloudSongs[cloudSongs.length - 1];
+    return `${cloudSongs.length}:${String(first?.id || first?.title || "")}:${String(last?.id || last?.title || "")}`;
+  }, [cloudSongs]);
+
+  useEffect(() => {
+    applyDiscoveryListeners(listenerRecentlyPlayed, listenerFavorites);
+  }, [applyDiscoveryListeners, cloudCatalogKey]);
+
+  useEffect(() => {
+    let cancelled = false;
+    let frameId = 0;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    frameId = requestAnimationFrame(() => {
+      timer = setTimeout(() => {
+        if (cancelled) return;
+        logBackgroundWork("discovery-recompute-deferred");
+        applyDiscoveryListeners(listenerRecentlyPlayed, listenerFavorites);
+      }, 48);
+    });
+
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(frameId);
+      if (timer) clearTimeout(timer);
+    };
+  }, [applyDiscoveryListeners, listenerFavorites, listenerRecentlyPlayed]);
+
   const sharedDiscovery = useMemo(
     () =>
       getSharedDiscoverySnapshot({
         songs: cloudSongs,
-        recentlyPlayed: listenerRecentlyPlayed,
-        favorites: listenerFavorites,
+        recentlyPlayed: discoveryListenersRef.current.recentlyPlayed,
+        favorites: discoveryListenersRef.current.favorites,
         albums,
         artists,
       }),
-    [albums, artists, cloudSongs, listenerFavorites, listenerRecentlyPlayed]
+    [albums, artists, cloudSongs, discoveryListenersVersion]
   );
 
   const rankedCloudSongs = sharedDiscovery.rankedSongs;
@@ -851,30 +891,10 @@ export default memo(function ExploreScreen() {
     [cloudSongs, playSong, smartPicks]
   );
 
-  const resumeCurrentSong = useCallback(async () => {
-    if (!currentSong) return;
-
-    try {
-      const tapStartedAt = startPerformanceTimer();
-      const normalized = safeSong(currentSong);
-      const queue = dedupeSongs(cloudSongs.map(safeSong));
-
-      const startIndex = Math.max(
-        0,
-        queue.findIndex((item) => item.id === normalized.id)
-      );
-
-      void playSong(normalized as any, queue as any, startIndex).finally(() => {
-        logTapToPlay("explore", tapStartedAt, { id: normalized.id, resume: true });
-      });
-
-      requestAnimationFrame(() => {
-        router.push("/player" as any);
-      });
-    } catch (error) {
-      router.push("/player" as any);
-    }
-  }, [cloudSongs, currentSong, playSong]);
+  const handleStartDiscovery = useCallback(() => {
+    const first = smartPicks[0] || cloudSongs[0];
+    if (first) openSmartPick(first);
+  }, [cloudSongs, openSmartPick, smartPicks]);
 
   const handleCloudCardPress = useCallback(
     (song: HiddenTunesNormalizedSong, badge: "PLAY" | "RECENT" | "SMART") => {
@@ -988,473 +1008,89 @@ export default memo(function ExploreScreen() {
     []
   );
 
+  useEffect(() => {
+    if (cloudSongs.length > 0) {
+      scheduleExploreHeaderStages();
+    }
+  }, [cloudSongs.length, scheduleExploreHeaderStages]);
+
   const listHeaderElement = useMemo(
     () => (
-      <>
-        <View style={styles.topBar}>
-              <View>
-                <Text style={styles.kicker}>EXPLORE</Text>
-                <Text style={styles.heading}>Hidden Tunes</Text>
-              </View>
-
-              <TouchableOpacity
-                style={styles.refreshButton}
-                onPress={onRefresh}
-                activeOpacity={0.85}
-              >
-                <Ionicons name="refresh" size={22} color={COLORS.text} />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.smartHero}>
-              <View style={styles.smartHeroGlow} />
-
-              <View style={styles.smartHeroTop}>
-                <View style={styles.smartHeroIcon}>
-                  <Ionicons name="infinite" size={26} color={COLORS.primary} />
-                </View>
-
-                <TouchableOpacity
-                  activeOpacity={0.85}
-                  style={[
-                    styles.smartHeroToggle,
-                    smartAutoplayEnabled && styles.smartHeroToggleActive,
-                  ]}
-                  onPress={toggleSmartAutoplay}
-                >
-                  <Text
-                    style={[
-                      styles.smartHeroToggleText,
-                      smartAutoplayEnabled && styles.smartHeroToggleTextActive,
-                    ]}
-                  >
-                    Smart {smartAutoplayEnabled ? "On" : "Off"}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              <Text style={styles.smartHeroTitle}>Enter a listening room</Text>
-
-              <View style={styles.smartHeroActions}>
-                <TouchableOpacity
-                  activeOpacity={0.86}
-                  style={[
-                    styles.smartHeroPrimary,
-                    !cloudSongs.length && styles.disabledButton,
-                  ]}
-                  onPress={() => {
-                    const first = smartPicks[0] || cloudSongs[0];
-                    if (first) openSmartPick(first);
-                  }}
-                  disabled={!cloudSongs.length}
-                >
-                  <Ionicons name="play" size={17} color="#000" />
-                  <Text style={styles.smartHeroPrimaryText}>Start Discovery</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  activeOpacity={0.86}
-                  style={styles.smartHeroSecondary}
-                  onPress={() => router.push("/playlists" as any)}
-                >
-                  <Ionicons name="albums" size={18} color={COLORS.text} />
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            <ExploreContinueListening
-              currentSong={currentSong}
-              onResume={resumeCurrentSong}
-            />
-
-            {moodRooms.length > 0 && (
-              <View style={styles.moodRailSection}>
-                <Text style={styles.sectionTitleBlock}>Mood Rooms</Text>
-
-                <FlatList
-                  horizontal
-                  data={moodRooms}
-                  keyExtractor={(item) => item.id}
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.moodRail}
-                  renderItem={renderMoodRoom}
-                />
-              </View>
-            )}
-
-            {loading ? (
-              <ExploreSkeletonRail />
-            ) : null}
-
-            {!loading && cloudSongs.length > 0 && (
-              <View style={styles.catalogStats}>
-                <Ionicons name="cloud-done" size={16} color={COLORS.primary} />
-                <Text style={styles.catalogStatsText}>
-                  {cloudSongs.length} songs ready
-                </Text>
-              </View>
-            )}
-
-            {smartPicks.length > 0 && (
-              <>
-                <View style={styles.rowHeader}>
-                  <Text style={styles.sectionTitle}>Because You Listened</Text>
-
-                  <TouchableOpacity onPress={() => router.push("/queue" as any)}>
-                    <Text style={styles.seeAll}>Queue</Text>
-                  </TouchableOpacity>
-                </View>
-
-                <FlatList
-                  horizontal
-                  data={smartPicks}
-                  keyExtractor={(item) => `smart-${item.id}`}
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.cloudRow}
-                  renderItem={renderSmartPick}
-                  getItemLayout={getCloudItemLayout}
-                  initialNumToRender={horizontalRailTuning.initialNumToRender}
-                  maxToRenderPerBatch={horizontalRailTuning.maxToRenderPerBatch}
-                  windowSize={horizontalRailTuning.windowSize}
-                  updateCellsBatchingPeriod={horizontalRailTuning.updateCellsBatchingPeriod}
-                  removeClippedSubviews
-                />
-              </>
-            )}
-
-            {continueSongs.length > 0 && (
-              <>
-                <View style={styles.rowHeader}>
-                  <Text style={styles.sectionTitle}>Return To The Feeling</Text>
-
-                  <TouchableOpacity onPress={() => router.push("/recently-played" as any)}>
-                    <Text style={styles.seeAll}>See all</Text>
-                  </TouchableOpacity>
-                </View>
-
-                <FlatList
-                  horizontal
-                  data={continueSongs}
-                  keyExtractor={(item) => `recent-${item.id}`}
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.cloudRow}
-                  renderItem={renderRecentSong}
-                  getItemLayout={getCloudItemLayout}
-                  initialNumToRender={horizontalRailTuning.initialNumToRender}
-                  maxToRenderPerBatch={horizontalRailTuning.maxToRenderPerBatch}
-                  windowSize={horizontalRailTuning.windowSize}
-                  updateCellsBatchingPeriod={horizontalRailTuning.updateCellsBatchingPeriod}
-                  removeClippedSubviews
-                />
-              </>
-            )}
-
-            {recentlyAdded.length > 0 && (
-              <>
-                <View style={styles.rowHeader}>
-                  <Text style={styles.sectionTitle}>Recently Added</Text>
-                </View>
-
-                <FlatList
-                  horizontal
-                  data={recentlyAdded}
-                  keyExtractor={(item) => `recently-added-${item.id}`}
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.cloudRow}
-                  renderItem={renderCloudSong}
-                  getItemLayout={getCloudItemLayout}
-                  initialNumToRender={horizontalRailTuning.initialNumToRender}
-                  maxToRenderPerBatch={horizontalRailTuning.maxToRenderPerBatch}
-                  windowSize={horizontalRailTuning.windowSize}
-                  updateCellsBatchingPeriod={horizontalRailTuning.updateCellsBatchingPeriod}
-                  removeClippedSubviews
-                />
-              </>
-            )}
-
-            {curatedSections.map((section) => (
-              <View key={`explore-curated-${section.id}`}>
-                <View style={styles.rowHeader}>
-                  <View style={styles.sectionHeadingStack}>
-                    <Text style={styles.sectionTitle}>{section.title}</Text>
-                    <Text style={styles.sectionSubtitle}>{section.subtitle}</Text>
-                  </View>
-
-                  {section.genreTitle ? (
-                    <TouchableOpacity
-                      onPress={() =>
-                        openGenre({
-                          id: section.genreTitle || section.id,
-                          title: section.genreTitle || section.title,
-                          query: section.genreTitle || section.title,
-                        })
-                      }
-                    >
-                      <Text style={styles.seeAll}>Open room</Text>
-                    </TouchableOpacity>
-                  ) : null}
-                </View>
-
-                <FlatList
-                  horizontal
-                  data={section.songs}
-                  keyExtractor={(item) => `curated-${section.id}-${item.id}`}
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.cloudRow}
-                  renderItem={renderCloudSong}
-                  getItemLayout={getCloudItemLayout}
-                  initialNumToRender={horizontalRailTuning.initialNumToRender}
-                  maxToRenderPerBatch={horizontalRailTuning.maxToRenderPerBatch}
-                  windowSize={horizontalRailTuning.windowSize}
-                  updateCellsBatchingPeriod={horizontalRailTuning.updateCellsBatchingPeriod}
-                  removeClippedSubviews
-                />
-              </View>
-            ))}
-
-            <Text style={styles.sectionTitleBlock}>Genre Spotlights</Text>
-
-            {genreWorlds.length > 0 ? (
-            <View style={styles.genreGrid}>
-              {genreWorlds.map((genre, index) => {
-                const primaryArtwork = genre.artwork[0] || FALLBACK_ARTWORK;
-                const secondaryArtwork = genre.artwork[1] || primaryArtwork;
-                const tertiaryArtwork = genre.artwork[2] || secondaryArtwork;
-
-                return (
-                <TouchableOpacity
-                  key={genre.id}
-                  activeOpacity={0.86}
-                  style={[
-                    styles.genreWorldCard,
-                    index % 2 === 1 && styles.genreWorldCardAlt,
-                  ]}
-                  onPress={() =>
-                    openGenre({
-                      id: genre.title,
-                      title: genre.title,
-                      query: genre.title,
-                    })
-                  }
-                >
-                  <View style={styles.genreWorldGlow} />
-                  <View style={styles.genreAccentLine} />
-
-                  <View style={styles.genreArtworkStack}>
-                    <HTImage
-                      uri={tertiaryArtwork}
-                      style={[styles.genreArtwork, styles.genreArtworkBack]}
-                    />
-                    <HTImage
-                      uri={secondaryArtwork}
-                      style={[styles.genreArtwork, styles.genreArtworkMid]}
-                    />
-                    <HTImage uri={primaryArtwork} style={styles.genreArtwork} />
-                  </View>
-
-                  <View style={styles.genreWorldTop}>
-                    <View style={styles.genreIndexBadge}>
-                      <Text style={styles.genreIndexText}>
-                        {String(index + 1).padStart(2, "0")}
-                      </Text>
-                    </View>
-                    <View style={styles.genreVibePill}>
-                      <Text numberOfLines={1} style={styles.genreVibeText}>
-                        {genre.songs.length} songs
-                      </Text>
-                    </View>
-                  </View>
-
-                  <View style={styles.genreWorldContent}>
-                    <Text numberOfLines={1} style={styles.genreTitle}>
-                      {genre.title}
-                    </Text>
-                  </View>
-
-                  <View style={styles.genreCtaRow}>
-                    <Ionicons name="arrow-forward" size={16} color={COLORS.primary} />
-                  </View>
-                </TouchableOpacity>
-                );
-              })}
-            </View>
-            ) : (
-              <View style={styles.sectionEmpty}>
-                <Text style={styles.sectionEmptyText}>
-                  Genre rooms are still loading from your catalog.
-                </Text>
-              </View>
-            )}
-
-            {showHeavySections && playlists.length > 0 && (
-              <>
-                <View style={styles.rowHeader}>
-                  <Text style={styles.sectionTitle}>Listening Rooms</Text>
-
-                  <TouchableOpacity onPress={() => router.push("/cloud-playlists" as any)}>
-                    <Text style={styles.seeAll}>See all</Text>
-                  </TouchableOpacity>
-                </View>
-
-                <FlatList
-                  horizontal
-                  data={playlists}
-                  keyExtractor={(item: any) => `playlist-${item.id}`}
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.cloudRow}
-                  initialNumToRender={horizontalRailTuning.initialNumToRender}
-                  maxToRenderPerBatch={horizontalRailTuning.maxToRenderPerBatch}
-                  windowSize={horizontalRailTuning.windowSize}
-                  updateCellsBatchingPeriod={horizontalRailTuning.updateCellsBatchingPeriod}
-                  removeClippedSubviews
-                  renderItem={renderPlaylistItem}
-                />
-              </>
-            )}
-
-            {showHeavySections && albums.length > 0 && (
-              <>
-                <Text style={styles.sectionTitleBlock}>Deep Cuts & Albums</Text>
-
-                <FlatList
-                  horizontal
-                  data={rankedAlbums}
-                  keyExtractor={(item: any) => `album-${item.id}`}
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.cloudRow}
-                  initialNumToRender={horizontalRailTuning.initialNumToRender}
-                  maxToRenderPerBatch={horizontalRailTuning.maxToRenderPerBatch}
-                  windowSize={horizontalRailTuning.windowSize}
-                  updateCellsBatchingPeriod={horizontalRailTuning.updateCellsBatchingPeriod}
-                  removeClippedSubviews
-                  renderItem={renderAlbumItem}
-                />
-              </>
-            )}
-
-            {showHeavySections && artists.length > 0 && (
-              <>
-                <Text style={styles.sectionTitleBlock}>Creators To Follow</Text>
-
-                <FlatList
-                  horizontal
-                  data={rankedArtists}
-                  keyExtractor={(item: any) => `artist-${item.id}`}
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.cloudRow}
-                  initialNumToRender={horizontalRailTuning.initialNumToRender}
-                  maxToRenderPerBatch={horizontalRailTuning.maxToRenderPerBatch}
-                  windowSize={horizontalRailTuning.windowSize}
-                  updateCellsBatchingPeriod={horizontalRailTuning.updateCellsBatchingPeriod}
-                  removeClippedSubviews
-                  getItemLayout={(_, index) => ({
-                    length: ARTIST_CARD_WIDTH + CARD_GAP,
-                    offset: (ARTIST_CARD_WIDTH + CARD_GAP) * index,
-                    index,
-                  })}
-                  renderItem={renderArtistItem}
-                />
-              </>
-            )}
-
-            {showTvSection && !loading && featured ? (
-              <TouchableOpacity
-                activeOpacity={0.88}
-                onPress={() => openYouTubeTrack(featured)}
-                style={styles.heroWrap}
-              >
-                <HTImage source={featured} style={styles.heroImage} />
-
-                <LinearGradient
-                  colors={["transparent", "rgba(0,0,0,0.92)"]}
-                  style={styles.heroOverlay}
-                />
-
-                <View style={styles.heroBadge}>
-                  <Ionicons name="flame" size={14} color="#ffcc66" />
-                  <Text style={styles.heroBadgeText}>Hidden Tunes TV</Text>
-                </View>
-
-                <View style={styles.heroContent}>
-                  <Text style={styles.heroTitle} numberOfLines={2}>
-                    {featured.title}
-                  </Text>
-
-                  <Text style={styles.heroArtist} numberOfLines={1}>
-                    {featured.artist || featured.channelTitle || "YouTube"}
-                  </Text>
-
-                  <View style={styles.heroAction}>
-                    <Ionicons name="play" size={18} color="#000" />
-                    <Text style={styles.heroActionText}>Play</Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            ) : null}
-
-            {shouldShowCatalogEmpty({
-              hasCheckedFallbacks: hasCheckedDiscoveryFallbacks,
-              isLoading: loading,
-              isRefreshing: refreshing,
-              resolvedCount: cloudSongs.length,
-            }) &&
-            !featured ? (
-              <View style={styles.empty}>
-                <Ionicons name="musical-notes-outline" size={58} color={COLORS.textMuted} />
-                <Text style={styles.emptyTitle}>Discovery is warming up</Text>
-                <Text style={styles.emptyText}>{TESTER_COPY.catalogWarming}</Text>
-              </View>
-            ) : null}
-
-            {loadingTvSection && !showTvSection ? (
-              <View style={styles.tvLoadingRow}>
-                <ActivityIndicator size="small" color={COLORS.primary} />
-                <Text style={styles.loadingText}>Loading Hidden Tunes TV...</Text>
-              </View>
-            ) : null}
-
-            {showTvSection && !loading && tracks.length > 0 && (
-              <Text style={styles.sectionTitleBlock}>Visual Discovery</Text>
-            )}
-      </>
+      <ExploreListHeader
+        mountStage={exploreMountStage}
+        loading={loading}
+        refreshing={refreshing}
+        cloudSongsCount={cloudSongs.length}
+        cloudSongs={cloudSongs}
+        playSong={playSong as ExploreListHeaderProps["playSong"]}
+        hasCheckedDiscoveryFallbacks={hasCheckedDiscoveryFallbacks}
+        moodRooms={moodRooms}
+        primaryMoodRoomId={primaryMoodRoom?.id}
+        smartPicks={smartPicks}
+        continueSongs={continueSongs}
+        recentlyAdded={recentlyAdded}
+        curatedSections={curatedSections}
+        genreWorlds={genreWorlds}
+        showHeavySections={showHeavySections}
+        playlists={playlists}
+        rankedAlbums={rankedAlbums}
+        rankedArtists={rankedArtists}
+        featured={featured}
+        showTvSection={showTvSection}
+        loadingTvSection={loadingTvSection}
+        tracksCount={tracks.length}
+        horizontalRailTuning={horizontalRailTuning}
+        getCloudItemLayout={getCloudItemLayout}
+        onRefresh={onRefresh}
+        onStartDiscovery={handleStartDiscovery}
+        openGenre={openGenre}
+        openMood={openMood}
+        openYouTubeTrack={openYouTubeTrack}
+        renderMoodRoom={renderMoodRoom}
+        renderSmartPick={renderSmartPick}
+        renderRecentSong={renderRecentSong}
+        renderCloudSong={renderCloudSong}
+        renderPlaylistItem={renderPlaylistItem}
+        renderAlbumItem={renderAlbumItem}
+        renderArtistItem={renderArtistItem}
+      />
     ),
     [
-      loading,
-      smartAutoplayEnabled,
-      currentSong,
       cloudSongs,
-      moodRooms,
-      primaryMoodRoom?.id,
-      smartPicks,
       continueSongs,
-      recentlyAdded,
       curatedSections,
+      exploreMountStage,
+      featured,
       genreWorlds,
-      showHeavySections,
+      getCloudItemLayout,
+      handleStartDiscovery,
+      hasCheckedDiscoveryFallbacks,
+      horizontalRailTuning,
+      loading,
+      loadingTvSection,
+      moodRooms,
+      onRefresh,
+      openGenre,
+      openMood,
+      openYouTubeTrack,
+      playSong,
       playlists,
+      primaryMoodRoom?.id,
       rankedAlbums,
       rankedArtists,
-      featured,
-      showTvSection,
-      loadingTvSection,
-      hasCheckedDiscoveryFallbacks,
-      tracks.length,
-      renderSmartPick,
-      renderRecentSong,
+      recentlyAdded,
+      refreshing,
+      renderAlbumItem,
+      renderArtistItem,
       renderCloudSong,
       renderMoodRoom,
       renderPlaylistItem,
-      renderAlbumItem,
-      renderArtistItem,
-      horizontalRailTuning,
-      getCloudItemLayout,
-      onRefresh,
-      toggleSmartAutoplay,
-      resumeCurrentSong,
-      openYouTubeTrack,
-      openSmartPick,
-      openMood,
-      openGenre,
+      renderRecentSong,
+      renderSmartPick,
+      showHeavySections,
+      showTvSection,
+      smartPicks,
+      tracks.length,
     ]
   );
 

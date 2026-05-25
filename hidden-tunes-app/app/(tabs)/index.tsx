@@ -58,6 +58,11 @@ import {
   useRenderCountProbe,
 } from "../../utils/performanceVerification";
 import {
+  isWithinFirstInteractionWindow,
+  logBackgroundWork,
+  scheduleDelayedNonEssentialWork,
+} from "../../utils/backgroundWork";
+import {
   getHorizontalListPerformanceSettings,
   getListPerformanceSettings,
   markFastScrolling,
@@ -577,14 +582,61 @@ function HomeScreen() {
     [favorites]
   );
 
+  const discoveryListenersRef = useRef({
+    recentlyPlayed: listenerRecentlyPlayed,
+    favorites: listenerFavorites,
+  });
+  const [discoveryListenersVersion, setDiscoveryListenersVersion] = useState(0);
+
+  const applyDiscoveryListeners = useCallback(
+    (recentlyPlayedInput: DiscoverySong[], favoritesInput: DiscoverySong[]) => {
+      discoveryListenersRef.current = {
+        recentlyPlayed: recentlyPlayedInput,
+        favorites: favoritesInput,
+      };
+      setDiscoveryListenersVersion((current) => current + 1);
+    },
+    []
+  );
+
+  const featuredCatalogKey = useMemo(() => {
+    const first = featuredSongs[0];
+    const last = featuredSongs[featuredSongs.length - 1];
+    return `${featuredSongs.length}:${String(first?.id || first?.title || "")}:${String(last?.id || last?.title || "")}`;
+  }, [featuredSongs]);
+
+  useEffect(() => {
+    applyDiscoveryListeners(listenerRecentlyPlayed, listenerFavorites);
+  }, [applyDiscoveryListeners, featuredCatalogKey]);
+
+  useEffect(() => {
+    let cancelled = false;
+    let frameId = 0;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    frameId = requestAnimationFrame(() => {
+      timer = setTimeout(() => {
+        if (cancelled) return;
+        logBackgroundWork("discovery-recompute-deferred");
+        applyDiscoveryListeners(listenerRecentlyPlayed, listenerFavorites);
+      }, 48);
+    });
+
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(frameId);
+      if (timer) clearTimeout(timer);
+    };
+  }, [applyDiscoveryListeners, listenerFavorites, listenerRecentlyPlayed]);
+
   const sharedDiscovery = useMemo(
     () =>
       getSharedDiscoverySnapshot({
         songs: featuredSongs,
-        recentlyPlayed: listenerRecentlyPlayed,
-        favorites: listenerFavorites,
+        recentlyPlayed: discoveryListenersRef.current.recentlyPlayed,
+        favorites: discoveryListenersRef.current.favorites,
       }),
-    [featuredSongs, listenerFavorites, listenerRecentlyPlayed]
+    [discoveryListenersVersion, featuredSongs]
   );
 
   const rankedSongs = sharedDiscovery.rankedSongs;
@@ -691,25 +743,31 @@ function HomeScreen() {
   ]);
 
   useEffect(() => {
-    if (!primaryGenreSpotlight?.title) return undefined;
+    if (feedMountStage < 3 || !primaryGenreSpotlight?.title) return undefined;
 
-    return scheduleGenreCatalogPrewarm({
-      id: primaryGenreSpotlight.id.replace(/^genre-/, ""),
-      title: primaryGenreSpotlight.title,
-      query: primaryGenreSpotlight.title,
+    return scheduleDelayedNonEssentialWork(() => {
+      logBackgroundWork("delayed-genre-prewarm");
+      scheduleGenreCatalogPrewarm({
+        id: primaryGenreSpotlight.id.replace(/^genre-/, ""),
+        title: primaryGenreSpotlight.title,
+        query: primaryGenreSpotlight.title,
+      });
     });
-  }, [primaryGenreSpotlight?.id, primaryGenreSpotlight?.title]);
+  }, [feedMountStage, primaryGenreSpotlight?.id, primaryGenreSpotlight?.title]);
 
   useEffect(() => {
-    if (!primaryMoodRoom?.title) return undefined;
+    if (feedMountStage < 3 || !primaryMoodRoom?.title) return undefined;
 
-    return scheduleGenreCatalogPrewarm({
-      type: "mood",
-      id: primaryMoodRoom.id.replace(/^mood-/, ""),
-      title: primaryMoodRoom.title,
-      query: `${primaryMoodRoom.title} music`,
+    return scheduleDelayedNonEssentialWork(() => {
+      logBackgroundWork("delayed-genre-prewarm");
+      scheduleGenreCatalogPrewarm({
+        type: "mood",
+        id: primaryMoodRoom.id.replace(/^mood-/, ""),
+        title: primaryMoodRoom.title,
+        query: `${primaryMoodRoom.title} music`,
+      });
     });
-  }, [primaryMoodRoom?.id, primaryMoodRoom?.title]);
+  }, [feedMountStage, primaryMoodRoom?.id, primaryMoodRoom?.title]);
 
   const listeningBrief = useMemo(() => {
     if (currentSong) {
@@ -911,10 +969,13 @@ function HomeScreen() {
 
     if (!hasMoreSongPages) return;
 
+    const nextPage = songPage + 1;
+    if (nextPage > 1 && isWithinFirstInteractionWindow()) {
+      return;
+    }
+
     try {
       setLoadingMoreSongs(true);
-
-      const nextPage = songPage + 1;
       const page = await getHiddenTunesSongsPage({
         page: nextPage,
         limit: 30,

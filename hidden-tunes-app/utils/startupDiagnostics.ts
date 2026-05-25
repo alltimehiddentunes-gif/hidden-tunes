@@ -5,7 +5,8 @@ type StartupPhase =
   | "afterPaint"
   | "afterInteraction"
   | "background"
-  | "deferred";
+  | "deferred"
+  | "idle";
 
 type StartupTaskRecord = {
   name: string;
