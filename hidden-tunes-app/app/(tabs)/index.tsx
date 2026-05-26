@@ -22,6 +22,7 @@ import {
   HomeFeaturedCard,
 } from "../../components/catalog/HomePlaybackRows";
 import { SubtleTvEntryLink } from "../../components/EmotionalDiscoveryChips";
+import MoodRoomCard from "../../components/explore/MoodRoomCard";
 import NeonEQ from "../../components/NeonEQ";
 import HTImage from "../../components/HTImage";
 import LiveWaveform from "../../components/LiveWaveform";
@@ -1427,32 +1428,16 @@ function HomeScreen() {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.moodRail}
               nestedScrollEnabled
-              renderItem={({ item: room }) => {
-                const active = room.id === activeMoodRoom?.id;
-                const artwork = room.artwork?.[0];
-
-                return (
-                  <TouchableOpacity
-                    activeOpacity={0.88}
-                    style={[styles.moodCard, active && styles.moodCardActive]}
-                    onPress={() => setActiveMoodId(room.id)}
-                  >
-                    {artwork ? (
-                      <HTImage
-                        source={{ uri: String(artwork) }}
-                        style={styles.moodCardArt}
-                      />
-                    ) : (
-                      <View style={styles.moodCardArtFallback}>
-                        <Ionicons name="radio" size={22} color={COLORS.primary} />
-                      </View>
-                    )}
-                    <Text numberOfLines={2} style={styles.moodCardTitle}>
-                      {room.title}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              }}
+              renderItem={({ item: room }) => (
+                <MoodRoomCard
+                  title={room.title}
+                  subtitle={room.subtitle}
+                  artwork={room.artwork?.[0]}
+                  gradient={room.gradient}
+                  active={room.id === activeMoodRoom?.id}
+                  onPress={() => openMoodCatalog(room.title)}
+                />
+              )}
             />
           );
 
@@ -2415,46 +2400,8 @@ const styles = StyleSheet.create({
   moodRail: {
     paddingLeft: 20,
     paddingRight: 28,
-    gap: 14,
-    paddingBottom: 10,
-  },
-
-  moodCard: {
-    width: 112,
-    borderRadius: 24,
-    overflow: "hidden",
-    backgroundColor: "rgba(255,255,255,0.06)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-  },
-
-  moodCardActive: {
-    borderColor: "rgba(168,85,247,0.55)",
-    backgroundColor: "rgba(168,85,247,0.12)",
-  },
-
-  moodCardArt: {
-    width: "100%",
-    height: 96,
-    backgroundColor: COLORS.card,
-  },
-
-  moodCardArtFallback: {
-    width: "100%",
-    height: 96,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.05)",
-  },
-
-  moodCardTitle: {
-    color: COLORS.text,
-    fontSize: 12,
-    fontWeight: "900",
-    textAlign: "center",
-    paddingHorizontal: 10,
-    paddingVertical: 12,
-    lineHeight: 16,
+    gap: 12,
+    paddingBottom: 12,
   },
 
   refreshMini: {

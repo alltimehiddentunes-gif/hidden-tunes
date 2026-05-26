@@ -11,6 +11,7 @@ type MoodRoom = {
   subtitle: string;
   songs: HiddenTunesNormalizedSong[];
   artwork?: string[];
+  gradient?: readonly [string, string, ...string[]];
 };
 
 type GenreSpotlight = {

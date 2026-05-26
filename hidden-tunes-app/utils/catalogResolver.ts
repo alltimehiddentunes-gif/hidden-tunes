@@ -11,6 +11,7 @@ import {
   getSongNormalizedGenres,
   normalizeGenreName,
 } from "./genreNormalization";
+import { songMatchesMoodLabel } from "./moodRooms";
 
 export type CatalogResolverType =
   | "genre"
@@ -200,6 +201,10 @@ export function songMatchesCatalogLabel(
     const target = normalizeGenreName(rawLabel);
     if (!target) return false;
     return getSongNormalizedGenres(song).includes(target);
+  }
+
+  if (type === "mood") {
+    return songMatchesMoodLabel(song, rawLabel);
   }
 
   const aliases = getCatalogMatchAliases(rawLabel, type);

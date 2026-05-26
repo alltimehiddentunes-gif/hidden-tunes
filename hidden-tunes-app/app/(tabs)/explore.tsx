@@ -23,6 +23,7 @@ import ExploreListHeader, {
   type ExploreListHeaderProps,
   type ExploreMountStage,
 } from "../../components/explore/ExploreListHeader";
+import MoodRoomCard from "../../components/explore/MoodRoomCard";
 import { FALLBACK_ARTWORK, getArtworkUri } from "../../utils/artwork";
 
 import {
@@ -196,39 +197,10 @@ const CloudSongCard = memo(function CloudSongCard({
 type MoodRoomItem = {
   id: string;
   title: string;
+  subtitle: string;
   artwork?: string[];
+  gradient: readonly [string, string, ...string[]];
 };
-
-const MoodRoomCard = memo(function MoodRoomCard({
-  item,
-  active,
-  onPress,
-}: {
-  item: MoodRoomItem;
-  active: boolean;
-  onPress: (title: string) => void;
-}) {
-  const artwork = item.artwork?.[0];
-
-  return (
-    <TouchableOpacity
-      style={[styles.moodCard, active && styles.moodCardActive]}
-      activeOpacity={0.88}
-      onPress={() => onPress(item.title)}
-    >
-      {artwork ? (
-        <HTImage source={{ uri: String(artwork) }} style={styles.moodCardArt} />
-      ) : (
-        <View style={styles.moodCardArtFallback}>
-          <Ionicons name="radio" size={22} color={COLORS.primary} />
-        </View>
-      )}
-      <Text numberOfLines={2} style={styles.moodCardTitle}>
-        {item.title}
-      </Text>
-    </TouchableOpacity>
-  );
-});
 
 const ExploreNavCard = memo(function ExploreNavCard({
   item,
@@ -837,9 +809,12 @@ export default memo(function ExploreScreen() {
   const renderMoodRoom = useCallback(
     ({ item }: { item: MoodRoomItem }) => (
       <MoodRoomCard
-        item={item}
+        title={item.title}
+        subtitle={item.subtitle}
+        artwork={item.artwork?.[0]}
+        gradient={item.gradient}
         active={item.id === primaryMoodRoom?.id}
-        onPress={openMood}
+        onPress={() => openMood(item.title)}
       />
     ),
     [openMood, primaryMoodRoom?.id]
@@ -1165,45 +1140,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   moodRail: {
-    gap: 14,
-    paddingBottom: 8,
-  },
-  moodCard: {
-    width: 112,
-    borderRadius: 24,
-    overflow: "hidden",
-    backgroundColor: "rgba(255,255,255,0.06)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-  },
-  moodCardActive: {
-    borderColor: "rgba(168,85,247,0.55)",
-    backgroundColor: "rgba(168,85,247,0.12)",
-  },
-  moodCardArt: {
-    width: "100%",
-    height: 96,
-    backgroundColor: COLORS.card,
-  },
-  moodCardArtFallback: {
-    width: "100%",
-    height: 96,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.05)",
-  },
-  moodCardTitle: {
-    color: COLORS.text,
-    fontSize: 12,
-    fontWeight: "900",
-    textAlign: "center",
-    paddingHorizontal: 10,
-    paddingVertical: 12,
-    lineHeight: 16,
+    gap: 12,
+    paddingBottom: 10,
+    paddingRight: 4,
   },
   moodRailSection: {
-    marginTop: 8,
-    marginBottom: 8,
+    marginTop: 10,
+    marginBottom: 12,
   },
   catalogStats: {
     flexDirection: "row",

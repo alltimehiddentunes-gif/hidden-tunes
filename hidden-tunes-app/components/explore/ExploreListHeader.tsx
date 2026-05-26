@@ -34,7 +34,9 @@ export type ExploreMountStage = 0 | 1 | 2 | 3 | 4;
 type MoodRoomItem = {
   id: string;
   title: string;
+  subtitle: string;
   artwork?: string[];
+  gradient: readonly [string, string, ...string[]];
 };
 
 type GenreWorld = {
@@ -883,8 +885,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  moodRail: { gap: 14, paddingBottom: 8 },
-  moodRailSection: { marginTop: 8, marginBottom: 8 },
+  moodRail: { gap: 12, paddingBottom: 10, paddingRight: 4 },
+  moodRailSection: { marginTop: 10, marginBottom: 12 },
   catalogStats: {
     flexDirection: "row",
     alignItems: "center",

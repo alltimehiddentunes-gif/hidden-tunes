@@ -1,6 +1,7 @@
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
+  Dimensions,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -52,7 +53,13 @@ type PlayerMetadataChip = {
 };
 
 const METADATA_PRESS_GUARD_MS = 500;
-const PLAYER_ART_SIZE = 220;
+const SCREEN_WIDTH = Dimensions.get("window").width;
+/** Premium round cover: ~72% of screen width, clamped for balance on all devices. */
+const PLAYER_ART_SIZE = Math.round(
+  Math.min(300, Math.max(260, SCREEN_WIDTH * 0.72))
+);
+/** Lets scroll content tuck under the cover edge while keeping the anchor visible. */
+const PLAYER_ART_SCROLL_OVERLAP = Math.round(PLAYER_ART_SIZE * 0.14);
 
 function formatTime(ms: number) {
   const totalSeconds = Math.floor((ms || 0) / 1000);
@@ -886,15 +893,19 @@ const styles = StyleSheet.create({
   playerAnchor: {
     paddingTop: 52,
     paddingHorizontal: 24,
-    paddingBottom: 8,
+    paddingBottom: 10,
+    zIndex: 2,
   },
 
   playerScroll: {
     flex: 1,
+    marginTop: -PLAYER_ART_SCROLL_OVERLAP,
+    zIndex: 1,
   },
 
   scrollContent: {
     paddingHorizontal: 24,
+    paddingTop: PLAYER_ART_SCROLL_OVERLAP + 4,
     paddingBottom: 190,
   },
 
@@ -1040,7 +1051,7 @@ const styles = StyleSheet.create({
   },
 
   songInfo: {
-    marginTop: 6,
+    marginTop: 2,
     flexDirection: "row",
     alignItems: "center",
     gap: 14,

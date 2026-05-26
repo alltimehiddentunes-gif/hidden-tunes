@@ -1,11 +1,11 @@
 import {
   filterSongsByCatalogLabel,
-  getCanonicalGenreTitle,
   normalizeCatalogKey,
 } from "../utils/catalogResolver";
 import { getArtworkUri } from "../utils/artwork";
 import { buildGenreSpotlightGroups } from "../utils/exploreGenreGroups";
 import { songHasNormalizedGenre } from "../utils/genreNormalization";
+import { buildMoodRoomGroups } from "../utils/moodRooms";
 
 export type DiscoverySong = {
   id?: string;
@@ -172,26 +172,6 @@ function songMatchesCuratedSection<T extends DiscoverySong>(
   );
 }
 
-function groupByExactField<T extends DiscoverySong>(
-  songs: T[],
-  field: "genre" | "mood",
-  fallbackTitle: string
-) {
-  const groups = new Map<string, T[]>();
-
-  songs.forEach((song) => {
-    const value =
-      field === "genre"
-        ? getCanonicalGenreTitle(song[field]) || fallbackTitle
-        : displayValue(song[field]) || fallbackTitle;
-    const current = groups.get(value) || [];
-    current.push(song);
-    groups.set(value, current);
-  });
-
-  return groups;
-}
-
 export function buildBecauseYouListened<T extends DiscoverySong>(
   songs: T[],
   recentlyPlayed: DiscoverySong[] = [],
@@ -341,29 +321,24 @@ export function buildMoodRooms<T extends DiscoverySong>(
   maps?: DiscoveryPreferenceMaps,
   limit = 6
 ) {
-  const groups = groupByExactField(dedupeSongs(songs), "mood", "Mood Unknown");
+  const baseGroups = buildMoodRoomGroups(dedupeSongs(songs), limit * 3);
 
-  return Array.from(groups.entries())
-    .filter(([, groupSongs]) => groupSongs.length > 0)
-    .map(([title, groupSongs]) => {
-      const score =
-        groupSongs.reduce((total, song, index) => {
-          return total + preferenceScore(song, maps, index);
-        }, 0) + groupSongs.length;
+  return baseGroups
+    .map((group) => {
+      const preferenceBoost = group.songs.reduce(
+        (total, song, index) => total + preferenceScore(song, maps, index),
+        0
+      );
 
       return {
-        id: `mood-${title}`,
-        title,
-        subtitle:
-          title === "Mood Unknown"
-            ? "Songs waiting for a mood label"
-            : `Songs carrying the ${title} feeling`,
-        songs: groupSongs.slice(0, DEFAULT_SECTION_LIMIT),
-        artwork: groupSongs.map(artworkFor).filter(Boolean).slice(0, 3),
-        preview: groupSongs
-          .map((song) => displayValue(song.title) || "Hidden Tunes")
-          .slice(0, 3),
-        score,
+        id: group.id,
+        title: group.title,
+        subtitle: group.subtitle,
+        songs: group.songs.slice(0, DEFAULT_SECTION_LIMIT),
+        artwork: group.artwork,
+        preview: group.preview,
+        gradient: group.gradient,
+        score: group.score + preferenceBoost,
       };
     })
     .sort((a, b) => b.score - a.score)
