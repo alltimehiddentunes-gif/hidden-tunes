@@ -14,7 +14,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 
 import { TESTER_COPY } from "../../constants/testerExperience";
-import { COLORS } from "../../constants/theme";
+import { COLORS, GRADIENTS } from "../../constants/theme";
 import {
   usePlayerActions,
   usePlayerNowPlaying,
@@ -216,6 +216,11 @@ export const ExplorePrimaryRail = memo(function ExplorePrimaryRail({
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.moodRail}
             renderItem={renderMoodRoom}
+            initialNumToRender={6}
+            maxToRenderPerBatch={6}
+            windowSize={5}
+            updateCellsBatchingPeriod={50}
+            removeClippedSubviews
           />
         </View>
       ) : null}
@@ -480,9 +485,7 @@ export const ExploreGenreGrid = memo(function ExploreGenreGrid({
       {genreWorlds.length > 0 ? (
         <View style={styles.genreGrid}>
           {genreWorlds.map((genre, index) => {
-            const primaryArtwork = genre.artwork[0] || FALLBACK_ARTWORK;
-            const secondaryArtwork = genre.artwork[1] || primaryArtwork;
-            const tertiaryArtwork = genre.artwork[2] || secondaryArtwork;
+            const primaryArtwork = genre.artwork[0] || "";
 
             return (
               <TouchableOpacity
@@ -503,15 +506,16 @@ export const ExploreGenreGrid = memo(function ExploreGenreGrid({
                 <View style={styles.genreWorldGlow} />
                 <View style={styles.genreAccentLine} />
                 <View style={styles.genreArtworkStack}>
-                  <HTImage
-                    uri={tertiaryArtwork}
-                    style={[styles.genreArtwork, styles.genreArtworkBack]}
-                  />
-                  <HTImage
-                    uri={secondaryArtwork}
-                    style={[styles.genreArtwork, styles.genreArtworkMid]}
-                  />
-                  <HTImage uri={primaryArtwork} style={styles.genreArtwork} />
+                  {primaryArtwork ? (
+                    <HTImage uri={primaryArtwork} style={styles.genreArtwork} />
+                  ) : (
+                    <LinearGradient
+                      colors={GRADIENTS.card}
+                      style={[styles.genreArtwork, styles.genreArtworkFallback]}
+                    >
+                      <Ionicons name="musical-notes" size={28} color={COLORS.textMuted} />
+                    </LinearGradient>
+                  )}
                 </View>
                 <View style={styles.genreWorldTop}>
                   <View style={styles.genreIndexBadge}>
@@ -1010,6 +1014,10 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.card,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.14)",
+  },
+  genreArtworkFallback: {
+    alignItems: "center",
+    justifyContent: "center",
   },
   genreArtworkMid: {
     right: 20,

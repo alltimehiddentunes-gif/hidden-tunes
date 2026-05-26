@@ -7,6 +7,10 @@ import {
   getVisibleCoreGenres,
   normalizeGenreKey,
 } from "./genreAliases";
+import {
+  getSongNormalizedGenres,
+  normalizeGenreName,
+} from "./genreNormalization";
 
 export type CatalogResolverType =
   | "genre"
@@ -169,17 +173,9 @@ export function buildSongSearchKeys(song: CatalogSongLike) {
 }
 
 export function buildSongGenreKeys(song: CatalogSongLike) {
-  const rawValues = [
-    song.genre,
-    song.mood,
-    ...(Array.isArray(song.tags) ? song.tags : []),
-  ]
-    .map((value) => String(value || "").trim())
-    .filter(Boolean);
-
   const merged = new Set<string>();
 
-  rawValues.forEach((value) => {
+  getSongNormalizedGenres(song).forEach((value) => {
     merged.add(value);
     getCanonicalGenres(value).forEach((core) => {
       merged.add(core);
@@ -201,10 +197,9 @@ export function songMatchesCatalogLabel(
   if (!rawLabel) return false;
 
   if (type === "genre") {
-    return genreListMatches(
-      [song.genre, song.mood, ...(Array.isArray(song.tags) ? song.tags : [])],
-      rawLabel
-    );
+    const target = normalizeGenreName(rawLabel);
+    if (!target) return false;
+    return getSongNormalizedGenres(song).includes(target);
   }
 
   const aliases = getCatalogMatchAliases(rawLabel, type);

@@ -3,11 +3,9 @@ import {
   getCanonicalGenreTitle,
   normalizeCatalogKey,
 } from "../utils/catalogResolver";
-import {
-  genreListMatches,
-  getVisibleCoreGenres,
-} from "../utils/genreAliases";
 import { getArtworkUri } from "../utils/artwork";
+import { buildGenreSpotlightGroups } from "../utils/exploreGenreGroups";
+import { songHasNormalizedGenre } from "../utils/genreNormalization";
 
 export type DiscoverySong = {
   id?: string;
@@ -157,17 +155,12 @@ function preferenceScore(
   return songScore + artistScore + albumScore + genreScore - index * 0.01;
 }
 
-function songGenreValues(song: DiscoverySong) {
-  const tags = Array.isArray(song.tags) ? song.tags : [];
-  return [song.genre, song.mood, ...tags];
-}
-
 function songMatchesCuratedSection<T extends DiscoverySong>(
   song: T,
   section: CuratedDiscoverySectionDefinition
 ) {
   const genreMatch = section.genreTitles.some((genreTitle) =>
-    genreListMatches(songGenreValues(song), genreTitle)
+    songHasNormalizedGenre(song, genreTitle)
   );
 
   if (genreMatch) return true;
@@ -382,47 +375,33 @@ export function buildGenreSpotlights<T extends DiscoverySong>(
   maps?: DiscoveryPreferenceMaps,
   limit = 6
 ) {
-  const songsWithGenre = dedupeSongs(songs).filter(
-    (song) => displayValue(song.genre) || displayValue(song.mood)
-  );
+  const baseGroups = buildGenreSpotlightGroups(dedupeSongs(songs), limit * 2);
 
-  return getVisibleCoreGenres()
-    .map((core) => {
-      const groupSongs = songsWithGenre.filter((song) =>
-        genreListMatches(songGenreValues(song), core.title)
+  return baseGroups
+    .map((group) => {
+      const rankedSongs = group.songs
+        .map((song, index) => ({
+          song,
+          score: preferenceScore(song, maps, index),
+        }))
+        .sort((a, b) => b.score - a.score)
+        .map((item) => item.song)
+        .slice(0, DEFAULT_SECTION_LIMIT);
+
+      const preferenceBoost = rankedSongs.reduce(
+        (total, song, index) => total + preferenceScore(song, maps, index),
+        0
       );
 
       return {
-        core,
-        groupSongs,
-      };
-    })
-    .filter(({ groupSongs }) => groupSongs.length > 0)
-    .map(({ core, groupSongs }) => {
-      const title = core.title;
-      const score =
-        groupSongs.reduce((total, song, index) => {
-          return total + preferenceScore(song, maps, index);
-        }, 0) +
-        groupSongs.length * 2;
-
-      return {
-        id: `genre-${title}`,
-        title,
-        subtitle: `${groupSongs.length} ${
-          groupSongs.length === 1 ? "song" : "songs"
-        } in this room`,
-        genreTitle: title,
-        songs: groupSongs.slice(0, DEFAULT_SECTION_LIMIT),
-        artwork: groupSongs.map(artworkFor).filter(Boolean).slice(0, 3),
-        preview: groupSongs
-          .map((song) => {
-            const artist = displayValue(song.artist) || "Hidden Tunes";
-            const titleValue = displayValue(song.title) || "Song";
-            return `${artist} - ${titleValue}`;
-          })
-          .slice(0, 3),
-        score,
+        id: group.id,
+        title: group.title,
+        subtitle: group.subtitle,
+        genreTitle: group.genreTitle,
+        songs: rankedSongs,
+        artwork: group.artwork,
+        preview: group.preview,
+        score: group.score + preferenceBoost,
       };
     })
     .sort((a, b) => b.score - a.score)

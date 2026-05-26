@@ -38,7 +38,7 @@ import {
   usePlayerNowPlaying,
 } from "../../context/PlayerContext";
 import { useTrackPlaybackStatus } from "../../context/playerContextSlices";
-import { getCanonicalGenre } from "../../utils/genreAliases";
+import { normalizeGenreName } from "../../utils/genreNormalization";
 import { HIDDEN_TUNES_GENRES } from "../../utils/genres";
 
 import { searchArchiveAudio } from "../../services/archiveSearch";
@@ -900,7 +900,7 @@ export default function SearchScreen() {
       const aliasMatch = (genre.aliases || []).some((alias) =>
         alias.toLowerCase().includes(safeQuery)
       );
-      const resolvesToGenre = getCanonicalGenre(safeQuery) === genre.title;
+      const resolvesToGenre = normalizeGenreName(safeQuery) === genre.title;
 
       return (
         genre.title.toLowerCase().includes(safeQuery) ||

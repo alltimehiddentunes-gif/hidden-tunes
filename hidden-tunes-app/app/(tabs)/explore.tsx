@@ -41,7 +41,6 @@ import {
   type HiddenTunesCloudPlaylist,
   type HiddenTunesNormalizedSong,
 } from "../../services/hiddenTunesApi";
-import { preloadImages } from "../../utils/imagePreloader";
 import { getSharedDiscoverySnapshot } from "../../services/discoveryCache";
 import type { DiscoverySong } from "../../services/smartDiscovery";
 import {
@@ -80,6 +79,16 @@ import {
   openGenreCatalog,
   openMoodCatalog,
 } from "../../utils/catalogNavigation";
+import {
+  dedupeAdjacentDiscoverySections,
+  logCatalogDedupeSummary,
+} from "../../utils/catalogDedupe";
+import { logExploreGenreGroups } from "../../utils/exploreGenreGroups";
+import { normalizeGenreName } from "../../utils/genreNormalization";
+
+const INITIAL_EXPLORE_SNAPSHOT_LIMIT = 160;
+const DISCOVERY_COMPUTE_SONG_LIMIT = 220;
+const CONTINUE_LISTENING_SEED_LIMIT = 26;
 
 
 type GenreItem = {
@@ -270,7 +279,7 @@ const ExploreArtistNavCard = memo(function ExploreArtistNavCard({
 function buildInitialExploreSongs() {
   const snapshot = getHiddenTunesCatalogSnapshot();
   if (!snapshot.length) return [] as HiddenTunesNormalizedSong[];
-  return dedupeSongs(snapshot.map(safeSong));
+  return dedupeSongs(snapshot.slice(0, INITIAL_EXPLORE_SNAPSHOT_LIMIT).map(safeSong));
 }
 
 export default memo(function ExploreScreen() {
@@ -405,16 +414,9 @@ export default memo(function ExploreScreen() {
     setCloudSongs(nextSongs);
     setSongPage(1);
     setHasMoreSongs(nextSongs.length >= 24);
-    setAlbums(extractHiddenTunesAlbums(nextSongs));
-    setArtists(extractHiddenTunesArtists(nextSongs));
-
-    scheduleStartupTask("background", "explore_primary_artwork_prefetch", () =>
-      preloadImages(
-        nextSongs
-          .slice(0, 2)
-          .flatMap((song) => [song.artwork, song.cover, song.thumbnail])
-      )
-    );
+    const sliceForDerivation = nextSongs.slice(0, DISCOVERY_COMPUTE_SONG_LIMIT);
+    setAlbums(extractHiddenTunesAlbums(sliceForDerivation));
+    setArtists(extractHiddenTunesArtists(sliceForDerivation));
   }, []);
 
   const loadExplore = useCallback(
@@ -428,7 +430,11 @@ export default memo(function ExploreScreen() {
         if (!forceRefresh) {
           const memorySnapshot = getHiddenTunesCatalogSnapshot();
           if (memorySnapshot.length) {
-            applyExploreSongs(dedupeSongs(memorySnapshot.map(safeSong)));
+            applyExploreSongs(
+              dedupeSongs(
+                memorySnapshot.slice(0, INITIAL_EXPLORE_SNAPSHOT_LIMIT).map(safeSong)
+              )
+            );
             setLoading(false);
             setRefreshing(false);
             showedCachedCatalog = true;
@@ -442,7 +448,11 @@ export default memo(function ExploreScreen() {
           const cached = await hydrateHiddenTunesCatalogCache();
 
           if (cached.length) {
-            applyExploreSongs(dedupeSongs(cached.map(safeSong)));
+            applyExploreSongs(
+              dedupeSongs(
+                cached.slice(0, INITIAL_EXPLORE_SNAPSHOT_LIMIT).map(safeSong)
+              )
+            );
             setLoading(false);
             setRefreshing(false);
             showedCachedCatalog = true;
@@ -618,124 +628,111 @@ export default memo(function ExploreScreen() {
     [favorites]
   );
 
-  const discoveryListenersRef = useRef({
-    recentlyPlayed: listenerRecentlyPlayed,
-    favorites: listenerFavorites,
-  });
-  const [discoveryListenersVersion, setDiscoveryListenersVersion] = useState(0);
-
-  const applyDiscoveryListeners = useCallback(
-    (recentlyPlayedInput: DiscoverySong[], favoritesInput: DiscoverySong[]) => {
-      discoveryListenersRef.current = {
-        recentlyPlayed: recentlyPlayedInput,
-        favorites: favoritesInput,
-      };
-      setDiscoveryListenersVersion((current) => current + 1);
-    },
-    []
-  );
-
-  const cloudCatalogKey = useMemo(() => {
-    const first = cloudSongs[0];
-    const last = cloudSongs[cloudSongs.length - 1];
-    return `${cloudSongs.length}:${String(first?.id || first?.title || "")}:${String(last?.id || last?.title || "")}`;
-  }, [cloudSongs]);
-
-  useEffect(() => {
-    applyDiscoveryListeners(listenerRecentlyPlayed, listenerFavorites);
-  }, [applyDiscoveryListeners, cloudCatalogKey]);
-
-  useEffect(() => {
-    let cancelled = false;
-    let frameId = 0;
-    let timer: ReturnType<typeof setTimeout> | null = null;
-
-    frameId = requestAnimationFrame(() => {
-      timer = setTimeout(() => {
-        if (cancelled) return;
-        logBackgroundWork("discovery-recompute-deferred");
-        applyDiscoveryListeners(listenerRecentlyPlayed, listenerFavorites);
-      }, 48);
-    });
-
-    return () => {
-      cancelled = true;
-      cancelAnimationFrame(frameId);
-      if (timer) clearTimeout(timer);
-    };
-  }, [applyDiscoveryListeners, listenerFavorites, listenerRecentlyPlayed]);
-
   const sharedDiscovery = useMemo(
     () =>
       getSharedDiscoverySnapshot({
-        songs: cloudSongs,
-        recentlyPlayed: discoveryListenersRef.current.recentlyPlayed,
-        favorites: discoveryListenersRef.current.favorites,
+        songs: cloudSongs.slice(0, DISCOVERY_COMPUTE_SONG_LIMIT),
+        recentlyPlayed: listenerRecentlyPlayed,
+        favorites: listenerFavorites,
         albums,
         artists,
       }),
-    [albums, artists, cloudSongs, discoveryListenersVersion]
+    [albums, artists, cloudSongs, listenerFavorites, listenerRecentlyPlayed]
   );
 
   const rankedCloudSongs = sharedDiscovery.rankedSongs;
   const visibleCloudSongs = rankedCloudSongs;
   const rankedAlbums = sharedDiscovery.rankedAlbums;
   const rankedArtists = sharedDiscovery.rankedArtists;
-  const smartPicks = sharedDiscovery.becauseYouListenedRanked.slice(0, 10);
   const moodRooms = sharedDiscovery.moodRooms.slice(0, 6);
   const genreWorlds = sharedDiscovery.genreSpotlights;
   const recentlyAdded = sharedDiscovery.recentlyDiscovered;
   const curatedSections = sharedDiscovery.curatedSections;
 
-  const continueSongs = useMemo(() => {
-    const mappedRecent = listenerRecentlyPlayed.map(safeSong);
+  const continueSongsSeed = useMemo(() => {
+    const mappedRecent = listenerRecentlyPlayed
+      .slice(0, CONTINUE_LISTENING_SEED_LIMIT)
+      .map(safeSong);
 
     return dedupeSongs([...mappedRecent, ...cloudSongs]).slice(0, 10);
   }, [cloudSongs, listenerRecentlyPlayed]);
 
+  const exploreSectionSongs = useMemo(() => {
+    const sections = dedupeAdjacentDiscoverySections([
+      {
+        id: "smart-picks",
+        songs: sharedDiscovery.becauseYouListenedRanked.slice(0, 10).map(safeSong),
+      },
+      {
+        id: "continue-listening",
+        songs: continueSongsSeed,
+      },
+      {
+        id: "recently-added",
+        songs: recentlyAdded.slice(0, 10).map(safeSong),
+      },
+      ...curatedSections.map((section) => ({
+        id: section.id,
+        songs: section.songs.map(safeSong),
+      })),
+    ]);
+
+    logCatalogDedupeSummary(
+      "explore-sections",
+      sharedDiscovery.becauseYouListenedRanked.length +
+        continueSongsSeed.length +
+        recentlyAdded.length,
+      sections.reduce((total, section) => total + section.songs.length, 0)
+    );
+
+    const byId = new Map(sections.map((section) => [section.id, section.songs]));
+
+    return {
+      smartPicks: byId.get("smart-picks") || [],
+      continueSongs: byId.get("continue-listening") || [],
+      recentlyAdded: byId.get("recently-added") || [],
+      curatedSections: curatedSections
+        .map((section) => ({
+          ...section,
+          songs: byId.get(section.id) || [],
+        }))
+        .filter((section) => section.songs.length > 0),
+    };
+  }, [
+    continueSongsSeed,
+    curatedSections,
+    recentlyAdded,
+    sharedDiscovery.becauseYouListenedRanked,
+  ]);
+
+  const smartPicks = exploreSectionSongs.smartPicks;
+  const continueSongs = exploreSectionSongs.continueSongs;
+  const recentlyAddedDeduped = exploreSectionSongs.recentlyAdded;
+  const curatedSectionsDeduped = exploreSectionSongs.curatedSections;
+
+  const genreGroupsLoggedRef = useRef<string>("");
+
+  useEffect(() => {
+    const signature = genreWorlds.map((genre) => `${genre.id}:${genre.songs.length}`).join("|");
+    if (!signature || signature === genreGroupsLoggedRef.current) return;
+    genreGroupsLoggedRef.current = signature;
+    logExploreGenreGroups(genreWorlds);
+  }, [genreWorlds]);
+
   const primaryMoodRoom = moodRooms[0];
   const primaryGenreWorld = genreWorlds[0];
 
-  useEffect(() => {
-    if (!cloudSongs.length && !albums.length && !artists.length) return;
-
-    return scheduleStartupTask("background", "explore_section_artwork_prefetch", () =>
-      preloadImages([
-        ...continueSongs.slice(0, 4).flatMap((song) => [song.artwork, song.cover]),
-        ...visibleCloudSongs
-          .slice(0, 4)
-          .flatMap((song) => [song.artwork, song.cover]),
-        ...rankedAlbums.slice(0, 4).map((album) => album.artwork),
-        ...rankedArtists.slice(0, 4).map((artist) => artist.artwork),
-        ...genreWorlds
-          .slice(0, 2)
-          .flatMap((spotlight) =>
-            spotlight.songs
-              .slice(0, 2)
-              .flatMap((song) => [song.artwork, song.cover])
-          ),
-      ])
-    );
-  }, [
-    albums.length,
-    artists.length,
-    cloudSongs.length,
-    continueSongs.length,
-    genreWorlds.length,
-    rankedAlbums.length,
-    rankedArtists.length,
-    visibleCloudSongs.length,
-  ]);
+  // Note: Avoid mass artwork preloading on Explore; let visible rows load naturally.
 
   const openGenre = useCallback((genre: GenreItem) => {
-    const title = String(genre.title || "").trim();
+    const title = normalizeGenreName(String(genre.title || "").trim());
 
     if (!title) return;
 
     openGenreCatalog({
       id: genre.id || title,
       title,
-      query: genre.query || title,
+      query: normalizeGenreName(genre.query) || title,
     });
   }, []);
 
@@ -930,8 +927,8 @@ export default memo(function ExploreScreen() {
         primaryMoodRoomId={primaryMoodRoom?.id}
         smartPicks={smartPicks}
         continueSongs={continueSongs}
-        recentlyAdded={recentlyAdded}
-        curatedSections={curatedSections}
+        recentlyAdded={recentlyAddedDeduped}
+        curatedSections={curatedSectionsDeduped}
         genreWorlds={genreWorlds}
         showHeavySections={showHeavySections}
         playlists={playlists}
@@ -955,7 +952,7 @@ export default memo(function ExploreScreen() {
     [
       cloudSongs,
       continueSongs,
-      curatedSections,
+      curatedSectionsDeduped,
       exploreMountStage,
       genreWorlds,
       getCloudItemLayout,
@@ -972,7 +969,7 @@ export default memo(function ExploreScreen() {
       primaryMoodRoom?.id,
       rankedAlbums,
       rankedArtists,
-      recentlyAdded,
+      recentlyAddedDeduped,
       refreshing,
       renderAlbumItem,
       renderArtistItem,

@@ -40,6 +40,7 @@ import HTImage from "../../components/HTImage";
 import { FALLBACK_ARTWORK, getArtworkValue } from "../../utils/artwork";
 import { getBestLyricsPayload, setLyricsMemoryCache } from "../../utils/lyrics";
 import { openGenreCatalog, openMoodCatalog } from "../../utils/catalogNavigation";
+import { normalizeGenreName } from "../../utils/genreNormalization";
 import { isFastScrolling } from "../../utils/performanceMode";
 import { useRenderCountProbe } from "../../utils/performanceVerification";
 
@@ -375,7 +376,7 @@ export default function PlayerScreen() {
       chips.push({ type: "mood", label: mood });
     }
 
-    const genre = String(currentSong.genre || "").trim();
+    const genre = normalizeGenreName(currentSong.genre);
     if (genre) {
       chips.push({ type: "genre", label: genre });
     }
@@ -521,10 +522,11 @@ export default function PlayerScreen() {
       }
 
       if (type === "genre") {
+        const normalizedGenre = normalizeGenreName(trimmed) || trimmed;
         openGenreCatalog({
-          id: trimmed,
-          title: trimmed,
-          query: trimmed,
+          id: normalizedGenre,
+          title: normalizedGenre,
+          query: normalizedGenre,
         });
         return;
       }

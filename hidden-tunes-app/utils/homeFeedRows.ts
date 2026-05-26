@@ -1,5 +1,9 @@
 import type { HiddenTunesNormalizedSong } from "../services/hiddenTunesApi";
 import type { SmartDiscoverySection } from "../services/smartDiscovery";
+import {
+  getSongDedupeKey,
+  logCatalogDedupeSummary,
+} from "./catalogDedupe";
 
 type MoodRoom = {
   id: string;
@@ -53,31 +57,66 @@ export function buildHomeFeedRows(input: BuildHomeFeedRowsInput): HomeFeedRow[] 
   }
 
   const rows: HomeFeedRow[] = [];
+  const usedSongKeys = new Set<string>();
+
+  const appendUniqueSongRows = (
+    sectionId: string,
+    songs: HiddenTunesNormalizedSong[]
+  ) => {
+    const before = songs.length;
+    const unique: HiddenTunesNormalizedSong[] = [];
+
+    songs.forEach((song) => {
+      const key = getSongDedupeKey(song);
+      if (!key || usedSongKeys.has(key)) return;
+      usedSongKeys.add(key);
+      unique.push(song);
+    });
+
+    logCatalogDedupeSummary(sectionId, before, unique.length);
+
+    unique.forEach((song) => {
+      rows.push({
+        key: `song-${sectionId}-${String(song.id || song.title || song.streamUrl)}`,
+        kind: "song",
+        song,
+        sectionId,
+      });
+    });
+
+    return unique.length;
+  };
+
+  const pushUniqueSongRows = (
+    sectionId: string,
+    title: string,
+    songs: HiddenTunesNormalizedSong[],
+    titleKey: string
+  ) => {
+    if (!songs.length) return;
+
+    rows.push({ key: titleKey, kind: "section-title", title });
+    appendUniqueSongRows(sectionId, songs);
+  };
 
   rows.push({ key: "recently-added", kind: "recently-added" });
 
   if (input.becauseYouListened.length > 0) {
-    rows.push({ key: "title-because-you-listened", kind: "section-title", title: "Because You Listened" });
-    for (const song of input.becauseYouListened) {
-      rows.push({
-        key: `song-because-you-listened-${String(song.id || song.title || song.streamUrl)}`,
-        kind: "song",
-        song,
-        sectionId: "because-you-listened",
-      });
-    }
+    pushUniqueSongRows(
+      "because-you-listened",
+      "Because You Listened",
+      input.becauseYouListened,
+      "title-because-you-listened"
+    );
   }
 
   if (input.moreLikeThisMoodSongs.length > 0) {
-    rows.push({ key: "title-more-like-this-mood", kind: "section-title", title: "More Like This Mood" });
-    for (const song of input.moreLikeThisMoodSongs) {
-      rows.push({
-        key: `song-more-like-this-mood-${String(song.id || song.title || song.streamUrl)}`,
-        kind: "song",
-        song,
-        sectionId: "more-like-this-mood",
-      });
-    }
+    pushUniqueSongRows(
+      "more-like-this-mood",
+      "More Like This Mood",
+      input.moreLikeThisMoodSongs,
+      "title-more-like-this-mood"
+    );
   }
 
   if (input.feedMountStage >= 2) {
@@ -107,27 +146,18 @@ export function buildHomeFeedRows(input: BuildHomeFeedRowsInput): HomeFeedRow[] 
       rows.push({ key: "mood-rooms-header", kind: "mood-rooms-header" });
       rows.push({ key: "mood-rooms-rail", kind: "mood-rooms-rail" });
 
-      const moodSongs = input.activeMoodRoom?.songs.slice(0, 4) || [];
-      for (const song of moodSongs) {
-        rows.push({
-          key: `song-mood-rooms-${String(song.id || song.title || song.streamUrl)}`,
-          kind: "song",
-          song,
-          sectionId: "mood-rooms",
-        });
-      }
+      appendUniqueSongRows(
+        "mood-rooms",
+        input.activeMoodRoom?.songs.slice(0, 4) || []
+      );
     }
 
     if (input.primaryGenreSpotlight?.songs?.length) {
       rows.push({ key: "genre-spotlight-header", kind: "genre-spotlight-header" });
-      for (const song of input.primaryGenreSpotlight.songs.slice(0, 4)) {
-        rows.push({
-          key: `song-genre-spotlights-${String(song.id || song.title || song.streamUrl)}`,
-          kind: "song",
-          song,
-          sectionId: "genre-spotlights",
-        });
-      }
+      appendUniqueSongRows(
+        "genre-spotlights",
+        input.primaryGenreSpotlight.songs.slice(0, 4)
+      );
     }
 
     if (input.visibleAllSongs.length > 0 || input.featuredSongsCount > 0) {
