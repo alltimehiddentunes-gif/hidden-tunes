@@ -25,6 +25,10 @@ import {
 } from './lib/api'
 import './App.css'
 
+const APP_NAME = 'Hidden Tunes Desktop'
+const APP_VERSION = '0.0.1'
+const APP_PREVIEW_COPY = 'Desktop preview · catalog browsing only'
+
 type CatalogContextValue = {
   songs: ApiSong[]
   albums: ApiAlbum[]
@@ -741,6 +745,10 @@ function Sidebar({
         </div>
       </div>
 
+      <p className="sidebar-preview-copy" aria-label={APP_PREVIEW_COPY}>
+        {APP_PREVIEW_COPY}
+      </p>
+
       <nav className="sidebar-nav" aria-label="Main navigation">
         {MAIN_NAV.map((item) => (
           <button
@@ -1162,80 +1170,66 @@ function SettingsPage() {
       <PageHeader
         eyebrow="Preferences"
         title="Settings"
-        description="Tune your desktop sanctuary — appearance, playback, and account options (UI placeholders)."
+        description="Desktop appearance and product information for this install."
       />
       <div className="settings-layout">
         <nav className="settings-nav" aria-label="Settings sections">
           <button type="button" className="settings-nav-item active">
-            General
+            About
           </button>
-          <button type="button" className="settings-nav-item">
+          <button type="button" className="settings-nav-item" disabled>
             Appearance
           </button>
-          <button type="button" className="settings-nav-item">
+          <button type="button" className="settings-nav-item" disabled>
             Playback
-          </button>
-          <button type="button" className="settings-nav-item">
-            Account
           </button>
         </nav>
         <div className="settings-panels">
+          <section className="settings-panel settings-panel--about">
+            <h2>About &amp; identity</h2>
+            <p className="settings-panel-desc">
+              Installable desktop preview for browsing the Hidden Tunes catalog.
+            </p>
+            <dl className="settings-identity-list">
+              <div className="settings-identity-row">
+                <dt>App name</dt>
+                <dd>{APP_NAME}</dd>
+              </div>
+              <div className="settings-identity-row">
+                <dt>Version</dt>
+                <dd>{APP_VERSION}</dd>
+              </div>
+              <div className="settings-identity-row">
+                <dt>Build</dt>
+                <dd>Desktop Preview Build</dd>
+              </div>
+              <div className="settings-identity-row">
+                <dt>Catalog</dt>
+                <dd>Read-only catalog mode</dd>
+              </div>
+            </dl>
+            <p className="settings-identity-note">
+              Mobile app and playback remain separate.
+            </p>
+          </section>
           <section className="settings-panel">
             <h2>Appearance</h2>
-            <p className="settings-panel-desc">Control how Hidden Tunes feels on desktop.</p>
+            <p className="settings-panel-desc">Cinematic dark theme tuned for desktop browsing.</p>
             <div className="settings-row">
               <div className="settings-label">
                 <span>Cinematic dark theme</span>
-                <small>Optimized for low-light listening</small>
+                <small>Low-light, premium contrast</small>
               </div>
               <span className="settings-badge">Active</span>
             </div>
             <div className="settings-row">
               <div className="settings-label">
                 <span>Accent glow intensity</span>
-                <small>Subtle highlights on cards & nav</small>
+                <small>Highlights on cards and navigation</small>
               </div>
               <div className="settings-slider" aria-hidden="true">
                 <div className="settings-slider-fill" style={{ width: '70%' }} />
               </div>
-            </div>
-          </section>
-          <section className="settings-panel">
-            <h2>Playback</h2>
-            <p className="settings-panel-desc">Playback controls are visual-only in this build.</p>
-            <div className="settings-row">
-              <div className="settings-label">
-                <span>Crossfade between tracks</span>
-                <small>Seamless emotional transitions</small>
-              </div>
-              <span className="settings-muted">Off · preview</span>
-            </div>
-            <div className="settings-row">
-              <div className="settings-label">
-                <span>Normalize loudness</span>
-                <small>Balanced volume across catalog</small>
-              </div>
-              <span className="settings-muted">Coming soon</span>
-            </div>
-          </section>
-          <section className="settings-panel settings-panel--wide">
-            <h2>Account</h2>
-            <p className="settings-panel-desc">Sign in when API wiring is enabled.</p>
-            <div className="settings-row">
-              <div className="settings-label">
-                <span>Sign in to Hidden Tunes</span>
-                <small>Sync library across devices</small>
-              </div>
-              <button type="button" className="btn-secondary btn-sm">
-                Connect
-              </button>
-            </div>
-            <div className="settings-row">
-              <div className="settings-label">
-                <span>Desktop app version</span>
-                <small>Hidden Tunes Desktop shell</small>
-              </div>
-              <span className="settings-muted">0.0.1</span>
             </div>
           </section>
         </div>
@@ -1247,6 +1241,9 @@ function SettingsPage() {
 function PlayerBar() {
   return (
     <footer className="player-bar" aria-label="Player">
+      <p className="player-preview-copy" aria-hidden="true">
+        {APP_PREVIEW_COPY}
+      </p>
       <div className="player-track">
         <div className="player-artwork" aria-hidden="true" />
         <div className="player-meta">

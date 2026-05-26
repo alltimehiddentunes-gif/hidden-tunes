@@ -1,5 +1,8 @@
 {
   "name": "hidden-tunes-desktop",
+  "productName": "Hidden Tunes Desktop",
+  "description": "Hidden Tunes Desktop — a cinematic catalog browsing experience for Windows.",
+  "author": "Hidden Tunes",
   "private": true,
   "version": "0.0.1",
   "main": "electron/main.js",
@@ -50,9 +53,11 @@
       "target": "nsis",
       "signAndEditExecutable": false
     },
+    "artifactName": "Hidden Tunes Desktop Setup ${version}.${ext}",
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "allowToChangeInstallationDirectory": true,
+      "shortcutName": "Hidden Tunes Desktop"
     }
   }
 }

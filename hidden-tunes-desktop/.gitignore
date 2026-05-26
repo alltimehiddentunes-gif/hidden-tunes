@@ -11,7 +11,16 @@ node_modules
 dist
 dist-ssr
 release
+release-*/
 release-fresh
+release-dist-new
+hidden-tunes-desktop-out
+hidden-tunes-desktop-build-*
+out
+**/win-unpacked
+*.exe
+*.exe.blockmap
+*.blockmap
 *.local
 
 # Editor directories and files
