@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Image,
   Pressable,
@@ -22,6 +22,14 @@ import {
   saveOnboardingPreferences,
   UserRole,
 } from "../services/onboardingPreferences";
+import {
+  runOnboardingPrewarm,
+  scheduleOnboardingPrewarm,
+} from "../services/onboardingPrewarm";
+import {
+  logOnboardingNavigationReady,
+  useOnboardingPressGuard,
+} from "../utils/onboardingPressGuard";
 
 type Step = "role" | "listener" | "artist";
 
@@ -107,7 +115,23 @@ export default function OnboardingScreen() {
   const [energy, setEnergy] = useState<EnergyPreference>("balanced");
   const [discoveryStyle, setDiscoveryStyle] =
     useState<DiscoveryStyle>("balanced");
-  const [isSaving, setIsSaving] = useState(false);
+  const guardPress = useOnboardingPressGuard();
+
+  const listenerPreferences = useMemo<OnboardingPreferences>(
+    () => ({
+      userRole: "listener",
+      preferredGenres: selectedGenres,
+      preferredMoods: selectedMoods,
+      preferredEnergy: energy,
+      discoveryStyle,
+    }),
+    [discoveryStyle, energy, selectedGenres, selectedMoods]
+  );
+
+  useEffect(() => {
+    if (step !== "listener") return;
+    scheduleOnboardingPrewarm(listenerPreferences);
+  }, [listenerPreferences, step]);
 
   const progressLabel = useMemo(() => {
     if (step === "role") return "Step 1 of 2";
@@ -115,16 +139,13 @@ export default function OnboardingScreen() {
     return "Creator profile";
   }, [step]);
 
-  async function finishOnboarding(preferences: OnboardingPreferences) {
-    if (isSaving) return;
+  function finishOnboarding(preferences: OnboardingPreferences) {
+    console.log("[onboarding] continue pressed");
 
-    try {
-      setIsSaving(true);
-      await saveOnboardingPreferences(preferences);
-      router.replace("/(tabs)");
-    } finally {
-      setIsSaving(false);
-    }
+    void saveOnboardingPreferences(preferences).catch(() => {});
+    void runOnboardingPrewarm(preferences);
+    logOnboardingNavigationReady();
+    router.replace("/(tabs)");
   }
 
   function chooseRole(role: UserRole) {
@@ -133,13 +154,7 @@ export default function OnboardingScreen() {
   }
 
   function finishListener() {
-    finishOnboarding({
-      userRole: "listener",
-      preferredGenres: selectedGenres,
-      preferredMoods: selectedMoods,
-      preferredEnergy: energy,
-      discoveryStyle,
-    });
+    finishOnboarding(listenerPreferences);
   }
 
   function finishArtist() {
@@ -168,14 +183,21 @@ export default function OnboardingScreen() {
           </View>
 
           {step !== "role" ? (
-            <Pressable style={styles.backButton} onPress={() => setStep("role")}>
+            <Pressable
+              style={styles.backButton}
+              onPress={guardPress("back", () => setStep("role"))}
+            >
               <Ionicons name="chevron-back" size={18} color={COLORS.text} />
             </Pressable>
           ) : null}
         </View>
 
         {step === "role" ? (
-          <RoleStep selectedRole={selectedRole} onChooseRole={chooseRole} />
+          <RoleStep
+            selectedRole={selectedRole}
+            guardPress={guardPress}
+            onChooseRole={chooseRole}
+          />
         ) : null}
 
         {step === "listener" ? (
@@ -184,7 +206,7 @@ export default function OnboardingScreen() {
             selectedMoods={selectedMoods}
             energy={energy}
             discoveryStyle={discoveryStyle}
-            isSaving={isSaving}
+            guardPress={guardPress}
             onToggleGenre={(genre) =>
               setSelectedGenres((current) => toggleValue(current, genre))
             }
@@ -198,7 +220,7 @@ export default function OnboardingScreen() {
         ) : null}
 
         {step === "artist" ? (
-          <ArtistStep isSaving={isSaving} onFinish={finishArtist} />
+          <ArtistStep guardPress={guardPress} onFinish={finishArtist} />
         ) : null}
       </ScrollView>
     </LinearGradient>
@@ -207,9 +229,11 @@ export default function OnboardingScreen() {
 
 function RoleStep({
   selectedRole,
+  guardPress,
   onChooseRole,
 }: {
   selectedRole: UserRole | null;
+  guardPress: ReturnType<typeof useOnboardingPressGuard>;
   onChooseRole: (role: UserRole) => void;
 }) {
   return (
@@ -227,14 +251,14 @@ function RoleStep({
           title="I am Here to Listen"
           subtitle="Personalize genres, moods, energy, and discovery style."
           selected={selectedRole === "listener"}
-          onPress={() => onChooseRole("listener")}
+          onPress={guardPress("role-listener", () => onChooseRole("listener"))}
         />
         <RoleCard
           icon="mic"
           title="I am an Artist / Creator"
           subtitle="Store creator intent locally for future release tools."
           selected={selectedRole === "artist"}
-          onPress={() => onChooseRole("artist")}
+          onPress={guardPress("role-artist", () => onChooseRole("artist"))}
         />
       </View>
 
@@ -251,7 +275,7 @@ function ListenerStep({
   selectedMoods,
   energy,
   discoveryStyle,
-  isSaving,
+  guardPress,
   onToggleGenre,
   onToggleMood,
   onSetEnergy,
@@ -262,7 +286,7 @@ function ListenerStep({
   selectedMoods: string[];
   energy: EnergyPreference;
   discoveryStyle: DiscoveryStyle;
-  isSaving: boolean;
+  guardPress: ReturnType<typeof useOnboardingPressGuard>;
   onToggleGenre: (genre: string) => void;
   onToggleMood: (mood: string) => void;
   onSetEnergy: (value: EnergyPreference) => void;
@@ -285,6 +309,8 @@ function ListenerStep({
         <ChipGrid
           options={GENRE_OPTIONS}
           selected={selectedGenres}
+          guardPress={guardPress}
+          chipTargetPrefix="genre"
           onToggle={onToggleGenre}
         />
       </PreferenceSection>
@@ -296,6 +322,8 @@ function ListenerStep({
         <ChipGrid
           options={MOOD_OPTIONS}
           selected={selectedMoods}
+          guardPress={guardPress}
+          chipTargetPrefix="mood"
           onToggle={onToggleMood}
         />
       </PreferenceSection>
@@ -307,6 +335,8 @@ function ListenerStep({
         <OptionStack
           options={ENERGY_OPTIONS}
           selected={energy}
+          guardPress={guardPress}
+          optionTargetPrefix="energy"
           onSelect={onSetEnergy}
         />
       </PreferenceSection>
@@ -318,25 +348,26 @@ function ListenerStep({
         <OptionStack
           options={DISCOVERY_OPTIONS}
           selected={discoveryStyle}
+          guardPress={guardPress}
+          optionTargetPrefix="discovery"
           onSelect={onSetDiscoveryStyle}
         />
       </PreferenceSection>
 
       <PrimaryButton
-        label={isSaving ? "Saving..." : "Enter Hidden Tunes"}
+        label="Enter Hidden Tunes"
         icon="arrow-forward"
-        disabled={isSaving}
-        onPress={onFinish}
+        onPress={guardPress("continue", onFinish)}
       />
     </View>
   );
 }
 
 function ArtistStep({
-  isSaving,
+  guardPress,
   onFinish,
 }: {
-  isSaving: boolean;
+  guardPress: ReturnType<typeof useOnboardingPressGuard>;
   onFinish: () => void;
 }) {
   return (
@@ -365,10 +396,9 @@ function ArtistStep({
       </Text>
 
       <PrimaryButton
-        label={isSaving ? "Saving..." : "Enter as Artist"}
+        label="Enter as Artist"
         icon="arrow-forward"
-        disabled={isSaving}
-        onPress={onFinish}
+        onPress={guardPress("continue-artist", onFinish)}
       />
     </View>
   );
@@ -429,10 +459,14 @@ function PreferenceSection({
 function ChipGrid({
   options,
   selected,
+  guardPress,
+  chipTargetPrefix,
   onToggle,
 }: {
   options: readonly string[];
   selected: string[];
+  guardPress: ReturnType<typeof useOnboardingPressGuard>;
+  chipTargetPrefix: string;
   onToggle: (value: string) => void;
 }) {
   return (
@@ -443,7 +477,9 @@ function ChipGrid({
         return (
           <Pressable
             key={option}
-            onPress={() => onToggle(option)}
+            onPress={guardPress(`${chipTargetPrefix}-${option}`, () =>
+              onToggle(option)
+            )}
             style={[styles.chip, isSelected ? styles.chipSelected : null]}
           >
             <Text
@@ -464,10 +500,14 @@ function ChipGrid({
 function OptionStack<T extends string>({
   options,
   selected,
+  guardPress,
+  optionTargetPrefix,
   onSelect,
 }: {
   options: { value: T; title: string; subtitle: string }[];
   selected: T;
+  guardPress: ReturnType<typeof useOnboardingPressGuard>;
+  optionTargetPrefix: string;
   onSelect: (value: T) => void;
 }) {
   return (
@@ -478,7 +518,9 @@ function OptionStack<T extends string>({
         return (
           <Pressable
             key={option.value}
-            onPress={() => onSelect(option.value)}
+            onPress={guardPress(`${optionTargetPrefix}-${option.value}`, () =>
+              onSelect(option.value)
+            )}
             style={[styles.optionCard, isSelected ? styles.optionSelected : null]}
           >
             <View style={styles.optionTextWrap}>
@@ -518,20 +560,14 @@ function FeatureRow({
 function PrimaryButton({
   label,
   icon,
-  disabled,
   onPress,
 }: {
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
-  disabled?: boolean;
   onPress: () => void;
 }) {
   return (
-    <Pressable
-      disabled={disabled}
-      onPress={onPress}
-      style={[styles.primaryButton, disabled ? styles.disabledButton : null]}
-    >
+    <Pressable onPress={onPress} style={styles.primaryButton}>
       <Text style={styles.primaryButtonText}>{label}</Text>
       <Ionicons name={icon} size={20} color="#000" />
     </Pressable>

@@ -20,7 +20,6 @@ import {
   usePlayerNowPlaying,
   usePlayerState,
 } from "../../context/PlayerContext";
-import type { BackendYouTubeTrack } from "../../services/youtubeBackend";
 import type { HiddenTunesNormalizedSong } from "../../services/hiddenTunesApi";
 import type { SmartDiscoverySection } from "../../services/smartDiscovery";
 import { FALLBACK_ARTWORK, getArtworkUri } from "../../utils/artwork";
@@ -28,6 +27,7 @@ import {
   shouldShowCatalogEmpty,
 } from "../../utils/catalogEmptyStateTiming";
 import HTImage from "../HTImage";
+import { SubtleTvEntryLink } from "../EmotionalDiscoveryChips";
 
 export type ExploreMountStage = 0 | 1 | 2 | 3 | 4;
 
@@ -76,10 +76,6 @@ export type ExploreListHeaderProps = {
   playlists: any[];
   rankedAlbums: any[];
   rankedArtists: any[];
-  featured?: BackendYouTubeTrack;
-  showTvSection: boolean;
-  loadingTvSection: boolean;
-  tracksCount: number;
   horizontalRailTuning: HorizontalTuning;
   getCloudItemLayout: (
     data: any,
@@ -95,7 +91,6 @@ export type ExploreListHeaderProps = {
   onStartDiscovery: () => void;
   openGenre: (genre: GenreItem) => void;
   openMood: (title: string) => void;
-  openYouTubeTrack: (track: BackendYouTubeTrack) => void;
   renderMoodRoom: ListRenderItem<MoodRoomItem>;
   renderSmartPick: ListRenderItem<HiddenTunesNormalizedSong>;
   renderRecentSong: ListRenderItem<HiddenTunesNormalizedSong>;
@@ -562,15 +557,10 @@ export const ExploreHeavySections = memo(function ExploreHeavySections({
   renderPlaylistItem,
   renderAlbumItem,
   renderArtistItem,
-  featured,
-  showTvSection,
   loading,
-  loadingTvSection,
-  tracksCount,
   hasCheckedDiscoveryFallbacks,
   cloudSongsCount,
   refreshing,
-  openYouTubeTrack,
 }: {
   showHeavySections: boolean;
   playlists: any[];
@@ -580,15 +570,10 @@ export const ExploreHeavySections = memo(function ExploreHeavySections({
   renderPlaylistItem: ListRenderItem<any>;
   renderAlbumItem: ListRenderItem<any>;
   renderArtistItem: ListRenderItem<any>;
-  featured?: BackendYouTubeTrack;
-  showTvSection: boolean;
   loading: boolean;
-  loadingTvSection: boolean;
-  tracksCount: number;
   hasCheckedDiscoveryFallbacks: boolean;
   cloudSongsCount: number;
   refreshing: boolean;
-  openYouTubeTrack: (track: BackendYouTubeTrack) => void;
 }) {
   return (
     <>
@@ -659,42 +644,12 @@ export const ExploreHeavySections = memo(function ExploreHeavySections({
         </>
       ) : null}
 
-      {showTvSection && !loading && featured ? (
-        <TouchableOpacity
-          activeOpacity={0.88}
-          onPress={() => openYouTubeTrack(featured)}
-          style={styles.heroWrap}
-        >
-          <HTImage source={featured} style={styles.heroImage} />
-          <LinearGradient
-            colors={["transparent", "rgba(0,0,0,0.92)"]}
-            style={styles.heroOverlay}
-          />
-          <View style={styles.heroBadge}>
-            <Ionicons name="flame" size={14} color="#ffcc66" />
-            <Text style={styles.heroBadgeText}>Hidden Tunes TV</Text>
-          </View>
-          <View style={styles.heroContent}>
-            <Text style={styles.heroTitle} numberOfLines={2}>
-              {featured.title}
-            </Text>
-            <Text style={styles.heroArtist} numberOfLines={1}>
-              {featured.artist || featured.channelTitle || "YouTube"}
-            </Text>
-            <View style={styles.heroAction}>
-              <Ionicons name="play" size={18} color="#000" />
-              <Text style={styles.heroActionText}>Play</Text>
-            </View>
-          </View>
-        </TouchableOpacity>
-      ) : null}
-
       {shouldShowCatalogEmpty({
         hasCheckedFallbacks: hasCheckedDiscoveryFallbacks,
         isLoading: loading,
         isRefreshing: refreshing,
         resolvedCount: cloudSongsCount,
-      }) && !featured ? (
+      }) ? (
         <View style={styles.empty}>
           <Ionicons name="musical-notes-outline" size={58} color={COLORS.textMuted} />
           <Text style={styles.emptyTitle}>Discovery is warming up</Text>
@@ -702,16 +657,7 @@ export const ExploreHeavySections = memo(function ExploreHeavySections({
         </View>
       ) : null}
 
-      {loadingTvSection && !showTvSection ? (
-        <View style={styles.tvLoadingRow}>
-          <ActivityIndicator size="small" color={COLORS.primary} />
-          <Text style={styles.loadingText}>Loading Hidden Tunes TV...</Text>
-        </View>
-      ) : null}
-
-      {showTvSection && !loading && tracksCount > 0 ? (
-        <Text style={styles.sectionTitleBlock}>Visual Discovery</Text>
-      ) : null}
+      <SubtleTvEntryLink style={styles.exploreTvEntry} />
     </>
   );
 });
@@ -804,15 +750,10 @@ const ExploreListHeader = memo(function ExploreListHeader(
           renderPlaylistItem={props.renderPlaylistItem}
           renderAlbumItem={props.renderAlbumItem}
           renderArtistItem={props.renderArtistItem}
-          featured={props.featured}
-          showTvSection={props.showTvSection}
           loading={props.loading}
-          loadingTvSection={props.loadingTvSection}
-          tracksCount={props.tracksCount}
           hasCheckedDiscoveryFallbacks={props.hasCheckedDiscoveryFallbacks}
           cloudSongsCount={props.cloudSongsCount}
           refreshing={props.refreshing}
-          openYouTubeTrack={props.openYouTubeTrack}
         />
       ) : null}
     </>
@@ -1159,6 +1100,10 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.08)",
   },
   loadingText: { color: COLORS.textMuted, marginLeft: 10, fontSize: 14 },
+  exploreTvEntry: {
+    marginTop: 12,
+    marginBottom: 24,
+  },
   tvLoadingRow: {
     flexDirection: "row",
     alignItems: "center",

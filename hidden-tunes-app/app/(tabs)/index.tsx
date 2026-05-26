@@ -21,6 +21,7 @@ import {
   HomeCatalogSongRow,
   HomeFeaturedCard,
 } from "../../components/catalog/HomePlaybackRows";
+import { SubtleTvEntryLink } from "../../components/EmotionalDiscoveryChips";
 import NeonEQ from "../../components/NeonEQ";
 import HTImage from "../../components/HTImage";
 import LiveWaveform from "../../components/LiveWaveform";
@@ -648,7 +649,13 @@ function HomeScreen() {
   const rankedAlbums = sharedDiscovery.rankedAlbums;
   const rankedArtists = sharedDiscovery.rankedArtists;
   const newestSongs = sharedDiscovery.recentlyDiscovered;
-  const becauseYouListened = sharedDiscovery.becauseYouListenedRaw.slice(0, 6);
+  const becauseYouListened = useMemo(() => {
+    const raw = sharedDiscovery.becauseYouListenedRaw.slice(0, 6);
+    if (!currentSong?.id) return raw;
+
+    const currentId = String(currentSong.id);
+    return raw.filter((song) => String(song.id || "") !== currentId);
+  }, [currentSong?.id, sharedDiscovery.becauseYouListenedRaw]);
   const curatedSections = sharedDiscovery.curatedSections;
   const moodRooms = sharedDiscovery.moodRooms.slice(0, 8);
   const genreSpotlights = sharedDiscovery.genreSpotlights;
@@ -777,7 +784,7 @@ function HomeScreen() {
   const listeningBrief = useMemo(() => {
     if (currentSong) {
       return {
-        label: "Continue Listening",
+        label: "Now Playing",
         title: currentSong.title || "Your current song",
         subtitle:
           currentSong.artist ||
@@ -1181,31 +1188,6 @@ function HomeScreen() {
   const renderHomeFeedRow = useCallback(
     ({ item }: { item: HomeFeedRow }) => {
       switch (item.kind) {
-        case "tv-section":
-          return (
-            <>
-              <View style={styles.sectionRow}>
-                <Text style={styles.sectionTitle}>Hidden Tunes TV</Text>
-                <TouchableOpacity
-                  onPress={() => router.push("/tv" as any)}
-                  style={styles.tvOpenButton}
-                  activeOpacity={0.85}
-                >
-                  <Ionicons name="tv" size={18} color="#000" />
-                  <Text style={styles.tvOpenText}>Open TV</Text>
-                </TouchableOpacity>
-              </View>
-              <TouchableOpacity
-                activeOpacity={0.86}
-                style={styles.tvEmptyCard}
-                onPress={() => router.push("/tv" as any)}
-              >
-                <Ionicons name="tv" size={30} color={COLORS.primary} />
-                <Text style={styles.tvEmptyTitle}>Open Hidden Tunes TV</Text>
-              </TouchableOpacity>
-            </>
-          );
-
         case "section-title":
           return <Text style={styles.sectionTitleBlock}>{item.title}</Text>;
 
@@ -1488,7 +1470,12 @@ function HomeScreen() {
           );
 
         case "footer-spacer":
-          return <View style={{ height: 140 }} />;
+          return (
+            <View style={styles.footerSpacer}>
+              <SubtleTvEntryLink />
+              <View style={{ height: 120 }} />
+            </View>
+          );
 
         default:
           return null;
@@ -1651,39 +1638,6 @@ function HomeScreen() {
           <Text style={styles.catalogPillText}>{featuredSongs.length} songs ready</Text>
         </View>
 
-        {currentSong ? (
-          <>
-            <View style={styles.sectionRow}>
-              <Text style={styles.sectionTitle}>Continue Listening</Text>
-              <TouchableOpacity onPress={() => router.push("/player" as any)}>
-                <Text style={styles.seeAllLink}>Player</Text>
-              </TouchableOpacity>
-            </View>
-
-            <TouchableOpacity
-              activeOpacity={0.88}
-              style={styles.continueCard}
-              onPress={() => playFeaturedSong(safeSong(currentSong))}
-            >
-              <HTImage source={currentSong} style={styles.continueImage} />
-
-              <View style={styles.continueInfo}>
-                <Text style={styles.continueKicker}>NOW PLAYING</Text>
-                <Text numberOfLines={1} style={styles.continueTitle}>
-                  {currentSong.title || "Unknown Song"}
-                </Text>
-                <Text numberOfLines={1} style={styles.continueArtist}>
-                  {currentSong.artist || currentSong.user?.name || "Hidden Tunes"}
-                </Text>
-              </View>
-
-              <View style={styles.continuePlay}>
-                <Ionicons name="play" size={18} color="#000" />
-              </View>
-            </TouchableOpacity>
-          </>
-        ) : null}
-
         <TouchableOpacity
           activeOpacity={0.88}
           style={styles.listeningBrief}
@@ -1729,11 +1683,11 @@ function HomeScreen() {
               onPress: () => router.push("/queue"),
             },
             {
-              key: "premium-tv",
-              icon: "tv" as const,
-              title: "TV",
-              color: "#ff0033",
-              onPress: () => router.push("/tv" as any),
+              key: "premium-feelings",
+              icon: "heart" as const,
+              title: "Feelings",
+              color: "rgba(192,132,252,0.95)",
+              onPress: () => router.push("/explore"),
             },
           ].map((card) => (
             <PremiumCard
@@ -1756,6 +1710,7 @@ function HomeScreen() {
       heroGlowAnim,
       heroIndex,
       heroScale,
+      isPlaying,
       listeningBrief.icon,
       listeningBrief.label,
       listeningBrief.title,
@@ -2331,18 +2286,6 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
 
-  continueCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 14,
-    marginHorizontal: 20,
-    marginBottom: 18,
-    borderRadius: 28,
-    backgroundColor: "rgba(255,255,255,0.075)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-  },
-
   continueImage: {
     width: 88,
     height: 88,
@@ -2460,39 +2403,8 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.1)",
   },
 
-  tvOpenButton: {
-    minHeight: 42,
-    borderRadius: 21,
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: 14,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 7,
-  },
-
-  tvOpenText: {
-    color: "#000",
-    fontSize: 12,
-    fontWeight: "900",
-  },
-
-  tvEmptyCard: {
-    marginHorizontal: 20,
-    minHeight: 108,
-    borderRadius: 28,
-    padding: 22,
-    backgroundColor: "rgba(255,255,255,0.06)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-  },
-
-  tvEmptyTitle: {
-    color: COLORS.text,
-    fontSize: 16,
-    fontWeight: "900",
+  footerSpacer: {
+    marginTop: 8,
   },
 
   loadingBox: {

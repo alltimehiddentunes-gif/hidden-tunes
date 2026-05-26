@@ -17,7 +17,6 @@ type GenreSpotlight = {
 };
 
 export type HomeFeedRow =
-  | { key: string; kind: "tv-section" }
   | { key: string; kind: "section-title"; title: string }
   | { key: string; kind: "song"; song: HiddenTunesNormalizedSong; sectionId: string }
   | { key: string; kind: "artists-rail" }
@@ -55,7 +54,7 @@ export function buildHomeFeedRows(input: BuildHomeFeedRowsInput): HomeFeedRow[] 
 
   const rows: HomeFeedRow[] = [];
 
-  rows.push({ key: "tv-section", kind: "tv-section" });
+  rows.push({ key: "recently-added", kind: "recently-added" });
 
   if (input.becauseYouListened.length > 0) {
     rows.push({ key: "title-because-you-listened", kind: "section-title", title: "Because You Listened" });
@@ -92,8 +91,6 @@ export function buildHomeFeedRows(input: BuildHomeFeedRowsInput): HomeFeedRow[] 
       rows.push({ key: "rail-albums", kind: "albums-rail" });
     }
   }
-
-  rows.push({ key: "recently-added", kind: "recently-added" });
 
   if (input.feedMountStage >= 3) {
     for (const section of input.curatedSections) {

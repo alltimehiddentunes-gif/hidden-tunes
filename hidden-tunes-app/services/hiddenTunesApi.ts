@@ -1824,6 +1824,52 @@ export async function getHiddenTunesLyrics(songId: string) {
   };
 }
 
+const ONBOARDING_PREWARM_MAX_SONGS = 30;
+
+/** Seeds a small onboarding slice into catalog memory/storage when empty or tiny. */
+export async function seedOnboardingCatalogPrewarm(
+  songs: HiddenTunesNormalizedSong[]
+): Promise<number> {
+  const slice = finalizeSongs(songs).slice(0, ONBOARDING_PREWARM_MAX_SONGS);
+  if (!slice.length) return 0;
+
+  try {
+    const existing = songsMemoryCache?.length
+      ? songsMemoryCache
+      : await hydrateHiddenTunesCatalogCache();
+
+    if (!existing.length) {
+      await writeCachedSongs(slice);
+      return slice.length;
+    }
+
+    if (existing.length >= ONBOARDING_PREWARM_MAX_SONGS) {
+      return 0;
+    }
+
+    const seen = new Set(existing.map((song) => String(song.id || "")));
+    const merged = [...existing];
+
+    for (const song of slice) {
+      const id = String(song.id || "").trim();
+      if (!id || seen.has(id)) continue;
+      seen.add(id);
+      merged.push(song);
+      if (merged.length >= ONBOARDING_PREWARM_MAX_SONGS) break;
+    }
+
+    if (merged.length === existing.length) {
+      return existing.length;
+    }
+
+    songsMemoryCache = merged;
+    songsMemoryCacheTime = Date.now();
+    return merged.length;
+  } catch {
+    return 0;
+  }
+}
+
 export {
   FALLBACK_ARTWORK,
   HIDDEN_TUNES_API_BASE_URL,

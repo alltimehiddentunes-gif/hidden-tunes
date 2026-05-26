@@ -72,7 +72,7 @@ function UniversalSearchGroupedResults({
         <Ionicons name="search-outline" size={40} color={COLORS.textMuted} />
         <Text style={styles.emptyTitle}>No exact matches found</Text>
         <Text style={styles.emptyText}>
-          Try another title, artist, album, or mood
+          Try another title, artist, album, genre, or mood.
         </Text>
         <View style={styles.chipWrap}>
           {UNIVERSAL_SEARCH_EMPTY_SUGGESTIONS.map((chip) => (

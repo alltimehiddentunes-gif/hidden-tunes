@@ -26,11 +26,6 @@ import ExploreListHeader, {
 import { FALLBACK_ARTWORK, getArtworkUri } from "../../utils/artwork";
 
 import {
-  getTrendingYouTubeBackend,
-  type BackendYouTubeTrack,
-} from "../../services/youtubeBackend";
-
-import {
   getHiddenTunesAlbums,
   getHiddenTunesArtists,
   getHiddenTunesCloudPlaylists,
@@ -97,9 +92,6 @@ type GenreItem = {
 const CARD_WIDTH = 150;
 const CARD_GAP = 14;
 const ARTIST_CARD_WIDTH = 142;
-function getSafeVideoId(track: BackendYouTubeTrack) {
-  return String(track.videoId || track.id || "").replace("youtube-", "").trim();
-}
 
 function getSongArtwork(song: any) {
   return getArtworkUri(song, FALLBACK_ARTWORK);
@@ -188,47 +180,6 @@ const CloudSongCard = memo(function CloudSongCard({
           <AddToPlaylistButton track={song as any} />
         </View>
       )}
-    </TouchableOpacity>
-  );
-});
-
-const YouTubeTrackCard = memo(function YouTubeTrackCard({
-  item,
-  index,
-  onPress,
-}: {
-  item: BackendYouTubeTrack;
-  index: number;
-  onPress: (track: BackendYouTubeTrack) => void;
-}) {
-  return (
-    <TouchableOpacity
-      activeOpacity={0.86}
-      style={styles.trackCard}
-      onPress={() => onPress(item)}
-    >
-      <Text style={styles.rank}>{String(index + 2).padStart(2, "0")}</Text>
-
-      <HTImage source={item} style={styles.cover} />
-
-      <View style={styles.info}>
-        <Text style={styles.trackTitle} numberOfLines={1}>
-          {item.title}
-        </Text>
-
-        <Text style={styles.artist} numberOfLines={1}>
-          {item.artist || item.channelTitle || "YouTube"}
-        </Text>
-
-        <View style={styles.metaRow}>
-          <Ionicons name="tv" size={13} color="#ff3b30" />
-          <Text style={styles.metaText}>Hidden Tunes TV</Text>
-        </View>
-      </View>
-
-      <View style={styles.playCircle}>
-        <Ionicons name="play" size={16} color={COLORS.text} />
-      </View>
     </TouchableOpacity>
   );
 });
@@ -327,7 +278,7 @@ export default memo(function ExploreScreen() {
   const { recentlyPlayed, favorites } = usePlayerState();
   const isFocused = useIsFocused();
 
-  const listRef = useRef<FlatList<BackendYouTubeTrack>>(null);
+  const listRef = useRef<FlatList<HiddenTunesNormalizedSong>>(null);
   const screenStartedAt = useRef(startPerformanceTimer()).current;
   const initialExploreLoadRef = useRef(false);
   const exploreHasSongsRef = useRef(false);
@@ -336,7 +287,6 @@ export default memo(function ExploreScreen() {
     (showLoader?: boolean, forceRefresh?: boolean) => Promise<void>
   >(async () => {});
 
-  const [tracks, setTracks] = useState<BackendYouTubeTrack[]>([]);
   const [cloudSongs, setCloudSongs] = useState<HiddenTunesNormalizedSong[]>(
     () => buildInitialExploreSongs()
   );
@@ -348,8 +298,6 @@ export default memo(function ExploreScreen() {
   const [hasCheckedDiscoveryFallbacks, setHasCheckedDiscoveryFallbacks] =
     useState(false);
   const [showHeavySections, setShowHeavySections] = useState(false);
-  const [showTvSection, setShowTvSection] = useState(false);
-  const [loadingTvSection, setLoadingTvSection] = useState(false);
   const [songPage, setSongPage] = useState(1);
   const [hasMoreSongs, setHasMoreSongs] = useState(true);
   const [loadingMoreSongs, setLoadingMoreSongs] = useState(false);
@@ -409,8 +357,8 @@ export default memo(function ExploreScreen() {
   useRenderCountProbe("ExploreScreen");
 
   const listPerformance = useMemo(
-    () => getListPerformanceSettings(Math.max(cloudSongs.length, tracks.length)),
-    [cloudSongs.length, tracks.length]
+    () => getListPerformanceSettings(cloudSongs.length),
+    [cloudSongs.length]
   );
   const horizontalRailTuning = useMemo(
     () =>
@@ -448,22 +396,6 @@ export default memo(function ExploreScreen() {
     } catch (error) {
     } finally {
       setShowHeavySections(true);
-    }
-  }, []);
-
-  const loadTvSection = useCallback(async () => {
-    try {
-      setLoadingTvSection(true);
-      const youtubeResults = await getTrendingYouTubeBackend();
-
-      setTracks(
-        Array.isArray(youtubeResults) ? youtubeResults.slice(0, 10) : []
-      );
-    } catch (error) {
-      setTracks([]);
-    } finally {
-      setLoadingTvSection(false);
-      setShowTvSection(true);
     }
   }, []);
 
@@ -634,8 +566,6 @@ export default memo(function ExploreScreen() {
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     setShowHeavySections(false);
-    setShowTvSection(false);
-    setTracks([]);
     await loadExplore(false, true);
   }, [loadExplore]);
 
@@ -677,10 +607,6 @@ export default memo(function ExploreScreen() {
       setLoadingMoreSongs(false);
     }
   }, [cloudSongs, hasMoreSongs, loadingMoreSongs, songPage]);
-
-  const featured = tracks[0];
-
-  const listTracks = useMemo(() => tracks.slice(1, 7), [tracks]);
 
   const listenerRecentlyPlayed = useMemo(
     () => (Array.isArray(recentlyPlayed) ? recentlyPlayed : []) as DiscoverySong[],
@@ -817,23 +743,6 @@ export default memo(function ExploreScreen() {
     openMoodCatalog(mood);
   }, []);
 
-  const openYouTubeTrack = useCallback((track: BackendYouTubeTrack) => {
-    const videoId = getSafeVideoId(track);
-    if (!videoId) return;
-
-    router.push({
-      pathname: "/youtube-player",
-      params: {
-        id: videoId,
-        videoId,
-        title: track.title,
-        artist: track.artist,
-        channelTitle: track.channelTitle,
-        thumbnail: track.thumbnail,
-      },
-    } as any);
-  }, []);
-
   const openCloudSong = useCallback(
     async (song: HiddenTunesNormalizedSong) => {
       try {
@@ -926,13 +835,6 @@ export default memo(function ExploreScreen() {
       <CloudSongCard song={item} badge="PLAY" onPress={handleCloudCardPress} />
     ),
     [handleCloudCardPress]
-  );
-
-  const renderYouTubeTrack = useCallback(
-    ({ item, index }: { item: BackendYouTubeTrack; index: number }) => (
-      <YouTubeTrackCard item={item} index={index} onPress={openYouTubeTrack} />
-    ),
-    [openYouTubeTrack]
   );
 
   const renderMoodRoom = useCallback(
@@ -1035,17 +937,12 @@ export default memo(function ExploreScreen() {
         playlists={playlists}
         rankedAlbums={rankedAlbums}
         rankedArtists={rankedArtists}
-        featured={featured}
-        showTvSection={showTvSection}
-        loadingTvSection={loadingTvSection}
-        tracksCount={tracks.length}
         horizontalRailTuning={horizontalRailTuning}
         getCloudItemLayout={getCloudItemLayout}
         onRefresh={onRefresh}
         onStartDiscovery={handleStartDiscovery}
         openGenre={openGenre}
         openMood={openMood}
-        openYouTubeTrack={openYouTubeTrack}
         renderMoodRoom={renderMoodRoom}
         renderSmartPick={renderSmartPick}
         renderRecentSong={renderRecentSong}
@@ -1060,19 +957,16 @@ export default memo(function ExploreScreen() {
       continueSongs,
       curatedSections,
       exploreMountStage,
-      featured,
       genreWorlds,
       getCloudItemLayout,
       handleStartDiscovery,
       hasCheckedDiscoveryFallbacks,
       horizontalRailTuning,
       loading,
-      loadingTvSection,
       moodRooms,
       onRefresh,
       openGenre,
       openMood,
-      openYouTubeTrack,
       playSong,
       playlists,
       primaryMoodRoom?.id,
@@ -1088,9 +982,7 @@ export default memo(function ExploreScreen() {
       renderRecentSong,
       renderSmartPick,
       showHeavySections,
-      showTvSection,
       smartPicks,
-      tracks.length,
     ]
   );
 
@@ -1098,8 +990,8 @@ export default memo(function ExploreScreen() {
     <LinearGradient colors={GRADIENTS.main} style={styles.container}>
       <FlatList
         ref={listRef}
-        data={showTvSection ? listTracks : []}
-        keyExtractor={(item, index) => `${item.videoId || item.id || "track"}-${index}`}
+        data={[]}
+        keyExtractor={(_, index) => `explore-body-${index}`}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
         refreshControl={
@@ -1138,7 +1030,7 @@ export default memo(function ExploreScreen() {
             </TouchableOpacity>
           ) : null
         }
-        renderItem={renderYouTubeTrack}
+        renderItem={() => null}
       />
     </LinearGradient>
   );

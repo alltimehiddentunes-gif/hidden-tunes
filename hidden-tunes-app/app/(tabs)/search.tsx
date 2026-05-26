@@ -92,6 +92,7 @@ import {
 import { openGenreCatalog } from "../../utils/catalogNavigation";
 import { shouldShowCatalogEmpty } from "../../utils/catalogEmptyStateTiming";
 import UniversalSearchGroupedResults from "../../components/UniversalSearchGroupedResults";
+import { SubtleTvEntryLink } from "../../components/EmotionalDiscoveryChips";
 import {
   invalidateCatalogSearchIndex,
   runInstantCatalogSearch,
@@ -107,13 +108,11 @@ import {
   type CatalogSongSearchHit,
 } from "../../utils/catalogSongRanking";
 import {
-  flattenTvHomeCache,
   runUniversalCatalogSearch,
   type UniversalSearchGroupedResults as GroupedSearchResults,
 } from "../../services/universalSearchService";
 import {
   fetchTvCatalog,
-  loadTvHomeCache,
   type HiddenTunesTvVideo,
 } from "../../services/tvCatalogApi";
 
@@ -160,13 +159,14 @@ type GenreItem = {
 const SEARCH_HISTORY_KEY = "hidden_tunes_recent_searches_v4";
 const TV_DISCOVERY_CACHE_KEY = "hidden_tunes_tv_discovery_queries_v1";
 const SEARCH_SKELETON_KEYS = ["one", "two", "three", "four"];
-const COMPACT_TV_RESULT_LIMIT = 5;
 const SEARCH_DEBOUNCE_MS = 380;
 const FUZZY_SEARCH_DEBOUNCE_MS = 520;
 const TV_FETCH_DEBOUNCE_MS = 500;
 const LOCAL_SEARCH_MIN_CHARS = 2;
 const API_SEARCH_MIN_CHARS = 3;
 const VISIBLE_SONG_LIMIT = 28;
+const LOCAL_RANK_CATALOG_LIMIT = 200;
+const INSTANT_CATALOG_SONG_LIMIT = 250;
 const NETWORK_SEARCH_DEDUPE_MS = 45_000;
 
 const EMPTY_GROUPED_RESULTS: GroupedSearchResults = {
@@ -189,15 +189,6 @@ const TRENDING_SEARCHES = [
   "Dancehall",
   "Ghana music",
   "Naija hits",
-];
-
-const SMART_RECOMMENDATIONS = [
-  "Late night Afrobeat",
-  "Emotional Afro Soul",
-  "Workout Afrobeats",
-  "African Gospel",
-  "Romantic Amapiano",
-  "New Afrobeat songs",
 ];
 
 const FILTERS: { key: SearchType; label: string }[] = [
@@ -666,44 +657,6 @@ function SearchGroupedMainSongRow({
   );
 }
 
-function SearchCompactTvPressableRow({
-  video,
-  onPress,
-}: {
-  video: HiddenTunesTvVideo;
-  onPress: (video: HiddenTunesTvVideo) => void;
-}) {
-  const thumbnail =
-    video.thumbnail_url ||
-    `https://img.youtube.com/vi/${video.source_id}/hqdefault.jpg`;
-
-  return (
-    <Pressable
-      accessibilityRole="button"
-      style={({ pressed }) => [
-        styles.compactTvRow,
-        pressed && styles.catalogSongRowPressed,
-      ]}
-      onPress={() => onPress(video)}
-    >
-      <HTImage
-        source={thumbnail}
-        style={styles.compactTvArtwork}
-        contentFit="cover"
-      />
-      <View style={styles.compactTvTextCol}>
-        <Text style={styles.compactTvRowTitle} numberOfLines={1}>
-          {video.title}
-        </Text>
-        <Text style={styles.compactTvRowSubtitle} numberOfLines={1}>
-          {video.channel_name || "Hidden Tunes TV"}
-        </Text>
-      </View>
-      <Ionicons name="tv-outline" size={17} color={COLORS.textMuted} />
-    </Pressable>
-  );
-}
-
 const SearchResultRow = memo(function SearchResultRow({
   item,
   index,
@@ -923,7 +876,6 @@ export default function SearchScreen() {
   const [fullCatalogSongs, setFullCatalogSongs] = useState<
     HiddenTunesNormalizedSong[]
   >([]);
-  const [tvIndexVideos, setTvIndexVideos] = useState<HiddenTunesTvVideo[]>([]);
   const [tvSearchVideos, setTvSearchVideos] = useState<HiddenTunesTvVideo[]>([]);
   const [deferredFuzzySearch, setDeferredFuzzySearch] = useState<{
     query: string;
@@ -977,29 +929,31 @@ export default function SearchScreen() {
   const emptySearchMode = trimmedQuery.length < LOCAL_SEARCH_MIN_CHARS;
   const showGroupedSearch = trimmedQuery.length >= LOCAL_SEARCH_MIN_CHARS;
 
+  const catalogSongsForSearch = useMemo(() => {
+    if (remoteCatalogSongs.length > 0) {
+      return remoteCatalogSongs.slice(0, LOCAL_RANK_CATALOG_LIMIT);
+    }
+
+    if (fullCatalogSongs.length > 0) {
+      return fullCatalogSongs.slice(0, INSTANT_CATALOG_SONG_LIMIT);
+    }
+
+    return getHiddenTunesCatalogSnapshot().slice(0, INSTANT_CATALOG_SONG_LIMIT);
+  }, [fullCatalogSongs, remoteCatalogSongs]);
+
   const universalCatalog = useMemo(
     () => ({
-      songs:
-        fullCatalogSongs.length > 0
-          ? fullCatalogSongs
-          : getHiddenTunesCatalogSnapshot(),
+      songs: catalogSongsForSearch,
       albums: cloudAlbums,
       artists: cloudArtists,
       genres: HIDDEN_TUNES_GENRES,
-      tvVideos: (() => {
-        const seen = new Set<string>();
-        return [...tvSearchVideos, ...tvIndexVideos].filter((video) => {
-          if (!video?.id || seen.has(video.id)) return false;
-          seen.add(video.id);
-          return true;
-        });
-      })(),
+      tvVideos: activeSource === "youtube" ? tvSearchVideos : [],
     }),
     [
+      activeSource,
+      catalogSongsForSearch,
       cloudAlbums,
       cloudArtists,
-      fullCatalogSongs,
-      tvIndexVideos,
       tvSearchVideos,
     ]
   );
@@ -1037,28 +991,27 @@ export default function SearchScreen() {
     };
   }, [deferredFuzzySearch, instantGroupedResults, showGroupedSearch, trimmedQuery]);
 
-  const mergedCatalogSongs = useMemo(
-    () =>
-      mergeCatalogSongLists(
-        remoteCatalogSongs,
-        fullCatalogSongs,
-        universalCatalog.songs,
-        getHiddenTunesCatalogSnapshot()
-      ),
-    [remoteCatalogSongs, fullCatalogSongs, universalCatalog.songs]
-  );
-
   const rankedCatalogSongHits = useMemo(() => {
     if (!showGroupedSearch || trimmedQuery.length < LOCAL_SEARCH_MIN_CHARS) {
       return [] as CatalogSongSearchHit[];
     }
 
+    const songsToRank =
+      remoteCatalogSongs.length > 0
+        ? remoteCatalogSongs.slice(0, LOCAL_RANK_CATALOG_LIMIT)
+        : catalogSongsForSearch;
+
     return rankCatalogSongs(
-      mergedCatalogSongs,
+      songsToRank,
       trimmedQuery,
       VISIBLE_SONG_LIMIT + 12
     );
-  }, [mergedCatalogSongs, showGroupedSearch, trimmedQuery]);
+  }, [
+    catalogSongsForSearch,
+    remoteCatalogSongs,
+    showGroupedSearch,
+    trimmedQuery,
+  ]);
 
   const visibleSongResults = useMemo(() => {
     if (!showGroupedSearch) return [] as NativeSearchTrack[];
@@ -1097,13 +1050,21 @@ export default function SearchScreen() {
   }, [groupedSearchResults, rankedCatalogSongHits, showGroupedSearch]);
 
   const catalogLookupSources = useMemo(
-    () => [
-      fullCatalogSongs,
-      universalCatalog.songs,
-      getHiddenTunesCatalogSnapshot(),
-    ],
-    [fullCatalogSongs, universalCatalog.songs]
+    () => [remoteCatalogSongs, catalogSongsForSearch],
+    [catalogSongsForSearch, remoteCatalogSongs]
   );
+
+  const listResults = useMemo(() => {
+    if (activeSource === "youtube") {
+      return results.filter((item) => isYouTubeTrack(item));
+    }
+
+    if (activeSource === "hidden") {
+      return results.filter((item) => isHiddenTunesCatalogTrack(item));
+    }
+
+    return results.filter((item) => !isYouTubeTrack(item));
+  }, [activeSource, results]);
 
   const searchPlayQueue = useMemo(
     () => buildSearchPlayQueue(visibleSongResults, results, catalogLookupSources),
@@ -1194,32 +1155,6 @@ export default function SearchScreen() {
     results,
   ]);
 
-  const compactTvVideos = useMemo(() => {
-    if (trimmedQuery.length < LOCAL_SEARCH_MIN_CHARS) return [] as HiddenTunesTvVideo[];
-
-    const seen = new Set<string>();
-    const merged: HiddenTunesTvVideo[] = [];
-
-    const addVideo = (video: HiddenTunesTvVideo) => {
-      const key = String(video.id || video.source_id || "").trim();
-      if (!key || seen.has(key)) return;
-      if (merged.length >= COMPACT_TV_RESULT_LIMIT) return;
-
-      seen.add(key);
-      merged.push(video);
-    };
-
-    for (const hit of groupedSearchResults.tv) {
-      addVideo(hit.payload);
-    }
-
-    for (const video of tvSearchVideos) {
-      addVideo(video);
-    }
-
-    return merged;
-  }, [groupedSearchResults.tv, trimmedQuery, tvSearchVideos]);
-
   const showPremiumSearchEmpty = useMemo(() => {
     if (!showGroupedSearch) return false;
     if (!hasCheckedSearchFallbacks || loading || refreshing) return false;
@@ -1240,60 +1175,6 @@ export default function SearchScreen() {
     setRemoteCatalogSongs([]);
     setCatalogSearchSource({ name: "local_snapshot", count: 0 });
   }, [trimmedQuery]);
-
-  useEffect(() => {
-    if (trimmedQuery.length < LOCAL_SEARCH_MIN_CHARS) {
-      return;
-    }
-
-    const generation = ++catalogSearchGenerationRef.current;
-    const queryAtFetch = trimmedQuery;
-
-    void (async () => {
-      try {
-        const page = await searchHiddenTunesSongsPage(queryAtFetch, 1, 80);
-        if (generation !== catalogSearchGenerationRef.current) return;
-        if (queryAtFetch !== trimmedQuery) return;
-
-        setRemoteCatalogSongs(page.songs);
-        setCatalogSearchSource({
-          name: page.songs.length > 0 ? "backend_api" : "local_ranked_fallback",
-          count: page.songs.length,
-        });
-      } catch {
-        if (generation !== catalogSearchGenerationRef.current) return;
-        setRemoteCatalogSongs([]);
-        setCatalogSearchSource({
-          name: "local_ranked_fallback",
-          count: 0,
-        });
-      }
-    })();
-  }, [trimmedQuery]);
-
-  useEffect(() => {
-    if (trimmedQuery.length < LOCAL_SEARCH_MIN_CHARS) return;
-
-    console.log("[search] query", trimmedQuery);
-    console.log(
-      "[search] catalog source",
-      catalogSearchSource.name,
-      mergedCatalogSongs.length
-    );
-    console.log(
-      "[search] top results",
-      rankedCatalogSongHits.slice(0, 5).map((result) => ({
-        title: result.song.title,
-        artist: result.song.artist,
-        reason: result.matchReason,
-      }))
-    );
-  }, [
-    catalogSearchSource.name,
-    mergedCatalogSongs.length,
-    rankedCatalogSongHits,
-    trimmedQuery,
-  ]);
 
   useEffect(() => {
     if (trimmedQuery.length < LOCAL_SEARCH_MIN_CHARS) {
@@ -1372,8 +1253,9 @@ export default function SearchScreen() {
   );
 
   const resultListPerformance = useMemo(
-    () => getListPerformanceSettings(Math.min(results.length, VISIBLE_SONG_LIMIT)),
-    [results.length]
+    () =>
+      getListPerformanceSettings(Math.min(listResults.length, VISIBLE_SONG_LIMIT)),
+    [listResults.length]
   );
 
   const searchResultLayout = useMemo(
@@ -1385,17 +1267,17 @@ export default function SearchScreen() {
     loadRecentSearches();
     loadCloudDiscovery(true);
 
-    void loadTvHomeCache().then((cache) => {
-      if (!cache?.lanes?.length) return;
-      setTvIndexVideos(flattenTvHomeCache(cache.lanes));
-    });
-
     return () => {
       if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
     };
   }, []);
 
   useEffect(() => {
+    if (activeSource !== "youtube") {
+      setTvSearchVideos([]);
+      return;
+    }
+
     const safeQuery = trimmedQuery;
     if (safeQuery.length < LOCAL_SEARCH_MIN_CHARS) {
       setTvSearchVideos([]);
@@ -1431,7 +1313,7 @@ export default function SearchScreen() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [trimmedQuery]);
+  }, [activeSource, trimmedQuery]);
 
   async function loadRecentSearches() {
     try {
@@ -1487,7 +1369,7 @@ export default function SearchScreen() {
 
       if (cached.length) {
         invalidateCatalogSearchIndex();
-        setFullCatalogSongs(cached);
+        setFullCatalogSongs(cached.slice(0, INSTANT_CATALOG_SONG_LIMIT));
         setCloudSongs(
           dedupeByKey(
             cached.slice(0, 24).map((item: any) =>
@@ -1529,9 +1411,9 @@ export default function SearchScreen() {
 
       const catalogSnapshot = getHiddenTunesCatalogSnapshot();
       if (catalogSnapshot.length) {
-        setFullCatalogSongs(catalogSnapshot);
+        setFullCatalogSongs(catalogSnapshot.slice(0, INSTANT_CATALOG_SONG_LIMIT));
       } else if (songs.length) {
-        setFullCatalogSongs(songs);
+        setFullCatalogSongs(songs.slice(0, INSTANT_CATALOG_SONG_LIMIT));
       }
 
       setCloudSongs(
@@ -1722,8 +1604,7 @@ export default function SearchScreen() {
 
           const mergedHiddenCatalog = mergeCatalogSongLists(
             hiddenTunesPage.songs,
-            fullCatalogSongs,
-            getHiddenTunesCatalogSnapshot()
+            getHiddenTunesCatalogSnapshot().slice(0, LOCAL_RANK_CATALOG_LIMIT)
           );
           const rankedHidden = rankCatalogSongs(mergedHiddenCatalog, safeText, 60);
 
@@ -1886,10 +1767,13 @@ export default function SearchScreen() {
       );
 
       setResults((current) =>
-        dedupeByKey([
-          ...current,
-          ...nextResults.map((item) => normalizeSearchTrack(item)),
-        ])
+        orderFlatSearchResults(
+          dedupeByKey([
+            ...current,
+            ...nextResults.map((item) => normalizeSearchTrack(item)),
+          ]),
+          safeText
+        )
       );
       setSearchPage(nextPage);
       setHasMoreHiddenResults(page.hasMore);
@@ -2064,23 +1948,6 @@ export default function SearchScreen() {
     } as any);
   }, [query]);
 
-  const openTvSearch = useCallback(
-    (value = query) => {
-      const safeQuery = String(value || "").trim();
-
-      if (!safeQuery) {
-        router.push("/tv" as any);
-        return;
-      }
-
-      router.push({
-        pathname: "/tv",
-        params: { q: safeQuery },
-      } as any);
-    },
-    [query]
-  );
-
   const handlePress = useCallback(
     async (item: SearchResultTrack) => {
       if (isYouTubeTrack(item)) {
@@ -2251,49 +2118,11 @@ export default function SearchScreen() {
         />
         <Text style={styles.premiumEmptyTitle}>No exact matches found</Text>
         <Text style={styles.premiumEmptySub}>
-          Try another title, artist, album, or mood
+          Try another title, artist, album, genre, or mood.
         </Text>
       </View>
     );
   }, []);
-
-  const renderCompactTvSection = useCallback(() => {
-    if (!showGroupedSearch || compactTvVideos.length === 0) return null;
-
-    return (
-      <View style={styles.compactTvSection}>
-        <View style={styles.compactSectionHeader}>
-          <Text style={styles.compactSectionTitle}>Hidden Tunes TV</Text>
-          <Text style={styles.compactSectionSub}>Related videos</Text>
-        </View>
-
-        {compactTvVideos.map((video) => (
-          <SearchCompactTvPressableRow
-            key={String(video.id || video.source_id)}
-            video={video}
-            onPress={handleTvResultPress}
-          />
-        ))}
-
-        <Pressable
-          style={({ pressed }) => [
-            styles.compactTvBrowseLink,
-            pressed && styles.catalogSongRowPressed,
-          ]}
-          onPress={() => openTvSearch(trimmedQuery)}
-        >
-          <Text style={styles.compactTvBrowseText}>Browse more on TV</Text>
-          <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
-        </Pressable>
-      </View>
-    );
-  }, [
-    compactTvVideos,
-    handleTvResultPress,
-    openTvSearch,
-    showGroupedSearch,
-    trimmedQuery,
-  ]);
 
   function renderDiscovery() {
     return (
@@ -2332,42 +2161,6 @@ export default function SearchScreen() {
 
           <View style={styles.chipWrap}>
             {TRENDING_SEARCHES.map((item) => renderChip(item, "trending-up"))}
-          </View>
-        </View>
-
-        <View style={styles.discoverySection}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Search Sparks</Text>
-            <Text style={styles.sectionSub}>Ideas that can become your next queue</Text>
-          </View>
-
-          <View style={styles.recommendGrid}>
-            {SMART_RECOMMENDATIONS.map((item, index) => (
-              <TouchableOpacity
-                key={item}
-                activeOpacity={0.9}
-                style={styles.recommendCard}
-                onPress={() => commitSearch(item, activeSource)}
-              >
-                <LinearGradient
-                  colors={
-                    index % 2 === 0
-                      ? ([
-                          "rgba(168,85,247,0.95)",
-                          "rgba(34,211,238,0.28)",
-                        ] as any)
-                      : ([
-                          "rgba(255,255,255,0.12)",
-                          "rgba(255,255,255,0.04)",
-                        ] as any)
-                  }
-                  style={styles.recommendGradient}
-                >
-                  <Text style={styles.recommendText}>{item}</Text>
-                  <Ionicons name="arrow-forward-circle" size={24} color={COLORS.text} />
-                </LinearGradient>
-              </TouchableOpacity>
-            ))}
           </View>
         </View>
 
@@ -2506,6 +2299,8 @@ export default function SearchScreen() {
             </ScrollView>
           </View>
         )}
+
+        <SubtleTvEntryLink style={styles.searchTvEntry} />
       </>
     );
   }
@@ -2527,7 +2322,7 @@ export default function SearchScreen() {
         <View style={styles.headerTextBox}>
           <Text style={styles.title}>Search</Text>
           <Text style={styles.subtitle}>
-            Search songs, moods, artists, albums, and TV
+            Search songs, moods, artists, albums, and genres
           </Text>
         </View>
       </View>
@@ -2630,7 +2425,7 @@ export default function SearchScreen() {
       ) : (
         <FlatList
           ref={resultListRef}
-          data={results}
+          data={listResults}
           keyExtractor={resultKeyExtractor}
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={{ paddingBottom: 180 }}
@@ -2639,7 +2434,7 @@ export default function SearchScreen() {
           maxToRenderPerBatch={resultListPerformance.maxToRenderPerBatch}
           windowSize={resultListPerformance.windowSize}
           updateCellsBatchingPeriod={resultListPerformance.updateCellsBatchingPeriod}
-          getItemLayout={results.length > 0 ? searchResultLayout : undefined}
+          getItemLayout={listResults.length > 0 ? searchResultLayout : undefined}
           removeClippedSubviews
           onScrollBeginDrag={() => markFastScrolling(true)}
           onMomentumScrollBegin={() => markFastScrolling(true)}
@@ -2759,7 +2554,7 @@ export default function SearchScreen() {
                 />
               ) : null}
 
-              {!showGroupedSearch || results.length > 0 ? (
+              {!showGroupedSearch || listResults.length > 0 ? (
                 <View style={styles.compactSectionHeader}>
                   <Text style={styles.compactSectionTitle}>
                     {showGroupedSearch ? "More Matches" : "Hidden Tunes Matches"}
@@ -2784,7 +2579,7 @@ export default function SearchScreen() {
                   hasCheckedFallbacks: hasCheckedSearchFallbacks,
                   isLoading: loading,
                   isRefreshing: refreshing,
-                  resolvedCount: results.length,
+                  resolvedCount: listResults.length,
                 }) && query.trim().length >= API_SEARCH_MIN_CHARS ? (
             renderPremiumSearchEmpty()
             ) : null
@@ -2806,7 +2601,9 @@ export default function SearchScreen() {
                   <Text style={styles.loadMoreButtonText}>Load more results</Text>
                 </TouchableOpacity>
               ) : null}
-              {renderCompactTvSection()}
+              {showGroupedSearch && trimmedQuery.length >= LOCAL_SEARCH_MIN_CHARS ? (
+                <SubtleTvEntryLink style={styles.searchTvEntry} />
+              ) : null}
             </>
           }
           renderItem={renderResult}
@@ -3076,6 +2873,10 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     fontSize: 13,
     fontWeight: "900",
+  },
+  searchTvEntry: {
+    marginTop: 8,
+    marginBottom: 20,
   },
   chipWrap: {
     flexDirection: "row",
