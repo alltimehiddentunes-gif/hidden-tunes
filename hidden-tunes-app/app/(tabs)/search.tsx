@@ -1878,6 +1878,7 @@ export default function SearchScreen() {
     (rawSong: HiddenTunesNormalizedSong | NativeSearchTrack | any, index: number) => {
       const song = resolveSearchPlayableSong(rawSong, catalogLookupSources);
 
+      console.log("[search] visible result tapped", "song", song.title);
       console.log("[search] song row tapped", song.id, song.title);
 
       let queue =
@@ -2114,6 +2115,50 @@ export default function SearchScreen() {
       params: { q: video.title },
     } as any);
   }, [stopPlayback]);
+
+  const handleArtistResultPress = useCallback(
+    (artist: HiddenTunesArtist) => {
+      console.log(
+        "[search] visible result tapped",
+        "artist",
+        artist?.name
+      );
+      openGroupedArtist(artist);
+    },
+    [openGroupedArtist]
+  );
+
+  const handleAlbumResultPress = useCallback(
+    (album: HiddenTunesAlbum) => {
+      console.log(
+        "[search] visible result tapped",
+        "album",
+        album?.title
+      );
+      openGroupedAlbum(album);
+    },
+    [openGroupedAlbum]
+  );
+
+  const handleGenreResultPress = useCallback(
+    (genre: any) => {
+      console.log(
+        "[search] visible result tapped",
+        "genre",
+        String(genre?.title || "")
+      );
+      openGenre(genre as GenreItem);
+    },
+    [openGenre]
+  );
+
+  const handleTvResultPress = useCallback(
+    (video: HiddenTunesTvVideo) => {
+      console.log("[search] visible result tapped", "tv", video?.title);
+      openGroupedTv(video);
+    },
+    [openGroupedTv]
+  );
 
   const renderTvFallbackCard = useCallback(() => {
     const safeQuery = tvFallbackQuery || query.trim();
@@ -2600,10 +2645,10 @@ export default function SearchScreen() {
                     );
                     handleSongResultPress(song, playIndex >= 0 ? playIndex : 0);
                   }}
-                  onArtistPress={openGroupedArtist}
-                  onAlbumPress={openGroupedAlbum}
-                  onGenrePress={openGenre}
-                  onTvPress={openGroupedTv}
+                  onArtistPress={handleArtistResultPress}
+                  onAlbumPress={handleAlbumResultPress}
+                  onGenrePress={handleGenreResultPress}
+                  onTvPress={handleTvResultPress}
                   onSuggestionPress={(text) => commitSearch(text, activeSource)}
                   activeSongId={currentSongId}
                   isPlaying={isPlaying}
@@ -3050,6 +3095,8 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   catalogSongRowPressable: {
+    width: "100%",
+    alignSelf: "stretch",
     borderRadius: 28,
     overflow: "hidden",
   },

@@ -116,6 +116,7 @@ function UniversalSearchGroupedResults({
                     type="radio"
                     size="medium"
                     showPlayButton={false}
+                    onPress={() => onTvPress(video)}
                   />
                   <MatchReasonPill reason={hit.reason} />
                 </TouchableOpacity>
@@ -138,6 +139,7 @@ function UniversalSearchGroupedResults({
                     type="artist"
                     size="medium"
                     showPlayButton={false}
+                    onPress={() => onArtistPress(artist)}
                   />
                   <MatchReasonPill reason={hit.reason} />
                 </TouchableOpacity>
@@ -160,6 +162,7 @@ function UniversalSearchGroupedResults({
                     type="album"
                     size="medium"
                     showPlayButton={false}
+                    onPress={() => onAlbumPress(album)}
                   />
                   <MatchReasonPill reason={hit.reason} />
                 </TouchableOpacity>
@@ -203,6 +206,9 @@ function UniversalSearchGroupedResults({
                   type="song"
                   size="medium"
                   showPlayButton={false}
+                  onPress={() =>
+                    hit.id.startsWith("lyric:") ? onLyricPress(song) : onSongPress(song)
+                  }
                 />
                 <MatchReasonPill reason={hit.reason} />
                 {hit.lyricSnippet ? (
@@ -238,6 +244,7 @@ function UniversalSearchGroupedResults({
                 type="song"
                 size="medium"
                 showPlayButton={false}
+                onPress={() => onSongPress(hit.payload)}
               />
               <MatchReasonPill reason={hit.reason} />
             </TouchableOpacity>
@@ -262,6 +269,7 @@ function UniversalSearchGroupedResults({
                 type="song"
                 size="medium"
                 showPlayButton={false}
+                onPress={() => onLyricPress(hit.payload)}
               />
               <MatchReasonPill reason={hit.reason} />
               {hit.lyricSnippet ? (
@@ -291,6 +299,7 @@ function UniversalSearchGroupedResults({
                 type="artist"
                 size="medium"
                 showPlayButton={false}
+                onPress={() => onArtistPress(hit.payload)}
               />
               <MatchReasonPill reason={hit.reason} />
             </TouchableOpacity>
@@ -315,6 +324,7 @@ function UniversalSearchGroupedResults({
                 type="album"
                 size="medium"
                 showPlayButton={false}
+                onPress={() => onAlbumPress(hit.payload)}
               />
               <MatchReasonPill reason={hit.reason} />
             </TouchableOpacity>
@@ -368,6 +378,7 @@ function UniversalSearchGroupedResults({
                   type="radio"
                   size="medium"
                   showPlayButton={false}
+                  onPress={() => onTvPress(video)}
                 />
                 <MatchReasonPill reason={hit.reason} />
               </TouchableOpacity>
