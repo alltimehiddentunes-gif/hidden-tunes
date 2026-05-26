@@ -75,6 +75,53 @@ function stringOrNull(value: unknown) {
   return text || null;
 }
 
+function formatPostgrestUuidList(ids: string[]) {
+  const quoted = ids
+    .map((id) => String(id || "").trim())
+    .filter(Boolean)
+    .map((id) => `"${id.replace(/"/g, "")}"`);
+
+  return `(${quoted.join(",")})`;
+}
+
+function logReleasesQueryStart(
+  stepName: string,
+  meta: Record<string, unknown> = {}
+) {
+  console.log("[admin/releases] running query", stepName, meta);
+}
+
+function logReleasesQuerySuccess(
+  stepName: string,
+  meta: Record<string, unknown> = {}
+) {
+  console.log("[admin/releases] query success", stepName, meta);
+}
+
+function logReleasesQueryError(stepName: string, error: unknown) {
+  console.error("[admin/releases] query failed", stepName, error);
+}
+
+async function runReleasesSupabaseStep<T extends {
+  data: unknown;
+  error: unknown;
+  count?: number | null;
+}>(stepName: string, meta: Record<string, unknown>, run: () => Promise<T>): Promise<T> {
+  logReleasesQueryStart(stepName, meta);
+  const result = await run();
+
+  if (result.error) {
+    logReleasesQueryError(stepName, result.error);
+  } else {
+    logReleasesQuerySuccess(stepName, {
+      rowCount: Array.isArray(result.data) ? result.data.length : null,
+      count: result.count ?? null,
+    });
+  }
+
+  return result;
+}
+
 function parsePositiveInteger(value: string | null, fallback: number) {
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed < 1) return fallback;
@@ -135,11 +182,16 @@ function hasRightsFilters(context: AlbumListQueryContext) {
 }
 
 async function loadMatchingArtistIds(searchQuery: string) {
-  const { data, error } = await supabaseAdmin
-    .from("artists")
-    .select("id")
-    .ilike("name", `%${searchQuery}%`)
-    .limit(200);
+  const { data, error } = await runReleasesSupabaseStep(
+    "search_artists_by_name",
+    { searchQuery },
+    async () =>
+      await supabaseAdmin
+        .from("artists")
+        .select("id")
+        .ilike("name", `%${searchQuery}%`)
+        .limit(200)
+  );
 
   if (error) throw error;
 
@@ -149,11 +201,16 @@ async function loadMatchingArtistIds(searchQuery: string) {
 }
 
 async function loadMatchingUploaderIds(searchQuery: string) {
-  const { data, error } = await supabaseAdmin
-    .from("uploader_profiles")
-    .select("id")
-    .ilike("email", `%${searchQuery}%`)
-    .limit(200);
+  const { data, error } = await runReleasesSupabaseStep(
+    "search_uploaders_by_email",
+    { searchQuery },
+    async () =>
+      await supabaseAdmin
+        .from("uploader_profiles")
+        .select("id")
+        .ilike("email", `%${searchQuery}%`)
+        .limit(200)
+  );
 
   if (error) throw error;
 
@@ -169,10 +226,15 @@ async function loadUploaderMap(uploaderIds: string[]) {
     return new Map<string, UploaderRow>();
   }
 
-  const { data, error } = await supabaseAdmin
-    .from("uploader_profiles")
-    .select("id, email, role, status")
-    .in("id", uniqueIds);
+  const { data, error } = await runReleasesSupabaseStep(
+    "uploader_profiles_by_ids",
+    { idCount: uniqueIds.length },
+    async () =>
+      await supabaseAdmin
+        .from("uploader_profiles")
+        .select("id, email, role, status")
+        .in("id", uniqueIds)
+  );
 
   if (error) throw error;
 
@@ -187,12 +249,17 @@ async function loadUploaderMap(uploaderIds: string[]) {
 async function loadAlbumIdsForUploaderSongs(uploaderId: string) {
   if (!uploaderId) return [] as string[];
 
-  const { data, error } = await supabaseAdmin
-    .from("songs")
-    .select("album_id, uploaded_by_user_id")
-    .eq("uploaded_by_user_id", uploaderId)
-    .not("album_id", "is", null)
-    .limit(1000);
+  const { data, error } = await runReleasesSupabaseStep(
+    "uploader_owned_album_ids",
+    { uploaderId },
+    async () =>
+      await supabaseAdmin
+        .from("songs")
+        .select("album_id, uploaded_by_user_id")
+        .eq("uploaded_by_user_id", uploaderId)
+        .not("album_id", "is", null)
+        .limit(1000)
+  );
 
   if (error) throw error;
 
@@ -305,9 +372,9 @@ function applyAlbumListFilters(
   if (context.uploaderId) {
     if (context.uploaderSongAlbumIds.length > 0) {
       filteredQuery = filteredQuery.or(
-        `uploaded_by_user_id.eq.${context.uploaderId},id.in.(${context.uploaderSongAlbumIds.join(
-          ","
-        )})`
+        `uploaded_by_user_id.eq.${context.uploaderId},id.in.${formatPostgrestUuidList(
+          context.uploaderSongAlbumIds
+        )}`
       );
     } else {
       filteredQuery = filteredQuery.eq(
@@ -336,12 +403,14 @@ function applyAlbumListFilters(
     const clauses = [`title.ilike.%${escapedSearch}%`];
 
     if (lookups.searchArtistIds.length > 0) {
-      clauses.push(`artist_id.in.(${lookups.searchArtistIds.join(",")})`);
+      clauses.push(
+        `artist_id.in.${formatPostgrestUuidList(lookups.searchArtistIds)}`
+      );
     }
 
     if (lookups.searchUploaderIds.length > 0) {
       clauses.push(
-        `uploaded_by_user_id.in.(${lookups.searchUploaderIds.join(",")})`
+        `uploaded_by_user_id.in.${formatPostgrestUuidList(lookups.searchUploaderIds)}`
       );
     }
 
@@ -367,6 +436,34 @@ function applyAlbumListSort(query: AlbumListQuery, sort: SortMode) {
   return query.order("created_at", { ascending: false });
 }
 
+function describeAlbumListFilters(
+  context: AlbumListQueryContext,
+  lookups: AlbumSearchLookups,
+  includeRightsColumns: boolean
+) {
+  const uploaderOrFilter =
+    context.uploaderId && context.uploaderSongAlbumIds.length > 0
+      ? `uploaded_by_user_id.eq.${context.uploaderId},id.in.${formatPostgrestUuidList(
+          context.uploaderSongAlbumIds
+        )}`
+      : null;
+
+  return {
+    includeRightsColumns,
+    sort: context.sort,
+    reviewStatus: context.reviewStatus,
+    licenseDeclaration: context.licenseDeclaration,
+    scanFilter: context.scanFilter,
+    uploaderId: context.uploaderId,
+    uploaderSongAlbumIdsCount: context.uploaderSongAlbumIds.length,
+    uploaderOrFilter,
+    uploaderSearchIdsCount: lookups.uploaderSearchIds?.length ?? null,
+    searchQuery: context.searchQuery || null,
+    searchArtistIdsCount: lookups.searchArtistIds.length,
+    searchUploaderIdsCount: lookups.searchUploaderIds.length,
+  };
+}
+
 async function queryAlbumListPage(
   includeRightsColumns: boolean,
   context: AlbumListQueryContext,
@@ -374,6 +471,10 @@ async function queryAlbumListPage(
   from: number,
   to: number
 ) {
+  const filterMeta = describeAlbumListFilters(context, lookups, includeRightsColumns);
+
+  logReleasesQueryStart("album_list_chain_build", { ...filterMeta, from, to });
+
   const filteredQuery = applyAlbumListFilters(
     startAlbumListQuery(includeRightsColumns),
     context,
@@ -382,7 +483,12 @@ async function queryAlbumListPage(
   );
 
   const sortedQuery = applyAlbumListSort(filteredQuery, context.sort);
-  return sortedQuery.range(from, to);
+
+  return runReleasesSupabaseStep(
+    includeRightsColumns ? "album_list_page_rights" : "album_list_page_core",
+    { ...filterMeta, from, to, order: context.sort },
+    async () => await sortedQuery.range(from, to)
+  );
 }
 
 async function fetchAlbumListPage(
@@ -390,11 +496,24 @@ async function fetchAlbumListPage(
   from: number,
   to: number
 ) {
+  logReleasesQueryStart("album_search_lookups", {
+    searchQuery: context.searchQuery || null,
+    uploaderSearch: context.uploaderSearch || null,
+  });
   const lookups = await loadAlbumSearchLookups(context);
+  logReleasesQuerySuccess("album_search_lookups", {
+    uploaderSearchIdsCount: lookups.uploaderSearchIds?.length ?? null,
+    searchArtistIdsCount: lookups.searchArtistIds.length,
+    searchUploaderIdsCount: lookups.searchUploaderIds.length,
+  });
 
   let result = await queryAlbumListPage(true, context, lookups, from, to);
 
   if (result.error && isMissingSchemaColumnError(result.error)) {
+    logReleasesQueryStart("album_list_rights_fallback", {
+      reason: "missing_schema_column",
+    });
+
     if (hasRightsFilters(context)) {
       throw new Error(
         "Rights review columns are missing on albums. Apply migration 20260525130000_albums_rights_review_metadata.sql, then reload releases."
@@ -417,10 +536,15 @@ async function loadSongsForAlbumIds(albumIds: string[]) {
     return [] as SongRow[];
   }
 
-  const extendedResult = await supabaseAdmin
-    .from("songs")
-    .select(SONG_COLUMNS_EXTENDED)
-    .in("album_id", albumIds);
+  const extendedResult = await runReleasesSupabaseStep(
+    "songs_by_album_ids_extended",
+    { albumIdCount: albumIds.length },
+    async () =>
+      await supabaseAdmin
+        .from("songs")
+        .select(SONG_COLUMNS_EXTENDED)
+        .in("album_id", albumIds)
+  );
 
   if (!extendedResult.error) {
     return (extendedResult.data || []) as unknown as SongRow[];
@@ -430,10 +554,20 @@ async function loadSongsForAlbumIds(albumIds: string[]) {
     throw extendedResult.error;
   }
 
-  const coreResult = await supabaseAdmin
-    .from("songs")
-    .select(SONG_COLUMNS_CORE)
-    .in("album_id", albumIds);
+  logReleasesQueryStart("songs_by_album_ids_core_fallback", {
+    reason: "missing_schema_column",
+    albumIdCount: albumIds.length,
+  });
+
+  const coreResult = await runReleasesSupabaseStep(
+    "songs_by_album_ids_core",
+    { albumIdCount: albumIds.length },
+    async () =>
+      await supabaseAdmin
+        .from("songs")
+        .select(SONG_COLUMNS_CORE)
+        .in("album_id", albumIds)
+  );
 
   if (coreResult.error) throw coreResult.error;
 
@@ -565,22 +699,41 @@ export async function GET(request: NextRequest) {
       .map((album) => String(album.uploaded_by_user_id || ""))
       .filter(Boolean);
 
+    logReleasesQueryStart("post_album_parallel_load", {
+      albumCount: albumIds.length,
+      artistIdCount: artistIds.length,
+      uploaderIdCount: uploaderIds.length,
+    });
+
     const [
-      { data: artists, error: artistsError },
+      artistsResult,
       songRows,
       uploaderMap,
     ] = await Promise.all([
       artistIds.length
-        ? supabaseAdmin
-            .from("artists")
-            .select("id, name, image_url")
-            .in("id", artistIds)
+        ? runReleasesSupabaseStep(
+            "artists_by_ids",
+            { artistIdCount: artistIds.length },
+            async () =>
+              await supabaseAdmin
+                .from("artists")
+                .select("id, name, image_url")
+                .in("id", artistIds)
+          )
         : Promise.resolve({ data: [], error: null }),
       loadSongsForAlbumIds(albumIds),
       loadUploaderMap(uploaderIds),
     ]);
 
+    const { data: artists, error: artistsError } = artistsResult;
+
     if (artistsError) throw artistsError;
+
+    logReleasesQuerySuccess("post_album_parallel_load", {
+      artistRowCount: Array.isArray(artists) ? artists.length : 0,
+      songRowCount: songRows.length,
+      uploaderMapSize: uploaderMap.size,
+    });
 
     const artistMap = new Map(
       ((artists || []) as unknown as AlbumRow[]).map((artist) => [
@@ -591,8 +744,14 @@ export async function GET(request: NextRequest) {
     const songIds = songRows
       .map((song) => String(song.id || ""))
       .filter(Boolean);
+    logReleasesQueryStart("lyrics_health_maps", { songIdCount: songIds.length });
     const { trackLyricsBySongId, syncedLyricsBySongId } =
       await loadLyricsHealthMaps(songIds);
+    logReleasesQuerySuccess("lyrics_health_maps", {
+      songIdCount: songIds.length,
+      trackLyricsCount: trackLyricsBySongId.size,
+      syncedLyricsCount: syncedLyricsBySongId.size,
+    });
 
     const releases = albumRows.map((album) => {
       const releaseSongs = songRows.filter(
