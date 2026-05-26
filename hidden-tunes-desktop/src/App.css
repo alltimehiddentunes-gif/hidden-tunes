@@ -611,6 +611,95 @@
     transform var(--transition-smooth);
 }
 
+.card-art-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.discovery-card--api:hover .card-art-img {
+  transform: scale(1.04);
+  transition: transform var(--transition-smooth);
+}
+
+/* —— Catalog loading / errors —— */
+.skeleton-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.skeleton-grid--card {
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+}
+
+.skeleton-grid--artist {
+  grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+}
+
+.skeleton-item {
+  border-radius: var(--radius-lg);
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.04) 0%,
+    rgba(255, 255, 255, 0.08) 50%,
+    rgba(255, 255, 255, 0.04) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+}
+
+.skeleton-item--card {
+  aspect-ratio: 1;
+}
+
+.skeleton-item--artist {
+  height: 140px;
+}
+
+.catalog-error {
+  padding: 24px;
+  border-radius: var(--radius-lg);
+  background: rgba(244, 114, 182, 0.06);
+  border: 1px solid rgba(244, 114, 182, 0.2);
+  text-align: center;
+}
+
+.catalog-error-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.catalog-error-detail {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+
+.catalog-empty {
+  padding: 28px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 14px;
+  border-radius: var(--radius-lg);
+  border: 1px dashed var(--border-subtle);
+}
+
+.artist-avatar--img {
+  overflow: hidden;
+  padding: 0;
+}
+
+.artist-avatar--img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
 .card-info {
   padding: 13px 15px 15px;
 }
