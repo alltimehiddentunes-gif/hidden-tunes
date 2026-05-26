@@ -5,6 +5,8 @@ import { requireUploadPermission } from "@/lib/requireUploadPermission";
 import {
   buildReleaseHealthSummary,
   loadLyricsHealthMaps,
+  type ReleaseHealthLyricsInput,
+  type ReleaseHealthSyncedInput,
 } from "@/lib/releaseHealth";
 import {
   getSupabaseErrorMessage,
@@ -73,6 +75,13 @@ type AlbumSearchLookups = {
 function stringOrNull(value: unknown) {
   const text = String(value || "").trim();
   return text || null;
+}
+
+function emptyLyricsHealthMaps() {
+  return {
+    trackLyricsBySongId: new Map<string, ReleaseHealthLyricsInput>(),
+    syncedLyricsBySongId: new Map<string, ReleaseHealthSyncedInput>(),
+  };
 }
 
 function formatPostgrestUuidList(ids: string[]) {
@@ -745,13 +754,32 @@ export async function GET(request: NextRequest) {
       .map((song) => String(song.id || ""))
       .filter(Boolean);
     logReleasesQueryStart("lyrics_health_maps", { songIdCount: songIds.length });
-    const { trackLyricsBySongId, syncedLyricsBySongId } =
-      await loadLyricsHealthMaps(songIds);
-    logReleasesQuerySuccess("lyrics_health_maps", {
-      songIdCount: songIds.length,
-      trackLyricsCount: trackLyricsBySongId.size,
-      syncedLyricsCount: syncedLyricsBySongId.size,
-    });
+
+    let { trackLyricsBySongId, syncedLyricsBySongId } = emptyLyricsHealthMaps();
+
+    try {
+      const lyricsHealthMaps = await loadLyricsHealthMaps(songIds);
+      trackLyricsBySongId = lyricsHealthMaps.trackLyricsBySongId;
+      syncedLyricsBySongId = lyricsHealthMaps.syncedLyricsBySongId;
+
+      logReleasesQuerySuccess("lyrics_health_maps", {
+        songIdCount: songIds.length,
+        trackLyricsCount: trackLyricsBySongId.size,
+        syncedLyricsCount: syncedLyricsBySongId.size,
+      });
+    } catch (error: unknown) {
+      console.warn("[admin/releases] lyrics_health_maps unavailable", {
+        songIdCount: songIds.length,
+        message:
+          error instanceof Error
+            ? error.message
+            : getSupabaseErrorMessage(error, "Unknown lyrics health error"),
+        stack: error instanceof Error ? error.stack : undefined,
+        error,
+      });
+      logReleasesQueryError("lyrics_health_maps", error);
+      ({ trackLyricsBySongId, syncedLyricsBySongId } = emptyLyricsHealthMaps());
+    }
 
     const releases = albumRows.map((album) => {
       const releaseSongs = songRows.filter(
