@@ -109,6 +109,7 @@ const HERO_AUTO_SLIDE_MS = 7000;
 const HOME_SKELETON_KEYS = ["first", "second", "third"];
 
 type HeroCard = {
+  id?: string;
   key: string;
   label: string;
   title: string;
@@ -833,6 +834,7 @@ function HomeScreen() {
       const song = safeSong(currentSong);
 
       cards.push({
+        id: `current-${song.id}`,
         key: `current-${song.id}`,
         label: "NOW PLAYING",
         title: song.title,
@@ -845,6 +847,7 @@ function HomeScreen() {
 
     if (defaultHeroTrack) {
       cards.push({
+        id: String(defaultHeroTrack.id || ""),
         key: `new-${defaultHeroTrack.id}`,
         label: "NEW UPLOAD",
         title: defaultHeroTrack.title,
@@ -856,6 +859,7 @@ function HomeScreen() {
 
     if (hiddenTunesPick && hiddenTunesPick.id !== defaultHeroTrack?.id) {
       cards.push({
+        id: String(hiddenTunesPick.id || ""),
         key: `pick-${hiddenTunesPick.id}`,
         label: "HIDDEN TUNES PICK",
         title: hiddenTunesPick.title,
@@ -867,6 +871,7 @@ function HomeScreen() {
 
     if (firstGenreSong) {
       cards.push({
+        id: String(firstGenreSong.id || ""),
         key: `genre-${firstGenreSong.genre}-${firstGenreSong.id}`,
         label: String(firstGenreSong.genre || "GENRE").toUpperCase(),
         title: firstGenreSong.title,
@@ -878,6 +883,7 @@ function HomeScreen() {
 
     if (firstMoodSong) {
       cards.push({
+        id: String(firstMoodSong.id || ""),
         key: `mood-${firstMoodSong.mood}-${firstMoodSong.id}`,
         label: `${String(firstMoodSong.mood || "Mood").toUpperCase()} MOOD`,
         title: firstMoodSong.title,
@@ -891,6 +897,7 @@ function HomeScreen() {
       const song = safeSong(recentSong);
 
       cards.push({
+        id: String(song.id || ""),
         key: `recent-${song.id}`,
         label: "RECENTLY PLAYED",
         title: song.title,
@@ -900,7 +907,36 @@ function HomeScreen() {
       });
     }
 
-    return cards.slice(0, 6);
+    const sliced = cards.slice(0, 6);
+
+    if (currentSong) {
+      const currentId = String((currentSong as any).id || "");
+      const hasMatch = sliced.some((card) => {
+        if (card.isCurrent) return true;
+        if (card.id && String(card.id) === currentId) return true;
+        if (card.song?.id && String(card.song.id) === currentId) return true;
+        return false;
+      });
+
+      if (!hasMatch && currentId) {
+        const song = safeSong(currentSong);
+        return [
+          {
+            id: `current-${currentId}`,
+            key: `current-${currentId}`,
+            label: "NOW PLAYING",
+            title: song.title,
+            subtitle: song.artist || "Hidden Tunes",
+            song,
+            icon: "pulse" as keyof typeof Ionicons.glyphMap,
+            isCurrent: true,
+          },
+          ...sliced,
+        ].slice(0, 6);
+      }
+    }
+
+    return sliced;
   }, [currentSong, defaultHeroTrack, featuredSongs, recentlyPlayed]);
 
   const homeAudioPreloadTarget = useMemo(
@@ -1072,7 +1108,23 @@ function HomeScreen() {
 
   const renderHeroCard = useCallback(
     ({ item, index }: { item: HeroCard; index: number }) => {
-      const active = item.isCurrent || currentSong?.id === String(item.song.id);
+      const isCurrentHero =
+        Boolean(currentSong) &&
+        (item.isCurrent === true ||
+          String(item.id || "") === String((currentSong as any)?.id || "") ||
+          String(item.song?.id || "") === String((currentSong as any)?.id || ""));
+
+      if (typeof __DEV__ !== "undefined" && __DEV__) {
+        console.log("[home] hero item", {
+          title: item.title,
+          itemId: (item as any).id,
+          songId: item.song?.id,
+          currentSongId: (currentSong as any)?.id,
+          isCurrentHero,
+        });
+      }
+
+      const active = isCurrentHero || String((currentSong as any)?.id || "") === String(item.song?.id || "");
 
       return (
         <View style={styles.heroSlide}>
@@ -1090,12 +1142,14 @@ function HomeScreen() {
               >
                 <View style={styles.livePill}>
                   {active ? (
-                    <NeonEQ isPlaying={isPlaying && item.isCurrent} size="small" />
+                    <NeonEQ isPlaying={isPlaying && isCurrentHero} size="small" />
                   ) : (
                     <Ionicons name={item.icon} size={13} color={COLORS.primary} />
                   )}
 
-                  <Text style={styles.liveText}>{item.label}</Text>
+                  <Text style={styles.liveText}>
+                    {isCurrentHero ? "Now Playing" : item.label}
+                  </Text>
                 </View>
 
                 <Text numberOfLines={1} style={styles.heroSong}>
@@ -1106,7 +1160,7 @@ function HomeScreen() {
                   {item.subtitle}
                 </Text>
 
-                {item.isCurrent && (
+                {isCurrentHero && (
                   <View style={styles.heroWaveform}>
                     <LiveWaveform isPlaying={isPlaying} size="small" />
                   </View>
@@ -1115,12 +1169,12 @@ function HomeScreen() {
                 <View style={styles.heroBottomRow}>
                   <View style={styles.playButton}>
                     <Ionicons
-                      name={item.isCurrent && isPlaying ? "pause" : "play"}
+                      name={isCurrentHero && isPlaying ? "pause" : "play"}
                       size={18}
                       color="#000"
                     />
                     <Text style={styles.playText}>
-                      {item.isCurrent ? "OPEN PLAYER" : "PLAY"}
+                      {isCurrentHero ? "OPEN PLAYER" : "PLAY"}
                     </Text>
                   </View>
 

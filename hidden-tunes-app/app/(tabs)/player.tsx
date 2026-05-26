@@ -1,4 +1,4 @@
-import React, { memo, useCallback, useEffect, useMemo, useState } from "react";
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   Pressable,
@@ -40,8 +40,18 @@ import HTImage from "../../components/HTImage";
 import LyricsPreview from "../../components/LyricsPreview";
 import { FALLBACK_ARTWORK, getArtworkValue } from "../../utils/artwork";
 import { getBestLyricsPayload, setLyricsMemoryCache } from "../../utils/lyrics";
+import { openGenreCatalog, openMoodCatalog } from "../../utils/catalogNavigation";
 import { isFastScrolling } from "../../utils/performanceMode";
 import { useRenderCountProbe } from "../../utils/performanceVerification";
+
+type PlayerMetadataType = "album" | "mood" | "genre";
+
+type PlayerMetadataChip = {
+  type: PlayerMetadataType;
+  label: string;
+};
+
+const METADATA_PRESS_GUARD_MS = 500;
 
 function formatTime(ms: number) {
   const totalSeconds = Math.floor((ms || 0) / 1000);
@@ -218,6 +228,30 @@ const PremiumPlayButton = memo(function PremiumPlayButton({
   );
 });
 
+const MetadataContextChip = memo(function MetadataContextChip({
+  label,
+  onPress,
+}: {
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      hitSlop={8}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.contextPill,
+        pressed && styles.contextPillPressed,
+      ]}
+    >
+      <Text numberOfLines={1} style={styles.contextPillText}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+});
+
 const PlayerProgressSection = memo(function PlayerProgressSection({
   seekTo,
 }: {
@@ -283,6 +317,7 @@ export default function PlayerScreen() {
 
   const [playlistModalVisible, setPlaylistModalVisible] = useState(false);
   const [selectedPlaylistTrack, setSelectedPlaylistTrack] = useState<any>(null);
+  const lastMetadataPressAtRef = useRef(0);
 
   const rotate = useSharedValue(0);
   const pulse = useSharedValue(1);
@@ -326,17 +361,26 @@ export default function PlayerScreen() {
   }, [currentSong]);
 
   const listeningContext = useMemo(() => {
-    if (!currentSong) return [];
+    if (!currentSong) return [] as PlayerMetadataChip[];
 
-    return [
-      currentSong.album,
-      currentSong.mood,
-      currentSong.genre,
-      currentSong.sourceName,
-    ]
-      .map((item) => String(item || "").trim())
-      .filter(Boolean)
-      .slice(0, 3);
+    const chips: PlayerMetadataChip[] = [];
+
+    const album = String(currentSong.album || "").trim();
+    if (album) {
+      chips.push({ type: "album", label: album });
+    }
+
+    const mood = String(currentSong.mood || "").trim();
+    if (mood) {
+      chips.push({ type: "mood", label: mood });
+    }
+
+    const genre = String(currentSong.genre || "").trim();
+    if (genre) {
+      chips.push({ type: "genre", label: genre });
+    }
+
+    return chips.slice(0, 3);
   }, [currentSong]);
 
   const nextUpSong = useMemo(() => {
@@ -455,6 +499,59 @@ export default function PlayerScreen() {
     if (!currentSong) return;
     toggleFavorite(currentSong);
   }, [toggleFavorite, currentSong]);
+
+  const handleMetadataPress = useCallback(
+    (type: PlayerMetadataType, value: string) => {
+      const now = Date.now();
+      if (now - lastMetadataPressAtRef.current < METADATA_PRESS_GUARD_MS) {
+        return;
+      }
+
+      lastMetadataPressAtRef.current = now;
+
+      const trimmed = String(value || "").trim();
+      if (!trimmed) return;
+
+      console.log("[player] metadata tapped", type, value);
+      fireLightHaptic();
+
+      if (type === "mood") {
+        openMoodCatalog(trimmed);
+        return;
+      }
+
+      if (type === "genre") {
+        openGenreCatalog({
+          id: trimmed,
+          title: trimmed,
+          query: trimmed,
+        });
+        return;
+      }
+
+      const albumId = String(currentSong?.albumId || "").trim();
+
+      if (albumId) {
+        router.push({
+          pathname: "/album/[id]",
+          params: {
+            id: albumId,
+          },
+        } as any);
+        return;
+      }
+
+      router.push({
+        pathname: "/album",
+        params: {
+          album: trimmed,
+          artist,
+          query: `${trimmed} ${artist}`.trim(),
+        },
+      } as any);
+    },
+    [artist, currentSong?.albumId]
+  );
 
   const openLyrics = useCallback(() => {
     if (!currentSong) return;
@@ -598,11 +695,11 @@ export default function PlayerScreen() {
         {listeningContext.length > 0 && (
           <View style={styles.contextPillRow}>
             {listeningContext.map((item) => (
-              <View key={`context-${item}`} style={styles.contextPill}>
-                <Text numberOfLines={1} style={styles.contextPillText}>
-                  {item}
-                </Text>
-              </View>
+              <MetadataContextChip
+                key={`context-${item.type}-${item.label}`}
+                label={item.label}
+                onPress={() => handleMetadataPress(item.type, item.label)}
+              />
             ))}
           </View>
         )}
@@ -985,6 +1082,11 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.065)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.09)",
+  },
+
+  contextPillPressed: {
+    backgroundColor: "rgba(168,85,247,0.18)",
+    borderColor: "rgba(168,85,247,0.38)",
   },
 
   contextPillText: {
