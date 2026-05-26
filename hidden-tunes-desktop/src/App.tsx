@@ -137,6 +137,13 @@ type DiscoverySection = {
   cards: DiscoveryCard[]
 }
 
+type MoodRoom = {
+  title: string
+  subtitle: string
+  listeners: string
+  mood: Mood
+}
+
 const MAIN_NAV: NavItem[] = [
   {
     id: 'home',
@@ -267,13 +274,13 @@ const HOME_SECTIONS: DiscoverySection[] = [
   },
 ]
 
-const MOOD_ROOMS = [
-  { title: 'Velvet Midnight', subtitle: 'Slow burn · intimate', listeners: '2.4k', mood: 'violet' as Mood },
-  { title: 'Oceanic Calm', subtitle: 'Breath & space', listeners: '1.8k', mood: 'cyan' as Mood },
-  { title: 'Rose Neon', subtitle: 'Passion pulse', listeners: '3.1k', mood: 'rose' as Mood },
-  { title: 'Forest Echo', subtitle: 'Organic drift', listeners: '920', mood: 'mint' as Mood },
-  { title: 'Chrome Dreams', subtitle: 'Futurist glide', listeners: '1.2k', mood: 'cyan' as Mood },
-  { title: 'Ember Heart', subtitle: 'Warm ache', listeners: '2.0k', mood: 'rose' as Mood },
+const MOOD_ROOMS: MoodRoom[] = [
+  { title: 'Velvet Midnight', subtitle: 'Slow burn · intimate', listeners: '2.4k', mood: 'violet' },
+  { title: 'Oceanic Calm', subtitle: 'Breath & space', listeners: '1.8k', mood: 'cyan' },
+  { title: 'Rose Neon', subtitle: 'Passion pulse', listeners: '3.1k', mood: 'rose' },
+  { title: 'Forest Echo', subtitle: 'Organic drift', listeners: '920', mood: 'mint' },
+  { title: 'Chrome Dreams', subtitle: 'Futurist glide', listeners: '1.2k', mood: 'cyan' },
+  { title: 'Ember Heart', subtitle: 'Warm ache', listeners: '2.0k', mood: 'rose' },
 ]
 
 const LIBRARY_ITEMS = [
@@ -471,7 +478,13 @@ function ArtworkImage({
   )
 }
 
-function ApiSongGrid({ songs }: { songs: ApiSong[] }) {
+function ApiSongGrid({
+  songs,
+  onSelect,
+}: {
+  songs: ApiSong[]
+  onSelect: (song: ApiSong) => void
+}) {
   if (songs.length === 0) {
     return (
       <CatalogEmpty
@@ -484,7 +497,12 @@ function ApiSongGrid({ songs }: { songs: ApiSong[] }) {
   return (
     <div className="card-row card-row--compact">
       {songs.map((song) => (
-        <article key={song.id} className="discovery-card discovery-card--api">
+        <button
+          key={song.id}
+          type="button"
+          className="discovery-card discovery-card--api"
+          onClick={() => onSelect(song)}
+        >
           <div className="card-art card-art--song">
             <ArtworkImage src={song.artwork} alt="" seed={song.id} />
           </div>
@@ -493,7 +511,7 @@ function ApiSongGrid({ songs }: { songs: ApiSong[] }) {
             <p className="card-meta-primary">{song.artist}</p>
             <p className="card-meta-secondary">{song.album}</p>
           </div>
-        </article>
+        </button>
       ))}
     </div>
   )
@@ -502,9 +520,11 @@ function ApiSongGrid({ songs }: { songs: ApiSong[] }) {
 function ApiAlbumGrid({
   albums,
   artistNames,
+  onSelect,
 }: {
   albums: ApiAlbum[]
   artistNames: Map<string, string>
+  onSelect: (album: ApiAlbum) => void
 }) {
   if (albums.length === 0) {
     return (
@@ -522,7 +542,12 @@ function ApiAlbumGrid({
           ? artistNames.get(album.artistId)
           : null
         return (
-          <article key={album.id} className="discovery-card discovery-card--api">
+          <button
+            key={album.id}
+            type="button"
+            className="discovery-card discovery-card--api"
+            onClick={() => onSelect(album)}
+          >
             <div className="card-art card-art--album">
               <ArtworkImage src={album.artwork} alt="" seed={album.id} variant="wide" />
             </div>
@@ -533,14 +558,20 @@ function ApiAlbumGrid({
                 {album.releaseYear ? `Released ${album.releaseYear}` : 'Album'}
               </p>
             </div>
-          </article>
+          </button>
         )
       })}
     </div>
   )
 }
 
-function ApiArtistGrid({ artists }: { artists: ApiArtist[] }) {
+function ApiArtistGrid({
+  artists,
+  onSelect,
+}: {
+  artists: ApiArtist[]
+  onSelect: (artist: ApiArtist) => void
+}) {
   if (artists.length === 0) {
     return (
       <CatalogEmpty
@@ -553,7 +584,12 @@ function ApiArtistGrid({ artists }: { artists: ApiArtist[] }) {
   return (
     <div className="artist-grid artist-grid--compact">
       {artists.map((artist) => (
-        <button key={artist.id} type="button" className="artist-card artist-card--api">
+        <button
+          key={artist.id}
+          type="button"
+          className="artist-card artist-card--api"
+          onClick={() => onSelect(artist)}
+        >
           <span className="artist-avatar" aria-hidden="true" data-tone={catalogFallbackTone(artist.id)}>
             {artist.artwork ? (
               <img
@@ -767,7 +803,7 @@ function Hero() {
   )
 }
 
-function HomePage() {
+function HomePage({ onOpenSong }: { onOpenSong: (song: ApiSong) => void }) {
   const { songs, loading, error, retry } = useCatalog()
   const [sort, setSort] = useState<SongSort>('latest')
   const featured = useMemo(
@@ -806,7 +842,7 @@ function HomePage() {
             detail="The API responded but returned no songs yet."
           />
         ) : (
-          <ApiSongGrid songs={featured} />
+          <ApiSongGrid songs={featured} onSelect={onOpenSong} />
         )}
       </CatalogSection>
       {HOME_SECTIONS.slice(1, 3).map((section) => (
@@ -816,7 +852,7 @@ function HomePage() {
   )
 }
 
-function DiscoverPage() {
+function DiscoverPage({ onOpenSong }: { onOpenSong: (song: ApiSong) => void }) {
   const { songs, loading, error, retry } = useCatalog()
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<SongSort>('latest')
@@ -860,14 +896,14 @@ function DiscoverPage() {
             detail="Retry once the API finishes loading or returns data."
           />
         ) : (
-          <ApiSongGrid songs={visibleSongs} />
+          <ApiSongGrid songs={visibleSongs} onSelect={onOpenSong} />
         )}
       </CatalogSection>
     </PageFrame>
   )
 }
 
-function MoodRoomsPage() {
+function MoodRoomsPage({ onOpenMood }: { onOpenMood: (mood: MoodRoom) => void }) {
   return (
     <PageFrame>
       <PageHeader
@@ -878,7 +914,13 @@ function MoodRoomsPage() {
       <PreviewBanner text="Rooms are UI previews — live sync arrives in a future release" />
       <div className="mood-room-grid">
         {MOOD_ROOMS.map((room, index) => (
-          <article key={room.title} className="mood-room-card" data-mood={room.mood}>
+          <button
+            key={room.title}
+            type="button"
+            className="mood-room-card"
+            data-mood={room.mood}
+            onClick={() => onOpenMood(room)}
+          >
             <div className="mood-room-top">
               <span className="mood-room-index">0{index + 1}</span>
               <span className="live-pill">
@@ -893,11 +935,11 @@ function MoodRoomsPage() {
               <h3>{room.title}</h3>
               <p>{room.subtitle}</p>
               <span className="mood-listeners">{room.listeners} listening</span>
-              <button type="button" className="btn-secondary btn-sm">
+              <span className="btn-secondary btn-sm mood-enter" aria-hidden="true">
                 Enter room
-              </button>
+              </span>
             </div>
-          </article>
+          </button>
         ))}
       </div>
     </PageFrame>
@@ -951,7 +993,7 @@ function LibraryPage() {
   )
 }
 
-function ArtistsPage() {
+function ArtistsPage({ onOpenArtist }: { onOpenArtist: (artist: ApiArtist) => void }) {
   const { artists, loading, error, retry } = useCatalog()
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<ArtistSort>('az')
@@ -990,7 +1032,7 @@ function ArtistsPage() {
         />
       ) : null}
       {!loading && !error && artists.length > 0 ? (
-        <ApiArtistGrid artists={visibleArtists} />
+        <ApiArtistGrid artists={visibleArtists} onSelect={onOpenArtist} />
       ) : null}
       <PlaceholderNote
         title="Expanded artist pages"
@@ -1000,7 +1042,7 @@ function ArtistsPage() {
   )
 }
 
-function AlbumsPage() {
+function AlbumsPage({ onOpenAlbum }: { onOpenAlbum: (album: ApiAlbum) => void }) {
   const { albums, artistNames, loading, error, retry } = useCatalog()
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<AlbumSort>('latest')
@@ -1044,7 +1086,7 @@ function AlbumsPage() {
             detail="Retry once the API finishes loading or returns data."
           />
         ) : (
-          <ApiAlbumGrid albums={visibleAlbums} artistNames={artistNames} />
+          <ApiAlbumGrid albums={visibleAlbums} artistNames={artistNames} onSelect={onOpenAlbum} />
         )}
       </CatalogSection>
     </PageFrame>
@@ -1255,20 +1297,430 @@ function PlayerBar() {
   )
 }
 
-function PageContent({ page }: { page: PageId }) {
+type ActiveView = 'page' | 'song' | 'album' | 'artist' | 'mood'
+
+function formatDateLabel(value: string | null) {
+  if (!value) return null
+  const time = Date.parse(value)
+  if (!Number.isFinite(time)) return null
+  return new Date(time).toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: '2-digit',
+  })
+}
+
+function hashToIndex(seed: string, modulo: number) {
+  let acc = 0
+  for (let i = 0; i < seed.length; i++) acc = (acc * 31 + seed.charCodeAt(i)) >>> 0
+  return modulo > 0 ? acc % modulo : 0
+}
+
+function DetailTopBar({
+  title,
+  subtitle,
+  onBack,
+}: {
+  title: string
+  subtitle?: string
+  onBack: () => void
+}) {
+  return (
+    <div className="detail-topbar">
+      <button type="button" className="detail-back" onClick={onBack}>
+        <span aria-hidden="true">←</span>
+        Back
+      </button>
+      <div className="detail-titles">
+        <h2 className="detail-title">{title}</h2>
+        {subtitle ? <p className="detail-subtitle">{subtitle}</p> : null}
+      </div>
+    </div>
+  )
+}
+
+function SongDetailView({
+  song,
+  onBack,
+}: {
+  song: ApiSong
+  onBack: () => void
+}) {
+  const created = formatDateLabel(song.createdAt)
+
+  return (
+    <PageFrame>
+      <DetailTopBar title="Song" subtitle="Read-only preview" onBack={onBack} />
+      <section className="detail-hero">
+        <div className="detail-artwork">
+          <ArtworkImage src={song.artwork} alt="" seed={song.id} />
+        </div>
+        <div className="detail-hero-copy">
+          <p className="detail-eyebrow">Hidden Tunes</p>
+          <h1 className="detail-h1">{song.title}</h1>
+          <p className="detail-byline">
+            <span className="detail-pill">{song.artist}</span>
+            <span className="detail-pill detail-pill--muted">{song.album}</span>
+          </p>
+          <div className="detail-meta">
+            <div className="detail-meta-item">
+              <span>Type</span>
+              <strong>Song</strong>
+            </div>
+            <div className="detail-meta-item">
+              <span>Catalog</span>
+              <strong>Read-only</strong>
+            </div>
+            <div className="detail-meta-item">
+              <span>Added</span>
+              <strong>{created || '—'}</strong>
+            </div>
+          </div>
+          <div className="detail-controls">
+            <button type="button" className="control-btn" aria-label="Previous (UI only)">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M6 6h2v12H6V6zm3.5 6l8.5 6V6l-8.5 6z" />
+              </svg>
+            </button>
+            <button type="button" className="control-btn play" aria-label="Play (UI only)">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M8 5v14l11-7L8 5z" />
+              </svg>
+            </button>
+            <button type="button" className="control-btn" aria-label="Next (UI only)">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M6 18l8.5-6L6 6v12zm10-12h2v12h-2V6z" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section className="detail-panel">
+        <div className="detail-panel-header">
+          <h3>Waveform</h3>
+          <span>UI placeholder</span>
+        </div>
+        <div className="fake-waveform" aria-hidden="true">
+          {Array.from({ length: 48 }, (_, i) => (
+            <span key={i} style={{ height: `${22 + ((i * 13) % 46)}%` }} />
+          ))}
+        </div>
+      </section>
+    </PageFrame>
+  )
+}
+
+function AlbumDetailView({
+  album,
+  onBack,
+  songs,
+  artistNames,
+}: {
+  album: ApiAlbum
+  onBack: () => void
+  songs: ApiSong[]
+  artistNames: Map<string, string>
+}) {
+  const artistName = album.artistId ? artistNames.get(album.artistId) : null
+  const created = formatDateLabel(album.createdAt)
+
+  const tracks = useMemo(() => {
+    const byAlbum = songs.filter((s) => s.album === album.title)
+    return sortSongsList(byAlbum, 'az').slice(0, 24)
+  }, [songs, album.title])
+
+  return (
+    <PageFrame>
+      <DetailTopBar title="Album" subtitle="Read-only preview" onBack={onBack} />
+      <section className="detail-hero detail-hero--album">
+        <div className="detail-artwork detail-artwork--wide">
+          <ArtworkImage src={album.artwork} alt="" seed={album.id} variant="wide" />
+        </div>
+        <div className="detail-hero-copy">
+          <p className="detail-eyebrow">Album</p>
+          <h1 className="detail-h1">{album.title}</h1>
+          <p className="detail-byline">
+            <span className="detail-pill">{artistName || 'Hidden Tunes'}</span>
+            <span className="detail-pill detail-pill--muted">
+              {album.releaseYear ? `Released ${album.releaseYear}` : 'Release year —'}
+            </span>
+          </p>
+          <div className="detail-meta">
+            <div className="detail-meta-item">
+              <span>Tracks</span>
+              <strong>{tracks.length}</strong>
+            </div>
+            <div className="detail-meta-item">
+              <span>Added</span>
+              <strong>{created || '—'}</strong>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="detail-panel">
+        <div className="detail-panel-header">
+          <h3>Track list</h3>
+          <span>UI only · derived from cached songs</span>
+        </div>
+        {tracks.length === 0 ? (
+          <CatalogEmpty title="No tracks found" detail="This album has no matching songs in the cached list yet." />
+        ) : (
+          <ol className="detail-tracklist">
+            {tracks.map((track, index) => (
+              <li key={track.id}>
+                <div className="detail-track">
+                  <span className="detail-track-index">{String(index + 1).padStart(2, '0')}</span>
+                  <span className="detail-track-title">{track.title}</span>
+                  <span className="detail-track-meta">{track.artist}</span>
+                </div>
+              </li>
+            ))}
+          </ol>
+        )}
+      </section>
+    </PageFrame>
+  )
+}
+
+function ArtistDetailView({
+  artist,
+  onBack,
+  songs,
+  albums,
+  onOpenSong,
+  onOpenAlbum,
+}: {
+  artist: ApiArtist
+  onBack: () => void
+  songs: ApiSong[]
+  albums: ApiAlbum[]
+  onOpenSong: (song: ApiSong) => void
+  onOpenAlbum: (album: ApiAlbum) => void
+}) {
+  const topSongs = useMemo(() => {
+    const byArtist = songs.filter((s) => s.artist === artist.name)
+    return sortSongsList(byArtist, 'latest').slice(0, 12)
+  }, [songs, artist.name])
+
+  const artistAlbums = useMemo(() => {
+    if (!artist.id) return []
+    return albums.filter((a) => a.artistId === artist.id).slice(0, 12)
+  }, [albums, artist.id])
+
+  return (
+    <PageFrame>
+      <DetailTopBar title="Artist" subtitle="Read-only preview" onBack={onBack} />
+      <section className="detail-hero detail-hero--artist">
+        <div className="detail-artist-badge">
+          <span className="artist-avatar" aria-hidden="true" data-tone={catalogFallbackTone(artist.id)}>
+            {artist.artwork ? <img src={artist.artwork} alt="" loading="lazy" decoding="async" /> : null}
+            <span className="artist-initial">{artist.name.charAt(0)}</span>
+          </span>
+        </div>
+        <div className="detail-hero-copy">
+          <p className="detail-eyebrow">Artist</p>
+          <h1 className="detail-h1">{artist.name}</h1>
+          <div className="detail-meta">
+            <div className="detail-meta-item">
+              <span>Tracks</span>
+              <strong>{artist.songCount || topSongs.length}</strong>
+            </div>
+            <div className="detail-meta-item">
+              <span>Albums</span>
+              <strong>{artistAlbums.length}</strong>
+            </div>
+            <div className="detail-meta-item">
+              <span>Status</span>
+              <strong>Preview</strong>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="detail-panel">
+        <div className="detail-panel-header">
+          <h3>Top songs</h3>
+          <span>From cached catalog</span>
+        </div>
+        <ApiSongGrid songs={topSongs} onSelect={onOpenSong} />
+      </section>
+
+      <section className="detail-panel">
+        <div className="detail-panel-header">
+          <h3>Albums</h3>
+          <span>From cached catalog</span>
+        </div>
+        {artistAlbums.length === 0 ? (
+          <CatalogEmpty title="No albums found" detail="This artist has no linked albums in the cached list yet." />
+        ) : (
+          <ApiAlbumGrid
+            albums={artistAlbums}
+            artistNames={new Map([[artist.id, artist.name]])}
+            onSelect={onOpenAlbum}
+          />
+        )}
+      </section>
+    </PageFrame>
+  )
+}
+
+function MoodDetailView({
+  mood,
+  onBack,
+  songs,
+  onOpenSong,
+}: {
+  mood: MoodRoom
+  onBack: () => void
+  songs: ApiSong[]
+  onOpenSong: (song: ApiSong) => void
+}) {
+  const curated = useMemo(() => {
+    const list = sortSongsList(songs, 'latest')
+    if (list.length === 0) return []
+    const start = hashToIndex(mood.title, list.length)
+    const slice = [...list.slice(start), ...list.slice(0, start)].slice(0, 12)
+    return slice
+  }, [songs, mood.title])
+
+  const descriptionByMood: Record<Mood, string> = {
+    violet: 'Velvet signals, neon hush, and after-hours romance.',
+    cyan: 'Clean air, moonlit focus, and oceanic clarity.',
+    rose: 'Heat, heart, and luminous emotional peaks.',
+    mint: 'Green calm, organic drift, and restorative quiet.',
+  }
+
+  return (
+    <PageFrame>
+      <DetailTopBar title="Mood Room" subtitle="UI-only room detail" onBack={onBack} />
+      <section className={`detail-hero detail-hero--mood detail-hero--${mood.mood}`}>
+        <div className="detail-hero-copy">
+          <p className="detail-eyebrow">Mood Room</p>
+          <h1 className="detail-h1">{mood.title}</h1>
+          <p className="detail-mood-desc">{descriptionByMood[mood.mood]}</p>
+          <div className="detail-byline">
+            <span className="detail-pill">{mood.listeners} listening</span>
+            <span className="detail-pill detail-pill--muted">{mood.subtitle}</span>
+          </div>
+        </div>
+      </section>
+
+      <section className="detail-panel">
+        <div className="detail-panel-header">
+          <h3>Curated songs</h3>
+          <span>From cached catalog</span>
+        </div>
+        <ApiSongGrid songs={curated} onSelect={onOpenSong} />
+      </section>
+    </PageFrame>
+  )
+}
+
+function CatalogDetailRouter({
+  activeView,
+  selectedSong,
+  selectedAlbum,
+  selectedArtist,
+  selectedMood,
+  onBack,
+  activePage,
+  onOpenSong,
+  onOpenAlbum,
+  onOpenArtist,
+  onOpenMood,
+}: {
+  activeView: ActiveView
+  selectedSong: ApiSong | null
+  selectedAlbum: ApiAlbum | null
+  selectedArtist: ApiArtist | null
+  selectedMood: MoodRoom | null
+  onBack: () => void
+  activePage: PageId
+  onOpenSong: (song: ApiSong) => void
+  onOpenAlbum: (album: ApiAlbum) => void
+  onOpenArtist: (artist: ApiArtist) => void
+  onOpenMood: (mood: MoodRoom) => void
+}) {
+  const { songs, albums, artistNames } = useCatalog()
+
+  if (activeView === 'song' && selectedSong) {
+    return <SongDetailView song={selectedSong} onBack={onBack} />
+  }
+
+  if (activeView === 'album' && selectedAlbum) {
+    return (
+      <AlbumDetailView
+        album={selectedAlbum}
+        onBack={onBack}
+        songs={songs}
+        artistNames={artistNames}
+      />
+    )
+  }
+
+  if (activeView === 'artist' && selectedArtist) {
+    return (
+      <ArtistDetailView
+        artist={selectedArtist}
+        onBack={onBack}
+        songs={songs}
+        albums={albums}
+        onOpenSong={onOpenSong}
+        onOpenAlbum={onOpenAlbum}
+      />
+    )
+  }
+
+  if (activeView === 'mood' && selectedMood) {
+    return (
+      <MoodDetailView
+        mood={selectedMood}
+        onBack={onBack}
+        songs={songs}
+        onOpenSong={onOpenSong}
+      />
+    )
+  }
+
+  return (
+    <PageContent
+      page={activePage}
+      onOpenSong={onOpenSong}
+      onOpenAlbum={onOpenAlbum}
+      onOpenArtist={onOpenArtist}
+      onOpenMood={onOpenMood}
+    />
+  )
+}
+
+function PageContent({
+  page,
+  onOpenSong,
+  onOpenAlbum,
+  onOpenArtist,
+  onOpenMood,
+}: {
+  page: PageId
+  onOpenSong: (song: ApiSong) => void
+  onOpenAlbum: (album: ApiAlbum) => void
+  onOpenArtist: (artist: ApiArtist) => void
+  onOpenMood: (mood: MoodRoom) => void
+}) {
   switch (page) {
     case 'home':
-      return <HomePage />
+      return <HomePage onOpenSong={onOpenSong} />
     case 'discover':
-      return <DiscoverPage />
+      return <DiscoverPage onOpenSong={onOpenSong} />
     case 'mood':
-      return <MoodRoomsPage />
+      return <MoodRoomsPage onOpenMood={onOpenMood} />
     case 'library':
       return <LibraryPage />
     case 'artists':
-      return <ArtistsPage />
+      return <ArtistsPage onOpenArtist={onOpenArtist} />
     case 'albums':
-      return <AlbumsPage />
+      return <AlbumsPage onOpenAlbum={onOpenAlbum} />
     case 'playlists':
       return <PlaylistsPage />
     case 'tv':
@@ -1276,21 +1728,83 @@ function PageContent({ page }: { page: PageId }) {
     case 'settings':
       return <SettingsPage />
     default:
-      return <HomePage />
+      return <HomePage onOpenSong={onOpenSong} />
   }
 }
 
 function App() {
   const [activePage, setActivePage] = useState<PageId>('home')
+  const [activeView, setActiveView] = useState<ActiveView>('page')
+  const [selectedSong, setSelectedSong] = useState<ApiSong | null>(null)
+  const [selectedAlbum, setSelectedAlbum] = useState<ApiAlbum | null>(null)
+  const [selectedArtist, setSelectedArtist] = useState<ApiArtist | null>(null)
+  const [selectedMood, setSelectedMood] = useState<MoodRoom | null>(null)
+
+  const openSong = useCallback((song: ApiSong) => {
+    setSelectedSong(song)
+    setSelectedAlbum(null)
+    setSelectedArtist(null)
+    setSelectedMood(null)
+    setActiveView('song')
+  }, [])
+
+  const openAlbum = useCallback((album: ApiAlbum) => {
+    setSelectedAlbum(album)
+    setSelectedSong(null)
+    setSelectedArtist(null)
+    setSelectedMood(null)
+    setActiveView('album')
+  }, [])
+
+  const openArtist = useCallback((artist: ApiArtist) => {
+    setSelectedArtist(artist)
+    setSelectedSong(null)
+    setSelectedAlbum(null)
+    setSelectedMood(null)
+    setActiveView('artist')
+  }, [])
+
+  const openMood = useCallback((mood: MoodRoom) => {
+    setSelectedMood(mood)
+    setSelectedSong(null)
+    setSelectedAlbum(null)
+    setSelectedArtist(null)
+    setActiveView('mood')
+  }, [])
+
+  const backToPage = useCallback(() => {
+    setActiveView('page')
+    setSelectedSong(null)
+    setSelectedAlbum(null)
+    setSelectedArtist(null)
+    setSelectedMood(null)
+  }, [])
+
+  const navigatePage = useCallback((page: PageId) => {
+    setActivePage(page)
+    backToPage()
+  }, [backToPage])
 
   return (
     <CatalogProvider>
       <div className="app-shell">
-        <Sidebar activePage={activePage} onNavigate={setActivePage} />
+        <Sidebar activePage={activePage} onNavigate={navigatePage} />
         <div className="main-area">
           <main className="main-scroll">
             <div key={activePage} className="page-view">
-              <PageContent page={activePage} />
+              <CatalogDetailRouter
+                activeView={activeView}
+                selectedSong={selectedSong}
+                selectedAlbum={selectedAlbum}
+                selectedArtist={selectedArtist}
+                selectedMood={selectedMood}
+                onBack={backToPage}
+                activePage={activePage}
+                onOpenSong={openSong}
+                onOpenAlbum={openAlbum}
+                onOpenArtist={openArtist}
+                onOpenMood={openMood}
+              />
             </div>
           </main>
         </div>
