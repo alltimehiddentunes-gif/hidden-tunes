@@ -1,17 +1,29 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import './App.css'
 
+type PageId =
+  | 'home'
+  | 'discover'
+  | 'mood'
+  | 'library'
+  | 'artists'
+  | 'albums'
+  | 'playlists'
+  | 'tv'
+  | 'settings'
+
 type NavItem = {
-  id: string
+  id: PageId
   label: string
-  active?: boolean
   icon: ReactNode
 }
+
+type Mood = 'violet' | 'cyan' | 'rose' | 'mint'
 
 type DiscoveryCard = {
   title: string
   subtitle: string
-  mood: 'violet' | 'cyan' | 'rose' | 'mint'
+  mood: Mood
 }
 
 type DiscoverySection = {
@@ -20,11 +32,10 @@ type DiscoverySection = {
   cards: DiscoveryCard[]
 }
 
-const NAV_ITEMS: NavItem[] = [
+const MAIN_NAV: NavItem[] = [
   {
     id: 'home',
     label: 'Home',
-    active: true,
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1V9.5z" />
@@ -100,7 +111,14 @@ const NAV_ITEMS: NavItem[] = [
   },
 ]
 
-const DISCOVERY_SECTIONS: DiscoverySection[] = [
+const SETTINGS_ICON = (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <circle cx="12" cy="12" r="3" />
+    <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+  </svg>
+)
+
+const HOME_SECTIONS: DiscoverySection[] = [
   {
     title: 'Trending Now',
     hint: 'Curated for the moment',
@@ -144,6 +162,59 @@ const DISCOVERY_SECTIONS: DiscoverySection[] = [
   },
 ]
 
+const DISCOVER_CHIPS = [
+  'All moods',
+  'Euphoric',
+  'Melancholy',
+  'Cinematic',
+  'Hypnotic',
+  'Uplift',
+  'Afterglow',
+]
+
+const MOOD_ROOMS = [
+  { title: 'Velvet Midnight', subtitle: 'Slow burn · 2.4k listening', mood: 'violet' as Mood },
+  { title: 'Oceanic Calm', subtitle: 'Breath & space · 1.8k listening', mood: 'cyan' as Mood },
+  { title: 'Rose Neon', subtitle: 'Passion pulse · 3.1k listening', mood: 'rose' as Mood },
+  { title: 'Forest Echo', subtitle: 'Organic drift · 920 listening', mood: 'mint' as Mood },
+  { title: 'Chrome Dreams', subtitle: 'Futurist glide · 1.2k listening', mood: 'cyan' as Mood },
+  { title: 'Ember Heart', subtitle: 'Warm ache · 2.0k listening', mood: 'rose' as Mood },
+]
+
+const LIBRARY_ITEMS = [
+  { title: 'Ethereal Horizon', meta: 'Luna Veil · Liked 2 days ago', mood: 'violet' as Mood },
+  { title: 'Glass Cathedral', meta: 'Noir Ensemble · Added yesterday', mood: 'cyan' as Mood },
+  { title: 'Slow Bloom', meta: 'Aria North · Downloaded', mood: 'rose' as Mood },
+  { title: 'Phantom Waltz', meta: 'The Dusk Line · Recent play', mood: 'mint' as Mood },
+  { title: 'Satellite Prayer', meta: 'Orbit Kids · Liked last week', mood: 'violet' as Mood },
+]
+
+const ARTISTS = [
+  'Luna Veil',
+  'Noir Ensemble',
+  'Aria North',
+  'The Dusk Line',
+  'Orbit Kids',
+  'Mistral Keys',
+  'Vanta Bloom',
+  'Echo Saint',
+]
+
+const PLAYLISTS = [
+  { title: 'Emotional Apex', tracks: '42 tracks', mood: 'violet' as Mood },
+  { title: 'Neon Aftercare', tracks: '28 tracks', mood: 'cyan' as Mood },
+  { title: 'Soft Collapse', tracks: '19 tracks', mood: 'rose' as Mood },
+  { title: 'Deep Focus Drift', tracks: '56 tracks', mood: 'mint' as Mood },
+  { title: 'Cinematic Dust', tracks: '31 tracks', mood: 'violet' as Mood },
+]
+
+const TV_SHOWS = [
+  { title: 'Live from the Mood Room', subtitle: 'Session 07 · Violet hour', mood: 'violet' as Mood },
+  { title: 'Artist Residency', subtitle: 'Luna Veil · Behind the feeling', mood: 'rose' as Mood },
+  { title: 'Visual Album Night', subtitle: 'Noir Ensemble · Full film', mood: 'cyan' as Mood },
+  { title: 'Hidden Sessions', subtitle: 'Exclusive desktop premiere', mood: 'mint' as Mood },
+]
+
 function MusicNoteIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -152,7 +223,55 @@ function MusicNoteIcon({ className }: { className?: string }) {
   )
 }
 
-function Sidebar() {
+function PageHeader({
+  eyebrow,
+  title,
+  description,
+}: {
+  eyebrow?: string
+  title: string
+  description: string
+}) {
+  return (
+    <header className="page-header">
+      {eyebrow ? <p className="page-eyebrow">{eyebrow}</p> : null}
+      <h1>{title}</h1>
+      <p className="page-description">{description}</p>
+    </header>
+  )
+}
+
+function DiscoveryGrid({ section }: { section: DiscoverySection }) {
+  return (
+    <section className="discovery-section" aria-labelledby={`section-${section.title}`}>
+      <div className="section-header">
+        <h2 id={`section-${section.title}`}>{section.title}</h2>
+        <span>{section.hint}</span>
+      </div>
+      <div className="card-row">
+        {section.cards.map((card) => (
+          <article key={card.title} className="discovery-card" data-mood={card.mood}>
+            <div className="card-art">
+              <MusicNoteIcon className="card-art-icon" />
+            </div>
+            <div className="card-info">
+              <h3>{card.title}</h3>
+              <p>{card.subtitle}</p>
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function Sidebar({
+  activePage,
+  onNavigate,
+}: {
+  activePage: PageId
+  onNavigate: (page: PageId) => void
+}) {
   return (
     <aside className="sidebar">
       <div className="sidebar-brand">
@@ -166,12 +285,13 @@ function Sidebar() {
       </div>
 
       <nav className="sidebar-nav" aria-label="Main navigation">
-        {NAV_ITEMS.map((item) => (
+        {MAIN_NAV.map((item) => (
           <button
             key={item.id}
             type="button"
-            className={`nav-item${item.active ? ' active' : ''}`}
-            aria-current={item.active ? 'page' : undefined}
+            className={`nav-item${activePage === item.id ? ' active' : ''}`}
+            aria-current={activePage === item.id ? 'page' : undefined}
+            onClick={() => onNavigate(item.id)}
           >
             {item.icon}
             <span>{item.label}</span>
@@ -180,11 +300,13 @@ function Sidebar() {
       </nav>
 
       <div className="sidebar-footer">
-        <button type="button" className="nav-item">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="12" cy="12" r="3" />
-            <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
-          </svg>
+        <button
+          type="button"
+          className={`nav-item${activePage === 'settings' ? ' active' : ''}`}
+          aria-current={activePage === 'settings' ? 'page' : undefined}
+          onClick={() => onNavigate('settings')}
+        >
+          {SETTINGS_ICON}
           <span>Settings</span>
         </button>
       </div>
@@ -223,31 +345,295 @@ function Hero() {
   )
 }
 
-function DiscoveryGrid({ section }: { section: DiscoverySection }) {
+function HomePage() {
   return (
-    <section className="discovery-section" aria-labelledby={`section-${section.title}`}>
-      <div className="section-header">
-        <h2 id={`section-${section.title}`}>{section.title}</h2>
-        <span>{section.hint}</span>
+    <>
+      <Hero />
+      {HOME_SECTIONS.map((section) => (
+        <DiscoveryGrid key={section.title} section={section} />
+      ))}
+    </>
+  )
+}
+
+function DiscoverPage() {
+  return (
+    <>
+      <PageHeader
+        eyebrow="Explore"
+        title="Discover"
+        description="Map your emotional landscape — browse genres, moods, and curated waves built for cinematic listening."
+      />
+      <div className="search-bar" role="search">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+          <circle cx="11" cy="11" r="7" />
+          <path d="M20 20l-3.5-3.5" />
+        </svg>
+        <input type="search" placeholder="Search moods, artists, stories…" readOnly aria-label="Search" />
       </div>
-      <div className="card-row">
-        {section.cards.map((card) => (
-          <article
-            key={card.title}
-            className="discovery-card"
-            data-mood={card.mood}
-          >
-            <div className="card-art">
+      <div className="chip-row" role="list" aria-label="Mood filters">
+        {DISCOVER_CHIPS.map((chip, i) => (
+          <button key={chip} type="button" className={`chip${i === 0 ? ' active' : ''}`} role="listitem">
+            {chip}
+          </button>
+        ))}
+      </div>
+      <DiscoveryGrid
+        section={{
+          title: 'Fresh Signals',
+          hint: 'Updated hourly',
+          cards: [
+            { title: 'Pulse Theory', subtitle: 'Forward motion', mood: 'cyan' },
+            { title: 'Halo Fracture', subtitle: 'Broken beauty', mood: 'rose' },
+            { title: 'Astral Quiet', subtitle: 'Weightless focus', mood: 'mint' },
+            { title: 'Violet Circuit', subtitle: 'Neon soul', mood: 'violet' },
+          ],
+        }}
+      />
+      <DiscoveryGrid
+        section={{
+          title: 'Deep Discovery',
+          hint: 'For adventurous ears',
+          cards: [
+            { title: 'Subsonic Bloom', subtitle: 'Low-end poetry', mood: 'violet' },
+            { title: 'Tidal Memory', subtitle: 'Nostalgic drift', mood: 'cyan' },
+            { title: 'Glass Tears', subtitle: 'Fragile highs', mood: 'rose' },
+          ],
+        }}
+      />
+    </>
+  )
+}
+
+function MoodRoomsPage() {
+  return (
+    <>
+      <PageHeader
+        eyebrow="Atmosphere"
+        title="Mood Rooms"
+        description="Step into shared emotional spaces — ambient rooms tuned for how you feel, with others listening in sync."
+      />
+      <div className="mood-room-grid">
+        {MOOD_ROOMS.map((room) => (
+          <article key={room.title} className="mood-room-card" data-mood={room.mood}>
+            <div className="mood-room-glow" aria-hidden="true" />
+            <div className="mood-room-body">
               <MusicNoteIcon className="card-art-icon" />
-            </div>
-            <div className="card-info">
-              <h3>{card.title}</h3>
-              <p>{card.subtitle}</p>
+              <h3>{room.title}</h3>
+              <p>{room.subtitle}</p>
+              <button type="button" className="btn-secondary btn-sm">
+                Enter room
+              </button>
             </div>
           </article>
         ))}
       </div>
-    </section>
+    </>
+  )
+}
+
+function LibraryPage() {
+  return (
+    <>
+      <PageHeader
+        eyebrow="Your collection"
+        title="Library"
+        description="Everything you have saved, downloaded, and replayed — organized for emotional recall."
+      />
+      <div className="tab-row" role="tablist" aria-label="Library filters">
+        <button type="button" className="tab active" role="tab" aria-selected="true">
+          All
+        </button>
+        <button type="button" className="tab" role="tab" aria-selected="false">
+          Liked
+        </button>
+        <button type="button" className="tab" role="tab" aria-selected="false">
+          Downloaded
+        </button>
+        <button type="button" className="tab" role="tab" aria-selected="false">
+          Recent
+        </button>
+      </div>
+      <ul className="media-list">
+        {LIBRARY_ITEMS.map((item, index) => (
+          <li key={item.title}>
+            <button type="button" className="media-row">
+              <span className="media-index">{String(index + 1).padStart(2, '0')}</span>
+              <span className="media-art" data-mood={item.mood} aria-hidden="true">
+                <MusicNoteIcon className="card-art-icon" />
+              </span>
+              <span className="media-copy">
+                <strong>{item.title}</strong>
+                <span>{item.meta}</span>
+              </span>
+              <span className="media-duration">3:42</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </>
+  )
+}
+
+function ArtistsPage() {
+  return (
+    <>
+      <PageHeader
+        eyebrow="Creators"
+        title="Artists"
+        description="Follow the voices shaping your emotional soundtrack — premium profiles coming soon."
+      />
+      <div className="artist-grid">
+        {ARTISTS.map((name) => (
+          <button key={name} type="button" className="artist-card">
+            <span className="artist-avatar" aria-hidden="true">
+              {name.charAt(0)}
+            </span>
+            <span className="artist-name">{name}</span>
+            <span className="artist-meta">Artist</span>
+          </button>
+        ))}
+      </div>
+    </>
+  )
+}
+
+function AlbumsPage() {
+  return (
+    <>
+      <PageHeader
+        eyebrow="Full journeys"
+        title="Albums"
+        description="Immersive records designed for uninterrupted emotional arcs."
+      />
+      <DiscoveryGrid
+        section={{
+          title: 'New Arrivals',
+          hint: 'This week',
+          cards: [
+            { title: 'Chromatic Sleep', subtitle: 'Luna Veil', mood: 'violet' },
+            { title: 'Parallel Hearts', subtitle: 'Noir Ensemble', mood: 'cyan' },
+            { title: 'Paper Sun', subtitle: 'Aria North', mood: 'rose' },
+            { title: 'Mineral Light', subtitle: 'The Dusk Line', mood: 'mint' },
+            { title: 'Orbit Songs', subtitle: 'Orbit Kids', mood: 'violet' },
+          ],
+        }}
+      />
+    </>
+  )
+}
+
+function PlaylistsPage() {
+  return (
+    <>
+      <PageHeader
+        eyebrow="Curated paths"
+        title="Playlists"
+        description="Hand-built emotional sequences — yours and ours, woven for every chapter of your day."
+      />
+      <div className="playlist-grid">
+        {PLAYLISTS.map((playlist) => (
+          <article key={playlist.title} className="playlist-card" data-mood={playlist.mood}>
+            <div className="playlist-art">
+              <MusicNoteIcon className="card-art-icon" />
+            </div>
+            <div className="card-info">
+              <h3>{playlist.title}</h3>
+              <p>{playlist.tracks}</p>
+            </div>
+          </article>
+        ))}
+      </div>
+    </>
+  )
+}
+
+function TvPage() {
+  return (
+    <>
+      <PageHeader
+        eyebrow="Visual stories"
+        title="Hidden Tunes TV"
+        description="Cinematic sessions, residencies, and visual albums — the moving image of emotion."
+      />
+      <section className="tv-featured" aria-label="Featured broadcast">
+        <div className="tv-featured-bg" />
+        <div className="tv-featured-inner">
+          <p className="hero-eyebrow">Now premiering</p>
+          <h2>Mood Room Live — Violet Hour</h2>
+          <p className="page-description">An immersive 48-minute session · UI preview only</p>
+          <button type="button" className="btn-primary">
+            Watch preview
+          </button>
+        </div>
+      </section>
+      <div className="card-row">
+        {TV_SHOWS.map((show) => (
+          <article key={show.title} className="discovery-card tv-card" data-mood={show.mood}>
+            <div className="card-art tv-card-art">
+              <svg className="play-badge" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M8 5v14l11-7L8 5z" />
+              </svg>
+            </div>
+            <div className="card-info">
+              <h3>{show.title}</h3>
+              <p>{show.subtitle}</p>
+            </div>
+          </article>
+        ))}
+      </div>
+    </>
+  )
+}
+
+function SettingsPage() {
+  return (
+    <>
+      <PageHeader
+        eyebrow="Preferences"
+        title="Settings"
+        description="Tune your desktop sanctuary — appearance, playback, and account options (UI placeholders)."
+      />
+      <div className="settings-grid">
+        <section className="settings-panel">
+          <h2>Appearance</h2>
+          <div className="settings-row">
+            <span>Cinematic dark theme</span>
+            <span className="settings-badge">Active</span>
+          </div>
+          <div className="settings-row">
+            <span>Accent glow intensity</span>
+            <div className="settings-slider" aria-hidden="true">
+              <div className="settings-slider-fill" style={{ width: '70%' }} />
+            </div>
+          </div>
+        </section>
+        <section className="settings-panel">
+          <h2>Playback</h2>
+          <div className="settings-row">
+            <span>Crossfade between tracks</span>
+            <span className="settings-muted">Off · preview</span>
+          </div>
+          <div className="settings-row">
+            <span>Normalize loudness</span>
+            <span className="settings-muted">Coming soon</span>
+          </div>
+        </section>
+        <section className="settings-panel">
+          <h2>Account</h2>
+          <div className="settings-row">
+            <span>Sign in to Hidden Tunes</span>
+            <button type="button" className="btn-secondary btn-sm">
+              Connect
+            </button>
+          </div>
+          <div className="settings-row">
+            <span>Desktop app version</span>
+            <span className="settings-muted">0.0.1</span>
+          </div>
+        </section>
+      </div>
+    </>
   )
 }
 
@@ -304,17 +690,43 @@ function PlayerBar() {
   )
 }
 
+function PageContent({ page }: { page: PageId }) {
+  switch (page) {
+    case 'home':
+      return <HomePage />
+    case 'discover':
+      return <DiscoverPage />
+    case 'mood':
+      return <MoodRoomsPage />
+    case 'library':
+      return <LibraryPage />
+    case 'artists':
+      return <ArtistsPage />
+    case 'albums':
+      return <AlbumsPage />
+    case 'playlists':
+      return <PlaylistsPage />
+    case 'tv':
+      return <TvPage />
+    case 'settings':
+      return <SettingsPage />
+    default:
+      return <HomePage />
+  }
+}
+
 function App() {
+  const [activePage, setActivePage] = useState<PageId>('home')
+
   return (
     <>
       <div className="app-shell">
-        <Sidebar />
+        <Sidebar activePage={activePage} onNavigate={setActivePage} />
         <div className="main-area">
           <main className="main-scroll">
-            <Hero />
-            {DISCOVERY_SECTIONS.map((section) => (
-              <DiscoveryGrid key={section.title} section={section} />
-            ))}
+            <div key={activePage} className="page-view">
+              <PageContent page={activePage} />
+            </div>
           </main>
         </div>
       </div>
