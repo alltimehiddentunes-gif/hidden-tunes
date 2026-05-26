@@ -173,12 +173,12 @@ const DISCOVER_CHIPS = [
 ]
 
 const MOOD_ROOMS = [
-  { title: 'Velvet Midnight', subtitle: 'Slow burn · 2.4k listening', mood: 'violet' as Mood },
-  { title: 'Oceanic Calm', subtitle: 'Breath & space · 1.8k listening', mood: 'cyan' as Mood },
-  { title: 'Rose Neon', subtitle: 'Passion pulse · 3.1k listening', mood: 'rose' as Mood },
-  { title: 'Forest Echo', subtitle: 'Organic drift · 920 listening', mood: 'mint' as Mood },
-  { title: 'Chrome Dreams', subtitle: 'Futurist glide · 1.2k listening', mood: 'cyan' as Mood },
-  { title: 'Ember Heart', subtitle: 'Warm ache · 2.0k listening', mood: 'rose' as Mood },
+  { title: 'Velvet Midnight', subtitle: 'Slow burn · intimate', listeners: '2.4k', mood: 'violet' as Mood },
+  { title: 'Oceanic Calm', subtitle: 'Breath & space', listeners: '1.8k', mood: 'cyan' as Mood },
+  { title: 'Rose Neon', subtitle: 'Passion pulse', listeners: '3.1k', mood: 'rose' as Mood },
+  { title: 'Forest Echo', subtitle: 'Organic drift', listeners: '920', mood: 'mint' as Mood },
+  { title: 'Chrome Dreams', subtitle: 'Futurist glide', listeners: '1.2k', mood: 'cyan' as Mood },
+  { title: 'Ember Heart', subtitle: 'Warm ache', listeners: '2.0k', mood: 'rose' as Mood },
 ]
 
 const LIBRARY_ITEMS = [
@@ -220,6 +220,37 @@ function MusicNoteIcon({ className }: { className?: string }) {
     <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
       <path d="M12 3v10.55A4 4 0 1014 17V7h4V3h-6z" />
     </svg>
+  )
+}
+
+function PageFrame({ children }: { children: ReactNode }) {
+  return <div className="content-inner">{children}</div>
+}
+
+function PreviewBanner({ text }: { text: string }) {
+  return (
+    <div className="preview-banner" role="status">
+      <span className="preview-dot" aria-hidden="true" />
+      <span>{text}</span>
+    </div>
+  )
+}
+
+function PlaceholderNote({
+  title,
+  detail,
+}: {
+  title: string
+  detail: string
+}) {
+  return (
+    <div className="placeholder-note">
+      <div className="placeholder-shimmer" aria-hidden="true" />
+      <div className="placeholder-copy">
+        <strong>{title}</strong>
+        <p>{detail}</p>
+      </div>
+    </div>
   )
 }
 
@@ -319,7 +350,7 @@ function Hero() {
     <section className="hero" aria-label="Featured">
       <div className="hero-bg" />
       <div className="hero-glow" />
-      <div className="hero-glow-2" />
+      <div className="hero-vignette" aria-hidden="true" />
       <div className="hero-inner">
         <div className="hero-copy">
           <p className="hero-eyebrow">Emotional streaming · Desktop</p>
@@ -338,6 +369,7 @@ function Hero() {
           </div>
         </div>
         <div className="hero-artwork" aria-hidden="true">
+          <div className="hero-artwork-ring" />
           <MusicNoteIcon className="artwork-placeholder" />
         </div>
       </div>
@@ -347,29 +379,35 @@ function Hero() {
 
 function HomePage() {
   return (
-    <>
+    <PageFrame>
       <Hero />
       {HOME_SECTIONS.map((section) => (
         <DiscoveryGrid key={section.title} section={section} />
       ))}
-    </>
+    </PageFrame>
   )
 }
 
 function DiscoverPage() {
   return (
-    <>
+    <PageFrame>
       <PageHeader
         eyebrow="Explore"
         title="Discover"
         description="Map your emotional landscape — browse genres, moods, and curated waves built for cinematic listening."
       />
-      <div className="search-bar" role="search">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-          <circle cx="11" cy="11" r="7" />
-          <path d="M20 20l-3.5-3.5" />
-        </svg>
-        <input type="search" placeholder="Search moods, artists, stories…" readOnly aria-label="Search" />
+      <div className="discover-toolbar">
+        <div className="search-bar search-bar--premium" role="search">
+          <span className="search-icon" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="11" cy="11" r="7" />
+              <path d="M20 20l-3.5-3.5" />
+            </svg>
+          </span>
+          <input type="search" placeholder="Search moods, artists, stories…" readOnly aria-label="Search" />
+          <kbd className="search-kbd" aria-hidden="true">⌘K</kbd>
+        </div>
+        <p className="toolbar-hint">Visual search · connects when catalog is wired</p>
       </div>
       <div className="chip-row" role="list" aria-label="Mood filters">
         {DISCOVER_CHIPS.map((chip, i) => (
@@ -401,26 +439,36 @@ function DiscoverPage() {
           ],
         }}
       />
-    </>
+    </PageFrame>
   )
 }
 
 function MoodRoomsPage() {
   return (
-    <>
+    <PageFrame>
       <PageHeader
         eyebrow="Atmosphere"
         title="Mood Rooms"
         description="Step into shared emotional spaces — ambient rooms tuned for how you feel, with others listening in sync."
       />
+      <PreviewBanner text="Rooms are UI previews — live sync arrives in a future release" />
       <div className="mood-room-grid">
-        {MOOD_ROOMS.map((room) => (
+        {MOOD_ROOMS.map((room, index) => (
           <article key={room.title} className="mood-room-card" data-mood={room.mood}>
-            <div className="mood-room-glow" aria-hidden="true" />
+            <div className="mood-room-top">
+              <span className="mood-room-index">0{index + 1}</span>
+              <span className="live-pill">
+                <span className="live-dot" aria-hidden="true" />
+                Live
+              </span>
+            </div>
             <div className="mood-room-body">
-              <MusicNoteIcon className="card-art-icon" />
+              <div className="mood-room-icon-wrap">
+                <MusicNoteIcon className="card-art-icon" />
+              </div>
               <h3>{room.title}</h3>
               <p>{room.subtitle}</p>
+              <span className="mood-listeners">{room.listeners} listening</span>
               <button type="button" className="btn-secondary btn-sm">
                 Enter room
               </button>
@@ -428,13 +476,13 @@ function MoodRoomsPage() {
           </article>
         ))}
       </div>
-    </>
+    </PageFrame>
   )
 }
 
 function LibraryPage() {
   return (
-    <>
+    <PageFrame>
       <PageHeader
         eyebrow="Your collection"
         title="Library"
@@ -471,13 +519,17 @@ function LibraryPage() {
           </li>
         ))}
       </ul>
-    </>
+      <PlaceholderNote
+        title="More from your library"
+        detail="Additional saves and offline items will appear here once your account is connected."
+      />
+    </PageFrame>
   )
 }
 
 function ArtistsPage() {
   return (
-    <>
+    <PageFrame>
       <PageHeader
         eyebrow="Creators"
         title="Artists"
@@ -494,13 +546,17 @@ function ArtistsPage() {
           </button>
         ))}
       </div>
-    </>
+      <PlaceholderNote
+        title="Expanded artist pages"
+        detail="Bios, tours, and emotional tags will layer in without leaving the desktop shell."
+      />
+    </PageFrame>
   )
 }
 
 function AlbumsPage() {
   return (
-    <>
+    <PageFrame>
       <PageHeader
         eyebrow="Full journeys"
         title="Albums"
@@ -519,13 +575,13 @@ function AlbumsPage() {
           ],
         }}
       />
-    </>
+    </PageFrame>
   )
 }
 
 function PlaylistsPage() {
   return (
-    <>
+    <PageFrame>
       <PageHeader
         eyebrow="Curated paths"
         title="Playlists"
@@ -544,13 +600,13 @@ function PlaylistsPage() {
           </article>
         ))}
       </div>
-    </>
+    </PageFrame>
   )
 }
 
 function TvPage() {
   return (
-    <>
+    <PageFrame>
       <PageHeader
         eyebrow="Visual stories"
         title="Hidden Tunes TV"
@@ -582,58 +638,95 @@ function TvPage() {
           </article>
         ))}
       </div>
-    </>
+    </PageFrame>
   )
 }
 
 function SettingsPage() {
   return (
-    <>
+    <PageFrame>
       <PageHeader
         eyebrow="Preferences"
         title="Settings"
         description="Tune your desktop sanctuary — appearance, playback, and account options (UI placeholders)."
       />
-      <div className="settings-grid">
-        <section className="settings-panel">
-          <h2>Appearance</h2>
-          <div className="settings-row">
-            <span>Cinematic dark theme</span>
-            <span className="settings-badge">Active</span>
-          </div>
-          <div className="settings-row">
-            <span>Accent glow intensity</span>
-            <div className="settings-slider" aria-hidden="true">
-              <div className="settings-slider-fill" style={{ width: '70%' }} />
+      <div className="settings-layout">
+        <nav className="settings-nav" aria-label="Settings sections">
+          <button type="button" className="settings-nav-item active">
+            General
+          </button>
+          <button type="button" className="settings-nav-item">
+            Appearance
+          </button>
+          <button type="button" className="settings-nav-item">
+            Playback
+          </button>
+          <button type="button" className="settings-nav-item">
+            Account
+          </button>
+        </nav>
+        <div className="settings-panels">
+          <section className="settings-panel">
+            <h2>Appearance</h2>
+            <p className="settings-panel-desc">Control how Hidden Tunes feels on desktop.</p>
+            <div className="settings-row">
+              <div className="settings-label">
+                <span>Cinematic dark theme</span>
+                <small>Optimized for low-light listening</small>
+              </div>
+              <span className="settings-badge">Active</span>
             </div>
-          </div>
-        </section>
-        <section className="settings-panel">
-          <h2>Playback</h2>
-          <div className="settings-row">
-            <span>Crossfade between tracks</span>
-            <span className="settings-muted">Off · preview</span>
-          </div>
-          <div className="settings-row">
-            <span>Normalize loudness</span>
-            <span className="settings-muted">Coming soon</span>
-          </div>
-        </section>
-        <section className="settings-panel">
-          <h2>Account</h2>
-          <div className="settings-row">
-            <span>Sign in to Hidden Tunes</span>
-            <button type="button" className="btn-secondary btn-sm">
-              Connect
-            </button>
-          </div>
-          <div className="settings-row">
-            <span>Desktop app version</span>
-            <span className="settings-muted">0.0.1</span>
-          </div>
-        </section>
+            <div className="settings-row">
+              <div className="settings-label">
+                <span>Accent glow intensity</span>
+                <small>Subtle highlights on cards & nav</small>
+              </div>
+              <div className="settings-slider" aria-hidden="true">
+                <div className="settings-slider-fill" style={{ width: '70%' }} />
+              </div>
+            </div>
+          </section>
+          <section className="settings-panel">
+            <h2>Playback</h2>
+            <p className="settings-panel-desc">Playback controls are visual-only in this build.</p>
+            <div className="settings-row">
+              <div className="settings-label">
+                <span>Crossfade between tracks</span>
+                <small>Seamless emotional transitions</small>
+              </div>
+              <span className="settings-muted">Off · preview</span>
+            </div>
+            <div className="settings-row">
+              <div className="settings-label">
+                <span>Normalize loudness</span>
+                <small>Balanced volume across catalog</small>
+              </div>
+              <span className="settings-muted">Coming soon</span>
+            </div>
+          </section>
+          <section className="settings-panel settings-panel--wide">
+            <h2>Account</h2>
+            <p className="settings-panel-desc">Sign in when API wiring is enabled.</p>
+            <div className="settings-row">
+              <div className="settings-label">
+                <span>Sign in to Hidden Tunes</span>
+                <small>Sync library across devices</small>
+              </div>
+              <button type="button" className="btn-secondary btn-sm">
+                Connect
+              </button>
+            </div>
+            <div className="settings-row">
+              <div className="settings-label">
+                <span>Desktop app version</span>
+                <small>Hidden Tunes Desktop shell</small>
+              </div>
+              <span className="settings-muted">0.0.1</span>
+            </div>
+          </section>
+        </div>
       </div>
-    </>
+    </PageFrame>
   )
 }
 
