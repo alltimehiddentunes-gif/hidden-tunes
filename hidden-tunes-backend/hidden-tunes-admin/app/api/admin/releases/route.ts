@@ -440,7 +440,58 @@ async function loadSongsForAlbumIds(albumIds: string[]) {
   return (coreResult.data || []) as unknown as SongRow[];
 }
 
+function logAdminReleasesGetFailure(
+  error: unknown,
+  context: {
+    query: Record<string, string | number | boolean | null>;
+    requester: {
+      profileId: string;
+      role: string | null;
+      authUserId: string;
+    } | null;
+  }
+) {
+  const message =
+    error instanceof Error
+      ? error.message
+      : getSupabaseErrorMessage(error, "Unknown error");
+
+  const stack = error instanceof Error ? error.stack : undefined;
+
+  const supabaseError =
+    error && typeof error === "object"
+      ? {
+          ...(error as Record<string, unknown>),
+          code:
+            "code" in error
+              ? String((error as { code?: unknown }).code || "")
+              : undefined,
+          details:
+            "details" in error
+              ? (error as { details?: unknown }).details
+              : undefined,
+          hint:
+            "hint" in error ? (error as { hint?: unknown }).hint : undefined,
+        }
+      : null;
+
+  console.error("[admin/releases] GET failed", {
+    message,
+    stack,
+    supabaseError,
+    query: context.query,
+    requester: context.requester,
+  });
+}
+
 export async function GET(request: NextRequest) {
+  const params = request.nextUrl.searchParams;
+  let requester: {
+    profileId: string;
+    role: string | null;
+    authUserId: string;
+  } | null = null;
+
   try {
     const permission = await requireUploadPermission(request);
 
@@ -448,7 +499,12 @@ export async function GET(request: NextRequest) {
       return permission.errorResponse;
     }
 
-    const params = request.nextUrl.searchParams;
+    requester = {
+      profileId: permission.profile.id,
+      role: permission.profile.role,
+      authUserId: permission.user.id,
+    };
+
     const page = parsePositiveInteger(params.get("page"), 1);
     const pageSize = Math.min(
       parsePositiveInteger(params.get("pageSize"), DEFAULT_PAGE_SIZE),
@@ -622,10 +678,48 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error: unknown) {
+    const page = parsePositiveInteger(params.get("page"), 1);
+    const pageSize = Math.min(
+      parsePositiveInteger(params.get("pageSize"), DEFAULT_PAGE_SIZE),
+      MAX_PAGE_SIZE
+    );
+    const mine =
+      params.get("mine") === "1" || params.get("mine") === "true";
+    let uploaderId = cleanFilter(params.get("uploaderId"));
+    if (mine && requester && !canEditAllTrackLyrics(requester.role)) {
+      uploaderId = requester.profileId;
+    }
+
+    logAdminReleasesGetFailure(error, {
+      query: {
+        page,
+        pageSize,
+        sort: parseSort(params.get("sort")),
+        uploaderId,
+        search: String(params.get("search") || "").trim() || null,
+        status: cleanFilter(params.get("status")),
+        license: cleanFilter(params.get("license")),
+        scan: cleanFilter(params.get("scan")),
+        mine,
+        uploader: cleanFilter(params.get("uploader")),
+      },
+      requester,
+    });
+
+    const isDev = process.env.NODE_ENV !== "production";
+
     return NextResponse.json(
       {
         success: false,
         error: getSupabaseErrorMessage(error, "Failed to load releases."),
+        ...(isDev
+          ? {
+              details:
+                error && typeof error === "object"
+                  ? error
+                  : { message: String(error) },
+            }
+          : {}),
       },
       { status: 500 }
     );
