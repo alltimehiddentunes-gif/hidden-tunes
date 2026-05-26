@@ -23,6 +23,18 @@ import {
   type ArtistSort,
   type SongSort,
 } from './lib/api'
+import {
+  DESKTOP_PREFERENCE_KEYS,
+  parseStoredAlbumSort,
+  parseStoredArtistSort,
+  parseStoredPageId,
+  parseStoredSearchTerm,
+  parseStoredSongSort,
+  PreferencesResetProvider,
+  usePersistedPreference,
+  usePreferencesReset,
+  type StoredPageId,
+} from './lib/localPreferences'
 import './App.css'
 
 const APP_NAME = 'Hidden Tunes Desktop'
@@ -110,16 +122,7 @@ function CatalogProvider({ children }: { children: ReactNode }) {
   return <CatalogContext.Provider value={value}>{children}</CatalogContext.Provider>
 }
 
-type PageId =
-  | 'home'
-  | 'discover'
-  | 'mood'
-  | 'library'
-  | 'artists'
-  | 'albums'
-  | 'playlists'
-  | 'tv'
-  | 'settings'
+type PageId = StoredPageId
 
 type NavItem = {
   id: PageId
@@ -862,8 +865,16 @@ function HomePage({ onOpenSong }: { onOpenSong: (song: ApiSong) => void }) {
 
 function DiscoverPage({ onOpenSong }: { onOpenSong: (song: ApiSong) => void }) {
   const { songs, loading, error, retry } = useCatalog()
-  const [query, setQuery] = useState('')
-  const [sort, setSort] = useState<SongSort>('latest')
+  const [query, setQuery] = usePersistedPreference(
+    DESKTOP_PREFERENCE_KEYS.discoverSearch,
+    '',
+    parseStoredSearchTerm,
+  )
+  const [sort, setSort] = usePersistedPreference(
+    DESKTOP_PREFERENCE_KEYS.discoverSort,
+    'latest' as SongSort,
+    parseStoredSongSort,
+  )
 
   const visibleSongs = useMemo(() => {
     const filtered = filterSongsByQuery(songs, query)
@@ -1003,8 +1014,16 @@ function LibraryPage() {
 
 function ArtistsPage({ onOpenArtist }: { onOpenArtist: (artist: ApiArtist) => void }) {
   const { artists, loading, error, retry } = useCatalog()
-  const [query, setQuery] = useState('')
-  const [sort, setSort] = useState<ArtistSort>('az')
+  const [query, setQuery] = usePersistedPreference(
+    DESKTOP_PREFERENCE_KEYS.artistsSearch,
+    '',
+    parseStoredSearchTerm,
+  )
+  const [sort, setSort] = usePersistedPreference(
+    DESKTOP_PREFERENCE_KEYS.artistsSort,
+    'az' as ArtistSort,
+    parseStoredArtistSort,
+  )
 
   const visibleArtists = useMemo(() => {
     const filtered = filterArtistsByQuery(artists, query)
@@ -1052,8 +1071,16 @@ function ArtistsPage({ onOpenArtist }: { onOpenArtist: (artist: ApiArtist) => vo
 
 function AlbumsPage({ onOpenAlbum }: { onOpenAlbum: (album: ApiAlbum) => void }) {
   const { albums, artistNames, loading, error, retry } = useCatalog()
-  const [query, setQuery] = useState('')
-  const [sort, setSort] = useState<AlbumSort>('latest')
+  const [query, setQuery] = usePersistedPreference(
+    DESKTOP_PREFERENCE_KEYS.albumsSearch,
+    '',
+    parseStoredSearchTerm,
+  )
+  const [sort, setSort] = usePersistedPreference(
+    DESKTOP_PREFERENCE_KEYS.albumsSort,
+    'latest' as AlbumSort,
+    parseStoredAlbumSort,
+  )
 
   const visibleAlbums = useMemo(() => {
     const filtered = filterAlbumsByQuery(albums, query, artistNames)
@@ -1165,6 +1192,14 @@ function TvPage() {
 }
 
 function SettingsPage() {
+  const { resetDesktopPreferencesState } = usePreferencesReset()
+  const [resetNotice, setResetNotice] = useState('')
+
+  const handleResetPreferences = () => {
+    resetDesktopPreferencesState()
+    setResetNotice('Desktop preferences cleared. UI defaults restored locally.')
+  }
+
   return (
     <PageFrame>
       <PageHeader
@@ -1211,6 +1246,30 @@ function SettingsPage() {
             <p className="settings-identity-note">
               Mobile app and playback remain separate.
             </p>
+          </section>
+          <section className="settings-panel">
+            <h2>Desktop preferences</h2>
+            <p className="settings-panel-desc">
+              Saved locally on this device — sidebar page, search terms, and sort options only.
+            </p>
+            <div className="settings-row">
+              <div className="settings-label">
+                <span>Reset desktop preferences</span>
+                <small>Clears local UI state · catalog and mobile stay unchanged</small>
+              </div>
+              <button
+                type="button"
+                className="btn-secondary btn-sm settings-reset-btn"
+                onClick={handleResetPreferences}
+              >
+                Reset
+              </button>
+            </div>
+            {resetNotice ? (
+              <p className="settings-reset-note" role="status">
+                {resetNotice}
+              </p>
+            ) : null}
           </section>
           <section className="settings-panel">
             <h2>Appearance</h2>
@@ -1730,7 +1789,11 @@ function PageContent({
 }
 
 function App() {
-  const [activePage, setActivePage] = useState<PageId>('home')
+  const [activePage, setActivePage] = usePersistedPreference(
+    DESKTOP_PREFERENCE_KEYS.activePage,
+    'home' as PageId,
+    parseStoredPageId,
+  )
   const [activeView, setActiveView] = useState<ActiveView>('page')
   const [selectedSong, setSelectedSong] = useState<ApiSong | null>(null)
   const [selectedAlbum, setSelectedAlbum] = useState<ApiAlbum | null>(null)
@@ -1783,31 +1846,33 @@ function App() {
   }, [backToPage])
 
   return (
-    <CatalogProvider>
-      <div className="app-shell">
-        <Sidebar activePage={activePage} onNavigate={navigatePage} />
-        <div className="main-area">
-          <main className="main-scroll">
-            <div key={activePage} className="page-view">
-              <CatalogDetailRouter
-                activeView={activeView}
-                selectedSong={selectedSong}
-                selectedAlbum={selectedAlbum}
-                selectedArtist={selectedArtist}
-                selectedMood={selectedMood}
-                onBack={backToPage}
-                activePage={activePage}
-                onOpenSong={openSong}
-                onOpenAlbum={openAlbum}
-                onOpenArtist={openArtist}
-                onOpenMood={openMood}
-              />
-            </div>
-          </main>
+    <PreferencesResetProvider>
+      <CatalogProvider>
+        <div className="app-shell">
+          <Sidebar activePage={activePage} onNavigate={navigatePage} />
+          <div className="main-area">
+            <main className="main-scroll">
+              <div key={activePage} className="page-view">
+                <CatalogDetailRouter
+                  activeView={activeView}
+                  selectedSong={selectedSong}
+                  selectedAlbum={selectedAlbum}
+                  selectedArtist={selectedArtist}
+                  selectedMood={selectedMood}
+                  onBack={backToPage}
+                  activePage={activePage}
+                  onOpenSong={openSong}
+                  onOpenAlbum={openAlbum}
+                  onOpenArtist={openArtist}
+                  onOpenMood={openMood}
+                />
+              </div>
+            </main>
+          </div>
         </div>
-      </div>
-      <PlayerBar />
-    </CatalogProvider>
+        <PlayerBar />
+      </CatalogProvider>
+    </PreferencesResetProvider>
   )
 }
 

@@ -1403,6 +1403,17 @@
   padding-top: 4px;
 }
 
+.settings-reset-note {
+  margin: 12px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--accent-cyan);
+}
+
+.settings-reset-btn {
+  flex-shrink: 0;
+}
+
 .settings-panels {
   display: flex;
   flex-direction: column;
