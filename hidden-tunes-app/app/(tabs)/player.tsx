@@ -37,7 +37,6 @@ import {
 import LiveWaveform from "../../components/LiveWaveform";
 import AddToPlaylistModal from "../../components/AddToPlaylistModal";
 import HTImage from "../../components/HTImage";
-import LyricsPreview from "../../components/LyricsPreview";
 import { FALLBACK_ARTWORK, getArtworkValue } from "../../utils/artwork";
 import { getBestLyricsPayload, setLyricsMemoryCache } from "../../utils/lyrics";
 import { openGenreCatalog, openMoodCatalog } from "../../utils/catalogNavigation";
@@ -52,6 +51,7 @@ type PlayerMetadataChip = {
 };
 
 const METADATA_PRESS_GUARD_MS = 500;
+const PLAYER_ART_SIZE = 220;
 
 function formatTime(ms: number) {
   const totalSeconds = Math.floor((ms || 0) / 1000);
@@ -556,13 +556,20 @@ export default function PlayerScreen() {
   const openLyrics = useCallback(() => {
     if (!currentSong) return;
 
+    const song = currentSong as any;
     const songId = String(currentSong.id || "");
     const payload = getBestLyricsPayload({
       synced_lrc:
-        currentSong.syncedLyrics ||
-        currentSong.synced_lyrics ||
-        currentSong.lrc,
-      plain_lyrics: currentSong.lyrics,
+        song.syncedLyrics ||
+        song.synced_lyrics ||
+        song.synced_lrc ||
+        song.lrc ||
+        song.lrc_text,
+      plain_lyrics:
+        song.lyrics ||
+        song.plainLyrics ||
+        song.plain_lyrics ||
+        song.lyrics_text,
     });
 
     if (songId) {
@@ -612,11 +619,7 @@ export default function PlayerScreen() {
     <LinearGradient colors={GRADIENTS.main} style={styles.container}>
       <AmbientGlow />
 
-      <ScrollView
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-        removeClippedSubviews
-      >
+      <View style={styles.playerAnchor}>
         <View style={styles.topBar}>
           <TouchableOpacity onPress={() => router.back()} style={styles.topButton}>
             <Ionicons name="chevron-down" size={26} color={COLORS.text} />
@@ -665,7 +668,14 @@ export default function PlayerScreen() {
             </Animated.View>
           </LinearGradient>
         </Animated.View>
+      </View>
 
+      <ScrollView
+        style={styles.playerScroll}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        removeClippedSubviews
+      >
         <Animated.View style={[styles.songInfo, metadataAnimated]}>
           <View style={styles.songTextWrap}>
             <Text numberOfLines={1} style={styles.songTitle}>
@@ -689,79 +699,6 @@ export default function PlayerScreen() {
             />
           </TouchableOpacity>
         </Animated.View>
-
-        <LyricsPreview onPress={openLyrics} />
-
-        {listeningContext.length > 0 && (
-          <View style={styles.contextPillRow}>
-            {listeningContext.map((item) => (
-              <MetadataContextChip
-                key={`context-${item.type}-${item.label}`}
-                label={item.label}
-                onPress={() => handleMetadataPress(item.type, item.label)}
-              />
-            ))}
-          </View>
-        )}
-
-        <View style={styles.statusRow}>
-          <View style={styles.statusPill}>
-            <Ionicons
-              name={isLoading ? "sync" : isPlaying ? "pulse" : "pause-circle"}
-              size={15}
-              color={COLORS.primary}
-            />
-
-            <Text style={styles.statusText}>
-              {isLoading
-                ? "Loading"
-                : isPlaying
-                ? "Playing"
-                : "Paused"}
-            </Text>
-          </View>
-
-          <TouchableOpacity
-            activeOpacity={0.85}
-            style={[styles.smartToggle, smartAutoplayEnabled && styles.smartToggleActive]}
-            onPress={toggleSmartAutoplay}
-          >
-            <Ionicons
-              name={smartAutoplayEnabled ? "infinite" : "infinite-outline"}
-              size={16}
-              color={smartAutoplayEnabled ? "#000" : COLORS.textMuted}
-            />
-
-            <Text
-              style={[
-                styles.smartToggleText,
-                smartAutoplayEnabled && styles.smartToggleTextActive,
-              ]}
-            >
-              Smart {smartAutoplayEnabled ? "On" : "Off"}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.smartInfoCard}>
-          <View style={styles.smartInfoIcon}>
-            <Ionicons
-              name={nextUpSong ? "play-skip-forward" : "sparkles"}
-              size={18}
-              color={smartAutoplayEnabled ? COLORS.primary : COLORS.textMuted}
-            />
-          </View>
-
-          <View style={styles.smartInfoTextWrap}>
-            <Text style={styles.smartInfoTitle}>
-              {nextUpSong ? "Up Next" : `Smart Autoplay ${smartAutoplayEnabled ? "On" : "Off"}`}
-            </Text>
-
-            <Text numberOfLines={2} style={styles.smartInfoSubtitle}>
-              {sessionFlowText}
-            </Text>
-          </View>
-        </View>
 
         <View style={styles.waveformContainer}>
           <LiveWaveform isPlaying={isPlaying} />
@@ -802,27 +739,89 @@ export default function PlayerScreen() {
         </View>
 
         <View style={styles.extraActions}>
-          <TouchableOpacity
-            activeOpacity={0.85}
-            style={styles.extraAction}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Open lyrics"
+            hitSlop={10}
+            onPress={openLyrics}
+            style={({ pressed }) => [
+              styles.extraAction,
+              pressed && styles.extraActionPressed,
+            ]}
+          >
+            <Ionicons name="musical-notes" size={20} color={COLORS.text} />
+            <Text style={styles.extraActionText}>Lyrics</Text>
+          </Pressable>
+
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Open queue"
+            hitSlop={10}
             onPress={() => router.push("/queue")}
+            style={({ pressed }) => [
+              styles.extraAction,
+              pressed && styles.extraActionPressed,
+            ]}
           >
             <Ionicons name="list" size={19} color={COLORS.text} />
             <Text style={styles.extraActionText}>Queue</Text>
-          </TouchableOpacity>
+          </Pressable>
 
-          <TouchableOpacity activeOpacity={0.85} style={styles.extraAction} onPress={openLyrics}>
-            <Ionicons name="musical-notes" size={20} color={COLORS.text} />
-            <Text style={styles.extraActionText}>Lyrics</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            activeOpacity={0.85}
-            style={styles.extraAction}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Add to playlist"
+            hitSlop={10}
             onPress={openPlaylistModal}
+            style={({ pressed }) => [
+              styles.extraAction,
+              pressed && styles.extraActionPressed,
+            ]}
           >
             <Ionicons name="add" size={20} color={COLORS.text} />
             <Text style={styles.extraActionText}>Playlist</Text>
+          </Pressable>
+        </View>
+
+        {listeningContext.length > 0 ? (
+          <View style={styles.contextPillRow}>
+            {listeningContext.map((item) => (
+              <MetadataContextChip
+                key={`context-${item.type}-${item.label}`}
+                label={item.label}
+                onPress={() => handleMetadataPress(item.type, item.label)}
+              />
+            ))}
+          </View>
+        ) : null}
+
+        <View style={styles.sessionCard}>
+          <View style={styles.sessionTextWrap}>
+            <Text style={styles.sessionEyebrow}>
+              {nextUpSong ? "UP NEXT" : "SESSION"}
+            </Text>
+            <Text numberOfLines={2} style={styles.sessionText}>
+              {sessionFlowText}
+            </Text>
+          </View>
+
+          <TouchableOpacity
+            activeOpacity={0.85}
+            style={[styles.smartToggle, smartAutoplayEnabled && styles.smartToggleActive]}
+            onPress={toggleSmartAutoplay}
+          >
+            <Ionicons
+              name={smartAutoplayEnabled ? "infinite" : "infinite-outline"}
+              size={15}
+              color={smartAutoplayEnabled ? "#000" : COLORS.textMuted}
+            />
+            <Text
+              style={[
+                styles.smartToggleText,
+                smartAutoplayEnabled && styles.smartToggleTextActive,
+              ]}
+            >
+              Smart {smartAutoplayEnabled ? "On" : "Off"}
+            </Text>
           </TouchableOpacity>
         </View>
 
@@ -882,8 +881,17 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(34,211,238,0.22)",
   },
 
-  content: {
-    paddingTop: 60,
+  playerAnchor: {
+    paddingTop: 52,
+    paddingHorizontal: 24,
+    paddingBottom: 8,
+  },
+
+  playerScroll: {
+    flex: 1,
+  },
+
+  scrollContent: {
     paddingHorizontal: 24,
     paddingBottom: 190,
   },
@@ -976,7 +984,7 @@ const styles = StyleSheet.create({
 
   artworkGlow: {
     alignSelf: "center",
-    marginTop: 28,
+    marginTop: 12,
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#A855F7",
@@ -991,9 +999,9 @@ const styles = StyleSheet.create({
 
   artworkHalo: {
     position: "absolute",
-    width: 330,
-    height: 330,
-    borderRadius: 165,
+    width: PLAYER_ART_SIZE + 32,
+    height: PLAYER_ART_SIZE + 32,
+    borderRadius: (PLAYER_ART_SIZE + 32) / 2,
     overflow: "hidden",
   },
 
@@ -1002,18 +1010,18 @@ const styles = StyleSheet.create({
   },
 
   artworkBorder: {
-    width: 294,
-    height: 294,
-    borderRadius: 147,
+    width: PLAYER_ART_SIZE,
+    height: PLAYER_ART_SIZE,
+    borderRadius: PLAYER_ART_SIZE / 2,
     padding: 3,
     alignItems: "center",
     justifyContent: "center",
   },
 
   artworkWrapper: {
-    width: 288,
-    height: 288,
-    borderRadius: 144,
+    width: PLAYER_ART_SIZE - 6,
+    height: PLAYER_ART_SIZE - 6,
+    borderRadius: (PLAYER_ART_SIZE - 6) / 2,
     overflow: "hidden",
     backgroundColor: COLORS.card,
   },
@@ -1030,7 +1038,7 @@ const styles = StyleSheet.create({
   },
 
   songInfo: {
-    marginTop: 24,
+    marginTop: 6,
     flexDirection: "row",
     alignItems: "center",
     gap: 14,
@@ -1068,7 +1076,7 @@ const styles = StyleSheet.create({
   },
 
   contextPillRow: {
-    marginTop: 14,
+    marginTop: 12,
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8,
@@ -1095,28 +1103,36 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
 
-  statusRow: {
-    marginTop: 16,
+  sessionCard: {
+    marginTop: 12,
+    borderRadius: 20,
+    padding: 12,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    flexWrap: "wrap",
   },
 
-  statusPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 7,
-    backgroundColor: "rgba(255,255,255,0.075)",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 999,
+  sessionTextWrap: {
+    flex: 1,
+    minWidth: 0,
   },
 
-  statusText: {
+  sessionEyebrow: {
+    color: COLORS.textMuted,
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 1.2,
+  },
+
+  sessionText: {
     color: COLORS.text,
-    fontSize: 12,
-    fontWeight: "800",
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 4,
+    fontWeight: "700",
   },
 
   smartToggle: {
@@ -1146,47 +1162,9 @@ const styles = StyleSheet.create({
     color: "#000",
   },
 
-  smartInfoCard: {
-    marginTop: 14,
-    borderRadius: 22,
-    padding: 14,
-    backgroundColor: "rgba(255,255,255,0.06)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.09)",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-
-  smartInfoIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 15,
-    backgroundColor: "rgba(255,255,255,0.075)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  smartInfoTextWrap: {
-    flex: 1,
-  },
-
-  smartInfoTitle: {
-    color: COLORS.text,
-    fontSize: 14,
-    fontWeight: "900",
-  },
-
-  smartInfoSubtitle: {
-    color: COLORS.textMuted,
-    fontSize: 12,
-    lineHeight: 18,
-    marginTop: 4,
-  },
-
   waveformContainer: {
-    marginTop: 20,
-    marginBottom: 6,
+    marginTop: 12,
+    marginBottom: 4,
   },
 
   sliderContainer: {
@@ -1213,7 +1191,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginTop: 26,
+    marginTop: 16,
   },
 
   iconButton: {
@@ -1258,15 +1236,15 @@ const styles = StyleSheet.create({
   },
 
   extraActions: {
-    marginTop: 18,
+    marginTop: 14,
     flexDirection: "row",
     gap: 10,
   },
 
   extraAction: {
     flex: 1,
-    minHeight: 52,
-    borderRadius: 20,
+    minHeight: 50,
+    borderRadius: 18,
     backgroundColor: "rgba(255,255,255,0.07)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.08)",
@@ -1276,6 +1254,11 @@ const styles = StyleSheet.create({
     gap: 7,
   },
 
+  extraActionPressed: {
+    backgroundColor: "rgba(168,85,247,0.16)",
+    borderColor: "rgba(168,85,247,0.32)",
+  },
+
   extraActionText: {
     color: COLORS.text,
     fontSize: 12,
@@ -1283,7 +1266,7 @@ const styles = StyleSheet.create({
   },
 
   volumeSection: {
-    marginTop: 16,
+    marginTop: 14,
     flexDirection: "row",
     alignItems: "center",
     gap: 12,

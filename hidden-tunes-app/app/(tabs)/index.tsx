@@ -1108,23 +1108,9 @@ function HomeScreen() {
 
   const renderHeroCard = useCallback(
     ({ item, index }: { item: HeroCard; index: number }) => {
-      const isCurrentHero =
+      const isPlayingCard =
         Boolean(currentSong) &&
-        (item.isCurrent === true ||
-          String(item.id || "") === String((currentSong as any)?.id || "") ||
-          String(item.song?.id || "") === String((currentSong as any)?.id || ""));
-
-      if (typeof __DEV__ !== "undefined" && __DEV__) {
-        console.log("[home] hero item", {
-          title: item.title,
-          itemId: (item as any).id,
-          songId: item.song?.id,
-          currentSongId: (currentSong as any)?.id,
-          isCurrentHero,
-        });
-      }
-
-      const active = isCurrentHero || String((currentSong as any)?.id || "") === String(item.song?.id || "");
+        String(item.song?.id || "") === String((currentSong as any)?.id || "");
 
       return (
         <View style={styles.heroSlide}>
@@ -1141,14 +1127,14 @@ function HomeScreen() {
                 style={styles.overlay}
               >
                 <View style={styles.livePill}>
-                  {active ? (
-                    <NeonEQ isPlaying={isPlaying && isCurrentHero} size="small" />
+                  {isPlayingCard ? (
+                    <NeonEQ isPlaying={isPlaying === true} size="small" />
                   ) : (
                     <Ionicons name={item.icon} size={13} color={COLORS.primary} />
                   )}
 
                   <Text style={styles.liveText}>
-                    {isCurrentHero ? "Now Playing" : item.label}
+                    {isPlayingCard ? "Now Playing" : item.label}
                   </Text>
                 </View>
 
@@ -1160,21 +1146,15 @@ function HomeScreen() {
                   {item.subtitle}
                 </Text>
 
-                {isCurrentHero && (
-                  <View style={styles.heroWaveform}>
-                    <LiveWaveform isPlaying={isPlaying} size="small" />
-                  </View>
-                )}
-
                 <View style={styles.heroBottomRow}>
                   <View style={styles.playButton}>
                     <Ionicons
-                      name={isCurrentHero && isPlaying ? "pause" : "play"}
+                      name={isPlayingCard && isPlaying === true ? "pause" : "play"}
                       size={18}
                       color="#000"
                     />
                     <Text style={styles.playText}>
-                      {isCurrentHero ? "OPEN PLAYER" : "PLAY"}
+                      {isPlayingCard ? "OPEN PLAYER" : "PLAY"}
                     </Text>
                   </View>
 
@@ -1583,7 +1563,9 @@ function HomeScreen() {
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.heroTitle}>Hidden listening.</Text>
+        <Text style={styles.homeEyebrow}>
+          {currentSong ? "Now Playing" : "For You"}
+        </Text>
 
         <TouchableOpacity
           activeOpacity={0.9}
@@ -1674,6 +1656,13 @@ function HomeScreen() {
               </View>
             </LinearGradient>
           )}
+
+          {currentSong ? (
+            <View pointerEvents="none" style={styles.heroNowPlayingWaveformOverlay}>
+              <Text style={styles.heroNowPlayingWaveformLabel}>Live</Text>
+              <LiveWaveform isPlaying={isPlaying === true} size="small" />
+            </View>
+          ) : null}
         </Animated.View>
 
         {heroCards.length > 1 ? (
@@ -1899,7 +1888,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-    paddingTop: 60,
+    paddingTop: 52,
     paddingHorizontal: 20,
   },
 
@@ -1964,13 +1953,14 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.1)",
   },
 
-  heroTitle: {
-    color: COLORS.text,
-    fontSize: 38,
-    fontWeight: "900",
+  homeEyebrow: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    fontWeight: "800",
     paddingHorizontal: 20,
-    marginTop: 26,
-    letterSpacing: -0.8,
+    marginTop: 10,
+    letterSpacing: 1.4,
+    textTransform: "uppercase",
   },
 
   heroSubtitle: {
@@ -1983,7 +1973,7 @@ const styles = StyleSheet.create({
   },
 
   searchBar: {
-    marginTop: 22,
+    marginTop: 12,
     marginHorizontal: 20,
     height: 54,
     borderRadius: 27,
@@ -2113,10 +2103,31 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 
-  heroWaveform: {
-    height: 28,
-    marginBottom: 18,
-    overflow: "hidden",
+  heroNowPlayingWaveformOverlay: {
+    position: "absolute",
+    left: 18,
+    right: 18,
+    bottom: 18,
+    zIndex: 20,
+    elevation: 20,
+    minHeight: 44,
+    borderRadius: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: "rgba(0,0,0,0.42)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.14)",
+  },
+
+  heroNowPlayingWaveformLabel: {
+    color: COLORS.text,
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 1,
+    textTransform: "uppercase",
   },
 
   heroEmpty: {
