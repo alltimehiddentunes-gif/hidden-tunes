@@ -1,14 +1,15 @@
 import {
   createContext,
+  memo,
   useCallback,
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react'
 import {
-  buildArtistNameLookup,
   fetchCatalogBundle,
   filterAlbumsByQuery,
   filterArtistsByQuery,
@@ -21,8 +22,21 @@ import {
   type ApiArtist,
   type ApiSong,
   type ArtistSort,
+  type CatalogBundle,
   type SongSort,
 } from './lib/api'
+import {
+  buildAlbumsByArtistId,
+  buildArtistNameLookup,
+  buildSongsByAlbumTitle,
+  buildSongsByArtistName,
+} from './lib/catalogIndexes'
+import {
+  cachedCatalogToBundle,
+  clearCachedCatalog,
+  readCachedCatalog,
+  writeCachedCatalog,
+} from './lib/catalogCache'
 import {
   DESKTOP_PREFERENCE_KEYS,
   parseStoredAlbumSort,
@@ -40,16 +54,71 @@ import './App.css'
 const APP_NAME = 'Hidden Tunes Desktop'
 const APP_VERSION = '0.0.1'
 const APP_PREVIEW_COPY = 'Desktop preview · catalog browsing only'
+const GRID_INITIAL_LIMIT = 24
+const GRID_SHOW_MORE_STEP = 24
+
+const SONG_SORT_OPTIONS = [
+  { value: 'latest', label: 'Latest' },
+  { value: 'az', label: 'A–Z' },
+]
+
+const ARTIST_SORT_OPTIONS = [
+  { value: 'az', label: 'A–Z' },
+  { value: 'tracks', label: 'Most tracks' },
+]
+
+const ALBUM_SORT_OPTIONS = [
+  { value: 'latest', label: 'Latest' },
+  { value: 'az', label: 'A–Z' },
+]
+
+let catalogMemoryCache: CatalogBundle | null = null
+let catalogSessionFetchDone = false
+
+type CatalogSource = 'none' | 'cache' | 'live'
+
+function resolveInitialCatalog() {
+  if (catalogMemoryCache) {
+    return {
+      bundle: catalogMemoryCache,
+      source: 'live' as CatalogSource,
+      cachedAt: readCachedCatalog()?.cachedAt ?? null,
+    }
+  }
+
+  const stored = readCachedCatalog()
+  if (stored) {
+    return {
+      bundle: cachedCatalogToBundle(stored),
+      source: 'cache' as CatalogSource,
+      cachedAt: stored.cachedAt,
+    }
+  }
+
+  return {
+    bundle: { songs: [], albums: [], artists: [] } satisfies CatalogBundle,
+    source: 'none' as CatalogSource,
+    cachedAt: null as string | null,
+  }
+}
 
 type CatalogContextValue = {
   songs: ApiSong[]
   albums: ApiAlbum[]
   artists: ApiArtist[]
   artistNames: Map<string, string>
+  songsByAlbumTitle: Map<string, ApiSong[]>
+  songsByArtistName: Map<string, ApiSong[]>
+  albumsByArtistId: Map<string, ApiAlbum[]>
   loading: boolean
   error: string | null
   loaded: boolean
+  staleCatalog: boolean
+  cachedAt: string | null
+  showCatalogSkeleton: boolean
+  showCatalogError: boolean
   retry: () => void
+  clearCatalogCache: () => void
 }
 
 const CatalogContext = createContext<CatalogContextValue | null>(null)
@@ -63,36 +132,99 @@ function useCatalog() {
 }
 
 function CatalogProvider({ children }: { children: ReactNode }) {
-  const [songs, setSongs] = useState<ApiSong[]>([])
-  const [albums, setAlbums] = useState<ApiAlbum[]>([])
-  const [artists, setArtists] = useState<ApiArtist[]>([])
-  const [loading, setLoading] = useState(true)
+  const initial = useMemo(() => resolveInitialCatalog(), [])
+  const catalogSourceRef = useRef<CatalogSource>(initial.source)
+
+  const [songs, setSongs] = useState<ApiSong[]>(() => initial.bundle.songs)
+  const [albums, setAlbums] = useState<ApiAlbum[]>(() => initial.bundle.albums)
+  const [artists, setArtists] = useState<ApiArtist[]>(() => initial.bundle.artists)
+  const [loading, setLoading] = useState(() => !catalogSessionFetchDone)
   const [error, setError] = useState<string | null>(null)
-  const [loaded, setLoaded] = useState(false)
+  const [loaded, setLoaded] = useState(
+    () => initial.source !== 'none' || Boolean(catalogMemoryCache),
+  )
+  const [staleCatalog, setStaleCatalog] = useState(false)
+  const [cachedAt, setCachedAt] = useState<string | null>(() => initial.cachedAt)
   const [reloadKey, setReloadKey] = useState(0)
 
-  const retry = useCallback(() => setReloadKey((n) => n + 1), [])
+  const hasCatalogData = songs.length > 0 || albums.length > 0 || artists.length > 0
+  const showCatalogSkeleton = loading && !hasCatalogData
+  const showCatalogError = Boolean(error) && !hasCatalogData
+
+  const applyBundle = useCallback((bundle: CatalogBundle, source: CatalogSource, savedAt: string | null) => {
+    catalogMemoryCache = bundle
+    catalogSourceRef.current = source
+    setSongs(bundle.songs)
+    setAlbums(bundle.albums)
+    setArtists(bundle.artists)
+    setLoaded(true)
+    setStaleCatalog(false)
+    setError(null)
+    setCachedAt(savedAt)
+  }, [])
+
+  const retry = useCallback(() => {
+    setReloadKey((n) => n + 1)
+  }, [])
+
+  const clearCatalogCache = useCallback(() => {
+    clearCachedCatalog()
+    setCachedAt(null)
+    setStaleCatalog(false)
+
+    if (catalogSourceRef.current !== 'live') {
+      catalogMemoryCache = null
+      catalogSessionFetchDone = false
+      setSongs([])
+      setAlbums([])
+      setArtists([])
+      setLoaded(false)
+      setError(null)
+      setLoading(true)
+      setReloadKey((n) => n + 1)
+    }
+  }, [])
 
   useEffect(() => {
     let active = true
+
+    if (catalogSessionFetchDone && reloadKey === 0 && catalogMemoryCache) {
+      applyBundle(
+        catalogMemoryCache,
+        catalogSourceRef.current,
+        readCachedCatalog()?.cachedAt ?? null,
+      )
+      setLoading(false)
+      return
+    }
+
     setLoading(true)
     setError(null)
 
     fetchCatalogBundle()
       .then((bundle) => {
         if (!active) return
-        setSongs(bundle.songs)
-        setAlbums(bundle.albums)
-        setArtists(bundle.artists)
-        setLoaded(true)
+        writeCachedCatalog(bundle)
+        catalogSessionFetchDone = true
+        applyBundle(bundle, 'live', new Date().toISOString())
       })
       .catch((err) => {
         if (!active) return
+        catalogSessionFetchDone = true
+
+        if (catalogSourceRef.current !== 'none') {
+          setStaleCatalog(true)
+          setLoaded(true)
+          setError(null)
+          return
+        }
+
         setError(
           err instanceof Error
             ? err.message
             : 'Could not load the Hidden Tunes catalog.',
         )
+        setLoaded(false)
       })
       .finally(() => {
         if (active) setLoading(false)
@@ -101,9 +233,12 @@ function CatalogProvider({ children }: { children: ReactNode }) {
     return () => {
       active = false
     }
-  }, [reloadKey])
+  }, [reloadKey, applyBundle])
 
   const artistNames = useMemo(() => buildArtistNameLookup(artists), [artists])
+  const songsByAlbumTitle = useMemo(() => buildSongsByAlbumTitle(songs), [songs])
+  const songsByArtistName = useMemo(() => buildSongsByArtistName(songs), [songs])
+  const albumsByArtistId = useMemo(() => buildAlbumsByArtistId(albums), [albums])
 
   const value = useMemo(
     () => ({
@@ -111,12 +246,37 @@ function CatalogProvider({ children }: { children: ReactNode }) {
       albums,
       artists,
       artistNames,
+      songsByAlbumTitle,
+      songsByArtistName,
+      albumsByArtistId,
       loading,
       error,
       loaded,
+      staleCatalog,
+      cachedAt,
+      showCatalogSkeleton,
+      showCatalogError,
       retry,
+      clearCatalogCache,
     }),
-    [songs, albums, artists, artistNames, loading, error, loaded, retry],
+    [
+      songs,
+      albums,
+      artists,
+      artistNames,
+      songsByAlbumTitle,
+      songsByArtistName,
+      albumsByArtistId,
+      loading,
+      error,
+      loaded,
+      staleCatalog,
+      cachedAt,
+      showCatalogSkeleton,
+      showCatalogError,
+      retry,
+      clearCatalogCache,
+    ],
   )
 
   return <CatalogContext.Provider value={value}>{children}</CatalogContext.Provider>
@@ -327,6 +487,47 @@ function catalogFallbackTone(seed: string): Mood {
   return tones[code % tones.length]
 }
 
+function useVisibleSlice<T>(items: T[], resetKey: string) {
+  const [limit, setLimit] = useState(GRID_INITIAL_LIMIT)
+
+  useEffect(() => {
+    setLimit(GRID_INITIAL_LIMIT)
+  }, [resetKey])
+
+  const visible = useMemo(() => items.slice(0, limit), [items, limit])
+  const hasMore = limit < items.length
+  const showMore = useCallback(() => {
+    setLimit((current) => Math.min(current + GRID_SHOW_MORE_STEP, items.length))
+  }, [items.length])
+
+  return { visible, hasMore, showMore, total: items.length, shown: visible.length }
+}
+
+function ShowMoreRow({
+  shown,
+  total,
+  onShowMore,
+}: {
+  shown: number
+  total: number
+  onShowMore: () => void
+}) {
+  if (total <= GRID_INITIAL_LIMIT) return null
+
+  return (
+    <div className="catalog-show-more">
+      <span className="catalog-show-more-count">
+        Showing {shown} of {total}
+      </span>
+      {shown < total ? (
+        <button type="button" className="btn-secondary btn-sm" onClick={onShowMore}>
+          Show more
+        </button>
+      ) : null}
+    </div>
+  )
+}
+
 function CatalogSkeleton({
   count = 8,
   variant = 'card',
@@ -451,47 +652,83 @@ function CatalogToolbar({
   )
 }
 
-function ArtworkImage({
+const ArtworkImage = memo(function ArtworkImage({
   src,
   alt,
   seed,
   variant = 'square',
+  priority = false,
 }: {
   src: string | null
   alt: string
   seed: string
-  variant?: 'square' | 'wide'
+  variant?: 'square' | 'wide' | 'circle'
+  priority?: boolean
 }) {
   const [failed, setFailed] = useState(false)
-  const tone = catalogFallbackTone(seed)
-
-  if (!src || failed) {
-    return (
-      <div className={`art-fallback art-fallback--${tone} art-fallback--${variant}`} aria-hidden="true">
-        <MusicNoteIcon className="card-art-icon" />
-      </div>
-    )
-  }
+  const tone = useMemo(() => catalogFallbackTone(seed), [seed])
 
   return (
-    <img
-      src={src}
-      alt={alt}
-      className="card-art-img"
-      loading="lazy"
-      decoding="async"
-      onError={() => setFailed(true)}
-    />
+    <div className={`art-frame art-frame--${variant}`}>
+      {!src || failed ? (
+        <div
+          className={`art-fallback art-fallback--${tone} art-fallback--${variant === 'circle' ? 'square' : variant}`}
+          aria-hidden={alt ? undefined : true}
+        >
+          <MusicNoteIcon className="card-art-icon" />
+        </div>
+      ) : (
+        <img
+          src={src}
+          alt={alt}
+          className="card-art-img"
+          loading={priority ? 'eager' : 'lazy'}
+          decoding="async"
+          fetchPriority={priority ? 'high' : 'auto'}
+          onError={() => setFailed(true)}
+        />
+      )}
+    </div>
   )
-}
+})
 
-function ApiSongGrid({
+const ArtistAvatar = memo(function ArtistAvatar({
+  artist,
+}: {
+  artist: ApiArtist
+}) {
+  const tone = useMemo(() => catalogFallbackTone(artist.id), [artist.id])
+
+  return (
+    <span className="artist-avatar" aria-hidden="true" data-tone={tone}>
+      <ArtworkImage
+        src={artist.artwork}
+        alt=""
+        seed={artist.id}
+        variant="circle"
+      />
+      <span className="artist-initial">{artist.name.charAt(0)}</span>
+    </span>
+  )
+})
+
+const ApiSongGrid = memo(function ApiSongGrid({
   songs,
   onSelect,
+  listKey = 'songs',
+  paginate = true,
 }: {
   songs: ApiSong[]
   onSelect: (song: ApiSong) => void
+  listKey?: string
+  paginate?: boolean
 }) {
+  const { visible, showMore, total, shown } = useVisibleSlice(
+    songs,
+    paginate ? listKey : `${listKey}:all`,
+  )
+  const renderSongs = paginate ? visible : songs
+
   if (songs.length === 0) {
     return (
       <CatalogEmpty
@@ -502,37 +739,50 @@ function ApiSongGrid({
   }
 
   return (
-    <div className="card-row card-row--compact">
-      {songs.map((song) => (
-        <button
-          key={song.id}
-          type="button"
-          className="discovery-card discovery-card--api"
-          onClick={() => onSelect(song)}
-        >
-          <div className="card-art card-art--song">
-            <ArtworkImage src={song.artwork} alt="" seed={song.id} />
-          </div>
-          <div className="card-info">
-            <h3>{song.title}</h3>
-            <p className="card-meta-primary">{song.artist}</p>
-            <p className="card-meta-secondary">{song.album}</p>
-          </div>
-        </button>
-      ))}
-    </div>
+    <>
+      <div className="card-row card-row--compact">
+        {renderSongs.map((song) => (
+          <button
+            key={song.id}
+            type="button"
+            className="discovery-card discovery-card--api"
+            onClick={() => onSelect(song)}
+          >
+            <div className="card-art card-art--song">
+              <ArtworkImage src={song.artwork} alt="" seed={song.id} />
+            </div>
+            <div className="card-info">
+              <h3>{song.title}</h3>
+              <p className="card-meta-primary">{song.artist}</p>
+              <p className="card-meta-secondary">{song.album}</p>
+            </div>
+          </button>
+        ))}
+      </div>
+      {paginate ? <ShowMoreRow shown={shown} total={total} onShowMore={showMore} /> : null}
+    </>
   )
-}
+})
 
-function ApiAlbumGrid({
+const ApiAlbumGrid = memo(function ApiAlbumGrid({
   albums,
   artistNames,
   onSelect,
+  listKey = 'albums',
+  paginate = true,
 }: {
   albums: ApiAlbum[]
   artistNames: Map<string, string>
   onSelect: (album: ApiAlbum) => void
+  listKey?: string
+  paginate?: boolean
 }) {
+  const { visible, showMore, total, shown } = useVisibleSlice(
+    albums,
+    paginate ? listKey : `${listKey}:all`,
+  )
+  const renderAlbums = paginate ? visible : albums
+
   if (albums.length === 0) {
     return (
       <CatalogEmpty
@@ -543,42 +793,55 @@ function ApiAlbumGrid({
   }
 
   return (
-    <div className="card-row card-row--compact">
-      {albums.map((album) => {
-        const artistName = album.artistId
-          ? artistNames.get(album.artistId)
-          : null
-        return (
-          <button
-            key={album.id}
-            type="button"
-            className="discovery-card discovery-card--api"
-            onClick={() => onSelect(album)}
-          >
-            <div className="card-art card-art--album">
-              <ArtworkImage src={album.artwork} alt="" seed={album.id} variant="wide" />
-            </div>
-            <div className="card-info">
-              <h3>{album.title}</h3>
-              <p className="card-meta-primary">{artistName || 'Hidden Tunes'}</p>
-              <p className="card-meta-secondary">
-                {album.releaseYear ? `Released ${album.releaseYear}` : 'Album'}
-              </p>
-            </div>
-          </button>
-        )
-      })}
-    </div>
+    <>
+      <div className="card-row card-row--compact">
+        {renderAlbums.map((album) => {
+          const artistName = album.artistId
+            ? artistNames.get(album.artistId)
+            : null
+          return (
+            <button
+              key={album.id}
+              type="button"
+              className="discovery-card discovery-card--api"
+              onClick={() => onSelect(album)}
+            >
+              <div className="card-art card-art--album">
+                <ArtworkImage src={album.artwork} alt="" seed={album.id} variant="wide" />
+              </div>
+              <div className="card-info">
+                <h3>{album.title}</h3>
+                <p className="card-meta-primary">{artistName || 'Hidden Tunes'}</p>
+                <p className="card-meta-secondary">
+                  {album.releaseYear ? `Released ${album.releaseYear}` : 'Album'}
+                </p>
+              </div>
+            </button>
+          )
+        })}
+      </div>
+      {paginate ? <ShowMoreRow shown={shown} total={total} onShowMore={showMore} /> : null}
+    </>
   )
-}
+})
 
-function ApiArtistGrid({
+const ApiArtistGrid = memo(function ApiArtistGrid({
   artists,
   onSelect,
+  listKey = 'artists',
+  paginate = true,
 }: {
   artists: ApiArtist[]
   onSelect: (artist: ApiArtist) => void
+  listKey?: string
+  paginate?: boolean
 }) {
+  const { visible, showMore, total, shown } = useVisibleSlice(
+    artists,
+    paginate ? listKey : `${listKey}:all`,
+  )
+  const renderArtists = paginate ? visible : artists
+
   if (artists.length === 0) {
     return (
       <CatalogEmpty
@@ -589,37 +852,27 @@ function ApiArtistGrid({
   }
 
   return (
-    <div className="artist-grid artist-grid--compact">
-      {artists.map((artist) => (
-        <button
-          key={artist.id}
-          type="button"
-          className="artist-card artist-card--api"
-          onClick={() => onSelect(artist)}
-        >
-          <span className="artist-avatar" aria-hidden="true" data-tone={catalogFallbackTone(artist.id)}>
-            {artist.artwork ? (
-              <img
-                src={artist.artwork}
-                alt=""
-                loading="lazy"
-                decoding="async"
-                onError={(event) => {
-                  event.currentTarget.style.display = 'none'
-                }}
-              />
-            ) : null}
-            <span className="artist-initial">{artist.name.charAt(0)}</span>
-          </span>
-          <span className="artist-name">{artist.name}</span>
-          <span className="artist-meta">
-            {artist.songCount > 0 ? `${artist.songCount} tracks` : 'Artist'}
-          </span>
-        </button>
-      ))}
-    </div>
+    <>
+      <div className="artist-grid artist-grid--compact">
+        {renderArtists.map((artist) => (
+          <button
+            key={artist.id}
+            type="button"
+            className="artist-card artist-card--api"
+            onClick={() => onSelect(artist)}
+          >
+            <ArtistAvatar artist={artist} />
+            <span className="artist-name">{artist.name}</span>
+            <span className="artist-meta">
+              {artist.songCount > 0 ? `${artist.songCount} tracks` : 'Artist'}
+            </span>
+          </button>
+        ))}
+      </div>
+      {paginate ? <ShowMoreRow shown={shown} total={total} onShowMore={showMore} /> : null}
+    </>
   )
-}
+})
 
 function CatalogSection({
   title,
@@ -665,6 +918,18 @@ function PreviewBanner({ text }: { text: string }) {
     <div className="preview-banner" role="status">
       <span className="preview-dot" aria-hidden="true" />
       <span>{text}</span>
+    </div>
+  )
+}
+
+function CatalogStaleBanner() {
+  const { staleCatalog } = useCatalog()
+  if (!staleCatalog) return null
+
+  return (
+    <div className="catalog-stale-banner" role="status">
+      <span className="catalog-stale-dot" aria-hidden="true" />
+      <span>Showing saved catalog. Live refresh unavailable.</span>
     </div>
   )
 }
@@ -729,7 +994,7 @@ function DiscoveryGrid({ section }: { section: DiscoverySection }) {
   )
 }
 
-function Sidebar({
+const Sidebar = memo(function Sidebar({
   activePage,
   onNavigate,
 }: {
@@ -780,7 +1045,7 @@ function Sidebar({
       </div>
     </aside>
   )
-}
+})
 
 function Hero() {
   return (
@@ -815,7 +1080,7 @@ function Hero() {
 }
 
 function HomePage({ onOpenSong }: { onOpenSong: (song: ApiSong) => void }) {
-  const { songs, loading, error, retry } = useCatalog()
+  const { songs, showCatalogSkeleton, showCatalogError, error, retry } = useCatalog()
   const [sort, setSort] = useState<SongSort>('latest')
   const featured = useMemo(
     () => sortSongsList(songs, sort).slice(0, 12),
@@ -832,28 +1097,25 @@ function HomePage({ onOpenSong }: { onOpenSong: (song: ApiSong) => void }) {
         searchPlaceholder=""
         sortLabel="Featured sort"
         sortValue={sort}
-        sortOptions={[
-          { value: 'latest', label: 'Latest' },
-          { value: 'az', label: 'A–Z' },
-        ]}
+        sortOptions={SONG_SORT_OPTIONS}
         onSortChange={(value) => setSort(value as SongSort)}
         resultCount={featured.length}
       />
       <CatalogSection
         title="Featured"
         hint="Cached catalog · read-only"
-        loading={loading}
-        error={error}
+        loading={showCatalogSkeleton}
+        error={showCatalogError ? error : null}
         onRetry={retry}
         count={featured.length}
       >
-        {!loading && !error && songs.length === 0 ? (
+        {!showCatalogSkeleton && !showCatalogError && songs.length === 0 ? (
           <CatalogEmpty
             title="Catalog is empty"
             detail="The API responded but returned no songs yet."
           />
         ) : (
-          <ApiSongGrid songs={featured} onSelect={onOpenSong} />
+          <ApiSongGrid songs={featured} onSelect={onOpenSong} listKey="home-featured" paginate={false} />
         )}
       </CatalogSection>
       {HOME_SECTIONS.slice(1, 3).map((section) => (
@@ -864,7 +1126,7 @@ function HomePage({ onOpenSong }: { onOpenSong: (song: ApiSong) => void }) {
 }
 
 function DiscoverPage({ onOpenSong }: { onOpenSong: (song: ApiSong) => void }) {
-  const { songs, loading, error, retry } = useCatalog()
+  const { songs, showCatalogSkeleton, showCatalogError, error, retry } = useCatalog()
   const [query, setQuery] = usePersistedPreference(
     DESKTOP_PREFERENCE_KEYS.discoverSearch,
     '',
@@ -881,6 +1143,8 @@ function DiscoverPage({ onOpenSong }: { onOpenSong: (song: ApiSong) => void }) {
     return sortSongsList(filtered, sort)
   }, [songs, query, sort])
 
+  const listKey = useMemo(() => `${query}:${sort}`, [query, sort])
+
   return (
     <PageFrame>
       <PageHeader
@@ -894,28 +1158,25 @@ function DiscoverPage({ onOpenSong }: { onOpenSong: (song: ApiSong) => void }) {
         searchPlaceholder="Filter by title, artist, or album…"
         sortLabel="Sort"
         sortValue={sort}
-        sortOptions={[
-          { value: 'latest', label: 'Latest' },
-          { value: 'az', label: 'A–Z' },
-        ]}
+        sortOptions={SONG_SORT_OPTIONS}
         onSortChange={(value) => setSort(value as SongSort)}
         resultCount={visibleSongs.length}
       />
       <CatalogSection
         title="Catalog songs"
         hint="Client-side filter on loaded data"
-        loading={loading}
-        error={error}
+        loading={showCatalogSkeleton}
+        error={showCatalogError ? error : null}
         onRetry={retry}
         count={visibleSongs.length}
       >
-        {!loading && !error && songs.length === 0 ? (
+        {!showCatalogSkeleton && !showCatalogError && songs.length === 0 ? (
           <CatalogEmpty
             title="No songs in catalog"
             detail="Retry once the API finishes loading or returns data."
           />
         ) : (
-          <ApiSongGrid songs={visibleSongs} onSelect={onOpenSong} />
+          <ApiSongGrid songs={visibleSongs} onSelect={onOpenSong} listKey={listKey} />
         )}
       </CatalogSection>
     </PageFrame>
@@ -1013,7 +1274,7 @@ function LibraryPage() {
 }
 
 function ArtistsPage({ onOpenArtist }: { onOpenArtist: (artist: ApiArtist) => void }) {
-  const { artists, loading, error, retry } = useCatalog()
+  const { artists, showCatalogSkeleton, showCatalogError, error, retry } = useCatalog()
   const [query, setQuery] = usePersistedPreference(
     DESKTOP_PREFERENCE_KEYS.artistsSearch,
     '',
@@ -1030,6 +1291,8 @@ function ArtistsPage({ onOpenArtist }: { onOpenArtist: (artist: ApiArtist) => vo
     return sortArtistsList(filtered, sort)
   }, [artists, query, sort])
 
+  const listKey = useMemo(() => `${query}:${sort}`, [query, sort])
+
   return (
     <PageFrame>
       <PageHeader
@@ -1043,23 +1306,20 @@ function ArtistsPage({ onOpenArtist }: { onOpenArtist: (artist: ApiArtist) => vo
         searchPlaceholder="Filter artists by name…"
         sortLabel="Sort"
         sortValue={sort}
-        sortOptions={[
-          { value: 'az', label: 'A–Z' },
-          { value: 'tracks', label: 'Most tracks' },
-        ]}
+        sortOptions={ARTIST_SORT_OPTIONS}
         onSortChange={(value) => setSort(value as ArtistSort)}
         resultCount={visibleArtists.length}
       />
-      {loading ? <CatalogSkeleton count={10} variant="artist" /> : null}
-      {!loading && error ? <CatalogError message={error} onRetry={retry} /> : null}
-      {!loading && !error && artists.length === 0 ? (
+      {showCatalogSkeleton ? <CatalogSkeleton count={10} variant="artist" /> : null}
+      {showCatalogError ? <CatalogError message={error || ''} onRetry={retry} /> : null}
+      {!showCatalogSkeleton && !showCatalogError && artists.length === 0 ? (
         <CatalogEmpty
           title="No artists in catalog"
           detail="The API responded but returned no artists yet."
         />
       ) : null}
-      {!loading && !error && artists.length > 0 ? (
-        <ApiArtistGrid artists={visibleArtists} onSelect={onOpenArtist} />
+      {!showCatalogSkeleton && !showCatalogError && artists.length > 0 ? (
+        <ApiArtistGrid artists={visibleArtists} onSelect={onOpenArtist} listKey={listKey} />
       ) : null}
       <PlaceholderNote
         title="Expanded artist pages"
@@ -1070,7 +1330,7 @@ function ArtistsPage({ onOpenArtist }: { onOpenArtist: (artist: ApiArtist) => vo
 }
 
 function AlbumsPage({ onOpenAlbum }: { onOpenAlbum: (album: ApiAlbum) => void }) {
-  const { albums, artistNames, loading, error, retry } = useCatalog()
+  const { albums, artistNames, showCatalogSkeleton, showCatalogError, error, retry } = useCatalog()
   const [query, setQuery] = usePersistedPreference(
     DESKTOP_PREFERENCE_KEYS.albumsSearch,
     '',
@@ -1087,6 +1347,8 @@ function AlbumsPage({ onOpenAlbum }: { onOpenAlbum: (album: ApiAlbum) => void })
     return sortAlbumsList(filtered, sort)
   }, [albums, query, artistNames, sort])
 
+  const listKey = useMemo(() => `${query}:${sort}`, [query, sort])
+
   return (
     <PageFrame>
       <PageHeader
@@ -1100,28 +1362,30 @@ function AlbumsPage({ onOpenAlbum }: { onOpenAlbum: (album: ApiAlbum) => void })
         searchPlaceholder="Filter by album or artist…"
         sortLabel="Sort"
         sortValue={sort}
-        sortOptions={[
-          { value: 'latest', label: 'Latest' },
-          { value: 'az', label: 'A–Z' },
-        ]}
+        sortOptions={ALBUM_SORT_OPTIONS}
         onSortChange={(value) => setSort(value as AlbumSort)}
         resultCount={visibleAlbums.length}
       />
       <CatalogSection
         title="Catalog albums"
         hint="Cached read-only data"
-        loading={loading}
-        error={error}
+        loading={showCatalogSkeleton}
+        error={showCatalogError ? error : null}
         onRetry={retry}
         count={visibleAlbums.length}
       >
-        {!loading && !error && albums.length === 0 ? (
+        {!showCatalogSkeleton && !showCatalogError && albums.length === 0 ? (
           <CatalogEmpty
             title="No albums in catalog"
             detail="Retry once the API finishes loading or returns data."
           />
         ) : (
-          <ApiAlbumGrid albums={visibleAlbums} artistNames={artistNames} onSelect={onOpenAlbum} />
+          <ApiAlbumGrid
+            albums={visibleAlbums}
+            artistNames={artistNames}
+            onSelect={onOpenAlbum}
+            listKey={listKey}
+          />
         )}
       </CatalogSection>
     </PageFrame>
@@ -1193,12 +1457,26 @@ function TvPage() {
 
 function SettingsPage() {
   const { resetDesktopPreferencesState } = usePreferencesReset()
+  const { clearCatalogCache, cachedAt } = useCatalog()
   const [resetNotice, setResetNotice] = useState('')
+  const [cacheNotice, setCacheNotice] = useState('')
 
   const handleResetPreferences = () => {
     resetDesktopPreferencesState()
     setResetNotice('Desktop preferences cleared. UI defaults restored locally.')
   }
+
+  const handleClearCatalogCache = () => {
+    clearCatalogCache()
+    setCacheNotice('Saved catalog cache cleared locally.')
+  }
+
+  const cachedAtLabel = cachedAt
+    ? new Date(cachedAt).toLocaleString(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      })
+    : null
 
   return (
     <PageFrame>
@@ -1272,6 +1550,35 @@ function SettingsPage() {
             ) : null}
           </section>
           <section className="settings-panel">
+            <h2>Saved catalog cache</h2>
+            <p className="settings-panel-desc">
+              Offline read-only copy of the last successful catalog load on this device.
+            </p>
+            {cachedAtLabel ? (
+              <p className="settings-panel-desc settings-cache-meta">
+                Last saved: {cachedAtLabel}
+              </p>
+            ) : null}
+            <div className="settings-row">
+              <div className="settings-label">
+                <span>Clear saved catalog cache</span>
+                <small>Removes local catalog only · preferences stay intact</small>
+              </div>
+              <button
+                type="button"
+                className="btn-secondary btn-sm settings-reset-btn"
+                onClick={handleClearCatalogCache}
+              >
+                Clear cache
+              </button>
+            </div>
+            {cacheNotice ? (
+              <p className="settings-reset-note" role="status">
+                {cacheNotice}
+              </p>
+            ) : null}
+          </section>
+          <section className="settings-panel">
             <h2>Appearance</h2>
             <p className="settings-panel-desc">Cinematic dark theme tuned for desktop browsing.</p>
             <div className="settings-row">
@@ -1297,7 +1604,7 @@ function SettingsPage() {
   )
 }
 
-function PlayerBar() {
+const PlayerBar = memo(function PlayerBar() {
   return (
     <footer className="player-bar" aria-label="Player">
       <p className="player-preview-copy" aria-hidden="true">
@@ -1351,7 +1658,7 @@ function PlayerBar() {
       </div>
     </footer>
   )
-}
+})
 
 type ActiveView = 'page' | 'song' | 'album' | 'artist' | 'mood'
 
@@ -1409,7 +1716,7 @@ function SongDetailView({
       <DetailTopBar title="Song" subtitle="Read-only preview" onBack={onBack} />
       <section className="detail-hero">
         <div className="detail-artwork">
-          <ArtworkImage src={song.artwork} alt="" seed={song.id} />
+          <ArtworkImage src={song.artwork} alt="" seed={song.id} priority />
         </div>
         <div className="detail-hero-copy">
           <p className="detail-eyebrow">Hidden Tunes</p>
@@ -1470,28 +1777,25 @@ function SongDetailView({
 function AlbumDetailView({
   album,
   onBack,
-  songs,
-  artistNames,
 }: {
   album: ApiAlbum
   onBack: () => void
-  songs: ApiSong[]
-  artistNames: Map<string, string>
 }) {
+  const { artistNames, songsByAlbumTitle } = useCatalog()
   const artistName = album.artistId ? artistNames.get(album.artistId) : null
   const created = formatDateLabel(album.createdAt)
 
   const tracks = useMemo(() => {
-    const byAlbum = songs.filter((s) => s.album === album.title)
+    const byAlbum = songsByAlbumTitle.get(album.title) ?? []
     return sortSongsList(byAlbum, 'az').slice(0, 24)
-  }, [songs, album.title])
+  }, [songsByAlbumTitle, album.title])
 
   return (
     <PageFrame>
       <DetailTopBar title="Album" subtitle="Read-only preview" onBack={onBack} />
       <section className="detail-hero detail-hero--album">
         <div className="detail-artwork detail-artwork--wide">
-          <ArtworkImage src={album.artwork} alt="" seed={album.id} variant="wide" />
+          <ArtworkImage src={album.artwork} alt="" seed={album.id} variant="wide" priority />
         </div>
         <div className="detail-hero-copy">
           <p className="detail-eyebrow">Album</p>
@@ -1543,37 +1847,32 @@ function AlbumDetailView({
 function ArtistDetailView({
   artist,
   onBack,
-  songs,
-  albums,
   onOpenSong,
   onOpenAlbum,
 }: {
   artist: ApiArtist
   onBack: () => void
-  songs: ApiSong[]
-  albums: ApiAlbum[]
   onOpenSong: (song: ApiSong) => void
   onOpenAlbum: (album: ApiAlbum) => void
 }) {
+  const { artistNames, songsByArtistName, albumsByArtistId } = useCatalog()
+
   const topSongs = useMemo(() => {
-    const byArtist = songs.filter((s) => s.artist === artist.name)
+    const byArtist = songsByArtistName.get(artist.name) ?? []
     return sortSongsList(byArtist, 'latest').slice(0, 12)
-  }, [songs, artist.name])
+  }, [songsByArtistName, artist.name])
 
   const artistAlbums = useMemo(() => {
     if (!artist.id) return []
-    return albums.filter((a) => a.artistId === artist.id).slice(0, 12)
-  }, [albums, artist.id])
+    return (albumsByArtistId.get(artist.id) ?? []).slice(0, 12)
+  }, [albumsByArtistId, artist.id])
 
   return (
     <PageFrame>
       <DetailTopBar title="Artist" subtitle="Read-only preview" onBack={onBack} />
       <section className="detail-hero detail-hero--artist">
         <div className="detail-artist-badge">
-          <span className="artist-avatar" aria-hidden="true" data-tone={catalogFallbackTone(artist.id)}>
-            {artist.artwork ? <img src={artist.artwork} alt="" loading="lazy" decoding="async" /> : null}
-            <span className="artist-initial">{artist.name.charAt(0)}</span>
-          </span>
+          <ArtistAvatar artist={artist} />
         </div>
         <div className="detail-hero-copy">
           <p className="detail-eyebrow">Artist</p>
@@ -1600,7 +1899,12 @@ function ArtistDetailView({
           <h3>Top songs</h3>
           <span>From cached catalog</span>
         </div>
-        <ApiSongGrid songs={topSongs} onSelect={onOpenSong} />
+        <ApiSongGrid
+          songs={topSongs}
+          onSelect={onOpenSong}
+          listKey={`artist-songs-${artist.id}`}
+          paginate={false}
+        />
       </section>
 
       <section className="detail-panel">
@@ -1613,8 +1917,10 @@ function ArtistDetailView({
         ) : (
           <ApiAlbumGrid
             albums={artistAlbums}
-            artistNames={new Map([[artist.id, artist.name]])}
+            artistNames={artistNames}
             onSelect={onOpenAlbum}
+            listKey={`artist-albums-${artist.id}`}
+            paginate={false}
           />
         )}
       </section>
@@ -1625,14 +1931,14 @@ function ArtistDetailView({
 function MoodDetailView({
   mood,
   onBack,
-  songs,
   onOpenSong,
 }: {
   mood: MoodRoom
   onBack: () => void
-  songs: ApiSong[]
   onOpenSong: (song: ApiSong) => void
 }) {
+  const { songs } = useCatalog()
+
   const curated = useMemo(() => {
     const list = sortSongsList(songs, 'latest')
     if (list.length === 0) return []
@@ -1641,12 +1947,15 @@ function MoodDetailView({
     return slice
   }, [songs, mood.title])
 
-  const descriptionByMood: Record<Mood, string> = {
-    violet: 'Velvet signals, neon hush, and after-hours romance.',
-    cyan: 'Clean air, moonlit focus, and oceanic clarity.',
-    rose: 'Heat, heart, and luminous emotional peaks.',
-    mint: 'Green calm, organic drift, and restorative quiet.',
-  }
+  const descriptionByMood: Record<Mood, string> = useMemo(
+    () => ({
+      violet: 'Velvet signals, neon hush, and after-hours romance.',
+      cyan: 'Clean air, moonlit focus, and oceanic clarity.',
+      rose: 'Heat, heart, and luminous emotional peaks.',
+      mint: 'Green calm, organic drift, and restorative quiet.',
+    }),
+    [],
+  )
 
   return (
     <PageFrame>
@@ -1668,7 +1977,12 @@ function MoodDetailView({
           <h3>Curated songs</h3>
           <span>From cached catalog</span>
         </div>
-        <ApiSongGrid songs={curated} onSelect={onOpenSong} />
+        <ApiSongGrid
+          songs={curated}
+          onSelect={onOpenSong}
+          listKey={`mood-${mood.title}`}
+          paginate={false}
+        />
       </section>
     </PageFrame>
   )
@@ -1699,21 +2013,12 @@ function CatalogDetailRouter({
   onOpenArtist: (artist: ApiArtist) => void
   onOpenMood: (mood: MoodRoom) => void
 }) {
-  const { songs, albums, artistNames } = useCatalog()
-
   if (activeView === 'song' && selectedSong) {
     return <SongDetailView song={selectedSong} onBack={onBack} />
   }
 
   if (activeView === 'album' && selectedAlbum) {
-    return (
-      <AlbumDetailView
-        album={selectedAlbum}
-        onBack={onBack}
-        songs={songs}
-        artistNames={artistNames}
-      />
-    )
+    return <AlbumDetailView album={selectedAlbum} onBack={onBack} />
   }
 
   if (activeView === 'artist' && selectedArtist) {
@@ -1721,8 +2026,6 @@ function CatalogDetailRouter({
       <ArtistDetailView
         artist={selectedArtist}
         onBack={onBack}
-        songs={songs}
-        albums={albums}
         onOpenSong={onOpenSong}
         onOpenAlbum={onOpenAlbum}
       />
@@ -1734,7 +2037,6 @@ function CatalogDetailRouter({
       <MoodDetailView
         mood={selectedMood}
         onBack={onBack}
-        songs={songs}
         onOpenSong={onOpenSong}
       />
     )
@@ -1843,7 +2145,7 @@ function App() {
   const navigatePage = useCallback((page: PageId) => {
     setActivePage(page)
     backToPage()
-  }, [backToPage])
+  }, [backToPage, setActivePage])
 
   return (
     <PreferencesResetProvider>
@@ -1852,7 +2154,8 @@ function App() {
           <Sidebar activePage={activePage} onNavigate={navigatePage} />
           <div className="main-area">
             <main className="main-scroll">
-              <div key={activePage} className="page-view">
+              <CatalogStaleBanner />
+              <div className="page-view" data-page={activePage}>
                 <CatalogDetailRouter
                   activeView={activeView}
                   selectedSong={selectedSong}

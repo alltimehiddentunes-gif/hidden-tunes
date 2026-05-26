@@ -175,17 +175,15 @@
 }
 
 .page-view {
-  animation: pageEnter var(--transition-page) both;
+  animation: pageEnter 0.28s var(--ease-out) both;
 }
 
 @keyframes pageEnter {
   from {
     opacity: 0;
-    transform: translate3d(0, 12px, 0);
   }
   to {
     opacity: 1;
-    transform: translate3d(0, 0, 0);
   }
 }
 
@@ -239,6 +237,33 @@
   background: var(--accent-cyan);
   box-shadow: 0 0 8px rgba(56, 189, 248, 0.6);
   flex-shrink: 0;
+}
+
+.catalog-stale-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  margin-bottom: 18px;
+  border-radius: var(--radius-md);
+  background: rgba(168, 85, 247, 0.06);
+  border: 1px solid rgba(168, 85, 247, 0.16);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.catalog-stale-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-violet);
+  opacity: 0.85;
+  flex-shrink: 0;
+}
+
+.settings-cache-meta {
+  margin-top: -8px;
+  margin-bottom: 14px;
 }
 
 .placeholder-note {
@@ -629,6 +654,22 @@
   position: relative;
   overflow: hidden;
   background: linear-gradient(160deg, rgba(40, 36, 58, 0.9), rgba(12, 12, 20, 0.98));
+  contain: layout paint;
+}
+
+.art-frame {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.art-frame--circle {
+  border-radius: 50%;
+}
+
+.art-frame--wide,
+.art-frame--square {
+  border-radius: inherit;
 }
 
 .card-art--album {
@@ -654,6 +695,7 @@
   height: 100%;
   object-fit: cover;
   display: block;
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .discovery-card--api:hover .card-art-img {
@@ -772,14 +814,29 @@
   aspect-ratio: 1;
   border-radius: var(--radius-sm);
   margin-bottom: 10px;
-  background: linear-gradient(
-    90deg,
-    rgba(255, 255, 255, 0.04),
-    rgba(255, 255, 255, 0.08),
-    rgba(255, 255, 255, 0.04)
-  );
-  background-size: 200% 100%;
-  animation: shimmer 1.6s ease-in-out infinite;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.catalog-show-more {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.catalog-show-more-count {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.catalog-show-more-done {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
 }
 
 .skeleton-card-line {
@@ -1171,6 +1228,15 @@
   overflow: hidden;
   background: linear-gradient(135deg, rgba(168, 85, 247, 0.35), rgba(56, 189, 248, 0.25));
   border: 1px solid var(--border-subtle);
+  contain: layout paint;
+}
+
+.artist-avatar .art-frame {
+  border-radius: 50%;
+}
+
+.artist-avatar:has(.card-art-img) .artist-initial {
+  opacity: 0;
 }
 
 .artist-avatar[data-tone='violet'] {
@@ -1769,6 +1835,8 @@
   overflow: hidden;
   border: 1px solid var(--border-subtle);
   background: var(--bg-elevated);
+  position: relative;
+  contain: layout paint;
 }
 
 .detail-artwork--wide {
@@ -2043,5 +2111,30 @@
 
   .detail-track-meta {
     display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-view {
+    animation: none;
+  }
+
+  .hero-artwork-ring,
+  .placeholder-shimmer {
+    animation: none;
+  }
+
+  .discovery-card:hover,
+  .artist-card:hover,
+  .mood-room-card:hover {
+    transform: none;
+  }
+
+  .discovery-card--api:hover .card-art-img {
+    transform: none;
+  }
+
+  .main-scroll {
+    scroll-behavior: auto;
   }
 }
