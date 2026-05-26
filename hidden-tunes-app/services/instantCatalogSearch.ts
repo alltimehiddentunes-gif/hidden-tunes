@@ -1,7 +1,11 @@
 import type { HiddenTunesGenre } from "../utils/genres";
 import {
+  CATALOG_SEARCH_TV_MAX_SCORE,
+  rankCatalogSongs,
+  type CatalogSongMatchReason,
+} from "../utils/catalogSongRanking";
+import {
   buildCatalogSearchIndex,
-  searchCatalogIndex,
   type CatalogSearchIndex,
 } from "../utils/catalogSearchIndex";
 import { getCanonicalGenre } from "../utils/genreAliases";
@@ -39,13 +43,36 @@ const EMPTY: UniversalSearchGroupedResults = {
 };
 
 const INSTANT_LIMITS = {
-  songs: 14,
+  songs: 20,
   artists: 8,
   albums: 8,
   genres: 10,
-  tv: 8,
-  top: 8,
+  tv: 6,
+  top: 10,
 };
+
+function catalogReasonLabel(reason: CatalogSongMatchReason) {
+  switch (reason) {
+    case "exact_title":
+    case "title_starts":
+    case "title_contains":
+      return "Matched title" as const;
+    case "artist_exact":
+    case "artist_starts":
+    case "artist_contains":
+      return "Matched artist" as const;
+    case "album_match":
+      return "Matched album" as const;
+    case "genre_match":
+      return "Matched genre" as const;
+    case "mood_match":
+      return "Matched mood" as const;
+    case "lyric_match":
+      return "Matched lyric" as const;
+    default:
+      return "Matched title" as const;
+  }
+}
 
 let cachedIndex: CatalogSearchIndex | null = null;
 let cachedIndexSourceLength = 0;
@@ -168,7 +195,7 @@ function searchTvFast(videos: HiddenTunesTvVideo[], query: string) {
 
     hits.push({
       id: `tv:${video.id}`,
-      score,
+      score: Math.min(score, CATALOG_SEARCH_TV_MAX_SCORE),
       reason: "Matched TV",
       payload: video,
       subtitle: video.channel_name || video.genre || "Hidden Tunes TV",
@@ -191,16 +218,21 @@ export function runInstantCatalogSearch(
     return EMPTY;
   }
 
-  const index = getOrBuildIndex(catalog.songs);
-  const matchedSongs = searchCatalogIndex(index, cleanQuery, INSTANT_LIMITS.songs);
+  getOrBuildIndex(catalog.songs);
+  const rankedSongs = rankCatalogSongs(
+    catalog.songs,
+    cleanQuery,
+    INSTANT_LIMITS.songs
+  );
 
-  const songs = matchedSongs.map((song) => ({
-    id: `song:${song.id}`,
+  const songs = rankedSongs.map((hit) => ({
+    id: `song:${hit.song.id}`,
     kind: "song" as const,
-    score: 100,
-    reason: "Matched title" as const,
-    payload: song,
-    subtitle: `${song.artist}${song.album ? ` • ${song.album}` : ""}`,
+    score: hit.score,
+    reason: catalogReasonLabel(hit.matchReason),
+    catalogMatchReason: hit.matchReason,
+    payload: hit.song,
+    subtitle: `${hit.song.artist}${hit.song.album ? ` • ${hit.song.album}` : ""}`,
   }));
 
   const artists = searchArtistsFast(catalog.artists, cleanQuery);
@@ -208,8 +240,10 @@ export function runInstantCatalogSearch(
   const genreMoods = searchGenresFast(catalog.genres, cleanQuery);
   const tv = searchTvFast(catalog.tvVideos, cleanQuery);
 
-  const topResults = [...songs, ...artists, ...albums, ...genreMoods, ...tv]
-    .sort((left, right) => right.score - left.score)
+  const catalogTopResults = [...songs, ...artists, ...albums, ...genreMoods].sort(
+    (left, right) => right.score - left.score
+  );
+  const topResults = [...catalogTopResults, ...tv]
     .slice(0, INSTANT_LIMITS.top);
 
   const result: UniversalSearchGroupedResults = {

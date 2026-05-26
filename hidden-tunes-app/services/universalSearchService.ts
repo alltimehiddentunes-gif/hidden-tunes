@@ -1,4 +1,10 @@
 import type { HiddenTunesGenre } from "../utils/genres";
+import {
+  CATALOG_SEARCH_TV_MAX_SCORE,
+  rankCatalogSongs,
+  scoreCatalogSongMatch,
+  type CatalogSongMatchReason,
+} from "../utils/catalogSongRanking";
 import { logSlowInteraction } from "../utils/performanceLogs";
 import {
   buildSearchDocument,
@@ -20,7 +26,33 @@ import type {
 import type { HiddenTunesTvVideo } from "./tvCatalogApi";
 export type UniversalSearchSongHit = UniversalSearchHit<HiddenTunesNormalizedSong> & {
   kind: "song" | "lyric";
+  catalogMatchReason?: CatalogSongMatchReason;
 };
+
+function catalogReasonToUniversal(
+  reason: CatalogSongMatchReason
+): UniversalMatchReason {
+  switch (reason) {
+    case "exact_title":
+    case "title_starts":
+    case "title_contains":
+      return "Matched title";
+    case "artist_exact":
+    case "artist_starts":
+    case "artist_contains":
+      return "Matched artist";
+    case "album_match":
+      return "Matched album";
+    case "genre_match":
+      return "Matched genre";
+    case "mood_match":
+      return "Matched mood";
+    case "lyric_match":
+      return "Matched lyric";
+    default:
+      return "Matched title";
+  }
+}
 
 export type UniversalSearchArtistHit = UniversalSearchHit<HiddenTunesArtist>;
 export type UniversalSearchAlbumHit = UniversalSearchHit<HiddenTunesAlbum>;
@@ -102,67 +134,19 @@ function buildSongMetadataDocument(song: HiddenTunesNormalizedSong) {
 function scoreSongMetadata(
   song: HiddenTunesNormalizedSong,
   query: string
-): { score: number; reason: UniversalMatchReason } | null {
-  const raw = song.raw || {};
-  const document = buildSongMetadataDocument(song);
-  const normalizedQuery = normalizeSearchText(query);
+): {
+  score: number;
+  reason: UniversalMatchReason;
+  catalogMatchReason: CatalogSongMatchReason;
+} | null {
+  const ranked = scoreCatalogSongMatch(song, query);
+  if (!ranked) return null;
 
-  const titleScore = scoreSearchDocument(
-    buildSearchDocument([song.title]),
-    query,
-    1.15
-  );
-  if (titleScore > 0) {
-    return { score: titleScore, reason: "Matched title" };
-  }
-
-  const artistScore = scoreSearchDocument(
-    buildSearchDocument([song.artist]),
-    query,
-    1.05
-  );
-  if (artistScore > 0) {
-    return { score: artistScore, reason: "Matched artist" };
-  }
-
-  const albumScore = scoreSearchDocument(
-    buildSearchDocument([song.album]),
-    query,
-    1
-  );
-  if (albumScore > 0) {
-    return { score: albumScore, reason: "Matched album" };
-  }
-
-  const genreScore = scoreSearchDocument(
-    buildSearchDocument([song.genre, song.mood]),
-    query,
-    0.95
-  );
-  if (genreScore > 0) {
-    return {
-      score: genreScore,
-      reason: normalizeSearchText(song.mood || "").includes(normalizedQuery)
-        ? "Matched mood"
-        : "Matched genre",
-    };
-  }
-
-  const tagScore = scoreSearchDocument(
-    buildSearchDocument(collectSearchTags(raw.tags)),
-    query,
-    0.9
-  );
-  if (tagScore > 0) {
-    return { score: tagScore, reason: "Matched tag" };
-  }
-
-  const phraseScore = scoreSearchDocument(document, query, 0.88);
-  if (phraseScore > 0) {
-    return { score: phraseScore, reason: "Matched phrase" };
-  }
-
-  return null;
+  return {
+    score: ranked.score,
+    reason: catalogReasonToUniversal(ranked.matchReason),
+    catalogMatchReason: ranked.matchReason,
+  };
 }
 
 function scoreSongLyrics(song: HiddenTunesNormalizedSong, query: string) {
@@ -198,6 +182,7 @@ function searchSongs(
         kind: "song",
         score: metadataMatch.score,
         reason: metadataMatch.reason,
+        catalogMatchReason: metadataMatch.catalogMatchReason,
         payload: song,
         subtitle: `${song.artist}${song.album ? ` • ${song.album}` : ""}`,
       });
@@ -205,11 +190,13 @@ function searchSongs(
 
     const lyricMatch = scoreSongLyrics(song, query);
     if (lyricMatch) {
+      const catalogMatch = scoreCatalogSongMatch(song, query);
       lyricHits.push({
         id: `lyric:${song.id}`,
         kind: "lyric",
-        score: lyricMatch.score,
+        score: Math.max(lyricMatch.score, catalogMatch?.score || 0),
         reason: lyricMatch.reason,
+        catalogMatchReason: catalogMatch?.matchReason || "lyric_match",
         payload: song,
         subtitle: song.title,
         lyricSnippet: lyricMatch.lyricSnippet,
@@ -322,7 +309,7 @@ function searchTv(videos: HiddenTunesTvVideo[], query: string) {
 
     hits.push({
       id: `tv:${video.id}`,
-      score,
+      score: Math.min(score, CATALOG_SEARCH_TV_MAX_SCORE),
       reason: "Matched TV",
       payload: video,
       subtitle: video.channel_name || video.genre || "Hidden Tunes TV",
@@ -346,7 +333,7 @@ export function runUniversalCatalogSearch(
   const genreMoods = searchGenres(catalog.genres, cleanQuery);
   const tv = searchTv(catalog.tvVideos, cleanQuery);
 
-  const topResults: UniversalSearchTopHit[] = [];
+  const catalogTopHits: UniversalSearchTopHit[] = [];
   const seenTop = new Set<string>();
 
   for (const hit of [
@@ -355,15 +342,16 @@ export function runUniversalCatalogSearch(
     ...artists,
     ...albums,
     ...genreMoods,
-    ...tv,
   ]) {
     if (seenTop.has(hit.id)) continue;
     seenTop.add(hit.id);
-    topResults.push(hit);
+    catalogTopHits.push(hit);
   }
 
-  topResults.sort((left, right) => right.score - left.score);
-  topResults.splice(10);
+  catalogTopHits.sort((left, right) => right.score - left.score);
+
+  const tvTopHits = [...tv].sort((left, right) => right.score - left.score);
+  const topResults = [...catalogTopHits, ...tvTopHits].slice(0, 10);
 
   const hasAnyResults =
     topResults.length > 0 ||
@@ -402,10 +390,7 @@ export function rankCachedSongsForQuery(
   const cleanQuery = String(query || "").trim();
   if (!cleanQuery) return songs;
 
-  const { songs: metadataHits, lyrics: lyricHits } = searchSongs(songs, cleanQuery);
-  const merged = mergeSearchHits(metadataHits, lyricHits).slice(0, limit);
-
-  return merged.map((hit) => hit.payload);
+  return rankCatalogSongs(songs, cleanQuery, limit).map((hit) => hit.song);
 }
 
 export function flattenTvHomeCache(

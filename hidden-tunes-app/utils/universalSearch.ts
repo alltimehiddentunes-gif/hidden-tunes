@@ -24,6 +24,8 @@ const LRC_TIMESTAMP_RE = /\[[\d:.]+\]|<\d+,\d+>/g;
 
 export function normalizeSearchText(value: unknown): string {
   return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .replace(PUNCTUATION_RE, "")
     .replace(NON_WORD_RE, " ")

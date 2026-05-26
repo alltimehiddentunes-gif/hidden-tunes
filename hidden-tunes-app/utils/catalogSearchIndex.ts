@@ -1,5 +1,13 @@
 import type { HiddenTunesNormalizedSong } from "../services/hiddenTunesApi";
-import { normalizeSearchText, tokenizeSearchText } from "./universalSearch";
+import {
+  rankCatalogSongs,
+  scoreCatalogSongMatch,
+  type CatalogSongMatchReason,
+} from "./catalogSongRanking";
+import { normalizeSearchText } from "./universalSearch";
+
+export type { CatalogSongMatchReason };
+export { scoreCatalogSongMatch, rankCatalogSongs };
 
 export type CatalogSearchIndexEntry = {
   songId: string;
@@ -61,67 +69,11 @@ export function buildCatalogSearchIndex(
   };
 }
 
-export function scoreFastCatalogMatch(
-  entry: CatalogSearchIndexEntry,
-  normalizedQuery: string,
-  queryTokens: string[]
-): number {
-  if (!normalizedQuery) return 0;
-
-  const { haystack, titleKey, artistKey, genreKey } = entry;
-
-  if (!haystack) return 0;
-
-  if (haystack.includes(normalizedQuery)) {
-    if (titleKey.startsWith(normalizedQuery)) return 140;
-    if (titleKey.includes(normalizedQuery)) return 120;
-    if (artistKey.includes(normalizedQuery)) return 108;
-    if (genreKey.includes(normalizedQuery)) return 96;
-    return 88;
-  }
-
-  if (!queryTokens.length) return 0;
-
-  const tokenMatches = queryTokens.every((token) => haystack.includes(token));
-  if (!tokenMatches) return 0;
-
-  if (queryTokens.every((token) => titleKey.includes(token))) return 112;
-  if (queryTokens.every((token) => artistKey.includes(token))) return 102;
-  if (queryTokens.every((token) => genreKey.includes(token))) return 92;
-
-  return 78;
-}
-
 export function searchCatalogIndex(
   index: CatalogSearchIndex,
   query: string,
   limit = 24
 ): HiddenTunesNormalizedSong[] {
-  const normalizedQuery = normalizeSearchText(query);
-  if (!normalizedQuery || normalizedQuery.length < 2) return [];
-
-  const queryTokens = tokenizeSearchText(normalizedQuery);
-  const scored: Array<{ score: number; song: HiddenTunesNormalizedSong }> = [];
-
-  for (const entry of index.entries) {
-    const score = scoreFastCatalogMatch(entry, normalizedQuery, queryTokens);
-    if (score <= 0) continue;
-
-    scored.push({ score, song: entry.song });
-  }
-
-  scored.sort((left, right) => right.score - left.score);
-
-  const seen = new Set<string>();
-  const results: HiddenTunesNormalizedSong[] = [];
-
-  for (const item of scored) {
-    const key = String(item.song.id || "");
-    if (!key || seen.has(key)) continue;
-    seen.add(key);
-    results.push(item.song);
-    if (results.length >= limit) break;
-  }
-
-  return results;
+  const songs = index.entries.map((entry) => entry.song);
+  return rankCatalogSongs(songs, query, limit).map((hit) => hit.song);
 }

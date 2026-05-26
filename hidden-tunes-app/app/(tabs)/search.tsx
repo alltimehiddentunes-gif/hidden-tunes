@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   FlatList,
   InteractionManager,
+  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -28,6 +29,7 @@ import { router } from "expo-router";
 
 import NeonEQ from "../../components/NeonEQ";
 import AddToPlaylistButton from "../../components/AddToPlaylistButton";
+import HTImage from "../../components/HTImage";
 import MediaCard from "../../components/MediaCard";
 
 import { COLORS, GRADIENTS } from "../../constants/theme";
@@ -96,9 +98,14 @@ import {
 } from "../../services/instantCatalogSearch";
 import {
   buildCatalogSearchIndex,
-  searchCatalogIndex,
   type CatalogSearchIndex,
 } from "../../utils/catalogSearchIndex";
+import {
+  mergeCatalogSongLists,
+  rankCatalogSongs,
+  type CatalogSongMatchReason,
+  type CatalogSongSearchHit,
+} from "../../utils/catalogSongRanking";
 import {
   flattenTvHomeCache,
   runUniversalCatalogSearch,
@@ -349,9 +356,67 @@ function hasPlayableAudio(song: Partial<NativeSearchTrack>) {
     song.audio_url ||
     song.previewUrl ||
     song.streamUrl ||
-    song.url;
+    song.url ||
+    (song as any).raw?.audio_url ||
+    (song as any).raw?.url;
 
   return typeof audio === "string" && audio.trim().length > 0;
+}
+
+function resolveSearchPlayableSong(
+  raw: any,
+  catalogs: HiddenTunesNormalizedSong[][]
+): NativeSearchTrack {
+  let song = normalizePlayableSong(raw);
+
+  if (hasPlayableAudio(song)) {
+    return song;
+  }
+
+  const id = String(song.id || "").trim();
+  if (!id) return song;
+
+  for (const catalog of catalogs) {
+    const match = catalog.find((entry) => String(entry.id) === id);
+    if (!match) continue;
+
+    song = normalizePlayableSong(match);
+    if (hasPlayableAudio(song)) {
+      return song;
+    }
+  }
+
+  return song;
+}
+
+function buildSearchPlayQueue(
+  visibleSongResults: NativeSearchTrack[],
+  flatResults: SearchResultTrack[],
+  catalogs: HiddenTunesNormalizedSong[][]
+) {
+  const seen = new Set<string>();
+  const queue: NativeSearchTrack[] = [];
+
+  const pushRaw = (raw: any) => {
+    const song = resolveSearchPlayableSong(raw, catalogs);
+    const key = String(song.id || "").trim();
+    if (!key || seen.has(key)) return;
+    if (!hasPlayableAudio(song)) return;
+
+    seen.add(key);
+    queue.push(song);
+  };
+
+  for (const item of visibleSongResults) {
+    pushRaw(item);
+  }
+
+  for (const item of flatResults) {
+    if (isYouTubeTrack(item)) continue;
+    pushRaw(item);
+  }
+
+  return queue;
 }
 
 function sourceColor(source?: string) {
@@ -374,23 +439,49 @@ type SearchRowHandlers = {
 };
 
 function normalizePlayableSong(item: any): NativeSearchTrack {
-  const stream =
+  const stream = String(
     item.audioUrl ||
-    item.audio_url ||
-    item.previewUrl ||
-    item.streamUrl ||
-    item.url ||
-    "";
+      item.audio_url ||
+      item.previewUrl ||
+      item.streamUrl ||
+      item.url ||
+      item.raw?.audio_url ||
+      item.raw?.url ||
+      ""
+  ).trim();
 
-  const audioUrl = String(stream).trim();
+  const artwork = String(
+    item.artwork_url ||
+      item.artwork ||
+      item.cover_url ||
+      item.cover ||
+      item.thumbnail ||
+      ""
+  ).trim();
+
+  const durationSeconds =
+    item.duration_seconds ?? item.duration ?? item.raw?.duration_seconds;
 
   return normalizeNativeResult({
     ...item,
-    audioUrl,
-    audio_url: item.audio_url || audioUrl,
-    previewUrl: item.previewUrl || audioUrl,
-    streamUrl: item.streamUrl || audioUrl,
-    url: item.url || audioUrl,
+    id: String(item.id || "").trim(),
+    title: String(item.title || "Unknown Song"),
+    artist: String(
+      item.artist || item.user?.name || item.channelTitle || "Unknown Artist"
+    ),
+    album: item.album || item.albumTitle || "",
+    audioUrl: stream,
+    audio_url: item.audio_url || stream,
+    previewUrl: item.previewUrl || stream,
+    streamUrl: item.streamUrl || stream,
+    url: item.url || stream,
+    artwork_url: item.artwork_url || artwork,
+    artwork: item.artwork || artwork,
+    cover_url: item.cover_url || artwork,
+    cover: item.cover || artwork,
+    thumbnail: item.thumbnail || artwork,
+    duration_seconds: durationSeconds,
+    duration: item.duration ?? durationSeconds,
     source: item.source || "hidden-tunes",
     sourceName: item.sourceName || "Hidden Tunes",
     type: item.type || "r2",
@@ -421,6 +512,160 @@ function normalizeSearchTrack(item: SearchResultTrack): SearchResultTrack {
   return normalizeNativeResult(item);
 }
 
+type GroupedMainSongHit = {
+  id: string;
+  payload: HiddenTunesNormalizedSong | NativeSearchTrack;
+  subtitle?: string;
+  lyricSnippet?: string;
+  matchReason?: CatalogSongMatchReason;
+};
+
+function isHiddenTunesCatalogTrack(item: SearchResultTrack) {
+  if (isYouTubeTrack(item)) return false;
+  const source = String((item as any).source || "").toLowerCase();
+  const sourceName = String((item as any).sourceName || "").toLowerCase();
+  return source === "hidden-tunes" || sourceName.includes("hidden tunes");
+}
+
+function orderFlatSearchResults(
+  items: SearchResultTrack[],
+  searchQuery: string
+): SearchResultTrack[] {
+  const safeQuery = String(searchQuery || "").trim();
+  if (!safeQuery) return items;
+
+  const youtube = items.filter((item) => isYouTubeTrack(item));
+  const catalog = items.filter((item) => isHiddenTunesCatalogTrack(item));
+  const other = items.filter(
+    (item) => !isYouTubeTrack(item) && !isHiddenTunesCatalogTrack(item)
+  );
+
+  const rankedCatalog = rankCatalogSongs(
+    catalog as HiddenTunesNormalizedSong[],
+    safeQuery,
+    80
+  ).map((hit) => hit.song as unknown as SearchResultTrack);
+
+  const rankedIds = new Set(
+    rankedCatalog.map((item) => String((item as any).id || ""))
+  );
+  const trailingCatalog = catalog.filter(
+    (item) => !rankedIds.has(String((item as any).id || ""))
+  );
+
+  return [...rankedCatalog, ...trailingCatalog, ...other, ...youtube];
+}
+
+type CatalogSongRowPressHandler = (
+  song: NativeSearchTrack,
+  index: number
+) => void;
+
+/** Plain Pressable catalog row — no MediaCard (avoids nested touchable swallowing taps). */
+function SearchCatalogSongPressableRow({
+  song,
+  index,
+  subtitle,
+  lyricSnippet,
+  active = false,
+  isPlayingSong = false,
+  onRowPress,
+  reserveRightActionsSpace = false,
+}: {
+  song: HiddenTunesNormalizedSong | NativeSearchTrack | SearchResultTrack | any;
+  index: number;
+  subtitle?: string;
+  lyricSnippet?: string;
+  active?: boolean;
+  isPlayingSong?: boolean;
+  onRowPress: CatalogSongRowPressHandler;
+  reserveRightActionsSpace?: boolean;
+}) {
+  const playable = normalizePlayableSong(song);
+  const title = String(playable.title || "Unknown Song");
+  const artistLine =
+    subtitle ||
+    `${String(getArtist(playable))} • ${playable.sourceName || "Hidden Tunes"}`;
+  const artworkUri = getCover(playable);
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      android_ripple={{ color: "rgba(168,85,247,0.2)" }}
+      style={({ pressed }) => [
+        styles.catalogSongRowPressable,
+        reserveRightActionsSpace && styles.catalogSongRowPressableWithActions,
+        active && styles.catalogSongRowActive,
+        pressed && styles.catalogSongRowPressed,
+      ]}
+      onPress={() => onRowPress(playable, index)}
+    >
+      <LinearGradient
+        colors={GRADIENTS.card}
+        style={[
+          styles.catalogSongRowCard,
+          reserveRightActionsSpace && styles.catalogSongRowCardWithActions,
+        ]}
+      >
+        <HTImage
+          source={artworkUri}
+          style={styles.catalogSongArtwork}
+          contentFit="cover"
+        />
+
+        <View style={styles.catalogSongTextCol}>
+          <Text style={styles.catalogSongTitle} numberOfLines={1}>
+            {title}
+          </Text>
+          <Text style={styles.catalogSongSubtitle} numberOfLines={1}>
+            {artistLine}
+          </Text>
+
+          {lyricSnippet ? (
+            <Text style={styles.catalogSongLyric} numberOfLines={2}>
+              {lyricSnippet}
+            </Text>
+          ) : null}
+
+          {active ? (
+            <Text style={styles.catalogSongNowPlaying}>
+              {isPlayingSong ? "Now playing" : "Selected"}
+            </Text>
+          ) : null}
+        </View>
+      </LinearGradient>
+    </Pressable>
+  );
+}
+
+function SearchGroupedMainSongRow({
+  hit,
+  index,
+  active,
+  isPlayingSong,
+  onRowPress,
+}: {
+  hit: GroupedMainSongHit;
+  index: number;
+  active: boolean;
+  isPlayingSong: boolean;
+  onRowPress: CatalogSongRowPressHandler;
+}) {
+  return (
+    <View style={styles.groupedSongRowWrap}>
+      <SearchCatalogSongPressableRow
+        song={hit.payload}
+        index={index}
+        subtitle={hit.subtitle || String(hit.payload?.artist || "")}
+        lyricSnippet={hit.lyricSnippet}
+        active={active}
+        isPlayingSong={isPlayingSong}
+        onRowPress={onRowPress}
+      />
+    </View>
+  );
+}
+
 const SearchResultRow = memo(function SearchResultRow({
   item,
   index,
@@ -439,28 +684,84 @@ const SearchResultRow = memo(function SearchResultRow({
   const sourceName = String(normalized.sourceName || "Hidden Tunes");
   const sourceColorValue = sourceColor(sourceName);
 
-  const onPress = () => {
-    if (youtube) {
-      void handlersRef.current?.handlePress(item);
-      return;
-    }
-
-    handlersRef.current?.handleSongResultPress(item, index);
+  const onCatalogSongPress: CatalogSongRowPressHandler = (song, rowIndex) => {
+    handlersRef.current?.handleSongResultPress(song, rowIndex);
   };
+
+  const onTvPress = () => {
+    void handlersRef.current?.handlePress(item);
+  };
+
+  if (youtube) {
+    return (
+      <View style={[styles.resultShell, isActive && styles.resultShellActive]}>
+        <TouchableOpacity activeOpacity={0.88} onPress={onTvPress}>
+          <MediaCard
+            title={title}
+            subtitle={`${artist} • ${sourceName}`}
+            image={normalized}
+            type="radio"
+            size="medium"
+            showPlayButton={false}
+            onPress={onTvPress}
+          />
+        </TouchableOpacity>
+
+        <View style={styles.resultOverlayActions} pointerEvents="box-none">
+          <TouchableOpacity
+            activeOpacity={0.7}
+            style={styles.artistButton}
+            onPress={() => handlersRef.current?.openArtistFromTrack(item)}
+          >
+            <Ionicons name="person-outline" size={17} color={COLORS.text} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            activeOpacity={0.82}
+            style={styles.albumButton}
+            onPress={() => handlersRef.current?.openAlbumFromTrack(item)}
+          >
+            <Ionicons name="albums-outline" size={18} color={COLORS.text} />
+          </TouchableOpacity>
+
+          {isActive ? (
+            <View style={styles.eqBox}>
+              <NeonEQ isPlaying={isPlaying} size="small" />
+            </View>
+          ) : (
+            <TouchableOpacity
+              activeOpacity={0.85}
+              style={[styles.playButton, styles.youtubeButton]}
+              onPress={onTvPress}
+            >
+              <Ionicons name="tv" size={20} color="#fff" />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        <View style={styles.sourceBadge} pointerEvents="none">
+          <Ionicons name="tv" size={13} color={sourceColorValue} />
+          <Text style={[styles.sourceBadgeText, { color: sourceColorValue }]}>
+            Hidden Tunes TV
+          </Text>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.resultShell, isActive && styles.resultShellActive]}>
-      <MediaCard
-        title={title}
+      <SearchCatalogSongPressableRow
+        song={item}
+        index={index}
         subtitle={`${artist} • ${sourceName}`}
-        image={normalized}
-        type={youtube ? "radio" : "song"}
-        size="medium"
-        showPlayButton={false}
-        onPress={onPress}
+        active={isActive}
+        isPlayingSong={isPlaying}
+        onRowPress={onCatalogSongPress}
+        reserveRightActionsSpace
       />
 
-      <View style={styles.resultOverlayActions}>
+      <View style={styles.resultOverlayActions} pointerEvents="box-none">
         <TouchableOpacity
           activeOpacity={0.7}
           style={styles.artistButton}
@@ -469,7 +770,7 @@ const SearchResultRow = memo(function SearchResultRow({
           <Ionicons name="person-outline" size={17} color={COLORS.text} />
         </TouchableOpacity>
 
-        {!youtube && <AddToPlaylistButton track={normalized as any} />}
+        <AddToPlaylistButton track={normalizePlayableSong(item) as any} />
 
         <TouchableOpacity
           activeOpacity={0.82}
@@ -486,27 +787,23 @@ const SearchResultRow = memo(function SearchResultRow({
         ) : (
           <TouchableOpacity
             activeOpacity={0.85}
-            style={[styles.playButton, youtube && styles.youtubeButton]}
-            onPress={onPress}
+            style={styles.playButton}
+            onPress={() => onCatalogSongPress(normalizePlayableSong(item), index)}
           >
-            <Ionicons
-              name={youtube ? "tv" : "play"}
-              size={20}
-              color={youtube ? "#fff" : "#000"}
-            />
+            <Ionicons name="play" size={20} color="#000" />
           </TouchableOpacity>
         )}
       </View>
 
-      <View style={styles.sourceBadge}>
+      <View style={styles.sourceBadge} pointerEvents="none">
         <Ionicons
-          name={youtube ? "tv" : "cloud-done"}
+          name="cloud-done"
           size={13}
           color={sourceColorValue}
         />
 
         <Text style={[styles.sourceBadgeText, { color: sourceColorValue }]}>
-          {youtube ? "Hidden Tunes TV" : sourceName}
+          {sourceName}
         </Text>
       </View>
     </View>
@@ -550,6 +847,7 @@ export default function SearchScreen() {
   });
   const inFlightSearchKeyRef = useRef<string | null>(null);
   const fuzzySearchGenerationRef = useRef(0);
+  const catalogSearchGenerationRef = useRef(0);
   const tvFetchGenerationRef = useRef(0);
   const tvFetchInFlightRef = useRef<string | null>(null);
   const fuzzySearchInFlightRef = useRef<string | null>(null);
@@ -595,6 +893,13 @@ export default function SearchScreen() {
     query: string;
     results: GroupedSearchResults | null;
   }>({ query: "", results: null });
+  const [remoteCatalogSongs, setRemoteCatalogSongs] = useState<
+    HiddenTunesNormalizedSong[]
+  >([]);
+  const [catalogSearchSource, setCatalogSearchSource] = useState({
+    name: "local_snapshot",
+    count: 0,
+  });
 
   const matchedGenres = useMemo(() => {
     const safeQuery = query.trim().toLowerCase();
@@ -696,6 +1001,29 @@ export default function SearchScreen() {
     };
   }, [deferredFuzzySearch, instantGroupedResults, showGroupedSearch, trimmedQuery]);
 
+  const mergedCatalogSongs = useMemo(
+    () =>
+      mergeCatalogSongLists(
+        remoteCatalogSongs,
+        fullCatalogSongs,
+        universalCatalog.songs,
+        getHiddenTunesCatalogSnapshot()
+      ),
+    [remoteCatalogSongs, fullCatalogSongs, universalCatalog.songs]
+  );
+
+  const rankedCatalogSongHits = useMemo(() => {
+    if (!showGroupedSearch || trimmedQuery.length < LOCAL_SEARCH_MIN_CHARS) {
+      return [] as CatalogSongSearchHit[];
+    }
+
+    return rankCatalogSongs(
+      mergedCatalogSongs,
+      trimmedQuery,
+      VISIBLE_SONG_LIMIT + 12
+    );
+  }, [mergedCatalogSongs, showGroupedSearch, trimmedQuery]);
+
   const visibleSongResults = useMemo(() => {
     if (!showGroupedSearch) return [] as NativeSearchTrack[];
 
@@ -717,45 +1045,154 @@ export default function SearchScreen() {
       collected.push(normalized);
     };
 
-    for (const song of collectGroupedSongPayloads(instantGroupedResults)) {
-      addSong(song);
+    for (const hit of rankedCatalogSongHits) {
+      addSong(hit.song);
+      if (collected.length >= VISIBLE_SONG_LIMIT) break;
     }
 
-    const catalogSongs = universalCatalog.songs;
-    if (collected.length < VISIBLE_SONG_LIMIT && catalogSongs.length > 0) {
-      if (
-        !catalogIndexRef.current ||
-        catalogIndexRef.current.songCount !== catalogSongs.length
-      ) {
-        catalogIndexRef.current = {
-          songCount: catalogSongs.length,
-          index: buildCatalogSearchIndex(catalogSongs),
-        };
-      }
-
-      const extraMatches = searchCatalogIndex(
-        catalogIndexRef.current.index,
-        trimmedQuery,
-        VISIBLE_SONG_LIMIT
-      );
-
-      for (const song of extraMatches) {
+    if (collected.length < VISIBLE_SONG_LIMIT) {
+      for (const song of collectGroupedSongPayloads(groupedSearchResults)) {
         addSong(song);
         if (collected.length >= VISIBLE_SONG_LIMIT) break;
       }
     }
 
     return collected;
-  }, [
-    instantGroupedResults,
-    showGroupedSearch,
-    trimmedQuery,
-    universalCatalog.songs,
-  ]);
+  }, [groupedSearchResults, rankedCatalogSongHits, showGroupedSearch]);
+
+  const catalogLookupSources = useMemo(
+    () => [
+      fullCatalogSongs,
+      universalCatalog.songs,
+      getHiddenTunesCatalogSnapshot(),
+    ],
+    [fullCatalogSongs, universalCatalog.songs]
+  );
+
+  const searchPlayQueue = useMemo(
+    () => buildSearchPlayQueue(visibleSongResults, results, catalogLookupSources),
+    [visibleSongResults, results, catalogLookupSources]
+  );
+
+  const groupedMainSongHits = useMemo(() => {
+    if (!showGroupedSearch) return [] as GroupedMainSongHit[];
+
+    const seen = new Set<string>();
+    const hits: GroupedMainSongHit[] = [];
+
+    const addHit = (hit: GroupedMainSongHit) => {
+      if (!hit?.id || seen.has(hit.id)) return;
+      seen.add(hit.id);
+      hits.push(hit);
+    };
+
+    for (const ranked of rankedCatalogSongHits) {
+      addHit({
+        id: `song:${ranked.song.id}`,
+        payload: ranked.song,
+        subtitle: `${ranked.song.artist}${
+          ranked.song.album ? ` • ${ranked.song.album}` : ""
+        }`,
+        matchReason: ranked.matchReason,
+      });
+    }
+
+    for (const hit of groupedSearchResults.lyrics) {
+      addHit({
+        id: hit.id,
+        payload: hit.payload,
+        subtitle: hit.subtitle,
+        lyricSnippet: hit.lyricSnippet,
+        matchReason: hit.catalogMatchReason || "lyric_match",
+      });
+    }
+
+    return hits;
+  }, [groupedSearchResults.lyrics, rankedCatalogSongHits, showGroupedSearch]);
+
+  const groupedForUniversalSearch = useMemo(() => {
+    if (!showGroupedSearch) return groupedSearchResults;
+
+    const topResults = groupedSearchResults.topResults.filter(
+      (hit) => !hit.id.startsWith("song:") && !hit.id.startsWith("lyric:")
+    );
+
+    const hasAnyResults =
+      topResults.length > 0 ||
+      groupedSearchResults.artists.length > 0 ||
+      groupedSearchResults.albums.length > 0 ||
+      groupedSearchResults.tv.length > 0 ||
+      groupedSearchResults.genreMoods.length > 0 ||
+      groupedMainSongHits.length > 0;
+
+    return {
+      ...groupedSearchResults,
+      songs: [],
+      lyrics: [],
+      topResults,
+      hasAnyResults,
+    };
+  }, [groupedMainSongHits, groupedSearchResults, showGroupedSearch]);
 
   useEffect(() => {
     setDeferredFuzzySearch({ query: "", results: null });
+    setRemoteCatalogSongs([]);
+    setCatalogSearchSource({ name: "local_snapshot", count: 0 });
   }, [trimmedQuery]);
+
+  useEffect(() => {
+    if (trimmedQuery.length < LOCAL_SEARCH_MIN_CHARS) {
+      return;
+    }
+
+    const generation = ++catalogSearchGenerationRef.current;
+    const queryAtFetch = trimmedQuery;
+
+    void (async () => {
+      try {
+        const page = await searchHiddenTunesSongsPage(queryAtFetch, 1, 80);
+        if (generation !== catalogSearchGenerationRef.current) return;
+        if (queryAtFetch !== trimmedQuery) return;
+
+        setRemoteCatalogSongs(page.songs);
+        setCatalogSearchSource({
+          name: page.songs.length > 0 ? "backend_api" : "local_ranked_fallback",
+          count: page.songs.length,
+        });
+      } catch {
+        if (generation !== catalogSearchGenerationRef.current) return;
+        setRemoteCatalogSongs([]);
+        setCatalogSearchSource({
+          name: "local_ranked_fallback",
+          count: 0,
+        });
+      }
+    })();
+  }, [trimmedQuery]);
+
+  useEffect(() => {
+    if (trimmedQuery.length < LOCAL_SEARCH_MIN_CHARS) return;
+
+    console.log("[search] query", trimmedQuery);
+    console.log(
+      "[search] catalog source",
+      catalogSearchSource.name,
+      mergedCatalogSongs.length
+    );
+    console.log(
+      "[search] top results",
+      rankedCatalogSongHits.slice(0, 5).map((result) => ({
+        title: result.song.title,
+        artist: result.song.artist,
+        reason: result.matchReason,
+      }))
+    );
+  }, [
+    catalogSearchSource.name,
+    mergedCatalogSongs.length,
+    rankedCatalogSongHits,
+    trimmedQuery,
+  ]);
 
   useEffect(() => {
     if (trimmedQuery.length < LOCAL_SEARCH_MIN_CHARS) {
@@ -1181,17 +1618,33 @@ export default function SearchScreen() {
 
       if (source === "all" || source === "hidden") {
         try {
-          const hiddenTunesPage = await searchHiddenTunesSongsPage(safeText, 1, 30);
-          const hiddenTunesResults = hiddenTunesPage.songs;
+          const hiddenTunesPage = await searchHiddenTunesSongsPage(safeText, 1, 60);
           setHasMoreHiddenResults(hiddenTunesPage.hasMore);
 
+          const mergedHiddenCatalog = mergeCatalogSongLists(
+            hiddenTunesPage.songs,
+            fullCatalogSongs,
+            getHiddenTunesCatalogSnapshot()
+          );
+          const rankedHidden = rankCatalogSongs(mergedHiddenCatalog, safeText, 60);
+
+          setRemoteCatalogSongs(hiddenTunesPage.songs);
+          setCatalogSearchSource({
+            name:
+              hiddenTunesPage.songs.length > 0
+                ? "backend_api"
+                : "local_ranked_fallback",
+            count: mergedHiddenCatalog.length,
+          });
+
           finalResults.push(
-            ...hiddenTunesResults.map((item: any) =>
+            ...rankedHidden.map((hit) =>
               normalizeNativeResult({
-                ...item,
+                ...hit.song,
                 source: "hidden-tunes",
                 sourceName: "Hidden Tunes",
                 type: "r2",
+                matchReason: hit.matchReason,
               })
             )
           );
@@ -1262,8 +1715,9 @@ export default function SearchScreen() {
         }
       }
 
-      const normalizedResults = dedupeByKey(
-        finalResults.map((item) => normalizeSearchTrack(item))
+      const normalizedResults = orderFlatSearchResults(
+        dedupeByKey(finalResults.map((item) => normalizeSearchTrack(item))),
+        safeText
       );
       logApiRefresh("search_results", refreshStart, {
         query: safeText,
@@ -1422,37 +1876,31 @@ export default function SearchScreen() {
 
   const handleSongResultPress = useCallback(
     (rawSong: HiddenTunesNormalizedSong | NativeSearchTrack | any, index: number) => {
-      const song = normalizePlayableSong(rawSong);
-      let queue = visibleSongResults.map((item) => normalizePlayableSong(item));
+      const song = resolveSearchPlayableSong(rawSong, catalogLookupSources);
+
+      console.log("[search] song row tapped", song.id, song.title);
+
+      let queue =
+        searchPlayQueue.length > 0
+          ? searchPlayQueue
+          : [song];
       let playIndex = queue.findIndex(
         (item) => String(item.id) === String(song.id)
       );
 
-      const hasAudio = hasPlayableAudio(song);
-
-      if (__DEV__) {
-        console.log("[SearchTap] pressed", {
-          id: song?.id,
-          title: song?.title,
-          index,
-          playIndex,
-          queueLength: queue.length,
-          hasAudio,
-        });
-      }
-
-      if (!hasAudio) {
+      if (!hasPlayableAudio(song)) {
         if (__DEV__) {
           console.warn("[SearchTap] missing audio — playback skipped", {
             id: song?.id,
             title: song?.title,
+            index,
           });
         }
         return;
       }
 
       if (playIndex < 0) {
-        queue = [song];
+        queue = [song, ...queue.filter((item) => String(item.id) !== String(song.id))];
         playIndex = 0;
       }
 
@@ -1466,7 +1914,7 @@ export default function SearchScreen() {
         router.push("/player" as any);
       });
     },
-    [playSong, visibleSongResults]
+    [catalogLookupSources, playSong, searchPlayQueue]
   );
 
   const openGenre = useCallback((genre: GenreItem) => {
@@ -1624,16 +2072,6 @@ export default function SearchScreen() {
       </TouchableOpacity>
     ),
     [activeSource]
-  );
-
-  const openGroupedSong = useCallback(
-    (song: HiddenTunesNormalizedSong) => {
-      const index = visibleSongResults.findIndex(
-        (item) => String(item.id) === String(song?.id)
-      );
-      handleSongResultPress(song, index >= 0 ? index : 0);
-    },
-    [handleSongResultPress, visibleSongResults]
   );
 
   const openGroupedArtist = useCallback((artist: HiddenTunesArtist) => {
@@ -1797,30 +2235,22 @@ export default function SearchScreen() {
               <Text style={styles.loadingMiniText}>Preparing songs...</Text>
             </View>
           ) : (
-            continueListening.map((track) => (
-              <View key={track.id} style={styles.compactTrack}>
-                <TouchableOpacity
-                  style={styles.compactTrackInfo}
-                  onPress={() => handleSongResultPress(track, 0)}
-                >
-                  <Text numberOfLines={1} style={styles.compactTitle}>
-                    {track.title}
-                  </Text>
-                  <Text numberOfLines={1} style={styles.compactSub}>
-                    {track.artist} • Hidden Tunes
-                  </Text>
-                </TouchableOpacity>
+            continueListening.map((track, trackIndex) => {
+              const playIndex = searchPlayQueue.findIndex(
+                (item) => String(item.id) === String(track.id)
+              );
 
-                <AddToPlaylistButton track={track as any} />
-
-                <TouchableOpacity
-                  style={styles.compactPlay}
-                  onPress={() => handleSongResultPress(track, 0)}
-                >
-                  <Ionicons name="play" size={16} color="#000" />
-                </TouchableOpacity>
-              </View>
-            ))
+              return (
+                <View key={track.id} style={styles.groupedSongRowWrap}>
+                  <SearchCatalogSongPressableRow
+                    song={track}
+                    index={playIndex >= 0 ? playIndex : trackIndex}
+                    subtitle={`${track.artist} • Hidden Tunes`}
+                    onRowPress={handleSongResultPress}
+                  />
+                </View>
+              );
+            })
           )}
         </View>
 
@@ -2054,6 +2484,7 @@ export default function SearchScreen() {
           ref={resultListRef}
           data={results}
           keyExtractor={resultKeyExtractor}
+          keyboardShouldPersistTaps="handled"
           contentContainerStyle={{ paddingBottom: 180 }}
           showsVerticalScrollIndicator={false}
           initialNumToRender={resultListPerformance.initialNumToRender}
@@ -2122,12 +2553,53 @@ export default function SearchScreen() {
                 </View>
               ) : null}
 
+              {showGroupedSearch && groupedMainSongHits.length > 0 ? (
+                <View style={styles.groupedSongSection}>
+                  <View style={styles.sectionHeader}>
+                    <Text style={styles.sectionTitle}>Songs</Text>
+                    <Text style={styles.sectionSub}>
+                      {groupedMainSongHits.length} ready to play
+                    </Text>
+                  </View>
+
+                  {groupedMainSongHits.map((hit, hitIndex) => {
+                    const playIndex = searchPlayQueue.findIndex(
+                      (item) =>
+                        String(item.id) === String(hit.payload?.id || "")
+                    );
+
+                    return (
+                      <SearchGroupedMainSongRow
+                        key={hit.id}
+                        hit={hit}
+                        index={playIndex >= 0 ? playIndex : hitIndex}
+                        active={
+                          currentSongId === String(hit.payload?.id || "")
+                        }
+                        isPlayingSong={isPlaying}
+                        onRowPress={handleSongResultPress}
+                      />
+                    );
+                  })}
+                </View>
+              ) : null}
+
               {showGroupedSearch ? (
                 <UniversalSearchGroupedResults
-                  grouped={groupedSearchResults}
+                  grouped={groupedForUniversalSearch}
                   query={trimmedQuery}
-                  onSongPress={openGroupedSong}
-                  onLyricPress={openGroupedSong}
+                  onSongPress={(song) => {
+                    const playIndex = searchPlayQueue.findIndex(
+                      (item) => String(item.id) === String(song?.id)
+                    );
+                    handleSongResultPress(song, playIndex >= 0 ? playIndex : 0);
+                  }}
+                  onLyricPress={(song) => {
+                    const playIndex = searchPlayQueue.findIndex(
+                      (item) => String(item.id) === String(song?.id)
+                    );
+                    handleSongResultPress(song, playIndex >= 0 ? playIndex : 0);
+                  }}
                   onArtistPress={openGroupedArtist}
                   onAlbumPress={openGroupedAlbum}
                   onGenrePress={openGenre}
@@ -2139,7 +2611,7 @@ export default function SearchScreen() {
                     hasCheckedFallbacks: hasCheckedSearchFallbacks,
                     isLoading: loading,
                     isRefreshing: refreshing,
-                    resolvedCount: groupedSearchResults.hasAnyResults ? 1 : 0,
+                    resolvedCount: groupedForUniversalSearch.hasAnyResults ? 1 : 0,
                   })}
                 />
               ) : null}
@@ -2571,6 +3043,73 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     marginTop: 8,
   },
+  groupedSongSection: {
+    marginBottom: 18,
+  },
+  groupedSongRowWrap: {
+    marginBottom: 10,
+  },
+  catalogSongRowPressable: {
+    borderRadius: 28,
+    overflow: "hidden",
+  },
+  catalogSongRowPressableWithActions: {
+    marginRight: 0,
+  },
+  catalogSongRowActive: {
+    borderWidth: 1,
+    borderColor: "rgba(168,85,247,0.45)",
+  },
+  catalogSongRowPressed: {
+    opacity: 0.92,
+  },
+  catalogSongRowCard: {
+    minHeight: 96,
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 28,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.07)",
+  },
+  catalogSongRowCardWithActions: {
+    paddingRight: 188,
+  },
+  catalogSongArtwork: {
+    width: 82,
+    height: 82,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.06)",
+  },
+  catalogSongTextCol: {
+    flex: 1,
+    marginLeft: 14,
+    paddingRight: 8,
+  },
+  catalogSongTitle: {
+    color: COLORS.text,
+    fontSize: 16,
+    fontWeight: "900",
+  },
+  catalogSongSubtitle: {
+    color: COLORS.textMuted,
+    fontSize: 13,
+    marginTop: 5,
+    fontWeight: "600",
+  },
+  catalogSongLyric: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 8,
+  },
+  catalogSongNowPlaying: {
+    color: COLORS.primary,
+    fontSize: 11,
+    fontWeight: "800",
+    marginTop: 8,
+  },
   resultShell: {
     position: "relative",
     marginBottom: 12,
@@ -2583,6 +3122,8 @@ const styles = StyleSheet.create({
     position: "absolute",
     right: 13,
     top: 15,
+    zIndex: 4,
+    elevation: 4,
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
