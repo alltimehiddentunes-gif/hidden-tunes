@@ -616,8 +616,14 @@ export default memo(function ExploreScreen() {
   const visibleCloudSongs = rankedCloudSongs;
   const rankedAlbums = sharedDiscovery.rankedAlbums;
   const rankedArtists = sharedDiscovery.rankedArtists;
-  const moodRooms = sharedDiscovery.moodRooms.slice(0, 6);
-  const genreWorlds = sharedDiscovery.genreSpotlights;
+  const moodRooms = useMemo(
+    () => sharedDiscovery.moodRooms.slice(0, 6),
+    [sharedDiscovery.moodRooms]
+  );
+  const genreWorlds = useMemo(
+    () => sharedDiscovery.genreSpotlights,
+    [sharedDiscovery.genreSpotlights]
+  );
   const recentlyAdded = sharedDiscovery.recentlyDiscovered;
   const curatedSections = sharedDiscovery.curatedSections;
 

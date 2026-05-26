@@ -107,6 +107,8 @@ export function buildGenreSpotlightGroups<T extends GenreGroupSong>(
 export function logExploreGenreGroups<T extends { title?: string }>(
   groups: GenreSpotlightGroup<T>[]
 ) {
+  if (typeof __DEV__ === "undefined" || !__DEV__) return;
+
   console.log(
     "[explore] genre groups",
     groups.map((group) => ({

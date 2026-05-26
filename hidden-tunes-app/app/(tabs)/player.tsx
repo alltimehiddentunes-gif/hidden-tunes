@@ -260,6 +260,18 @@ const MetadataContextChip = memo(function MetadataContextChip({
   );
 });
 
+const PlayerWaveform = memo(function PlayerWaveform({
+  isPlaying,
+}: {
+  isPlaying: boolean;
+}) {
+  return (
+    <View style={styles.waveformContainer}>
+      <LiveWaveform isPlaying={isPlaying} />
+    </View>
+  );
+});
+
 const PlayerProgressSection = memo(function PlayerProgressSection({
   seekTo,
 }: {
@@ -520,7 +532,9 @@ export default function PlayerScreen() {
       const trimmed = String(value || "").trim();
       if (!trimmed) return;
 
-      console.log("[player] metadata tapped", type, value);
+      if (typeof __DEV__ !== "undefined" && __DEV__) {
+        console.log("[player] metadata tapped", type, value);
+      }
       fireLightHaptic();
 
       if (type === "mood") {
@@ -709,9 +723,7 @@ export default function PlayerScreen() {
           </TouchableOpacity>
         </Animated.View>
 
-        <View style={styles.waveformContainer}>
-          <LiveWaveform isPlaying={isPlaying} />
-        </View>
+        <PlayerWaveform isPlaying={isPlaying} />
 
         <PlayerProgressSection seekTo={seekTo} />
 

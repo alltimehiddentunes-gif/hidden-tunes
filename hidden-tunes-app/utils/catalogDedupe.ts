@@ -96,5 +96,7 @@ export function logCatalogDedupeSummary(
   after: number
 ) {
   if (before === after) return;
-  console.log("[catalog] dedupe summary", { before, after, section });
+  if (typeof __DEV__ !== "undefined" && __DEV__) {
+    console.log("[catalog] dedupe summary", { before, after, section });
+  }
 }

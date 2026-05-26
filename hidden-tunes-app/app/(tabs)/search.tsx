@@ -165,8 +165,8 @@ const TV_FETCH_DEBOUNCE_MS = 500;
 const LOCAL_SEARCH_MIN_CHARS = 2;
 const API_SEARCH_MIN_CHARS = 3;
 const VISIBLE_SONG_LIMIT = 28;
-const LOCAL_RANK_CATALOG_LIMIT = 200;
-const INSTANT_CATALOG_SONG_LIMIT = 250;
+const LOCAL_RANK_CATALOG_LIMIT = 160;
+const INSTANT_CATALOG_SONG_LIMIT = 180;
 const NETWORK_SEARCH_DEDUPE_MS = 45_000;
 
 const EMPTY_GROUPED_RESULTS: GroupedSearchResults = {
@@ -855,6 +855,7 @@ export default function SearchScreen() {
   const screenStartedAt = useRef(startPerformanceTimer()).current;
 
   const [query, setQuery] = useState("");
+  const [rankedSearchQuery, setRankedSearchQuery] = useState("");
   const [results, setResults] = useState<SearchResultTrack[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingCloud, setLoadingCloud] = useState(false);
@@ -926,8 +927,23 @@ export default function SearchScreen() {
   }, [playableResults, cloudSongs]);
 
   const trimmedQuery = query.trim();
+
+  useEffect(() => {
+    if (!trimmedQuery) {
+      setRankedSearchQuery("");
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setRankedSearchQuery(trimmedQuery);
+    }, SEARCH_DEBOUNCE_MS);
+
+    return () => clearTimeout(timer);
+  }, [trimmedQuery]);
+
+  const activeSearchQuery = rankedSearchQuery;
   const emptySearchMode = trimmedQuery.length < LOCAL_SEARCH_MIN_CHARS;
-  const showGroupedSearch = trimmedQuery.length >= LOCAL_SEARCH_MIN_CHARS;
+  const showGroupedSearch = activeSearchQuery.length >= LOCAL_SEARCH_MIN_CHARS;
 
   const catalogSongsForSearch = useMemo(() => {
     if (remoteCatalogSongs.length > 0) {
@@ -960,8 +976,8 @@ export default function SearchScreen() {
 
   const instantGroupedResults = useMemo(() => {
     if (!showGroupedSearch) return EMPTY_GROUPED_RESULTS;
-    return runInstantCatalogSearch(universalCatalog, trimmedQuery);
-  }, [showGroupedSearch, trimmedQuery, universalCatalog]);
+    return runInstantCatalogSearch(universalCatalog, activeSearchQuery);
+  }, [activeSearchQuery, showGroupedSearch, universalCatalog]);
 
   const groupedSearchResults = useMemo(() => {
     if (!showGroupedSearch) return EMPTY_GROUPED_RESULTS;
@@ -970,7 +986,7 @@ export default function SearchScreen() {
     const deferred = deferredFuzzySearch;
 
     if (
-      deferred.query !== trimmedQuery ||
+      deferred.query !== activeSearchQuery ||
       !deferred.results?.hasAnyResults
     ) {
       return instant;
@@ -989,10 +1005,10 @@ export default function SearchScreen() {
       hasAnyResults:
         deferred.results.hasAnyResults || instant.hasAnyResults,
     };
-  }, [deferredFuzzySearch, instantGroupedResults, showGroupedSearch, trimmedQuery]);
+  }, [activeSearchQuery, deferredFuzzySearch, instantGroupedResults, showGroupedSearch]);
 
   const rankedCatalogSongHits = useMemo(() => {
-    if (!showGroupedSearch || trimmedQuery.length < LOCAL_SEARCH_MIN_CHARS) {
+    if (!showGroupedSearch || activeSearchQuery.length < LOCAL_SEARCH_MIN_CHARS) {
       return [] as CatalogSongSearchHit[];
     }
 
@@ -1003,14 +1019,14 @@ export default function SearchScreen() {
 
     return rankCatalogSongs(
       songsToRank,
-      trimmedQuery,
+      activeSearchQuery,
       VISIBLE_SONG_LIMIT + 12
     );
   }, [
+    activeSearchQuery,
     catalogSongsForSearch,
     remoteCatalogSongs,
     showGroupedSearch,
-    trimmedQuery,
   ]);
 
   const visibleSongResults = useMemo(() => {
@@ -1177,13 +1193,13 @@ export default function SearchScreen() {
   }, [trimmedQuery]);
 
   useEffect(() => {
-    if (trimmedQuery.length < LOCAL_SEARCH_MIN_CHARS) {
+    if (activeSearchQuery.length < LOCAL_SEARCH_MIN_CHARS) {
       setDeferredFuzzySearch({ query: "", results: null });
       return;
     }
 
     const generation = ++fuzzySearchGenerationRef.current;
-    const queryAtSchedule = trimmedQuery;
+    const queryAtSchedule = activeSearchQuery;
 
     const timer = setTimeout(() => {
       if (generation !== fuzzySearchGenerationRef.current) return;
@@ -1193,7 +1209,7 @@ export default function SearchScreen() {
 
       InteractionManager.runAfterInteractions(() => {
         if (generation !== fuzzySearchGenerationRef.current) return;
-        if (queryAtSchedule !== trimmedQuery) {
+        if (queryAtSchedule !== activeSearchQuery) {
           fuzzySearchInFlightRef.current = null;
           return;
         }
@@ -1201,7 +1217,7 @@ export default function SearchScreen() {
         const results = runUniversalCatalogSearch(universalCatalog, queryAtSchedule);
 
         if (generation !== fuzzySearchGenerationRef.current) return;
-        if (queryAtSchedule !== trimmedQuery) {
+        if (queryAtSchedule !== activeSearchQuery) {
           fuzzySearchInFlightRef.current = null;
           return;
         }
@@ -1217,7 +1233,7 @@ export default function SearchScreen() {
         fuzzySearchInFlightRef.current = null;
       }
     };
-  }, [trimmedQuery, universalCatalog]);
+  }, [activeSearchQuery, universalCatalog]);
 
   useEffect(() => {
     if (fullCatalogSongs.length > 0) {
@@ -1842,8 +1858,10 @@ export default function SearchScreen() {
     (rawSong: HiddenTunesNormalizedSong | NativeSearchTrack | any, index: number) => {
       const song = resolveSearchPlayableSong(rawSong, catalogLookupSources);
 
-      console.log("[search] visible result tapped", "song", song.title);
-      console.log("[search] song row tapped", song.id, song.title);
+      if (typeof __DEV__ !== "undefined" && __DEV__) {
+        console.log("[search] visible result tapped", "song", song.title);
+        console.log("[search] song row tapped", song.id, song.title);
+      }
 
       let queue =
         searchPlayQueue.length > 0
@@ -2065,11 +2083,9 @@ export default function SearchScreen() {
 
   const handleArtistResultPress = useCallback(
     (artist: HiddenTunesArtist) => {
-      console.log(
-        "[search] visible result tapped",
-        "artist",
-        artist?.name
-      );
+      if (typeof __DEV__ !== "undefined" && __DEV__) {
+        console.log("[search] visible result tapped", "artist", artist?.name);
+      }
       openGroupedArtist(artist);
     },
     [openGroupedArtist]
@@ -2077,11 +2093,9 @@ export default function SearchScreen() {
 
   const handleAlbumResultPress = useCallback(
     (album: HiddenTunesAlbum) => {
-      console.log(
-        "[search] visible result tapped",
-        "album",
-        album?.title
-      );
+      if (typeof __DEV__ !== "undefined" && __DEV__) {
+        console.log("[search] visible result tapped", "album", album?.title);
+      }
       openGroupedAlbum(album);
     },
     [openGroupedAlbum]
@@ -2089,11 +2103,13 @@ export default function SearchScreen() {
 
   const handleGenreResultPress = useCallback(
     (genre: any) => {
-      console.log(
-        "[search] visible result tapped",
-        "genre",
-        String(genre?.title || "")
-      );
+      if (typeof __DEV__ !== "undefined" && __DEV__) {
+        console.log(
+          "[search] visible result tapped",
+          "genre",
+          String(genre?.title || "")
+        );
+      }
       openGenre(genre as GenreItem);
     },
     [openGenre]
@@ -2101,7 +2117,9 @@ export default function SearchScreen() {
 
   const handleTvResultPress = useCallback(
     (video: HiddenTunesTvVideo) => {
-      console.log("[search] visible result tapped", "tv", video?.title);
+      if (typeof __DEV__ !== "undefined" && __DEV__) {
+        console.log("[search] visible result tapped", "tv", video?.title);
+      }
       openGroupedTv(video);
     },
     [openGroupedTv]
@@ -2601,7 +2619,7 @@ export default function SearchScreen() {
                   <Text style={styles.loadMoreButtonText}>Load more results</Text>
                 </TouchableOpacity>
               ) : null}
-              {showGroupedSearch && trimmedQuery.length >= LOCAL_SEARCH_MIN_CHARS ? (
+              {showGroupedSearch ? (
                 <SubtleTvEntryLink style={styles.searchTvEntry} />
               ) : null}
             </>

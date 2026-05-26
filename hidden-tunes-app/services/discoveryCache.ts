@@ -25,6 +25,8 @@ const MAX_MOOD_ROOMS = 8;
 const MAX_BECAUSE_YOU_LISTENED = 10;
 const MAX_RECENTLY_DISCOVERED = 12;
 const MAX_GENRE_SPOTLIGHTS = 6;
+/** Caps discovery ranking cost on Home/Explore without changing visible sections much. */
+export const MAX_DISCOVERY_INPUT_SONGS = 220;
 
 export type SharedDiscoverySnapshot = {
   preferenceMaps: ReturnType<typeof buildListenerPreferenceMaps>;
@@ -117,7 +119,7 @@ export function buildDiscoveryCacheKey(input: SharedDiscoveryInput) {
 }
 
 function buildSharedDiscoverySnapshot(input: SharedDiscoveryInput): SharedDiscoverySnapshot {
-  const songs = input.songs || [];
+  const songs = (input.songs || []).slice(0, MAX_DISCOVERY_INPUT_SONGS);
   const recentlyPlayed = input.recentlyPlayed || [];
   const favorites = input.favorites || [];
 

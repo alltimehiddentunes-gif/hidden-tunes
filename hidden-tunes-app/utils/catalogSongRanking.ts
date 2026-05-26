@@ -138,8 +138,10 @@ export function rankCatalogSongs(
 
   const scored: CatalogSongSearchHit[] = [];
   const seen = new Set<string>();
+  const scanPool =
+    songs.length > limit * 6 ? songs.slice(0, limit * 6) : songs;
 
-  for (const song of songs) {
+  for (const song of scanPool) {
     const songId = String(song.id || "").trim();
     if (!songId || seen.has(songId)) continue;
 

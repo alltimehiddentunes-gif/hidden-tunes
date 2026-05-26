@@ -43,7 +43,10 @@ import {
   type HiddenTunesNormalizedSong,
 } from "../../services/hiddenTunesApi";
 import { preloadImages } from "../../utils/imagePreloader";
-import { getSharedDiscoverySnapshot } from "../../services/discoveryCache";
+import {
+  getSharedDiscoverySnapshot,
+  MAX_DISCOVERY_INPUT_SONGS,
+} from "../../services/discoveryCache";
 import { buildMoreLikeThisMood, type DiscoverySong } from "../../services/smartDiscovery";
 import { FALLBACK_ARTWORK, getArtworkUri } from "../../utils/artwork";
 import {
@@ -291,13 +294,12 @@ function HomeScreen() {
     setSongPage(1);
     setHasMoreSongPages(nextSongs.length >= 20);
 
-    scheduleStartupTask("background", "home_primary_artwork_prefetch", () =>
-      preloadImages(
-        nextSongs
-          .slice(0, 2)
-          .flatMap((song) => [song.artwork, song.cover, song.thumbnail])
-      )
-    );
+    const heroSong = nextSongs[0];
+    if (heroSong?.artwork) {
+      scheduleStartupTask("background", "home_primary_artwork_prefetch", () =>
+        preloadImages([heroSong.artwork, heroSong.cover].filter(Boolean))
+      );
+    }
   }, []);
 
   const finishInitialHomeLoadGate = useCallback(() => {
@@ -615,36 +617,21 @@ function HomeScreen() {
 
   useEffect(() => {
     applyDiscoveryListeners(listenerRecentlyPlayed, listenerFavorites);
-  }, [applyDiscoveryListeners, featuredCatalogKey]);
+  }, [applyDiscoveryListeners, featuredCatalogKey, listenerFavorites, listenerRecentlyPlayed]);
 
-  useEffect(() => {
-    let cancelled = false;
-    let frameId = 0;
-    let timer: ReturnType<typeof setTimeout> | null = null;
-
-    frameId = requestAnimationFrame(() => {
-      timer = setTimeout(() => {
-        if (cancelled) return;
-        logBackgroundWork("discovery-recompute-deferred");
-        applyDiscoveryListeners(listenerRecentlyPlayed, listenerFavorites);
-      }, 48);
-    });
-
-    return () => {
-      cancelled = true;
-      cancelAnimationFrame(frameId);
-      if (timer) clearTimeout(timer);
-    };
-  }, [applyDiscoveryListeners, listenerFavorites, listenerRecentlyPlayed]);
+  const discoveryInputSongs = useMemo(
+    () => featuredSongs.slice(0, MAX_DISCOVERY_INPUT_SONGS),
+    [featuredCatalogKey]
+  );
 
   const sharedDiscovery = useMemo(
     () =>
       getSharedDiscoverySnapshot({
-        songs: featuredSongs,
+        songs: discoveryInputSongs,
         recentlyPlayed: discoveryListenersRef.current.recentlyPlayed,
         favorites: discoveryListenersRef.current.favorites,
       }),
-    [discoveryListenersVersion, featuredSongs]
+    [discoveryInputSongs, discoveryListenersVersion]
   );
 
   const rankedSongs = sharedDiscovery.rankedSongs;
@@ -658,9 +645,18 @@ function HomeScreen() {
     const currentId = String(currentSong.id);
     return raw.filter((song) => String(song.id || "") !== currentId);
   }, [currentSong?.id, sharedDiscovery.becauseYouListenedRaw]);
-  const curatedSections = sharedDiscovery.curatedSections;
-  const moodRooms = sharedDiscovery.moodRooms.slice(0, 8);
-  const genreSpotlights = sharedDiscovery.genreSpotlights;
+  const curatedSections = useMemo(
+    () => sharedDiscovery.curatedSections,
+    [sharedDiscovery.curatedSections]
+  );
+  const moodRooms = useMemo(
+    () => sharedDiscovery.moodRooms.slice(0, 8),
+    [sharedDiscovery.moodRooms]
+  );
+  const genreSpotlights = useMemo(
+    () => sharedDiscovery.genreSpotlights,
+    [sharedDiscovery.genreSpotlights]
+  );
 
   const visibleAllSongs = useMemo(
     () => rankedSongs.slice(0, visibleSongCount),
@@ -670,8 +666,14 @@ function HomeScreen() {
   const hasMoreCloudSongs = visibleSongCount < featuredSongs.length;
 
   const moreLikeThisMood = useMemo(
-    () => buildMoreLikeThisMood(featuredSongs, currentSong, listenerRecentlyPlayed, 6),
-    [currentSong, featuredSongs, listenerRecentlyPlayed]
+    () =>
+      buildMoreLikeThisMood(
+        discoveryInputSongs,
+        currentSong,
+        listenerRecentlyPlayed,
+        6
+      ),
+    [currentSong, discoveryInputSongs, listenerRecentlyPlayed]
   );
 
   const [activeMoodId, setActiveMoodId] = useState<string | null>(null);
@@ -731,30 +733,6 @@ function HomeScreen() {
       setActiveMoodId(primaryMoodRoom.id);
     }
   }, [activeMoodId, primaryMoodRoom?.id]);
-
-  useEffect(() => {
-    if (!featuredSongs.length || feedMountStage < 3) return;
-
-    scheduleStartupTask("background", "home_section_artwork_prefetch", () =>
-      preloadImages([
-      ...newestSongs.slice(0, 4).flatMap((song) => [song.artwork, song.cover]),
-      ...rankedAlbums.slice(0, 3).map((album) => album.artwork),
-      ...rankedArtists.slice(0, 3).map((artist) => artist.artwork),
-      ...visibleAllSongs.slice(0, 4).flatMap((song) => [song.artwork, song.cover]),
-      ...(primaryGenreSpotlight?.songs || [])
-        .slice(0, 2)
-        .flatMap((song) => [song.artwork, song.cover]),
-      ])
-    );
-  }, [
-    feedMountStage,
-    featuredSongs.length,
-    newestSongs,
-    primaryGenreSpotlight?.songs,
-    rankedAlbums,
-    rankedArtists,
-    visibleAllSongs,
-  ]);
 
   useEffect(() => {
     if (feedMountStage < 3 || !primaryGenreSpotlight?.title) return undefined;
@@ -1548,9 +1526,7 @@ function HomeScreen() {
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.homeEyebrow}>
-          {currentSong ? "Now Playing" : "For You"}
-        </Text>
+        <Text style={styles.homeEyebrow}>For Your Mood</Text>
 
         <TouchableOpacity
           activeOpacity={0.9}

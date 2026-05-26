@@ -85,6 +85,9 @@ export type UniversalSearchCatalog = {
   tvVideos: HiddenTunesTvVideo[];
 };
 
+const FUZZY_SONG_INPUT_LIMIT = 180;
+const FUZZY_LYRIC_CANDIDATE_LIMIT = 24;
+
 const EMPTY_RESULTS: UniversalSearchGroupedResults = {
   topResults: [],
   songs: [],
@@ -171,10 +174,50 @@ function searchSongs(
   songs: UniversalSearchSongHit[];
   lyrics: UniversalSearchSongHit[];
 } {
+  const pool =
+    songs.length > FUZZY_SONG_INPUT_LIMIT
+      ? songs.slice(0, FUZZY_SONG_INPUT_LIMIT)
+      : songs;
+
+  if (pool.length >= 48) {
+    const ranked = rankCatalogSongs(pool, query, 40);
+    const songHits: UniversalSearchSongHit[] = ranked.map((hit) => ({
+      id: `song:${hit.song.id}`,
+      kind: "song",
+      score: hit.score,
+      reason: catalogReasonToUniversal(hit.matchReason),
+      catalogMatchReason: hit.matchReason,
+      payload: hit.song,
+      subtitle: `${hit.song.artist}${hit.song.album ? ` • ${hit.song.album}` : ""}`,
+    }));
+
+    const lyricHits: UniversalSearchSongHit[] = [];
+    for (const hit of ranked.slice(0, FUZZY_LYRIC_CANDIDATE_LIMIT)) {
+      const lyricMatch = scoreSongLyrics(hit.song, query);
+      if (!lyricMatch) continue;
+
+      lyricHits.push({
+        id: `lyric:${hit.song.id}`,
+        kind: "lyric",
+        score: Math.max(lyricMatch.score, hit.score),
+        reason: lyricMatch.reason,
+        catalogMatchReason: hit.matchReason,
+        payload: hit.song,
+        subtitle: hit.song.title,
+        lyricSnippet: lyricMatch.lyricSnippet,
+      });
+    }
+
+    return {
+      songs: songHits,
+      lyrics: rankSearchHits(lyricHits, 24) as UniversalSearchSongHit[],
+    };
+  }
+
   const songHits: UniversalSearchSongHit[] = [];
   const lyricHits: UniversalSearchSongHit[] = [];
 
-  for (const song of songs) {
+  for (const song of pool) {
     const metadataMatch = scoreSongMetadata(song, query);
     if (metadataMatch) {
       songHits.push({
@@ -331,7 +374,8 @@ export function runUniversalCatalogSearch(
   const artists = searchArtists(catalog.artists, cleanQuery);
   const albums = searchAlbums(catalog.albums, cleanQuery);
   const genreMoods = searchGenres(catalog.genres, cleanQuery);
-  const tv = searchTv(catalog.tvVideos, cleanQuery);
+  const tv =
+    catalog.tvVideos.length > 0 ? searchTv(catalog.tvVideos, cleanQuery) : [];
 
   const catalogTopHits: UniversalSearchTopHit[] = [];
   const seenTop = new Set<string>();

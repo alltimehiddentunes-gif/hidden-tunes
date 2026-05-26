@@ -51,6 +51,8 @@ const INSTANT_LIMITS = {
   top: 10,
 };
 
+const INSTANT_RANK_INPUT_LIMIT = 180;
+
 function catalogReasonLabel(reason: CatalogSongMatchReason) {
   switch (reason) {
     case "exact_title":
@@ -218,9 +220,13 @@ export function runInstantCatalogSearch(
     return EMPTY;
   }
 
-  getOrBuildIndex(catalog.songs);
+  const songsToRank =
+    catalog.songs.length > INSTANT_RANK_INPUT_LIMIT
+      ? catalog.songs.slice(0, INSTANT_RANK_INPUT_LIMIT)
+      : catalog.songs;
+
   const rankedSongs = rankCatalogSongs(
-    catalog.songs,
+    songsToRank,
     cleanQuery,
     INSTANT_LIMITS.songs
   );
@@ -238,7 +244,10 @@ export function runInstantCatalogSearch(
   const artists = searchArtistsFast(catalog.artists, cleanQuery);
   const albums = searchAlbumsFast(catalog.albums, cleanQuery);
   const genreMoods = searchGenresFast(catalog.genres, cleanQuery);
-  const tv = searchTvFast(catalog.tvVideos, cleanQuery);
+  const tv =
+    catalog.tvVideos.length > 0
+      ? searchTvFast(catalog.tvVideos, cleanQuery)
+      : [];
 
   const catalogTopResults = [...songs, ...artists, ...albums, ...genreMoods].sort(
     (left, right) => right.score - left.score
