@@ -159,8 +159,8 @@ type GenreItem = {
 
 const SEARCH_HISTORY_KEY = "hidden_tunes_recent_searches_v4";
 const TV_DISCOVERY_CACHE_KEY = "hidden_tunes_tv_discovery_queries_v1";
-const WEAK_RESULT_THRESHOLD = 4;
 const SEARCH_SKELETON_KEYS = ["one", "two", "three", "four"];
+const COMPACT_TV_RESULT_LIMIT = 5;
 const SEARCH_DEBOUNCE_MS = 380;
 const FUZZY_SEARCH_DEBOUNCE_MS = 520;
 const TV_FETCH_DEBOUNCE_MS = 500;
@@ -666,6 +666,44 @@ function SearchGroupedMainSongRow({
   );
 }
 
+function SearchCompactTvPressableRow({
+  video,
+  onPress,
+}: {
+  video: HiddenTunesTvVideo;
+  onPress: (video: HiddenTunesTvVideo) => void;
+}) {
+  const thumbnail =
+    video.thumbnail_url ||
+    `https://img.youtube.com/vi/${video.source_id}/hqdefault.jpg`;
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      style={({ pressed }) => [
+        styles.compactTvRow,
+        pressed && styles.catalogSongRowPressed,
+      ]}
+      onPress={() => onPress(video)}
+    >
+      <HTImage
+        source={thumbnail}
+        style={styles.compactTvArtwork}
+        contentFit="cover"
+      />
+      <View style={styles.compactTvTextCol}>
+        <Text style={styles.compactTvRowTitle} numberOfLines={1}>
+          {video.title}
+        </Text>
+        <Text style={styles.compactTvRowSubtitle} numberOfLines={1}>
+          {video.channel_name || "Hidden Tunes TV"}
+        </Text>
+      </View>
+      <Ionicons name="tv-outline" size={17} color={COLORS.textMuted} />
+    </Pressable>
+  );
+}
+
 const SearchResultRow = memo(function SearchResultRow({
   item,
   index,
@@ -869,8 +907,6 @@ export default function SearchScreen() {
   const [loadingCloud, setLoadingCloud] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [activeSource, setActiveSource] = useState<SearchType>("all");
-  const [tvFallbackQuery, setTvFallbackQuery] = useState("");
-  const [tvFallbackReason, setTvFallbackReason] = useState("");
   const [searchPage, setSearchPage] = useState(1);
   const [hasMoreHiddenResults, setHasMoreHiddenResults] = useState(false);
   const [loadingMoreResults, setLoadingMoreResults] = useState(false);
@@ -1114,14 +1150,16 @@ export default function SearchScreen() {
     if (!showGroupedSearch) return groupedSearchResults;
 
     const topResults = groupedSearchResults.topResults.filter(
-      (hit) => !hit.id.startsWith("song:") && !hit.id.startsWith("lyric:")
+      (hit) =>
+        !hit.id.startsWith("song:") &&
+        !hit.id.startsWith("lyric:") &&
+        !hit.id.startsWith("tv:")
     );
 
     const hasAnyResults =
       topResults.length > 0 ||
       groupedSearchResults.artists.length > 0 ||
       groupedSearchResults.albums.length > 0 ||
-      groupedSearchResults.tv.length > 0 ||
       groupedSearchResults.genreMoods.length > 0 ||
       groupedMainSongHits.length > 0;
 
@@ -1129,10 +1167,73 @@ export default function SearchScreen() {
       ...groupedSearchResults,
       songs: [],
       lyrics: [],
+      tv: [],
       topResults,
       hasAnyResults,
     };
   }, [groupedMainSongHits, groupedSearchResults, showGroupedSearch]);
+
+  const hasCatalogSearchResults = useMemo(() => {
+    if (groupedMainSongHits.length > 0) return true;
+
+    const catalogFlatResults = results.filter((item) => !isYouTubeTrack(item));
+    if (catalogFlatResults.length > 0) return true;
+
+    if (groupedForUniversalSearch.artists.length > 0) return true;
+    if (groupedForUniversalSearch.albums.length > 0) return true;
+    if (groupedForUniversalSearch.genreMoods.length > 0) return true;
+    if (groupedForUniversalSearch.topResults.length > 0) return true;
+
+    return false;
+  }, [
+    groupedForUniversalSearch.albums.length,
+    groupedForUniversalSearch.artists.length,
+    groupedForUniversalSearch.genreMoods.length,
+    groupedForUniversalSearch.topResults.length,
+    groupedMainSongHits.length,
+    results,
+  ]);
+
+  const compactTvVideos = useMemo(() => {
+    if (trimmedQuery.length < LOCAL_SEARCH_MIN_CHARS) return [] as HiddenTunesTvVideo[];
+
+    const seen = new Set<string>();
+    const merged: HiddenTunesTvVideo[] = [];
+
+    const addVideo = (video: HiddenTunesTvVideo) => {
+      const key = String(video.id || video.source_id || "").trim();
+      if (!key || seen.has(key)) return;
+      if (merged.length >= COMPACT_TV_RESULT_LIMIT) return;
+
+      seen.add(key);
+      merged.push(video);
+    };
+
+    for (const hit of groupedSearchResults.tv) {
+      addVideo(hit.payload);
+    }
+
+    for (const video of tvSearchVideos) {
+      addVideo(video);
+    }
+
+    return merged;
+  }, [groupedSearchResults.tv, trimmedQuery, tvSearchVideos]);
+
+  const showPremiumSearchEmpty = useMemo(() => {
+    if (!showGroupedSearch) return false;
+    if (!hasCheckedSearchFallbacks || loading || refreshing) return false;
+    if (trimmedQuery.length < API_SEARCH_MIN_CHARS) return false;
+
+    return !hasCatalogSearchResults;
+  }, [
+    hasCatalogSearchResults,
+    hasCheckedSearchFallbacks,
+    loading,
+    refreshing,
+    showGroupedSearch,
+    trimmedQuery,
+  ]);
 
   useEffect(() => {
     setDeferredFuzzySearch({ query: "", results: null });
@@ -1531,8 +1632,6 @@ export default function SearchScreen() {
     const refreshStart = startPerformanceTimer();
     const forceNetwork = options.forceNetwork === true;
 
-    setTvFallbackQuery("");
-    setTvFallbackReason("");
     setSearchPage(1);
     setHasMoreHiddenResults(false);
     if (!safeText || safeText.length < LOCAL_SEARCH_MIN_CHARS) {
@@ -1725,20 +1824,6 @@ export default function SearchScreen() {
         count: normalizedResults.length,
       });
 
-      if (
-        source === "all" &&
-        normalizedResults.filter((item) => !isYouTubeTrack(item)).length <
-          WEAK_RESULT_THRESHOLD
-      ) {
-        setTvFallbackQuery(safeText);
-        setTvFallbackReason(
-          normalizedResults.length > 0
-            ? "Hidden Tunes matches are limited — expand with Hidden Tunes TV."
-            : "No Hidden Tunes matches yet — showing Hidden Tunes TV results."
-        );
-        await saveTvDiscoveryQuery(safeText);
-      }
-
       if (requestId !== searchRequestIdRef.current) return;
 
       setResults(normalizedResults);
@@ -1759,11 +1844,6 @@ export default function SearchScreen() {
         setResults([]);
       }
 
-      setTvFallbackQuery(safeText);
-      setTvFallbackReason(
-        "No Hidden Tunes matches yet — showing Hidden Tunes TV results."
-      );
-      await saveTvDiscoveryQuery(safeText);
     } finally {
       if (requestId !== searchRequestIdRef.current) return;
 
@@ -1984,8 +2064,8 @@ export default function SearchScreen() {
     } as any);
   }, [query]);
 
-  const openTvFallback = useCallback(
-    (value = tvFallbackQuery || query) => {
+  const openTvSearch = useCallback(
+    (value = query) => {
       const safeQuery = String(value || "").trim();
 
       if (!safeQuery) {
@@ -1998,7 +2078,7 @@ export default function SearchScreen() {
         params: { q: safeQuery },
       } as any);
     },
-    [query, tvFallbackQuery]
+    [query]
   );
 
   const handlePress = useCallback(
@@ -2160,37 +2240,60 @@ export default function SearchScreen() {
     [openGroupedTv]
   );
 
-  const renderTvFallbackCard = useCallback(() => {
-    const safeQuery = tvFallbackQuery || query.trim();
+  const renderPremiumSearchEmpty = useCallback(() => {
+    return (
+      <View style={styles.premiumEmptyBox}>
+        <Ionicons
+          name="search-outline"
+          size={40}
+          color={COLORS.textMuted}
+          style={styles.premiumEmptyIcon}
+        />
+        <Text style={styles.premiumEmptyTitle}>No exact matches found</Text>
+        <Text style={styles.premiumEmptySub}>
+          Try another title, artist, album, or mood
+        </Text>
+      </View>
+    );
+  }, []);
 
-    if (!safeQuery || safeQuery.length < API_SEARCH_MIN_CHARS) return null;
+  const renderCompactTvSection = useCallback(() => {
+    if (!showGroupedSearch || compactTvVideos.length === 0) return null;
 
     return (
-      <TouchableOpacity
-        activeOpacity={0.88}
-        style={styles.tvFallbackCard}
-        onPress={() => openTvFallback(safeQuery)}
-      >
-        <View style={styles.tvFallbackIcon}>
-          <Ionicons name="tv" size={24} color="#fff" />
+      <View style={styles.compactTvSection}>
+        <View style={styles.compactSectionHeader}>
+          <Text style={styles.compactSectionTitle}>Hidden Tunes TV</Text>
+          <Text style={styles.compactSectionSub}>Related videos</Text>
         </View>
 
-        <View style={styles.tvFallbackTextBox}>
-          <Text style={styles.tvFallbackKicker}>Hidden Tunes TV</Text>
-          <Text style={styles.tvFallbackTitle} numberOfLines={2}>
-            {tvFallbackReason || "No song matches yet. Expand with Hidden Tunes TV."}
-          </Text>
-          <Text style={styles.tvFallbackSub} numberOfLines={1}>
-            Keep exploring {safeQuery}
-          </Text>
-        </View>
+        {compactTvVideos.map((video) => (
+          <SearchCompactTvPressableRow
+            key={String(video.id || video.source_id)}
+            video={video}
+            onPress={handleTvResultPress}
+          />
+        ))}
 
-        <View style={styles.tvFallbackButton}>
-          <Ionicons name="arrow-forward" size={18} color="#000" />
-        </View>
-      </TouchableOpacity>
+        <Pressable
+          style={({ pressed }) => [
+            styles.compactTvBrowseLink,
+            pressed && styles.catalogSongRowPressed,
+          ]}
+          onPress={() => openTvSearch(trimmedQuery)}
+        >
+          <Text style={styles.compactTvBrowseText}>Browse more on TV</Text>
+          <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
+        </Pressable>
+      </View>
     );
-  }, [openTvFallback, query, tvFallbackQuery, tvFallbackReason]);
+  }, [
+    compactTvVideos,
+    handleTvResultPress,
+    openTvSearch,
+    showGroupedSearch,
+    trimmedQuery,
+  ]);
 
   function renderDiscovery() {
     return (
@@ -2587,8 +2690,6 @@ export default function SearchScreen() {
                 </View>
               )}
 
-              {renderTvFallbackCard()}
-
               {loading && showGroupedSearch ? (
                 <View style={styles.loadingInline}>
                   <ActivityIndicator size="small" color={COLORS.primary} />
@@ -2598,11 +2699,13 @@ export default function SearchScreen() {
                 </View>
               ) : null}
 
+              {showPremiumSearchEmpty ? renderPremiumSearchEmpty() : null}
+
               {showGroupedSearch && groupedMainSongHits.length > 0 ? (
                 <View style={styles.groupedSongSection}>
-                  <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Songs</Text>
-                    <Text style={styles.sectionSub}>
+                  <View style={styles.compactSectionHeader}>
+                    <Text style={styles.compactSectionTitle}>Songs</Text>
+                    <Text style={styles.compactSectionSub}>
                       {groupedMainSongHits.length} ready to play
                     </Text>
                   </View>
@@ -2629,7 +2732,7 @@ export default function SearchScreen() {
                 </View>
               ) : null}
 
-              {showGroupedSearch ? (
+              {showGroupedSearch && !showPremiumSearchEmpty ? (
                 <UniversalSearchGroupedResults
                   grouped={groupedForUniversalSearch}
                   query={trimmedQuery}
@@ -2652,21 +2755,16 @@ export default function SearchScreen() {
                   onSuggestionPress={(text) => commitSearch(text, activeSource)}
                   activeSongId={currentSongId}
                   isPlaying={isPlaying}
-                  showEmpty={shouldShowCatalogEmpty({
-                    hasCheckedFallbacks: hasCheckedSearchFallbacks,
-                    isLoading: loading,
-                    isRefreshing: refreshing,
-                    resolvedCount: groupedForUniversalSearch.hasAnyResults ? 1 : 0,
-                  })}
+                  showEmpty={false}
                 />
               ) : null}
 
               {!showGroupedSearch || results.length > 0 ? (
-                <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>
+                <View style={styles.compactSectionHeader}>
+                  <Text style={styles.compactSectionTitle}>
                     {showGroupedSearch ? "More Matches" : "Hidden Tunes Matches"}
                   </Text>
-                  <Text style={styles.sectionSub}>
+                  <Text style={styles.compactSectionSub}>
                     {results.length > 0
                       ? `${results.length} tracks found • ${
                           activeSource === "youtube" ? "TV" : "ready"
@@ -2688,32 +2786,28 @@ export default function SearchScreen() {
                   isRefreshing: refreshing,
                   resolvedCount: results.length,
                 }) && query.trim().length >= API_SEARCH_MIN_CHARS ? (
-            <View style={styles.emptyBox}>
-              <Ionicons name="musical-notes-outline" size={56} color={COLORS.textMuted} />
-              <Text style={styles.emptyTitle}>Nothing matched yet</Text>
-              <Text style={styles.emptyText}>
-                Try another spelling, artist name, or mood — your catalog is still loading in the background.
-              </Text>
-              {renderTvFallbackCard()}
-            </View>
+            renderPremiumSearchEmpty()
             ) : null
           }
           ListFooterComponent={
-            loadingMoreResults ? (
-              <View style={styles.loadMoreFooter}>
-                <ActivityIndicator size="small" color={COLORS.primary} />
-                <Text style={styles.loadMoreText}>Loading more...</Text>
-              </View>
-            ) : hasMoreHiddenResults ? (
-              <TouchableOpacity
-                activeOpacity={0.86}
-                style={styles.loadMoreButton}
-                onPress={loadMoreHiddenSearchResults}
-              >
-                <Ionicons name="albums-outline" size={17} color="#000" />
-                <Text style={styles.loadMoreButtonText}>Load more results</Text>
-              </TouchableOpacity>
-            ) : null
+            <>
+              {loadingMoreResults ? (
+                <View style={styles.loadMoreFooter}>
+                  <ActivityIndicator size="small" color={COLORS.primary} />
+                  <Text style={styles.loadMoreText}>Loading more...</Text>
+                </View>
+              ) : hasMoreHiddenResults ? (
+                <TouchableOpacity
+                  activeOpacity={0.86}
+                  style={styles.loadMoreButton}
+                  onPress={loadMoreHiddenSearchResults}
+                >
+                  <Ionicons name="albums-outline" size={17} color="#000" />
+                  <Text style={styles.loadMoreButtonText}>Load more results</Text>
+                </TouchableOpacity>
+              ) : null}
+              {renderCompactTvSection()}
+            </>
           }
           renderItem={renderResult}
         />
@@ -3089,7 +3183,97 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   groupedSongSection: {
-    marginBottom: 18,
+    marginBottom: 14,
+  },
+  compactSectionHeader: {
+    marginBottom: 10,
+  },
+  compactSectionTitle: {
+    color: COLORS.text,
+    fontSize: 18,
+    fontWeight: "900",
+  },
+  compactSectionSub: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    marginTop: 4,
+    fontWeight: "600",
+  },
+  premiumEmptyBox: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 28,
+    paddingHorizontal: 12,
+    marginBottom: 8,
+  },
+  premiumEmptyIcon: {
+    marginBottom: 12,
+    opacity: 0.85,
+  },
+  premiumEmptyTitle: {
+    color: COLORS.text,
+    fontSize: 18,
+    fontWeight: "800",
+    textAlign: "center",
+  },
+  premiumEmptySub: {
+    color: COLORS.textMuted,
+    fontSize: 13,
+    marginTop: 8,
+    textAlign: "center",
+    lineHeight: 18,
+  },
+  compactTvSection: {
+    marginTop: 8,
+    marginBottom: 24,
+    paddingTop: 4,
+  },
+  compactTvRow: {
+    minHeight: 58,
+    borderRadius: 16,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    marginBottom: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.045)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.07)",
+  },
+  compactTvArtwork: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.06)",
+  },
+  compactTvTextCol: {
+    flex: 1,
+    marginLeft: 10,
+    marginRight: 8,
+  },
+  compactTvRowTitle: {
+    color: COLORS.text,
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  compactTvRowSubtitle: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    marginTop: 3,
+    fontWeight: "600",
+  },
+  compactTvBrowseLink: {
+    marginTop: 4,
+    minHeight: 36,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+  },
+  compactTvBrowseText: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    fontWeight: "700",
   },
   groupedSongRowWrap: {
     marginBottom: 10,
@@ -3219,74 +3403,6 @@ const styles = StyleSheet.create({
     marginLeft: 5,
     fontSize: 11,
     fontWeight: "900",
-  },
-  tvFallbackCard: {
-    minHeight: 104,
-    borderRadius: 26,
-    padding: 15,
-    marginBottom: 20,
-    backgroundColor: "rgba(255,0,51,0.12)",
-    borderWidth: 1,
-    borderColor: "rgba(255,0,51,0.28)",
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  tvFallbackIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: "#ff0033",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 13,
-  },
-  tvFallbackTextBox: {
-    flex: 1,
-  },
-  tvFallbackKicker: {
-    color: "#ff6b86",
-    fontSize: 10,
-    fontWeight: "900",
-    letterSpacing: 1,
-    textTransform: "uppercase",
-  },
-  tvFallbackTitle: {
-    color: COLORS.text,
-    fontSize: 15,
-    fontWeight: "900",
-    marginTop: 5,
-    lineHeight: 20,
-  },
-  tvFallbackSub: {
-    color: COLORS.textMuted,
-    fontSize: 12,
-    fontWeight: "700",
-    marginTop: 5,
-  },
-  tvFallbackButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: COLORS.primary,
-    alignItems: "center",
-    justifyContent: "center",
-    marginLeft: 10,
-  },
-  emptyBox: {
-    minHeight: 260,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  emptyTitle: {
-    color: COLORS.text,
-    fontSize: 21,
-    fontWeight: "900",
-    marginTop: 18,
-  },
-  emptyText: {
-    color: COLORS.textMuted,
-    marginTop: 8,
-    textAlign: "center",
   },
   loadMoreFooter: {
     minHeight: 74,

@@ -69,10 +69,10 @@ function UniversalSearchGroupedResults({
 
     return (
       <View style={styles.emptyBox}>
-        <Ionicons name="search-outline" size={52} color={COLORS.textMuted} />
-        <Text style={styles.emptyTitle}>Nothing matched yet</Text>
+        <Ionicons name="search-outline" size={40} color={COLORS.textMuted} />
+        <Text style={styles.emptyTitle}>No exact matches found</Text>
         <Text style={styles.emptyText}>
-          Try another spelling, artist name, or mood — your catalog is still loading in the background.
+          Try another title, artist, album, or mood
         </Text>
         <View style={styles.chipWrap}>
           {UNIVERSAL_SEARCH_EMPTY_SUGGESTIONS.map((chip) => (
@@ -403,17 +403,17 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   sectionBlock: {
-    marginBottom: 18,
+    marginBottom: 14,
   },
   sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 12,
+    marginBottom: 10,
   },
   sectionTitle: {
     color: COLORS.text,
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "900",
   },
   sectionCount: {
@@ -422,9 +422,9 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
   rowCard: {
-    marginBottom: 12,
-    borderRadius: 22,
-    padding: 12,
+    marginBottom: 10,
+    borderRadius: 18,
+    padding: 10,
     backgroundColor: "rgba(255,255,255,0.055)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.08)",
@@ -518,21 +518,22 @@ const styles = StyleSheet.create({
   },
   emptyBox: {
     alignItems: "center",
-    paddingVertical: 36,
+    paddingVertical: 24,
     paddingHorizontal: 12,
   },
   emptyTitle: {
     color: COLORS.text,
-    fontSize: 20,
-    fontWeight: "900",
-    marginTop: 14,
+    fontSize: 18,
+    fontWeight: "800",
+    marginTop: 12,
+    textAlign: "center",
   },
   emptyText: {
     color: COLORS.textMuted,
-    fontSize: 14,
+    fontSize: 13,
     textAlign: "center",
     marginTop: 8,
-    lineHeight: 20,
+    lineHeight: 18,
   },
   chipWrap: {
     flexDirection: "row",
