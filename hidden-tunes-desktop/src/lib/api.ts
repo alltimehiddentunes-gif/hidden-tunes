@@ -8,6 +8,7 @@ export type ApiSong = {
   artist: string
   album: string
   artwork: string | null
+  createdAt: string | null
 }
 
 export type ApiAlbum = {
@@ -15,6 +16,18 @@ export type ApiAlbum = {
   title: string
   artwork: string | null
   releaseYear: number | null
+  createdAt: string | null
+  artistId: string | null
+}
+
+export type SongSort = 'latest' | 'az'
+export type ArtistSort = 'az' | 'tracks'
+export type AlbumSort = 'latest' | 'az'
+
+export type CatalogBundle = {
+  songs: ApiSong[]
+  albums: ApiAlbum[]
+  artists: ApiArtist[]
 }
 
 export type ApiArtist = {
@@ -66,6 +79,9 @@ function normalizeSong(row: unknown): ApiSong | null {
   const record = asRecord(row)
   if (!record || record.id == null) return null
 
+  const createdAt =
+    typeof record.created_at === 'string' ? record.created_at : null
+
   return {
     id: String(record.id),
     title: String(record.title || 'Untitled'),
@@ -74,6 +90,7 @@ function normalizeSong(row: unknown): ApiSong | null {
     ),
     album: String(record.album || record.album_title || 'Singles'),
     artwork: pickArtwork(record),
+    createdAt,
   }
 }
 
@@ -83,12 +100,16 @@ function normalizeAlbum(row: unknown): ApiAlbum | null {
 
   const releaseYear =
     typeof record.release_year === 'number' ? record.release_year : null
+  const createdAt =
+    typeof record.created_at === 'string' ? record.created_at : null
 
   return {
     id: String(record.id),
     title: String(record.title || 'Untitled Album'),
     artwork: pickArtwork(record),
     releaseYear,
+    createdAt,
+    artistId: record.artist_id != null ? String(record.artist_id) : null,
   }
 }
 
@@ -175,4 +196,88 @@ export async function fetchArtists(
   return rows
     .map(normalizeArtist)
     .filter((artist): artist is ApiArtist => Boolean(artist))
+}
+
+export async function fetchCatalogBundle(): Promise<CatalogBundle> {
+  const [songs, albums, artists] = await Promise.all([
+    fetchSongs({ limit: 100, page: 1 }),
+    fetchAlbums({ limit: 100, page: 1 }),
+    fetchArtists({ limit: 48, page: 1 }),
+  ])
+  return { songs, albums, artists }
+}
+
+function normalizeQuery(query: string) {
+  return query.trim().toLowerCase()
+}
+
+export function filterSongsByQuery(songs: ApiSong[], query: string) {
+  const q = normalizeQuery(query)
+  if (!q) return songs
+  return songs.filter(
+    (song) =>
+      song.title.toLowerCase().includes(q) ||
+      song.artist.toLowerCase().includes(q) ||
+      song.album.toLowerCase().includes(q),
+  )
+}
+
+export function sortSongsList(songs: ApiSong[], sort: SongSort) {
+  const list = [...songs]
+  if (sort === 'az') {
+    return list.sort((a, b) => a.title.localeCompare(b.title))
+  }
+  return list.sort((a, b) => {
+    const bTime = Date.parse(b.createdAt || '') || 0
+    const aTime = Date.parse(a.createdAt || '') || 0
+    return bTime - aTime
+  })
+}
+
+export function filterArtistsByQuery(artists: ApiArtist[], query: string) {
+  const q = normalizeQuery(query)
+  if (!q) return artists
+  return artists.filter((artist) => artist.name.toLowerCase().includes(q))
+}
+
+export function sortArtistsList(artists: ApiArtist[], sort: ArtistSort) {
+  const list = [...artists]
+  if (sort === 'tracks') {
+    return list.sort((a, b) => b.songCount - a.songCount || a.name.localeCompare(b.name))
+  }
+  return list.sort((a, b) => a.name.localeCompare(b.name))
+}
+
+export function filterAlbumsByQuery(
+  albums: ApiAlbum[],
+  query: string,
+  artistNames: Map<string, string>,
+) {
+  const q = normalizeQuery(query)
+  if (!q) return albums
+  return albums.filter((album) => {
+    const artistName = album.artistId
+      ? artistNames.get(album.artistId) || ''
+      : ''
+    return (
+      album.title.toLowerCase().includes(q) ||
+      artistName.toLowerCase().includes(q)
+    )
+  })
+}
+
+export function sortAlbumsList(albums: ApiAlbum[], sort: AlbumSort) {
+  const list = [...albums]
+  if (sort === 'az') {
+    return list.sort((a, b) => a.title.localeCompare(b.title))
+  }
+  return list.sort((a, b) => {
+    const bTime = Date.parse(b.createdAt || '') || 0
+    const aTime = Date.parse(a.createdAt || '') || 0
+    return bTime - aTime
+  })
+}
+
+export function buildArtistNameLookup(artists: ApiArtist[]) {
+  return new Map(artists.map((artist) => [artist.id, artist.name]))
 }

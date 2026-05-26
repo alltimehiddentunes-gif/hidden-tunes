@@ -1,13 +1,110 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import {
-  fetchAlbums,
-  fetchArtists,
-  fetchSongs,
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react'
+import {
+  buildArtistNameLookup,
+  fetchCatalogBundle,
+  filterAlbumsByQuery,
+  filterArtistsByQuery,
+  filterSongsByQuery,
+  sortAlbumsList,
+  sortArtistsList,
+  sortSongsList,
+  type AlbumSort,
   type ApiAlbum,
   type ApiArtist,
   type ApiSong,
+  type ArtistSort,
+  type SongSort,
 } from './lib/api'
 import './App.css'
+
+type CatalogContextValue = {
+  songs: ApiSong[]
+  albums: ApiAlbum[]
+  artists: ApiArtist[]
+  artistNames: Map<string, string>
+  loading: boolean
+  error: string | null
+  loaded: boolean
+  retry: () => void
+}
+
+const CatalogContext = createContext<CatalogContextValue | null>(null)
+
+function useCatalog() {
+  const value = useContext(CatalogContext)
+  if (!value) {
+    throw new Error('useCatalog must be used within CatalogProvider')
+  }
+  return value
+}
+
+function CatalogProvider({ children }: { children: ReactNode }) {
+  const [songs, setSongs] = useState<ApiSong[]>([])
+  const [albums, setAlbums] = useState<ApiAlbum[]>([])
+  const [artists, setArtists] = useState<ApiArtist[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [loaded, setLoaded] = useState(false)
+  const [reloadKey, setReloadKey] = useState(0)
+
+  const retry = useCallback(() => setReloadKey((n) => n + 1), [])
+
+  useEffect(() => {
+    let active = true
+    setLoading(true)
+    setError(null)
+
+    fetchCatalogBundle()
+      .then((bundle) => {
+        if (!active) return
+        setSongs(bundle.songs)
+        setAlbums(bundle.albums)
+        setArtists(bundle.artists)
+        setLoaded(true)
+      })
+      .catch((err) => {
+        if (!active) return
+        setError(
+          err instanceof Error
+            ? err.message
+            : 'Could not load the Hidden Tunes catalog.',
+        )
+      })
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [reloadKey])
+
+  const artistNames = useMemo(() => buildArtistNameLookup(artists), [artists])
+
+  const value = useMemo(
+    () => ({
+      songs,
+      albums,
+      artists,
+      artistNames,
+      loading,
+      error,
+      loaded,
+      retry,
+    }),
+    [songs, albums, artists, artistNames, loading, error, loaded, retry],
+  )
+
+  return <CatalogContext.Provider value={value}>{children}</CatalogContext.Provider>
+}
 
 type PageId =
   | 'home'
@@ -170,16 +267,6 @@ const HOME_SECTIONS: DiscoverySection[] = [
   },
 ]
 
-const DISCOVER_CHIPS = [
-  'All moods',
-  'Euphoric',
-  'Melancholy',
-  'Cinematic',
-  'Hypnotic',
-  'Uplift',
-  'Afterglow',
-]
-
 const MOOD_ROOMS = [
   { title: 'Velvet Midnight', subtitle: 'Slow burn · intimate', listeners: '2.4k', mood: 'violet' as Mood },
   { title: 'Oceanic Calm', subtitle: 'Breath & space', listeners: '1.8k', mood: 'cyan' as Mood },
@@ -220,45 +307,27 @@ function MusicNoteIcon({ className }: { className?: string }) {
   )
 }
 
-function useCatalogLoader<T>(loader: () => Promise<T>) {
-  const [data, setData] = useState<T | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [reloadKey, setReloadKey] = useState(0)
-
-  const retry = useCallback(() => setReloadKey((value) => value + 1), [])
-
-  useEffect(() => {
-    let active = true
-    setLoading(true)
-    setError(null)
-
-    loader()
-      .then((result) => {
-        if (!active) return
-        setData(result)
-      })
-      .catch((err) => {
-        if (!active) return
-        setError(err instanceof Error ? err.message : 'Failed to load catalog')
-      })
-      .finally(() => {
-        if (active) setLoading(false)
-      })
-
-    return () => {
-      active = false
-    }
-  }, [loader, reloadKey])
-
-  return { data, loading, error, retry }
+function catalogFallbackTone(seed: string): Mood {
+  const code = seed.charCodeAt(0) + seed.charCodeAt(seed.length - 1 || 0)
+  const tones: Mood[] = ['violet', 'cyan', 'rose', 'mint']
+  return tones[code % tones.length]
 }
 
-function CatalogSkeleton({ count = 6, variant = 'card' }: { count?: number; variant?: 'card' | 'row' | 'artist' }) {
+function CatalogSkeleton({
+  count = 8,
+  variant = 'card',
+}: {
+  count?: number
+  variant?: 'card' | 'artist'
+}) {
   return (
     <div className={`skeleton-grid skeleton-grid--${variant}`} aria-hidden="true">
       {Array.from({ length: count }, (_, index) => (
-        <div key={index} className={`skeleton-item skeleton-item--${variant}`} />
+        <div key={index} className={`skeleton-card skeleton-card--${variant}`}>
+          <div className="skeleton-card-art" />
+          <div className="skeleton-card-line skeleton-card-line--wide" />
+          <div className="skeleton-card-line" />
+        </div>
       ))}
     </div>
   )
@@ -273,20 +342,121 @@ function CatalogError({
 }) {
   return (
     <div className="catalog-error" role="alert">
-      <p className="catalog-error-title">Couldn&apos;t reach the catalog</p>
-      <p className="catalog-error-detail">{message}</p>
+      <p className="catalog-error-title">Catalog unavailable</p>
+      <p className="catalog-error-detail">
+        {message || 'The Hidden Tunes API may be waking up on Render. Wait a moment, then retry.'}
+      </p>
       <button type="button" className="btn-secondary btn-sm" onClick={onRetry}>
-        Try again
+        Retry catalog load
       </button>
     </div>
   )
 }
 
-function ArtworkImage({ src, alt }: { src: string | null; alt: string }) {
+function CatalogEmpty({
+  title,
+  detail,
+}: {
+  title: string
+  detail: string
+}) {
+  return (
+    <div className="catalog-empty">
+      <p className="catalog-empty-title">{title}</p>
+      <p className="catalog-empty-detail">{detail}</p>
+    </div>
+  )
+}
+
+function CatalogToolbar({
+  searchValue,
+  onSearchChange,
+  searchPlaceholder,
+  sortLabel,
+  sortValue,
+  sortOptions,
+  onSortChange,
+  resultCount,
+  hideSearch = false,
+}: {
+  searchValue: string
+  onSearchChange: (value: string) => void
+  searchPlaceholder: string
+  sortLabel: string
+  sortValue: string
+  sortOptions: { value: string; label: string }[]
+  onSortChange: (value: string) => void
+  resultCount?: number
+  hideSearch?: boolean
+}) {
+  return (
+    <div className="catalog-toolbar">
+      {!hideSearch ? (
+        <div className="search-bar search-bar--premium" role="search">
+          <span className="search-icon" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="11" cy="11" r="7" />
+              <path d="M20 20l-3.5-3.5" />
+            </svg>
+          </span>
+          <input
+            type="search"
+            value={searchValue}
+            onChange={(event) => onSearchChange(event.target.value)}
+            placeholder={searchPlaceholder}
+            aria-label={searchPlaceholder}
+          />
+          {searchValue ? (
+            <button
+              type="button"
+              className="search-clear"
+              onClick={() => onSearchChange('')}
+              aria-label="Clear search"
+            >
+              ×
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+      <div className="catalog-toolbar-row">
+        <label className="sort-control">
+          <span>{sortLabel}</span>
+          <select value={sortValue} onChange={(event) => onSortChange(event.target.value)}>
+            {sortOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        {typeof resultCount === 'number' ? (
+          <span className="catalog-count">{resultCount} shown</span>
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
+function ArtworkImage({
+  src,
+  alt,
+  seed,
+  variant = 'square',
+}: {
+  src: string | null
+  alt: string
+  seed: string
+  variant?: 'square' | 'wide'
+}) {
   const [failed, setFailed] = useState(false)
+  const tone = catalogFallbackTone(seed)
 
   if (!src || failed) {
-    return <MusicNoteIcon className="card-art-icon" />
+    return (
+      <div className={`art-fallback art-fallback--${tone} art-fallback--${variant}`} aria-hidden="true">
+        <MusicNoteIcon className="card-art-icon" />
+      </div>
+    )
   }
 
   return (
@@ -304,22 +474,24 @@ function ArtworkImage({ src, alt }: { src: string | null; alt: string }) {
 function ApiSongGrid({ songs }: { songs: ApiSong[] }) {
   if (songs.length === 0) {
     return (
-      <div className="catalog-empty">
-        <p>No songs returned yet.</p>
-      </div>
+      <CatalogEmpty
+        title="No songs match"
+        detail="Try a different search or sort order on the loaded catalog."
+      />
     )
   }
 
   return (
-    <div className="card-row">
+    <div className="card-row card-row--compact">
       {songs.map((song) => (
         <article key={song.id} className="discovery-card discovery-card--api">
-          <div className="card-art">
-            <ArtworkImage src={song.artwork} alt="" />
+          <div className="card-art card-art--song">
+            <ArtworkImage src={song.artwork} alt="" seed={song.id} />
           </div>
           <div className="card-info">
             <h3>{song.title}</h3>
-            <p>{song.artist}</p>
+            <p className="card-meta-primary">{song.artist}</p>
+            <p className="card-meta-secondary">{song.album}</p>
           </div>
         </article>
       ))}
@@ -327,28 +499,43 @@ function ApiSongGrid({ songs }: { songs: ApiSong[] }) {
   )
 }
 
-function ApiAlbumGrid({ albums }: { albums: ApiAlbum[] }) {
+function ApiAlbumGrid({
+  albums,
+  artistNames,
+}: {
+  albums: ApiAlbum[]
+  artistNames: Map<string, string>
+}) {
   if (albums.length === 0) {
     return (
-      <div className="catalog-empty">
-        <p>No albums returned yet.</p>
-      </div>
+      <CatalogEmpty
+        title="No albums match"
+        detail="Adjust your search or sorting to explore the cached catalog."
+      />
     )
   }
 
   return (
-    <div className="card-row">
-      {albums.map((album) => (
-        <article key={album.id} className="discovery-card discovery-card--api">
-          <div className="card-art">
-            <ArtworkImage src={album.artwork} alt="" />
-          </div>
-          <div className="card-info">
-            <h3>{album.title}</h3>
-            <p>{album.releaseYear ? `Released ${album.releaseYear}` : 'Album'}</p>
-          </div>
-        </article>
-      ))}
+    <div className="card-row card-row--compact">
+      {albums.map((album) => {
+        const artistName = album.artistId
+          ? artistNames.get(album.artistId)
+          : null
+        return (
+          <article key={album.id} className="discovery-card discovery-card--api">
+            <div className="card-art card-art--album">
+              <ArtworkImage src={album.artwork} alt="" seed={album.id} variant="wide" />
+            </div>
+            <div className="card-info">
+              <h3>{album.title}</h3>
+              <p className="card-meta-primary">{artistName || 'Hidden Tunes'}</p>
+              <p className="card-meta-secondary">
+                {album.releaseYear ? `Released ${album.releaseYear}` : 'Album'}
+              </p>
+            </div>
+          </article>
+        )
+      })}
     </div>
   )
 }
@@ -356,22 +543,30 @@ function ApiAlbumGrid({ albums }: { albums: ApiAlbum[] }) {
 function ApiArtistGrid({ artists }: { artists: ApiArtist[] }) {
   if (artists.length === 0) {
     return (
-      <div className="catalog-empty">
-        <p>No artists returned yet.</p>
-      </div>
+      <CatalogEmpty
+        title="No artists match"
+        detail="Try another name or switch the sort order."
+      />
     )
   }
 
   return (
-    <div className="artist-grid">
+    <div className="artist-grid artist-grid--compact">
       {artists.map((artist) => (
         <button key={artist.id} type="button" className="artist-card artist-card--api">
-          <span className="artist-avatar artist-avatar--img" aria-hidden="true">
+          <span className="artist-avatar" aria-hidden="true" data-tone={catalogFallbackTone(artist.id)}>
             {artist.artwork ? (
-              <img src={artist.artwork} alt="" loading="lazy" decoding="async" />
-            ) : (
-              artist.name.charAt(0)
-            )}
+              <img
+                src={artist.artwork}
+                alt=""
+                loading="lazy"
+                decoding="async"
+                onError={(event) => {
+                  event.currentTarget.style.display = 'none'
+                }}
+              />
+            ) : null}
+            <span className="artist-initial">{artist.name.charAt(0)}</span>
           </span>
           <span className="artist-name">{artist.name}</span>
           <span className="artist-meta">
@@ -389,6 +584,7 @@ function CatalogSection({
   loading,
   error,
   onRetry,
+  count,
   children,
 }: {
   title: string
@@ -396,13 +592,19 @@ function CatalogSection({
   loading: boolean
   error: string | null
   onRetry: () => void
+  count?: number
   children: ReactNode
 }) {
+  const hintText =
+    typeof count === 'number' ? `${hint} · ${count} items` : hint
+
   return (
-    <section className="discovery-section" aria-labelledby={`catalog-${title}`}>
-      <div className="section-header">
-        <h2 id={`catalog-${title}`}>{title}</h2>
-        <span>{hint}</span>
+    <section className="discovery-section catalog-section" aria-labelledby={`catalog-${title}`}>
+      <div className="section-header section-header--catalog">
+        <div>
+          <h2 id={`catalog-${title}`}>{title}</h2>
+          <span className="section-hint">{hintText}</span>
+        </div>
       </div>
       {loading ? <CatalogSkeleton /> : null}
       {!loading && error ? <CatalogError message={error} onRetry={onRetry} /> : null}
@@ -566,20 +768,46 @@ function Hero() {
 }
 
 function HomePage() {
-  const loadFeatured = useCallback(() => fetchSongs({ limit: 12, page: 1 }), [])
-  const { data: songs, loading, error, retry } = useCatalogLoader(loadFeatured)
+  const { songs, loading, error, retry } = useCatalog()
+  const [sort, setSort] = useState<SongSort>('latest')
+  const featured = useMemo(
+    () => sortSongsList(songs, sort).slice(0, 12),
+    [songs, sort],
+  )
 
   return (
     <PageFrame>
       <Hero />
+      <CatalogToolbar
+        hideSearch
+        searchValue=""
+        onSearchChange={() => undefined}
+        searchPlaceholder=""
+        sortLabel="Featured sort"
+        sortValue={sort}
+        sortOptions={[
+          { value: 'latest', label: 'Latest' },
+          { value: 'az', label: 'A–Z' },
+        ]}
+        onSortChange={(value) => setSort(value as SongSort)}
+        resultCount={featured.length}
+      />
       <CatalogSection
         title="Featured"
-        hint="Live from Hidden Tunes · read-only"
+        hint="Cached catalog · read-only"
         loading={loading}
         error={error}
         onRetry={retry}
+        count={featured.length}
       >
-        <ApiSongGrid songs={songs ?? []} />
+        {!loading && !error && songs.length === 0 ? (
+          <CatalogEmpty
+            title="Catalog is empty"
+            detail="The API responded but returned no songs yet."
+          />
+        ) : (
+          <ApiSongGrid songs={featured} />
+        )}
       </CatalogSection>
       {HOME_SECTIONS.slice(1, 3).map((section) => (
         <DiscoveryGrid key={section.title} section={section} />
@@ -589,44 +817,51 @@ function HomePage() {
 }
 
 function DiscoverPage() {
-  const loadLatest = useCallback(() => fetchSongs({ limit: 20, page: 1 }), [])
-  const { data: songs, loading, error, retry } = useCatalogLoader(loadLatest)
+  const { songs, loading, error, retry } = useCatalog()
+  const [query, setQuery] = useState('')
+  const [sort, setSort] = useState<SongSort>('latest')
+
+  const visibleSongs = useMemo(() => {
+    const filtered = filterSongsByQuery(songs, query)
+    return sortSongsList(filtered, sort)
+  }, [songs, query, sort])
 
   return (
     <PageFrame>
       <PageHeader
         eyebrow="Explore"
         title="Discover"
-        description="Map your emotional landscape — browse genres, moods, and curated waves built for cinematic listening."
+        description="Browse the cached Hidden Tunes catalog — filter and sort locally without extra API calls."
       />
-      <div className="discover-toolbar">
-        <div className="search-bar search-bar--premium" role="search">
-          <span className="search-icon" aria-hidden="true">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="11" cy="11" r="7" />
-              <path d="M20 20l-3.5-3.5" />
-            </svg>
-          </span>
-          <input type="search" placeholder="Search moods, artists, stories…" readOnly aria-label="Search" />
-          <kbd className="search-kbd" aria-hidden="true">⌘K</kbd>
-        </div>
-        <p className="toolbar-hint">Search UI preview · catalog loads below</p>
-      </div>
-      <div className="chip-row" role="list" aria-label="Mood filters">
-        {DISCOVER_CHIPS.map((chip, i) => (
-          <button key={chip} type="button" className={`chip${i === 0 ? ' active' : ''}`} role="listitem">
-            {chip}
-          </button>
-        ))}
-      </div>
+      <CatalogToolbar
+        searchValue={query}
+        onSearchChange={setQuery}
+        searchPlaceholder="Filter by title, artist, or album…"
+        sortLabel="Sort"
+        sortValue={sort}
+        sortOptions={[
+          { value: 'latest', label: 'Latest' },
+          { value: 'az', label: 'A–Z' },
+        ]}
+        onSortChange={(value) => setSort(value as SongSort)}
+        resultCount={visibleSongs.length}
+      />
       <CatalogSection
-        title="Latest uploads"
-        hint="Newest songs from the API"
+        title="Catalog songs"
+        hint="Client-side filter on loaded data"
         loading={loading}
         error={error}
         onRetry={retry}
+        count={visibleSongs.length}
       >
-        <ApiSongGrid songs={songs ?? []} />
+        {!loading && !error && songs.length === 0 ? (
+          <CatalogEmpty
+            title="No songs in catalog"
+            detail="Retry once the API finishes loading or returns data."
+          />
+        ) : (
+          <ApiSongGrid songs={visibleSongs} />
+        )}
       </CatalogSection>
     </PageFrame>
   )
@@ -717,19 +952,46 @@ function LibraryPage() {
 }
 
 function ArtistsPage() {
-  const loadArtists = useCallback(() => fetchArtists({ limit: 48, page: 1 }), [])
-  const { data: artists, loading, error, retry } = useCatalogLoader(loadArtists)
+  const { artists, loading, error, retry } = useCatalog()
+  const [query, setQuery] = useState('')
+  const [sort, setSort] = useState<ArtistSort>('az')
+
+  const visibleArtists = useMemo(() => {
+    const filtered = filterArtistsByQuery(artists, query)
+    return sortArtistsList(filtered, sort)
+  }, [artists, query, sort])
 
   return (
     <PageFrame>
       <PageHeader
         eyebrow="Creators"
         title="Artists"
-        description="Follow the voices shaping your emotional soundtrack — live catalog preview."
+        description="Browse creators from the cached catalog — filter and sort instantly on desktop."
       />
-      {loading ? <CatalogSkeleton count={8} variant="artist" /> : null}
+      <CatalogToolbar
+        searchValue={query}
+        onSearchChange={setQuery}
+        searchPlaceholder="Filter artists by name…"
+        sortLabel="Sort"
+        sortValue={sort}
+        sortOptions={[
+          { value: 'az', label: 'A–Z' },
+          { value: 'tracks', label: 'Most tracks' },
+        ]}
+        onSortChange={(value) => setSort(value as ArtistSort)}
+        resultCount={visibleArtists.length}
+      />
+      {loading ? <CatalogSkeleton count={10} variant="artist" /> : null}
       {!loading && error ? <CatalogError message={error} onRetry={retry} /> : null}
-      {!loading && !error ? <ApiArtistGrid artists={artists ?? []} /> : null}
+      {!loading && !error && artists.length === 0 ? (
+        <CatalogEmpty
+          title="No artists in catalog"
+          detail="The API responded but returned no artists yet."
+        />
+      ) : null}
+      {!loading && !error && artists.length > 0 ? (
+        <ApiArtistGrid artists={visibleArtists} />
+      ) : null}
       <PlaceholderNote
         title="Expanded artist pages"
         detail="Bios, tours, and emotional tags will layer in without leaving the desktop shell."
@@ -739,24 +1001,51 @@ function ArtistsPage() {
 }
 
 function AlbumsPage() {
-  const loadAlbums = useCallback(() => fetchAlbums({ limit: 24, page: 1 }), [])
-  const { data: albums, loading, error, retry } = useCatalogLoader(loadAlbums)
+  const { albums, artistNames, loading, error, retry } = useCatalog()
+  const [query, setQuery] = useState('')
+  const [sort, setSort] = useState<AlbumSort>('latest')
+
+  const visibleAlbums = useMemo(() => {
+    const filtered = filterAlbumsByQuery(albums, query, artistNames)
+    return sortAlbumsList(filtered, sort)
+  }, [albums, query, artistNames, sort])
 
   return (
     <PageFrame>
       <PageHeader
         eyebrow="Full journeys"
         title="Albums"
-        description="Immersive records designed for uninterrupted emotional arcs."
+        description="Immersive records from the cached catalog — filter by title or artist locally."
+      />
+      <CatalogToolbar
+        searchValue={query}
+        onSearchChange={setQuery}
+        searchPlaceholder="Filter by album or artist…"
+        sortLabel="Sort"
+        sortValue={sort}
+        sortOptions={[
+          { value: 'latest', label: 'Latest' },
+          { value: 'az', label: 'A–Z' },
+        ]}
+        onSortChange={(value) => setSort(value as AlbumSort)}
+        resultCount={visibleAlbums.length}
       />
       <CatalogSection
         title="Catalog albums"
-        hint="Read-only from Hidden Tunes API"
+        hint="Cached read-only data"
         loading={loading}
         error={error}
         onRetry={retry}
+        count={visibleAlbums.length}
       >
-        <ApiAlbumGrid albums={albums ?? []} />
+        {!loading && !error && albums.length === 0 ? (
+          <CatalogEmpty
+            title="No albums in catalog"
+            detail="Retry once the API finishes loading or returns data."
+          />
+        ) : (
+          <ApiAlbumGrid albums={visibleAlbums} artistNames={artistNames} />
+        )}
       </CatalogSection>
     </PageFrame>
   )
@@ -995,7 +1284,7 @@ function App() {
   const [activePage, setActivePage] = useState<PageId>('home')
 
   return (
-    <>
+    <CatalogProvider>
       <div className="app-shell">
         <Sidebar activePage={activePage} onNavigate={setActivePage} />
         <div className="main-area">
@@ -1007,7 +1296,7 @@ function App() {
         </div>
       </div>
       <PlayerBar />
-    </>
+    </CatalogProvider>
   )
 }
 
