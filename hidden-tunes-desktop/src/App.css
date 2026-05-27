@@ -2543,4 +2543,133 @@
   .main-scroll {
     scroll-behavior: auto;
   }
+
+  .launch-screen__progress-bar {
+    animation: none !important;
+  }
+
+  .launch-screen,
+  .launch-screen--out {
+    transition: none !important;
+  }
+}
+
+/* —— Launch screen —— */
+.app-shell-wrap--booting {
+  visibility: hidden;
+}
+
+.launch-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: var(--bg-deep);
+  transition: opacity 0.48s ease-in-out;
+}
+
+.launch-screen--out {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.launch-screen .visual-scene--ambient {
+  position: absolute;
+  inset: 0;
+  min-height: 0;
+  margin: 0;
+  border-radius: 0;
+}
+
+.launch-screen__scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    rgba(5, 5, 8, 0.28) 0%,
+    rgba(5, 5, 8, 0.72) 58%,
+    rgba(5, 5, 8, 0.9) 100%
+  );
+}
+
+.launch-screen__content {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  padding: 24px 32px;
+  max-width: 420px;
+}
+
+.launch-screen__brand-mark {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 18px;
+  border-radius: 18px;
+  display: grid;
+  place-items: center;
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  color: #bae6fd;
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.22), rgba(168, 85, 247, 0.16));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+
+.launch-screen__title {
+  margin: 0;
+  font-size: clamp(1.8rem, 4vw, 2.2rem);
+  letter-spacing: -0.04em;
+  line-height: 1.05;
+}
+
+.launch-screen__subtitle {
+  margin: 6px 0 20px;
+  font-size: 0.72rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.launch-screen__message {
+  margin: 0 0 22px;
+  font-size: 0.98rem;
+  color: var(--text-secondary);
+}
+
+.launch-screen__progress {
+  width: min(220px, 72vw);
+  height: 3px;
+  margin: 0 auto;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.launch-screen__progress-bar {
+  display: block;
+  width: 42%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(56, 189, 248, 0.35), rgba(168, 85, 247, 0.75));
+  animation: launchProgress 1.6s ease-in-out infinite;
+}
+
+@keyframes launchProgress {
+  0% {
+    transform: translateX(-120%);
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(260%);
+    opacity: 0.45;
+  }
 }

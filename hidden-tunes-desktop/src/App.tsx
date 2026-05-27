@@ -50,6 +50,7 @@ import {
   type StoredPageId,
 } from './lib/localPreferences'
 import { VisualSceneBackdrop } from './components/VisualSceneBackdrop'
+import { LaunchGate } from './components/LaunchGate'
 import {
   getMoodRoomsPageScene,
   getTimeAwareHomeScene,
@@ -2366,7 +2367,10 @@ function App() {
   )
 }
 
-function AppShell() {
+function AppShellFrame() {
+  const { loading, songs, albums, artists } = useCatalog()
+  const hasCatalogData = songs.length > 0 || albums.length > 0 || artists.length > 0
+
   const [activePage, setActivePage] = usePersistedPreference(
     DESKTOP_PREFERENCE_KEYS.activePage,
     'home' as PageId,
@@ -2424,7 +2428,7 @@ function AppShell() {
   }, [backToPage, setActivePage])
 
   return (
-    <CatalogProvider>
+    <LaunchGate loading={loading} hasCatalogData={hasCatalogData}>
       <div className="app-shell">
         <Sidebar activePage={activePage} onNavigate={navigatePage} />
         <div className="main-area">
@@ -2450,6 +2454,14 @@ function AppShell() {
         </div>
       </div>
       <PlayerBar />
+    </LaunchGate>
+  )
+}
+
+function AppShell() {
+  return (
+    <CatalogProvider>
+      <AppShellFrame />
     </CatalogProvider>
   )
 }
