@@ -1821,17 +1821,17 @@
   display: flex;
   align-items: center;
   gap: 14px;
-  margin-bottom: 18px;
+  margin-bottom: 22px;
 }
 
 .detail-back {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px;
+  padding: 9px 14px;
   border-radius: 999px;
-  border: 1px solid var(--border-subtle);
-  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.045);
   color: var(--text-primary);
   font-size: 13px;
   font-weight: 600;
@@ -1848,9 +1848,10 @@
 }
 
 .detail-title {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 700;
   margin: 0;
+  letter-spacing: -0.015em;
 }
 
 .detail-subtitle {
@@ -1862,13 +1863,16 @@
 .detail-hero {
   display: grid;
   grid-template-columns: 260px 1fr;
-  gap: clamp(16px, 3vw, 28px);
+  gap: clamp(22px, 3.4vw, 34px);
   align-items: center;
-  padding: 18px;
+  padding: clamp(22px, 3vw, 30px);
   border-radius: var(--radius-xl);
-  border: 1px solid var(--border-subtle);
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.03), rgba(0, 0, 0, 0.12));
-  margin-bottom: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(145deg, rgba(24, 24, 34, 0.9), rgba(10, 10, 16, 0.96));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.055),
+    0 18px 42px rgba(0, 0, 0, 0.26);
+  margin-bottom: 22px;
 }
 
 .detail-hero--album {
@@ -1881,7 +1885,7 @@
 
 .detail-hero--mood {
   grid-template-columns: 1fr;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.03), rgba(0, 0, 0, 0.18));
+  background: linear-gradient(145deg, rgba(24, 24, 34, 0.72), rgba(8, 8, 14, 0.92));
 }
 
 .detail-hero--violet {
@@ -1909,8 +1913,11 @@
   aspect-ratio: 1;
   border-radius: var(--radius-lg);
   overflow: hidden;
-  border: 1px solid var(--border-subtle);
-  background: var(--bg-elevated);
+  border: 1px solid rgba(255, 255, 255, 0.085);
+  background: linear-gradient(160deg, rgba(30, 30, 42, 0.96), rgba(9, 9, 14, 0.98));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.055),
+    0 14px 30px rgba(0, 0, 0, 0.24);
   position: relative;
   contain: layout paint;
 }
@@ -1926,24 +1933,25 @@
 .detail-eyebrow {
   font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.18em;
-  color: var(--accent-cyan);
-  margin-bottom: 10px;
+  letter-spacing: 0.2em;
+  color: rgba(56, 189, 248, 0.9);
+  margin-bottom: 12px;
   font-weight: 600;
 }
 
 .detail-h1 {
-  font-size: clamp(1.8rem, 3.2vw, 2.4rem);
-  line-height: 1.1;
-  margin-bottom: 10px;
-  letter-spacing: -0.03em;
+  font-size: clamp(1.9rem, 3.3vw, 2.55rem);
+  line-height: 1.06;
+  margin-bottom: 14px;
+  letter-spacing: -0.04em;
+  overflow-wrap: anywhere;
 }
 
 .detail-byline {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  margin-bottom: 14px;
+  margin-bottom: 18px;
 }
 
 .detail-pill {
@@ -1951,8 +1959,8 @@
   align-items: center;
   padding: 7px 12px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.085);
   font-size: 13px;
   color: var(--text-primary);
 }
@@ -1964,15 +1972,15 @@
 .detail-meta {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-  margin-bottom: 14px;
+  gap: 14px;
+  margin-bottom: 18px;
 }
 
 .detail-meta-item {
-  padding: 10px 12px;
+  padding: 12px 14px;
   border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.075);
 }
 
 .detail-meta-item span {
@@ -1995,11 +2003,12 @@
 }
 
 .detail-panel {
-  padding: 18px;
+  padding: clamp(20px, 2.5vw, 26px);
   border-radius: var(--radius-xl);
-  border: 1px solid var(--border-subtle);
-  background: var(--bg-surface);
-  margin-bottom: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  background: linear-gradient(180deg, rgba(20, 20, 30, 0.84), rgba(11, 11, 17, 0.94));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+  margin-bottom: 22px;
 }
 
 .detail-panel-header {
@@ -2007,12 +2016,13 @@
   justify-content: space-between;
   gap: 12px;
   align-items: baseline;
-  margin-bottom: 14px;
+  margin-bottom: 18px;
 }
 
 .detail-panel-header h3 {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 700;
+  letter-spacing: -0.015em;
 }
 
 .detail-panel-header span {
@@ -2025,10 +2035,10 @@
   grid-template-columns: repeat(48, 1fr);
   gap: 4px;
   height: 110px;
-  padding: 14px;
+  padding: 16px;
   border-radius: var(--radius-lg);
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.07);
 }
 
 .fake-waveform span {
@@ -2044,7 +2054,7 @@
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .detail-track {
@@ -2052,10 +2062,10 @@
   grid-template-columns: 34px 1fr 180px;
   gap: 12px;
   align-items: center;
-  padding: 10px 12px;
+  padding: 12px 14px;
   border-radius: var(--radius-md);
-  border: 1px solid var(--border-subtle);
-  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.026);
 }
 
 .detail-track-index {
@@ -2083,11 +2093,11 @@
 }
 
 .detail-mood-desc {
-  font-size: 14px;
+  font-size: 15px;
   color: var(--text-secondary);
-  line-height: 1.6;
+  line-height: 1.68;
   max-width: 64ch;
-  margin-bottom: 14px;
+  margin-bottom: 18px;
 }
 
 /* Make mood room cards look clickable */
