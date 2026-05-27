@@ -3486,8 +3486,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       }
 
       if (nextState === "background" && previousState !== "background") {
+        void savePlaybackPosition(positionMillisRef.current);
+
+        // RNTP is already playing — avoid audio session / updateOptions churn on lock.
+        if (trackPlayerActiveRef.current && isPlayingRef.current) {
+          return;
+        }
+
         configureAudio();
-        savePlaybackPosition(positionMillisRef.current);
         void applyProgressUpdateInterval();
 
         if (isPlayingRef.current && soundRef.current) {
