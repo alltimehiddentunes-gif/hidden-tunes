@@ -23,6 +23,11 @@ function isNativePlatform() {
   return Platform.OS === "ios" || Platform.OS === "android";
 }
 
+function isRemoteMediaControlsPlatformEnabled() {
+  // iOS preview builds can lack the ExpoMediaControl native module; disable entirely on iOS.
+  return Platform.OS === "android";
+}
+
 function logRemoteMedia(message: string, details?: Record<string, unknown>) {
   if (typeof __DEV__ !== "undefined" && !__DEV__) return;
 
@@ -31,6 +36,7 @@ function logRemoteMedia(message: string, details?: Record<string, unknown>) {
 
 async function loadMediaControlModule(): Promise<MediaControlModule | null> {
   if (!isNativePlatform()) return null;
+  if (!isRemoteMediaControlsPlatformEnabled()) return null;
 
   if (!mediaModulePromise) {
     mediaModulePromise = import("expo-media-control")
@@ -80,13 +86,14 @@ async function handleMediaControlEvent(
 }
 
 export function isRemoteMediaControlsAvailable() {
-  return isNativePlatform();
+  return isNativePlatform() && isRemoteMediaControlsPlatformEnabled();
 }
 
 export async function enableRemoteMediaControls(
   nextHandlers: RemoteMediaHandlers
 ): Promise<boolean> {
   if (!isNativePlatform()) return false;
+  if (!isRemoteMediaControlsPlatformEnabled()) return false;
 
   const mediaModule = await loadMediaControlModule();
   if (!mediaModule) return false;
