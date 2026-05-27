@@ -49,6 +49,12 @@ import {
   usePreferencesReset,
   type StoredPageId,
 } from './lib/localPreferences'
+import { VisualSceneBackdrop } from './components/VisualSceneBackdrop'
+import {
+  getTimeAwareHomeScene,
+  resolveVisualScene,
+  type VisualSceneId,
+} from './lib/visualScenes'
 import './App.css'
 
 const APP_NAME = 'Hidden Tunes Desktop'
@@ -77,22 +83,60 @@ let catalogSessionFetchDone = false
 
 type CatalogSource = 'none' | 'cache' | 'live'
 
-function resolveInitialCatalog() {
-  if (catalogMemoryCache) {
-    return {
-      bundle: catalogMemoryCache,
-      source: 'live' as CatalogSource,
-      cachedAt: readCachedCatalog()?.cachedAt ?? null,
-    }
-  }
+type CatalogStatus = 'live' | 'saved' | 'refreshing' | 'refresh_failed'
 
-  const stored = readCachedCatalog()
-  if (stored) {
-    return {
-      bundle: cachedCatalogToBundle(stored),
-      source: 'cache' as CatalogSource,
-      cachedAt: stored.cachedAt,
+const CATALOG_STATUS_LABELS: Record<CatalogStatus, string> = {
+  live: 'Live catalog',
+  saved: 'Saved catalog',
+  refreshing: 'Refreshing',
+  refresh_failed: 'Refresh failed',
+}
+
+function formatSavedCatalogTime(iso: string | null): string | null {
+  if (!iso) return null
+  const time = Date.parse(iso)
+  if (!Number.isFinite(time)) return null
+  return new Date(time).toLocaleString(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  })
+}
+
+function resolveCatalogStatus(
+  loading: boolean,
+  staleCatalog: boolean,
+  catalogSource: CatalogSource,
+  hasCatalogData: boolean,
+  showCatalogError: boolean,
+): CatalogStatus {
+  if (loading) return 'refreshing'
+  if (staleCatalog && hasCatalogData) return 'refresh_failed'
+  if (showCatalogError && !hasCatalogData) return 'refresh_failed'
+  if (catalogSource === 'live') return 'live'
+  if (catalogSource === 'cache' && hasCatalogData) return 'saved'
+  return 'saved'
+}
+
+function resolveInitialCatalog() {
+  try {
+    if (catalogMemoryCache) {
+      return {
+        bundle: catalogMemoryCache,
+        source: 'live' as CatalogSource,
+        cachedAt: readCachedCatalog()?.cachedAt ?? null,
+      }
     }
+
+    const stored = readCachedCatalog()
+    if (stored) {
+      return {
+        bundle: cachedCatalogToBundle(stored),
+        source: 'cache' as CatalogSource,
+        cachedAt: stored.cachedAt,
+      }
+    }
+  } catch {
+    // Ignore corrupt cache/bootstrap data — app should still open.
   }
 
   return {
@@ -113,11 +157,13 @@ type CatalogContextValue = {
   loading: boolean
   error: string | null
   loaded: boolean
+  catalogStatus: CatalogStatus
   staleCatalog: boolean
   cachedAt: string | null
   showCatalogSkeleton: boolean
   showCatalogError: boolean
   retry: () => void
+  refreshCatalog: () => void
   clearCatalogCache: () => void
 }
 
@@ -143,6 +189,7 @@ function CatalogProvider({ children }: { children: ReactNode }) {
   const [loaded, setLoaded] = useState(
     () => initial.source !== 'none' || Boolean(catalogMemoryCache),
   )
+  const [catalogSource, setCatalogSource] = useState<CatalogSource>(() => initial.source)
   const [staleCatalog, setStaleCatalog] = useState(false)
   const [cachedAt, setCachedAt] = useState<string | null>(() => initial.cachedAt)
   const [reloadKey, setReloadKey] = useState(0)
@@ -150,10 +197,22 @@ function CatalogProvider({ children }: { children: ReactNode }) {
   const hasCatalogData = songs.length > 0 || albums.length > 0 || artists.length > 0
   const showCatalogSkeleton = loading && !hasCatalogData
   const showCatalogError = Boolean(error) && !hasCatalogData
+  const catalogStatus = useMemo(
+    () =>
+      resolveCatalogStatus(
+        loading,
+        staleCatalog,
+        catalogSource,
+        hasCatalogData,
+        showCatalogError,
+      ),
+    [loading, staleCatalog, catalogSource, hasCatalogData, showCatalogError],
+  )
 
   const applyBundle = useCallback((bundle: CatalogBundle, source: CatalogSource, savedAt: string | null) => {
     catalogMemoryCache = bundle
     catalogSourceRef.current = source
+    setCatalogSource(source)
     setSongs(bundle.songs)
     setAlbums(bundle.albums)
     setArtists(bundle.artists)
@@ -163,9 +222,11 @@ function CatalogProvider({ children }: { children: ReactNode }) {
     setCachedAt(savedAt)
   }, [])
 
-  const retry = useCallback(() => {
+  const refreshCatalog = useCallback(() => {
     setReloadKey((n) => n + 1)
   }, [])
+
+  const retry = refreshCatalog
 
   const clearCatalogCache = useCallback(() => {
     clearCachedCatalog()
@@ -252,11 +313,13 @@ function CatalogProvider({ children }: { children: ReactNode }) {
       loading,
       error,
       loaded,
+      catalogStatus,
       staleCatalog,
       cachedAt,
       showCatalogSkeleton,
       showCatalogError,
       retry,
+      refreshCatalog,
       clearCatalogCache,
     }),
     [
@@ -270,11 +333,13 @@ function CatalogProvider({ children }: { children: ReactNode }) {
       loading,
       error,
       loaded,
+      catalogStatus,
       staleCatalog,
       cachedAt,
       showCatalogSkeleton,
       showCatalogError,
       retry,
+      refreshCatalog,
       clearCatalogCache,
     ],
   )
@@ -309,6 +374,11 @@ type MoodRoom = {
   subtitle: string
   listeners: string
   mood: Mood
+  sceneId: VisualSceneId
+}
+
+function moodRoomScene(room: Pick<MoodRoom, 'title' | 'mood' | 'sceneId'>): VisualSceneId {
+  return room.sceneId ?? resolveVisualScene({ seed: room.title, mood: room.mood })
 }
 
 const MAIN_NAV: NavItem[] = [
@@ -442,12 +512,48 @@ const HOME_SECTIONS: DiscoverySection[] = [
 ]
 
 const MOOD_ROOMS: MoodRoom[] = [
-  { title: 'Velvet Midnight', subtitle: 'Slow burn · intimate', listeners: '2.4k', mood: 'violet' },
-  { title: 'Oceanic Calm', subtitle: 'Breath & space', listeners: '1.8k', mood: 'cyan' },
-  { title: 'Rose Neon', subtitle: 'Passion pulse', listeners: '3.1k', mood: 'rose' },
-  { title: 'Forest Echo', subtitle: 'Organic drift', listeners: '920', mood: 'mint' },
-  { title: 'Chrome Dreams', subtitle: 'Futurist glide', listeners: '1.2k', mood: 'cyan' },
-  { title: 'Ember Heart', subtitle: 'Warm ache', listeners: '2.0k', mood: 'rose' },
+  {
+    title: 'Velvet Midnight',
+    subtitle: 'Slow burn · intimate',
+    listeners: '2.4k',
+    mood: 'violet',
+    sceneId: 'midnight-drive',
+  },
+  {
+    title: 'Oceanic Calm',
+    subtitle: 'Breath & space',
+    listeners: '1.8k',
+    mood: 'cyan',
+    sceneId: 'ocean-reflection',
+  },
+  {
+    title: 'Rose Neon',
+    subtitle: 'Passion pulse',
+    listeners: '3.1k',
+    mood: 'rose',
+    sceneId: 'neon-city',
+  },
+  {
+    title: 'Forest Echo',
+    subtitle: 'Organic drift',
+    listeners: '920',
+    mood: 'mint',
+    sceneId: 'healing-sunday',
+  },
+  {
+    title: 'Chrome Dreams',
+    subtitle: 'Futurist glide',
+    listeners: '1.2k',
+    mood: 'cyan',
+    sceneId: 'neon-city',
+  },
+  {
+    title: 'Ember Heart',
+    subtitle: 'Warm ache',
+    listeners: '2.0k',
+    mood: 'rose',
+    sceneId: 'slow-love',
+  },
 ]
 
 const LIBRARY_ITEMS = [
@@ -923,14 +1029,119 @@ function PreviewBanner({ text }: { text: string }) {
 }
 
 function CatalogStaleBanner() {
-  const { staleCatalog } = useCatalog()
-  if (!staleCatalog) return null
+  const { catalogStatus, songs, albums, artists } = useCatalog()
+  const hasCatalogData = songs.length > 0 || albums.length > 0 || artists.length > 0
+  const showBanner = catalogStatus === 'refresh_failed' && hasCatalogData
+  if (!showBanner) return null
 
   return (
     <div className="catalog-stale-banner" role="status">
       <span className="catalog-stale-dot" aria-hidden="true" />
-      <span>Showing saved catalog. Live refresh unavailable.</span>
+      <span>
+        Browsing your saved catalog — live refresh didn&apos;t complete. You can refresh again anytime.
+      </span>
     </div>
+  )
+}
+
+function CatalogStatusBar() {
+  const { catalogStatus, cachedAt, loading, refreshCatalog, loaded } = useCatalog()
+  const savedLabel = formatSavedCatalogTime(cachedAt)
+
+  if (!loaded && !loading) return null
+
+  return (
+    <div className="catalog-status-bar" role="status" aria-live="polite">
+      <div className="catalog-status-copy">
+        <span className={`catalog-status-pill catalog-status-pill--${catalogStatus}`}>
+          {CATALOG_STATUS_LABELS[catalogStatus]}
+        </span>
+        {savedLabel ? (
+          <span className="catalog-status-meta">Saved catalog updated {savedLabel}</span>
+        ) : null}
+      </div>
+      <button
+        type="button"
+        className="btn-secondary btn-sm catalog-refresh-btn"
+        onClick={refreshCatalog}
+        disabled={loading}
+        aria-busy={loading}
+      >
+        {loading ? 'Refreshing…' : 'Refresh catalog'}
+      </button>
+    </div>
+  )
+}
+
+function CatalogStatusSettings({
+  cacheNotice,
+  onClearCache,
+}: {
+  cacheNotice: string
+  onClearCache: () => void
+}) {
+  const { catalogStatus, cachedAt, loading, refreshCatalog } = useCatalog()
+  const savedLabel = formatSavedCatalogTime(cachedAt)
+
+  return (
+    <section className="settings-panel">
+      <h2>Catalog status</h2>
+      <p className="settings-panel-desc">
+        Read-only catalog from the Hidden Tunes API, with a local saved copy for offline browsing.
+      </p>
+      <dl className="settings-identity-list">
+        <div className="settings-identity-row">
+          <dt>Status</dt>
+          <dd>
+            <span className={`catalog-status-pill catalog-status-pill--${catalogStatus}`}>
+              {CATALOG_STATUS_LABELS[catalogStatus]}
+            </span>
+          </dd>
+        </div>
+        <div className="settings-identity-row">
+          <dt>Last saved</dt>
+          <dd>{savedLabel ? savedLabel : 'Not saved locally yet'}</dd>
+        </div>
+      </dl>
+      {savedLabel ? (
+        <p className="settings-panel-desc settings-cache-meta">
+          Saved catalog updated {savedLabel}
+        </p>
+      ) : null}
+      <div className="settings-row">
+        <div className="settings-label">
+          <span>Refresh catalog</span>
+          <small>Fetch latest read-only data · preferences stay intact</small>
+        </div>
+        <button
+          type="button"
+          className="btn-secondary btn-sm settings-reset-btn"
+          onClick={refreshCatalog}
+          disabled={loading}
+          aria-busy={loading}
+        >
+          {loading ? 'Refreshing…' : 'Refresh'}
+        </button>
+      </div>
+      <div className="settings-row">
+        <div className="settings-label">
+          <span>Clear saved catalog cache</span>
+          <small>Removes local catalog only · live session data may remain until refresh</small>
+        </div>
+        <button
+          type="button"
+          className="btn-secondary btn-sm settings-reset-btn"
+          onClick={onClearCache}
+        >
+          Clear cache
+        </button>
+      </div>
+      {cacheNotice ? (
+        <p className="settings-reset-note" role="status">
+          {cacheNotice}
+        </p>
+      ) : null}
+    </section>
   )
 }
 
@@ -978,9 +1189,17 @@ function DiscoveryGrid({ section }: { section: DiscoverySection }) {
         <span>{section.hint}</span>
       </div>
       <div className="card-row">
-        {section.cards.map((card) => (
-          <article key={card.title} className="discovery-card" data-mood={card.mood}>
+        {section.cards.map((card) => {
+          const sceneId = resolveVisualScene({ seed: card.title, mood: card.mood })
+          return (
+          <article
+            key={card.title}
+            className="discovery-card"
+            data-mood={card.mood}
+            data-scene={sceneId}
+          >
             <div className="card-art">
+              <VisualSceneBackdrop sceneId={sceneId} seed={card.title} variant="thumb" />
               <MusicNoteIcon className="card-art-icon" />
             </div>
             <div className="card-info">
@@ -988,7 +1207,8 @@ function DiscoveryGrid({ section }: { section: DiscoverySection }) {
               <p>{card.subtitle}</p>
             </div>
           </article>
-        ))}
+          )
+        })}
       </div>
     </section>
   )
@@ -1048,10 +1268,16 @@ const Sidebar = memo(function Sidebar({
 })
 
 function Hero() {
+  const homeSceneId = useMemo(() => getTimeAwareHomeScene(), [])
+
   return (
-    <section className="hero" aria-label="Featured">
-      <div className="hero-bg" />
-      <div className="hero-glow" />
+    <section className="hero" aria-label="Featured" data-scene={homeSceneId}>
+      <VisualSceneBackdrop
+        sceneId={homeSceneId}
+        seed="home-hero"
+        variant="hero"
+        timeAware
+      />
       <div className="hero-vignette" aria-hidden="true" />
       <div className="hero-inner">
         <div className="hero-copy">
@@ -1184,23 +1410,37 @@ function DiscoverPage({ onOpenSong }: { onOpenSong: (song: ApiSong) => void }) {
 }
 
 function MoodRoomsPage({ onOpenMood }: { onOpenMood: (mood: MoodRoom) => void }) {
+  const pageSceneId = useMemo(() => getTimeAwareHomeScene(), [])
+
   return (
     <PageFrame>
-      <PageHeader
-        eyebrow="Atmosphere"
-        title="Mood Rooms"
-        description="Step into shared emotional spaces — ambient rooms tuned for how you feel, with others listening in sync."
-      />
+      <div className="mood-rooms-stage">
+        <VisualSceneBackdrop
+          sceneId={pageSceneId}
+          seed="mood-rooms-page"
+          variant="ambient"
+          timeAware
+        />
+        <PageHeader
+          eyebrow="Atmosphere"
+          title="Mood Rooms"
+          description="Step into shared emotional spaces — ambient rooms tuned for how you feel, with others listening in sync."
+        />
+      </div>
       <PreviewBanner text="Rooms are UI previews — live sync arrives in a future release" />
       <div className="mood-room-grid">
-        {MOOD_ROOMS.map((room, index) => (
+        {MOOD_ROOMS.map((room, index) => {
+          const sceneId = moodRoomScene(room)
+          return (
           <button
             key={room.title}
             type="button"
             className="mood-room-card"
             data-mood={room.mood}
+            data-scene={sceneId}
             onClick={() => onOpenMood(room)}
           >
+            <VisualSceneBackdrop sceneId={sceneId} seed={room.title} variant="card" />
             <div className="mood-room-top">
               <span className="mood-room-index">0{index + 1}</span>
               <span className="live-pill">
@@ -1220,7 +1460,8 @@ function MoodRoomsPage({ onOpenMood }: { onOpenMood: (mood: MoodRoom) => void })
               </span>
             </div>
           </button>
-        ))}
+          )
+        })}
       </div>
     </PageFrame>
   )
@@ -1457,7 +1698,7 @@ function TvPage() {
 
 function SettingsPage() {
   const { resetDesktopPreferencesState } = usePreferencesReset()
-  const { clearCatalogCache, cachedAt } = useCatalog()
+  const { clearCatalogCache } = useCatalog()
   const [resetNotice, setResetNotice] = useState('')
   const [cacheNotice, setCacheNotice] = useState('')
 
@@ -1470,13 +1711,6 @@ function SettingsPage() {
     clearCatalogCache()
     setCacheNotice('Saved catalog cache cleared locally.')
   }
-
-  const cachedAtLabel = cachedAt
-    ? new Date(cachedAt).toLocaleString(undefined, {
-        dateStyle: 'medium',
-        timeStyle: 'short',
-      })
-    : null
 
   return (
     <PageFrame>
@@ -1549,35 +1783,10 @@ function SettingsPage() {
               </p>
             ) : null}
           </section>
-          <section className="settings-panel">
-            <h2>Saved catalog cache</h2>
-            <p className="settings-panel-desc">
-              Offline read-only copy of the last successful catalog load on this device.
-            </p>
-            {cachedAtLabel ? (
-              <p className="settings-panel-desc settings-cache-meta">
-                Last saved: {cachedAtLabel}
-              </p>
-            ) : null}
-            <div className="settings-row">
-              <div className="settings-label">
-                <span>Clear saved catalog cache</span>
-                <small>Removes local catalog only · preferences stay intact</small>
-              </div>
-              <button
-                type="button"
-                className="btn-secondary btn-sm settings-reset-btn"
-                onClick={handleClearCatalogCache}
-              >
-                Clear cache
-              </button>
-            </div>
-            {cacheNotice ? (
-              <p className="settings-reset-note" role="status">
-                {cacheNotice}
-              </p>
-            ) : null}
-          </section>
+          <CatalogStatusSettings
+            cacheNotice={cacheNotice}
+            onClearCache={handleClearCatalogCache}
+          />
           <section className="settings-panel">
             <h2>Appearance</h2>
             <p className="settings-panel-desc">Cinematic dark theme tuned for desktop browsing.</p>
@@ -1957,10 +2166,16 @@ function MoodDetailView({
     [],
   )
 
+  const sceneId = moodRoomScene(mood)
+
   return (
     <PageFrame>
       <DetailTopBar title="Mood Room" subtitle="UI-only room detail" onBack={onBack} />
-      <section className={`detail-hero detail-hero--mood detail-hero--${mood.mood}`}>
+      <section
+        className={`detail-hero detail-hero--mood detail-hero--${mood.mood}`}
+        data-scene={sceneId}
+      >
+        <VisualSceneBackdrop sceneId={sceneId} seed={mood.title} variant="hero" />
         <div className="detail-hero-copy">
           <p className="detail-eyebrow">Mood Room</p>
           <h1 className="detail-h1">{mood.title}</h1>
@@ -2091,6 +2306,14 @@ function PageContent({
 }
 
 function App() {
+  return (
+    <PreferencesResetProvider>
+      <AppShell />
+    </PreferencesResetProvider>
+  )
+}
+
+function AppShell() {
   const [activePage, setActivePage] = usePersistedPreference(
     DESKTOP_PREFERENCE_KEYS.activePage,
     'home' as PageId,
@@ -2148,34 +2371,33 @@ function App() {
   }, [backToPage, setActivePage])
 
   return (
-    <PreferencesResetProvider>
-      <CatalogProvider>
-        <div className="app-shell">
-          <Sidebar activePage={activePage} onNavigate={navigatePage} />
-          <div className="main-area">
-            <main className="main-scroll">
-              <CatalogStaleBanner />
-              <div className="page-view" data-page={activePage}>
-                <CatalogDetailRouter
-                  activeView={activeView}
-                  selectedSong={selectedSong}
-                  selectedAlbum={selectedAlbum}
-                  selectedArtist={selectedArtist}
-                  selectedMood={selectedMood}
-                  onBack={backToPage}
-                  activePage={activePage}
-                  onOpenSong={openSong}
-                  onOpenAlbum={openAlbum}
-                  onOpenArtist={openArtist}
-                  onOpenMood={openMood}
-                />
-              </div>
-            </main>
-          </div>
+    <CatalogProvider>
+      <div className="app-shell">
+        <Sidebar activePage={activePage} onNavigate={navigatePage} />
+        <div className="main-area">
+          <main className="main-scroll">
+            <CatalogStatusBar />
+            <CatalogStaleBanner />
+            <div className="page-view" data-page={activePage}>
+              <CatalogDetailRouter
+                activeView={activeView}
+                selectedSong={selectedSong}
+                selectedAlbum={selectedAlbum}
+                selectedArtist={selectedArtist}
+                selectedMood={selectedMood}
+                onBack={backToPage}
+                activePage={activePage}
+                onOpenSong={openSong}
+                onOpenAlbum={openAlbum}
+                onOpenArtist={openArtist}
+                onOpenMood={openMood}
+              />
+            </div>
+          </main>
         </div>
-        <PlayerBar />
-      </CatalogProvider>
-    </PreferencesResetProvider>
+      </div>
+      <PlayerBar />
+    </CatalogProvider>
   )
 }
 
