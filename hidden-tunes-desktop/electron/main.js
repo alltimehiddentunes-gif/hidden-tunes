@@ -146,6 +146,39 @@ function quitApp() {
 }
 
 function attachWindowDiagnostics(win) {
+  win.webContents.on('did-start-loading', () => {
+    if (!isDev) logProduction('did-start-loading', win.webContents.getURL());
+  });
+
+  win.webContents.on('dom-ready', () => {
+    if (!isDev) logProduction('dom-ready', win.webContents.getURL());
+  });
+
+  win.webContents.on('did-finish-load', () => {
+    if (isDev) return;
+    logProduction('did-finish-load', win.webContents.getURL());
+    // Lightweight renderer health probe (helps diagnose black screen reports).
+    setTimeout(() => {
+      win.webContents
+        .executeJavaScript(
+          `(() => {
+            const splash = !!document.getElementById('launch-splash');
+            const root = document.getElementById('root');
+            const rootTextLen = root?.innerText?.length ?? 0;
+            const bodyChildren = document.body?.children?.length ?? 0;
+            return { splash, rootTextLen, bodyChildren };
+          })()`,
+          true,
+        )
+        .then((result) => logProduction('renderer-probe', result))
+        .catch((error) => logProduction('renderer-probe failed', error));
+    }, 1500);
+  });
+
+  win.webContents.on('did-stop-loading', () => {
+    if (!isDev) logProduction('did-stop-loading', win.webContents.getURL());
+  });
+
   win.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
     logProduction('did-fail-load', { errorCode, errorDescription, validatedURL });
     if (!isDev) {
@@ -191,6 +224,7 @@ function attachWindowDiagnostics(win) {
 
 function resolveWindowIcon() {
   const candidates = [
+    path.join(__dirname, '..', 'build', 'icon.ico'),
     path.join(__dirname, '..', 'build', 'icon.png'),
     path.join(__dirname, 'tray-icon.png'),
   ];
@@ -198,6 +232,9 @@ function resolveWindowIcon() {
   for (const filePath of candidates) {
     if (!fs.existsSync(filePath)) continue;
     try {
+      // On Windows, Electron accepts a file path for BrowserWindow icon.
+      // Prefer the .ico so taskbar/window metadata is consistent with the packaged EXE.
+      if (path.extname(filePath).toLowerCase() === '.ico') return filePath;
       const image = nativeImage.createFromPath(filePath);
       if (!image.isEmpty()) return filePath;
     } catch (error) {
