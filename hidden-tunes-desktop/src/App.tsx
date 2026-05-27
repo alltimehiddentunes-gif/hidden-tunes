@@ -51,7 +51,12 @@ import {
 } from './lib/localPreferences'
 import { VisualSceneBackdrop } from './components/VisualSceneBackdrop'
 import {
+  getMoodRoomsPageScene,
   getTimeAwareHomeScene,
+  resolveMoodThemeScene,
+  resolveAlbumScene,
+  resolveArtistScene,
+  resolveSongScene,
   resolveVisualScene,
   type VisualSceneId,
 } from './lib/visualScenes'
@@ -378,7 +383,11 @@ type MoodRoom = {
 }
 
 function moodRoomScene(room: Pick<MoodRoom, 'title' | 'mood' | 'sceneId'>): VisualSceneId {
-  return room.sceneId ?? resolveVisualScene({ seed: room.title, mood: room.mood })
+  return (
+    room.sceneId ??
+    resolveMoodThemeScene(room.title) ??
+    resolveVisualScene({ seed: room.title, mood: room.mood })
+  )
 }
 
 const MAIN_NAV: NavItem[] = [
@@ -513,46 +522,46 @@ const HOME_SECTIONS: DiscoverySection[] = [
 
 const MOOD_ROOMS: MoodRoom[] = [
   {
-    title: 'Velvet Midnight',
-    subtitle: 'Slow burn · intimate',
-    listeners: '2.4k',
-    mood: 'violet',
-    sceneId: 'midnight-drive',
+    title: 'Heartbreak Hour',
+    subtitle: 'Rain on glass · raw feelings',
+    listeners: '4.2k',
+    mood: 'rose',
+    sceneId: 'rainy-apartment',
   },
   {
-    title: 'Oceanic Calm',
-    subtitle: 'Breath & space',
-    listeners: '1.8k',
+    title: 'Healing Tide',
+    subtitle: 'Ocean breath · restore',
+    listeners: '2.1k',
     mood: 'cyan',
     sceneId: 'ocean-reflection',
   },
   {
-    title: 'Rose Neon',
-    subtitle: 'Passion pulse',
-    listeners: '3.1k',
-    mood: 'rose',
-    sceneId: 'neon-city',
-  },
-  {
-    title: 'Forest Echo',
-    subtitle: 'Organic drift',
-    listeners: '920',
+    title: 'Deep Focus',
+    subtitle: 'Zero noise · flow state',
+    listeners: '5.6k',
     mood: 'mint',
-    sceneId: 'healing-sunday',
+    sceneId: 'deep-focus',
   },
   {
-    title: 'Chrome Dreams',
-    subtitle: 'Futurist glide',
-    listeners: '1.2k',
+    title: 'Midnight Drive',
+    subtitle: 'Late lanes · neon hush',
+    listeners: '3.8k',
     mood: 'cyan',
-    sceneId: 'neon-city',
+    sceneId: 'midnight-drive',
   },
   {
-    title: 'Ember Heart',
-    subtitle: 'Warm ache',
-    listeners: '2.0k',
+    title: 'Slow Love',
+    subtitle: 'Candlelit intimacy',
+    listeners: '2.9k',
     mood: 'rose',
     sceneId: 'slow-love',
+  },
+  {
+    title: 'Afro Sunset',
+    subtitle: 'Golden rhythm · warmth',
+    listeners: '3.4k',
+    mood: 'violet',
+    sceneId: 'afro-sunset',
   },
 ]
 
@@ -1344,7 +1353,7 @@ function HomePage({ onOpenSong }: { onOpenSong: (song: ApiSong) => void }) {
           <ApiSongGrid songs={featured} onSelect={onOpenSong} listKey="home-featured" paginate={false} />
         )}
       </CatalogSection>
-      {HOME_SECTIONS.slice(1, 3).map((section) => (
+      {HOME_SECTIONS.map((section) => (
         <DiscoveryGrid key={section.title} section={section} />
       ))}
     </PageFrame>
@@ -1410,7 +1419,7 @@ function DiscoverPage({ onOpenSong }: { onOpenSong: (song: ApiSong) => void }) {
 }
 
 function MoodRoomsPage({ onOpenMood }: { onOpenMood: (mood: MoodRoom) => void }) {
-  const pageSceneId = useMemo(() => getTimeAwareHomeScene(), [])
+  const pageSceneId = useMemo(() => getMoodRoomsPageScene(), [])
 
   return (
     <PageFrame>
@@ -1919,11 +1928,14 @@ function SongDetailView({
   onBack: () => void
 }) {
   const created = formatDateLabel(song.createdAt)
+  const sceneId = useMemo(() => resolveSongScene(song), [song])
 
   return (
     <PageFrame>
       <DetailTopBar title="Song" subtitle="Read-only preview" onBack={onBack} />
-      <section className="detail-hero">
+      <section className="detail-hero detail-hero--scene detail-hero--song" data-scene={sceneId}>
+        <VisualSceneBackdrop sceneId={sceneId} seed={song.id} variant="hero" timeAware />
+        <div className="detail-hero-scrim" aria-hidden="true" />
         <div className="detail-artwork">
           <ArtworkImage src={song.artwork} alt="" seed={song.id} priority />
         </div>
@@ -1999,10 +2011,17 @@ function AlbumDetailView({
     return sortSongsList(byAlbum, 'az').slice(0, 24)
   }, [songsByAlbumTitle, album.title])
 
+  const sceneId = useMemo(() => resolveAlbumScene(album), [album])
+
   return (
     <PageFrame>
       <DetailTopBar title="Album" subtitle="Read-only preview" onBack={onBack} />
-      <section className="detail-hero detail-hero--album">
+      <section
+        className="detail-hero detail-hero--scene detail-hero--album"
+        data-scene={sceneId}
+      >
+        <VisualSceneBackdrop sceneId={sceneId} seed={album.id} variant="hero" timeAware />
+        <div className="detail-hero-scrim" aria-hidden="true" />
         <div className="detail-artwork detail-artwork--wide">
           <ArtworkImage src={album.artwork} alt="" seed={album.id} variant="wide" priority />
         </div>
@@ -2076,10 +2095,17 @@ function ArtistDetailView({
     return (albumsByArtistId.get(artist.id) ?? []).slice(0, 12)
   }, [albumsByArtistId, artist.id])
 
+  const sceneId = useMemo(() => resolveArtistScene(artist), [artist])
+
   return (
     <PageFrame>
       <DetailTopBar title="Artist" subtitle="Read-only preview" onBack={onBack} />
-      <section className="detail-hero detail-hero--artist">
+      <section
+        className="detail-hero detail-hero--scene detail-hero--artist"
+        data-scene={sceneId}
+      >
+        <VisualSceneBackdrop sceneId={sceneId} seed={artist.id} variant="hero" timeAware />
+        <div className="detail-hero-scrim" aria-hidden="true" />
         <div className="detail-artist-badge">
           <ArtistAvatar artist={artist} />
         </div>

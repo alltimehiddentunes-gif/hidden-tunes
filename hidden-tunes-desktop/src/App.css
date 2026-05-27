@@ -1877,6 +1877,42 @@
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.03), rgba(0, 0, 0, 0.18));
 }
 
+.detail-hero--scene {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background: transparent;
+}
+
+.detail-hero--scene .visual-scene--hero {
+  z-index: 0;
+}
+
+.detail-hero-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(
+    118deg,
+    rgba(5, 5, 8, 0.78) 0%,
+    rgba(5, 5, 8, 0.38) 48%,
+    rgba(5, 5, 8, 0.62) 100%
+  );
+}
+
+.detail-hero--scene .detail-artwork,
+.detail-hero--scene .detail-artist-badge,
+.detail-hero--scene .detail-hero-copy {
+  position: relative;
+  z-index: 2;
+}
+
+.detail-hero--scene.detail-hero--song .detail-artwork,
+.detail-hero--scene.detail-hero--album .detail-artwork {
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+}
+
 .detail-hero--violet {
   border-color: rgba(168, 85, 247, 0.18);
   box-shadow: 0 0 0 1px rgba(168, 85, 247, 0.1);
@@ -2100,6 +2136,13 @@
   pointer-events: none;
   contain: strict;
   filter: brightness(var(--vs-brightness, 1)) saturate(var(--vs-saturation, 1));
+  transition:
+    opacity 0.9s ease-in-out,
+    filter 1.1s ease-in-out;
+}
+
+.visual-scene--blending {
+  transition-duration: 0.42s, 0.55s;
 }
 
 .visual-scene__base {
@@ -2121,14 +2164,15 @@
   top: var(--vs-glow-y, 18%);
   transform: translate(-50%, -50%) scale(var(--vs-shape-scale, 1));
   background: radial-gradient(ellipse at center, var(--vs-glow, rgba(168, 85, 247, 0.2)), transparent 68%);
-  opacity: 0.9;
+  opacity: var(--vs-glow-opacity, 0.9);
+  animation: visualGlowPulse 16s ease-in-out infinite;
 }
 
 .visual-scene__shape {
   position: absolute;
   border-radius: 50%;
   filter: blur(42px);
-  opacity: 0.55;
+  opacity: var(--vs-shape-opacity, 0.55);
   transform: scale(var(--vs-shape-scale, 1));
 }
 
@@ -2138,7 +2182,7 @@
   left: -8%;
   bottom: -6%;
   background: var(--vs-shape-a, rgba(88, 28, 135, 0.3));
-  animation: visualDriftA 22s ease-in-out infinite;
+  animation: visualDriftA var(--vs-drift-a, 22s) ease-in-out infinite;
 }
 
 .visual-scene__shape--b {
@@ -2147,7 +2191,7 @@
   right: -6%;
   top: 8%;
   background: var(--vs-shape-b, rgba(14, 116, 144, 0.25));
-  animation: visualDriftB 26s ease-in-out infinite;
+  animation: visualDriftB var(--vs-drift-b, 26s) ease-in-out infinite;
 }
 
 .visual-scene__particle {
@@ -2189,6 +2233,18 @@
   inset: 0;
   background: var(--vs-overlay, transparent);
   pointer-events: none;
+}
+
+@keyframes visualGlowPulse {
+  0%,
+  100% {
+    opacity: calc(var(--vs-glow-opacity, 0.9) * 0.94);
+    transform: translate(-50%, -50%) scale(calc(var(--vs-shape-scale, 1) * 0.98));
+  }
+  50% {
+    opacity: calc(var(--vs-glow-opacity, 0.9) * 1.04);
+    transform: translate(-50%, -50%) scale(calc(var(--vs-shape-scale, 1) * 1.02));
+  }
 }
 
 @keyframes visualDriftA {
@@ -2313,6 +2369,19 @@
   z-index: 0;
 }
 
+.visual-scene[data-day-period='morning'] .visual-scene__atmosphere {
+  mix-blend-mode: soft-light;
+}
+
+.visual-scene[data-day-period='evening'] .visual-scene__glow {
+  filter: saturate(1.06);
+}
+
+.visual-scene[data-day-period='midnight'] .visual-scene__shape--a,
+.visual-scene[data-day-period='midnight'] .visual-scene__shape--b {
+  opacity: calc(var(--vs-shape-opacity, 0.55) * 1.08);
+}
+
 .hero .hero-inner,
 .hero .hero-vignette {
   z-index: 1;
@@ -2414,13 +2483,17 @@
     animation: none;
   }
 
+  .visual-scene,
   .visual-scene__shape,
-  .visual-scene__particle {
+  .visual-scene__particle,
+  .visual-scene__glow {
     animation: none !important;
+    transition: none !important;
   }
 
   .visual-scene--static .visual-scene__shape,
-  .visual-scene--static .visual-scene__particle {
+  .visual-scene--static .visual-scene__particle,
+  .visual-scene--static .visual-scene__glow {
     animation: none !important;
   }
 

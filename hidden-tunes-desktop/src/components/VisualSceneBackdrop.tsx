@@ -1,8 +1,8 @@
 import { memo, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import {
+  getDayPeriod,
   getParticleCount,
   getSceneVariation,
-  getTimeAtmosphere,
   getVisualSceneCssVars,
   type VisualSceneId,
   type VisualSceneVariant,
@@ -30,6 +30,8 @@ export type VisualSceneBackdropProps = {
   timeAware?: boolean
 }
 
+const SCENE_BLEND_MS = 420
+
 export const VisualSceneBackdrop = memo(function VisualSceneBackdrop({
   sceneId,
   seed,
@@ -38,22 +40,45 @@ export const VisualSceneBackdrop = memo(function VisualSceneBackdrop({
   timeAware = true,
 }: VisualSceneBackdropProps) {
   const reducedMotion = usePrefersReducedMotion()
-  const [atmosphere, setAtmosphere] = useState(() => getTimeAtmosphere())
+  const [dayPeriod, setDayPeriod] = useState(() => getDayPeriod())
+  const [renderedSceneId, setRenderedSceneId] = useState(sceneId)
+  const [blendIn, setBlendIn] = useState(true)
 
   useEffect(() => {
     if (!timeAware) return undefined
-    const tick = () => setAtmosphere(getTimeAtmosphere())
+    const tick = () => setDayPeriod(getDayPeriod())
     tick()
     const id = window.setInterval(tick, 60_000)
     return () => window.clearInterval(id)
   }, [timeAware])
 
-  const variation = useMemo(() => getSceneVariation(`${sceneId}:${seed}`), [sceneId, seed])
+  useEffect(() => {
+    if (sceneId === renderedSceneId) return undefined
+    if (reducedMotion) {
+      setRenderedSceneId(sceneId)
+      setBlendIn(true)
+      return undefined
+    }
+    setBlendIn(false)
+    const id = window.setTimeout(() => {
+      setRenderedSceneId(sceneId)
+      requestAnimationFrame(() => setBlendIn(true))
+    }, SCENE_BLEND_MS)
+    return () => window.clearTimeout(id)
+  }, [sceneId, renderedSceneId, reducedMotion])
+
+  const variation = useMemo(
+    () => getSceneVariation(`${renderedSceneId}:${seed}`),
+    [renderedSceneId, seed],
+  )
 
   const style = useMemo(
     () =>
-      getVisualSceneCssVars(sceneId, seed, timeAware ? atmosphere : undefined) as CSSProperties,
-    [sceneId, seed, atmosphere, timeAware],
+      ({
+        ...getVisualSceneCssVars(renderedSceneId, seed, { timeAware }),
+        opacity: blendIn ? 1 : 0.72,
+      }) as CSSProperties,
+    [renderedSceneId, seed, timeAware, blendIn],
   )
 
   const particleCount = getParticleCount(variant, reducedMotion)
@@ -66,6 +91,7 @@ export const VisualSceneBackdrop = memo(function VisualSceneBackdrop({
     'visual-scene',
     `visual-scene--${variant}`,
     reducedMotion ? 'visual-scene--static' : '',
+    blendIn ? '' : 'visual-scene--blending',
     className,
   ]
     .filter(Boolean)
@@ -74,8 +100,8 @@ export const VisualSceneBackdrop = memo(function VisualSceneBackdrop({
   return (
     <div
       className={rootClass}
-      data-scene={sceneId}
-      data-atmosphere={atmosphere}
+      data-scene={renderedSceneId}
+      data-day-period={dayPeriod}
       data-variant={variation.variant}
       style={style}
       aria-hidden="true"
