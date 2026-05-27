@@ -2785,6 +2785,86 @@
   background: rgba(0, 0, 0, 0.08);
 }
 
+/* —— Home: premium section headers (Phase 18) —— */
+.page-view[data-page="home"] .discovery-section .section-header,
+.page-view[data-page="home"] .catalog-section .section-header {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding-bottom: clamp(14px, 2.2vw, 18px);
+  margin-bottom: clamp(22px, 3vw, 28px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  position: relative;
+}
+
+.page-view[data-page="home"] .discovery-section .section-header::after,
+.page-view[data-page="home"] .catalog-section .section-header::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -1px;
+  width: min(128px, 44%);
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    rgba(168, 85, 247, 0.32),
+    rgba(56, 189, 248, 0.16),
+    transparent 100%
+  );
+  opacity: 0.8;
+}
+
+.page-view[data-page="home"] .discovery-section .section-header h2 {
+  font-size: clamp(1.22rem, 2.15vw, 1.52rem);
+  font-weight: 600;
+  letter-spacing: -0.032em;
+  line-height: 1.2;
+  color: rgba(245, 243, 250, 0.94);
+}
+
+.page-view[data-page="home"] .section-header--catalog h2 {
+  margin-bottom: 8px;
+  color: rgba(245, 243, 250, 0.96);
+}
+
+.page-view[data-page="home"] .discovery-section .section-header > span {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(245, 243, 250, 0.4);
+  line-height: 1.55;
+}
+
+.page-view[data-page="home"] .section-hint {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(245, 243, 250, 0.38);
+  line-height: 1.55;
+  margin-top: 2px;
+}
+
+.page-view[data-page="home"] .catalog-toolbar {
+  margin-bottom: clamp(28px, 3.5vw, 34px);
+  padding-bottom: 2px;
+}
+
+.page-view[data-page="home"] .sort-control {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(245, 243, 250, 0.42);
+}
+
+.page-view[data-page="home"] .catalog-count {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(245, 243, 250, 0.36);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .page-view {
     animation: none;
