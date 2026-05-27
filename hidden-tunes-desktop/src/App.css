@@ -2431,15 +2431,15 @@
 }
 
 .page-view[data-page="home"] .catalog-toolbar {
-  margin-bottom: clamp(26px, 3.5vw, 32px);
+  margin-bottom: clamp(30px, 3.8vw, 38px);
 }
 
 .page-view[data-page="home"] .discovery-section {
-  margin-bottom: clamp(36px, 5vw, 52px);
+  margin-bottom: clamp(42px, 5.4vw, 60px);
 }
 
 .page-view[data-page="home"] .section-header {
-  margin-bottom: clamp(18px, 2.5vw, 24px);
+  margin-bottom: clamp(20px, 2.7vw, 28px);
 }
 
 .page-view[data-page="home"] .section-header--catalog h2 {
@@ -2457,7 +2457,7 @@
 }
 
 .page-view[data-page="home"] .card-row {
-  gap: clamp(14px, 2.2vw, 22px);
+  gap: clamp(20px, 2.5vw, 28px) clamp(16px, 2.3vw, 24px);
 }
 
 .page-view[data-page="home"] .sort-control {
