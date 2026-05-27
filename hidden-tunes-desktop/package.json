@@ -51,7 +51,8 @@
     ],
     "win": {
       "target": "nsis",
-      "signAndEditExecutable": false
+      "signAndEditExecutable": false,
+      "icon": "build/icon.ico"
     },
     "artifactName": "Hidden Tunes Desktop Setup ${version}.${ext}",
     "nsis": {

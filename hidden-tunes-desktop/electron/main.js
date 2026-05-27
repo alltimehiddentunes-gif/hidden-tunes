@@ -189,6 +189,25 @@ function attachWindowDiagnostics(win) {
   });
 }
 
+function resolveWindowIcon() {
+  const candidates = [
+    path.join(__dirname, '..', 'build', 'icon.png'),
+    path.join(__dirname, 'tray-icon.png'),
+  ];
+
+  for (const filePath of candidates) {
+    if (!fs.existsSync(filePath)) continue;
+    try {
+      const image = nativeImage.createFromPath(filePath);
+      if (!image.isEmpty()) return filePath;
+    } catch (error) {
+      logProduction('window icon load failed', { filePath, error });
+    }
+  }
+
+  return undefined;
+}
+
 function createWindow() {
   if (mainWindow && !mainWindow.isDestroyed()) {
     showMainWindow();
@@ -203,7 +222,7 @@ function createWindow() {
     minHeight: 800,
     backgroundColor: WINDOW_BG,
     autoHideMenuBar: true,
-    icon: path.join(__dirname, 'tray-icon.png'),
+    icon: resolveWindowIcon(),
     show: false,
     webPreferences: {
       contextIsolation: true,
