@@ -1031,14 +1031,17 @@
 .mood-room-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: clamp(14px, 2vw, 20px);
+  gap: clamp(18px, 2.4vw, 28px);
 }
 
 .mood-room-card {
   border-radius: var(--radius-xl);
   overflow: hidden;
-  border: 1px solid var(--border-subtle);
-  background: var(--bg-elevated);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(180deg, rgba(24, 24, 34, 0.78), rgba(10, 10, 16, 0.94));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.045),
+    0 14px 34px rgba(0, 0, 0, 0.22);
   transition:
     transform var(--transition-smooth),
     border-color var(--transition-fast),
@@ -1047,21 +1050,25 @@
 
 .mood-room-card:hover {
   transform: translateY(-4px);
-  border-color: var(--border-glow);
-  box-shadow: var(--shadow-lift);
+  border-color: rgba(168, 85, 247, 0.24);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 18px 38px rgba(0, 0, 0, 0.3),
+    0 0 0 1px rgba(168, 85, 247, 0.08);
 }
 
 .mood-room-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 18px 0;
+  padding: 18px 20px 0;
 }
 
 .mood-room-index {
   font-size: 12px;
   font-weight: 600;
-  color: var(--text-muted);
+  letter-spacing: 0.08em;
+  color: rgba(245, 243, 250, 0.44);
   font-variant-numeric: tabular-nums;
 }
 
@@ -1072,11 +1079,11 @@
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  padding: 4px 10px;
+  letter-spacing: 0.08em;
+  padding: 5px 11px;
   border-radius: 999px;
-  background: rgba(244, 114, 182, 0.1);
-  border: 1px solid rgba(244, 114, 182, 0.25);
+  background: rgba(244, 114, 182, 0.12);
+  border: 1px solid rgba(244, 114, 182, 0.28);
   color: var(--accent-rose);
 }
 
@@ -1088,22 +1095,23 @@
 }
 
 .mood-room-body {
-  padding: 16px 20px 22px;
+  padding: 18px 22px 24px;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 6px;
+  gap: 8px;
 }
 
 .mood-room-icon-wrap {
-  width: 52px;
-  height: 52px;
+  width: 58px;
+  height: 58px;
   border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 8px;
-  border: 1px solid var(--border-subtle);
+  margin-bottom: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .mood-room-card[data-mood='violet'] .mood-room-icon-wrap {
@@ -1123,19 +1131,24 @@
 }
 
 .mood-room-body h3 {
-  font-size: 18px;
-  font-weight: 600;
+  font-size: clamp(19px, 2vw, 22px);
+  font-weight: 650;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
 }
 
 .mood-room-body > p {
   font-size: 13px;
   color: var(--text-muted);
+  line-height: 1.55;
+  max-width: 34ch;
 }
 
 .mood-listeners {
   font-size: 12px;
-  color: var(--accent-cyan);
-  margin-bottom: 10px;
+  letter-spacing: 0.02em;
+  color: rgba(56, 189, 248, 0.86);
+  margin-bottom: 12px;
 }
 
 /* —— Library —— */
@@ -2256,10 +2269,14 @@
 
 .mood-rooms-stage {
   position: relative;
-  margin-bottom: 4px;
+  margin-bottom: 8px;
   border-radius: var(--radius-xl);
   overflow: hidden;
-  border: 1px solid var(--border-subtle);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(145deg, rgba(24, 24, 34, 0.72), rgba(8, 8, 14, 0.9));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.045),
+    0 18px 42px rgba(0, 0, 0, 0.24);
 }
 
 .mood-rooms-stage .visual-scene--ambient {
@@ -2273,7 +2290,7 @@
 .mood-rooms-stage .page-header {
   position: relative;
   z-index: 1;
-  padding: clamp(28px, 4vw, 40px) clamp(24px, 3vw, 32px) clamp(24px, 3vw, 32px);
+  padding: clamp(34px, 4.5vw, 48px) clamp(28px, 3.4vw, 40px) clamp(28px, 3.4vw, 38px);
   margin-bottom: 0;
 }
 
@@ -2284,7 +2301,7 @@
 
 .mood-room-card .visual-scene--card {
   z-index: 0;
-  opacity: 0.92;
+  opacity: 0.84;
 }
 
 .mood-room-card .mood-room-top,
@@ -2294,7 +2311,7 @@
 }
 
 .mood-room-card .mood-room-body {
-  background: linear-gradient(180deg, transparent, rgba(10, 10, 16, 0.55));
+  background: linear-gradient(180deg, transparent, rgba(10, 10, 16, 0.68));
 }
 
 .card-art .visual-scene--thumb {
