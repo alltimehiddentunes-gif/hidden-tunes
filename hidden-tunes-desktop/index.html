@@ -5,70 +5,8 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Hidden Tunes Desktop</title>
-    <style>
-      #launch-splash {
-        position: fixed;
-        inset: 0;
-        z-index: 99999;
-        display: grid;
-        place-items: center;
-        background: #050508;
-        color: #f5f3fa;
-        font-family: "Segoe UI", system-ui, sans-serif;
-      }
-      #launch-splash .launch-splash__scrim {
-        position: absolute;
-        inset: 0;
-        background: radial-gradient(ellipse 80% 60% at 50% 20%, rgba(56, 189, 248, 0.12), transparent 62%),
-          linear-gradient(180deg, rgba(5, 5, 8, 0.2), rgba(5, 5, 8, 0.92));
-      }
-      #launch-splash .launch-splash__content {
-        position: relative;
-        z-index: 1;
-        text-align: center;
-        padding: 24px;
-      }
-      #launch-splash .launch-splash__mark {
-        width: 56px;
-        height: 56px;
-        margin: 0 auto 16px;
-        border-radius: 16px;
-        display: grid;
-        place-items: center;
-        font-weight: 700;
-        letter-spacing: -0.04em;
-        background: linear-gradient(135deg, rgba(56, 189, 248, 0.22), rgba(168, 85, 247, 0.18));
-        border: 1px solid rgba(255, 255, 255, 0.1);
-      }
-      #launch-splash .launch-splash__title {
-        margin: 0;
-        font-size: 1.6rem;
-        letter-spacing: -0.03em;
-      }
-      #launch-splash .launch-splash__tag {
-        margin: 4px 0 18px;
-        font-size: 0.75rem;
-        letter-spacing: 0.18em;
-        text-transform: uppercase;
-        color: rgba(245, 243, 250, 0.55);
-      }
-      #launch-splash .launch-splash__message {
-        margin: 0;
-        font-size: 0.95rem;
-        color: rgba(245, 243, 250, 0.72);
-      }
-    </style>
   </head>
   <body>
-    <div id="launch-splash" aria-hidden="true">
-      <div class="launch-splash__scrim"></div>
-      <div class="launch-splash__content">
-        <div class="launch-splash__mark">HT</div>
-        <p class="launch-splash__title">Hidden Tunes</p>
-        <p class="launch-splash__tag">Desktop</p>
-        <p class="launch-splash__message">Preparing your listening atmosphere</p>
-      </div>
-    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

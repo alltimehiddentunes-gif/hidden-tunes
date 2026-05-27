@@ -1,23 +1,15 @@
-<<<<<<< HEAD
-import { AppState, Platform, type AppStateStatus } from "react-native";
-
-const PREFIX = "[HT_PLAYBACK_CRITICAL]";
-=======
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { AppState, Platform } from "react-native";
 
 const PREFIX = "[HT_PLAYBACK_CRITICAL]";
 const STORAGE_KEY = "@ht_playback_critical_logs_v1";
 const MAX_STORED_LOGS = 100;
->>>>>>> b761fb7 (Add in-app playback diagnostics)
 
 export type PlaybackCriticalDetails = Record<
   string,
   string | number | boolean | null | undefined
 >;
 
-<<<<<<< HEAD
-=======
 export type PlaybackCriticalLogEntry = {
   id: string;
   event: string;
@@ -35,7 +27,6 @@ let persistTimer: ReturnType<typeof setTimeout> | null = null;
 
 const listeners = new Set<() => void>();
 
->>>>>>> b761fb7 (Add in-app playback diagnostics)
 function compactDetails(details: PlaybackCriticalDetails): PlaybackCriticalDetails {
   const out: PlaybackCriticalDetails = {};
 
@@ -53,22 +44,6 @@ function compactDetails(details: PlaybackCriticalDetails): PlaybackCriticalDetai
   return out;
 }
 
-<<<<<<< HEAD
-let lastDedupeKey = "";
-let lastDedupeAt = 0;
-
-function shouldSkipDuplicate(event: string, dedupeKey: string): boolean {
-  const composite = `${event}:${dedupeKey}`;
-  const now = Date.now();
-
-  if (composite === lastDedupeKey && now - lastDedupeAt < 350) {
-    return true;
-  }
-
-  lastDedupeKey = composite;
-  lastDedupeAt = now;
-  return false;
-=======
 function notifyListeners() {
   listeners.forEach((listener) => {
     try {
@@ -197,7 +172,6 @@ export function formatPlaybackCriticalLogsForExport(
       return `${iso} ${entry.line}`;
     })
     .join("\n");
->>>>>>> b761fb7 (Add in-app playback diagnostics)
 }
 
 /** Production-safe; always emitted. No progress / tick spam. */
@@ -205,68 +179,16 @@ export function logPlaybackCritical(
   event: string,
   details: PlaybackCriticalDetails = {}
 ): void {
-<<<<<<< HEAD
-  console.warn(
-    `${PREFIX} ${event}`,
-    compactDetails({
-      at: Date.now(),
-      platform: Platform.OS,
-      appState: AppState.currentState,
-      ...details,
-    })
-  );
-}
-
-export function logPlaybackCriticalAppState(
-  previousState: AppStateStatus,
-  nextState: AppStateStatus,
-  details: PlaybackCriticalDetails = {}
-): void {
-  const dedupeKey = `${previousState}->${nextState}`;
-
-  if (shouldSkipDuplicate("app_state_change", dedupeKey)) return;
-
-  logPlaybackCritical("app_state_change", {
-    previousState,
-    nextState,
-    ...details,
-  });
-}
-
-export function logPlaybackCriticalIsPlayingFalse(
-  reason: string,
-  details: PlaybackCriticalDetails = {}
-): void {
-  logPlaybackCritical("is_playing_false", {
-    reason,
-    ...details,
-  });
-}
-
-export function subscribePlaybackCriticalMemoryWarning(
-  handler: () => void
-): () => void {
-  if (Platform.OS !== "ios") {
-    return () => undefined;
-  }
-
-  const subscription = AppState.addEventListener("memoryWarning", handler);
-  return () => subscription.remove();
-=======
   const entry = createLogEntry(event, details);
 
   console.warn(entry.line, entry.details);
   appendLogEntry(entry);
->>>>>>> b761fb7 (Add in-app playback diagnostics)
 }
 
 export function errorMessage(error: unknown): string {
   if (error instanceof Error) return error.message || error.name;
   return String(error ?? "unknown");
 }
-<<<<<<< HEAD
-=======
 
 // Warm persisted logs on module load (non-blocking).
 void hydratePlaybackCriticalLogs();
->>>>>>> b761fb7 (Add in-app playback diagnostics)
