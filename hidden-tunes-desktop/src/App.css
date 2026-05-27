@@ -2659,11 +2659,13 @@
 }
 
 .page-view[data-page="home"] .hero-inner {
-  padding: clamp(36px, 5.5vw, 52px) clamp(32px, 4.5vw, 52px);
+  gap: clamp(32px, 4.8vw, 56px);
+  padding: clamp(38px, 5.6vw, 54px) clamp(36px, 5vw, 58px);
 }
 
 .page-view[data-page="home"] .hero-copy {
-  max-width: 560px;
+  flex: 0 1 500px;
+  max-width: 532px;
 }
 
 .page-view[data-page="home"] .hero-eyebrow {
@@ -2677,15 +2679,18 @@
 }
 
 .page-view[data-page="home"] .hero-tagline {
-  margin-bottom: 32px;
-  max-width: 46ch;
+  margin-bottom: 30px;
+  max-width: 43ch;
 }
 
 .page-view[data-page="home"] .hero-actions {
-  gap: 14px;
+  gap: 16px;
 }
 
 .page-view[data-page="home"] .hero-artwork {
+  flex: 0 0 clamp(168px, 16.5vw, 204px);
+  width: clamp(168px, 16.5vw, 204px);
+  height: clamp(168px, 16.5vw, 204px);
   border-color: rgba(255, 255, 255, 0.1);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.06),
