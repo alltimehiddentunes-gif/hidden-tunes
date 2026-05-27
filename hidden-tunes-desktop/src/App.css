@@ -2573,6 +2573,116 @@
   letter-spacing: -0.01em;
 }
 
+/* —— Discover: premium surface refinement (Phase 23) —— */
+.page-view[data-page="discover"] .page-header {
+  margin-bottom: clamp(28px, 4.2vw, 38px);
+}
+
+.page-view[data-page="discover"] .page-eyebrow {
+  letter-spacing: 0.2em;
+  color: rgba(56, 189, 248, 0.9);
+}
+
+.page-view[data-page="discover"] .page-header h1 {
+  font-size: clamp(1.85rem, 3vw, 2.35rem);
+  letter-spacing: -0.04em;
+  line-height: 1.06;
+}
+
+.page-view[data-page="discover"] .page-description {
+  color: rgba(245, 243, 250, 0.62);
+  line-height: 1.72;
+}
+
+.page-view[data-page="discover"] .catalog-toolbar {
+  gap: 16px;
+  margin-bottom: clamp(30px, 4vw, 40px);
+}
+
+.page-view[data-page="discover"] .search-bar--premium {
+  min-height: 60px;
+  padding: 0 22px;
+  border-color: rgba(255, 255, 255, 0.08);
+  background: linear-gradient(180deg, rgba(24, 24, 34, 0.82), rgba(12, 12, 18, 0.94));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 14px 34px rgba(0, 0, 0, 0.18);
+}
+
+.page-view[data-page="discover"] .search-bar--premium:focus-within {
+  border-color: rgba(168, 85, 247, 0.26);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 0 0 3px rgba(168, 85, 247, 0.08),
+    0 16px 36px rgba(0, 0, 0, 0.22);
+}
+
+.page-view[data-page="discover"] .catalog-toolbar-row {
+  gap: 16px;
+  padding-top: 2px;
+}
+
+.page-view[data-page="discover"] .sort-control {
+  letter-spacing: 0.01em;
+}
+
+.page-view[data-page="discover"] .sort-control select {
+  min-height: 44px;
+  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.page-view[data-page="discover"] .catalog-section {
+  margin-bottom: clamp(42px, 5vw, 58px);
+}
+
+.page-view[data-page="discover"] .section-header {
+  margin-bottom: clamp(20px, 2.7vw, 28px);
+}
+
+.page-view[data-page="discover"] .section-header--catalog h2 {
+  font-size: clamp(1.35rem, 2.4vw, 1.65rem);
+  letter-spacing: -0.035em;
+  line-height: 1.18;
+}
+
+.page-view[data-page="discover"] .section-hint {
+  color: rgba(245, 243, 250, 0.48);
+  line-height: 1.6;
+}
+
+.page-view[data-page="discover"] .card-row--compact {
+  gap: clamp(20px, 2.5vw, 28px) clamp(16px, 2.3vw, 24px);
+}
+
+.page-view[data-page="discover"] .discovery-card--api {
+  border-radius: calc(var(--radius-lg) + 2px);
+  border-color: rgba(255, 255, 255, 0.09);
+  background: linear-gradient(168deg, rgba(22, 22, 32, 0.98), rgba(12, 12, 18, 0.99));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 5px 16px rgba(0, 0, 0, 0.24),
+    0 0 0 1px rgba(0, 0, 0, 0.18);
+}
+
+.page-view[data-page="discover"] .discovery-card--api:hover {
+  border-color: rgba(168, 85, 247, 0.2);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 14px 32px rgba(0, 0, 0, 0.3),
+    0 0 0 1px rgba(168, 85, 247, 0.1);
+}
+
+.page-view[data-page="discover"] .discovery-card .card-info {
+  padding: 13px 14px 15px;
+  background: rgba(0, 0, 0, 0.14);
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.page-view[data-page="discover"] .discovery-card .card-info h3 {
+  letter-spacing: -0.01em;
+}
+
 /* —— Premium sidebar treatment (Phase 15) —— */
 .sidebar {
   padding: 24px 14px 20px;
