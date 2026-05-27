@@ -1797,6 +1797,32 @@ function SettingsPage() {
             onClearCache={handleClearCatalogCache}
           />
           <section className="settings-panel">
+            <h2>Desktop background presence</h2>
+            <p className="settings-panel-desc">
+              Hidden Tunes can stay available in the system tray while you use other apps.
+            </p>
+            <div className="settings-row">
+              <div className="settings-label">
+                <span>Close button</span>
+                <small>Closing the window keeps Hidden Tunes available in the tray</small>
+              </div>
+              <span className="settings-badge">Tray</span>
+            </div>
+            <div className="settings-row">
+              <div className="settings-label">
+                <span>Minimize button</span>
+                <small>Minimizes the window normally — use the tray to bring it back</small>
+              </div>
+              <span className="settings-badge">Normal</span>
+            </div>
+            <div className="settings-row">
+              <div className="settings-label">
+                <span>Fully quit</span>
+                <small>Use Quit Hidden Tunes in the tray menu to exit completely</small>
+              </div>
+            </div>
+          </section>
+          <section className="settings-panel">
             <h2>Appearance</h2>
             <p className="settings-panel-desc">Cinematic dark theme tuned for desktop browsing.</p>
             <div className="settings-row">
