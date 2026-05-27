@@ -203,6 +203,7 @@ function createWindow() {
     minHeight: 800,
     backgroundColor: WINDOW_BG,
     autoHideMenuBar: true,
+    icon: path.join(__dirname, 'tray-icon.png'),
     show: false,
     webPreferences: {
       contextIsolation: true,
