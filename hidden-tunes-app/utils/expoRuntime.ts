@@ -1,6 +1,8 @@
 import Constants, { ExecutionEnvironment } from "expo-constants";
 import { NativeModules, Platform } from "react-native";
 
+import { isTrackPlayerFeatureEnabled } from "../constants/playbackConfig";
+
 /**
  * Expo runtime detection (Android + iOS).
  *
@@ -52,7 +54,7 @@ export function supportsNativeModules(): boolean {
  * False in Expo Go on Android and iOS — prevents RNTP init entirely.
  */
 export function supportsNativeTrackPlayer(): boolean {
-  return supportsNativeModules();
+  return supportsNativeModules() && isTrackPlayerFeatureEnabled();
 }
 
 /** Safe to register Track Player playback service from index.js. */

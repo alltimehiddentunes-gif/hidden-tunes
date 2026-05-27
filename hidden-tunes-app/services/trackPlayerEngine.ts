@@ -1,6 +1,6 @@
 ﻿import { Platform } from "react-native";
 
-import { USE_NATIVE_TRACK_PLAYER } from "../constants/playbackConfig";
+import { isTrackPlayerFeatureEnabled } from "../constants/playbackConfig";
 import {
   recordBridgeSubscriptionCreated,
   recordBridgeSubscriptionDisposed,
@@ -64,7 +64,7 @@ let trackPlayerModulePromise: Promise<TrackPlayerModule | null> | null = null;
 const MIN_PROGRESS_UPDATE_INTERVAL_S = 0.25;
 
 function isNativeTrackPlayerEnabled() {
-  return Boolean(USE_NATIVE_TRACK_PLAYER) && supportsNativeTrackPlayer();
+  return isTrackPlayerFeatureEnabled() && supportsNativeTrackPlayer();
 }
 
 function logTrackPlayer(message: string, details?: Record<string, unknown>) {
