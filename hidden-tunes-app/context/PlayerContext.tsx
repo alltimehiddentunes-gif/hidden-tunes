@@ -1852,11 +1852,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      if (
+      const nearEndWhilePaused =
         repeatModeRef.current !== "one" &&
         duration >= MIN_DURATION_FOR_POSITION_FINISH_MS &&
-        position >= duration - TRACK_END_THRESHOLD_MS
-      ) {
+        position >= duration - TRACK_END_THRESHOLD_MS &&
+        !status.isPlaying;
+
+      if (nearEndWhilePaused) {
         scheduleTrackAdvance();
       }
     } catch (error) {
@@ -3477,10 +3479,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         isPlaying: isPlayingRef.current,
       });
 
-      if (
-        previousState === "active" &&
-        isBackgroundAppState(nextState)
-      ) {
+      // iOS lock often goes active -> inactive -> background. Re-applying audio mode on
+      // inactive disrupts the shared AVAudioSession and can stop RNTP/expo-av mid-song.
+      if (nextState === "inactive" && previousState === "active") {
+        void savePlaybackPosition(positionMillisRef.current);
+      }
+
+      if (nextState === "background" && previousState !== "background") {
         configureAudio();
         savePlaybackPosition(positionMillisRef.current);
         void applyProgressUpdateInterval();
