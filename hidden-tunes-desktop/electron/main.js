@@ -1,16 +1,10 @@
-const { app, BrowserWindow, Tray, Menu, nativeImage } = require('electron');
+const { app, BrowserWindow } = require('electron');
 const fs = require('fs');
 const path = require('path');
 
 const isDev = !app.isPackaged;
 const WINDOW_TITLE = 'Hidden Tunes Desktop';
 const WINDOW_BG = '#050508';
-
-/** @type {BrowserWindow | null} */
-let mainWindow = null;
-/** @type {Tray | null} */
-let tray = null;
-let isQuitting = false;
 
 function logProduction(message, detail) {
   if (isDev) return;
@@ -70,115 +64,7 @@ function showFallbackPage(win, title, message) {
   return win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
 }
 
-function resolveTrayIcon() {
-  const candidates = [
-    path.join(__dirname, 'tray-icon.png'),
-    path.join(__dirname, '..', 'public', 'favicon.svg'),
-  ];
-
-  for (const filePath of candidates) {
-    if (!fs.existsSync(filePath)) continue;
-    try {
-      const image = nativeImage.createFromPath(filePath);
-      if (!image.isEmpty()) {
-        return image.resize({ width: 16, height: 16 });
-      }
-    } catch (error) {
-      logProduction('tray icon load failed', { filePath, error });
-    }
-  }
-
-  return null;
-}
-
-function createTray() {
-  try {
-    const icon = resolveTrayIcon();
-    if (!icon || icon.isEmpty()) {
-      logProduction('tray icon unavailable; close will exit the app');
-      return null;
-    }
-
-    const instance = new Tray(icon);
-    instance.setToolTip(WINDOW_TITLE);
-
-    const menu = Menu.buildFromTemplate([
-      {
-        label: 'Show Hidden Tunes',
-        click: () => showMainWindow(),
-      },
-      { type: 'separator' },
-      {
-        label: 'Quit Hidden Tunes',
-        click: () => quitApp(),
-      },
-    ]);
-
-    instance.setContextMenu(menu);
-    instance.on('click', () => showMainWindow());
-    instance.on('double-click', () => showMainWindow());
-    return instance;
-  } catch (error) {
-    logProduction('tray creation failed', error);
-    return null;
-  }
-}
-
-function showMainWindow() {
-  if (!mainWindow || mainWindow.isDestroyed()) return;
-  if (mainWindow.isMinimized()) mainWindow.restore();
-  if (!mainWindow.isVisible()) mainWindow.show();
-  mainWindow.focus();
-}
-
-function hideMainWindowToTray() {
-  if (!mainWindow || mainWindow.isDestroyed()) return;
-  mainWindow.hide();
-}
-
-function quitApp() {
-  isQuitting = true;
-  if (tray && !tray.isDestroyed()) {
-    tray.destroy();
-    tray = null;
-  }
-  app.quit();
-}
-
 function attachWindowDiagnostics(win) {
-  win.webContents.on('did-start-loading', () => {
-    if (!isDev) logProduction('did-start-loading', win.webContents.getURL());
-  });
-
-  win.webContents.on('dom-ready', () => {
-    if (!isDev) logProduction('dom-ready', win.webContents.getURL());
-  });
-
-  win.webContents.on('did-finish-load', () => {
-    if (isDev) return;
-    logProduction('did-finish-load', win.webContents.getURL());
-    // Lightweight renderer health probe (helps diagnose black screen reports).
-    setTimeout(() => {
-      win.webContents
-        .executeJavaScript(
-          `(() => {
-            const splash = !!document.getElementById('launch-splash');
-            const root = document.getElementById('root');
-            const rootTextLen = root?.innerText?.length ?? 0;
-            const bodyChildren = document.body?.children?.length ?? 0;
-            return { splash, rootTextLen, bodyChildren };
-          })()`,
-          true,
-        )
-        .then((result) => logProduction('renderer-probe', result))
-        .catch((error) => logProduction('renderer-probe failed', error));
-    }, 1500);
-  });
-
-  win.webContents.on('did-stop-loading', () => {
-    if (!isDev) logProduction('did-stop-loading', win.webContents.getURL());
-  });
-
   win.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
     logProduction('did-fail-load', { errorCode, errorDescription, validatedURL });
     if (!isDev) {
@@ -222,35 +108,7 @@ function attachWindowDiagnostics(win) {
   });
 }
 
-function resolveWindowIcon() {
-  const candidates = [
-    path.join(__dirname, '..', 'build', 'icon.ico'),
-    path.join(__dirname, '..', 'build', 'icon.png'),
-    path.join(__dirname, 'tray-icon.png'),
-  ];
-
-  for (const filePath of candidates) {
-    if (!fs.existsSync(filePath)) continue;
-    try {
-      // On Windows, Electron accepts a file path for BrowserWindow icon.
-      // Prefer the .ico so taskbar/window metadata is consistent with the packaged EXE.
-      if (path.extname(filePath).toLowerCase() === '.ico') return filePath;
-      const image = nativeImage.createFromPath(filePath);
-      if (!image.isEmpty()) return filePath;
-    } catch (error) {
-      logProduction('window icon load failed', { filePath, error });
-    }
-  }
-
-  return undefined;
-}
-
 function createWindow() {
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    showMainWindow();
-    return mainWindow;
-  }
-
   const win = new BrowserWindow({
     title: WINDOW_TITLE,
     width: 1680,
@@ -259,7 +117,6 @@ function createWindow() {
     minHeight: 800,
     backgroundColor: WINDOW_BG,
     autoHideMenuBar: true,
-    icon: resolveWindowIcon(),
     show: false,
     webPreferences: {
       contextIsolation: true,
@@ -299,68 +156,19 @@ function createWindow() {
   win.once('ready-to-show', () => {
     win.show();
   });
-
-  win.on('close', (event) => {
-    if (isQuitting) return;
-    if (tray && !tray.isDestroyed()) {
-      event.preventDefault();
-      hideMainWindowToTray();
-    }
-  });
-
-  win.on('closed', () => {
-    mainWindow = null;
-  });
-
-  mainWindow = win;
-  return win;
-}
-
-function requestSingleInstance() {
-  const gotLock = app.requestSingleInstanceLock();
-  if (!gotLock) {
-    app.quit();
-    return false;
-  }
-
-  app.on('second-instance', () => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      showMainWindow();
-      return;
-    }
-    createWindow();
-  });
-
-  return true;
 }
 
 app.whenReady().then(() => {
-  if (!requestSingleInstance()) return;
-
   createWindow();
-  tray = createTray();
 
   app.on('activate', () => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      showMainWindow();
-      return;
+    if (BrowserWindow.getAllWindows().length === 0) {
+      createWindow();
     }
-    createWindow();
   });
 });
 
-app.on('before-quit', () => {
-  isQuitting = true;
-});
-
 app.on('window-all-closed', () => {
-  if (isQuitting) {
-    app.quit();
-    return;
-  }
-
-  if (tray && !tray.isDestroyed()) return;
-
   if (process.platform !== 'darwin') {
     app.quit();
   }

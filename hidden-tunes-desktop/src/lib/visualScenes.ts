@@ -17,35 +17,6 @@ export type VisualSceneId =
 
 export type TimeAtmosphere = 'dawn' | 'day' | 'dusk' | 'night'
 
-/** User-facing day slice for atmosphere (morning / evening / midnight). */
-export type DayPeriod = 'morning' | 'day' | 'evening' | 'midnight'
-
-export type MoodThemeId =
-  | 'heartbreak'
-  | 'healing'
-  | 'focus'
-  | 'late-night'
-  | 'romantic'
-  | 'afro-vibes'
-
-export const MOOD_THEME_SCENES: Record<MoodThemeId, VisualSceneId> = {
-  heartbreak: 'rainy-apartment',
-  healing: 'ocean-reflection',
-  focus: 'deep-focus',
-  'late-night': 'midnight-drive',
-  romantic: 'slow-love',
-  'afro-vibes': 'afro-sunset',
-}
-
-const MOOD_THEME_LABEL_HINTS: { match: RegExp; theme: MoodThemeId }[] = [
-  { match: /heartbreak|heart.?break|ache|collapse|velvet midnight/i, theme: 'heartbreak' },
-  { match: /heal|healing|tide|calm|oceanic|restore/i, theme: 'healing' },
-  { match: /focus|deep focus|flow|monk|work|clarity/i, theme: 'focus' },
-  { match: /midnight|late night|3am|nocturne|drive/i, theme: 'late-night' },
-  { match: /romantic|slow love|ember|intimate|rose neon/i, theme: 'romantic' },
-  { match: /afro|sunset|golden hour|warm rhythm/i, theme: 'afro-vibes' },
-]
-
 export type VisualSceneVariant = 'hero' | 'card' | 'thumb' | 'ambient'
 
 export type VisualScenePreset = {
@@ -202,6 +173,8 @@ const TITLE_SCENE_HINTS: { match: RegExp; scene: VisualSceneId }[] = [
   { match: /mountain|fog|silent/i, scene: 'mountain-fog' },
 ]
 
+type LegacyMood = 'violet' | 'cyan' | 'rose' | 'mint'
+
 const MOOD_FALLBACK_SCENE: Record<LegacyMood, VisualSceneId> = {
   violet: 'neon-city',
   cyan: 'midnight-drive',
@@ -209,18 +182,11 @@ const MOOD_FALLBACK_SCENE: Record<LegacyMood, VisualSceneId> = {
   mint: 'deep-focus',
 }
 
-const DAY_PERIOD_HOME_SCENES: Record<DayPeriod, VisualSceneId[]> = {
-  morning: ['healing-sunday', 'ocean-reflection', 'afro-sunset', 'mountain-fog'],
-  day: ['deep-focus', 'afro-sunset', 'mountain-fog', 'healing-sunday'],
-  evening: ['afro-sunset', 'slow-love', 'neon-city', 'ocean-reflection'],
-  midnight: ['midnight-drive', 'neon-city', 'rainy-apartment', 'piano-rain'],
-}
-
-const DAY_PERIOD_MOOD_PAGE_SCENES: Record<DayPeriod, VisualSceneId[]> = {
-  morning: ['healing-sunday', 'ocean-reflection', 'afro-sunset'],
-  day: ['deep-focus', 'ocean-reflection', 'mountain-fog'],
-  evening: ['afro-sunset', 'slow-love', 'neon-city'],
-  midnight: ['midnight-drive', 'neon-city', 'rainy-apartment'],
+const TIME_HOME_SCENES: Record<TimeAtmosphere, VisualSceneId[]> = {
+  dawn: ['healing-sunday', 'ocean-reflection', 'mountain-fog'],
+  day: ['afro-sunset', 'deep-focus', 'mountain-fog', 'healing-sunday'],
+  dusk: ['afro-sunset', 'slow-love', 'neon-city', 'ocean-reflection'],
+  night: ['midnight-drive', 'neon-city', 'rainy-apartment', 'piano-rain'],
 }
 
 /** Stable string hash → unsigned int */
@@ -239,47 +205,6 @@ export function getTimeAtmosphere(date = new Date()): TimeAtmosphere {
   if (hour >= 8 && hour < 17) return 'day'
   if (hour >= 17 && hour < 21) return 'dusk'
   return 'night'
-}
-
-export function getDayPeriod(date = new Date()): DayPeriod {
-  const hour = date.getHours()
-  if (hour >= 5 && hour < 12) return 'morning'
-  if (hour >= 12 && hour < 17) return 'day'
-  if (hour >= 17 && hour < 22) return 'evening'
-  return 'midnight'
-}
-
-export function resolveMoodThemeScene(label: string): VisualSceneId | undefined {
-  for (const hint of MOOD_THEME_LABEL_HINTS) {
-    if (hint.match.test(label)) return MOOD_THEME_SCENES[hint.theme]
-  }
-  return undefined
-}
-
-type LegacyMood = 'violet' | 'cyan' | 'rose' | 'mint'
-
-export function catalogToneFromSeed(seed: string): LegacyMood {
-  const code = seed.charCodeAt(0) + seed.charCodeAt(seed.length - 1 || 0)
-  const tones: LegacyMood[] = ['violet', 'cyan', 'rose', 'mint']
-  return tones[code % tones.length]
-}
-
-export function resolveEntityScene(seed: string, mood?: LegacyMood): VisualSceneId {
-  const themed = resolveMoodThemeScene(seed)
-  if (themed) return themed
-  return resolveVisualScene({ seed, mood: mood ?? catalogToneFromSeed(seed) })
-}
-
-export function resolveSongScene(song: { title: string; artist: string }): VisualSceneId {
-  return resolveEntityScene(`${song.title}:${song.artist}`)
-}
-
-export function resolveAlbumScene(album: { title: string }): VisualSceneId {
-  return resolveEntityScene(album.title)
-}
-
-export function resolveArtistScene(artist: { name: string }): VisualSceneId {
-  return resolveEntityScene(artist.name)
 }
 
 export function pickFromSeed<T>(items: readonly T[], seed: string): T {
@@ -310,16 +235,9 @@ export function resolveVisualScene(options: {
 }
 
 export function getTimeAwareHomeScene(date = new Date()): VisualSceneId {
-  const period = getDayPeriod(date)
-  const pool = DAY_PERIOD_HOME_SCENES[period]
-  const dayBucket = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}-${period}`
-  return pickFromSeed(pool, dayBucket)
-}
-
-export function getMoodRoomsPageScene(date = new Date()): VisualSceneId {
-  const period = getDayPeriod(date)
-  const pool = DAY_PERIOD_MOOD_PAGE_SCENES[period]
-  const dayBucket = `mood-page-${date.getFullYear()}-${date.getMonth()}-${date.getDate()}-${period}`
+  const atmosphere = getTimeAtmosphere(date)
+  const pool = TIME_HOME_SCENES[atmosphere]
+  const dayBucket = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}-${atmosphere}`
   return pickFromSeed(pool, dayBucket)
 }
 
@@ -330,10 +248,6 @@ export type SceneVariation = {
   glowY: number
   shapeScale: number
   particlePhase: number
-  glowOpacity: number
-  shapeOpacity: number
-  driftDurationA: number
-  driftDurationB: number
 }
 
 export function getSceneVariation(seed: string): SceneVariation {
@@ -344,10 +258,6 @@ export function getSceneVariation(seed: string): SceneVariation {
     glowY: 12 + ((h >> 4) % 28),
     shapeScale: 0.92 + ((h >> 8) % 12) / 100,
     particlePhase: (h % 360) / 360,
-    glowOpacity: 0.74 + ((h >> 6) % 10) / 100,
-    shapeOpacity: 0.38 + ((h >> 10) % 8) / 100,
-    driftDurationA: 26 + ((h >> 12) % 10),
-    driftDurationB: 30 + ((h >> 14) % 12),
   }
 }
 
@@ -372,38 +282,14 @@ export function getAtmosphereTint(atmosphere: TimeAtmosphere): AtmosphereTint {
   }
 }
 
-export function getDayPeriodTint(period: DayPeriod): AtmosphereTint {
-  switch (period) {
-    case 'morning':
-      return { brightness: 1.1, saturation: 0.93, overlay: 'rgba(255, 237, 213, 0.09)' }
-    case 'day':
-      return { brightness: 1.02, saturation: 1, overlay: 'rgba(255, 255, 255, 0.03)' }
-    case 'evening':
-      return { brightness: 0.94, saturation: 1.08, overlay: 'rgba(251, 146, 60, 0.11)' }
-    case 'midnight':
-      return { brightness: 0.86, saturation: 1.04, overlay: 'rgba(0, 0, 0, 0.2)' }
-    default:
-      return { brightness: 1, saturation: 1, overlay: 'transparent' }
-  }
-}
-
-export type VisualSceneCssOptions = {
-  atmosphere?: TimeAtmosphere
-  timeAware?: boolean
-}
-
 export function getVisualSceneCssVars(
   sceneId: VisualSceneId,
   seed: string,
-  options?: VisualSceneCssOptions,
+  atmosphere?: TimeAtmosphere,
 ): Record<string, string | number> {
   const preset = VISUAL_SCENE_PRESETS[sceneId]
   const variation = getSceneVariation(`${sceneId}:${seed}`)
-  const timeAware = options?.timeAware ?? true
-  const period = getDayPeriod()
-  const tint = timeAware
-    ? getDayPeriodTint(period)
-    : getAtmosphereTint(options?.atmosphere ?? getTimeAtmosphere())
+  const tint = getAtmosphereTint(atmosphere ?? getTimeAtmosphere())
 
   return {
     '--vs-c1': preset.colors[0],
@@ -423,18 +309,13 @@ export function getVisualSceneCssVars(
     '--vs-overlay': tint.overlay,
     '--vs-variant': variation.variant,
     '--vs-particle-phase': variation.particlePhase,
-    '--vs-glow-opacity': variation.glowOpacity,
-    '--vs-shape-opacity': variation.shapeOpacity,
-    '--vs-drift-a': `${variation.driftDurationA}s`,
-    '--vs-drift-b': `${variation.driftDurationB}s`,
-    '--vs-day-period': period,
   }
 }
 
 export function getParticleCount(variant: VisualSceneVariant, reducedMotion: boolean): number {
   if (reducedMotion) return 0
-  if (variant === 'thumb') return 2
-  if (variant === 'card') return 3
-  if (variant === 'hero') return 5
-  return 2
+  if (variant === 'thumb') return 3
+  if (variant === 'card') return 5
+  if (variant === 'hero') return 8
+  return 4
 }

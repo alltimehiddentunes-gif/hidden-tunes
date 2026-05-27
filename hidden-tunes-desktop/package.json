@@ -46,15 +46,12 @@
     },
     "files": [
       "dist/**/*",
-      "build/icon.ico",
-      "build/icon.png",
       "electron/**/*",
       "package.json"
     ],
     "win": {
       "target": "nsis",
-      "signAndEditExecutable": false,
-      "icon": "build/icon.ico"
+      "signAndEditExecutable": false
     },
     "artifactName": "Hidden Tunes Desktop Setup ${version}.${ext}",
     "nsis": {

@@ -50,14 +50,8 @@ import {
   type StoredPageId,
 } from './lib/localPreferences'
 import { VisualSceneBackdrop } from './components/VisualSceneBackdrop'
-import { LaunchGate } from './components/LaunchGate'
 import {
-  getMoodRoomsPageScene,
   getTimeAwareHomeScene,
-  resolveMoodThemeScene,
-  resolveAlbumScene,
-  resolveArtistScene,
-  resolveSongScene,
   resolveVisualScene,
   type VisualSceneId,
 } from './lib/visualScenes'
@@ -384,11 +378,7 @@ type MoodRoom = {
 }
 
 function moodRoomScene(room: Pick<MoodRoom, 'title' | 'mood' | 'sceneId'>): VisualSceneId {
-  return (
-    room.sceneId ??
-    resolveMoodThemeScene(room.title) ??
-    resolveVisualScene({ seed: room.title, mood: room.mood })
-  )
+  return room.sceneId ?? resolveVisualScene({ seed: room.title, mood: room.mood })
 }
 
 const MAIN_NAV: NavItem[] = [
@@ -523,46 +513,46 @@ const HOME_SECTIONS: DiscoverySection[] = [
 
 const MOOD_ROOMS: MoodRoom[] = [
   {
-    title: 'Heartbreak Hour',
-    subtitle: 'Rain on glass · raw feelings',
-    listeners: '4.2k',
-    mood: 'rose',
-    sceneId: 'rainy-apartment',
+    title: 'Velvet Midnight',
+    subtitle: 'Slow burn · intimate',
+    listeners: '2.4k',
+    mood: 'violet',
+    sceneId: 'midnight-drive',
   },
   {
-    title: 'Healing Tide',
-    subtitle: 'Ocean breath · restore',
-    listeners: '2.1k',
+    title: 'Oceanic Calm',
+    subtitle: 'Breath & space',
+    listeners: '1.8k',
     mood: 'cyan',
     sceneId: 'ocean-reflection',
   },
   {
-    title: 'Deep Focus',
-    subtitle: 'Zero noise · flow state',
-    listeners: '5.6k',
+    title: 'Rose Neon',
+    subtitle: 'Passion pulse',
+    listeners: '3.1k',
+    mood: 'rose',
+    sceneId: 'neon-city',
+  },
+  {
+    title: 'Forest Echo',
+    subtitle: 'Organic drift',
+    listeners: '920',
     mood: 'mint',
-    sceneId: 'deep-focus',
+    sceneId: 'healing-sunday',
   },
   {
-    title: 'Midnight Drive',
-    subtitle: 'Late lanes · neon hush',
-    listeners: '3.8k',
+    title: 'Chrome Dreams',
+    subtitle: 'Futurist glide',
+    listeners: '1.2k',
     mood: 'cyan',
-    sceneId: 'midnight-drive',
+    sceneId: 'neon-city',
   },
   {
-    title: 'Slow Love',
-    subtitle: 'Candlelit intimacy',
-    listeners: '2.9k',
+    title: 'Ember Heart',
+    subtitle: 'Warm ache',
+    listeners: '2.0k',
     mood: 'rose',
     sceneId: 'slow-love',
-  },
-  {
-    title: 'Afro Sunset',
-    subtitle: 'Golden rhythm · warmth',
-    listeners: '3.4k',
-    mood: 'violet',
-    sceneId: 'afro-sunset',
   },
 ]
 
@@ -1354,7 +1344,7 @@ function HomePage({ onOpenSong }: { onOpenSong: (song: ApiSong) => void }) {
           <ApiSongGrid songs={featured} onSelect={onOpenSong} listKey="home-featured" paginate={false} />
         )}
       </CatalogSection>
-      {HOME_SECTIONS.map((section) => (
+      {HOME_SECTIONS.slice(1, 3).map((section) => (
         <DiscoveryGrid key={section.title} section={section} />
       ))}
     </PageFrame>
@@ -1420,7 +1410,7 @@ function DiscoverPage({ onOpenSong }: { onOpenSong: (song: ApiSong) => void }) {
 }
 
 function MoodRoomsPage({ onOpenMood }: { onOpenMood: (mood: MoodRoom) => void }) {
-  const pageSceneId = useMemo(() => getMoodRoomsPageScene(), [])
+  const pageSceneId = useMemo(() => getTimeAwareHomeScene(), [])
 
   return (
     <PageFrame>
@@ -1798,32 +1788,6 @@ function SettingsPage() {
             onClearCache={handleClearCatalogCache}
           />
           <section className="settings-panel">
-            <h2>Desktop background presence</h2>
-            <p className="settings-panel-desc">
-              Hidden Tunes can stay available in the system tray while you use other apps.
-            </p>
-            <div className="settings-row">
-              <div className="settings-label">
-                <span>Close button</span>
-                <small>Closing the window keeps Hidden Tunes available in the tray</small>
-              </div>
-              <span className="settings-badge">Tray</span>
-            </div>
-            <div className="settings-row">
-              <div className="settings-label">
-                <span>Minimize button</span>
-                <small>Minimizes the window normally — use the tray to bring it back</small>
-              </div>
-              <span className="settings-badge">Normal</span>
-            </div>
-            <div className="settings-row">
-              <div className="settings-label">
-                <span>Fully quit</span>
-                <small>Use Quit Hidden Tunes in the tray menu to exit completely</small>
-              </div>
-            </div>
-          </section>
-          <section className="settings-panel">
             <h2>Appearance</h2>
             <p className="settings-panel-desc">Cinematic dark theme tuned for desktop browsing.</p>
             <div className="settings-row">
@@ -1955,14 +1919,11 @@ function SongDetailView({
   onBack: () => void
 }) {
   const created = formatDateLabel(song.createdAt)
-  const sceneId = useMemo(() => resolveSongScene(song), [song])
 
   return (
     <PageFrame>
       <DetailTopBar title="Song" subtitle="Read-only preview" onBack={onBack} />
-      <section className="detail-hero detail-hero--scene detail-hero--song" data-scene={sceneId}>
-        <VisualSceneBackdrop sceneId={sceneId} seed={song.id} variant="hero" timeAware />
-        <div className="detail-hero-scrim" aria-hidden="true" />
+      <section className="detail-hero">
         <div className="detail-artwork">
           <ArtworkImage src={song.artwork} alt="" seed={song.id} priority />
         </div>
@@ -2038,17 +1999,10 @@ function AlbumDetailView({
     return sortSongsList(byAlbum, 'az').slice(0, 24)
   }, [songsByAlbumTitle, album.title])
 
-  const sceneId = useMemo(() => resolveAlbumScene(album), [album])
-
   return (
     <PageFrame>
       <DetailTopBar title="Album" subtitle="Read-only preview" onBack={onBack} />
-      <section
-        className="detail-hero detail-hero--scene detail-hero--album"
-        data-scene={sceneId}
-      >
-        <VisualSceneBackdrop sceneId={sceneId} seed={album.id} variant="hero" timeAware />
-        <div className="detail-hero-scrim" aria-hidden="true" />
+      <section className="detail-hero detail-hero--album">
         <div className="detail-artwork detail-artwork--wide">
           <ArtworkImage src={album.artwork} alt="" seed={album.id} variant="wide" priority />
         </div>
@@ -2122,17 +2076,10 @@ function ArtistDetailView({
     return (albumsByArtistId.get(artist.id) ?? []).slice(0, 12)
   }, [albumsByArtistId, artist.id])
 
-  const sceneId = useMemo(() => resolveArtistScene(artist), [artist])
-
   return (
     <PageFrame>
       <DetailTopBar title="Artist" subtitle="Read-only preview" onBack={onBack} />
-      <section
-        className="detail-hero detail-hero--scene detail-hero--artist"
-        data-scene={sceneId}
-      >
-        <VisualSceneBackdrop sceneId={sceneId} seed={artist.id} variant="hero" timeAware />
-        <div className="detail-hero-scrim" aria-hidden="true" />
+      <section className="detail-hero detail-hero--artist">
         <div className="detail-artist-badge">
           <ArtistAvatar artist={artist} />
         </div>
@@ -2225,11 +2172,10 @@ function MoodDetailView({
     <PageFrame>
       <DetailTopBar title="Mood Room" subtitle="UI-only room detail" onBack={onBack} />
       <section
-        className={`detail-hero detail-hero--scene detail-hero--mood detail-hero--${mood.mood}`}
+        className={`detail-hero detail-hero--mood detail-hero--${mood.mood}`}
         data-scene={sceneId}
       >
-        <VisualSceneBackdrop sceneId={sceneId} seed={mood.title} variant="hero" timeAware />
-        <div className="detail-hero-scrim" aria-hidden="true" />
+        <VisualSceneBackdrop sceneId={sceneId} seed={mood.title} variant="hero" />
         <div className="detail-hero-copy">
           <p className="detail-eyebrow">Mood Room</p>
           <h1 className="detail-h1">{mood.title}</h1>
@@ -2367,10 +2313,7 @@ function App() {
   )
 }
 
-function AppShellFrame() {
-  const { loading, songs, albums, artists } = useCatalog()
-  const hasCatalogData = songs.length > 0 || albums.length > 0 || artists.length > 0
-
+function AppShell() {
   const [activePage, setActivePage] = usePersistedPreference(
     DESKTOP_PREFERENCE_KEYS.activePage,
     'home' as PageId,
@@ -2428,7 +2371,7 @@ function AppShellFrame() {
   }, [backToPage, setActivePage])
 
   return (
-    <LaunchGate loading={loading} hasCatalogData={hasCatalogData}>
+    <CatalogProvider>
       <div className="app-shell">
         <Sidebar activePage={activePage} onNavigate={navigatePage} />
         <div className="main-area">
@@ -2454,14 +2397,6 @@ function AppShellFrame() {
         </div>
       </div>
       <PlayerBar />
-    </LaunchGate>
-  )
-}
-
-function AppShell() {
-  return (
-    <CatalogProvider>
-      <AppShellFrame />
     </CatalogProvider>
   )
 }
