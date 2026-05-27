@@ -269,11 +269,12 @@
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
-  padding: 10px 14px;
-  margin-bottom: 14px;
+  padding: 14px 18px;
+  margin-bottom: 18px;
   border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid var(--border-subtle);
+  background: linear-gradient(180deg, rgba(24, 24, 34, 0.82), rgba(13, 13, 20, 0.86));
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
 }
 
 .catalog-status-copy {
@@ -338,10 +339,11 @@
 .placeholder-note {
   position: relative;
   margin-top: 28px;
-  padding: 20px 22px;
+  padding: 24px 26px;
   border-radius: var(--radius-lg);
-  background: var(--bg-surface);
-  border: 1px dashed var(--border-subtle);
+  background: linear-gradient(180deg, rgba(24, 24, 34, 0.82), rgba(12, 12, 18, 0.92));
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
   overflow: hidden;
 }
 
@@ -375,14 +377,14 @@
 
 .placeholder-copy strong {
   display: block;
-  font-size: 14px;
-  margin-bottom: 6px;
+  font-size: 15px;
+  margin-bottom: 8px;
 }
 
 .placeholder-copy p {
   font-size: 13px;
   color: var(--text-muted);
-  line-height: 1.5;
+  line-height: 1.6;
 }
 
 /* —— Hero —— */
@@ -861,7 +863,7 @@
 /* —— Catalog loading / errors —— */
 .skeleton-grid {
   display: grid;
-  gap: 12px;
+  gap: clamp(16px, 2.2vw, 24px);
 }
 
 .skeleton-grid--card {
@@ -874,16 +876,17 @@
 
 .skeleton-card {
   border-radius: var(--radius-lg);
-  padding: 10px;
-  background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
+  padding: 12px;
+  background: linear-gradient(180deg, rgba(24, 24, 34, 0.78), rgba(12, 12, 18, 0.94));
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
 }
 
 .skeleton-card-art {
   aspect-ratio: 1;
   border-radius: var(--radius-sm);
-  margin-bottom: 10px;
-  background: rgba(255, 255, 255, 0.06);
+  margin-bottom: 12px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.075), rgba(255, 255, 255, 0.032));
 }
 
 .catalog-show-more {
@@ -912,8 +915,8 @@
   height: 10px;
   width: 62%;
   border-radius: 999px;
-  margin-bottom: 6px;
-  background: rgba(255, 255, 255, 0.06);
+  margin-bottom: 8px;
+  background: rgba(255, 255, 255, 0.07);
 }
 
 .skeleton-card-line--wide {
@@ -921,49 +924,53 @@
 }
 
 .catalog-error {
-  padding: 24px;
+  padding: 30px 28px;
   border-radius: var(--radius-lg);
-  background: rgba(244, 114, 182, 0.06);
-  border: 1px solid rgba(244, 114, 182, 0.2);
+  background: linear-gradient(180deg, rgba(48, 22, 37, 0.74), rgba(16, 13, 20, 0.94));
+  border: 1px solid rgba(244, 114, 182, 0.18);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
   text-align: center;
 }
 
 .catalog-error-title {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
   color: var(--text-primary);
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
 .catalog-error-detail {
   font-size: 13px;
   color: var(--text-muted);
-  margin-bottom: 16px;
-  line-height: 1.5;
+  margin-bottom: 18px;
+  line-height: 1.62;
   max-width: 48ch;
   margin-left: auto;
   margin-right: auto;
 }
 
 .catalog-empty {
-  padding: 28px 24px;
+  padding: 34px 28px;
   text-align: center;
   border-radius: var(--radius-lg);
-  border: 1px dashed var(--border-subtle);
-  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  background: linear-gradient(180deg, rgba(24, 24, 34, 0.72), rgba(12, 12, 18, 0.9));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
 }
 
 .catalog-empty-title {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
   color: var(--text-primary);
-  margin-bottom: 6px;
+  margin-bottom: 10px;
 }
 
 .catalog-empty-detail {
   font-size: 13px;
   color: var(--text-muted);
-  line-height: 1.5;
+  line-height: 1.62;
+  max-width: 46ch;
+  margin: 0 auto;
 }
 
 .card-info {
