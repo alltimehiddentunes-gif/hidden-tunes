@@ -2409,6 +2409,78 @@
   }
 }
 
+/* —— Home: cinematic typography + breathing room (Phase 13) —— */
+.main-scroll:has(.page-view[data-page="home"]) {
+  padding-top: clamp(28px, 4vw, 40px);
+  padding-bottom: clamp(40px, 5vw, 52px);
+}
+
+.page-view[data-page="home"] .hero {
+  margin-bottom: clamp(38px, 5.5vw, 52px);
+}
+
+.page-view[data-page="home"] .hero h1 {
+  letter-spacing: -0.048em;
+  line-height: 1.04;
+}
+
+.page-view[data-page="home"] .hero-tagline {
+  line-height: 1.72;
+  letter-spacing: 0.012em;
+  color: rgba(245, 243, 250, 0.62);
+}
+
+.page-view[data-page="home"] .catalog-toolbar {
+  margin-bottom: clamp(26px, 3.5vw, 32px);
+}
+
+.page-view[data-page="home"] .discovery-section {
+  margin-bottom: clamp(36px, 5vw, 52px);
+}
+
+.page-view[data-page="home"] .section-header {
+  margin-bottom: clamp(18px, 2.5vw, 24px);
+}
+
+.page-view[data-page="home"] .section-header--catalog h2 {
+  font-size: clamp(1.35rem, 2.4vw, 1.65rem);
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  line-height: 1.18;
+}
+
+.page-view[data-page="home"] .section-hint {
+  font-size: 14px;
+  line-height: 1.62;
+  color: rgba(245, 243, 250, 0.48);
+  letter-spacing: 0.015em;
+}
+
+.page-view[data-page="home"] .card-row {
+  gap: clamp(14px, 2.2vw, 22px);
+}
+
+.page-view[data-page="home"] .discovery-card,
+.page-view[data-page="home"] .discovery-card--api {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.page-view[data-page="home"] .discovery-card--api:hover,
+.page-view[data-page="home"] .discovery-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(168, 85, 247, 0.16);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.26);
+}
+
+.page-view[data-page="home"] .sort-control {
+  font-size: 13px;
+  letter-spacing: 0.01em;
+}
+
+.page-view[data-page="home"] .catalog-count {
+  letter-spacing: 0.02em;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .page-view {
     animation: none;
