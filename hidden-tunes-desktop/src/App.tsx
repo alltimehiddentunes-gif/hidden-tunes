@@ -51,9 +51,9 @@ import {
 } from './lib/localPreferences'
 import { VisualSceneBackdrop } from './components/VisualSceneBackdrop'
 import { LaunchGate } from './components/LaunchGate'
+import { DesktopHomePage } from './pages/HomePage'
 import {
   getMoodRoomsPageScene,
-  getTimeAwareHomeScene,
   resolveMoodThemeScene,
   resolveAlbumScene,
   resolveArtistScene,
@@ -363,18 +363,6 @@ type NavItem = {
 
 type Mood = 'violet' | 'cyan' | 'rose' | 'mint'
 
-type DiscoveryCard = {
-  title: string
-  subtitle: string
-  mood: Mood
-}
-
-type DiscoverySection = {
-  title: string
-  hint: string
-  cards: DiscoveryCard[]
-}
-
 type MoodRoom = {
   title: string
   subtitle: string
@@ -476,50 +464,6 @@ const SETTINGS_ICON = (
     <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
   </svg>
 )
-
-const HOME_SECTIONS: DiscoverySection[] = [
-  {
-    title: 'Trending Now',
-    hint: 'Curated for the moment',
-    cards: [
-      { title: 'Neon Pulse', subtitle: 'Electric emotions', mood: 'violet' },
-      { title: 'Midnight Drive', subtitle: 'Late-night energy', mood: 'cyan' },
-      { title: 'Velvet Sky', subtitle: 'Dreamy atmospheres', mood: 'rose' },
-      { title: 'Crystal Echo', subtitle: 'Shimmering highs', mood: 'mint' },
-      { title: 'Deep Current', subtitle: 'Submerged bass', mood: 'cyan' },
-    ],
-  },
-  {
-    title: 'Emotional Picks',
-    hint: 'Feel something real',
-    cards: [
-      { title: 'Soft Collapse', subtitle: 'Intimate & raw', mood: 'rose' },
-      { title: 'Golden Hour', subtitle: 'Warm nostalgia', mood: 'violet' },
-      { title: 'Silent Storm', subtitle: 'Power in restraint', mood: 'mint' },
-      { title: 'Fading Light', subtitle: 'Bittersweet closure', mood: 'violet' },
-    ],
-  },
-  {
-    title: 'Night Vibes',
-    hint: 'After dark selections',
-    cards: [
-      { title: 'Lunar Drift', subtitle: 'Weightless nights', mood: 'cyan' },
-      { title: 'Smoke & Mirrors', subtitle: 'Mysterious grooves', mood: 'violet' },
-      { title: 'City Glow', subtitle: 'Urban nocturne', mood: 'rose' },
-      { title: '3AM Frequency', subtitle: 'Insomniac anthems', mood: 'mint' },
-    ],
-  },
-  {
-    title: 'Focus Mode',
-    hint: 'Clarity without distraction',
-    cards: [
-      { title: 'Deep Work', subtitle: 'Minimal & steady', mood: 'mint' },
-      { title: 'Flow State', subtitle: 'Rhythmic precision', mood: 'cyan' },
-      { title: 'Quiet Mind', subtitle: 'Ambient clarity', mood: 'violet' },
-      { title: 'Monk Mode', subtitle: 'Zero friction', mood: 'mint' },
-    ],
-  },
-]
 
 const MOOD_ROOMS: MoodRoom[] = [
   {
@@ -1191,39 +1135,6 @@ function PageHeader({
   )
 }
 
-function DiscoveryGrid({ section }: { section: DiscoverySection }) {
-  return (
-    <section className="discovery-section" aria-labelledby={`section-${section.title}`}>
-      <div className="section-header">
-        <h2 id={`section-${section.title}`}>{section.title}</h2>
-        <span>{section.hint}</span>
-      </div>
-      <div className="card-row">
-        {section.cards.map((card) => {
-          const sceneId = resolveVisualScene({ seed: card.title, mood: card.mood })
-          return (
-          <article
-            key={card.title}
-            className="discovery-card"
-            data-mood={card.mood}
-            data-scene={sceneId}
-          >
-            <div className="card-art">
-              <VisualSceneBackdrop sceneId={sceneId} seed={card.title} variant="thumb" />
-              <MusicNoteIcon className="card-art-icon" />
-            </div>
-            <div className="card-info">
-              <h3>{card.title}</h3>
-              <p>{card.subtitle}</p>
-            </div>
-          </article>
-          )
-        })}
-      </div>
-    </section>
-  )
-}
-
 const Sidebar = memo(function Sidebar({
   activePage,
   onNavigate,
@@ -1277,86 +1188,22 @@ const Sidebar = memo(function Sidebar({
   )
 })
 
-function Hero() {
-  const homeSceneId = useMemo(() => getTimeAwareHomeScene(), [])
-
-  return (
-    <section className="hero" aria-label="Featured" data-scene={homeSceneId}>
-      <VisualSceneBackdrop
-        sceneId={homeSceneId}
-        seed="home-hero"
-        variant="hero"
-        timeAware
-      />
-      <div className="hero-vignette" aria-hidden="true" />
-      <div className="hero-inner">
-        <div className="hero-copy">
-          <p className="hero-eyebrow">Emotional streaming · Desktop</p>
-          <h1>Hidden Tunes</h1>
-          <p className="hero-tagline">
-            A cinematic sanctuary for music that moves you — discover moods, rooms,
-            and stories crafted for how you feel right now.
-          </p>
-          <div className="hero-actions">
-            <button type="button" className="btn-primary">
-              Explore
-            </button>
-            <button type="button" className="btn-secondary">
-              Continue Listening
-            </button>
-          </div>
-        </div>
-        <div className="hero-artwork" aria-hidden="true">
-          <div className="hero-artwork-ring" />
-          <MusicNoteIcon className="artwork-placeholder" />
-        </div>
-      </div>
-    </section>
-  )
-}
-
 function HomePage({ onOpenSong }: { onOpenSong: (song: ApiSong) => void }) {
-  const { songs, showCatalogSkeleton, showCatalogError, error, retry } = useCatalog()
-  const [sort, setSort] = useState<SongSort>('latest')
-  const featured = useMemo(
-    () => sortSongsList(songs, sort).slice(0, 12),
-    [songs, sort],
-  )
+  const { songs, albums, artists, loading, showCatalogSkeleton, showCatalogError, error, retry } = useCatalog()
 
   return (
     <PageFrame>
-      <Hero />
-      <CatalogToolbar
-        hideSearch
-        searchValue=""
-        onSearchChange={() => undefined}
-        searchPlaceholder=""
-        sortLabel="Featured sort"
-        sortValue={sort}
-        sortOptions={SONG_SORT_OPTIONS}
-        onSortChange={(value) => setSort(value as SongSort)}
-        resultCount={featured.length}
+      <DesktopHomePage
+        songs={songs}
+        albumsCount={albums.length}
+        artistsCount={artists.length}
+        loading={loading}
+        showCatalogSkeleton={showCatalogSkeleton}
+        showCatalogError={showCatalogError}
+        error={error}
+        retry={retry}
+        onOpenSong={onOpenSong}
       />
-      <CatalogSection
-        title="Featured"
-        hint="Cached catalog · read-only"
-        loading={showCatalogSkeleton}
-        error={showCatalogError ? error : null}
-        onRetry={retry}
-        count={featured.length}
-      >
-        {!showCatalogSkeleton && !showCatalogError && songs.length === 0 ? (
-          <CatalogEmpty
-            title="Catalog is empty"
-            detail="The API responded but returned no songs yet."
-          />
-        ) : (
-          <ApiSongGrid songs={featured} onSelect={onOpenSong} listKey="home-featured" paginate={false} />
-        )}
-      </CatalogSection>
-      {HOME_SECTIONS.map((section) => (
-        <DiscoveryGrid key={section.title} section={section} />
-      ))}
     </PageFrame>
   )
 }
