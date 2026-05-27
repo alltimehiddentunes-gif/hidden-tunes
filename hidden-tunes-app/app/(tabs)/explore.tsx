@@ -76,6 +76,7 @@ import {
   recordScreenOpen,
   useRenderCountProbe,
 } from "../../utils/performanceVerification";
+import { useRuntimeRenderProbe } from "../../utils/runtimeInstrumentation";
 import {
   openGenreCatalog,
   openMoodCatalog,
@@ -255,6 +256,7 @@ function buildInitialExploreSongs() {
 }
 
 export default memo(function ExploreScreen() {
+  useRuntimeRenderProbe("Explore");
   const { playSong } = usePlayerActions();
   const { recentlyPlayed, favorites } = usePlayerState();
   const isFocused = useIsFocused();

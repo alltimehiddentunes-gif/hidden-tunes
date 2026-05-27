@@ -6,6 +6,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import RemoteMediaControlsBridge from "../components/RemoteMediaControlsBridge";
 import { PlayerProvider } from "../context/PlayerContext";
 import { markAppMounted } from "../utils/startupDiagnostics";
+import { startRuntimeInstrumentation } from "../utils/runtimeInstrumentation";
 
 SplashScreen.preventAutoHideAsync().catch(() => {
   // Splash may already be hidden on fast reload — safe to ignore.
@@ -25,6 +26,7 @@ function RootLayout() {
 
   useEffect(() => {
     markAppMounted("root_layout");
+    startRuntimeInstrumentation();
 
     const hideSplash = async () => {
       try {

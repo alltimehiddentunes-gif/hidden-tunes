@@ -2,6 +2,14 @@
 
 import { USE_NATIVE_TRACK_PLAYER } from "../constants/playbackConfig";
 import {
+  recordBridgeSubscriptionCreated,
+  recordBridgeSubscriptionDisposed,
+  recordConfigureTrackPlayerOptions,
+  recordListenerRegister,
+  recordListenerUnregister,
+  recordUpdateTrackPlayerProgressInterval,
+} from "../utils/runtimeInstrumentation";
+import {
   captureDevStackTrace,
   logTrackPlayerBg,
   logTrackPlayerQueue,
@@ -50,7 +58,10 @@ const ANDROID_STOP_FOREGROUND_GRACE_PERIOD_SECONDS = 3600;
 
 let setupComplete = false;
 let optionsConfigured = false;
+let lastConfiguredProgressInterval: number | null = null;
 let trackPlayerModulePromise: Promise<TrackPlayerModule | null> | null = null;
+
+const MIN_PROGRESS_UPDATE_INTERVAL_S = 0.25;
 
 function isNativeTrackPlayerEnabled() {
   return Boolean(USE_NATIVE_TRACK_PLAYER) && supportsNativeTrackPlayer();
@@ -257,9 +268,26 @@ export function isTrackPlayerNativeRuntimeSupported(): boolean {
   return supportsNativeTrackPlayer();
 }
 
+function normalizeProgressIntervalSeconds(intervalSeconds: number) {
+  return Math.max(MIN_PROGRESS_UPDATE_INTERVAL_S, intervalSeconds);
+}
+
 async function configureTrackPlayerOptions(
-  progressUpdateEventInterval = 1
+  progressUpdateEventInterval = 1,
+  reason = "configure_track_player_options"
 ): Promise<void> {
+  const safeInterval = normalizeProgressIntervalSeconds(progressUpdateEventInterval);
+
+  if (
+    optionsConfigured &&
+    lastConfiguredProgressInterval !== null &&
+    lastConfiguredProgressInterval === safeInterval
+  ) {
+    return;
+  }
+
+  recordConfigureTrackPlayerOptions(safeInterval, reason);
+
   const module = await getTrackPlayerModule();
   const player = await getTrackPlayerApi();
   if (!module || !player) return;
@@ -267,7 +295,7 @@ async function configureTrackPlayerOptions(
   const { Capability, AppKilledPlaybackBehavior } = module;
 
   const options = {
-    progressUpdateEventInterval,
+    progressUpdateEventInterval: safeInterval,
     capabilities: [
       Capability.Play,
       Capability.Pause,
@@ -298,8 +326,9 @@ async function configureTrackPlayerOptions(
   try {
     if (typeof updateOptions === "function") {
       await updateOptions.call(player, options);
+      lastConfiguredProgressInterval = safeInterval;
       logTrackPlayer("update_options_applied", {
-        progressUpdateEventInterval,
+        progressUpdateEventInterval: safeInterval,
         appKilled: AppKilledPlaybackBehavior.PausePlayback,
         alwaysPauseOnInterruption: false,
         stopForegroundGracePeriod: ANDROID_STOP_FOREGROUND_GRACE_PERIOD_SECONDS,
@@ -370,12 +399,25 @@ export async function ensureTrackPlayerReady(): Promise<boolean> {
 }
 
 export async function updateTrackPlayerProgressInterval(
-  intervalSeconds: number
+  intervalSeconds: number,
+  reason = "update_track_player_progress_interval"
 ): Promise<void> {
+  const safeInterval = normalizeProgressIntervalSeconds(intervalSeconds);
+
+  if (
+    optionsConfigured &&
+    lastConfiguredProgressInterval !== null &&
+    lastConfiguredProgressInterval === safeInterval
+  ) {
+    return;
+  }
+
+  recordUpdateTrackPlayerProgressInterval(safeInterval, reason);
+
   const ready = await setupTrackPlayer();
   if (!ready) return;
 
-  await configureTrackPlayerOptions(Math.max(0.25, intervalSeconds));
+  await configureTrackPlayerOptions(safeInterval, reason);
 }
 
 export async function resetTrackPlayerPlayback(
@@ -391,6 +433,9 @@ export async function resetTrackPlayerPlayback(
 
   await player.stop();
   await player.reset();
+
+  lastConfiguredProgressInterval = null;
+  optionsConfigured = false;
 
   logTrackPlayer("reset_complete", { reason });
 }
@@ -692,6 +737,10 @@ export function subscribeTrackPlayerEvents(
 ): () => void {
   if (!isNativeTrackPlayerEnabled()) return () => {};
 
+  const subscriptionInstanceId = `track_player_events_${Date.now()}`;
+  recordListenerRegister("track_player_events", subscriptionInstanceId);
+  recordBridgeSubscriptionCreated();
+
   let disposed = false;
   const subscriptions: Array<{ remove: () => void }> = [];
 
@@ -818,6 +867,8 @@ export function subscribeTrackPlayerEvents(
 
   return () => {
     disposed = true;
+    recordListenerUnregister("track_player_events", subscriptionInstanceId);
+    recordBridgeSubscriptionDisposed();
     subscriptions.forEach((subscription) => {
       try {
         subscription.remove();

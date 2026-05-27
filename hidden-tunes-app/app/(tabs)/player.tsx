@@ -44,6 +44,7 @@ import { openGenreCatalog, openMoodCatalog } from "../../utils/catalogNavigation
 import { normalizeGenreName } from "../../utils/genreNormalization";
 import { isFastScrolling } from "../../utils/performanceMode";
 import { useRenderCountProbe } from "../../utils/performanceVerification";
+import { useRuntimeRenderProbe } from "../../utils/runtimeInstrumentation";
 
 type PlayerMetadataType = "album" | "mood" | "genre";
 
@@ -304,6 +305,7 @@ const PlayerProgressSection = memo(function PlayerProgressSection({
 
 export default function PlayerScreen() {
   useRenderCountProbe("PlayerScreen");
+  useRuntimeRenderProbe("Player");
 
   const {
     currentSong,

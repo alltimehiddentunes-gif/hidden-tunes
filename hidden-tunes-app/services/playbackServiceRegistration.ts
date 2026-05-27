@@ -1,5 +1,6 @@
 import { registerTrackPlayerRemoteHandlers } from "./trackPlayerRemoteHandlers";
 import { registerTrackPlayerServiceDiagnostics } from "./trackPlayerBackgroundDiagnostics";
+import { recordRemoteHandlersAttached } from "../utils/runtimeInstrumentation";
 
 /**
  * Headless playback service (Android MusicService / iOS background audio).
@@ -11,7 +12,8 @@ export default async function PlaybackService() {
   }
 
   try {
-    registerTrackPlayerRemoteHandlers("playback_service");
+    const remoteHandlers = registerTrackPlayerRemoteHandlers("playback_service");
+    recordRemoteHandlersAttached("playback_service", remoteHandlers.length);
     registerTrackPlayerServiceDiagnostics();
   } catch (error) {
     if (typeof __DEV__ !== "undefined" && __DEV__) {

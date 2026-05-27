@@ -42,6 +42,7 @@ import {
 import HTImage from "./HTImage";
 import { FALLBACK_ARTWORK, getArtworkValue } from "../utils/artwork";
 import { isFastScrolling } from "../utils/performanceMode";
+import { useRuntimeRenderProbe } from "../utils/runtimeInstrumentation";
 
 type YouTubeMini = {
   id: string;
@@ -311,6 +312,7 @@ const MiniPlayerMetadata = memo(function MiniPlayerMetadata({
 });
 
 function MiniPlayer() {
+  useRuntimeRenderProbe("MiniPlayer");
   const {
     currentSong,
     isPlaying,

@@ -62,6 +62,7 @@ import {
   recordScreenOpen,
   useRenderCountProbe,
 } from "../../utils/performanceVerification";
+import { useRuntimeRenderProbe } from "../../utils/runtimeInstrumentation";
 import {
   isWithinFirstInteractionWindow,
   logBackgroundWork,
@@ -179,6 +180,8 @@ function buildInitialHomeSongs() {
 }
 
 function HomeScreen() {
+  useRuntimeRenderProbe("Home");
+
   const { playSong, preloadIdlePlayableTrack } = usePlayerActions();
   const { currentSong, isPlaying } = usePlayerNowPlaying();
   const { recentlyPlayed, favorites } = usePlayerState();

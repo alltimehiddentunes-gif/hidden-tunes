@@ -1,6 +1,9 @@
 import type { AppStateStatus } from "react-native";
 
-import { isHeavyPerfDiagnosticsEnabled } from "./devDiagnostics";
+import {
+  isHeavyPerfDiagnosticsEnabled,
+  isVerbosePlaybackDiagnosticsEnabled,
+} from "./devDiagnostics";
 import { logBackgroundPlayback } from "./backgroundPlaybackLogs";
 
 import {
@@ -38,7 +41,7 @@ export type PlaybackDiagnosticEvent =
   | "duplicate_play_ignored";
 
 function shouldLogPlaybackDiagnostics() {
-  return typeof __DEV__ === "undefined" || __DEV__;
+  return isVerbosePlaybackDiagnosticsEnabled();
 }
 
 export function logPlaybackDiagnostic(

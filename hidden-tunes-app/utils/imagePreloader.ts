@@ -1,21 +1,28 @@
 import { Image } from "expo-image";
-
 import { getPrefetchLimit, shouldRunNonEssentialWork } from "./performanceMode";
+import { getNowPlayingSnapshot } from "./nowPlayingStore";
 import {
   recordArtworkPrefetchAttempt,
   recordArtworkPrefetchFailure,
   recordArtworkPrefetchQueued,
   recordArtworkPrefetchSuccess,
 } from "./playbackStressDiagnostics";
+import { recordArtworkPrefetch } from "./runtimeInstrumentation";
 
 const loadedImages = new Set<string>();
 const PRELOAD_BATCH_SIZE = 1;
 const PRELOAD_MAX_IMAGES = 4;
 
+/** Skip ahead-of-time prefetch while audio is playing (visible HTImage loads still run). */
+function shouldSkipPrefetchDuringPlayback() {
+  return getNowPlayingSnapshot().isPlaying;
+}
+
 export async function preloadImages(
   images: Array<string | undefined | null>
 ) {
   try {
+    if (shouldSkipPrefetchDuringPlayback()) return;
     if (!shouldRunNonEssentialWork()) return;
 
     const maxImages = getPrefetchLimit(PRELOAD_MAX_IMAGES);
@@ -42,6 +49,7 @@ export async function preloadImages(
       await Promise.all(
         batch.map(async (img) => {
           try {
+            recordArtworkPrefetch(img, "image_preloader");
             await Image.prefetch(img);
             loadedImages.add(img);
             recordArtworkPrefetchSuccess(1);

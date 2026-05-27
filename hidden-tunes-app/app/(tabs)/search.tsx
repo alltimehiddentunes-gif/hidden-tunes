@@ -115,6 +115,7 @@ import {
   fetchTvCatalog,
   type HiddenTunesTvVideo,
 } from "../../services/tvCatalogApi";
+import { useRuntimeRenderProbe } from "../../utils/runtimeInstrumentation";
 
 type SearchType = "all" | "hidden" | "audius" | "archive" | "youtube";
 
@@ -823,6 +824,7 @@ function SearchSkeletonRows() {
 }
 
 export default function SearchScreen() {
+  useRuntimeRenderProbe("Search");
   const { playSong, stopPlayback } = usePlayerActions();
   const { currentSongId, isPlaying } = usePlayerNowPlaying();
 

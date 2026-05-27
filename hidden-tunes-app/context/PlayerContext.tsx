@@ -62,6 +62,17 @@ import {
 import { getArtworkValue } from "../utils/artwork";
 import { scheduleStartupTask } from "../utils/startupScheduler";
 import {
+  recordAppStateTransition,
+  recordApplyProgressUpdateIntervalCall,
+  recordConfigureAudioCall,
+  recordListenerRegister,
+  recordListenerUnregister,
+  recordBackgroundChurnSkipped,
+  recordPlaybackProgressUpdate as recordRuntimePlaybackProgressUpdate,
+  recordPlaybackReactStateUpdate,
+  recordQueuePersistWrite,
+} from "../utils/runtimeInstrumentation";
+import {
   getActiveLyricLine,
   getBestLyricsPayload,
   parseLrc,
@@ -691,7 +702,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     });
   }, [youtubeQueue, normalizeYouTubeTrack]);
 
-  const configureAudio = useCallback(async () => {
+  const configureAudio = useCallback(async (reason = "unspecified") => {
+    recordConfigureAudioCall(reason);
+
     try {
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: false,
@@ -764,7 +777,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     await unloadPromiseRef.current;
   }, []);
 
-  const applyProgressUpdateInterval = useCallback(async () => {
+  const applyProgressUpdateInterval = useCallback(async (reason = "unspecified") => {
+    recordApplyProgressUpdateIntervalCall(reason);
+
     if (trackPlayerActiveRef.current) {
       await bridgeSetProgressInterval(appStateRef.current);
       return;
@@ -832,6 +847,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         if (lastActiveQueuePersistRef.current === persistKey) return;
 
         lastActiveQueuePersistRef.current = persistKey;
+        recordQueuePersistWrite(normalizedQueue.length, "persist_active_queue");
 
         await AsyncStorage.multiSet([
           [ACTIVE_QUEUE_KEY, serializedQueue],
@@ -1871,6 +1887,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       if (trackPlayerActiveRef.current) return;
       if (!status.isLoaded) return;
 
+      recordRuntimePlaybackProgressUpdate("expo_av", appStateRef.current);
+
       const nextPosition = status.positionMillis || 0;
       const nextDuration = status.durationMillis || 0;
       const nextIsPlaying = status.isPlaying || false;
@@ -1888,6 +1906,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       ) {
         lastPositionStateUpdateRef.current = now;
         recordPlaybackProgressUpdate();
+        recordPlaybackReactStateUpdate("position");
         setPositionMillisState(nextPosition);
       }
 
@@ -1897,11 +1916,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           DURATION_UPDATE_THRESHOLD_MS
       ) {
         durationMillisRef.current = nextDuration;
+        recordPlaybackReactStateUpdate("duration");
         setDurationMillisState(nextDuration);
       }
 
       if (nextIsPlaying !== isPlayingRef.current) {
         isPlayingRef.current = nextIsPlaying;
+        recordPlaybackReactStateUpdate("is_playing");
         setIsPlayingState(nextIsPlaying);
       }
 
@@ -2181,7 +2202,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           return;
         }
 
-        void configureAudio();
+        void configureAudio("load_and_play_expo");
 
         setCurrentSong(normalizedSong);
         currentSongRef.current = normalizedSong;
@@ -2299,7 +2320,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         setTimeout(() => {
           savePlaybackSideEffects(normalizedSong);
         }, 0);
-        await applyProgressUpdateInterval();
+        await applyProgressUpdateInterval("load_and_play_expo");
       } catch (error) {
         console.log("Load and play error:", error);
         logAudioLoadFailure({
@@ -3358,9 +3379,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!isTrackPlayerFeatureEnabled()) return;
 
-    return subscribeBridgeEvents({
+    const bridgeListenerId = `bridge_events_${Date.now()}`;
+    recordListenerRegister("player_bridge_events", bridgeListenerId);
+
+    const unsubscribeBridgeEvents = subscribeBridgeEvents({
       onProgress: (progress) => {
         if (!trackPlayerActiveRef.current) return;
+
+        recordRuntimePlaybackProgressUpdate("track_player", appStateRef.current);
 
         const now = Date.now();
         const previousPosition = positionMillisRef.current;
@@ -3377,16 +3403,19 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         ) {
           lastPositionStateUpdateRef.current = now;
           recordPlaybackProgressUpdate();
+          recordPlaybackReactStateUpdate("position");
           setPositionMillisState(progress.positionMillis);
         }
 
         if (progress.durationMillis > 0) {
           durationMillisRef.current = progress.durationMillis;
+          recordPlaybackReactStateUpdate("duration");
           setDurationMillisState(progress.durationMillis);
         }
 
         if (progress.isPlaying !== isPlayingRef.current) {
           isPlayingRef.current = progress.isPlaying;
+          recordPlaybackReactStateUpdate("is_playing");
           setIsPlayingState(progress.isPlaying);
         }
 
@@ -3423,6 +3452,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         console.log("TrackPlayer playback error:", message);
       },
     });
+
+    return () => {
+      recordListenerUnregister("player_bridge_events", bridgeListenerId);
+      unsubscribeBridgeEvents();
+    };
   }, [
     savePlaybackPosition,
     syncStateFromTrackPlayerIndex,
@@ -3435,7 +3469,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     isMountedRef.current = true;
 
-    configureAudio();
+    configureAudio("player_mount");
 
     const cancelRestoreLightTask = scheduleStartupTask(
       "background",
@@ -3470,9 +3504,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   ]);
 
   useEffect(() => {
+    const appStateListenerId = `app_state_${Date.now()}`;
+    recordListenerRegister("app_state", appStateListenerId);
+
     const subscription = AppState.addEventListener("change", (nextState) => {
       const previousState = appStateRef.current;
       appStateRef.current = nextState;
+
+      recordAppStateTransition(previousState, nextState);
 
       logBackgroundStateChange(previousState, nextState, {
         songId: currentSongRef.current?.id,
@@ -3490,11 +3529,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
         // RNTP is already playing — avoid audio session / updateOptions churn on lock.
         if (trackPlayerActiveRef.current && isPlayingRef.current) {
+          recordBackgroundChurnSkipped("rntp_active_playing");
           return;
         }
 
-        configureAudio();
-        void applyProgressUpdateInterval();
+        configureAudio("app_state_background");
+        void applyProgressUpdateInterval("app_state_background");
 
         if (isPlayingRef.current && soundRef.current) {
           armFinishWatchdog(
@@ -3507,8 +3547,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       }
 
       if (nextState === "active") {
-        configureAudio();
-        void applyProgressUpdateInterval();
+        configureAudio("app_state_active");
+        void applyProgressUpdateInterval("app_state_active");
         void catchUpPlaybackIfEnded();
         void flushPendingSmartExtend();
       }
@@ -3516,6 +3556,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
     return () => {
       subscription.remove();
+      recordListenerUnregister("app_state", appStateListenerId);
     };
   }, [
     configureAudio,

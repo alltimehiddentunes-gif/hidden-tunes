@@ -1,7 +1,9 @@
+import { isVerbosePlaybackDiagnosticsEnabled } from "./devDiagnostics";
+
 type LogDetails = Record<string, string | number | boolean | null | undefined>;
 
 function shouldLog() {
-  return typeof __DEV__ === "undefined" || __DEV__;
+  return isVerbosePlaybackDiagnosticsEnabled();
 }
 
 export function logBackgroundPlayback(

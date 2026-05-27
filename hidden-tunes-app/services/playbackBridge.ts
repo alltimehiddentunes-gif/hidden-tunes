@@ -2,6 +2,10 @@
 
 import { isTrackPlayerFeatureEnabled } from "../constants/playbackConfig";
 import {
+  recordBridgeSetProgressInterval,
+  recordRemoteHandlersAttached,
+} from "../utils/runtimeInstrumentation";
+import {
   captureDevStackTrace,
   logBackgroundPlayback,
   logTrackPlayerQueue,
@@ -54,6 +58,7 @@ function attachMainThreadRemoteHandlers() {
 
   unregisterTrackPlayerRemoteHandlers(mainThreadRemoteSubscriptions);
   mainThreadRemoteSubscriptions = registerTrackPlayerRemoteHandlers("main_app");
+  recordRemoteHandlersAttached("main_app", mainThreadRemoteSubscriptions.length);
 
   logBackgroundPlayback("main_app_remote_handlers_attached");
 }
@@ -256,17 +261,30 @@ export function subscribeBridgeEvents(
   return subscribeTrackPlayerEvents(handlers);
 }
 
+const RNTP_PROGRESS_INTERVAL_ACTIVE_S = 1;
+const RNTP_PROGRESS_INTERVAL_BACKGROUND_S = 2;
+
+function resolveBridgeProgressIntervalSeconds(appState: AppStateStatus) {
+  return appState === "active"
+    ? RNTP_PROGRESS_INTERVAL_ACTIVE_S
+    : RNTP_PROGRESS_INTERVAL_BACKGROUND_S;
+}
+
 export async function bridgeSetProgressInterval(
   appState: AppStateStatus
 ): Promise<void> {
   if (!isTrackPlayerFeatureEnabled()) return;
 
-  const intervalSeconds = appState === "active" ? 0.5 : 1;
+  const intervalSeconds = resolveBridgeProgressIntervalSeconds(appState);
+  recordBridgeSetProgressInterval(appState, intervalSeconds);
   logBackgroundPlayback("progress_interval_update", {
     appState,
     intervalSeconds,
   });
-  await updateTrackPlayerProgressInterval(intervalSeconds);
+  await updateTrackPlayerProgressInterval(
+    intervalSeconds,
+    `bridge_set_progress_interval:${appState}`
+  );
 }
 
 export async function bridgePlay(): Promise<void> {

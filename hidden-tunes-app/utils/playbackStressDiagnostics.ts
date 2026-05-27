@@ -1,7 +1,12 @@
 import {
   isBasicPerfDiagnosticsEnabled,
   isHeavyPerfDiagnosticsEnabled,
+  isRuntimeInstrumentationEnabled,
 } from "./devDiagnostics";
+import {
+  registerRuntimeTimer,
+  unregisterRuntimeTimer,
+} from "./runtimeInstrumentation";
 import { logPerformanceEvent } from "./performanceLogs";
 
 type TimingKind = "tap_to_audio_start" | "next_track_transition" | "pause_resume";
@@ -324,6 +329,10 @@ export function recordDeferredTaskCompleted() {
 }
 
 export function registerActiveTimer(label: string) {
+  if (isRuntimeInstrumentationEnabled()) {
+    registerRuntimeTimer(label);
+  }
+
   if (!shouldTrackHeavy()) return;
 
   activeTimerCount += 1;
@@ -334,6 +343,10 @@ export function registerActiveTimer(label: string) {
 }
 
 export function unregisterActiveTimer(label: string) {
+  if (isRuntimeInstrumentationEnabled()) {
+    unregisterRuntimeTimer(label);
+  }
+
   if (!shouldTrackHeavy()) return;
 
   activeTimerCount = Math.max(0, activeTimerCount - 1);
