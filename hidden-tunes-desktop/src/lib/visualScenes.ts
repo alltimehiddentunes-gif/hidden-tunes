@@ -344,10 +344,10 @@ export function getSceneVariation(seed: string): SceneVariation {
     glowY: 12 + ((h >> 4) % 28),
     shapeScale: 0.92 + ((h >> 8) % 12) / 100,
     particlePhase: (h % 360) / 360,
-    glowOpacity: 0.82 + ((h >> 6) % 14) / 100,
-    shapeOpacity: 0.48 + ((h >> 10) % 10) / 100,
-    driftDurationA: 20 + ((h >> 12) % 8),
-    driftDurationB: 24 + ((h >> 14) % 10),
+    glowOpacity: 0.74 + ((h >> 6) % 10) / 100,
+    shapeOpacity: 0.38 + ((h >> 10) % 8) / 100,
+    driftDurationA: 26 + ((h >> 12) % 10),
+    driftDurationB: 30 + ((h >> 14) % 12),
   }
 }
 
@@ -433,8 +433,8 @@ export function getVisualSceneCssVars(
 
 export function getParticleCount(variant: VisualSceneVariant, reducedMotion: boolean): number {
   if (reducedMotion) return 0
-  if (variant === 'thumb') return 3
-  if (variant === 'card') return 5
-  if (variant === 'hero') return 8
-  return 4
+  if (variant === 'thumb') return 2
+  if (variant === 'card') return 3
+  if (variant === 'hero') return 5
+  return 2
 }

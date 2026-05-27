@@ -2198,10 +2198,11 @@ function MoodDetailView({
     <PageFrame>
       <DetailTopBar title="Mood Room" subtitle="UI-only room detail" onBack={onBack} />
       <section
-        className={`detail-hero detail-hero--mood detail-hero--${mood.mood}`}
+        className={`detail-hero detail-hero--scene detail-hero--mood detail-hero--${mood.mood}`}
         data-scene={sceneId}
       >
-        <VisualSceneBackdrop sceneId={sceneId} seed={mood.title} variant="hero" />
+        <VisualSceneBackdrop sceneId={sceneId} seed={mood.title} variant="hero" timeAware />
+        <div className="detail-hero-scrim" aria-hidden="true" />
         <div className="detail-hero-copy">
           <p className="detail-eyebrow">Mood Room</p>
           <h1 className="detail-h1">{mood.title}</h1>

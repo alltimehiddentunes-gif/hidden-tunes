@@ -30,7 +30,8 @@ export type VisualSceneBackdropProps = {
   timeAware?: boolean
 }
 
-const SCENE_BLEND_MS = 420
+const SCENE_BLEND_MS = 480
+const SCENE_BLEND_OPACITY = 0.82
 
 export const VisualSceneBackdrop = memo(function VisualSceneBackdrop({
   sceneId,
@@ -76,7 +77,7 @@ export const VisualSceneBackdrop = memo(function VisualSceneBackdrop({
     () =>
       ({
         ...getVisualSceneCssVars(renderedSceneId, seed, { timeAware }),
-        opacity: blendIn ? 1 : 0.72,
+        opacity: blendIn ? 1 : SCENE_BLEND_OPACITY,
       }) as CSSProperties,
     [renderedSceneId, seed, timeAware, blendIn],
   )
