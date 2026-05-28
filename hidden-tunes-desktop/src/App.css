@@ -671,13 +671,13 @@
 }
 
 .chip {
-  padding: 9px 17px;
+  padding: 9px 16px;
   border-radius: 999px;
   font-size: 13px;
   font-weight: 500;
   color: var(--text-secondary);
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.085);
   transition:
     background var(--transition-fast),
     border-color var(--transition-fast),
@@ -687,13 +687,15 @@
 
 .chip:hover {
   color: var(--text-primary);
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.065);
   transform: translateY(-1px);
 }
 
 .chip.active {
   color: var(--text-primary);
-  border-color: var(--border-glow);
-  background: rgba(168, 85, 247, 0.12);
+  border-color: rgba(168, 85, 247, 0.22);
+  background: rgba(168, 85, 247, 0.14);
 }
 
 /* —— Discovery grid —— */
@@ -712,6 +714,8 @@
 .section-header h2 {
   font-size: clamp(17px, 2vw, 20px);
   font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
 }
 
 .section-header span {
@@ -902,6 +906,7 @@
 .catalog-count {
   font-size: 12px;
   color: var(--text-muted);
+  letter-spacing: 0.02em;
 }
 
 .search-clear {
@@ -2083,6 +2088,7 @@
   background: rgba(255, 255, 255, 0.055);
   border: 1px solid rgba(255, 255, 255, 0.095);
   font-size: 13px;
+  font-weight: 500;
   line-height: 1.2;
   color: var(--text-primary);
 }
@@ -2130,10 +2136,12 @@
 
 .detail-panel {
   padding: clamp(20px, 2.5vw, 26px);
-  border-radius: var(--radius-xl);
-  border: 1px solid rgba(255, 255, 255, 0.075);
+  border-radius: calc(var(--radius-xl) + 2px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   background: linear-gradient(180deg, rgba(20, 20, 30, 0.84), rgba(11, 11, 17, 0.94));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.045),
+    0 12px 28px rgba(0, 0, 0, 0.14);
   margin-bottom: 22px;
 }
 
@@ -2146,9 +2154,10 @@
 }
 
 .detail-panel-header h3 {
-  font-size: 15px;
+  font-size: 15.5px;
   font-weight: 700;
-  letter-spacing: -0.015em;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
 }
 
 .detail-panel-header span {
@@ -2890,11 +2899,11 @@
 
 .page-view[data-page="discover"] .catalog-count {
   margin-left: auto;
-  padding: 8px 12px;
+  padding: 8px 13px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.035);
-  border: 1px solid rgba(255, 255, 255, 0.065);
-  color: rgba(245, 243, 250, 0.48);
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.085);
+  color: rgba(245, 243, 250, 0.5);
 }
 
 .page-view[data-page="discover"] .catalog-section {
@@ -2902,18 +2911,18 @@
 }
 
 .page-view[data-page="discover"] .section-header {
-  margin-bottom: clamp(20px, 2.7vw, 28px);
+  margin-bottom: clamp(22px, 2.9vw, 30px);
 }
 
 .page-view[data-page="discover"] .section-header--catalog h2 {
-  font-size: clamp(1.35rem, 2.4vw, 1.65rem);
-  letter-spacing: -0.035em;
-  line-height: 1.18;
+  font-size: clamp(1.36rem, 2.35vw, 1.68rem);
+  letter-spacing: -0.038em;
+  line-height: 1.15;
 }
 
 .page-view[data-page="discover"] .section-hint {
-  color: rgba(245, 243, 250, 0.48);
-  line-height: 1.6;
+  color: rgba(245, 243, 250, 0.5);
+  line-height: 1.66;
 }
 
 .page-view[data-page="discover"] .card-row--compact {
