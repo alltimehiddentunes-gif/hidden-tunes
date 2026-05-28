@@ -38,7 +38,10 @@ import {
   getSmartQueue,
   saveSmartQueue,
 } from "../services/smartQueue";
-import { isTrackPlayerFeatureEnabled } from "../constants/playbackConfig";
+import {
+  isIosRntpPocEnabled,
+  isTrackPlayerFeatureEnabled,
+} from "../constants/playbackConfig";
 import { supportsNativeTrackPlayer } from "../utils/expoRuntime";
 import {
   activateTrackPlayerPlayback,
@@ -2061,19 +2064,21 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           currentSongRef.current?.id === normalizedSong.id;
 
         const useNativeQueue = await shouldUseTrackPlayerPlayback();
+        const useIosRntpPoc = isIosRntpPocEnabled();
 
         if (useNativeQueue) {
           try {
-            const { queue } = getActiveQueuePlaybackState();
+            const { queue: activeQueue } = getActiveQueuePlaybackState();
+            const queue = useIosRntpPoc ? [normalizedSong] : activeQueue;
 
             if (!queue.length) {
               setIsPlaying(false);
               return;
             }
 
-            const requestedIndex = queue.findIndex(
-              (item) => item.id === normalizedSong.id
-            );
+            const requestedIndex = useIosRntpPoc
+              ? 0
+              : queue.findIndex((item) => item.id === normalizedSong.id);
             const fallbackIndex =
               requestedIndex >= 0
                 ? requestedIndex
@@ -2106,7 +2111,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
             let playedIndex = fallbackIndex;
 
-            if (options?.userInitiated) {
+            if (options?.userInitiated && !useIosRntpPoc) {
               const fastResult = await bridgeTryUserTapFastPlay({
                 songs: queue,
                 songId: normalizedSong.id,
@@ -2156,6 +2161,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
                 volume: volumeRef.current,
                 muted: isMutedRef.current,
                 startPositionMillis,
+                reason: useIosRntpPoc ? "ios_rntp_poc_single_track" : undefined,
               });
             }
 
@@ -2164,7 +2170,19 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             }
 
             trackPlayerActiveRef.current = true;
-            syncStateFromTrackPlayerIndex(playedIndex);
+            if (useIosRntpPoc) {
+              const activeIndex = activeQueue.findIndex(
+                (item) => item.id === normalizedSong.id
+              );
+              setCurrentSong(normalizedSong);
+              currentSongRef.current = normalizedSong;
+              if (activeIndex >= 0) {
+                setActiveQueueIndex(activeIndex);
+                activeQueueIndexRef.current = activeIndex;
+              }
+            } else {
+              syncStateFromTrackPlayerIndex(playedIndex);
+            }
             logAudioLoadSuccess({
               songId: normalizedSong.id,
               requestId,
