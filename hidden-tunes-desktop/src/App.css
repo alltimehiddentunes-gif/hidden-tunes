@@ -2171,34 +2171,61 @@
 
 .detail-tracklist {
   list-style: none;
-  padding: 0;
+  padding: 6px;
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 6px;
+  border-radius: calc(var(--radius-lg) + 2px);
+  border: 1px solid rgba(255, 255, 255, 0.065);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.026), rgba(255, 255, 255, 0.012));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.028);
 }
 
 .detail-track {
   display: grid;
-  grid-template-columns: 34px 1fr 180px;
-  gap: 12px;
+  grid-template-columns: 40px minmax(0, 1fr) minmax(112px, 180px);
+  gap: 14px;
   align-items: center;
-  padding: 12px 14px;
-  border-radius: var(--radius-md);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  background: rgba(255, 255, 255, 0.026);
+  min-height: 58px;
+  padding: 13px 15px;
+  border-radius: calc(var(--radius-md) + 1px);
+  border: 1px solid transparent;
+  background: rgba(255, 255, 255, 0.018);
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast),
+    transform var(--transition-fast);
+}
+
+.detail-track + .detail-track {
+  box-shadow: 0 -1px 0 rgba(255, 255, 255, 0.045);
+}
+
+.detail-track:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255, 255, 255, 0.085);
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.035),
+    0 10px 22px rgba(0, 0, 0, 0.16);
 }
 
 .detail-track-index {
   font-size: 12px;
-  color: var(--text-muted);
+  color: rgba(245, 243, 250, 0.42);
   font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  text-align: center;
 }
 
 .detail-track-title {
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 600;
   color: var(--text-primary);
+  line-height: 1.35;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2206,8 +2233,10 @@
 
 .detail-track-meta {
   font-size: 12px;
-  color: var(--text-muted);
+  color: rgba(245, 243, 250, 0.48);
   text-align: right;
+  line-height: 1.35;
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -3123,6 +3152,7 @@
   .discovery-card:hover,
   .artist-card:hover,
   .playlist-card:hover,
+  .detail-track:hover,
   .mood-room-card:hover,
   .nav-item:hover {
     transform: none;
