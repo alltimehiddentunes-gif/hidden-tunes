@@ -122,7 +122,7 @@ function buildAndroidPlayerOptions(
   AppKilledPlaybackBehavior: TrackPlayerModule["AppKilledPlaybackBehavior"]
 ) {
   return {
-    appKilledPlaybackBehavior: AppKilledPlaybackBehavior.ContinuePlayback,
+    appKilledPlaybackBehavior: AppKilledPlaybackBehavior.PausePlayback,
     alwaysPauseOnInterruption: false,
     stopForegroundGracePeriod: ANDROID_STOP_FOREGROUND_GRACE_PERIOD_SECONDS,
   };
@@ -329,7 +329,7 @@ async function configureTrackPlayerOptions(
       lastConfiguredProgressInterval = safeInterval;
       logTrackPlayer("update_options_applied", {
         progressUpdateEventInterval: safeInterval,
-        appKilled: AppKilledPlaybackBehavior.ContinuePlayback,
+        appKilled: AppKilledPlaybackBehavior.PausePlayback,
         alwaysPauseOnInterruption: false,
         stopForegroundGracePeriod: ANDROID_STOP_FOREGROUND_GRACE_PERIOD_SECONDS,
       });
