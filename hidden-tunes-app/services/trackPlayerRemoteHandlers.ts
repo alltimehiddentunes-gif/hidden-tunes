@@ -7,8 +7,6 @@ type TrackPlayerRuntime = {
   default: {
     play: () => Promise<void>;
     pause: () => Promise<void>;
-    stop: () => Promise<void>;
-    reset: () => Promise<void>;
     skipToNext: () => Promise<void>;
     skipToPrevious: () => Promise<void>;
     seekTo: (position: number) => Promise<void>;
@@ -78,10 +76,7 @@ export function registerTrackPlayerRemoteHandlers(
   subscriptions.push(
     TrackPlayer.addEventListener(Event.RemoteStop, () => {
       logRemote("remote_stop", { context });
-      void (async () => {
-        await TrackPlayer.stop();
-        await TrackPlayer.reset();
-      })();
+      void TrackPlayer.pause();
     })
   );
 

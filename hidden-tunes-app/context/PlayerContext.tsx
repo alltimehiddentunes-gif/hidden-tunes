@@ -13,7 +13,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { AppState, AppStateStatus, InteractionManager } from "react-native";
+import { AppState, AppStateStatus, InteractionManager, Platform } from "react-native";
 
 import { BackendYouTubeTrack } from "../services/youtubeBackend";
 
@@ -344,6 +344,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const lastCurrentSongPersistRef = useRef("");
   const storageValueCacheRef = useRef<Record<string, string>>({});
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+  const iosAudioModeConfiguredRef = useRef(false);
   const preloadedSoundRef = useRef<Audio.Sound | null>(null);
   const preloadedSongIdRef = useRef<string | null>(null);
   const preloadInFlightRef = useRef(false);
@@ -703,6 +704,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, [youtubeQueue, normalizeYouTubeTrack]);
 
   const configureAudio = useCallback(async (reason = "unspecified") => {
+    if (Platform.OS === "ios" && iosAudioModeConfiguredRef.current) {
+      return;
+    }
+
     recordConfigureAudioCall(reason);
 
     try {
@@ -715,6 +720,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         shouldDuckAndroid: false,
         playThroughEarpieceAndroid: false,
       });
+      if (Platform.OS === "ios") {
+        iosAudioModeConfiguredRef.current = true;
+      }
     } catch (error) {
       console.log("Configure audio error:", error);
     }

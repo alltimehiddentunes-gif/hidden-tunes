@@ -1,10 +1,7 @@
 ﻿import { AppStateStatus } from "react-native";
 
 import { isTrackPlayerFeatureEnabled } from "../constants/playbackConfig";
-import {
-  recordBridgeSetProgressInterval,
-  recordRemoteHandlersAttached,
-} from "../utils/runtimeInstrumentation";
+import { recordBridgeSetProgressInterval } from "../utils/runtimeInstrumentation";
 import {
   captureDevStackTrace,
   logBackgroundPlayback,
@@ -17,10 +14,6 @@ import {
   PlaybackEngineRepeatMode,
   PlaybackEngineTrack,
 } from "./playbackEngineTypes";
-import {
-  registerTrackPlayerRemoteHandlers,
-  unregisterTrackPlayerRemoteHandlers,
-} from "./trackPlayerRemoteHandlers";
 import {
   ensureTrackPlayerReady,
   fastSkipTrackPlayerToIndex,
@@ -51,22 +44,13 @@ export type PlaybackProgress = PlaybackEngineProgress;
 export type TrackPlayerEventHandlers = PlaybackEngineEventHandlers;
 
 let bridgeActive = false;
-let mainThreadRemoteSubscriptions: Array<{ remove: () => void }> = [];
 
 function attachMainThreadRemoteHandlers() {
-  if (!isTrackPlayerFeatureEnabled() || !supportsNativeTrackPlayer()) return;
-
-  unregisterTrackPlayerRemoteHandlers(mainThreadRemoteSubscriptions);
-  mainThreadRemoteSubscriptions = registerTrackPlayerRemoteHandlers("main_app");
-  recordRemoteHandlersAttached("main_app", mainThreadRemoteSubscriptions.length);
-
-  logBackgroundPlayback("main_app_remote_handlers_attached");
+  // RNTP remote handlers are owned by the headless playback service only.
+  // Registering them from the main app duplicates lock-screen events.
 }
 
-function detachMainThreadRemoteHandlers() {
-  unregisterTrackPlayerRemoteHandlers(mainThreadRemoteSubscriptions);
-  mainThreadRemoteSubscriptions = [];
-}
+function detachMainThreadRemoteHandlers() {}
 
 export function isPlaybackBridgeActive(): boolean {
   return bridgeActive && isTrackPlayerFeatureEnabled();
