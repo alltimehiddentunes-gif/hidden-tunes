@@ -685,36 +685,46 @@
 .card-row {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: clamp(12px, 2vw, 18px);
+  gap: clamp(14px, 2vw, 20px);
 }
 
 .card-row--compact {
   grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
-  gap: 12px;
+  gap: clamp(14px, 1.8vw, 18px);
 }
 
 .discovery-card {
-  border-radius: var(--radius-lg);
+  border-radius: calc(var(--radius-lg) + 2px);
   overflow: hidden;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-subtle);
+  background: linear-gradient(168deg, rgba(23, 23, 33, 0.96), rgba(11, 11, 17, 0.98));
+  border: 1px solid rgba(255, 255, 255, 0.085);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.045),
+    0 5px 16px rgba(0, 0, 0, 0.2);
   cursor: pointer;
   transition:
-    transform var(--transition-fast),
+    transform var(--transition-smooth),
     border-color var(--transition-fast),
-    box-shadow var(--transition-fast);
+    box-shadow var(--transition-smooth),
+    background var(--transition-smooth);
 }
 
 .discovery-card--api:hover {
   transform: translateY(-3px);
-  border-color: var(--border-glow);
-  box-shadow: var(--shadow-lift);
+  border-color: rgba(168, 85, 247, 0.2);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 14px 30px rgba(0, 0, 0, 0.28),
+    0 0 0 1px rgba(168, 85, 247, 0.08);
 }
 
 .discovery-card:hover {
-  transform: translateY(-5px) scale(1.02);
-  border-color: var(--border-glow);
-  box-shadow: var(--shadow-lift);
+  transform: translateY(-3px) scale(1.01);
+  border-color: rgba(168, 85, 247, 0.2);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 14px 30px rgba(0, 0, 0, 0.28),
+    0 0 0 1px rgba(168, 85, 247, 0.08);
 }
 
 .card-art {
@@ -725,6 +735,7 @@
   position: relative;
   overflow: hidden;
   background: linear-gradient(160deg, rgba(40, 36, 58, 0.9), rgba(12, 12, 20, 0.98));
+  box-shadow: inset 0 -40px 70px rgba(0, 0, 0, 0.2);
   contain: layout paint;
 }
 
@@ -767,11 +778,14 @@
   object-fit: cover;
   display: block;
   background: rgba(255, 255, 255, 0.04);
+  transition:
+    transform var(--transition-smooth),
+    filter var(--transition-smooth);
 }
 
 .discovery-card--api:hover .card-art-img {
-  transform: scale(1.03);
-  transition: transform var(--transition-fast);
+  transform: scale(1.025);
+  filter: brightness(1.04) saturate(1.03);
 }
 
 .art-fallback {
@@ -974,13 +988,17 @@
 }
 
 .card-info {
-  padding: 12px 13px 14px;
+  padding: 13px 14px 15px;
+  background: rgba(0, 0, 0, 0.12);
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
 }
 
 .card-info h3 {
   font-size: 13px;
   font-weight: 600;
-  margin-bottom: 4px;
+  margin-bottom: 5px;
+  letter-spacing: -0.01em;
+  line-height: 1.28;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -989,15 +1007,17 @@
 .card-meta-primary {
   font-size: 12px;
   color: var(--text-secondary);
+  line-height: 1.35;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  margin-bottom: 2px;
+  margin-bottom: 3px;
 }
 
 .card-meta-secondary {
   font-size: 11px;
   color: var(--text-muted);
+  line-height: 1.35;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1031,17 +1051,17 @@
 .mood-room-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: clamp(18px, 2.4vw, 28px);
+  gap: clamp(20px, 2.4vw, 30px);
 }
 
 .mood-room-card {
   border-radius: var(--radius-xl);
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: linear-gradient(180deg, rgba(24, 24, 34, 0.78), rgba(10, 10, 16, 0.94));
+  border: 1px solid rgba(255, 255, 255, 0.085);
+  background: linear-gradient(180deg, rgba(24, 24, 34, 0.8), rgba(10, 10, 16, 0.95));
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.045),
-    0 14px 34px rgba(0, 0, 0, 0.22);
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 12px 30px rgba(0, 0, 0, 0.22);
   transition:
     transform var(--transition-smooth),
     border-color var(--transition-fast),
@@ -1049,11 +1069,11 @@
 }
 
 .mood-room-card:hover {
-  transform: translateY(-4px);
+  transform: translateY(-3px);
   border-color: rgba(168, 85, 247, 0.24);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    0 18px 38px rgba(0, 0, 0, 0.3),
+    0 16px 34px rgba(0, 0, 0, 0.29),
     0 0 0 1px rgba(168, 85, 247, 0.08);
 }
 
@@ -1278,12 +1298,12 @@
 .artist-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
-  gap: clamp(14px, 2vw, 20px);
+  gap: clamp(16px, 2vw, 22px);
 }
 
 .artist-grid--compact {
   grid-template-columns: repeat(auto-fill, minmax(108px, 1fr));
-  gap: 12px;
+  gap: clamp(14px, 1.8vw, 18px);
 }
 
 .artist-card {
@@ -1291,18 +1311,24 @@
   flex-direction: column;
   align-items: center;
   gap: 10px;
-  padding: 16px 10px;
-  border-radius: var(--radius-lg);
-  border: 1px solid transparent;
+  padding: 17px 11px 16px;
+  border-radius: calc(var(--radius-lg) + 2px);
+  border: 1px solid rgba(255, 255, 255, 0.055);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.024), rgba(255, 255, 255, 0.01));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025);
   transition:
     background var(--transition-fast),
     border-color var(--transition-fast),
-    transform var(--transition-fast);
+    transform var(--transition-smooth),
+    box-shadow var(--transition-smooth);
 }
 
 .artist-card:hover {
-  background: var(--bg-glass-hover);
-  border-color: var(--border-subtle);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.018));
+  border-color: rgba(255, 255, 255, 0.095);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 12px 26px rgba(0, 0, 0, 0.18);
   transform: translateY(-2px);
 }
 
@@ -1316,7 +1342,10 @@
   justify-content: center;
   overflow: hidden;
   background: linear-gradient(135deg, rgba(168, 85, 247, 0.35), rgba(56, 189, 248, 0.25));
-  border: 1px solid var(--border-subtle);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 10px 24px rgba(0, 0, 0, 0.22);
   contain: layout paint;
 }
 
@@ -1362,6 +1391,7 @@
 .artist-name {
   font-size: 14px;
   font-weight: 600;
+  line-height: 1.25;
   text-align: center;
 }
 
@@ -1376,14 +1406,17 @@
 .playlist-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: clamp(12px, 2vw, 18px);
+  gap: clamp(16px, 2vw, 22px);
 }
 
 .playlist-card {
-  border-radius: var(--radius-lg);
+  border-radius: calc(var(--radius-lg) + 2px);
   overflow: hidden;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-subtle);
+  background: linear-gradient(168deg, rgba(23, 23, 33, 0.96), rgba(11, 11, 17, 0.98));
+  border: 1px solid rgba(255, 255, 255, 0.085);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.045),
+    0 5px 16px rgba(0, 0, 0, 0.2);
   cursor: pointer;
   transition:
     transform var(--transition-smooth),
@@ -1392,9 +1425,12 @@
 }
 
 .playlist-card:hover {
-  transform: translateY(-4px);
-  border-color: var(--border-glow);
-  box-shadow: var(--shadow-lift);
+  transform: translateY(-3px);
+  border-color: rgba(168, 85, 247, 0.2);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 14px 30px rgba(0, 0, 0, 0.28),
+    0 0 0 1px rgba(168, 85, 247, 0.08);
 }
 
 .playlist-art {
@@ -2990,6 +3026,7 @@
 
   .discovery-card:hover,
   .artist-card:hover,
+  .playlist-card:hover,
   .mood-room-card:hover,
   .nav-item:hover {
     transform: none;
