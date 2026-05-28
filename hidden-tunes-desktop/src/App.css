@@ -1924,7 +1924,7 @@
   display: flex;
   align-items: center;
   gap: 14px;
-  margin-bottom: 22px;
+  margin-bottom: clamp(22px, 3vw, 30px);
 }
 
 .detail-back {
@@ -1966,24 +1966,27 @@
 .detail-hero {
   display: grid;
   grid-template-columns: 260px 1fr;
-  gap: clamp(22px, 3.4vw, 34px);
+  gap: clamp(28px, 4vw, 46px);
   align-items: center;
-  padding: clamp(22px, 3vw, 30px);
-  border-radius: var(--radius-xl);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: linear-gradient(145deg, rgba(24, 24, 34, 0.9), rgba(10, 10, 16, 0.96));
+  padding: clamp(26px, 3.4vw, 38px);
+  border-radius: calc(var(--radius-xl) + 2px);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  background:
+    radial-gradient(ellipse 75% 64% at 14% 12%, rgba(168, 85, 247, 0.07), transparent 62%),
+    linear-gradient(145deg, rgba(24, 24, 34, 0.92), rgba(10, 10, 16, 0.97));
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.055),
-    0 18px 42px rgba(0, 0, 0, 0.26);
-  margin-bottom: 22px;
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 20px 44px rgba(0, 0, 0, 0.28),
+    0 0 0 1px rgba(0, 0, 0, 0.16);
+  margin-bottom: clamp(24px, 3.2vw, 32px);
 }
 
 .detail-hero--album {
-  grid-template-columns: 320px 1fr;
+  grid-template-columns: minmax(260px, 330px) 1fr;
 }
 
 .detail-hero--artist {
-  grid-template-columns: 120px 1fr;
+  grid-template-columns: 132px 1fr;
 }
 
 .detail-hero--mood {
@@ -2014,15 +2017,24 @@
 .detail-artwork {
   width: 100%;
   aspect-ratio: 1;
-  border-radius: var(--radius-lg);
+  border-radius: calc(var(--radius-lg) + 2px);
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.085);
+  border: 1px solid rgba(255, 255, 255, 0.105);
   background: linear-gradient(160deg, rgba(30, 30, 42, 0.96), rgba(9, 9, 14, 0.98));
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.055),
-    0 14px 30px rgba(0, 0, 0, 0.24);
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    inset 0 -38px 70px rgba(0, 0, 0, 0.2),
+    0 18px 34px rgba(0, 0, 0, 0.28);
   position: relative;
   contain: layout paint;
+}
+
+.detail-artwork::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.055), transparent 42%, rgba(0, 0, 0, 0.18));
 }
 
 .detail-artwork--wide {
@@ -2031,40 +2043,42 @@
 
 .detail-hero-copy {
   min-width: 0;
+  max-width: 780px;
 }
 
 .detail-eyebrow {
   font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.2em;
+  letter-spacing: 0.22em;
   color: rgba(56, 189, 248, 0.9);
-  margin-bottom: 12px;
+  margin-bottom: 14px;
   font-weight: 600;
 }
 
 .detail-h1 {
-  font-size: clamp(1.9rem, 3.3vw, 2.55rem);
-  line-height: 1.06;
-  margin-bottom: 14px;
-  letter-spacing: -0.04em;
+  font-size: clamp(2rem, 3.35vw, 2.7rem);
+  line-height: 1.04;
+  margin-bottom: 16px;
+  letter-spacing: -0.045em;
   overflow-wrap: anywhere;
 }
 
 .detail-byline {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 18px;
+  gap: 10px 12px;
+  margin-bottom: 22px;
 }
 
 .detail-pill {
   display: inline-flex;
   align-items: center;
-  padding: 7px 12px;
+  padding: 8px 13px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.085);
+  background: rgba(255, 255, 255, 0.055);
+  border: 1px solid rgba(255, 255, 255, 0.095);
   font-size: 13px;
+  line-height: 1.2;
   color: var(--text-primary);
 }
 
@@ -2075,28 +2089,32 @@
 .detail-meta {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
-  margin-bottom: 18px;
+  gap: 16px;
+  margin-bottom: 22px;
 }
 
 .detail-meta-item {
-  padding: 12px 14px;
-  border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.035);
-  border: 1px solid rgba(255, 255, 255, 0.075);
+  padding: 14px 15px;
+  border-radius: calc(var(--radius-md) + 2px);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.024));
+  border: 1px solid rgba(255, 255, 255, 0.085);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
 }
 
 .detail-meta-item span {
   display: block;
   font-size: 11px;
   color: var(--text-muted);
-  margin-bottom: 4px;
+  margin-bottom: 6px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .detail-meta-item strong {
   font-size: 13px;
   font-weight: 700;
   color: var(--text-primary);
+  line-height: 1.25;
 }
 
 .detail-controls {
@@ -2518,10 +2536,13 @@
 @media (max-width: 900px) {
   .detail-hero {
     grid-template-columns: 1fr;
+    gap: 22px;
+    padding: clamp(22px, 5vw, 30px);
   }
 
   .detail-meta {
     grid-template-columns: 1fr 1fr;
+    gap: 12px;
   }
 
   .detail-track {
