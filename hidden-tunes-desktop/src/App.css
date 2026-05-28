@@ -2535,12 +2535,12 @@
 
 /* —— Home: cinematic typography + breathing room (Phase 13) —— */
 .main-scroll:has(.page-view[data-page="home"]) {
-  padding-top: clamp(28px, 4vw, 40px);
-  padding-bottom: clamp(40px, 5vw, 52px);
+  padding-top: clamp(30px, 4.2vw, 44px);
+  padding-bottom: clamp(48px, 5.6vw, 64px);
 }
 
 .page-view[data-page="home"] .hero {
-  margin-bottom: clamp(38px, 5.5vw, 52px);
+  margin-bottom: clamp(46px, 6vw, 64px);
 }
 
 .page-view[data-page="home"] .hero h1 {
@@ -2555,33 +2555,41 @@
 }
 
 .page-view[data-page="home"] .catalog-toolbar {
-  margin-bottom: clamp(30px, 3.8vw, 38px);
+  margin-bottom: clamp(34px, 4.2vw, 46px);
 }
 
 .page-view[data-page="home"] .discovery-section {
-  margin-bottom: clamp(42px, 5.4vw, 60px);
+  margin-bottom: clamp(50px, 6vw, 72px);
+}
+
+.page-view[data-page="home"] .discovery-section + .discovery-section {
+  padding-top: clamp(4px, 1vw, 10px);
 }
 
 .page-view[data-page="home"] .section-header {
-  margin-bottom: clamp(20px, 2.7vw, 28px);
+  margin-bottom: clamp(22px, 3vw, 32px);
+  align-items: flex-end;
+  gap: 16px;
 }
 
 .page-view[data-page="home"] .section-header--catalog h2 {
-  font-size: clamp(1.35rem, 2.4vw, 1.65rem);
+  font-size: clamp(1.38rem, 2.35vw, 1.72rem);
   font-weight: 600;
-  letter-spacing: -0.035em;
-  line-height: 1.18;
+  letter-spacing: -0.038em;
+  line-height: 1.14;
+  margin-bottom: 6px;
 }
 
 .page-view[data-page="home"] .section-hint {
   font-size: 14px;
-  line-height: 1.62;
-  color: rgba(245, 243, 250, 0.48);
+  line-height: 1.68;
+  color: rgba(245, 243, 250, 0.5);
   letter-spacing: 0.015em;
+  max-width: 58ch;
 }
 
 .page-view[data-page="home"] .card-row {
-  gap: clamp(20px, 2.5vw, 28px) clamp(16px, 2.3vw, 24px);
+  gap: clamp(22px, 2.7vw, 30px) clamp(18px, 2.4vw, 26px);
 }
 
 .page-view[data-page="home"] .sort-control {
@@ -2591,6 +2599,16 @@
 
 .page-view[data-page="home"] .catalog-count {
   letter-spacing: 0.02em;
+}
+
+@media (max-width: 900px) {
+  .page-view[data-page="home"] .section-header {
+    align-items: flex-start;
+  }
+
+  .page-view[data-page="home"] .discovery-section {
+    margin-bottom: clamp(42px, 7vw, 56px);
+  }
 }
 
 /* —— Home: premium card treatment (Phase 14) —— */
