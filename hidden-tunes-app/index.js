@@ -14,7 +14,10 @@
  *   Lock-screen native auto-next cannot be validated in Expo Go.
  */
 
-const { isTrackPlayerFeatureEnabled } = require("./constants/playbackConfig");
+const {
+  isTrackPlayerFeatureEnabled,
+  shouldSkipLegacyPlaybackRegistration,
+} = require("./constants/playbackConfig");
 const {
   canRegisterTrackPlayerPlaybackService,
   getExpoRuntimeLabel,
@@ -30,7 +33,16 @@ if (__DEV__ && isExpoGo()) {
 
 let trackPlayerServiceRegistered = false;
 
-if (isTrackPlayerFeatureEnabled() && canRegisterTrackPlayerPlaybackService()) {
+if (shouldSkipLegacyPlaybackRegistration()) {
+  if (__DEV__) {
+    console.info(
+      `[HiddenTunes][${getPlatformRuntimeLabel()}] Hidden Audio POC — Track Player service registration skipped.`
+    );
+  }
+} else if (
+  isTrackPlayerFeatureEnabled() &&
+  canRegisterTrackPlayerPlaybackService()
+) {
   if (!trackPlayerServiceRegistered) {
     try {
       const TrackPlayer = require("react-native-track-player").default;

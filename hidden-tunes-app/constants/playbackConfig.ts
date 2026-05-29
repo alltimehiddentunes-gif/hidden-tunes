@@ -4,7 +4,7 @@ import { Platform } from "react-native";
  * Native queue playback via react-native-track-player.
  *
  * WORKS IN: EAS preview/production + Development Client (Android; iOS when enabled below).
- * NEVER IN: Expo Go — RNTP is not bundled there; expo-av handles playback.
+ * NEVER IN: Expo Go — RNTP is not bundled there; expo-av fallback only.
  *
  * DAILY ANDROID TESTING: use preview APK (`npm run build:preview:android`) — no Metro.
  * DEV CLIENT + METRO: only when debugging native modules or instant reload.
@@ -30,6 +30,39 @@ export const USE_NATIVE_TRACK_PLAYER_ON_IOS = false;
  * APIs from background/remote event handlers.
  */
 export const ENABLE_PLAYBACK_RELIABILITY_DIAGNOSTICS = false;
+
+/**
+ * Hidden Audio native POC — when true:
+ * - Cold start opens /hidden-audio-test (skips tabs)
+ * - RNTP playback service is not registered at app entry
+ *
+ * Legacy app behavior is unchanged while this flag is false.
+ */
+export const HIDDEN_AUDIO_POC_STARTUP_ENABLED = false;
+
+export const HIDDEN_AUDIO_POC_ROUTE = "/hidden-audio-test";
+
+export function isHiddenAudioPocStartupEnabled(): boolean {
+  return HIDDEN_AUDIO_POC_STARTUP_ENABLED;
+}
+
+export function shouldSkipLegacyPlaybackRegistration(): boolean {
+  return HIDDEN_AUDIO_POC_STARTUP_ENABLED;
+}
+
+export function isHiddenAudioPocRoute(pathname: string): boolean {
+  const normalizedPath = pathname.replace(/\/+$/, "") || "/";
+
+  if (normalizedPath === HIDDEN_AUDIO_POC_ROUTE) {
+    return true;
+  }
+
+  if (HIDDEN_AUDIO_POC_STARTUP_ENABLED && normalizedPath === "/") {
+    return true;
+  }
+
+  return false;
+}
 
 export function isTrackPlayerFeatureEnabled(): boolean {
   if (!USE_NATIVE_TRACK_PLAYER) return false;

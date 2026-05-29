@@ -10,6 +10,10 @@ import {
 import { Redirect } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 
+import {
+  HIDDEN_AUDIO_POC_ROUTE,
+  isHiddenAudioPocStartupEnabled,
+} from "../constants/playbackConfig";
 import { APP_BRAND_NAME, TESTER_COPY } from "../constants/testerExperience";
 import { COLORS, GRADIENTS } from "../constants/theme";
 import { hasCompletedOnboarding } from "../services/onboardingPreferences";
@@ -19,6 +23,11 @@ export default function IndexScreen() {
   const [target, setTarget] = useState<string | null>(null);
 
   useEffect(() => {
+    if (isHiddenAudioPocStartupEnabled()) {
+      setTarget(HIDDEN_AUDIO_POC_ROUTE);
+      return;
+    }
+
     const cancel = scheduleStartupTask("afterPaint", "onboarding_route_check", async () => {
       try {
         const completed = await hasCompletedOnboarding();
