@@ -1,0 +1,21 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "aa0c144f-2015-4a4b-be6b-d771388b7dfd"
+      }
+    },
+    "ios": {
+      "bundleIdentifier": "com.hiddentunes.app",
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "audio"
+        ],
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.hiddentunes.app"
+    }
+  }
+}
