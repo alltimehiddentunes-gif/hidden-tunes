@@ -141,9 +141,19 @@ export default function ProfileScreen() {
         <View style={styles.topBar}>
           <Text style={styles.kicker}>PROFILE</Text>
 
-          <TouchableOpacity style={styles.iconButton} onPress={checkBackend}>
-            <Ionicons name="refresh" size={22} color={COLORS.text} />
-          </TouchableOpacity>
+          <View style={styles.topBarActions}>
+            {/* TEMP_PLAYBACK_DIAGNOSTICS */}
+            <TouchableOpacity
+              style={styles.diagnosticsButton}
+              onPress={() => router.push("/playback-diagnostics" as never)}
+            >
+              <Text style={styles.diagnosticsButtonText}>Diagnostics</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.iconButton} onPress={checkBackend}>
+              <Ionicons name="refresh" size={22} color={COLORS.text} />
+            </TouchableOpacity>
+          </View>
         </View>
 
         <View style={styles.heroCard}>
@@ -583,11 +593,30 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
+  topBarActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
   kicker: {
     color: COLORS.primary,
     fontSize: 12,
     fontWeight: "900",
     letterSpacing: 2,
+  },
+  diagnosticsButton: {
+    minHeight: 34,
+    justifyContent: "center",
+    borderRadius: 17,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    paddingHorizontal: 12,
+  },
+  diagnosticsButtonText: {
+    color: COLORS.text,
+    fontSize: 12,
+    fontWeight: "800",
   },
   iconButton: {
     width: 46,
