@@ -1,0 +1,148 @@
+import type {
+  HiddenAudioControllerApi,
+  HiddenAudioEvent,
+  HiddenAudioListener,
+  HiddenAudioProgress,
+  HiddenAudioState,
+  HiddenAudioTrack,
+  HiddenAudioUnsubscribe,
+} from "./hiddenAudioTypes";
+import { getHiddenAudioModule } from "./HiddenAudioModule";
+
+const NOT_IMPLEMENTED_MESSAGE =
+  "HiddenAudio native module not implemented yet";
+
+const idleState: HiddenAudioState = {
+  status: "idle",
+  activeTrack: null,
+  queue: {
+    tracks: [],
+    activeIndex: -1,
+  },
+  error: null,
+};
+
+const idleProgress: HiddenAudioProgress = {
+  positionSeconds: 0,
+  durationSeconds: 0,
+  bufferedSeconds: 0,
+};
+
+class HiddenAudioControllerImpl implements HiddenAudioControllerApi {
+  private listeners = new Set<HiddenAudioListener>();
+
+  async setup(): Promise<void> {
+    await this.getNativeModule().setup();
+  }
+
+  async loadTrack(track: HiddenAudioTrack): Promise<void> {
+    await this.getNativeModule().loadTrack(track);
+  }
+
+  async loadQueue(
+    tracks: HiddenAudioTrack[],
+    startIndex: number
+  ): Promise<void> {
+    await this.getNativeModule().loadQueue(tracks, startIndex);
+  }
+
+  async play(): Promise<void> {
+    await this.getNativeModule().play();
+  }
+
+  async pause(): Promise<void> {
+    await this.getNativeModule().pause();
+  }
+
+  async resume(): Promise<void> {
+    await this.getNativeModule().resume();
+  }
+
+  async stop(): Promise<void> {
+    await this.getNativeModule().stop();
+  }
+
+  async seekTo(seconds: number): Promise<void> {
+    await this.getNativeModule().seekTo(seconds);
+  }
+
+  async next(): Promise<void> {
+    await this.getNativeModule().next();
+  }
+
+  async previous(): Promise<void> {
+    await this.getNativeModule().previous();
+  }
+
+  async getState(): Promise<HiddenAudioState> {
+    const nativeModule = getHiddenAudioModule();
+    if (nativeModule) {
+      return nativeModule.getState();
+    }
+
+    return {
+      ...idleState,
+      queue: {
+        ...idleState.queue,
+        tracks: [...idleState.queue.tracks],
+      },
+    };
+  }
+
+  async getProgress(): Promise<HiddenAudioProgress> {
+    const nativeModule = getHiddenAudioModule();
+    if (nativeModule) {
+      return nativeModule.getProgress();
+    }
+
+    return { ...idleProgress };
+  }
+
+  async getActiveTrack(): Promise<HiddenAudioTrack | null> {
+    const nativeModule = getHiddenAudioModule();
+    if (nativeModule) {
+      return nativeModule.getActiveTrack();
+    }
+
+    return null;
+  }
+
+  subscribe(listener: HiddenAudioListener): HiddenAudioUnsubscribe {
+    this.listeners.add(listener);
+
+    return () => {
+      this.listeners.delete(listener);
+    };
+  }
+
+  protected emit(event: HiddenAudioEvent): void {
+    this.listeners.forEach((listener) => {
+      try {
+        listener(event);
+      } catch {
+        // Audio listeners must never break playback control flow.
+      }
+    });
+  }
+
+  private getNativeModule() {
+    const nativeModule = getHiddenAudioModule();
+    if (nativeModule) return nativeModule;
+
+    throw new Error(NOT_IMPLEMENTED_MESSAGE);
+  }
+}
+
+export const HiddenAudioController = new HiddenAudioControllerImpl();
+
+export { NOT_IMPLEMENTED_MESSAGE as HIDDEN_AUDIO_NOT_IMPLEMENTED_MESSAGE };
+
+export type {
+  HiddenAudioControllerApi,
+  HiddenAudioEvent,
+  HiddenAudioListener,
+  HiddenAudioProgress,
+  HiddenAudioState,
+  HiddenAudioTrack,
+  HiddenAudioUnsubscribe,
+};
