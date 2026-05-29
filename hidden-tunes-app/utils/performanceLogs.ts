@@ -2,6 +2,10 @@ import {
   isBasicPerfDiagnosticsEnabled,
   isHeavyPerfDiagnosticsEnabled,
 } from "./devDiagnostics";
+import {
+  logPlaybackDiagnostic,
+  logPlaybackDiagnosticChurnWarning,
+} from "../services/playbackDiagnostics"; // TEMP_PLAYBACK_DIAGNOSTICS
 import { getPlaybackRenderDiagnostics } from "./playbackRenderDiagnostics";
 import { getPlaybackStressDiagnostics } from "./playbackStressDiagnostics";
 import { getRenderDiagnostics } from "./renderDiagnostics";
@@ -99,6 +103,12 @@ export function logScreenReady(
     readyMs,
     ...details,
   });
+  // TEMP_PLAYBACK_DIAGNOSTICS
+  void logPlaybackDiagnostic("screen_ready", {
+    screen,
+    readyMs,
+    ...details,
+  });
 }
 
 export function logApiRefresh(
@@ -119,6 +129,17 @@ export function logApiRefresh(
   }
 
   logPerformanceEvent("api_refresh", {
+    screen,
+    refreshMs,
+    ...details,
+  });
+  // TEMP_PLAYBACK_DIAGNOSTICS
+  logPlaybackDiagnosticChurnWarning("catalog_refreshes", {
+    screen,
+    refreshMs,
+  });
+  // TEMP_PLAYBACK_DIAGNOSTICS
+  void logPlaybackDiagnostic("catalog_refresh_complete", {
     screen,
     refreshMs,
     ...details,

@@ -1,4 +1,5 @@
 import { logPerformanceEvent } from "./performanceLogs";
+import { logPlaybackDiagnostic } from "../services/playbackDiagnostics"; // TEMP_PLAYBACK_DIAGNOSTICS
 
 type StartupPhase =
   | "critical"
@@ -31,6 +32,11 @@ function shouldTrack() {
 }
 
 export function markAppMounted(source = "root_layout") {
+  // TEMP_PLAYBACK_DIAGNOSTICS
+  void logPlaybackDiagnostic("app_mounted", {
+    source,
+    sinceProcessMs: Date.now() - appMountedAt,
+  });
   if (!shouldTrack()) return;
 
   logPerformanceEvent("startup_app_mounted", {
@@ -40,6 +46,11 @@ export function markAppMounted(source = "root_layout") {
 }
 
 export function markFirstCachedContentVisible(screen: string) {
+  // TEMP_PLAYBACK_DIAGNOSTICS
+  void logPlaybackDiagnostic("first_cached_content_visible", {
+    screen,
+    sinceAppMountMs: Date.now() - appMountedAt,
+  });
   if (!shouldTrack()) return;
   if (firstCachedContentAt) return;
 
@@ -53,6 +64,12 @@ export function markFirstCachedContentVisible(screen: string) {
 }
 
 export function markFirstApiRefreshComplete(screen: string, refreshMs: number) {
+  // TEMP_PLAYBACK_DIAGNOSTICS
+  void logPlaybackDiagnostic("catalog_api_refresh_complete", {
+    screen,
+    refreshMs,
+    sinceAppMountMs: Date.now() - appMountedAt,
+  });
   if (!shouldTrack()) return;
   if (firstApiRefreshAt) return;
 
@@ -70,6 +87,10 @@ export function markFirstApiRefreshComplete(screen: string, refreshMs: number) {
 }
 
 export function markPlaybackRestoreComplete() {
+  // TEMP_PLAYBACK_DIAGNOSTICS
+  void logPlaybackDiagnostic("playback_restore_complete", {
+    sinceAppMountMs: Date.now() - appMountedAt,
+  });
   if (!shouldTrack()) return;
   if (playbackRestoreCompletedAt) return;
 

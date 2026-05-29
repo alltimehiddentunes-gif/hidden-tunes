@@ -1,6 +1,10 @@
 import { InteractionManager } from "react-native";
 
 import {
+  logPlaybackDiagnostic,
+  logPlaybackDiagnosticChurnWarning,
+} from "../services/playbackDiagnostics"; // TEMP_PLAYBACK_DIAGNOSTICS
+import {
   recordDeferredTaskCompleted,
   recordDeferredTaskScheduled,
 } from "./playbackStressDiagnostics";
@@ -36,6 +40,10 @@ export function scheduleStartupTask(
   scheduledTaskNames.add(name);
   recordStartupTaskScheduled(name, phase);
   recordDeferredTaskScheduled();
+  // TEMP_PLAYBACK_DIAGNOSTICS
+  logPlaybackDiagnosticChurnWarning("repeated_startup_tasks", { name, phase });
+  // TEMP_PLAYBACK_DIAGNOSTICS
+  void logPlaybackDiagnostic("startup_task_scheduled", { name, phase });
 
   let cancelled = false;
 
@@ -45,9 +53,17 @@ export function scheduleStartupTask(
     const startedAt = Date.now();
 
     try {
+      // TEMP_PLAYBACK_DIAGNOSTICS
+      void logPlaybackDiagnostic("startup_task_start", { name, phase });
       await task();
     } finally {
       if (!cancelled) {
+        // TEMP_PLAYBACK_DIAGNOSTICS
+        void logPlaybackDiagnostic("startup_task_complete", {
+          name,
+          phase,
+          durationMs: Date.now() - startedAt,
+        });
         recordStartupTaskComplete(name, phase, Date.now() - startedAt);
         recordDeferredTaskCompleted();
       }

@@ -2,6 +2,7 @@
  * Lock-screen / notification remote controls for react-native-track-player.
  * Used by the headless playback service and the main app bridge (foreground fallback).
  */
+import { logPlaybackDiagnostic } from "./playbackDiagnostics"; // TEMP_PLAYBACK_DIAGNOSTICS
 
 type TrackPlayerRuntime = {
   default: {
@@ -22,6 +23,9 @@ type TrackPlayerRuntime = {
 };
 
 function logRemote(event: string, details?: Record<string, unknown>) {
+  // TEMP_PLAYBACK_DIAGNOSTICS
+  void logPlaybackDiagnostic(`rntp_remote_${event}`, details);
+
   if (typeof __DEV__ === "undefined" || !__DEV__) return;
   console.log(`[HiddenTunes:TrackPlayer] remote:${event}`, {
     at: Date.now(),

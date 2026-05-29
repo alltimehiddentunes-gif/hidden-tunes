@@ -1,7 +1,11 @@
+// TEMP_PLAYBACK_DIAGNOSTICS
+// Temporary diagnostic tool for root-cause testing.
+// Safe to remove after playback stabilization.
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
   FlatList,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -10,80 +14,84 @@ import {
 
 import { Ionicons } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
-import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { COLORS } from "../constants/theme";
 import {
-  clearPlaybackCriticalLogs,
-  formatPlaybackCriticalLogsForExport,
-  getPlaybackCriticalLogs,
-  hydratePlaybackCriticalLogs,
-  subscribePlaybackCriticalLogs,
-  type PlaybackCriticalLogEntry,
-} from "../utils/playbackCriticalLogs";
+  clearPlaybackDiagnostics,
+  exportPlaybackDiagnosticsText,
+  getPlaybackDiagnosticSessionId,
+  getPlaybackDiagnostics,
+  startPlaybackDiagnosticSession,
+  subscribePlaybackDiagnostics,
+  type PlaybackDiagnosticEntry,
+} from "../services/playbackDiagnostics";
 
-function formatTime(at: number) {
+function formatLocalTime(timestamp?: string): string {
   try {
-    return new Date(at).toLocaleTimeString(undefined, {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    });
+    if (!timestamp) return "Never";
+    return new Date(timestamp).toLocaleString();
   } catch {
-    return String(at);
+    return timestamp || "Never";
   }
 }
 
-function LogRow({ entry }: { entry: PlaybackCriticalLogEntry }) {
-  const detailKeys = Object.keys(entry.details).filter(
-    (key) => key !== "at" && key !== "platform" && key !== "appState"
-  );
+function formatData(data?: Record<string, unknown>): string {
+  try {
+    if (!data || Object.keys(data).length === 0) return "";
+    return JSON.stringify(data, null, 2);
+  } catch {
+    return "[Unserializable data]";
+  }
+}
+
+function DiagnosticRow({ entry }: { entry: PlaybackDiagnosticEntry }) {
+  const dataText = formatData(entry.data);
 
   return (
     <View style={styles.logCard}>
       <View style={styles.logHeader}>
-        <Text style={styles.logEvent}>{entry.event}</Text>
-        <Text style={styles.logTime}>{formatTime(entry.at)}</Text>
+        <Text style={styles.logEvent}>{entry.eventName}</Text>
+        <Text style={styles.logTime}>{formatLocalTime(entry.timestamp)}</Text>
       </View>
-      <Text style={styles.logMeta}>
-        {entry.platform} · {entry.appState}
+      <Text style={styles.logMeta} selectable>
+        {entry.platform} | {entry.sessionId}
       </Text>
-      {detailKeys.length > 0 ? (
-        <Text style={styles.logDetails} selectable>
-          {detailKeys
-            .map((key) => `${key}=${String(entry.details[key])}`)
-            .join(" · ")}
+      {dataText ? (
+        <Text style={styles.logData} selectable>
+          {dataText}
         </Text>
       ) : null}
-      <Text style={styles.logLine} selectable>
-        {entry.line}
-      </Text>
     </View>
   );
 }
 
 export default function PlaybackDiagnosticsScreen() {
-  const [logs, setLogs] = useState<PlaybackCriticalLogEntry[]>([]);
+  const [logs, setLogs] = useState<PlaybackDiagnosticEntry[]>([]);
+  const [sessionId, setSessionId] = useState(getPlaybackDiagnosticSessionId());
   const [busy, setBusy] = useState(false);
+  const [copyFallbackText, setCopyFallbackText] = useState("");
 
-  const refreshLogs = useCallback(() => {
-    setLogs(getPlaybackCriticalLogs());
+  const newestLogs = useMemo(() => [...logs].reverse(), [logs]);
+  const latestUpdatedTime = newestLogs[0]?.timestamp;
+
+  const refresh = useCallback(async () => {
+    try {
+      const nextLogs = await getPlaybackDiagnostics();
+      setLogs(nextLogs);
+      setSessionId(getPlaybackDiagnosticSessionId());
+    } catch {
+      // Diagnostics UI should stay non-fatal.
+    }
   }, []);
 
   useEffect(() => {
     let mounted = true;
+    void refresh();
 
-    void (async () => {
-      await hydratePlaybackCriticalLogs();
+    const unsubscribe = subscribePlaybackDiagnostics(() => {
       if (mounted) {
-        refreshLogs();
-      }
-    })();
-
-    const unsubscribe = subscribePlaybackCriticalLogs(() => {
-      if (mounted) {
-        refreshLogs();
+        void refresh();
       }
     });
 
@@ -91,77 +99,110 @@ export default function PlaybackDiagnosticsScreen() {
       mounted = false;
       unsubscribe();
     };
-  }, [refreshLogs]);
+  }, [refresh]);
 
-  const exportText = useMemo(() => formatPlaybackCriticalLogsForExport(logs), [logs]);
-
-  const handleCopy = useCallback(async () => {
-    if (!exportText.length) {
-      Alert.alert("No logs", "There are no playback critical logs to copy yet.");
-      return;
-    }
-
+  const handleStartSession = useCallback(async () => {
     setBusy(true);
     try {
-      await Clipboard.setStringAsync(exportText);
-      Alert.alert("Copied", `${logs.length} log entries copied to clipboard.`);
+      const nextSessionId = await startPlaybackDiagnosticSession("manual_screen");
+      setSessionId(nextSessionId);
+      await refresh();
     } catch {
-      Alert.alert("Copy failed", "Could not copy logs to clipboard.");
+      Alert.alert("Session not started", "Diagnostics could not start a new session.");
     } finally {
       setBusy(false);
     }
-  }, [exportText, logs.length]);
+  }, [refresh]);
+
+  const handleCopy = useCallback(async () => {
+    setBusy(true);
+    try {
+      const exportText = await exportPlaybackDiagnosticsText();
+      setCopyFallbackText(exportText);
+
+      if (!exportText) {
+        Alert.alert("No logs", "There are no playback diagnostics to copy yet.");
+        return;
+      }
+
+      await Clipboard.setStringAsync(exportText);
+      Alert.alert("Copied", `${logs.length} diagnostic entries copied.`);
+    } catch {
+      Alert.alert(
+        "Copy failed",
+        "The exported text is shown at the bottom of this screen."
+      );
+    } finally {
+      setBusy(false);
+    }
+  }, [logs.length]);
+
+  const clearLogs = useCallback(async () => {
+    setBusy(true);
+    try {
+      await clearPlaybackDiagnostics();
+      setCopyFallbackText("");
+      await refresh();
+    } finally {
+      setBusy(false);
+    }
+  }, [refresh]);
 
   const handleClear = useCallback(() => {
-    Alert.alert(
-      "Clear playback logs?",
-      "This removes all stored [HT_PLAYBACK_CRITICAL] events from memory and storage.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Clear",
-          style: "destructive",
-          onPress: () => {
-            void (async () => {
-              setBusy(true);
-              try {
-                await clearPlaybackCriticalLogs();
-                refreshLogs();
-              } finally {
-                setBusy(false);
-              }
-            })();
-          },
+    Alert.alert("Clear logs?", "This removes stored temporary playback diagnostics.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Clear logs",
+        style: "destructive",
+        onPress: () => {
+          void clearLogs();
         },
-      ]
-    );
-  }, [refreshLogs]);
+      },
+    ]);
+  }, [clearLogs]);
 
   return (
     <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
-          accessibilityLabel="Go back"
-        >
-          <Ionicons name="chevron-back" size={22} color={COLORS.text} />
-        </TouchableOpacity>
-        <View style={styles.headerText}>
-          <Text style={styles.title}>Playback diagnostics</Text>
-          <Text style={styles.subtitle}>
-            Latest {logs.length} · [HT_PLAYBACK_CRITICAL]
-          </Text>
+        <Text style={styles.title}>Playback Diagnostics</Text>
+        <Text style={styles.subtitle}>
+          Hidden manual route for temporary phone testing
+        </Text>
+      </View>
+
+      <View style={styles.summary}>
+        <Text style={styles.summaryLabel}>Current session</Text>
+        <Text style={styles.summaryValue} selectable>
+          {sessionId}
+        </Text>
+        <View style={styles.summaryGrid}>
+          <View style={styles.summaryItem}>
+            <Text style={styles.summaryNumber}>{logs.length}</Text>
+            <Text style={styles.summaryCaption}>Total logs</Text>
+          </View>
+          <View style={styles.summaryItem}>
+            <Text style={styles.summaryNumberSmall}>
+              {formatLocalTime(latestUpdatedTime)}
+            </Text>
+            <Text style={styles.summaryCaption}>Latest update</Text>
+          </View>
         </View>
       </View>
 
       <View style={styles.actions}>
-        <TouchableOpacity
-          style={[styles.actionButton, styles.copyButton]}
-          onPress={() => void handleCopy()}
-          disabled={busy}
-        >
-          <Ionicons name="copy-outline" size={18} color={COLORS.text} />
+        <TouchableOpacity style={styles.actionButton} onPress={() => void refresh()} disabled={busy}>
+          <Ionicons name="refresh" size={17} color={COLORS.text} />
+          <Text style={styles.actionLabel}>Refresh</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.actionButton} onPress={() => void handleStartSession()} disabled={busy}>
+          <Ionicons name="play-circle-outline" size={17} color={COLORS.text} />
+          <Text style={styles.actionLabel}>Start new session</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.actions}>
+        <TouchableOpacity style={styles.actionButton} onPress={() => void handleCopy()} disabled={busy}>
+          <Ionicons name="copy-outline" size={17} color={COLORS.text} />
           <Text style={styles.actionLabel}>Copy logs</Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -169,31 +210,33 @@ export default function PlaybackDiagnosticsScreen() {
           onPress={handleClear}
           disabled={busy}
         >
-          <Ionicons name="trash-outline" size={18} color={COLORS.text} />
-          <Text style={styles.actionLabel}>Clear</Text>
+          <Ionicons name="trash-outline" size={17} color={COLORS.text} />
+          <Text style={styles.actionLabel}>Clear logs</Text>
         </TouchableOpacity>
       </View>
 
-      <Text style={styles.hint}>
-        Hidden route: open /playback-diagnostics on device builds when Metro is
-        unavailable.
-      </Text>
-
       <FlatList
-        data={[...logs].reverse()}
+        data={newestLogs}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <LogRow entry={item} />}
+        renderItem={({ item }) => <DiagnosticRow entry={item} />}
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Text style={styles.emptyTitle}>No critical logs yet</Text>
+            <Text style={styles.emptyTitle}>No diagnostics yet</Text>
             <Text style={styles.emptyText}>
-              Play audio, lock the screen, and reproduce the pause. Events will
-              appear here automatically.
+              Press Start new session to create a session_start entry.
             </Text>
           </View>
         }
       />
+
+      {copyFallbackText ? (
+        <ScrollView style={styles.exportBox} contentContainerStyle={styles.exportContent}>
+          <Text style={styles.exportText} selectable>
+            {copyFallbackText}
+          </Text>
+        </ScrollView>
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -204,132 +247,168 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   header: {
-    flexDirection: "row",
-    alignItems: "center",
     paddingHorizontal: 16,
-    paddingTop: 8,
+    paddingTop: 10,
     paddingBottom: 12,
-    gap: 8,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: COLORS.cardGlass,
-  },
-  headerText: {
-    flex: 1,
   },
   title: {
     color: COLORS.text,
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: "800",
   },
   subtitle: {
     color: COLORS.textSoft,
     fontSize: 13,
-    marginTop: 2,
+    marginTop: 4,
+  },
+  summary: {
+    marginHorizontal: 16,
+    marginBottom: 12,
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.borderSoft,
+    backgroundColor: COLORS.card,
+  },
+  summaryLabel: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    textTransform: "uppercase",
+    fontWeight: "700",
+  },
+  summaryValue: {
+    color: COLORS.primaryGlow,
+    fontSize: 13,
+    marginTop: 6,
+  },
+  summaryGrid: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 14,
+  },
+  summaryItem: {
+    flex: 1,
+    minHeight: 68,
+    justifyContent: "center",
+    padding: 10,
+    borderRadius: 10,
+    backgroundColor: COLORS.cardGlass,
+  },
+  summaryNumber: {
+    color: COLORS.text,
+    fontSize: 22,
+    fontWeight: "800",
+  },
+  summaryNumberSmall: {
+    color: COLORS.text,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  summaryCaption: {
+    color: COLORS.textSoft,
+    fontSize: 12,
+    marginTop: 4,
   },
   actions: {
     flexDirection: "row",
     gap: 10,
     paddingHorizontal: 16,
-    marginBottom: 8,
+    marginBottom: 10,
   },
   actionButton: {
     flex: 1,
+    minHeight: 44,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
-    paddingVertical: 12,
-    borderRadius: 12,
+    gap: 7,
+    paddingHorizontal: 8,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: COLORS.border,
-  },
-  copyButton: {
-    backgroundColor: COLORS.card,
+    backgroundColor: COLORS.cardGlass,
   },
   clearButton: {
-    backgroundColor: "rgba(239, 68, 68, 0.12)",
     borderColor: "rgba(239, 68, 68, 0.35)",
+    backgroundColor: "rgba(239, 68, 68, 0.12)",
   },
   actionLabel: {
     color: COLORS.text,
+    fontSize: 13,
     fontWeight: "700",
-    fontSize: 14,
-  },
-  hint: {
-    color: COLORS.textDim,
-    fontSize: 12,
-    paddingHorizontal: 16,
-    marginBottom: 10,
-    lineHeight: 18,
   },
   listContent: {
     paddingHorizontal: 16,
-    paddingBottom: 24,
-    gap: 10,
+    paddingBottom: 18,
   },
   logCard: {
-    backgroundColor: COLORS.card,
-    borderRadius: 14,
+    marginBottom: 10,
+    padding: 12,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: COLORS.borderSoft,
-    padding: 12,
-    marginBottom: 10,
+    backgroundColor: COLORS.card,
   },
   logHeader: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    gap: 8,
+    justifyContent: "space-between",
+    gap: 10,
   },
   logEvent: {
-    color: COLORS.primaryGlow,
-    fontWeight: "800",
-    fontSize: 14,
     flex: 1,
+    color: COLORS.primaryGlow,
+    fontSize: 14,
+    fontWeight: "800",
   },
   logTime: {
     color: COLORS.textMuted,
-    fontSize: 12,
+    fontSize: 11,
   },
   logMeta: {
     color: COLORS.textSoft,
-    fontSize: 12,
-    marginTop: 4,
-  },
-  logDetails: {
-    color: COLORS.text,
-    fontSize: 12,
-    marginTop: 6,
-    lineHeight: 18,
-  },
-  logLine: {
-    color: COLORS.textDim,
     fontSize: 11,
-    marginTop: 8,
-    lineHeight: 16,
+    marginTop: 6,
+  },
+  logData: {
+    color: COLORS.text,
     fontFamily: "monospace",
+    fontSize: 11,
+    lineHeight: 16,
+    marginTop: 8,
   },
   empty: {
-    paddingTop: 48,
-    paddingHorizontal: 12,
+    paddingTop: 44,
     alignItems: "center",
   },
   emptyTitle: {
     color: COLORS.text,
     fontSize: 18,
-    fontWeight: "700",
-    marginBottom: 8,
+    fontWeight: "800",
   },
   emptyText: {
     color: COLORS.textSoft,
     fontSize: 14,
-    textAlign: "center",
     lineHeight: 20,
+    marginTop: 8,
+    textAlign: "center",
+  },
+  exportBox: {
+    maxHeight: 130,
+    marginHorizontal: 16,
+    marginBottom: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: COLORS.borderSoft,
+    backgroundColor: "#050505",
+  },
+  exportContent: {
+    padding: 10,
+  },
+  exportText: {
+    color: COLORS.textSoft,
+    fontFamily: "monospace",
+    fontSize: 10,
+    lineHeight: 15,
   },
 });

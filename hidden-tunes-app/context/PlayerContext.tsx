@@ -65,6 +65,10 @@ import {
 import { getArtworkValue } from "../utils/artwork";
 import { scheduleStartupTask } from "../utils/startupScheduler";
 import {
+  logPlaybackDiagnostic,
+  logPlaybackDiagnosticChurnWarning,
+} from "../services/playbackDiagnostics"; // TEMP_PLAYBACK_DIAGNOSTICS
+import {
   recordAppStateTransition,
   recordApplyProgressUpdateIntervalCall,
   recordConfigureAudioCall,
@@ -429,6 +433,15 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const setIsPlaying = useCallback((value: boolean) => {
+    // TEMP_PLAYBACK_DIAGNOSTICS
+    if (isPlayingRef.current !== value) {
+      void logPlaybackDiagnostic("is_playing_change", {
+        previousValue: isPlayingRef.current,
+        nextValue: value,
+        currentSongId: currentSongRef.current?.id,
+        currentSongTitle: currentSongRef.current?.title,
+      });
+    }
     isPlayingRef.current = value;
     setIsPlayingState(value);
   }, []);
@@ -712,6 +725,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }
 
     recordConfigureAudioCall(reason);
+    // TEMP_PLAYBACK_DIAGNOSTICS
+    logPlaybackDiagnosticChurnWarning("audio_mode_calls", { reason, platform: Platform.OS });
+    // TEMP_PLAYBACK_DIAGNOSTICS
+    void logPlaybackDiagnostic("audio_mode_set_start", {
+      reason,
+      platform: Platform.OS,
+    });
 
     try {
       await Audio.setAudioModeAsync({
@@ -726,8 +746,19 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       if (Platform.OS === "ios") {
         iosAudioModeConfiguredRef.current = true;
       }
+      // TEMP_PLAYBACK_DIAGNOSTICS
+      void logPlaybackDiagnostic("audio_mode_set_success", {
+        reason,
+        platform: Platform.OS,
+      });
     } catch (error) {
       console.log("Configure audio error:", error);
+      // TEMP_PLAYBACK_DIAGNOSTICS
+      void logPlaybackDiagnostic("audio_mode_set_failure", {
+        reason,
+        platform: Platform.OS,
+        message: String((error as Error)?.message || error),
+      });
     }
   }, []);
 
@@ -1896,13 +1927,27 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const handlePlaybackStatusUpdate = useCallback(
     async (status: AVPlaybackStatus) => {
       if (trackPlayerActiveRef.current) return;
-      if (!status.isLoaded) return;
+      if (!status.isLoaded) {
+        // TEMP_PLAYBACK_DIAGNOSTICS
+        void logPlaybackDiagnostic("expo_av_status_unloaded", {
+          currentSongId: currentSongRef.current?.id,
+          currentSongTitle: currentSongRef.current?.title,
+          error: "error" in status ? status.error : undefined,
+        });
+        return;
+      }
 
+      // TEMP_PLAYBACK_DIAGNOSTICS
+      logPlaybackDiagnosticChurnWarning("playback_status_callbacks", {
+        engine: "expo_av",
+        currentSongId: currentSongRef.current?.id,
+      }, 30, 10000);
       recordRuntimePlaybackProgressUpdate("expo_av", appStateRef.current);
 
       const nextPosition = status.positionMillis || 0;
       const nextDuration = status.durationMillis || 0;
       const nextIsPlaying = status.isPlaying || false;
+      const previousIsPlaying = isPlayingRef.current;
       const previousPosition = positionMillisRef.current;
       const now = Date.now();
       const positionStateMinMs = getPositionStateUpdateMinMs(
@@ -1931,7 +1976,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         setDurationMillisState(nextDuration);
       }
 
-      if (nextIsPlaying !== isPlayingRef.current) {
+      if (nextIsPlaying !== previousIsPlaying) {
+        // TEMP_PLAYBACK_DIAGNOSTICS
+        void logPlaybackDiagnostic("expo_av_is_playing_changed", {
+          previousValue: previousIsPlaying,
+          nextValue: nextIsPlaying,
+          currentSongId: currentSongRef.current?.id,
+          currentSongTitle: currentSongRef.current?.title,
+          positionMillis: nextPosition,
+          durationMillis: nextDuration,
+        });
         isPlayingRef.current = nextIsPlaying;
         recordPlaybackReactStateUpdate("is_playing");
         setIsPlayingState(nextIsPlaying);
@@ -1943,6 +1997,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         const { queue, safeIndex } = getActiveQueuePlaybackState();
         const nextIndex = getNextQueueIndex(safeIndex, queue.length);
 
+        // TEMP_PLAYBACK_DIAGNOSTICS
+        void logPlaybackDiagnostic("expo_av_did_just_finish", {
+          currentSongId: currentSongRef.current?.id,
+          currentSongTitle: currentSongRef.current?.title,
+          currentIndex: safeIndex,
+          queueLength: queue.length,
+          nextIndex,
+        });
         logHTAutoNext("didJustFinish", {
           songId: currentSongRef.current?.id,
           currentIndex: safeIndex,
@@ -1965,6 +2027,24 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         !nextIsPlaying &&
         (previousPosition >= nextDuration - LOCK_SCREEN_END_WINDOW_MS ||
           nextPosition >= nextDuration - TRACK_END_THRESHOLD_MS);
+
+      if (
+        currentSongRef.current &&
+        !nextIsPlaying &&
+        previousIsPlaying &&
+        !status.didJustFinish &&
+        !nearTrackEnd &&
+        !isChangingTrackRef.current
+      ) {
+        // TEMP_PLAYBACK_DIAGNOSTICS
+        void logPlaybackDiagnostic("expo_av_unexpected_stop_candidate", {
+          currentSongId: currentSongRef.current.id,
+          currentSongTitle: currentSongRef.current.title,
+          positionMillis: nextPosition,
+          durationMillis: nextDuration,
+          appState: appStateRef.current,
+        });
+      }
 
       if (playbackEndedWhileNearEnd) {
         logPlaybackStalled({
@@ -2065,6 +2145,18 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
         const useNativeQueue = await shouldUseTrackPlayerPlayback();
         const useIosRntpPoc = isIosRntpPocEnabled();
+        // TEMP_PLAYBACK_DIAGNOSTICS
+        void logPlaybackDiagnostic("playback_ownership_selected", {
+          songId: normalizedSong.id,
+          songTitle: normalizedSong.title,
+          trackPlayerFeatureEnabled: isTrackPlayerFeatureEnabled(),
+          nativeTrackPlayerSupported: supportsNativeTrackPlayer(),
+          iosRntpPocEnabled: useIosRntpPoc,
+          selectedEngine: useNativeQueue ? "track_player" : "expo_av",
+          trackPlayerActive: trackPlayerActiveRef.current,
+          hasExpoSound: Boolean(soundRef.current),
+          bothAppearActive: trackPlayerActiveRef.current && Boolean(soundRef.current),
+        });
 
         if (useNativeQueue) {
           try {
@@ -2975,6 +3067,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const stopPlayback = useCallback(async () => {
     try {
+      // TEMP_PLAYBACK_DIAGNOSTICS
+      void logPlaybackDiagnostic("playback_stop_start", {
+        currentSongId: currentSongRef.current?.id,
+        currentSongTitle: currentSongRef.current?.title,
+        trackPlayerActive: trackPlayerActiveRef.current,
+        hasExpoSound: Boolean(soundRef.current),
+      });
       isChangingTrackRef.current = true;
       pendingSmartExtendRef.current = false;
       clearFinishWatchdog("stop_playback");
@@ -2995,8 +3094,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
       lastCurrentSongPersistRef.current = "";
       await removeStoredValues([CURRENT_SONG_KEY, POSITION_KEY]);
+      // TEMP_PLAYBACK_DIAGNOSTICS
+      void logPlaybackDiagnostic("playback_stop_success");
     } catch (error) {
       console.log("Stop playback error:", error);
+      // TEMP_PLAYBACK_DIAGNOSTICS
+      void logPlaybackDiagnostic("playback_stop_error", {
+        message: String((error as Error)?.message || error),
+      });
     } finally {
       isChangingTrackRef.current = false;
     }
@@ -3476,6 +3581,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       },
       onPlaybackError: (message) => {
         console.log("TrackPlayer playback error:", message);
+        // TEMP_PLAYBACK_DIAGNOSTICS
+        void logPlaybackDiagnostic("rntp_playback_error", { message });
       },
     });
 

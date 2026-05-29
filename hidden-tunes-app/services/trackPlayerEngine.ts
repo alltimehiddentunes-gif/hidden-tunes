@@ -2,6 +2,10 @@
 
 import { isTrackPlayerFeatureEnabled } from "../constants/playbackConfig";
 import {
+  logPlaybackDiagnostic,
+  logPlaybackDiagnosticChurnWarning,
+} from "./playbackDiagnostics"; // TEMP_PLAYBACK_DIAGNOSTICS
+import {
   recordBridgeSubscriptionCreated,
   recordBridgeSubscriptionDisposed,
   recordConfigureTrackPlayerOptions,
@@ -68,6 +72,8 @@ function isNativeTrackPlayerEnabled() {
 }
 
 function logTrackPlayer(message: string, details?: Record<string, unknown>) {
+  // TEMP_PLAYBACK_DIAGNOSTICS
+  void logPlaybackDiagnostic(`rntp_${message}`, details);
   logTrackPlayerBg(message, details as Parameters<typeof logTrackPlayerBg>[1]);
 }
 
@@ -246,6 +252,15 @@ export function songToTrack(song: TrackPlayerSongInput): TrackPlayerTrack | null
   };
 
   if (__DEV__) {
+    // TEMP_PLAYBACK_DIAGNOSTICS
+    void logPlaybackDiagnostic("rntp_metadata_prepared", {
+      id: track.id,
+      title: track.title,
+      artist: track.artist,
+      album: track.album,
+      hasArtwork: Boolean(track.artwork),
+      hasAudio: true,
+    });
     logTrackPlayer("notification_metadata", {
       id: track.id,
       title: track.title,
@@ -287,6 +302,16 @@ async function configureTrackPlayerOptions(
   }
 
   recordConfigureTrackPlayerOptions(safeInterval, reason);
+  // TEMP_PLAYBACK_DIAGNOSTICS
+  logPlaybackDiagnosticChurnWarning("rntp_update_options", {
+    reason,
+    safeInterval,
+  });
+  // TEMP_PLAYBACK_DIAGNOSTICS
+  void logPlaybackDiagnostic("rntp_update_options_start", {
+    reason,
+    safeInterval,
+  });
 
   const module = await getTrackPlayerModule();
   const player = await getTrackPlayerApi();
@@ -333,12 +358,23 @@ async function configureTrackPlayerOptions(
         alwaysPauseOnInterruption: false,
         stopForegroundGracePeriod: ANDROID_STOP_FOREGROUND_GRACE_PERIOD_SECONDS,
       });
+      // TEMP_PLAYBACK_DIAGNOSTICS
+      void logPlaybackDiagnostic("rntp_update_options_success", {
+        reason,
+        safeInterval,
+      });
     } else {
       logTrackPlayer("update_options_unavailable", {
         note: "RNTP build has no updateOptions; relying on setupPlayer + playback service",
       });
     }
   } catch (error) {
+    // TEMP_PLAYBACK_DIAGNOSTICS
+    void logPlaybackDiagnostic("rntp_update_options_failure", {
+      reason,
+      safeInterval,
+      message: String((error as Error)?.message || error),
+    });
     if (__DEV__) {
       console.warn("[HiddenTunes:TrackPlayer] updateOptions failed:", error);
     }
@@ -363,6 +399,11 @@ export async function setupTrackPlayer(): Promise<boolean> {
   try {
     const { AppKilledPlaybackBehavior } = module;
 
+    // TEMP_PLAYBACK_DIAGNOSTICS
+    void logPlaybackDiagnostic("rntp_setup_start", {
+      platform: Platform.OS,
+      alreadyComplete: setupComplete,
+    });
     await player.setupPlayer({
       autoUpdateMetadata: true,
       autoHandleInterruptions: true,
@@ -384,8 +425,15 @@ export async function setupTrackPlayer(): Promise<boolean> {
 
     setupComplete = true;
     logTrackPlayer("setup_complete");
+    // TEMP_PLAYBACK_DIAGNOSTICS
+    void logPlaybackDiagnostic("rntp_setup_success", { platform: Platform.OS });
     return true;
   } catch (error) {
+    // TEMP_PLAYBACK_DIAGNOSTICS
+    void logPlaybackDiagnostic("rntp_setup_failure", {
+      platform: Platform.OS,
+      message: String((error as Error)?.message || error),
+    });
     if (__DEV__) {
       console.warn("Track Player setup failed:", error);
     }
@@ -560,6 +608,18 @@ export async function playTrackPlayerQueue(options: {
       : undefined;
 
   const loadReason = options.reason || "load_queue";
+  // TEMP_PLAYBACK_DIAGNOSTICS
+  logPlaybackDiagnosticChurnWarning("queue_reloads", {
+    reason: loadReason,
+    trackCount: tracks.length,
+  });
+  // TEMP_PLAYBACK_DIAGNOSTICS
+  void logPlaybackDiagnostic("rntp_load_queue_start", {
+    reason: loadReason,
+    requested: options.songs.length,
+    trackCount: tracks.length,
+    startIndex: safeIndex,
+  });
 
   if (typeof __DEV__ !== "undefined" && __DEV__) {
     console.log("[tap-timing] full-reload-trackCount", tracks.length, {
@@ -584,6 +644,13 @@ export async function playTrackPlayerQueue(options: {
 
   const active = tracks[safeIndex];
   logTrackPlayerQueue("load_queue_complete", {
+    reason: options.reason || "load_queue",
+    trackCount: tracks.length,
+    startIndex: safeIndex,
+    activeTrackId: active?.id ?? null,
+  });
+  // TEMP_PLAYBACK_DIAGNOSTICS
+  void logPlaybackDiagnostic("rntp_load_queue_complete", {
     reason: options.reason || "load_queue",
     trackCount: tracks.length,
     startIndex: safeIndex,
@@ -796,6 +863,10 @@ export function subscribeTrackPlayerEvents(
         logTrackPlayer("playback_state", {
           state: state !== undefined ? String(state) : undefined,
         });
+        // TEMP_PLAYBACK_DIAGNOSTICS
+        void logPlaybackDiagnostic("rntp_playback_state_event", {
+          state: state !== undefined ? String(state) : undefined,
+        });
       })
     );
 
@@ -843,6 +914,17 @@ export function subscribeTrackPlayerEvents(
               ? Number((event as { track?: unknown }).track)
               : undefined,
         });
+        // TEMP_PLAYBACK_DIAGNOSTICS
+        void logPlaybackDiagnostic("rntp_queue_ended", {
+          position:
+            event && typeof event === "object" && "position" in event
+              ? Number((event as { position?: unknown }).position)
+              : undefined,
+          track:
+            event && typeof event === "object" && "track" in event
+              ? Number((event as { track?: unknown }).track)
+              : undefined,
+        });
         handlers.onQueueEnded?.();
       })
     );
@@ -859,6 +941,11 @@ export function subscribeTrackPlayerEvents(
                 : "playback_error";
 
           logTrackPlayer("playback_error", { message, ...(event || {}) });
+          // TEMP_PLAYBACK_DIAGNOSTICS
+          void logPlaybackDiagnostic("rntp_playback_error_event", {
+            message,
+            ...(event || {}),
+          });
           handlers.onPlaybackError?.(message);
         }
       )

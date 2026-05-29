@@ -1,4 +1,8 @@
 import { Image } from "expo-image";
+import {
+  logPlaybackDiagnostic,
+  logPlaybackDiagnosticChurnWarning,
+} from "../services/playbackDiagnostics"; // TEMP_PLAYBACK_DIAGNOSTICS
 import { getPrefetchLimit, shouldRunNonEssentialWork } from "./performanceMode";
 import { getNowPlayingSnapshot } from "./nowPlayingStore";
 import {
@@ -40,6 +44,16 @@ export async function preloadImages(
 
     if (!validImages.length) return;
 
+    // TEMP_PLAYBACK_DIAGNOSTICS
+    logPlaybackDiagnosticChurnWarning("image_preloads", {
+      requested: images.length,
+      queued: validImages.length,
+    });
+    // TEMP_PLAYBACK_DIAGNOSTICS
+    void logPlaybackDiagnostic("image_preload_start", {
+      requested: images.length,
+      queued: validImages.length,
+    });
     recordArtworkPrefetchQueued(validImages.length);
     recordArtworkPrefetchAttempt(validImages.length);
 
@@ -54,11 +68,20 @@ export async function preloadImages(
             loadedImages.add(img);
             recordArtworkPrefetchSuccess(1);
           } catch {
+            // TEMP_PLAYBACK_DIAGNOSTICS
+            void logPlaybackDiagnostic("image_preload_failure", {
+              source: "image_preloader",
+            });
             recordArtworkPrefetchFailure(1);
           }
         })
       );
     }
+    // TEMP_PLAYBACK_DIAGNOSTICS
+    void logPlaybackDiagnostic("image_preload_complete", {
+      queued: validImages.length,
+      loadedCount: loadedImages.size,
+    });
   } catch {}
 }
 

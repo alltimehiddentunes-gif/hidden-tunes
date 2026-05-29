@@ -45,6 +45,7 @@ import { normalizeGenreName } from "../../utils/genreNormalization";
 import { isFastScrolling } from "../../utils/performanceMode";
 import { useRenderCountProbe } from "../../utils/performanceVerification";
 import { useRuntimeRenderProbe } from "../../utils/runtimeInstrumentation";
+import { logPlaybackDiagnostic } from "../../services/playbackDiagnostics"; // TEMP_PLAYBACK_DIAGNOSTICS
 
 type PlayerMetadataType = "album" | "mood" | "genre";
 
@@ -323,6 +324,16 @@ export default function PlayerScreen() {
     activeQueue,
     activeQueueIndex,
   } = usePlayerState();
+
+  useEffect(() => {
+    // TEMP_PLAYBACK_DIAGNOSTICS
+    void logPlaybackDiagnostic("player_screen_mounted");
+
+    return () => {
+      // TEMP_PLAYBACK_DIAGNOSTICS
+      void logPlaybackDiagnostic("player_screen_unmounted");
+    };
+  }, []);
   const {
     togglePlayPause,
     seekTo,

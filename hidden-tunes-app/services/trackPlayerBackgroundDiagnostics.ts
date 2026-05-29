@@ -4,6 +4,7 @@
  * Lock-screen safe: console-only logging. No getQueue/getActiveTrack calls
  * inside native event handlers (those caused B1.1 background crashes).
  */
+import { logPlaybackDiagnostic } from "./playbackDiagnostics"; // TEMP_PLAYBACK_DIAGNOSTICS
 
 type TrackPlayerRuntime = {
   default: {
@@ -16,6 +17,9 @@ type TrackPlayerRuntime = {
 };
 
 function logService(event: string, details?: Record<string, unknown>) {
+  // TEMP_PLAYBACK_DIAGNOSTICS
+  void logPlaybackDiagnostic(`rntp_service_${event}`, details);
+
   if (typeof __DEV__ === "undefined" || !__DEV__) return;
   console.log(`[HiddenTunes:TrackPlayer] service:${event}`, {
     at: Date.now(),

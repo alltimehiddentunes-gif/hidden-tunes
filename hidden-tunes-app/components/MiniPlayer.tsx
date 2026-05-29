@@ -43,6 +43,7 @@ import HTImage from "./HTImage";
 import { FALLBACK_ARTWORK, getArtworkValue } from "../utils/artwork";
 import { isFastScrolling } from "../utils/performanceMode";
 import { useRuntimeRenderProbe } from "../utils/runtimeInstrumentation";
+import { logPlaybackDiagnostic } from "../services/playbackDiagnostics"; // TEMP_PLAYBACK_DIAGNOSTICS
 
 type YouTubeMini = {
   id: string;
@@ -327,6 +328,7 @@ function MiniPlayer() {
 
   const mountedRef = useRef(true);
   const lastYouTubeJsonRef = useRef<string | null>(null);
+  const lastMiniPlayerDiagRef = useRef<string>("");
 
   const loadYouTubeMini = useCallback(async () => {
     try {
@@ -361,6 +363,8 @@ function MiniPlayer() {
 
   useEffect(() => {
     mountedRef.current = true;
+    // TEMP_PLAYBACK_DIAGNOSTICS
+    void logPlaybackDiagnostic("mini_player_mounted");
 
     loadYouTubeMini();
 
@@ -368,6 +372,8 @@ function MiniPlayer() {
 
     return () => {
       mountedRef.current = false;
+      // TEMP_PLAYBACK_DIAGNOSTICS
+      void logPlaybackDiagnostic("mini_player_unmounted");
       clearInterval(timer);
     };
   }, [loadYouTubeMini]);
@@ -412,6 +418,41 @@ function MiniPlayer() {
     if (isYoutubeMode) return `yt-${youtubeVideo?.id || "none"}`;
     return `song-${currentSong?.id || "none"}`;
   }, [isYoutubeMode, youtubeVideo?.id, currentSong?.id]);
+
+  useEffect(() => {
+    const visible = Boolean(currentSong || youtubeVideo);
+    const key = JSON.stringify({
+      visible,
+      songId: currentSong?.id || null,
+      youtubeId: youtubeVideo?.id || null,
+      isPlaying,
+      isLoading,
+    });
+
+    if (lastMiniPlayerDiagRef.current === key) return;
+    lastMiniPlayerDiagRef.current = key;
+
+    // TEMP_PLAYBACK_DIAGNOSTICS
+    void logPlaybackDiagnostic("mini_player_visibility_update", {
+      visible,
+      hasCurrentSong: Boolean(currentSong),
+      currentSongId: currentSong?.id,
+      currentSongTitle: currentSong?.title,
+      youtubeId: youtubeVideo?.id,
+      isYoutubeMode,
+      isPlaying,
+      isLoading,
+    });
+  }, [
+    currentSong,
+    currentSong?.id,
+    currentSong?.title,
+    isLoading,
+    isPlaying,
+    isYoutubeMode,
+    youtubeVideo,
+    youtubeVideo?.id,
+  ]);
 
   const openPlayer = useCallback(() => {
     if (isYoutubeMode && youtubeVideo?.id) {

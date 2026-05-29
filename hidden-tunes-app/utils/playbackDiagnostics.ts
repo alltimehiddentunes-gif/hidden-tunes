@@ -1,6 +1,10 @@
 import type { AppStateStatus } from "react-native";
 
 import {
+  logPlaybackDiagnostic as logSessionPlaybackDiagnostic,
+  logPlaybackDiagnosticChurnWarning,
+} from "../services/playbackDiagnostics"; // TEMP_PLAYBACK_DIAGNOSTICS
+import {
   isHeavyPerfDiagnosticsEnabled,
   isVerbosePlaybackDiagnosticsEnabled,
 } from "./devDiagnostics";
@@ -48,6 +52,9 @@ export function logPlaybackDiagnostic(
   event: PlaybackDiagnosticEvent,
   details: PlaybackDiagDetails = {}
 ) {
+  // TEMP_PLAYBACK_DIAGNOSTICS
+  void logSessionPlaybackDiagnostic(event, details);
+
   if (!shouldLogPlaybackDiagnostics()) return;
 
   console.log("[HiddenTunes:playback]", event, {
@@ -65,6 +72,8 @@ export function logTapToPlayStart(details: PlaybackDiagDetails = {}) {
 }
 
 export function logAudioLoadStart(details: PlaybackDiagDetails = {}) {
+  // TEMP_PLAYBACK_DIAGNOSTICS
+  logPlaybackDiagnosticChurnWarning("song_loads", details, 3, 10000);
   recordAudioReloadAttempt(details);
   logPlaybackDiagnostic("audio_load_start", details);
 }
@@ -186,10 +195,14 @@ export function logManualQueueSkip(
 }
 
 export function logPauseResumeStart(details: PlaybackDiagDetails = {}) {
+  // TEMP_PLAYBACK_DIAGNOSTICS
+  void logSessionPlaybackDiagnostic("playback_pause_resume_start", details);
   beginPauseResumeTiming(String(details.source || "toggle"));
 }
 
 export function logPauseResumeComplete(details: PlaybackDiagDetails = {}) {
+  // TEMP_PLAYBACK_DIAGNOSTICS
+  void logSessionPlaybackDiagnostic("playback_pause_resume_complete", details);
   completePendingPlaybackTiming(
     undefined,
     details.engine ? String(details.engine) : "expo_av"
