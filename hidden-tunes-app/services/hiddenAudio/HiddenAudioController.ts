@@ -7,7 +7,10 @@ import type {
   HiddenAudioTrack,
   HiddenAudioUnsubscribe,
 } from "./hiddenAudioTypes";
-import { getHiddenAudioModule } from "./HiddenAudioModule";
+import {
+  getHiddenAudioModule,
+  subscribeHiddenAudioNativeEvents,
+} from "./HiddenAudioModule";
 
 const NOT_IMPLEMENTED_MESSAGE =
   "HiddenAudio native module not implemented yet";
@@ -30,6 +33,7 @@ const idleProgress: HiddenAudioProgress = {
 
 class HiddenAudioControllerImpl implements HiddenAudioControllerApi {
   private listeners = new Set<HiddenAudioListener>();
+  private nativeUnsubscribe: HiddenAudioUnsubscribe | null = null;
 
   async setup(): Promise<void> {
     await this.getNativeModule().setup();
@@ -109,6 +113,7 @@ class HiddenAudioControllerImpl implements HiddenAudioControllerApi {
 
   subscribe(listener: HiddenAudioListener): HiddenAudioUnsubscribe {
     this.listeners.add(listener);
+    this.ensureNativeSubscription();
 
     return () => {
       this.listeners.delete(listener);
@@ -130,6 +135,14 @@ class HiddenAudioControllerImpl implements HiddenAudioControllerApi {
     if (nativeModule) return nativeModule;
 
     throw new Error(NOT_IMPLEMENTED_MESSAGE);
+  }
+
+  private ensureNativeSubscription(): void {
+    if (this.nativeUnsubscribe) return;
+
+    this.nativeUnsubscribe = subscribeHiddenAudioNativeEvents((event) => {
+      this.emit(event);
+    });
   }
 }
 

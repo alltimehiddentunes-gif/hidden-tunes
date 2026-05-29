@@ -1,9 +1,11 @@
-import { NativeModules } from "react-native";
+import { NativeEventEmitter, NativeModules } from "react-native";
 
 import type {
+  HiddenAudioEvent,
   HiddenAudioProgress,
   HiddenAudioState,
   HiddenAudioTrack,
+  HiddenAudioUnsubscribe,
 } from "./hiddenAudioTypes";
 
 export const HIDDEN_AUDIO_NATIVE_MODULE_NAME = "HiddenAudioModule";
@@ -22,6 +24,8 @@ export type HiddenAudioNativeModule = {
   getState: () => Promise<HiddenAudioState>;
   getProgress: () => Promise<HiddenAudioProgress>;
   getActiveTrack: () => Promise<HiddenAudioTrack | null>;
+  addListener: (eventName: string) => void;
+  removeListeners: (count: number) => void;
 };
 
 type HiddenAudioNativeModules = typeof NativeModules & {
@@ -35,4 +39,25 @@ export function getHiddenAudioModule(): HiddenAudioNativeModule | null {
 
 export function isHiddenAudioModuleAvailable(): boolean {
   return Boolean(getHiddenAudioModule());
+}
+
+export function subscribeHiddenAudioNativeEvents(
+  listener: (event: HiddenAudioEvent) => void
+): HiddenAudioUnsubscribe {
+  const nativeModule = getHiddenAudioModule();
+  if (!nativeModule) return () => {};
+
+  const emitter = new NativeEventEmitter(nativeModule);
+  const subscriptions = [
+    emitter.addListener("HiddenAudioState", (event?: HiddenAudioEvent) => {
+      if (event) listener(event);
+    }),
+    emitter.addListener("HiddenAudioProgress", (event?: HiddenAudioEvent) => {
+      if (event) listener(event);
+    }),
+  ];
+
+  return () => {
+    subscriptions.forEach((subscription) => subscription.remove());
+  };
 }
