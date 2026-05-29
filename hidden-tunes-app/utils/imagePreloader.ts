@@ -1,4 +1,5 @@
 import { Image } from "expo-image";
+import { AppState } from "react-native";
 import {
   logPlaybackDiagnostic,
   logPlaybackDiagnosticChurnWarning,
@@ -26,6 +27,16 @@ export async function preloadImages(
   images: Array<string | undefined | null>
 ) {
   try {
+    if (AppState.currentState !== "active") {
+      // TEMP_PLAYBACK_DIAGNOSTICS
+      void logPlaybackDiagnostic("startup_task_skipped", {
+        name: "image_preload",
+        reason: "app_not_active",
+        appState: AppState.currentState,
+      });
+      return;
+    }
+
     if (shouldSkipPrefetchDuringPlayback()) return;
     if (!shouldRunNonEssentialWork()) return;
 

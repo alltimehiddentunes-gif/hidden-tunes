@@ -3133,12 +3133,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
     if (!sound) {
       const restoredSong = currentSongRef.current;
+      const restoreEngine =
+        isTrackPlayerFeatureEnabled() && supportsNativeTrackPlayer()
+          ? "track_player_restore"
+          : "expo_av_restore";
 
       if (restoredSong) {
         await loadAndPlay(restoredSong);
       }
 
-      logPauseResumeComplete({ engine: "expo_av_restore" });
+      logPauseResumeComplete({ engine: restoreEngine });
       return;
     }
 
@@ -3616,6 +3620,34 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       "deferred",
       "player_restore_saved_data_heavy",
       async () => {
+        if (currentSongRef.current) {
+          // TEMP_PLAYBACK_DIAGNOSTICS
+          void logPlaybackDiagnostic("startup_task_skipped", {
+            name: "player_restore_saved_data_heavy",
+            reason: "current_song_exists",
+          });
+          return;
+        }
+
+        if (trackPlayerActiveRef.current) {
+          // TEMP_PLAYBACK_DIAGNOSTICS
+          void logPlaybackDiagnostic("startup_task_skipped", {
+            name: "player_restore_saved_data_heavy",
+            reason: "track_player_active",
+          });
+          return;
+        }
+
+        if (AppState.currentState !== "active") {
+          // TEMP_PLAYBACK_DIAGNOSTICS
+          void logPlaybackDiagnostic("startup_task_skipped", {
+            name: "player_restore_saved_data_heavy",
+            reason: "app_not_active",
+            appState: AppState.currentState,
+          });
+          return;
+        }
+
         await restoreSavedDataHeavy();
       }
     );

@@ -5,6 +5,7 @@ import {
   Dimensions,
   FlatList,
   InteractionManager,
+  AppState,
   RefreshControl,
   StyleSheet,
   Text,
@@ -98,6 +99,7 @@ import {
   markFirstCachedContentVisible,
 } from "../../utils/startupDiagnostics";
 import { scheduleStartupTask } from "../../utils/startupScheduler";
+import { logPlaybackDiagnostic } from "../../services/playbackDiagnostics"; // TEMP_PLAYBACK_DIAGNOSTICS
 import {
   shouldReplaceCatalogResults,
   shouldResetCatalogFallbackGate,
@@ -186,6 +188,7 @@ function HomeScreen() {
   const { currentSong, isPlaying } = usePlayerNowPlaying();
   const { recentlyPlayed, favorites } = usePlayerState();
 
+  const playbackActiveRef = useRef(false);
   const initialFeaturedSongsRef = useRef(buildInitialHomeSongs());
   const isLoadingRef = useRef(false);
   const initialHomeLoadRef = useRef(false);
@@ -193,6 +196,8 @@ function HomeScreen() {
   const loadFeaturedSongsRef = useRef<
     (showLoader?: boolean, forceRefresh?: boolean) => Promise<void>
   >(async () => {});
+
+  playbackActiveRef.current = Boolean(currentSong || isPlaying);
   const scrollRef = useRef<FlatList<HomeFeedRow>>(null);
   const heroListRef = useRef<FlatList<HeroCard>>(null);
   const heroIndexRef = useRef(0);
@@ -299,9 +304,28 @@ function HomeScreen() {
 
     const heroSong = nextSongs[0];
     if (heroSong?.artwork) {
-      scheduleStartupTask("background", "home_primary_artwork_prefetch", () =>
-        preloadImages([heroSong.artwork, heroSong.cover].filter(Boolean))
-      );
+      scheduleStartupTask("background", "home_primary_artwork_prefetch", () => {
+        if (AppState.currentState !== "active") {
+          // TEMP_PLAYBACK_DIAGNOSTICS
+          void logPlaybackDiagnostic("startup_task_skipped", {
+            name: "home_primary_artwork_prefetch",
+            reason: "app_not_active",
+            appState: AppState.currentState,
+          });
+          return;
+        }
+
+        if (playbackActiveRef.current) {
+          // TEMP_PLAYBACK_DIAGNOSTICS
+          void logPlaybackDiagnostic("startup_task_skipped", {
+            name: "home_primary_artwork_prefetch",
+            reason: "playback_active",
+          });
+          return;
+        }
+
+        return preloadImages([heroSong.artwork, heroSong.cover].filter(Boolean));
+      });
     }
   }, []);
 
@@ -442,6 +466,17 @@ function HomeScreen() {
         };
 
         const runCatalogApiRefresh = async () => {
+          if (AppState.currentState !== "active") {
+            // TEMP_PLAYBACK_DIAGNOSTICS
+            void logPlaybackDiagnostic("startup_task_skipped", {
+              name: "home_catalog_api_refresh",
+              reason: "app_not_active",
+              appState: AppState.currentState,
+            });
+            finishInitialHomeLoadGate();
+            return;
+          }
+
           try {
             await refreshCatalogFromApi();
           } catch {
@@ -943,6 +978,25 @@ function HomeScreen() {
         () => {
           logAudioPreloadTargetSelected("home", target);
           scheduleStartupTask("idle", "home_idle_audio_preload", () => {
+            if (AppState.currentState !== "active") {
+              // TEMP_PLAYBACK_DIAGNOSTICS
+              void logPlaybackDiagnostic("startup_task_skipped", {
+                name: "home_idle_audio_preload",
+                reason: "app_not_active",
+                appState: AppState.currentState,
+              });
+              return;
+            }
+
+            if (playbackActiveRef.current) {
+              // TEMP_PLAYBACK_DIAGNOSTICS
+              void logPlaybackDiagnostic("startup_task_skipped", {
+                name: "home_idle_audio_preload",
+                reason: "playback_active",
+              });
+              return;
+            }
+
             void preloadIdlePlayableTrack(target.song, {
               source: `home:${target.tier}`,
             });
