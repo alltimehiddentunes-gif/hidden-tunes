@@ -36,22 +36,61 @@ function copyIosHiddenAudioFiles(config) {
   ]);
 }
 
+function getMainGroupKey(project) {
+  const firstProject = project.getFirstProject?.()?.firstProject;
+  const mainGroup = firstProject?.mainGroup;
+
+  if (typeof mainGroup === "string") return mainGroup;
+  if (mainGroup?.value) return mainGroup.value;
+
+  return null;
+}
+
+function findGroupKey(project, name) {
+  return (
+    project.findPBXGroupKey?.({ name }) ||
+    project.findPBXGroupKey?.({ path: name }) ||
+    null
+  );
+}
+
+function ensureHiddenAudioGroup(project) {
+  const existingGroupKey = findGroupKey(project, "HiddenAudio");
+  if (existingGroupKey && project.getPBXGroupByKey(existingGroupKey)) {
+    return existingGroupKey;
+  }
+
+  const mainGroupKey = getMainGroupKey(project);
+  if (!mainGroupKey || !project.getPBXGroupByKey(mainGroupKey)) {
+    return null;
+  }
+
+  const groupKey = project.pbxCreateGroup("HiddenAudio");
+  project.addToPbxGroup(groupKey, mainGroupKey);
+  return groupKey;
+}
+
+function hasFileReference(project, filePath, fileName) {
+  return Object.values(project.pbxFileReferenceSection()).some((file) => {
+    if (!file || typeof file !== "object") return false;
+    return file.path === filePath || file.path === fileName || file.name === fileName;
+  });
+}
+
 function addIosHiddenAudioFilesToProject(config) {
   return withXcodeProject(config, (modConfig) => {
     const project = modConfig.modResults;
     const projectName = modConfig.modRequest.projectName;
-    const group = project.pbxGroupByName(projectName);
+    const groupKey = ensureHiddenAudioGroup(project);
 
-    if (!group) return modConfig;
+    if (!groupKey) return modConfig;
 
     IOS_FILES.forEach((fileName) => {
       const filePath = `${projectName}/${fileName}`;
-      const alreadyAdded = Object.values(project.pbxFileReferenceSection()).some(
-        (file) => file && file.path === fileName
-      );
+      const alreadyAdded = hasFileReference(project, filePath, fileName);
 
       if (!alreadyAdded) {
-        project.addSourceFile(filePath, {}, group.uuid);
+        project.addSourceFile(filePath, {}, groupKey);
       }
     });
 
