@@ -1,10 +1,11 @@
-import { Stack } from "expo-router";
+import { Stack, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { memo, useEffect, useMemo } from "react";
 import { AppState } from "react-native"; // TEMP_PLAYBACK_DIAGNOSTICS
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import RemoteMediaControlsBridge from "../components/RemoteMediaControlsBridge";
+import { NativePlayerProvider } from "../context/NativePlayerContext";
 import { PlayerProvider } from "../context/PlayerContext";
 import {
   logPlaybackDiagnostic,
@@ -28,6 +29,10 @@ const MemoizedPlayerProvider = memo(PlayerProvider);
 
 function RootLayout() {
   const memoizedScreenOptions = useMemo(() => screenOptions, []);
+  const segments = useSegments();
+  const firstSegment = String(segments[0] || "");
+  const isNativePlayerTestRoute = firstSegment === "native-player-test";
+  const isHiddenAudioTestRoute = firstSegment === "hidden-audio-test";
 
   useEffect(() => {
     markAppMounted("root_layout");
@@ -77,20 +82,32 @@ function RootLayout() {
     };
   }, []);
 
+  const stack = (
+    <Stack screenOptions={memoizedScreenOptions}>
+      <Stack.Screen name="index" />
+      <Stack.Screen name="onboarding" />
+      <Stack.Screen name="auth" />
+      <Stack.Screen name="downloads" />
+      <Stack.Screen name="lyrics" />
+      <Stack.Screen name="queue" />
+      <Stack.Screen name="native-player-test" />
+      <Stack.Screen name="hidden-audio-test" />
+      <Stack.Screen name="(tabs)" />
+    </Stack>
+  );
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <MemoizedPlayerProvider>
-        <RemoteMediaControlsBridge />
-        <Stack screenOptions={memoizedScreenOptions}>
-          <Stack.Screen name="index" />
-          <Stack.Screen name="onboarding" />
-          <Stack.Screen name="auth" />
-          <Stack.Screen name="downloads" />
-          <Stack.Screen name="lyrics" />
-          <Stack.Screen name="queue" />
-          <Stack.Screen name="(tabs)" />
-        </Stack>
-      </MemoizedPlayerProvider>
+      {isHiddenAudioTestRoute ? (
+        stack
+      ) : isNativePlayerTestRoute ? (
+        <NativePlayerProvider>{stack}</NativePlayerProvider>
+      ) : (
+        <MemoizedPlayerProvider>
+          <RemoteMediaControlsBridge />
+          {stack}
+        </MemoizedPlayerProvider>
+      )}
     </GestureHandlerRootView>
   );
 }
