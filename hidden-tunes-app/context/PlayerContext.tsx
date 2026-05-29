@@ -48,8 +48,8 @@ import {
   bridgeGetActiveIndex,
   bridgeGetProgress,
   bridgeInterruptForUserTap,
+  bridgePlay,
   bridgePlayQueueFromIndex,
-  bridgeResetPlayback,
   bridgeSeekTo,
   bridgeSetProgressInterval,
   bridgeSetVolume,
@@ -785,8 +785,18 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const unloadCurrentSound = useCallback(async () => {
     if (trackPlayerActiveRef.current) {
-      trackPlayerActiveRef.current = false;
-      await bridgeResetPlayback("unload_current_sound");
+      // TEMP_PLAYBACK_DIAGNOSTICS
+      void logPlaybackDiagnostic("rntp_unload_blocked_track_player_active", {
+        reason: "unload_current_sound",
+        currentSongId: currentSongRef.current?.id,
+        isPlaying: isPlayingRef.current,
+      });
+      // TEMP_PLAYBACK_DIAGNOSTICS
+      void logPlaybackDiagnostic("rntp_reset_blocked_track_player_active", {
+        reason: "unload_current_sound",
+        currentSongId: currentSongRef.current?.id,
+        isPlaying: isPlayingRef.current,
+      });
       return;
     }
 
@@ -2160,6 +2170,35 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
         if (useNativeQueue) {
           try {
+            if (
+              trackPlayerActiveRef.current &&
+              currentSongRef.current?.id === normalizedSong.id
+            ) {
+              // TEMP_PLAYBACK_DIAGNOSTICS
+              void logPlaybackDiagnostic("rntp_same_song_play_resume", {
+                songId: normalizedSong.id,
+                songTitle: normalizedSong.title,
+              });
+
+              await bridgePlay();
+              setCurrentSong(normalizedSong);
+              currentSongRef.current = normalizedSong;
+              setIsPlaying(true);
+              setIsLoading(false);
+              await bridgeSetProgressInterval(appStateRef.current);
+              logAudioLoadSuccess({
+                songId: normalizedSong.id,
+                requestId,
+                engine: "track_player",
+              });
+              logPlaybackStarted({
+                songId: normalizedSong.id,
+                requestId,
+                engine: "track_player",
+              });
+              return;
+            }
+
             const { queue: activeQueue } = getActiveQueuePlaybackState();
             const queue = useIosRntpPoc ? [normalizedSong] : activeQueue;
 
