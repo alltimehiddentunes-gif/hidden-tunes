@@ -46,10 +46,12 @@ import { supportsNativeTrackPlayer } from "../utils/expoRuntime";
 import {
   activateTrackPlayerPlayback,
   bridgeGetActiveIndex,
+  bridgeGetNativePlaybackSnapshot,
   bridgeGetProgress,
   bridgeInterruptForUserTap,
   bridgePlay,
   bridgePlayQueueFromIndex,
+  bridgeResetPlayback,
   bridgeSeekTo,
   bridgeSetProgressInterval,
   bridgeSetVolume,
@@ -1112,6 +1114,65 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     [getActiveQueuePlaybackState, normalizeSong, savePlaybackSideEffects]
   );
 
+  const syncNativeTrackPlayerSnapshot = useCallback(
+    async (source = "unspecified") => {
+      if (!isTrackPlayerFeatureEnabled() || !supportsNativeTrackPlayer()) {
+        return false;
+      }
+
+      try {
+        const snapshot = await bridgeGetNativePlaybackSnapshot();
+        if (!snapshot || snapshot.queueLength <= 0) {
+          // TEMP_PLAYBACK_DIAGNOSTICS
+          void logPlaybackDiagnostic("rntp_native_snapshot_empty", {
+            source,
+            queueLength: snapshot?.queueLength ?? 0,
+            playbackState: snapshot?.playbackState,
+          });
+          return false;
+        }
+
+        trackPlayerActiveRef.current = true;
+
+        if (snapshot.activeIndex !== null) {
+          syncStateFromTrackPlayerIndex(snapshot.activeIndex, false);
+        }
+
+        positionMillisRef.current = snapshot.progress.positionMillis;
+        setPositionMillisState(snapshot.progress.positionMillis);
+
+        if (snapshot.progress.durationMillis > 0) {
+          durationMillisRef.current = snapshot.progress.durationMillis;
+          setDurationMillisState(snapshot.progress.durationMillis);
+        }
+
+        isPlayingRef.current = snapshot.progress.isPlaying;
+        setIsPlayingState(snapshot.progress.isPlaying);
+
+        // TEMP_PLAYBACK_DIAGNOSTICS
+        void logPlaybackDiagnostic("rntp_native_snapshot_synced", {
+          source,
+          activeIndex: snapshot.activeIndex,
+          queueLength: snapshot.queueLength,
+          playbackState: snapshot.playbackState,
+          isPlaying: snapshot.progress.isPlaying,
+          positionMillis: snapshot.progress.positionMillis,
+          durationMillis: snapshot.progress.durationMillis,
+        });
+
+        return snapshot.progress.isPlaying;
+      } catch (error) {
+        // TEMP_PLAYBACK_DIAGNOSTICS
+        void logPlaybackDiagnostic("rntp_native_snapshot_error", {
+          source,
+          message: String((error as Error)?.message || error),
+        });
+        return false;
+      }
+    },
+    [syncStateFromTrackPlayerIndex]
+  );
+
   const preloadUpcomingTrack = useCallback(
     async (upcomingSong: AppSong) => {
       if (trackPlayerActiveRef.current) return;
@@ -2171,6 +2232,42 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         if (useNativeQueue) {
           try {
             if (
+              !trackPlayerActiveRef.current &&
+              currentSongRef.current?.id === normalizedSong.id
+            ) {
+              const nativePlaying = await syncNativeTrackPlayerSnapshot(
+                "load_and_play_same_song_native_snapshot"
+              );
+
+              if (nativePlaying) {
+                // TEMP_PLAYBACK_DIAGNOSTICS
+                void logPlaybackDiagnostic("rntp_same_song_play_resume", {
+                  songId: normalizedSong.id,
+                  songTitle: normalizedSong.title,
+                  source: "native_snapshot",
+                });
+
+                await bridgePlay();
+                setCurrentSong(normalizedSong);
+                currentSongRef.current = normalizedSong;
+                setIsPlaying(true);
+                setIsLoading(false);
+                await bridgeSetProgressInterval(appStateRef.current);
+                logAudioLoadSuccess({
+                  songId: normalizedSong.id,
+                  requestId,
+                  engine: "track_player",
+                });
+                logPlaybackStarted({
+                  songId: normalizedSong.id,
+                  requestId,
+                  engine: "track_player",
+                });
+                return;
+              }
+            }
+
+            if (
               trackPlayerActiveRef.current &&
               currentSongRef.current?.id === normalizedSong.id
             ) {
@@ -2256,6 +2353,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               if (fastResult) {
                 playedIndex = fastResult.playedIndex;
               } else {
+                // TEMP_PLAYBACK_DIAGNOSTICS
+                void logPlaybackDiagnostic("rntp_queue_reload_path", {
+                  reason: "user_tap_full_reload",
+                  songId: normalizedSong.id,
+                  startIndex: fallbackIndex,
+                  trackPlayerActive: trackPlayerActiveRef.current,
+                });
                 await unloadCurrentSound();
 
                 if (
@@ -2276,6 +2380,15 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
                 });
               }
             } else {
+              // TEMP_PLAYBACK_DIAGNOSTICS
+              void logPlaybackDiagnostic("rntp_queue_reload_path", {
+                reason: useIosRntpPoc
+                  ? "ios_rntp_poc_single_track"
+                  : "non_user_initiated_load",
+                songId: normalizedSong.id,
+                startIndex: fallbackIndex,
+                trackPlayerActive: trackPlayerActiveRef.current,
+              });
               await unloadCurrentSound();
 
               if (
@@ -2511,6 +2624,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       takePreloadedSound,
       applyProgressUpdateInterval,
       syncStateFromTrackPlayerIndex,
+      syncNativeTrackPlayerSnapshot,
       setIsPlaying,
       setPositionMillis,
       setDurationMillis,
@@ -3119,9 +3233,21 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
       loadRequestIdRef.current += 1;
       inFlightPlaySongIdRef.current = null;
-      trackPlayerActiveRef.current = false;
+      const wasTrackPlayerActive = trackPlayerActiveRef.current;
       await clearPreloadedSound();
-      await unloadCurrentSound();
+
+      if (wasTrackPlayerActive) {
+        // TEMP_PLAYBACK_DIAGNOSTICS
+        void logPlaybackDiagnostic("rntp_intentional_stop_reset", {
+          reason: "stop_playback",
+          currentSongId: currentSongRef.current?.id,
+          currentSongTitle: currentSongRef.current?.title,
+        });
+        await bridgeResetPlayback("intentional_user_stop");
+        trackPlayerActiveRef.current = false;
+      } else {
+        await unloadCurrentSound();
+      }
 
       setIsPlaying(false);
       setIsLoading(false);
@@ -3146,6 +3272,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }
   }, [
     clearPreloadedSound,
+    bridgeResetPlayback,
     unloadCurrentSound,
     setIsPlaying,
     setPositionMillis,
@@ -3178,6 +3305,26 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           : "expo_av_restore";
 
       if (restoredSong) {
+        if (restoreEngine === "track_player_restore") {
+          const nativePlaying = await syncNativeTrackPlayerSnapshot(
+            "toggle_play_pause_restore"
+          );
+
+          if (nativePlaying) {
+            // TEMP_PLAYBACK_DIAGNOSTICS
+            void logPlaybackDiagnostic("rntp_same_song_play_resume", {
+              songId: restoredSong.id,
+              songTitle: restoredSong.title,
+              source: "toggle_restore_native_snapshot",
+            });
+            await bridgePlay();
+            logPauseResumeComplete({
+              engine: "track_player_restore_native_snapshot",
+            });
+            return;
+          }
+        }
+
         await loadAndPlay(restoredSong);
       }
 
@@ -3208,7 +3355,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }
 
     logPauseResumeComplete({ engine: "expo_av" });
-  }, [loadAndPlay, setIsPlaying, clearFinishWatchdog]);
+  }, [
+    loadAndPlay,
+    setIsPlaying,
+    clearFinishWatchdog,
+    syncNativeTrackPlayerSnapshot,
+  ]);
 
   const seekTo = useCallback(
     async (millis: number) => {
@@ -3645,7 +3797,19 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     isMountedRef.current = true;
 
-    configureAudio("player_mount");
+    void (async () => {
+      const nativePlaying = await syncNativeTrackPlayerSnapshot("player_mount");
+
+      if (nativePlaying) {
+        // TEMP_PLAYBACK_DIAGNOSTICS
+        void logPlaybackDiagnostic("audio_mode_set_skipped", {
+          reason: "player_mount_native_rntp_playing",
+        });
+        return;
+      }
+
+      configureAudio("player_mount");
+    })();
 
     const cancelRestoreLightTask = scheduleStartupTask(
       "background",
@@ -3701,6 +3865,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     };
   }, [
     configureAudio,
+    syncNativeTrackPlayerSnapshot,
     restoreSavedDataLight,
     restoreSavedDataHeavy,
     unloadCurrentSound,
@@ -3732,29 +3897,59 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         void savePlaybackPosition(positionMillisRef.current);
 
         // RNTP is already playing — avoid audio session / updateOptions churn on lock.
-        if (trackPlayerActiveRef.current && isPlayingRef.current) {
-          recordBackgroundChurnSkipped("rntp_active_playing");
-          return;
-        }
-
-        configureAudio("app_state_background");
-        void applyProgressUpdateInterval("app_state_background");
-
-        if (isPlayingRef.current && soundRef.current) {
-          armFinishWatchdog(
-            positionMillisRef.current,
-            durationMillisRef.current,
-            true
+        void (async () => {
+          const nativePlaying = await syncNativeTrackPlayerSnapshot(
+            "app_state_background"
           );
-          void catchUpPlaybackIfEnded();
-        }
+
+          if (
+            nativePlaying ||
+            (trackPlayerActiveRef.current && isPlayingRef.current)
+          ) {
+            recordBackgroundChurnSkipped("rntp_active_playing");
+            // TEMP_PLAYBACK_DIAGNOSTICS
+            void logPlaybackDiagnostic("app_state_background_native_owned", {
+              previousState,
+              nextState,
+              nativePlaying,
+            });
+            return;
+          }
+
+          configureAudio("app_state_background");
+          void applyProgressUpdateInterval("app_state_background");
+
+          if (isPlayingRef.current && soundRef.current) {
+            armFinishWatchdog(
+              positionMillisRef.current,
+              durationMillisRef.current,
+              true
+            );
+            void catchUpPlaybackIfEnded();
+          }
+        })();
       }
 
       if (nextState === "active") {
-        configureAudio("app_state_active");
-        void applyProgressUpdateInterval("app_state_active");
-        void catchUpPlaybackIfEnded();
-        void flushPendingSmartExtend();
+        void (async () => {
+          const nativePlaying = await syncNativeTrackPlayerSnapshot(
+            "app_state_active"
+          );
+
+          if (nativePlaying) {
+            // TEMP_PLAYBACK_DIAGNOSTICS
+            void logPlaybackDiagnostic("app_state_resume_native_rntp_owned", {
+              previousState,
+              nextState,
+            });
+            return;
+          }
+
+          configureAudio("app_state_active");
+          void applyProgressUpdateInterval("app_state_active");
+          void catchUpPlaybackIfEnded();
+          void flushPendingSmartExtend();
+        })();
       }
     });
 
@@ -3764,6 +3959,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     };
   }, [
     configureAudio,
+    syncNativeTrackPlayerSnapshot,
     savePlaybackPosition,
     applyProgressUpdateInterval,
     armFinishWatchdog,

@@ -43,6 +43,14 @@ export type PlayerRepeatMode = PlaybackEngineRepeatMode;
 export type PlaybackProgress = PlaybackEngineProgress;
 export type TrackPlayerEventHandlers = PlaybackEngineEventHandlers;
 
+export type NativeTrackPlayerSnapshot = {
+  progress: PlaybackProgress;
+  activeIndex: number | null;
+  queueLength: number;
+  playbackState: string | null;
+  trackIds: string[];
+};
+
 let bridgeActive = false;
 
 function attachMainThreadRemoteHandlers() {
@@ -233,6 +241,31 @@ export async function bridgeGetActiveIndex(): Promise<number | null> {
 export async function bridgeGetQueueSnapshot() {
   if (!isPlaybackBridgeActive()) return null;
   return getTrackPlayerQueueSnapshot();
+}
+
+export async function bridgeGetNativePlaybackSnapshot(): Promise<NativeTrackPlayerSnapshot | null> {
+  if (!isTrackPlayerFeatureEnabled() || !supportsNativeTrackPlayer()) {
+    return null;
+  }
+
+  const ready = await ensureTrackPlayerReady();
+  if (!ready) return null;
+
+  const [progress, activeIndex, queueSnapshot] = await Promise.all([
+    getTrackPlayerProgress(),
+    getTrackPlayerActiveIndex(),
+    getTrackPlayerQueueSnapshot(),
+  ]);
+
+  if (!queueSnapshot) return null;
+
+  return {
+    progress,
+    activeIndex,
+    queueLength: queueSnapshot.queueLength,
+    playbackState: queueSnapshot.playbackState,
+    trackIds: queueSnapshot.trackIds,
+  };
 }
 
 export function subscribeBridgeEvents(
