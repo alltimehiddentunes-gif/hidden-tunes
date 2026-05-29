@@ -59,6 +59,10 @@ import {
   shouldUseTrackPlayerPlayback,
   subscribeBridgeEvents,
 } from "../services/playbackBridge";
+import {
+  ensureTrackPlayerReady,
+  getTrackPlayerQueueSnapshot,
+} from "../services/trackPlayerEngine";
 import { getArtworkValue } from "../utils/artwork";
 import { scheduleStartupTask } from "../utils/startupScheduler";
 import {
@@ -104,6 +108,7 @@ import {
   logTapToPlayStart,
   logTrackFinished,
 } from "../utils/playbackDiagnostics";
+import { logPlaybackCritical } from "../utils/playbackCriticalLogs";
 import {
   recordQueueControl,
   updateActiveQueueLength,
@@ -308,6 +313,70 @@ function getPositionStateUpdateMinMs(state: AppStateStatus) {
 
 function parseSyncedLyrics(input?: string | null): SyncedLyricLine[] {
   return toSyncedLyricLines(parseLrc(input || ""));
+}
+
+type NativeStartupQueueSnapshot = Awaited<
+  ReturnType<typeof getTrackPlayerQueueSnapshot>
+>;
+
+const NATIVE_ACTIVE_PLAYBACK_STATES = new Set([
+  "playing",
+  "paused",
+  "buffering",
+  "loading",
+  "2",
+  "3",
+  "5",
+  "6",
+]);
+
+function buildNativeStartupDiagnosticDetails(
+  snapshot: NativeStartupQueueSnapshot
+) {
+  return {
+    queueLength: snapshot?.queueLength ?? 0,
+    activeIndex: snapshot?.activeIndex ?? null,
+    playbackState: snapshot?.playbackState ?? null,
+  };
+}
+
+function isNativeTrackPlayerStartupActive(
+  snapshot: NativeStartupQueueSnapshot
+): boolean {
+  if (!snapshot) return false;
+
+  const hasActiveQueue =
+    snapshot.queueLength > 0 ||
+    (typeof snapshot.activeIndex === "number" && snapshot.activeIndex >= 0);
+
+  if (hasActiveQueue) return true;
+
+  const playbackState = String(snapshot.playbackState ?? "")
+    .trim()
+    .toLowerCase();
+
+  return NATIVE_ACTIVE_PLAYBACK_STATES.has(playbackState);
+}
+
+async function shouldSkipLegacyStartupRestore(): Promise<{
+  skip: boolean;
+  snapshot: NativeStartupQueueSnapshot;
+}> {
+  if (!isTrackPlayerFeatureEnabled() || !supportsNativeTrackPlayer()) {
+    return { skip: false, snapshot: null };
+  }
+
+  try {
+    await ensureTrackPlayerReady();
+    const snapshot = await getTrackPlayerQueueSnapshot();
+
+    return {
+      skip: isNativeTrackPlayerStartupActive(snapshot),
+      snapshot,
+    };
+  } catch {
+    return { skip: false, snapshot: null };
+  }
 }
 
 export function PlayerProvider({ children }: { children: ReactNode }) {
@@ -3469,25 +3538,65 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     isMountedRef.current = true;
 
-    configureAudio("player_mount");
+    let cancelled = false;
+    let cancelRestoreLightTask: () => void = () => {};
+    let cancelRestoreHeavyTask: () => void = () => {};
 
-    const cancelRestoreLightTask = scheduleStartupTask(
-      "background",
-      "player_restore_saved_data_light",
-      async () => {
-        await restoreSavedDataLight();
-      }
-    );
+    void (async () => {
+      const { skip, snapshot } = await shouldSkipLegacyStartupRestore();
 
-    const cancelRestoreHeavyTask = scheduleStartupTask(
-      "deferred",
-      "player_restore_saved_data_heavy",
-      async () => {
-        await restoreSavedDataHeavy();
+      if (cancelled) return;
+
+      const diagnosticDetails = buildNativeStartupDiagnosticDetails(snapshot);
+
+      if (skip) {
+        logPlaybackCritical(
+          "legacy_restore_skipped_native_active",
+          diagnosticDetails
+        );
+        logPlaybackCritical(
+          "legacy_audio_mode_skipped_native_active",
+          diagnosticDetails
+        );
+
+        if (typeof __DEV__ !== "undefined" && __DEV__) {
+          console.log("[startup-ready] legacy-restore-skipped-native-active", {
+            ...diagnosticDetails,
+          });
+        }
+
+        return;
       }
-    );
+
+      logPlaybackCritical("legacy_restore_allowed_native_empty", diagnosticDetails);
+
+      if (typeof __DEV__ !== "undefined" && __DEV__) {
+        console.log("[startup-ready] legacy-restore-allowed-native-empty", {
+          ...diagnosticDetails,
+        });
+      }
+
+      configureAudio("player_mount");
+
+      cancelRestoreLightTask = scheduleStartupTask(
+        "background",
+        "player_restore_saved_data_light",
+        async () => {
+          await restoreSavedDataLight();
+        }
+      );
+
+      cancelRestoreHeavyTask = scheduleStartupTask(
+        "deferred",
+        "player_restore_saved_data_heavy",
+        async () => {
+          await restoreSavedDataHeavy();
+        }
+      );
+    })();
 
     return () => {
+      cancelled = true;
       cancelRestoreLightTask();
       cancelRestoreHeavyTask();
       isMountedRef.current = false;
