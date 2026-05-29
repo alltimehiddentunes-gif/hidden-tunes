@@ -333,6 +333,7 @@ async function configureTrackPlayerOptions(
       Capability.Play,
       Capability.Pause,
       Capability.Stop,
+      Capability.SeekTo,
       Capability.SkipToNext,
       Capability.SkipToPrevious,
     ],
@@ -356,6 +357,7 @@ async function configureTrackPlayerOptions(
         progressUpdateEventInterval: safeInterval,
         appKilled: AppKilledPlaybackBehavior.PausePlayback,
         alwaysPauseOnInterruption: false,
+        supportsSeek: true,
         stopForegroundGracePeriod: ANDROID_STOP_FOREGROUND_GRACE_PERIOD_SECONDS,
       });
       // TEMP_PLAYBACK_DIAGNOSTICS

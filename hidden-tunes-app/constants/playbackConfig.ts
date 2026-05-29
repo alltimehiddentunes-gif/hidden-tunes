@@ -22,7 +22,7 @@ export const USE_NATIVE_TRACK_PLAYER = true;
  * iOS uses expo-av until RNTP lock-screen playback is stable on preview builds.
  * Android keeps USE_NATIVE_TRACK_PLAYER. Set true to re-test RNTP on iOS.
  */
-export const USE_NATIVE_TRACK_PLAYER_ON_IOS = false;
+export const USE_NATIVE_TRACK_PLAYER_ON_IOS = true;
 
 /**
  * Proof-of-concept only: opt iOS into a narrow RNTP playback path.

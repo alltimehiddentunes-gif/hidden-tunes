@@ -2289,7 +2289,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             const progress = await bridgeGetProgress();
             setPositionMillis(progress.positionMillis);
             setDurationMillis(progress.durationMillis);
-            setIsPlaying(progress.isPlaying);
+            setIsPlaying(true);
             await bridgeSetProgressInterval(appStateRef.current);
             void removeStoredValues([POSITION_KEY]);
             setTimeout(() => {
