@@ -53,8 +53,6 @@ class HiddenAudioModule: RCTEventEmitter {
   func setup(resolve: RCTPromiseResolveBlock, rejecter reject: RCTPromiseRejectBlock) {
     do {
       try activateAudioSession()
-      configureRemoteCommands()
-      configureLifecycleObservers()
       resolve(nil)
     } catch {
       emitNativeError(error.localizedDescription)
@@ -120,8 +118,6 @@ class HiddenAudioModule: RCTEventEmitter {
 
     do {
       try activateAudioSession()
-      configureRemoteCommands()
-      configureLifecycleObservers()
     } catch {
       emitNativeError(error.localizedDescription)
       reject("HIDDEN_AUDIO_AUDIO_SESSION_FAILED", error.localizedDescription, error)
@@ -248,12 +244,16 @@ class HiddenAudioModule: RCTEventEmitter {
     ])
 
     try activateAudioSession()
-    configureRemoteCommands()
-    configureLifecycleObservers()
 
     activeTrack = normalizeTrack(track, urlString: urlString)
     cleanupPlayerObservers()
 
+    emitDiagnostic("hidden_audio_native_player_item_create_start", [
+      "trackId": activeTrack?["id"] as? String ?? "",
+      "activeIndex": activeIndex,
+      "urlScheme": url.scheme ?? "",
+      "urlHost": url.host ?? ""
+    ])
     let item = AVPlayerItem(url: url)
     currentItem = item
     currentItemEndedHandled = false
@@ -263,12 +263,22 @@ class HiddenAudioModule: RCTEventEmitter {
     observePlayerItem(item)
     observePlayer()
     updateRemoteCommandAvailability()
-    updateNowPlayingInfo()
-    loadNowPlayingArtworkIfNeeded()
     emitDiagnostic("hidden_audio_native_player_created", [
       "trackId": activeTrack?["id"] as? String ?? "",
       "activeIndex": activeIndex
     ])
+    runNonCriticalSetup("remote_commands_after_player_created") {
+      configureRemoteCommands()
+    }
+    runNonCriticalSetup("lifecycle_observers_after_player_created") {
+      configureLifecycleObservers()
+    }
+    runNonCriticalSetup("now_playing_after_player_created") {
+      updateNowPlayingInfo()
+    }
+    runNonCriticalSetup("artwork_after_player_created") {
+      loadNowPlayingArtworkIfNeeded()
+    }
     emitTrackChanged()
     emitState()
 
@@ -354,16 +364,23 @@ class HiddenAudioModule: RCTEventEmitter {
 
   private func activateAudioSession() throws {
     let session = AVAudioSession.sharedInstance()
-    try session.setCategory(
-      .playback,
-      mode: .default,
-      options: [.allowAirPlay, .allowBluetooth, .allowBluetoothA2DP]
-    )
-    try session.setActive(true)
-    emitDiagnostic("hidden_audio_native_audio_session_active", [
-      "category": session.category.rawValue,
-      "mode": session.mode.rawValue
+    emitDiagnostic("hidden_audio_audio_session_config_start", [
+      "category": "playback",
+      "mode": "default"
     ])
+    do {
+      try session.setCategory(.playback, mode: .default, options: [])
+      try session.setActive(true)
+      emitDiagnostic("hidden_audio_native_audio_session_active", [
+        "category": session.category.rawValue,
+        "mode": session.mode.rawValue
+      ])
+    } catch {
+      emitDiagnostic("hidden_audio_audio_session_config_failed", [
+        "message": error.localizedDescription
+      ])
+      throw error
+    }
   }
 
   private func observePlayerItem(_ item: AVPlayerItem) {
@@ -756,6 +773,17 @@ class HiddenAudioModule: RCTEventEmitter {
         "positionSeconds": progress["positionSeconds"] ?? 0,
         "durationSeconds": progress["durationSeconds"] ?? 0,
         "isPlaying": playerStatus == "playing"
+      ])
+    }
+  }
+
+  private func runNonCriticalSetup(_ name: String, _ work: () throws -> Void) {
+    do {
+      try work()
+    } catch {
+      emitDiagnostic("hidden_audio_noncritical_setup_failed", [
+        "name": name,
+        "message": error.localizedDescription
       ])
     }
   }

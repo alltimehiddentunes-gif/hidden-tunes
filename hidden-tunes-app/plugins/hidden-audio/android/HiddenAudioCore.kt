@@ -66,8 +66,6 @@ object HiddenAudioCore {
           true
         )
         exoPlayer.setWakeMode(C.WAKE_MODE_NETWORK)
-        exoPlayer.setSeekBackIncrementMs(10_000)
-        exoPlayer.setSeekForwardIncrementMs(30_000)
         exoPlayer.addListener(object : Player.Listener {
           override fun onEvents(player: Player, events: Player.Events) {
             if (
