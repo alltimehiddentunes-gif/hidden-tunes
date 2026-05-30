@@ -202,11 +202,34 @@ function patchAndroidManifest(config) {
         "AndroidManifest.xml"
       );
       let contents = fs.readFileSync(manifestPath, "utf8");
+      const permissions = [
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+        "android.permission.POST_NOTIFICATIONS",
+      ];
+      const missingPermissions = permissions.filter(
+        (permission) => !contents.includes(`android:name="${permission}"`)
+      );
+
+      if (missingPermissions.length > 0) {
+        const permissionXml = missingPermissions
+          .map((permission) => `  <uses-permission android:name="${permission}"/>`)
+          .join("\n");
+        contents = contents.replace(
+          /(\s*<application\b)/,
+          `\n${permissionXml}\n$1`
+        );
+      }
 
       if (!contents.includes(".audio.HiddenAudioService")) {
         contents = contents.replace(
           "<activity ",
           '<service android:name=".audio.HiddenAudioService" android:exported="true" android:foregroundServiceType="mediaPlayback">\n      <intent-filter>\n        <action android:name="androidx.media3.session.MediaSessionService"/>\n      </intent-filter>\n    </service>\n    <activity '
+        );
+      } else if (!contents.includes('android:foregroundServiceType="mediaPlayback"')) {
+        contents = contents.replace(
+          /<service android:name="\.audio\.HiddenAudioService"([^>]*)>/,
+          '<service android:name=".audio.HiddenAudioService"$1 android:foregroundServiceType="mediaPlayback">'
         );
       }
 

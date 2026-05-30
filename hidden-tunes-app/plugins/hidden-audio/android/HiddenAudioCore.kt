@@ -1,7 +1,11 @@
 package com.hiddentunes.app.audio
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -23,6 +27,7 @@ import com.facebook.react.modules.core.DeviceEventManagerModule
 
 object HiddenAudioCore {
   private const val LOG_TAG = "HiddenAudio"
+  private const val NOTIFICATION_CHANNEL_ID = "hidden_audio_playback"
   private const val PROGRESS_DIAGNOSTIC_INTERVAL_MS = 15_000L
   private const val ON_EVENTS_DIAGNOSTIC_INTERVAL_MS = 3_000L
 
@@ -56,6 +61,7 @@ object HiddenAudioCore {
 
   private var player: ExoPlayer? = null
   private var mediaSession: MediaSession? = null
+  private var appContext: Context? = null
   private var reactContext: ReactApplicationContext? = null
   private var queue: List<TrackData> = emptyList()
   private var activeIndex = -1
@@ -90,6 +96,9 @@ object HiddenAudioCore {
 
   @androidx.annotation.OptIn(UnstableApi::class)
   fun setup(context: Context) {
+    appContext = context.applicationContext
+    ensureNotificationChannel(context.applicationContext)
+
     if (player == null) {
       player = ExoPlayer.Builder(context.applicationContext).build().also { exoPlayer ->
         progressHandler = Handler(exoPlayer.applicationLooper)
@@ -143,6 +152,9 @@ object HiddenAudioCore {
                 mapOf("trackId" to (activeTrack()?.id ?: ""), "activeIndex" to activeIndex)
               )
               stopProgressPolling()
+              if (!snapshot.hasNext) {
+                stopForegroundService("queue_ended")
+              }
             }
             emitState()
           }
@@ -159,6 +171,7 @@ object HiddenAudioCore {
               )
             )
             if (isPlaying) {
+              requestForegroundServiceStart("is_playing_changed")
               emitDiagnostic(
                 "hidden_audio_native_playing_confirmed",
                 mapOf(
@@ -202,6 +215,7 @@ object HiddenAudioCore {
                 "threadName" to Thread.currentThread().name
               )
             )
+            notifyServiceNotificationUpdated("track_changed")
             emitTrackChanged()
             emitState()
             emitProgress()
@@ -308,6 +322,7 @@ object HiddenAudioCore {
       )
       emitDiagnostic("hidden_audio_android_command_play", commandState(currentPlayer))
       currentPlayer.play()
+      requestForegroundServiceStart("play")
       emitState()
       emitProgress()
     }
@@ -330,6 +345,7 @@ object HiddenAudioCore {
       emitDiagnostic("hidden_audio_android_command_stop", commandState(currentPlayer))
       currentPlayer.stop()
       stopProgressPolling()
+      stopForegroundService("stop")
       emitState()
       emitProgress()
     }
@@ -423,6 +439,38 @@ object HiddenAudioCore {
   fun session(): MediaSession? = mediaSession
 
   fun isPlaying(): Boolean = cachedIsPlaying
+
+  fun notifyServiceNotificationPosted(reason: String) {
+    emitDiagnostic(
+      "hidden_audio_android_notification_posted",
+      mapOf(
+        "reason" to reason,
+        "trackId" to (activeTrack()?.id ?: ""),
+        "activeIndex" to activeIndex,
+        "queueLength" to queue.size
+      )
+    )
+  }
+
+  fun notifyServiceNotificationUpdated(reason: String) {
+    emitDiagnostic(
+      "hidden_audio_android_notification_updated",
+      mapOf(
+        "reason" to reason,
+        "trackId" to (activeTrack()?.id ?: ""),
+        "activeIndex" to activeIndex,
+        "queueLength" to queue.size,
+        "isPlaying" to cachedIsPlaying
+      )
+    )
+  }
+
+  fun notifyServiceNotificationError(stage: String, message: String) {
+    emitDiagnostic(
+      "hidden_audio_android_notification_error",
+      mapOf("stage" to stage, "message" to message)
+    )
+  }
 
   fun emitProgress() {
     val progress = progress()
@@ -582,6 +630,73 @@ object HiddenAudioCore {
 
   private fun stopProgressPolling() {
     progressHandler?.removeCallbacks(progressRunnable)
+  }
+
+  private fun ensureNotificationChannel(context: Context) {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+
+    try {
+      val manager = context.getSystemService(NotificationManager::class.java)
+      val channel = NotificationChannel(
+        NOTIFICATION_CHANNEL_ID,
+        "Hidden Tunes playback",
+        NotificationManager.IMPORTANCE_LOW
+      ).apply {
+        description = "Hidden Tunes audio playback controls"
+        setShowBadge(false)
+      }
+      manager?.createNotificationChannel(channel)
+      emitDiagnostic(
+        "hidden_audio_android_notification_channel_ready",
+        mapOf("channelId" to NOTIFICATION_CHANNEL_ID)
+      )
+    } catch (error: Throwable) {
+      notifyServiceNotificationError(
+        "notification_channel",
+        error.message ?: error.toString()
+      )
+    }
+  }
+
+  private fun requestForegroundServiceStart(reason: String) {
+    val context = appContext ?: return
+
+    try {
+      val intent = Intent(context, HiddenAudioService::class.java)
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        context.startForegroundService(intent)
+      } else {
+        context.startService(intent)
+      }
+      emitDiagnostic(
+        "hidden_audio_android_foreground_service_start_requested",
+        mapOf(
+          "reason" to reason,
+          "trackId" to (activeTrack()?.id ?: ""),
+          "activeIndex" to activeIndex,
+          "queueLength" to queue.size
+        )
+      )
+    } catch (error: Throwable) {
+      notifyServiceNotificationError(
+        "foreground_service_start",
+        error.message ?: error.toString()
+      )
+    }
+  }
+
+  private fun stopForegroundService(reason: String) {
+    val context = appContext ?: return
+
+    try {
+      context.stopService(Intent(context, HiddenAudioService::class.java))
+      notifyServiceNotificationUpdated(reason)
+    } catch (error: Throwable) {
+      notifyServiceNotificationError(
+        "foreground_service_stop",
+        error.message ?: error.toString()
+      )
+    }
   }
 
   private fun runOnPlayerThread(actionName: String, action: () -> Unit) {
