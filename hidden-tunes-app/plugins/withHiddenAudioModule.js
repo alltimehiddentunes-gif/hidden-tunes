@@ -12,6 +12,7 @@ const ANDROID_FILES = [
   "HiddenAudioModule.kt",
   "HiddenAudioPackage.kt",
   "HiddenAudioService.kt",
+  "HiddenAudioBrowserService.kt",
 ];
 
 function copyIosHiddenAudioFiles(config) {
@@ -123,6 +124,21 @@ function copyAndroidHiddenAudioFiles(config) {
           path.join(packageDir, fileName)
         );
       });
+
+      const xmlSourceDir = path.join(sourceDir, "res", "xml");
+      const xmlTargetDir = path.join(
+        modConfig.modRequest.platformProjectRoot,
+        "app",
+        "src",
+        "main",
+        "res",
+        "xml"
+      );
+      fs.mkdirSync(xmlTargetDir, { recursive: true });
+      fs.copyFileSync(
+        path.join(xmlSourceDir, "hidden_audio_auto.xml"),
+        path.join(xmlTargetDir, "hidden_audio_auto.xml")
+      );
 
       return modConfig;
     },
@@ -254,6 +270,26 @@ function patchAndroidManifest(config) {
         /<service android:name="\.audio\.HiddenAudioService"([^>]*)android:exported="true"/,
         '<service android:name=".audio.HiddenAudioService"$1android:exported="false"'
       );
+
+      if (!contents.includes(".audio.HiddenAudioBrowserService")) {
+        const browserService = [
+          '<service',
+          '      android:name=".audio.HiddenAudioBrowserService"',
+          '      android:exported="true"',
+          '      android:permission="android.permission.BIND_MEDIA_BROWSER_SERVICE">',
+          '      <intent-filter>',
+          '        <action android:name="android.media.browse.MediaBrowserService" />',
+          '      </intent-filter>',
+          '      <meta-data',
+          '        android:name="android.media.browse"',
+          '        android:resource="@xml/hidden_audio_auto" />',
+          '    </service>',
+        ].join("\n");
+        contents = contents.replace(
+          '<service android:name=".audio.HiddenAudioService"',
+          `${browserService}\n    <service android:name=".audio.HiddenAudioService"`
+        );
+      }
 
       fs.writeFileSync(manifestPath, contents);
       return modConfig;

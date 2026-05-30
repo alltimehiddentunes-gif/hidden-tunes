@@ -18,7 +18,6 @@ import android.support.v4.media.session.PlaybackStateCompat
 import androidx.core.app.NotificationCompat
 
 class HiddenAudioService : Service() {
-  private var mediaSessionCompat: MediaSessionCompat? = null
   private var foregroundStarted = false
 
   override fun onCreate() {
@@ -66,9 +65,10 @@ class HiddenAudioService : Service() {
     if (currentService === this) {
       currentService = null
     }
-    mediaSessionCompat?.isActive = false
-    mediaSessionCompat?.release()
-    mediaSessionCompat = null
+    if (::mediaSession.isInitialized) {
+      mediaSession.isActive = false
+      mediaSession.release()
+    }
     super.onDestroy()
   }
 
@@ -111,9 +111,13 @@ class HiddenAudioService : Service() {
   }
 
   private fun ensureMediaSession(): MediaSessionCompat {
-    mediaSessionCompat?.let { return it }
+    if (::mediaSession.isInitialized) return mediaSession
 
     return MediaSessionCompat(this, "HiddenAudio").apply {
+      setFlags(
+        MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS or
+          MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS
+      )
       setCallback(object : MediaSessionCompat.Callback() {
         override fun onPlay() {
           HiddenAudioCore.play()
@@ -140,7 +144,7 @@ class HiddenAudioService : Service() {
         }
       })
       isActive = true
-      mediaSessionCompat = this
+      HiddenAudioService.mediaSession = this
     }
   }
 
@@ -259,7 +263,10 @@ class HiddenAudioService : Service() {
   }
 
   private fun appLaunchIntent(): PendingIntent? {
-    val launchIntent = packageManager.getLaunchIntentForPackage(packageName) ?: return null
+    val launchIntent = Intent(Intent.ACTION_VIEW, Uri.parse("hiddentunes://player")).apply {
+      setPackage(packageName)
+      addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+    }
     val flags = PendingIntent.FLAG_UPDATE_CURRENT or
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0
     return PendingIntent.getActivity(this, 10, launchIntent, flags)
@@ -289,6 +296,9 @@ class HiddenAudioService : Service() {
   }
 
   companion object {
+    @JvmStatic
+    lateinit var mediaSession: MediaSessionCompat
+
     const val NOTIFICATION_ID = 4739
     const val NOTIFICATION_CHANNEL_ID = "hidden_audio_playback"
     const val ACTION_START_FOREGROUND = "com.hiddentunes.app.audio.START_FOREGROUND"
