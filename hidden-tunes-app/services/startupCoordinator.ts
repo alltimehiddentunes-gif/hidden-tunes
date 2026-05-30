@@ -7,7 +7,6 @@ import { scheduleStartupTask } from "../utils/startupScheduler";
 import { getNowPlayingSnapshot } from "../utils/nowPlayingStore";
 import { logPlaybackDiagnostic } from "./playbackDiagnostics"; // TEMP_PLAYBACK_DIAGNOSTICS
 import { hydrateHiddenTunesCatalogCache } from "./hiddenTunesApi";
-import { prewarmTrackPlayerForStartup } from "./playbackBridge";
 import { ensureCatalogViewPersistenceHydrated } from "./unifiedCatalog";
 
 let tabShellStartupStarted = false;
@@ -18,10 +17,6 @@ export function runTabShellStartup() {
 
   scheduleStartupTask("afterPaint", "catalog_memory_hydrate", async () => {
     await hydrateHiddenTunesCatalogCache();
-  });
-
-  scheduleStartupTask("afterPaint", "rntp_prewarm", async () => {
-    await prewarmTrackPlayerForStartup();
   });
 
   scheduleStartupTask("afterInteraction", "catalog_persistence_hydrate", async () => {

@@ -13,7 +13,6 @@ const LOG_TAG = "[HiddenTunes:runtime]";
 
 const SUMMARY_INTERVAL_MS = 60_000;
 const JS_STALL_THRESHOLD_MS = 100;
-const DUPLICATE_WINDOW_MS = 8_000;
 
 type CounterBucket = {
   total: number;
@@ -28,13 +27,7 @@ type ListenerRecord = {
 };
 
 const counters = {
-  configureTrackPlayerOptions: createBucket(),
-  updateTrackPlayerProgressInterval: createBucket(),
-  bridgeSetProgressInterval: createBucket(),
-  configureAudio: createBucket(),
   applyProgressUpdateInterval: createBucket(),
-  playbackProgressNative: createBucket(),
-  playbackProgressExpo: createBucket(),
   playbackReactStateUpdates: createBucket(),
   playbackStatusSpam: createBucket(),
   appStateTransitions: createBucket(),
@@ -50,10 +43,6 @@ const listenerRegistry = new Map<string, ListenerRecord>();
 const activeTimers = new Map<string, number>();
 const prefetchUrlCounts = new Map<string, number>();
 
-let lastConfigureOptionsKey = "";
-let lastConfigureOptionsAt = 0;
-let duplicateConfigureOptions = 0;
-
 let lastAppStateKey = "";
 let lastAppStateAt = 0;
 
@@ -61,8 +50,6 @@ let summaryIntervalId: ReturnType<typeof setInterval> | null = null;
 let jsMonitorFrameId: number | null = null;
 let jsMonitorLastFrameAt = 0;
 let instrumentationStarted = false;
-let bridgeSubscriptionCount = 0;
-let remoteHandlerAttachCount = 0;
 
 function createBucket(): CounterBucket {
   return { total: 0, windowStart: Date.now(), windowCount: 0 };
@@ -105,62 +92,9 @@ function getScreenRenderTotals() {
   return { rerenderCounts, total };
 }
 
-export function recordConfigureTrackPlayerOptions(
-  intervalSeconds: number,
-  reason: string
-) {
-  if (!isRuntimeInstrumentationEnabled()) return;
-
-  bump(counters.configureTrackPlayerOptions);
-  const key = `${intervalSeconds}:${reason}`;
-  const now = Date.now();
-
-  if (key === lastConfigureOptionsKey && now - lastConfigureOptionsAt < DUPLICATE_WINDOW_MS) {
-    duplicateConfigureOptions += 1;
-    logWarn("duplicate_configure_track_player_options", {
-      intervalSeconds,
-      reason,
-      duplicateConfigureOptions,
-      msSinceLast: now - lastConfigureOptionsAt,
-    });
-  }
-
-  lastConfigureOptionsKey = key;
-  lastConfigureOptionsAt = now;
-
-  logEvent("configure_track_player_options", { intervalSeconds, reason });
-}
-
-export function recordUpdateTrackPlayerProgressInterval(
-  intervalSeconds: number,
-  reason: string
-) {
-  if (!isRuntimeInstrumentationEnabled()) return;
-
-  bump(counters.updateTrackPlayerProgressInterval);
-  logEvent("update_track_player_progress_interval", { intervalSeconds, reason });
-}
-
-export function recordBridgeSetProgressInterval(
-  appState: AppStateStatus,
-  intervalSeconds: number
-) {
-  if (!isRuntimeInstrumentationEnabled()) return;
-
-  bump(counters.bridgeSetProgressInterval);
-  logEvent("bridge_set_progress_interval", { appState, intervalSeconds });
-}
-
 export function recordBackgroundChurnSkipped(reason: string) {
   if (!isRuntimeInstrumentationEnabled()) return;
   logEvent("background_churn_skipped", { reason, appState: AppState.currentState });
-}
-
-export function recordConfigureAudioCall(reason: string) {
-  if (!isRuntimeInstrumentationEnabled()) return;
-
-  bump(counters.configureAudio);
-  logEvent("configure_audio", { reason, appState: AppState.currentState });
 }
 
 export function recordApplyProgressUpdateIntervalCall(reason: string) {
@@ -193,28 +127,6 @@ export function recordAppStateTransition(
   lastAppStateAt = now;
 
   logEvent("app_state_transition", { previousState, nextState });
-}
-
-export function recordPlaybackProgressUpdate(
-  engine: "track_player" | "expo_av",
-  appState: AppStateStatus
-) {
-  if (!isRuntimeInstrumentationEnabled()) return;
-
-  const bucket =
-    engine === "track_player"
-      ? counters.playbackProgressNative
-      : counters.playbackProgressExpo;
-
-  bump(bucket);
-
-  if (appState !== "active") {
-    logEvent("playback_progress_while_not_active", {
-      engine,
-      appState,
-      perMinute: perMinute(bucket),
-    });
-  }
 }
 
 export function recordPlaybackReactStateUpdate(kind: string) {
@@ -256,35 +168,6 @@ export function recordListenerUnregister(type: string, instanceId: string) {
     type,
     instanceId,
     activeListeners: listenerRegistry.size,
-  });
-}
-
-export function recordBridgeSubscriptionCreated() {
-  if (!isRuntimeInstrumentationEnabled()) return;
-
-  bridgeSubscriptionCount += 1;
-  logEvent("bridge_subscription_created", {
-    bridgeSubscriptionCount,
-  });
-}
-
-export function recordBridgeSubscriptionDisposed() {
-  if (!isRuntimeInstrumentationEnabled()) return;
-
-  bridgeSubscriptionCount = Math.max(0, bridgeSubscriptionCount - 1);
-  logEvent("bridge_subscription_disposed", {
-    bridgeSubscriptionCount,
-  });
-}
-
-export function recordRemoteHandlersAttached(context: string, count: number) {
-  if (!isRuntimeInstrumentationEnabled()) return;
-
-  remoteHandlerAttachCount += 1;
-  logEvent("remote_handlers_attached", {
-    context,
-    handlerCount: count,
-    attachGenerations: remoteHandlerAttachCount,
   });
 }
 
@@ -383,24 +266,10 @@ function printRuntimeSummary() {
   console.log(LOG_TAG, "summary_60s", {
     at: Date.now(),
     appState: AppState.currentState,
-    updateOptions: {
-      total: counters.configureTrackPlayerOptions.total,
-      perMin: perMinute(counters.configureTrackPlayerOptions),
-      duplicateSameValue: duplicateConfigureOptions,
-    },
     progressInterval: {
-      updateTrackPlayerProgressInterval: perMinute(
-        counters.updateTrackPlayerProgressInterval
-      ),
-      bridgeSetProgressInterval: perMinute(counters.bridgeSetProgressInterval),
       applyProgressUpdateInterval: perMinute(counters.applyProgressUpdateInterval),
     },
-    audioSession: {
-      configureAudioPerMin: perMinute(counters.configureAudio),
-    },
     playback: {
-      progressNativePerMin: perMinute(counters.playbackProgressNative),
-      progressExpoPerMin: perMinute(counters.playbackProgressExpo),
       reactStateUpdatesPerMin: perMinute(counters.playbackReactStateUpdates),
       statusSpamPerMin: perMinute(counters.playbackStatusSpam),
     },
@@ -411,8 +280,6 @@ function printRuntimeSummary() {
     listeners: {
       active: listenerRegistry.size,
       byType: listenerTypes,
-      bridgeSubscriptions: bridgeSubscriptionCount,
-      remoteHandlerAttachGenerations: remoteHandlerAttachCount,
     },
     renders: {
       perMinTotal: rerendersWindow,

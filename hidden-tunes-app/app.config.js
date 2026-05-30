@@ -34,12 +34,16 @@ module.exports = ({ config }) => {
   });
 
   const plugins = hasSplashPlugin ? basePlugins : [...basePlugins, splashPlugin];
+  const pluginsWithHiddenAudio = [
+    ...plugins,
+    require("./plugins/withHiddenAudioModule"),
+  ];
 
   return {
     ...appJson.expo,
     name: "Hidden Tunes",
     ...config,
-    plugins,
+    plugins: pluginsWithHiddenAudio,
     ios: {
       ...appJson.expo.ios,
       ...config.ios,

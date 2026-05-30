@@ -50,14 +50,7 @@
     },
     "plugins": [
       "expo-dev-client",
-      "expo-router",
-      [
-        "expo-media-control",
-        {
-          "enableBackgroundAudio": true,
-          "audioSessionCategory": "playback"
-        }
-      ]
+      "expo-router"
     ],
     "experiments": {
       "typedRoutes": true

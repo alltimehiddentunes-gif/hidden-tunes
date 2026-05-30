@@ -16,15 +16,6 @@
     },
     "android": {
       "package": "com.hiddentunes.app"
-    },
-    "plugins": [
-      [
-        "expo-media-control",
-        {
-          "enableBackgroundAudio": true,
-          "audioSessionCategory": "playback"
-        }
-      ]
-    ]
+    }
   }
 }
