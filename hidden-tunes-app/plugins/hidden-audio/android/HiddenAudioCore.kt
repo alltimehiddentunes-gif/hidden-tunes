@@ -35,6 +35,24 @@ object HiddenAudioCore {
     val durationSeconds: Double?
   )
 
+  private data class ProgressSnapshot(
+    val positionMs: Long,
+    val durationMs: Long,
+    val bufferedMs: Long
+  )
+
+  private data class PlayerSnapshot(
+    val isPlaying: Boolean,
+    val playWhenReady: Boolean,
+    val playbackState: Int,
+    val currentMediaItemIndex: Int,
+    val durationMs: Long?,
+    val positionMs: Long,
+    val bufferedMs: Long,
+    val hasNext: Boolean,
+    val hasPrevious: Boolean
+  )
+
   private var player: ExoPlayer? = null
   private var mediaSession: MediaSession? = null
   private var reactContext: ReactApplicationContext? = null
@@ -42,11 +60,24 @@ object HiddenAudioCore {
   private var activeIndex = -1
   private var endedEmittedForIndex = -1
   private var lastProgressDiagnosticAt = 0L
-  private val progressHandler = Handler(Looper.getMainLooper())
+  @Volatile private var cachedIsPlaying = false
+  @Volatile private var cachedProgress = ProgressSnapshot(0L, 0L, 0L)
+  @Volatile private var cachedPlayerSnapshot = PlayerSnapshot(
+    isPlaying = false,
+    playWhenReady = false,
+    playbackState = Player.STATE_IDLE,
+    currentMediaItemIndex = -1,
+    durationMs = null,
+    positionMs = 0L,
+    bufferedMs = 0L,
+    hasNext = false,
+    hasPrevious = false
+  )
+  private var progressHandler: Handler? = null
   private val progressRunnable = object : Runnable {
     override fun run() {
       emitProgress()
-      progressHandler.postDelayed(this, 1000)
+      progressHandler?.postDelayed(this, 1000)
     }
   }
 
@@ -58,6 +89,7 @@ object HiddenAudioCore {
   fun setup(context: Context) {
     if (player == null) {
       player = ExoPlayer.Builder(context.applicationContext).build().also { exoPlayer ->
+        progressHandler = Handler(exoPlayer.applicationLooper)
         exoPlayer.setAudioAttributes(
           AudioAttributes.Builder()
             .setUsage(C.USAGE_MEDIA)
@@ -68,22 +100,21 @@ object HiddenAudioCore {
         exoPlayer.setWakeMode(C.WAKE_MODE_NETWORK)
         exoPlayer.addListener(object : Player.Listener {
           override fun onEvents(player: Player, events: Player.Events) {
+            val snapshot = capturePlayerSnapshot(player)
             if (
               events.contains(Player.EVENT_PLAY_WHEN_READY_CHANGED) ||
               events.contains(Player.EVENT_PLAYBACK_STATE_CHANGED) ||
               events.contains(Player.EVENT_MEDIA_ITEM_TRANSITION) ||
-              events.contains(Player.EVENT_POSITION_DISCONTINUITY)
+              events.contains(Player.EVENT_POSITION_DISCONTINUITY) ||
+              events.contains(Player.EVENT_IS_LOADING_CHANGED)
             ) {
               emitDiagnostic(
-                "hidden_audio_android_media_session_state_synced",
-                mapOf(
-                  "isPlaying" to player.isPlaying,
-                  "playWhenReady" to player.playWhenReady,
-                  "playbackState" to player.playbackState,
-                  "activeIndex" to player.currentMediaItemIndex,
-                  "hasNext" to player.hasNextMediaItem(),
-                  "hasPrevious" to hasPreviousTrack(player)
-                )
+                "hidden_audio_android_on_events",
+                snapshot.toDiagnosticMap(
+                  "trackId" to (activeTrack()?.id ?: ""),
+                  "activeIndex" to activeIndex,
+                  "threadName" to Thread.currentThread().name
+                ) + mapOf("events" to events.toString())
               )
               emitState()
               emitProgress()
@@ -91,32 +122,55 @@ object HiddenAudioCore {
           }
 
           override fun onPlaybackStateChanged(playbackState: Int) {
+            val snapshot = capturePlayerSnapshot(exoPlayer)
+            emitDiagnostic(
+              "hidden_audio_android_playback_state_changed",
+              snapshot.toDiagnosticMap(
+                "trackId" to (activeTrack()?.id ?: ""),
+                "activeIndex" to activeIndex,
+                "threadName" to Thread.currentThread().name
+              )
+            )
             if (playbackState == Player.STATE_ENDED && endedEmittedForIndex != activeIndex) {
               endedEmittedForIndex = activeIndex
               emitDiagnostic(
                 "hidden_audio_native_track_ended",
                 mapOf("trackId" to (activeTrack()?.id ?: ""), "activeIndex" to activeIndex)
               )
-              progressHandler.removeCallbacks(progressRunnable)
+              stopProgressPolling()
             }
             emitState()
           }
 
           override fun onIsPlayingChanged(isPlaying: Boolean) {
+            val snapshot = capturePlayerSnapshot(exoPlayer)
+            cachedIsPlaying = isPlaying
+            emitDiagnostic(
+              "hidden_audio_android_is_playing_changed",
+              snapshot.toDiagnosticMap(
+                "trackId" to (activeTrack()?.id ?: ""),
+                "activeIndex" to activeIndex,
+                "threadName" to Thread.currentThread().name
+              )
+            )
             if (isPlaying) {
               emitDiagnostic(
                 "hidden_audio_native_playing_confirmed",
-                mapOf("trackId" to (activeTrack()?.id ?: ""), "activeIndex" to activeIndex)
+                mapOf(
+                  "trackId" to (activeTrack()?.id ?: ""),
+                  "activeIndex" to activeIndex,
+                  "threadName" to Thread.currentThread().name
+                )
               )
-              progressHandler.removeCallbacks(progressRunnable)
-              progressHandler.post(progressRunnable)
+              startProgressPolling()
             } else {
-              progressHandler.removeCallbacks(progressRunnable)
+              stopProgressPolling()
             }
             emitState()
           }
 
           override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+            val snapshot = capturePlayerSnapshot(exoPlayer)
             val previousIndex = activeIndex
             if (
               reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO &&
@@ -136,7 +190,12 @@ object HiddenAudioCore {
             endedEmittedForIndex = -1
             emitDiagnostic(
               "hidden_audio_native_track_changed",
-              mapOf("trackId" to (activeTrack()?.id ?: ""), "activeIndex" to activeIndex)
+              snapshot.toDiagnosticMap(
+                "trackId" to (activeTrack()?.id ?: ""),
+                "activeIndex" to activeIndex,
+                "reason" to reason,
+                "threadName" to Thread.currentThread().name
+              )
             )
             emitTrackChanged()
             emitState()
@@ -144,6 +203,17 @@ object HiddenAudioCore {
           }
 
           override fun onPlayerError(error: PlaybackException) {
+            val snapshot = capturePlayerSnapshot(exoPlayer)
+            emitDiagnostic(
+              "hidden_audio_android_player_error",
+              snapshot.toDiagnosticMap(
+                "trackId" to (activeTrack()?.id ?: ""),
+                "activeIndex" to activeIndex,
+                "errorCode" to error.errorCode,
+                "message" to (error.message ?: "ExoPlayer playback failed"),
+                "threadName" to Thread.currentThread().name
+              )
+            )
             emitError(error.message ?: "ExoPlayer playback failed")
           }
         })
@@ -182,117 +252,141 @@ object HiddenAudioCore {
 
     val mediaItems = tracks.map { it.toMediaItem() }
     val currentTrack = tracks[safeIndex]
-    emitDiagnostic(
-      "hidden_audio_native_load_start",
-      mapOf("trackId" to currentTrack.id, "activeIndex" to safeIndex)
+    cachedProgress = ProgressSnapshot(
+      positionMs = 0L,
+      durationMs = ((currentTrack.durationSeconds ?: 0.0) * 1000).toLong(),
+      bufferedMs = 0L
     )
-    player?.setMediaItems(mediaItems, safeIndex, 0L)
-    player?.prepare()
-    emitDiagnostic(
-      "hidden_audio_android_notification_queue_ready",
-      mapOf(
-        "trackCount" to tracks.size,
-        "activeIndex" to safeIndex,
-        "hasNext" to (safeIndex + 1 < tracks.size),
-        "hasPrevious" to (safeIndex > 0)
+
+    runOnPlayerThread("loadQueue") {
+      val currentPlayer = player ?: return@runOnPlayerThread
+      emitDiagnostic(
+        "hidden_audio_native_load_start",
+        commandState(currentPlayer) + mapOf("trackId" to currentTrack.id, "activeIndex" to safeIndex)
       )
-    )
-    emitDiagnostic(
-      "hidden_audio_native_queue_loaded",
-      mapOf("trackCount" to tracks.size, "activeIndex" to safeIndex)
-    )
-    emitDiagnostic(
-      "hidden_audio_native_player_created",
-      mapOf("trackId" to currentTrack.id, "activeIndex" to safeIndex)
-    )
-    emitTrackChanged()
-    emitState()
-    emitProgress()
+      currentPlayer.setMediaItems(mediaItems, safeIndex, 0L)
+      currentPlayer.prepare()
+      emitDiagnostic(
+        "hidden_audio_android_notification_queue_ready",
+        commandState(currentPlayer) + mapOf(
+          "trackCount" to tracks.size,
+          "activeIndex" to safeIndex,
+          "hasNext" to (safeIndex + 1 < tracks.size),
+          "hasPrevious" to (safeIndex > 0)
+        )
+      )
+      emitDiagnostic(
+        "hidden_audio_native_queue_loaded",
+        commandState(currentPlayer) + mapOf("trackCount" to tracks.size, "activeIndex" to safeIndex)
+      )
+      emitDiagnostic(
+        "hidden_audio_native_player_created",
+        commandState(currentPlayer) + mapOf("trackId" to currentTrack.id, "activeIndex" to safeIndex)
+      )
+      emitTrackChanged()
+      emitState()
+      emitProgress()
+    }
   }
 
   fun play() {
-    val currentPlayer = player ?: throw IllegalStateException("No player is loaded")
-    emitDiagnostic(
-      "hidden_audio_native_audio_session_active",
-      mapOf("platform" to "android")
-    )
-    emitDiagnostic(
-      "hidden_audio_native_play_requested",
-      mapOf("trackId" to (activeTrack()?.id ?: ""), "activeIndex" to activeIndex)
-    )
-    emitDiagnostic("hidden_audio_android_command_play", commandState(currentPlayer))
-    currentPlayer.play()
-    emitState()
-    emitProgress()
-  }
-
-  fun pause() {
-    val currentPlayer = player ?: return
-    emitDiagnostic("hidden_audio_android_command_pause", commandState(currentPlayer))
-    currentPlayer.pause()
-    progressHandler.removeCallbacks(progressRunnable)
-    emitState()
-    emitProgress()
-  }
-
-  fun stop() {
-    val currentPlayer = player ?: return
-    emitDiagnostic("hidden_audio_android_command_stop", commandState(currentPlayer))
-    currentPlayer.stop()
-    progressHandler.removeCallbacks(progressRunnable)
-    emitState()
-    emitProgress()
-  }
-
-  fun seekTo(seconds: Double) {
-    val currentPlayer = player ?: return
-    emitDiagnostic(
-      "hidden_audio_android_command_seek",
-      commandState(currentPlayer) + mapOf("targetSeconds" to seconds)
-    )
-    currentPlayer.seekTo((seconds * 1000).toLong().coerceAtLeast(0))
-    emitProgress()
-    emitState()
-  }
-
-  fun next() {
-    val currentPlayer = player ?: return
-    emitDiagnostic("hidden_audio_android_command_next", commandState(currentPlayer))
-    if (currentPlayer.hasNextMediaItem()) {
-      currentPlayer.seekToNextMediaItem()
+    if (player == null) throw IllegalStateException("No player is loaded")
+    runOnPlayerThread("play") {
+      val currentPlayer = player ?: return@runOnPlayerThread
+      emitDiagnostic(
+        "hidden_audio_native_audio_session_active",
+        mapOf("platform" to "android", "threadName" to Thread.currentThread().name)
+      )
+      emitDiagnostic(
+        "hidden_audio_native_play_requested",
+        commandState(currentPlayer) + mapOf("trackId" to (activeTrack()?.id ?: ""), "activeIndex" to activeIndex)
+      )
+      emitDiagnostic("hidden_audio_android_command_play", commandState(currentPlayer))
       currentPlayer.play()
       emitState()
       emitProgress()
-    } else {
+    }
+  }
+
+  fun pause() {
+    runOnPlayerThread("pause") {
+      val currentPlayer = player ?: return@runOnPlayerThread
+      emitDiagnostic("hidden_audio_android_command_pause", commandState(currentPlayer))
+      currentPlayer.pause()
+      stopProgressPolling()
+      emitState()
+      emitProgress()
+    }
+  }
+
+  fun stop() {
+    runOnPlayerThread("stop") {
+      val currentPlayer = player ?: return@runOnPlayerThread
+      emitDiagnostic("hidden_audio_android_command_stop", commandState(currentPlayer))
+      currentPlayer.stop()
+      stopProgressPolling()
+      emitState()
+      emitProgress()
+    }
+  }
+
+  fun seekTo(seconds: Double) {
+    runOnPlayerThread("seekTo") {
+      val currentPlayer = player ?: return@runOnPlayerThread
       emitDiagnostic(
-        "hidden_audio_android_command_unavailable",
-        commandState(currentPlayer) + mapOf("command" to "next", "reason" to "no_next_track")
+        "hidden_audio_android_command_seek",
+        commandState(currentPlayer) + mapOf("targetSeconds" to seconds)
       )
+      currentPlayer.seekTo((seconds * 1000).toLong().coerceAtLeast(0))
+      emitProgress()
+      emitState()
+    }
+  }
+
+  fun next() {
+    runOnPlayerThread("next") {
+      val currentPlayer = player ?: return@runOnPlayerThread
+      val snapshot = capturePlayerSnapshot(currentPlayer)
+      emitDiagnostic("hidden_audio_android_command_next", commandState(currentPlayer))
+      if (snapshot.hasNext) {
+        currentPlayer.seekToNextMediaItem()
+        currentPlayer.play()
+        emitState()
+        emitProgress()
+      } else {
+        emitDiagnostic(
+          "hidden_audio_android_command_unavailable",
+          commandState(currentPlayer) + mapOf("command" to "next", "reason" to "no_next_track")
+        )
+      }
     }
   }
 
   fun previous() {
-    val currentPlayer = player ?: return
-    emitDiagnostic("hidden_audio_android_command_previous", commandState(currentPlayer))
-    if (currentPlayer.currentPosition > 3000 || !currentPlayer.hasPreviousMediaItem()) {
-      currentPlayer.seekTo(0)
-    } else {
-      currentPlayer.seekToPreviousMediaItem()
+    runOnPlayerThread("previous") {
+      val currentPlayer = player ?: return@runOnPlayerThread
+      val snapshot = capturePlayerSnapshot(currentPlayer)
+      emitDiagnostic("hidden_audio_android_command_previous", commandState(currentPlayer))
+      if (snapshot.positionMs > 3000 || !currentPlayer.hasPreviousMediaItem()) {
+        currentPlayer.seekTo(0)
+      } else {
+        currentPlayer.seekToPreviousMediaItem()
+      }
+      currentPlayer.play()
+      emitState()
+      emitProgress()
     }
-    currentPlayer.play()
-    emitState()
-    emitProgress()
   }
 
   fun state(): WritableMap {
-    val currentPlayer = player
+    val snapshot = playerSnapshot()
     val status = when {
-      currentPlayer == null -> "idle"
-      currentPlayer.isPlaying -> "playing"
-      currentPlayer.playbackState == Player.STATE_BUFFERING -> "buffering"
-      currentPlayer.playbackState == Player.STATE_READY -> "ready"
-      currentPlayer.playbackState == Player.STATE_ENDED -> "ended"
-      currentPlayer.playbackState == Player.STATE_IDLE && activeTrack() == null -> "idle"
+      player == null -> "idle"
+      snapshot.isPlaying -> "playing"
+      snapshot.playbackState == Player.STATE_BUFFERING -> "buffering"
+      snapshot.playbackState == Player.STATE_READY -> "ready"
+      snapshot.playbackState == Player.STATE_ENDED -> "ended"
+      snapshot.playbackState == Player.STATE_IDLE && activeTrack() == null -> "idle"
       else -> "paused"
     }
 
@@ -310,18 +404,12 @@ object HiddenAudioCore {
   }
 
   fun progress(): WritableMap {
-    val currentPlayer = player
-    val activeTrackDurationMs = ((activeTrack()?.durationSeconds ?: 0.0) * 1000).toLong()
-    val durationMs = currentPlayer?.duration
-      ?.takeIf { it != C.TIME_UNSET && it > 0 }
-      ?: activeTrackDurationMs
-    val bufferedMs = currentPlayer?.bufferedPosition ?: 0L
-    val positionMs = currentPlayer?.currentPosition ?: 0L
+    val snapshot = progressSnapshot()
 
     return Arguments.createMap().apply {
-      putDouble("positionSeconds", positionMs / 1000.0)
-      putDouble("durationSeconds", durationMs / 1000.0)
-      putDouble("bufferedSeconds", bufferedMs / 1000.0)
+      putDouble("positionSeconds", snapshot.positionMs / 1000.0)
+      putDouble("durationSeconds", snapshot.durationMs / 1000.0)
+      putDouble("bufferedSeconds", snapshot.bufferedMs / 1000.0)
     }
   }
 
@@ -329,7 +417,7 @@ object HiddenAudioCore {
 
   fun session(): MediaSession? = mediaSession
 
-  fun isPlaying(): Boolean = player?.isPlaying == true
+  fun isPlaying(): Boolean = cachedIsPlaying
 
   fun emitProgress() {
     val progress = progress()
@@ -341,18 +429,18 @@ object HiddenAudioCore {
     val now = System.currentTimeMillis()
     if (now - lastProgressDiagnosticAt >= PROGRESS_DIAGNOSTIC_INTERVAL_MS) {
       lastProgressDiagnosticAt = now
-      val currentPlayer = player
-      val activeTrackDurationMs = ((activeTrack()?.durationSeconds ?: 0.0) * 1000).toLong()
-      val durationMs = currentPlayer?.duration
-        ?.takeIf { it != C.TIME_UNSET && it > 0 }
-        ?: activeTrackDurationMs
-      val positionMs = currentPlayer?.currentPosition ?: 0L
+      val snapshot = progressSnapshot()
+      emitDiagnostic(
+        "hidden_audio_android_progress_poll_thread",
+        mapOf("threadName" to Thread.currentThread().name)
+      )
       emitDiagnostic(
         "hidden_audio_native_progress",
         mapOf(
-          "positionSeconds" to positionMs / 1000.0,
-          "durationSeconds" to durationMs / 1000.0,
-          "activeIndex" to activeIndex
+          "positionSeconds" to snapshot.positionMs / 1000.0,
+          "durationSeconds" to snapshot.durationMs / 1000.0,
+          "activeIndex" to activeIndex,
+          "threadName" to Thread.currentThread().name
         )
       )
     }
@@ -403,22 +491,131 @@ object HiddenAudioCore {
 
   private fun activeTrack(): TrackData? = queue.getOrNull(activeIndex)
 
-  private fun hasPreviousTrack(currentPlayer: Player): Boolean =
-    currentPlayer.hasPreviousMediaItem() || currentPlayer.currentPosition > 3000
+  private fun isOnPlayerThread(): Boolean =
+    progressHandler?.looper != null && Looper.myLooper() == progressHandler?.looper
 
-  private fun commandState(currentPlayer: Player): Map<String, Any?> =
+  private fun playerSnapshot(): PlayerSnapshot {
+    val currentPlayer = player
+    return if (currentPlayer != null && isOnPlayerThread()) {
+      capturePlayerSnapshot(currentPlayer)
+    } else {
+      cachedPlayerSnapshot
+    }
+  }
+
+  private fun capturePlayerSnapshot(currentPlayer: Player): PlayerSnapshot {
+    val durationMs = currentPlayer.duration.takeIf { it != C.TIME_UNSET && it > 0 }
+    val snapshot = PlayerSnapshot(
+      isPlaying = currentPlayer.isPlaying,
+      playWhenReady = currentPlayer.playWhenReady,
+      playbackState = currentPlayer.playbackState,
+      currentMediaItemIndex = currentPlayer.currentMediaItemIndex,
+      durationMs = durationMs,
+      positionMs = currentPlayer.currentPosition,
+      bufferedMs = currentPlayer.bufferedPosition,
+      hasNext = currentPlayer.hasNextMediaItem(),
+      hasPrevious = currentPlayer.hasPreviousMediaItem() || currentPlayer.currentPosition > 3000
+    )
+    cachedIsPlaying = snapshot.isPlaying
+    cachedPlayerSnapshot = snapshot
+    cachedProgress = ProgressSnapshot(
+      positionMs = snapshot.positionMs,
+      durationMs = snapshot.durationMs
+        ?: ((activeTrack()?.durationSeconds ?: 0.0) * 1000).toLong(),
+      bufferedMs = snapshot.bufferedMs
+    )
+    return snapshot
+  }
+
+  private fun PlayerSnapshot.toDiagnosticMap(
+    vararg extras: Pair<String, Any?>
+  ): Map<String, Any?> =
     mapOf(
+      "isPlaying" to isPlaying,
+      "playWhenReady" to playWhenReady,
+      "playbackState" to playbackState,
+      "currentMediaItemIndex" to currentMediaItemIndex,
+      "durationMs" to durationMs,
+      "positionMs" to positionMs,
+      "bufferedPosition" to bufferedMs,
+      "hasNext" to hasNext,
+      "hasPrevious" to hasPrevious
+    ) + extras.toMap()
+
+  private fun progressSnapshot(): ProgressSnapshot {
+    val currentPlayer = player
+    val activeTrackDurationMs = ((activeTrack()?.durationSeconds ?: 0.0) * 1000).toLong()
+
+    if (currentPlayer == null || !isOnPlayerThread()) {
+      val currentSnapshot = cachedProgress
+      return if (currentSnapshot.durationMs > 0 || activeTrackDurationMs <= 0) {
+        currentSnapshot
+      } else {
+        currentSnapshot.copy(durationMs = activeTrackDurationMs)
+      }
+    }
+
+    val playerSnapshot = capturePlayerSnapshot(currentPlayer)
+    val durationMs = playerSnapshot.durationMs ?: activeTrackDurationMs
+    val snapshot = ProgressSnapshot(
+      positionMs = playerSnapshot.positionMs,
+      durationMs = durationMs,
+      bufferedMs = playerSnapshot.bufferedMs
+    )
+    cachedProgress = snapshot
+    return snapshot
+  }
+
+  private fun startProgressPolling() {
+    val currentPlayer = player ?: return
+    val handler = progressHandler ?: Handler(currentPlayer.applicationLooper).also {
+      progressHandler = it
+    }
+    handler.removeCallbacks(progressRunnable)
+    handler.post(progressRunnable)
+  }
+
+  private fun stopProgressPolling() {
+    progressHandler?.removeCallbacks(progressRunnable)
+  }
+
+  private fun runOnPlayerThread(actionName: String, action: () -> Unit) {
+    val handler = progressHandler
+    if (handler != null && Looper.myLooper() != handler.looper) {
+      handler.post {
+        try {
+          action()
+        } catch (error: Throwable) {
+          emitDiagnostic(
+            "hidden_audio_android_player_thread_action_failed",
+            mapOf(
+              "action" to actionName,
+              "message" to (error.message ?: error.toString()),
+              "threadName" to Thread.currentThread().name
+            )
+          )
+          emitError(error.message ?: "HiddenAudio player action failed")
+        }
+      }
+      return
+    }
+
+    action()
+  }
+
+  private fun commandState(currentPlayer: Player): Map<String, Any?> {
+    val snapshot = if (isOnPlayerThread()) {
+      capturePlayerSnapshot(currentPlayer)
+    } else {
+      cachedPlayerSnapshot
+    }
+    return snapshot.toDiagnosticMap(
       "trackId" to (activeTrack()?.id ?: ""),
       "activeIndex" to activeIndex,
       "queueLength" to queue.size,
-      "isPlaying" to currentPlayer.isPlaying,
-      "playWhenReady" to currentPlayer.playWhenReady,
-      "playbackState" to currentPlayer.playbackState,
-      "positionMs" to currentPlayer.currentPosition,
-      "durationMs" to currentPlayer.duration.takeIf { it != C.TIME_UNSET },
-      "hasNext" to currentPlayer.hasNextMediaItem(),
-      "hasPrevious" to hasPreviousTrack(currentPlayer)
+      "threadName" to Thread.currentThread().name
     )
+  }
 
   private fun TrackData.toMediaItem(): MediaItem {
     val metadataBuilder = MediaMetadata.Builder()
@@ -462,7 +659,7 @@ object HiddenAudioCore {
   private fun emitError(message: String) {
     Log.e(LOG_TAG, "hidden_audio_native_error $message")
     emitDiagnostic("hidden_audio_native_error", mapOf("message" to message))
-    progressHandler.removeCallbacks(progressRunnable)
+    stopProgressPolling()
     emit("HiddenAudioState", Arguments.createMap().apply {
       putString("type", "error")
       putString("message", message)
