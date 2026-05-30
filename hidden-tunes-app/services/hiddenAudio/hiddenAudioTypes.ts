@@ -36,6 +36,10 @@ export type HiddenAudioProgress = {
   positionSeconds: number;
   durationSeconds: number;
   bufferedSeconds: number;
+  currentTime?: number;
+  duration?: number;
+  bufferedPosition?: number;
+  isPlaying?: boolean;
 };
 
 export type HiddenAudioEvent =

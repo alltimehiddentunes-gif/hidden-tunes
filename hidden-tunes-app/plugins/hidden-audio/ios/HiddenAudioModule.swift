@@ -9,23 +9,35 @@ class HiddenAudioModule: RCTEventEmitter {
   private var activeTrack: [String: Any]?
   private var queue: [[String: Any]] = []
   private var activeIndex = -1
-  private var progressTimer: Timer?
+  private var currentItem: AVPlayerItem?
+  private var progressObserverToken: Any?
+  private var itemEndObserver: NSObjectProtocol?
   private var itemStatusObserver: NSKeyValueObservation?
   private var timeControlObserver: NSKeyValueObservation?
   private var playerStatus = "idle"
   private var shouldResumeAfterItemLoad = false
   private var lastProgressDiagnosticAt = 0.0
+  private var lastNowPlayingElapsedDiagnosticAt = 0.0
   private var nowPlayingArtworkUrl: String?
   private var nowPlayingArtwork: MPMediaItemArtwork?
+  private var remoteCommandsRegistered = false
+  private var lifecycleObserversRegistered = false
 
   override static func requiresMainQueueSetup() -> Bool {
     return true
+  }
+
+  deinit {
+    emitDiagnostic("hidden_audio_module_deinit")
+    cleanupPlayerObservers()
+    NotificationCenter.default.removeObserver(self)
   }
 
   override func supportedEvents() -> [String]! {
     return [
       "HiddenAudioState",
       "HiddenAudioProgress",
+      "HiddenAudioProgressChanged",
       "HiddenAudioTrackChanged",
       "HiddenAudioDiagnostic"
     ]
@@ -36,6 +48,7 @@ class HiddenAudioModule: RCTEventEmitter {
     do {
       try activateAudioSession()
       configureRemoteCommands()
+      configureLifecycleObservers()
       resolve(nil)
     } catch {
       emitNativeError(error.localizedDescription)
@@ -101,6 +114,8 @@ class HiddenAudioModule: RCTEventEmitter {
 
     do {
       try activateAudioSession()
+      configureRemoteCommands()
+      configureLifecycleObservers()
     } catch {
       emitNativeError(error.localizedDescription)
       reject("HIDDEN_AUDIO_AUDIO_SESSION_FAILED", error.localizedDescription, error)
@@ -129,8 +144,8 @@ class HiddenAudioModule: RCTEventEmitter {
     shouldResumeAfterItemLoad = false
     player?.pause()
     playerStatus = player == nil ? "idle" : "paused"
-    progressTimer?.invalidate()
-    progressTimer = nil
+    stopProgressObserver()
+    updateNowPlayingInfo()
     emitState()
     resolve(nil)
   }
@@ -146,8 +161,8 @@ class HiddenAudioModule: RCTEventEmitter {
     player?.pause()
     player?.seek(to: .zero)
     playerStatus = player == nil ? "idle" : "stopped"
-    progressTimer?.invalidate()
-    progressTimer = nil
+    stopProgressObserver()
+    updateNowPlayingInfo()
     emitState()
     resolve(nil)
   }
@@ -222,26 +237,19 @@ class HiddenAudioModule: RCTEventEmitter {
     ])
 
     try activateAudioSession()
+    configureRemoteCommands()
+    configureLifecycleObservers()
 
     activeTrack = normalizeTrack(track, urlString: urlString)
-    itemStatusObserver = nil
-    timeControlObserver = nil
-    NotificationCenter.default.removeObserver(self)
-    progressTimer?.invalidate()
-    progressTimer = nil
+    cleanupPlayerObservers()
 
     let item = AVPlayerItem(url: url)
+    currentItem = item
     player = AVPlayer(playerItem: item)
     playerStatus = autoplay ? "buffering" : "ready"
     shouldResumeAfterItemLoad = autoplay
     observePlayerItem(item)
     observePlayer()
-    NotificationCenter.default.addObserver(
-      self,
-      selector: #selector(playerItemDidEnd(_:)),
-      name: .AVPlayerItemDidPlayToEndTime,
-      object: item
-    )
     updateNowPlayingInfo()
     loadNowPlayingArtworkIfNeeded()
     emitDiagnostic("hidden_audio_native_player_created", [
@@ -253,7 +261,7 @@ class HiddenAudioModule: RCTEventEmitter {
 
     if autoplay {
       player?.play()
-      startProgressTimer()
+      startProgressObserver()
     }
   }
 
@@ -282,8 +290,8 @@ class HiddenAudioModule: RCTEventEmitter {
 
     shouldResumeAfterItemLoad = false
     playerStatus = "ended"
-    progressTimer?.invalidate()
-    progressTimer = nil
+    stopProgressObserver()
+    updateNowPlayingInfo()
     emitState()
   }
 
@@ -291,8 +299,8 @@ class HiddenAudioModule: RCTEventEmitter {
     guard nextIndex >= 0 && nextIndex < queue.count else {
       shouldResumeAfterItemLoad = false
       playerStatus = "ended"
-      progressTimer?.invalidate()
-      progressTimer = nil
+      stopProgressObserver()
+      updateNowPlayingInfo()
       emitState()
       return
     }
@@ -325,10 +333,28 @@ class HiddenAudioModule: RCTEventEmitter {
       guard let self = self else { return }
       if item.status == .failed {
         self.playerStatus = "error"
+        self.emitDiagnostic("hidden_audio_player_failed", [
+          "message": item.error?.localizedDescription ?? "AVPlayerItem failed"
+        ])
         self.emitNativeError(item.error?.localizedDescription ?? "AVPlayerItem failed")
         self.emitState()
       }
     }
+
+    itemEndObserver = NotificationCenter.default.addObserver(
+      forName: .AVPlayerItemDidPlayToEndTime,
+      object: item,
+      queue: .main
+    ) { [weak self] notification in
+      self?.playerItemDidEnd(notification)
+    }
+
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(playerItemStalled(_:)),
+      name: .AVPlayerItemPlaybackStalled,
+      object: item
+    )
   }
 
   private func observePlayer() {
@@ -348,11 +374,16 @@ class HiddenAudioModule: RCTEventEmitter {
           "activeIndex": activeIndex
         ])
       }
+      startProgressObserver()
+      updateNowPlayingInfo()
       emitState()
     }
   }
 
   private func configureRemoteCommands() {
+    if remoteCommandsRegistered { return }
+    remoteCommandsRegistered = true
+
     let commandCenter = MPRemoteCommandCenter.shared()
     commandCenter.playCommand.isEnabled = true
     commandCenter.pauseCommand.isEnabled = true
@@ -364,7 +395,7 @@ class HiddenAudioModule: RCTEventEmitter {
       guard let self = self else { return .commandFailed }
       self.player?.play()
       self.shouldResumeAfterItemLoad = true
-      self.startProgressTimer()
+      self.startProgressObserver()
       self.confirmPlayingIfNeeded()
       return .success
     }
@@ -373,8 +404,8 @@ class HiddenAudioModule: RCTEventEmitter {
       self?.player?.pause()
       self?.shouldResumeAfterItemLoad = false
       self?.playerStatus = "paused"
-      self?.progressTimer?.invalidate()
-      self?.progressTimer = nil
+      self?.stopProgressObserver()
+      self?.updateNowPlayingInfo()
       self?.emitState()
       return .success
     }
@@ -400,6 +431,32 @@ class HiddenAudioModule: RCTEventEmitter {
       self?.updateNowPlayingInfo()
       return .success
     }
+
+    emitDiagnostic("hidden_audio_remote_commands_registered")
+  }
+
+  private func configureLifecycleObservers() {
+    if lifecycleObserversRegistered { return }
+    lifecycleObserversRegistered = true
+
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(appEnteredBackground(_:)),
+      name: UIApplication.didEnterBackgroundNotification,
+      object: nil
+    )
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(audioInterruption(_:)),
+      name: AVAudioSession.interruptionNotification,
+      object: nil
+    )
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(audioRouteChanged(_:)),
+      name: AVAudioSession.routeChangeNotification,
+      object: nil
+    )
   }
 
   private func updateNowPlayingInfo() {
@@ -413,6 +470,11 @@ class HiddenAudioModule: RCTEventEmitter {
       info[MPMediaItemPropertyArtwork] = artwork
     }
     MPNowPlayingInfoCenter.default().nowPlayingInfo = info
+    emitDiagnostic("hidden_audio_now_playing_set", [
+      "trackId": activeTrack?["id"] as? String ?? "",
+      "durationSeconds": progressPayload()["durationSeconds"] ?? 0,
+      "playbackRate": playerStatus == "playing" ? 1 : 0
+    ])
   }
 
   private func loadNowPlayingArtworkIfNeeded() {
@@ -442,12 +504,64 @@ class HiddenAudioModule: RCTEventEmitter {
     }.resume()
   }
 
-  private func startProgressTimer() {
-    progressTimer?.invalidate()
-    progressTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+  private func startProgressObserver() {
+    guard progressObserverToken == nil, let currentPlayer = player else { return }
+
+    progressObserverToken = currentPlayer.addPeriodicTimeObserver(
+      forInterval: CMTime(seconds: 0.5, preferredTimescale: 600),
+      queue: .main
+    ) { [weak self] _ in
       self?.emitProgress()
-      self?.updateNowPlayingInfo()
+      self?.updateNowPlayingElapsed()
       self?.confirmPlayingIfNeeded()
+    }
+  }
+
+  private func stopProgressObserver() {
+    if let token = progressObserverToken {
+      player?.removeTimeObserver(token)
+      progressObserverToken = nil
+    }
+  }
+
+  private func cleanupPlayerObservers() {
+    if player != nil || currentItem != nil {
+      emitDiagnostic("hidden_audio_player_deinit", [
+        "trackId": activeTrack?["id"] as? String ?? "",
+        "activeIndex": activeIndex
+      ])
+    }
+    stopProgressObserver()
+    itemStatusObserver = nil
+    timeControlObserver = nil
+    if let observer = itemEndObserver {
+      NotificationCenter.default.removeObserver(observer)
+      itemEndObserver = nil
+    }
+    NotificationCenter.default.removeObserver(
+      self,
+      name: .AVPlayerItemPlaybackStalled,
+      object: currentItem
+    )
+    currentItem = nil
+  }
+
+  private func updateNowPlayingElapsed() {
+    var info = MPNowPlayingInfoCenter.default().nowPlayingInfo ?? [:]
+    let progress = progressPayload()
+    info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = progress["positionSeconds"]
+    info[MPMediaItemPropertyPlaybackDuration] = progress["durationSeconds"]
+    info[MPNowPlayingInfoPropertyPlaybackRate] = playerStatus == "playing" ? 1 : 0
+    MPNowPlayingInfoCenter.default().nowPlayingInfo = info
+
+    let now = Date().timeIntervalSince1970
+    if now - lastNowPlayingElapsedDiagnosticAt >= 15 {
+      lastNowPlayingElapsedDiagnosticAt = now
+      emitDiagnostic("hidden_audio_now_playing_elapsed_updated", [
+        "positionSeconds": progress["positionSeconds"] ?? 0,
+        "durationSeconds": progress["durationSeconds"] ?? 0,
+        "isPlaying": playerStatus == "playing"
+      ])
     }
   }
 
@@ -472,10 +586,19 @@ class HiddenAudioModule: RCTEventEmitter {
     } else {
       safeDuration = (activeTrack?["durationSeconds"] as? NSNumber)?.doubleValue ?? 0
     }
+    let bufferedEnd = player?.currentItem?.loadedTimeRanges
+      .compactMap { $0.timeRangeValue }
+      .map { CMTimeGetSeconds(CMTimeAdd($0.start, $0.duration)) }
+      .filter { $0.isFinite }
+      .max() ?? 0
     return [
       "positionSeconds": max(0, position.isFinite ? position : 0),
       "durationSeconds": max(0, safeDuration),
-      "bufferedSeconds": 0
+      "bufferedSeconds": max(0, bufferedEnd),
+      "currentTime": max(0, position.isFinite ? position : 0),
+      "duration": max(0, safeDuration),
+      "bufferedPosition": max(0, bufferedEnd),
+      "isPlaying": playerStatus == "playing" ? 1.0 : 0.0
     ]
   }
 
@@ -492,6 +615,10 @@ class HiddenAudioModule: RCTEventEmitter {
       "type": "progress",
       "progress": progress
     ])
+    sendEvent(withName: "HiddenAudioProgressChanged", body: [
+      "type": "progress",
+      "progress": progress
+    ])
 
     let now = Date().timeIntervalSince1970
     if now - lastProgressDiagnosticAt >= 15 {
@@ -499,7 +626,9 @@ class HiddenAudioModule: RCTEventEmitter {
       emitDiagnostic("hidden_audio_native_progress", [
         "positionSeconds": progress["positionSeconds"] ?? 0,
         "durationSeconds": progress["durationSeconds"] ?? 0,
-        "activeIndex": activeIndex
+        "bufferedSeconds": progress["bufferedSeconds"] ?? 0,
+        "activeIndex": activeIndex,
+        "isPlaying": playerStatus == "playing"
       ])
     }
   }
@@ -535,6 +664,60 @@ class HiddenAudioModule: RCTEventEmitter {
     sendEvent(withName: "HiddenAudioState", body: [
       "type": "error",
       "message": message
+    ])
+  }
+
+  @objc private func appEnteredBackground(_ notification: Notification) {
+    emitDiagnostic("hidden_audio_app_entered_background", [
+      "status": playerStatus,
+      "activeIndex": activeIndex
+    ])
+    emitDiagnostic("hidden_audio_background_player_rate", [
+      "rate": player?.rate ?? 0,
+      "timeControlStatus": player?.timeControlStatus.rawValue ?? -1
+    ])
+  }
+
+  @objc private func audioInterruption(_ notification: Notification) {
+    guard let typeValue = notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
+          let type = AVAudioSession.InterruptionType(rawValue: typeValue) else {
+      return
+    }
+
+    if type == .began {
+      emitDiagnostic("hidden_audio_audio_interruption_began", [
+        "rate": player?.rate ?? 0
+      ])
+      return
+    }
+
+    emitDiagnostic("hidden_audio_audio_interruption_ended", [
+      "shouldResume": shouldResumeAfterItemLoad
+    ])
+
+    do {
+      try activateAudioSession()
+      if shouldResumeAfterItemLoad {
+        player?.play()
+        startProgressObserver()
+      }
+    } catch {
+      emitNativeError(error.localizedDescription)
+    }
+  }
+
+  @objc private func audioRouteChanged(_ notification: Notification) {
+    let reason = notification.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt ?? 0
+    emitDiagnostic("hidden_audio_route_changed", [
+      "reason": reason,
+      "rate": player?.rate ?? 0
+    ])
+  }
+
+  @objc private func playerItemStalled(_ notification: Notification) {
+    emitDiagnostic("hidden_audio_player_stalled", [
+      "trackId": activeTrack?["id"] as? String ?? "",
+      "activeIndex": activeIndex
     ])
   }
 }
