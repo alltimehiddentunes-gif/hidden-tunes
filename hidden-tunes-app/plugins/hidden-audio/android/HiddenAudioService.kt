@@ -65,9 +65,10 @@ class HiddenAudioService : Service() {
     if (currentService === this) {
       currentService = null
     }
-    if (::mediaSession.isInitialized) {
+    try {
       mediaSession.isActive = false
       mediaSession.release()
+    } catch (_: UninitializedPropertyAccessException) {
     }
     super.onDestroy()
   }
@@ -111,7 +112,10 @@ class HiddenAudioService : Service() {
   }
 
   private fun ensureMediaSession(): MediaSessionCompat {
-    if (::mediaSession.isInitialized) return mediaSession
+    try {
+      return mediaSession
+    } catch (_: UninitializedPropertyAccessException) {
+    }
 
     return MediaSessionCompat(this, "HiddenAudio").apply {
       setFlags(

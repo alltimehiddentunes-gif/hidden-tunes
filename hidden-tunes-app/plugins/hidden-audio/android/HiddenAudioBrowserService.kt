@@ -27,8 +27,9 @@ class HiddenAudioBrowserService : MediaBrowserServiceCompat() {
   }
 
   private fun bindExistingSessionToken() {
-    if (HiddenAudioService::mediaSession.isInitialized) {
+    try {
       sessionToken = HiddenAudioService.mediaSession.sessionToken
+    } catch (_: UninitializedPropertyAccessException) {
     }
   }
 }
