@@ -129,7 +129,7 @@ class HiddenAudioModule: RCTEventEmitter {
       "activeIndex": activeIndex
     ])
     currentPlayer.play()
-    startProgressTimer()
+    startProgressObserver()
     emitState()
 
     DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
