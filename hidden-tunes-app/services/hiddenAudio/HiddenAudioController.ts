@@ -16,6 +16,13 @@ import { logPlaybackDiagnostic } from "../playbackDiagnostics";
 const NOT_IMPLEMENTED_MESSAGE =
   "HiddenAudio native module not implemented yet";
 const LOG_TAG = "[HiddenAudio]";
+const THROTTLED_DIAGNOSTIC_WINDOW_MS = 5_000;
+const THROTTLED_DIAGNOSTIC_EVENTS = new Set([
+  "hidden_audio_android_on_events",
+  "hidden_audio_android_progress_poll_thread",
+  "hidden_audio_native_progress",
+]);
+const lastDiagnosticLogAt = new Map<string, number>();
 
 const idleState: HiddenAudioState = {
   status: "idle",
@@ -167,8 +174,17 @@ function logDiagnostic(
   eventName: string,
   data: Record<string, string | number | boolean | null | undefined> = {}
 ) {
+  const now = Date.now();
+  const throttleKey = `${eventName}:${data.trackId || ""}:${data.playbackState || ""}:${data.isPlaying || ""}`;
+  const shouldThrottle = THROTTLED_DIAGNOSTIC_EVENTS.has(eventName);
+  const lastLoggedAt = lastDiagnosticLogAt.get(throttleKey) || 0;
+  if (shouldThrottle && now - lastLoggedAt < THROTTLED_DIAGNOSTIC_WINDOW_MS) {
+    return;
+  }
+
+  lastDiagnosticLogAt.set(throttleKey, now);
   console.log(`${LOG_TAG} ${eventName}`, data);
-  if (eventName === "hidden_audio_native_progress") return;
+  if (shouldThrottle) return;
   void logPlaybackDiagnostic(eventName, data);
 }
 

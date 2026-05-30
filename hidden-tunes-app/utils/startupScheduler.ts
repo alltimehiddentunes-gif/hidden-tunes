@@ -24,20 +24,30 @@ export type StartupPhase =
 type StartupTask = () => void | Promise<void>;
 
 const scheduledTaskNames = new Set<string>();
+const recentlyScheduledTasks = new Map<string, number>();
 const BACKGROUND_STARTUP_DELAY_MS = 720;
 const DEFERRED_STARTUP_DELAY_MS = 1500;
 const IDLE_STARTUP_DELAY_MS = 5000;
+const DUPLICATE_STARTUP_TASK_WINDOW_MS = 15_000;
 
 export function scheduleStartupTask(
   phase: StartupPhase,
   name: string,
   task: StartupTask
 ): () => void {
+  const duplicateKey = `${phase}:${name}`;
+  const now = Date.now();
+  const lastScheduledAt = recentlyScheduledTasks.get(duplicateKey) || 0;
+  if (now - lastScheduledAt < DUPLICATE_STARTUP_TASK_WINDOW_MS) {
+    return () => {};
+  }
+
   if (scheduledTaskNames.has(name)) {
     return () => {};
   }
 
   scheduledTaskNames.add(name);
+  recentlyScheduledTasks.set(duplicateKey, now);
   recordStartupTaskScheduled(name, phase);
   recordDeferredTaskScheduled();
   // TEMP_PLAYBACK_DIAGNOSTICS

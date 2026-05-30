@@ -24,6 +24,7 @@ import com.facebook.react.modules.core.DeviceEventManagerModule
 object HiddenAudioCore {
   private const val LOG_TAG = "HiddenAudio"
   private const val PROGRESS_DIAGNOSTIC_INTERVAL_MS = 15_000L
+  private const val ON_EVENTS_DIAGNOSTIC_INTERVAL_MS = 3_000L
 
   private data class TrackData(
     val id: String,
@@ -60,6 +61,8 @@ object HiddenAudioCore {
   private var activeIndex = -1
   private var endedEmittedForIndex = -1
   private var lastProgressDiagnosticAt = 0L
+  private var lastOnEventsDiagnosticAt = 0L
+  private var lastOnEventsDiagnosticKey = ""
   @Volatile private var cachedIsPlaying = false
   @Volatile private var cachedProgress = ProgressSnapshot(0L, 0L, 0L)
   @Volatile private var cachedPlayerSnapshot = PlayerSnapshot(
@@ -108,14 +111,16 @@ object HiddenAudioCore {
               events.contains(Player.EVENT_POSITION_DISCONTINUITY) ||
               events.contains(Player.EVENT_IS_LOADING_CHANGED)
             ) {
-              emitDiagnostic(
-                "hidden_audio_android_on_events",
-                snapshot.toDiagnosticMap(
-                  "trackId" to (activeTrack()?.id ?: ""),
-                  "activeIndex" to activeIndex,
-                  "threadName" to Thread.currentThread().name
-                ) + mapOf("events" to events.toString())
-              )
+              if (shouldEmitOnEventsDiagnostic(snapshot)) {
+                emitDiagnostic(
+                  "hidden_audio_android_on_events",
+                  snapshot.toDiagnosticMap(
+                    "trackId" to (activeTrack()?.id ?: ""),
+                    "activeIndex" to activeIndex,
+                    "threadName" to Thread.currentThread().name
+                  ) + mapOf("events" to events.toString())
+                )
+              }
               emitState()
               emitProgress()
             }
@@ -601,6 +606,27 @@ object HiddenAudioCore {
     }
 
     action()
+  }
+
+  private fun shouldEmitOnEventsDiagnostic(snapshot: PlayerSnapshot): Boolean {
+    val now = System.currentTimeMillis()
+    val key = listOf(
+      snapshot.playbackState,
+      snapshot.isPlaying,
+      snapshot.playWhenReady,
+      snapshot.currentMediaItemIndex,
+      snapshot.durationMs
+    ).joinToString(":")
+    if (key != lastOnEventsDiagnosticKey) {
+      lastOnEventsDiagnosticKey = key
+      lastOnEventsDiagnosticAt = now
+      return true
+    }
+    if (now - lastOnEventsDiagnosticAt >= ON_EVENTS_DIAGNOSTIC_INTERVAL_MS) {
+      lastOnEventsDiagnosticAt = now
+      return true
+    }
+    return false
   }
 
   private fun commandState(currentPlayer: Player): Map<String, Any?> {

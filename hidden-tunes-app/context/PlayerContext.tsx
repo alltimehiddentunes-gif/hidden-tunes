@@ -277,25 +277,32 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [radioMode, setRadioMode] = useState(false);
   const [radioIndex, setRadioIndex] = useState(-1);
   const commandTokenRef = useRef(0);
+  const inFlightCommandRef = useRef<string | null>(null);
   const lastCommandQueueRef = useRef<HiddenAudioTrack[]>([]);
 
   const applyAudioState = useCallback((state: HiddenAudioState) => {
-    const localQueue =
-      lastCommandQueueRef.current.length === state.queue.tracks.length
-        ? lastCommandQueueRef.current
-        : state.queue.tracks;
-    const activeTrack =
-      state.queue.activeIndex >= 0
-        ? localQueue[state.queue.activeIndex] || state.activeTrack
-        : state.activeTrack;
+    setAudioState((current) => {
+      const localQueue =
+        lastCommandQueueRef.current.length === state.queue.tracks.length
+          ? lastCommandQueueRef.current
+          : state.queue.tracks;
+      const activeTrack =
+        state.queue.activeIndex >= 0
+          ? localQueue[state.queue.activeIndex] || state.activeTrack
+          : state.activeTrack;
+      const nativeConfirmsEmpty =
+        !activeTrack &&
+        state.queue.tracks.length === 0 &&
+        ["idle", "stopped", "ended", "error"].includes(state.status);
 
-    setAudioState({
-      ...state,
-      activeTrack,
-      queue: {
-        activeIndex: state.queue.activeIndex,
-        tracks: [...localQueue],
-      },
+      return {
+        ...state,
+        activeTrack: activeTrack || (nativeConfirmsEmpty ? null : current.activeTrack),
+        queue: {
+          activeIndex: state.queue.activeIndex,
+          tracks: localQueue.length ? [...localQueue] : current.queue.tracks,
+        },
+      };
     });
   }, []);
 
@@ -314,8 +321,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, [applyAudioState]);
 
   useEffect(() => {
-    void refreshSnapshot();
-
     const unsubscribe = HiddenAudioController.subscribe((event: HiddenAudioEvent) => {
       if (event.type === "state") {
         applyAudioState(event.state);
@@ -347,6 +352,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       }));
     });
 
+    void refreshSnapshot();
+
     return unsubscribe;
   }, [applyAudioState, refreshSnapshot]);
 
@@ -360,15 +367,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const runCommand = useCallback(
     async (command: string, action: () => Promise<void>) => {
+      if (inFlightCommandRef.current === command) return;
+      inFlightCommandRef.current = command;
       const commandToken = commandTokenRef.current + 1;
       commandTokenRef.current = commandToken;
 
-      if (!["pause", "seekTo"].includes(command)) {
-        setAudioState((current) => ({
-          ...current,
-          status: "loading",
-        }));
-      }
+      setAudioState((current) => {
+        if (command === "pause") return { ...current, status: "paused" };
+        if (command === "seekTo") return current;
+        return { ...current, status: "loading" };
+      });
 
       try {
         await action();
@@ -382,6 +390,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           status: current.status === "loading" ? "idle" : current.status,
           error: String((error as Error)?.message || error),
         }));
+      } finally {
+        if (inFlightCommandRef.current === command) {
+          inFlightCommandRef.current = null;
+        }
       }
     },
     [refreshSnapshot]

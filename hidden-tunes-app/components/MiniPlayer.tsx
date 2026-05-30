@@ -69,11 +69,13 @@ const MiniControlButton = memo(function MiniControlButton({
   style,
   children,
   accessibilityLabel,
+  disabled,
 }: {
   onPress: () => void;
   style?: object;
   children: React.ReactNode;
   accessibilityLabel?: string;
+  disabled?: boolean;
 }) {
   const scale = useSharedValue(1);
 
@@ -90,14 +92,16 @@ const MiniControlButton = memo(function MiniControlButton({
   }, [scale]);
 
   const handlePress = useCallback(() => {
+    if (disabled) return;
     fireLightHaptic();
     onPress();
-  }, [onPress]);
+  }, [disabled, onPress]);
 
   return (
     <Animated.View style={animatedStyle}>
       <Pressable
         accessibilityLabel={accessibilityLabel}
+        disabled={disabled}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
         onPress={handlePress}
@@ -325,6 +329,7 @@ function MiniPlayer() {
   const { togglePlayPause, nextSong } = usePlayerActions();
 
   const [youtubeVideo, setYoutubeVideo] = useState<YouTubeMini | null>(null);
+  const [pendingCommand, setPendingCommand] = useState<"toggle" | "next" | null>(null);
 
   const mountedRef = useRef(true);
   const lastYouTubeJsonRef = useRef<string | null>(null);
@@ -474,17 +479,29 @@ function MiniPlayer() {
   }, [isYoutubeMode, youtubeVideo]);
 
   const handleMainButton = useCallback(async () => {
+    if (pendingCommand) return;
     if (isYoutubeMode) {
       openPlayer();
       return;
     }
 
-    await togglePlayPause();
-  }, [isYoutubeMode, openPlayer, togglePlayPause]);
+    setPendingCommand("toggle");
+    try {
+      await togglePlayPause();
+    } finally {
+      if (mountedRef.current) setPendingCommand(null);
+    }
+  }, [isYoutubeMode, openPlayer, pendingCommand, togglePlayPause]);
 
-  const handleNext = useCallback(() => {
-    nextSong();
-  }, [nextSong]);
+  const handleNext = useCallback(async () => {
+    if (pendingCommand) return;
+    setPendingCommand("next");
+    try {
+      await nextSong();
+    } finally {
+      if (mountedRef.current) setPendingCommand(null);
+    }
+  }, [nextSong, pendingCommand]);
 
   const badgeIconName = useMemo(() => {
     if (isYoutubeMode) return "tv";
@@ -494,10 +511,11 @@ function MiniPlayer() {
 
   const mainIconName = useMemo(() => {
     if (isYoutubeMode) return "open-outline";
+    if (pendingCommand) return "sync";
     if (isLoading) return "sync";
     if (isPlaying) return "pause";
     return "play";
-  }, [isYoutubeMode, isLoading, isPlaying]);
+  }, [isYoutubeMode, isLoading, isPlaying, pendingCommand]);
 
   const playButtonStyle = useMemo(
     () => [styles.playButton, isYoutubeMode && styles.youtubeButton],
@@ -555,6 +573,7 @@ function MiniPlayer() {
               <MiniControlButton
                 accessibilityLabel="Next track"
                 onPress={handleNext}
+                disabled={Boolean(pendingCommand)}
                 style={styles.nextButton}
               >
                 <Ionicons name="play-skip-forward" size={19} color={COLORS.text} />
@@ -564,6 +583,7 @@ function MiniPlayer() {
             <MiniControlButton
               accessibilityLabel={isYoutubeMode ? "Open video" : "Play or pause"}
               onPress={handleMainButton}
+              disabled={Boolean(pendingCommand)}
               style={playButtonStyle}
             >
               <Ionicons
