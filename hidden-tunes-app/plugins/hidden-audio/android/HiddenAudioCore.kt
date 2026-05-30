@@ -3,7 +3,6 @@ package com.hiddentunes.app.audio
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
-import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.Handler
@@ -17,7 +16,6 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.session.MediaSession
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReadableArray
@@ -59,8 +57,20 @@ object HiddenAudioCore {
     val hasPrevious: Boolean
   )
 
+  data class NotificationState(
+    val hasActiveTrack: Boolean,
+    val isPlaying: Boolean,
+    val title: String,
+    val artist: String,
+    val album: String?,
+    val artworkUrl: String?,
+    val positionMs: Long,
+    val durationMs: Long,
+    val hasNext: Boolean,
+    val hasPrevious: Boolean
+  )
+
   private var player: ExoPlayer? = null
-  private var mediaSession: MediaSession? = null
   private var appContext: Context? = null
   private var reactContext: ReactApplicationContext? = null
   private var queue: List<TrackData> = emptyList()
@@ -183,6 +193,7 @@ object HiddenAudioCore {
               startProgressPolling()
             } else {
               stopProgressPolling()
+              updateForegroundNotification("is_playing_changed")
             }
             emitState()
           }
@@ -215,7 +226,7 @@ object HiddenAudioCore {
                 "threadName" to Thread.currentThread().name
               )
             )
-            notifyServiceNotificationUpdated("track_changed")
+            updateForegroundNotification("track_changed")
             emitTrackChanged()
             emitState()
             emitProgress()
@@ -239,10 +250,7 @@ object HiddenAudioCore {
       }
     }
 
-    if (mediaSession == null) {
-      mediaSession = MediaSession.Builder(context.applicationContext, player!!).build()
-      emitDiagnostic("hidden_audio_android_media_session_created")
-    }
+    emitDiagnostic("hidden_audio_android_media_session_created")
   }
 
   fun loadTrack(context: Context, track: ReadableMap) {
@@ -334,6 +342,7 @@ object HiddenAudioCore {
       emitDiagnostic("hidden_audio_android_command_pause", commandState(currentPlayer))
       currentPlayer.pause()
       stopProgressPolling()
+      updateForegroundNotification("pause")
       emitState()
       emitProgress()
     }
@@ -436,9 +445,27 @@ object HiddenAudioCore {
 
   fun activeTrackMap(): WritableMap? = activeTrack()?.toMap()
 
-  fun session(): MediaSession? = mediaSession
-
   fun isPlaying(): Boolean = cachedIsPlaying
+
+  fun hasActiveQueue(): Boolean = queue.isNotEmpty() && activeIndex >= 0 && activeIndex < queue.size
+
+  fun notificationState(): NotificationState {
+    val snapshot = playerSnapshot()
+    val progress = progressSnapshot()
+    val track = activeTrack()
+    return NotificationState(
+      hasActiveTrack = track != null,
+      isPlaying = snapshot.isPlaying,
+      title = track?.title ?: "Hidden Tunes",
+      artist = track?.artist ?: "Hidden Tunes",
+      album = track?.album,
+      artworkUrl = track?.artworkUrl,
+      positionMs = progress.positionMs,
+      durationMs = progress.durationMs,
+      hasNext = snapshot.hasNext,
+      hasPrevious = snapshot.hasPrevious
+    )
+  }
 
   fun notifyServiceNotificationPosted(reason: String) {
     emitDiagnostic(
@@ -449,6 +476,13 @@ object HiddenAudioCore {
         "activeIndex" to activeIndex,
         "queueLength" to queue.size
       )
+    )
+  }
+
+  fun notifyServiceNotificationChannelReady(channelId: String) {
+    emitDiagnostic(
+      "hidden_audio_android_notification_channel_ready",
+      mapOf("channelId" to channelId)
     )
   }
 
@@ -662,12 +696,7 @@ object HiddenAudioCore {
     val context = appContext ?: return
 
     try {
-      val intent = Intent(context, HiddenAudioService::class.java)
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-        context.startForegroundService(intent)
-      } else {
-        context.startService(intent)
-      }
+      HiddenAudioService.startForegroundPlayback(context, reason)
       emitDiagnostic(
         "hidden_audio_android_foreground_service_start_requested",
         mapOf(
@@ -685,12 +714,13 @@ object HiddenAudioCore {
     }
   }
 
-  private fun stopForegroundService(reason: String) {
-    val context = appContext ?: return
+  private fun updateForegroundNotification(reason: String) {
+    HiddenAudioService.updateFromCore(reason)
+  }
 
+  private fun stopForegroundService(reason: String) {
     try {
-      context.stopService(Intent(context, HiddenAudioService::class.java))
-      notifyServiceNotificationUpdated(reason)
+      HiddenAudioService.stopFromCore(reason)
     } catch (error: Throwable) {
       notifyServiceNotificationError(
         "foreground_service_stop",

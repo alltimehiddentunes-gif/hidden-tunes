@@ -180,8 +180,21 @@ function patchAndroidBuildGradle(config) {
       if (!contents.includes("androidx.media3:media3-exoplayer")) {
         contents = contents.replace(
           'implementation("com.facebook.react:react-android")',
-          'implementation("com.facebook.react:react-android")\n    implementation("androidx.media3:media3-exoplayer:1.4.1")\n    implementation("androidx.media3:media3-session:1.4.1")'
+          'implementation("com.facebook.react:react-android")\n    implementation("androidx.core:core:1.13.1")\n    implementation("androidx.media:media:1.7.0")\n    implementation("androidx.media3:media3-exoplayer:1.4.1")\n    implementation("androidx.media3:media3-session:1.4.1")'
         );
+      } else {
+        if (!contents.includes("androidx.core:core")) {
+          contents = contents.replace(
+            'implementation("androidx.media3:media3-exoplayer:1.4.1")',
+            'implementation("androidx.core:core:1.13.1")\n    implementation("androidx.media3:media3-exoplayer:1.4.1")'
+          );
+        }
+        if (!contents.includes("androidx.media:media")) {
+          contents = contents.replace(
+            'implementation("androidx.media3:media3-exoplayer:1.4.1")',
+            'implementation("androidx.media:media:1.7.0")\n    implementation("androidx.media3:media3-exoplayer:1.4.1")'
+          );
+        }
       }
 
       fs.writeFileSync(buildGradlePath, contents);
@@ -224,7 +237,12 @@ function patchAndroidManifest(config) {
       if (!contents.includes(".audio.HiddenAudioService")) {
         contents = contents.replace(
           "<activity ",
-          '<service android:name=".audio.HiddenAudioService" android:exported="true" android:foregroundServiceType="mediaPlayback">\n      <intent-filter>\n        <action android:name="androidx.media3.session.MediaSessionService"/>\n      </intent-filter>\n    </service>\n    <activity '
+          '<service android:name=".audio.HiddenAudioService" android:exported="false" android:foregroundServiceType="mediaPlayback"/>\n    <activity '
+        );
+      } else if (contents.includes("androidx.media3.session.MediaSessionService")) {
+        contents = contents.replace(
+          /<service android:name="\.audio\.HiddenAudioService"[\s\S]*?<\/service>/,
+          '<service android:name=".audio.HiddenAudioService" android:exported="false" android:foregroundServiceType="mediaPlayback"/>'
         );
       } else if (!contents.includes('android:foregroundServiceType="mediaPlayback"')) {
         contents = contents.replace(
@@ -232,6 +250,10 @@ function patchAndroidManifest(config) {
           '<service android:name=".audio.HiddenAudioService"$1 android:foregroundServiceType="mediaPlayback">'
         );
       }
+      contents = contents.replace(
+        /<service android:name="\.audio\.HiddenAudioService"([^>]*)android:exported="true"/,
+        '<service android:name=".audio.HiddenAudioService"$1android:exported="false"'
+      );
 
       fs.writeFileSync(manifestPath, contents);
       return modConfig;
