@@ -14,6 +14,7 @@ import {
 
 const NOT_IMPLEMENTED_MESSAGE =
   "HiddenAudio native module not implemented yet";
+const LOG_TAG = "[HiddenAudio]";
 
 const idleState: HiddenAudioState = {
   status: "idle",
@@ -40,6 +41,10 @@ class HiddenAudioControllerImpl implements HiddenAudioControllerApi {
   }
 
   async loadTrack(track: HiddenAudioTrack): Promise<void> {
+    logDiagnostic("hidden_audio_js_load_track_start", {
+      trackId: track.id,
+      hasUrl: Boolean(track.url),
+    });
     await this.getNativeModule().loadTrack(track);
   }
 
@@ -47,10 +52,18 @@ class HiddenAudioControllerImpl implements HiddenAudioControllerApi {
     tracks: HiddenAudioTrack[],
     startIndex: number
   ): Promise<void> {
+    const track = tracks[startIndex];
+    logDiagnostic("hidden_audio_js_load_track_start", {
+      trackId: track?.id,
+      hasUrl: Boolean(track?.url),
+      queueLength: tracks.length,
+      startIndex,
+    });
     await this.getNativeModule().loadQueue(tracks, startIndex);
   }
 
   async play(): Promise<void> {
+    logDiagnostic("hidden_audio_js_play_start");
     await this.getNativeModule().play();
   }
 
@@ -141,9 +154,19 @@ class HiddenAudioControllerImpl implements HiddenAudioControllerApi {
     if (this.nativeUnsubscribe) return;
 
     this.nativeUnsubscribe = subscribeHiddenAudioNativeEvents((event) => {
+      if (event.type === "diagnostic") {
+        logDiagnostic(event.eventName, event.data);
+      }
       this.emit(event);
     });
   }
+}
+
+function logDiagnostic(
+  eventName: string,
+  data: Record<string, string | number | boolean | null | undefined> = {}
+) {
+  console.log(`${LOG_TAG} ${eventName}`, data);
 }
 
 export const HiddenAudioController = new HiddenAudioControllerImpl();

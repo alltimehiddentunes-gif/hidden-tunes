@@ -55,6 +55,9 @@ export function subscribeHiddenAudioNativeEvents(
     emitter.addListener("HiddenAudioProgress", (event?: HiddenAudioEvent) => {
       if (event) listener(event);
     }),
+    emitter.addListener("HiddenAudioDiagnostic", (event?: HiddenAudioEvent) => {
+      if (event) listener(event);
+    }),
   ];
 
   return () => {

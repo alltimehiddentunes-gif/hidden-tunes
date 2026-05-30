@@ -6,3 +6,7 @@ build/
 .env.local
 android/
 ios/
+!hidden-tunes-app/plugins/hidden-audio/android/
+!hidden-tunes-app/plugins/hidden-audio/android/**
+!hidden-tunes-app/plugins/hidden-audio/ios/
+!hidden-tunes-app/plugins/hidden-audio/ios/**

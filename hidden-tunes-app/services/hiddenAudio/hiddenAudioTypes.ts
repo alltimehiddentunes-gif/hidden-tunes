@@ -55,6 +55,11 @@ export type HiddenAudioEvent =
   | {
       type: "error";
       message: string;
+    }
+  | {
+      type: "diagnostic";
+      eventName: string;
+      data?: Record<string, string | number | boolean | null | undefined>;
     };
 
 export type HiddenAudioListener = (event: HiddenAudioEvent) => void;

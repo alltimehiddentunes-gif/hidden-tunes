@@ -197,6 +197,10 @@ export function PlayerProviderV2({ children }: { children: ReactNode }) {
           return;
         }
 
+        if (event.type === "diagnostic") {
+          return;
+        }
+
         setAudioState((current) => ({
           ...current,
           status: "error",
