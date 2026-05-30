@@ -42,16 +42,8 @@ class HiddenAudioModule(
         return
       }
 
-      val safeIndex = startIndex.coerceIn(0, tracks.size() - 1)
-      val track = tracks.getMap(safeIndex)
-
-      if (track == null) {
-        promise.reject("E_INVALID_TRACK", "Track payload is required")
-        return
-      }
-
       HiddenAudioCore.attachReactContext(reactContext)
-      HiddenAudioCore.loadTrack(reactContext, track)
+      HiddenAudioCore.loadQueue(reactContext, tracks, startIndex)
       promise.resolve(null)
     } catch (error: Throwable) {
       promise.reject("HIDDEN_AUDIO_LOAD_QUEUE_FAILED", error)
@@ -105,12 +97,22 @@ class HiddenAudioModule(
 
   @ReactMethod
   fun next(promise: Promise) {
-    promise.resolve(null)
+    try {
+      HiddenAudioCore.next()
+      promise.resolve(null)
+    } catch (error: Throwable) {
+      promise.reject("HIDDEN_AUDIO_NEXT_FAILED", error)
+    }
   }
 
   @ReactMethod
   fun previous(promise: Promise) {
-    promise.resolve(null)
+    try {
+      HiddenAudioCore.previous()
+      promise.resolve(null)
+    } catch (error: Throwable) {
+      promise.reject("HIDDEN_AUDIO_PREVIOUS_FAILED", error)
+    }
   }
 
   @ReactMethod

@@ -14,6 +14,7 @@ import {
 
 import { Ionicons } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
+import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { COLORS } from "../constants/theme";
@@ -164,10 +165,21 @@ export default function PlaybackDiagnosticsScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
       <View style={styles.header}>
-        <Text style={styles.title}>Playback Diagnostics</Text>
-        <Text style={styles.subtitle}>
-          Hidden manual route for temporary phone testing
-        </Text>
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          hitSlop={10}
+          onPress={() => router.back()}
+          style={styles.backButton}
+        >
+          <Ionicons name="chevron-back" size={22} color={COLORS.text} />
+        </TouchableOpacity>
+        <View style={styles.headerText}>
+          <Text style={styles.title}>Playback Diagnostics</Text>
+          <Text style={styles.subtitle}>
+            Hidden manual route for temporary phone testing
+          </Text>
+        </View>
       </View>
 
       <View style={styles.summary}>
@@ -247,9 +259,25 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   header: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
     paddingHorizontal: 16,
     paddingTop: 10,
     paddingBottom: 12,
+  },
+  backButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: COLORS.borderSoft,
+    backgroundColor: COLORS.cardGlass,
+  },
+  headerText: {
+    flex: 1,
   },
   title: {
     color: COLORS.text,

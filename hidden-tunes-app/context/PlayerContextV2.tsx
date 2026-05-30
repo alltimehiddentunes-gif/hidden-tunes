@@ -5,6 +5,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -136,6 +137,7 @@ export function PlayerProviderV2({ children }: { children: ReactNode }) {
     useState<HiddenAudioState>(idleHiddenAudioState);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
+  const commandTokenRef = useRef(0);
 
   const applyAudioState = useCallback((state: HiddenAudioState) => {
     setAudioState({
@@ -214,15 +216,22 @@ export function PlayerProviderV2({ children }: { children: ReactNode }) {
 
   const runCommand = useCallback(
     async (command: string, action: () => Promise<void>) => {
-      setAudioState((current) => ({
-        ...current,
-        status: command === "pause" ? current.status : "loading",
-      }));
+      const commandToken = commandTokenRef.current + 1;
+      commandTokenRef.current = commandToken;
+
+      if (!["pause", "seekTo"].includes(command)) {
+        setAudioState((current) => ({
+          ...current,
+          status: "loading",
+        }));
+      }
 
       try {
         await action();
+        if (commandTokenRef.current !== commandToken) return;
         await refreshSnapshot(command);
       } catch (error) {
+        if (commandTokenRef.current !== commandToken) return;
         logPlayerContextV2Error(command, error);
         setAudioState((current) => ({
           ...current,

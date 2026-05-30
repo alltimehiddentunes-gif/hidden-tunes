@@ -206,12 +206,24 @@ async function persistNow(): Promise<void> {
 function appendEntry(entry: PlaybackDiagnosticEntry): void {
   try {
     memoryLogs = [...memoryLogs, entry].slice(-MAX_LOGS);
-    console.log(LOG_PREFIX, entry.eventName, entry);
+    if (shouldConsoleLogEntry(entry.eventName)) {
+      console.log(LOG_PREFIX, entry.eventName, entry);
+    }
     notifyListeners();
     persistSoon();
   } catch {
     // Diagnostics must never throw.
   }
+}
+
+function shouldConsoleLogEntry(eventName: string): boolean {
+  return (
+    eventName.startsWith("hidden_audio_") ||
+    eventName.includes("playback") ||
+    eventName.includes("audio") ||
+    eventName === "app_state_change" ||
+    eventName === "session_start"
+  );
 }
 
 export function subscribePlaybackDiagnostics(listener: () => void): () => void {

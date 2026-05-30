@@ -4,6 +4,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -162,6 +163,14 @@ const idleAudioState: HiddenAudioState = {
 };
 
 function toHiddenAudioTrack(song: AppSong): HiddenAudioTrack {
+  const artworkUrl =
+    song.artworkUrl ||
+    song.artwork ||
+    song.coverUrl ||
+    song.cover_url ||
+    song.cover ||
+    song.thumbnail;
+
   return {
     id: String(song.id),
     url:
@@ -175,26 +184,34 @@ function toHiddenAudioTrack(song: AppSong): HiddenAudioTrack {
     title: song.title,
     artist: song.artist || song.user?.name || song.channelTitle,
     album: song.album,
-    artworkUrl:
-      song.artworkUrl ||
-      song.artwork ||
-      song.coverUrl ||
-      song.cover_url ||
-      song.cover ||
-      song.thumbnail,
+    artworkUrl,
     durationSeconds:
       typeof song.durationSeconds === "number"
         ? song.durationSeconds
         : typeof song.duration === "number"
           ? song.duration
           : undefined,
-    metadata: song.metadata as HiddenAudioTrack["metadata"],
+    metadata: {
+      ...(song.metadata || {}),
+      albumId: song.albumId,
+      artistId: song.artistId,
+      genre: song.genre,
+      mood: song.mood,
+      source: song.source,
+      sourceName: song.sourceName,
+      artworkUrl,
+      lyrics: song.lyrics,
+      syncedLyrics: song.syncedLyrics,
+      synced_lyrics: song.synced_lyrics,
+      lrc: song.lrc,
+    } as HiddenAudioTrack["metadata"],
   };
 }
 
 function fromHiddenAudioTrack(track: HiddenAudioTrack | null): AppSong | null {
   if (!track) return null;
   return {
+    ...((track.metadata as Record<string, unknown> | undefined) || {}),
     ...track,
     id: String(track.id),
     title: track.title,
@@ -259,13 +276,25 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [radioQueue, setRadioQueue] = useState<RadioTrack[]>([]);
   const [radioMode, setRadioMode] = useState(false);
   const [radioIndex, setRadioIndex] = useState(-1);
+  const commandTokenRef = useRef(0);
+  const lastCommandQueueRef = useRef<HiddenAudioTrack[]>([]);
 
   const applyAudioState = useCallback((state: HiddenAudioState) => {
+    const localQueue =
+      lastCommandQueueRef.current.length === state.queue.tracks.length
+        ? lastCommandQueueRef.current
+        : state.queue.tracks;
+    const activeTrack =
+      state.queue.activeIndex >= 0
+        ? localQueue[state.queue.activeIndex] || state.activeTrack
+        : state.activeTrack;
+
     setAudioState({
       ...state,
+      activeTrack,
       queue: {
         activeIndex: state.queue.activeIndex,
-        tracks: [...state.queue.tracks],
+        tracks: [...localQueue],
       },
     });
   }, []);
@@ -331,15 +360,22 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const runCommand = useCallback(
     async (command: string, action: () => Promise<void>) => {
-      setAudioState((current) => ({
-        ...current,
-        status: command === "pause" ? current.status : "loading",
-      }));
+      const commandToken = commandTokenRef.current + 1;
+      commandTokenRef.current = commandToken;
+
+      if (!["pause", "seekTo"].includes(command)) {
+        setAudioState((current) => ({
+          ...current,
+          status: "loading",
+        }));
+      }
 
       try {
         await action();
+        if (commandTokenRef.current !== commandToken) return;
         await refreshSnapshot();
       } catch (error) {
+        if (commandTokenRef.current !== commandToken) return;
         logHiddenAudioError(command, error);
         setAudioState((current) => ({
           ...current,
@@ -356,6 +392,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       const nextQueue = queue?.length ? queue : [song];
       const safeIndex = Math.max(0, Math.min(index, nextQueue.length - 1));
       const hiddenQueue = nextQueue.map(toHiddenAudioTrack);
+      lastCommandQueueRef.current = hiddenQueue;
 
       await runCommand("playSong", async () => {
         await HiddenAudioController.loadQueue(hiddenQueue, safeIndex);
@@ -374,8 +411,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     async (queue: AppSong[], startIndex = 0) => {
       if (!queue.length) return;
       const safeIndex = Math.max(0, Math.min(startIndex, queue.length - 1));
+      const hiddenQueue = queue.map(toHiddenAudioTrack);
+      lastCommandQueueRef.current = hiddenQueue;
       await runCommand("playQueue", async () => {
-        await HiddenAudioController.loadQueue(queue.map(toHiddenAudioTrack), safeIndex);
+        await HiddenAudioController.loadQueue(hiddenQueue, safeIndex);
         await HiddenAudioController.play();
       });
     },
@@ -499,6 +538,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   );
 
   const clearActiveQueue = useCallback(async () => {
+    lastCommandQueueRef.current = [];
     setAudioState((current) => ({
       ...current,
       activeTrack: null,

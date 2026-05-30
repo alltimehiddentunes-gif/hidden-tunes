@@ -11,6 +11,7 @@ import {
   getHiddenAudioModule,
   subscribeHiddenAudioNativeEvents,
 } from "./HiddenAudioModule";
+import { logPlaybackDiagnostic } from "../playbackDiagnostics";
 
 const NOT_IMPLEMENTED_MESSAGE =
   "HiddenAudio native module not implemented yet";
@@ -167,6 +168,8 @@ function logDiagnostic(
   data: Record<string, string | number | boolean | null | undefined> = {}
 ) {
   console.log(`${LOG_TAG} ${eventName}`, data);
+  if (eventName === "hidden_audio_native_progress") return;
+  void logPlaybackDiagnostic(eventName, data);
 }
 
 export const HiddenAudioController = new HiddenAudioControllerImpl();
