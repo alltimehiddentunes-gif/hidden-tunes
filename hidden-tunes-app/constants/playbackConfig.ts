@@ -37,6 +37,12 @@ export const USE_IOS_RNTP_POC = false;
  */
 export const ENABLE_PLAYBACK_RELIABILITY_DIAGNOSTICS = false;
 
+/**
+ * Temporary Hidden Audio native-core POC startup isolation.
+ * When enabled, legacy RNTP service registration is skipped in index.js.
+ */
+export const HIDDEN_AUDIO_POC_STARTUP_ENABLED = true;
+
 export function isTrackPlayerFeatureEnabled(): boolean {
   if (!USE_NATIVE_TRACK_PLAYER) return false;
   if (
@@ -55,4 +61,8 @@ export function isIosRntpPocEnabled(): boolean {
 
 export function isPlaybackReliabilityDiagnosticsEnabled(): boolean {
   return ENABLE_PLAYBACK_RELIABILITY_DIAGNOSTICS;
+}
+
+export function isHiddenAudioPocStartupEnabled(): boolean {
+  return HIDDEN_AUDIO_POC_STARTUP_ENABLED;
 }
