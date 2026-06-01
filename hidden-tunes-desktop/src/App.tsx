@@ -1315,38 +1315,41 @@ function HomePage({ onOpenSong }: { onOpenSong: (song: ApiSong) => void }) {
 
   return (
     <PageFrame>
-      <Hero />
-      <CatalogToolbar
-        hideSearch
-        searchValue=""
-        onSearchChange={() => undefined}
-        searchPlaceholder=""
-        sortLabel="Featured sort"
-        sortValue={sort}
-        sortOptions={SONG_SORT_OPTIONS}
-        onSortChange={(value) => setSort(value as SongSort)}
-        resultCount={featured.length}
-      />
-      <CatalogSection
-        title="Featured"
-        hint="Cached catalog · read-only"
-        loading={showCatalogSkeleton}
-        error={showCatalogError ? error : null}
-        onRetry={retry}
-        count={featured.length}
-      >
-        {!showCatalogSkeleton && !showCatalogError && songs.length === 0 ? (
-          <CatalogEmpty
-            title="Catalog is empty"
-            detail="The API responded but returned no songs yet."
-          />
-        ) : (
-          <ApiSongGrid songs={featured} onSelect={onOpenSong} listKey="home-featured" paginate={false} />
-        )}
-      </CatalogSection>
-      {HOME_SECTIONS.slice(1, 3).map((section) => (
-        <DiscoveryGrid key={section.title} section={section} />
-      ))}
+      <div className="home-atmosphere-shell">
+        <Hero />
+        <CatalogToolbar
+          hideSearch
+          searchValue=""
+          onSearchChange={() => undefined}
+          searchPlaceholder=""
+          sortLabel="Featured sort"
+          sortValue={sort}
+          sortOptions={SONG_SORT_OPTIONS}
+          onSortChange={(value) => setSort(value as SongSort)}
+          resultCount={featured.length}
+        />
+        <p className="home-emotional-line">A quiet catalog for late-night discovery.</p>
+        <CatalogSection
+          title="Featured"
+          hint="Cached catalog · read-only"
+          loading={showCatalogSkeleton}
+          error={showCatalogError ? error : null}
+          onRetry={retry}
+          count={featured.length}
+        >
+          {!showCatalogSkeleton && !showCatalogError && songs.length === 0 ? (
+            <CatalogEmpty
+              title="Catalog is empty"
+              detail="The API responded but returned no songs yet."
+            />
+          ) : (
+            <ApiSongGrid songs={featured} onSelect={onOpenSong} listKey="home-featured" paginate={false} />
+          )}
+        </CatalogSection>
+        {HOME_SECTIONS.slice(1, 3).map((section) => (
+          <DiscoveryGrid key={section.title} section={section} />
+        ))}
+      </div>
     </PageFrame>
   )
 }
