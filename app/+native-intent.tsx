@@ -16,6 +16,6 @@ export function redirectSystemPath({
 
     return path;
   } catch {
-    return "/(tabs)";
+    return "/music-feed";
   }
 }

@@ -145,7 +145,7 @@ export default function OnboardingScreen() {
     void saveOnboardingPreferences(preferences).catch(() => {});
     void runOnboardingPrewarm(preferences);
     logOnboardingNavigationReady();
-    router.replace("/(tabs)");
+    router.replace("/music-feed");
   }
 
   function chooseRole(role: UserRole) {

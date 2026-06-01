@@ -84,7 +84,7 @@ export default function AuthScreen() {
           <TouchableOpacity
             activeOpacity={0.85}
             style={styles.mainButton}
-            onPress={() => router.replace("/(tabs)")}
+            onPress={() => router.replace("/music-feed")}
           >
             <Text style={styles.mainButtonText}>
               {mode === "login" ? "Sign In" : "Create Account"}
