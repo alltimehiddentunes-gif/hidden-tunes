@@ -60,8 +60,39 @@ type ApplyResponse = {
 const fieldClass =
   "w-full rounded-xl border border-white/10 bg-black/35 px-3 py-2 text-sm font-semibold text-white outline-none transition placeholder:text-white/25 focus:border-violet-300/40";
 
+/** UI-only selection cap for bulk queues; backend batch size stays at 25. */
+const EMOTIONAL_ANALYSIS_UI_SELECTION_MAX = 2000;
+
+const BACKEND_BATCH_SIZE = EMOTIONAL_ANALYSIS_QUEUE_MAX;
+
+type ApplyPayloadItem = {
+  songId: string;
+  energy?: number | null;
+  tempoBpm?: number | null;
+  atmosphere?: string | null;
+  emotion?: string | null;
+  texture?: string | null;
+  timeOfDay?: string | null;
+  vocalFeel?: string | null;
+  instrumentation?: string | null;
+  analysisStatus?: string | null;
+  analysisSource?: string | null;
+};
+
 function authHeader(token: string) {
   return { Authorization: `Bearer ${token}` };
+}
+
+function chunkArray<T>(items: T[], chunkSize: number): T[][] {
+  if (chunkSize <= 0) return [items];
+
+  const chunks: T[][] = [];
+
+  for (let index = 0; index < items.length; index += chunkSize) {
+    chunks.push(items.slice(index, index + chunkSize));
+  }
+
+  return chunks;
 }
 
 function draftFromResult(result: EmotionalSongAnalysisResult): EmotionalMetadataDraft {
@@ -249,6 +280,14 @@ export default function EmotionalAnalysisReviewPanel({
   const [errorMessage, setErrorMessage] = useState("");
   const [isQueueRunning, setIsQueueRunning] = useState(false);
   const [isApplying, setIsApplying] = useState(false);
+  const [analysisProgress, setAnalysisProgress] = useState<{
+    current: number;
+    total: number;
+  } | null>(null);
+  const [applyProgress, setApplyProgress] = useState<{
+    current: number;
+    total: number;
+  } | null>(null);
   const cancelQueueRef = useRef(false);
 
   const trackMap = useMemo(
@@ -289,7 +328,9 @@ export default function EmotionalAnalysisReviewPanel({
     if (isQueueRunning) return;
 
     setSelectedIds(
-      analyzableTracks.map((track) => track.id).slice(0, EMOTIONAL_ANALYSIS_QUEUE_MAX)
+      analyzableTracks
+        .map((track) => track.id)
+        .slice(0, EMOTIONAL_ANALYSIS_UI_SELECTION_MAX)
     );
   }
 
@@ -356,9 +397,9 @@ export default function EmotionalAnalysisReviewPanel({
       return;
     }
 
-    if (selectedCount > EMOTIONAL_ANALYSIS_QUEUE_MAX) {
+    if (selectedCount > EMOTIONAL_ANALYSIS_UI_SELECTION_MAX) {
       setErrorMessage(
-        `Select up to ${EMOTIONAL_ANALYSIS_QUEUE_MAX} tracks per analysis queue.`
+        `Select up to ${EMOTIONAL_ANALYSIS_UI_SELECTION_MAX} tracks per bulk queue.`
       );
       return;
     }
@@ -375,9 +416,10 @@ export default function EmotionalAnalysisReviewPanel({
 
     cancelQueueRef.current = false;
     setIsQueueRunning(true);
+    setAnalysisProgress({ current: 0, total: selectedTracks.length });
     setErrorMessage("");
     setStatusMessage(
-      `Queued ${selectedTracks.length} song(s). Processing sequentially...`
+      `Queued ${selectedTracks.length} track(s) in batches of ${BACKEND_BATCH_SIZE}. Processing sequentially...`
     );
 
     const initialQueue = createQueueItems(
@@ -388,84 +430,105 @@ export default function EmotionalAnalysisReviewPanel({
 
     let completed = 0;
     let failed = 0;
+    let processed = 0;
+    const trackChunks = chunkArray(selectedTracks, BACKEND_BATCH_SIZE);
 
-    for (let index = 0; index < selectedTracks.length; index += 1) {
+    for (const chunk of trackChunks) {
       if (cancelQueueRef.current) {
-        setStatusMessage("Analysis queue cancelled.");
         break;
       }
 
-      const track = selectedTracks[index];
+      for (const track of chunk) {
+        if (cancelQueueRef.current) {
+          break;
+        }
 
-      upsertQueueItem(track.id, { status: "analyzing", error: undefined });
+        upsertQueueItem(track.id, { status: "analyzing", error: undefined });
+        setAnalysisProgress({
+          current: processed + 1,
+          total: selectedTracks.length,
+        });
+        setStatusMessage(
+          `Analyzing ${processed + 1} of ${selectedTracks.length} tracks…`
+        );
 
-      try {
-        const result = await analyzeOneSong(track.id);
+        try {
+          const result = await analyzeOneSong(track.id);
 
-        ingestAnalysisResult(result);
+          ingestAnalysisResult(result);
 
-        if (result.status === "suggested") {
-          completed += 1;
-          upsertQueueItem(track.id, {
-            status: "completed",
-            result,
-            error: undefined,
-          });
-        } else {
+          if (result.status === "suggested") {
+            completed += 1;
+            upsertQueueItem(track.id, {
+              status: "completed",
+              result,
+              error: undefined,
+            });
+          } else {
+            failed += 1;
+            upsertQueueItem(track.id, {
+              status: "failed",
+              result,
+              error: result.error || "Analysis failed.",
+            });
+          }
+        } catch (error: unknown) {
           failed += 1;
+          const message =
+            error instanceof Error ? error.message : "Emotional analysis failed.";
+
+          const failedResult: EmotionalSongAnalysisResult = {
+            songId: track.id,
+            title: track.title,
+            status: "failed",
+            error: message,
+            confidence: 0,
+            signals: {
+              bpm: null,
+              durationSeconds: null,
+              bitrateKbps: null,
+              codec: null,
+              moodHint: track.mood,
+              genreHint: track.genre,
+            },
+            suggestion: null,
+          };
+
+          ingestAnalysisResult(failedResult);
           upsertQueueItem(track.id, {
             status: "failed",
-            result,
-            error: result.error || "Analysis failed.",
+            result: failedResult,
+            error: message,
           });
         }
-      } catch (error: unknown) {
-        failed += 1;
-        const message =
-          error instanceof Error ? error.message : "Emotional analysis failed.";
 
-        const failedResult: EmotionalSongAnalysisResult = {
-          songId: track.id,
-          title: track.title,
-          status: "failed",
-          error: message,
-          confidence: 0,
-          signals: {
-            bpm: null,
-            durationSeconds: null,
-            bitrateKbps: null,
-            codec: null,
-            moodHint: track.mood,
-            genreHint: track.genre,
-          },
-          suggestion: null,
-        };
-
-        ingestAnalysisResult(failedResult);
-        upsertQueueItem(track.id, {
-          status: "failed",
-          result: failedResult,
-          error: message,
+        processed += 1;
+        setAnalysisProgress({
+          current: processed,
+          total: selectedTracks.length,
         });
-      }
+        setStatusMessage(
+          `Analyzing ${processed} of ${selectedTracks.length} tracks… · ${completed} completed · ${failed} failed`
+        );
 
-      setStatusMessage(
-        `Queue progress: ${index + 1}/${selectedTracks.length} processed · ${completed} completed · ${failed} failed`
-      );
+        const hasMoreInRun =
+          processed < selectedTracks.length && !cancelQueueRef.current;
 
-      const hasMore = index < selectedTracks.length - 1;
-
-      if (hasMore && !cancelQueueRef.current) {
-        await sleep(EMOTIONAL_ANALYSIS_THROTTLE_MS);
+        if (hasMoreInRun) {
+          await sleep(EMOTIONAL_ANALYSIS_THROTTLE_MS);
+        }
       }
     }
 
-    if (!cancelQueueRef.current) {
+    if (cancelQueueRef.current) {
+      setStatusMessage("Analysis queue cancelled.");
+    } else {
       setStatusMessage(
         `Queue finished. ${completed} completed, ${failed} failed. Review suggestions before applying.`
       );
     }
 
+    setAnalysisProgress(null);
     setIsQueueRunning(false);
   }
 
@@ -474,11 +537,15 @@ export default function EmotionalAnalysisReviewPanel({
     setStatusMessage("Cancelling queue after the current song...");
   }
 
-  async function applySelected() {
-    if (!accessToken) return;
-
-    const items = suggestedResults
-      .filter((result) => applySelection[result.songId])
+  function buildApplyItems(
+    results: EmotionalSongAnalysisResult[],
+    includeSong: (songId: string) => boolean
+  ) {
+    return results
+      .filter(
+        (result) =>
+          result.status === "suggested" && includeSong(result.songId)
+      )
       .map((result) => {
         const draft = drafts[result.songId] || draftFromResult(result);
         const validation = validateEmotionalDraft(draft);
@@ -494,33 +561,28 @@ export default function EmotionalAnalysisReviewPanel({
             analysisStatus: "approved",
             analysisSource: "admin_approved_auto_audio_v1",
           }),
-        };
+        } satisfies ApplyPayloadItem;
       });
+  }
 
-    if (!items.length) {
-      setErrorMessage("Select at least one suggested track to apply.");
-      return;
-    }
+  async function applyItemsInChunks(items: ApplyPayloadItem[]) {
+    if (!accessToken) return;
 
-    if (items.length > EMOTIONAL_ANALYSIS_QUEUE_MAX) {
-      setErrorMessage(
-        `Apply up to ${EMOTIONAL_ANALYSIS_QUEUE_MAX} songs per request.`
-      );
-      return;
-    }
+    const chunks = chunkArray(items, BACKEND_BATCH_SIZE);
+    let appliedCount = 0;
+    let processedCount = 0;
 
-    setIsApplying(true);
-    setErrorMessage("");
-    setStatusMessage("Applying approved emotional metadata...");
+    setApplyProgress({ current: 0, total: items.length });
+    setStatusMessage(`Applying 0 of ${items.length} tracks…`);
 
-    try {
+    for (const chunk of chunks) {
       const response = await fetch("/api/admin/songs/apply-emotional-analysis", {
         method: "POST",
         headers: {
           ...authHeader(accessToken),
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ items }),
+        body: JSON.stringify({ items: chunk }),
       });
 
       const data = (await response.json().catch(() => null)) as ApplyResponse | null;
@@ -536,14 +598,89 @@ export default function EmotionalAnalysisReviewPanel({
         );
       }
 
-      setStatusMessage(data.message || "Applied emotional metadata.");
-      await onApplied();
+      appliedCount += data.applied.length;
+      processedCount += chunk.length;
+      setApplyProgress({ current: processedCount, total: items.length });
+      setStatusMessage(
+        `Applying ${processedCount} of ${items.length} tracks…`
+      );
+    }
+
+    setStatusMessage(
+      `Applied emotional metadata to ${appliedCount} track${appliedCount === 1 ? "" : "s"}.`
+    );
+    await onApplied();
+  }
+
+  async function applySelected() {
+    if (!accessToken) return;
+
+    let items: ApplyPayloadItem[] = [];
+
+    try {
+      items = buildApplyItems(
+        suggestedResults,
+        (songId) => Boolean(applySelection[songId])
+      );
+    } catch (error: unknown) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "Invalid suggestion draft."
+      );
+      return;
+    }
+
+    if (!items.length) {
+      setErrorMessage("Select at least one suggested track to apply.");
+      return;
+    }
+
+    setIsApplying(true);
+    setErrorMessage("");
+
+    try {
+      await applyItemsInChunks(items);
     } catch (error: unknown) {
       setErrorMessage(
         error instanceof Error ? error.message : "Failed to apply suggestions."
       );
       setStatusMessage("");
     } finally {
+      setApplyProgress(null);
+      setIsApplying(false);
+    }
+  }
+
+  async function applyAllSuggestions() {
+    if (!accessToken) return;
+
+    let items: ApplyPayloadItem[] = [];
+
+    try {
+      items = buildApplyItems(suggestedResults, () => true);
+    } catch (error: unknown) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "Invalid suggestion draft."
+      );
+      return;
+    }
+
+    if (!items.length) {
+      setErrorMessage("No suggested tracks are ready to apply.");
+      return;
+    }
+
+    setIsApplying(true);
+    setErrorMessage("");
+
+    try {
+      await applyItemsInChunks(items);
+    } catch (error: unknown) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "Failed to apply all suggestions."
+      );
+      setStatusMessage("");
+    } finally {
+      setApplyProgress(null);
       setIsApplying(false);
     }
   }
@@ -561,10 +698,11 @@ export default function EmotionalAnalysisReviewPanel({
             Batch queue · review before apply
           </h3>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-white/50">
-            Select up to {EMOTIONAL_ANALYSIS_QUEUE_MAX} tracks. Songs are analyzed
-            one at a time with {EMOTIONAL_ANALYSIS_THROTTLE_MS}ms throttling to keep
-            the admin UI responsive and the VPS stable. Nothing is saved until you
-            apply approved suggestions.
+            Select hundreds or thousands of tracks for bulk analysis. The UI queues
+            them in backend-safe batches of {BACKEND_BATCH_SIZE}, analyzes one song
+            per request with {EMOTIONAL_ANALYSIS_THROTTLE_MS}ms throttling, and
+            applies suggestions in matching {BACKEND_BATCH_SIZE}-song chunks. Nothing
+            is saved until you apply approved suggestions.
           </p>
         </div>
 
@@ -575,7 +713,7 @@ export default function EmotionalAnalysisReviewPanel({
             onClick={selectAllAnalyzable}
             className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-black text-white/80 transition hover:border-violet-300/30 disabled:opacity-40"
           >
-            Select Up To {EMOTIONAL_ANALYSIS_QUEUE_MAX}
+            Select All Analyzable
           </button>
           <button
             type="button"
@@ -596,6 +734,18 @@ export default function EmotionalAnalysisReviewPanel({
           ) : null}
         </div>
       </div>
+
+      {isQueueRunning && analysisProgress ? (
+        <p className="mt-4 text-sm font-black text-violet-100">
+          Analyzing {analysisProgress.current} of {analysisProgress.total} tracks…
+        </p>
+      ) : null}
+
+      {isApplying && applyProgress ? (
+        <p className="mt-4 text-sm font-black text-violet-100">
+          Applying {applyProgress.current} of {applyProgress.total} tracks…
+        </p>
+      ) : null}
 
       {queueItems.length ? (
         <div className="mt-4 rounded-2xl border border-white/10 bg-black/25 p-4">
@@ -651,7 +801,10 @@ export default function EmotionalAnalysisReviewPanel({
 
       <div className="mt-4 flex flex-wrap items-center gap-2 text-xs font-bold text-white/45">
         <span className="rounded-full bg-white/[0.06] px-3 py-1">
-          Selected: {selectedCount}/{EMOTIONAL_ANALYSIS_QUEUE_MAX}
+          Selected: {selectedCount}
+        </span>
+        <span className="rounded-full bg-white/[0.06] px-3 py-1">
+          Batch size: {BACKEND_BATCH_SIZE}
         </span>
         <span className="rounded-full bg-white/[0.06] px-3 py-1">
           Analyzable: {analyzableTracks.length}
@@ -724,16 +877,28 @@ export default function EmotionalAnalysisReviewPanel({
             <p className="text-sm font-black text-violet-100">
               Suggested metadata review
             </p>
-            <button
-              type="button"
-              disabled={panelDisabled || !applyCount}
-              onClick={applySelected}
-              className="rounded-2xl bg-violet-300 px-4 py-3 text-sm font-black text-black transition hover:scale-[1.01] disabled:opacity-40"
-            >
-              {isApplying
-                ? "Applying..."
-                : `Apply To ${applyCount} Selected Song${applyCount === 1 ? "" : "s"}`}
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                disabled={panelDisabled || !applyCount}
+                onClick={applySelected}
+                className="rounded-2xl bg-violet-300 px-4 py-3 text-sm font-black text-black transition hover:scale-[1.01] disabled:opacity-40"
+              >
+                {isApplying
+                  ? "Applying..."
+                  : `Apply To ${applyCount} Selected Song${applyCount === 1 ? "" : "s"}`}
+              </button>
+              <button
+                type="button"
+                disabled={panelDisabled || !suggestedResults.length}
+                onClick={applyAllSuggestions}
+                className="rounded-2xl border border-violet-300/30 bg-violet-400/15 px-4 py-3 text-sm font-black text-violet-50 transition hover:border-violet-300/50 disabled:opacity-40"
+              >
+                {isApplying
+                  ? "Applying All..."
+                  : `Apply All (${suggestedResults.length})`}
+              </button>
+            </div>
           </div>
 
           {results.map((result) => {
