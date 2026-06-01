@@ -57,6 +57,12 @@
           "enableBackgroundAudio": true,
           "audioSessionCategory": "playback"
         }
+      ],
+      [
+        "expo-av",
+        {
+          "skipLegacyPlugin": true
+        }
       ]
     ],
     "experiments": {
