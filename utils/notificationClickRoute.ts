@@ -2,16 +2,16 @@ import { getNowPlayingSnapshot } from "./nowPlayingStore";
 
 const APP_SCHEME = "hiddentunes";
 
-export type NotificationClickTarget = "/(tabs)/player" | "/(tabs)";
+export type NotificationClickTarget = "/music-feed";
 
 export function resolveNotificationClickRoute(): NotificationClickTarget {
   const { currentSongId, isPlaying } = getNowPlayingSnapshot();
 
   if (currentSongId || isPlaying) {
-    return "/(tabs)/player";
+    return "/music-feed";
   }
 
-  return "/(tabs)";
+  return "/music-feed";
 }
 
 export function isNotificationClickPath(path: string): boolean {

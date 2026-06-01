@@ -282,7 +282,7 @@ export const ExploreContinueListening = memo(function ExploreContinueListening({
     );
     void playSong(normalized as any, cloudSongs as any, startIndex);
     requestAnimationFrame(() => {
-      router.push("/player" as any);
+      router.push("/music-feed" as any);
     });
   };
 
@@ -290,7 +290,7 @@ export const ExploreContinueListening = memo(function ExploreContinueListening({
     <>
       <View style={styles.rowHeader}>
         <Text style={styles.sectionTitle}>Continue Listening</Text>
-        <TouchableOpacity onPress={() => router.push("/player" as any)}>
+        <TouchableOpacity onPress={() => router.push("/music-feed" as any)}>
           <Text style={styles.seeAll}>Player</Text>
         </TouchableOpacity>
       </View>

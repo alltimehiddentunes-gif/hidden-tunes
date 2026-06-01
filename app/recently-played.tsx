@@ -182,7 +182,7 @@ function RecentlyPlayedScreen() {
         });
 
       requestAnimationFrame(() => {
-        router.push("/player" as any);
+        router.push("/music-feed" as any);
       });
     },
     [playSong, tracks]
@@ -249,7 +249,7 @@ function RecentlyPlayedScreen() {
             <TouchableOpacity
               activeOpacity={0.86}
               style={styles.exploreButton}
-              onPress={() => router.push("/explore" as any)}
+              onPress={() => router.push("/music-feed" as any)}
             >
               <Ionicons name="compass" size={18} color="#000" />
               <Text style={styles.exploreButtonText}>Explore Music</Text>

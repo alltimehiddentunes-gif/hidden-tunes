@@ -327,7 +327,7 @@ export default function AlbumScreen() {
       });
 
     requestAnimationFrame(() => {
-      router.push("/player" as any);
+      router.push("/music-feed" as any);
     });
   }
 
@@ -344,7 +344,7 @@ export default function AlbumScreen() {
       });
 
     requestAnimationFrame(() => {
-      router.push("/player" as any);
+      router.push("/music-feed" as any);
     });
   }
 
@@ -363,7 +363,7 @@ export default function AlbumScreen() {
       });
 
     requestAnimationFrame(() => {
-      router.push("/player" as any);
+      router.push("/music-feed" as any);
     });
   }
 

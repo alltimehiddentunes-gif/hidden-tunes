@@ -403,7 +403,7 @@ export default function GenreScreen() {
         });
 
         requestAnimationFrame(() => {
-          router.push("/player" as any);
+          router.push("/music-feed" as any);
         });
       } catch (error) {
         if (__DEV__) {

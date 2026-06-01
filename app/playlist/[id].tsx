@@ -393,7 +393,7 @@ export default function PlaylistDetailScreen() {
 
               <TouchableOpacity
                 activeOpacity={0.85}
-                onPress={() => router.push("/search" as any)}
+                onPress={() => router.push("/music-feed" as any)}
                 style={styles.addBtn}
               >
                 <Ionicons name="add" size={22} color={COLORS.text} />

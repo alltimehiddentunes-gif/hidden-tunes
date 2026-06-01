@@ -69,7 +69,7 @@ export default function CloudPlaylistsScreen() {
               style={styles.card}
               onPress={() =>
                 router.push({
-                  pathname: "/cloud-playlist/[id]",
+                  pathname: "/playlist/[id]",
                   params: { id: item.id },
                 } as any)
               }

@@ -293,7 +293,7 @@ export default function ArtistScreen() {
         });
 
       requestAnimationFrame(() => {
-        router.push("/player" as any);
+        router.push("/music-feed" as any);
       });
     },
     [playSong, tracks]
@@ -313,7 +313,7 @@ export default function ArtistScreen() {
       });
 
     requestAnimationFrame(() => {
-      router.push("/player" as any);
+      router.push("/music-feed" as any);
     });
   }
 
@@ -332,7 +332,7 @@ export default function ArtistScreen() {
       });
 
     requestAnimationFrame(() => {
-      router.push("/player" as any);
+      router.push("/music-feed" as any);
     });
   }
 

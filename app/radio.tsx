@@ -274,7 +274,7 @@ export default function RadioScreen() {
         });
 
       requestAnimationFrame(() => {
-        router.push("/player" as any);
+        router.push("/music-feed" as any);
       });
     } catch {}
   }

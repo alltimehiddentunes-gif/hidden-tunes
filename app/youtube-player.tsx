@@ -710,7 +710,7 @@ export default function YouTubePlayerScreen() {
           <TouchableOpacity
             activeOpacity={0.86}
             style={styles.tvSearchButton}
-            onPress={() => router.push("/tv" as any)}
+            onPress={() => router.push("/music-feed" as any)}
           >
             <Ionicons name="tv" size={17} color="#000" />
             <Text style={styles.tvSearchText}>Find Another TV Video</Text>

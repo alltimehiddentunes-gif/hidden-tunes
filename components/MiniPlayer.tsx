@@ -429,7 +429,7 @@ function MiniPlayer() {
       return;
     }
 
-    router.push("/player" as any);
+    router.push("/music-feed" as any);
   }, [isYoutubeMode, youtubeVideo]);
 
   const handleMainButton = useCallback(async () => {
