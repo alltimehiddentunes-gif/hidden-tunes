@@ -32,7 +32,6 @@ function RootStack({ memoizedScreenOptions }: { memoizedScreenOptions: typeof sc
       <Stack.Screen name="lyrics" />
       <Stack.Screen name="queue" />
       <Stack.Screen name="hidden-audio-test" />
-      <Stack.Screen name="(tabs)" />
     </Stack>
   );
 }

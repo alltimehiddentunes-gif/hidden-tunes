@@ -33,9 +33,8 @@ type HiddenAudioNativeModule = {
 
 const STUB_MESSAGE = "[hidden_audio] not implemented on this platform";
 
-const HiddenAudioNative = NativeModules.HiddenAudio as
-  | HiddenAudioNativeModule
-  | undefined;
+const HiddenAudioNative = (NativeModules.HiddenAudioModule ||
+  NativeModules.HiddenAudio) as HiddenAudioNativeModule | undefined;
 
 function warnStub(method: string): void {
   console.warn(`${STUB_MESSAGE} (${method})`);
