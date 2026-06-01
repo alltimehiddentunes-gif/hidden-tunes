@@ -14,7 +14,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { COLORS } from "../../constants/theme";
 
-type ShellRoute = "/music-feed" | "/worlds" | "/auth";
+type ShellRoute = "/music-feed" | "/worlds" | "/player" | "/auth";
 
 type NavItem = {
   label: string;
@@ -43,8 +43,8 @@ const NAV_ITEMS: NavItem[] = [
     label: "Player",
     icon: "play-circle-outline",
     activeIcon: "play-circle",
-    href: "/music-feed",
-    matches: ["/queue", "/lyrics"],
+    href: "/player",
+    matches: ["/player", "/queue", "/lyrics"],
   },
   {
     label: "Profile",

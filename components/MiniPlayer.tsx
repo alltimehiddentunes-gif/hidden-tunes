@@ -55,6 +55,13 @@ type YouTubeMini = {
 const YOUTUBE_MINI_KEY = "hidden_tunes_current_youtube";
 const YOUTUBE_POLL_MS = 9000;
 
+function formatMiniTime(millis: number) {
+  const totalSeconds = Math.max(0, Math.floor((millis || 0) / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${seconds < 10 ? "0" : ""}${seconds}`;
+}
+
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 function fireLightHaptic() {
@@ -248,9 +255,15 @@ const MiniPlayerProgress = memo(function MiniPlayerProgress({
   }
 
   return (
-    <View style={styles.progressTrack} onLayout={onTrackLayout}>
-      <Animated.View style={[styles.progressFill, fillStyle]} />
-      <View style={styles.progressGlow} pointerEvents="none" />
+    <View>
+      <View style={styles.progressTrack} onLayout={onTrackLayout}>
+        <Animated.View style={[styles.progressFill, fillStyle]} />
+        <View style={styles.progressGlow} pointerEvents="none" />
+      </View>
+      <View style={styles.miniTimeRow}>
+        <Text style={styles.miniTimeText}>{formatMiniTime(position)}</Text>
+        <Text style={styles.miniTimeText}>{formatMiniTime(duration)}</Text>
+      </View>
     </View>
   );
 });
@@ -321,7 +334,7 @@ function MiniPlayer() {
     youtubeQueue,
     radioQueue,
   } = usePlayerState();
-  const { togglePlayPause, nextSong } = usePlayerActions();
+  const { togglePlayPause, nextSong, previousSong } = usePlayerActions();
 
   const [youtubeVideo, setYoutubeVideo] = useState<YouTubeMini | null>(null);
 
@@ -429,7 +442,7 @@ function MiniPlayer() {
       return;
     }
 
-    router.push("/music-feed" as any);
+    router.push("/player" as any);
   }, [isYoutubeMode, youtubeVideo]);
 
   const handleMainButton = useCallback(async () => {
@@ -440,6 +453,10 @@ function MiniPlayer() {
 
     await togglePlayPause();
   }, [isYoutubeMode, openPlayer, togglePlayPause]);
+
+  const handlePrevious = useCallback(() => {
+    previousSong();
+  }, [previousSong]);
 
   const handleNext = useCallback(() => {
     nextSong();
@@ -512,11 +529,21 @@ function MiniPlayer() {
 
             {!isYoutubeMode && (
               <MiniControlButton
+                accessibilityLabel="Previous track"
+                onPress={handlePrevious}
+                style={styles.skipButton}
+              >
+                <Ionicons name="play-skip-back" size={18} color={COLORS.text} />
+              </MiniControlButton>
+            )}
+
+            {!isYoutubeMode && (
+              <MiniControlButton
                 accessibilityLabel="Next track"
                 onPress={handleNext}
-                style={styles.nextButton}
+                style={styles.skipButton}
               >
-                <Ionicons name="play-skip-forward" size={19} color={COLORS.text} />
+                <Ionicons name="play-skip-forward" size={18} color={COLORS.text} />
               </MiniControlButton>
             )}
 
@@ -689,6 +716,18 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 
+  miniTimeRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 2,
+  },
+
+  miniTimeText: {
+    color: "rgba(255,255,255,0.46)",
+    fontSize: 9,
+    fontWeight: "800",
+  },
+
   progressTrack: {
     height: 4,
     borderRadius: 99,
@@ -708,14 +747,14 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(192,132,252,0.08)",
   },
 
-  nextButton: {
+  skipButton: {
     width: 42,
     height: 42,
     borderRadius: 21,
     backgroundColor: "rgba(255,255,255,0.08)",
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 8,
+    marginRight: 6,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.06)",
   },

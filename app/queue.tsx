@@ -21,14 +21,17 @@ import {
 } from "../context/PlayerContext";
 
 export default function QueueScreen() {
-  const { playSong, playAudiusTrack } = usePlayerActions();
-  const { songs, onlineSongs } = usePlayerState();
+  const { playSong, playAudiusTrack, nextSong, previousSong } = usePlayerActions();
+  const { songs, onlineSongs, activeQueue, activeQueueIndex } = usePlayerState();
   const { currentSong, isPlaying } = usePlayerNowPlaying();
 
-  const queueSongs = [...onlineSongs, ...songs];
-  const nextSongs = queueSongs.filter(
-    (song) => String(song.id) !== String(currentSong?.id)
-  );
+  const queueSongs = activeQueue.length ? activeQueue : [...onlineSongs, ...songs];
+  const nextSongs = queueSongs
+    .map((song, queueIndex) => ({ song, queueIndex }))
+    .filter(({ song, queueIndex }) => {
+      if (activeQueue.length) return queueIndex !== activeQueueIndex;
+      return String(song.id) !== String(currentSong?.id);
+    });
 
   return (
     <AppShell>
@@ -46,9 +49,14 @@ export default function QueueScreen() {
           <Text style={styles.headerSubtitle}>Up next</Text>
         </View>
 
-        <TouchableOpacity style={styles.iconButton}>
-          <Ionicons name="ellipsis-horizontal" size={22} color={COLORS.text} />
-        </TouchableOpacity>
+        <View style={styles.headerControls}>
+          <TouchableOpacity style={styles.iconButton} onPress={() => void previousSong()}>
+            <Ionicons name="play-skip-back" size={20} color={COLORS.text} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.iconButton} onPress={() => void nextSong()}>
+            <Ionicons name="play-skip-forward" size={20} color={COLORS.text} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView
@@ -101,7 +109,7 @@ export default function QueueScreen() {
             <Text style={styles.emptyText}>No songs in queue</Text>
           </View>
         ) : (
-          nextSongs.map((song, index) => (
+          nextSongs.map(({ song, queueIndex }, index) => (
             <TouchableOpacity
               key={`${song.id}-${index}`}
               style={styles.queueItem}
@@ -109,13 +117,13 @@ export default function QueueScreen() {
               onPress={() => {
                 if (song.isOnline || song.streamUrl) {
                   void playAudiusTrack(song).catch((error) => {
-                    if (__DEV__) console.log("Legacy queue Audius play error:", error);
+                    if (__DEV__) console.log("Queue Audius play error:", error);
                   });
                   return;
                 }
 
-                void playSong(song).catch((error) => {
-                  if (__DEV__) console.log("Legacy queue play error:", error);
+                void playSong(song, queueSongs, queueIndex).catch((error) => {
+                  if (__DEV__) console.log("Queue play error:", error);
                 });
               }}
             >
@@ -180,6 +188,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+  },
+
+  headerControls: {
+    flexDirection: "row",
+    gap: 8,
   },
 
   iconButton: {

@@ -14,12 +14,19 @@ export interface HiddenAudioNowPlayingMetadata {
   position: number;
 }
 
+export type HiddenAudioStatus = {
+  positionMillis: number;
+  durationMillis: number;
+  isPlaying: boolean;
+};
+
 export interface HiddenAudioEngine {
   load(url: string): Promise<void>;
   play(): Promise<void>;
   pause(): Promise<void>;
   stop(): Promise<void>;
   seek(positionMs: number): Promise<void>;
+  getStatus(): Promise<HiddenAudioStatus>;
   updateNowPlaying(metadata: HiddenAudioNowPlayingMetadata): Promise<void>;
 }
 
@@ -28,6 +35,9 @@ type HiddenAudioNativeModule = {
   play(): Promise<void>;
   pause(): Promise<void>;
   stop(): Promise<void>;
+  seekTo?(seconds: number): Promise<void>;
+  getState?(): Promise<Record<string, unknown>>;
+  getProgress?(): Promise<Record<string, unknown>>;
   updateNowPlaying(metadata: HiddenAudioNowPlayingMetadata): Promise<void>;
 };
 
@@ -73,8 +83,50 @@ export const hiddenAudioBridge: HiddenAudioEngine = {
     }
     await HiddenAudioNative.stop();
   },
-  async seek(_positionMs: number): Promise<void> {
-    warnStub("seek");
+  async seek(positionMs: number): Promise<void> {
+    if (!HiddenAudioNative?.seekTo) {
+      warnStub("seek");
+      return;
+    }
+    await HiddenAudioNative.seekTo(Math.max(0, positionMs / 1000));
+  },
+  async getStatus(): Promise<HiddenAudioStatus> {
+    if (!HiddenAudioNative) {
+      warnStub("getStatus");
+      return { positionMillis: 0, durationMillis: 0, isPlaying: false };
+    }
+
+    const [state, progress] = await Promise.all([
+      HiddenAudioNative.getState?.().catch(() => null),
+      HiddenAudioNative.getProgress?.().catch(() => null),
+    ]);
+
+    const progressMap = (progress || {}) as Record<string, unknown>;
+    const stateMap = (state || {}) as Record<string, unknown>;
+    const positionSeconds = Number(
+      progressMap.positionSeconds ?? progressMap.currentTime ?? 0
+    );
+    const durationSeconds = Number(
+      progressMap.durationSeconds ?? progressMap.duration ?? 0
+    );
+    const isPlayingValue = progressMap.isPlaying;
+    const status = String(stateMap.status || "");
+
+    return {
+      positionMillis: Math.max(
+        0,
+        Math.floor((Number.isFinite(positionSeconds) ? positionSeconds : 0) * 1000)
+      ),
+      durationMillis: Math.max(
+        0,
+        Math.floor((Number.isFinite(durationSeconds) ? durationSeconds : 0) * 1000)
+      ),
+      isPlaying:
+        isPlayingValue === true ||
+        isPlayingValue === 1 ||
+        isPlayingValue === "1" ||
+        status === "playing",
+    };
   },
   async updateNowPlaying(
     metadata: HiddenAudioNowPlayingMetadata

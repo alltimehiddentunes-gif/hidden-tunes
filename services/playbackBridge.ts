@@ -216,6 +216,11 @@ export async function bridgeTogglePlayPause(): Promise<boolean> {
 }
 
 export async function bridgeSeekTo(millis: number): Promise<void> {
+  if (isHiddenAudioPlaybackActive()) {
+    await hiddenAudioBridge.seek(millis);
+    return;
+  }
+
   if (!isPlaybackBridgeActive()) return;
   await trackPlayerSeekTo(millis);
 }
@@ -239,6 +244,10 @@ export async function bridgeSkipToPrevious(): Promise<void> {
 }
 
 export async function bridgeGetProgress(): Promise<PlaybackProgress> {
+  if (isHiddenAudioPlaybackActive()) {
+    return hiddenAudioBridge.getStatus();
+  }
+
   if (!isPlaybackBridgeActive()) {
     return {
       positionMillis: 0,

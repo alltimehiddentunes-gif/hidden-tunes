@@ -3311,7 +3311,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     async (millis: number) => {
       const safeMillis = Math.max(0, Math.floor(millis || 0));
 
-      if (trackPlayerActiveRef.current) {
+      if (trackPlayerActiveRef.current || hiddenAudioActiveRef.current) {
         await bridgeSeekTo(safeMillis);
         setPositionMillis(safeMillis);
         await savePlaybackPosition(safeMillis);
@@ -3646,6 +3646,73 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       console.log("[startup-ready] restore-heavy-end");
     }
   }, [normalizeSong, isYouTubeSong, normalizeYouTubeTrack]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const pollHiddenAudioProgress = async () => {
+      if (cancelled || !hiddenAudioActiveRef.current) return;
+
+      try {
+        const progress = await bridgeGetProgress();
+        if (cancelled || !hiddenAudioActiveRef.current) return;
+
+        const now = Date.now();
+        const previousPosition = positionMillisRef.current;
+        positionMillisRef.current = progress.positionMillis;
+
+        const positionStateMinMs = getPositionStateUpdateMinMs(
+          appStateRef.current
+        );
+
+        if (
+          now - lastPositionStateUpdateRef.current >= positionStateMinMs ||
+          Math.abs(progress.positionMillis - previousPosition) > 1800
+        ) {
+          lastPositionStateUpdateRef.current = now;
+          recordPlaybackProgressUpdate();
+          recordPlaybackReactStateUpdate("position");
+          setPositionMillisState(progress.positionMillis);
+        }
+
+        if (progress.durationMillis > 0) {
+          durationMillisRef.current = progress.durationMillis;
+          recordPlaybackReactStateUpdate("duration");
+          setDurationMillisState(progress.durationMillis);
+        }
+
+        if (progress.isPlaying !== isPlayingRef.current) {
+          isPlayingRef.current = progress.isPlaying;
+          recordPlaybackReactStateUpdate("is_playing");
+          setIsPlayingState(progress.isPlaying);
+        }
+
+        if (
+          now - lastPositionSaveRef.current > POSITION_SAVE_INTERVAL_MS &&
+          Math.abs(progress.positionMillis - lastSavedPositionRef.current) >=
+            POSITION_SAVE_DISTANCE_MS
+        ) {
+          lastPositionSaveRef.current = now;
+          void savePlaybackPosition(progress.positionMillis);
+        }
+      } catch (error) {
+        if (typeof __DEV__ !== "undefined" && __DEV__) {
+          console.log("Hidden audio progress poll error:", error);
+        }
+      }
+    };
+
+    const timer = setInterval(() => {
+      void pollHiddenAudioProgress();
+    }, getProgressUpdateIntervalMs(appStateRef.current));
+
+    void pollHiddenAudioProgress();
+
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [savePlaybackPosition]);
 
   useEffect(() => {
     if (!isTrackPlayerFeatureEnabled()) return;
