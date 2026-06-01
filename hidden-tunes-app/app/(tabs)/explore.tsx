@@ -11,9 +11,8 @@ import {
 } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
-import { useIsFocused, useScrollToTop } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 
 import AddToPlaylistButton from "../../components/AddToPlaylistButton";
 import HTImage from "../../components/HTImage";
@@ -259,8 +258,6 @@ export default memo(function ExploreScreen() {
   useRuntimeRenderProbe("Explore");
   const { playSong } = usePlayerActions();
   const { recentlyPlayed, favorites } = usePlayerState();
-  const isFocused = useIsFocused();
-
   const listRef = useRef<FlatList<HiddenTunesNormalizedSong>>(null);
   const screenStartedAt = useRef(startPerformanceTimer()).current;
   const initialExploreLoadRef = useRef(false);
@@ -336,7 +333,7 @@ export default memo(function ExploreScreen() {
     };
   }, []);
 
-  useScrollToTop(listRef);
+  // useScrollToTop(listRef);
   useRenderCountProbe("ExploreScreen");
 
   const listPerformance = useMemo(
@@ -539,13 +536,14 @@ export default memo(function ExploreScreen() {
 
   loadExploreRef.current = loadExplore;
 
-  useEffect(() => {
-    if (!isFocused) return;
-    if (initialExploreLoadRef.current) return;
+  useFocusEffect(
+    useCallback(() => {
+      if (initialExploreLoadRef.current) return;
 
-    initialExploreLoadRef.current = true;
-    void loadExploreRef.current(true, false);
-  }, [isFocused]);
+      initialExploreLoadRef.current = true;
+      void loadExploreRef.current(true, false);
+    }, [])
+  );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
