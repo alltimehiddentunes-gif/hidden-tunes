@@ -31,7 +31,7 @@ export default function IndexScreen() {
     const cancel = scheduleStartupTask("afterPaint", "onboarding_route_check", async () => {
       try {
         const completed = await hasCompletedOnboarding();
-        setTarget(completed ? "/(tabs)" : "/onboarding");
+        setTarget(completed ? "/music-feed" : "/onboarding");
       } catch {
         setTarget("/onboarding");
       }
