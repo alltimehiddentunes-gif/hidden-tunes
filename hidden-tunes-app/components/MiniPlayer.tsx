@@ -39,6 +39,7 @@ import {
   usePlayerProgress,
   usePlayerState,
 } from "../context/PlayerContext";
+import { navigateToPlayerWithMerge } from "../navigation/playerNavigation";
 import HTImage from "./HTImage";
 import { FALLBACK_ARTWORK, getArtworkValue } from "../utils/artwork";
 import { isFastScrolling } from "../utils/performanceMode";
@@ -429,7 +430,7 @@ function MiniPlayer() {
       return;
     }
 
-    router.push("/player");
+    navigateToPlayerWithMerge();
   }, [isYoutubeMode, youtubeVideo]);
 
   const handleMainButton = useCallback(async () => {

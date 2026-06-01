@@ -31,3 +31,38 @@ export type HiddenTunesTrack = {
 
   isOnline: boolean;
 };
+
+export type EmotionalMetadataRaw = {
+  energy?: number | null;
+  tempoBpm?: number | null;
+  atmosphere?: string | null;
+  emotion?: string | null;
+  texture?: string | null;
+  timeOfDay?: string | null;
+  vocalFeel?: string | null;
+  instrumentation?: string | null;
+  analysisStatus?: string | null;
+  analysisSource?: string | null;
+};
+
+export type EmotionalVector = {
+  energy: number;
+  warmth: number;
+  darkness: number;
+  intimacy: number;
+  nostalgia: number;
+  aggression: number;
+};
+
+export type Track = HiddenTunesTrack & {
+  emotionalMetadataRaw?: EmotionalMetadataRaw | null;
+  emotionalVector?: EmotionalVector | null;
+  emotionalTags?: string[];
+};
+
+export type QueryContext = {
+  text?: string;
+  moodTags?: string[];
+  world?: string;
+  currentTrack?: Track;
+};

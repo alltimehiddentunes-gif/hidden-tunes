@@ -8,11 +8,6 @@
     "scheme": "hiddentunes",
     "userInterfaceStyle": "dark",
     "description": "Discover and stream music with Hidden Tunes.",
-    "splash": {
-      "image": "./assets/images/icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#000000"
-    },
     "assetBundlePatterns": [
       "**/*"
     ],
@@ -57,7 +52,8 @@
           "enableBackgroundAudio": true,
           "audioSessionCategory": "playback"
         }
-      ]
+      ],
+      "./plugins/hidden-audio"
     ],
     "experiments": {
       "typedRoutes": true

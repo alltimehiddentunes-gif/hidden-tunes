@@ -28,7 +28,9 @@
         "simulator": false
       },
       "env": {
-        "EXPO_PUBLIC_BUILD_PROFILE": "preview"
+        "EXPO_PUBLIC_BUILD_PROFILE": "preview",
+        "SHARP_IGNORE_GLOBAL_LIBVIPS": "true",
+        "SHARP_FORCE_PREBUILT": "true"
       }
     },
     "production": {

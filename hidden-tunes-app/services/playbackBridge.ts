@@ -1,6 +1,13 @@
 ﻿import { AppStateStatus } from "react-native";
 
-import { isTrackPlayerFeatureEnabled } from "../constants/playbackConfig";
+import {
+  isHiddenAudioEnabledOnIOS,
+  isTrackPlayerFeatureEnabled,
+} from "../constants/playbackConfig";
+import {
+  hiddenAudioBridge,
+  isHiddenAudioNativeEngineAvailable,
+} from "../src/hidden-audio/hiddenAudioBridge";
 import {
   recordBridgeSetProgressInterval,
   recordRemoteHandlersAttached,
@@ -49,8 +56,10 @@ export type TrackPlayerSongInput = PlaybackEngineTrack;
 export type PlayerRepeatMode = PlaybackEngineRepeatMode;
 export type PlaybackProgress = PlaybackEngineProgress;
 export type TrackPlayerEventHandlers = PlaybackEngineEventHandlers;
+export type PlaybackEngineKind = "expo-av" | "track-player" | "hidden_audio";
 
 let bridgeActive = false;
+let hiddenAudioBridgeActive = false;
 let mainThreadRemoteSubscriptions: Array<{ remove: () => void }> = [];
 
 function attachMainThreadRemoteHandlers() {
@@ -380,4 +389,77 @@ export async function bridgeTryUserTapFastPlay(options: {
   }
 
   return { playedIndex };
+}
+
+export function isHiddenAudioPlaybackActive(): boolean {
+  return hiddenAudioBridgeActive && isHiddenAudioEnabledOnIOS();
+}
+
+export async function shouldUseHiddenAudioPlayback(): Promise<boolean> {
+  if (!isHiddenAudioEnabledOnIOS()) return false;
+  return isHiddenAudioNativeEngineAvailable();
+}
+
+export async function activateHiddenAudioPlayback(options: {
+  url: string;
+  title: string;
+  artist: string;
+  album?: string;
+  durationSeconds?: number;
+  positionSeconds?: number;
+}): Promise<void> {
+  await hiddenAudioBridge.load(options.url);
+  await hiddenAudioBridge.updateNowPlaying({
+    title: options.title,
+    artist: options.artist,
+    album: options.album || "",
+    duration: options.durationSeconds ?? 0,
+    position: options.positionSeconds ?? 0,
+  });
+  await hiddenAudioBridge.play();
+  hiddenAudioBridgeActive = true;
+}
+
+export async function deactivateHiddenAudioPlayback(
+  reason = "unknown"
+): Promise<void> {
+  if (!hiddenAudioBridgeActive) return;
+
+  logBackgroundPlayback("hidden_audio_deactivate_requested", { reason });
+
+  try {
+    await hiddenAudioBridge.stop();
+  } catch (error) {
+    console.log("[hidden_audio] deactivate error:", error);
+  }
+
+  hiddenAudioBridgeActive = false;
+}
+
+export async function bridgeHiddenAudioPlay(): Promise<void> {
+  if (!isHiddenAudioPlaybackActive()) return;
+  await hiddenAudioBridge.play();
+}
+
+export async function bridgeHiddenAudioPause(): Promise<void> {
+  if (!isHiddenAudioPlaybackActive()) return;
+  await hiddenAudioBridge.pause();
+}
+
+export async function bridgeHiddenAudioUpdateNowPlaying(options: {
+  title: string;
+  artist: string;
+  album?: string;
+  durationSeconds?: number;
+  positionSeconds?: number;
+}): Promise<void> {
+  if (!isHiddenAudioEnabledOnIOS()) return;
+
+  await hiddenAudioBridge.updateNowPlaying({
+    title: options.title,
+    artist: options.artist,
+    album: options.album || "",
+    duration: options.durationSeconds ?? 0,
+    position: options.positionSeconds ?? 0,
+  });
 }

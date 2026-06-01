@@ -1,4 +1,5 @@
 import type { HiddenTunesNormalizedSong } from "../services/hiddenTunesApi";
+import { getHydratedCatalogTrackOnce } from "../state/catalogHydrationCache";
 import {
   rankCatalogSongs,
   scoreCatalogSongMatch,
@@ -52,13 +53,17 @@ export function buildCatalogSearchIndex(
     const songId = String(song.id || "").trim();
     if (!songId) continue;
 
+    const hydratedSong = getHydratedCatalogTrackOnce(
+      song
+    ) as HiddenTunesNormalizedSong;
+
     entries.push({
       songId,
-      haystack: buildSongHaystack(song),
-      titleKey: normalizeSearchText(song.title),
-      artistKey: normalizeSearchText(song.artist),
-      genreKey: normalizeSearchText(song.genre || song.mood),
-      song,
+      haystack: buildSongHaystack(hydratedSong),
+      titleKey: normalizeSearchText(hydratedSong.title),
+      artistKey: normalizeSearchText(hydratedSong.artist),
+      genreKey: normalizeSearchText(hydratedSong.genre || hydratedSong.mood),
+      song: hydratedSong,
     });
   }
 

@@ -25,6 +25,13 @@ export const USE_NATIVE_TRACK_PLAYER = true;
 export const USE_NATIVE_TRACK_PLAYER_ON_IOS = false;
 
 /**
+ * iOS native hidden_audio engine (AVPlayer + Now Playing POC).
+ * When false, iOS uses expo-av — identical to current production.
+ * When true on iOS only, PlayerContext routes playback through hidden_audio.
+ */
+export const USE_NATIVE_HIDDEN_AUDIO_ON_IOS = true;
+
+/**
  * B1.1 reliability instrumentation (main-thread only).
  * Disabled after lock-screen regression — do not call native Track Player
  * APIs from background/remote event handlers.
@@ -68,6 +75,10 @@ export function isTrackPlayerFeatureEnabled(): boolean {
   if (!USE_NATIVE_TRACK_PLAYER) return false;
   if (Platform.OS === "ios" && !USE_NATIVE_TRACK_PLAYER_ON_IOS) return false;
   return true;
+}
+
+export function isHiddenAudioEnabledOnIOS(): boolean {
+  return Platform.OS === "ios" && USE_NATIVE_HIDDEN_AUDIO_ON_IOS;
 }
 
 export function isPlaybackReliabilityDiagnosticsEnabled(): boolean {

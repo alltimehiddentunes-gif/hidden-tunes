@@ -20,6 +20,7 @@ import {
   usePlayerNowPlaying,
   usePlayerState,
 } from "../../context/PlayerContext";
+import { navigateToPlayerWithMerge } from "../../navigation/playerNavigation";
 import type { HiddenTunesNormalizedSong } from "../../services/hiddenTunesApi";
 import type { SmartDiscoverySection } from "../../services/smartDiscovery";
 import { FALLBACK_ARTWORK, getArtworkUri } from "../../utils/artwork";
@@ -28,6 +29,7 @@ import {
 } from "../../utils/catalogEmptyStateTiming";
 import HTImage from "../HTImage";
 import { SubtleTvEntryLink } from "../EmotionalDiscoveryChips";
+import WorldsExploreSection from "./WorldsExploreSection";
 
 export type ExploreMountStage = 0 | 1 | 2 | 3 | 4;
 
@@ -281,7 +283,7 @@ export const ExploreContinueListening = memo(function ExploreContinueListening({
     );
     void playSong(normalized as any, cloudSongs as any, startIndex);
     requestAnimationFrame(() => {
-      router.push("/player" as any);
+      navigateToPlayerWithMerge();
     });
   };
 
@@ -289,7 +291,7 @@ export const ExploreContinueListening = memo(function ExploreContinueListening({
     <>
       <View style={styles.rowHeader}>
         <Text style={styles.sectionTitle}>Continue Listening</Text>
-        <TouchableOpacity onPress={() => router.push("/player" as any)}>
+        <TouchableOpacity onPress={navigateToPlayerWithMerge}>
           <Text style={styles.seeAll}>Player</Text>
         </TouchableOpacity>
       </View>
@@ -718,6 +720,8 @@ const ExploreListHeader = memo(function ExploreListHeader(
           renderMoodRoom={props.renderMoodRoom}
         />
       ) : null}
+
+      {stageVisible(props.mountStage, 2) ? <WorldsExploreSection /> : null}
 
       {stageVisible(props.mountStage, 2) ? (
         <ExploreDiscoveryRails

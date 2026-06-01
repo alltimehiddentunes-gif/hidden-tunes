@@ -1,0 +1,96 @@
+"use strict";
+
+const fs = require("fs");
+const path = require("path");
+const {
+  IOSConfig,
+  withDangerousMod,
+  withXcodeProject,
+} = require("@expo/config-plugins");
+
+const HIDDEN_AUDIO_GROUP = "HiddenAudioModule";
+
+const NATIVE_FILES = [
+  "HiddenAudioModule.swift",
+  "HiddenAudioModule.m"
+];
+
+function getRepoSourceDir(projectRoot) {
+  return path.join(
+    projectRoot,
+    "plugins",
+    "hidden-audio",
+    "ios",
+    HIDDEN_AUDIO_GROUP
+  );
+}
+
+const withHiddenAudioNativeSources = (config) => {
+  return withDangerousMod(config, [
+    "ios",
+    async (config) => {
+      const { projectRoot, platformProjectRoot } = config.modRequest;
+      const appName = IOSConfig.XcodeUtils.getProjectName(projectRoot);
+      const sourceDir = getRepoSourceDir(projectRoot);
+
+      const destinationDir = path.join(
+        platformProjectRoot,
+        appName,
+        HIDDEN_AUDIO_GROUP
+      );
+
+      fs.mkdirSync(destinationDir, { recursive: true });
+
+      for (const fileName of NATIVE_FILES) {
+        fs.copyFileSync(
+          path.join(sourceDir, fileName),
+          path.join(destinationDir, fileName)
+        );
+      }
+
+      return config; // correct
+    },
+  ]);
+};
+
+const withHiddenAudioXcodeProject = (config) => {
+  return withXcodeProject(config, (config) => {
+    const xcodeProject = config.modResults;
+    const projectRoot = config.modRequest.projectRoot;
+    const appName = IOSConfig.XcodeUtils.getProjectName(projectRoot);
+    const targetUuid = xcodeProject.getFirstTarget().uuid;
+
+    let groupKey = xcodeProject.findPBXGroupKey({ name: HIDDEN_AUDIO_GROUP });
+    if (!groupKey) {
+      groupKey = xcodeProject.pbxCreateGroup(
+        HIDDEN_AUDIO_GROUP,
+        `${appName}/${HIDDEN_AUDIO_GROUP}`
+      );
+      const mainGroup = xcodeProject.getFirstProject().firstProject.mainGroup;
+      xcodeProject.addToPbxGroup(groupKey, mainGroup);
+    }
+
+    for (const fileName of NATIVE_FILES) {
+      const filePath = `${appName}/${HIDDEN_AUDIO_GROUP}/${fileName}`;
+
+      if (!xcodeProject.hasFile(filePath)) {
+        xcodeProject.addSourceFile(filePath, { target: targetUuid }, groupKey);
+      }
+    }
+
+    return config; // correct
+  });
+};
+
+const withHiddenAudio = (config) => {
+  config = withHiddenAudioNativeSources(config);
+  config = withHiddenAudioXcodeProject(config);
+
+  console.log(
+    "[hidden-audio] HiddenAudio Swift/ObjC sources will be copied and linked during iOS prebuild."
+  );
+
+  return config;
+};
+
+module.exports = withHiddenAudio;
