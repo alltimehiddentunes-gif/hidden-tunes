@@ -38,7 +38,7 @@ export default memo(PlayerScreenEngineDashboard);
 
 const styles = StyleSheet.create({
   overlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.flatten(StyleSheet.absoluteFill),
     zIndex: 12,
   },
   dashboard: {

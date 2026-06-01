@@ -196,7 +196,7 @@ export function recordAppStateTransition(
 }
 
 export function recordPlaybackProgressUpdate(
-  engine: "track_player" | "expo_av",
+  engine: "track_player" | "hidden_audio" | "native_audio",
   appState: AppStateStatus
 ) {
   if (!isRuntimeInstrumentationEnabled()) return;

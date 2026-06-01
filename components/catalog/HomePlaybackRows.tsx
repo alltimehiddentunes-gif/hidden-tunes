@@ -149,7 +149,7 @@ const styles = StyleSheet.create({
     position: "absolute",
   },
   featuredOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.flatten(StyleSheet.absoluteFill),
   },
   featuredRank: {
     position: "absolute",

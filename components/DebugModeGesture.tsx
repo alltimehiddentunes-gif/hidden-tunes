@@ -39,7 +39,7 @@ export default memo(DebugModeGesture);
 
 const styles = StyleSheet.create({
   container: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.flatten(StyleSheet.absoluteFill),
     zIndex: 30,
   },
   cornerHitArea: {

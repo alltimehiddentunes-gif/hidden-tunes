@@ -53,7 +53,7 @@ const styles = StyleSheet.create({
   },
 
   orb: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.flatten(StyleSheet.absoluteFill),
     borderRadius: 60,
     opacity: 0.9,
   },

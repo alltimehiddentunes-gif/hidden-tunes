@@ -39,7 +39,6 @@ import {
   usePlayerProgress,
   usePlayerState,
 } from "../context/PlayerContext";
-import { navigateToPlayerWithMerge } from "../navigation/playerNavigation";
 import HTImage from "./HTImage";
 import { FALLBACK_ARTWORK, getArtworkValue } from "../utils/artwork";
 import { isFastScrolling } from "../utils/performanceMode";
@@ -430,7 +429,7 @@ function MiniPlayer() {
       return;
     }
 
-    navigateToPlayerWithMerge();
+    router.push("/player" as any);
   }, [isYoutubeMode, youtubeVideo]);
 
   const handleMainButton = useCallback(async () => {
@@ -567,7 +566,7 @@ const styles = StyleSheet.create({
   },
 
   sheen: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.flatten(StyleSheet.absoluteFill),
     backgroundColor: "rgba(255,255,255,0.03)",
   },
 
@@ -705,7 +704,7 @@ const styles = StyleSheet.create({
   },
 
   progressGlow: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.flatten(StyleSheet.absoluteFill),
     backgroundColor: "rgba(192,132,252,0.08)",
   },
 

@@ -4,8 +4,8 @@ import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 
-import { COLORS } from "../constants/theme";
-import { getWorldUiMeta } from "../utils/worldPresentation";
+import { COLORS } from "../../constants/theme";
+import { getWorldUiMeta } from "../../utils/worldPresentation";
 
 export type WorldCardVariant = "gallery" | "compact";
 
@@ -70,7 +70,7 @@ const WorldCard = memo(function WorldCard({
           ) : null}
 
           <View style={styles.tagRow}>
-            {moodPreview.map((tag) => (
+            {moodPreview.map((tag: string) => (
               <View key={`${worldId}-${tag}`} style={styles.tagPill}>
                 <Text style={styles.tagText}>{tag}</Text>
               </View>

@@ -135,7 +135,7 @@ export default memo(QueueScreenEmotionalFlowHints);
 
 const styles = StyleSheet.create({
   overlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.flatten(StyleSheet.absoluteFill),
     zIndex: 6,
   },
   hint: {

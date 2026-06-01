@@ -18,7 +18,6 @@ import {
   usePlayerProgress,
 } from "../context/PlayerContext";
 import { isTrackPlayerFeatureEnabled } from "../constants/playbackConfig";
-import { installNotificationDeepLinkNavigation } from "../navigation/deepLinkNavigation";
 import { loadHydratedCatalogOnce } from "../state/catalogFetchLayer";
 import {
   disableRemoteMediaControls,
@@ -53,7 +52,6 @@ function RemoteMediaControlsBridge() {
   }, []);
 
   useEffect(() => {
-    return installNotificationDeepLinkNavigation();
   }, []);
 
   useEffect(() => {

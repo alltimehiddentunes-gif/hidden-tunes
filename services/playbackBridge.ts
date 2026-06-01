@@ -1,4 +1,4 @@
-﻿import { AppStateStatus } from "react-native";
+import { AppStateStatus } from "react-native";
 
 import {
   isHiddenAudioEnabledOnIOS,
@@ -56,7 +56,7 @@ export type TrackPlayerSongInput = PlaybackEngineTrack;
 export type PlayerRepeatMode = PlaybackEngineRepeatMode;
 export type PlaybackProgress = PlaybackEngineProgress;
 export type TrackPlayerEventHandlers = PlaybackEngineEventHandlers;
-export type PlaybackEngineKind = "expo-av" | "track-player" | "hidden_audio";
+export type PlaybackEngineKind = "track-player" | "hidden_audio";
 
 let bridgeActive = false;
 let hiddenAudioBridgeActive = false;

@@ -20,7 +20,7 @@ import { isTrackPlayerFeatureEnabled } from "../constants/playbackConfig";
  *
  * EXPO GO (Android + iPhone):
  * - Never loads react-native-track-player (crashes / unsupported).
- * - Playback uses expo-av fallback only; lock-screen native queue is NOT testable.
+ * - Playback uses the native app audio path; lock-screen native queue is NOT testable.
  * - Use only for quick UI checks, not playback QA.
  */
 

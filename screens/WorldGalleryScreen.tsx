@@ -14,7 +14,6 @@ import { router } from "expo-router";
 
 import WorldCard from "../components/worlds/WorldCard";
 import { COLORS, GRADIENTS } from "../constants/theme";
-import { navigateToWorldDetailWithMerge } from "../navigation/worldNavigation";
 import { getWorldGalleryItems } from "../utils/worldPresentation";
 
 function WorldGalleryScreen() {
@@ -25,7 +24,9 @@ function WorldGalleryScreen() {
       <WorldCard
         worldId={item.id}
         variant="gallery"
-        onPress={() => navigateToWorldDetailWithMerge(item.id)}
+        onPress={() =>
+          router.push({ pathname: "/worlds/[worldId]", params: { worldId: item.id } } as any)
+        }
       />
     ),
     []

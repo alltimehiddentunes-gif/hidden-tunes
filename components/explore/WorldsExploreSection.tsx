@@ -8,12 +8,9 @@ import {
 } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
 
 import { COLORS } from "../../constants/theme";
-import {
-  navigateToWorldDetailWithMerge,
-  navigateToWorldGalleryWithMerge,
-} from "../../navigation/worldNavigation";
 import { getWorldGalleryItems } from "../../utils/worldPresentation";
 import WorldCard from "../worlds/WorldCard";
 
@@ -25,7 +22,9 @@ const WorldsExploreSection = memo(function WorldsExploreSection() {
       <WorldCard
         worldId={item.id}
         variant="compact"
-        onPress={() => navigateToWorldDetailWithMerge(item.id)}
+        onPress={() =>
+          router.push({ pathname: "/worlds/[worldId]", params: { worldId: item.id } } as any)
+        }
       />
     ),
     []
@@ -46,7 +45,7 @@ const WorldsExploreSection = memo(function WorldsExploreSection() {
 
         <TouchableOpacity
           activeOpacity={0.86}
-          onPress={navigateToWorldGalleryWithMerge}
+          onPress={() => router.push("/worlds" as any)}
           style={styles.seeAllButton}
         >
           <Text style={styles.seeAllText}>See all</Text>

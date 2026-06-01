@@ -1,24 +1,31 @@
-import type { HiddenTunesTrack, Track } from "../types/music";
+import type { Track } from "../types/music";
 import { hydrateTrackIfNeeded } from "./trackHydration";
 
-const hydratedById = new Map<string, Track>();
-const hydratedByRef = new WeakMap<object, Track>();
+type CatalogHydratable = {
+  id?: string | number;
+  emotionalMetadataRaw?: Track["emotionalMetadataRaw"];
+  emotionalVector?: Track["emotionalVector"];
+  emotionalTags?: Track["emotionalTags"];
+};
 
-function resolveTrackId(track: HiddenTunesTrack): string {
+const hydratedById = new Map<string, CatalogHydratable>();
+const hydratedByRef = new WeakMap<object, CatalogHydratable>();
+
+function resolveTrackId(track: CatalogHydratable): string {
   return String(track.id ?? "").trim();
 }
 
 /** Hydrate a catalog track once; reuse cached instances on re-renders. */
-export function getHydratedCatalogTrackOnce<T extends HiddenTunesTrack>(
+export function getHydratedCatalogTrackOnce<T extends CatalogHydratable>(
   track: T
-): Track & T {
+): T {
   if (!track || typeof track !== "object") {
-    return track as Track & T;
+    return track;
   }
 
   const cachedRef = hydratedByRef.get(track);
   if (cachedRef) {
-    return cachedRef as Track & T;
+    return cachedRef as T;
   }
 
   const id = resolveTrackId(track);
@@ -26,11 +33,11 @@ export function getHydratedCatalogTrackOnce<T extends HiddenTunesTrack>(
     const cachedId = hydratedById.get(id);
     if (cachedId) {
       hydratedByRef.set(track, cachedId);
-      return cachedId as Track & T;
+      return cachedId as T;
     }
   }
 
-  const hydrated = hydrateTrackIfNeeded(track) as Track & T;
+  const hydrated = hydrateTrackIfNeeded(track as unknown as Track) as unknown as T;
 
   if (id) {
     hydratedById.set(id, hydrated);
@@ -41,9 +48,9 @@ export function getHydratedCatalogTrackOnce<T extends HiddenTunesTrack>(
 }
 
 /** Hydrate a catalog list once per track id without duplicate work. */
-export function getHydratedCatalogTracksOnce<T extends HiddenTunesTrack>(
+export function getHydratedCatalogTracksOnce<T extends CatalogHydratable>(
   tracks: T[]
-): Array<Track & T> {
+): T[] {
   return tracks.map((track) => getHydratedCatalogTrackOnce(track));
 }
 

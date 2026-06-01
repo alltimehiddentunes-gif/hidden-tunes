@@ -1,5 +1,7 @@
-import fs from "fs";
-import path from "path";
+declare function require(moduleName: string): any;
+
+const fs = require("fs");
+const path = require("path");
 
 import {
   ConfigPlugin,

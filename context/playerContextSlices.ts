@@ -40,6 +40,8 @@ export type PlayerActionsContextValue = Pick<
   | "isFavorite"
   | "clearActiveQueue"
   | "preloadIdlePlayableTrack"
+  | "setEmotionalQueue"
+  | "advanceEmotionalQueue"
 >;
 
 export type PlayerStateContextValue = Pick<
@@ -66,6 +68,8 @@ export type PlayerStateContextValue = Pick<
   | "radioQueue"
   | "radioMode"
   | "radioIndex"
+  | "emotionalQueue"
+  | "queueIndex"
 >;
 
 export type PlayerProgressContextValue = {

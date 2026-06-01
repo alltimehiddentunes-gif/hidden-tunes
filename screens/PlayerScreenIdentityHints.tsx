@@ -38,7 +38,7 @@ export default memo(PlayerScreenIdentityHints);
 
 const styles = StyleSheet.create({
   overlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.flatten(StyleSheet.absoluteFill),
     zIndex: 13,
   },
   hint: {

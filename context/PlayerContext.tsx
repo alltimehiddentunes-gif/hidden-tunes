@@ -1,11 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
-  Audio,
-  AVPlaybackStatus,
-  InterruptionModeAndroid,
-  InterruptionModeIOS,
-} from "expo-av";
-import {
   ReactNode,
   useCallback,
   useEffect,
@@ -199,6 +193,26 @@ export type AppSong = {
 
 type RepeatMode = "off" | "one" | "all";
 type ActiveQueueMode = "standard" | "youtube" | "radio" | "smart";
+
+type LegacyPlaybackStatus = {
+  isLoaded: boolean;
+  positionMillis?: number;
+  durationMillis?: number;
+  isPlaying?: boolean;
+  didJustFinish?: boolean;
+};
+
+type LegacySound = {
+  setOnPlaybackStatusUpdate: (handler: ((status: LegacyPlaybackStatus) => void) | null) => void;
+  stopAsync: () => Promise<void>;
+  unloadAsync: () => Promise<void>;
+  setStatusAsync: (status: Record<string, unknown>) => Promise<void>;
+  getStatusAsync: () => Promise<LegacyPlaybackStatus>;
+  setPositionAsync: (millis: number) => Promise<void>;
+  playAsync: () => Promise<void>;
+  pauseAsync: () => Promise<void>;
+  setVolumeAsync: (volume: number) => Promise<void>;
+};
 
 export type PlayerContextType = {
   currentSong: AppSong | null;
@@ -405,7 +419,7 @@ async function shouldSkipLegacyStartupRestore(): Promise<{
 }
 
 export function PlayerProvider({ children }: { children: ReactNode }) {
-  const soundRef = useRef<Audio.Sound | null>(null);
+  const soundRef = useRef<LegacySound | null>(null);
   const isChangingTrackRef = useRef(false);
   const isMountedRef = useRef(true);
   const loadRequestIdRef = useRef(0);
@@ -442,7 +456,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const lastCurrentSongPersistRef = useRef("");
   const storageValueCacheRef = useRef<Record<string, string>>({});
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
-  const preloadedSoundRef = useRef<Audio.Sound | null>(null);
+  const preloadedSoundRef = useRef<LegacySound | null>(null);
   const preloadedSongIdRef = useRef<string | null>(null);
   const preloadInFlightRef = useRef(false);
   const pendingSmartExtendRef = useRef(false);
@@ -828,20 +842,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const configureAudio = useCallback(async (reason = "unspecified") => {
     recordConfigureAudioCall(reason);
-
-    try {
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: false,
-        interruptionModeIOS: InterruptionModeIOS.DoNotMix,
-        staysActiveInBackground: true,
-        playsInSilentModeIOS: true,
-        interruptionModeAndroid: InterruptionModeAndroid.DoNotMix,
-        shouldDuckAndroid: false,
-        playThroughEarpieceAndroid: false,
-      });
-    } catch (error) {
-      console.log("Configure audio error:", error);
-    }
   }, []);
 
   const clearPreloadedSound = useCallback(async () => {
@@ -1205,28 +1205,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
       try {
         await clearPreloadedSound();
-
-        const source = upcomingSong.audio
-          ? upcomingSong.audio
-          : { uri: playableUri! };
-
-        const { sound } = await Audio.Sound.createAsync(source, {
-          shouldPlay: false,
-          volume: 0,
-        });
-
-        if (preloadedSoundRef.current) {
-          try {
-            await sound.unloadAsync();
-          } catch {}
-
-          return;
-        }
-
-        preloadedSoundRef.current = sound;
-        preloadedSongIdRef.current = upcomingSong.id;
       } catch (error) {
-        console.log("Preload upcoming track error:", error);
+        console.log("Preload upcoming track cleanup error:", error);
       } finally {
         preloadInFlightRef.current = false;
       }
@@ -1420,7 +1400,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             } catch {}
           }
         } catch (error) {
-          console.log("Interrupt expo-av playback error:", error);
+          console.log("Interrupt legacy playback error:", error);
         } finally {
           if (soundRef.current === sound) {
             soundRef.current = null;
@@ -1611,7 +1591,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       const { queue, safeIndex: currentIndex } = getActiveQueuePlaybackState();
 
       if (!queue.length) {
-        logAutoNextSkipped("queue_empty", { source: "nextSong_expo_av" });
+        logAutoNextSkipped("queue_empty", { source: "nextSong_native_audio" });
         return;
       }
 
@@ -2041,12 +2021,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, [scheduleTrackAdvance]);
 
   const handlePlaybackStatusUpdate = useCallback(
-    async (status: AVPlaybackStatus) => {
+    async (status: LegacyPlaybackStatus) => {
       if (hiddenAudioActiveRef.current) return;
       if (trackPlayerActiveRef.current) return;
       if (!status.isLoaded) return;
 
-      recordRuntimePlaybackProgressUpdate("expo_av", appStateRef.current);
+      recordRuntimePlaybackProgressUpdate("hidden_audio", appStateRef.current);
 
       const nextPosition = status.positionMillis || 0;
       const nextDuration = status.durationMillis || 0;
@@ -2496,125 +2476,20 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           return;
         }
 
-        void configureAudio("load_and_play_expo");
+        void configureAudio("load_and_play_native_audio");
 
         setCurrentSong(normalizedSong);
         currentSongRef.current = normalizedSong;
-        setIsPlaying(true);
+        setIsPlaying(false);
         setPositionMillis(0);
         setDurationMillis(0);
-
-        if (
-          preloadedSongIdRef.current &&
-          preloadedSongIdRef.current !== normalizedSong.id
-        ) {
-          await clearPreloadedSound();
-        }
-
-        await unloadCurrentSound();
-
-        if (loadRequestIdRef.current !== requestId || !isMountedRef.current) {
-          return;
-        }
-
-        const playableUri = getPlayableUri(normalizedSong);
-
-        const source = normalizedSong.audio
-          ? normalizedSong.audio
-          : playableUri
-          ? { uri: playableUri }
-          : null;
-
-        if (!source) {
-          console.log(
-            "Missing audio source:",
-            JSON.stringify(normalizedSong, null, 2)
-          );
-          logAudioLoadFailure({
-            songId: normalizedSong.id,
-            reason: "missing_audio_source",
-          });
-          setIsPlaying(false);
-          setIsLoading(false);
-          return;
-        }
-
-        const progressUpdateIntervalMillis = getProgressUpdateIntervalMs(
-          appStateRef.current
-        );
-        const usedPreloadedSound = Boolean(
-          preloadedSongIdRef.current === normalizedSong.id &&
-            preloadedSoundRef.current
-        );
-        let sound = await takePreloadedSound(normalizedSong.id);
-
-        if (sound) {
-          sound.setOnPlaybackStatusUpdate(handlePlaybackStatusUpdate);
-          await sound.setStatusAsync({
-            progressUpdateIntervalMillis,
-            volume: isMutedRef.current ? 0 : volumeRef.current,
-          });
-          await sound.playAsync();
-        } else {
-          const created = await Audio.Sound.createAsync(
-            source,
-            {
-              shouldPlay: true,
-              volume: isMutedRef.current ? 0 : volumeRef.current,
-              progressUpdateIntervalMillis,
-            },
-            handlePlaybackStatusUpdate
-          );
-          sound = created.sound;
-        }
-
-        if (loadRequestIdRef.current !== requestId || !isMountedRef.current) {
-          sound.setOnPlaybackStatusUpdate(null);
-
-          try {
-            await sound.stopAsync();
-          } catch {}
-
-          await sound.unloadAsync();
-          return;
-        }
-
-        soundRef.current = sound;
-        logAudioLoadSuccess({
+        logAudioLoadFailure({
           songId: normalizedSong.id,
-          requestId,
-          preloaded: usedPreloadedSound,
+          reason: "native_audio_engine_unavailable",
         });
-
-        try {
-          const savedPosition = await AsyncStorage.getItem(POSITION_KEY);
-
-          if (savedPosition && shouldRestorePosition) {
-            const millis = Number(savedPosition);
-
-            if (!Number.isNaN(millis) && millis > 0) {
-              await sound.setPositionAsync(millis);
-              positionMillisRef.current = millis;
-              setPositionMillisState(millis);
-            }
-          }
-        } catch (error) {
-          console.log("Restore playback position error:", error);
-        }
-
-        if (loadRequestIdRef.current !== requestId || !isMountedRef.current) {
-          return;
-        }
-
-        setIsPlaying(true);
-        logPlaybackStarted({
-          songId: normalizedSong.id,
-          requestId,
-        });
-        setTimeout(() => {
-          savePlaybackSideEffects(normalizedSong);
-        }, 0);
-        await applyProgressUpdateInterval("load_and_play_expo");
+        setIsLoading(false);
+        return;
+        await applyProgressUpdateInterval("load_and_play_native_audio");
       } catch (error) {
         console.log("Load and play error:", error);
         logAudioLoadFailure({
@@ -3403,7 +3278,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         await loadAndPlay(restoredSong);
       }
 
-      logPauseResumeComplete({ engine: "expo_av_restore" });
+      logPauseResumeComplete({ engine: "native_audio_restore" });
       return;
     }
 
@@ -3416,7 +3291,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         await loadAndPlay(restoredSong);
       }
 
-      logPauseResumeComplete({ engine: "expo_av_reload" });
+      logPauseResumeComplete({ engine: "native_audio_reload" });
       return;
     }
 
@@ -3429,7 +3304,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       setIsPlaying(true);
     }
 
-    logPauseResumeComplete({ engine: "expo_av" });
+    logPauseResumeComplete({ engine: "native_audio" });
   }, [loadAndPlay, setIsPlaying, clearFinishWatchdog, getSongDurationSeconds]);
 
   const seekTo = useCallback(
@@ -3955,7 +3830,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       });
 
       // iOS lock often goes active -> inactive -> background. Re-applying audio mode on
-      // inactive disrupts the shared AVAudioSession and can stop RNTP/expo-av mid-song.
+      // inactive disrupts the shared AVAudioSession and can stop native playback mid-song.
       if (nextState === "inactive" && previousState === "active") {
         void savePlaybackPosition(positionMillisRef.current);
       }

@@ -20,7 +20,6 @@ import {
   usePlayerNowPlaying,
   usePlayerState,
 } from "../../context/PlayerContext";
-import { navigateToPlayerWithMerge } from "../../navigation/playerNavigation";
 import type { HiddenTunesNormalizedSong } from "../../services/hiddenTunesApi";
 import type { SmartDiscoverySection } from "../../services/smartDiscovery";
 import { FALLBACK_ARTWORK, getArtworkUri } from "../../utils/artwork";
@@ -283,7 +282,7 @@ export const ExploreContinueListening = memo(function ExploreContinueListening({
     );
     void playSong(normalized as any, cloudSongs as any, startIndex);
     requestAnimationFrame(() => {
-      navigateToPlayerWithMerge();
+      router.push("/player" as any);
     });
   };
 
@@ -291,7 +290,7 @@ export const ExploreContinueListening = memo(function ExploreContinueListening({
     <>
       <View style={styles.rowHeader}>
         <Text style={styles.sectionTitle}>Continue Listening</Text>
-        <TouchableOpacity onPress={navigateToPlayerWithMerge}>
+        <TouchableOpacity onPress={() => router.push("/player" as any)}>
           <Text style={styles.seeAll}>Player</Text>
         </TouchableOpacity>
       </View>
@@ -1134,7 +1133,7 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   heroImage: { width: "100%", height: "100%", position: "absolute" },
-  heroOverlay: { ...StyleSheet.absoluteFillObject },
+  heroOverlay: { ...StyleSheet.flatten(StyleSheet.absoluteFill) },
   heroBadge: {
     position: "absolute",
     top: 18,

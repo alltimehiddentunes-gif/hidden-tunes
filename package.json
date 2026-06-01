@@ -79,7 +79,6 @@
       "reactNativeDirectoryCheck": {
         "exclude": [
           "react-native-track-player",
-          "expo-av",
           "expo-modules-jsi"
         ],
         "listUnknownPackages": false

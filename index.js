@@ -10,7 +10,7 @@
  *
  * EXPO GO (either platform):
  *   Do NOT import or register react-native-track-player.
- *   Expo Go lacks our native binary → expo-av fallback only.
+ *   Expo Go lacks our native binary → native playback fallback only.
  *   Lock-screen native auto-next cannot be validated in Expo Go.
  */
 
@@ -27,7 +27,7 @@ const {
 
 if (__DEV__ && isExpoGo()) {
   console.info(
-    `[HiddenTunes][${getPlatformRuntimeLabel()}] Expo Go — Track Player disabled; expo-av fallback active.`
+    `[HiddenTunes][${getPlatformRuntimeLabel()}] Expo Go — Track Player disabled; native playback binary unavailable.`
   );
 }
 

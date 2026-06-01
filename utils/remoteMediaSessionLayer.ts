@@ -64,9 +64,9 @@ export function resetRemoteMediaSessionLayer() {
  * Push artwork/metadata before playback state when the track changes,
  * and ignore stale sync passes that arrive out of order.
  */
-export async function syncRemoteMediaSessionOrdered(
-  snapshot: RemoteMediaSessionSnapshotLike,
-  syncFn: (snapshot: RemoteMediaSessionSnapshotLike) => Promise<void>
+export async function syncRemoteMediaSessionOrdered<T extends RemoteMediaSessionSnapshotLike>(
+  snapshot: T,
+  syncFn: (snapshot: T) => Promise<void>
 ) {
   const generation = ++syncGeneration;
   const songId = String(snapshot.song?.id ?? "");
@@ -90,7 +90,7 @@ export async function syncRemoteMediaSessionOrdered(
       isPlaying: false,
       isLoading: true,
       positionMillis: 0,
-    });
+    } as T);
 
     if (generation !== syncGeneration) {
       return;

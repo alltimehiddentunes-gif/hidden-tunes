@@ -38,7 +38,7 @@ export default memo(QueueScreenIdentityHints);
 
 const styles = StyleSheet.create({
   overlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.flatten(StyleSheet.absoluteFill),
     zIndex: 5,
   },
   hint: {

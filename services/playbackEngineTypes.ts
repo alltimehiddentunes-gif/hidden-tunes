@@ -1,6 +1,6 @@
 import { AppStateStatus } from "react-native";
 
-export type PlaybackEngineId = "expo-av" | "track-player";
+export type PlaybackEngineId = "track-player" | "hidden_audio";
 
 export type PlaybackEngineRepeatMode = "off" | "one" | "all";
 
