@@ -14,6 +14,7 @@ import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 
+import AppShell from "@/components/navigation/AppShell";
 import NeonEQ from "@/components/NeonEQ";
 import { COLORS, GRADIENTS } from "@/constants/theme";
 import {
@@ -52,7 +53,8 @@ export default function MusicFeedScreen() {
   };
 
   return (
-    <LinearGradient colors={GRADIENTS.main} style={styles.container}>
+    <AppShell>
+      <LinearGradient colors={GRADIENTS.main} style={styles.container}>
       <View style={styles.glowPurple} />
       <View style={styles.glowCyan} />
 
@@ -168,7 +170,8 @@ export default function MusicFeedScreen() {
           }}
         />
       )}
-    </LinearGradient>
+      </LinearGradient>
+    </AppShell>
   );
 }
 

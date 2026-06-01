@@ -17,6 +17,7 @@ import { useFocusEffect, router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 
+import AppShell from "../components/navigation/AppShell";
 import { COLORS, GRADIENTS } from "../constants/theme";
 
 import {
@@ -252,7 +253,8 @@ export default function PlaylistsScreen() {
   }
 
   return (
-    <LinearGradient colors={GRADIENTS.main as any} style={styles.container}>
+    <AppShell>
+      <LinearGradient colors={GRADIENTS.main as any} style={styles.container}>
       <FlatList
         data={filteredPlaylists}
         keyExtractor={(item) => item.id}
@@ -469,7 +471,8 @@ export default function PlaylistsScreen() {
           </Pressable>
         </Pressable>
       </Modal>
-    </LinearGradient>
+      </LinearGradient>
+    </AppShell>
   );
 }
 

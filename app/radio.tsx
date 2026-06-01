@@ -13,6 +13,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 
+import AppShell from "../components/navigation/AppShell";
 import { TESTER_COPY } from "../constants/testerExperience";
 import { COLORS, GRADIENTS } from "../constants/theme";
 import { usePlayerActions } from "../context/PlayerContext";
@@ -325,7 +326,8 @@ export default function RadioScreen() {
   const activeTracks: RadioTrack[] = hasCloudSongs ? cloudTracks : youtubeTracks;
 
   return (
-    <LinearGradient colors={GRADIENTS.main} style={styles.container}>
+    <AppShell>
+      <LinearGradient colors={GRADIENTS.main} style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.iconButton}
@@ -498,7 +500,8 @@ export default function RadioScreen() {
           }}
         />
       )}
-    </LinearGradient>
+      </LinearGradient>
+    </AppShell>
   );
 }
 

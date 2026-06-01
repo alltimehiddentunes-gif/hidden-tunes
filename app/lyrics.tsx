@@ -41,6 +41,7 @@ import {
 } from "../utils/lyrics";
 
 import LyricsEmptyState from "../components/LyricsEmptyState";
+import AppShell from "../components/navigation/AppShell";
 import { TESTER_COPY } from "../constants/testerExperience";
 import {
   usePlayerActions,
@@ -515,7 +516,8 @@ export default function LyricsScreen() {
   );
 
   return (
-    <View style={styles.root}>
+    <AppShell>
+      <View style={styles.root}>
       <CinematicBackground artwork={artwork} />
 
       <SafeAreaView style={styles.safe}>
@@ -654,8 +656,9 @@ export default function LyricsScreen() {
             </>
           )}
         </View>
-      </SafeAreaView>
-    </View>
+        </SafeAreaView>
+      </View>
+    </AppShell>
   );
 }
 

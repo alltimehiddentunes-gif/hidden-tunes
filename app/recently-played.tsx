@@ -11,6 +11,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 
+import AppShell from "../components/navigation/AppShell";
 import AddToPlaylistButton from "../components/AddToPlaylistButton";
 import HTImage from "../components/HTImage";
 import NeonEQ from "../components/NeonEQ";
@@ -205,7 +206,8 @@ function RecentlyPlayedScreen() {
   }, []);
 
   return (
-    <LinearGradient colors={GRADIENTS.main} style={styles.container}>
+    <AppShell>
+      <LinearGradient colors={GRADIENTS.main} style={styles.container}>
       <View style={styles.glowPurple} />
       <View style={styles.glowCyan} />
 
@@ -257,7 +259,8 @@ function RecentlyPlayedScreen() {
           </View>
         }
       />
-    </LinearGradient>
+      </LinearGradient>
+    </AppShell>
   );
 }
 
