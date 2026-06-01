@@ -14,8 +14,7 @@ import {
 
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { router, useLocalSearchParams } from "expo-router";
-import { useFocusEffect } from "@react-navigation/native";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 
 import TvVideoCard from "@/components/tv/TvVideoCard";
 import { TESTER_COPY } from "@/constants/testerExperience";
