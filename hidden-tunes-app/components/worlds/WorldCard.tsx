@@ -4,8 +4,8 @@ import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 
-import { COLORS } from "../constants/theme";
-import { getWorldUiMeta } from "../utils/worldPresentation";
+import { COLORS } from "../../constants/theme";
+import { getWorldUiMeta } from "../../utils/worldPresentation";
 
 export type WorldCardVariant = "gallery" | "compact";
 
