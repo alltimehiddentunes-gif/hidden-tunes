@@ -1,5 +1,5 @@
-import React, { memo } from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import React, { memo, useMemo } from "react";
+import { FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
 import MediaCard from "./MediaCard";
@@ -7,6 +7,13 @@ import { COLORS } from "../constants/theme";
 import type { UniversalSearchGroupedResults as GroupedResults } from "../services/universalSearchService";
 import type { UniversalMatchReason } from "../utils/universalSearch";
 import { UNIVERSAL_SEARCH_EMPTY_SUGGESTIONS } from "../utils/universalSearch";
+import { isSameSearchInputQuery } from "../utils/searchInputTiming";
+import { useDebouncedSearchQuery } from "../utils/useDebouncedValue";
+import {
+  createStableKeyExtractor,
+  getNestedSongListLayout,
+  LIST_ITEM_HEIGHTS,
+} from "../utils/performanceMode";
 
 type Props = {
   grouped: GroupedResults;
@@ -23,15 +30,19 @@ type Props = {
   showEmpty?: boolean;
 };
 
-function MatchReasonPill({ reason }: { reason: UniversalMatchReason }) {
+const MatchReasonPill = memo(function MatchReasonPill({
+  reason,
+}: {
+  reason: UniversalMatchReason;
+}) {
   return (
     <View style={styles.reasonPill}>
       <Text style={styles.reasonText}>{reason}</Text>
     </View>
   );
-}
+});
 
-function SectionHeader({
+const SectionHeader = memo(function SectionHeader({
   title,
   count,
 }: {
@@ -46,7 +57,42 @@ function SectionHeader({
       <Text style={styles.sectionCount}>{count}</Text>
     </View>
   );
-}
+});
+
+const SONG_ROW_HEIGHT = LIST_ITEM_HEIGHTS.searchResultRow;
+const songKeyExtractor = createStableKeyExtractor("search-song");
+const getSongItemLayout = getNestedSongListLayout(SONG_ROW_HEIGHT);
+
+type SearchSongHit = GroupedResults["songs"][number];
+
+const SearchSongRow = memo(function SearchSongRow({
+  hit,
+  onPress,
+}: {
+  hit: SearchSongHit;
+  onPress: (song: any) => void;
+}) {
+  const handlePress = () => onPress(hit.payload);
+
+  return (
+    <TouchableOpacity
+      activeOpacity={0.88}
+      style={styles.rowCard}
+      onPress={handlePress}
+    >
+      <MediaCard
+        title={hit.payload.title}
+        subtitle={hit.subtitle || hit.payload.artist}
+        image={hit.payload}
+        type="song"
+        size="medium"
+        showPlayButton={false}
+        onPress={handlePress}
+      />
+      <MatchReasonPill reason={hit.reason} />
+    </TouchableOpacity>
+  );
+});
 
 function UniversalSearchGroupedResults({
   grouped,
@@ -62,6 +108,22 @@ function UniversalSearchGroupedResults({
   isPlaying,
   showEmpty = false,
 }: Props) {
+  const debouncedQuery = useDebouncedSearchQuery(query);
+  const displayQuery = useMemo(() => {
+    if (isSameSearchInputQuery(query, debouncedQuery)) {
+      return debouncedQuery.trim();
+    }
+    return debouncedQuery.trim() || query.trim();
+  }, [debouncedQuery, query]);
+
+  const renderSongRow = useMemo(
+    () =>
+      ({ item }: { item: SearchSongHit }) => (
+        <SearchSongRow hit={item} onPress={onSongPress} />
+      ),
+    [onSongPress]
+  );
+
   if (!grouped.hasAnyResults) {
     if (!showEmpty) {
       return null;
@@ -230,25 +292,18 @@ function UniversalSearchGroupedResults({
       {grouped.songs.length > 0 && (
         <View style={styles.sectionBlock}>
           <SectionHeader title="Songs" count={grouped.songs.length} />
-          {grouped.songs.map((hit) => (
-            <TouchableOpacity
-              key={hit.id}
-              activeOpacity={0.88}
-              style={styles.rowCard}
-              onPress={() => onSongPress(hit.payload)}
-            >
-              <MediaCard
-                title={hit.payload.title}
-                subtitle={hit.subtitle || hit.payload.artist}
-                image={hit.payload}
-                type="song"
-                size="medium"
-                showPlayButton={false}
-                onPress={() => onSongPress(hit.payload)}
-              />
-              <MatchReasonPill reason={hit.reason} />
-            </TouchableOpacity>
-          ))}
+          <FlatList
+            data={grouped.songs}
+            scrollEnabled={false}
+            nestedScrollEnabled
+            keyExtractor={songKeyExtractor}
+            renderItem={renderSongRow}
+            getItemLayout={getSongItemLayout}
+            initialNumToRender={8}
+            maxToRenderPerBatch={6}
+            windowSize={5}
+            removeClippedSubviews
+          />
         </View>
       )}
 
@@ -387,16 +442,31 @@ function UniversalSearchGroupedResults({
         </View>
       )}
 
-      {query.trim().length >= 2 ? (
+      {displayQuery.length >= 2 ? (
         <Text style={styles.queryHint}>
-          Showing matches for “{query.trim()}”
+          Showing matches for “{displayQuery}”
         </Text>
       ) : null}
     </View>
   );
 }
 
-export default memo(UniversalSearchGroupedResults);
+export default memo(UniversalSearchGroupedResults, (previous, next) => {
+  return (
+    previous.grouped === next.grouped &&
+    isSameSearchInputQuery(previous.query, next.query) &&
+    previous.activeSongId === next.activeSongId &&
+    previous.isPlaying === next.isPlaying &&
+    previous.showEmpty === next.showEmpty &&
+    previous.onSongPress === next.onSongPress &&
+    previous.onLyricPress === next.onLyricPress &&
+    previous.onArtistPress === next.onArtistPress &&
+    previous.onAlbumPress === next.onAlbumPress &&
+    previous.onGenrePress === next.onGenrePress &&
+    previous.onTvPress === next.onTvPress &&
+    previous.onSuggestionPress === next.onSuggestionPress
+  );
+});
 
 const styles = StyleSheet.create({
   container: {
