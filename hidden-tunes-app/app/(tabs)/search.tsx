@@ -24,7 +24,6 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import { useScrollToTop } from "@react-navigation/native";
 import { router } from "expo-router";
 
 import NeonEQ from "../../components/NeonEQ";
@@ -1244,7 +1243,7 @@ export default function SearchScreen() {
     }
   }, [fullCatalogSongs]);
 
-  useScrollToTop(resultListRef);
+  // useScrollToTop(resultListRef);
 
   useRenderCountProbe("SearchScreen");
 

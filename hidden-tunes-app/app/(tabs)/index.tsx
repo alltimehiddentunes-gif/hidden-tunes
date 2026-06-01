@@ -13,9 +13,8 @@ import {
 } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
-import { useFocusEffect, useScrollToTop } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 
 import {
   HomeCatalogSongRow,
@@ -286,7 +285,7 @@ function HomeScreen() {
 
   const defaultHeroTrack = featuredSongs[0];
 
-  useScrollToTop(scrollRef);
+  // useScrollToTop(scrollRef);
 
   const applyFeaturedSongs = useCallback((songs: HiddenTunesNormalizedSong[]) => {
     const nextSongs = dedupeSongs((songs || []).map(safeSong));

@@ -10,7 +10,6 @@ import {
 
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import { useScrollToTop } from "@react-navigation/native";
 import { router } from "expo-router";
 
 import { COLORS, GRADIENTS } from "../../constants/theme";
@@ -110,7 +109,7 @@ export default function QueueScreen() {
   const listRef = useRef<FlatList<any>>(null);
   const [clearingSmart, setClearingSmart] = useState(false);
 
-  useScrollToTop(listRef);
+  // useScrollToTop(listRef);
 
   const queue = useMemo(() => {
     if (!activeQueue?.length) return [];
