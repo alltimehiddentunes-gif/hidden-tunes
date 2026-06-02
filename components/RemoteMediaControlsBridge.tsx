@@ -7,10 +7,6 @@ import PlayerScreenDebugOverlay from "../screens/PlayerScreenDebugOverlay";
 import PlayerScreenEmotionalFlowHints from "../screens/PlayerScreenEmotionalFlowHints";
 import PlayerScreenEngineDashboard from "../screens/PlayerScreenEngineDashboard";
 import PlayerScreenIdentityHints from "../screens/PlayerScreenIdentityHints";
-import QueueScreenDebugOverlay from "../screens/QueueScreenDebugOverlay";
-import QueueScreenEmotionalFlowHints from "../screens/QueueScreenEmotionalFlowHints";
-import QueueScreenEngineDashboard from "../screens/QueueScreenEngineDashboard";
-import QueueScreenIdentityHints from "../screens/QueueScreenIdentityHints";
 
 import {
   usePlayerActions,
@@ -127,14 +123,10 @@ function RemoteMediaControlsBridge() {
       <ActiveWorldRouteSync />
       <EmotionalFlowPlayerControls />
       <PlayerScreenEmotionalFlowHints />
-      <QueueScreenEmotionalFlowHints />
       <PlayerScreenIdentityHints />
-      <QueueScreenIdentityHints />
       <PlayerScreenEngineDashboard />
-      <QueueScreenEngineDashboard />
-      <DebugModeGesture />
-      <PlayerScreenDebugOverlay />
-      <QueueScreenDebugOverlay />
+      {__DEV__ ? <DebugModeGesture /> : null}
+      {__DEV__ ? <PlayerScreenDebugOverlay /> : null}
     </>
   );
 }
