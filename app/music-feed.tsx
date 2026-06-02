@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -45,31 +45,31 @@ export default function MusicFeedScreen() {
   const genres = catalog?.genres || [];
   const playlists = catalog?.playlists || [];
 
-  useEffect(() => {
-    void loadCatalog();
-  }, []);
-
-  const loadCatalog = async () => {
+  const loadCatalog = useCallback(async () => {
     setLoading(true);
     const data = await fetchHiddenTunesCatalog();
     setCatalog(data);
     setLoading(false);
-  };
+  }, []);
 
-  const refreshCatalog = async () => {
+  useEffect(() => {
+    void loadCatalog();
+  }, [loadCatalog]);
+
+  const refreshCatalog = useCallback(async () => {
     setRefreshing(true);
     const data = await fetchHiddenTunesCatalog();
     setCatalog(data);
     setRefreshing(false);
-  };
+  }, []);
 
   const visiblePlaylists = useMemo(() => playlists.slice(0, 6), [playlists]);
 
-  function openArtist(artist: HiddenTunesArtistCatalogItem) {
+  const openArtist = useCallback((artist: HiddenTunesArtistCatalogItem) => {
     router.push({ pathname: "/artist", params: { artist: artist.name } } as any);
-  }
+  }, []);
 
-  function openAlbum(album: HiddenTunesAlbumCatalogItem) {
+  const openAlbum = useCallback((album: HiddenTunesAlbumCatalogItem) => {
     router.push({
       pathname: "/album",
       params: {
@@ -78,29 +78,29 @@ export default function MusicFeedScreen() {
         thumbnail: album.artwork,
       },
     } as any);
-  }
+  }, []);
 
-  function openGenre(genre: HiddenTunesGenreCatalogItem) {
+  const openGenre = useCallback((genre: HiddenTunesGenreCatalogItem) => {
     router.push({
       pathname: "/genre",
       params: { title: genre.title, query: genre.title, id: genre.id, type: "genre" },
     } as any);
-  }
+  }, []);
 
-  function renderSurfaceCard({
-    id,
-    title,
-    subtitle,
-    artwork,
-    onPress,
-  }: {
-    id: string;
-    title: string;
-    subtitle: string;
-    artwork: string;
-    onPress: () => void;
-  }) {
-    return (
+  const renderSurfaceCard = useCallback(
+    ({
+      id,
+      title,
+      subtitle,
+      artwork,
+      onPress,
+    }: {
+      id: string;
+      title: string;
+      subtitle: string;
+      artwork: string;
+      onPress: () => void;
+    }) => (
       <TouchableOpacity
         key={id}
         activeOpacity={0.86}
@@ -111,8 +111,64 @@ export default function MusicFeedScreen() {
         <Text style={styles.surfaceTitle} numberOfLines={2}>{title}</Text>
         <Text style={styles.surfaceSubtitle} numberOfLines={1}>{subtitle}</Text>
       </TouchableOpacity>
-    );
-  }
+    ),
+    []
+  );
+
+  const keyExtractor = useCallback(
+    (item: HiddenTunesSong, index: number) => `${item.id}-${index}`,
+    []
+  );
+
+  const renderSongItem = useCallback(
+    ({ item, index }: { item: HiddenTunesSong; index: number }) => {
+      const active = isPlaying && currentSong?.id === String(item.id);
+
+      return (
+        <TouchableOpacity
+          style={[styles.songCard, active && styles.songCardActive]}
+          activeOpacity={0.88}
+          onPress={() => playSong(item, songs, index)}
+        >
+          <LinearGradient colors={GRADIENTS.neon} style={styles.coverBorder}>
+            <Image source={{ uri: item.cover }} style={styles.cover} />
+          </LinearGradient>
+
+          <View style={styles.songInfo}>
+            <Text numberOfLines={1} style={styles.songTitle}>
+              {item.title}
+            </Text>
+
+            <Text numberOfLines={1} style={styles.artist}>
+              {item.artist}
+            </Text>
+
+            <View style={styles.row}>
+              <Ionicons
+                name={active ? "radio" : "cloud-outline"}
+                size={15}
+                color={active ? COLORS.cyan : COLORS.primary}
+              />
+              <Text style={styles.streamText}>
+                {active ? "Now playing" : "Tap to play"}
+              </Text>
+            </View>
+          </View>
+
+          {active ? (
+            <View style={styles.eqBox}>
+              <NeonEQ isPlaying={isPlaying} size="small" />
+            </View>
+          ) : (
+            <View style={styles.playButton}>
+              <Ionicons name="play" size={20} color="#000" />
+            </View>
+          )}
+        </TouchableOpacity>
+      );
+    },
+    [currentSong?.id, isPlaying, playSong, songs]
+  );
 
   return (
     <AppShell>
@@ -155,7 +211,7 @@ export default function MusicFeedScreen() {
         ) : (
           <FlatList
             data={songs}
-            keyExtractor={(item, index) => `${item.id}-${index}`}
+            keyExtractor={keyExtractor}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.list}
             refreshControl={
@@ -248,52 +304,7 @@ export default function MusicFeedScreen() {
                 <Text style={styles.sectionTitle}>Songs</Text>
               </View>
             }
-            renderItem={({ item, index }) => {
-              const active = isPlaying && currentSong?.id === String(item.id);
-
-              return (
-                <TouchableOpacity
-                  style={[styles.songCard, active && styles.songCardActive]}
-                  activeOpacity={0.88}
-                  onPress={() => playSong(item, songs, index)}
-                >
-                  <LinearGradient colors={GRADIENTS.neon} style={styles.coverBorder}>
-                    <Image source={{ uri: item.cover }} style={styles.cover} />
-                  </LinearGradient>
-
-                  <View style={styles.songInfo}>
-                    <Text numberOfLines={1} style={styles.songTitle}>
-                      {item.title}
-                    </Text>
-
-                    <Text numberOfLines={1} style={styles.artist}>
-                      {item.artist}
-                    </Text>
-
-                    <View style={styles.row}>
-                      <Ionicons
-                        name={active ? "radio" : "cloud-outline"}
-                        size={15}
-                        color={active ? COLORS.cyan : COLORS.primary}
-                      />
-                      <Text style={styles.streamText}>
-                        {active ? "Now playing" : "Tap to play"}
-                      </Text>
-                    </View>
-                  </View>
-
-                  {active ? (
-                    <View style={styles.eqBox}>
-                      <NeonEQ isPlaying={isPlaying} size="small" />
-                    </View>
-                  ) : (
-                    <View style={styles.playButton}>
-                      <Ionicons name="play" size={20} color="#000" />
-                    </View>
-                  )}
-                </TouchableOpacity>
-              );
-            }}
+            renderItem={renderSongItem}
           />
         )}
       </LinearGradient>

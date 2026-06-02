@@ -2,7 +2,7 @@ import Slider from "@react-native-community/slider";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import {
   Image,
   StyleSheet,
@@ -42,6 +42,33 @@ export default function PlayerScreen() {
   const duration = Math.max(0, durationMillis || 0);
   const position = Math.max(0, Math.min(positionMillis || 0, duration || positionMillis || 0));
 
+  const handleBack = useCallback(() => {
+    router.back();
+  }, []);
+
+  const openQueue = useCallback(() => {
+    router.push("/queue" as any);
+  }, []);
+
+  const handleSeekComplete = useCallback(
+    (value: number) => {
+      void seekTo(value);
+    },
+    [seekTo]
+  );
+
+  const handlePrevious = useCallback(() => {
+    void previousSong();
+  }, [previousSong]);
+
+  const handleTogglePlayPause = useCallback(() => {
+    void togglePlayPause();
+  }, [togglePlayPause]);
+
+  const handleNext = useCallback(() => {
+    void nextSong();
+  }, [nextSong]);
+
   return (
     <AppShell>
       <LinearGradient colors={GRADIENTS.player} style={styles.container}>
@@ -49,13 +76,13 @@ export default function PlayerScreen() {
         <View style={styles.glowBottom} />
 
         <View style={styles.header}>
-          <TouchableOpacity style={styles.iconButton} onPress={() => router.back()}>
+          <TouchableOpacity style={styles.iconButton} onPress={handleBack}>
             <Ionicons name="chevron-down" size={26} color={COLORS.text} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Now Playing</Text>
           <TouchableOpacity
             style={styles.iconButton}
-            onPress={() => router.push("/queue" as any)}
+            onPress={openQueue}
           >
             <Ionicons name="list" size={22} color={COLORS.text} />
           </TouchableOpacity>
@@ -81,9 +108,7 @@ export default function PlayerScreen() {
             maximumTrackTintColor="rgba(255,255,255,0.16)"
             thumbTintColor={COLORS.primary}
             disabled={!currentSong || duration <= 0}
-            onSlidingComplete={(value) => {
-              void seekTo(value);
-            }}
+            onSlidingComplete={handleSeekComplete}
           />
           <View style={styles.timeRow}>
             <Text style={styles.timeText}>{formatTime(position)}</Text>
@@ -96,7 +121,7 @@ export default function PlayerScreen() {
             accessibilityLabel="Previous track"
             style={styles.secondaryControl}
             disabled={!currentSong}
-            onPress={() => void previousSong()}
+            onPress={handlePrevious}
           >
             <Ionicons name="play-skip-back" size={26} color={COLORS.text} />
           </TouchableOpacity>
@@ -105,7 +130,7 @@ export default function PlayerScreen() {
             accessibilityLabel="Play or pause"
             style={[styles.primaryControl, !currentSong && styles.disabledControl]}
             disabled={!currentSong}
-            onPress={() => void togglePlayPause()}
+            onPress={handleTogglePlayPause}
           >
             <Ionicons
               name={isLoading ? "sync" : isPlaying ? "pause" : "play"}
@@ -118,7 +143,7 @@ export default function PlayerScreen() {
             accessibilityLabel="Next track"
             style={styles.secondaryControl}
             disabled={!currentSong}
-            onPress={() => void nextSong()}
+            onPress={handleNext}
           >
             <Ionicons name="play-skip-forward" size={26} color={COLORS.text} />
           </TouchableOpacity>

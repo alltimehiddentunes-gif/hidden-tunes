@@ -341,6 +341,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const isMountedRef = useRef(true);
   const loadRequestIdRef = useRef(0);
   const inFlightPlaySongIdRef = useRef<string | null>(null);
+  const loadingRecoveryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const queueTransitionRef = useRef(false);
   const queueTransitionTailRef = useRef(Promise.resolve());
   const lastAutoAdvanceRequestRef = useRef({ songId: "", requestedAt: 0 });
@@ -416,7 +417,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const [currentSong, setCurrentSong] = useState<AppSong | null>(null);
   const [isPlaying, setIsPlayingState] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoadingState] = useState(false);
 
   const [positionMillis, setPositionMillisState] = useState(0);
   const [durationMillis, setDurationMillisState] = useState(0);
@@ -458,20 +459,68 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [radioIndex, setRadioIndex] = useState(0);
 
   const setPositionMillis = useCallback((value: number) => {
-    positionMillisRef.current = value;
+    const safeValue = Math.max(0, Math.floor(value || 0));
+    if (positionMillisRef.current === safeValue) return;
+
+    positionMillisRef.current = safeValue;
     recordPlaybackProgressUpdate();
-    setPositionMillisState(value);
+    setPositionMillisState(safeValue);
   }, []);
 
   const setDurationMillis = useCallback((value: number) => {
-    durationMillisRef.current = value;
-    setDurationMillisState(value);
+    const safeValue = Math.max(0, Math.floor(value || 0));
+    if (durationMillisRef.current === safeValue) return;
+
+    durationMillisRef.current = safeValue;
+    setDurationMillisState(safeValue);
   }, []);
 
   const setIsPlaying = useCallback((value: boolean) => {
+    if (isPlayingRef.current === value) return;
+
     isPlayingRef.current = value;
     setIsPlayingState(value);
   }, []);
+
+  const setIsLoading = useCallback((value: boolean) => {
+    setIsLoadingState((previous) => {
+      if (previous === value) return previous;
+      return value;
+    });
+  }, []);
+
+  const clearLoadingRecoveryTimeout = useCallback(() => {
+    if (!loadingRecoveryTimeoutRef.current) return;
+    clearTimeout(loadingRecoveryTimeoutRef.current);
+    loadingRecoveryTimeoutRef.current = null;
+  }, []);
+
+  const armLoadingRecoveryTimeout = useCallback(
+    (requestId: number, songId: string) => {
+      clearLoadingRecoveryTimeout();
+      loadingRecoveryTimeoutRef.current = setTimeout(() => {
+        if (loadRequestIdRef.current !== requestId) {
+          console.log("playback_recovery_stale_request_ignored", {
+            requestId,
+            songId,
+            latestRequestId: loadRequestIdRef.current,
+          });
+          return;
+        }
+
+        console.log("playback_recovery_loading_cleared", {
+          requestId,
+          songId,
+          reason: "loading_timeout",
+        });
+        isChangingTrackRef.current = false;
+        inFlightPlaySongIdRef.current = null;
+        setIsLoading(false);
+        setIsPlaying(false);
+      }, 15000);
+    },
+    [clearLoadingRecoveryTimeout, setIsLoading, setIsPlaying]
+  );
 
   const syncHiddenAudioState = useCallback(
     async (reason: string) => {
@@ -480,11 +529,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       try {
         const progress = await bridgeGetProgress();
 
-        positionMillisRef.current = progress.positionMillis;
         setPositionMillis(progress.positionMillis);
 
         if (progress.durationMillis > 0) {
-          durationMillisRef.current = progress.durationMillis;
           setDurationMillis(progress.durationMillis);
         }
 
@@ -1339,7 +1386,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      isPlayingRef.current = false;
       setIsPlaying(false);
     },
     [clearFinishWatchdog, clearPreloadedSound, setIsPlaying]
@@ -1488,14 +1534,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           clearFinishWatchdog("repeat_one");
           void removeStoredValues([POSITION_KEY]);
           await bridgeSeekTo(0);
-          positionMillisRef.current = 0;
           setPositionMillis(0);
           await bridgeHiddenAudioPlay();
           const progress = await bridgeGetProgress();
-          isPlayingRef.current = progress.isPlaying;
           setIsPlaying(progress.isPlaying);
           if (progress.durationMillis > 0) {
-            durationMillisRef.current = progress.durationMillis;
             setDurationMillis(progress.durationMillis);
           }
           logAutoNextSuccess({ reason: "repeat_one_restart_hidden_audio" });
@@ -1534,6 +1577,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setIsPlaying,
     setPositionMillis,
     setDurationMillis,
+    clearLoadingRecoveryTimeout,
     clearFinishWatchdog,
   ]);
 
@@ -1989,6 +2033,38 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
       try {
         const normalizedSong = normalizeSong(song);
+        const recoveryQueueSnapshot = activeQueueRef.current.slice();
+        const recoveryQueueIndexSnapshot = activeQueueIndexRef.current;
+        const recoveryQueueModeSnapshot = activeQueueModeRef.current;
+        const recoverySongSnapshot = currentSongRef.current;
+        const recoveryPositionSnapshot = positionMillisRef.current;
+        const recoveryDurationSnapshot = durationMillisRef.current;
+
+        const restorePreviousPlaybackState = (reason: string) => {
+          console.log("playback_recovery_restore_previous", {
+            reason,
+            failedSongId: normalizedSong.id,
+            previousSongId: recoverySongSnapshot?.id || null,
+          });
+
+          const safeQueueIndex = recoveryQueueSnapshot.length
+            ? Math.max(
+                0,
+                Math.min(recoveryQueueIndexSnapshot, recoveryQueueSnapshot.length - 1)
+              )
+            : 0;
+
+          setCurrentSong(recoverySongSnapshot);
+          currentSongRef.current = recoverySongSnapshot;
+          setActiveQueue(recoveryQueueSnapshot);
+          activeQueueRef.current = recoveryQueueSnapshot;
+          setActiveQueueIndex(safeQueueIndex);
+          activeQueueIndexRef.current = safeQueueIndex;
+          setActiveQueueMode(recoveryQueueModeSnapshot);
+          activeQueueModeRef.current = recoveryQueueModeSnapshot;
+          setPositionMillis(recoveryPositionSnapshot);
+          setDurationMillis(recoveryDurationSnapshot);
+        };
 
         if (
           shouldIgnoreDuplicatePlayRequest(
@@ -2012,6 +2088,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         requestId = loadRequestIdRef.current + 1;
         loadRequestIdRef.current = requestId;
         inFlightPlaySongIdRef.current = normalizedSong.id;
+        armLoadingRecoveryTimeout(requestId, normalizedSong.id);
 
         logAudioLoadStart({
           songId: normalizedSong.id,
@@ -2053,9 +2130,35 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         const useHiddenAudio = await shouldUseHiddenAudioPlayback();
 
         if (useHiddenAudio) {
-          const previousSongBeforeHiddenAudio = currentSongRef.current;
-
           try {
+            const playableUri = getPlayableUri(normalizedSong);
+
+            if (!playableUri) {
+              console.log("playback_recovery_invalid_url", {
+                songId: normalizedSong.id,
+              });
+              logAudioLoadFailure({
+                songId: normalizedSong.id,
+                reason: "missing_audio_source",
+                engine: "hidden_audio",
+              });
+              restorePreviousPlaybackState("missing_audio_source");
+              setIsPlaying(false);
+              return;
+            }
+
+            if (
+              loadRequestIdRef.current !== requestId ||
+              !isMountedRef.current
+            ) {
+              console.log("playback_recovery_stale_request_ignored", {
+                songId: normalizedSong.id,
+                requestId,
+                latestRequestId: loadRequestIdRef.current,
+              });
+              return;
+            }
+
             setCurrentSong(normalizedSong);
             currentSongRef.current = normalizedSong;
             setIsPlaying(false);
@@ -2077,28 +2180,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               loadRequestIdRef.current !== requestId ||
               !isMountedRef.current
             ) {
-              return;
-            }
-
-            const playableUri = getPlayableUri(normalizedSong);
-
-            if (!playableUri) {
-              console.log(
-                "[hidden_audio] Missing audio source:",
-                JSON.stringify(normalizedSong, null, 2)
-              );
-              logAudioLoadFailure({
+              console.log("playback_recovery_stale_request_ignored", {
                 songId: normalizedSong.id,
-                reason: "missing_audio_source",
-                engine: "hidden_audio",
+                requestId,
+                latestRequestId: loadRequestIdRef.current,
               });
-              console.log("hidden_audio_load_play_failed_restore_previous", {
-                songId: normalizedSong.id,
-                reason: "missing_audio_source",
-              });
-              setCurrentSong(previousSongBeforeHiddenAudio);
-              currentSongRef.current = previousSongBeforeHiddenAudio;
-              setIsPlaying(false);
               return;
             }
 
@@ -2196,22 +2282,34 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               engine: "hidden_audio",
             });
             hiddenAudioActiveRef.current = false;
-            console.log("hidden_audio_load_play_failed_restore_previous", {
+            console.log("playback_recovery_load_failed", {
               songId: normalizedSong.id,
+              requestId,
+              error: String((error as Error)?.message || error),
             });
-            setCurrentSong(previousSongBeforeHiddenAudio);
-            currentSongRef.current = previousSongBeforeHiddenAudio;
+            restorePreviousPlaybackState("hidden_audio_load_play_failed");
             setIsPlaying(false);
           } finally {
-            if (isMountedRef.current) {
-              setIsLoading(false);
-            }
-
             if (loadRequestIdRef.current === requestId) {
+              clearLoadingRecoveryTimeout();
               isChangingTrackRef.current = false;
               if (inFlightPlaySongIdRef.current === normalizedSong.id) {
                 inFlightPlaySongIdRef.current = null;
               }
+              if (isMountedRef.current) {
+                console.log("playback_recovery_loading_cleared", {
+                  requestId,
+                  songId: normalizedSong.id,
+                  reason: "hidden_audio_complete",
+                });
+                setIsLoading(false);
+              }
+            } else {
+              console.log("playback_recovery_stale_request_ignored", {
+                requestId,
+                songId: normalizedSong.id,
+                latestRequestId: loadRequestIdRef.current,
+              });
             }
           }
 
@@ -2220,16 +2318,17 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
         void configureAudio("load_and_play_native_audio");
 
-        setCurrentSong(normalizedSong);
-        currentSongRef.current = normalizedSong;
-        setIsPlaying(false);
-        setPositionMillis(0);
-        setDurationMillis(0);
         logAudioLoadFailure({
           songId: normalizedSong.id,
           reason: "native_audio_engine_unavailable",
         });
-        setIsLoading(false);
+        console.log("playback_recovery_load_failed", {
+          songId: normalizedSong.id,
+          requestId,
+          reason: "native_audio_engine_unavailable",
+        });
+        restorePreviousPlaybackState("native_audio_engine_unavailable");
+        setIsPlaying(false);
         return;
         await applyProgressUpdateInterval("load_and_play_native_audio");
       } catch (error) {
@@ -2240,15 +2339,26 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         });
         setIsPlaying(false);
       } finally {
-        if (isMountedRef.current) {
-          setIsLoading(false);
-        }
-
         if (loadRequestIdRef.current === requestId) {
+          clearLoadingRecoveryTimeout();
           isChangingTrackRef.current = false;
           if (inFlightPlaySongIdRef.current === song?.id) {
             inFlightPlaySongIdRef.current = null;
           }
+          if (isMountedRef.current) {
+            console.log("playback_recovery_loading_cleared", {
+              requestId,
+              songId: song?.id,
+              reason: "load_and_play_complete",
+            });
+            setIsLoading(false);
+          }
+        } else {
+          console.log("playback_recovery_stale_request_ignored", {
+            requestId,
+            songId: song?.id,
+            latestRequestId: loadRequestIdRef.current,
+          });
         }
       }
     },
@@ -2270,7 +2380,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       savePlaybackSideEffects,
       removeStoredValues,
       configureAudio,
-      clearFinishWatchdog,
+      clearLoadingRecoveryTimeout,
+    clearFinishWatchdog,
     ]
   );
 
@@ -2453,16 +2564,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         clearFinishWatchdog("previous_restart");
         void removeStoredValues([POSITION_KEY]);
         await bridgeSeekTo(0);
-        positionMillisRef.current = 0;
         setPositionMillis(0);
 
         if (hiddenAudioActiveRef.current) {
           await bridgeHiddenAudioPlay();
           const progress = await bridgeGetProgress();
-          isPlayingRef.current = progress.isPlaying;
           setIsPlaying(progress.isPlaying);
           if (progress.durationMillis > 0) {
-            durationMillisRef.current = progress.durationMillis;
             setDurationMillis(progress.durationMillis);
           }
         } else {
@@ -2492,6 +2600,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setIsPlaying,
     setPositionMillis,
     setDurationMillis,
+    clearLoadingRecoveryTimeout,
     clearFinishWatchdog,
   ]);
 
@@ -2562,11 +2671,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           }
 
           const resumeProgress = await bridgeGetProgress();
-          isPlayingRef.current = resumeProgress.isPlaying;
-          positionMillisRef.current = resumeProgress.positionMillis;
           setPositionMillis(resumeProgress.positionMillis);
           if (resumeProgress.durationMillis > 0) {
-            durationMillisRef.current = resumeProgress.durationMillis;
             setDurationMillis(resumeProgress.durationMillis);
           }
           setIsPlaying(resumeProgress.isPlaying);
@@ -2708,11 +2814,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           }
 
           const resumeProgress = await bridgeGetProgress();
-          isPlayingRef.current = resumeProgress.isPlaying;
-          positionMillisRef.current = resumeProgress.positionMillis;
           setPositionMillis(resumeProgress.positionMillis);
           if (resumeProgress.durationMillis > 0) {
-            durationMillisRef.current = resumeProgress.durationMillis;
             setDurationMillis(resumeProgress.durationMillis);
           }
           setIsPlaying(resumeProgress.isPlaying);
@@ -3016,6 +3119,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setPositionMillis,
     setDurationMillis,
     removeStoredValues,
+    clearLoadingRecoveryTimeout,
     clearFinishWatchdog,
   ]);
 
@@ -3112,7 +3216,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         await bridgeSeekTo(safeMillis);
         const progress = await syncHiddenAudioState("seek");
         const confirmedMillis = progress?.positionMillis || safeMillis;
-        positionMillisRef.current = confirmedMillis;
         setPositionMillis(confirmedMillis);
         await savePlaybackPosition(confirmedMillis);
         return;
@@ -3467,7 +3570,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           setPositionMillisState(progress.positionMillis);
         }
 
-        if (progress.durationMillis > 0) {
+        if (
+          progress.durationMillis > 0 &&
+          Math.abs(progress.durationMillis - durationMillisRef.current) >=
+            DURATION_UPDATE_THRESHOLD_MS
+        ) {
           durationMillisRef.current = progress.durationMillis;
           recordPlaybackReactStateUpdate("duration");
           setDurationMillisState(progress.durationMillis);
@@ -3573,6 +3680,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     restoreSavedDataLight,
     restoreSavedDataHeavy,
     unloadCurrentSound,
+    clearLoadingRecoveryTimeout,
     clearFinishWatchdog,
   ]);
 
