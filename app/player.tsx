@@ -1,6 +1,6 @@
 import React, { memo, useCallback, useEffect, useMemo, useRef } from "react";
 import {
-  Dimensions,
+  useWindowDimensions,
   Image,
   Pressable,
   ScrollView,
@@ -41,11 +41,6 @@ import { openGenreCatalog, openMoodCatalog } from "../utils/catalogNavigation";
 import { normalizeGenreName } from "../utils/genreNormalization";
 import { getBestLyricsPayload, setLyricsMemoryCache } from "../utils/lyrics";
 
-const SCREEN_WIDTH = Dimensions.get("window").width;
-const PLAYER_ART_SIZE = Math.round(
-  Math.min(300, Math.max(260, SCREEN_WIDTH * 0.72))
-);
-const PLAYER_ART_SCROLL_OVERLAP = Math.round(PLAYER_ART_SIZE * 0.14);
 const METADATA_PRESS_GUARD_MS = 500;
 
 type PlayerMetadataChip = {
@@ -262,6 +257,14 @@ const MetadataContextChip = memo(function MetadataContextChip({
 });
 
 export default function PlayerScreen() {
+  const { width: viewportWidth, height: viewportHeight } = useWindowDimensions();
+  const compactLayout = viewportWidth < 380 || viewportHeight < 760;
+  const artworkSize = Math.round(
+    Math.min(compactLayout ? 264 : 300, Math.max(220, viewportWidth * (compactLayout ? 0.62 : 0.72)))
+  );
+  const artworkScrollOverlap = Math.round(artworkSize * (compactLayout ? 0.1 : 0.14));
+  const horizontalPadding = compactLayout ? 18 : 22;
+
   const { currentSong, isPlaying, isLoading } = usePlayerNowPlaying();
   const { positionMillis, durationMillis } = usePlayerProgress();
   const { activeQueue, activeQueueIndex, activeQueueMode, radioMode, youtubeQueue } =
@@ -520,7 +523,7 @@ export default function PlayerScreen() {
       <LinearGradient colors={GRADIENTS.player} style={styles.container}>
         <AmbientGlow />
 
-        <View style={styles.playerAnchor}>
+        <View style={[styles.playerAnchor, compactLayout && styles.playerAnchorCompact, { paddingHorizontal: horizontalPadding }]}>
           <View style={styles.header}>
             <TouchableOpacity style={styles.iconButton} onPress={handleBack}>
               <Ionicons name="chevron-down" size={26} color={COLORS.text} />
@@ -539,7 +542,18 @@ export default function PlayerScreen() {
           </View>
 
           <View style={styles.artworkStage}>
-            <Animated.View style={[styles.artworkHalo, artworkHaloStyle]} pointerEvents="none">
+            <Animated.View
+              style={[
+                styles.artworkHalo,
+                {
+                  width: artworkSize + 32,
+                  height: artworkSize + 32,
+                  borderRadius: (artworkSize + 32) / 2,
+                },
+                artworkHaloStyle,
+              ]}
+              pointerEvents="none"
+            >
               <LinearGradient
                 colors={[
                   "rgba(168,85,247,0.5)",
@@ -550,8 +564,24 @@ export default function PlayerScreen() {
               />
             </Animated.View>
 
-            <LinearGradient colors={GRADIENTS.neon} style={styles.artworkBorder}>
-              <Animated.View style={[styles.artworkWrapper, artworkAnimated]}>
+            <LinearGradient
+              colors={GRADIENTS.neon}
+              style={[
+                styles.artworkBorder,
+                { width: artworkSize, height: artworkSize, borderRadius: artworkSize / 2 },
+              ]}
+            >
+              <Animated.View
+                style={[
+                  styles.artworkWrapper,
+                  {
+                    width: artworkSize - 6,
+                    height: artworkSize - 6,
+                    borderRadius: (artworkSize - 6) / 2,
+                  },
+                  artworkAnimated,
+                ]}
+              >
                 <Image source={{ uri: artwork }} style={styles.artwork} />
               </Animated.View>
             </LinearGradient>
@@ -564,8 +594,11 @@ export default function PlayerScreen() {
 
         <ScrollView
           showsVerticalScrollIndicator={false}
-          style={styles.playerScroll}
-          contentContainerStyle={styles.scrollContent}
+          style={[styles.playerScroll, { marginTop: -artworkScrollOverlap }]}
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingHorizontal: horizontalPadding, paddingTop: artworkScrollOverlap + (compactLayout ? 0 : 4) },
+          ]}
         >
           <Animated.View style={[styles.meta, metadataAnimated]}>
             <View style={styles.statusPill}>
@@ -599,7 +632,7 @@ export default function PlayerScreen() {
             </View>
           ) : null}
 
-          <View style={styles.waveformPanel}>
+          <View style={[styles.waveformPanel, compactLayout && styles.waveformPanelCompact]}>
             <LiveWaveform
               isPlaying={isPlaying}
               size="large"
@@ -607,7 +640,7 @@ export default function PlayerScreen() {
             />
           </View>
 
-          <View style={styles.progressPanel}>
+          <View style={[styles.progressPanel, compactLayout && styles.progressPanelCompact]}>
             <Slider
               value={position}
               minimumValue={0}
@@ -624,8 +657,8 @@ export default function PlayerScreen() {
             </View>
           </View>
 
-          <View style={styles.controlsDock}>
-            <View style={styles.controls}>
+          <View style={[styles.controlsDock, compactLayout && styles.controlsDockCompact]}>
+            <View style={[styles.controls, compactLayout && styles.controlsCompact]}>
               <PremiumIconButton disabled={!currentSong} onPress={handlePrevious}>
                 <Ionicons name="play-skip-back" size={30} color={COLORS.text} />
               </PremiumIconButton>
@@ -715,14 +748,16 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
     zIndex: 2,
   },
+  playerAnchorCompact: {
+    paddingTop: 44,
+    paddingBottom: 6,
+  },
   playerScroll: {
     flex: 1,
-    marginTop: -PLAYER_ART_SCROLL_OVERLAP,
     zIndex: 1,
   },
   scrollContent: {
     paddingHorizontal: 22,
-    paddingTop: PLAYER_ART_SCROLL_OVERLAP + 4,
     paddingBottom: 150,
   },
   emptyContainer: {
@@ -816,26 +851,17 @@ const styles = StyleSheet.create({
   },
   artworkHalo: {
     position: "absolute",
-    width: PLAYER_ART_SIZE + 32,
-    height: PLAYER_ART_SIZE + 32,
-    borderRadius: (PLAYER_ART_SIZE + 32) / 2,
     overflow: "hidden",
   },
   artworkHaloFill: {
     flex: 1,
   },
   artworkBorder: {
-    width: PLAYER_ART_SIZE,
-    height: PLAYER_ART_SIZE,
-    borderRadius: PLAYER_ART_SIZE / 2,
     padding: 3,
     alignItems: "center",
     justifyContent: "center",
   },
   artworkWrapper: {
-    width: PLAYER_ART_SIZE - 6,
-    height: PLAYER_ART_SIZE - 6,
-    borderRadius: (PLAYER_ART_SIZE - 6) / 2,
     overflow: "hidden",
     backgroundColor: COLORS.card,
   },
@@ -901,7 +927,7 @@ const styles = StyleSheet.create({
     marginTop: 14,
   },
   contextPill: {
-    maxWidth: SCREEN_WIDTH * 0.42,
+    maxWidth: "46%",
     borderRadius: 999,
     paddingHorizontal: 14,
     paddingVertical: 9,
@@ -927,6 +953,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.08)",
   },
+  waveformPanelCompact: {
+    marginTop: 16,
+    minHeight: 72,
+  },
   progressPanel: {
     marginTop: 22,
     borderRadius: 24,
@@ -936,6 +966,11 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.055)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.08)",
+  },
+  progressPanelCompact: {
+    marginTop: 16,
+    paddingTop: 10,
+    paddingBottom: 8,
   },
   timeRow: {
     flexDirection: "row",
@@ -962,6 +997,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 22,
+  },
+  controlsDockCompact: {
+    marginTop: 18,
+    paddingVertical: 14,
+  },
+  controlsCompact: {
+    gap: 16,
   },
   premiumIconButton: {
     width: 58,
