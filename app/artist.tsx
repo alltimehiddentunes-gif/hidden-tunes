@@ -29,7 +29,7 @@ function clean(value: string) {
 
 export default function ArtistScreen() {
   const params = useLocalSearchParams();
-  const { playAudiusTrack } = usePlayerActions();
+  const { playSong } = usePlayerActions();
   const artistName = String(params.artist || "Unknown Artist");
 
   const [catalog, setCatalog] = useState<HiddenTunesDerivedCatalog | null>(null);
@@ -71,8 +71,8 @@ export default function ArtistScreen() {
     } as any);
   }
 
-  function playSong(song: HiddenTunesSong) {
-    void playAudiusTrack(song);
+  function handlePlaySong(song: HiddenTunesSong, queueIndex: number) {
+    void playSong(song, tracks, queueIndex);
   }
 
   return (
@@ -108,7 +108,7 @@ export default function ArtistScreen() {
                   activeOpacity={0.86}
                   style={[styles.playButton, tracks.length === 0 && styles.disabledPlayButton]}
                   disabled={tracks.length === 0}
-                  onPress={() => tracks[0] && playSong(tracks[0])}
+                  onPress={() => tracks[0] && handlePlaySong(tracks[0], 0)}
                 >
                   <Ionicons name="play" size={18} color="#000" />
                   <Text style={styles.playButtonText}>Play Top Song</Text>
@@ -163,7 +163,7 @@ export default function ArtistScreen() {
           if (loading) return null;
 
           return (
-            <TouchableOpacity activeOpacity={0.86} style={styles.trackCard} onPress={() => playSong(item)}>
+            <TouchableOpacity activeOpacity={0.86} style={styles.trackCard} onPress={() => handlePlaySong(item, index)}>
               <Text style={styles.rank}>{String(index + 1).padStart(2, "0")}</Text>
               <Image source={{ uri: item.cover || artistImage }} style={styles.cover} />
 

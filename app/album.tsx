@@ -28,7 +28,7 @@ function clean(value: string) {
 
 export default function AlbumScreen() {
   const params = useLocalSearchParams();
-  const { playAudiusTrack } = usePlayerActions();
+  const { playSong } = usePlayerActions();
 
   const albumTitle = String(params.album || params.title || "Singles");
   const artistName = String(params.artist || "Unknown Artist");
@@ -62,8 +62,8 @@ export default function AlbumScreen() {
   const tracks = album?.songs || [];
   const thumbnail = album?.artwork || tracks[0]?.cover || fallbackThumbnail;
 
-  function playSong(song: HiddenTunesSong) {
-    void playAudiusTrack(song);
+  function handlePlaySong(song: HiddenTunesSong, queueIndex: number) {
+    void playSong(song, tracks, queueIndex);
   }
 
   return (
@@ -90,7 +90,7 @@ export default function AlbumScreen() {
             activeOpacity={0.86}
             style={[styles.playButton, tracks.length === 0 && styles.disabledPlayButton]}
             disabled={tracks.length === 0}
-            onPress={() => tracks[0] && playSong(tracks[0])}
+            onPress={() => tracks[0] && handlePlaySong(tracks[0], 0)}
           >
             <Ionicons name="play" size={18} color="#000" />
             <Text style={styles.playButtonText}>Play First</Text>
@@ -128,7 +128,7 @@ export default function AlbumScreen() {
             </View>
           }
           renderItem={({ item, index }) => (
-            <TouchableOpacity activeOpacity={0.86} style={styles.trackCard} onPress={() => playSong(item)}>
+            <TouchableOpacity activeOpacity={0.86} style={styles.trackCard} onPress={() => handlePlaySong(item, index)}>
               <Text style={styles.rank}>{String(index + 1).padStart(2, "0")}</Text>
               <Image source={{ uri: item.cover || thumbnail }} style={styles.cover} />
 

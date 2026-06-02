@@ -29,7 +29,7 @@ function clean(value: string) {
 
 export default function GenreScreen() {
   const params = useLocalSearchParams();
-  const { playAudiusTrack } = usePlayerActions();
+  const { playSong } = usePlayerActions();
 
   const title = String(params.title || params.query || "Genre");
   const [catalog, setCatalog] = useState<HiddenTunesDerivedCatalog | null>(null);
@@ -66,8 +66,8 @@ export default function GenreScreen() {
     return (catalog?.albums || []).filter((album) => album.songs.some((song) => trackIds.has(song.id)));
   }, [catalog?.albums, tracks]);
 
-  function playSong(song: HiddenTunesSong) {
-    void playAudiusTrack(song);
+  function handlePlaySong(song: HiddenTunesSong, queueIndex: number) {
+    void playSong(song, tracks, queueIndex);
   }
 
   function openAlbum(album: HiddenTunesAlbumCatalogItem) {
@@ -142,8 +142,8 @@ export default function GenreScreen() {
               <Text style={styles.emptyText}>No current songs include this genre or mood tag.</Text>
             </View>
           }
-          renderItem={({ item }) => (
-            <TouchableOpacity activeOpacity={0.86} style={styles.trackCard} onPress={() => playSong(item)}>
+          renderItem={({ item, index }) => (
+            <TouchableOpacity activeOpacity={0.86} style={styles.trackCard} onPress={() => handlePlaySong(item, index)}>
               <Image source={{ uri: item.cover }} style={styles.cover} />
               <View style={styles.info}>
                 <Text numberOfLines={1} style={styles.trackTitle}>{item.title}</Text>
