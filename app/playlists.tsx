@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+﻿import { useCallback, useMemo, useState } from "react";
 import {
   FlatList,
   Image,
@@ -28,9 +28,32 @@ import {
   type UserPlaylist,
 } from "../services/playlists";
 
-import { getHiddenTunesSongs } from "../services/hiddenTunesApi";
+import {
+  fetchHiddenTunesCatalog,
+  type HiddenTunesCatalogPlaylist,
+} from "../services/hiddenTunes";
 
-type LibraryPlaylist = UserPlaylist | SmartPlaylist;
+type CatalogSmartPlaylist = SmartPlaylist & {
+  catalogKind?: HiddenTunesCatalogPlaylist["kind"];
+};
+
+type LibraryPlaylist = UserPlaylist | SmartPlaylist | CatalogSmartPlaylist;
+
+function toCatalogSmartPlaylist(playlist: HiddenTunesCatalogPlaylist): CatalogSmartPlaylist {
+  return {
+    id: `catalog-${playlist.id}`,
+    title: playlist.title,
+    description: playlist.description,
+    artwork: playlist.artwork,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    trackCount: playlist.songs.length,
+    tracks: playlist.songs as any,
+    smartType: playlist.kind === "genre" ? "genre" : playlist.kind === "artist" ? "artist" : "recently-added",
+    isSmart: true,
+    catalogKind: playlist.kind,
+  };
+}
 
 function formatDate(value?: string) {
   if (!value) return "Recently updated";
@@ -73,16 +96,20 @@ export default function PlaylistsScreen() {
 
   async function loadPlaylists() {
     try {
-      const [userData, cloudSongs] = await Promise.all([
+      const [userData, catalog] = await Promise.all([
         getUserPlaylists(),
-        getHiddenTunesSongs(),
+        fetchHiddenTunesCatalog(),
       ]);
 
       const safeUserPlaylists = Array.isArray(userData) ? userData : [];
-      const safeCloudSongs = Array.isArray(cloudSongs) ? cloudSongs : [];
+      const safeCloudSongs = catalog.songs;
+      const catalogMixes = catalog.playlists.map(toCatalogSmartPlaylist);
 
       setPlaylists(safeUserPlaylists);
-      setSmartPlaylists(generateSmartPlaylists(safeCloudSongs, safeUserPlaylists));
+      setSmartPlaylists([
+        ...catalogMixes,
+        ...generateSmartPlaylists(safeCloudSongs as any, safeUserPlaylists),
+      ]);
     } catch (error) {
       console.log("Load playlists screen error:", error);
       setPlaylists([]);
@@ -181,6 +208,11 @@ export default function PlaylistsScreen() {
   const totalFound = filteredPlaylists.length + filteredSmartPlaylists.length;
 
   function openPlaylist(playlist: LibraryPlaylist) {
+    if (isSmartPlaylist(playlist)) {
+      router.push("/music-feed" as any);
+      return;
+    }
+
     router.push({
       pathname: "/playlist/[id]",
       params: { id: playlist.id },
@@ -222,7 +254,7 @@ export default function PlaylistsScreen() {
           </View>
 
           <Text style={styles.meta} numberOfLines={2}>
-            {item.tracks.length} track{item.tracks.length === 1 ? "" : "s"} ·{" "}
+            {item.tracks.length} track{item.tracks.length === 1 ? "" : "s"} Â·{" "}
             {smart
               ? item.description || "Made for you"
               : `Updated ${formatDate(item.updatedAt)}`}
@@ -291,7 +323,7 @@ export default function PlaylistsScreen() {
                 </Text>
 
                 <Text style={styles.heroSubtitle}>
-                  {totalSongs} saved track{totalSongs === 1 ? "" : "s"} ·{" "}
+                  {totalSongs} saved track{totalSongs === 1 ? "" : "s"} Â·{" "}
                   {smartPlaylists.length} smart mix
                   {smartPlaylists.length === 1 ? "" : "es"}
                 </Text>
@@ -837,3 +869,5 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
 });
+
+

@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
   Image,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -22,154 +23,279 @@ import {
   usePlayerNowPlaying,
 } from "@/context/PlayerContext";
 import {
-  fetchHiddenTunesSongs,
-  HiddenTunesSong,
+  fetchHiddenTunesCatalog,
+  type HiddenTunesAlbumCatalogItem,
+  type HiddenTunesArtistCatalogItem,
+  type HiddenTunesDerivedCatalog,
+  type HiddenTunesGenreCatalogItem,
+  type HiddenTunesSong,
 } from "@/services/hiddenTunes";
 
 export default function MusicFeedScreen() {
   const { playAudiusTrack } = usePlayerActions();
   const { currentSong, isPlaying } = usePlayerNowPlaying();
 
-  const [songs, setSongs] = useState<HiddenTunesSong[]>([]);
+  const [catalog, setCatalog] = useState<HiddenTunesDerivedCatalog | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
+  const songs = catalog?.songs || [];
+  const artists = catalog?.artists || [];
+  const albums = catalog?.albums || [];
+  const genres = catalog?.genres || [];
+  const playlists = catalog?.playlists || [];
+
   useEffect(() => {
-    loadSongs();
+    void loadCatalog();
   }, []);
 
-  const loadSongs = async () => {
+  const loadCatalog = async () => {
     setLoading(true);
-    const data = await fetchHiddenTunesSongs();
-    setSongs(data);
+    const data = await fetchHiddenTunesCatalog();
+    setCatalog(data);
     setLoading(false);
   };
 
-  const refreshSongs = async () => {
+  const refreshCatalog = async () => {
     setRefreshing(true);
-    const data = await fetchHiddenTunesSongs();
-    setSongs(data);
+    const data = await fetchHiddenTunesCatalog();
+    setCatalog(data);
     setRefreshing(false);
   };
+
+  const visiblePlaylists = useMemo(() => playlists.slice(0, 6), [playlists]);
+
+  function openArtist(artist: HiddenTunesArtistCatalogItem) {
+    router.push({ pathname: "/artist", params: { artist: artist.name } } as any);
+  }
+
+  function openAlbum(album: HiddenTunesAlbumCatalogItem) {
+    router.push({
+      pathname: "/album",
+      params: {
+        album: album.title,
+        artist: album.artist,
+        thumbnail: album.artwork,
+      },
+    } as any);
+  }
+
+  function openGenre(genre: HiddenTunesGenreCatalogItem) {
+    router.push({
+      pathname: "/genre",
+      params: { title: genre.title, query: genre.title, id: genre.id, type: "genre" },
+    } as any);
+  }
+
+  function renderSurfaceCard({
+    id,
+    title,
+    subtitle,
+    artwork,
+    onPress,
+  }: {
+    id: string;
+    title: string;
+    subtitle: string;
+    artwork: string;
+    onPress: () => void;
+  }) {
+    return (
+      <TouchableOpacity
+        key={id}
+        activeOpacity={0.86}
+        style={styles.surfaceCard}
+        onPress={onPress}
+      >
+        <Image source={{ uri: artwork }} style={styles.surfaceCover} />
+        <Text style={styles.surfaceTitle} numberOfLines={2}>{title}</Text>
+        <Text style={styles.surfaceSubtitle} numberOfLines={1}>{subtitle}</Text>
+      </TouchableOpacity>
+    );
+  }
 
   return (
     <AppShell>
       <LinearGradient colors={GRADIENTS.main} style={styles.container}>
-      <View style={styles.glowPurple} />
-      <View style={styles.glowCyan} />
+        <View style={styles.glowPurple} />
+        <View style={styles.glowCyan} />
 
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={26} color={COLORS.text} />
-        </TouchableOpacity>
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+            <Ionicons name="chevron-back" size={26} color={COLORS.text} />
+          </TouchableOpacity>
 
-        <View style={styles.headerTextBox}>
-          <Text style={styles.title}>Hidden Tunes</Text>
-          <Text style={styles.subtitle}>Curated streams from the catalog</Text>
-        </View>
-
-        <TouchableOpacity style={styles.refreshButton} onPress={refreshSongs}>
-          <Ionicons name="refresh" size={22} color={COLORS.cyan} />
-        </TouchableOpacity>
-      </View>
-
-      {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.loadingText}>Loading your music...</Text>
-        </View>
-      ) : songs.length === 0 ? (
-        <View style={styles.center}>
-          <View style={styles.emptyIcon}>
-            <Ionicons name="musical-notes" size={58} color={COLORS.primary} />
+          <View style={styles.headerTextBox}>
+            <Text style={styles.title}>Hidden Tunes</Text>
+            <Text style={styles.subtitle}>Songs, artists, albums and mixes</Text>
           </View>
 
-          <Text style={styles.emptyTitle}>Nothing here yet</Text>
-
-          <Text style={styles.emptyText}>
-            New releases will appear here as they are added to Hidden Tunes.
-          </Text>
+          <TouchableOpacity style={styles.refreshButton} onPress={refreshCatalog}>
+            <Ionicons name="refresh" size={22} color={COLORS.cyan} />
+          </TouchableOpacity>
         </View>
-      ) : (
-        <FlatList
-          data={songs}
-          keyExtractor={(item, index) => `${item.id}-${index}`}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.list}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={refreshSongs}
-              tintColor={COLORS.primary}
-            />
-          }
-          ListHeaderComponent={
-            <View style={styles.feedHero}>
-              <LinearGradient colors={GRADIENTS.neon} style={styles.feedBorder}>
-                <View style={styles.feedInner}>
-                  <View>
-                    <Text style={styles.feedLabel}>CATALOG STREAMS</Text>
-                    <Text style={styles.feedTitle}>
-                      {songs.length} tracks ready
-                    </Text>
-                    <Text style={styles.feedText}>
-                      Stream the latest from Hidden Tunes.
-                    </Text>
-                  </View>
 
-                  <NeonEQ isPlaying={isPlaying} size="medium" />
-                </View>
-              </LinearGradient>
+        {loading ? (
+          <View style={styles.center}>
+            <ActivityIndicator size="large" color={COLORS.primary} />
+            <Text style={styles.loadingText}>Loading your music...</Text>
+          </View>
+        ) : songs.length === 0 ? (
+          <View style={styles.center}>
+            <View style={styles.emptyIcon}>
+              <Ionicons name="musical-notes" size={58} color={COLORS.primary} />
             </View>
-          }
-          renderItem={({ item }) => {
-            const active = currentSong?.id === String(item.id);
 
-            return (
-              <TouchableOpacity
-                style={[styles.songCard, active && styles.songCardActive]}
-                activeOpacity={0.88}
-                onPress={() => playAudiusTrack(item)}
-              >
-                <LinearGradient colors={GRADIENTS.neon} style={styles.coverBorder}>
-                  <Image source={{ uri: item.cover }} style={styles.cover} />
-                </LinearGradient>
+            <Text style={styles.emptyTitle}>Nothing here yet</Text>
 
-                <View style={styles.songInfo}>
-                  <Text numberOfLines={1} style={styles.songTitle}>
-                    {item.title}
-                  </Text>
+            <Text style={styles.emptyText}>
+              New releases will appear here as they are added to Hidden Tunes.
+            </Text>
+          </View>
+        ) : (
+          <FlatList
+            data={songs}
+            keyExtractor={(item, index) => `${item.id}-${index}`}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.list}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={refreshCatalog}
+                tintColor={COLORS.primary}
+              />
+            }
+            ListHeaderComponent={
+              <View>
+                <View style={styles.feedHero}>
+                  <LinearGradient colors={GRADIENTS.neon} style={styles.feedBorder}>
+                    <View style={styles.feedInner}>
+                      <View style={styles.feedCopy}>
+                        <Text style={styles.feedLabel}>LATEST RELEASES</Text>
+                        <Text style={styles.feedTitle}>
+                          {songs.length} song{songs.length === 1 ? "" : "s"} available
+                        </Text>
+                        <Text style={styles.feedText}>
+                          Explore the current Hidden Tunes catalog.
+                        </Text>
+                      </View>
 
-                  <Text numberOfLines={1} style={styles.artist}>
-                    {item.artist}
-                  </Text>
-
-                  <View style={styles.row}>
-                    <Ionicons
-                      name={active ? "radio" : "cloud-outline"}
-                      size={15}
-                      color={active ? COLORS.cyan : COLORS.primary}
-                    />
-                    <Text style={styles.streamText}>
-                      {active ? "Now playing" : "Tap to play"}
-                    </Text>
-                  </View>
+                      <NeonEQ isPlaying={isPlaying} size="medium" />
+                    </View>
+                  </LinearGradient>
                 </View>
 
-                {active ? (
-                  <View style={styles.eqBox}>
-                    <NeonEQ isPlaying={isPlaying} size="small" />
-                  </View>
-                ) : (
-                  <View style={styles.playButton}>
-                    <Ionicons name="play" size={20} color="#000" />
+                {artists.length > 0 && (
+                  <View style={styles.surfaceSection}>
+                    <Text style={styles.sectionTitle}>Artists</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.surfaceRow}>
+                      {artists.map((artist) => renderSurfaceCard({
+                        id: artist.id,
+                        title: artist.name,
+                        subtitle: `${artist.songs.length} song${artist.songs.length === 1 ? "" : "s"}`,
+                        artwork: artist.artwork,
+                        onPress: () => openArtist(artist),
+                      }))}
+                    </ScrollView>
                   </View>
                 )}
-              </TouchableOpacity>
-            );
-          }}
-        />
-      )}
+
+                {albums.length > 0 && (
+                  <View style={styles.surfaceSection}>
+                    <Text style={styles.sectionTitle}>Albums</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.surfaceRow}>
+                      {albums.map((album) => renderSurfaceCard({
+                        id: album.id,
+                        title: album.title,
+                        subtitle: album.artist,
+                        artwork: album.artwork,
+                        onPress: () => openAlbum(album),
+                      }))}
+                    </ScrollView>
+                  </View>
+                )}
+
+                {genres.length > 0 && (
+                  <View style={styles.surfaceSection}>
+                    <Text style={styles.sectionTitle}>Genres</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.surfaceRow}>
+                      {genres.map((genre) => renderSurfaceCard({
+                        id: genre.id,
+                        title: genre.title,
+                        subtitle: `${genre.songs.length} song${genre.songs.length === 1 ? "" : "s"}`,
+                        artwork: genre.artwork,
+                        onPress: () => openGenre(genre),
+                      }))}
+                    </ScrollView>
+                  </View>
+                )}
+
+                {visiblePlaylists.length > 0 && (
+                  <View style={styles.surfaceSection}>
+                    <Text style={styles.sectionTitle}>Catalog Mixes</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.surfaceRow}>
+                      {visiblePlaylists.map((playlist) => renderSurfaceCard({
+                        id: playlist.id,
+                        title: playlist.title,
+                        subtitle: playlist.description,
+                        artwork: playlist.artwork,
+                        onPress: () => router.push("/cloud-playlists" as any),
+                      }))}
+                    </ScrollView>
+                  </View>
+                )}
+
+                <Text style={styles.sectionTitle}>Songs</Text>
+              </View>
+            }
+            renderItem={({ item }) => {
+              const active = currentSong?.id === String(item.id);
+
+              return (
+                <TouchableOpacity
+                  style={[styles.songCard, active && styles.songCardActive]}
+                  activeOpacity={0.88}
+                  onPress={() => playAudiusTrack(item)}
+                >
+                  <LinearGradient colors={GRADIENTS.neon} style={styles.coverBorder}>
+                    <Image source={{ uri: item.cover }} style={styles.cover} />
+                  </LinearGradient>
+
+                  <View style={styles.songInfo}>
+                    <Text numberOfLines={1} style={styles.songTitle}>
+                      {item.title}
+                    </Text>
+
+                    <Text numberOfLines={1} style={styles.artist}>
+                      {item.artist}
+                    </Text>
+
+                    <View style={styles.row}>
+                      <Ionicons
+                        name={active ? "radio" : "cloud-outline"}
+                        size={15}
+                        color={active ? COLORS.cyan : COLORS.primary}
+                      />
+                      <Text style={styles.streamText}>
+                        {active ? "Now playing" : "Tap to play"}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {active ? (
+                    <View style={styles.eqBox}>
+                      <NeonEQ isPlaying={isPlaying} size="small" />
+                    </View>
+                  ) : (
+                    <View style={styles.playButton}>
+                      <Ionicons name="play" size={20} color="#000" />
+                    </View>
+                  )}
+                </TouchableOpacity>
+              );
+            }}
+          />
+        )}
       </LinearGradient>
     </AppShell>
   );
@@ -181,7 +307,6 @@ const styles = StyleSheet.create({
     paddingTop: 58,
     paddingHorizontal: 18,
   },
-
   glowPurple: {
     position: "absolute",
     top: 40,
@@ -191,7 +316,6 @@ const styles = StyleSheet.create({
     borderRadius: 140,
     backgroundColor: "rgba(168,85,247,0.2)",
   },
-
   glowCyan: {
     position: "absolute",
     top: 280,
@@ -201,18 +325,13 @@ const styles = StyleSheet.create({
     borderRadius: 165,
     backgroundColor: "rgba(34,211,238,0.12)",
   },
-
   header: {
     flexDirection: "row",
     alignItems: "center",
     gap: 14,
     marginBottom: 22,
   },
-
-  headerTextBox: {
-    flex: 1,
-  },
-
+  headerTextBox: { flex: 1 },
   backButton: {
     width: 44,
     height: 44,
@@ -223,7 +342,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.1)",
   },
-
   refreshButton: {
     width: 44,
     height: 44,
@@ -234,33 +352,20 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(34,211,238,0.22)",
   },
-
-  title: {
-    color: COLORS.text,
-    fontSize: 28,
-    fontWeight: "900",
-  },
-
+  title: { color: COLORS.text, fontSize: 28, fontWeight: "900" },
   subtitle: {
     color: COLORS.textMuted,
     marginTop: 4,
     fontSize: 13,
     fontWeight: "700",
   },
-
   center: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 22,
   },
-
-  loadingText: {
-    color: COLORS.textMuted,
-    marginTop: 12,
-    fontWeight: "700",
-  },
-
+  loadingText: { color: COLORS.textMuted, marginTop: 12, fontWeight: "700" },
   emptyIcon: {
     width: 132,
     height: 132,
@@ -271,14 +376,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(168,85,247,0.25)",
   },
-
   emptyTitle: {
     color: COLORS.text,
     fontSize: 22,
     fontWeight: "900",
     marginTop: 16,
   },
-
   emptyText: {
     color: COLORS.textMuted,
     textAlign: "center",
@@ -286,20 +389,9 @@ const styles = StyleSheet.create({
     lineHeight: 21,
     fontWeight: "700",
   },
-
-  list: {
-    paddingBottom: 140,
-  },
-
-  feedHero: {
-    marginBottom: 18,
-  },
-
-  feedBorder: {
-    borderRadius: 28,
-    padding: 2,
-  },
-
+  list: { paddingBottom: 140 },
+  feedHero: { marginBottom: 18 },
+  feedBorder: { borderRadius: 28, padding: 2 },
   feedInner: {
     minHeight: 112,
     borderRadius: 26,
@@ -309,28 +401,53 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
-
+  feedCopy: { flex: 1, paddingRight: 12 },
   feedLabel: {
     color: COLORS.cyan,
     fontSize: 11,
     fontWeight: "900",
     letterSpacing: 1.2,
   },
-
   feedTitle: {
     color: COLORS.text,
     fontSize: 24,
     fontWeight: "900",
     marginTop: 7,
   },
-
   feedText: {
     color: COLORS.textMuted,
     fontSize: 13,
     fontWeight: "700",
     marginTop: 6,
   },
-
+  surfaceSection: { marginBottom: 20 },
+  sectionTitle: {
+    color: COLORS.text,
+    fontSize: 20,
+    fontWeight: "900",
+    marginBottom: 12,
+  },
+  surfaceRow: { gap: 12, paddingRight: 18 },
+  surfaceCard: { width: 132 },
+  surfaceCover: {
+    width: 132,
+    height: 132,
+    borderRadius: 22,
+    backgroundColor: COLORS.card,
+  },
+  surfaceTitle: {
+    color: COLORS.text,
+    fontSize: 14,
+    fontWeight: "900",
+    marginTop: 9,
+    lineHeight: 18,
+  },
+  surfaceSubtitle: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    fontWeight: "700",
+    marginTop: 4,
+  },
   songCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -341,57 +458,32 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.08)",
   },
-
   songCardActive: {
     backgroundColor: "rgba(168,85,247,0.13)",
     borderColor: "rgba(168,85,247,0.45)",
   },
-
-  coverBorder: {
-    width: 82,
-    height: 82,
-    borderRadius: 24,
-    padding: 2,
-  },
-
+  coverBorder: { width: 82, height: 82, borderRadius: 24, padding: 2 },
   cover: {
     width: "100%",
     height: "100%",
     borderRadius: 22,
     backgroundColor: COLORS.card,
   },
-
-  songInfo: {
-    flex: 1,
-    marginLeft: 14,
-  },
-
-  songTitle: {
-    color: COLORS.text,
-    fontSize: 17,
-    fontWeight: "900",
-  },
-
+  songInfo: { flex: 1, marginLeft: 14 },
+  songTitle: { color: COLORS.text, fontSize: 17, fontWeight: "900" },
   artist: {
     color: COLORS.textMuted,
     marginTop: 5,
     fontSize: 13,
     fontWeight: "700",
   },
-
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 10,
-  },
-
+  row: { flexDirection: "row", alignItems: "center", marginTop: 10 },
   streamText: {
     color: COLORS.primary,
     marginLeft: 6,
     fontWeight: "800",
     fontSize: 12,
   },
-
   playButton: {
     width: 54,
     height: 54,
@@ -400,10 +492,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-
-  eqBox: {
-    width: 58,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  eqBox: { width: 58, alignItems: "center", justifyContent: "center" },
 });
