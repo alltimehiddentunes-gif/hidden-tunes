@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
-  Image,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -17,6 +16,10 @@ import { Ionicons } from "@expo/vector-icons";
 
 import AppShell from "@/components/navigation/AppShell";
 import NeonEQ from "@/components/NeonEQ";
+import UnifiedMediaCard from "@/components/UnifiedMediaCard";
+import UniversalSearchGroupedResults from "@/components/UniversalSearchGroupedResults";
+import { HomeCatalogSongRow, HomeFeaturedCard } from "@/components/catalog/HomePlaybackRows";
+import DebouncedSearchInput from "@/components/search/DebouncedSearchInput";
 import { COLORS, GRADIENTS } from "@/constants/theme";
 import {
   usePlayerActions,
@@ -30,6 +33,70 @@ import {
   type HiddenTunesGenreCatalogItem,
   type HiddenTunesSong,
 } from "@/services/hiddenTunes";
+import type {
+  HiddenTunesAlbum,
+  HiddenTunesArtist,
+  HiddenTunesNormalizedSong,
+} from "@/services/hiddenTunesApi";
+import {
+  runInstantCatalogSearch,
+  type InstantSearchCatalog,
+} from "@/services/instantCatalogSearch";
+import type { UniversalSearchGroupedResults as SearchGroupedResults } from "@/services/universalSearchService";
+import type { HiddenTunesGenre } from "@/utils/genres";
+
+const EMPTY_SEARCH_RESULTS: SearchGroupedResults = {
+  topResults: [],
+  songs: [],
+  lyrics: [],
+  artists: [],
+  albums: [],
+  genreMoods: [],
+  tv: [],
+  hasAnyResults: false,
+};
+
+function toNormalizedSongs(songs: HiddenTunesSong[]) {
+  return songs as unknown as HiddenTunesNormalizedSong[];
+}
+
+function toSearchAlbums(albums: HiddenTunesAlbumCatalogItem[]) {
+  return albums.map((album) => ({
+    id: album.id,
+    title: album.title,
+    slug: album.id,
+    artist: album.artist,
+    artwork: album.artwork,
+    tracks: toNormalizedSongs(album.songs),
+  })) as HiddenTunesAlbum[];
+}
+
+function toSearchArtists(artists: HiddenTunesArtistCatalogItem[]) {
+  return artists.map((artist) => ({
+    id: artist.id,
+    name: artist.name,
+    slug: artist.id,
+    artwork: artist.artwork,
+    cover: artist.artwork,
+    thumbnail: artist.artwork,
+    albums: toSearchAlbums(artist.albums),
+    tracks: toNormalizedSongs(artist.songs),
+  })) as HiddenTunesArtist[];
+}
+
+function toSearchGenres(genres: HiddenTunesGenreCatalogItem[]) {
+  return genres.map((genre) => ({
+    id: genre.id,
+    title: genre.title,
+    query: genre.title,
+    emoji: "",
+  })) as HiddenTunesGenre[];
+}
+
+function findSongIndex(songs: HiddenTunesSong[], song: { id?: string }) {
+  const id = String(song?.id || "");
+  return songs.findIndex((candidate) => String(candidate.id) === id);
+}
 
 export default function MusicFeedScreen() {
   const { playSong } = usePlayerActions();
@@ -38,6 +105,8 @@ export default function MusicFeedScreen() {
   const [catalog, setCatalog] = useState<HiddenTunesDerivedCatalog | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [submittedSearchQuery, setSubmittedSearchQuery] = useState("");
 
   const songs = catalog?.songs || [];
   const artists = catalog?.artists || [];
@@ -64,12 +133,38 @@ export default function MusicFeedScreen() {
   }, []);
 
   const visiblePlaylists = useMemo(() => playlists.slice(0, 6), [playlists]);
+  const featuredSongs = useMemo(() => songs.slice(0, 8), [songs]);
+  const searchCatalog = useMemo<InstantSearchCatalog>(() => ({
+    songs: toNormalizedSongs(songs),
+    albums: toSearchAlbums(albums),
+    artists: toSearchArtists(artists),
+    genres: toSearchGenres(genres),
+    tvVideos: [],
+  }), [albums, artists, genres, songs]);
 
-  const openArtist = useCallback((artist: HiddenTunesArtistCatalogItem) => {
+  const searchResults = useMemo(() => {
+    const cleanQuery = submittedSearchQuery.trim();
+    if (cleanQuery.length < 2) return EMPTY_SEARCH_RESULTS;
+    return runInstantCatalogSearch(searchCatalog, cleanQuery);
+  }, [searchCatalog, submittedSearchQuery]);
+
+  const hasSearchText = searchQuery.trim().length > 0;
+  const showSearchResults = submittedSearchQuery.trim().length >= 2;
+
+  const playCatalogSong = useCallback(
+    (song: HiddenTunesSong | HiddenTunesNormalizedSong) => {
+      const index = findSongIndex(songs, song);
+      const catalogSong = index >= 0 ? songs[index] : (song as HiddenTunesSong);
+      void playSong(catalogSong, songs, Math.max(index, 0));
+    },
+    [playSong, songs]
+  );
+
+  const openArtist = useCallback((artist: HiddenTunesArtistCatalogItem | HiddenTunesArtist) => {
     router.push({ pathname: "/artist", params: { artist: artist.name } } as any);
   }, []);
 
-  const openAlbum = useCallback((album: HiddenTunesAlbumCatalogItem) => {
+  const openAlbum = useCallback((album: HiddenTunesAlbumCatalogItem | HiddenTunesAlbum) => {
     router.push({
       pathname: "/album",
       params: {
@@ -80,94 +175,56 @@ export default function MusicFeedScreen() {
     } as any);
   }, []);
 
-  const openGenre = useCallback((genre: HiddenTunesGenreCatalogItem) => {
+  const openGenre = useCallback((genre: HiddenTunesGenreCatalogItem | HiddenTunesGenre) => {
     router.push({
       pathname: "/genre",
       params: { title: genre.title, query: genre.title, id: genre.id, type: "genre" },
     } as any);
   }, []);
 
-  const renderSurfaceCard = useCallback(
-    ({
-      id,
-      title,
-      subtitle,
-      artwork,
-      onPress,
-    }: {
-      id: string;
-      title: string;
-      subtitle: string;
-      artwork: string;
-      onPress: () => void;
-    }) => (
-      <TouchableOpacity
-        key={id}
-        activeOpacity={0.86}
-        style={styles.surfaceCard}
-        onPress={onPress}
-      >
-        <Image source={{ uri: artwork }} style={styles.surfaceCover} />
-        <Text style={styles.surfaceTitle} numberOfLines={2}>{title}</Text>
-        <Text style={styles.surfaceSubtitle} numberOfLines={1}>{subtitle}</Text>
-      </TouchableOpacity>
-    ),
-    []
-  );
+  const openTv = useCallback((video: any) => {
+    router.push({
+      pathname: "/youtube-player",
+      params: {
+        videoId: video.source_id || video.id,
+        title: video.title,
+        channelTitle: video.channel_name || video.channelTitle || "Hidden Tunes TV",
+        thumbnail: video.thumbnail_url || video.thumbnail || "",
+      },
+    } as any);
+  }, []);
+
+  const handleSearchImmediateChange = useCallback((text: string) => {
+    setSearchQuery(text);
+    if (text.trim().length === 0) {
+      setSubmittedSearchQuery("");
+    }
+  }, []);
+
+  const handleSuggestionPress = useCallback((text: string) => {
+    setSearchQuery(text);
+    setSubmittedSearchQuery(text);
+  }, []);
+
+  const clearSearch = useCallback(() => {
+    setSearchQuery("");
+    setSubmittedSearchQuery("");
+  }, []);
 
   const keyExtractor = useCallback(
-    (item: HiddenTunesSong, index: number) => `${item.id}-${index}`,
+    (item: HiddenTunesSong, index: number) => String(item.id || index),
     []
   );
 
   const renderSongItem = useCallback(
-    ({ item, index }: { item: HiddenTunesSong; index: number }) => {
-      const active = isPlaying && currentSong?.id === String(item.id);
-
-      return (
-        <TouchableOpacity
-          style={[styles.songCard, active && styles.songCardActive]}
-          activeOpacity={0.88}
-          onPress={() => playSong(item, songs, index)}
-        >
-          <LinearGradient colors={GRADIENTS.neon} style={styles.coverBorder}>
-            <Image source={{ uri: item.cover }} style={styles.cover} />
-          </LinearGradient>
-
-          <View style={styles.songInfo}>
-            <Text numberOfLines={1} style={styles.songTitle}>
-              {item.title}
-            </Text>
-
-            <Text numberOfLines={1} style={styles.artist}>
-              {item.artist}
-            </Text>
-
-            <View style={styles.row}>
-              <Ionicons
-                name={active ? "radio" : "cloud-outline"}
-                size={15}
-                color={active ? COLORS.cyan : COLORS.primary}
-              />
-              <Text style={styles.streamText}>
-                {active ? "Now playing" : "Tap to play"}
-              </Text>
-            </View>
-          </View>
-
-          {active ? (
-            <View style={styles.eqBox}>
-              <NeonEQ isPlaying={isPlaying} size="small" />
-            </View>
-          ) : (
-            <View style={styles.playButton}>
-              <Ionicons name="play" size={20} color="#000" />
-            </View>
-          )}
-        </TouchableOpacity>
-      );
-    },
-    [currentSong?.id, isPlaying, playSong, songs]
+    ({ item }: { item: HiddenTunesSong; index: number }) => (
+      <HomeCatalogSongRow
+        song={item as unknown as HiddenTunesNormalizedSong}
+        image={item.cover || item.artwork || item.thumbnail || ""}
+        onPress={playCatalogSong as (song: HiddenTunesNormalizedSong) => void}
+      />
+    ),
+    [playCatalogSong]
   );
 
   return (
@@ -183,7 +240,7 @@ export default function MusicFeedScreen() {
 
           <View style={styles.headerTextBox}>
             <Text style={styles.title}>Hidden Tunes</Text>
-            <Text style={styles.subtitle}>Songs, artists, albums and mixes</Text>
+            <Text style={styles.subtitle}>Premium home, search, and catalog playback</Text>
           </View>
 
           <TouchableOpacity style={styles.refreshButton} onPress={refreshCatalog}>
@@ -210,7 +267,7 @@ export default function MusicFeedScreen() {
           </View>
         ) : (
           <FlatList
-            data={songs}
+            data={hasSearchText ? [] : songs}
             keyExtractor={keyExtractor}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.list}
@@ -227,12 +284,12 @@ export default function MusicFeedScreen() {
                   <LinearGradient colors={GRADIENTS.neon} style={styles.feedBorder}>
                     <View style={styles.feedInner}>
                       <View style={styles.feedCopy}>
-                        <Text style={styles.feedLabel}>LATEST RELEASES</Text>
+                        <Text style={styles.feedLabel}>PREMIUM HOME</Text>
                         <Text style={styles.feedTitle}>
                           {songs.length} song{songs.length === 1 ? "" : "s"} available
                         </Text>
                         <Text style={styles.feedText}>
-                          Explore the current Hidden Tunes catalog.
+                          Search the catalog or continue with featured Hidden Tunes.
                         </Text>
                       </View>
 
@@ -241,67 +298,144 @@ export default function MusicFeedScreen() {
                   </LinearGradient>
                 </View>
 
-                {artists.length > 0 && (
-                  <View style={styles.surfaceSection}>
-                    <Text style={styles.sectionTitle}>Artists</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.surfaceRow}>
-                      {artists.map((artist) => renderSurfaceCard({
-                        id: artist.id,
-                        title: artist.name,
-                        subtitle: `${artist.songs.length} song${artist.songs.length === 1 ? "" : "s"}`,
-                        artwork: artist.artwork,
-                        onPress: () => openArtist(artist),
-                      }))}
-                    </ScrollView>
-                  </View>
-                )}
+                <View style={styles.searchPanel}>
+                  <DebouncedSearchInput
+                    value={searchQuery}
+                    onImmediateChange={handleSearchImmediateChange}
+                    onDebouncedChange={setSubmittedSearchQuery}
+                    onClear={clearSearch}
+                    placeholder="Search songs, artists, albums, genres..."
+                    placeholderTextColor={COLORS.textMuted}
+                    style={styles.searchInput}
+                    containerStyle={styles.searchInputShell}
+                  />
+                </View>
 
-                {albums.length > 0 && (
-                  <View style={styles.surfaceSection}>
-                    <Text style={styles.sectionTitle}>Albums</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.surfaceRow}>
-                      {albums.map((album) => renderSurfaceCard({
-                        id: album.id,
-                        title: album.title,
-                        subtitle: album.artist,
-                        artwork: album.artwork,
-                        onPress: () => openAlbum(album),
-                      }))}
-                    </ScrollView>
+                {hasSearchText ? (
+                  <View style={styles.searchResultsPanel}>
+                    <UniversalSearchGroupedResults
+                      grouped={searchResults}
+                      query={submittedSearchQuery || searchQuery}
+                      onSongPress={playCatalogSong}
+                      onLyricPress={playCatalogSong}
+                      onArtistPress={openArtist}
+                      onAlbumPress={openAlbum}
+                      onGenrePress={openGenre}
+                      onTvPress={openTv}
+                      onSuggestionPress={handleSuggestionPress}
+                      activeSongId={currentSong?.id ? String(currentSong.id) : null}
+                      isPlaying={isPlaying}
+                      showEmpty={showSearchResults}
+                    />
                   </View>
-                )}
+                ) : (
+                  <>
+                    {featuredSongs.length > 0 && (
+                      <View style={styles.surfaceSection}>
+                        <View style={styles.sectionHeaderRow}>
+                          <Text style={styles.sectionTitle}>Featured</Text>
+                          <Text style={styles.sectionMeta}>Tap any card to play</Text>
+                        </View>
+                        <ScrollView
+                          horizontal
+                          showsHorizontalScrollIndicator={false}
+                          contentContainerStyle={styles.featuredRow}
+                        >
+                          {featuredSongs.map((item, index) => (
+                            <HomeFeaturedCard
+                              key={item.id}
+                              item={item as unknown as HiddenTunesNormalizedSong}
+                              index={index}
+                              onPress={playCatalogSong as (song: HiddenTunesNormalizedSong) => void}
+                            />
+                          ))}
+                        </ScrollView>
+                      </View>
+                    )}
 
-                {genres.length > 0 && (
-                  <View style={styles.surfaceSection}>
-                    <Text style={styles.sectionTitle}>Genres</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.surfaceRow}>
-                      {genres.map((genre) => renderSurfaceCard({
-                        id: genre.id,
-                        title: genre.title,
-                        subtitle: `${genre.songs.length} song${genre.songs.length === 1 ? "" : "s"}`,
-                        artwork: genre.artwork,
-                        onPress: () => openGenre(genre),
-                      }))}
-                    </ScrollView>
-                  </View>
-                )}
+                    {artists.length > 0 && (
+                      <View style={styles.surfaceSection}>
+                        <Text style={styles.sectionTitle}>Artists</Text>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.surfaceRow}>
+                          {artists.map((artist) => (
+                            <View key={artist.id} style={styles.surfaceCardShell}>
+                              <UnifiedMediaCard
+                                title={artist.name}
+                                subtitle={String(artist.songs.length) + " song" + (artist.songs.length === 1 ? "" : "s")}
+                                imageUri={artist.artwork}
+                                rightIcon="person"
+                                onPress={() => openArtist(artist)}
+                                onRightPress={() => openArtist(artist)}
+                              />
+                            </View>
+                          ))}
+                        </ScrollView>
+                      </View>
+                    )}
 
-                {visiblePlaylists.length > 0 && (
-                  <View style={styles.surfaceSection}>
-                    <Text style={styles.sectionTitle}>Catalog Mixes</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.surfaceRow}>
-                      {visiblePlaylists.map((playlist) => renderSurfaceCard({
-                        id: playlist.id,
-                        title: playlist.title,
-                        subtitle: playlist.description,
-                        artwork: playlist.artwork,
-                        onPress: () => router.push("/cloud-playlists" as any),
-                      }))}
-                    </ScrollView>
-                  </View>
-                )}
+                    {albums.length > 0 && (
+                      <View style={styles.surfaceSection}>
+                        <Text style={styles.sectionTitle}>Albums</Text>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.surfaceRow}>
+                          {albums.map((album) => (
+                            <View key={album.id} style={styles.surfaceCardShell}>
+                              <UnifiedMediaCard
+                                title={album.title}
+                                subtitle={album.artist}
+                                imageUri={album.artwork}
+                                rightIcon="albums"
+                                onPress={() => openAlbum(album)}
+                                onRightPress={() => openAlbum(album)}
+                              />
+                            </View>
+                          ))}
+                        </ScrollView>
+                      </View>
+                    )}
 
-                <Text style={styles.sectionTitle}>Songs</Text>
+                    {genres.length > 0 && (
+                      <View style={styles.surfaceSection}>
+                        <Text style={styles.sectionTitle}>Genres</Text>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.surfaceRow}>
+                          {genres.map((genre) => (
+                            <View key={genre.id} style={styles.surfaceCardShell}>
+                              <UnifiedMediaCard
+                                title={genre.title}
+                                subtitle={String(genre.songs.length) + " song" + (genre.songs.length === 1 ? "" : "s")}
+                                imageUri={genre.artwork}
+                                rightIcon="sparkles"
+                                onPress={() => openGenre(genre)}
+                                onRightPress={() => openGenre(genre)}
+                              />
+                            </View>
+                          ))}
+                        </ScrollView>
+                      </View>
+                    )}
+
+                    {visiblePlaylists.length > 0 && (
+                      <View style={styles.surfaceSection}>
+                        <Text style={styles.sectionTitle}>Catalog Mixes</Text>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.surfaceRow}>
+                          {visiblePlaylists.map((playlist) => (
+                            <View key={playlist.id} style={styles.surfaceCardShell}>
+                              <UnifiedMediaCard
+                                title={playlist.title}
+                                subtitle={playlist.description}
+                                imageUri={playlist.artwork}
+                                rightIcon="library"
+                                onPress={() => router.push("/cloud-playlists" as any)}
+                                onRightPress={() => router.push("/cloud-playlists" as any)}
+                              />
+                            </View>
+                          ))}
+                        </ScrollView>
+                      </View>
+                    )}
+
+                    <Text style={styles.sectionTitle}>Songs</Text>
+                  </>
+                )}
               </View>
             }
             renderItem={renderSongItem}
@@ -401,12 +535,12 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   list: { paddingBottom: 140 },
-  feedHero: { marginBottom: 18 },
-  feedBorder: { borderRadius: 28, padding: 2 },
+  feedHero: { marginBottom: 16 },
+  feedBorder: { borderRadius: 30, padding: 2 },
   feedInner: {
-    minHeight: 112,
-    borderRadius: 26,
-    padding: 18,
+    minHeight: 128,
+    borderRadius: 28,
+    padding: 20,
     backgroundColor: "rgba(18,7,31,0.94)",
     flexDirection: "row",
     alignItems: "center",
@@ -430,78 +564,55 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "700",
     marginTop: 6,
+    lineHeight: 19,
   },
-  surfaceSection: { marginBottom: 20 },
+  searchPanel: {
+    marginBottom: 20,
+    borderRadius: 24,
+    padding: 12,
+    backgroundColor: "rgba(255,255,255,0.07)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+  },
+  searchInputShell: {
+    minHeight: 44,
+  },
+  searchInput: {
+    flex: 1,
+    color: COLORS.text,
+    fontSize: 15,
+    fontWeight: "700",
+    paddingVertical: 0,
+  },
+  searchResultsPanel: {
+    paddingBottom: 18,
+  },
+  surfaceSection: { marginBottom: 22 },
+  sectionHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
   sectionTitle: {
     color: COLORS.text,
     fontSize: 20,
     fontWeight: "900",
     marginBottom: 12,
   },
-  surfaceRow: { gap: 12, paddingRight: 18 },
-  surfaceCard: { width: 132 },
-  surfaceCover: {
-    width: 132,
-    height: 132,
-    borderRadius: 22,
-    backgroundColor: COLORS.card,
-  },
-  surfaceTitle: {
-    color: COLORS.text,
-    fontSize: 14,
-    fontWeight: "900",
-    marginTop: 9,
-    lineHeight: 18,
-  },
-  surfaceSubtitle: {
+  sectionMeta: {
     color: COLORS.textMuted,
     fontSize: 12,
-    fontWeight: "700",
-    marginTop: 4,
-  },
-  songCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.055)",
-    borderRadius: 26,
-    padding: 12,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
-  },
-  songCardActive: {
-    backgroundColor: "rgba(168,85,247,0.13)",
-    borderColor: "rgba(168,85,247,0.45)",
-  },
-  coverBorder: { width: 82, height: 82, borderRadius: 24, padding: 2 },
-  cover: {
-    width: "100%",
-    height: "100%",
-    borderRadius: 22,
-    backgroundColor: COLORS.card,
-  },
-  songInfo: { flex: 1, marginLeft: 14 },
-  songTitle: { color: COLORS.text, fontSize: 17, fontWeight: "900" },
-  artist: {
-    color: COLORS.textMuted,
-    marginTop: 5,
-    fontSize: 13,
-    fontWeight: "700",
-  },
-  row: { flexDirection: "row", alignItems: "center", marginTop: 10 },
-  streamText: {
-    color: COLORS.primary,
-    marginLeft: 6,
     fontWeight: "800",
-    fontSize: 12,
   },
-  playButton: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
-    backgroundColor: COLORS.primary,
-    alignItems: "center",
-    justifyContent: "center",
+  featuredRow: {
+    paddingRight: 18,
   },
-  eqBox: { width: 58, alignItems: "center", justifyContent: "center" },
+  surfaceRow: {
+    gap: 12,
+    paddingRight: 18,
+  },
+  surfaceCardShell: {
+    width: 244,
+  },
 });
