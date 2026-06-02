@@ -33,37 +33,17 @@ import {
   getSmartQueue,
   saveSmartQueue,
 } from "../services/smartQueue";
-import { isTrackPlayerFeatureEnabled } from "../constants/playbackConfig";
-import { supportsNativeTrackPlayer } from "../utils/expoRuntime";
 import {
   activateHiddenAudioPlayback,
-  activateTrackPlayerPlayback,
-  bridgeGetActiveIndex,
   bridgeGetProgress,
   bridgeHiddenAudioPause,
   bridgeHiddenAudioPlay,
   bridgeHiddenAudioUpdateNowPlaying,
-  bridgeInterruptForUserTap,
-  bridgePlayQueueFromIndex,
-  bridgeResetPlayback,
   bridgeSeekTo,
-  bridgeSetProgressInterval,
-  bridgeSetVolume,
-  bridgeSkipToNext,
-  bridgeSkipToPrevious,
   bridgeSyncRepeatMode,
-  bridgeTogglePlayPause,
-  bridgeTrySkipToNext,
-  bridgeTryUserTapFastPlay,
   deactivateHiddenAudioPlayback,
   shouldUseHiddenAudioPlayback,
-  shouldUseTrackPlayerPlayback,
-  subscribeBridgeEvents,
 } from "../services/playbackBridge";
-import {
-  ensureTrackPlayerReady,
-  getTrackPlayerQueueSnapshot,
-} from "../services/trackPlayerEngine";
 import { getArtworkValue } from "../utils/artwork";
 import { scheduleStartupTask } from "../utils/startupScheduler";
 import {
@@ -72,7 +52,6 @@ import {
   recordConfigureAudioCall,
   recordListenerRegister,
   recordListenerUnregister,
-  recordBackgroundChurnSkipped,
   recordPlaybackProgressUpdate as recordRuntimePlaybackProgressUpdate,
   recordPlaybackReactStateUpdate,
   recordQueuePersistWrite,
@@ -354,69 +333,6 @@ function parseSyncedLyrics(input?: string | null): SyncedLyricLine[] {
   return toSyncedLyricLines(parseLrc(input || ""));
 }
 
-type NativeStartupQueueSnapshot = Awaited<
-  ReturnType<typeof getTrackPlayerQueueSnapshot>
->;
-
-const NATIVE_ACTIVE_PLAYBACK_STATES = new Set([
-  "playing",
-  "paused",
-  "buffering",
-  "loading",
-  "2",
-  "3",
-  "5",
-  "6",
-]);
-
-function buildNativeStartupDiagnosticDetails(
-  snapshot: NativeStartupQueueSnapshot
-) {
-  return {
-    queueLength: snapshot?.queueLength ?? 0,
-    activeIndex: snapshot?.activeIndex ?? null,
-    playbackState: snapshot?.playbackState ?? null,
-  };
-}
-
-function isNativeTrackPlayerStartupActive(
-  snapshot: NativeStartupQueueSnapshot
-): boolean {
-  if (!snapshot) return false;
-
-  const hasActiveQueue =
-    snapshot.queueLength > 0 ||
-    (typeof snapshot.activeIndex === "number" && snapshot.activeIndex >= 0);
-
-  if (hasActiveQueue) return true;
-
-  const playbackState = String(snapshot.playbackState ?? "")
-    .trim()
-    .toLowerCase();
-
-  return NATIVE_ACTIVE_PLAYBACK_STATES.has(playbackState);
-}
-
-async function shouldSkipLegacyStartupRestore(): Promise<{
-  skip: boolean;
-  snapshot: NativeStartupQueueSnapshot;
-}> {
-  if (!isTrackPlayerFeatureEnabled() || !supportsNativeTrackPlayer()) {
-    return { skip: false, snapshot: null };
-  }
-
-  try {
-    await ensureTrackPlayerReady();
-    const snapshot = await getTrackPlayerQueueSnapshot();
-
-    return {
-      skip: isNativeTrackPlayerStartupActive(snapshot),
-      snapshot,
-    };
-  } catch {
-    return { skip: false, snapshot: null };
-  }
-}
 
 export function PlayerProvider({ children }: { children: ReactNode }) {
   const soundRef = useRef<LegacySound | null>(null);
@@ -460,7 +376,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const preloadedSongIdRef = useRef<string | null>(null);
   const preloadInFlightRef = useRef(false);
   const pendingSmartExtendRef = useRef(false);
-  const trackPlayerActiveRef = useRef(false);
   const hiddenAudioActiveRef = useRef(false);
   const handleTrackFinishedRef = useRef<(() => Promise<void>) | null>(null);
   const finishWatchdogTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
@@ -872,11 +787,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    if (trackPlayerActiveRef.current) {
-      trackPlayerActiveRef.current = false;
-      await bridgeResetPlayback("unload_current_sound");
-      return;
-    }
 
     if (unloadPromiseRef.current) {
       await unloadPromiseRef.current;
@@ -910,10 +820,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const applyProgressUpdateInterval = useCallback(async (reason = "unspecified") => {
     recordApplyProgressUpdateIntervalCall(reason);
 
-    if (trackPlayerActiveRef.current) {
-      await bridgeSetProgressInterval(appStateRef.current);
-      return;
-    }
 
     const sound = soundRef.current;
     if (!sound) return;
@@ -1170,30 +1076,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     return normalizeSong(queue[nextIndex]);
   }, [getActiveQueuePlaybackState, getNextQueueIndex, normalizeSong]);
 
-  const syncStateFromTrackPlayerIndex = useCallback(
-    (index: number, runSideEffects = true) => {
-      const { queue } = getActiveQueuePlaybackState();
-
-      if (!queue.length || index < 0 || index >= queue.length) return;
-
-      const song = normalizeSong(queue[index]);
-
-      setCurrentSong(song);
-      currentSongRef.current = song;
-      setActiveQueueIndex(index);
-      activeQueueIndexRef.current = index;
-
-      if (runSideEffects) {
-        savePlaybackSideEffects(song);
-      }
-    },
-    [getActiveQueuePlaybackState, normalizeSong, savePlaybackSideEffects]
-  );
-
   const preloadUpcomingTrack = useCallback(
     async (upcomingSong: AppSong) => {
       if (hiddenAudioActiveRef.current) return;
-      if (trackPlayerActiveRef.current) return;
       if (preloadInFlightRef.current) return;
       if (preloadedSongIdRef.current === upcomingSong.id) return;
 
@@ -1250,10 +1135,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      if (trackPlayerActiveRef.current) {
-        logSkip("native_queue_active");
-        return;
-      }
 
       if (preloadInFlightRef.current) {
         logSkip("preload_in_flight");
@@ -1336,13 +1217,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
       if (typeof __DEV__ !== "undefined" && __DEV__) {
         console.log("[tap-interrupt]", {
-          trackPlayerActive: trackPlayerActiveRef.current,
           hasCurrentSound: Boolean(sound),
           hasPreloadedSound: Boolean(preloadedSoundRef.current),
           currentSongId: currentSongRef.current?.id || null,
           targetSongId: targetSongId || null,
-          nativeEnabled:
-            isTrackPlayerFeatureEnabled() && supportsNativeTrackPlayer(),
         });
       }
 
@@ -1357,13 +1235,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      if (isTrackPlayerFeatureEnabled() && supportsNativeTrackPlayer()) {
-        try {
-          await bridgeInterruptForUserTap();
-        } catch (error) {
-          console.log("Interrupt TrackPlayer playback error:", error);
-        }
-      }
 
       const preservePreloadForTap =
         Boolean(targetSongId) &&
@@ -1414,101 +1285,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     [clearFinishWatchdog, clearPreloadedSound, setIsPlaying]
   );
 
-  const advanceTrackPlayerQueueFromJs = useCallback(
-    async (source: string) => {
-      if (!trackPlayerActiveRef.current) return;
-      if (isChangingTrackRef.current || autoAdvanceRef.current) {
-        logAutoNextSkipped("already_advancing", { source });
-        return;
-      }
-
-      autoAdvanceRef.current = true;
-
-      try {
-        await runQueueTransition(async () => {
-          const { queue, safeIndex: currentIndex } = getActiveQueuePlaybackState();
-
-          if (!queue.length) {
-            logAutoNextSkipped("queue_empty", { source });
-            return;
-          }
-
-          const nextIndex = getNextQueueIndex(currentIndex, queue.length);
-
-          if (nextIndex === -1) {
-            if (!smartAutoplayEnabledRef.current) {
-              logAutoNextSkipped("queue_ended_smart_autoplay_disabled", {
-                queueLength: queue.length,
-                source,
-              });
-              setIsPlaying(false);
-              return;
-            }
-
-            if (isBackgroundAppState(appStateRef.current)) {
-              logAutoNextSkipped("background_pending_smart_extend", {
-                queueLength: queue.length,
-                source,
-              });
-              pendingSmartExtendRef.current = true;
-              setIsPlaying(false);
-              return;
-            }
-
-            const extended = await extendQueueWithSmartTracksRef.current?.();
-
-            if (!extended) {
-              logAutoNextFailure({
-                reason: "smart_extend_failed",
-                queueLength: queue.length,
-              });
-              setIsPlaying(false);
-            } else {
-              logAutoNextSuccess({ reason: "smart_extend", queueLength: queue.length });
-            }
-
-            return;
-          }
-
-          const playedIndex = await bridgePlayQueueFromIndex({
-            songs: queue,
-            startIndex: nextIndex,
-            repeatMode: repeatModeRef.current,
-            volume: volumeRef.current,
-            muted: isMutedRef.current,
-            reason: source,
-          });
-
-          trackPlayerActiveRef.current = true;
-          syncStateFromTrackPlayerIndex(playedIndex);
-          void persistActiveQueue(queue, playedIndex, activeQueueModeRef.current);
-          void removeStoredValues([POSITION_KEY]);
-          logAutoNextSuccess({
-            reason: source,
-            nextIndex: playedIndex,
-            queueLength: queue.length,
-          });
-        });
-      } catch (error) {
-        console.log("TrackPlayer queue advance error:", error);
-        logAutoNextFailure({ reason: "track_player_queue_advance_error", source });
-      } finally {
-        autoAdvanceRef.current = false;
-        clearFinishWatchdog("native_queue_advance");
-      }
-    },
-    [
-      clearFinishWatchdog,
-      getActiveQueuePlaybackState,
-      getNextQueueIndex,
-      persistActiveQueue,
-      removeStoredValues,
-      runQueueTransition,
-      setIsPlaying,
-      syncStateFromTrackPlayerIndex,
-    ]
-  );
-
   const nextSong = useCallback(async () => {
     if (await tryAdvanceViaEmotionalQueueRef.current()) {
       return;
@@ -1522,70 +1298,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       shuffle: shuffleRef.current,
       queueLength: queue.length,
     });
-
-    if (trackPlayerActiveRef.current) {
-      await runQueueTransition(async () => {
-        const { queue, safeIndex: currentIndex } = getActiveQueuePlaybackState();
-
-        if (!queue.length) {
-          logAutoNextSkipped("queue_empty", { source: "nextSong_track_player" });
-          return;
-        }
-
-        const nextIndex = getNextQueueIndex(currentIndex, queue.length);
-
-        if (nextIndex === -1) {
-          if (!smartAutoplayEnabledRef.current) {
-            logAutoNextSkipped("queue_ended_smart_autoplay_disabled", {
-              queueLength: queue.length,
-            });
-            setIsPlaying(false);
-            return;
-          }
-
-          if (isBackgroundAppState(appStateRef.current)) {
-            logAutoNextSkipped("background_pending_smart_extend", {
-              queueLength: queue.length,
-            });
-            pendingSmartExtendRef.current = true;
-            setIsPlaying(false);
-            return;
-          }
-
-          const extended = await extendQueueWithSmartTracksRef.current?.();
-
-          if (!extended) {
-            logAutoNextFailure({
-              reason: "smart_extend_failed",
-              queueLength: queue.length,
-            });
-            setIsPlaying(false);
-          } else {
-            logAutoNextSuccess({ reason: "smart_extend", queueLength: queue.length });
-          }
-
-          return;
-        }
-
-        try {
-          const advanced = await bridgeTrySkipToNext();
-
-          if (advanced) {
-            syncStateFromTrackPlayerIndex(nextIndex);
-            void persistActiveQueue(queue, nextIndex, activeQueueModeRef.current);
-            void removeStoredValues([POSITION_KEY]);
-            return;
-          }
-
-          await advanceTrackPlayerQueueFromJs("next_song_reload");
-        } catch (error) {
-          console.log("TrackPlayer next error:", error);
-          logAutoNextFailure({ reason: "track_player_next_error" });
-        }
-      });
-
-      return;
-    }
 
     await runQueueTransition(async () => {
       const { queue, safeIndex: currentIndex } = getActiveQueuePlaybackState();
@@ -1670,8 +1382,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     normalizeSong,
     persistActiveQueue,
     removeStoredValues,
-    syncStateFromTrackPlayerIndex,
-    advanceTrackPlayerQueueFromJs,
   ]);
 
   const handleTrackFinished = useCallback(async () => {
@@ -1734,7 +1444,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    if (!soundRef.current && !trackPlayerActiveRef.current) {
+    if (!soundRef.current) {
       logAutoNextSkipped("sound_unloaded", { songId: currentSongRef.current?.id });
       logHTAutoNext("reason", {
         reason: "paused-no-sound",
@@ -1788,7 +1498,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const runLockScreenEndCheck = useCallback(
     async (sourceDuration?: number) => {
-      if (trackPlayerActiveRef.current) return;
 
       const songId = currentSongRef.current?.id || "";
       logHTLockAutoNext("check", {
@@ -1858,7 +1567,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const armFinishWatchdog = useCallback(
     (position: number, duration: number, playing: boolean) => {
       if (hiddenAudioActiveRef.current) return;
-      if (trackPlayerActiveRef.current) return;
 
       if (
         repeatModeRef.current === "one" ||
@@ -1958,10 +1666,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     if (!queue.length) return;
 
     if (getNextQueueIndex(safeIndex, queue.length) >= 0) {
-      if (trackPlayerActiveRef.current) {
-        await advanceTrackPlayerQueueFromJs("pending_smart_extend");
-        return;
-      }
 
       await scheduleTrackAdvance();
       return;
@@ -1976,7 +1680,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     getActiveQueuePlaybackState,
     getNextQueueIndex,
     scheduleTrackAdvance,
-    advanceTrackPlayerQueueFromJs,
     setIsPlaying,
   ]);
 
@@ -1985,9 +1688,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    if (trackPlayerActiveRef.current) {
-      return;
-    }
 
     const sound = soundRef.current;
 
@@ -2023,7 +1723,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const handlePlaybackStatusUpdate = useCallback(
     async (status: LegacyPlaybackStatus) => {
       if (hiddenAudioActiveRef.current) return;
-      if (trackPlayerActiveRef.current) return;
       if (!status.isLoaded) return;
 
       recordRuntimePlaybackProgressUpdate("hidden_audio", appStateRef.current);
@@ -2201,156 +1900,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         const shouldRestorePosition =
           currentSongRef.current?.id === normalizedSong.id;
 
-        const useNativeQueue = await shouldUseTrackPlayerPlayback();
-
-        if (useNativeQueue) {
-          try {
-            const { queue } = getActiveQueuePlaybackState();
-
-            if (!queue.length) {
-              setIsPlaying(false);
-              return;
-            }
-
-            const requestedIndex = queue.findIndex(
-              (item) => item.id === normalizedSong.id
-            );
-            const fallbackIndex =
-              requestedIndex >= 0
-                ? requestedIndex
-                : Math.max(
-                    0,
-                    Math.min(activeQueueIndexRef.current, queue.length - 1)
-                  );
-
-            let startPositionMillis = 0;
-
-            if (shouldRestorePosition) {
-              try {
-                const savedPosition = await AsyncStorage.getItem(POSITION_KEY);
-                const millis = Number(savedPosition);
-
-                if (!Number.isNaN(millis) && millis > 0) {
-                  startPositionMillis = millis;
-                }
-              } catch (error) {
-                console.log("Restore TrackPlayer position error:", error);
-              }
-            }
-
-            if (
-              preloadedSongIdRef.current &&
-              preloadedSongIdRef.current !== normalizedSong.id
-            ) {
-              await clearPreloadedSound();
-            }
-
-            let playedIndex = fallbackIndex;
-
-            if (options?.userInitiated) {
-              const fastResult = await bridgeTryUserTapFastPlay({
-                songs: queue,
-                songId: normalizedSong.id,
-                startIndex: fallbackIndex,
-                repeatMode: repeatModeRef.current,
-                volume: volumeRef.current,
-                muted: isMutedRef.current,
-                startPositionMillis,
-              });
-
-              if (fastResult) {
-                playedIndex = fastResult.playedIndex;
-              } else {
-                await unloadCurrentSound();
-
-                if (
-                  loadRequestIdRef.current !== requestId ||
-                  !isMountedRef.current
-                ) {
-                  return;
-                }
-
-                playedIndex = await activateTrackPlayerPlayback({
-                  songs: queue,
-                  startIndex: fallbackIndex,
-                  repeatMode: repeatModeRef.current,
-                  volume: volumeRef.current,
-                  muted: isMutedRef.current,
-                  startPositionMillis,
-                  reason: "user_tap_full_reload",
-                });
-              }
-            } else {
-              await unloadCurrentSound();
-
-              if (
-                loadRequestIdRef.current !== requestId ||
-                !isMountedRef.current
-              ) {
-                return;
-              }
-
-              playedIndex = await activateTrackPlayerPlayback({
-                songs: queue,
-                startIndex: fallbackIndex,
-                repeatMode: repeatModeRef.current,
-                volume: volumeRef.current,
-                muted: isMutedRef.current,
-                startPositionMillis,
-              });
-            }
-
-            if (loadRequestIdRef.current !== requestId || !isMountedRef.current) {
-              return;
-            }
-
-            trackPlayerActiveRef.current = true;
-            syncStateFromTrackPlayerIndex(playedIndex);
-            logAudioLoadSuccess({
-              songId: normalizedSong.id,
-              requestId,
-              engine: "track_player",
-            });
-            logPlaybackStarted({
-              songId: normalizedSong.id,
-              requestId,
-              engine: "track_player",
-            });
-
-            const progress = await bridgeGetProgress();
-            setPositionMillis(progress.positionMillis);
-            setDurationMillis(progress.durationMillis);
-            setIsPlaying(progress.isPlaying);
-            await bridgeSetProgressInterval(appStateRef.current);
-            void removeStoredValues([POSITION_KEY]);
-            setTimeout(() => {
-              savePlaybackSideEffects(normalizedSong);
-            }, 0);
-          } catch (error) {
-            console.log("TrackPlayer load and play error:", error);
-            logAudioLoadFailure({
-              songId: normalizedSong.id,
-              reason: String((error as Error)?.message || "track_player_load_error"),
-              engine: "track_player",
-            });
-            trackPlayerActiveRef.current = false;
-            setIsPlaying(false);
-          } finally {
-            if (isMountedRef.current) {
-              setIsLoading(false);
-            }
-
-            if (loadRequestIdRef.current === requestId) {
-              isChangingTrackRef.current = false;
-              if (inFlightPlaySongIdRef.current === normalizedSong.id) {
-                inFlightPlaySongIdRef.current = null;
-              }
-            }
-          }
-
-          return;
-        }
-
         const useHiddenAudio = await shouldUseHiddenAudioPlayback();
 
         if (useHiddenAudio) {
@@ -2427,7 +1976,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             }
 
             hiddenAudioActiveRef.current = true;
-            trackPlayerActiveRef.current = false;
 
             const startPositionMillis = Math.round(startPositionSeconds * 1000);
             setPositionMillis(startPositionMillis);
@@ -2515,7 +2063,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       isYouTubeSong,
       clearPreloadedSound,
       interruptCurrentPlaybackForUserTap,
-      bridgeTryUserTapFastPlay,
       unloadCurrentSound,
       getActiveQueuePlaybackState,
       getPlayableUri,
@@ -2523,8 +2070,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       handlePlaybackStatusUpdate,
       takePreloadedSound,
       applyProgressUpdateInterval,
-      syncStateFromTrackPlayerIndex,
-      setIsPlaying,
+        setIsPlaying,
       setPositionMillis,
       setDurationMillis,
       savePlaybackSideEffects,
@@ -2685,30 +2231,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
     logManualQueueSkip("previous", { queueLength: previousQueue.length });
 
-    if (trackPlayerActiveRef.current) {
-      await runQueueTransition(async () => {
-        try {
-          await bridgeSkipToPrevious();
-          const activeIndex = await bridgeGetActiveIndex();
-
-          if (activeIndex !== null) {
-            const { queue } = getActiveQueuePlaybackState();
-            syncStateFromTrackPlayerIndex(activeIndex);
-            void persistActiveQueue(
-              queue,
-              activeIndex,
-              activeQueueModeRef.current
-            );
-            void removeStoredValues([POSITION_KEY]);
-          }
-        } catch (error) {
-          console.log("TrackPlayer previous error:", error);
-        }
-      });
-
-      return;
-    }
-
     await runQueueTransition(async () => {
       const { queue, safeIndex: currentIndex } = getActiveQueuePlaybackState();
 
@@ -2728,7 +2250,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     getActiveQueuePlaybackState,
     getPreviousQueueIndex,
     playQueueAtIndex,
-    syncStateFromTrackPlayerIndex,
     persistActiveQueue,
     removeStoredValues,
   ]);
@@ -3192,7 +2713,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
       loadRequestIdRef.current += 1;
       inFlightPlaySongIdRef.current = null;
-      trackPlayerActiveRef.current = false;
       await clearPreloadedSound();
       await unloadCurrentSound();
 
@@ -3258,14 +2778,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    if (trackPlayerActiveRef.current) {
-      if (isChangingTrackRef.current) return;
-
-      const playing = await bridgeTogglePlayPause();
-      setIsPlaying(playing);
-      logPauseResumeComplete({ engine: "track_player" });
-      return;
-    }
 
     const sound = soundRef.current;
 
@@ -3311,7 +2823,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     async (millis: number) => {
       const safeMillis = Math.max(0, Math.floor(millis || 0));
 
-      if (trackPlayerActiveRef.current || hiddenAudioActiveRef.current) {
+      if (hiddenAudioActiveRef.current) {
         await bridgeSeekTo(safeMillis);
         setPositionMillis(safeMillis);
         await savePlaybackPosition(safeMillis);
@@ -3338,10 +2850,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
     await setStoredValueIfChanged(VOLUME_KEY, String(safeValue));
 
-    if (trackPlayerActiveRef.current) {
-      await bridgeSetVolume(safeValue, isMutedRef.current);
-      return;
-    }
 
     if (!isMutedRef.current && soundRef.current) {
       await soundRef.current.setVolumeAsync(safeValue);
@@ -3356,10 +2864,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
     await setStoredValueIfChanged(MUTED_KEY, String(nextMuted));
 
-    if (trackPlayerActiveRef.current) {
-      await bridgeSetVolume(volumeRef.current, nextMuted);
-      return;
-    }
 
     if (soundRef.current) {
       await soundRef.current.setVolumeAsync(nextMuted ? 0 : volumeRef.current);
@@ -3715,96 +3219,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, [savePlaybackPosition]);
 
   useEffect(() => {
-    if (!isTrackPlayerFeatureEnabled()) return;
-
-    const bridgeListenerId = `bridge_events_${Date.now()}`;
-    recordListenerRegister("player_bridge_events", bridgeListenerId);
-
-    const unsubscribeBridgeEvents = subscribeBridgeEvents({
-      onProgress: (progress) => {
-        if (!trackPlayerActiveRef.current) return;
-
-        recordRuntimePlaybackProgressUpdate("track_player", appStateRef.current);
-
-        const now = Date.now();
-        const previousPosition = positionMillisRef.current;
-
-        positionMillisRef.current = progress.positionMillis;
-
-        const positionStateMinMs = getPositionStateUpdateMinMs(
-          appStateRef.current
-        );
-
-        if (
-          now - lastPositionStateUpdateRef.current >= positionStateMinMs ||
-          Math.abs(progress.positionMillis - previousPosition) > 1800
-        ) {
-          lastPositionStateUpdateRef.current = now;
-          recordPlaybackProgressUpdate();
-          recordPlaybackReactStateUpdate("position");
-          setPositionMillisState(progress.positionMillis);
-        }
-
-        if (progress.durationMillis > 0) {
-          durationMillisRef.current = progress.durationMillis;
-          recordPlaybackReactStateUpdate("duration");
-          setDurationMillisState(progress.durationMillis);
-        }
-
-        if (progress.isPlaying !== isPlayingRef.current) {
-          isPlayingRef.current = progress.isPlaying;
-          recordPlaybackReactStateUpdate("is_playing");
-          setIsPlayingState(progress.isPlaying);
-        }
-
-        if (
-          now - lastPositionSaveRef.current > POSITION_SAVE_INTERVAL_MS &&
-          Math.abs(progress.positionMillis - lastSavedPositionRef.current) >=
-            POSITION_SAVE_DISTANCE_MS
-        ) {
-          lastPositionSaveRef.current = now;
-          void savePlaybackPosition(progress.positionMillis);
-        }
-
-      },
-      onActiveTrackChanged: (index) => {
-        if (!trackPlayerActiveRef.current || index === null) return;
-        if (isChangingTrackRef.current) return;
-
-        syncStateFromTrackPlayerIndex(index);
-        autoAdvanceRef.current = false;
-        isPlayingRef.current = true;
-        setIsPlayingState(true);
-
-        const { queue } = getActiveQueuePlaybackState();
-        void persistActiveQueue(queue, index, activeQueueModeRef.current);
-        void removeStoredValues([POSITION_KEY]);
-      },
-      onQueueEnded: () => {
-        if (!trackPlayerActiveRef.current) return;
-        if (repeatModeRef.current !== "off") return;
-
-        void advanceTrackPlayerQueueFromJs("native_queue_ended");
-      },
-      onPlaybackError: (message) => {
-        console.log("TrackPlayer playback error:", message);
-      },
-    });
-
-    return () => {
-      recordListenerUnregister("player_bridge_events", bridgeListenerId);
-      unsubscribeBridgeEvents();
-    };
-  }, [
-    savePlaybackPosition,
-    syncStateFromTrackPlayerIndex,
-    getActiveQueuePlaybackState,
-    persistActiveQueue,
-    removeStoredValues,
-    advanceTrackPlayerQueueFromJs,
-  ]);
-
-  useEffect(() => {
     isMountedRef.current = true;
 
     let cancelled = false;
@@ -3812,38 +3226,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     let cancelRestoreHeavyTask: () => void = () => {};
 
     void (async () => {
-      const { skip, snapshot } = await shouldSkipLegacyStartupRestore();
-
       if (cancelled) return;
-
-      const diagnosticDetails = buildNativeStartupDiagnosticDetails(snapshot);
-
-      if (skip) {
-        logPlaybackCritical(
-          "legacy_restore_skipped_native_active",
-          diagnosticDetails
-        );
-        logPlaybackCritical(
-          "legacy_audio_mode_skipped_native_active",
-          diagnosticDetails
-        );
-
-        if (typeof __DEV__ !== "undefined" && __DEV__) {
-          console.log("[startup-ready] legacy-restore-skipped-native-active", {
-            ...diagnosticDetails,
-          });
-        }
-
-        return;
-      }
-
-      logPlaybackCritical("legacy_restore_allowed_native_empty", diagnosticDetails);
-
-      if (typeof __DEV__ !== "undefined" && __DEV__) {
-        console.log("[startup-ready] legacy-restore-allowed-native-empty", {
-          ...diagnosticDetails,
-        });
-      }
 
       configureAudio("player_mount");
 
@@ -3905,11 +3288,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       if (nextState === "background" && previousState !== "background") {
         void savePlaybackPosition(positionMillisRef.current);
 
-        // RNTP is already playing — avoid audio session / updateOptions churn on lock.
-        if (trackPlayerActiveRef.current && isPlayingRef.current) {
-          recordBackgroundChurnSkipped("rntp_active_playing");
-          return;
-        }
 
         configureAudio("app_state_background");
         void applyProgressUpdateInterval("app_state_background");
