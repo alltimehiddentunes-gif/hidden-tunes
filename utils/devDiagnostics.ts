@@ -10,7 +10,7 @@ export const ENABLE_BASIC_PERF_DIAGNOSTICS = false;
 export const ENABLE_HEAVY_PERF_DIAGNOSTICS = false;
 
 /**
- * TEMPORARY runtime bottleneck instrumentation (RNTP churn, AppState, renders, prefetch).
+ * TEMPORARY runtime bottleneck instrumentation (AppState, renders, prefetch).
  * Set false or remove utils/runtimeInstrumentation.ts when diagnosis is complete.
  */
 export const ENABLE_RUNTIME_INSTRUMENTATION = false;

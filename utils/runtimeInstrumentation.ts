@@ -28,8 +28,6 @@ type ListenerRecord = {
 };
 
 const counters = {
-  configureTrackPlayerOptions: createBucket(),
-  updateTrackPlayerProgressInterval: createBucket(),
   bridgeSetProgressInterval: createBucket(),
   configureAudio: createBucket(),
   applyProgressUpdateInterval: createBucket(),
@@ -50,9 +48,6 @@ const listenerRegistry = new Map<string, ListenerRecord>();
 const activeTimers = new Map<string, number>();
 const prefetchUrlCounts = new Map<string, number>();
 
-let lastConfigureOptionsKey = "";
-let lastConfigureOptionsAt = 0;
-let duplicateConfigureOptions = 0;
 
 let lastAppStateKey = "";
 let lastAppStateAt = 0;
@@ -105,41 +100,6 @@ function getScreenRenderTotals() {
   return { rerenderCounts, total };
 }
 
-export function recordConfigureTrackPlayerOptions(
-  intervalSeconds: number,
-  reason: string
-) {
-  if (!isRuntimeInstrumentationEnabled()) return;
-
-  bump(counters.configureTrackPlayerOptions);
-  const key = `${intervalSeconds}:${reason}`;
-  const now = Date.now();
-
-  if (key === lastConfigureOptionsKey && now - lastConfigureOptionsAt < DUPLICATE_WINDOW_MS) {
-    duplicateConfigureOptions += 1;
-    logWarn("duplicate_configure_track_player_options", {
-      intervalSeconds,
-      reason,
-      duplicateConfigureOptions,
-      msSinceLast: now - lastConfigureOptionsAt,
-    });
-  }
-
-  lastConfigureOptionsKey = key;
-  lastConfigureOptionsAt = now;
-
-  logEvent("configure_track_player_options", { intervalSeconds, reason });
-}
-
-export function recordUpdateTrackPlayerProgressInterval(
-  intervalSeconds: number,
-  reason: string
-) {
-  if (!isRuntimeInstrumentationEnabled()) return;
-
-  bump(counters.updateTrackPlayerProgressInterval);
-  logEvent("update_track_player_progress_interval", { intervalSeconds, reason });
-}
 
 export function recordBridgeSetProgressInterval(
   appState: AppStateStatus,
@@ -383,15 +343,7 @@ function printRuntimeSummary() {
   console.log(LOG_TAG, "summary_60s", {
     at: Date.now(),
     appState: AppState.currentState,
-    updateOptions: {
-      total: counters.configureTrackPlayerOptions.total,
-      perMin: perMinute(counters.configureTrackPlayerOptions),
-      duplicateSameValue: duplicateConfigureOptions,
-    },
     progressInterval: {
-      updateTrackPlayerProgressInterval: perMinute(
-        counters.updateTrackPlayerProgressInterval
-      ),
       bridgeSetProgressInterval: perMinute(counters.bridgeSetProgressInterval),
       applyProgressUpdateInterval: perMinute(counters.applyProgressUpdateInterval),
     },

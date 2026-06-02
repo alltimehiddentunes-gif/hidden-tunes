@@ -14,21 +14,6 @@ export function logBackgroundPlayback(
   console.log(`[HiddenTunes:BG] ${message}`, { at: Date.now(), ...details });
 }
 
-export function logTrackPlayerQueue(
-  message: string,
-  details: LogDetails = {}
-) {
-  if (!shouldLog()) return;
-  console.log(`[HiddenTunes:Queue] ${message}`, { at: Date.now(), ...details });
-}
-
-export function logTrackPlayerBg(
-  message: string,
-  details: LogDetails = {}
-) {
-  if (!shouldLog()) return;
-  console.log(`[HiddenTunes:TrackPlayer] ${message}`, { at: Date.now(), ...details });
-}
 
 export function captureDevStackTrace(maxLines = 6): string | undefined {
   if (!shouldLog()) return undefined;

@@ -436,56 +436,6 @@ export function observePlaybackStateTransition(
   });
 }
 
-export function observeTrackPlayerEvent(
-  eventName: string,
-  source: string,
-  payload?: Record<string, unknown>
-) {
-  if (!enabled()) return;
-
-  logEvent("track_player_event", {
-    eventName,
-    source,
-    ...(payload || {}),
-  });
-}
-
-export function registerTrackPlayerEventListener(
-  eventName: string,
-  owner: string
-): boolean {
-  if (!enabled()) return true;
-
-  const owners = listenerOwners.get(eventName) || new Set<string>();
-
-  if (owners.has(owner)) {
-    recordIssue(
-      issue("duplicate_listener", "Duplicate Track Player listener registration.", {
-        eventName,
-        owner,
-      })
-    );
-    return false;
-  }
-
-  owners.add(owner);
-  listenerOwners.set(eventName, owners);
-
-  logEvent("listener_registered", { eventName, owner });
-  return true;
-}
-
-export function unregisterTrackPlayerEventListener(eventName: string, owner: string) {
-  if (!enabled()) return;
-
-  const owners = listenerOwners.get(eventName);
-  if (!owners) return;
-
-  owners.delete(owner);
-  if (!owners.size) {
-    listenerOwners.delete(eventName);
-  }
-}
 
 export function registerRemoteHandlerContext(context: string): boolean {
   if (!enabled()) return true;
