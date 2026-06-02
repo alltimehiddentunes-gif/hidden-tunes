@@ -30,15 +30,25 @@ export interface HiddenAudioEngine {
   updateNowPlaying(metadata: HiddenAudioNowPlayingMetadata): Promise<void>;
 }
 
+type HiddenAudioNativeTrack = {
+  id: string;
+  url: string;
+  title: string;
+  artist: string;
+  album: string;
+  artworkUrl: string;
+  durationSeconds: number;
+};
+
 type HiddenAudioNativeModule = {
-  load(url: string): Promise<void>;
+  loadTrack(track: HiddenAudioNativeTrack): Promise<void>;
   play(): Promise<void>;
+  resume?: () => Promise<void>;
   pause(): Promise<void>;
   stop(): Promise<void>;
   seekTo?(seconds: number): Promise<void>;
   getState?(): Promise<Record<string, unknown>>;
   getProgress?(): Promise<Record<string, unknown>>;
-  updateNowPlaying(metadata: HiddenAudioNowPlayingMetadata): Promise<void>;
 };
 
 const STUB_MESSAGE = "[hidden_audio] not implemented on this platform";
@@ -46,28 +56,74 @@ const STUB_MESSAGE = "[hidden_audio] not implemented on this platform";
 const HiddenAudioNative = (NativeModules.HiddenAudioModule ||
   NativeModules.HiddenAudio) as HiddenAudioNativeModule | undefined;
 
+let pendingNowPlayingMetadata: HiddenAudioNowPlayingMetadata | null = null;
+let lastLoadedUrl = "";
+
 function warnStub(method: string): void {
   console.warn(`${STUB_MESSAGE} (${method})`);
 }
 
+function safeString(value: unknown, fallback: string): string {
+  if (typeof value !== "string") return fallback;
+  const clean = value.trim();
+  return clean || fallback;
+}
+
+function safeNumber(value: unknown, fallback = 0): number {
+  const parsed = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+}
+
+function buildNativeTrack(url: string): HiddenAudioNativeTrack {
+  const metadata = pendingNowPlayingMetadata;
+  const cleanUrl = safeString(url, "");
+  const idSource = cleanUrl || metadata?.title || "hidden-audio-track";
+  const safeId = idSource
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+
+  return {
+    id: safeId || "hidden-audio-track",
+    url: cleanUrl,
+    title: safeString(metadata?.title, "Hidden Tunes"),
+    artist: safeString(metadata?.artist, "Hidden Tunes"),
+    album: safeString(metadata?.album, ""),
+    artworkUrl: "",
+    durationSeconds: safeNumber(metadata?.duration, 0),
+  };
+}
+
 export function isHiddenAudioNativeEngineAvailable(): boolean {
-  return Platform.OS === "ios" && Boolean(HiddenAudioNative);
+  return Platform.OS === "ios" && Boolean(HiddenAudioNative?.loadTrack);
 }
 
 export const hiddenAudioBridge: HiddenAudioEngine = {
   async load(url: string): Promise<void> {
-    if (!HiddenAudioNative) {
-      warnStub("load");
+    if (!HiddenAudioNative?.loadTrack) {
+      warnStub("loadTrack");
       return;
     }
-    await HiddenAudioNative.load(url);
+
+    const track = buildNativeTrack(url);
+    lastLoadedUrl = track.url;
+    console.log("hidden_audio_load_track_start", {
+      id: track.id,
+      hasUrl: Boolean(track.url),
+    });
+    await HiddenAudioNative.loadTrack(track);
+    console.log("hidden_audio_load_track_success", { id: track.id });
   },
   async play(): Promise<void> {
     if (!HiddenAudioNative) {
       warnStub("play");
       return;
     }
+
+    console.log("hidden_audio_play_start", { hasLoadedUrl: Boolean(lastLoadedUrl) });
     await HiddenAudioNative.play();
+    console.log("hidden_audio_play_success");
   },
   async pause(): Promise<void> {
     if (!HiddenAudioNative) {
@@ -82,6 +138,7 @@ export const hiddenAudioBridge: HiddenAudioEngine = {
       return;
     }
     await HiddenAudioNative.stop();
+    lastLoadedUrl = "";
   },
   async seek(positionMs: number): Promise<void> {
     if (!HiddenAudioNative?.seekTo) {
@@ -110,7 +167,7 @@ export const hiddenAudioBridge: HiddenAudioEngine = {
       progressMap.durationSeconds ?? progressMap.duration ?? 0
     );
     const isPlayingValue = progressMap.isPlaying;
-    const status = String(stateMap.status || "");
+    const status = String(stateMap.status || progressMap.status || "");
 
     return {
       positionMillis: Math.max(
@@ -125,16 +182,13 @@ export const hiddenAudioBridge: HiddenAudioEngine = {
         isPlayingValue === true ||
         isPlayingValue === 1 ||
         isPlayingValue === "1" ||
-        status === "playing",
+        status === "playing" ||
+        status === "buffering",
     };
   },
   async updateNowPlaying(
     metadata: HiddenAudioNowPlayingMetadata
   ): Promise<void> {
-    if (!HiddenAudioNative) {
-      warnStub("updateNowPlaying");
-      return;
-    }
-    await HiddenAudioNative.updateNowPlaying(metadata);
+    pendingNowPlayingMetadata = metadata;
   },
 };

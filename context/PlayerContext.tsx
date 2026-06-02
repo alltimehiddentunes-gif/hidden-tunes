@@ -349,7 +349,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     handledAt: 0,
   });
   type LoadAndPlayOptions = {
-    /** Direct user tap — pause/stop current audio before loading the next track. */
+    /** Direct user tap - pause/stop current audio before loading the next track. */
     userInitiated?: boolean;
     /** Set when playSong/playQueue already ran interrupt for this tap. */
     userInterruptDone?: boolean;
@@ -1903,10 +1903,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         const useHiddenAudio = await shouldUseHiddenAudioPlayback();
 
         if (useHiddenAudio) {
+          const previousSongBeforeHiddenAudio = currentSongRef.current;
+
           try {
             setCurrentSong(normalizedSong);
             currentSongRef.current = normalizedSong;
-            setIsPlaying(true);
+            setIsPlaying(false);
             setPositionMillis(0);
             setDurationMillis(0);
 
@@ -1959,6 +1961,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
             const durationSeconds = getSongDurationSeconds(normalizedSong);
 
+            await bridgeHiddenAudioUpdateNowPlaying({
+              title: normalizedSong.title || "Unknown Song",
+              artist: normalizedSong.artist || "Unknown Artist",
+              album: normalizedSong.album || "",
+              durationSeconds,
+              positionSeconds: startPositionSeconds,
+            });
+
             await activateHiddenAudioPlayback({
               url: playableUri,
               title: normalizedSong.title || "Unknown Song",
@@ -1978,9 +1988,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             hiddenAudioActiveRef.current = true;
 
             const startPositionMillis = Math.round(startPositionSeconds * 1000);
-            setPositionMillis(startPositionMillis);
-            setDurationMillis(Math.round(durationSeconds * 1000));
-            setIsPlaying(true);
+            const statusAfterPlay = await bridgeGetProgress();
+            console.log("hidden_audio_status_after_play", statusAfterPlay);
+            setPositionMillis(statusAfterPlay.positionMillis || startPositionMillis);
+            setDurationMillis(
+              statusAfterPlay.durationMillis || Math.round(durationSeconds * 1000)
+            );
+            setIsPlaying(
+              statusAfterPlay.isPlaying ||
+                (!statusAfterPlay.positionMillis && !statusAfterPlay.durationMillis)
+            );
 
             logAudioLoadSuccess({
               songId: normalizedSong.id,
@@ -1998,6 +2015,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               savePlaybackSideEffects(normalizedSong);
             }, 0);
           } catch (error) {
+            console.log("hidden_audio_play_failed", error);
             console.log("Hidden audio load and play error:", error);
             logAudioLoadFailure({
               songId: normalizedSong.id,
@@ -2007,6 +2025,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               engine: "hidden_audio",
             });
             hiddenAudioActiveRef.current = false;
+            setCurrentSong(previousSongBeforeHiddenAudio);
+            currentSongRef.current = previousSongBeforeHiddenAudio;
             setIsPlaying(false);
           } finally {
             if (isMountedRef.current) {

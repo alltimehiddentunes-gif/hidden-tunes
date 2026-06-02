@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -32,7 +32,7 @@ import {
 } from "@/services/hiddenTunes";
 
 export default function MusicFeedScreen() {
-  const { playAudiusTrack } = usePlayerActions();
+  const { playSong } = usePlayerActions();
   const { currentSong, isPlaying } = usePlayerNowPlaying();
 
   const [catalog, setCatalog] = useState<HiddenTunesDerivedCatalog | null>(null);
@@ -248,14 +248,14 @@ export default function MusicFeedScreen() {
                 <Text style={styles.sectionTitle}>Songs</Text>
               </View>
             }
-            renderItem={({ item }) => {
-              const active = currentSong?.id === String(item.id);
+            renderItem={({ item, index }) => {
+              const active = isPlaying && currentSong?.id === String(item.id);
 
               return (
                 <TouchableOpacity
                   style={[styles.songCard, active && styles.songCardActive]}
                   activeOpacity={0.88}
-                  onPress={() => playAudiusTrack(item)}
+                  onPress={() => playSong(item, songs, index)}
                 >
                   <LinearGradient colors={GRADIENTS.neon} style={styles.coverBorder}>
                     <Image source={{ uri: item.cover }} style={styles.cover} />
