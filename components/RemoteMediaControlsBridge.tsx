@@ -17,7 +17,6 @@ import {
   usePlayerNowPlaying,
   usePlayerProgress,
 } from "../context/PlayerContext";
-import { isTrackPlayerFeatureEnabled } from "../constants/playbackConfig";
 import { loadHydratedCatalogOnce } from "../state/catalogFetchLayer";
 import {
   disableRemoteMediaControls,
@@ -56,7 +55,6 @@ function RemoteMediaControlsBridge() {
 
   useEffect(() => {
     if (!isRemoteMediaControlsAvailable()) return;
-    if (isTrackPlayerFeatureEnabled()) return;
 
     let cancelled = false;
 
@@ -92,7 +90,6 @@ function RemoteMediaControlsBridge() {
 
   useEffect(() => {
     if (!isRemoteMediaControlsAvailable()) return;
-    if (isTrackPlayerFeatureEnabled()) return;
 
     const snapshot = {
       song: currentSong,
