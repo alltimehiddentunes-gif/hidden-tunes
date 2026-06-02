@@ -211,6 +211,12 @@ export async function activateHiddenAudioPlayback(options: {
     duration: options.durationSeconds ?? 0,
     position: options.positionSeconds ?? 0,
   });
+
+  const startPositionMs = Math.max(0, Math.round((options.positionSeconds ?? 0) * 1000));
+  if (startPositionMs > 0) {
+    await hiddenAudioBridge.seek(startPositionMs);
+  }
+
   await hiddenAudioBridge.play();
   hiddenAudioBridgeActive = true;
 }

@@ -1396,15 +1396,22 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           songId: currentSongRef.current?.id,
         });
 
-        const activeSound = soundRef.current;
-
-        if (activeSound) {
-          await activeSound.setPositionAsync(0);
-          await activeSound.playAsync();
+        if (hiddenAudioActiveRef.current) {
+          await bridgeSeekTo(0);
+          await bridgeHiddenAudioPlay();
           setIsPlaying(true);
-          logAutoNextSuccess({ reason: "repeat_one_restart" });
+          logAutoNextSuccess({ reason: "repeat_one_restart_hidden_audio" });
         } else {
-          logAutoNextFailure({ reason: "repeat_one_sound_unloaded" });
+          const activeSound = soundRef.current;
+
+          if (activeSound) {
+            await activeSound.setPositionAsync(0);
+            await activeSound.playAsync();
+            setIsPlaying(true);
+            logAutoNextSuccess({ reason: "repeat_one_restart" });
+          } else {
+            logAutoNextFailure({ reason: "repeat_one_sound_unloaded" });
+          }
         }
 
         return;
@@ -1444,7 +1451,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    if (!soundRef.current) {
+    if (!soundRef.current && !hiddenAudioActiveRef.current) {
       logAutoNextSkipped("sound_unloaded", { songId: currentSongRef.current?.id });
       logHTAutoNext("reason", {
         reason: "paused-no-sound",
@@ -1685,9 +1692,28 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const catchUpPlaybackIfEnded = useCallback(async () => {
     if (hiddenAudioActiveRef.current) {
+      if (isChangingTrackRef.current || autoAdvanceRef.current) return;
+
+      try {
+        const progress = await bridgeGetProgress();
+        const position = progress.positionMillis || 0;
+        const duration = progress.durationMillis || 0;
+
+        const nearEndWhilePaused =
+          repeatModeRef.current !== "one" &&
+          duration >= MIN_DURATION_FOR_POSITION_FINISH_MS &&
+          position >= duration - TRACK_END_THRESHOLD_MS &&
+          !progress.isPlaying;
+
+        if (nearEndWhilePaused) {
+          scheduleTrackAdvance();
+        }
+      } catch (error) {
+        console.log("Catch up hidden_audio playback error:", error);
+      }
+
       return;
     }
-
 
     const sound = soundRef.current;
 
@@ -1994,10 +2020,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             setDurationMillis(
               statusAfterPlay.durationMillis || Math.round(durationSeconds * 1000)
             );
-            setIsPlaying(
-              statusAfterPlay.isPlaying ||
-                (!statusAfterPlay.positionMillis && !statusAfterPlay.durationMillis)
-            );
+            isPlayingRef.current = Boolean(statusAfterPlay.isPlaying);
+            setIsPlaying(statusAfterPlay.isPlaying);
 
             logAudioLoadSuccess({
               songId: normalizedSong.id,
@@ -2337,7 +2361,15 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             await bridgeHiddenAudioPlay();
           }
 
-          setIsPlaying(true);
+          const resumeProgress = await bridgeGetProgress();
+          isPlayingRef.current = resumeProgress.isPlaying;
+          positionMillisRef.current = resumeProgress.positionMillis;
+          setPositionMillis(resumeProgress.positionMillis);
+          if (resumeProgress.durationMillis > 0) {
+            durationMillisRef.current = resumeProgress.durationMillis;
+            setDurationMillis(resumeProgress.durationMillis);
+          }
+          setIsPlaying(resumeProgress.isPlaying);
           savePlaybackSideEffects(selectedSong);
           return;
         } catch (error) {
@@ -2460,7 +2492,15 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             await bridgeHiddenAudioPlay();
           }
 
-          setIsPlaying(true);
+          const resumeProgress = await bridgeGetProgress();
+          isPlayingRef.current = resumeProgress.isPlaying;
+          positionMillisRef.current = resumeProgress.positionMillis;
+          setPositionMillis(resumeProgress.positionMillis);
+          if (resumeProgress.durationMillis > 0) {
+            durationMillisRef.current = resumeProgress.durationMillis;
+            setDurationMillis(resumeProgress.durationMillis);
+          }
+          setIsPlaying(resumeProgress.isPlaying);
           savePlaybackSideEffects(normalizedSong);
           return;
         } catch (error) {
@@ -2787,7 +2827,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           setIsPlaying(false);
         } else {
           await bridgeHiddenAudioPlay();
-          setIsPlaying(true);
+        }
+
+        const progress = await bridgeGetProgress();
+        isPlayingRef.current = progress.isPlaying;
+        setIsPlaying(progress.isPlaying);
+        positionMillisRef.current = progress.positionMillis;
+        setPositionMillis(progress.positionMillis);
+        if (progress.durationMillis > 0) {
+          durationMillisRef.current = progress.durationMillis;
+          setDurationMillis(progress.durationMillis);
         }
 
         logPauseResumeComplete({ engine: "hidden_audio" });
@@ -2844,9 +2893,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       const safeMillis = Math.max(0, Math.floor(millis || 0));
 
       if (hiddenAudioActiveRef.current) {
+        clearFinishWatchdog("seek");
         await bridgeSeekTo(safeMillis);
-        setPositionMillis(safeMillis);
-        await savePlaybackPosition(safeMillis);
+        const progress = await bridgeGetProgress();
+        const confirmedMillis = progress.positionMillis || safeMillis;
+        positionMillisRef.current = confirmedMillis;
+        setPositionMillis(confirmedMillis);
+        await savePlaybackPosition(confirmedMillis);
         return;
       }
 
@@ -3212,6 +3265,30 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         }
 
         if (
+          !isChangingTrackRef.current &&
+          !autoAdvanceRef.current &&
+          progress.durationMillis >= MIN_DURATION_FOR_POSITION_FINISH_MS
+        ) {
+          const nearTrackEnd =
+            repeatModeRef.current !== "one" &&
+            progress.positionMillis > 0 &&
+            progress.positionMillis >=
+              progress.durationMillis - TRACK_END_THRESHOLD_MS;
+
+          const playbackEndedWhileNearEnd =
+            nearTrackEnd &&
+            !progress.isPlaying &&
+            (previousPosition >=
+              progress.durationMillis - LOCK_SCREEN_END_WINDOW_MS ||
+              progress.positionMillis >=
+                progress.durationMillis - TRACK_END_THRESHOLD_MS);
+
+          if (playbackEndedWhileNearEnd) {
+            scheduleTrackAdvance();
+          }
+        }
+
+        if (
           now - lastPositionSaveRef.current > POSITION_SAVE_INTERVAL_MS &&
           Math.abs(progress.positionMillis - lastSavedPositionRef.current) >=
             POSITION_SAVE_DISTANCE_MS
@@ -3236,7 +3313,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       cancelled = true;
       clearInterval(timer);
     };
-  }, [savePlaybackPosition]);
+  }, [savePlaybackPosition, scheduleTrackAdvance]);
 
   useEffect(() => {
     isMountedRef.current = true;
