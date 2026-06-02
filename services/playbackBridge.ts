@@ -14,10 +14,10 @@ import {
   PlaybackEngineTrack,
 } from "./playbackEngineTypes";
 
-export type TrackPlayerSongInput = PlaybackEngineTrack;
+export type NativeQueueSongInput = PlaybackEngineTrack;
 export type PlayerRepeatMode = PlaybackEngineRepeatMode;
 export type PlaybackProgress = PlaybackEngineProgress;
-export type TrackPlayerEventHandlers = PlaybackEngineEventHandlers;
+export type NativeQueueEventHandlers = PlaybackEngineEventHandlers;
 export type PlaybackEngineKind = "hidden_audio";
 
 type QueueSnapshot = {
@@ -54,16 +54,16 @@ export function isNativeQueuePlaybackEnabled(): boolean {
   return false;
 }
 
-export async function shouldUseTrackPlayerPlayback(): Promise<boolean> {
+export async function shouldUseNativeQueuePlayback(): Promise<boolean> {
   return false;
 }
 
-export async function prewarmTrackPlayerForStartup(): Promise<boolean> {
+export async function prewarmNativeQueueForStartup(): Promise<boolean> {
   return false;
 }
 
-export async function activateTrackPlayerPlayback(options: {
-  songs: TrackPlayerSongInput[];
+export async function activateNativeQueuePlayback(options: {
+  songs: NativeQueueSongInput[];
   startIndex: number;
   repeatMode: PlayerRepeatMode;
   volume: number;
@@ -75,7 +75,7 @@ export async function activateTrackPlayerPlayback(options: {
 }
 
 export async function bridgePlayQueueFromIndex(options: {
-  songs: TrackPlayerSongInput[];
+  songs: NativeQueueSongInput[];
   startIndex: number;
   repeatMode: PlayerRepeatMode;
   volume: number;
@@ -90,10 +90,10 @@ export async function bridgeTrySkipToNext(): Promise<boolean> {
   return false;
 }
 
-export async function deactivateTrackPlayerPlayback(
+export async function deactivateNativeQueuePlayback(
   reason = "unknown"
 ): Promise<void> {
-  logBackgroundPlayback("track_player_deactivate_noop", { reason });
+  logBackgroundPlayback("native_queue_deactivate_noop", { reason });
 }
 
 export async function bridgeResetPlayback(reason = "unknown"): Promise<void> {
@@ -151,7 +151,7 @@ export async function bridgeGetQueueSnapshot(): Promise<QueueSnapshot> {
 }
 
 export function subscribeBridgeEvents(
-  _handlers: TrackPlayerEventHandlers
+  _handlers: NativeQueueEventHandlers
 ): () => void {
   return () => {};
 }
@@ -175,7 +175,7 @@ export async function bridgePause(): Promise<void> {
 export async function bridgeInterruptForUserTap(): Promise<void> {}
 
 export async function bridgeTryUserTapFastPlay(_options: {
-  songs: TrackPlayerSongInput[];
+  songs: NativeQueueSongInput[];
   songId: string;
   startIndex: number;
   repeatMode: PlayerRepeatMode;
