@@ -5,12 +5,15 @@ import { router } from "expo-router";
 import { useCallback, useMemo } from "react";
 import {
   Image,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
 
+import LiveWaveform from "../components/LiveWaveform";
+import NeonEQ from "../components/NeonEQ";
 import AppShell from "../components/navigation/AppShell";
 import { COLORS, GRADIENTS } from "../constants/theme";
 import {
@@ -74,12 +77,18 @@ export default function PlayerScreen() {
       <LinearGradient colors={GRADIENTS.player} style={styles.container}>
         <View style={styles.glowTop} />
         <View style={styles.glowBottom} />
+        <View style={styles.glowCenter} />
 
         <View style={styles.header}>
           <TouchableOpacity style={styles.iconButton} onPress={handleBack}>
             <Ionicons name="chevron-down" size={26} color={COLORS.text} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Now Playing</Text>
+          <View style={styles.headerCopy}>
+            <Text style={styles.headerTitle}>Now Playing</Text>
+            <Text style={styles.headerSubtitle} numberOfLines={1}>
+              {isPlaying ? "Live playback" : "Ready"}
+            </Text>
+          </View>
           <TouchableOpacity
             style={styles.iconButton}
             onPress={openQueue}
@@ -88,66 +97,97 @@ export default function PlayerScreen() {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.artworkShell}>
-          <LinearGradient colors={GRADIENTS.neon} style={styles.artworkBorder}>
-            <Image source={{ uri: artwork }} style={styles.artwork} />
-          </LinearGradient>
-        </View>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.content}
+        >
+          <View style={styles.artworkStage}>
+            <View style={styles.artworkGlow} />
+            <LinearGradient colors={GRADIENTS.neon} style={styles.artworkBorder}>
+              <Image source={{ uri: artwork }} style={styles.artwork} />
+            </LinearGradient>
 
-        <View style={styles.meta}>
-          <Text numberOfLines={2} style={styles.title}>{title}</Text>
-          <Text numberOfLines={1} style={styles.artist}>{artist}</Text>
-        </View>
-
-        <View style={styles.progressBlock}>
-          <Slider
-            value={position}
-            minimumValue={0}
-            maximumValue={duration > 0 ? duration : 1}
-            minimumTrackTintColor={COLORS.primaryGlow}
-            maximumTrackTintColor="rgba(255,255,255,0.16)"
-            thumbTintColor={COLORS.primary}
-            disabled={!currentSong || duration <= 0}
-            onSlidingComplete={handleSeekComplete}
-          />
-          <View style={styles.timeRow}>
-            <Text style={styles.timeText}>{formatTime(position)}</Text>
-            <Text style={styles.timeText}>{formatTime(duration)}</Text>
+            <View style={styles.eqBadge}>
+              <NeonEQ isPlaying={isPlaying} size="medium" />
+            </View>
           </View>
-        </View>
 
-        <View style={styles.controls}>
-          <TouchableOpacity
-            accessibilityLabel="Previous track"
-            style={styles.secondaryControl}
-            disabled={!currentSong}
-            onPress={handlePrevious}
-          >
-            <Ionicons name="play-skip-back" size={26} color={COLORS.text} />
-          </TouchableOpacity>
+          <View style={styles.meta}>
+            <View style={styles.statusPill}>
+              <Ionicons
+                name={isPlaying ? "radio" : "musical-notes"}
+                size={13}
+                color={COLORS.primaryGlow}
+              />
+              <Text style={styles.statusText}>
+                {isPlaying ? "Playing" : currentSong ? "Paused" : "No track"}
+              </Text>
+            </View>
 
-          <TouchableOpacity
-            accessibilityLabel="Play or pause"
-            style={[styles.primaryControl, !currentSong && styles.disabledControl]}
-            disabled={!currentSong}
-            onPress={handleTogglePlayPause}
-          >
-            <Ionicons
-              name={isLoading ? "sync" : isPlaying ? "pause" : "play"}
-              size={34}
-              color="#000"
+            <Text numberOfLines={2} style={styles.title}>{title}</Text>
+            <Text numberOfLines={1} style={styles.artist}>{artist}</Text>
+          </View>
+
+          <View style={styles.waveformPanel}>
+            <LiveWaveform
+              isPlaying={isPlaying}
+              size="large"
+              color={COLORS.primaryGlow}
             />
-          </TouchableOpacity>
+          </View>
 
-          <TouchableOpacity
-            accessibilityLabel="Next track"
-            style={styles.secondaryControl}
-            disabled={!currentSong}
-            onPress={handleNext}
-          >
-            <Ionicons name="play-skip-forward" size={26} color={COLORS.text} />
-          </TouchableOpacity>
-        </View>
+          <View style={styles.progressPanel}>
+            <Slider
+              value={position}
+              minimumValue={0}
+              maximumValue={duration > 0 ? duration : 1}
+              minimumTrackTintColor={COLORS.primaryGlow}
+              maximumTrackTintColor="rgba(255,255,255,0.16)"
+              thumbTintColor={COLORS.primary}
+              disabled={!currentSong || duration <= 0}
+              onSlidingComplete={handleSeekComplete}
+            />
+            <View style={styles.timeRow}>
+              <Text style={styles.timeText}>{formatTime(position)}</Text>
+              <Text style={styles.timeText}>{formatTime(duration)}</Text>
+            </View>
+          </View>
+
+          <View style={styles.controlsDock}>
+          <View style={styles.controls}>
+            <TouchableOpacity
+              accessibilityLabel="Previous track"
+              style={styles.secondaryControl}
+              disabled={!currentSong}
+              onPress={handlePrevious}
+            >
+              <Ionicons name="play-skip-back" size={26} color={COLORS.text} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              accessibilityLabel="Play or pause"
+              style={[styles.primaryControl, !currentSong && styles.disabledControl]}
+              disabled={!currentSong}
+              onPress={handleTogglePlayPause}
+            >
+              <Ionicons
+                name={isLoading ? "sync" : isPlaying ? "pause" : "play"}
+                size={34}
+                color="#000"
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              accessibilityLabel="Next track"
+              style={styles.secondaryControl}
+              disabled={!currentSong}
+              onPress={handleNext}
+            >
+              <Ionicons name="play-skip-forward" size={26} color={COLORS.text} />
+            </TouchableOpacity>
+          </View>
+          </View>
+        </ScrollView>
       </LinearGradient>
     </AppShell>
   );
@@ -178,6 +218,15 @@ const styles = StyleSheet.create({
     borderRadius: 160,
     backgroundColor: "rgba(34,211,238,0.12)",
   },
+  glowCenter: {
+    position: "absolute",
+    top: 190,
+    alignSelf: "center",
+    width: 260,
+    height: 260,
+    borderRadius: 130,
+    backgroundColor: "rgba(168,85,247,0.12)",
+  },
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -193,6 +242,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.1)",
   },
+  headerCopy: {
+    alignItems: "center",
+  },
   headerTitle: {
     color: COLORS.text,
     fontSize: 13,
@@ -200,25 +252,79 @@ const styles = StyleSheet.create({
     letterSpacing: 1.8,
     textTransform: "uppercase",
   },
-  artworkShell: {
+  headerSubtitle: {
+    color: COLORS.textMuted,
+    fontSize: 11,
+    fontWeight: "800",
+    marginTop: 3,
+  },
+  content: {
+    paddingBottom: 28,
+  },
+  artworkStage: {
     alignItems: "center",
-    marginTop: 48,
+    justifyContent: "center",
+    marginTop: 34,
+  },
+  artworkGlow: {
+    position: "absolute",
+    width: "78%",
+    aspectRatio: 1,
+    borderRadius: 999,
+    backgroundColor: "rgba(34,211,238,0.12)",
   },
   artworkBorder: {
-    width: "86%",
+    width: "84%",
     aspectRatio: 1,
-    borderRadius: 38,
+    borderRadius: 42,
     padding: 2,
+    shadowColor: COLORS.primaryGlow,
+    shadowOpacity: 0.22,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 14 },
+    elevation: 9,
   },
   artwork: {
     width: "100%",
     height: "100%",
-    borderRadius: 36,
+    borderRadius: 40,
     backgroundColor: COLORS.card,
   },
-  meta: {
-    marginTop: 32,
+  eqBadge: {
+    position: "absolute",
+    right: 28,
+    bottom: 18,
+    minWidth: 54,
+    minHeight: 44,
+    borderRadius: 22,
     alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(10,4,24,0.82)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+  },
+  meta: {
+    marginTop: 24,
+    alignItems: "center",
+  },
+  statusPill: {
+    minHeight: 30,
+    borderRadius: 15,
+    paddingHorizontal: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "rgba(255,255,255,0.07)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+    marginBottom: 12,
+  },
+  statusText: {
+    color: COLORS.textMuted,
+    fontSize: 11,
+    fontWeight: "900",
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
   },
   title: {
     color: COLORS.text,
@@ -232,8 +338,34 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     marginTop: 8,
   },
-  progressBlock: {
-    marginTop: 34,
+  waveformPanel: {
+    marginTop: 24,
+    minHeight: 92,
+    borderRadius: 28,
+    paddingHorizontal: 16,
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.055)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+  },
+  progressPanel: {
+    marginTop: 24,
+    borderRadius: 24,
+    paddingHorizontal: 14,
+    paddingTop: 14,
+    paddingBottom: 10,
+    backgroundColor: "rgba(255,255,255,0.055)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+  },
+  controlsDock: {
+    marginTop: 28,
+    borderRadius: 32,
+    paddingVertical: 18,
+    paddingHorizontal: 12,
+    backgroundColor: "rgba(255,255,255,0.045)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
   },
   timeRow: {
     flexDirection: "row",
@@ -246,7 +378,6 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
   controls: {
-    marginTop: 34,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
