@@ -4,21 +4,68 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  TouchableOpacity,
-  Image,
   ActivityIndicator,
+  useWindowDimensions,
 } from "react-native";
 
 import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 
+import AppShell from "../components/navigation/AppShell";
+import TvVideoCard from "../components/tv/TvVideoCard";
 import { COLORS, GRADIENTS } from "@/constants/theme";
 import { fetchChannelVideos, YouTubeVideo } from "@/services/youtube";
+import type { HiddenTunesTvVideo } from "@/services/tvCatalogApi";
+
+function getVideoId(item: Partial<YouTubeVideo> & Partial<HiddenTunesTvVideo>) {
+  if (typeof item.id === "string") return item.id;
+
+  const id = item.id as any;
+
+  return (
+    item.source_id ||
+    id?.videoId ||
+    id?.resourceId?.videoId ||
+    (item as any)?.snippet?.resourceId?.videoId ||
+    (item as any)?.snippet?.videoId ||
+    ""
+  );
+}
+
+function toTvVideo(item: YouTubeVideo): HiddenTunesTvVideo {
+  const videoId = getVideoId(item) || String(item.id || item.title);
+  const thumbnail =
+    item.thumbnail ||
+    item.cover ||
+    (item as any)?.snippet?.thumbnails?.high?.url ||
+    (item as any)?.snippet?.thumbnails?.medium?.url ||
+    (item as any)?.snippet?.thumbnails?.default?.url ||
+    null;
+
+  return {
+    id: videoId,
+    title: item.title || (item as any)?.snippet?.title || "Hidden Tunes TV",
+    source_type: "youtube",
+    source_id: videoId,
+    source_url: videoId ? `https://www.youtube.com/watch?v=${videoId}` : "",
+    embed_url: null,
+    thumbnail_url: thumbnail,
+    channel_name:
+      item.channelTitle || (item as any)?.snippet?.channelTitle || "Hidden Tunes TV",
+    category: null,
+    genre: null,
+    mood: null,
+    format: null,
+    tags: [],
+  };
+}
 
 export default function YouTubeFeedScreen() {
   const [videos, setVideos] = useState<YouTubeVideo[]>([]);
   const [loading, setLoading] = useState(true);
+  const { width } = useWindowDimensions();
+  const cardWidth = Math.max(280, width - 36);
 
   useEffect(() => {
     loadVideos();
@@ -36,13 +83,8 @@ export default function YouTubeFeedScreen() {
     }
   };
 
-  const openVideo = (item: any) => {
-    const videoId =
-      typeof item?.id === "string"
-        ? item.id
-        : item?.id?.videoId ||
-          item?.snippet?.resourceId?.videoId ||
-          item?.snippet?.videoId;
+  const openVideo = (item: HiddenTunesTvVideo) => {
+    const videoId = getVideoId(item);
 
     if (!videoId) return;
 
@@ -50,88 +92,63 @@ export default function YouTubeFeedScreen() {
       pathname: "/youtube-player",
       params: {
         videoId,
-        title: item?.title || item?.snippet?.title || "Hidden Tunes TV",
-        thumbnail:
-          item?.thumbnail ||
-          item?.snippet?.thumbnails?.high?.url ||
-          item?.snippet?.thumbnails?.medium?.url ||
-          item?.snippet?.thumbnails?.default?.url ||
-          "",
-        channelTitle:
-          item?.channelTitle || item?.snippet?.channelTitle || "Hidden Tunes TV",
+        title: item.title || "Hidden Tunes TV",
+        thumbnail: item.thumbnail_url || "",
+        channelTitle: item.channel_name || "Hidden Tunes TV",
       },
     });
   };
 
   return (
-    <LinearGradient colors={GRADIENTS.main} style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={26} color={COLORS.text} />
-        </TouchableOpacity>
+    <AppShell>
+      <LinearGradient colors={GRADIENTS.main} style={styles.container}>
+        <View style={styles.header}>
+          <View style={styles.headerIcon}>
+            <Ionicons name="tv" size={24} color={COLORS.primary} />
+          </View>
 
-        <View>
-          <Text style={styles.title}>Hidden Tunes TV</Text>
-          <Text style={styles.subtitle}>Latest picks from the channel</Text>
+          <View>
+            <Text style={styles.title}>Hidden Tunes TV</Text>
+            <Text style={styles.subtitle}>Latest picks from the channel</Text>
+          </View>
         </View>
-      </View>
 
-      {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.loadingText}>Loading videos...</Text>
-        </View>
-      ) : videos.length === 0 ? (
-        <View style={styles.center}>
-          <Ionicons name="tv" size={60} color={COLORS.primary} />
-          <Text style={styles.emptyTitle}>No videos right now</Text>
-          <Text style={styles.emptyText}>
-            Open Hidden Tunes TV to search and watch inside the app.
-          </Text>
-        </View>
-      ) : (
-        <FlatList
-          data={videos}
-          keyExtractor={(item: any, index) => {
-            const id =
-              typeof item?.id === "string"
-                ? item.id
-                : item?.id?.videoId ||
-                  item?.snippet?.resourceId?.videoId ||
-                  item?.snippet?.videoId ||
-                  String(index);
+        {loading ? (
+          <View style={styles.center}>
+            <ActivityIndicator size="large" color={COLORS.primary} />
+            <Text style={styles.loadingText}>Loading videos...</Text>
+          </View>
+        ) : videos.length === 0 ? (
+          <View style={styles.center}>
+            <Ionicons name="tv" size={60} color={COLORS.primary} />
+            <Text style={styles.emptyTitle}>No videos right now</Text>
+            <Text style={styles.emptyText}>
+              Open Hidden Tunes TV to search and watch inside the app.
+            </Text>
+          </View>
+        ) : (
+          <FlatList
+            data={videos}
+            keyExtractor={(item, index) => getVideoId(item) || String(index)}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.list}
+            renderItem={({ item }) => {
+              const video = toTvVideo(item);
 
-            return String(id);
-          }}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.list}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.videoCard}
-              activeOpacity={0.85}
-              onPress={() => openVideo(item)}
-            >
-              <Image source={{ uri: item.thumbnail }} style={styles.thumbnail} />
-
-              <View style={styles.info}>
-                <Text numberOfLines={2} style={styles.videoTitle}>
-                  {item.title}
-                </Text>
-
-                <Text numberOfLines={1} style={styles.channel}>
-                  {item.channelTitle}
-                </Text>
-
-                <View style={styles.watchRow}>
-                  <Ionicons name="tv" size={18} color={COLORS.primary} />
-                  <Text style={styles.watchText}>Watch in app</Text>
+              return (
+                <View style={styles.cardWrap}>
+                  <TvVideoCard
+                    video={video}
+                    width={cardWidth}
+                    onPress={openVideo}
+                  />
                 </View>
-              </View>
-            </TouchableOpacity>
-          )}
-        />
-      )}
-    </LinearGradient>
+              );
+            }}
+          />
+        )}
+      </LinearGradient>
+    </AppShell>
   );
 }
 
@@ -147,10 +164,10 @@ const styles = StyleSheet.create({
     gap: 14,
     marginBottom: 24,
   },
-  backButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+  headerIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 18,
     backgroundColor: "rgba(255,255,255,0.08)",
     alignItems: "center",
     justifyContent: "center",
@@ -191,40 +208,7 @@ const styles = StyleSheet.create({
   list: {
     paddingBottom: 120,
   },
-  videoCard: {
-    backgroundColor: "rgba(255,255,255,0.06)",
-    borderRadius: 24,
-    padding: 12,
-    marginBottom: 18,
-  },
-  thumbnail: {
-    width: "100%",
-    height: 200,
-    borderRadius: 20,
-    backgroundColor: COLORS.card,
-  },
-  info: {
-    paddingTop: 14,
-  },
-  videoTitle: {
-    color: "#fff",
-    fontSize: 17,
-    fontWeight: "800",
-    lineHeight: 24,
-  },
-  channel: {
-    color: COLORS.textMuted,
-    marginTop: 6,
-    fontSize: 13,
-  },
-  watchRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 12,
-  },
-  watchText: {
-    color: "#ff0033",
-    fontWeight: "700",
-    marginLeft: 6,
+  cardWrap: {
+    marginBottom: 22,
   },
 });

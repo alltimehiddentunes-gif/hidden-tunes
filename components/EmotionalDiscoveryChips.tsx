@@ -62,7 +62,7 @@ export const SubtleTvEntryLink = memo(function SubtleTvEntryLink({
       accessibilityRole="link"
       accessibilityLabel="Open Hidden Tunes TV"
       style={({ pressed }) => [styles.tvLink, pressed && styles.tvLinkPressed, style]}
-      onPress={() => router.push("/music-feed" as any)}
+      onPress={() => router.push("/youtube-feed" as any)}
     >
       <Ionicons name="tv-outline" size={14} color={COLORS.textMuted} />
       <Text style={styles.tvLinkText}>Hidden Tunes TV</Text>
