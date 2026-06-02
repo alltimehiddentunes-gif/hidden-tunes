@@ -21,7 +21,7 @@ import {
 } from "../context/PlayerContext";
 
 export default function QueueScreen() {
-  const { playSong, playAudiusTrack, nextSong, previousSong } = usePlayerActions();
+  const { playSong, nextSong, previousSong } = usePlayerActions();
   const { songs, onlineSongs, activeQueue, activeQueueIndex } = usePlayerState();
   const { currentSong, isPlaying } = usePlayerNowPlaying();
 
@@ -115,13 +115,6 @@ export default function QueueScreen() {
               style={styles.queueItem}
               activeOpacity={0.85}
               onPress={() => {
-                if (song.isOnline || song.streamUrl) {
-                  void playAudiusTrack(song).catch((error) => {
-                    if (__DEV__) console.log("Queue Audius play error:", error);
-                  });
-                  return;
-                }
-
                 void playSong(song, queueSongs, queueIndex).catch((error) => {
                   if (__DEV__) console.log("Queue play error:", error);
                 });
