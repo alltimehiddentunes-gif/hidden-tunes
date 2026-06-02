@@ -15,7 +15,14 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { COLORS } from "../../constants/theme";
 import MiniPlayer from "../MiniPlayer";
 
-type ShellRoute = "/music-feed" | "/worlds" | "/player" | "/auth";
+type ShellRoute =
+  | "/music-feed"
+  | "/worlds"
+  | "/player"
+  | "/playlists"
+  | "/youtube-feed"
+  | "/profile"
+  | "/auth";
 
 const MINI_PLAYER_ROUTES = [
   "/music-feed",
@@ -59,14 +66,28 @@ const NAV_ITEMS: NavItem[] = [
     icon: "play-circle-outline",
     activeIcon: "play-circle",
     href: "/player",
-    matches: ["/player", "/queue", "/lyrics"],
+    matches: ["/player", "/queue", "/lyrics", "/radio"],
+  },
+  {
+    label: "Library",
+    icon: "library-outline",
+    activeIcon: "library",
+    href: "/playlists",
+    matches: ["/playlists", "/playlist", "/recently-played", "/cloud-playlists"],
+  },
+  {
+    label: "TV",
+    icon: "tv-outline",
+    activeIcon: "tv",
+    href: "/youtube-feed",
+    matches: ["/youtube-feed", "/youtube-player"],
   },
   {
     label: "Profile",
     icon: "person-circle-outline",
     activeIcon: "person-circle",
-    href: "/auth",
-    matches: ["/auth"],
+    href: "/profile",
+    matches: ["/profile"],
   },
 ];
 
