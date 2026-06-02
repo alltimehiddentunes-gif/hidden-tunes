@@ -1,4 +1,9 @@
-﻿export interface HiddenTunesSong {
+﻿import {
+  fetchAllHiddenTunesCatalogSongs,
+  type HiddenTunesNormalizedSong,
+} from "./hiddenTunesApi";
+
+export interface HiddenTunesSong {
   id: string;
   title: string;
   artist: string;
@@ -277,12 +282,44 @@ export function deriveHiddenTunesCatalog(
   };
 }
 
-export async function fetchHiddenTunesSongs(): Promise<HiddenTunesSong[]> {
+function mapNormalizedCatalogSong(
+  song: HiddenTunesNormalizedSong,
+  index: number
+): HiddenTunesSong {
+  return normalizeSong(
+    {
+      id: song.id,
+      title: song.title,
+      slug: song.slug,
+      artist: song.artist,
+      artist_name: song.artist,
+      album: song.album,
+      genre: song.genre,
+      mood: song.mood,
+      cover: song.cover || song.artwork,
+      cover_url: song.cover,
+      artwork: song.artwork,
+      artwork_url: song.artwork,
+      thumbnail: song.thumbnail,
+      streamUrl: song.streamUrl || song.url,
+      stream_url: song.streamUrl || song.url,
+      audio_url: song.url || song.streamUrl,
+      url: song.url || song.streamUrl,
+      lyrics: song.lyrics,
+      synced_lyrics: song.syncedLyrics,
+      duration: song.duration,
+      duration_seconds: song.duration,
+    },
+    index
+  );
+}
+
+async function fetchHiddenTunesSongsFromJson(): Promise<HiddenTunesSong[]> {
   try {
     const response = await fetch(SONGS_URL);
 
     if (!response.ok) {
-      console.log("Failed to fetch songs:", response.status);
+      console.log("Failed to fetch songs.json:", response.status);
       return [];
     }
 
@@ -293,14 +330,46 @@ export async function fetchHiddenTunesSongs(): Promise<HiddenTunesSong[]> {
       return [];
     }
 
-    return data.map(normalizeSong).filter((song) => Boolean(song.streamUrl));
+    const songs = data.map(normalizeSong).filter((song) => Boolean(song.streamUrl));
+
+    if (songs.length > 0) {
+      console.log(
+        `[HiddenTunes][catalog] loaded ${songs.length} song(s) from songs.json fallback`
+      );
+    }
+
+    return songs;
   } catch (error) {
-    console.log("Hidden Tunes songs fetch error:", error);
+    console.log("Hidden Tunes songs.json fetch error:", error);
     return [];
   }
 }
 
-export async function fetchHiddenTunesCatalog(): Promise<HiddenTunesDerivedCatalog> {
-  const songs = await fetchHiddenTunesSongs();
+export async function fetchHiddenTunesSongs(options?: {
+  forceRefresh?: boolean;
+}): Promise<HiddenTunesSong[]> {
+  try {
+    const normalized = await fetchAllHiddenTunesCatalogSongs({
+      forceRefresh: options?.forceRefresh,
+    });
+
+    const apiSongs = normalized
+      .map(mapNormalizedCatalogSong)
+      .filter((song) => Boolean(song.streamUrl));
+
+    if (apiSongs.length > 0) {
+      return apiSongs;
+    }
+  } catch (error) {
+    console.log("Hidden Tunes API catalog error, falling back to songs.json:", error);
+  }
+
+  return fetchHiddenTunesSongsFromJson();
+}
+
+export async function fetchHiddenTunesCatalog(options?: {
+  forceRefresh?: boolean;
+}): Promise<HiddenTunesDerivedCatalog> {
+  const songs = await fetchHiddenTunesSongs(options);
   return deriveHiddenTunesCatalog(songs);
 }

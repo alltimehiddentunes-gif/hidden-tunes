@@ -774,6 +774,73 @@ export async function hydrateHiddenTunesCatalogCache(): Promise<
   return cached;
 }
 
+const FULL_CATALOG_PAGE_LIMIT = 100;
+const FULL_CATALOG_MAX_PAGES = 60;
+/** Below this count, AsyncStorage may only hold a home-screen slice — refetch all pages. */
+const FULL_CATALOG_TRUSTED_CACHE_MIN = 50;
+
+/**
+ * Loads the full public catalog from hidden-tunes-api (paginated /api/songs).
+ * Merges into the existing v5 cache via getHiddenTunesSongsPage.
+ */
+export async function fetchAllHiddenTunesCatalogSongs(options?: {
+  forceRefresh?: boolean;
+}): Promise<HiddenTunesNormalizedSong[]> {
+  const forceRefresh = Boolean(options?.forceRefresh);
+
+  if (!forceRefresh) {
+    const cached = await hydrateHiddenTunesCatalogCache();
+    if (cached.length >= FULL_CATALOG_TRUSTED_CACHE_MIN) {
+      console.log(
+        `[HiddenTunes][catalog] using cached catalog (${cached.length} songs)`
+      );
+      return cached;
+    }
+  }
+
+  let page = 1;
+  let hasMore = true;
+
+  try {
+    while (hasMore && page <= FULL_CATALOG_MAX_PAGES) {
+      const result = await getHiddenTunesSongsPage({
+        page,
+        limit: FULL_CATALOG_PAGE_LIMIT,
+        forceRefresh: forceRefresh && page === 1,
+      });
+
+      if (!result.songs.length) {
+        break;
+      }
+
+      hasMore = result.hasMore;
+      page = result.nextPage;
+    }
+
+    const merged = songsMemoryCache?.length
+      ? songsMemoryCache
+      : await hydrateHiddenTunesCatalogCache();
+
+    if (merged.length > 0) {
+      console.log(
+        `[HiddenTunes][catalog] loaded ${merged.length} songs from API (${HIDDEN_TUNES_API_BASE_URL})`
+      );
+      return merged;
+    }
+  } catch (error) {
+    console.log("Hidden Tunes full catalog API error:", error);
+  }
+
+  const fallback = await hydrateHiddenTunesCatalogCache();
+  if (fallback.length > 0) {
+    console.log(
+      `[HiddenTunes][catalog] API fetch incomplete; using partial cache (${fallback.length} songs)`
+    );
+  }
+
+  return fallback;
+}
+
 export function getHiddenTunesCatalogSnapshot(): HiddenTunesNormalizedSong[] {
   return songsMemoryCache?.length ? songsMemoryCache : [];
 }
