@@ -13,8 +13,23 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { COLORS } from "../../constants/theme";
+import MiniPlayer from "../MiniPlayer";
 
 type ShellRoute = "/music-feed" | "/worlds" | "/player" | "/auth";
+
+const MINI_PLAYER_ROUTES = [
+  "/music-feed",
+  "/worlds",
+  "/queue",
+  "/playlists",
+  "/recently-played",
+  "/radio",
+  "/lyrics",
+  "/player",
+  "/cloud-playlists",
+] as const;
+
+const MINI_PLAYER_SPACE = 188;
 
 type NavItem = {
   label: string;
@@ -62,6 +77,13 @@ function isActiveRoute(pathname: string, item: NavItem) {
   });
 }
 
+function isMiniPlayerRoute(pathname: string) {
+  return MINI_PLAYER_ROUTES.some((route) => {
+    if (pathname === route) return true;
+    return pathname.startsWith(`${route}/`);
+  });
+}
+
 export default function AppShell({
   children,
   style,
@@ -73,6 +95,7 @@ export default function AppShell({
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
   const bottomOffset = Math.max(insets.bottom, 10);
+  const showMiniPlayer = isMiniPlayerRoute(pathname);
 
   const items = useMemo(
     () =>
@@ -85,7 +108,16 @@ export default function AppShell({
 
   return (
     <View style={[styles.shell, style]}>
-      <View style={styles.content}>{children}</View>
+      <View
+        style={[
+          styles.content,
+          showMiniPlayer && { paddingBottom: MINI_PLAYER_SPACE + bottomOffset },
+        ]}
+      >
+        {children}
+      </View>
+
+      {showMiniPlayer && <MiniPlayer />}
 
       <View
         pointerEvents="box-none"
