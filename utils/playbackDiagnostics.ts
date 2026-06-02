@@ -127,6 +127,27 @@ export function logAutoNextSkipped(
 
 export function logQueueIndexMismatch(details: PlaybackDiagDetails = {}) {
   logPlaybackDiagnostic("queue_index_mismatch", details);
+  logQueuePlaybackEvent("queue_index_mismatch", details);
+}
+
+export type QueuePlaybackEvent =
+  | "queue_next_start"
+  | "queue_next_success"
+  | "queue_previous_start"
+  | "queue_previous_success"
+  | "queue_repeat_one_restart"
+  | "queue_end_reached"
+  | "queue_index_mismatch";
+
+/** Temporary queue transition diagnostics for Phase 3 validation. */
+export function logQueuePlaybackEvent(
+  event: QueuePlaybackEvent,
+  details: PlaybackDiagDetails = {}
+) {
+  console.log(`[HTQueue] ${event}`, {
+    at: Date.now(),
+    ...details,
+  });
 }
 
 export function logRepeatModeState(mode: string, details: PlaybackDiagDetails = {}) {
