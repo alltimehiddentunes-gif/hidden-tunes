@@ -1,6 +1,9 @@
+import { useCallback, useMemo, useState } from "react";
 import {
+  Alert,
+  FlatList,
   Image,
-  ScrollView,
+  RefreshControl,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -9,108 +12,217 @@ import {
 
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 
+import AppShell from "../components/navigation/AppShell";
 import { COLORS, GRADIENTS } from "../constants/theme";
+import {
+  clearDownloads,
+  deleteDownload,
+  getDownloadedSongs,
+  type DownloadedSong,
+} from "../services/downloads";
 
-const downloadedSongs = [
-  {
-    id: "1",
-    title: "Lonely Road",
-    artist: "Caasi Wills",
-    cover: require("../assets/images/cover1.jpg"),
-    size: "8.4 MB",
-  },
-  {
-    id: "2",
-    title: "Midnight Drive",
-    artist: "Hidden Tunes",
-    cover: require("../assets/images/cover2.jpg"),
-    size: "6.1 MB",
-  },
-  {
-    id: "3",
-    title: "Porch Light Still On",
-    artist: "Caasi Wills",
-    cover: require("../assets/images/cover3.jpg"),
-    size: "7.3 MB",
-  },
-];
+function formatDate(value?: string) {
+  if (!value) return "Saved offline";
+
+  try {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "Saved offline";
+
+    return `Saved ${date.toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    })}`;
+  } catch {
+    return "Saved offline";
+  }
+}
 
 export default function DownloadsScreen() {
-  return (
-    <LinearGradient colors={GRADIENTS.main} style={styles.container}>
-      <View style={styles.glowPurple} />
-      <View style={styles.glowCyan} />
+  const [downloads, setDownloads] = useState<DownloadedSong[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
 
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.iconButton} onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={26} color={COLORS.text} />
-        </TouchableOpacity>
+  const downloadCountLabel = useMemo(() => {
+    return `${downloads.length} saved track${downloads.length === 1 ? "" : "s"}`;
+  }, [downloads.length]);
 
-        <View>
-          <Text style={styles.headerTitle}>Offline</Text>
-          <Text style={styles.headerSubtitle}>Saved music</Text>
+  const loadDownloads = useCallback(async () => {
+    setDownloads(await getDownloadedSongs());
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadDownloads();
+    }, [loadDownloads])
+  );
+
+  const refreshDownloads = useCallback(async () => {
+    try {
+      setRefreshing(true);
+      await loadDownloads();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [loadDownloads]);
+
+  const handleDeleteDownload = useCallback((song: DownloadedSong) => {
+    Alert.alert(
+      "Remove download?",
+      `${song.title} will be removed from offline storage.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Remove",
+          style: "destructive",
+          onPress: async () => {
+            await deleteDownload(song.id);
+            await loadDownloads();
+          },
+        },
+      ]
+    );
+  }, [loadDownloads]);
+
+  const handleClearDownloads = useCallback(() => {
+    if (downloads.length === 0) return;
+
+    Alert.alert(
+      "Clear downloads?",
+      "All saved offline tracks will be removed from this device.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Clear",
+          style: "destructive",
+          onPress: async () => {
+            await clearDownloads();
+            await loadDownloads();
+          },
+        },
+      ]
+    );
+  }, [downloads.length, loadDownloads]);
+
+  const renderDownload = useCallback(
+    ({ item }: { item: DownloadedSong }) => (
+      <View style={styles.songCard}>
+        {item.cover ? (
+          <Image source={{ uri: item.cover }} style={styles.cover} />
+        ) : (
+          <View style={styles.coverPlaceholder}>
+            <Ionicons name="musical-notes" size={28} color={COLORS.textMuted} />
+          </View>
+        )}
+
+        <View style={styles.songInfo}>
+          <Text numberOfLines={1} style={styles.songTitle}>
+            {item.title}
+          </Text>
+
+          <Text numberOfLines={1} style={styles.artist}>
+            {item.artist}
+          </Text>
+
+          <View style={styles.offlineBadge}>
+            <Ionicons name="cloud-done" size={12} color={COLORS.cyan} />
+            <Text style={styles.offlineText}>{formatDate(item.downloadedAt)}</Text>
+          </View>
         </View>
 
-        <TouchableOpacity style={styles.iconButton}>
-          <Ionicons name="download-outline" size={22} color={COLORS.text} />
+        <TouchableOpacity
+          activeOpacity={0.82}
+          accessibilityLabel={`Remove ${item.title} download`}
+          style={styles.removeButton}
+          onPress={() => handleDeleteDownload(item)}
+        >
+          <Ionicons name="trash-outline" size={19} color={COLORS.textMuted} />
         </TouchableOpacity>
       </View>
+    ),
+    [handleDeleteDownload]
+  );
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
-        <LinearGradient colors={GRADIENTS.neon} style={styles.storageBorder}>
-          <View style={styles.storageCard}>
-            <View>
-              <Text style={styles.storageLabel}>Storage</Text>
-              <Text style={styles.storageValue}>21.8 MB</Text>
-            </View>
+  return (
+    <AppShell>
+      <LinearGradient colors={GRADIENTS.main} style={styles.container}>
+        <View style={styles.glowPurple} />
+        <View style={styles.glowCyan} />
 
-            <View style={styles.progressBar}>
-              <View style={styles.progressFill} />
-            </View>
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.iconButton} onPress={() => router.back()}>
+            <Ionicons name="chevron-back" size={26} color={COLORS.text} />
+          </TouchableOpacity>
+
+          <View style={styles.headerCopy}>
+            <Text style={styles.headerTitle}>Downloads</Text>
+            <Text style={styles.headerSubtitle}>{downloadCountLabel}</Text>
           </View>
-        </LinearGradient>
 
-        <Text style={styles.sectionTitle}>Downloaded</Text>
+          {downloads.length > 0 ? (
+            <TouchableOpacity style={styles.iconButton} onPress={handleClearDownloads}>
+              <Ionicons name="trash-outline" size={21} color={COLORS.text} />
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.iconButtonPlaceholder} />
+          )}
+        </View>
 
-        {downloadedSongs.map((song) => (
-          <TouchableOpacity key={song.id} style={styles.songCard}>
-            <Image source={song.cover} style={styles.cover} />
+        <FlatList
+          data={downloads}
+          keyExtractor={(item) => item.id}
+          renderItem={renderDownload}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.listContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={refreshDownloads}
+              tintColor={COLORS.primary}
+            />
+          }
+          ListHeaderComponent={
+            <LinearGradient colors={GRADIENTS.neon} style={styles.summaryBorder}>
+              <View style={styles.summaryCard}>
+                <View style={styles.summaryIcon}>
+                  <Ionicons name="download-outline" size={26} color={COLORS.primaryGlow} />
+                </View>
 
-            <View style={styles.songInfo}>
-              <Text numberOfLines={1} style={styles.songTitle}>
-                {song.title}
-              </Text>
-
-              <Text numberOfLines={1} style={styles.artist}>
-                {song.artist}
-              </Text>
-
-              <View style={styles.offlineBadge}>
-                <Ionicons name="cloud-done" size={12} color={COLORS.cyan} />
-                <Text style={styles.offlineText}>Offline</Text>
+                <View style={styles.summaryCopy}>
+                  <Text style={styles.summaryLabel}>Offline Library</Text>
+                  <Text style={styles.summaryValue}>{downloadCountLabel}</Text>
+                  <Text style={styles.summaryText}>
+                    Only tracks saved by the app appear here.
+                  </Text>
+                </View>
               </View>
-            </View>
+            </LinearGradient>
+          }
+          ListEmptyComponent={
+            <View style={styles.emptyState}>
+              <View style={styles.emptyIcon}>
+                <Ionicons name="download-outline" size={54} color={COLORS.primary} />
+              </View>
 
-            <View style={styles.rightSection}>
-              <Text style={styles.size}>{song.size}</Text>
+              <Text style={styles.emptyTitle}>No downloads yet</Text>
+              <Text style={styles.emptyText}>
+                Saved offline tracks will appear here when real downloads exist on this device.
+              </Text>
 
-              <TouchableOpacity style={styles.moreButton}>
-                <Ionicons
-                  name="ellipsis-vertical"
-                  size={18}
-                  color={COLORS.textMuted}
-                />
+              <TouchableOpacity
+                activeOpacity={0.86}
+                style={styles.browseButton}
+                onPress={() => router.push("/music-feed" as any)}
+              >
+                <Ionicons name="musical-notes" size={18} color="#000" />
+                <Text style={styles.browseButtonText}>Browse Music</Text>
               </TouchableOpacity>
             </View>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-    </LinearGradient>
+          }
+        />
+      </LinearGradient>
+    </AppShell>
   );
 }
 
@@ -119,7 +231,6 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingTop: 58,
   },
-
   glowPurple: {
     position: "absolute",
     top: 40,
@@ -129,7 +240,6 @@ const styles = StyleSheet.create({
     borderRadius: 140,
     backgroundColor: "rgba(168,85,247,0.2)",
   },
-
   glowCyan: {
     position: "absolute",
     top: 280,
@@ -139,7 +249,6 @@ const styles = StyleSheet.create({
     borderRadius: 165,
     backgroundColor: "rgba(34,211,238,0.12)",
   },
-
   header: {
     paddingHorizontal: 20,
     paddingBottom: 18,
@@ -147,7 +256,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
-
+  headerCopy: {
+    flex: 1,
+    alignItems: "center",
+  },
   iconButton: {
     width: 42,
     height: 42,
@@ -158,14 +270,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.1)",
   },
-
+  iconButtonPlaceholder: {
+    width: 42,
+    height: 42,
+  },
   headerTitle: {
     color: COLORS.text,
     fontSize: 18,
     fontWeight: "900",
     textAlign: "center",
   },
-
   headerSubtitle: {
     color: COLORS.textMuted,
     fontSize: 12,
@@ -173,61 +287,55 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontWeight: "700",
   },
-
-  scrollContent: {
+  listContent: {
     paddingHorizontal: 20,
-    paddingBottom: 120,
+    paddingBottom: 150,
   },
-
-  storageBorder: {
+  summaryBorder: {
     borderRadius: 30,
     padding: 2,
-    marginBottom: 28,
+    marginBottom: 24,
   },
-
-  storageCard: {
+  summaryCard: {
+    minHeight: 118,
     borderRadius: 28,
-    padding: 20,
+    padding: 18,
     backgroundColor: "rgba(18,7,31,0.95)",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
   },
-
-  storageLabel: {
+  summaryIcon: {
+    width: 54,
+    height: 54,
+    borderRadius: 19,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(168,85,247,0.14)",
+  },
+  summaryCopy: {
+    flex: 1,
+  },
+  summaryLabel: {
     color: COLORS.textMuted,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "900",
-    marginBottom: 6,
     textTransform: "uppercase",
     letterSpacing: 1,
   },
-
-  storageValue: {
+  summaryValue: {
     color: COLORS.text,
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: "900",
+    marginTop: 5,
   },
-
-  progressBar: {
-    height: 8,
-    borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.08)",
-    marginTop: 18,
-    overflow: "hidden",
+  summaryText: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: "700",
+    marginTop: 5,
   },
-
-  progressFill: {
-    width: "38%",
-    height: "100%",
-    backgroundColor: COLORS.primary,
-    borderRadius: 999,
-  },
-
-  sectionTitle: {
-    color: COLORS.text,
-    fontSize: 20,
-    fontWeight: "900",
-    marginBottom: 18,
-  },
-
   songCard: {
     marginBottom: 14,
     borderRadius: 24,
@@ -238,67 +346,103 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
   },
-
   cover: {
     width: 72,
     height: 72,
     borderRadius: 20,
     backgroundColor: COLORS.card,
   },
-
+  coverPlaceholder: {
+    width: 72,
+    height: 72,
+    borderRadius: 20,
+    backgroundColor: COLORS.card,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   songInfo: {
     flex: 1,
     marginLeft: 14,
   },
-
   songTitle: {
     color: COLORS.text,
     fontSize: 16,
     fontWeight: "900",
   },
-
   artist: {
     color: COLORS.textMuted,
+    marginTop: 5,
     fontSize: 13,
     fontWeight: "700",
-    marginTop: 5,
   },
-
   offlineBadge: {
-    alignSelf: "flex-start",
-    marginTop: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-    backgroundColor: "rgba(34,211,238,0.11)",
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
+    alignSelf: "flex-start",
+    marginTop: 9,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    backgroundColor: "rgba(34,211,238,0.12)",
   },
-
   offlineText: {
     color: COLORS.cyan,
     fontSize: 11,
     fontWeight: "900",
+    marginLeft: 5,
   },
-
-  rightSection: {
-    alignItems: "flex-end",
-    justifyContent: "space-between",
-    height: 72,
-  },
-
-  size: {
-    color: COLORS.textMuted,
-    fontSize: 12,
-    fontWeight: "700",
-  },
-
-  moreButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+  removeButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+  },
+  emptyState: {
+    alignItems: "center",
+    paddingTop: 46,
+    paddingHorizontal: 22,
+  },
+  emptyIcon: {
+    width: 118,
+    height: 118,
+    borderRadius: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(168,85,247,0.1)",
+    borderWidth: 1,
+    borderColor: "rgba(168,85,247,0.25)",
+  },
+  emptyTitle: {
+    color: COLORS.text,
+    fontSize: 22,
+    fontWeight: "900",
+    marginTop: 18,
+  },
+  emptyText: {
+    color: COLORS.textMuted,
+    textAlign: "center",
+    marginTop: 8,
+    lineHeight: 20,
+    fontWeight: "700",
+  },
+  browseButton: {
+    height: 48,
+    borderRadius: 18,
+    backgroundColor: COLORS.primary,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingHorizontal: 18,
+    marginTop: 22,
+  },
+  browseButtonText: {
+    color: "#000",
+    fontSize: 14,
+    fontWeight: "900",
   },
 });

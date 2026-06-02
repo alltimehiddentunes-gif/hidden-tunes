@@ -1,5 +1,6 @@
-﻿import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
+  Alert,
   FlatList,
   Image,
   Modal,
@@ -35,9 +36,44 @@ import {
 
 type CatalogSmartPlaylist = SmartPlaylist & {
   catalogKind?: HiddenTunesCatalogPlaylist["kind"];
+  catalogPlaylistId?: string;
 };
 
 type LibraryPlaylist = UserPlaylist | SmartPlaylist | CatalogSmartPlaylist;
+
+type LibraryShortcut = {
+  label: string;
+  description: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  href: "/downloads" | "/queue" | "/recently-played" | "/music-feed";
+};
+
+const LIBRARY_SHORTCUTS: LibraryShortcut[] = [
+  {
+    label: "Downloads",
+    description: "Saved offline music",
+    icon: "download-outline",
+    href: "/downloads",
+  },
+  {
+    label: "Queue",
+    description: "Upcoming playback",
+    icon: "list-outline",
+    href: "/queue",
+  },
+  {
+    label: "Recently Played",
+    description: "Listening history",
+    icon: "time-outline",
+    href: "/recently-played",
+  },
+  {
+    label: "Explore Music",
+    description: "Browse the catalog",
+    icon: "sparkles-outline",
+    href: "/music-feed",
+  },
+];
 
 function toCatalogSmartPlaylist(playlist: HiddenTunesCatalogPlaylist): CatalogSmartPlaylist {
   return {
@@ -52,6 +88,7 @@ function toCatalogSmartPlaylist(playlist: HiddenTunesCatalogPlaylist): CatalogSm
     smartType: playlist.kind === "genre" ? "genre" : playlist.kind === "artist" ? "artist" : "recently-added",
     isSmart: true,
     catalogKind: playlist.kind,
+    catalogPlaylistId: playlist.id,
   };
 }
 
@@ -74,6 +111,10 @@ function formatDate(value?: string) {
 
 function isSmartPlaylist(playlist: LibraryPlaylist): playlist is SmartPlaylist {
   return Boolean((playlist as SmartPlaylist).isSmart);
+}
+
+function isCatalogSmartPlaylist(playlist: LibraryPlaylist): playlist is CatalogSmartPlaylist {
+  return Boolean((playlist as CatalogSmartPlaylist).catalogPlaylistId);
 }
 
 export default function PlaylistsScreen() {
@@ -208,6 +249,14 @@ export default function PlaylistsScreen() {
   const totalFound = filteredPlaylists.length + filteredSmartPlaylists.length;
 
   function openPlaylist(playlist: LibraryPlaylist) {
+    if (isCatalogSmartPlaylist(playlist)) {
+      router.push({
+        pathname: "/playlist/[id]",
+        params: { id: playlist.catalogPlaylistId },
+      } as any);
+      return;
+    }
+
     if (isSmartPlaylist(playlist)) {
       router.push("/music-feed" as any);
       return;
@@ -217,6 +266,10 @@ export default function PlaylistsScreen() {
       pathname: "/playlist/[id]",
       params: { id: playlist.id },
     } as any);
+  }
+
+  function confirmRenamePlaylist(playlist: UserPlaylist) {
+    openRenameModal(playlist);
   }
 
   function renderPlaylistCard(item: LibraryPlaylist, smart = false) {
@@ -254,7 +307,7 @@ export default function PlaylistsScreen() {
           </View>
 
           <Text style={styles.meta} numberOfLines={2}>
-            {item.tracks.length} track{item.tracks.length === 1 ? "" : "s"} Â·{" "}
+            {item.tracks.length} track{item.tracks.length === 1 ? "" : "s"} ?{" "}
             {smart
               ? item.description || "Made for you"
               : `Updated ${formatDate(item.updatedAt)}`}
@@ -264,8 +317,9 @@ export default function PlaylistsScreen() {
         {!smart && (
           <TouchableOpacity
             activeOpacity={0.82}
+            accessibilityLabel={`Rename ${item.title}`}
             style={styles.moreButton}
-            onPress={() => openRenameModal(item as UserPlaylist)}
+            onPress={() => confirmRenamePlaylist(item as UserPlaylist)}
           >
             <Ionicons
               name="create-outline"
@@ -323,7 +377,7 @@ export default function PlaylistsScreen() {
                 </Text>
 
                 <Text style={styles.heroSubtitle}>
-                  {totalSongs} saved track{totalSongs === 1 ? "" : "s"} Â·{" "}
+                  {totalSongs} saved track{totalSongs === 1 ? "" : "s"} ?{" "}
                   {smartPlaylists.length} smart mix
                   {smartPlaylists.length === 1 ? "" : "es"}
                 </Text>
@@ -336,6 +390,27 @@ export default function PlaylistsScreen() {
                   color={COLORS.primary}
                 />
               </View>
+            </View>
+
+            <View style={styles.shortcutGrid}>
+              {LIBRARY_SHORTCUTS.map((item) => (
+                <TouchableOpacity
+                  key={item.href}
+                  activeOpacity={0.86}
+                  style={styles.shortcutCard}
+                  onPress={() => router.push(item.href as any)}
+                >
+                  <View style={styles.shortcutIcon}>
+                    <Ionicons name={item.icon} size={21} color={COLORS.primaryGlow} />
+                  </View>
+                  <View style={styles.shortcutCopy}>
+                    <Text style={styles.shortcutTitle}>{item.label}</Text>
+                    <Text style={styles.shortcutText} numberOfLines={1}>
+                      {item.description}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
             </View>
 
             <View style={styles.searchBox}>
@@ -366,7 +441,7 @@ export default function PlaylistsScreen() {
                   <View>
                     <Text style={styles.sectionTitle}>Smart Mixes</Text>
                     <Text style={styles.sectionSubtitle}>
-                      Made from your listening
+                      Catalog and listening-based collections
                     </Text>
                   </View>
 
@@ -583,6 +658,52 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.08)",
     alignItems: "center",
     justifyContent: "center",
+  },
+
+  shortcutGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    marginBottom: 20,
+  },
+
+  shortcutCard: {
+    width: "48%",
+    minHeight: 74,
+    borderRadius: 20,
+    padding: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: "rgba(255,255,255,0.065)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+  },
+
+  shortcutIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(168,85,247,0.14)",
+  },
+
+  shortcutCopy: {
+    flex: 1,
+  },
+
+  shortcutTitle: {
+    color: COLORS.text,
+    fontSize: 13,
+    fontWeight: "900",
+  },
+
+  shortcutText: {
+    color: COLORS.textMuted,
+    fontSize: 11,
+    fontWeight: "700",
+    marginTop: 3,
   },
 
   searchBox: {
@@ -869,5 +990,3 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
 });
-
-
