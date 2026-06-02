@@ -343,6 +343,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const inFlightPlaySongIdRef = useRef<string | null>(null);
   const queueTransitionRef = useRef(false);
   const queueTransitionTailRef = useRef(Promise.resolve());
+  const lastAutoAdvanceRequestRef = useRef({ songId: "", requestedAt: 0 });
   const autoAdvanceRef = useRef(false);
   const skipEmotionalQueueRefreshRef = useRef(false);
   const lastFinishEventRef = useRef({
@@ -992,19 +993,36 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const getNextQueueIndex = useCallback(
     (currentIndex: number, queueLength: number) => {
-      if (queueLength <= 0) return -1;
-
-      if (shuffleRef.current && queueLength > 1) {
-        let randomIndex = currentIndex;
-
-        while (randomIndex === currentIndex) {
-          randomIndex = Math.floor(Math.random() * queueLength);
-        }
-
-        return randomIndex;
+      if (queueLength <= 0) {
+        console.log("queue_invalid_index_prevented", { currentIndex, queueLength });
+        return -1;
       }
 
-      const nextIndex = currentIndex + 1;
+      const safeCurrentIndex = Math.max(0, Math.min(currentIndex, queueLength - 1));
+
+      if (shuffleRef.current && queueLength > 1) {
+        let randomIndex = safeCurrentIndex;
+        let attempts = 0;
+
+        while (randomIndex === safeCurrentIndex && attempts < 8) {
+          randomIndex = Math.floor(Math.random() * queueLength);
+          attempts += 1;
+        }
+
+        const safeRandomIndex = Math.max(0, Math.min(randomIndex, queueLength - 1));
+        if (safeRandomIndex < 0 || safeRandomIndex >= queueLength) {
+          console.log("queue_invalid_index_prevented", {
+            currentIndex,
+            queueLength,
+            randomIndex,
+          });
+          return -1;
+        }
+
+        return safeRandomIndex;
+      }
+
+      const nextIndex = safeCurrentIndex + 1;
 
       if (nextIndex >= queueLength) {
         return repeatModeRef.current === "all" ? 0 : -1;
@@ -1017,9 +1035,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const getPreviousQueueIndex = useCallback(
     (currentIndex: number, queueLength: number) => {
-      if (queueLength <= 0) return -1;
+      if (queueLength <= 0) {
+        console.log("queue_invalid_index_prevented", { currentIndex, queueLength });
+        return -1;
+      }
 
-      const previousIndex = currentIndex - 1;
+      const safeCurrentIndex = Math.max(0, Math.min(currentIndex, queueLength - 1));
+      const previousIndex = safeCurrentIndex - 1;
 
       if (previousIndex < 0) {
         return repeatModeRef.current === "all" ? queueLength - 1 : 0;
@@ -1029,7 +1051,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     },
     []
   );
-
   const getActiveQueuePlaybackState = useCallback(() => {
     const queue = activeQueueRef.current.filter((song) => !isYouTubeSong(song));
     const currentId = currentSongRef.current?.id;
@@ -1071,25 +1092,37 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     };
   }, [isYouTubeSong]);
 
-  const runQueueTransition = useCallback(async (transition: () => Promise<void>) => {
-    const transitionTask = queueTransitionTailRef.current
-      .catch(() => undefined)
-      .then(async () => {
-        queueTransitionRef.current = true;
+  const runQueueTransition = useCallback(
+    async (transition: () => Promise<void>, options?: { dropIfLocked?: boolean }) => {
+      if (queueTransitionRef.current && options?.dropIfLocked) {
+        console.log("queue_transition_locked", {
+          reason: "drop_rapid_manual_transition",
+        });
+        return;
+      }
 
-        try {
-          await transition();
-        } finally {
-          queueTransitionRef.current = false;
-        }
+      const transitionTask = queueTransitionTailRef.current
+        .catch(() => undefined)
+        .then(async () => {
+          queueTransitionRef.current = true;
+          console.log("queue_transition_locked");
+
+          try {
+            await transition();
+          } finally {
+            queueTransitionRef.current = false;
+            console.log("queue_transition_released");
+          }
+        });
+
+      queueTransitionTailRef.current = transitionTask.catch((error) => {
+        console.log("Queue transition error:", error);
       });
 
-    queueTransitionTailRef.current = transitionTask.catch((error) => {
-      console.log("Queue transition error:", error);
-    });
-
-    await transitionTask;
-  }, []);
+      await transitionTask;
+    },
+    []
+  );
 
   const getUpcomingSong = useCallback((): AppSong | null => {
     const { queue, safeIndex } = getActiveQueuePlaybackState();
@@ -1365,6 +1398,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             repeatMode: repeatModeRef.current,
           });
           setIsPlaying(false);
+          setPositionMillis(0);
+          setDurationMillis(0);
           return;
         }
 
@@ -1374,6 +1409,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           });
           pendingSmartExtendRef.current = true;
           setIsPlaying(false);
+          setPositionMillis(0);
+          setDurationMillis(0);
           return;
         }
 
@@ -1385,6 +1422,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             queueLength: queue.length,
           });
           setIsPlaying(false);
+          setPositionMillis(0);
+          setDurationMillis(0);
         } else {
           logAutoNextSuccess({ reason: "smart_extend", queueLength: queue.length });
         }
@@ -1417,7 +1456,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
       void persistActiveQueue(queue, safeIndex, activeQueueModeRef.current);
       void removeStoredValues([POSITION_KEY]);
-    });
+    }, { dropIfLocked: true });
   }, [
     runQueueTransition,
     getActiveQueuePlaybackState,
@@ -1505,6 +1544,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const nextIndex = getNextQueueIndex(safeIndex, queue.length);
 
     if (isChangingTrackRef.current || autoAdvanceRef.current) {
+      console.log("queue_duplicate_advance_prevented", {
+        reason: isChangingTrackRef.current ? "changing_track" : "already_advancing",
+        songId: currentSongRef.current?.id || "",
+      });
       logAutoNextSkipped(
         isChangingTrackRef.current ? "already_changing_track" : "already_advancing",
         { songId: currentSongRef.current?.id }
@@ -1561,6 +1604,18 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    if (
+      lastAutoAdvanceRequestRef.current.songId === songId &&
+      now - lastAutoAdvanceRequestRef.current.requestedAt < FINISH_DEBOUNCE_MS
+    ) {
+      console.log("queue_duplicate_advance_prevented", {
+        reason: "duplicate_auto_advance_request",
+        songId,
+      });
+      return;
+    }
+
+    lastAutoAdvanceRequestRef.current = { songId, requestedAt: now };
     lastFinishEventRef.current = {
       songId,
       handledAt: now,
@@ -2005,7 +2060,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             currentSongRef.current = normalizedSong;
             setIsPlaying(false);
             setPositionMillis(0);
+            positionMillisRef.current = 0;
             setDurationMillis(0);
+            durationMillisRef.current = 0;
 
             if (
               preloadedSongIdRef.current &&
@@ -2425,7 +2482,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         previousIndex,
         songId: queue[previousIndex]?.id,
       });
-    });
+    }, { dropIfLocked: true });
   }, [
     runQueueTransition,
     getActiveQueuePlaybackState,
@@ -2986,6 +3043,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           }
 
           setIsPlaying(false);
+          setPositionMillis(0);
+          setDurationMillis(0);
         } else {
           await bridgeHiddenAudioPlay();
         }
