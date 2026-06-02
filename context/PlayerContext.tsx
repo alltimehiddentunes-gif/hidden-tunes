@@ -472,6 +472,32 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setIsPlayingState(value);
   }, []);
 
+  const syncHiddenAudioState = useCallback(
+    async (reason: string) => {
+      console.log("hidden_audio_state_sync_start", { reason });
+
+      try {
+        const progress = await bridgeGetProgress();
+
+        positionMillisRef.current = progress.positionMillis;
+        setPositionMillis(progress.positionMillis);
+
+        if (progress.durationMillis > 0) {
+          durationMillisRef.current = progress.durationMillis;
+          setDurationMillis(progress.durationMillis);
+        }
+
+        setIsPlaying(progress.isPlaying);
+        console.log("hidden_audio_state_sync_success", { reason, progress });
+        return progress;
+      } catch (error) {
+        console.log("hidden_audio_state_sync_failed", { reason, error });
+        return null;
+      }
+    },
+    [setDurationMillis, setIsPlaying, setPositionMillis]
+  );
+
   const setStoredValueIfChanged = useCallback(
     async (key: string, value: string) => {
       if (storageValueCacheRef.current[key] === value) return;
@@ -1440,7 +1466,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           if (activeSound) {
             await activeSound.setPositionAsync(0);
             await activeSound.playAsync();
-            setIsPlaying(true);
+            console.log("hidden_audio_fake_play_prevented", {
+              reason: "legacy_playback_not_state_source",
+            });
+            setIsPlaying(false);
             logAutoNextSuccess({ reason: "repeat_one_restart" });
           } else {
             logAutoNextFailure({ reason: "repeat_one_sound_unloaded" });
@@ -2006,6 +2035,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
                 reason: "missing_audio_source",
                 engine: "hidden_audio",
               });
+              console.log("hidden_audio_load_play_failed_restore_previous", {
+                songId: normalizedSong.id,
+                reason: "missing_audio_source",
+              });
+              setCurrentSong(previousSongBeforeHiddenAudio);
+              currentSongRef.current = previousSongBeforeHiddenAudio;
               setIsPlaying(false);
               return;
             }
@@ -2054,14 +2089,29 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             hiddenAudioActiveRef.current = true;
 
             const startPositionMillis = Math.round(startPositionSeconds * 1000);
-            const statusAfterPlay = await bridgeGetProgress();
+            const statusAfterPlay = await syncHiddenAudioState("load_and_play_after_play");
             console.log("hidden_audio_status_after_play", statusAfterPlay);
-            setPositionMillis(statusAfterPlay.positionMillis || startPositionMillis);
-            setDurationMillis(
-              statusAfterPlay.durationMillis || Math.round(durationSeconds * 1000)
-            );
-            isPlayingRef.current = Boolean(statusAfterPlay.isPlaying);
-            setIsPlaying(statusAfterPlay.isPlaying);
+
+            if (statusAfterPlay) {
+              if (!statusAfterPlay.positionMillis) {
+                setPositionMillis(startPositionMillis);
+              }
+              if (!statusAfterPlay.durationMillis) {
+                setDurationMillis(Math.round(durationSeconds * 1000));
+              }
+              if (!statusAfterPlay.isPlaying) {
+                console.log("hidden_audio_fake_play_prevented", {
+                  songId: normalizedSong.id,
+                  reason: "native_status_not_playing_after_play",
+                });
+              }
+            } else {
+              console.log("hidden_audio_fake_play_prevented", {
+                songId: normalizedSong.id,
+                reason: "native_status_unavailable_after_play",
+              });
+              setIsPlaying(false);
+            }
 
             logAudioLoadSuccess({
               songId: normalizedSong.id,
@@ -2089,6 +2139,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               engine: "hidden_audio",
             });
             hiddenAudioActiveRef.current = false;
+            console.log("hidden_audio_load_play_failed_restore_previous", {
+              songId: normalizedSong.id,
+            });
             setCurrentSong(previousSongBeforeHiddenAudio);
             currentSongRef.current = previousSongBeforeHiddenAudio;
             setIsPlaying(false);
@@ -2356,7 +2409,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             setDurationMillis(progress.durationMillis);
           }
         } else {
-          setIsPlaying(true);
+          console.log("hidden_audio_fake_play_prevented", {
+              reason: "legacy_playback_not_state_source",
+            });
+            setIsPlaying(false);
         }
 
         return;
@@ -2429,9 +2485,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         }
 
         interruptDone = true;
-        setCurrentSong(selectedSong);
-        currentSongRef.current = selectedSong;
+        console.log("hidden_audio_fake_play_prevented", {
+          songId: selectedSong.id,
+          reason: "queue_waiting_for_native_load",
+        });
         setIsLoading(true);
+        setIsPlaying(false);
       }
 
       const currentLoadedSound = soundRef.current;
@@ -2470,7 +2529,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               await currentLoadedSound.playAsync();
             }
 
-            setIsPlaying(true);
+            console.log("hidden_audio_fake_play_prevented", {
+              reason: "legacy_playback_not_state_source",
+            });
+            setIsPlaying(false);
             savePlaybackSideEffects(selectedSong);
             return;
           }
@@ -2512,14 +2574,18 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       }
 
       if (switchingToNewSong) {
-        setCurrentSong(normalizedSong);
-        currentSongRef.current = normalizedSong;
+        console.log("hidden_audio_fake_play_prevented", {
+          songId: normalizedSong.id,
+          reason: "tap_waiting_for_native_load",
+        });
         setIsLoading(true);
-        setIsPlaying(true);
+        setIsPlaying(false);
       }
 
       if (isYouTubeSong(normalizedSong)) {
         console.log("Blocked playSong for YouTube. Route to /youtube-player instead.");
+        setIsPlaying(false);
+        setIsLoading(false);
         return;
       }
 
@@ -2535,6 +2601,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           songId: normalizedSong.id,
           source: "playSong",
         });
+        setIsLoading(false);
+        setIsPlaying(false);
         return;
       }
 
@@ -2542,6 +2610,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         const nativeQueue = queue
           .map(normalizeSong)
           .filter((item) => !isYouTubeSong(item));
+
+        if (!nativeQueue.length) {
+          setIsLoading(false);
+          setIsPlaying(false);
+          return;
+        }
 
         const repaired = repairQueueIndexForSong(
           nativeQueue,
@@ -2601,7 +2675,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               await currentLoadedSound.playAsync();
             }
 
-            setIsPlaying(true);
+            console.log("hidden_audio_fake_play_prevented", {
+              reason: "legacy_playback_not_state_source",
+            });
+            setIsPlaying(false);
             savePlaybackSideEffects(normalizedSong);
             return;
           }
@@ -2913,15 +2990,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           await bridgeHiddenAudioPlay();
         }
 
-        const progress = await bridgeGetProgress();
-        isPlayingRef.current = progress.isPlaying;
-        setIsPlaying(progress.isPlaying);
-        positionMillisRef.current = progress.positionMillis;
-        setPositionMillis(progress.positionMillis);
-        if (progress.durationMillis > 0) {
-          durationMillisRef.current = progress.durationMillis;
-          setDurationMillis(progress.durationMillis);
-        }
+        await syncHiddenAudioState("toggle_play_pause");
 
         logPauseResumeComplete({ engine: "hidden_audio" });
       } catch (error) {
@@ -2966,7 +3035,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       setIsPlaying(false);
     } else {
       await sound.playAsync();
-      setIsPlaying(true);
+      console.log("hidden_audio_fake_play_prevented", {
+              reason: "legacy_playback_not_state_source",
+            });
+            setIsPlaying(false);
     }
 
     logPauseResumeComplete({ engine: "native_audio" });
@@ -2979,8 +3051,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       if (hiddenAudioActiveRef.current) {
         clearFinishWatchdog("seek");
         await bridgeSeekTo(safeMillis);
-        const progress = await bridgeGetProgress();
-        const confirmedMillis = progress.positionMillis || safeMillis;
+        const progress = await syncHiddenAudioState("seek");
+        const confirmedMillis = progress?.positionMillis || safeMillis;
         positionMillisRef.current = confirmedMillis;
         setPositionMillis(confirmedMillis);
         await savePlaybackPosition(confirmedMillis);
