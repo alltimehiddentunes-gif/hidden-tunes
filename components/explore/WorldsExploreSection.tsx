@@ -14,7 +14,13 @@ import { COLORS } from "../../constants/theme";
 import { getWorldGalleryItems } from "../../utils/worldPresentation";
 import WorldCard from "../worlds/WorldCard";
 
-const WorldsExploreSection = memo(function WorldsExploreSection() {
+type WorldsExploreSectionProps = {
+  showSeeAll?: boolean;
+};
+
+const WorldsExploreSection = memo(function WorldsExploreSection({
+  showSeeAll = true,
+}: WorldsExploreSectionProps) {
   const worlds = useMemo(() => getWorldGalleryItems(), []);
 
   const renderItem = useCallback(
@@ -43,14 +49,16 @@ const WorldsExploreSection = memo(function WorldsExploreSection() {
           </Text>
         </View>
 
-        <TouchableOpacity
-          activeOpacity={0.86}
-          onPress={() => router.push("/worlds" as any)}
-          style={styles.seeAllButton}
-        >
-          <Text style={styles.seeAllText}>See all</Text>
-          <Ionicons name="arrow-forward" size={14} color={COLORS.primary} />
-        </TouchableOpacity>
+        {showSeeAll ? (
+          <TouchableOpacity
+            activeOpacity={0.86}
+            onPress={() => router.push("/worlds" as any)}
+            style={styles.seeAllButton}
+          >
+            <Text style={styles.seeAllText}>See all</Text>
+            <Ionicons name="arrow-forward" size={14} color={COLORS.primary} />
+          </TouchableOpacity>
+        ) : null}
       </View>
 
       <FlatList
