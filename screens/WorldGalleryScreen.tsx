@@ -1,7 +1,6 @@
 import { memo, useCallback, useMemo } from "react";
 import {
   FlatList,
-  SafeAreaView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -16,27 +15,64 @@ import WorldCard from "../components/worlds/WorldCard";
 import { COLORS, GRADIENTS } from "../constants/theme";
 import { getWorldGalleryItems } from "../utils/worldPresentation";
 
-function WorldGalleryScreen() {
+type WorldGalleryScreenProps = {
+  /** When true, renders inside parent ScrollView (no back header, no nested vertical list). */
+  embedded?: boolean;
+};
+
+function WorldGalleryScreen({ embedded = false }: WorldGalleryScreenProps) {
   const worlds = useMemo(() => getWorldGalleryItems(), []);
+
+  const openWorld = useCallback((worldId: string) => {
+    router.push({ pathname: "/worlds/[worldId]", params: { worldId } } as any);
+  }, []);
 
   const renderItem = useCallback(
     ({ item }: { item: (typeof worlds)[number] }) => (
       <WorldCard
         worldId={item.id}
         variant="gallery"
-        onPress={() =>
-          router.push({ pathname: "/worlds/[worldId]", params: { worldId: item.id } } as any)
-        }
+        onPress={() => openWorld(item.id)}
       />
     ),
-    []
+    [openWorld]
   );
 
   const keyExtractor = useCallback((item: (typeof worlds)[number]) => item.id, []);
 
+  if (embedded) {
+    return (
+      <View style={styles.embeddedSection}>
+        <View style={styles.embeddedHeader}>
+          <View style={styles.embeddedHeaderCopy}>
+            <Text style={styles.embeddedEyebrow}>GALLERY</Text>
+            <Text style={styles.embeddedTitle}>Emotional Worlds</Text>
+            <Text style={styles.embeddedLead}>
+              Five cinematic rooms built from mood, memory, and atmosphere.
+            </Text>
+          </View>
+          <View style={styles.embeddedIcon}>
+            <Ionicons name="planet" size={22} color={COLORS.primaryGlow} />
+          </View>
+        </View>
+
+        <View style={styles.embeddedList}>
+          {worlds.map((item) => (
+            <WorldCard
+              key={item.id}
+              worldId={item.id}
+              variant="gallery"
+              onPress={() => openWorld(item.id)}
+            />
+          ))}
+        </View>
+      </View>
+    );
+  }
+
   return (
     <LinearGradient colors={GRADIENTS.main} style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
+      <View style={styles.standaloneBody}>
         <View style={styles.topBar}>
           <TouchableOpacity
             activeOpacity={0.85}
@@ -63,7 +99,7 @@ function WorldGalleryScreen() {
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
         />
-      </SafeAreaView>
+      </View>
     </LinearGradient>
   );
 }
@@ -74,15 +110,15 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  safeArea: {
+  standaloneBody: {
     flex: 1,
+    paddingTop: 52,
   },
   topBar: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
     paddingHorizontal: 18,
-    paddingTop: 8,
   },
   backButton: {
     width: 42,
@@ -121,6 +157,55 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: 18,
-    paddingBottom: 40,
+    paddingBottom: 140,
+  },
+  embeddedSection: {
+    marginTop: 28,
+    borderRadius: 30,
+    padding: 18,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.09)",
+  },
+  embeddedHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+    marginBottom: 16,
+  },
+  embeddedHeaderCopy: {
+    flex: 1,
+  },
+  embeddedEyebrow: {
+    color: COLORS.cyan,
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 1.6,
+  },
+  embeddedTitle: {
+    color: COLORS.text,
+    fontSize: 22,
+    fontWeight: "900",
+    marginTop: 6,
+  },
+  embeddedLead: {
+    color: COLORS.textMuted,
+    fontSize: 13,
+    lineHeight: 19,
+    fontWeight: "700",
+    marginTop: 8,
+  },
+  embeddedIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(168,85,247,0.14)",
+    borderWidth: 1,
+    borderColor: "rgba(168,85,247,0.32)",
+  },
+  embeddedList: {
+    gap: 14,
   },
 });
