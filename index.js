@@ -1,5 +1,5 @@
 /**
- * Hidden Tunes entry — Android & iOS
+ * Hidden Tunes entry - Android & iOS
  *
  * DAILY ANDROID TESTING (standalone APK, no Metro):
  *   npm run build:preview:android
@@ -9,68 +9,8 @@
  *   npm run build:dev-client:android  (first time / native changes)
  *
  * EXPO GO (either platform):
- *   Do NOT import or register react-native-track-player.
- *   Expo Go lacks our native binary → native playback fallback only.
- *   Lock-screen native auto-next cannot be validated in Expo Go.
+ *   Native modules are unavailable in Expo Go.
+ *   Use only for quick UI checks, not playback QA.
  */
-
-const {
-  isTrackPlayerFeatureEnabled,
-  shouldSkipLegacyPlaybackRegistration,
-} = require("./constants/playbackConfig");
-const {
-  canRegisterTrackPlayerPlaybackService,
-  getExpoRuntimeLabel,
-  getPlatformRuntimeLabel,
-  isExpoGo,
-} = require("./utils/expoRuntime");
-
-if (__DEV__ && isExpoGo()) {
-  console.info(
-    `[HiddenTunes][${getPlatformRuntimeLabel()}] Expo Go — Track Player disabled; native playback binary unavailable.`
-  );
-}
-
-let trackPlayerServiceRegistered = false;
-
-if (shouldSkipLegacyPlaybackRegistration()) {
-  if (__DEV__) {
-    console.info(
-      `[HiddenTunes][${getPlatformRuntimeLabel()}] Hidden Audio POC — Track Player service registration skipped.`
-    );
-  }
-} else if (
-  isTrackPlayerFeatureEnabled() &&
-  canRegisterTrackPlayerPlaybackService()
-) {
-  if (!trackPlayerServiceRegistered) {
-    try {
-      const TrackPlayer = require("react-native-track-player").default;
-
-      TrackPlayer.registerPlaybackService(() =>
-        require("./services/playbackServiceRegistration").default
-      );
-
-      trackPlayerServiceRegistered = true;
-
-      if (__DEV__) {
-        console.info(
-          `[HiddenTunes][${getPlatformRuntimeLabel()}] Track Player service registered once (${getExpoRuntimeLabel()}).`
-        );
-      }
-    } catch (error) {
-      if (__DEV__) {
-        console.warn(
-          `[HiddenTunes][${getPlatformRuntimeLabel()}] Track Player registration skipped:`,
-          error
-        );
-      }
-    }
-  } else if (__DEV__) {
-    console.warn(
-      `[HiddenTunes][${getPlatformRuntimeLabel()}] Track Player service already registered — skipped duplicate.`
-    );
-  }
-}
 
 require("expo-router/entry");
