@@ -978,10 +978,25 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const unloadCurrentSound = useCallback(async () => {
+  const unloadCurrentSound = useCallback(async (reason = "unload_current_sound") => {
     if (hiddenAudioActiveRef.current) {
+      const backgrounding = isBackgroundAppState(appStateRef.current);
+      const shouldPreserveHiddenAudio =
+        backgrounding && Boolean(currentSongRef.current) && isPlayingRef.current;
+
+      if (shouldPreserveHiddenAudio) {
+        if (typeof __DEV__ !== "undefined" && __DEV__) {
+          console.log("[hidden_audio_lock] preserve_on_background_cleanup", {
+            reason,
+            appState: appStateRef.current,
+            songId: currentSongRef.current?.id || null,
+          });
+        }
+        return;
+      }
+
       hiddenAudioActiveRef.current = false;
-      await deactivateHiddenAudioPlayback("unload_current_sound");
+      await deactivateHiddenAudioPlayback(reason);
       return;
     }
 
@@ -2315,7 +2330,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               await clearPreloadedSound();
             }
 
-            await unloadCurrentSound();
+            await unloadCurrentSound("load_and_play_replace_track");
 
             if (
               loadRequestIdRef.current !== requestId ||
@@ -3272,7 +3287,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       loadRequestIdRef.current += 1;
       inFlightPlaySongIdRef.current = null;
       await clearPreloadedSound();
-      await unloadCurrentSound();
+      await unloadCurrentSound("stop_playback");
 
       setIsPlaying(false);
       setIsLoading(false);
@@ -3904,6 +3919,24 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         configureAudio("app_state_background");
         void applyProgressUpdateInterval("app_state_background");
 
+        if (hiddenAudioActiveRef.current && isPlayingRef.current) {
+          if (typeof __DEV__ !== "undefined" && __DEV__) {
+            console.log("[hidden_audio_lock] background_reassert_playback", {
+              songId: currentSongRef.current?.id || null,
+              positionMillis: positionMillisRef.current,
+            });
+          }
+
+          void bridgeHiddenAudioPlay()
+            .then(() => syncHiddenAudioState("app_state_background_hidden_audio"))
+            .catch((error) => {
+              if (typeof __DEV__ !== "undefined" && __DEV__) {
+                console.log("[hidden_audio_lock] background_reassert_failed", error);
+              }
+            });
+          return;
+        }
+
         if (isPlayingRef.current && soundRef.current) {
           armFinishWatchdog(
             positionMillisRef.current,
@@ -3933,6 +3966,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     armFinishWatchdog,
     catchUpPlaybackIfEnded,
     flushPendingSmartExtend,
+    syncHiddenAudioState,
   ]);
 
   useEffect(() => {
