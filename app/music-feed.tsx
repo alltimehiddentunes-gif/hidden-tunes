@@ -29,9 +29,7 @@ import HTImage from "@/components/HTImage";
 import LiveWaveform from "@/components/LiveWaveform";
 import NeonEQ from "@/components/NeonEQ";
 import UnifiedMediaCard from "@/components/UnifiedMediaCard";
-import UniversalSearchGroupedResults from "@/components/UniversalSearchGroupedResults";
 import { HomeCatalogSongRow, HomeFeaturedCard } from "@/components/catalog/HomePlaybackRows";
-import DebouncedSearchInput from "@/components/search/DebouncedSearchInput";
 import { COLORS, GRADIENTS } from "@/constants/theme";
 import {
   usePlayerActions,
@@ -710,6 +708,16 @@ export default function MusicFeedScreen() {
 
         setExternalSearchSongs(externalSongs);
 
+        console.log("search_layer_completed", {
+          layer: "external_audio",
+          query,
+          count: externalSongs.length,
+        });
+        console.log("external_audio_results_merged", {
+          query,
+          count: externalSongs.length,
+        });
+
         if (typeof __DEV__ !== "undefined" && __DEV__) {
           console.log("search_external_results_count", {
             query,
@@ -781,6 +789,18 @@ export default function MusicFeedScreen() {
         const videos = response.success ? response.videos : [];
         setTvSearchVideos(videos);
 
+        console.log("search_layer_completed", {
+          layer: "tv_fallback",
+          query,
+          count: videos.length,
+          audioResultCount: countAudioSearchResults(audioSearchResults),
+        });
+        console.log("tv_fallback_results_merged", {
+          query,
+          count: videos.length,
+          audioResultCount: countAudioSearchResults(audioSearchResults),
+        });
+
         if (typeof __DEV__ !== "undefined" && __DEV__) {
           console.log("search_tv_results_count", {
             query,
@@ -819,7 +839,11 @@ export default function MusicFeedScreen() {
     const seen = new Set<string>();
     const collected: HiddenTunesSong[] = [];
 
-    [...searchResults.topResults, ...searchResults.songs, ...searchResults.lyrics].forEach((hit) => {
+    [
+      ...audioSearchResults.topResults,
+      ...audioSearchResults.songs,
+      ...audioSearchResults.lyrics,
+    ].forEach((hit) => {
       if (!hit.id.startsWith("song:") && !hit.id.startsWith("lyric:")) return;
       const song = hit.payload as HiddenTunesSong;
       const id = String(song?.id || "");
@@ -828,8 +852,15 @@ export default function MusicFeedScreen() {
       collected.push(song);
     });
 
+    console.log("search_queue_built", {
+      query: cleanSubmittedSearchQuery,
+      queueLength: collected.length,
+      internalAndExternalAudioOnly: true,
+      tvFallbackKeptOutOfAudioQueue: true,
+    });
+
     return collected;
-  }, [searchResults]);
+  }, [audioSearchResults, cleanSubmittedSearchQuery]);
 
   const hasSearchText = searchQuery.trim().length > 0;
   const cleanSearchQuery = searchQuery.trim();
@@ -851,6 +882,15 @@ export default function MusicFeedScreen() {
   useEffect(() => {
     if (!showSearchResults || searchResults.hasAnyResults) return;
 
+    if (externalSearchPending || tvSearchPending) {
+      console.log("search_empty_state_blocked_waiting_for_external", {
+        query: cleanSubmittedSearchQuery,
+        externalSearchPending,
+        tvSearchPending,
+      });
+      return;
+    }
+
     if (typeof __DEV__ !== "undefined" && __DEV__) {
       console.log("search_empty_state_shown", {
         query: cleanSubmittedSearchQuery,
@@ -863,7 +903,7 @@ export default function MusicFeedScreen() {
   }, [backendSearchSongs.length, cleanSubmittedSearchQuery, externalSearchSongs.length, searchResults.hasAnyResults, showSearchResults, songs.length, tvSearchVideos.length]);
 
   useEffect(() => {
-    if (hasSearchText || heroCards.length <= 1) return;
+    if (heroCards.length <= 1) return;
 
     const timer = setInterval(() => {
       setHeroIndex((current) => {
@@ -875,7 +915,7 @@ export default function MusicFeedScreen() {
     }, 6500);
 
     return () => clearInterval(timer);
-  }, [hasSearchText, heroCards.length]);
+  }, [heroCards.length]);
 
   const playCatalogSong = useCallback(
     (song: HiddenTunesSong | HiddenTunesNormalizedSong) => {
@@ -952,8 +992,8 @@ export default function MusicFeedScreen() {
     setSubmittedSearchQuery("");
   }, []);
 
-  const focusSearch = useCallback(() => {
-    setSearchAutoFocusKey((value) => value + 1);
+  const openSearch = useCallback(() => {
+    router.push("/search" as any);
   }, []);
 
   const playSongFromList = useCallback(
@@ -991,6 +1031,13 @@ export default function MusicFeedScreen() {
           sourceName: resultSourceName,
         });
       }
+
+      console.log("search_queue_built", {
+        query: submittedSearchQuery || searchQuery,
+        queueLength: queue.length,
+        queueIndex: Math.max(queueIndex, 0),
+        sourceName: resultSourceName,
+      });
 
       void playSong(queueSong, queue, Math.max(queueIndex, 0), {
         source: "search",
@@ -1152,7 +1199,7 @@ export default function MusicFeedScreen() {
           </View>
         ) : (
           <FlatList
-            data={hasSearchText ? [] : visibleCatalogSongs}
+            data={visibleCatalogSongs}
             keyExtractor={keyExtractor}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.list}
@@ -1165,22 +1212,19 @@ export default function MusicFeedScreen() {
             }
             ListHeaderComponent={
               <View>
-                <View style={[styles.searchPanel, { padding: searchPanelPadding }]}>
-                  <DebouncedSearchInput
-                    key={searchAutoFocusKey}
-                    value={searchQuery}
-                    onImmediateChange={handleSearchImmediateChange}
-                    onDebouncedChange={setSubmittedSearchQuery}
-                    onClear={clearSearch}
-                    placeholder="Search songs, artists, albums, lyrics"
-                    placeholderTextColor={COLORS.textMuted}
-                    style={styles.searchInput}
-                    containerStyle={styles.searchInputShell}
-                    autoFocus={searchAutoFocusKey > 0}
-                  />
-                </View>
+                <TouchableOpacity
+                  activeOpacity={0.9}
+                  style={[styles.searchPanel, { padding: searchPanelPadding }]}
+                  onPress={openSearch}
+                >
+                  <Ionicons name="search" size={20} color={COLORS.cyan} />
+                  <Text style={styles.searchLauncherText}>
+                    Search songs, artists, albums, lyrics
+                  </Text>
+                  <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
+                </TouchableOpacity>
 
-                {heroCards.length > 0 && !hasSearchText ? (
+                {heroCards.length > 0 ? (
                   <View style={styles.heroStage}>
                     <View style={styles.heroStageGlow} />
                     <FlatList
@@ -1213,8 +1257,7 @@ export default function MusicFeedScreen() {
                   </View>
                 ) : null}
 
-                {!hasSearchText ? (
-                  <>
+                <>
                     <Text style={styles.catalogStatus}>{songs.length.toLocaleString()}+ songs ready</Text>
 
                     {moodRooms.length > 0 ? (
@@ -1239,7 +1282,7 @@ export default function MusicFeedScreen() {
                         <Ionicons name="musical-notes" size={19} color={COLORS.primaryGlow} />
                         <Text style={styles.quickText}>Music</Text>
                       </TouchableOpacity>
-                      <TouchableOpacity activeOpacity={0.86} style={styles.quickButton} onPress={focusSearch}>
+                      <TouchableOpacity activeOpacity={0.86} style={styles.quickButton} onPress={openSearch}>
                         <Ionicons name="search" size={19} color={COLORS.cyan} />
                         <Text style={styles.quickText}>Search</Text>
                       </TouchableOpacity>
@@ -1252,33 +1295,9 @@ export default function MusicFeedScreen() {
                         <Text style={styles.quickText}>Feelings</Text>
                       </TouchableOpacity>
                     </View>
-                  </>
-                ) : null}
+                </>
 
-                {showSearchLoading ? (
-                  <View style={styles.searchLoadingPanel}>
-                    <ActivityIndicator size="small" color={COLORS.primary} />
-                    <Text style={styles.searchLoadingText}>Searching</Text>
-                  </View>
-                ) : hasSearchText ? (
-                  <View style={styles.searchResultsPanel}>
-                    <UniversalSearchGroupedResults
-                      grouped={searchResults}
-                      query={submittedSearchQuery || searchQuery}
-                      onSongPress={playSearchResultSong}
-                      onLyricPress={playSearchResultSong}
-                      onArtistPress={openArtist}
-                      onAlbumPress={openAlbum}
-                      onGenrePress={openGenre}
-                      onTvPress={openTv}
-                      onSuggestionPress={handleSuggestionPress}
-                      activeSongId={currentSong?.id ? String(currentSong.id) : null}
-                      isPlaying={isPlaying}
-                      showEmpty={showSearchResults}
-                    />
-                  </View>
-                ) : (
-                  <>
+                <>
                     {recentlyAddedSongs.length > 0 ? (
                       <View style={styles.cinematicSection}>
                         <LinearGradient
@@ -1451,11 +1470,10 @@ export default function MusicFeedScreen() {
                       <Text style={styles.catalogCount}>{Math.min(visibleCatalogCount, songs.length)}/{songs.length}</Text>
                     </View>
                   </>
-                )}
               </View>
             }
             ListFooterComponent={
-              !hasSearchText && canLoadMore ? (
+              canLoadMore ? (
                 <TouchableOpacity
                   activeOpacity={0.86}
                   style={styles.loadMoreButton}
@@ -1786,10 +1804,20 @@ const styles = StyleSheet.create({
   searchPanel: {
     marginBottom: 20,
     borderRadius: 20,
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
     backgroundColor: "rgba(255,255,255,0.045)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.08)",
+  },
+  searchLauncherText: {
+    flex: 1,
+    color: COLORS.textMuted,
+    fontSize: 15,
+    fontWeight: "700",
   },
   searchPanelHeader: {
     flexDirection: "row",

@@ -2,7 +2,6 @@
 import {
   ActivityIndicator,
   FlatList,
-  Image,
   ScrollView,
   StyleSheet,
   Text,
@@ -14,8 +13,10 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 
+import HTImage from "../components/HTImage";
 import { COLORS, GRADIENTS } from "../constants/theme";
 import { usePlayerActions } from "../context/PlayerContext";
+import { resolveEntityArtwork } from "../utils/artwork";
 import {
   fetchHiddenTunesCatalog,
   type HiddenTunesAlbumCatalogItem,
@@ -58,7 +59,11 @@ export default function ArtistScreen() {
 
   const tracks = artist?.songs || [];
   const albums = artist?.albums || [];
-  const artistImage = artist?.artwork || tracks[0]?.cover || "https://hiddentunes.com/covers/zangu-done.png";
+
+  const heroArtwork = useMemo(
+    () => resolveEntityArtwork(artist || { name: artistName }, tracks),
+    [artist, artistName, tracks]
+  );
 
   function openAlbum(album: HiddenTunesAlbumCatalogItem) {
     router.push({
@@ -102,7 +107,7 @@ export default function ArtistScreen() {
             </View>
 
             <View style={styles.hero}>
-              <Image source={{ uri: artistImage }} style={styles.artistImage} />
+              <HTImage uri={heroArtwork} style={styles.artistImage} contentFit="cover" />
 
               <Text style={styles.kicker}>ARTIST</Text>
               <Text style={styles.artistName} numberOfLines={2}>{artist?.name || artistName}</Text>
@@ -140,7 +145,7 @@ export default function ArtistScreen() {
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.albumRow}>
                       {albums.map((album) => (
                         <TouchableOpacity key={album.id} activeOpacity={0.86} style={styles.albumCard} onPress={() => openAlbum(album)}>
-                          <Image source={{ uri: album.artwork }} style={styles.albumCover} />
+                          <HTImage source={album} style={styles.albumCover} contentFit="cover" />
                           <Text style={styles.albumTitle} numberOfLines={2}>{album.title}</Text>
                           <Text style={styles.albumArtist} numberOfLines={1}>{album.artist}</Text>
                         </TouchableOpacity>
@@ -172,7 +177,7 @@ export default function ArtistScreen() {
           return (
             <TouchableOpacity activeOpacity={0.86} style={styles.trackCard} onPress={() => handlePlaySong(item, index)}>
               <Text style={styles.rank}>{String(index + 1).padStart(2, "0")}</Text>
-              <Image source={{ uri: item.cover || artistImage }} style={styles.cover} />
+              <HTImage source={item} style={styles.cover} contentFit="cover" />
 
               <View style={styles.info}>
                 <Text style={styles.trackTitle} numberOfLines={1}>{item.title}</Text>

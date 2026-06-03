@@ -74,6 +74,41 @@ function getTotalDuration(tracks: HiddenTunesNormalizedSong[]) {
   return tracks.reduce((total, track) => total + (track.duration || 0), 0);
 }
 
+function getTrackSortValue(track: HiddenTunesNormalizedSong, fallbackIndex: number) {
+  const raw = (track as any).raw || {};
+  const candidates = [
+    (track as any).trackNumber,
+    (track as any).track_number,
+    (track as any).track,
+    raw.trackNumber,
+    raw.track_number,
+    raw.track,
+    raw.position,
+    raw.order,
+  ];
+
+  for (const candidate of candidates) {
+    const parsed = Number(candidate);
+    if (Number.isFinite(parsed) && parsed > 0) return parsed;
+  }
+
+  return fallbackIndex + 10000;
+}
+
+function sortAlbumTracks(tracks: HiddenTunesNormalizedSong[]) {
+  return tracks
+    .map((track, index) => ({ track, index }))
+    .sort((left, right) => {
+      const leftSort = getTrackSortValue(left.track, left.index);
+      const rightSort = getTrackSortValue(right.track, right.index);
+      if (leftSort !== rightSort) return leftSort - rightSort;
+      const leftTitle = String(left.track.title || "").toLowerCase();
+      const rightTitle = String(right.track.title || "").toLowerCase();
+      return leftTitle.localeCompare(rightTitle);
+    })
+    .map((item) => item.track);
+}
+
 function shuffleSongs<T>(items: T[]) {
   const copy = [...items];
 
@@ -140,10 +175,17 @@ export default function AlbumScreen() {
   const [hasCheckedFallbacks, setHasCheckedFallbacks] = useState(false);
   const albumRef = useRef<HiddenTunesAlbum | null>(null);
 
-  const tracks = useMemo(
-    () => (album?.tracks || []).map(safeSong),
-    [album?.tracks]
-  );
+  const tracks = useMemo(() => {
+    const sorted = sortAlbumTracks((album?.tracks || []).map(safeSong));
+    if (sorted.length) {
+      console.log("album_queue_built", {
+        albumId: album?.id,
+        albumTitle: album?.title,
+        queueLength: sorted.length,
+      });
+    }
+    return sorted;
+  }, [album?.id, album?.title, album?.tracks]);
 
   const albumAudioPreloadTarget = useMemo(() => {
     const first = pickFirstPlayableTrack(tracks);

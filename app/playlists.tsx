@@ -2,7 +2,6 @@ import { useCallback, useMemo, useState } from "react";
 import {
   Alert,
   FlatList,
-  Image,
   Modal,
   Pressable,
   RefreshControl,
@@ -18,6 +17,7 @@ import { useFocusEffect, router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 
+import HTImage from "../components/HTImage";
 import AppShell from "../components/navigation/AppShell";
 import { COLORS, GRADIENTS } from "../constants/theme";
 
@@ -281,7 +281,7 @@ export default function PlaylistsScreen() {
         onPress={() => openPlaylist(item)}
       >
         {item.artwork ? (
-          <Image source={{ uri: item.artwork }} style={styles.cover} />
+          <HTImage uri={item.artwork} style={styles.cover} contentFit="cover" />
         ) : (
           <View style={styles.placeholder}>
             <Ionicons
@@ -463,9 +463,10 @@ export default function PlaylistsScreen() {
                       onPress={() => openPlaylist(item)}
                     >
                       {item.artwork ? (
-                        <Image
-                          source={{ uri: item.artwork }}
+                        <HTImage
+                          uri={item.artwork}
                           style={styles.smartCover}
+                          contentFit="cover"
                         />
                       ) : (
                         <View style={styles.smartPlaceholder}>

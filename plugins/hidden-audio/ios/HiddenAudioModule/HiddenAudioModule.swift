@@ -621,19 +621,18 @@ class HiddenAudioModule: RCTEventEmitter {
     }
 
     commandCenter.nextTrackCommand.addTarget { [weak self] _ in
-      guard let self = self, self.activeIndex + 1 < self.queue.count else {
-        self?.emitRemoteCommandResult("next", success: false, reason: "no_next_track")
-        return .noSuchContent
-      }
+      guard let self = self else { return .commandFailed }
       self.emitDiagnostic("ios_remote_command_received", [
         "command": "next"
       ])
       self.emitDiagnostic("remote_next_received", [
         "activeIndex": self.activeIndex,
-        "queueLength": self.queue.count
+        "queueLength": self.queue.count,
+        "forwardedTo": "js_shared_next"
       ])
-      self.moveToIndex(self.activeIndex + 1, autoplay: true)
-      self.emitRemoteCommandResult("next", success: true)
+      self.emitDiagnostic("remote_command_forwarded_to_js", [
+        "command": "next"
+      ])
       return .success
     }
 
@@ -644,18 +643,12 @@ class HiddenAudioModule: RCTEventEmitter {
       ])
       self.emitDiagnostic("remote_previous_received", [
         "activeIndex": self.activeIndex,
-        "queueLength": self.queue.count
+        "queueLength": self.queue.count,
+        "forwardedTo": "js_shared_previous"
       ])
-      guard self.activeIndex > 0 || (self.player?.currentTime().seconds ?? 0) > 3 else {
-        self.emitRemoteCommandResult("previous", success: false, reason: "no_previous_track")
-        return .noSuchContent
-      }
-      if (self.player?.currentTime().seconds ?? 0) > 3 {
-        self.player?.seek(to: .zero)
-      } else {
-        self.moveToIndex(self.activeIndex - 1, autoplay: true)
-      }
-      self.emitRemoteCommandResult("previous", success: true)
+      self.emitDiagnostic("remote_command_forwarded_to_js", [
+        "command": "previous"
+      ])
       return .success
     }
 

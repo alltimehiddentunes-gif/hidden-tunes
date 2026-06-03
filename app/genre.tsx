@@ -2,7 +2,6 @@
 import {
   ActivityIndicator,
   FlatList,
-  Image,
   ScrollView,
   StyleSheet,
   Text,
@@ -14,6 +13,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 
+import HTImage from "../components/HTImage";
 import { COLORS, GRADIENTS } from "../constants/theme";
 import { usePlayerActions } from "../context/PlayerContext";
 import {
@@ -123,7 +123,7 @@ export default function GenreScreen() {
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.albumRow}>
                     {albums.map((album) => (
                       <TouchableOpacity key={album.id} activeOpacity={0.86} style={styles.albumCard} onPress={() => openAlbum(album)}>
-                        <Image source={{ uri: album.artwork }} style={styles.albumCover} />
+                        <HTImage source={album} style={styles.albumCover} contentFit="cover" />
                         <Text style={styles.albumTitle} numberOfLines={2}>{album.title}</Text>
                         <Text style={styles.albumArtist} numberOfLines={1}>{album.artist}</Text>
                       </TouchableOpacity>
@@ -149,7 +149,7 @@ export default function GenreScreen() {
           }
           renderItem={({ item, index }) => (
             <TouchableOpacity activeOpacity={0.86} style={styles.trackCard} onPress={() => handlePlaySong(item, index)}>
-              <Image source={{ uri: item.cover }} style={styles.cover} />
+              <HTImage source={item} style={styles.cover} contentFit="cover" />
               <View style={styles.info}>
                 <Text numberOfLines={1} style={styles.trackTitle}>{item.title}</Text>
                 <Text numberOfLines={1} style={styles.trackArtist}>{item.artist}</Text>

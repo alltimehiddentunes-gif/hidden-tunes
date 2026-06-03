@@ -2,7 +2,6 @@
 import {
   ActivityIndicator,
   FlatList,
-  Image,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -13,8 +12,10 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 
+import HTImage from "../components/HTImage";
 import { COLORS, GRADIENTS } from "../constants/theme";
 import { usePlayerActions } from "../context/PlayerContext";
+import { resolveEntityArtwork } from "../utils/artwork";
 import {
   fetchHiddenTunesCatalog,
   type HiddenTunesAlbumCatalogItem,
@@ -26,13 +27,46 @@ function clean(value: string) {
   return String(value || "").trim().toLowerCase();
 }
 
+function getTrackSortValue(track: HiddenTunesSong, fallbackIndex: number) {
+  const raw = (track as any).raw || {};
+  const candidates = [
+    (track as any).trackNumber,
+    (track as any).track_number,
+    (track as any).track,
+    raw.trackNumber,
+    raw.track_number,
+    raw.track,
+    raw.position,
+    raw.order,
+  ];
+
+  for (const candidate of candidates) {
+    const parsed = Number(candidate);
+    if (Number.isFinite(parsed) && parsed > 0) return parsed;
+  }
+
+  return fallbackIndex + 10000;
+}
+
+function sortAlbumSongs(songs: HiddenTunesSong[]) {
+  return songs
+    .map((song, index) => ({ song, index }))
+    .sort((left, right) => {
+      const leftSort = getTrackSortValue(left.song, left.index);
+      const rightSort = getTrackSortValue(right.song, right.index);
+      if (leftSort !== rightSort) return leftSort - rightSort;
+      return String(left.song.title || "").localeCompare(String(right.song.title || ""));
+    })
+    .map((item) => item.song);
+}
+
 export default function AlbumScreen() {
   const params = useLocalSearchParams();
   const { playSong } = usePlayerActions();
 
   const albumTitle = String(params.album || params.title || "Singles");
   const artistName = String(params.artist || "Unknown Artist");
-  const fallbackThumbnail = String(params.thumbnail || "https://hiddentunes.com/covers/zangu-done.png");
+  const paramThumbnail = String(params.thumbnail || "").trim();
 
   const [catalog, setCatalog] = useState<HiddenTunesDerivedCatalog | null>(null);
   const [loading, setLoading] = useState(true);
@@ -59,8 +93,30 @@ export default function AlbumScreen() {
     });
   }, [albumTitle, artistName, catalog?.albums]);
 
-  const tracks = album?.songs || [];
-  const thumbnail = album?.artwork || tracks[0]?.cover || fallbackThumbnail;
+  const tracks = useMemo(() => {
+    const sorted = sortAlbumSongs(album?.songs || []);
+    if (sorted.length) {
+      console.log("album_queue_built", {
+        albumId: album?.id,
+        albumTitle: album?.title || albumTitle,
+        queueLength: sorted.length,
+      });
+    }
+    return sorted;
+  }, [album?.id, album?.songs, album?.title, albumTitle]);
+
+  const heroArtwork = useMemo(
+    () =>
+      resolveEntityArtwork(
+        {
+          title: album?.title || albumTitle,
+          artist: album?.artist || artistName,
+          artwork: album?.artwork || paramThumbnail,
+        },
+        tracks
+      ),
+    [album, albumTitle, artistName, paramThumbnail, tracks]
+  );
 
   function handlePlaySong(song: HiddenTunesSong, queueIndex: number) {
     void playSong(song, tracks, queueIndex, {
@@ -87,7 +143,7 @@ export default function AlbumScreen() {
       </View>
 
       <View style={styles.albumHero}>
-        <Image source={{ uri: thumbnail }} style={styles.albumCover} />
+        <HTImage uri={heroArtwork} style={styles.albumCover} contentFit="cover" />
 
         <Text style={styles.kicker}>ALBUM</Text>
         <Text style={styles.albumTitle} numberOfLines={2}>{album?.title || albumTitle}</Text>
@@ -138,7 +194,7 @@ export default function AlbumScreen() {
           renderItem={({ item, index }) => (
             <TouchableOpacity activeOpacity={0.86} style={styles.trackCard} onPress={() => handlePlaySong(item, index)}>
               <Text style={styles.rank}>{String(index + 1).padStart(2, "0")}</Text>
-              <Image source={{ uri: item.cover || thumbnail }} style={styles.cover} />
+              <HTImage source={item} style={styles.cover} contentFit="cover" />
 
               <View style={styles.info}>
                 <Text style={styles.trackTitle} numberOfLines={1}>{item.title}</Text>

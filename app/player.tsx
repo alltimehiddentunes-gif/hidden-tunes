@@ -1,7 +1,6 @@
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   useWindowDimensions,
-  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -25,6 +24,7 @@ import Animated, {
 } from "react-native-reanimated";
 
 import AddToPlaylistModal from "../components/AddToPlaylistModal";
+import HTImage from "../components/HTImage";
 import LiveWaveform from "../components/LiveWaveform";
 import NeonEQ from "../components/NeonEQ";
 import AppShell from "../components/navigation/AppShell";
@@ -35,7 +35,6 @@ import {
   usePlayerProgress,
   usePlayerState,
 } from "../context/PlayerContext";
-import { FALLBACK_ARTWORK, getArtworkValue } from "../utils/artwork";
 import { openGenreCatalog, openMoodCatalog } from "../utils/catalogNavigation";
 import { normalizeGenreName } from "../utils/genreNormalization";
 import { getBestLyricsPayload, setLyricsMemoryCache } from "../utils/lyrics";
@@ -275,10 +274,6 @@ export default function PlayerScreen() {
   const artworkHalo = useSharedValue(0.28);
   const metadataOpacity = useSharedValue(1);
   const metadataTranslateY = useSharedValue(0);
-
-  const artwork = useMemo(() => {
-    return getArtworkValue(currentSong) || FALLBACK_ARTWORK;
-  }, [currentSong]);
 
   const title = currentSong?.title || "No track selected";
   const artist =
@@ -610,7 +605,7 @@ export default function PlayerScreen() {
                   artworkAnimated,
                 ]}
               >
-                <Image source={{ uri: artwork }} style={styles.artwork} />
+                <HTImage source={currentSong} style={styles.artwork} contentFit="cover" />
               </Animated.View>
             </LinearGradient>
 

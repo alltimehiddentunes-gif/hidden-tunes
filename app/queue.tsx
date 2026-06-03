@@ -1,6 +1,5 @@
 import { useMemo } from "react";
 import {
-  Image,
   ScrollView,
   StyleSheet,
   Text,
@@ -12,6 +11,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 
+import HTImage from "../components/HTImage";
 import AppShell from "../components/navigation/AppShell";
 import NeonEQ from "../components/NeonEQ";
 import { COLORS, GRADIENTS } from "../constants/theme";
@@ -187,14 +187,7 @@ export default function QueueScreen() {
         {currentSong ? (
           <View style={styles.nowPlayingCard}>
             <LinearGradient colors={GRADIENTS.neon} style={styles.nowCoverBorder}>
-              <Image
-                source={
-                  typeof currentSong.cover === "string"
-                    ? { uri: currentSong.cover }
-                    : currentSong.cover
-                }
-                style={styles.nowCover}
-              />
+              <HTImage source={currentSong} style={styles.nowCover} contentFit="cover" />
             </LinearGradient>
 
             <View style={styles.nowInfo}>
@@ -255,12 +248,7 @@ export default function QueueScreen() {
             >
               <Text style={styles.queueNumber}>{index + 1}</Text>
 
-              <Image
-                source={
-                  typeof song.cover === "string" ? { uri: song.cover } : song.cover
-                }
-                style={styles.queueCover}
-              />
+              <HTImage source={song} style={styles.queueCover} contentFit="cover" />
 
               <View style={styles.queueInfo}>
                 <Text numberOfLines={1} style={styles.queueTitle}>
