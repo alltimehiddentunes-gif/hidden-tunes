@@ -13,11 +13,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 
-import { SubtleTvEntryLink } from "../../components/EmotionalDiscoveryChips";
 import MoodRoomCard from "../../components/explore/MoodRoomCard";
 import WorldsExploreSection from "../../components/explore/WorldsExploreSection";
+import HTImage from "../../components/HTImage";
 import AppShell from "../../components/navigation/AppShell";
-import UnifiedMediaCard from "../../components/UnifiedMediaCard";
 import { COLORS, GRADIENTS } from "../../constants/theme";
 import {
   usePlayerActions,
@@ -51,6 +50,66 @@ const EMPTY_CATALOG: HiddenTunesDerivedCatalog = {
 function findSongIndex(songs: HiddenTunesSong[], song: { id?: string }) {
   const id = String(song?.id || "");
   return songs.findIndex((candidate) => String(candidate.id) === id);
+}
+
+type ListeningRoom = {
+  id: string;
+  title: string;
+  subtitle: string;
+  artwork: string;
+  songs: HiddenTunesSong[];
+};
+
+function getArtwork(song?: HiddenTunesSong | null) {
+  return song?.cover || song?.artwork || song?.thumbnail || "";
+}
+
+function songSearchText(song: HiddenTunesSong) {
+  return [song.title, song.artist, song.album, song.genre, song.mood, song.lyrics]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
+function uniqSongs(songs: HiddenTunesSong[]) {
+  const seen = new Set<string>();
+  return songs.filter((song) => {
+    const id = String(song.id || `${song.artist}-${song.title}`);
+    if (seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
+}
+
+function buildListeningRoom(
+  id: string,
+  title: string,
+  terms: string[],
+  songs: HiddenTunesSong[]
+): ListeningRoom | null {
+  const matches = songs.filter((song) => {
+    const text = songSearchText(song);
+    return terms.some((term) => text.includes(term.toLowerCase()));
+  });
+  const roomSongs = uniqSongs(matches).slice(0, 18);
+  if (!roomSongs.length) return null;
+  return {
+    id,
+    title,
+    subtitle: `${roomSongs.length} song${roomSongs.length === 1 ? "" : "s"}`,
+    artwork: getArtwork(roomSongs[0]),
+    songs: roomSongs,
+  };
+}
+
+function buildListeningRooms(songs: HiddenTunesSong[]) {
+  return [
+    buildListeningRoom("calm", "Calm", ["calm", "peace", "quiet", "soft"], songs),
+    buildListeningRoom("instrumental", "Instrumental", ["instrumental", "ambient", "piano"], songs),
+    buildListeningRoom("night-drive", "Night Drive", ["night", "late", "midnight", "drive"], songs),
+    buildListeningRoom("worship-focus", "Worship Focus", ["worship", "gospel", "prayer", "praise", "jesus"], songs),
+    buildListeningRoom("healing", "Healing", ["healing", "heal", "restore", "peace"], songs),
+  ].filter(Boolean) as ListeningRoom[];
 }
 
 export default function WorldsIndexScreen() {
@@ -106,13 +165,32 @@ export default function WorldsIndexScreen() {
       }
     });
 
-    return resolved.slice(0, 8);
-  }, [recentlyPlayed, songs]);
+    const currentMatch = currentSong?.id
+      ? songs.find((song) => String(song.id) === String(currentSong.id))
+      : null;
 
-  const smartPicks = useMemo(() => songs.slice(0, 6), [songs]);
+    return uniqSongs([...(currentMatch ? [currentMatch] : []), ...resolved]).slice(0, 8);
+  }, [currentSong?.id, recentlyPlayed, songs]);
+
+  const smartPicks = useMemo(() => songs.slice(0, 8), [songs]);
+  const premiumListSongs = useMemo(() => songs.slice(0, 12), [songs]);
+  const deepCutSongs = useMemo(() => songs.slice(12, 22), [songs]);
+  const listeningRooms = useMemo(() => buildListeningRooms(songs), [songs]);
   const visibleArtists = useMemo(() => artists.slice(0, 10), [artists]);
   const visibleAlbums = useMemo(() => albums.slice(0, 10), [albums]);
-  const visibleGenres = useMemo(() => genres.slice(0, 10), [genres]);
+  const visibleGenres = useMemo(() => {
+    const recentGenres = new Set(
+      (Array.isArray(recentlyPlayed) ? recentlyPlayed : [])
+        .map((entry) => {
+          const match = songs.find((song) => String(song.id) === String(entry?.id));
+          return String(match?.genre || "").toLowerCase();
+        })
+        .filter(Boolean)
+    );
+    const preferred = genres.filter((genre) => recentGenres.has(String(genre.title || "").toLowerCase()));
+    const remaining = genres.filter((genre) => !preferred.some((item) => item.id === genre.id));
+    return [...preferred, ...remaining].slice(0, 10);
+  }, [genres, recentlyPlayed, songs]);
 
   const openMoodRoom = useCallback((room: ExploreMoodRoom) => {
     router.push({
@@ -175,9 +253,8 @@ export default function WorldsIndexScreen() {
         >
           <View style={styles.topBar}>
             <View style={styles.heroCopy}>
-              <Text style={styles.kicker}>EXPLORE</Text>
-              <Text style={styles.title}>Discovery</Text>
-              <Text style={styles.subtitle}>Artists, albums, genres, and worlds.</Text>
+              <Text style={styles.kicker}>Explore</Text>
+              <Text style={styles.title}>Hidden Tunes</Text>
             </View>
 
             <TouchableOpacity style={styles.refreshButton} onPress={loadExplore}>
@@ -192,42 +269,92 @@ export default function WorldsIndexScreen() {
             </View>
           ) : (
             <>
-              <View style={[styles.discoveryIntro, compactLayout && styles.discoveryIntroCompact]}>
-                <View style={styles.discoveryIntroGlow} />
-                <Text style={styles.discoveryEyebrow}>CATALOG</Text>
-                <Text style={styles.discoveryTitle}>
-                  {songs.length > 0
-                    ? `${songs.length} tracks ready`
-                    : "Catalog loading"}
-                </Text>
+              <View style={[styles.smartHero, compactLayout && styles.smartHeroCompact]}>
+                <View style={styles.smartGlow} />
+                <View style={styles.smartTopRow}>
+                  <View style={styles.smartIcon}>
+                    <Ionicons name="sparkles" size={22} color={COLORS.primaryGlow} />
+                  </View>
+                  <View style={styles.smartCopy}>
+                    <Text style={styles.discoveryEyebrow}>SMART ON</Text>
+                    <Text style={styles.discoveryTitle}>Enter a listening room</Text>
+                  </View>
+                </View>
                 <Text style={styles.discoveryText}>
                   {currentSong
-                    ? `Now playing · ${currentSong.title || "your current song"}`
-                    : "Choose a rail"}
+                    ? `Now tuned to ${currentSong.title || "Hidden Tunes"}`
+                    : `${songs.length} tracks ready for discovery`}
                 </Text>
-
-                <View style={styles.discoveryActions}>
-                  <TouchableOpacity
-                    activeOpacity={0.88}
-                    style={styles.discoveryChip}
-                    onPress={() => router.push("/music-feed" as any)}
-                  >
-                    <Ionicons name="home" size={15} color={COLORS.primaryGlow} />
-                    <Text style={styles.discoveryChipText}>Home</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    activeOpacity={0.88}
-                    style={styles.discoveryChip}
-                    onPress={() => router.push("/radio" as any)}
-                  >
-                    <Ionicons name="radio" size={15} color={COLORS.cyan} />
-                    <Text style={styles.discoveryChipText}>Radio</Text>
-                  </TouchableOpacity>
-
-                  <SubtleTvEntryLink style={styles.tvLink} />
-                </View>
+                <TouchableOpacity
+                  activeOpacity={0.88}
+                  style={styles.startButton}
+                  onPress={() => {
+                    const first = smartPicks[0] || songs[0];
+                    if (first) playCatalogSong(first);
+                  }}
+                >
+                  <Ionicons name="play" size={17} color="#000" />
+                  <Text style={styles.startButtonText}>Start Discovery</Text>
+                </TouchableOpacity>
               </View>
+
+              {continueTracks.length > 0 ? (
+                <View style={styles.continueCard}>
+                  <View style={styles.sectionHeader}>
+                    <View>
+                      <Text style={styles.sectionEyebrow}>CONTINUE</Text>
+                      <Text style={styles.sectionTitle}>Continue Listening</Text>
+                    </View>
+                    <Text style={styles.sectionMeta}>{isPlaying ? "Playing" : "Recent"}</Text>
+                  </View>
+                  {continueTracks.slice(0, 3).map((song) => (
+                    <TouchableOpacity
+                      key={`continue-${song.id}`}
+                      activeOpacity={0.88}
+                      style={styles.compactSongRow}
+                      onPress={() => playCatalogSong(song)}
+                    >
+                      <HTImage source={song} style={styles.compactArt} contentFit="cover" />
+                      <View style={styles.songTextBox}>
+                        <Text numberOfLines={1} style={styles.songTitle}>{song.title}</Text>
+                        <Text numberOfLines={1} style={styles.songArtist}>{song.artist}</Text>
+                      </View>
+                      <View style={styles.rowPlayButton}>
+                        <Ionicons name="play" size={15} color="#000" />
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              ) : null}
+
+              {premiumListSongs.length > 0 ? (
+                <View style={[styles.cinematicSection, compactLayout && styles.cinematicSectionCompact]}>
+                  <View style={styles.sectionHeader}>
+                    <View>
+                      <Text style={styles.sectionEyebrow}>SONGS</Text>
+                      <Text style={styles.sectionTitle}>Premium Song List</Text>
+                    </View>
+                    <Text style={styles.sectionMeta}>Tap to play</Text>
+                  </View>
+                  <View style={styles.songListPanel}>
+                    {premiumListSongs.map((song) => (
+                      <TouchableOpacity
+                        key={`premium-${song.id}`}
+                        activeOpacity={0.88}
+                        style={styles.premiumSongRow}
+                        onPress={() => playCatalogSong(song)}
+                      >
+                        <HTImage source={song} style={styles.songArtwork} contentFit="cover" />
+                        <View style={styles.songTextBox}>
+                          <Text numberOfLines={1} style={styles.songTitle}>{song.title}</Text>
+                          <Text numberOfLines={1} style={styles.songArtist}>{song.artist}</Text>
+                        </View>
+                        <Ionicons name="play-circle" size={30} color={COLORS.primaryGlow} />
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              ) : null}
 
               {moodRooms.length > 0 ? (
                 <View style={[styles.cinematicSection, compactLayout && styles.cinematicSectionCompact]}>
@@ -236,15 +363,9 @@ export default function WorldsIndexScreen() {
                       <Text style={styles.sectionEyebrow}>MOOD</Text>
                       <Text style={styles.sectionTitle}>Mood Rooms</Text>
                     </View>
-                    <Text style={styles.sectionMeta}>Matches</Text>
+                    <Text style={styles.sectionMeta}>Real matches</Text>
                   </View>
-
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    nestedScrollEnabled
-                    contentContainerStyle={[styles.moodRail, { gap: railGap, paddingRight: horizontalPadding }]}
-                  >
+                  <View style={styles.moodGrid}>
                     {moodRooms.map((room) => (
                       <MoodRoomCard
                         key={room.id}
@@ -255,71 +376,99 @@ export default function WorldsIndexScreen() {
                         onPress={() => openMoodRoom(room)}
                       />
                     ))}
-                  </ScrollView>
+                  </View>
                 </View>
               ) : null}
 
-              {continueTracks.length > 0 ? (
+              {visibleGenres.length > 0 ? (
                 <View style={[styles.cinematicSection, compactLayout && styles.cinematicSectionCompact]}>
-                  <View style={styles.sectionHeader}>
-                    <View>
-                      <Text style={styles.sectionEyebrow}>CONTINUE</Text>
-                      <Text style={styles.sectionTitle}>Continue Listening</Text>
-                    </View>
-                    <Text style={styles.sectionMeta}>
-                      {isPlaying ? "Playing" : "Recent"}
-                    </Text>
+                  <Text style={styles.sectionEyebrow}>GENRES</Text>
+                  <Text style={styles.sectionTitle}>Genre Spotlights</Text>
+                  <View style={styles.genreList}>
+                    {visibleGenres.map((genre) => (
+                      <TouchableOpacity
+                        key={genre.id}
+                        activeOpacity={0.88}
+                        style={styles.genreRow}
+                        onPress={() => openGenre(genre)}
+                      >
+                        <HTImage source={genre.artwork} style={styles.genreArt} contentFit="cover" />
+                        <View style={styles.songTextBox}>
+                          <Text numberOfLines={1} style={styles.songTitle}>{genre.title}</Text>
+                          <Text style={styles.songArtist}>{genre.songs.length} song{genre.songs.length === 1 ? "" : "s"}</Text>
+                        </View>
+                        <Ionicons name="chevron-forward" size={19} color={COLORS.textMuted} />
+                      </TouchableOpacity>
+                    ))}
                   </View>
+                </View>
+              ) : null}
 
+              {listeningRooms.length > 0 ? (
+                <View style={[styles.cinematicSection, compactLayout && styles.cinematicSectionCompact]}>
+                  <Text style={styles.sectionEyebrow}>ROOMS</Text>
+                  <Text style={styles.sectionTitle}>Listening Rooms</Text>
                   <ScrollView
                     horizontal
                     showsHorizontalScrollIndicator={false}
                     nestedScrollEnabled
-                    contentContainerStyle={[styles.mediaRail, { gap: railGap, paddingRight: horizontalPadding }]}
+                    contentContainerStyle={[styles.roomRail, { gap: railGap, paddingRight: horizontalPadding }]}
                   >
-                    {continueTracks.map((song) => (
-                      <View key={`continue-${song.id}`} style={[styles.mediaCardShell, { width: railCardWidth }]}>
-                        <UnifiedMediaCard
-                          title={song.title}
-                          subtitle={song.artist}
-                          imageUri={song.cover || song.artwork || song.thumbnail}
-                          rightIcon="play"
-                          onPress={() => playCatalogSong(song)}
-                          onRightPress={() => playCatalogSong(song)}
-                        />
-                      </View>
+                    {listeningRooms.map((room) => (
+                      <TouchableOpacity
+                        key={room.id}
+                        activeOpacity={0.88}
+                        style={styles.listeningRoomCard}
+                        onPress={() =>
+                          router.push({
+                            pathname: "/genre",
+                            params: { id: room.id, title: room.title, query: room.title, type: "mood" },
+                          } as any)
+                        }
+                      >
+                        <HTImage source={room.artwork} style={styles.roomImage} contentFit="cover" />
+                        <View style={styles.roomShade} />
+                        <Text numberOfLines={1} style={styles.roomTitle}>{room.title}</Text>
+                        <Text style={styles.roomSubtitle}>{room.subtitle}</Text>
+                      </TouchableOpacity>
                     ))}
                   </ScrollView>
                 </View>
               ) : null}
 
-              {smartPicks.length > 0 ? (
+              {(visibleAlbums.length > 0 || deepCutSongs.length > 0) ? (
                 <View style={[styles.cinematicSection, compactLayout && styles.cinematicSectionCompact]}>
-                  <View style={styles.sectionHeader}>
-                    <View>
-                      <Text style={styles.sectionEyebrow}>CURATED</Text>
-                      <Text style={styles.sectionTitle}>Picks</Text>
-                    </View>
-                    <Text style={styles.sectionMeta}>Play</Text>
-                  </View>
-
+                  <Text style={styles.sectionEyebrow}>DEEP CUTS</Text>
+                  <Text style={styles.sectionTitle}>Deep Cuts & Albums</Text>
                   <ScrollView
                     horizontal
                     showsHorizontalScrollIndicator={false}
                     nestedScrollEnabled
                     contentContainerStyle={[styles.mediaRail, { gap: railGap, paddingRight: horizontalPadding }]}
                   >
-                    {smartPicks.map((song) => (
-                      <View key={`pick-${song.id}`} style={[styles.mediaCardShell, { width: railCardWidth }]}>
-                        <UnifiedMediaCard
-                          title={song.title}
-                          subtitle={song.artist}
-                          imageUri={song.cover || song.artwork || song.thumbnail}
-                          rightIcon="sparkles"
-                          onPress={() => playCatalogSong(song)}
-                          onRightPress={() => playCatalogSong(song)}
-                        />
-                      </View>
+                    {visibleAlbums.map((album) => (
+                      <TouchableOpacity
+                        key={`album-${album.id}`}
+                        activeOpacity={0.88}
+                        style={[styles.albumCard, { width: railCardWidth }]}
+                        onPress={() => openAlbum(album)}
+                      >
+                        <HTImage source={album.artwork} style={styles.albumArt} contentFit="cover" />
+                        <Text numberOfLines={1} style={styles.cardTitle}>{album.title}</Text>
+                        <Text numberOfLines={1} style={styles.cardSubtitle}>{album.songs.length} song{album.songs.length === 1 ? "" : "s"} / {album.artist}</Text>
+                      </TouchableOpacity>
+                    ))}
+                    {deepCutSongs.map((song) => (
+                      <TouchableOpacity
+                        key={`deep-${song.id}`}
+                        activeOpacity={0.88}
+                        style={[styles.albumCard, { width: railCardWidth }]}
+                        onPress={() => playCatalogSong(song)}
+                      >
+                        <HTImage source={song} style={styles.albumArt} contentFit="cover" />
+                        <Text numberOfLines={1} style={styles.cardTitle}>{song.title}</Text>
+                        <Text numberOfLines={1} style={styles.cardSubtitle}>{song.artist}</Text>
+                      </TouchableOpacity>
                     ))}
                   </ScrollView>
                 </View>
@@ -328,7 +477,7 @@ export default function WorldsIndexScreen() {
               {visibleArtists.length > 0 ? (
                 <View style={[styles.cinematicSection, compactLayout && styles.cinematicSectionCompact]}>
                   <Text style={styles.sectionEyebrow}>CREATORS</Text>
-                  <Text style={styles.sectionTitle}>Artists</Text>
+                  <Text style={styles.sectionTitle}>Creators To Follow</Text>
                   <ScrollView
                     horizontal
                     showsHorizontalScrollIndicator={false}
@@ -336,80 +485,30 @@ export default function WorldsIndexScreen() {
                     contentContainerStyle={[styles.mediaRail, { gap: railGap, paddingRight: horizontalPadding }]}
                   >
                     {visibleArtists.map((artist) => (
-                      <View key={artist.id} style={[styles.mediaCardShell, { width: railCardWidth }]}>
-                        <UnifiedMediaCard
-                          title={artist.name}
-                          subtitle={`${artist.songs.length} song${artist.songs.length === 1 ? "" : "s"}`}
-                          imageUri={artist.artwork}
-                          rightIcon="person"
-                          onPress={() => openArtist(artist)}
-                          onRightPress={() => openArtist(artist)}
-                        />
-                      </View>
+                      <TouchableOpacity
+                        key={artist.id}
+                        activeOpacity={0.88}
+                        style={[styles.creatorCard, { width: railCardWidth }]}
+                        onPress={() => openArtist(artist)}
+                      >
+                        <HTImage source={artist.artwork} style={styles.creatorArt} contentFit="cover" />
+                        <Text numberOfLines={1} style={styles.cardTitle}>{artist.name}</Text>
+                        <Text style={styles.cardSubtitle}>{artist.songs.length} song{artist.songs.length === 1 ? "" : "s"}</Text>
+                      </TouchableOpacity>
                     ))}
                   </ScrollView>
                 </View>
               ) : null}
 
-              {visibleAlbums.length > 0 ? (
-                <View style={[styles.cinematicSection, compactLayout && styles.cinematicSectionCompact]}>
-                  <Text style={styles.sectionEyebrow}>COLLECTIONS</Text>
-                  <Text style={styles.sectionTitle}>Albums</Text>
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    nestedScrollEnabled
-                    contentContainerStyle={[styles.mediaRail, { gap: railGap, paddingRight: horizontalPadding }]}
-                  >
-                    {visibleAlbums.map((album) => (
-                      <View key={album.id} style={[styles.mediaCardShell, { width: railCardWidth }]}>
-                        <UnifiedMediaCard
-                          title={album.title}
-                          subtitle={album.artist}
-                          imageUri={album.artwork}
-                          rightIcon="albums"
-                          onPress={() => openAlbum(album)}
-                          onRightPress={() => openAlbum(album)}
-                        />
-                      </View>
-                    ))}
-                  </ScrollView>
-                </View>
-              ) : null}
-
-              {visibleGenres.length > 0 ? (
-                <View style={[styles.cinematicSection, compactLayout && styles.cinematicSectionCompact]}>
-                  <Text style={styles.sectionEyebrow}>GENRES</Text>
-                  <Text style={styles.sectionTitle}>Genres</Text>
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    nestedScrollEnabled
-                    contentContainerStyle={[styles.mediaRail, { gap: railGap, paddingRight: horizontalPadding }]}
-                  >
-                    {visibleGenres.map((genre) => (
-                      <View key={genre.id} style={[styles.mediaCardShell, { width: railCardWidth }]}>
-                        <UnifiedMediaCard
-                          title={genre.title}
-                          subtitle={`${genre.songs.length} song${genre.songs.length === 1 ? "" : "s"}`}
-                          imageUri={genre.artwork}
-                          rightIcon="sparkles"
-                          onPress={() => openGenre(genre)}
-                          onRightPress={() => openGenre(genre)}
-                        />
-                      </View>
-                    ))}
-                  </ScrollView>
-                </View>
-              ) : null}
-
-              <View style={[styles.cinematicSection, compactLayout && styles.cinematicSectionCompact]}>
+              <View style={[styles.worldsSection, compactLayout && styles.cinematicSectionCompact]}>
                 <Text style={styles.sectionEyebrow}>WORLDS</Text>
                 <Text style={styles.sectionTitle}>Emotional Worlds</Text>
                 <WorldsExploreSection showSeeAll={false} />
               </View>
 
-              <WorldGalleryScreen embedded />
+              <View style={styles.galleryWrap}>
+                <WorldGalleryScreen embedded />
+              </View>
             </>
           )}
         </ScrollView>
@@ -600,5 +699,231 @@ const styles = StyleSheet.create({
   mediaCardShell: {
     width: 244,
     maxWidth: "70%",
+  },
+  smartHero: {
+    borderRadius: 26,
+    padding: 16,
+    marginBottom: 20,
+    backgroundColor: "rgba(255,255,255,0.045)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.09)",
+    overflow: "hidden",
+  },
+  smartHeroCompact: {
+    padding: 14,
+  },
+  smartGlow: {
+    position: "absolute",
+    top: -58,
+    right: -36,
+    width: 148,
+    height: 148,
+    borderRadius: 74,
+    backgroundColor: "rgba(168,85,247,0.11)",
+  },
+  smartTopRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  smartIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(168,85,247,0.14)",
+    borderWidth: 1,
+    borderColor: "rgba(168,85,247,0.26)",
+  },
+  smartCopy: {
+    flex: 1,
+  },
+  startButton: {
+    marginTop: 14,
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 11,
+    borderRadius: 999,
+    backgroundColor: COLORS.primary,
+  },
+  startButtonText: {
+    color: "#000",
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  continueCard: {
+    borderRadius: 24,
+    padding: 13,
+    marginBottom: 20,
+    backgroundColor: "rgba(255,255,255,0.045)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+  },
+  compactSongRow: {
+    minHeight: 58,
+    borderRadius: 18,
+    padding: 8,
+    marginTop: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.045)",
+  },
+  compactArt: {
+    width: 44,
+    height: 44,
+    borderRadius: 13,
+  },
+  songTextBox: {
+    flex: 1,
+    minWidth: 0,
+    paddingHorizontal: 10,
+  },
+  songTitle: {
+    color: COLORS.text,
+    fontSize: 14,
+    fontWeight: "900",
+  },
+  songArtist: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    fontWeight: "700",
+    marginTop: 4,
+  },
+  rowPlayButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: COLORS.primary,
+  },
+  songListPanel: {
+    borderRadius: 22,
+    padding: 8,
+    backgroundColor: "rgba(255,255,255,0.035)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.07)",
+  },
+  premiumSongRow: {
+    minHeight: 66,
+    borderRadius: 18,
+    padding: 9,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.045)",
+    marginBottom: 8,
+  },
+  songArtwork: {
+    width: 50,
+    height: 50,
+    borderRadius: 15,
+  },
+  moodGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+  },
+  genreList: {
+    gap: 9,
+  },
+  genreRow: {
+    minHeight: 64,
+    borderRadius: 19,
+    padding: 9,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.045)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.07)",
+  },
+  genreArt: {
+    width: 48,
+    height: 48,
+    borderRadius: 15,
+  },
+  roomRail: {
+    gap: 12,
+    paddingRight: 18,
+  },
+  listeningRoomCard: {
+    width: 188,
+    height: 136,
+    borderRadius: 22,
+    overflow: "hidden",
+    padding: 13,
+    justifyContent: "flex-end",
+    backgroundColor: COLORS.card,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.09)",
+  },
+  roomImage: {
+    ...StyleSheet.flatten(StyleSheet.absoluteFill),
+  },
+  roomShade: {
+    ...StyleSheet.flatten(StyleSheet.absoluteFill),
+    backgroundColor: "rgba(0,0,0,0.48)",
+  },
+  roomTitle: {
+    color: COLORS.text,
+    fontSize: 16,
+    fontWeight: "900",
+    zIndex: 2,
+  },
+  roomSubtitle: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    fontWeight: "800",
+    marginTop: 4,
+    zIndex: 2,
+  },
+  albumCard: {
+    borderRadius: 22,
+    padding: 12,
+    backgroundColor: "rgba(255,255,255,0.055)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.09)",
+  },
+  albumArt: {
+    width: "100%",
+    height: 148,
+    borderRadius: 18,
+    backgroundColor: COLORS.card,
+  },
+  creatorCard: {
+    borderRadius: 22,
+    padding: 12,
+    backgroundColor: "rgba(255,255,255,0.055)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.09)",
+  },
+  creatorArt: {
+    width: "100%",
+    height: 132,
+    borderRadius: 18,
+    backgroundColor: COLORS.card,
+  },
+  cardTitle: {
+    color: COLORS.text,
+    fontSize: 15,
+    fontWeight: "900",
+    marginTop: 10,
+  },
+  cardSubtitle: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    fontWeight: "800",
+    marginTop: 4,
+  },
+  worldsSection: {
+    marginTop: 16,
+    opacity: 0.78,
+  },
+  galleryWrap: {
+    marginTop: 12,
+    opacity: 0.72,
   },
 });

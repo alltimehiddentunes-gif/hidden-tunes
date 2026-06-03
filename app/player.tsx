@@ -1,4 +1,4 @@
-import React, { memo, useCallback, useEffect, useMemo, useRef } from "react";
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   useWindowDimensions,
   Image,
@@ -24,6 +24,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 
+import AddToPlaylistModal from "../components/AddToPlaylistModal";
 import LiveWaveform from "../components/LiveWaveform";
 import NeonEQ from "../components/NeonEQ";
 import AppShell from "../components/navigation/AppShell";
@@ -243,13 +244,34 @@ export default function PlayerScreen() {
 
   const { currentSong, isPlaying, isLoading } = usePlayerNowPlaying();
   const { positionMillis, durationMillis } = usePlayerProgress();
-  const { activeQueue, activeQueueIndex, activeQueueMode, radioMode, youtubeQueue } =
-    usePlayerState();
-  const { togglePlayPause, nextSong, previousSong, seekTo } = usePlayerActions();
+  const {
+    activeQueue,
+    activeQueueIndex,
+    activeQueueMode,
+    radioMode,
+    youtubeQueue,
+    shuffle,
+    repeatMode,
+    smartAutoplayEnabled,
+    volume,
+    isMuted,
+  } = usePlayerState();
+  const {
+    togglePlayPause,
+    nextSong,
+    previousSong,
+    seekTo,
+    setVolume,
+    toggleMute,
+    toggleShuffle,
+    toggleRepeatMode,
+    toggleSmartAutoplay,
+  } = usePlayerActions();
 
+  const [addToPlaylistOpen, setAddToPlaylistOpen] = useState(false);
   const lastMetadataPressAtRef = useRef(0);
   const pulse = useSharedValue(1);
-  const artworkTilt = useSharedValue(0);
+  const artworkRotation = useSharedValue(0);
   const artworkHalo = useSharedValue(0.28);
   const metadataOpacity = useSharedValue(1);
   const metadataTranslateY = useSharedValue(0);
@@ -327,29 +349,29 @@ export default function PlayerScreen() {
   useEffect(() => {
     if (!isPlaying || !currentSong) {
       cancelAnimation(pulse);
-      cancelAnimation(artworkTilt);
+      cancelAnimation(artworkRotation);
       cancelAnimation(artworkHalo);
       pulse.value = withTiming(1, { duration: 220 });
-      artworkTilt.value = withTiming(0, { duration: 220 });
+      artworkRotation.value = withTiming(0, { duration: 220 });
       artworkHalo.value = withTiming(0.24, { duration: 220 });
       return;
     }
 
     pulse.value = withTiming(1.006, { duration: 260 });
-    artworkTilt.value = withTiming(1.2, { duration: 420, easing: Easing.out(Easing.cubic) });
+    artworkRotation.value = withTiming(360, { duration: 28000, easing: Easing.linear });
     artworkHalo.value = withTiming(0.34, { duration: 260 });
 
     return () => {
       cancelAnimation(pulse);
-      cancelAnimation(artworkTilt);
+      cancelAnimation(artworkRotation);
       cancelAnimation(artworkHalo);
     };
-  }, [artworkHalo, artworkTilt, currentSong, isPlaying, pulse]);
+  }, [artworkHalo, artworkRotation, currentSong, isPlaying, pulse]);
 
   const artworkAnimated = useAnimatedStyle(() => ({
     transform: [
       { scale: isPlaying ? pulse.value : 1 },
-      { rotate: `${artworkTilt.value}deg` },
+      { rotate: `${artworkRotation.value}deg` },
     ],
   }));
 
@@ -388,6 +410,45 @@ export default function PlayerScreen() {
   const handleNext = useCallback(() => {
     void nextSong();
   }, [nextSong]);
+
+  const openArtist = useCallback(() => {
+    if (!artist) return;
+    router.push({ pathname: "/artist", params: { artist } } as any);
+  }, [artist]);
+
+  const setRepeatTarget = useCallback(
+    (target: "one" | "all") => {
+      if (repeatMode === target) {
+        toggleRepeatMode();
+        return;
+      }
+      if (target === "one") {
+        if (repeatMode === "off") toggleRepeatMode();
+        if (repeatMode === "all") {
+          toggleRepeatMode();
+          toggleRepeatMode();
+        }
+        return;
+      }
+      if (repeatMode === "one") toggleRepeatMode();
+      if (repeatMode === "off") {
+        toggleRepeatMode();
+        toggleRepeatMode();
+      }
+    },
+    [repeatMode, toggleRepeatMode]
+  );
+
+  const handleVolumeChange = useCallback(
+    (value: number) => {
+      void setVolume(value);
+    },
+    [setVolume]
+  );
+
+  const handleSmartToggle = useCallback(() => {
+    void toggleSmartAutoplay();
+  }, [toggleSmartAutoplay]);
 
   const openLyrics = useCallback(() => {
     if (!currentSong) return;
@@ -497,7 +558,7 @@ export default function PlayerScreen() {
             </TouchableOpacity>
 
             <View style={styles.headerCopy}>
-              <Text style={styles.headerTitle}>{queueLabel}</Text>
+              <Text style={styles.headerTitle}>Track Session</Text>
               <Text style={styles.headerSubtitle} numberOfLines={1}>
                 {artist}
               </Text>
@@ -582,9 +643,9 @@ export default function PlayerScreen() {
             <Text numberOfLines={2} style={styles.title}>
               {title}
             </Text>
-            <Text numberOfLines={1} style={styles.artist}>
-              {artist}
-            </Text>
+            <TouchableOpacity activeOpacity={0.82} onPress={openArtist}>
+              <Text numberOfLines={1} style={styles.artist}>{artist}</Text>
+            </TouchableOpacity>
           </Animated.View>
 
           {listeningContext.length > 0 ? (
@@ -625,9 +686,13 @@ export default function PlayerScreen() {
           </View>
 
           <View style={[styles.controlsDock, compactLayout && styles.controlsDockCompact]}>
-            <View style={[styles.controls, compactLayout && styles.controlsCompact]}>
+            <View style={[styles.controls, styles.controlsRestored, compactLayout && styles.controlsCompact]}>
+              <PremiumIconButton disabled={!currentSong} onPress={toggleShuffle}>
+                <Ionicons name="shuffle" size={22} color={shuffle ? COLORS.primaryGlow : COLORS.text} />
+              </PremiumIconButton>
+
               <PremiumIconButton disabled={!currentSong} onPress={handlePrevious}>
-                <Ionicons name="play-skip-back" size={30} color={COLORS.text} />
+                <Ionicons name="play-skip-back" size={27} color={COLORS.text} />
               </PremiumIconButton>
 
               <PremiumPlayButton
@@ -638,7 +703,15 @@ export default function PlayerScreen() {
               />
 
               <PremiumIconButton disabled={!currentSong} onPress={handleNext}>
-                <Ionicons name="play-skip-forward" size={30} color={COLORS.text} />
+                <Ionicons name="play-skip-forward" size={27} color={COLORS.text} />
+              </PremiumIconButton>
+
+              <PremiumIconButton disabled={!currentSong} onPress={() => setRepeatTarget("one")}>
+                <Ionicons name="repeat" size={22} color={repeatMode === "one" ? COLORS.primaryGlow : COLORS.text} />
+              </PremiumIconButton>
+
+              <PremiumIconButton disabled={!currentSong} onPress={() => setRepeatTarget("all")}>
+                <Ionicons name="repeat" size={22} color={repeatMode === "all" ? COLORS.primaryGlow : COLORS.text} />
               </PremiumIconButton>
             </View>
           </View>
@@ -669,23 +742,90 @@ export default function PlayerScreen() {
               <Ionicons name="list" size={19} color={COLORS.text} />
               <Text style={styles.extraActionText}>Queue</Text>
             </Pressable>
+
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Add to playlist"
+              onPress={() => setAddToPlaylistOpen(true)}
+              style={({ pressed }) => [
+                styles.extraAction,
+                pressed && styles.extraActionPressed,
+              ]}
+            >
+              <Ionicons name="add-circle" size={19} color={COLORS.text} />
+              <Text style={styles.extraActionText}>Add to Playlist</Text>
+            </Pressable>
+          </View>
+
+          <View style={styles.infoCard}>
+            <Text style={styles.sessionEyebrow}>TRACK INFORMATION</Text>
+            <InfoRow label="Album" value={String(currentSong.album || "Singles")} onPress={() => handleMetadataPress("album", String(currentSong.album || "Singles"))} />
+            <InfoRow label="Artist" value={artist} onPress={openArtist} />
+            <InfoRow label="Song" value={title} />
+            <InfoRow label="Mood" value={String((currentSong as { mood?: string }).mood || "Open")} onPress={() => handleMetadataPress("mood", String((currentSong as { mood?: string }).mood || ""))} />
+            <InfoRow label="Genre" value={normalizeGenreName((currentSong as { genre?: string }).genre) || "Hidden Tunes"} onPress={() => handleMetadataPress("genre", normalizeGenreName((currentSong as { genre?: string }).genre) || "")} />
           </View>
 
           <View style={styles.sessionCard}>
             <View style={styles.sessionTextWrap}>
-              <Text style={styles.sessionEyebrow}>
-                {nextUpSong ? "UP NEXT" : "SESSION"}
-              </Text>
-              <Text numberOfLines={2} style={styles.sessionText}>
-                {sessionFlowText}
-              </Text>
+              <Text style={styles.sessionEyebrow}>SESSION CONTINUATION</Text>
+              <Text style={styles.sessionText}>{smartAutoplayEnabled ? "Smart on" : "Smart off"}</Text>
+              <Text numberOfLines={2} style={styles.sessionSubText}>{sessionFlowText}</Text>
             </View>
+            <TouchableOpacity activeOpacity={0.84} style={[styles.smartButton, smartAutoplayEnabled && styles.smartButtonActive]} onPress={handleSmartToggle}>
+              <Text style={styles.smartButtonText}>{smartAutoplayEnabled ? "On" : "Off"}</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.volumeCard}>
+            <View style={styles.volumeHeader}>
+              <Text style={styles.sessionEyebrow}>VOLUME</Text>
+              <TouchableOpacity activeOpacity={0.82} onPress={toggleMute}>
+                <Ionicons name={isMuted ? "volume-mute" : "volume-high"} size={21} color={COLORS.text} />
+              </TouchableOpacity>
+            </View>
+            <Slider
+              value={isMuted ? 0 : volume}
+              minimumValue={0}
+              maximumValue={1}
+              minimumTrackTintColor={COLORS.primaryGlow}
+              maximumTrackTintColor="rgba(255,255,255,0.16)"
+              thumbTintColor={COLORS.primary}
+              onSlidingComplete={handleVolumeChange}
+            />
           </View>
         </ScrollView>
       </LinearGradient>
+      <AddToPlaylistModal
+        visible={addToPlaylistOpen}
+        track={currentSong}
+        onClose={() => setAddToPlaylistOpen(false)}
+      />
     </AppShell>
   );
 }
+
+
+const InfoRow = memo(function InfoRow({
+  label,
+  value,
+  onPress,
+}: {
+  label: string;
+  value: string;
+  onPress?: () => void;
+}) {
+  const content = (
+    <View style={styles.infoRow}>
+      <Text style={styles.infoLabel}>{label}</Text>
+      <Text numberOfLines={1} style={styles.infoValue}>{value}</Text>
+      {onPress ? <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} /> : null}
+    </View>
+  );
+
+  if (!onPress) return content;
+  return <Pressable onPress={onPress}>{content}</Pressable>;
+});
 
 const styles = StyleSheet.create({
   container: {
@@ -1057,4 +1197,79 @@ const styles = StyleSheet.create({
     marginTop: 6,
     lineHeight: 20,
   },
+  controlsRestored: {
+    gap: 9,
+    flexWrap: "nowrap",
+  },
+  infoCard: {
+    marginTop: 14,
+    borderRadius: 20,
+    padding: 13,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+  },
+  infoRow: {
+    minHeight: 38,
+    flexDirection: "row",
+    alignItems: "center",
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255,255,255,0.065)",
+  },
+  infoLabel: {
+    width: 72,
+    color: COLORS.textMuted,
+    fontSize: 11,
+    fontWeight: "900",
+    textTransform: "uppercase",
+  },
+  infoValue: {
+    flex: 1,
+    color: COLORS.text,
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  sessionSubText: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    fontWeight: "700",
+    marginTop: 4,
+    lineHeight: 18,
+  },
+  smartButton: {
+    minWidth: 54,
+    height: 34,
+    borderRadius: 17,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+  },
+  smartButtonActive: {
+    backgroundColor: "rgba(168,85,247,0.18)",
+    borderColor: "rgba(168,85,247,0.32)",
+  },
+  smartButtonText: {
+    color: COLORS.text,
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  volumeCard: {
+    marginTop: 14,
+    borderRadius: 20,
+    paddingHorizontal: 13,
+    paddingTop: 12,
+    paddingBottom: 8,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+  },
+  volumeHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 3,
+  },
+
 });
