@@ -1,5 +1,7 @@
 import { Platform } from "react-native";
 
+import { logAndRememberLockscreenDiagnostic } from "../utils/lockscreenPlaybackDiagnostics";
+
 import {
   buildRemoteMediaMetadata,
   type RemoteMediaHandlers,
@@ -40,6 +42,29 @@ function logRemoteMediaError(message: string, error: unknown) {
   console.log(`[HTRemoteMedia] ${message}:`, error);
 }
 
+
+function commandDiagnosticName(
+  mediaModule: MediaControlModule,
+  command: import("expo-media-control").MediaControlEvent["command"]
+) {
+  const { Command } = mediaModule;
+
+  switch (command) {
+    case Command.PLAY:
+      return "remote_play_received";
+    case Command.PAUSE:
+      return "remote_pause_received";
+    case Command.NEXT_TRACK:
+      return "remote_next_received";
+    case Command.PREVIOUS_TRACK:
+      return "remote_previous_received";
+    case Command.STOP:
+      return "remote_stop_received";
+    default:
+      return "remote_unknown_received";
+  }
+}
+
 async function loadMediaControlModule(): Promise<MediaControlModule | null> {
   if (!isNativePlatform()) return null;
   if (!isRemoteMediaControlsPlatformEnabled()) return null;
@@ -64,7 +89,24 @@ async function handleMediaControlEvent(
 
   const { Command } = mediaModule;
 
+  const diagnosticName = commandDiagnosticName(mediaModule, event.command);
+
   logRemoteMedia("command", { command: event.command });
+  logAndRememberLockscreenDiagnostic(
+    "android_media_session_command_received",
+    { command: event.command },
+    { lastRemoteCommand: `android:${String(event.command)}` }
+  );
+  logAndRememberLockscreenDiagnostic(
+    diagnosticName,
+    { command: event.command, platform: Platform.OS },
+    { lastRemoteCommand: diagnosticName }
+  );
+  logAndRememberLockscreenDiagnostic(
+    "remote_command_forwarded_to_js",
+    { command: event.command, diagnosticName },
+    { lastBridgeEvent: "remote_command_forwarded_to_js" }
+  );
 
   try {
     switch (event.command) {
@@ -86,7 +128,18 @@ async function handleMediaControlEvent(
       default:
         break;
     }
+
+    logAndRememberLockscreenDiagnostic(
+      "remote_command_handled_success",
+      { command: event.command, diagnosticName },
+      { lastBridgeEvent: "remote_command_handled_success" }
+    );
   } catch (error) {
+    logAndRememberLockscreenDiagnostic(
+      "remote_command_handled_error",
+      { command: event.command, diagnosticName, message: String(error) },
+      { lastBridgeEvent: "remote_command_handled_error" }
+    );
     logRemoteMediaError("command handler error", error);
   }
 }

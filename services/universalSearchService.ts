@@ -89,7 +89,6 @@ export type UniversalSearchCatalog = {
   tvVideos: HiddenTunesTvVideo[];
 };
 
-const FUZZY_SONG_INPUT_LIMIT = 180;
 const FUZZY_LYRIC_CANDIDATE_LIMIT = 24;
 
 const EMPTY_RESULTS: UniversalSearchGroupedResults = {
@@ -178,10 +177,7 @@ function searchSongs(
   songs: UniversalSearchSongHit[];
   lyrics: UniversalSearchSongHit[];
 } {
-  const pool =
-    songs.length > FUZZY_SONG_INPUT_LIMIT
-      ? songs.slice(0, FUZZY_SONG_INPUT_LIMIT)
-      : songs;
+  const pool = songs;
 
   if (pool.length >= 48) {
     const ranked = rankCatalogSongs(pool, query, 40);

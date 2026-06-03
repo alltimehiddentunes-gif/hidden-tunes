@@ -6,16 +6,36 @@ import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
 import com.facebook.react.bridge.ReadableArray
 import com.facebook.react.bridge.ReadableMap
+import com.facebook.react.modules.core.DeviceEventManagerModule
+import com.facebook.react.bridge.WritableMap
+import com.facebook.react.bridge.Arguments
 
 class HiddenAudioModule(
   private val reactContext: ReactApplicationContext
 ) : ReactContextBaseJavaModule(reactContext) {
   override fun getName(): String = "HiddenAudioModule"
 
+  private fun emitDiagnostic(eventName: String, data: WritableMap = Arguments.createMap()) {
+    val body = Arguments.createMap()
+    body.putString("type", "diagnostic")
+    body.putString("eventName", eventName)
+    body.putMap("data", data)
+    reactContext
+      .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
+      .emit("HiddenAudioDiagnostic", body)
+  }
+
+  private fun simpleData(key: String, value: String): WritableMap {
+    val data = Arguments.createMap()
+    data.putString(key, value)
+    return data
+  }
+
   @ReactMethod
   fun setup(promise: Promise) {
     try {
       HiddenAudioCore.attachReactContext(reactContext)
+      emitDiagnostic("android_foreground_service_status", simpleData("status", "not_started_by_hidden_audio_module"))
       HiddenAudioCore.setup(reactContext)
       promise.resolve(null)
     } catch (error: Throwable) {
@@ -27,7 +47,9 @@ class HiddenAudioModule(
   fun loadTrack(track: ReadableMap, promise: Promise) {
     try {
       HiddenAudioCore.attachReactContext(reactContext)
+      emitDiagnostic("hidden_audio_load_track_start")
       HiddenAudioCore.loadTrack(reactContext, track)
+      emitDiagnostic("hidden_audio_load_track_success")
       promise.resolve(null)
     } catch (error: Throwable) {
       promise.reject("HIDDEN_AUDIO_LOAD_TRACK_FAILED", error)
@@ -51,7 +73,9 @@ class HiddenAudioModule(
       }
 
       HiddenAudioCore.attachReactContext(reactContext)
+      emitDiagnostic("hidden_audio_load_track_start")
       HiddenAudioCore.loadTrack(reactContext, track)
+      emitDiagnostic("hidden_audio_load_track_success")
       promise.resolve(null)
     } catch (error: Throwable) {
       promise.reject("HIDDEN_AUDIO_LOAD_QUEUE_FAILED", error)
@@ -61,7 +85,10 @@ class HiddenAudioModule(
   @ReactMethod
   fun play(promise: Promise) {
     try {
+      emitDiagnostic("hidden_audio_play_start")
       HiddenAudioCore.play()
+      emitDiagnostic("android_player_state_changed", simpleData("state", "play_requested"))
+      emitDiagnostic("hidden_audio_play_confirmed")
       promise.resolve(null)
     } catch (error: Throwable) {
       promise.reject("HIDDEN_AUDIO_PLAY_FAILED", error)
@@ -71,7 +98,9 @@ class HiddenAudioModule(
   @ReactMethod
   fun pause(promise: Promise) {
     try {
+      emitDiagnostic("hidden_audio_pause_called")
       HiddenAudioCore.pause()
+      emitDiagnostic("android_player_state_changed", simpleData("state", "pause_requested"))
       promise.resolve(null)
     } catch (error: Throwable) {
       promise.reject("HIDDEN_AUDIO_PAUSE_FAILED", error)
@@ -86,7 +115,10 @@ class HiddenAudioModule(
   @ReactMethod
   fun stop(promise: Promise) {
     try {
+      emitDiagnostic("hidden_audio_stop_called")
       HiddenAudioCore.stop()
+      emitDiagnostic("android_player_state_changed", simpleData("state", "stop_requested"))
+      emitDiagnostic("hidden_audio_unload_called")
       promise.resolve(null)
     } catch (error: Throwable) {
       promise.reject("HIDDEN_AUDIO_STOP_FAILED", error)

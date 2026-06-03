@@ -4,11 +4,14 @@ import { isHiddenAudioEnabledOnIOS } from "../constants/playbackConfig";
 import {
   hiddenAudioBridge,
   isHiddenAudioNativeEngineAvailable,
+  subscribeHiddenAudioNativeDiagnostics,
   subscribeHiddenAudioPlaybackEnded,
+  type HiddenAudioNativeDiagnosticEvent,
   type HiddenAudioPlaybackEndedEvent,
 } from "../src/hidden-audio/hiddenAudioBridge";
 import { recordBridgeSetProgressInterval } from "../utils/runtimeInstrumentation";
 import { logBackgroundPlayback } from "../utils/backgroundPlaybackLogs";
+import { logAndRememberLockscreenDiagnostic } from "../utils/lockscreenPlaybackDiagnostics";
 import {
   PlaybackEngineEventHandlers,
   PlaybackEngineProgress,
@@ -22,6 +25,7 @@ export type PlaybackProgress = PlaybackEngineProgress;
 export type NativeQueueEventHandlers = PlaybackEngineEventHandlers;
 export type PlaybackEngineKind = "hidden_audio";
 export type HiddenAudioEndedEvent = HiddenAudioPlaybackEndedEvent;
+export type HiddenAudioDiagnosticEvent = HiddenAudioNativeDiagnosticEvent;
 
 type QueueSnapshot = {
   queueLength: number;
@@ -167,6 +171,13 @@ export function subscribeHiddenAudioEnded(
   return subscribeHiddenAudioPlaybackEnded(handler);
 }
 
+export function subscribeHiddenAudioDiagnostics(
+  handler: (event: HiddenAudioDiagnosticEvent) => void
+): () => void {
+  if (!isHiddenAudioEnabledOnIOS()) return () => {};
+  return subscribeHiddenAudioNativeDiagnostics(handler);
+}
+
 export async function bridgeSetProgressInterval(
   appState: AppStateStatus
 ): Promise<void> {
@@ -215,6 +226,12 @@ export async function activateHiddenAudioPlayback(options: {
   positionSeconds?: number;
   artworkUrl?: string;
 }): Promise<void> {
+  logAndRememberLockscreenDiagnostic(
+    "hidden_audio_load_track_start",
+    { title: options.title, artist: options.artist, hasArtwork: Boolean(options.artworkUrl) },
+    { lastBridgeEvent: "activate_hidden_audio_playback" }
+  );
+
   await hiddenAudioBridge.updateNowPlaying({
     title: options.title,
     artist: options.artist,
@@ -224,6 +241,11 @@ export async function activateHiddenAudioPlayback(options: {
     artworkUrl: options.artworkUrl || "",
   });
   await hiddenAudioBridge.load(options.url);
+  logAndRememberLockscreenDiagnostic(
+    "hidden_audio_load_track_success",
+    { title: options.title, artist: options.artist },
+    { lastBridgeEvent: "activate_hidden_audio_loaded" }
+  );
 
   const startPositionMs = Math.max(0, Math.round((options.positionSeconds ?? 0) * 1000));
   if (startPositionMs > 0) {
@@ -232,6 +254,11 @@ export async function activateHiddenAudioPlayback(options: {
 
   await hiddenAudioBridge.play();
   hiddenAudioBridgeActive = true;
+  logAndRememberLockscreenDiagnostic(
+    "hidden_audio_play_confirmed",
+    { title: options.title, artist: options.artist },
+    { lastBridgeEvent: "activate_hidden_audio_play_confirmed" }
+  );
 }
 
 export async function deactivateHiddenAudioPlayback(
@@ -240,6 +267,11 @@ export async function deactivateHiddenAudioPlayback(
   if (!hiddenAudioBridgeActive) return;
 
   logBackgroundPlayback("hidden_audio_deactivate_requested", { reason });
+  logAndRememberLockscreenDiagnostic(
+    "hidden_audio_stop_called",
+    { reason },
+    { lastBridgeEvent: "deactivate_hidden_audio_playback" }
+  );
 
   try {
     await hiddenAudioBridge.stop();
@@ -248,6 +280,11 @@ export async function deactivateHiddenAudioPlayback(
   }
 
   hiddenAudioBridgeActive = false;
+  logAndRememberLockscreenDiagnostic(
+    "hidden_audio_unload_called",
+    { reason },
+    { lastBridgeEvent: "deactivate_hidden_audio_playback_complete" }
+  );
 }
 
 export async function bridgeHiddenAudioPlay(): Promise<void> {

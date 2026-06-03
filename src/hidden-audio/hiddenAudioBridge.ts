@@ -6,6 +6,8 @@
 
 import { NativeEventEmitter, NativeModules, Platform } from "react-native";
 
+import { logAndRememberLockscreenDiagnostic } from "../../utils/lockscreenPlaybackDiagnostics";
+
 export interface HiddenAudioNowPlayingMetadata {
   title: string;
   artist: string;
@@ -20,6 +22,12 @@ export type HiddenAudioStatus = {
   durationMillis: number;
   isPlaying: boolean;
   playbackState?: string;
+};
+
+export type HiddenAudioNativeDiagnosticEvent = {
+  type?: string;
+  eventName?: string;
+  data?: Record<string, unknown>;
 };
 
 export type HiddenAudioPlaybackEndedEvent = {
@@ -123,6 +131,15 @@ export function subscribeHiddenAudioPlaybackEnded(
   return () => subscription.remove();
 }
 
+export function subscribeHiddenAudioNativeDiagnostics(
+  handler: (event: HiddenAudioNativeDiagnosticEvent) => void
+): () => void {
+  if (!hiddenAudioEvents) return () => {};
+
+  const subscription = hiddenAudioEvents.addListener("HiddenAudioDiagnostic", handler);
+  return () => subscription.remove();
+}
+
 export const hiddenAudioBridge: HiddenAudioEngine = {
   async load(url: string): Promise<void> {
     if (!HiddenAudioNative?.loadTrack) {
@@ -132,12 +149,17 @@ export const hiddenAudioBridge: HiddenAudioEngine = {
 
     const track = buildNativeTrack(url);
     lastLoadedUrl = track.url;
-    console.log("hidden_audio_load_track_start", {
-      id: track.id,
-      hasUrl: Boolean(track.url),
-    });
+    logAndRememberLockscreenDiagnostic(
+      "hidden_audio_load_track_start",
+      { id: track.id, hasUrl: Boolean(track.url) },
+      { lastBridgeEvent: "hidden_audio_load_track_start" }
+    );
     await HiddenAudioNative.loadTrack(track);
-    console.log("hidden_audio_load_track_success", { id: track.id });
+    logAndRememberLockscreenDiagnostic(
+      "hidden_audio_load_track_success",
+      { id: track.id },
+      { lastBridgeEvent: "hidden_audio_load_track_success" }
+    );
   },
   async play(): Promise<void> {
     if (!HiddenAudioNative) {
@@ -145,15 +167,28 @@ export const hiddenAudioBridge: HiddenAudioEngine = {
       return;
     }
 
-    console.log("hidden_audio_play_start", { hasLoadedUrl: Boolean(lastLoadedUrl) });
+    logAndRememberLockscreenDiagnostic(
+      "hidden_audio_play_start",
+      { hasLoadedUrl: Boolean(lastLoadedUrl) },
+      { lastBridgeEvent: "hidden_audio_play_start" }
+    );
     await HiddenAudioNative.play();
-    console.log("hidden_audio_play_success");
+    logAndRememberLockscreenDiagnostic(
+      "hidden_audio_play_confirmed",
+      { hasLoadedUrl: Boolean(lastLoadedUrl) },
+      { lastBridgeEvent: "hidden_audio_play_confirmed" }
+    );
   },
   async pause(): Promise<void> {
     if (!HiddenAudioNative) {
       warnStub("pause");
       return;
     }
+    logAndRememberLockscreenDiagnostic(
+      "hidden_audio_pause_called",
+      { hasLoadedUrl: Boolean(lastLoadedUrl) },
+      { lastBridgeEvent: "hidden_audio_pause_called" }
+    );
     await HiddenAudioNative.pause();
   },
   async stop(): Promise<void> {
@@ -161,7 +196,17 @@ export const hiddenAudioBridge: HiddenAudioEngine = {
       warnStub("stop");
       return;
     }
+    logAndRememberLockscreenDiagnostic(
+      "hidden_audio_stop_called",
+      { hasLoadedUrl: Boolean(lastLoadedUrl) },
+      { lastBridgeEvent: "hidden_audio_stop_called" }
+    );
     await HiddenAudioNative.stop();
+    logAndRememberLockscreenDiagnostic(
+      "hidden_audio_unload_called",
+      { hadLoadedUrl: Boolean(lastLoadedUrl) },
+      { lastBridgeEvent: "hidden_audio_unload_called" }
+    );
     lastLoadedUrl = "";
   },
   async seek(positionMs: number): Promise<void> {

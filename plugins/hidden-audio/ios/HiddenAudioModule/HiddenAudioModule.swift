@@ -373,9 +373,18 @@ class HiddenAudioModule: RCTEventEmitter {
     do {
       try session.setCategory(.playback, mode: .default, options: [])
       try session.setActive(true)
+      emitDiagnostic("ios_audio_session_category", [
+        "category": session.category.rawValue,
+        "mode": session.mode.rawValue
+      ])
       emitDiagnostic("hidden_audio_native_audio_session_active", [
         "category": session.category.rawValue,
         "mode": session.mode.rawValue
+      ])
+      emitDiagnostic("ios_background_playback_status", [
+        "audioSessionActive": true,
+        "category": session.category.rawValue,
+        "status": playerStatus
       ])
     } catch {
       emitDiagnostic("hidden_audio_audio_session_config_failed", [
@@ -447,12 +456,24 @@ class HiddenAudioModule: RCTEventEmitter {
           "activeIndex": self.activeIndex,
           "bufferedSeconds": self.bufferedEndSeconds(for: item)
         ])
+        self.emitDiagnostic("native_playback_buffer_status", [
+          "bufferEmpty": true,
+          "trackId": self.activeTrack?["id"] as? String ?? "",
+          "activeIndex": self.activeIndex,
+          "bufferedSeconds": self.bufferedEndSeconds(for: item)
+        ])
       }
     }
 
     likelyToKeepUpObserver = item.observe(\.isPlaybackLikelyToKeepUp, options: [.new]) { [weak self] item, _ in
       guard let self = self else { return }
       self.emitDiagnostic("hidden_audio_playback_likely_to_keep_up", [
+        "likelyToKeepUp": item.isPlaybackLikelyToKeepUp,
+        "trackId": self.activeTrack?["id"] as? String ?? "",
+        "activeIndex": self.activeIndex,
+        "bufferedSeconds": self.bufferedEndSeconds(for: item)
+      ])
+      self.emitDiagnostic("native_playback_buffer_status", [
         "likelyToKeepUp": item.isPlaybackLikelyToKeepUp,
         "trackId": self.activeTrack?["id"] as? String ?? "",
         "activeIndex": self.activeIndex,
@@ -468,10 +489,19 @@ class HiddenAudioModule: RCTEventEmitter {
         "status": currentPlayer.timeControlStatus.rawValue,
         "rate": currentPlayer.rate
       ])
+      self?.emitDiagnostic("native_playback_state_changed", [
+        "status": currentPlayer.timeControlStatus.rawValue,
+        "rate": currentPlayer.rate
+      ])
       self?.confirmPlayingIfNeeded()
     }
     rateObserver = currentPlayer.observe(\.rate, options: [.new]) { [weak self] player, _ in
       self?.emitDiagnostic("hidden_audio_player_rate_changed", [
+        "rate": player.rate,
+        "timeControlStatus": player.timeControlStatus.rawValue
+      ])
+      self?.emitDiagnostic("native_playback_is_playing", [
+        "isPlaying": player.rate > 0,
         "rate": player.rate,
         "timeControlStatus": player.timeControlStatus.rawValue
       ])
@@ -486,6 +516,11 @@ class HiddenAudioModule: RCTEventEmitter {
       if playerStatus != "playing" {
         playerStatus = "playing"
         emitDiagnostic("hidden_audio_native_playing_confirmed", [
+          "trackId": activeTrack?["id"] as? String ?? "",
+          "activeIndex": activeIndex
+        ])
+        emitDiagnostic("native_playback_is_playing", [
+          "isPlaying": true,
           "trackId": activeTrack?["id"] as? String ?? "",
           "activeIndex": activeIndex
         ])
@@ -514,7 +549,10 @@ class HiddenAudioModule: RCTEventEmitter {
         self?.emitRemoteCommandResult("play", success: false, reason: "no_player")
         return .commandFailed
       }
-      self.emitDiagnostic("hidden_audio_remote_play_received")
+      self.emitDiagnostic("ios_remote_command_received", [
+        "command": "play"
+      ])
+      self.emitDiagnostic("remote_play_received")
       do {
         try self.activateAudioSession()
       } catch {
@@ -534,7 +572,10 @@ class HiddenAudioModule: RCTEventEmitter {
         self?.emitRemoteCommandResult("pause", success: false, reason: "no_player")
         return .commandFailed
       }
-      self.emitDiagnostic("hidden_audio_remote_pause_received")
+      self.emitDiagnostic("ios_remote_command_received", [
+        "command": "pause"
+      ])
+      self.emitDiagnostic("remote_pause_received")
       self.player?.pause()
       self.shouldResumeAfterItemLoad = false
       self.playerStatus = "paused"
@@ -550,6 +591,9 @@ class HiddenAudioModule: RCTEventEmitter {
         self?.emitRemoteCommandResult("toggle", success: false, reason: "no_player")
         return .commandFailed
       }
+      self.emitDiagnostic("ios_remote_command_received", [
+        "command": "toggle"
+      ])
       self.emitDiagnostic("hidden_audio_remote_toggle_received", [
         "status": self.playerStatus
       ])
@@ -581,7 +625,10 @@ class HiddenAudioModule: RCTEventEmitter {
         self?.emitRemoteCommandResult("next", success: false, reason: "no_next_track")
         return .noSuchContent
       }
-      self.emitDiagnostic("hidden_audio_remote_next_received", [
+      self.emitDiagnostic("ios_remote_command_received", [
+        "command": "next"
+      ])
+      self.emitDiagnostic("remote_next_received", [
         "activeIndex": self.activeIndex,
         "queueLength": self.queue.count
       ])
@@ -592,7 +639,10 @@ class HiddenAudioModule: RCTEventEmitter {
 
     commandCenter.previousTrackCommand.addTarget { [weak self] _ in
       guard let self = self else { return .commandFailed }
-      self.emitDiagnostic("hidden_audio_remote_previous_received", [
+      self.emitDiagnostic("ios_remote_command_received", [
+        "command": "previous"
+      ])
+      self.emitDiagnostic("remote_previous_received", [
         "activeIndex": self.activeIndex,
         "queueLength": self.queue.count
       ])
@@ -614,6 +664,9 @@ class HiddenAudioModule: RCTEventEmitter {
         self?.emitRemoteCommandResult("seek", success: false, reason: "invalid_event")
         return .commandFailed
       }
+      self?.emitDiagnostic("ios_remote_command_received", [
+        "command": "seek"
+      ])
       self?.emitDiagnostic("hidden_audio_remote_seek_received", [
         "positionSeconds": positionEvent.positionTime
       ])
@@ -660,6 +713,12 @@ class HiddenAudioModule: RCTEventEmitter {
       self,
       selector: #selector(audioRouteChanged(_:)),
       name: AVAudioSession.routeChangeNotification,
+      object: nil
+    )
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(silenceSecondaryAudioHint(_:)),
+      name: AVAudioSession.silenceSecondaryAudioHintNotification,
       object: nil
     )
   }
@@ -846,14 +905,28 @@ class HiddenAudioModule: RCTEventEmitter {
     ])
 
     let now = Date().timeIntervalSince1970
-    if now - lastProgressDiagnosticAt >= 15 {
+    let positionSeconds = progress["positionSeconds"] ?? 0
+    let diagnosticInterval = positionSeconds >= 15 && positionSeconds <= 25 ? 1.0 : 5.0
+    if now - lastProgressDiagnosticAt >= diagnosticInterval {
       lastProgressDiagnosticAt = now
       emitDiagnostic("hidden_audio_native_progress", [
-        "positionSeconds": progress["positionSeconds"] ?? 0,
+        "positionSeconds": positionSeconds,
         "durationSeconds": progress["durationSeconds"] ?? 0,
         "bufferedSeconds": progress["bufferedSeconds"] ?? 0,
         "activeIndex": activeIndex,
         "isPlaying": playerStatus == "playing"
+      ])
+      emitDiagnostic("native_playback_position", [
+        "positionSeconds": positionSeconds,
+        "activeIndex": activeIndex
+      ])
+      emitDiagnostic("native_playback_duration", [
+        "durationSeconds": progress["durationSeconds"] ?? 0,
+        "activeIndex": activeIndex
+      ])
+      emitDiagnostic("native_playback_buffer_status", [
+        "bufferedSeconds": progress["bufferedSeconds"] ?? 0,
+        "activeIndex": activeIndex
       ])
     }
   }
@@ -901,6 +974,11 @@ class HiddenAudioModule: RCTEventEmitter {
       "success": success,
       "reason": reason
     ])
+    emitDiagnostic(success ? "remote_command_handled_success" : "remote_command_handled_error", [
+      "command": command,
+      "success": success,
+      "reason": reason
+    ])
   }
 
   private func emitNativeError(_ message: String) {
@@ -921,6 +999,11 @@ class HiddenAudioModule: RCTEventEmitter {
       "status": playerStatus,
       "activeIndex": activeIndex
     ])
+    emitDiagnostic("ios_background_playback_status", [
+      "status": playerStatus,
+      "activeIndex": activeIndex,
+      "rate": player?.rate ?? 0
+    ])
     emitDiagnostic("hidden_audio_background_player_rate", [
       "rate": player?.rate ?? 0,
       "timeControlStatus": player?.timeControlStatus.rawValue ?? -1
@@ -937,10 +1020,16 @@ class HiddenAudioModule: RCTEventEmitter {
       emitDiagnostic("hidden_audio_audio_interruption_began", [
         "rate": player?.rate ?? 0
       ])
+      emitDiagnostic("ios_audio_session_interruption_began", [
+        "rate": player?.rate ?? 0
+      ])
       return
     }
 
     emitDiagnostic("hidden_audio_audio_interruption_ended", [
+      "shouldResume": shouldResumeAfterItemLoad
+    ])
+    emitDiagnostic("ios_audio_session_interruption_ended", [
       "shouldResume": shouldResumeAfterItemLoad
     ])
 
@@ -959,6 +1048,18 @@ class HiddenAudioModule: RCTEventEmitter {
     let reason = notification.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt ?? 0
     emitDiagnostic("hidden_audio_route_changed", [
       "reason": reason,
+      "rate": player?.rate ?? 0
+    ])
+    emitDiagnostic("ios_audio_session_route_changed", [
+      "reason": reason,
+      "rate": player?.rate ?? 0
+    ])
+  }
+
+  @objc private func silenceSecondaryAudioHint(_ notification: Notification) {
+    let hint = notification.userInfo?[AVAudioSessionSilenceSecondaryAudioHintTypeKey] as? UInt ?? 0
+    emitDiagnostic("ios_audio_session_silence_secondary_audio_hint", [
+      "hint": hint,
       "rate": player?.rate ?? 0
     ])
   }

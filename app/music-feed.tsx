@@ -47,11 +47,15 @@ import {
   type HiddenTunesGenreCatalogItem,
   type HiddenTunesSong,
 } from "@/services/hiddenTunes";
-import type {
-  HiddenTunesAlbum,
-  HiddenTunesArtist,
-  HiddenTunesNormalizedSong,
+import {
+  searchHiddenTunesSongs,
+  type HiddenTunesAlbum,
+  type HiddenTunesArtist,
+  type HiddenTunesNormalizedSong,
 } from "@/services/hiddenTunesApi";
+import { searchArchiveAudio } from "@/services/archiveSearch";
+import { searchJamendoMusic } from "@/services/jamendoSearch";
+import { fetchTvCatalog, type HiddenTunesTvVideo } from "@/services/tvCatalogApi";
 import {
   runInstantCatalogSearch,
   type InstantSearchCatalog,
@@ -71,6 +75,9 @@ const EMPTY_SEARCH_RESULTS: SearchGroupedResults = {
 };
 
 const CATALOG_PAGE_SIZE = 31;
+const SEARCH_FULL_CATALOG_TARGET = 1000;
+const SEARCH_EXTERNAL_AUDIO_LIMIT = 16;
+const SEARCH_TV_LIMIT = 8;
 
 type CatalogGroup = {
   id: string;
@@ -242,9 +249,83 @@ function toSearchGenres(genres: HiddenTunesGenreCatalogItem[]) {
   })) as HiddenTunesGenre[];
 }
 
+function normalizeExternalSearchSong(track: any, index: number): HiddenTunesNormalizedSong {
+  const sourceName = String(track?.sourceName || "External");
+  const id = String(track?.id || `${sourceName}-${track?.artist || "artist"}-${track?.title || "track"}-${index}`);
+  const artwork = track?.cover || track?.artwork || track?.thumbnail || "";
+  const streamUrl = track?.streamUrl || track?.url || track?.audio || "";
+
+  return {
+    id,
+    title: String(track?.title || "Untitled"),
+    artist: String(track?.artist || sourceName),
+    album: track?.album ? String(track.album) : undefined,
+    genre: track?.genre ? String(track.genre) : undefined,
+    mood: track?.mood ? String(track.mood) : undefined,
+    cover: artwork,
+    artwork,
+    thumbnail: artwork,
+    streamUrl,
+    url: streamUrl,
+    sourceName,
+    source: String(track?.source || sourceName.toLowerCase()),
+    type: String(track?.type || sourceName.toLowerCase()),
+    isOnline: true,
+    raw: track,
+  } as HiddenTunesNormalizedSong;
+}
+
+function countAudioSearchResults(results: SearchGroupedResults) {
+  return results.songs.length + results.lyrics.length;
+}
+
 function findSongIndex(songs: HiddenTunesSong[], song: { id?: string }) {
   const id = String(song?.id || "");
   return songs.findIndex((candidate) => String(candidate.id) === id);
+}
+
+function mergeSearchGroupedResults(
+  primary: SearchGroupedResults,
+  fallback: SearchGroupedResults
+): SearchGroupedResults {
+  const mergeHits = <T extends { id: string }>(primaryHits: T[], fallbackHits: T[]) => {
+    const seen = new Set<string>();
+    const merged: T[] = [];
+
+    [...primaryHits, ...fallbackHits].forEach((hit) => {
+      if (!hit?.id || seen.has(hit.id)) return;
+      seen.add(hit.id);
+      merged.push(hit);
+    });
+
+    return merged;
+  };
+
+  const topResults = mergeHits(primary.topResults, fallback.topResults).slice(0, 10);
+  const songs = mergeHits(primary.songs, fallback.songs);
+  const lyrics = mergeHits(primary.lyrics, fallback.lyrics);
+  const artists = mergeHits(primary.artists, fallback.artists);
+  const albums = mergeHits(primary.albums, fallback.albums);
+  const genreMoods = mergeHits(primary.genreMoods, fallback.genreMoods);
+  const tv = mergeHits(primary.tv, fallback.tv);
+
+  return {
+    topResults,
+    songs,
+    lyrics,
+    artists,
+    albums,
+    genreMoods,
+    tv,
+    hasAnyResults:
+      topResults.length > 0 ||
+      songs.length > 0 ||
+      lyrics.length > 0 ||
+      artists.length > 0 ||
+      albums.length > 0 ||
+      genreMoods.length > 0 ||
+      tv.length > 0,
+  };
 }
 
 function buildHeroCards(
@@ -346,11 +427,23 @@ export default function MusicFeedScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [submittedSearchQuery, setSubmittedSearchQuery] = useState("");
+  const [backendSearchSongs, setBackendSearchSongs] = useState<HiddenTunesNormalizedSong[]>([]);
+  const [backendSearchQuery, setBackendSearchQuery] = useState("");
+  const [backendSearchCompletedQuery, setBackendSearchCompletedQuery] = useState("");
+  const [externalSearchSongs, setExternalSearchSongs] = useState<HiddenTunesNormalizedSong[]>([]);
+  const [externalSearchQuery, setExternalSearchQuery] = useState("");
+  const [externalSearchCompletedQuery, setExternalSearchCompletedQuery] = useState("");
+  const [tvSearchVideos, setTvSearchVideos] = useState<HiddenTunesTvVideo[]>([]);
+  const [tvSearchQuery, setTvSearchQuery] = useState("");
+  const [tvSearchCompletedQuery, setTvSearchCompletedQuery] = useState("");
   const [heroIndex, setHeroIndex] = useState(0);
   const [visibleCatalogCount, setVisibleCatalogCount] = useState(CATALOG_PAGE_SIZE);
   const [searchAutoFocusKey, setSearchAutoFocusKey] = useState(0);
   const heroIndexRef = useRef(0);
   const heroListRef = useRef<FlatList<HeroCard> | null>(null);
+  const backendSearchRequestIdRef = useRef(0);
+  const externalSearchRequestIdRef = useRef(0);
+  const tvSearchRequestIdRef = useRef(0);
   const { width: viewportWidth } = useWindowDimensions();
   const heroCardWidth = Math.min(520, Math.max(300, viewportWidth - 36));
   const heroCardHeight = Math.min(292, Math.max(226, Math.round(heroCardWidth * 0.65)));
@@ -432,11 +525,295 @@ export default function MusicFeedScreen() {
     tvVideos: [],
   }), [albums, artists, genres, songs]);
 
+  const backendSearchCatalog = useMemo<InstantSearchCatalog>(() => ({
+    songs: backendSearchSongs,
+    albums: [],
+    artists: [],
+    genres: [],
+    tvVideos: [],
+  }), [backendSearchSongs]);
+
+  const externalSearchCatalog = useMemo<InstantSearchCatalog>(() => ({
+    songs: externalSearchSongs,
+    albums: [],
+    artists: [],
+    genres: [],
+    tvVideos: [],
+  }), [externalSearchSongs]);
+
+  const tvSearchCatalog = useMemo<InstantSearchCatalog>(() => ({
+    songs: [],
+    albums: [],
+    artists: [],
+    genres: [],
+    tvVideos: tvSearchVideos,
+  }), [tvSearchVideos]);
+
+  const cleanSubmittedSearchQuery = submittedSearchQuery.trim();
+
+  const localSearchResults = useMemo(() => {
+    if (cleanSubmittedSearchQuery.length < 2) return EMPTY_SEARCH_RESULTS;
+
+    const result = runInstantCatalogSearch(searchCatalog, cleanSubmittedSearchQuery);
+
+    if (typeof __DEV__ !== "undefined" && __DEV__) {
+      console.log("search_catalog_source", {
+        source: "local_catalog",
+        query: cleanSubmittedSearchQuery,
+        songCount: searchCatalog.songs.length,
+      });
+      console.log("search_local_results_count", {
+        query: cleanSubmittedSearchQuery,
+        count: result.songs.length + result.lyrics.length,
+        hasAnyResults: result.hasAnyResults,
+      });
+    }
+
+    return result;
+  }, [cleanSubmittedSearchQuery, searchCatalog]);
+
+  const shouldRunBackendSearch =
+    cleanSubmittedSearchQuery.length >= 2 &&
+    !loading &&
+    (songs.length < SEARCH_FULL_CATALOG_TARGET || !localSearchResults.hasAnyResults);
+
+  useEffect(() => {
+    const query = cleanSubmittedSearchQuery;
+
+    if (query.length < 2) {
+      const requestId = backendSearchRequestIdRef.current + 1;
+      backendSearchRequestIdRef.current = requestId;
+      setTimeout(() => {
+        if (backendSearchRequestIdRef.current !== requestId) return;
+        setBackendSearchSongs([]);
+        setBackendSearchQuery("");
+        setBackendSearchCompletedQuery("");
+        setExternalSearchSongs([]);
+        setExternalSearchQuery("");
+        setExternalSearchCompletedQuery("");
+        setTvSearchVideos([]);
+        setTvSearchQuery("");
+        setTvSearchCompletedQuery("");
+      }, 0);
+      return;
+    }
+
+    if (loading) return;
+
+    if (!shouldRunBackendSearch) {
+      const requestId = backendSearchRequestIdRef.current + 1;
+      backendSearchRequestIdRef.current = requestId;
+      setTimeout(() => {
+        if (backendSearchRequestIdRef.current !== requestId) return;
+        setBackendSearchSongs([]);
+        setBackendSearchQuery(query);
+        setBackendSearchCompletedQuery(query);
+      }, 0);
+      return;
+    }
+
+    const requestId = backendSearchRequestIdRef.current + 1;
+    backendSearchRequestIdRef.current = requestId;
+    setTimeout(() => {
+      if (backendSearchRequestIdRef.current !== requestId) return;
+      setBackendSearchQuery(query);
+      setBackendSearchCompletedQuery("");
+    }, 0);
+
+    if (typeof __DEV__ !== "undefined" && __DEV__) {
+      console.log("search_catalog_source", {
+        source: songs.length < SEARCH_FULL_CATALOG_TARGET ? "backend_incomplete_catalog" : "backend_empty_local_fallback",
+        query,
+        localSongCount: songs.length,
+      });
+    }
+
+    void searchHiddenTunesSongs(query)
+      .then((results) => {
+        if (backendSearchRequestIdRef.current !== requestId) return;
+
+        setBackendSearchSongs(results);
+
+        if (typeof __DEV__ !== "undefined" && __DEV__) {
+          console.log("search_backend_results_count", {
+            query,
+            count: results.length,
+          });
+        }
+      })
+      .catch((error) => {
+        if (backendSearchRequestIdRef.current !== requestId) return;
+        console.log("Search backend fallback error:", error);
+        setBackendSearchSongs([]);
+      })
+      .finally(() => {
+        if (backendSearchRequestIdRef.current !== requestId) return;
+        setBackendSearchCompletedQuery(query);
+      });
+  }, [cleanSubmittedSearchQuery, loading, localSearchResults.hasAnyResults, shouldRunBackendSearch, songs.length]);
+
+  const backendSearchResults = useMemo(() => {
+    if (cleanSubmittedSearchQuery.length < 2) return EMPTY_SEARCH_RESULTS;
+    if (backendSearchQuery !== cleanSubmittedSearchQuery) return EMPTY_SEARCH_RESULTS;
+    if (!backendSearchSongs.length) return EMPTY_SEARCH_RESULTS;
+    return runInstantCatalogSearch(backendSearchCatalog, cleanSubmittedSearchQuery);
+  }, [backendSearchCatalog, backendSearchQuery, backendSearchSongs.length, cleanSubmittedSearchQuery]);
+
+  const audioSearchBeforeExternal = useMemo(() => {
+    return mergeSearchGroupedResults(localSearchResults, backendSearchResults);
+  }, [backendSearchResults, localSearchResults]);
+
+  const backendSearchPendingForQuery =
+    shouldRunBackendSearch &&
+    backendSearchCompletedQuery !== cleanSubmittedSearchQuery;
+
+  const shouldRunExternalSearch =
+    cleanSubmittedSearchQuery.length >= 2 &&
+    !loading &&
+    !backendSearchPendingForQuery;
+
+  useEffect(() => {
+    const query = cleanSubmittedSearchQuery;
+
+    if (query.length < 2) {
+      const requestId = externalSearchRequestIdRef.current + 1;
+      externalSearchRequestIdRef.current = requestId;
+      setTimeout(() => {
+        if (externalSearchRequestIdRef.current !== requestId) return;
+        setExternalSearchSongs([]);
+        setExternalSearchQuery("");
+        setExternalSearchCompletedQuery("");
+      }, 0);
+      return;
+    }
+
+    if (!shouldRunExternalSearch) return;
+
+    const requestId = externalSearchRequestIdRef.current + 1;
+    externalSearchRequestIdRef.current = requestId;
+    setTimeout(() => {
+      if (externalSearchRequestIdRef.current !== requestId) return;
+      setExternalSearchQuery(query);
+      setExternalSearchCompletedQuery("");
+    }, 0);
+
+    void Promise.all([
+      searchJamendoMusic(query),
+      searchArchiveAudio(query),
+    ])
+      .then(([jamendo, archive]) => {
+        if (externalSearchRequestIdRef.current !== requestId) return;
+
+        const externalSongs = [...jamendo, ...archive]
+          .slice(0, SEARCH_EXTERNAL_AUDIO_LIMIT)
+          .map(normalizeExternalSearchSong);
+
+        setExternalSearchSongs(externalSongs);
+
+        if (typeof __DEV__ !== "undefined" && __DEV__) {
+          console.log("search_external_results_count", {
+            query,
+            count: externalSongs.length,
+          });
+        }
+      })
+      .catch((error) => {
+        if (externalSearchRequestIdRef.current !== requestId) return;
+        console.log("Search external fallback error:", error);
+        setExternalSearchSongs([]);
+      })
+      .finally(() => {
+        if (externalSearchRequestIdRef.current !== requestId) return;
+        setExternalSearchCompletedQuery(query);
+      });
+  }, [cleanSubmittedSearchQuery, loading, shouldRunExternalSearch]);
+
+  const externalSearchResults = useMemo(() => {
+    if (cleanSubmittedSearchQuery.length < 2) return EMPTY_SEARCH_RESULTS;
+    if (externalSearchQuery !== cleanSubmittedSearchQuery) return EMPTY_SEARCH_RESULTS;
+    if (!externalSearchSongs.length) return EMPTY_SEARCH_RESULTS;
+    return runInstantCatalogSearch(externalSearchCatalog, cleanSubmittedSearchQuery);
+  }, [cleanSubmittedSearchQuery, externalSearchCatalog, externalSearchQuery, externalSearchSongs.length]);
+
+  const audioSearchResults = useMemo(() => {
+    return mergeSearchGroupedResults(audioSearchBeforeExternal, externalSearchResults);
+  }, [audioSearchBeforeExternal, externalSearchResults]);
+
+  const externalSearchPendingForQuery =
+    shouldRunExternalSearch &&
+    externalSearchCompletedQuery !== cleanSubmittedSearchQuery;
+
+  const shouldRunTvSearch =
+    cleanSubmittedSearchQuery.length >= 2 &&
+    !loading &&
+    !backendSearchPendingForQuery &&
+    !externalSearchPendingForQuery;
+
+  useEffect(() => {
+    const query = cleanSubmittedSearchQuery;
+
+    if (query.length < 2) {
+      const requestId = tvSearchRequestIdRef.current + 1;
+      tvSearchRequestIdRef.current = requestId;
+      setTimeout(() => {
+        if (tvSearchRequestIdRef.current !== requestId) return;
+        setTvSearchVideos([]);
+        setTvSearchQuery("");
+        setTvSearchCompletedQuery("");
+      }, 0);
+      return;
+    }
+
+    if (!shouldRunTvSearch) return;
+
+    const requestId = tvSearchRequestIdRef.current + 1;
+    tvSearchRequestIdRef.current = requestId;
+    setTimeout(() => {
+      if (tvSearchRequestIdRef.current !== requestId) return;
+      setTvSearchQuery(query);
+      setTvSearchCompletedQuery("");
+    }, 0);
+
+    void fetchTvCatalog({ q: query, page: 1, limit: SEARCH_TV_LIMIT })
+      .then((response) => {
+        if (tvSearchRequestIdRef.current !== requestId) return;
+
+        const videos = response.success ? response.videos : [];
+        setTvSearchVideos(videos);
+
+        if (typeof __DEV__ !== "undefined" && __DEV__) {
+          console.log("search_tv_results_count", {
+            query,
+            count: videos.length,
+            audioResultCount: countAudioSearchResults(audioSearchResults),
+          });
+        }
+      })
+      .catch((error) => {
+        if (tvSearchRequestIdRef.current !== requestId) return;
+        console.log("Search TV fallback error:", error);
+        setTvSearchVideos([]);
+      })
+      .finally(() => {
+        if (tvSearchRequestIdRef.current !== requestId) return;
+        setTvSearchCompletedQuery(query);
+      });
+  }, [audioSearchResults, cleanSubmittedSearchQuery, loading, shouldRunTvSearch]);
+
+  const tvSearchResults = useMemo(() => {
+    if (cleanSubmittedSearchQuery.length < 2) return EMPTY_SEARCH_RESULTS;
+    if (tvSearchQuery !== cleanSubmittedSearchQuery) return EMPTY_SEARCH_RESULTS;
+    if (!tvSearchVideos.length) return EMPTY_SEARCH_RESULTS;
+    return runInstantCatalogSearch(tvSearchCatalog, cleanSubmittedSearchQuery);
+  }, [cleanSubmittedSearchQuery, tvSearchCatalog, tvSearchQuery, tvSearchVideos.length]);
+
+  const tvSearchPendingForQuery =
+    shouldRunTvSearch &&
+    tvSearchCompletedQuery !== cleanSubmittedSearchQuery;
+
   const searchResults = useMemo(() => {
-    const cleanQuery = submittedSearchQuery.trim();
-    if (cleanQuery.length < 2) return EMPTY_SEARCH_RESULTS;
-    return runInstantCatalogSearch(searchCatalog, cleanQuery);
-  }, [searchCatalog, submittedSearchQuery]);
+    return mergeSearchGroupedResults(audioSearchResults, tvSearchResults);
+  }, [audioSearchResults, tvSearchResults]);
 
   const searchResultSongs = useMemo(() => {
     const seen = new Set<string>();
@@ -455,8 +832,35 @@ export default function MusicFeedScreen() {
   }, [searchResults]);
 
   const hasSearchText = searchQuery.trim().length > 0;
-  const showSearchResults = !loading && submittedSearchQuery.trim().length >= 2;
-  const showSearchLoading = hasSearchText && loading;
+  const cleanSearchQuery = searchQuery.trim();
+  const searchDebouncePending = cleanSearchQuery.length >= 2 && cleanSearchQuery !== cleanSubmittedSearchQuery;
+  const backendSearchPending = backendSearchPendingForQuery;
+  const externalSearchPending = externalSearchPendingForQuery;
+  const tvSearchPending = tvSearchPendingForQuery;
+  const showSearchResults =
+    !loading &&
+    cleanSubmittedSearchQuery.length >= 2 &&
+    !searchDebouncePending &&
+    !backendSearchPending &&
+    !externalSearchPending &&
+    !tvSearchPending;
+  const showSearchLoading =
+    hasSearchText &&
+    (loading || searchDebouncePending || backendSearchPending || externalSearchPending || tvSearchPending);
+
+  useEffect(() => {
+    if (!showSearchResults || searchResults.hasAnyResults) return;
+
+    if (typeof __DEV__ !== "undefined" && __DEV__) {
+      console.log("search_empty_state_shown", {
+        query: cleanSubmittedSearchQuery,
+        localSongCount: songs.length,
+        backendSongCount: backendSearchSongs.length,
+        externalSongCount: externalSearchSongs.length,
+        tvResultCount: tvSearchVideos.length,
+      });
+    }
+  }, [backendSearchSongs.length, cleanSubmittedSearchQuery, externalSearchSongs.length, searchResults.hasAnyResults, showSearchResults, songs.length, tvSearchVideos.length]);
 
   useEffect(() => {
     if (hasSearchText || heroCards.length <= 1) return;
@@ -528,6 +932,10 @@ export default function MusicFeedScreen() {
   }, []);
 
   const handleSearchImmediateChange = useCallback((text: string) => {
+    if (typeof __DEV__ !== "undefined" && __DEV__) {
+      console.log("search_query_changed", { query: text });
+    }
+
     setSearchQuery(text);
     if (text.trim().length === 0) {
       setSubmittedSearchQuery("");
@@ -567,9 +975,26 @@ export default function MusicFeedScreen() {
       const queue = searchResultSongs.length ? searchResultSongs : songs;
       const queueIndex = findSongIndex(queue, song);
       const queueSong = queueIndex >= 0 ? queue[queueIndex] : song;
+
+      const resultSourceName = String((queueSong as any).sourceName || "Hidden Tunes");
+      const resultLabel =
+        resultSourceName === "Hidden Tunes"
+          ? "Search Results"
+          : `Search Results - ${resultSourceName}`;
+
+      if (typeof __DEV__ !== "undefined" && __DEV__) {
+        console.log("search_result_play_context", {
+          query: submittedSearchQuery || searchQuery,
+          queueLength: queue.length,
+          queueIndex: Math.max(queueIndex, 0),
+          songId: queueSong.id,
+          sourceName: resultSourceName,
+        });
+      }
+
       void playSong(queueSong, queue, Math.max(queueIndex, 0), {
         source: "search",
-        label: "Search Results",
+        label: resultLabel,
         searchQuery: submittedSearchQuery || searchQuery,
         artistName: queueSong.artist,
         genre: queueSong.genre,
