@@ -231,7 +231,7 @@ const MiniPlayerProgress = memo(function MiniPlayerProgress({
   if (isYoutubeMode) {
     return (
       <Text numberOfLines={1} style={styles.youtubeNote}>
-        Tap to reopen video
+        Open video
       </Text>
     );
   }
@@ -380,7 +380,7 @@ function MiniPlayer() {
 
   const title = useMemo(() => {
     if (isYoutubeMode) return youtubeVideo?.title || "YouTube Video";
-    return currentSong?.title || "Unknown Track";
+    return currentSong?.title || "Unknown track";
   }, [isYoutubeMode, youtubeVideo?.title, currentSong?.title]);
 
   const artist = useMemo(() => {
@@ -388,7 +388,7 @@ function MiniPlayer() {
       return youtubeVideo?.channelTitle || youtubeVideo?.artist || "YouTube";
     }
 
-    return currentSong?.artist || currentSong?.user?.name || "Unknown Artist";
+    return currentSong?.artist || currentSong?.user?.name || "Unknown artist";
   }, [
     isYoutubeMode,
     youtubeVideo?.channelTitle,
@@ -490,7 +490,7 @@ function MiniPlayer() {
         style={shellStyle}
       >
         <View style={styles.border}>
-          <BlurView intensity={52} tint="dark" style={styles.container}>
+          <BlurView intensity={44} tint="dark" style={styles.container}>
             <View style={styles.sheen} pointerEvents="none" />
 
             <MiniPlayerArtwork
@@ -551,27 +551,27 @@ export default memo(MiniPlayer);
 const styles = StyleSheet.create({
   wrapper: {
     position: "absolute",
-    left: 12,
-    right: 12,
-    bottom: 88,
-    borderRadius: 24,
+    left: 14,
+    right: 14,
+    bottom: 78,
+    borderRadius: 20,
     overflow: "hidden",
   },
 
   border: {
-    borderRadius: 24,
+    borderRadius: 20,
     padding: 1,
-    backgroundColor: "rgba(168,85,247,0.28)",
+    backgroundColor: "rgba(168,85,247,0.2)",
   },
 
   container: {
-    height: 74,
-    borderRadius: 23,
+    height: 72,
+    borderRadius: 19,
     overflow: "hidden",
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 9,
-    backgroundColor: "rgba(5,5,8,0.86)",
+    backgroundColor: "rgba(5,5,8,0.9)",
   },
 
   sheen: {
@@ -580,17 +580,17 @@ const styles = StyleSheet.create({
   },
 
   coverWrap: {
-    width: 52,
-    height: 52,
+    width: 48,
+    height: 48,
     alignItems: "center",
     justifyContent: "center",
   },
 
   coverGlowOuter: {
     position: "absolute",
-    width: 58,
-    height: 58,
-    borderRadius: 19,
+    width: 52,
+    height: 52,
+    borderRadius: 18,
     overflow: "hidden",
   },
 
@@ -599,9 +599,9 @@ const styles = StyleSheet.create({
   },
 
   coverFrame: {
-    width: 50,
-    height: 50,
-    borderRadius: 16,
+    width: 46,
+    height: 46,
+    borderRadius: 14,
     overflow: "hidden",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.14)",
@@ -609,15 +609,15 @@ const styles = StyleSheet.create({
   },
 
   cover: {
-    width: 50,
-    height: 50,
-    borderRadius: 16,
+    width: 46,
+    height: 46,
+    borderRadius: 14,
     backgroundColor: COLORS.cardLight,
   },
 
   youtubeCover: {
-    width: 50,
-    height: 50,
+    width: 52,
+    height: 52,
     borderRadius: 16,
     backgroundColor: "#ff0033",
     alignItems: "center",
@@ -638,7 +638,7 @@ const styles = StyleSheet.create({
 
   info: {
     flex: 1,
-    marginLeft: 9,
+    marginLeft: 11,
     paddingRight: 6,
     minWidth: 0,
   },
@@ -661,7 +661,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "rgba(168,85,247,0.82)",
     paddingHorizontal: 6,
-    paddingVertical: 1,
+    paddingVertical: 2,
     borderRadius: 999,
     gap: 4,
   },
@@ -681,7 +681,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "900",
     marginTop: 1,
-    letterSpacing: -0.2,
+    letterSpacing: 0,
   },
 
   artist: {
@@ -730,21 +730,21 @@ const styles = StyleSheet.create({
   },
 
   skipButton: {
-    width: 34,
-    height: 34,
+    width: 33,
+    height: 33,
     borderRadius: 17,
     backgroundColor: "rgba(255,255,255,0.08)",
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 4,
+    marginRight: 3,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.06)",
   },
 
   playButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: COLORS.primary,
     alignItems: "center",
     justifyContent: "center",

@@ -8,7 +8,6 @@ import type { UniversalSearchGroupedResults as GroupedResults } from "../service
 import type { UniversalMatchReason } from "../utils/universalSearch";
 import { UNIVERSAL_SEARCH_EMPTY_SUGGESTIONS } from "../utils/universalSearch";
 import { isSameSearchInputQuery } from "../utils/searchInputTiming";
-import { useDebouncedSearchQuery } from "../utils/useDebouncedValue";
 import {
   createStableKeyExtractor,
   getNestedSongListLayout,
@@ -108,14 +107,6 @@ function UniversalSearchGroupedResults({
   isPlaying,
   showEmpty = false,
 }: Props) {
-  const debouncedQuery = useDebouncedSearchQuery(query);
-  const displayQuery = useMemo(() => {
-    if (isSameSearchInputQuery(query, debouncedQuery)) {
-      return debouncedQuery.trim();
-    }
-    return debouncedQuery.trim() || query.trim();
-  }, [debouncedQuery, query]);
-
   const renderSongRow = useMemo(
     () =>
       ({ item }: { item: SearchSongHit }) => (
@@ -132,10 +123,8 @@ function UniversalSearchGroupedResults({
     return (
       <View style={styles.emptyBox}>
         <Ionicons name="search-outline" size={40} color={COLORS.textMuted} />
-        <Text style={styles.emptyTitle}>No exact matches found</Text>
-        <Text style={styles.emptyText}>
-          Try another title, artist, album, genre, or mood.
-        </Text>
+        <Text style={styles.emptyTitle}>No matches</Text>
+        <Text style={styles.emptyText}>Try a title, artist, album, or mood.</Text>
         <View style={styles.chipWrap}>
           {UNIVERSAL_SEARCH_EMPTY_SUGGESTIONS.map((chip) => (
             <TouchableOpacity
@@ -156,7 +145,7 @@ function UniversalSearchGroupedResults({
     <View style={styles.container}>
       {grouped.topResults.length > 0 && (
         <View style={styles.sectionBlock}>
-          <SectionHeader title="Top Results" count={grouped.topResults.length} />
+          <SectionHeader title="Best Matches" count={grouped.topResults.length} />
           {grouped.topResults.map((hit) => {
             if (hit.id.startsWith("tv:")) {
               const video = hit.payload as any;
@@ -442,11 +431,6 @@ function UniversalSearchGroupedResults({
         </View>
       )}
 
-      {displayQuery.length >= 2 ? (
-        <Text style={styles.queryHint}>
-          Showing matches for “{displayQuery}”
-        </Text>
-      ) : null}
     </View>
   );
 }
@@ -470,20 +454,20 @@ export default memo(UniversalSearchGroupedResults, (previous, next) => {
 
 const styles = StyleSheet.create({
   container: {
-    gap: 8,
+    gap: 10,
   },
   sectionBlock: {
-    marginBottom: 14,
+    marginBottom: 12,
   },
   sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 10,
+    marginBottom: 9,
   },
   sectionTitle: {
     color: COLORS.text,
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: "900",
   },
   sectionCount: {
@@ -492,10 +476,10 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
   rowCard: {
-    marginBottom: 10,
-    borderRadius: 18,
-    padding: 10,
-    backgroundColor: "rgba(255,255,255,0.055)",
+    marginBottom: 9,
+    borderRadius: 17,
+    padding: 9,
+    backgroundColor: "rgba(255,255,255,0.05)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.08)",
   },
@@ -505,15 +489,15 @@ const styles = StyleSheet.create({
   },
   reasonPill: {
     alignSelf: "flex-start",
-    marginTop: 10,
+    marginTop: 8,
     borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    backgroundColor: "rgba(168,85,247,0.18)",
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    backgroundColor: "rgba(168,85,247,0.1)",
   },
   reasonText: {
-    color: COLORS.primary,
-    fontSize: 11,
+    color: COLORS.primaryGlow,
+    fontSize: 10,
     fontWeight: "800",
   },
   lyricSnippet: {
@@ -532,9 +516,9 @@ const styles = StyleSheet.create({
   compactRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 10,
-    padding: 12,
-    borderRadius: 18,
+    marginBottom: 9,
+    padding: 11,
+    borderRadius: 17,
     backgroundColor: "rgba(255,255,255,0.05)",
   },
   compactEmoji: {
@@ -557,15 +541,15 @@ const styles = StyleSheet.create({
   },
   genreChip: {
     minWidth: 120,
-    borderRadius: 18,
+    borderRadius: 17,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 9,
     backgroundColor: "rgba(255,255,255,0.04)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.07)",
   },
   genreEmoji: {
-    fontSize: 18,
+    fontSize: 17,
     marginBottom: 4,
   },
   genreChipText: {
@@ -579,21 +563,15 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontWeight: "700",
   },
-  queryHint: {
-    color: COLORS.textDim,
-    fontSize: 12,
-    textAlign: "center",
-    marginTop: 8,
-    marginBottom: 20,
-  },
+
   emptyBox: {
     alignItems: "center",
-    paddingVertical: 24,
+    paddingVertical: 22,
     paddingHorizontal: 12,
   },
   emptyTitle: {
     color: COLORS.text,
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: "800",
     marginTop: 12,
     textAlign: "center",
@@ -602,7 +580,7 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
     fontSize: 13,
     textAlign: "center",
-    marginTop: 8,
+    marginTop: 7,
     lineHeight: 18,
   },
   chipWrap: {
@@ -610,12 +588,12 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     justifyContent: "center",
     gap: 10,
-    marginTop: 18,
+    marginTop: 16,
   },
   suggestionChip: {
     borderRadius: 999,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
+    paddingHorizontal: 13,
+    paddingVertical: 8,
     backgroundColor: "rgba(168,85,247,0.16)",
     borderWidth: 1,
     borderColor: "rgba(168,85,247,0.28)",

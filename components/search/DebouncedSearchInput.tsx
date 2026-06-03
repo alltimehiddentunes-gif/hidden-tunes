@@ -98,7 +98,7 @@ function DebouncedSearchInput({
 
   return (
     <View style={[styles.container, containerStyle]}>
-      <Ionicons name="search" size={20} color={COLORS.cyan} />
+      <Ionicons name="search" size={18} color={COLORS.cyan} />
 
       <TextInput
         {...inputProps}
@@ -109,8 +109,8 @@ function DebouncedSearchInput({
       />
 
       {showClearButton && value.length > 0 ? (
-        <TouchableOpacity activeOpacity={0.8} onPress={handleClear}>
-          <Ionicons name="close-circle" size={22} color={COLORS.textMuted} />
+        <TouchableOpacity activeOpacity={0.78} hitSlop={8} onPress={handleClear}>
+          <Ionicons name="close-circle" size={20} color={COLORS.textMuted} />
         </TouchableOpacity>
       ) : null}
     </View>
@@ -123,7 +123,7 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 9,
     flex: 1,
   },
 });

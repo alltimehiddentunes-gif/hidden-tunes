@@ -176,10 +176,8 @@ export default function WorldsIndexScreen() {
           <View style={styles.topBar}>
             <View style={styles.heroCopy}>
               <Text style={styles.kicker}>EXPLORE</Text>
-              <Text style={styles.title}>Hidden Tunes Discovery</Text>
-              <Text style={styles.subtitle}>
-                One cinematic surface — mood rooms, catalog rails, and emotional worlds.
-              </Text>
+              <Text style={styles.title}>Discovery</Text>
+              <Text style={styles.subtitle}>Artists, albums, genres, and worlds.</Text>
             </View>
 
             <TouchableOpacity style={styles.refreshButton} onPress={loadExplore}>
@@ -190,22 +188,22 @@ export default function WorldsIndexScreen() {
           {loading ? (
             <View style={styles.loadingBlock}>
               <ActivityIndicator size="large" color={COLORS.primary} />
-              <Text style={styles.loadingText}>Loading discovery...</Text>
+              <Text style={styles.loadingText}>Loading discovery</Text>
             </View>
           ) : (
             <>
               <View style={[styles.discoveryIntro, compactLayout && styles.discoveryIntroCompact]}>
                 <View style={styles.discoveryIntroGlow} />
-                <Text style={styles.discoveryEyebrow}>SMART DISCOVERY</Text>
+                <Text style={styles.discoveryEyebrow}>CATALOG</Text>
                 <Text style={styles.discoveryTitle}>
                   {songs.length > 0
-                    ? `${songs.length} tracks ready to explore`
-                    : "Catalog warming up"}
+                    ? `${songs.length} tracks ready`
+                    : "Catalog loading"}
                 </Text>
                 <Text style={styles.discoveryText}>
                   {currentSong
                     ? `Now playing · ${currentSong.title || "your current song"}`
-                    : "Pick a rail to continue."}
+                    : "Choose a rail"}
                 </Text>
 
                 <View style={styles.discoveryActions}>
@@ -215,7 +213,7 @@ export default function WorldsIndexScreen() {
                     onPress={() => router.push("/music-feed" as any)}
                   >
                     <Ionicons name="home" size={15} color={COLORS.primaryGlow} />
-                    <Text style={styles.discoveryChipText}>Home Feed</Text>
+                    <Text style={styles.discoveryChipText}>Home</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
@@ -224,7 +222,7 @@ export default function WorldsIndexScreen() {
                     onPress={() => router.push("/radio" as any)}
                   >
                     <Ionicons name="radio" size={15} color={COLORS.cyan} />
-                    <Text style={styles.discoveryChipText}>Personal Radio</Text>
+                    <Text style={styles.discoveryChipText}>Radio</Text>
                   </TouchableOpacity>
 
                   <SubtleTvEntryLink style={styles.tvLink} />
@@ -238,7 +236,7 @@ export default function WorldsIndexScreen() {
                       <Text style={styles.sectionEyebrow}>MOOD</Text>
                       <Text style={styles.sectionTitle}>Mood Rooms</Text>
                     </View>
-                    <Text style={styles.sectionMeta}>Live catalog matches</Text>
+                    <Text style={styles.sectionMeta}>Matches</Text>
                   </View>
 
                   <ScrollView
@@ -300,9 +298,9 @@ export default function WorldsIndexScreen() {
                   <View style={styles.sectionHeader}>
                     <View>
                       <Text style={styles.sectionEyebrow}>CURATED</Text>
-                      <Text style={styles.sectionTitle}>Smart Picks</Text>
+                      <Text style={styles.sectionTitle}>Picks</Text>
                     </View>
-                    <Text style={styles.sectionMeta}>Catalog spotlight</Text>
+                    <Text style={styles.sectionMeta}>Play</Text>
                   </View>
 
                   <ScrollView
@@ -381,7 +379,7 @@ export default function WorldsIndexScreen() {
 
               {visibleGenres.length > 0 ? (
                 <View style={[styles.cinematicSection, compactLayout && styles.cinematicSectionCompact]}>
-                  <Text style={styles.sectionEyebrow}>CATALOG</Text>
+                  <Text style={styles.sectionEyebrow}>GENRES</Text>
                   <Text style={styles.sectionTitle}>Genres</Text>
                   <ScrollView
                     horizontal
@@ -427,7 +425,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 18,
-    paddingBottom: 150,
+    paddingBottom: 136,
   },
   glowPurple: {
     position: "absolute",
@@ -465,14 +463,14 @@ const styles = StyleSheet.create({
   },
   title: {
     color: COLORS.text,
-    fontSize: 25,
+    fontSize: 28,
     fontWeight: "900",
     marginTop: 4,
   },
   subtitle: {
     color: COLORS.textMuted,
     fontSize: 13,
-    lineHeight: 19,
+    lineHeight: 18,
     fontWeight: "700",
     marginTop: 6,
   },
@@ -499,10 +497,10 @@ const styles = StyleSheet.create({
   discoveryIntro: {
     borderRadius: 24,
     padding: 14,
-    marginBottom: 8,
+    marginBottom: 10,
     backgroundColor: "rgba(255,255,255,0.04)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
+    borderColor: "rgba(255,255,255,0.08)",
     overflow: "hidden",
   },
   discoveryIntroCompact: {
@@ -511,12 +509,12 @@ const styles = StyleSheet.create({
   },
   discoveryIntroGlow: {
     position: "absolute",
-    top: -50,
-    right: -40,
-    width: 130,
-    height: 130,
-    borderRadius: 65,
-    backgroundColor: "rgba(168,85,247,0.09)",
+    top: -48,
+    right: -38,
+    width: 116,
+    height: 116,
+    borderRadius: 58,
+    backgroundColor: "rgba(168,85,247,0.07)",
   },
   discoveryEyebrow: {
     color: COLORS.primary,
@@ -526,22 +524,22 @@ const styles = StyleSheet.create({
   },
   discoveryTitle: {
     color: COLORS.text,
-    fontSize: 19,
+    fontSize: 20,
     fontWeight: "900",
-    marginTop: 8,
+    marginTop: 7,
   },
   discoveryText: {
     color: COLORS.textMuted,
     fontSize: 13,
-    lineHeight: 19,
+    lineHeight: 18,
     fontWeight: "700",
-    marginTop: 8,
+    marginTop: 6,
   },
   discoveryActions: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 10,
-    marginTop: 14,
+    marginTop: 12,
   },
   discoveryChip: {
     flexDirection: "row",
@@ -566,13 +564,13 @@ const styles = StyleSheet.create({
     marginTop: 18,
   },
   cinematicSectionCompact: {
-    marginTop: 20,
+    marginTop: 16,
   },
   sectionHeader: {
     flexDirection: "row",
     alignItems: "flex-end",
     justifyContent: "space-between",
-    marginBottom: 12,
+    marginBottom: 11,
   },
   sectionEyebrow: {
     color: COLORS.cyan,
@@ -583,7 +581,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     color: COLORS.text,
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "900",
   },
   sectionMeta: {
@@ -601,6 +599,6 @@ const styles = StyleSheet.create({
   },
   mediaCardShell: {
     width: 244,
-    maxWidth: "72%",
+    maxWidth: "70%",
   },
 });

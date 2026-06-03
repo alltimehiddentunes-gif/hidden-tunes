@@ -236,7 +236,7 @@ export default function PlayerScreen() {
   const { width: viewportWidth, height: viewportHeight } = useWindowDimensions();
   const compactLayout = viewportWidth < 380 || viewportHeight < 760;
   const artworkSize = Math.round(
-    Math.min(compactLayout ? 264 : 300, Math.max(220, viewportWidth * (compactLayout ? 0.62 : 0.72)))
+    Math.min(compactLayout ? 260 : 294, Math.max(218, viewportWidth * (compactLayout ? 0.62 : 0.7)))
   );
   const artworkScrollOverlap = Math.round(artworkSize * (compactLayout ? 0.1 : 0.14));
   const horizontalPadding = compactLayout ? 18 : 22;
@@ -249,6 +249,7 @@ export default function PlayerScreen() {
 
   const lastMetadataPressAtRef = useRef(0);
   const pulse = useSharedValue(1);
+  const artworkTilt = useSharedValue(0);
   const artworkHalo = useSharedValue(0.28);
   const metadataOpacity = useSharedValue(1);
   const metadataTranslateY = useSharedValue(0);
@@ -304,8 +305,8 @@ export default function PlayerScreen() {
 
   const sessionFlowText = useMemo(() => {
     if (nextUpSong?.title) return `Next: ${nextUpSong.title}`;
-    if (activeQueue?.length) return "You are near the end of this queue.";
-    return "Build a longer session from discovery.";
+    if (activeQueue?.length) return "Queue ending";
+    return "Open discovery for the next track";
   }, [activeQueue?.length, nextUpSong?.title]);
 
   useEffect(() => {
@@ -326,23 +327,30 @@ export default function PlayerScreen() {
   useEffect(() => {
     if (!isPlaying || !currentSong) {
       cancelAnimation(pulse);
+      cancelAnimation(artworkTilt);
       cancelAnimation(artworkHalo);
       pulse.value = withTiming(1, { duration: 220 });
-      artworkHalo.value = withTiming(0.26, { duration: 220 });
+      artworkTilt.value = withTiming(0, { duration: 220 });
+      artworkHalo.value = withTiming(0.24, { duration: 220 });
       return;
     }
 
     pulse.value = withTiming(1.006, { duration: 260 });
-    artworkHalo.value = withTiming(0.36, { duration: 260 });
+    artworkTilt.value = withTiming(1.2, { duration: 420, easing: Easing.out(Easing.cubic) });
+    artworkHalo.value = withTiming(0.34, { duration: 260 });
 
     return () => {
       cancelAnimation(pulse);
+      cancelAnimation(artworkTilt);
       cancelAnimation(artworkHalo);
     };
-  }, [artworkHalo, currentSong, isPlaying, pulse]);
+  }, [artworkHalo, artworkTilt, currentSong, isPlaying, pulse]);
 
   const artworkAnimated = useAnimatedStyle(() => ({
-    transform: [{ scale: isPlaying ? pulse.value : 1 }],
+    transform: [
+      { scale: isPlaying ? pulse.value : 1 },
+      { rotate: `${artworkTilt.value}deg` },
+    ],
   }));
 
   const artworkHaloStyle = useAnimatedStyle(() => ({
@@ -463,9 +471,7 @@ export default function PlayerScreen() {
             <Ionicons name="musical-notes-outline" size={64} color={COLORS.primary} />
           </View>
           <Text style={styles.emptyText}>Ready when you are</Text>
-          <Text style={styles.emptySubText}>
-            Start from Home or Explore and Hidden Tunes will keep the session close.
-          </Text>
+          <Text style={styles.emptySubText}>Start from Home or Explore.</Text>
           <TouchableOpacity
             activeOpacity={0.85}
             style={styles.emptyButton}
@@ -692,7 +698,7 @@ const styles = StyleSheet.create({
     width: 230,
     height: 230,
     borderRadius: 115,
-    backgroundColor: "rgba(168,85,247,0.18)",
+    backgroundColor: "rgba(168,85,247,0.13)",
   },
   glowCyan: {
     position: "absolute",
@@ -701,17 +707,17 @@ const styles = StyleSheet.create({
     width: 230,
     height: 230,
     borderRadius: 115,
-    backgroundColor: "rgba(34,211,238,0.12)",
+    backgroundColor: "rgba(34,211,238,0.09)",
   },
   playerAnchor: {
     paddingTop: 44,
     paddingHorizontal: 20,
-    paddingBottom: 6,
+    paddingBottom: 4,
     zIndex: 2,
   },
   playerAnchorCompact: {
     paddingTop: 44,
-    paddingBottom: 6,
+    paddingBottom: 4,
   },
   playerScroll: {
     flex: 1,
@@ -719,7 +725,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 22,
-    paddingBottom: 132,
+    paddingBottom: 126,
   },
   emptyContainer: {
     flex: 1,
@@ -776,7 +782,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 16,
-    backgroundColor: "rgba(255,255,255,0.08)",
+    backgroundColor: "rgba(255,255,255,0.065)",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
@@ -803,10 +809,10 @@ const styles = StyleSheet.create({
   artworkStage: {
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 10,
+    marginTop: 8,
     shadowColor: "#A855F7",
-    shadowOpacity: 0.18,
-    shadowRadius: 14,
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
     shadowOffset: { width: 0, height: 14 },
     elevation: 8,
   },
@@ -841,7 +847,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: "rgba(10,4,24,0.82)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
+    borderColor: "rgba(255,255,255,0.14)",
   },
   meta: {
     marginTop: 4,
@@ -854,10 +860,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    backgroundColor: "rgba(255,255,255,0.07)",
+    backgroundColor: "rgba(255,255,255,0.055)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-    marginBottom: 8,
+    borderColor: "rgba(255,255,255,0.08)",
+    marginBottom: 6,
   },
   statusText: {
     color: COLORS.textMuted,
@@ -868,16 +874,16 @@ const styles = StyleSheet.create({
   },
   title: {
     color: COLORS.text,
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: "900",
     textAlign: "center",
-    letterSpacing: -0.5,
+    letterSpacing: 0,
   },
   artist: {
     color: COLORS.textMuted,
     fontSize: 15,
     fontWeight: "700",
-    marginTop: 8,
+    marginTop: 7,
     textAlign: "center",
   },
   contextPillRow: {
@@ -885,7 +891,7 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     justifyContent: "center",
     gap: 8,
-    marginTop: 10,
+    marginTop: 12,
   },
   contextPill: {
     maxWidth: "46%",
@@ -905,9 +911,9 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
   waveformPanel: {
-    marginTop: 16,
-    minHeight: 68,
-    borderRadius: 22,
+    marginTop: 13,
+    minHeight: 62,
+    borderRadius: 20,
     paddingHorizontal: 16,
     justifyContent: "center",
     backgroundColor: "rgba(255,255,255,0.055)",
@@ -919,8 +925,8 @@ const styles = StyleSheet.create({
     minHeight: 72,
   },
   progressPanel: {
-    marginTop: 14,
-    borderRadius: 20,
+    marginTop: 12,
+    borderRadius: 19,
     paddingHorizontal: 14,
     paddingTop: 14,
     paddingBottom: 10,
@@ -946,10 +952,10 @@ const styles = StyleSheet.create({
   },
   controlsDock: {
     marginTop: 12,
-    borderRadius: 24,
+    borderRadius: 22,
     paddingVertical: 12,
     paddingHorizontal: 12,
-    backgroundColor: "rgba(255,255,255,0.045)",
+    backgroundColor: "rgba(255,255,255,0.04)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.08)",
   },
@@ -957,7 +963,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 22,
+    gap: 20,
   },
   controlsDockCompact: {
     marginTop: 12,
@@ -967,10 +973,10 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   premiumIconButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: "rgba(255,255,255,0.08)",
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: "rgba(255,255,255,0.07)",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
@@ -982,15 +988,15 @@ const styles = StyleSheet.create({
   },
   playButtonRing: {
     position: "absolute",
-    width: 82,
-    height: 82,
-    borderRadius: 41,
+    width: 74,
+    height: 74,
+    borderRadius: 37,
     backgroundColor: "rgba(168,85,247,0.18)",
   },
   playButton: {
-    width: 66,
-    height: 66,
-    borderRadius: 33,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     backgroundColor: COLORS.primary,
     alignItems: "center",
     justifyContent: "center",
@@ -1028,9 +1034,9 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
   sessionCard: {
-    marginTop: 12,
-    borderRadius: 24,
-    padding: 16,
+    marginTop: 14,
+    borderRadius: 20,
+    padding: 13,
     backgroundColor: "rgba(255,255,255,0.05)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.08)",
@@ -1046,7 +1052,7 @@ const styles = StyleSheet.create({
   },
   sessionText: {
     color: COLORS.text,
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "700",
     marginTop: 6,
     lineHeight: 20,

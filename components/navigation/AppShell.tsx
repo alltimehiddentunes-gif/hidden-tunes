@@ -36,7 +36,7 @@ const MINI_PLAYER_ROUTES = [
   "/cloud-playlists",
 ] as const;
 
-const MINI_PLAYER_SPACE = 158;
+const MINI_PLAYER_SPACE = 150;
 
 type NavItem = {
   label: string;
@@ -144,7 +144,7 @@ export default function AppShell({
         pointerEvents="box-none"
         style={[styles.navWrap, { paddingBottom: bottomOffset }]}
       >
-        <BlurView intensity={34} tint="dark" style={styles.navBlur}>
+        <BlurView intensity={30} tint="dark" style={styles.navBlur}>
           <View style={styles.navBar}>
             {items.map((item) => (
               <Pressable
@@ -158,11 +158,13 @@ export default function AppShell({
                   pressed && styles.navItemPressed,
                 ]}
               >
-                <Ionicons
-                  name={item.active ? item.activeIcon : item.icon}
-                  size={22}
-                  color={item.active ? COLORS.primaryGlow : COLORS.textMuted}
-                />
+                <View style={[styles.iconWrap, item.active && styles.iconWrapActive]}>
+                  <Ionicons
+                    name={item.active ? item.activeIcon : item.icon}
+                    size={21}
+                    color={item.active ? COLORS.primaryGlow : COLORS.textMuted}
+                  />
+                </View>
                 <Text
                   numberOfLines={1}
                   style={[styles.navText, item.active && styles.navTextActive]}
@@ -188,39 +190,51 @@ const styles = StyleSheet.create({
   },
   navWrap: {
     position: "absolute",
-    left: 12,
-    right: 12,
+    left: 14,
+    right: 14,
     bottom: 0,
     zIndex: 100,
   },
   navBlur: {
     overflow: "hidden",
-    borderRadius: 20,
+    borderRadius: 17,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.08)",
-    backgroundColor: "rgba(10,4,24,0.64)",
+    backgroundColor: "rgba(10,4,24,0.62)",
   },
   navBar: {
-    minHeight: 56,
+    minHeight: 53,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 6,
-    paddingVertical: 6,
+    paddingVertical: 5,
   },
   navItem: {
     flex: 1,
-    minHeight: 44,
-    borderRadius: 15,
+    minHeight: 43,
+    borderRadius: 13,
     alignItems: "center",
     justifyContent: "center",
-    gap: 3,
+    gap: 1,
   },
   navItemActive: {
-    backgroundColor: "rgba(168,85,247,0.12)",
+    backgroundColor: "rgba(168,85,247,0.075)",
+    borderWidth: 1,
+    borderColor: "rgba(168,85,247,0.16)",
   },
   navItemPressed: {
-    opacity: 0.72,
+    opacity: 0.76,
+  },
+  iconWrap: {
+    width: 25,
+    height: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 11,
+  },
+  iconWrapActive: {
+    backgroundColor: "rgba(168,85,247,0.09)",
   },
   navText: {
     color: COLORS.textMuted,

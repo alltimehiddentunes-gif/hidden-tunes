@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ActivityIndicator,
   useWindowDimensions,
@@ -7,6 +7,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  Pressable,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -14,6 +15,13 @@ import {
 import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from "react-native-reanimated";
 
 import AppShell from "@/components/navigation/AppShell";
 import { SubtleTvEntryLink } from "@/components/EmotionalDiscoveryChips";
@@ -60,6 +68,58 @@ const EMPTY_SEARCH_RESULTS: SearchGroupedResults = {
   tv: [],
   hasAnyResults: false,
 };
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+const PremiumHeroPressable = memo(function PremiumHeroPressable({
+  children,
+  height,
+  isActive,
+  onPress,
+}: {
+  children: ReactNode;
+  height: number;
+  isActive: boolean;
+  onPress: () => void;
+}) {
+  const scale = useSharedValue(1);
+  const glow = useSharedValue(isActive ? 0.16 : 0.08);
+
+  useEffect(() => {
+    glow.value = withTiming(isActive ? 0.18 : 0.08, {
+      duration: 260,
+      easing: Easing.out(Easing.cubic),
+    });
+  }, [glow, isActive]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  const glowStyle = useAnimatedStyle(() => ({
+    opacity: glow.value,
+  }));
+
+  const handlePressIn = useCallback(() => {
+    scale.value = withSpring(0.982, { damping: 18, stiffness: 360 });
+  }, [scale]);
+
+  const handlePressOut = useCallback(() => {
+    scale.value = withSpring(1, { damping: 16, stiffness: 320 });
+  }, [scale]);
+
+  return (
+    <AnimatedPressable
+      onPress={onPress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      style={[styles.heroCard, { height }, animatedStyle]}
+    >
+      <Animated.View style={[styles.heroActiveGlow, glowStyle]} pointerEvents="none" />
+      {children}
+    </AnimatedPressable>
+  );
+});
 
 type HeroCard = {
   key: string;
@@ -159,7 +219,7 @@ function buildHeroCards(
   if (pick && String(pick.id) !== String(primary?.id)) {
     cards.push({
       key: `pick-${pick.id}`,
-      label: "HIDDEN TUNES PICK",
+      label: "PICK",
       title: pick.title,
       subtitle: pick.artist || "Editor pick",
       song: pick as unknown as HiddenTunesNormalizedSong,
@@ -187,7 +247,7 @@ function buildHeroCards(
         key: `recent-${recentSong.id}`,
         label: "RECENTLY PLAYED",
         title: recent.title || recentSong.title,
-        subtitle: recent.artist || recentSong.artist || "Back in rotation",
+        subtitle: recent.artist || recentSong.artist || "In rotation",
         song: recentSong as unknown as HiddenTunesNormalizedSong,
         icon: "time",
       });
@@ -216,7 +276,7 @@ export default function MusicFeedScreen() {
   const heroIndexRef = useRef(0);
   const { width: viewportWidth } = useWindowDimensions();
   const heroCardWidth = Math.min(520, Math.max(300, viewportWidth - 36));
-  const heroCardHeight = Math.min(284, Math.max(218, Math.round(heroCardWidth * 0.64)));
+  const heroCardHeight = Math.min(292, Math.max(226, Math.round(heroCardWidth * 0.65)));
   const railCardWidth = Math.min(244, Math.max(204, viewportWidth * 0.62));
   const searchPanelPadding = viewportWidth < 380 ? 12 : 14;
 
@@ -371,9 +431,9 @@ export default function MusicFeedScreen() {
       return (
         <View style={[styles.heroSlide, { width: heroCardWidth }]}>
           <LinearGradient colors={GRADIENTS.neon} style={styles.heroBorder}>
-            <TouchableOpacity
-              activeOpacity={0.92}
-              style={[styles.heroCard, { height: heroCardHeight }]}
+            <PremiumHeroPressable
+              height={heroCardHeight}
+              isActive={isPlayingCard || index === heroIndexRef.current}
               onPress={() => handleHeroPress(item)}
             >
               <HTImage source={item.song} style={styles.heroImage} />
@@ -421,7 +481,7 @@ export default function MusicFeedScreen() {
                   ) : null}
                 </View>
               </LinearGradient>
-            </TouchableOpacity>
+            </PremiumHeroPressable>
           </LinearGradient>
         </View>
       );
@@ -456,7 +516,7 @@ export default function MusicFeedScreen() {
           <View style={styles.headerCopy}>
             <Text style={styles.kicker}>HOME</Text>
             <Text style={styles.title}>Hidden Tunes</Text>
-            <Text style={styles.subtitle}>Cinematic catalog · search · playback</Text>
+            <Text style={styles.subtitle}>Catalog, search, playback</Text>
           </View>
 
           <TouchableOpacity style={styles.refreshButton} onPress={refreshCatalog}>
@@ -477,9 +537,7 @@ export default function MusicFeedScreen() {
 
             <Text style={styles.emptyTitle}>Nothing here yet</Text>
 
-            <Text style={styles.emptyText}>
-              New releases will appear here as they are added to Hidden Tunes.
-            </Text>
+            <Text style={styles.emptyText}>New releases will appear soon.</Text>
           </View>
         ) : (
           <FlatList
@@ -534,12 +592,12 @@ export default function MusicFeedScreen() {
                         {currentSong ? "NOW PLAYING" : "DISCOVERY"}
                       </Text>
                       <Text numberOfLines={1} style={styles.listeningTitle}>
-                        {currentSong?.title || "Premium listening starts here"}
+                        {currentSong?.title || "Choose a first track"}
                       </Text>
                       <Text numberOfLines={1} style={styles.listeningSubtitle}>
                         {currentSong?.artist ||
                           currentSong?.user?.name ||
-                          "Fresh songs ready to play"}
+                          "Fresh songs are ready"}
                       </Text>
                     </View>
 
@@ -561,7 +619,7 @@ export default function MusicFeedScreen() {
                       onPress={() => router.push("/worlds" as any)}
                     >
                       <Ionicons name="sparkles" size={15} color={COLORS.primaryGlow} />
-                      <Text style={styles.discoveryChipText}>Explore Worlds</Text>
+                      <Text style={styles.discoveryChipText}>Explore</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
@@ -570,7 +628,7 @@ export default function MusicFeedScreen() {
                       onPress={() => router.push("/radio" as any)}
                     >
                       <Ionicons name="radio" size={15} color={COLORS.cyan} />
-                      <Text style={styles.discoveryChipText}>Personal Radio</Text>
+                      <Text style={styles.discoveryChipText}>Radio</Text>
                     </TouchableOpacity>
 
                     <SubtleTvEntryLink style={styles.tvLink} />
@@ -599,7 +657,7 @@ export default function MusicFeedScreen() {
                 <View style={[styles.searchPanel, { padding: searchPanelPadding }]}>
                   <View style={styles.searchPanelHeader}>
                     <Ionicons name="search" size={18} color={COLORS.cyan} />
-                    <Text style={styles.searchPanelTitle}>Universal Search</Text>
+                    <Text style={styles.searchPanelTitle}>Search</Text>
                   </View>
 
                   <DebouncedSearchInput
@@ -607,7 +665,7 @@ export default function MusicFeedScreen() {
                     onImmediateChange={handleSearchImmediateChange}
                     onDebouncedChange={setSubmittedSearchQuery}
                     onClear={clearSearch}
-                    placeholder="Search songs, artists, albums..."
+                    placeholder="Search songs, artists, albums"
                     placeholderTextColor={COLORS.textMuted}
                     style={styles.searchInput}
                     containerStyle={styles.searchInputShell}
@@ -617,7 +675,7 @@ export default function MusicFeedScreen() {
                 {showSearchLoading ? (
                   <View style={styles.searchLoadingPanel}>
                     <ActivityIndicator size="small" color={COLORS.primary} />
-                    <Text style={styles.searchLoadingText}>Searching catalog...</Text>
+                    <Text style={styles.searchLoadingText}>Searching</Text>
                   </View>
                 ) : hasSearchText ? (
                   <View style={styles.searchResultsPanel}>
@@ -649,7 +707,7 @@ export default function MusicFeedScreen() {
                             <Text style={styles.sectionEyebrow}>CURATED</Text>
                             <Text style={styles.sectionTitle}>Featured</Text>
                           </View>
-                          <Text style={styles.sectionMeta}>Tap to play</Text>
+                          <Text style={styles.sectionMeta}>Play</Text>
                         </View>
                         <ScrollView
                           horizontal
@@ -746,7 +804,7 @@ export default function MusicFeedScreen() {
                     {visiblePlaylists.length > 0 ? (
                       <View style={styles.cinematicSection}>
                         <Text style={styles.sectionEyebrow}>MIXES</Text>
-                        <Text style={styles.sectionTitle}>Catalog Mixes</Text>
+                        <Text style={styles.sectionTitle}>Mixes</Text>
                         <ScrollView
                           horizontal
                           showsHorizontalScrollIndicator={false}
@@ -785,8 +843,8 @@ export default function MusicFeedScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 50,
-    paddingHorizontal: 16,
+    paddingTop: 48,
+    paddingHorizontal: 18,
   },
   glowPurple: {
     position: "absolute",
@@ -795,7 +853,7 @@ const styles = StyleSheet.create({
     width: 220,
     height: 220,
     borderRadius: 110,
-    backgroundColor: "rgba(168,85,247,0.14)",
+    backgroundColor: "rgba(168,85,247,0.1)",
   },
   glowCyan: {
     position: "absolute",
@@ -804,7 +862,7 @@ const styles = StyleSheet.create({
     width: 250,
     height: 250,
     borderRadius: 125,
-    backgroundColor: "rgba(34,211,238,0.08)",
+    backgroundColor: "rgba(34,211,238,0.06)",
   },
   glowCenter: {
     position: "absolute",
@@ -813,7 +871,7 @@ const styles = StyleSheet.create({
     width: 160,
     height: 160,
     borderRadius: 80,
-    backgroundColor: "rgba(168,85,247,0.06)",
+    backgroundColor: "rgba(168,85,247,0.045)",
   },
   header: {
     flexDirection: "row",
@@ -840,13 +898,13 @@ const styles = StyleSheet.create({
   },
   title: {
     color: COLORS.text,
-    fontSize: 27,
+    fontSize: 29,
     fontWeight: "900",
     marginTop: 4,
   },
   subtitle: {
     color: COLORS.textMuted,
-    marginTop: 5,
+    marginTop: 4,
     fontSize: 13,
     fontWeight: "700",
     lineHeight: 18,
@@ -866,7 +924,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: "rgba(168,85,247,0.1)",
     borderWidth: 1,
-    borderColor: "rgba(168,85,247,0.25)",
+    borderColor: "rgba(168,85,247,0.16)",
   },
   emptyTitle: {
     color: COLORS.text,
@@ -881,19 +939,19 @@ const styles = StyleSheet.create({
     lineHeight: 21,
     fontWeight: "700",
   },
-  list: { paddingBottom: 140 },
+  list: { paddingBottom: 146 },
   heroStage: {
-    marginBottom: 12,
+    marginBottom: 16,
     position: "relative",
   },
   heroStageGlow: {
     position: "absolute",
-    top: 24,
-    left: 24,
-    right: 24,
+    top: 28,
+    left: 28,
+    right: 28,
     height: 150,
-    borderRadius: 80,
-    backgroundColor: "rgba(34,211,238,0.06)",
+    borderRadius: 75,
+    backgroundColor: "rgba(34,211,238,0.05)",
   },
   heroList: {
     paddingRight: 18,
@@ -910,15 +968,27 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     backgroundColor: COLORS.card,
   },
+  heroActiveGlow: {
+    position: "absolute",
+    top: -28,
+    left: -20,
+    right: -20,
+    height: 130,
+    backgroundColor: COLORS.primary,
+    borderRadius: 70,
+    zIndex: 1,
+  },
   heroImage: {
     width: "100%",
     height: "100%",
     position: "absolute",
+    zIndex: 0,
   },
   heroOverlay: {
     flex: 1,
+    zIndex: 2,
     justifyContent: "flex-end",
-    padding: 16,
+    padding: 19,
   },
   livePill: {
     alignSelf: "flex-start",
@@ -928,8 +998,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 999,
-    backgroundColor: "rgba(0,0,0,0.55)",
-    marginBottom: 12,
+    backgroundColor: "rgba(0,0,0,0.58)",
+    marginBottom: 16,
   },
   liveText: {
     color: COLORS.cyan,
@@ -939,7 +1009,7 @@ const styles = StyleSheet.create({
   },
   heroSong: {
     color: COLORS.text,
-    fontSize: 23,
+    fontSize: 24,
     fontWeight: "900",
   },
   heroArtist: {
@@ -986,7 +1056,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "center",
     gap: 8,
-    marginTop: 14,
+    marginTop: 16,
   },
   heroDot: {
     width: 7,
@@ -999,9 +1069,9 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
   },
   listeningBrief: {
-    marginBottom: 10,
+    marginBottom: 14,
     borderRadius: 22,
-    padding: 12,
+    padding: 13,
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "rgba(255,255,255,0.04)",
@@ -1035,8 +1105,8 @@ const styles = StyleSheet.create({
   discoveryStrip: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 8,
-    marginBottom: 10,
+    gap: 10,
+    marginBottom: 14,
   },
   discoveryChip: {
     flexDirection: "row",
@@ -1060,7 +1130,7 @@ const styles = StyleSheet.create({
   moodChipRow: {
     gap: 10,
     paddingRight: 18,
-    marginBottom: 16,
+    marginBottom: 14,
   },
   moodChip: {
     paddingHorizontal: 13,
@@ -1076,10 +1146,10 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
   searchPanel: {
-    marginBottom: 16,
-    borderRadius: 22,
+    marginBottom: 20,
+    borderRadius: 20,
     padding: 16,
-    backgroundColor: "rgba(18,7,31,0.72)",
+    backgroundColor: "rgba(255,255,255,0.045)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.08)",
   },
@@ -1143,7 +1213,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-end",
     justifyContent: "space-between",
-    marginBottom: 14,
+    marginBottom: 13,
     paddingHorizontal: 2,
   },
   sectionEyebrow: {
@@ -1155,11 +1225,11 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     color: COLORS.text,
-    fontSize: 19,
+    fontSize: 21,
     fontWeight: "900",
   },
   songsSectionTitle: {
-    marginBottom: 12,
+    marginBottom: 13,
   },
   sectionMeta: {
     color: COLORS.textMuted,
