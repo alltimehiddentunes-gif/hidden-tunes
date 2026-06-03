@@ -31,6 +31,7 @@ export type PlaybackEngineProgress = {
   positionMillis: number;
   durationMillis: number;
   isPlaying: boolean;
+  playbackState?: string;
 };
 
 export type PlaybackEngineLoadQueueOptions = {

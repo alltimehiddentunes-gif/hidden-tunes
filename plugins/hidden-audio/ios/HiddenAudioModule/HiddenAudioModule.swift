@@ -45,6 +45,7 @@ class HiddenAudioModule: RCTEventEmitter {
       "HiddenAudioProgress",
       "HiddenAudioProgressChanged",
       "HiddenAudioTrackChanged",
+      "HiddenAudioPlaybackEnded",
       "HiddenAudioDiagnostic"
     ]
   }
@@ -323,6 +324,7 @@ class HiddenAudioModule: RCTEventEmitter {
       "trackId": activeTrack?["id"] as? String ?? "",
       "activeIndex": activeIndex
     ])
+    emitPlaybackEnded()
 
     if activeIndex + 1 < queue.count {
       moveToIndex(activeIndex + 1, autoplay: true)
@@ -865,6 +867,18 @@ class HiddenAudioModule: RCTEventEmitter {
       "type": "track_changed",
       "track": activeTrack as Any,
       "index": activeIndex
+    ])
+  }
+
+  private func emitPlaybackEnded() {
+    let progress = progressPayload()
+    sendEvent(withName: "HiddenAudioPlaybackEnded", body: [
+      "type": "playback_ended",
+      "track": activeTrack as Any,
+      "index": activeIndex,
+      "positionSeconds": progress["positionSeconds"] ?? 0,
+      "durationSeconds": progress["durationSeconds"] ?? 0,
+      "status": playerStatus
     ])
   }
 

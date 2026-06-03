@@ -43,6 +43,7 @@ import {
   bridgeSyncRepeatMode,
   deactivateHiddenAudioPlayback,
   shouldUseHiddenAudioPlayback,
+  subscribeHiddenAudioEnded,
 } from "../services/playbackBridge";
 import { getArtworkValue } from "../utils/artwork";
 import { scheduleStartupTask } from "../utils/startupScheduler";
@@ -2023,13 +2024,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         const position = progress.positionMillis || 0;
         const duration = progress.durationMillis || 0;
 
+        const nativeEnded =
+          repeatModeRef.current !== "one" &&
+          String(progress.playbackState || "").toLowerCase() === "ended";
         const nearEndWhilePaused =
           repeatModeRef.current !== "one" &&
           duration >= MIN_DURATION_FOR_POSITION_FINISH_MS &&
           position >= duration - TRACK_END_THRESHOLD_MS &&
           !progress.isPlaying;
 
-        if (nearEndWhilePaused) {
+        if (nativeEnded || nearEndWhilePaused) {
           scheduleTrackAdvance();
         }
       } catch (error) {
@@ -2360,6 +2364,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             }
 
             const durationSeconds = getSongDurationSeconds(normalizedSong);
+            const artworkUrl = typeof getArtworkValue(normalizedSong) === "string"
+              ? String(getArtworkValue(normalizedSong))
+              : "";
 
             await bridgeHiddenAudioUpdateNowPlaying({
               title: normalizedSong.title || "Unknown Song",
@@ -2367,6 +2374,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               album: normalizedSong.album || "",
               durationSeconds,
               positionSeconds: startPositionSeconds,
+              artworkUrl,
             });
 
             await activateHiddenAudioPlayback({
@@ -2376,6 +2384,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               album: normalizedSong.album || "",
               durationSeconds,
               positionSeconds: startPositionSeconds,
+              artworkUrl,
             });
 
             if (
@@ -3335,6 +3344,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               album: song.album || "",
               durationSeconds: getSongDurationSeconds(song),
               positionSeconds,
+              artworkUrl: typeof getArtworkValue(song) === "string" ? String(getArtworkValue(song)) : "",
             });
           }
 
@@ -3804,6 +3814,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             progress.positionMillis >=
               progress.durationMillis - TRACK_END_THRESHOLD_MS;
 
+          const nativeEnded = String(progress.playbackState || "").toLowerCase() === "ended";
           const playbackEndedWhileNearEnd =
             nearTrackEnd &&
             !progress.isPlaying &&
@@ -3812,7 +3823,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               progress.positionMillis >=
                 progress.durationMillis - TRACK_END_THRESHOLD_MS);
 
-          if (playbackEndedWhileNearEnd) {
+          if (nativeEnded || playbackEndedWhileNearEnd) {
             scheduleTrackAdvance();
           }
         }
@@ -3843,6 +3854,25 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       clearInterval(timer);
     };
   }, [savePlaybackPosition, scheduleTrackAdvance]);
+
+  useEffect(() => {
+    return subscribeHiddenAudioEnded((event) => {
+      if (!hiddenAudioActiveRef.current) return;
+      if (repeatModeRef.current === "one") {
+        scheduleTrackAdvance();
+        return;
+      }
+
+      if (typeof __DEV__ !== "undefined" && __DEV__) {
+        console.log("[hidden_audio_lock] native_playback_ended", {
+          songId: currentSongRef.current?.id || null,
+          event,
+        });
+      }
+
+      scheduleTrackAdvance();
+    });
+  }, [scheduleTrackAdvance]);
 
   useEffect(() => {
     isMountedRef.current = true;

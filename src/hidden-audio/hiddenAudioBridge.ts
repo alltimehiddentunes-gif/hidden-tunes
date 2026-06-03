@@ -4,7 +4,7 @@
  * USE_NATIVE_HIDDEN_AUDIO_ON_IOS is enabled.
  */
 
-import { NativeModules, Platform } from "react-native";
+import { NativeEventEmitter, NativeModules, Platform } from "react-native";
 
 export interface HiddenAudioNowPlayingMetadata {
   title: string;
@@ -12,12 +12,23 @@ export interface HiddenAudioNowPlayingMetadata {
   album: string;
   duration: number;
   position: number;
+  artworkUrl?: string;
 }
 
 export type HiddenAudioStatus = {
   positionMillis: number;
   durationMillis: number;
   isPlaying: boolean;
+  playbackState?: string;
+};
+
+export type HiddenAudioPlaybackEndedEvent = {
+  type?: string;
+  track?: Record<string, unknown> | null;
+  index?: number;
+  positionSeconds?: number;
+  durationSeconds?: number;
+  status?: string;
 };
 
 export interface HiddenAudioEngine {
@@ -56,6 +67,10 @@ const STUB_MESSAGE = "[hidden_audio] not implemented on this platform";
 const HiddenAudioNative = (NativeModules.HiddenAudioModule ||
   NativeModules.HiddenAudio) as HiddenAudioNativeModule | undefined;
 
+const hiddenAudioEvents = HiddenAudioNative
+  ? new NativeEventEmitter(HiddenAudioNative as any)
+  : null;
+
 let pendingNowPlayingMetadata: HiddenAudioNowPlayingMetadata | null = null;
 let lastLoadedUrl = "";
 
@@ -90,13 +105,22 @@ function buildNativeTrack(url: string): HiddenAudioNativeTrack {
     title: safeString(metadata?.title, "Hidden Tunes"),
     artist: safeString(metadata?.artist, "Hidden Tunes"),
     album: safeString(metadata?.album, ""),
-    artworkUrl: "",
+    artworkUrl: safeString(metadata?.artworkUrl, ""),
     durationSeconds: safeNumber(metadata?.duration, 0),
   };
 }
 
 export function isHiddenAudioNativeEngineAvailable(): boolean {
   return Platform.OS === "ios" && Boolean(HiddenAudioNative?.loadTrack);
+}
+
+export function subscribeHiddenAudioPlaybackEnded(
+  handler: (event: HiddenAudioPlaybackEndedEvent) => void
+): () => void {
+  if (!hiddenAudioEvents) return () => {};
+
+  const subscription = hiddenAudioEvents.addListener("HiddenAudioPlaybackEnded", handler);
+  return () => subscription.remove();
 }
 
 export const hiddenAudioBridge: HiddenAudioEngine = {
@@ -150,7 +174,7 @@ export const hiddenAudioBridge: HiddenAudioEngine = {
   async getStatus(): Promise<HiddenAudioStatus> {
     if (!HiddenAudioNative) {
       warnStub("getStatus");
-      return { positionMillis: 0, durationMillis: 0, isPlaying: false };
+      return { positionMillis: 0, durationMillis: 0, isPlaying: false, playbackState: "unavailable" };
     }
 
     const [state, progress] = await Promise.all([
@@ -184,6 +208,7 @@ export const hiddenAudioBridge: HiddenAudioEngine = {
         isPlayingValue === "1" ||
         status === "playing" ||
         status === "buffering",
+      playbackState: status || undefined,
     };
   },
   async updateNowPlaying(

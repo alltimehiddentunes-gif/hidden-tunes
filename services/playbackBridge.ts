@@ -4,6 +4,8 @@ import { isHiddenAudioEnabledOnIOS } from "../constants/playbackConfig";
 import {
   hiddenAudioBridge,
   isHiddenAudioNativeEngineAvailable,
+  subscribeHiddenAudioPlaybackEnded,
+  type HiddenAudioPlaybackEndedEvent,
 } from "../src/hidden-audio/hiddenAudioBridge";
 import { recordBridgeSetProgressInterval } from "../utils/runtimeInstrumentation";
 import { logBackgroundPlayback } from "../utils/backgroundPlaybackLogs";
@@ -19,6 +21,7 @@ export type PlayerRepeatMode = PlaybackEngineRepeatMode;
 export type PlaybackProgress = PlaybackEngineProgress;
 export type NativeQueueEventHandlers = PlaybackEngineEventHandlers;
 export type PlaybackEngineKind = "hidden_audio";
+export type HiddenAudioEndedEvent = HiddenAudioPlaybackEndedEvent;
 
 type QueueSnapshot = {
   queueLength: number;
@@ -34,6 +37,7 @@ function emptyProgress(): PlaybackProgress {
     positionMillis: 0,
     durationMillis: 0,
     isPlaying: false,
+    playbackState: "idle",
   };
 }
 
@@ -156,6 +160,13 @@ export function subscribeBridgeEvents(
   return () => {};
 }
 
+export function subscribeHiddenAudioEnded(
+  handler: (event: HiddenAudioEndedEvent) => void
+): () => void {
+  if (!isHiddenAudioEnabledOnIOS()) return () => {};
+  return subscribeHiddenAudioPlaybackEnded(handler);
+}
+
 export async function bridgeSetProgressInterval(
   appState: AppStateStatus
 ): Promise<void> {
@@ -202,15 +213,17 @@ export async function activateHiddenAudioPlayback(options: {
   album?: string;
   durationSeconds?: number;
   positionSeconds?: number;
+  artworkUrl?: string;
 }): Promise<void> {
-  await hiddenAudioBridge.load(options.url);
   await hiddenAudioBridge.updateNowPlaying({
     title: options.title,
     artist: options.artist,
     album: options.album || "",
     duration: options.durationSeconds ?? 0,
     position: options.positionSeconds ?? 0,
+    artworkUrl: options.artworkUrl || "",
   });
+  await hiddenAudioBridge.load(options.url);
 
   const startPositionMs = Math.max(0, Math.round((options.positionSeconds ?? 0) * 1000));
   if (startPositionMs > 0) {
@@ -253,6 +266,7 @@ export async function bridgeHiddenAudioUpdateNowPlaying(options: {
   album?: string;
   durationSeconds?: number;
   positionSeconds?: number;
+  artworkUrl?: string;
 }): Promise<void> {
   if (!isHiddenAudioEnabledOnIOS()) return;
 
@@ -262,5 +276,6 @@ export async function bridgeHiddenAudioUpdateNowPlaying(options: {
     album: options.album || "",
     duration: options.durationSeconds ?? 0,
     position: options.positionSeconds ?? 0,
+    artworkUrl: options.artworkUrl || "",
   });
 }
