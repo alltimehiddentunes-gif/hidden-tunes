@@ -16,12 +16,38 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { COLORS } from "../constants/theme";
 import {
   clearPlaybackCriticalLogs,
-  formatPlaybackCriticalLogsForExport,
   getPlaybackCriticalLogs,
   hydratePlaybackCriticalLogs,
   subscribePlaybackCriticalLogs,
   type PlaybackCriticalLogEntry,
 } from "../utils/playbackCriticalLogs";
+import {
+  clearLockscreenPlaybackDiagnostics,
+  getLockscreenPlaybackDiagnosticLogs,
+  hydrateLockscreenPlaybackDiagnostics,
+  LOCKSCREEN_DIAGNOSTIC_STORAGE_KEY,
+  logLockscreenPlaybackDiagnostic,
+  subscribeLockscreenPlaybackDiagnostics,
+  type LockscreenPlaybackDiagnosticEntry,
+} from "../utils/lockscreenPlaybackDiagnostics";
+
+const PLAYBACK_CRITICAL_STORAGE_KEY = "@ht_playback_critical_logs_v1";
+
+type CombinedLogEntry = {
+  id: string;
+  source: "lockscreen" | "critical";
+  event: string;
+  at: number;
+  platform: string;
+  appState: string;
+  details: Record<string, unknown>;
+  line: string;
+};
+
+type EmptyReason =
+  | "No logs stored yet"
+  | "Storage read failed"
+  | "Logs are disabled in this build";
 
 function formatTime(at: number) {
   try {
@@ -35,7 +61,61 @@ function formatTime(at: number) {
   }
 }
 
-function LogRow({ entry }: { entry: PlaybackCriticalLogEntry }) {
+function formatDateTime(at: number | null) {
+  if (!at) return "None";
+
+  try {
+    return new Date(at).toLocaleString(undefined, {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+  } catch {
+    return String(at);
+  }
+}
+
+function criticalToCombined(entry: PlaybackCriticalLogEntry): CombinedLogEntry {
+  return {
+    id: `critical-${entry.id}`,
+    source: "critical",
+    event: entry.event,
+    at: entry.at,
+    platform: entry.platform,
+    appState: entry.appState,
+    details: entry.details,
+    line: entry.line,
+  };
+}
+
+function lockscreenToCombined(
+  entry: LockscreenPlaybackDiagnosticEntry
+): CombinedLogEntry {
+  return {
+    id: `lockscreen-${entry.id}`,
+    source: "lockscreen",
+    event: entry.event,
+    at: entry.at,
+    platform: entry.platform,
+    appState: entry.appState,
+    details: entry.details,
+    line: entry.line,
+  };
+}
+
+function buildExportText(logs: CombinedLogEntry[]) {
+  return logs
+    .sort((a, b) => a.at - b.at)
+    .map((entry) => {
+      const iso = new Date(entry.at).toISOString();
+      return `${iso} [${entry.source}] ${entry.line}`;
+    })
+    .join("\n");
+}
+
+function LogRow({ entry }: { entry: CombinedLogEntry }) {
   const detailKeys = Object.keys(entry.details).filter(
     (key) => key !== "at" && key !== "platform" && key !== "appState"
   );
@@ -47,13 +127,13 @@ function LogRow({ entry }: { entry: PlaybackCriticalLogEntry }) {
         <Text style={styles.logTime}>{formatTime(entry.at)}</Text>
       </View>
       <Text style={styles.logMeta}>
-        {entry.platform} · {entry.appState}
+        {entry.source} ? {entry.platform} ? {entry.appState}
       </Text>
       {detailKeys.length > 0 ? (
         <Text style={styles.logDetails} selectable>
           {detailKeys
             .map((key) => `${key}=${String(entry.details[key])}`)
-            .join(" · ")}
+            .join(" ? ")}
         </Text>
       ) : null}
       <Text style={styles.logLine} selectable>
@@ -64,40 +144,97 @@ function LogRow({ entry }: { entry: PlaybackCriticalLogEntry }) {
 }
 
 export default function PlaybackDiagnosticsScreen() {
-  const [logs, setLogs] = useState<PlaybackCriticalLogEntry[]>([]);
+  const [logs, setLogs] = useState<CombinedLogEntry[]>([]);
+  const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [emptyReason, setEmptyReason] = useState<EmptyReason>("No logs stored yet");
+  const [lastReadError, setLastReadError] = useState("");
 
-  const refreshLogs = useCallback(() => {
-    setLogs(getPlaybackCriticalLogs());
+  const lastLogAt = useMemo(() => {
+    if (!logs.length) return null;
+    return logs.reduce((latest, entry) => Math.max(latest, entry.at), 0);
+  }, [logs]);
+
+  const refreshLogs = useCallback(async () => {
+    logLockscreenPlaybackDiagnostic("diagnostics_storage_read_start", {
+      screen: "playback-diagnostics",
+    });
+    setLoading(true);
+    setLastReadError("");
+
+    try {
+      await Promise.all([
+        hydratePlaybackCriticalLogs(),
+        hydrateLockscreenPlaybackDiagnostics(),
+      ]);
+
+      const combined = [
+        ...getPlaybackCriticalLogs().map(criticalToCombined),
+        ...getLockscreenPlaybackDiagnosticLogs().map(lockscreenToCombined),
+      ].sort((a, b) => b.at - a.at);
+
+      setLogs(combined);
+      setEmptyReason("No logs stored yet");
+      logLockscreenPlaybackDiagnostic("diagnostics_storage_read_success", {
+        screen: "playback-diagnostics",
+        count: combined.length,
+        lockscreenCount: getLockscreenPlaybackDiagnosticLogs().length,
+        criticalCount: getPlaybackCriticalLogs().length,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setLogs([]);
+      setLastReadError(message);
+      setEmptyReason("Storage read failed");
+      logLockscreenPlaybackDiagnostic("diagnostics_storage_read_failed", {
+        screen: "playback-diagnostics",
+        message,
+      });
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
-    let mounted = true;
+    logLockscreenPlaybackDiagnostic("diagnostics_view_opened", {
+      screen: "playback-diagnostics",
+      lockscreenStorageKey: LOCKSCREEN_DIAGNOSTIC_STORAGE_KEY,
+      criticalStorageKey: PLAYBACK_CRITICAL_STORAGE_KEY,
+    });
 
-    void (async () => {
-      await hydratePlaybackCriticalLogs();
-      if (mounted) {
-        refreshLogs();
-      }
-    })();
+    void refreshLogs();
 
-    const unsubscribe = subscribePlaybackCriticalLogs(() => {
-      if (mounted) {
-        refreshLogs();
-      }
+    const unsubscribeCritical = subscribePlaybackCriticalLogs(() => {
+      const combined = [
+        ...getPlaybackCriticalLogs().map(criticalToCombined),
+        ...getLockscreenPlaybackDiagnosticLogs().map(lockscreenToCombined),
+      ].sort((a, b) => b.at - a.at);
+      setLogs(combined);
+    });
+
+    const unsubscribeLockscreen = subscribeLockscreenPlaybackDiagnostics(() => {
+      const combined = [
+        ...getPlaybackCriticalLogs().map(criticalToCombined),
+        ...getLockscreenPlaybackDiagnosticLogs().map(lockscreenToCombined),
+      ].sort((a, b) => b.at - a.at);
+      setLogs(combined);
     });
 
     return () => {
-      mounted = false;
-      unsubscribe();
+      unsubscribeCritical();
+      unsubscribeLockscreen();
     };
   }, [refreshLogs]);
 
-  const exportText = useMemo(() => formatPlaybackCriticalLogsForExport(logs), [logs]);
+  const exportText = useMemo(() => buildExportText(logs), [logs]);
 
   const handleCopy = useCallback(async () => {
+    logLockscreenPlaybackDiagnostic("diagnostics_copy_pressed", {
+      count: logs.length,
+    });
+
     if (!exportText.length) {
-      Alert.alert("No logs", "There are no playback critical logs to copy yet.");
+      Alert.alert("No logs", "There are no stored diagnostics to copy yet.");
       return;
     }
 
@@ -106,7 +243,7 @@ export default function PlaybackDiagnosticsScreen() {
       await Clipboard.setStringAsync(exportText);
       Alert.alert("Copied", `${logs.length} log entries copied to clipboard.`);
     } catch {
-      Alert.alert("Copy failed", "Could not copy logs to clipboard.");
+      Alert.alert("Copy failed", "Could not copy diagnostics to clipboard.");
     } finally {
       setBusy(false);
     }
@@ -114,8 +251,8 @@ export default function PlaybackDiagnosticsScreen() {
 
   const handleClear = useCallback(() => {
     Alert.alert(
-      "Clear playback logs?",
-      "This removes all stored [HT_PLAYBACK_CRITICAL] events from memory and storage.",
+      "Clear diagnostics?",
+      "This removes stored playback diagnostics from memory and AsyncStorage.",
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -125,8 +262,12 @@ export default function PlaybackDiagnosticsScreen() {
             void (async () => {
               setBusy(true);
               try {
-                await clearPlaybackCriticalLogs();
-                refreshLogs();
+                await Promise.all([
+                  clearPlaybackCriticalLogs(),
+                  clearLockscreenPlaybackDiagnostics(),
+                ]);
+                setLogs([]);
+                setEmptyReason("No logs stored yet");
               } finally {
                 setBusy(false);
               }
@@ -135,7 +276,9 @@ export default function PlaybackDiagnosticsScreen() {
         },
       ]
     );
-  }, [refreshLogs]);
+  }, []);
+
+  const listData = useMemo(() => logs, [logs]);
 
   return (
     <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
@@ -150,24 +293,40 @@ export default function PlaybackDiagnosticsScreen() {
         <View style={styles.headerText}>
           <Text style={styles.title}>Playback diagnostics</Text>
           <Text style={styles.subtitle}>
-            Latest {logs.length} · [HT_PLAYBACK_CRITICAL]
+            {loading ? "Loading logs..." : `${logs.length} loaded ? Last ${formatDateTime(lastLogAt)}`}
           </Text>
         </View>
       </View>
 
+      <View style={styles.summaryCard}>
+        <Text style={styles.summaryTitle}>Stored diagnostics</Text>
+        <Text style={styles.summaryText}>Count: {logs.length}</Text>
+        <Text style={styles.summaryText}>Last log: {formatDateTime(lastLogAt)}</Text>
+        <Text style={styles.summaryText}>Lockscreen key: {LOCKSCREEN_DIAGNOSTIC_STORAGE_KEY}</Text>
+        <Text style={styles.summaryText}>Critical key: {PLAYBACK_CRITICAL_STORAGE_KEY}</Text>
+      </View>
+
       <View style={styles.actions}>
+        <TouchableOpacity
+          style={[styles.actionButton, styles.refreshButton]}
+          onPress={() => void refreshLogs()}
+          disabled={busy || loading}
+        >
+          <Ionicons name="refresh-outline" size={18} color={COLORS.text} />
+          <Text style={styles.actionLabel}>Refresh</Text>
+        </TouchableOpacity>
         <TouchableOpacity
           style={[styles.actionButton, styles.copyButton]}
           onPress={() => void handleCopy()}
           disabled={busy}
         >
           <Ionicons name="copy-outline" size={18} color={COLORS.text} />
-          <Text style={styles.actionLabel}>Copy logs</Text>
+          <Text style={styles.actionLabel}>Copy</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.actionButton, styles.clearButton]}
           onPress={handleClear}
-          disabled={busy}
+          disabled={busy || loading}
         >
           <Ionicons name="trash-outline" size={18} color={COLORS.text} />
           <Text style={styles.actionLabel}>Clear</Text>
@@ -175,21 +334,25 @@ export default function PlaybackDiagnosticsScreen() {
       </View>
 
       <Text style={styles.hint}>
-        Hidden route: open /playback-diagnostics on device builds when Metro is
-        unavailable.
+        Open Profile ? Diagnostics in preview builds to refresh and copy stored lockscreen playback logs.
       </Text>
 
       <FlatList
-        data={[...logs].reverse()}
+        data={listData}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => <LogRow entry={item} />}
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Text style={styles.emptyTitle}>No critical logs yet</Text>
+            <Text style={styles.emptyTitle}>{loading ? "Loading logs" : emptyReason}</Text>
             <Text style={styles.emptyText}>
-              Play audio, lock the screen, and reproduce the pause. Events will
-              appear here automatically.
+              {loading
+                ? "Reading diagnostics from AsyncStorage."
+                : emptyReason === "Storage read failed"
+                  ? lastReadError || "The diagnostics storage read failed."
+                  : emptyReason === "Logs are disabled in this build"
+                    ? "Diagnostics are disabled in this build."
+                    : "No logs stored yet. Start playback, lock the phone, reproduce the issue, then tap Refresh."}
             </Text>
           </View>
         }
@@ -232,9 +395,29 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 2,
   },
+  summaryCard: {
+    marginHorizontal: 16,
+    marginBottom: 10,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: COLORS.card,
+    borderWidth: 1,
+    borderColor: COLORS.borderSoft,
+  },
+  summaryTitle: {
+    color: COLORS.text,
+    fontSize: 14,
+    fontWeight: "800",
+    marginBottom: 6,
+  },
+  summaryText: {
+    color: COLORS.textSoft,
+    fontSize: 12,
+    lineHeight: 18,
+  },
   actions: {
     flexDirection: "row",
-    gap: 10,
+    gap: 8,
     paddingHorizontal: 16,
     marginBottom: 8,
   },
@@ -243,11 +426,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
+    gap: 6,
     paddingVertical: 12,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: COLORS.border,
+  },
+  refreshButton: {
+    backgroundColor: COLORS.cardGlass,
   },
   copyButton: {
     backgroundColor: COLORS.card,
@@ -259,7 +445,7 @@ const styles = StyleSheet.create({
   actionLabel: {
     color: COLORS.text,
     fontWeight: "700",
-    fontSize: 14,
+    fontSize: 13,
   },
   hint: {
     color: COLORS.textDim,

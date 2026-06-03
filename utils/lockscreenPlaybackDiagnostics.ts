@@ -1,3 +1,12 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { AppState, Platform } from "react-native";
+
+export const LOCKSCREEN_DIAGNOSTIC_STORAGE_KEY =
+  "@ht_lockscreen_playback_diagnostics_v1";
+
+const PREFIX = "[HT_LOCKSCREEN_DIAG]";
+const MAX_STORED_LOGS = 300;
+
 type DiagnosticDetails = Record<string, unknown>;
 
 type DiagnosticMemory = {
@@ -8,6 +17,18 @@ type DiagnosticMemory = {
   lastAudioFocusOrInterruption: string;
 };
 
+export type LockscreenPlaybackDiagnosticEntry = {
+  id: string;
+  source: "lockscreen";
+  event: string;
+  at: number;
+  iso: string;
+  platform: string;
+  appState: string;
+  details: Record<string, string | number | boolean | null>;
+  line: string;
+};
+
 const memory: DiagnosticMemory = {
   lastUserAction: "none",
   lastNativeEvent: "none",
@@ -16,12 +37,214 @@ const memory: DiagnosticMemory = {
   lastAudioFocusOrInterruption: "none",
 };
 
+let memoryLogs: LockscreenPlaybackDiagnosticEntry[] = [];
+let storageHydrated = false;
+let hydratePromise: Promise<void> | null = null;
+let persistTimer: ReturnType<typeof setTimeout> | null = null;
+
+const listeners = new Set<() => void>();
+
 function timestamp() {
   return new Date().toISOString();
 }
 
 function rememberValue(value: string) {
   return `${value}@${timestamp()}`;
+}
+
+function compactValue(value: unknown): string | number | boolean | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  if (
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean"
+  ) {
+    if (typeof value === "string" && value.length > 320) {
+      return `${value.slice(0, 320)}...`;
+    }
+    if (typeof value === "number" && !Number.isFinite(value)) {
+      return null;
+    }
+    return value;
+  }
+
+  try {
+    const serialized = JSON.stringify(value);
+    if (!serialized) return String(value);
+    return serialized.length > 320 ? `${serialized.slice(0, 320)}...` : serialized;
+  } catch {
+    return String(value);
+  }
+}
+
+function compactDetails(details: DiagnosticDetails) {
+  const out: Record<string, string | number | boolean | null> = {};
+
+  for (const [key, value] of Object.entries(details)) {
+    const compact = compactValue(value);
+    if (compact !== undefined) {
+      out[key] = compact;
+    }
+  }
+
+  return out;
+}
+
+function notifyListeners() {
+  listeners.forEach((listener) => {
+    try {
+      listener();
+    } catch {
+      // diagnostics listeners should never affect playback
+    }
+  });
+}
+
+async function persistLogs() {
+  try {
+    await AsyncStorage.setItem(
+      LOCKSCREEN_DIAGNOSTIC_STORAGE_KEY,
+      JSON.stringify(memoryLogs)
+    );
+  } catch {
+    // storage failures must not affect playback
+  }
+}
+
+function schedulePersist() {
+  if (persistTimer) {
+    clearTimeout(persistTimer);
+  }
+
+  persistTimer = setTimeout(() => {
+    persistTimer = null;
+    void persistLogs();
+  }, 350);
+}
+
+function formatLogLine(event: string, details: Record<string, unknown>) {
+  return `${PREFIX} ${event} ${JSON.stringify(details)}`;
+}
+
+function createEntry(
+  event: string,
+  details: DiagnosticDetails
+): LockscreenPlaybackDiagnosticEntry {
+  const at = Date.now();
+  const compact = compactDetails({
+    ...details,
+    at,
+    platform: Platform.OS,
+    appState: AppState.currentState,
+  });
+
+  return {
+    id: `${at}-${Math.random().toString(36).slice(2, 9)}`,
+    source: "lockscreen",
+    event,
+    at,
+    iso: new Date(at).toISOString(),
+    platform: String(compact.platform ?? Platform.OS),
+    appState: String(compact.appState ?? AppState.currentState),
+    details: compact,
+    line: formatLogLine(event, compact),
+  };
+}
+
+function appendLog(entry: LockscreenPlaybackDiagnosticEntry) {
+  memoryLogs = [...memoryLogs, entry].slice(-MAX_STORED_LOGS);
+  notifyListeners();
+  schedulePersist();
+}
+
+export function subscribeLockscreenPlaybackDiagnostics(
+  listener: () => void
+): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+export function getLockscreenPlaybackDiagnosticLogs() {
+  return [...memoryLogs];
+}
+
+export async function hydrateLockscreenPlaybackDiagnostics(): Promise<void> {
+  if (storageHydrated) return;
+
+  if (hydratePromise) {
+    await hydratePromise;
+    return;
+  }
+
+  hydratePromise = (async () => {
+    const raw = await AsyncStorage.getItem(LOCKSCREEN_DIAGNOSTIC_STORAGE_KEY);
+    if (!raw) {
+      storageHydrated = true;
+      notifyListeners();
+      return;
+    }
+
+    const parsed = JSON.parse(raw) as LockscreenPlaybackDiagnosticEntry[];
+    if (!Array.isArray(parsed)) {
+      storageHydrated = true;
+      notifyListeners();
+      return;
+    }
+
+    memoryLogs = parsed
+      .filter((entry) => entry && typeof entry.event === "string")
+      .map((entry) => ({
+        ...entry,
+        source: "lockscreen" as const,
+        at: typeof entry.at === "number" ? entry.at : Date.parse(entry.iso || ""),
+        iso: entry.iso || new Date(entry.at || Date.now()).toISOString(),
+        platform: entry.platform || "unknown",
+        appState: entry.appState || "unknown",
+        details: entry.details || {},
+        line: entry.line || formatLogLine(entry.event, entry.details || {}),
+      }))
+      .filter((entry) => Number.isFinite(entry.at))
+      .slice(-MAX_STORED_LOGS);
+
+    storageHydrated = true;
+    notifyListeners();
+  })();
+
+  try {
+    await hydratePromise;
+  } finally {
+    hydratePromise = null;
+  }
+}
+
+export async function reloadLockscreenPlaybackDiagnostics(): Promise<
+  LockscreenPlaybackDiagnosticEntry[]
+> {
+  storageHydrated = false;
+  await hydrateLockscreenPlaybackDiagnostics();
+  return getLockscreenPlaybackDiagnosticLogs();
+}
+
+export async function clearLockscreenPlaybackDiagnostics(): Promise<void> {
+  memoryLogs = [];
+  storageHydrated = true;
+
+  try {
+    await AsyncStorage.removeItem(LOCKSCREEN_DIAGNOSTIC_STORAGE_KEY);
+  } catch {
+    // ignore storage cleanup failures in diagnostics
+  }
+
+  notifyListeners();
+}
+
+export function formatLockscreenPlaybackDiagnosticsForExport(
+  logs: LockscreenPlaybackDiagnosticEntry[] = memoryLogs
+): string {
+  return logs.map((entry) => `${entry.iso} ${entry.line}`).join("\n");
 }
 
 export function rememberLockscreenDiagnostic(
@@ -39,10 +262,14 @@ export function logLockscreenPlaybackDiagnostic(
   event: string,
   details: DiagnosticDetails = {}
 ) {
+  const entry = createEntry(event, details);
+
   console.log(`[HTLockscreenDiag] ${event}`, {
     ...details,
-    timestamp: timestamp(),
+    timestamp: entry.iso,
   });
+
+  appendLog(entry);
 }
 
 export function logAndRememberLockscreenDiagnostic(
@@ -60,3 +287,7 @@ export function logAndRememberLockscreenDiagnostic(
 
   logLockscreenPlaybackDiagnostic(event, details);
 }
+
+void hydrateLockscreenPlaybackDiagnostics().catch(() => {
+  // Diagnostics hydration must never affect app startup.
+});
