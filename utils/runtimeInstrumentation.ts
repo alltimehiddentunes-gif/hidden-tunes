@@ -422,11 +422,13 @@ export function startRuntimeInstrumentation() {
     jsStallThresholdMs: JS_STALL_THRESHOLD_MS,
   });
 
-  startJsStallMonitor();
+  if (__DEV__) {
+    startJsStallMonitor();
 
-  summaryIntervalId = setInterval(() => {
-    printRuntimeSummary();
-  }, SUMMARY_INTERVAL_MS);
+    summaryIntervalId = setInterval(() => {
+      printRuntimeSummary();
+    }, SUMMARY_INTERVAL_MS);
+  }
 }
 
 export function stopRuntimeInstrumentation() {
@@ -440,7 +442,9 @@ export function stopRuntimeInstrumentation() {
     summaryIntervalId = null;
   }
 
-  printRuntimeSummary();
+  if (__DEV__) {
+    printRuntimeSummary();
+  }
   logEvent("instrumentation_stopped");
 }
 

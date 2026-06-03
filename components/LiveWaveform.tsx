@@ -29,7 +29,7 @@ type WaveBarProps = {
   barWidth: number;
 };
 
-const BAR_COUNT = 16;
+const BAR_COUNT = 10;
 const BAR_INDEXES = Array.from({ length: BAR_COUNT }, (_, index) => index);
 
 function LiveWaveform({
@@ -53,7 +53,7 @@ function LiveWaveform({
 
   useEffect(() => {
     if (shouldAnimate) {
-      progress.value = withRepeat(withTiming(1, { duration: 1200 }), -1, true);
+      progress.value = withRepeat(withTiming(1, { duration: 1800 }), -1, true);
       return;
     }
 

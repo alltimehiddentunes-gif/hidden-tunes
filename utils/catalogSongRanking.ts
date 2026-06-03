@@ -12,8 +12,12 @@ export type CatalogSongMatchReason =
   | "artist_exact"
   | "artist_starts"
   | "artist_contains"
-  | "album_match"
-  | "genre_match"
+  | "album_exact"
+  | "album_starts"
+  | "album_contains"
+  | "genre_exact"
+  | "genre_starts"
+  | "genre_contains"
   | "mood_match"
   | "lyric_match";
 
@@ -30,8 +34,12 @@ const REASON_SCORE: Record<CatalogSongMatchReason, number> = {
   artist_exact: 7500,
   artist_starts: 7000,
   artist_contains: 6500,
-  album_match: 6000,
-  genre_match: 5500,
+  album_exact: 6200,
+  album_starts: 6000,
+  album_contains: 5600,
+  genre_exact: 5400,
+  genre_starts: 5200,
+  genre_contains: 5000,
   mood_match: 5400,
   lyric_match: 5000,
 };
@@ -88,16 +96,26 @@ export function scoreCatalogSongMatch(
     matchReason = "artist_contains";
   } else if (tokensMatchField(artist, queryTokens)) {
     matchReason = "artist_contains";
-  } else if (album && (album === normalizedQuery || album.includes(normalizedQuery))) {
-    matchReason = "album_match";
+  } else if (album === normalizedQuery) {
+    matchReason = "album_exact";
+  } else if (album.startsWith(normalizedQuery)) {
+    matchReason = "album_starts";
+  } else if (genre === normalizedQuery) {
+    matchReason = "genre_exact";
+  } else if (genre.startsWith(normalizedQuery)) {
+    matchReason = "genre_starts";
+  } else if (album.includes(normalizedQuery)) {
+    matchReason = "album_contains";
   } else if (tokensMatchField(album, queryTokens)) {
-    matchReason = "album_match";
+    matchReason = "album_contains";
+  } else if (genre.includes(normalizedQuery)) {
+    matchReason = "genre_contains";
+  } else if (tokensMatchField(genre, queryTokens)) {
+    matchReason = "genre_contains";
   } else if (mood && (mood === normalizedQuery || mood.includes(normalizedQuery))) {
     matchReason = "mood_match";
-  } else if (genre && (genre === normalizedQuery || genre.includes(normalizedQuery))) {
-    matchReason = "genre_match";
-  } else if (tokensMatchField(genre, queryTokens) || tokensMatchField(mood, queryTokens)) {
-    matchReason = genre ? "genre_match" : "mood_match";
+  } else if (tokensMatchField(mood, queryTokens)) {
+    matchReason = "mood_match";
   } else {
     const lyricsText = normalizeSearchText(getSongLyricsText(song));
     if (
@@ -138,10 +156,7 @@ export function rankCatalogSongs(
 
   const scored: CatalogSongSearchHit[] = [];
   const seen = new Set<string>();
-  const scanPool =
-    songs.length > limit * 6 ? songs.slice(0, limit * 6) : songs;
-
-  for (const song of scanPool) {
+  for (const song of songs) {
     const songId = String(song.id || "").trim();
     if (!songId || seen.has(songId)) continue;
 

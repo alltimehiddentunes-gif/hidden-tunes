@@ -297,9 +297,9 @@ function yieldToNextFrame(): Promise<void> {
 }
 
 const PLAYBACK_UPDATE_INTERVAL_MS = 2000;
-const PLAYBACK_UPDATE_INTERVAL_BACKGROUND_MS = 1000;
+const PLAYBACK_UPDATE_INTERVAL_BACKGROUND_MS = 5000;
 const POSITION_STATE_UPDATE_MIN_MS = 2000;
-const POSITION_STATE_UPDATE_BACKGROUND_MS = 2000;
+const POSITION_STATE_UPDATE_BACKGROUND_MS = 5000;
 const POSITION_SAVE_INTERVAL_MS = 12000;
 const POSITION_SAVE_DISTANCE_MS = 5000;
 const DURATION_UPDATE_THRESHOLD_MS = 1500;
@@ -313,6 +313,12 @@ const FINISH_WATCHDOG_MAX_DELAY_MS = 30000;
 const LOCK_SCREEN_END_WINDOW_MS = 1500;
 const LOCK_FINISH_GRACE_MS = 900;
 const LOCK_END_CHECK_DELAY_MS = 400;
+const PLAYER_CONTEXT_DEBUG_LOGS = false;
+
+function logPlayerContextDebug(...args: unknown[]) {
+  if (!__DEV__ || !PLAYER_CONTEXT_DEBUG_LOGS) return;
+  console.log(...args);
+}
 
 function isBackgroundAppState(state: AppStateStatus) {
   return state === "background" || state === "inactive";
@@ -500,7 +506,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       clearLoadingRecoveryTimeout();
       loadingRecoveryTimeoutRef.current = setTimeout(() => {
         if (loadRequestIdRef.current !== requestId) {
-          console.log("playback_recovery_stale_request_ignored", {
+          logPlayerContextDebug("playback_recovery_stale_request_ignored", {
             requestId,
             songId,
             latestRequestId: loadRequestIdRef.current,
@@ -508,7 +514,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           return;
         }
 
-        console.log("playback_recovery_loading_cleared", {
+        logPlayerContextDebug("playback_recovery_loading_cleared", {
           requestId,
           songId,
           reason: "loading_timeout",
@@ -524,7 +530,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const syncHiddenAudioState = useCallback(
     async (reason: string) => {
-      console.log("hidden_audio_state_sync_start", { reason });
+      logPlayerContextDebug("hidden_audio_state_sync_start", { reason });
 
       try {
         const progress = await bridgeGetProgress();
@@ -536,10 +542,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         }
 
         setIsPlaying(progress.isPlaying);
-        console.log("hidden_audio_state_sync_success", { reason, progress });
+        logPlayerContextDebug("hidden_audio_state_sync_success", { reason, progress });
         return progress;
       } catch (error) {
-        console.log("hidden_audio_state_sync_failed", { reason, error });
+        logPlayerContextDebug("hidden_audio_state_sync_failed", { reason, error });
         return null;
       }
     },
@@ -1041,7 +1047,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const getNextQueueIndex = useCallback(
     (currentIndex: number, queueLength: number) => {
       if (queueLength <= 0) {
-        console.log("queue_invalid_index_prevented", { currentIndex, queueLength });
+        logPlayerContextDebug("queue_invalid_index_prevented", { currentIndex, queueLength });
         return -1;
       }
 
@@ -1058,7 +1064,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
         const safeRandomIndex = Math.max(0, Math.min(randomIndex, queueLength - 1));
         if (safeRandomIndex < 0 || safeRandomIndex >= queueLength) {
-          console.log("queue_invalid_index_prevented", {
+          logPlayerContextDebug("queue_invalid_index_prevented", {
             currentIndex,
             queueLength,
             randomIndex,
@@ -1083,7 +1089,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const getPreviousQueueIndex = useCallback(
     (currentIndex: number, queueLength: number) => {
       if (queueLength <= 0) {
-        console.log("queue_invalid_index_prevented", { currentIndex, queueLength });
+        logPlayerContextDebug("queue_invalid_index_prevented", { currentIndex, queueLength });
         return -1;
       }
 
@@ -1142,7 +1148,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const runQueueTransition = useCallback(
     async (transition: () => Promise<void>, options?: { dropIfLocked?: boolean }) => {
       if (queueTransitionRef.current && options?.dropIfLocked) {
-        console.log("queue_transition_locked", {
+        logPlayerContextDebug("queue_transition_locked", {
           reason: "drop_rapid_manual_transition",
         });
         return;
@@ -1158,7 +1164,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             await transition();
           } finally {
             queueTransitionRef.current = false;
-            console.log("queue_transition_released");
+            logPlayerContextDebug("queue_transition_released");
           }
         });
 
@@ -1212,7 +1218,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }
 
     if (typeof __DEV__ !== "undefined" && __DEV__) {
-      console.log("[audio-preload] preload-hit", { songId });
+      logPlayerContextDebug("[audio-preload] preload-hit", { songId });
     }
 
     const sound = preloadedSoundRef.current;
@@ -1229,7 +1235,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
       const logSkip = (reason: string) => {
         if (typeof __DEV__ !== "undefined" && __DEV__) {
-          console.log("[audio-preload] preload-skip", {
+          logPlayerContextDebug("[audio-preload] preload-skip", {
             reason,
             source,
             songId: song?.id,
@@ -1286,7 +1292,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       }
 
       if (typeof __DEV__ !== "undefined" && __DEV__) {
-        console.log("[audio-preload] preload-start", {
+        logPlayerContextDebug("[audio-preload] preload-start", {
           songId: normalizedSong.id,
           source,
         });
@@ -1323,7 +1329,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       const sound = soundRef.current;
 
       if (typeof __DEV__ !== "undefined" && __DEV__) {
-        console.log("[tap-interrupt]", {
+        logPlayerContextDebug("[tap-interrupt]", {
           hasCurrentSound: Boolean(sound),
           hasPreloadedSound: Boolean(preloadedSoundRef.current),
           currentSongId: currentSongRef.current?.id || null,
@@ -1350,7 +1356,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
       if (preservePreloadForTap) {
         if (typeof __DEV__ !== "undefined" && __DEV__) {
-          console.log("[audio-preload] preload-preserved-for-tap", {
+          logPlayerContextDebug("[audio-preload] preload-preserved-for-tap", {
             songId: targetSongId,
           });
         }
@@ -1548,7 +1554,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           if (activeSound) {
             await activeSound.setPositionAsync(0);
             await activeSound.playAsync();
-            console.log("hidden_audio_fake_play_prevented", {
+            logPlayerContextDebug("hidden_audio_fake_play_prevented", {
               reason: "legacy_playback_not_state_source",
             });
             setIsPlaying(false);
@@ -1588,7 +1594,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const nextIndex = getNextQueueIndex(safeIndex, queue.length);
 
     if (isChangingTrackRef.current || autoAdvanceRef.current) {
-      console.log("queue_duplicate_advance_prevented", {
+      logPlayerContextDebug("queue_duplicate_advance_prevented", {
         reason: isChangingTrackRef.current ? "changing_track" : "already_advancing",
         songId: currentSongRef.current?.id || "",
       });
@@ -1652,7 +1658,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       lastAutoAdvanceRequestRef.current.songId === songId &&
       now - lastAutoAdvanceRequestRef.current.requestedAt < FINISH_DEBOUNCE_MS
     ) {
-      console.log("queue_duplicate_advance_prevented", {
+      logPlayerContextDebug("queue_duplicate_advance_prevented", {
         reason: "duplicate_auto_advance_request",
         songId,
       });
@@ -2041,7 +2047,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         const recoveryDurationSnapshot = durationMillisRef.current;
 
         const restorePreviousPlaybackState = (reason: string) => {
-          console.log("playback_recovery_restore_previous", {
+          logPlayerContextDebug("playback_recovery_restore_previous", {
             reason,
             failedSongId: normalizedSong.id,
             previousSongId: recoverySongSnapshot?.id || null,
@@ -2134,7 +2140,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             const playableUri = getPlayableUri(normalizedSong);
 
             if (!playableUri) {
-              console.log("playback_recovery_invalid_url", {
+              logPlayerContextDebug("playback_recovery_invalid_url", {
                 songId: normalizedSong.id,
               });
               logAudioLoadFailure({
@@ -2151,7 +2157,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               loadRequestIdRef.current !== requestId ||
               !isMountedRef.current
             ) {
-              console.log("playback_recovery_stale_request_ignored", {
+              logPlayerContextDebug("playback_recovery_stale_request_ignored", {
                 songId: normalizedSong.id,
                 requestId,
                 latestRequestId: loadRequestIdRef.current,
@@ -2180,7 +2186,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               loadRequestIdRef.current !== requestId ||
               !isMountedRef.current
             ) {
-              console.log("playback_recovery_stale_request_ignored", {
+              logPlayerContextDebug("playback_recovery_stale_request_ignored", {
                 songId: normalizedSong.id,
                 requestId,
                 latestRequestId: loadRequestIdRef.current,
@@ -2233,7 +2239,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
             const startPositionMillis = Math.round(startPositionSeconds * 1000);
             const statusAfterPlay = await syncHiddenAudioState("load_and_play_after_play");
-            console.log("hidden_audio_status_after_play", statusAfterPlay);
+            logPlayerContextDebug("hidden_audio_status_after_play", statusAfterPlay);
 
             if (statusAfterPlay) {
               if (!statusAfterPlay.positionMillis) {
@@ -2243,13 +2249,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
                 setDurationMillis(Math.round(durationSeconds * 1000));
               }
               if (!statusAfterPlay.isPlaying) {
-                console.log("hidden_audio_fake_play_prevented", {
+                logPlayerContextDebug("hidden_audio_fake_play_prevented", {
                   songId: normalizedSong.id,
                   reason: "native_status_not_playing_after_play",
                 });
               }
             } else {
-              console.log("hidden_audio_fake_play_prevented", {
+              logPlayerContextDebug("hidden_audio_fake_play_prevented", {
                 songId: normalizedSong.id,
                 reason: "native_status_unavailable_after_play",
               });
@@ -2272,7 +2278,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               savePlaybackSideEffects(normalizedSong);
             }, 0);
           } catch (error) {
-            console.log("hidden_audio_play_failed", error);
+            logPlayerContextDebug("hidden_audio_play_failed", error);
             console.log("Hidden audio load and play error:", error);
             logAudioLoadFailure({
               songId: normalizedSong.id,
@@ -2282,7 +2288,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               engine: "hidden_audio",
             });
             hiddenAudioActiveRef.current = false;
-            console.log("playback_recovery_load_failed", {
+            logPlayerContextDebug("playback_recovery_load_failed", {
               songId: normalizedSong.id,
               requestId,
               error: String((error as Error)?.message || error),
@@ -2297,7 +2303,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
                 inFlightPlaySongIdRef.current = null;
               }
               if (isMountedRef.current) {
-                console.log("playback_recovery_loading_cleared", {
+                logPlayerContextDebug("playback_recovery_loading_cleared", {
                   requestId,
                   songId: normalizedSong.id,
                   reason: "hidden_audio_complete",
@@ -2305,7 +2311,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
                 setIsLoading(false);
               }
             } else {
-              console.log("playback_recovery_stale_request_ignored", {
+              logPlayerContextDebug("playback_recovery_stale_request_ignored", {
                 requestId,
                 songId: normalizedSong.id,
                 latestRequestId: loadRequestIdRef.current,
@@ -2322,7 +2328,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           songId: normalizedSong.id,
           reason: "native_audio_engine_unavailable",
         });
-        console.log("playback_recovery_load_failed", {
+        logPlayerContextDebug("playback_recovery_load_failed", {
           songId: normalizedSong.id,
           requestId,
           reason: "native_audio_engine_unavailable",
@@ -2346,7 +2352,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             inFlightPlaySongIdRef.current = null;
           }
           if (isMountedRef.current) {
-            console.log("playback_recovery_loading_cleared", {
+            logPlayerContextDebug("playback_recovery_loading_cleared", {
               requestId,
               songId: song?.id,
               reason: "load_and_play_complete",
@@ -2354,7 +2360,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             setIsLoading(false);
           }
         } else {
-          console.log("playback_recovery_stale_request_ignored", {
+          logPlayerContextDebug("playback_recovery_stale_request_ignored", {
             requestId,
             songId: song?.id,
             latestRequestId: loadRequestIdRef.current,
@@ -2574,7 +2580,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             setDurationMillis(progress.durationMillis);
           }
         } else {
-          console.log("hidden_audio_fake_play_prevented", {
+          logPlayerContextDebug("hidden_audio_fake_play_prevented", {
               reason: "legacy_playback_not_state_source",
             });
             setIsPlaying(false);
@@ -2651,7 +2657,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         }
 
         interruptDone = true;
-        console.log("hidden_audio_fake_play_prevented", {
+        logPlayerContextDebug("hidden_audio_fake_play_prevented", {
           songId: selectedSong.id,
           reason: "queue_waiting_for_native_load",
         });
@@ -2692,7 +2698,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               await currentLoadedSound.playAsync();
             }
 
-            console.log("hidden_audio_fake_play_prevented", {
+            logPlayerContextDebug("hidden_audio_fake_play_prevented", {
               reason: "legacy_playback_not_state_source",
             });
             setIsPlaying(false);
@@ -2737,7 +2743,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       }
 
       if (switchingToNewSong) {
-        console.log("hidden_audio_fake_play_prevented", {
+        logPlayerContextDebug("hidden_audio_fake_play_prevented", {
           songId: normalizedSong.id,
           reason: "tap_waiting_for_native_load",
         });
@@ -2746,7 +2752,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       }
 
       if (isYouTubeSong(normalizedSong)) {
-        console.log("Blocked playSong for YouTube. Route to /youtube-player instead.");
+        logPlayerContextDebug("Blocked playSong for YouTube. Route to /youtube-player instead.");
         setIsPlaying(false);
         setIsLoading(false);
         return;
@@ -2835,7 +2841,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               await currentLoadedSound.playAsync();
             }
 
-            console.log("hidden_audio_fake_play_prevented", {
+            logPlayerContextDebug("hidden_audio_fake_play_prevented", {
               reason: "legacy_playback_not_state_source",
             });
             setIsPlaying(false);
@@ -3198,7 +3204,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       setIsPlaying(false);
     } else {
       await sound.playAsync();
-      console.log("hidden_audio_fake_play_prevented", {
+      logPlayerContextDebug("hidden_audio_fake_play_prevented", {
               reason: "legacy_playback_not_state_source",
             });
             setIsPlaying(false);
@@ -3344,7 +3350,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, [removeStoredValues]);
 
   const restoreSavedDataLight = useCallback(async () => {
-    console.log("[startup-ready] restore-light-start");
+    logPlayerContextDebug("[startup-ready] restore-light-start");
 
     try {
       const [
@@ -3416,12 +3422,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.log("Restore player data (light) error:", error);
     } finally {
-      console.log("[startup-ready] restore-light-end");
+      logPlayerContextDebug("[startup-ready] restore-light-end");
     }
   }, [normalizeSong, isYouTubeSong]);
 
   const restoreSavedDataHeavy = useCallback(async () => {
-    console.log("[startup-ready] restore-heavy-start");
+    logPlayerContextDebug("[startup-ready] restore-heavy-start");
 
     try {
       const [
@@ -3538,7 +3544,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       console.log("Restore player data (heavy) error:", error);
     } finally {
       markPlaybackRestoreComplete();
-      console.log("[startup-ready] restore-heavy-end");
+      logPlayerContextDebug("[startup-ready] restore-heavy-end");
     }
   }, [normalizeSong, isYouTubeSong, normalizeYouTubeTrack]);
 

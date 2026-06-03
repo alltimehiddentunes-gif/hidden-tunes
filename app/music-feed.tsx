@@ -216,9 +216,9 @@ export default function MusicFeedScreen() {
   const heroIndexRef = useRef(0);
   const { width: viewportWidth } = useWindowDimensions();
   const heroCardWidth = Math.min(520, Math.max(300, viewportWidth - 36));
-  const heroCardHeight = Math.min(320, Math.max(238, Math.round(heroCardWidth * 0.72)));
+  const heroCardHeight = Math.min(284, Math.max(218, Math.round(heroCardWidth * 0.64)));
   const railCardWidth = Math.min(244, Math.max(204, viewportWidth * 0.62));
-  const searchPanelPadding = viewportWidth < 380 ? 14 : 18;
+  const searchPanelPadding = viewportWidth < 380 ? 12 : 14;
 
   const songs = catalog?.songs || [];
   const artists = catalog?.artists || [];
@@ -274,7 +274,8 @@ export default function MusicFeedScreen() {
   }, [searchCatalog, submittedSearchQuery]);
 
   const hasSearchText = searchQuery.trim().length > 0;
-  const showSearchResults = submittedSearchQuery.trim().length >= 2;
+  const showSearchResults = !loading && submittedSearchQuery.trim().length >= 2;
+  const showSearchLoading = hasSearchText && loading;
 
   const playCatalogSong = useCallback(
     (song: HiddenTunesSong | HiddenTunesNormalizedSong) => {
@@ -538,7 +539,7 @@ export default function MusicFeedScreen() {
                       <Text numberOfLines={1} style={styles.listeningSubtitle}>
                         {currentSong?.artist ||
                           currentSong?.user?.name ||
-                          "Fresh songs, worlds, and moods ready to play"}
+                          "Fresh songs ready to play"}
                       </Text>
                     </View>
 
@@ -606,14 +607,19 @@ export default function MusicFeedScreen() {
                     onImmediateChange={handleSearchImmediateChange}
                     onDebouncedChange={setSubmittedSearchQuery}
                     onClear={clearSearch}
-                    placeholder="Search songs, artists, albums, genres..."
+                    placeholder="Search songs, artists, albums..."
                     placeholderTextColor={COLORS.textMuted}
                     style={styles.searchInput}
                     containerStyle={styles.searchInputShell}
                   />
                 </View>
 
-                {hasSearchText ? (
+                {showSearchLoading ? (
+                  <View style={styles.searchLoadingPanel}>
+                    <ActivityIndicator size="small" color={COLORS.primary} />
+                    <Text style={styles.searchLoadingText}>Searching catalog...</Text>
+                  </View>
+                ) : hasSearchText ? (
                   <View style={styles.searchResultsPanel}>
                     <UniversalSearchGroupedResults
                       grouped={searchResults}
@@ -643,7 +649,7 @@ export default function MusicFeedScreen() {
                             <Text style={styles.sectionEyebrow}>CURATED</Text>
                             <Text style={styles.sectionTitle}>Featured</Text>
                           </View>
-                          <Text style={styles.sectionMeta}>Tap any card to play</Text>
+                          <Text style={styles.sectionMeta}>Tap to play</Text>
                         </View>
                         <ScrollView
                           horizontal
@@ -779,41 +785,41 @@ export default function MusicFeedScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 58,
-    paddingHorizontal: 18,
+    paddingTop: 50,
+    paddingHorizontal: 16,
   },
   glowPurple: {
     position: "absolute",
     top: 40,
     left: -110,
-    width: 280,
-    height: 280,
-    borderRadius: 140,
-    backgroundColor: "rgba(168,85,247,0.24)",
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: "rgba(168,85,247,0.14)",
   },
   glowCyan: {
     position: "absolute",
     top: 280,
     right: -130,
-    width: 330,
-    height: 330,
-    borderRadius: 165,
-    backgroundColor: "rgba(34,211,238,0.14)",
+    width: 250,
+    height: 250,
+    borderRadius: 125,
+    backgroundColor: "rgba(34,211,238,0.08)",
   },
   glowCenter: {
     position: "absolute",
     top: 180,
     alignSelf: "center",
-    width: 220,
-    height: 220,
-    borderRadius: 110,
-    backgroundColor: "rgba(168,85,247,0.1)",
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    backgroundColor: "rgba(168,85,247,0.06)",
   },
   header: {
     flexDirection: "row",
     alignItems: "flex-start",
     justifyContent: "space-between",
-    marginBottom: 18,
+    marginBottom: 12,
   },
   headerCopy: { flex: 1, paddingRight: 12 },
   kicker: {
@@ -834,7 +840,7 @@ const styles = StyleSheet.create({
   },
   title: {
     color: COLORS.text,
-    fontSize: 30,
+    fontSize: 27,
     fontWeight: "900",
     marginTop: 4,
   },
@@ -864,9 +870,9 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     color: COLORS.text,
-    fontSize: 22,
+    fontSize: 19,
     fontWeight: "900",
-    marginTop: 16,
+    marginTop: 12,
   },
   emptyText: {
     color: COLORS.textMuted,
@@ -877,7 +883,7 @@ const styles = StyleSheet.create({
   },
   list: { paddingBottom: 140 },
   heroStage: {
-    marginBottom: 18,
+    marginBottom: 12,
     position: "relative",
   },
   heroStageGlow: {
@@ -885,9 +891,9 @@ const styles = StyleSheet.create({
     top: 24,
     left: 24,
     right: 24,
-    height: 220,
-    borderRadius: 120,
-    backgroundColor: "rgba(34,211,238,0.12)",
+    height: 150,
+    borderRadius: 80,
+    backgroundColor: "rgba(34,211,238,0.06)",
   },
   heroList: {
     paddingRight: 18,
@@ -896,11 +902,11 @@ const styles = StyleSheet.create({
     marginRight: 14,
   },
   heroBorder: {
-    borderRadius: 34,
-    padding: 2,
+    borderRadius: 28,
+    padding: 1,
   },
   heroCard: {
-    borderRadius: 32,
+    borderRadius: 27,
     overflow: "hidden",
     backgroundColor: COLORS.card,
   },
@@ -912,7 +918,7 @@ const styles = StyleSheet.create({
   heroOverlay: {
     flex: 1,
     justifyContent: "flex-end",
-    padding: 20,
+    padding: 16,
   },
   livePill: {
     alignSelf: "flex-start",
@@ -933,7 +939,7 @@ const styles = StyleSheet.create({
   },
   heroSong: {
     color: COLORS.text,
-    fontSize: 28,
+    fontSize: 23,
     fontWeight: "900",
   },
   heroArtist: {
@@ -946,15 +952,15 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginTop: 16,
+    marginTop: 12,
   },
   heroPlayButton: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
     backgroundColor: COLORS.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 11,
+    paddingHorizontal: 13,
+    paddingVertical: 9,
     borderRadius: 999,
   },
   heroPlayText: {
@@ -993,12 +999,12 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
   },
   listeningBrief: {
-    marginBottom: 14,
-    borderRadius: 26,
-    padding: 16,
+    marginBottom: 10,
+    borderRadius: 22,
+    padding: 12,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.06)",
+    backgroundColor: "rgba(255,255,255,0.04)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.1)",
   },
@@ -1022,22 +1028,22 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   waveformShell: {
-    width: 88,
+    width: 68,
     alignItems: "center",
     justifyContent: "center",
   },
   discoveryStrip: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 10,
-    marginBottom: 14,
+    gap: 8,
+    marginBottom: 10,
   },
   discoveryChip: {
     flexDirection: "row",
     alignItems: "center",
     gap: 7,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: 999,
     backgroundColor: "rgba(255,255,255,0.07)",
     borderWidth: 1,
@@ -1057,12 +1063,12 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   moodChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingHorizontal: 13,
+    paddingVertical: 8,
     borderRadius: 999,
-    backgroundColor: "rgba(168,85,247,0.16)",
+    backgroundColor: "rgba(168,85,247,0.1)",
     borderWidth: 1,
-    borderColor: "rgba(168,85,247,0.34)",
+    borderColor: "rgba(168,85,247,0.18)",
   },
   moodChipText: {
     color: COLORS.primaryGlow,
@@ -1070,12 +1076,12 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
   searchPanel: {
-    marginBottom: 22,
-    borderRadius: 28,
+    marginBottom: 16,
+    borderRadius: 22,
     padding: 16,
-    backgroundColor: "rgba(18,7,31,0.88)",
+    backgroundColor: "rgba(18,7,31,0.72)",
     borderWidth: 1,
-    borderColor: "rgba(34,211,238,0.2)",
+    borderColor: "rgba(255,255,255,0.08)",
   },
   searchPanelHeader: {
     flexDirection: "row",
@@ -1093,7 +1099,7 @@ const styles = StyleSheet.create({
     minHeight: 46,
     borderRadius: 18,
     paddingHorizontal: 14,
-    backgroundColor: "rgba(255,255,255,0.06)",
+    backgroundColor: "rgba(255,255,255,0.04)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.08)",
   },
@@ -1105,13 +1111,24 @@ const styles = StyleSheet.create({
     paddingVertical: 0,
   },
   searchResultsPanel: {
-    paddingBottom: 18,
+    paddingBottom: 14,
+  },
+  searchLoadingPanel: {
+    minHeight: 96,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+  },
+  searchLoadingText: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    fontWeight: "700",
   },
   cinematicSection: {
-    marginBottom: 28,
+    marginBottom: 22,
     position: "relative",
     overflow: "hidden",
-    borderRadius: 28,
+    borderRadius: 22,
     paddingTop: 4,
   },
   sectionAura: {
@@ -1119,8 +1136,8 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    height: 120,
-    borderRadius: 28,
+    height: 70,
+    borderRadius: 22,
   },
   sectionHeaderRow: {
     flexDirection: "row",
@@ -1138,7 +1155,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     color: COLORS.text,
-    fontSize: 22,
+    fontSize: 19,
     fontWeight: "900",
   },
   songsSectionTitle: {

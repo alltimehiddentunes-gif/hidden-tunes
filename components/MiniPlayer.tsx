@@ -27,8 +27,6 @@ import Animated, {
   cancelAnimation,
   useAnimatedStyle,
   useSharedValue,
-  withRepeat,
-  withSequence,
   withSpring,
   withTiming,
 } from "react-native-reanimated";
@@ -42,7 +40,6 @@ import {
 import HTImage from "./HTImage";
 import { FALLBACK_ARTWORK, getArtworkValue } from "../utils/artwork";
 import { isFastScrolling } from "../utils/performanceMode";
-import { useRuntimeRenderProbe } from "../utils/runtimeInstrumentation";
 
 type YouTubeMini = {
   id: string;
@@ -53,7 +50,7 @@ type YouTubeMini = {
 };
 
 const YOUTUBE_MINI_KEY = "hidden_tunes_current_youtube";
-const YOUTUBE_POLL_MS = 9000;
+const YOUTUBE_POLL_MS = 30000;
 
 function formatMiniTime(millis: number) {
   const totalSeconds = Math.max(0, Math.floor((millis || 0) / 1000));
@@ -126,7 +123,7 @@ const MiniPlayerArtwork = memo(function MiniPlayerArtwork({
   isPlaying: boolean;
   trackKey: string;
 }) {
-  const glowOpacity = useSharedValue(0.34);
+  const glowOpacity = useSharedValue(0.18);
   const glowScale = useSharedValue(1);
 
   useEffect(() => {
@@ -138,23 +135,8 @@ const MiniPlayerArtwork = memo(function MiniPlayerArtwork({
       return;
     }
 
-    glowOpacity.value = withRepeat(
-      withSequence(
-        withTiming(0.58, { duration: 1800, easing: Easing.inOut(Easing.quad) }),
-        withTiming(0.32, { duration: 1800, easing: Easing.inOut(Easing.quad) })
-      ),
-      -1,
-      false
-    );
-
-    glowScale.value = withRepeat(
-      withSequence(
-        withTiming(1.06, { duration: 1800, easing: Easing.inOut(Easing.quad) }),
-        withTiming(1, { duration: 1800, easing: Easing.inOut(Easing.quad) })
-      ),
-      -1,
-      false
-    );
+    glowOpacity.value = withTiming(0.26, { duration: 220 });
+    glowScale.value = withTiming(1.015, { duration: 220 });
 
     return () => {
       cancelAnimation(glowOpacity);
@@ -171,7 +153,7 @@ const MiniPlayerArtwork = memo(function MiniPlayerArtwork({
     <View style={styles.coverWrap}>
       <Animated.View style={[styles.coverGlowOuter, glowStyle]} pointerEvents="none">
         <LinearGradient
-          colors={["rgba(168,85,247,0.55)", "rgba(236,72,153,0.35)", "rgba(34,211,238,0.2)"]}
+          colors={["rgba(168,85,247,0.28)", "rgba(236,72,153,0.18)", "rgba(34,211,238,0.1)"]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.coverGlowFill}
@@ -325,7 +307,6 @@ const MiniPlayerMetadata = memo(function MiniPlayerMetadata({
 });
 
 function MiniPlayer() {
-  useRuntimeRenderProbe("MiniPlayer");
   const {
     currentSong,
     isPlaying,
@@ -498,7 +479,7 @@ function MiniPlayer() {
 
   return (
     <Animated.View
-      entering={FadeInDown.duration(300).springify().damping(18).stiffness(220)}
+      entering={FadeInDown.duration(220)}
       exiting={FadeOutDown.duration(220)}
       style={styles.wrapper}
     >
@@ -508,7 +489,7 @@ function MiniPlayer() {
         onPressOut={onShellPressOut}
         style={shellStyle}
       >
-        <LinearGradient colors={GRADIENTS.neon} style={styles.border}>
+        <View style={styles.border}>
           <BlurView intensity={52} tint="dark" style={styles.container}>
             <View style={styles.sheen} pointerEvents="none" />
 
@@ -559,7 +540,7 @@ function MiniPlayer() {
               />
             </MiniControlButton>
           </BlurView>
-        </LinearGradient>
+        </View>
       </AnimatedPressable>
     </Animated.View>
   );
@@ -570,45 +551,46 @@ export default memo(MiniPlayer);
 const styles = StyleSheet.create({
   wrapper: {
     position: "absolute",
-    left: 14,
-    right: 14,
-    bottom: 96,
-    borderRadius: 30,
+    left: 12,
+    right: 12,
+    bottom: 88,
+    borderRadius: 24,
     overflow: "hidden",
   },
 
   border: {
-    borderRadius: 30,
-    padding: 1.4,
+    borderRadius: 24,
+    padding: 1,
+    backgroundColor: "rgba(168,85,247,0.28)",
   },
 
   container: {
-    height: 88,
-    borderRadius: 29,
+    height: 74,
+    borderRadius: 23,
     overflow: "hidden",
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 12,
-    backgroundColor: "rgba(5,5,8,0.92)",
+    paddingHorizontal: 9,
+    backgroundColor: "rgba(5,5,8,0.86)",
   },
 
   sheen: {
     ...StyleSheet.flatten(StyleSheet.absoluteFill),
-    backgroundColor: "rgba(255,255,255,0.03)",
+    backgroundColor: "rgba(255,255,255,0.015)",
   },
 
   coverWrap: {
-    width: 62,
-    height: 62,
+    width: 52,
+    height: 52,
     alignItems: "center",
     justifyContent: "center",
   },
 
   coverGlowOuter: {
     position: "absolute",
-    width: 72,
-    height: 72,
-    borderRadius: 24,
+    width: 58,
+    height: 58,
+    borderRadius: 19,
     overflow: "hidden",
   },
 
@@ -617,9 +599,9 @@ const styles = StyleSheet.create({
   },
 
   coverFrame: {
-    width: 60,
-    height: 60,
-    borderRadius: 20,
+    width: 50,
+    height: 50,
+    borderRadius: 16,
     overflow: "hidden",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.14)",
@@ -627,16 +609,16 @@ const styles = StyleSheet.create({
   },
 
   cover: {
-    width: 60,
-    height: 60,
-    borderRadius: 20,
+    width: 50,
+    height: 50,
+    borderRadius: 16,
     backgroundColor: COLORS.cardLight,
   },
 
   youtubeCover: {
-    width: 60,
-    height: 60,
-    borderRadius: 20,
+    width: 50,
+    height: 50,
+    borderRadius: 16,
     backgroundColor: "#ff0033",
     alignItems: "center",
     justifyContent: "center",
@@ -656,7 +638,7 @@ const styles = StyleSheet.create({
 
   info: {
     flex: 1,
-    marginLeft: 12,
+    marginLeft: 9,
     paddingRight: 6,
     minWidth: 0,
   },
@@ -669,7 +651,7 @@ const styles = StyleSheet.create({
   },
 
   badgeRow: {
-    height: 17,
+    height: 14,
     justifyContent: "center",
   },
 
@@ -678,8 +660,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "rgba(168,85,247,0.82)",
-    paddingHorizontal: 7,
-    paddingVertical: 2,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
     borderRadius: 999,
     gap: 4,
   },
@@ -696,7 +678,7 @@ const styles = StyleSheet.create({
 
   title: {
     color: COLORS.text,
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "900",
     marginTop: 1,
     letterSpacing: -0.2,
@@ -704,7 +686,7 @@ const styles = StyleSheet.create({
 
   artist: {
     color: COLORS.textMuted,
-    fontSize: 12,
+    fontSize: 11,
     marginTop: 2,
     fontWeight: "700",
   },
@@ -729,10 +711,10 @@ const styles = StyleSheet.create({
   },
 
   progressTrack: {
-    height: 4,
+    height: 3,
     borderRadius: 99,
     backgroundColor: "rgba(255,255,255,0.12)",
-    marginTop: 8,
+    marginTop: 5,
     overflow: "hidden",
   },
 
@@ -748,27 +730,27 @@ const styles = StyleSheet.create({
   },
 
   skipButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: "rgba(255,255,255,0.08)",
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 6,
+    marginRight: 4,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.06)",
   },
 
   playButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     backgroundColor: COLORS.primary,
     alignItems: "center",
     justifyContent: "center",
     shadowColor: COLORS.primary,
-    shadowOpacity: 0.35,
-    shadowRadius: 10,
+    shadowOpacity: 0.18,
+    shadowRadius: 6,
     shadowOffset: { width: 0, height: 4 },
     elevation: 4,
   },

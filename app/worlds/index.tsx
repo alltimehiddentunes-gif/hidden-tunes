@@ -205,7 +205,7 @@ export default function WorldsIndexScreen() {
                 <Text style={styles.discoveryText}>
                   {currentSong
                     ? `Now playing · ${currentSong.title || "your current song"}`
-                    : "Pick a mood room, world, or catalog rail to continue."}
+                    : "Pick a rail to continue."}
                 </Text>
 
                 <View style={styles.discoveryActions}>
@@ -230,8 +230,6 @@ export default function WorldsIndexScreen() {
                   <SubtleTvEntryLink style={styles.tvLink} />
                 </View>
               </View>
-
-              <WorldsExploreSection showSeeAll={false} />
 
               {moodRooms.length > 0 ? (
                 <View style={[styles.cinematicSection, compactLayout && styles.cinematicSectionCompact]}>
@@ -407,6 +405,12 @@ export default function WorldsIndexScreen() {
                 </View>
               ) : null}
 
+              <View style={[styles.cinematicSection, compactLayout && styles.cinematicSectionCompact]}>
+                <Text style={styles.sectionEyebrow}>WORLDS</Text>
+                <Text style={styles.sectionTitle}>Emotional Worlds</Text>
+                <WorldsExploreSection showSeeAll={false} />
+              </View>
+
               <WorldGalleryScreen embedded />
             </>
           )}
@@ -419,7 +423,7 @@ export default function WorldsIndexScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    paddingTop: 58,
+    paddingTop: 50,
   },
   scrollContent: {
     paddingHorizontal: 18,
@@ -429,25 +433,25 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: -40,
     left: -90,
-    width: 240,
-    height: 240,
-    borderRadius: 120,
-    backgroundColor: "rgba(168,85,247,0.22)",
+    width: 190,
+    height: 190,
+    borderRadius: 95,
+    backgroundColor: "rgba(168,85,247,0.12)",
   },
   glowCyan: {
     position: "absolute",
     top: 120,
     right: -100,
-    width: 260,
-    height: 260,
-    borderRadius: 130,
-    backgroundColor: "rgba(34,211,238,0.12)",
+    width: 210,
+    height: 210,
+    borderRadius: 105,
+    backgroundColor: "rgba(34,211,238,0.07)",
   },
   topBar: {
     flexDirection: "row",
     alignItems: "flex-start",
     justifyContent: "space-between",
-    marginBottom: 16,
+    marginBottom: 10,
   },
   heroCopy: {
     flex: 1,
@@ -461,7 +465,7 @@ const styles = StyleSheet.create({
   },
   title: {
     color: COLORS.text,
-    fontSize: 28,
+    fontSize: 25,
     fontWeight: "900",
     marginTop: 4,
   },
@@ -493,10 +497,10 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   discoveryIntro: {
-    borderRadius: 30,
-    padding: 18,
+    borderRadius: 24,
+    padding: 14,
     marginBottom: 8,
-    backgroundColor: "rgba(255,255,255,0.06)",
+    backgroundColor: "rgba(255,255,255,0.04)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.1)",
     overflow: "hidden",
@@ -509,10 +513,10 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: -50,
     right: -40,
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    backgroundColor: "rgba(168,85,247,0.18)",
+    width: 130,
+    height: 130,
+    borderRadius: 65,
+    backgroundColor: "rgba(168,85,247,0.09)",
   },
   discoveryEyebrow: {
     color: COLORS.primary,
@@ -522,7 +526,7 @@ const styles = StyleSheet.create({
   },
   discoveryTitle: {
     color: COLORS.text,
-    fontSize: 22,
+    fontSize: 19,
     fontWeight: "900",
     marginTop: 8,
   },
@@ -543,8 +547,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 7,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: 999,
     backgroundColor: "rgba(255,255,255,0.07)",
     borderWidth: 1,
@@ -559,7 +563,7 @@ const styles = StyleSheet.create({
     marginLeft: 0,
   },
   cinematicSection: {
-    marginTop: 24,
+    marginTop: 18,
   },
   cinematicSectionCompact: {
     marginTop: 20,
@@ -579,7 +583,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     color: COLORS.text,
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "900",
   },
   sectionMeta: {

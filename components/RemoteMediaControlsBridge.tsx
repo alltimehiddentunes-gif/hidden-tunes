@@ -1,12 +1,8 @@
 import ActiveWorldRouteSync from "./ActiveWorldRouteSync";
 import DebugModeGesture from "./DebugModeGesture";
-import EmotionalFlowPlayerControls from "./EmotionalFlowPlayerControls";
 import { memo, useEffect, useRef } from "react";
 
 import PlayerScreenDebugOverlay from "../screens/PlayerScreenDebugOverlay";
-import PlayerScreenEmotionalFlowHints from "../screens/PlayerScreenEmotionalFlowHints";
-import PlayerScreenEngineDashboard from "../screens/PlayerScreenEngineDashboard";
-import PlayerScreenIdentityHints from "../screens/PlayerScreenIdentityHints";
 
 import {
   usePlayerActions,
@@ -121,10 +117,6 @@ function RemoteMediaControlsBridge() {
   return (
     <>
       <ActiveWorldRouteSync />
-      <EmotionalFlowPlayerControls />
-      <PlayerScreenEmotionalFlowHints />
-      <PlayerScreenIdentityHints />
-      <PlayerScreenEngineDashboard />
       {__DEV__ ? <DebugModeGesture /> : null}
       {__DEV__ ? <PlayerScreenDebugOverlay /> : null}
     </>

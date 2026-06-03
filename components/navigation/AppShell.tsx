@@ -36,7 +36,7 @@ const MINI_PLAYER_ROUTES = [
   "/cloud-playlists",
 ] as const;
 
-const MINI_PLAYER_SPACE = 188;
+const MINI_PLAYER_SPACE = 158;
 
 type NavItem = {
   label: string;
@@ -115,7 +115,7 @@ export default function AppShell({
   const router = useRouter();
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
-  const bottomOffset = Math.max(insets.bottom, 10);
+  const bottomOffset = Math.max(insets.bottom, 8);
   const showMiniPlayer = isMiniPlayerRoute(pathname);
 
   const items = useMemo(
@@ -144,7 +144,7 @@ export default function AppShell({
         pointerEvents="box-none"
         style={[styles.navWrap, { paddingBottom: bottomOffset }]}
       >
-        <BlurView intensity={42} tint="dark" style={styles.navBlur}>
+        <BlurView intensity={34} tint="dark" style={styles.navBlur}>
           <View style={styles.navBar}>
             {items.map((item) => (
               <Pressable
@@ -188,43 +188,43 @@ const styles = StyleSheet.create({
   },
   navWrap: {
     position: "absolute",
-    left: 14,
-    right: 14,
+    left: 12,
+    right: 12,
     bottom: 0,
     zIndex: 100,
   },
   navBlur: {
     overflow: "hidden",
-    borderRadius: 24,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    backgroundColor: "rgba(10,4,24,0.76)",
+    borderColor: "rgba(255,255,255,0.08)",
+    backgroundColor: "rgba(10,4,24,0.64)",
   },
   navBar: {
-    minHeight: 68,
+    minHeight: 56,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 8,
-    paddingVertical: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 6,
   },
   navItem: {
     flex: 1,
-    minHeight: 52,
-    borderRadius: 18,
+    minHeight: 44,
+    borderRadius: 15,
     alignItems: "center",
     justifyContent: "center",
     gap: 3,
   },
   navItemActive: {
-    backgroundColor: "rgba(168,85,247,0.18)",
+    backgroundColor: "rgba(168,85,247,0.12)",
   },
   navItemPressed: {
     opacity: 0.72,
   },
   navText: {
     color: COLORS.textMuted,
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: "800",
   },
   navTextActive: {

@@ -43,15 +43,14 @@ const EMPTY: UniversalSearchGroupedResults = {
 };
 
 const INSTANT_LIMITS = {
-  songs: 20,
+  songs: 16,
   artists: 8,
   albums: 8,
-  genres: 10,
+  genres: 8,
   tv: 6,
-  top: 10,
+  top: 8,
 };
 
-const INSTANT_RANK_INPUT_LIMIT = 180;
 
 function catalogReasonLabel(reason: CatalogSongMatchReason) {
   switch (reason) {
@@ -63,9 +62,13 @@ function catalogReasonLabel(reason: CatalogSongMatchReason) {
     case "artist_starts":
     case "artist_contains":
       return "Matched artist" as const;
-    case "album_match":
+    case "album_exact":
+    case "album_starts":
+    case "album_contains":
       return "Matched album" as const;
-    case "genre_match":
+    case "genre_exact":
+    case "genre_starts":
+    case "genre_contains":
       return "Matched genre" as const;
     case "mood_match":
       return "Matched mood" as const;
@@ -93,46 +96,55 @@ function getOrBuildIndex(songs: HiddenTunesNormalizedSong[]) {
   return cachedIndex;
 }
 
+function fieldPriorityScore(value: unknown, query: string, exact: number, starts: number, contains: number) {
+  const field = normalizeSearchText(value);
+  const normalizedQuery = normalizeSearchText(query);
+  if (!field || !normalizedQuery) return 0;
+  if (field === normalizedQuery) return exact;
+  if (field.startsWith(normalizedQuery)) return starts;
+  if (field.includes(normalizedQuery)) return contains;
+  return 0;
+}
+
 function searchGenresFast(genres: HiddenTunesGenre[], query: string) {
   const normalizedQuery = normalizeSearchText(query);
   if (!normalizedQuery) return [];
 
   return genres
-    .filter((genre) => {
-      const title = normalizeSearchText(genre.title);
-      const id = normalizeSearchText(genre.id);
-      const queryField = normalizeSearchText(genre.query);
-
-      if (
-        title.includes(normalizedQuery) ||
-        id.includes(normalizedQuery) ||
-        queryField.includes(normalizedQuery)
-      ) {
-        return true;
-      }
-
-      return (genre.aliases || []).some((alias) =>
-        normalizeSearchText(alias).includes(normalizedQuery)
+    .map((genre) => {
+      const titleScore = fieldPriorityScore(genre.title, query, 5400, 5200, 5000);
+      const idScore = fieldPriorityScore(genre.id, query, 5300, 5100, 4900);
+      const queryScore = fieldPriorityScore(genre.query, query, 5250, 5050, 4850);
+      const aliasScore = Math.max(
+        0,
+        ...(genre.aliases || []).map((alias) =>
+          fieldPriorityScore(alias, query, 5200, 5000, 4800)
+        )
       );
+      const score = Math.max(titleScore, idScore, queryScore, aliasScore);
+      if (score <= 0) return null;
+
+      return {
+        id: `genre:${genre.id}`,
+        score,
+        reason: "Matched genre" as const,
+        payload: genre,
+        subtitle: genre.query,
+      };
     })
-    .slice(0, INSTANT_LIMITS.genres)
-    .map((genre) => ({
-      id: `genre:${genre.id}`,
-      score: getCanonicalGenre(query) === genre.title ? 120 : 96,
-      reason: "Matched genre" as const,
-      payload: genre,
-      subtitle: genre.query,
-    }));
+    .filter((hit): hit is NonNullable<typeof hit> => Boolean(hit))
+    .sort((left, right) => right.score - left.score)
+    .slice(0, INSTANT_LIMITS.genres);
 }
 
 function searchArtistsFast(artists: HiddenTunesArtist[], query: string) {
   const hits: UniversalSearchGroupedResults["artists"] = [];
 
   for (const artist of artists) {
-    const score = scoreSearchDocument(
-      buildSearchDocument([artist.name, artist.genre, artist.bio]),
-      query,
-      1
+    const score = Math.max(
+      fieldPriorityScore(artist.name, query, 7600, 7100, 6600),
+      fieldPriorityScore(artist.genre, query, 5200, 5000, 4700),
+      scoreSearchDocument(buildSearchDocument([artist.name, artist.genre, artist.bio]), query, 1)
     );
 
     if (score <= 0) continue;
@@ -155,10 +167,11 @@ function searchAlbumsFast(albums: HiddenTunesAlbum[], query: string) {
   const hits: UniversalSearchGroupedResults["albums"] = [];
 
   for (const album of albums) {
-    const score = scoreSearchDocument(
-      buildSearchDocument([album.title, album.artist, album.genre]),
-      query,
-      1
+    const score = Math.max(
+      fieldPriorityScore(album.title, query, 6200, 6000, 5600),
+      fieldPriorityScore(album.artist, query, 7400, 6900, 6400),
+      fieldPriorityScore(album.genre, query, 5400, 5200, 5000),
+      scoreSearchDocument(buildSearchDocument([album.title, album.artist, album.genre]), query, 1)
     );
 
     if (score <= 0) continue;
@@ -220,13 +233,8 @@ export function runInstantCatalogSearch(
     return EMPTY;
   }
 
-  const songsToRank =
-    catalog.songs.length > INSTANT_RANK_INPUT_LIMIT
-      ? catalog.songs.slice(0, INSTANT_RANK_INPUT_LIMIT)
-      : catalog.songs;
-
   const rankedSongs = rankCatalogSongs(
-    songsToRank,
+    catalog.songs,
     cleanQuery,
     INSTANT_LIMITS.songs
   );

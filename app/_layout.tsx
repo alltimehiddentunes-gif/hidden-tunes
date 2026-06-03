@@ -43,7 +43,9 @@ function RootLayout() {
 
   useEffect(() => {
     markAppMounted("root_layout");
-    startRuntimeInstrumentation();
+    if (__DEV__) {
+      startRuntimeInstrumentation();
+    }
 
     const hideSplash = async () => {
       try {

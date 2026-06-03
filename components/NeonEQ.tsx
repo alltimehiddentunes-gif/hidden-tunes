@@ -8,7 +8,7 @@ type NeonEQProps = {
   size?: "small" | "medium" | "large";
 };
 
-const BAR_COUNT = 4;
+const BAR_COUNT = 3;
 
 function NeonEQ({ isPlaying = false, size = "medium" }: NeonEQProps) {
   const bars = useRef(
@@ -62,12 +62,12 @@ function NeonEQ({ isPlaying = false, size = "medium" }: NeonEQProps) {
         Animated.sequence([
           Animated.timing(bar, {
             toValue: index % 2 === 0 ? 0.95 : 0.62,
-            duration: 360 + index * 70,
+            duration: 620 + index * 90,
             useNativeDriver: false,
           }),
           Animated.timing(bar, {
             toValue: index % 2 === 0 ? 0.35 : 0.9,
-            duration: 420 + index * 55,
+            duration: 720 + index * 80,
             useNativeDriver: false,
           }),
         ])

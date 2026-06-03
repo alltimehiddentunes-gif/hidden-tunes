@@ -29,9 +29,15 @@ function isRemoteMediaControlsPlatformEnabled() {
 }
 
 function logRemoteMedia(message: string, details?: Record<string, unknown>) {
-  if (typeof __DEV__ !== "undefined" && !__DEV__) return;
+  if (typeof __DEV__ === "undefined" || !__DEV__) return;
 
   console.log("[HTRemoteMedia]", message, details || {});
+}
+
+function logRemoteMediaError(message: string, error: unknown) {
+  if (typeof __DEV__ === "undefined" || !__DEV__) return;
+
+  console.log(`[HTRemoteMedia] ${message}:`, error);
 }
 
 async function loadMediaControlModule(): Promise<MediaControlModule | null> {
@@ -42,7 +48,7 @@ async function loadMediaControlModule(): Promise<MediaControlModule | null> {
     mediaModulePromise = import("expo-media-control")
       .then((module) => module)
       .catch((error) => {
-        console.log("[HTRemoteMedia] module load failed:", error);
+        logRemoteMediaError("module load failed", error);
         return null;
       });
   }
@@ -81,7 +87,7 @@ async function handleMediaControlEvent(
         break;
     }
   } catch (error) {
-    console.log("[HTRemoteMedia] command handler error:", error);
+    logRemoteMediaError("command handler error", error);
   }
 }
 
@@ -142,7 +148,7 @@ export async function enableRemoteMediaControls(
   } catch (error) {
     controlsEnabled = false;
     handlers = null;
-    console.log("[HTRemoteMedia] enable failed:", error);
+    logRemoteMediaError("enable failed", error);
     return false;
   }
 }
@@ -164,7 +170,7 @@ export async function disableRemoteMediaControls(): Promise<void> {
   try {
     await mediaModule.MediaControl.disableMediaControls();
   } catch (error) {
-    console.log("[HTRemoteMedia] disable error:", error);
+    logRemoteMediaError("disable error", error);
   }
 }
 
@@ -228,6 +234,6 @@ export async function syncRemoteMediaSession(
       positionSeconds
     );
   } catch (error) {
-    console.log("[HTRemoteMedia] sync error:", error);
+    logRemoteMediaError("sync error", error);
   }
 }

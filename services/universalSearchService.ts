@@ -41,9 +41,13 @@ function catalogReasonToUniversal(
     case "artist_starts":
     case "artist_contains":
       return "Matched artist";
-    case "album_match":
+    case "album_exact":
+    case "album_starts":
+    case "album_contains":
       return "Matched album";
-    case "genre_match":
+    case "genre_exact":
+    case "genre_starts":
+    case "genre_contains":
       return "Matched genre";
     case "mood_match":
       return "Matched mood";

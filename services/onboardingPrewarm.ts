@@ -152,18 +152,18 @@ export async function runOnboardingPrewarm(
   preferences: OnboardingPreferences
 ) {
   if (preferences.userRole !== "listener") {
-    console.warn("[onboarding] prewarm skipped", "non_listener");
+    if (__DEV__) console.warn("[onboarding] prewarm skipped", "non_listener");
     return;
   }
 
   const fingerprint = buildFingerprint(preferences);
   if (fingerprint === lastPrewarmFingerprint) {
-    console.warn("[onboarding] prewarm skipped", "unchanged");
+    if (__DEV__) console.warn("[onboarding] prewarm skipped", "unchanged");
     return;
   }
 
   const generation = ++prewarmGeneration;
-  console.log("[onboarding] prewarm start", preferences);
+  if (__DEV__) console.log("[onboarding] prewarm start", preferences);
 
   try {
     const chunks: HiddenTunesNormalizedSong[][] = [];
@@ -189,7 +189,7 @@ export async function runOnboardingPrewarm(
     }
 
     if (!merged.length) {
-      console.warn("[onboarding] prewarm skipped", "no_songs");
+      if (__DEV__) console.warn("[onboarding] prewarm skipped", "no_songs");
       return;
     }
 
@@ -214,10 +214,10 @@ export async function runOnboardingPrewarm(
     });
 
     lastPrewarmFingerprint = fingerprint;
-    console.log("[onboarding] prewarm ready", seededCount || merged.length);
+    if (__DEV__) console.log("[onboarding] prewarm ready", seededCount || merged.length);
   } catch (error) {
     const reason =
       error instanceof Error ? error.message : "prewarm_failed";
-    console.warn("[onboarding] prewarm skipped", reason);
+    if (__DEV__) console.warn("[onboarding] prewarm skipped", reason);
   }
 }

@@ -20,8 +20,6 @@ import Animated, {
   cancelAnimation,
   useAnimatedStyle,
   useSharedValue,
-  withRepeat,
-  withSequence,
   withSpring,
   withTiming,
 } from "react-native-reanimated";
@@ -64,23 +62,8 @@ const AmbientGlow = memo(function AmbientGlow() {
   const cyan = useSharedValue(0.1);
 
   useEffect(() => {
-    purple.value = withRepeat(
-      withSequence(
-        withTiming(0.24, { duration: 3200, easing: Easing.inOut(Easing.quad) }),
-        withTiming(0.14, { duration: 3200, easing: Easing.inOut(Easing.quad) })
-      ),
-      -1,
-      false
-    );
-
-    cyan.value = withRepeat(
-      withSequence(
-        withTiming(0.16, { duration: 3800, easing: Easing.inOut(Easing.quad) }),
-        withTiming(0.08, { duration: 3800, easing: Easing.inOut(Easing.quad) })
-      ),
-      -1,
-      false
-    );
+    purple.value = withTiming(0.16, { duration: 500 });
+    cyan.value = withTiming(0.1, { duration: 500 });
 
     return () => {
       cancelAnimation(purple);
@@ -132,7 +115,7 @@ const PremiumIconButton = memo(function PremiumIconButton({
   const handlePress = useCallback(() => {
     if (disabled) return;
     fireLightHaptic();
-    scale.value = withSequence(withSpring(0.9), withSpring(1));
+    scale.value = withSpring(1, { damping: 14, stiffness: 360 });
     onPress?.();
   }, [disabled, onPress, scale]);
 
@@ -172,14 +155,7 @@ const PremiumPlayButton = memo(function PremiumPlayButton({
       return;
     }
 
-    ringOpacity.value = withRepeat(
-      withSequence(
-        withTiming(0.46, { duration: 1400, easing: Easing.inOut(Easing.quad) }),
-        withTiming(0.18, { duration: 1400, easing: Easing.inOut(Easing.quad) })
-      ),
-      -1,
-      false
-    );
+    ringOpacity.value = withTiming(0.34, { duration: 260 });
 
     return () => {
       cancelAnimation(ringOpacity);
@@ -329,7 +305,7 @@ export default function PlayerScreen() {
   const sessionFlowText = useMemo(() => {
     if (nextUpSong?.title) return `Next: ${nextUpSong.title}`;
     if (activeQueue?.length) return "You are near the end of this queue.";
-    return "Open discovery to build a longer session.";
+    return "Build a longer session from discovery.";
   }, [activeQueue?.length, nextUpSong?.title]);
 
   useEffect(() => {
@@ -356,23 +332,8 @@ export default function PlayerScreen() {
       return;
     }
 
-    pulse.value = withRepeat(
-      withSequence(
-        withTiming(1.018, { duration: 2200, easing: Easing.inOut(Easing.quad) }),
-        withTiming(1, { duration: 2200, easing: Easing.inOut(Easing.quad) })
-      ),
-      -1,
-      false
-    );
-
-    artworkHalo.value = withRepeat(
-      withSequence(
-        withTiming(0.5, { duration: 2200, easing: Easing.inOut(Easing.quad) }),
-        withTiming(0.24, { duration: 2200, easing: Easing.inOut(Easing.quad) })
-      ),
-      -1,
-      false
-    );
+    pulse.value = withTiming(1.006, { duration: 260 });
+    artworkHalo.value = withTiming(0.36, { duration: 260 });
 
     return () => {
       cancelAnimation(pulse);
@@ -728,24 +689,24 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 50,
     left: -120,
-    width: 300,
-    height: 300,
-    borderRadius: 150,
-    backgroundColor: "rgba(168,85,247,0.32)",
+    width: 230,
+    height: 230,
+    borderRadius: 115,
+    backgroundColor: "rgba(168,85,247,0.18)",
   },
   glowCyan: {
     position: "absolute",
     top: 300,
     right: -130,
-    width: 300,
-    height: 300,
-    borderRadius: 150,
-    backgroundColor: "rgba(34,211,238,0.22)",
+    width: 230,
+    height: 230,
+    borderRadius: 115,
+    backgroundColor: "rgba(34,211,238,0.12)",
   },
   playerAnchor: {
-    paddingTop: 52,
-    paddingHorizontal: 22,
-    paddingBottom: 10,
+    paddingTop: 44,
+    paddingHorizontal: 20,
+    paddingBottom: 6,
     zIndex: 2,
   },
   playerAnchorCompact: {
@@ -758,7 +719,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 22,
-    paddingBottom: 150,
+    paddingBottom: 132,
   },
   emptyContainer: {
     flex: 1,
@@ -782,7 +743,7 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     fontSize: 24,
     fontWeight: "900",
-    marginTop: 18,
+    marginTop: 12,
   },
   emptySubText: {
     color: COLORS.textMuted,
@@ -842,10 +803,10 @@ const styles = StyleSheet.create({
   artworkStage: {
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 14,
+    marginTop: 10,
     shadowColor: "#A855F7",
-    shadowOpacity: 0.32,
-    shadowRadius: 24,
+    shadowOpacity: 0.18,
+    shadowRadius: 14,
     shadowOffset: { width: 0, height: 14 },
     elevation: 8,
   },
@@ -873,8 +834,8 @@ const styles = StyleSheet.create({
     position: "absolute",
     right: 8,
     bottom: 8,
-    minWidth: 54,
-    minHeight: 44,
+    minWidth: 46,
+    minHeight: 36,
     borderRadius: 22,
     alignItems: "center",
     justifyContent: "center",
@@ -883,11 +844,11 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.12)",
   },
   meta: {
-    marginTop: 8,
+    marginTop: 4,
     alignItems: "center",
   },
   statusPill: {
-    minHeight: 30,
+    minHeight: 26,
     borderRadius: 15,
     paddingHorizontal: 12,
     flexDirection: "row",
@@ -896,7 +857,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.07)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.1)",
-    marginBottom: 12,
+    marginBottom: 8,
   },
   statusText: {
     color: COLORS.textMuted,
@@ -907,7 +868,7 @@ const styles = StyleSheet.create({
   },
   title: {
     color: COLORS.text,
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: "900",
     textAlign: "center",
     letterSpacing: -0.5,
@@ -924,13 +885,13 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     justifyContent: "center",
     gap: 8,
-    marginTop: 14,
+    marginTop: 10,
   },
   contextPill: {
     maxWidth: "46%",
     borderRadius: 999,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
     backgroundColor: "rgba(255,255,255,0.07)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.1)",
@@ -944,9 +905,9 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
   waveformPanel: {
-    marginTop: 22,
-    minHeight: 92,
-    borderRadius: 28,
+    marginTop: 16,
+    minHeight: 68,
+    borderRadius: 22,
     paddingHorizontal: 16,
     justifyContent: "center",
     backgroundColor: "rgba(255,255,255,0.055)",
@@ -958,8 +919,8 @@ const styles = StyleSheet.create({
     minHeight: 72,
   },
   progressPanel: {
-    marginTop: 22,
-    borderRadius: 24,
+    marginTop: 14,
+    borderRadius: 20,
     paddingHorizontal: 14,
     paddingTop: 14,
     paddingBottom: 10,
@@ -984,9 +945,9 @@ const styles = StyleSheet.create({
     fontVariant: ["tabular-nums"],
   },
   controlsDock: {
-    marginTop: 26,
-    borderRadius: 32,
-    paddingVertical: 18,
+    marginTop: 12,
+    borderRadius: 24,
+    paddingVertical: 12,
     paddingHorizontal: 12,
     backgroundColor: "rgba(255,255,255,0.045)",
     borderWidth: 1,
@@ -999,16 +960,16 @@ const styles = StyleSheet.create({
     gap: 22,
   },
   controlsDockCompact: {
-    marginTop: 18,
+    marginTop: 12,
     paddingVertical: 14,
   },
   controlsCompact: {
     gap: 16,
   },
   premiumIconButton: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     backgroundColor: "rgba(255,255,255,0.08)",
     alignItems: "center",
     justifyContent: "center",
@@ -1021,21 +982,21 @@ const styles = StyleSheet.create({
   },
   playButtonRing: {
     position: "absolute",
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    backgroundColor: "rgba(168,85,247,0.35)",
+    width: 82,
+    height: 82,
+    borderRadius: 41,
+    backgroundColor: "rgba(168,85,247,0.18)",
   },
   playButton: {
-    width: 78,
-    height: 78,
-    borderRadius: 39,
+    width: 66,
+    height: 66,
+    borderRadius: 33,
     backgroundColor: COLORS.primary,
     alignItems: "center",
     justifyContent: "center",
     shadowColor: COLORS.primary,
-    shadowOpacity: 0.35,
-    shadowRadius: 14,
+    shadowOpacity: 0.22,
+    shadowRadius: 9,
     shadowOffset: { width: 0, height: 8 },
     elevation: 8,
   },
@@ -1043,13 +1004,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "center",
     gap: 12,
-    marginTop: 18,
+    marginTop: 12,
   },
   extraAction: {
     minWidth: 108,
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    borderRadius: 17,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -1067,7 +1028,7 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
   sessionCard: {
-    marginTop: 18,
+    marginTop: 12,
     borderRadius: 24,
     padding: 16,
     backgroundColor: "rgba(255,255,255,0.05)",
