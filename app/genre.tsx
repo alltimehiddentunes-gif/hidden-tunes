@@ -67,7 +67,12 @@ export default function GenreScreen() {
   }, [catalog?.albums, tracks]);
 
   function handlePlaySong(song: HiddenTunesSong, queueIndex: number) {
-    void playSong(song, tracks, queueIndex);
+    void playSong(song, tracks, queueIndex, {
+      source: String(params.type || "genre") === "mood" ? "mood" : "genre",
+      label: title,
+      genre: String(params.type || "genre") === "mood" ? song.genre : title,
+      mood: String(params.type || "genre") === "mood" ? title : song.mood,
+    });
   }
 
   function openAlbum(album: HiddenTunesAlbumCatalogItem) {

@@ -208,7 +208,13 @@ export default function WorldsIndexScreen() {
     (song: HiddenTunesSong) => {
       const index = findSongIndex(songs, song);
       const catalogSong = index >= 0 ? songs[index] : song;
-      void playSong(catalogSong, songs, Math.max(index, 0));
+      void playSong(catalogSong, songs, Math.max(index, 0), {
+        source: "full_catalog",
+        label: "Explore",
+        artistName: catalogSong.artist,
+        genre: catalogSong.genre,
+        mood: catalogSong.mood,
+      });
     },
     [playSong, songs]
   );

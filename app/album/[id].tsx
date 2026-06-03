@@ -318,7 +318,15 @@ export default function AlbumScreen() {
       tracks.findIndex((item) => item.id === normalized.id)
     );
 
-    void playSong(normalized as any, tracks as any, startIndex)
+    void playSong(normalized as any, tracks as any, startIndex, {
+      source: "album",
+      label: album?.title || String(id || "Album"),
+      albumId: String(album?.id || id || ""),
+      albumTitle: album?.title,
+      artistName: album?.artist,
+      genre: normalized.genre,
+      mood: normalized.mood,
+    })
       .finally(() => {
         logTapToPlay("album", tapStartedAt, { id: normalized.id });
       })
@@ -335,7 +343,15 @@ export default function AlbumScreen() {
     if (!tracks.length) return;
     const tapStartedAt = startPerformanceTimer();
 
-    void playSong(tracks[0] as any, tracks as any, 0)
+    void playSong(tracks[0] as any, tracks as any, 0, {
+      source: "album",
+      label: album?.title || String(id || "Album"),
+      albumId: String(album?.id || id || ""),
+      albumTitle: album?.title,
+      artistName: album?.artist,
+      genre: tracks[0]?.genre,
+      mood: tracks[0]?.mood,
+    })
       .finally(() => {
         logTapToPlay("album", tapStartedAt, { id: tracks[0]?.id });
       })
@@ -354,7 +370,15 @@ export default function AlbumScreen() {
     const shuffled = shuffleSongs(tracks);
     const tapStartedAt = startPerformanceTimer();
 
-    void playSong(shuffled[0] as any, shuffled as any, 0)
+    void playSong(shuffled[0] as any, shuffled as any, 0, {
+      source: "album",
+      label: album?.title || String(id || "Album"),
+      albumId: String(album?.id || id || ""),
+      albumTitle: album?.title,
+      artistName: album?.artist,
+      genre: shuffled[0]?.genre,
+      mood: shuffled[0]?.mood,
+    })
       .finally(() => {
         logTapToPlay("album", tapStartedAt, { id: shuffled[0]?.id });
       })

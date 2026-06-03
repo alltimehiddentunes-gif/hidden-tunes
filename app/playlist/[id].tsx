@@ -171,7 +171,15 @@ export default function PlaylistDetailScreen() {
       normalizedTracks.findIndex((item: any) => item.id === trackId)
     );
 
-    void playSong(normalizeTrack(track), normalizedTracks, startIndex).catch((error: unknown) => {
+    const normalized = normalizeTrack(track);
+    void playSong(normalized, normalizedTracks, startIndex, {
+      source: "playlist",
+      label: playlist?.title || "Playlist",
+      railId: playlistId,
+      artistName: normalized.artist,
+      genre: normalized.genre,
+      mood: normalized.mood,
+    }).catch((error: unknown) => {
       if (__DEV__) console.log("Playlist play error:", error);
     });
   }
@@ -180,7 +188,14 @@ export default function PlaylistDetailScreen() {
     if (!normalizedTracks.length) return;
 
     if (playQueue) {
-      void playQueue(normalizedTracks, 0).catch((error: unknown) => {
+      void playQueue(normalizedTracks, 0, false, {
+        source: "playlist",
+        label: playlist?.title || "Playlist",
+        railId: playlistId,
+        artistName: normalizedTracks[0]?.artist,
+        genre: normalizedTracks[0]?.genre,
+        mood: normalizedTracks[0]?.mood,
+      }).catch((error: unknown) => {
         if (__DEV__) console.log("Playlist play-all error:", error);
       });
       return;

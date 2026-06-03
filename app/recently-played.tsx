@@ -174,7 +174,14 @@ function RecentlyPlayedScreen() {
         queue.findIndex((track) => track.id === normalized.id)
       );
 
-      void playSong(normalized as any, queue as any, startIndex)
+      void playSong(normalized as any, queue as any, startIndex, {
+        source: "home_rail",
+        label: "Recently Played",
+        railId: "recently_played",
+        artistName: normalized.artist,
+        genre: normalized.genre,
+        mood: normalized.mood,
+      })
         .finally(() => {
           logTapToPlay("recently_played", tapStartedAt, { id: normalized.id });
         })

@@ -38,6 +38,7 @@ import {
   usePlayerNowPlaying,
   usePlayerState,
 } from "@/context/PlayerContext";
+import type { PlaybackQueueContext } from "@/context/PlayerContext";
 import {
   fetchHiddenTunesCatalog,
   type HiddenTunesAlbumCatalogItem,
@@ -437,6 +438,22 @@ export default function MusicFeedScreen() {
     return runInstantCatalogSearch(searchCatalog, cleanQuery);
   }, [searchCatalog, submittedSearchQuery]);
 
+  const searchResultSongs = useMemo(() => {
+    const seen = new Set<string>();
+    const collected: HiddenTunesSong[] = [];
+
+    [...searchResults.topResults, ...searchResults.songs, ...searchResults.lyrics].forEach((hit) => {
+      if (!hit.id.startsWith("song:") && !hit.id.startsWith("lyric:")) return;
+      const song = hit.payload as HiddenTunesSong;
+      const id = String(song?.id || "");
+      if (!id || seen.has(id)) return;
+      seen.add(id);
+      collected.push(song);
+    });
+
+    return collected;
+  }, [searchResults]);
+
   const hasSearchText = searchQuery.trim().length > 0;
   const showSearchResults = !loading && submittedSearchQuery.trim().length >= 2;
   const showSearchLoading = hasSearchText && loading;
@@ -460,7 +477,13 @@ export default function MusicFeedScreen() {
     (song: HiddenTunesSong | HiddenTunesNormalizedSong) => {
       const index = findSongIndex(songs, song);
       const catalogSong = index >= 0 ? songs[index] : (song as HiddenTunesSong);
-      void playSong(catalogSong, songs, Math.max(index, 0));
+      void playSong(catalogSong, songs, Math.max(index, 0), {
+        source: "full_catalog",
+        label: "Full Catalog",
+        genre: catalogSong.genre,
+        mood: catalogSong.mood,
+        artistName: catalogSong.artist,
+      });
     },
     [playSong, songs]
   );
@@ -526,12 +549,34 @@ export default function MusicFeedScreen() {
   }, []);
 
   const playSongFromList = useCallback(
-    (song: HiddenTunesSong, queueSongs: HiddenTunesSong[]) => {
+    (song: HiddenTunesSong, queueSongs: HiddenTunesSong[], queueContext: PlaybackQueueContext) => {
       const queue = queueSongs.length ? queueSongs : songs;
       const queueIndex = findSongIndex(queue, song);
-      void playSong(song, queue, Math.max(queueIndex, 0));
+      void playSong(song, queue, Math.max(queueIndex, 0), {
+        ...queueContext,
+        artistName: queueContext.artistName || song.artist,
+        genre: queueContext.genre || song.genre,
+        mood: queueContext.mood || song.mood,
+      });
     },
     [playSong, songs]
+  );
+
+  const playSearchResultSong = useCallback(
+    (song: HiddenTunesSong) => {
+      const queue = searchResultSongs.length ? searchResultSongs : songs;
+      const queueIndex = findSongIndex(queue, song);
+      const queueSong = queueIndex >= 0 ? queue[queueIndex] : song;
+      void playSong(queueSong, queue, Math.max(queueIndex, 0), {
+        source: "search",
+        label: "Search Results",
+        searchQuery: submittedSearchQuery || searchQuery,
+        artistName: queueSong.artist,
+        genre: queueSong.genre,
+        mood: queueSong.mood,
+      });
+    },
+    [playSong, searchQuery, searchResultSongs, songs, submittedSearchQuery]
   );
 
   const handleHeroPress = useCallback(
@@ -795,8 +840,8 @@ export default function MusicFeedScreen() {
                     <UniversalSearchGroupedResults
                       grouped={searchResults}
                       query={submittedSearchQuery || searchQuery}
-                      onSongPress={playCatalogSong}
-                      onLyricPress={playCatalogSong}
+                      onSongPress={playSearchResultSong}
+                      onLyricPress={playSearchResultSong}
                       onArtistPress={openArtist}
                       onAlbumPress={openAlbum}
                       onGenrePress={openGenre}
@@ -828,7 +873,11 @@ export default function MusicFeedScreen() {
                               key={`recently-${item.id}`}
                               item={item as unknown as HiddenTunesNormalizedSong}
                               index={index}
-                              onPress={(song) => playSongFromList(song as HiddenTunesSong, recentlyAddedSongs)}
+                              onPress={(song) => playSongFromList(song as HiddenTunesSong, recentlyAddedSongs, {
+                                source: "recently_added",
+                                label: "Recently Added",
+                                railId: "recently_added",
+                              })}
                             />
                           ))}
                         </ScrollView>
@@ -845,7 +894,11 @@ export default function MusicFeedScreen() {
                               key={`because-${item.id}`}
                               item={item as unknown as HiddenTunesNormalizedSong}
                               index={index}
-                              onPress={(song) => playSongFromList(song as HiddenTunesSong, becauseYouListened)}
+                              onPress={(song) => playSongFromList(song as HiddenTunesSong, becauseYouListened, {
+                                source: "because_you_listened",
+                                label: "Because You Listened",
+                                railId: "because_you_listened",
+                              })}
                             />
                           ))}
                         </ScrollView>
@@ -862,7 +915,11 @@ export default function MusicFeedScreen() {
                               key={`smart-${item.id}`}
                               item={item as unknown as HiddenTunesNormalizedSong}
                               index={index}
-                              onPress={(song) => playSongFromList(song as HiddenTunesSong, smartQueueSongs)}
+                              onPress={(song) => playSongFromList(song as HiddenTunesSong, smartQueueSongs, {
+                                source: "smart_queue",
+                                label: "Smart Music Queue",
+                                railId: "smart_queue",
+                              })}
                             />
                           ))}
                         </ScrollView>

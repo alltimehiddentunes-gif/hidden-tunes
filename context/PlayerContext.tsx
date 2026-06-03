@@ -174,6 +174,33 @@ export type AppSong = {
 type RepeatMode = "off" | "one" | "all";
 type ActiveQueueMode = "standard" | "youtube" | "radio" | "smart";
 
+export type PlaybackQueueContext = {
+  source:
+    | "album"
+    | "artist"
+    | "genre"
+    | "mood"
+    | "search"
+    | "home_rail"
+    | "queue"
+    | "playlist"
+    | "radio"
+    | "recently_added"
+    | "because_you_listened"
+    | "smart_queue"
+    | "full_catalog"
+    | "unknown";
+  label?: string;
+  albumId?: string;
+  albumTitle?: string;
+  artistId?: string;
+  artistName?: string;
+  genre?: string;
+  mood?: string;
+  searchQuery?: string;
+  railId?: string;
+};
+
 type LegacyPlaybackStatus = {
   isLoaded: boolean;
   positionMillis?: number;
@@ -217,6 +244,7 @@ export type PlayerContextType = {
   activeQueue: AppSong[];
   activeQueueIndex: number;
   activeQueueMode: ActiveQueueMode;
+  activeQueueContext: PlaybackQueueContext;
 
   favorites: AppSong[];
   recentlyPlayed: RecentlyPlayedTrack[];
@@ -233,11 +261,17 @@ export type PlayerContextType = {
   setEmotionalQueue: (tracks: Track[]) => void;
   advanceEmotionalQueue: () => Track | null;
 
-  playSong: (song: AppSong, queue?: AppSong[], index?: number) => Promise<void>;
+  playSong: (
+    song: AppSong,
+    queue?: AppSong[],
+    index?: number,
+    queueContext?: PlaybackQueueContext
+  ) => Promise<void>;
   playQueue: (
     queue: AppSong[],
     startIndex?: number,
-    priorInterruptDone?: boolean
+    priorInterruptDone?: boolean,
+    queueContext?: PlaybackQueueContext
   ) => Promise<void>;
   playAudiusTrack: (song: AppSong) => Promise<void>;
   playYouTubeQueue: (
@@ -285,6 +319,7 @@ const SMART_AUTOPLAY_KEY = "hidden_tunes_smart_autoplay";
 const ACTIVE_QUEUE_KEY = "hidden_tunes_active_queue";
 const ACTIVE_QUEUE_INDEX_KEY = "hidden_tunes_active_queue_index";
 const ACTIVE_QUEUE_MODE_KEY = "hidden_tunes_active_queue_mode";
+const ACTIVE_QUEUE_CONTEXT_KEY = "hidden_tunes_active_queue_context";
 
 function yieldToNextFrame(): Promise<void> {
   return new Promise((resolve) => {
@@ -318,6 +353,85 @@ const PLAYER_CONTEXT_DEBUG_LOGS = false;
 function logPlayerContextDebug(...args: unknown[]) {
   if (!__DEV__ || !PLAYER_CONTEXT_DEBUG_LOGS) return;
   console.log(...args);
+}
+
+const DEFAULT_QUEUE_CONTEXT: PlaybackQueueContext = { source: "unknown" };
+
+function cleanContextValue(value: unknown) {
+  const clean = String(value || "").trim();
+  return clean || undefined;
+}
+
+function normalizePlaybackQueueContext(
+  context?: PlaybackQueueContext | null,
+  fallbackSource: PlaybackQueueContext["source"] = "unknown"
+): PlaybackQueueContext {
+  if (!context) return { source: fallbackSource };
+
+  return {
+    source: context.source || fallbackSource,
+    label: cleanContextValue(context.label),
+    albumId: cleanContextValue(context.albumId),
+    albumTitle: cleanContextValue(context.albumTitle),
+    artistId: cleanContextValue(context.artistId),
+    artistName: cleanContextValue(context.artistName),
+    genre: cleanContextValue(context.genre),
+    mood: cleanContextValue(context.mood),
+    searchQuery: cleanContextValue(context.searchQuery),
+    railId: cleanContextValue(context.railId),
+  };
+}
+
+function contextMatchesSong(song: AppSong, context: PlaybackQueueContext) {
+  const artist = String(song.artist || song.user?.name || "").toLowerCase();
+  const genre = String(song.genre || "").toLowerCase();
+  const mood = String(song.mood || "").toLowerCase();
+  const album = String(song.album || "").toLowerCase();
+  const artistName = String(context.artistName || "").toLowerCase();
+  const genreName = String(context.genre || "").toLowerCase();
+  const moodName = String(context.mood || "").toLowerCase();
+  const albumTitle = String(context.albumTitle || "").toLowerCase();
+
+  if (context.source === "album" && albumTitle && album === albumTitle) return true;
+  if (context.source === "artist" && artistName && artist === artistName) return true;
+  if (context.source === "genre" && genreName && genre === genreName) return true;
+  if (context.source === "mood" && moodName && mood === moodName) return true;
+
+  return Boolean(
+    (artistName && artist === artistName) ||
+      (genreName && genre === genreName) ||
+      (moodName && mood === moodName)
+  );
+}
+
+function rankContinuationCandidate(
+  song: AppSong,
+  current: AppSong,
+  context: PlaybackQueueContext,
+  index: number
+) {
+  let score = Math.max(0, 1000 - index);
+  const artist = String(song.artist || song.user?.name || "").toLowerCase();
+  const genre = String(song.genre || "").toLowerCase();
+  const mood = String(song.mood || "").toLowerCase();
+  const album = String(song.album || "").toLowerCase();
+  const currentArtist = String(current.artist || current.user?.name || "").toLowerCase();
+  const currentGenre = String(current.genre || "").toLowerCase();
+  const currentMood = String(current.mood || "").toLowerCase();
+  const contextArtist = String(context.artistName || "").toLowerCase();
+  const contextGenre = String(context.genre || "").toLowerCase();
+  const contextMood = String(context.mood || "").toLowerCase();
+  const contextAlbum = String(context.albumTitle || "").toLowerCase();
+
+  if (context.source === "album" && contextAlbum && album === contextAlbum) score += 9000;
+  if ((context.source === "album" || context.source === "artist") && contextArtist && artist === contextArtist) score += 7000;
+  if ((context.source === "genre" || context.source === "artist" || context.source === "album") && contextGenre && genre === contextGenre) score += 5000;
+  if ((context.source === "mood" || context.source === "genre") && contextMood && mood === contextMood) score += 4500;
+  if (currentArtist && artist === currentArtist) score += 3500;
+  if (currentGenre && genre === currentGenre) score += 2400;
+  if (currentMood && mood === currentMood) score += 2000;
+
+  return score;
 }
 
 function isBackgroundAppState(state: AppStateStatus) {
@@ -413,6 +527,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const activeQueueRef = useRef<AppSong[]>([]);
   const activeQueueIndexRef = useRef(0);
   const activeQueueModeRef = useRef<ActiveQueueMode>("standard");
+  const activeQueueContextRef = useRef<PlaybackQueueContext>(DEFAULT_QUEUE_CONTEXT);
 
   const youtubeQueueRef = useRef<BackendYouTubeTrack[]>([]);
   const youtubeQueueIndexRef = useRef(0);
@@ -439,6 +554,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [activeQueueIndex, setActiveQueueIndex] = useState(0);
   const [activeQueueMode, setActiveQueueMode] =
     useState<ActiveQueueMode>("standard");
+  const [activeQueueContext, setActiveQueueContext] =
+    useState<PlaybackQueueContext>(DEFAULT_QUEUE_CONTEXT);
 
   const emotionalQueueSnapshot = useSyncExternalStore(
     subscribeEmotionalQueue,
@@ -955,11 +1072,18 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   );
 
   const persistActiveQueue = useCallback(
-    async (queue: AppSong[], index: number, mode: ActiveQueueMode) => {
+    async (
+      queue: AppSong[],
+      index: number,
+      mode: ActiveQueueMode,
+      context: PlaybackQueueContext = activeQueueContextRef.current
+    ) => {
       try {
         const normalizedQueue = queue.map(normalizeSong);
         const serializedQueue = JSON.stringify(normalizedQueue);
-        const persistKey = `${serializedQueue}|${index}|${mode}`;
+        const normalizedContext = normalizePlaybackQueueContext(context);
+        const serializedContext = JSON.stringify(normalizedContext);
+        const persistKey = `${serializedQueue}|${index}|${mode}|${serializedContext}`;
 
         if (lastActiveQueuePersistRef.current === persistKey) return;
 
@@ -970,11 +1094,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           [ACTIVE_QUEUE_KEY, serializedQueue],
           [ACTIVE_QUEUE_INDEX_KEY, String(index)],
           [ACTIVE_QUEUE_MODE_KEY, mode],
+          [ACTIVE_QUEUE_CONTEXT_KEY, serializedContext],
         ]);
 
         storageValueCacheRef.current[ACTIVE_QUEUE_KEY] = serializedQueue;
         storageValueCacheRef.current[ACTIVE_QUEUE_INDEX_KEY] = String(index);
         storageValueCacheRef.current[ACTIVE_QUEUE_MODE_KEY] = mode;
+        storageValueCacheRef.current[ACTIVE_QUEUE_CONTEXT_KEY] = serializedContext;
       } catch (error) {
         console.log("Persist active queue error:", error);
       }
@@ -983,7 +1109,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   );
 
   const syncActiveQueue = useCallback(
-    async (queue: AppSong[], index: number, mode: ActiveQueueMode) => {
+    async (
+      queue: AppSong[],
+      index: number,
+      mode: ActiveQueueMode,
+      context: PlaybackQueueContext = DEFAULT_QUEUE_CONTEXT
+    ) => {
       const normalizedQueue = queue
         .map(normalizeSong)
         .filter((song) => !isYouTubeSong(song));
@@ -991,6 +1122,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       if (!normalizedQueue.length) return;
 
       const safeIndex = Math.max(0, Math.min(index, normalizedQueue.length - 1));
+      const normalizedContext = normalizePlaybackQueueContext(context);
 
       setActiveQueue((previousQueue) => {
         const changed = !areSongQueuesEqual(previousQueue, normalizedQueue);
@@ -999,14 +1131,20 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       });
       setActiveQueueIndex(safeIndex);
       setActiveQueueMode(mode);
+      setActiveQueueContext(normalizedContext);
 
       activeQueueRef.current = normalizedQueue;
       activeQueueIndexRef.current = safeIndex;
       activeQueueModeRef.current = mode;
+      activeQueueContextRef.current = normalizedContext;
       updateActiveQueueLength(normalizedQueue.length);
 
+      if (typeof __DEV__ !== "undefined" && __DEV__) {
+        console.log("queue_context_set", normalizedContext);
+      }
+
       setTimeout(() => {
-        void persistActiveQueue(normalizedQueue, safeIndex, mode);
+        void persistActiveQueue(normalizedQueue, safeIndex, mode, normalizedContext);
         void saveSmartQueue(normalizedQueue as any);
       }, 0);
     },
@@ -1398,10 +1536,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   );
 
   const nextSong = useCallback(async () => {
-    if (await tryAdvanceViaEmotionalQueueRef.current()) {
-      return;
-    }
-
     const { queue } = getActiveQueuePlaybackState();
 
     logQueuePlaybackEvent("queue_next_start", {
@@ -1467,6 +1601,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         }
 
         const extended = await extendQueueWithSmartTracksRef.current?.();
+
+        if (!extended && await tryAdvanceViaEmotionalQueueRef.current()) {
+          logAutoNextSuccess({ reason: "emotional_queue_after_context_exhausted", queueLength: queue.length });
+          return;
+        }
 
         if (!extended) {
           logAutoNextFailure({
@@ -1564,10 +1703,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           }
         }
 
-        return;
-      }
-
-      if (await tryAdvanceViaEmotionalQueueRef.current()) {
         return;
       }
 
@@ -2494,6 +2629,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       const current = currentSongRef.current;
       if (!current) return false;
 
+      const context = activeQueueContextRef.current;
       const memory = await getSmartQueue();
       const currentQueue = activeQueueRef.current.filter(
         (song) => !isYouTubeSong(song)
@@ -2503,21 +2639,50 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         .map(normalizeSong)
         .filter((song) => !isYouTubeSong(song));
 
-      const related = await getRelatedTracks(current as any, combinedLibrary as any);
       const existingIds = new Set(currentQueue.map((song) => song.id));
-
-      const freshRelated = related
+      const related = await getRelatedTracks(current as any, combinedLibrary as any);
+      const contextCandidates = combinedLibrary.filter((song) => contextMatchesSong(song, context));
+      const rankedCandidates = [...contextCandidates, ...related]
         .map((song: any) => normalizeSong(song))
+        .filter((song) => song.id !== current.id)
         .filter((song) => !existingIds.has(song.id))
         .filter((song) => Boolean(getPlayableUri(song)))
+        .sort((left, right) =>
+          rankContinuationCandidate(right, current, context, combinedLibrary.findIndex((item) => item.id === right.id)) -
+          rankContinuationCandidate(left, current, context, combinedLibrary.findIndex((item) => item.id === left.id))
+        );
+
+      const seen = new Set<string>();
+      const freshRelated = rankedCandidates
+        .filter((song) => {
+          if (seen.has(song.id)) return false;
+          seen.add(song.id);
+          return true;
+        })
         .slice(0, 12);
 
       if (!freshRelated.length) return false;
 
       const updatedQueue = [...currentQueue, ...freshRelated];
       const nextIndex = currentQueue.length;
+      const nextContext = normalizePlaybackQueueContext(
+        {
+          ...context,
+          source: context.source === "unknown" ? "smart_queue" : context.source,
+          label: context.label || "Smart continuation",
+        },
+        "smart_queue"
+      );
 
-      await syncActiveQueue(updatedQueue, nextIndex, "smart");
+      if (typeof __DEV__ !== "undefined" && __DEV__) {
+        console.log("smart_continuation_selected", {
+          context: nextContext,
+          nextSongId: updatedQueue[nextIndex]?.id,
+          added: freshRelated.length,
+        });
+      }
+
+      await syncActiveQueue(updatedQueue, nextIndex, "smart", nextContext);
       await removeStoredValues([POSITION_KEY]);
       await loadAndPlay(updatedQueue[nextIndex]);
 
@@ -2614,7 +2779,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     async (
       queue: AppSong[],
       startIndex = 0,
-      priorInterruptDone = false
+      priorInterruptDone = false,
+      queueContext: PlaybackQueueContext = DEFAULT_QUEUE_CONTEXT
     ) => {
       const nativeQueue = queue
         .map(normalizeSong)
@@ -2645,7 +2811,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       radioModeRef.current = false;
       void setStoredValueIfChanged(RADIO_MODE_KEY, "false");
 
-      await syncActiveQueue(nativeQueue, safeIndex, "standard");
+      await syncActiveQueue(nativeQueue, safeIndex, "standard", queueContext);
       void removeStoredValues([POSITION_KEY]);
 
       const selectedSong = nativeQueue[safeIndex];
@@ -2727,7 +2893,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   );
 
   const playSong = useCallback(
-    async (song: AppSong, queue?: AppSong[], index?: number) => {
+    async (
+      song: AppSong,
+      queue?: AppSong[],
+      index?: number,
+      queueContext: PlaybackQueueContext = DEFAULT_QUEUE_CONTEXT
+    ) => {
       const normalizedSong = normalizeSong(song);
 
       logTapToPlayStart({
@@ -2804,7 +2975,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         recordQueueControl("play_song", nativeQueue.length, {
           songId: normalizedSong.id,
         });
-        await playQueue(nativeQueue, repaired.index, switchingToNewSong);
+        await playQueue(nativeQueue, repaired.index, switchingToNewSong, queueContext);
         return;
       }
 
@@ -2905,7 +3076,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           }, 0);
         }
       } else {
-        void syncActiveQueue([normalizedSong], 0, "standard");
+        void syncActiveQueue([normalizedSong], 0, "standard", queueContext);
       }
 
       void removeStoredValues([POSITION_KEY]);
@@ -3337,15 +3508,18 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setActiveQueue([]);
     setActiveQueueIndex(0);
     setActiveQueueMode("standard");
+    setActiveQueueContext(DEFAULT_QUEUE_CONTEXT);
 
     activeQueueRef.current = [];
     activeQueueIndexRef.current = 0;
     activeQueueModeRef.current = "standard";
+    activeQueueContextRef.current = DEFAULT_QUEUE_CONTEXT;
 
     await removeStoredValues([
       ACTIVE_QUEUE_KEY,
       ACTIVE_QUEUE_INDEX_KEY,
       ACTIVE_QUEUE_MODE_KEY,
+      ACTIVE_QUEUE_CONTEXT_KEY,
     ]);
   }, [removeStoredValues]);
 
@@ -3439,6 +3613,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         savedActiveQueue,
         savedActiveQueueIndex,
         savedActiveQueueMode,
+        savedActiveQueueContext,
       ] = await Promise.all([
         AsyncStorage.getItem(FAVORITES_KEY),
         AsyncStorage.getItem(YOUTUBE_QUEUE_KEY),
@@ -3448,6 +3623,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         AsyncStorage.getItem(ACTIVE_QUEUE_KEY),
         AsyncStorage.getItem(ACTIVE_QUEUE_INDEX_KEY),
         AsyncStorage.getItem(ACTIVE_QUEUE_MODE_KEY),
+        AsyncStorage.getItem(ACTIVE_QUEUE_CONTEXT_KEY),
       ]);
 
       const [savedRadioQueue, upgradedRecent] = await Promise.all([
@@ -3518,6 +3694,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               : "standard";
 
           if (normalizedQueue.length > 0) {
+            let safeContext = DEFAULT_QUEUE_CONTEXT;
+            if (savedActiveQueueContext) {
+              try {
+                safeContext = normalizePlaybackQueueContext(JSON.parse(savedActiveQueueContext));
+              } catch {}
+            }
+
             const safeIndex = Number.isNaN(parsedActiveIndex)
               ? 0
               : Math.max(
@@ -3533,6 +3716,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
             setActiveQueueMode(safeMode);
             activeQueueModeRef.current = safeMode;
+
+            setActiveQueueContext(safeContext);
+            activeQueueContextRef.current = safeContext;
           }
         }
       }
@@ -3786,6 +3972,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, [activeQueueMode]);
 
   useEffect(() => {
+    activeQueueContextRef.current = activeQueueContext;
+  }, [activeQueueContext]);
+
+  useEffect(() => {
     youtubeQueueRef.current = youtubeQueue;
   }, [youtubeQueue]);
 
@@ -3877,6 +4067,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       activeQueue,
       activeQueueIndex,
       activeQueueMode,
+      activeQueueContext,
       favorites,
       recentlyPlayed,
       youtubeQueue,
@@ -3903,6 +4094,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       activeQueue,
       activeQueueIndex,
       activeQueueMode,
+      activeQueueContext,
       favorites,
       recentlyPlayed,
       youtubeQueue,

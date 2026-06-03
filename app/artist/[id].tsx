@@ -284,7 +284,14 @@ export default function ArtistScreen() {
         tracks.findIndex((item) => item.id === normalized.id)
       );
 
-      void playSong(normalized as any, tracks as any, startIndex)
+      void playSong(normalized as any, tracks as any, startIndex, {
+        source: "artist",
+        label: artist?.name || String(id || "Artist"),
+        artistId: String(artist?.id || id || ""),
+        artistName: artist?.name,
+        genre: normalized.genre,
+        mood: normalized.mood,
+      })
         .finally(() => {
           logTapToPlay("artist", tapStartedAt, { id: normalized.id });
         })
@@ -304,7 +311,14 @@ export default function ArtistScreen() {
 
     const tapStartedAt = startPerformanceTimer();
 
-    void playSong(tracks[0] as any, tracks as any, 0)
+    void playSong(tracks[0] as any, tracks as any, 0, {
+      source: "artist",
+      label: artist?.name || String(id || "Artist"),
+      artistId: String(artist?.id || id || ""),
+      artistName: artist?.name,
+      genre: tracks[0]?.genre,
+      mood: tracks[0]?.mood,
+    })
       .finally(() => {
         logTapToPlay("artist", tapStartedAt, { id: tracks[0]?.id });
       })
@@ -323,7 +337,14 @@ export default function ArtistScreen() {
     const shuffled = shuffleSongs(tracks);
     const tapStartedAt = startPerformanceTimer();
 
-    void playSong(shuffled[0] as any, shuffled as any, 0)
+    void playSong(shuffled[0] as any, shuffled as any, 0, {
+      source: "artist",
+      label: artist?.name || String(id || "Artist"),
+      artistId: String(artist?.id || id || ""),
+      artistName: artist?.name,
+      genre: shuffled[0]?.genre,
+      mood: shuffled[0]?.mood,
+    })
       .finally(() => {
         logTapToPlay("artist", tapStartedAt, { id: shuffled[0]?.id });
       })

@@ -72,7 +72,14 @@ export default function ArtistScreen() {
   }
 
   function handlePlaySong(song: HiddenTunesSong, queueIndex: number) {
-    void playSong(song, tracks, queueIndex);
+    void playSong(song, tracks, queueIndex, {
+      source: "artist",
+      label: artist?.name || artistName,
+      artistId: artist?.id,
+      artistName: artist?.name || artistName,
+      genre: song.genre,
+      mood: song.mood,
+    });
   }
 
   return (

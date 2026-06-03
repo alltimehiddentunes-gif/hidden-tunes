@@ -242,7 +242,13 @@ export default function QueueScreen() {
               style={styles.queueItem}
               activeOpacity={0.85}
               onPress={() => {
-                void playSong(song, queueSongs, queueIndex).catch((error) => {
+                void playSong(song, queueSongs, queueIndex, {
+                  source: "queue",
+                  label: "Queue",
+                  artistName: song.artist || song.user?.name,
+                  genre: song.genre,
+                  mood: song.mood,
+                }).catch((error) => {
                   if (__DEV__) console.log("Queue play error:", error);
                 });
               }}

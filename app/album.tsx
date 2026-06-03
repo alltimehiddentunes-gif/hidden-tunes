@@ -63,7 +63,15 @@ export default function AlbumScreen() {
   const thumbnail = album?.artwork || tracks[0]?.cover || fallbackThumbnail;
 
   function handlePlaySong(song: HiddenTunesSong, queueIndex: number) {
-    void playSong(song, tracks, queueIndex);
+    void playSong(song, tracks, queueIndex, {
+      source: "album",
+      label: album?.title || albumTitle,
+      albumId: album?.id,
+      albumTitle: album?.title || albumTitle,
+      artistName: album?.artist || artistName,
+      genre: song.genre,
+      mood: song.mood,
+    });
   }
 
   return (

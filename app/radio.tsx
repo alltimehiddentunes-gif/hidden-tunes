@@ -266,7 +266,13 @@ export default function RadioScreen() {
       const queue = dedupeSongs(cloudTracks.map(safeSong));
       const normalized = safeSong(song);
 
-      void playSong(normalized as any, queue as any, index)
+      void playSong(normalized as any, queue as any, index, {
+        source: "radio",
+        label: "Radio",
+        artistName: normalized.artist,
+        genre: normalized.genre,
+        mood: normalized.mood,
+      })
         .finally(() => {
           logTapToPlay("radio", tapStartedAt, { id: normalized.id });
         })

@@ -61,6 +61,7 @@ export type PlayerStateContextValue = Pick<
   | "activeQueue"
   | "activeQueueIndex"
   | "activeQueueMode"
+  | "activeQueueContext"
   | "favorites"
   | "recentlyPlayed"
   | "youtubeQueue"
