@@ -211,8 +211,8 @@ export default function FavoritesScreen() {
   return (
     <AppShell>
       <LinearGradient colors={GRADIENTS.main} style={styles.screen}>
-        <View style={styles.glowPurple} />
-        <View style={styles.glowCyan} />
+        <View pointerEvents="none" style={styles.glowPurple} />
+        <View pointerEvents="none" style={styles.glowCyan} />
 
         <View style={styles.header}>
           <Text style={styles.kicker}>LIBRARY</Text>
