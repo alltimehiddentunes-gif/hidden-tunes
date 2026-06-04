@@ -177,7 +177,7 @@ const styles = StyleSheet.create({
   },
 
   artwork: {
-    backgroundColor: "#111",
+    backgroundColor: "rgba(168,85,247,0.1)",
     overflow: "hidden",
   },
 
@@ -209,21 +209,21 @@ const styles = StyleSheet.create({
   },
 
   title: {
-    fontSize: 13,
-    lineHeight: 17,
+    fontSize: 12.5,
+    lineHeight: 16,
     fontWeight: "900",
     color: COLORS.text,
     letterSpacing: -0.2,
   },
 
   largeTitle: {
-    fontSize: 16,
-    lineHeight: 21,
+    fontSize: 15,
+    lineHeight: 20,
   },
 
   subtitle: {
     marginTop: 6,
-    fontSize: 12,
+    fontSize: 11.5,
     color: COLORS.textMuted,
     fontWeight: "600",
   },

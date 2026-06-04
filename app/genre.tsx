@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -15,6 +15,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 
 import HTImage from "../components/HTImage";
+import PremiumEmptyState from "../components/PremiumEmptyState";
 import { COLORS, GRADIENTS } from "../constants/theme";
 import { getListPerformanceSettings, markFastScrolling } from "../utils/performanceMode";
 import { usePlayerActions } from "../context/PlayerContext";
@@ -272,9 +273,13 @@ export default function GenreScreen() {
           }
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Ionicons name="musical-notes-outline" size={58} color={COLORS.textMuted} />
-              <Text style={styles.emptyTitle}>No songs yet</Text>
-              <Text style={styles.emptyText}>No current songs include this genre or mood tag.</Text>
+              <PremiumEmptyState
+                icon="sparkles-outline"
+                title="No tracks in this room yet"
+                message="When songs match this genre or mood, this room will fill with artwork-rich recommendations."
+                actionLabel="Refresh"
+                onAction={onRefresh}
+              />
             </View>
           }
           renderItem={({ item, index }) => {
@@ -318,24 +323,24 @@ const styles = StyleSheet.create({
   loadingText: { color: COLORS.textMuted, fontSize: 14 },
   listContent: { paddingHorizontal: 18, paddingBottom: 150 },
   hero: { alignItems: "center", borderRadius: 30, paddingHorizontal: 18, paddingTop: 18, paddingBottom: 22, borderWidth: 1, borderColor: "rgba(255,255,255,0.12)", overflow: "hidden", marginBottom: 24 },
-  heroArtworkWrap: { width: 198, height: 198, borderRadius: 34, padding: 4, backgroundColor: "rgba(255,255,255,0.08)", borderWidth: 1, borderColor: "rgba(255,255,255,0.12)" },
-  heroArtwork: { width: "100%", height: "100%", borderRadius: 30, backgroundColor: COLORS.card },
+  heroArtworkWrap: { width: 186, height: 186, borderRadius: 32, padding: 4, backgroundColor: "rgba(255,255,255,0.08)", borderWidth: 1, borderColor: "rgba(255,255,255,0.12)" },
+  heroArtwork: { width: "100%", height: "100%", borderRadius: 28, backgroundColor: "rgba(168,85,247,0.1)" },
   roomBadge: { flexDirection: "row", alignItems: "center", gap: 7, paddingHorizontal: 11, paddingVertical: 7, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.075)", borderWidth: 1, borderColor: "rgba(255,255,255,0.1)", marginTop: 18 },
   roomBadgeText: { color: COLORS.textMuted, fontSize: 10, fontWeight: "900", letterSpacing: 1.1 },
-  heroTitle: { color: COLORS.text, fontSize: 34, fontWeight: "900", textAlign: "center", marginTop: 12, lineHeight: 40 },
+  heroTitle: { color: COLORS.text, fontSize: 30, fontWeight: "900", textAlign: "center", marginTop: 10, lineHeight: 35 },
   heroSubtitle: { color: COLORS.textMuted, fontSize: 13, fontWeight: "700", marginTop: 10, textAlign: "center", lineHeight: 19 },
   playButton: { flexDirection: "row", alignItems: "center", backgroundColor: COLORS.primary, paddingHorizontal: 22, paddingVertical: 13, borderRadius: 999, gap: 8, marginTop: 18 },
   disabledButton: { opacity: 0.45 },
   playButtonText: { color: "#000", fontSize: 14, fontWeight: "900" },
   albumSection: { marginBottom: 10 },
   sectionHeader: { marginBottom: 12, marginTop: 4 },
-  sectionTitle: { color: COLORS.text, fontSize: 22, fontWeight: "900" },
+  sectionTitle: { color: COLORS.text, fontSize: 19, fontWeight: "900" },
   sectionSub: { color: COLORS.textMuted, fontSize: 12, marginTop: 4 },
   albumRow: { gap: 12, paddingBottom: 8 },
   albumCard: { width: 132 },
   artistCard: { width: 124, alignItems: "center" },
-  artistImage: { width: 104, height: 104, borderRadius: 52, backgroundColor: COLORS.card, marginBottom: 8 },
-  albumCover: { width: 132, height: 132, borderRadius: 18, marginBottom: 8, backgroundColor: COLORS.card },
+  artistImage: { width: 98, height: 98, borderRadius: 49, backgroundColor: "rgba(168,85,247,0.1)", marginBottom: 8 },
+  albumCover: { width: 126, height: 126, borderRadius: 18, marginBottom: 8, backgroundColor: "rgba(168,85,247,0.1)" },
   albumTitle: { color: COLORS.text, fontSize: 13, fontWeight: "700" },
   albumArtist: { color: COLORS.textMuted, fontSize: 11, marginTop: 3 },
   trackCard: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 10, padding: 10, borderRadius: 22, borderWidth: 1, borderColor: "rgba(255,255,255,0.07)", backgroundColor: "rgba(255,255,255,0.03)" },
@@ -346,7 +351,7 @@ const styles = StyleSheet.create({
   metaRow: { flexDirection: "row", alignItems: "center", marginTop: 8, gap: 5 },
   metaText: { color: COLORS.textMuted, fontSize: 11, fontWeight: "800" },
   playCircle: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.1)" },
-  empty: { alignItems: "center", paddingVertical: 48, gap: 10 },
+  empty: { alignItems: "center", paddingVertical: 42, paddingHorizontal: 4 },
   emptyTitle: { color: COLORS.text, fontSize: 18, fontWeight: "800" },
   emptyText: { color: COLORS.textMuted, fontSize: 13, textAlign: "center", paddingHorizontal: 24 },
 });

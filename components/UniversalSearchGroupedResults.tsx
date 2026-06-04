@@ -165,7 +165,7 @@ function UniversalSearchGroupedResults({
     );
   }
 
-  const topResults = display.topResults.filter((hit) => !hit.id.startsWith("tv:"));
+  const topResults = display.topResults.filter((hit) => !hit.id.startsWith("tv:")).slice(0, 1);
 
   return (
     <View style={styles.container}>
@@ -526,7 +526,7 @@ function UniversalSearchGroupedResults({
               <TouchableOpacity
                 key={hit.id}
                 activeOpacity={0.88}
-                style={styles.rowCard}
+                style={[styles.rowCard, styles.secondaryResultCard]}
                 onPress={() => onTvPress(video)}
               >
                 <MediaCard
@@ -573,34 +573,38 @@ export default memo(UniversalSearchGroupedResults, (previous, next) => {
 
 const styles = StyleSheet.create({
   container: {
-    gap: 10,
+    gap: 8,
   },
   sectionBlock: {
-    marginBottom: 12,
+    marginBottom: 10,
   },
   sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 9,
+    marginBottom: 7,
   },
   sectionTitle: {
     color: COLORS.text,
-    fontSize: 16,
-    fontWeight: "800",
+    fontSize: 14,
+    fontWeight: "900",
   },
   sectionCount: {
     color: COLORS.textMuted,
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "800",
   },
   rowCard: {
-    marginBottom: 9,
-    borderRadius: 17,
-    padding: 9,
+    marginBottom: 7,
+    borderRadius: 16,
+    padding: 8,
     backgroundColor: "rgba(255,255,255,0.05)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.08)",
+  },
+  secondaryResultCard: {
+    opacity: 0.9,
+    backgroundColor: "rgba(255,255,255,0.035)",
   },
   rowCardActive: {
     borderColor: "rgba(168,85,247,0.45)",
@@ -608,10 +612,10 @@ const styles = StyleSheet.create({
   },
   reasonPill: {
     alignSelf: "flex-start",
-    marginTop: 8,
+    marginTop: 6,
     borderRadius: 999,
-    paddingHorizontal: 9,
-    paddingVertical: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
     backgroundColor: "rgba(168,85,247,0.1)",
   },
   reasonText: {
@@ -621,9 +625,9 @@ const styles = StyleSheet.create({
   },
   lyricSnippet: {
     color: COLORS.textMuted,
-    fontSize: 13,
+    fontSize: 12.5,
     lineHeight: 18,
-    marginTop: 8,
+    marginTop: 7,
     fontStyle: "italic",
   },
   nowPlayingHint: {
@@ -635,7 +639,7 @@ const styles = StyleSheet.create({
   compactRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 9,
+    marginBottom: 7,
     padding: 11,
     borderRadius: 17,
     backgroundColor: "rgba(255,255,255,0.05)",
@@ -650,8 +654,8 @@ const styles = StyleSheet.create({
   },
   compactTitle: {
     color: COLORS.text,
-    fontSize: 15,
-    fontWeight: "800",
+    fontSize: 14,
+    fontWeight: "900",
   },
   genreWrap: {
     flexDirection: "row",
@@ -659,10 +663,10 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   genreChip: {
-    minWidth: 120,
-    borderRadius: 17,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
+    minWidth: 112,
+    borderRadius: 16,
+    paddingHorizontal: 11,
+    paddingVertical: 8,
     backgroundColor: "rgba(255,255,255,0.04)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.07)",

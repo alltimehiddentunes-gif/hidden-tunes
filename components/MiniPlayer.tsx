@@ -583,25 +583,25 @@ export default memo(MiniPlayer);
 const styles = StyleSheet.create({
   wrapper: {
     position: "absolute",
-    left: 12,
-    right: 12,
-    bottom: 82,
-    borderRadius: 24,
+    left: 14,
+    right: 14,
+    bottom: 80,
+    borderRadius: 23,
     overflow: "hidden",
   },
 
   border: {
-    borderRadius: 24,
-    padding: 1.2,
+    borderRadius: 23,
+    padding: 1,
   },
 
   container: {
-    height: 70,
-    borderRadius: 23,
+    height: 66,
+    borderRadius: 22,
     overflow: "hidden",
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 9,
+    paddingHorizontal: 8,
     paddingVertical: 2,
     backgroundColor: "rgba(5,5,8,0.92)",
   },
@@ -612,16 +612,16 @@ const styles = StyleSheet.create({
   },
 
   coverWrap: {
-    width: 50,
-    height: 50,
+    width: 48,
+    height: 48,
     alignItems: "center",
     justifyContent: "center",
   },
 
   coverGlowOuter: {
     position: "absolute",
-    width: 54,
-    height: 54,
+    width: 52,
+    height: 52,
     borderRadius: 20,
     overflow: "hidden",
   },
@@ -631,8 +631,8 @@ const styles = StyleSheet.create({
   },
 
   coverFrame: {
-    width: 46,
-    height: 46,
+    width: 44,
+    height: 44,
     borderRadius: 16,
     overflow: "hidden",
     borderWidth: 1,
@@ -641,15 +641,15 @@ const styles = StyleSheet.create({
   },
 
   cover: {
-    width: 46,
-    height: 46,
+    width: 44,
+    height: 44,
     borderRadius: 16,
     backgroundColor: COLORS.cardLight,
   },
 
   youtubeCover: {
-    width: 46,
-    height: 46,
+    width: 44,
+    height: 44,
     borderRadius: 16,
     backgroundColor: "#ff0033",
     alignItems: "center",
@@ -710,7 +710,7 @@ const styles = StyleSheet.create({
 
   title: {
     color: COLORS.text,
-    fontSize: 14,
+    fontSize: 13.5,
     fontWeight: "900",
     marginTop: 1,
     letterSpacing: 0,
@@ -718,8 +718,8 @@ const styles = StyleSheet.create({
 
   artist: {
     color: COLORS.textMuted,
-    fontSize: 11,
-    marginTop: 2,
+    fontSize: 10.5,
+    marginTop: 1,
     fontWeight: "700",
   },
 
@@ -743,7 +743,7 @@ const styles = StyleSheet.create({
   },
 
   progressTrack: {
-    height: 4,
+    height: 3,
     borderRadius: 99,
     backgroundColor: "rgba(255,255,255,0.12)",
     marginTop: 5,
@@ -762,8 +762,8 @@ const styles = StyleSheet.create({
   },
 
   skipButton: {
-    width: 35,
-    height: 35,
+    width: 34,
+    height: 34,
     borderRadius: 18,
     backgroundColor: "rgba(255,255,255,0.08)",
     alignItems: "center",
@@ -774,8 +774,8 @@ const styles = StyleSheet.create({
   },
 
   playButton: {
-    width: 43,
-    height: 43,
+    width: 41,
+    height: 41,
     borderRadius: 22,
     backgroundColor: COLORS.primary,
     alignItems: "center",

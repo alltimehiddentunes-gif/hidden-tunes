@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -13,6 +13,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 
 import HTImage from "../components/HTImage";
+import PremiumEmptyState from "../components/PremiumEmptyState";
 import { COLORS, GRADIENTS } from "../constants/theme";
 import { getListPerformanceSettings, markFastScrolling } from "../utils/performanceMode";
 import { usePlayerActions } from "../context/PlayerContext";
@@ -238,9 +239,13 @@ export default function AlbumScreen() {
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Ionicons name="musical-notes-outline" size={56} color={COLORS.textMuted} />
-              <Text style={styles.emptyTitle}>No songs yet</Text>
-              <Text style={styles.emptyText}>This album has no songs in the current catalog source.</Text>
+              <PremiumEmptyState
+                icon="albums-outline"
+                title="This release is waiting on tracks"
+                message="When the catalog source includes songs for this album, they will appear here with artwork and playback-ready rows."
+                actionLabel="Refresh"
+                onAction={loadAlbumCatalog}
+              />
             </View>
           }
           renderItem={({ item, index }) => {
@@ -281,9 +286,9 @@ const styles = StyleSheet.create({
   refreshButton: { width: 46, height: 46, borderRadius: 23, backgroundColor: "rgba(255,255,255,0.08)", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: COLORS.border },
   albumHero: { paddingHorizontal: 18, paddingTop: 24, paddingBottom: 24 },
   heroSurface: { alignItems: "center", borderRadius: 30, padding: 18, borderWidth: 1, borderColor: "rgba(255,255,255,0.12)", overflow: "hidden" },
-  albumCover: { width: 216, height: 216, borderRadius: 34, backgroundColor: COLORS.card },
+  albumCover: { width: 204, height: 204, borderRadius: 32, backgroundColor: "rgba(168,85,247,0.1)" },
   kicker: { color: COLORS.primary, fontSize: 11, fontWeight: "900", letterSpacing: 2, marginTop: 22 },
-  albumTitle: { color: COLORS.text, fontSize: 30, fontWeight: "900", textAlign: "center", marginTop: 8, lineHeight: 36 },
+  albumTitle: { color: COLORS.text, fontSize: 27, fontWeight: "900", textAlign: "center", marginTop: 8, lineHeight: 32 },
   artist: { color: COLORS.primaryGlow, fontSize: 15, fontWeight: "800", marginTop: 8 },
   heroMetaRow: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 8, marginTop: 13 },
   heroMetaPill: { color: COLORS.textMuted, fontSize: 11, fontWeight: "900", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.07)", borderWidth: 1, borderColor: "rgba(255,255,255,0.1)", overflow: "hidden" },
@@ -293,7 +298,7 @@ const styles = StyleSheet.create({
   playButtonText: { color: "#000", fontSize: 14, fontWeight: "900", marginLeft: 8 },
   secondaryButton: { width: 46, height: 46, borderRadius: 23, backgroundColor: "rgba(255,255,255,0.08)", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: COLORS.border },
   sectionHeader: { paddingHorizontal: 20, marginBottom: 14 },
-  sectionTitle: { color: COLORS.text, fontSize: 22, fontWeight: "900" },
+  sectionTitle: { color: COLORS.text, fontSize: 19, fontWeight: "900" },
   sectionSub: { color: COLORS.textMuted, fontSize: 13, marginTop: 5 },
   loader: { flex: 1, alignItems: "center", justifyContent: "center" },
   loadingText: { color: COLORS.textMuted, marginTop: 14 },
@@ -302,12 +307,12 @@ const styles = StyleSheet.create({
   rank: { width: 30, color: "rgba(255,255,255,0.32)", fontSize: 15, fontWeight: "900" },
   cover: { width: 64, height: 64, borderRadius: 18, backgroundColor: COLORS.card },
   info: { flex: 1, marginLeft: 14 },
-  trackTitle: { color: COLORS.text, fontSize: 15, fontWeight: "800" },
+  trackTitle: { color: COLORS.text, fontSize: 14.5, fontWeight: "900" },
   trackArtist: { color: COLORS.textMuted, fontSize: 13, marginTop: 5 },
   metaRow: { flexDirection: "row", alignItems: "center", marginTop: 8 },
   metaText: { color: COLORS.textMuted, fontSize: 11, fontWeight: "700", marginLeft: 5 },
   playCircle: { width: 38, height: 38, borderRadius: 19, backgroundColor: "rgba(255,255,255,0.1)", alignItems: "center", justifyContent: "center" },
-  empty: { height: 260, alignItems: "center", justifyContent: "center" },
+  empty: { minHeight: 260, alignItems: "center", justifyContent: "center", paddingHorizontal: 4 },
   emptyTitle: { color: COLORS.text, fontSize: 21, fontWeight: "900", marginTop: 18 },
   emptyText: { color: COLORS.textMuted, marginTop: 8, textAlign: "center" },
 });

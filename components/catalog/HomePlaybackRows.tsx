@@ -148,7 +148,7 @@ export const HomeFeaturedCard = memo(function HomeFeaturedCard({
 
       <LinearGradient
         pointerEvents="none"
-        colors={["transparent", "rgba(0,0,0,0.22)", "rgba(0,0,0,0.78)"]}
+        colors={["transparent", "rgba(0,0,0,0.22)", "rgba(0,0,0,0.72)"]}
         style={styles.featuredOverlay}
       />
 
@@ -206,7 +206,7 @@ const styles = StyleSheet.create({
   },
   featuredCard: {
     width: FEATURED_CARD_WIDTH,
-    height: 236,
+    height: 226,
     borderRadius: 32,
     marginRight: 16,
     overflow: "hidden",
@@ -223,7 +223,7 @@ const styles = StyleSheet.create({
     top: -18,
     left: -12,
     right: -12,
-    height: 140,
+    height: 122,
     borderRadius: 60,
     overflow: "hidden",
     zIndex: 0,
@@ -231,7 +231,7 @@ const styles = StyleSheet.create({
   featuredArtFrame: {
     ...StyleSheet.flatten(StyleSheet.absoluteFill),
     margin: 12,
-    marginBottom: 88,
+    marginBottom: 80,
     borderRadius: 24,
     overflow: "hidden",
     borderWidth: 1,
@@ -248,11 +248,11 @@ const styles = StyleSheet.create({
   },
   featuredRank: {
     position: "absolute",
-    top: 16,
-    right: 16,
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    top: 14,
+    right: 14,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: "rgba(0,0,0,0.58)",
     alignItems: "center",
     justifyContent: "center",

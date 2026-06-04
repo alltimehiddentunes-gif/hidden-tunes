@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -14,6 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 
 import HTImage from "../components/HTImage";
+import PremiumEmptyState from "../components/PremiumEmptyState";
 import { COLORS, GRADIENTS } from "../constants/theme";
 import { getListPerformanceSettings, markFastScrolling } from "../utils/performanceMode";
 import { usePlayerActions } from "../context/PlayerContext";
@@ -269,11 +270,11 @@ const styles = StyleSheet.create({
   loadingText: { color: COLORS.textMuted, marginTop: 14 },
   albumSection: { marginBottom: 30 },
   sectionHeader: { marginBottom: 16 },
-  sectionTitle: { color: COLORS.text, fontSize: 22, fontWeight: "900" },
+  sectionTitle: { color: COLORS.text, fontSize: 19, fontWeight: "900" },
   sectionSub: { color: COLORS.textMuted, fontSize: 13, marginTop: 5 },
   albumRow: { gap: 14, paddingRight: 20 },
   albumCard: { width: 145 },
-  albumCover: { width: 145, height: 145, borderRadius: 26, backgroundColor: COLORS.card },
+  albumCover: { width: 136, height: 136, borderRadius: 24, backgroundColor: "rgba(168,85,247,0.1)" },
   albumTitle: { color: COLORS.text, fontSize: 14, fontWeight: "900", marginTop: 10, lineHeight: 18 },
   albumArtist: { color: COLORS.textMuted, fontSize: 12, marginTop: 5 },
   trackCard: {
@@ -287,14 +288,14 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.09)",
   },
   rank: { width: 30, color: "rgba(255,255,255,0.32)", fontSize: 15, fontWeight: "900" },
-  cover: { width: 66, height: 66, borderRadius: 18, backgroundColor: COLORS.card },
+  cover: { width: 62, height: 62, borderRadius: 17, backgroundColor: "rgba(168,85,247,0.1)" },
   info: { flex: 1, marginLeft: 14 },
   trackTitle: { color: COLORS.text, fontSize: 15, fontWeight: "800" },
   trackArtist: { color: COLORS.textMuted, fontSize: 13, marginTop: 5 },
   metaRow: { flexDirection: "row", alignItems: "center", marginTop: 8 },
   metaText: { color: COLORS.textMuted, fontSize: 11, fontWeight: "700", marginLeft: 5 },
   playCircle: { width: 38, height: 38, borderRadius: 19, backgroundColor: "rgba(255,255,255,0.1)", alignItems: "center", justifyContent: "center" },
-  empty: { height: 260, alignItems: "center", justifyContent: "center" },
+  empty: { minHeight: 260, alignItems: "center", justifyContent: "center", paddingHorizontal: 4 },
   emptyTitle: { color: COLORS.text, fontSize: 21, fontWeight: "900", marginTop: 18 },
   emptyText: { color: COLORS.textMuted, marginTop: 8, textAlign: "center" },
 });
