@@ -502,7 +502,7 @@ export default function MusicFeedScreen() {
   const heroCardWidth = Math.min(520, Math.max(300, viewportWidth - 36));
   const heroCardHeight = Math.min(300, Math.max(244, Math.round(heroCardWidth * 0.68)));
   const railCardWidth = Math.min(252, Math.max(212, viewportWidth * 0.66));
-  const searchPanelPadding = viewportWidth < 380 ? 12 : 14;
+  const searchPanelPadding = viewportWidth < 380 ? 10 : 12;
 
   const songs = catalog?.songs || [];
   const artists = catalog?.artists || [];
@@ -868,12 +868,11 @@ export default function MusicFeedScreen() {
               />
             </View>
             <View style={styles.headerCopy}>
-              <Text style={styles.kicker}>HIDDEN TUNES</Text>
-              <Text numberOfLines={1} ellipsizeMode="tail" style={styles.title}>
-                For your mood
+              <Text numberOfLines={1} ellipsizeMode="tail" style={styles.brandTitle}>
+                Hidden Tunes
               </Text>
-              <Text numberOfLines={1} ellipsizeMode="tail" style={styles.subtitle}>
-                Premium listening, curated for you
+              <Text numberOfLines={1} ellipsizeMode="tail" style={styles.brandEyebrow}>
+                FOR YOUR MOOD
               </Text>
             </View>
           </View>
@@ -933,8 +932,7 @@ export default function MusicFeedScreen() {
                 >
                   <Ionicons name="search" size={20} color={COLORS.cyan} />
                   <View style={styles.searchLauncherCopy}>
-                    <Text style={styles.searchLauncherTitle}>Search Hidden Tunes</Text>
-                    <Text style={styles.searchLauncherText}>Songs, artists, albums, lyrics</Text>
+                    <Text style={styles.searchLauncherTitle}>Find music</Text>
                   </View>
                   <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
                 </TouchableOpacity>
@@ -1237,7 +1235,7 @@ export default function MusicFeedScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 38,
+    paddingTop: 28,
     paddingHorizontal: 18,
   },
   glowPurple: {
@@ -1269,41 +1267,38 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 8,
+    marginBottom: 4,
   },
-  headerCopy: { flex: 1, paddingRight: 12 },
-  kicker: {
-    color: COLORS.primary,
-    fontSize: 11,
-    fontWeight: "900",
-    letterSpacing: 2,
+  headerCopy: { flex: 1, paddingRight: 8, justifyContent: "center" },
+  brandTitle: {
+    color: COLORS.text,
+    fontSize: 17,
+    fontWeight: "800",
+    letterSpacing: 0.2,
+    lineHeight: 20,
+  },
+  brandEyebrow: {
+    color: COLORS.textMuted,
+    fontSize: 9,
+    fontWeight: "800",
+    letterSpacing: 1.4,
+    marginTop: 2,
+    opacity: 0.42,
+    textTransform: "uppercase",
   },
   refreshButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: "rgba(34,211,238,0.1)",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
     borderColor: "rgba(34,211,238,0.22)",
   },
-  title: {
-    color: COLORS.text,
-    fontSize: 18,
-    fontWeight: "800",
-    marginTop: 4,
-    lineHeight: 22,
-  },
-  subtitle: {
-    color: COLORS.textMuted,
-    marginTop: 3,
-    fontSize: 12,
-    fontWeight: "600",
-    lineHeight: 16,
-  },
+
   center: {
     flex: 1,
     alignItems: "center",
@@ -1596,10 +1591,10 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
   searchPanel: {
-    marginBottom: 20,
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    marginBottom: 12,
+    borderRadius: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
@@ -1613,14 +1608,8 @@ const styles = StyleSheet.create({
   },
   searchLauncherTitle: {
     color: COLORS.text,
-    fontSize: 15,
-    fontWeight: "900",
-  },
-  searchLauncherText: {
-    color: COLORS.textMuted,
-    fontSize: 12,
-    fontWeight: "700",
-    marginTop: 3,
+    fontSize: 14,
+    fontWeight: "800",
   },
   searchPanelHeader: {
     flexDirection: "row",
@@ -1722,7 +1711,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     flex: 1,
-    gap: 11,
+    gap: 9,
   },
   logoMark: {
     width: LOGO_SIZES.header,
@@ -1736,11 +1725,11 @@ const styles = StyleSheet.create({
   },
   logoAura: {
     position: "absolute",
-    top: -8,
-    left: -8,
-    right: -8,
-    bottom: -8,
-    borderRadius: LOGO_SIZES.header / 2 + 8,
+    top: -6,
+    left: -6,
+    right: -6,
+    bottom: -6,
+    borderRadius: LOGO_SIZES.header / 2 + 6,
     overflow: "hidden",
   },
   logoImage: {

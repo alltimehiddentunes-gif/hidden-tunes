@@ -119,8 +119,8 @@ export const ARTWORK_FRAME = {
 } as const;
 
 export const LOGO_SIZES = {
-  header: 54,
-  headerImage: 46,
+  header: 58,
+  headerImage: 50,
   hero: 132,
   heroImage: 118,
   libraryHero: 140,
