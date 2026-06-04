@@ -1,5 +1,6 @@
 import type { HiddenTunesNormalizedSong } from "../services/hiddenTunesApi";
 import {
+  fuzzyFieldMatches,
   normalizeSearchText,
   stripLrcTimestamps,
   tokenizeSearchText,
@@ -19,6 +20,7 @@ export type CatalogSongMatchReason =
   | "genre_starts"
   | "genre_contains"
   | "mood_match"
+  | "creator_match"
   | "lyric_match";
 
 export type CatalogSongSearchHit = {
@@ -41,7 +43,8 @@ const REASON_SCORE: Record<CatalogSongMatchReason, number> = {
   genre_starts: 5200,
   genre_contains: 5000,
   mood_match: 5400,
-  lyric_match: 5000,
+  creator_match: 6300,
+  lyric_match: 3600,
 };
 
 /** TV and other non-catalog rows must stay below catalog song tiers. */
@@ -71,11 +74,15 @@ export function scoreCatalogSongMatch(
   const normalizedQuery = normalizeSearchText(query);
   if (!normalizedQuery || normalizedQuery.length < 2) return null;
 
+  const raw = song.raw || {};
   const title = normalizeSearchText(song.title);
   const artist = normalizeSearchText(song.artist);
   const album = normalizeSearchText(song.album);
   const genre = normalizeSearchText(song.genre);
   const mood = normalizeSearchText(song.mood);
+  const creator = normalizeSearchText(
+    song.sourceName || raw.creator || raw.uploader || raw.channel || raw.artist_name
+  );
   const queryTokens = tokenizeSearchText(normalizedQuery);
 
   let matchReason: CatalogSongMatchReason | null = null;
@@ -88,6 +95,8 @@ export function scoreCatalogSongMatch(
     matchReason = "title_contains";
   } else if (tokensMatchField(title, queryTokens)) {
     matchReason = "title_contains";
+  } else if (fuzzyFieldMatches(title, normalizedQuery)) {
+    matchReason = "title_contains";
   } else if (artist === normalizedQuery) {
     matchReason = "artist_exact";
   } else if (artist.startsWith(normalizedQuery)) {
@@ -96,6 +105,10 @@ export function scoreCatalogSongMatch(
     matchReason = "artist_contains";
   } else if (tokensMatchField(artist, queryTokens)) {
     matchReason = "artist_contains";
+  } else if (fuzzyFieldMatches(artist, normalizedQuery)) {
+    matchReason = "artist_contains";
+  } else if (creator && fuzzyFieldMatches(creator, normalizedQuery)) {
+    matchReason = "creator_match";
   } else if (album === normalizedQuery) {
     matchReason = "album_exact";
   } else if (album.startsWith(normalizedQuery)) {
@@ -137,6 +150,10 @@ export function scoreCatalogSongMatch(
 
   if (matchReason === "artist_contains" && artist.startsWith(queryTokens[0] || "")) {
     score += 80;
+  }
+
+  if (matchReason === "artist_contains" && fuzzyFieldMatches(artist, normalizedQuery)) {
+    score += 60;
   }
 
   return {

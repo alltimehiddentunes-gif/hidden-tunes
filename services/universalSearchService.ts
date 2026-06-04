@@ -1,3 +1,4 @@
+import type { HiddenTunesCatalogPlaylist } from "./hiddenTunes";
 import type { HiddenTunesGenre } from "../utils/genres";
 import {
   CATALOG_SEARCH_TV_MAX_SCORE,
@@ -8,13 +9,14 @@ import {
 import { logSlowInteraction } from "../utils/performanceLogs";
 import {
   buildSearchDocument,
-  collectSearchTags,
   extractLyricSnippet,
+  fuzzyFieldMatches,
   mergeSearchHits,
   normalizeSearchText,
   rankSearchHits,
   scoreSearchDocument,
   stripLrcTimestamps,
+  tokenizeSearchText,
   type UniversalMatchReason,
   type UniversalSearchHit,
 } from "../utils/universalSearch";
@@ -24,9 +26,89 @@ import type {
   HiddenTunesNormalizedSong,
 } from "./hiddenTunesApi";
 import type { HiddenTunesTvVideo } from "./tvCatalogApi";
+
 export type UniversalSearchSongHit = UniversalSearchHit<HiddenTunesNormalizedSong> & {
   kind: "song" | "lyric";
   catalogMatchReason?: CatalogSongMatchReason;
+};
+
+export type UniversalSearchArtistHit = UniversalSearchHit<HiddenTunesArtist>;
+export type UniversalSearchAlbumHit = UniversalSearchHit<HiddenTunesAlbum>;
+export type UniversalSearchGenreHit = UniversalSearchHit<HiddenTunesGenre>;
+export type UniversalSearchTvHit = UniversalSearchHit<HiddenTunesTvVideo>;
+export type UniversalSearchPlaylistHit = UniversalSearchHit<HiddenTunesCatalogPlaylist>;
+export type UniversalSearchRoomHit = UniversalSearchHit<HiddenTunesGenre>;
+
+export type UniversalSearchTopHit =
+  | UniversalSearchSongHit
+  | UniversalSearchArtistHit
+  | UniversalSearchAlbumHit
+  | UniversalSearchGenreHit
+  | UniversalSearchPlaylistHit
+  | UniversalSearchRoomHit
+  | UniversalSearchTvHit;
+
+export type UniversalSearchGroupedResults = {
+  topResults: UniversalSearchTopHit[];
+  songs: UniversalSearchSongHit[];
+  lyrics: UniversalSearchSongHit[];
+  artists: UniversalSearchArtistHit[];
+  albums: UniversalSearchAlbumHit[];
+  genreMoods: UniversalSearchGenreHit[];
+  moodRooms: UniversalSearchRoomHit[];
+  playlists: UniversalSearchPlaylistHit[];
+  internetAudio: UniversalSearchSongHit[];
+  tv: UniversalSearchTvHit[];
+  hasAnyResults: boolean;
+};
+
+export type UniversalSearchCatalog = {
+  songs: HiddenTunesNormalizedSong[];
+  albums: HiddenTunesAlbum[];
+  artists: HiddenTunesArtist[];
+  genres: HiddenTunesGenre[];
+  playlists?: HiddenTunesCatalogPlaylist[];
+  tvVideos: HiddenTunesTvVideo[];
+};
+
+const LIMITS = {
+  top: 8,
+  songs: 24,
+  lyrics: 16,
+  artists: 12,
+  albums: 12,
+  genres: 10,
+  moodRooms: 8,
+  playlists: 8,
+  internetAudio: 12,
+  tv: 8,
+  lyricScan: 6000,
+};
+
+const BACKEND_TRUSTED_SCORE = 6800;
+const EXTERNAL_TRUSTED_SCORE = 2400;
+
+const MOOD_ROOM_DEFINITIONS: Array<{ id: string; title: string; terms: string[] }> = [
+  { id: "healing", title: "Healing Room", terms: ["healing", "heal", "restore", "peace"] },
+  { id: "late-night", title: "Late Night", terms: ["late", "night", "midnight", "drive"] },
+  { id: "calm", title: "Calm", terms: ["calm", "soft", "ambient", "quiet"] },
+  { id: "energy", title: "Energy", terms: ["energy", "dance", "party", "afro", "beat"] },
+  { id: "worship", title: "Worship Focus", terms: ["worship", "gospel", "prayer", "praise"] },
+  { id: "country", title: "Country Mood", terms: ["country", "folk", "americana"] },
+];
+
+export const EMPTY_UNIVERSAL_SEARCH_RESULTS: UniversalSearchGroupedResults = {
+  topResults: [],
+  songs: [],
+  lyrics: [],
+  artists: [],
+  albums: [],
+  genreMoods: [],
+  moodRooms: [],
+  playlists: [],
+  internetAudio: [],
+  tv: [],
+  hasAnyResults: false,
 };
 
 function catalogReasonToUniversal(
@@ -40,6 +122,7 @@ function catalogReasonToUniversal(
     case "artist_exact":
     case "artist_starts":
     case "artist_contains":
+    case "creator_match":
       return "Matched artist";
     case "album_exact":
     case "album_starts":
@@ -58,56 +141,13 @@ function catalogReasonToUniversal(
   }
 }
 
-export type UniversalSearchArtistHit = UniversalSearchHit<HiddenTunesArtist>;
-export type UniversalSearchAlbumHit = UniversalSearchHit<HiddenTunesAlbum>;
-export type UniversalSearchGenreHit = UniversalSearchHit<HiddenTunesGenre>;
-export type UniversalSearchTvHit = UniversalSearchHit<HiddenTunesTvVideo>;
-
-export type UniversalSearchTopHit =
-  | UniversalSearchSongHit
-  | UniversalSearchArtistHit
-  | UniversalSearchAlbumHit
-  | UniversalSearchGenreHit
-  | UniversalSearchTvHit;
-
-export type UniversalSearchGroupedResults = {
-  topResults: UniversalSearchTopHit[];
-  songs: UniversalSearchSongHit[];
-  lyrics: UniversalSearchSongHit[];
-  artists: UniversalSearchArtistHit[];
-  albums: UniversalSearchAlbumHit[];
-  genreMoods: UniversalSearchGenreHit[];
-  tv: UniversalSearchTvHit[];
-  hasAnyResults: boolean;
-};
-
-export type UniversalSearchCatalog = {
-  songs: HiddenTunesNormalizedSong[];
-  albums: HiddenTunesAlbum[];
-  artists: HiddenTunesArtist[];
-  genres: HiddenTunesGenre[];
-  tvVideos: HiddenTunesTvVideo[];
-};
-
-const FUZZY_LYRIC_CANDIDATE_LIMIT = 24;
-
-const EMPTY_RESULTS: UniversalSearchGroupedResults = {
-  topResults: [],
-  songs: [],
-  lyrics: [],
-  artists: [],
-  albums: [],
-  genreMoods: [],
-  tv: [],
-  hasAnyResults: false,
-};
-
 function getSongLyricsText(song: HiddenTunesNormalizedSong) {
   const raw = song.raw || {};
   const plain =
     song.lyrics ||
     raw.plain_lyrics ||
     raw.plainLyrics ||
+    raw.lyricText ||
     raw.lyrics ||
     "";
   const synced =
@@ -122,6 +162,19 @@ function getSongLyricsText(song: HiddenTunesNormalizedSong) {
     .join(" ");
 }
 
+function lyricsMightMatch(song: HiddenTunesNormalizedSong, query: string) {
+  const lyricsText = normalizeSearchText(getSongLyricsText(song));
+  if (!lyricsText) return false;
+
+  const normalizedQuery = normalizeSearchText(query);
+  if (!normalizedQuery) return false;
+
+  if (lyricsText.includes(normalizedQuery)) return true;
+
+  const tokens = tokenizeSearchText(normalizedQuery);
+  return tokens.length > 0 && tokens.every((token) => lyricsText.includes(token));
+}
+
 function buildSongMetadataDocument(song: HiddenTunesNormalizedSong) {
   const raw = song.raw || {};
 
@@ -131,9 +184,11 @@ function buildSongMetadataDocument(song: HiddenTunesNormalizedSong) {
     song.album,
     song.genre,
     song.mood,
+    song.sourceName,
+    raw.creator,
+    raw.uploader,
     raw.tags,
     raw.description,
-    song.sourceName,
   ]);
 }
 
@@ -160,13 +215,36 @@ function scoreSongLyrics(song: HiddenTunesNormalizedSong, query: string) {
   if (!lyricsText) return null;
 
   const document = buildSearchDocument([lyricsText]);
-  const score = scoreSearchDocument(document, query, 1.08);
+  const score = scoreSearchDocument(document, query, 0.92);
   if (score <= 0) return null;
 
+  const metadata = scoreCatalogSongMatch(song, query);
+  const lyricOnlyBoost = metadata?.matchReason === "lyric_match" ? 0 : 200;
+
   return {
-    score,
+    score: Math.min(4200, Math.round(score + lyricOnlyBoost)),
     reason: "Matched lyric" as const,
     lyricSnippet: extractLyricSnippet(lyricsText, query),
+  };
+}
+
+function mapSongHit(
+  song: HiddenTunesNormalizedSong,
+  score: number,
+  reason: UniversalMatchReason,
+  catalogMatchReason: CatalogSongMatchReason,
+  kind: "song" | "lyric" = "song",
+  lyricSnippet?: string
+): UniversalSearchSongHit {
+  return {
+    id: `${kind}:${song.id}`,
+    kind,
+    score,
+    reason,
+    catalogMatchReason,
+    payload: song,
+    subtitle: `${song.artist}${song.album ? ` • ${song.album}` : ""}`,
+    lyricSnippet,
   };
 }
 
@@ -177,79 +255,83 @@ function searchSongs(
   songs: UniversalSearchSongHit[];
   lyrics: UniversalSearchSongHit[];
 } {
-  const pool = songs;
+  const ranked = rankCatalogSongs(songs, query, 80);
+  const songHits: UniversalSearchSongHit[] = [];
 
-  if (pool.length >= 48) {
-    const ranked = rankCatalogSongs(pool, query, 40);
-    const songHits: UniversalSearchSongHit[] = ranked.map((hit) => ({
-      id: `song:${hit.song.id}`,
-      kind: "song",
-      score: hit.score,
-      reason: catalogReasonToUniversal(hit.matchReason),
-      catalogMatchReason: hit.matchReason,
-      payload: hit.song,
-      subtitle: `${hit.song.artist}${hit.song.album ? ` • ${hit.song.album}` : ""}`,
-    }));
+  for (const hit of ranked) {
+    if (hit.matchReason === "lyric_match") continue;
+    if (songHits.length >= LIMITS.songs) break;
 
-    const lyricHits: UniversalSearchSongHit[] = [];
-    for (const hit of ranked.slice(0, FUZZY_LYRIC_CANDIDATE_LIMIT)) {
-      const lyricMatch = scoreSongLyrics(hit.song, query);
-      if (!lyricMatch) continue;
-
-      lyricHits.push({
-        id: `lyric:${hit.song.id}`,
-        kind: "lyric",
-        score: Math.max(lyricMatch.score, hit.score),
-        reason: lyricMatch.reason,
-        catalogMatchReason: hit.matchReason,
-        payload: hit.song,
-        subtitle: hit.song.title,
-        lyricSnippet: lyricMatch.lyricSnippet,
-      });
-    }
-
-    return {
-      songs: songHits,
-      lyrics: rankSearchHits(lyricHits, 24) as UniversalSearchSongHit[],
-    };
+    songHits.push(
+      mapSongHit(
+        hit.song,
+        hit.score,
+        catalogReasonToUniversal(hit.matchReason),
+        hit.matchReason,
+        "song"
+      )
+    );
   }
 
-  const songHits: UniversalSearchSongHit[] = [];
   const lyricHits: UniversalSearchSongHit[] = [];
+  const songIds = new Set(songHits.map((hit) => String(hit.payload.id || "")));
+  let scanned = 0;
 
-  for (const song of pool) {
-    const metadataMatch = scoreSongMetadata(song, query);
-    if (metadataMatch) {
-      songHits.push({
-        id: `song:${song.id}`,
-        kind: "song",
-        score: metadataMatch.score,
-        reason: metadataMatch.reason,
-        catalogMatchReason: metadataMatch.catalogMatchReason,
-        payload: song,
-        subtitle: `${song.artist}${song.album ? ` • ${song.album}` : ""}`,
-      });
+  for (const hit of ranked) {
+    if (lyricHits.length >= LIMITS.lyrics) break;
+    if (!lyricsMightMatch(hit.song, query)) continue;
+
+    const lyricMatch = scoreSongLyrics(hit.song, query);
+    if (!lyricMatch) continue;
+
+    const songId = String(hit.song.id || "");
+    if (songIds.has(songId)) {
+      const metadata = scoreCatalogSongMatch(hit.song, query);
+      if (metadata && metadata.matchReason !== "lyric_match") {
+        continue;
+      }
     }
 
-    const lyricMatch = scoreSongLyrics(song, query);
-    if (lyricMatch) {
-      const catalogMatch = scoreCatalogSongMatch(song, query);
-      lyricHits.push({
-        id: `lyric:${song.id}`,
-        kind: "lyric",
-        score: Math.max(lyricMatch.score, catalogMatch?.score || 0),
-        reason: lyricMatch.reason,
-        catalogMatchReason: catalogMatch?.matchReason || "lyric_match",
-        payload: song,
-        subtitle: song.title,
-        lyricSnippet: lyricMatch.lyricSnippet,
-      });
+    lyricHits.push(
+      mapSongHit(
+        hit.song,
+        lyricMatch.score,
+        lyricMatch.reason,
+        "lyric_match",
+        "lyric",
+        lyricMatch.lyricSnippet
+      )
+    );
+  }
+
+  if (lyricHits.length < LIMITS.lyrics) {
+    for (const song of songs) {
+      if (lyricHits.length >= LIMITS.lyrics) break;
+      if (scanned++ > LIMITS.lyricScan) break;
+
+      const songId = String(song.id || "");
+      if (!songId || songIds.has(songId)) continue;
+      if (!lyricsMightMatch(song, query)) continue;
+
+      const lyricMatch = scoreSongLyrics(song, query);
+      if (!lyricMatch) continue;
+
+      lyricHits.push(
+        mapSongHit(
+          song,
+          lyricMatch.score,
+          lyricMatch.reason,
+          "lyric_match",
+          "lyric",
+          lyricMatch.lyricSnippet
+        )
+      );
     }
   }
 
   return {
-    songs: rankSearchHits(songHits, 40) as UniversalSearchSongHit[],
-    lyrics: rankSearchHits(lyricHits, 24) as UniversalSearchSongHit[],
+    songs: songHits,
+    lyrics: rankSearchHits(lyricHits, LIMITS.lyrics) as UniversalSearchSongHit[],
   };
 }
 
@@ -257,24 +339,22 @@ function searchArtists(artists: HiddenTunesArtist[], query: string) {
   const hits: UniversalSearchArtistHit[] = [];
 
   for (const artist of artists) {
-    const score = scoreSearchDocument(
-      buildSearchDocument([artist.name, artist.genre, artist.bio]),
-      query,
-      1
-    );
+    const document = buildSearchDocument([artist.name, artist.genre, artist.bio]);
+    const score = scoreSearchDocument(document, query, 1.05);
+    const fuzzyBoost = fuzzyFieldMatches(artist.name, query) ? 120 : 0;
 
-    if (score <= 0) continue;
+    if (score + fuzzyBoost <= 0) continue;
 
     hits.push({
       id: `artist:${artist.id}`,
-      score,
+      score: score + fuzzyBoost,
       reason: "Matched artist",
       payload: artist,
       subtitle: artist.genre || "Artist",
     });
   }
 
-  return rankSearchHits(hits, 20);
+  return rankSearchHits(hits, LIMITS.artists);
 }
 
 function searchAlbums(albums: HiddenTunesAlbum[], query: string) {
@@ -298,7 +378,7 @@ function searchAlbums(albums: HiddenTunesAlbum[], query: string) {
     });
   }
 
-  return rankSearchHits(hits, 20);
+  return rankSearchHits(hits, LIMITS.albums);
 }
 
 function searchGenres(genres: HiddenTunesGenre[], query: string) {
@@ -327,7 +407,56 @@ function searchGenres(genres: HiddenTunesGenre[], query: string) {
     });
   }
 
-  return rankSearchHits(hits, 16);
+  return rankSearchHits(hits, LIMITS.genres);
+}
+
+function searchMoodRooms(query: string) {
+  const hits: UniversalSearchRoomHit[] = [];
+
+  for (const room of MOOD_ROOM_DEFINITIONS) {
+    const document = buildSearchDocument([room.title, ...room.terms]);
+    const score = scoreSearchDocument(document, query, 0.94);
+    if (score <= 0) continue;
+
+    hits.push({
+      id: `room:${room.id}`,
+      score,
+      reason: "Matched mood",
+      payload: {
+        id: room.id,
+        title: room.title,
+        query: room.title,
+        emoji: "✨",
+      },
+      subtitle: "Mood room",
+    });
+  }
+
+  return rankSearchHits(hits, LIMITS.moodRooms);
+}
+
+function searchPlaylists(playlists: HiddenTunesCatalogPlaylist[], query: string) {
+  const hits: UniversalSearchPlaylistHit[] = [];
+
+  for (const playlist of playlists) {
+    const score = scoreSearchDocument(
+      buildSearchDocument([playlist.title, playlist.description, playlist.kind]),
+      query,
+      0.95
+    );
+
+    if (score <= 0) continue;
+
+    hits.push({
+      id: `playlist:${playlist.id}`,
+      score,
+      reason: "Matched tag",
+      payload: playlist,
+      subtitle: playlist.description || "Collection",
+    });
+  }
+
+  return rankSearchHits(hits, LIMITS.playlists);
 }
 
 function searchTv(videos: HiddenTunesTvVideo[], query: string) {
@@ -359,7 +488,60 @@ function searchTv(videos: HiddenTunesTvVideo[], query: string) {
     });
   }
 
-  return rankSearchHits(hits, 20);
+  return rankSearchHits(hits, LIMITS.tv);
+}
+
+function buildTopResults(
+  query: string,
+  songResults: { songs: UniversalSearchSongHit[]; lyrics: UniversalSearchSongHit[] },
+  artists: UniversalSearchArtistHit[],
+  albums: UniversalSearchAlbumHit[],
+  genreMoods: UniversalSearchGenreHit[],
+  moodRooms: UniversalSearchRoomHit[],
+  playlists: UniversalSearchPlaylistHit[]
+): UniversalSearchTopHit[] {
+  const picks: UniversalSearchTopHit[] = [];
+  const seen = new Set<string>();
+
+  const push = (hit: UniversalSearchTopHit | undefined) => {
+    if (!hit || seen.has(hit.id) || picks.length >= LIMITS.top) return;
+    seen.add(hit.id);
+    picks.push(hit);
+  };
+
+  push(artists[0]);
+  push(genreMoods[0]);
+  push(moodRooms[0]);
+  push(albums[0]);
+  push(playlists[0]);
+  push(songResults.songs[0]);
+
+  for (const hit of [
+    ...artists.slice(1, 3),
+    ...genreMoods.slice(1, 3),
+    ...songResults.songs.slice(1, 4),
+    ...albums.slice(1, 2),
+    ...songResults.lyrics.slice(0, 1),
+  ]) {
+    push(hit);
+  }
+
+  return picks;
+}
+
+function hasGroupedResults(results: UniversalSearchGroupedResults) {
+  return (
+    results.topResults.length > 0 ||
+    results.songs.length > 0 ||
+    results.lyrics.length > 0 ||
+    results.artists.length > 0 ||
+    results.albums.length > 0 ||
+    results.genreMoods.length > 0 ||
+    results.moodRooms.length > 0 ||
+    results.playlists.length > 0 ||
+    results.internetAudio.length > 0 ||
+    results.tv.length > 0
+  );
 }
 
 export function runUniversalCatalogSearch(
@@ -368,62 +550,209 @@ export function runUniversalCatalogSearch(
 ): UniversalSearchGroupedResults {
   const startedAt = Date.now();
   const cleanQuery = String(query || "").trim();
-  if (cleanQuery.length < 2) return EMPTY_RESULTS;
+  if (cleanQuery.length < 2) return EMPTY_UNIVERSAL_SEARCH_RESULTS;
 
   const songResults = searchSongs(catalog.songs, cleanQuery);
   const artists = searchArtists(catalog.artists, cleanQuery);
   const albums = searchAlbums(catalog.albums, cleanQuery);
   const genreMoods = searchGenres(catalog.genres, cleanQuery);
+  const moodRooms = searchMoodRooms(cleanQuery);
+  const playlists = searchPlaylists(catalog.playlists || [], cleanQuery);
   const tv =
     catalog.tvVideos.length > 0 ? searchTv(catalog.tvVideos, cleanQuery) : [];
 
-  const catalogTopHits: UniversalSearchTopHit[] = [];
-  const seenTop = new Set<string>();
+  const topResults = buildTopResults(
+    cleanQuery,
+    songResults,
+    artists,
+    albums,
+    genreMoods,
+    moodRooms,
+    playlists
+  );
 
-  for (const hit of [
-    ...songResults.songs,
-    ...songResults.lyrics,
-    ...artists,
-    ...albums,
-    ...genreMoods,
-  ]) {
-    if (seenTop.has(hit.id)) continue;
-    seenTop.add(hit.id);
-    catalogTopHits.push(hit);
-  }
-
-  catalogTopHits.sort((left, right) => right.score - left.score);
-
-  const tvTopHits = [...tv].sort((left, right) => right.score - left.score);
-  const topResults = [...catalogTopHits, ...tvTopHits].slice(0, 10);
-
-  const hasAnyResults =
-    topResults.length > 0 ||
-    songResults.songs.length > 0 ||
-    songResults.lyrics.length > 0 ||
-    artists.length > 0 ||
-    albums.length > 0 ||
-    genreMoods.length > 0 ||
-    tv.length > 0;
-
-  const result = {
+  const result: UniversalSearchGroupedResults = {
     topResults,
     songs: songResults.songs,
     lyrics: songResults.lyrics,
     artists,
     albums,
     genreMoods,
+    moodRooms,
+    playlists,
+    internetAudio: [],
     tv,
-    hasAnyResults,
+    hasAnyResults: false,
   };
 
-  logSlowInteraction("search_fuzzy", Date.now() - startedAt, {
+  result.hasAnyResults = hasGroupedResults(result);
+
+  logSlowInteraction("search_universal", Date.now() - startedAt, {
     query: cleanQuery,
     songCount: catalog.songs.length,
-    matchCount: songResults.songs.length + songResults.lyrics.length,
+    matchCount:
+      result.songs.length +
+      result.lyrics.length +
+      result.artists.length +
+      result.albums.length,
   });
 
   return result;
+}
+
+export function buildTrustedBackendSongHits(
+  songs: HiddenTunesNormalizedSong[],
+  query: string
+): Pick<UniversalSearchGroupedResults, "songs" | "artists"> {
+  const cleanQuery = String(query || "").trim();
+  if (!cleanQuery || !songs.length) {
+    return { songs: [], artists: [] };
+  }
+
+  const songHits: UniversalSearchSongHit[] = [];
+  const artistHits: UniversalSearchArtistHit[] = [];
+  const seenSongs = new Set<string>();
+  const seenArtists = new Set<string>();
+
+  for (const song of songs) {
+    const songId = String(song.id || "").trim();
+    if (!songId || seenSongs.has(songId)) continue;
+    seenSongs.add(songId);
+
+    const metadata = scoreCatalogSongMatch(song, cleanQuery);
+    const score = metadata?.score ?? BACKEND_TRUSTED_SCORE;
+
+    songHits.push(
+      mapSongHit(
+        song,
+        Math.max(score, BACKEND_TRUSTED_SCORE),
+        metadata ? catalogReasonToUniversal(metadata.matchReason) : "Matched title",
+        metadata?.matchReason || "title_contains",
+        "song"
+      )
+    );
+
+    const artistName = String(song.artist || "").trim();
+    const artistKey = normalizeSearchText(artistName);
+    if (
+      artistName &&
+      artistKey &&
+      !seenArtists.has(artistKey) &&
+      fuzzyFieldMatches(artistName, cleanQuery)
+    ) {
+      seenArtists.add(artistKey);
+      artistHits.push({
+        id: `artist:trusted:${artistKey}`,
+        score: Math.max(score, BACKEND_TRUSTED_SCORE) + 200,
+        reason: "Matched artist",
+        payload: {
+          id: artistKey,
+          name: artistName,
+          slug: artistKey,
+          artwork: song.cover || song.artwork || song.thumbnail || "",
+          cover: song.cover || song.artwork || "",
+          thumbnail: song.thumbnail || song.cover || "",
+          tracks: [],
+          albums: [],
+        } as HiddenTunesArtist,
+        subtitle: "From catalog search",
+      });
+    }
+
+    if (songHits.length >= LIMITS.songs) break;
+  }
+
+  return {
+    songs: rankSearchHits(songHits, LIMITS.songs) as UniversalSearchSongHit[],
+    artists: rankSearchHits(artistHits, LIMITS.artists) as UniversalSearchArtistHit[],
+  };
+}
+
+export function buildTrustedInternetAudioHits(
+  songs: HiddenTunesNormalizedSong[],
+  query: string
+): UniversalSearchSongHit[] {
+  const cleanQuery = String(query || "").trim();
+  if (!cleanQuery || !songs.length) return [];
+
+  const hits: UniversalSearchSongHit[] = [];
+
+  for (const song of songs) {
+    const metadata = scoreCatalogSongMatch(song, cleanQuery);
+    const score = metadata?.score
+      ? Math.min(metadata.score, EXTERNAL_TRUSTED_SCORE)
+      : EXTERNAL_TRUSTED_SCORE;
+
+    hits.push(
+      mapSongHit(
+        song,
+        score,
+        metadata ? catalogReasonToUniversal(metadata.matchReason) : "Matched title",
+        metadata?.matchReason || "title_contains",
+        "song"
+      )
+    );
+  }
+
+  return rankSearchHits(hits, LIMITS.internetAudio) as UniversalSearchSongHit[];
+}
+
+function mergeHitGroups<T extends { id: string }>(primary: T[], fallback: T[], limit?: number) {
+  const seen = new Set<string>();
+  const merged: T[] = [];
+
+  for (const hit of [...primary, ...fallback]) {
+    if (!hit?.id || seen.has(hit.id)) continue;
+    seen.add(hit.id);
+    merged.push(hit);
+    if (limit && merged.length >= limit) break;
+  }
+
+  return merged;
+}
+
+export function mergeGroupedSearchResults(
+  ...groups: UniversalSearchGroupedResults[]
+): UniversalSearchGroupedResults {
+  if (!groups.length) return EMPTY_UNIVERSAL_SEARCH_RESULTS;
+
+  const merged: UniversalSearchGroupedResults = {
+    topResults: [],
+    songs: [],
+    lyrics: [],
+    artists: [],
+    albums: [],
+    genreMoods: [],
+    moodRooms: [],
+    playlists: [],
+    internetAudio: [],
+    tv: [],
+    hasAnyResults: false,
+  };
+
+  for (const group of groups) {
+    merged.topResults = mergeHitGroups(merged.topResults, group.topResults, LIMITS.top);
+    merged.songs = mergeHitGroups(merged.songs, group.songs, LIMITS.songs);
+    merged.lyrics = mergeHitGroups(merged.lyrics, group.lyrics, LIMITS.lyrics);
+    merged.artists = mergeHitGroups(merged.artists, group.artists, LIMITS.artists);
+    merged.albums = mergeHitGroups(merged.albums, group.albums, LIMITS.albums);
+    merged.genreMoods = mergeHitGroups(merged.genreMoods, group.genreMoods, LIMITS.genres);
+    merged.moodRooms = mergeHitGroups(merged.moodRooms, group.moodRooms, LIMITS.moodRooms);
+    merged.playlists = mergeHitGroups(merged.playlists, group.playlists, LIMITS.playlists);
+    merged.internetAudio = mergeHitGroups(
+      merged.internetAudio,
+      group.internetAudio,
+      LIMITS.internetAudio
+    );
+    merged.tv = mergeHitGroups(merged.tv, group.tv, LIMITS.tv);
+  }
+
+  merged.topResults = [...merged.topResults]
+    .sort((left, right) => right.score - left.score)
+    .slice(0, LIMITS.top);
+
+  merged.hasAnyResults = hasGroupedResults(merged);
+  return merged;
 }
 
 export function rankCachedSongsForQuery(

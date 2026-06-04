@@ -68,7 +68,25 @@ export function collectSearchTags(value: unknown): string[] {
   return [];
 }
 
-function levenshteinDistance(left: string, right: string): number {
+export function compactSearchText(value: unknown): string {
+  return normalizeSearchText(value).replace(/\s+/g, "");
+}
+
+export function isSubsequenceMatch(needle: string, haystack: string): boolean {
+  if (!needle || !haystack) return false;
+  if (needle.length > haystack.length) return false;
+
+  let cursor = 0;
+  for (let index = 0; index < haystack.length && cursor < needle.length; index += 1) {
+    if (haystack[index] === needle[cursor]) {
+      cursor += 1;
+    }
+  }
+
+  return cursor === needle.length;
+}
+
+export function levenshteinDistance(left: string, right: string): number {
   if (left === right) return 0;
   if (!left.length) return right.length;
   if (!right.length) return left.length;
@@ -96,7 +114,7 @@ function levenshteinDistance(left: string, right: string): number {
   return matrix[rows - 1][cols - 1];
 }
 
-function fuzzyTokenMatch(candidate: string, token: string): boolean {
+export function fuzzyTokenMatch(candidate: string, token: string): boolean {
   if (!token) return true;
   if (!candidate) return false;
   if (candidate === token) return true;
@@ -106,6 +124,52 @@ function fuzzyTokenMatch(candidate: string, token: string): boolean {
     token.length <= 3 ? 1 : token.length <= 6 ? 2 : Math.max(2, Math.floor(token.length * 0.34));
 
   return levenshteinDistance(candidate, token) <= maxDistance;
+}
+
+export function fuzzyFieldMatches(field: unknown, query: unknown): boolean {
+  const normalizedField = normalizeSearchText(field);
+  const normalizedQuery = normalizeSearchText(query);
+  if (!normalizedField || !normalizedQuery) return false;
+
+  if (normalizedField === normalizedQuery) return true;
+  if (normalizedField.startsWith(normalizedQuery) || normalizedQuery.startsWith(normalizedField)) {
+    return true;
+  }
+  if (normalizedField.includes(normalizedQuery) || normalizedQuery.includes(normalizedField)) {
+    return true;
+  }
+
+  const compactField = compactSearchText(normalizedField);
+  const compactQuery = compactSearchText(normalizedQuery);
+  if (!compactField || !compactQuery) return false;
+
+  if (compactField === compactQuery) return true;
+  if (compactField.includes(compactQuery) || compactQuery.includes(compactField)) {
+    return true;
+  }
+  if (fuzzyTokenMatch(compactField, compactQuery) || fuzzyTokenMatch(compactQuery, compactField)) {
+    return true;
+  }
+  if (isSubsequenceMatch(compactQuery, compactField) || isSubsequenceMatch(compactField, compactQuery)) {
+    return true;
+  }
+
+  const queryTokens = tokenizeSearchText(normalizedQuery);
+  if (queryTokens.length > 1 && tokensMatchAll(normalizedField, queryTokens)) {
+    return true;
+  }
+
+  return false;
+}
+
+function tokensMatchAll(field: string, tokens: string[]) {
+  if (!field || !tokens.length) return false;
+  return tokens.every(
+    (token) =>
+      field.includes(token) ||
+      fuzzyTokenMatch(field, token) ||
+      field.split(" ").some((word) => fuzzyTokenMatch(word, token))
+  );
 }
 
 function phraseMatchScore(normalizedHaystack: string, normalizedQuery: string): number {

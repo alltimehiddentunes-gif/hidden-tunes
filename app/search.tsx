@@ -43,24 +43,19 @@ import {
 import { searchArchiveAudio } from "../services/archiveSearch";
 import { searchJamendoMusic } from "../services/jamendoSearch";
 import { fetchTvCatalog, type HiddenTunesTvVideo } from "../services/tvCatalogApi";
+import type { InstantSearchCatalog } from "../services/instantCatalogSearch";
 import {
-  runInstantCatalogSearch,
-  type InstantSearchCatalog,
-} from "../services/instantCatalogSearch";
-import type { UniversalSearchGroupedResults as SearchGroupedResults } from "../services/universalSearchService";
+  buildTrustedBackendSongHits,
+  buildTrustedInternetAudioHits,
+  EMPTY_UNIVERSAL_SEARCH_RESULTS,
+  mergeGroupedSearchResults,
+  runUniversalCatalogSearch,
+  type UniversalSearchGroupedResults as SearchGroupedResults,
+} from "../services/universalSearchService";
 import type { HiddenTunesGenre } from "../utils/genres";
 import { UNIVERSAL_SEARCH_EMPTY_SUGGESTIONS } from "../utils/universalSearch";
 
-const EMPTY_SEARCH_RESULTS: SearchGroupedResults = {
-  topResults: [],
-  songs: [],
-  lyrics: [],
-  artists: [],
-  albums: [],
-  genreMoods: [],
-  tv: [],
-  hasAnyResults: false,
-};
+const EMPTY_SEARCH_RESULTS = EMPTY_UNIVERSAL_SEARCH_RESULTS;
 
 const SEARCH_FULL_CATALOG_TARGET = 1000;
 const SEARCH_EXTERNAL_AUDIO_LIMIT = 16;
@@ -146,48 +141,16 @@ function findSongIndex(songs: HiddenTunesSong[], song: { id?: string }) {
   return songs.findIndex((candidate) => String(candidate.id) === id);
 }
 
-function mergeSearchGroupedResults(
-  primary: SearchGroupedResults,
-  fallback: SearchGroupedResults
-): SearchGroupedResults {
-  const mergeHits = <T extends { id: string }>(primaryHits: T[], fallbackHits: T[]) => {
-    const seen = new Set<string>();
-    const merged: T[] = [];
-
-    [...primaryHits, ...fallbackHits].forEach((hit) => {
-      if (!hit?.id || seen.has(hit.id)) return;
-      seen.add(hit.id);
-      merged.push(hit);
-    });
-
-    return merged;
-  };
-
-  const topResults = mergeHits(primary.topResults, fallback.topResults).slice(0, 10);
-  const songs = mergeHits(primary.songs, fallback.songs);
-  const lyrics = mergeHits(primary.lyrics, fallback.lyrics);
-  const artists = mergeHits(primary.artists, fallback.artists);
-  const albums = mergeHits(primary.albums, fallback.albums);
-  const genreMoods = mergeHits(primary.genreMoods, fallback.genreMoods);
-  const tv = mergeHits(primary.tv, fallback.tv);
-
-  return {
-    topResults,
-    songs,
-    lyrics,
-    artists,
-    albums,
-    genreMoods,
-    tv,
-    hasAnyResults:
-      topResults.length > 0 ||
-      songs.length > 0 ||
-      lyrics.length > 0 ||
-      artists.length > 0 ||
-      albums.length > 0 ||
-      genreMoods.length > 0 ||
-      tv.length > 0,
-  };
+function toSearchPlaylists(playlists: HiddenTunesDerivedCatalog["playlists"]) {
+  return (playlists || []).map((playlist) => ({
+    id: playlist.id,
+    title: playlist.title,
+    description: playlist.description,
+    artwork: playlist.artwork,
+    songs: playlist.songs,
+    kind: playlist.kind,
+    routeParams: playlist.routeParams,
+  }));
 }
 
 export default function SearchScreen() {
@@ -222,6 +185,7 @@ export default function SearchScreen() {
   const artists = catalog?.artists || [];
   const albums = catalog?.albums || [];
   const genres = catalog?.genres || [];
+  const playlists = catalog?.playlists || [];
 
   useEffect(() => {
     let cancelled = false;
@@ -250,49 +214,17 @@ export default function SearchScreen() {
       albums: toSearchAlbums(albums),
       artists: toSearchArtists(artists),
       genres: toSearchGenres(genres),
+      playlists: toSearchPlaylists(playlists),
       tvVideos: [],
     }),
-    [albums, artists, genres, songs]
-  );
-
-  const backendSearchCatalog = useMemo<InstantSearchCatalog>(
-    () => ({
-      songs: backendSearchSongs,
-      albums: [],
-      artists: [],
-      genres: [],
-      tvVideos: [],
-    }),
-    [backendSearchSongs]
-  );
-
-  const externalSearchCatalog = useMemo<InstantSearchCatalog>(
-    () => ({
-      songs: externalSearchSongs,
-      albums: [],
-      artists: [],
-      genres: [],
-      tvVideos: [],
-    }),
-    [externalSearchSongs]
-  );
-
-  const tvSearchCatalog = useMemo<InstantSearchCatalog>(
-    () => ({
-      songs: [],
-      albums: [],
-      artists: [],
-      genres: [],
-      tvVideos: tvSearchVideos,
-    }),
-    [tvSearchVideos]
+    [albums, artists, genres, playlists, songs]
   );
 
   const cleanSubmittedSearchQuery = submittedSearchQuery.trim();
 
   const localSearchResults = useMemo(() => {
     if (cleanSubmittedSearchQuery.length < 2) return EMPTY_SEARCH_RESULTS;
-    return runInstantCatalogSearch(searchCatalog, cleanSubmittedSearchQuery);
+    return runUniversalCatalogSearch(searchCatalog, cleanSubmittedSearchQuery);
   }, [cleanSubmittedSearchQuery, searchCatalog]);
 
   const shouldRunBackendSearch =
@@ -354,11 +286,22 @@ export default function SearchScreen() {
     if (cleanSubmittedSearchQuery.length < 2) return EMPTY_SEARCH_RESULTS;
     if (backendSearchQuery !== cleanSubmittedSearchQuery) return EMPTY_SEARCH_RESULTS;
     if (!backendSearchSongs.length) return EMPTY_SEARCH_RESULTS;
-    return runInstantCatalogSearch(backendSearchCatalog, cleanSubmittedSearchQuery);
-  }, [backendSearchCatalog, backendSearchQuery, backendSearchSongs.length, cleanSubmittedSearchQuery]);
+
+    const trusted = buildTrustedBackendSongHits(
+      backendSearchSongs,
+      cleanSubmittedSearchQuery
+    );
+
+    return {
+      ...EMPTY_SEARCH_RESULTS,
+      songs: trusted.songs,
+      artists: trusted.artists,
+      hasAnyResults: trusted.songs.length > 0 || trusted.artists.length > 0,
+    };
+  }, [backendSearchQuery, backendSearchSongs, cleanSubmittedSearchQuery]);
 
   const audioSearchBeforeExternal = useMemo(
-    () => mergeSearchGroupedResults(localSearchResults, backendSearchResults),
+    () => mergeGroupedSearchResults(localSearchResults, backendSearchResults),
     [backendSearchResults, localSearchResults]
   );
 
@@ -410,11 +353,21 @@ export default function SearchScreen() {
     if (cleanSubmittedSearchQuery.length < 2) return EMPTY_SEARCH_RESULTS;
     if (externalSearchQuery !== cleanSubmittedSearchQuery) return EMPTY_SEARCH_RESULTS;
     if (!externalSearchSongs.length) return EMPTY_SEARCH_RESULTS;
-    return runInstantCatalogSearch(externalSearchCatalog, cleanSubmittedSearchQuery);
-  }, [cleanSubmittedSearchQuery, externalSearchCatalog, externalSearchQuery, externalSearchSongs.length]);
+
+    const internetAudio = buildTrustedInternetAudioHits(
+      externalSearchSongs,
+      cleanSubmittedSearchQuery
+    );
+
+    return {
+      ...EMPTY_SEARCH_RESULTS,
+      internetAudio,
+      hasAnyResults: internetAudio.length > 0,
+    };
+  }, [cleanSubmittedSearchQuery, externalSearchQuery, externalSearchSongs]);
 
   const audioSearchResults = useMemo(
-    () => mergeSearchGroupedResults(audioSearchBeforeExternal, externalSearchResults),
+    () => mergeGroupedSearchResults(audioSearchBeforeExternal, externalSearchResults),
     [audioSearchBeforeExternal, externalSearchResults]
   );
 
@@ -466,11 +419,28 @@ export default function SearchScreen() {
     if (cleanSubmittedSearchQuery.length < 2) return EMPTY_SEARCH_RESULTS;
     if (tvSearchQuery !== cleanSubmittedSearchQuery) return EMPTY_SEARCH_RESULTS;
     if (!tvSearchVideos.length) return EMPTY_SEARCH_RESULTS;
-    return runInstantCatalogSearch(tvSearchCatalog, cleanSubmittedSearchQuery);
-  }, [cleanSubmittedSearchQuery, tvSearchCatalog, tvSearchQuery, tvSearchVideos.length]);
+
+    const tvOnly = runUniversalCatalogSearch(
+      {
+        songs: [],
+        albums: [],
+        artists: [],
+        genres: [],
+        playlists: [],
+        tvVideos: tvSearchVideos,
+      },
+      cleanSubmittedSearchQuery
+    );
+
+    return {
+      ...EMPTY_SEARCH_RESULTS,
+      tv: tvOnly.tv,
+      hasAnyResults: tvOnly.tv.length > 0,
+    };
+  }, [cleanSubmittedSearchQuery, tvSearchQuery, tvSearchVideos]);
 
   const searchResults = useMemo(
-    () => mergeSearchGroupedResults(audioSearchResults, tvSearchResults),
+    () => mergeGroupedSearchResults(audioSearchResults, tvSearchResults),
     [audioSearchResults, tvSearchResults]
   );
 
@@ -478,7 +448,12 @@ export default function SearchScreen() {
     const seen = new Set<string>();
     const collected: HiddenTunesSong[] = [];
 
-    [...audioSearchResults.topResults, ...audioSearchResults.songs, ...audioSearchResults.lyrics].forEach(
+    [
+      ...audioSearchResults.topResults,
+      ...audioSearchResults.songs,
+      ...audioSearchResults.lyrics,
+      ...audioSearchResults.internetAudio,
+    ].forEach(
       (hit) => {
         if (!hit.id.startsWith("song:") && !hit.id.startsWith("lyric:")) return;
         const song = hit.payload as HiddenTunesSong;
@@ -579,6 +554,41 @@ export default function SearchScreen() {
         thumbnail: album.artwork,
       },
     } as any);
+  }, []);
+
+  const openPlaylist = useCallback((playlist: HiddenTunesDerivedCatalog["playlists"][number]) => {
+    if (playlist.routeParams) {
+      const params = playlist.routeParams;
+      if (params.album && params.artist) {
+        router.push({
+          pathname: "/album",
+          params: {
+            album: params.album,
+            artist: params.artist,
+            thumbnail: playlist.artwork,
+          },
+        } as any);
+        return;
+      }
+      if (params.artist) {
+        router.push({ pathname: "/artist", params: { artist: params.artist } } as any);
+        return;
+      }
+      if (params.title || params.genre) {
+        router.push({
+          pathname: "/genre",
+          params: {
+            title: params.title || params.genre || playlist.title,
+            query: params.title || params.genre || playlist.title,
+            id: playlist.id,
+            type: "genre",
+          },
+        } as any);
+        return;
+      }
+    }
+
+    router.push("/playlists" as any);
   }, []);
 
   const openGenre = useCallback((genre: HiddenTunesGenreCatalogItem | HiddenTunesGenre) => {
@@ -688,6 +698,7 @@ export default function SearchScreen() {
                   onArtistPress={openArtist}
                   onAlbumPress={openAlbum}
                   onGenrePress={openGenre}
+                  onPlaylistPress={openPlaylist}
                   onTvPress={openTv}
                   onSuggestionPress={handleSuggestionPress}
                   activeSongId={currentSong?.id ? String(currentSong.id) : null}

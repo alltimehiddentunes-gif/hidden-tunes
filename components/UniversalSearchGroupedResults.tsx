@@ -22,6 +22,7 @@ type Props = {
   onArtistPress: (artist: any) => void;
   onAlbumPress: (album: any) => void;
   onGenrePress: (genre: any) => void;
+  onPlaylistPress?: (playlist: any) => void;
   onTvPress: (video: any) => void;
   onSuggestionPress: (text: string) => void;
   activeSongId?: string | null;
@@ -101,6 +102,7 @@ function UniversalSearchGroupedResults({
   onArtistPress,
   onAlbumPress,
   onGenrePress,
+  onPlaylistPress,
   onTvPress,
   onSuggestionPress,
   activeSongId,
@@ -123,8 +125,10 @@ function UniversalSearchGroupedResults({
     return (
       <View style={styles.emptyBox}>
         <Ionicons name="search-outline" size={40} color={COLORS.textMuted} />
-        <Text style={styles.emptyTitle}>No matches</Text>
-        <Text style={styles.emptyText}>Try a title, artist, album, or mood.</Text>
+        <Text style={styles.emptyTitle}>No exact matches found</Text>
+        <Text style={styles.emptyText}>
+          Try another title, artist, album, genre, mood, or lyric phrase.
+        </Text>
         <View style={styles.chipWrap}>
           {UNIVERSAL_SEARCH_EMPTY_SUGGESTIONS.map((chip) => (
             <TouchableOpacity
@@ -141,12 +145,17 @@ function UniversalSearchGroupedResults({
     );
   }
 
+  const topResults = grouped.topResults.filter((hit) => !hit.id.startsWith("tv:"));
+
   return (
     <View style={styles.container}>
-      {grouped.topResults.length > 0 && (
+      {topResults.length > 0 && (
         <View style={styles.sectionBlock}>
-          <SectionHeader title="Best Matches" count={grouped.topResults.length} />
-          {grouped.topResults.map((hit) => {
+          <SectionHeader
+            title={topResults.length === 1 ? "Top Result" : "Best Matches"}
+            count={topResults.length}
+          />
+          {topResults.map((hit) => {
             if (hit.id.startsWith("tv:")) {
               const video = hit.payload as any;
               return (
@@ -220,7 +229,7 @@ function UniversalSearchGroupedResults({
               );
             }
 
-            if (hit.id.startsWith("genre:")) {
+            if (hit.id.startsWith("genre:") || hit.id.startsWith("room:")) {
               const genre = hit.payload as any;
               return (
                 <TouchableOpacity
@@ -234,6 +243,29 @@ function UniversalSearchGroupedResults({
                     <Text style={styles.compactTitle}>{genre.title}</Text>
                     <MatchReasonPill reason={hit.reason} />
                   </View>
+                </TouchableOpacity>
+              );
+            }
+
+            if (hit.id.startsWith("playlist:")) {
+              const playlist = hit.payload as any;
+              return (
+                <TouchableOpacity
+                  key={hit.id}
+                  activeOpacity={0.88}
+                  style={styles.rowCard}
+                  onPress={() => onPlaylistPress?.(playlist)}
+                >
+                  <MediaCard
+                    title={playlist.title}
+                    subtitle={hit.subtitle || "Collection"}
+                    image={{ uri: playlist.artwork }}
+                    type="album"
+                    size="medium"
+                    showPlayButton={false}
+                    onPress={() => onPlaylistPress?.(playlist)}
+                  />
+                  <MatchReasonPill reason={hit.reason} />
                 </TouchableOpacity>
               );
             }
@@ -278,6 +310,31 @@ function UniversalSearchGroupedResults({
         </View>
       )}
 
+      {grouped.artists.length > 0 && (
+        <View style={styles.sectionBlock}>
+          <SectionHeader title="Artists" count={grouped.artists.length} />
+          {grouped.artists.map((hit) => (
+            <TouchableOpacity
+              key={hit.id}
+              activeOpacity={0.88}
+              style={styles.rowCard}
+              onPress={() => onArtistPress(hit.payload)}
+            >
+              <MediaCard
+                title={hit.payload.name}
+                subtitle={hit.subtitle || "Artist"}
+                image={hit.payload}
+                type="artist"
+                size="medium"
+                showPlayButton={false}
+                onPress={() => onArtistPress(hit.payload)}
+              />
+              <MatchReasonPill reason={hit.reason} />
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+
       {grouped.songs.length > 0 && (
         <View style={styles.sectionBlock}>
           <SectionHeader title="Songs" count={grouped.songs.length} />
@@ -298,7 +355,7 @@ function UniversalSearchGroupedResults({
 
       {grouped.lyrics.length > 0 && (
         <View style={styles.sectionBlock}>
-          <SectionHeader title="Lyrics" count={grouped.lyrics.length} />
+          <SectionHeader title="Lyrics Matches" count={grouped.lyrics.length} />
           {grouped.lyrics.map((hit) => (
             <TouchableOpacity
               key={hit.id}
@@ -321,31 +378,6 @@ function UniversalSearchGroupedResults({
                   {hit.lyricSnippet}
                 </Text>
               ) : null}
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
-
-      {grouped.artists.length > 0 && (
-        <View style={styles.sectionBlock}>
-          <SectionHeader title="Artists" count={grouped.artists.length} />
-          {grouped.artists.map((hit) => (
-            <TouchableOpacity
-              key={hit.id}
-              activeOpacity={0.88}
-              style={styles.rowCard}
-              onPress={() => onArtistPress(hit.payload)}
-            >
-              <MediaCard
-                title={hit.payload.name}
-                subtitle={hit.subtitle || "Artist"}
-                image={hit.payload}
-                type="artist"
-                size="medium"
-                showPlayButton={false}
-                onPress={() => onArtistPress(hit.payload)}
-              />
-              <MatchReasonPill reason={hit.reason} />
             </TouchableOpacity>
           ))}
         </View>
@@ -378,10 +410,7 @@ function UniversalSearchGroupedResults({
 
       {grouped.genreMoods.length > 0 && (
         <View style={styles.sectionBlock}>
-          <SectionHeader
-            title="Genres & Moods"
-            count={grouped.genreMoods.length}
-          />
+          <SectionHeader title="Genres" count={grouped.genreMoods.length} />
           <View style={styles.genreWrap}>
             {grouped.genreMoods.map((hit) => (
               <TouchableOpacity
@@ -399,9 +428,72 @@ function UniversalSearchGroupedResults({
         </View>
       )}
 
+      {grouped.moodRooms.length > 0 && (
+        <View style={styles.sectionBlock}>
+          <SectionHeader title="Mood Rooms" count={grouped.moodRooms.length} />
+          <View style={styles.genreWrap}>
+            {grouped.moodRooms.map((hit) => (
+              <TouchableOpacity
+                key={hit.id}
+                activeOpacity={0.86}
+                style={styles.genreChip}
+                onPress={() => onGenrePress(hit.payload)}
+              >
+                <Text style={styles.genreEmoji}>{hit.payload.emoji || "✨"}</Text>
+                <Text style={styles.genreChipText}>{hit.payload.title}</Text>
+                <Text style={styles.genreReason}>{hit.reason}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      )}
+
+      {grouped.playlists.length > 0 && (
+        <View style={styles.sectionBlock}>
+          <SectionHeader title="Playlists & Collections" count={grouped.playlists.length} />
+          {grouped.playlists.map((hit) => (
+            <TouchableOpacity
+              key={hit.id}
+              activeOpacity={0.88}
+              style={styles.rowCard}
+              onPress={() => onPlaylistPress?.(hit.payload)}
+            >
+              <MediaCard
+                title={hit.payload.title}
+                subtitle={hit.subtitle || hit.payload.description || "Collection"}
+                image={{ uri: hit.payload.artwork }}
+                type="album"
+                size="medium"
+                showPlayButton={false}
+                onPress={() => onPlaylistPress?.(hit.payload)}
+              />
+              <MatchReasonPill reason={hit.reason} />
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+
+      {grouped.internetAudio.length > 0 && (
+        <View style={styles.sectionBlock}>
+          <SectionHeader title="Internet Audio" count={grouped.internetAudio.length} />
+          <FlatList
+            data={grouped.internetAudio}
+            scrollEnabled={false}
+            nestedScrollEnabled
+            keyExtractor={songKeyExtractor}
+            renderItem={renderSongRow}
+            getItemLayout={getSongItemLayout}
+            initialNumToRender={6}
+            maxToRenderPerBatch={4}
+            windowSize={4}
+            removeClippedSubviews
+          />
+        </View>
+      )}
+
       {grouped.tv.length > 0 && (
         <View style={styles.sectionBlock}>
-          <SectionHeader title="TV" count={grouped.tv.length} />
+          <SectionHeader title="Videos" count={grouped.tv.length} />
           {grouped.tv.map((hit) => {
             const video = hit.payload as any;
             return (
@@ -447,6 +539,7 @@ export default memo(UniversalSearchGroupedResults, (previous, next) => {
     previous.onArtistPress === next.onArtistPress &&
     previous.onAlbumPress === next.onAlbumPress &&
     previous.onGenrePress === next.onGenrePress &&
+    previous.onPlaylistPress === next.onPlaylistPress &&
     previous.onTvPress === next.onTvPress &&
     previous.onSuggestionPress === next.onSuggestionPress
   );
