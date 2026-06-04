@@ -291,17 +291,27 @@ export default function WorldsIndexScreen() {
                     ? `Now tuned to ${currentSong.title || "Hidden Tunes"}`
                     : `${songs.length} tracks ready for discovery`}
                 </Text>
-                <TouchableOpacity
-                  activeOpacity={0.88}
-                  style={styles.startButton}
-                  onPress={() => {
-                    const first = smartPicks[0] || songs[0];
-                    if (first) playCatalogSong(first);
-                  }}
-                >
-                  <Ionicons name="play" size={17} color="#000" />
-                  <Text style={styles.startButtonText}>Start Discovery</Text>
-                </TouchableOpacity>
+                <View style={styles.heroActionRow}>
+                  <TouchableOpacity
+                    activeOpacity={0.88}
+                    style={styles.startButton}
+                    onPress={() => {
+                      const first = smartPicks[0] || songs[0];
+                      if (first) playCatalogSong(first);
+                    }}
+                  >
+                    <Ionicons name="play" size={17} color="#000" />
+                    <Text style={styles.startButtonText}>Start Discovery</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    activeOpacity={0.88}
+                    style={styles.searchButton}
+                    onPress={() => router.push("/search" as any)}
+                  >
+                    <Ionicons name="search" size={17} color={COLORS.text} />
+                    <Text style={styles.searchButtonText}>Search</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
 
               {continueTracks.length > 0 ? (
@@ -745,8 +755,13 @@ const styles = StyleSheet.create({
   smartCopy: {
     flex: 1,
   },
-  startButton: {
+  heroActionRow: {
     marginTop: 14,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  startButton: {
     alignSelf: "flex-start",
     flexDirection: "row",
     alignItems: "center",
@@ -758,6 +773,23 @@ const styles = StyleSheet.create({
   },
   startButtonText: {
     color: "#000",
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  searchButton: {
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+  },
+  searchButtonText: {
+    color: COLORS.text,
     fontSize: 13,
     fontWeight: "900",
   },

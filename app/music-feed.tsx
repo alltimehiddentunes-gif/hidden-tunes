@@ -1218,9 +1218,10 @@ export default function MusicFeedScreen() {
                   onPress={openSearch}
                 >
                   <Ionicons name="search" size={20} color={COLORS.cyan} />
-                  <Text style={styles.searchLauncherText}>
-                    Search songs, artists, albums, lyrics
-                  </Text>
+                  <View style={styles.searchLauncherCopy}>
+                    <Text style={styles.searchLauncherTitle}>Search Hidden Tunes</Text>
+                    <Text style={styles.searchLauncherText}>Songs, artists, albums, lyrics</Text>
+                  </View>
                   <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
                 </TouchableOpacity>
 
@@ -1258,7 +1259,16 @@ export default function MusicFeedScreen() {
                 ) : null}
 
                 <>
-                    <Text style={styles.catalogStatus}>{songs.length.toLocaleString()}+ songs ready</Text>
+                    <View style={styles.premiumSignalRow}>
+                      <View style={styles.premiumSignalPill}>
+                        <Ionicons name="cloud-done" size={14} color={COLORS.primaryGlow} />
+                        <Text style={styles.premiumSignalText}>{songs.length.toLocaleString()}+ songs ready</Text>
+                      </View>
+                      <View style={styles.premiumSignalPill}>
+                        <Ionicons name="sparkles" size={14} color={COLORS.cyan} />
+                        <Text style={styles.premiumSignalText}>Curated rooms</Text>
+                      </View>
+                    </View>
 
                     {moodRooms.length > 0 ? (
                       <View style={styles.cinematicSection}>
@@ -1813,11 +1823,20 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.08)",
   },
-  searchLauncherText: {
+  searchLauncherCopy: {
     flex: 1,
-    color: COLORS.textMuted,
+    minWidth: 0,
+  },
+  searchLauncherTitle: {
+    color: COLORS.text,
     fontSize: 15,
+    fontWeight: "900",
+  },
+  searchLauncherText: {
+    color: COLORS.textMuted,
+    fontSize: 12,
     fontWeight: "700",
+    marginTop: 3,
   },
   searchPanelHeader: {
     flexDirection: "row",
@@ -1939,6 +1958,31 @@ const styles = StyleSheet.create({
     letterSpacing: 1.2,
     marginTop: 2,
     marginBottom: 18,
+    textTransform: "uppercase",
+  },
+  premiumSignalRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 9,
+    marginTop: 2,
+    marginBottom: 18,
+  },
+  premiumSignalPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+  },
+  premiumSignalText: {
+    color: COLORS.text,
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 0.7,
     textTransform: "uppercase",
   },
   quickGrid: {
