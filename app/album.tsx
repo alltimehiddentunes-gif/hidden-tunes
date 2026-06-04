@@ -13,6 +13,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 
 import HTImage from "../components/HTImage";
+import AppShell from "../components/navigation/AppShell";
 import PremiumEmptyState from "../components/PremiumEmptyState";
 import { COLORS, GRADIENTS } from "../constants/theme";
 import { getListPerformanceSettings, markFastScrolling } from "../utils/performanceMode";
@@ -114,13 +115,28 @@ export default function AlbumScreen() {
   }
 
   const album = useMemo<HiddenTunesAlbumCatalogItem | undefined>(() => {
+    const normalizedAlbum = clean(albumTitle);
+    const normalizedArtist = clean(artistName);
+    const exact = (catalog?.albums || []).find((item) => {
+      return clean(item.title) === normalizedAlbum && clean(item.artist) === normalizedArtist;
+    });
+    if (exact) return exact;
+
     return (catalog?.albums || []).find((item) => {
-      return clean(item.title) === clean(albumTitle) && clean(item.artist) === clean(artistName);
+      if (clean(item.title) !== normalizedAlbum) return false;
+      return normalizedArtist === "unknown artist" || clean(item.artist) === normalizedArtist;
     });
   }, [albumTitle, artistName, catalog?.albums]);
 
   const tracks = useMemo(() => {
-    const sorted = sortAlbumSongs(album?.songs || []);
+    const normalizedAlbum = clean(album?.title || albumTitle);
+    const normalizedArtist = clean(album?.artist || artistName);
+    const catalogMatches = (catalog?.songs || []).filter((song) => {
+      const albumMatches = clean(String(song.album || "")) === normalizedAlbum;
+      const artistMatches = normalizedArtist === "unknown artist" || clean(String(song.artist || (song as any).user?.name || "")) === normalizedArtist;
+      return albumMatches && artistMatches;
+    });
+    const sorted = sortAlbumSongs(album?.songs?.length ? album.songs : catalogMatches);
     if (sorted.length) {
       console.log("album_queue_built", {
         albumId: album?.id,
@@ -129,7 +145,25 @@ export default function AlbumScreen() {
       });
     }
     return sorted;
-  }, [album?.id, album?.songs, album?.title, albumTitle]);
+  }, [album, albumTitle, artistName, catalog?.songs]);
+
+  const trackRows = useMemo(() => {
+    if (!tracks.length) return [] as Array<{ type: "header"; id: string; title: string; subtitle: string } | { type: "track"; id: string; song: HiddenTunesSong; index: number }>;
+    return [
+      {
+        type: "header" as const,
+        id: "album-session-header",
+        title: "Album Session",
+        subtitle: `${tracks.length} track${tracks.length === 1 ? "" : "s"} queued in album order`,
+      },
+      ...tracks.map((song, index) => ({
+        type: "track" as const,
+        id: `track-${song.id || index}`,
+        song,
+        index,
+      })),
+    ];
+  }, [tracks]);
 
   const totalDuration = useMemo(
     () => tracks.reduce((total, song) => total + getSongDurationSeconds(song), 0),
@@ -159,9 +193,11 @@ export default function AlbumScreen() {
       genre: song.genre,
       mood: song.mood,
     });
+    router.push("/player" as any);
   }
 
   return (
+    <AppShell>
     <LinearGradient colors={GRADIENTS.main} style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
@@ -233,8 +269,8 @@ export default function AlbumScreen() {
           onMomentumScrollBegin={() => markFastScrolling(true)}
           onScrollEndDrag={() => markFastScrolling(false)}
           onMomentumScrollEnd={() => markFastScrolling(false)}
-          data={tracks}
-          keyExtractor={(item, index) => `${item.id}-${index}`}
+          data={trackRows}
+          keyExtractor={(item) => item.id}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
@@ -248,17 +284,26 @@ export default function AlbumScreen() {
               />
             </View>
           }
-          renderItem={({ item, index }) => {
-            const duration = getSongDurationSeconds(item);
+          renderItem={({ item }) => {
+            if (item.type === "header") {
+              return (
+                <View style={styles.groupHeader}>
+                  <Text style={styles.groupTitle}>{item.title}</Text>
+                  <Text style={styles.groupSubtitle}>{item.subtitle}</Text>
+                </View>
+              );
+            }
+
+            const duration = getSongDurationSeconds(item.song);
 
             return (
-            <TouchableOpacity activeOpacity={0.86} style={styles.trackCard} onPress={() => handlePlaySong(item, index)}>
-              <Text style={styles.rank}>{String(index + 1).padStart(2, "0")}</Text>
-              <HTImage source={item} style={styles.cover} contentFit="cover" />
+            <TouchableOpacity activeOpacity={0.86} style={styles.trackCard} onPress={() => handlePlaySong(item.song, item.index)}>
+              <Text style={styles.rank}>{String(item.index + 1).padStart(2, "0")}</Text>
+              <HTImage source={item.song} candidates={tracks} style={styles.cover} contentFit="cover" />
 
               <View style={styles.info}>
-                <Text style={styles.trackTitle} numberOfLines={1}>{item.title}</Text>
-                <Text style={styles.trackArtist} numberOfLines={1}>{item.artist}</Text>
+                <Text style={styles.trackTitle} numberOfLines={1}>{item.song.title}</Text>
+                <Text style={styles.trackArtist} numberOfLines={1}>{item.song.artist}</Text>
                 <View style={styles.metaRow}>
                   <Ionicons name="cloud-outline" size={13} color={COLORS.primary} />
                   <Text style={styles.metaText}>{duration ? formatDuration(duration) : "Hidden Tunes"}</Text>
@@ -274,6 +319,7 @@ export default function AlbumScreen() {
         />
       )}
     </LinearGradient>
+    </AppShell>
   );
 }
 
@@ -298,6 +344,9 @@ const styles = StyleSheet.create({
   playButtonText: { color: "#000", fontSize: 14, fontWeight: "900", marginLeft: 8 },
   secondaryButton: { width: 46, height: 46, borderRadius: 23, backgroundColor: "rgba(255,255,255,0.08)", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: COLORS.border },
   sectionHeader: { paddingHorizontal: 20, marginBottom: 14 },
+  groupHeader: { marginBottom: 10, paddingHorizontal: 2 },
+  groupTitle: { color: COLORS.text, fontSize: 16, fontWeight: "900" },
+  groupSubtitle: { color: COLORS.textMuted, fontSize: 12, fontWeight: "700", marginTop: 4 },
   sectionTitle: { color: COLORS.text, fontSize: 19, fontWeight: "900" },
   sectionSub: { color: COLORS.textMuted, fontSize: 13, marginTop: 5 },
   loader: { flex: 1, alignItems: "center", justifyContent: "center" },

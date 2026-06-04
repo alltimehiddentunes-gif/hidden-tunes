@@ -39,7 +39,6 @@ import {
   COLORS,
   GRADIENTS,
   LUXURY_GLOW,
-  LOGO_SIZES,
   SHADOWS,
   SPACING,
   TYPOGRAPHY,
@@ -499,8 +498,8 @@ export default function MusicFeedScreen() {
   const heroIndexRef = useRef(0);
   const heroListRef = useRef<FlatList<HeroCard> | null>(null);
   const { width: viewportWidth } = useWindowDimensions();
-  const heroCardWidth = Math.min(520, Math.max(300, viewportWidth - 36));
-  const heroCardHeight = Math.min(300, Math.max(244, Math.round(heroCardWidth * 0.68)));
+  const heroCardWidth = Math.min(540, Math.max(320, viewportWidth - 36));
+  const heroCardHeight = Math.min(430, Math.max(340, Math.round(heroCardWidth * 0.92)));
   const railCardWidth = Math.min(252, Math.max(212, viewportWidth * 0.66));
   const searchPanelPadding = viewportWidth < 380 ? 10 : 12;
 
@@ -877,8 +876,8 @@ export default function MusicFeedScreen() {
             </View>
           </View>
 
-          <TouchableOpacity style={styles.refreshButton} onPress={refreshCatalog}>
-            <Ionicons name="refresh" size={22} color={COLORS.cyan} />
+          <TouchableOpacity style={styles.refreshButton} onPress={openSearch}>
+            <Ionicons name="search" size={22} color={COLORS.cyan} />
           </TouchableOpacity>
         </View>
 
@@ -930,11 +929,11 @@ export default function MusicFeedScreen() {
                   style={[styles.searchPanel, { padding: searchPanelPadding }]}
                   onPress={openSearch}
                 >
-                  <Ionicons name="search" size={20} color={COLORS.cyan} />
+                  <Ionicons name="search" size={21} color={COLORS.cyan} />
                   <View style={styles.searchLauncherCopy}>
-                    <Text style={styles.searchLauncherTitle}>Find music</Text>
+                    <Text style={styles.searchLauncherTitle}>Search Hidden Tunes...</Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
+                  <Ionicons name="sparkles" size={18} color={COLORS.primaryGlow} />
                 </TouchableOpacity>
 
                 {heroCards.length > 0 ? (
@@ -1240,58 +1239,58 @@ const styles = StyleSheet.create({
   },
   glowPurple: {
     position: "absolute",
-    top: 40,
-    left: -110,
-    width: 220,
-    height: 220,
-    borderRadius: 110,
-    backgroundColor: "rgba(168,85,247,0.16)",
+    top: 18,
+    left: -92,
+    width: 310,
+    height: 250,
+    borderRadius: 155,
+    backgroundColor: "rgba(168,85,247,0.24)",
   },
   glowCyan: {
     position: "absolute",
-    top: 280,
-    right: -130,
-    width: 250,
-    height: 250,
-    borderRadius: 125,
+    top: 330,
+    right: -140,
+    width: 260,
+    height: 260,
+    borderRadius: 130,
     backgroundColor: "rgba(34,211,238,0.1)",
   },
   glowCenter: {
     position: "absolute",
-    top: 180,
+    top: 158,
     alignSelf: "center",
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    backgroundColor: "rgba(168,85,247,0.09)",
+    width: 260,
+    height: 190,
+    borderRadius: 130,
+    backgroundColor: "rgba(168,85,247,0.16)",
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 4,
+    marginBottom: 14,
   },
   headerCopy: { flex: 1, paddingRight: 8, justifyContent: "center" },
   brandTitle: {
     color: COLORS.text,
-    fontSize: 17,
-    fontWeight: "800",
-    letterSpacing: 0.2,
-    lineHeight: 20,
+    fontSize: 27,
+    fontWeight: "900",
+    letterSpacing: 0,
+    lineHeight: 32,
   },
   brandEyebrow: {
-    color: COLORS.textMuted,
-    fontSize: 9,
-    fontWeight: "800",
-    letterSpacing: 1.4,
+    color: COLORS.cyan,
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 1.8,
     marginTop: 2,
-    opacity: 0.42,
+    opacity: 0.82,
     textTransform: "uppercase",
   },
   refreshButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: "rgba(34,211,238,0.1)",
     alignItems: "center",
     justifyContent: "center",
@@ -1329,18 +1328,18 @@ const styles = StyleSheet.create({
     lineHeight: 21,
     fontWeight: "700",
   },
-  list: { paddingBottom: 146 },
+  list: { paddingBottom: 172 },
   heroStage: {
-    marginBottom: SPACING.hero,
+    marginBottom: 18,
     position: "relative",
   },
   heroStageGlow: {
     position: "absolute",
     top: 18,
-    left: 18,
-    right: 18,
-    height: 210,
-    borderRadius: 90,
+    left: 8,
+    right: 8,
+    height: 310,
+    borderRadius: 120,
     overflow: "hidden",
   },
   heroList: {
@@ -1350,11 +1349,11 @@ const styles = StyleSheet.create({
     marginRight: 14,
   },
   heroBorder: {
-    borderRadius: 28,
-    padding: 1,
+    borderRadius: 36,
+    padding: 2,
   },
   heroCard: {
-    borderRadius: 27,
+    borderRadius: 34,
     overflow: "hidden",
     backgroundColor: COLORS.card,
     ...SHADOWS.premium,
@@ -1376,11 +1375,11 @@ const styles = StyleSheet.create({
   },
   heroArtworkPanel: {
     flex: 1,
-    marginHorizontal: 12,
-    marginTop: 12,
-    marginBottom: 12,
-    minHeight: 150,
-    borderRadius: 20,
+    marginHorizontal: 9,
+    marginTop: 9,
+    marginBottom: 9,
+    minHeight: 260,
+    borderRadius: 28,
     overflow: "hidden",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.14)",
@@ -1392,7 +1391,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    height: "42%",
+    height: "46%",
     zIndex: 3,
   },
   heroTextBlock: {
@@ -1400,8 +1399,8 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    paddingHorizontal: 14,
-    paddingBottom: 12,
+    paddingHorizontal: 20,
+    paddingBottom: 18,
     paddingTop: 8,
     zIndex: 4,
   },
@@ -1422,8 +1421,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     borderRadius: 999,
     backgroundColor: "rgba(0,0,0,0.58)",
     marginBottom: 8,
@@ -1436,15 +1435,15 @@ const styles = StyleSheet.create({
   },
   heroSong: {
     color: COLORS.text,
-    fontSize: 17,
-    fontWeight: "800",
-    lineHeight: 21,
+    fontSize: 22,
+    fontWeight: "900",
+    lineHeight: 27,
     marginTop: 2,
   },
   heroArtist: {
     color: COLORS.textMuted,
-    fontSize: 11,
-    fontWeight: "600",
+    fontSize: 13,
+    fontWeight: "700",
     marginTop: 4,
     lineHeight: 14,
   },
@@ -1591,24 +1590,29 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
   searchPanel: {
-    marginBottom: 12,
-    borderRadius: 18,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
+    marginBottom: 18,
+    borderRadius: 28,
+    paddingHorizontal: 18,
+    paddingVertical: 15,
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    backgroundColor: "rgba(255,255,255,0.045)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
+    backgroundColor: "rgba(12,8,22,0.72)",
+    borderWidth: 1.5,
+    borderColor: "rgba(168,85,247,0.5)",
+    shadowColor: COLORS.primaryGlow,
+    shadowOpacity: 0.24,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 8,
   },
   searchLauncherCopy: {
     flex: 1,
     minWidth: 0,
   },
   searchLauncherTitle: {
-    color: COLORS.text,
-    fontSize: 14,
+    color: COLORS.textMuted,
+    fontSize: 16,
     fontWeight: "800",
   },
   searchPanelHeader: {
@@ -1714,9 +1718,9 @@ const styles = StyleSheet.create({
     gap: 9,
   },
   logoMark: {
-    width: LOGO_SIZES.header,
-    height: LOGO_SIZES.header,
-    borderRadius: LOGO_SIZES.header / 2,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     backgroundColor: "rgba(255,255,255,0.94)",
     alignItems: "center",
     justifyContent: "center",
@@ -1725,16 +1729,16 @@ const styles = StyleSheet.create({
   },
   logoAura: {
     position: "absolute",
-    top: -6,
-    left: -6,
-    right: -6,
-    bottom: -6,
-    borderRadius: LOGO_SIZES.header / 2 + 6,
+    top: -8,
+    left: -8,
+    right: -8,
+    bottom: -8,
+    borderRadius: 40,
     overflow: "hidden",
   },
   logoImage: {
-    width: LOGO_SIZES.headerImage,
-    height: LOGO_SIZES.headerImage,
+    width: 54,
+    height: 54,
   },
   catalogStatus: {
     color: COLORS.primaryGlow,
@@ -1749,8 +1753,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 9,
-    marginTop: 2,
+    marginTop: 0,
     marginBottom: 18,
+    justifyContent: "center",
   },
   premiumSignalPill: {
     flexDirection: "row",

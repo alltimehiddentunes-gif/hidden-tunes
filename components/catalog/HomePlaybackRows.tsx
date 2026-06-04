@@ -194,7 +194,7 @@ export const HomeFeaturedCard = memo(function HomeFeaturedCard({
 });
 
 const { width } = Dimensions.get("window");
-const FEATURED_CARD_WIDTH = width * 0.72;
+const FEATURED_CARD_WIDTH = Math.min(width * 0.84, 340);
 
 const styles = StyleSheet.create({
   mediaShell: {
@@ -206,13 +206,13 @@ const styles = StyleSheet.create({
   },
   featuredCard: {
     width: FEATURED_CARD_WIDTH,
-    height: 226,
-    borderRadius: 32,
+    height: 300,
+    borderRadius: 34,
     marginRight: 16,
     overflow: "hidden",
     backgroundColor: COLORS.card,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
+    borderWidth: 1.5,
+    borderColor: "rgba(168,85,247,0.34)",
     ...SHADOWS.premium,
   },
   featuredCardActive: {
@@ -230,9 +230,9 @@ const styles = StyleSheet.create({
   },
   featuredArtFrame: {
     ...StyleSheet.flatten(StyleSheet.absoluteFill),
-    margin: 12,
-    marginBottom: 80,
-    borderRadius: 24,
+    margin: 8,
+    marginBottom: 8,
+    borderRadius: 28,
     overflow: "hidden",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.1)",
@@ -268,8 +268,8 @@ const styles = StyleSheet.create({
   featuredContent: {
     flex: 1,
     justifyContent: "flex-end",
-    paddingHorizontal: 14,
-    paddingBottom: 12,
+    paddingHorizontal: 18,
+    paddingBottom: 16,
     paddingTop: 6,
     zIndex: 3,
   },
@@ -294,13 +294,13 @@ const styles = StyleSheet.create({
   },
   featuredTitle: {
     color: COLORS.text,
-    fontSize: TYPOGRAPHY.cardTitle,
-    fontWeight: "800",
-    lineHeight: TYPOGRAPHY.cardTitle + 4,
+    fontSize: 18,
+    fontWeight: "900",
+    lineHeight: 22,
   },
   featuredArtist: {
     color: COLORS.textMuted,
-    fontSize: TYPOGRAPHY.cardSubtitle,
+    fontSize: 12,
     fontWeight: "600",
     marginTop: 4,
     lineHeight: TYPOGRAPHY.cardSubtitle + 3,

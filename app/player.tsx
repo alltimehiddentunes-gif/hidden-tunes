@@ -360,7 +360,7 @@ export default function PlayerScreen() {
   const { width: viewportWidth, height: viewportHeight } = useWindowDimensions();
   const compactLayout = viewportWidth < 380 || viewportHeight < 760;
   const artworkSize = Math.round(
-    Math.min(compactLayout ? 246 : 286, Math.max(214, viewportWidth * (compactLayout ? 0.6 : 0.66)))
+    Math.min(compactLayout ? 268 : 334, Math.max(232, viewportWidth * (compactLayout ? 0.68 : 0.76)))
   );
   const artworkScrollOverlap = Math.round(artworkSize * (compactLayout ? 0.08 : 0.12));
   const horizontalPadding = compactLayout ? 18 : 22;
@@ -370,6 +370,7 @@ export default function PlayerScreen() {
     activeQueue,
     activeQueueIndex,
     activeQueueMode,
+    activeQueueContext,
     radioMode,
     youtubeQueue,
     shuffle,
@@ -413,6 +414,15 @@ export default function PlayerScreen() {
     radioMode,
     youtubeQueue?.length,
   ]);
+
+  const sessionContextLabel = useMemo(() => {
+    const context = activeQueueContext;
+    if (context?.albumTitle) return context.albumTitle;
+    if (context?.label) return context.label;
+    if (context?.genre) return context.genre;
+    if (context?.mood) return context.mood;
+    return "Hidden Tunes";
+  }, [activeQueueContext]);
 
   const listeningContext = useMemo(() => {
     if (!currentSong) return [] as PlayerMetadataChip[];
@@ -741,14 +751,14 @@ export default function PlayerScreen() {
             </TouchableOpacity>
 
             <View style={styles.headerCopy}>
-              <Text style={styles.headerTitle}>Track Session</Text>
+              <Text style={styles.headerTitle}>{queueLabel}</Text>
               <Text style={styles.headerSubtitle} numberOfLines={1}>
-                {artist}
+                {sessionContextLabel}
               </Text>
             </View>
 
             <TouchableOpacity style={styles.iconButton} onPress={openQueue}>
-              <Ionicons name="list" size={22} color={COLORS.text} />
+              <Ionicons name="list" size={23} color={COLORS.text} />
             </TouchableOpacity>
           </View>
 
@@ -831,6 +841,15 @@ export default function PlayerScreen() {
             </TouchableOpacity>
           </Animated.View>
 
+          <View style={styles.sessionPillRow}>
+            <Text style={styles.sessionPill}>{activeQueue?.length || 1} Track Session</Text>
+            <Text style={styles.sessionPill}>{smartAutoplayEnabled ? "Smart On" : "Smart Off"}</Text>
+            <TouchableOpacity activeOpacity={0.82} onPress={openQueue} style={styles.queuePillButton}>
+              <Ionicons name="list" size={13} color={COLORS.primaryGlow} />
+              <Text style={styles.queuePillText}>Queue</Text>
+            </TouchableOpacity>
+          </View>
+
           {listeningContext.length > 0 ? (
             <View style={styles.contextPillRow}>
               {listeningContext.map((item) => (
@@ -905,8 +924,19 @@ export default function PlayerScreen() {
             </Pressable>
           </View>
 
+          {nextUpSong ? (
+            <TouchableOpacity activeOpacity={0.84} style={styles.upNextCard} onPress={openQueue}>
+              <View style={styles.upNextCopy}>
+                <Text style={styles.sessionEyebrow}>UP NEXT</Text>
+                <Text numberOfLines={1} style={styles.upNextTitle}>{nextUpSong.title}</Text>
+                <Text numberOfLines={1} style={styles.upNextArtist}>{nextUpSong.artist || nextUpSong.user?.name || "Hidden Tunes"}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
+            </TouchableOpacity>
+          ) : null}
+
           <View style={styles.infoCard}>
-            <Text style={styles.sessionEyebrow}>TRACK INFORMATION</Text>
+            <Text style={styles.sessionEyebrow}>{activeQueueContext?.source === "album" ? "ALBUM CONTEXT" : activeQueueContext?.source === "radio" ? "ROOM CONTEXT" : "TRACK INFORMATION"}</Text>
             <InfoRow label="Album" value={String(currentSong.album || "Singles")} onPress={() => handleMetadataPress("album", String(currentSong.album || "Singles"))} />
             <InfoRow label="Artist" value={artist} onPress={openArtist} />
             <InfoRow label="Song" value={title} />
@@ -998,7 +1028,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(34,211,238,0.1)",
   },
   playerAnchor: {
-    paddingTop: 40,
+    paddingTop: 38,
     paddingHorizontal: 20,
     paddingBottom: 8,
     zIndex: 2,
@@ -1067,9 +1097,9 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   iconButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 16,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     backgroundColor: "rgba(255,255,255,0.065)",
     alignItems: "center",
     justifyContent: "center",
@@ -1085,7 +1115,8 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
     fontSize: 11,
     fontWeight: "900",
-    letterSpacing: 2,
+    letterSpacing: 1.8,
+    textTransform: "uppercase",
   },
   headerSubtitle: {
     color: COLORS.text,
@@ -1097,7 +1128,7 @@ const styles = StyleSheet.create({
   artworkStage: {
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 12,
+    marginTop: 18,
     shadowColor: "#A855F7",
     shadowOpacity: 0.1,
     shadowRadius: 10,
@@ -1145,7 +1176,7 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.14)",
   },
   meta: {
-    marginTop: 8,
+    marginTop: 4,
     alignItems: "center",
   },
   statusPill: {
@@ -1182,6 +1213,41 @@ const styles = StyleSheet.create({
     marginTop: 7,
     textAlign: "center",
     lineHeight: TYPOGRAPHY.heroSubtitle + 4,
+  },
+  sessionPillRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: 8,
+    marginTop: 12,
+  },
+  sessionPill: {
+    color: COLORS.text,
+    fontSize: 11,
+    fontWeight: "900",
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,0.07)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+    overflow: "hidden",
+  },
+  queuePillButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: "rgba(168,85,247,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(168,85,247,0.22)",
+  },
+  queuePillText: {
+    color: COLORS.primaryGlow,
+    fontSize: 11,
+    fontWeight: "900",
   },
   contextPillRow: {
     flexDirection: "row",
@@ -1344,6 +1410,32 @@ const styles = StyleSheet.create({
   controlsRestored: {
     gap: 9,
     flexWrap: "nowrap",
+  },
+  upNextCard: {
+    marginTop: 14,
+    borderRadius: 20,
+    padding: 13,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.055)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.09)",
+  },
+  upNextCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  upNextTitle: {
+    color: COLORS.text,
+    fontSize: 14,
+    fontWeight: "900",
+    marginTop: 6,
+  },
+  upNextArtist: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    fontWeight: "700",
+    marginTop: 4,
   },
   infoCard: {
     marginTop: 14,

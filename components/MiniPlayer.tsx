@@ -583,26 +583,26 @@ export default memo(MiniPlayer);
 const styles = StyleSheet.create({
   wrapper: {
     position: "absolute",
-    left: 14,
-    right: 14,
-    bottom: 80,
-    borderRadius: 23,
+    left: 18,
+    right: 18,
+    bottom: 82,
+    borderRadius: 30,
     overflow: "hidden",
   },
 
   border: {
-    borderRadius: 23,
-    padding: 1,
+    borderRadius: 30,
+    padding: 1.5,
   },
 
   container: {
-    height: 66,
-    borderRadius: 22,
+    height: 86,
+    borderRadius: 28,
     overflow: "hidden",
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     backgroundColor: "rgba(5,5,8,0.92)",
   },
 
@@ -612,17 +612,17 @@ const styles = StyleSheet.create({
   },
 
   coverWrap: {
-    width: 48,
-    height: 48,
+    width: 64,
+    height: 64,
     alignItems: "center",
     justifyContent: "center",
   },
 
   coverGlowOuter: {
     position: "absolute",
-    width: 52,
-    height: 52,
-    borderRadius: 20,
+    width: 70,
+    height: 70,
+    borderRadius: 26,
     overflow: "hidden",
   },
 
@@ -631,9 +631,9 @@ const styles = StyleSheet.create({
   },
 
   coverFrame: {
-    width: 44,
-    height: 44,
-    borderRadius: 16,
+    width: 60,
+    height: 60,
+    borderRadius: 22,
     overflow: "hidden",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.14)",
@@ -641,16 +641,16 @@ const styles = StyleSheet.create({
   },
 
   cover: {
-    width: 44,
-    height: 44,
-    borderRadius: 16,
+    width: 60,
+    height: 60,
+    borderRadius: 22,
     backgroundColor: COLORS.cardLight,
   },
 
   youtubeCover: {
-    width: 44,
-    height: 44,
-    borderRadius: 16,
+    width: 60,
+    height: 60,
+    borderRadius: 22,
     backgroundColor: "#ff0033",
     alignItems: "center",
     justifyContent: "center",
@@ -670,7 +670,7 @@ const styles = StyleSheet.create({
 
   info: {
     flex: 1,
-    marginLeft: 12,
+    marginLeft: 13,
     paddingRight: 8,
     minWidth: 0,
   },
@@ -683,7 +683,7 @@ const styles = StyleSheet.create({
   },
 
   badgeRow: {
-    height: 15,
+    height: 18,
     justifyContent: "center",
   },
 
@@ -691,9 +691,9 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(168,85,247,0.82)",
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    backgroundColor: "rgba(168,85,247,0.86)",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
     borderRadius: 999,
     gap: 4,
   },
@@ -704,13 +704,13 @@ const styles = StyleSheet.create({
 
   badgeText: {
     color: "#fff",
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: "900",
   },
 
   title: {
     color: COLORS.text,
-    fontSize: 13.5,
+    fontSize: 15,
     fontWeight: "900",
     marginTop: 1,
     letterSpacing: 0,
@@ -718,7 +718,7 @@ const styles = StyleSheet.create({
 
   artist: {
     color: COLORS.textMuted,
-    fontSize: 10.5,
+    fontSize: 12,
     marginTop: 1,
     fontWeight: "700",
   },
@@ -743,7 +743,7 @@ const styles = StyleSheet.create({
   },
 
   progressTrack: {
-    height: 3,
+    height: 4,
     borderRadius: 99,
     backgroundColor: "rgba(255,255,255,0.12)",
     marginTop: 5,
@@ -762,21 +762,21 @@ const styles = StyleSheet.create({
   },
 
   skipButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: "rgba(255,255,255,0.08)",
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 3,
+    marginRight: 5,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.06)",
   },
 
   playButton: {
-    width: 41,
-    height: 41,
-    borderRadius: 22,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: COLORS.primary,
     alignItems: "center",
     justifyContent: "center",

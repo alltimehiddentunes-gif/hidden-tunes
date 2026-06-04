@@ -15,6 +15,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 
 import HTImage from "../components/HTImage";
+import AppShell from "../components/navigation/AppShell";
 import PremiumEmptyState from "../components/PremiumEmptyState";
 import { COLORS, GRADIENTS } from "../constants/theme";
 import { getListPerformanceSettings, markFastScrolling } from "../utils/performanceMode";
@@ -30,6 +31,14 @@ import {
 
 function clean(value: string) {
   return String(value || "").trim().toLowerCase();
+}
+
+function roomSearchTerms(value: string) {
+  const normalized = clean(value)
+    .replace(/\b(station|room|radio)\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return Array.from(new Set([clean(value), normalized, ...normalized.split(" ")].filter(Boolean)));
 }
 
 function getSongDurationSeconds(song: HiddenTunesSong) {
@@ -81,11 +90,16 @@ export default function GenreScreen() {
 
   const tracks = useMemo(() => {
     const songs = catalog?.songs || [];
-    const exactGenreMatches = songs.filter((song) => clean(song.genre || "") === clean(title));
+    const terms = roomSearchTerms(title);
+    const exactGenreMatches = songs.filter((song) => terms.some((term) => clean(song.genre || "") === term));
     if (exactGenreMatches.length) return exactGenreMatches;
 
     return songs.filter((song) => {
-      return clean(song.genre || "").includes(clean(title)) || clean(song.mood || "").includes(clean(title));
+      const searchable = [song.genre, song.mood, song.album, song.title, song.artist, song.lyrics]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return terms.some((term) => searchable.includes(term));
     });
   }, [catalog?.songs, title]);
 
@@ -124,10 +138,19 @@ export default function GenreScreen() {
       genre: String(params.type || "genre") === "mood" ? song.genre : title,
       mood: String(params.type || "genre") === "mood" ? title : song.mood,
     });
+    router.push("/player" as any);
   }
 
-  function playGenre() {
-    if (tracks[0]) handlePlaySong(tracks[0], 0);
+  function startRadioSession() {
+    const first = tracks[0];
+    if (!first) return;
+    void playSong(first, tracks, 0, {
+      source: "radio",
+      label: title,
+      genre: String(params.type || "genre") === "mood" ? first.genre : title,
+      mood: String(params.type || "genre") === "mood" ? title : first.mood,
+    });
+    router.push("/player" as any);
   }
 
   function openArtist(name: string) {
@@ -142,6 +165,7 @@ export default function GenreScreen() {
   }
 
   return (
+    <AppShell>
     <LinearGradient colors={GRADIENTS.main} style={styles.container}>
       <View pointerEvents="none" style={styles.glowPurple} />
       <View pointerEvents="none" style={styles.glowCyan} />
@@ -152,7 +176,7 @@ export default function GenreScreen() {
         </TouchableOpacity>
 
         <View style={styles.headerText}>
-          <Text style={styles.kicker}>GENRE</Text>
+          <Text style={styles.kicker}>{String(params.type || "genre") === "mood" ? "ROOM" : "STATION"}</Text>
           <Text style={styles.title} numberOfLines={1}>{title}</Text>
           <Text style={styles.subtitle} numberOfLines={1}>Songs tagged in the current catalog</Text>
         </View>
@@ -197,14 +221,18 @@ export default function GenreScreen() {
                 <Text style={styles.heroSubtitle} numberOfLines={2}>
                   {tracks.length} song{tracks.length === 1 ? "" : "s"} • {artists.length} artist{artists.length === 1 ? "" : "s"} • {albums.length} release{albums.length === 1 ? "" : "s"}
                 </Text>
+                <View style={styles.tagRow}>
+                  <Text style={styles.tagPill}>{String(params.type || "genre") === "mood" ? "Mood Room" : "Radio Station"}</Text>
+                  <Text style={styles.tagPill}>{tracks.length} track{tracks.length === 1 ? "" : "s"}</Text>
+                </View>
                 <TouchableOpacity
                   activeOpacity={0.86}
                   style={[styles.playButton, tracks.length === 0 && styles.disabledButton]}
                   disabled={tracks.length === 0}
-                  onPress={playGenre}
+                  onPress={startRadioSession}
                 >
-                  <Ionicons name="play" size={18} color="#000" />
-                  <Text style={styles.playButtonText}>Play {String(params.type || "genre") === "mood" ? "Mood" : "Genre"}</Text>
+                  <Ionicons name="radio" size={18} color="#000" />
+                  <Text style={styles.playButtonText}>Start Radio</Text>
                 </TouchableOpacity>
               </LinearGradient>
 
@@ -305,6 +333,7 @@ export default function GenreScreen() {
         />
       )}
     </LinearGradient>
+    </AppShell>
   );
 }
 
@@ -329,6 +358,8 @@ const styles = StyleSheet.create({
   roomBadgeText: { color: COLORS.textMuted, fontSize: 10, fontWeight: "900", letterSpacing: 1.1 },
   heroTitle: { color: COLORS.text, fontSize: 30, fontWeight: "900", textAlign: "center", marginTop: 10, lineHeight: 35 },
   heroSubtitle: { color: COLORS.textMuted, fontSize: 13, fontWeight: "700", marginTop: 10, textAlign: "center", lineHeight: 19 },
+  tagRow: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 8, marginTop: 14 },
+  tagPill: { color: COLORS.textMuted, fontSize: 11, fontWeight: "900", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.07)", borderWidth: 1, borderColor: "rgba(255,255,255,0.1)", overflow: "hidden" },
   playButton: { flexDirection: "row", alignItems: "center", backgroundColor: COLORS.primary, paddingHorizontal: 22, paddingVertical: 13, borderRadius: 999, gap: 8, marginTop: 18 },
   disabledButton: { opacity: 0.45 },
   playButtonText: { color: "#000", fontSize: 14, fontWeight: "900" },
