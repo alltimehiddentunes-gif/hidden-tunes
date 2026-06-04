@@ -137,9 +137,7 @@ class HiddenAudioModule: RCTEventEmitter {
 
     let alreadyAdvancing =
       currentPlayer.rate > 0 ||
-      currentPlayer.timeControlStatus == .playing ||
-      playerStatus == "playing" ||
-      playerStatus == "buffering"
+      currentPlayer.timeControlStatus == .playing
 
     if alreadyAdvancing {
       shouldResumeAfterItemLoad = true

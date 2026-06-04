@@ -266,8 +266,7 @@ export const hiddenAudioBridge: HiddenAudioEngine = {
         isPlayingValue === 1 ||
         isPlayingValue === "1" ||
         status === "playing" ||
-        status === "buffering" ||
-        status === "ready",
+        status === "buffering",
       playbackState: status || undefined,
     };
   },
