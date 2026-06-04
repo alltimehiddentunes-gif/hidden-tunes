@@ -19,13 +19,13 @@ import Animated, {
   cancelAnimation,
   useAnimatedStyle,
   useSharedValue,
+  withRepeat,
   withSpring,
   withTiming,
 } from "react-native-reanimated";
 
 import AddToPlaylistModal from "../components/AddToPlaylistModal";
 import HTImage from "../components/HTImage";
-import LiveWaveform from "../components/LiveWaveform";
 import NeonEQ from "../components/NeonEQ";
 import AppShell from "../components/navigation/AppShell";
 import { COLORS, GRADIENTS } from "../constants/theme";
@@ -81,8 +81,8 @@ const AmbientGlow = memo(function AmbientGlow() {
 
   return (
     <>
-      <Animated.View style={[styles.glowPurple, purpleStyle]} />
-      <Animated.View style={[styles.glowCyan, cyanStyle]} />
+      <Animated.View pointerEvents="none" style={[styles.glowPurple, purpleStyle]} />
+      <Animated.View pointerEvents="none" style={[styles.glowCyan, cyanStyle]} />
     </>
   );
 });
@@ -342,7 +342,12 @@ export default function PlayerScreen() {
   }, [currentSong?.id, metadataOpacity, metadataTranslateY]);
 
   useEffect(() => {
-    if (!isPlaying || !currentSong) {
+    cancelAnimation(artworkRotation);
+    artworkRotation.value = 0;
+  }, [artworkRotation, currentSong?.id]);
+
+  useEffect(() => {
+    if (!currentSong) {
       cancelAnimation(pulse);
       cancelAnimation(artworkRotation);
       cancelAnimation(artworkHalo);
@@ -352,8 +357,21 @@ export default function PlayerScreen() {
       return;
     }
 
+    if (!isPlaying) {
+      cancelAnimation(pulse);
+      cancelAnimation(artworkRotation);
+      cancelAnimation(artworkHalo);
+      pulse.value = withTiming(1, { duration: 220 });
+      artworkHalo.value = withTiming(0.24, { duration: 220 });
+      return;
+    }
+
     pulse.value = withTiming(1.006, { duration: 260 });
-    artworkRotation.value = withTiming(360, { duration: 28000, easing: Easing.linear });
+    artworkRotation.value = withRepeat(
+      withTiming(360, { duration: 72000, easing: Easing.linear }),
+      -1,
+      false
+    );
     artworkHalo.value = withTiming(0.34, { duration: 260 });
 
     return () => {
@@ -654,14 +672,6 @@ export default function PlayerScreen() {
               ))}
             </View>
           ) : null}
-
-          <View style={[styles.waveformPanel, compactLayout && styles.waveformPanelCompact]}>
-            <LiveWaveform
-              isPlaying={isPlaying}
-              size="large"
-              color={COLORS.primaryGlow}
-            />
-          </View>
 
           <View style={[styles.progressPanel, compactLayout && styles.progressPanelCompact]}>
             <Slider

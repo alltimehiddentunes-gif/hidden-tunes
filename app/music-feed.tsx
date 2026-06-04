@@ -1,6 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ActivityIndicator,
+  Image,
   useWindowDimensions,
   FlatList,
   RefreshControl,
@@ -1169,7 +1170,11 @@ export default function MusicFeedScreen() {
         <View style={styles.header}>
           <View style={styles.brandRow}>
             <View style={styles.logoMark}>
-              <Ionicons name="musical-notes" size={20} color="#000" />
+              <Image
+                source={require("../assets/images/logo.png")}
+                style={styles.logoImage}
+                resizeMode="contain"
+              />
             </View>
             <View style={styles.headerCopy}>
               <Text style={styles.kicker}>HIDDEN TUNES</Text>
@@ -1943,13 +1948,18 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: COLORS.primary,
+    backgroundColor: "rgba(255,255,255,0.92)",
     alignItems: "center",
     justifyContent: "center",
+    overflow: "hidden",
     shadowColor: COLORS.primary,
     shadowOpacity: 0.18,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
+  },
+  logoImage: {
+    width: 34,
+    height: 34,
   },
   catalogStatus: {
     color: COLORS.primaryGlow,
