@@ -196,6 +196,7 @@ function UniversalSearchGroupedResults({
                     title={artist.name}
                     subtitle={hit.subtitle || "Artist"}
                     image={artist}
+                    artworkCandidates={artist.songs || []}
                     type="artist"
                     size="medium"
                     showPlayButton={false}
@@ -219,6 +220,7 @@ function UniversalSearchGroupedResults({
                     title={album.title}
                     subtitle={hit.subtitle || album.artist}
                     image={album}
+                    artworkCandidates={album.songs || []}
                     type="album"
                     size="medium"
                     showPlayButton={false}
@@ -259,7 +261,8 @@ function UniversalSearchGroupedResults({
                   <MediaCard
                     title={playlist.title}
                     subtitle={hit.subtitle || "Collection"}
-                    image={{ uri: playlist.artwork }}
+                    image={playlist}
+                    artworkCandidates={playlist.songs || []}
                     type="album"
                     size="medium"
                     showPlayButton={false}
@@ -324,6 +327,7 @@ function UniversalSearchGroupedResults({
                 title={hit.payload.name}
                 subtitle={hit.subtitle || "Artist"}
                 image={hit.payload}
+                artworkCandidates={(hit.payload as any).songs || []}
                 type="artist"
                 size="medium"
                 showPlayButton={false}
@@ -397,6 +401,7 @@ function UniversalSearchGroupedResults({
                 title={hit.payload.title}
                 subtitle={hit.subtitle || hit.payload.artist}
                 image={hit.payload}
+                artworkCandidates={(hit.payload as any).songs || []}
                 type="album"
                 size="medium"
                 showPlayButton={false}
@@ -461,7 +466,8 @@ function UniversalSearchGroupedResults({
               <MediaCard
                 title={hit.payload.title}
                 subtitle={hit.subtitle || hit.payload.description || "Collection"}
-                image={{ uri: hit.payload.artwork }}
+                image={hit.payload}
+                artworkCandidates={(hit.payload as any).songs || []}
                 type="album"
                 size="medium"
                 showPlayButton={false}

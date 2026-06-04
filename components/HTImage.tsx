@@ -4,6 +4,7 @@ import { ImageStyle, StyleProp, StyleSheet, View } from "react-native";
 
 import {
   FALLBACK_ARTWORK,
+  FALLBACK_ARTWORK_ASSET,
   getArtworkCandidates,
   getArtworkValue,
   isArtworkUrlFailed,
@@ -61,6 +62,9 @@ function HTImage({
   const borderRadius = Number(flatStyle.borderRadius || 0);
 
   const fallbackSource = useMemo(() => {
+    if (fallback === FALLBACK_ARTWORK || fallback === FALLBACK_ARTWORK_ASSET) {
+      return FALLBACK_ARTWORK_ASSET;
+    }
     const artwork = getArtworkValue(fallback, FALLBACK_ARTWORK);
     return typeof artwork === "string" ? { uri: artwork } : artwork;
   }, [fallback]);
@@ -88,6 +92,10 @@ function HTImage({
   const resolvedSource = useMemo(() => {
     const candidate = resolvedCandidates[candidateIndex] || fallback;
     const artwork = getArtworkValue(candidate, fallback);
+
+    if (artwork === FALLBACK_ARTWORK) {
+      return FALLBACK_ARTWORK_ASSET;
+    }
 
     return typeof artwork === "string" ? { uri: artwork } : artwork;
   }, [candidateIndex, fallback, resolvedCandidates]);
@@ -195,12 +203,12 @@ export default memo(HTImage);
 const styles = StyleSheet.create({
   frame: {
     overflow: "hidden",
-    backgroundColor: "rgba(255,255,255,0.04)",
+    backgroundColor: "rgba(168,85,247,0.06)",
   },
   fallbackFrame: {
-    backgroundColor: "rgba(168,85,247,0.08)",
+    backgroundColor: "rgba(168,85,247,0.14)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
+    borderColor: "rgba(255,255,255,0.1)",
   },
   image: {
     backgroundColor: "transparent",

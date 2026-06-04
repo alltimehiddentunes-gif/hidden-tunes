@@ -19,7 +19,7 @@ import CatalogSongRow from "./CatalogSongRow";
 
 type HomeCatalogSongRowProps = {
   song: HiddenTunesNormalizedSong;
-  image: string;
+  image?: any;
   onPress: (song: HiddenTunesNormalizedSong) => void;
 };
 
@@ -34,7 +34,7 @@ export const HomeCatalogSongRow = memo(function HomeCatalogSongRow({
     <View style={[styles.mediaShell, isActive && styles.mediaShellActive]}>
       <CatalogSongRow
         song={song}
-        image={image}
+        image={image || song}
         active={isActive}
         isPlaying={isPlaying}
         onPress={onPress}
@@ -69,7 +69,8 @@ export const HomeFeaturedCard = memo(function HomeFeaturedCard({
       <HTImage source={item} style={styles.featuredCover} />
 
       <LinearGradient
-        colors={["transparent", "rgba(0,0,0,0.96)"]}
+        pointerEvents="none"
+        colors={["transparent", "rgba(0,0,0,0.72)"]}
         style={styles.featuredOverlay}
       />
 

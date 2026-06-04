@@ -53,6 +53,10 @@ import {
   type HiddenTunesNormalizedSong,
 } from "@/services/hiddenTunesApi";
 import type { HiddenTunesGenre } from "@/utils/genres";
+import {
+  getArtworkUri,
+  resolveGroupArtworkSource,
+} from "@/utils/artwork";
 
 const CATALOG_PAGE_SIZE = 31;
 
@@ -66,7 +70,7 @@ type CatalogGroup = {
 };
 
 function getArtwork(song?: HiddenTunesSong | null) {
-  return song?.cover || song?.artwork || song?.thumbnail || "";
+  return getArtworkUri(song);
 }
 
 function songText(song: HiddenTunesSong) {
@@ -562,7 +566,6 @@ export default function MusicFeedScreen() {
     ({ item }: { item: HiddenTunesSong; index: number }) => (
       <HomeCatalogSongRow
         song={item as unknown as HiddenTunesNormalizedSong}
-        image={getArtwork(item)}
         onPress={playCatalogSong as (song: HiddenTunesNormalizedSong) => void}
       />
     ),
@@ -691,8 +694,12 @@ export default function MusicFeedScreen() {
                         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.surfaceRow}>
                           {moodRooms.map((room) => (
                             <TouchableOpacity key={room.id} activeOpacity={0.88} style={styles.roomCard} onPress={() => openGenre(room)}>
-                              <HTImage source={room.artwork} style={styles.roomImage} contentFit="cover" />
-                              <View style={styles.roomShade} />
+                              <HTImage
+                                source={resolveGroupArtworkSource(room)}
+                                style={styles.roomImage}
+                                contentFit="cover"
+                              />
+                              <View pointerEvents="none" style={styles.roomShade} />
                               <Text numberOfLines={1} style={styles.roomTitle}>{room.title}</Text>
                               <Text style={styles.roomSubtitle}>{room.subtitle}</Text>
                             </TouchableOpacity>
@@ -809,7 +816,7 @@ export default function MusicFeedScreen() {
                               <UnifiedMediaCard
                                 title={artist.name}
                                 subtitle={`${artist.songs.length} song${artist.songs.length === 1 ? "" : "s"}`}
-                                imageUri={artist.artwork}
+                                image={artist}
                                 rightIcon="person"
                                 onPress={() => openArtist(artist)}
                                 onRightPress={() => openArtist(artist)}
@@ -834,7 +841,7 @@ export default function MusicFeedScreen() {
                               <UnifiedMediaCard
                                 title={album.title}
                                 subtitle={`${album.songs.length} song${album.songs.length === 1 ? "" : "s"} / ${album.artist}`}
-                                imageUri={album.artwork}
+                                image={album}
                                 rightIcon="albums"
                                 onPress={() => openAlbum(album)}
                                 onRightPress={() => openAlbum(album)}
@@ -852,8 +859,12 @@ export default function MusicFeedScreen() {
                         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.surfaceRow}>
                           {openRooms.map((room) => (
                             <TouchableOpacity key={room.id} activeOpacity={0.88} style={styles.roomCard} onPress={() => openGenre(room)}>
-                              <HTImage source={room.artwork} style={styles.roomImage} contentFit="cover" />
-                              <View style={styles.roomShade} />
+                              <HTImage
+                                source={resolveGroupArtworkSource(room)}
+                                style={styles.roomImage}
+                                contentFit="cover"
+                              />
+                              <View pointerEvents="none" style={styles.roomShade} />
                               <Text numberOfLines={1} style={styles.roomTitle}>{room.title}</Text>
                               <Text style={styles.roomSubtitle}>{room.subtitle}</Text>
                             </TouchableOpacity>
@@ -876,7 +887,7 @@ export default function MusicFeedScreen() {
                               <UnifiedMediaCard
                                 title={genre.title}
                                 subtitle={`${genre.songs.length} song${genre.songs.length === 1 ? "" : "s"}`}
-                                imageUri={genre.artwork}
+                                image={genre}
                                 rightIcon="sparkles"
                                 onPress={() => openGenre(genre)}
                                 onRightPress={() => openGenre(genre)}
@@ -1443,7 +1454,7 @@ const styles = StyleSheet.create({
   },
   roomShade: {
     ...StyleSheet.flatten(StyleSheet.absoluteFill),
-    backgroundColor: "rgba(0,0,0,0.48)",
+    backgroundColor: "rgba(0,0,0,0.28)",
   },
   roomTitle: {
     color: COLORS.text,

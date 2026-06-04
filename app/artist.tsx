@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -127,7 +127,12 @@ export default function ArtistScreen() {
 
             <LinearGradient colors={GRADIENTS.card} style={styles.hero}>
               <View style={styles.artistImageWrap}>
-                <HTImage uri={heroArtwork} candidates={tracks} style={styles.artistImage} contentFit="cover" />
+                <HTImage
+                  source={artist || { name: artistName, artwork: heroArtwork }}
+                  candidates={tracks}
+                  style={styles.artistImage}
+                  contentFit="cover"
+                />
               </View>
 
               <Text style={styles.kicker}>ARTIST</Text>

@@ -286,17 +286,7 @@ export default function PlaylistsScreen() {
         style={styles.card}
         onPress={() => openPlaylist(item)}
       >
-        {item.artwork ? (
-          <HTImage uri={item.artwork} style={styles.cover} contentFit="cover" />
-        ) : (
-          <View style={styles.placeholder}>
-            <Ionicons
-              name={smart ? "sparkles" : "musical-notes"}
-              size={34}
-              color={COLORS.textMuted}
-            />
-          </View>
-        )}
+        <HTImage source={item} style={styles.cover} contentFit="cover" />
 
         <View style={styles.info}>
           <View style={styles.titleRow}>
@@ -468,21 +458,7 @@ export default function PlaylistsScreen() {
                       style={styles.smartCard}
                       onPress={() => openPlaylist(item)}
                     >
-                      {item.artwork ? (
-                        <HTImage
-                          uri={item.artwork}
-                          style={styles.smartCover}
-                          contentFit="cover"
-                        />
-                      ) : (
-                        <View style={styles.smartPlaceholder}>
-                          <Ionicons
-                            name="sparkles"
-                            size={32}
-                            color={COLORS.textMuted}
-                          />
-                        </View>
-                      )}
+                      <HTImage source={item} style={styles.smartCover} contentFit="cover" />
 
                       <View style={styles.smartMiniBadge}>
                         <Ionicons name="sparkles" size={10} color="#000" />

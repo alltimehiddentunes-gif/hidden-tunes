@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -175,7 +175,12 @@ export default function GenreScreen() {
             <>
               <LinearGradient colors={GRADIENTS.card} style={styles.hero}>
                 <View style={styles.heroArtworkWrap}>
-                  <HTImage source={heroArtwork} candidates={tracks} style={styles.heroArtwork} contentFit="cover" />
+                  <HTImage
+                    source={{ title, genre: title, mood: title, artwork: heroArtwork }}
+                    candidates={tracks}
+                    style={styles.heroArtwork}
+                    contentFit="cover"
+                  />
                 </View>
                 <View style={styles.roomBadge}>
                   <Ionicons name={String(params.type || "genre") === "mood" ? "sparkles" : "radio"} size={13} color={COLORS.primaryGlow} />
@@ -242,7 +247,7 @@ export default function GenreScreen() {
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.albumRow}>
                     {artists.map((artist) => (
                       <TouchableOpacity key={artist.name} activeOpacity={0.86} style={styles.artistCard} onPress={() => openArtist(artist.name)}>
-                        <HTImage source={artist.artworkSource} style={styles.artistImage} contentFit="cover" />
+                        <HTImage source={artist.artworkSource} candidates={tracks} style={styles.artistImage} contentFit="cover" />
                         <Text style={styles.albumTitle} numberOfLines={1}>{artist.name}</Text>
                         <Text style={styles.albumArtist} numberOfLines={1}>{artist.songCount} song{artist.songCount === 1 ? "" : "s"}</Text>
                       </TouchableOpacity>

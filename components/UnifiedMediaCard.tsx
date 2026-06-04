@@ -6,7 +6,11 @@ import { Ionicons } from "@expo/vector-icons";
 
 import { COLORS, GRADIENTS } from "../constants/theme";
 import HTImage from "./HTImage";
-import { FALLBACK_ARTWORK } from "../utils/artwork";
+import {
+  FALLBACK_ARTWORK,
+  hasCatalogArtwork,
+  hasResolvableArtwork,
+} from "../utils/artwork";
 
 type Props = {
   title: string;
@@ -28,17 +32,20 @@ function UnifiedMediaCard({
   onRightPress,
 }: Props) {
   const source = useMemo(() => {
-    if (imageUri) return { uri: imageUri };
-    return image;
-  }, [image, imageUri]);
+    if (hasResolvableArtwork(image)) return image;
+    if (imageUri && hasCatalogArtwork(imageUri)) return { uri: imageUri, title };
+    if (image) return image;
+    return { title, mood: title };
+  }, [image, imageUri, title]);
 
   return (
     <TouchableOpacity activeOpacity={0.88} onPress={onPress} style={styles.wrap}>
       <LinearGradient colors={GRADIENTS.card} style={styles.card}>
         <View style={styles.imageWrap}>
           <HTImage
-            source={source || FALLBACK_ARTWORK}
-            style={source ? styles.image : styles.fallback}
+            source={source}
+            fallback={FALLBACK_ARTWORK}
+            style={styles.image}
             contentFit="cover"
           />
         </View>
@@ -89,18 +96,12 @@ const styles = StyleSheet.create({
     height: 58,
     borderRadius: 17,
     overflow: "hidden",
-    backgroundColor: COLORS.card,
+    backgroundColor: "rgba(168,85,247,0.1)",
   },
 
   image: {
     width: "100%",
     height: "100%",
-  },
-
-  fallback: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
   },
 
   textWrap: {

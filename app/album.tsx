@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -175,7 +175,16 @@ export default function AlbumScreen() {
 
       <View style={styles.albumHero}>
         <LinearGradient colors={GRADIENTS.card} style={styles.heroSurface}>
-        <HTImage uri={heroArtwork} candidates={tracks} style={styles.albumCover} contentFit="cover" />
+        <HTImage
+          source={{
+            title: album?.title || albumTitle,
+            artist: album?.artist || artistName,
+            artwork: album?.artwork || paramThumbnail || heroArtwork,
+          }}
+          candidates={tracks}
+          style={styles.albumCover}
+          contentFit="cover"
+        />
 
         <Text style={styles.kicker}>ALBUM</Text>
         <Text style={styles.albumTitle} numberOfLines={2}>{album?.title || albumTitle}</Text>

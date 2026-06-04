@@ -2,6 +2,7 @@ import { Image } from "react-native";
 
 const HIDDEN_TUNES_LOGO = require("../assets/images/logo.png");
 
+export const FALLBACK_ARTWORK_ASSET = HIDDEN_TUNES_LOGO;
 export const FALLBACK_ARTWORK = Image.resolveAssetSource(HIDDEN_TUNES_LOGO).uri;
 
 const EMPTY_URL_VALUES = new Set(["", "null", "undefined", "[object object]"]);
@@ -102,6 +103,22 @@ export function getArtworkCandidates(item: any, fallback = FALLBACK_ARTWORK): an
 
   if (!item) return [fallback];
 
+  if (Array.isArray(item)) {
+    for (const entry of item) {
+      getArtworkCandidates(entry, fallback).forEach((candidate) => {
+        pushArtworkCandidate(candidates, candidate);
+      });
+    }
+    const seen = new Set<string>();
+    const unique = candidates.filter((candidate) => {
+      const key = artworkCandidateKey(candidate);
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    return unique.length ? unique : [fallback];
+  }
+
   if (typeof item === "string") {
     pushArtworkCandidate(candidates, item);
     return candidates.length ? candidates : [fallback];
@@ -111,6 +128,8 @@ export function getArtworkCandidates(item: any, fallback = FALLBACK_ARTWORK): an
     return [item];
   }
 
+  const raw = item.raw && typeof item.raw === "object" ? item.raw : null;
+
   const rawCandidates = [
     item.artwork,
     item.artworkUrl,
@@ -118,6 +137,8 @@ export function getArtworkCandidates(item: any, fallback = FALLBACK_ARTWORK): an
     item.cover,
     item.coverUrl,
     item.cover_url,
+    item.albumArt,
+    item.album_art,
     item.albumArtwork,
     item.album_artwork,
     item.albumArtworkUrl,
@@ -163,7 +184,24 @@ export function getArtworkCandidates(item: any, fallback = FALLBACK_ARTWORK): an
     item.imageUrl,
     item.image_url,
     item.thumbnail,
+    item.thumbnailUrl,
+    item.thumbnail_url,
+    item.artistImage,
+    item.artistArtwork,
+    item.artist_artwork_image,
     item.albumCover,
+    raw?.artwork,
+    raw?.artworkUrl,
+    raw?.artwork_url,
+    raw?.cover,
+    raw?.coverUrl,
+    raw?.cover_url,
+    raw?.image,
+    raw?.imageUrl,
+    raw?.image_url,
+    raw?.thumbnail,
+    raw?.thumbnailUrl,
+    raw?.thumbnail_url,
     item.album_cover,
     item.albums?.artwork,
     item.albums?.artworkUrl,
@@ -181,6 +219,29 @@ export function getArtworkCandidates(item: any, fallback = FALLBACK_ARTWORK): an
   ];
 
   rawCandidates.forEach((candidate) => pushArtworkCandidate(candidates, candidate));
+
+  if (Array.isArray(item.songs)) {
+    item.songs.slice(0, 6).forEach((song: unknown) => {
+      getArtworkCandidates(song, fallback).forEach((candidate) => {
+        pushArtworkCandidate(candidates, candidate);
+      });
+    });
+  }
+
+  if (Array.isArray(item.tracks)) {
+    item.tracks.slice(0, 6).forEach((track: unknown) => {
+      getArtworkCandidates(track, fallback).forEach((candidate) => {
+        pushArtworkCandidate(candidates, candidate);
+      });
+    });
+  }
+
+  const primarySong = item.primarySong ?? item.primary_song;
+  if (primarySong) {
+    getArtworkCandidates(primarySong, fallback).forEach((candidate) => {
+      pushArtworkCandidate(candidates, candidate);
+    });
+  }
 
   const seen = new Set<string>();
   const uniqueCandidates = candidates.filter((candidate) => {
@@ -232,6 +293,41 @@ export function hasCatalogArtwork(
     value !== fallback &&
     !isArtworkUrlFailed(value)
   );
+}
+
+export function hasResolvableArtwork(
+  item: any,
+  fallback = FALLBACK_ARTWORK
+): boolean {
+  if (!item) return false;
+  return resolveArtwork(item, fallback).hasArtwork;
+}
+
+export function pickBestArtworkSong<T extends Record<string, unknown>>(
+  songs: T[] = []
+): T | null {
+  for (const song of songs) {
+    if (hasResolvableArtwork(song)) return song;
+  }
+  return songs[0] || null;
+}
+
+export function resolveGroupArtworkSource(group: {
+  title?: string;
+  type?: string;
+  artwork?: unknown;
+  songs?: any[];
+}) {
+  const primarySong = pickBestArtworkSong(group.songs || []);
+  if (primarySong) return primarySong;
+
+  return {
+    title: group.title,
+    mood: group.title,
+    type: group.type,
+    artwork: group.artwork,
+    songs: group.songs,
+  };
 }
 
 export function pickBestArtworkFromSongs(

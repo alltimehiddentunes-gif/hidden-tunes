@@ -38,7 +38,7 @@ import {
   usePlayerState,
 } from "../context/PlayerContext";
 import HTImage from "./HTImage";
-import { FALLBACK_ARTWORK, getArtworkValue } from "../utils/artwork";
+import { FALLBACK_ARTWORK } from "../utils/artwork";
 import { isFastScrolling } from "../utils/performanceMode";
 
 type YouTubeMini = {
@@ -118,7 +118,7 @@ const MiniPlayerArtwork = memo(function MiniPlayerArtwork({
   isPlaying,
   trackKey,
 }: {
-  cover?: string | null;
+  cover?: any;
   isYoutubeMode: boolean;
   isPlaying: boolean;
   trackKey: string;
@@ -165,6 +165,7 @@ const MiniPlayerArtwork = memo(function MiniPlayerArtwork({
           <HTImage
             key={trackKey}
             source={cover}
+            fallback={FALLBACK_ARTWORK}
             style={styles.cover}
             contentFit="cover"
           />
@@ -398,9 +399,17 @@ function MiniPlayer() {
   ]);
 
   const cover = useMemo(() => {
-    if (isYoutubeMode) return youtubeVideo?.thumbnail;
-    return getArtworkValue(currentSong);
-  }, [isYoutubeMode, youtubeVideo?.thumbnail, currentSong]);
+    if (isYoutubeMode) {
+      return youtubeVideo?.thumbnail
+        ? {
+            thumbnail: youtubeVideo.thumbnail,
+            image: youtubeVideo.thumbnail,
+            title: youtubeVideo.title,
+          }
+        : null;
+    }
+    return currentSong;
+  }, [isYoutubeMode, youtubeVideo, currentSong]);
 
   const trackKey = useMemo(() => {
     if (isYoutubeMode) return `yt-${youtubeVideo?.id || "none"}`;
