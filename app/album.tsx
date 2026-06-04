@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -46,6 +46,29 @@ function getTrackSortValue(track: HiddenTunesSong, fallbackIndex: number) {
   }
 
   return fallbackIndex + 10000;
+}
+
+
+function getSongDurationSeconds(song: HiddenTunesSong) {
+  const raw = (song as any).raw || {};
+  const value =
+    (song as any).duration ??
+    (song as any).durationSeconds ??
+    (song as any).duration_seconds ??
+    raw.duration ??
+    raw.durationSeconds ??
+    raw.duration_seconds;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return 0;
+  return parsed > 10000 ? Math.round(parsed / 1000) : Math.round(parsed);
+}
+
+function formatDuration(seconds?: number) {
+  if (!seconds || !Number.isFinite(seconds)) return "";
+  const total = Math.max(0, Math.floor(seconds));
+  const minutes = Math.floor(total / 60);
+  const secs = total % 60;
+  return `${minutes}:${secs < 10 ? "0" : ""}${secs}`;
 }
 
 function sortAlbumSongs(songs: HiddenTunesSong[]) {
@@ -105,6 +128,11 @@ export default function AlbumScreen() {
     return sorted;
   }, [album?.id, album?.songs, album?.title, albumTitle]);
 
+  const totalDuration = useMemo(
+    () => tracks.reduce((total, song) => total + getSongDurationSeconds(song), 0),
+    [tracks]
+  );
+
   const heroArtwork = useMemo(
     () =>
       resolveEntityArtwork(
@@ -142,12 +170,20 @@ export default function AlbumScreen() {
         </TouchableOpacity>
       </View>
 
+      <View pointerEvents="none" style={styles.glowPurple} />
+      <View pointerEvents="none" style={styles.glowCyan} />
+
       <View style={styles.albumHero}>
-        <HTImage uri={heroArtwork} style={styles.albumCover} contentFit="cover" />
+        <LinearGradient colors={GRADIENTS.card} style={styles.heroSurface}>
+        <HTImage uri={heroArtwork} candidates={tracks} style={styles.albumCover} contentFit="cover" />
 
         <Text style={styles.kicker}>ALBUM</Text>
         <Text style={styles.albumTitle} numberOfLines={2}>{album?.title || albumTitle}</Text>
         <Text style={styles.artist} numberOfLines={1}>{album?.artist || artistName}</Text>
+        <View style={styles.heroMetaRow}>
+          <Text style={styles.heroMetaPill}>{tracks.length} track{tracks.length === 1 ? "" : "s"}</Text>
+          <Text style={styles.heroMetaPill}>{totalDuration > 0 ? formatDuration(totalDuration) : "Catalog ready"}</Text>
+        </View>
 
         <View style={styles.actionRow}>
           <TouchableOpacity
@@ -157,13 +193,14 @@ export default function AlbumScreen() {
             onPress={() => tracks[0] && handlePlaySong(tracks[0], 0)}
           >
             <Ionicons name="play" size={18} color="#000" />
-            <Text style={styles.playButtonText}>Play First</Text>
+            <Text style={styles.playButtonText}>Play Album</Text>
           </TouchableOpacity>
 
           <TouchableOpacity activeOpacity={0.86} style={styles.secondaryButton} onPress={loadAlbumCatalog}>
             <Ionicons name="reload" size={18} color={COLORS.text} />
           </TouchableOpacity>
         </View>
+        </LinearGradient>
       </View>
 
       <View style={styles.sectionHeader}>
@@ -191,7 +228,10 @@ export default function AlbumScreen() {
               <Text style={styles.emptyText}>This album has no songs in the current catalog source.</Text>
             </View>
           }
-          renderItem={({ item, index }) => (
+          renderItem={({ item, index }) => {
+            const duration = getSongDurationSeconds(item);
+
+            return (
             <TouchableOpacity activeOpacity={0.86} style={styles.trackCard} onPress={() => handlePlaySong(item, index)}>
               <Text style={styles.rank}>{String(index + 1).padStart(2, "0")}</Text>
               <HTImage source={item} style={styles.cover} contentFit="cover" />
@@ -201,7 +241,7 @@ export default function AlbumScreen() {
                 <Text style={styles.trackArtist} numberOfLines={1}>{item.artist}</Text>
                 <View style={styles.metaRow}>
                   <Ionicons name="cloud-outline" size={13} color={COLORS.primary} />
-                  <Text style={styles.metaText}>Hidden Tunes</Text>
+                  <Text style={styles.metaText}>{duration ? formatDuration(duration) : "Hidden Tunes"}</Text>
                 </View>
               </View>
 
@@ -209,7 +249,8 @@ export default function AlbumScreen() {
                 <Ionicons name="play" size={16} color={COLORS.text} />
               </View>
             </TouchableOpacity>
-          )}
+            );
+          }}
         />
       )}
     </LinearGradient>
@@ -218,14 +259,19 @@ export default function AlbumScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  glowPurple: { position: "absolute", top: 40, left: -120, width: 280, height: 280, borderRadius: 140, backgroundColor: "rgba(168,85,247,0.18)" },
+  glowCyan: { position: "absolute", top: 330, right: -150, width: 320, height: 320, borderRadius: 160, backgroundColor: "rgba(34,211,238,0.1)" },
   header: { paddingTop: 64, paddingHorizontal: 20, flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   backButton: { width: 46, height: 46, borderRadius: 23, backgroundColor: "rgba(255,255,255,0.08)", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: COLORS.border },
   refreshButton: { width: 46, height: 46, borderRadius: 23, backgroundColor: "rgba(255,255,255,0.08)", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: COLORS.border },
-  albumHero: { alignItems: "center", paddingHorizontal: 24, paddingTop: 28, paddingBottom: 24 },
-  albumCover: { width: 210, height: 210, borderRadius: 34, backgroundColor: COLORS.card },
+  albumHero: { paddingHorizontal: 18, paddingTop: 24, paddingBottom: 24 },
+  heroSurface: { alignItems: "center", borderRadius: 30, padding: 18, borderWidth: 1, borderColor: "rgba(255,255,255,0.12)", overflow: "hidden" },
+  albumCover: { width: 216, height: 216, borderRadius: 34, backgroundColor: COLORS.card },
   kicker: { color: COLORS.primary, fontSize: 11, fontWeight: "900", letterSpacing: 2, marginTop: 22 },
   albumTitle: { color: COLORS.text, fontSize: 30, fontWeight: "900", textAlign: "center", marginTop: 8, lineHeight: 36 },
-  artist: { color: COLORS.textMuted, fontSize: 15, marginTop: 8 },
+  artist: { color: COLORS.primaryGlow, fontSize: 15, fontWeight: "800", marginTop: 8 },
+  heroMetaRow: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 8, marginTop: 13 },
+  heroMetaPill: { color: COLORS.textMuted, fontSize: 11, fontWeight: "900", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.07)", borderWidth: 1, borderColor: "rgba(255,255,255,0.1)", overflow: "hidden" },
   actionRow: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: 20 },
   playButton: { flexDirection: "row", alignItems: "center", backgroundColor: COLORS.primary, paddingHorizontal: 22, paddingVertical: 13, borderRadius: 999 },
   disabledPlayButton: { opacity: 0.45 },

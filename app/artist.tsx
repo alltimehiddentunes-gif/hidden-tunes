@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -26,6 +26,22 @@ import {
 
 function clean(value: string) {
   return String(value || "").trim().toLowerCase();
+}
+
+function getSongDurationSeconds(song: HiddenTunesSong) {
+  const raw = (song as any).raw || {};
+  const value = (song as any).duration ?? (song as any).durationSeconds ?? raw.duration ?? raw.durationSeconds;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return 0;
+  return parsed > 10000 ? Math.round(parsed / 1000) : Math.round(parsed);
+}
+
+function formatDuration(seconds?: number) {
+  if (!seconds || !Number.isFinite(seconds)) return "Hidden Tunes";
+  const total = Math.max(0, Math.floor(seconds));
+  const minutes = Math.floor(total / 60);
+  const secs = total % 60;
+  return `${minutes}:${secs < 10 ? "0" : ""}${secs}`;
 }
 
 export default function ArtistScreen() {
@@ -89,6 +105,9 @@ export default function ArtistScreen() {
 
   return (
     <LinearGradient colors={GRADIENTS.main} style={styles.container}>
+      <View pointerEvents="none" style={styles.glowPurple} />
+      <View pointerEvents="none" style={styles.glowCyan} />
+
       <FlatList
         data={tracks}
         keyExtractor={(item, index) => `${item.id}-${index}`}
@@ -106,13 +125,15 @@ export default function ArtistScreen() {
               </TouchableOpacity>
             </View>
 
-            <View style={styles.hero}>
-              <HTImage uri={heroArtwork} style={styles.artistImage} contentFit="cover" />
+            <LinearGradient colors={GRADIENTS.card} style={styles.hero}>
+              <View style={styles.artistImageWrap}>
+                <HTImage uri={heroArtwork} candidates={tracks} style={styles.artistImage} contentFit="cover" />
+              </View>
 
               <Text style={styles.kicker}>ARTIST</Text>
               <Text style={styles.artistName} numberOfLines={2}>{artist?.name || artistName}</Text>
-              <Text style={styles.subtitle} numberOfLines={1}>
-                {tracks.length} song{tracks.length === 1 ? "" : "s"} from the catalog
+              <Text style={styles.subtitle} numberOfLines={2}>
+                {tracks.length} song{tracks.length === 1 ? "" : "s"} • {albums.length} album{albums.length === 1 ? "" : "s"} • Hidden Tunes catalog
               </Text>
 
               <View style={styles.actionRow}>
@@ -123,10 +144,10 @@ export default function ArtistScreen() {
                   onPress={() => tracks[0] && handlePlaySong(tracks[0], 0)}
                 >
                   <Ionicons name="play" size={18} color="#000" />
-                  <Text style={styles.playButtonText}>Play Top Song</Text>
+                  <Text style={styles.playButtonText}>Play Artist</Text>
                 </TouchableOpacity>
               </View>
-            </View>
+            </LinearGradient>
 
             {loading ? (
               <View style={styles.loader}>
@@ -145,7 +166,7 @@ export default function ArtistScreen() {
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.albumRow}>
                       {albums.map((album) => (
                         <TouchableOpacity key={album.id} activeOpacity={0.86} style={styles.albumCard} onPress={() => openAlbum(album)}>
-                          <HTImage source={album} style={styles.albumCover} contentFit="cover" />
+                          <HTImage source={album} candidates={album.songs} style={styles.albumCover} contentFit="cover" />
                           <Text style={styles.albumTitle} numberOfLines={2}>{album.title}</Text>
                           <Text style={styles.albumArtist} numberOfLines={1}>{album.artist}</Text>
                         </TouchableOpacity>
@@ -173,6 +194,7 @@ export default function ArtistScreen() {
         }
         renderItem={({ item, index }) => {
           if (loading) return null;
+          const duration = getSongDurationSeconds(item);
 
           return (
             <TouchableOpacity activeOpacity={0.86} style={styles.trackCard} onPress={() => handlePlaySong(item, index)}>
@@ -184,7 +206,7 @@ export default function ArtistScreen() {
                 <Text style={styles.trackArtist} numberOfLines={1}>{item.artist}</Text>
                 <View style={styles.metaRow}>
                   <Ionicons name="cloud-outline" size={13} color={COLORS.primary} />
-                  <Text style={styles.metaText}>Hidden Tunes</Text>
+                  <Text style={styles.metaText}>{formatDuration(duration)}</Text>
                 </View>
               </View>
 
@@ -201,6 +223,8 @@ export default function ArtistScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  glowPurple: { position: "absolute", top: 40, left: -120, width: 280, height: 280, borderRadius: 140, backgroundColor: "rgba(168,85,247,0.18)" },
+  glowCyan: { position: "absolute", top: 330, right: -150, width: 320, height: 320, borderRadius: 160, backgroundColor: "rgba(34,211,238,0.1)" },
   listContent: { paddingHorizontal: 20, paddingTop: 60, paddingBottom: 165 },
   topBar: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   iconButton: {
@@ -213,18 +237,19 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.border,
   },
-  hero: { alignItems: "center", paddingTop: 26, paddingBottom: 28 },
+  hero: { alignItems: "center", paddingHorizontal: 18, paddingTop: 22, paddingBottom: 24, borderRadius: 30, borderWidth: 1, borderColor: "rgba(255,255,255,0.12)", overflow: "hidden", marginTop: 18, marginBottom: 24 },
+  artistImageWrap: { width: 196, height: 196, borderRadius: 98, padding: 4, backgroundColor: "rgba(255,255,255,0.08)", borderWidth: 1, borderColor: "rgba(255,255,255,0.12)" },
   artistImage: {
-    width: 190,
-    height: 190,
-    borderRadius: 95,
+    width: "100%",
+    height: "100%",
+    borderRadius: 94,
     backgroundColor: COLORS.card,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.12)",
   },
   kicker: { color: COLORS.primary, fontSize: 11, fontWeight: "900", letterSpacing: 2, marginTop: 22 },
   artistName: { color: COLORS.text, fontSize: 34, fontWeight: "900", textAlign: "center", marginTop: 8, lineHeight: 40 },
-  subtitle: { color: COLORS.textMuted, fontSize: 14, marginTop: 8 },
+  subtitle: { color: COLORS.textMuted, fontSize: 13, fontWeight: "700", marginTop: 10, textAlign: "center", lineHeight: 19 },
   actionRow: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: 20 },
   playButton: { flexDirection: "row", alignItems: "center", backgroundColor: COLORS.primary, paddingHorizontal: 22, paddingVertical: 13, borderRadius: 999 },
   disabledPlayButton: { opacity: 0.45 },
