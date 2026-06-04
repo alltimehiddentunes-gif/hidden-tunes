@@ -53,6 +53,14 @@ import {
 } from "../services/universalSearchService";
 import type { HiddenTunesGenre } from "../utils/genres";
 import { UNIVERSAL_SEARCH_EMPTY_SUGGESTIONS } from "../utils/universalSearch";
+import {
+  buildRelatedInternalDiscovery,
+  buildSearchStations,
+  hasInternalGroupedResults,
+  songsFromSearchHits,
+  type SearchStationResult,
+} from "../utils/searchApkParity";
+import { logSearchDiagnostic } from "../utils/searchDiagnostics";
 import { markFastScrolling } from "../utils/performanceMode";
 
 const EMPTY_SEARCH_RESULTS = EMPTY_UNIVERSAL_SEARCH_RESULTS;
@@ -339,16 +347,24 @@ export default function SearchScreen() {
     };
   }, [backendSearchQuery, backendSearchSongs, cleanSubmittedSearchQuery]);
 
-  const audioSearchBeforeExternal = useMemo(
+  const internalSearchResults = useMemo(
     () => mergeGroupedSearchResults(localSearchResults, backendSearchResults),
     [backendSearchResults, localSearchResults]
+  );
+
+  const hasInternalCatalogResults = useMemo(
+    () => hasInternalGroupedResults(internalSearchResults),
+    [internalSearchResults]
   );
 
   const backendSearchPendingForQuery =
     shouldRunBackendSearch && backendSearchCompletedQuery !== cleanSubmittedSearchQuery;
 
   const shouldRunExternalSearch =
-    cleanSubmittedSearchQuery.length >= 2 && !loading && !backendSearchPendingForQuery;
+    cleanSubmittedSearchQuery.length >= 2 &&
+    !loading &&
+    !backendSearchPendingForQuery &&
+    !hasInternalCatalogResults;
 
   useEffect(() => {
     const query = cleanSubmittedSearchQuery;
@@ -406,8 +422,8 @@ export default function SearchScreen() {
   }, [cleanSubmittedSearchQuery, externalSearchQuery, externalSearchSongs]);
 
   const audioSearchResults = useMemo(
-    () => mergeGroupedSearchResults(audioSearchBeforeExternal, externalSearchResults),
-    [audioSearchBeforeExternal, externalSearchResults]
+    () => mergeGroupedSearchResults(internalSearchResults, externalSearchResults),
+    [internalSearchResults, externalSearchResults]
   );
 
   const externalSearchPendingForQuery =
@@ -484,68 +500,144 @@ export default function SearchScreen() {
   );
 
   const searchResultSongs = useMemo(() => {
-    const seen = new Set<string>();
-    const collected: HiddenTunesSong[] = [];
-
-    [
-      ...audioSearchResults.topResults,
-      ...audioSearchResults.songs,
-      ...audioSearchResults.lyrics,
-      ...audioSearchResults.internetAudio,
-    ].forEach(
-      (hit) => {
-        if (!hit.id.startsWith("song:") && !hit.id.startsWith("lyric:")) return;
-        const song = hit.payload as HiddenTunesSong;
-        const id = String(song?.id || "");
-        if (!id || seen.has(id)) return;
-        seen.add(id);
-        collected.push(song);
-      }
-    );
-
-    return collected;
-  }, [audioSearchResults]);
+    const internalSongs = songsFromSearchHits(internalSearchResults);
+    const merged = dedupeSongs([
+      ...internalSongs,
+      ...songs.filter((song) => textMatchesQuery(catalogSongSearchText(song), cleanSubmittedSearchQuery)),
+    ]);
+    return merged;
+  }, [cleanSubmittedSearchQuery, internalSearchResults, songs]);
 
 
   const apkSongResults = useMemo(() => {
     if (cleanSubmittedSearchQuery.length < 2) return [] as HiddenTunesSong[];
-    const localMatches = songs.filter((song) => textMatchesQuery(catalogSongSearchText(song), cleanSubmittedSearchQuery));
-    const merged = dedupeSongs([...searchResultSongs, ...localMatches]);
-    return merged.slice(0, 36);
+    const direct = dedupeSongs(searchResultSongs);
+    const needsRelated = direct.length < 4;
+    const related = needsRelated
+      ? buildRelatedInternalDiscovery(cleanSubmittedSearchQuery, songs, direct, 28)
+      : [];
+    return dedupeSongs([...direct, ...related]).slice(0, 36);
   }, [cleanSubmittedSearchQuery, searchResultSongs, songs]);
 
   const apkAlbumResults = useMemo(() => {
     if (cleanSubmittedSearchQuery.length < 2) return [] as HiddenTunesAlbumCatalogItem[];
-    return albums
-      .filter((album) => textMatchesQuery(`${album.title} ${album.artist}`, cleanSubmittedSearchQuery))
+    const fromSearch = internalSearchResults.albums
+      .map((hit) => {
+        const album = hit.payload;
+        return albums.find((item) => item.id === album.id) || {
+          id: album.id,
+          title: album.title,
+          artist: album.artist,
+          artwork: album.artwork,
+          songs: (album.tracks || []) as HiddenTunesSong[],
+        };
+      })
+      .filter(Boolean) as HiddenTunesAlbumCatalogItem[];
+    const fromCatalog = albums.filter((album) =>
+      textMatchesQuery(`${album.title} ${album.artist}`, cleanSubmittedSearchQuery)
+    );
+    const seen = new Set<string>();
+    return [...fromSearch, ...fromCatalog]
+      .filter((album) => {
+        const key = String(album.id || `${album.title}-${album.artist}`);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
       .slice(0, 12);
-  }, [albums, cleanSubmittedSearchQuery]);
+  }, [albums, cleanSubmittedSearchQuery, internalSearchResults.albums]);
 
   const apkArtistResults = useMemo(() => {
     if (cleanSubmittedSearchQuery.length < 2) return [] as HiddenTunesArtistCatalogItem[];
-    return artists
-      .filter((artist) => textMatchesQuery(artist.name, cleanSubmittedSearchQuery))
+    const fromSearch = internalSearchResults.artists
+      .map((hit) => artists.find((item) => item.id === hit.payload.id) || null)
+      .filter(Boolean) as HiddenTunesArtistCatalogItem[];
+    const fromCatalog = artists.filter((artist) =>
+      textMatchesQuery(artist.name, cleanSubmittedSearchQuery)
+    );
+    const seen = new Set<string>();
+    return [...fromSearch, ...fromCatalog]
+      .filter((artist) => {
+        const key = String(artist.id || artist.name);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
       .slice(0, 12);
-  }, [artists, cleanSubmittedSearchQuery]);
+  }, [artists, cleanSubmittedSearchQuery, internalSearchResults.artists]);
 
-  const apkGenreResults = useMemo(() => {
+  const apkRoomResults = useMemo(() => {
     if (cleanSubmittedSearchQuery.length < 2) return [] as HiddenTunesGenreCatalogItem[];
-    return genres
-      .filter((genre) => textMatchesQuery(genre.title, cleanSubmittedSearchQuery))
+    const fromCatalog = genres.filter((genre) =>
+      textMatchesQuery(genre.title, cleanSubmittedSearchQuery)
+    );
+    const roomTitles = internalSearchResults.moodRooms.map((hit) => hit.payload.title);
+    const fromRooms = roomTitles
+      .map((title) => genres.find((genre) => textMatchesQuery(genre.title, title)) || null)
+      .filter(Boolean) as HiddenTunesGenreCatalogItem[];
+    const seen = new Set<string>();
+    return [...fromCatalog, ...fromRooms]
+      .filter((genre) => {
+        const key = String(genre.id || genre.title);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
       .slice(0, 12);
-  }, [cleanSubmittedSearchQuery, genres]);
+  }, [cleanSubmittedSearchQuery, genres, internalSearchResults.moodRooms]);
+
+  const apkPlaylistResults = useMemo(() => {
+    if (cleanSubmittedSearchQuery.length < 2) return [] as HiddenTunesDerivedCatalog["playlists"];
+    return internalSearchResults.playlists
+      .map((hit) => playlists.find((item) => item.id === hit.payload.id) || hit.payload)
+      .slice(0, 10);
+  }, [cleanSubmittedSearchQuery, internalSearchResults.playlists, playlists]);
+
+  const apkStationResults = useMemo(() => {
+    if (cleanSubmittedSearchQuery.length < 2) return [] as SearchStationResult[];
+    const moodRooms = internalSearchResults.moodRooms.map((hit) => ({
+      id: hit.payload.id,
+      title: hit.payload.title,
+    }));
+    return buildSearchStations(cleanSubmittedSearchQuery, genres, moodRooms);
+  }, [cleanSubmittedSearchQuery, genres, internalSearchResults.moodRooms]);
 
   const apkExternalAudioResults = useMemo(() => {
-    if (apkSongResults.length || apkAlbumResults.length || apkArtistResults.length || apkGenreResults.length) {
+    const hasInternalApk =
+      apkSongResults.length > 0 ||
+      apkAlbumResults.length > 0 ||
+      apkArtistResults.length > 0 ||
+      apkRoomResults.length > 0 ||
+      apkPlaylistResults.length > 0 ||
+      apkStationResults.length > 0;
+
+    if (hasInternalApk || hasInternalCatalogResults) {
       return [] as HiddenTunesSong[];
     }
+
     return audioSearchResults.internetAudio
       .map((hit) => hit.payload as HiddenTunesSong)
       .filter(Boolean)
       .slice(0, SEARCH_EXTERNAL_AUDIO_LIMIT);
-  }, [apkAlbumResults.length, apkArtistResults.length, apkGenreResults.length, apkSongResults.length, audioSearchResults.internetAudio]);
+  }, [
+    apkAlbumResults.length,
+    apkArtistResults.length,
+    apkPlaylistResults.length,
+    apkRoomResults.length,
+    apkSongResults.length,
+    apkStationResults.length,
+    audioSearchResults.internetAudio,
+    hasInternalCatalogResults,
+  ]);
 
-  const apkResultCount = apkSongResults.length + apkAlbumResults.length + apkArtistResults.length + apkGenreResults.length + apkExternalAudioResults.length;
+  const apkResultCount =
+    apkSongResults.length +
+    apkAlbumResults.length +
+    apkArtistResults.length +
+    apkRoomResults.length +
+    apkPlaylistResults.length +
+    apkStationResults.length +
+    apkExternalAudioResults.length;
 
   const hasSearchText = searchQuery.trim().length > 0;
   const cleanSearchQuery = searchQuery.trim();
@@ -590,10 +682,16 @@ export default function SearchScreen() {
   }, [favorites, recentlyPlayed, songs]);
 
   const playSearchResultSong = useCallback(
-    (song: HiddenTunesSong) => {
+    (song: HiddenTunesSong, resultType: string = "song") => {
       const queue = apkSongResults.length ? apkSongResults : searchResultSongs.length ? searchResultSongs : songs;
       const queueIndex = findSongIndex(queue, song);
       const queueSong = queueIndex >= 0 ? queue[queueIndex] : song;
+
+      logSearchDiagnostic("search_result_tapped", {
+        resultType,
+        songId: queueSong.id,
+        query: cleanSubmittedSearchQuery,
+      });
 
       void playSong(queueSong, queue, Math.max(queueIndex, 0), {
         source: "search",
@@ -603,14 +701,26 @@ export default function SearchScreen() {
         genre: queueSong.genre,
         mood: queueSong.mood,
       });
-      router.push("/player" as any);
     },
-    [apkSongResults, playSong, searchQuery, searchResultSongs, songs, submittedSearchQuery]
+    [
+      apkSongResults,
+      cleanSubmittedSearchQuery,
+      playSong,
+      searchQuery,
+      searchResultSongs,
+      songs,
+      submittedSearchQuery,
+    ]
   );
 
   const playDiscoverySong = useCallback(
     (song: HiddenTunesSong, label: string) => {
       const queueIndex = findSongIndex(songs, song);
+      logSearchDiagnostic("search_result_tapped", {
+        resultType: "discovery_song",
+        songId: song.id,
+        query: label,
+      });
       void playSong(song, songs, Math.max(queueIndex, 0), {
         source: "search",
         label,
@@ -618,16 +728,68 @@ export default function SearchScreen() {
         genre: song.genre,
         mood: song.mood,
       });
-      router.push("/player" as any);
     },
     [playSong, songs]
   );
 
+  const startSearchStation = useCallback(
+    (station: SearchStationResult) => {
+      logSearchDiagnostic("search_result_tapped", {
+        resultType: "station",
+        stationId: station.id,
+        title: station.title,
+        query: cleanSubmittedSearchQuery,
+      });
+
+      const tracks = station.tracks.length
+        ? station.tracks
+        : songs.filter((song) =>
+            textMatchesQuery(
+              [song.title, song.artist, song.genre, song.mood].join(" "),
+              station.title
+            )
+          );
+
+      if (tracks.length) {
+        void playSong(tracks[0], tracks, 0, {
+          source: "radio",
+          label: station.title,
+          genre: tracks[0].genre || station.title,
+          mood: tracks[0].mood,
+        });
+        return;
+      }
+
+      router.push({
+        pathname: "/genre",
+        params: {
+          title: station.title,
+          query: station.title,
+          id: station.id,
+          type: station.kind === "room" ? "mood" : "genre",
+        },
+      } as any);
+    },
+    [cleanSubmittedSearchQuery, playSong, songs]
+  );
+
   const openArtist = useCallback((artist: HiddenTunesArtistCatalogItem | HiddenTunesArtist) => {
+    logSearchDiagnostic("search_result_tapped", {
+      resultType: "artist",
+      artistId: artist.id,
+      title: artist.name,
+      query: cleanSubmittedSearchQuery,
+    });
     router.push({ pathname: "/artist", params: { artist: artist.name } } as any);
-  }, []);
+  }, [cleanSubmittedSearchQuery]);
 
   const openAlbum = useCallback((album: HiddenTunesAlbumCatalogItem | HiddenTunesAlbum) => {
+    logSearchDiagnostic("search_result_tapped", {
+      resultType: "album",
+      albumId: album.id,
+      title: album.title,
+      query: cleanSubmittedSearchQuery,
+    });
     router.push({
       pathname: "/album",
       params: {
@@ -636,9 +798,15 @@ export default function SearchScreen() {
         thumbnail: album.artwork,
       },
     } as any);
-  }, []);
+  }, [cleanSubmittedSearchQuery]);
 
   const openPlaylist = useCallback((playlist: HiddenTunesDerivedCatalog["playlists"][number]) => {
+    logSearchDiagnostic("search_result_tapped", {
+      resultType: "playlist",
+      playlistId: playlist.id,
+      title: playlist.title,
+      query: cleanSubmittedSearchQuery,
+    });
     if (playlist.routeParams) {
       const params = playlist.routeParams;
       if (params.album && params.artist) {
@@ -671,9 +839,15 @@ export default function SearchScreen() {
     }
 
     router.push("/playlists" as any);
-  }, []);
+  }, [cleanSubmittedSearchQuery]);
 
   const openGenre = useCallback((genre: HiddenTunesGenreCatalogItem | HiddenTunesGenre) => {
+    logSearchDiagnostic("search_result_tapped", {
+      resultType: "room",
+      genreId: genre.id,
+      title: genre.title,
+      query: cleanSubmittedSearchQuery,
+    });
     router.push({
       pathname: "/genre",
       params: {
@@ -683,7 +857,7 @@ export default function SearchScreen() {
         type: "genre",
       },
     } as any);
-  }, []);
+  }, [cleanSubmittedSearchQuery]);
 
   const openTv = useCallback((video: any) => {
     router.push({
@@ -708,6 +882,73 @@ export default function SearchScreen() {
     setSearchQuery(text);
     setSubmittedSearchQuery(text);
   }, []);
+
+  const lastSearchDiagnosticsKeyRef = useRef("");
+
+  useEffect(() => {
+    if (cleanSubmittedSearchQuery.length < 2) return;
+    logSearchDiagnostic("search_started", { query: cleanSubmittedSearchQuery });
+  }, [cleanSubmittedSearchQuery]);
+
+  useEffect(() => {
+    if (!showSearchResults || cleanSubmittedSearchQuery.length < 2) return;
+
+    const diagnosticsKey = [
+      cleanSubmittedSearchQuery,
+      apkResultCount,
+      apkSongResults.length,
+      apkAlbumResults.length,
+      apkArtistResults.length,
+      apkRoomResults.length,
+      apkStationResults.length,
+      apkPlaylistResults.length,
+      apkExternalAudioResults.length,
+    ].join(":");
+
+    if (lastSearchDiagnosticsKeyRef.current === diagnosticsKey) return;
+    lastSearchDiagnosticsKeyRef.current = diagnosticsKey;
+
+    logSearchDiagnostic("search_internal_catalog_results", {
+      query: cleanSubmittedSearchQuery,
+      hasInternal: hasInternalCatalogResults,
+      songHits: internalSearchResults.songs.length,
+      albumHits: internalSearchResults.albums.length,
+      artistHits: internalSearchResults.artists.length,
+      roomHits: internalSearchResults.moodRooms.length,
+      playlistHits: internalSearchResults.playlists.length,
+    });
+    logSearchDiagnostic("search_song_results", { count: apkSongResults.length, query: cleanSubmittedSearchQuery });
+    logSearchDiagnostic("search_album_results", { count: apkAlbumResults.length, query: cleanSubmittedSearchQuery });
+    logSearchDiagnostic("search_artist_results", { count: apkArtistResults.length, query: cleanSubmittedSearchQuery });
+    logSearchDiagnostic("search_room_results", { count: apkRoomResults.length, query: cleanSubmittedSearchQuery });
+    logSearchDiagnostic("search_station_results", { count: apkStationResults.length, query: cleanSubmittedSearchQuery });
+    if (apkExternalAudioResults.length > 0) {
+      logSearchDiagnostic("search_external_fallback_used", {
+        query: cleanSubmittedSearchQuery,
+        count: apkExternalAudioResults.length,
+      });
+    }
+    if (apkResultCount === 0) {
+      logSearchDiagnostic("search_empty_state_shown", { query: cleanSubmittedSearchQuery });
+    }
+  }, [
+    apkAlbumResults.length,
+    apkArtistResults.length,
+    apkExternalAudioResults.length,
+    apkPlaylistResults.length,
+    apkResultCount,
+    apkRoomResults.length,
+    apkSongResults.length,
+    apkStationResults.length,
+    cleanSubmittedSearchQuery,
+    hasInternalCatalogResults,
+    internalSearchResults.albums.length,
+    internalSearchResults.artists.length,
+    internalSearchResults.moodRooms.length,
+    internalSearchResults.playlists.length,
+    internalSearchResults.songs.length,
+    showSearchResults,
+  ]);
 
   const clearSearch = useCallback(() => {
     setSearchQuery("");
@@ -752,7 +993,7 @@ export default function SearchScreen() {
                 onImmediateChange={handleSearchImmediateChange}
                 onDebouncedChange={setSubmittedSearchQuery}
                 onClear={clearSearch}
-                placeholder="Search songs, artists, albums, lyrics"
+                placeholder="Find music"
                 placeholderTextColor={COLORS.textMuted}
                 style={styles.searchInput}
                 containerStyle={styles.searchInputShell}
@@ -781,7 +1022,7 @@ export default function SearchScreen() {
                     <Text style={styles.sectionEyebrow}>RESULTS</Text>
                     <Text style={styles.sectionTitle}>{apkResultCount} match{apkResultCount === 1 ? "" : "es"}</Text>
                   </View>
-                  {apkExternalAudioResults.length > 0 ? <Text style={styles.fallbackBadge}>Internet fallback</Text> : null}
+                  {apkExternalAudioResults.length > 0 ? <Text style={styles.fallbackBadge}>More to discover</Text> : null}
                 </View>
 
                 {apkSongResults.length > 0 ? (
@@ -794,7 +1035,7 @@ export default function SearchScreen() {
                           key={`song-${song.id}-${index}`}
                           activeOpacity={0.86}
                           style={[styles.songRow, active && styles.songRowActive]}
-                          onPress={() => playSearchResultSong(song)}
+                          onPress={() => playSearchResultSong(song, "song")}
                         >
                           <LinearGradient colors={active ? GRADIENTS.neon : GRADIENTS.card} style={styles.coverBorder}>
                             <HTImage source={song} style={styles.cover} contentFit="cover" />
@@ -847,11 +1088,11 @@ export default function SearchScreen() {
                   </View>
                 ) : null}
 
-                {apkGenreResults.length > 0 ? (
+                {apkRoomResults.length > 0 ? (
                   <View style={styles.sectionBlock}>
                     <Text style={styles.sectionEyebrow}>GENRES / ROOMS</Text>
                     <View style={styles.roomGrid}>
-                      {apkGenreResults.map((genre) => (
+                      {apkRoomResults.map((genre) => (
                         <TouchableOpacity key={genre.id} activeOpacity={0.86} style={styles.roomCard} onPress={() => openGenre(genre)}>
                           <HTImage source={genre} style={styles.roomImage} contentFit="cover" />
                           <LinearGradient pointerEvents="none" colors={["transparent", "rgba(0,0,0,0.74)"]} style={styles.roomShade} />
@@ -863,6 +1104,48 @@ export default function SearchScreen() {
                   </View>
                 ) : null}
 
+                {apkStationResults.length > 0 ? (
+                  <View style={styles.sectionBlock}>
+                    <Text style={styles.sectionEyebrow}>STATIONS / RADIO</Text>
+                    <View style={styles.roomGrid}>
+                      {apkStationResults.map((station) => (
+                        <TouchableOpacity
+                          key={`station-${station.id}`}
+                          activeOpacity={0.86}
+                          style={styles.roomCard}
+                          onPress={() => startSearchStation(station)}
+                        >
+                          <LinearGradient colors={GRADIENTS.card} style={styles.stationArt}>
+                            <Ionicons name="radio" size={28} color={COLORS.primaryGlow} />
+                          </LinearGradient>
+                          <Text numberOfLines={1} style={styles.roomTitle}>{station.title}</Text>
+                          <Text style={styles.roomMeta}>{station.subtitle}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                ) : null}
+
+                {apkPlaylistResults.length > 0 ? (
+                  <View style={styles.sectionBlock}>
+                    <Text style={styles.sectionEyebrow}>PLAYLISTS</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rail}>
+                      {apkPlaylistResults.map((playlist) => (
+                        <TouchableOpacity
+                          key={playlist.id}
+                          activeOpacity={0.88}
+                          style={styles.albumCard}
+                          onPress={() => openPlaylist(playlist)}
+                        >
+                          <HTImage source={playlist} style={styles.albumImage} contentFit="cover" />
+                          <Text numberOfLines={2} style={styles.albumTitle}>{playlist.title}</Text>
+                          <Text numberOfLines={1} style={styles.albumArtist}>{playlist.description || "Collection"}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                ) : null}
+
                 {apkExternalAudioResults.length > 0 ? (
                   <View style={styles.sectionBlock}>
                     <Text style={styles.sectionEyebrow}>INTERNET AUDIO</Text>
@@ -871,7 +1154,7 @@ export default function SearchScreen() {
                         key={`external-${song.id}-${index}`}
                         activeOpacity={0.86}
                         style={styles.songRow}
-                        onPress={() => playSearchResultSong(song)}
+                        onPress={() => playSearchResultSong(song, "external")}
                       >
                         <LinearGradient colors={GRADIENTS.card} style={styles.coverBorder}>
                           <HTImage source={song} style={styles.cover} contentFit="cover" />
@@ -893,7 +1176,7 @@ export default function SearchScreen() {
                   <View style={styles.emptyPanel}>
                     <Ionicons name="search" size={34} color={COLORS.primaryGlow} />
                     <Text style={styles.emptyTitle}>No matches yet</Text>
-                    <Text style={styles.emptyText}>Try a song, artist, album, genre, room, or lyric phrase.</Text>
+                    <Text style={styles.emptyText}>Try another artist, album, genre, or mood.</Text>
                   </View>
                 ) : null}
               </View>
@@ -1259,6 +1542,12 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "900",
     zIndex: 2,
+  },
+  stationArt: {
+    ...StyleSheet.flatten(StyleSheet.absoluteFill),
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(168,85,247,0.12)",
   },
   roomMeta: {
     color: COLORS.textMuted,

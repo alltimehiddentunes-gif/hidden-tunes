@@ -70,6 +70,7 @@ import {
 } from "@/utils/artwork";
 import {
   getListPerformanceSettings,
+  isAppActiveForWork,
   markFastScrolling,
 } from "@/utils/performanceMode";
 import { TESTER_COPY } from "@/constants/testerExperience";
@@ -629,6 +630,7 @@ export default function MusicFeedScreen() {
     let timer: ReturnType<typeof setInterval> | null = null;
     const interaction = InteractionManager.runAfterInteractions(() => {
       timer = setInterval(() => {
+        if (!isAppActiveForWork()) return;
         setHeroIndex((current) => {
           const next = (current + 1) % heroCards.length;
           heroIndexRef.current = next;

@@ -329,18 +329,51 @@ export function getArtworkCandidates(item: any, fallback = FALLBACK_ARTWORK): an
   return resolved;
 }
 
+const RESOLVE_ARTWORK_CACHE_MAX = 256;
+const resolveArtworkCache = new Map<string, {
+  value: any;
+  uri: any;
+  source: string;
+  candidates: any[];
+  hasArtwork: boolean;
+}>();
+
+function artworkResolveCacheKey(item: any, fallback: string) {
+  if (!item || typeof item !== "object") {
+    return `scalar:${String(item || "")}:${fallback}`;
+  }
+  return [
+    String(item.id || ""),
+    String(item.title || item.name || ""),
+    String(item.artist || item.channelTitle || ""),
+    String(item.artwork || item.cover || item.thumbnail || ""),
+    fallback,
+  ].join("|");
+}
+
 export function resolveArtwork(item: any, fallback = FALLBACK_ARTWORK) {
+  const cacheKey = artworkResolveCacheKey(item, fallback);
+  const cached = resolveArtworkCache.get(cacheKey);
+  if (cached) return cached;
+
   const candidates = getArtworkCandidates(item, fallback);
   const value = candidates[0] || fallback;
   const source = value === fallback ? "fallback_logo" : "catalog";
 
-  return {
+  const resolvedPayload = {
     value,
     uri: typeof value === "string" ? value : fallback,
     source,
     candidates,
     hasArtwork: value !== fallback,
   };
+
+  if (resolveArtworkCache.size >= RESOLVE_ARTWORK_CACHE_MAX) {
+    const oldest = resolveArtworkCache.keys().next().value;
+    if (oldest) resolveArtworkCache.delete(oldest);
+  }
+  resolveArtworkCache.set(cacheKey, resolvedPayload);
+  return resolvedPayload;
 }
 
 export function getArtworkValue(item: any, fallback = FALLBACK_ARTWORK): any {

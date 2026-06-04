@@ -7,6 +7,7 @@ import React, {
   useState,
 } from "react";
 import {
+  AppState,
   LayoutChangeEvent,
   Pressable,
   StyleSheet,
@@ -34,6 +35,9 @@ import Animated, {
 } from "react-native-reanimated";
 
 import { COLORS, GRADIENTS, LUXURY_GLOW } from "../constants/theme";
+import { logPlaybackUxSync } from "../utils/playbackDiagnostics";
+import { createTapGuard } from "../utils/tapGuard";
+import { isAppActiveForWork } from "../utils/performanceMode";
 import {
   usePlayerActions,
   usePlayerProgress,
@@ -344,6 +348,8 @@ function MiniPlayer() {
   const [youtubeVideo, setYoutubeVideo] = useState<YouTubeMini | null>(null);
 
   const mountedRef = useRef(true);
+  const tapGuardRef = useRef(createTapGuard(420));
+  const appActiveRef = useRef(AppState.currentState === "active");
   const lastYouTubeJsonRef = useRef<string | null>(null);
 
   const loadYouTubeMini = useCallback(async () => {
@@ -378,17 +384,33 @@ function MiniPlayer() {
   }, []);
 
   useEffect(() => {
+    const subscription = AppState.addEventListener("change", (state) => {
+      appActiveRef.current = state === "active";
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
+  useEffect(() => {
     mountedRef.current = true;
 
-    loadYouTubeMini();
+    if (isAppActiveForWork()) {
+      void loadYouTubeMini();
+    }
 
-    const timer = setInterval(loadYouTubeMini, YOUTUBE_POLL_MS);
+    const timer = setInterval(() => {
+      if (!mountedRef.current || !isAppActiveForWork()) return;
+      if (currentSong) return;
+      void loadYouTubeMini();
+    }, YOUTUBE_POLL_MS);
 
     return () => {
       mountedRef.current = false;
       clearInterval(timer);
     };
-  }, [loadYouTubeMini]);
+  }, [currentSong, loadYouTubeMini]);
 
   const isYoutubeMode = !currentSong && !!youtubeVideo;
 
@@ -459,12 +481,14 @@ function MiniPlayer() {
   }, [isYoutubeMode, youtubeVideo]);
 
   const handleMainButton = useCallback(async () => {
+    if (!tapGuardRef.current("mini_main_button")) return;
+
     if (isYoutubeMode) {
       openPlayer();
       return;
     }
 
-    await togglePlayPause();
+    void togglePlayPause();
   }, [isYoutubeMode, openPlayer, togglePlayPause]);
 
   const handlePrevious = useCallback(() => {
@@ -507,11 +531,23 @@ function MiniPlayer() {
     shellScale.value = withSpring(1, { damping: 16, stiffness: 340 });
   }, [shellScale]);
 
+  const lastMiniSyncSongIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!currentSong?.id) return;
+    if (lastMiniSyncSongIdRef.current === currentSong.id) return;
+    lastMiniSyncSongIdRef.current = currentSong.id;
+    logPlaybackUxSync("mini_player_sync_confirmed", {
+      songId: currentSong.id,
+      title: currentSong.title || "",
+    });
+  }, [currentSong?.id, currentSong?.title]);
+
   if (!currentSong && !youtubeVideo) return null;
 
   return (
     <Animated.View
-      entering={FadeInDown.duration(220)}
+      entering={FadeInDown.duration(120)}
       exiting={FadeOutDown.duration(220)}
       style={styles.wrapper}
     >

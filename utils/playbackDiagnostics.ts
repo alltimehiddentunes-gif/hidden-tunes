@@ -38,7 +38,13 @@ export type PlaybackDiagnosticEvent =
   | "background_state_change"
   | "finish_watchdog_armed"
   | "finish_watchdog_fired"
-  | "duplicate_play_ignored";
+  | "duplicate_play_ignored"
+  | "tap_to_player_sync_start"
+  | "current_song_before_navigation"
+  | "player_navigation_requested"
+  | "mini_player_sync_confirmed"
+  | "queue_active_track_sync_confirmed"
+  | "up_next_sync_confirmed";
 
 function shouldLogPlaybackDiagnostics() {
   return isVerbosePlaybackDiagnosticsEnabled();
@@ -237,4 +243,25 @@ export function logHTLockAutoNext(
   if (!isHeavyPerfDiagnosticsEnabled()) return;
 
   console.log(`[HTLockAutoNext] ${tag}`, details);
+}
+
+export type PlaybackUxSyncEvent =
+  | "tap_to_player_sync_start"
+  | "current_song_before_navigation"
+  | "player_navigation_requested"
+  | "mini_player_sync_confirmed"
+  | "queue_active_track_sync_confirmed"
+  | "up_next_sync_confirmed";
+
+export function logPlaybackUxSync(
+  event: PlaybackUxSyncEvent,
+  details: PlaybackDiagDetails = {}
+) {
+  if (shouldLogPlaybackDiagnostics()) {
+    console.log("[HiddenTunes:playback]", event, {
+      at: Date.now(),
+      ...details,
+    });
+    return;
+  }
 }

@@ -1,4 +1,5 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
+import { logPlaybackUxSync } from "../utils/playbackDiagnostics";
 import {
   ScrollView,
   StyleSheet,
@@ -87,7 +88,15 @@ export default function QueueScreen() {
   }, [activeQueue, currentSong, onlineSongs, songs]);
 
   const currentIndex = useMemo(() => {
-    if (activeQueue.length && activeQueueIndex >= 0) return activeQueueIndex;
+    if (currentSong?.id && queueSongs.length) {
+      const byId = queueSongs.findIndex(
+        (song) => String(song.id) === String(currentSong.id)
+      );
+      if (byId >= 0) return byId;
+    }
+    if (activeQueue.length && activeQueueIndex >= 0 && activeQueueIndex < queueSongs.length) {
+      return activeQueueIndex;
+    }
     if (!currentSong) return -1;
     return queueSongs.findIndex((song) => String(song.id) === String(currentSong.id));
   }, [activeQueue.length, activeQueueIndex, currentSong, queueSongs]);
@@ -112,7 +121,20 @@ export default function QueueScreen() {
     [currentIndex, rows]
   );
 
-  const predictedNext = upNextRows[0]?.song || null;
+  useEffect(() => {
+    if (!currentSong?.id || currentIndex < 0) return;
+    logPlaybackUxSync("queue_active_track_sync_confirmed", {
+      songId: currentSong.id,
+      currentIndex,
+      queueLength: queueSongs.length,
+      activeQueueIndex,
+    });
+  }, [activeQueueIndex, currentIndex, currentSong?.id, queueSongs.length]);
+
+  const predictedNext = useMemo(() => {
+    if (currentIndex < 0 || currentIndex + 1 >= queueSongs.length) return null;
+    return queueSongs[currentIndex + 1] || null;
+  }, [currentIndex, queueSongs]);
   const queueContext = activeQueueContext || { source: "queue" as const };
   const sessionKind = getSessionKind(queueContext);
   const sessionContextLabel = getSessionContextLabel(queueContext, currentSong);

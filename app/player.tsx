@@ -1,5 +1,6 @@
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  AppState,
   useWindowDimensions,
   Pressable,
   ScrollView,
@@ -39,8 +40,22 @@ import {
 import { openGenreCatalog, openMoodCatalog } from "../utils/catalogNavigation";
 import { normalizeGenreName } from "../utils/genreNormalization";
 import { getBestLyricsPayload, setLyricsMemoryCache } from "../utils/lyrics";
+import { logPlaybackUxSync } from "../utils/playbackDiagnostics";
 
 const METADATA_PRESS_GUARD_MS = 500;
+
+function usePlayerScreenActive() {
+  const activeRef = useRef(AppState.currentState === "active");
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (state) => {
+      activeRef.current = state === "active";
+    });
+    return () => subscription.remove();
+  }, []);
+
+  return activeRef;
+}
 
 type PlayerMetadataChip = {
   type: "album" | "mood" | "genre";
@@ -238,10 +253,14 @@ const PremiumPlayButton = memo(function PremiumPlayButton({
 const PlayerProgressPanel = memo(function PlayerProgressPanel({
   compactLayout,
   disabled,
+  isLoading,
+  isPlaying,
   onSeekComplete,
 }: {
   compactLayout: boolean;
   disabled: boolean;
+  isLoading: boolean;
+  isPlaying: boolean;
   onSeekComplete: (value: number) => void;
 }) {
   const { positionMillis, durationMillis } = usePlayerProgress();
@@ -250,6 +269,7 @@ const PlayerProgressPanel = memo(function PlayerProgressPanel({
     0,
     Math.min(positionMillis || 0, duration || positionMillis || 0)
   );
+  const progressDisabled = disabled || isLoading || !isPlaying;
 
   return (
     <View style={[styles.progressPanel, compactLayout && styles.progressPanelCompact]}>
@@ -260,7 +280,7 @@ const PlayerProgressPanel = memo(function PlayerProgressPanel({
         minimumTrackTintColor={COLORS.primaryGlow}
         maximumTrackTintColor="rgba(255,255,255,0.16)"
         thumbTintColor={COLORS.primary}
-        disabled={disabled}
+        disabled={progressDisabled}
         onSlidingComplete={onSeekComplete}
       />
       <View style={styles.timeRow}>
@@ -366,6 +386,7 @@ export default function PlayerScreen() {
   const horizontalPadding = compactLayout ? 18 : 22;
 
   const { currentSong, isPlaying, isLoading } = usePlayerNowPlaying();
+  const playerScreenActiveRef = usePlayerScreenActive();
   const {
     activeQueue,
     activeQueueIndex,
@@ -443,7 +464,8 @@ export default function PlayerScreen() {
   const nextUpSong = useMemo(() => {
     if (!Array.isArray(activeQueue) || activeQueue.length === 0) return null;
     const nextIndex =
-      typeof activeQueueIndex === "number" ? activeQueueIndex + 1 : 1;
+      typeof activeQueueIndex === "number" ? activeQueueIndex + 1 : 0;
+    if (nextIndex < 0 || nextIndex >= activeQueue.length) return null;
     return activeQueue[nextIndex] || null;
   }, [activeQueue, activeQueueIndex]);
 
@@ -452,6 +474,22 @@ export default function PlayerScreen() {
     if (activeQueue?.length) return "Queue ending";
     return "Open discovery for the next track";
   }, [activeQueue?.length, nextUpSong?.title]);
+
+  const lastUpNextLogKeyRef = useRef("");
+
+  useEffect(() => {
+    if (!currentSong?.id) return;
+    const key = `${currentSong.id}:${activeQueueIndex}:${nextUpSong?.id || ""}`;
+    if (lastUpNextLogKeyRef.current === key) return;
+    lastUpNextLogKeyRef.current = key;
+    logPlaybackUxSync("up_next_sync_confirmed", {
+      songId: currentSong.id,
+      queueLength: activeQueue?.length ?? 0,
+      activeIndex: activeQueueIndex,
+      nextSongId: nextUpSong?.id,
+      nextTitle: nextUpSong?.title,
+    });
+  }, [activeQueue?.length, activeQueueIndex, currentSong?.id, nextUpSong?.id, nextUpSong?.title]);
 
   useEffect(() => {
     if (!currentSong?.id) return;
@@ -474,7 +512,7 @@ export default function PlayerScreen() {
   }, [artworkRotation, currentSong?.id]);
 
   useEffect(() => {
-    if (!currentSong) {
+    if (!currentSong || !playerScreenActiveRef.current) {
       cancelAnimation(pulse);
       cancelAnimation(artworkRotation);
       cancelAnimation(artworkHalo);
@@ -558,7 +596,7 @@ export default function PlayerScreen() {
       cancelAnimation(artworkRotation);
       cancelAnimation(artworkHalo);
     };
-  }, [artworkHalo, artworkRotation, currentSong, isPlaying, pulse]);
+  }, [artworkHalo, artworkRotation, currentSong, isPlaying, playerScreenActiveRef, pulse]);
 
   const artworkAnimated = useAnimatedStyle(() => ({
     transform: [
@@ -865,6 +903,8 @@ export default function PlayerScreen() {
           <PlayerProgressPanel
             compactLayout={compactLayout}
             disabled={!currentSong}
+            isLoading={isLoading}
+            isPlaying={isPlaying}
             onSeekComplete={handleSeekComplete}
           />
 

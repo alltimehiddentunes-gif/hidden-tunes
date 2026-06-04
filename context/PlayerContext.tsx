@@ -94,6 +94,7 @@ import {
   logRepeatModeState,
   logShuffleState,
   logTapToPlayStart,
+  logPlaybackUxSync,
   logTrackFinished,
 } from "../utils/playbackDiagnostics";
 import { logPlaybackCritical } from "../utils/playbackCriticalLogs";
@@ -113,11 +114,16 @@ import {
   shouldIgnoreDuplicatePlayRequest,
 } from "../utils/playbackGuards";
 import {
+  buildContextualPlaybackQueue,
+  logContextualQueueBuilt,
+} from "../utils/playbackQueueBuilders";
+import {
   areSongQueuesEqual,
   recordPlaybackProgressUpdate,
   recordQueueReferenceChange,
 } from "../utils/playbackRenderDiagnostics";
 import { markPlaybackRestoreComplete } from "../utils/startupDiagnostics";
+import { createKeyedTapGuard } from "../utils/tapGuard";
 import {
   advanceEmotionalQueue as advanceEmotionalQueueState,
   getEmotionalQueueSnapshot,
@@ -202,6 +208,7 @@ export type PlaybackQueueContext = {
     | "because_you_listened"
     | "smart_queue"
     | "full_catalog"
+    | "queue"
     | "unknown";
   label?: string;
   albumId?: string;
@@ -258,6 +265,7 @@ export type PlayerContextType = {
   activeQueueIndex: number;
   activeQueueMode: ActiveQueueMode;
   activeQueueContext: PlaybackQueueContext;
+  upcomingSong: AppSong | null;
 
   favorites: AppSong[];
   recentlyPlayed: RecentlyPlayedTrack[];
@@ -580,6 +588,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const isMountedRef = useRef(true);
   const loadRequestIdRef = useRef(0);
   const inFlightPlaySongIdRef = useRef<string | null>(null);
+  const queueControlTapGuardRef = useRef(createKeyedTapGuard(420));
   const loadingRecoveryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const queueTransitionRef = useRef(false);
   const queueTransitionTailRef = useRef(Promise.resolve());
@@ -1062,6 +1071,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         snapshot.playbackState === "ready";
 
       if (!nativeRetainsPlayableTrack) {
+        logLockscreenPlaybackDiagnostic("queue_restore_failed", {
+          reason: "no_native_track",
+          queueLength: activeQueueRef.current.length,
+        });
         logLockscreenPlaybackDiagnostic("foreground_restore_skipped_no_native_track", {
           nativeStatus: snapshot.nativeStatus,
           hasLoadedTrack: snapshot.hasLoadedTrack,
@@ -1177,6 +1190,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             setActiveQueueContext(activeQueueContextRef.current);
           }
         } catch (error) {
+          logLockscreenPlaybackDiagnostic("queue_restore_failed", {
+            reason: "queue_context_parse",
+            message: String((error as Error)?.message || error),
+          });
           logLockscreenPlaybackDiagnostic("foreground_restore_queue_context_failed", {
             message: String((error as Error)?.message || error),
           });
@@ -1201,7 +1218,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           setActiveQueueIndex(snapshot.activeIndex);
         }
 
-        logLockscreenPlaybackDiagnostic("foreground_restore_success", {
+        logLockscreenPlaybackDiagnostic("queue_restore_success", {
+              queueLength: activeQueueRef.current.length,
+              activeIndex: activeQueueIndexRef.current,
+            });
+          logLockscreenPlaybackDiagnostic("foreground_restore_success", {
           songId: normalizedSong.id || null,
           title: normalizedSong.title || null,
           isPlaying: snapshot.isPlaying,
@@ -1627,6 +1648,115 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       });
     }
   }, []);
+
+  const primePlaybackTapUi = useCallback(
+    (
+      song: AppSong,
+      source: string,
+      options?: {
+        queueIndex?: number;
+        openPlayer?: boolean;
+      }
+    ) => {
+      const normalizedSong = normalizeSong(song);
+      const openPlayer = options?.openPlayer !== false;
+
+      logPlaybackUxSync("tap_to_player_sync_start", {
+        songId: normalizedSong.id,
+        source,
+        queueIndex: options?.queueIndex ?? activeQueueIndexRef.current,
+        queueLength: activeQueueRef.current.length,
+      });
+
+      currentSongRef.current = normalizedSong;
+      setCurrentSong(normalizedSong);
+
+      if (
+        typeof options?.queueIndex === "number" &&
+        activeQueueRef.current.length > 0
+      ) {
+        const safeIndex = Math.max(
+          0,
+          Math.min(options.queueIndex, activeQueueRef.current.length - 1)
+        );
+        activeQueueIndexRef.current = safeIndex;
+        setActiveQueueIndex(safeIndex);
+      }
+
+      logPlaybackUxSync("current_song_before_navigation", {
+        songId: normalizedSong.id,
+        title: normalizedSong.title || "",
+        source,
+        queueIndex: activeQueueIndexRef.current,
+      });
+
+      setIsLoading(true);
+      setIsPlaying(false);
+
+      if (openPlayer) {
+        logPlaybackUxSync("player_navigation_requested", {
+          songId: normalizedSong.id,
+          source,
+        });
+        openPlayerForPlayableTap(normalizedSong, source);
+      }
+    },
+    [normalizeSong, openPlayerForPlayableTap, setIsLoading, setIsPlaying]
+  );
+
+
+  const resolvePlaybackQueue = useCallback(
+    (
+      song: AppSong,
+      context: PlaybackQueueContext,
+      providedQueue?: AppSong[],
+      requestedIndex?: number
+    ) => {
+      const normalizedSong = normalizeSong(song);
+      const normalizedContext = normalizePlaybackQueueContext(context);
+
+      logLockscreenPlaybackDiagnostic("queue_build_start", {
+        queue_context_source: normalizedContext.source,
+        provided_length: providedQueue?.length ?? 0,
+        song_id: normalizedSong.id,
+        requested_index: requestedIndex ?? null,
+      });
+
+      const built = buildContextualPlaybackQueue({
+        song: normalizedSong,
+        context: normalizedContext,
+        providedQueue: (providedQueue || []).map(normalizeSong),
+        requestedIndex,
+      });
+
+      const nativeQueue = (built.queue as AppSong[])
+        .map((item) => normalizeSong(item))
+        .filter((item) => !isYouTubeSong(item));
+
+      const safeIndex = Math.max(
+        0,
+        Math.min(built.activeIndex, Math.max(nativeQueue.length - 1, 0))
+      );
+
+      logContextualQueueBuilt(
+        logLockscreenPlaybackDiagnostic,
+        normalizedContext,
+        {
+          ...built,
+          queue: nativeQueue,
+          activeIndex: safeIndex,
+        },
+        normalizedSong.id
+      );
+
+      return {
+        queue: nativeQueue,
+        index: safeIndex,
+        context: normalizedContext,
+      };
+    },
+    [normalizeSong, isYouTubeSong]
+  );
 
   const syncActiveQueue = useCallback(
     async (
@@ -2065,6 +2195,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   );
 
   const nextSong = useCallback(async () => {
+    if (!queueControlTapGuardRef.current("next_song")) return;
     logLockscreenPlaybackDiagnostic("app_next_pressed", {
       songId: currentSongRef.current?.id || null,
       queueIndex: activeQueueIndexRef.current,
@@ -3385,6 +3516,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   extendQueueWithSmartTracksRef.current = extendQueueWithSmartTracks;
 
   const previousSong = useCallback(async () => {
+    if (!queueControlTapGuardRef.current("previous_song")) return;
     logLockscreenPlaybackDiagnostic("app_previous_pressed", {
       songId: currentSongRef.current?.id || null,
       queueIndex: activeQueueIndexRef.current,
@@ -3476,36 +3608,26 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         contextSource: queueContext.source,
       });
 
-      const nativeQueue = queue
-        .map(normalizeSong)
-        .filter((song) => !isYouTubeSong(song));
-
+      const seedSong = normalizeSong(
+        queue[Math.max(0, Math.min(startIndex, queue.length - 1))] || queue[0]
+      );
+      const resolved = resolvePlaybackQueue(
+        seedSong,
+        queueContext,
+        queue,
+        startIndex
+      );
+      const nativeQueue = resolved.queue;
       if (!nativeQueue.length) return;
 
-      const requestedIndex = Math.max(0, Math.min(startIndex, nativeQueue.length - 1));
-      const targetSong = nativeQueue[requestedIndex];
-      const repaired = repairQueueIndexForSong(
-        nativeQueue,
-        targetSong.id,
-        requestedIndex
-      );
-
-      if (repaired.repaired) {
-        logQueueIndexMismatch({
-          songId: targetSong.id,
-          requestedIndex,
-          resolvedIndex: repaired.index,
-          reason: repaired.reason,
-        });
-      }
-
-      const safeIndex = repaired.index;
+      const safeIndex = resolved.index;
+      const normalizedContext = resolved.context;
 
       logLockscreenPlaybackDiagnostic("playable_tap_queue_built", {
         source: "playQueue",
         queueLength: nativeQueue.length,
         queueIndex: safeIndex,
-        contextSource: queueContext.source,
+        contextSource: normalizedContext.source,
         songId: nativeQueue[safeIndex]?.id,
       });
 
@@ -3513,10 +3635,15 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       radioModeRef.current = false;
       void setStoredValueIfChanged(RADIO_MODE_KEY, "false");
 
-      await syncActiveQueue(nativeQueue, safeIndex, "standard", queueContext);
+      await syncActiveQueue(nativeQueue, safeIndex, "standard", normalizedContext);
       void removeStoredValues([POSITION_KEY]);
 
       const selectedSong = nativeQueue[safeIndex];
+      const selectedNormalized = normalizeSong(selectedSong);
+      currentSongRef.current = selectedNormalized;
+      setCurrentSong(selectedNormalized);
+      activeQueueIndexRef.current = safeIndex;
+      setActiveQueueIndex(safeIndex);
       let interruptDone = priorInterruptDone;
 
       if (currentSongRef.current?.id !== selectedSong.id) {
@@ -3585,6 +3712,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       normalizeSong,
       isYouTubeSong,
       setStoredValueIfChanged,
+      resolvePlaybackQueue,
       syncActiveQueue,
       removeStoredValues,
       interruptCurrentPlaybackForUserTap,
@@ -3628,12 +3756,24 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       );
 
       const switchingToNewSong = currentSongRef.current?.id !== normalizedSong.id;
+      const requestedQueueIndex =
+        typeof index === "number" ? index : activeQueueIndexRef.current;
+      const isSameTrackAndIndex =
+        currentSongRef.current?.id === normalizedSong.id &&
+        requestedQueueIndex === activeQueueIndexRef.current;
 
       if (switchingToNewSong) {
+        primePlaybackTapUi(normalizedSong, "play_song", {
+          queueIndex: requestedQueueIndex,
+        });
         await interruptCurrentPlaybackForUserTap(normalizedSong.id);
+      } else if (!isSameTrackAndIndex) {
+        primePlaybackTapUi(normalizedSong, "play_song_queue_jump", {
+          queueIndex: requestedQueueIndex,
+        });
       }
 
-      if (switchingToNewSong) {
+      if (switchingToNewSong || !isSameTrackAndIndex) {
         logPlayerContextDebug("hidden_audio_fake_play_prevented", {
           songId: normalizedSong.id,
           reason: "tap_waiting_for_native_load",
@@ -3666,156 +3806,86 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      if (queue?.length) {
-        const nativeQueue = queue
-          .map(normalizeSong)
-          .filter((item) => !isYouTubeSong(item));
+      if (!switchingToNewSong && isSameTrackAndIndex) {
+        const currentLoadedSound = soundRef.current;
 
-        if (!nativeQueue.length) {
-          setIsLoading(false);
-          setIsPlaying(false);
-          return;
+        if (
+          hiddenAudioActiveRef.current &&
+          currentSongRef.current?.id === normalizedSong.id
+        ) {
+          try {
+            if (!isPlayingRef.current) {
+              await bridgeHiddenAudioPlay();
+            }
+
+            const resumeProgress = await bridgeGetProgress();
+            setPositionMillis(resumeProgress.positionMillis);
+            if (resumeProgress.durationMillis > 0) {
+              setDurationMillis(resumeProgress.durationMillis);
+            }
+            setIsPlaying(resumeProgress.isPlaying);
+            deferPlaybackSideEffects(normalizedSong, "play_song_resume_side_effects");
+            return;
+          } catch (error) {
+            console.log("Hidden audio playSong resume error:", error);
+          }
         }
 
-        const repaired = repairQueueIndexForSong(
-          nativeQueue,
-          normalizedSong.id,
-          index
-        );
+        if (currentSongRef.current?.id === normalizedSong.id && currentLoadedSound) {
+          try {
+            const status = await currentLoadedSound.getStatusAsync();
 
-        if (repaired.repaired) {
-          logQueueIndexMismatch({
-            songId: normalizedSong.id,
-            requestedIndex: index,
-            resolvedIndex: repaired.index,
-            reason: repaired.reason,
-          });
+            if (status.isLoaded) {
+              if (!status.isPlaying) {
+                await currentLoadedSound.playAsync();
+              }
+
+              logPlayerContextDebug("hidden_audio_fake_play_prevented", {
+                reason: "legacy_playback_not_state_source",
+              });
+              setIsPlaying(false);
+              deferPlaybackSideEffects(normalizedSong, "play_song_legacy_resume_side_effects");
+              return;
+            }
+          } catch {}
         }
+      }
 
-        recordQueueControl("play_song", nativeQueue.length, {
-          songId: normalizedSong.id,
-        });
-        logLockscreenPlaybackDiagnostic("playable_tap_queue_built", {
-          source: "playSong",
-          songId: normalizedSong.id,
-          queueLength: nativeQueue.length,
-          queueIndex: repaired.index,
-          contextSource: queueContext.source,
-        });
-        await playQueue(nativeQueue, repaired.index, switchingToNewSong, queueContext);
+      const resolved = resolvePlaybackQueue(
+        normalizedSong,
+        queueContext,
+        queue?.length ? queue : activeQueueRef.current,
+        queue?.length ? index : activeQueueIndexRef.current
+      );
+
+      if (!resolved.queue.length) {
+        setIsLoading(false);
+        setIsPlaying(false);
         return;
       }
 
-      const currentLoadedSound = soundRef.current;
-
-      if (
-        hiddenAudioActiveRef.current &&
-        currentSongRef.current?.id === normalizedSong.id
-      ) {
-        try {
-          if (!isPlayingRef.current) {
-            await bridgeHiddenAudioPlay();
-          }
-
-          const resumeProgress = await bridgeGetProgress();
-          setPositionMillis(resumeProgress.positionMillis);
-          if (resumeProgress.durationMillis > 0) {
-            setDurationMillis(resumeProgress.durationMillis);
-          }
-          setIsPlaying(resumeProgress.isPlaying);
-          deferPlaybackSideEffects(normalizedSong, "play_song_resume_side_effects");
-          return;
-        } catch (error) {
-          console.log("Hidden audio playSong resume error:", error);
-        }
-      }
-
-      if (currentSongRef.current?.id === normalizedSong.id && currentLoadedSound) {
-        try {
-          const status = await currentLoadedSound.getStatusAsync();
-
-          if (status.isLoaded) {
-            if (!status.isPlaying) {
-              await currentLoadedSound.playAsync();
-            }
-
-            logPlayerContextDebug("hidden_audio_fake_play_prevented", {
-              reason: "legacy_playback_not_state_source",
-            });
-            setIsPlaying(false);
-            deferPlaybackSideEffects(normalizedSong, "play_song_legacy_resume_side_effects");
-            return;
-          }
-        } catch {}
-      }
-
-      let existingQueue = activeQueueRef.current.filter(
-        (item) => !isYouTubeSong(item)
-      );
-
-      const rebuilt = rebuildQueueFromAvailableContext(
-        normalizedSong,
-        existingQueue,
-        currentSongRef.current
-      );
-
-      if (rebuilt.rebuilt) {
-        existingQueue = rebuilt.queue;
-        logQueueIndexMismatch({
-          songId: normalizedSong.id,
-          reason: rebuilt.reason,
-          queueLength: existingQueue.length,
-        });
-      }
-
-      const repaired = repairQueueIndexForSong(
-        existingQueue,
-        normalizedSong.id,
-        activeQueueIndexRef.current
-      );
-
-      if (repaired.repaired) {
-        logQueueIndexMismatch({
-          songId: normalizedSong.id,
-          resolvedIndex: repaired.index,
-          reason: repaired.reason,
-        });
-      }
-
-      const existingIndex = repaired.index;
-
-      if (existingQueue.length) {
-        if (rebuilt.rebuilt) {
-          await syncActiveQueue(
-            existingQueue,
-            existingIndex,
-            activeQueueModeRef.current
-          );
-        } else {
-          setActiveQueueIndex(existingIndex);
-          activeQueueIndexRef.current = existingIndex;
-          persistActiveQueueDeferred(
-            existingQueue,
-            existingIndex,
-            activeQueueModeRef.current,
-            activeQueueContextRef.current,
-            "existing_queue_index_persist"
-          );
-        }
-      } else {
-        await syncActiveQueue([normalizedSong], 0, "standard", queueContext);
-      }
-
-      void removeStoredValues([POSITION_KEY]);
-      await loadAndPlay(normalizedSong, {
-        userInitiated: true,
-        userInterruptDone: switchingToNewSong,
+      recordQueueControl("play_song", resolved.queue.length, {
+        songId: normalizedSong.id,
       });
+      logLockscreenPlaybackDiagnostic("playable_tap_queue_built", {
+        source: "playSong",
+        songId: normalizedSong.id,
+        queueLength: resolved.queue.length,
+        queueIndex: resolved.index,
+        contextSource: resolved.context.source,
+      });
+      await playQueue(
+        resolved.queue,
+        resolved.index,
+        switchingToNewSong,
+        resolved.context
+      );
     },
     [
       normalizeSong,
       isYouTubeSong,
       playQueue,
+      resolvePlaybackQueue,
       persistActiveQueueDeferred,
       syncActiveQueue,
       removeStoredValues,
@@ -4033,6 +4103,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   ]);
 
   const togglePlayPause = useCallback(async () => {
+    if (!queueControlTapGuardRef.current("toggle_play_pause")) return;
     logPauseResumeStart({ source: "toggle_play_pause" });
 
     if (hiddenAudioActiveRef.current) {
@@ -4472,6 +4543,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
     const pollHiddenAudioProgress = async () => {
       if (cancelled) return;
+
+      if (
+        isBackgroundAppState(appStateRef.current) &&
+        !isPlayingRef.current &&
+        !isLoadingRef.current
+      ) {
+        return;
+      }
 
       if (!hiddenAudioActiveRef.current) {
         if (Platform.OS === "ios" && isHiddenAudioEnabledOnIOS()) {
@@ -5052,6 +5131,23 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     ]
   );
 
+
+  const upcomingSong = useMemo(() => {
+    const queue = activeQueue.filter((song) => !isYouTubeSong(song));
+
+    if (!queue.length || activeQueueIndex < 0) {
+      return null;
+    }
+
+    const nextIndex = activeQueueIndex + 1;
+
+    if (nextIndex < 0 || nextIndex >= queue.length) {
+      return null;
+    }
+
+    return normalizeSong(queue[nextIndex]);
+  }, [activeQueue, activeQueueIndex, isYouTubeSong, normalizeSong]);
+
   const stateValue = useMemo(
     () => ({
       currentSong,
@@ -5070,6 +5166,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       activeQueueIndex,
       activeQueueMode,
       activeQueueContext,
+      upcomingSong,
       favorites,
       recentlyPlayed,
       youtubeQueue,
@@ -5097,6 +5194,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       activeQueueIndex,
       activeQueueMode,
       activeQueueContext,
+      upcomingSong,
       favorites,
       recentlyPlayed,
       youtubeQueue,
