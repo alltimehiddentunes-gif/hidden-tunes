@@ -30,10 +30,10 @@ import {
 
 import {
   addToSmartQueue,
-  getRelatedTracks,
   getSmartQueue,
   saveSmartQueue,
 } from "../services/smartQueue";
+import { getCachedHiddenTunesCatalog } from "../services/hiddenTunes";
 import { isHiddenAudioEnabledOnIOS } from "../constants/playbackConfig";
 import {
   activateHiddenAudioPlayback,
@@ -50,6 +50,7 @@ import {
   subscribeHiddenAudioDiagnostics,
   subscribeHiddenAudioEnded,
 } from "../services/playbackBridge";
+import type { HiddenAudioNativeSnapshot } from "../src/hidden-audio/hiddenAudioBridge";
 import { getArtworkValue } from "../utils/artwork";
 import { scheduleStartupTask } from "../utils/startupScheduler";
 import {
@@ -405,16 +406,142 @@ function contextMatchesSong(song: AppSong, context: PlaybackQueueContext) {
   const moodName = String(context.mood || "").toLowerCase();
   const albumTitle = String(context.albumTitle || "").toLowerCase();
 
+  const albumId = String(song.albumId || "").toLowerCase();
+  const contextAlbumId = String(context.albumId || "").toLowerCase();
+
+  if (context.source === "album" && contextAlbumId && albumId && albumId === contextAlbumId) {
+    return true;
+  }
   if (context.source === "album" && albumTitle && album === albumTitle) return true;
   if (context.source === "artist" && artistName && artist === artistName) return true;
   if (context.source === "genre" && genreName && genre === genreName) return true;
-  if (context.source === "mood" && moodName && mood === moodName) return true;
+  if (context.source === "mood" && moodName && mood.includes(moodName)) return true;
 
   return Boolean(
     (artistName && artist === artistName) ||
       (genreName && genre === genreName) ||
-      (moodName && mood === moodName)
+      (moodName && mood.includes(moodName))
   );
+}
+
+function nativeSnapshotIndicatesLoadedPlayback(
+  snapshot: HiddenAudioNativeSnapshot | null | undefined
+) {
+  if (!snapshot) return false;
+  return (
+    snapshot.hasLoadedTrack ||
+    Boolean(snapshot.activeTrack?.url) ||
+    snapshot.isPlaying ||
+    snapshot.playbackState === "playing" ||
+    snapshot.playbackState === "buffering" ||
+    snapshot.playbackState === "ready"
+  );
+}
+
+type SmartContinuationScore = {
+  score: number;
+  reason: string;
+};
+
+function scoreSmartContinuationCandidate(
+  song: AppSong,
+  current: AppSong,
+  context: PlaybackQueueContext,
+  index: number
+): SmartContinuationScore {
+  if (song.id === current.id) {
+    return { score: -1, reason: "same_song" };
+  }
+
+  const orderBias = Math.max(0, 500 - index);
+  const artist = String(song.artist || song.user?.name || "").toLowerCase();
+  const genre = String(song.genre || "").toLowerCase();
+  const mood = String(song.mood || "").toLowerCase();
+  const album = String(song.album || "").toLowerCase();
+  const currentArtist = String(current.artist || current.user?.name || "").toLowerCase();
+  const currentGenre = String(current.genre || "").toLowerCase();
+  const currentMood = String(current.mood || "").toLowerCase();
+  const currentAlbum = String(current.album || "").toLowerCase();
+  const contextArtist = String(context.artistName || "").toLowerCase();
+  const contextGenre = String(context.genre || "").toLowerCase();
+  const contextMood = String(context.mood || "").toLowerCase();
+  const contextAlbum = String(context.albumTitle || "").toLowerCase();
+
+  const sameAlbumId =
+    Boolean(context.albumId && song.albumId && context.albumId === song.albumId) ||
+    Boolean(current.albumId && song.albumId && current.albumId === song.albumId);
+  const sameAlbumTitle =
+    Boolean(contextAlbum && album && album === contextAlbum) ||
+    Boolean(currentAlbum && album && album === currentAlbum);
+
+  if (context.source === "album" && (sameAlbumId || sameAlbumTitle)) {
+    return { score: 100000 + orderBias, reason: "same_album" };
+  }
+  if (sameAlbumId || sameAlbumTitle) {
+    return { score: 95000 + orderBias, reason: "same_album" };
+  }
+
+  if (
+    (context.source === "artist" || context.source === "album") &&
+    contextArtist &&
+    artist === contextArtist
+  ) {
+    return { score: 80000 + orderBias, reason: "same_artist" };
+  }
+  if (currentArtist && artist === currentArtist) {
+    return { score: 75000 + orderBias, reason: "same_artist" };
+  }
+
+  if (
+    (context.source === "genre" ||
+      context.source === "artist" ||
+      context.source === "album" ||
+      context.source === "mood") &&
+    contextGenre &&
+    genre === contextGenre
+  ) {
+    return { score: 60000 + orderBias, reason: "same_genre" };
+  }
+  if (currentGenre && genre === currentGenre) {
+    return { score: 55000 + orderBias, reason: "same_genre" };
+  }
+
+  if (
+    (context.source === "mood" || context.source === "genre" || context.source === "home_rail") &&
+    contextMood &&
+    mood &&
+    mood.includes(contextMood)
+  ) {
+    return { score: 50000 + orderBias, reason: "same_mood_room" };
+  }
+  if (currentMood && mood && mood.includes(currentMood)) {
+    return { score: 48000 + orderBias, reason: "same_mood_room" };
+  }
+
+  if (
+    (context.source === "home_rail" || context.source === "radio" || context.source === "playlist") &&
+    context.railId
+  ) {
+    return { score: 40000 + orderBias, reason: "same_rail_station" };
+  }
+
+  if (context.source === "search" && (contextArtist || contextGenre)) {
+    if (contextArtist && artist === contextArtist) {
+      return { score: 35000 + orderBias, reason: "search_artist_match" };
+    }
+    if (contextGenre && genre === contextGenre) {
+      return { score: 34000 + orderBias, reason: "search_genre_match" };
+    }
+  }
+
+  if (context.source === "recently_added") {
+    return { score: 1000 + orderBias, reason: "recently_added_fallback" };
+  }
+  if (context.source === "full_catalog") {
+    return { score: 100 + orderBias, reason: "full_catalog_fallback" };
+  }
+
+  return { score: 50 + orderBias, reason: "catalog_fallback" };
 }
 
 function rankContinuationCandidate(
@@ -423,28 +550,7 @@ function rankContinuationCandidate(
   context: PlaybackQueueContext,
   index: number
 ) {
-  let score = Math.max(0, 1000 - index);
-  const artist = String(song.artist || song.user?.name || "").toLowerCase();
-  const genre = String(song.genre || "").toLowerCase();
-  const mood = String(song.mood || "").toLowerCase();
-  const album = String(song.album || "").toLowerCase();
-  const currentArtist = String(current.artist || current.user?.name || "").toLowerCase();
-  const currentGenre = String(current.genre || "").toLowerCase();
-  const currentMood = String(current.mood || "").toLowerCase();
-  const contextArtist = String(context.artistName || "").toLowerCase();
-  const contextGenre = String(context.genre || "").toLowerCase();
-  const contextMood = String(context.mood || "").toLowerCase();
-  const contextAlbum = String(context.albumTitle || "").toLowerCase();
-
-  if (context.source === "album" && contextAlbum && album === contextAlbum) score += 9000;
-  if ((context.source === "album" || context.source === "artist") && contextArtist && artist === contextArtist) score += 7000;
-  if ((context.source === "genre" || context.source === "artist" || context.source === "album") && contextGenre && genre === contextGenre) score += 5000;
-  if ((context.source === "mood" || context.source === "genre") && contextMood && mood === contextMood) score += 4500;
-  if (currentArtist && artist === currentArtist) score += 3500;
-  if (currentGenre && genre === currentGenre) score += 2400;
-  if (currentMood && mood === currentMood) score += 2000;
-
-  return score;
+  return scoreSmartContinuationCandidate(song, current, context, index).score;
 }
 
 function isBackgroundAppState(state: AppStateStatus) {
@@ -651,8 +757,25 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         }
 
         const clearLoadingAfterTimeout = async () => {
-          if (hiddenAudioActiveRef.current) {
+          if (hiddenAudioActiveRef.current || Platform.OS === "ios") {
             try {
+              if (Platform.OS === "ios" && isHiddenAudioEnabledOnIOS()) {
+                const snapshot = await bridgeProbeNativePlayback();
+                if (nativeSnapshotIndicatesLoadedPlayback(snapshot) && snapshot?.isPlaying) {
+                  markHiddenAudioBridgeActive(true);
+                  hiddenAudioActiveRef.current = true;
+                  logPlayerContextDebug("playback_recovery_loading_cleared_skipped", {
+                    requestId,
+                    songId,
+                    reason: "loading_timeout_native_still_playing",
+                    playbackState: snapshot.playbackState,
+                  });
+                  isChangingTrackRef.current = false;
+                  inFlightPlaySongIdRef.current = null;
+                  setIsLoading(false);
+                  return;
+                }
+              }
               const progress = await bridgeGetProgress();
               if (progress.isPlaying || progress.playbackState === "buffering") {
                 logPlayerContextDebug("playback_recovery_loading_cleared_skipped", {
@@ -694,6 +817,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       logPlayerContextDebug("hidden_audio_state_sync_start", { reason });
 
       try {
+        if (Platform.OS === "ios" && isHiddenAudioEnabledOnIOS()) {
+          const snapshot = await bridgeProbeNativePlayback();
+          if (nativeSnapshotIndicatesLoadedPlayback(snapshot)) {
+            markHiddenAudioBridgeActive(true);
+            hiddenAudioActiveRef.current = true;
+          }
+        }
+
         const progress = await bridgeGetProgress();
 
         setPositionMillis(progress.positionMillis);
@@ -922,16 +1053,41 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         durationMillis: snapshot.durationMillis,
       });
 
-      if (!snapshot.hasLoadedTrack || snapshot.nativeStatus === "idle") {
-        logLockscreenPlaybackDiagnostic("foreground_restore_no_loaded_track", {
+      const nativeRetainsPlayableTrack =
+        snapshot.hasLoadedTrack ||
+        Boolean(snapshot.activeTrack?.url) ||
+        snapshot.isPlaying ||
+        snapshot.playbackState === "playing" ||
+        snapshot.playbackState === "buffering" ||
+        snapshot.playbackState === "ready";
+
+      if (!nativeRetainsPlayableTrack) {
+        logLockscreenPlaybackDiagnostic("foreground_restore_skipped_no_native_track", {
           nativeStatus: snapshot.nativeStatus,
           hasLoadedTrack: snapshot.hasLoadedTrack,
+          isPlaying: snapshot.isPlaying,
+          playbackState: snapshot.playbackState,
         });
         logLockscreenPlaybackDiagnostic("foreground_sync_complete", {
           restored: false,
           reason: "no_native_track",
         });
         return;
+      }
+
+      if (
+        !hiddenAudioActiveRef.current ||
+        !currentSongRef.current ||
+        isPlayingRef.current !== snapshot.isPlaying
+      ) {
+        logLockscreenPlaybackDiagnostic("foreground_prevented_false_reset", {
+          hiddenAudioActive: hiddenAudioActiveRef.current,
+          songId: currentSongRef.current?.id || null,
+          jsIsPlaying: isPlayingRef.current,
+          nativeIsPlaying: snapshot.isPlaying,
+          nativeStatus: snapshot.nativeStatus,
+          playbackState: snapshot.playbackState,
+        });
       }
 
       markHiddenAudioBridgeActive(true);
@@ -951,6 +1107,22 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         restoredSong =
           queue.find((candidate) => getPlayableUri(candidate) === nativeUrl) ||
           null;
+      }
+
+      if (!restoredSong) {
+        try {
+          const savedSong = await AsyncStorage.getItem(CURRENT_SONG_KEY);
+          if (savedSong) {
+            const parsedSong = normalizeSong(JSON.parse(savedSong));
+            if (!isYouTubeSong(parsedSong)) {
+              restoredSong = parsedSong;
+            }
+          }
+        } catch (error) {
+          logLockscreenPlaybackDiagnostic("foreground_restore_saved_song_failed", {
+            message: String((error as Error)?.message || error),
+          });
+        }
       }
 
       if (
@@ -978,12 +1150,50 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         } as AppSong);
       }
 
+      if (activeQueueRef.current.length === 0) {
+        try {
+          const savedQueue = await AsyncStorage.getItem(ACTIVE_QUEUE_KEY);
+          const savedIndex = await AsyncStorage.getItem(ACTIVE_QUEUE_INDEX_KEY);
+          const savedContext = await AsyncStorage.getItem(ACTIVE_QUEUE_CONTEXT_KEY);
+          if (savedQueue) {
+            const parsedQueue = JSON.parse(savedQueue)
+              .map(normalizeSong)
+              .filter((song: AppSong) => !isYouTubeSong(song));
+            if (parsedQueue.length > 0) {
+              activeQueueRef.current = parsedQueue;
+              setActiveQueue(parsedQueue);
+              const parsedIndex = Number(savedIndex || 0);
+              const safeIndex = Number.isNaN(parsedIndex)
+                ? 0
+                : Math.max(0, Math.min(parsedIndex, parsedQueue.length - 1));
+              activeQueueIndexRef.current = safeIndex;
+              setActiveQueueIndex(safeIndex);
+            }
+          }
+          if (savedContext && activeQueueContextRef.current.source === "unknown") {
+            activeQueueContextRef.current = normalizePlaybackQueueContext(
+              JSON.parse(savedContext)
+            );
+            setActiveQueueContext(activeQueueContextRef.current);
+          }
+        } catch (error) {
+          logLockscreenPlaybackDiagnostic("foreground_restore_queue_context_failed", {
+            message: String((error as Error)?.message || error),
+          });
+        }
+      }
+
       if (restoredSong) {
         const normalizedSong = normalizeSong(restoredSong);
         currentSongRef.current = normalizedSong;
         setCurrentSong(normalizedSong);
 
-        if (
+        if (activeQueueRef.current.length === 0) {
+          activeQueueRef.current = [normalizedSong];
+          setActiveQueue([normalizedSong]);
+          activeQueueIndexRef.current = 0;
+          setActiveQueueIndex(0);
+        } else if (
           snapshot.activeIndex >= 0 &&
           snapshot.activeIndex < activeQueueRef.current.length
         ) {
@@ -991,11 +1201,21 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           setActiveQueueIndex(snapshot.activeIndex);
         }
 
-        logLockscreenPlaybackDiagnostic("foreground_restore_current_song_success", {
+        logLockscreenPlaybackDiagnostic("foreground_restore_success", {
           songId: normalizedSong.id || null,
           title: normalizedSong.title || null,
           isPlaying: snapshot.isPlaying,
           positionMillis: snapshot.positionMillis,
+          queueLength: activeQueueRef.current.length,
+          queueIndex: activeQueueIndexRef.current,
+        });
+      } else {
+        logLockscreenPlaybackDiagnostic("foreground_restore_skipped_no_native_track", {
+          nativeStatus: snapshot.nativeStatus,
+          hasLoadedTrack: snapshot.hasLoadedTrack,
+          isPlaying: snapshot.isPlaying,
+          playbackState: snapshot.playbackState,
+          reason: "unable_to_resolve_current_song",
         });
       }
 
@@ -1015,6 +1235,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, [
     getPlayableUri,
     normalizeSong,
+    isYouTubeSong,
+    setActiveQueue,
     setActiveQueueIndex,
     setCurrentSong,
     setDurationMillis,
@@ -1163,13 +1385,35 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const unloadCurrentSound = useCallback(async (reason = "unload_current_sound") => {
-    if (hiddenAudioActiveRef.current) {
+    if (hiddenAudioActiveRef.current || Platform.OS === "ios") {
+      let nativeSnapshot: HiddenAudioNativeSnapshot | null = null;
+      if (Platform.OS === "ios" && isHiddenAudioEnabledOnIOS()) {
+        try {
+          nativeSnapshot = await bridgeProbeNativePlayback();
+        } catch {
+          nativeSnapshot = null;
+        }
+      }
+
+      const nativeRetainsPlayback = nativeSnapshotIndicatesLoadedPlayback(nativeSnapshot);
       const backgrounding = isBackgroundAppState(appStateRef.current);
       const shouldPreserveHiddenAudio =
-        backgrounding && Boolean(currentSongRef.current) && isPlayingRef.current;
+        nativeRetainsPlayback ||
+        (backgrounding &&
+          Boolean(currentSongRef.current) &&
+          (isPlayingRef.current || nativeRetainsPlayback));
 
       if (shouldPreserveHiddenAudio) {
-        if (typeof __DEV__ !== "undefined" && __DEV__) {
+        if (nativeRetainsPlayback) {
+          markHiddenAudioBridgeActive(true);
+          hiddenAudioActiveRef.current = true;
+          logLockscreenPlaybackDiagnostic("foreground_prevented_false_reset", {
+            reason,
+            phase: "unload_preserve_native",
+            songId: currentSongRef.current?.id || null,
+            nativeStatus: nativeSnapshot?.nativeStatus || null,
+          });
+        } else if (typeof __DEV__ !== "undefined" && __DEV__) {
           console.log("[hidden_audio_lock] preserve_on_background_cleanup", {
             reason,
             appState: appStateRef.current,
@@ -2314,6 +2558,21 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const extended = await extendQueueWithSmartTracksRef.current?.();
 
     if (!extended) {
+      if (Platform.OS === "ios" && isHiddenAudioEnabledOnIOS()) {
+        try {
+          const snapshot = await bridgeProbeNativePlayback();
+          if (nativeSnapshotIndicatesLoadedPlayback(snapshot) && snapshot?.isPlaying) {
+            logLockscreenPlaybackDiagnostic("foreground_prevented_false_reset", {
+              phase: "smart_extend_skip_stop",
+              nativeStatus: snapshot.nativeStatus,
+              songId: currentSongRef.current?.id || null,
+            });
+            return;
+          }
+        } catch {
+          // fall through
+        }
+      }
       setIsPlaying(false);
     }
   }, [
@@ -3015,33 +3274,76 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         (song) => !isYouTubeSong(song)
       );
 
-      const combinedLibrary = [...currentQueue, ...(memory as any[])]
-        .map(normalizeSong)
+      const catalogSongs = (getCachedHiddenTunesCatalog()?.songs || [])
+        .map((song) => normalizeSong(song as AppSong))
+        .filter((song) => !isYouTubeSong(song));
+
+      const combinedLibrary = [...currentQueue, ...catalogSongs, ...(memory as any[])]
+        .map((song) => normalizeSong(song))
         .filter((song) => !isYouTubeSong(song));
 
       const existingIds = new Set(currentQueue.map((song) => song.id));
-      const related = await getRelatedTracks(current as any, combinedLibrary as any);
-      const contextCandidates = combinedLibrary.filter((song) => contextMatchesSong(song, context));
-      const rankedCandidates = [...contextCandidates, ...related]
-        .map((song: any) => normalizeSong(song))
-        .filter((song) => song.id !== current.id)
-        .filter((song) => !existingIds.has(song.id))
-        .filter((song) => Boolean(getPlayableUri(song)))
-        .sort((left, right) =>
-          rankContinuationCandidate(right, current, context, combinedLibrary.findIndex((item) => item.id === right.id)) -
-          rankContinuationCandidate(left, current, context, combinedLibrary.findIndex((item) => item.id === left.id))
-        );
+
+      logLockscreenPlaybackDiagnostic("smart_queue_candidate_pool", {
+        poolSize: combinedLibrary.length,
+        queueLength: currentQueue.length,
+        catalogSize: catalogSongs.length,
+        memorySize: memory.length,
+        contextSource: context.source,
+        currentSongId: current.id,
+      });
+
+      const scoredCandidates = combinedLibrary
+        .map((song, index) => ({
+          song,
+          ...scoreSmartContinuationCandidate(song, current, context, index),
+        }))
+        .filter((entry) => entry.score > 0)
+        .filter((entry) => entry.song.id !== current.id)
+        .filter((entry) => !existingIds.has(entry.song.id))
+        .filter((entry) => Boolean(getPlayableUri(entry.song)))
+        .sort((left, right) => right.score - left.score);
 
       const seen = new Set<string>();
-      const freshRelated = rankedCandidates
-        .filter((song) => {
-          if (seen.has(song.id)) return false;
-          seen.add(song.id);
+      const freshRelated = scoredCandidates
+        .filter((entry) => {
+          if (seen.has(entry.song.id)) return false;
+          seen.add(entry.song.id);
           return true;
         })
-        .slice(0, 12);
+        .slice(0, 12)
+        .map((entry) => entry.song);
 
-      if (!freshRelated.length) return false;
+      if (!freshRelated.length) {
+        logLockscreenPlaybackDiagnostic("smart_queue_fallback_used", {
+          reason: "no_scored_candidates",
+          contextSource: context.source,
+        });
+        return false;
+      }
+
+      const topPick = scoredCandidates[0];
+      const selectionReason = topPick?.reason || "catalog_fallback";
+      const usedFallback =
+        selectionReason.includes("fallback") || selectionReason === "catalog_fallback";
+
+      logLockscreenPlaybackDiagnostic("smart_queue_selected", {
+        nextSongId: freshRelated[0]?.id || null,
+        nextTitle: freshRelated[0]?.title || null,
+        added: freshRelated.length,
+        score: topPick?.score || 0,
+      });
+      logLockscreenPlaybackDiagnostic("smart_queue_reason", {
+        reason: selectionReason,
+        contextSource: context.source,
+        currentSongId: current.id,
+      });
+      if (usedFallback) {
+        logLockscreenPlaybackDiagnostic("smart_queue_fallback_used", {
+          reason: selectionReason,
+          contextSource: context.source,
+        });
+      }
 
       const updatedQueue = [...currentQueue, ...freshRelated];
       const nextIndex = currentQueue.length;
@@ -3054,20 +3356,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         "smart_queue"
       );
 
-      if (typeof __DEV__ !== "undefined" && __DEV__) {
-        console.log("smart_continuation_selected", {
-          context: nextContext,
-          nextSongId: updatedQueue[nextIndex]?.id,
-          added: freshRelated.length,
-        });
-      }
-
       await syncActiveQueue(updatedQueue, nextIndex, "smart", nextContext);
       await removeStoredValues([POSITION_KEY]);
       logLockscreenPlaybackDiagnostic("smart_continuation_used", {
         added: freshRelated.length,
         nextSongId: updatedQueue[nextIndex]?.id,
         previousQueueLength: currentQueue.length,
+        reason: selectionReason,
       });
       await loadAndPlay(updatedQueue[nextIndex]);
 
@@ -4176,7 +4471,20 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
 
     const pollHiddenAudioProgress = async () => {
-      if (cancelled || !hiddenAudioActiveRef.current) return;
+      if (cancelled) return;
+
+      if (!hiddenAudioActiveRef.current) {
+        if (Platform.OS === "ios" && isHiddenAudioEnabledOnIOS()) {
+          const snapshot = await bridgeProbeNativePlayback();
+          if (!nativeSnapshotIndicatesLoadedPlayback(snapshot)) {
+            return;
+          }
+          markHiddenAudioBridgeActive(true);
+          hiddenAudioActiveRef.current = true;
+        } else {
+          return;
+        }
+      }
 
       try {
         const progress = await bridgeGetProgress();
@@ -4487,6 +4795,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         "player_restore_saved_data_light",
         async () => {
           await restoreSavedDataLight();
+          if (Platform.OS === "ios" && isHiddenAudioEnabledOnIOS()) {
+            await resyncForegroundHiddenAudioState();
+          }
         }
       );
 
@@ -4515,6 +4826,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     unloadCurrentSound,
     clearLoadingRecoveryTimeout,
     clearFinishWatchdog,
+    resyncForegroundHiddenAudioState,
   ]);
 
   useEffect(() => {
