@@ -2,11 +2,13 @@ import { AppStateStatus } from "react-native";
 
 import { isHiddenAudioEnabledOnIOS } from "../constants/playbackConfig";
 import {
+  getHiddenAudioNativeSnapshot,
   hiddenAudioBridge,
   isHiddenAudioNativeEngineAvailable,
   subscribeHiddenAudioNativeDiagnostics,
   subscribeHiddenAudioPlaybackEnded,
   type HiddenAudioNativeDiagnosticEvent,
+  type HiddenAudioNativeSnapshot,
   type HiddenAudioPlaybackEndedEvent,
 } from "../src/hidden-audio/hiddenAudioBridge";
 import { recordBridgeSetProgressInterval } from "../utils/runtimeInstrumentation";
@@ -210,6 +212,15 @@ export async function bridgeTryUserTapFastPlay(_options: {
 
 export function isHiddenAudioPlaybackActive(): boolean {
   return hiddenAudioBridgeActive && isHiddenAudioEnabledOnIOS();
+}
+
+export function markHiddenAudioBridgeActive(active = true): void {
+  hiddenAudioBridgeActive = active;
+}
+
+export async function bridgeProbeNativePlayback(): Promise<HiddenAudioNativeSnapshot | null> {
+  if (!isHiddenAudioEnabledOnIOS()) return null;
+  return getHiddenAudioNativeSnapshot();
 }
 
 export async function shouldUseHiddenAudioPlayback(): Promise<boolean> {

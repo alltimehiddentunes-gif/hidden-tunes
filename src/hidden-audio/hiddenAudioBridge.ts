@@ -24,6 +24,25 @@ export type HiddenAudioStatus = {
   playbackState?: string;
 };
 
+export type HiddenAudioNativeSnapshot = {
+  nativeStatus: string;
+  hasLoadedTrack: boolean;
+  activeTrack: {
+    id: string;
+    url: string;
+    title: string;
+    artist: string;
+    album: string;
+    durationSeconds: number;
+  } | null;
+  activeIndex: number;
+  positionMillis: number;
+  durationMillis: number;
+  isPlaying: boolean;
+  playbackState: string;
+};
+
+
 export type HiddenAudioNativeDiagnosticEvent = {
   type?: string;
   eventName?: string;
@@ -115,6 +134,80 @@ function buildNativeTrack(url: string): HiddenAudioNativeTrack {
     album: safeString(metadata?.album, ""),
     artworkUrl: safeString(metadata?.artworkUrl, ""),
     durationSeconds: safeNumber(metadata?.duration, 0),
+  };
+}
+
+
+function parseNativeActiveTrack(
+  value: unknown
+): HiddenAudioNativeSnapshot["activeTrack"] {
+  if (!value || typeof value !== "object") return null;
+
+  const track = value as Record<string, unknown>;
+  const url = safeString(track.url, "");
+  if (!url) return null;
+
+  return {
+    id: safeString(track.id, "hidden-audio-track"),
+    url,
+    title: safeString(track.title, "Hidden Tunes"),
+    artist: safeString(track.artist, "Hidden Tunes"),
+    album: safeString(track.album, ""),
+    durationSeconds: safeNumber(track.durationSeconds, 0),
+  };
+}
+
+export async function getHiddenAudioNativeSnapshot(): Promise<HiddenAudioNativeSnapshot | null> {
+  if (!isHiddenAudioNativeEngineAvailable() || !HiddenAudioNative?.getState) {
+    return null;
+  }
+
+  const [state, progress] = await Promise.all([
+    HiddenAudioNative.getState().catch(() => null),
+    HiddenAudioNative.getProgress?.().catch(() => null),
+  ]);
+
+  const stateMap = (state || {}) as Record<string, unknown>;
+  const progressMap = (progress || {}) as Record<string, unknown>;
+  const queueMap = (stateMap.queue || {}) as Record<string, unknown>;
+
+  const nativeStatus = String(stateMap.status || "idle");
+  const activeTrack = parseNativeActiveTrack(stateMap.activeTrack);
+  const activeIndex = safeNumber(queueMap.activeIndex, 0);
+  const positionSeconds = Number(
+    progressMap.positionSeconds ?? progressMap.currentTime ?? 0
+  );
+  const durationSeconds = Number(
+    progressMap.durationSeconds ?? progressMap.duration ?? 0
+  );
+  const isPlayingValue = progressMap.isPlaying;
+  const playbackState = nativeStatus || String(progressMap.status || "idle");
+  const hasLoadedTrack =
+    nativeStatus !== "idle" && Boolean(activeTrack?.url);
+
+  const isPlaying =
+    isPlayingValue === true ||
+    isPlayingValue === 1 ||
+    isPlayingValue === "1" ||
+    playbackState === "playing" ||
+    playbackState === "buffering" ||
+    playbackState === "ready";
+
+  return {
+    nativeStatus,
+    hasLoadedTrack,
+    activeTrack,
+    activeIndex,
+    positionMillis: Math.max(
+      0,
+      Math.floor((Number.isFinite(positionSeconds) ? positionSeconds : 0) * 1000)
+    ),
+    durationMillis: Math.max(
+      0,
+      Math.floor((Number.isFinite(durationSeconds) ? durationSeconds : 0) * 1000)
+    ),
+    isPlaying,
+    playbackState,
   };
 }
 
