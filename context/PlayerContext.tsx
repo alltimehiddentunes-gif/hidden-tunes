@@ -2172,8 +2172,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           duration >= MIN_DURATION_FOR_POSITION_FINISH_MS &&
           position >= duration - TRACK_END_THRESHOLD_MS &&
           !progress.isPlaying;
+        const nearEndWhilePlaying =
+          repeatModeRef.current !== "one" &&
+          duration >= MIN_DURATION_FOR_POSITION_FINISH_MS &&
+          position >= duration - TRACK_END_THRESHOLD_MS;
 
-        if (nativeEnded || nearEndWhilePaused) {
+        if (nativeEnded || nearEndWhilePaused || nearEndWhilePlaying) {
           scheduleTrackAdvance();
         }
       } catch (error) {
@@ -4143,8 +4147,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               progress.durationMillis - LOCK_SCREEN_END_WINDOW_MS ||
               progress.positionMillis >=
                 progress.durationMillis - TRACK_END_THRESHOLD_MS);
+          const hiddenAudioNearEndWhilePlaying =
+            nearTrackEnd &&
+            progress.positionMillis >=
+              progress.durationMillis - TRACK_END_THRESHOLD_MS;
 
-          if (nativeEnded || playbackEndedWhileNearEnd) {
+          if (nativeEnded || playbackEndedWhileNearEnd || hiddenAudioNearEndWhilePlaying) {
             scheduleTrackAdvance();
           }
         }
@@ -4259,7 +4267,24 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     return subscribeHiddenAudioEnded((event) => {
-      if (!hiddenAudioActiveRef.current) return;
+      logLockscreenPlaybackDiagnostic("hidden_audio_js_end_event_received", {
+        hiddenAudioActive: hiddenAudioActiveRef.current,
+        songId: currentSongRef.current?.id || null,
+        queueIndex: activeQueueIndexRef.current,
+        queueLength: activeQueueRef.current.length,
+        repeatMode: repeatModeRef.current,
+        index: typeof event.index === "number" ? event.index : null,
+        positionSeconds: event.positionSeconds ?? null,
+        durationSeconds: event.durationSeconds ?? null,
+      });
+
+      if (!hiddenAudioActiveRef.current) {
+        logAutoNextSkipped("hidden_audio_end_event_inactive", {
+          songId: currentSongRef.current?.id,
+        });
+        return;
+      }
+
       if (repeatModeRef.current === "one") {
         scheduleTrackAdvance();
         return;

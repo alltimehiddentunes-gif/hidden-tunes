@@ -179,8 +179,15 @@ class HiddenAudioModule: RCTEventEmitter {
     resolver resolve: RCTPromiseResolveBlock,
     rejecter reject: RCTPromiseRejectBlock
   ) {
-    let time = CMTime(seconds: max(0, seconds.doubleValue), preferredTimescale: 600)
+    let targetSeconds = max(0, seconds.doubleValue)
+    currentItemEndedHandled = false
+    if playerStatus == "ended" {
+      playerStatus = player?.rate ?? 0 > 0 ? "playing" : "paused"
+    }
+
+    let time = CMTime(seconds: targetSeconds, preferredTimescale: 600)
     player?.seek(to: time)
+    startProgressObserver()
     emitProgress()
     updateNowPlayingInfo()
     resolve(nil)
@@ -311,25 +318,39 @@ class HiddenAudioModule: RCTEventEmitter {
       return
     }
 
+    emitDiagnostic("hidden_audio_native_end_observer_fired", [
+      "trackId": activeTrack?["id"] as? String ?? "",
+      "activeIndex": activeIndex
+    ])
+    handleCurrentItemEnded(source: "notification")
+  }
+
+  private func handleCurrentItemEnded(source: String) {
     if currentItemEndedHandled {
       emitDiagnostic("hidden_audio_duplicate_track_end_ignored", [
         "trackId": activeTrack?["id"] as? String ?? "",
-        "activeIndex": activeIndex
+        "activeIndex": activeIndex,
+        "source": source
       ])
       return
     }
 
     currentItemEndedHandled = true
+    let progress = progressPayload()
+    if source == "position_fallback" {
+      emitDiagnostic("hidden_audio_native_end_fallback_emitted", [
+        "trackId": activeTrack?["id"] as? String ?? "",
+        "activeIndex": activeIndex,
+        "positionSeconds": progress["positionSeconds"] ?? 0,
+        "durationSeconds": progress["durationSeconds"] ?? 0
+      ])
+    }
     emitDiagnostic("hidden_audio_native_track_ended", [
       "trackId": activeTrack?["id"] as? String ?? "",
-      "activeIndex": activeIndex
+      "activeIndex": activeIndex,
+      "source": source
     ])
     emitPlaybackEnded()
-
-    if activeIndex + 1 < queue.count {
-      moveToIndex(activeIndex + 1, autoplay: true)
-      return
-    }
 
     shouldResumeAfterItemLoad = false
     playerStatus = "ended"
@@ -770,8 +791,31 @@ class HiddenAudioModule: RCTEventEmitter {
     ) { [weak self] _ in
       self?.emitProgress()
       self?.updateNowPlayingElapsed()
+      self?.emitEndedFallbackIfNeeded()
       self?.confirmPlayingIfNeeded()
     }
+  }
+
+  private func emitEndedFallbackIfNeeded() {
+    guard !currentItemEndedHandled, currentItem != nil else {
+      return
+    }
+
+    if playerStatus == "ended" {
+      return
+    }
+
+    let progress = progressPayload()
+    let positionSeconds = progress["positionSeconds"] ?? 0
+    let durationSeconds = progress["durationSeconds"] ?? 0
+    guard durationSeconds.isFinite,
+          positionSeconds.isFinite,
+          durationSeconds > 0,
+          positionSeconds >= max(0, durationSeconds - 0.5) else {
+      return
+    }
+
+    handleCurrentItemEnded(source: "position_fallback")
   }
 
   private func stopProgressObserver() {

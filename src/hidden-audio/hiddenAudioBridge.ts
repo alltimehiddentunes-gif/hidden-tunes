@@ -127,7 +127,21 @@ export function subscribeHiddenAudioPlaybackEnded(
 ): () => void {
   if (!hiddenAudioEvents) return () => {};
 
-  const subscription = hiddenAudioEvents.addListener("HiddenAudioPlaybackEnded", handler);
+  const subscription = hiddenAudioEvents.addListener(
+    "HiddenAudioPlaybackEnded",
+    (event: HiddenAudioPlaybackEndedEvent) => {
+      logAndRememberLockscreenDiagnostic(
+        "hidden_audio_js_end_event_received",
+        {
+          index: typeof event.index === "number" ? event.index : null,
+          positionSeconds: event.positionSeconds ?? null,
+          durationSeconds: event.durationSeconds ?? null,
+        },
+        { lastBridgeEvent: "hidden_audio_js_end_event_received" }
+      );
+      handler(event);
+    }
+  );
   return () => subscription.remove();
 }
 
