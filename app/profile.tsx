@@ -29,6 +29,7 @@ type ProfileRoute =
   | "/downloads"
   | "/playback-diagnostics"
   | "/privacy"
+  | "/favorites"
   | "/playlists"
   | "/recently-played"
   | "/queue"
@@ -79,6 +80,12 @@ const PROFILE_ACTIONS: ProfileAction[] = [
 ];
 
 const LIBRARY_SHORTCUTS: ProfileShortcut[] = [
+  {
+    title: "Favorites",
+    subtitle: "Songs you have saved",
+    icon: "heart-outline",
+    href: "/favorites",
+  },
   {
     title: "Playlists",
     subtitle: "Your library and smart playlists",

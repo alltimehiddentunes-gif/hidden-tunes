@@ -45,10 +45,16 @@ type LibraryShortcut = {
   label: string;
   description: string;
   icon: keyof typeof Ionicons.glyphMap;
-  href: "/downloads" | "/queue" | "/recently-played" | "/music-feed";
+  href: "/favorites" | "/downloads" | "/queue" | "/recently-played" | "/music-feed";
 };
 
 const LIBRARY_SHORTCUTS: LibraryShortcut[] = [
+  {
+    label: "Favorites",
+    description: "Saved songs and TV picks",
+    icon: "heart-outline",
+    href: "/favorites",
+  },
   {
     label: "Downloads",
     description: "Saved offline music",

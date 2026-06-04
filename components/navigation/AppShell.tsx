@@ -19,6 +19,7 @@ type ShellRoute =
   | "/music-feed"
   | "/worlds"
   | "/player"
+  | "/favorites"
   | "/playlists"
   | "/youtube-feed"
   | "/profile"
@@ -28,6 +29,7 @@ const MINI_PLAYER_ROUTES = [
   "/music-feed",
   "/worlds",
   "/queue",
+  "/favorites",
   "/playlists",
   "/recently-played",
   "/radio",
@@ -72,8 +74,8 @@ const NAV_ITEMS: NavItem[] = [
     label: "Library",
     icon: "library-outline",
     activeIcon: "library",
-    href: "/playlists",
-    matches: ["/playlists", "/playlist", "/recently-played", "/cloud-playlists"],
+    href: "/favorites",
+    matches: ["/favorites", "/playlists", "/playlist", "/recently-played", "/cloud-playlists"],
   },
   {
     label: "TV",
