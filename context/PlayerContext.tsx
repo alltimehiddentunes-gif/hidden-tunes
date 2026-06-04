@@ -1763,6 +1763,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       setActiveQueueIndex(safeIndex);
       activeQueueIndexRef.current = safeIndex;
 
+      await removeStoredValues([POSITION_KEY]);
+      logLockscreenPlaybackDiagnostic("auto_next_position_cleared_before_load", {
+        nextSongId: song.id,
+        nextIndex: safeIndex,
+        queueLength: queue.length,
+      });
+
       await loadAndPlayRef.current?.(song);
       logAutoNextSuccess({
         nextSongId: song.id,
@@ -1788,7 +1795,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         activeQueueContextRef.current,
         "queue_index_persist"
       );
-      void removeStoredValues([POSITION_KEY]);
     }, { dropIfLocked: true });
   }, [
     runQueueTransition,
