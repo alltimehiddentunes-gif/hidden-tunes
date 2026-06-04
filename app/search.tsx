@@ -15,10 +15,8 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 
 import AppShell from "../components/navigation/AppShell";
-import { SubtleTvEntryLink } from "../components/EmotionalDiscoveryChips";
 import HTImage from "../components/HTImage";
-import UnifiedMediaCard from "../components/UnifiedMediaCard";
-import UniversalSearchGroupedResults from "../components/UniversalSearchGroupedResults";
+import NeonEQ from "../components/NeonEQ";
 import DebouncedSearchInput from "../components/search/DebouncedSearchInput";
 import { COLORS, GRADIENTS } from "../constants/theme";
 import {
@@ -153,6 +151,38 @@ function toSearchPlaylists(playlists: HiddenTunesDerivedCatalog["playlists"]) {
     kind: playlist.kind,
     routeParams: playlist.routeParams,
   }));
+}
+
+function normalizeSearchText(value: unknown) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function textMatchesQuery(value: unknown, query: string) {
+  const normalizedQuery = normalizeSearchText(query);
+  if (!normalizedQuery) return false;
+  const text = normalizeSearchText(value);
+  return normalizedQuery.split(" ").every((part) => text.includes(part));
+}
+
+function catalogSongSearchText(song: HiddenTunesSong) {
+  return [song.title, song.artist, song.album, song.genre, song.mood, song.lyrics]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function dedupeSongs<T extends { id?: string; title?: string; artist?: string }>(items: T[]) {
+  const seen = new Set<string>();
+  return items.filter((item, index) => {
+    const key = String(item.id || `${item.artist || "artist"}-${item.title || "track"}-${index}`);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 export default function SearchScreen() {
@@ -476,6 +506,47 @@ export default function SearchScreen() {
     return collected;
   }, [audioSearchResults]);
 
+
+  const apkSongResults = useMemo(() => {
+    if (cleanSubmittedSearchQuery.length < 2) return [] as HiddenTunesSong[];
+    const localMatches = songs.filter((song) => textMatchesQuery(catalogSongSearchText(song), cleanSubmittedSearchQuery));
+    const merged = dedupeSongs([...searchResultSongs, ...localMatches]);
+    return merged.slice(0, 36);
+  }, [cleanSubmittedSearchQuery, searchResultSongs, songs]);
+
+  const apkAlbumResults = useMemo(() => {
+    if (cleanSubmittedSearchQuery.length < 2) return [] as HiddenTunesAlbumCatalogItem[];
+    return albums
+      .filter((album) => textMatchesQuery(`${album.title} ${album.artist}`, cleanSubmittedSearchQuery))
+      .slice(0, 12);
+  }, [albums, cleanSubmittedSearchQuery]);
+
+  const apkArtistResults = useMemo(() => {
+    if (cleanSubmittedSearchQuery.length < 2) return [] as HiddenTunesArtistCatalogItem[];
+    return artists
+      .filter((artist) => textMatchesQuery(artist.name, cleanSubmittedSearchQuery))
+      .slice(0, 12);
+  }, [artists, cleanSubmittedSearchQuery]);
+
+  const apkGenreResults = useMemo(() => {
+    if (cleanSubmittedSearchQuery.length < 2) return [] as HiddenTunesGenreCatalogItem[];
+    return genres
+      .filter((genre) => textMatchesQuery(genre.title, cleanSubmittedSearchQuery))
+      .slice(0, 12);
+  }, [cleanSubmittedSearchQuery, genres]);
+
+  const apkExternalAudioResults = useMemo(() => {
+    if (apkSongResults.length || apkAlbumResults.length || apkArtistResults.length || apkGenreResults.length) {
+      return [] as HiddenTunesSong[];
+    }
+    return audioSearchResults.internetAudio
+      .map((hit) => hit.payload as HiddenTunesSong)
+      .filter(Boolean)
+      .slice(0, SEARCH_EXTERNAL_AUDIO_LIMIT);
+  }, [apkAlbumResults.length, apkArtistResults.length, apkGenreResults.length, apkSongResults.length, audioSearchResults.internetAudio]);
+
+  const apkResultCount = apkSongResults.length + apkAlbumResults.length + apkArtistResults.length + apkGenreResults.length + apkExternalAudioResults.length;
+
   const hasSearchText = searchQuery.trim().length > 0;
   const cleanSearchQuery = searchQuery.trim();
   const searchDebouncePending =
@@ -520,20 +591,21 @@ export default function SearchScreen() {
 
   const playSearchResultSong = useCallback(
     (song: HiddenTunesSong) => {
-      const queue = searchResultSongs.length ? searchResultSongs : songs;
+      const queue = apkSongResults.length ? apkSongResults : searchResultSongs.length ? searchResultSongs : songs;
       const queueIndex = findSongIndex(queue, song);
       const queueSong = queueIndex >= 0 ? queue[queueIndex] : song;
 
       void playSong(queueSong, queue, Math.max(queueIndex, 0), {
         source: "search",
-        label: "Search Results",
+        label: submittedSearchQuery || searchQuery ? `Search: ${submittedSearchQuery || searchQuery}` : "Search Results",
         searchQuery: submittedSearchQuery || searchQuery,
         artistName: queueSong.artist,
         genre: queueSong.genre,
         mood: queueSong.mood,
       });
+      router.push("/player" as any);
     },
-    [playSong, searchQuery, searchResultSongs, songs, submittedSearchQuery]
+    [apkSongResults, playSong, searchQuery, searchResultSongs, songs, submittedSearchQuery]
   );
 
   const playDiscoverySong = useCallback(
@@ -546,6 +618,7 @@ export default function SearchScreen() {
         genre: song.genre,
         mood: song.mood,
       });
+      router.push("/player" as any);
     },
     [playSong, songs]
   );
@@ -703,21 +776,126 @@ export default function SearchScreen() {
 
             {showSearchResults ? (
               <View style={styles.resultsPanel}>
-                <UniversalSearchGroupedResults
-                  grouped={searchResults}
-                  query={submittedSearchQuery || searchQuery}
-                  onSongPress={playSearchResultSong}
-                  onLyricPress={playSearchResultSong}
-                  onArtistPress={openArtist}
-                  onAlbumPress={openAlbum}
-                  onGenrePress={openGenre}
-                  onPlaylistPress={openPlaylist}
-                  onTvPress={openTv}
-                  onSuggestionPress={handleSuggestionPress}
-                  activeSongId={currentSong?.id ? String(currentSong.id) : null}
-                  isPlaying={isPlaying}
-                  showEmpty
-                />
+                <View style={styles.resultSummaryRow}>
+                  <View>
+                    <Text style={styles.sectionEyebrow}>RESULTS</Text>
+                    <Text style={styles.sectionTitle}>{apkResultCount} match{apkResultCount === 1 ? "" : "es"}</Text>
+                  </View>
+                  {apkExternalAudioResults.length > 0 ? <Text style={styles.fallbackBadge}>Internet fallback</Text> : null}
+                </View>
+
+                {apkSongResults.length > 0 ? (
+                  <View style={styles.sectionBlock}>
+                    <Text style={styles.sectionEyebrow}>SONGS</Text>
+                    {apkSongResults.slice(0, 18).map((song, index) => {
+                      const active = String(currentSong?.id || "") === String(song.id || "");
+                      return (
+                        <TouchableOpacity
+                          key={`song-${song.id}-${index}`}
+                          activeOpacity={0.86}
+                          style={[styles.songRow, active && styles.songRowActive]}
+                          onPress={() => playSearchResultSong(song)}
+                        >
+                          <LinearGradient colors={active ? GRADIENTS.neon : GRADIENTS.card} style={styles.coverBorder}>
+                            <HTImage source={song} style={styles.cover} contentFit="cover" />
+                          </LinearGradient>
+                          <View style={styles.songCopy}>
+                            <Text numberOfLines={1} style={styles.songTitle}>{song.title}</Text>
+                            <Text numberOfLines={1} style={styles.songArtist}>{song.artist || "Hidden Tunes"}</Text>
+                            <Text numberOfLines={1} style={styles.songMeta}>{song.album || song.genre || song.mood || "Catalog result"}</Text>
+                          </View>
+                          {active && isPlaying ? (
+                            <NeonEQ isPlaying={isPlaying} size="small" />
+                          ) : (
+                            <View style={styles.playCircle}>
+                              <Ionicons name="play" size={16} color={COLORS.text} />
+                            </View>
+                          )}
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                ) : null}
+
+                {apkAlbumResults.length > 0 ? (
+                  <View style={styles.sectionBlock}>
+                    <Text style={styles.sectionEyebrow}>ALBUMS</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rail}>
+                      {apkAlbumResults.map((album) => (
+                        <TouchableOpacity key={album.id} activeOpacity={0.88} style={styles.albumCard} onPress={() => openAlbum(album)}>
+                          <HTImage source={album} style={styles.albumImage} contentFit="cover" />
+                          <Text numberOfLines={2} style={styles.albumTitle}>{album.title}</Text>
+                          <Text numberOfLines={1} style={styles.albumArtist}>{album.artist}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                ) : null}
+
+                {apkArtistResults.length > 0 ? (
+                  <View style={styles.sectionBlock}>
+                    <Text style={styles.sectionEyebrow}>ARTISTS</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rail}>
+                      {apkArtistResults.map((artist) => (
+                        <TouchableOpacity key={artist.id} activeOpacity={0.88} style={styles.artistCard} onPress={() => openArtist(artist)}>
+                          <HTImage source={artist} style={styles.artistImage} contentFit="cover" />
+                          <Text numberOfLines={2} style={styles.artistName}>{artist.name}</Text>
+                          <Text numberOfLines={1} style={styles.artistMeta}>{artist.songs.length} song{artist.songs.length === 1 ? "" : "s"}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                ) : null}
+
+                {apkGenreResults.length > 0 ? (
+                  <View style={styles.sectionBlock}>
+                    <Text style={styles.sectionEyebrow}>GENRES / ROOMS</Text>
+                    <View style={styles.roomGrid}>
+                      {apkGenreResults.map((genre) => (
+                        <TouchableOpacity key={genre.id} activeOpacity={0.86} style={styles.roomCard} onPress={() => openGenre(genre)}>
+                          <HTImage source={genre} style={styles.roomImage} contentFit="cover" />
+                          <LinearGradient pointerEvents="none" colors={["transparent", "rgba(0,0,0,0.74)"]} style={styles.roomShade} />
+                          <Text numberOfLines={1} style={styles.roomTitle}>{genre.title}</Text>
+                          <Text style={styles.roomMeta}>{genre.songs.length} tracks</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                ) : null}
+
+                {apkExternalAudioResults.length > 0 ? (
+                  <View style={styles.sectionBlock}>
+                    <Text style={styles.sectionEyebrow}>INTERNET AUDIO</Text>
+                    {apkExternalAudioResults.map((song, index) => (
+                      <TouchableOpacity
+                        key={`external-${song.id}-${index}`}
+                        activeOpacity={0.86}
+                        style={styles.songRow}
+                        onPress={() => playSearchResultSong(song)}
+                      >
+                        <LinearGradient colors={GRADIENTS.card} style={styles.coverBorder}>
+                          <HTImage source={song} style={styles.cover} contentFit="cover" />
+                        </LinearGradient>
+                        <View style={styles.songCopy}>
+                          <Text numberOfLines={1} style={styles.songTitle}>{song.title}</Text>
+                          <Text numberOfLines={1} style={styles.songArtist}>{song.artist}</Text>
+                          <Text numberOfLines={1} style={styles.songMeta}>{(song as any).sourceName || "Internet audio"}</Text>
+                        </View>
+                        <View style={styles.playCircle}>
+                          <Ionicons name="play" size={16} color={COLORS.text} />
+                        </View>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                ) : null}
+
+                {apkResultCount === 0 ? (
+                  <View style={styles.emptyPanel}>
+                    <Ionicons name="search" size={34} color={COLORS.primaryGlow} />
+                    <Text style={styles.emptyTitle}>No matches yet</Text>
+                    <Text style={styles.emptyText}>Try a song, artist, album, genre, room, or lyric phrase.</Text>
+                  </View>
+                ) : null}
               </View>
             ) : null}
 
@@ -755,14 +933,20 @@ export default function SearchScreen() {
                   <View style={styles.sectionBlock}>
                     <Text style={styles.sectionEyebrow}>FOR YOU</Text>
                     <Text style={styles.sectionTitle}>Quick picks</Text>
-                    {discoverySongs.map((song) => (
-                      <UnifiedMediaCard
-                        key={`pick-${song.id}`}
-                        title={song.title}
-                        subtitle={song.artist}
-                        image={song}
-                        onPress={() => playDiscoverySong(song, "Search Quick Picks")}
-                      />
+                    {discoverySongs.map((song, index) => (
+                      <TouchableOpacity key={`pick-${song.id}-${index}`} activeOpacity={0.86} style={styles.songRow} onPress={() => playDiscoverySong(song, "Search Quick Picks")}>
+                        <LinearGradient colors={GRADIENTS.card} style={styles.coverBorder}>
+                          <HTImage source={song} style={styles.cover} contentFit="cover" />
+                        </LinearGradient>
+                        <View style={styles.songCopy}>
+                          <Text numberOfLines={1} style={styles.songTitle}>{song.title}</Text>
+                          <Text numberOfLines={1} style={styles.songArtist}>{song.artist}</Text>
+                          <Text numberOfLines={1} style={styles.songMeta}>{song.album || song.genre || "Hidden Tunes"}</Text>
+                        </View>
+                        <View style={styles.playCircle}>
+                          <Ionicons name="play" size={16} color={COLORS.text} />
+                        </View>
+                      </TouchableOpacity>
                     ))}
                   </View>
                 ) : null}
@@ -833,7 +1017,6 @@ export default function SearchScreen() {
                   </View>
                 ) : null}
 
-                <SubtleTvEntryLink style={styles.tvLink} />
               </View>
             ) : null}
           </ScrollView>
@@ -973,6 +1156,146 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
     fontSize: 12,
     fontWeight: "700",
+  },
+  resultSummaryRow: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+    gap: 12,
+    marginBottom: 2,
+  },
+  fallbackBadge: {
+    color: COLORS.primaryGlow,
+    fontSize: 10,
+    fontWeight: "900",
+    textTransform: "uppercase",
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: "rgba(168,85,247,0.14)",
+    overflow: "hidden",
+  },
+  songRow: {
+    minHeight: 82,
+    marginBottom: 12,
+    padding: 10,
+    borderRadius: 24,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.055)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.09)",
+  },
+  songRowActive: {
+    backgroundColor: "rgba(168,85,247,0.16)",
+    borderColor: "rgba(34,211,238,0.34)",
+  },
+  coverBorder: {
+    width: 64,
+    height: 64,
+    borderRadius: 21,
+    padding: 2,
+  },
+  cover: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 19,
+    backgroundColor: COLORS.card,
+  },
+  songCopy: {
+    flex: 1,
+    minWidth: 0,
+    marginLeft: 13,
+  },
+  songTitle: {
+    color: COLORS.text,
+    fontSize: 16,
+    fontWeight: "900",
+  },
+  songArtist: {
+    color: COLORS.textMuted,
+    fontSize: 13,
+    fontWeight: "700",
+    marginTop: 4,
+  },
+  songMeta: {
+    color: COLORS.cyan,
+    fontSize: 11,
+    fontWeight: "800",
+    marginTop: 6,
+  },
+  playCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+  },
+  roomGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+  },
+  roomCard: {
+    width: "47%",
+    height: 150,
+    borderRadius: 23,
+    overflow: "hidden",
+    padding: 12,
+    justifyContent: "flex-end",
+    backgroundColor: COLORS.card,
+  },
+  roomImage: {
+    ...StyleSheet.flatten(StyleSheet.absoluteFill),
+  },
+  roomShade: {
+    ...StyleSheet.flatten(StyleSheet.absoluteFill),
+  },
+  roomTitle: {
+    color: COLORS.text,
+    fontSize: 15,
+    fontWeight: "900",
+    zIndex: 2,
+  },
+  roomMeta: {
+    color: COLORS.textMuted,
+    fontSize: 11,
+    fontWeight: "800",
+    marginTop: 4,
+    zIndex: 2,
+  },
+  artistMeta: {
+    color: COLORS.textMuted,
+    fontSize: 10,
+    fontWeight: "700",
+    marginTop: 3,
+    textAlign: "center",
+  },
+  emptyPanel: {
+    marginTop: 24,
+    borderRadius: 24,
+    padding: 24,
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.055)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+  },
+  emptyTitle: {
+    color: COLORS.text,
+    fontSize: 18,
+    fontWeight: "900",
+    marginTop: 10,
+  },
+  emptyText: {
+    color: COLORS.textMuted,
+    fontSize: 13,
+    fontWeight: "700",
+    marginTop: 6,
+    textAlign: "center",
+    lineHeight: 19,
   },
   rail: { gap: 12, paddingRight: 8 },
   artistCard: { width: 108 },
