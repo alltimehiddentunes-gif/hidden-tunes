@@ -7,7 +7,24 @@ export const FALLBACK_ARTWORK = Image.resolveAssetSource(HIDDEN_TUNES_LOGO).uri;
 
 const EMPTY_URL_VALUES = new Set(["", "null", "undefined", "[object object]"]);
 const MAX_FAILED_ARTWORK_URLS = 512;
+const MAX_ARTWORK_CANDIDATE_CACHE = 512;
 const failedArtworkUrls = new Set<string>();
+const artworkCandidateCache = new Map<string, any[]>();
+
+function rememberArtworkCandidates(key: string, candidates: any[]) {
+  if (artworkCandidateCache.size >= MAX_ARTWORK_CANDIDATE_CACHE) {
+    const oldest = artworkCandidateCache.keys().next().value;
+    if (oldest) artworkCandidateCache.delete(oldest);
+  }
+  artworkCandidateCache.set(key, candidates);
+}
+
+function artworkCacheKey(item: any, fallback: string) {
+  if (typeof item === "string") return `s:${item}`;
+  if (!item || typeof item !== "object") return `v:${String(item)}`;
+  const id = String(item.id || item.slug || item.title || "");
+  return `o:${id}:${fallback}`;
+}
 
 function rememberFailedArtworkUrl(url: string) {
   if (!url || url === FALLBACK_ARTWORK) return;
@@ -99,6 +116,10 @@ function artworkCandidateKey(candidate: any) {
 }
 
 export function getArtworkCandidates(item: any, fallback = FALLBACK_ARTWORK): any[] {
+  const cacheKey = artworkCacheKey(item, fallback);
+  const cached = artworkCandidateCache.get(cacheKey);
+  if (cached) return cached;
+
   const candidates: any[] = [];
 
   if (!item) return [fallback];
@@ -251,7 +272,9 @@ export function getArtworkCandidates(item: any, fallback = FALLBACK_ARTWORK): an
     return true;
   });
 
-  return uniqueCandidates.length ? uniqueCandidates : [fallback];
+  const resolved = uniqueCandidates.length ? uniqueCandidates : [fallback];
+  rememberArtworkCandidates(cacheKey, resolved);
+  return resolved;
 }
 
 export function resolveArtwork(item: any, fallback = FALLBACK_ARTWORK) {

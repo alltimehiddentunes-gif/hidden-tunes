@@ -63,6 +63,19 @@ const SONG_ROW_HEIGHT = LIST_ITEM_HEIGHTS.searchResultRow;
 const songKeyExtractor = createStableKeyExtractor("search-song");
 const getSongItemLayout = getNestedSongListLayout(SONG_ROW_HEIGHT);
 
+const DISPLAY_LIMITS = {
+  top: 6,
+  songs: 14,
+  lyrics: 8,
+  artists: 8,
+  albums: 8,
+  genreMoods: 8,
+  moodRooms: 8,
+  playlists: 8,
+  internetAudio: 8,
+  tv: 6,
+} as const;
+
 type SearchSongHit = GroupedResults["songs"][number];
 
 const SearchSongRow = memo(function SearchSongRow({
@@ -117,7 +130,24 @@ function UniversalSearchGroupedResults({
     [onSongPress]
   );
 
-  if (!grouped.hasAnyResults) {
+  const display = useMemo(
+    () => ({
+      topResults: grouped.topResults.slice(0, DISPLAY_LIMITS.top),
+      songs: grouped.songs.slice(0, DISPLAY_LIMITS.songs),
+      lyrics: grouped.lyrics.slice(0, DISPLAY_LIMITS.lyrics),
+      artists: grouped.artists.slice(0, DISPLAY_LIMITS.artists),
+      albums: grouped.albums.slice(0, DISPLAY_LIMITS.albums),
+      genreMoods: grouped.genreMoods.slice(0, DISPLAY_LIMITS.genreMoods),
+      moodRooms: grouped.moodRooms.slice(0, DISPLAY_LIMITS.moodRooms),
+      playlists: grouped.playlists.slice(0, DISPLAY_LIMITS.playlists),
+      internetAudio: grouped.internetAudio.slice(0, DISPLAY_LIMITS.internetAudio),
+      tv: grouped.tv.slice(0, DISPLAY_LIMITS.tv),
+      hasAnyResults: grouped.hasAnyResults,
+    }),
+    [grouped]
+  );
+
+  if (!display.hasAnyResults) {
     if (!showEmpty) {
       return null;
     }
@@ -145,7 +175,7 @@ function UniversalSearchGroupedResults({
     );
   }
 
-  const topResults = grouped.topResults.filter((hit) => !hit.id.startsWith("tv:"));
+  const topResults = display.topResults.filter((hit) => !hit.id.startsWith("tv:"));
 
   return (
     <View style={styles.container}>
@@ -313,10 +343,10 @@ function UniversalSearchGroupedResults({
         </View>
       )}
 
-      {grouped.artists.length > 0 && (
+      {display.artists.length > 0 && (
         <View style={styles.sectionBlock}>
           <SectionHeader title="Artists" count={grouped.artists.length} />
-          {grouped.artists.map((hit) => (
+          {display.artists.map((hit) => (
             <TouchableOpacity
               key={hit.id}
               activeOpacity={0.88}
@@ -339,11 +369,11 @@ function UniversalSearchGroupedResults({
         </View>
       )}
 
-      {grouped.songs.length > 0 && (
+      {display.songs.length > 0 && (
         <View style={styles.sectionBlock}>
           <SectionHeader title="Songs" count={grouped.songs.length} />
           <FlatList
-            data={grouped.songs}
+            data={display.songs}
             scrollEnabled={false}
             nestedScrollEnabled
             keyExtractor={songKeyExtractor}
@@ -357,10 +387,10 @@ function UniversalSearchGroupedResults({
         </View>
       )}
 
-      {grouped.lyrics.length > 0 && (
+      {display.lyrics.length > 0 && (
         <View style={styles.sectionBlock}>
           <SectionHeader title="Lyrics Matches" count={grouped.lyrics.length} />
-          {grouped.lyrics.map((hit) => (
+          {display.lyrics.map((hit) => (
             <TouchableOpacity
               key={hit.id}
               activeOpacity={0.88}
@@ -387,10 +417,10 @@ function UniversalSearchGroupedResults({
         </View>
       )}
 
-      {grouped.albums.length > 0 && (
+      {display.albums.length > 0 && (
         <View style={styles.sectionBlock}>
           <SectionHeader title="Albums" count={grouped.albums.length} />
-          {grouped.albums.map((hit) => (
+          {display.albums.map((hit) => (
             <TouchableOpacity
               key={hit.id}
               activeOpacity={0.88}
@@ -413,11 +443,11 @@ function UniversalSearchGroupedResults({
         </View>
       )}
 
-      {grouped.genreMoods.length > 0 && (
+      {display.genreMoods.length > 0 && (
         <View style={styles.sectionBlock}>
           <SectionHeader title="Genres" count={grouped.genreMoods.length} />
           <View style={styles.genreWrap}>
-            {grouped.genreMoods.map((hit) => (
+            {display.genreMoods.map((hit) => (
               <TouchableOpacity
                 key={hit.id}
                 activeOpacity={0.86}
@@ -433,11 +463,11 @@ function UniversalSearchGroupedResults({
         </View>
       )}
 
-      {grouped.moodRooms.length > 0 && (
+      {display.moodRooms.length > 0 && (
         <View style={styles.sectionBlock}>
           <SectionHeader title="Mood Rooms" count={grouped.moodRooms.length} />
           <View style={styles.genreWrap}>
-            {grouped.moodRooms.map((hit) => (
+            {display.moodRooms.map((hit) => (
               <TouchableOpacity
                 key={hit.id}
                 activeOpacity={0.86}
@@ -453,10 +483,10 @@ function UniversalSearchGroupedResults({
         </View>
       )}
 
-      {grouped.playlists.length > 0 && (
+      {display.playlists.length > 0 && (
         <View style={styles.sectionBlock}>
           <SectionHeader title="Playlists & Collections" count={grouped.playlists.length} />
-          {grouped.playlists.map((hit) => (
+          {display.playlists.map((hit) => (
             <TouchableOpacity
               key={hit.id}
               activeOpacity={0.88}
@@ -479,11 +509,11 @@ function UniversalSearchGroupedResults({
         </View>
       )}
 
-      {grouped.internetAudio.length > 0 && (
+      {display.internetAudio.length > 0 && (
         <View style={styles.sectionBlock}>
           <SectionHeader title="Internet Audio" count={grouped.internetAudio.length} />
           <FlatList
-            data={grouped.internetAudio}
+            data={display.internetAudio}
             scrollEnabled={false}
             nestedScrollEnabled
             keyExtractor={songKeyExtractor}
@@ -497,10 +527,10 @@ function UniversalSearchGroupedResults({
         </View>
       )}
 
-      {grouped.tv.length > 0 && (
+      {display.tv.length > 0 && (
         <View style={styles.sectionBlock}>
           <SectionHeader title="Videos" count={grouped.tv.length} />
-          {grouped.tv.map((hit) => {
+          {display.tv.map((hit) => {
             const video = hit.payload as any;
             return (
               <TouchableOpacity

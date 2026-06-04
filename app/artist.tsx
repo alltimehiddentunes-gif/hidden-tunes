@@ -19,6 +19,7 @@ import { usePlayerActions } from "../context/PlayerContext";
 import { resolveEntityArtwork } from "../utils/artwork";
 import {
   fetchHiddenTunesCatalog,
+  getCachedHiddenTunesCatalog,
   type HiddenTunesAlbumCatalogItem,
   type HiddenTunesDerivedCatalog,
   type HiddenTunesSong,
@@ -59,7 +60,7 @@ export default function ArtistScreen() {
   async function loadArtistCatalog() {
     try {
       setLoading(true);
-      setCatalog(await fetchHiddenTunesCatalog());
+      setCatalog(getCachedHiddenTunesCatalog() || (await fetchHiddenTunesCatalog()));
     } catch (error) {
       console.log("Artist catalog load error:", error);
       setCatalog(null);

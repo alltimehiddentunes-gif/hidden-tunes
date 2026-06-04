@@ -235,6 +235,103 @@ const PremiumPlayButton = memo(function PremiumPlayButton({
   );
 });
 
+const PlayerProgressPanel = memo(function PlayerProgressPanel({
+  compactLayout,
+  disabled,
+  onSeekComplete,
+}: {
+  compactLayout: boolean;
+  disabled: boolean;
+  onSeekComplete: (value: number) => void;
+}) {
+  const { positionMillis, durationMillis } = usePlayerProgress();
+  const duration = Math.max(0, durationMillis || 0);
+  const position = Math.max(
+    0,
+    Math.min(positionMillis || 0, duration || positionMillis || 0)
+  );
+
+  return (
+    <View style={[styles.progressPanel, compactLayout && styles.progressPanelCompact]}>
+      <Slider
+        value={position}
+        minimumValue={0}
+        maximumValue={duration > 0 ? duration : 1}
+        minimumTrackTintColor={COLORS.primaryGlow}
+        maximumTrackTintColor="rgba(255,255,255,0.16)"
+        thumbTintColor={COLORS.primary}
+        disabled={disabled}
+        onSlidingComplete={onSeekComplete}
+      />
+      <View style={styles.timeRow}>
+        <Text style={styles.timeText}>{formatTime(position)}</Text>
+        <Text style={styles.timeText}>{formatTime(duration)}</Text>
+      </View>
+    </View>
+  );
+});
+
+const PlayerControlsDock = memo(function PlayerControlsDock({
+  compactLayout,
+  disabled,
+  shuffle,
+  repeatMode,
+  isPlaying,
+  isLoading,
+  onToggleShuffle,
+  onPrevious,
+  onTogglePlayPause,
+  onNext,
+  onRepeatOne,
+  onRepeatAll,
+}: {
+  compactLayout: boolean;
+  disabled: boolean;
+  shuffle: boolean;
+  repeatMode: string;
+  isPlaying: boolean;
+  isLoading: boolean;
+  onToggleShuffle: () => void;
+  onPrevious: () => void;
+  onTogglePlayPause: () => void;
+  onNext: () => void;
+  onRepeatOne: () => void;
+  onRepeatAll: () => void;
+}) {
+  return (
+    <View style={[styles.controlsDock, compactLayout && styles.controlsDockCompact]}>
+      <View style={[styles.controls, styles.controlsRestored, compactLayout && styles.controlsCompact]}>
+        <PremiumIconButton disabled={disabled} onPress={onToggleShuffle}>
+          <Ionicons name="shuffle" size={22} color={shuffle ? COLORS.primaryGlow : COLORS.text} />
+        </PremiumIconButton>
+
+        <PremiumIconButton disabled={disabled} onPress={onPrevious}>
+          <Ionicons name="play-skip-back" size={27} color={COLORS.text} />
+        </PremiumIconButton>
+
+        <PremiumPlayButton
+          isPlaying={isPlaying}
+          isLoading={isLoading}
+          disabled={disabled}
+          onPress={onTogglePlayPause}
+        />
+
+        <PremiumIconButton disabled={disabled} onPress={onNext}>
+          <Ionicons name="play-skip-forward" size={27} color={COLORS.text} />
+        </PremiumIconButton>
+
+        <PremiumIconButton disabled={disabled} onPress={onRepeatOne}>
+          <Ionicons name="repeat" size={22} color={repeatMode === "one" ? COLORS.primaryGlow : COLORS.text} />
+        </PremiumIconButton>
+
+        <PremiumIconButton disabled={disabled} onPress={onRepeatAll}>
+          <Ionicons name="repeat" size={22} color={repeatMode === "all" ? COLORS.primaryGlow : COLORS.text} />
+        </PremiumIconButton>
+      </View>
+    </View>
+  );
+});
+
 const MetadataContextChip = memo(function MetadataContextChip({
   label,
   onPress,
@@ -269,7 +366,6 @@ export default function PlayerScreen() {
   const horizontalPadding = compactLayout ? 18 : 22;
 
   const { currentSong, isPlaying, isLoading } = usePlayerNowPlaying();
-  const { positionMillis, durationMillis } = usePlayerProgress();
   const {
     activeQueue,
     activeQueueIndex,
@@ -305,12 +401,6 @@ export default function PlayerScreen() {
   const title = currentSong?.title || "No track selected";
   const artist =
     currentSong?.artist || currentSong?.user?.name || "Hidden Tunes";
-  const duration = Math.max(0, durationMillis || 0);
-  const position = Math.max(
-    0,
-    Math.min(positionMillis || 0, duration || positionMillis || 0)
-  );
-
   const queueLabel = useMemo(() => {
     if (activeQueueMode === "smart") return "SMART AUTOPLAY";
     if (radioMode) return "RADIO MODE";
@@ -753,53 +843,26 @@ export default function PlayerScreen() {
             </View>
           ) : null}
 
-          <View style={[styles.progressPanel, compactLayout && styles.progressPanelCompact]}>
-            <Slider
-              value={position}
-              minimumValue={0}
-              maximumValue={duration > 0 ? duration : 1}
-              minimumTrackTintColor={COLORS.primaryGlow}
-              maximumTrackTintColor="rgba(255,255,255,0.16)"
-              thumbTintColor={COLORS.primary}
-              disabled={!currentSong || duration <= 0}
-              onSlidingComplete={handleSeekComplete}
-            />
-            <View style={styles.timeRow}>
-              <Text style={styles.timeText}>{formatTime(position)}</Text>
-              <Text style={styles.timeText}>{formatTime(duration)}</Text>
-            </View>
-          </View>
+          <PlayerProgressPanel
+            compactLayout={compactLayout}
+            disabled={!currentSong}
+            onSeekComplete={handleSeekComplete}
+          />
 
-          <View style={[styles.controlsDock, compactLayout && styles.controlsDockCompact]}>
-            <View style={[styles.controls, styles.controlsRestored, compactLayout && styles.controlsCompact]}>
-              <PremiumIconButton disabled={!currentSong} onPress={toggleShuffle}>
-                <Ionicons name="shuffle" size={22} color={shuffle ? COLORS.primaryGlow : COLORS.text} />
-              </PremiumIconButton>
-
-              <PremiumIconButton disabled={!currentSong} onPress={handlePrevious}>
-                <Ionicons name="play-skip-back" size={27} color={COLORS.text} />
-              </PremiumIconButton>
-
-              <PremiumPlayButton
-                isPlaying={isPlaying}
-                isLoading={isLoading}
-                disabled={!currentSong}
-                onPress={handleTogglePlayPause}
-              />
-
-              <PremiumIconButton disabled={!currentSong} onPress={handleNext}>
-                <Ionicons name="play-skip-forward" size={27} color={COLORS.text} />
-              </PremiumIconButton>
-
-              <PremiumIconButton disabled={!currentSong} onPress={() => setRepeatTarget("one")}>
-                <Ionicons name="repeat" size={22} color={repeatMode === "one" ? COLORS.primaryGlow : COLORS.text} />
-              </PremiumIconButton>
-
-              <PremiumIconButton disabled={!currentSong} onPress={() => setRepeatTarget("all")}>
-                <Ionicons name="repeat" size={22} color={repeatMode === "all" ? COLORS.primaryGlow : COLORS.text} />
-              </PremiumIconButton>
-            </View>
-          </View>
+          <PlayerControlsDock
+            compactLayout={compactLayout}
+            disabled={!currentSong}
+            shuffle={shuffle}
+            repeatMode={repeatMode}
+            isPlaying={isPlaying}
+            isLoading={isLoading}
+            onToggleShuffle={toggleShuffle}
+            onPrevious={handlePrevious}
+            onTogglePlayPause={handleTogglePlayPause}
+            onNext={handleNext}
+            onRepeatOne={() => setRepeatTarget("one")}
+            onRepeatAll={() => setRepeatTarget("all")}
+          />
 
           <View style={styles.extraActions}>
             <Pressable

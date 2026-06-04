@@ -52,6 +52,7 @@ import {
 import type { PlaybackQueueContext } from "@/context/PlayerContext";
 import {
   fetchHiddenTunesCatalog,
+  getCachedHiddenTunesCatalog,
   type HiddenTunesAlbumCatalogItem,
   type HiddenTunesArtistCatalogItem,
   type HiddenTunesDerivedCatalog,
@@ -420,6 +421,7 @@ export default function MusicFeedScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [heroIndex, setHeroIndex] = useState(0);
   const [visibleCatalogCount, setVisibleCatalogCount] = useState(CATALOG_PAGE_SIZE);
+  const [showDeferredHomeSections, setShowDeferredHomeSections] = useState(false);
   const heroIndexRef = useRef(0);
   const heroListRef = useRef<FlatList<HeroCard> | null>(null);
   const { width: viewportWidth } = useWindowDimensions();
@@ -435,37 +437,82 @@ export default function MusicFeedScreen() {
   const playlists = catalog?.playlists || [];
 
   const loadCatalog = useCallback(async () => {
+    const cached = getCachedHiddenTunesCatalog();
+    if (cached) {
+      setCatalog(cached);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
-    const data = await fetchHiddenTunesCatalog();
-    setCatalog(data);
-    setLoading(false);
+    try {
+      const data = await fetchHiddenTunesCatalog();
+      setCatalog(data);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
     void loadCatalog();
   }, [loadCatalog]);
 
+  useEffect(() => {
+    if (loading) {
+      setShowDeferredHomeSections(false);
+      return;
+    }
+
+    const interaction = InteractionManager.runAfterInteractions(() => {
+      setShowDeferredHomeSections(true);
+    });
+
+    return () => interaction.cancel();
+  }, [loading]);
+
   const refreshCatalog = useCallback(async () => {
     setRefreshing(true);
-    const data = await fetchHiddenTunesCatalog();
-    setCatalog(data);
-    setVisibleCatalogCount(CATALOG_PAGE_SIZE);
-    setRefreshing(false);
+    try {
+      const data = await fetchHiddenTunesCatalog({ forceRefresh: true });
+      setCatalog(data);
+      setVisibleCatalogCount(CATALOG_PAGE_SIZE);
+    } finally {
+      setRefreshing(false);
+    }
   }, []);
 
   const visiblePlaylists = useMemo(() => playlists.slice(0, 6), [playlists]);
   const featuredSongs = useMemo(() => songs.slice(0, 8), [songs]);
   const moodGenreChips = useMemo(() => genres.slice(0, 4), [genres]);
-  const recentlyAddedSongs = useMemo(() => songs.slice(0, 12), [songs]);
-  const moodRooms = useMemo(() => buildMoodRooms(songs), [songs]);
-  const openRooms = useMemo(() => buildOpenRooms(songs), [songs]);
-  const visibleArtists = useMemo(() => artists.slice(0, 12), [artists]);
-  const visibleAlbums = useMemo(() => albums.slice(0, 12), [albums]);
-  const visibleGenres = useMemo(() => genres.slice(0, 10), [genres]);
+  const recentlyAddedSongs = useMemo(
+    () => (showDeferredHomeSections ? songs.slice(0, 12) : []),
+    [showDeferredHomeSections, songs]
+  );
+  const moodRooms = useMemo(
+    () => (showDeferredHomeSections ? buildMoodRooms(songs) : []),
+    [showDeferredHomeSections, songs]
+  );
+  const openRooms = useMemo(
+    () => (showDeferredHomeSections ? buildOpenRooms(songs) : []),
+    [showDeferredHomeSections, songs]
+  );
+  const visibleArtists = useMemo(
+    () => (showDeferredHomeSections ? artists.slice(0, 12) : []),
+    [artists, showDeferredHomeSections]
+  );
+  const visibleAlbums = useMemo(
+    () => (showDeferredHomeSections ? albums.slice(0, 12) : []),
+    [albums, showDeferredHomeSections]
+  );
+  const visibleGenres = useMemo(
+    () => (showDeferredHomeSections ? genres.slice(0, 10) : []),
+    [genres, showDeferredHomeSections]
+  );
   const visibleCatalogSongs = useMemo(() => songs.slice(0, visibleCatalogCount), [songs, visibleCatalogCount]);
   const canLoadMore = visibleCatalogCount < songs.length;
 
   const becauseYouListened = useMemo(() => {
+    if (!showDeferredHomeSections) return [];
     const recentArtists = new Set(
       (Array.isArray(recentlyPlayed) ? recentlyPlayed : [])
         .map((entry) => String(entry?.artist || "").toLowerCase())
@@ -477,12 +524,13 @@ export default function MusicFeedScreen() {
       return recentArtists.has(artist) || favoriteArtists.has(artist);
     });
     return uniqSongs(candidates.length ? candidates : songs.slice(8, 24)).slice(0, 12);
-  }, [favorites, recentlyPlayed, songs]);
+  }, [favorites, recentlyPlayed, showDeferredHomeSections, songs]);
 
   const smartQueueSongs = useMemo(() => {
+    if (!showDeferredHomeSections) return [];
     const queueSongs = Array.isArray(activeQueue) ? (activeQueue as HiddenTunesSong[]) : [];
     return uniqSongs((queueSongs.length ? queueSongs : songs.slice(12, 30)).filter(Boolean)).slice(0, 12);
-  }, [activeQueue, songs]);
+  }, [activeQueue, showDeferredHomeSections, songs]);
 
   const heroCards = useMemo(
     () =>
@@ -836,27 +884,6 @@ export default function MusicFeedScreen() {
                       </View>
                     </View>
 
-                    {moodRooms.length > 0 ? (
-                      <View style={styles.cinematicSection}>
-                        <Text style={styles.sectionEyebrow}>FOR YOUR MOOD</Text>
-                        <Text style={styles.sectionTitle}>Mood Rooms</Text>
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.surfaceRow}>
-                          {moodRooms.map((room) => (
-                            <TouchableOpacity key={room.id} activeOpacity={0.88} style={styles.roomCard} onPress={() => openGenre(room)}>
-                              <HTImage
-                                source={resolveGroupArtworkSource(room)}
-                                style={styles.roomImage}
-                                contentFit="cover"
-                              />
-                              <View pointerEvents="none" style={styles.roomShade} />
-                              <Text numberOfLines={1} style={styles.roomTitle}>{room.title}</Text>
-                              <Text style={styles.roomSubtitle}>{room.subtitle}</Text>
-                            </TouchableOpacity>
-                          ))}
-                        </ScrollView>
-                      </View>
-                    ) : null}
-
                     <View style={styles.quickGrid}>
                       <TouchableOpacity activeOpacity={0.86} style={styles.quickButton} onPress={() => router.push("/playlists" as any)}>
                         <Ionicons name="musical-notes" size={19} color={COLORS.primaryGlow} />
@@ -877,7 +904,28 @@ export default function MusicFeedScreen() {
                     </View>
                 </>
 
+                {showDeferredHomeSections ? (
                 <>
+                    {moodRooms.length > 0 ? (
+                      <View style={styles.cinematicSection}>
+                        <Text style={styles.sectionEyebrow}>FOR YOUR MOOD</Text>
+                        <Text style={styles.sectionTitle}>Mood Rooms</Text>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.surfaceRow}>
+                          {moodRooms.map((room) => (
+                            <TouchableOpacity key={room.id} activeOpacity={0.88} style={styles.roomCard} onPress={() => openGenre(room)}>
+                              <HTImage
+                                source={resolveGroupArtworkSource(room)}
+                                style={styles.roomImage}
+                                contentFit="cover"
+                              />
+                              <View pointerEvents="none" style={styles.roomShade} />
+                              <Text numberOfLines={1} style={styles.roomTitle}>{room.title}</Text>
+                              <Text style={styles.roomSubtitle}>{room.subtitle}</Text>
+                            </TouchableOpacity>
+                          ))}
+                        </ScrollView>
+                      </View>
+                    ) : null}
                     {recentlyAddedSongs.length > 0 ? (
                       <View style={styles.cinematicSection}>
                         <LinearGradient
@@ -1046,15 +1094,16 @@ export default function MusicFeedScreen() {
                         </ScrollView>
                       </View>
                     ) : null}
+                </>
+                ) : null}
 
-                    <View style={styles.catalogHeaderRow}>
-                      <View>
-                        <Text style={styles.sectionEyebrow}>FULL CATALOG</Text>
-                        <Text style={[styles.sectionTitle, styles.songsSectionTitle]}>All Songs</Text>
-                      </View>
-                      <Text style={styles.catalogCount}>{Math.min(visibleCatalogCount, songs.length)}/{songs.length}</Text>
-                    </View>
-                  </>
+                <View style={styles.catalogHeaderRow}>
+                  <View>
+                    <Text style={styles.sectionEyebrow}>FULL CATALOG</Text>
+                    <Text style={[styles.sectionTitle, styles.songsSectionTitle]}>All Songs</Text>
+                  </View>
+                  <Text style={styles.catalogCount}>{Math.min(visibleCatalogCount, songs.length)}/{songs.length}</Text>
+                </View>
               </View>
             }
             ListFooterComponent={

@@ -367,9 +367,47 @@ export async function fetchHiddenTunesSongs(options?: {
   return fetchHiddenTunesSongsFromJson();
 }
 
+let derivedCatalogCache: HiddenTunesDerivedCatalog | null = null;
+let derivedCatalogFingerprint = "";
+
+function buildCatalogFingerprint(songs: HiddenTunesSong[]) {
+  if (!songs.length) return "empty";
+  const first = songs[0]?.id || "";
+  const last = songs[songs.length - 1]?.id || "";
+  return `${songs.length}:${first}:${last}`;
+}
+
+export function getCachedHiddenTunesCatalog() {
+  return derivedCatalogCache;
+}
+
+export function clearHiddenTunesCatalogCache() {
+  derivedCatalogCache = null;
+  derivedCatalogFingerprint = "";
+}
+
 export async function fetchHiddenTunesCatalog(options?: {
   forceRefresh?: boolean;
 }): Promise<HiddenTunesDerivedCatalog> {
+  if (options?.forceRefresh) {
+    clearHiddenTunesCatalogCache();
+  } else if (derivedCatalogCache) {
+    return derivedCatalogCache;
+  }
+
   const songs = await fetchHiddenTunesSongs(options);
-  return deriveHiddenTunesCatalog(songs);
+  const fingerprint = buildCatalogFingerprint(songs);
+
+  if (
+    !options?.forceRefresh &&
+    derivedCatalogCache &&
+    derivedCatalogFingerprint === fingerprint
+  ) {
+    return derivedCatalogCache;
+  }
+
+  const catalog = deriveHiddenTunesCatalog(songs);
+  derivedCatalogCache = catalog;
+  derivedCatalogFingerprint = fingerprint;
+  return catalog;
 }

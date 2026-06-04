@@ -28,6 +28,7 @@ import {
 } from "../context/PlayerContext";
 import {
   fetchHiddenTunesCatalog,
+  getCachedHiddenTunesCatalog,
   type HiddenTunesAlbumCatalogItem,
   type HiddenTunesArtistCatalogItem,
   type HiddenTunesDerivedCatalog,
@@ -191,6 +192,13 @@ export default function SearchScreen() {
     let cancelled = false;
 
     void (async () => {
+      const cached = getCachedHiddenTunesCatalog();
+      if (cached && !cancelled) {
+        setCatalog(cached);
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       try {
         const data = await fetchHiddenTunesCatalog();
