@@ -115,8 +115,8 @@ export default function QueueScreen() {
   return (
     <AppShell>
       <LinearGradient colors={GRADIENTS.main} style={styles.container}>
-      <View style={styles.glowPurple} />
-      <View style={styles.glowCyan} />
+      <View pointerEvents="none" style={styles.glowPurple} />
+      <View pointerEvents="none" style={styles.glowCyan} />
 
       <View style={styles.header}>
         <TouchableOpacity style={styles.iconButton} onPress={() => router.back()}>
@@ -124,8 +124,12 @@ export default function QueueScreen() {
         </TouchableOpacity>
 
         <View>
-          <Text style={styles.headerTitle}>Queue</Text>
-          <Text style={styles.headerSubtitle}>Up next</Text>
+          <Text style={styles.headerTitle}>QUEUE</Text>
+          <Text style={styles.headerSubtitle}>
+            {queueSongs.length
+              ? `${queueSongs.length} track${queueSongs.length === 1 ? "" : "s"} ready`
+              : "Build the next run"}
+          </Text>
         </View>
 
         <View style={styles.headerControls}>
@@ -186,6 +190,7 @@ export default function QueueScreen() {
 
         {currentSong ? (
           <View style={styles.nowPlayingCard}>
+            <View pointerEvents="none" style={styles.nowPlayingGlow} />
             <LinearGradient colors={GRADIENTS.neon} style={styles.nowCoverBorder}>
               <HTImage source={currentSong} style={styles.nowCover} contentFit="cover" />
             </LinearGradient>
@@ -211,6 +216,9 @@ export default function QueueScreen() {
           <View style={styles.emptyCard}>
             <Ionicons name="musical-notes" size={34} color={COLORS.primary} />
             <Text style={styles.emptyText}>No song playing</Text>
+            <Text style={styles.emptySubtext}>
+              Start a track and your current session will appear here.
+            </Text>
           </View>
         )}
 
@@ -222,17 +230,22 @@ export default function QueueScreen() {
 
         {nextSongs.length === 0 ? (
           <View style={styles.emptyCard}>
+            <Ionicons name="list" size={30} color={COLORS.cyan} />
             <Text style={styles.emptyText}>No songs in queue</Text>
+            <Text style={styles.emptySubtext}>
+              Play from Home, Search, Favorites, or a playlist to fill this space.
+            </Text>
           </View>
         ) : (
           nextSongs.map(({ song, queueIndex }, index) => {
             const itemKey = `${song.id}-${queueIndex}`;
             const continuationLabel = continuationByItemKey[itemKey];
+            const isActiveSong = String(song.id) === String(currentSong?.id);
 
             return (
             <TouchableOpacity
               key={`${song.id}-${index}`}
-              style={styles.queueItem}
+              style={[styles.queueItem, isActiveSong && styles.queueItemActive]}
               activeOpacity={0.85}
               onPress={() => {
                 void playSong(song, queueSongs, queueIndex, {
@@ -246,9 +259,16 @@ export default function QueueScreen() {
                 });
               }}
             >
-              <Text style={styles.queueNumber}>{index + 1}</Text>
+              <Text style={[styles.queueNumber, isActiveSong && styles.queueNumberActive]}>
+                {isActiveSong ? "NOW" : index + 1}
+              </Text>
 
-              <HTImage source={song} style={styles.queueCover} contentFit="cover" />
+              <LinearGradient
+                colors={isActiveSong ? GRADIENTS.neon : GRADIENTS.card}
+                style={styles.queueCoverBorder}
+              >
+                <HTImage source={song} style={styles.queueCover} contentFit="cover" />
+              </LinearGradient>
 
               <View style={styles.queueInfo}>
                 <Text numberOfLines={1} style={styles.queueTitle}>
@@ -266,7 +286,13 @@ export default function QueueScreen() {
                 ) : null}
               </View>
 
-              <Ionicons name="play-circle" size={29} color={COLORS.primary} />
+              <View style={[styles.queuePlayButton, isActiveSong && styles.queuePlayButtonActive]}>
+                {isActiveSong && isPlaying ? (
+                  <NeonEQ isPlaying={isPlaying} size="small" />
+                ) : (
+                  <Ionicons name="play" size={17} color={isActiveSong ? "#000" : COLORS.text} />
+                )}
+              </View>
             </TouchableOpacity>
             );
           })
@@ -280,7 +306,7 @@ export default function QueueScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 58,
+    paddingTop: 56,
   },
 
   glowPurple: {
@@ -290,7 +316,7 @@ const styles = StyleSheet.create({
     width: 280,
     height: 280,
     borderRadius: 140,
-    backgroundColor: "rgba(168,85,247,0.2)",
+    backgroundColor: "rgba(168,85,247,0.16)",
   },
 
   glowCyan: {
@@ -300,7 +326,7 @@ const styles = StyleSheet.create({
     width: 330,
     height: 330,
     borderRadius: 165,
-    backgroundColor: "rgba(34,211,238,0.12)",
+    backgroundColor: "rgba(34,211,238,0.1)",
   },
 
   header: {
@@ -329,7 +355,7 @@ const styles = StyleSheet.create({
 
   headerTitle: {
     color: COLORS.text,
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "900",
     textAlign: "center",
   },
@@ -344,7 +370,7 @@ const styles = StyleSheet.create({
 
   scrollContent: {
     paddingHorizontal: 20,
-    paddingBottom: 130,
+    paddingBottom: 150,
   },
 
   smartPanel: {
@@ -424,20 +450,35 @@ const styles = StyleSheet.create({
   },
 
   nowPlayingCard: {
-    borderRadius: 32,
+    borderRadius: 30,
     padding: 16,
-    backgroundColor: "rgba(168,85,247,0.13)",
+    backgroundColor: "rgba(168,85,247,0.12)",
     borderWidth: 1,
-    borderColor: "rgba(168,85,247,0.38)",
+    borderColor: "rgba(168,85,247,0.34)",
     flexDirection: "row",
     alignItems: "center",
+    overflow: "hidden",
+    shadowColor: COLORS.primaryGlow,
+    shadowOpacity: 0.16,
+    shadowRadius: 18,
+    elevation: 8,
+  },
+
+  nowPlayingGlow: {
+    position: "absolute",
+    width: 170,
+    height: 170,
+    borderRadius: 85,
+    right: -62,
+    top: -48,
+    backgroundColor: "rgba(34,211,238,0.15)",
   },
 
   nowCoverBorder: {
-    width: 96,
-    height: 96,
-    borderRadius: 26,
-    padding: 2,
+    width: 102,
+    height: 102,
+    borderRadius: 28,
+    padding: 2.5,
   },
 
   nowCover: {
@@ -494,16 +535,34 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
 
+  queueItemActive: {
+    backgroundColor: "rgba(168,85,247,0.16)",
+    borderColor: "rgba(34,211,238,0.34)",
+  },
+
   queueNumber: {
-    width: 26,
+    width: 34,
     color: COLORS.textMuted,
     fontSize: 14,
     fontWeight: "800",
+    textAlign: "center",
+  },
+
+  queueNumberActive: {
+    color: COLORS.cyan,
+    fontSize: 10,
+  },
+
+  queueCoverBorder: {
+    width: 60,
+    height: 60,
+    borderRadius: 18,
+    padding: 2,
   },
 
   queueCover: {
-    width: 56,
-    height: 56,
+    width: "100%",
+    height: "100%",
     borderRadius: 16,
     backgroundColor: COLORS.card,
   },
@@ -534,9 +593,25 @@ const styles = StyleSheet.create({
     lineHeight: 15,
   },
 
+  queuePlayButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+  },
+
+  queuePlayButtonActive: {
+    backgroundColor: COLORS.cyan,
+    borderColor: "rgba(255,255,255,0.32)",
+  },
+
   emptyCard: {
     borderRadius: 24,
-    padding: 20,
+    padding: 22,
     backgroundColor: "rgba(255,255,255,0.055)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.08)",
@@ -545,8 +620,18 @@ const styles = StyleSheet.create({
   },
 
   emptyText: {
+    color: COLORS.text,
+    fontWeight: "900",
+    marginTop: 10,
+  },
+
+  emptySubtext: {
     color: COLORS.textMuted,
-    fontWeight: "800",
-    marginTop: 8,
+    fontSize: 12,
+    fontWeight: "700",
+    lineHeight: 18,
+    marginTop: 6,
+    maxWidth: 260,
+    textAlign: "center",
   },
 });

@@ -26,6 +26,7 @@ type IconName = keyof typeof Ionicons.glyphMap;
 
 type ProfileRoute =
   | "/auth"
+  | "/search"
   | "/downloads"
   | "/playback-diagnostics"
   | "/privacy"
@@ -80,6 +81,12 @@ const PROFILE_ACTIONS: ProfileAction[] = [
 ];
 
 const LIBRARY_SHORTCUTS: ProfileShortcut[] = [
+  {
+    title: "Search",
+    subtitle: "Find songs, artists, moods, and lyrics",
+    icon: "search-outline",
+    href: "/search",
+  },
   {
     title: "Favorites",
     subtitle: "Songs you have saved",
@@ -185,9 +192,9 @@ function ProfileRow({
 }) {
   return (
     <TouchableOpacity activeOpacity={0.84} style={styles.item} onPress={onPress}>
-      <View style={styles.itemIcon}>
+      <LinearGradient colors={GRADIENTS.card} style={styles.itemIcon}>
         <Ionicons name={icon} size={21} color={COLORS.primary} />
-      </View>
+      </LinearGradient>
 
       <View style={styles.itemTextWrap}>
         <Text style={styles.itemTitle}>{title}</Text>
@@ -291,8 +298,8 @@ export default function ProfileScreen() {
   return (
     <AppShell>
       <LinearGradient colors={GRADIENTS.main} style={styles.screen}>
-        <View style={styles.glowPurple} />
-        <View style={styles.glowCyan} />
+        <View pointerEvents="none" style={styles.glowPurple} />
+        <View pointerEvents="none" style={styles.glowCyan} />
 
         <ScrollView
           showsVerticalScrollIndicator={false}
@@ -302,8 +309,8 @@ export default function ProfileScreen() {
             <Text style={styles.kicker}>PROFILE</Text>
           </View>
 
-          <View style={styles.heroCard}>
-            <View style={styles.heroGlow} />
+          <LinearGradient colors={GRADIENTS.card} style={styles.heroCard}>
+            <View pointerEvents="none" style={styles.heroGlow} />
 
             <Image
               source={require("../assets/images/logo.png")}
@@ -324,12 +331,12 @@ export default function ProfileScreen() {
             <Text style={styles.guestNote}>
               Guest listening · sign in optional
             </Text>
-          </View>
+          </LinearGradient>
 
           {statCards.length > 0 ? (
             <View style={styles.statsRow}>
-              {statCards.map((stat) => (
-                <View key={stat.label} style={styles.statCard}>
+              {statCards.map((stat, index) => (
+                <View key={stat.label} style={[styles.statCard, index === 0 && styles.statCardFeatured]}>
                   <Text style={styles.statNumber}>{stat.value}</Text>
                   <Text style={styles.statLabel}>{stat.label}</Text>
                 </View>
@@ -402,9 +409,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    paddingTop: 58,
+    paddingTop: 56,
     paddingHorizontal: 20,
-    paddingBottom: 140,
+    paddingBottom: 152,
   },
   glowPurple: {
     position: "absolute",
@@ -413,7 +420,7 @@ const styles = StyleSheet.create({
     width: 280,
     height: 280,
     borderRadius: 140,
-    backgroundColor: "rgba(168,85,247,0.2)",
+    backgroundColor: "rgba(168,85,247,0.15)",
   },
   glowCyan: {
     position: "absolute",
@@ -422,50 +429,53 @@ const styles = StyleSheet.create({
     width: 330,
     height: 330,
     borderRadius: 165,
-    backgroundColor: "rgba(34,211,238,0.12)",
+    backgroundColor: "rgba(34,211,238,0.1)",
   },
   topBar: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 8,
+    marginBottom: 10,
   },
   kicker: {
-    color: COLORS.primary,
+    color: COLORS.primaryGlow,
     fontSize: 12,
     fontWeight: "900",
     letterSpacing: 2,
   },
   heroCard: {
     marginTop: 8,
-    borderRadius: 34,
+    borderRadius: 32,
     padding: 26,
-    minHeight: 280,
+    minHeight: 292,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.055)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.11)",
+    borderColor: "rgba(255,255,255,0.13)",
     overflow: "hidden",
+    shadowColor: COLORS.primaryGlow,
+    shadowOpacity: 0.16,
+    shadowRadius: 20,
+    elevation: 9,
   },
   heroGlow: {
     position: "absolute",
-    width: 230,
-    height: 230,
-    borderRadius: 115,
+    width: 250,
+    height: 250,
+    borderRadius: 125,
     backgroundColor: "rgba(34,211,238,0.16)",
     top: -70,
     right: -70,
   },
   logo: {
-    width: 96,
-    height: 96,
-    borderRadius: 28,
-    marginBottom: 14,
+    width: 104,
+    height: 104,
+    borderRadius: 30,
+    marginBottom: 15,
   },
   heroName: {
     color: COLORS.text,
-    fontSize: 28,
+    fontSize: 30,
     fontWeight: "900",
   },
   heroSubtitle: {
@@ -480,7 +490,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.86)",
+    backgroundColor: "rgba(255,255,255,0.9)",
     paddingHorizontal: 15,
     paddingVertical: 9,
     borderRadius: 999,
@@ -495,25 +505,30 @@ const styles = StyleSheet.create({
     marginTop: 12,
     color: COLORS.cyan,
     fontSize: 12,
-    fontWeight: "800",
+    fontWeight: "900",
   },
   statsRow: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 10,
-    marginTop: 18,
+    marginTop: 16,
   },
   statCard: {
     minWidth: "30%",
     flexGrow: 1,
     paddingVertical: 16,
     paddingHorizontal: 8,
-    borderRadius: 24,
+    borderRadius: 22,
     alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.055)",
+    backgroundColor: "rgba(255,255,255,0.06)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.09)",
+    borderColor: "rgba(255,255,255,0.1)",
   },
+  statCardFeatured: {
+    backgroundColor: "rgba(168,85,247,0.14)",
+    borderColor: "rgba(168,85,247,0.28)",
+  },
+
   statNumber: {
     color: COLORS.text,
     fontSize: 22,
@@ -528,7 +543,7 @@ const styles = StyleSheet.create({
   },
   dashboardHero: {
     marginTop: 22,
-    borderRadius: 30,
+    borderRadius: 28,
     padding: 22,
     backgroundColor: "rgba(255,255,255,0.07)",
     borderWidth: 1,
@@ -558,7 +573,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     color: COLORS.text,
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "900",
     marginBottom: 12,
   },
@@ -566,17 +581,16 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     padding: 16,
-    borderRadius: 24,
-    marginBottom: 12,
-    backgroundColor: "rgba(255,255,255,0.055)",
+    borderRadius: 22,
+    marginBottom: 11,
+    backgroundColor: "rgba(255,255,255,0.06)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.09)",
+    borderColor: "rgba(255,255,255,0.1)",
   },
   itemIcon: {
     width: 46,
     height: 46,
     borderRadius: 16,
-    backgroundColor: "rgba(168,85,247,0.14)",
     alignItems: "center",
     justifyContent: "center",
     marginRight: 14,
@@ -592,6 +606,7 @@ const styles = StyleSheet.create({
   itemSubtitle: {
     color: COLORS.textMuted,
     fontSize: 12,
+    lineHeight: 17,
     marginTop: 4,
   },
   versionRow: {
