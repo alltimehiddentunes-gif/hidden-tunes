@@ -55,6 +55,66 @@ export const GRADIENTS = {
 
   premium: ["#1A0633", "#0A0117", "#000000"] as const,
   card: ["#1A0830", "#12071F"] as const,
+  cardElevated: ["#241040", "#160828", "#0B0414"] as const,
   neon: ["#A855F7", "#EC4899", "#22D3EE"] as const,
   player: ["#22063D", "#10051F", "#000000"] as const,
+  heroAura: ["rgba(168,85,247,0.34)", "rgba(236,72,153,0.16)", "rgba(34,211,238,0.08)"] as const,
 };
+
+export const SPACING = {
+  hero: 32,
+  section: 24,
+  card: 12,
+  screen: 18,
+} as const;
+
+export const TYPOGRAPHY = {
+  heroTitle: 32,
+  heroSubtitle: 17,
+  sectionTitle: 20,
+  sectionEyebrow: 10,
+  metadata: 14,
+  cardTitle: 16,
+  cardSubtitle: 13,
+} as const;
+
+export const LUXURY_GLOW = {
+  pulseDurationMs: 10000,
+  opacityMin: 0.08,
+  opacityMax: 0.24,
+  scaleMin: 0.97,
+  scaleMax: 1.035,
+} as const;
+
+export const SHADOWS = {
+  card: {
+    shadowColor: COLORS.primary,
+    shadowOpacity: 0.14,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 8,
+  },
+  premium: {
+    shadowColor: COLORS.primaryGlow,
+    shadowOpacity: 0.22,
+    shadowRadius: 22,
+    shadowOffset: { width: 0, height: 14 },
+    elevation: 12,
+  },
+  artwork: {
+    shadowColor: "#A855F7",
+    shadowOpacity: 0.28,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 12 },
+    elevation: 10,
+  },
+} as const;
+
+export const LOGO_SIZES = {
+  header: 72,
+  headerImage: 62,
+  hero: 132,
+  heroImage: 118,
+  libraryHero: 140,
+  libraryHeroImage: 124,
+} as const;

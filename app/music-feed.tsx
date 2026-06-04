@@ -19,8 +19,11 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import Animated, {
   Easing,
+  cancelAnimation,
   useAnimatedStyle,
   useSharedValue,
+  withRepeat,
+  withSequence,
   withSpring,
   withTiming,
 } from "react-native-reanimated";
@@ -32,7 +35,15 @@ import LiveWaveform from "@/components/LiveWaveform";
 import NeonEQ from "@/components/NeonEQ";
 import UnifiedMediaCard from "@/components/UnifiedMediaCard";
 import { HomeCatalogSongRow, HomeFeaturedCard } from "@/components/catalog/HomePlaybackRows";
-import { COLORS, GRADIENTS } from "@/constants/theme";
+import {
+  COLORS,
+  GRADIENTS,
+  LUXURY_GLOW,
+  LOGO_SIZES,
+  SHADOWS,
+  SPACING,
+  TYPOGRAPHY,
+} from "@/constants/theme";
 import {
   usePlayerActions,
   usePlayerNowPlaying,
@@ -133,6 +144,102 @@ function buildOpenRooms(songs: HiddenTunesSong[]) {
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
+const PremiumAmbientGlow = memo(function PremiumAmbientGlow({
+  style,
+  color,
+}: {
+  style: object;
+  color: string;
+}) {
+  const opacity = useSharedValue<number>(LUXURY_GLOW.opacityMin);
+
+  useEffect(() => {
+    opacity.value = withRepeat(
+      withSequence(
+        withTiming(LUXURY_GLOW.opacityMax, {
+          duration: LUXURY_GLOW.pulseDurationMs / 2,
+          easing: Easing.inOut(Easing.sin),
+        }),
+        withTiming(LUXURY_GLOW.opacityMin, {
+          duration: LUXURY_GLOW.pulseDurationMs / 2,
+          easing: Easing.inOut(Easing.sin),
+        })
+      ),
+      -1,
+      false
+    );
+
+    return () => cancelAnimation(opacity);
+  }, [opacity]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+  }));
+
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[style, { backgroundColor: color }, animatedStyle]}
+    />
+  );
+});
+
+const PremiumLuxuryPulse = memo(function PremiumLuxuryPulse({
+  style,
+}: {
+  style?: object;
+}) {
+  const opacity = useSharedValue<number>(LUXURY_GLOW.opacityMin);
+  const scale = useSharedValue<number>(LUXURY_GLOW.scaleMin);
+
+  useEffect(() => {
+    opacity.value = withRepeat(
+      withSequence(
+        withTiming(LUXURY_GLOW.opacityMax, {
+          duration: LUXURY_GLOW.pulseDurationMs / 2,
+          easing: Easing.inOut(Easing.sin),
+        }),
+        withTiming(LUXURY_GLOW.opacityMin, {
+          duration: LUXURY_GLOW.pulseDurationMs / 2,
+          easing: Easing.inOut(Easing.sin),
+        })
+      ),
+      -1,
+      false
+    );
+    scale.value = withRepeat(
+      withSequence(
+        withTiming(LUXURY_GLOW.scaleMax, {
+          duration: LUXURY_GLOW.pulseDurationMs / 2,
+          easing: Easing.inOut(Easing.sin),
+        }),
+        withTiming(LUXURY_GLOW.scaleMin, {
+          duration: LUXURY_GLOW.pulseDurationMs / 2,
+          easing: Easing.inOut(Easing.sin),
+        })
+      ),
+      -1,
+      false
+    );
+
+    return () => {
+      cancelAnimation(opacity);
+      cancelAnimation(scale);
+    };
+  }, [opacity, scale]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ scale: scale.value }],
+  }));
+
+  return (
+    <Animated.View pointerEvents="none" style={[style, animatedStyle]}>
+      <LinearGradient colors={GRADIENTS.heroAura} style={StyleSheet.absoluteFill} />
+    </Animated.View>
+  );
+});
+
 const PremiumHeroPressable = memo(function PremiumHeroPressable({
   children,
   height,
@@ -145,13 +252,29 @@ const PremiumHeroPressable = memo(function PremiumHeroPressable({
   onPress: () => void;
 }) {
   const scale = useSharedValue(1);
-  const glow = useSharedValue(isActive ? 0.16 : 0.08);
+  const glow = useSharedValue<number>(LUXURY_GLOW.opacityMin);
 
   useEffect(() => {
-    glow.value = withTiming(isActive ? 0.18 : 0.08, {
-      duration: 260,
-      easing: Easing.out(Easing.cubic),
-    });
+    cancelAnimation(glow);
+    const peak = isActive ? LUXURY_GLOW.opacityMax + 0.06 : LUXURY_GLOW.opacityMax;
+    const floor = isActive ? LUXURY_GLOW.opacityMin + 0.04 : LUXURY_GLOW.opacityMin;
+
+    glow.value = withRepeat(
+      withSequence(
+        withTiming(peak, {
+          duration: LUXURY_GLOW.pulseDurationMs / 2,
+          easing: Easing.inOut(Easing.sin),
+        }),
+        withTiming(floor, {
+          duration: LUXURY_GLOW.pulseDurationMs / 2,
+          easing: Easing.inOut(Easing.sin),
+        })
+      ),
+      -1,
+      false
+    );
+
+    return () => cancelAnimation(glow);
   }, [glow, isActive]);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -301,7 +424,7 @@ export default function MusicFeedScreen() {
   const heroListRef = useRef<FlatList<HeroCard> | null>(null);
   const { width: viewportWidth } = useWindowDimensions();
   const heroCardWidth = Math.min(520, Math.max(300, viewportWidth - 36));
-  const heroCardHeight = Math.min(292, Math.max(226, Math.round(heroCardWidth * 0.65)));
+  const heroCardHeight = Math.min(340, Math.max(268, Math.round(heroCardWidth * 0.78)));
   const railCardWidth = Math.min(244, Math.max(204, viewportWidth * 0.62));
   const searchPanelPadding = viewportWidth < 380 ? 12 : 14;
 
@@ -504,51 +627,71 @@ export default function MusicFeedScreen() {
               isActive={isPlayingCard || index === heroIndexRef.current}
               onPress={() => handleHeroPress(item)}
             >
-              <HTImage source={item.song} style={styles.heroImage} />
-
-              <LinearGradient
-                colors={["transparent", "rgba(0,0,0,0.98)"]}
-                style={styles.heroOverlay}
-              >
-                <View style={styles.livePill}>
-                  {isPlayingCard ? (
-                    <NeonEQ isPlaying={isPlaying} size="small" />
-                  ) : (
-                    <Ionicons name={item.icon} size={13} color={COLORS.primary} />
-                  )}
-                  <Text style={styles.liveText}>
-                    {isPlayingCard ? "Now Playing" : item.label}
-                  </Text>
-                </View>
-
-                <Text numberOfLines={1} style={styles.heroSong}>
-                  {item.title}
-                </Text>
-                <Text numberOfLines={1} style={styles.heroArtist}>
-                  {item.subtitle}
-                </Text>
-
-                <View style={styles.heroBottomRow}>
-                  <View style={styles.heroPlayButton}>
-                    <Ionicons
-                      name={isPlayingCard && isPlaying ? "pause" : "play"}
-                      size={18}
-                      color="#000"
-                    />
-                    <Text style={styles.heroPlayText}>
-                      {isPlayingCard ? "OPEN PLAYER" : "PLAY"}
+              <View style={styles.heroInner}>
+                <View style={styles.heroTextBlock}>
+                  <View style={styles.livePill}>
+                    {isPlayingCard ? (
+                      <NeonEQ isPlaying={isPlaying} size="small" />
+                    ) : (
+                      <Ionicons name={item.icon} size={13} color={COLORS.primary} />
+                    )}
+                    <Text style={styles.liveText}>
+                      {isPlayingCard ? "Now Playing" : item.label}
                     </Text>
                   </View>
 
-                  {heroCards.length > 1 ? (
-                    <View style={styles.heroCountPill}>
-                      <Text style={styles.heroCountText}>
-                        {index + 1}/{heroCards.length}
+                  <Text
+                    numberOfLines={2}
+                    ellipsizeMode="tail"
+                    style={styles.heroSong}
+                  >
+                    {item.title}
+                  </Text>
+                  <Text
+                    numberOfLines={2}
+                    ellipsizeMode="tail"
+                    style={styles.heroArtist}
+                  >
+                    {item.subtitle}
+                  </Text>
+
+                  <View style={styles.heroBottomRow}>
+                    <View style={styles.heroPlayButton}>
+                      <Ionicons
+                        name={isPlayingCard && isPlaying ? "pause" : "play"}
+                        size={18}
+                        color="#000"
+                      />
+                      <Text style={styles.heroPlayText}>
+                        {isPlayingCard ? "OPEN PLAYER" : "PLAY"}
                       </Text>
                     </View>
-                  ) : null}
+
+                    {heroCards.length > 1 ? (
+                      <View style={styles.heroCountPill}>
+                        <Text style={styles.heroCountText}>
+                          {index + 1}/{heroCards.length}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
                 </View>
-              </LinearGradient>
+
+                <View style={styles.heroArtworkPanel}>
+                  <PremiumLuxuryPulse style={styles.heroArtworkAura} />
+                  <HTImage
+                    source={item.song}
+                    style={styles.heroArtworkImage}
+                    contentFit="cover"
+                    contentPosition="top"
+                  />
+                  <LinearGradient
+                    pointerEvents="none"
+                    colors={["transparent", "rgba(0,0,0,0.42)"]}
+                    style={styles.heroArtworkFade}
+                  />
+                </View>
+              </View>
             </PremiumHeroPressable>
           </LinearGradient>
         </View>
@@ -575,13 +718,14 @@ export default function MusicFeedScreen() {
   return (
     <AppShell>
       <LinearGradient colors={GRADIENTS.main} style={styles.container}>
-        <View pointerEvents="none" style={styles.glowPurple} />
-        <View pointerEvents="none" style={styles.glowCyan} />
-        <View pointerEvents="none" style={styles.glowCenter} />
+        <PremiumAmbientGlow style={styles.glowPurple} color="rgba(168,85,247,0.14)" />
+        <PremiumAmbientGlow style={styles.glowCyan} color="rgba(34,211,238,0.1)" />
+        <PremiumAmbientGlow style={styles.glowCenter} color="rgba(168,85,247,0.08)" />
 
         <View style={styles.header}>
           <View style={styles.brandRow}>
             <View style={styles.logoMark}>
+              <PremiumLuxuryPulse style={styles.logoAura} />
               <Image
                 source={require("../assets/images/logo.png")}
                 style={styles.logoImage}
@@ -590,7 +734,12 @@ export default function MusicFeedScreen() {
             </View>
             <View style={styles.headerCopy}>
               <Text style={styles.kicker}>HIDDEN TUNES</Text>
-              <Text style={styles.subtitle}>For your mood</Text>
+              <Text numberOfLines={2} ellipsizeMode="tail" style={styles.title}>
+                For your mood
+              </Text>
+              <Text numberOfLines={1} ellipsizeMode="tail" style={styles.subtitle}>
+                Premium listening, curated for you
+              </Text>
             </View>
           </View>
 
@@ -644,7 +793,7 @@ export default function MusicFeedScreen() {
 
                 {heroCards.length > 0 ? (
                   <View style={styles.heroStage}>
-                    <View pointerEvents="none" style={styles.heroStageGlow} />
+                    <PremiumLuxuryPulse style={styles.heroStageGlow} />
                     <FlatList
                       ref={heroListRef}
                       horizontal
@@ -990,16 +1139,17 @@ const styles = StyleSheet.create({
   },
   title: {
     color: COLORS.text,
-    fontSize: 29,
+    fontSize: TYPOGRAPHY.heroTitle,
     fontWeight: "900",
-    marginTop: 4,
+    marginTop: 6,
+    lineHeight: TYPOGRAPHY.heroTitle + 6,
   },
   subtitle: {
     color: COLORS.textMuted,
-    marginTop: 4,
-    fontSize: 13,
+    marginTop: 6,
+    fontSize: TYPOGRAPHY.metadata,
     fontWeight: "700",
-    lineHeight: 18,
+    lineHeight: 20,
   },
   center: {
     flex: 1,
@@ -1033,17 +1183,17 @@ const styles = StyleSheet.create({
   },
   list: { paddingBottom: 146 },
   heroStage: {
-    marginBottom: 16,
+    marginBottom: SPACING.hero,
     position: "relative",
   },
   heroStageGlow: {
     position: "absolute",
-    top: 28,
-    left: 28,
-    right: 28,
-    height: 150,
-    borderRadius: 75,
-    backgroundColor: "rgba(34,211,238,0.05)",
+    top: 18,
+    left: 18,
+    right: 18,
+    height: 180,
+    borderRadius: 90,
+    overflow: "hidden",
   },
   heroList: {
     paddingRight: 18,
@@ -1059,28 +1209,50 @@ const styles = StyleSheet.create({
     borderRadius: 27,
     overflow: "hidden",
     backgroundColor: COLORS.card,
+    ...SHADOWS.premium,
   },
   heroActiveGlow: {
     position: "absolute",
-    top: -28,
-    left: -20,
-    right: -20,
-    height: 130,
+    top: -24,
+    left: -18,
+    right: -18,
+    height: 120,
     backgroundColor: COLORS.primary,
     borderRadius: 70,
     zIndex: 1,
   },
-  heroImage: {
-    width: "100%",
-    height: "100%",
-    position: "absolute",
-    zIndex: 0,
-  },
-  heroOverlay: {
+  heroInner: {
     flex: 1,
     zIndex: 2,
-    justifyContent: "flex-end",
-    padding: 19,
+  },
+  heroTextBlock: {
+    paddingHorizontal: 18,
+    paddingTop: 18,
+    paddingBottom: 12,
+  },
+  heroArtworkPanel: {
+    flex: 1,
+    marginHorizontal: 14,
+    marginBottom: 14,
+    minHeight: 132,
+    borderRadius: 22,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+    backgroundColor: "rgba(255,255,255,0.04)",
+    ...SHADOWS.artwork,
+  },
+  heroArtworkAura: {
+    ...StyleSheet.flatten(StyleSheet.absoluteFill),
+    borderRadius: 22,
+    overflow: "hidden",
+  },
+  heroArtworkImage: {
+    width: "100%",
+    height: "100%",
+  },
+  heroArtworkFade: {
+    ...StyleSheet.flatten(StyleSheet.absoluteFill),
   },
   livePill: {
     alignSelf: "flex-start",
@@ -1101,14 +1273,17 @@ const styles = StyleSheet.create({
   },
   heroSong: {
     color: COLORS.text,
-    fontSize: 24,
+    fontSize: TYPOGRAPHY.heroTitle,
     fontWeight: "900",
+    lineHeight: TYPOGRAPHY.heroTitle + 4,
+    marginTop: 2,
   },
   heroArtist: {
     color: COLORS.textMuted,
-    fontSize: 14,
+    fontSize: TYPOGRAPHY.heroSubtitle,
     fontWeight: "700",
-    marginTop: 6,
+    marginTop: 8,
+    lineHeight: TYPOGRAPHY.heroSubtitle + 4,
   },
   heroBottomRow: {
     flexDirection: "row",
@@ -1306,7 +1481,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   cinematicSection: {
-    marginBottom: 22,
+    marginBottom: SPACING.section,
     position: "relative",
     overflow: "hidden",
     borderRadius: 22,
@@ -1336,8 +1511,9 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     color: COLORS.text,
-    fontSize: 21,
+    fontSize: TYPOGRAPHY.sectionTitle,
     fontWeight: "900",
+    lineHeight: TYPOGRAPHY.sectionTitle + 4,
   },
   songsSectionTitle: {
     marginBottom: 13,
@@ -1366,21 +1542,27 @@ const styles = StyleSheet.create({
     gap: 11,
   },
   logoMark: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: "rgba(255,255,255,0.92)",
+    width: LOGO_SIZES.header,
+    height: LOGO_SIZES.header,
+    borderRadius: LOGO_SIZES.header / 2,
+    backgroundColor: "rgba(255,255,255,0.94)",
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
-    shadowColor: COLORS.primary,
-    shadowOpacity: 0.18,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
+    ...SHADOWS.premium,
+  },
+  logoAura: {
+    position: "absolute",
+    top: -8,
+    left: -8,
+    right: -8,
+    bottom: -8,
+    borderRadius: LOGO_SIZES.header / 2 + 8,
+    overflow: "hidden",
   },
   logoImage: {
-    width: 34,
-    height: 34,
+    width: LOGO_SIZES.headerImage,
+    height: LOGO_SIZES.headerImage,
   },
   catalogStatus: {
     color: COLORS.primaryGlow,
@@ -1419,7 +1601,7 @@ const styles = StyleSheet.create({
   quickGrid: {
     flexDirection: "row",
     gap: 10,
-    marginBottom: 24,
+    marginBottom: SPACING.section,
   },
   quickButton: {
     flex: 1,

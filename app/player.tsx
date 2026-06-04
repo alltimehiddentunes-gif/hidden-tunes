@@ -20,6 +20,7 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
+  withSequence,
   withSpring,
   withTiming,
 } from "react-native-reanimated";
@@ -28,7 +29,7 @@ import AddToPlaylistModal from "../components/AddToPlaylistModal";
 import HTImage from "../components/HTImage";
 import NeonEQ from "../components/NeonEQ";
 import AppShell from "../components/navigation/AppShell";
-import { COLORS, GRADIENTS } from "../constants/theme";
+import { COLORS, GRADIENTS, LUXURY_GLOW, TYPOGRAPHY } from "../constants/theme";
 import {
   usePlayerActions,
   usePlayerNowPlaying,
@@ -58,12 +59,38 @@ function fireLightHaptic() {
 }
 
 const AmbientGlow = memo(function AmbientGlow() {
-  const purple = useSharedValue(0.16);
-  const cyan = useSharedValue(0.1);
+  const purple = useSharedValue<number>(LUXURY_GLOW.opacityMin);
+  const cyan = useSharedValue<number>(LUXURY_GLOW.opacityMin * 0.85);
 
   useEffect(() => {
-    purple.value = withTiming(0.16, { duration: 500 });
-    cyan.value = withTiming(0.1, { duration: 500 });
+    purple.value = withRepeat(
+      withSequence(
+        withTiming(LUXURY_GLOW.opacityMax, {
+          duration: LUXURY_GLOW.pulseDurationMs / 2,
+          easing: Easing.inOut(Easing.sin),
+        }),
+        withTiming(LUXURY_GLOW.opacityMin, {
+          duration: LUXURY_GLOW.pulseDurationMs / 2,
+          easing: Easing.inOut(Easing.sin),
+        })
+      ),
+      -1,
+      false
+    );
+    cyan.value = withRepeat(
+      withSequence(
+        withTiming(LUXURY_GLOW.opacityMax * 0.9, {
+          duration: LUXURY_GLOW.pulseDurationMs / 2,
+          easing: Easing.inOut(Easing.sin),
+        }),
+        withTiming(LUXURY_GLOW.opacityMin * 0.85, {
+          duration: LUXURY_GLOW.pulseDurationMs / 2,
+          easing: Easing.inOut(Easing.sin),
+        })
+      ),
+      -1,
+      false
+    );
 
     return () => {
       cancelAnimation(purple);
@@ -361,18 +388,70 @@ export default function PlayerScreen() {
       cancelAnimation(pulse);
       cancelAnimation(artworkRotation);
       cancelAnimation(artworkHalo);
-      pulse.value = withTiming(1, { duration: 220 });
-      artworkHalo.value = withTiming(0.24, { duration: 220 });
+      pulse.value = withRepeat(
+        withSequence(
+          withTiming(LUXURY_GLOW.scaleMax, {
+            duration: LUXURY_GLOW.pulseDurationMs / 2,
+            easing: Easing.inOut(Easing.sin),
+          }),
+          withTiming(1, {
+            duration: LUXURY_GLOW.pulseDurationMs / 2,
+            easing: Easing.inOut(Easing.sin),
+          })
+        ),
+        -1,
+        false
+      );
+      artworkHalo.value = withRepeat(
+        withSequence(
+          withTiming(LUXURY_GLOW.opacityMax, {
+            duration: LUXURY_GLOW.pulseDurationMs / 2,
+            easing: Easing.inOut(Easing.sin),
+          }),
+          withTiming(LUXURY_GLOW.opacityMin + 0.06, {
+            duration: LUXURY_GLOW.pulseDurationMs / 2,
+            easing: Easing.inOut(Easing.sin),
+          })
+        ),
+        -1,
+        false
+      );
       return;
     }
 
-    pulse.value = withTiming(1.006, { duration: 260 });
+    pulse.value = withRepeat(
+      withSequence(
+        withTiming(1.02, {
+          duration: LUXURY_GLOW.pulseDurationMs / 2,
+          easing: Easing.inOut(Easing.sin),
+        }),
+        withTiming(1.004, {
+          duration: LUXURY_GLOW.pulseDurationMs / 2,
+          easing: Easing.inOut(Easing.sin),
+        })
+      ),
+      -1,
+      false
+    );
     artworkRotation.value = withRepeat(
       withTiming(360, { duration: 72000, easing: Easing.linear }),
       -1,
       false
     );
-    artworkHalo.value = withTiming(0.34, { duration: 260 });
+    artworkHalo.value = withRepeat(
+      withSequence(
+        withTiming(LUXURY_GLOW.opacityMax + 0.1, {
+          duration: LUXURY_GLOW.pulseDurationMs / 2,
+          easing: Easing.inOut(Easing.sin),
+        }),
+        withTiming(LUXURY_GLOW.opacityMin + 0.12, {
+          duration: LUXURY_GLOW.pulseDurationMs / 2,
+          easing: Easing.inOut(Easing.sin),
+        })
+      ),
+      -1,
+      false
+    );
 
     return () => {
       cancelAnimation(pulse);
@@ -390,6 +469,7 @@ export default function PlayerScreen() {
 
   const artworkHaloStyle = useAnimatedStyle(() => ({
     opacity: artworkHalo.value,
+    transform: [{ scale: 0.94 + artworkHalo.value * 0.18 }],
   }));
 
   const metadataAnimated = useAnimatedStyle(() => ({
@@ -653,7 +733,7 @@ export default function PlayerScreen() {
               </Text>
             </View>
 
-            <Text numberOfLines={2} style={styles.title}>
+            <Text numberOfLines={2} ellipsizeMode="tail" style={styles.title}>
               {title}
             </Text>
             <TouchableOpacity activeOpacity={0.82} onPress={openArtist}>
@@ -1026,17 +1106,19 @@ const styles = StyleSheet.create({
   },
   title: {
     color: COLORS.text,
-    fontSize: 26,
+    fontSize: TYPOGRAPHY.heroTitle,
     fontWeight: "900",
     textAlign: "center",
     letterSpacing: 0,
+    lineHeight: TYPOGRAPHY.heroTitle + 6,
   },
   artist: {
     color: COLORS.textMuted,
-    fontSize: 15,
+    fontSize: TYPOGRAPHY.heroSubtitle,
     fontWeight: "700",
     marginTop: 7,
     textAlign: "center",
+    lineHeight: TYPOGRAPHY.heroSubtitle + 4,
   },
   contextPillRow: {
     flexDirection: "row",

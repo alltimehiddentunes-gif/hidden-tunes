@@ -27,11 +27,13 @@ import Animated, {
   cancelAnimation,
   useAnimatedStyle,
   useSharedValue,
+  withRepeat,
+  withSequence,
   withSpring,
   withTiming,
 } from "react-native-reanimated";
 
-import { COLORS, GRADIENTS } from "../constants/theme";
+import { COLORS, GRADIENTS, LUXURY_GLOW } from "../constants/theme";
 import {
   usePlayerActions,
   usePlayerProgress,
@@ -127,16 +129,37 @@ const MiniPlayerArtwork = memo(function MiniPlayerArtwork({
   const glowScale = useSharedValue(1);
 
   useEffect(() => {
-    if (!isPlaying && !isYoutubeMode) {
-      cancelAnimation(glowOpacity);
-      cancelAnimation(glowScale);
-      glowOpacity.value = withTiming(0.3, { duration: 220 });
-      glowScale.value = withTiming(1, { duration: 220 });
-      return;
-    }
+    const peakOpacity = isPlaying || isYoutubeMode ? LUXURY_GLOW.opacityMax + 0.08 : LUXURY_GLOW.opacityMax;
+    const floorOpacity = LUXURY_GLOW.opacityMin + 0.06;
 
-    glowOpacity.value = withTiming(0.26, { duration: 220 });
-    glowScale.value = withTiming(1.015, { duration: 220 });
+    glowOpacity.value = withRepeat(
+      withSequence(
+        withTiming(peakOpacity, {
+          duration: LUXURY_GLOW.pulseDurationMs / 2,
+          easing: Easing.inOut(Easing.sin),
+        }),
+        withTiming(floorOpacity, {
+          duration: LUXURY_GLOW.pulseDurationMs / 2,
+          easing: Easing.inOut(Easing.sin),
+        })
+      ),
+      -1,
+      false
+    );
+    glowScale.value = withRepeat(
+      withSequence(
+        withTiming(LUXURY_GLOW.scaleMax, {
+          duration: LUXURY_GLOW.pulseDurationMs / 2,
+          easing: Easing.inOut(Easing.sin),
+        }),
+        withTiming(LUXURY_GLOW.scaleMin, {
+          duration: LUXURY_GLOW.pulseDurationMs / 2,
+          easing: Easing.inOut(Easing.sin),
+        })
+      ),
+      -1,
+      false
+    );
 
     return () => {
       cancelAnimation(glowOpacity);

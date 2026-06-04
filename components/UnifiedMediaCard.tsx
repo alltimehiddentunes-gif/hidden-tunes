@@ -1,10 +1,19 @@
-import { memo, useMemo } from "react";
+import { memo, useEffect, useMemo } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
+import Animated, {
+  Easing,
+  cancelAnimation,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from "react-native-reanimated";
 
-import { COLORS, GRADIENTS } from "../constants/theme";
+import { COLORS, GRADIENTS, LUXURY_GLOW, SHADOWS, TYPOGRAPHY } from "../constants/theme";
 import HTImage from "./HTImage";
 import {
   FALLBACK_ARTWORK,
@@ -21,6 +30,39 @@ type Props = {
   onPress?: () => void;
   onRightPress?: () => void;
 };
+
+const CardArtGlow = memo(function CardArtGlow() {
+  const opacity = useSharedValue<number>(LUXURY_GLOW.opacityMin);
+
+  useEffect(() => {
+    opacity.value = withRepeat(
+      withSequence(
+        withTiming(LUXURY_GLOW.opacityMax, {
+          duration: LUXURY_GLOW.pulseDurationMs / 2,
+          easing: Easing.inOut(Easing.sin),
+        }),
+        withTiming(LUXURY_GLOW.opacityMin, {
+          duration: LUXURY_GLOW.pulseDurationMs / 2,
+          easing: Easing.inOut(Easing.sin),
+        })
+      ),
+      -1,
+      false
+    );
+
+    return () => cancelAnimation(opacity);
+  }, [opacity]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+  }));
+
+  return (
+    <Animated.View pointerEvents="none" style={[styles.artGlow, animatedStyle]}>
+      <LinearGradient colors={GRADIENTS.heroAura} style={StyleSheet.absoluteFill} />
+    </Animated.View>
+  );
+});
 
 function UnifiedMediaCard({
   title,
@@ -40,8 +82,9 @@ function UnifiedMediaCard({
 
   return (
     <TouchableOpacity activeOpacity={0.88} onPress={onPress} style={styles.wrap}>
-      <LinearGradient colors={GRADIENTS.card} style={styles.card}>
+      <LinearGradient colors={GRADIENTS.cardElevated} style={styles.card}>
         <View style={styles.imageWrap}>
+          <CardArtGlow />
           <HTImage
             source={source}
             fallback={FALLBACK_ARTWORK}
@@ -51,12 +94,12 @@ function UnifiedMediaCard({
         </View>
 
         <View style={styles.textWrap}>
-          <Text numberOfLines={1} style={styles.title}>
+          <Text numberOfLines={1} ellipsizeMode="tail" style={styles.title}>
             {title}
           </Text>
 
           {!!subtitle && (
-            <Text numberOfLines={1} style={styles.subtitle}>
+            <Text numberOfLines={1} ellipsizeMode="tail" style={styles.subtitle}>
               {subtitle}
             </Text>
           )}
@@ -79,24 +122,34 @@ export default memo(UnifiedMediaCard);
 const styles = StyleSheet.create({
   wrap: {
     marginBottom: 12,
+    ...SHADOWS.card,
   },
 
   card: {
-    minHeight: 82,
+    minHeight: 88,
     flexDirection: "row",
     alignItems: "center",
-    padding: 12,
+    padding: 13,
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.07)",
+    borderColor: "rgba(255,255,255,0.1)",
   },
 
   imageWrap: {
-    width: 58,
-    height: 58,
-    borderRadius: 17,
+    width: 64,
+    height: 64,
+    borderRadius: 19,
     overflow: "hidden",
-    backgroundColor: "rgba(168,85,247,0.1)",
+    backgroundColor: "rgba(168,85,247,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+    ...SHADOWS.artwork,
+  },
+
+  artGlow: {
+    ...StyleSheet.flatten(StyleSheet.absoluteFill),
+    borderRadius: 19,
+    overflow: "hidden",
   },
 
   image: {
@@ -106,29 +159,34 @@ const styles = StyleSheet.create({
 
   textWrap: {
     flex: 1,
-    marginLeft: 13,
+    marginLeft: 14,
+    minWidth: 0,
   },
 
   title: {
     color: COLORS.text,
-    fontSize: 15,
+    fontSize: TYPOGRAPHY.cardTitle,
     fontWeight: "900",
+    lineHeight: TYPOGRAPHY.cardTitle + 4,
   },
 
   subtitle: {
     color: COLORS.textMuted,
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.cardSubtitle,
     marginTop: 5,
     fontWeight: "700",
+    lineHeight: TYPOGRAPHY.cardSubtitle + 3,
   },
 
   iconButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "rgba(255,255,255,0.07)",
+    backgroundColor: "rgba(255,255,255,0.08)",
     alignItems: "center",
     justifyContent: "center",
     marginLeft: 8,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
   },
 });

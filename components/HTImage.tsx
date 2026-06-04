@@ -20,6 +20,7 @@ type Props = {
   fallback?: any;
   style?: StyleProp<ImageStyle>;
   contentFit?: "cover" | "contain" | "fill" | "none" | "scale-down";
+  contentPosition?: "center" | "top" | "bottom" | "left" | "right";
 };
 
 const MAX_ARTWORK_CANDIDATES = 4;
@@ -50,6 +51,7 @@ function HTImage({
   fallback = FALLBACK_ARTWORK,
   style,
   contentFit = "cover",
+  contentPosition = "center",
 }: Props) {
   const [candidateIndex, setCandidateIndex] = useState(0);
   const [stablePlaceholder, setStablePlaceholder] = useState<any>(null);
@@ -152,6 +154,7 @@ function HTImage({
         recyclingKey={recyclingKey}
         style={[style, styles.image]}
         contentFit={contentFit}
+        contentPosition={contentPosition}
         cachePolicy="disk"
         placeholder={stablePlaceholder || fallbackSource}
         transition={fastScrolling ? 0 : showingFallback ? 0 : 180}
