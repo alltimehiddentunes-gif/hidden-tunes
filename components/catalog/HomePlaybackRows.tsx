@@ -148,7 +148,7 @@ export const HomeFeaturedCard = memo(function HomeFeaturedCard({
 
       <LinearGradient
         pointerEvents="none"
-        colors={["transparent", "rgba(0,0,0,0.68)"]}
+        colors={["transparent", "rgba(0,0,0,0.22)", "rgba(0,0,0,0.78)"]}
         style={styles.featuredOverlay}
       />
 
@@ -180,11 +180,6 @@ export const HomeFeaturedCard = memo(function HomeFeaturedCard({
         </Text>
 
         <View style={styles.featuredBottom}>
-          <View style={styles.autoNextPill}>
-            <Ionicons name="play-skip-forward" size={13} color={COLORS.text} />
-            <Text style={styles.autoNextText}>Playing next</Text>
-          </View>
-
           <View style={styles.featuredPlay}>
             <Ionicons
               name={isActive && isPlaying ? "pause" : "play"}
@@ -211,7 +206,7 @@ const styles = StyleSheet.create({
   },
   featuredCard: {
     width: FEATURED_CARD_WIDTH,
-    height: 280,
+    height: 236,
     borderRadius: 32,
     marginRight: 16,
     overflow: "hidden",
@@ -228,7 +223,7 @@ const styles = StyleSheet.create({
     top: -18,
     left: -12,
     right: -12,
-    height: 120,
+    height: 140,
     borderRadius: 60,
     overflow: "hidden",
     zIndex: 0,
@@ -236,7 +231,7 @@ const styles = StyleSheet.create({
   featuredArtFrame: {
     ...StyleSheet.flatten(StyleSheet.absoluteFill),
     margin: 12,
-    marginBottom: 108,
+    marginBottom: 88,
     borderRadius: 24,
     overflow: "hidden",
     borderWidth: 1,
@@ -273,7 +268,9 @@ const styles = StyleSheet.create({
   featuredContent: {
     flex: 1,
     justifyContent: "flex-end",
-    padding: 18,
+    paddingHorizontal: 14,
+    paddingBottom: 12,
+    paddingTop: 6,
     zIndex: 3,
   },
   featuredBadge: {
@@ -287,7 +284,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 7,
-    marginBottom: 10,
+    marginBottom: 6,
   },
   featuredBadgeText: {
     color: COLORS.text,
@@ -297,22 +294,22 @@ const styles = StyleSheet.create({
   },
   featuredTitle: {
     color: COLORS.text,
-    fontSize: TYPOGRAPHY.sectionTitle,
-    fontWeight: "900",
-    lineHeight: TYPOGRAPHY.sectionTitle + 4,
+    fontSize: TYPOGRAPHY.cardTitle,
+    fontWeight: "800",
+    lineHeight: TYPOGRAPHY.cardTitle + 4,
   },
   featuredArtist: {
     color: COLORS.textMuted,
-    fontSize: TYPOGRAPHY.metadata,
-    fontWeight: "700",
-    marginTop: 6,
-    lineHeight: TYPOGRAPHY.metadata + 3,
+    fontSize: TYPOGRAPHY.cardSubtitle,
+    fontWeight: "600",
+    marginTop: 4,
+    lineHeight: TYPOGRAPHY.cardSubtitle + 3,
   },
   featuredBottom: {
-    marginTop: 14,
+    marginTop: 8,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "flex-end",
   },
   autoNextPill: {
     flexDirection: "row",

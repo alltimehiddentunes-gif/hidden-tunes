@@ -58,32 +58,32 @@ export const GRADIENTS = {
   cardElevated: ["#241040", "#160828", "#0B0414"] as const,
   neon: ["#A855F7", "#EC4899", "#22D3EE"] as const,
   player: ["#22063D", "#10051F", "#000000"] as const,
-  heroAura: ["rgba(168,85,247,0.34)", "rgba(236,72,153,0.16)", "rgba(34,211,238,0.08)"] as const,
+  heroAura: ["rgba(168,85,247,0.42)", "rgba(236,72,153,0.22)", "rgba(34,211,238,0.12)"] as const,
 };
 
 export const SPACING = {
-  hero: 32,
-  section: 24,
+  hero: 24,
+  section: 20,
   card: 12,
   screen: 18,
 } as const;
 
 export const TYPOGRAPHY = {
-  heroTitle: 32,
-  heroSubtitle: 17,
-  sectionTitle: 20,
+  heroTitle: 18,
+  heroSubtitle: 12,
+  sectionTitle: 16,
   sectionEyebrow: 10,
   metadata: 14,
-  cardTitle: 16,
-  cardSubtitle: 13,
+  cardTitle: 14,
+  cardSubtitle: 11,
 } as const;
 
 export const LUXURY_GLOW = {
   pulseDurationMs: 10000,
-  opacityMin: 0.08,
-  opacityMax: 0.24,
-  scaleMin: 0.97,
-  scaleMax: 1.035,
+  opacityMin: 0.12,
+  opacityMax: 0.34,
+  scaleMin: 0.98,
+  scaleMax: 1.04,
 } as const;
 
 export const SHADOWS = {
@@ -111,8 +111,8 @@ export const SHADOWS = {
 } as const;
 
 export const LOGO_SIZES = {
-  header: 72,
-  headerImage: 62,
+  header: 54,
+  headerImage: 46,
   hero: 132,
   heroImage: 118,
   libraryHero: 140,

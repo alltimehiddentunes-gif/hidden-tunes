@@ -43,7 +43,7 @@ function MediaCard({
   const artworkSize = useMemo(() => {
     if (size === "large") return 150;
     if (size === "small") return 58;
-    return 82;
+    return 72;
   }, [size]);
 
   const artworkRadius = useMemo(() => artworkSize * 0.24, [artworkSize]);
@@ -106,7 +106,7 @@ function MediaCard({
 
         <View style={[styles.info, size === "large" && styles.largeInfo]}>
           <Text
-            numberOfLines={size === "large" ? 2 : 1}
+            numberOfLines={size === "large" ? 2 : 2}
             style={[styles.title, size === "large" && styles.largeTitle]}
           >
             {title}
@@ -147,7 +147,7 @@ const styles = StyleSheet.create({
   },
 
   card: {
-    minHeight: 96,
+    minHeight: 82,
     flexDirection: "row",
     alignItems: "center",
     borderRadius: 28,
@@ -205,7 +205,8 @@ const styles = StyleSheet.create({
   },
 
   title: {
-    fontSize: 16,
+    fontSize: 13,
+    lineHeight: 17,
     fontWeight: "900",
     color: COLORS.text,
     letterSpacing: -0.2,
@@ -218,9 +219,9 @@ const styles = StyleSheet.create({
 
   subtitle: {
     marginTop: 6,
-    fontSize: 13,
+    fontSize: 12,
     color: COLORS.textMuted,
-    fontWeight: "700",
+    fontWeight: "600",
   },
 
   playButton: {

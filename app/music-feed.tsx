@@ -241,6 +241,74 @@ const PremiumLuxuryPulse = memo(function PremiumLuxuryPulse({
   );
 });
 
+
+const CreatorRailCard = memo(function CreatorRailCard({
+  artist,
+  width,
+  onPress,
+}: {
+  artist: HiddenTunesArtistCatalogItem;
+  width: number;
+  onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity
+      activeOpacity={0.88}
+      style={[styles.creatorCard, { width }]}
+      onPress={onPress}
+    >
+      <View style={styles.creatorArtWrap}>
+        <PremiumLuxuryPulse style={styles.creatorArtAura} />
+        <HTImage
+          source={artist}
+          style={styles.creatorArt}
+          contentFit="cover"
+          contentPosition="center"
+        />
+      </View>
+      <Text numberOfLines={2} ellipsizeMode="tail" style={styles.creatorName}>
+        {artist.name}
+      </Text>
+      <Text numberOfLines={1} style={styles.creatorMeta}>
+        {artist.songs.length} song{artist.songs.length === 1 ? "" : "s"}
+      </Text>
+    </TouchableOpacity>
+  );
+});
+
+const AlbumRailCard = memo(function AlbumRailCard({
+  album,
+  width,
+  onPress,
+}: {
+  album: HiddenTunesAlbumCatalogItem;
+  width: number;
+  onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity
+      activeOpacity={0.88}
+      style={[styles.albumRailCard, { width }]}
+      onPress={onPress}
+    >
+      <View style={styles.albumArtWrap}>
+        <PremiumLuxuryPulse style={styles.albumArtAura} />
+        <HTImage
+          source={album}
+          style={styles.albumArt}
+          contentFit="cover"
+          contentPosition="center"
+        />
+      </View>
+      <Text numberOfLines={2} ellipsizeMode="tail" style={styles.albumTitle}>
+        {album.title}
+      </Text>
+      <Text numberOfLines={1} ellipsizeMode="tail" style={styles.albumArtist}>
+        {album.artist}
+      </Text>
+    </TouchableOpacity>
+  );
+});
 const PremiumHeroPressable = memo(function PremiumHeroPressable({
   children,
   height,
@@ -426,8 +494,8 @@ export default function MusicFeedScreen() {
   const heroListRef = useRef<FlatList<HeroCard> | null>(null);
   const { width: viewportWidth } = useWindowDimensions();
   const heroCardWidth = Math.min(520, Math.max(300, viewportWidth - 36));
-  const heroCardHeight = Math.min(340, Math.max(268, Math.round(heroCardWidth * 0.78)));
-  const railCardWidth = Math.min(244, Math.max(204, viewportWidth * 0.62));
+  const heroCardHeight = Math.min(300, Math.max(244, Math.round(heroCardWidth * 0.68)));
+  const railCardWidth = Math.min(252, Math.max(212, viewportWidth * 0.66));
   const searchPanelPadding = viewportWidth < 380 ? 12 : 14;
 
   const songs = catalog?.songs || [];
@@ -676,12 +744,33 @@ export default function MusicFeedScreen() {
               onPress={() => handleHeroPress(item)}
             >
               <View style={styles.heroInner}>
+                <View style={styles.heroArtworkPanel}>
+                  <PremiumLuxuryPulse style={styles.heroArtworkAura} />
+                  <HTImage
+                    source={item.song}
+                    style={styles.heroArtworkImage}
+                    contentFit="cover"
+                    contentPosition="center"
+                  />
+                  <LinearGradient
+                    pointerEvents="none"
+                    colors={["transparent", "rgba(0,0,0,0.18)", "rgba(0,0,0,0.55)"]}
+                    style={styles.heroArtworkFade}
+                  />
+                </View>
+
+                <LinearGradient
+                  pointerEvents="none"
+                  colors={["transparent", "rgba(0,0,0,0.35)", "rgba(0,0,0,0.88)"]}
+                  style={styles.heroTextScrim}
+                />
+
                 <View style={styles.heroTextBlock}>
                   <View style={styles.livePill}>
                     {isPlayingCard ? (
                       <NeonEQ isPlaying={isPlaying} size="small" />
                     ) : (
-                      <Ionicons name={item.icon} size={13} color={COLORS.primary} />
+                      <Ionicons name={item.icon} size={12} color={COLORS.primary} />
                     )}
                     <Text style={styles.liveText}>
                       {isPlayingCard ? "Now Playing" : item.label}
@@ -696,7 +785,7 @@ export default function MusicFeedScreen() {
                     {item.title}
                   </Text>
                   <Text
-                    numberOfLines={2}
+                    numberOfLines={1}
                     ellipsizeMode="tail"
                     style={styles.heroArtist}
                   >
@@ -707,7 +796,7 @@ export default function MusicFeedScreen() {
                     <View style={styles.heroPlayButton}>
                       <Ionicons
                         name={isPlayingCard && isPlaying ? "pause" : "play"}
-                        size={18}
+                        size={16}
                         color="#000"
                       />
                       <Text style={styles.heroPlayText}>
@@ -723,21 +812,6 @@ export default function MusicFeedScreen() {
                       </View>
                     ) : null}
                   </View>
-                </View>
-
-                <View style={styles.heroArtworkPanel}>
-                  <PremiumLuxuryPulse style={styles.heroArtworkAura} />
-                  <HTImage
-                    source={item.song}
-                    style={styles.heroArtworkImage}
-                    contentFit="cover"
-                    contentPosition="top"
-                  />
-                  <LinearGradient
-                    pointerEvents="none"
-                    colors={["transparent", "rgba(0,0,0,0.42)"]}
-                    style={styles.heroArtworkFade}
-                  />
                 </View>
               </View>
             </PremiumHeroPressable>
@@ -766,9 +840,9 @@ export default function MusicFeedScreen() {
   return (
     <AppShell>
       <LinearGradient colors={GRADIENTS.main} style={styles.container}>
-        <PremiumAmbientGlow style={styles.glowPurple} color="rgba(168,85,247,0.14)" />
-        <PremiumAmbientGlow style={styles.glowCyan} color="rgba(34,211,238,0.1)" />
-        <PremiumAmbientGlow style={styles.glowCenter} color="rgba(168,85,247,0.08)" />
+        <PremiumAmbientGlow style={styles.glowPurple} color="rgba(168,85,247,0.2)" />
+        <PremiumAmbientGlow style={styles.glowCyan} color="rgba(34,211,238,0.14)" />
+        <PremiumAmbientGlow style={styles.glowCenter} color="rgba(168,85,247,0.12)" />
 
         <View style={styles.header}>
           <View style={styles.brandRow}>
@@ -782,7 +856,7 @@ export default function MusicFeedScreen() {
             </View>
             <View style={styles.headerCopy}>
               <Text style={styles.kicker}>HIDDEN TUNES</Text>
-              <Text numberOfLines={2} ellipsizeMode="tail" style={styles.title}>
+              <Text numberOfLines={1} ellipsizeMode="tail" style={styles.title}>
                 For your mood
               </Text>
               <Text numberOfLines={1} ellipsizeMode="tail" style={styles.subtitle}>
@@ -865,7 +939,11 @@ export default function MusicFeedScreen() {
                               styles.heroDot,
                               index === heroIndex && styles.heroDotActive,
                             ]}
-                          />
+                          >
+                            {index === heroIndex ? (
+                              <PremiumLuxuryPulse style={styles.heroDotGlow} />
+                            ) : null}
+                          </View>
                         ))}
                       </View>
                     ) : null}
@@ -918,9 +996,13 @@ export default function MusicFeedScreen() {
                                 style={styles.roomImage}
                                 contentFit="cover"
                               />
-                              <View pointerEvents="none" style={styles.roomShade} />
+                              <LinearGradient
+                                pointerEvents="none"
+                                colors={["transparent", "rgba(0,0,0,0.2)", "rgba(0,0,0,0.72)"]}
+                                style={styles.roomShade}
+                              />
                               <Text numberOfLines={1} style={styles.roomTitle}>{room.title}</Text>
-                              <Text style={styles.roomSubtitle}>{room.subtitle}</Text>
+                              <Text numberOfLines={1} style={styles.roomSubtitle}>{room.subtitle}</Text>
                             </TouchableOpacity>
                           ))}
                         </ScrollView>
@@ -1009,16 +1091,12 @@ export default function MusicFeedScreen() {
                           contentContainerStyle={styles.surfaceRow}
                         >
                           {visibleArtists.map((artist) => (
-                            <View key={artist.id} style={[styles.surfaceCardShell, { width: railCardWidth }]}>
-                              <UnifiedMediaCard
-                                title={artist.name}
-                                subtitle={`${artist.songs.length} song${artist.songs.length === 1 ? "" : "s"}`}
-                                image={artist}
-                                rightIcon="person"
-                                onPress={() => openArtist(artist)}
-                                onRightPress={() => openArtist(artist)}
-                              />
-                            </View>
+                            <CreatorRailCard
+                              key={artist.id}
+                              artist={artist}
+                              width={railCardWidth}
+                              onPress={() => openArtist(artist)}
+                            />
                           ))}
                         </ScrollView>
                       </View>
@@ -1034,16 +1112,12 @@ export default function MusicFeedScreen() {
                           contentContainerStyle={styles.surfaceRow}
                         >
                           {visibleAlbums.map((album) => (
-                            <View key={album.id} style={[styles.surfaceCardShell, { width: railCardWidth }]}>
-                              <UnifiedMediaCard
-                                title={album.title}
-                                subtitle={`${album.songs.length} song${album.songs.length === 1 ? "" : "s"} / ${album.artist}`}
-                                image={album}
-                                rightIcon="albums"
-                                onPress={() => openAlbum(album)}
-                                onRightPress={() => openAlbum(album)}
-                              />
-                            </View>
+                            <AlbumRailCard
+                              key={album.id}
+                              album={album}
+                              width={railCardWidth}
+                              onPress={() => openAlbum(album)}
+                            />
                           ))}
                         </ScrollView>
                       </View>
@@ -1061,9 +1135,13 @@ export default function MusicFeedScreen() {
                                 style={styles.roomImage}
                                 contentFit="cover"
                               />
-                              <View pointerEvents="none" style={styles.roomShade} />
+                              <LinearGradient
+                                pointerEvents="none"
+                                colors={["transparent", "rgba(0,0,0,0.2)", "rgba(0,0,0,0.72)"]}
+                                style={styles.roomShade}
+                              />
                               <Text numberOfLines={1} style={styles.roomTitle}>{room.title}</Text>
-                              <Text style={styles.roomSubtitle}>{room.subtitle}</Text>
+                              <Text numberOfLines={1} style={styles.roomSubtitle}>{room.subtitle}</Text>
                             </TouchableOpacity>
                           ))}
                         </ScrollView>
@@ -1133,7 +1211,7 @@ export default function MusicFeedScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 48,
+    paddingTop: 38,
     paddingHorizontal: 18,
   },
   glowPurple: {
@@ -1143,7 +1221,7 @@ const styles = StyleSheet.create({
     width: 220,
     height: 220,
     borderRadius: 110,
-    backgroundColor: "rgba(168,85,247,0.1)",
+    backgroundColor: "rgba(168,85,247,0.16)",
   },
   glowCyan: {
     position: "absolute",
@@ -1152,7 +1230,7 @@ const styles = StyleSheet.create({
     width: 250,
     height: 250,
     borderRadius: 125,
-    backgroundColor: "rgba(34,211,238,0.06)",
+    backgroundColor: "rgba(34,211,238,0.1)",
   },
   glowCenter: {
     position: "absolute",
@@ -1161,13 +1239,13 @@ const styles = StyleSheet.create({
     width: 160,
     height: 160,
     borderRadius: 80,
-    backgroundColor: "rgba(168,85,247,0.045)",
+    backgroundColor: "rgba(168,85,247,0.09)",
   },
   header: {
     flexDirection: "row",
     alignItems: "flex-start",
     justifyContent: "space-between",
-    marginBottom: 12,
+    marginBottom: 8,
   },
   headerCopy: { flex: 1, paddingRight: 12 },
   kicker: {
@@ -1188,17 +1266,17 @@ const styles = StyleSheet.create({
   },
   title: {
     color: COLORS.text,
-    fontSize: TYPOGRAPHY.heroTitle,
-    fontWeight: "900",
-    marginTop: 6,
-    lineHeight: TYPOGRAPHY.heroTitle + 6,
+    fontSize: 18,
+    fontWeight: "800",
+    marginTop: 4,
+    lineHeight: 22,
   },
   subtitle: {
     color: COLORS.textMuted,
-    marginTop: 6,
-    fontSize: TYPOGRAPHY.metadata,
-    fontWeight: "700",
-    lineHeight: 20,
+    marginTop: 3,
+    fontSize: 12,
+    fontWeight: "600",
+    lineHeight: 16,
   },
   center: {
     flex: 1,
@@ -1240,7 +1318,7 @@ const styles = StyleSheet.create({
     top: 18,
     left: 18,
     right: 18,
-    height: 180,
+    height: 210,
     borderRadius: 90,
     overflow: "hidden",
   },
@@ -1273,23 +1351,38 @@ const styles = StyleSheet.create({
   heroInner: {
     flex: 1,
     zIndex: 2,
-  },
-  heroTextBlock: {
-    paddingHorizontal: 18,
-    paddingTop: 18,
-    paddingBottom: 12,
+    position: "relative",
   },
   heroArtworkPanel: {
     flex: 1,
-    marginHorizontal: 14,
-    marginBottom: 14,
-    minHeight: 132,
-    borderRadius: 22,
+    marginHorizontal: 12,
+    marginTop: 12,
+    marginBottom: 12,
+    minHeight: 150,
+    borderRadius: 20,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
+    borderColor: "rgba(255,255,255,0.14)",
     backgroundColor: "rgba(255,255,255,0.04)",
     ...SHADOWS.artwork,
+  },
+  heroTextScrim: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: "42%",
+    zIndex: 3,
+  },
+  heroTextBlock: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: 14,
+    paddingBottom: 12,
+    paddingTop: 8,
+    zIndex: 4,
   },
   heroArtworkAura: {
     ...StyleSheet.flatten(StyleSheet.absoluteFill),
@@ -1312,7 +1405,7 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     borderRadius: 999,
     backgroundColor: "rgba(0,0,0,0.58)",
-    marginBottom: 16,
+    marginBottom: 8,
   },
   liveText: {
     color: COLORS.cyan,
@@ -1322,23 +1415,23 @@ const styles = StyleSheet.create({
   },
   heroSong: {
     color: COLORS.text,
-    fontSize: TYPOGRAPHY.heroTitle,
-    fontWeight: "900",
-    lineHeight: TYPOGRAPHY.heroTitle + 4,
+    fontSize: 17,
+    fontWeight: "800",
+    lineHeight: 21,
     marginTop: 2,
   },
   heroArtist: {
     color: COLORS.textMuted,
-    fontSize: TYPOGRAPHY.heroSubtitle,
-    fontWeight: "700",
-    marginTop: 8,
-    lineHeight: TYPOGRAPHY.heroSubtitle + 4,
+    fontSize: 11,
+    fontWeight: "600",
+    marginTop: 4,
+    lineHeight: 14,
   },
   heroBottomRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginTop: 12,
+    marginTop: 8,
   },
   heroPlayButton: {
     flexDirection: "row",
@@ -1383,6 +1476,21 @@ const styles = StyleSheet.create({
   heroDotActive: {
     width: 22,
     backgroundColor: COLORS.primary,
+    shadowColor: COLORS.primaryGlow,
+    shadowOpacity: 0.55,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 6,
+    overflow: "visible",
+  },
+  heroDotGlow: {
+    position: "absolute",
+    top: -10,
+    left: -14,
+    right: -14,
+    bottom: -10,
+    borderRadius: 20,
+    overflow: "hidden",
   },
   listeningBrief: {
     marginBottom: 14,
@@ -1530,7 +1638,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   cinematicSection: {
-    marginBottom: SPACING.section,
+    marginBottom: SPACING.section - 4,
     position: "relative",
     overflow: "hidden",
     borderRadius: 22,
@@ -1556,13 +1664,13 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: "900",
     letterSpacing: 1.6,
-    marginBottom: 4,
+    marginBottom: 3,
   },
   sectionTitle: {
     color: COLORS.text,
     fontSize: TYPOGRAPHY.sectionTitle,
-    fontWeight: "900",
-    lineHeight: TYPOGRAPHY.sectionTitle + 4,
+    fontWeight: "800",
+    lineHeight: TYPOGRAPHY.sectionTitle + 3,
   },
   songsSectionTitle: {
     marginBottom: 13,
@@ -1670,11 +1778,12 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   roomCard: {
-    width: 186,
-    height: 134,
-    borderRadius: 22,
+    width: 172,
+    height: 148,
+    borderRadius: 20,
     overflow: "hidden",
-    padding: 13,
+    paddingHorizontal: 10,
+    paddingBottom: 10,
     justifyContent: "flex-end",
     backgroundColor: COLORS.card,
     borderWidth: 1,
@@ -1685,20 +1794,94 @@ const styles = StyleSheet.create({
   },
   roomShade: {
     ...StyleSheet.flatten(StyleSheet.absoluteFill),
-    backgroundColor: "rgba(0,0,0,0.28)",
   },
   roomTitle: {
     color: COLORS.text,
-    fontSize: 16,
-    fontWeight: "900",
+    fontSize: 12,
+    fontWeight: "700",
     zIndex: 2,
   },
   roomSubtitle: {
     color: COLORS.textMuted,
+    fontSize: 10,
+    fontWeight: "500",
+    marginTop: 2,
+    zIndex: 2,
+    opacity: 0.92,
+  },
+  creatorCard: {
+    borderRadius: 22,
+    padding: 10,
+    backgroundColor: "rgba(255,255,255,0.055)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+    ...SHADOWS.card,
+  },
+  creatorArtWrap: {
+    width: "100%",
+    aspectRatio: 1,
+    borderRadius: 18,
+    overflow: "hidden",
+    marginBottom: 8,
+    backgroundColor: COLORS.card,
+  },
+  creatorArtAura: {
+    ...StyleSheet.flatten(StyleSheet.absoluteFill),
+    borderRadius: 18,
+    overflow: "hidden",
+  },
+  creatorArt: {
+    width: "100%",
+    height: "100%",
+  },
+  creatorName: {
+    color: COLORS.text,
     fontSize: 12,
     fontWeight: "800",
-    marginTop: 4,
-    zIndex: 2,
+    lineHeight: 15,
+  },
+  creatorMeta: {
+    color: COLORS.textMuted,
+    fontSize: 10,
+    fontWeight: "500",
+    marginTop: 3,
+  },
+  albumRailCard: {
+    borderRadius: 22,
+    padding: 10,
+    backgroundColor: "rgba(255,255,255,0.055)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+    ...SHADOWS.card,
+  },
+  albumArtWrap: {
+    width: "100%",
+    aspectRatio: 1,
+    borderRadius: 18,
+    overflow: "hidden",
+    marginBottom: 8,
+    backgroundColor: COLORS.card,
+  },
+  albumArtAura: {
+    ...StyleSheet.flatten(StyleSheet.absoluteFill),
+    borderRadius: 18,
+    overflow: "hidden",
+  },
+  albumArt: {
+    width: "100%",
+    height: "100%",
+  },
+  albumTitle: {
+    color: COLORS.text,
+    fontSize: 12,
+    fontWeight: "800",
+    lineHeight: 15,
+  },
+  albumArtist: {
+    color: COLORS.textMuted,
+    fontSize: 10,
+    fontWeight: "500",
+    marginTop: 3,
   },
   catalogHeaderRow: {
     flexDirection: "row",

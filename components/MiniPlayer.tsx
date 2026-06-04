@@ -596,12 +596,13 @@ const styles = StyleSheet.create({
   },
 
   container: {
-    height: 78,
+    height: 70,
     borderRadius: 23,
     overflow: "hidden",
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 10,
+    paddingHorizontal: 9,
+    paddingVertical: 2,
     backgroundColor: "rgba(5,5,8,0.92)",
   },
 
@@ -611,16 +612,16 @@ const styles = StyleSheet.create({
   },
 
   coverWrap: {
-    width: 54,
-    height: 54,
+    width: 50,
+    height: 50,
     alignItems: "center",
     justifyContent: "center",
   },
 
   coverGlowOuter: {
     position: "absolute",
-    width: 58,
-    height: 58,
+    width: 54,
+    height: 54,
     borderRadius: 20,
     overflow: "hidden",
   },
@@ -630,8 +631,8 @@ const styles = StyleSheet.create({
   },
 
   coverFrame: {
-    width: 52,
-    height: 52,
+    width: 46,
+    height: 46,
     borderRadius: 16,
     overflow: "hidden",
     borderWidth: 1,
@@ -640,15 +641,15 @@ const styles = StyleSheet.create({
   },
 
   cover: {
-    width: 52,
-    height: 52,
+    width: 46,
+    height: 46,
     borderRadius: 16,
     backgroundColor: COLORS.cardLight,
   },
 
   youtubeCover: {
-    width: 52,
-    height: 52,
+    width: 46,
+    height: 46,
     borderRadius: 16,
     backgroundColor: "#ff0033",
     alignItems: "center",
@@ -676,7 +677,7 @@ const styles = StyleSheet.create({
 
   progressSlot: {
     position: "absolute",
-    left: 86,
+    left: 78,
     right: 118,
     bottom: 10,
   },
@@ -717,7 +718,7 @@ const styles = StyleSheet.create({
 
   artist: {
     color: COLORS.textMuted,
-    fontSize: 11.5,
+    fontSize: 11,
     marginTop: 2,
     fontWeight: "700",
   },
