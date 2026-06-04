@@ -413,12 +413,31 @@ class HiddenAudioModule: RCTEventEmitter {
     let session = AVAudioSession.sharedInstance()
     emitDiagnostic("hidden_audio_audio_session_config_start", [
       "category": "playback",
-      "mode": "default"
+      "mode": "default",
+      "options": "none"
     ])
+
     do {
-      try session.setCategory(.playback, mode: .default, options: [.allowBluetooth, .allowBluetoothA2DP])
+      try session.setCategory(.playback, mode: .default, options: [])
+      emitDiagnostic("ios_audio_session_category_success", [
+        "category": session.category.rawValue,
+        "mode": session.mode.rawValue
+      ])
+      emitDiagnostic("hidden_audio_audio_session_category_success", [
+        "category": session.category.rawValue,
+        "mode": session.mode.rawValue
+      ])
+    } catch {
+      emitDiagnostic("hidden_audio_audio_session_config_failed", [
+        "message": error.localizedDescription,
+        "phase": "setCategory"
+      ])
+      throw error
+    }
+
+    do {
       try session.setActive(true)
-      emitDiagnostic("ios_audio_session_category", [
+      emitDiagnostic("ios_audio_session_active_success", [
         "category": session.category.rawValue,
         "mode": session.mode.rawValue
       ])
@@ -432,10 +451,12 @@ class HiddenAudioModule: RCTEventEmitter {
         "status": playerStatus
       ])
     } catch {
-      emitDiagnostic("hidden_audio_audio_session_config_failed", [
+      emitDiagnostic("ios_audio_session_active_failed", [
         "message": error.localizedDescription
       ])
-      throw error
+      emitDiagnostic("hidden_audio_audio_session_active_failed", [
+        "message": error.localizedDescription
+      ])
     }
   }
 
