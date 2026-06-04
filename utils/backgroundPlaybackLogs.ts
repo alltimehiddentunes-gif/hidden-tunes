@@ -23,3 +23,5 @@ export function captureDevStackTrace(maxLines = 6): string | undefined {
 
   return stack.split("\n").slice(1, maxLines + 1).join("\n");
 }
+
+// Phase 5B: native emits ios_background_playback_alive_20s / _60s / stopped_detected

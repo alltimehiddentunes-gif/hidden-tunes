@@ -28,6 +28,9 @@ class HiddenAudioModule: RCTEventEmitter {
   private var remoteCommandsRegistered = false
   private var lifecycleObserversRegistered = false
   private var currentItemEndedHandled = false
+  private var wasPlayingBeforeInterruption = false
+  private var backgroundEnteredAt: TimeInterval = 0
+  private var lastBackgroundRecoveryAt: TimeInterval = 0
 
   override static func requiresMainQueueSetup() -> Bool {
     return true
@@ -125,12 +128,35 @@ class HiddenAudioModule: RCTEventEmitter {
       return
     }
 
-    shouldResumeAfterItemLoad = true
-    playerStatus = "buffering"
     emitDiagnostic("hidden_audio_native_play_requested", [
       "trackId": activeTrack?["id"] as? String ?? "",
-      "activeIndex": activeIndex
+      "activeIndex": activeIndex,
+      "rate": currentPlayer.rate,
+      "timeControlStatus": currentPlayer.timeControlStatus.rawValue
     ])
+
+    let alreadyAdvancing =
+      currentPlayer.rate > 0 ||
+      currentPlayer.timeControlStatus == .playing ||
+      playerStatus == "playing" ||
+      playerStatus == "buffering"
+
+    if alreadyAdvancing {
+      shouldResumeAfterItemLoad = true
+      emitDiagnostic("hidden_audio_play_reassert_session_only", [
+        "trackId": activeTrack?["id"] as? String ?? "",
+        "activeIndex": activeIndex
+      ])
+      startProgressObserver()
+      updateRemoteCommandAvailability()
+      updateNowPlayingInfo()
+      emitState()
+      resolve(nil)
+      return
+    }
+
+    shouldResumeAfterItemLoad = true
+    playerStatus = "buffering"
     currentPlayer.play()
     startProgressObserver()
     updateRemoteCommandAvailability()
@@ -392,7 +418,7 @@ class HiddenAudioModule: RCTEventEmitter {
       "mode": "default"
     ])
     do {
-      try session.setCategory(.playback, mode: .default, options: [])
+      try session.setCategory(.playback, mode: .default, options: [.allowBluetooth, .allowBluetoothA2DP])
       try session.setActive(true)
       emitDiagnostic("ios_audio_session_category", [
         "category": session.category.rawValue,
@@ -506,15 +532,24 @@ class HiddenAudioModule: RCTEventEmitter {
   private func observePlayer() {
     guard let currentPlayer = player else { return }
     timeControlObserver = currentPlayer.observe(\.timeControlStatus, options: [.new]) { [weak self] _, _ in
-      self?.emitDiagnostic("hidden_audio_time_control_status", [
+      guard let self = self else { return }
+      self.emitDiagnostic("hidden_audio_time_control_status", [
         "status": currentPlayer.timeControlStatus.rawValue,
         "rate": currentPlayer.rate
       ])
-      self?.emitDiagnostic("native_playback_state_changed", [
+      self.emitDiagnostic("native_playback_state_changed", [
         "status": currentPlayer.timeControlStatus.rawValue,
         "rate": currentPlayer.rate
       ])
-      self?.confirmPlayingIfNeeded()
+      self.emitDiagnostic("hidden_audio_native_status_background", [
+        "status": self.playerStatus,
+        "timeControlStatus": currentPlayer.timeControlStatus.rawValue,
+        "rate": currentPlayer.rate
+      ])
+      self.confirmPlayingIfNeeded()
+      if currentPlayer.timeControlStatus == .paused && self.shouldResumeAfterItemLoad {
+        self.reassertBackgroundPlaybackIfNeeded(reason: "time_control_paused")
+      }
     }
     rateObserver = currentPlayer.observe(\.rate, options: [.new]) { [weak self] player, _ in
       self?.emitDiagnostic("hidden_audio_player_rate_changed", [
@@ -912,6 +947,13 @@ class HiddenAudioModule: RCTEventEmitter {
       .map { CMTimeGetSeconds(CMTimeAdd($0.start, $0.duration)) }
       .filter { $0.isFinite }
       .max() ?? 0
+    let rate = player?.rate ?? 0
+    let timeControl = player?.timeControlStatus ?? .paused
+    let isAdvancing =
+      rate > 0 ||
+      timeControl == .playing ||
+      playerStatus == "playing" ||
+      playerStatus == "buffering"
     return [
       "positionSeconds": max(0, position.isFinite ? position : 0),
       "durationSeconds": max(0, safeDuration),
@@ -919,7 +961,7 @@ class HiddenAudioModule: RCTEventEmitter {
       "currentTime": max(0, position.isFinite ? position : 0),
       "duration": max(0, safeDuration),
       "bufferedPosition": max(0, bufferedEnd),
-      "isPlaying": playerStatus == "playing" ? 1.0 : 0.0
+      "isPlaying": isAdvancing ? 1.0 : 0.0
     ]
   }
 
@@ -1018,6 +1060,70 @@ class HiddenAudioModule: RCTEventEmitter {
     ])
   }
 
+
+  private func reassertBackgroundPlaybackIfNeeded(reason: String) {
+    guard let currentPlayer = player else { return }
+    guard shouldResumeAfterItemLoad || playerStatus == "playing" || playerStatus == "buffering" else {
+      return
+    }
+
+    let now = Date().timeIntervalSince1970
+    if now - lastBackgroundRecoveryAt < 2.0 {
+      return
+    }
+    lastBackgroundRecoveryAt = now
+
+    if currentPlayer.rate > 0 || currentPlayer.timeControlStatus == .playing {
+      startProgressObserver()
+      updateNowPlayingInfo()
+      emitDiagnostic("hidden_audio_background_playback_alive", [
+        "reason": reason,
+        "rate": currentPlayer.rate
+      ])
+      return
+    }
+
+    emitDiagnostic("hidden_audio_background_playback_recover_attempt", [
+      "reason": reason,
+      "status": playerStatus
+    ])
+    currentPlayer.play()
+    startProgressObserver()
+    confirmPlayingIfNeeded()
+  }
+
+  private func scheduleBackgroundPlaybackAliveChecks() {
+    let checkpoints: [TimeInterval] = [20, 60, 300]
+    for seconds in checkpoints {
+      DispatchQueue.main.asyncAfter(deadline: .now() + seconds) { [weak self] in
+        guard let self = self else { return }
+        guard self.backgroundEnteredAt > 0 else { return }
+        let rate = self.player?.rate ?? 0
+        let alive = rate > 0 || self.playerStatus == "playing" || self.playerStatus == "buffering"
+        let eventName =
+          seconds == 20
+            ? "ios_background_playback_alive_20s"
+            : seconds == 60
+              ? "ios_background_playback_alive_60s"
+              : "ios_background_playback_alive_300s"
+        self.emitDiagnostic(eventName, [
+          "alive": alive,
+          "rate": rate,
+          "status": self.playerStatus,
+          "activeIndex": self.activeIndex
+        ])
+        if !alive && self.shouldResumeAfterItemLoad {
+          self.emitDiagnostic("ios_background_playback_stopped_detected", [
+            "checkpointSeconds": seconds,
+            "status": self.playerStatus,
+            "rate": rate
+          ])
+          self.reassertBackgroundPlaybackIfNeeded(reason: eventName)
+        }
+      }
+    }
+  }
+
   private func emitNativeError(_ message: String) {
     print("[HiddenAudio] hidden_audio_native_error \(message)")
     sendEvent(withName: "HiddenAudioDiagnostic", body: [
@@ -1032,9 +1138,16 @@ class HiddenAudioModule: RCTEventEmitter {
   }
 
   @objc private func appEnteredBackground(_ notification: Notification) {
+    backgroundEnteredAt = Date().timeIntervalSince1970
     emitDiagnostic("hidden_audio_app_entered_background", [
       "status": playerStatus,
       "activeIndex": activeIndex
+    ])
+    emitDiagnostic("ios_app_inactive_native_status", [
+      "status": playerStatus,
+      "activeIndex": activeIndex,
+      "rate": player?.rate ?? 0,
+      "timeControlStatus": player?.timeControlStatus.rawValue ?? -1
     ])
     emitDiagnostic("ios_background_playback_status", [
       "status": playerStatus,
@@ -1045,6 +1158,25 @@ class HiddenAudioModule: RCTEventEmitter {
       "rate": player?.rate ?? 0,
       "timeControlStatus": player?.timeControlStatus.rawValue ?? -1
     ])
+
+    do {
+      try activateAudioSession()
+      emitDiagnostic("ios_background_audio_session_reasserted", [
+        "status": playerStatus,
+        "rate": player?.rate ?? 0
+      ])
+    } catch {
+      emitDiagnostic("hidden_audio_audio_session_config_failed", [
+        "message": error.localizedDescription,
+        "phase": "background_enter"
+      ])
+    }
+
+    emitDiagnostic("hidden_audio_remote_commands_background_confirmed", [
+      "registered": remoteCommandsRegistered
+    ])
+    reassertBackgroundPlaybackIfNeeded(reason: "app_entered_background")
+    scheduleBackgroundPlaybackAliveChecks()
   }
 
   @objc private func audioInterruption(_ notification: Notification) {
@@ -1054,27 +1186,42 @@ class HiddenAudioModule: RCTEventEmitter {
     }
 
     if type == .began {
+      wasPlayingBeforeInterruption =
+        playerStatus == "playing" ||
+        playerStatus == "buffering" ||
+        (player?.rate ?? 0) > 0
       emitDiagnostic("hidden_audio_audio_interruption_began", [
-        "rate": player?.rate ?? 0
+        "rate": player?.rate ?? 0,
+        "wasPlaying": wasPlayingBeforeInterruption
       ])
       emitDiagnostic("ios_audio_session_interruption_began", [
-        "rate": player?.rate ?? 0
+        "rate": player?.rate ?? 0,
+        "wasPlaying": wasPlayingBeforeInterruption
       ])
       return
     }
 
+    let optionsValue = notification.userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
+    let shouldResumeOption = AVAudioSession.InterruptionOptions(rawValue: optionsValue).contains(.shouldResume)
     emitDiagnostic("hidden_audio_audio_interruption_ended", [
-      "shouldResume": shouldResumeAfterItemLoad
+      "shouldResumeOption": shouldResumeOption,
+      "wasPlaying": wasPlayingBeforeInterruption
     ])
     emitDiagnostic("ios_audio_session_interruption_ended", [
-      "shouldResume": shouldResumeAfterItemLoad
+      "shouldResumeOption": shouldResumeOption,
+      "wasPlaying": wasPlayingBeforeInterruption
+    ])
+    emitDiagnostic("ios_audio_session_should_resume", [
+      "shouldResumeOption": shouldResumeOption
     ])
 
     do {
       try activateAudioSession()
-      if shouldResumeAfterItemLoad {
+      if shouldResumeOption && wasPlayingBeforeInterruption {
         player?.play()
+        shouldResumeAfterItemLoad = true
         startProgressObserver()
+        confirmPlayingIfNeeded()
       }
     } catch {
       emitNativeError(error.localizedDescription)
