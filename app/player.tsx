@@ -236,9 +236,9 @@ export default function PlayerScreen() {
   const { width: viewportWidth, height: viewportHeight } = useWindowDimensions();
   const compactLayout = viewportWidth < 380 || viewportHeight < 760;
   const artworkSize = Math.round(
-    Math.min(compactLayout ? 260 : 294, Math.max(218, viewportWidth * (compactLayout ? 0.62 : 0.7)))
+    Math.min(compactLayout ? 246 : 286, Math.max(214, viewportWidth * (compactLayout ? 0.6 : 0.66)))
   );
-  const artworkScrollOverlap = Math.round(artworkSize * (compactLayout ? 0.1 : 0.14));
+  const artworkScrollOverlap = Math.round(artworkSize * (compactLayout ? 0.08 : 0.12));
   const horizontalPadding = compactLayout ? 18 : 22;
 
   const { currentSong, isPlaying, isLoading } = usePlayerNowPlaying();
@@ -838,26 +838,26 @@ const styles = StyleSheet.create({
   },
   glowPurple: {
     position: "absolute",
-    top: 50,
-    left: -120,
-    width: 230,
-    height: 230,
-    borderRadius: 115,
-    backgroundColor: "rgba(168,85,247,0.13)",
+    top: 36,
+    left: -130,
+    width: 270,
+    height: 270,
+    borderRadius: 135,
+    backgroundColor: "rgba(168,85,247,0.15)",
   },
   glowCyan: {
     position: "absolute",
-    top: 300,
-    right: -130,
-    width: 230,
-    height: 230,
-    borderRadius: 115,
-    backgroundColor: "rgba(34,211,238,0.09)",
+    top: 280,
+    right: -145,
+    width: 280,
+    height: 280,
+    borderRadius: 140,
+    backgroundColor: "rgba(34,211,238,0.1)",
   },
   playerAnchor: {
-    paddingTop: 44,
+    paddingTop: 40,
     paddingHorizontal: 20,
-    paddingBottom: 4,
+    paddingBottom: 8,
     zIndex: 2,
   },
   playerAnchorCompact: {
@@ -870,7 +870,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 22,
-    paddingBottom: 126,
+    paddingBottom: 138,
   },
   emptyContainer: {
     flex: 1,
@@ -954,7 +954,7 @@ const styles = StyleSheet.create({
   artworkStage: {
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 8,
+    marginTop: 12,
     shadowColor: "#A855F7",
     shadowOpacity: 0.1,
     shadowRadius: 10,
@@ -969,13 +969,20 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   artworkBorder: {
-    padding: 3,
+    padding: 4,
     alignItems: "center",
     justifyContent: "center",
+    shadowColor: COLORS.primaryGlow,
+    shadowOpacity: 0.22,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 12 },
+    elevation: 12,
   },
   artworkWrapper: {
     overflow: "hidden",
     backgroundColor: COLORS.card,
+    borderWidth: 2,
+    borderColor: "rgba(0,0,0,0.38)",
   },
   artwork: {
     width: "100%",
@@ -983,11 +990,11 @@ const styles = StyleSheet.create({
   },
   eqBadge: {
     position: "absolute",
-    right: 8,
-    bottom: 8,
-    minWidth: 46,
-    minHeight: 36,
-    borderRadius: 22,
+    right: 6,
+    bottom: 6,
+    minWidth: 52,
+    minHeight: 40,
+    borderRadius: 24,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "rgba(10,4,24,0.82)",
@@ -995,7 +1002,7 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.14)",
   },
   meta: {
-    marginTop: 4,
+    marginTop: 8,
     alignItems: "center",
   },
   statusPill: {
@@ -1055,29 +1062,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "800",
   },
-  waveformPanel: {
-    marginTop: 13,
-    minHeight: 62,
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.055)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
-  },
-  waveformPanelCompact: {
-    marginTop: 16,
-    minHeight: 72,
-  },
   progressPanel: {
-    marginTop: 12,
-    borderRadius: 19,
-    paddingHorizontal: 14,
-    paddingTop: 14,
-    paddingBottom: 10,
-    backgroundColor: "rgba(255,255,255,0.055)",
+    marginTop: 14,
+    borderRadius: 22,
+    paddingHorizontal: 15,
+    paddingTop: 15,
+    paddingBottom: 11,
+    backgroundColor: "rgba(255,255,255,0.065)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
+    borderColor: "rgba(255,255,255,0.11)",
   },
   progressPanelCompact: {
     marginTop: 16,
@@ -1096,13 +1089,13 @@ const styles = StyleSheet.create({
     fontVariant: ["tabular-nums"],
   },
   controlsDock: {
-    marginTop: 12,
-    borderRadius: 22,
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    backgroundColor: "rgba(255,255,255,0.04)",
+    marginTop: 13,
+    borderRadius: 25,
+    paddingVertical: 13,
+    paddingHorizontal: 10,
+    backgroundColor: "rgba(255,255,255,0.055)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
+    borderColor: "rgba(255,255,255,0.11)",
   },
   controls: {
     flexDirection: "row",
@@ -1118,10 +1111,10 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   premiumIconButton: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    backgroundColor: "rgba(255,255,255,0.07)",
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "rgba(255,255,255,0.085)",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
@@ -1139,9 +1132,9 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(168,85,247,0.18)",
   },
   playButton: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 66,
+    height: 66,
+    borderRadius: 33,
     backgroundColor: COLORS.primary,
     alignItems: "center",
     justifyContent: "center",
@@ -1153,12 +1146,13 @@ const styles = StyleSheet.create({
   },
   extraActions: {
     flexDirection: "row",
+    flexWrap: "wrap",
     justifyContent: "center",
-    gap: 12,
-    marginTop: 12,
+    gap: 10,
+    marginTop: 13,
   },
   extraAction: {
-    minWidth: 108,
+    minWidth: 104,
     borderRadius: 17,
     paddingHorizontal: 14,
     paddingVertical: 10,

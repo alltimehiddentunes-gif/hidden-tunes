@@ -489,8 +489,8 @@ function MiniPlayer() {
         onPressOut={onShellPressOut}
         style={shellStyle}
       >
-        <View style={styles.border}>
-          <BlurView intensity={44} tint="dark" style={styles.container}>
+        <LinearGradient colors={GRADIENTS.neon} style={styles.border}>
+          <BlurView intensity={50} tint="dark" style={styles.container}>
             <View style={styles.sheen} pointerEvents="none" />
 
             <MiniPlayerArtwork
@@ -540,7 +540,7 @@ function MiniPlayer() {
               />
             </MiniControlButton>
           </BlurView>
-        </View>
+        </LinearGradient>
       </AnimatedPressable>
     </Animated.View>
   );
@@ -551,46 +551,45 @@ export default memo(MiniPlayer);
 const styles = StyleSheet.create({
   wrapper: {
     position: "absolute",
-    left: 14,
-    right: 14,
-    bottom: 78,
-    borderRadius: 20,
+    left: 12,
+    right: 12,
+    bottom: 82,
+    borderRadius: 24,
     overflow: "hidden",
   },
 
   border: {
-    borderRadius: 20,
-    padding: 1,
-    backgroundColor: "rgba(168,85,247,0.2)",
+    borderRadius: 24,
+    padding: 1.2,
   },
 
   container: {
-    height: 72,
-    borderRadius: 19,
+    height: 78,
+    borderRadius: 23,
     overflow: "hidden",
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 9,
-    backgroundColor: "rgba(5,5,8,0.9)",
+    paddingHorizontal: 10,
+    backgroundColor: "rgba(5,5,8,0.92)",
   },
 
   sheen: {
     ...StyleSheet.flatten(StyleSheet.absoluteFill),
-    backgroundColor: "rgba(255,255,255,0.015)",
+    backgroundColor: "rgba(255,255,255,0.028)",
   },
 
   coverWrap: {
-    width: 48,
-    height: 48,
+    width: 54,
+    height: 54,
     alignItems: "center",
     justifyContent: "center",
   },
 
   coverGlowOuter: {
     position: "absolute",
-    width: 52,
-    height: 52,
-    borderRadius: 18,
+    width: 58,
+    height: 58,
+    borderRadius: 20,
     overflow: "hidden",
   },
 
@@ -599,9 +598,9 @@ const styles = StyleSheet.create({
   },
 
   coverFrame: {
-    width: 46,
-    height: 46,
-    borderRadius: 14,
+    width: 52,
+    height: 52,
+    borderRadius: 16,
     overflow: "hidden",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.14)",
@@ -609,9 +608,9 @@ const styles = StyleSheet.create({
   },
 
   cover: {
-    width: 46,
-    height: 46,
-    borderRadius: 14,
+    width: 52,
+    height: 52,
+    borderRadius: 16,
     backgroundColor: COLORS.cardLight,
   },
 
@@ -638,8 +637,8 @@ const styles = StyleSheet.create({
 
   info: {
     flex: 1,
-    marginLeft: 11,
-    paddingRight: 6,
+    marginLeft: 12,
+    paddingRight: 8,
     minWidth: 0,
   },
 
@@ -651,7 +650,7 @@ const styles = StyleSheet.create({
   },
 
   badgeRow: {
-    height: 14,
+    height: 15,
     justifyContent: "center",
   },
 
@@ -678,7 +677,7 @@ const styles = StyleSheet.create({
 
   title: {
     color: COLORS.text,
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: "900",
     marginTop: 1,
     letterSpacing: 0,
@@ -686,7 +685,7 @@ const styles = StyleSheet.create({
 
   artist: {
     color: COLORS.textMuted,
-    fontSize: 11,
+    fontSize: 11.5,
     marginTop: 2,
     fontWeight: "700",
   },
@@ -711,7 +710,7 @@ const styles = StyleSheet.create({
   },
 
   progressTrack: {
-    height: 3,
+    height: 4,
     borderRadius: 99,
     backgroundColor: "rgba(255,255,255,0.12)",
     marginTop: 5,
@@ -730,9 +729,9 @@ const styles = StyleSheet.create({
   },
 
   skipButton: {
-    width: 33,
-    height: 33,
-    borderRadius: 17,
+    width: 35,
+    height: 35,
+    borderRadius: 18,
     backgroundColor: "rgba(255,255,255,0.08)",
     alignItems: "center",
     justifyContent: "center",
@@ -742,9 +741,9 @@ const styles = StyleSheet.create({
   },
 
   playButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 43,
+    height: 43,
+    borderRadius: 22,
     backgroundColor: COLORS.primary,
     alignItems: "center",
     justifyContent: "center",
