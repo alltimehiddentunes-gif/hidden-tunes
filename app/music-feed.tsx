@@ -69,6 +69,12 @@ import {
   getArtworkUri,
   resolveGroupArtworkSource,
 } from "@/utils/artwork";
+import {
+  getListPerformanceSettings,
+  markFastScrolling,
+} from "@/utils/performanceMode";
+import { TESTER_COPY } from "@/constants/testerExperience";
+import PremiumEmptyState from "@/components/PremiumEmptyState";
 
 const CATALOG_PAGE_SIZE = 31;
 
@@ -522,7 +528,10 @@ export default function MusicFeedScreen() {
   }, []);
 
   useEffect(() => {
-    void loadCatalog();
+    const task = InteractionManager.runAfterInteractions(() => {
+      void loadCatalog();
+    });
+    return () => task.cancel();
   }, [loadCatalog]);
 
   useEffect(() => {
@@ -578,6 +587,10 @@ export default function MusicFeedScreen() {
   );
   const visibleCatalogSongs = useMemo(() => songs.slice(0, visibleCatalogCount), [songs, visibleCatalogCount]);
   const canLoadMore = visibleCatalogCount < songs.length;
+  const catalogListPerf = useMemo(
+    () => getListPerformanceSettings(visibleCatalogSongs.length),
+    [visibleCatalogSongs.length]
+  );
 
   const becauseYouListened = useMemo(() => {
     if (!showDeferredHomeSections) return [];
@@ -881,9 +894,13 @@ export default function MusicFeedScreen() {
               <Ionicons name="musical-notes" size={58} color={COLORS.primary} />
             </View>
 
-            <Text style={styles.emptyTitle}>Nothing here yet</Text>
-
-            <Text style={styles.emptyText}>New releases will appear soon.</Text>
+            <PremiumEmptyState
+              icon="musical-notes-outline"
+              title="Nothing here yet"
+              message={TESTER_COPY.catalogEmptyHome}
+              actionLabel="Refresh catalog"
+              onAction={() => void refreshCatalog()}
+            />
           </View>
         ) : (
           <FlatList
@@ -891,6 +908,15 @@ export default function MusicFeedScreen() {
             keyExtractor={keyExtractor}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.list}
+            onScrollBeginDrag={() => markFastScrolling(true)}
+            onMomentumScrollBegin={() => markFastScrolling(true)}
+            onScrollEndDrag={() => markFastScrolling(false)}
+            onMomentumScrollEnd={() => markFastScrolling(false)}
+            removeClippedSubviews={catalogListPerf.removeClippedSubviews}
+            initialNumToRender={catalogListPerf.initialNumToRender}
+            maxToRenderPerBatch={catalogListPerf.maxToRenderPerBatch}
+            windowSize={catalogListPerf.windowSize}
+            updateCellsBatchingPeriod={catalogListPerf.updateCellsBatchingPeriod}
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}

@@ -16,6 +16,7 @@ import { router, useLocalSearchParams } from "expo-router";
 
 import HTImage from "../components/HTImage";
 import { COLORS, GRADIENTS } from "../constants/theme";
+import { getListPerformanceSettings, markFastScrolling } from "../utils/performanceMode";
 import { usePlayerActions } from "../context/PlayerContext";
 import { resolveEntityArtwork } from "../utils/artwork";
 import {
@@ -167,6 +168,10 @@ export default function GenreScreen() {
         </View>
       ) : (
         <FlatList
+          onScrollBeginDrag={() => markFastScrolling(true)}
+          onMomentumScrollBegin={() => markFastScrolling(true)}
+          onScrollEndDrag={() => markFastScrolling(false)}
+          onMomentumScrollEnd={() => markFastScrolling(false)}
           data={tracks}
           keyExtractor={(item, index) => `${item.id}-${index}`}
           showsVerticalScrollIndicator={false}

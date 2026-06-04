@@ -19,7 +19,9 @@ import { Ionicons } from "@expo/vector-icons";
 
 import HTImage from "../components/HTImage";
 import AppShell from "../components/navigation/AppShell";
+import PremiumEmptyState from "../components/PremiumEmptyState";
 import { COLORS, GRADIENTS } from "../constants/theme";
+import { getListPerformanceSettings } from "../utils/performanceMode";
 
 import {
   generateSmartPlaylists,
@@ -254,6 +256,10 @@ export default function PlaylistsScreen() {
   }, [playlists]);
 
   const totalFound = filteredPlaylists.length + filteredSmartPlaylists.length;
+  const playlistListPerformance = useMemo(
+    () => getListPerformanceSettings(filteredPlaylists.length),
+    [filteredPlaylists.length]
+  );
 
   function openPlaylist(playlist: LibraryPlaylist) {
     if (isCatalogSmartPlaylist(playlist)) {
@@ -505,20 +511,21 @@ export default function PlaylistsScreen() {
         ListEmptyComponent={
           !query.trim() && filteredSmartPlaylists.length === 0 ? (
             <View style={styles.empty}>
-              <Ionicons
-                name="albums-outline"
-                size={64}
-                color={COLORS.textMuted}
+              <PremiumEmptyState
+                icon="albums-outline"
+                title="Your playlists are ready when you are"
+                message="Create a playlist from any track, or use smart mixes to start listening while your library grows."
+                actionLabel="Explore Music"
+                onAction={() => router.push("/music-feed" as any)}
               />
-
-              <Text style={styles.emptyTitle}>No playlists yet</Text>
-
-              <Text style={styles.emptyText}>
-                Add songs using the playlist + button.
-              </Text>
             </View>
           ) : null
         }
+        initialNumToRender={playlistListPerformance.initialNumToRender}
+        maxToRenderPerBatch={playlistListPerformance.maxToRenderPerBatch}
+        windowSize={playlistListPerformance.windowSize}
+        updateCellsBatchingPeriod={playlistListPerformance.updateCellsBatchingPeriod}
+        removeClippedSubviews={playlistListPerformance.removeClippedSubviews}
         renderItem={({ item }) => renderPlaylistCard(item, false)}
       />
 

@@ -16,6 +16,7 @@ import AddToPlaylistButton from "../components/AddToPlaylistButton";
 import HTImage from "../components/HTImage";
 import NeonEQ from "../components/NeonEQ";
 import { COLORS, GRADIENTS } from "../constants/theme";
+import PremiumEmptyState from "../components/PremiumEmptyState";
 import {
   usePlayerActions,
   usePlayerNowPlaying,
@@ -215,8 +216,8 @@ function RecentlyPlayedScreen() {
   return (
     <AppShell>
       <LinearGradient colors={GRADIENTS.main} style={styles.container}>
-      <View style={styles.glowPurple} />
-      <View style={styles.glowCyan} />
+      <View pointerEvents="none" style={styles.glowPurple} />
+      <View pointerEvents="none" style={styles.glowCyan} />
 
       <View style={styles.header}>
         <TouchableOpacity
@@ -249,20 +250,13 @@ function RecentlyPlayedScreen() {
         onMomentumScrollEnd={() => markFastScrolling(false)}
         ListEmptyComponent={
           <View style={styles.emptyBox}>
-            <Ionicons name="time-outline" size={58} color={COLORS.textMuted} />
-            <Text style={styles.emptyTitle}>No recent plays yet</Text>
-            <Text style={styles.emptyText}>
-              Play a few tracks and they will appear here for quick access.
-            </Text>
-
-            <TouchableOpacity
-              activeOpacity={0.86}
-              style={styles.exploreButton}
-              onPress={() => router.push("/music-feed" as any)}
-            >
-              <Ionicons name="compass" size={18} color="#000" />
-              <Text style={styles.exploreButtonText}>Explore Music</Text>
-            </TouchableOpacity>
+            <PremiumEmptyState
+              icon="time-outline"
+              title="Your listening trail starts here"
+              message="Play a few tracks and this screen becomes a fast, artwork-rich path back into recent sessions."
+              actionLabel="Explore Music"
+              onAction={() => router.push("/music-feed" as any)}
+            />
           </View>
         }
       />

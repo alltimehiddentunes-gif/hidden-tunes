@@ -115,6 +115,55 @@ function artworkCandidateKey(candidate: any) {
   }
 }
 
+
+function pushHierarchyArtworkCandidates(candidates: any[], item: any) {
+  const songFields = [
+    item.artwork,
+    item.artworkUrl,
+    item.artwork_url,
+    item.cover,
+    item.coverUrl,
+    item.cover_url,
+    item.albumArt,
+    item.album_art,
+    item.thumbnail,
+    item.image,
+    item.imageUrl,
+    item.image_url,
+  ];
+
+  const albumFields = [
+    item.album?.artwork,
+    item.album?.artworkUrl,
+    item.album?.cover,
+    item.album?.coverUrl,
+    item.album?.image,
+    item.album?.thumbnail,
+  ];
+
+  const artistFields = [
+    item.artistArtwork,
+    item.artistArtworkUrl,
+    item.artist?.artwork,
+    item.artist?.image,
+    item.artist?.imageUrl,
+    item.artist?.cover,
+    item.artist?.thumbnail,
+  ];
+
+  const genreFields = [
+    item.genreArtwork,
+    item.genreArtworkUrl,
+    item.genre?.artwork,
+    item.moodArtwork,
+    item.moodArtworkUrl,
+  ];
+
+  for (const value of [...songFields, ...albumFields, ...artistFields, ...genreFields]) {
+    pushArtworkCandidate(candidates, value);
+  }
+}
+
 export function getArtworkCandidates(item: any, fallback = FALLBACK_ARTWORK): any[] {
   const cacheKey = artworkCacheKey(item, fallback);
   const cached = artworkCandidateCache.get(cacheKey);
@@ -150,6 +199,9 @@ export function getArtworkCandidates(item: any, fallback = FALLBACK_ARTWORK): an
   }
 
   const raw = item.raw && typeof item.raw === "object" ? item.raw : null;
+
+  pushHierarchyArtworkCandidates(candidates, item);
+  if (raw) pushHierarchyArtworkCandidates(candidates, raw);
 
   const rawCandidates = [
     item.artwork,

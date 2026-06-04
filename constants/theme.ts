@@ -110,6 +110,14 @@ export const SHADOWS = {
   },
 } as const;
 
+export const ARTWORK_FRAME = {
+  radiusSm: 14,
+  radiusMd: 18,
+  radiusLg: 22,
+  radiusRound: 999,
+  aspectSquare: 1,
+} as const;
+
 export const LOGO_SIZES = {
   header: 54,
   headerImage: 46,

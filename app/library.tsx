@@ -22,7 +22,7 @@ import Animated, {
 } from "react-native-reanimated";
 
 import AppShell from "../components/navigation/AppShell";
-import HTImage from "../components/HTImage";
+
 import {
   COLORS,
   GRADIENTS,
@@ -42,46 +42,58 @@ type LibrarySection = {
   accent: string;
 };
 
-const LIBRARY_SECTIONS: LibrarySection[] = [
+const LIBRARY_GROUPS: { id: string; label: string; sections: LibrarySection[] }[] = [
   {
-    id: "albums",
-    title: "Albums",
-    eyebrow: "COLLECTIONS",
-    icon: "albums",
-    href: "/music-feed",
-    accent: COLORS.primaryGlow,
+    id: "your-music",
+    label: "Your Music",
+    sections: [
+      {
+        id: "playlists",
+        title: "Playlists",
+        eyebrow: "CURATED",
+        icon: "musical-notes",
+        href: "/playlists",
+        accent: COLORS.pink,
+      },
+      {
+        id: "favorites",
+        title: "Favorites",
+        eyebrow: "SAVED",
+        icon: "heart",
+        href: "/favorites",
+        accent: "#F472B6",
+      },
+      {
+        id: "downloads",
+        title: "Downloads",
+        eyebrow: "OFFLINE",
+        icon: "cloud-download",
+        href: "/downloads",
+        accent: COLORS.blue,
+      },
+    ],
   },
   {
-    id: "artists",
-    title: "Artists",
-    eyebrow: "CREATORS",
-    icon: "people",
-    href: "/music-feed",
-    accent: COLORS.cyan,
-  },
-  {
-    id: "playlists",
-    title: "Playlists",
-    eyebrow: "CURATED",
-    icon: "musical-notes",
-    href: "/playlists",
-    accent: COLORS.pink,
-  },
-  {
-    id: "favorites",
-    title: "Favorites",
-    eyebrow: "SAVED",
-    icon: "heart",
-    href: "/favorites",
-    accent: "#F472B6",
-  },
-  {
-    id: "downloads",
-    title: "Downloads",
-    eyebrow: "OFFLINE",
-    icon: "cloud-download",
-    href: "/downloads",
-    accent: COLORS.blue,
+    id: "collection",
+    label: "Collection",
+    sections: [
+      {
+        id: "albums",
+        title: "Albums",
+        eyebrow: "RELEASES",
+        icon: "albums",
+        href: "/music-feed",
+        accent: COLORS.primaryGlow,
+      },
+      {
+        id: "artists",
+        title: "Artists",
+        eyebrow: "CREATORS",
+        icon: "people",
+        href: "/music-feed",
+        accent: COLORS.cyan,
+      },
+    ],
   },
 ];
 
@@ -145,25 +157,14 @@ function LibrarySectionCard({ section }: { section: LibrarySection }) {
       onPress={() => router.push(section.href as any)}
     >
       <LinearGradient colors={GRADIENTS.cardElevated} style={styles.sectionSurface}>
-        <View style={[styles.sectionArt, { borderColor: `${section.accent}55` }]}>
-          <HTImage
-            source={{
-              title: section.title,
-              mood: section.title,
-              artwork: "",
-            }}
-            style={styles.sectionArtImage}
-            contentFit="cover"
-          />
-          <LinearGradient
-            pointerEvents="none"
-            colors={["transparent", "rgba(0,0,0,0.55)"]}
-            style={StyleSheet.absoluteFill}
-          />
+        <LinearGradient
+          colors={[`${section.accent}33`, "rgba(255,255,255,0.04)"]}
+          style={[styles.sectionArt, { borderColor: `${section.accent}55` }]}
+        >
           <View style={styles.sectionIconBadge}>
             <Ionicons name={section.icon} size={24} color={section.accent} />
           </View>
-        </View>
+        </LinearGradient>
 
         <Text style={styles.sectionEyebrow}>{section.eyebrow}</Text>
         <Text numberOfLines={1} ellipsizeMode="tail" style={styles.sectionTitle}>
@@ -202,13 +203,16 @@ export default function LibraryScreen() {
             </Text>
           </LinearGradient>
 
-          <Text style={styles.gridLabel}>Browse by collection</Text>
-
-          <View style={styles.grid}>
-            {LIBRARY_SECTIONS.map((section) => (
-              <LibrarySectionCard key={section.id} section={section} />
-            ))}
-          </View>
+          {LIBRARY_GROUPS.map((group) => (
+            <View key={group.id} style={styles.groupBlock}>
+              <Text style={styles.gridLabel}>{group.label}</Text>
+              <View style={styles.grid}>
+                {group.sections.map((section) => (
+                  <LibrarySectionCard key={section.id} section={section} />
+                ))}
+              </View>
+            </View>
+          ))}
 
           <TouchableOpacity
             activeOpacity={0.88}
@@ -228,7 +232,7 @@ export default function LibraryScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 48,
+    paddingTop: 40,
     paddingHorizontal: SPACING.screen,
   },
   scrollContent: {
@@ -276,11 +280,11 @@ const styles = StyleSheet.create({
   },
   heroTitle: {
     color: COLORS.text,
-    fontSize: TYPOGRAPHY.heroTitle,
-    fontWeight: "900",
+    fontSize: 22,
+    fontWeight: "800",
     textAlign: "center",
-    marginTop: 8,
-    lineHeight: TYPOGRAPHY.heroTitle + 6,
+    marginTop: 6,
+    lineHeight: 26,
   },
   heroSubtitle: {
     color: COLORS.textMuted,
@@ -299,11 +303,14 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     textTransform: "uppercase",
   },
+  groupBlock: {
+    marginBottom: SPACING.section - 4,
+  },
   grid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 12,
-    marginBottom: SPACING.section,
+    gap: 10,
+    marginBottom: 4,
   },
   sectionCard: {
     width: "48%",
@@ -316,24 +323,19 @@ const styles = StyleSheet.create({
     padding: 12,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.09)",
-    minHeight: 188,
+    minHeight: 164,
   },
   sectionArt: {
-    height: 108,
+    height: 96,
     borderRadius: 18,
     overflow: "hidden",
-    marginBottom: 12,
+    marginBottom: 10,
     borderWidth: 1,
-    backgroundColor: "rgba(168,85,247,0.1)",
-  },
-  sectionArtImage: {
-    width: "100%",
-    height: "100%",
+    borderColor: "rgba(255,255,255,0.08)",
+    alignItems: "center",
+    justifyContent: "center",
   },
   sectionIconBadge: {
-    position: "absolute",
-    right: 10,
-    bottom: 10,
     width: 42,
     height: 42,
     borderRadius: 21,

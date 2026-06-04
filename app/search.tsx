@@ -55,6 +55,7 @@ import {
 } from "../services/universalSearchService";
 import type { HiddenTunesGenre } from "../utils/genres";
 import { UNIVERSAL_SEARCH_EMPTY_SUGGESTIONS } from "../utils/universalSearch";
+import { markFastScrolling } from "../utils/performanceMode";
 
 const EMPTY_SEARCH_RESULTS = EMPTY_UNIVERSAL_SEARCH_RESULTS;
 
@@ -651,6 +652,10 @@ export default function SearchScreen() {
           behavior={Platform.OS === "ios" ? "padding" : undefined}
         >
           <ScrollView
+            onScrollBeginDrag={() => markFastScrolling(true)}
+            onMomentumScrollBegin={() => markFastScrolling(true)}
+            onScrollEndDrag={() => markFastScrolling(false)}
+            onMomentumScrollEnd={() => markFastScrolling(false)}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={styles.scrollContent}

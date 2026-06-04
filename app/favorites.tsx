@@ -15,6 +15,7 @@ import AppShell from "../components/navigation/AppShell";
 import HTImage from "../components/HTImage";
 import NeonEQ from "../components/NeonEQ";
 import { COLORS, GRADIENTS } from "../constants/theme";
+import PremiumEmptyState from "../components/PremiumEmptyState";
 import {
   usePlayerActions,
   usePlayerNowPlaying,
@@ -228,23 +229,13 @@ export default function FavoritesScreen() {
 
         {favoriteSongs.length === 0 ? (
           <View style={styles.emptyBox}>
-            <View style={styles.emptyIcon}>
-              <Ionicons name="heart-outline" size={54} color={COLORS.primary} />
-            </View>
-
-            <Text style={styles.emptyTitle}>No favorites yet</Text>
-            <Text style={styles.emptyText}>
-              Tap the heart on any track while listening to save it here.
-            </Text>
-
-            <TouchableOpacity
-              activeOpacity={0.88}
-              style={styles.emptyButton}
-              onPress={() => router.push("/music-feed" as any)}
-            >
-              <Ionicons name="sparkles" size={18} color="#000" />
-              <Text style={styles.emptyButtonText}>Browse Music</Text>
-            </TouchableOpacity>
+            <PremiumEmptyState
+              icon="heart-outline"
+              title="Your saved sound is waiting"
+              message="Tap the heart on any track or TV pick and it will land here in a clean, private collection."
+              actionLabel="Browse Music"
+              onAction={() => router.push("/music-feed" as any)}
+            />
           </View>
         ) : (
           <FlatList

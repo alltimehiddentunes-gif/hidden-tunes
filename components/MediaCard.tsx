@@ -9,7 +9,7 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 
-import { COLORS, GRADIENTS } from "../constants/theme";
+import { COLORS, GRADIENTS, ARTWORK_FRAME } from "../constants/theme";
 import HTImage from "./HTImage";
 import {
   FALLBACK_ARTWORK,
@@ -46,7 +46,10 @@ function MediaCard({
     return 72;
   }, [size]);
 
-  const artworkRadius = useMemo(() => artworkSize * 0.24, [artworkSize]);
+  const artworkRadius = useMemo(
+    () => (size === "large" ? ARTWORK_FRAME.radiusLg : ARTWORK_FRAME.radiusMd),
+    [size]
+  );
 
   const resolvedArtwork = useMemo(() => {
     if (Array.isArray(artworkCandidates) && artworkCandidates.length) {
@@ -96,6 +99,7 @@ function MediaCard({
             candidates={artworkCandidates}
             style={artworkStyle}
             contentFit="cover"
+            contentPosition="center"
           />
           {resolvedArtwork === FALLBACK_ARTWORK ? (
             <View style={styles.artworkBadge}>

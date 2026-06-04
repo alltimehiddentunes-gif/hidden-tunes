@@ -23,7 +23,8 @@ type Props = {
   contentPosition?: "center" | "top" | "bottom" | "left" | "right";
 };
 
-const MAX_ARTWORK_CANDIDATES = 4;
+const MAX_ARTWORK_CANDIDATES = 5;
+const IMAGE_FADE_MS = 220;
 
 function candidateKey(item: any) {
   if (typeof item === "string") return item;
@@ -57,6 +58,7 @@ function HTImage({
   const [stablePlaceholder, setStablePlaceholder] = useState<any>(null);
   const [fastScrolling, setFastScrolling] = useState(isFastScrolling());
   const [showingFallback, setShowingFallback] = useState(false);
+  const [imageReady, setImageReady] = useState(false);
   const failureCountRef = useRef(0);
   const gaveUpRef = useRef(false);
 
@@ -112,6 +114,7 @@ function HTImage({
     failureCountRef.current = 0;
     gaveUpRef.current = false;
     setShowingFallback(false);
+    setImageReady(false);
   }, [candidates, source, uri]);
 
   useEffect(() => {
@@ -152,13 +155,19 @@ function HTImage({
       <Image
         source={resolvedSource}
         recyclingKey={recyclingKey}
-        style={[style, styles.image]}
+        style={[
+          style,
+          styles.image,
+          !imageReady && !showingFallback ? styles.imageLoading : null,
+        ]}
         contentFit={contentFit}
         contentPosition={contentPosition}
         cachePolicy="disk"
         placeholder={stablePlaceholder || fallbackSource}
-        transition={fastScrolling ? 0 : showingFallback ? 0 : 180}
+        placeholderContentFit="cover"
+        transition={fastScrolling || showingFallback ? 0 : IMAGE_FADE_MS}
         onLoad={() => {
+          setImageReady(true);
           if (!fastScrolling) {
             setStablePlaceholder(resolvedSource);
           }
@@ -215,5 +224,8 @@ const styles = StyleSheet.create({
   },
   image: {
     backgroundColor: "transparent",
+  },
+  imageLoading: {
+    opacity: 0.88,
   },
 });

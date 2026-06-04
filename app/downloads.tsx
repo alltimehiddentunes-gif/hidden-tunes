@@ -2,7 +2,6 @@ import { useCallback, useMemo, useState } from "react";
 import {
   Alert,
   FlatList,
-  Image,
   RefreshControl,
   StyleSheet,
   Text,
@@ -15,7 +14,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 
 import AppShell from "../components/navigation/AppShell";
+import HTImage from "../components/HTImage";
 import { COLORS, GRADIENTS } from "../constants/theme";
+import PremiumEmptyState from "../components/PremiumEmptyState";
 import {
   clearDownloads,
   deleteDownload,
@@ -108,13 +109,7 @@ export default function DownloadsScreen() {
   const renderDownload = useCallback(
     ({ item }: { item: DownloadedSong }) => (
       <View style={styles.songCard}>
-        {item.cover ? (
-          <Image source={{ uri: item.cover }} style={styles.cover} />
-        ) : (
-          <View style={styles.coverPlaceholder}>
-            <Ionicons name="musical-notes" size={28} color={COLORS.textMuted} />
-          </View>
-        )}
+        <HTImage source={item} uri={item.cover} style={styles.cover} contentFit="cover" />
 
         <View style={styles.songInfo}>
           <Text numberOfLines={1} style={styles.songTitle}>
@@ -201,23 +196,13 @@ export default function DownloadsScreen() {
           }
           ListEmptyComponent={
             <View style={styles.emptyState}>
-              <View style={styles.emptyIcon}>
-                <Ionicons name="download-outline" size={54} color={COLORS.primary} />
-              </View>
-
-              <Text style={styles.emptyTitle}>No downloads yet</Text>
-              <Text style={styles.emptyText}>
-                Saved offline tracks will appear here when real downloads exist on this device.
-              </Text>
-
-              <TouchableOpacity
-                activeOpacity={0.86}
-                style={styles.browseButton}
-                onPress={() => router.push("/music-feed" as any)}
-              >
-                <Ionicons name="musical-notes" size={18} color="#000" />
-                <Text style={styles.browseButtonText}>Browse Music</Text>
-              </TouchableOpacity>
+              <PremiumEmptyState
+                icon="download-outline"
+                title="Offline music will live here"
+                message="When downloads are available on this device, they will appear with artwork, dates, and quick cleanup controls."
+                actionLabel="Browse Music"
+                onAction={() => router.push("/music-feed" as any)}
+              />
             </View>
           }
         />

@@ -4,6 +4,8 @@ import { Ionicons } from "@expo/vector-icons";
 
 import MediaCard from "./MediaCard";
 import { COLORS } from "../constants/theme";
+import { TESTER_COPY } from "../constants/testerExperience";
+import PremiumEmptyState from "./PremiumEmptyState";
 import type { UniversalSearchGroupedResults as GroupedResults } from "../services/universalSearchService";
 import type { UniversalMatchReason } from "../utils/universalSearch";
 import { UNIVERSAL_SEARCH_EMPTY_SUGGESTIONS } from "../utils/universalSearch";
@@ -153,25 +155,13 @@ function UniversalSearchGroupedResults({
     }
 
     return (
-      <View style={styles.emptyBox}>
-        <Ionicons name="search-outline" size={40} color={COLORS.textMuted} />
-        <Text style={styles.emptyTitle}>No exact matches found</Text>
-        <Text style={styles.emptyText}>
-          Try another title, artist, album, genre, mood, or lyric phrase.
-        </Text>
-        <View style={styles.chipWrap}>
-          {UNIVERSAL_SEARCH_EMPTY_SUGGESTIONS.map((chip) => (
-            <TouchableOpacity
-              key={chip}
-              activeOpacity={0.86}
-              style={styles.suggestionChip}
-              onPress={() => onSuggestionPress(chip)}
-            >
-              <Text style={styles.suggestionChipText}>{chip}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
+      <PremiumEmptyState
+        icon="search-outline"
+        title="No exact matches found"
+        message={TESTER_COPY.searchNoMatch}
+        actionLabel="Try a mood"
+        onAction={() => onSuggestionPress(UNIVERSAL_SEARCH_EMPTY_SUGGESTIONS[0])}
+      />
     );
   }
 
@@ -182,7 +172,7 @@ function UniversalSearchGroupedResults({
       {topResults.length > 0 && (
         <View style={styles.sectionBlock}>
           <SectionHeader
-            title={topResults.length === 1 ? "Top Result" : "Best Matches"}
+            title="Top Result"
             count={topResults.length}
           />
           {topResults.map((hit) => {
@@ -343,6 +333,24 @@ function UniversalSearchGroupedResults({
         </View>
       )}
 
+      {display.songs.length > 0 && (
+        <View style={styles.sectionBlock}>
+          <SectionHeader title="Songs" count={grouped.songs.length} />
+          <FlatList
+            data={display.songs}
+            scrollEnabled={false}
+            nestedScrollEnabled
+            keyExtractor={songKeyExtractor}
+            renderItem={renderSongRow}
+            getItemLayout={getSongItemLayout}
+            initialNumToRender={8}
+            maxToRenderPerBatch={6}
+            windowSize={5}
+            removeClippedSubviews
+          />
+        </View>
+      )}
+
       {display.artists.length > 0 && (
         <View style={styles.sectionBlock}>
           <SectionHeader title="Artists" count={grouped.artists.length} />
@@ -364,54 +372,6 @@ function UniversalSearchGroupedResults({
                 onPress={() => onArtistPress(hit.payload)}
               />
               <MatchReasonPill reason={hit.reason} />
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
-
-      {display.songs.length > 0 && (
-        <View style={styles.sectionBlock}>
-          <SectionHeader title="Songs" count={grouped.songs.length} />
-          <FlatList
-            data={display.songs}
-            scrollEnabled={false}
-            nestedScrollEnabled
-            keyExtractor={songKeyExtractor}
-            renderItem={renderSongRow}
-            getItemLayout={getSongItemLayout}
-            initialNumToRender={8}
-            maxToRenderPerBatch={6}
-            windowSize={5}
-            removeClippedSubviews
-          />
-        </View>
-      )}
-
-      {display.lyrics.length > 0 && (
-        <View style={styles.sectionBlock}>
-          <SectionHeader title="Lyrics Matches" count={grouped.lyrics.length} />
-          {display.lyrics.map((hit) => (
-            <TouchableOpacity
-              key={hit.id}
-              activeOpacity={0.88}
-              style={styles.rowCard}
-              onPress={() => onLyricPress(hit.payload)}
-            >
-              <MediaCard
-                title={hit.payload.title}
-                subtitle={hit.payload.artist}
-                image={hit.payload}
-                type="song"
-                size="medium"
-                showPlayButton={false}
-                onPress={() => onLyricPress(hit.payload)}
-              />
-              <MatchReasonPill reason={hit.reason} />
-              {hit.lyricSnippet ? (
-                <Text style={styles.lyricSnippet} numberOfLines={3}>
-                  {hit.lyricSnippet}
-                </Text>
-              ) : null}
             </TouchableOpacity>
           ))}
         </View>
@@ -480,6 +440,36 @@ function UniversalSearchGroupedResults({
               </TouchableOpacity>
             ))}
           </View>
+        </View>
+      )}
+
+      {display.lyrics.length > 0 && (
+        <View style={styles.sectionBlock}>
+          <SectionHeader title="Lyrics Matches" count={grouped.lyrics.length} />
+          {display.lyrics.map((hit) => (
+            <TouchableOpacity
+              key={hit.id}
+              activeOpacity={0.88}
+              style={styles.rowCard}
+              onPress={() => onLyricPress(hit.payload)}
+            >
+              <MediaCard
+                title={hit.payload.title}
+                subtitle={hit.payload.artist}
+                image={hit.payload}
+                type="song"
+                size="medium"
+                showPlayButton={false}
+                onPress={() => onLyricPress(hit.payload)}
+              />
+              <MatchReasonPill reason={hit.reason} />
+              {hit.lyricSnippet ? (
+                <Text style={styles.lyricSnippet} numberOfLines={3}>
+                  {hit.lyricSnippet}
+                </Text>
+              ) : null}
+            </TouchableOpacity>
+          ))}
         </View>
       )}
 
@@ -596,8 +586,8 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     color: COLORS.text,
-    fontSize: 17,
-    fontWeight: "900",
+    fontSize: 16,
+    fontWeight: "800",
   },
   sectionCount: {
     color: COLORS.textMuted,
