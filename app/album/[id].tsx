@@ -30,7 +30,10 @@ import {
   type HiddenTunesAlbum,
   type HiddenTunesNormalizedSong,
 } from "../../services/hiddenTunesApi";
+import { getCachedHiddenTunesCatalog } from "../../services/hiddenTunes";
 import { getArtworkUri, resolveEntityArtwork } from "../../utils/artwork";
+import { logEntityTapReceived } from "../../utils/entityDiagnostics";
+import { mergeApiTracksWithCatalogAlbum } from "../../utils/entityResolution";
 import { shouldResetCatalogFallbackGate } from "../../utils/catalogEmptyStateTiming";
 import {
   logApiRefresh,
@@ -176,7 +179,16 @@ export default function AlbumScreen() {
   const albumRef = useRef<HiddenTunesAlbum | null>(null);
 
   const tracks = useMemo(() => {
-    const sorted = sortAlbumTracks((album?.tracks || []).map(safeSong));
+    const apiTracks = sortAlbumTracks((album?.tracks || []).map(safeSong));
+    const catalog = getCachedHiddenTunesCatalog();
+    const merged = mergeApiTracksWithCatalogAlbum(apiTracks, catalog, {
+      id: String(id || ""),
+      album: album?.title,
+      title: album?.title,
+      artist: album?.artist,
+      thumbnail: album?.artwork,
+    }).map((song) => safeSong(song as HiddenTunesNormalizedSong));
+    const sorted = sortAlbumTracks(merged);
     if (sorted.length) {
       console.log("album_queue_built", {
         albumId: album?.id,
@@ -185,7 +197,7 @@ export default function AlbumScreen() {
       });
     }
     return sorted;
-  }, [album?.id, album?.title, album?.tracks]);
+  }, [album?.artist, album?.artwork, album?.id, album?.title, album?.tracks, id]);
 
   const albumAudioPreloadTarget = useMemo(() => {
     const first = pickFirstPlayableTrack(tracks);
@@ -317,6 +329,7 @@ export default function AlbumScreen() {
   );
 
   useEffect(() => {
+    logEntityTapReceived("album", { id: String(id || "") });
     loadAlbum(true);
   }, [id, loadAlbum]);
 

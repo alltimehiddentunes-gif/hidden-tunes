@@ -61,6 +61,8 @@ import {
   type SearchStationResult,
 } from "../utils/searchApkParity";
 import { logSearchDiagnostic } from "../utils/searchDiagnostics";
+import { logEntityTapReceived } from "../utils/entityDiagnostics";
+import { resolveStationEntity } from "../utils/entityResolution";
 import { markFastScrolling } from "../utils/performanceMode";
 
 const EMPTY_SEARCH_RESULTS = EMPTY_UNIVERSAL_SEARCH_RESULTS;
@@ -740,9 +742,22 @@ export default function SearchScreen() {
         title: station.title,
         query: cleanSubmittedSearchQuery,
       });
+      logEntityTapReceived("station", {
+        id: station.id,
+        title: station.title,
+      });
 
-      const tracks = station.tracks.length
-        ? station.tracks
+      const stationResolution = resolveStationEntity(
+        getCachedHiddenTunesCatalog(),
+        {
+          id: station.id,
+          title: station.title,
+          query: station.title,
+          explicitTracks: station.tracks,
+        }
+      );
+      const tracks = stationResolution.tracks.length
+        ? stationResolution.tracks
         : songs.filter((song) =>
             textMatchesQuery(
               [song.title, song.artist, song.genre, song.mood].join(" "),

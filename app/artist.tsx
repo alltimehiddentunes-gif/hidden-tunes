@@ -20,9 +20,15 @@ import { getListPerformanceSettings, markFastScrolling } from "../utils/performa
 import { usePlayerActions } from "../context/PlayerContext";
 import { resolveEntityArtwork } from "../utils/artwork";
 import {
+  logEntityArtworkResolved,
+  logEntityTapReceived,
+} from "../utils/entityDiagnostics";
+import { resolveArtistEntity } from "../utils/entityResolution";
+import {
   fetchHiddenTunesCatalog,
   getCachedHiddenTunesCatalog,
   type HiddenTunesAlbumCatalogItem,
+  type HiddenTunesArtistCatalogItem,
   type HiddenTunesDerivedCatalog,
   type HiddenTunesSong,
 } from "../services/hiddenTunes";
@@ -56,8 +62,12 @@ export default function ArtistScreen() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    logEntityTapReceived("artist", {
+      artist: artistName,
+      id: String(params.id || ""),
+    });
     void loadArtistCatalog();
-  }, [artistName]);
+  }, [artistName, params.id]);
 
   async function loadArtistCatalog() {
     try {
@@ -71,18 +81,31 @@ export default function ArtistScreen() {
     }
   }
 
-  const artist = useMemo(() => {
-    const artists = catalog?.artists || [];
-    return artists.find((item) => clean(item.name) === clean(artistName));
-  }, [artistName, catalog?.artists]);
-
-  const tracks = artist?.songs || [];
-  const albums = artist?.albums || [];
-
-  const heroArtwork = useMemo(
-    () => resolveEntityArtwork(artist || { name: artistName }, tracks),
-    [artist, artistName, tracks]
+  const artistResolution = useMemo(
+    () =>
+      resolveArtistEntity(catalog, {
+        id: String(params.id || ""),
+        artist: artistName,
+        name: artistName,
+      }),
+    [artistName, catalog, params.id]
   );
+
+  const artist = artistResolution.entity as HiddenTunesArtistCatalogItem | undefined;
+  const tracks = artistResolution.tracks;
+  const albums = artistResolution.albums;
+  const recoveryLabel = artistResolution.recoveryLabel;
+
+  const heroArtwork = useMemo(() => {
+    const artwork = resolveEntityArtwork(artist || { name: artistName }, tracks);
+    logEntityArtworkResolved({
+      kind: "artist",
+      name: artist?.name || artistName,
+      trackCount: tracks.length,
+      hasArtwork: Boolean(artwork),
+    });
+    return artwork;
+  }, [artist, artistName, tracks]);
 
   function openAlbum(album: HiddenTunesAlbumCatalogItem) {
     router.push({
@@ -188,8 +211,12 @@ export default function ArtistScreen() {
                 )}
 
                 <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>Songs</Text>
-                  <Text style={styles.sectionSub}>Playable Hidden Tunes tracks</Text>
+                  <Text style={styles.sectionTitle}>{recoveryLabel || "Songs"}</Text>
+                  <Text style={styles.sectionSub}>
+                    {recoveryLabel
+                      ? `${recoveryLabel} • ${tracks.length} song${tracks.length === 1 ? "" : "s"}`
+                      : "Playable Hidden Tunes tracks"}
+                  </Text>
                 </View>
               </>
             )}
@@ -199,8 +226,13 @@ export default function ArtistScreen() {
           !loading ? (
             <View style={styles.empty}>
               <Ionicons name="person-circle-outline" size={60} color={COLORS.textMuted} />
-              <Text style={styles.emptyTitle}>No songs yet</Text>
-              <Text style={styles.emptyText}>This artist has no songs in the current catalog source.</Text>
+              <PremiumEmptyState
+                icon="person-circle-outline"
+                title="No songs for this artist yet"
+                message="When the catalog includes tracks for this artist, they will appear here with artwork and playback-ready rows."
+                actionLabel="Refresh"
+                onAction={loadArtistCatalog}
+              />
             </View>
           ) : null
         }

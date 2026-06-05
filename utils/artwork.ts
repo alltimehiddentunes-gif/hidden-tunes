@@ -438,6 +438,36 @@ export function resolveGroupArtworkSource(group: {
   };
 }
 
+export function pickMostCommonArtworkFromSongs(
+  songs: Array<{
+    artwork?: unknown;
+    cover?: unknown;
+    thumbnail?: unknown;
+  }>,
+  fallback = FALLBACK_ARTWORK
+): string {
+  const counts = new Map<string, number>();
+
+  songs.forEach((song) => {
+    getArtworkCandidates(song, fallback).forEach((candidate) => {
+      if (typeof candidate === "string" && hasCatalogArtwork(candidate, fallback)) {
+        counts.set(candidate, (counts.get(candidate) || 0) + 1);
+      }
+    });
+  });
+
+  let best = "";
+  let bestCount = 0;
+  counts.forEach((count, url) => {
+    if (count > bestCount) {
+      best = url;
+      bestCount = count;
+    }
+  });
+
+  return best || pickBestArtworkFromSongs(songs, fallback);
+}
+
 export function pickBestArtworkFromSongs(
   songs: Array<{
     artwork?: unknown;
@@ -495,8 +525,10 @@ export function resolveEntityArtwork(
     return false;
   });
 
-  return pickBestArtworkFromSongs(
-    scopedSongs.length ? scopedSongs : relatedSongs,
-    fallback
-  );
+  const pool = scopedSongs.length ? scopedSongs : relatedSongs;
+  if (entityArtist && !entityAlbum) {
+    return pickMostCommonArtworkFromSongs(pool, fallback);
+  }
+
+  return pickBestArtworkFromSongs(pool, fallback);
 }

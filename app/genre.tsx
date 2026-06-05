@@ -22,6 +22,11 @@ import { getListPerformanceSettings, markFastScrolling } from "../utils/performa
 import { usePlayerActions } from "../context/PlayerContext";
 import { resolveEntityArtwork } from "../utils/artwork";
 import {
+  logEntityArtworkResolved,
+  logEntityTapReceived,
+} from "../utils/entityDiagnostics";
+import { resolveGenreRoomEntity } from "../utils/entityResolution";
+import {
   fetchHiddenTunesCatalog,
   getCachedHiddenTunesCatalog,
   type HiddenTunesAlbumCatalogItem,
@@ -67,8 +72,13 @@ export default function GenreScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
+    logEntityTapReceived(String(params.type || "genre") === "mood" ? "mood" : "genre", {
+      title,
+      id: String(params.id || ""),
+      type: String(params.type || "genre"),
+    });
     void loadGenreCatalog();
-  }, [title]);
+  }, [title, params.id, params.type]);
 
   async function loadGenreCatalog() {
     try {
@@ -88,20 +98,19 @@ export default function GenreScreen() {
     await loadGenreCatalog();
   }
 
-  const tracks = useMemo(() => {
-    const songs = catalog?.songs || [];
-    const terms = roomSearchTerms(title);
-    const exactGenreMatches = songs.filter((song) => terms.some((term) => clean(song.genre || "") === term));
-    if (exactGenreMatches.length) return exactGenreMatches;
+  const roomResolution = useMemo(
+    () =>
+      resolveGenreRoomEntity(catalog, {
+        id: String(params.id || ""),
+        title,
+        query: String(params.query || title),
+        type: String(params.type || "genre"),
+      }),
+    [catalog, params.id, params.query, params.type, title]
+  );
 
-    return songs.filter((song) => {
-      const searchable = [song.genre, song.mood, song.album, song.title, song.artist, song.lyrics]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-      return terms.some((term) => searchable.includes(term));
-    });
-  }, [catalog?.songs, title]);
+  const tracks = roomResolution.tracks;
+  const recoveryLabel = roomResolution.recoveryLabel;
 
   const albums = useMemo<HiddenTunesAlbumCatalogItem[]>(() => {
     const trackIds = new Set(tracks.map((song) => song.id));
@@ -124,10 +133,16 @@ export default function GenreScreen() {
     return Array.from(seen.values()).slice(0, 12);
   }, [tracks]);
 
-  const heroArtwork = useMemo(
-    () => resolveEntityArtwork({ title, genre: title, mood: title }, tracks),
-    [title, tracks]
-  );
+  const heroArtwork = useMemo(() => {
+    const artwork = resolveEntityArtwork({ title, genre: title, mood: title }, tracks);
+    logEntityArtworkResolved({
+      kind: String(params.type || "genre") === "mood" ? "mood" : "genre",
+      title,
+      trackCount: tracks.length,
+      hasArtwork: Boolean(artwork),
+    });
+    return artwork;
+  }, [params.type, title, tracks]);
 
   const featuredSongs = useMemo(() => tracks.slice(0, 6), [tracks]);
 
@@ -292,9 +307,11 @@ export default function GenreScreen() {
               )}
 
               <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Songs</Text>
+                <Text style={styles.sectionTitle}>{recoveryLabel || "Songs"}</Text>
                 <Text style={styles.sectionSub}>
-                  {tracks.length} song{tracks.length === 1 ? "" : "s"} found
+                  {recoveryLabel
+                    ? `${tracks.length} related song${tracks.length === 1 ? "" : "s"} from the catalog`
+                    : `${tracks.length} song${tracks.length === 1 ? "" : "s"} found`}
                 </Text>
               </View>
             </>

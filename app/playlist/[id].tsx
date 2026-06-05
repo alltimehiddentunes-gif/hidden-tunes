@@ -25,7 +25,10 @@ import MediaCard from "../../components/MediaCard";
 import PlaylistArtworkCollage from "../../components/PlaylistArtworkCollage";
 import NeonEQ from "../../components/NeonEQ";
 
+import { getCachedHiddenTunesCatalog } from "../../services/hiddenTunes";
 import { getHiddenTunesSongs } from "../../services/hiddenTunesApi";
+import { logEntityTapReceived } from "../../utils/entityDiagnostics";
+import { resolvePlaylistEntity } from "../../utils/entityResolution";
 
 import {
   clearUserPlaylist,
@@ -74,7 +77,18 @@ export default function PlaylistDetailScreen() {
   const [renameText, setRenameText] = useState("");
 
   const smart = isSmartPlaylist(playlist);
-  const tracks = useMemo(() => playlist?.tracks || [], [playlist]);
+  const catalog = getCachedHiddenTunesCatalog();
+  const playlistResolution = useMemo(
+    () =>
+      resolvePlaylistEntity(
+        catalog,
+        { id: playlistId, title: playlist?.title || "" },
+        playlist?.tracks || []
+      ),
+    [catalog, playlist?.title, playlist?.tracks, playlistId]
+  );
+  const tracks = playlistResolution.tracks;
+  const recoveryLabel = playlistResolution.recoveryLabel;
 
   async function loadPlaylist() {
     try {
@@ -107,6 +121,7 @@ export default function PlaylistDetailScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      logEntityTapReceived("playlist", { id: playlistId });
       loadPlaylist();
     }, [playlistId])
   );

@@ -20,6 +20,14 @@ import { getListPerformanceSettings, markFastScrolling } from "../utils/performa
 import { usePlayerActions } from "../context/PlayerContext";
 import { resolveEntityArtwork } from "../utils/artwork";
 import {
+  logEntityArtworkResolved,
+  logEntityTapReceived,
+} from "../utils/entityDiagnostics";
+import {
+  resolveAlbumEntity,
+  RELATED_SONGS_LABEL,
+} from "../utils/entityResolution";
+import {
   fetchHiddenTunesCatalog,
   getCachedHiddenTunesCatalog,
   type HiddenTunesAlbumCatalogItem,
@@ -99,8 +107,13 @@ export default function AlbumScreen() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    logEntityTapReceived("album", {
+      album: albumTitle,
+      artist: artistName,
+      id: String(params.id || ""),
+    });
     void loadAlbumCatalog();
-  }, [albumTitle, artistName]);
+  }, [albumTitle, artistName, params.id]);
 
   async function loadAlbumCatalog() {
     try {
@@ -114,38 +127,21 @@ export default function AlbumScreen() {
     }
   }
 
-  const album = useMemo<HiddenTunesAlbumCatalogItem | undefined>(() => {
-    const normalizedAlbum = clean(albumTitle);
-    const normalizedArtist = clean(artistName);
-    const exact = (catalog?.albums || []).find((item) => {
-      return clean(item.title) === normalizedAlbum && clean(item.artist) === normalizedArtist;
-    });
-    if (exact) return exact;
+  const albumResolution = useMemo(
+    () =>
+      resolveAlbumEntity(catalog, {
+        id: String(params.id || ""),
+        album: albumTitle,
+        title: albumTitle,
+        artist: artistName,
+        thumbnail: paramThumbnail,
+      }),
+    [albumTitle, artistName, catalog, paramThumbnail, params.id]
+  );
 
-    return (catalog?.albums || []).find((item) => {
-      if (clean(item.title) !== normalizedAlbum) return false;
-      return normalizedArtist === "unknown artist" || clean(item.artist) === normalizedArtist;
-    });
-  }, [albumTitle, artistName, catalog?.albums]);
-
-  const tracks = useMemo(() => {
-    const normalizedAlbum = clean(album?.title || albumTitle);
-    const normalizedArtist = clean(album?.artist || artistName);
-    const catalogMatches = (catalog?.songs || []).filter((song) => {
-      const albumMatches = clean(String(song.album || "")) === normalizedAlbum;
-      const artistMatches = normalizedArtist === "unknown artist" || clean(String(song.artist || (song as any).user?.name || "")) === normalizedArtist;
-      return albumMatches && artistMatches;
-    });
-    const sorted = sortAlbumSongs(album?.songs?.length ? album.songs : catalogMatches);
-    if (sorted.length) {
-      console.log("album_queue_built", {
-        albumId: album?.id,
-        albumTitle: album?.title || albumTitle,
-        queueLength: sorted.length,
-      });
-    }
-    return sorted;
-  }, [album, albumTitle, artistName, catalog?.songs]);
+  const album = albumResolution.entity as HiddenTunesAlbumCatalogItem | null | undefined;
+  const tracks = albumResolution.tracks;
+  const recoveryLabel = albumResolution.recoveryLabel;
 
   const trackRows = useMemo(() => {
     if (!tracks.length) return [] as Array<{ type: "header"; id: string; title: string; subtitle: string } | { type: "track"; id: string; song: HiddenTunesSong; index: number }>;
@@ -153,8 +149,10 @@ export default function AlbumScreen() {
       {
         type: "header" as const,
         id: "album-session-header",
-        title: "Album Session",
-        subtitle: `${tracks.length} track${tracks.length === 1 ? "" : "s"} queued in album order`,
+        title: recoveryLabel || "Album Session",
+        subtitle: recoveryLabel
+          ? `${tracks.length} related track${tracks.length === 1 ? "" : "s"} from the catalog`
+          : `${tracks.length} track${tracks.length === 1 ? "" : "s"} queued in album order`,
       },
       ...tracks.map((song, index) => ({
         type: "track" as const,
@@ -163,25 +161,30 @@ export default function AlbumScreen() {
         index,
       })),
     ];
-  }, [tracks]);
+  }, [tracks, recoveryLabel]);
 
   const totalDuration = useMemo(
     () => tracks.reduce((total, song) => total + getSongDurationSeconds(song), 0),
     [tracks]
   );
 
-  const heroArtwork = useMemo(
-    () =>
-      resolveEntityArtwork(
-        {
-          title: album?.title || albumTitle,
-          artist: album?.artist || artistName,
-          artwork: album?.artwork || paramThumbnail,
-        },
-        tracks
-      ),
-    [album, albumTitle, artistName, paramThumbnail, tracks]
-  );
+  const heroArtwork = useMemo(() => {
+    const artwork = resolveEntityArtwork(
+      {
+        title: album?.title || albumTitle,
+        artist: album?.artist || artistName,
+        artwork: album?.artwork || paramThumbnail,
+      },
+      tracks
+    );
+    logEntityArtworkResolved({
+      kind: "album",
+      title: album?.title || albumTitle,
+      trackCount: tracks.length,
+      hasArtwork: Boolean(artwork),
+    });
+    return artwork;
+  }, [album, albumTitle, artistName, paramThumbnail, tracks]);
 
   function handlePlaySong(song: HiddenTunesSong, queueIndex: number) {
     void playSong(song, tracks, queueIndex, {
@@ -254,7 +257,9 @@ export default function AlbumScreen() {
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Tracks</Text>
         <Text style={styles.sectionSub} numberOfLines={1}>
-          {tracks.length} song{tracks.length === 1 ? "" : "s"} from the current catalog
+          {recoveryLabel
+            ? `${recoveryLabel} • ${tracks.length} song${tracks.length === 1 ? "" : "s"}`
+            : `${tracks.length} song${tracks.length === 1 ? "" : "s"} from the current catalog`}
         </Text>
       </View>
 

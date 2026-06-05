@@ -30,7 +30,10 @@ import {
   type HiddenTunesArtist,
   type HiddenTunesNormalizedSong,
 } from "../../services/hiddenTunesApi";
+import { getCachedHiddenTunesCatalog } from "../../services/hiddenTunes";
 import { getArtworkUri, resolveEntityArtwork } from "../../utils/artwork";
+import { logEntityTapReceived } from "../../utils/entityDiagnostics";
+import { mergeApiTracksWithCatalogArtist } from "../../utils/entityResolution";
 import { shouldResetCatalogFallbackGate } from "../../utils/catalogEmptyStateTiming";
 import {
   logApiRefresh,
@@ -132,10 +135,16 @@ export default function ArtistScreen() {
   const [hasCheckedFallbacks, setHasCheckedFallbacks] = useState(false);
   const artistRef = useRef<HiddenTunesArtist | null>(null);
 
-  const tracks = useMemo(
-    () => (artist?.tracks || []).map(safeSong),
-    [artist?.tracks]
-  );
+  const tracks = useMemo(() => {
+    const apiTracks = (artist?.tracks || []).map(safeSong);
+    const catalog = getCachedHiddenTunesCatalog();
+    const merged = mergeApiTracksWithCatalogArtist(apiTracks, catalog, {
+      id: String(id || ""),
+      artist: artist?.name,
+      name: artist?.name,
+    }).map((song) => safeSong(song as HiddenTunesNormalizedSong));
+    return merged;
+  }, [artist?.name, artist?.tracks, id]);
 
   const albums = useMemo(() => artist?.albums || [], [artist?.albums]);
   const listPerformance = useMemo(
@@ -266,6 +275,7 @@ export default function ArtistScreen() {
   );
 
   useEffect(() => {
+    logEntityTapReceived("artist", { id: String(id || "") });
     loadArtist(true);
   }, [id, loadArtist]);
 
