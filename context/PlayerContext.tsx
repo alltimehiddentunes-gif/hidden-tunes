@@ -3695,10 +3695,17 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           currentSongRef.current?.id === normalizedSong.id;
 
         const useHiddenAudio = await shouldUseHiddenAudioPlayback();
+        const selectedPlayableUri = getPlayableUri(normalizedSong);
+        logPlaybackCritical("playback_engine_selected", {
+          songId: normalizedSong.id,
+          platform: Platform.OS,
+          engine: useHiddenAudio ? "hidden_audio" : "unavailable",
+          hasPlayableUri: Boolean(selectedPlayableUri),
+        });
 
         if (useHiddenAudio) {
           try {
-            const playableUri = getPlayableUri(normalizedSong);
+            const playableUri = selectedPlayableUri;
 
             if (!playableUri) {
               logPlayerContextDebug("playback_recovery_invalid_url", {
@@ -3871,6 +3878,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               });
             }
 
+            logPlaybackCritical("hidden_audio_load_start", {
+              songId: normalizedSong.id,
+              platform: Platform.OS,
+              hasPlayableUri: Boolean(playableUri),
+            });
+
             await activateHiddenAudioPlayback({
               url: playableUri,
               title: normalizedSong.title || "Unknown Song",
@@ -3903,12 +3916,29 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
                 setDurationMillis(Math.round(durationSeconds * 1000));
               }
               if (!statusAfterPlay.isPlaying) {
+                logPlaybackCritical("hidden_audio_play_failure", {
+                  songId: normalizedSong.id,
+                  platform: Platform.OS,
+                  reason: "native_status_not_playing_after_play",
+                  playbackState: statusAfterPlay.playbackState || null,
+                });
                 logPlayerContextDebug("hidden_audio_fake_play_prevented", {
                   songId: normalizedSong.id,
                   reason: "native_status_not_playing_after_play",
                 });
+              } else {
+                logPlaybackCritical("hidden_audio_play_success", {
+                  songId: normalizedSong.id,
+                  platform: Platform.OS,
+                  playbackState: statusAfterPlay.playbackState || null,
+                });
               }
             } else {
+              logPlaybackCritical("hidden_audio_play_failure", {
+                songId: normalizedSong.id,
+                platform: Platform.OS,
+                reason: "native_status_unavailable_after_play",
+              });
               logPlayerContextDebug("hidden_audio_fake_play_prevented", {
                 songId: normalizedSong.id,
                 reason: "native_status_unavailable_after_play",

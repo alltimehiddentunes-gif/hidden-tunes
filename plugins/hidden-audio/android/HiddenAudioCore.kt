@@ -55,8 +55,9 @@ object HiddenAudioCore {
     val url = activeTrack?.getString("url") ?: ""
     if (url.isBlank()) {
       playerStatus = "error"
+      emitDiagnostic("hidden_audio_load_track_failed", simpleData("reason", "missing_url"))
       emitState()
-      return
+      throw IllegalArgumentException("HiddenAudio track URL is required")
     }
     val mediaItem = MediaItem.fromUri(Uri.parse(url))
     player?.setMediaItem(mediaItem)
@@ -70,13 +71,24 @@ object HiddenAudioCore {
   fun play() {
     val context = reactContext ?: return
     ensurePlayer(context)
+    val url = activeTrack?.getString("url") ?: ""
+    if (url.isBlank()) {
+      playerStatus = "error"
+      emitDiagnostic("hidden_audio_play_failed", simpleData("reason", "missing_loaded_track"))
+      emitState()
+      throw IllegalStateException("HiddenAudio cannot play without a loaded track")
+    }
     requestAudioFocus()
     shouldPlayWhenReady = true
     startForegroundService()
     player?.playWhenReady = true
+    if (player?.playbackState == Player.STATE_IDLE) {
+      player?.prepare()
+    }
     player?.play()
     playerStatus = when (player?.playbackState) {
       Player.STATE_BUFFERING -> "buffering"
+      Player.STATE_READY -> if (player?.isPlaying == true) "playing" else "buffering"
       else -> "playing"
     }
     startProgressLoop()
@@ -175,8 +187,12 @@ object HiddenAudioCore {
         when (playbackState) {
           Player.STATE_BUFFERING -> playerStatus = "buffering"
           Player.STATE_READY -> {
-            if (player?.isPlaying == true) playerStatus = "playing"
-            else if (playerStatus != "paused") playerStatus = "ready"
+            playerStatus = when {
+              player?.isPlaying == true -> "playing"
+              player?.playWhenReady == true -> "buffering"
+              playerStatus != "paused" -> "ready"
+              else -> "paused"
+            }
           }
           Player.STATE_ENDED -> handlePlaybackEnded()
           Player.STATE_IDLE -> if (playerStatus != "stopped") playerStatus = "idle"
@@ -186,9 +202,23 @@ object HiddenAudioCore {
       }
 
       override fun onIsPlayingChanged(isPlaying: Boolean) {
-        playerStatus = if (isPlaying) "playing" else "paused"
-        if (isPlaying) startProgressLoop() else stopProgressLoop()
+        playerStatus = when {
+          isPlaying -> "playing"
+          player?.playWhenReady == true -> "buffering"
+          else -> "paused"
+        }
+        if (isPlaying || player?.playWhenReady == true) startProgressLoop() else stopProgressLoop()
         emitDiagnostic("android_player_state_changed", simpleData("state", playerStatus))
+        emitState()
+        emitProgress()
+      }
+
+      override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+        playerStatus = "error"
+        val data = Arguments.createMap()
+        data.putString("message", error.message ?: "unknown")
+        data.putString("errorCodeName", error.errorCodeName)
+        emitDiagnostic("android_player_error", data)
         emitState()
         emitProgress()
       }
