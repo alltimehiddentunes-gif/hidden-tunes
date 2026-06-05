@@ -40,6 +40,10 @@ import { openGenreCatalog, openMoodCatalog } from "../utils/catalogNavigation";
 import { normalizeGenreName } from "../utils/genreNormalization";
 import { getBestLyricsPayload, setLyricsMemoryCache } from "../utils/lyrics";
 import { logPlaybackUxSync } from "../utils/playbackDiagnostics";
+import {
+  logPlayerDuplicateSmartControlRemoved,
+  logPlayerRepeatControlUnified,
+} from "../utils/playerControlDiagnostics";
 import { useAppActiveState } from "../utils/performanceMode";
 import { logPerformanceOffscreenWorkPaused } from "../utils/performanceLogs";
 
@@ -300,8 +304,7 @@ const PlayerControlsDock = memo(function PlayerControlsDock({
   onPrevious,
   onTogglePlayPause,
   onNext,
-  onRepeatOne,
-  onRepeatAll,
+  onCycleRepeat,
 }: {
   compactLayout: boolean;
   disabled: boolean;
@@ -313,8 +316,7 @@ const PlayerControlsDock = memo(function PlayerControlsDock({
   onPrevious: () => void;
   onTogglePlayPause: () => void;
   onNext: () => void;
-  onRepeatOne: () => void;
-  onRepeatAll: () => void;
+  onCycleRepeat: () => void;
 }) {
   return (
     <View style={[styles.controlsDock, compactLayout && styles.controlsDockCompact]}>
@@ -338,12 +340,15 @@ const PlayerControlsDock = memo(function PlayerControlsDock({
           <Ionicons name="play-skip-forward" size={27} color={COLORS.text} />
         </PremiumIconButton>
 
-        <PremiumIconButton disabled={disabled} onPress={onRepeatOne}>
-          <Ionicons name="repeat" size={22} color={repeatMode === "one" ? COLORS.primaryGlow : COLORS.text} />
-        </PremiumIconButton>
-
-        <PremiumIconButton disabled={disabled} onPress={onRepeatAll}>
-          <Ionicons name="repeat" size={22} color={repeatMode === "all" ? COLORS.primaryGlow : COLORS.text} />
+        <PremiumIconButton disabled={disabled} onPress={onCycleRepeat}>
+          <View style={styles.repeatIconWrap}>
+            <Ionicons
+              name="repeat"
+              size={22}
+              color={repeatMode === "off" ? COLORS.text : COLORS.primaryGlow}
+            />
+            {repeatMode === "one" ? <Text style={styles.repeatOneBadge}>1</Text> : null}
+          </View>
         </PremiumIconButton>
       </View>
     </View>
@@ -645,28 +650,14 @@ export default function PlayerScreen() {
     router.push({ pathname: "/artist", params: { artist } } as any);
   }, [artist]);
 
-  const setRepeatTarget = useCallback(
-    (target: "one" | "all") => {
-      if (repeatMode === target) {
-        toggleRepeatMode();
-        return;
-      }
-      if (target === "one") {
-        if (repeatMode === "off") toggleRepeatMode();
-        if (repeatMode === "all") {
-          toggleRepeatMode();
-          toggleRepeatMode();
-        }
-        return;
-      }
-      if (repeatMode === "one") toggleRepeatMode();
-      if (repeatMode === "off") {
-        toggleRepeatMode();
-        toggleRepeatMode();
-      }
-    },
-    [repeatMode, toggleRepeatMode]
-  );
+  const handleCycleRepeat = useCallback(() => {
+    void toggleRepeatMode();
+  }, [toggleRepeatMode]);
+
+  useEffect(() => {
+    logPlayerDuplicateSmartControlRemoved();
+    logPlayerRepeatControlUnified({ cycle: "off-one-all" });
+  }, []);
 
   const handleVolumeChange = useCallback(
     (value: number) => {
@@ -879,7 +870,20 @@ export default function PlayerScreen() {
 
           <View style={styles.sessionPillRow}>
             <Text style={styles.sessionPill}>{activeQueue?.length || 1} Track Session</Text>
-            <Text style={styles.sessionPill}>{smartAutoplayEnabled ? "Smart On" : "Smart Off"}</Text>
+            <TouchableOpacity
+              activeOpacity={0.82}
+              onPress={handleSmartToggle}
+              style={[styles.smartPillButton, smartAutoplayEnabled && styles.smartPillButtonActive]}
+            >
+              <Ionicons
+                name="sparkles"
+                size={13}
+                color={smartAutoplayEnabled ? COLORS.primaryGlow : COLORS.text}
+              />
+              <Text style={[styles.smartPillText, smartAutoplayEnabled && styles.smartPillTextActive]}>
+                Smart {smartAutoplayEnabled ? "On" : "Off"}
+              </Text>
+            </TouchableOpacity>
             <TouchableOpacity activeOpacity={0.82} onPress={openQueue} style={styles.queuePillButton}>
               <Ionicons name="list" size={13} color={COLORS.primaryGlow} />
               <Text style={styles.queuePillText}>Queue</Text>
@@ -917,8 +921,7 @@ export default function PlayerScreen() {
             onPrevious={handlePrevious}
             onTogglePlayPause={handleTogglePlayPause}
             onNext={handleNext}
-            onRepeatOne={() => setRepeatTarget("one")}
-            onRepeatAll={() => setRepeatTarget("all")}
+            onCycleRepeat={handleCycleRepeat}
           />
 
           <View style={styles.extraActions}>
@@ -985,12 +988,8 @@ export default function PlayerScreen() {
           <View style={styles.sessionCard}>
             <View style={styles.sessionTextWrap}>
               <Text style={styles.sessionEyebrow}>SESSION CONTINUATION</Text>
-              <Text style={styles.sessionText}>{smartAutoplayEnabled ? "Smart on" : "Smart off"}</Text>
               <Text numberOfLines={2} style={styles.sessionSubText}>{sessionFlowText}</Text>
             </View>
-            <TouchableOpacity activeOpacity={0.84} style={[styles.smartButton, smartAutoplayEnabled && styles.smartButtonActive]} onPress={handleSmartToggle}>
-              <Text style={styles.smartButtonText}>{smartAutoplayEnabled ? "On" : "Off"}</Text>
-            </TouchableOpacity>
           </View>
 
           <View style={styles.volumeCard}>
@@ -1285,6 +1284,43 @@ const styles = StyleSheet.create({
   queuePillText: {
     color: COLORS.primaryGlow,
     fontSize: 11,
+    fontWeight: "900",
+  },
+  smartPillButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,0.07)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+  },
+  smartPillButtonActive: {
+    backgroundColor: "rgba(168,85,247,0.12)",
+    borderColor: "rgba(168,85,247,0.22)",
+  },
+  smartPillText: {
+    color: COLORS.text,
+    fontSize: 11,
+    fontWeight: "900",
+  },
+  smartPillTextActive: {
+    color: COLORS.primaryGlow,
+  },
+  repeatIconWrap: {
+    width: 24,
+    height: 24,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  repeatOneBadge: {
+    position: "absolute",
+    right: -1,
+    bottom: -2,
+    color: COLORS.primaryGlow,
+    fontSize: 9,
     fontWeight: "900",
   },
   contextPillRow: {

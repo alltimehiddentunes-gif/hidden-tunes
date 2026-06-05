@@ -23,6 +23,12 @@ import {
   logEntityTapReceived,
 } from "../utils/entityDiagnostics";
 import {
+  logAlbumArtworkResolvedFromTrack,
+  logAlbumPlayContextReady,
+  logAlbumTracksResolvedFallback,
+  logAlbumTracksResolvedPrimary,
+} from "../utils/albumEntityDiagnostics";
+import {
   resolveAlbumEntity,
   RELATED_SONGS_LABEL,
 } from "../utils/entityResolution";
@@ -184,11 +190,46 @@ export default function AlbumScreen() {
       trackCount: tracks.length,
       hasArtwork: Boolean(artwork),
     });
+    if (!String(album?.artwork || paramThumbnail || "").trim() && tracks.length && artwork) {
+      logAlbumArtworkResolvedFromTrack({
+        albumTitle: album?.title || albumTitle,
+        trackCount: tracks.length,
+      });
+    }
     return artwork;
   }, [album, albumTitle, artistName, paramThumbnail, tracks]);
 
   const hasPlayableTracks = tracks.length > 0;
   const shouldShowLargeArtwork = hasPlayableTracks || explicitAlbumArtwork;
+
+  useEffect(() => {
+    if (!tracks.length) return;
+    if (albumResolution.usedFallback) {
+      logAlbumTracksResolvedFallback({
+        albumTitle,
+        resolvePath: albumResolution.resolvePath,
+        trackCount: tracks.length,
+      });
+    } else {
+      logAlbumTracksResolvedPrimary({
+        albumTitle,
+        resolvePath: albumResolution.resolvePath,
+        trackCount: tracks.length,
+      });
+    }
+    logAlbumPlayContextReady({
+      albumId: album?.id,
+      albumTitle: album?.title || albumTitle,
+      queueLength: tracks.length,
+    });
+  }, [
+    album?.id,
+    album?.title,
+    albumResolution.resolvePath,
+    albumResolution.usedFallback,
+    albumTitle,
+    tracks.length,
+  ]);
 
   function handlePlaySong(song: HiddenTunesSong, queueIndex: number) {
     void playSong(song, tracks, queueIndex, {

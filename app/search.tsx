@@ -819,6 +819,15 @@ export default function SearchScreen() {
       title: album.title,
       query: cleanSubmittedSearchQuery,
     });
+    const albumId = String(album.id || "").trim();
+    if (albumId) {
+      router.push({
+        pathname: "/album/[id]",
+        params: { id: albumId },
+      } as any);
+      return;
+    }
+
     router.push({
       pathname: "/album",
       params: {

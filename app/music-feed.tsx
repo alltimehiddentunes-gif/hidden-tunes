@@ -678,6 +678,15 @@ export default function MusicFeedScreen() {
   }, []);
 
   const openAlbum = useCallback((album: HiddenTunesAlbumCatalogItem | HiddenTunesAlbum) => {
+    const albumId = String(album.id || "").trim();
+    if (albumId) {
+      router.push({
+        pathname: "/album/[id]",
+        params: { id: albumId },
+      } as any);
+      return;
+    }
+
     router.push({
       pathname: "/album",
       params: {

@@ -316,6 +316,38 @@ export function resolveAlbumEntity(
     tracks = sortAlbumEntityTracks(matchedAlbum.songs);
   }
 
+  if (!tracks.length && albumId) {
+    const byAlbumId = songs.filter((song) => {
+      const raw = song as {
+        albumId?: string;
+        album_id?: string;
+        albumTitle?: string;
+        album_title?: string;
+        release?: string;
+        collection?: string;
+      };
+      const songAlbumId = String(raw.albumId || raw.album_id || "").trim();
+      if (
+        songAlbumId &&
+        (songAlbumId === albumId || slugifyEntityKey(songAlbumId) === slugifyEntityKey(albumId))
+      ) {
+        return true;
+      }
+      const songAlbumTitle = String(raw.albumTitle || raw.album_title || song.album || "").trim();
+      const titleMatch =
+        keysMatch(songAlbumTitle, albumTitle) || slugKeysMatch(songAlbumTitle, albumTitle);
+      const artistMatch =
+        cleanText(artistName) === "unknown artist" ||
+        artistMatchesSong(artistName, song);
+      return titleMatch && artistMatch;
+    });
+    if (byAlbumId.length) {
+      tracks = sortAlbumEntityTracks(byAlbumId);
+      resolvePath = "catalog_songs_album_id";
+      usedFallback = true;
+    }
+  }
+
   if (!tracks.length) {
     const catalogMatches = songs.filter((song) => albumMatchesSong(albumTitle, artistName, song));
     if (catalogMatches.length) {

@@ -30,10 +30,22 @@ import {
   type HiddenTunesAlbum,
   type HiddenTunesNormalizedSong,
 } from "../../services/hiddenTunesApi";
-import { getCachedHiddenTunesCatalog } from "../../services/hiddenTunes";
+import {
+  fetchHiddenTunesCatalog,
+  getCachedHiddenTunesCatalog,
+} from "../../services/hiddenTunes";
 import { getArtworkUri, resolveEntityArtwork } from "../../utils/artwork";
 import { logEntityTapReceived } from "../../utils/entityDiagnostics";
-import { mergeApiTracksWithCatalogAlbum } from "../../utils/entityResolution";
+import {
+  mergeApiTracksWithCatalogAlbum,
+  resolveAlbumEntity,
+} from "../../utils/entityResolution";
+import {
+  logAlbumArtworkResolvedFromTrack,
+  logAlbumPlayContextReady,
+  logAlbumTracksResolvedFallback,
+  logAlbumTracksResolvedPrimary,
+} from "../../utils/albumEntityDiagnostics";
 import { shouldResetCatalogFallbackGate } from "../../utils/catalogEmptyStateTiming";
 import {
   logApiRefresh,
@@ -166,6 +178,61 @@ function findAlbumById(albums: HiddenTunesAlbum[], id: string) {
   );
 }
 
+
+
+async function applyAlbumCatalogFallback(
+  albumId: string,
+  current: HiddenTunesAlbum | null
+): Promise<HiddenTunesAlbum | null> {
+  const catalog =
+    getCachedHiddenTunesCatalog() || (await fetchHiddenTunesCatalog().catch(() => null));
+  if (!catalog) return current;
+
+  const resolved = resolveAlbumEntity(catalog, {
+    id: albumId,
+    album: current?.title,
+    title: current?.title,
+    artist: current?.artist,
+    thumbnail: current?.artwork,
+  });
+
+  if (!resolved.tracks.length) return current;
+
+  const usedFallback = resolved.usedFallback || !(current?.tracks?.length);
+  if (usedFallback) {
+    logAlbumTracksResolvedFallback({
+      albumId,
+      resolvePath: resolved.resolvePath,
+      trackCount: resolved.tracks.length,
+    });
+  } else {
+    logAlbumTracksResolvedPrimary({
+      albumId,
+      resolvePath: resolved.resolvePath,
+      trackCount: resolved.tracks.length,
+    });
+  }
+
+  const entity = (resolved.entity as HiddenTunesAlbum | null) || current;
+  const fallbackTracks = resolved.tracks.map((song) => safeSong(song as HiddenTunesNormalizedSong));
+
+  return {
+    id: entity?.id || current?.id || albumId,
+    slug: entity?.slug || current?.slug || "",
+    title: entity?.title || current?.title || "Album",
+    artist: entity?.artist || current?.artist || "Hidden Tunes",
+    artwork:
+      String(current?.artwork || entity?.artwork || "").trim() ||
+      String(
+        fallbackTracks.find((track) => track.artwork || track.cover)?.artwork ||
+          fallbackTracks.find((track) => track.artwork || track.cover)?.cover ||
+          ""
+      ),
+    genre: current?.genre || entity?.genre,
+    tracks: fallbackTracks,
+  };
+}
+
 export default function AlbumScreen() {
   const { id } = useLocalSearchParams();
   const { playSong, preloadIdlePlayableTrack } = usePlayerActions();
@@ -190,8 +257,8 @@ export default function AlbumScreen() {
     }).map((song) => safeSong(song as HiddenTunesNormalizedSong));
     const sorted = sortAlbumTracks(merged);
     if (sorted.length) {
-      console.log("album_queue_built", {
-        albumId: album?.id,
+      logAlbumPlayContextReady({
+        albumId: String(album?.id || id || ""),
         albumTitle: album?.title,
         queueLength: sorted.length,
       });
@@ -267,7 +334,11 @@ export default function AlbumScreen() {
             findAlbumById(extractHiddenTunesAlbums(cachedSongs), albumId);
 
           if (cachedAlbum) {
-            setAlbum(cachedAlbum);
+            const hydrated =
+              cachedAlbum.tracks.length > 0
+                ? cachedAlbum
+                : await applyAlbumCatalogFallback(albumId, cachedAlbum);
+            setAlbum(hydrated);
             setLoading(false);
             showedCachedAlbum = true;
             logCacheResult("album", true, {
@@ -305,16 +376,34 @@ export default function AlbumScreen() {
         });
 
         if (data) {
-          setAlbum(data);
-          void saveAlbumDetailSnapshot(data);
-          if (!showedCachedAlbum) {
-            logScreenReady("album", screenStartedAt, {
-              cache: "miss",
-              tracks: data.tracks.length,
-            });
+          const hydrated =
+            data.tracks.length > 0
+              ? data
+              : await applyAlbumCatalogFallback(albumId, data);
+          if (hydrated) {
+            setAlbum(hydrated);
+            void saveAlbumDetailSnapshot(hydrated);
+            if (!showedCachedAlbum) {
+              logScreenReady("album", screenStartedAt, {
+                cache: "miss",
+                tracks: hydrated.tracks.length,
+              });
+            }
           }
-        } else if (!showedCachedAlbum || allowClearOnMiss) {
-          setAlbum(null);
+        } else {
+          const fallbackAlbum = await applyAlbumCatalogFallback(albumId, albumRef.current);
+          if (fallbackAlbum?.tracks?.length) {
+            setAlbum(fallbackAlbum);
+            void saveAlbumDetailSnapshot(fallbackAlbum);
+            if (!showedCachedAlbum) {
+              logScreenReady("album", screenStartedAt, {
+                cache: "miss",
+                tracks: fallbackAlbum.tracks.length,
+              });
+            }
+          } else if (!showedCachedAlbum || allowClearOnMiss) {
+            setAlbum(null);
+          }
         }
       } catch (error) {
         console.log("Load album error:", error);
@@ -446,10 +535,17 @@ export default function AlbumScreen() {
     });
   }
 
-  const albumArtwork = useMemo(
-    () => resolveEntityArtwork(album, tracks),
-    [album, tracks]
-  );
+  const albumArtwork = useMemo(() => {
+    const artwork = resolveEntityArtwork(album, tracks);
+    if (!String(album?.artwork || "").trim() && tracks.length && artwork) {
+      logAlbumArtworkResolvedFromTrack({
+        albumId: String(album?.id || id || ""),
+        albumTitle: album?.title,
+        trackCount: tracks.length,
+      });
+    }
+    return artwork;
+  }, [album, id, tracks]);
 
   if (loading && !album) {
     return (
