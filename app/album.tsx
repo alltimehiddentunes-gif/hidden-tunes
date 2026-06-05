@@ -14,7 +14,6 @@ import { router, useLocalSearchParams } from "expo-router";
 
 import HTImage from "../components/HTImage";
 import AppShell from "../components/navigation/AppShell";
-import PremiumEmptyState from "../components/PremiumEmptyState";
 import { COLORS, GRADIENTS } from "../constants/theme";
 import { getListPerformanceSettings, markFastScrolling } from "../utils/performanceMode";
 import { usePlayerActions } from "../context/PlayerContext";
@@ -168,6 +167,8 @@ export default function AlbumScreen() {
     [tracks]
   );
 
+  const explicitAlbumArtwork = Boolean(String(album?.artwork || paramThumbnail || "").trim());
+
   const heroArtwork = useMemo(() => {
     const artwork = resolveEntityArtwork(
       {
@@ -185,6 +186,9 @@ export default function AlbumScreen() {
     });
     return artwork;
   }, [album, albumTitle, artistName, paramThumbnail, tracks]);
+
+  const hasPlayableTracks = tracks.length > 0;
+  const shouldShowLargeArtwork = hasPlayableTracks || explicitAlbumArtwork;
 
   function handlePlaySong(song: HiddenTunesSong, queueIndex: number) {
     void playSong(song, tracks, queueIndex, {
@@ -215,21 +219,35 @@ export default function AlbumScreen() {
       <View pointerEvents="none" style={styles.glowPurple} />
       <View pointerEvents="none" style={styles.glowCyan} />
 
-      <View style={styles.albumHero}>
-        <LinearGradient colors={GRADIENTS.card} style={styles.heroSurface}>
-        <HTImage
-          source={{
-            title: album?.title || albumTitle,
-            artist: album?.artist || artistName,
-            artwork: album?.artwork || paramThumbnail || heroArtwork,
-          }}
-          candidates={tracks}
-          style={styles.albumCover}
-          contentFit="cover"
-        />
+      <View style={[styles.albumHero, !shouldShowLargeArtwork && styles.compactAlbumHero]}>
+        <LinearGradient
+          colors={GRADIENTS.card}
+          style={[styles.heroSurface, !shouldShowLargeArtwork && styles.compactHeroSurface]}
+        >
+        {shouldShowLargeArtwork ? (
+          <HTImage
+            source={{
+              title: album?.title || albumTitle,
+              artist: album?.artist || artistName,
+              artwork: album?.artwork || paramThumbnail || heroArtwork,
+            }}
+            candidates={tracks}
+            style={styles.albumCover}
+            contentFit="cover"
+          />
+        ) : (
+          <View style={styles.compactArtworkBadge}>
+            <Ionicons name="albums-outline" size={24} color={COLORS.primaryGlow} />
+          </View>
+        )}
 
-        <Text style={styles.kicker}>ALBUM</Text>
-        <Text style={styles.albumTitle} numberOfLines={2}>{album?.title || albumTitle}</Text>
+        <Text style={[styles.kicker, !shouldShowLargeArtwork && styles.compactKicker]}>ALBUM</Text>
+        <Text
+          style={[styles.albumTitle, !shouldShowLargeArtwork && styles.compactAlbumTitle]}
+          numberOfLines={shouldShowLargeArtwork ? 2 : 1}
+        >
+          {album?.title || albumTitle}
+        </Text>
         <Text style={styles.artist} numberOfLines={1}>{album?.artist || artistName}</Text>
         <View style={styles.heroMetaRow}>
           <Text style={styles.heroMetaPill}>{tracks.length} track{tracks.length === 1 ? "" : "s"}</Text>
@@ -237,15 +255,16 @@ export default function AlbumScreen() {
         </View>
 
         <View style={styles.actionRow}>
-          <TouchableOpacity
-            activeOpacity={0.86}
-            style={[styles.playButton, tracks.length === 0 && styles.disabledPlayButton]}
-            disabled={tracks.length === 0}
-            onPress={() => tracks[0] && handlePlaySong(tracks[0], 0)}
-          >
-            <Ionicons name="play" size={18} color="#000" />
-            <Text style={styles.playButtonText}>Play Album</Text>
-          </TouchableOpacity>
+          {hasPlayableTracks ? (
+            <TouchableOpacity
+              activeOpacity={0.86}
+              style={styles.playButton}
+              onPress={() => tracks[0] && handlePlaySong(tracks[0], 0)}
+            >
+              <Ionicons name="play" size={18} color="#000" />
+              <Text style={styles.playButtonText}>Play Album</Text>
+            </TouchableOpacity>
+          ) : null}
 
           <TouchableOpacity activeOpacity={0.86} style={styles.secondaryButton} onPress={loadAlbumCatalog}>
             <Ionicons name="reload" size={18} color={COLORS.text} />
@@ -280,13 +299,18 @@ export default function AlbumScreen() {
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
             <View style={styles.empty}>
-              <PremiumEmptyState
-                icon="albums-outline"
-                title="This release is waiting on tracks"
-                message="When the catalog source includes songs for this album, they will appear here with artwork and playback-ready rows."
-                actionLabel="Refresh"
-                onAction={loadAlbumCatalog}
-              />
+              <View style={styles.emptyCard}>
+                <View style={styles.emptyIcon}>
+                  <Ionicons name="albums-outline" size={20} color={COLORS.primaryGlow} />
+                </View>
+                <View style={styles.emptyCopy}>
+                  <Text style={styles.emptyTitle}>Tracks are still syncing</Text>
+                  <Text style={styles.emptyText}>Refresh to check the catalog again.</Text>
+                </View>
+                <TouchableOpacity activeOpacity={0.86} style={styles.emptyRefresh} onPress={loadAlbumCatalog}>
+                  <Ionicons name="reload" size={16} color={COLORS.text} />
+                </TouchableOpacity>
+              </View>
             </View>
           }
           renderItem={({ item }) => {
@@ -336,16 +360,20 @@ const styles = StyleSheet.create({
   backButton: { width: 46, height: 46, borderRadius: 23, backgroundColor: "rgba(255,255,255,0.08)", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: COLORS.border },
   refreshButton: { width: 46, height: 46, borderRadius: 23, backgroundColor: "rgba(255,255,255,0.08)", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: COLORS.border },
   albumHero: { paddingHorizontal: 18, paddingTop: 24, paddingBottom: 24 },
+  compactAlbumHero: { paddingTop: 14, paddingBottom: 12 },
   heroSurface: { alignItems: "center", borderRadius: 30, padding: 18, borderWidth: 1, borderColor: "rgba(255,255,255,0.12)", overflow: "hidden" },
+  compactHeroSurface: { paddingVertical: 14, paddingHorizontal: 16, borderRadius: 22 },
   albumCover: { width: 204, height: 204, borderRadius: 32, backgroundColor: "rgba(168,85,247,0.1)" },
+  compactArtworkBadge: { width: 52, height: 52, borderRadius: 18, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(168,85,247,0.13)", borderWidth: 1, borderColor: "rgba(255,255,255,0.12)" },
   kicker: { color: COLORS.primary, fontSize: 11, fontWeight: "900", letterSpacing: 2, marginTop: 22 },
+  compactKicker: { marginTop: 12 },
   albumTitle: { color: COLORS.text, fontSize: 27, fontWeight: "900", textAlign: "center", marginTop: 8, lineHeight: 32 },
+  compactAlbumTitle: { fontSize: 22, lineHeight: 27 },
   artist: { color: COLORS.primaryGlow, fontSize: 15, fontWeight: "800", marginTop: 8 },
   heroMetaRow: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 8, marginTop: 13 },
   heroMetaPill: { color: COLORS.textMuted, fontSize: 11, fontWeight: "900", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.07)", borderWidth: 1, borderColor: "rgba(255,255,255,0.1)", overflow: "hidden" },
   actionRow: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: 20 },
   playButton: { flexDirection: "row", alignItems: "center", backgroundColor: COLORS.primary, paddingHorizontal: 22, paddingVertical: 13, borderRadius: 999 },
-  disabledPlayButton: { opacity: 0.45 },
   playButtonText: { color: "#000", fontSize: 14, fontWeight: "900", marginLeft: 8 },
   secondaryButton: { width: 46, height: 46, borderRadius: 23, backgroundColor: "rgba(255,255,255,0.08)", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: COLORS.border },
   sectionHeader: { paddingHorizontal: 20, marginBottom: 14 },
@@ -366,7 +394,11 @@ const styles = StyleSheet.create({
   metaRow: { flexDirection: "row", alignItems: "center", marginTop: 8 },
   metaText: { color: COLORS.textMuted, fontSize: 11, fontWeight: "700", marginLeft: 5 },
   playCircle: { width: 38, height: 38, borderRadius: 19, backgroundColor: "rgba(255,255,255,0.1)", alignItems: "center", justifyContent: "center" },
-  empty: { minHeight: 260, alignItems: "center", justifyContent: "center", paddingHorizontal: 4 },
-  emptyTitle: { color: COLORS.text, fontSize: 21, fontWeight: "900", marginTop: 18 },
-  emptyText: { color: COLORS.textMuted, marginTop: 8, textAlign: "center" },
+  empty: { paddingTop: 4, paddingBottom: 18 },
+  emptyCard: { minHeight: 82, flexDirection: "row", alignItems: "center", borderRadius: 22, paddingHorizontal: 14, paddingVertical: 12, backgroundColor: "rgba(255,255,255,0.045)", borderWidth: 1, borderColor: "rgba(255,255,255,0.1)" },
+  emptyIcon: { width: 42, height: 42, borderRadius: 15, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(168,85,247,0.12)", borderWidth: 1, borderColor: "rgba(255,255,255,0.1)" },
+  emptyCopy: { flex: 1, marginLeft: 12, marginRight: 10 },
+  emptyTitle: { color: COLORS.text, fontSize: 14.5, fontWeight: "900" },
+  emptyText: { color: COLORS.textMuted, marginTop: 4, fontSize: 12.5, lineHeight: 17 },
+  emptyRefresh: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.08)", borderWidth: 1, borderColor: COLORS.border },
 });
