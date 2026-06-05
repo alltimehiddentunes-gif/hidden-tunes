@@ -567,6 +567,28 @@ function isBackgroundAppState(state: AppStateStatus) {
   return state === "background" || state === "inactive";
 }
 
+
+function shouldSkipNativeActiveIndexOverwrite(
+  jsQueueIndex: number,
+  nativeActiveIndex: number,
+  jsQueueLength: number
+) {
+  return jsQueueLength > 1 && nativeActiveIndex !== jsQueueIndex;
+}
+
+function shouldBlockJsPlaybackStateClear(
+  appState: AppStateStatus,
+  source: string,
+  options?: { userInitiated?: boolean }
+) {
+  if (Platform.OS !== "ios") return false;
+  if (options?.userInitiated || isUserInitiatedHiddenAudioStopReason(source)) {
+    return false;
+  }
+  return isBackgroundAppState(appState);
+}
+
+
 function getProgressUpdateIntervalMs(state: AppStateStatus) {
   return isBackgroundAppState(state)
     ? PLAYBACK_UPDATE_INTERVAL_BACKGROUND_MS
@@ -636,6 +658,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const backgroundNearEndStallCountRef = useRef(0);
   const backgroundAdvanceFromNativeEndRef = useRef(false);
   const backgroundWatchTimersRef = useRef<Array<ReturnType<typeof setTimeout>>>([]);
+  const foregroundResyncInFlightRef = useRef(false);
   const lastPlayerOpenRequestRef = useRef({ songId: "", at: 0 });
   const handleTrackFinishedRef = useRef<(() => Promise<void>) | null>(null);
   const finishWatchdogTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
@@ -872,7 +895,22 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           setDurationMillis(progress.durationMillis);
         }
 
-        setIsPlaying(progress.isPlaying);
+        const playbackStateLower = String(progress.playbackState || "").toLowerCase();
+        const backgrounding = isBackgroundAppState(appStateRef.current);
+        const allowPauseSync =
+          !backgrounding ||
+          progress.isPlaying ||
+          playbackStateLower === "paused" ||
+          playbackStateLower === "ended";
+        if (allowPauseSync || progress.isPlaying) {
+          setIsPlaying(progress.isPlaying);
+        } else if (backgrounding) {
+          logLockscreenPlaybackDiagnostic("js_state_clear_blocked_background", {
+            source: `sync_hidden_audio_state:${reason}`,
+            playbackState: progress.playbackState,
+            songId: currentSongRef.current?.id || null,
+          });
+        }
         logPlayerContextDebug("hidden_audio_state_sync_success", { reason, progress });
         return progress;
       } catch (error) {
@@ -1054,6 +1092,178 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   );
 
 
+  const reconcileHiddenAudioActiveState = useCallback(
+    async (source: string) => {
+      if (Platform.OS !== "ios" || !isHiddenAudioEnabledOnIOS()) {
+        return hiddenAudioActiveRef.current;
+      }
+
+      if (hiddenAudioActiveRef.current && currentSongRef.current) {
+        return true;
+      }
+
+      if (currentSongRef.current || activeQueueRef.current.length > 0 || isPlayingRef.current) {
+        if (!hiddenAudioActiveRef.current) {
+          markHiddenAudioBridgeActive(true);
+          hiddenAudioActiveRef.current = true;
+          logLockscreenPlaybackDiagnostic(
+            "blocked_hidden_audio_active_false_while_saved_session_exists",
+            {
+              source,
+              songId: currentSongRef.current?.id || null,
+              queueLength: activeQueueRef.current.length,
+              isPlaying: isPlayingRef.current,
+            }
+          );
+        }
+        return true;
+      }
+
+      try {
+        const savedSong = await AsyncStorage.getItem(CURRENT_SONG_KEY);
+        if (savedSong) {
+          if (!hiddenAudioActiveRef.current) {
+            markHiddenAudioBridgeActive(true);
+            hiddenAudioActiveRef.current = true;
+            logLockscreenPlaybackDiagnostic(
+              "blocked_hidden_audio_active_false_while_saved_session_exists",
+              {
+                source,
+                songId: null,
+                queueLength: activeQueueRef.current.length,
+                savedSession: true,
+              }
+            );
+          }
+          return true;
+        }
+      } catch {
+        // ignore storage read errors
+      }
+
+      try {
+        const snapshot = await bridgeProbeNativePlayback();
+        if (nativeSnapshotIndicatesLoadedPlayback(snapshot)) {
+          markHiddenAudioBridgeActive(true);
+          hiddenAudioActiveRef.current = true;
+          return true;
+        }
+      } catch {
+        // ignore native probe errors
+      }
+
+      return hiddenAudioActiveRef.current;
+    },
+    []
+  );
+
+  const hydrateJsPlaybackSessionFromStorage = useCallback(async () => {
+    try {
+      const [
+        savedSong,
+        savedQueue,
+        savedIndex,
+        savedMode,
+        savedContext,
+        savedPosition,
+      ] = await Promise.all([
+        AsyncStorage.getItem(CURRENT_SONG_KEY),
+        AsyncStorage.getItem(ACTIVE_QUEUE_KEY),
+        AsyncStorage.getItem(ACTIVE_QUEUE_INDEX_KEY),
+        AsyncStorage.getItem(ACTIVE_QUEUE_MODE_KEY),
+        AsyncStorage.getItem(ACTIVE_QUEUE_CONTEXT_KEY),
+        AsyncStorage.getItem(POSITION_KEY),
+      ]);
+
+      let hydrated = false;
+
+      if (savedSong) {
+        const restoredSong = normalizeSong(JSON.parse(savedSong));
+        if (!isYouTubeSong(restoredSong) && getPlayableUri(restoredSong)) {
+          currentSongRef.current = restoredSong;
+          setCurrentSong(restoredSong);
+          hydrated = true;
+        }
+      }
+
+      let restoredQueue = activeQueueRef.current;
+      if (savedQueue) {
+        const parsedQueue = JSON.parse(savedQueue);
+        if (Array.isArray(parsedQueue)) {
+          const normalizedQueue = parsedQueue
+            .map(normalizeSong)
+            .filter((song: AppSong) => !isYouTubeSong(song) && Boolean(getPlayableUri(song)));
+          if (normalizedQueue.length > 0) {
+            restoredQueue = normalizedQueue;
+            activeQueueRef.current = normalizedQueue;
+            setActiveQueue(normalizedQueue);
+            hydrated = true;
+          }
+        }
+      }
+
+      if (restoredQueue.length > 0) {
+        const parsedIndex = Number(savedIndex || 0);
+        const restoredIndex = Number.isNaN(parsedIndex)
+          ? Math.max(
+              0,
+              restoredQueue.findIndex((song) => song.id === currentSongRef.current?.id)
+            )
+          : Math.max(0, Math.min(parsedIndex, restoredQueue.length - 1));
+        activeQueueIndexRef.current = restoredIndex;
+        setActiveQueueIndex(restoredIndex);
+
+        const mode: ActiveQueueMode =
+          savedMode === "youtube" ||
+          savedMode === "radio" ||
+          savedMode === "smart" ||
+          savedMode === "standard"
+            ? savedMode
+            : activeQueueModeRef.current;
+        activeQueueModeRef.current = mode;
+        setActiveQueueMode(mode);
+
+        if (savedContext) {
+          try {
+            const context = normalizePlaybackQueueContext(JSON.parse(savedContext));
+            activeQueueContextRef.current = context;
+            setActiveQueueContext(context);
+          } catch {
+            // keep existing context
+          }
+        }
+      }
+
+      if (savedPosition) {
+        const parsedPosition = Number(savedPosition);
+        if (!Number.isNaN(parsedPosition) && parsedPosition >= 0) {
+          positionMillisRef.current = parsedPosition;
+          lastSavedPositionRef.current = parsedPosition;
+          setPositionMillis(parsedPosition);
+          hydrated = true;
+        }
+      }
+
+      return hydrated;
+    } catch (error) {
+      logLockscreenPlaybackDiagnostic("foreground_restore_queue_context_failed", {
+        source: "hydrate_js_session",
+        message: String((error as Error)?.message || error),
+      });
+      return false;
+    }
+  }, [
+    getPlayableUri,
+    isYouTubeSong,
+    normalizeSong,
+    setActiveQueue,
+    setActiveQueueContext,
+    setActiveQueueIndex,
+    setActiveQueueMode,
+    setCurrentSong,
+    setPositionMillis,
+  ]);
+
   const restoreForegroundFromSavedSession = useCallback(
     async (reason: string) => {
       logLockscreenPlaybackDiagnostic("foreground_restore_from_saved_session_attempt", {
@@ -1064,99 +1274,18 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       });
 
       try {
-        const [
-          savedSong,
-          savedQueue,
-          savedIndex,
-          savedMode,
-          savedContext,
-          savedPosition,
-        ] = await Promise.all([
-          AsyncStorage.getItem(CURRENT_SONG_KEY),
-          AsyncStorage.getItem(ACTIVE_QUEUE_KEY),
-          AsyncStorage.getItem(ACTIVE_QUEUE_INDEX_KEY),
-          AsyncStorage.getItem(ACTIVE_QUEUE_MODE_KEY),
-          AsyncStorage.getItem(ACTIVE_QUEUE_CONTEXT_KEY),
-          AsyncStorage.getItem(POSITION_KEY),
-        ]);
+        const hydrated = await hydrateJsPlaybackSessionFromStorage();
+        const restoredSong = currentSongRef.current;
+        const restoredQueue = activeQueueRef.current;
 
-        if (!savedSong) {
+        if (!hydrated || !restoredSong || restoredQueue.length === 0) {
           logLockscreenPlaybackDiagnostic("foreground_restore_skipped_no_native_track", {
-            reason: "saved_current_song_missing",
+            reason: hydrated ? "saved_queue_missing" : "saved_current_song_missing",
+            songId: restoredSong?.id || null,
           });
           return false;
         }
 
-        const parsedPosition = Number(savedPosition || 0);
-        const safePosition = Number.isFinite(parsedPosition)
-          ? Math.max(0, Math.floor(parsedPosition))
-          : 0;
-        const restoredSong = normalizeSong(JSON.parse(savedSong));
-
-        if (isYouTubeSong(restoredSong) || !getPlayableUri(restoredSong)) {
-          logLockscreenPlaybackDiagnostic("foreground_restore_skipped_no_native_track", {
-            reason: "saved_song_not_playable",
-            songId: restoredSong.id || null,
-          });
-          return false;
-        }
-
-        let restoredQueue = activeQueueRef.current;
-        if (savedQueue) {
-          const parsedQueue = JSON.parse(savedQueue);
-          if (Array.isArray(parsedQueue)) {
-            const normalizedQueue = parsedQueue
-              .map(normalizeSong)
-              .filter((song: AppSong) => !isYouTubeSong(song) && Boolean(getPlayableUri(song)));
-            if (normalizedQueue.length > 0) {
-              restoredQueue = normalizedQueue;
-            }
-          }
-        }
-
-        if (restoredQueue.length === 0) {
-          logLockscreenPlaybackDiagnostic("foreground_restore_skipped_no_native_track", {
-            reason: "saved_queue_missing",
-            songId: restoredSong.id || null,
-          });
-          return false;
-        }
-
-        const parsedIndex = Number(savedIndex || 0);
-        const restoredIndex = Number.isNaN(parsedIndex)
-          ? Math.max(0, restoredQueue.findIndex((song) => song.id === restoredSong.id))
-          : Math.max(0, Math.min(parsedIndex, restoredQueue.length - 1));
-        const mode: ActiveQueueMode =
-          savedMode === "youtube" ||
-          savedMode === "radio" ||
-          savedMode === "smart" ||
-          savedMode === "standard"
-            ? savedMode
-            : activeQueueModeRef.current;
-
-        let context = activeQueueContextRef.current;
-        if (savedContext) {
-          try {
-            context = normalizePlaybackQueueContext(JSON.parse(savedContext));
-          } catch {
-            context = activeQueueContextRef.current;
-          }
-        }
-
-        activeQueueRef.current = restoredQueue;
-        setActiveQueue(restoredQueue);
-        activeQueueIndexRef.current = restoredIndex;
-        setActiveQueueIndex(restoredIndex);
-        activeQueueModeRef.current = mode;
-        setActiveQueueMode(mode);
-        activeQueueContextRef.current = context;
-        setActiveQueueContext(context);
-
-        currentSongRef.current = restoredSong;
-        setCurrentSong(restoredSong);
-        positionMillisRef.current = safePosition;
-        lastSavedPositionRef.current = safePosition;
-        setPositionMillis(safePosition);
         const durationSeconds = getSongDurationSeconds(restoredSong);
         if (durationSeconds > 0) {
           const durationMillis = Math.round(durationSeconds * 1000);
@@ -1164,12 +1293,47 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           setDurationMillis(durationMillis);
         }
 
+        const snapshot = await bridgeProbeNativePlayback();
+        const nativeAlive = nativeSnapshotIndicatesLoadedPlayback(snapshot);
+
+        if (nativeAlive && snapshot) {
+          markHiddenAudioBridgeActive(true);
+          hiddenAudioActiveRef.current = true;
+          setPositionMillis(snapshot.positionMillis);
+          if (snapshot.durationMillis > 0) {
+            setDurationMillis(snapshot.durationMillis);
+          }
+          setIsPlaying(snapshot.isPlaying);
+          void syncNativeRemoteQueueAvailability();
+          logLockscreenPlaybackDiagnostic("foreground_restore_skipped_because_native_alive", {
+            reason,
+            songId: restoredSong.id || null,
+            queueLength: restoredQueue.length,
+            queueIndex: activeQueueIndexRef.current,
+            nativeStatus: snapshot.nativeStatus,
+            isPlaying: snapshot.isPlaying,
+          });
+          logLockscreenPlaybackDiagnostic("foreground_preserved_existing_session", {
+            source: "saved_session_native_alive",
+            songId: restoredSong.id || null,
+            queueLength: restoredQueue.length,
+          });
+          logLockscreenPlaybackDiagnostic("foreground_restore_from_saved_session_success", {
+            songId: restoredSong.id || null,
+            queueLength: restoredQueue.length,
+            queueIndex: activeQueueIndexRef.current,
+            positionMillis: snapshot.positionMillis,
+            preservedNative: true,
+          });
+          return true;
+        }
+
         logLockscreenPlaybackDiagnostic("native_idle_but_saved_track_exists", {
           songId: restoredSong.id || null,
           title: restoredSong.title || null,
           queueLength: restoredQueue.length,
-          queueIndex: restoredIndex,
-          positionMillis: safePosition,
+          queueIndex: activeQueueIndexRef.current,
+          positionMillis: positionMillisRef.current,
         });
 
         await loadAndPlayRef.current?.(restoredSong);
@@ -1177,8 +1341,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         logLockscreenPlaybackDiagnostic("foreground_restore_from_saved_session_success", {
           songId: restoredSong.id || null,
           queueLength: restoredQueue.length,
-          queueIndex: restoredIndex,
-          positionMillis: safePosition,
+          queueIndex: activeQueueIndexRef.current,
+          positionMillis: positionMillisRef.current,
+          preservedNative: false,
         });
         return true;
       } catch (error) {
@@ -1190,17 +1355,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       }
     },
     [
-      getPlayableUri,
+      hydrateJsPlaybackSessionFromStorage,
       getSongDurationSeconds,
-      isYouTubeSong,
-      normalizeSong,
-      setActiveQueue,
-      setActiveQueueContext,
-      setActiveQueueIndex,
-      setActiveQueueMode,
-      setCurrentSong,
       setDurationMillis,
+      setIsPlaying,
       setPositionMillis,
+      syncNativeRemoteQueueAvailability,
     ]
   );
 
@@ -1213,18 +1373,59 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    logLockscreenPlaybackDiagnostic("foreground_sync_start", {
-      hiddenAudioActive: hiddenAudioActiveRef.current,
-      songId: currentSongRef.current?.id || null,
-      isPlaying: isPlayingRef.current,
-      positionMillis: positionMillisRef.current,
-    });
+    if (foregroundResyncInFlightRef.current) {
+      logLockscreenPlaybackDiagnostic("foreground_sync_complete", {
+        skipped: true,
+        reason: "resync_already_in_flight",
+        songId: currentSongRef.current?.id || null,
+        queueLength: activeQueueRef.current.length,
+      });
+      return;
+    }
+
+    foregroundResyncInFlightRef.current = true;
 
     try {
+      const hadJsSession =
+        Boolean(currentSongRef.current) && activeQueueRef.current.length > 0;
+
+      if (!hadJsSession) {
+        const hydrated = await hydrateJsPlaybackSessionFromStorage();
+        if (hydrated) {
+          logLockscreenPlaybackDiagnostic(
+            "foreground_saved_session_loaded_before_native_probe",
+            {
+              songId: currentSongRef.current?.id || null,
+              queueLength: activeQueueRef.current.length,
+              queueIndex: activeQueueIndexRef.current,
+              positionMillis: positionMillisRef.current,
+            }
+          );
+          logLockscreenPlaybackDiagnostic("foreground_preserved_existing_session", {
+            source: "hydrate_before_native_probe",
+            songId: currentSongRef.current?.id || null,
+            queueLength: activeQueueRef.current.length,
+            queueIndex: activeQueueIndexRef.current,
+          });
+        }
+      }
+
+      await reconcileHiddenAudioActiveState("foreground_sync");
+
+      logLockscreenPlaybackDiagnostic("foreground_sync_start", {
+        hiddenAudioActive: hiddenAudioActiveRef.current,
+        songId: currentSongRef.current?.id || null,
+        isPlaying: isPlayingRef.current,
+        positionMillis: positionMillisRef.current,
+        queueLength: activeQueueRef.current.length,
+        queueIndex: activeQueueIndexRef.current,
+      });
+
       logLockscreenPlaybackDiagnostic("native_status_probe_start", {
         source: "foreground",
         hiddenAudioActive: hiddenAudioActiveRef.current,
         songId: currentSongRef.current?.id || null,
+        queueLength: activeQueueRef.current.length,
       });
       const snapshot = await bridgeProbeNativePlayback();
 
@@ -1266,6 +1467,42 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         snapshot.playbackState === "playing" ||
         snapshot.playbackState === "buffering" ||
         snapshot.playbackState === "ready";
+
+      if (
+        nativeRetainsPlayableTrack &&
+        currentSongRef.current &&
+        activeQueueRef.current.length > 0
+      ) {
+        markHiddenAudioBridgeActive(true);
+        hiddenAudioActiveRef.current = true;
+        setPositionMillis(snapshot.positionMillis);
+        if (snapshot.durationMillis > 0) {
+          setDurationMillis(snapshot.durationMillis);
+        }
+        setIsPlaying(snapshot.isPlaying);
+        void syncNativeRemoteQueueAvailability();
+        logLockscreenPlaybackDiagnostic("foreground_preserved_existing_session", {
+          source: "js_session_with_native_alive",
+          songId: currentSongRef.current?.id || null,
+          queueLength: activeQueueRef.current.length,
+          queueIndex: activeQueueIndexRef.current,
+        });
+        logLockscreenPlaybackDiagnostic("foreground_restore_skipped_because_native_alive", {
+          songId: currentSongRef.current?.id || null,
+          nativeStatus: snapshot.nativeStatus,
+          isPlaying: snapshot.isPlaying,
+          queueLength: activeQueueRef.current.length,
+        });
+        logLockscreenPlaybackDiagnostic("foreground_sync_complete", {
+          restored: true,
+          preserved: true,
+          hiddenAudioActive: hiddenAudioActiveRef.current,
+          isPlaying: snapshot.isPlaying,
+          songId: currentSongRef.current?.id || null,
+          queueLength: activeQueueRef.current.length,
+        });
+        return;
+      }
 
       if (!nativeRetainsPlayableTrack) {
         if (currentSongRef.current || activeQueueRef.current.length > 0) {
@@ -1429,8 +1666,35 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           snapshot.activeIndex >= 0 &&
           snapshot.activeIndex < activeQueueRef.current.length
         ) {
-          activeQueueIndexRef.current = snapshot.activeIndex;
-          setActiveQueueIndex(snapshot.activeIndex);
+          const savedQueueIndex = activeQueueIndexRef.current;
+          if (
+            shouldSkipNativeActiveIndexOverwrite(
+              savedQueueIndex,
+              snapshot.activeIndex,
+              activeQueueRef.current.length
+            )
+          ) {
+            logLockscreenPlaybackDiagnostic(
+              "skipped_native_active_index_overwrite_single_item_native_queue",
+              {
+                savedQueueIndex,
+                nativeActiveIndex: snapshot.activeIndex,
+                queueLength: activeQueueRef.current.length,
+                songId: normalizedSong.id || null,
+              }
+            );
+            logLockscreenPlaybackDiagnostic(
+              "foreground_queue_index_preserved_from_saved_session",
+              {
+                queueIndex: savedQueueIndex,
+                nativeActiveIndex: snapshot.activeIndex,
+                queueLength: activeQueueRef.current.length,
+              }
+            );
+          } else {
+            activeQueueIndexRef.current = snapshot.activeIndex;
+            setActiveQueueIndex(snapshot.activeIndex);
+          }
         }
 
         logLockscreenPlaybackDiagnostic("queue_restore_success", {
@@ -1467,17 +1731,24 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         reason: "sync_error",
         message: String((error as Error)?.message || error),
       });
+    } finally {
+      foregroundResyncInFlightRef.current = false;
     }
   }, [
     getPlayableUri,
+    hydrateJsPlaybackSessionFromStorage,
+    reconcileHiddenAudioActiveState,
     normalizeSong,
     isYouTubeSong,
+    restoreForegroundFromSavedSession,
     setActiveQueue,
     setActiveQueueIndex,
+    setActiveQueueContext,
     setCurrentSong,
     setDurationMillis,
     setIsPlaying,
     setPositionMillis,
+    syncNativeRemoteQueueAvailability,
   ]);
 
 
@@ -1666,6 +1937,43 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             songId: currentSongRef.current?.id || null,
           });
         }
+        return;
+      }
+
+      if (
+        shouldBlockJsPlaybackStateClear(appStateRef.current, reason) &&
+        (Boolean(currentSongRef.current) || activeQueueRef.current.length > 0)
+      ) {
+        logLockscreenPlaybackDiagnostic("js_state_clear_source_detected", {
+          source: reason,
+          phase: "unload_deactivate_hidden_audio",
+          songId: currentSongRef.current?.id || null,
+          queueLength: activeQueueRef.current.length,
+        });
+        logLockscreenPlaybackDiagnostic("js_state_clear_blocked_background", {
+          source: reason,
+          phase: "unload_deactivate_hidden_audio",
+          songId: currentSongRef.current?.id || null,
+          queueLength: activeQueueRef.current.length,
+        });
+        return;
+      }
+
+      if (
+        shouldBlockJsPlaybackStateClear(appStateRef.current, reason) &&
+        (Boolean(currentSongRef.current) || activeQueueRef.current.length > 0)
+      ) {
+        logLockscreenPlaybackDiagnostic("js_state_clear_source_detected", {
+          source: reason,
+          phase: "hidden_audio_active_false_blocked",
+          songId: currentSongRef.current?.id || null,
+          queueLength: activeQueueRef.current.length,
+        });
+        logLockscreenPlaybackDiagnostic("blocked_hidden_audio_active_false_while_saved_session_exists", {
+          source: reason,
+          songId: currentSongRef.current?.id || null,
+          queueLength: activeQueueRef.current.length,
+        });
         return;
       }
 
@@ -3278,11 +3586,37 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               songId: normalizedSong.id,
               requestId,
             });
-            setIsPlaying(false);
-            setPositionMillis(0);
-            positionMillisRef.current = 0;
-            setDurationMillis(0);
-            durationMillisRef.current = 0;
+
+            let preserveNativePlayback = false;
+            if (Platform.OS === "ios" && isHiddenAudioEnabledOnIOS()) {
+              try {
+                const existingSnapshot = await bridgeProbeNativePlayback();
+                const sameTrackLoaded =
+                  nativeSnapshotIndicatesLoadedPlayback(existingSnapshot) &&
+                  (existingSnapshot?.activeTrack?.url === playableUri ||
+                    currentSongRef.current?.id === normalizedSong.id);
+                preserveNativePlayback = Boolean(sameTrackLoaded && existingSnapshot?.isPlaying);
+                if (preserveNativePlayback) {
+                  logLockscreenPlaybackDiagnostic("foreground_restore_skipped_because_native_alive", {
+                    source: "load_and_play_same_track",
+                    songId: normalizedSong.id,
+                    nativeStatus: existingSnapshot?.nativeStatus || null,
+                  });
+                  markHiddenAudioBridgeActive(true);
+                  hiddenAudioActiveRef.current = true;
+                }
+              } catch {
+                preserveNativePlayback = false;
+              }
+            }
+
+            if (!preserveNativePlayback) {
+              setIsPlaying(false);
+              setPositionMillis(0);
+              positionMillisRef.current = 0;
+              setDurationMillis(0);
+              durationMillisRef.current = 0;
+            }
 
             if (
               preloadedSongIdRef.current &&
@@ -3291,7 +3625,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               await clearPreloadedSound();
             }
 
-            await unloadCurrentSound("load_and_play_replace_track");
+            if (!preserveNativePlayback) {
+              await unloadCurrentSound("load_and_play_replace_track");
+            }
 
             if (
               loadRequestIdRef.current !== requestId ||
@@ -3324,6 +3660,27 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             const artworkUrl = typeof getArtworkValue(normalizedSong) === "string"
               ? String(getArtworkValue(normalizedSong))
               : "";
+
+            if (preserveNativePlayback) {
+              currentSongRef.current = normalizedSong;
+              setCurrentSong(normalizedSong);
+              await syncNativeRemoteQueueAvailability();
+              const statusAfterPreserve = await syncHiddenAudioState(
+                "load_and_play_preserve_native"
+              );
+              logLockscreenPlaybackDiagnostic("foreground_preserved_existing_session", {
+                source: "load_and_play_preserve_native",
+                songId: normalizedSong.id,
+                isPlaying: statusAfterPreserve?.isPlaying ?? null,
+              });
+              logAudioLoadSuccess({
+                songId: normalizedSong.id,
+                requestId,
+                engine: "hidden_audio",
+              });
+              deferPlaybackSideEffects(normalizedSong, "load_and_play_side_effects");
+              return;
+            }
 
             await bridgeHiddenAudioUpdateNowPlaying({
               title: normalizedSong.title || "Unknown Song",
@@ -4551,6 +4908,20 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   );
 
   const clearActiveQueue = useCallback(async () => {
+    if (shouldBlockJsPlaybackStateClear(appStateRef.current, "clear_active_queue")) {
+      logLockscreenPlaybackDiagnostic("js_state_clear_source_detected", {
+        source: "clear_active_queue",
+        songId: currentSongRef.current?.id || null,
+        queueLength: activeQueueRef.current.length,
+      });
+      logLockscreenPlaybackDiagnostic("js_state_clear_blocked_background", {
+        source: "clear_active_queue",
+        songId: currentSongRef.current?.id || null,
+        queueLength: activeQueueRef.current.length,
+      });
+      return;
+    }
+
     setActiveQueue([]);
     setActiveQueueIndex(0);
     setActiveQueueMode("standard");
@@ -4601,6 +4972,52 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         if (!isYouTubeSong(parsedSong)) {
           setCurrentSong(parsedSong);
           currentSongRef.current = parsedSong;
+        }
+      }
+
+      if (Platform.OS === "ios" && isHiddenAudioEnabledOnIOS()) {
+        const [savedActiveQueue, savedActiveQueueIndex, savedActiveQueueMode, savedActiveQueueContext] =
+          await Promise.all([
+            AsyncStorage.getItem(ACTIVE_QUEUE_KEY),
+            AsyncStorage.getItem(ACTIVE_QUEUE_INDEX_KEY),
+            AsyncStorage.getItem(ACTIVE_QUEUE_MODE_KEY),
+            AsyncStorage.getItem(ACTIVE_QUEUE_CONTEXT_KEY),
+          ]);
+
+        if (savedActiveQueue) {
+          const parsedActiveQueue = JSON.parse(savedActiveQueue);
+          if (Array.isArray(parsedActiveQueue)) {
+            const normalizedQueue = parsedActiveQueue
+              .map(normalizeSong)
+              .filter((song) => !isYouTubeSong(song));
+            if (normalizedQueue.length > 0) {
+              setActiveQueue(normalizedQueue);
+              activeQueueRef.current = normalizedQueue;
+              const parsedIndex = Number(savedActiveQueueIndex || 0);
+              const safeIndex = Number.isNaN(parsedIndex)
+                ? 0
+                : Math.max(0, Math.min(parsedIndex, normalizedQueue.length - 1));
+              setActiveQueueIndex(safeIndex);
+              activeQueueIndexRef.current = safeIndex;
+              const safeMode: ActiveQueueMode =
+                savedActiveQueueMode === "radio" ||
+                savedActiveQueueMode === "standard" ||
+                savedActiveQueueMode === "smart"
+                  ? savedActiveQueueMode
+                  : "standard";
+              setActiveQueueMode(safeMode);
+              activeQueueModeRef.current = safeMode;
+              if (savedActiveQueueContext) {
+                try {
+                  const context = normalizePlaybackQueueContext(
+                    JSON.parse(savedActiveQueueContext)
+                  );
+                  setActiveQueueContext(context);
+                  activeQueueContextRef.current = context;
+                } catch {}
+              }
+            }
+          }
         }
       }
 
@@ -5202,6 +5619,22 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     void (async () => {
       if (cancelled) return;
 
+      if (Platform.OS === "ios" && isHiddenAudioEnabledOnIOS()) {
+        const hydrated = await hydrateJsPlaybackSessionFromStorage();
+        if (hydrated) {
+          logLockscreenPlaybackDiagnostic(
+            "foreground_saved_session_loaded_before_native_probe",
+            {
+              source: "player_mount",
+              songId: currentSongRef.current?.id || null,
+              queueLength: activeQueueRef.current.length,
+              queueIndex: activeQueueIndexRef.current,
+            }
+          );
+        }
+        await reconcileHiddenAudioActiveState("player_mount");
+      }
+
       configureAudio("player_mount");
 
       cancelRestoreLightTask = scheduleStartupTask(
@@ -5231,10 +5664,34 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       isMountedRef.current = false;
       loadRequestIdRef.current += 1;
       clearFinishWatchdog();
-      unloadCurrentSound();
+
+      const hasPlaybackSession =
+        Boolean(currentSongRef.current) || activeQueueRef.current.length > 0;
+      if (
+        Platform.OS === "ios" &&
+        (isBackgroundAppState(appStateRef.current) || hasPlaybackSession)
+      ) {
+        logLockscreenPlaybackDiagnostic("js_state_clear_source_detected", {
+          source: "player_mount_cleanup",
+          appState: appStateRef.current,
+          songId: currentSongRef.current?.id || null,
+          queueLength: activeQueueRef.current.length,
+        });
+        logLockscreenPlaybackDiagnostic("js_state_clear_blocked_background", {
+          source: "player_mount_cleanup",
+          appState: appStateRef.current,
+          songId: currentSongRef.current?.id || null,
+          queueLength: activeQueueRef.current.length,
+        });
+        return;
+      }
+
+      void unloadCurrentSound("player_unmount");
     };
   }, [
     configureAudio,
+    hydrateJsPlaybackSessionFromStorage,
+    reconcileHiddenAudioActiveState,
     restoreSavedDataLight,
     restoreSavedDataHeavy,
     unloadCurrentSound,
@@ -5244,11 +5701,49 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   ]);
 
   useEffect(() => {
-    logLockscreenPlaybackDiagnostic("ios_background_audio_config_checked", {
-      platform: Platform.OS,
-      hiddenAudioActive: hiddenAudioActiveRef.current,
-    });
-  }, []);
+    void (async () => {
+      if (Platform.OS === "ios" && isHiddenAudioEnabledOnIOS()) {
+        if (!currentSongRef.current || activeQueueRef.current.length === 0) {
+          const hydrated = await hydrateJsPlaybackSessionFromStorage();
+          if (hydrated) {
+            logLockscreenPlaybackDiagnostic(
+              "foreground_saved_session_loaded_before_native_probe",
+              {
+                source: "ios_background_audio_config_checked",
+                songId: currentSongRef.current?.id || null,
+                queueLength: activeQueueRef.current.length,
+                queueIndex: activeQueueIndexRef.current,
+              }
+            );
+          }
+        }
+        await reconcileHiddenAudioActiveState("ios_background_audio_config_checked");
+      }
+
+      logLockscreenPlaybackDiagnostic("ios_background_audio_config_checked", {
+        platform: Platform.OS,
+        hiddenAudioActive: hiddenAudioActiveRef.current,
+        appState: appStateRef.current,
+        songId: currentSongRef.current?.id || null,
+        queueLength: activeQueueRef.current.length,
+        queueIndex: activeQueueIndexRef.current,
+      });
+
+      if (
+        currentSongRef.current ||
+        activeQueueRef.current.length > 0 ||
+        hiddenAudioActiveRef.current
+      ) {
+        logLockscreenPlaybackDiagnostic("ios_background_audio_config_check_preserved_state", {
+          songId: currentSongRef.current?.id || null,
+          queueLength: activeQueueRef.current.length,
+          queueIndex: activeQueueIndexRef.current,
+          hiddenAudioActive: hiddenAudioActiveRef.current,
+          appState: appStateRef.current,
+        });
+      }
+    })();
+  }, [hydrateJsPlaybackSessionFromStorage, reconcileHiddenAudioActiveState]);
 
   useEffect(() => {
     const appStateListenerId = `app_state_${Date.now()}`;
@@ -5291,6 +5786,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       // inactive disrupts the shared AVAudioSession and can stop native playback mid-song.
       if (nextState === "inactive" && previousState === "active") {
         void savePlaybackPosition(positionMillisRef.current);
+        void reconcileHiddenAudioActiveState("app_state_inactive");
       }
 
       if (nextState === "background" && previousState !== "background") {
@@ -5408,7 +5904,26 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         backgroundWatchTimersRef.current = [];
         configureAudio("app_state_active");
         void applyProgressUpdateInterval("app_state_active");
-        void resyncForegroundHiddenAudioState();
+        void (async () => {
+          if (Platform.OS === "ios" && isHiddenAudioEnabledOnIOS()) {
+            if (!currentSongRef.current || activeQueueRef.current.length === 0) {
+              const hydrated = await hydrateJsPlaybackSessionFromStorage();
+              if (hydrated) {
+                logLockscreenPlaybackDiagnostic(
+                  "foreground_saved_session_loaded_before_native_probe",
+                  {
+                    source: "app_state_active",
+                    songId: currentSongRef.current?.id || null,
+                    queueLength: activeQueueRef.current.length,
+                    queueIndex: activeQueueIndexRef.current,
+                  }
+                );
+              }
+            }
+            await reconcileHiddenAudioActiveState("app_state_active");
+          }
+          await resyncForegroundHiddenAudioState();
+        })();
         void catchUpPlaybackIfEnded();
         void flushPendingSmartExtend();
       }
@@ -5425,6 +5940,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     armFinishWatchdog,
     catchUpPlaybackIfEnded,
     flushPendingSmartExtend,
+    hydrateJsPlaybackSessionFromStorage,
+    reconcileHiddenAudioActiveState,
     syncHiddenAudioState,
     resyncForegroundHiddenAudioState,
   ]);
