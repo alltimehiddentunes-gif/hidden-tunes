@@ -1,6 +1,9 @@
 import React, { memo, useEffect, useMemo, useRef } from "react";
 import { Animated, StyleSheet, View } from "react-native";
 
+import { isAppActiveForWork } from "../utils/performanceMode";
+import { logPerformanceBackgroundWorkPaused } from "../utils/performanceLogs";
+
 import { COLORS } from "../constants/theme";
 
 type NeonEQProps = {
@@ -41,8 +44,12 @@ function NeonEQ({ isPlaying = false, size = "medium" }: NeonEQProps) {
 
   useEffect(() => {
     let animations: Animated.CompositeAnimation[] = [];
+    const shouldAnimate = isPlaying && isAppActiveForWork();
 
-    if (!isPlaying) {
+    if (!shouldAnimate) {
+      if (isPlaying && !isAppActiveForWork()) {
+        logPerformanceBackgroundWorkPaused("neon_eq", { reason: "app_inactive" });
+      }
       bars.forEach((bar) => {
         bar.stopAnimation();
         Animated.timing(bar, {

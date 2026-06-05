@@ -1,6 +1,8 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { AppState, Platform } from "react-native";
 
+import { logPerformanceDiagThrottled } from "./performanceLogs";
+
 export const LOCKSCREEN_DIAGNOSTIC_STORAGE_KEY =
   "@ht_lockscreen_playback_diagnostics_v1";
 
@@ -41,6 +43,18 @@ let memoryLogs: LockscreenPlaybackDiagnosticEntry[] = [];
 let storageHydrated = false;
 let hydratePromise: Promise<void> | null = null;
 let persistTimer: ReturnType<typeof setTimeout> | null = null;
+let lastThrottledDiagAt = 0;
+let lastSerializedPersistPayload = "";
+
+const THROTTLED_LOCKSCREEN_EVENTS = new Set([
+  "native_playback_position",
+  "native_playback_is_playing",
+  "native_playback_duration",
+  "native_playback_buffer_status",
+  "hidden_audio_native_progress",
+  "hidden_audio_now_playing_elapsed_updated",
+  "native_playback_state_changed",
+]);
 
 const listeners = new Set<() => void>();
 
@@ -103,6 +117,9 @@ function notifyListeners() {
 
 async function persistLogs() {
   try {
+    const payload = JSON.stringify(memoryLogs);
+    if (payload === lastSerializedPersistPayload) return;
+    lastSerializedPersistPayload = payload;
     await AsyncStorage.setItem(
       LOCKSCREEN_DIAGNOSTIC_STORAGE_KEY,
       JSON.stringify(memoryLogs)
@@ -120,7 +137,10 @@ function schedulePersist() {
   persistTimer = setTimeout(() => {
     persistTimer = null;
     void persistLogs();
-  }, 350);
+  }, 2800);
+  logPerformanceDiagThrottled("lockscreen_playback_diagnostics", {
+    debounceMs: 2800,
+  });
 }
 
 function formatLogLine(event: string, details: Record<string, unknown>) {
@@ -152,7 +172,20 @@ function createEntry(
   };
 }
 
+function shouldThrottleLockscreenEvent(event: string) {
+  if (!THROTTLED_LOCKSCREEN_EVENTS.has(event)) return false;
+  const state = AppState.currentState;
+  if (state !== "background" && state !== "inactive") return false;
+  const now = Date.now();
+  if (now - lastThrottledDiagAt < 5000) return true;
+  lastThrottledDiagAt = now;
+  return false;
+}
+
 function appendLog(entry: LockscreenPlaybackDiagnosticEntry) {
+  if (shouldThrottleLockscreenEvent(entry.event)) {
+    return;
+  }
   memoryLogs = [...memoryLogs, entry].slice(-MAX_STORED_LOGS);
   notifyListeners();
   schedulePersist();
@@ -264,10 +297,12 @@ export function logLockscreenPlaybackDiagnostic(
 ) {
   const entry = createEntry(event, details);
 
-  console.log(`[HTLockscreenDiag] ${event}`, {
-    ...details,
-    timestamp: entry.iso,
-  });
+  if (!shouldThrottleLockscreenEvent(event)) {
+    console.log(`[HTLockscreenDiag] ${event}`, {
+      ...details,
+      timestamp: entry.iso,
+    });
+  }
 
   appendLog(entry);
 }

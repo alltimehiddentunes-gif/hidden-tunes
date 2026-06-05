@@ -62,7 +62,7 @@ function schedulePersist() {
   persistTimer = setTimeout(() => {
     persistTimer = null;
     void persistPlaybackCriticalLogs();
-  }, 400);
+  }, 1200);
 }
 
 async function persistPlaybackCriticalLogs() {
@@ -190,5 +190,4 @@ export function errorMessage(error: unknown): string {
   return String(error ?? "unknown");
 }
 
-// Warm persisted logs on module load (non-blocking).
-void hydratePlaybackCriticalLogs();
+// Hydrated on demand from playback-diagnostics screen.

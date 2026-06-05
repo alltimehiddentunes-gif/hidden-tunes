@@ -360,6 +360,7 @@ const PLAYBACK_UPDATE_INTERVAL_BACKGROUND_MS = 5000;
 const POSITION_STATE_UPDATE_MIN_MS = 2000;
 const POSITION_STATE_UPDATE_BACKGROUND_MS = 5000;
 const POSITION_SAVE_INTERVAL_MS = 12000;
+const POSITION_SAVE_INTERVAL_BACKGROUND_MS = 30000;
 const POSITION_SAVE_DISTANCE_MS = 5000;
 const DURATION_UPDATE_THRESHOLD_MS = 1500;
 const TRACK_END_THRESHOLD_MS = 750;
@@ -595,6 +596,12 @@ function getProgressUpdateIntervalMs(state: AppStateStatus) {
   return isBackgroundAppState(state)
     ? PLAYBACK_UPDATE_INTERVAL_BACKGROUND_MS
     : PLAYBACK_UPDATE_INTERVAL_MS;
+}
+
+function getPositionSaveIntervalMs(state: AppStateStatus) {
+  return isBackgroundAppState(state)
+    ? POSITION_SAVE_INTERVAL_BACKGROUND_MS
+    : POSITION_SAVE_INTERVAL_MS;
 }
 
 function getPositionStateUpdateMinMs(state: AppStateStatus) {
@@ -3466,7 +3473,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       }
 
       if (
-        now - lastPositionSaveRef.current > POSITION_SAVE_INTERVAL_MS &&
+        now - lastPositionSaveRef.current >
+          getPositionSaveIntervalMs(appStateRef.current) &&
         Math.abs(nextPosition - lastSavedPositionRef.current) >=
           POSITION_SAVE_DISTANCE_MS
       ) {
@@ -5440,7 +5448,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         }
 
         if (
-          now - lastPositionSaveRef.current > POSITION_SAVE_INTERVAL_MS &&
+          now - lastPositionSaveRef.current >
+          getPositionSaveIntervalMs(appStateRef.current) &&
           Math.abs(progress.positionMillis - lastSavedPositionRef.current) >=
             POSITION_SAVE_DISTANCE_MS
         ) {

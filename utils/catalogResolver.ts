@@ -260,11 +260,13 @@ export function getCatalogResolverDebugInfo<T extends CatalogSongLike>({
   };
 }
 
+import { isHeavyPerfDiagnosticsEnabled } from "./devDiagnostics";
+
 export function logCatalogResolverDebug<T extends CatalogSongLike>(
   message: string,
   info: ReturnType<typeof getCatalogResolverDebugInfo<T>>
 ) {
-  if (typeof __DEV__ !== "undefined" && __DEV__) {
+  if (typeof __DEV__ !== "undefined" && __DEV__ && isHeavyPerfDiagnosticsEnabled()) {
     console.log(`[HiddenTunesCatalogResolver] ${message}`, info);
   }
 }

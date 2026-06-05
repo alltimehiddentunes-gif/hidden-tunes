@@ -104,10 +104,12 @@ export function buildGenreSpotlightGroups<T extends GenreGroupSong>(
   return groups.sort((a, b) => b.score - a.score).slice(0, limit);
 }
 
+import { isHeavyPerfDiagnosticsEnabled } from "./devDiagnostics";
+
 export function logExploreGenreGroups<T extends { title?: string }>(
   groups: GenreSpotlightGroup<T>[]
 ) {
-  if (typeof __DEV__ === "undefined" || !__DEV__) return;
+  if (typeof __DEV__ === "undefined" || !__DEV__ || !isHeavyPerfDiagnosticsEnabled()) return;
 
   console.log(
     "[explore] genre groups",

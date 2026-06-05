@@ -90,13 +90,15 @@ export function dedupeAdjacentDiscoverySections<T extends DedupeSongLike>(
   });
 }
 
+import { isHeavyPerfDiagnosticsEnabled } from "./devDiagnostics";
+
 export function logCatalogDedupeSummary(
   section: string,
   before: number,
   after: number
 ) {
   if (before === after) return;
-  if (typeof __DEV__ !== "undefined" && __DEV__) {
+  if (typeof __DEV__ !== "undefined" && __DEV__ && isHeavyPerfDiagnosticsEnabled()) {
     console.log("[catalog] dedupe summary", { before, after, section });
   }
 }

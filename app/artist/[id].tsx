@@ -380,7 +380,7 @@ export default function ArtistScreen() {
         track={item}
         index={index}
         active={currentSong?.id === item.id}
-        isPlaying={isPlaying}
+        isPlaying={currentSong?.id === item.id && isPlaying}
         metaLine={`${item.album || artist?.name || ""}${
           item.duration ? ` • ${formatDuration(item.duration)}` : ""
         }`}

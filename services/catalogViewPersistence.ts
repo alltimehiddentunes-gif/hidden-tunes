@@ -2,6 +2,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import type { CatalogResolverType } from "../utils/catalogResolver";
 import type { HiddenTunesNormalizedSong } from "./hiddenTunesApi";
+import { isHeavyPerfDiagnosticsEnabled } from "../utils/devDiagnostics";
+import { logPerformanceStorageWriteThrottled } from "../utils/performanceLogs";
 
 const STORAGE_KEY = "hidden_tunes_catalog_view_cache_v1";
 const STORE_VERSION = 1;
@@ -50,9 +52,11 @@ type PersistedCatalogViewStore = {
 const persistedViewCache = new Map<string, PersistedCatalogViewRecord>();
 let hydratePromise: Promise<number> | null = null;
 let hasHydratedPersistedViews = false;
+let persistCatalogViewsTimer: ReturnType<typeof setTimeout> | null = null;
+let lastPersistedCatalogPayload = "";
 
 function shouldLogCatalogViewDiagnostics() {
-  return typeof __DEV__ === "undefined" || __DEV__;
+  return isHeavyPerfDiagnosticsEnabled();
 }
 
 export function logCatalogViewDiagnostics(
@@ -200,11 +204,7 @@ export function readPersistedCatalogView(cacheKey: string) {
   };
 }
 
-export async function writePersistedCatalogView(record: PersistedCatalogViewRecord) {
-  if (!record.songs.length) return;
-
-  persistedViewCache.set(record.cacheKey, record);
-
+async function flushPersistedCatalogViews() {
   try {
     const views = Array.from(persistedViewCache.values())
       .sort((a, b) => b.cachedAt - a.cachedAt)
@@ -215,19 +215,43 @@ export async function writePersistedCatalogView(record: PersistedCatalogViewReco
       views,
     };
 
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    const serialized = JSON.stringify(payload);
+    if (serialized === lastPersistedCatalogPayload) {
+      logPerformanceStorageWriteThrottled("catalog_view_persist_skip", {
+        viewCount: views.length,
+      });
+      return;
+    }
+
+    lastPersistedCatalogPayload = serialized;
+    await AsyncStorage.setItem(STORAGE_KEY, serialized);
 
     logCatalogViewDiagnostics("persisted_write", {
-      viewKey: record.cacheKey,
-      matchedCount: record.matchedCount,
-      freshness: getCatalogViewFreshness(record.cachedAt),
+      viewCount: views.length,
+      freshness: views[0] ? getCatalogViewFreshness(views[0].cachedAt) : "unknown",
     });
   } catch (error) {
     logCatalogViewDiagnostics("persisted_write_error", {
-      viewKey: record.cacheKey,
       message: String((error as Error)?.message || "unknown"),
     });
   }
+}
+
+function schedulePersistedCatalogViews() {
+  if (persistCatalogViewsTimer) {
+    clearTimeout(persistCatalogViewsTimer);
+  }
+  persistCatalogViewsTimer = setTimeout(() => {
+    persistCatalogViewsTimer = null;
+    void flushPersistedCatalogViews();
+  }, 1200);
+}
+
+export async function writePersistedCatalogView(record: PersistedCatalogViewRecord) {
+  if (!record.songs.length) return;
+
+  persistedViewCache.set(record.cacheKey, record);
+  schedulePersistedCatalogViews();
 }
 
 export async function clearPersistedCatalogViewCache() {

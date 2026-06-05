@@ -68,6 +68,52 @@ export function startPerformanceTimer() {
   return nowMs();
 }
 
+const PERF_DIAG_THROTTLE_MS = 15000;
+let lastPerfDiagAt: Record<string, number> = {};
+
+function logPerformanceDiagOnce(event: string, details: PerformanceLogDetails = {}) {
+  const now = Date.now();
+  const last = lastPerfDiagAt[event] || 0;
+  if (now - last < PERF_DIAG_THROTTLE_MS) return;
+  lastPerfDiagAt[event] = now;
+  logPerformanceEvent(event, details);
+}
+
+export function logPerformanceRenderMemoized(
+  component: string,
+  details: PerformanceLogDetails = {}
+) {
+  logPerformanceDiagOnce("performance_render_memoized", { component, ...details });
+}
+
+export function logPerformanceBackgroundWorkPaused(
+  source: string,
+  details: PerformanceLogDetails = {}
+) {
+  logPerformanceDiagOnce("performance_background_work_paused", { source, ...details });
+}
+
+export function logPerformanceDiagThrottled(
+  source: string,
+  details: PerformanceLogDetails = {}
+) {
+  logPerformanceDiagOnce("performance_diag_throttled", { source, ...details });
+}
+
+export function logPerformanceStorageWriteThrottled(
+  source: string,
+  details: PerformanceLogDetails = {}
+) {
+  logPerformanceDiagOnce("performance_storage_write_throttled", { source, ...details });
+}
+
+export function logPerformanceDuplicateListenerRemoved(
+  source: string,
+  details: PerformanceLogDetails = {}
+) {
+  logPerformanceDiagOnce("performance_duplicate_listener_removed", { source, ...details });
+}
+
 export function logPerformanceEvent(
   event: string,
   details: PerformanceLogDetails = {}

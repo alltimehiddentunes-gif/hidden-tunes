@@ -1,3 +1,5 @@
+import { logPerformanceStorageWriteThrottled } from "./performanceLogs";
+
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import type {
@@ -58,6 +60,20 @@ async function readSnapshot<T>(
   }
 }
 
+function snapshotFingerprint(data: unknown) {
+  if (!data || typeof data !== "object") return "";
+  const record = data as Record<string, unknown>;
+  const tracks = Array.isArray(record.tracks) ? record.tracks : [];
+  const first = tracks[0] as Record<string, unknown> | undefined;
+  const last = tracks[tracks.length - 1] as Record<string, unknown> | undefined;
+  return [
+    String(record.id || record.slug || record.name || record.title || ""),
+    tracks.length,
+    String(first?.id || ""),
+    String(last?.id || ""),
+  ].join("|");
+}
+
 async function writeSnapshot<T>(
   prefix: string,
   id: string,
@@ -66,6 +82,13 @@ async function writeSnapshot<T>(
 ) {
   const cleanId = normalizeSnapshotId(id);
   if (!cleanId || !data) return;
+
+  const fingerprint = snapshotFingerprint(data);
+  const previous = memory.get(cleanId);
+  if (previous && snapshotFingerprint(previous) === fingerprint) {
+    logPerformanceStorageWriteThrottled("detail_snapshot_skip", { id: cleanId });
+    return;
+  }
 
   memory.set(cleanId, data);
 
