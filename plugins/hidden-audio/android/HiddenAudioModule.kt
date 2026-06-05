@@ -137,12 +137,22 @@ class HiddenAudioModule(
 
   @ReactMethod
   fun next(promise: Promise) {
-    promise.resolve(null)
+    try {
+      HiddenAudioCore.emitRemoteCommand("next")
+      promise.resolve(null)
+    } catch (error: Throwable) {
+      promise.reject("HIDDEN_AUDIO_NEXT_FAILED", error)
+    }
   }
 
   @ReactMethod
   fun previous(promise: Promise) {
-    promise.resolve(null)
+    try {
+      HiddenAudioCore.emitRemoteCommand("previous")
+      promise.resolve(null)
+    } catch (error: Throwable) {
+      promise.reject("HIDDEN_AUDIO_PREVIOUS_FAILED", error)
+    }
   }
 
   @ReactMethod

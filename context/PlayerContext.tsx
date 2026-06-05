@@ -34,7 +34,10 @@ import {
   saveSmartQueue,
 } from "../services/smartQueue";
 import { getCachedHiddenTunesCatalog } from "../services/hiddenTunes";
-import { isHiddenAudioEnabledOnIOS } from "../constants/playbackConfig";
+import {
+  isHiddenAudioEnabledOnIOS,
+  isHiddenAudioNativePlaybackEnabled,
+} from "../constants/playbackConfig";
 import {
   activateHiddenAudioPlayback,
   bridgeGetProgress,
@@ -835,9 +838,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         }
 
         const clearLoadingAfterTimeout = async () => {
-          if (hiddenAudioActiveRef.current || Platform.OS === "ios") {
+          if (hiddenAudioActiveRef.current || isHiddenAudioNativePlaybackEnabled()) {
             try {
-              if (Platform.OS === "ios" && isHiddenAudioEnabledOnIOS()) {
+              if (isHiddenAudioNativePlaybackEnabled()) {
                 const snapshot = await bridgeProbeNativePlayback();
                 if (nativeSnapshotIndicatesLoadedPlayback(snapshot) && snapshot?.isPlaying) {
                   markHiddenAudioBridgeActive(true);
@@ -920,7 +923,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       logPlayerContextDebug("hidden_audio_state_sync_start", { reason });
 
       try {
-        if (Platform.OS === "ios" && isHiddenAudioEnabledOnIOS()) {
+        if (isHiddenAudioNativePlaybackEnabled()) {
           const snapshot = await bridgeProbeNativePlayback();
           if (nativeSnapshotIndicatesLoadedPlayback(snapshot)) {
             markHiddenAudioBridgeActive(true);
@@ -1144,7 +1147,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const reconcileHiddenAudioActiveState = useCallback(
     async (source: string) => {
-      if (Platform.OS !== "ios" || !isHiddenAudioEnabledOnIOS()) {
+      if (!isHiddenAudioNativePlaybackEnabled()) {
         return hiddenAudioActiveRef.current;
       }
 
@@ -1431,7 +1434,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   );
 
   const resyncForegroundHiddenAudioState = useCallback(async () => {
-    if (Platform.OS !== "ios" || !isHiddenAudioEnabledOnIOS()) {
+    if (!isHiddenAudioNativePlaybackEnabled()) {
       logLockscreenPlaybackDiagnostic("foreground_sync_complete", {
         skipped: true,
         reason: "not_ios_hidden_audio",
@@ -1966,9 +1969,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const unloadCurrentSound = useCallback(async (reason = "unload_current_sound") => {
-    if (hiddenAudioActiveRef.current || Platform.OS === "ios") {
+    if (hiddenAudioActiveRef.current || isHiddenAudioNativePlaybackEnabled()) {
       let nativeSnapshot: HiddenAudioNativeSnapshot | null = null;
-      if (Platform.OS === "ios" && isHiddenAudioEnabledOnIOS()) {
+      if (isHiddenAudioNativePlaybackEnabled()) {
         try {
           nativeSnapshot = await bridgeProbeNativePlayback();
         } catch {
@@ -3383,7 +3386,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const extended = await extendQueueWithSmartTracksRef.current?.();
 
     if (!extended) {
-      if (Platform.OS === "ios" && isHiddenAudioEnabledOnIOS()) {
+      if (isHiddenAudioNativePlaybackEnabled()) {
         try {
           const snapshot = await bridgeProbeNativePlayback();
           if (nativeSnapshotIndicatesLoadedPlayback(snapshot) && snapshot?.isPlaying) {
@@ -3729,7 +3732,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             });
 
             let preserveNativePlayback = false;
-            if (Platform.OS === "ios" && isHiddenAudioEnabledOnIOS()) {
+            if (isHiddenAudioNativePlaybackEnabled()) {
               try {
                 const existingSnapshot = await bridgeProbeNativePlayback();
                 const nativeEnded = nativeSnapshotIsEnded(existingSnapshot);
@@ -5154,7 +5157,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      if (Platform.OS === "ios" && isHiddenAudioEnabledOnIOS()) {
+      if (isHiddenAudioNativePlaybackEnabled()) {
         const [savedActiveQueue, savedActiveQueueIndex, savedActiveQueueMode, savedActiveQueueContext] =
           await Promise.all([
             AsyncStorage.getItem(ACTIVE_QUEUE_KEY),
@@ -5392,7 +5395,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       }
 
       if (!hiddenAudioActiveRef.current) {
-        if (Platform.OS === "ios" && isHiddenAudioEnabledOnIOS()) {
+        if (isHiddenAudioNativePlaybackEnabled()) {
           const snapshot = await bridgeProbeNativePlayback();
           if (!nativeSnapshotIndicatesLoadedPlayback(snapshot)) {
             return;
@@ -5734,7 +5737,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         });
       }
 
-      if (nativeEventName === "ios_remote_command_received") {
+      if (
+        nativeEventName === "ios_remote_command_received" ||
+        nativeEventName === "android_remote_command_received"
+      ) {
         const command = String((data as Record<string, unknown>).command || "");
         void handleIosRemoteLockscreenCommand(command, data as Record<string, unknown>);
       }
@@ -5799,7 +5805,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     void (async () => {
       if (cancelled) return;
 
-      if (Platform.OS === "ios" && isHiddenAudioEnabledOnIOS()) {
+      if (isHiddenAudioNativePlaybackEnabled()) {
         const hydrated = await hydrateJsPlaybackSessionFromStorage();
         if (hydrated) {
           logLockscreenPlaybackDiagnostic(
@@ -5822,7 +5828,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         "player_restore_saved_data_light",
         async () => {
           await restoreSavedDataLight();
-          if (Platform.OS === "ios" && isHiddenAudioEnabledOnIOS()) {
+          if (isHiddenAudioNativePlaybackEnabled()) {
             await resyncForegroundHiddenAudioState();
           }
         }
@@ -5882,7 +5888,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     void (async () => {
-      if (Platform.OS === "ios" && isHiddenAudioEnabledOnIOS()) {
+      if (isHiddenAudioNativePlaybackEnabled()) {
         if (!currentSongRef.current || activeQueueRef.current.length === 0) {
           const hydrated = await hydrateJsPlaybackSessionFromStorage();
           if (hydrated) {
@@ -6104,7 +6110,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         configureAudio("app_state_active");
         void applyProgressUpdateInterval("app_state_active");
         void (async () => {
-          if (Platform.OS === "ios" && isHiddenAudioEnabledOnIOS()) {
+          if (isHiddenAudioNativePlaybackEnabled()) {
             if (!currentSongRef.current || activeQueueRef.current.length === 0) {
               const hydrated = await hydrateJsPlaybackSessionFromStorage();
               if (hydrated) {

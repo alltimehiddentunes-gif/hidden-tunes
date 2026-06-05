@@ -6,6 +6,9 @@ import { Platform } from "react-native";
  */
 export const USE_NATIVE_HIDDEN_AUDIO_ON_IOS = true;
 
+/** Android native hidden_audio engine (ExoPlayer + foreground service). */
+export const USE_NATIVE_HIDDEN_AUDIO_ON_ANDROID = true;
+
 /** B1.1 reliability instrumentation (main-thread only). */
 export const ENABLE_PLAYBACK_RELIABILITY_DIAGNOSTICS = false;
 
@@ -34,6 +37,14 @@ export function isHiddenAudioPocRoute(pathname: string): boolean {
 
 export function isHiddenAudioEnabledOnIOS(): boolean {
   return Platform.OS === "ios" && USE_NATIVE_HIDDEN_AUDIO_ON_IOS;
+}
+
+export function isHiddenAudioEnabledOnAndroid(): boolean {
+  return Platform.OS === "android" && USE_NATIVE_HIDDEN_AUDIO_ON_ANDROID;
+}
+
+export function isHiddenAudioNativePlaybackEnabled(): boolean {
+  return isHiddenAudioEnabledOnIOS() || isHiddenAudioEnabledOnAndroid();
 }
 
 export function isPlaybackReliabilityDiagnosticsEnabled(): boolean {

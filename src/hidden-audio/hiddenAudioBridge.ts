@@ -231,7 +231,10 @@ export async function getHiddenAudioNativeSnapshot(): Promise<HiddenAudioNativeS
 }
 
 export function isHiddenAudioNativeEngineAvailable(): boolean {
-  return Platform.OS === "ios" && Boolean(HiddenAudioNative?.loadTrack);
+  return (
+    (Platform.OS === "ios" || Platform.OS === "android") &&
+    Boolean(HiddenAudioNative?.loadTrack)
+  );
 }
 
 export function subscribeHiddenAudioPlaybackEnded(

@@ -1,6 +1,6 @@
 import { AppStateStatus } from "react-native";
 
-import { isHiddenAudioEnabledOnIOS } from "../constants/playbackConfig";
+import { isHiddenAudioNativePlaybackEnabled } from "../constants/playbackConfig";
 import {
   getHiddenAudioNativeSnapshot,
   hiddenAudioBridge,
@@ -174,14 +174,14 @@ export function subscribeBridgeEvents(
 export function subscribeHiddenAudioEnded(
   handler: (event: HiddenAudioEndedEvent) => void
 ): () => void {
-  if (!isHiddenAudioEnabledOnIOS()) return () => {};
+  if (!isHiddenAudioNativePlaybackEnabled()) return () => {};
   return subscribeHiddenAudioPlaybackEnded(handler);
 }
 
 export function subscribeHiddenAudioDiagnostics(
   handler: (event: HiddenAudioDiagnosticEvent) => void
 ): () => void {
-  if (!isHiddenAudioEnabledOnIOS()) return () => {};
+  if (!isHiddenAudioNativePlaybackEnabled()) return () => {};
   return subscribeHiddenAudioNativeDiagnostics(handler);
 }
 
@@ -216,7 +216,7 @@ export async function bridgeTryUserTapFastPlay(_options: {
 }
 
 export function isHiddenAudioPlaybackActive(): boolean {
-  return hiddenAudioBridgeActive && isHiddenAudioEnabledOnIOS();
+  return hiddenAudioBridgeActive && isHiddenAudioNativePlaybackEnabled();
 }
 
 export function markHiddenAudioBridgeActive(active = true): void {
@@ -224,12 +224,12 @@ export function markHiddenAudioBridgeActive(active = true): void {
 }
 
 export async function bridgeProbeNativePlayback(): Promise<HiddenAudioNativeSnapshot | null> {
-  if (!isHiddenAudioEnabledOnIOS()) return null;
+  if (!isHiddenAudioNativePlaybackEnabled()) return null;
   return getHiddenAudioNativeSnapshot();
 }
 
 export async function shouldUseHiddenAudioPlayback(): Promise<boolean> {
-  if (!isHiddenAudioEnabledOnIOS()) return false;
+  if (!isHiddenAudioNativePlaybackEnabled()) return false;
   return isHiddenAudioNativeEngineAvailable();
 }
 
@@ -329,7 +329,7 @@ export async function bridgeUpdateRemoteQueueAvailability(options: {
   activeIndex: number;
   queueLength: number;
 }): Promise<void> {
-  if (!isHiddenAudioEnabledOnIOS()) return;
+  if (!isHiddenAudioNativePlaybackEnabled()) return;
   await updateHiddenAudioRemoteQueueAvailability(
     options.activeIndex,
     options.queueLength
@@ -344,7 +344,7 @@ export async function bridgeHiddenAudioUpdateNowPlaying(options: {
   positionSeconds?: number;
   artworkUrl?: string;
 }): Promise<void> {
-  if (!isHiddenAudioEnabledOnIOS()) return;
+  if (!isHiddenAudioNativePlaybackEnabled()) return;
 
   await hiddenAudioBridge.updateNowPlaying({
     title: options.title,
