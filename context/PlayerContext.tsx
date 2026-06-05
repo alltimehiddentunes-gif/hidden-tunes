@@ -3033,6 +3033,42 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       isBackgroundAppState(appStateRef.current) &&
       backgroundAdvanceFromNativeEndRef.current;
 
+    const naturalBackgroundQueueEnd =
+      hiddenAudioActiveRef.current &&
+      isBackgroundAppState(appStateRef.current) &&
+      nextIndex === -1 &&
+      repeatModeRef.current === "off";
+
+    if (
+      naturalBackgroundQueueEnd &&
+      !backgroundAdvanceFromNativeEndRef.current
+    ) {
+      logLockscreenPlaybackDiagnostic("schedule_track_advance_no_next_track", {
+        source: "scheduleTrackAdvance",
+        songId: currentSongRef.current?.id || null,
+        queueLength: queue.length,
+        currentIndex: safeIndex,
+        nextIndex,
+        repeatMode: repeatModeRef.current,
+      });
+      logLockscreenPlaybackDiagnostic("background_queue_ended_naturally", {
+        songId: currentSongRef.current?.id || null,
+        queueLength: queue.length,
+        currentIndex: safeIndex,
+        repeatMode: repeatModeRef.current,
+        smartAutoplayEnabled: smartAutoplayEnabledRef.current,
+      });
+      logLockscreenPlaybackDiagnostic("background_unexpected_stop_suppressed_queue_end", {
+        source: "scheduleTrackAdvance_blocked_background",
+        songId: currentSongRef.current?.id || null,
+        appState: appStateRef.current,
+      });
+
+      if (!smartAutoplayEnabledRef.current) {
+        return;
+      }
+    }
+
     if (
       hiddenAudioActiveRef.current &&
       isBackgroundAppState(appStateRef.current) &&
@@ -3050,6 +3086,23 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       return;
     }
     backgroundAdvanceFromNativeEndRef.current = false;
+
+    if (backgroundNativeEndAdvance && nextIndex === -1 && repeatModeRef.current === "off") {
+      logLockscreenPlaybackDiagnostic("schedule_track_advance_no_next_track", {
+        source: "scheduleTrackAdvance",
+        songId: currentSongRef.current?.id || null,
+        queueLength: queue.length,
+        currentIndex: safeIndex,
+        nextIndex,
+        repeatMode: repeatModeRef.current,
+      });
+      logLockscreenPlaybackDiagnostic("background_queue_ended_naturally", {
+        songId: currentSongRef.current?.id || null,
+        queueLength: queue.length,
+        currentIndex: safeIndex,
+        smartAutoplayEnabled: smartAutoplayEnabledRef.current,
+      });
+    }
 
     if (backgroundNativeEndAdvance && nextIndex !== -1) {
       logLockscreenPlaybackDiagnostic("background_auto_next_load_allowed", {
