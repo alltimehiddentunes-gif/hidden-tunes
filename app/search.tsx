@@ -56,11 +56,19 @@ import { UNIVERSAL_SEARCH_EMPTY_SUGGESTIONS } from "../utils/universalSearch";
 import {
   buildRelatedInternalDiscovery,
   buildSearchStations,
+  getApkSearchRankingDiagnostics,
   hasInternalGroupedResults,
+  rankApkAlbumResults,
+  rankApkArtistResults,
+  rankApkGenreResults,
+  rankApkSongResults,
+  rankApkStationResults,
+  rankSearchSongs,
   songsFromSearchHits,
+  unwrapRankedSearchItems,
   type SearchStationResult,
 } from "../utils/searchApkParity";
-import { logSearchDiagnostic } from "../utils/searchDiagnostics";
+import { logSearchDiagnostic, logSearchRankingDiagnostics } from "../utils/searchDiagnostics";
 import { logEntityTapReceived } from "../utils/entityDiagnostics";
 import { resolveStationEntity } from "../utils/entityResolution";
 import { markFastScrolling } from "../utils/performanceMode";
@@ -507,19 +515,24 @@ export default function SearchScreen() {
       ...internalSongs,
       ...songs.filter((song) => textMatchesQuery(catalogSongSearchText(song), cleanSubmittedSearchQuery)),
     ]);
-    return merged;
+    return unwrapRankedSearchItems(rankSearchSongs(merged, cleanSubmittedSearchQuery));
   }, [cleanSubmittedSearchQuery, internalSearchResults, songs]);
 
 
-  const apkSongResults = useMemo(() => {
-    if (cleanSubmittedSearchQuery.length < 2) return [] as HiddenTunesSong[];
+  const apkSongRanked = useMemo(() => {
+    if (cleanSubmittedSearchQuery.length < 2) return [] as ReturnType<typeof rankApkSongResults>;
     const direct = dedupeSongs(searchResultSongs);
     const needsRelated = direct.length < 4;
     const related = needsRelated
       ? buildRelatedInternalDiscovery(cleanSubmittedSearchQuery, songs, direct, 28)
       : [];
-    return dedupeSongs([...direct, ...related]).slice(0, 36);
+    return rankApkSongResults(direct, cleanSubmittedSearchQuery, related);
   }, [cleanSubmittedSearchQuery, searchResultSongs, songs]);
+
+  const apkSongResults = useMemo(
+    () => apkSongRanked.map((entry) => entry.item),
+    [apkSongRanked]
+  );
 
   const apkAlbumResults = useMemo(() => {
     if (cleanSubmittedSearchQuery.length < 2) return [] as HiddenTunesAlbumCatalogItem[];
@@ -539,14 +552,13 @@ export default function SearchScreen() {
       textMatchesQuery(`${album.title} ${album.artist}`, cleanSubmittedSearchQuery)
     );
     const seen = new Set<string>();
-    return [...fromSearch, ...fromCatalog]
-      .filter((album) => {
-        const key = String(album.id || `${album.title}-${album.artist}`);
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      })
-      .slice(0, 12);
+    const merged = [...fromSearch, ...fromCatalog].filter((album) => {
+      const key = String(album.id || `${album.title}-${album.artist}`);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    return rankApkAlbumResults(merged, cleanSubmittedSearchQuery);
   }, [albums, cleanSubmittedSearchQuery, internalSearchResults.albums]);
 
   const apkArtistResults = useMemo(() => {
@@ -558,14 +570,13 @@ export default function SearchScreen() {
       textMatchesQuery(artist.name, cleanSubmittedSearchQuery)
     );
     const seen = new Set<string>();
-    return [...fromSearch, ...fromCatalog]
-      .filter((artist) => {
-        const key = String(artist.id || artist.name);
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      })
-      .slice(0, 12);
+    const merged = [...fromSearch, ...fromCatalog].filter((artist) => {
+      const key = String(artist.id || artist.name);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    return rankApkArtistResults(merged, cleanSubmittedSearchQuery);
   }, [artists, cleanSubmittedSearchQuery, internalSearchResults.artists]);
 
   const apkRoomResults = useMemo(() => {
@@ -578,14 +589,13 @@ export default function SearchScreen() {
       .map((title) => genres.find((genre) => textMatchesQuery(genre.title, title)) || null)
       .filter(Boolean) as HiddenTunesGenreCatalogItem[];
     const seen = new Set<string>();
-    return [...fromCatalog, ...fromRooms]
-      .filter((genre) => {
-        const key = String(genre.id || genre.title);
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      })
-      .slice(0, 12);
+    const merged = [...fromCatalog, ...fromRooms].filter((genre) => {
+      const key = String(genre.id || genre.title);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    return rankApkGenreResults(merged, cleanSubmittedSearchQuery);
   }, [cleanSubmittedSearchQuery, genres, internalSearchResults.moodRooms]);
 
   const apkPlaylistResults = useMemo(() => {
@@ -601,7 +611,10 @@ export default function SearchScreen() {
       id: hit.payload.id,
       title: hit.payload.title,
     }));
-    return buildSearchStations(cleanSubmittedSearchQuery, genres, moodRooms);
+    return rankApkStationResults(
+      buildSearchStations(cleanSubmittedSearchQuery, genres, moodRooms),
+      cleanSubmittedSearchQuery
+    );
   }, [cleanSubmittedSearchQuery, genres, internalSearchResults.moodRooms]);
 
   const apkExternalAudioResults = useMemo(() => {
@@ -627,6 +640,7 @@ export default function SearchScreen() {
     apkPlaylistResults.length,
     apkRoomResults.length,
     apkSongResults.length,
+    apkSongRanked.length,
     apkStationResults.length,
     audioSearchResults.internetAudio,
     hasInternalCatalogResults,
@@ -933,6 +947,9 @@ export default function SearchScreen() {
       playlistHits: internalSearchResults.playlists.length,
     });
     logSearchDiagnostic("search_song_results", { count: apkSongResults.length, query: cleanSubmittedSearchQuery });
+    logSearchRankingDiagnostics(
+      getApkSearchRankingDiagnostics(cleanSubmittedSearchQuery, apkSongRanked)
+    );
     logSearchDiagnostic("search_album_results", { count: apkAlbumResults.length, query: cleanSubmittedSearchQuery });
     logSearchDiagnostic("search_artist_results", { count: apkArtistResults.length, query: cleanSubmittedSearchQuery });
     logSearchDiagnostic("search_room_results", { count: apkRoomResults.length, query: cleanSubmittedSearchQuery });
@@ -954,6 +971,7 @@ export default function SearchScreen() {
     apkResultCount,
     apkRoomResults.length,
     apkSongResults.length,
+    apkSongRanked.length,
     apkStationResults.length,
     cleanSubmittedSearchQuery,
     hasInternalCatalogResults,

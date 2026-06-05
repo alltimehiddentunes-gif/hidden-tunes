@@ -8,11 +8,16 @@ export type SearchDiagnosticEvent =
   | "search_station_results"
   | "search_external_fallback_used"
   | "search_empty_state_shown"
-  | "search_result_tapped";
+  | "search_result_tapped"
+  | "search_ranking_applied"
+  | "search_top_result"
+  | "search_result_score"
+  | "search_direct_match_count"
+  | "search_fallback_demoted";
 
 export type SearchDiagnosticDetails = Record<
   string,
-  string | number | boolean | undefined
+  string | number | boolean | undefined | null
 >;
 
 import { isVerbosePlaybackDiagnosticsEnabled } from "./devDiagnostics";
@@ -30,4 +35,35 @@ export function logSearchDiagnostic(
     at: Date.now(),
     ...details,
   });
+}
+
+export function logSearchRankingDiagnostics(details: SearchDiagnosticDetails = {}) {
+  logSearchDiagnostic("search_ranking_applied", details);
+  if (details.topResult) {
+    logSearchDiagnostic("search_top_result", {
+      query: details.query,
+      topResult: details.topResult,
+      topScore: details.topScore,
+      topReason: details.topReason,
+    });
+  }
+  if (typeof details.topScore === "number") {
+    logSearchDiagnostic("search_result_score", {
+      query: details.query,
+      topScore: details.topScore,
+      topReason: details.topReason,
+    });
+  }
+  if (typeof details.directMatchCount === "number") {
+    logSearchDiagnostic("search_direct_match_count", {
+      query: details.query,
+      count: details.directMatchCount,
+    });
+  }
+  if (typeof details.fallbackDemotedCount === "number") {
+    logSearchDiagnostic("search_fallback_demoted", {
+      query: details.query,
+      count: details.fallbackDemotedCount,
+    });
+  }
 }

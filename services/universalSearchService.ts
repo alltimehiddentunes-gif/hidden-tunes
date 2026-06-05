@@ -85,8 +85,8 @@ const LIMITS = {
   lyricScan: 6000,
 };
 
-const BACKEND_TRUSTED_SCORE = 6800;
-const EXTERNAL_TRUSTED_SCORE = 2400;
+const BACKEND_TRUSTED_SCORE = 4500;
+const EXTERNAL_TRUSTED_SCORE = 100;
 
 const MOOD_ROOM_DEFINITIONS: Array<{ id: string; title: string; terms: string[] }> = [
   { id: "healing", title: "Healing Room", terms: ["healing", "heal", "restore", "peace"] },
@@ -620,14 +620,15 @@ export function buildTrustedBackendSongHits(
     seenSongs.add(songId);
 
     const metadata = scoreCatalogSongMatch(song, cleanQuery);
-    const score = metadata?.score ?? BACKEND_TRUSTED_SCORE;
+    if (!metadata) continue;
+    const score = metadata.score;
 
     songHits.push(
       mapSongHit(
         song,
-        Math.max(score, BACKEND_TRUSTED_SCORE),
-        metadata ? catalogReasonToUniversal(metadata.matchReason) : "Matched title",
-        metadata?.matchReason || "title_contains",
+        score,
+        catalogReasonToUniversal(metadata.matchReason),
+        metadata.matchReason,
         "song"
       )
     );
@@ -643,7 +644,7 @@ export function buildTrustedBackendSongHits(
       seenArtists.add(artistKey);
       artistHits.push({
         id: `artist:trusted:${artistKey}`,
-        score: Math.max(score, BACKEND_TRUSTED_SCORE) + 200,
+        score: score + 200,
         reason: "Matched artist",
         payload: {
           id: artistKey,

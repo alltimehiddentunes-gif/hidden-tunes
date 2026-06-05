@@ -179,3 +179,119 @@ export function buildSearchStations(
 export function toNormalizedSongList(songs: HiddenTunesSong[]) {
   return songs as unknown as HiddenTunesNormalizedSong[];
 }
+
+import type {
+  HiddenTunesAlbumCatalogItem,
+  HiddenTunesArtistCatalogItem,
+  HiddenTunesGenreCatalogItem,
+} from "../services/hiddenTunes";
+import {
+  countDirectSearchMatches,
+  countFallbackDemoted,
+  rankSearchItems,
+  rankSearchSongs,
+  unwrapRankedSearchItems,
+  type RankedSearchItem,
+} from "./searchRanking";
+
+export function rankApkSongResults(
+  songs: HiddenTunesSong[],
+  query: string,
+  relatedSongs: HiddenTunesSong[] = []
+) {
+  const direct = rankSearchSongs(songs, query, { limit: 48 });
+  const directIds = new Set(direct.map((entry) => String(entry.item.id || "")));
+
+  const related = rankSearchSongs(
+    relatedSongs.filter((song) => !directIds.has(String(song.id || ""))),
+    query,
+    { limit: 28, isRelatedFallback: true }
+  );
+
+  return [...direct, ...related].slice(0, 36);
+}
+
+export function rankApkAlbumResults(
+  albums: HiddenTunesAlbumCatalogItem[],
+  query: string,
+  limit = 12
+) {
+  return unwrapRankedSearchItems(
+    rankSearchItems(albums, query, {
+      limit,
+      getScoreItem: (album) => ({
+        title: album.title,
+        artist: album.artist,
+        album: album.title,
+      }),
+    })
+  );
+}
+
+export function rankApkArtistResults(
+  artists: HiddenTunesArtistCatalogItem[],
+  query: string,
+  limit = 12
+) {
+  return unwrapRankedSearchItems(
+    rankSearchItems(artists, query, {
+      limit,
+      getScoreItem: (artist) => ({
+        artist: artist.name,
+        name: artist.name,
+        title: artist.name,
+      }),
+    })
+  );
+}
+
+export function rankApkGenreResults(
+  genres: HiddenTunesGenreCatalogItem[],
+  query: string,
+  limit = 12
+) {
+  return unwrapRankedSearchItems(
+    rankSearchItems(genres, query, {
+      limit,
+      getScoreItem: (genre) => ({
+        title: genre.title,
+        genre: genre.title,
+      }),
+    })
+  );
+}
+
+export function rankApkStationResults(stations: SearchStationResult[], query: string) {
+  return unwrapRankedSearchItems(
+    rankSearchItems(stations, query, {
+      limit: 12,
+      getScoreItem: (station) => ({
+        title: station.title,
+        genre: station.title,
+        mood: station.kind === "room" ? station.title : undefined,
+      }),
+    })
+  );
+}
+
+export function getApkSearchRankingDiagnostics<T extends { artist?: unknown; title?: unknown; name?: unknown }>(
+  query: string,
+  ranked: RankedSearchItem<T>[]
+) {
+  const top = ranked[0];
+  return {
+    query,
+    topResult:
+      String(top?.item?.title || top?.item?.name || top?.item?.artist || "") || null,
+    topScore: top?.score ?? 0,
+    topReason: top?.reason ?? "none",
+    directMatchCount: countDirectSearchMatches(ranked),
+    fallbackDemotedCount: countFallbackDemoted(ranked),
+    resultCount: ranked.length,
+  };
+}
+
+export {
+  rankSearchSongs,
+  unwrapRankedSearchItems,
+} from "./searchRanking";
