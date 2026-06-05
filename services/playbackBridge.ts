@@ -4,6 +4,7 @@ import { isHiddenAudioEnabledOnIOS } from "../constants/playbackConfig";
 import {
   getHiddenAudioNativeSnapshot,
   hiddenAudioBridge,
+  updateHiddenAudioRemoteQueueAvailability,
   isHiddenAudioNativeEngineAvailable,
   subscribeHiddenAudioNativeDiagnostics,
   subscribeHiddenAudioPlaybackEnded,
@@ -322,6 +323,17 @@ export async function bridgeHiddenAudioPlay(): Promise<void> {
 export async function bridgeHiddenAudioPause(): Promise<void> {
   if (!isHiddenAudioPlaybackActive()) return;
   await hiddenAudioBridge.pause();
+}
+
+export async function bridgeUpdateRemoteQueueAvailability(options: {
+  activeIndex: number;
+  queueLength: number;
+}): Promise<void> {
+  if (!isHiddenAudioEnabledOnIOS()) return;
+  await updateHiddenAudioRemoteQueueAvailability(
+    options.activeIndex,
+    options.queueLength
+  );
 }
 
 export async function bridgeHiddenAudioUpdateNowPlaying(options: {

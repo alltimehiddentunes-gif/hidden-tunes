@@ -15,6 +15,11 @@ RCT_EXTERN_METHOD(loadQueue:(NSArray *)tracks
                   resolver:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject)
 
+RCT_EXTERN_METHOD(updateRemoteQueueAvailability:(nonnull NSNumber *)activeIndex
+                  queueLength:(nonnull NSNumber *)queueLength
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
+
 RCT_EXTERN_METHOD(play:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject)
 

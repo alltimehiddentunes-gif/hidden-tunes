@@ -96,6 +96,10 @@ type HiddenAudioNativeTrack = {
 
 type HiddenAudioNativeModule = {
   loadTrack(track: HiddenAudioNativeTrack): Promise<void>;
+  updateRemoteQueueAvailability?(
+    activeIndex: number,
+    queueLength: number
+  ): Promise<void>;
   play(): Promise<void>;
   resume?: () => Promise<void>;
   pause(): Promise<void>;
@@ -251,6 +255,14 @@ export function subscribeHiddenAudioPlaybackEnded(
     }
   );
   return () => subscription.remove();
+}
+
+export async function updateHiddenAudioRemoteQueueAvailability(
+  activeIndex: number,
+  queueLength: number
+): Promise<void> {
+  if (!HiddenAudioNative?.updateRemoteQueueAvailability) return;
+  await HiddenAudioNative.updateRemoteQueueAvailability(activeIndex, queueLength);
 }
 
 export function subscribeHiddenAudioNativeDiagnostics(

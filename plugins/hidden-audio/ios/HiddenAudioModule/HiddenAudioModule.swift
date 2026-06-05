@@ -31,6 +31,8 @@ class HiddenAudioModule: RCTEventEmitter {
   private var wasPlayingBeforeInterruption = false
   private var backgroundEnteredAt: TimeInterval = 0
   private var isAppInBackground = false
+  private var jsQueueLength = 0
+  private var jsActiveIndex = -1
   private var lastBackgroundRecoveryAt: TimeInterval = 0
 
   override static func requiresMainQueueSetup() -> Bool {
@@ -111,6 +113,25 @@ class HiddenAudioModule: RCTEventEmitter {
       emitNativeError(error.localizedDescription)
       reject("HIDDEN_AUDIO_LOAD_QUEUE_FAILED", error.localizedDescription, error)
     }
+  }
+
+  @objc(updateRemoteQueueAvailability:queueLength:resolver:rejecter:)
+  func updateRemoteQueueAvailability(
+    activeIndex: NSNumber,
+    queueLength: NSNumber,
+    resolver resolve: RCTPromiseResolveBlock,
+    rejecter reject: RCTPromiseRejectBlock
+  ) {
+    jsActiveIndex = activeIndex.intValue
+    jsQueueLength = max(0, queueLength.intValue)
+    emitDiagnostic("hidden_audio_remote_queue_availability_synced", [
+      "jsActiveIndex": jsActiveIndex,
+      "jsQueueLength": jsQueueLength,
+      "nativeQueueLength": queue.count,
+      "nativeActiveIndex": self.activeIndex
+    ])
+    updateRemoteCommandAvailability()
+    resolve(nil)
   }
 
   @objc(play:rejecter:)
@@ -641,20 +662,32 @@ class HiddenAudioModule: RCTEventEmitter {
         self?.emitRemoteCommandResult("play", success: false, reason: "no_player")
         return .commandFailed
       }
+      self.emitDiagnostic("remote_command_received", [
+        "command": "play"
+      ])
       self.emitDiagnostic("ios_remote_command_received", [
         "command": "play"
       ])
       self.emitDiagnostic("remote_play_received")
+      self.emitDiagnostic("remote_command_dispatched_to_js", [
+        "command": "play"
+      ])
       do {
         try self.activateAudioSession()
       } catch {
         self.emitRemoteCommandResult("play", success: false, reason: error.localizedDescription)
         return .commandFailed
       }
+      self.playerStatus = "buffering"
       self.player?.play()
       self.shouldResumeAfterItemLoad = true
       self.startProgressObserver()
+      self.updateNowPlayingInfo()
+      self.emitState()
       self.confirmPlayingIfNeeded()
+      self.emitDiagnostic("remote_command_native_action_success", [
+        "command": "play"
+      ])
       self.emitRemoteCommandResult("play", success: true)
       return .success
     }
@@ -664,16 +697,25 @@ class HiddenAudioModule: RCTEventEmitter {
         self?.emitRemoteCommandResult("pause", success: false, reason: "no_player")
         return .commandFailed
       }
+      self.emitDiagnostic("remote_command_received", [
+        "command": "pause"
+      ])
       self.emitDiagnostic("ios_remote_command_received", [
         "command": "pause"
       ])
       self.emitDiagnostic("remote_pause_received")
+      self.emitDiagnostic("remote_command_dispatched_to_js", [
+        "command": "pause"
+      ])
       self.player?.pause()
       self.shouldResumeAfterItemLoad = false
       self.playerStatus = "paused"
       self.stopProgressObserver()
       self.updateNowPlayingInfo()
       self.emitState()
+      self.emitDiagnostic("remote_command_native_action_success", [
+        "command": "pause"
+      ])
       self.emitRemoteCommandResult("pause", success: true)
       return .success
     }
@@ -714,15 +756,22 @@ class HiddenAudioModule: RCTEventEmitter {
 
     commandCenter.nextTrackCommand.addTarget { [weak self] _ in
       guard let self = self else { return .commandFailed }
-      self.emitDiagnostic("ios_remote_command_received", [
+      let effectiveQueueLength = max(self.queue.count, self.jsQueueLength)
+      let effectiveIndex = self.jsQueueLength > 0 ? self.jsActiveIndex : self.activeIndex
+      self.emitDiagnostic("remote_command_received", [
         "command": "next"
       ])
+      self.emitDiagnostic("ios_remote_command_received", [
+        "command": "next",
+        "activeIndex": effectiveIndex,
+        "queueLength": effectiveQueueLength
+      ])
       self.emitDiagnostic("remote_next_received", [
-        "activeIndex": self.activeIndex,
-        "queueLength": self.queue.count,
+        "activeIndex": effectiveIndex,
+        "queueLength": effectiveQueueLength,
         "forwardedTo": "js_shared_next"
       ])
-      self.emitDiagnostic("remote_command_forwarded_to_js", [
+      self.emitDiagnostic("remote_command_dispatched_to_js", [
         "command": "next"
       ])
       return .success
@@ -730,15 +779,22 @@ class HiddenAudioModule: RCTEventEmitter {
 
     commandCenter.previousTrackCommand.addTarget { [weak self] _ in
       guard let self = self else { return .commandFailed }
-      self.emitDiagnostic("ios_remote_command_received", [
+      let effectiveQueueLength = max(self.queue.count, self.jsQueueLength)
+      let effectiveIndex = self.jsQueueLength > 0 ? self.jsActiveIndex : self.activeIndex
+      self.emitDiagnostic("remote_command_received", [
         "command": "previous"
       ])
+      self.emitDiagnostic("ios_remote_command_received", [
+        "command": "previous",
+        "activeIndex": effectiveIndex,
+        "queueLength": effectiveQueueLength
+      ])
       self.emitDiagnostic("remote_previous_received", [
-        "activeIndex": self.activeIndex,
-        "queueLength": self.queue.count,
+        "activeIndex": effectiveIndex,
+        "queueLength": effectiveQueueLength,
         "forwardedTo": "js_shared_previous"
       ])
-      self.emitDiagnostic("remote_command_forwarded_to_js", [
+      self.emitDiagnostic("remote_command_dispatched_to_js", [
         "command": "previous"
       ])
       return .success
@@ -770,8 +826,12 @@ class HiddenAudioModule: RCTEventEmitter {
   private func updateRemoteCommandAvailability() {
     guard remoteCommandsRegistered else { return }
     let commandCenter = MPRemoteCommandCenter.shared()
-    commandCenter.nextTrackCommand.isEnabled = activeIndex + 1 < queue.count
-    commandCenter.previousTrackCommand.isEnabled = activeIndex > 0 || player != nil
+    let effectiveQueueLength = max(queue.count, jsQueueLength)
+    let effectiveIndex = jsQueueLength > 0 ? jsActiveIndex : activeIndex
+    let hasNext = effectiveIndex >= 0 && effectiveIndex + 1 < effectiveQueueLength
+    let hasPrevious = effectiveIndex > 0 || player != nil
+    commandCenter.nextTrackCommand.isEnabled = hasNext
+    commandCenter.previousTrackCommand.isEnabled = hasPrevious
     commandCenter.changePlaybackPositionCommand.isEnabled = player != nil
     commandCenter.playCommand.isEnabled = player != nil
     commandCenter.pauseCommand.isEnabled = player != nil

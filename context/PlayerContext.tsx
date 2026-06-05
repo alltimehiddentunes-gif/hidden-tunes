@@ -41,6 +41,7 @@ import {
   bridgeHiddenAudioPause,
   bridgeHiddenAudioPlay,
   bridgeHiddenAudioUpdateNowPlaying,
+  bridgeUpdateRemoteQueueAvailability,
   bridgeProbeNativePlayback,
   bridgeSeekTo,
   bridgeSyncRepeatMode,
@@ -824,6 +825,31 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     [clearLoadingRecoveryTimeout, setIsLoading, setIsPlaying]
   );
 
+
+  const syncNativeRemoteQueueAvailability = useCallback(async () => {
+    if (!isHiddenAudioEnabledOnIOS()) return;
+
+    const queue = activeQueueRef.current;
+    const safeIndex = activeQueueIndexRef.current;
+    if (!queue.length) return;
+
+    try {
+      await bridgeUpdateRemoteQueueAvailability({
+        activeIndex: safeIndex,
+        queueLength: queue.length,
+      });
+      logLockscreenPlaybackDiagnostic("remote_queue_availability_synced", {
+        activeIndex: safeIndex,
+        queueLength: queue.length,
+      });
+    } catch (error) {
+      logLockscreenPlaybackDiagnostic("remote_queue_availability_sync_failed", {
+        message: String(error),
+        activeIndex: safeIndex,
+        queueLength: queue.length,
+      });
+    }
+  }, []);
 
   const syncHiddenAudioState = useCallback(
     async (reason: string) => {
@@ -2005,8 +2031,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         void persistActiveQueue(normalizedQueue, safeIndex, mode, normalizedContext);
         void saveSmartQueue(normalizedQueue as any);
       });
+
+      void syncNativeRemoteQueueAvailability();
     },
-    [normalizeSong, isYouTubeSong, persistActiveQueue, deferPlaybackStartWork]
+    [normalizeSong, isYouTubeSong, persistActiveQueue, deferPlaybackStartWork, syncNativeRemoteQueueAvailability]
   );
 
   const persistYouTubeQueue = useCallback(
@@ -2101,7 +2129,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     []
   );
   const getActiveQueuePlaybackState = useCallback(() => {
-    const queue = activeQueueRef.current.filter((song) => !isYouTubeSong(song));
+  
+  const queue = activeQueueRef.current.filter((song) => !isYouTubeSong(song));
     const currentId = currentSongRef.current?.id;
     const currentIndex = currentId
       ? queue.findIndex((song) => song.id === currentId)
@@ -2393,8 +2422,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     [clearFinishWatchdog, clearPreloadedSound, setIsPlaying]
   );
 
-  const nextSong = useCallback(async () => {
-    if (!queueControlTapGuardRef.current("next_song")) return;
+  const nextSong = useCallback(async (options?: { source?: "remote" | "app" }) => {
+    if (options?.source !== "remote" && !queueControlTapGuardRef.current("next_song")) return;
     logLockscreenPlaybackDiagnostic("app_next_pressed", {
       songId: currentSongRef.current?.id || null,
       queueIndex: activeQueueIndexRef.current,
@@ -3328,6 +3357,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             }
 
             hiddenAudioActiveRef.current = true;
+            await syncNativeRemoteQueueAvailability();
 
             const startPositionMillis = Math.round(startPositionSeconds * 1000);
             const statusAfterPlay = await syncHiddenAudioState("load_and_play_after_play");
@@ -3727,8 +3757,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   extendQueueWithSmartTracksRef.current = extendQueueWithSmartTracks;
 
-  const previousSong = useCallback(async () => {
-    if (!queueControlTapGuardRef.current("previous_song")) return;
+  const previousSong = useCallback(async (options?: { source?: "remote" | "app" }) => {
+    if (options?.source !== "remote" && !queueControlTapGuardRef.current("previous_song")) return;
     logLockscreenPlaybackDiagnostic("app_previous_pressed", {
       songId: currentSongRef.current?.id || null,
       queueIndex: activeQueueIndexRef.current,
@@ -4759,7 +4789,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       if (
         isBackgroundAppState(appStateRef.current) &&
         !isPlayingRef.current &&
-        !isLoadingRef.current
+        !isLoadingRef.current &&
+        !hiddenAudioActiveRef.current
       ) {
         return;
       }
@@ -4892,10 +4923,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
         if (progress.isPlaying !== isPlayingRef.current) {
           const backgrounding = isBackgroundAppState(appStateRef.current);
+          const playbackStateLower = String(progress.playbackState || "").toLowerCase();
           const allowBackgroundPauseSync =
             !backgrounding ||
             progress.isPlaying ||
-            String(progress.playbackState || "").toLowerCase() === "ended";
+            playbackStateLower === "ended" ||
+            playbackStateLower === "paused";
           if (allowBackgroundPauseSync) {
             isPlayingRef.current = progress.isPlaying;
             recordPlaybackReactStateUpdate("is_playing");
@@ -4969,6 +5002,93 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     };
   }, [savePlaybackPosition, scheduleTrackAdvance]);
 
+  const handleIosRemoteLockscreenCommand = useCallback(
+    async (command: string, data: Record<string, unknown> = {}) => {
+      const normalizedCommand = String(command || "").toLowerCase();
+      if (!normalizedCommand) return;
+
+      logLockscreenPlaybackDiagnostic("remote_command_received", {
+        command: normalizedCommand,
+        ...data,
+      });
+      logLockscreenPlaybackDiagnostic("remote_command_dispatched_to_js", {
+        command: normalizedCommand,
+        ...data,
+      });
+      logLockscreenPlaybackDiagnostic("remote_command_js_handler_start", {
+        command: normalizedCommand,
+        ...data,
+      });
+
+      try {
+        switch (normalizedCommand) {
+          case "play": {
+            logLockscreenPlaybackDiagnostic("remote_play_received", data);
+            isPlayingRef.current = true;
+            setIsPlaying(true);
+            await syncHiddenAudioState("remote_play");
+            logLockscreenPlaybackDiagnostic("remote_command_native_action_success", {
+              command: "play",
+            });
+            break;
+          }
+          case "pause": {
+            logLockscreenPlaybackDiagnostic("remote_pause_received", data);
+            isPlayingRef.current = false;
+            setIsPlaying(false);
+            logLockscreenPlaybackDiagnostic("remote_command_native_action_success", {
+              command: "pause",
+            });
+            break;
+          }
+          case "next": {
+            logLockscreenPlaybackDiagnostic("remote_next_received", data);
+            const { queue } = getActiveQueuePlaybackState();
+            if (!queue.length) {
+              logLockscreenPlaybackDiagnostic("remote_command_no_queue_available", data);
+              return;
+            }
+            await nextSong({ source: "remote" });
+            await syncNativeRemoteQueueAvailability();
+            break;
+          }
+          case "previous": {
+            logLockscreenPlaybackDiagnostic("remote_previous_received", data);
+            const { queue: previousQueue } = getActiveQueuePlaybackState();
+            if (!previousQueue.length) {
+              logLockscreenPlaybackDiagnostic("remote_command_no_queue_available", data);
+              return;
+            }
+            await previousSong({ source: "remote" });
+            await syncNativeRemoteQueueAvailability();
+            break;
+          }
+          default:
+            return;
+        }
+
+        logLockscreenPlaybackDiagnostic("remote_command_js_handler_success", {
+          command: normalizedCommand,
+          ...data,
+        });
+      } catch (error) {
+        logLockscreenPlaybackDiagnostic("remote_command_js_handler_failed", {
+          command: normalizedCommand,
+          message: String(error),
+          ...data,
+        });
+      }
+    },
+    [
+      getActiveQueuePlaybackState,
+      nextSong,
+      previousSong,
+      setIsPlaying,
+      syncHiddenAudioState,
+      syncNativeRemoteQueueAvailability,
+    ]
+  );
+
   useEffect(() => {
     return subscribeHiddenAudioDiagnostics((event) => {
       const nativeEventName = String(event.eventName || "native_playback_state_changed");
@@ -5017,24 +5137,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         });
       }
 
-      if (nativeEventName === "remote_next_received") {
-        logLockscreenPlaybackDiagnostic("remote_next_forwarded", data);
-        void nextSong()
-          .then(() => logLockscreenPlaybackDiagnostic("remote_next_handled_success", data))
-          .catch((error) => logLockscreenPlaybackDiagnostic("remote_next_handled_error", {
-            ...data,
-            message: String(error),
-          }));
-      }
-
-      if (nativeEventName === "remote_previous_received") {
-        logLockscreenPlaybackDiagnostic("remote_previous_forwarded", data);
-        void previousSong()
-          .then(() => logLockscreenPlaybackDiagnostic("remote_previous_handled_success", data))
-          .catch((error) => logLockscreenPlaybackDiagnostic("remote_previous_handled_error", {
-            ...data,
-            message: String(error),
-          }));
+      if (nativeEventName === "ios_remote_command_received") {
+        const command = String((data as Record<string, unknown>).command || "");
+        void handleIosRemoteLockscreenCommand(command, data as Record<string, unknown>);
       }
 
       if (nativeEventName === "hidden_audio_remote_command_result") {
@@ -5048,7 +5153,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
       logAndRememberLockscreenDiagnostic(eventName, data, remember);
     });
-  }, [nextSong, previousSong]);
+  }, [handleIosRemoteLockscreenCommand]);
 
   useEffect(() => {
     return subscribeHiddenAudioEnded((event) => {
