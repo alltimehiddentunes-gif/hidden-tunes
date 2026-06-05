@@ -291,3 +291,11 @@ export function logAndRememberLockscreenDiagnostic(
 void hydrateLockscreenPlaybackDiagnostics().catch(() => {
   // Diagnostics hydration must never affect app startup.
 });
+
+export function isUserInitiatedHiddenAudioStopReason(reason: string) {
+  return (
+    reason === "stop_playback" ||
+    reason === "user_tap_interrupt" ||
+    reason.startsWith("user_")
+  );
+}

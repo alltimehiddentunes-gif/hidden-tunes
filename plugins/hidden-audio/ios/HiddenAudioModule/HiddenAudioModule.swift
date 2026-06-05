@@ -30,6 +30,7 @@ class HiddenAudioModule: RCTEventEmitter {
   private var currentItemEndedHandled = false
   private var wasPlayingBeforeInterruption = false
   private var backgroundEnteredAt: TimeInterval = 0
+  private var isAppInBackground = false
   private var lastBackgroundRecoveryAt: TimeInterval = 0
 
   override static func requiresMainQueueSetup() -> Bool {
@@ -169,6 +170,14 @@ class HiddenAudioModule: RCTEventEmitter {
 
   @objc(pause:rejecter:)
   func pause(resolve: RCTPromiseResolveBlock, rejecter reject: RCTPromiseRejectBlock) {
+    if isAppInBackground && shouldResumeAfterItemLoad {
+      emitDiagnostic("hidden_audio_pause_blocked_in_background", [
+        "status": playerStatus,
+        "activeIndex": activeIndex
+      ])
+      resolve(nil)
+      return
+    }
     shouldResumeAfterItemLoad = false
     player?.pause()
     playerStatus = player == nil ? "idle" : "paused"
@@ -186,6 +195,14 @@ class HiddenAudioModule: RCTEventEmitter {
 
   @objc(stop:rejecter:)
   func stop(resolve: RCTPromiseResolveBlock, rejecter reject: RCTPromiseRejectBlock) {
+    if isAppInBackground && shouldResumeAfterItemLoad {
+      emitDiagnostic("hidden_audio_stop_blocked_in_background", [
+        "status": playerStatus,
+        "activeIndex": activeIndex
+      ])
+      resolve(nil)
+      return
+    }
     shouldResumeAfterItemLoad = false
     player?.pause()
     player?.seek(to: .zero)
@@ -773,6 +790,12 @@ class HiddenAudioModule: RCTEventEmitter {
     )
     NotificationCenter.default.addObserver(
       self,
+      selector: #selector(appEnteredForeground(_:)),
+      name: UIApplication.willEnterForegroundNotification,
+      object: nil
+    )
+    NotificationCenter.default.addObserver(
+      self,
       selector: #selector(audioInterruption(_:)),
       name: AVAudioSession.interruptionNotification,
       object: nil
@@ -1121,7 +1144,7 @@ class HiddenAudioModule: RCTEventEmitter {
         let alive = rate > 0 || self.playerStatus == "playing" || self.playerStatus == "buffering"
         let eventName =
           seconds == 20
-            ? "ios_background_playback_alive_20s"
+            ? "background_20s_watch_alive"
             : seconds == 60
               ? "ios_background_playback_alive_60s"
               : "ios_background_playback_alive_300s"
@@ -1156,7 +1179,17 @@ class HiddenAudioModule: RCTEventEmitter {
     ])
   }
 
+  @objc private func appEnteredForeground(_ notification: Notification) {
+    isAppInBackground = false
+    emitDiagnostic("hidden_audio_app_entered_foreground", [
+      "status": playerStatus,
+      "activeIndex": activeIndex,
+      "rate": player?.rate ?? 0
+    ])
+  }
+
   @objc private func appEnteredBackground(_ notification: Notification) {
+    isAppInBackground = true
     backgroundEnteredAt = Date().timeIntervalSince1970
     emitDiagnostic("hidden_audio_app_entered_background", [
       "status": playerStatus,

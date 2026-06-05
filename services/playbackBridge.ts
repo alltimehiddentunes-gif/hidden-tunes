@@ -13,7 +13,11 @@ import {
 } from "../src/hidden-audio/hiddenAudioBridge";
 import { recordBridgeSetProgressInterval } from "../utils/runtimeInstrumentation";
 import { logBackgroundPlayback } from "../utils/backgroundPlaybackLogs";
-import { logAndRememberLockscreenDiagnostic } from "../utils/lockscreenPlaybackDiagnostics";
+import {
+  isUserInitiatedHiddenAudioStopReason,
+  logAndRememberLockscreenDiagnostic,
+} from "../utils/lockscreenPlaybackDiagnostics";
+import { AppState } from "react-native";
 import {
   PlaybackEngineEventHandlers,
   PlaybackEngineProgress,
@@ -276,6 +280,18 @@ export async function deactivateHiddenAudioPlayback(
   reason = "unknown"
 ): Promise<void> {
   if (!hiddenAudioBridgeActive) return;
+
+  const appState = AppState.currentState;
+  const backgrounding = appState === "background" || appState === "inactive";
+  if (backgrounding && !isUserInitiatedHiddenAudioStopReason(reason)) {
+    logAndRememberLockscreenDiagnostic(
+      "hidden_audio_unload_blocked_in_background",
+      { reason, appState },
+      { lastBridgeEvent: "deactivate_hidden_audio_blocked" }
+    );
+    logBackgroundPlayback("hidden_audio_deactivate_blocked_background", { reason, appState });
+    return;
+  }
 
   logBackgroundPlayback("hidden_audio_deactivate_requested", { reason });
   logAndRememberLockscreenDiagnostic(

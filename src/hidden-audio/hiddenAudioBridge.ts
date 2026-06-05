@@ -6,7 +6,23 @@
 
 import { NativeEventEmitter, NativeModules, Platform } from "react-native";
 
-import { logAndRememberLockscreenDiagnostic } from "../../utils/lockscreenPlaybackDiagnostics";
+import {
+  isUserInitiatedHiddenAudioStopReason,
+  logAndRememberLockscreenDiagnostic,
+} from "../../utils/lockscreenPlaybackDiagnostics";
+import { AppState } from "react-native";
+
+function isBackgroundPlaybackState() {
+  const state = AppState.currentState;
+  return state === "background" || state === "inactive";
+}
+
+function shouldBlockHiddenAudioStopInBackground(reason = "unknown") {
+  return (
+    isBackgroundPlaybackState() &&
+    !isUserInitiatedHiddenAudioStopReason(reason)
+  );
+}
 
 export interface HiddenAudioNowPlayingMetadata {
   title: string;
@@ -182,8 +198,7 @@ export async function getHiddenAudioNativeSnapshot(): Promise<HiddenAudioNativeS
   );
   const isPlayingValue = progressMap.isPlaying;
   const playbackState = nativeStatus || String(progressMap.status || "idle");
-  const hasLoadedTrack =
-    nativeStatus !== "idle" && Boolean(activeTrack?.url);
+  const hasLoadedTrack = Boolean(activeTrack?.url);
 
   const isPlaying =
     isPlayingValue === true ||
@@ -291,6 +306,14 @@ export const hiddenAudioBridge: HiddenAudioEngine = {
       warnStub("pause");
       return;
     }
+    if (shouldBlockHiddenAudioStopInBackground("background_pause")) {
+      logAndRememberLockscreenDiagnostic(
+        "hidden_audio_stop_blocked_in_background",
+        { action: "pause", hasLoadedUrl: Boolean(lastLoadedUrl) },
+        { lastBridgeEvent: "hidden_audio_stop_blocked_in_background" }
+      );
+      return;
+    }
     logAndRememberLockscreenDiagnostic(
       "hidden_audio_pause_called",
       { hasLoadedUrl: Boolean(lastLoadedUrl) },
@@ -301,6 +324,14 @@ export const hiddenAudioBridge: HiddenAudioEngine = {
   async stop(): Promise<void> {
     if (!HiddenAudioNative) {
       warnStub("stop");
+      return;
+    }
+    if (shouldBlockHiddenAudioStopInBackground("background_stop")) {
+      logAndRememberLockscreenDiagnostic(
+        "hidden_audio_unload_blocked_in_background",
+        { action: "stop", hasLoadedUrl: Boolean(lastLoadedUrl) },
+        { lastBridgeEvent: "hidden_audio_unload_blocked_in_background" }
+      );
       return;
     }
     logAndRememberLockscreenDiagnostic(
