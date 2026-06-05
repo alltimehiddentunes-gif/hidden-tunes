@@ -497,6 +497,7 @@ export default function MusicFeedScreen() {
   const [heroIndex, setHeroIndex] = useState(0);
   const [visibleCatalogCount, setVisibleCatalogCount] = useState(CATALOG_PAGE_SIZE);
   const [showDeferredHomeSections, setShowDeferredHomeSections] = useState(false);
+  const [homeLogoFailed, setHomeLogoFailed] = useState(false);
   const heroIndexRef = useRef(0);
   const heroListRef = useRef<FlatList<HeroCard> | null>(null);
   const { width: viewportWidth } = useWindowDimensions();
@@ -883,18 +884,20 @@ export default function MusicFeedScreen() {
           <View style={styles.brandRow}>
             <View style={styles.logoMark}>
               <PremiumLuxuryPulse style={styles.logoAura} />
-              <Image
-                source={require("../assets/images/logo.png")}
-                style={styles.logoImage}
-                resizeMode="contain"
-              />
+              {homeLogoFailed ? (
+                <Text numberOfLines={1} style={styles.logoFallbackText}>HT</Text>
+              ) : (
+                <Image
+                  source={require("../assets/images/logo.png")}
+                  style={styles.logoImage}
+                  resizeMode="contain"
+                  onError={() => setHomeLogoFailed(true)}
+                />
+              )}
             </View>
             <View style={styles.headerCopy}>
               <Text numberOfLines={1} ellipsizeMode="tail" style={styles.brandTitle}>
                 Hidden Tunes
-              </Text>
-              <Text numberOfLines={1} ellipsizeMode="tail" style={styles.brandEyebrow}>
-                FOR YOUR MOOD
               </Text>
             </View>
           </View>
@@ -1741,13 +1744,15 @@ const styles = StyleSheet.create({
     gap: 9,
   },
   logoMark: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: "rgba(255,255,255,0.94)",
+    width: 74,
+    height: 48,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.96)",
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.22)",
     ...SHADOWS.premium,
   },
   logoAura: {
@@ -1756,12 +1761,18 @@ const styles = StyleSheet.create({
     left: -8,
     right: -8,
     bottom: -8,
-    borderRadius: 40,
+    borderRadius: 26,
     overflow: "hidden",
   },
   logoImage: {
-    width: 54,
-    height: 54,
+    width: 64,
+    height: 42,
+  },
+  logoFallbackText: {
+    color: COLORS.primary,
+    fontSize: 17,
+    fontWeight: "900",
+    letterSpacing: 1,
   },
   catalogStatus: {
     color: COLORS.primaryGlow,
