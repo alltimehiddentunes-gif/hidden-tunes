@@ -1,6 +1,5 @@
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  AppState,
   useWindowDimensions,
   Pressable,
   ScrollView,
@@ -41,21 +40,10 @@ import { openGenreCatalog, openMoodCatalog } from "../utils/catalogNavigation";
 import { normalizeGenreName } from "../utils/genreNormalization";
 import { getBestLyricsPayload, setLyricsMemoryCache } from "../utils/lyrics";
 import { logPlaybackUxSync } from "../utils/playbackDiagnostics";
+import { useAppActiveState } from "../utils/performanceMode";
+import { logPerformanceOffscreenWorkPaused } from "../utils/performanceLogs";
 
 const METADATA_PRESS_GUARD_MS = 500;
-
-function usePlayerScreenActive() {
-  const activeRef = useRef(AppState.currentState === "active");
-
-  useEffect(() => {
-    const subscription = AppState.addEventListener("change", (state) => {
-      activeRef.current = state === "active";
-    });
-    return () => subscription.remove();
-  }, []);
-
-  return activeRef;
-}
 
 type PlayerMetadataChip = {
   type: "album" | "mood" | "genre";
@@ -74,10 +62,20 @@ function fireLightHaptic() {
 }
 
 const AmbientGlow = memo(function AmbientGlow() {
+  const appActive = useAppActiveState();
   const purple = useSharedValue<number>(LUXURY_GLOW.opacityMin);
   const cyan = useSharedValue<number>(LUXURY_GLOW.opacityMin * 0.85);
 
   useEffect(() => {
+    if (!appActive) {
+      cancelAnimation(purple);
+      cancelAnimation(cyan);
+      purple.value = withTiming(LUXURY_GLOW.opacityMin, { duration: 220 });
+      cyan.value = withTiming(LUXURY_GLOW.opacityMin * 0.85, { duration: 220 });
+      logPerformanceOffscreenWorkPaused("player_ambient_glow", { reason: "app_inactive" });
+      return;
+    }
+
     purple.value = withRepeat(
       withSequence(
         withTiming(LUXURY_GLOW.opacityMax, {
@@ -111,7 +109,7 @@ const AmbientGlow = memo(function AmbientGlow() {
       cancelAnimation(purple);
       cancelAnimation(cyan);
     };
-  }, [purple, cyan]);
+  }, [appActive, purple, cyan]);
 
   const purpleStyle = useAnimatedStyle(() => ({
     opacity: purple.value,
@@ -386,7 +384,7 @@ export default function PlayerScreen() {
   const horizontalPadding = compactLayout ? 18 : 22;
 
   const { currentSong, isPlaying, isLoading } = usePlayerNowPlaying();
-  const playerScreenActiveRef = usePlayerScreenActive();
+  const playerScreenActive = useAppActiveState();
   const {
     activeQueue,
     activeQueueIndex,
@@ -512,7 +510,7 @@ export default function PlayerScreen() {
   }, [artworkRotation, currentSong?.id]);
 
   useEffect(() => {
-    if (!currentSong || !playerScreenActiveRef.current) {
+    if (!currentSong || !playerScreenActive) {
       cancelAnimation(pulse);
       cancelAnimation(artworkRotation);
       cancelAnimation(artworkHalo);
@@ -596,7 +594,7 @@ export default function PlayerScreen() {
       cancelAnimation(artworkRotation);
       cancelAnimation(artworkHalo);
     };
-  }, [artworkHalo, artworkRotation, currentSong, isPlaying, playerScreenActiveRef, pulse]);
+  }, [artworkHalo, artworkRotation, currentSong, isPlaying, playerScreenActive, pulse]);
 
   const artworkAnimated = useAnimatedStyle(() => ({
     transform: [

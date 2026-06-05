@@ -26,6 +26,8 @@ import {
   SHADOWS,
   TYPOGRAPHY,
 } from "../../constants/theme";
+import { useAppActiveState } from "../../utils/performanceMode";
+import { logPerformanceOffscreenWorkPaused } from "../../utils/performanceLogs";
 import { useTrackPlaybackStatus } from "../../context/playerContextSlices";
 import type { HiddenTunesNormalizedSong } from "../../services/hiddenTunesApi";
 import HTImage from "../HTImage";
@@ -63,10 +65,20 @@ const FeaturedCardGlow = memo(function FeaturedCardGlow({
 }: {
   active: boolean;
 }) {
+  const appActive = useAppActiveState();
   const opacity = useSharedValue<number>(LUXURY_GLOW.opacityMin);
   const scale = useSharedValue<number>(LUXURY_GLOW.scaleMin);
 
   useEffect(() => {
+    if (!appActive) {
+      cancelAnimation(opacity);
+      cancelAnimation(scale);
+      opacity.value = withTiming(LUXURY_GLOW.opacityMin, { duration: 220 });
+      scale.value = withTiming(LUXURY_GLOW.scaleMin, { duration: 220 });
+      logPerformanceOffscreenWorkPaused("featured_card_glow", { reason: "app_inactive" });
+      return;
+    }
+
     const peak = active ? LUXURY_GLOW.opacityMax + 0.08 : LUXURY_GLOW.opacityMax;
     const floor = LUXURY_GLOW.opacityMin;
 
@@ -103,7 +115,7 @@ const FeaturedCardGlow = memo(function FeaturedCardGlow({
       cancelAnimation(opacity);
       cancelAnimation(scale);
     };
-  }, [active, opacity, scale]);
+  }, [active, appActive, opacity, scale]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,

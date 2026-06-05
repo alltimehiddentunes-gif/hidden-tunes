@@ -24,6 +24,7 @@ let memoryLogs: PlaybackCriticalLogEntry[] = [];
 let storageHydrated = false;
 let hydratePromise: Promise<void> | null = null;
 let persistTimer: ReturnType<typeof setTimeout> | null = null;
+let lastSerializedPersistPayload = "";
 
 const listeners = new Set<() => void>();
 
@@ -67,7 +68,10 @@ function schedulePersist() {
 
 async function persistPlaybackCriticalLogs() {
   try {
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(memoryLogs));
+    const payload = JSON.stringify(memoryLogs);
+    if (payload === lastSerializedPersistPayload) return;
+    lastSerializedPersistPayload = payload;
+    await AsyncStorage.setItem(STORAGE_KEY, payload);
   } catch {
     // storage failures must not affect playback
   }

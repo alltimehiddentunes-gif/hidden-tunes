@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { AppState } from "react-native";
 
 import { recordDeferredTaskScheduled } from "./playbackStressDiagnostics";
@@ -101,6 +102,14 @@ export function subscribeAppActive(listener: AppActiveListener) {
   return () => {
     appActiveListeners.delete(listener);
   };
+}
+
+export function useAppActiveState() {
+  const [active, setActive] = useState(isAppActiveForWork());
+
+  useEffect(() => subscribeAppActive(setActive), []);
+
+  return active;
 }
 
 export function shouldRunNonEssentialWork() {

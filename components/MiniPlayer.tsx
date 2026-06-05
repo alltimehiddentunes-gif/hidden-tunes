@@ -7,7 +7,6 @@ import React, {
   useState,
 } from "react";
 import {
-  AppState,
   LayoutChangeEvent,
   Pressable,
   StyleSheet,
@@ -37,7 +36,8 @@ import Animated, {
 import { COLORS, GRADIENTS, LUXURY_GLOW } from "../constants/theme";
 import { logPlaybackUxSync } from "../utils/playbackDiagnostics";
 import { createTapGuard } from "../utils/tapGuard";
-import { isAppActiveForWork } from "../utils/performanceMode";
+import { isAppActiveForWork, subscribeAppActive, useAppActiveState } from "../utils/performanceMode";
+import { logPerformanceDuplicateListenerRemoved, logPerformanceOffscreenWorkPaused } from "../utils/performanceLogs";
 import {
   usePlayerActions,
   usePlayerProgress,
@@ -129,10 +129,20 @@ const MiniPlayerArtwork = memo(function MiniPlayerArtwork({
   isPlaying: boolean;
   trackKey: string;
 }) {
+  const appActive = useAppActiveState();
   const glowOpacity = useSharedValue(0.18);
   const glowScale = useSharedValue(1);
 
   useEffect(() => {
+    if (!appActive) {
+      cancelAnimation(glowOpacity);
+      cancelAnimation(glowScale);
+      glowOpacity.value = withTiming(LUXURY_GLOW.opacityMin + 0.06, { duration: 220 });
+      glowScale.value = withTiming(LUXURY_GLOW.scaleMin, { duration: 220 });
+      logPerformanceOffscreenWorkPaused("mini_player_artwork_glow", { reason: "app_inactive" });
+      return;
+    }
+
     const peakOpacity = isPlaying || isYoutubeMode ? LUXURY_GLOW.opacityMax + 0.08 : LUXURY_GLOW.opacityMax;
     const floorOpacity = LUXURY_GLOW.opacityMin + 0.06;
 
@@ -169,7 +179,7 @@ const MiniPlayerArtwork = memo(function MiniPlayerArtwork({
       cancelAnimation(glowOpacity);
       cancelAnimation(glowScale);
     };
-  }, [glowOpacity, glowScale, isPlaying, isYoutubeMode]);
+  }, [appActive, glowOpacity, glowScale, isPlaying, isYoutubeMode]);
 
   const glowStyle = useAnimatedStyle(() => ({
     opacity: glowOpacity.value,
@@ -349,7 +359,7 @@ function MiniPlayer() {
 
   const mountedRef = useRef(true);
   const tapGuardRef = useRef(createTapGuard(420));
-  const appActiveRef = useRef(AppState.currentState === "active");
+  const appActiveRef = useRef(isAppActiveForWork());
   const lastYouTubeJsonRef = useRef<string | null>(null);
 
   const loadYouTubeMini = useCallback(async () => {
@@ -384,13 +394,12 @@ function MiniPlayer() {
   }, []);
 
   useEffect(() => {
-    const subscription = AppState.addEventListener("change", (state) => {
-      appActiveRef.current = state === "active";
+    logPerformanceDuplicateListenerRemoved("mini_player_app_state", {
+      reason: "shared_performance_mode_listener",
     });
-
-    return () => {
-      subscription.remove();
-    };
+    return subscribeAppActive((active) => {
+      appActiveRef.current = active;
+    });
   }, []);
 
   useEffect(() => {
@@ -401,7 +410,7 @@ function MiniPlayer() {
     }
 
     const timer = setInterval(() => {
-      if (!mountedRef.current || !isAppActiveForWork()) return;
+      if (!mountedRef.current || !appActiveRef.current) return;
       if (currentSong) return;
       void loadYouTubeMini();
     }, YOUTUBE_POLL_MS);

@@ -10,7 +10,10 @@ import {
   isArtworkUrlFailed,
   markArtworkUrlFailed,
 } from "../utils/artwork";
-import { recordArtworkFailure } from "../utils/performanceLogs";
+import {
+  logPerformanceImageSourceMemoized,
+  recordArtworkFailure,
+} from "../utils/performanceLogs";
 import { isFastScrolling, subscribeFastScrolling } from "../utils/performanceMode";
 
 type Props = {
@@ -24,6 +27,26 @@ type Props = {
 };
 
 const MAX_ARTWORK_CANDIDATES = 5;
+const IMAGE_SOURCE_CACHE_LIMIT = 240;
+const imageSourceCache = new Map<string, { uri: string }>();
+
+function memoizedUriSource(uri: string) {
+  const normalized = String(uri || "").trim();
+  if (!normalized) return FALLBACK_ARTWORK_ASSET;
+
+  const cached = imageSourceCache.get(normalized);
+  if (cached) return cached;
+
+  const source = { uri: normalized };
+  imageSourceCache.set(normalized, source);
+  if (imageSourceCache.size > IMAGE_SOURCE_CACHE_LIMIT) {
+    const oldest = imageSourceCache.keys().next().value;
+    if (oldest) imageSourceCache.delete(oldest);
+  }
+
+  logPerformanceImageSourceMemoized("ht_image_uri", { uri: normalized });
+  return source;
+}
 const IMAGE_FADE_MS = 220;
 
 function candidateKey(item: any) {
@@ -101,7 +124,11 @@ function HTImage({
       return FALLBACK_ARTWORK_ASSET;
     }
 
-    return typeof artwork === "string" ? { uri: artwork } : artwork;
+    if (typeof artwork === "string") {
+      return memoizedUriSource(artwork);
+    }
+
+    return artwork;
   }, [candidateIndex, fallback, resolvedCandidates]);
 
   const recyclingKey = useMemo(() => {

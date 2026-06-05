@@ -1,7 +1,7 @@
 import React, { memo, useEffect, useMemo, useRef } from "react";
 import { Animated, StyleSheet, View } from "react-native";
 
-import { isAppActiveForWork } from "../utils/performanceMode";
+import { useAppActiveState } from "../utils/performanceMode";
 import { logPerformanceBackgroundWorkPaused } from "../utils/performanceLogs";
 
 import { COLORS } from "../constants/theme";
@@ -14,6 +14,7 @@ type NeonEQProps = {
 const BAR_COUNT = 3;
 
 function NeonEQ({ isPlaying = false, size = "medium" }: NeonEQProps) {
+  const appActive = useAppActiveState();
   const bars = useRef(
     Array.from({ length: BAR_COUNT }, () => new Animated.Value(0.25))
   ).current;
@@ -44,10 +45,10 @@ function NeonEQ({ isPlaying = false, size = "medium" }: NeonEQProps) {
 
   useEffect(() => {
     let animations: Animated.CompositeAnimation[] = [];
-    const shouldAnimate = isPlaying && isAppActiveForWork();
+    const shouldAnimate = isPlaying && appActive;
 
     if (!shouldAnimate) {
-      if (isPlaying && !isAppActiveForWork()) {
+      if (isPlaying && !appActive) {
         logPerformanceBackgroundWorkPaused("neon_eq", { reason: "app_inactive" });
       }
       bars.forEach((bar) => {
@@ -86,7 +87,7 @@ function NeonEQ({ isPlaying = false, size = "medium" }: NeonEQProps) {
     return () => {
       animations.forEach((animation) => animation.stop());
     };
-  }, [bars, isPlaying]);
+  }, [appActive, bars, isPlaying]);
 
   const containerStyle = useMemo(
     () => [styles.container, { height: dimensions.maxHeight, gap: dimensions.gap }],

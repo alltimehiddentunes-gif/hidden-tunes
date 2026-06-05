@@ -14,7 +14,7 @@ import {
   View,
 } from "react-native";
 
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import Animated, {
@@ -73,6 +73,7 @@ import {
   isAppActiveForWork,
   markFastScrolling,
 } from "@/utils/performanceMode";
+import { logPerformanceOffscreenWorkPaused } from "@/utils/performanceLogs";
 import { TESTER_COPY } from "@/constants/testerExperience";
 import PremiumEmptyState from "@/components/PremiumEmptyState";
 
@@ -613,6 +614,17 @@ export default function MusicFeedScreen() {
     return uniqSongs((queueSongs.length ? queueSongs : songs.slice(12, 30)).filter(Boolean)).slice(0, 12);
   }, [activeQueue, showDeferredHomeSections, songs]);
 
+  const homeScreenFocusedRef = useRef(true);
+
+  useFocusEffect(
+    useCallback(() => {
+      homeScreenFocusedRef.current = true;
+      return () => {
+        homeScreenFocusedRef.current = false;
+      };
+    }, [])
+  );
+
   const heroCards = useMemo(
     () =>
       buildHeroCards(
@@ -630,7 +642,7 @@ export default function MusicFeedScreen() {
     let timer: ReturnType<typeof setInterval> | null = null;
     const interaction = InteractionManager.runAfterInteractions(() => {
       timer = setInterval(() => {
-        if (!isAppActiveForWork()) return;
+        if (!isAppActiveForWork() || !homeScreenFocusedRef.current) return;
         setHeroIndex((current) => {
           const next = (current + 1) % heroCards.length;
           heroIndexRef.current = next;

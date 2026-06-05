@@ -114,6 +114,41 @@ export function logPerformanceDuplicateListenerRemoved(
   logPerformanceDiagOnce("performance_duplicate_listener_removed", { source, ...details });
 }
 
+export function logPerformanceHeatWorkSkipped(
+  source: string,
+  details: PerformanceLogDetails = {}
+) {
+  logPerformanceDiagOnce("performance_heat_work_skipped", { source, ...details });
+}
+
+export function logPerformanceStateUpdateSkipped(
+  source: string,
+  details: PerformanceLogDetails = {}
+) {
+  logPerformanceDiagOnce("performance_state_update_skipped", { source, ...details });
+}
+
+export function logPerformanceOffscreenWorkPaused(
+  source: string,
+  details: PerformanceLogDetails = {}
+) {
+  logPerformanceDiagOnce("performance_offscreen_work_paused", { source, ...details });
+}
+
+export function logPerformanceImageSourceMemoized(
+  source: string,
+  details: PerformanceLogDetails = {}
+) {
+  logPerformanceDiagOnce("performance_image_source_memoized", { source, ...details });
+}
+
+export function logPerformanceTimerReduced(
+  source: string,
+  details: PerformanceLogDetails = {}
+) {
+  logPerformanceDiagOnce("performance_timer_reduced", { source, ...details });
+}
+
 export function logPerformanceEvent(
   event: string,
   details: PerformanceLogDetails = {}
