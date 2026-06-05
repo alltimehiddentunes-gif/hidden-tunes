@@ -150,6 +150,8 @@ export function logQueuePlaybackEvent(
   event: QueuePlaybackEvent,
   details: PlaybackDiagDetails = {}
 ) {
+  if (!shouldLogPlaybackDiagnostics()) return;
+
   console.log(`[HTQueue] ${event}`, {
     at: Date.now(),
     ...details,

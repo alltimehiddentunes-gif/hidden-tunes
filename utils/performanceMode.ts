@@ -4,6 +4,7 @@ import { recordDeferredTaskScheduled } from "./playbackStressDiagnostics";
 
 type PrewarmTask = () => void | Promise<void>;
 type FastScrollListener = (isFastScrolling: boolean) => void;
+type AppActiveListener = (isActive: boolean) => void;
 
 const LARGE_LIST_THRESHOLD = 80;
 const VERY_LARGE_LIST_THRESHOLD = 180;
@@ -15,6 +16,7 @@ let fastScrollingUntil = 0;
 let prewarmToken = 0;
 let fastScrollEndTimer: ReturnType<typeof setTimeout> | null = null;
 const fastScrollListeners = new Set<FastScrollListener>();
+const appActiveListeners = new Set<AppActiveListener>();
 let appIsActive = AppState.currentState === "active";
 
 AppState.addEventListener("change", (state) => {
@@ -22,6 +24,9 @@ AppState.addEventListener("change", (state) => {
   if (!appIsActive) {
     prewarmToken += 1;
   }
+  appActiveListeners.forEach((listener) => {
+    listener(appIsActive);
+  });
 });
 
 function notifyFastScrollListeners() {
@@ -87,6 +92,15 @@ export function isFastScrolling() {
 
 export function isAppActiveForWork() {
   return appIsActive;
+}
+
+export function subscribeAppActive(listener: AppActiveListener) {
+  appActiveListeners.add(listener);
+  listener(appIsActive);
+
+  return () => {
+    appActiveListeners.delete(listener);
+  };
 }
 
 export function shouldRunNonEssentialWork() {

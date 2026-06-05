@@ -603,7 +603,7 @@ export default function AlbumScreen() {
             >
               <View style={styles.trackNumberBox}>
                 {active ? (
-                  <NeonEQ isPlaying={isPlaying} size="small" />
+                  <NeonEQ isPlaying={active && isPlaying} size="small" />
                 ) : (
                   <Text style={styles.trackNumber}>{index + 1}</Text>
                 )}

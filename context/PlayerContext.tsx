@@ -124,6 +124,7 @@ import {
   recordPlaybackProgressUpdate,
   recordQueueReferenceChange,
 } from "../utils/playbackRenderDiagnostics";
+import { logPerformanceStorageWriteThrottled } from "../utils/performanceLogs";
 import { markPlaybackRestoreComplete } from "../utils/startupDiagnostics";
 import { createKeyedTapGuard } from "../utils/tapGuard";
 import {
@@ -971,11 +972,20 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const savePlaybackPosition = useCallback(async (millis: number) => {
     const safeMillis = Math.max(0, Math.floor(millis || 0));
+    const serialized = String(safeMillis);
+
+    if (storageValueCacheRef.current[POSITION_KEY] === serialized) {
+      logPerformanceStorageWriteThrottled("playback_position", {
+        reason: "unchanged",
+        millis: safeMillis,
+      });
+      return;
+    }
 
     try {
       lastSavedPositionRef.current = safeMillis;
-      storageValueCacheRef.current[POSITION_KEY] = String(safeMillis);
-      await AsyncStorage.setItem(POSITION_KEY, String(safeMillis));
+      storageValueCacheRef.current[POSITION_KEY] = serialized;
+      await AsyncStorage.setItem(POSITION_KEY, serialized);
     } catch (error) {
       console.log("Save playback position error:", error);
     }

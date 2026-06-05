@@ -133,16 +133,19 @@ export default function GenreScreen() {
     return Array.from(seen.values()).slice(0, 12);
   }, [tracks]);
 
-  const heroArtwork = useMemo(() => {
-    const artwork = resolveEntityArtwork({ title, genre: title, mood: title }, tracks);
+  const heroArtwork = useMemo(
+    () => resolveEntityArtwork({ title, genre: title, mood: title }, tracks),
+    [title, tracks]
+  );
+
+  useEffect(() => {
     logEntityArtworkResolved({
       kind: String(params.type || "genre") === "mood" ? "mood" : "genre",
       title,
       trackCount: tracks.length,
-      hasArtwork: Boolean(artwork),
+      hasArtwork: Boolean(heroArtwork),
     });
-    return artwork;
-  }, [params.type, title, tracks]);
+  }, [heroArtwork, params.type, title, tracks.length]);
 
   const featuredSongs = useMemo(() => tracks.slice(0, 6), [tracks]);
 

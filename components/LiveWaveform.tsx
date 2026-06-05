@@ -1,5 +1,5 @@
 import React, { memo, useEffect, useMemo, useState } from "react";
-import { AppState, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import type { ViewStyle } from "react-native";
 
 import Animated, {
@@ -13,6 +13,8 @@ import Animated, {
 } from "react-native-reanimated";
 
 import { COLORS } from "../constants/theme";
+import { isAppActiveForWork, subscribeAppActive } from "../utils/performanceMode";
+import { logPerformanceDuplicateListenerRemoved } from "../utils/performanceLogs";
 
 type LiveWaveformProps = {
   isPlaying?: boolean;
@@ -38,17 +40,14 @@ function LiveWaveform({
   color = COLORS.primary,
 }: LiveWaveformProps) {
   const progress = useSharedValue(0);
-  const [appActive, setAppActive] = useState(AppState.currentState === "active");
+  const [appActive, setAppActive] = useState(isAppActiveForWork());
   const shouldAnimate = isPlaying && appActive;
 
   useEffect(() => {
-    const subscription = AppState.addEventListener("change", (nextState) => {
-      setAppActive(nextState === "active");
+    logPerformanceDuplicateListenerRemoved("live_waveform_app_state", {
+      reason: "shared_performance_mode_listener",
     });
-
-    return () => {
-      subscription.remove();
-    };
+    return subscribeAppActive(setAppActive);
   }, []);
 
   useEffect(() => {
