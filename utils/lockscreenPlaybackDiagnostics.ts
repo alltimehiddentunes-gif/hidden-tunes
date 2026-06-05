@@ -43,8 +43,11 @@ let memoryLogs: LockscreenPlaybackDiagnosticEntry[] = [];
 let storageHydrated = false;
 let hydratePromise: Promise<void> | null = null;
 let persistTimer: ReturnType<typeof setTimeout> | null = null;
-let lastThrottledDiagAt = 0;
 let lastSerializedPersistPayload = "";
+const lastThrottledDiagAtByEvent = new Map<string, number>();
+
+const FOREGROUND_HOT_EVENT_THROTTLE_MS = 8000;
+const BACKGROUND_HOT_EVENT_THROTTLE_MS = 15000;
 
 const THROTTLED_LOCKSCREEN_EVENTS = new Set([
   "native_playback_position",
@@ -174,18 +177,22 @@ function createEntry(
 
 function shouldThrottleLockscreenEvent(event: string) {
   if (!THROTTLED_LOCKSCREEN_EVENTS.has(event)) return false;
+
   const state = AppState.currentState;
-  if (state !== "background" && state !== "inactive") return false;
+  const throttleMs =
+    state === "background" || state === "inactive"
+      ? BACKGROUND_HOT_EVENT_THROTTLE_MS
+      : FOREGROUND_HOT_EVENT_THROTTLE_MS;
   const now = Date.now();
-  if (now - lastThrottledDiagAt < 5000) return true;
-  lastThrottledDiagAt = now;
+  const lastAt = lastThrottledDiagAtByEvent.get(event) ?? 0;
+
+  if (now - lastAt < throttleMs) return true;
+
+  lastThrottledDiagAtByEvent.set(event, now);
   return false;
 }
 
 function appendLog(entry: LockscreenPlaybackDiagnosticEntry) {
-  if (shouldThrottleLockscreenEvent(entry.event)) {
-    return;
-  }
   memoryLogs = [...memoryLogs, entry].slice(-MAX_STORED_LOGS);
   notifyListeners();
   schedulePersist();
@@ -295,9 +302,11 @@ export function logLockscreenPlaybackDiagnostic(
   event: string,
   details: DiagnosticDetails = {}
 ) {
+  if (shouldThrottleLockscreenEvent(event)) return;
+
   const entry = createEntry(event, details);
 
-  if (!shouldThrottleLockscreenEvent(event)) {
+  if (__DEV__) {
     console.log(`[HTLockscreenDiag] ${event}`, {
       ...details,
       timestamp: entry.iso,

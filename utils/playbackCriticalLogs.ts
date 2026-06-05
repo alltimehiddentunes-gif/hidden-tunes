@@ -25,6 +25,10 @@ let storageHydrated = false;
 let hydratePromise: Promise<void> | null = null;
 let persistTimer: ReturnType<typeof setTimeout> | null = null;
 let lastSerializedPersistPayload = "";
+const lastCriticalLogAtByKey = new Map<string, number>();
+
+const FOREGROUND_CRITICAL_LOG_THROTTLE_MS = 2500;
+const BACKGROUND_CRITICAL_LOG_THROTTLE_MS = 5000;
 
 const listeners = new Set<() => void>();
 
@@ -106,6 +110,49 @@ function createLogEntry(
   };
 }
 
+function buildCriticalThrottleKey(
+  event: string,
+  details: PlaybackCriticalDetails
+) {
+  return [
+    event,
+    details.source,
+    details.reason,
+    details.songId,
+    details.trackId,
+    details.currentSongId,
+    details.nativeStatus,
+  ]
+    .filter((value) => value !== undefined && value !== null && value !== "")
+    .join(":");
+}
+
+function shouldThrottleCriticalLog(
+  event: string,
+  details: PlaybackCriticalDetails
+) {
+  const key = buildCriticalThrottleKey(event, details);
+  if (!key) return false;
+
+  const state = AppState.currentState;
+  const throttleMs =
+    state === "background" || state === "inactive"
+      ? BACKGROUND_CRITICAL_LOG_THROTTLE_MS
+      : FOREGROUND_CRITICAL_LOG_THROTTLE_MS;
+  const now = Date.now();
+  const lastAt = lastCriticalLogAtByKey.get(key) ?? 0;
+
+  if (now - lastAt < throttleMs) return true;
+
+  lastCriticalLogAtByKey.set(key, now);
+  if (lastCriticalLogAtByKey.size > MAX_STORED_LOGS * 2) {
+    const oldestKey = lastCriticalLogAtByKey.keys().next().value;
+    if (oldestKey) lastCriticalLogAtByKey.delete(oldestKey);
+  }
+
+  return false;
+}
+
 function appendLogEntry(entry: PlaybackCriticalLogEntry) {
   memoryLogs = [...memoryLogs, entry].slice(-MAX_STORED_LOGS);
   notifyListeners();
@@ -183,9 +230,14 @@ export function logPlaybackCritical(
   event: string,
   details: PlaybackCriticalDetails = {}
 ): void {
+  if (shouldThrottleCriticalLog(event, details)) return;
+
   const entry = createLogEntry(event, details);
 
-  console.warn(entry.line, entry.details);
+  if (__DEV__) {
+    console.warn(entry.line, entry.details);
+  }
+
   appendLogEntry(entry);
 }
 

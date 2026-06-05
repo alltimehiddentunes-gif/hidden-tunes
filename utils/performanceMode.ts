@@ -16,6 +16,7 @@ const PREWARM_TASK_LIMIT = 4;
 let fastScrollingUntil = 0;
 let prewarmToken = 0;
 let fastScrollEndTimer: ReturnType<typeof setTimeout> | null = null;
+let lastFastScrollNotification = false;
 const fastScrollListeners = new Set<FastScrollListener>();
 const appActiveListeners = new Set<AppActiveListener>();
 let appIsActive = AppState.currentState === "active";
@@ -32,6 +33,9 @@ AppState.addEventListener("change", (state) => {
 
 function notifyFastScrollListeners() {
   const active = isFastScrolling();
+  if (active === lastFastScrollNotification) return;
+
+  lastFastScrollNotification = active;
   fastScrollListeners.forEach((listener) => {
     listener(active);
   });
