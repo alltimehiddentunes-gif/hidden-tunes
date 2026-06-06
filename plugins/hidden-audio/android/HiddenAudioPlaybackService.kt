@@ -34,16 +34,28 @@ class HiddenAudioPlaybackService : Service() {
       PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
     )
 
+    val smallIconRes = resources.getIdentifier("ic_notification", "drawable", packageName)
+    val resolvedSmallIcon = if (smallIconRes != 0) {
+      smallIconRes
+    } else {
+      applicationInfo.icon
+    }
+
     val notification: Notification = NotificationCompat.Builder(this, channelId)
       .setContentTitle("Hidden Tunes")
       .setContentText("Playing in background")
-      .setSmallIcon(android.R.drawable.ic_media_play)
+      .setSmallIcon(resolvedSmallIcon)
       .setContentIntent(pendingIntent)
       .setOngoing(true)
       .setCategory(NotificationCompat.CATEGORY_TRANSPORT)
       .build()
 
-    startForeground(FOREGROUND_NOTIFICATION_ID, notification)
+    try {
+      startForeground(FOREGROUND_NOTIFICATION_ID, notification)
+    } catch (error: Throwable) {
+      stopSelf()
+      return START_NOT_STICKY
+    }
     return START_STICKY
   }
 

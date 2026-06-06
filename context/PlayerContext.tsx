@@ -1215,7 +1215,15 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         return true;
       }
 
-      if (currentSongRef.current || activeQueueRef.current.length > 0 || isPlayingRef.current) {
+      const hasAndroidPlayableSession =
+        Platform.OS !== "android" ||
+        Boolean(currentSongRef.current && getPlayableUri(currentSongRef.current)) ||
+        isPlayingRef.current;
+
+      if (
+        hasAndroidPlayableSession &&
+        (currentSongRef.current || activeQueueRef.current.length > 0 || isPlayingRef.current)
+      ) {
         if (!hiddenAudioActiveRef.current) {
           markHiddenAudioBridgeActive(true);
           hiddenAudioActiveRef.current = true;
@@ -1328,6 +1336,38 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         activeQueueIndexRef.current = restoredIndex;
         setActiveQueueIndex(restoredIndex);
 
+        if (
+          Platform.OS === "android" &&
+          !currentSongRef.current &&
+          restoredQueue[restoredIndex] &&
+          getPlayableUri(restoredQueue[restoredIndex])
+        ) {
+          const recoveredSong = restoredQueue[restoredIndex];
+          currentSongRef.current = recoveredSong;
+          setCurrentSong(recoveredSong);
+          hydrated = true;
+          logLockscreenPlaybackDiagnostic("android_recovered_current_song_from_queue", {
+            songId: recoveredSong.id,
+            queueIndex: restoredIndex,
+            queueLength: restoredQueue.length,
+          });
+        } else if (
+          Platform.OS === "android" &&
+          !currentSongRef.current &&
+          restoredQueue.length > 0
+        ) {
+          await AsyncStorage.multiRemove([
+            CURRENT_SONG_KEY,
+            PLAYBACK_WAS_PLAYING_KEY,
+          ]);
+          delete storageValueCacheRef.current[CURRENT_SONG_KEY];
+          delete storageValueCacheRef.current[PLAYBACK_WAS_PLAYING_KEY];
+          logLockscreenPlaybackDiagnostic("android_cleared_invalid_saved_session", {
+            queueLength: restoredQueue.length,
+            queueIndex: restoredIndex,
+          });
+        }
+
         const mode: ActiveQueueMode =
           savedMode === "youtube" ||
           savedMode === "radio" ||
@@ -1359,7 +1399,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      if (savedWasPlaying === "true" && currentSongRef.current) {
+      if (
+        savedWasPlaying === "true" &&
+        currentSongRef.current &&
+        getPlayableUri(currentSongRef.current)
+      ) {
         markHiddenAudioBridgeActive(true);
         hiddenAudioActiveRef.current = true;
         setIsPlaying(true);

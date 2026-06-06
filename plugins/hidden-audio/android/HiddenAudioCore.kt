@@ -390,8 +390,15 @@ object HiddenAudioCore {
   private fun startForegroundService() {
     val context = reactContext ?: return
     val intent = Intent(context, HiddenAudioPlaybackService::class.java)
-    ContextCompat.startForegroundService(context, intent)
-    emitDiagnostic("android_foreground_service_status", simpleData("status", "started"))
+    try {
+      ContextCompat.startForegroundService(context, intent)
+      emitDiagnostic("android_foreground_service_status", simpleData("status", "started"))
+    } catch (error: Throwable) {
+      val data = Arguments.createMap()
+      data.putString("message", error.message ?: error.javaClass.simpleName)
+      data.putString("name", error.javaClass.simpleName)
+      emitDiagnostic("android_foreground_service_start_failed", data)
+    }
   }
 
   private fun stopForegroundService() {
@@ -459,8 +466,13 @@ object HiddenAudioCore {
 
   private fun emit(eventName: String, body: WritableMap) {
     val context = reactContext ?: return
-    context
-      .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
-      .emit(eventName, body)
+    if (!context.hasActiveReactInstance()) return
+    try {
+      context
+        .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
+        .emit(eventName, body)
+    } catch (_: Throwable) {
+      // React instance may be tearing down; never crash the process for bridge emits.
+    }
   }
 }
