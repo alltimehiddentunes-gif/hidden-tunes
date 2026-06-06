@@ -77,17 +77,6 @@ function HTImage({
   contentFit = "cover",
   contentPosition = "center",
 }: Props) {
-  const [candidateIndex, setCandidateIndex] = useState(0);
-  const [stablePlaceholder, setStablePlaceholder] = useState<any>(null);
-  const [fastScrolling, setFastScrolling] = useState(isFastScrolling());
-  const [showingFallback, setShowingFallback] = useState(false);
-  const [imageReady, setImageReady] = useState(false);
-  const failureCountRef = useRef(0);
-  const gaveUpRef = useRef(false);
-
-  const flatStyle = useMemo(() => flattenStyle(style), [style]);
-  const borderRadius = Number(flatStyle.borderRadius || 0);
-
   const fallbackSource = useMemo(() => {
     if (fallback === FALLBACK_ARTWORK || fallback === FALLBACK_ARTWORK_ASSET) {
       return FALLBACK_ARTWORK_ASSET;
@@ -95,6 +84,18 @@ function HTImage({
     const artwork = getArtworkValue(fallback, FALLBACK_ARTWORK);
     return typeof artwork === "string" ? { uri: artwork } : artwork;
   }, [fallback]);
+
+  const [candidateIndex, setCandidateIndex] = useState(0);
+  const [stablePlaceholder, setStablePlaceholder] = useState<any>(fallbackSource);
+  const [fastScrolling, setFastScrolling] = useState(isFastScrolling());
+  const [showingFallback, setShowingFallback] = useState(false);
+  const [imageReady, setImageReady] = useState(false);
+  const failureCountRef = useRef(0);
+  const gaveUpRef = useRef(false);
+  const prefetchedUriRef = useRef("");
+
+  const flatStyle = useMemo(() => flattenStyle(style), [style]);
+  const borderRadius = Number(flatStyle.borderRadius || 0);
 
   const resolvedCandidates = useMemo(() => {
     const explicitCandidates = Array.isArray(candidates)
@@ -156,10 +157,29 @@ function HTImage({
   }, [resolvedSource]);
 
   useEffect(() => {
-    if (!stablePlaceholder) {
-      setStablePlaceholder(fallbackSource);
+    setStablePlaceholder((current: any) => current || fallbackSource);
+  }, [fallbackSource]);
+
+  useEffect(() => {
+    const uriValue =
+      typeof resolvedSource === "object" && resolvedSource?.uri
+        ? String(resolvedSource.uri)
+        : typeof resolvedSource === "string"
+          ? resolvedSource
+          : "";
+
+    if (
+      !uriValue ||
+      uriValue === FALLBACK_ARTWORK ||
+      uriValue === prefetchedUriRef.current ||
+      isFastScrolling()
+    ) {
+      return;
     }
-  }, [fallbackSource, stablePlaceholder]);
+
+    prefetchedUriRef.current = uriValue;
+    void Image.prefetch(uriValue).catch(() => undefined);
+  }, [resolvedSource]);
 
   useEffect(() => {
     return subscribeFastScrolling((next) => {

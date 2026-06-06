@@ -4442,33 +4442,47 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         songId: nativeQueue[safeIndex]?.id,
       });
 
-      setRadioMode(false);
-      radioModeRef.current = false;
-      void setStoredValueIfChanged(RADIO_MODE_KEY, "false");
-
-      await syncActiveQueue(nativeQueue, safeIndex, "standard", normalizedContext);
-      void removeStoredValues([POSITION_KEY]);
-
       const selectedSong = nativeQueue[safeIndex];
       const selectedNormalized = normalizeSong(selectedSong);
+      const previousSongId = currentSongRef.current?.id || "";
+      const switchingToNewSong = previousSongId !== selectedNormalized.id;
+
       currentSongRef.current = selectedNormalized;
       setCurrentSong(selectedNormalized);
+      activeQueueRef.current = nativeQueue;
+      setActiveQueue(nativeQueue);
       activeQueueIndexRef.current = safeIndex;
       setActiveQueueIndex(safeIndex);
-      let interruptDone = priorInterruptDone;
+      activeQueueModeRef.current = "standard";
+      setActiveQueueMode("standard");
+      activeQueueContextRef.current = normalizedContext;
+      setActiveQueueContext(normalizedContext);
 
-      if (currentSongRef.current?.id !== selectedSong.id) {
-        if (!interruptDone) {
-          await interruptCurrentPlaybackForUserTap(selectedSong.id);
-        }
-
-        interruptDone = true;
+      if (switchingToNewSong) {
         logPlayerContextDebug("hidden_audio_fake_play_prevented", {
-          songId: selectedSong.id,
+          songId: selectedNormalized.id,
           reason: "queue_waiting_for_native_load",
         });
         setIsLoading(true);
         setIsPlaying(false);
+        openPlayerForPlayableTap(selectedNormalized, "play_queue_prime");
+      }
+
+      setRadioMode(false);
+      radioModeRef.current = false;
+      void setStoredValueIfChanged(RADIO_MODE_KEY, "false");
+
+      void syncActiveQueue(nativeQueue, safeIndex, "standard", normalizedContext);
+      void removeStoredValues([POSITION_KEY]);
+
+      let interruptDone = priorInterruptDone;
+
+      if (switchingToNewSong) {
+        if (!interruptDone) {
+          await interruptCurrentPlaybackForUserTap(selectedNormalized.id);
+        }
+
+        interruptDone = true;
       }
 
       const currentLoadedSound = soundRef.current;
@@ -4528,6 +4542,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       removeStoredValues,
       interruptCurrentPlaybackForUserTap,
       loadAndPlay,
+      openPlayerForPlayableTap,
       setIsPlaying,
       deferPlaybackSideEffects,
     ]
