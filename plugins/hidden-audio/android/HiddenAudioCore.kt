@@ -20,10 +20,20 @@ import com.facebook.react.bridge.WritableMap
 import com.facebook.react.modules.core.DeviceEventManagerModule
 
 object HiddenAudioCore {
+  private data class ActiveTrackData(
+    val id: String,
+    val url: String,
+    val title: String,
+    val artist: String,
+    val album: String,
+    val artworkUrl: String,
+    val durationSeconds: Double
+  )
+
   private var reactContext: ReactApplicationContext? = null
   private var player: ExoPlayer? = null
   private var playerStatus = "idle"
-  private var activeTrack: WritableMap? = null
+  private var activeTrack: ActiveTrackData? = null
   private var activeIndex = 0
   private val mainHandler = Handler(Looper.getMainLooper())
   private var progressTick: Runnable? = null
@@ -52,7 +62,7 @@ object HiddenAudioCore {
     activeTrack = trackToMap(track)
     activeIndex = 0
     playbackEndedHandled = false
-    val url = activeTrack?.getString("url") ?: ""
+    val url = activeTrack?.url ?: ""
     if (url.isBlank()) {
       playerStatus = "error"
       emitDiagnostic("hidden_audio_load_track_failed", simpleData("reason", "missing_url"))
@@ -71,7 +81,7 @@ object HiddenAudioCore {
   fun play() {
     val context = reactContext ?: return
     ensurePlayer(context)
-    val url = activeTrack?.getString("url") ?: ""
+    val url = activeTrack?.url ?: ""
     if (url.isBlank()) {
       playerStatus = "error"
       emitDiagnostic("hidden_audio_play_failed", simpleData("reason", "missing_loaded_track"))
@@ -133,13 +143,15 @@ object HiddenAudioCore {
     val data = Arguments.createMap()
     data.putString("command", command)
     emitDiagnostic("android_remote_command_received", data)
-    emitDiagnostic("remote_command_dispatched_to_js", data)
+    val forwardedData = Arguments.createMap()
+    forwardedData.putString("command", command)
+    emitDiagnostic("remote_command_dispatched_to_js", forwardedData)
   }
 
   fun state(): WritableMap {
     val state = Arguments.createMap()
     state.putString("status", playerStatus)
-    state.putMap("activeTrack", activeTrack ?: Arguments.createMap())
+    state.putMap("activeTrack", freshActiveTrackMap())
     val queue = Arguments.createMap()
     queue.putInt("activeIndex", activeIndex)
     state.putMap("queue", queue)
@@ -152,7 +164,7 @@ object HiddenAudioCore {
       if (exo == null) 0.0 else exo.currentPosition.coerceAtLeast(0) / 1000.0
     val durationSeconds =
       if (exo == null || exo.duration <= 0) {
-        activeTrack?.getDouble("durationSeconds") ?: 0.0
+        activeTrack?.durationSeconds ?: 0.0
       } else {
         exo.duration.coerceAtLeast(0) / 1000.0
       }
@@ -170,7 +182,7 @@ object HiddenAudioCore {
     return progress
   }
 
-  fun activeTrackMap(): WritableMap? = activeTrack
+  fun activeTrackMap(): WritableMap = freshActiveTrackMap()
 
   private fun ensurePlayer(context: Context) {
     if (player != null) return
@@ -233,11 +245,11 @@ object HiddenAudioCore {
     stopProgressLoop()
     val body = Arguments.createMap()
     body.putString("type", "playback_ended")
-    if (activeTrack != null) body.putMap("track", activeTrack)
+    if (activeTrack != null) body.putMap("track", freshActiveTrackMap())
     body.putInt("index", activeIndex)
     val pos = player?.currentPosition?.coerceAtLeast(0)?.div(1000.0) ?: 0.0
     val dur = player?.duration?.coerceAtLeast(0)?.div(1000.0)
-      ?: (activeTrack?.getDouble("durationSeconds") ?: 0.0)
+      ?: (activeTrack?.durationSeconds ?: 0.0)
     body.putDouble("positionSeconds", pos)
     body.putDouble("durationSeconds", dur)
     body.putString("status", playerStatus)
@@ -247,15 +259,30 @@ object HiddenAudioCore {
     emitProgress()
   }
 
-  private fun trackToMap(track: ReadableMap): WritableMap {
+  private fun trackToMap(track: ReadableMap): ActiveTrackData {
+    return ActiveTrackData(
+      id = track.getStringSafe("id", "hidden-audio-track"),
+      url = track.getStringSafe("url", ""),
+      title = track.getStringSafe("title", "Hidden Tunes"),
+      artist = track.getStringSafe("artist", "Hidden Tunes"),
+      album = track.getStringSafe("album", ""),
+      artworkUrl = track.getStringSafe("artworkUrl", ""),
+      durationSeconds = track.getDoubleSafe("durationSeconds", 0.0)
+    )
+  }
+
+  private fun freshActiveTrackMap(): WritableMap {
+    val track = activeTrack
     val map = Arguments.createMap()
-    map.putString("id", track.getStringSafe("id", "hidden-audio-track"))
-    map.putString("url", track.getStringSafe("url", ""))
-    map.putString("title", track.getStringSafe("title", "Hidden Tunes"))
-    map.putString("artist", track.getStringSafe("artist", "Hidden Tunes"))
-    map.putString("album", track.getStringSafe("album", ""))
-    map.putString("artworkUrl", track.getStringSafe("artworkUrl", ""))
-    map.putDouble("durationSeconds", track.getDoubleSafe("durationSeconds", 0.0))
+    if (track == null) return map
+
+    map.putString("id", track.id)
+    map.putString("url", track.url)
+    map.putString("title", track.title)
+    map.putString("artist", track.artist)
+    map.putString("album", track.album)
+    map.putString("artworkUrl", track.artworkUrl)
+    map.putDouble("durationSeconds", track.durationSeconds)
     return map
   }
 
@@ -353,18 +380,21 @@ object HiddenAudioCore {
   }
 
   private fun emitProgress() {
-    val progressMap = progress()
-    val body = Arguments.createMap()
-    body.putString("type", "progress")
-    body.putMap("progress", progressMap)
-    emit("HiddenAudioProgress", body)
-    emit("HiddenAudioProgressChanged", body)
+    val progressBody = Arguments.createMap()
+    progressBody.putString("type", "progress")
+    progressBody.putMap("progress", progress())
+    emit("HiddenAudioProgress", progressBody)
+
+    val progressChangedBody = Arguments.createMap()
+    progressChangedBody.putString("type", "progress")
+    progressChangedBody.putMap("progress", progress())
+    emit("HiddenAudioProgressChanged", progressChangedBody)
   }
 
   private fun emitTrackChanged() {
     val body = Arguments.createMap()
     body.putString("type", "track_changed")
-    if (activeTrack != null) body.putMap("track", activeTrack)
+    if (activeTrack != null) body.putMap("track", freshActiveTrackMap())
     body.putInt("index", activeIndex)
     emit("HiddenAudioTrackChanged", body)
   }
