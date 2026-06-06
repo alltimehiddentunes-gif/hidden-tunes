@@ -16,6 +16,7 @@ import { Ionicons } from "@expo/vector-icons";
 import NeonEQ from "../../components/NeonEQ";
 import AddToPlaylistButton from "../../components/AddToPlaylistButton";
 import HTImage from "../../components/HTImage";
+import PremiumBackground from "../../components/PremiumBackground";
 
 import { COLORS, GRADIENTS } from "../../constants/theme";
 import {
@@ -550,6 +551,7 @@ export default function AlbumScreen() {
   if (loading && !album) {
     return (
       <LinearGradient colors={GRADIENTS.main as any} style={styles.center}>
+        <PremiumBackground variant="entity" />
         <ActivityIndicator color={COLORS.primary} />
         <Text style={styles.loadingText}>Opening album experience...</Text>
       </LinearGradient>
@@ -559,6 +561,7 @@ export default function AlbumScreen() {
   if (!album && hasCheckedFallbacks && !refreshing) {
     return (
       <LinearGradient colors={GRADIENTS.main as any} style={styles.center}>
+        <PremiumBackground variant="entity" />
         <Ionicons name="disc-outline" size={64} color={COLORS.textMuted} />
         <Text style={styles.emptyTitle}>Album unavailable</Text>
         <Text style={styles.emptyText}>Refresh the catalog or return to Search.</Text>
@@ -574,6 +577,7 @@ export default function AlbumScreen() {
   if (!album) {
     return (
       <LinearGradient colors={GRADIENTS.main as any} style={styles.center}>
+        <PremiumBackground variant="entity" />
         <ActivityIndicator color={COLORS.primary} />
         <Text style={styles.loadingText}>Checking cached album...</Text>
       </LinearGradient>
@@ -582,6 +586,7 @@ export default function AlbumScreen() {
 
   return (
     <LinearGradient colors={GRADIENTS.main as any} style={styles.screen}>
+      <PremiumBackground variant="entity" />
       <View style={styles.glowPurple} />
       <View style={styles.glowCyan} />
 

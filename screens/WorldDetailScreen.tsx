@@ -13,6 +13,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 
+import PremiumBackground from "../components/PremiumBackground";
 import WorldHeader from "../components/worlds/WorldHeader";
 import WorldTrackRow from "../components/worlds/WorldTrackRow";
 import { COLORS, GRADIENTS } from "../constants/theme";
@@ -57,6 +58,7 @@ function WorldDetailScreen() {
   if (!world) {
     return (
       <LinearGradient colors={GRADIENTS.main} style={styles.container}>
+        <PremiumBackground variant="explore" />
         <SafeAreaView style={styles.safeArea}>
           <TouchableOpacity
             activeOpacity={0.85}
@@ -73,6 +75,7 @@ function WorldDetailScreen() {
 
   return (
     <LinearGradient colors={GRADIENTS.main} style={styles.container}>
+      <PremiumBackground variant="explore" />
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.topBar}>
           <TouchableOpacity

@@ -15,6 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 
 import ArtistTrackRow from "../../components/catalog/ArtistTrackRow";
 import HTImage from "../../components/HTImage";
+import PremiumBackground from "../../components/PremiumBackground";
 
 import { COLORS, GRADIENTS } from "../../constants/theme";
 import {
@@ -398,6 +399,7 @@ export default function ArtistScreen() {
   if (loading && !artist) {
     return (
       <LinearGradient colors={GRADIENTS.main as any} style={styles.center}>
+        <PremiumBackground variant="entity" />
         <ActivityIndicator color={COLORS.primary} />
         <Text style={styles.loadingText}>Opening artist world...</Text>
       </LinearGradient>
@@ -407,6 +409,7 @@ export default function ArtistScreen() {
   if (!artist && hasCheckedFallbacks && !refreshing) {
     return (
       <LinearGradient colors={GRADIENTS.main as any} style={styles.center}>
+        <PremiumBackground variant="entity" />
         <Ionicons name="person-circle-outline" size={70} color={COLORS.textMuted} />
         <Text style={styles.emptyTitle}>Artist world unavailable</Text>
         <Text style={styles.emptyText}>Refresh the catalog or return to Search.</Text>
@@ -422,6 +425,7 @@ export default function ArtistScreen() {
   if (!artist) {
     return (
       <LinearGradient colors={GRADIENTS.main as any} style={styles.center}>
+        <PremiumBackground variant="entity" />
         <ActivityIndicator color={COLORS.primary} />
         <Text style={styles.loadingText}>Checking cached artist...</Text>
       </LinearGradient>
@@ -430,6 +434,7 @@ export default function ArtistScreen() {
 
   return (
     <LinearGradient colors={GRADIENTS.main as any} style={styles.screen}>
+      <PremiumBackground variant="entity" />
       <View style={styles.glowPurple} />
       <View style={styles.glowCyan} />
 

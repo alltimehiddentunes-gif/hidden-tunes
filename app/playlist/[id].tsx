@@ -24,6 +24,7 @@ import {
 import MediaCard from "../../components/MediaCard";
 import PlaylistArtworkCollage from "../../components/PlaylistArtworkCollage";
 import NeonEQ from "../../components/NeonEQ";
+import PremiumBackground from "../../components/PremiumBackground";
 
 import { getCachedHiddenTunesCatalog } from "../../services/hiddenTunes";
 import { getHiddenTunesSongs } from "../../services/hiddenTunesApi";
@@ -313,6 +314,7 @@ export default function PlaylistDetailScreen() {
   if (!playlist) {
     return (
       <LinearGradient colors={GRADIENTS.main as any} style={styles.container}>
+      <PremiumBackground variant="library" />
         <View style={styles.topHeader}>
           <TouchableOpacity onPress={() => router.back()} style={styles.topButton}>
             <Ionicons name="chevron-back" size={24} color={COLORS.text} />
@@ -334,6 +336,7 @@ export default function PlaylistDetailScreen() {
 
   return (
     <LinearGradient colors={GRADIENTS.main as any} style={styles.container}>
+      <PremiumBackground variant="library" />
       <View style={styles.glowPurple} />
       <View style={styles.glowCyan} />
 

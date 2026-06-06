@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { COLORS } from "../../constants/theme";
 import MiniPlayer from "../MiniPlayer";
+import PremiumBackground, { type PremiumBackgroundVariant } from "../PremiumBackground";
 
 type ShellRoute =
   | "/music-feed"
@@ -100,6 +101,27 @@ function isActiveRoute(pathname: string, item: NavItem) {
   });
 }
 
+function getBackgroundVariant(pathname: string): PremiumBackgroundVariant {
+  if (pathname === "/music-feed") return "home";
+  if (pathname.startsWith("/worlds")) return "explore";
+  if (pathname.startsWith("/player") || pathname.startsWith("/queue") || pathname.startsWith("/lyrics") || pathname.startsWith("/radio")) return "player";
+  if (
+    pathname.startsWith("/favorites") ||
+    pathname.startsWith("/playlists") ||
+    pathname.startsWith("/playlist") ||
+    pathname.startsWith("/recently-played") ||
+    pathname.startsWith("/cloud-playlists") ||
+    pathname.startsWith("/downloads") ||
+    pathname.startsWith("/album") ||
+    pathname.startsWith("/artist") ||
+    pathname.startsWith("/genre")
+  ) {
+    return "library";
+  }
+  if (pathname.startsWith("/profile") || pathname.startsWith("/auth")) return "profile";
+  return "entity";
+}
+
 function isMiniPlayerRoute(pathname: string) {
   return MINI_PLAYER_ROUTES.some((route) => {
     if (pathname === route) return true;
@@ -119,6 +141,7 @@ export default function AppShell({
   const insets = useSafeAreaInsets();
   const bottomOffset = Math.max(insets.bottom, 8);
   const showMiniPlayer = isMiniPlayerRoute(pathname);
+  const backgroundVariant = getBackgroundVariant(pathname);
 
   const items = useMemo(
     () =>
@@ -131,6 +154,7 @@ export default function AppShell({
 
   return (
     <View style={[styles.shell, style]}>
+      <PremiumBackground variant={backgroundVariant} />
       <View
         style={[
           styles.content,
@@ -189,6 +213,7 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+    zIndex: 1,
   },
   navWrap: {
     position: "absolute",
