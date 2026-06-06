@@ -49,6 +49,58 @@ type DiscoveryRoom = {
   type: "room" | "station" | "genre";
 };
 
+type DiscoveryCarouselItem =
+  | {
+      kind: "room";
+      id: string;
+      label: string;
+      title: string;
+      subtitle: string;
+      artwork: string | HiddenTunesSong | null;
+      icon: keyof typeof Ionicons.glyphMap;
+      room: DiscoveryRoom;
+    }
+  | {
+      kind: "mood";
+      id: string;
+      label: string;
+      title: string;
+      subtitle: string;
+      artwork: string | null;
+      icon: keyof typeof Ionicons.glyphMap;
+      mood: ExploreMoodRoom;
+    }
+  | {
+      kind: "genre";
+      id: string;
+      label: string;
+      title: string;
+      subtitle: string;
+      artwork: string | HiddenTunesGenreCatalogItem | null;
+      icon: keyof typeof Ionicons.glyphMap;
+      genre: HiddenTunesGenreCatalogItem;
+    }
+  | {
+      kind: "album";
+      id: string;
+      label: string;
+      title: string;
+      subtitle: string;
+      artwork: string | HiddenTunesAlbumCatalogItem | null;
+      icon: keyof typeof Ionicons.glyphMap;
+      album: HiddenTunesAlbumCatalogItem;
+    }
+  | {
+      kind: "artist";
+      id: string;
+      label: string;
+      title: string;
+      subtitle: string;
+      artwork: string | HiddenTunesArtistCatalogItem | null;
+      icon: keyof typeof Ionicons.glyphMap;
+      artist: HiddenTunesArtistCatalogItem;
+    };
+
 const EMPTY_CATALOG: HiddenTunesDerivedCatalog = {
   songs: [],
   artists: [],
@@ -244,6 +296,83 @@ export default function WorldsIndexScreen() {
   const deepCuts = useMemo(() => uniqSongs(songs.slice(12, 36)).slice(0, 8), [songs]);
   const visibleArtists = useMemo(() => artists.slice(0, 12), [artists]);
 
+  const discoveryCarousel = useMemo(() => {
+    const items: DiscoveryCarouselItem[] = [];
+
+    discoveryRooms.slice(0, 5).forEach((room) => {
+      const artworkSong = room.songs.find((song) => getArtwork(song)) || room.songs[0] || null;
+      items.push({
+        kind: "room",
+        id: `room-${room.id}`,
+        label: room.eyebrow,
+        title: room.title,
+        subtitle: `${room.songs.length} track${room.songs.length === 1 ? "" : "s"} ready`,
+        artwork: room.artwork || artworkSong,
+        icon: room.icon,
+        room,
+      });
+    });
+
+    moodRooms.slice(0, 4).forEach((mood) => {
+      items.push({
+        kind: "mood",
+        id: `mood-${mood.id}`,
+        label: "MOOD ROOM",
+        title: mood.title,
+        subtitle: mood.subtitle,
+        artwork: mood.artwork?.[0] || null,
+        icon: "sparkles",
+        mood,
+      });
+    });
+
+    visibleGenres.slice(0, 5).forEach((genre) => {
+      items.push({
+        kind: "genre",
+        id: `genre-${genre.id}`,
+        label: "GENRE",
+        title: genre.title,
+        subtitle: `${genre.songs.length} song${genre.songs.length === 1 ? "" : "s"}`,
+        artwork: getGenreArtwork(genre) || genre,
+        icon: "albums",
+        genre,
+      });
+    });
+
+    deepAlbums.slice(0, 4).forEach((album) => {
+      items.push({
+        kind: "album",
+        id: `album-${album.id}`,
+        label: "ALBUM",
+        title: album.title,
+        subtitle: album.artist,
+        artwork: album.artwork || album,
+        icon: "disc",
+        album,
+      });
+    });
+
+    visibleArtists.slice(0, 4).forEach((artist) => {
+      items.push({
+        kind: "artist",
+        id: `artist-${artist.id}`,
+        label: "CREATOR",
+        title: artist.name,
+        subtitle: `${artist.songs.length} song${artist.songs.length === 1 ? "" : "s"}`,
+        artwork: artist.artwork || artist,
+        icon: "person",
+        artist,
+      });
+    });
+
+    const seen = new Set<string>();
+    return items.filter((item) => {
+      if (seen.has(item.id)) return false;
+      seen.add(item.id);
+      return true;
+    }).slice(0, 18);
+  }, [deepAlbums, discoveryRooms, moodRooms, visibleArtists, visibleGenres]);
+
   const continueTracks = useMemo(() => {
     if (!Array.isArray(recentlyPlayed) || recentlyPlayed.length === 0) return [] as HiddenTunesSong[];
 
@@ -333,6 +462,29 @@ export default function WorldsIndexScreen() {
     router.push({ pathname: "/artist", params: { artist: artist.name } } as any);
   }, []);
 
+  const openCarouselItem = useCallback(
+    (item: DiscoveryCarouselItem) => {
+      if (item.kind === "room") {
+        openRoom(item.room);
+        return;
+      }
+      if (item.kind === "mood") {
+        openMoodRoom(item.mood);
+        return;
+      }
+      if (item.kind === "genre") {
+        openGenre(item.genre);
+        return;
+      }
+      if (item.kind === "album") {
+        openAlbum(item.album);
+        return;
+      }
+      openArtist(item.artist);
+    },
+    [openAlbum, openArtist, openGenre, openMoodRoom, openRoom]
+  );
+
   return (
     <AppShell>
       <LinearGradient colors={GRADIENTS.main} style={styles.screen}>
@@ -364,35 +516,62 @@ export default function WorldsIndexScreen() {
             </View>
           ) : (
             <>
-              {countryStation ? (
-                <TouchableOpacity
-                  activeOpacity={0.9}
-                  style={[styles.featureHero, { width: heroWidth }]}
-                  onPress={() => openRoom(countryStation)}
-                >
-                  <HTImage source={countryStation.artwork || countryStation.songs[0]} style={styles.featureHeroImage} contentFit="cover" />
-                  <LinearGradient
-                    pointerEvents="none"
-                    colors={["transparent", "rgba(0,0,0,0.18)", "rgba(0,0,0,0.82)"]}
-                    style={styles.featureShade}
-                  />
-                  <View style={styles.featureContent}>
-                    <View style={styles.featureBadge}>
-                      <Ionicons name={countryStation.icon} size={13} color={COLORS.cyan} />
-                      <Text style={styles.featureBadgeText}>{countryStation.eyebrow}</Text>
+              {discoveryCarousel.length > 0 ? (
+                <View style={styles.carouselStage}>
+                  <View style={styles.sectionHeader}>
+                    <View>
+                      <Text style={styles.sectionEyebrow}>VISUAL DISCOVERY</Text>
+                      <Text style={styles.sectionTitle}>Explore The Catalog</Text>
                     </View>
-                    <Text numberOfLines={1} style={styles.featureTitle}>{countryStation.title}</Text>
-                    <Text numberOfLines={2} style={styles.featureSubtitle}>{countryStation.subtitle}</Text>
-                    <TouchableOpacity
-                      activeOpacity={0.88}
-                      style={styles.featurePlay}
-                      onPress={() => playRoom(countryStation)}
-                    >
-                      <Ionicons name="play" size={16} color="#000" />
-                      <Text style={styles.featurePlayText}>Start Station</Text>
-                    </TouchableOpacity>
+                    <Text style={styles.sectionMeta}>{discoveryCarousel.length} picks</Text>
                   </View>
-                </TouchableOpacity>
+
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    decelerationRate="fast"
+                    snapToInterval={heroWidth + railGap}
+                    contentContainerStyle={[styles.carouselRail, { gap: railGap, paddingRight: horizontalPadding }]}
+                  >
+                    {discoveryCarousel.map((item) => (
+                      <TouchableOpacity
+                        key={item.id}
+                        activeOpacity={0.9}
+                        style={[styles.carouselCard, { width: heroWidth }]}
+                        onPress={() => openCarouselItem(item)}
+                      >
+                        <HTImage
+                          source={item.artwork}
+                          style={styles.carouselImage}
+                          contentFit="cover"
+                        />
+                        <LinearGradient
+                          pointerEvents="none"
+                          colors={["rgba(0,0,0,0.04)", "rgba(0,0,0,0.18)", "rgba(0,0,0,0.86)"]}
+                          style={styles.carouselShade}
+                        />
+                        <View style={styles.carouselGlass} pointerEvents="none" />
+                        <View style={styles.carouselContent}>
+                          <View style={styles.carouselBadge}>
+                            <Ionicons name={item.icon} size={13} color={COLORS.cyan} />
+                            <Text style={styles.carouselBadgeText}>{item.label}</Text>
+                          </View>
+                          <Text numberOfLines={1} style={styles.carouselTitle}>{item.title}</Text>
+                          <Text numberOfLines={2} style={styles.carouselSubtitle}>{item.subtitle}</Text>
+                        </View>
+                        {item.kind === "room" ? (
+                          <TouchableOpacity
+                            activeOpacity={0.86}
+                            style={styles.carouselPlayButton}
+                            onPress={() => playRoom(item.room)}
+                          >
+                            <Ionicons name="play" size={15} color="#000" />
+                          </TouchableOpacity>
+                        ) : null}
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
               ) : null}
 
               {continueTracks.length > 0 ? (
@@ -670,7 +849,13 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontWeight: "700",
   },
-  featureHero: {
+  carouselStage: {
+    marginTop: 2,
+  },
+  carouselRail: {
+    paddingBottom: 3,
+  },
+  carouselCard: {
     alignSelf: "center",
     height: 356,
     borderRadius: 34,
@@ -684,19 +869,19 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 12 },
     elevation: 10,
   },
-  featureHeroImage: {
+  carouselImage: {
     ...StyleSheet.flatten(StyleSheet.absoluteFill),
   },
-  featureShade: {
+  carouselShade: {
     ...StyleSheet.flatten(StyleSheet.absoluteFill),
   },
-  featureContent: {
+  carouselContent: {
     position: "absolute",
     left: 18,
     right: 18,
     bottom: 18,
   },
-  featureBadge: {
+  carouselBadge: {
     alignSelf: "flex-start",
     flexDirection: "row",
     alignItems: "center",
@@ -709,19 +894,19 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.12)",
     marginBottom: 9,
   },
-  featureBadgeText: {
+  carouselBadgeText: {
     color: COLORS.cyan,
     fontSize: 10,
     fontWeight: "900",
     letterSpacing: 1.2,
   },
-  featureTitle: {
+  carouselTitle: {
     color: COLORS.text,
     fontSize: 27,
     fontWeight: "900",
     lineHeight: 32,
   },
-  featureSubtitle: {
+  carouselSubtitle: {
     color: COLORS.textMuted,
     fontSize: 13,
     lineHeight: 19,
@@ -729,21 +914,29 @@ const styles = StyleSheet.create({
     marginTop: 5,
     maxWidth: 280,
   },
-  featurePlay: {
-    marginTop: 14,
-    alignSelf: "flex-start",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 11,
-    borderRadius: 999,
-    backgroundColor: COLORS.primary,
+  carouselGlass: {
+    position: "absolute",
+    top: 14,
+    left: 14,
+    right: 14,
+    height: 86,
+    borderRadius: 26,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+    backgroundColor: "rgba(255,255,255,0.035)",
   },
-  featurePlayText: {
-    color: "#000",
-    fontSize: 13,
-    fontWeight: "900",
+  carouselPlayButton: {
+    position: "absolute",
+    top: 16,
+    right: 16,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: COLORS.primary,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.28)",
   },
   continueStrip: {
     marginTop: 20,
