@@ -1,4 +1,4 @@
-import { AppStateStatus } from "react-native";
+import { AppStateStatus, Platform } from "react-native";
 
 import { isHiddenAudioNativePlaybackEnabled } from "../constants/playbackConfig";
 import {
@@ -8,6 +8,7 @@ import {
   isHiddenAudioNativeEngineAvailable,
   subscribeHiddenAudioNativeDiagnostics,
   subscribeHiddenAudioPlaybackEnded,
+  subscribeHiddenAudioProgressChanged,
   type HiddenAudioNativeDiagnosticEvent,
   type HiddenAudioNativeSnapshot,
   type HiddenAudioPlaybackEndedEvent,
@@ -40,6 +41,35 @@ type QueueSnapshot = {
   playbackState: string | null;
   trackIds: string[];
 };
+
+
+function snapshotToPlaybackProgress(
+  snapshot: HiddenAudioNativeSnapshot
+): PlaybackProgress {
+  return {
+    positionMillis: snapshot.positionMillis,
+    durationMillis: snapshot.durationMillis,
+    isPlaying: snapshot.isPlaying,
+    playbackState: snapshot.playbackState,
+  };
+}
+
+function androidSnapshotIndicatesLoadedPlayback(
+  snapshot: HiddenAudioNativeSnapshot | null | undefined
+): boolean {
+  if (!snapshot) return false;
+  const nativeStatus = String(snapshot.nativeStatus || "").toLowerCase();
+  const playbackState = String(snapshot.playbackState || "").toLowerCase();
+  if (nativeStatus === "ended" || playbackState === "ended") return false;
+  return (
+    snapshot.hasLoadedTrack ||
+    Boolean(snapshot.activeTrack?.url) ||
+    snapshot.isPlaying ||
+    playbackState === "playing" ||
+    playbackState === "buffering" ||
+    playbackState === "ready"
+  );
+}
 
 let hiddenAudioBridgeActive = false;
 
@@ -154,6 +184,14 @@ export async function bridgeGetProgress(): Promise<PlaybackProgress> {
     return hiddenAudioBridge.getStatus();
   }
 
+  if (Platform.OS === "android" && isHiddenAudioNativePlaybackEnabled()) {
+    const snapshot = await getHiddenAudioNativeSnapshot();
+    if (androidSnapshotIndicatesLoadedPlayback(snapshot) && snapshot) {
+      markHiddenAudioBridgeActive(true);
+      return snapshotToPlaybackProgress(snapshot);
+    }
+  }
+
   return emptyProgress();
 }
 
@@ -169,6 +207,22 @@ export function subscribeBridgeEvents(
   _handlers: NativeQueueEventHandlers
 ): () => void {
   return () => {};
+}
+
+
+export function subscribeHiddenAudioProgress(
+  handler: (progress: PlaybackProgress) => void
+): () => void {
+  if (!isHiddenAudioNativePlaybackEnabled()) return () => {};
+  if (Platform.OS !== "android") return () => {};
+  return subscribeHiddenAudioProgressChanged((status) => {
+    handler({
+      positionMillis: status.positionMillis,
+      durationMillis: status.durationMillis,
+      isPlaying: status.isPlaying,
+      playbackState: status.playbackState || "idle",
+    });
+  });
 }
 
 export function subscribeHiddenAudioEnded(

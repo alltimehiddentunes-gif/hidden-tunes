@@ -53,7 +53,9 @@ import {
   shouldUseHiddenAudioPlayback,
   subscribeHiddenAudioDiagnostics,
   subscribeHiddenAudioEnded,
+  subscribeHiddenAudioProgress,
 } from "../services/playbackBridge";
+import type { PlaybackProgress } from "../services/playbackBridge";
 import type { HiddenAudioNativeSnapshot } from "../src/hidden-audio/hiddenAudioBridge";
 import { getArtworkValue } from "../utils/artwork";
 import { scheduleStartupTask } from "../utils/startupScheduler";
@@ -917,6 +919,64 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       });
     }
   }, []);
+
+
+  const applyHiddenAudioProgressToUi = useCallback(
+    (progress: PlaybackProgress, source: string) => {
+      if (!hiddenAudioActiveRef.current && !isHiddenAudioNativePlaybackEnabled()) {
+        return;
+      }
+
+      if (!hiddenAudioActiveRef.current) {
+        markHiddenAudioBridgeActive(true);
+        hiddenAudioActiveRef.current = true;
+      }
+
+      const now = Date.now();
+      const previousPosition = positionMillisRef.current;
+
+      if (progress.positionMillis > 0 || progress.isPlaying) {
+        positionMillisRef.current = progress.positionMillis;
+        const positionStateMinMs = getPositionStateUpdateMinMs(appStateRef.current);
+        if (
+          now - lastPositionStateUpdateRef.current >= positionStateMinMs ||
+          Math.abs(progress.positionMillis - previousPosition) > 250
+        ) {
+          lastPositionStateUpdateRef.current = now;
+          recordPlaybackProgressUpdate();
+          recordPlaybackReactStateUpdate("position");
+          setPositionMillisState(progress.positionMillis);
+        }
+      }
+
+      if (progress.durationMillis > 0) {
+        if (
+          Math.abs(progress.durationMillis - durationMillisRef.current) >=
+            DURATION_UPDATE_THRESHOLD_MS ||
+          durationMillisRef.current <= 0
+        ) {
+          durationMillisRef.current = progress.durationMillis;
+          recordPlaybackReactStateUpdate("duration");
+          setDurationMillisState(progress.durationMillis);
+        }
+      }
+
+      if (progress.isPlaying !== isPlayingRef.current) {
+        isPlayingRef.current = progress.isPlaying;
+        recordPlaybackReactStateUpdate("is_playing");
+        setIsPlayingState(progress.isPlaying);
+      }
+
+      logPlayerContextDebug("hidden_audio_progress_event_applied", {
+        source,
+        positionMillis: progress.positionMillis,
+        durationMillis: progress.durationMillis,
+        isPlaying: progress.isPlaying,
+        playbackState: progress.playbackState,
+      });
+    },
+    []
+  );
 
   const syncHiddenAudioState = useCallback(
     async (reason: string) => {
@@ -3909,12 +3969,21 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             logPlayerContextDebug("hidden_audio_status_after_play", statusAfterPlay);
 
             if (statusAfterPlay) {
-              if (!statusAfterPlay.positionMillis) {
-                setPositionMillis(startPositionMillis);
+              const resolvedPositionMillis =
+                statusAfterPlay.positionMillis > 0
+                  ? statusAfterPlay.positionMillis
+                  : startPositionMillis;
+              const resolvedDurationMillis =
+                statusAfterPlay.durationMillis > 0
+                  ? statusAfterPlay.durationMillis
+                  : Math.round(durationSeconds * 1000);
+
+              setPositionMillis(resolvedPositionMillis);
+              if (resolvedDurationMillis > 0) {
+                setDurationMillis(resolvedDurationMillis);
               }
-              if (!statusAfterPlay.durationMillis) {
-                setDurationMillis(Math.round(durationSeconds * 1000));
-              }
+              setIsPlaying(statusAfterPlay.isPlaying);
+
               if (!statusAfterPlay.isPlaying) {
                 logPlaybackCritical("hidden_audio_play_failure", {
                   songId: normalizedSong.id,
@@ -5733,6 +5802,17 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       syncNativeRemoteQueueAvailability,
     ]
   );
+
+
+  useEffect(() => {
+    if (Platform.OS !== "android" || !isHiddenAudioNativePlaybackEnabled()) {
+      return;
+    }
+
+    return subscribeHiddenAudioProgress((progress) => {
+      applyHiddenAudioProgressToUi(progress, "android_hidden_audio_progress_event");
+    });
+  }, [applyHiddenAudioProgressToUi]);
 
   useEffect(() => {
     return subscribeHiddenAudioDiagnostics((event) => {

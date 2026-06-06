@@ -197,7 +197,14 @@ object HiddenAudioCore {
     player?.addListener(object : Player.Listener {
       override fun onPlaybackStateChanged(playbackState: Int) {
         when (playbackState) {
-          Player.STATE_BUFFERING -> playerStatus = "buffering"
+          Player.STATE_IDLE -> {
+            if (playerStatus != "stopped") playerStatus = "idle"
+            emitPlaybackStateDiagnostic("android_player_state_idle", playbackState)
+          }
+          Player.STATE_BUFFERING -> {
+            playerStatus = "buffering"
+            emitPlaybackStateDiagnostic("android_player_state_buffering", playbackState)
+          }
           Player.STATE_READY -> {
             playerStatus = when {
               player?.isPlaying == true -> "playing"
@@ -205,9 +212,13 @@ object HiddenAudioCore {
               playerStatus != "paused" -> "ready"
               else -> "paused"
             }
+            emitPlaybackStateDiagnostic("android_player_state_ready", playbackState)
           }
-          Player.STATE_ENDED -> handlePlaybackEnded()
-          Player.STATE_IDLE -> if (playerStatus != "stopped") playerStatus = "idle"
+          Player.STATE_ENDED -> {
+            emitPlaybackStateDiagnostic("android_player_state_ended", playbackState)
+            handlePlaybackEnded()
+            return
+          }
         }
         emitState()
         emitProgress()
@@ -220,6 +231,7 @@ object HiddenAudioCore {
           else -> "paused"
         }
         if (isPlaying || player?.playWhenReady == true) startProgressLoop() else stopProgressLoop()
+        emitPlaybackStateDiagnostic("android_player_is_playing_changed", player?.playbackState ?: Player.STATE_IDLE)
         emitDiagnostic("android_player_state_changed", simpleData("state", playerStatus))
         emitState()
         emitProgress()
@@ -230,6 +242,10 @@ object HiddenAudioCore {
         val data = Arguments.createMap()
         data.putString("message", error.message ?: "unknown")
         data.putString("errorCodeName", error.errorCodeName)
+        data.putInt("errorCode", error.errorCode)
+        data.putString("playbackState", playbackStateName(player?.playbackState ?: Player.STATE_IDLE))
+        data.putBoolean("playWhenReady", player?.playWhenReady == true)
+        data.putBoolean("isPlaying", player?.isPlaying == true)
         emitDiagnostic("android_player_error", data)
         emitState()
         emitProgress()
@@ -257,6 +273,34 @@ object HiddenAudioCore {
     emitDiagnostic("hidden_audio_track_finished")
     emitState()
     emitProgress()
+  }
+
+
+  private fun playbackStateName(state: Int): String = when (state) {
+    Player.STATE_IDLE -> "idle"
+    Player.STATE_BUFFERING -> "buffering"
+    Player.STATE_READY -> "ready"
+    Player.STATE_ENDED -> "ended"
+    else -> "unknown"
+  }
+
+  private fun emitPlaybackStateDiagnostic(eventName: String, playbackState: Int) {
+    val exo = player
+    val data = Arguments.createMap()
+    data.putString("playbackState", playbackStateName(playbackState))
+    data.putBoolean("playWhenReady", exo?.playWhenReady == true)
+    data.putBoolean("isPlaying", exo?.isPlaying == true)
+    data.putInt("playbackSuppressionReason", exo?.playbackSuppressionReason ?: Player.PLAYBACK_SUPPRESSION_REASON_NONE)
+    data.putDouble(
+      "positionSeconds",
+      (exo?.currentPosition?.coerceAtLeast(0) ?: 0L) / 1000.0
+    )
+    val durationMillis = exo?.duration?.coerceAtLeast(0) ?: 0L
+    data.putDouble(
+      "durationSeconds",
+      if (durationMillis > 0) durationMillis / 1000.0 else (activeTrack?.durationSeconds ?: 0.0)
+    )
+    emitDiagnostic(eventName, data)
   }
 
   private fun trackToMap(track: ReadableMap): ActiveTrackData {

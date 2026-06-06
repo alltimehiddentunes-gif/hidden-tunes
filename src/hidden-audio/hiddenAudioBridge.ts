@@ -268,6 +268,80 @@ export async function updateHiddenAudioRemoteQueueAvailability(
   await HiddenAudioNative.updateRemoteQueueAvailability(activeIndex, queueLength);
 }
 
+
+export type HiddenAudioProgressEvent = {
+  type?: string;
+  progress?: Record<string, unknown>;
+};
+
+export type HiddenAudioStateEvent = {
+  type?: string;
+  state?: Record<string, unknown>;
+};
+
+function parseHiddenAudioProgressEvent(
+  event: HiddenAudioProgressEvent
+): HiddenAudioStatus | null {
+  const progressMap = (event?.progress || {}) as Record<string, unknown>;
+  if (!Object.keys(progressMap).length) return null;
+
+  const positionSeconds = Number(
+    progressMap.positionSeconds ?? progressMap.currentTime ?? 0
+  );
+  const durationSeconds = Number(
+    progressMap.durationSeconds ?? progressMap.duration ?? 0
+  );
+  const isPlayingValue = progressMap.isPlaying;
+  const status = String(progressMap.status || "");
+
+  return {
+    positionMillis: Math.max(
+      0,
+      Math.floor((Number.isFinite(positionSeconds) ? positionSeconds : 0) * 1000)
+    ),
+    durationMillis: Math.max(
+      0,
+      Math.floor((Number.isFinite(durationSeconds) ? durationSeconds : 0) * 1000)
+    ),
+    isPlaying:
+      isPlayingValue === true ||
+      isPlayingValue === 1 ||
+      isPlayingValue === "1" ||
+      status === "playing" ||
+      status === "buffering",
+    playbackState: status || undefined,
+  };
+}
+
+export function subscribeHiddenAudioProgressChanged(
+  handler: (status: HiddenAudioStatus) => void
+): () => void {
+  if (!hiddenAudioEvents) return () => {};
+
+  const subscription = hiddenAudioEvents.addListener(
+    "HiddenAudioProgressChanged",
+    (event: HiddenAudioProgressEvent) => {
+      const parsed = parseHiddenAudioProgressEvent(event);
+      if (parsed) handler(parsed);
+    }
+  );
+  return () => subscription.remove();
+}
+
+export function subscribeHiddenAudioStateChanged(
+  handler: (event: HiddenAudioStateEvent) => void
+): () => void {
+  if (!hiddenAudioEvents) return () => {};
+
+  const subscription = hiddenAudioEvents.addListener(
+    "HiddenAudioState",
+    (event: HiddenAudioStateEvent) => {
+      handler(event);
+    }
+  );
+  return () => subscription.remove();
+}
+
 export function subscribeHiddenAudioNativeDiagnostics(
   handler: (event: HiddenAudioNativeDiagnosticEvent) => void
 ): () => void {
