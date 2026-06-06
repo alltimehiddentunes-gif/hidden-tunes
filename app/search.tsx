@@ -71,6 +71,7 @@ import {
 import { logSearchDiagnostic, logSearchRankingDiagnostics } from "../utils/searchDiagnostics";
 import { logEntityTapReceived } from "../utils/entityDiagnostics";
 import { resolveStationEntity } from "../utils/entityResolution";
+import { resolveEntityArtwork } from "../utils/artwork";
 import { markFastScrolling } from "../utils/performanceMode";
 
 const EMPTY_SEARCH_RESULTS = EMPTY_UNIVERSAL_SEARCH_RESULTS;
@@ -248,6 +249,24 @@ function songBelongsToGenre(song: HiddenTunesSong, genre: HiddenTunesGenreCatalo
   );
 }
 
+function buildPlayableQueue(songs: HiddenTunesSong[]) {
+  return dedupeSongs(
+    songs.filter((song) => String(song.streamUrl || song.url || "").trim().length > 0)
+  );
+}
+
+function withInheritedSearchArtwork<
+  T extends { artwork?: string; cover?: string; thumbnail?: string }
+>(entity: T, relatedSongs: HiddenTunesSong[]): T {
+  const artwork = resolveEntityArtwork(entity, relatedSongs);
+  return {
+    ...entity,
+    artwork,
+    cover: artwork,
+    thumbnail: artwork,
+  };
+}
+
 export default function SearchScreen() {
   const params = useLocalSearchParams<{ q?: string }>();
   const { playSong } = usePlayerActions();
@@ -398,7 +417,17 @@ export default function SearchScreen() {
       ...EMPTY_SEARCH_RESULTS,
       songs: trusted.songs,
       artists: trusted.artists,
-      hasAnyResults: trusted.songs.length > 0 || trusted.artists.length > 0,
+      albums: trusted.albums,
+      genreMoods: trusted.genreMoods,
+      moodRooms: trusted.moodRooms,
+      playlists: trusted.playlists,
+      hasAnyResults:
+        trusted.songs.length > 0 ||
+        trusted.artists.length > 0 ||
+        trusted.albums.length > 0 ||
+        trusted.genreMoods.length > 0 ||
+        trusted.moodRooms.length > 0 ||
+        trusted.playlists.length > 0,
     };
   }, [backendSearchQuery, backendSearchSongs, cleanSubmittedSearchQuery]);
 
@@ -597,127 +626,152 @@ export default function SearchScreen() {
 
   const apkAlbumResults = useMemo(() => {
     if (cleanSubmittedSearchQuery.length < 2) return [] as HiddenTunesAlbumCatalogItem[];
-    const fromSearch = internalSearchResults.albums
+
+    const fromBackbone = internalSearchResults.albums
       .map((hit) => {
         const album = hit.payload;
-        return albums.find((item) => item.id === album.id) || {
+        const catalogAlbum =
+          albums.find((item) => item.id === album.id) ||
+          albums.find(
+            (item) =>
+              normalizeSearchText(item.title) === normalizeSearchText(album.title) &&
+              normalizeSearchText(item.artist) === normalizeSearchText(album.artist)
+          );
+
+        const songsForAlbum =
+          catalogAlbum?.songs?.length
+            ? catalogAlbum.songs
+            : ((album.tracks || []) as HiddenTunesSong[]);
+
+        const base = catalogAlbum || {
           id: album.id,
           title: album.title,
           artist: album.artist,
           artwork: album.artwork,
-          songs: (album.tracks || []) as HiddenTunesSong[],
+          songs: songsForAlbum,
         };
+
+        return withInheritedSearchArtwork(base, reliableCatalogSongResults);
       })
       .filter(Boolean) as HiddenTunesAlbumCatalogItem[];
-    const fromCatalog = albums.filter((album) =>
-      textMatchesQuery(`${album.title} ${album.artist}`, cleanSubmittedSearchQuery) ||
-      album.songs.some(
-        (song) =>
-          reliableCatalogSongIds.has(String(song.id || "")) ||
-          songMatchesCatalogQuery(song, cleanSubmittedSearchQuery)
-      )
-    );
-    const fromMatchedSongs = reliableCatalogSongResults
-      .map((song) =>
-        albums.find((album) =>
-          album.songs.some((albumSong) => String(albumSong.id) === String(song.id)) ||
-          songBelongsToAlbum(song, album)
-        )
-      )
-      .filter(Boolean) as HiddenTunesAlbumCatalogItem[];
-    const seen = new Set<string>();
-    const merged = [...fromSearch, ...fromMatchedSongs, ...fromCatalog].filter((album) => {
-      const key = String(album.id || `${album.title}-${album.artist}`);
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-    return rankApkAlbumResults(merged, cleanSubmittedSearchQuery);
+
+    return rankApkAlbumResults(fromBackbone, cleanSubmittedSearchQuery);
   }, [
     albums,
     cleanSubmittedSearchQuery,
     internalSearchResults.albums,
-    reliableCatalogSongIds,
     reliableCatalogSongResults,
   ]);
 
   const apkArtistResults = useMemo(() => {
     if (cleanSubmittedSearchQuery.length < 2) return [] as HiddenTunesArtistCatalogItem[];
-    const fromSearch = internalSearchResults.artists
-      .map((hit) => artists.find((item) => item.id === hit.payload.id) || null)
+
+    const fromBackbone = internalSearchResults.artists
+      .map((hit) => {
+        const artist = hit.payload;
+        const catalogArtist =
+          artists.find((item) => item.id === artist.id) ||
+          artists.find(
+            (item) => normalizeSearchText(item.name) === normalizeSearchText(artist.name)
+          );
+
+        const base = catalogArtist || {
+          id: artist.id,
+          name: artist.name,
+          artwork: artist.artwork || artist.cover || "",
+          songs: (artist.tracks || []) as HiddenTunesSong[],
+          albums: [],
+        };
+
+        return withInheritedSearchArtwork(base, reliableCatalogSongResults);
+      })
       .filter(Boolean) as HiddenTunesArtistCatalogItem[];
-    const fromCatalog = artists.filter(
-      (artist) =>
-        textMatchesQuery(artist.name, cleanSubmittedSearchQuery) ||
-        artist.songs.some(
-          (song) =>
-            reliableCatalogSongIds.has(String(song.id || "")) ||
-            songMatchesCatalogQuery(song, cleanSubmittedSearchQuery)
-        )
-    );
-    const fromMatchedSongs = reliableCatalogSongResults
-      .map((song) =>
-        artists.find((artist) =>
-          artist.songs.some((artistSong) => String(artistSong.id) === String(song.id)) ||
-          songBelongsToArtist(song, artist)
-        )
-      )
-      .filter(Boolean) as HiddenTunesArtistCatalogItem[];
-    const merged = dedupeByKey(
-      [...fromSearch, ...fromMatchedSongs, ...fromCatalog],
-      (artist) => String(artist.id || artist.name)
-    );
-    return rankApkArtistResults(merged, cleanSubmittedSearchQuery);
+
+    return rankApkArtistResults(fromBackbone, cleanSubmittedSearchQuery);
   }, [
     artists,
     cleanSubmittedSearchQuery,
     internalSearchResults.artists,
-    reliableCatalogSongIds,
     reliableCatalogSongResults,
   ]);
 
   const apkRoomResults = useMemo(() => {
     if (cleanSubmittedSearchQuery.length < 2) return [] as HiddenTunesGenreCatalogItem[];
-    const fromCatalog = genres.filter(
-      (genre) =>
-        textMatchesQuery(genre.title, cleanSubmittedSearchQuery) ||
-        genre.songs.some(
-          (song) =>
-            reliableCatalogSongIds.has(String(song.id || "")) ||
-            songMatchesCatalogQuery(song, cleanSubmittedSearchQuery)
-        )
-    );
-    const roomTitles = internalSearchResults.moodRooms.map((hit) => hit.payload.title);
-    const fromRooms = roomTitles
-      .map((title) => genres.find((genre) => textMatchesQuery(genre.title, title)) || null)
+
+    const genreHits: HiddenTunesGenreCatalogItem[] = internalSearchResults.genreMoods.map((hit) => {
+      const genre = hit.payload;
+      const catalogGenre =
+        genres.find((item) => item.id === genre.id) ||
+        genres.find(
+          (item) => normalizeSearchText(item.title) === normalizeSearchText(genre.title)
+        );
+
+      const base = catalogGenre || {
+        id: genre.id,
+        title: genre.title,
+        artwork: "",
+        songs: reliableCatalogSongResults.filter((song) => songBelongsToGenre(song, {
+          id: genre.id,
+          title: genre.title,
+          artwork: "",
+          songs: [],
+        })),
+      };
+
+      return withInheritedSearchArtwork(base, reliableCatalogSongResults);
+    });
+
+    const roomHits = internalSearchResults.moodRooms
+      .map((hit) => {
+        const title = hit.payload.title;
+        const catalogGenre = genres.find((genre) => textMatchesQuery(genre.title, title));
+        if (!catalogGenre) {
+          return withInheritedSearchArtwork(
+            {
+              id: hit.payload.id,
+              title,
+              artwork: "",
+              songs: reliableCatalogSongResults.filter((song) =>
+                textMatchesQuery([song.genre, song.mood, song.title].join(" "), title)
+              ),
+            },
+            reliableCatalogSongResults
+          );
+        }
+        return withInheritedSearchArtwork(catalogGenre, reliableCatalogSongResults);
+      })
       .filter(Boolean) as HiddenTunesGenreCatalogItem[];
-    const fromMatchedSongs = reliableCatalogSongResults
-      .map((song) =>
-        genres.find((genre) =>
-          genre.songs.some((genreSong) => String(genreSong.id) === String(song.id)) ||
-          songBelongsToGenre(song, genre)
-        )
-      )
-      .filter(Boolean) as HiddenTunesGenreCatalogItem[];
+
     const merged = dedupeByKey(
-      [...fromCatalog, ...fromMatchedSongs, ...fromRooms],
+      [...genreHits, ...roomHits],
       (genre) => String(genre.id || genre.title)
     );
+
     return rankApkGenreResults(merged, cleanSubmittedSearchQuery);
   }, [
     cleanSubmittedSearchQuery,
     genres,
+    internalSearchResults.genreMoods,
     internalSearchResults.moodRooms,
-    reliableCatalogSongIds,
     reliableCatalogSongResults,
   ]);
 
   const apkPlaylistResults = useMemo(() => {
     if (cleanSubmittedSearchQuery.length < 2) return [] as HiddenTunesDerivedCatalog["playlists"];
+
     return internalSearchResults.playlists
-      .map((hit) => playlists.find((item) => item.id === hit.payload.id) || hit.payload)
-      .slice(0, 10);
-  }, [cleanSubmittedSearchQuery, internalSearchResults.playlists, playlists]);
+      .map((hit) => {
+        const playlist = hit.payload;
+        const catalogPlaylist = playlists.find((item) => item.id === playlist.id) || playlist;
+        return withInheritedSearchArtwork(catalogPlaylist, reliableCatalogSongResults);
+      })
+      .slice(0, 10) as HiddenTunesDerivedCatalog["playlists"];
+  }, [
+    cleanSubmittedSearchQuery,
+    internalSearchResults.playlists,
+    playlists,
+    reliableCatalogSongResults,
+  ]);
 
   const apkStationResults = useMemo(() => {
     if (cleanSubmittedSearchQuery.length < 2) return [] as SearchStationResult[];
@@ -1037,6 +1091,210 @@ export default function SearchScreen() {
     } as any);
   }, [cleanSubmittedSearchQuery]);
 
+  const playAlbumResult = useCallback(
+    (album: HiddenTunesAlbumCatalogItem | HiddenTunesAlbum) => {
+      const catalogAlbum =
+        "songs" in album
+          ? (album as HiddenTunesAlbumCatalogItem)
+          : albums.find((item) => item.id === album.id) || null;
+
+      const queue = buildPlayableQueue(
+        catalogAlbum?.songs?.length
+          ? catalogAlbum.songs
+          : reliableCatalogSongResults.filter((song) =>
+              songBelongsToAlbum(
+                song,
+                catalogAlbum || {
+                  id: album.id,
+                  title: album.title,
+                  artist: album.artist,
+                  artwork: album.artwork || "",
+                  songs: [],
+                }
+              )
+            )
+      );
+
+      logSearchDiagnostic("search_result_tapped", {
+        resultType: "album",
+        albumId: album.id,
+        title: album.title,
+        query: cleanSubmittedSearchQuery,
+      });
+
+      if (!queue.length) {
+        router.push({ pathname: '/album/[id]', params: { id: String(album.id || '') } } as any);
+        return;
+      }
+
+      void playSong(queue[0], queue, 0, {
+        source: "search",
+        label: album.title,
+        searchQuery: submittedSearchQuery || searchQuery,
+        artistName: album.artist,
+      });
+      router.push("/player" as any);
+    },
+    [
+      albums,
+      cleanSubmittedSearchQuery,
+      playSong,
+      reliableCatalogSongResults,
+      searchQuery,
+      submittedSearchQuery,
+    ]
+  );
+
+  const playArtistResult = useCallback(
+    (artist: HiddenTunesArtistCatalogItem | HiddenTunesArtist) => {
+      const catalogArtist =
+        "songs" in artist
+          ? (artist as HiddenTunesArtistCatalogItem)
+          : artists.find((item) => item.id === artist.id) ||
+            artists.find(
+              (item) => normalizeSearchText(item.name) === normalizeSearchText(artist.name)
+            ) ||
+            null;
+
+      const queue = buildPlayableQueue(
+        catalogArtist?.songs?.length
+          ? catalogArtist.songs
+          : reliableCatalogSongResults.filter((song) =>
+              songBelongsToArtist(
+                song,
+                catalogArtist || {
+                  id: artist.id,
+                  name: artist.name,
+                  artwork: artist.artwork || "",
+                  songs: [],
+                  albums: [],
+                }
+              )
+            )
+      );
+
+      logSearchDiagnostic("search_result_tapped", {
+        resultType: "artist",
+        artistId: artist.id,
+        title: artist.name,
+        query: cleanSubmittedSearchQuery,
+      });
+
+      if (!queue.length) {
+        router.push({ pathname: '/artist', params: { artist: artist.name, id: artist.id } } as any);
+        return;
+      }
+
+      void playSong(queue[0], queue, 0, {
+        source: "search",
+        label: artist.name,
+        searchQuery: submittedSearchQuery || searchQuery,
+        artistName: artist.name,
+      });
+      router.push("/player" as any);
+    },
+    [
+      artists,
+      cleanSubmittedSearchQuery,
+      playSong,
+      reliableCatalogSongResults,
+      searchQuery,
+      submittedSearchQuery,
+    ]
+  );
+
+  const playGenreResult = useCallback(
+    (genre: HiddenTunesGenreCatalogItem | HiddenTunesGenre) => {
+      const catalogGenre =
+        "songs" in genre
+          ? (genre as HiddenTunesGenreCatalogItem)
+          : genres.find((item) => item.id === genre.id) ||
+            genres.find(
+              (item) => normalizeSearchText(item.title) === normalizeSearchText(genre.title)
+            ) ||
+            null;
+
+      const queue = buildPlayableQueue(
+        catalogGenre?.songs?.length
+          ? catalogGenre.songs
+          : reliableCatalogSongResults.filter((song) =>
+              songBelongsToGenre(
+                song,
+                catalogGenre || {
+                  id: genre.id,
+                  title: genre.title,
+                  artwork: "",
+                  songs: [],
+                }
+              )
+            )
+      );
+
+      logSearchDiagnostic("search_result_tapped", {
+        resultType: "room",
+        genreId: genre.id,
+        title: genre.title,
+        query: cleanSubmittedSearchQuery,
+      });
+
+      if (!queue.length) {
+        router.push({ pathname: '/genre', params: { title: genre.title, query: genre.title, id: genre.id, type: 'genre' } } as any);
+        return;
+      }
+
+      void playSong(queue[0], queue, 0, {
+        source: "search",
+        label: genre.title,
+        searchQuery: submittedSearchQuery || searchQuery,
+        genre: genre.title,
+        mood: genre.title,
+      });
+      router.push("/player" as any);
+    },
+    [
+      cleanSubmittedSearchQuery,
+      genres,
+      playSong,
+      reliableCatalogSongResults,
+      searchQuery,
+      submittedSearchQuery,
+    ]
+  );
+
+  const playPlaylistResult = useCallback(
+    (playlist: HiddenTunesDerivedCatalog["playlists"][number]) => {
+      const catalogPlaylist = playlists.find((item) => item.id === playlist.id) || playlist;
+      const queue = buildPlayableQueue(catalogPlaylist.songs || []);
+
+      logSearchDiagnostic("search_result_tapped", {
+        resultType: "playlist",
+        playlistId: playlist.id,
+        title: playlist.title,
+        query: cleanSubmittedSearchQuery,
+      });
+
+      if (!queue.length) {
+        router.push('/playlists' as any);
+        return;
+      }
+
+      void playSong(queue[0], queue, 0, {
+        source: "search",
+        label: playlist.title,
+        searchQuery: submittedSearchQuery || searchQuery,
+      });
+      router.push("/player" as any);
+    },
+    [
+      cleanSubmittedSearchQuery,
+      playlists,
+      playSong,
+      searchQuery,
+      submittedSearchQuery,
+    ]
+  );
+
+
   const openTv = useCallback((video: any) => {
     router.push({
       pathname: "/youtube-player",
@@ -1248,7 +1506,7 @@ export default function SearchScreen() {
                     <Text style={styles.sectionEyebrow}>ALBUMS</Text>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rail}>
                       {apkAlbumResults.map((album) => (
-                        <TouchableOpacity key={album.id} activeOpacity={0.88} style={styles.albumCard} onPress={() => openAlbum(album)}>
+                        <TouchableOpacity key={album.id} activeOpacity={0.88} style={styles.albumCard} onPress={() => playAlbumResult(album)}>
                           <HTImage source={album} style={styles.albumImage} contentFit="cover" />
                           <Text numberOfLines={2} style={styles.albumTitle}>{album.title}</Text>
                           <Text numberOfLines={1} style={styles.albumArtist}>{album.artist}</Text>
@@ -1263,7 +1521,7 @@ export default function SearchScreen() {
                     <Text style={styles.sectionEyebrow}>ARTISTS</Text>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rail}>
                       {apkArtistResults.map((artist) => (
-                        <TouchableOpacity key={artist.id} activeOpacity={0.88} style={styles.artistCard} onPress={() => openArtist(artist)}>
+                        <TouchableOpacity key={artist.id} activeOpacity={0.88} style={styles.artistCard} onPress={() => playArtistResult(artist)}>
                           <HTImage source={artist} style={styles.artistImage} contentFit="cover" />
                           <Text numberOfLines={2} style={styles.artistName}>{artist.name}</Text>
                           <Text numberOfLines={1} style={styles.artistMeta}>{artist.songs.length} song{artist.songs.length === 1 ? "" : "s"}</Text>
@@ -1278,7 +1536,7 @@ export default function SearchScreen() {
                     <Text style={styles.sectionEyebrow}>GENRES / ROOMS</Text>
                     <View style={styles.roomGrid}>
                       {apkRoomResults.map((genre) => (
-                        <TouchableOpacity key={genre.id} activeOpacity={0.86} style={styles.roomCard} onPress={() => openGenre(genre)}>
+                        <TouchableOpacity key={genre.id} activeOpacity={0.86} style={styles.roomCard} onPress={() => playGenreResult(genre)}>
                           <HTImage source={genre} style={styles.roomImage} contentFit="cover" />
                           <LinearGradient pointerEvents="none" colors={["transparent", "rgba(0,0,0,0.74)"]} style={styles.roomShade} />
                           <Text numberOfLines={1} style={styles.roomTitle}>{genre.title}</Text>
@@ -1327,7 +1585,7 @@ export default function SearchScreen() {
                           key={playlist.id}
                           activeOpacity={0.88}
                           style={styles.albumCard}
-                          onPress={() => openPlaylist(playlist)}
+                          onPress={() => playPlaylistResult(playlist)}
                         >
                           <HTImage source={playlist} style={styles.albumImage} contentFit="cover" />
                           <Text numberOfLines={2} style={styles.albumTitle}>{playlist.title}</Text>

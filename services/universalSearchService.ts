@@ -26,6 +26,7 @@ import type {
   HiddenTunesNormalizedSong,
 } from "./hiddenTunesApi";
 import type { HiddenTunesTvVideo } from "./tvCatalogApi";
+import { pickBestArtworkFromSongs } from "../utils/artwork";
 
 export type UniversalSearchSongHit = UniversalSearchHit<HiddenTunesNormalizedSong> & {
   kind: "song" | "lyric";
@@ -335,6 +336,331 @@ function searchSongs(
   };
 }
 
+function collectMatchedSongBackbone(
+  songResults: {
+    songs: UniversalSearchSongHit[];
+    lyrics: UniversalSearchSongHit[];
+  }
+): UniversalSearchSongHit[] {
+  const bySongId = new Map<string, UniversalSearchSongHit>();
+
+  for (const hit of [...songResults.songs, ...songResults.lyrics]) {
+    const songId = String(hit.payload.id || "").trim();
+    if (!songId) continue;
+
+    const existing = bySongId.get(songId);
+    if (!existing || hit.score > existing.score) {
+      bySongId.set(songId, hit);
+    }
+  }
+
+  return [...bySongId.values()].sort((left, right) => right.score - left.score);
+}
+
+function withInheritedSongArtwork<T extends Record<string, unknown>>(
+  entity: T,
+  songs: HiddenTunesNormalizedSong[]
+): T {
+  const artwork = pickBestArtworkFromSongs(songs);
+  return {
+    ...entity,
+    artwork: (entity as { artwork?: string }).artwork || artwork,
+    cover: (entity as { cover?: string }).cover || artwork,
+    thumbnail: (entity as { thumbnail?: string }).thumbnail || artwork,
+  };
+}
+
+function deriveArtistsFromMatchedSongs(
+  backbone: UniversalSearchSongHit[],
+  catalogArtists: HiddenTunesArtist[],
+  query: string
+): UniversalSearchArtistHit[] {
+  const groups = new Map<string, { name: string; hits: UniversalSearchSongHit[] }>();
+
+  for (const hit of backbone) {
+    const name = String(hit.payload.artist || "").trim();
+    const key = normalizeSearchText(name);
+    if (!name || !key) continue;
+
+    const group = groups.get(key) || { name, hits: [] };
+    group.hits.push(hit);
+    groups.set(key, group);
+  }
+
+  const hits: UniversalSearchArtistHit[] = [];
+
+  for (const group of groups.values()) {
+    const relatedSongs = group.hits.map((hit) => hit.payload);
+    const catalogArtist = catalogArtists.find(
+      (artist) => normalizeSearchText(artist.name) === normalizeSearchText(group.name)
+    );
+
+    const maxSongScore = Math.max(...group.hits.map((hit) => hit.score));
+    const nameBoost = fuzzyFieldMatches(group.name, query) ? 220 : 0;
+    const artistReasonBoost = group.hits.some((hit) =>
+      String(hit.catalogMatchReason || "").startsWith("artist_")
+    )
+      ? 140
+      : 0;
+
+    const payload = withInheritedSongArtwork(
+      catalogArtist || {
+        id: `artist:${normalizeSearchText(group.name)}`,
+        name: group.name,
+        slug: normalizeSearchText(group.name),
+        artwork: "",
+        tracks: relatedSongs,
+        albums: [],
+      } as HiddenTunesArtist,
+      relatedSongs
+    );
+
+    hits.push({
+      id: `artist:${payload.id}`,
+      score: maxSongScore + nameBoost + artistReasonBoost,
+      reason: "Matched artist",
+      payload,
+      subtitle: payload.genre || `${relatedSongs.length} matched track${relatedSongs.length === 1 ? "" : "s"}`,
+    });
+  }
+
+  return rankSearchHits(hits, LIMITS.artists);
+}
+
+function deriveAlbumsFromMatchedSongs(
+  backbone: UniversalSearchSongHit[],
+  catalogAlbums: HiddenTunesAlbum[],
+  query: string
+): UniversalSearchAlbumHit[] {
+  const groups = new Map<
+    string,
+    { title: string; artist: string; hits: UniversalSearchSongHit[] }
+  >();
+
+  for (const hit of backbone) {
+    const title = String(hit.payload.album || "").trim();
+    const artist = String(hit.payload.artist || "").trim();
+    if (!title) continue;
+
+    const key = `${normalizeSearchText(artist)}::${normalizeSearchText(title)}`;
+    const group = groups.get(key) || { title, artist, hits: [] };
+    group.hits.push(hit);
+    groups.set(key, group);
+  }
+
+  const hits: UniversalSearchAlbumHit[] = [];
+
+  for (const group of groups.values()) {
+    const relatedSongs = group.hits.map((hit) => hit.payload);
+    const catalogAlbum = catalogAlbums.find(
+      (album) =>
+        normalizeSearchText(album.title) === normalizeSearchText(group.title) &&
+        normalizeSearchText(album.artist) === normalizeSearchText(group.artist)
+    );
+
+    const maxSongScore = Math.max(...group.hits.map((hit) => hit.score));
+    const titleBoost = fuzzyFieldMatches(group.title, query) ? 200 : 0;
+    const albumReasonBoost = group.hits.some((hit) =>
+      String(hit.catalogMatchReason || "").startsWith("album_")
+    )
+      ? 130
+      : 0;
+
+    const payload = withInheritedSongArtwork(
+      catalogAlbum || {
+        id: `album:${normalizeSearchText(group.artist)}-${normalizeSearchText(group.title)}`,
+        title: group.title,
+        slug: normalizeSearchText(group.title),
+        artist: group.artist,
+        artwork: "",
+        tracks: relatedSongs,
+      } as HiddenTunesAlbum,
+      relatedSongs
+    );
+
+    hits.push({
+      id: `album:${payload.id}`,
+      score: maxSongScore + titleBoost + albumReasonBoost,
+      reason: "Matched album",
+      payload,
+      subtitle: group.artist,
+    });
+  }
+
+  return rankSearchHits(hits, LIMITS.albums);
+}
+
+function deriveGenresFromMatchedSongs(
+  backbone: UniversalSearchSongHit[],
+  catalogGenres: HiddenTunesGenre[],
+  query: string
+): UniversalSearchGenreHit[] {
+  const groups = new Map<string, { label: string; hits: UniversalSearchSongHit[] }>();
+
+  for (const hit of backbone) {
+    for (const rawLabel of [hit.payload.genre, hit.payload.mood]) {
+      const label = String(rawLabel || "").trim();
+      const key = normalizeSearchText(label);
+      if (!label || !key) continue;
+
+      const group = groups.get(key) || { label, hits: [] };
+      group.hits.push(hit);
+      groups.set(key, group);
+    }
+  }
+
+  const hits: UniversalSearchGenreHit[] = [];
+
+  for (const group of groups.values()) {
+    const relatedSongs = group.hits.map((hit) => hit.payload);
+    const catalogGenre = catalogGenres.find(
+      (genre) => normalizeSearchText(genre.title) === normalizeSearchText(group.label)
+    );
+
+    const maxSongScore = Math.max(...group.hits.map((hit) => hit.score));
+    const titleBoost = fuzzyFieldMatches(group.label, query) ? 180 : 0;
+    const genreReasonBoost = group.hits.some((hit) =>
+      ["genre_exact", "genre_starts", "genre_contains", "mood_match"].includes(
+        String(hit.catalogMatchReason || "")
+      )
+    )
+      ? 120
+      : 0;
+
+    const payload =
+      catalogGenre ||
+      ({
+        id: `genre:${normalizeSearchText(group.label)}`,
+        title: group.label,
+        query: group.label,
+        emoji: "🎵",
+      } as HiddenTunesGenre);
+
+    hits.push({
+      id: `genre:${payload.id}`,
+      score: maxSongScore + titleBoost + genreReasonBoost,
+      reason: /mood|feel|vibe|room/i.test(group.label) ? "Matched mood" : "Matched genre",
+      payload,
+      subtitle: `${relatedSongs.length} matched track${relatedSongs.length === 1 ? "" : "s"}`,
+    });
+  }
+
+  return rankSearchHits(hits, LIMITS.genres);
+}
+
+function deriveMoodRoomsFromMatchedSongs(
+  backbone: UniversalSearchSongHit[],
+  query: string
+): UniversalSearchRoomHit[] {
+  const hits: UniversalSearchRoomHit[] = [];
+
+  for (const room of MOOD_ROOM_DEFINITIONS) {
+    const queryScore = scoreSearchDocument(
+      buildSearchDocument([room.title, ...room.terms]),
+      query,
+      0.94
+    );
+    if (queryScore <= 0) continue;
+
+    const roomTerms = room.terms.map((term) => normalizeSearchText(term));
+    const matchedHits = backbone.filter((hit) => {
+      const songText = normalizeSearchText(
+        [hit.payload.title, hit.payload.genre, hit.payload.mood, hit.payload.artist].join(" ")
+      );
+      return roomTerms.some((term) => term && songText.includes(term));
+    });
+
+    if (!matchedHits.length) continue;
+
+    const maxSongScore = Math.max(...matchedHits.map((hit) => hit.score));
+
+    hits.push({
+      id: `room:${room.id}`,
+      score: Math.round(queryScore + maxSongScore * 0.35),
+      reason: "Matched mood",
+      payload: {
+        id: room.id,
+        title: room.title,
+        query: room.title,
+        emoji: "✨",
+      },
+      subtitle: `${matchedHits.length} matched track${matchedHits.length === 1 ? "" : "s"}`,
+    });
+  }
+
+  return rankSearchHits(hits, LIMITS.moodRooms);
+}
+
+function derivePlaylistsFromMatchedSongs(
+  backbone: UniversalSearchSongHit[],
+  playlists: HiddenTunesCatalogPlaylist[],
+  query: string
+): UniversalSearchPlaylistHit[] {
+  const matchedIds = new Set(
+    backbone.map((hit) => String(hit.payload.id || "").trim()).filter(Boolean)
+  );
+  const scoreBySongId = new Map(
+    backbone.map((hit) => [String(hit.payload.id || "").trim(), hit.score])
+  );
+
+  const hits: UniversalSearchPlaylistHit[] = [];
+
+  for (const playlist of playlists) {
+    const overlap = (playlist.songs || []).filter((song) =>
+      matchedIds.has(String(song.id || "").trim())
+    );
+    if (!overlap.length) continue;
+
+    const titleScore = scoreSearchDocument(
+      buildSearchDocument([playlist.title, playlist.description, playlist.kind]),
+      query,
+      0.95
+    );
+    const overlapBoost = overlap.length * 80;
+    const maxSongScore = Math.max(
+      ...overlap.map((song) => scoreBySongId.get(String(song.id || "").trim()) || 0)
+    );
+
+    const payload = withInheritedSongArtwork(
+      {
+        ...playlist,
+        songs: overlap.length === playlist.songs.length ? playlist.songs : overlap,
+      },
+      overlap as HiddenTunesNormalizedSong[]
+    );
+
+    hits.push({
+      id: `playlist:${playlist.id}`,
+      score: maxSongScore + titleScore + overlapBoost,
+      reason: titleScore > 0 ? "Matched tag" : "Matched title",
+      payload,
+      subtitle: playlist.description || `${overlap.length} matched tracks`,
+    });
+  }
+
+  return rankSearchHits(hits, LIMITS.playlists);
+}
+
+function deriveGroupedResultsFromSongBackbone(
+  catalog: UniversalSearchCatalog,
+  query: string,
+  songResults: {
+    songs: UniversalSearchSongHit[];
+    lyrics: UniversalSearchSongHit[];
+  }
+) {
+  const backbone = collectMatchedSongBackbone(songResults);
+
+  return {
+    backbone,
+    artists: deriveArtistsFromMatchedSongs(backbone, catalog.artists, query),
+    albums: deriveAlbumsFromMatchedSongs(backbone, catalog.albums, query),
+    genreMoods: deriveGenresFromMatchedSongs(backbone, catalog.genres, query),
+    moodRooms: deriveMoodRoomsFromMatchedSongs(backbone, query),
+    playlists: derivePlaylistsFromMatchedSongs(backbone, catalog.playlists || [], query),
+  };
+}
+
 function searchArtists(artists: HiddenTunesArtist[], query: string) {
   const hits: UniversalSearchArtistHit[] = [];
 
@@ -553,11 +879,12 @@ export function runUniversalCatalogSearch(
   if (cleanQuery.length < 2) return EMPTY_UNIVERSAL_SEARCH_RESULTS;
 
   const songResults = searchSongs(catalog.songs, cleanQuery);
-  const artists = searchArtists(catalog.artists, cleanQuery);
-  const albums = searchAlbums(catalog.albums, cleanQuery);
-  const genreMoods = searchGenres(catalog.genres, cleanQuery);
-  const moodRooms = searchMoodRooms(cleanQuery);
-  const playlists = searchPlaylists(catalog.playlists || [], cleanQuery);
+  const derived = deriveGroupedResultsFromSongBackbone(catalog, cleanQuery, songResults);
+  const artists = derived.artists;
+  const albums = derived.albums;
+  const genreMoods = derived.genreMoods;
+  const moodRooms = derived.moodRooms;
+  const playlists = derived.playlists;
   const tv =
     catalog.tvVideos.length > 0 ? searchTv(catalog.tvVideos, cleanQuery) : [];
 
@@ -603,10 +930,20 @@ export function runUniversalCatalogSearch(
 export function buildTrustedBackendSongHits(
   songs: HiddenTunesNormalizedSong[],
   query: string
-): Pick<UniversalSearchGroupedResults, "songs" | "artists"> {
+): Pick<
+  UniversalSearchGroupedResults,
+  "songs" | "artists" | "albums" | "genreMoods" | "moodRooms" | "playlists"
+> {
   const cleanQuery = String(query || "").trim();
   if (!cleanQuery || !songs.length) {
-    return { songs: [], artists: [] };
+    return {
+      songs: [],
+      artists: [],
+      albums: [],
+      genreMoods: [],
+      moodRooms: [],
+      playlists: [],
+    };
   }
 
   const songHits: UniversalSearchSongHit[] = [];
@@ -663,9 +1000,34 @@ export function buildTrustedBackendSongHits(
     if (songHits.length >= LIMITS.songs) break;
   }
 
+  const rankedSongs = rankSearchHits(songHits, LIMITS.songs) as UniversalSearchSongHit[];
+  const derived = deriveGroupedResultsFromSongBackbone(
+    {
+      songs: [],
+      albums: [],
+      artists: [],
+      genres: [],
+      playlists: [],
+      tvVideos: [],
+    },
+    cleanQuery,
+    { songs: rankedSongs, lyrics: [] }
+  );
+
+  const backboneArtists = derived.artists;
+  const mergedArtists = mergeHitGroups(
+    backboneArtists,
+    rankSearchHits(artistHits, LIMITS.artists) as UniversalSearchArtistHit[],
+    LIMITS.artists
+  );
+
   return {
-    songs: rankSearchHits(songHits, LIMITS.songs) as UniversalSearchSongHit[],
-    artists: rankSearchHits(artistHits, LIMITS.artists) as UniversalSearchArtistHit[],
+    songs: rankedSongs,
+    artists: mergedArtists,
+    albums: derived.albums,
+    genreMoods: derived.genreMoods,
+    moodRooms: derived.moodRooms,
+    playlists: derived.playlists,
   };
 }
 
