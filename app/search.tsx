@@ -188,7 +188,19 @@ function textMatchesQuery(value: unknown, query: string) {
 }
 
 function catalogSongSearchText(song: HiddenTunesSong) {
-  return [song.title, song.artist, song.album, song.genre, song.mood, song.lyrics]
+  const raw = (song as any).raw || {};
+  return [
+    song.title,
+    song.artist,
+    song.album,
+    song.genre,
+    song.mood,
+    song.lyrics,
+    raw.tags,
+    raw.description,
+    raw.creator,
+    raw.uploader,
+  ]
     .filter(Boolean)
     .join(" ");
 }
@@ -201,6 +213,39 @@ function dedupeSongs<T extends { id?: string; title?: string; artist?: string }>
     seen.add(key);
     return true;
   });
+}
+
+function dedupeByKey<T>(items: T[], getKey: (item: T) => string) {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    const key = getKey(item);
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function songMatchesCatalogQuery(song: HiddenTunesSong, query: string) {
+  return textMatchesQuery(catalogSongSearchText(song), query);
+}
+
+function songBelongsToAlbum(song: HiddenTunesSong, album: HiddenTunesAlbumCatalogItem) {
+  return (
+    normalizeSearchText(song.album) === normalizeSearchText(album.title) &&
+    normalizeSearchText(song.artist) === normalizeSearchText(album.artist)
+  );
+}
+
+function songBelongsToArtist(song: HiddenTunesSong, artist: HiddenTunesArtistCatalogItem) {
+  return normalizeSearchText(song.artist) === normalizeSearchText(artist.name);
+}
+
+function songBelongsToGenre(song: HiddenTunesSong, genre: HiddenTunesGenreCatalogItem) {
+  const genreTitle = normalizeSearchText(genre.title);
+  return (
+    normalizeSearchText(song.genre) === genreTitle ||
+    normalizeSearchText(song.mood) === genreTitle
+  );
 }
 
 export default function SearchScreen() {
@@ -513,21 +558,37 @@ export default function SearchScreen() {
     const internalSongs = songsFromSearchHits(internalSearchResults);
     const merged = dedupeSongs([
       ...internalSongs,
-      ...songs.filter((song) => textMatchesQuery(catalogSongSearchText(song), cleanSubmittedSearchQuery)),
+      ...songs.filter((song) => songMatchesCatalogQuery(song, cleanSubmittedSearchQuery)),
     ]);
     return unwrapRankedSearchItems(rankSearchSongs(merged, cleanSubmittedSearchQuery));
   }, [cleanSubmittedSearchQuery, internalSearchResults, songs]);
 
+  const reliableCatalogSongResults = useMemo(() => {
+    if (cleanSubmittedSearchQuery.length < 2) return [] as HiddenTunesSong[];
+
+    const directMatches = songs.filter((song) =>
+      songMatchesCatalogQuery(song, cleanSubmittedSearchQuery)
+    );
+    const merged = dedupeSongs([...searchResultSongs, ...directMatches]);
+    return unwrapRankedSearchItems(
+      rankSearchSongs(merged, cleanSubmittedSearchQuery, { limit: 80 })
+    );
+  }, [cleanSubmittedSearchQuery, searchResultSongs, songs]);
+
+  const reliableCatalogSongIds = useMemo(
+    () => new Set(reliableCatalogSongResults.map((song) => String(song.id || ""))),
+    [reliableCatalogSongResults]
+  );
 
   const apkSongRanked = useMemo(() => {
     if (cleanSubmittedSearchQuery.length < 2) return [] as ReturnType<typeof rankApkSongResults>;
-    const direct = dedupeSongs(searchResultSongs);
+    const direct = dedupeSongs(reliableCatalogSongResults);
     const needsRelated = direct.length < 4;
     const related = needsRelated
       ? buildRelatedInternalDiscovery(cleanSubmittedSearchQuery, songs, direct, 28)
       : [];
     return rankApkSongResults(direct, cleanSubmittedSearchQuery, related);
-  }, [cleanSubmittedSearchQuery, searchResultSongs, songs]);
+  }, [cleanSubmittedSearchQuery, reliableCatalogSongResults, songs]);
 
   const apkSongResults = useMemo(
     () => apkSongRanked.map((entry) => entry.item),
@@ -549,54 +610,107 @@ export default function SearchScreen() {
       })
       .filter(Boolean) as HiddenTunesAlbumCatalogItem[];
     const fromCatalog = albums.filter((album) =>
-      textMatchesQuery(`${album.title} ${album.artist}`, cleanSubmittedSearchQuery)
+      textMatchesQuery(`${album.title} ${album.artist}`, cleanSubmittedSearchQuery) ||
+      album.songs.some(
+        (song) =>
+          reliableCatalogSongIds.has(String(song.id || "")) ||
+          songMatchesCatalogQuery(song, cleanSubmittedSearchQuery)
+      )
     );
+    const fromMatchedSongs = reliableCatalogSongResults
+      .map((song) =>
+        albums.find((album) =>
+          album.songs.some((albumSong) => String(albumSong.id) === String(song.id)) ||
+          songBelongsToAlbum(song, album)
+        )
+      )
+      .filter(Boolean) as HiddenTunesAlbumCatalogItem[];
     const seen = new Set<string>();
-    const merged = [...fromSearch, ...fromCatalog].filter((album) => {
+    const merged = [...fromSearch, ...fromMatchedSongs, ...fromCatalog].filter((album) => {
       const key = String(album.id || `${album.title}-${album.artist}`);
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
     });
     return rankApkAlbumResults(merged, cleanSubmittedSearchQuery);
-  }, [albums, cleanSubmittedSearchQuery, internalSearchResults.albums]);
+  }, [
+    albums,
+    cleanSubmittedSearchQuery,
+    internalSearchResults.albums,
+    reliableCatalogSongIds,
+    reliableCatalogSongResults,
+  ]);
 
   const apkArtistResults = useMemo(() => {
     if (cleanSubmittedSearchQuery.length < 2) return [] as HiddenTunesArtistCatalogItem[];
     const fromSearch = internalSearchResults.artists
       .map((hit) => artists.find((item) => item.id === hit.payload.id) || null)
       .filter(Boolean) as HiddenTunesArtistCatalogItem[];
-    const fromCatalog = artists.filter((artist) =>
-      textMatchesQuery(artist.name, cleanSubmittedSearchQuery)
+    const fromCatalog = artists.filter(
+      (artist) =>
+        textMatchesQuery(artist.name, cleanSubmittedSearchQuery) ||
+        artist.songs.some(
+          (song) =>
+            reliableCatalogSongIds.has(String(song.id || "")) ||
+            songMatchesCatalogQuery(song, cleanSubmittedSearchQuery)
+        )
     );
-    const seen = new Set<string>();
-    const merged = [...fromSearch, ...fromCatalog].filter((artist) => {
-      const key = String(artist.id || artist.name);
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
+    const fromMatchedSongs = reliableCatalogSongResults
+      .map((song) =>
+        artists.find((artist) =>
+          artist.songs.some((artistSong) => String(artistSong.id) === String(song.id)) ||
+          songBelongsToArtist(song, artist)
+        )
+      )
+      .filter(Boolean) as HiddenTunesArtistCatalogItem[];
+    const merged = dedupeByKey(
+      [...fromSearch, ...fromMatchedSongs, ...fromCatalog],
+      (artist) => String(artist.id || artist.name)
+    );
     return rankApkArtistResults(merged, cleanSubmittedSearchQuery);
-  }, [artists, cleanSubmittedSearchQuery, internalSearchResults.artists]);
+  }, [
+    artists,
+    cleanSubmittedSearchQuery,
+    internalSearchResults.artists,
+    reliableCatalogSongIds,
+    reliableCatalogSongResults,
+  ]);
 
   const apkRoomResults = useMemo(() => {
     if (cleanSubmittedSearchQuery.length < 2) return [] as HiddenTunesGenreCatalogItem[];
-    const fromCatalog = genres.filter((genre) =>
-      textMatchesQuery(genre.title, cleanSubmittedSearchQuery)
+    const fromCatalog = genres.filter(
+      (genre) =>
+        textMatchesQuery(genre.title, cleanSubmittedSearchQuery) ||
+        genre.songs.some(
+          (song) =>
+            reliableCatalogSongIds.has(String(song.id || "")) ||
+            songMatchesCatalogQuery(song, cleanSubmittedSearchQuery)
+        )
     );
     const roomTitles = internalSearchResults.moodRooms.map((hit) => hit.payload.title);
     const fromRooms = roomTitles
       .map((title) => genres.find((genre) => textMatchesQuery(genre.title, title)) || null)
       .filter(Boolean) as HiddenTunesGenreCatalogItem[];
-    const seen = new Set<string>();
-    const merged = [...fromCatalog, ...fromRooms].filter((genre) => {
-      const key = String(genre.id || genre.title);
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
+    const fromMatchedSongs = reliableCatalogSongResults
+      .map((song) =>
+        genres.find((genre) =>
+          genre.songs.some((genreSong) => String(genreSong.id) === String(song.id)) ||
+          songBelongsToGenre(song, genre)
+        )
+      )
+      .filter(Boolean) as HiddenTunesGenreCatalogItem[];
+    const merged = dedupeByKey(
+      [...fromCatalog, ...fromMatchedSongs, ...fromRooms],
+      (genre) => String(genre.id || genre.title)
+    );
     return rankApkGenreResults(merged, cleanSubmittedSearchQuery);
-  }, [cleanSubmittedSearchQuery, genres, internalSearchResults.moodRooms]);
+  }, [
+    cleanSubmittedSearchQuery,
+    genres,
+    internalSearchResults.moodRooms,
+    reliableCatalogSongIds,
+    reliableCatalogSongResults,
+  ]);
 
   const apkPlaylistResults = useMemo(() => {
     if (cleanSubmittedSearchQuery.length < 2) return [] as HiddenTunesDerivedCatalog["playlists"];
@@ -646,6 +760,11 @@ export default function SearchScreen() {
     hasInternalCatalogResults,
   ]);
 
+  const apkTvResults = useMemo(() => {
+    if (cleanSubmittedSearchQuery.length < 2) return [];
+    return searchResults.tv.slice(0, SEARCH_TV_LIMIT);
+  }, [cleanSubmittedSearchQuery, searchResults.tv]);
+
   const apkResultCount =
     apkSongResults.length +
     apkAlbumResults.length +
@@ -653,7 +772,8 @@ export default function SearchScreen() {
     apkRoomResults.length +
     apkPlaylistResults.length +
     apkStationResults.length +
-    apkExternalAudioResults.length;
+    apkExternalAudioResults.length +
+    apkTvResults.length;
 
   const hasSearchText = searchQuery.trim().length > 0;
   const cleanSearchQuery = searchQuery.trim();
@@ -699,7 +819,16 @@ export default function SearchScreen() {
 
   const playSearchResultSong = useCallback(
     (song: HiddenTunesSong, resultType: string = "song") => {
-      const queue = apkSongResults.length ? apkSongResults : searchResultSongs.length ? searchResultSongs : songs;
+      const queue =
+        resultType === "external"
+          ? apkExternalAudioResults
+          : apkSongResults.length
+            ? apkSongResults
+            : reliableCatalogSongResults.length
+              ? reliableCatalogSongResults
+              : searchResultSongs.length
+                ? searchResultSongs
+                : songs;
       const queueIndex = findSongIndex(queue, song);
       const queueSong = queueIndex >= 0 ? queue[queueIndex] : song;
 
@@ -717,11 +846,14 @@ export default function SearchScreen() {
         genre: queueSong.genre,
         mood: queueSong.mood,
       });
+      router.push("/player" as any);
     },
     [
+      apkExternalAudioResults,
       apkSongResults,
       cleanSubmittedSearchQuery,
       playSong,
+      reliableCatalogSongResults,
       searchQuery,
       searchResultSongs,
       songs,
@@ -744,6 +876,7 @@ export default function SearchScreen() {
         genre: song.genre,
         mood: song.mood,
       });
+      router.push("/player" as any);
     },
     [playSong, songs]
   );
@@ -786,6 +919,7 @@ export default function SearchScreen() {
           genre: tracks[0].genre || station.title,
           mood: tracks[0].mood,
         });
+        router.push("/player" as any);
         return;
       }
 
@@ -809,7 +943,13 @@ export default function SearchScreen() {
       title: artist.name,
       query: cleanSubmittedSearchQuery,
     });
-    router.push({ pathname: "/artist", params: { artist: artist.name } } as any);
+    router.push({
+      pathname: "/artist",
+      params: {
+        artist: artist.name,
+        id: artist.id,
+      },
+    } as any);
   }, [cleanSubmittedSearchQuery]);
 
   const openAlbum = useCallback((album: HiddenTunesAlbumCatalogItem | HiddenTunesAlbum) => {
@@ -941,6 +1081,7 @@ export default function SearchScreen() {
       apkStationResults.length,
       apkPlaylistResults.length,
       apkExternalAudioResults.length,
+      apkTvResults.length,
     ].join(":");
 
     if (lastSearchDiagnosticsKeyRef.current === diagnosticsKey) return;
@@ -963,6 +1104,7 @@ export default function SearchScreen() {
     logSearchDiagnostic("search_artist_results", { count: apkArtistResults.length, query: cleanSubmittedSearchQuery });
     logSearchDiagnostic("search_room_results", { count: apkRoomResults.length, query: cleanSubmittedSearchQuery });
     logSearchDiagnostic("search_station_results", { count: apkStationResults.length, query: cleanSubmittedSearchQuery });
+    logSearchDiagnostic("search_tv_results", { count: apkTvResults.length, query: cleanSubmittedSearchQuery });
     if (apkExternalAudioResults.length > 0) {
       logSearchDiagnostic("search_external_fallback_used", {
         query: cleanSubmittedSearchQuery,
@@ -982,6 +1124,7 @@ export default function SearchScreen() {
     apkSongResults.length,
     apkSongRanked.length,
     apkStationResults.length,
+    apkTvResults.length,
     cleanSubmittedSearchQuery,
     hasInternalCatalogResults,
     internalSearchResults.albums.length,
@@ -1157,9 +1300,16 @@ export default function SearchScreen() {
                           style={styles.roomCard}
                           onPress={() => startSearchStation(station)}
                         >
-                          <LinearGradient colors={GRADIENTS.card} style={styles.stationArt}>
-                            <Ionicons name="radio" size={28} color={COLORS.primaryGlow} />
-                          </LinearGradient>
+                          {station.tracks[0] ? (
+                            <>
+                              <HTImage source={station.tracks[0]} style={styles.roomImage} contentFit="cover" />
+                              <LinearGradient pointerEvents="none" colors={["transparent", "rgba(0,0,0,0.74)"]} style={styles.roomShade} />
+                            </>
+                          ) : (
+                            <LinearGradient colors={GRADIENTS.card} style={styles.stationArt}>
+                              <Ionicons name="radio" size={28} color={COLORS.primaryGlow} />
+                            </LinearGradient>
+                          )}
                           <Text numberOfLines={1} style={styles.roomTitle}>{station.title}</Text>
                           <Text style={styles.roomMeta}>{station.subtitle}</Text>
                         </TouchableOpacity>
@@ -1211,6 +1361,45 @@ export default function SearchScreen() {
                         </View>
                       </TouchableOpacity>
                     ))}
+                  </View>
+                ) : null}
+
+                {apkTvResults.length > 0 ? (
+                  <View style={styles.sectionBlock}>
+                    <Text style={styles.sectionEyebrow}>VIDEOS</Text>
+                    {apkTvResults.map((hit, index) => {
+                      const video = hit.payload as HiddenTunesTvVideo;
+                      return (
+                        <TouchableOpacity
+                          key={`tv-${video.id}-${index}`}
+                          activeOpacity={0.86}
+                          style={styles.songRow}
+                          onPress={() => openTv(video)}
+                        >
+                          <LinearGradient colors={GRADIENTS.card} style={styles.coverBorder}>
+                            <HTImage
+                              source={{
+                                artwork:
+                                  video.thumbnail_url ||
+                                  `https://img.youtube.com/vi/${video.source_id}/hqdefault.jpg`,
+                              }}
+                              style={styles.cover}
+                              contentFit="cover"
+                            />
+                          </LinearGradient>
+                          <View style={styles.songCopy}>
+                            <Text numberOfLines={1} style={styles.songTitle}>{video.title}</Text>
+                            <Text numberOfLines={1} style={styles.songArtist}>
+                              {video.channel_name || "Hidden Tunes TV"}
+                            </Text>
+                            <Text numberOfLines={1} style={styles.songMeta}>{hit.subtitle || "Video result"}</Text>
+                          </View>
+                          <View style={styles.playCircle}>
+                            <Ionicons name="play" size={16} color={COLORS.text} />
+                          </View>
+                        </TouchableOpacity>
+                      );
+                    })}
                   </View>
                 ) : null}
 

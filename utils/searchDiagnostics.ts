@@ -6,6 +6,7 @@ export type SearchDiagnosticEvent =
   | "search_artist_results"
   | "search_room_results"
   | "search_station_results"
+  | "search_tv_results"
   | "search_external_fallback_used"
   | "search_empty_state_shown"
   | "search_result_tapped"
