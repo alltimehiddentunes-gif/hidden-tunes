@@ -34,6 +34,9 @@ class HiddenAudioModule: RCTEventEmitter {
   private var jsQueueLength = 0
   private var jsActiveIndex = -1
   private var lastBackgroundRecoveryAt: TimeInterval = 0
+  private let intentionalPauseCooldownSeconds: TimeInterval = 8.0
+  private var lastIntentionalPauseAt: TimeInterval = 0
+  private var intentionalPauseReason = ""
 
   override static func requiresMainQueueSetup() -> Bool {
     return true
@@ -76,6 +79,7 @@ class HiddenAudioModule: RCTEventEmitter {
     let trackMap = track.compactMapKeys()
     queue = [trackMap]
     activeIndex = 0
+    clearIntentionalPause(reason: "new_track")
     do {
       try loadActiveTrack(autoplay: false)
       resolve(nil)
@@ -101,6 +105,7 @@ class HiddenAudioModule: RCTEventEmitter {
 
     queue = mappedTracks
     activeIndex = max(0, min(startIndex.intValue, queue.count - 1))
+    clearIntentionalPause(reason: "new_track")
 
     do {
       try loadActiveTrack(autoplay: false)
@@ -149,6 +154,8 @@ class HiddenAudioModule: RCTEventEmitter {
       reject("HIDDEN_AUDIO_AUDIO_SESSION_FAILED", error.localizedDescription, error)
       return
     }
+
+    clearIntentionalPause(reason: "play")
 
     emitDiagnostic("hidden_audio_native_play_requested", [
       "trackId": activeTrack?["id"] as? String ?? "",
@@ -199,7 +206,7 @@ class HiddenAudioModule: RCTEventEmitter {
       resolve(nil)
       return
     }
-    shouldResumeAfterItemLoad = false
+    markIntentionalPause(reason: "native_pause")
     player?.pause()
     playerStatus = player == nil ? "idle" : "paused"
     stopProgressObserver()
@@ -434,6 +441,9 @@ class HiddenAudioModule: RCTEventEmitter {
     }
 
     activeIndex = nextIndex
+    if autoplay {
+      clearIntentionalPause(reason: "new_track")
+    }
     do {
       try loadActiveTrack(autoplay: autoplay)
       if autoplay {
@@ -625,6 +635,7 @@ class HiddenAudioModule: RCTEventEmitter {
   private func confirmPlayingIfNeeded() {
     guard let currentPlayer = player else { return }
     if playerStatus == "ended" || currentItemEndedHandled { return }
+    if hasRecentIntentionalPause() && playerStatus == "paused" { return }
     if currentPlayer.rate > 0 || currentPlayer.timeControlStatus == .playing {
       if playerStatus != "playing" {
         playerStatus = "playing"
@@ -669,6 +680,7 @@ class HiddenAudioModule: RCTEventEmitter {
         "command": "play"
       ])
       self.emitDiagnostic("remote_play_received")
+      self.clearIntentionalPause(reason: "play")
       self.emitDiagnostic("remote_command_dispatched_to_js", [
         "command": "play"
       ])
@@ -704,6 +716,7 @@ class HiddenAudioModule: RCTEventEmitter {
         "command": "pause"
       ])
       self.emitDiagnostic("remote_pause_received")
+      self.markIntentionalPause(reason: "remote_pause")
       self.emitDiagnostic("remote_command_dispatched_to_js", [
         "command": "pause"
       ])
@@ -732,6 +745,7 @@ class HiddenAudioModule: RCTEventEmitter {
         "status": self.playerStatus
       ])
       if self.playerStatus == "playing" {
+        self.markIntentionalPause(reason: "remote_toggle_pause")
         self.player?.pause()
         self.shouldResumeAfterItemLoad = false
         self.playerStatus = "paused"
@@ -745,6 +759,7 @@ class HiddenAudioModule: RCTEventEmitter {
           self.emitRemoteCommandResult("toggle", success: false, reason: error.localizedDescription)
           return .commandFailed
         }
+        self.clearIntentionalPause(reason: "play")
         self.shouldResumeAfterItemLoad = true
         self.player?.play()
         self.startProgressObserver()
@@ -1165,6 +1180,14 @@ class HiddenAudioModule: RCTEventEmitter {
 
   private func reassertBackgroundPlaybackIfNeeded(reason: String) {
     guard let currentPlayer = player else { return }
+    if hasRecentIntentionalPause() {
+      emitDiagnostic("background_recovery_skipped_intentional_pause", [
+        "reason": reason,
+        "pauseReason": intentionalPauseReason,
+        "cooldownRemainingSeconds": intentionalPauseCooldownRemaining()
+      ])
+      return
+    }
     guard shouldResumeAfterItemLoad || playerStatus == "playing" || playerStatus == "buffering" else {
       return
     }
@@ -1185,6 +1208,10 @@ class HiddenAudioModule: RCTEventEmitter {
       return
     }
 
+    emitDiagnostic("background_recovery_allowed_no_intentional_pause", [
+      "reason": reason,
+      "status": playerStatus
+    ])
     emitDiagnostic("hidden_audio_background_playback_recover_attempt", [
       "reason": reason,
       "status": playerStatus
@@ -1192,6 +1219,39 @@ class HiddenAudioModule: RCTEventEmitter {
     currentPlayer.play()
     startProgressObserver()
     confirmPlayingIfNeeded()
+  }
+
+  private func markIntentionalPause(reason: String) {
+    lastIntentionalPauseAt = Date().timeIntervalSince1970
+    intentionalPauseReason = reason
+    shouldResumeAfterItemLoad = false
+    emitDiagnostic("intentional_pause_marked", [
+      "reason": reason,
+      "cooldownSeconds": intentionalPauseCooldownSeconds
+    ])
+  }
+
+  private func hasRecentIntentionalPause() -> Bool {
+    guard lastIntentionalPauseAt > 0 else { return false }
+    return Date().timeIntervalSince1970 - lastIntentionalPauseAt <= intentionalPauseCooldownSeconds
+  }
+
+  private func intentionalPauseCooldownRemaining() -> Double {
+    guard lastIntentionalPauseAt > 0 else { return 0 }
+    return max(0, intentionalPauseCooldownSeconds - (Date().timeIntervalSince1970 - lastIntentionalPauseAt))
+  }
+
+  private func clearIntentionalPause(reason: String) {
+    guard lastIntentionalPauseAt > 0 else { return }
+    let eventName = reason == "new_track"
+      ? "intentional_pause_cleared_by_new_track"
+      : "intentional_pause_cleared_by_play"
+    emitDiagnostic(eventName, [
+      "reason": reason,
+      "previousReason": intentionalPauseReason
+    ])
+    lastIntentionalPauseAt = 0
+    intentionalPauseReason = ""
   }
 
   private func scheduleBackgroundPlaybackAliveChecks() {
@@ -1329,7 +1389,7 @@ class HiddenAudioModule: RCTEventEmitter {
 
     do {
       try activateAudioSession()
-      if shouldResumeOption && wasPlayingBeforeInterruption {
+      if shouldResumeOption && wasPlayingBeforeInterruption && !hasRecentIntentionalPause() {
         player?.play()
         shouldResumeAfterItemLoad = true
         startProgressObserver()
