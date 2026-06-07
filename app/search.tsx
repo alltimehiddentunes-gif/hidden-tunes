@@ -77,6 +77,10 @@ import { markFastScrolling } from "../utils/performanceMode";
 const EMPTY_SEARCH_RESULTS = EMPTY_UNIVERSAL_SEARCH_RESULTS;
 
 const SEARCH_FULL_CATALOG_TARGET = 1000;
+const SEARCH_BACKEND_RESULT_LIMIT = 72;
+const SEARCH_BACKEND_DEBOUNCE_MS = 420;
+const SEARCH_BACKEND_CACHE_LIMIT = 32;
+const SEARCH_LOCAL_WEAK_RESULT_COUNT = 6;
 const SEARCH_EXTERNAL_AUDIO_LIMIT = 16;
 const SEARCH_TV_LIMIT = 8;
 
@@ -292,6 +296,7 @@ export default function SearchScreen() {
   const [tvSearchCompletedQuery, setTvSearchCompletedQuery] = useState("");
 
   const backendSearchRequestIdRef = useRef(0);
+  const backendSearchCacheRef = useRef(new Map<string, HiddenTunesNormalizedSong[]>());
   const externalSearchRequestIdRef = useRef(0);
   const tvSearchRequestIdRef = useRef(0);
 
@@ -348,10 +353,14 @@ export default function SearchScreen() {
     return runUniversalCatalogSearch(searchCatalog, cleanSubmittedSearchQuery);
   }, [cleanSubmittedSearchQuery, searchCatalog]);
 
+  const localSearchSongCount = localSearchResults.songs.length;
+  const localSearchLooksWeak =
+    !localSearchResults.hasAnyResults ||
+    localSearchSongCount < SEARCH_LOCAL_WEAK_RESULT_COUNT ||
+    songs.length < SEARCH_FULL_CATALOG_TARGET;
+
   const shouldRunBackendSearch =
-    cleanSubmittedSearchQuery.length >= 2 &&
-    !loading &&
-    (songs.length < SEARCH_FULL_CATALOG_TARGET || !localSearchResults.hasAnyResults);
+    cleanSubmittedSearchQuery.length >= 2 && !loading && localSearchLooksWeak;
 
   useEffect(() => {
     const query = cleanSubmittedSearchQuery;
@@ -382,26 +391,72 @@ export default function SearchScreen() {
       return;
     }
 
+    const cached = backendSearchCacheRef.current.get(query);
+    if (cached) {
+      const requestId = backendSearchRequestIdRef.current + 1;
+      backendSearchRequestIdRef.current = requestId;
+      logSearchDiagnostic("search_backend_cache_hit", {
+        query,
+        count: cached.length,
+      });
+      setBackendSearchSongs(cached);
+      setBackendSearchQuery(query);
+      setBackendSearchCompletedQuery(query);
+      return;
+    }
+
     const requestId = backendSearchRequestIdRef.current + 1;
     backendSearchRequestIdRef.current = requestId;
     setBackendSearchQuery(query);
     setBackendSearchCompletedQuery("");
 
-    void searchHiddenTunesSongs(query)
-      .then((results) => {
-        if (backendSearchRequestIdRef.current !== requestId) return;
-        setBackendSearchSongs(results);
-      })
-      .catch((error) => {
-        if (backendSearchRequestIdRef.current !== requestId) return;
-        console.log("Search backend fallback error:", error);
-        setBackendSearchSongs([]);
-      })
-      .finally(() => {
-        if (backendSearchRequestIdRef.current !== requestId) return;
-        setBackendSearchCompletedQuery(query);
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      logSearchDiagnostic("search_backend_query_start", {
+        query,
+        localSongHits: localSearchSongCount,
+        localCatalogSize: songs.length,
       });
-  }, [cleanSubmittedSearchQuery, loading, localSearchResults.hasAnyResults, shouldRunBackendSearch, songs.length]);
+
+      void searchHiddenTunesSongs(query, {
+        signal: controller.signal,
+        limit: SEARCH_BACKEND_RESULT_LIMIT,
+      })
+        .then((results) => {
+          if (backendSearchRequestIdRef.current !== requestId) return;
+          backendSearchCacheRef.current.set(query, results);
+          if (backendSearchCacheRef.current.size > SEARCH_BACKEND_CACHE_LIMIT) {
+            const oldestQuery = backendSearchCacheRef.current.keys().next().value;
+            if (oldestQuery) backendSearchCacheRef.current.delete(oldestQuery);
+          }
+          setBackendSearchSongs(results);
+          logSearchDiagnostic("search_backend_query_success", {
+            query,
+            count: results.length,
+          });
+        })
+        .catch((error) => {
+          if (controller.signal.aborted) return;
+          if (backendSearchRequestIdRef.current !== requestId) return;
+          console.log("Search backend query error:", error);
+          setBackendSearchSongs([]);
+          logSearchDiagnostic("search_backend_query_failed", {
+            query,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        })
+        .finally(() => {
+          if (controller.signal.aborted) return;
+          if (backendSearchRequestIdRef.current !== requestId) return;
+          setBackendSearchCompletedQuery(query);
+        });
+    }, SEARCH_BACKEND_DEBOUNCE_MS);
+
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [cleanSubmittedSearchQuery, loading, localSearchSongCount, shouldRunBackendSearch, songs.length]);
 
   const backendSearchResults = useMemo(() => {
     if (cleanSubmittedSearchQuery.length < 2) return EMPTY_SEARCH_RESULTS;
@@ -412,6 +467,13 @@ export default function SearchScreen() {
       backendSearchSongs,
       cleanSubmittedSearchQuery
     );
+    const hasAnyResults =
+      trusted.songs.length > 0 ||
+      trusted.artists.length > 0 ||
+      trusted.albums.length > 0 ||
+      trusted.genreMoods.length > 0 ||
+      trusted.moodRooms.length > 0 ||
+      trusted.playlists.length > 0;
 
     return {
       ...EMPTY_SEARCH_RESULTS,
@@ -421,15 +483,34 @@ export default function SearchScreen() {
       genreMoods: trusted.genreMoods,
       moodRooms: trusted.moodRooms,
       playlists: trusted.playlists,
-      hasAnyResults:
-        trusted.songs.length > 0 ||
-        trusted.artists.length > 0 ||
-        trusted.albums.length > 0 ||
-        trusted.genreMoods.length > 0 ||
-        trusted.moodRooms.length > 0 ||
-        trusted.playlists.length > 0,
+      hasAnyResults,
     };
   }, [backendSearchQuery, backendSearchSongs, cleanSubmittedSearchQuery]);
+
+  useEffect(() => {
+    if (cleanSubmittedSearchQuery.length < 2) return;
+    if (backendSearchQuery !== cleanSubmittedSearchQuery) return;
+    if (!backendSearchResults.hasAnyResults) return;
+
+    logSearchDiagnostic("search_backend_results_merged", {
+      query: cleanSubmittedSearchQuery,
+      backendSongHits: backendSearchResults.songs.length,
+      backendArtistHits: backendSearchResults.artists.length,
+      backendAlbumHits: backendSearchResults.albums.length,
+    });
+    logSearchDiagnostic("search_result_source_backend", {
+      query: cleanSubmittedSearchQuery,
+      count: backendSearchSongs.length,
+    });
+  }, [
+    backendSearchQuery,
+    backendSearchResults.albums.length,
+    backendSearchResults.artists.length,
+    backendSearchResults.hasAnyResults,
+    backendSearchResults.songs.length,
+    backendSearchSongs.length,
+    cleanSubmittedSearchQuery,
+  ]);
 
   const internalSearchResults = useMemo(
     () => mergeGroupedSearchResults(localSearchResults, backendSearchResults),
@@ -443,6 +524,20 @@ export default function SearchScreen() {
 
   const backendSearchPendingForQuery =
     shouldRunBackendSearch && backendSearchCompletedQuery !== cleanSubmittedSearchQuery;
+
+  useEffect(() => {
+    if (cleanSubmittedSearchQuery.length < 2) return;
+    if (!backendSearchPendingForQuery) return;
+    if (localSearchResults.hasAnyResults) return;
+
+    logSearchDiagnostic("search_empty_waiting_for_backend", {
+      query: cleanSubmittedSearchQuery,
+    });
+  }, [
+    backendSearchPendingForQuery,
+    cleanSubmittedSearchQuery,
+    localSearchResults.hasAnyResults,
+  ]);
 
   const shouldRunExternalSearch =
     cleanSubmittedSearchQuery.length >= 2 &&
@@ -1363,13 +1458,14 @@ export default function SearchScreen() {
     logSearchDiagnostic("search_room_results", { count: apkRoomResults.length, query: cleanSubmittedSearchQuery });
     logSearchDiagnostic("search_station_results", { count: apkStationResults.length, query: cleanSubmittedSearchQuery });
     logSearchDiagnostic("search_tv_results", { count: apkTvResults.length, query: cleanSubmittedSearchQuery });
-    if (apkExternalAudioResults.length > 0) {
+if (apkExternalAudioResults.length > 0) {
       logSearchDiagnostic("search_external_fallback_used", {
         query: cleanSubmittedSearchQuery,
         count: apkExternalAudioResults.length,
       });
     }
     if (apkResultCount === 0) {
+      logSearchDiagnostic("search_empty_after_all_sources", { query: cleanSubmittedSearchQuery });
       logSearchDiagnostic("search_empty_state_shown", { query: cleanSubmittedSearchQuery });
     }
   }, [

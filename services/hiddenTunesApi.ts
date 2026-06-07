@@ -870,7 +870,11 @@ export function prefetchHiddenTunesCatalog() {
   });
 }
 
-async function fetchWithTimeout(url: string, timeoutMs = NETWORK_FETCH_TIMEOUT_MS) {
+async function fetchWithTimeout(
+  url: string,
+  timeoutMs = NETWORK_FETCH_TIMEOUT_MS,
+  externalSignal?: AbortSignal
+) {
   const endpointKey = url.split("?")[0];
   const endpointFailure = endpointFailures.get(endpointKey);
 
@@ -884,7 +888,19 @@ async function fetchWithTimeout(url: string, timeoutMs = NETWORK_FETCH_TIMEOUT_M
   }
 
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  let timedOut = false;
+  const abortFromExternalSignal = () => controller.abort();
+
+  if (externalSignal?.aborted) {
+    controller.abort();
+  } else {
+    externalSignal?.addEventListener("abort", abortFromExternalSignal, { once: true });
+  }
+
+  const timer = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, timeoutMs);
   const startedAt = Date.now();
 
   try {
@@ -916,6 +932,10 @@ async function fetchWithTimeout(url: string, timeoutMs = NETWORK_FETCH_TIMEOUT_M
 
     return response;
   } catch (error) {
+    if (externalSignal?.aborted && !timedOut) {
+      throw error;
+    }
+
     const previous = endpointFailures.get(endpointKey);
     endpointFailures.set(endpointKey, {
       failedAt: Date.now(),
@@ -924,6 +944,7 @@ async function fetchWithTimeout(url: string, timeoutMs = NETWORK_FETCH_TIMEOUT_M
     throw error;
   } finally {
     clearTimeout(timer);
+    externalSignal?.removeEventListener("abort", abortFromExternalSignal);
   }
 }
 
@@ -1333,18 +1354,28 @@ export async function refreshHiddenTunesSongs() {
     : await getHiddenTunesSongs({ forceRefresh: false });
 }
 
-export async function searchHiddenTunesSongs(query: string) {
+export async function searchHiddenTunesSongs(
+  query: string,
+  options?: { signal?: AbortSignal; limit?: number }
+) {
   const cleanQuery = query.trim().toLowerCase();
+  const limit = Math.min(Math.max(Number(options?.limit) || SEARCH_SONG_LIMIT, 1), 120);
 
   if (!cleanQuery) {
-    return await getHiddenTunesSongs({ forceRefresh: false });
+    return [] as HiddenTunesNormalizedSong[];
   }
 
   try {
+    const url =
+      HIDDEN_TUNES_API_BASE_URL +
+      "/api/songs?limit=" +
+      limit +
+      "&page=1&q=" +
+      encodeURIComponent(cleanQuery);
     const response = await fetchWithTimeout(
-      `${HIDDEN_TUNES_API_BASE_URL}/api/songs?limit=${SEARCH_SONG_LIMIT}&page=1&q=${encodeURIComponent(
-        cleanQuery
-      )}`
+      url,
+      NETWORK_FETCH_TIMEOUT_MS,
+      options?.signal
     );
 
     if (!response.ok) {
@@ -1356,25 +1387,18 @@ export async function searchHiddenTunesSongs(query: string) {
 
     return applySmartArtworkFallbacks(
       rawSongs
-      .map((song: HiddenTunesCloudSong, index: number) =>
-        normalizeHiddenTunesSong(song, index)
-      )
-      .filter(Boolean) as HiddenTunesNormalizedSong[]
+        .map((song: HiddenTunesCloudSong, index: number) =>
+          normalizeHiddenTunesSong(song, index)
+        )
+        .filter(Boolean) as HiddenTunesNormalizedSong[]
     );
   } catch (error) {
-    console.log("Hidden Tunes backend search fallback:", error);
+    if (options?.signal?.aborted) {
+      throw error;
+    }
 
-    const songs = await getHiddenTunesSongs({ forceRefresh: false });
-
-    return songs.filter((song) => {
-      return (
-        song.title.toLowerCase().includes(cleanQuery) ||
-        song.artist.toLowerCase().includes(cleanQuery) ||
-        song.album?.toLowerCase().includes(cleanQuery) ||
-        song.genre?.toLowerCase().includes(cleanQuery) ||
-        song.mood?.toLowerCase().includes(cleanQuery)
-      );
-    });
+    console.log("Hidden Tunes backend search error:", error);
+    return [] as HiddenTunesNormalizedSong[];
   }
 }
 
