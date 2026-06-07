@@ -884,7 +884,6 @@ export default function MusicFeedScreen() {
         <View style={styles.header}>
           <View style={styles.brandRow}>
             <View style={styles.logoMark}>
-              <PremiumLuxuryPulse style={styles.logoAura} />
               {homeLogoFailed ? (
                 <Text numberOfLines={1} style={styles.logoFallbackText}>HT</Text>
               ) : (
@@ -895,11 +894,6 @@ export default function MusicFeedScreen() {
                   onError={() => setHomeLogoFailed(true)}
                 />
               )}
-            </View>
-            <View style={styles.headerCopy}>
-              <Text numberOfLines={1} ellipsizeMode="tail" style={styles.brandTitle}>
-                Hidden Tunes
-              </Text>
             </View>
           </View>
 
@@ -1297,23 +1291,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: HOME_HEADER.rowMarginBottom,
   },
-  headerCopy: { flex: 1, paddingRight: 8, justifyContent: "center" },
-  brandTitle: {
-    color: COLORS.text,
-    fontSize: HOME_HEADER.titleSize,
-    fontWeight: "900",
-    letterSpacing: 0,
-    lineHeight: HOME_HEADER.titleLineHeight,
-  },
-  brandEyebrow: {
-    color: COLORS.cyan,
-    fontSize: 10,
-    fontWeight: "900",
-    letterSpacing: 1.8,
-    marginTop: 2,
-    opacity: 0.82,
-    textTransform: "uppercase",
-  },
+
   refreshButton: {
     width: HOME_HEADER.actionSize,
     height: HOME_HEADER.actionSize,
@@ -1752,38 +1730,25 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     flex: 1,
-    gap: HOME_HEADER.brandGap,
   },
   logoMark: {
-    width: HOME_HEADER.markWidth,
-    height: HOME_HEADER.markHeight,
-    borderRadius: HOME_HEADER.markRadius,
-    backgroundColor: "rgba(255,255,255,0.96)",
-    alignItems: "center",
+    width: 132,
+    height: 58,
+    alignItems: "flex-start",
     justifyContent: "center",
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.22)",
-    ...SHADOWS.premium,
-  },
-  logoAura: {
-    position: "absolute",
-    top: -8,
-    left: -8,
-    right: -8,
-    bottom: -8,
-    borderRadius: 26,
-    overflow: "hidden",
+    backgroundColor: "transparent",
   },
   logoImage: {
-    width: HOME_HEADER.imageWidth,
-    height: HOME_HEADER.imageHeight,
+    width: "100%",
+    height: "100%",
+    backgroundColor: "transparent",
   },
   logoFallbackText: {
-    color: COLORS.primary,
-    fontSize: 17,
+    color: COLORS.text,
+    fontSize: 15,
     fontWeight: "900",
-    letterSpacing: 1,
+    letterSpacing: 0,
+    paddingHorizontal: 2,
   },
   catalogStatus: {
     color: COLORS.primaryGlow,
