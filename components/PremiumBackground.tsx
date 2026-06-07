@@ -22,12 +22,12 @@ type VariantPalette = {
 
 const PALETTES: Record<PremiumBackgroundVariant, VariantPalette> = {
   home: {
-    base: ["#020008", "#080316", "#000000"],
-    diagonal: ["rgba(168,85,247,0.18)", "rgba(34,211,238,0.08)", "rgba(0,0,0,0)"],
-    glass: ["rgba(255,255,255,0.075)", "rgba(255,255,255,0)"],
-    hazeA: "rgba(168,85,247,0.18)",
-    hazeB: "rgba(34,211,238,0.12)",
-    line: "rgba(192,132,252,0.16)",
+    base: ["#030008", "#090214", "#000000"],
+    diagonal: ["rgba(168,85,247,0.2)", "rgba(34,211,238,0.09)", "rgba(0,0,0,0)"],
+    glass: ["rgba(255,255,255,0.055)", "rgba(255,255,255,0)"],
+    hazeA: "rgba(168,85,247,0.24)",
+    hazeB: "rgba(34,211,238,0.14)",
+    line: "rgba(192,132,252,0.14)",
   },
   explore: {
     base: ["#02040B", "#07101D", "#000000"],
@@ -38,12 +38,12 @@ const PALETTES: Record<PremiumBackgroundVariant, VariantPalette> = {
     line: "rgba(34,211,238,0.14)",
   },
   player: {
-    base: ["#050009", "#140322", "#000000"],
-    diagonal: ["rgba(236,72,153,0.16)", "rgba(168,85,247,0.14)", "rgba(0,0,0,0)"],
-    glass: ["rgba(255,255,255,0.08)", "rgba(255,255,255,0)"],
-    hazeA: "rgba(236,72,153,0.14)",
-    hazeB: "rgba(168,85,247,0.16)",
-    line: "rgba(236,72,153,0.14)",
+    base: ["#030008", "#12031F", "#000000"],
+    diagonal: ["rgba(168,85,247,0.16)", "rgba(34,211,238,0.08)", "rgba(0,0,0,0)"],
+    glass: ["rgba(255,255,255,0.055)", "rgba(255,255,255,0)"],
+    hazeA: "rgba(168,85,247,0.2)",
+    hazeB: "rgba(34,211,238,0.12)",
+    line: "rgba(192,132,252,0.13)",
   },
   library: {
     base: ["#03020A", "#0A0718", "#000000"],
@@ -145,10 +145,10 @@ const styles = StyleSheet.create({
   },
   edgeHaze: {
     position: "absolute",
-    width: 420,
-    height: 260,
-    borderRadius: 210,
-    opacity: 0.28,
+    width: 440,
+    height: 280,
+    borderRadius: 220,
+    opacity: 0.34,
     transform: [{ scaleX: 1.35 }],
   },
   edgeHazeTop: {

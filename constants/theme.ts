@@ -1,14 +1,14 @@
 export const COLORS = {
-  background: "#04010A",
-  backgroundSoft: "#0B0615",
+  background: "#030008",
+  backgroundSoft: "#080312",
   backgroundDeep: "#000000",
 
-  card: "#12071F",
-  cardLight: "#1B0C2E",
-  cardGlass: "rgba(255,255,255,0.06)",
+  card: "rgba(18,7,31,0.58)",
+  cardLight: "rgba(35,14,56,0.54)",
+  cardGlass: "rgba(255,255,255,0.055)",
 
-  border: "#2B1845",
-  borderSoft: "#3B235F",
+  border: "rgba(168,85,247,0.34)",
+  borderSoft: "rgba(255,255,255,0.11)",
 
   primary: "#A855F7",
   primaryDark: "#7E22CE",
@@ -50,14 +50,14 @@ export const Colors = {
 };
 
 export const GRADIENTS = {
-  main: ["#04010A", "#090312", "#000000"] as const,
-  soft: ["#1A0633", "#0A0117", "#000000"] as const,
+  main: ["#030008", "#090214", "#000000"] as const,
+  soft: ["rgba(40,10,72,0.72)", "rgba(8,1,18,0.82)", "#000000"] as const,
 
-  premium: ["#1A0633", "#0A0117", "#000000"] as const,
-  card: ["#1A0830", "#12071F"] as const,
-  cardElevated: ["#241040", "#160828", "#0B0414"] as const,
+  premium: ["rgba(46,12,82,0.7)", "rgba(10,1,23,0.84)", "#000000"] as const,
+  card: ["rgba(92,25,145,0.2)", "rgba(18,7,31,0.56)", "rgba(0,0,0,0.26)"] as const,
+  cardElevated: ["rgba(78,28,126,0.3)", "rgba(22,8,40,0.58)", "rgba(7,2,14,0.42)"] as const,
   neon: ["#A855F7", "#EC4899", "#22D3EE"] as const,
-  player: ["#22063D", "#10051F", "#000000"] as const,
+  player: ["rgba(48,8,82,0.72)", "rgba(16,5,31,0.84)", "#000000"] as const,
   heroAura: ["rgba(168,85,247,0.42)", "rgba(236,72,153,0.22)", "rgba(34,211,238,0.12)"] as const,
 };
 
@@ -89,24 +89,24 @@ export const LUXURY_GLOW = {
 export const SHADOWS = {
   card: {
     shadowColor: COLORS.primary,
-    shadowOpacity: 0.14,
-    shadowRadius: 16,
+    shadowOpacity: 0.1,
+    shadowRadius: 18,
     shadowOffset: { width: 0, height: 10 },
-    elevation: 8,
+    elevation: 5,
   },
   premium: {
     shadowColor: COLORS.primaryGlow,
-    shadowOpacity: 0.22,
-    shadowRadius: 22,
+    shadowOpacity: 0.18,
+    shadowRadius: 24,
     shadowOffset: { width: 0, height: 14 },
-    elevation: 12,
+    elevation: 8,
   },
   artwork: {
     shadowColor: "#A855F7",
-    shadowOpacity: 0.28,
-    shadowRadius: 20,
+    shadowOpacity: 0.2,
+    shadowRadius: 24,
     shadowOffset: { width: 0, height: 12 },
-    elevation: 10,
+    elevation: 8,
   },
 } as const;
 
@@ -116,6 +116,22 @@ export const ARTWORK_FRAME = {
   radiusLg: 22,
   radiusRound: 999,
   aspectSquare: 1,
+} as const;
+/** APK home header proportions (music-feed / 2815e04). */
+export const HOME_HEADER = {
+  contentPaddingTop: 28,
+  contentPaddingHorizontal: 18,
+  rowMarginBottom: 14,
+  brandGap: 9,
+  titleSize: 27,
+  titleLineHeight: 32,
+  markWidth: 74,
+  markHeight: 48,
+  markRadius: 18,
+  imageWidth: 64,
+  imageHeight: 42,
+  actionSize: 48,
+  actionRadius: 24,
 } as const;
 
 export const LOGO_SIZES = {

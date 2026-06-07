@@ -633,6 +633,11 @@ const styles = StyleSheet.create({
     bottom: 82,
     borderRadius: 30,
     overflow: "hidden",
+    shadowColor: COLORS.primary,
+    shadowOpacity: 0.28,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 12 },
+    elevation: 10,
   },
 
   border: {
@@ -648,12 +653,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 10,
     paddingVertical: 6,
-    backgroundColor: "rgba(5,5,8,0.92)",
+    backgroundColor: "rgba(8,5,13,0.74)",
   },
 
   sheen: {
     ...StyleSheet.flatten(StyleSheet.absoluteFill),
-    backgroundColor: "rgba(255,255,255,0.028)",
+    backgroundColor: "rgba(255,255,255,0.045)",
   },
 
   coverWrap: {
@@ -810,12 +815,12 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: "rgba(255,255,255,0.08)",
+    backgroundColor: "rgba(255,255,255,0.075)",
     alignItems: "center",
     justifyContent: "center",
     marginRight: 5,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.06)",
+    borderColor: "rgba(255,255,255,0.09)",
   },
 
   playButton: {

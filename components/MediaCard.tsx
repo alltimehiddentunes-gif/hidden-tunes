@@ -157,15 +157,15 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     padding: 14,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.07)",
+    borderColor: "rgba(255,255,255,0.105)",
     shadowColor: "#A855F7",
-    shadowOpacity: 0.08,
-    shadowRadius: 14,
+    shadowOpacity: 0.12,
+    shadowRadius: 18,
     shadowOffset: {
       width: 0,
-      height: 8,
+      height: 10,
     },
-    elevation: 2,
+    elevation: 3,
   },
 
   largeCard: {
@@ -177,7 +177,7 @@ const styles = StyleSheet.create({
   },
 
   artwork: {
-    backgroundColor: "rgba(168,85,247,0.1)",
+    backgroundColor: "rgba(255,255,255,0.055)",
     overflow: "hidden",
   },
 
@@ -213,7 +213,7 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     fontWeight: "900",
     color: COLORS.text,
-    letterSpacing: -0.2,
+    letterSpacing: 0,
   },
 
   largeTitle: {
