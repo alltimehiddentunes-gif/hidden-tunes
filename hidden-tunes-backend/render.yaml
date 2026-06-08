@@ -1,0 +1,57 @@
+# Hidden Tunes Render deployment blueprint (Phase 35E-5C)
+#
+# Recommended: two services from the same repo root (hidden-tunes-backend).
+# Apply manually in Render dashboard or adapt this file when ready.
+
+services:
+  # Existing public catalog API — keep native Node if already stable.
+  - name: hidden-tunes-api
+    type: web
+    runtime: node
+    buildCommand: npm install
+    startCommand: npm start
+    plan: starter
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: R2_ACCOUNT_ID
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_BUCKET_NAME
+        sync: false
+      - key: R2_PUBLIC_URL
+        sync: false
+
+  # New ffmpeg-capable worker for manual tier generation only.
+  - name: hidden-tunes-audio-worker
+    type: web
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: standard
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: R2_ACCOUNT_ID
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_BUCKET_NAME
+        sync: false
+      - key: R2_PUBLIC_URL
+        sync: false
+      - key: AUDIO_WORKER_SECRET
+        sync: false

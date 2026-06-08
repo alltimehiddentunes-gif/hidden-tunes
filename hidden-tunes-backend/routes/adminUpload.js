@@ -4,6 +4,8 @@ import crypto from "crypto";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { createClient } from "@supabase/supabase-js";
 import { parseBuffer } from "music-metadata";
+import { generateAudioVersionsFromMaster } from "../services/audioVersionGeneration.js";
+import { isMissingAudioVersionColumnError } from "../services/audioVersionStatus.js";
 
 const router = express.Router();
 
@@ -34,11 +36,6 @@ function slugify(value) {
     .trim()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
-}
-
-function makeUniqueSlug(base, id) {
-  const safeBase = slugify(base) || "hidden-tunes";
-  return `${safeBase}-${String(id).slice(0, 8)}`;
 }
 
 async function uploadToR2({ key, body, contentType }) {
@@ -192,13 +189,34 @@ router.post(
       const safeTitle = slugify(title) || "untitled-song";
 
       const songExt = songFile.originalname.split(".").pop() || "mp3";
-      const songKey = `songs/${safeArtist}/${id}-${safeTitle}.${songExt}`;
+      const legacySongKey = `songs/${safeArtist}/${id}-${safeTitle}.${songExt}`;
 
-      const songUrl = await uploadToR2({
-        key: songKey,
-        body: songFile.buffer,
-        contentType: songFile.mimetype || "audio/mpeg",
+      const versionResult = await generateAudioVersionsFromMaster({
+        masterBuffer: songFile.buffer,
+        masterFileName: songFile.originalname,
+        songId: id,
+        artistSlug,
+        albumSlug,
+        songSlug,
+        uploadToR2,
       });
+
+      let songUrl;
+      let songKey;
+      let audioVersions = null;
+
+      if (!versionResult.skipped && versionResult.standardUrl) {
+        songUrl = versionResult.standardUrl;
+        songKey = versionResult.standardKey;
+        audioVersions = versionResult.audioVersions;
+      } else {
+        songKey = legacySongKey;
+        songUrl = await uploadToR2({
+          key: songKey,
+          body: songFile.buffer,
+          contentType: songFile.mimetype || "audio/mpeg",
+        });
+      }
 
       let artworkUrl = null;
 
@@ -248,32 +266,54 @@ router.post(
         throw new Error("Could not create or find album.");
       }
 
-      const { data: insertedSongs, error: songError } = await supabase
+      const songInsert = {
+        id,
+        slug: songSlug,
+        title,
+        artist,
+        artist_id: artistRecord.id,
+        album,
+        album_id: albumRecord.id,
+        genre,
+        mood,
+        duration,
+        audio_url: songUrl,
+        url: songUrl,
+        r2_audio_key: songKey,
+        artwork_url: artworkUrl,
+        source_name: "Hidden Tunes",
+        type: "r2",
+        is_online: true,
+        lyrics: lyricsText,
+        synced_lyrics: syncedLyrics,
+        release_year: Number.isFinite(releaseYear)
+          ? releaseYear
+          : new Date().getFullYear(),
+      };
+
+      if (audioVersions) {
+        songInsert.audio_versions = audioVersions;
+      }
+
+      let { data: insertedSongs, error: songError } = await supabase
         .from("songs")
-        .insert({
-          id,
-          slug: songSlug,
-          title,
-          artist,
-          artist_id: artistRecord.id,
-          album,
-          album_id: albumRecord.id,
-          genre,
-          mood,
-          duration,
-          audio_url: songUrl,
-          artwork_url: artworkUrl,
-          source_name: "Hidden Tunes",
-          type: "r2",
-          is_online: true,
-          lyrics: lyricsText,
-          synced_lyrics: syncedLyrics,
-          release_year: Number.isFinite(releaseYear)
-            ? releaseYear
-            : new Date().getFullYear(),
-        })
+        .insert(songInsert)
         .select()
         .limit(1);
+
+      if (songError && audioVersions && isMissingAudioVersionColumnError(songError)) {
+        console.warn(
+          "[ht-audio-versions] audio_versions column missing — saving song without tier metadata"
+        );
+        const legacyInsert = { ...songInsert };
+        delete legacyInsert.audio_versions;
+
+        ({ data: insertedSongs, error: songError } = await supabase
+          .from("songs")
+          .insert(legacyInsert)
+          .select()
+          .limit(1));
+      }
 
       if (songError) throw songError;
 

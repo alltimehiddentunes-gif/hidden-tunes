@@ -7,6 +7,8 @@ import artistsRouter from "./routes/artists.js";
 import albumsRouter from "./routes/albums.js";
 import adminUploadRouter from "./routes/adminUpload.js";
 import lyricsRouter from "./routes/lyrics.js";
+import audioVersionHealthRouter from "./routes/audioVersionHealth.js";
+import audioVersionWorkerRouter from "./routes/audioVersionWorker.js";
 
 dotenv.config();
 
@@ -31,6 +33,10 @@ app.get("/health", (req, res) => {
     status: "ok",
   });
 });
+
+app.use("/health", audioVersionHealthRouter);
+
+app.use("/internal/audio-versions", audioVersionWorkerRouter);
 
 app.use("/api/songs", songsRouter);
 app.use("/api/artists", artistsRouter);

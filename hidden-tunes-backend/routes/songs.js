@@ -11,6 +11,12 @@ import {
   logSupabaseError,
 } from "../services/apiDiagnostics.js";
 import { resolveAlbumFilter, resolveArtistFilter } from "../services/catalogResolvers.js";
+import { normalizeAudioVersions } from "../services/audioVersions.js";
+import {
+  buildAudioVersionStatusResponse,
+  isMissingAudioVersionColumnError,
+  stripAudioVersionFields,
+} from "../services/audioVersionStatus.js";
 import {
   escapeIlikePattern,
   normalizePagination,
@@ -44,6 +50,10 @@ const SONG_SELECT_WITH_RELATIONS = `
   duration_seconds,
   audio_url,
   url,
+  audio_versions,
+  audio_version_status,
+  audio_version_error,
+  audio_version_generated_at,
   cover_url,
   artwork_url,
   source_type,
@@ -81,6 +91,10 @@ const SONG_SELECT_LITE = `
   duration_seconds,
   audio_url,
   url,
+  audio_versions,
+  audio_version_status,
+  audio_version_error,
+  audio_version_generated_at,
   cover_url,
   artwork_url,
   source_type,
@@ -284,6 +298,8 @@ function normalizeSong(row) {
     ) || FALLBACK_COVER;
 
   const audioUrl = makePublicUrl(row.audio_url || row.url, null);
+  const audioVersions = normalizeAudioVersions(row.audio_versions, makePublicUrl);
+  const audioVersionStatus = buildAudioVersionStatusResponse(row);
 
   return {
     id: row.id,
@@ -333,6 +349,9 @@ function normalizeSong(row) {
 
     artists: artists || null,
     albums: albums || null,
+
+    ...(audioVersions ? { audio_versions: audioVersions } : {}),
+    ...audioVersionStatus,
   };
 }
 
@@ -414,6 +433,29 @@ async function fetchSongsWithFallback(queryContext) {
 
   const fullResult = await fullRequest;
 
+  if (fullResult.error && isMissingAudioVersionColumnError(fullResult.error)) {
+    logApiWarning("GET /api/songs", {
+      warning: "audio_version_columns_missing_fallback",
+      message: fullResult.error.message,
+    });
+
+    const legacyRequest = buildSongRequest({
+      ...queryContext,
+      selectClause: stripAudioVersionFields(SONG_SELECT_WITH_RELATIONS),
+    });
+
+    if (legacyRequest) {
+      const legacyResult = await legacyRequest;
+      if (!legacyResult.error) {
+        return {
+          data: legacyResult.data || [],
+          error: null,
+          selectMode: "relations_legacy_no_audio_versions",
+        };
+      }
+    }
+  }
+
   if (!fullResult.error) {
     return {
       data: fullResult.data || [],
@@ -457,6 +499,29 @@ async function fetchSongsWithFallback(queryContext) {
   }
 
   const liteResult = await liteRequest;
+
+  if (liteResult.error && isMissingAudioVersionColumnError(liteResult.error)) {
+    logApiWarning("GET /api/songs", {
+      warning: "audio_version_columns_missing_lite_fallback",
+      message: liteResult.error.message,
+    });
+
+    const legacyLiteRequest = buildSongRequest({
+      ...queryContext,
+      selectClause: stripAudioVersionFields(SONG_SELECT_LITE),
+    });
+
+    if (legacyLiteRequest) {
+      const legacyLiteResult = await legacyLiteRequest;
+      if (!legacyLiteResult.error) {
+        return {
+          data: legacyLiteResult.data || [],
+          error: null,
+          selectMode: "lite_legacy_no_audio_versions",
+        };
+      }
+    }
+  }
 
   if (!liteResult.error) {
     return {
