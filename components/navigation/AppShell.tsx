@@ -164,7 +164,11 @@ export default function AppShell({
         {children}
       </View>
 
-      {showMiniPlayer && <MiniPlayer />}
+      {showMiniPlayer ? (
+        <View pointerEvents="box-none" style={styles.miniPlayerLayer}>
+          <MiniPlayer />
+        </View>
+      ) : null}
 
       <View
         pointerEvents="box-none"
@@ -214,6 +218,10 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     zIndex: 1,
+  },
+  miniPlayerLayer: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 95,
   },
   navWrap: {
     position: "absolute",

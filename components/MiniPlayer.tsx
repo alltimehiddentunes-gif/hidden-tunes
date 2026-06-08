@@ -34,7 +34,7 @@ import Animated, {
 } from "react-native-reanimated";
 
 import { COLORS, GRADIENTS, LUXURY_GLOW } from "../constants/theme";
-import { logPlaybackUxSync } from "../utils/playbackDiagnostics";
+import { logMiniPlayerControl, logPlaybackUxSync } from "../utils/playbackDiagnostics";
 import { createTapGuard } from "../utils/tapGuard";
 import { isAppActiveForWork, subscribeAppActive, useAppActiveState } from "../utils/performanceMode";
 import { logPerformanceDuplicateListenerRemoved, logPerformanceOffscreenWorkPaused } from "../utils/performanceLogs";
@@ -73,16 +73,20 @@ function fireLightHaptic() {
   void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
 }
 
+const MINI_CONTROL_HIT_SLOP = { top: 10, bottom: 10, left: 8, right: 8 };
+
 const MiniControlButton = memo(function MiniControlButton({
   onPress,
   style,
   children,
   accessibilityLabel,
+  buttonId,
 }: {
-  onPress: () => void;
+  onPress: () => void | Promise<void>;
   style?: object;
   children: React.ReactNode;
   accessibilityLabel?: string;
+  buttonId: string;
 }) {
   const scale = useSharedValue(1);
 
@@ -99,14 +103,16 @@ const MiniControlButton = memo(function MiniControlButton({
   }, [scale]);
 
   const handlePress = useCallback(() => {
+    logMiniPlayerControl("mini_player_button_pressed", { buttonId });
     fireLightHaptic();
     onPress();
-  }, [onPress]);
+  }, [buttonId, onPress]);
 
   return (
     <Animated.View style={animatedStyle}>
       <Pressable
         accessibilityLabel={accessibilityLabel}
+        hitSlop={MINI_CONTROL_HIT_SLOP}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
         onPress={handlePress}
@@ -470,6 +476,22 @@ function MiniPlayer() {
     return `song-${currentSong?.id || "none"}`;
   }, [isYoutubeMode, youtubeVideo?.id, currentSong?.id]);
 
+  const runMiniPlayerAction = useCallback(
+    async (buttonId: string, action: () => void | Promise<void>) => {
+      logMiniPlayerControl("mini_player_button_action_start", { buttonId });
+      try {
+        await action();
+        logMiniPlayerControl("mini_player_button_action_success", { buttonId });
+      } catch (error) {
+        logMiniPlayerControl("mini_player_button_action_blocked", {
+          buttonId,
+          reason: error instanceof Error ? error.message : "action_failed",
+        });
+      }
+    },
+    []
+  );
+
   const openPlayer = useCallback(() => {
     if (isYoutubeMode && youtubeVideo?.id) {
       router.push({
@@ -489,24 +511,36 @@ function MiniPlayer() {
     router.push("/player" as any);
   }, [isYoutubeMode, youtubeVideo]);
 
-  const handleMainButton = useCallback(async () => {
-    if (!tapGuardRef.current("mini_main_button")) return;
+  const handleOpenPlayer = useCallback(() => {
+    void runMiniPlayerAction("open_player", openPlayer);
+  }, [openPlayer, runMiniPlayerAction]);
 
-    if (isYoutubeMode) {
-      openPlayer();
+  const handleMainButton = useCallback(() => {
+    if (!tapGuardRef.current("mini_main_button")) {
+      logMiniPlayerControl("mini_player_button_action_blocked", {
+        buttonId: "play_pause",
+        reason: "tap_guard",
+      });
       return;
     }
 
-    void togglePlayPause();
-  }, [isYoutubeMode, openPlayer, togglePlayPause]);
+    if (isYoutubeMode) {
+      void runMiniPlayerAction("play_pause", openPlayer);
+      return;
+    }
+
+    void runMiniPlayerAction("play_pause", () => {
+      void togglePlayPause();
+    });
+  }, [isYoutubeMode, openPlayer, runMiniPlayerAction, togglePlayPause]);
 
   const handlePrevious = useCallback(() => {
-    previousSong();
-  }, [previousSong]);
+    void runMiniPlayerAction("previous", previousSong);
+  }, [previousSong, runMiniPlayerAction]);
 
   const handleNext = useCallback(() => {
-    nextSong();
-  }, [nextSong]);
+    void runMiniPlayerAction("next", nextSong);
+  }, [nextSong, runMiniPlayerAction]);
 
   const badgeIconName = useMemo(() => {
     if (isYoutubeMode) return "tv";
@@ -552,73 +586,90 @@ function MiniPlayer() {
     });
   }, [currentSong?.id, currentSong?.title]);
 
+  useEffect(() => {
+    if (!currentSong && !youtubeVideo) return;
+    logMiniPlayerControl("mini_player_touch_area_ready", {
+      hasSong: !!currentSong,
+      hasYoutube: !!youtubeVideo,
+    });
+  }, [currentSong, youtubeVideo]);
+
   if (!currentSong && !youtubeVideo) return null;
 
   return (
     <Animated.View
       entering={FadeInDown.duration(120)}
       exiting={FadeOutDown.duration(220)}
+      pointerEvents="box-none"
       style={styles.wrapper}
     >
-      <AnimatedPressable
-        onPress={openPlayer}
-        onPressIn={onShellPressIn}
-        onPressOut={onShellPressOut}
-        style={shellStyle}
-      >
+      <Animated.View pointerEvents="box-none" style={[styles.shell, shellStyle]}>
         <LinearGradient colors={GRADIENTS.neon} style={styles.border}>
           <BlurView intensity={50} tint="dark" style={styles.container}>
             <View style={styles.sheen} pointerEvents="none" />
 
-            <MiniPlayerArtwork
-              cover={cover}
-              isYoutubeMode={isYoutubeMode}
-              isPlaying={isPlaying}
-              trackKey={trackKey}
-            />
-
-            <MiniPlayerMetadata
-              title={title}
-              artist={artist}
-              queueLabel={queueLabel}
-              badgeIconName={badgeIconName}
-              isYoutubeMode={isYoutubeMode}
-            />
-
-            {!isYoutubeMode && (
-              <MiniControlButton
-                accessibilityLabel="Previous track"
-                onPress={handlePrevious}
-                style={styles.skipButton}
-              >
-                <Ionicons name="play-skip-back" size={18} color={COLORS.text} />
-              </MiniControlButton>
-            )}
-
-            {!isYoutubeMode && (
-              <MiniControlButton
-                accessibilityLabel="Next track"
-                onPress={handleNext}
-                style={styles.skipButton}
-              >
-                <Ionicons name="play-skip-forward" size={18} color={COLORS.text} />
-              </MiniControlButton>
-            )}
-
-            <MiniControlButton
-              accessibilityLabel={isYoutubeMode ? "Open video" : "Play or pause"}
-              onPress={handleMainButton}
-              style={playButtonStyle}
+            <AnimatedPressable
+              accessibilityLabel="Open player"
+              onPress={handleOpenPlayer}
+              onPressIn={onShellPressIn}
+              onPressOut={onShellPressOut}
+              style={styles.openPlayerTapArea}
             >
-              <Ionicons
-                name={mainIconName as any}
-                size={isYoutubeMode ? 22 : 23}
-                color={isYoutubeMode ? "#fff" : "#000"}
+              <MiniPlayerArtwork
+                cover={cover}
+                isYoutubeMode={isYoutubeMode}
+                isPlaying={isPlaying}
+                trackKey={trackKey}
               />
-            </MiniControlButton>
+
+              <MiniPlayerMetadata
+                title={title}
+                artist={artist}
+                queueLabel={queueLabel}
+                badgeIconName={badgeIconName}
+                isYoutubeMode={isYoutubeMode}
+              />
+            </AnimatedPressable>
+
+            <View pointerEvents="box-none" style={styles.controlsCluster}>
+              {!isYoutubeMode && (
+                <MiniControlButton
+                  accessibilityLabel="Previous track"
+                  buttonId="previous"
+                  onPress={handlePrevious}
+                  style={styles.skipButton}
+                >
+                  <Ionicons name="play-skip-back" size={18} color={COLORS.text} />
+                </MiniControlButton>
+              )}
+
+              {!isYoutubeMode && (
+                <MiniControlButton
+                  accessibilityLabel="Next track"
+                  buttonId="next"
+                  onPress={handleNext}
+                  style={styles.skipButton}
+                >
+                  <Ionicons name="play-skip-forward" size={18} color={COLORS.text} />
+                </MiniControlButton>
+              )}
+
+              <MiniControlButton
+                accessibilityLabel={isYoutubeMode ? "Open video" : "Play or pause"}
+                buttonId="play_pause"
+                onPress={handleMainButton}
+                style={playButtonStyle}
+              >
+                <Ionicons
+                  name={mainIconName as any}
+                  size={isYoutubeMode ? 22 : 23}
+                  color={isYoutubeMode ? "#fff" : "#000"}
+                />
+              </MiniControlButton>
+            </View>
           </BlurView>
         </LinearGradient>
-      </AnimatedPressable>
+      </Animated.View>
     </Animated.View>
   );
 }
@@ -633,11 +684,17 @@ const styles = StyleSheet.create({
     bottom: 82,
     borderRadius: 30,
     overflow: "hidden",
+    zIndex: 95,
     shadowColor: COLORS.primary,
     shadowOpacity: 0.28,
     shadowRadius: 20,
     shadowOffset: { width: 0, height: 12 },
     elevation: 10,
+  },
+
+  shell: {
+    borderRadius: 30,
+    overflow: "hidden",
   },
 
   border: {
@@ -654,6 +711,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     backgroundColor: "rgba(8,5,13,0.74)",
+  },
+
+  openPlayerTapArea: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    minWidth: 0,
+  },
+
+  controlsCluster: {
+    flexDirection: "row",
+    alignItems: "center",
   },
 
   sheen: {

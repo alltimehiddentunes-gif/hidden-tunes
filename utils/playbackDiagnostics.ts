@@ -255,6 +255,25 @@ export type PlaybackUxSyncEvent =
   | "queue_active_track_sync_confirmed"
   | "up_next_sync_confirmed";
 
+export type MiniPlayerControlEvent =
+  | "mini_player_button_pressed"
+  | "mini_player_button_action_start"
+  | "mini_player_button_action_success"
+  | "mini_player_button_action_blocked"
+  | "mini_player_touch_area_ready";
+
+export function logMiniPlayerControl(
+  event: MiniPlayerControlEvent,
+  details: PlaybackDiagDetails = {}
+) {
+  if (typeof __DEV__ !== "undefined" && __DEV__) {
+    console.log("[HiddenTunes:mini-player]", event, {
+      at: Date.now(),
+      ...details,
+    });
+  }
+}
+
 export function logPlaybackUxSync(
   event: PlaybackUxSyncEvent,
   details: PlaybackDiagDetails = {}
