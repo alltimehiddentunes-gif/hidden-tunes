@@ -220,7 +220,7 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   miniPlayerLayer: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     zIndex: 95,
   },
   navWrap: {
