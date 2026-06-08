@@ -1359,7 +1359,7 @@ export async function searchHiddenTunesSongs(
   options?: { signal?: AbortSignal; limit?: number }
 ) {
   const cleanQuery = query.trim().toLowerCase();
-  const limit = Math.min(Math.max(Number(options?.limit) || SEARCH_SONG_LIMIT, 1), 120);
+  const limit = Math.min(Math.max(Number(options?.limit) || SEARCH_SONG_LIMIT, 1), 100);
 
   if (!cleanQuery) {
     return [] as HiddenTunesNormalizedSong[];
@@ -1368,9 +1368,9 @@ export async function searchHiddenTunesSongs(
   try {
     const url =
       HIDDEN_TUNES_API_BASE_URL +
-      "/api/songs?limit=" +
+      "/api/songs?page=1&limit=" +
       limit +
-      "&page=1&q=" +
+      "&q=" +
       encodeURIComponent(cleanQuery);
     const response = await fetchWithTimeout(
       url,
