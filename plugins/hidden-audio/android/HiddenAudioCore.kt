@@ -9,6 +9,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import androidx.core.content.ContextCompat
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
@@ -39,9 +40,14 @@ object HiddenAudioCore {
   private var progressTick: Runnable? = null
   private var audioManager: AudioManager? = null
   private var audioFocusRequest: AudioFocusRequest? = null
+  private const val AUDIO_FOCUS_STABILITY_WINDOW_MS = 3000L
+
   private var hasAudioFocus = false
   private var shouldPlayWhenReady = false
   private var playbackEndedHandled = false
+  private var lastPlayRequestAtMs = 0L
+  private var lastReassertRequestAtMs = 0L
+  private var lastPlayingStartedAtMs = 0L
 
   fun attachReactContext(context: ReactApplicationContext) {
     reactContext = context
@@ -62,6 +68,7 @@ object HiddenAudioCore {
     activeTrack = trackToMap(track)
     activeIndex = 0
     playbackEndedHandled = false
+    lastPlayingStartedAtMs = 0L
     val url = activeTrack?.url ?: ""
     if (url.isBlank()) {
       playerStatus = "error"
@@ -88,6 +95,7 @@ object HiddenAudioCore {
       emitState()
       throw IllegalStateException("HiddenAudio cannot play without a loaded track")
     }
+    lastPlayRequestAtMs = SystemClock.elapsedRealtime()
     requestAudioFocus()
     shouldPlayWhenReady = true
     startForegroundService()
@@ -127,6 +135,9 @@ object HiddenAudioCore {
     activeTrack = null
     activeIndex = 0
     playbackEndedHandled = false
+    lastPlayingStartedAtMs = 0L
+    lastPlayRequestAtMs = 0L
+    lastReassertRequestAtMs = 0L
     abandonAudioFocus()
     stopForegroundService()
     emitDiagnostic("hidden_audio_unload_called")
@@ -157,6 +168,7 @@ object HiddenAudioCore {
     startData.putBoolean("isPlaying", player?.isPlaying == true)
     emitDiagnostic("android_background_play_reassert_start", startData)
 
+    lastReassertRequestAtMs = SystemClock.elapsedRealtime()
     requestAudioFocus()
     shouldPlayWhenReady = true
     startForegroundService()
@@ -259,6 +271,9 @@ object HiddenAudioCore {
       }
 
       override fun onIsPlayingChanged(isPlaying: Boolean) {
+        if (isPlaying) {
+          lastPlayingStartedAtMs = SystemClock.elapsedRealtime()
+        }
         playerStatus = when {
           isPlaying -> "playing"
           player?.playWhenReady == true -> "buffering"
@@ -373,6 +388,75 @@ object HiddenAudioCore {
     return if (hasKey(key) && !isNull(key)) getDouble(key) else fallback
   }
 
+  private fun elapsedSince(timestampMs: Long, nowMs: Long): Long {
+    if (timestampMs <= 0L) return Long.MAX_VALUE
+    return (nowMs - timestampMs).coerceAtLeast(0L)
+  }
+
+  private fun focusChangeData(change: Int, nowMs: Long): WritableMap {
+    val exo = player
+    val data = Arguments.createMap()
+    data.putInt("focusChange", change)
+    data.putString("status", playerStatus)
+    data.putBoolean("playWhenReady", exo?.playWhenReady == true)
+    data.putBoolean("isPlaying", exo?.isPlaying == true)
+    data.putDouble("msSincePlayRequest", elapsedSince(lastPlayRequestAtMs, nowMs).toDouble())
+    data.putDouble("msSinceReassertRequest", elapsedSince(lastReassertRequestAtMs, nowMs).toDouble())
+    data.putDouble("stablePlaybackMs", elapsedSince(lastPlayingStartedAtMs, nowMs).toDouble())
+    return data
+  }
+
+  private fun handleAudioFocusChange(change: Int) {
+    val nowMs = SystemClock.elapsedRealtime()
+    val data = focusChangeData(change, nowMs)
+    emitDiagnostic("android_audio_focus_change", data)
+
+    when (change) {
+      AudioManager.AUDIOFOCUS_LOSS -> {
+        emitDiagnostic("android_audio_focus_lost", data)
+
+        if (elapsedSince(lastPlayRequestAtMs, nowMs) <= AUDIO_FOCUS_STABILITY_WINDOW_MS) {
+          emitDiagnostic("android_audio_focus_loss_ignored_startup_window", data)
+          emitDiagnostic("android_background_pause_prevented", data)
+          return
+        }
+
+        if (elapsedSince(lastReassertRequestAtMs, nowMs) <= AUDIO_FOCUS_STABILITY_WINDOW_MS) {
+          emitDiagnostic("android_audio_focus_loss_ignored_reassert_window", data)
+          emitDiagnostic("android_background_pause_prevented", data)
+          return
+        }
+
+        val stablePlaybackMs = elapsedSince(lastPlayingStartedAtMs, nowMs)
+        if (player?.isPlaying != true || stablePlaybackMs <= AUDIO_FOCUS_STABILITY_WINDOW_MS) {
+          emitDiagnostic("android_audio_focus_loss_ignored_not_stable", data)
+          emitDiagnostic("android_background_pause_prevented", data)
+          return
+        }
+
+        emitDiagnostic("android_audio_focus_loss_permanent_pause", data)
+        pause()
+      }
+      AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
+      AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
+        emitDiagnostic("android_audio_focus_lost", data)
+        emitDiagnostic("android_audio_focus_loss_ignored_for_background_playback", data)
+        emitDiagnostic("android_background_pause_prevented", data)
+      }
+      AudioManager.AUDIOFOCUS_GAIN -> {
+        emitDiagnostic("android_audio_focus_gained", data)
+        if (
+          shouldPlayWhenReady &&
+          player?.isPlaying != true &&
+          elapsedSince(lastPlayRequestAtMs, nowMs) > AUDIO_FOCUS_STABILITY_WINDOW_MS &&
+          elapsedSince(lastReassertRequestAtMs, nowMs) > AUDIO_FOCUS_STABILITY_WINDOW_MS
+        ) {
+          reassertBackgroundPlayback("audio_focus_gain")
+        }
+      }
+    }
+  }
+
   private fun requestAudioFocus(): Boolean {
     val manager = audioManager ?: return false
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -383,33 +467,7 @@ object HiddenAudioCore {
       val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
         .setAudioAttributes(focusAttributes)
         .setOnAudioFocusChangeListener { change ->
-          when (change) {
-            AudioManager.AUDIOFOCUS_LOSS -> {
-              emitDiagnostic("android_audio_focus_lost")
-              emitDiagnostic("android_audio_focus_loss_permanent_pause")
-              if (player?.isPlaying == true || player?.playWhenReady == true) pause()
-            }
-            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
-            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
-              emitDiagnostic("android_audio_focus_lost")
-              if (shouldPlayWhenReady || player?.playWhenReady == true || player?.isPlaying == true) {
-                val data = Arguments.createMap()
-                data.putInt("focusChange", change)
-                data.putString("status", playerStatus)
-                data.putBoolean("playWhenReady", player?.playWhenReady == true)
-                data.putBoolean("isPlaying", player?.isPlaying == true)
-                emitDiagnostic("android_audio_focus_loss_ignored_for_background_playback", data)
-                emitDiagnostic("android_background_pause_prevented", data)
-                reassertBackgroundPlayback("audio_focus_transient_loss")
-              }
-            }
-            AudioManager.AUDIOFOCUS_GAIN -> {
-              emitDiagnostic("android_audio_focus_gained")
-              if (shouldPlayWhenReady && player?.isPlaying != true) {
-                reassertBackgroundPlayback("audio_focus_gain")
-              }
-            }
-          }
+          handleAudioFocusChange(change)
         }
         .build()
       audioFocusRequest = request
@@ -419,35 +477,7 @@ object HiddenAudioCore {
     }
     @Suppress("DEPRECATION")
     val result = manager.requestAudioFocus(
-      { change ->
-        when (change) {
-          AudioManager.AUDIOFOCUS_LOSS -> {
-            emitDiagnostic("android_audio_focus_lost")
-            emitDiagnostic("android_audio_focus_loss_permanent_pause")
-            if (player?.isPlaying == true || player?.playWhenReady == true) pause()
-          }
-          AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
-          AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
-            emitDiagnostic("android_audio_focus_lost")
-            if (shouldPlayWhenReady || player?.playWhenReady == true || player?.isPlaying == true) {
-              val data = Arguments.createMap()
-              data.putInt("focusChange", change)
-              data.putString("status", playerStatus)
-              data.putBoolean("playWhenReady", player?.playWhenReady == true)
-              data.putBoolean("isPlaying", player?.isPlaying == true)
-              emitDiagnostic("android_audio_focus_loss_ignored_for_background_playback", data)
-              emitDiagnostic("android_background_pause_prevented", data)
-              reassertBackgroundPlayback("audio_focus_transient_loss")
-            }
-          }
-          AudioManager.AUDIOFOCUS_GAIN -> {
-            emitDiagnostic("android_audio_focus_gained")
-            if (shouldPlayWhenReady && player?.isPlaying != true) {
-              reassertBackgroundPlayback("audio_focus_gain")
-            }
-          }
-        }
-      },
+      { change -> handleAudioFocusChange(change) },
       AudioManager.STREAM_MUSIC,
       AudioManager.AUDIOFOCUS_GAIN
     )
