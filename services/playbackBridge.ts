@@ -374,6 +374,15 @@ export async function bridgeHiddenAudioPlay(): Promise<void> {
   await hiddenAudioBridge.play();
 }
 
+export async function bridgeHiddenAudioReassertBackgroundPlay(): Promise<void> {
+  if (!isHiddenAudioPlaybackActive()) return;
+  if (Platform.OS !== "android") {
+    await hiddenAudioBridge.play();
+    return;
+  }
+  await hiddenAudioBridge.reassertBackgroundPlayback?.();
+}
+
 export async function bridgeHiddenAudioPause(): Promise<void> {
   if (!isHiddenAudioPlaybackActive()) return;
   await hiddenAudioBridge.pause();

@@ -131,6 +131,13 @@ class HiddenAudioModule(
   }
 
   @ReactMethod
+  fun reassertBackgroundPlayback(promise: Promise) {
+    runOnMain(promise, "HIDDEN_AUDIO_REASSERT_FAILED", "android_background_play_reassert_failed") {
+      HiddenAudioCore.reassertBackgroundPlayback("js_background_reassert")
+    }
+  }
+
+  @ReactMethod
   fun stop(promise: Promise) {
     runOnMain(promise, "HIDDEN_AUDIO_STOP_FAILED", "hidden_audio_stop_failed") {
       emitDiagnostic("hidden_audio_stop_called")

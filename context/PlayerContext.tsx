@@ -45,6 +45,7 @@ import {
   bridgeGetProgress,
   bridgeHiddenAudioPause,
   bridgeHiddenAudioPlay,
+  bridgeHiddenAudioReassertBackgroundPlay,
   bridgeHiddenAudioUpdateNowPlaying,
   bridgeUpdateRemoteQueueAvailability,
   bridgeProbeNativePlayback,
@@ -6317,7 +6318,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
                     reason: "background_30s_watch",
                     songId: currentSongRef.current?.id || null,
                   });
-                  void bridgeHiddenAudioPlay().catch(() => undefined);
+                  void (Platform.OS === "android"
+                    ? bridgeHiddenAudioReassertBackgroundPlay()
+                    : bridgeHiddenAudioPlay()
+                  ).catch(() => undefined);
                 }
               });
             }, 30000)
@@ -6346,7 +6350,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             positionMillis: positionMillisRef.current,
           });
 
-          void bridgeHiddenAudioPlay()
+          const backgroundPlayReassert = Platform.OS === "android"
+            ? bridgeHiddenAudioReassertBackgroundPlay
+            : bridgeHiddenAudioPlay;
+
+          void backgroundPlayReassert()
             .then(() => syncHiddenAudioState("app_state_background_hidden_audio"))
             .then(() => {
               logLockscreenPlaybackDiagnostic("native_status_probe_start", {

@@ -77,6 +77,7 @@ export type HiddenAudioPlaybackEndedEvent = {
 export interface HiddenAudioEngine {
   load(url: string): Promise<void>;
   play(): Promise<void>;
+  reassertBackgroundPlayback?(): Promise<void>;
   pause(): Promise<void>;
   stop(): Promise<void>;
   seek(positionMs: number): Promise<void>;
@@ -102,6 +103,7 @@ type HiddenAudioNativeModule = {
   ): Promise<void>;
   play(): Promise<void>;
   resume?: () => Promise<void>;
+  reassertBackgroundPlayback?: () => Promise<void>;
   pause(): Promise<void>;
   stop(): Promise<void>;
   seekTo?(seconds: number): Promise<void>;
@@ -399,6 +401,28 @@ export const hiddenAudioBridge: HiddenAudioEngine = {
       "hidden_audio_play_confirmed",
       { hasLoadedUrl: Boolean(lastLoadedUrl) },
       { lastBridgeEvent: "hidden_audio_play_confirmed" }
+    );
+  },
+  async reassertBackgroundPlayback(): Promise<void> {
+    if (!HiddenAudioNative) {
+      warnStub("reassertBackgroundPlayback");
+      return;
+    }
+
+    logAndRememberLockscreenDiagnostic(
+      "android_background_play_reassert_start",
+      { hasLoadedUrl: Boolean(lastLoadedUrl) },
+      { lastBridgeEvent: "android_background_play_reassert_start" }
+    );
+    if (typeof HiddenAudioNative.reassertBackgroundPlayback === "function") {
+      await HiddenAudioNative.reassertBackgroundPlayback();
+    } else {
+      await HiddenAudioNative.play();
+    }
+    logAndRememberLockscreenDiagnostic(
+      "android_background_play_reassert_success",
+      { hasLoadedUrl: Boolean(lastLoadedUrl) },
+      { lastBridgeEvent: "android_background_play_reassert_success" }
     );
   },
   async pause(): Promise<void> {
