@@ -91,6 +91,153 @@ const SONG_SELECT_LITE = `
   created_at
 `;
 
+const SEARCH_CANDIDATE_LIMIT = 500;
+const SEARCH_TOKEN_LIMIT = 6;
+const SEARCH_FIELDS = [
+  "title",
+  "artist",
+  "artist_name",
+  "album",
+  "album_title",
+  "genre",
+  "mood",
+];
+
+function normalizeSearchText(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .replace(/\s+/g, " ");
+}
+
+function normalizeSongSearchQuery(value) {
+  const phrase = normalizeSearchText(value);
+  const tokens = phrase
+    .split(" ")
+    .map((token) => token.trim())
+    .filter((token) => token.length >= 2)
+    .slice(0, SEARCH_TOKEN_LIMIT);
+
+  return {
+    phrase,
+    tokens,
+    importantTokens: tokens.filter((token) => token.length >= 3),
+  };
+}
+
+function rowSearchValues(row) {
+  const artists = asObject(row?.artists);
+  const albums = asObject(row?.albums);
+
+  return {
+    title: normalizeSearchText(row?.title),
+    artist: normalizeSearchText(row?.artist || row?.artist_name || artists?.name),
+    album: normalizeSearchText(row?.album || row?.album_title || albums?.title),
+    genre: normalizeSearchText(row?.genre),
+    mood: normalizeSearchText(row?.mood),
+    tags: normalizeSearchText(row?.tags),
+    description: normalizeSearchText(row?.description || row?.lyrics),
+  };
+}
+
+function songMatchesSearch(row, search) {
+  if (!search.phrase) return true;
+
+  const values = rowSearchValues(row);
+  const haystack = Object.values(values).filter(Boolean).join(" ");
+
+  if (Object.values(values).some((value) => value.includes(search.phrase))) {
+    return true;
+  }
+
+  if (
+    search.tokens.length > 0 &&
+    search.tokens.every((token) => haystack.includes(token))
+  ) {
+    return true;
+  }
+
+  return (
+    search.importantTokens.length > 0 &&
+    search.importantTokens.some(
+      (token) => values.title.includes(token) || values.artist.includes(token)
+    )
+  );
+}
+
+function scoreSongSearch(row, search) {
+  const values = rowSearchValues(row);
+  const haystack = Object.values(values).filter(Boolean).join(" ");
+  let score = 0;
+
+  if (values.title === search.phrase) score += 1000;
+  if (values.title.includes(search.phrase)) score += 900;
+  if (search.tokens.length > 0 && search.tokens.every((token) => values.title.includes(token))) {
+    score += 800;
+  }
+  score += search.tokens.filter((token) => values.title.includes(token)).length * 90;
+
+  if (values.artist.includes(search.phrase)) score += 650;
+  score += search.tokens.filter((token) => values.artist.includes(token)).length * 60;
+
+  if (values.album.includes(search.phrase)) score += 450;
+  score += search.tokens.filter((token) => values.album.includes(token)).length * 35;
+
+  for (const key of ["genre", "mood", "tags", "description"]) {
+    if (values[key].includes(search.phrase)) score += 250;
+    score += search.tokens.filter((token) => values[key].includes(token)).length * 20;
+  }
+
+  if (search.tokens.length > 0 && search.tokens.every((token) => haystack.includes(token))) {
+    score += 160;
+  }
+
+  return score;
+}
+
+function rankSongSearchRows(rows, search) {
+  if (!search.phrase) return rows;
+
+  return rows
+    .filter((row) => songMatchesSearch(row, search))
+    .map((row, index) => ({
+      row,
+      index,
+      score: scoreSongSearch(row, search),
+    }))
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      const bCreated = new Date(b.row?.created_at || 0).getTime() || 0;
+      const aCreated = new Date(a.row?.created_at || 0).getTime() || 0;
+      if (bCreated !== aCreated) return bCreated - aCreated;
+      return a.index - b.index;
+    })
+    .map((entry) => entry.row);
+}
+
+function buildSearchOrClause(search) {
+  if (!search.phrase) return "";
+
+  const terms = [search.phrase, ...search.tokens];
+  const seen = new Set();
+  const clauses = [];
+
+  terms.forEach((term) => {
+    const pattern = escapeIlikePattern(term);
+    if (!pattern || seen.has(pattern)) return;
+    seen.add(pattern);
+
+    SEARCH_FIELDS.forEach((field) => {
+      clauses.push(`${field}.ilike.%${pattern}%`);
+    });
+  });
+
+  return clauses.join(",");
+}
+
 function isFullUrl(value) {
   return (
     typeof value === "string" &&
@@ -196,20 +343,27 @@ function buildSongRequest({
   filters,
   resolvedAlbum,
   resolvedArtist,
+  search,
+  searchCandidateLimit,
 }) {
+  const rangeStart = filters.search ? 0 : offset;
+  const rangeEnd = filters.search
+    ? Math.max(searchCandidateLimit - 1, 0)
+    : offset + limit - 1;
+
   let request = supabase
     .from("songs")
     .select(selectClause)
     .eq("is_public", true)
     .order("created_at", { ascending: false })
-    .range(offset, offset + limit - 1);
+    .range(rangeStart, rangeEnd);
 
   if (filters.search) {
-    const pattern = escapeIlikePattern(filters.search);
+    const searchClause = buildSearchOrClause(search);
 
-    request = request.or(
-      `title.ilike.%${pattern}%,artist.ilike.%${pattern}%,artist_name.ilike.%${pattern}%,album.ilike.%${pattern}%,album_title.ilike.%${pattern}%,genre.ilike.%${pattern}%,mood.ilike.%${pattern}%`
-    );
+    if (searchClause) {
+      request = request.or(searchClause);
+    }
   }
 
   if (resolvedArtist.artistIds.length === 1) {
@@ -342,6 +496,13 @@ router.get("/", async (req, res) => {
 
   const pagination = normalizePagination(req.query);
   const filters = normalizeSongFilters(req.query);
+  const search = normalizeSongSearchQuery(filters.search);
+  const searchCandidateLimit = filters.search
+    ? Math.min(
+        SEARCH_CANDIDATE_LIMIT,
+        Math.max(pagination.offset + pagination.limit * 5, pagination.limit)
+      )
+    : pagination.limit;
 
   logApiRequest("GET /api/songs", {
     filters,
@@ -366,6 +527,8 @@ router.get("/", async (req, res) => {
       filters,
       resolvedAlbum,
       resolvedArtist,
+      search,
+      searchCandidateLimit,
     });
 
     if (fetchResult.error) {
@@ -381,7 +544,12 @@ router.get("/", async (req, res) => {
       });
     }
 
-    const normalizedSongs = (fetchResult.data || [])
+    const rankedRows = rankSongSearchRows(fetchResult.data || [], search);
+    const pagedRows = filters.search
+      ? rankedRows.slice(pagination.offset, pagination.offset + pagination.limit)
+      : rankedRows;
+
+    const normalizedSongs = pagedRows
       .map(normalizeSong)
       .filter(Boolean);
 
@@ -392,6 +560,8 @@ router.get("/", async (req, res) => {
       page: pagination.page,
       limit: pagination.limit,
       offset: pagination.offset,
+      searchCandidateCount: filters.search ? (fetchResult.data || []).length : null,
+      searchRankedCount: filters.search ? rankedRows.length : null,
       selectMode: fetchResult.selectMode,
       albumResolvedBy: resolvedAlbum.resolvedBy,
       artistResolvedBy: resolvedArtist.resolvedBy,
