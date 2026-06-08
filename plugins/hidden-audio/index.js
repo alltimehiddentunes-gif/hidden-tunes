@@ -3,10 +3,53 @@
 const fs = require("fs");
 const path = require("path");
 const {
+  AndroidConfig,
   IOSConfig,
+  withAndroidManifest,
   withDangerousMod,
   withXcodeProject,
 } = require("@expo/config-plugins");
+
+const { getMainApplicationOrThrow, addMetaDataItemToMainApplication } =
+  AndroidConfig.Manifest;
+
+function ensureAndroidManifestService(mainApplication, service) {
+  const services = Array.isArray(mainApplication.service)
+    ? mainApplication.service
+    : mainApplication.service
+      ? [mainApplication.service]
+      : [];
+
+  const exists = services.some(
+    (entry) => entry?.$?.["android:name"] === service.name
+  );
+  if (exists) {
+    mainApplication.service = services;
+    return mainApplication;
+  }
+
+  const serviceEntry = {
+    $: {
+      "android:name": service.name,
+      "android:exported": service.exported,
+    },
+  };
+
+  if (service.foregroundServiceType) {
+    serviceEntry.$["android:foregroundServiceType"] = service.foregroundServiceType;
+  }
+
+  if (service.intentFilterAction) {
+    serviceEntry["intent-filter"] = [
+      {
+        action: [{ $: { "android:name": service.intentFilterAction } }],
+      },
+    ];
+  }
+
+  mainApplication.service = [...services, serviceEntry];
+  return mainApplication;
+}
 
 const HIDDEN_AUDIO_GROUP = "HiddenAudioModule";
 
@@ -154,29 +197,32 @@ const withHiddenAudioAndroidGradle = (config) => {
 };
 
 const withHiddenAudioAndroidManifest = (config) => {
-  return withDangerousMod(config, [
-    "android",
-    async (config) => {
-      const manifestPath = path.join(
-        config.modRequest.platformProjectRoot,
-        "app",
-        "src",
-        "main",
-        "AndroidManifest.xml"
-      );
-      let contents = fs.readFileSync(manifestPath, "utf8");
-      const serviceTag =
-        '<service android:name="com.hiddentunes.app.audio.HiddenAudioPlaybackService" android:exported="false" android:foregroundServiceType="mediaPlayback" />';
-      if (!contents.includes("HiddenAudioPlaybackService")) {
-        contents = contents.replace(
-          "</application>",
-          `    ${serviceTag}\n  </application>`
-        );
-        fs.writeFileSync(manifestPath, contents);
-      }
-      return config;
-    },
-  ]);
+  return withAndroidManifest(config, (config) => {
+    const manifest = config.modResults;
+    const mainApplication = getMainApplicationOrThrow(manifest);
+
+    ensureAndroidManifestService(mainApplication, {
+      name: "com.hiddentunes.app.audio.HiddenAudioPlaybackService",
+      exported: "false",
+      foregroundServiceType: "mediaPlayback",
+    });
+
+    ensureAndroidManifestService(mainApplication, {
+      name: "com.hiddentunes.app.audio.HiddenAudioMediaBrowserService",
+      exported: "true",
+      foregroundServiceType: "mediaPlayback",
+      intentFilterAction: "android.media.browse.MediaBrowserService",
+    });
+
+    addMetaDataItemToMainApplication(
+      mainApplication,
+      "com.google.android.gms.car.application",
+      "@xml/automotive_app_desc",
+      "resource"
+    );
+
+    return config;
+  });
 };
 
 const withHiddenAudioAndroidMainApplication = (config) => {
@@ -246,46 +292,6 @@ const withHiddenAudioAndroidAutoResources = (config) => {
   ]);
 };
 
-const withHiddenAudioAndroidAutoManifest = (config) => {
-  return withDangerousMod(config, [
-    "android",
-    async (config) => {
-      const manifestPath = path.join(
-        config.modRequest.platformProjectRoot,
-        "app",
-        "src",
-        "main",
-        "AndroidManifest.xml"
-      );
-      let contents = fs.readFileSync(manifestPath, "utf8");
-
-      const browserService =
-        '<service android:name="com.hiddentunes.app.audio.HiddenAudioMediaBrowserService" android:exported="true" android:foregroundServiceType="mediaPlayback">' +
-        '<intent-filter><action android:name="android.media.browse.MediaBrowserService" /></intent-filter></service>';
-
-      if (!contents.includes("HiddenAudioMediaBrowserService")) {
-        contents = contents.replace(
-          "</application>",
-          `    ${browserService}\n  </application>`
-        );
-      }
-
-      const autoMeta =
-        '<meta-data android:name="com.google.android.gms.car.application" android:resource="@xml/automotive_app_desc" />';
-
-      if (!contents.includes("com.google.android.gms.car.application")) {
-        contents = contents.replace(
-          "<application",
-          `<application\n    ${autoMeta}`
-        );
-      }
-
-      fs.writeFileSync(manifestPath, contents);
-      return config;
-    },
-  ]);
-};
-
 const withHiddenAudioAndroidMediaDep = (config) => {
   return withDangerousMod(config, [
     "android",
@@ -317,7 +323,6 @@ const withHiddenAudio = (config) => {
   config = withHiddenAudioAndroidManifest(config);
   config = withHiddenAudioAndroidMainApplication(config);
   config = withHiddenAudioAndroidAutoResources(config);
-  config = withHiddenAudioAndroidAutoManifest(config);
   config = withHiddenAudioAndroidMediaDep(config);
 
   console.log(
