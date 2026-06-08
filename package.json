@@ -19,6 +19,7 @@
                     "build:preview:ios":  "eas build --profile preview --platform ios",
                     "build:dev-client:android":  "eas build --profile developmentClient --platform android",
                     "build:dev-client:ios":  "eas build --profile developmentClient --platform ios",
+    "postinstall": "node ./scripts/patch-android-gradle-foojay.mjs",
                     "reset-project":  "node ./scripts/reset-project.js",
                     "android":  "expo run:android",
                     "ios":  "expo run:ios",
