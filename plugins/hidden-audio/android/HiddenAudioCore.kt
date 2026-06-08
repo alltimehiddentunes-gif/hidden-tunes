@@ -394,12 +394,10 @@ object HiddenAudioCore {
   }
 
   private fun focusChangeData(change: Int, nowMs: Long): WritableMap {
-    val exo = player
     val data = Arguments.createMap()
     data.putInt("focusChange", change)
     data.putString("status", playerStatus)
-    data.putBoolean("playWhenReady", exo?.playWhenReady == true)
-    data.putBoolean("isPlaying", exo?.isPlaying == true)
+    data.putBoolean("shouldPlayWhenReady", shouldPlayWhenReady)
     data.putDouble("msSincePlayRequest", elapsedSince(lastPlayRequestAtMs, nowMs).toDouble())
     data.putDouble("msSinceReassertRequest", elapsedSince(lastReassertRequestAtMs, nowMs).toDouble())
     data.putDouble("stablePlaybackMs", elapsedSince(lastPlayingStartedAtMs, nowMs).toDouble())
@@ -428,14 +426,14 @@ object HiddenAudioCore {
         }
 
         val stablePlaybackMs = elapsedSince(lastPlayingStartedAtMs, nowMs)
-        if (player?.isPlaying != true || stablePlaybackMs <= AUDIO_FOCUS_STABILITY_WINDOW_MS) {
+        if (playerStatus != "playing" || stablePlaybackMs <= AUDIO_FOCUS_STABILITY_WINDOW_MS) {
           emitDiagnostic("android_audio_focus_loss_ignored_not_stable", data)
           emitDiagnostic("android_background_pause_prevented", data)
           return
         }
 
         emitDiagnostic("android_audio_focus_loss_permanent_pause", data)
-        pause()
+        mainHandler.post { pause() }
       }
       AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
       AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
@@ -447,11 +445,11 @@ object HiddenAudioCore {
         emitDiagnostic("android_audio_focus_gained", data)
         if (
           shouldPlayWhenReady &&
-          player?.isPlaying != true &&
+          playerStatus != "playing" &&
           elapsedSince(lastPlayRequestAtMs, nowMs) > AUDIO_FOCUS_STABILITY_WINDOW_MS &&
           elapsedSince(lastReassertRequestAtMs, nowMs) > AUDIO_FOCUS_STABILITY_WINDOW_MS
         ) {
-          reassertBackgroundPlayback("audio_focus_gain")
+          mainHandler.post { reassertBackgroundPlayback("audio_focus_gain") }
         }
       }
     }
