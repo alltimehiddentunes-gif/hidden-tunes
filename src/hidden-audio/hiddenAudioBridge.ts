@@ -107,6 +107,7 @@ type HiddenAudioNativeModule = {
   seekTo?(seconds: number): Promise<void>;
   getState?(): Promise<Record<string, unknown>>;
   getProgress?(): Promise<Record<string, unknown>>;
+  syncAndroidAutoCatalog?: (snapshot: Record<string, unknown>) => Promise<void>;
 };
 
 const STUB_MESSAGE = "[hidden_audio] not implemented on this platform";
@@ -228,6 +229,16 @@ export async function getHiddenAudioNativeSnapshot(): Promise<HiddenAudioNativeS
     isPlaying,
     playbackState,
   };
+}
+
+export async function syncHiddenAudioAndroidAutoCatalog(
+  snapshot: Record<string, unknown>
+): Promise<void> {
+  if (!isHiddenAudioNativeEngineAvailable() || !HiddenAudioNative) return;
+  const sync = (HiddenAudioNative as { syncAndroidAutoCatalog?: (snapshot: Record<string, unknown>) => Promise<void> })
+    .syncAndroidAutoCatalog;
+  if (typeof sync !== "function") return;
+  await sync(snapshot);
 }
 
 export function isHiddenAudioNativeEngineAvailable(): boolean {

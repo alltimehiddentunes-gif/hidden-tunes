@@ -89,6 +89,9 @@ const ANDROID_FILES = [
   "HiddenAudioCore.kt",
   "HiddenAudioPlaybackService.kt",
   "HiddenAudioPackage.kt",
+  "HiddenAudioAutoCatalog.kt",
+  "HiddenAudioMediaSessionManager.kt",
+  "HiddenAudioMediaBrowserService.kt",
 ];
 
 function getAndroidSourceDir(projectRoot) {
@@ -210,6 +213,102 @@ const withHiddenAudioAndroidMainApplication = (config) => {
   ]);
 };
 
+
+const withHiddenAudioAndroidAutoResources = (config) => {
+  return withDangerousMod(config, [
+    "android",
+    async (config) => {
+      const { projectRoot, platformProjectRoot } = config.modRequest;
+      const sourceXml = path.join(
+        projectRoot,
+        "plugins",
+        "hidden-audio",
+        "android",
+        "res",
+        "xml",
+        "automotive_app_desc.xml"
+      );
+      const destinationXmlDir = path.join(
+        platformProjectRoot,
+        "app",
+        "src",
+        "main",
+        "res",
+        "xml"
+      );
+      fs.mkdirSync(destinationXmlDir, { recursive: true });
+      fs.copyFileSync(
+        sourceXml,
+        path.join(destinationXmlDir, "automotive_app_desc.xml")
+      );
+      return config;
+    },
+  ]);
+};
+
+const withHiddenAudioAndroidAutoManifest = (config) => {
+  return withDangerousMod(config, [
+    "android",
+    async (config) => {
+      const manifestPath = path.join(
+        config.modRequest.platformProjectRoot,
+        "app",
+        "src",
+        "main",
+        "AndroidManifest.xml"
+      );
+      let contents = fs.readFileSync(manifestPath, "utf8");
+
+      const browserService =
+        '<service android:name="com.hiddentunes.app.audio.HiddenAudioMediaBrowserService" android:exported="true" android:foregroundServiceType="mediaPlayback">' +
+        '<intent-filter><action android:name="android.media.browse.MediaBrowserService" /></intent-filter></service>';
+
+      if (!contents.includes("HiddenAudioMediaBrowserService")) {
+        contents = contents.replace(
+          "</application>",
+          `    ${browserService}\n  </application>`
+        );
+      }
+
+      const autoMeta =
+        '<meta-data android:name="com.google.android.gms.car.application" android:resource="@xml/automotive_app_desc" />';
+
+      if (!contents.includes("com.google.android.gms.car.application")) {
+        contents = contents.replace(
+          "<application",
+          `<application\n    ${autoMeta}`
+        );
+      }
+
+      fs.writeFileSync(manifestPath, contents);
+      return config;
+    },
+  ]);
+};
+
+const withHiddenAudioAndroidMediaDep = (config) => {
+  return withDangerousMod(config, [
+    "android",
+    async (config) => {
+      const gradlePath = path.join(
+        config.modRequest.platformProjectRoot,
+        "app",
+        "build.gradle"
+      );
+      let contents = fs.readFileSync(gradlePath, "utf8");
+      const mediaDep = 'implementation "androidx.media:media:1.7.0"';
+      if (!contents.includes("androidx.media:media")) {
+        contents = contents.replace(
+          /dependencies\s*\{/,
+          `dependencies {\n    ${mediaDep}`
+        );
+        fs.writeFileSync(gradlePath, contents);
+      }
+      return config;
+    },
+  ]);
+};
+
 const withHiddenAudio = (config) => {
   config = withHiddenAudioNativeSources(config);
   config = withHiddenAudioXcodeProject(config);
@@ -217,6 +316,9 @@ const withHiddenAudio = (config) => {
   config = withHiddenAudioAndroidGradle(config);
   config = withHiddenAudioAndroidManifest(config);
   config = withHiddenAudioAndroidMainApplication(config);
+  config = withHiddenAudioAndroidAutoResources(config);
+  config = withHiddenAudioAndroidAutoManifest(config);
+  config = withHiddenAudioAndroidMediaDep(config);
 
   console.log(
     "[hidden-audio] HiddenAudio native sources will be copied for iOS and Android during prebuild."

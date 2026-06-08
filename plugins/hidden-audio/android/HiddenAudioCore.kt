@@ -139,14 +139,7 @@ object HiddenAudioCore {
     emitProgress()
   }
 
-  fun emitRemoteCommand(command: String) {
-    val data = Arguments.createMap()
-    data.putString("command", command)
-    emitDiagnostic("android_remote_command_received", data)
-    val forwardedData = Arguments.createMap()
-    forwardedData.putString("command", command)
-    emitDiagnostic("remote_command_dispatched_to_js", forwardedData)
-  }
+
 
   fun state(): WritableMap {
     val state = Arguments.createMap()
@@ -251,6 +244,7 @@ object HiddenAudioCore {
         emitProgress()
       }
     })
+    HiddenAudioMediaSessionManager.ensureSession(context)
     emitDiagnostic("android_exoplayer_initialized")
   }
 
@@ -428,6 +422,7 @@ object HiddenAudioCore {
     body.putString("type", "state")
     body.putMap("state", state())
     emit("HiddenAudioState", body)
+    syncMediaSession()
   }
 
   private fun emitProgress() {
@@ -475,4 +470,80 @@ object HiddenAudioCore {
       // React instance may be tearing down; never crash the process for bridge emits.
     }
   }
+
+  fun emitAutoDiagnostic(eventName: String, data: WritableMap = Arguments.createMap()) {
+    emitDiagnostic(eventName, data)
+  }
+
+  fun playForcedFromSession() {
+    val context = reactContext ?: return
+    ensurePlayer(context)
+    if (player?.isPlaying == true) {
+      emitDiagnostic("android_auto_play_forced", simpleData("state", "already_playing"))
+      syncMediaSession()
+      return
+    }
+    play()
+  }
+
+  fun pauseForcedFromSession() {
+    if (player?.isPlaying != true && player?.playWhenReady != true) {
+      playerStatus = "paused"
+      player?.pause()
+      player?.playWhenReady = false
+      emitDiagnostic("android_auto_pause_forced", simpleData("state", "already_paused"))
+      syncMediaSession()
+      return
+    }
+    pause()
+  }
+
+  fun playFromAutoMediaId(mediaId: String) {
+    val context = reactContext
+    val track = HiddenAudioAutoCatalog.getTrack(mediaId)
+    if (context != null && track != null) {
+      try {
+        val trackMap = HiddenAudioAutoCatalog.trackToWritableMap(track)
+        loadTrack(context, trackMap)
+        playForcedFromSession()
+      } catch (error: Throwable) {
+        val data = Arguments.createMap()
+        data.putString("mediaId", mediaId)
+        data.putString("message", error.message ?: "load_failed")
+        emitDiagnostic("android_auto_media_session_error", data)
+      }
+    }
+    emitRemoteCommand("play_from_media_id", mediaId)
+  }
+
+  fun emitRemoteCommand(command: String, mediaId: String? = null) {
+    val data = Arguments.createMap()
+    data.putString("command", command)
+    if (!mediaId.isNullOrBlank()) {
+      data.putString("mediaId", mediaId)
+    }
+    emitDiagnostic("android_remote_command_received", data)
+    val forwardedData = Arguments.createMap()
+    forwardedData.putString("command", command)
+    if (!mediaId.isNullOrBlank()) {
+      forwardedData.putString("mediaId", mediaId)
+    }
+    emitDiagnostic("remote_command_dispatched_to_js", forwardedData)
+  }
+
+  private fun syncMediaSession() {
+    val exo = player
+    val track = activeTrack
+    HiddenAudioMediaSessionManager.syncFromPlayer(
+      title = track?.title ?: "Hidden Tunes",
+      artist = track?.artist ?: "Hidden Tunes",
+      album = track?.album ?: "",
+      artworkUrl = track?.artworkUrl ?: "",
+      durationSeconds = track?.durationSeconds ?: 0.0,
+      positionSeconds = (exo?.currentPosition?.coerceAtLeast(0) ?: 0L) / 1000.0,
+      player = exo,
+      status = playerStatus
+    )
+  }
+
 }

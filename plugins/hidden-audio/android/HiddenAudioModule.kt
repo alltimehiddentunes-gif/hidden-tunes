@@ -203,6 +203,21 @@ class HiddenAudioModule(
     }
   }
 
+
+  @ReactMethod
+  fun syncAndroidAutoCatalog(snapshot: ReadableMap, promise: Promise) {
+    mainHandler.post {
+      try {
+        HiddenAudioAutoCatalog.applySnapshot(snapshot)
+        emitDiagnostic("android_auto_catalog_synced")
+        promise.resolve(null)
+      } catch (error: Throwable) {
+        emitDiagnostic("android_auto_media_session_error", errorData(error))
+        promise.reject("ANDROID_AUTO_CATALOG_SYNC_FAILED", error)
+      }
+    }
+  }
+
   @ReactMethod
   fun addListener(eventName: String) {
     // Required by NativeEventEmitter.

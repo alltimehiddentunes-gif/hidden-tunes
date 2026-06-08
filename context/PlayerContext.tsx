@@ -34,6 +34,8 @@ import {
   saveSmartQueue,
 } from "../services/smartQueue";
 import { getCachedHiddenTunesCatalog } from "../services/hiddenTunes";
+import { resolveAndroidAutoMediaId } from "../services/androidAutoCatalogSync";
+import { syncAndroidAutoCatalogFromDerived } from "../services/androidAutoCatalogBridge";
 import {
   isHiddenAudioEnabledOnIOS,
   isHiddenAudioNativePlaybackEnabled,
@@ -216,6 +218,7 @@ export type PlaybackQueueContext = {
     | "because_you_listened"
     | "smart_queue"
     | "full_catalog"
+    | "android_auto"
     | "queue"
     | "unknown";
   label?: string;
@@ -5830,9 +5833,15 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           case "play": {
             logLockscreenPlaybackDiagnostic("remote_play_received", data);
             clearIntentionalPause("play");
-            isPlayingRef.current = true;
-            setIsPlaying(true);
-            await syncHiddenAudioState("remote_play");
+            if (Platform.OS === "android" && isHiddenAudioNativePlaybackEnabled()) {
+              await bridgeHiddenAudioPlay();
+              isPlayingRef.current = true;
+              setIsPlaying(true);
+            } else {
+              isPlayingRef.current = true;
+              setIsPlaying(true);
+              await syncHiddenAudioState("remote_play");
+            }
             logLockscreenPlaybackDiagnostic("remote_command_native_action_success", {
               command: "play",
             });
@@ -5841,10 +5850,41 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           case "pause": {
             logLockscreenPlaybackDiagnostic("remote_pause_received", data);
             markIntentionalPause("remote_pause");
+            if (Platform.OS === "android" && isHiddenAudioNativePlaybackEnabled()) {
+              await bridgeHiddenAudioPause();
+            }
             isPlayingRef.current = false;
             setIsPlayingState(false);
             logLockscreenPlaybackDiagnostic("remote_command_native_action_success", {
               command: "pause",
+            });
+            break;
+          }
+          case "play_from_media_id": {
+            const mediaId = String((data as Record<string, unknown>).mediaId || "");
+            const catalog = getCachedHiddenTunesCatalog();
+            if (!mediaId || !catalog) {
+              logLockscreenPlaybackDiagnostic("remote_command_no_queue_available", {
+                ...data,
+                mediaId,
+              });
+              break;
+            }
+            const resolved = resolveAndroidAutoMediaId(catalog, mediaId);
+            if (!resolved) {
+              logLockscreenPlaybackDiagnostic("remote_command_no_queue_available", {
+                ...data,
+                mediaId,
+              });
+              break;
+            }
+            await playSong(resolved.song, resolved.queue, 0, {
+              source: "android_auto",
+              label: "Android Auto",
+            });
+            logLockscreenPlaybackDiagnostic("remote_command_native_action_success", {
+              command: "play_from_media_id",
+              mediaId,
             });
             break;
           }
@@ -5896,6 +5936,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     ]
   );
 
+
+  useEffect(() => {
+    if (Platform.OS !== "android" || !isHiddenAudioNativePlaybackEnabled()) return;
+    void syncAndroidAutoCatalogFromDerived();
+  }, []);
 
   useEffect(() => {
     if (Platform.OS !== "android" || !isHiddenAudioNativePlaybackEnabled()) {

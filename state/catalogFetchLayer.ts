@@ -3,6 +3,7 @@ import {
   hydrateHiddenTunesCatalogCache,
   type HiddenTunesNormalizedSong,
 } from "../services/hiddenTunesApi";
+import { syncAndroidAutoCatalogFromDerived } from "../services/androidAutoCatalogBridge";
 
 import {
   clearCatalogHydrationCache,
@@ -77,8 +78,11 @@ export async function loadHydratedCatalogOnce(): Promise<
         return hydratedSnapshot;
       }
 
+
       rememberHydratedSnapshot(getHydratedCatalogTracksOnce(tracks));
+      void syncAndroidAutoCatalogFromDerived();
       return hydratedSnapshot;
+
     })
     .finally(() => {
       inflightLoad = null;
