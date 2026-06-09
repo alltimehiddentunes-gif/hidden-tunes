@@ -287,6 +287,11 @@ export function markHiddenAudioBridgeActive(active = true): void {
   hiddenAudioBridgeActive = active;
 }
 
+export function resetHiddenAudioSessionAfterIntentionalClose(): void {
+  markHiddenAudioBridgeActive(false);
+  resetHiddenAudioLoadedUrl();
+}
+
 
 export function nativeSnapshotRequiresReload(
   snapshot: HiddenAudioNativeSnapshot | null | undefined,

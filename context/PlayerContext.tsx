@@ -55,6 +55,7 @@ import {
   bridgeSyncRepeatMode,
   deactivateHiddenAudioPlayback,
   markHiddenAudioBridgeActive,
+  resetHiddenAudioSessionAfterIntentionalClose,
   shouldUseHiddenAudioPlayback,
   subscribeHiddenAudioDiagnostics,
   subscribeHiddenAudioEnded,
@@ -349,6 +350,7 @@ const YOUTUBE_QUEUE_KEY = "hidden_tunes_youtube_queue";
 const YOUTUBE_QUEUE_INDEX_KEY = "hidden_tunes_youtube_queue_index";
 const POSITION_KEY = "hidden_tunes_position";
 const PLAYBACK_WAS_PLAYING_KEY = "hidden_tunes_playback_was_playing";
+const INTENTIONAL_APP_CLOSE_KEY = "hidden_tunes_intentional_app_close";
 const RADIO_MODE_KEY = "hidden_tunes_radio_mode";
 const RADIO_INDEX_KEY = "hidden_tunes_radio_index";
 const REPEAT_MODE_KEY = "hidden_tunes_repeat_mode";
@@ -1100,6 +1102,60 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     await AsyncStorage.multiRemove(keys);
   }, []);
 
+  const invalidateSavedPlaybackSessionAfterIntentionalClose = useCallback(
+    async (source: string) => {
+      playbackInterruptionActiveRef.current = true;
+      resetHiddenAudioSessionAfterIntentionalClose();
+      hiddenAudioActiveRef.current = false;
+      isPlayingRef.current = false;
+      setIsPlayingState(false);
+      storageValueCacheRef.current[INTENTIONAL_APP_CLOSE_KEY] = String(Date.now());
+      delete storageValueCacheRef.current[PLAYBACK_WAS_PLAYING_KEY];
+      try {
+        await AsyncStorage.multiSet([[INTENTIONAL_APP_CLOSE_KEY, String(Date.now())]]);
+        await AsyncStorage.removeItem(PLAYBACK_WAS_PLAYING_KEY);
+      } catch {
+        // storage failures must not block intentional close handling
+      }
+      logLockscreenPlaybackDiagnostic("saved_session_invalidated_after_task_removed", {
+        source,
+        songId: currentSongRef.current?.id || null,
+        queueLength: activeQueueRef.current.length,
+      });
+    },
+    []
+  );
+
+  const clearStalePlaybackFlagsForNativeIdle = useCallback(
+    async (source: string, snapshot?: HiddenAudioNativeSnapshot | null) => {
+      const nativeIdle =
+        !snapshot ||
+        (!snapshot.hasLoadedTrack &&
+          !snapshot.activeTrack?.url &&
+          !snapshot.isPlaying &&
+          (String(snapshot.nativeStatus || "").toLowerCase() === "idle" ||
+            String(snapshot.playbackState || "").toLowerCase() === "idle"));
+
+      if (!nativeIdle) return false;
+      if (!hiddenAudioActiveRef.current && !isPlayingRef.current) return false;
+
+      resetHiddenAudioSessionAfterIntentionalClose();
+      hiddenAudioActiveRef.current = false;
+      isPlayingRef.current = false;
+      setIsPlayingState(false);
+      await removeStoredValues([PLAYBACK_WAS_PLAYING_KEY]);
+      logLockscreenPlaybackDiagnostic("foreground_stale_session_cleared_native_idle", {
+        source,
+        songId: currentSongRef.current?.id || null,
+        queueLength: activeQueueRef.current.length,
+        nativeStatus: snapshot?.nativeStatus || null,
+        hasLoadedTrack: snapshot?.hasLoadedTrack ?? null,
+      });
+      return true;
+    },
+    [removeStoredValues]
+  );
+
   const savePlaybackPosition = useCallback(async (millis: number) => {
     const safeMillis = Math.max(0, Math.floor(millis || 0));
     const serialized = String(safeMillis);
@@ -1268,6 +1324,17 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         return hiddenAudioActiveRef.current;
       }
 
+      try {
+        const intentionalAppClose = await AsyncStorage.getItem(INTENTIONAL_APP_CLOSE_KEY);
+        if (intentionalAppClose) {
+          resetHiddenAudioSessionAfterIntentionalClose();
+          hiddenAudioActiveRef.current = false;
+          return false;
+        }
+      } catch {
+        // ignore storage read errors
+      }
+
       if (hiddenAudioActiveRef.current && currentSongRef.current) {
         return true;
       }
@@ -1300,6 +1367,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       try {
         const savedSong = await AsyncStorage.getItem(CURRENT_SONG_KEY);
         if (savedSong) {
+          const snapshot = await bridgeProbeNativePlayback();
+          if (!nativeSnapshotIndicatesLoadedPlayback(snapshot)) {
+            resetHiddenAudioSessionAfterIntentionalClose();
+            hiddenAudioActiveRef.current = false;
+            return false;
+          }
           if (!hiddenAudioActiveRef.current) {
             markHiddenAudioBridgeActive(true);
             hiddenAudioActiveRef.current = true;
@@ -1345,6 +1418,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         savedContext,
         savedPosition,
         savedWasPlaying,
+        intentionalAppClose,
       ] = await Promise.all([
         AsyncStorage.getItem(CURRENT_SONG_KEY),
         AsyncStorage.getItem(ACTIVE_QUEUE_KEY),
@@ -1353,8 +1427,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         AsyncStorage.getItem(ACTIVE_QUEUE_CONTEXT_KEY),
         AsyncStorage.getItem(POSITION_KEY),
         AsyncStorage.getItem(PLAYBACK_WAS_PLAYING_KEY),
+        AsyncStorage.getItem(INTENTIONAL_APP_CLOSE_KEY),
       ]);
 
+      const sessionIntentionallyClosed = Boolean(intentionalAppClose);
       let hydrated = false;
 
       if (savedSong) {
@@ -1456,7 +1532,20 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      if (
+      if (sessionIntentionallyClosed) {
+        resetHiddenAudioSessionAfterIntentionalClose();
+        hiddenAudioActiveRef.current = false;
+        isPlayingRef.current = false;
+        setIsPlayingState(false);
+        await removeStoredValues([PLAYBACK_WAS_PLAYING_KEY, INTENTIONAL_APP_CLOSE_KEY]);
+        delete storageValueCacheRef.current[INTENTIONAL_APP_CLOSE_KEY];
+        delete storageValueCacheRef.current[PLAYBACK_WAS_PLAYING_KEY];
+        logLockscreenPlaybackDiagnostic("hydration_skipped_after_intentional_close", {
+          songId: currentSongRef.current?.id || null,
+          queueLength: activeQueueRef.current.length,
+          queueIndex: activeQueueIndexRef.current,
+        });
+      } else if (
         savedWasPlaying === "true" &&
         currentSongRef.current &&
         getPlayableUri(currentSongRef.current)
@@ -1485,6 +1574,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     getPlayableUri,
     isYouTubeSong,
     normalizeSong,
+    removeStoredValues,
     setActiveQueue,
     setActiveQueueContext,
     setActiveQueueIndex,
@@ -1566,7 +1656,18 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           positionMillis: positionMillisRef.current,
         });
 
-        await loadAndPlayRef.current?.(restoredSong);
+        resetHiddenAudioSessionAfterIntentionalClose();
+        hiddenAudioActiveRef.current = false;
+        isPlayingRef.current = false;
+        setIsPlayingState(false);
+        await removeStoredValues([PLAYBACK_WAS_PLAYING_KEY]);
+        logLockscreenPlaybackDiagnostic("foreground_stale_session_cleared_native_idle", {
+          source: reason,
+          songId: restoredSong.id || null,
+          queueLength: restoredQueue.length,
+          nativeStatus: snapshot?.nativeStatus || null,
+          hasLoadedTrack: snapshot?.hasLoadedTrack ?? null,
+        });
 
         logLockscreenPlaybackDiagnostic("foreground_restore_from_saved_session_success", {
           songId: restoredSong.id || null,
@@ -1574,6 +1675,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           queueIndex: activeQueueIndexRef.current,
           positionMillis: positionMillisRef.current,
           preservedNative: false,
+          reloadedNative: false,
         });
         return true;
       } catch (error) {
@@ -1587,6 +1689,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     [
       hydrateJsPlaybackSessionFromStorage,
       getSongDurationSeconds,
+      removeStoredValues,
       setDurationMillis,
       setIsPlaying,
       setPositionMillis,
@@ -1676,6 +1779,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         playbackState: snapshot?.playbackState || null,
         activeTrackUrl: snapshot?.activeTrack?.url ? "present" : "missing",
       });
+
+      await clearStalePlaybackFlagsForNativeIdle("foreground_sync", snapshot);
 
       if (!snapshot) {
         const restored = await restoreForegroundFromSavedSession("snapshot_unavailable");
@@ -6135,10 +6240,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         nativeEventName === "intentional_app_close_detected" ||
         nativeEventName === "android_task_removed"
       ) {
-        playbackInterruptionActiveRef.current = true;
-        if (nativeEventName === "intentional_app_close_detected") {
-          hiddenAudioActiveRef.current = false;
-          markHiddenAudioBridgeActive(false);
+        if (
+          nativeEventName === "intentional_app_close_detected" ||
+          nativeEventName === "android_task_removed"
+        ) {
+          void invalidateSavedPlaybackSessionAfterIntentionalClose(nativeEventName);
+        } else {
+          playbackInterruptionActiveRef.current = true;
         }
       } else if (nativeEventName === "android_audio_focus_gain_resume_allowed") {
         playbackInterruptionActiveRef.current = false;
@@ -6309,6 +6417,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               }
             );
           }
+        }
+        if (Platform.OS === "android") {
+          const snapshot = await bridgeProbeNativePlayback().catch(() => null);
+          await clearStalePlaybackFlagsForNativeIdle(
+            "ios_background_audio_config_checked",
+            snapshot
+          );
         }
         const backgroundish = isBackgroundAppState(appStateRef.current);
         const hasSavedOrLiveSession =
