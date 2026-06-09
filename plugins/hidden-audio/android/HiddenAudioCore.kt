@@ -47,6 +47,7 @@ object HiddenAudioCore {
 
   private var hasAudioFocus = false
   private var shouldPlayWhenReady = false
+  private var backgroundPlaybackIntended = false
   private var playbackEndedHandled = false
   private var lastPlayRequestAtMs = 0L
   private var lastReassertRequestAtMs = 0L
@@ -165,6 +166,7 @@ object HiddenAudioCore {
     player?.pause()
     player?.playWhenReady = false
     shouldPlayWhenReady = false
+    backgroundPlaybackIntended = false
     playerStatus = "paused"
     stopProgressLoop()
     emitDiagnostic("hidden_audio_pause_called")
@@ -182,6 +184,7 @@ object HiddenAudioCore {
     player?.clearMediaItems()
     player?.playWhenReady = false
     shouldPlayWhenReady = false
+    backgroundPlaybackIntended = false
     playerStatus = "idle"
     activeTrack = null
     activeIndex = 0
@@ -222,6 +225,7 @@ object HiddenAudioCore {
     emitDiagnostic("android_background_play_reassert_start", startData)
 
     lastReassertRequestAtMs = SystemClock.elapsedRealtime()
+    backgroundPlaybackIntended = true
     shouldPlayWhenReady = true
     if (!hasAudioFocus) {
       requestAudioFocus()
@@ -514,6 +518,13 @@ object HiddenAudioCore {
     when (change) {
       AudioManager.AUDIOFOCUS_LOSS -> {
         emitDiagnostic("android_audio_focus_lost", data)
+
+        if (shouldPlayWhenReady && backgroundPlaybackIntended) {
+          emitDiagnostic("android_audio_focus_loss_ignored_for_background_playback", data)
+          emitDiagnostic("android_background_pause_prevented", data)
+          postPlaybackCallback { recoverPlaybackWhenReady("audio_focus_loss_background") }
+          return
+        }
 
         if (isInPlaybackProtectionWindow(nowMs)) {
           emitDiagnostic("android_audio_focus_loss_ignored_startup_window", data)
