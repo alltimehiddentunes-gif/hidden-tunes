@@ -59,6 +59,18 @@ class HiddenAudioPlaybackService : Service() {
     return START_STICKY
   }
 
+  override fun onTaskRemoved(rootIntent: Intent?) {
+    HiddenAudioCore.handleTaskRemoved()
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+      stopForeground(STOP_FOREGROUND_REMOVE)
+    } else {
+      @Suppress("DEPRECATION")
+      stopForeground(true)
+    }
+    stopSelf()
+    super.onTaskRemoved(rootIntent)
+  }
+
   companion object {
     const val FOREGROUND_NOTIFICATION_ID = 41001
   }

@@ -48,6 +48,9 @@ object HiddenAudioCore {
   private var hasAudioFocus = false
   private var shouldPlayWhenReady = false
   private var backgroundPlaybackIntended = false
+  private var phoneCallInterruptionActive = false
+  private var appTaskRemoved = false
+  private var wasPlayingBeforeAudioFocusLoss = false
   private var playbackEndedHandled = false
   private var lastPlayRequestAtMs = 0L
   private var lastReassertRequestAtMs = 0L
@@ -139,6 +142,7 @@ object HiddenAudioCore {
       throw IllegalStateException("HiddenAudio cannot play without a loaded track")
     }
     lastPlayRequestAtMs = SystemClock.elapsedRealtime()
+    phoneCallInterruptionActive = false
     requestAudioFocus()
     shouldPlayWhenReady = true
     startForegroundService()
@@ -163,13 +167,36 @@ object HiddenAudioCore {
       emitDiagnostic("android_playback_stale_session_ignored", simpleData("source", "pause"))
       return
     }
-    player?.pause()
-    player?.playWhenReady = false
-    shouldPlayWhenReady = false
-    backgroundPlaybackIntended = false
+    pauseForInterruption("user_pause", permanent = true, markUserPause = true)
+  }
+
+  private fun pauseForInterruption(
+    source: String,
+    permanent: Boolean,
+    markUserPause: Boolean = false
+  ) {
+    if (appTaskRemoved) return
+    val exo = player
+    val wasPlaying = exo?.isPlaying == true || exo?.playWhenReady == true || shouldPlayWhenReady
+    if (wasPlaying && !markUserPause) {
+      wasPlayingBeforeAudioFocusLoss = true
+    }
+    if (markUserPause) {
+      wasPlayingBeforeAudioFocusLoss = false
+    }
+    exo?.pause()
+    exo?.playWhenReady = false
+    if (permanent) {
+      shouldPlayWhenReady = false
+      backgroundPlaybackIntended = false
+    }
     playerStatus = "paused"
     stopProgressLoop()
-    emitDiagnostic("hidden_audio_pause_called")
+    if (source.startsWith("audio_focus")) {
+      emitDiagnostic("android_audio_focus_pause_for_interruption", simpleData("source", source))
+    } else {
+      emitDiagnostic("hidden_audio_pause_called", simpleData("source", source))
+    }
     emitState()
     emitProgress()
   }
@@ -185,6 +212,8 @@ object HiddenAudioCore {
     player?.playWhenReady = false
     shouldPlayWhenReady = false
     backgroundPlaybackIntended = false
+    phoneCallInterruptionActive = false
+    wasPlayingBeforeAudioFocusLoss = false
     playerStatus = "idle"
     activeTrack = null
     activeIndex = 0
@@ -206,6 +235,14 @@ object HiddenAudioCore {
   }
 
   fun reassertBackgroundPlayback(reason: String = "background_reassert") {
+    if (appTaskRemoved || phoneCallInterruptionActive) {
+      val blocked = Arguments.createMap()
+      blocked.putString("reason", reason)
+      blocked.putBoolean("appTaskRemoved", appTaskRemoved)
+      blocked.putBoolean("phoneCallInterruptionActive", phoneCallInterruptionActive)
+      emitDiagnostic("background_recovery_blocked_by_interruption", blocked)
+      return
+    }
     val context = reactContext ?: return
     ensurePlayer(context)
     clearPlaybackCallbacks()
@@ -471,6 +508,14 @@ object HiddenAudioCore {
 
 
   private fun recoverPlaybackWhenReady(source: String) {
+    if (appTaskRemoved || phoneCallInterruptionActive) {
+      val blocked = Arguments.createMap()
+      blocked.putString("source", source)
+      blocked.putBoolean("appTaskRemoved", appTaskRemoved)
+      blocked.putBoolean("phoneCallInterruptionActive", phoneCallInterruptionActive)
+      emitDiagnostic("background_recovery_blocked_by_interruption", blocked)
+      return
+    }
     if (!shouldPlayWhenReady) return
     val exo = player ?: return
     if (exo.isPlaying && exo.playWhenReady) return
@@ -518,46 +563,44 @@ object HiddenAudioCore {
     when (change) {
       AudioManager.AUDIOFOCUS_LOSS -> {
         emitDiagnostic("android_audio_focus_lost", data)
-
-        if (shouldPlayWhenReady && backgroundPlaybackIntended) {
-          emitDiagnostic("android_audio_focus_loss_ignored_for_background_playback", data)
-          emitDiagnostic("android_background_pause_prevented", data)
-          postPlaybackCallback { recoverPlaybackWhenReady("audio_focus_loss_background") }
-          return
+        phoneCallInterruptionActive = true
+        postPlaybackCallback {
+          pauseForInterruption("audio_focus_loss", permanent = true)
         }
-
-        if (isInPlaybackProtectionWindow(nowMs)) {
-          emitDiagnostic("android_audio_focus_loss_ignored_startup_window", data)
-          emitDiagnostic("android_background_pause_prevented", data)
-          return
-        }
-
-        val stablePlaybackMs = elapsedSince(lastPlayingStartedAtMs, nowMs)
-        if (playerStatus != "playing" || stablePlaybackMs <= AUDIO_FOCUS_STABILITY_WINDOW_MS) {
-          emitDiagnostic("android_audio_focus_loss_ignored_not_stable", data)
-          emitDiagnostic("android_background_pause_prevented", data)
-          return
-        }
-
-        emitDiagnostic("android_audio_focus_loss_permanent_pause", data)
-        postPlaybackCallback { pause() }
       }
-      AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
+      AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
+        emitDiagnostic("android_audio_focus_lost", data)
+        phoneCallInterruptionActive = true
+        postPlaybackCallback {
+          pauseForInterruption("audio_focus_transient", permanent = false)
+        }
+      }
       AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
         emitDiagnostic("android_audio_focus_lost", data)
-        emitDiagnostic("android_audio_focus_loss_ignored_for_background_playback", data)
-        emitDiagnostic("android_background_pause_prevented", data)
+        phoneCallInterruptionActive = true
+        postPlaybackCallback {
+          pauseForInterruption("audio_focus_duck", permanent = false)
+        }
       }
       AudioManager.AUDIOFOCUS_GAIN -> {
         emitDiagnostic("android_audio_focus_gained", data)
-        if (
-          shouldPlayWhenReady &&
-          playerStatus != "playing" &&
-          elapsedSince(lastPlayRequestAtMs, nowMs) > AUDIO_FOCUS_STABILITY_WINDOW_MS &&
-          elapsedSince(lastReassertRequestAtMs, nowMs) > AUDIO_FOCUS_STABILITY_WINDOW_MS
-        ) {
-          postPlaybackCallback { reassertBackgroundPlayback("audio_focus_gain") }
+        if (appTaskRemoved) {
+          emitDiagnostic("android_audio_focus_gain_resume_blocked", simpleData("reason", "app_task_removed"))
+          return
         }
+        if (!wasPlayingBeforeAudioFocusLoss) {
+          emitDiagnostic("android_audio_focus_gain_resume_blocked", simpleData("reason", "not_playing_before_interruption"))
+          phoneCallInterruptionActive = false
+          return
+        }
+        if (!shouldPlayWhenReady) {
+          emitDiagnostic("android_audio_focus_gain_resume_blocked", simpleData("reason", "should_not_play"))
+          phoneCallInterruptionActive = false
+          return
+        }
+        emitDiagnostic("android_audio_focus_gain_resume_allowed", data)
+        phoneCallInterruptionActive = false
+        postPlaybackCallback { reassertBackgroundPlayback("audio_focus_gain") }
       }
     }
   }
@@ -800,6 +843,24 @@ object HiddenAudioCore {
       player = exo,
       status = playerStatus
     )
+  }
+
+
+  fun handleTaskRemoved() {
+    appTaskRemoved = true
+    phoneCallInterruptionActive = false
+    wasPlayingBeforeAudioFocusLoss = false
+    emitDiagnostic("android_task_removed")
+    emitDiagnostic("intentional_app_close_detected")
+    try {
+      pauseForInterruption("task_removed", permanent = true)
+      stop()
+      emitDiagnostic("intentional_app_close_native_stop_success")
+    } catch (error: Throwable) {
+      val data = Arguments.createMap()
+      data.putString("message", error.message ?: "task_removed_stop_failed")
+      emitDiagnostic("intentional_app_close_native_stop_failed", data)
+    }
   }
 
 }

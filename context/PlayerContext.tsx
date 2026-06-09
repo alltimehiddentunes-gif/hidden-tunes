@@ -695,6 +695,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const backgroundAdvanceFromNativeEndRef = useRef(false);
   const backgroundWatchTimersRef = useRef<Array<ReturnType<typeof setTimeout>>>([]);
   const intentionalPauseRef = useRef({ at: 0, reason: "" });
+  const playbackInterruptionActiveRef = useRef(false);
   const foregroundResyncInFlightRef = useRef(false);
   const lastPlayerOpenRequestRef = useRef({ songId: "", at: 0 });
   const handleTrackFinishedRef = useRef<(() => Promise<void>) | null>(null);
@@ -797,10 +798,15 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const setIsPlaying = useCallback((value: boolean) => {
+    const recentIntentionalPause =
+      intentionalPauseRef.current.at > 0 &&
+      Date.now() - intentionalPauseRef.current.at < 8000;
     if (
       !value &&
       isBackgroundAppState(appStateRef.current) &&
-      (currentSongRef.current || activeQueueRef.current.length > 0)
+      (currentSongRef.current || activeQueueRef.current.length > 0) &&
+      !recentIntentionalPause &&
+      !playbackInterruptionActiveRef.current
     ) {
       markHiddenAudioBridgeActive(true);
       hiddenAudioActiveRef.current = true;
@@ -844,6 +850,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const markIntentionalPause = useCallback((reason: string) => {
     intentionalPauseRef.current = { at: Date.now(), reason };
+    playbackInterruptionActiveRef.current = true;
     logLockscreenPlaybackDiagnostic("intentional_pause_marked", {
       reason,
       cooldownMs: 8000,
@@ -856,6 +863,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const previous = intentionalPauseRef.current;
     if (!previous.at) return;
     intentionalPauseRef.current = { at: 0, reason: "" };
+    playbackInterruptionActiveRef.current = false;
     logLockscreenPlaybackDiagnostic(
       reason === "new_track"
         ? "intentional_pause_cleared_by_new_track"
@@ -5969,7 +5977,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             logLockscreenPlaybackDiagnostic("remote_pause_received", data);
             markIntentionalPause("remote_pause");
             if (Platform.OS === "android" && isHiddenAudioNativePlaybackEnabled()) {
-              await bridgeHiddenAudioPause();
+              await bridgeHiddenAudioPause("remote_pause");
             }
             isPlayingRef.current = false;
             setIsPlayingState(false);
@@ -6122,6 +6130,18 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         markIntentionalPause("remote_pause");
       } else if (eventName === "remote_play_received") {
         clearIntentionalPause("play");
+      } else if (
+        nativeEventName === "android_audio_focus_pause_for_interruption" ||
+        nativeEventName === "intentional_app_close_detected" ||
+        nativeEventName === "android_task_removed"
+      ) {
+        playbackInterruptionActiveRef.current = true;
+        if (nativeEventName === "intentional_app_close_detected") {
+          hiddenAudioActiveRef.current = false;
+          markHiddenAudioBridgeActive(false);
+        }
+      } else if (nativeEventName === "android_audio_focus_gain_resume_allowed") {
+        playbackInterruptionActiveRef.current = false;
       }
 
       if (
@@ -6417,6 +6437,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
                   nativeSnapshotIndicatesLoadedPlayback(snapshot) &&
                   isBackgroundAppState(appStateRef.current)
                 ) {
+                  if (playbackInterruptionActiveRef.current) {
+                    logLockscreenPlaybackDiagnostic("background_recovery_blocked_by_interruption", {
+                      reason: "background_30s_watch",
+                      songId: currentSongRef.current?.id || null,
+                    });
+                    return;
+                  }
                   if (hasRecentIntentionalPause()) {
                     logLockscreenPlaybackDiagnostic("background_recovery_skipped_intentional_pause", {
                       reason: "background_30s_watch",
@@ -6449,6 +6476,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         void applyProgressUpdateInterval("app_state_background");
 
         if (hiddenAudioActiveRef.current && isPlayingRef.current) {
+          if (playbackInterruptionActiveRef.current) {
+            logLockscreenPlaybackDiagnostic("background_recovery_blocked_by_interruption", {
+              reason: "app_state_background_reassert",
+              songId: currentSongRef.current?.id || null,
+            });
+            return;
+          }
           if (hasRecentIntentionalPause()) {
             logLockscreenPlaybackDiagnostic("background_recovery_skipped_intentional_pause", {
               reason: "app_state_background_reassert",

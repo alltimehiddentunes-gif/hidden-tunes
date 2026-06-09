@@ -336,10 +336,24 @@ void hydrateLockscreenPlaybackDiagnostics().catch(() => {
   // Diagnostics hydration must never affect app startup.
 });
 
+export function isInterruptionHiddenAudioStopReason(reason: string) {
+  return (
+    reason === "remote_pause" ||
+    reason === "audio_focus_loss" ||
+    reason === "audio_focus_transient" ||
+    reason === "audio_focus_duck" ||
+    reason === "phone_call" ||
+    reason === "task_removed" ||
+    reason === "intentional_app_close" ||
+    reason.startsWith("interruption_")
+  );
+}
+
 export function isUserInitiatedHiddenAudioStopReason(reason: string) {
   return (
     reason === "stop_playback" ||
     reason === "user_tap_interrupt" ||
-    reason.startsWith("user_")
+    reason.startsWith("user_") ||
+    isInterruptionHiddenAudioStopReason(reason)
   );
 }

@@ -24,6 +24,13 @@ function shouldBlockHiddenAudioStopInBackground(reason = "unknown") {
   );
 }
 
+function resolveHiddenAudioStopReason(
+  action: "pause" | "stop",
+  reason?: string
+) {
+  return reason || (action === "pause" ? "background_pause" : "background_stop");
+}
+
 export interface HiddenAudioNowPlayingMetadata {
   title: string;
   artist: string;
@@ -78,8 +85,8 @@ export interface HiddenAudioEngine {
   load(url: string): Promise<void>;
   play(): Promise<void>;
   reassertBackgroundPlayback?(): Promise<void>;
-  pause(): Promise<void>;
-  stop(): Promise<void>;
+  pause(reason?: string): Promise<void>;
+  stop(reason?: string): Promise<void>;
   seek(positionMs: number): Promise<void>;
   getStatus(): Promise<HiddenAudioStatus>;
   updateNowPlaying(metadata: HiddenAudioNowPlayingMetadata): Promise<void>;
@@ -453,15 +460,16 @@ export const hiddenAudioBridge: HiddenAudioEngine = {
       { lastBridgeEvent: "android_background_play_reassert_success" }
     );
   },
-  async pause(): Promise<void> {
+  async pause(reason?: string): Promise<void> {
     if (!HiddenAudioNative) {
       warnStub("pause");
       return;
     }
-    if (shouldBlockHiddenAudioStopInBackground("background_pause")) {
+    const stopReason = resolveHiddenAudioStopReason("pause", reason);
+    if (shouldBlockHiddenAudioStopInBackground(stopReason)) {
       logAndRememberLockscreenDiagnostic(
         "hidden_audio_stop_blocked_in_background",
-        { action: "pause", hasLoadedUrl: Boolean(lastLoadedUrl) },
+        { action: "pause", reason: stopReason, hasLoadedUrl: Boolean(lastLoadedUrl) },
         { lastBridgeEvent: "hidden_audio_stop_blocked_in_background" }
       );
       return;
@@ -473,15 +481,16 @@ export const hiddenAudioBridge: HiddenAudioEngine = {
     );
     await HiddenAudioNative.pause();
   },
-  async stop(): Promise<void> {
+  async stop(reason?: string): Promise<void> {
     if (!HiddenAudioNative) {
       warnStub("stop");
       return;
     }
-    if (shouldBlockHiddenAudioStopInBackground("background_stop")) {
+    const stopReason = resolveHiddenAudioStopReason("stop", reason);
+    if (shouldBlockHiddenAudioStopInBackground(stopReason)) {
       logAndRememberLockscreenDiagnostic(
         "hidden_audio_unload_blocked_in_background",
-        { action: "stop", hasLoadedUrl: Boolean(lastLoadedUrl) },
+        { action: "stop", reason: stopReason, hasLoadedUrl: Boolean(lastLoadedUrl) },
         { lastBridgeEvent: "hidden_audio_unload_blocked_in_background" }
       );
       return;

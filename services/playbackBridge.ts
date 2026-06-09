@@ -569,9 +569,9 @@ export async function bridgeHiddenAudioReassertBackgroundPlay(): Promise<void> {
   await hiddenAudioBridge.reassertBackgroundPlayback?.();
 }
 
-export async function bridgeHiddenAudioPause(): Promise<void> {
+export async function bridgeHiddenAudioPause(reason = "user_pause"): Promise<void> {
   if (!isHiddenAudioPlaybackActive()) return;
-  await hiddenAudioBridge.pause();
+  await hiddenAudioBridge.pause(reason);
 }
 
 export async function bridgeUpdateRemoteQueueAvailability(options: {
