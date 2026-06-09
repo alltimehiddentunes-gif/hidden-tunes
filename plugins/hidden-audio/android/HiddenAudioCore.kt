@@ -51,6 +51,11 @@ object HiddenAudioCore {
   private var lastPlayRequestAtMs = 0L
   private var lastReassertRequestAtMs = 0L
   private var lastPlayingStartedAtMs = 0L
+  private var lastLoadTrackAtMs = 0L
+  private var lastStopRequestAtMs = 0L
+  private var playbackSessionId = 0L
+  private var committedPlaySessionId = 0L
+  private var playbackCallbackGeneration = 0L
 
   fun attachReactContext(context: ReactApplicationContext) {
     reactContext = context
@@ -65,9 +70,42 @@ object HiddenAudioCore {
     emitDiagnostic("android_hidden_audio_setup_complete")
   }
 
+
+  private fun bumpPlaybackSession(): Long {
+    playbackSessionId += 1L
+    return playbackSessionId
+  }
+
+  private fun clearPlaybackCallbacks() {
+    playbackCallbackGeneration += 1L
+  }
+
+  private fun postPlaybackCallback(action: () -> Unit) {
+    val generation = playbackCallbackGeneration
+    mainHandler.post {
+      if (generation != playbackCallbackGeneration) return@post
+      action()
+    }
+  }
+
+  private fun isInPlaybackProtectionWindow(nowMs: Long): Boolean {
+    return elapsedSince(lastPlayRequestAtMs, nowMs) <= AUDIO_FOCUS_STABILITY_WINDOW_MS ||
+      elapsedSince(lastReassertRequestAtMs, nowMs) <= AUDIO_FOCUS_STABILITY_WINDOW_MS ||
+      elapsedSince(lastLoadTrackAtMs, nowMs) <= AUDIO_FOCUS_STABILITY_WINDOW_MS ||
+      elapsedSince(lastStopRequestAtMs, nowMs) <= AUDIO_FOCUS_STABILITY_WINDOW_MS
+  }
+
+  private fun shouldIgnoreStalePlaybackPause(): Boolean {
+    return committedPlaySessionId != 0L && playbackSessionId != committedPlaySessionId
+  }
+
   fun loadTrack(context: ReactApplicationContext, track: ReadableMap) {
     attachReactContext(context)
     ensurePlayer(context)
+    clearPlaybackCallbacks()
+    val sessionId = bumpPlaybackSession()
+    committedPlaySessionId = sessionId
+    lastLoadTrackAtMs = SystemClock.elapsedRealtime()
     activeTrack = trackToMap(track)
     activeIndex = 0
     playbackEndedHandled = false
@@ -83,7 +121,6 @@ object HiddenAudioCore {
     player?.setMediaItem(mediaItem)
     player?.prepare()
     playerStatus = "ready"
-    shouldPlayWhenReady = false
     emitTrackChanged()
     emitState()
   }
@@ -91,6 +128,8 @@ object HiddenAudioCore {
   fun play() {
     val context = reactContext ?: return
     ensurePlayer(context)
+    clearPlaybackCallbacks()
+    committedPlaySessionId = playbackSessionId
     val url = activeTrack?.url ?: ""
     if (url.isBlank()) {
       playerStatus = "error"
@@ -119,6 +158,10 @@ object HiddenAudioCore {
   }
 
   fun pause() {
+    if (shouldIgnoreStalePlaybackPause()) {
+      emitDiagnostic("android_playback_stale_session_ignored", simpleData("source", "pause"))
+      return
+    }
     player?.pause()
     player?.playWhenReady = false
     shouldPlayWhenReady = false
@@ -130,10 +173,15 @@ object HiddenAudioCore {
   }
 
   fun stop() {
+    clearPlaybackCallbacks()
+    bumpPlaybackSession()
+    committedPlaySessionId = 0L
+    lastStopRequestAtMs = SystemClock.elapsedRealtime()
     stopProgressLoop()
     player?.stop()
     player?.clearMediaItems()
     player?.playWhenReady = false
+    shouldPlayWhenReady = false
     playerStatus = "idle"
     activeTrack = null
     activeIndex = 0
@@ -157,6 +205,8 @@ object HiddenAudioCore {
   fun reassertBackgroundPlayback(reason: String = "background_reassert") {
     val context = reactContext ?: return
     ensurePlayer(context)
+    clearPlaybackCallbacks()
+    committedPlaySessionId = playbackSessionId
     val url = activeTrack?.url ?: ""
     if (url.isBlank()) {
       emitDiagnostic("android_background_play_reassert_start", simpleData("reason", reason))
@@ -276,19 +326,23 @@ object HiddenAudioCore {
       }
 
       override fun onIsPlayingChanged(isPlaying: Boolean) {
+        if (shouldIgnoreStalePlaybackPause() && !isPlaying) {
+          emitDiagnostic(
+            "android_playback_stale_session_ignored",
+            simpleData("source", "is_playing_changed")
+          )
+          return
+        }
         if (isPlaying) {
           lastPlayingStartedAtMs = SystemClock.elapsedRealtime()
-        } else if (shouldPlayWhenReady && player?.playWhenReady != true) {
+        } else if (shouldPlayWhenReady) {
           val nowMs = SystemClock.elapsedRealtime()
-          val inProtectedWindow =
-            elapsedSince(lastReassertRequestAtMs, nowMs) <= AUDIO_FOCUS_STABILITY_WINDOW_MS ||
-            elapsedSince(lastPlayRequestAtMs, nowMs) <= AUDIO_FOCUS_STABILITY_WINDOW_MS
-          if (inProtectedWindow) {
+          if (isInPlaybackProtectionWindow(nowMs)) {
             emitDiagnostic(
               "android_background_pause_prevented",
               focusChangeData(AudioManager.AUDIOFOCUS_LOSS_TRANSIENT, nowMs)
             )
-            mainHandler.post { recoverPlaybackWhenReady("is_playing_changed") }
+            postPlaybackCallback { recoverPlaybackWhenReady("is_playing_changed") }
             return
           }
         }
@@ -461,14 +515,8 @@ object HiddenAudioCore {
       AudioManager.AUDIOFOCUS_LOSS -> {
         emitDiagnostic("android_audio_focus_lost", data)
 
-        if (elapsedSince(lastPlayRequestAtMs, nowMs) <= AUDIO_FOCUS_STABILITY_WINDOW_MS) {
+        if (isInPlaybackProtectionWindow(nowMs)) {
           emitDiagnostic("android_audio_focus_loss_ignored_startup_window", data)
-          emitDiagnostic("android_background_pause_prevented", data)
-          return
-        }
-
-        if (elapsedSince(lastReassertRequestAtMs, nowMs) <= AUDIO_FOCUS_STABILITY_WINDOW_MS) {
-          emitDiagnostic("android_audio_focus_loss_ignored_reassert_window", data)
           emitDiagnostic("android_background_pause_prevented", data)
           return
         }
@@ -481,7 +529,7 @@ object HiddenAudioCore {
         }
 
         emitDiagnostic("android_audio_focus_loss_permanent_pause", data)
-        mainHandler.post { pause() }
+        postPlaybackCallback { pause() }
       }
       AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
       AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
@@ -497,7 +545,7 @@ object HiddenAudioCore {
           elapsedSince(lastPlayRequestAtMs, nowMs) > AUDIO_FOCUS_STABILITY_WINDOW_MS &&
           elapsedSince(lastReassertRequestAtMs, nowMs) > AUDIO_FOCUS_STABILITY_WINDOW_MS
         ) {
-          mainHandler.post { reassertBackgroundPlayback("audio_focus_gain") }
+          postPlaybackCallback { reassertBackgroundPlayback("audio_focus_gain") }
         }
       }
     }
