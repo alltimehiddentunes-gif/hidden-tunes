@@ -172,8 +172,10 @@ object HiddenAudioCore {
     emitDiagnostic("android_background_play_reassert_start", startData)
 
     lastReassertRequestAtMs = SystemClock.elapsedRealtime()
-    requestAudioFocus()
     shouldPlayWhenReady = true
+    if (!hasAudioFocus) {
+      requestAudioFocus()
+    }
     startForegroundService()
     if (player?.playbackState == Player.STATE_IDLE) {
       player?.prepare()
@@ -240,7 +242,7 @@ object HiddenAudioCore {
       .setContentType(androidx.media3.common.C.AUDIO_CONTENT_TYPE_MUSIC)
       .build()
     player = ExoPlayer.Builder(context)
-      .setAudioAttributes(audioAttributes, true)
+      .setAudioAttributes(audioAttributes, false)
       .setHandleAudioBecomingNoisy(true)
       .build()
     player?.addListener(object : Player.Listener {
@@ -276,6 +278,19 @@ object HiddenAudioCore {
       override fun onIsPlayingChanged(isPlaying: Boolean) {
         if (isPlaying) {
           lastPlayingStartedAtMs = SystemClock.elapsedRealtime()
+        } else if (shouldPlayWhenReady && player?.playWhenReady != true) {
+          val nowMs = SystemClock.elapsedRealtime()
+          val inProtectedWindow =
+            elapsedSince(lastReassertRequestAtMs, nowMs) <= AUDIO_FOCUS_STABILITY_WINDOW_MS ||
+            elapsedSince(lastPlayRequestAtMs, nowMs) <= AUDIO_FOCUS_STABILITY_WINDOW_MS
+          if (inProtectedWindow) {
+            emitDiagnostic(
+              "android_background_pause_prevented",
+              focusChangeData(AudioManager.AUDIOFOCUS_LOSS_TRANSIENT, nowMs)
+            )
+            mainHandler.post { recoverPlaybackWhenReady("is_playing_changed") }
+            return
+          }
         }
         playerStatus = when {
           isPlaying -> "playing"
@@ -394,6 +409,36 @@ object HiddenAudioCore {
   private fun elapsedSince(timestampMs: Long, nowMs: Long): Long {
     if (timestampMs <= 0L) return Long.MAX_VALUE
     return (nowMs - timestampMs).coerceAtLeast(0L)
+  }
+
+
+  private fun recoverPlaybackWhenReady(source: String) {
+    if (!shouldPlayWhenReady) return
+    val exo = player ?: return
+    if (exo.isPlaying && exo.playWhenReady) return
+    if (!hasAudioFocus) {
+      requestAudioFocus()
+    }
+    startForegroundService()
+    if (exo.playbackState == Player.STATE_IDLE) {
+      exo.prepare()
+    }
+    exo.playWhenReady = true
+    exo.play()
+    playerStatus = when (exo.playbackState) {
+      Player.STATE_BUFFERING -> "buffering"
+      Player.STATE_READY -> if (exo.isPlaying) "playing" else "buffering"
+      else -> "playing"
+    }
+    startProgressLoop()
+    val data = Arguments.createMap()
+    data.putString("source", source)
+    data.putString("status", playerStatus)
+    data.putBoolean("playWhenReady", exo.playWhenReady)
+    data.putBoolean("isPlaying", exo.isPlaying)
+    emitDiagnostic("android_background_play_reassert_success", data)
+    emitState()
+    emitProgress()
   }
 
   private fun focusChangeData(change: Int, nowMs: Long): WritableMap {
