@@ -13,6 +13,46 @@ const {
 const { getMainApplicationOrThrow, addMetaDataItemToMainApplication } =
   AndroidConfig.Manifest;
 
+function buildAndroidManifestServiceEntry(service) {
+  const serviceEntry = {
+    $: {
+      "android:name": service.name,
+      "android:exported": service.exported,
+      "android:enabled": service.enabled ?? "true",
+    },
+  };
+
+  if (service.label) {
+    serviceEntry.$["android:label"] = service.label;
+  }
+
+  if (service.foregroundServiceType) {
+    serviceEntry.$["android:foregroundServiceType"] = service.foregroundServiceType;
+  }
+
+  const intentActions = service.intentFilterActions
+    ? service.intentFilterActions
+    : service.intentFilterAction
+      ? [service.intentFilterAction]
+      : [];
+
+  if (intentActions.length > 0) {
+    const intentFilter = {
+      action: intentActions.map((actionName) => ({
+        $: { "android:name": actionName },
+      })),
+    };
+
+    if (service.intentFilterCategory) {
+      intentFilter.category = [{ $: { "android:name": service.intentFilterCategory } }];
+    }
+
+    serviceEntry["intent-filter"] = [intentFilter];
+  }
+
+  return serviceEntry;
+}
+
 function ensureAndroidManifestService(mainApplication, service) {
   const services = Array.isArray(mainApplication.service)
     ? mainApplication.service
@@ -20,34 +60,24 @@ function ensureAndroidManifestService(mainApplication, service) {
       ? [mainApplication.service]
       : [];
 
-  const exists = services.some(
+  const existingIndex = services.findIndex(
     (entry) => entry?.$?.["android:name"] === service.name
   );
-  if (exists) {
-    mainApplication.service = services;
-    return mainApplication;
+  const serviceEntry = buildAndroidManifestServiceEntry(service);
+
+  if (existingIndex >= 0) {
+    services[existingIndex] = serviceEntry;
+  } else {
+    services.push(serviceEntry);
   }
 
-  const serviceEntry = {
-    $: {
-      "android:name": service.name,
-      "android:exported": service.exported,
-    },
-  };
+  mainApplication.service = services;
+  return mainApplication;
+}
 
-  if (service.foregroundServiceType) {
-    serviceEntry.$["android:foregroundServiceType"] = service.foregroundServiceType;
-  }
-
-  if (service.intentFilterAction) {
-    serviceEntry["intent-filter"] = [
-      {
-        action: [{ $: { "android:name": service.intentFilterAction } }],
-      },
-    ];
-  }
-
-  mainApplication.service = [...services, serviceEntry];
+function ensureAndroidAutoApplicationCategory(mainApplication) {
+  mainApplication.$ = mainApplication.$ ?? {};
+  mainApplication.$["android:appCategory"] = "audio";
   return mainApplication;
 }
 
@@ -201,6 +231,8 @@ const withHiddenAudioAndroidManifest = (config) => {
     const manifest = config.modResults;
     const mainApplication = getMainApplicationOrThrow(manifest);
 
+    ensureAndroidAutoApplicationCategory(mainApplication);
+
     ensureAndroidManifestService(mainApplication, {
       name: "com.hiddentunes.app.audio.HiddenAudioPlaybackService",
       exported: "false",
@@ -210,8 +242,10 @@ const withHiddenAudioAndroidManifest = (config) => {
     ensureAndroidManifestService(mainApplication, {
       name: "com.hiddentunes.app.audio.HiddenAudioMediaBrowserService",
       exported: "true",
-      foregroundServiceType: "mediaPlayback",
-      intentFilterAction: "android.media.browse.MediaBrowserService",
+      enabled: "true",
+      label: "@string/app_name",
+      intentFilterActions: ["android.media.browse.MediaBrowserService"],
+      intentFilterCategory: "android.intent.category.DEFAULT",
     });
 
     addMetaDataItemToMainApplication(
@@ -315,6 +349,30 @@ const withHiddenAudioAndroidMediaDep = (config) => {
   ]);
 };
 
+
+const withHiddenAudioAndroidProguard = (config) => {
+  return withDangerousMod(config, [
+    "android",
+    async (config) => {
+      const proguardPath = path.join(
+        config.modRequest.platformProjectRoot,
+        "app",
+        "proguard-rules.pro"
+      );
+      let contents = fs.readFileSync(proguardPath, "utf8");
+      const marker = "# hidden-audio android auto";
+      if (!contents.includes(marker)) {
+        contents += `\n${marker}\n`;
+        contents += "-keep class com.hiddentunes.app.audio.HiddenAudioMediaBrowserService { *; }\n";
+        contents += "-keep class com.hiddentunes.app.audio.HiddenAudioMediaSessionManager { *; }\n";
+        contents += "-keep class com.hiddentunes.app.audio.HiddenAudioAutoCatalog { *; }\n";
+        fs.writeFileSync(proguardPath, contents);
+      }
+      return config;
+    },
+  ]);
+};
+
 const withHiddenAudio = (config) => {
   config = withHiddenAudioNativeSources(config);
   config = withHiddenAudioXcodeProject(config);
@@ -324,6 +382,7 @@ const withHiddenAudio = (config) => {
   config = withHiddenAudioAndroidMainApplication(config);
   config = withHiddenAudioAndroidAutoResources(config);
   config = withHiddenAudioAndroidMediaDep(config);
+  config = withHiddenAudioAndroidProguard(config);
 
   console.log(
     "[hidden-audio] HiddenAudio native sources will be copied for iOS and Android during prebuild."

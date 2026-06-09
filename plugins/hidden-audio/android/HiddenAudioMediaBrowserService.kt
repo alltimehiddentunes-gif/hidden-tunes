@@ -9,6 +9,8 @@ import com.facebook.react.bridge.Arguments
 class HiddenAudioMediaBrowserService : MediaBrowserServiceCompat() {
   override fun onCreate() {
     super.onCreate()
+    HiddenAudioMediaSessionManager.ensureSession(applicationContext)
+    sessionToken = HiddenAudioMediaSessionManager.sessionToken()
   }
 
   override fun onGetRoot(
