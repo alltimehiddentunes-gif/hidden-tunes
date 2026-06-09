@@ -21,6 +21,9 @@
           "audio"
         ],
         "ITSAppUsesNonExemptEncryption": false
+      },
+      "entitlements": {
+        "com.apple.developer.carplay-audio": true
       }
     },
     "android": {

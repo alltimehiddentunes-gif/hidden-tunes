@@ -63,6 +63,7 @@ class HiddenAudioModule: RCTEventEmitter {
   func setup(resolve: RCTPromiseResolveBlock, rejecter reject: RCTPromiseRejectBlock) {
     do {
       try activateAudioSession()
+      HiddenAudioCarPlayManager.shared.startIfNeeded()
       resolve(nil)
     } catch {
       emitNativeError(error.localizedDescription)

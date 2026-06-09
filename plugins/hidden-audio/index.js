@@ -7,6 +7,8 @@ const {
   IOSConfig,
   withAndroidManifest,
   withDangerousMod,
+  withEntitlementsPlist,
+  withInfoPlist,
   withXcodeProject,
 } = require("@expo/config-plugins");
 
@@ -85,7 +87,9 @@ const HIDDEN_AUDIO_GROUP = "HiddenAudioModule";
 
 const NATIVE_FILES = [
   "HiddenAudioModule.swift",
-  "HiddenAudioModule.m"
+  "HiddenAudioModule.m",
+  "CarPlaySceneDelegate.swift",
+  "HiddenAudioCarPlayManager.swift",
 ];
 
 function getRepoSourceDir(projectRoot) {
@@ -97,6 +101,37 @@ function getRepoSourceDir(projectRoot) {
     HIDDEN_AUDIO_GROUP
   );
 }
+
+
+const withCarPlayEntitlements = (config) => {
+  return withEntitlementsPlist(config, (config) => {
+    config.modResults["com.apple.developer.carplay-audio"] = true;
+    return config;
+  });
+};
+
+const withCarPlayInfoPlist = (config) => {
+  return withInfoPlist(config, (config) => {
+    config.modResults.UIBackgroundModes = Array.isArray(config.modResults.UIBackgroundModes)
+      ? Array.from(new Set([...config.modResults.UIBackgroundModes, "audio"]))
+      : ["audio"];
+
+    config.modResults.UIApplicationSceneManifest = {
+      UIApplicationSupportsMultipleScenes: true,
+      UISceneConfigurations: {
+        CPTemplateApplicationSceneSessionRoleApplication: [
+          {
+            UISceneClassName: "CPTemplateApplicationScene",
+            UISceneConfigurationName: "CarPlay",
+            UISceneDelegateClassName: "$(PRODUCT_MODULE_NAME).CarPlaySceneDelegate",
+          },
+        ],
+      },
+    };
+
+    return config;
+  });
+};
 
 const withHiddenAudioNativeSources = (config) => {
   return withDangerousMod(config, [
@@ -374,6 +409,8 @@ const withHiddenAudioAndroidProguard = (config) => {
 };
 
 const withHiddenAudio = (config) => {
+  config = withCarPlayEntitlements(config);
+  config = withCarPlayInfoPlist(config);
   config = withHiddenAudioNativeSources(config);
   config = withHiddenAudioXcodeProject(config);
   config = withHiddenAudioAndroidSources(config);
