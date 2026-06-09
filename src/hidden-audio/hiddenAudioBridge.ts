@@ -124,6 +124,14 @@ const hiddenAudioEvents = HiddenAudioNative
 let pendingNowPlayingMetadata: HiddenAudioNowPlayingMetadata | null = null;
 let lastLoadedUrl = "";
 
+export function resetHiddenAudioLoadedUrl(): void {
+  lastLoadedUrl = "";
+}
+
+export function getHiddenAudioLoadedUrl(): string {
+  return lastLoadedUrl;
+}
+
 function warnStub(method: string): void {
   console.warn(`${STUB_MESSAGE} (${method})`);
 }
@@ -391,15 +399,35 @@ export const hiddenAudioBridge: HiddenAudioEngine = {
       return;
     }
 
+    let hasLoadedUrl = Boolean(lastLoadedUrl);
+    if (!hasLoadedUrl && HiddenAudioNative.getState) {
+      const snapshot = await getHiddenAudioNativeSnapshot().catch(() => null);
+      const nativeUrl = snapshot?.activeTrack?.url || "";
+      if (snapshot?.hasLoadedTrack && nativeUrl) {
+        lastLoadedUrl = nativeUrl;
+        hasLoadedUrl = true;
+      }
+    }
+
     logAndRememberLockscreenDiagnostic(
       "hidden_audio_play_start",
-      { hasLoadedUrl: Boolean(lastLoadedUrl) },
+      { hasLoadedUrl },
       { lastBridgeEvent: "hidden_audio_play_start" }
     );
+
+    if (!hasLoadedUrl) {
+      logAndRememberLockscreenDiagnostic(
+        "hidden_audio_play_failed",
+        { reason: "missing_loaded_track" },
+        { lastBridgeEvent: "hidden_audio_play_failed" }
+      );
+      throw new Error("HiddenAudio cannot play without a loaded track");
+    }
+
     await HiddenAudioNative.play();
     logAndRememberLockscreenDiagnostic(
       "hidden_audio_play_confirmed",
-      { hasLoadedUrl: Boolean(lastLoadedUrl) },
+      { hasLoadedUrl: true },
       { lastBridgeEvent: "hidden_audio_play_confirmed" }
     );
   },

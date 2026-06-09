@@ -2,7 +2,9 @@ import { AppStateStatus, Platform } from "react-native";
 
 import { isHiddenAudioNativePlaybackEnabled } from "../constants/playbackConfig";
 import {
+  getHiddenAudioLoadedUrl,
   getHiddenAudioNativeSnapshot,
+  resetHiddenAudioLoadedUrl,
   hiddenAudioBridge,
   updateHiddenAudioRemoteQueueAvailability,
   isHiddenAudioNativeEngineAvailable,
@@ -15,6 +17,14 @@ import {
 } from "../src/hidden-audio/hiddenAudioBridge";
 import { recordBridgeSetProgressInterval } from "../utils/runtimeInstrumentation";
 import { logBackgroundPlayback } from "../utils/backgroundPlaybackLogs";
+import { logPlaybackCritical } from "../utils/playbackCriticalLogs";
+import {
+  logTapToLoadTrackRequired,
+  logTapToLoadTrackSkippedExistingNative,
+  logTapToNativeStatusChecked,
+  logTapToPlayConfirmed,
+  logTapToPlayFailed,
+} from "../utils/playbackDiagnostics";
 import {
   isUserInitiatedHiddenAudioStopReason,
   logAndRememberLockscreenDiagnostic,
@@ -277,6 +287,136 @@ export function markHiddenAudioBridgeActive(active = true): void {
   hiddenAudioBridgeActive = active;
 }
 
+
+export function nativeSnapshotRequiresReload(
+  snapshot: HiddenAudioNativeSnapshot | null | undefined,
+  expectedUrl: string
+): boolean {
+  if (!snapshot) return true;
+
+  const status = String(snapshot.nativeStatus || "").toLowerCase();
+  if (status === "idle" || status === "error" || status === "ended") return true;
+  if (!snapshot.hasLoadedTrack || !snapshot.activeTrack?.url) return true;
+  if (expectedUrl && snapshot.activeTrack.url !== expectedUrl) return true;
+
+  return false;
+}
+
+export async function reconcileHiddenAudioBridgeWithNative(): Promise<HiddenAudioNativeSnapshot | null> {
+  if (!isHiddenAudioNativePlaybackEnabled()) return null;
+
+  const snapshot = await getHiddenAudioNativeSnapshot().catch(() => null);
+  const loadedUrl = snapshot?.activeTrack?.url || "";
+  const jsLoadedUrl = getHiddenAudioLoadedUrl();
+
+  if (nativeSnapshotRequiresReload(snapshot, loadedUrl || jsLoadedUrl)) {
+    markHiddenAudioBridgeActive(false);
+    resetHiddenAudioLoadedUrl();
+  } else if (loadedUrl) {
+    markHiddenAudioBridgeActive(true);
+  }
+
+  return snapshot;
+}
+
+export type HiddenAudioTapPlaybackOptions = {
+  url: string;
+  title: string;
+  artist: string;
+  album?: string;
+  durationSeconds?: number;
+  positionSeconds?: number;
+  artworkUrl?: string;
+  songId?: string;
+  source?: string;
+};
+
+export async function bridgeTryResumeHiddenAudioPlayback(
+  options: HiddenAudioTapPlaybackOptions
+): Promise<"resumed" | "reload_required"> {
+  if (!isHiddenAudioNativePlaybackEnabled()) return "reload_required";
+
+  const snapshot = await getHiddenAudioNativeSnapshot().catch(() => null);
+  logTapToNativeStatusChecked({
+    songId: options.songId,
+    source: options.source,
+    nativeStatus: snapshot?.nativeStatus,
+    hasLoadedTrack: snapshot?.hasLoadedTrack,
+    hasLoadedUrl: Boolean(getHiddenAudioLoadedUrl()),
+    isPlaying: snapshot?.isPlaying,
+  });
+  logPlaybackCritical("tap_to_native_status_checked", {
+    songId: options.songId,
+    source: options.source || "tap",
+    nativeStatus: snapshot?.nativeStatus || null,
+    hasLoadedTrack: snapshot?.hasLoadedTrack ?? false,
+    isPlaying: snapshot?.isPlaying ?? false,
+  });
+
+  if (nativeSnapshotRequiresReload(snapshot, options.url)) {
+    markHiddenAudioBridgeActive(false);
+    resetHiddenAudioLoadedUrl();
+    logTapToLoadTrackRequired({
+      songId: options.songId,
+      source: options.source,
+      reason: "native_reload_required",
+      nativeStatus: snapshot?.nativeStatus,
+    });
+    logPlaybackCritical("tap_to_load_track_required", {
+      songId: options.songId,
+      source: options.source || "tap",
+      reason: "native_reload_required",
+      nativeStatus: snapshot?.nativeStatus || null,
+    });
+    return "reload_required";
+  }
+
+  logTapToLoadTrackSkippedExistingNative({
+    songId: options.songId,
+    source: options.source,
+    nativeStatus: snapshot?.nativeStatus,
+  });
+  logPlaybackCritical("tap_to_load_track_skipped_existing_native", {
+    songId: options.songId,
+    source: options.source || "tap",
+    nativeStatus: snapshot?.nativeStatus || null,
+  });
+
+  try {
+    if (!snapshot?.isPlaying) {
+      await hiddenAudioBridge.play();
+    }
+    markHiddenAudioBridgeActive(true);
+    logTapToPlayConfirmed({
+      songId: options.songId,
+      source: options.source,
+      mode: "resume_existing_native",
+    });
+    logPlaybackCritical("tap_to_play_confirmed", {
+      songId: options.songId,
+      source: options.source || "tap",
+      mode: "resume_existing_native",
+    });
+    return "resumed";
+  } catch (error) {
+    markHiddenAudioBridgeActive(false);
+    resetHiddenAudioLoadedUrl();
+    logTapToPlayFailed({
+      songId: options.songId,
+      source: options.source,
+      reason: "resume_existing_native_failed",
+      message: String((error as Error)?.message || error),
+    });
+    logPlaybackCritical("tap_to_play_failed", {
+      songId: options.songId,
+      source: options.source || "tap",
+      reason: "resume_existing_native_failed",
+      message: String((error as Error)?.message || error),
+    });
+    return "reload_required";
+  }
+}
+
 export async function bridgeProbeNativePlayback(): Promise<HiddenAudioNativeSnapshot | null> {
   if (!isHiddenAudioNativePlaybackEnabled()) return null;
   return getHiddenAudioNativeSnapshot();
@@ -322,8 +462,32 @@ export async function activateHiddenAudioPlayback(options: {
     await hiddenAudioBridge.seek(startPositionMs);
   }
 
-  await hiddenAudioBridge.play();
+  try {
+    await hiddenAudioBridge.play();
+  } catch (error) {
+    logTapToPlayFailed({
+      songId: options.title,
+      source: "activate_hidden_audio_playback",
+      reason: "missing_loaded_track",
+      message: String((error as Error)?.message || error),
+    });
+    logPlaybackCritical("tap_to_play_failed", {
+      source: "activate_hidden_audio_playback",
+      reason: "missing_loaded_track",
+      message: String((error as Error)?.message || error),
+    });
+    throw error;
+  }
+
   hiddenAudioBridgeActive = true;
+  logTapToPlayConfirmed({
+    source: "activate_hidden_audio_playback",
+    title: options.title,
+  });
+  logPlaybackCritical("tap_to_play_confirmed", {
+    source: "activate_hidden_audio_playback",
+    mode: "load_and_play",
+  });
   logAndRememberLockscreenDiagnostic(
     "hidden_audio_play_confirmed",
     { title: options.title, artist: options.artist },
@@ -370,7 +534,29 @@ export async function deactivateHiddenAudioPlayback(
 }
 
 export async function bridgeHiddenAudioPlay(): Promise<void> {
-  if (!isHiddenAudioPlaybackActive()) return;
+  if (!isHiddenAudioNativePlaybackEnabled()) return;
+
+  const snapshot = await getHiddenAudioNativeSnapshot().catch(() => null);
+  const expectedUrl = snapshot?.activeTrack?.url || getHiddenAudioLoadedUrl();
+
+  if (nativeSnapshotRequiresReload(snapshot, expectedUrl)) {
+    markHiddenAudioBridgeActive(false);
+    resetHiddenAudioLoadedUrl();
+    const error = new Error("HiddenAudio cannot play without a loaded track");
+    logTapToPlayFailed({
+      source: "bridge_hidden_audio_play",
+      reason: "missing_loaded_track",
+      nativeStatus: snapshot?.nativeStatus,
+    });
+    logPlaybackCritical("tap_to_play_failed", {
+      source: "bridge_hidden_audio_play",
+      reason: "missing_loaded_track",
+      nativeStatus: snapshot?.nativeStatus || null,
+    });
+    throw error;
+  }
+
+  markHiddenAudioBridgeActive(true);
   await hiddenAudioBridge.play();
 }
 

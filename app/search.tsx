@@ -68,6 +68,7 @@ import {
   unwrapRankedSearchItems,
   type SearchStationResult,
 } from "../utils/searchApkParity";
+import { logPlaybackCritical } from "../utils/playbackCriticalLogs";
 import { logSearchDiagnostic, logSearchRankingDiagnostics } from "../utils/searchDiagnostics";
 import { logEntityTapReceived } from "../utils/entityDiagnostics";
 import { resolveStationEntity } from "../utils/entityResolution";
@@ -77,7 +78,7 @@ import { markFastScrolling } from "../utils/performanceMode";
 const EMPTY_SEARCH_RESULTS = EMPTY_UNIVERSAL_SEARCH_RESULTS;
 
 const SEARCH_BACKEND_RESULT_LIMIT = 100;
-const SEARCH_BACKEND_DEBOUNCE_MS = 420;
+const SEARCH_BACKEND_DEBOUNCE_MS = 280;
 const SEARCH_BACKEND_CACHE_LIMIT = 32;
 const SEARCH_EXTERNAL_AUDIO_LIMIT = 16;
 const SEARCH_TV_LIMIT = 8;
@@ -995,6 +996,12 @@ export default function SearchScreen() {
         query: cleanSubmittedSearchQuery,
       });
 
+      router.push("/player" as any);
+      logPlaybackCritical("tap_to_player_opened", {
+        songId: queueSong.id,
+        source: "search_result",
+        resultType,
+      });
       void playSong(queueSong, queue, Math.max(queueIndex, 0), {
         source: "search",
         label: submittedSearchQuery || searchQuery ? `Search: ${submittedSearchQuery || searchQuery}` : "Search Results",
@@ -1002,8 +1009,13 @@ export default function SearchScreen() {
         artistName: queueSong.artist,
         genre: queueSong.genre,
         mood: queueSong.mood,
+      }).catch((error: unknown) => {
+        logPlaybackCritical("tap_to_play_failed", {
+          songId: queueSong.id,
+          source: "search_result",
+          message: String((error as Error)?.message || error),
+        });
       });
-      router.push("/player" as any);
     },
     [
       apkExternalAudioResults,

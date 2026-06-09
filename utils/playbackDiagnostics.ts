@@ -39,6 +39,13 @@ export type PlaybackDiagnosticEvent =
   | "finish_watchdog_armed"
   | "finish_watchdog_fired"
   | "duplicate_play_ignored"
+  | "tap_to_player_opened"
+  | "tap_to_queue_ready"
+  | "tap_to_native_status_checked"
+  | "tap_to_load_track_required"
+  | "tap_to_load_track_skipped_existing_native"
+  | "tap_to_play_confirmed"
+  | "tap_to_play_failed"
   | "tap_to_player_sync_start"
   | "current_song_before_navigation"
   | "player_navigation_requested"
@@ -60,6 +67,35 @@ export function logPlaybackDiagnostic(
     at: Date.now(),
     ...details,
   });
+}
+
+
+export function logTapToPlayerOpened(details: PlaybackDiagDetails = {}) {
+  logPlaybackDiagnostic("tap_to_player_opened", details);
+}
+
+export function logTapToQueueReady(details: PlaybackDiagDetails = {}) {
+  logPlaybackDiagnostic("tap_to_queue_ready", details);
+}
+
+export function logTapToNativeStatusChecked(details: PlaybackDiagDetails = {}) {
+  logPlaybackDiagnostic("tap_to_native_status_checked", details);
+}
+
+export function logTapToLoadTrackRequired(details: PlaybackDiagDetails = {}) {
+  logPlaybackDiagnostic("tap_to_load_track_required", details);
+}
+
+export function logTapToLoadTrackSkippedExistingNative(details: PlaybackDiagDetails = {}) {
+  logPlaybackDiagnostic("tap_to_load_track_skipped_existing_native", details);
+}
+
+export function logTapToPlayConfirmed(details: PlaybackDiagDetails = {}) {
+  logPlaybackDiagnostic("tap_to_play_confirmed", details);
+}
+
+export function logTapToPlayFailed(details: PlaybackDiagDetails = {}) {
+  logPlaybackDiagnostic("tap_to_play_failed", details);
 }
 
 export function logTapToPlayStart(details: PlaybackDiagDetails = {}) {
@@ -248,6 +284,13 @@ export function logHTLockAutoNext(
 }
 
 export type PlaybackUxSyncEvent =
+  | "tap_to_player_opened"
+  | "tap_to_queue_ready"
+  | "tap_to_native_status_checked"
+  | "tap_to_load_track_required"
+  | "tap_to_load_track_skipped_existing_native"
+  | "tap_to_play_confirmed"
+  | "tap_to_play_failed"
   | "tap_to_player_sync_start"
   | "current_song_before_navigation"
   | "player_navigation_requested"

@@ -49,6 +49,8 @@ import {
   bridgeHiddenAudioUpdateNowPlaying,
   bridgeUpdateRemoteQueueAvailability,
   bridgeProbeNativePlayback,
+  bridgeTryResumeHiddenAudioPlayback,
+  reconcileHiddenAudioBridgeWithNative,
   bridgeSeekTo,
   bridgeSyncRepeatMode,
   deactivateHiddenAudioPlayback,
@@ -60,6 +62,7 @@ import {
 } from "../services/playbackBridge";
 import type { PlaybackProgress } from "../services/playbackBridge";
 import type { HiddenAudioNativeSnapshot } from "../src/hidden-audio/hiddenAudioBridge";
+import { resetHiddenAudioLoadedUrl } from "../src/hidden-audio/hiddenAudioBridge";
 import { getArtworkValue } from "../utils/artwork";
 import { scheduleStartupTask } from "../utils/startupScheduler";
 import {
@@ -103,6 +106,10 @@ import {
   logRepeatModeState,
   logShuffleState,
   logTapToPlayStart,
+  logTapToQueueReady,
+  logTapToLoadTrackRequired,
+  logTapToPlayConfirmed,
+  logTapToPlayFailed,
   logPlaybackUxSync,
   logTrackFinished,
 } from "../utils/playbackDiagnostics";
@@ -2900,7 +2907,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       if (hiddenAudioActiveRef.current) {
         try {
           hiddenAudioActiveRef.current = false;
-          await deactivateHiddenAudioPlayback("user_tap_interrupt");
+          markHiddenAudioBridgeActive(false);
+          if (targetSongId) {
+            resetHiddenAudioLoadedUrl();
+            logLockscreenPlaybackDiagnostic("interrupt_skip_deactivate_for_replace", {
+              targetSongId,
+              reason: "load_and_play_will_reload",
+            });
+          } else {
+            await deactivateHiddenAudioPlayback("user_tap_interrupt");
+          }
         } catch (error) {
           console.log("Interrupt hidden_audio playback error:", error);
         }
@@ -4035,6 +4051,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               platform: Platform.OS,
               hasPlayableUri: Boolean(playableUri),
             });
+            logTapToLoadTrackRequired({
+              songId: normalizedSong.id,
+              source: "load_and_play",
+            });
+            logPlaybackCritical("tap_to_load_track_required", {
+              songId: normalizedSong.id,
+              source: "load_and_play",
+            });
 
             await activateHiddenAudioPlayback({
               url: playableUri,
@@ -4083,6 +4107,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
                   reason: "native_status_not_playing_after_play",
                   playbackState: statusAfterPlay.playbackState || null,
                 });
+                logTapToPlayFailed({
+                  songId: normalizedSong.id,
+                  source: "load_and_play",
+                  reason: "native_status_not_playing_after_play",
+                });
+                logPlaybackCritical("tap_to_play_failed", {
+                  songId: normalizedSong.id,
+                  source: "load_and_play",
+                  reason: "native_status_not_playing_after_play",
+                });
                 logPlayerContextDebug("hidden_audio_fake_play_prevented", {
                   songId: normalizedSong.id,
                   reason: "native_status_not_playing_after_play",
@@ -4092,6 +4126,15 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
                   songId: normalizedSong.id,
                   platform: Platform.OS,
                   playbackState: statusAfterPlay.playbackState || null,
+                });
+                logTapToPlayConfirmed({
+                  songId: normalizedSong.id,
+                  source: "load_and_play",
+                });
+                logPlaybackCritical("tap_to_play_confirmed", {
+                  songId: normalizedSong.id,
+                  source: "load_and_play",
+                  mode: "native_reload",
                 });
               }
             } else {
@@ -4567,6 +4610,52 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     clearFinishWatchdog,
   ]);
 
+
+  const tryResumeHiddenAudioForSong = useCallback(
+    async (song: AppSong, source: string): Promise<boolean> => {
+      if (!isHiddenAudioNativePlaybackEnabled()) return false;
+
+      const normalizedSong = normalizeSong(song);
+      const playableUri = getPlayableUri(normalizedSong);
+      if (!playableUri) return false;
+
+      const durationSeconds = getSongDurationSeconds(normalizedSong);
+      const artworkUrl =
+        typeof getArtworkValue(normalizedSong) === "string"
+          ? String(getArtworkValue(normalizedSong))
+          : "";
+
+      const resumeResult = await bridgeTryResumeHiddenAudioPlayback({
+        url: playableUri,
+        title: normalizedSong.title || "Unknown Song",
+        artist: normalizedSong.artist || "Unknown Artist",
+        album: normalizedSong.album || "",
+        durationSeconds,
+        positionSeconds: 0,
+        artworkUrl,
+        songId: normalizedSong.id,
+        source,
+      });
+
+      if (resumeResult !== "resumed") {
+        hiddenAudioActiveRef.current = false;
+        return false;
+      }
+
+      hiddenAudioActiveRef.current = true;
+      markHiddenAudioBridgeActive(true);
+      const resumeProgress = await bridgeGetProgress();
+      setPositionMillis(resumeProgress.positionMillis);
+      if (resumeProgress.durationMillis > 0) {
+        setDurationMillis(resumeProgress.durationMillis);
+      }
+      setIsPlaying(resumeProgress.isPlaying);
+      setIsLoading(false);
+      return true;
+    },
+    [getPlayableUri, getSongDurationSeconds, normalizeSong, setDurationMillis, setIsLoading, setIsPlaying, setPositionMillis]
+  );
+
   const playQueue = useCallback(
     async (
       queue: AppSong[],
@@ -4602,6 +4691,18 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         queueIndex: safeIndex,
         contextSource: normalizedContext.source,
         songId: nativeQueue[safeIndex]?.id,
+      });
+      logTapToQueueReady({
+        source: "playQueue",
+        songId: nativeQueue[safeIndex]?.id,
+        queueLength: nativeQueue.length,
+        queueIndex: safeIndex,
+      });
+      logPlaybackCritical("tap_to_queue_ready", {
+        source: "playQueue",
+        songId: nativeQueue[safeIndex]?.id || null,
+        queueLength: nativeQueue.length,
+        queueIndex: safeIndex,
       });
 
       const selectedSong = nativeQueue[safeIndex];
@@ -4649,25 +4750,25 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
       const currentLoadedSound = soundRef.current;
 
-      if (
-        hiddenAudioActiveRef.current &&
-        currentSongRef.current?.id === selectedSong.id
-      ) {
+      if (currentSongRef.current?.id === selectedSong.id) {
         try {
-          if (!isPlayingRef.current) {
-            await bridgeHiddenAudioPlay();
+          const resumed = await tryResumeHiddenAudioForSong(selectedSong, "play_queue");
+          if (resumed) {
+            deferPlaybackSideEffects(selectedSong, "play_queue_resume_side_effects");
+            logTapToPlayConfirmed({ songId: selectedNormalized.id, source: "play_queue_resume" });
+            logPlaybackCritical("tap_to_play_confirmed", {
+              songId: selectedNormalized.id,
+              source: "play_queue_resume",
+            });
+            return;
           }
-
-          const resumeProgress = await bridgeGetProgress();
-          setPositionMillis(resumeProgress.positionMillis);
-          if (resumeProgress.durationMillis > 0) {
-            setDurationMillis(resumeProgress.durationMillis);
-          }
-          setIsPlaying(resumeProgress.isPlaying);
-          deferPlaybackSideEffects(selectedSong, "play_queue_resume_side_effects");
-          return;
         } catch (error) {
           console.log("Hidden audio playQueue resume error:", error);
+          logTapToPlayFailed({
+            songId: selectedNormalized.id,
+            source: "play_queue_resume",
+            message: String((error as Error)?.message || error),
+          });
         }
       }
 
@@ -4703,6 +4804,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       syncActiveQueue,
       removeStoredValues,
       interruptCurrentPlaybackForUserTap,
+      tryResumeHiddenAudioForSong,
       loadAndPlay,
       openPlayerForPlayableTap,
       setIsPlaying,
@@ -4718,6 +4820,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       queueContext: PlaybackQueueContext = DEFAULT_QUEUE_CONTEXT
     ) => {
       const normalizedSong = normalizeSong(song);
+
+      await reconcileHiddenAudioBridgeWithNative();
 
       logTapToPlayStart({
         songId: normalizedSong.id,
@@ -4797,25 +4901,25 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       if (!switchingToNewSong && isSameTrackAndIndex) {
         const currentLoadedSound = soundRef.current;
 
-        if (
-          hiddenAudioActiveRef.current &&
-          currentSongRef.current?.id === normalizedSong.id
-        ) {
+        if (currentSongRef.current?.id === normalizedSong.id) {
           try {
-            if (!isPlayingRef.current) {
-              await bridgeHiddenAudioPlay();
+            const resumed = await tryResumeHiddenAudioForSong(normalizedSong, "play_song");
+            if (resumed) {
+              deferPlaybackSideEffects(normalizedSong, "play_song_resume_side_effects");
+              logTapToPlayConfirmed({ songId: normalizedSong.id, source: "play_song_resume" });
+              logPlaybackCritical("tap_to_play_confirmed", {
+                songId: normalizedSong.id,
+                source: "play_song_resume",
+              });
+              return;
             }
-
-            const resumeProgress = await bridgeGetProgress();
-            setPositionMillis(resumeProgress.positionMillis);
-            if (resumeProgress.durationMillis > 0) {
-              setDurationMillis(resumeProgress.durationMillis);
-            }
-            setIsPlaying(resumeProgress.isPlaying);
-            deferPlaybackSideEffects(normalizedSong, "play_song_resume_side_effects");
-            return;
           } catch (error) {
             console.log("Hidden audio playSong resume error:", error);
+            logTapToPlayFailed({
+              songId: normalizedSong.id,
+              source: "play_song_resume",
+              message: String((error as Error)?.message || error),
+            });
           }
         }
 
@@ -4862,6 +4966,18 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         queueIndex: resolved.index,
         contextSource: resolved.context.source,
       });
+      logTapToQueueReady({
+        source: "playSong",
+        songId: normalizedSong.id,
+        queueLength: resolved.queue.length,
+        queueIndex: resolved.index,
+      });
+      logPlaybackCritical("tap_to_queue_ready", {
+        source: "playSong",
+        songId: normalizedSong.id,
+        queueLength: resolved.queue.length,
+        queueIndex: resolved.index,
+      });
       await playQueue(
         resolved.queue,
         resolved.index,
@@ -4878,6 +4994,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       syncActiveQueue,
       removeStoredValues,
       interruptCurrentPlaybackForUserTap,
+      tryResumeHiddenAudioForSong,
       loadAndPlay,
       setIsPlaying,
       deferPlaybackSideEffects,
