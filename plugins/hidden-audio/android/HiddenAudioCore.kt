@@ -16,7 +16,10 @@ import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.ReactApplicationContext
+import com.facebook.react.bridge.ReadableArray
 import com.facebook.react.bridge.ReadableMap
+import com.facebook.react.bridge.ReadableType
+import com.facebook.react.bridge.WritableArray
 import com.facebook.react.bridge.WritableMap
 import com.facebook.react.modules.core.DeviceEventManagerModule
 
@@ -558,11 +561,47 @@ object HiddenAudioCore {
     emit("HiddenAudioTrackChanged", body)
   }
 
+
+  private fun copyWritableMap(source: ReadableMap): WritableMap {
+    val copy = Arguments.createMap()
+    val iterator = source.entryIterator
+    while (iterator.hasNext()) {
+      val entry = iterator.next()
+      val key = entry.key
+      when (val value = entry.value) {
+        null -> copy.putNull(key)
+        is Boolean -> copy.putBoolean(key, value)
+        is Int -> copy.putInt(key, value)
+        is Double -> copy.putDouble(key, value)
+        is String -> copy.putString(key, value)
+        is ReadableMap -> copy.putMap(key, copyWritableMap(value))
+        is ReadableArray -> copy.putArray(key, copyReadableArray(value))
+        is Number -> copy.putDouble(key, value.toDouble())
+      }
+    }
+    return copy
+  }
+
+  private fun copyReadableArray(source: ReadableArray): WritableArray {
+    val copy = Arguments.createArray()
+    for (index in 0 until source.size()) {
+      when (source.getType(index)) {
+        ReadableType.Null -> copy.pushNull()
+        ReadableType.Boolean -> copy.pushBoolean(source.getBoolean(index))
+        ReadableType.Number -> copy.pushDouble(source.getDouble(index))
+        ReadableType.String -> copy.pushString(source.getString(index))
+        ReadableType.Map -> copy.pushMap(copyWritableMap(source.getMap(index)!!))
+        ReadableType.Array -> copy.pushArray(copyReadableArray(source.getArray(index)!!))
+      }
+    }
+    return copy
+  }
+
   private fun emitDiagnostic(eventName: String, data: WritableMap = Arguments.createMap()) {
     val body = Arguments.createMap()
     body.putString("type", "diagnostic")
     body.putString("eventName", eventName)
-    body.putMap("data", data)
+    body.putMap("data", copyWritableMap(data))
     emit("HiddenAudioDiagnostic", body)
   }
 
