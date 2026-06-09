@@ -53,6 +53,7 @@ import type { PlaybackQueueContext } from "@/context/PlayerContext";
 import {
   fetchHiddenTunesCatalog,
   getCachedHiddenTunesCatalog,
+  isDerivedCatalogTrusted,
   type HiddenTunesAlbumCatalogItem,
   type HiddenTunesArtistCatalogItem,
   type HiddenTunesDerivedCatalog,
@@ -77,6 +78,10 @@ import {
 import { logPerformanceOffscreenWorkPaused } from "@/utils/performanceLogs";
 import { TESTER_COPY } from "@/constants/testerExperience";
 import PremiumEmptyState from "@/components/PremiumEmptyState";
+import {
+  hydrateDiscoveryPreferredGenres,
+  sortItemsByPreferredGenres,
+} from "@/utils/discoveryPreferences";
 
 const CATALOG_PAGE_SIZE = 31;
 
@@ -514,8 +519,9 @@ export default function MusicFeedScreen() {
   const playlists = catalog?.playlists || [];
 
   const loadCatalog = useCallback(async () => {
+    void hydrateDiscoveryPreferredGenres();
     const cached = getCachedHiddenTunesCatalog();
-    if (cached) {
+    if (cached && isDerivedCatalogTrusted(cached)) {
       setCatalog(cached);
       setLoading(false);
       return;
@@ -585,7 +591,10 @@ export default function MusicFeedScreen() {
     [albums, showDeferredHomeSections]
   );
   const visibleGenres = useMemo(
-    () => (showDeferredHomeSections ? genres.slice(0, 10) : []),
+    () =>
+      showDeferredHomeSections
+        ? sortItemsByPreferredGenres(genres).slice(0, 10)
+        : [],
     [genres, showDeferredHomeSections]
   );
   const visibleCatalogSongs = useMemo(() => songs.slice(0, visibleCatalogCount), [songs, visibleCatalogCount]);

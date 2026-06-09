@@ -29,6 +29,7 @@ import { resolveGenreRoomEntity } from "../utils/entityResolution";
 import {
   fetchHiddenTunesCatalog,
   getCachedHiddenTunesCatalog,
+  isDerivedCatalogTrusted,
   type HiddenTunesAlbumCatalogItem,
   type HiddenTunesDerivedCatalog,
   type HiddenTunesSong,
@@ -83,7 +84,12 @@ export default function GenreScreen() {
   async function loadGenreCatalog() {
     try {
       setLoading(true);
-      setCatalog(getCachedHiddenTunesCatalog() || (await fetchHiddenTunesCatalog()));
+      const cached = getCachedHiddenTunesCatalog();
+      setCatalog(
+        cached && isDerivedCatalogTrusted(cached)
+          ? cached
+          : await fetchHiddenTunesCatalog()
+      );
     } catch (error) {
       console.log("Genre catalog load error:", error);
       setCatalog(null);

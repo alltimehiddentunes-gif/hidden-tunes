@@ -27,6 +27,7 @@ import {
 import {
   fetchHiddenTunesCatalog,
   getCachedHiddenTunesCatalog,
+  isDerivedCatalogTrusted,
   type HiddenTunesAlbumCatalogItem,
   type HiddenTunesArtistCatalogItem,
   type HiddenTunesDerivedCatalog,
@@ -310,7 +311,7 @@ export default function SearchScreen() {
 
     void (async () => {
       const cached = getCachedHiddenTunesCatalog();
-      if (cached && !cancelled) {
+      if (cached && isDerivedCatalogTrusted(cached) && !cancelled) {
         setCatalog(cached);
         setLoading(false);
         return;

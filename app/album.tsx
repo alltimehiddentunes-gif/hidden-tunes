@@ -35,6 +35,7 @@ import {
 import {
   fetchHiddenTunesCatalog,
   getCachedHiddenTunesCatalog,
+  isDerivedCatalogTrusted,
   type HiddenTunesAlbumCatalogItem,
   type HiddenTunesDerivedCatalog,
   type HiddenTunesSong,
@@ -123,7 +124,12 @@ export default function AlbumScreen() {
   async function loadAlbumCatalog() {
     try {
       setLoading(true);
-      setCatalog(getCachedHiddenTunesCatalog() || (await fetchHiddenTunesCatalog()));
+      const cached = getCachedHiddenTunesCatalog();
+      setCatalog(
+        cached && isDerivedCatalogTrusted(cached)
+          ? cached
+          : await fetchHiddenTunesCatalog()
+      );
     } catch (error) {
       console.log("Album catalog load error:", error);
       setCatalog(null);

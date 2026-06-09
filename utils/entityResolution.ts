@@ -115,6 +115,28 @@ function slugKeysMatch(left: unknown, right: unknown) {
   return Boolean(leftSlug && rightSlug && leftSlug === rightSlug);
 }
 
+function songAlbumTitle(song: HiddenTunesSong) {
+  const raw = song as {
+    album?: string;
+    albumName?: string;
+    album_name?: string;
+    releaseTitle?: string;
+    release_title?: string;
+    albumTitle?: string;
+    album_title?: string;
+  };
+
+  return cleanText(
+    song.album ||
+      raw.albumName ||
+      raw.album_name ||
+      raw.releaseTitle ||
+      raw.release_title ||
+      raw.albumTitle ||
+      raw.album_title
+  );
+}
+
 function albumMatchesSong(
   albumTitle: string,
   artistName: string,
@@ -122,7 +144,7 @@ function albumMatchesSong(
 ) {
   const normalizedAlbum = cleanText(albumTitle);
   const normalizedArtist = cleanText(artistName);
-  const songAlbum = cleanText(song.album || "");
+  const songAlbum = songAlbumTitle(song);
   const songArtist = cleanText(songArtistName(song));
 
   const albumMatches =
@@ -323,6 +345,10 @@ export function resolveAlbumEntity(
         album_id?: string;
         albumTitle?: string;
         album_title?: string;
+        albumName?: string;
+        album_name?: string;
+        releaseTitle?: string;
+        release_title?: string;
         release?: string;
         collection?: string;
       };
@@ -333,7 +359,16 @@ export function resolveAlbumEntity(
       ) {
         return true;
       }
-      const songAlbumTitle = String(raw.albumTitle || raw.album_title || song.album || "").trim();
+      const songAlbumTitle = String(
+        raw.albumTitle ||
+          raw.album_title ||
+          raw.albumName ||
+          raw.album_name ||
+          raw.releaseTitle ||
+          raw.release_title ||
+          song.album ||
+          ""
+      ).trim();
       const titleMatch =
         keysMatch(songAlbumTitle, albumTitle) || slugKeysMatch(songAlbumTitle, albumTitle);
       const artistMatch =

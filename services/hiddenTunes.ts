@@ -1,5 +1,6 @@
 ﻿import {
   fetchAllHiddenTunesCatalogSongs,
+  getHiddenTunesCatalogSnapshot,
   type HiddenTunesNormalizedSong,
 } from "./hiddenTunesApi";
 
@@ -97,7 +98,14 @@ function normalizeDuration(value: unknown) {
 function normalizeSong(song: any, index: number): HiddenTunesSong {
   const artist = cleanString(song?.artist || song?.artist_name, "Unknown Artist");
   const title = cleanString(song?.title, "Untitled Song");
-  const album = cleanString(song?.album || song?.album_title);
+  const album = cleanString(
+    song?.album ||
+      song?.album_title ||
+      song?.albumName ||
+      song?.album_name ||
+      song?.releaseTitle ||
+      song?.release_title
+  );
   const genre = cleanString(song?.genre);
   const mood = cleanString(song?.mood);
   const artwork =
@@ -157,9 +165,13 @@ function firstArtwork(songs: HiddenTunesSong[]) {
   return songs.find((song) => song.cover || song.artwork)?.cover || FALLBACK_COVER;
 }
 
+function normalizeAlbumLabel(value: unknown) {
+  return cleanString(value).replace(/\s+/g, " ").toLowerCase();
+}
+
 function albumKey(song: HiddenTunesSong) {
-  const album = song.album || "Singles";
-  return `${song.artist}:${album}`;
+  const album = normalizeAlbumLabel(song.album) || "singles";
+  return `${normalizeAlbumLabel(song.artist)}:${album}`;
 }
 
 function buildAlbums(songs: HiddenTunesSong[]): HiddenTunesAlbumCatalogItem[] {
@@ -377,7 +389,65 @@ function buildCatalogFingerprint(songs: HiddenTunesSong[]) {
   return `${songs.length}:${first}:${last}`;
 }
 
+export const DISCOVERY_MIN_TRUSTED_CATALOG_SIZE = 50;
+
+function mapSnapshotSongs(snapshot: HiddenTunesNormalizedSong[]) {
+  const seen = new Set<string>();
+  const songs: HiddenTunesSong[] = [];
+
+  snapshot.forEach((song, index) => {
+    const mapped = mapNormalizedCatalogSong(song, index);
+    if (!mapped.streamUrl || seen.has(mapped.id)) return;
+    seen.add(mapped.id);
+    songs.push(mapped);
+  });
+
+  return songs;
+}
+
+function rebuildDerivedCatalog(songs: HiddenTunesSong[]) {
+  const catalog = deriveHiddenTunesCatalog(songs);
+  derivedCatalogCache = catalog;
+  derivedCatalogFingerprint = buildCatalogFingerprint(songs);
+  return catalog;
+}
+
+export function isDerivedCatalogTrusted(catalog?: HiddenTunesDerivedCatalog | null) {
+  return Boolean(
+    catalog && catalog.songs.length >= DISCOVERY_MIN_TRUSTED_CATALOG_SIZE
+  );
+}
+
+export function syncDerivedCatalogFromSnapshot() {
+  const snapshotSongs = mapSnapshotSongs(getHiddenTunesCatalogSnapshot());
+  if (!snapshotSongs.length) {
+    return derivedCatalogCache;
+  }
+
+  const derivedCount = derivedCatalogCache?.songs.length || 0;
+  if (derivedCatalogCache && snapshotSongs.length <= derivedCount) {
+    return derivedCatalogCache;
+  }
+
+  return rebuildDerivedCatalog(snapshotSongs);
+}
+
+export function getDiscoveryPlayableSongs(): HiddenTunesSong[] {
+  syncDerivedCatalogFromSnapshot();
+
+  const snapshotSongs = mapSnapshotSongs(getHiddenTunesCatalogSnapshot());
+  const derivedSongs = derivedCatalogCache?.songs || [];
+  const best = snapshotSongs.length >= derivedSongs.length ? snapshotSongs : derivedSongs;
+
+  if (best.length > derivedSongs.length) {
+    rebuildDerivedCatalog(best);
+  }
+
+  return best.length ? best : derivedSongs;
+}
+
 export function getCachedHiddenTunesCatalog() {
+  syncDerivedCatalogFromSnapshot();
   return derivedCatalogCache;
 }
 
@@ -391,23 +461,30 @@ export async function fetchHiddenTunesCatalog(options?: {
 }): Promise<HiddenTunesDerivedCatalog> {
   if (options?.forceRefresh) {
     clearHiddenTunesCatalogCache();
-  } else if (derivedCatalogCache) {
-    return derivedCatalogCache;
+  } else {
+    syncDerivedCatalogFromSnapshot();
+    if (derivedCatalogCache && isDerivedCatalogTrusted(derivedCatalogCache)) {
+      return derivedCatalogCache;
+    }
   }
 
-  const songs = await fetchHiddenTunesSongs(options);
+  const needsFullFetch =
+    options?.forceRefresh ||
+    !derivedCatalogCache ||
+    !isDerivedCatalogTrusted(derivedCatalogCache);
+
+  const songs = await fetchHiddenTunesSongs({
+    forceRefresh: needsFullFetch,
+  });
   const fingerprint = buildCatalogFingerprint(songs);
 
   if (
-    !options?.forceRefresh &&
+    !needsFullFetch &&
     derivedCatalogCache &&
     derivedCatalogFingerprint === fingerprint
   ) {
     return derivedCatalogCache;
   }
 
-  const catalog = deriveHiddenTunesCatalog(songs);
-  derivedCatalogCache = catalog;
-  derivedCatalogFingerprint = fingerprint;
-  return catalog;
+  return rebuildDerivedCatalog(songs);
 }

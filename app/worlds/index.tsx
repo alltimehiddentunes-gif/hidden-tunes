@@ -24,6 +24,8 @@ import {
 } from "../../context/PlayerContext";
 import {
   fetchHiddenTunesCatalog,
+  isDerivedCatalogTrusted,
+  getCachedHiddenTunesCatalog,
   type HiddenTunesAlbumCatalogItem,
   type HiddenTunesArtistCatalogItem,
   type HiddenTunesDerivedCatalog,
@@ -34,6 +36,10 @@ import {
   buildMoodRoomGroups,
   type MoodRoomGroup,
 } from "../../utils/moodRooms";
+import {
+  hydrateDiscoveryPreferredGenres,
+  sortItemsByPreferredGenres,
+} from "../../utils/discoveryPreferences";
 
 type ExploreMoodRoom = MoodRoomGroup<HiddenTunesSong>;
 
@@ -248,7 +254,12 @@ export default function WorldsIndexScreen() {
     setLoading(true);
 
     try {
-      const data = await fetchHiddenTunesCatalog();
+      await hydrateDiscoveryPreferredGenres();
+      const cached = getCachedHiddenTunesCatalog();
+      const data =
+        cached && isDerivedCatalogTrusted(cached)
+          ? cached
+          : await fetchHiddenTunesCatalog();
       setCatalog(data);
       setMoodRooms(buildMoodRoomGroups(data.songs, 6));
     } catch {
@@ -283,14 +294,10 @@ export default function WorldsIndexScreen() {
     [discoveryRooms]
   );
 
-  const visibleGenres = useMemo(() => {
-    const preferredNames = ["afrobeats", "jazz", "blues", "amapiano", "gospel", "soul"];
-    const preferred = preferredNames
-      .map((name) => genres.find((genre) => String(genre.title || "").toLowerCase().includes(name)))
-      .filter(Boolean) as HiddenTunesGenreCatalogItem[];
-    const remaining = genres.filter((genre) => !preferred.some((item) => item.id === genre.id));
-    return [...preferred, ...remaining].slice(0, 10);
-  }, [genres]);
+  const visibleGenres = useMemo(
+    () => sortItemsByPreferredGenres(genres).slice(0, 10),
+    [genres]
+  );
 
   const deepAlbums = useMemo(() => albums.slice(0, 10), [albums]);
   const deepCuts = useMemo(() => uniqSongs(songs.slice(12, 36)).slice(0, 8), [songs]);

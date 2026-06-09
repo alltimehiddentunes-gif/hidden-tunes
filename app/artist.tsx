@@ -27,6 +27,7 @@ import { resolveArtistEntity } from "../utils/entityResolution";
 import {
   fetchHiddenTunesCatalog,
   getCachedHiddenTunesCatalog,
+  isDerivedCatalogTrusted,
   type HiddenTunesAlbumCatalogItem,
   type HiddenTunesArtistCatalogItem,
   type HiddenTunesDerivedCatalog,
@@ -72,7 +73,12 @@ export default function ArtistScreen() {
   async function loadArtistCatalog() {
     try {
       setLoading(true);
-      setCatalog(getCachedHiddenTunesCatalog() || (await fetchHiddenTunesCatalog()));
+      const cached = getCachedHiddenTunesCatalog();
+      setCatalog(
+        cached && isDerivedCatalogTrusted(cached)
+          ? cached
+          : await fetchHiddenTunesCatalog()
+      );
     } catch (error) {
       console.log("Artist catalog load error:", error);
       setCatalog(null);

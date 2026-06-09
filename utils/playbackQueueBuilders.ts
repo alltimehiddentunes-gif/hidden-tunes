@@ -1,5 +1,11 @@
 import type { PlaybackQueueContext } from "../context/PlayerContext";
-import { getCachedHiddenTunesCatalog } from "../services/hiddenTunes";
+import { getDiscoveryPlayableSongs } from "../services/hiddenTunes";
+import {
+  buildCatalogTarget,
+  matchSongsForCatalogTarget,
+  type CatalogResolverType,
+} from "./catalogResolver";
+import { getDiscoveryPreferredGenres } from "./discoveryPreferences";
 
 export type QueueBuildSong = {
   id: string;
@@ -26,6 +32,7 @@ export type QueueBuildResult = {
   activeIndex: number;
   builtFrom: string;
   expanded: boolean;
+  diagnostics: Record<string, unknown>;
 };
 
 function text(value: unknown) {
@@ -34,6 +41,10 @@ function text(value: unknown) {
 
 function lower(value: unknown) {
   return text(value).toLowerCase();
+}
+
+function normalizeAlbumText(value: unknown) {
+  return lower(value).replace(/\s+/g, " ").trim();
 }
 
 function getPlayableUri(song: QueueBuildSong) {
@@ -61,7 +72,16 @@ function songArtist(song: QueueBuildSong) {
 }
 
 function songAlbum(song: QueueBuildSong) {
-  return lower(song.album);
+  const raw = song as {
+    album?: string;
+    albumName?: string;
+    album_name?: string;
+    releaseTitle?: string;
+    release_title?: string;
+  };
+  return normalizeAlbumText(
+    raw.album || raw.albumName || raw.album_name || raw.releaseTitle || raw.release_title
+  );
 }
 
 function songGenre(song: QueueBuildSong) {
@@ -94,13 +114,12 @@ function ensureSongInQueue(queue: QueueBuildSong[], song: QueueBuildSong) {
 }
 
 function getCatalogPlayable() {
-  const catalog = getCachedHiddenTunesCatalog()?.songs || [];
-  return dedupeSongs(catalog.filter(isPlayableSong));
+  return dedupeSongs(getDiscoveryPlayableSongs().filter(isPlayableSong));
 }
 
 function albumMatches(song: QueueBuildSong, context: PlaybackQueueContext, seed: QueueBuildSong) {
   const albumId = lower(context.albumId || seed.albumId);
-  const albumTitle = lower(context.albumTitle || seed.album);
+  const albumTitle = normalizeAlbumText(context.albumTitle || seed.album);
   if (albumId && lower(song.albumId) && lower(song.albumId) === albumId) return true;
   if (albumTitle && songAlbum(song) && songAlbum(song) === albumTitle) return true;
   return false;
@@ -117,7 +136,7 @@ function genreMatches(song: QueueBuildSong, context: PlaybackQueueContext, seed:
 }
 
 function moodMatches(song: QueueBuildSong, context: PlaybackQueueContext, seed: QueueBuildSong) {
-  const moodName = lower(context.mood || seed.mood);
+  const moodName = lower(context.mood || seed.mood || context.label);
   const moodText = songMood(song);
   if (!moodName || !moodText) return false;
   return moodText.includes(moodName) || moodName.includes(moodText);
@@ -144,11 +163,50 @@ function searchMatches(
   return haystack.includes(query) || artistMatches(song, context, seed) || genreMatches(song, context, seed);
 }
 
+function resolverTypeForContext(source: PlaybackQueueContext["source"]): CatalogResolverType | null {
+  if (source === "genre") return "genre";
+  if (source === "mood" || source === "home_rail") return "mood";
+  if (source === "radio" || source === "playlist") return "category";
+  return null;
+}
+
+function matchWithCatalogResolver(
+  catalog: QueueBuildSong[],
+  context: PlaybackQueueContext
+) {
+  const resolverType = resolverTypeForContext(context.source);
+  if (!resolverType) return [];
+
+  const label =
+    context.label ||
+    context.mood ||
+    context.genre ||
+    context.albumTitle ||
+    context.artistName ||
+    "";
+
+  if (!text(label)) return [];
+
+  const target = buildCatalogTarget({
+    type: resolverType,
+    title: label,
+    query: label,
+    id: context.albumId || context.artistName || label,
+  });
+
+  return dedupeSongs(
+    matchSongsForCatalogTarget(catalog, target).filter(isPlayableSong)
+  );
+}
+
 function filterByContext(
   catalog: QueueBuildSong[],
   context: PlaybackQueueContext,
   seed: QueueBuildSong
 ) {
+  const resolverMatches = matchWithCatalogResolver(catalog, context);
+  if (resolverMatches.length) return resolverMatches;
+
   const source = context.source;
 
   if (source === "full_catalog") {
@@ -185,6 +243,53 @@ function filterByContext(
   return catalog;
 }
 
+function expandSparseContextualQueue(
+  candidates: QueueBuildSong[],
+  catalog: QueueBuildSong[],
+  context: PlaybackQueueContext,
+  seed: QueueBuildSong,
+  preferredGenres: string[]
+) {
+  if (candidates.length > 1 || catalog.length <= 1) {
+    return { queue: candidates, builtFromSuffix: "" };
+  }
+
+  const layers: QueueBuildSong[][] = [candidates];
+  const artistMatchesList = catalog.filter((song) => artistMatches(song, context, seed));
+  if (artistMatchesList.length) layers.push(artistMatchesList);
+
+  const seedGenre = text(seed.genre);
+  if (seedGenre) {
+    layers.push(
+      matchWithCatalogResolver(catalog, {
+        ...context,
+        source: "genre",
+        genre: seedGenre,
+        label: seedGenre,
+      })
+    );
+  }
+
+  for (const genre of preferredGenres) {
+    layers.push(
+      matchWithCatalogResolver(catalog, {
+        ...context,
+        source: "genre",
+        genre,
+        label: genre,
+      })
+    );
+  }
+
+  layers.push(catalog);
+
+  const expanded = dedupeSongs(layers.flat()).filter(isPlayableSong);
+  return {
+    queue: expanded.length ? expanded : candidates,
+    builtFromSuffix: "_expanded",
+  };
+}
+
 function buildSearchQueue(
   provided: QueueBuildSong[],
   catalog: QueueBuildSong[],
@@ -199,6 +304,34 @@ function buildSearchQueue(
   return dedupeSongs([...visible, ...sameArtist, ...sameAlbum, ...sameGenre, ...sameMood, ...catalog]);
 }
 
+function buildDiscoveryDiagnostics(input: {
+  catalog: QueueBuildSong[];
+  playableCatalog: QueueBuildSong[];
+  preferredGenres: string[];
+  candidates: QueueBuildSong[];
+  finalQueue: QueueBuildSong[];
+  context: PlaybackQueueContext;
+}) {
+  const diagnostics: Record<string, unknown> = {
+    discovery_catalog_size: input.catalog.length,
+    discovery_playable_catalog_size: input.playableCatalog.length,
+    discovery_preferred_genres: input.preferredGenres,
+    room_queue_candidates: input.candidates.length,
+    room_queue_final_length:
+      input.context.source === "mood" || input.context.source === "home_rail"
+        ? input.finalQueue.length
+        : undefined,
+    genre_queue_final_length:
+      input.context.source === "genre" ? input.finalQueue.length : undefined,
+    album_tracks_found:
+      input.context.source === "album" ? input.finalQueue.length : undefined,
+  };
+
+  return Object.fromEntries(
+    Object.entries(diagnostics).filter(([, value]) => value !== undefined)
+  );
+}
+
 export function buildContextualPlaybackQueue(options: {
   song: QueueBuildSong;
   context: PlaybackQueueContext;
@@ -208,6 +341,7 @@ export function buildContextualPlaybackQueue(options: {
   const { song, context, providedQueue, requestedIndex } = options;
   const seed = song;
   const catalog = getCatalogPlayable();
+  const preferredGenres = getDiscoveryPreferredGenres();
   const provided = dedupeSongs((providedQueue || []).filter(isPlayableSong));
 
   if (context.source === "queue" && provided.length > 0) {
@@ -221,23 +355,40 @@ export function buildContextualPlaybackQueue(options: {
       activeIndex,
       builtFrom: "queue_preserved",
       expanded: false,
+      diagnostics: buildDiscoveryDiagnostics({
+        catalog,
+        playableCatalog: catalog,
+        preferredGenres,
+        candidates: provided,
+        finalQueue: placed.queue,
+        context,
+      }),
     };
   }
 
   let builtFrom: string = context.source;
   let queue: QueueBuildSong[] = [];
   const expanded = provided.length <= 1;
+  let candidates: QueueBuildSong[] = [];
 
   if (provided.length > 1) {
     queue = provided;
     builtFrom = `${context.source}_provided`;
+    candidates = provided;
   } else if (context.source === "search") {
     queue = buildSearchQueue(provided, catalog, context, seed);
     builtFrom = "search_contextual";
+    candidates = queue;
   } else {
-    const contextual = filterByContext(catalog, context, seed);
-    queue = dedupeSongs([...provided, ...contextual]);
-    builtFrom = `${context.source}_catalog`;
+    candidates = filterByContext(catalog, context, seed);
+    const expandedResult = expanded
+      ? expandSparseContextualQueue(candidates, catalog, context, seed, preferredGenres)
+      : { queue: candidates, builtFromSuffix: "" };
+    queue = dedupeSongs([...provided, ...expandedResult.queue]);
+    builtFrom = `${context.source}_catalog${expandedResult.builtFromSuffix}`;
+    if (!candidates.length && catalog.length) {
+      builtFrom = `${context.source}_catalog_fallback`;
+    }
   }
 
   if (!queue.length) {
@@ -251,11 +402,21 @@ export function buildContextualPlaybackQueue(options: {
       ? placed.activeIndex
       : Math.max(0, Math.min(requestedIndex, placed.queue.length - 1));
 
+  const diagnostics = buildDiscoveryDiagnostics({
+    catalog,
+    playableCatalog: catalog,
+    preferredGenres,
+    candidates,
+    finalQueue: placed.queue,
+    context,
+  });
+
   return {
     queue: placed.queue,
     activeIndex,
     builtFrom,
     expanded,
+    diagnostics,
   };
 }
 
@@ -272,6 +433,7 @@ export function logContextualQueueBuilt(
     song_id: songId,
     built_from: result.builtFrom,
     expanded: result.expanded,
+    ...result.diagnostics,
   };
 
   log("queue_build_complete", base);
