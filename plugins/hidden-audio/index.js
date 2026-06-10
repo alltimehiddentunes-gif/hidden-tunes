@@ -262,6 +262,7 @@ const withHiddenAudioAndroidGradle = (config) => {
   ]);
 };
 
+// Android Auto manifest: MediaBrowserService + automotive_app_desc media
 const withHiddenAudioAndroidManifest = (config) => {
   return withAndroidManifest(config, (config) => {
     const manifest = config.modResults;

@@ -127,9 +127,6 @@ object HiddenAudioMediaSessionManager {
     override fun onPlayFromMediaId(mediaId: String?, extras: Bundle?) {
       val safeId = mediaId?.trim().orEmpty()
       if (safeId.isBlank()) return
-      val data = Arguments.createMap()
-      data.putString("mediaId", safeId)
-      HiddenAudioCore.emitAutoDiagnostic("android_auto_play_from_media_id", data)
       HiddenAudioCore.playFromAutoMediaId(safeId)
     }
   }

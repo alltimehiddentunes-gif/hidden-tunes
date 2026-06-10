@@ -3,6 +3,9 @@ package com.hiddentunes.app.audio
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.ReadableArray
 import com.facebook.react.bridge.ReadableMap
+import android.net.Uri
+import android.support.v4.media.MediaBrowserCompat
+import android.support.v4.media.MediaDescriptionCompat
 import com.facebook.react.bridge.WritableMap
 import java.util.concurrent.ConcurrentHashMap
 
@@ -125,6 +128,31 @@ object HiddenAudioAutoCatalog {
     map.putString("artworkUrl", track.artworkUrl)
     map.putDouble("durationSeconds", track.durationSeconds)
     return map
+  }
+
+  fun toMediaItem(node: BrowseNode): MediaBrowserCompat.MediaItem {
+    val track = if (node.playable) getTrack(node.mediaId) else null
+    val descriptionBuilder = MediaDescriptionCompat.Builder().setMediaId(node.mediaId)
+    if (track != null) {
+      descriptionBuilder
+        .setTitle(track.title)
+        .setSubtitle(track.artist)
+        .setDescription(track.album.ifBlank { node.subtitle })
+      if (track.artworkUrl.isNotBlank()) {
+        descriptionBuilder.setIconUri(Uri.parse(track.artworkUrl))
+      }
+    } else {
+      descriptionBuilder
+        .setTitle(node.title)
+        .setSubtitle(node.subtitle)
+    }
+    val flags =
+      if (node.playable) {
+        MediaBrowserCompat.MediaItem.FLAG_PLAYABLE
+      } else {
+        MediaBrowserCompat.MediaItem.FLAG_BROWSABLE
+      }
+    return MediaBrowserCompat.MediaItem(descriptionBuilder.build(), flags)
   }
 
   private fun defaultRootNodes(): List<BrowseNode> = listOf(

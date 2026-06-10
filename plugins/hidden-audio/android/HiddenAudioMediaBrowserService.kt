@@ -2,7 +2,6 @@ package com.hiddentunes.app.audio
 
 import android.os.Bundle
 import android.support.v4.media.MediaBrowserCompat
-import android.support.v4.media.MediaDescriptionCompat
 import androidx.media.MediaBrowserServiceCompat
 import com.facebook.react.bridge.Arguments
 
@@ -62,21 +61,7 @@ class HiddenAudioMediaBrowserService : MediaBrowserServiceCompat() {
         } else {
           HiddenAudioAutoCatalog.getChildren(parentId)
         }
-      val items = children.map { node ->
-        val description = MediaDescriptionCompat.Builder()
-          .setMediaId(node.mediaId)
-          .setTitle(node.title)
-          .setSubtitle(node.subtitle)
-          .build()
-
-        val flags = if (node.playable) {
-          MediaBrowserCompat.MediaItem.FLAG_PLAYABLE
-        } else {
-          MediaBrowserCompat.MediaItem.FLAG_BROWSABLE
-        }
-
-        MediaBrowserCompat.MediaItem(description, flags)
-      }
+      val items = children.map { node -> HiddenAudioAutoCatalog.toMediaItem(node) }
 
       result.sendResult(items.toMutableList())
     } catch (error: Throwable) {

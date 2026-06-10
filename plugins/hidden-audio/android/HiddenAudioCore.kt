@@ -929,19 +929,48 @@ object HiddenAudioCore {
   }
 
   fun playFromAutoMediaId(mediaId: String) {
-    val context = reactContext
+    val startData = Arguments.createMap()
+    startData.putString("mediaId", mediaId)
+    emitAutoDiagnostic("android_auto_play_from_media_id", startData)
+
     val track = HiddenAudioAutoCatalog.getTrack(mediaId)
-    if (context != null && track != null) {
-      try {
-        val trackMap = HiddenAudioAutoCatalog.trackToWritableMap(track)
-        loadTrack(context, trackMap)
-        playForcedFromSession()
-      } catch (error: Throwable) {
-        val data = Arguments.createMap()
-        data.putString("mediaId", mediaId)
-        data.putString("message", error.message ?: "load_failed")
-        emitDiagnostic("android_auto_media_session_error", data)
-      }
+    if (track == null) {
+      val failData = Arguments.createMap()
+      failData.putString("mediaId", mediaId)
+      failData.putString("reason", "track_not_in_catalog")
+      emitAutoDiagnostic("android_auto_play_from_media_id_failed", failData)
+      emitRemoteCommand("play_from_media_id", mediaId)
+      return
+    }
+
+    val context = reactContext
+    if (context == null) {
+      val failData = Arguments.createMap()
+      failData.putString("mediaId", mediaId)
+      failData.putString("trackId", track.id)
+      failData.putString("reason", "react_context_unavailable")
+      emitAutoDiagnostic("android_auto_play_from_media_id_failed", failData)
+      emitRemoteCommand("play_from_media_id", mediaId)
+      return
+    }
+
+    try {
+      val trackMap = HiddenAudioAutoCatalog.trackToWritableMap(track)
+      loadTrack(context, trackMap)
+      playForcedFromSession()
+      val successData = Arguments.createMap()
+      successData.putString("mediaId", mediaId)
+      successData.putString("trackId", track.id)
+      successData.putString("title", track.title)
+      successData.putString("artist", track.artist)
+      emitAutoDiagnostic("android_auto_play_from_media_id_success", successData)
+    } catch (error: Throwable) {
+      val failData = Arguments.createMap()
+      failData.putString("mediaId", mediaId)
+      failData.putString("trackId", track.id)
+      failData.putString("reason", error.message ?: "load_failed")
+      emitAutoDiagnostic("android_auto_play_from_media_id_failed", failData)
+      emitDiagnostic("android_auto_media_session_error", failData)
     }
     emitRemoteCommand("play_from_media_id", mediaId)
   }
