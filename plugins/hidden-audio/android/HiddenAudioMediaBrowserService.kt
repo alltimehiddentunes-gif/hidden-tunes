@@ -26,26 +26,20 @@ class HiddenAudioMediaBrowserService : MediaBrowserServiceCompat() {
     sessionToken = HiddenAudioMediaSessionManager.sessionToken()
 
     rootHints?.let { hints ->
-      if (hints.containsKey(BrowserRoot.EXTRA_ROOT_CHILDREN_LIMIT)) {
-        rootChildrenLimit = hints.getInt(BrowserRoot.EXTRA_ROOT_CHILDREN_LIMIT, Int.MAX_VALUE)
+      if (hints.containsKey(EXTRA_ROOT_CHILDREN_LIMIT)) {
+        rootChildrenLimit = hints.getInt(EXTRA_ROOT_CHILDREN_LIMIT, Int.MAX_VALUE)
       }
-      if (hints.containsKey(BrowserRoot.EXTRA_ROOT_CHILDREN_SUPPORTED_FLAGS)) {
+      if (hints.containsKey(EXTRA_ROOT_CHILDREN_SUPPORTED_FLAGS)) {
         rootChildrenSupportedFlags = hints.getInt(
-          BrowserRoot.EXTRA_ROOT_CHILDREN_SUPPORTED_FLAGS,
+          EXTRA_ROOT_CHILDREN_SUPPORTED_FLAGS,
           MediaBrowserCompat.MediaItem.FLAG_BROWSABLE
         )
       }
     }
 
     val extras = Bundle().apply {
-      putInt(
-        MediaBrowserCompat.EXTRA_CONTENT_STYLE_BROWSABLE,
-        MediaBrowserCompat.CONTENT_STYLE_LIST_ITEM
-      )
-      putInt(
-        MediaBrowserCompat.EXTRA_CONTENT_STYLE_PLAYABLE,
-        MediaBrowserCompat.CONTENT_STYLE_LIST_ITEM
-      )
+      putInt(EXTRA_CONTENT_STYLE_BROWSABLE, CONTENT_STYLE_LIST_ITEM)
+      putInt(EXTRA_CONTENT_STYLE_PLAYABLE, CONTENT_STYLE_LIST_ITEM)
     }
     return BrowserRoot(HiddenAudioAutoCatalog.ROOT_ID, extras)
   }
@@ -89,5 +83,17 @@ class HiddenAudioMediaBrowserService : MediaBrowserServiceCompat() {
       HiddenAudioMediaSessionManager.reportError(error.message ?: "children_load_failed")
       result.sendResult(mutableListOf())
     }
+  }
+
+  private companion object {
+    private const val EXTRA_ROOT_CHILDREN_LIMIT =
+      "android.media.browse.extra.ROOT_CHILDREN_LIMIT"
+    private const val EXTRA_ROOT_CHILDREN_SUPPORTED_FLAGS =
+      "android.media.browse.extra.ROOT_CHILDREN_SUPPORTED_FLAGS"
+    private const val EXTRA_CONTENT_STYLE_BROWSABLE =
+      "android.media.browse.CONTENT_STYLE_BROWSABLE"
+    private const val EXTRA_CONTENT_STYLE_PLAYABLE =
+      "android.media.browse.CONTENT_STYLE_PLAYABLE"
+    private const val CONTENT_STYLE_LIST_ITEM = 1
   }
 }
