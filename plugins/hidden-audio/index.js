@@ -323,6 +323,20 @@ const withHiddenAudioAndroidMainApplication = (config) => {
           "// add(MyReactNativePackage())",
           "add(HiddenAudioPackage())"
         );
+      }
+      if (!contents.includes("HiddenAudioMediaSessionManager")) {
+        contents = contents.replace(
+          "import com.hiddentunes.app.audio.HiddenAudioPackage",
+          "import com.hiddentunes.app.audio.HiddenAudioPackage\nimport com.hiddentunes.app.audio.HiddenAudioMediaSessionManager"
+        );
+      }
+      if (!contents.includes("warmUpForAndroidAuto")) {
+        contents = contents.replace(
+          "ApplicationLifecycleDispatcher.onApplicationCreate(this)",
+          "ApplicationLifecycleDispatcher.onApplicationCreate(this)\n    HiddenAudioMediaSessionManager.warmUpForAndroidAuto(this)"
+        );
+        fs.writeFileSync(mainAppPath, contents);
+      } else if (!contents.includes("HiddenAudioPackage")) {
         fs.writeFileSync(mainAppPath, contents);
       }
       return config;

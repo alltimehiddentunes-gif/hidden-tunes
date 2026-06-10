@@ -83,6 +83,12 @@ object HiddenAudioAutoCatalog {
     }
   }
 
+  fun ensureDefaultCatalog() {
+    if (!childrenByParent.containsKey(ROOT_ID)) {
+      childrenByParent[ROOT_ID] = defaultRootNodes()
+    }
+  }
+
   fun getChildren(parentId: String): List<BrowseNode> {
     if (parentId == ROOT_ID && !childrenByParent.containsKey(ROOT_ID)) {
       childrenByParent[ROOT_ID] = defaultRootNodes()

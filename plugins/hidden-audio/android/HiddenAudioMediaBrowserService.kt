@@ -11,8 +11,10 @@ class HiddenAudioMediaBrowserService : MediaBrowserServiceCompat() {
 
   override fun onCreate() {
     super.onCreate()
+    HiddenAudioAutoCatalog.ensureDefaultCatalog()
     HiddenAudioMediaSessionManager.ensureSession(applicationContext)
     sessionToken = HiddenAudioMediaSessionManager.sessionToken()
+    HiddenAudioCore.emitAutoDiagnostic("android_auto_mbs_on_create")
   }
 
   override fun onGetRoot(
@@ -20,7 +22,10 @@ class HiddenAudioMediaBrowserService : MediaBrowserServiceCompat() {
     clientUid: Int,
     rootHints: Bundle?
   ): BrowserRoot? {
-    HiddenAudioCore.emitAutoDiagnostic("android_auto_media_root_requested")
+    val rootData = Arguments.createMap()
+    rootData.putString("clientPackageName", clientPackageName)
+    HiddenAudioCore.emitAutoDiagnostic("android_auto_media_root_requested", rootData)
+    HiddenAudioAutoCatalog.ensureDefaultCatalog()
     HiddenAudioMediaSessionManager.ensureSession(applicationContext)
     sessionToken = HiddenAudioMediaSessionManager.sessionToken()
 

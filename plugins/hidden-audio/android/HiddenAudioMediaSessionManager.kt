@@ -1,6 +1,7 @@
 package com.hiddentunes.app.audio
 
 import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaSessionCompat
@@ -23,9 +24,47 @@ object HiddenAudioMediaSessionManager {
       )
       isActive = true
     }
-
+    publishBrowseReadySession()
     HiddenAudioCore.emitAutoDiagnostic("android_auto_session_active")
     HiddenAudioCore.emitAutoDiagnostic("android_auto_service_created")
+  }
+
+  fun warmUpForAndroidAuto(context: Context) {
+    ensureSession(context)
+    HiddenAudioAutoCatalog.ensureDefaultCatalog()
+    try {
+      val intent = Intent(context.applicationContext, HiddenAudioMediaBrowserService::class.java)
+      context.applicationContext.startService(intent)
+      HiddenAudioCore.emitAutoDiagnostic("android_auto_mbs_warmup_started")
+    } catch (error: Throwable) {
+      val data = Arguments.createMap()
+      data.putString("message", error.message ?: "mbs_warmup_failed")
+      HiddenAudioCore.emitAutoDiagnostic("android_auto_mbs_warmup_failed", data)
+    }
+  }
+
+  private fun publishBrowseReadySession() {
+    val session = mediaSession ?: return
+    val metadata = MediaMetadataCompat.Builder()
+      .putString(MediaMetadataCompat.METADATA_KEY_TITLE, "Hidden Tunes")
+      .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, "Your music library")
+      .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, "Browse")
+      .build()
+    session.setMetadata(metadata)
+
+    val actions =
+      PlaybackStateCompat.ACTION_PLAY or
+        PlaybackStateCompat.ACTION_PAUSE or
+        PlaybackStateCompat.ACTION_SKIP_TO_NEXT or
+        PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS or
+        PlaybackStateCompat.ACTION_SEEK_TO or
+        PlaybackStateCompat.ACTION_PLAY_FROM_MEDIA_ID
+
+    val state = PlaybackStateCompat.Builder()
+      .setActions(actions)
+      .setState(PlaybackStateCompat.STATE_NONE, 0L, 0f)
+      .build()
+    session.setPlaybackState(state)
   }
 
   fun sessionToken(): MediaSessionCompat.Token? = mediaSession?.sessionToken
