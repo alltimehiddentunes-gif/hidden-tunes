@@ -477,9 +477,6 @@ object HiddenAudioCore {
         ) {
           emitDiagnostic("android_player_network_connection_failed", data)
         }
-        if (isRetryableSourceError(error) && retryLoadActiveTrackAfterSourceError(error)) {
-          return
-        }
         sourceErrorRetryCount = 0
         sourceErrorRetryMediaKey = null
         invalidateLoadedTrackAfterSourceError(error.errorCodeName ?: "player_error")

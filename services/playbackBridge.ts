@@ -64,24 +64,40 @@ function snapshotToPlaybackProgress(
   };
 }
 
-function androidSnapshotIndicatesLoadedPlayback(
+export function nativeSnapshotIsEnded(
   snapshot: HiddenAudioNativeSnapshot | null | undefined
 ): boolean {
   if (!snapshot) return false;
   const nativeStatus = String(snapshot.nativeStatus || "").toLowerCase();
   const playbackState = String(snapshot.playbackState || "").toLowerCase();
-  if (nativeStatus === "ended" || playbackState === "ended") return false;
+  return nativeStatus === "ended" || playbackState === "ended";
+}
+
+function androidSnapshotIndicatesLoadedPlayback(
+  snapshot: HiddenAudioNativeSnapshot | null | undefined
+): boolean {
+  if (!snapshot || nativeSnapshotIsEnded(snapshot)) return false;
+  if (!snapshot.hasLoadedTrack || !snapshot.activeTrack?.url) return false;
+  const nativeStatus = String(snapshot.nativeStatus || "").toLowerCase();
+  if (nativeStatus === "idle" || nativeStatus === "error") return false;
+  const playbackState = String(snapshot.playbackState || "").toLowerCase();
   return (
-    snapshot.hasLoadedTrack ||
-    Boolean(snapshot.activeTrack?.url) ||
     snapshot.isPlaying ||
     playbackState === "playing" ||
     playbackState === "buffering" ||
-    playbackState === "ready"
+    playbackState === "ready" ||
+    playbackState === "paused"
   );
 }
 
+export function nativeSnapshotIndicatesLoadedPlayback(
+  snapshot: HiddenAudioNativeSnapshot | null | undefined
+): boolean {
+  return androidSnapshotIndicatesLoadedPlayback(snapshot);
+}
+
 let hiddenAudioBridgeActive = false;
+let hiddenAudioBridgePlayBlocked = false;
 
 function emptyProgress(): PlaybackProgress {
   return {
@@ -287,9 +303,22 @@ export function markHiddenAudioBridgeActive(active = true): void {
   hiddenAudioBridgeActive = active;
 }
 
+export function isHiddenAudioBridgePlayBlocked(): boolean {
+  return hiddenAudioBridgePlayBlocked;
+}
+
+export function blockHiddenAudioBridgePlay(): void {
+  hiddenAudioBridgePlayBlocked = true;
+}
+
+export function clearHiddenAudioBridgePlayBlock(): void {
+  hiddenAudioBridgePlayBlocked = false;
+}
+
 export function resetHiddenAudioSessionAfterIntentionalClose(): void {
   markHiddenAudioBridgeActive(false);
   resetHiddenAudioLoadedUrl();
+  blockHiddenAudioBridgePlay();
 }
 
 
@@ -317,6 +346,7 @@ export async function reconcileHiddenAudioBridgeWithNative(): Promise<HiddenAudi
   if (nativeSnapshotRequiresReload(snapshot, loadedUrl || jsLoadedUrl)) {
     markHiddenAudioBridgeActive(false);
     resetHiddenAudioLoadedUrl();
+    blockHiddenAudioBridgePlay();
   } else if (loadedUrl) {
     markHiddenAudioBridgeActive(true);
   }
@@ -484,6 +514,7 @@ export async function activateHiddenAudioPlayback(options: {
     throw error;
   }
 
+  clearHiddenAudioBridgePlayBlock();
   hiddenAudioBridgeActive = true;
   logTapToPlayConfirmed({
     source: "activate_hidden_audio_playback",
@@ -541,12 +572,28 @@ export async function deactivateHiddenAudioPlayback(
 export async function bridgeHiddenAudioPlay(): Promise<void> {
   if (!isHiddenAudioNativePlaybackEnabled()) return;
 
+  if (hiddenAudioBridgePlayBlocked) {
+    const blockedError = new Error(
+      "HiddenAudio bridge play blocked until loadAndPlay"
+    );
+    logTapToPlayFailed({
+      source: "bridge_hidden_audio_play",
+      reason: "blocked_until_reload",
+    });
+    logPlaybackCritical("tap_to_play_failed", {
+      source: "bridge_hidden_audio_play",
+      reason: "blocked_until_reload",
+    });
+    throw blockedError;
+  }
+
   const snapshot = await getHiddenAudioNativeSnapshot().catch(() => null);
   const expectedUrl = snapshot?.activeTrack?.url || getHiddenAudioLoadedUrl();
 
   if (nativeSnapshotRequiresReload(snapshot, expectedUrl)) {
     markHiddenAudioBridgeActive(false);
     resetHiddenAudioLoadedUrl();
+    blockHiddenAudioBridgePlay();
     const error = new Error("HiddenAudio cannot play without a loaded track");
     logTapToPlayFailed({
       source: "bridge_hidden_audio_play",
@@ -569,6 +616,12 @@ export async function bridgeHiddenAudioReassertBackgroundPlay(): Promise<void> {
   if (!isHiddenAudioPlaybackActive()) return;
   if (Platform.OS !== "android") {
     await hiddenAudioBridge.play();
+    return;
+  }
+  if (hiddenAudioBridgePlayBlocked) return;
+  const snapshot = await getHiddenAudioNativeSnapshot().catch(() => null);
+  if (!androidSnapshotIndicatesLoadedPlayback(snapshot)) {
+    blockHiddenAudioBridgePlay();
     return;
   }
   await hiddenAudioBridge.reassertBackgroundPlayback?.();
