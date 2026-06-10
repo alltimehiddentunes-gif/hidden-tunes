@@ -291,6 +291,29 @@ object HiddenAudioCore {
       throw IllegalStateException("HiddenAudio cannot reassert playback without a loaded track")
     }
 
+    val exoForReassert = player
+    val alreadyPlaying =
+      exoForReassert?.isPlaying == true ||
+        (exoForReassert?.playWhenReady == true &&
+          (playerStatus == "playing" || playerStatus == "buffering"))
+
+    if (alreadyPlaying) {
+      if (!hasAudioFocus) {
+        requestAudioFocus()
+      }
+      startForegroundService()
+      syncMediaSession()
+      val sessionOnlyData = Arguments.createMap()
+      sessionOnlyData.putString("reason", reason)
+      sessionOnlyData.putString("status", playerStatus)
+      sessionOnlyData.putBoolean("playWhenReady", exoForReassert?.playWhenReady == true)
+      sessionOnlyData.putBoolean("isPlaying", exoForReassert?.isPlaying == true)
+      emitDiagnostic("android_background_play_reassert_session_only", sessionOnlyData)
+      emitState()
+      emitProgress()
+      return
+    }
+
     val startData = Arguments.createMap()
     startData.putString("reason", reason)
     startData.putString("status", playerStatus)

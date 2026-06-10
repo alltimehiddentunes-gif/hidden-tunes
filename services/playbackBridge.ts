@@ -96,6 +96,29 @@ export function nativeSnapshotIndicatesLoadedPlayback(
   return androidSnapshotIndicatesLoadedPlayback(snapshot);
 }
 
+export function nativeSnapshotCanPreserveSession(
+  snapshot: HiddenAudioNativeSnapshot | null | undefined
+): boolean {
+  if (!snapshot || nativeSnapshotIsEnded(snapshot)) return false;
+  if (!snapshot.hasLoadedTrack || !snapshot.activeTrack?.url) return false;
+  const nativeStatus = String(snapshot.nativeStatus || "").toLowerCase();
+  const playbackState = String(snapshot.playbackState || "").toLowerCase();
+  return (
+    nativeStatus === "playing" ||
+    nativeStatus === "ready" ||
+    playbackState === "playing" ||
+    playbackState === "ready"
+  );
+}
+
+function logAndroidPlaybackParityDiagnostic(
+  eventName: string,
+  data: Record<string, unknown> = {}
+): void {
+  if (Platform.OS !== "android") return;
+  logAndRememberLockscreenDiagnostic(eventName, data);
+}
+
 let hiddenAudioBridgeActive = false;
 let hiddenAudioBridgePlayBlocked = false;
 
@@ -576,6 +599,10 @@ export async function bridgeHiddenAudioPlay(): Promise<void> {
     const blockedError = new Error(
       "HiddenAudio bridge play blocked until loadAndPlay"
     );
+    logAndroidPlaybackParityDiagnostic(
+      "android_bridge_play_blocked_until_clean_load",
+      { reason: "blocked_until_clean_load" }
+    );
     logTapToPlayFailed({
       source: "bridge_hidden_audio_play",
       reason: "blocked_until_reload",
@@ -595,6 +622,14 @@ export async function bridgeHiddenAudioPlay(): Promise<void> {
     resetHiddenAudioLoadedUrl();
     blockHiddenAudioBridgePlay();
     const error = new Error("HiddenAudio cannot play without a loaded track");
+    logAndroidPlaybackParityDiagnostic(
+      "android_bridge_play_blocked_until_clean_load",
+      {
+        reason: "missing_loaded_track",
+        nativeStatus: snapshot?.nativeStatus || null,
+        hasLoadedTrack: snapshot?.hasLoadedTrack ?? false,
+      }
+    );
     logTapToPlayFailed({
       source: "bridge_hidden_audio_play",
       reason: "missing_loaded_track",
@@ -620,7 +655,7 @@ export async function bridgeHiddenAudioReassertBackgroundPlay(): Promise<void> {
   }
   if (hiddenAudioBridgePlayBlocked) return;
   const snapshot = await getHiddenAudioNativeSnapshot().catch(() => null);
-  if (!androidSnapshotIndicatesLoadedPlayback(snapshot)) {
+  if (!nativeSnapshotCanPreserveSession(snapshot)) {
     blockHiddenAudioBridgePlay();
     return;
   }

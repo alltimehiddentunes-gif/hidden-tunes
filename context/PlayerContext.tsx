@@ -49,6 +49,7 @@ import {
   bridgeHiddenAudioReassertBackgroundPlay,
   clearHiddenAudioBridgePlayBlock,
   isHiddenAudioBridgePlayBlocked,
+  nativeSnapshotCanPreserveSession,
   nativeSnapshotIndicatesLoadedPlayback,
   nativeSnapshotIsEnded,
   bridgeHiddenAudioUpdateNowPlaying,
@@ -476,6 +477,23 @@ function contextMatchesSong(song: AppSong, context: PlaybackQueueContext) {
       (genreName && genre === genreName) ||
       (moodName && mood.includes(moodName))
   );
+}
+
+function androidParityDiagnostic(
+  event: string,
+  data: Record<string, unknown> = {}
+): void {
+  if (Platform.OS !== "android") return;
+  logLockscreenPlaybackDiagnostic(event, data);
+}
+
+function nativeSnapshotRetainsSessionForPlatform(
+  snapshot: HiddenAudioNativeSnapshot | null | undefined
+): boolean {
+  if (Platform.OS === "android") {
+    return nativeSnapshotCanPreserveSession(snapshot);
+  }
+  return nativeSnapshotIndicatesLoadedPlayback(snapshot);
 }
 
 type SmartContinuationScore = {
@@ -1336,7 +1354,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
       try {
         const snapshot = await bridgeProbeNativePlayback();
-        if (nativeSnapshotIndicatesLoadedPlayback(snapshot)) {
+        if (nativeSnapshotRetainsSessionForPlatform(snapshot)) {
           if (!hiddenAudioActiveRef.current) {
             markHiddenAudioBridgeActive(true);
             hiddenAudioActiveRef.current = true;
@@ -1585,7 +1603,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         }
 
         const snapshot = await bridgeProbeNativePlayback();
-        const nativeAlive = nativeSnapshotIndicatesLoadedPlayback(snapshot);
+        const nativeAlive = nativeSnapshotRetainsSessionForPlatform(snapshot);
 
         if (nativeAlive && snapshot) {
           markHiddenAudioBridgeActive(true);
@@ -1646,6 +1664,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           queueIndex: activeQueueIndexRef.current,
           positionMillis: positionMillisRef.current,
           reason: "native_idle_requires_load_and_play",
+        });
+        androidParityDiagnostic("android_saved_session_restore_skipped_native_missing", {
+          songId: restoredSong.id || null,
+          queueLength: restoredQueue.length,
+          nativeStatus: snapshot?.nativeStatus || null,
+          hasLoadedTrack: snapshot?.hasLoadedTrack ?? null,
         });
         return false;
       } catch (error) {
@@ -1774,7 +1798,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       });
 
       const nativeRetainsPlayableTrack =
-        nativeSnapshotIndicatesLoadedPlayback(snapshot);
+        nativeSnapshotRetainsSessionForPlatform(snapshot);
 
       if (
         nativeRetainsPlayableTrack &&
@@ -3251,7 +3275,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           clearFinishWatchdog("repeat_one");
           void removeStoredValues([POSITION_KEY]);
           const snapshot = await bridgeProbeNativePlayback();
-          if (!nativeSnapshotIndicatesLoadedPlayback(snapshot)) {
+          if (!nativeSnapshotCanPreserveSession(snapshot)) {
             const song = currentSongRef.current;
             if (song) {
               await loadAndPlay(song);
@@ -4046,12 +4070,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
                 const requestedSameTrack =
                   existingSnapshot?.activeTrack?.url === playableUri ||
                   recoverySongSnapshot?.id === normalizedSong.id;
-                const sameTrackLoaded =
-                  !nativeEnded &&
-                  Boolean(existingSnapshot?.hasLoadedTrack) &&
-                  Boolean(existingSnapshot?.activeTrack?.url) &&
-                  requestedSameTrack;
-                preserveNativePlayback = Boolean(sameTrackLoaded && existingSnapshot?.isPlaying);
+                const canPreserveSession =
+                  nativeSnapshotCanPreserveSession(existingSnapshot) && requestedSameTrack;
+                preserveNativePlayback = Boolean(
+                  canPreserveSession && existingSnapshot?.isPlaying === true
+                );
 
                 if (nativeEnded) {
                   logLockscreenPlaybackDiagnostic("preserve_native_skipped_because_ended", {
@@ -4061,8 +4084,24 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
                     nativeStatus: existingSnapshot?.nativeStatus || null,
                     playbackState: existingSnapshot?.playbackState || null,
                   });
-                  if (recoverySongSnapshot?.id !== normalizedSong.id) {
+                  androidParityDiagnostic("android_preserve_native_skipped_because_ended", {
+                    source: "load_and_play_same_track",
+                    songId: normalizedSong.id,
+                    previousSongId: recoverySongSnapshot?.id || null,
+                    nativeStatus: existingSnapshot?.nativeStatus || null,
+                    playbackState: existingSnapshot?.playbackState || null,
+                  });
+                  if (
+                    autoAdvanceRef.current ||
+                    recoverySongSnapshot?.id !== normalizedSong.id
+                  ) {
                     logLockscreenPlaybackDiagnostic("auto_next_native_ended_requires_reload", {
+                      songId: normalizedSong.id,
+                      previousSongId: recoverySongSnapshot?.id || null,
+                      nativeStatus: existingSnapshot?.nativeStatus || null,
+                      playbackState: existingSnapshot?.playbackState || null,
+                    });
+                    androidParityDiagnostic("android_auto_next_native_ended_requires_reload", {
                       songId: normalizedSong.id,
                       previousSongId: recoverySongSnapshot?.id || null,
                       nativeStatus: existingSnapshot?.nativeStatus || null,
@@ -4709,7 +4748,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
         if (hiddenAudioActiveRef.current) {
           const snapshot = await bridgeProbeNativePlayback();
-          if (!nativeSnapshotIndicatesLoadedPlayback(snapshot) || isHiddenAudioBridgePlayBlocked()) {
+          if (!nativeSnapshotCanPreserveSession(snapshot) || isHiddenAudioBridgePlayBlocked()) {
             const song = currentSongRef.current;
             if (song) {
               await loadAndPlay(song);
@@ -5384,7 +5423,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           const snapshot = await bridgeProbeNativePlayback();
           const canResumeNative =
             !isHiddenAudioBridgePlayBlocked() &&
-            nativeSnapshotIndicatesLoadedPlayback(snapshot);
+            nativeSnapshotCanPreserveSession(snapshot);
           if (canResumeNative) {
             await bridgeHiddenAudioPlay();
           } else {
@@ -6307,6 +6346,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       } else if (nativeEventName === "android_native_track_invalidated") {
         playbackInterruptionActiveRef.current = true;
         blockHiddenAudioBridgePlay();
+        androidParityDiagnostic("android_bridge_play_blocked_until_clean_load", {
+          reason: "native_track_invalidated",
+          message: String((data as Record<string, unknown>).reason || ""),
+        });
         resetHiddenAudioSessionAfterIntentionalClose();
         hiddenAudioActiveRef.current = false;
         isPlayingRef.current = false;
