@@ -169,7 +169,7 @@ export default function GenreScreen() {
     const first = tracks[0];
     if (!first) return;
     void playSong(first, tracks, 0, {
-      source: "radio",
+      source: String(params.type || "genre") === "mood" ? "mood" : "genre",
       label: title,
       genre: String(params.type || "genre") === "mood" ? first.genre : title,
       mood: String(params.type || "genre") === "mood" ? title : first.mood,

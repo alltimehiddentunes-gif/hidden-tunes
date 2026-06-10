@@ -1084,7 +1084,7 @@ export default function SearchScreen() {
 
       if (tracks.length) {
         void playSong(tracks[0], tracks, 0, {
-          source: "radio",
+          source: station.kind === "room" ? "mood" : "genre",
           label: station.title,
           genre: tracks[0].genre || station.title,
           mood: tracks[0].mood,
@@ -1244,9 +1244,10 @@ export default function SearchScreen() {
       }
 
       void playSong(queue[0], queue, 0, {
-        source: "search",
+        source: "album",
         label: album.title,
-        searchQuery: submittedSearchQuery || searchQuery,
+        albumId: String(album.id || catalogAlbum?.id || ""),
+        albumTitle: album.title,
         artistName: album.artist,
       });
       router.push("/player" as any);
@@ -1302,9 +1303,9 @@ export default function SearchScreen() {
       }
 
       void playSong(queue[0], queue, 0, {
-        source: "search",
+        source: "artist",
         label: artist.name,
-        searchQuery: submittedSearchQuery || searchQuery,
+        artistId: String(artist.id || catalogArtist?.id || ""),
         artistName: artist.name,
       });
       router.push("/player" as any);
@@ -1358,18 +1359,24 @@ export default function SearchScreen() {
         return;
       }
 
+      const isMoodRoom = internalSearchResults.moodRooms.some(
+        (hit) =>
+          hit.payload.id === genre.id ||
+          normalizeSearchText(hit.payload.title) === normalizeSearchText(genre.title)
+      );
+
       void playSong(queue[0], queue, 0, {
-        source: "search",
+        source: isMoodRoom ? "mood" : "genre",
         label: genre.title,
-        searchQuery: submittedSearchQuery || searchQuery,
-        genre: genre.title,
-        mood: genre.title,
+        genre: isMoodRoom ? queue[0]?.genre : genre.title,
+        mood: isMoodRoom ? genre.title : queue[0]?.mood,
       });
       router.push("/player" as any);
     },
     [
       cleanSubmittedSearchQuery,
       genres,
+      internalSearchResults.moodRooms,
       playSong,
       reliableCatalogSongResults,
       searchQuery,
@@ -1395,9 +1402,9 @@ export default function SearchScreen() {
       }
 
       void playSong(queue[0], queue, 0, {
-        source: "search",
+        source: "playlist",
         label: playlist.title,
-        searchQuery: submittedSearchQuery || searchQuery,
+        railId: String(playlist.id || catalogPlaylist.id || ""),
       });
       router.push("/player" as any);
     },
