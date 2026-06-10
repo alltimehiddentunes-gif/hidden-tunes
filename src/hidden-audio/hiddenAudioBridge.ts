@@ -104,6 +104,7 @@ type HiddenAudioNativeTrack = {
 
 type HiddenAudioNativeModule = {
   loadTrack(track: HiddenAudioNativeTrack): Promise<void>;
+  notifyAppBackgrounded(): Promise<void>;
   updateRemoteQueueAvailability?(
     activeIndex: number,
     queueLength: number
@@ -377,6 +378,11 @@ export function subscribeHiddenAudioNativeDiagnostics(
 
   const subscription = hiddenAudioEvents.addListener("HiddenAudioDiagnostic", handler);
   return () => subscription.remove();
+}
+
+export async function notifyHiddenAudioAppBackgrounded(): Promise<void> {
+  if (!HiddenAudioNative?.notifyAppBackgrounded) return;
+  await HiddenAudioNative.notifyAppBackgrounded();
 }
 
 export const hiddenAudioBridge: HiddenAudioEngine = {

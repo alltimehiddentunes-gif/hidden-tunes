@@ -45,6 +45,8 @@ object HiddenAudioCore {
   private var audioFocusRequest: AudioFocusRequest? = null
   private var audioFocusChangeListener: AudioManager.OnAudioFocusChangeListener? = null
   private const val AUDIO_FOCUS_STABILITY_WINDOW_MS = 3000L
+  private const val TASK_REMOVED_BACKGROUND_GRACE_MS = 3000L
+  private var lastAppBackgroundAtMs = 0L
 
   private var hasAudioFocus = false
   private var shouldPlayWhenReady = false
@@ -123,8 +125,13 @@ object HiddenAudioCore {
       throw IllegalArgumentException("HiddenAudio track URL is required")
     }
     val mediaItem = MediaItem.fromUri(Uri.parse(url))
-    player?.setMediaItem(mediaItem)
-    player?.prepare()
+    val exo = player
+    exo?.stop()
+    exo?.clearMediaItems()
+    exo?.setMediaItem(mediaItem)
+    exo?.seekTo(0)
+    shouldPlayWhenReady = false
+    exo?.prepare()
     playerStatus = "ready"
     emitTrackChanged()
     emitState()
@@ -148,8 +155,12 @@ object HiddenAudioCore {
     shouldPlayWhenReady = true
     startForegroundService()
     player?.playWhenReady = true
-    if (player?.playbackState == Player.STATE_IDLE) {
-      player?.prepare()
+    when (player?.playbackState) {
+      Player.STATE_IDLE -> player?.prepare()
+      Player.STATE_ENDED -> {
+        player?.seekTo(0)
+        player?.prepare()
+      }
     }
     player?.play()
     playerStatus = when (player?.playbackState) {
@@ -311,8 +322,15 @@ object HiddenAudioCore {
       } else {
         exo.duration.coerceAtLeast(0) / 1000.0
       }
+    val durationMillisForEnd =
+      if (exo == null || exo.duration <= 0) 0L else exo.duration.coerceAtLeast(0)
+    val positionMillisForEnd = exo?.currentPosition?.coerceAtLeast(0) ?: 0L
+    val atEnd =
+      playerStatus == "ended" ||
+        (durationMillisForEnd > 0 && positionMillisForEnd >= durationMillisForEnd - 500)
     val isPlaying =
-      exo?.isPlaying == true || exo?.playWhenReady == true && playerStatus == "buffering"
+      !atEnd &&
+        (exo?.isPlaying == true || (exo?.playWhenReady == true && playerStatus == "buffering"))
     val progress = Arguments.createMap()
     progress.putDouble("positionSeconds", positionSeconds)
     progress.putDouble("durationSeconds", durationSeconds)
@@ -421,6 +439,10 @@ object HiddenAudioCore {
   private fun handlePlaybackEnded() {
     if (playbackEndedHandled) return
     playbackEndedHandled = true
+    val exo = player
+    exo?.pause()
+    exo?.playWhenReady = false
+    shouldPlayWhenReady = false
     playerStatus = "ended"
     stopProgressLoop()
     val body = Arguments.createMap()
@@ -880,7 +902,19 @@ object HiddenAudioCore {
   }
 
 
+  fun notifyAppBackgrounded() {
+    lastAppBackgroundAtMs = SystemClock.elapsedRealtime()
+  }
+
   fun handleTaskRemoved() {
+    val nowMs = SystemClock.elapsedRealtime()
+    if (
+      lastAppBackgroundAtMs > 0L &&
+      nowMs - lastAppBackgroundAtMs <= TASK_REMOVED_BACKGROUND_GRACE_MS
+    ) {
+      emitDiagnostic("android_task_removed_ignored_recent_background")
+      return
+    }
     appTaskRemoved = true
     phoneCallInterruptionActive = false
     wasPlayingBeforeAudioFocusLoss = false

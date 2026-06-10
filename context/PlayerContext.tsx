@@ -63,7 +63,7 @@ import {
 } from "../services/playbackBridge";
 import type { PlaybackProgress } from "../services/playbackBridge";
 import type { HiddenAudioNativeSnapshot } from "../src/hidden-audio/hiddenAudioBridge";
-import { resetHiddenAudioLoadedUrl } from "../src/hidden-audio/hiddenAudioBridge";
+import { resetHiddenAudioLoadedUrl, notifyHiddenAudioAppBackgrounded } from "../src/hidden-audio/hiddenAudioBridge";
 import { getArtworkValue } from "../utils/artwork";
 import { scheduleStartupTask } from "../utils/startupScheduler";
 import {
@@ -1353,44 +1353,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         // ignore storage read errors
       }
 
-      if (hiddenAudioActiveRef.current && currentSongRef.current) {
-        return true;
-      }
-
-      const hasAndroidPlayableSession =
-        Platform.OS !== "android" ||
-        Boolean(currentSongRef.current && getPlayableUri(currentSongRef.current)) ||
-        isPlayingRef.current;
-
-      if (
-        hasAndroidPlayableSession &&
-        (currentSongRef.current || activeQueueRef.current.length > 0 || isPlayingRef.current)
-      ) {
-        if (!hiddenAudioActiveRef.current) {
-          markHiddenAudioBridgeActive(true);
-          hiddenAudioActiveRef.current = true;
-          logLockscreenPlaybackDiagnostic(
-            "blocked_hidden_audio_active_false_while_saved_session_exists",
-            {
-              source,
-              songId: currentSongRef.current?.id || null,
-              queueLength: activeQueueRef.current.length,
-              isPlaying: isPlayingRef.current,
-            }
-          );
-        }
-        return true;
-      }
-
       try {
-        const savedSong = await AsyncStorage.getItem(CURRENT_SONG_KEY);
-        if (savedSong) {
-          const snapshot = await bridgeProbeNativePlayback();
-          if (!nativeSnapshotIndicatesLoadedPlayback(snapshot)) {
-            resetHiddenAudioSessionAfterIntentionalClose();
-            hiddenAudioActiveRef.current = false;
-            return false;
-          }
+        const snapshot = await bridgeProbeNativePlayback();
+        if (nativeSnapshotIndicatesLoadedPlayback(snapshot)) {
           if (!hiddenAudioActiveRef.current) {
             markHiddenAudioBridgeActive(true);
             hiddenAudioActiveRef.current = true;
@@ -1398,25 +1363,34 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               "blocked_hidden_audio_active_false_while_saved_session_exists",
               {
                 source,
-                songId: null,
+                songId: currentSongRef.current?.id || null,
                 queueLength: activeQueueRef.current.length,
-                savedSession: true,
+                isPlaying: isPlayingRef.current,
               }
             );
           }
           return true;
         }
-      } catch {
-        // ignore storage read errors
-      }
 
-      try {
-        const snapshot = await bridgeProbeNativePlayback();
-        if (nativeSnapshotIndicatesLoadedPlayback(snapshot)) {
-          markHiddenAudioBridgeActive(true);
-          hiddenAudioActiveRef.current = true;
-          return true;
+        if (
+          hiddenAudioActiveRef.current ||
+          currentSongRef.current ||
+          activeQueueRef.current.length > 0 ||
+          isPlayingRef.current
+        ) {
+          resetHiddenAudioSessionAfterIntentionalClose();
+          hiddenAudioActiveRef.current = false;
+          isPlayingRef.current = false;
+          setIsPlayingState(false);
+          logLockscreenPlaybackDiagnostic("hidden_audio_active_cleared_native_missing", {
+            source,
+            songId: currentSongRef.current?.id || null,
+            queueLength: activeQueueRef.current.length,
+            nativeStatus: snapshot?.nativeStatus || null,
+            hasLoadedTrack: snapshot?.hasLoadedTrack ?? null,
+          });
         }
+        return false;
       } catch {
         // ignore native probe errors
       }
@@ -5414,7 +5388,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           setDurationMillis(0);
         } else {
           clearIntentionalPause("play");
-          await bridgeHiddenAudioPlay();
+          try {
+            await bridgeHiddenAudioPlay();
+          } catch {
+            const song = currentSongRef.current;
+            if (song) {
+              await loadAndPlay(song);
+            } else {
+              throw new Error("HiddenAudio cannot play without a loaded track");
+            }
+          }
         }
 
         await syncHiddenAudioState("toggle_play_pause");
@@ -6128,7 +6111,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             logLockscreenPlaybackDiagnostic("remote_play_received", data);
             clearIntentionalPause("play");
             if (Platform.OS === "android" && isHiddenAudioNativePlaybackEnabled()) {
-              await bridgeHiddenAudioPlay();
+              try {
+                await bridgeHiddenAudioPlay();
+              } catch {
+                const song = currentSongRef.current;
+                if (song) {
+                  await loadAndPlay(song);
+                } else {
+                  throw new Error("HiddenAudio cannot play without a loaded track");
+                }
+              }
               isPlayingRef.current = true;
               setIsPlaying(true);
             } else {
@@ -6557,6 +6549,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           songId: currentSongRef.current?.id || null,
           isPlaying: isPlayingRef.current,
         });
+        if (Platform.OS === "android" && isHiddenAudioNativePlaybackEnabled()) {
+          void notifyHiddenAudioAppBackgrounded();
+        }
       }
 
       if (nextState === "active" && previousState !== "active") {

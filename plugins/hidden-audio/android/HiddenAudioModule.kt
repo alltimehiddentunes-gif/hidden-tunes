@@ -106,6 +106,14 @@ class HiddenAudioModule(
     }
   }
 
+
+  @ReactMethod
+  fun notifyAppBackgrounded(promise: Promise) {
+    runOnMain(promise, "HIDDEN_AUDIO_BACKGROUND_NOTIFY_FAILED", "android_background_notify_failed") {
+      HiddenAudioCore.notifyAppBackgrounded()
+    }
+  }
+
   @ReactMethod
   fun play(promise: Promise) {
     runOnMain(promise, "HIDDEN_AUDIO_PLAY_FAILED", "hidden_audio_play_failed") {
