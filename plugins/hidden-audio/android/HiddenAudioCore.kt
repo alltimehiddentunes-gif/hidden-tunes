@@ -124,11 +124,12 @@ object HiddenAudioCore {
       throw IllegalArgumentException("HiddenAudio track URL is required")
     }
     val mediaKey = mediaKeyFor(nextTrack)
-    val isNewMedia = mediaKey != loadedMediaKey
     activeTrack = nextTrack
     activeIndex = 0
     playbackEndedHandled = false
     lastPlayingStartedAtMs = 0L
+    loadedMediaKey = mediaKey
+    pendingLoadSeekToStart = true
     val mediaItem = MediaItem.Builder()
       .setUri(Uri.parse(url))
       .setMediaId(nextTrack.id)
@@ -138,11 +139,7 @@ object HiddenAudioCore {
     exo.stop()
     exo.clearMediaItems()
     exo.setMediaItem(mediaItem, 0L)
-    if (isNewMedia) {
-      loadedMediaKey = mediaKey
-      pendingLoadSeekToStart = true
-      forceSeekToStart(exo, emitDiagnostic = true, reason = "load_track_set_media_item")
-    }
+    forceSeekToStart(exo, emitDiagnostic = true, reason = "load_track_set_media_item")
     shouldPlayWhenReady = false
     exo.prepare()
     playerStatus = "ready"
@@ -156,8 +153,9 @@ object HiddenAudioCore {
     clearPlaybackCallbacks()
     committedPlaySessionId = playbackSessionId
     val url = activeTrack?.url ?: ""
-    if (url.isBlank()) {
-      playerStatus = "error"
+    val exoForPlay = player
+    if (url.isBlank() || exoForPlay == null || exoForPlay.mediaItemCount <= 0) {
+      playerStatus = "idle"
       emitDiagnostic("hidden_audio_play_failed", simpleData("reason", "missing_loaded_track"))
       emitState()
       throw IllegalStateException("HiddenAudio cannot play without a loaded track")
@@ -435,7 +433,7 @@ object HiddenAudioCore {
       }
 
       override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
-        playerStatus = "error"
+        val failedTrack = activeTrack
         val data = Arguments.createMap()
         data.putString("message", error.message ?: "unknown")
         data.putString("errorCodeName", error.errorCodeName)
@@ -443,9 +441,18 @@ object HiddenAudioCore {
         data.putString("playbackState", playbackStateName(player?.playbackState ?: Player.STATE_IDLE))
         data.putBoolean("playWhenReady", player?.playWhenReady == true)
         data.putBoolean("isPlaying", player?.isPlaying == true)
+        if (failedTrack != null) {
+          data.putString("trackId", failedTrack.id)
+          data.putString("trackUrl", failedTrack.url)
+        }
         emitDiagnostic("android_player_error", data)
-        emitState()
-        emitProgress()
+        if (
+          error.errorCode ==
+            androidx.media3.common.PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED
+        ) {
+          emitDiagnostic("android_player_network_connection_failed", data)
+        }
+        invalidateLoadedTrackAfterSourceError(error.errorCodeName ?: "player_error")
       }
     })
     HiddenAudioMediaSessionManager.ensureSession(context)
@@ -525,9 +532,36 @@ object HiddenAudioCore {
     if (!pendingLoadSeekToStart || playbackState != Player.STATE_READY) return
     val exo = player ?: return
     pendingLoadSeekToStart = false
-    if (exo.currentPosition > 0L) {
+    val durationMs = exo.duration.coerceAtLeast(0L)
+    val positionMs = exo.currentPosition.coerceAtLeast(0L)
+    val atEnd = durationMs > 0L && positionMs >= durationMs - 500L
+    if (positionMs > 0L || atEnd) {
       forceSeekToStart(exo, emitDiagnostic = true, reason = "state_ready_position_reset")
     }
+  }
+
+  private fun invalidateLoadedTrackAfterSourceError(reason: String) {
+    clearPlaybackCallbacks()
+    bumpPlaybackSession()
+    committedPlaySessionId = 0L
+    shouldPlayWhenReady = false
+    backgroundPlaybackIntended = false
+    playbackEndedHandled = false
+    pendingLoadSeekToStart = false
+    loadedMediaKey = null
+    val exo = player
+    exo?.stop()
+    exo?.clearMediaItems()
+    exo?.playWhenReady = false
+    activeTrack = null
+    activeIndex = 0
+    playerStatus = "idle"
+    stopProgressLoop()
+    val data = Arguments.createMap()
+    data.putString("reason", reason)
+    emitDiagnostic("android_native_track_invalidated", data)
+    emitState()
+    emitProgress()
   }
 
   private fun trackToMap(track: ReadableMap): ActiveTrackData {
