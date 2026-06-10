@@ -8,6 +8,7 @@ import java.util.concurrent.ConcurrentHashMap
 
 object HiddenAudioAutoCatalog {
   const val ROOT_ID = "hidden_tunes_root"
+  const val HIDDEN_TUNES_ID = "hidden_tunes"
 
   data class AutoTrack(
     val mediaId: String,
@@ -40,7 +41,7 @@ object HiddenAudioAutoCatalog {
 
     val roots = snapshot.getArraySafe("roots")
     if (roots != null) {
-      childrenByParent[ROOT_ID] = parseBrowseNodes(roots)
+      childrenByParent[ROOT_ID] = ensureHiddenTunesRoot(parseBrowseNodes(roots))
     }
 
     val sections = snapshot.getArraySafe("sections")
@@ -83,7 +84,33 @@ object HiddenAudioAutoCatalog {
     if (parentId == ROOT_ID && !childrenByParent.containsKey(ROOT_ID)) {
       childrenByParent[ROOT_ID] = defaultRootNodes()
     }
+    if (parentId == HIDDEN_TUNES_ID) {
+      val cached = childrenByParent[HIDDEN_TUNES_ID]
+      if (!cached.isNullOrEmpty()) return cached
+      return hiddenTunesHomeNodes()
+    }
     return childrenByParent[parentId] ?: emptyList()
+  }
+
+  fun getRootChildrenForAuto(limit: Int, supportedFlags: Int): List<BrowseNode> {
+    val all = getChildren(ROOT_ID)
+    val browsableOnly =
+      supportedFlags and android.support.v4.media.MediaBrowserCompat.MediaItem.FLAG_BROWSABLE != 0
+    val filtered = if (browsableOnly) all.filter { !it.playable } else all
+    if (limit <= 0 || limit == Int.MAX_VALUE) return filtered
+
+    val priority = listOf(
+      HIDDEN_TUNES_ID,
+      "recently_added",
+      "artists",
+      "albums",
+      "genres",
+      "playlists"
+    )
+    val byId = filtered.associateBy { it.mediaId }
+    val ordered = priority.mapNotNull { byId[it] }
+    val remainder = filtered.filter { entry -> entry.mediaId !in priority }
+    return (ordered + remainder).take(limit)
   }
 
   fun getTrack(mediaId: String): AutoTrack? = tracksByMediaId[mediaId]
@@ -101,12 +128,28 @@ object HiddenAudioAutoCatalog {
   }
 
   private fun defaultRootNodes(): List<BrowseNode> = listOf(
+    BrowseNode(HIDDEN_TUNES_ID, "Hidden Tunes", "Your music library", false),
     BrowseNode("recently_added", "Recently Added", "Latest songs", false),
     BrowseNode("artists", "Artists", "Browse by artist", false),
     BrowseNode("albums", "Albums", "Browse by album", false),
     BrowseNode("genres", "Genres", "Browse by genre", false),
     BrowseNode("playlists", "Playlists", "Collections and rooms", false)
   )
+
+  private fun hiddenTunesHomeNodes(): List<BrowseNode> = listOf(
+    BrowseNode("recently_added", "Recently Added", "Latest songs", false),
+    BrowseNode("artists", "Artists", "Browse by artist", false),
+    BrowseNode("albums", "Albums", "Browse by album", false),
+    BrowseNode("genres", "Genres", "Browse by genre", false),
+    BrowseNode("playlists", "Playlists", "Collections and rooms", false)
+  )
+
+  private fun ensureHiddenTunesRoot(nodes: List<BrowseNode>): List<BrowseNode> {
+    if (nodes.any { it.mediaId == HIDDEN_TUNES_ID }) return nodes
+    return listOf(
+      BrowseNode(HIDDEN_TUNES_ID, "Hidden Tunes", "Your music library", false)
+    ) + nodes
+  }
 
   private fun parseBrowseNodes(array: ReadableArray): List<BrowseNode> {
     val nodes = mutableListOf<BrowseNode>()

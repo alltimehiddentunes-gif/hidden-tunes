@@ -7,6 +7,9 @@ import androidx.media.MediaBrowserServiceCompat
 import com.facebook.react.bridge.Arguments
 
 class HiddenAudioMediaBrowserService : MediaBrowserServiceCompat() {
+  private var rootChildrenLimit = Int.MAX_VALUE
+  private var rootChildrenSupportedFlags = MediaBrowserCompat.MediaItem.FLAG_BROWSABLE
+
   override fun onCreate() {
     super.onCreate()
     HiddenAudioMediaSessionManager.ensureSession(applicationContext)
@@ -21,7 +24,30 @@ class HiddenAudioMediaBrowserService : MediaBrowserServiceCompat() {
     HiddenAudioCore.emitAutoDiagnostic("android_auto_media_root_requested")
     HiddenAudioMediaSessionManager.ensureSession(applicationContext)
     sessionToken = HiddenAudioMediaSessionManager.sessionToken()
-    return BrowserRoot(HiddenAudioAutoCatalog.ROOT_ID, null)
+
+    rootHints?.let { hints ->
+      if (hints.containsKey(BrowserRoot.EXTRA_ROOT_CHILDREN_LIMIT)) {
+        rootChildrenLimit = hints.getInt(BrowserRoot.EXTRA_ROOT_CHILDREN_LIMIT, Int.MAX_VALUE)
+      }
+      if (hints.containsKey(BrowserRoot.EXTRA_ROOT_CHILDREN_SUPPORTED_FLAGS)) {
+        rootChildrenSupportedFlags = hints.getInt(
+          BrowserRoot.EXTRA_ROOT_CHILDREN_SUPPORTED_FLAGS,
+          MediaBrowserCompat.MediaItem.FLAG_BROWSABLE
+        )
+      }
+    }
+
+    val extras = Bundle().apply {
+      putInt(
+        MediaBrowserCompat.EXTRA_CONTENT_STYLE_BROWSABLE,
+        MediaBrowserCompat.CONTENT_STYLE_LIST_ITEM
+      )
+      putInt(
+        MediaBrowserCompat.EXTRA_CONTENT_STYLE_PLAYABLE,
+        MediaBrowserCompat.CONTENT_STYLE_LIST_ITEM
+      )
+    }
+    return BrowserRoot(HiddenAudioAutoCatalog.ROOT_ID, extras)
   }
 
   override fun onLoadChildren(
@@ -33,7 +59,15 @@ class HiddenAudioMediaBrowserService : MediaBrowserServiceCompat() {
     HiddenAudioCore.emitAutoDiagnostic("android_auto_children_requested", data)
 
     try {
-      val children = HiddenAudioAutoCatalog.getChildren(parentId)
+      val children =
+        if (parentId == HiddenAudioAutoCatalog.ROOT_ID) {
+          HiddenAudioAutoCatalog.getRootChildrenForAuto(
+            rootChildrenLimit,
+            rootChildrenSupportedFlags
+          )
+        } else {
+          HiddenAudioAutoCatalog.getChildren(parentId)
+        }
       val items = children.map { node ->
         val description = MediaDescriptionCompat.Builder()
           .setMediaId(node.mediaId)
