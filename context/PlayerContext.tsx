@@ -427,6 +427,24 @@ function normalizePlaybackQueueContext(
   };
 }
 
+
+function isBoundedPlaybackContext(
+  source: PlaybackQueueContext["source"] | null | undefined
+): boolean {
+  if (!source) {
+    return true;
+  }
+
+  switch (source) {
+    case "full_catalog":
+    case "radio":
+    case "queue":
+      return false;
+    default:
+      return true;
+  }
+}
+
 function contextMatchesSong(song: AppSong, context: PlaybackQueueContext) {
   const artist = String(song.artist || song.user?.name || "").toLowerCase();
   const genre = String(song.genre || "").toLowerCase();
@@ -3137,6 +3155,32 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           nextIndex: -1,
         });
 
+        const boundedQueueEndContext = activeQueueContextRef.current;
+        if (isBoundedPlaybackContext(boundedQueueEndContext.source)) {
+          logLockscreenPlaybackDiagnostic("bounded_context_queue_end_stop", {
+            source: boundedQueueEndContext.source,
+            label: boundedQueueEndContext.label ?? null,
+            albumId: boundedQueueEndContext.albumId ?? null,
+            artistId: boundedQueueEndContext.artistId ?? null,
+            artistName: boundedQueueEndContext.artistName ?? null,
+            genre: boundedQueueEndContext.genre ?? null,
+            mood: boundedQueueEndContext.mood ?? null,
+            searchQuery: boundedQueueEndContext.searchQuery ?? null,
+            railId: boundedQueueEndContext.railId ?? null,
+            queueLength: queue.length,
+            activeIndex: currentIndex,
+          });
+          logAutoNextSkipped("bounded_context_queue_end_stop", {
+            source: boundedQueueEndContext.source,
+            queueLength: queue.length,
+            repeatMode: repeatModeRef.current,
+          });
+          setIsPlaying(false);
+          setPositionMillis(0);
+          setDurationMillis(0);
+          return;
+        }
+
         if (!smartAutoplayEnabledRef.current) {
           logAutoNextSkipped("queue_ended_smart_autoplay_disabled", {
             queueLength: queue.length,
@@ -3657,6 +3701,25 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     if (getNextQueueIndex(safeIndex, queue.length) >= 0) {
 
       await scheduleTrackAdvance();
+      return;
+    }
+
+    const boundedPendingExtendContext = activeQueueContextRef.current;
+    if (isBoundedPlaybackContext(boundedPendingExtendContext.source)) {
+      logLockscreenPlaybackDiagnostic("bounded_context_pending_extend_blocked", {
+        source: boundedPendingExtendContext.source,
+        label: boundedPendingExtendContext.label ?? null,
+        albumId: boundedPendingExtendContext.albumId ?? null,
+        artistId: boundedPendingExtendContext.artistId ?? null,
+        artistName: boundedPendingExtendContext.artistName ?? null,
+        genre: boundedPendingExtendContext.genre ?? null,
+        mood: boundedPendingExtendContext.mood ?? null,
+        searchQuery: boundedPendingExtendContext.searchQuery ?? null,
+        railId: boundedPendingExtendContext.railId ?? null,
+        queueLength: queue.length,
+        activeIndex: safeIndex,
+      });
+      pendingSmartExtendRef.current = false;
       return;
     }
 
