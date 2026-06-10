@@ -69,9 +69,6 @@ object HiddenAudioCore {
   private var playbackCallbackGeneration = 0L
   private var loadedMediaKey: String? = null
   private var pendingLoadSeekToStart = false
-  private var sourceErrorRetryCount = 0
-  private var sourceErrorRetryMediaKey: String? = null
-  private const val MAX_SOURCE_ERROR_RETRIES = 2
   private const val HTTP_USER_AGENT = "HiddenTunes/1.0 (Linux; Android)"
 
   fun attachReactContext(context: ReactApplicationContext) {
@@ -123,8 +120,6 @@ object HiddenAudioCore {
     val sessionId = bumpPlaybackSession()
     committedPlaySessionId = sessionId
     lastLoadTrackAtMs = SystemClock.elapsedRealtime()
-    sourceErrorRetryCount = 0
-    sourceErrorRetryMediaKey = null
     val nextTrack = trackToMap(track)
     val url = nextTrack.url
     if (url.isBlank()) {
@@ -252,8 +247,6 @@ object HiddenAudioCore {
     activeIndex = 0
     loadedMediaKey = null
     pendingLoadSeekToStart = false
-    sourceErrorRetryCount = 0
-    sourceErrorRetryMediaKey = null
     playbackEndedHandled = false
     lastPlayingStartedAtMs = 0L
     lastPlayRequestAtMs = 0L
@@ -426,8 +419,6 @@ object HiddenAudioCore {
             emitPlaybackStateDiagnostic("android_player_state_buffering", playbackState)
           }
           Player.STATE_READY -> {
-            sourceErrorRetryCount = 0
-            sourceErrorRetryMediaKey = null
             ensureLoadedTrackStartsAtBeginning(playbackState)
             playerStatus = when {
               player?.isPlaying == true -> "playing"
@@ -500,8 +491,6 @@ object HiddenAudioCore {
         ) {
           emitDiagnostic("android_player_network_connection_failed", data)
         }
-        sourceErrorRetryCount = 0
-        sourceErrorRetryMediaKey = null
         invalidateLoadedTrackAfterSourceError(error.errorCodeName ?: "player_error")
       }
     })
@@ -587,68 +576,6 @@ object HiddenAudioCore {
     val atEnd = durationMs > 0L && positionMs >= durationMs - 500L
     if (positionMs > 0L || atEnd) {
       forceSeekToStart(exo, emitDiagnostic = true, reason = "state_ready_position_reset")
-    }
-  }
-
-  private fun isRetryableSourceError(error: PlaybackException): Boolean {
-    return when (error.errorCode) {
-      PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
-      PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT,
-      PlaybackException.ERROR_CODE_IO_UNSPECIFIED,
-      PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS -> true
-      else -> false
-    }
-  }
-
-  private fun retryLoadActiveTrackAfterSourceError(
-    error: PlaybackException
-  ): Boolean {
-    val track = activeTrack ?: return false
-    val mediaKey = loadedMediaKey ?: return false
-    if (sourceErrorRetryMediaKey != mediaKey) {
-      sourceErrorRetryMediaKey = mediaKey
-      sourceErrorRetryCount = 0
-    }
-    if (sourceErrorRetryCount >= MAX_SOURCE_ERROR_RETRIES) return false
-
-    sourceErrorRetryCount += 1
-    val retryData = Arguments.createMap()
-    retryData.putString("message", error.message ?: "unknown")
-    retryData.putString("errorCodeName", error.errorCodeName)
-    retryData.putInt("errorCode", error.errorCode)
-    retryData.putInt("attempt", sourceErrorRetryCount)
-    retryData.putString("mediaKey", mediaKey)
-    if (track.id.isNotBlank()) retryData.putString("trackId", track.id)
-    if (track.url.isNotBlank()) retryData.putString("trackUrl", track.url)
-    emitDiagnostic("android_player_network_retry", retryData)
-
-    return try {
-      val mediaItem = MediaItem.Builder()
-        .setUri(Uri.parse(track.url))
-        .setMediaId(track.id)
-        .build()
-      val exo = player ?: return false
-      val resumePlayback = shouldPlayWhenReady
-      playbackEndedHandled = false
-      pendingLoadSeekToStart = true
-      exo.stop()
-      exo.clearMediaItems()
-      exo.setMediaItem(mediaItem, 0L)
-      forceSeekToStart(exo, emitDiagnostic = true, reason = "network_retry")
-      exo.prepare()
-      if (resumePlayback) {
-        exo.playWhenReady = true
-        exo.play()
-        playerStatus = "buffering"
-        startProgressLoop()
-      } else {
-        playerStatus = "ready"
-      }
-      emitState()
-      emitProgress()
-      true
-    } catch (_: Throwable) {
-      false
     }
   }
 

@@ -5917,7 +5917,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       if (!hiddenAudioActiveRef.current) {
         if (isHiddenAudioNativePlaybackEnabled()) {
           const snapshot = await bridgeProbeNativePlayback();
-          if (!nativeSnapshotIndicatesLoadedPlayback(snapshot)) {
+          if (!nativeSnapshotRetainsSessionForPlatform(snapshot)) {
             return;
           }
           markHiddenAudioBridgeActive(true);
@@ -6149,7 +6149,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               const snapshot = await bridgeProbeNativePlayback();
               const canResumeNative =
                 !isHiddenAudioBridgePlayBlocked() &&
-                nativeSnapshotIndicatesLoadedPlayback(snapshot);
+                nativeSnapshotCanPreserveSession(snapshot);
               if (canResumeNative) {
                 await bridgeHiddenAudioPlay();
               } else {
@@ -6685,10 +6685,23 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
                     reason: "background_30s_watch",
                     songId: currentSongRef.current?.id || null,
                   });
-                  void (Platform.OS === "android"
-                    ? bridgeHiddenAudioReassertBackgroundPlay()
-                    : bridgeHiddenAudioPlay()
-                  ).catch(() => undefined);
+                  void (async () => {
+                    if (Platform.OS === "android" && isHiddenAudioNativePlaybackEnabled()) {
+                      if (
+                        !isHiddenAudioBridgePlayBlocked() &&
+                        nativeSnapshotCanPreserveSession(snapshot)
+                      ) {
+                        await bridgeHiddenAudioReassertBackgroundPlay();
+                        return;
+                      }
+                      const song = currentSongRef.current;
+                      if (song) {
+                        await loadAndPlay(song);
+                      }
+                      return;
+                    }
+                    await bridgeHiddenAudioPlay();
+                  })().catch(() => undefined);
                 }
               });
             }, 30000)
