@@ -368,7 +368,7 @@ export function buildContextualPlaybackQueue(options: {
 
   let builtFrom: string = context.source;
   let queue: QueueBuildSong[] = [];
-  const expanded = provided.length <= 1;
+  let expanded = provided.length <= 1;
   let candidates: QueueBuildSong[] = [];
 
   if (provided.length > 1) {
@@ -376,9 +376,21 @@ export function buildContextualPlaybackQueue(options: {
     builtFrom = `${context.source}_provided`;
     candidates = provided;
   } else if (context.source === "search") {
-    queue = buildSearchQueue(provided, catalog, context, seed);
-    builtFrom = "search_contextual";
-    candidates = queue;
+    if (provided.length >= 1) {
+      queue = provided;
+      builtFrom = "search_provided";
+      expanded = false;
+      candidates = provided;
+    } else {
+      candidates = filterByContext(catalog, context, seed);
+      queue = candidates.length
+        ? candidates
+        : isPlayableSong(seed)
+          ? [seed]
+          : [];
+      builtFrom = candidates.length ? "search_matched" : "search_seed";
+      expanded = false;
+    }
   } else {
     candidates = filterByContext(catalog, context, seed);
     const expandedResult = expanded
@@ -392,8 +404,13 @@ export function buildContextualPlaybackQueue(options: {
   }
 
   if (!queue.length) {
-    queue = catalog.length ? catalog : [seed];
-    builtFrom = "catalog_fallback";
+    if (context.source === "search") {
+      queue = isPlayableSong(seed) ? [seed] : [];
+      builtFrom = "search_seed_fallback";
+    } else {
+      queue = catalog.length ? catalog : [seed];
+      builtFrom = "catalog_fallback";
+    }
   }
 
   const placed = ensureSongInQueue(queue, seed);
