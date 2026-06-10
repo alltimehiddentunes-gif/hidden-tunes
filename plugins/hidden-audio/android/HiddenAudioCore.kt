@@ -43,6 +43,7 @@ object HiddenAudioCore {
   private var progressTick: Runnable? = null
   private var audioManager: AudioManager? = null
   private var audioFocusRequest: AudioFocusRequest? = null
+  private var audioFocusChangeListener: AudioManager.OnAudioFocusChangeListener? = null
   private const val AUDIO_FOCUS_STABILITY_WINDOW_MS = 3000L
 
   private var hasAudioFocus = false
@@ -605,41 +606,74 @@ object HiddenAudioCore {
     }
   }
 
+  private fun getOrCreateAudioFocusRequest(): AudioFocusRequest {
+    audioFocusRequest?.let { return it }
+
+    val focusAttributes = AudioAttributes.Builder()
+      .setUsage(AudioAttributes.USAGE_MEDIA)
+      .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+      .build()
+    val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+      .setAudioAttributes(focusAttributes)
+      .setOnAudioFocusChangeListener { change ->
+        handleAudioFocusChange(change)
+      }
+      .build()
+    audioFocusRequest = request
+    return request
+  }
+
   private fun requestAudioFocus(): Boolean {
     val manager = audioManager ?: return false
+
+    if (hasAudioFocus) {
+      emitDiagnostic("android_audio_focus_request_reused")
+      return true
+    }
+
+    emitDiagnostic("android_audio_focus_request_start")
+
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-      val focusAttributes = AudioAttributes.Builder()
-        .setUsage(AudioAttributes.USAGE_MEDIA)
-        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-        .build()
-      val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
-        .setAudioAttributes(focusAttributes)
-        .setOnAudioFocusChangeListener { change ->
-          handleAudioFocusChange(change)
-        }
-        .build()
-      audioFocusRequest = request
+      val request = getOrCreateAudioFocusRequest()
       val result = manager.requestAudioFocus(request)
       hasAudioFocus = result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+      if (hasAudioFocus) {
+        emitDiagnostic("android_audio_focus_request_granted")
+      } else {
+        emitDiagnostic("android_audio_focus_request_failed")
+      }
       return hasAudioFocus
+    }
+
+    if (audioFocusChangeListener == null) {
+      audioFocusChangeListener = AudioManager.OnAudioFocusChangeListener { change ->
+        handleAudioFocusChange(change)
+      }
     }
     @Suppress("DEPRECATION")
     val result = manager.requestAudioFocus(
-      { change -> handleAudioFocusChange(change) },
+      audioFocusChangeListener,
       AudioManager.STREAM_MUSIC,
       AudioManager.AUDIOFOCUS_GAIN
     )
     hasAudioFocus = result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+    if (hasAudioFocus) {
+      emitDiagnostic("android_audio_focus_request_granted")
+    } else {
+      emitDiagnostic("android_audio_focus_request_failed")
+    }
     return hasAudioFocus
   }
 
   private fun abandonAudioFocus() {
     val manager = audioManager ?: return
+    if (!hasAudioFocus) return
+
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
       audioFocusRequest?.let { manager.abandonAudioFocusRequest(it) }
     } else {
       @Suppress("DEPRECATION")
-      manager.abandonAudioFocus(null)
+      audioFocusChangeListener?.let { manager.abandonAudioFocus(it) }
     }
     hasAudioFocus = false
   }
