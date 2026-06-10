@@ -987,7 +987,7 @@ export default function SearchScreen() {
               ? reliableCatalogSongResults
               : searchResultSongs.length
                 ? searchResultSongs
-                : songs;
+                : [song];
       const queueIndex = findSongIndex(queue, song);
       const queueSong = queueIndex >= 0 ? queue[queueIndex] : song;
 
@@ -1026,20 +1026,19 @@ export default function SearchScreen() {
       reliableCatalogSongResults,
       searchQuery,
       searchResultSongs,
-      songs,
       submittedSearchQuery,
     ]
   );
 
   const playDiscoverySong = useCallback(
     (song: HiddenTunesSong, label: string) => {
-      const queueIndex = findSongIndex(songs, song);
+      const queueIndex = findSongIndex(discoverySongs, song);
       logSearchDiagnostic("search_result_tapped", {
         resultType: "discovery_song",
         songId: song.id,
         query: label,
       });
-      void playSong(song, songs, Math.max(queueIndex, 0), {
+      void playSong(song, discoverySongs, Math.max(queueIndex, 0), {
         source: "search",
         label,
         artistName: song.artist,
@@ -1048,7 +1047,7 @@ export default function SearchScreen() {
       });
       router.push("/player" as any);
     },
-    [playSong, songs]
+    [discoverySongs, playSong]
   );
 
   const startSearchStation = useCallback(
