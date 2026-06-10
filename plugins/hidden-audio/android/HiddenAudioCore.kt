@@ -906,12 +906,24 @@ object HiddenAudioCore {
     lastAppBackgroundAtMs = SystemClock.elapsedRealtime()
   }
 
+  private fun isPlaybackActive(): Boolean {
+    if (activeTrack?.url.isNullOrBlank()) return false
+    val exo = player ?: return false
+    val durationMillisForEnd = if (exo.duration <= 0) 0L else exo.duration.coerceAtLeast(0)
+    val positionMillisForEnd = exo.currentPosition.coerceAtLeast(0)
+    val atEnd =
+      playerStatus == "ended" ||
+        (durationMillisForEnd > 0 && positionMillisForEnd >= durationMillisForEnd - 500)
+    return !atEnd &&
+      (exo.isPlaying || (exo.playWhenReady && playerStatus == "buffering"))
+  }
+
   fun handleTaskRemoved() {
     val nowMs = SystemClock.elapsedRealtime()
-    if (
+    val recentBackground =
       lastAppBackgroundAtMs > 0L &&
       nowMs - lastAppBackgroundAtMs <= TASK_REMOVED_BACKGROUND_GRACE_MS
-    ) {
+    if (recentBackground || isPlaybackActive()) {
       emitDiagnostic("android_task_removed_ignored_recent_background")
       return
     }
