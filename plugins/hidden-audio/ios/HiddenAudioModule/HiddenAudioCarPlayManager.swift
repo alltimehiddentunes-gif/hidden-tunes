@@ -10,6 +10,8 @@ final class HiddenAudioCarPlayManager: NSObject {
     let subtitle: String
   }
 
+  private let rootIdentifier = "hidden_tunes"
+
   private let rootSections: [RootSection] = [
     RootSection(id: "recently_added", title: "Recently Added", subtitle: "Latest songs"),
     RootSection(id: "artists", title: "Artists", subtitle: "Browse by artist"),
@@ -68,6 +70,15 @@ final class HiddenAudioCarPlayManager: NSObject {
     return rootSections[index]
   }
 
+  private func makeHiddenTunesRootItem() -> MPContentItem {
+    let item = MPContentItem(identifier: rootIdentifier)
+    item.title = "Hidden Tunes"
+    item.subtitle = "Browse your library"
+    item.isContainer = true
+    item.isPlayable = false
+    return item
+  }
+
   private func makeContentItem(for section: RootSection) -> MPContentItem {
     let item = MPContentItem(identifier: section.id)
     item.title = section.title
@@ -81,30 +92,46 @@ final class HiddenAudioCarPlayManager: NSObject {
 extension HiddenAudioCarPlayManager: MPPlayableContentDataSource {
   func numberOfChildItems(at indexPath: IndexPath) -> Int {
     if indexPath.count == 0 {
+      return 1
+    }
+    if indexPath.count == 1 && indexPath[0] == 0 {
       return rootSections.count
     }
     return 0
   }
 
-  func contentItem(at indexPath: IndexPath) -> MPContentItem? {
-    guard indexPath.count == 1 else {
-      return nil
+  func contentItem(
+    at indexPath: IndexPath,
+    completionHandler: @escaping (MPContentItem?, Error?) -> Void
+  ) {
+    if indexPath.count == 1 && indexPath[0] == 0 {
+      completionHandler(makeHiddenTunesRootItem(), nil)
+      return
     }
 
-    guard let section = rootSection(at: indexPath[0]) else {
-      return nil
+    if indexPath.count == 2 && indexPath[0] == 0 {
+      guard let section = rootSection(at: indexPath[1]) else {
+        completionHandler(nil, nil)
+        return
+      }
+      completionHandler(makeContentItem(for: section), nil)
+      return
     }
 
-    return makeContentItem(for: section)
+    completionHandler(nil, nil)
   }
 }
 
 extension HiddenAudioCarPlayManager: MPPlayableContentDelegate {
   func playableContentManager(
     _ contentManager: MPPlayableContentManager,
-    initiatePlaybackOfContentItemAt indexPath: IndexPath,
+    initiatePlaybackForContentItem contentItem: MPContentItem,
     completionHandler: @escaping (Error?) -> Void
   ) {
+    guard contentItem.isPlayable else {
+      completionHandler(nil)
+      return
+    }
     completionHandler(nil)
   }
 }

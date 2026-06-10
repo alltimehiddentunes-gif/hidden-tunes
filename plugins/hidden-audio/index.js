@@ -7,6 +7,7 @@ const {
   IOSConfig,
   withAndroidManifest,
   withDangerousMod,
+  withEntitlementsPlist,
   withInfoPlist,
   withXcodeProject,
 } = require("@expo/config-plugins");
@@ -101,6 +102,14 @@ function getRepoSourceDir(projectRoot) {
   );
 }
 
+
+
+const withCarPlayEntitlements = (config) => {
+  return withEntitlementsPlist(config, (config) => {
+    config.modResults["com.apple.developer.playable-content"] = true;
+    return config;
+  });
+};
 
 const withCarPlayInfoPlist = (config) => {
   return withInfoPlist(config, (config) => {
@@ -401,6 +410,7 @@ const withHiddenAudioAndroidProguard = (config) => {
 };
 
 const withHiddenAudio = (config) => {
+  config = withCarPlayEntitlements(config);
   config = withCarPlayInfoPlist(config);
   config = withHiddenAudioNativeSources(config);
   config = withHiddenAudioXcodeProject(config);
