@@ -1,6 +1,7 @@
 package com.hiddentunes.app.audio
 
 import android.os.Bundle
+import android.util.Log
 import android.support.v4.media.MediaBrowserCompat
 import androidx.media.MediaBrowserServiceCompat
 import com.facebook.react.bridge.Arguments
@@ -11,10 +12,12 @@ class HiddenAudioMediaBrowserService : MediaBrowserServiceCompat() {
 
   override fun onCreate() {
     super.onCreate()
+    Log.i(TAG, "HiddenAudioMediaBrowserService onCreate")
     HiddenAudioAutoCatalog.ensureDefaultCatalog()
     HiddenAudioMediaSessionManager.ensureSession(applicationContext)
     sessionToken = HiddenAudioMediaSessionManager.sessionToken()
     HiddenAudioCore.emitAutoDiagnostic("android_auto_mbs_on_create")
+    Log.i(TAG, "HiddenAudioMediaBrowserService ready for Android Auto binding")
   }
 
   override fun onGetRoot(
@@ -24,6 +27,7 @@ class HiddenAudioMediaBrowserService : MediaBrowserServiceCompat() {
   ): BrowserRoot? {
     val rootData = Arguments.createMap()
     rootData.putString("clientPackageName", clientPackageName)
+    Log.i(TAG, "onGetRoot clientPackageName=$clientPackageName")
     HiddenAudioCore.emitAutoDiagnostic("android_auto_media_root_requested", rootData)
     HiddenAudioAutoCatalog.ensureDefaultCatalog()
     HiddenAudioMediaSessionManager.ensureSession(applicationContext)
@@ -76,6 +80,7 @@ class HiddenAudioMediaBrowserService : MediaBrowserServiceCompat() {
   }
 
   private companion object {
+    private const val TAG = "HiddenTunesAuto"
     private const val EXTRA_ROOT_CHILDREN_LIMIT =
       "android.media.browse.extra.ROOT_CHILDREN_LIMIT"
     private const val EXTRA_ROOT_CHILDREN_SUPPORTED_FLAGS =

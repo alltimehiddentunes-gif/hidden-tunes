@@ -83,6 +83,47 @@ function ensureAndroidAutoApplicationCategory(mainApplication) {
   return mainApplication;
 }
 
+const ANDROID_AUTO_MEDIA_BROWSER_SERVICE =
+  "com.hiddentunes.app.audio.HiddenAudioMediaBrowserService";
+const ANDROID_AUTO_CAR_APPLICATION_META =
+  "com.google.android.gms.car.application";
+const ANDROID_AUTO_DESCRIPTOR_RESOURCE = "@xml/automotive_app_desc";
+
+function verifyAndroidAutoManifest(mainApplication) {
+  const services = Array.isArray(mainApplication.service)
+    ? mainApplication.service
+    : mainApplication.service
+      ? [mainApplication.service]
+      : [];
+  const browserService = services.find(
+    (entry) => entry?.$?.["android:name"] === ANDROID_AUTO_MEDIA_BROWSER_SERVICE
+  );
+  const metaData = Array.isArray(mainApplication["meta-data"])
+    ? mainApplication["meta-data"]
+    : mainApplication["meta-data"]
+      ? [mainApplication["meta-data"]]
+      : [];
+  const carMeta = metaData.find(
+    (entry) => entry?.$?.["android:name"] === ANDROID_AUTO_CAR_APPLICATION_META
+  );
+  const ok =
+    Boolean(browserService) &&
+    browserService?.$?.["android:exported"] === "true" &&
+    browserService?.$?.["android:enabled"] === "true" &&
+    carMeta?.$?.["android:resource"] === ANDROID_AUTO_DESCRIPTOR_RESOURCE;
+  console.log(
+    `[hidden-audio] Android Auto manifest ${ok ? "verified" : "incomplete"}:`,
+    {
+      mediaBrowserService: browserService?.$?.["android:name"] || "missing",
+      exported: browserService?.$?.["android:exported"] || "missing",
+      enabled: browserService?.$?.["android:enabled"] || "missing",
+      carApplicationMeta: carMeta?.$?.["android:resource"] || "missing",
+      appCategory: mainApplication?.$?.["android:appCategory"] || "missing",
+    }
+  );
+  return ok;
+}
+
 const HIDDEN_AUDIO_GROUP = "HiddenAudioModule";
 
 const NATIVE_FILES = [
@@ -277,7 +318,7 @@ const withHiddenAudioAndroidManifest = (config) => {
     });
 
     ensureAndroidManifestService(mainApplication, {
-      name: "com.hiddentunes.app.audio.HiddenAudioMediaBrowserService",
+      name: ANDROID_AUTO_MEDIA_BROWSER_SERVICE,
       exported: "true",
       enabled: "true",
       label: "@string/app_name",
@@ -287,10 +328,12 @@ const withHiddenAudioAndroidManifest = (config) => {
 
     addMetaDataItemToMainApplication(
       mainApplication,
-      "com.google.android.gms.car.application",
-      "@xml/automotive_app_desc",
+      ANDROID_AUTO_CAR_APPLICATION_META,
+      ANDROID_AUTO_DESCRIPTOR_RESOURCE,
       "resource"
     );
+
+    verifyAndroidAutoManifest(mainApplication);
 
     return config;
   });
@@ -311,7 +354,8 @@ const withHiddenAudioAndroidMainApplication = (config) => {
         "app",
         "MainApplication.kt"
       );
-      let contents = fs.readFileSync(mainAppPath, "utf8");
+      const originalContents = fs.readFileSync(mainAppPath, "utf8");
+      let contents = originalContents;
       if (!contents.includes("HiddenAudioPackage")) {
         if (contents.includes("ExpoReactHostFactory")) {
           contents = contents.replace(
@@ -335,9 +379,10 @@ const withHiddenAudioAndroidMainApplication = (config) => {
           "ApplicationLifecycleDispatcher.onApplicationCreate(this)",
           "ApplicationLifecycleDispatcher.onApplicationCreate(this)\n    HiddenAudioMediaSessionManager.warmUpForAndroidAuto(this)"
         );
+      }
+      if (contents !== originalContents) {
         fs.writeFileSync(mainAppPath, contents);
-      } else if (!contents.includes("HiddenAudioPackage")) {
-        fs.writeFileSync(mainAppPath, contents);
+        console.log("[hidden-audio] MainApplication updated for Android Auto warm-up.");
       }
       return config;
     },
@@ -367,10 +412,16 @@ const withHiddenAudioAndroidAutoResources = (config) => {
         "res",
         "xml"
       );
+      if (!fs.existsSync(sourceXml)) {
+        throw new Error(
+          `[hidden-audio] Missing Android Auto descriptor: ${sourceXml}`
+        );
+      }
       fs.mkdirSync(destinationXmlDir, { recursive: true });
-      fs.copyFileSync(
-        sourceXml,
-        path.join(destinationXmlDir, "automotive_app_desc.xml")
+      const destinationXml = path.join(destinationXmlDir, "automotive_app_desc.xml");
+      fs.copyFileSync(sourceXml, destinationXml);
+      console.log(
+        `[hidden-audio] Copied Android Auto descriptor to ${destinationXml}`
       );
       return config;
     },
