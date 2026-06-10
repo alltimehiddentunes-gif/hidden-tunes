@@ -63,6 +63,8 @@ object HiddenAudioCore {
   private var playbackSessionId = 0L
   private var committedPlaySessionId = 0L
   private var playbackCallbackGeneration = 0L
+  private var loadedMediaKey: String? = null
+  private var pendingLoadSeekToStart = false
 
   fun attachReactContext(context: ReactApplicationContext) {
     reactContext = context
@@ -113,25 +115,36 @@ object HiddenAudioCore {
     val sessionId = bumpPlaybackSession()
     committedPlaySessionId = sessionId
     lastLoadTrackAtMs = SystemClock.elapsedRealtime()
-    activeTrack = trackToMap(track)
-    activeIndex = 0
-    playbackEndedHandled = false
-    lastPlayingStartedAtMs = 0L
-    val url = activeTrack?.url ?: ""
+    val nextTrack = trackToMap(track)
+    val url = nextTrack.url
     if (url.isBlank()) {
       playerStatus = "error"
       emitDiagnostic("hidden_audio_load_track_failed", simpleData("reason", "missing_url"))
       emitState()
       throw IllegalArgumentException("HiddenAudio track URL is required")
     }
-    val mediaItem = MediaItem.fromUri(Uri.parse(url))
+    val mediaKey = mediaKeyFor(nextTrack)
+    val isNewMedia = mediaKey != loadedMediaKey
+    activeTrack = nextTrack
+    activeIndex = 0
+    playbackEndedHandled = false
+    lastPlayingStartedAtMs = 0L
+    val mediaItem = MediaItem.Builder()
+      .setUri(Uri.parse(url))
+      .setMediaId(nextTrack.id)
+      .build()
     val exo = player
-    exo?.stop()
-    exo?.clearMediaItems()
-    exo?.setMediaItem(mediaItem)
-    exo?.seekTo(0)
+      ?: throw IllegalStateException("HiddenAudio player is not initialized")
+    exo.stop()
+    exo.clearMediaItems()
+    exo.setMediaItem(mediaItem, 0L)
+    if (isNewMedia) {
+      loadedMediaKey = mediaKey
+      pendingLoadSeekToStart = true
+      forceSeekToStart(exo, emitDiagnostic = true, reason = "load_track_set_media_item")
+    }
     shouldPlayWhenReady = false
-    exo?.prepare()
+    exo.prepare()
     playerStatus = "ready"
     emitTrackChanged()
     emitState()
@@ -229,6 +242,8 @@ object HiddenAudioCore {
     playerStatus = "idle"
     activeTrack = null
     activeIndex = 0
+    loadedMediaKey = null
+    pendingLoadSeekToStart = false
     playbackEndedHandled = false
     lastPlayingStartedAtMs = 0L
     lastPlayRequestAtMs = 0L
@@ -367,6 +382,7 @@ object HiddenAudioCore {
             emitPlaybackStateDiagnostic("android_player_state_buffering", playbackState)
           }
           Player.STATE_READY -> {
+            ensureLoadedTrackStartsAtBeginning(playbackState)
             playerStatus = when {
               player?.isPlaying == true -> "playing"
               player?.playWhenReady == true -> "buffering"
@@ -487,6 +503,31 @@ object HiddenAudioCore {
       if (durationMillis > 0) durationMillis / 1000.0 else (activeTrack?.durationSeconds ?: 0.0)
     )
     emitDiagnostic(eventName, data)
+  }
+
+  private fun mediaKeyFor(track: ActiveTrackData): String = "${track.id}::${track.url}"
+
+  private fun forceSeekToStart(
+    exo: ExoPlayer,
+    emitDiagnostic: Boolean,
+    reason: String
+  ) {
+    exo.seekTo(0L)
+    if (emitDiagnostic) {
+      val data = Arguments.createMap()
+      data.putString("reason", reason)
+      data.putString("mediaKey", loadedMediaKey ?: "")
+      emitDiagnostic("android_load_track_seek_to_start", data)
+    }
+  }
+
+  private fun ensureLoadedTrackStartsAtBeginning(playbackState: Int) {
+    if (!pendingLoadSeekToStart || playbackState != Player.STATE_READY) return
+    val exo = player ?: return
+    pendingLoadSeekToStart = false
+    if (exo.currentPosition > 0L) {
+      forceSeekToStart(exo, emitDiagnostic = true, reason = "state_ready_position_reset")
+    }
   }
 
   private fun trackToMap(track: ReadableMap): ActiveTrackData {
