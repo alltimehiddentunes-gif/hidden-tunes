@@ -28,7 +28,9 @@ final class HiddenAudioCarPlayManager: NSObject {
     let manager = MPPlayableContentManager.shared()
     manager.dataSource = self
     manager.delegate = self
-    manager.beginReceivingEndpoints(allowPlayback: true)
+    manager.beginUpdates()
+    manager.reloadData()
+    manager.endUpdates()
   }
 
   func connect(_ interfaceController: CPInterfaceController) {
@@ -84,28 +86,23 @@ extension HiddenAudioCarPlayManager: MPPlayableContentDataSource {
     return 0
   }
 
-  func contentItem(
-    at indexPath: IndexPath,
-    completionHandler: @escaping (MPContentItem?, Error?) -> Void
-  ) {
+  func contentItem(at indexPath: IndexPath) -> MPContentItem? {
     guard indexPath.count == 1 else {
-      completionHandler(nil, nil)
-      return
+      return nil
     }
 
     guard let section = rootSection(at: indexPath[0]) else {
-      completionHandler(nil, nil)
-      return
+      return nil
     }
 
-    completionHandler(makeContentItem(for: section), nil)
+    return makeContentItem(for: section)
   }
 }
 
 extension HiddenAudioCarPlayManager: MPPlayableContentDelegate {
   func playableContentManager(
     _ contentManager: MPPlayableContentManager,
-    initiatePlaybackForContentItem contentItem: MPContentItem,
+    initiatePlaybackOfContentItemAt indexPath: IndexPath,
     completionHandler: @escaping (Error?) -> Void
   ) {
     completionHandler(nil)
