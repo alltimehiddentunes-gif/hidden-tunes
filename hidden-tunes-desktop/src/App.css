@@ -3663,3 +3663,270 @@
     display: none;
   }
 }
+
+
+/* —— Listening atmosphere foundation —— */
+.main-area {
+  background:
+    radial-gradient(ellipse 72% 52% at 42% -8%, rgba(168, 85, 247, 0.075), transparent 64%),
+    radial-gradient(ellipse 54% 44% at 100% 32%, rgba(56, 189, 248, 0.045), transparent 60%),
+    radial-gradient(ellipse 64% 48% at 4% 96%, rgba(244, 114, 182, 0.035), transparent 58%),
+    linear-gradient(180deg, rgba(8, 8, 13, 0.98) 0%, rgba(5, 5, 9, 1) 100%);
+}
+
+.main-composition {
+  background:
+    linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.012) 48%, rgba(255, 255, 255, 0.018) 100%);
+}
+
+.detail-hero--song {
+  --artwork-glow-opacity: 0.72;
+  --artwork-glow-scale: 1;
+  position: relative;
+  overflow: hidden;
+  grid-template-columns: minmax(286px, 34%) minmax(0, 1fr);
+  gap: clamp(30px, 4.5vw, 58px);
+  align-items: center;
+  min-height: clamp(360px, 45vh, 520px);
+  padding: clamp(30px, 4.6vw, 56px);
+  border-color: rgba(255, 255, 255, 0.115);
+  background:
+    radial-gradient(ellipse 72% 78% at 18% 46%, rgba(168, 85, 247, 0.115), transparent 62%),
+    radial-gradient(ellipse 58% 52% at 78% 18%, rgba(56, 189, 248, 0.06), transparent 64%),
+    linear-gradient(142deg, rgba(28, 28, 40, 0.86), rgba(9, 9, 15, 0.96) 58%, rgba(7, 7, 12, 0.98));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.075),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.03),
+    0 28px 64px rgba(0, 0, 0, 0.34),
+    0 0 0 1px rgba(0, 0, 0, 0.2);
+  isolation: isolate;
+}
+
+.detail-hero--song::before,
+.detail-hero--song::after {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+}
+
+.detail-hero--song::before {
+  inset: -28% 42% -34% -18%;
+  z-index: 0;
+  opacity: var(--artwork-glow-opacity);
+  transform: scale(var(--artwork-glow-scale));
+  background:
+    radial-gradient(ellipse at center, rgba(168, 85, 247, 0.2), transparent 66%),
+    radial-gradient(ellipse at 64% 38%, rgba(56, 189, 248, 0.08), transparent 58%);
+  filter: blur(18px);
+}
+
+.detail-hero--song::after {
+  inset: 0;
+  z-index: 0;
+  background:
+    linear-gradient(115deg, rgba(255, 255, 255, 0.055), transparent 24%, transparent 72%, rgba(255, 255, 255, 0.025)),
+    radial-gradient(ellipse 90% 78% at 50% 100%, rgba(0, 0, 0, 0.26), transparent 62%);
+}
+
+.detail-hero--song .detail-artwork,
+.detail-hero--song .detail-hero-copy {
+  position: relative;
+  z-index: 1;
+}
+
+.detail-hero--song .detail-artwork {
+  max-width: 410px;
+  justify-self: center;
+  border-radius: clamp(18px, 2.2vw, 26px);
+  border-color: rgba(255, 255, 255, 0.14);
+  background:
+    linear-gradient(160deg, rgba(48, 43, 66, 0.9), rgba(8, 8, 14, 0.98));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 -46px 84px rgba(0, 0, 0, 0.24),
+    0 30px 68px rgba(0, 0, 0, 0.42),
+    0 0 64px rgba(168, 85, 247, 0.16),
+    0 0 0 1px rgba(255, 255, 255, 0.035);
+}
+
+.detail-hero--song .detail-artwork::before {
+  content: '';
+  position: absolute;
+  inset: -22%;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.64;
+  background:
+    radial-gradient(ellipse at 50% 44%, rgba(168, 85, 247, 0.24), transparent 62%),
+    radial-gradient(ellipse at 36% 76%, rgba(56, 189, 248, 0.1), transparent 56%);
+  filter: blur(26px);
+}
+
+.detail-hero--song .detail-artwork::after {
+  z-index: 2;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.12), transparent 34%, rgba(0, 0, 0, 0.28)),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.08), transparent 32%);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+
+.detail-hero--song .detail-artwork .art-frame {
+  position: relative;
+  z-index: 1;
+  transform: translateZ(0);
+}
+
+.detail-hero--song .detail-hero-copy {
+  max-width: 720px;
+  padding: clamp(4px, 1vw, 10px) 0;
+}
+
+.detail-hero--song .detail-eyebrow {
+  margin-bottom: clamp(12px, 1.8vw, 18px);
+  color: rgba(56, 189, 248, 0.78);
+}
+
+.detail-hero--song .detail-h1 {
+  max-width: 12ch;
+  font-size: clamp(2.25rem, 4.25vw, 3.65rem);
+  line-height: 0.98;
+  margin-bottom: clamp(16px, 2.4vw, 24px);
+}
+
+.detail-hero--song .detail-byline {
+  margin-bottom: clamp(22px, 3vw, 30px);
+}
+
+.detail-hero--song .detail-pill {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.11);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+}
+
+.detail-hero--song .detail-meta {
+  gap: 12px;
+  margin-bottom: clamp(24px, 3.2vw, 34px);
+}
+
+.detail-hero--song .detail-meta-item {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.026));
+  border-color: rgba(255, 255, 255, 0.095);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 10px 22px rgba(0, 0, 0, 0.12);
+  backdrop-filter: blur(14px);
+}
+
+.detail-hero--song .detail-controls {
+  gap: 16px;
+  padding-top: 2px;
+}
+
+.detail-hero--song .detail-controls .control-btn {
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.detail-hero--song .detail-controls .control-btn.play {
+  border-color: rgba(168, 85, 247, 0.22);
+  box-shadow:
+    0 12px 30px rgba(168, 85, 247, 0.28),
+    0 0 32px rgba(56, 189, 248, 0.08);
+}
+
+.queue-rail {
+  margin-top: clamp(20px, 3vw, 32px);
+  margin-bottom: clamp(20px, 3vw, 32px);
+  padding: clamp(18px, 2.2vw, 22px);
+  border-left-color: rgba(255, 255, 255, 0.09);
+  border-top: 1px solid rgba(255, 255, 255, 0.055);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  background:
+    radial-gradient(ellipse 72% 46% at 18% 10%, rgba(168, 85, 247, 0.08), transparent 62%),
+    linear-gradient(180deg, rgba(18, 18, 27, 0.72), rgba(8, 8, 13, 0.82));
+  box-shadow:
+    inset 1px 0 0 rgba(255, 255, 255, 0.035),
+    inset 0 1px 0 rgba(255, 255, 255, 0.035),
+    -18px 0 42px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(18px);
+}
+
+.queue-rail-header {
+  margin-bottom: 18px;
+}
+
+.queue-rail-header h2 {
+  color: rgba(245, 243, 250, 0.94);
+}
+
+.queue-now {
+  padding: 12px 0 18px;
+  margin-bottom: 16px;
+}
+
+.queue-now-title {
+  margin-top: 5px;
+  font-size: 14px;
+}
+
+.queue-list {
+  gap: 13px;
+}
+
+.queue-item {
+  gap: 12px;
+}
+
+.queue-index {
+  color: rgba(245, 243, 250, 0.32);
+}
+
+.queue-track-title {
+  font-size: 12.5px;
+}
+
+.player-bar {
+  background:
+    radial-gradient(ellipse 42% 150% at 18% 0%, rgba(168, 85, 247, 0.07), transparent 68%),
+    radial-gradient(ellipse 36% 130% at 72% 0%, rgba(56, 189, 248, 0.045), transparent 70%),
+    linear-gradient(180deg, rgba(15, 15, 23, 0.9), rgba(5, 5, 9, 0.96));
+  border-top-color: rgba(255, 255, 255, 0.08);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.045),
+    0 -20px 48px rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(18px);
+}
+
+.player-artwork {
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 8px 20px rgba(0, 0, 0, 0.3),
+    0 0 22px rgba(168, 85, 247, 0.08);
+}
+
+.player-meta h4 {
+  color: rgba(245, 243, 250, 0.94);
+}
+
+.progress-track::before,
+.volume-slider::before {
+  background: rgba(255, 255, 255, 0.09);
+}
+
+@media (max-width: 980px) {
+  .detail-hero--song {
+    grid-template-columns: 1fr;
+    min-height: auto;
+  }
+
+  .detail-hero--song .detail-artwork {
+    width: min(360px, 78vw);
+  }
+
+  .detail-hero--song .detail-h1 {
+    max-width: 16ch;
+  }
+}

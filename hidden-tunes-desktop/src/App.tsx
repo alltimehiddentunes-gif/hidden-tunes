@@ -2495,7 +2495,7 @@ function SongDetailView({
   return (
     <PageFrame>
       <DetailTopBar title="Song" subtitle="Read-only preview" onBack={onBack} />
-      <section className="detail-hero">
+      <section className="detail-hero detail-hero--song">
         <div className="detail-artwork">
           <ArtworkImage src={song.artwork} alt="" seed={song.id} priority />
         </div>
