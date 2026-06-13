@@ -16,16 +16,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { COLORS } from "../../constants/theme";
 import MiniPlayer from "../MiniPlayer";
 import PremiumBackground, { type PremiumBackgroundVariant } from "../PremiumBackground";
-
-type ShellRoute =
-  | "/music-feed"
-  | "/worlds"
-  | "/player"
-  | "/favorites"
-  | "/playlists"
-  | "/youtube-feed"
-  | "/profile"
-  | "/auth";
+import { MOBILE_BOTTOM_NAV_ITEMS, type AppNavigationItem } from "./navigationConfig";
 
 const MINI_PLAYER_ROUTES = [
   "/music-feed",
@@ -42,60 +33,7 @@ const MINI_PLAYER_ROUTES = [
 
 const MINI_PLAYER_SPACE = 150;
 
-type NavItem = {
-  label: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  activeIcon: keyof typeof Ionicons.glyphMap;
-  href: ShellRoute;
-  matches: string[];
-};
-
-const NAV_ITEMS: NavItem[] = [
-  {
-    label: "Home",
-    icon: "home-outline",
-    activeIcon: "home",
-    href: "/music-feed",
-    matches: ["/music-feed"],
-  },
-  {
-    label: "Explore",
-    icon: "sparkles-outline",
-    activeIcon: "sparkles",
-    href: "/worlds",
-    matches: ["/worlds"],
-  },
-  {
-    label: "Player",
-    icon: "play-circle-outline",
-    activeIcon: "play-circle",
-    href: "/player",
-    matches: ["/player", "/queue", "/lyrics", "/radio"],
-  },
-  {
-    label: "Library",
-    icon: "library-outline",
-    activeIcon: "library",
-    href: "/favorites",
-    matches: ["/favorites", "/playlists", "/playlist", "/recently-played", "/cloud-playlists"],
-  },
-  {
-    label: "TV",
-    icon: "tv-outline",
-    activeIcon: "tv",
-    href: "/youtube-feed",
-    matches: ["/youtube-feed", "/youtube-player"],
-  },
-  {
-    label: "Profile",
-    icon: "person-circle-outline",
-    activeIcon: "person-circle",
-    href: "/profile",
-    matches: ["/profile"],
-  },
-];
-
-function isActiveRoute(pathname: string, item: NavItem) {
+function isActiveRoute(pathname: string, item: AppNavigationItem) {
   return item.matches.some((route) => {
     if (pathname === route) return true;
     return route !== "/" && pathname.startsWith(`${route}/`);
@@ -146,7 +84,7 @@ export default function AppShell({
 
   const items = useMemo(
     () =>
-      NAV_ITEMS.map((item) => ({
+      MOBILE_BOTTOM_NAV_ITEMS.map((item) => ({
         ...item,
         active: isActiveRoute(pathname, item),
       })),
@@ -182,7 +120,7 @@ export default function AppShell({
                 key={item.label}
                 accessibilityRole="button"
                 accessibilityLabel={`${item.label} tab`}
-                onPress={() => router.push(item.href as any)}
+                onPress={() => router.push(item.route as any)}
                 style={({ pressed }) => [
                   styles.navItem,
                   item.active && styles.navItemActive,
