@@ -9,8 +9,12 @@ import {
   type ReactNode,
 } from 'react'
 import type { ApiSong } from '../lib/api'
-import { logQueueExtension } from '../lib/catalogDiagnostics'
-import { resolveInstantPlayUrl, resolveUpgradePlayUrl } from '../lib/songMetadata'
+import {
+  audioVersionAvailability,
+  selectInstantPlayableUrl,
+} from '../lib/audioVersions'
+import { logAudioVersionSelection, logQueueExtension } from '../lib/catalogDiagnostics'
+import { resolveUpgradePlayUrl } from '../lib/songMetadata'
 import { HtmlAudioPlaybackService } from '../lib/desktopPlayback/HtmlAudioPlaybackService'
 import { buildRelatedQueue } from '../lib/desktopPlayback/queueIntelligence'
 import type {
@@ -121,8 +125,16 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
   const playSong = useCallback(
     (song: ApiSong) => {
       const service = getService()
-      const instantUrl = resolveInstantPlayUrl(song)
+      const selection = selectInstantPlayableUrl(song)
+      const instantUrl = selection?.url ?? null
       const upgradeUrl = resolveUpgradePlayUrl(song, instantUrl)
+
+      if (selection) {
+        logAudioVersionSelection({
+          selectedTier: selection.tier,
+          ...audioVersionAvailability(song.audioVersions),
+        })
+      }
 
       setCurrentTrack(song)
       setError(null)
@@ -334,7 +346,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
   }, [getService])
 
   const resume = useCallback(() => {
-    if (!currentTrack || !resolveInstantPlayUrl(currentTrack)) {
+    if (!currentTrack || !selectInstantPlayableUrl(currentTrack)) {
       setError('Unable to play this track.')
       return
     }

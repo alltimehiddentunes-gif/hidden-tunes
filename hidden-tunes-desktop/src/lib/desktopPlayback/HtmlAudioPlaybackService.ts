@@ -94,6 +94,7 @@ export class HtmlAudioPlaybackService {
   }
 
   async play(url: string, options?: PlayOptions): Promise<void> {
+    // Single active source for now — multi-version switching arrives in a later phase.
     const normalized = url.trim()
     if (!normalized) {
       throw new Error('Missing audio URL')

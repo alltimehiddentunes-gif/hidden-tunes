@@ -1,4 +1,5 @@
-import type { ApiAlbum, ApiArtist, ApiSong, CatalogBundle } from './api'
+import type { ApiAlbum, ApiArtist, ApiSong, CatalogBundle, SongAudioVersions } from './api'
+import { buildAudioVersionsFromLegacy } from './audioVersions'
 
 const STORAGE_KEY = 'ht-desktop:catalog-cache'
 
@@ -34,6 +35,53 @@ function sanitizeDurationSeconds(value: unknown): number | null {
     return null
   }
   return value
+}
+
+function sanitizeAudioVersionSource(raw: unknown) {
+  const record = asRecord(raw)
+  if (!record) return undefined
+
+  const url = sanitizeAudioUrl(record.url)
+  if (!url) return undefined
+
+  return {
+    url,
+    codec: typeof record.codec === 'string' ? record.codec : undefined,
+    bitrateKbps:
+      typeof record.bitrateKbps === 'number' && Number.isFinite(record.bitrateKbps)
+        ? record.bitrateKbps
+        : undefined,
+    fileSizeBytes:
+      typeof record.fileSizeBytes === 'number' && Number.isFinite(record.fileSizeBytes)
+        ? record.fileSizeBytes
+        : undefined,
+    durationSeconds: sanitizeDurationSeconds(record.durationSeconds) ?? undefined,
+    offlineEligible:
+      typeof record.offlineEligible === 'boolean' ? record.offlineEligible : undefined,
+  }
+}
+
+function sanitizeAudioVersions(raw: unknown): SongAudioVersions | undefined {
+  const record = asRecord(raw)
+  if (!record) return undefined
+
+  const versions: SongAudioVersions = {
+    ultraLight: sanitizeAudioVersionSource(record.ultraLight),
+    standard: sanitizeAudioVersionSource(record.standard),
+    highQuality: sanitizeAudioVersionSource(record.highQuality),
+    lossless: sanitizeAudioVersionSource(record.lossless),
+  }
+
+  if (
+    versions.ultraLight ||
+    versions.standard ||
+    versions.highQuality ||
+    versions.lossless
+  ) {
+    return versions
+  }
+
+  return undefined
 }
 
 function sanitizeSong(raw: unknown): ApiSong | null {
@@ -83,6 +131,27 @@ function sanitizeSong(raw: unknown): ApiSong | null {
     highQualityUrl:
       sanitizeAudioUrl(record.highQualityUrl) ??
       sanitizeAudioUrl(record.high_quality_url),
+    audioVersions:
+      sanitizeAudioVersions(record.audioVersions) ??
+      buildAudioVersionsFromLegacy({
+        previewUrl:
+          sanitizeAudioUrl(record.previewUrl) ??
+          sanitizeAudioUrl(record.preview_url),
+        streamUrl:
+          sanitizeAudioUrl(record.streamUrl) ??
+          sanitizeAudioUrl(record.stream_url) ??
+          sanitizeAudioUrl(record.url),
+        audioUrl:
+          sanitizeAudioUrl(record.audioUrl) ??
+          sanitizeAudioUrl(record.audio_url),
+        highQualityUrl:
+          sanitizeAudioUrl(record.highQualityUrl) ??
+          sanitizeAudioUrl(record.high_quality_url),
+        losslessUrl:
+          sanitizeAudioUrl(record.losslessUrl) ??
+          sanitizeAudioUrl(record.lossless_url),
+        durationSeconds: sanitizeDurationSeconds(record.durationSeconds),
+      }),
     durationSeconds: sanitizeDurationSeconds(record.durationSeconds),
     createdAt: typeof record.createdAt === 'string' ? record.createdAt : null,
   }

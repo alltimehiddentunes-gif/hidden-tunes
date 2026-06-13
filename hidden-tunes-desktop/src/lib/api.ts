@@ -1,3 +1,10 @@
+import {
+  buildAudioVersionsFromLegacy,
+  type SongAudioVersions,
+} from './audioVersions'
+
+export type { AudioVersionSource, SongAudioVersions } from './audioVersions'
+
 export const API_BASE_URL = 'https://hidden-tunes-api.onrender.com'
 
 const REQUEST_TIMEOUT_MS = 20_000
@@ -21,8 +28,10 @@ export type ApiSong = {
   previewUrl: string | null
   /** Optional stream/audio URL — resolved on play, not required for search. */
   audioUrl: string | null
-  /** Optional higher-quality source — upgraded after instant play starts. */
+  /** Optional higher-quality source — future upgrade path. */
   highQualityUrl: string | null
+  /** Multi-tier playable sources — populated from legacy fields today. */
+  audioVersions?: SongAudioVersions
   durationSeconds: number | null
   createdAt: string | null
 }
@@ -82,14 +91,30 @@ function pickPlaybackUrls(row: Record<string, unknown>) {
   const previewUrl = pickHttpUrl(row, ['previewUrl', 'preview_url'])
   const streamUrl = pickHttpUrl(row, ['streamUrl', 'stream_url', 'url'])
   const audioUrl = pickHttpUrl(row, ['audioUrl', 'audio_url']) ?? streamUrl
-  const highQualityUrl =
-    pickHttpUrl(row, ['highQualityUrl', 'high_quality_url']) ??
-    (audioUrl && audioUrl !== previewUrl ? audioUrl : null)
+  const highQualityUrl = pickHttpUrl(row, ['highQualityUrl', 'high_quality_url'])
+  const losslessUrl = pickHttpUrl(row, ['losslessUrl', 'lossless_url'])
+  const durationSeconds = pickDurationSeconds(row)
+
+  const audioVersions = buildAudioVersionsFromLegacy({
+    previewUrl,
+    streamUrl,
+    audioUrl,
+    highQualityUrl,
+    losslessUrl,
+    durationSeconds,
+  })
+
+  const resolvedHighQuality =
+    highQualityUrl ?? audioVersions?.highQuality?.url ?? null
 
   return {
     previewUrl,
     audioUrl: audioUrl ?? previewUrl,
-    highQualityUrl,
+    highQualityUrl:
+      resolvedHighQuality && resolvedHighQuality !== previewUrl
+        ? resolvedHighQuality
+        : null,
+    audioVersions,
   }
 }
 
@@ -187,6 +212,7 @@ function normalizeSong(row: unknown): ApiSong | null {
     previewUrl: playback.previewUrl,
     audioUrl: playback.audioUrl,
     highQualityUrl: playback.highQualityUrl,
+    audioVersions: playback.audioVersions,
     durationSeconds: pickDurationSeconds(record),
     createdAt,
   }

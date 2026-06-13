@@ -1,6 +1,10 @@
-import type { ApiArtist, ApiSong } from './api'
+import type { ApiArtist, ApiSong, SongAudioVersions } from './api'
+import {
+  mergeAudioVersions,
+  selectInstantPlayableUrl,
+  type PlayableUrlInput,
+} from './audioVersions'
 import { logCatalogSearch } from './catalogDiagnostics'
-
 /**
  * Metadata-first catalog entry for search and browse.
  * Playback URLs are optional hints — resolved only when the user taps Play.
@@ -24,6 +28,7 @@ export type CatalogMetadataRecord = {
   previewUrl: string | null
   audioUrl: string | null
   highQualityUrl: string | null
+  audioVersions?: SongAudioVersions
 }
 
 export type CatalogMetadataIndex = {
@@ -73,6 +78,7 @@ function mergeSongRecord(existing: ApiSong | undefined, incoming: ApiSong): ApiS
     previewUrl: incoming.previewUrl || existing.previewUrl,
     audioUrl: incoming.audioUrl || existing.audioUrl,
     highQualityUrl: incoming.highQualityUrl || existing.highQualityUrl,
+    audioVersions: mergeAudioVersions(existing.audioVersions, incoming.audioVersions),
     durationSeconds: incoming.durationSeconds ?? existing.durationSeconds,
     createdAt: incoming.createdAt || existing.createdAt,
   }
@@ -130,6 +136,7 @@ export function apiSongToMetadataRecord(song: ApiSong): CatalogMetadataRecord {
     previewUrl: song.previewUrl,
     audioUrl: song.audioUrl,
     highQualityUrl: song.highQualityUrl,
+    audioVersions: song.audioVersions,
   }
 }
 
@@ -152,6 +159,7 @@ export function metadataRecordToApiSong(record: CatalogMetadataRecord): ApiSong 
     previewUrl: record.previewUrl,
     audioUrl: record.audioUrl,
     highQualityUrl: record.highQualityUrl,
+    audioVersions: record.audioVersions,
   }
 }
 
@@ -301,15 +309,16 @@ export function searchCatalogSongs({
   return { records, skipped: false, mode: 'full' }
 }
 
-export function resolveInstantPlayUrl(song: Pick<ApiSong, 'previewUrl' | 'audioUrl'>): string | null {
-  return song.previewUrl ?? song.audioUrl ?? null
+export function resolveInstantPlayUrl(song: PlayableUrlInput): string | null {
+  return selectInstantPlayableUrl(song)?.url ?? null
 }
 
 export function resolveUpgradePlayUrl(
-  song: Pick<ApiSong, 'highQualityUrl' | 'audioUrl'>,
+  song: PlayableUrlInput & { highQualityUrl?: string | null },
   currentUrl: string | null,
 ): string | null {
-  const upgrade = song.highQualityUrl ?? song.audioUrl
+  const upgrade =
+    song.audioVersions?.highQuality?.url ?? song.highQualityUrl ?? song.audioUrl
   if (!upgrade || upgrade === currentUrl) return null
   return upgrade
 }

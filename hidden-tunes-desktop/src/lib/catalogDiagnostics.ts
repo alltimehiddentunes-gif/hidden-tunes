@@ -79,3 +79,14 @@ export function logQueueExtension(stats: {
   if (!shouldLog()) return
   console.info(`${PREFIX} queue extension`, stats)
 }
+
+export function logAudioVersionSelection(stats: {
+  selectedTier: string
+  hasUltraLight: boolean
+  hasStandard: boolean
+  hasHighQuality: boolean
+  hasLossless: boolean
+}) {
+  if (!shouldLog()) return
+  console.info('[ht-audio-version]', stats)
+}
