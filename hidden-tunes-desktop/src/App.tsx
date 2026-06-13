@@ -2101,54 +2101,71 @@ const PlaybackTransportControls = memo(function PlaybackTransportControls({
     resume()
   }
 
+  const playLabel = showLoading
+    ? 'Loading track'
+    : showPlaying
+      ? 'Pause'
+      : isActive
+        ? 'Play'
+        : 'Play (select a track)'
+
   return (
-    <div className={className}>
+    <div className={`transport-controls ${className}`} role="group" aria-label="Playback controls">
       <button
         type="button"
-        className="control-btn"
+        className="control-btn control-btn--skip"
         onClick={previous}
         disabled={!hasPrevious}
-        aria-label={hasPrevious ? 'Previous track' : 'Previous track (not available yet)'}
+        aria-label={hasPrevious ? 'Previous track' : 'Previous track unavailable'}
+        title={hasPrevious ? 'Previous track' : 'Previous track unavailable'}
       >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M6 6h2v12H6V6zm3.5 6l8.5 6V6l-8.5 6z" />
-        </svg>
+        <span className="control-btn-icon control-btn-icon--skip" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M6 6h2v12H6V6zm3.5 6l8.5 6V6l-8.5 6z" />
+          </svg>
+        </span>
       </button>
       <button
         type="button"
-        className={`control-btn play${showPlaying ? ' is-active' : ''}`}
+        className={
+          'control-btn play'
+          + (showPlaying ? ' is-active' : '')
+          + (showLoading ? ' is-loading' : '')
+          + (!isActive ? ' is-idle' : '')
+        }
         onClick={handlePlayPause}
         disabled={!isActive || isLoading}
-        aria-label={
-          showLoading
-            ? 'Loading track'
-            : showPlaying
-              ? 'Pause'
-              : 'Play'
-        }
+        aria-label={playLabel}
+        aria-busy={showLoading}
+        title={playLabel}
       >
-        {showLoading ? (
-          <span className="player-spinner" aria-hidden="true" />
-        ) : showPlaying ? (
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M6 5h4v14H6V5zm8 0h4v14h-4V5z" />
-          </svg>
-        ) : (
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M8 5v14l11-7L8 5z" />
-          </svg>
-        )}
+        <span className="control-btn-icon control-btn-icon--play" aria-hidden="true">
+          {showLoading ? (
+            <span className="player-spinner player-spinner--transport" />
+          ) : showPlaying ? (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M6 5h4v14H6V5zm8 0h4v14h-4V5z" />
+            </svg>
+          ) : (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M8 5v14l11-7L8 5z" />
+            </svg>
+          )}
+        </span>
       </button>
       <button
         type="button"
-        className="control-btn"
+        className="control-btn control-btn--skip"
         onClick={next}
         disabled={!hasNext}
-        aria-label={hasNext ? 'Next track' : 'Next track (not available yet)'}
+        aria-label={hasNext ? 'Next track' : 'Next track unavailable'}
+        title={hasNext ? 'Next track' : 'Next track unavailable'}
       >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M6 18l8.5-6L6 6v12zm10-12h2v12h-2V6z" />
-        </svg>
+        <span className="control-btn-icon control-btn-icon--skip" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M6 18l8.5-6L6 6v12zm10-12h2v12h-2V6z" />
+          </svg>
+        </span>
       </button>
     </div>
   )

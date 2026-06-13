@@ -2049,6 +2049,65 @@
   width: 100%;
 }
 
+.transport-controls {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-shrink: 0;
+}
+
+.control-btn-icon {
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  line-height: 0;
+}
+
+.control-btn-icon--skip {
+  width: 18px;
+  height: 18px;
+}
+
+.control-btn-icon svg {
+  display: block;
+}
+
+.control-btn--skip:disabled {
+  opacity: 0.34;
+  color: rgba(245, 243, 250, 0.3);
+}
+
+.control-btn--skip:disabled:hover {
+  background: transparent;
+  color: rgba(245, 243, 250, 0.3);
+}
+
+.control-btn.play.is-loading:disabled {
+  opacity: 0.96;
+  cursor: default;
+}
+
+.control-btn.play.is-loading {
+  box-shadow:
+    0 4px 14px rgba(168, 85, 247, 0.26),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.control-btn.play.is-idle:disabled {
+  opacity: 0.48;
+}
+
+.player-spinner--transport {
+  width: 16px;
+  height: 16px;
+  border-width: 2px;
+  border-color: rgba(255, 255, 255, 0.22);
+  border-top-color: rgba(255, 255, 255, 0.92);
+}
+
 .player-controls {
   display: flex;
   align-items: center;
@@ -3820,6 +3879,11 @@
 .detail-hero--song .detail-controls {
   gap: 14px;
   padding-top: 0;
+}
+
+.detail-hero--song .transport-controls .control-btn--skip:disabled {
+  opacity: 0.38;
+  border-color: rgba(255, 255, 255, 0.04);
 }
 
 .detail-hero--song .detail-controls .control-btn {
