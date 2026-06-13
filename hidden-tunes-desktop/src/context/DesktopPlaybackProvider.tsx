@@ -16,7 +16,7 @@ import {
 } from '../lib/localPreferences'
 import {
   audioVersionAvailability,
-  selectInstantPlayableUrl,
+  selectPlayableUrlForQualityMode,
 } from '../lib/audioVersions'
 import { logAudioVersionSelection, logQueueExtension } from '../lib/catalogDiagnostics'
 import { resolveUpgradePlayUrl } from '../lib/songMetadata'
@@ -135,13 +135,14 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
   const playSong = useCallback(
     (song: ApiSong) => {
       const service = getService()
-      const selection = selectInstantPlayableUrl(song)
+      const selection = selectPlayableUrlForQualityMode(song, audioQualityMode)
       const instantUrl = selection?.url ?? null
       const upgradeUrl = resolveUpgradePlayUrl(song, instantUrl)
 
       if (selection) {
         logAudioVersionSelection({
           selectedTier: selection.tier,
+          qualityMode: audioQualityMode,
           ...audioVersionAvailability(song.audioVersions),
         })
       }
@@ -183,7 +184,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
           setError('Unable to play this track.')
         })
     },
-    [getService],
+    [audioQualityMode, getService],
   )
 
   useEffect(() => {
@@ -356,7 +357,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
   }, [getService])
 
   const resume = useCallback(() => {
-    if (!currentTrack || !selectInstantPlayableUrl(currentTrack)) {
+    if (!currentTrack || !selectPlayableUrlForQualityMode(currentTrack, audioQualityMode)) {
       setError('Unable to play this track.')
       return
     }
@@ -369,7 +370,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
         setIsLoading(false)
         setError('Unable to resume playback.')
       })
-  }, [currentTrack, getService])
+  }, [audioQualityMode, currentTrack, getService])
 
   const seekTo = useCallback(
     (seconds: number) => {

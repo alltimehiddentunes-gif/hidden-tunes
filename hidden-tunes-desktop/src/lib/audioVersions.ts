@@ -1,3 +1,5 @@
+import type { AudioQualityMode } from './localPreferences'
+
 export type AudioVersionSource = {
   url?: string
   codec?: string
@@ -31,6 +33,32 @@ export type PlayableUrlInput = {
   previewUrl?: string | null
   audioUrl?: string | null
   audioVersions?: SongAudioVersions
+}
+
+type AudioVersionCandidate = {
+  tier: AudioVersionTier
+  url?: string | null
+}
+
+const AUDIO_QUALITY_FALLBACKS: Record<AudioQualityMode, AudioVersionTier[]> = {
+  auto: [
+    'ultraLight',
+    'previewUrl',
+    'standard',
+    'legacyAudioUrl',
+    'highQuality',
+    'lossless',
+  ],
+  'data-saver': ['ultraLight', 'previewUrl', 'standard', 'legacyAudioUrl'],
+  standard: ['standard', 'ultraLight', 'previewUrl', 'legacyAudioUrl', 'highQuality'],
+  'high-quality': [
+    'highQuality',
+    'standard',
+    'legacyAudioUrl',
+    'ultraLight',
+    'previewUrl',
+    'lossless',
+  ],
 }
 
 function asHttpUrl(value: string | null | undefined): string | null {
@@ -103,19 +131,27 @@ export function mergeAudioVersions(
 export function selectInstantPlayableUrl(
   songOrMetadata: PlayableUrlInput,
 ): InstantPlayableSelection | null {
+  return selectPlayableUrlForQualityMode(songOrMetadata, 'auto')
+}
+
+export function selectPlayableUrlForQualityMode(
+  songOrMetadata: PlayableUrlInput,
+  qualityMode: AudioQualityMode,
+): InstantPlayableSelection | null {
   const versions = songOrMetadata.audioVersions
 
-  const candidates: Array<{ tier: AudioVersionTier; url?: string | null }> = [
-    { tier: 'ultraLight', url: versions?.ultraLight?.url },
-    { tier: 'previewUrl', url: songOrMetadata.previewUrl },
-    { tier: 'standard', url: versions?.standard?.url },
-    { tier: 'legacyAudioUrl', url: songOrMetadata.audioUrl },
-    { tier: 'highQuality', url: versions?.highQuality?.url },
-    { tier: 'lossless', url: versions?.lossless?.url },
-  ]
+  const candidatesByTier: Record<AudioVersionTier, AudioVersionCandidate> = {
+    ultraLight: { tier: 'ultraLight', url: versions?.ultraLight?.url },
+    previewUrl: { tier: 'previewUrl', url: songOrMetadata.previewUrl },
+    standard: { tier: 'standard', url: versions?.standard?.url },
+    legacyAudioUrl: { tier: 'legacyAudioUrl', url: songOrMetadata.audioUrl },
+    highQuality: { tier: 'highQuality', url: versions?.highQuality?.url },
+    lossless: { tier: 'lossless', url: versions?.lossless?.url },
+  }
 
   const seen = new Set<string>()
-  for (const candidate of candidates) {
+  for (const tier of AUDIO_QUALITY_FALLBACKS[qualityMode]) {
+    const candidate = candidatesByTier[tier]
     const url = asHttpUrl(candidate.url)
     if (!url || seen.has(url)) continue
     seen.add(url)

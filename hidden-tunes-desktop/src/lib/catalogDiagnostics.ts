@@ -82,6 +82,7 @@ export function logQueueExtension(stats: {
 
 export function logAudioVersionSelection(stats: {
   selectedTier: string
+  qualityMode?: string
   hasUltraLight: boolean
   hasStandard: boolean
   hasHighQuality: boolean
