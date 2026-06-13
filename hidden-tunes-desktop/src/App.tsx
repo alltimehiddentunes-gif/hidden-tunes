@@ -2418,149 +2418,27 @@ const QueueUpNextPanel = memo(function QueueUpNextPanel() {
   if (!activeTrack || upcomingTracks.length === 0) return null
 
   return (
-    <aside
-      aria-label="Up Next"
-      style={{
-        position: 'fixed',
-        right: 24,
-        bottom: 104,
-        zIndex: 3,
-        width: 'min(320px, calc(100vw - 48px))',
-        maxHeight: 'min(340px, calc(100vh - 140px))',
-        overflow: 'hidden',
-        borderRadius: 8,
-        border: '1px solid rgba(255, 255, 255, 0.1)',
-        background: 'rgba(11, 11, 17, 0.94)',
-        boxShadow: '0 18px 44px rgba(0, 0, 0, 0.34)',
-        padding: 14,
-      }}
-    >
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          gap: 12,
-          alignItems: 'baseline',
-          marginBottom: 10,
-        }}
-      >
-        <h2
-          style={{
-            margin: 0,
-            fontSize: 12,
-            fontWeight: 700,
-            color: 'rgba(245, 243, 250, 0.92)',
-          }}
-        >
-          Up Next
-        </h2>
-        <span
-          style={{
-            fontSize: 11,
-            color: 'rgba(245, 243, 250, 0.58)',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {queueLabel}
-        </span>
+    <aside className="queue-rail" aria-label="Up Next">
+      <div className="queue-rail-header">
+        <h2>Up Next</h2>
+        <span>{queueLabel}</span>
       </div>
-      <div
-        style={{
-          paddingBottom: 10,
-          marginBottom: 8,
-          borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-        }}
-      >
-        <p
-          style={{
-            margin: 0,
-            fontSize: 11,
-            color: 'rgba(245, 243, 250, 0.48)',
-          }}
-        >
-          Now playing
-        </p>
-        <p
-          style={{
-            margin: '3px 0 0',
-            fontSize: 13,
-            fontWeight: 650,
-            color: 'rgba(245, 243, 250, 0.92)',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {activeTrack.title}
-        </p>
-        <p
-          style={{
-            margin: '2px 0 0',
-            fontSize: 12,
-            color: 'rgba(245, 243, 250, 0.6)',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {activeTrack.artist}
-        </p>
+
+      <div className="queue-now">
+        <p className="queue-now-label">Now playing</p>
+        <p className="queue-now-title">{activeTrack.title}</p>
+        <p className="queue-now-artist">{activeTrack.artist}</p>
       </div>
-      <ol
-        style={{
-          listStyle: 'none',
-          margin: 0,
-          padding: 0,
-          display: 'grid',
-          gap: 8,
-        }}
-      >
+
+      <ol className="queue-list">
         {upcomingTracks.map((track, index) => (
-          <li
-            key={`${track.id}-${index}`}
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '24px minmax(0, 1fr)',
-              gap: 8,
-              alignItems: 'center',
-            }}
-          >
-            <span
-              aria-hidden="true"
-              style={{
-                fontSize: 11,
-                color: 'rgba(245, 243, 250, 0.42)',
-                textAlign: 'right',
-              }}
-            >
+          <li className="queue-item" key={`${track.id}-${index}`}>
+            <span className="queue-index" aria-hidden="true">
               {String(currentIndex + index + 2).padStart(2, '0')}
             </span>
-            <span style={{ minWidth: 0 }}>
-              <span
-                style={{
-                  display: 'block',
-                  fontSize: 12,
-                  color: 'rgba(245, 243, 250, 0.84)',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {track.title}
-              </span>
-              <span
-                style={{
-                  display: 'block',
-                  marginTop: 1,
-                  fontSize: 11,
-                  color: 'rgba(245, 243, 250, 0.52)',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {track.artist}
-              </span>
+            <span className="queue-track">
+              <span className="queue-track-title">{track.title}</span>
+              <span className="queue-track-artist">{track.artist}</span>
             </span>
           </li>
         ))}
@@ -2568,7 +2446,6 @@ const QueueUpNextPanel = memo(function QueueUpNextPanel() {
     </aside>
   )
 })
-
 type ActiveView = 'page' | 'song' | 'album' | 'artist' | 'mood'
 
 function formatDateLabel(value: string | null) {
@@ -2663,17 +2540,6 @@ function SongDetailView({
         </div>
       </section>
 
-      <section className="detail-panel">
-        <div className="detail-panel-header">
-          <h3>Waveform</h3>
-          <span>UI placeholder</span>
-        </div>
-        <div className="fake-waveform" aria-hidden="true">
-          {Array.from({ length: 48 }, (_, i) => (
-            <span key={i} style={{ height: `${22 + ((i * 13) % 46)}%` }} />
-          ))}
-        </div>
-      </section>
     </PageFrame>
   )
 }
@@ -3196,29 +3062,31 @@ function AppShell() {
       <div className="app-shell">
         <Sidebar activePage={activePage} onNavigate={navigatePage} />
         <div className="main-area">
-          <main className="main-scroll">
-            <CatalogStatusBar />
-            <CatalogStaleBanner />
-            <div className="page-view" data-page={activePage}>
-              <CatalogDetailRouter
-                activeView={activeView}
-                selectedSong={selectedSong}
-                selectedAlbum={selectedAlbum}
-                selectedArtist={selectedArtist}
-                selectedMood={selectedMood}
-                desktopSelectedTrack={desktopSelectedTrack}
-                onBack={backToPage}
-                activePage={activePage}
-                onOpenSong={selectAndPlay}
-                onOpenAlbum={openAlbum}
-                onOpenArtist={openArtist}
-                onOpenMood={openMood}
-              />
-            </div>
-          </main>
+          <div className="main-composition">
+            <main className="main-scroll">
+              <CatalogStatusBar />
+              <CatalogStaleBanner />
+              <div className="page-view" data-page={activePage}>
+                <CatalogDetailRouter
+                  activeView={activeView}
+                  selectedSong={selectedSong}
+                  selectedAlbum={selectedAlbum}
+                  selectedArtist={selectedArtist}
+                  selectedMood={selectedMood}
+                  desktopSelectedTrack={desktopSelectedTrack}
+                  onBack={backToPage}
+                  activePage={activePage}
+                  onOpenSong={selectAndPlay}
+                  onOpenAlbum={openAlbum}
+                  onOpenArtist={openArtist}
+                  onOpenMood={openMood}
+                />
+              </div>
+            </main>
+            <QueueUpNextPanel />
+          </div>
         </div>
       </div>
-      <QueueUpNextPanel />
       <PlayerBar track={desktopSelectedTrack} />
     </>
   )
