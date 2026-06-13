@@ -1,8 +1,12 @@
 FROM node:20-bookworm-slim
 
 # ffmpeg + ffprobe for ultraLight/standard tier generation
+# python is required by yt-dlp-exec during npm install
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends ffmpeg \
+  && apt-get install -y --no-install-recommends \
+    ffmpeg \
+    python3 \
+  && ln -sf /usr/bin/python3 /usr/bin/python \
   && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
