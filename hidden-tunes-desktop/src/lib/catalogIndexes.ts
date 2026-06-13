@@ -1,18 +1,146 @@
 import type { ApiAlbum, ApiArtist, ApiSong } from './api'
+import { logAlbumResolve, logArtistResolve, logCatalogIndexBuild } from './catalogDiagnostics'
+
+export const CATALOG_QUEUE_CANDIDATE_POOL_LIMIT = 250
+export const CATALOG_QUEUE_CANDIDATE_INSPECT_LIMIT = 120
+export const CATALOG_DETAIL_TRACK_PREVIEW_LIMIT = 24
+
+export type CatalogIndexes = {
+  songsById: Map<string, ApiSong>
+  songsByArtistId: Map<string, ApiSong[]>
+  songsByArtistName: Map<string, ApiSong[]>
+  songsByAlbumId: Map<string, ApiSong[]>
+  songsByAlbumName: Map<string, ApiSong[]>
+  songsByMood: Map<string, ApiSong[]>
+  songsByGenre: Map<string, ApiSong[]>
+  albumsByArtistId: Map<string, ApiAlbum[]>
+  artistNames: Map<string, string>
+}
 
 export function normalizeArtistKey(value: string) {
   return value.trim().toLowerCase()
 }
 
+export function normalizeAlbumKey(value: string) {
+  return value.trim().toLowerCase()
+}
+
+export function normalizeLookupKey(value: string | null | undefined) {
+  return value?.trim().toLowerCase() ?? ''
+}
+
+export function inferSongGenre(song?: ApiSong) {
+  if (!song) return 'hidden-tunes'
+
+  const explicitGenre = normalizeLookupKey(song.genre)
+  if (explicitGenre) return explicitGenre
+
+  const text = normalizeLookupKey(`${song.title} ${song.album} ${song.artist}`)
+  const genreHints: Array<[string, string[]]> = [
+    ['country', ['country', 'back road', 'wedding']],
+    ['jazz', ['jazz', 'cafe', 'blues', 'soul']],
+    ['acoustic', ['acoustic', 'guitar', 'piano']],
+    ['gospel', ['worship', 'lord', 'faith']],
+    ['amapiano', ['amapiano']],
+    ['pop', ['pop', 'party', 'hits']],
+    ['ambient', ['ambient', 'calm', 'sleep', 'relax', 'focus', 'chill']],
+    ['love', ['love', 'heart', 'miss', 'safe', 'shelter']],
+  ]
+
+  for (const [genre, hints] of genreHints) {
+    if (hints.some((hint) => text.includes(hint))) return genre
+  }
+
+  return 'hidden-tunes'
+}
+
+function pushToBucket(map: Map<string, ApiSong[]>, key: string, song: ApiSong) {
+  const bucket = map.get(key)
+  if (bucket) {
+    bucket.push(song)
+  } else {
+    map.set(key, [song])
+  }
+}
+
+export function buildCatalogIndexes(
+  songs: ApiSong[],
+  albums: ApiAlbum[],
+  artists: ApiArtist[],
+): CatalogIndexes {
+  const started = performance.now()
+
+  const songsById = new Map<string, ApiSong>()
+  const songsByArtistId = new Map<string, ApiSong[]>()
+  const songsByArtistName = new Map<string, ApiSong[]>()
+  const songsByAlbumName = new Map<string, ApiSong[]>()
+  const songsByAlbumId = new Map<string, ApiSong[]>()
+  const songsByMood = new Map<string, ApiSong[]>()
+  const songsByGenre = new Map<string, ApiSong[]>()
+
+  const albumIdByTitle = new Map<string, string>()
+  for (const album of albums) {
+    albumIdByTitle.set(normalizeAlbumKey(album.title), album.id)
+  }
+
+  for (const song of songs) {
+    songsById.set(song.id, song)
+
+    if (song.artistId) {
+      pushToBucket(songsByArtistId, song.artistId, song)
+    }
+
+    const artistKey = normalizeArtistKey(song.artist)
+    if (artistKey) {
+      pushToBucket(songsByArtistName, artistKey, song)
+    }
+
+    const albumKey = normalizeAlbumKey(song.album)
+    if (albumKey) {
+      pushToBucket(songsByAlbumName, albumKey, song)
+      const albumId = albumIdByTitle.get(albumKey)
+      if (albumId) {
+        pushToBucket(songsByAlbumId, albumId, song)
+      }
+    }
+
+    const moodKey = normalizeLookupKey(song.mood)
+    if (moodKey) {
+      pushToBucket(songsByMood, moodKey, song)
+    }
+
+    pushToBucket(songsByGenre, inferSongGenre(song), song)
+  }
+
+  const indexes: CatalogIndexes = {
+    songsById,
+    songsByArtistId,
+    songsByArtistName,
+    songsByAlbumId,
+    songsByAlbumName,
+    songsByMood,
+    songsByGenre,
+    albumsByArtistId: buildAlbumsByArtistId(albums),
+    artistNames: buildArtistNameLookup(artists),
+  }
+
+  logCatalogIndexBuild({
+    songCount: songs.length,
+    durationMs: Math.round(performance.now() - started),
+    songsById: songsById.size,
+    songsByArtistId: songsByArtistId.size,
+    songsByAlbumId: songsByAlbumId.size,
+    songsByMood: songsByMood.size,
+    songsByGenre: songsByGenre.size,
+  })
+
+  return indexes
+}
+
 export function buildSongsByAlbumTitle(songs: ApiSong[]) {
   const map = new Map<string, ApiSong[]>()
   for (const song of songs) {
-    const bucket = map.get(song.album)
-    if (bucket) {
-      bucket.push(song)
-    } else {
-      map.set(song.album, [song])
-    }
+    pushToBucket(map, normalizeAlbumKey(song.album), song)
   }
   return map
 }
@@ -22,12 +150,7 @@ export function buildSongsByArtistName(songs: ApiSong[]) {
   for (const song of songs) {
     const key = normalizeArtistKey(song.artist)
     if (!key) continue
-    const bucket = map.get(key)
-    if (bucket) {
-      bucket.push(song)
-    } else {
-      map.set(key, [song])
-    }
+    pushToBucket(map, key, song)
   }
   return map
 }
@@ -36,12 +159,7 @@ export function buildSongsByArtistId(songs: ApiSong[]) {
   const map = new Map<string, ApiSong[]>()
   for (const song of songs) {
     if (!song.artistId) continue
-    const bucket = map.get(song.artistId)
-    if (bucket) {
-      bucket.push(song)
-    } else {
-      map.set(song.artistId, [song])
-    }
+    pushToBucket(map, song.artistId, song)
   }
   return map
 }
@@ -51,15 +169,139 @@ export function resolveSongsForArtist(
   songsByArtistId: Map<string, ApiSong[]>,
   songsByArtistName: Map<string, ApiSong[]>,
 ) {
+  const started = performance.now()
+
   if (artist.id) {
     const byId = songsByArtistId.get(artist.id)
-    if (byId?.length) return byId
+    if (byId?.length) {
+      logArtistResolve({
+        artistId: artist.id,
+        resultCount: byId.length,
+        durationMs: Math.round(performance.now() - started),
+        source: 'id',
+      })
+      return byId
+    }
   }
 
   const byName = songsByArtistName.get(normalizeArtistKey(artist.name))
-  if (byName?.length) return byName
+  if (byName?.length) {
+    logArtistResolve({
+      artistId: artist.id,
+      resultCount: byName.length,
+      durationMs: Math.round(performance.now() - started),
+      source: 'name',
+    })
+    return byName
+  }
 
-  return artist.tracks ?? []
+  const tracks = artist.tracks ?? []
+  logArtistResolve({
+    artistId: artist.id,
+    resultCount: tracks.length,
+    durationMs: Math.round(performance.now() - started),
+    source: tracks.length > 0 ? 'tracks' : 'none',
+  })
+  return tracks
+}
+
+export function resolveSongsForAlbum(
+  album: ApiAlbum,
+  songsByAlbumId: Map<string, ApiSong[]>,
+  songsByAlbumName: Map<string, ApiSong[]>,
+) {
+  const started = performance.now()
+
+  if (album.id) {
+    const byId = songsByAlbumId.get(album.id)
+    if (byId?.length) {
+      logAlbumResolve({
+        albumId: album.id,
+        resultCount: byId.length,
+        durationMs: Math.round(performance.now() - started),
+        source: 'id',
+      })
+      return byId
+    }
+  }
+
+  const byName = songsByAlbumName.get(normalizeAlbumKey(album.title))
+  const result = byName ?? []
+  logAlbumResolve({
+    albumId: album.id,
+    resultCount: result.length,
+    durationMs: Math.round(performance.now() - started),
+    source: result.length > 0 ? 'name' : 'none',
+  })
+  return result
+}
+
+const MOOD_ROOM_GENRES: Record<string, string[]> = {
+  violet: ['jazz', 'love', 'ambient', 'soul'],
+  cyan: ['ambient', 'acoustic', 'pop', 'focus'],
+  rose: ['pop', 'love', 'country', 'hits'],
+  mint: ['acoustic', 'ambient', 'gospel', 'chill'],
+}
+
+export function hashSeedToIndex(seed: string, modulo: number) {
+  let acc = 0
+  for (let i = 0; i < seed.length; i++) acc = (acc * 31 + seed.charCodeAt(i)) >>> 0
+  return modulo > 0 ? acc % modulo : 0
+}
+
+export function resolveSongsForMoodRoom(
+  moodKey: string,
+  moodTone: string,
+  songsByMood: Map<string, ApiSong[]>,
+  songsByGenre: Map<string, ApiSong[]>,
+  fallbackSongs: ApiSong[],
+) {
+  const byTitle = songsByMood.get(normalizeLookupKey(moodKey))
+  if (byTitle?.length) {
+    const start = hashSeedToIndex(moodKey, byTitle.length)
+    return [...byTitle.slice(start), ...byTitle.slice(0, start)]
+  }
+
+  const genreKeys = MOOD_ROOM_GENRES[moodTone] ?? []
+  const seen = new Set<string>()
+  const merged: ApiSong[] = []
+
+  for (const genre of genreKeys) {
+    for (const song of songsByGenre.get(genre) ?? []) {
+      if (seen.has(song.id)) continue
+      seen.add(song.id)
+      merged.push(song)
+    }
+  }
+
+  const source = merged.length > 0 ? merged : fallbackSongs
+  if (source.length === 0) return []
+
+  const start = hashSeedToIndex(moodKey, source.length)
+  return [...source.slice(start), ...source.slice(0, start)]
+}
+
+export function capSongPool(songs: ApiSong[], limit = CATALOG_QUEUE_CANDIDATE_POOL_LIMIT) {
+  return songs.length <= limit ? songs : songs.slice(0, limit)
+}
+
+export function buildQueueSeedPool(
+  seedType: 'home' | 'discover' | 'artist' | 'album' | 'mood' | 'manual',
+  contextSongs: ApiSong[],
+  indexes: Pick<CatalogIndexes, 'songsByArtistId' | 'songsByGenre'>,
+  referenceSong?: ApiSong,
+) {
+  if (seedType === 'artist' && referenceSong?.artistId) {
+    const artistPool = indexes.songsByArtistId.get(referenceSong.artistId)
+    if (artistPool?.length) return capSongPool(artistPool)
+  }
+
+  if (seedType === 'home' || seedType === 'discover') {
+    const genrePool = indexes.songsByGenre.get(inferSongGenre(referenceSong ?? contextSongs[0]))
+    if (genrePool?.length) return capSongPool(genrePool)
+  }
+
+  return capSongPool(contextSongs)
 }
 
 export function buildAlbumsByArtistId(albums: ApiAlbum[]) {

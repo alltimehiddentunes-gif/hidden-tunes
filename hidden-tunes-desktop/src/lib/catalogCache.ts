@@ -53,12 +53,19 @@ function sanitizeSong(raw: unknown): ApiSong | null {
           ? record.artist_id
           : null,
     album: typeof record.album === 'string' ? record.album : '',
+    albumId:
+      typeof record.albumId === 'string'
+        ? record.albumId
+        : typeof record.album_id === 'string'
+          ? record.album_id
+          : null,
     genre:
       typeof record.genre === 'string'
         ? record.genre
         : typeof record.category === 'string'
           ? record.category
           : null,
+    mood: typeof record.mood === 'string' ? record.mood : null,
     artwork: sanitizeArtwork(record.artwork),
     audioUrl:
       sanitizeAudioUrl(record.audioUrl) ??

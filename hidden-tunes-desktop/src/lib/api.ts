@@ -1,6 +1,11 @@
+import { logCatalogSearch } from './catalogDiagnostics'
+
 export const API_BASE_URL = 'https://hidden-tunes-api.onrender.com'
 
 const REQUEST_TIMEOUT_MS = 20_000
+
+export const CATALOG_SEARCH_MIN_QUERY_LENGTH = 2
+export const CATALOG_SEARCH_MAX_RESULTS = 240
 
 export type ApiSong = {
   id: string
@@ -8,7 +13,9 @@ export type ApiSong = {
   artist: string
   artistId: string | null
   album: string
+  albumId: string | null
   genre: string | null
+  mood: string | null
   artwork: string | null
   audioUrl: string | null
   durationSeconds: number | null
@@ -130,12 +137,19 @@ function normalizeSong(row: unknown): ApiSong | null {
           ? String(record.artist_id)
           : null,
     album: String(record.album || record.album_title || 'Singles'),
+    albumId:
+      record.albumId != null
+        ? String(record.albumId)
+        : record.album_id != null
+          ? String(record.album_id)
+          : null,
     genre:
       record.genre != null
         ? String(record.genre)
         : record.category != null
           ? String(record.category)
           : null,
+    mood: record.mood != null ? String(record.mood) : null,
     artwork: pickArtwork(record),
     audioUrl: pickAudioUrl(record),
     durationSeconds: pickDurationSeconds(record),
@@ -264,15 +278,63 @@ function normalizeQuery(query: string) {
   return query.trim().toLowerCase()
 }
 
-export function filterSongsByQuery(songs: ApiSong[], query: string) {
+export function filterSongsByQuery(
+  songs: ApiSong[],
+  query: string,
+  options?: {
+    minQueryLength?: number
+    maxResults?: number
+  },
+) {
+  const started = performance.now()
+  const minQueryLength = options?.minQueryLength ?? CATALOG_SEARCH_MIN_QUERY_LENGTH
+  const maxResults = options?.maxResults ?? CATALOG_SEARCH_MAX_RESULTS
   const q = normalizeQuery(query)
-  if (!q) return songs
-  return songs.filter(
-    (song) =>
+
+  if (!q) {
+    const results = songs.length <= maxResults ? songs : songs.slice(0, maxResults)
+    logCatalogSearch({
+      queryLength: 0,
+      resultCount: results.length,
+      durationMs: Math.round(performance.now() - started),
+      capped: songs.length > maxResults,
+      skipped: false,
+    })
+    return results
+  }
+
+  if (q.length < minQueryLength) {
+    logCatalogSearch({
+      queryLength: q.length,
+      resultCount: 0,
+      durationMs: Math.round(performance.now() - started),
+      capped: false,
+      skipped: true,
+    })
+    return []
+  }
+
+  const matches: ApiSong[] = []
+  for (const song of songs) {
+    if (
       song.title.toLowerCase().includes(q) ||
       song.artist.toLowerCase().includes(q) ||
-      song.album.toLowerCase().includes(q),
-  )
+      song.album.toLowerCase().includes(q)
+    ) {
+      matches.push(song)
+      if (matches.length >= maxResults) break
+    }
+  }
+
+  logCatalogSearch({
+    queryLength: q.length,
+    resultCount: matches.length,
+    durationMs: Math.round(performance.now() - started),
+    capped: matches.length >= maxResults,
+    skipped: false,
+  })
+
+  return matches
 }
 
 export function sortSongsList(songs: ApiSong[], sort: SongSort) {

@@ -19,10 +19,17 @@ export type QueueSeedType =
   | 'home'
   | 'manual'
 
+export type QueueCandidatePools = {
+  songsByGenre?: Map<string, ApiSong[]>
+  songsByArtistId?: Map<string, ApiSong[]>
+  songsByAlbumName?: Map<string, ApiSong[]>
+}
+
 export type QueueSeedMetadata = {
   seedType?: QueueSeedType
   seedId?: string
   seedTracks?: ApiSong[]
+  candidatePools?: QueueCandidatePools
 }
 
 export type DesktopPlaybackState = {

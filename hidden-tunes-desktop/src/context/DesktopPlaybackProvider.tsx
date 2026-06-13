@@ -9,10 +9,12 @@ import {
   type ReactNode,
 } from 'react'
 import type { ApiSong } from '../lib/api'
+import { logQueueExtension } from '../lib/catalogDiagnostics'
 import { HtmlAudioPlaybackService } from '../lib/desktopPlayback/HtmlAudioPlaybackService'
 import { buildRelatedQueue } from '../lib/desktopPlayback/queueIntelligence'
 import type {
   DesktopPlaybackContextValue,
+  QueueCandidatePools,
   QueueContext,
   QueueSeedMetadata,
   QueueSeedType,
@@ -52,6 +54,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
   const queueSeedTypeRef = useRef<QueueSeedType>(DEFAULT_QUEUE_SEED_TYPE)
   const queueSeedIdRef = useRef<string | undefined>(undefined)
   const queueSeedTracksRef = useRef<ApiSong[]>([])
+  const queueCandidatePoolsRef = useRef<QueueCandidatePools | undefined>(undefined)
   const playSongRef = useRef<(song: ApiSong) => void>(() => undefined)
 
   const getService = useCallback(() => {
@@ -91,13 +94,22 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       return queue
     }
 
-    const relatedTracks = buildRelatedQueue(
+    const started = performance.now()
+    const { relatedTracks, inspectedCount } = buildRelatedQueue(
       queue,
       queueSeedTypeRef.current,
       queueSeedIdRef.current,
       queueSeedTracksRef.current,
+      queueCandidatePoolsRef.current,
     )
     if (relatedTracks.length === 0) return queue
+
+    logQueueExtension({
+      seedType: queueSeedTypeRef.current,
+      addedCount: relatedTracks.length,
+      durationMs: Math.round(performance.now() - started),
+      inspectedCount,
+    })
 
     const extendedQueue = [...queue, ...relatedTracks]
     queueRef.current = extendedQueue
@@ -259,6 +271,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       queueSeedTypeRef.current = nextSeedType
       queueSeedIdRef.current = seedMetadata?.seedId
       queueSeedTracksRef.current = seedMetadata?.seedTracks ?? playableQueue
+      queueCandidatePoolsRef.current = seedMetadata?.candidatePools
 
       applyQueueState(playableQueue, safeIndex)
       setQueueContext(context)

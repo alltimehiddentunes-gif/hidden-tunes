@@ -28,13 +28,20 @@ import {
   type SongSort,
 } from './lib/api'
 import {
-  buildAlbumsByArtistId,
-  buildArtistNameLookup,
-  buildSongsByAlbumTitle,
-  buildSongsByArtistId,
-  buildSongsByArtistName,
+  buildCatalogIndexes,
+  buildQueueSeedPool,
+  CATALOG_DETAIL_TRACK_PREVIEW_LIMIT,
+  capSongPool,
+  resolveSongsForAlbum,
   resolveSongsForArtist,
+  resolveSongsForMoodRoom,
+  type CatalogIndexes,
 } from './lib/catalogIndexes'
+import {
+  logCatalogCacheHit,
+  logCatalogCacheMiss,
+  logCatalogFetch,
+} from './lib/catalogDiagnostics'
 import {
   cachedCatalogToBundle,
   clearCachedCatalog,
@@ -73,6 +80,7 @@ const PLAYER_BAR_FALLBACK_TITLE = 'Ethereal Horizon'
 const PLAYER_BAR_FALLBACK_ARTIST = 'Luna Veil'
 const GRID_INITIAL_LIMIT = 24
 const GRID_SHOW_MORE_STEP = 24
+const SEARCH_DEBOUNCE_MS = 250
 
 const SONG_SORT_OPTIONS = [
   { value: 'latest', label: 'Latest' },
@@ -163,12 +171,14 @@ function resolveInitialCatalog() {
 
     const stored = readCachedCatalog()
     if (stored) {
+      logCatalogCacheHit({ songCount: stored.songs.length, cachedAt: stored.cachedAt })
       return {
         bundle: cachedCatalogToBundle(stored),
         source: 'cache' as CatalogSource,
         cachedAt: stored.cachedAt,
       }
     }
+    logCatalogCacheMiss()
   } catch {
     // Ignore corrupt cache/bootstrap data — app should still open.
   }
@@ -180,10 +190,30 @@ function resolveInitialCatalog() {
   }
 }
 
+function useDebouncedValue<T>(value: T, delayMs: number) {
+  const [debounced, setDebounced] = useState(value)
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebounced(value), delayMs)
+    return () => window.clearTimeout(timer)
+  }, [value, delayMs])
+
+  return debounced
+}
+
+function buildQueueCandidatePools(indexes: CatalogIndexes) {
+  return {
+    songsByGenre: indexes.songsByGenre,
+    songsByArtistId: indexes.songsByArtistId,
+    songsByAlbumName: indexes.songsByAlbumName,
+  }
+}
+
 type CatalogContextValue = {
   songs: ApiSong[]
   albums: ApiAlbum[]
   artists: ApiArtist[]
+  indexes: CatalogIndexes
   artistNames: Map<string, string>
   songsByAlbumTitle: Map<string, ApiSong[]>
   songsByArtistName: Map<string, ApiSong[]>
@@ -297,11 +327,19 @@ function CatalogProvider({ children }: { children: ReactNode }) {
     setLoading(true)
     setError(null)
 
+    const fetchStarted = performance.now()
     fetchCatalogBundle()
       .then((bundle) => {
         if (!active) return
         writeCachedCatalog(bundle)
         catalogSessionFetchDone = true
+        logCatalogFetch({
+          songCount: bundle.songs.length,
+          albumCount: bundle.albums.length,
+          artistCount: bundle.artists.length,
+          durationMs: Math.round(performance.now() - fetchStarted),
+          source: 'live',
+        })
         applyBundle(bundle, 'live', new Date().toISOString())
       })
       .catch((err) => {
@@ -331,22 +369,22 @@ function CatalogProvider({ children }: { children: ReactNode }) {
     }
   }, [reloadKey, applyBundle])
 
-  const artistNames = useMemo(() => buildArtistNameLookup(artists), [artists])
-  const songsByAlbumTitle = useMemo(() => buildSongsByAlbumTitle(songs), [songs])
-  const songsByArtistName = useMemo(() => buildSongsByArtistName(songs), [songs])
-  const songsByArtistId = useMemo(() => buildSongsByArtistId(songs), [songs])
-  const albumsByArtistId = useMemo(() => buildAlbumsByArtistId(albums), [albums])
+  const catalogIndexes = useMemo(
+    () => buildCatalogIndexes(songs, albums, artists),
+    [songs, albums, artists],
+  )
 
   const value = useMemo(
     () => ({
       songs,
       albums,
       artists,
-      artistNames,
-      songsByAlbumTitle,
-      songsByArtistName,
-      songsByArtistId,
-      albumsByArtistId,
+      indexes: catalogIndexes,
+      artistNames: catalogIndexes.artistNames,
+      songsByAlbumTitle: catalogIndexes.songsByAlbumName,
+      songsByArtistName: catalogIndexes.songsByArtistName,
+      songsByArtistId: catalogIndexes.songsByArtistId,
+      albumsByArtistId: catalogIndexes.albumsByArtistId,
       loading,
       error,
       loaded,
@@ -363,11 +401,7 @@ function CatalogProvider({ children }: { children: ReactNode }) {
       songs,
       albums,
       artists,
-      artistNames,
-      songsByAlbumTitle,
-      songsByArtistName,
-      songsByArtistId,
-      albumsByArtistId,
+      catalogIndexes,
       loading,
       error,
       loaded,
@@ -1344,12 +1378,13 @@ function Hero() {
 }
 
 function HomePage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
-  const { songs, showCatalogSkeleton, showCatalogError, error, retry } = useCatalog()
+  const { songs, indexes, showCatalogSkeleton, showCatalogError, error, retry } = useCatalog()
   const [sort, setSort] = useState<SongSort>('latest')
   const featured = useMemo(
     () => sortSongsList(songs, sort).slice(0, 12),
     [songs, sort],
   )
+  const queuePools = useMemo(() => buildQueueCandidatePools(indexes), [indexes])
   const playHomeSong = useCallback(
     (song: ApiSong, index: number) => onOpenSong(
       song,
@@ -1357,9 +1392,13 @@ function HomePage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
       index,
       'home',
       'Home',
-      { seedType: 'home', seedTracks: songs },
+      {
+        seedType: 'home',
+        seedTracks: buildQueueSeedPool('home', featured, indexes, song),
+        candidatePools: queuePools,
+      },
     ),
-    [featured, onOpenSong, songs],
+    [featured, indexes, onOpenSong, queuePools],
   )
 
   return (
@@ -1401,12 +1440,13 @@ function HomePage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
 }
 
 function DiscoverPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
-  const { songs, showCatalogSkeleton, showCatalogError, error, retry } = useCatalog()
+  const { songs, indexes, showCatalogSkeleton, showCatalogError, error, retry } = useCatalog()
   const [query, setQuery] = usePersistedPreference(
     DESKTOP_PREFERENCE_KEYS.discoverSearch,
     '',
     parseStoredSearchTerm,
   )
+  const debouncedQuery = useDebouncedValue(query, SEARCH_DEBOUNCE_MS)
   const [sort, setSort] = usePersistedPreference(
     DESKTOP_PREFERENCE_KEYS.discoverSort,
     'latest' as SongSort,
@@ -1414,11 +1454,12 @@ function DiscoverPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
   )
 
   const visibleSongs = useMemo(() => {
-    const filtered = filterSongsByQuery(songs, query)
+    const filtered = filterSongsByQuery(songs, debouncedQuery)
     return sortSongsList(filtered, sort)
-  }, [songs, query, sort])
+  }, [songs, debouncedQuery, sort])
 
-  const listKey = useMemo(() => `${query}:${sort}`, [query, sort])
+  const listKey = useMemo(() => `${debouncedQuery}:${sort}`, [debouncedQuery, sort])
+  const queuePools = useMemo(() => buildQueueCandidatePools(indexes), [indexes])
   const playDiscoverSong = useCallback(
     (song: ApiSong, index: number) => onOpenSong(
       song,
@@ -1426,9 +1467,13 @@ function DiscoverPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
       index,
       'discover',
       'Discover',
-      { seedType: 'discover', seedTracks: songs },
+      {
+        seedType: 'discover',
+        seedTracks: buildQueueSeedPool('discover', visibleSongs, indexes, song),
+        candidatePools: queuePools,
+      },
     ),
-    [onOpenSong, songs, visibleSongs],
+    [indexes, onOpenSong, queuePools, visibleSongs],
   )
 
   return (
@@ -1587,12 +1632,16 @@ function ArtistsPage({ onOpenArtist }: { onOpenArtist: (artist: ApiArtist) => vo
     parseStoredArtistSort,
   )
 
-  const visibleArtists = useMemo(() => {
-    const filtered = filterArtistsByQuery(artists, query)
-    return sortArtistsList(filtered, sort)
-  }, [artists, query, sort])
+  const debouncedQuery = useDebouncedValue(query, SEARCH_DEBOUNCE_MS)
 
-  const listKey = useMemo(() => `${query}:${sort}`, [query, sort])
+  const visibleArtists = useMemo(() => {
+    const q = debouncedQuery.trim().toLowerCase()
+    if (q && q.length < 2) return []
+    const filtered = filterArtistsByQuery(artists, debouncedQuery)
+    return sortArtistsList(filtered, sort)
+  }, [artists, debouncedQuery, sort])
+
+  const listKey = useMemo(() => `${debouncedQuery}:${sort}`, [debouncedQuery, sort])
 
   return (
     <PageFrame>
@@ -1643,12 +1692,16 @@ function AlbumsPage({ onOpenAlbum }: { onOpenAlbum: (album: ApiAlbum) => void })
     parseStoredAlbumSort,
   )
 
-  const visibleAlbums = useMemo(() => {
-    const filtered = filterAlbumsByQuery(albums, query, artistNames)
-    return sortAlbumsList(filtered, sort)
-  }, [albums, query, artistNames, sort])
+  const debouncedQuery = useDebouncedValue(query, SEARCH_DEBOUNCE_MS)
 
-  const listKey = useMemo(() => `${query}:${sort}`, [query, sort])
+  const visibleAlbums = useMemo(() => {
+    const q = debouncedQuery.trim().toLowerCase()
+    if (q && q.length < 2) return []
+    const filtered = filterAlbumsByQuery(albums, debouncedQuery, artistNames)
+    return sortAlbumsList(filtered, sort)
+  }, [albums, debouncedQuery, artistNames, sort])
+
+  const listKey = useMemo(() => `${debouncedQuery}:${sort}`, [debouncedQuery, sort])
 
   return (
     <PageFrame>
@@ -2360,11 +2413,6 @@ function formatDateLabel(value: string | null) {
   })
 }
 
-function hashToIndex(seed: string, modulo: number) {
-  let acc = 0
-  for (let i = 0; i < seed.length; i++) acc = (acc * 31 + seed.charCodeAt(i)) >>> 0
-  return modulo > 0 ? acc % modulo : 0
-}
 
 function DetailTopBar({
   title,
@@ -2472,15 +2520,23 @@ function AlbumDetailView({
   onOpenSong: QueueSongHandler
   selectedTrackId: string | null
 }) {
-  const { artistNames, songsByAlbumTitle } = useCatalog()
+  const { artistNames, indexes } = useCatalog()
   const artistName = album.artistId ? artistNames.get(album.artistId) : null
   const created = formatDateLabel(album.createdAt)
 
   const albumSongs = useMemo(() => {
-    const byAlbum = songsByAlbumTitle.get(album.title) ?? []
+    const byAlbum = resolveSongsForAlbum(
+      album,
+      indexes.songsByAlbumId,
+      indexes.songsByAlbumName,
+    )
     return sortSongsList(byAlbum, 'az')
-  }, [songsByAlbumTitle, album.title])
-  const tracks = useMemo(() => albumSongs.slice(0, 24), [albumSongs])
+  }, [album, indexes.songsByAlbumId, indexes.songsByAlbumName])
+  const tracks = useMemo(
+    () => albumSongs.slice(0, CATALOG_DETAIL_TRACK_PREVIEW_LIMIT),
+    [albumSongs],
+  )
+  const queuePools = useMemo(() => buildQueueCandidatePools(indexes), [indexes])
   const playAlbumSong = useCallback(
     (song: ApiSong, index: number) => onOpenSong(
       song,
@@ -2488,9 +2544,14 @@ function AlbumDetailView({
       index,
       'album',
       album.title,
-      { seedType: 'album', seedId: album.id, seedTracks: albumSongs },
+      {
+        seedType: 'album',
+        seedId: album.id,
+        seedTracks: capSongPool(albumSongs),
+        candidatePools: queuePools,
+      },
     ),
-    [album.id, album.title, albumSongs, onOpenSong, tracks],
+    [album.id, album.title, albumSongs, onOpenSong, queuePools, tracks],
   )
 
   return (
@@ -2512,7 +2573,7 @@ function AlbumDetailView({
           <div className="detail-meta">
             <div className="detail-meta-item">
               <span>Tracks</span>
-              <strong>{tracks.length}</strong>
+              <strong>{albumSongs.length}</strong>
             </div>
             <div className="detail-meta-item">
               <span>Added</span>
@@ -2564,13 +2625,18 @@ function ArtistDetailView({
   onOpenSong: QueueSongHandler
   onOpenAlbum: (album: ApiAlbum) => void
 }) {
-  const { artistNames, songsByArtistId, songsByArtistName, albumsByArtistId } = useCatalog()
+  const { artistNames, indexes } = useCatalog()
 
   const artistSongs = useMemo(() => {
-    const byArtist = resolveSongsForArtist(artist, songsByArtistId, songsByArtistName)
+    const byArtist = resolveSongsForArtist(
+      artist,
+      indexes.songsByArtistId,
+      indexes.songsByArtistName,
+    )
     return sortSongsList(byArtist, 'latest')
-  }, [artist, songsByArtistId, songsByArtistName])
+  }, [artist, indexes.songsByArtistId, indexes.songsByArtistName])
   const topSongs = useMemo(() => artistSongs.slice(0, 12), [artistSongs])
+  const queuePools = useMemo(() => buildQueueCandidatePools(indexes), [indexes])
   const playArtistSong = useCallback(
     (song: ApiSong, index: number) => onOpenSong(
       song,
@@ -2578,15 +2644,20 @@ function ArtistDetailView({
       index,
       'artist',
       artist.name,
-      { seedType: 'artist', seedId: artist.id, seedTracks: artistSongs },
+      {
+        seedType: 'artist',
+        seedId: artist.id,
+        seedTracks: capSongPool(artistSongs),
+        candidatePools: queuePools,
+      },
     ),
-    [artist.id, artist.name, artistSongs, onOpenSong, topSongs],
+    [artist.id, artist.name, artistSongs, onOpenSong, queuePools, topSongs],
   )
 
   const artistAlbums = useMemo(() => {
     if (!artist.id) return []
-    return (albumsByArtistId.get(artist.id) ?? []).slice(0, 12)
-  }, [albumsByArtistId, artist.id])
+    return (indexes.albumsByArtistId.get(artist.id) ?? []).slice(0, 12)
+  }, [indexes.albumsByArtistId, artist.id])
 
   return (
     <PageFrame>
@@ -2601,7 +2672,7 @@ function ArtistDetailView({
           <div className="detail-meta">
             <div className="detail-meta-item">
               <span>Tracks</span>
-              <strong>{artist.songCount || topSongs.length}</strong>
+              <strong>{artist.songCount || artistSongs.length}</strong>
             </div>
             <div className="detail-meta-item">
               <span>Albums</span>
@@ -2658,15 +2729,21 @@ function MoodDetailView({
   onBack: () => void
   onOpenSong: QueueSongHandler
 }) {
-  const { songs } = useCatalog()
+  const { songs, indexes } = useCatalog()
 
-  const moodSongs = useMemo(() => {
-    const list = sortSongsList(songs, 'latest')
-    if (list.length === 0) return []
-    const start = hashToIndex(mood.title, list.length)
-    return [...list.slice(start), ...list.slice(0, start)]
-  }, [songs, mood.title])
+  const moodSongs = useMemo(
+    () =>
+      resolveSongsForMoodRoom(
+        mood.title,
+        mood.mood,
+        indexes.songsByMood,
+        indexes.songsByGenre,
+        songs,
+      ),
+    [indexes.songsByGenre, indexes.songsByMood, mood.mood, mood.title, songs],
+  )
   const curated = useMemo(() => moodSongs.slice(0, 12), [moodSongs])
+  const queuePools = useMemo(() => buildQueueCandidatePools(indexes), [indexes])
 
   const descriptionByMood: Record<Mood, string> = useMemo(
     () => ({
@@ -2686,9 +2763,14 @@ function MoodDetailView({
       index,
       'mood',
       mood.title,
-      { seedType: 'mood', seedId: mood.title, seedTracks: moodSongs },
+      {
+        seedType: 'mood',
+        seedId: mood.title,
+        seedTracks: capSongPool(moodSongs),
+        candidatePools: queuePools,
+      },
     ),
-    [curated, mood.title, moodSongs, onOpenSong],
+    [curated, mood.title, moodSongs, onOpenSong, queuePools],
   )
 
   return (

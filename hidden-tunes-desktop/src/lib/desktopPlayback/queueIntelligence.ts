@@ -1,11 +1,12 @@
 import type { ApiSong } from '../api'
-import type { QueueSeedType } from './types'
+import {
+  CATALOG_QUEUE_CANDIDATE_INSPECT_LIMIT,
+  inferSongGenre,
+  normalizeLookupKey,
+} from '../catalogIndexes'
+import type { QueueCandidatePools, QueueSeedType } from './types'
 
 const RELATED_LIMIT = 5
-
-function normalizeKey(value: string | null | undefined) {
-  return value?.trim().toLowerCase() ?? ''
-}
 
 function stableSongCompare(a: ApiSong, b: ApiSong) {
   const aTime = a.createdAt ? Date.parse(a.createdAt) : 0
@@ -19,37 +20,75 @@ function stableSongCompare(a: ApiSong, b: ApiSong) {
   return a.id.localeCompare(b.id)
 }
 
-function inferGenre(song: ApiSong) {
-  const explicitGenre = normalizeKey(song.genre)
-  if (explicitGenre) return explicitGenre
-
-  const text = normalizeKey(`${song.title} ${song.album} ${song.artist}`)
-  const genreHints: Array<[string, string[]]> = [
-    ['country', ['country', 'back road', 'wedding']],
-    ['jazz', ['jazz', 'cafe', 'blues', 'soul']],
-    ['acoustic', ['acoustic', 'guitar', 'piano']],
-    ['gospel', ['worship', 'lord', 'faith']],
-    ['amapiano', ['amapiano']],
-    ['pop', ['pop', 'party', 'hits']],
-    ['ambient', ['ambient', 'calm', 'sleep', 'relax', 'focus', 'chill']],
-    ['love', ['love', 'heart', 'miss', 'safe', 'shelter']],
-  ]
-
-  for (const [genre, hints] of genreHints) {
-    if (hints.some((hint) => text.includes(hint))) return genre
-  }
-
-  return 'hidden-tunes'
-}
-
-function uniqueUnqueuedSongs(currentQueue: ApiSong[], seedTracks: ApiSong[]) {
+function uniqueUnqueuedSongs(currentQueue: ApiSong[], candidates: ApiSong[]) {
   const queuedIds = new Set(currentQueue.map((song) => song.id))
   const seenIds = new Set<string>()
-  return seedTracks.filter((song) => {
-    if (queuedIds.has(song.id) || seenIds.has(song.id)) return false
+  const unqueued: ApiSong[] = []
+
+  for (const song of candidates) {
+    if (queuedIds.has(song.id) || seenIds.has(song.id)) continue
     seenIds.add(song.id)
-    return true
-  })
+    unqueued.push(song)
+    if (unqueued.length >= RELATED_LIMIT) break
+  }
+
+  return unqueued
+}
+
+function resolveCandidatePool(
+  currentQueue: ApiSong[],
+  queueSeedType: QueueSeedType,
+  queueSeedId: string | undefined,
+  seedTracks: ApiSong[],
+  pools?: QueueCandidatePools,
+) {
+  const referenceTrack = currentQueue[currentQueue.length - 1]
+  if (!referenceTrack) return { pool: seedTracks, inspectedCount: 0 }
+
+  if (queueSeedType === 'discover' || queueSeedType === 'home') {
+    const genre = inferSongGenre(referenceTrack)
+    const genrePool = pools?.songsByGenre?.get(genre)
+    if (genrePool?.length) {
+      return {
+        pool: genrePool.slice(0, CATALOG_QUEUE_CANDIDATE_INSPECT_LIMIT),
+        inspectedCount: Math.min(genrePool.length, CATALOG_QUEUE_CANDIDATE_INSPECT_LIMIT),
+      }
+    }
+  }
+
+  if (queueSeedType === 'artist') {
+    const artistId = queueSeedId ?? referenceTrack.artistId ?? undefined
+    const artistPool = artistId ? pools?.songsByArtistId?.get(artistId) : undefined
+    if (artistPool?.length) {
+      return {
+        pool: artistPool.slice(0, CATALOG_QUEUE_CANDIDATE_INSPECT_LIMIT),
+        inspectedCount: Math.min(artistPool.length, CATALOG_QUEUE_CANDIDATE_INSPECT_LIMIT),
+      }
+    }
+  }
+
+  if (queueSeedType === 'album') {
+    const albumKey = normalizeLookupKey(referenceTrack.album)
+    const albumPool = albumKey ? pools?.songsByAlbumName?.get(albumKey) : undefined
+    if (albumPool?.length) {
+      return {
+        pool: albumPool.slice(0, CATALOG_QUEUE_CANDIDATE_INSPECT_LIMIT),
+        inspectedCount: Math.min(albumPool.length, CATALOG_QUEUE_CANDIDATE_INSPECT_LIMIT),
+      }
+    }
+  }
+
+  if (queueSeedType === 'mood' && seedTracks.length > 0) {
+    return {
+      pool: seedTracks.slice(0, CATALOG_QUEUE_CANDIDATE_INSPECT_LIMIT),
+      inspectedCount: Math.min(seedTracks.length, CATALOG_QUEUE_CANDIDATE_INSPECT_LIMIT),
+    }
+  }
+
+  return {
+    pool: seedTracks.slice(0, CATALOG_QUEUE_CANDIDATE_INSPECT_LIMIT),
+    inspectedCount: Math.min(seedTracks.length, CATALOG_QUEUE_CANDIDATE_INSPECT_LIMIT),
+  }
 }
 
 export function buildRelatedQueue(
@@ -57,41 +96,64 @@ export function buildRelatedQueue(
   queueSeedType: QueueSeedType,
   queueSeedId?: string,
   seedTracks: ApiSong[] = [],
+  pools?: QueueCandidatePools,
 ) {
-  if (queueSeedType === 'manual' || currentQueue.length === 0) return []
+  if (queueSeedType === 'manual' || currentQueue.length === 0) {
+    return { relatedTracks: [] as ApiSong[], inspectedCount: 0 }
+  }
+
+  const { pool, inspectedCount } = resolveCandidatePool(
+    currentQueue,
+    queueSeedType,
+    queueSeedId,
+    seedTracks,
+    pools,
+  )
+  if (pool.length === 0) {
+    return { relatedTracks: [] as ApiSong[], inspectedCount }
+  }
 
   const referenceTrack = currentQueue[currentQueue.length - 1]
-  const candidates = uniqueUnqueuedSongs(currentQueue, seedTracks)
-  if (candidates.length === 0) return []
 
   if (queueSeedType === 'discover' || queueSeedType === 'home') {
-    const referenceGenre = inferGenre(referenceTrack)
-    return candidates
+    const referenceGenre = inferSongGenre(referenceTrack)
+    const relatedTracks = [...pool]
       .sort((a, b) => {
-        const aGenreMatch = inferGenre(a) === referenceGenre
-        const bGenreMatch = inferGenre(b) === referenceGenre
+        const aGenreMatch = inferSongGenre(a) === referenceGenre
+        const bGenreMatch = inferSongGenre(b) === referenceGenre
         if (aGenreMatch !== bGenreMatch) return aGenreMatch ? -1 : 1
         return stableSongCompare(a, b)
       })
-      .slice(0, RELATED_LIMIT)
+      .slice(0, CATALOG_QUEUE_CANDIDATE_INSPECT_LIMIT)
+
+    return {
+      relatedTracks: uniqueUnqueuedSongs(currentQueue, relatedTracks),
+      inspectedCount,
+    }
   }
 
-  const relatedTracks = candidates.filter((song) => {
-    if (queueSeedType === 'artist') {
-      if (queueSeedId && song.artistId === queueSeedId) return true
-      return normalizeKey(song.artist) === normalizeKey(referenceTrack.artist)
-    }
+  const relatedTracks = pool
+    .filter((song) => {
+      if (queueSeedType === 'artist') {
+        if (queueSeedId && song.artistId === queueSeedId) return true
+        return normalizeLookupKey(song.artist) === normalizeLookupKey(referenceTrack.artist)
+      }
 
-    if (queueSeedType === 'album') {
-      return normalizeKey(song.album) === normalizeKey(referenceTrack.album)
-    }
+      if (queueSeedType === 'album') {
+        return normalizeLookupKey(song.album) === normalizeLookupKey(referenceTrack.album)
+      }
 
-    if (queueSeedType === 'mood') {
-      return true
-    }
+      if (queueSeedType === 'mood') {
+        return true
+      }
 
-    return false
-  })
+      return false
+    })
+    .sort(stableSongCompare)
+    .slice(0, CATALOG_QUEUE_CANDIDATE_INSPECT_LIMIT)
 
-  return relatedTracks.sort(stableSongCompare).slice(0, RELATED_LIMIT)
+  return {
+    relatedTracks: uniqueUnqueuedSongs(currentQueue, relatedTracks),
+    inspectedCount,
+  }
 }
