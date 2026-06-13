@@ -3,6 +3,7 @@ import { BlurView } from "expo-blur";
 import { usePathname, useRouter } from "expo-router";
 import { ReactNode, useMemo } from "react";
 import {
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -153,7 +154,7 @@ export default function AppShell({
   );
 
   return (
-    <View style={[styles.shell, style]}>
+    <View style={[styles.shell, Platform.OS === "web" ? styles.webShell : null, style]}>
       <PremiumBackground variant={backgroundVariant} />
       <View
         style={[
@@ -214,6 +215,11 @@ const styles = StyleSheet.create({
   shell: {
     flex: 1,
     backgroundColor: COLORS.backgroundDeep,
+  },
+  webShell: {
+    width: "100%",
+    maxWidth: "100%",
+    overflow: "hidden",
   },
   content: {
     flex: 1,

@@ -79,7 +79,7 @@ function PremiumBackground({
   const palette = PALETTES[variant] || PALETTES.home;
 
   return (
-    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+    <View pointerEvents="none" style={styles.root}>
       <LinearGradient colors={palette.base} style={StyleSheet.absoluteFill} />
 
       <LinearGradient
@@ -126,6 +126,10 @@ function PremiumBackground({
 export default memo(PremiumBackground);
 
 const styles = StyleSheet.create({
+  root: {
+    ...StyleSheet.flatten(StyleSheet.absoluteFill),
+    overflow: "hidden",
+  },
   diagonalPlane: {
     position: "absolute",
     left: -90,
