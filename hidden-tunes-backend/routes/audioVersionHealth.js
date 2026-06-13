@@ -1,20 +1,27 @@
 import express from "express";
 
-import { getAudioVersionCapabilityReport } from "../services/audioVersionCapabilityReport.js";
+import { detectTranscodeCapabilities } from "../services/audioVersionGeneration.js";
 
 const router = express.Router();
 
 router.get("/audio-versions", async (_req, res) => {
   try {
-    const report = await getAudioVersionCapabilityReport();
+    const capabilities = await detectTranscodeCapabilities();
+    const success =
+      capabilities.ffmpegAvailable && capabilities.ffprobeAvailable;
 
-    return res.status(report.success ? 200 : 503).json(report);
+    return res.status(success ? 200 : 503).json({
+      success,
+      ffmpegAvailable: capabilities.ffmpegAvailable,
+      ffprobeAvailable: capabilities.ffprobeAvailable,
+    });
   } catch (error) {
     console.error("GET /health/audio-versions failed:", error);
 
     return res.status(500).json({
       success: false,
-      mode: "manual-only",
+      ffmpegAvailable: false,
+      ffprobeAvailable: false,
       error: error instanceof Error ? error.message : "Capability check failed.",
     });
   }
