@@ -10,14 +10,32 @@ import {
 } from 'react'
 import type { ApiSong } from '../lib/api'
 import { HtmlAudioPlaybackService } from '../lib/desktopPlayback/HtmlAudioPlaybackService'
+import { buildRelatedQueue } from '../lib/desktopPlayback/queueIntelligence'
 import type {
   DesktopPlaybackContextValue,
   QueueContext,
+  QueueSeedMetadata,
+  QueueSeedType,
 } from '../lib/desktopPlayback/types'
 
 const DesktopPlaybackContext = createContext<DesktopPlaybackContextValue | null>(null)
 
 const DEFAULT_QUEUE_CONTEXT: QueueContext = 'manual'
+const DEFAULT_QUEUE_SEED_TYPE: QueueSeedType = 'manual'
+
+function contextToSeedType(context: QueueContext): QueueSeedType {
+  if (
+    context === 'home' ||
+    context === 'discover' ||
+    context === 'album' ||
+    context === 'artist' ||
+    context === 'mood'
+  ) {
+    return context
+  }
+
+  return 'manual'
+}
 
 export function useDesktopPlayback() {
   const value = useContext(DesktopPlaybackContext)
@@ -31,6 +49,9 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
   const serviceRef = useRef<HtmlAudioPlaybackService | null>(null)
   const queueRef = useRef<ApiSong[]>([])
   const queueIndexRef = useRef(-1)
+  const queueSeedTypeRef = useRef<QueueSeedType>(DEFAULT_QUEUE_SEED_TYPE)
+  const queueSeedIdRef = useRef<string | undefined>(undefined)
+  const queueSeedTracksRef = useRef<ApiSong[]>([])
   const playSongRef = useRef<(song: ApiSong) => void>(() => undefined)
 
   const getService = useCallback(() => {
@@ -44,6 +65,8 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
   const [currentQueue, setCurrentQueue] = useState<ApiSong[]>([])
   const [currentIndex, setCurrentIndex] = useState(-1)
   const [queueContext, setQueueContext] = useState<QueueContext>(DEFAULT_QUEUE_CONTEXT)
+  const [queueSeedType, setQueueSeedType] = useState<QueueSeedType>(DEFAULT_QUEUE_SEED_TYPE)
+  const [queueSeedId, setQueueSeedId] = useState<string | undefined>(undefined)
   const [queueTitle, setQueueTitle] = useState<string | undefined>(undefined)
   const [isPlaying, setIsPlaying] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -57,6 +80,29 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
     queueIndexRef.current = index
     setCurrentQueue(queue)
     setCurrentIndex(index)
+  }, [])
+
+  const extendQueueIfNeeded = useCallback((queue: ApiSong[], index: number) => {
+    if (
+      queue.length === 0 ||
+      index !== queue.length - 1 ||
+      queueSeedTypeRef.current === 'manual'
+    ) {
+      return queue
+    }
+
+    const relatedTracks = buildRelatedQueue(
+      queue,
+      queueSeedTypeRef.current,
+      queueSeedIdRef.current,
+      queueSeedTracksRef.current,
+    )
+    if (relatedTracks.length === 0) return queue
+
+    const extendedQueue = [...queue, ...relatedTracks]
+    queueRef.current = extendedQueue
+    setCurrentQueue(extendedQueue)
+    return extendedQueue
   }, [])
 
   const playSong = useCallback(
@@ -138,7 +184,16 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       if (nextIndex < queue.length) {
         queueIndexRef.current = nextIndex
         setCurrentIndex(nextIndex)
-        playSongRef.current(queue[nextIndex])
+        const extendedQueue = extendQueueIfNeeded(queue, nextIndex)
+        playSongRef.current(extendedQueue[nextIndex])
+        return
+      }
+
+      const extendedQueue = extendQueueIfNeeded(queue, queueIndexRef.current)
+      if (nextIndex < extendedQueue.length) {
+        queueIndexRef.current = nextIndex
+        setCurrentIndex(nextIndex)
+        playSongRef.current(extendedQueue[nextIndex])
         return
       }
 
@@ -182,7 +237,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       service.destroy()
       serviceRef.current = null
     }
-  }, [getService])
+  }, [extendQueueIfNeeded, getService])
 
   const playQueue = useCallback(
     (
@@ -190,6 +245,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       startIndex: number,
       context: QueueContext,
       nextQueueTitle?: string,
+      seedMetadata?: QueueSeedMetadata,
     ) => {
       const playableQueue = queue.filter(Boolean)
       if (playableQueue.length === 0) return
@@ -199,12 +255,20 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
         Math.max(0, Number.isFinite(startIndex) ? startIndex : 0),
       )
 
+      const nextSeedType = seedMetadata?.seedType ?? contextToSeedType(context)
+      queueSeedTypeRef.current = nextSeedType
+      queueSeedIdRef.current = seedMetadata?.seedId
+      queueSeedTracksRef.current = seedMetadata?.seedTracks ?? playableQueue
+
       applyQueueState(playableQueue, safeIndex)
       setQueueContext(context)
+      setQueueSeedType(nextSeedType)
+      setQueueSeedId(seedMetadata?.seedId)
       setQueueTitle(nextQueueTitle)
+      extendQueueIfNeeded(playableQueue, safeIndex)
       playSong(playableQueue[safeIndex])
     },
-    [applyQueueState, playSong],
+    [applyQueueState, extendQueueIfNeeded, playSong],
   )
 
   const playTrack = useCallback(
@@ -220,8 +284,9 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
     if (nextIndex >= queue.length) return
 
     applyQueueState(queue, nextIndex)
-    playSong(queue[nextIndex])
-  }, [applyQueueState, playSong])
+    const extendedQueue = extendQueueIfNeeded(queue, nextIndex)
+    playSong(extendedQueue[nextIndex])
+  }, [applyQueueState, extendQueueIfNeeded, playSong])
 
   const previous = useCallback(() => {
     const queue = queueRef.current
@@ -229,8 +294,9 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
     if (previousIndex < 0 || previousIndex >= queue.length) return
 
     applyQueueState(queue, previousIndex)
+    extendQueueIfNeeded(queue, previousIndex)
     playSong(queue[previousIndex])
-  }, [applyQueueState, playSong])
+  }, [applyQueueState, extendQueueIfNeeded, playSong])
 
   const getUpcomingTracks = useCallback(() => {
     const nextIndex = queueIndexRef.current + 1
@@ -291,6 +357,8 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       currentQueue,
       currentIndex,
       queueContext,
+      queueSeedType,
+      queueSeedId,
       queueTitle,
       isPlaying,
       isLoading,
@@ -313,6 +381,8 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       currentQueue,
       currentIndex,
       queueContext,
+      queueSeedType,
+      queueSeedId,
       queueTitle,
       isPlaying,
       isLoading,

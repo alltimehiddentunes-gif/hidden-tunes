@@ -58,7 +58,7 @@ import {
   DesktopPlaybackProvider,
   useDesktopPlayback,
 } from './context/DesktopPlaybackProvider'
-import type { QueueContext } from './lib/desktopPlayback/types'
+import type { QueueContext, QueueSeedMetadata } from './lib/desktopPlayback/types'
 import {
   getTimeAwareHomeScene,
   resolveVisualScene,
@@ -116,6 +116,7 @@ type QueueSongHandler = (
   startIndex: number,
   context: QueueContext,
   queueTitle?: string,
+  seedMetadata?: QueueSeedMetadata,
 ) => void
 
 const CATALOG_STATUS_LABELS: Record<CatalogStatus, string> = {
@@ -1350,8 +1351,15 @@ function HomePage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
     [songs, sort],
   )
   const playHomeSong = useCallback(
-    (song: ApiSong, index: number) => onOpenSong(song, featured, index, 'home', 'Home'),
-    [featured, onOpenSong],
+    (song: ApiSong, index: number) => onOpenSong(
+      song,
+      featured,
+      index,
+      'home',
+      'Home',
+      { seedType: 'home', seedTracks: songs },
+    ),
+    [featured, onOpenSong, songs],
   )
 
   return (
@@ -1412,8 +1420,15 @@ function DiscoverPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
 
   const listKey = useMemo(() => `${query}:${sort}`, [query, sort])
   const playDiscoverSong = useCallback(
-    (song: ApiSong, index: number) => onOpenSong(song, visibleSongs, index, 'discover', 'Discover'),
-    [onOpenSong, visibleSongs],
+    (song: ApiSong, index: number) => onOpenSong(
+      song,
+      visibleSongs,
+      index,
+      'discover',
+      'Discover',
+      { seedType: 'discover', seedTracks: songs },
+    ),
+    [onOpenSong, songs, visibleSongs],
   )
 
   return (
@@ -2461,13 +2476,21 @@ function AlbumDetailView({
   const artistName = album.artistId ? artistNames.get(album.artistId) : null
   const created = formatDateLabel(album.createdAt)
 
-  const tracks = useMemo(() => {
+  const albumSongs = useMemo(() => {
     const byAlbum = songsByAlbumTitle.get(album.title) ?? []
-    return sortSongsList(byAlbum, 'az').slice(0, 24)
+    return sortSongsList(byAlbum, 'az')
   }, [songsByAlbumTitle, album.title])
+  const tracks = useMemo(() => albumSongs.slice(0, 24), [albumSongs])
   const playAlbumSong = useCallback(
-    (song: ApiSong, index: number) => onOpenSong(song, tracks, index, 'album', album.title),
-    [album.title, onOpenSong, tracks],
+    (song: ApiSong, index: number) => onOpenSong(
+      song,
+      tracks,
+      index,
+      'album',
+      album.title,
+      { seedType: 'album', seedId: album.id, seedTracks: albumSongs },
+    ),
+    [album.id, album.title, albumSongs, onOpenSong, tracks],
   )
 
   return (
@@ -2543,13 +2566,21 @@ function ArtistDetailView({
 }) {
   const { artistNames, songsByArtistId, songsByArtistName, albumsByArtistId } = useCatalog()
 
-  const topSongs = useMemo(() => {
+  const artistSongs = useMemo(() => {
     const byArtist = resolveSongsForArtist(artist, songsByArtistId, songsByArtistName)
-    return sortSongsList(byArtist, 'latest').slice(0, 12)
+    return sortSongsList(byArtist, 'latest')
   }, [artist, songsByArtistId, songsByArtistName])
+  const topSongs = useMemo(() => artistSongs.slice(0, 12), [artistSongs])
   const playArtistSong = useCallback(
-    (song: ApiSong, index: number) => onOpenSong(song, topSongs, index, 'artist', artist.name),
-    [artist.name, onOpenSong, topSongs],
+    (song: ApiSong, index: number) => onOpenSong(
+      song,
+      topSongs,
+      index,
+      'artist',
+      artist.name,
+      { seedType: 'artist', seedId: artist.id, seedTracks: artistSongs },
+    ),
+    [artist.id, artist.name, artistSongs, onOpenSong, topSongs],
   )
 
   const artistAlbums = useMemo(() => {
@@ -2629,13 +2660,13 @@ function MoodDetailView({
 }) {
   const { songs } = useCatalog()
 
-  const curated = useMemo(() => {
+  const moodSongs = useMemo(() => {
     const list = sortSongsList(songs, 'latest')
     if (list.length === 0) return []
     const start = hashToIndex(mood.title, list.length)
-    const slice = [...list.slice(start), ...list.slice(0, start)].slice(0, 12)
-    return slice
+    return [...list.slice(start), ...list.slice(0, start)]
   }, [songs, mood.title])
+  const curated = useMemo(() => moodSongs.slice(0, 12), [moodSongs])
 
   const descriptionByMood: Record<Mood, string> = useMemo(
     () => ({
@@ -2649,8 +2680,15 @@ function MoodDetailView({
 
   const sceneId = moodRoomScene(mood)
   const playMoodSong = useCallback(
-    (song: ApiSong, index: number) => onOpenSong(song, curated, index, 'mood', mood.title),
-    [curated, mood.title, onOpenSong],
+    (song: ApiSong, index: number) => onOpenSong(
+      song,
+      curated,
+      index,
+      'mood',
+      mood.title,
+      { seedType: 'mood', seedId: mood.title, seedTracks: moodSongs },
+    ),
+    [curated, mood.title, moodSongs, onOpenSong],
   )
 
   return (
@@ -2850,6 +2888,7 @@ function AppShell() {
       startIndex = 0,
       context: QueueContext = 'manual',
       queueTitle?: string,
+      seedMetadata?: QueueSeedMetadata,
     ) => {
       const resolved = songs.find((entry) => entry.id === song.id) ?? song
       const playableQueue = queue.length > 0
@@ -2859,7 +2898,7 @@ function AppShell() {
       const safeIndex = selectedIndex >= 0 ? selectedIndex : Math.max(0, Math.min(startIndex, playableQueue.length - 1))
 
       openSong(resolved)
-      playQueue(playableQueue, safeIndex, context, queueTitle)
+      playQueue(playableQueue, safeIndex, context, queueTitle, seedMetadata)
     },
     [openSong, playQueue, songs],
   )

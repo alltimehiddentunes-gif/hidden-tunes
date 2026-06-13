@@ -11,11 +11,27 @@ export type QueueContext =
   | 'scene'
   | 'smart'
 
+export type QueueSeedType =
+  | 'artist'
+  | 'album'
+  | 'mood'
+  | 'discover'
+  | 'home'
+  | 'manual'
+
+export type QueueSeedMetadata = {
+  seedType?: QueueSeedType
+  seedId?: string
+  seedTracks?: ApiSong[]
+}
+
 export type DesktopPlaybackState = {
   currentTrack: ApiSong | null
   currentQueue: ApiSong[]
   currentIndex: number
   queueContext: QueueContext
+  queueSeedType: QueueSeedType
+  queueSeedId?: string
   queueTitle?: string
   isPlaying: boolean
   isLoading: boolean
@@ -32,6 +48,7 @@ export type DesktopPlaybackActions = {
     startIndex: number,
     context: QueueContext,
     queueTitle?: string,
+    seedMetadata?: QueueSeedMetadata,
   ) => void
   next: () => void
   previous: () => void

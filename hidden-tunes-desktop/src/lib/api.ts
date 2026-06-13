@@ -8,6 +8,7 @@ export type ApiSong = {
   artist: string
   artistId: string | null
   album: string
+  genre: string | null
   artwork: string | null
   audioUrl: string | null
   durationSeconds: number | null
@@ -129,6 +130,12 @@ function normalizeSong(row: unknown): ApiSong | null {
           ? String(record.artist_id)
           : null,
     album: String(record.album || record.album_title || 'Singles'),
+    genre:
+      record.genre != null
+        ? String(record.genre)
+        : record.category != null
+          ? String(record.category)
+          : null,
     artwork: pickArtwork(record),
     audioUrl: pickAudioUrl(record),
     durationSeconds: pickDurationSeconds(record),
