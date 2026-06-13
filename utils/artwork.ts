@@ -3,7 +3,23 @@ import { Image } from "react-native";
 const HIDDEN_TUNES_LOGO = require("../assets/images/logo.png");
 
 export const FALLBACK_ARTWORK_ASSET = HIDDEN_TUNES_LOGO;
-export const FALLBACK_ARTWORK = Image.resolveAssetSource(HIDDEN_TUNES_LOGO).uri;
+function resolveFallbackArtworkUri(asset: unknown): string {
+  const resolveAssetSource = Image.resolveAssetSource;
+
+  if (typeof resolveAssetSource === "function") {
+    const resolved = resolveAssetSource(asset as any);
+    if (typeof resolved?.uri === "string") return resolved.uri;
+  }
+
+  if (typeof asset === "string") return asset;
+  if (asset && typeof asset === "object" && typeof (asset as { uri?: unknown }).uri === "string") {
+    return (asset as { uri: string }).uri;
+  }
+
+  return "";
+}
+
+export const FALLBACK_ARTWORK = resolveFallbackArtworkUri(HIDDEN_TUNES_LOGO);
 
 const EMPTY_URL_VALUES = new Set(["", "null", "undefined", "[object object]"]);
 const MAX_FAILED_ARTWORK_URLS = 512;
