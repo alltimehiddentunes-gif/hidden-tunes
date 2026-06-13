@@ -1,7 +1,8 @@
-FROM node:20-bookworm-slim
+FROM node:22-bookworm-slim
 
 # ffmpeg + ffprobe for ultraLight/standard tier generation
 # python is required by yt-dlp-exec during npm install
+# Node 22 provides native WebSocket support required by Supabase realtime-js
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
     ffmpeg \
