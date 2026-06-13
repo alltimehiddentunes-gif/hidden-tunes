@@ -6,6 +6,7 @@ export type ApiSong = {
   id: string
   title: string
   artist: string
+  artistId: string | null
   album: string
   artwork: string | null
   audioUrl: string | null
@@ -37,6 +38,7 @@ export type ApiArtist = {
   name: string
   artwork: string | null
   songCount: number
+  tracks: ApiSong[]
 }
 
 type PaginationOptions = {
@@ -119,7 +121,13 @@ function normalizeSong(row: unknown): ApiSong | null {
     title: String(record.title || 'Untitled'),
     artist: String(
       record.artist || record.artist_name || 'Unknown Artist',
-    ),
+    ).trim(),
+    artistId:
+      record.artistId != null
+        ? String(record.artistId)
+        : record.artist_id != null
+          ? String(record.artist_id)
+          : null,
     album: String(record.album || record.album_title || 'Singles'),
     artwork: pickArtwork(record),
     audioUrl: pickAudioUrl(record),
@@ -151,18 +159,22 @@ function normalizeArtist(row: unknown): ApiArtist | null {
   const record = asRecord(row)
   if (!record || record.id == null) return null
 
+  const rawTracks = Array.isArray(record.tracks) ? record.tracks : []
+  const tracks = rawTracks
+    .map((track) => normalizeSong(track))
+    .filter((song): song is ApiSong => Boolean(song))
+
   const songCount =
     typeof record.songCount === 'number'
       ? record.songCount
-      : Array.isArray(record.tracks)
-        ? record.tracks.length
-        : 0
+      : tracks.length
 
   return {
     id: String(record.id),
-    name: String(record.name || 'Unknown Artist'),
+    name: String(record.name || 'Unknown Artist').trim(),
     artwork: pickArtwork(record),
     songCount,
+    tracks,
   }
 }
 

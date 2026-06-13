@@ -45,7 +45,13 @@ function sanitizeSong(raw: unknown): ApiSong | null {
   return {
     id: record.id,
     title: record.title,
-    artist: typeof record.artist === 'string' ? record.artist : '',
+    artist: typeof record.artist === 'string' ? record.artist.trim() : '',
+    artistId:
+      typeof record.artistId === 'string'
+        ? record.artistId
+        : typeof record.artist_id === 'string'
+          ? record.artist_id
+          : null,
     album: typeof record.album === 'string' ? record.album : '',
     artwork: sanitizeArtwork(record.artwork),
     audioUrl:
@@ -79,11 +85,15 @@ function sanitizeArtist(raw: unknown): ApiArtist | null {
     return null
   }
 
+  const tracks = sanitizeList(record.tracks, sanitizeSong)
+
   return {
     id: record.id,
-    name: record.name,
+    name: record.name.trim(),
     artwork: sanitizeArtwork(record.artwork),
-    songCount: typeof record.songCount === 'number' ? record.songCount : 0,
+    songCount:
+      typeof record.songCount === 'number' ? record.songCount : tracks.length,
+    tracks,
   }
 }
 

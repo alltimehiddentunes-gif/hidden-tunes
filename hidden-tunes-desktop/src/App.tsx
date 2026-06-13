@@ -31,7 +31,9 @@ import {
   buildAlbumsByArtistId,
   buildArtistNameLookup,
   buildSongsByAlbumTitle,
+  buildSongsByArtistId,
   buildSongsByArtistName,
+  resolveSongsForArtist,
 } from './lib/catalogIndexes'
 import {
   cachedCatalogToBundle,
@@ -56,6 +58,7 @@ import {
   DesktopPlaybackProvider,
   useDesktopPlayback,
 } from './context/DesktopPlaybackProvider'
+import type { QueueContext } from './lib/desktopPlayback/types'
 import {
   getTimeAwareHomeScene,
   resolveVisualScene,
@@ -92,6 +95,16 @@ let catalogSessionFetchDone = false
 type CatalogSource = 'none' | 'cache' | 'live'
 
 type CatalogStatus = 'live' | 'saved' | 'refreshing' | 'refresh_failed'
+
+type SongSelectHandler = (song: ApiSong, index: number) => void
+
+type QueueSongHandler = (
+  song: ApiSong,
+  queue: ApiSong[],
+  startIndex: number,
+  context: QueueContext,
+  queueTitle?: string,
+) => void
 
 const CATALOG_STATUS_LABELS: Record<CatalogStatus, string> = {
   live: 'Live catalog',
@@ -161,6 +174,7 @@ type CatalogContextValue = {
   artistNames: Map<string, string>
   songsByAlbumTitle: Map<string, ApiSong[]>
   songsByArtistName: Map<string, ApiSong[]>
+  songsByArtistId: Map<string, ApiSong[]>
   albumsByArtistId: Map<string, ApiAlbum[]>
   loading: boolean
   error: string | null
@@ -307,6 +321,7 @@ function CatalogProvider({ children }: { children: ReactNode }) {
   const artistNames = useMemo(() => buildArtistNameLookup(artists), [artists])
   const songsByAlbumTitle = useMemo(() => buildSongsByAlbumTitle(songs), [songs])
   const songsByArtistName = useMemo(() => buildSongsByArtistName(songs), [songs])
+  const songsByArtistId = useMemo(() => buildSongsByArtistId(songs), [songs])
   const albumsByArtistId = useMemo(() => buildAlbumsByArtistId(albums), [albums])
 
   const value = useMemo(
@@ -317,6 +332,7 @@ function CatalogProvider({ children }: { children: ReactNode }) {
       artistNames,
       songsByAlbumTitle,
       songsByArtistName,
+      songsByArtistId,
       albumsByArtistId,
       loading,
       error,
@@ -337,6 +353,7 @@ function CatalogProvider({ children }: { children: ReactNode }) {
       artistNames,
       songsByAlbumTitle,
       songsByArtistName,
+      songsByArtistId,
       albumsByArtistId,
       loading,
       error,
@@ -833,7 +850,7 @@ const ApiSongGrid = memo(function ApiSongGrid({
   paginate = true,
 }: {
   songs: ApiSong[]
-  onSelect: (song: ApiSong) => void
+  onSelect: SongSelectHandler
   listKey?: string
   paginate?: boolean
 }) {
@@ -860,7 +877,7 @@ const ApiSongGrid = memo(function ApiSongGrid({
             key={song.id}
             type="button"
             className="discovery-card discovery-card--api"
-            onClick={() => onSelect(song)}
+            onClick={() => onSelect(song, songs.findIndex((entry) => entry.id === song.id))}
           >
             <div className="card-art card-art--song">
               <ArtworkImage src={song.artwork} alt="" seed={song.id} />
@@ -1313,12 +1330,16 @@ function Hero() {
   )
 }
 
-function HomePage({ onOpenSong }: { onOpenSong: (song: ApiSong) => void }) {
+function HomePage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
   const { songs, showCatalogSkeleton, showCatalogError, error, retry } = useCatalog()
   const [sort, setSort] = useState<SongSort>('latest')
   const featured = useMemo(
     () => sortSongsList(songs, sort).slice(0, 12),
     [songs, sort],
+  )
+  const playHomeSong = useCallback(
+    (song: ApiSong, index: number) => onOpenSong(song, featured, index, 'home', 'Home'),
+    [featured, onOpenSong],
   )
 
   return (
@@ -1349,7 +1370,7 @@ function HomePage({ onOpenSong }: { onOpenSong: (song: ApiSong) => void }) {
             detail="The API responded but returned no songs yet."
           />
         ) : (
-          <ApiSongGrid songs={featured} onSelect={onOpenSong} listKey="home-featured" paginate={false} />
+          <ApiSongGrid songs={featured} onSelect={playHomeSong} listKey="home-featured" paginate={false} />
         )}
       </CatalogSection>
       {HOME_SECTIONS.slice(1, 3).map((section) => (
@@ -1359,7 +1380,7 @@ function HomePage({ onOpenSong }: { onOpenSong: (song: ApiSong) => void }) {
   )
 }
 
-function DiscoverPage({ onOpenSong }: { onOpenSong: (song: ApiSong) => void }) {
+function DiscoverPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
   const { songs, showCatalogSkeleton, showCatalogError, error, retry } = useCatalog()
   const [query, setQuery] = usePersistedPreference(
     DESKTOP_PREFERENCE_KEYS.discoverSearch,
@@ -1378,6 +1399,10 @@ function DiscoverPage({ onOpenSong }: { onOpenSong: (song: ApiSong) => void }) {
   }, [songs, query, sort])
 
   const listKey = useMemo(() => `${query}:${sort}`, [query, sort])
+  const playDiscoverSong = useCallback(
+    (song: ApiSong, index: number) => onOpenSong(song, visibleSongs, index, 'discover', 'Discover'),
+    [onOpenSong, visibleSongs],
+  )
 
   return (
     <PageFrame>
@@ -1410,7 +1435,7 @@ function DiscoverPage({ onOpenSong }: { onOpenSong: (song: ApiSong) => void }) {
             detail="Retry once the API finishes loading or returns data."
           />
         ) : (
-          <ApiSongGrid songs={visibleSongs} onSelect={onOpenSong} listKey={listKey} />
+          <ApiSongGrid songs={visibleSongs} onSelect={playDiscoverSong} listKey={listKey} />
         )}
       </CatalogSection>
     </PageFrame>
@@ -1832,6 +1857,8 @@ function formatPlaybackTime(seconds: number) {
 const PlayerBar = memo(function PlayerBar({ track }: { track: ApiSong | null }) {
   const {
     currentTrack,
+    currentQueue,
+    currentIndex,
     isPlaying,
     isLoading,
     error,
@@ -1842,6 +1869,8 @@ const PlayerBar = memo(function PlayerBar({ track }: { track: ApiSong | null }) 
     resume,
     seekTo,
     setVolume,
+    next,
+    previous,
   } = useDesktopPlayback()
 
   const progressTrackRef = useRef<HTMLDivElement>(null)
@@ -1857,6 +1886,8 @@ const PlayerBar = memo(function PlayerBar({ track }: { track: ApiSong | null }) 
   const progressPercent =
     progressMax > 0 ? Math.min(100, (progressValue / progressMax) * 100) : 0
   const volumePercent = Math.min(100, Math.max(0, volume * 100))
+  const hasPrevious = currentIndex > 0
+  const hasNext = currentIndex >= 0 && currentIndex < currentQueue.length - 1
   const volumeLevel =
     volume <= 0 ? 'muted' : volume < 0.35 ? 'low' : volume > 0.7 ? 'high' : 'normal'
 
@@ -1981,8 +2012,9 @@ const PlayerBar = memo(function PlayerBar({ track }: { track: ApiSong | null }) 
           <button
             type="button"
             className="control-btn"
-            disabled
-            aria-label="Previous track (not available yet)"
+            onClick={previous}
+            disabled={!hasPrevious}
+            aria-label={hasPrevious ? 'Previous track' : 'Previous track (not available yet)'}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
               <path d="M6 6h2v12H6V6zm3.5 6l8.5 6V6l-8.5 6z" />
@@ -2016,8 +2048,9 @@ const PlayerBar = memo(function PlayerBar({ track }: { track: ApiSong | null }) 
           <button
             type="button"
             className="control-btn"
-            disabled
-            aria-label="Next track (not available yet)"
+            onClick={next}
+            disabled={!hasNext}
+            aria-label={hasNext ? 'Next track' : 'Next track (not available yet)'}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
               <path d="M6 18l8.5-6L6 6v12zm10-12h2v12h-2V6z" />
@@ -2232,7 +2265,7 @@ function AlbumDetailView({
 }: {
   album: ApiAlbum
   onBack: () => void
-  onOpenSong: (song: ApiSong) => void
+  onOpenSong: QueueSongHandler
   selectedTrackId: string | null
 }) {
   const { artistNames, songsByAlbumTitle } = useCatalog()
@@ -2243,6 +2276,10 @@ function AlbumDetailView({
     const byAlbum = songsByAlbumTitle.get(album.title) ?? []
     return sortSongsList(byAlbum, 'az').slice(0, 24)
   }, [songsByAlbumTitle, album.title])
+  const playAlbumSong = useCallback(
+    (song: ApiSong, index: number) => onOpenSong(song, tracks, index, 'album', album.title),
+    [album.title, onOpenSong, tracks],
+  )
 
   return (
     <PageFrame>
@@ -2288,7 +2325,7 @@ function AlbumDetailView({
                   type="button"
                   className="detail-track detail-track-button"
                   data-selected={selectedTrackId === track.id ? 'true' : undefined}
-                  onClick={() => onOpenSong(track)}
+                  onClick={() => playAlbumSong(track, index)}
                   aria-label={`Open ${track.title} by ${track.artist}`}
                 >
                   <span className="detail-track-index">{String(index + 1).padStart(2, '0')}</span>
@@ -2312,15 +2349,19 @@ function ArtistDetailView({
 }: {
   artist: ApiArtist
   onBack: () => void
-  onOpenSong: (song: ApiSong) => void
+  onOpenSong: QueueSongHandler
   onOpenAlbum: (album: ApiAlbum) => void
 }) {
-  const { artistNames, songsByArtistName, albumsByArtistId } = useCatalog()
+  const { artistNames, songsByArtistId, songsByArtistName, albumsByArtistId } = useCatalog()
 
   const topSongs = useMemo(() => {
-    const byArtist = songsByArtistName.get(artist.name) ?? []
+    const byArtist = resolveSongsForArtist(artist, songsByArtistId, songsByArtistName)
     return sortSongsList(byArtist, 'latest').slice(0, 12)
-  }, [songsByArtistName, artist.name])
+  }, [artist, songsByArtistId, songsByArtistName])
+  const playArtistSong = useCallback(
+    (song: ApiSong, index: number) => onOpenSong(song, topSongs, index, 'artist', artist.name),
+    [artist.name, onOpenSong, topSongs],
+  )
 
   const artistAlbums = useMemo(() => {
     if (!artist.id) return []
@@ -2361,7 +2402,7 @@ function ArtistDetailView({
         </div>
         <ApiSongGrid
           songs={topSongs}
-          onSelect={onOpenSong}
+          onSelect={playArtistSong}
           listKey={`artist-songs-${artist.id}`}
           paginate={false}
         />
@@ -2395,7 +2436,7 @@ function MoodDetailView({
 }: {
   mood: MoodRoom
   onBack: () => void
-  onOpenSong: (song: ApiSong) => void
+  onOpenSong: QueueSongHandler
 }) {
   const { songs } = useCatalog()
 
@@ -2418,6 +2459,10 @@ function MoodDetailView({
   )
 
   const sceneId = moodRoomScene(mood)
+  const playMoodSong = useCallback(
+    (song: ApiSong, index: number) => onOpenSong(song, curated, index, 'mood', mood.title),
+    [curated, mood.title, onOpenSong],
+  )
 
   return (
     <PageFrame>
@@ -2445,7 +2490,7 @@ function MoodDetailView({
         </div>
         <ApiSongGrid
           songs={curated}
-          onSelect={onOpenSong}
+          onSelect={playMoodSong}
           listKey={`mood-${mood.title}`}
           paginate={false}
         />
@@ -2476,7 +2521,7 @@ function CatalogDetailRouter({
   desktopSelectedTrack: ApiSong | null
   onBack: () => void
   activePage: PageId
-  onOpenSong: (song: ApiSong) => void
+  onOpenSong: QueueSongHandler
   onOpenAlbum: (album: ApiAlbum) => void
   onOpenArtist: (artist: ApiArtist) => void
   onOpenMood: (mood: MoodRoom) => void
@@ -2536,7 +2581,7 @@ function PageContent({
   onOpenMood,
 }: {
   page: PageId
-  onOpenSong: (song: ApiSong) => void
+  onOpenSong: QueueSongHandler
   onOpenAlbum: (album: ApiAlbum) => void
   onOpenArtist: (artist: ApiArtist) => void
   onOpenMood: (mood: MoodRoom) => void
@@ -2578,7 +2623,7 @@ function App() {
 }
 
 function AppShell() {
-  const { playTrack } = useDesktopPlayback()
+  const { currentTrack, playQueue } = useDesktopPlayback()
   const { songs } = useCatalog()
   const [activePage, setActivePage] = usePersistedPreference(
     DESKTOP_PREFERENCE_KEYS.activePage,
@@ -2601,13 +2646,33 @@ function AppShell() {
     setActiveView('song')
   }, [])
 
+  useEffect(() => {
+    if (!currentTrack) return
+    setDesktopSelectedTrack(currentTrack)
+    setSelectedSong((previousSong) => (
+      activeView === 'song' ? currentTrack : previousSong
+    ))
+  }, [activeView, currentTrack])
+
   const selectAndPlay = useCallback(
-    (song: ApiSong) => {
+    (
+      song: ApiSong,
+      queue: ApiSong[] = [song],
+      startIndex = 0,
+      context: QueueContext = 'manual',
+      queueTitle?: string,
+    ) => {
       const resolved = songs.find((entry) => entry.id === song.id) ?? song
+      const playableQueue = queue.length > 0
+        ? queue.map((entry) => songs.find((songEntry) => songEntry.id === entry.id) ?? entry)
+        : [resolved]
+      const selectedIndex = playableQueue.findIndex((entry) => entry.id === resolved.id)
+      const safeIndex = selectedIndex >= 0 ? selectedIndex : Math.max(0, Math.min(startIndex, playableQueue.length - 1))
+
       openSong(resolved)
-      playTrack(resolved)
+      playQueue(playableQueue, safeIndex, context, queueTitle)
     },
-    [openSong, playTrack, songs],
+    [openSong, playQueue, songs],
   )
 
   const openAlbum = useCallback((album: ApiAlbum) => {
