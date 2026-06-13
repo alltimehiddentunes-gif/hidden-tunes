@@ -2507,28 +2507,32 @@ function SongDetailView({
 
   return (
     <PageFrame>
-      <DetailTopBar title="Song" subtitle="Read-only preview" onBack={onBack} />
-      <section className="detail-hero detail-hero--song">
-        <div className="detail-artwork">
-          <ArtworkImage src={song.artwork} alt="" seed={song.id} priority />
-        </div>
-        <div className="detail-hero-copy">
-          <p className="detail-eyebrow">Hidden Tunes</p>
-          <h1 className="detail-h1">{song.title}</h1>
-          <p className="detail-byline">
-            <span className="detail-pill">{song.artist}</span>
-            <span className="detail-pill detail-pill--muted">{song.album}</span>
-          </p>
-          {created ? (
-            <p className="detail-stats">Added {created}</p>
-          ) : null}
-          <PlaybackTransportControls
-            activeTrackId={song.id}
-            className="detail-controls"
-          />
-        </div>
-      </section>
-
+      <DetailTopBar title="Song" onBack={onBack} />
+      <div className="listening-stage">
+        <section className="detail-hero detail-hero--song">
+          <div className="detail-artwork-stage">
+            <span className="detail-artwork-aura" aria-hidden="true" />
+            <div className="detail-artwork">
+              <ArtworkImage src={song.artwork} alt="" seed={song.id} priority />
+            </div>
+          </div>
+          <div className="detail-hero-copy">
+            <p className="detail-eyebrow">Now playing</p>
+            <h1 className="detail-h1">{song.title}</h1>
+            <p className="detail-byline">
+              <span className="detail-pill">{song.artist}</span>
+              <span className="detail-pill detail-pill--muted">{song.album}</span>
+            </p>
+            {created ? (
+              <p className="detail-stats">Added {created}</p>
+            ) : null}
+            <PlaybackTransportControls
+              activeTrackId={song.id}
+              className="detail-controls"
+            />
+          </div>
+        </section>
+      </div>
     </PageFrame>
   )
 }
@@ -3040,7 +3044,7 @@ function AppShell() {
             <main className="main-scroll">
               <CatalogStatusBar />
               <CatalogStaleBanner />
-              <div className="page-view" data-page={activePage}>
+              <div className="page-view" data-page={activePage} data-view={activeView}>
                 <CatalogDetailRouter
                   activeView={activeView}
                   selectedSong={selectedSong}

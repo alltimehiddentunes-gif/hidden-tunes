@@ -4001,3 +4001,244 @@
     font-size: clamp(1.15rem, 4.8vw, 1.48rem);
   }
 }
+/* —— Premium desktop player identity (Phase 36E) —— */
+.page-view[data-view="song"] {
+  animation: pageEnter 0.34s var(--ease-out) both;
+}
+
+.main-scroll:has(.page-view[data-view="song"]) {
+  padding-top: clamp(16px, 2.4vw, 24px);
+  padding-bottom: clamp(24px, 3vw, 36px);
+  background:
+    radial-gradient(ellipse 92% 58% at 38% -6%, rgba(168, 85, 247, 0.08), transparent 62%),
+    radial-gradient(ellipse 68% 52% at 100% 38%, rgba(56, 189, 248, 0.045), transparent 58%),
+    radial-gradient(ellipse 80% 70% at 50% 100%, rgba(0, 0, 0, 0.22), transparent 52%);
+}
+
+.main-scroll:has(.page-view[data-view="song"])::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 105% 88% at 50% 42%,
+    transparent 36%,
+    rgba(0, 0, 0, 0.18) 78%,
+    rgba(0, 0, 0, 0.32) 100%
+  );
+}
+
+.page-view[data-view="song"] .detail-topbar {
+  margin-bottom: clamp(14px, 2vw, 20px);
+}
+
+.page-view[data-view="song"] .detail-titles {
+  display: none;
+}
+
+.page-view[data-view="song"] .detail-back {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.07);
+  color: rgba(245, 243, 250, 0.78);
+  backdrop-filter: blur(12px);
+}
+
+.listening-stage {
+  position: relative;
+  z-index: 1;
+  padding: clamp(4px, 1vw, 8px) 0 clamp(8px, 1.4vw, 14px);
+}
+
+.detail-artwork-stage {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: min(100%, 560px);
+  justify-self: center;
+}
+
+.detail-artwork-aura {
+  position: absolute;
+  inset: -14%;
+  border-radius: 50%;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(168, 85, 247, 0.28), transparent 62%),
+    radial-gradient(circle at 42% 58%, rgba(56, 189, 248, 0.12), transparent 58%);
+  filter: blur(28px);
+  opacity: 0.88;
+  animation: artworkAuraPulse 8s ease-in-out infinite;
+}
+
+@keyframes artworkAuraPulse {
+  0%,
+  100% {
+    opacity: 0.76;
+    transform: scale(0.98);
+  }
+  50% {
+    opacity: 0.96;
+    transform: scale(1.03);
+  }
+}
+
+.detail-hero--song {
+  grid-template-columns: minmax(0, 1.12fr) minmax(240px, 0.88fr);
+  gap: clamp(32px, 4.2vw, 56px);
+  min-height: clamp(400px, 48vh, 560px);
+  padding: clamp(32px, 4.8vw, 58px);
+  border-color: rgba(255, 255, 255, 0.1);
+  background:
+    radial-gradient(ellipse 92% 96% at 22% 48%, rgba(168, 85, 247, 0.16), transparent 56%),
+    radial-gradient(ellipse 48% 44% at 84% 14%, rgba(56, 189, 248, 0.06), transparent 62%),
+    linear-gradient(148deg, rgba(32, 32, 46, 0.78), rgba(10, 10, 16, 0.94) 54%, rgba(6, 6, 10, 0.98));
+  backdrop-filter: blur(24px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.025),
+    0 32px 72px rgba(0, 0, 0, 0.38),
+    0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+
+.detail-hero--song::before {
+  inset: -38% 54% -42% -28%;
+  filter: blur(28px);
+}
+
+.detail-hero--song .detail-artwork {
+  max-width: min(100%, 560px);
+  border-radius: clamp(22px, 2.6vw, 30px);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    inset 0 -56px 96px rgba(0, 0, 0, 0.32),
+    0 40px 88px rgba(0, 0, 0, 0.5),
+    0 0 96px rgba(168, 85, 247, 0.26),
+    0 0 36px rgba(56, 189, 248, 0.1),
+    0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+.detail-hero--song .detail-artwork::before {
+  inset: -30%;
+  opacity: 0.9;
+  filter: blur(36px);
+}
+
+.detail-hero--song .detail-artwork-stage::after {
+  content: '';
+  position: absolute;
+  inset: 8%;
+  border-radius: 50%;
+  pointer-events: none;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow:
+    0 0 48px rgba(168, 85, 247, 0.12),
+    inset 0 0 24px rgba(168, 85, 247, 0.06);
+  opacity: 0.72;
+}
+
+.detail-hero--song .detail-hero-copy {
+  max-width: min(100%, 380px);
+  padding: clamp(6px, 1vw, 12px) 0;
+}
+
+.detail-hero--song .detail-eyebrow {
+  letter-spacing: 0.2em;
+  color: rgba(56, 189, 248, 0.72);
+}
+
+.detail-hero--song .detail-h1 {
+  color: rgba(245, 243, 250, 0.9);
+  font-weight: 580;
+}
+
+.detail-hero--song .detail-pill {
+  backdrop-filter: blur(10px);
+}
+
+.detail-hero--song .detail-controls .control-btn {
+  backdrop-filter: blur(10px);
+  transition:
+    color var(--transition-fast),
+    background var(--transition-fast),
+    transform var(--transition-fast),
+    box-shadow var(--transition-fast),
+    border-color var(--transition-fast);
+}
+
+.detail-hero--song .detail-controls .control-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 8px 18px rgba(0, 0, 0, 0.22);
+}
+
+.detail-hero--song .detail-controls .control-btn.play.is-active {
+  box-shadow:
+    0 12px 28px rgba(168, 85, 247, 0.34),
+    0 0 36px rgba(56, 189, 248, 0.1),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+.transport-controls .control-btn:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+
+.transport-controls .control-btn.play:not(:disabled):hover {
+  box-shadow:
+    0 8px 22px rgba(168, 85, 247, 0.38),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.main-composition:has(.page-view[data-view="song"]) .queue-rail {
+  margin-top: 0;
+  margin-bottom: 0;
+  border-left-color: rgba(255, 255, 255, 0.045);
+  background:
+    linear-gradient(180deg, rgba(14, 14, 21, 0.52), rgba(7, 7, 11, 0.68));
+  box-shadow:
+    inset 1px 0 0 rgba(255, 255, 255, 0.02),
+    -8px 0 28px rgba(0, 0, 0, 0.06);
+  backdrop-filter: blur(20px);
+}
+
+.main-composition:has(.page-view[data-view="song"]) .queue-rail-header h2 {
+  color: rgba(245, 243, 250, 0.62);
+  letter-spacing: 0.1em;
+}
+
+.main-composition:has(.page-view[data-view="song"]) .queue-now-title {
+  font-size: 13px;
+  color: rgba(245, 243, 250, 0.82);
+}
+
+.app-shell:has(.page-view[data-view="song"]) + .player-bar {
+  background:
+    radial-gradient(ellipse 48% 160% at 16% 0%, rgba(168, 85, 247, 0.09), transparent 66%),
+    radial-gradient(ellipse 40% 140% at 78% 0%, rgba(56, 189, 248, 0.055), transparent 68%),
+    linear-gradient(180deg, rgba(12, 12, 18, 0.82), rgba(4, 4, 8, 0.98));
+  border-top-color: rgba(255, 255, 255, 0.06);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 -24px 56px rgba(0, 0, 0, 0.24);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .detail-artwork-aura {
+    animation: none;
+  }
+}
+
+@media (max-width: 980px) {
+  .detail-artwork-stage {
+    max-width: min(440px, 88vw);
+    margin: 0 auto;
+  }
+
+  .detail-artwork-aura {
+    inset: -10%;
+  }
+}
