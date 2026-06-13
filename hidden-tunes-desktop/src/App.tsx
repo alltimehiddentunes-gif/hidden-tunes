@@ -2496,6 +2496,60 @@ function DetailTopBar({
   )
 }
 
+
+function CinemaPlayerShell({
+  song,
+  onClose,
+}: {
+  song: ApiSong
+  onClose: () => void
+}) {
+  return (
+    <div
+      className="cinema-player"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Cinema player"
+    >
+      <div className="cinema-player-backdrop" aria-hidden="true" />
+      <button
+        type="button"
+        className="cinema-player-close"
+        onClick={onClose}
+        aria-label="Exit cinema player"
+      >
+        <span className="cinema-player-close-icon" aria-hidden="true">
+          ←
+        </span>
+        Back
+      </button>
+      <div className="cinema-player-stage">
+        <div className="cinema-player-artwork-wrap">
+          <span className="cinema-player-aura" aria-hidden="true" />
+          <div className="cinema-player-artwork">
+            <ArtworkImage src={song.artwork} alt="" seed={song.id} priority />
+          </div>
+        </div>
+        <div className="cinema-player-meta">
+          <p className="cinema-player-eyebrow">Now playing</p>
+          <h1 className="cinema-player-title">{song.title}</h1>
+          <p className="cinema-player-byline">
+            <span>{song.artist}</span>
+            <span className="cinema-player-sep" aria-hidden="true">
+              ·
+            </span>
+            <span>{song.album}</span>
+          </p>
+          <PlaybackTransportControls
+            activeTrackId={song.id}
+            className="cinema-player-controls"
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function SongDetailView({
   song,
   onBack,
@@ -2503,37 +2557,57 @@ function SongDetailView({
   song: ApiSong
   onBack: () => void
 }) {
+  const [cinemaOpen, setCinemaOpen] = useState(false)
   const created = formatDateLabel(song.createdAt)
 
   return (
-    <PageFrame>
-      <DetailTopBar title="Song" onBack={onBack} />
-      <div className="listening-stage">
-        <section className="detail-hero detail-hero--song">
-          <div className="detail-artwork-stage">
-            <span className="detail-artwork-aura" aria-hidden="true" />
-            <div className="detail-artwork">
-              <ArtworkImage src={song.artwork} alt="" seed={song.id} priority />
+    <>
+      <PageFrame>
+        <DetailTopBar title="Song" onBack={onBack} />
+        <div className="listening-stage">
+          <button
+            type="button"
+            className="cinema-entry-btn"
+            onClick={() => setCinemaOpen(true)}
+            aria-label="Open cinema player"
+            title="Cinema view"
+          >
+            <span className="cinema-entry-btn-icon" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
+                <path d="M9 3H3v6M15 3h6v6M9 21H3v-6M15 21h6v-6" />
+              </svg>
+            </span>
+            <span className="cinema-entry-btn-label">Cinema</span>
+          </button>
+          <section className="detail-hero detail-hero--song">
+            <div className="detail-artwork-stage">
+              <span className="detail-artwork-aura" aria-hidden="true" />
+              <div className="detail-artwork">
+                <ArtworkImage src={song.artwork} alt="" seed={song.id} priority />
+              </div>
             </div>
-          </div>
-          <div className="detail-hero-copy">
-            <p className="detail-eyebrow">Now playing</p>
-            <h1 className="detail-h1">{song.title}</h1>
-            <p className="detail-byline">
-              <span className="detail-pill">{song.artist}</span>
-              <span className="detail-pill detail-pill--muted">{song.album}</span>
-            </p>
-            {created ? (
-              <p className="detail-stats">Added {created}</p>
-            ) : null}
-            <PlaybackTransportControls
-              activeTrackId={song.id}
-              className="detail-controls"
-            />
-          </div>
-        </section>
-      </div>
-    </PageFrame>
+            <div className="detail-hero-copy">
+              <p className="detail-eyebrow">Now playing</p>
+              <h1 className="detail-h1">{song.title}</h1>
+              <p className="detail-byline">
+                <span className="detail-pill">{song.artist}</span>
+                <span className="detail-pill detail-pill--muted">{song.album}</span>
+              </p>
+              {created ? (
+                <p className="detail-stats">Added {created}</p>
+              ) : null}
+              <PlaybackTransportControls
+                activeTrackId={song.id}
+                className="detail-controls"
+              />
+            </div>
+          </section>
+        </div>
+      </PageFrame>
+      {cinemaOpen ? (
+        <CinemaPlayerShell song={song} onClose={() => setCinemaOpen(false)} />
+      ) : null}
+    </>
   )
 }
 
