@@ -2,32 +2,18 @@ import { Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import { useRouter } from "expo-router";
 import { memo, useMemo } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { COLORS } from "../../constants/theme";
 import {
   DESKTOP_SIDEBAR_NAV_ITEMS,
+  NAVIGATION_SECTION_LABELS,
+  NAVIGATION_SECTION_ORDER,
   type AppNavigationItem,
   type NavigationSection,
 } from "./navigationConfig";
 
-const SECTION_LABELS: Record<NavigationSection, string> = {
-  primary: "Discover",
-  library: "Library",
-  media: "Media",
-  account: "Account",
-  creator: "Creator",
-  admin: "Admin",
-};
-
-const SECTION_ORDER: NavigationSection[] = [
-  "primary",
-  "library",
-  "media",
-  "creator",
-  "admin",
-  "account",
-];
+type DesktopBreakpoint = "compact" | "standard" | "wide";
 
 function isActiveRoute(pathname: string, item: AppNavigationItem) {
   return item.matches.some((route) => {
@@ -36,17 +22,26 @@ function isActiveRoute(pathname: string, item: AppNavigationItem) {
   });
 }
 
+function sidebarWidthForBreakpoint(breakpoint: DesktopBreakpoint) {
+  if (breakpoint === "wide") return 284;
+  if (breakpoint === "standard") return 272;
+  return 248;
+}
+
 function DesktopSidebar({
   activeItemId,
   pathname,
+  breakpoint = "standard",
 }: {
   activeItemId?: string;
   pathname: string;
+  breakpoint?: DesktopBreakpoint;
 }) {
   const router = useRouter();
+  const sidebarWidth = sidebarWidthForBreakpoint(breakpoint);
   const sections = useMemo(
     () =>
-      SECTION_ORDER.map((section) => ({
+      NAVIGATION_SECTION_ORDER.map((section) => ({
         section,
         items: DESKTOP_SIDEBAR_NAV_ITEMS.filter((item) => item.section === section),
       })).filter((group) => group.items.length > 0),
@@ -54,22 +49,31 @@ function DesktopSidebar({
   );
 
   return (
-    <View style={styles.sidebarWrap}>
-      <BlurView intensity={30} tint="dark" style={styles.sidebarGlass}>
+    <View style={[styles.sidebarWrap, { width: sidebarWidth }]}>
+      <BlurView intensity={34} tint="dark" style={styles.sidebarGlass}>
         <View style={styles.brandBlock}>
-          <View style={styles.logoMark}>
-            <Text style={styles.logoText}>HT</Text>
+          <View style={styles.logoRing}>
+            <View style={styles.logoMark}>
+              <Text style={styles.logoText}>HT</Text>
+            </View>
           </View>
           <View style={styles.brandCopy}>
             <Text style={styles.brandTitle}>Hidden Tunes</Text>
-            <Text style={styles.brandSubtitle}>Desktop</Text>
+            <Text style={styles.brandSubtitle}>Premium desktop shell</Text>
           </View>
         </View>
 
-        <View style={styles.navSections}>
-          {sections.map((group) => (
-            <View key={group.section} style={styles.section}>
-              <Text style={styles.sectionLabel}>{SECTION_LABELS[group.section]}</Text>
+        <ScrollView
+          style={styles.navScroll}
+          contentContainerStyle={styles.navSections}
+          showsVerticalScrollIndicator={false}
+        >
+          {sections.map((group, groupIndex) => (
+            <View key={group.section} style={styles.sectionGroup}>
+              {groupIndex > 0 ? <View style={styles.sectionDivider} /> : null}
+              <Text style={styles.sectionLabel}>
+                {NAVIGATION_SECTION_LABELS[group.section as NavigationSection]}
+              </Text>
               {group.items.map((item) => {
                 const active = activeItemId === item.id || isActiveRoute(pathname, item);
                 return (
@@ -77,6 +81,7 @@ function DesktopSidebar({
                     key={item.id}
                     accessibilityRole="button"
                     accessibilityLabel={item.label + " navigation"}
+                    accessibilityState={{ selected: active }}
                     onPress={() => router.push(item.route as any)}
                     style={({ pressed }) => [
                       styles.navItem,
@@ -84,10 +89,11 @@ function DesktopSidebar({
                       pressed && styles.navItemPressed,
                     ]}
                   >
+                    {active ? <View style={styles.activeRail} /> : null}
                     <View style={[styles.iconWrap, active && styles.iconWrapActive]}>
                       <Ionicons
                         name={active ? item.activeIcon : item.icon}
-                        size={19}
+                        size={18}
                         color={active ? COLORS.primaryGlow : COLORS.textMuted}
                       />
                     </View>
@@ -99,7 +105,7 @@ function DesktopSidebar({
               })}
             </View>
           ))}
-        </View>
+        </ScrollView>
       </BlurView>
     </View>
   );
@@ -109,17 +115,20 @@ export default memo(DesktopSidebar);
 
 const styles = StyleSheet.create({
   sidebarWrap: {
-    width: 264,
-    padding: 16,
-    paddingRight: 10,
+    paddingTop: 14,
+    paddingBottom: 14,
+    paddingLeft: 14,
+    paddingRight: 8,
+    flexShrink: 0,
   },
   sidebarGlass: {
     flex: 1,
     overflow: "hidden",
-    borderRadius: 22,
+    borderRadius: 24,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.11)",
-    backgroundColor: "rgba(5,5,10,0.68)",
+    borderColor: "rgba(255,255,255,0.12)",
+    backgroundColor: "rgba(6,6,12,0.72)",
+    boxShadow: "0 18px 48px rgba(0,0,0,0.28)",
   },
   brandBlock: {
     flexDirection: "row",
@@ -127,24 +136,30 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingHorizontal: 16,
     paddingTop: 18,
-    paddingBottom: 16,
+    paddingBottom: 18,
     borderBottomWidth: 1,
     borderBottomColor: "rgba(255,255,255,0.08)",
   },
+  logoRing: {
+    padding: 2,
+    borderRadius: 18,
+    backgroundColor: "rgba(168,85,247,0.18)",
+  },
   logoMark: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
+    width: 44,
+    height: 44,
+    borderRadius: 15,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(168,85,247,0.16)",
+    backgroundColor: "rgba(12,10,20,0.92)",
     borderWidth: 1,
-    borderColor: "rgba(192,132,252,0.36)",
+    borderColor: "rgba(192,132,252,0.42)",
   },
   logoText: {
     color: COLORS.text,
     fontSize: 14,
     fontWeight: "900",
+    letterSpacing: 0.6,
   },
   brandCopy: {
     flex: 1,
@@ -154,65 +169,92 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     fontSize: 16,
     fontWeight: "900",
+    letterSpacing: -0.2,
   },
   brandSubtitle: {
     color: COLORS.textMuted,
     fontSize: 11,
-    fontWeight: "800",
-    marginTop: 2,
+    fontWeight: "700",
+    marginTop: 3,
+  },
+  navScroll: {
+    flex: 1,
   },
   navSections: {
-    flex: 1,
-    padding: 10,
-    gap: 10,
+    paddingHorizontal: 10,
+    paddingTop: 12,
+    paddingBottom: 14,
+    gap: 6,
   },
-  section: {
+  sectionGroup: {
     gap: 4,
+  },
+  sectionDivider: {
+    height: 1,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    marginHorizontal: 8,
+    marginTop: 4,
+    marginBottom: 8,
   },
   sectionLabel: {
     color: COLORS.textDim,
     fontSize: 10,
     fontWeight: "900",
+    letterSpacing: 1.1,
     textTransform: "uppercase",
     paddingHorizontal: 10,
-    paddingTop: 8,
-    paddingBottom: 4,
+    paddingTop: 2,
+    paddingBottom: 6,
   },
   navItem: {
-    minHeight: 42,
-    borderRadius: 12,
+    minHeight: 44,
+    borderRadius: 14,
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
     paddingHorizontal: 10,
+    paddingVertical: 2,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0)",
+    position: "relative",
+    overflow: "hidden",
   },
   navItemActive: {
-    backgroundColor: "rgba(168,85,247,0.14)",
-    borderColor: "rgba(192,132,252,0.22)",
+    backgroundColor: "rgba(168,85,247,0.16)",
+    borderColor: "rgba(192,132,252,0.28)",
+    boxShadow: "0 8px 22px rgba(124,58,237,0.14)",
   },
   navItemPressed: {
-    opacity: 0.78,
+    opacity: 0.8,
+  },
+  activeRail: {
+    position: "absolute",
+    left: 0,
+    top: 8,
+    bottom: 8,
+    width: 3,
+    borderRadius: 999,
+    backgroundColor: COLORS.primaryGlow,
   },
   iconWrap: {
-    width: 26,
-    height: 26,
+    width: 28,
+    height: 28,
     borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
   },
   iconWrapActive: {
-    backgroundColor: "rgba(192,132,252,0.12)",
+    backgroundColor: "rgba(192,132,252,0.14)",
   },
   navLabel: {
     flex: 1,
     minWidth: 0,
     color: COLORS.textMuted,
     fontSize: 13,
-    fontWeight: "800",
+    fontWeight: "700",
   },
   navLabelActive: {
     color: COLORS.text,
+    fontWeight: "900",
   },
 });

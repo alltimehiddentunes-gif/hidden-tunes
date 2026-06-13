@@ -1,6 +1,12 @@
 import { usePathname } from "expo-router";
 import { ReactNode, useMemo } from "react";
-import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import {
+  StyleSheet,
+  View,
+  useWindowDimensions,
+  type StyleProp,
+  type ViewStyle,
+} from "react-native";
 
 import { COLORS } from "../../constants/theme";
 import PremiumBackground, { type PremiumBackgroundVariant } from "../PremiumBackground";
@@ -36,6 +42,14 @@ function getBackgroundVariant(pathname: string): PremiumBackgroundVariant {
   return "entity";
 }
 
+type DesktopBreakpoint = "compact" | "standard" | "wide";
+
+function getDesktopBreakpoint(width: number): DesktopBreakpoint {
+  if (width >= 1440) return "wide";
+  if (width >= 1280) return "standard";
+  return "compact";
+}
+
 export default function AppShell({
   children,
   style,
@@ -44,20 +58,37 @@ export default function AppShell({
   style?: StyleProp<ViewStyle>;
 }) {
   const pathname = usePathname();
+  const { width } = useWindowDimensions();
+  const breakpoint = getDesktopBreakpoint(width);
   const backgroundVariant = getBackgroundVariant(pathname);
   const activeItem = useMemo(
     () => DESKTOP_SIDEBAR_NAV_ITEMS.find((item) => isActiveRoute(pathname, item.matches)),
     [pathname]
   );
 
+  const contentPadding = breakpoint === "wide" ? 28 : breakpoint === "standard" ? 24 : 18;
+  const contentMaxWidth = breakpoint === "wide" ? 1480 : breakpoint === "standard" ? 1320 : 1120;
+
   return (
     <View style={[styles.shell, style]}>
       <PremiumBackground variant={backgroundVariant} />
       <View style={styles.desktopFrame}>
-        <DesktopSidebar activeItemId={activeItem?.id} pathname={pathname} />
+        <DesktopSidebar activeItemId={activeItem?.id} pathname={pathname} breakpoint={breakpoint} />
         <View style={styles.mainColumn}>
-          <DesktopTopbar activeItem={activeItem} pathname={pathname} />
-          <View style={styles.content}>{children}</View>
+          <DesktopTopbar activeItem={activeItem} pathname={pathname} breakpoint={breakpoint} />
+          <View
+            style={[
+              styles.content,
+              {
+                paddingHorizontal: contentPadding,
+                paddingBottom: contentPadding,
+              },
+            ]}
+          >
+            <View style={[styles.contentInner, { maxWidth: contentMaxWidth }]}>
+              {children}
+            </View>
+          </View>
         </View>
       </View>
     </View>
@@ -89,6 +120,14 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+    minWidth: 0,
+    overflow: "scroll",
+    paddingTop: 4,
+  },
+  contentInner: {
+    width: "100%",
+    maxWidth: "100%",
+    alignSelf: "center",
     minWidth: 0,
     overflow: "hidden",
   },

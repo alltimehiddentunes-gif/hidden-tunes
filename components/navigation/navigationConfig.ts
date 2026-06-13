@@ -251,3 +251,21 @@ export const MOBILE_BOTTOM_NAV_ITEMS = NAVIGATION_ITEMS.filter(
 export const DESKTOP_SIDEBAR_NAV_ITEMS = NAVIGATION_ITEMS.filter(
   (item) => item.desktopVisible
 );
+
+export const NAVIGATION_SECTION_LABELS: Record<NavigationSection, string> = {
+  primary: "Discover",
+  library: "Library",
+  media: "Media",
+  account: "Account",
+  creator: "Creator",
+  admin: "Admin",
+};
+
+export const NAVIGATION_SECTION_ORDER: NavigationSection[] = [
+  "primary",
+  "library",
+  "media",
+  "creator",
+  "admin",
+  "account",
+];
