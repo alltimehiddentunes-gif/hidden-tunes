@@ -56,7 +56,6 @@ import {
   readCachedCatalog,
   writeCachedCatalog,
 } from './lib/catalogCache'
-import { audioVersionAvailability } from './lib/audioVersions'
 import {
   AUDIO_QUALITY_MODE_LABELS,
   AUDIO_QUALITY_MODES,
@@ -87,7 +86,6 @@ import './App.css'
 
 const APP_NAME = 'Hidden Tunes Desktop'
 const APP_VERSION = '0.0.1'
-const APP_PREVIEW_COPY = 'Desktop preview · catalog browsing only'
 const PLAYER_BAR_FALLBACK_TITLE = 'Ethereal Horizon'
 const PLAYER_BAR_FALLBACK_ARTIST = 'Luna Veil'
 const GRID_INITIAL_LIMIT = 24
@@ -1328,10 +1326,6 @@ const Sidebar = memo(function Sidebar({
         </div>
       </div>
 
-      <p className="sidebar-preview-copy" aria-label={APP_PREVIEW_COPY}>
-        {APP_PREVIEW_COPY}
-      </p>
-
       <nav className="sidebar-nav" aria-label="Main navigation">
         {MAIN_NAV.map((item) => (
           <button
@@ -1887,11 +1881,28 @@ function AudioQualitySelector({
   onChange: (mode: AudioQualityMode) => void
   compact?: boolean
 }) {
+  if (compact) {
+    return (
+      <select
+        className="audio-quality-select"
+        value={value}
+        onChange={(event) => onChange(event.target.value as AudioQualityMode)}
+        aria-label="Audio quality"
+      >
+        {AUDIO_QUALITY_MODES.map((mode) => (
+          <option key={mode} value={mode}>
+            {AUDIO_QUALITY_MODE_LABELS[mode]}
+          </option>
+        ))}
+      </select>
+    )
+  }
+
   return (
     <div
-      className={'audio-quality-selector' + (compact ? ' audio-quality-selector--compact' : '')}
-      role='group'
-      aria-label='Desktop audio quality'
+      className="audio-quality-selector"
+      role="group"
+      aria-label="Desktop audio quality"
     >
       {AUDIO_QUALITY_MODES.map((mode) => {
         const active = mode === value
@@ -1899,7 +1910,7 @@ function AudioQualitySelector({
         return (
           <button
             key={mode}
-            type='button'
+            type="button"
             className={'audio-quality-option' + (active ? ' active' : '')}
             aria-pressed={active}
             onClick={() => onChange(mode)}
@@ -1908,41 +1919,6 @@ function AudioQualitySelector({
           </button>
         )
       })}
-    </div>
-  )
-}
-
-function AudioVersionAvailabilityStatus({ song }: { song: ApiSong | null }) {
-  if (!song) return null
-
-  const versions = song.audioVersions
-  if (!versions) {
-    return song.audioUrl ? (
-      <div className="audio-version-status audio-version-status--legacy" aria-label="Audio version availability">
-        <span className="audio-version-pill available">Legacy</span>
-      </div>
-    ) : null
-  }
-
-  const availability = audioVersionAvailability(versions)
-  const items = [
-    { key: 'ultraLight', label: 'ultraLight', available: availability.hasUltraLight },
-    { key: 'standard', label: 'standard', available: availability.hasStandard },
-    { key: 'highQuality', label: 'highQuality', available: availability.hasHighQuality },
-    { key: 'lossless', label: 'lossless', available: availability.hasLossless },
-  ]
-
-  return (
-    <div className="audio-version-status" aria-label="Audio version availability">
-      {items.map((item) => (
-        <span
-          key={item.key}
-          className={'audio-version-pill' + (item.available ? ' available' : '')}
-          aria-label={`${item.label} ${item.available ? 'available' : 'not available'}`}
-        >
-          {item.label}
-        </span>
-      ))}
     </div>
   )
 }
@@ -2231,9 +2207,6 @@ const PlayerBar = memo(function PlayerBar({ track }: { track: ApiSong | null }) 
       data-playing={isPlaying ? 'true' : 'false'}
       data-loading={isLoading ? 'true' : 'false'}
     >
-      <p className="player-preview-copy" aria-hidden="true">
-        {APP_PREVIEW_COPY}
-      </p>
       <div className="player-track">
         <div className="player-artwork" aria-hidden="true">
           {displayTrack ? (
@@ -2335,17 +2308,14 @@ const PlayerBar = memo(function PlayerBar({ track }: { track: ApiSong | null }) 
       </div>
 
       <div className="player-right">
-        <div className="player-quality" aria-label="Selected audio quality">
-          <span className="player-quality-label">Quality</span>
+        <div className="player-quality">
           <AudioQualitySelector
             value={audioQualityMode}
             onChange={setAudioQualityMode}
             compact
           />
-          <AudioVersionAvailabilityStatus song={displayTrack} />
         </div>
-
-      <div className={`player-volume player-volume--${volumeLevel}`}>
+        <div className={`player-volume player-volume--${volumeLevel}`}>
         <button
           type="button"
           className="control-btn"
@@ -2506,20 +2476,9 @@ function SongDetailView({
             <span className="detail-pill">{song.artist}</span>
             <span className="detail-pill detail-pill--muted">{song.album}</span>
           </p>
-          <div className="detail-meta">
-            <div className="detail-meta-item">
-              <span>Type</span>
-              <strong>Song</strong>
-            </div>
-            <div className="detail-meta-item">
-              <span>Catalog</span>
-              <strong>Read-only</strong>
-            </div>
-            <div className="detail-meta-item">
-              <span>Added</span>
-              <strong>{created || '—'}</strong>
-            </div>
-          </div>
+          {created ? (
+            <p className="detail-stats">Added {created}</p>
+          ) : null}
           <div className="detail-controls">
             <button type="button" className="control-btn" aria-label="Previous (UI only)">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
@@ -2605,16 +2564,10 @@ function AlbumDetailView({
               {album.releaseYear ? `Released ${album.releaseYear}` : 'Release year —'}
             </span>
           </p>
-          <div className="detail-meta">
-            <div className="detail-meta-item">
-              <span>Tracks</span>
-              <strong>{albumSongs.length}</strong>
-            </div>
-            <div className="detail-meta-item">
-              <span>Added</span>
-              <strong>{created || '—'}</strong>
-            </div>
-          </div>
+          <p className="detail-stats">
+            {albumSongs.length} {albumSongs.length === 1 ? 'track' : 'tracks'}
+            {created ? ` · Added ${created}` : ''}
+          </p>
         </div>
       </section>
 
@@ -2704,20 +2657,11 @@ function ArtistDetailView({
         <div className="detail-hero-copy">
           <p className="detail-eyebrow">Artist</p>
           <h1 className="detail-h1">{artist.name}</h1>
-          <div className="detail-meta">
-            <div className="detail-meta-item">
-              <span>Tracks</span>
-              <strong>{artist.songCount || artistSongs.length}</strong>
-            </div>
-            <div className="detail-meta-item">
-              <span>Albums</span>
-              <strong>{artistAlbums.length}</strong>
-            </div>
-            <div className="detail-meta-item">
-              <span>Status</span>
-              <strong>Preview</strong>
-            </div>
-          </div>
+          <p className="detail-stats">
+            {artist.songCount || artistSongs.length}{' '}
+            {(artist.songCount || artistSongs.length) === 1 ? 'track' : 'tracks'} · {artistAlbums.length}{' '}
+            {artistAlbums.length === 1 ? 'album' : 'albums'}
+          </p>
         </div>
       </section>
 
