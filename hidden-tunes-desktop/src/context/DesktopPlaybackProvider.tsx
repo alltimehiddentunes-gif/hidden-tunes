@@ -10,6 +10,7 @@ import {
 } from 'react'
 import type { ApiSong } from '../lib/api'
 import { logQueueExtension } from '../lib/catalogDiagnostics'
+import { resolveInstantPlayUrl, resolveUpgradePlayUrl } from '../lib/songMetadata'
 import { HtmlAudioPlaybackService } from '../lib/desktopPlayback/HtmlAudioPlaybackService'
 import { buildRelatedQueue } from '../lib/desktopPlayback/queueIntelligence'
 import type {
@@ -120,6 +121,9 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
   const playSong = useCallback(
     (song: ApiSong) => {
       const service = getService()
+      const instantUrl = resolveInstantPlayUrl(song)
+      const upgradeUrl = resolveUpgradePlayUrl(song, instantUrl)
+
       setCurrentTrack(song)
       setError(null)
       setPositionSeconds(0)
@@ -129,26 +133,33 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
           : 0,
       )
 
-      if (!song.audioUrl) {
+      if (!instantUrl) {
         service.stop()
         setIsPlaying(false)
         setIsLoading(false)
-        setError('Audio unavailable for this track.')
+        setError('Unable to play this track.')
         return
       }
 
       setIsLoading(true)
-      void service.play(song.audioUrl).catch((err) => {
-        if (import.meta.env.DEV) {
-          console.error('[ht-playback] play() failed', {
-            audioUrl: song.audioUrl,
-            error: err instanceof Error ? err.message : String(err),
-          })
-        }
-        setIsPlaying(false)
-        setIsLoading(false)
-        setError('Unable to play this track.')
-      })
+      void service
+        .play(instantUrl, { instant: true })
+        .then(() => {
+          if (upgradeUrl) {
+            void service.upgradeSource(upgradeUrl)
+          }
+        })
+        .catch((err) => {
+          if (import.meta.env.DEV) {
+            console.error('[ht-playback] play() failed', {
+              audioUrl: instantUrl,
+              error: err instanceof Error ? err.message : String(err),
+            })
+          }
+          setIsPlaying(false)
+          setIsLoading(false)
+          setError('Unable to play this track.')
+        })
     },
     [getService],
   )
@@ -274,6 +285,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       queueCandidatePoolsRef.current = seedMetadata?.candidatePools
 
       applyQueueState(playableQueue, safeIndex)
+      setCurrentTrack(playableQueue[safeIndex])
       setQueueContext(context)
       setQueueSeedType(nextSeedType)
       setQueueSeedId(seedMetadata?.seedId)
@@ -322,8 +334,8 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
   }, [getService])
 
   const resume = useCallback(() => {
-    if (!currentTrack?.audioUrl) {
-      setError('Audio unavailable for this track.')
+    if (!currentTrack || !resolveInstantPlayUrl(currentTrack)) {
+      setError('Unable to play this track.')
       return
     }
 

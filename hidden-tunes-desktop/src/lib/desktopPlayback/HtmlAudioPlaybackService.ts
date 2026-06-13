@@ -41,18 +41,22 @@ function clampSeekSeconds(seconds: number, duration: number): number {
   return seconds
 }
 
+type PlayOptions = {
+  instant?: boolean
+}
+
 export class HtmlAudioPlaybackService {
   private readonly audio: HTMLAudioElement
   private lastUrl: string | null = null
+  private upgradeToken = 0
 
   constructor() {
     this.audio = new Audio()
-    this.audio.preload = 'auto'
+    this.audio.preload = 'metadata'
     this.audio.volume = 1
     this.audio.muted = false
     this.audio.setAttribute('data-ht-playback', 'true')
 
-    // Electron/Chromium: attached media elements route audio more reliably.
     if (typeof document !== 'undefined' && !this.audio.isConnected) {
       this.audio.style.display = 'none'
       document.body.appendChild(this.audio)
@@ -89,7 +93,7 @@ export class HtmlAudioPlaybackService {
     })
   }
 
-  async play(url: string): Promise<void> {
+  async play(url: string, options?: PlayOptions): Promise<void> {
     const normalized = url.trim()
     if (!normalized) {
       throw new Error('Missing audio URL')
@@ -102,7 +106,11 @@ export class HtmlAudioPlaybackService {
       this.audio.src = normalized
       this.lastUrl = normalized
       this.audio.load()
-      await this.waitForCanPlay()
+
+      if (!options?.instant) {
+        await this.waitForCanPlay()
+      }
+
       logPlaybackDiagnostics('before play (new src)', this.audio, normalized)
       await this.audio.play()
       logPlaybackDiagnostics('after play (new src)', this.audio, normalized)
@@ -112,6 +120,63 @@ export class HtmlAudioPlaybackService {
     logPlaybackDiagnostics('before resume/play', this.audio, normalized)
     await this.audio.play()
     logPlaybackDiagnostics('after resume/play', this.audio, normalized)
+  }
+
+  async upgradeSource(url: string): Promise<boolean> {
+    const normalized = url.trim()
+    if (!normalized || normalized === this.lastUrl) return false
+
+    const token = ++this.upgradeToken
+    const position = this.audio.currentTime
+    const wasPlaying = !this.audio.paused
+
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const onCanPlay = () => {
+          cleanup()
+          resolve()
+        }
+        const onError = () => {
+          cleanup()
+          reject(new Error(describeMediaError(this.audio)))
+        }
+        const cleanup = () => {
+          this.audio.removeEventListener('canplay', onCanPlay)
+          this.audio.removeEventListener('error', onError)
+        }
+
+        this.audio.addEventListener('canplay', onCanPlay)
+        this.audio.addEventListener('error', onError)
+        this.audio.src = normalized
+        this.lastUrl = normalized
+        this.audio.load()
+      })
+
+      if (token !== this.upgradeToken) return false
+
+      if (position > 0) {
+        try {
+          this.audio.currentTime = position
+        } catch {
+          // Metadata may not be ready yet — ignore safely.
+        }
+      }
+
+      if (wasPlaying) {
+        await this.audio.play()
+      }
+
+      logPlaybackDiagnostics('quality upgrade applied', this.audio, normalized)
+      return true
+    } catch (error) {
+      if (import.meta.env.DEV) {
+        console.warn('[ht-playback] quality upgrade skipped', {
+          url: normalized,
+          error: error instanceof Error ? error.message : String(error),
+        })
+      }
+      return false
+    }
   }
 
   pause(): void {
@@ -149,6 +214,7 @@ export class HtmlAudioPlaybackService {
   }
 
   stop(): void {
+    this.upgradeToken += 1
     this.audio.pause()
     this.audio.currentTime = 0
   }

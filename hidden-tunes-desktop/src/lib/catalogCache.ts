@@ -66,11 +66,23 @@ function sanitizeSong(raw: unknown): ApiSong | null {
           ? record.category
           : null,
     mood: typeof record.mood === 'string' ? record.mood : null,
+    tags: Array.isArray(record.tags)
+      ? record.tags.filter((tag): tag is string => typeof tag === 'string' && tag.trim().length > 0)
+      : [],
+    description: typeof record.description === 'string' ? record.description : null,
     artwork: sanitizeArtwork(record.artwork),
+    previewUrl:
+      sanitizeAudioUrl(record.previewUrl) ??
+      sanitizeAudioUrl(record.preview_url),
     audioUrl:
       sanitizeAudioUrl(record.audioUrl) ??
+      sanitizeAudioUrl(record.streamUrl) ??
+      sanitizeAudioUrl(record.stream_url) ??
       sanitizeAudioUrl(record.url) ??
       sanitizeAudioUrl(record.audio_url),
+    highQualityUrl:
+      sanitizeAudioUrl(record.highQualityUrl) ??
+      sanitizeAudioUrl(record.high_quality_url),
     durationSeconds: sanitizeDurationSeconds(record.durationSeconds),
     createdAt: typeof record.createdAt === 'string' ? record.createdAt : null,
   }

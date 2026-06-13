@@ -44,6 +44,7 @@ export function logCatalogSearch(stats: {
   durationMs: number
   capped: boolean
   skipped: boolean
+  mode?: 'default' | 'lightweight' | 'full'
 }) {
   if (!shouldLog()) return
   console.info(`${PREFIX} search`, stats)

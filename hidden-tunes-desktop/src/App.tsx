@@ -15,7 +15,6 @@ import {
   fetchCatalogBundle,
   filterAlbumsByQuery,
   filterArtistsByQuery,
-  filterSongsByQuery,
   sortAlbumsList,
   sortArtistsList,
   sortSongsList,
@@ -27,6 +26,14 @@ import {
   type CatalogBundle,
   type SongSort,
 } from './lib/api'
+import {
+  buildSearchMetadataIndex,
+  metadataRecordToApiSong,
+  metadataRecordsToApiSongs,
+  searchCatalogSongs,
+  sortMetadataRecords,
+  type CatalogMetadataIndex,
+} from './lib/songMetadata'
 import {
   buildCatalogIndexes,
   buildQueueSeedPool,
@@ -214,6 +221,7 @@ type CatalogContextValue = {
   albums: ApiAlbum[]
   artists: ApiArtist[]
   indexes: CatalogIndexes
+  searchMetadataIndex: CatalogMetadataIndex
   artistNames: Map<string, string>
   songsByAlbumTitle: Map<string, ApiSong[]>
   songsByArtistName: Map<string, ApiSong[]>
@@ -374,12 +382,18 @@ function CatalogProvider({ children }: { children: ReactNode }) {
     [songs, albums, artists],
   )
 
+  const searchMetadataIndex = useMemo(
+    () => buildSearchMetadataIndex(songs, artists),
+    [songs, artists],
+  )
+
   const value = useMemo(
     () => ({
       songs,
       albums,
       artists,
       indexes: catalogIndexes,
+      searchMetadataIndex,
       artistNames: catalogIndexes.artistNames,
       songsByAlbumTitle: catalogIndexes.songsByAlbumName,
       songsByArtistName: catalogIndexes.songsByArtistName,
@@ -402,6 +416,7 @@ function CatalogProvider({ children }: { children: ReactNode }) {
       albums,
       artists,
       catalogIndexes,
+      searchMetadataIndex,
       loading,
       error,
       loaded,
@@ -895,11 +910,13 @@ const ApiSongGrid = memo(function ApiSongGrid({
   onSelect,
   listKey = 'songs',
   paginate = true,
+  showEmpty = true,
 }: {
   songs: ApiSong[]
   onSelect: SongSelectHandler
   listKey?: string
   paginate?: boolean
+  showEmpty?: boolean
 }) {
   const { visible, showMore, total, shown } = useVisibleSlice(
     songs,
@@ -907,7 +924,7 @@ const ApiSongGrid = memo(function ApiSongGrid({
   )
   const renderSongs = paginate ? visible : songs
 
-  if (songs.length === 0) {
+  if (songs.length === 0 && showEmpty) {
     return (
       <CatalogEmpty
         title="No songs match"
@@ -1440,40 +1457,76 @@ function HomePage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
 }
 
 function DiscoverPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
-  const { songs, indexes, showCatalogSkeleton, showCatalogError, error, retry } = useCatalog()
+  const {
+    songs,
+    indexes,
+    searchMetadataIndex,
+    showCatalogSkeleton,
+    showCatalogError,
+    error,
+    retry,
+  } = useCatalog()
   const [query, setQuery] = usePersistedPreference(
     DESKTOP_PREFERENCE_KEYS.discoverSearch,
     '',
     parseStoredSearchTerm,
   )
   const debouncedQuery = useDebouncedValue(query, SEARCH_DEBOUNCE_MS)
+  const isSearchPending = query !== debouncedQuery
   const [sort, setSort] = usePersistedPreference(
     DESKTOP_PREFERENCE_KEYS.discoverSort,
     'latest' as SongSort,
     parseStoredSongSort,
   )
 
-  const visibleSongs = useMemo(() => {
-    const filtered = filterSongsByQuery(songs, debouncedQuery)
-    return sortSongsList(filtered, sort)
-  }, [songs, debouncedQuery, sort])
+  const searchResult = useMemo(
+    () =>
+      searchCatalogSongs({
+        index: searchMetadataIndex,
+        query: debouncedQuery,
+      }),
+    [debouncedQuery, searchMetadataIndex],
+  )
+
+  const visibleRecords = useMemo(
+    () => sortMetadataRecords(searchResult.records, sort),
+    [searchResult.records, sort],
+  )
+
+  const visibleSongs = useMemo(
+    () => metadataRecordsToApiSongs(visibleRecords),
+    [visibleRecords],
+  )
+
+  const hasEvaluatedQuery = debouncedQuery.trim().length > 0
+  const showNoMatches =
+    !isSearchPending &&
+    hasEvaluatedQuery &&
+    visibleRecords.length === 0 &&
+    searchMetadataIndex.entries.length > 0
 
   const listKey = useMemo(() => `${debouncedQuery}:${sort}`, [debouncedQuery, sort])
   const queuePools = useMemo(() => buildQueueCandidatePools(indexes), [indexes])
   const playDiscoverSong = useCallback(
-    (song: ApiSong, index: number) => onOpenSong(
-      song,
-      visibleSongs,
-      index,
-      'discover',
-      'Discover',
-      {
-        seedType: 'discover',
-        seedTracks: buildQueueSeedPool('discover', visibleSongs, indexes, song),
-        candidatePools: queuePools,
-      },
-    ),
-    [indexes, onOpenSong, queuePools, visibleSongs],
+    (song: ApiSong, index: number) => {
+      const record = visibleRecords[index] ?? visibleRecords.find((entry) => entry.id === song.id)
+      const playableSong = record ? metadataRecordToApiSong(record) : song
+      const queueSongs = metadataRecordsToApiSongs(visibleRecords)
+
+      onOpenSong(
+        playableSong,
+        queueSongs,
+        index,
+        'discover',
+        'Discover',
+        {
+          seedType: 'discover',
+          seedTracks: buildQueueSeedPool('discover', queueSongs, indexes, playableSong),
+          candidatePools: queuePools,
+        },
+      )
+    },
+    [indexes, onOpenSong, queuePools, visibleRecords],
   )
 
   return (
@@ -1486,12 +1539,12 @@ function DiscoverPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
       <CatalogToolbar
         searchValue={query}
         onSearchChange={setQuery}
-        searchPlaceholder="Filter by title, artist, or album…"
+        searchPlaceholder="Filter by title, artist, album, genre, or mood…"
         sortLabel="Sort"
         sortValue={sort}
         sortOptions={SONG_SORT_OPTIONS}
         onSortChange={(value) => setSort(value as SongSort)}
-        resultCount={visibleSongs.length}
+        resultCount={visibleRecords.length}
       />
       <CatalogSection
         title="Catalog songs"
@@ -1499,15 +1552,25 @@ function DiscoverPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
         loading={showCatalogSkeleton}
         error={showCatalogError ? error : null}
         onRetry={retry}
-        count={visibleSongs.length}
+        count={visibleRecords.length}
       >
         {!showCatalogSkeleton && !showCatalogError && songs.length === 0 ? (
           <CatalogEmpty
             title="No songs in catalog"
             detail="Retry once the API finishes loading or returns data."
           />
+        ) : showNoMatches ? (
+          <CatalogEmpty
+            title="No songs match"
+            detail="Try a different search term across title, artist, album, genre, or mood."
+          />
         ) : (
-          <ApiSongGrid songs={visibleSongs} onSelect={playDiscoverSong} listKey={listKey} />
+          <ApiSongGrid
+            songs={visibleSongs}
+            onSelect={playDiscoverSong}
+            listKey={listKey}
+            showEmpty={false}
+          />
         )}
       </CatalogSection>
     </PageFrame>
