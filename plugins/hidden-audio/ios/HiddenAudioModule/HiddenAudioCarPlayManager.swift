@@ -1,24 +1,16 @@
 import CarPlay
 import MediaPlayer
 
+protocol HiddenAudioCarPlayPlaybackHandling: AnyObject {
+  func playCarPlayTrack(_ track: [String: Any], completion: @escaping (Error?) -> Void)
+  func emitCarPlayMediaSelection(_ mediaId: String)
+}
+
 final class HiddenAudioCarPlayManager: NSObject {
   static let shared = HiddenAudioCarPlayManager()
 
-  private struct RootSection {
-    let id: String
-    let title: String
-    let subtitle: String
-  }
-
-  private let rootIdentifier = "hidden_tunes"
-
-  private let rootSections: [RootSection] = [
-    RootSection(id: "recently_added", title: "Recently Added", subtitle: "Latest songs"),
-    RootSection(id: "artists", title: "Artists", subtitle: "Browse by artist"),
-    RootSection(id: "albums", title: "Albums", subtitle: "Browse by album"),
-    RootSection(id: "genres", title: "Genres", subtitle: "Browse by genre"),
-    RootSection(id: "playlists", title: "Playlists", subtitle: "Collections and rooms"),
-  ]
+  weak var playbackHandler: HiddenAudioCarPlayPlaybackHandling?
+  var onCarPlayDiagnostic: (([String: Any]) -> Void)?
 
   private var started = false
   private weak var interfaceController: CPInterfaceController?
@@ -26,6 +18,7 @@ final class HiddenAudioCarPlayManager: NSObject {
   func startIfNeeded() {
     guard !started else { return }
     started = true
+    HiddenAudioCarPlayCatalog.ensureDefaultCatalog()
 
     let manager = MPPlayableContentManager.shared()
     manager.dataSource = self
@@ -37,6 +30,7 @@ final class HiddenAudioCarPlayManager: NSObject {
 
   func connect(_ interfaceController: CPInterfaceController) {
     self.interfaceController = interfaceController
+    emitEntitlementDiagnostic()
     interfaceController.setRootTemplate(buildRootListTemplate(), animated: true, completion: nil)
   }
 
@@ -44,12 +38,39 @@ final class HiddenAudioCarPlayManager: NSObject {
     interfaceController = nil
   }
 
+  func reloadTemplates() {
+    guard let interfaceController = interfaceController else { return }
+    interfaceController.setRootTemplate(buildRootListTemplate(), animated: false, completion: nil)
+    MPPlayableContentManager.shared().reloadData()
+  }
+
+  func presentNowPlayingIfConnected() {
+    guard let interfaceController = interfaceController else { return }
+    interfaceController.pushTemplate(CPNowPlayingTemplate.shared, animated: true, completion: nil)
+  }
+
+  func applyCatalogSnapshot(_ snapshot: [String: Any]) {
+    HiddenAudioCarPlayCatalog.applySnapshot(snapshot)
+    reloadTemplates()
+  }
+
+  private func emitEntitlementDiagnostic() {
+    onCarPlayDiagnostic?([
+      "event": "ios_carplay_scene_connected",
+      "entitlementMode": "playable-content",
+      "hasCarPlayAudioEntitlement": false,
+      "carplayAudioEntitlementRequiredForRealCar":
+        "com.apple.developer.carplay-audio must be approved by Apple before the app can appear as a CarPlay audio app on a real vehicle.",
+    ])
+  }
+
   private func buildRootListTemplate() -> CPListTemplate {
-    let items = rootSections.map { section -> CPListItem in
+    let sections = HiddenAudioCarPlayCatalog.children(for: HiddenAudioCarPlayCatalog.rootId)
+    let items = sections.map { section -> CPListItem in
       let item = CPListItem(text: section.title, detailText: section.subtitle)
-      item.userInfo = ["sectionId": section.id]
+      item.userInfo = ["sectionId": section.mediaId]
       item.handler = { [weak self] _, completion in
-        self?.presentSectionPlaceholder(title: section.title)
+        self?.handleSectionSelection(sectionId: section.mediaId)
         completion()
       }
       return item
@@ -57,35 +78,82 @@ final class HiddenAudioCarPlayManager: NSObject {
     return CPListTemplate(title: "Hidden Tunes", sections: [CPListSection(items: items)])
   }
 
-  private func presentSectionPlaceholder(title: String) {
+  private func handleSectionSelection(sectionId: String) {
+    if sectionId == "now_playing" {
+      presentNowPlayingIfConnected()
+      return
+    }
+    presentSectionTemplate(sectionId: sectionId)
+  }
+
+  private func presentSectionTemplate(sectionId: String) {
     guard let interfaceController = interfaceController else { return }
-    let item = CPListItem(text: "Browse on iPhone", detailText: "Open Hidden Tunes to sync this section")
-    item.handler = { _, completion in completion() }
-    let template = CPListTemplate(title: title, sections: [CPListSection(items: [item])])
+    let children = HiddenAudioCarPlayCatalog.children(for: sectionId)
+    let title = children.first?.title ?? sectionId
+
+    if children.isEmpty {
+      let placeholder = CPListItem(
+        text: "Open Hidden Tunes on iPhone",
+        detailText: "Sync your library, then return to CarPlay"
+      )
+      placeholder.handler = { _, completion in completion() }
+      let template = CPListTemplate(
+        title: title,
+        sections: [CPListSection(items: [placeholder])]
+      )
+      interfaceController.pushTemplate(template, animated: true, completion: nil)
+      return
+    }
+
+    let items = children.map { node -> CPListItem in
+      let item = CPListItem(text: node.title, detailText: node.subtitle)
+      item.userInfo = ["mediaId": node.mediaId, "playable": node.playable]
+      item.handler = { [weak self] _, completion in
+        if node.playable {
+          self?.playMediaId(node.mediaId)
+        } else {
+          self?.presentSectionTemplate(sectionId: node.mediaId)
+        }
+        completion()
+      }
+      return item
+    }
+
+    let template = CPListTemplate(
+      title: sectionTitle(for: sectionId),
+      sections: [CPListSection(items: items)]
+    )
     interfaceController.pushTemplate(template, animated: true, completion: nil)
   }
 
-  private func rootSection(at index: Int) -> RootSection? {
-    guard index >= 0, index < rootSections.count else { return nil }
-    return rootSections[index]
+  private func sectionTitle(for sectionId: String) -> String {
+    switch sectionId {
+    case "recently_added": return "Recently Added"
+    case "artists": return "Artists"
+    case "albums": return "Albums"
+    case "playlists": return "Playlists"
+    default:
+      return HiddenAudioCarPlayCatalog.children(for: sectionId).first?.title ?? "Hidden Tunes"
+    }
   }
 
-  private func makeHiddenTunesRootItem() -> MPContentItem {
-    let item = MPContentItem(identifier: rootIdentifier)
-    item.title = "Hidden Tunes"
-    item.subtitle = "Browse your library"
-    item.isContainer = true
-    item.isPlayable = false
-    return item
+  private func playMediaId(_ mediaId: String) {
+    guard let track = HiddenAudioCarPlayCatalog.track(for: mediaId) else {
+      playbackHandler?.emitCarPlayMediaSelection(mediaId)
+      return
+    }
+
+    playbackHandler?.playCarPlayTrack(track.asTrackDictionary()) { [weak self] error in
+      if error == nil {
+        self?.presentNowPlayingIfConnected()
+      }
+      self?.playbackHandler?.emitCarPlayMediaSelection(mediaId)
+    }
   }
 
-  private func makeContentItem(for section: RootSection) -> MPContentItem {
-    let item = MPContentItem(identifier: section.id)
-    item.title = section.title
-    item.subtitle = section.subtitle
-    item.isContainer = true
-    item.isPlayable = false
-    return item
+  private func rootSectionIndex(for sectionId: String) -> Int? {
+    let sections = HiddenAudioCarPlayCatalog.children(for: HiddenAudioCarPlayCatalog.rootId)
+    return sections.firstIndex(where: { $0.mediaId == sectionId })
   }
 }
 
@@ -95,7 +163,16 @@ extension HiddenAudioCarPlayManager: MPPlayableContentDataSource {
       return 1
     }
     if indexPath.count == 1 && indexPath[0] == 0 {
-      return rootSections.count
+      return HiddenAudioCarPlayCatalog.children(for: HiddenAudioCarPlayCatalog.rootId).count
+    }
+    if indexPath.count == 2 && indexPath[0] == 0 {
+      let sections = HiddenAudioCarPlayCatalog.children(for: HiddenAudioCarPlayCatalog.rootId)
+      guard indexPath[1] >= 0, indexPath[1] < sections.count else { return 0 }
+      let section = sections[indexPath[1]]
+      if section.mediaId == "now_playing" {
+        return 0
+      }
+      return HiddenAudioCarPlayCatalog.children(for: section.mediaId).count
     }
     return 0
   }
@@ -105,16 +182,50 @@ extension HiddenAudioCarPlayManager: MPPlayableContentDataSource {
     completionHandler: @escaping (MPContentItem?, Error?) -> Void
   ) {
     if indexPath.count == 1 && indexPath[0] == 0 {
-      completionHandler(makeHiddenTunesRootItem(), nil)
+      let item = MPContentItem(identifier: HiddenAudioCarPlayCatalog.rootId)
+      item.title = "Hidden Tunes"
+      item.subtitle = "Browse your library"
+      item.isContainer = true
+      item.isPlayable = false
+      completionHandler(item, nil)
       return
     }
 
     if indexPath.count == 2 && indexPath[0] == 0 {
-      guard let section = rootSection(at: indexPath[1]) else {
+      let sections = HiddenAudioCarPlayCatalog.children(for: HiddenAudioCarPlayCatalog.rootId)
+      guard indexPath[1] >= 0, indexPath[1] < sections.count else {
         completionHandler(nil, nil)
         return
       }
-      completionHandler(makeContentItem(for: section), nil)
+      let section = sections[indexPath[1]]
+      let item = MPContentItem(identifier: section.mediaId)
+      item.title = section.title
+      item.subtitle = section.subtitle
+      item.isContainer = section.mediaId != "now_playing"
+      item.isPlayable = false
+      completionHandler(item, nil)
+      return
+    }
+
+    if indexPath.count == 3 && indexPath[0] == 0 {
+      let sections = HiddenAudioCarPlayCatalog.children(for: HiddenAudioCarPlayCatalog.rootId)
+      guard indexPath[1] >= 0, indexPath[1] < sections.count else {
+        completionHandler(nil, nil)
+        return
+      }
+      let section = sections[indexPath[1]]
+      let children = HiddenAudioCarPlayCatalog.children(for: section.mediaId)
+      guard indexPath[2] >= 0, indexPath[2] < children.count else {
+        completionHandler(nil, nil)
+        return
+      }
+      let node = children[indexPath[2]]
+      let item = MPContentItem(identifier: node.mediaId)
+      item.title = node.title
+      item.subtitle = node.subtitle
+      item.isContainer = !node.playable
+      item.isPlayable = node.playable
+      completionHandler(item, nil)
       return
     }
 
@@ -132,6 +243,7 @@ extension HiddenAudioCarPlayManager: MPPlayableContentDelegate {
       completionHandler(nil)
       return
     }
+    playMediaId(contentItem.identifier)
     completionHandler(nil)
   }
 }

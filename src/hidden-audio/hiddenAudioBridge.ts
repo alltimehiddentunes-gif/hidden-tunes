@@ -118,6 +118,7 @@ type HiddenAudioNativeModule = {
   getState?(): Promise<Record<string, unknown>>;
   getProgress?(): Promise<Record<string, unknown>>;
   syncAndroidAutoCatalog?: (snapshot: Record<string, unknown>) => Promise<void>;
+  syncCarPlayCatalog?: (snapshot: Record<string, unknown>) => Promise<void>;
 };
 
 const STUB_MESSAGE = "[hidden_audio] not implemented on this platform";
@@ -249,12 +250,31 @@ export async function getHiddenAudioNativeSnapshot(): Promise<HiddenAudioNativeS
   };
 }
 
+export async function silenceHiddenAudioForManualReplace(): Promise<void> {
+  if (Platform.OS !== "android" || !HiddenAudioNative) return;
+  const silence = (
+    HiddenAudioNative as { silenceForManualReplace?: () => Promise<void> }
+  ).silenceForManualReplace;
+  if (typeof silence !== "function") return;
+  await silence();
+}
+
 export async function syncHiddenAudioAndroidAutoCatalog(
   snapshot: Record<string, unknown>
 ): Promise<void> {
   if (!isHiddenAudioNativeEngineAvailable() || !HiddenAudioNative) return;
   const sync = (HiddenAudioNative as { syncAndroidAutoCatalog?: (snapshot: Record<string, unknown>) => Promise<void> })
     .syncAndroidAutoCatalog;
+  if (typeof sync !== "function") return;
+  await sync(snapshot);
+}
+
+export async function syncHiddenAudioCarPlayCatalog(
+  snapshot: Record<string, unknown>
+): Promise<void> {
+  if (Platform.OS !== "ios" || !HiddenAudioNative) return;
+  const sync = (HiddenAudioNative as { syncCarPlayCatalog?: (snapshot: Record<string, unknown>) => Promise<void> })
+    .syncCarPlayCatalog;
   if (typeof sync !== "function") return;
   await sync(snapshot);
 }

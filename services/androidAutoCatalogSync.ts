@@ -81,6 +81,70 @@ function dedupeTracks(tracks: AndroidAutoTrackPayload[]) {
   });
 }
 
+export function buildAndroidAutoMinimalCatalogSnapshot(): AndroidAutoCatalogSnapshot {
+  return {
+    roots: [
+      {
+        mediaId: "hidden_tunes",
+        title: "Hidden Tunes",
+        subtitle: "Your music library",
+        playable: false,
+      },
+      {
+        mediaId: "recently_added",
+        title: "Recently Added",
+        subtitle: "Latest songs",
+        playable: false,
+      },
+      {
+        mediaId: "artists",
+        title: "Artists",
+        subtitle: "Browse by artist",
+        playable: false,
+      },
+      {
+        mediaId: "albums",
+        title: "Albums",
+        subtitle: "Browse by album",
+        playable: false,
+      },
+      {
+        mediaId: "genres",
+        title: "Genres",
+        subtitle: "Browse by genre",
+        playable: false,
+      },
+      {
+        mediaId: "playlists",
+        title: "Playlists",
+        subtitle: "Collections and rooms",
+        playable: false,
+      },
+    ],
+    sections: [],
+    tracks: [],
+  };
+}
+
+export function buildAndroidAutoFallbackQueue(
+  catalog: HiddenTunesDerivedCatalog | null | undefined
+): HiddenTunesSong[] {
+  if (!catalog?.songs?.length) return [];
+
+  const queue: HiddenTunesSong[] = [];
+  const seen = new Set<string>();
+  for (const song of catalog.songs) {
+    const id = String(song.id || "").trim();
+    if (!id || seen.has(id)) continue;
+    const url = String(song.streamUrl || song.url || "").trim();
+    if (!url) continue;
+    seen.add(id);
+    queue.push(song);
+    if (queue.length >= LIMITS.recent) break;
+  }
+  return queue;
+}
+
 export function buildAndroidAutoCatalogSnapshot(
   catalog: HiddenTunesDerivedCatalog
 ): AndroidAutoCatalogSnapshot {

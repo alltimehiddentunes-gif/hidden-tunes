@@ -33,10 +33,14 @@ object HiddenAudioAutoCatalog {
 
   private val childrenByParent = ConcurrentHashMap<String, List<BrowseNode>>()
   private val tracksByMediaId = ConcurrentHashMap<String, AutoTrack>()
+  private val orderedPlayableMediaIds = mutableListOf<String>()
 
   fun clear() {
     childrenByParent.clear()
     tracksByMediaId.clear()
+    synchronized(orderedPlayableMediaIds) {
+      orderedPlayableMediaIds.clear()
+    }
   }
 
   fun applySnapshot(snapshot: ReadableMap) {
@@ -59,34 +63,42 @@ object HiddenAudioAutoCatalog {
     }
 
     val tracks = snapshot.getArraySafe("tracks")
-    if (tracks != null) {
-      for (index in 0 until tracks.size()) {
-        val trackMap = tracks.getMap(index) ?: continue
-        val mediaId = trackMap.getStringSafe("mediaId", "")
-        val url = trackMap.getStringSafe("url", "")
-        if (mediaId.isBlank() || url.isBlank()) continue
-        tracksByMediaId[mediaId] = AutoTrack(
-          mediaId = mediaId,
-          id = trackMap.getStringSafe("id", mediaId),
-          url = url,
-          title = trackMap.getStringSafe("title", "Hidden Tunes"),
-          artist = trackMap.getStringSafe("artist", "Hidden Tunes"),
-          album = trackMap.getStringSafe("album", ""),
-          artworkUrl = trackMap.getStringSafe("artworkUrl", ""),
-          durationSeconds = trackMap.getDoubleSafe("durationSeconds", 0.0)
-        )
+    synchronized(orderedPlayableMediaIds) {
+      orderedPlayableMediaIds.clear()
+      if (tracks != null) {
+        for (index in 0 until tracks.size()) {
+          val trackMap = tracks.getMap(index) ?: continue
+          val mediaId = trackMap.getStringSafe("mediaId", "")
+          val url = trackMap.getStringSafe("url", "")
+          if (mediaId.isBlank() || url.isBlank()) continue
+          tracksByMediaId[mediaId] = AutoTrack(
+            mediaId = mediaId,
+            id = trackMap.getStringSafe("id", mediaId),
+            url = url,
+            title = trackMap.getStringSafe("title", "Hidden Tunes"),
+            artist = trackMap.getStringSafe("artist", "Hidden Tunes"),
+            album = trackMap.getStringSafe("album", ""),
+            artworkUrl = trackMap.getStringSafe("artworkUrl", ""),
+            durationSeconds = trackMap.getDoubleSafe("durationSeconds", 0.0)
+          )
+          if (!orderedPlayableMediaIds.contains(mediaId)) {
+            orderedPlayableMediaIds.add(mediaId)
+          }
+        }
       }
     }
 
     if (!childrenByParent.containsKey(ROOT_ID)) {
       childrenByParent[ROOT_ID] = defaultRootNodes()
     }
+    ensureRecentlyAddedFallback()
   }
 
   fun ensureDefaultCatalog() {
     if (!childrenByParent.containsKey(ROOT_ID)) {
       childrenByParent[ROOT_ID] = defaultRootNodes()
     }
+    ensureRecentlyAddedFallback()
   }
 
   fun getChildren(parentId: String): List<BrowseNode> {
@@ -98,7 +110,38 @@ object HiddenAudioAutoCatalog {
       if (!cached.isNullOrEmpty()) return cached
       return hiddenTunesHomeNodes()
     }
-    return childrenByParent[parentId] ?: emptyList()
+    val cached = childrenByParent[parentId]
+    if (!cached.isNullOrEmpty()) return cached
+    if (parentId == "recently_added") {
+      return playableBrowseNodes(limit = 24)
+    }
+    return emptyList()
+  }
+
+  fun firstPlayableMediaId(): String? = orderedPlayableMediaIdsSnapshot().firstOrNull()
+
+  fun nextPlayableMediaId(currentMediaId: String?): String? {
+    val ordered = orderedPlayableMediaIdsSnapshot()
+    if (ordered.isEmpty()) return null
+    if (currentMediaId.isNullOrBlank()) return ordered.first()
+    val index = ordered.indexOf(currentMediaId)
+    if (index < 0) return ordered.first()
+    return if (index + 1 < ordered.size) ordered[index + 1] else null
+  }
+
+  fun previousPlayableMediaId(currentMediaId: String?): String? {
+    val ordered = orderedPlayableMediaIdsSnapshot()
+    if (ordered.isEmpty()) return null
+    if (currentMediaId.isNullOrBlank()) return ordered.first()
+    val index = ordered.indexOf(currentMediaId)
+    if (index < 0) return ordered.first()
+    return if (index > 0) ordered[index - 1] else null
+  }
+
+  fun findMediaIdByUrl(url: String): String? {
+    val cleanUrl = url.trim()
+    if (cleanUrl.isBlank()) return null
+    return tracksByMediaId.values.firstOrNull { it.url == cleanUrl }?.mediaId
   }
 
   fun getRootChildrenForAuto(limit: Int, supportedFlags: Int): List<BrowseNode> {
@@ -159,6 +202,31 @@ object HiddenAudioAutoCatalog {
         MediaBrowserCompat.MediaItem.FLAG_BROWSABLE
       }
     return MediaBrowserCompat.MediaItem(descriptionBuilder.build(), flags)
+  }
+
+  private fun orderedPlayableMediaIdsSnapshot(): List<String> =
+    synchronized(orderedPlayableMediaIds) { orderedPlayableMediaIds.toList() }
+
+  private fun playableBrowseNodes(limit: Int): List<BrowseNode> =
+    orderedPlayableMediaIdsSnapshot()
+      .take(limit)
+      .mapNotNull { mediaId ->
+        val track = tracksByMediaId[mediaId] ?: return@mapNotNull null
+        BrowseNode(
+          mediaId = track.mediaId,
+          title = track.title,
+          subtitle = track.artist,
+          playable = true
+        )
+      }
+
+  private fun ensureRecentlyAddedFallback() {
+    val existing = childrenByParent["recently_added"]
+    if (!existing.isNullOrEmpty()) return
+    val fallback = playableBrowseNodes(limit = 24)
+    if (fallback.isNotEmpty()) {
+      childrenByParent["recently_added"] = fallback
+    }
   }
 
   private fun defaultRootNodes(): List<BrowseNode> = listOf(

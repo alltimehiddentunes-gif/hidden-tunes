@@ -4,6 +4,7 @@ import { isHiddenAudioEnabledOnAndroid } from "../constants/playbackConfig";
 import { fetchHiddenTunesCatalog, getCachedHiddenTunesCatalog } from "./hiddenTunes";
 import {
   buildAndroidAutoCatalogSnapshot,
+  buildAndroidAutoMinimalCatalogSnapshot,
   isAndroidAutoCatalogSyncEnabled,
 } from "./androidAutoCatalogSync";
 import { syncHiddenAudioAndroidAutoCatalog } from "../src/hidden-audio/hiddenAudioBridge";
@@ -25,9 +26,9 @@ export async function syncAndroidAutoCatalogFromDerived(): Promise<void> {
 
   try {
     const catalog = getCachedHiddenTunesCatalog() || (await fetchHiddenTunesCatalog());
-    if (!catalog?.songs?.length) return;
-
-    const snapshot = buildAndroidAutoCatalogSnapshot(catalog);
+    const snapshot = catalog?.songs?.length
+      ? buildAndroidAutoCatalogSnapshot(catalog)
+      : buildAndroidAutoMinimalCatalogSnapshot();
     const signature = catalogSignature(snapshot);
     if (signature === lastSyncSignature) return;
 

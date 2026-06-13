@@ -63,12 +63,37 @@ class HiddenAudioModule: RCTEventEmitter {
   func setup(resolve: RCTPromiseResolveBlock, rejecter reject: RCTPromiseRejectBlock) {
     do {
       try activateAudioSession()
-      HiddenAudioCarPlayManager.shared.startIfNeeded()
+      let carPlayManager = HiddenAudioCarPlayManager.shared
+      carPlayManager.playbackHandler = self
+      carPlayManager.onCarPlayDiagnostic = { [weak self] data in
+        self?.emitDiagnostic("ios_carplay_status", data)
+      }
+      carPlayManager.startIfNeeded()
+      emitDiagnostic("ios_carplay_prepared", [
+        "entitlementMode": "playable-content",
+        "hasCarPlayAudioEntitlement": false,
+      ])
       resolve(nil)
     } catch {
       emitNativeError(error.localizedDescription)
       reject("HIDDEN_AUDIO_SETUP_FAILED", error.localizedDescription, error)
     }
+  }
+
+  @objc(syncCarPlayCatalog:resolver:rejecter:)
+  func syncCarPlayCatalog(
+    snapshot: NSDictionary,
+    resolver resolve: RCTPromiseResolveBlock,
+    rejecter reject: RCTPromiseRejectBlock
+  ) {
+    let map = snapshot.compactMapKeys()
+    HiddenAudioCarPlayManager.shared.applyCatalogSnapshot(map)
+    let trackCount = (map["tracks"] as? [Any])?.count ?? 0
+    emitDiagnostic("ios_carplay_catalog_synced", [
+      "trackCount": trackCount,
+      "sectionCount": (map["sections"] as? [Any])?.count ?? 0,
+    ])
+    resolve(nil)
   }
 
   @objc(loadTrack:resolver:rejecter:)
@@ -1507,6 +1532,36 @@ class HiddenAudioModule: RCTEventEmitter {
       "comment=\(event.errorComment ?? "")",
       "uriHost=\(URL(string: event.uri ?? "")?.host ?? "")"
     ].joined(separator: " ")
+  }
+}
+
+extension HiddenAudioModule: HiddenAudioCarPlayPlaybackHandling {
+  func playCarPlayTrack(_ track: [String: Any], completion: @escaping (Error?) -> Void) {
+    queue = [track]
+    activeIndex = 0
+    clearIntentionalPause(reason: "carplay_play")
+    do {
+      try loadActiveTrack(autoplay: true)
+      updateNowPlayingInfo()
+      updateRemoteCommandAvailability()
+      emitState()
+      completion(nil)
+    } catch {
+      emitNativeError(error.localizedDescription)
+      completion(error)
+    }
+  }
+
+  func emitCarPlayMediaSelection(_ mediaId: String) {
+    emitDiagnostic("ios_carplay_play_from_media_id", [
+      "mediaId": mediaId,
+      "source": "carplay",
+    ])
+    emitDiagnostic("ios_remote_command_received", [
+      "command": "play_from_media_id",
+      "mediaId": mediaId,
+      "source": "carplay",
+    ])
   }
 }
 

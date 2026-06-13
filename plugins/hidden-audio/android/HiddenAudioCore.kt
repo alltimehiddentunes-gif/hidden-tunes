@@ -3,6 +3,7 @@ package com.hiddentunes.app.audio
 import android.content.Context
 import android.content.Intent
 import android.media.AudioAttributes
+import android.media.AudioDeviceInfo
 import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.net.Uri
@@ -15,6 +16,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.PlaybackException
 import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.datasource.HttpDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
@@ -69,6 +71,7 @@ object HiddenAudioCore {
   private var playbackCallbackGeneration = 0L
   private var loadedMediaKey: String? = null
   private var pendingLoadSeekToStart = false
+  private var hasReachedReadyForCurrentTrack = false
   private const val HTTP_USER_AGENT = "HiddenTunes/1.0 (Linux; Android)"
 
   fun attachReactContext(context: ReactApplicationContext) {
@@ -81,6 +84,8 @@ object HiddenAudioCore {
   fun setup(context: ReactApplicationContext) {
     attachReactContext(context)
     ensurePlayer(context)
+    HiddenAudioAutoCatalog.ensureDefaultCatalog()
+    HiddenAudioMediaSessionManager.warmUpForAndroidAuto(context)
     emitDiagnostic("android_hidden_audio_setup_complete")
   }
 
@@ -109,6 +114,21 @@ object HiddenAudioCore {
       elapsedSince(lastStopRequestAtMs, nowMs) <= AUDIO_FOCUS_STABILITY_WINDOW_MS
   }
 
+  private fun shouldIgnorePermanentAudioFocusLoss(nowMs: Long): Boolean {
+    if (lastPlayRequestAtMs > 0L &&
+      elapsedSince(lastPlayRequestAtMs, nowMs) < AUDIO_FOCUS_STABILITY_WINDOW_MS
+    ) {
+      return true
+    }
+    if (isInPlaybackProtectionWindow(nowMs)) {
+      return true
+    }
+    if (lastPlayingStartedAtMs <= 0L) {
+      return true
+    }
+    return elapsedSince(lastPlayingStartedAtMs, nowMs) < AUDIO_FOCUS_STABILITY_WINDOW_MS
+  }
+
   private fun shouldIgnoreStalePlaybackPause(): Boolean {
     return committedPlaySessionId != 0L && playbackSessionId != committedPlaySessionId
   }
@@ -129,23 +149,51 @@ object HiddenAudioCore {
       throw IllegalArgumentException("HiddenAudio track URL is required")
     }
     val mediaKey = mediaKeyFor(nextTrack)
+    val previousMediaKey = loadedMediaKey
+    val exo = player
+      ?: throw IllegalStateException("HiddenAudio player is not initialized")
+    val playbackStateBeforeLoad = exo.playbackState
+    val sameMediaKeyAlreadyLoadedOrLoading =
+      previousMediaKey == mediaKey &&
+        (playbackStateBeforeLoad == Player.STATE_BUFFERING ||
+          playbackStateBeforeLoad == Player.STATE_READY ||
+          playbackStateBeforeLoad == Player.STATE_ENDED)
+    val parsedUri = Uri.parse(url)
+    val extension = urlPathExtension(url)
+    val guessedMimeType = guessMimeTypeFromExtension(extension)
     activeTrack = nextTrack
     activeIndex = 0
     playbackEndedHandled = false
     lastPlayingStartedAtMs = 0L
     loadedMediaKey = mediaKey
     pendingLoadSeekToStart = true
+    hasReachedReadyForCurrentTrack = false
     val mediaItem = MediaItem.Builder()
-      .setUri(Uri.parse(url))
+      .setUri(parsedUri)
       .setMediaId(nextTrack.id)
       .build()
-    val exo = player
-      ?: throw IllegalStateException("HiddenAudio player is not initialized")
     exo.stop()
     exo.clearMediaItems()
     exo.setMediaItem(mediaItem, 0L)
     forceSeekToStart(exo, emitDiagnostic = true, reason = "load_track_set_media_item")
     shouldPlayWhenReady = false
+    val urlDiagnostics = Arguments.createMap()
+    urlDiagnostics.putString("urlScheme", parsedUri.scheme ?: "")
+    urlDiagnostics.putString("urlHost", parsedUri.host ?: "")
+    urlDiagnostics.putString("extension", extension)
+    urlDiagnostics.putString("guessedMimeType", guessedMimeType)
+    urlDiagnostics.putBoolean("hasUrl", url.isNotBlank())
+    urlDiagnostics.putInt("urlLength", url.length)
+    urlDiagnostics.putString("mediaKey", mediaKey)
+    urlDiagnostics.putBoolean("sameMediaKeyAlreadyLoadedOrLoading", sameMediaKeyAlreadyLoadedOrLoading)
+    if (previousMediaKey != null) {
+      urlDiagnostics.putString("previousMediaKey", previousMediaKey)
+    }
+    urlDiagnostics.putString(
+      "playbackStateBeforeLoad",
+      playbackStateName(playbackStateBeforeLoad)
+    )
+    emitDiagnostic("android_load_track_url_diagnostics", urlDiagnostics)
     exo.prepare()
     playerStatus = "ready"
     emitTrackChanged()
@@ -167,6 +215,8 @@ object HiddenAudioCore {
     }
     lastPlayRequestAtMs = SystemClock.elapsedRealtime()
     phoneCallInterruptionActive = false
+    HiddenAudioMediaSessionManager.activateSessionForAuto(context, "native_play")
+    emitAudioRouteDiagnostic("native_play")
     requestAudioFocus()
     shouldPlayWhenReady = true
     startForegroundService()
@@ -179,6 +229,7 @@ object HiddenAudioCore {
       }
     }
     player?.play()
+    emitDiagnostic("android_auto_native_player_play_called")
     playerStatus = when (player?.playbackState) {
       Player.STATE_BUFFERING -> "buffering"
       Player.STATE_READY -> if (player?.isPlaying == true) "playing" else "buffering"
@@ -196,6 +247,16 @@ object HiddenAudioCore {
       return
     }
     pauseForInterruption("user_pause", permanent = true, markUserPause = true)
+  }
+
+  fun silenceForManualReplace() {
+    val exo = player ?: return
+    if (!exo.isPlaying && !exo.playWhenReady && playerStatus != "playing" && playerStatus != "buffering") {
+      emitDiagnostic("android_manual_replace_silence_noop", simpleData("status", playerStatus))
+      return
+    }
+    pauseForInterruption("manual_replace_silence", permanent = false, markUserPause = false)
+    emitDiagnostic("android_manual_replace_old_audio_silenced")
   }
 
   private fun pauseForInterruption(
@@ -247,6 +308,7 @@ object HiddenAudioCore {
     activeIndex = 0
     loadedMediaKey = null
     pendingLoadSeekToStart = false
+    hasReachedReadyForCurrentTrack = false
     playbackEndedHandled = false
     lastPlayingStartedAtMs = 0L
     lastPlayRequestAtMs = 0L
@@ -397,17 +459,36 @@ object HiddenAudioCore {
   }
 
   private fun ensurePlayer(context: Context) {
-    if (player != null) return
     val audioAttributes = androidx.media3.common.AudioAttributes.Builder()
       .setUsage(androidx.media3.common.C.USAGE_MEDIA)
       .setContentType(androidx.media3.common.C.AUDIO_CONTENT_TYPE_MUSIC)
       .build()
-    player = ExoPlayer.Builder(context)
-      .setMediaSourceFactory(buildMediaSourceFactory(context))
-      .setAudioAttributes(audioAttributes, false)
-      .setHandleAudioBecomingNoisy(true)
-      .build()
-    player?.addListener(object : Player.Listener {
+
+    val creatingPlayer = player == null
+    if (creatingPlayer) {
+      player = ExoPlayer.Builder(context)
+        .setMediaSourceFactory(buildMediaSourceFactory(context))
+        .setAudioAttributes(audioAttributes, true)
+        .setHandleAudioBecomingNoisy(true)
+        .build()
+    } else {
+      player?.setAudioAttributes(audioAttributes, true)
+    }
+
+    val attributesData = Arguments.createMap()
+    attributesData.putInt("usage", androidx.media3.common.C.USAGE_MEDIA)
+    attributesData.putInt("contentType", androidx.media3.common.C.AUDIO_CONTENT_TYPE_MUSIC)
+    attributesData.putBoolean("handleAudioFocus", true)
+    attributesData.putBoolean("handleAudioBecomingNoisy", true)
+    emitDiagnostic("android_audio_attributes_configured", attributesData)
+
+    val exoPlayer = player ?: return
+    if (!creatingPlayer) {
+      HiddenAudioMediaSessionManager.ensureSession(context)
+      return
+    }
+
+    exoPlayer.addListener(object : Player.Listener {
       override fun onPlaybackStateChanged(playbackState: Int) {
         when (playbackState) {
           Player.STATE_IDLE -> {
@@ -419,6 +500,7 @@ object HiddenAudioCore {
             emitPlaybackStateDiagnostic("android_player_state_buffering", playbackState)
           }
           Player.STATE_READY -> {
+            hasReachedReadyForCurrentTrack = true
             ensureLoadedTrackStartsAtBeginning(playbackState)
             playerStatus = when {
               player?.isPlaying == true -> "playing"
@@ -473,11 +555,12 @@ object HiddenAudioCore {
 
       override fun onPlayerError(error: PlaybackException) {
         val failedTrack = activeTrack
+        val currentPlaybackState = player?.playbackState ?: Player.STATE_IDLE
         val data = Arguments.createMap()
         data.putString("message", error.message ?: "unknown")
         data.putString("errorCodeName", error.errorCodeName)
         data.putInt("errorCode", error.errorCode)
-        data.putString("playbackState", playbackStateName(player?.playbackState ?: Player.STATE_IDLE))
+        data.putString("playbackState", playbackStateName(currentPlaybackState))
         data.putBoolean("playWhenReady", player?.playWhenReady == true)
         data.putBoolean("isPlaying", player?.isPlaying == true)
         if (failedTrack != null) {
@@ -491,6 +574,10 @@ object HiddenAudioCore {
         ) {
           emitDiagnostic("android_player_network_connection_failed", data)
         }
+        emitDiagnostic(
+          "android_player_error_detailed",
+          buildDetailedPlayerErrorDiagnostic(error, failedTrack, currentPlaybackState)
+        )
         invalidateLoadedTrackAfterSourceError(error.errorCodeName ?: "player_error")
       }
     })
@@ -551,6 +638,85 @@ object HiddenAudioCore {
     emitDiagnostic(eventName, data)
   }
 
+
+  private fun urlPathExtension(url: String): String {
+    val path = Uri.parse(url).path ?: return ""
+    val dot = path.lastIndexOf('.')
+    if (dot < 0 || dot == path.length - 1) return ""
+    return path.substring(dot + 1).lowercase()
+  }
+
+  private fun guessMimeTypeFromExtension(extension: String): String = when (extension) {
+    "mp3" -> "audio/mpeg"
+    "m4a", "mp4" -> "audio/mp4"
+    "aac" -> "audio/aac"
+    "ogg" -> "audio/ogg"
+    "wav" -> "audio/wav"
+    else -> if (extension.isBlank()) "unknown" else "application/octet-stream"
+  }
+
+  private fun appendCauseChain(error: Throwable?): WritableArray {
+    val chain = Arguments.createArray()
+    var current = error
+    var depth = 0
+    while (current != null && depth < 12) {
+      val entry = Arguments.createMap()
+      entry.putString("className", current.javaClass.name)
+      entry.putString("simpleName", current.javaClass.simpleName)
+      entry.putString("message", current.message ?: "")
+      chain.pushMap(entry)
+      current = current.cause
+      depth += 1
+    }
+    return chain
+  }
+
+  private fun appendHttpDataSourceDetails(error: Throwable?, data: WritableMap) {
+    var current: Throwable? = error
+    while (current != null) {
+      when (current) {
+        is HttpDataSource.InvalidResponseCodeException -> {
+          data.putInt("invalidResponseCode", current.responseCode)
+          val spec = current.dataSpec
+          if (spec != null) {
+            data.putString("dataSpecUri", spec.uri.toString())
+          }
+        }
+        is HttpDataSource.HttpDataSourceException -> {
+          if (!data.hasKey("dataSpecUri")) {
+            val spec = current.dataSpec
+            if (spec != null) {
+              data.putString("dataSpecUri", spec.uri.toString())
+            }
+          }
+          data.putString("httpDataSourceExceptionType", current.javaClass.simpleName)
+        }
+      }
+      current = current.cause
+    }
+  }
+
+  private fun buildDetailedPlayerErrorDiagnostic(
+    error: PlaybackException,
+    failedTrack: ActiveTrackData?,
+    currentPlaybackState: Int
+  ): WritableMap {
+    val data = Arguments.createMap()
+    data.putInt("errorCode", error.errorCode)
+    data.putString("errorCodeName", error.errorCodeName)
+    data.putString("message", error.message ?: "unknown")
+    data.putArray("causeChain", appendCauseChain(error))
+    appendHttpDataSourceDetails(error, data)
+    data.putBoolean("hasReachedReadyForCurrentTrack", hasReachedReadyForCurrentTrack)
+    data.putString("playbackState", playbackStateName(currentPlaybackState))
+    data.putBoolean("playWhenReady", player?.playWhenReady == true)
+    if (failedTrack != null) {
+      data.putString("activeTrackId", failedTrack.id)
+      data.putString("activeTrackUrlExtension", urlPathExtension(failedTrack.url))
+    }
+    return data
+  }
+
   private fun mediaKeyFor(track: ActiveTrackData): String = "${track.id}::${track.url}"
 
   private fun forceSeekToStart(
@@ -587,6 +753,7 @@ object HiddenAudioCore {
     backgroundPlaybackIntended = false
     playbackEndedHandled = false
     pendingLoadSeekToStart = false
+    hasReachedReadyForCurrentTrack = false
     loadedMediaKey = null
     val exo = player
     exo?.stop()
@@ -700,6 +867,10 @@ object HiddenAudioCore {
     when (change) {
       AudioManager.AUDIOFOCUS_LOSS -> {
         emitDiagnostic("android_audio_focus_lost", data)
+        if (shouldIgnorePermanentAudioFocusLoss(nowMs)) {
+          emitDiagnostic("android_audio_focus_loss_ignored_startup_window", data)
+          return
+        }
         phoneCallInterruptionActive = true
         postPlaybackCallback {
           pauseForInterruption("audio_focus_loss", permanent = true)
@@ -944,15 +1115,85 @@ object HiddenAudioCore {
     emitDiagnostic(eventName, data)
   }
 
+  fun emitAudioRouteDiagnosticForAuto(source: String) {
+    emitAudioRouteDiagnostic(source)
+  }
+
   fun playForcedFromSession() {
     val context = reactContext ?: return
     ensurePlayer(context)
+    HiddenAudioMediaSessionManager.activateSessionForAuto(context, "auto_play_command")
+    emitAudioRouteDiagnostic("auto_play_command")
     if (player?.isPlaying == true) {
       emitDiagnostic("android_auto_play_forced", simpleData("state", "already_playing"))
       syncMediaSession()
       return
     }
-    play()
+
+    val hasLoadedNativeTrack =
+      !activeTrack?.url.isNullOrBlank() && (player?.mediaItemCount ?: 0) > 0
+    if (hasLoadedNativeTrack) {
+      try {
+        play()
+        return
+      } catch (_: Throwable) {
+        // Fall through to catalog / JS recovery below.
+      }
+    }
+
+    val fallbackMediaId = HiddenAudioAutoCatalog.firstPlayableMediaId()
+    if (!fallbackMediaId.isNullOrBlank()) {
+      playFromAutoMediaId(fallbackMediaId)
+      return
+    }
+
+    if (context.hasActiveReactInstance()) {
+      emitRemoteCommand("play")
+      return
+    }
+
+    emitDiagnostic(
+      "android_auto_play_forced",
+      simpleData("state", "no_loaded_track_or_catalog")
+    )
+  }
+
+  fun skipToNextFromSession() {
+    emitAutoDiagnostic("android_auto_next_received")
+    val context = reactContext
+    if (context != null && context.hasActiveReactInstance()) {
+      emitRemoteCommand("next")
+      return
+    }
+
+    val nextMediaId = HiddenAudioAutoCatalog.nextPlayableMediaId(activeTrackMediaId())
+    if (!nextMediaId.isNullOrBlank()) {
+      playFromAutoMediaId(nextMediaId)
+      return
+    }
+    emitRemoteCommand("next")
+  }
+
+  fun skipToPreviousFromSession() {
+    emitAutoDiagnostic("android_auto_previous_received")
+    val context = reactContext
+    if (context != null && context.hasActiveReactInstance()) {
+      emitRemoteCommand("previous")
+      return
+    }
+
+    val previousMediaId = HiddenAudioAutoCatalog.previousPlayableMediaId(activeTrackMediaId())
+    if (!previousMediaId.isNullOrBlank()) {
+      playFromAutoMediaId(previousMediaId)
+      return
+    }
+    emitRemoteCommand("previous")
+  }
+
+  private fun activeTrackMediaId(): String? {
+    val track = activeTrack ?: return null
+    return HiddenAudioAutoCatalog.findMediaIdByUrl(track.url)
+      ?: if (track.id.isNotBlank()) "song:${track.id}" else null
   }
 
   fun pauseForcedFromSession() {
@@ -1029,9 +1270,55 @@ object HiddenAudioCore {
     emitDiagnostic("remote_command_dispatched_to_js", forwardedData)
   }
 
+  private fun emitAudioRouteDiagnostic(source: String) {
+    val manager = audioManager ?: return
+    val data = Arguments.createMap()
+    data.putString("source", source)
+    data.putBoolean("musicActive", manager.isMusicActive)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+      val outputs = manager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
+      val routeNames = outputs.joinToString(",") { device ->
+        "${device.type}:${device.productName}"
+      }
+      data.putString("outputDevices", routeNames)
+      data.putBoolean(
+        "hasBluetoothA2dp",
+        outputs.any { it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP }
+      )
+      data.putBoolean(
+        "hasBluetoothSco",
+        outputs.any { it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO }
+      )
+      data.putBoolean(
+        "hasWiredHeadset",
+        outputs.any {
+          it.type == AudioDeviceInfo.TYPE_WIRED_HEADPHONES ||
+            it.type == AudioDeviceInfo.TYPE_WIRED_HEADSET ||
+            it.type == AudioDeviceInfo.TYPE_USB_HEADSET
+        }
+      )
+      data.putBoolean(
+        "hasBusOutput",
+        outputs.any { it.type == AudioDeviceInfo.TYPE_BUS }
+      )
+      data.putBoolean(
+        "hasHdmi",
+        outputs.any {
+          it.type == AudioDeviceInfo.TYPE_HDMI ||
+            it.type == AudioDeviceInfo.TYPE_HDMI_ARC ||
+            it.type == AudioDeviceInfo.TYPE_HDMI_EARC
+        }
+      )
+    }
+    emitDiagnostic("android_auto_audio_route_check", data)
+  }
+
   private fun syncMediaSession() {
     val exo = player
     val track = activeTrack
+    reactContext?.let {
+      HiddenAudioMediaSessionManager.activateSessionForAuto(it, "sync_media_session")
+    }
     HiddenAudioMediaSessionManager.syncFromPlayer(
       title = track?.title ?: "Hidden Tunes",
       artist = track?.artist ?: "Hidden Tunes",

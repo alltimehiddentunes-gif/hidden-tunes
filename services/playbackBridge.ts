@@ -6,6 +6,7 @@ import {
   getHiddenAudioNativeSnapshot,
   resetHiddenAudioLoadedUrl,
   hiddenAudioBridge,
+  silenceHiddenAudioForManualReplace,
   updateHiddenAudioRemoteQueueAvailability,
   isHiddenAudioNativeEngineAvailable,
   subscribeHiddenAudioNativeDiagnostics,
@@ -28,6 +29,7 @@ import {
 import {
   isUserInitiatedHiddenAudioStopReason,
   logAndRememberLockscreenDiagnostic,
+  logLockscreenPlaybackDiagnostic,
 } from "../utils/lockscreenPlaybackDiagnostics";
 import { AppState } from "react-native";
 import {
@@ -73,42 +75,62 @@ export function nativeSnapshotIsEnded(
   return nativeStatus === "ended" || playbackState === "ended";
 }
 
+const NATIVE_SESSION_PRESENT_STATUSES = new Set([
+  "playing",
+  "buffering",
+  "ready",
+  "paused",
+]);
+
+function nativeSnapshotStatusIsPresent(status: string): boolean {
+  return NATIVE_SESSION_PRESENT_STATUSES.has(status);
+}
+
+/** Canonical native session classification for foreground/background sync. */
+export function nativeSessionExists(
+  snapshot: HiddenAudioNativeSnapshot | null | undefined
+): boolean {
+  if (!snapshot) return false;
+  if (snapshot.hasLoadedTrack !== true || !snapshot.activeTrack?.url) return false;
+
+  const nativeStatus = String(snapshot.nativeStatus || "").toLowerCase();
+  const playbackState = String(snapshot.playbackState || "").toLowerCase();
+
+  if (nativeStatus === "idle" || nativeStatus === "error") return false;
+  if (playbackState === "idle" || playbackState === "error") return false;
+  if (nativeStatus === "ended" || playbackState === "ended") return false;
+
+  return (
+    nativeSnapshotStatusIsPresent(nativeStatus) ||
+    nativeSnapshotStatusIsPresent(playbackState)
+  );
+}
+
 function androidSnapshotIndicatesLoadedPlayback(
   snapshot: HiddenAudioNativeSnapshot | null | undefined
 ): boolean {
-  if (!snapshot || nativeSnapshotIsEnded(snapshot)) return false;
-  if (!snapshot.hasLoadedTrack || !snapshot.activeTrack?.url) return false;
-  const nativeStatus = String(snapshot.nativeStatus || "").toLowerCase();
-  if (nativeStatus === "idle" || nativeStatus === "error") return false;
-  const playbackState = String(snapshot.playbackState || "").toLowerCase();
-  return (
-    snapshot.isPlaying ||
-    playbackState === "playing" ||
-    playbackState === "buffering" ||
-    playbackState === "ready" ||
-    playbackState === "paused"
-  );
+  return nativeSessionExists(snapshot);
 }
 
 export function nativeSnapshotIndicatesLoadedPlayback(
   snapshot: HiddenAudioNativeSnapshot | null | undefined
 ): boolean {
-  return androidSnapshotIndicatesLoadedPlayback(snapshot);
+  return nativeSessionExists(snapshot);
 }
 
 export function nativeSnapshotCanPreserveSession(
   snapshot: HiddenAudioNativeSnapshot | null | undefined
 ): boolean {
-  if (!snapshot || nativeSnapshotIsEnded(snapshot)) return false;
-  if (!snapshot.hasLoadedTrack || !snapshot.activeTrack?.url) return false;
+  return nativeSessionExists(snapshot);
+}
+
+export function nativeSnapshotIsPausedLoadedSession(
+  snapshot: HiddenAudioNativeSnapshot | null | undefined
+): boolean {
+  if (!nativeSessionExists(snapshot) || !snapshot) return false;
   const nativeStatus = String(snapshot.nativeStatus || "").toLowerCase();
   const playbackState = String(snapshot.playbackState || "").toLowerCase();
-  return (
-    nativeStatus === "playing" ||
-    nativeStatus === "ready" ||
-    playbackState === "playing" ||
-    playbackState === "ready"
-  );
+  return nativeStatus === "paused" || playbackState === "paused";
 }
 
 function logAndroidPlaybackParityDiagnostic(
@@ -345,6 +367,33 @@ export function resetHiddenAudioSessionAfterIntentionalClose(): void {
 }
 
 
+export function getNativeActiveTrackUrl(
+  snapshot: HiddenAudioNativeSnapshot | null | undefined
+): string {
+  return String(snapshot?.activeTrack?.url || "").trim();
+}
+
+export function nativeTargetUrlMatches(
+  snapshot: HiddenAudioNativeSnapshot | null | undefined,
+  targetUrl: string
+): boolean {
+  const nativeUrl = getNativeActiveTrackUrl(snapshot);
+  const expectedUrl = String(targetUrl || "").trim();
+  return Boolean(nativeUrl) && Boolean(expectedUrl) && nativeUrl === expectedUrl;
+}
+
+export function shouldPreserveNativeSessionForTarget(
+  snapshot: HiddenAudioNativeSnapshot | null | undefined,
+  targetUrl: string,
+  options?: { requirePlaying?: boolean }
+): boolean {
+  if (nativeSnapshotRequiresReload(snapshot, targetUrl)) return false;
+  if (!nativeSnapshotCanPreserveSession(snapshot)) return false;
+  if (!nativeTargetUrlMatches(snapshot, targetUrl)) return false;
+  if (options?.requirePlaying && snapshot?.isPlaying !== true) return false;
+  return true;
+}
+
 export function nativeSnapshotRequiresReload(
   snapshot: HiddenAudioNativeSnapshot | null | undefined,
   expectedUrl: string
@@ -354,7 +403,9 @@ export function nativeSnapshotRequiresReload(
   const status = String(snapshot.nativeStatus || "").toLowerCase();
   if (status === "idle" || status === "error" || status === "ended") return true;
   if (!snapshot.hasLoadedTrack || !snapshot.activeTrack?.url) return true;
-  if (expectedUrl && snapshot.activeTrack.url !== expectedUrl) return true;
+  const nativeUrl = getNativeActiveTrackUrl(snapshot);
+  const normalizedExpectedUrl = String(expectedUrl || "").trim();
+  if (normalizedExpectedUrl && nativeUrl !== normalizedExpectedUrl) return true;
 
   return false;
 }
@@ -388,6 +439,50 @@ export type HiddenAudioTapPlaybackOptions = {
   songId?: string;
   source?: string;
 };
+
+export async function bridgeSilenceNativePlaybackForManualReplace(options: {
+  targetUrl?: string;
+  source?: string;
+  songId?: string;
+}): Promise<boolean> {
+  if (!isHiddenAudioNativePlaybackEnabled()) return false;
+
+  const snapshot = await getHiddenAudioNativeSnapshot().catch(() => null);
+  const nativeUrl = getNativeActiveTrackUrl(snapshot);
+  const targetUrl = String(options.targetUrl || "").trim();
+
+  if (targetUrl && nativeUrl && nativeTargetUrlMatches(snapshot, targetUrl)) {
+    return false;
+  }
+
+  const nativeIsAudible =
+    snapshot?.isPlaying === true ||
+    String(snapshot?.nativeStatus || "").toLowerCase() === "playing" ||
+    String(snapshot?.nativeStatus || "").toLowerCase() === "buffering";
+
+  if (!nativeUrl && !nativeIsAudible) {
+    return false;
+  }
+
+  logLockscreenPlaybackDiagnostic("manual_replace_old_audio_silence_start", {
+    source: options.source || "manual_replace",
+    songId: options.songId || null,
+    targetUrl: targetUrl || null,
+    nativeActiveUrl: nativeUrl || null,
+    nativeStatus: snapshot?.nativeStatus || null,
+  });
+
+  await silenceHiddenAudioForManualReplace();
+
+  logLockscreenPlaybackDiagnostic("manual_replace_old_audio_silenced", {
+    source: options.source || "manual_replace",
+    songId: options.songId || null,
+    targetUrl: targetUrl || null,
+    nativeActiveUrl: nativeUrl || null,
+  });
+
+  return true;
+}
 
 export async function bridgeTryResumeHiddenAudioPlayback(
   options: HiddenAudioTapPlaybackOptions

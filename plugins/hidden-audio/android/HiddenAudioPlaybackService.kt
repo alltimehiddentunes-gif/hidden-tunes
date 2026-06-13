@@ -9,6 +9,7 @@ import android.content.Intent
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
+import androidx.media.app.NotificationCompat as MediaNotificationCompat
 import com.hiddentunes.app.MainActivity
 
 class HiddenAudioPlaybackService : Service() {
@@ -26,6 +27,9 @@ class HiddenAudioPlaybackService : Service() {
       manager?.createNotificationChannel(channel)
     }
 
+    HiddenAudioMediaSessionManager.ensureSession(applicationContext)
+    HiddenAudioMediaSessionManager.activateSessionForAuto(applicationContext, "foreground_service")
+
     val launchIntent = Intent(this, MainActivity::class.java)
     val pendingIntent = PendingIntent.getActivity(
       this,
@@ -41,14 +45,24 @@ class HiddenAudioPlaybackService : Service() {
       applicationInfo.icon
     }
 
-    val notification: Notification = NotificationCompat.Builder(this, channelId)
+    val builder = NotificationCompat.Builder(this, channelId)
       .setContentTitle("Hidden Tunes")
       .setContentText("Playing in background")
       .setSmallIcon(resolvedSmallIcon)
       .setContentIntent(pendingIntent)
       .setOngoing(true)
       .setCategory(NotificationCompat.CATEGORY_TRANSPORT)
-      .build()
+      .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+
+    val sessionToken = HiddenAudioMediaSessionManager.sessionToken()
+    if (sessionToken != null) {
+      builder.setStyle(
+        MediaNotificationCompat.MediaStyle()
+          .setMediaSession(sessionToken)
+      )
+    }
+
+    val notification: Notification = builder.build()
 
     try {
       startForeground(FOREGROUND_NOTIFICATION_ID, notification)

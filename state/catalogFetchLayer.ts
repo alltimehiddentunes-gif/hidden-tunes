@@ -4,6 +4,7 @@ import {
   type HiddenTunesNormalizedSong,
 } from "../services/hiddenTunesApi";
 import { syncAndroidAutoCatalogFromDerived } from "../services/androidAutoCatalogBridge";
+import { syncCarPlayCatalogFromDerived } from "../services/carPlayCatalogBridge";
 
 import {
   clearCatalogHydrationCache,
@@ -81,6 +82,7 @@ export async function loadHydratedCatalogOnce(): Promise<
 
       rememberHydratedSnapshot(getHydratedCatalogTracksOnce(tracks));
       void syncAndroidAutoCatalogFromDerived();
+      void syncCarPlayCatalogFromDerived();
       return hydratedSnapshot;
 
     })

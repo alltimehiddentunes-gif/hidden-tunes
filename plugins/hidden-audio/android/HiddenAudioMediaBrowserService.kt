@@ -15,6 +15,7 @@ class HiddenAudioMediaBrowserService : MediaBrowserServiceCompat() {
     Log.i(TAG, "HiddenAudioMediaBrowserService onCreate")
     HiddenAudioAutoCatalog.ensureDefaultCatalog()
     HiddenAudioMediaSessionManager.ensureSession(applicationContext)
+    HiddenAudioMediaSessionManager.activateSessionForAuto(applicationContext, "media_browser_on_create")
     sessionToken = HiddenAudioMediaSessionManager.sessionToken()
     HiddenAudioCore.emitAutoDiagnostic("android_auto_mbs_on_create")
     Log.i(TAG, "HiddenAudioMediaBrowserService ready for Android Auto binding")
@@ -31,7 +32,9 @@ class HiddenAudioMediaBrowserService : MediaBrowserServiceCompat() {
     HiddenAudioCore.emitAutoDiagnostic("android_auto_media_root_requested", rootData)
     HiddenAudioAutoCatalog.ensureDefaultCatalog()
     HiddenAudioMediaSessionManager.ensureSession(applicationContext)
+    HiddenAudioMediaSessionManager.activateSessionForAuto(applicationContext, "media_browser_on_get_root")
     sessionToken = HiddenAudioMediaSessionManager.sessionToken()
+    HiddenAudioCore.emitAudioRouteDiagnosticForAuto("media_browser_on_get_root")
 
     rootHints?.let { hints ->
       if (hints.containsKey(EXTRA_ROOT_CHILDREN_LIMIT)) {
@@ -75,7 +78,20 @@ class HiddenAudioMediaBrowserService : MediaBrowserServiceCompat() {
       result.sendResult(items.toMutableList())
     } catch (error: Throwable) {
       HiddenAudioMediaSessionManager.reportError(error.message ?: "children_load_failed")
-      result.sendResult(mutableListOf())
+      HiddenAudioAutoCatalog.ensureDefaultCatalog()
+      val fallbackParentId =
+        if (parentId.isBlank()) HiddenAudioAutoCatalog.ROOT_ID else parentId
+      val fallbackChildren =
+        if (fallbackParentId == HiddenAudioAutoCatalog.ROOT_ID) {
+          HiddenAudioAutoCatalog.getRootChildrenForAuto(
+            rootChildrenLimit,
+            rootChildrenSupportedFlags
+          )
+        } else {
+          HiddenAudioAutoCatalog.getChildren(fallbackParentId)
+        }
+      val fallbackItems = fallbackChildren.map { node -> HiddenAudioAutoCatalog.toMediaItem(node) }
+      result.sendResult(fallbackItems.toMutableList())
     }
   }
 

@@ -134,6 +134,13 @@ class HiddenAudioModule(
   }
 
   @ReactMethod
+  fun silenceForManualReplace(promise: Promise) {
+    runOnMain(promise, "HIDDEN_AUDIO_SILENCE_FAILED", "manual_replace_silence_failed") {
+      HiddenAudioCore.silenceForManualReplace()
+    }
+  }
+
+  @ReactMethod
   fun resume(promise: Promise) {
     play(promise)
   }

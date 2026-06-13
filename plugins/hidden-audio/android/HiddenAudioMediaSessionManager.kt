@@ -14,19 +14,29 @@ object HiddenAudioMediaSessionManager {
   private var mediaSession: MediaSessionCompat? = null
 
   fun ensureSession(context: Context) {
-    if (mediaSession != null) return
-
-    mediaSession = MediaSessionCompat(context.applicationContext, "HiddenTunesAutoSession").apply {
-      setCallback(sessionCallback)
-      setFlags(
-        MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS or
-          MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS
-      )
-      isActive = true
+    if (mediaSession == null) {
+      mediaSession = MediaSessionCompat(context.applicationContext, "HiddenTunesAutoSession").apply {
+        setCallback(sessionCallback)
+        setFlags(
+          MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS or
+            MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS
+        )
+      }
+      publishBrowseReadySession()
+      HiddenAudioCore.emitAutoDiagnostic("android_auto_service_created")
     }
-    publishBrowseReadySession()
-    HiddenAudioCore.emitAutoDiagnostic("android_auto_session_active")
-    HiddenAudioCore.emitAutoDiagnostic("android_auto_service_created")
+  }
+
+  fun activateSessionForAuto(context: Context, source: String) {
+    ensureSession(context)
+    val session = mediaSession ?: return
+    if (!session.isActive) {
+      session.isActive = true
+    }
+    val data = Arguments.createMap()
+    data.putString("source", source)
+    data.putBoolean("isActive", session.isActive)
+    HiddenAudioCore.emitAutoDiagnostic("android_media_session_active_for_auto", data)
   }
 
   fun warmUpForAndroidAuto(context: Context) {
@@ -52,17 +62,11 @@ object HiddenAudioMediaSessionManager {
       .build()
     session.setMetadata(metadata)
 
-    val actions =
-      PlaybackStateCompat.ACTION_PLAY or
-        PlaybackStateCompat.ACTION_PAUSE or
-        PlaybackStateCompat.ACTION_SKIP_TO_NEXT or
-        PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS or
-        PlaybackStateCompat.ACTION_SEEK_TO or
-        PlaybackStateCompat.ACTION_PLAY_FROM_MEDIA_ID
+    val actions = transportActions()
 
     val state = PlaybackStateCompat.Builder()
       .setActions(actions)
-      .setState(PlaybackStateCompat.STATE_NONE, 0L, 0f)
+      .setState(PlaybackStateCompat.STATE_PAUSED, 0L, 0f)
       .build()
     session.setPlaybackState(state)
   }
@@ -86,6 +90,9 @@ object HiddenAudioMediaSessionManager {
     status: String
   ) {
     val session = mediaSession ?: return
+    if (!session.isActive) {
+      session.isActive = true
+    }
 
     val metadata = MediaMetadataCompat.Builder()
       .putString(MediaMetadataCompat.METADATA_KEY_TITLE, title)
@@ -112,16 +119,8 @@ object HiddenAudioMediaSessionManager {
       else -> PlaybackStateCompat.STATE_PAUSED
     }
 
-    val actions =
-      PlaybackStateCompat.ACTION_PLAY or
-        PlaybackStateCompat.ACTION_PAUSE or
-        PlaybackStateCompat.ACTION_SKIP_TO_NEXT or
-        PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS or
-        PlaybackStateCompat.ACTION_SEEK_TO or
-        PlaybackStateCompat.ACTION_PLAY_FROM_MEDIA_ID
-
     val state = PlaybackStateCompat.Builder()
-      .setActions(actions)
+      .setActions(transportActions())
       .setState(
         playbackState,
         (positionSeconds.coerceAtLeast(0.0) * 1000).toLong(),
@@ -132,6 +131,15 @@ object HiddenAudioMediaSessionManager {
     session.setPlaybackState(state)
   }
 
+  private fun transportActions(): Long =
+    PlaybackStateCompat.ACTION_PLAY or
+      PlaybackStateCompat.ACTION_PAUSE or
+      PlaybackStateCompat.ACTION_PLAY_PAUSE or
+      PlaybackStateCompat.ACTION_SKIP_TO_NEXT or
+      PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS or
+      PlaybackStateCompat.ACTION_SEEK_TO or
+      PlaybackStateCompat.ACTION_PLAY_FROM_MEDIA_ID
+
   fun reportError(message: String) {
     val data = Arguments.createMap()
     data.putString("message", message)
@@ -140,6 +148,7 @@ object HiddenAudioMediaSessionManager {
 
   private val sessionCallback = object : MediaSessionCompat.Callback() {
     override fun onPlay() {
+      HiddenAudioCore.emitAutoDiagnostic("android_auto_play_command_received")
       HiddenAudioCore.emitAutoDiagnostic("android_auto_play_forced")
       HiddenAudioCore.playForcedFromSession()
     }
@@ -150,13 +159,11 @@ object HiddenAudioMediaSessionManager {
     }
 
     override fun onSkipToNext() {
-      HiddenAudioCore.emitAutoDiagnostic("android_auto_next_received")
-      HiddenAudioCore.emitRemoteCommand("next")
+      HiddenAudioCore.skipToNextFromSession()
     }
 
     override fun onSkipToPrevious() {
-      HiddenAudioCore.emitAutoDiagnostic("android_auto_previous_received")
-      HiddenAudioCore.emitRemoteCommand("previous")
+      HiddenAudioCore.skipToPreviousFromSession()
     }
 
     override fun onSeekTo(pos: Long) {
