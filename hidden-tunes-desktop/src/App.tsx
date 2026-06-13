@@ -34,6 +34,7 @@ import {
   sortMetadataRecords,
   type CatalogMetadataIndex,
 } from './lib/songMetadata'
+import { withDevAudioVersionTestSongs } from './lib/devAudioVersionTestHarness'
 import {
   buildCatalogIndexes,
   buildQueueSeedPool,
@@ -271,7 +272,8 @@ function CatalogProvider({ children }: { children: ReactNode }) {
   const [cachedAt, setCachedAt] = useState<string | null>(() => initial.cachedAt)
   const [reloadKey, setReloadKey] = useState(0)
 
-  const hasCatalogData = songs.length > 0 || albums.length > 0 || artists.length > 0
+  const displaySongs = useMemo(() => withDevAudioVersionTestSongs(songs), [songs])
+  const hasCatalogData = displaySongs.length > 0 || albums.length > 0 || artists.length > 0
   const showCatalogSkeleton = loading && !hasCatalogData
   const showCatalogError = Boolean(error) && !hasCatalogData
   const catalogStatus = useMemo(
@@ -382,18 +384,18 @@ function CatalogProvider({ children }: { children: ReactNode }) {
   }, [reloadKey, applyBundle])
 
   const catalogIndexes = useMemo(
-    () => buildCatalogIndexes(songs, albums, artists),
-    [songs, albums, artists],
+    () => buildCatalogIndexes(displaySongs, albums, artists),
+    [displaySongs, albums, artists],
   )
 
   const searchMetadataIndex = useMemo(
-    () => buildSearchMetadataIndex(songs, artists),
-    [songs, artists],
+    () => buildSearchMetadataIndex(displaySongs, artists),
+    [displaySongs, artists],
   )
 
   const value = useMemo(
     () => ({
-      songs,
+      songs: displaySongs,
       albums,
       artists,
       indexes: catalogIndexes,
@@ -416,7 +418,7 @@ function CatalogProvider({ children }: { children: ReactNode }) {
       clearCatalogCache,
     }),
     [
-      songs,
+      displaySongs,
       albums,
       artists,
       catalogIndexes,
