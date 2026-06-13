@@ -89,6 +89,18 @@ const ALBUM_SORT_OPTIONS = [
   { value: 'az', label: 'A–Z' },
 ]
 
+const QUEUE_CONTEXT_LABELS: Record<QueueContext, string> = {
+  home: 'Home Queue',
+  discover: 'Discover Queue',
+  album: 'Album Queue',
+  artist: 'Artist Queue',
+  mood: 'Mood Queue',
+  manual: 'Manual Queue',
+  radio: 'Radio Queue',
+  scene: 'Scene Queue',
+  smart: 'Smart Queue',
+}
+
 let catalogMemoryCache: CatalogBundle | null = null
 let catalogSessionFetchDone = false
 
@@ -1859,6 +1871,7 @@ const PlayerBar = memo(function PlayerBar({ track }: { track: ApiSong | null }) 
     currentTrack,
     currentQueue,
     currentIndex,
+    queueContext,
     isPlaying,
     isLoading,
     error,
@@ -1888,6 +1901,8 @@ const PlayerBar = memo(function PlayerBar({ track }: { track: ApiSong | null }) 
   const volumePercent = Math.min(100, Math.max(0, volume * 100))
   const hasPrevious = currentIndex > 0
   const hasNext = currentIndex >= 0 && currentIndex < currentQueue.length - 1
+  const showQueuePosition = currentQueue.length > 1 && currentIndex >= 0
+  const queueLabel = QUEUE_CONTEXT_LABELS[queueContext]
   const volumeLevel =
     volume <= 0 ? 'muted' : volume < 0.35 ? 'low' : volume > 0.7 ? 'high' : 'normal'
 
@@ -2003,6 +2018,11 @@ const PlayerBar = memo(function PlayerBar({ track }: { track: ApiSong | null }) 
         <div className="player-meta">
           <h4>{title}</h4>
           <p>{artist}</p>
+          {showQueuePosition ? (
+            <p style={{ fontSize: 11, color: 'rgba(245, 243, 250, 0.66)' }}>
+              {queueLabel} · Track {currentIndex + 1} of {currentQueue.length}
+            </p>
+          ) : null}
           {error ? <p className="player-error">{error}</p> : null}
         </div>
       </div>
@@ -2140,6 +2160,175 @@ const PlayerBar = memo(function PlayerBar({ track }: { track: ApiSong | null }) 
         </div>
       </div>
     </footer>
+  )
+})
+
+const QueueUpNextPanel = memo(function QueueUpNextPanel() {
+  const {
+    currentTrack,
+    currentQueue,
+    currentIndex,
+    queueContext,
+    getUpcomingTracks,
+  } = useDesktopPlayback()
+
+  if (currentQueue.length <= 1 || currentIndex < 0) return null
+
+  const queueLabel = QUEUE_CONTEXT_LABELS[queueContext]
+  const activeTrack = currentTrack ?? currentQueue[currentIndex]
+  const upcomingTracks = getUpcomingTracks().slice(0, 4)
+
+  if (!activeTrack || upcomingTracks.length === 0) return null
+
+  return (
+    <aside
+      aria-label="Up Next"
+      style={{
+        position: 'fixed',
+        right: 24,
+        bottom: 104,
+        zIndex: 3,
+        width: 'min(320px, calc(100vw - 48px))',
+        maxHeight: 'min(340px, calc(100vh - 140px))',
+        overflow: 'hidden',
+        borderRadius: 8,
+        border: '1px solid rgba(255, 255, 255, 0.1)',
+        background: 'rgba(11, 11, 17, 0.94)',
+        boxShadow: '0 18px 44px rgba(0, 0, 0, 0.34)',
+        padding: 14,
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          gap: 12,
+          alignItems: 'baseline',
+          marginBottom: 10,
+        }}
+      >
+        <h2
+          style={{
+            margin: 0,
+            fontSize: 12,
+            fontWeight: 700,
+            color: 'rgba(245, 243, 250, 0.92)',
+          }}
+        >
+          Up Next
+        </h2>
+        <span
+          style={{
+            fontSize: 11,
+            color: 'rgba(245, 243, 250, 0.58)',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {queueLabel}
+        </span>
+      </div>
+      <div
+        style={{
+          paddingBottom: 10,
+          marginBottom: 8,
+          borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+        }}
+      >
+        <p
+          style={{
+            margin: 0,
+            fontSize: 11,
+            color: 'rgba(245, 243, 250, 0.48)',
+          }}
+        >
+          Now playing
+        </p>
+        <p
+          style={{
+            margin: '3px 0 0',
+            fontSize: 13,
+            fontWeight: 650,
+            color: 'rgba(245, 243, 250, 0.92)',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {activeTrack.title}
+        </p>
+        <p
+          style={{
+            margin: '2px 0 0',
+            fontSize: 12,
+            color: 'rgba(245, 243, 250, 0.6)',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {activeTrack.artist}
+        </p>
+      </div>
+      <ol
+        style={{
+          listStyle: 'none',
+          margin: 0,
+          padding: 0,
+          display: 'grid',
+          gap: 8,
+        }}
+      >
+        {upcomingTracks.map((track, index) => (
+          <li
+            key={`${track.id}-${index}`}
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '24px minmax(0, 1fr)',
+              gap: 8,
+              alignItems: 'center',
+            }}
+          >
+            <span
+              aria-hidden="true"
+              style={{
+                fontSize: 11,
+                color: 'rgba(245, 243, 250, 0.42)',
+                textAlign: 'right',
+              }}
+            >
+              {String(currentIndex + index + 2).padStart(2, '0')}
+            </span>
+            <span style={{ minWidth: 0 }}>
+              <span
+                style={{
+                  display: 'block',
+                  fontSize: 12,
+                  color: 'rgba(245, 243, 250, 0.84)',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {track.title}
+              </span>
+              <span
+                style={{
+                  display: 'block',
+                  marginTop: 1,
+                  fontSize: 11,
+                  color: 'rgba(245, 243, 250, 0.52)',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {track.artist}
+              </span>
+            </span>
+          </li>
+        ))}
+      </ol>
+    </aside>
   )
 })
 
@@ -2739,6 +2928,7 @@ function AppShell() {
           </main>
         </div>
       </div>
+      <QueueUpNextPanel />
       <PlayerBar track={desktopSelectedTrack} />
     </>
   )
