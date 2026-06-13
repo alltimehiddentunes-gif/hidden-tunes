@@ -55,6 +55,7 @@ import {
   readCachedCatalog,
   writeCachedCatalog,
 } from './lib/catalogCache'
+import { audioVersionAvailability } from './lib/audioVersions'
 import {
   AUDIO_QUALITY_MODE_LABELS,
   AUDIO_QUALITY_MODES,
@@ -1909,6 +1910,41 @@ function AudioQualitySelector({
   )
 }
 
+function AudioVersionAvailabilityStatus({ song }: { song: ApiSong | null }) {
+  if (!song) return null
+
+  const versions = song.audioVersions
+  if (!versions) {
+    return song.audioUrl ? (
+      <div className="audio-version-status audio-version-status--legacy" aria-label="Audio version availability">
+        <span className="audio-version-pill available">Legacy</span>
+      </div>
+    ) : null
+  }
+
+  const availability = audioVersionAvailability(versions)
+  const items = [
+    { key: 'ultraLight', label: 'ultraLight', available: availability.hasUltraLight },
+    { key: 'standard', label: 'standard', available: availability.hasStandard },
+    { key: 'highQuality', label: 'highQuality', available: availability.hasHighQuality },
+    { key: 'lossless', label: 'lossless', available: availability.hasLossless },
+  ]
+
+  return (
+    <div className="audio-version-status" aria-label="Audio version availability">
+      {items.map((item) => (
+        <span
+          key={item.key}
+          className={'audio-version-pill' + (item.available ? ' available' : '')}
+          aria-label={`${item.label} ${item.available ? 'available' : 'not available'}`}
+        >
+          {item.label}
+        </span>
+      ))}
+    </div>
+  )
+}
+
 function SettingsPage() {
   const { audioQualityMode, setAudioQualityMode } = useDesktopPlayback()
   const { resetDesktopPreferencesState } = usePreferencesReset()
@@ -2304,6 +2340,7 @@ const PlayerBar = memo(function PlayerBar({ track }: { track: ApiSong | null }) 
             onChange={setAudioQualityMode}
             compact
           />
+          <AudioVersionAvailabilityStatus song={displayTrack} />
         </div>
 
       <div className={`player-volume player-volume--${volumeLevel}`}>

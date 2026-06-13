@@ -2092,6 +2092,39 @@
   color: var(--text-muted);
 }
 
+.audio-version-status {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-width: 184px;
+}
+
+.audio-version-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.055);
+  color: rgba(245, 243, 250, 0.36);
+  background: rgba(255, 255, 255, 0.025);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.audio-version-pill.available {
+  color: rgba(245, 243, 250, 0.84);
+  border-color: rgba(56, 189, 248, 0.18);
+  background: rgba(56, 189, 248, 0.08);
+}
+
+.audio-version-status--legacy .audio-version-pill.available {
+  border-color: rgba(168, 85, 247, 0.22);
+  background: rgba(168, 85, 247, 0.1);
+}
+
 .player-volume {
   display: flex;
   align-items: center;
