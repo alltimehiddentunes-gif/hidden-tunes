@@ -13,6 +13,7 @@ export type NavigationSection =
 export type NavigationRoute =
   | "/music-feed"
   | "/worlds"
+  | "/search"
   | "/player"
   | "/queue"
   | "/lyrics"
@@ -53,6 +54,17 @@ export const NAVIGATION_ITEMS: AppNavigationItem[] = [
     mobileVisible: true,
     desktopVisible: true,
     matches: ["/music-feed"],
+  },
+  {
+    id: "search",
+    label: "Search",
+    route: "/search",
+    icon: "search-outline",
+    activeIcon: "search",
+    section: "primary",
+    mobileVisible: false,
+    desktopVisible: true,
+    matches: ["/search"],
   },
   {
     id: "explore",
