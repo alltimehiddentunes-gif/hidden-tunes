@@ -56,8 +56,11 @@ import {
   writeCachedCatalog,
 } from './lib/catalogCache'
 import {
+  AUDIO_QUALITY_MODE_LABELS,
+  AUDIO_QUALITY_MODES,
   DESKTOP_PREFERENCE_KEYS,
   parseStoredAlbumSort,
+  type AudioQualityMode,
   parseStoredArtistSort,
   parseStoredPageId,
   parseStoredSearchTerm,
@@ -1872,7 +1875,42 @@ function TvPage() {
   )
 }
 
+function AudioQualitySelector({
+  value,
+  onChange,
+  compact = false,
+}: {
+  value: AudioQualityMode
+  onChange: (mode: AudioQualityMode) => void
+  compact?: boolean
+}) {
+  return (
+    <div
+      className={'audio-quality-selector' + (compact ? ' audio-quality-selector--compact' : '')}
+      role='group'
+      aria-label='Desktop audio quality'
+    >
+      {AUDIO_QUALITY_MODES.map((mode) => {
+        const active = mode === value
+
+        return (
+          <button
+            key={mode}
+            type='button'
+            className={'audio-quality-option' + (active ? ' active' : '')}
+            aria-pressed={active}
+            onClick={() => onChange(mode)}
+          >
+            {AUDIO_QUALITY_MODE_LABELS[mode]}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 function SettingsPage() {
+  const { audioQualityMode, setAudioQualityMode } = useDesktopPlayback()
   const { resetDesktopPreferencesState } = usePreferencesReset()
   const { clearCatalogCache } = useCatalog()
   const [resetNotice, setResetNotice] = useState('')
@@ -1963,6 +2001,22 @@ function SettingsPage() {
             cacheNotice={cacheNotice}
             onClearCache={handleClearCatalogCache}
           />
+          <section className="settings-panel settings-panel--playback">
+            <h2>Playback quality</h2>
+            <p className="settings-panel-desc">
+              Audio quality mode is saved locally for this desktop install. Playback source selection stays unchanged.
+            </p>
+            <div className="settings-row settings-row--stacked">
+              <div className="settings-label">
+                <span>Audio quality</span>
+                <small>Selected: {AUDIO_QUALITY_MODE_LABELS[audioQualityMode]}</small>
+              </div>
+              <AudioQualitySelector
+                value={audioQualityMode}
+                onChange={setAudioQualityMode}
+              />
+            </div>
+          </section>
           <section className="settings-panel">
             <h2>Appearance</h2>
             <p className="settings-panel-desc">Cinematic dark theme tuned for desktop browsing.</p>
@@ -2009,6 +2063,8 @@ const PlayerBar = memo(function PlayerBar({ track }: { track: ApiSong | null }) 
     positionSeconds,
     durationSeconds,
     volume,
+    audioQualityMode,
+    setAudioQualityMode,
     pause,
     resume,
     seekTo,
@@ -2240,6 +2296,16 @@ const PlayerBar = memo(function PlayerBar({ track }: { track: ApiSong | null }) 
         </div>
       </div>
 
+      <div className="player-right">
+        <div className="player-quality" aria-label="Selected audio quality">
+          <span className="player-quality-label">Quality</span>
+          <AudioQualitySelector
+            value={audioQualityMode}
+            onChange={setAudioQualityMode}
+            compact
+          />
+        </div>
+
       <div className={`player-volume player-volume--${volumeLevel}`}>
         <button
           type="button"
@@ -2289,6 +2355,7 @@ const PlayerBar = memo(function PlayerBar({ track }: { track: ApiSong | null }) 
             style={{ width: `${volumePercent}%` }}
           />
         </div>
+      </div>
       </div>
     </footer>
   )

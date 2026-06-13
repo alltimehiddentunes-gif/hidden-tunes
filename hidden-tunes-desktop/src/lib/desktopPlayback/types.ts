@@ -1,4 +1,5 @@
 import type { ApiSong } from '../api'
+import type { AudioQualityMode } from '../localPreferences'
 
 export type QueueContext =
   | 'home'
@@ -46,6 +47,7 @@ export type DesktopPlaybackState = {
   positionSeconds: number
   durationSeconds: number
   volume: number
+  audioQualityMode: AudioQualityMode
 }
 
 export type DesktopPlaybackActions = {
@@ -64,6 +66,7 @@ export type DesktopPlaybackActions = {
   resume: () => void
   seekTo: (seconds: number) => void
   setVolume: (volume: number) => void
+  setAudioQualityMode: (mode: AudioQualityMode) => void
 }
 
 export type DesktopPlaybackContextValue = DesktopPlaybackState & DesktopPlaybackActions

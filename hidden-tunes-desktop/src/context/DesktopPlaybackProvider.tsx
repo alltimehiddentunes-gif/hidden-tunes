@@ -10,6 +10,11 @@ import {
 } from 'react'
 import type { ApiSong } from '../lib/api'
 import {
+  DESKTOP_PREFERENCE_KEYS,
+  parseStoredAudioQualityMode,
+  usePersistedPreference,
+} from '../lib/localPreferences'
+import {
   audioVersionAvailability,
   selectInstantPlayableUrl,
 } from '../lib/audioVersions'
@@ -82,6 +87,11 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
   const [positionSeconds, setPositionSeconds] = useState(0)
   const [durationSeconds, setDurationSeconds] = useState(0)
   const [volume, setVolumeState] = useState(1)
+  const [audioQualityMode, setAudioQualityMode] = usePersistedPreference(
+    DESKTOP_PREFERENCE_KEYS.audioQualityMode,
+    'auto',
+    parseStoredAudioQualityMode,
+  )
 
   const applyQueueState = useCallback((queue: ApiSong[], index: number) => {
     queueRef.current = queue
@@ -403,6 +413,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       positionSeconds,
       durationSeconds,
       volume,
+      audioQualityMode,
       playTrack,
       playQueue,
       next,
@@ -412,6 +423,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       resume,
       seekTo,
       setVolume,
+      setAudioQualityMode,
     }),
     [
       currentTrack,
@@ -427,6 +439,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       positionSeconds,
       durationSeconds,
       volume,
+      audioQualityMode,
       playTrack,
       playQueue,
       next,
@@ -436,6 +449,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       resume,
       seekTo,
       setVolume,
+      setAudioQualityMode,
     ],
   )
 

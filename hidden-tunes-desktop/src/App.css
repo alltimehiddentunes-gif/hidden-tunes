@@ -1718,6 +1718,56 @@
   font-weight: 400;
 }
 
+.settings-row--stacked {
+  align-items: flex-start;
+  flex-direction: column;
+}
+
+.audio-quality-selector {
+  display: inline-grid;
+  grid-template-columns: repeat(4, minmax(92px, 1fr));
+  gap: 4px;
+  width: min(100%, 520px);
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.audio-quality-option {
+  min-height: 34px;
+  padding: 0 10px;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 650;
+  white-space: nowrap;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.audio-quality-option:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.audio-quality-option.active {
+  color: var(--text-primary);
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.22), rgba(56, 189, 248, 0.12));
+  box-shadow: inset 0 0 0 1px rgba(168, 85, 247, 0.26);
+}
+
+.audio-quality-selector--compact {
+  grid-template-columns: repeat(2, minmax(76px, 1fr));
+  width: 184px;
+  padding: 3px;
+}
+
+.audio-quality-selector--compact .audio-quality-option {
+  min-height: 24px;
+  padding: 0 8px;
+  font-size: 10px;
+}
+
 .settings-badge {
   flex-shrink: 0;
   font-size: 11px;
@@ -1757,7 +1807,7 @@
   flex-shrink: 0;
   height: var(--player-height);
   display: grid;
-  grid-template-columns: minmax(200px, 280px) minmax(280px, 640px) minmax(112px, 142px);
+  grid-template-columns: minmax(200px, 280px) minmax(280px, 640px) minmax(220px, 300px);
   align-items: center;
   gap: clamp(16px, 3vw, 24px);
   padding: 0 clamp(16px, 3vw, 28px);
@@ -2016,6 +2066,30 @@
 
 .player-bar--idle .progress-track::before {
   background: rgba(255, 255, 255, 0.055);
+}
+
+.player-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+  min-width: 0;
+}
+
+.player-quality {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+  min-width: 0;
+}
+
+.player-quality-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
 }
 
 .player-volume {
@@ -2797,7 +2871,7 @@
     grid-template-columns: minmax(180px, 1fr) minmax(240px, 520px);
   }
 
-  .player-volume {
+  .player-right {
     display: none;
   }
 }
@@ -2815,6 +2889,10 @@
     flex: 1;
     max-width: none;
     min-width: 0;
+  }
+
+  .audio-quality-selector {
+    grid-template-columns: 1fr 1fr;
   }
 
   .discover-toolbar .search-bar--premium {
