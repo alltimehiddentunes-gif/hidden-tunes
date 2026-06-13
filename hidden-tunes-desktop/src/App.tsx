@@ -7,6 +7,8 @@ import {
   useMemo,
   useRef,
   useState,
+  type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from 'react'
 import {
@@ -1835,9 +1837,17 @@ const PlayerBar = memo(function PlayerBar({ track }: { track: ApiSong | null }) 
     error,
     positionSeconds,
     durationSeconds,
+    volume,
     pause,
     resume,
+    seekTo,
+    setVolume,
   } = useDesktopPlayback()
+
+  const progressTrackRef = useRef<HTMLDivElement>(null)
+  const volumeTrackRef = useRef<HTMLDivElement>(null)
+  const isSeekingRef = useRef(false)
+  const isAdjustingVolumeRef = useRef(false)
 
   const displayTrack = track ?? currentTrack
   const title = displayTrack?.title ?? PLAYER_BAR_FALLBACK_TITLE
@@ -1846,6 +1856,83 @@ const PlayerBar = memo(function PlayerBar({ track }: { track: ApiSong | null }) 
   const progressValue = progressMax > 0 ? Math.min(positionSeconds, progressMax) : 0
   const progressPercent =
     progressMax > 0 ? Math.min(100, (progressValue / progressMax) * 100) : 0
+  const volumePercent = Math.min(100, Math.max(0, volume * 100))
+  const volumeLevel =
+    volume <= 0 ? 'muted' : volume < 0.35 ? 'low' : volume > 0.7 ? 'high' : 'normal'
+
+  const resolveSeekSeconds = useCallback(
+    (clientX: number) => {
+      const trackEl = progressTrackRef.current
+      if (!trackEl || progressMax <= 0) return null
+      const rect = trackEl.getBoundingClientRect()
+      if (rect.width <= 0) return null
+      const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width))
+      return ratio * progressMax
+    },
+    [progressMax],
+  )
+
+  const resolveVolume = useCallback((clientX: number) => {
+    const trackEl = volumeTrackRef.current
+    if (!trackEl) return null
+    const rect = trackEl.getBoundingClientRect()
+    if (rect.width <= 0) return null
+    const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width))
+    return ratio
+  }, [])
+
+  const handleSeekClick = (event: ReactMouseEvent<HTMLDivElement>) => {
+    if (!displayTrack || progressMax <= 0 || isLoading || isSeekingRef.current) return
+    const seconds = resolveSeekSeconds(event.clientX)
+    if (seconds != null) seekTo(seconds)
+  }
+
+  const handleSeekPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!displayTrack || progressMax <= 0 || isLoading) return
+    const seconds = resolveSeekSeconds(event.clientX)
+    if (seconds == null) return
+    isSeekingRef.current = true
+    event.currentTarget.setPointerCapture(event.pointerId)
+    seekTo(seconds)
+  }
+
+  const handleSeekPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!isSeekingRef.current) return
+    const seconds = resolveSeekSeconds(event.clientX)
+    if (seconds != null) seekTo(seconds)
+  }
+
+  const handleSeekPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!isSeekingRef.current) return
+    isSeekingRef.current = false
+    event.currentTarget.releasePointerCapture(event.pointerId)
+  }
+
+  const handleVolumeClick = (event: ReactMouseEvent<HTMLDivElement>) => {
+    if (isAdjustingVolumeRef.current) return
+    const nextVolume = resolveVolume(event.clientX)
+    if (nextVolume != null) setVolume(nextVolume)
+  }
+
+  const handleVolumePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const nextVolume = resolveVolume(event.clientX)
+    if (nextVolume == null) return
+    isAdjustingVolumeRef.current = true
+    event.currentTarget.setPointerCapture(event.pointerId)
+    setVolume(nextVolume)
+  }
+
+  const handleVolumePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!isAdjustingVolumeRef.current) return
+    const nextVolume = resolveVolume(event.clientX)
+    if (nextVolume != null) setVolume(nextVolume)
+  }
+
+  const handleVolumePointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!isAdjustingVolumeRef.current) return
+    isAdjustingVolumeRef.current = false
+    event.currentTarget.releasePointerCapture(event.pointerId)
+  }
 
   const barState = error
     ? 'error'
@@ -1939,14 +2026,25 @@ const PlayerBar = memo(function PlayerBar({ track }: { track: ApiSong | null }) 
         </div>
         <div
           className="progress-wrap"
-          role="progressbar"
-          aria-valuenow={Math.round(progressPercent)}
-          aria-valuemin={0}
-          aria-valuemax={100}
+          role="group"
           aria-label="Playback progress"
         >
           <span className="progress-time">{formatPlaybackTime(progressValue)}</span>
-          <div className="progress-track">
+          <div
+            ref={progressTrackRef}
+            className={`progress-track${progressMax > 0 && displayTrack ? ' progress-track--interactive' : ''}`}
+            role="slider"
+            aria-label="Seek position"
+            aria-valuemin={0}
+            aria-valuemax={Math.round(progressMax)}
+            aria-valuenow={Math.round(progressValue)}
+            aria-disabled={!displayTrack || progressMax <= 0 || isLoading}
+            onClick={handleSeekClick}
+            onPointerDown={handleSeekPointerDown}
+            onPointerMove={handleSeekPointerMove}
+            onPointerUp={handleSeekPointerUp}
+            onPointerCancel={handleSeekPointerUp}
+          >
             <div
               className="progress-fill"
               style={{ width: `${progressPercent}%` }}
@@ -1958,20 +2056,54 @@ const PlayerBar = memo(function PlayerBar({ track }: { track: ApiSong | null }) 
         </div>
       </div>
 
-      <div className="player-volume">
+      <div className={`player-volume player-volume--${volumeLevel}`}>
         <button
           type="button"
           className="control-btn"
-          disabled
-          aria-label="Volume (not available yet)"
+          aria-label={
+            volume <= 0
+              ? 'Volume muted'
+              : volume < 0.35
+                ? 'Volume low'
+                : 'Volume'
+          }
+          tabIndex={-1}
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M11 5L6 9H3v6h3l5 4V5z" />
-            <path d="M15.54 8.46a5 5 0 010 7.07M19.07 4.93a10 10 0 010 14.14" />
-          </svg>
+          {volume <= 0 ? (
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M11 5L6 9H3v6h3l5 4V5z" />
+              <path d="M23 9l-6 6M17 9l6 6" />
+            </svg>
+          ) : volume < 0.35 ? (
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M11 5L6 9H3v6h3l5 4V5z" />
+              <path d="M15.54 8.46a5 5 0 010 7.07" />
+            </svg>
+          ) : (
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M11 5L6 9H3v6h3l5 4V5z" />
+              <path d="M15.54 8.46a5 5 0 010 7.07M19.07 4.93a10 10 0 010 14.14" />
+            </svg>
+          )}
         </button>
-        <div className="volume-slider" aria-hidden="true">
-          <div className="volume-fill volume-fill--idle" />
+        <div
+          ref={volumeTrackRef}
+          className="volume-slider"
+          role="slider"
+          aria-label="Volume"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round(volumePercent)}
+          onClick={handleVolumeClick}
+          onPointerDown={handleVolumePointerDown}
+          onPointerMove={handleVolumePointerMove}
+          onPointerUp={handleVolumePointerUp}
+          onPointerCancel={handleVolumePointerUp}
+        >
+          <div
+            className="volume-fill"
+            style={{ width: `${volumePercent}%` }}
+          />
         </div>
       </div>
     </footer>

@@ -38,6 +38,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null)
   const [positionSeconds, setPositionSeconds] = useState(0)
   const [durationSeconds, setDurationSeconds] = useState(0)
+  const [volume, setVolumeState] = useState(1)
 
   useEffect(() => {
     const service = getService()
@@ -170,6 +171,33 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       })
   }, [currentTrack, getService])
 
+  const seekTo = useCallback(
+    (seconds: number) => {
+      if (!currentTrack || !Number.isFinite(seconds)) return
+
+      const max =
+        durationSeconds > 0
+          ? durationSeconds
+          : getService().getAudioElement().duration
+      if (!Number.isFinite(max) || max <= 0) return
+
+      const clamped = Math.min(max, Math.max(0, seconds))
+      getService().seekTo(clamped)
+      setPositionSeconds(clamped)
+    },
+    [currentTrack, durationSeconds, getService],
+  )
+
+  const setVolume = useCallback(
+    (nextVolume: number) => {
+      if (!Number.isFinite(nextVolume)) return
+      const clamped = Math.min(1, Math.max(0, nextVolume))
+      getService().setVolume(clamped)
+      setVolumeState(clamped)
+    },
+    [getService],
+  )
+
   const value = useMemo<DesktopPlaybackContextValue>(
     () => ({
       currentTrack,
@@ -178,9 +206,12 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       error,
       positionSeconds,
       durationSeconds,
+      volume,
       playTrack,
       pause,
       resume,
+      seekTo,
+      setVolume,
     }),
     [
       currentTrack,
@@ -189,9 +220,12 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       error,
       positionSeconds,
       durationSeconds,
+      volume,
       playTrack,
       pause,
       resume,
+      seekTo,
+      setVolume,
     ],
   )
 

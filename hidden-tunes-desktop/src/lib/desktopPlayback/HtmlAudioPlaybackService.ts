@@ -30,6 +30,17 @@ function logPlaybackDiagnostics(label: string, audio: HTMLAudioElement, url?: st
   })
 }
 
+function clampVolume(volume: number): number {
+  if (!Number.isFinite(volume)) return 1
+  return Math.min(1, Math.max(0, volume))
+}
+
+function clampSeekSeconds(seconds: number, duration: number): number {
+  if (!Number.isFinite(seconds) || seconds < 0) return 0
+  if (duration > 0) return Math.min(duration, seconds)
+  return seconds
+}
+
 export class HtmlAudioPlaybackService {
   private readonly audio: HTMLAudioElement
   private lastUrl: string | null = null
@@ -85,7 +96,6 @@ export class HtmlAudioPlaybackService {
     }
 
     this.audio.muted = false
-    this.audio.volume = 1
 
     if (this.lastUrl !== normalized) {
       this.audio.pause()
@@ -110,10 +120,32 @@ export class HtmlAudioPlaybackService {
 
   async resume(): Promise<void> {
     this.audio.muted = false
-    if (this.audio.volume <= 0) {
-      this.audio.volume = 1
-    }
     await this.audio.play()
+  }
+
+  seekTo(seconds: number): void {
+    const duration =
+      Number.isFinite(this.audio.duration) && this.audio.duration > 0
+        ? this.audio.duration
+        : 0
+    const target = clampSeekSeconds(seconds, duration)
+
+    try {
+      this.audio.currentTime = target
+    } catch {
+      // Metadata may not be ready yet — ignore safely.
+    }
+  }
+
+  setVolume(volume: number): void {
+    this.audio.volume = clampVolume(volume)
+    if (this.audio.volume > 0) {
+      this.audio.muted = false
+    }
+  }
+
+  getVolume(): number {
+    return clampVolume(this.audio.volume)
   }
 
   stop(): void {
