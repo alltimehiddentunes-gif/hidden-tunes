@@ -1,0 +1,317 @@
+export const API_BASE_URL = 'https://hidden-tunes-api.onrender.com'
+
+const REQUEST_TIMEOUT_MS = 20_000
+
+export type ApiSong = {
+  id: string
+  title: string
+  artist: string
+  album: string
+  artwork: string | null
+  audioUrl: string | null
+  durationSeconds: number | null
+  createdAt: string | null
+}
+
+export type ApiAlbum = {
+  id: string
+  title: string
+  artwork: string | null
+  releaseYear: number | null
+  createdAt: string | null
+  artistId: string | null
+}
+
+export type SongSort = 'latest' | 'az'
+export type ArtistSort = 'az' | 'tracks'
+export type AlbumSort = 'latest' | 'az'
+
+export type CatalogBundle = {
+  songs: ApiSong[]
+  albums: ApiAlbum[]
+  artists: ApiArtist[]
+}
+
+export type ApiArtist = {
+  id: string
+  name: string
+  artwork: string | null
+  songCount: number
+}
+
+type PaginationOptions = {
+  limit?: number
+  page?: number
+}
+
+function buildQuery(options?: PaginationOptions) {
+  const limit = Math.min(Math.max(options?.limit ?? 20, 1), 100)
+  const page = Math.max(options?.page ?? 1, 1)
+  return new URLSearchParams({
+    limit: String(limit),
+    page: String(page),
+  })
+}
+
+function pickAudioUrl(row: Record<string, unknown>): string | null {
+  const candidates = [
+    row.audioUrl,
+    row.audio_url,
+    row.url,
+    row.streamUrl,
+    row.stream_url,
+  ]
+
+  for (const value of candidates) {
+    if (typeof value === 'string' && value.trim().startsWith('http')) {
+      return value.trim()
+    }
+  }
+
+  return null
+}
+
+function pickDurationSeconds(row: Record<string, unknown>): number | null {
+  const candidates = [row.duration_seconds, row.duration]
+
+  for (const value of candidates) {
+    if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+      return value
+    }
+  }
+
+  return null
+}
+
+function pickArtwork(row: Record<string, unknown>): string | null {
+  const candidates = [
+    row.artwork,
+    row.cover,
+    row.cover_url,
+    row.thumbnail,
+    row.image_url,
+  ]
+
+  for (const value of candidates) {
+    if (typeof value === 'string' && value.trim().startsWith('http')) {
+      return value.trim()
+    }
+  }
+
+  return null
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null
+}
+
+function normalizeSong(row: unknown): ApiSong | null {
+  const record = asRecord(row)
+  if (!record || record.id == null) return null
+
+  const createdAt =
+    typeof record.created_at === 'string' ? record.created_at : null
+
+  return {
+    id: String(record.id),
+    title: String(record.title || 'Untitled'),
+    artist: String(
+      record.artist || record.artist_name || 'Unknown Artist',
+    ),
+    album: String(record.album || record.album_title || 'Singles'),
+    artwork: pickArtwork(record),
+    audioUrl: pickAudioUrl(record),
+    durationSeconds: pickDurationSeconds(record),
+    createdAt,
+  }
+}
+
+function normalizeAlbum(row: unknown): ApiAlbum | null {
+  const record = asRecord(row)
+  if (!record || record.id == null) return null
+
+  const releaseYear =
+    typeof record.release_year === 'number' ? record.release_year : null
+  const createdAt =
+    typeof record.created_at === 'string' ? record.created_at : null
+
+  return {
+    id: String(record.id),
+    title: String(record.title || 'Untitled Album'),
+    artwork: pickArtwork(record),
+    releaseYear,
+    createdAt,
+    artistId: record.artist_id != null ? String(record.artist_id) : null,
+  }
+}
+
+function normalizeArtist(row: unknown): ApiArtist | null {
+  const record = asRecord(row)
+  if (!record || record.id == null) return null
+
+  const songCount =
+    typeof record.songCount === 'number'
+      ? record.songCount
+      : Array.isArray(record.tracks)
+        ? record.tracks.length
+        : 0
+
+  return {
+    id: String(record.id),
+    name: String(record.name || 'Unknown Artist'),
+    artwork: pickArtwork(record),
+    songCount,
+  }
+}
+
+async function apiRequest<T>(path: string): Promise<T> {
+  const controller = new AbortController()
+  const timeout = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+
+  try {
+    const response = await fetch(`${API_BASE_URL}${path}`, {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+      signal: controller.signal,
+    })
+
+    const payload = await response.json().catch(() => null)
+
+    if (!response.ok) {
+      const message =
+        asRecord(payload)?.error ||
+        asRecord(payload)?.details ||
+        `Request failed (${response.status})`
+      throw new Error(String(message))
+    }
+
+    return payload as T
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new Error('Request timed out — the API may be waking up. Try again.')
+    }
+    if (error instanceof Error) throw error
+    throw new Error('Unexpected network error')
+  } finally {
+    window.clearTimeout(timeout)
+  }
+}
+
+export async function fetchSongs(
+  options?: PaginationOptions,
+): Promise<ApiSong[]> {
+  const query = buildQuery(options)
+  const payload = await apiRequest<unknown>(`/api/songs?${query.toString()}`)
+  const rows = Array.isArray(payload) ? payload : []
+  return rows.map(normalizeSong).filter((song): song is ApiSong => Boolean(song))
+}
+
+export async function fetchAlbums(
+  options?: PaginationOptions,
+): Promise<ApiAlbum[]> {
+  const query = buildQuery(options)
+  const payload = await apiRequest<{ albums?: unknown[] }>(
+    `/api/albums?${query.toString()}`,
+  )
+  const rows = Array.isArray(payload?.albums) ? payload.albums : []
+  return rows.map(normalizeAlbum).filter((album): album is ApiAlbum => Boolean(album))
+}
+
+export async function fetchArtists(
+  options?: PaginationOptions,
+): Promise<ApiArtist[]> {
+  const query = buildQuery({ ...options, limit: options?.limit ?? 48 })
+  const payload = await apiRequest<{ artists?: unknown[] }>(
+    `/api/artists?${query.toString()}`,
+  )
+  const rows = Array.isArray(payload?.artists) ? payload.artists : []
+  return rows
+    .map(normalizeArtist)
+    .filter((artist): artist is ApiArtist => Boolean(artist))
+}
+
+export async function fetchCatalogBundle(): Promise<CatalogBundle> {
+  const [songs, albums, artists] = await Promise.all([
+    fetchSongs({ limit: 100, page: 1 }),
+    fetchAlbums({ limit: 100, page: 1 }),
+    fetchArtists({ limit: 48, page: 1 }),
+  ])
+  return { songs, albums, artists }
+}
+
+function normalizeQuery(query: string) {
+  return query.trim().toLowerCase()
+}
+
+export function filterSongsByQuery(songs: ApiSong[], query: string) {
+  const q = normalizeQuery(query)
+  if (!q) return songs
+  return songs.filter(
+    (song) =>
+      song.title.toLowerCase().includes(q) ||
+      song.artist.toLowerCase().includes(q) ||
+      song.album.toLowerCase().includes(q),
+  )
+}
+
+export function sortSongsList(songs: ApiSong[], sort: SongSort) {
+  const list = [...songs]
+  if (sort === 'az') {
+    return list.sort((a, b) => a.title.localeCompare(b.title))
+  }
+  return list.sort((a, b) => {
+    const bTime = Date.parse(b.createdAt || '') || 0
+    const aTime = Date.parse(a.createdAt || '') || 0
+    return bTime - aTime
+  })
+}
+
+export function filterArtistsByQuery(artists: ApiArtist[], query: string) {
+  const q = normalizeQuery(query)
+  if (!q) return artists
+  return artists.filter((artist) => artist.name.toLowerCase().includes(q))
+}
+
+export function sortArtistsList(artists: ApiArtist[], sort: ArtistSort) {
+  const list = [...artists]
+  if (sort === 'tracks') {
+    return list.sort((a, b) => b.songCount - a.songCount || a.name.localeCompare(b.name))
+  }
+  return list.sort((a, b) => a.name.localeCompare(b.name))
+}
+
+export function filterAlbumsByQuery(
+  albums: ApiAlbum[],
+  query: string,
+  artistNames: Map<string, string>,
+) {
+  const q = normalizeQuery(query)
+  if (!q) return albums
+  return albums.filter((album) => {
+    const artistName = album.artistId
+      ? artistNames.get(album.artistId) || ''
+      : ''
+    return (
+      album.title.toLowerCase().includes(q) ||
+      artistName.toLowerCase().includes(q)
+    )
+  })
+}
+
+export function sortAlbumsList(albums: ApiAlbum[], sort: AlbumSort) {
+  const list = [...albums]
+  if (sort === 'az') {
+    return list.sort((a, b) => a.title.localeCompare(b.title))
+  }
+  return list.sort((a, b) => {
+    const bTime = Date.parse(b.createdAt || '') || 0
+    const aTime = Date.parse(a.createdAt || '') || 0
+    return bTime - aTime
+  })
+}
+
+export function buildArtistNameLookup(artists: ApiArtist[]) {
+  return new Map(artists.map((artist) => [artist.id, artist.name]))
+}
