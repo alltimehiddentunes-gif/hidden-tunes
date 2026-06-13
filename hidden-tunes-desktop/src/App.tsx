@@ -2065,6 +2065,95 @@ function formatPlaybackTime(seconds: number) {
   return `${minutes}:${String(remainder).padStart(2, '0')}`
 }
 
+
+const PlaybackTransportControls = memo(function PlaybackTransportControls({
+  activeTrackId,
+  className = 'player-controls',
+}: {
+  activeTrackId: string | null
+  className?: string
+}) {
+  const {
+    currentTrack,
+    currentQueue,
+    currentIndex,
+    isPlaying,
+    isLoading,
+    pause,
+    resume,
+    next,
+    previous,
+  } = useDesktopPlayback()
+
+  const isActive = Boolean(activeTrackId && currentTrack?.id === activeTrackId)
+  const hasPrevious = isActive && currentIndex > 0
+  const hasNext =
+    isActive && currentIndex >= 0 && currentIndex < currentQueue.length - 1
+  const showPlaying = isActive && isPlaying
+  const showLoading = isActive && isLoading
+
+  const handlePlayPause = () => {
+    if (!isActive || isLoading) return
+    if (isPlaying) {
+      pause()
+      return
+    }
+    resume()
+  }
+
+  return (
+    <div className={className}>
+      <button
+        type="button"
+        className="control-btn"
+        onClick={previous}
+        disabled={!hasPrevious}
+        aria-label={hasPrevious ? 'Previous track' : 'Previous track (not available yet)'}
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M6 6h2v12H6V6zm3.5 6l8.5 6V6l-8.5 6z" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        className={`control-btn play${showPlaying ? ' is-active' : ''}`}
+        onClick={handlePlayPause}
+        disabled={!isActive || isLoading}
+        aria-label={
+          showLoading
+            ? 'Loading track'
+            : showPlaying
+              ? 'Pause'
+              : 'Play'
+        }
+      >
+        {showLoading ? (
+          <span className="player-spinner" aria-hidden="true" />
+        ) : showPlaying ? (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M6 5h4v14H6V5zm8 0h4v14h-4V5z" />
+          </svg>
+        ) : (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M8 5v14l11-7L8 5z" />
+          </svg>
+        )}
+      </button>
+      <button
+        type="button"
+        className="control-btn"
+        onClick={next}
+        disabled={!hasNext}
+        aria-label={hasNext ? 'Next track' : 'Next track (not available yet)'}
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M6 18l8.5-6L6 6v12zm10-12h2v12h-2V6z" />
+        </svg>
+      </button>
+    </div>
+  )
+})
+
 const PlayerBar = memo(function PlayerBar({ track }: { track: ApiSong | null }) {
   const {
     currentTrack,
@@ -2079,12 +2168,8 @@ const PlayerBar = memo(function PlayerBar({ track }: { track: ApiSong | null }) 
     volume,
     audioQualityMode,
     setAudioQualityMode,
-    pause,
-    resume,
     seekTo,
     setVolume,
-    next,
-    previous,
   } = useDesktopPlayback()
 
   const progressTrackRef = useRef<HTMLDivElement>(null)
@@ -2100,8 +2185,6 @@ const PlayerBar = memo(function PlayerBar({ track }: { track: ApiSong | null }) 
   const progressPercent =
     progressMax > 0 ? Math.min(100, (progressValue / progressMax) * 100) : 0
   const volumePercent = Math.min(100, Math.max(0, volume * 100))
-  const hasPrevious = currentIndex > 0
-  const hasNext = currentIndex >= 0 && currentIndex < currentQueue.length - 1
   const showQueuePosition = currentQueue.length > 1 && currentIndex >= 0
   const queueLabel = QUEUE_CONTEXT_LABELS[queueContext]
   const volumeLevel =
@@ -2191,15 +2274,6 @@ const PlayerBar = memo(function PlayerBar({ track }: { track: ApiSong | null }) 
           ? 'paused'
           : 'idle'
 
-  const handlePlayPause = () => {
-    if (isLoading) return
-    if (isPlaying) {
-      pause()
-      return
-    }
-    resume()
-  }
-
   return (
     <footer
       className={`player-bar player-bar--${barState}`}
@@ -2226,55 +2300,7 @@ const PlayerBar = memo(function PlayerBar({ track }: { track: ApiSong | null }) 
       </div>
 
       <div className="player-center">
-        <div className="player-controls">
-          <button
-            type="button"
-            className="control-btn"
-            onClick={previous}
-            disabled={!hasPrevious}
-            aria-label={hasPrevious ? 'Previous track' : 'Previous track (not available yet)'}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M6 6h2v12H6V6zm3.5 6l8.5 6V6l-8.5 6z" />
-            </svg>
-          </button>
-          <button
-            type="button"
-            className={`control-btn play${isPlaying ? ' is-active' : ''}`}
-            onClick={handlePlayPause}
-            disabled={!displayTrack || isLoading}
-            aria-label={
-              isLoading
-                ? 'Loading track'
-                : isPlaying
-                  ? 'Pause'
-                  : 'Play'
-            }
-          >
-            {isLoading ? (
-              <span className="player-spinner" aria-hidden="true" />
-            ) : isPlaying ? (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M6 5h4v14H6V5zm8 0h4v14h-4V5z" />
-              </svg>
-            ) : (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M8 5v14l11-7L8 5z" />
-              </svg>
-            )}
-          </button>
-          <button
-            type="button"
-            className="control-btn"
-            onClick={next}
-            disabled={!hasNext}
-            aria-label={hasNext ? 'Next track' : 'Next track (not available yet)'}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M6 18l8.5-6L6 6v12zm10-12h2v12h-2V6z" />
-            </svg>
-          </button>
-        </div>
+        <PlaybackTransportControls activeTrackId={displayTrack?.id ?? null} />
         <div
           className="progress-wrap"
           role="group"
@@ -2479,23 +2505,10 @@ function SongDetailView({
           {created ? (
             <p className="detail-stats">Added {created}</p>
           ) : null}
-          <div className="detail-controls">
-            <button type="button" className="control-btn" aria-label="Previous (UI only)">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M6 6h2v12H6V6zm3.5 6l8.5 6V6l-8.5 6z" />
-              </svg>
-            </button>
-            <button type="button" className="control-btn play" aria-label="Play (UI only)">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M8 5v14l11-7L8 5z" />
-              </svg>
-            </button>
-            <button type="button" className="control-btn" aria-label="Next (UI only)">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M6 18l8.5-6L6 6v12zm10-12h2v12h-2V6z" />
-              </svg>
-            </button>
-          </div>
+          <PlaybackTransportControls
+            activeTrackId={song.id}
+            className="detail-controls"
+          />
         </div>
       </section>
 
