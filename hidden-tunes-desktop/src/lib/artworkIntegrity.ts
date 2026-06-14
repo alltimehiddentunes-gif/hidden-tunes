@@ -1,20 +1,24 @@
 import type { ApiAlbum, ApiArtist, ApiSong } from './api'
 import {
   buildCatalogIndexes,
-  resolveAlbumArtwork,
   resolveAlbumDisplayArtist,
   resolveSongsForAlbum,
   type CatalogIndexes,
 } from './catalogIndexes'
 import { filterSongsByListeningScene } from './sceneListening'
 import {
-  lookupRegistryAlbumArtwork,
-  lookupRegistryArtistArtwork,
-  lookupRegistryPlaylistArtwork,
-  lookupRegistrySongArtwork,
-  lookupRegistryTheaterArtwork,
-  lookupRegistryWorldArtwork,
-} from './artworkRegistry'
+  isValidArtworkUrl,
+  listMissingRegistryAssets,
+  resolveAlbumArtwork,
+  resolveArtistPortrait,
+  resolvePlaylistCover,
+  resolvePlayerBackground,
+  resolveSongArtwork,
+  resolveWorldArtwork,
+  type PlayerBackgroundType,
+  type PlaylistArtworkInput,
+  type WorldArtworkInput,
+} from '../data/artworkRegistry'
 
 export type ArtworkContext = {
   indexes: CatalogIndexes
@@ -22,21 +26,12 @@ export type ArtworkContext = {
   artistsById: Map<string, ApiArtist>
 }
 
-export type PlaylistArtworkTarget = {
-  id?: string | null
-  title: string
-  songs?: ApiSong[]
-}
+export type PlaylistArtworkTarget = PlaylistArtworkInput
 
-export type WorldArtworkTarget = {
-  id?: string | null
-  title: string
-  sceneId?: string | null
-}
+export type WorldArtworkTarget = WorldArtworkInput
 
-export function isValidArtworkUrl(value: string | null | undefined): value is string {
-  return typeof value === 'string' && value.trim().startsWith('http')
-}
+export { isValidArtworkUrl, listMissingRegistryAssets, resolvePlayerBackground }
+export type { PlayerBackgroundType }
 
 export function deriveEntityInitials(name: string, max = 2): string {
   const parts = name
@@ -72,24 +67,15 @@ export function getArtworkForSong(
   song: ApiSong | null | undefined,
   context?: ArtworkContext,
 ): string | null {
-  if (!song) return null
+  const direct = resolveSongArtwork(song)
+  if (direct) return direct
 
-  const registryArt = lookupRegistrySongArtwork(song)
-  if (registryArt) return registryArt
+  if (!song || !context || !song.albumId) return null
 
-  if (isValidArtworkUrl(song.artwork)) return song.artwork.trim()
+  const album = context.albumsById.get(song.albumId)
+  if (!album) return null
 
-  if (!context) return null
-
-  if (song.albumId) {
-    const album = context.albumsById.get(song.albumId)
-    if (album) {
-      const albumArt = getArtworkForAlbum(album, context)
-      if (isValidArtworkUrl(albumArt)) return albumArt.trim()
-    }
-  }
-
-  return null
+  return getArtworkForAlbum(album, context)
 }
 
 export function getArtworkForAlbum(
@@ -98,57 +84,47 @@ export function getArtworkForAlbum(
 ): string | null {
   if (!album) return null
 
-  const artistName = resolveAlbumDisplayArtist(
-    album,
-    resolveSongsForAlbum(
-      album,
-      context.indexes.songsByAlbumId,
-      context.indexes.songsByAlbumName,
-      context.indexes.artistNames,
-    ),
-    context.indexes.artistNames,
-  )
-
-  const registryArt = lookupRegistryAlbumArtwork(album, artistName)
-  if (registryArt) return registryArt
-
-  if (isValidArtworkUrl(album.artwork)) return album.artwork.trim()
-
   const albumSongs = resolveSongsForAlbum(
     album,
     context.indexes.songsByAlbumId,
     context.indexes.songsByAlbumName,
     context.indexes.artistNames,
   )
-  const resolved = resolveAlbumArtwork(album, albumSongs)
-  return isValidArtworkUrl(resolved) ? resolved.trim() : null
+  const artistName = resolveAlbumDisplayArtist(
+    album,
+    albumSongs,
+    context.indexes.artistNames,
+  )
+
+  const registryOrCatalog = resolveAlbumArtwork(album, artistName)
+  if (registryOrCatalog) return registryOrCatalog
+
+  for (const song of albumSongs) {
+    const trackArt = resolveSongArtwork(song)
+    if (trackArt) return trackArt
+  }
+
+  return null
 }
 
 export function getArtworkForArtist(
   artist: ApiArtist | null | undefined,
   _context?: ArtworkContext,
 ): string | null {
-  if (!artist) return null
-
-  const registryArt = lookupRegistryArtistArtwork(artist)
-  if (registryArt) return registryArt
-
-  if (isValidArtworkUrl(artist.artwork)) return artist.artwork.trim()
-
-  return null
+  return resolveArtistPortrait(artist)
 }
 
 export function getArtworkForPlaylist(
   playlist: PlaylistArtworkTarget,
   context?: ArtworkContext,
 ): string | null {
-  const registryArt = lookupRegistryPlaylistArtwork(playlist)
-  if (registryArt) return registryArt
+  const cover = resolvePlaylistCover(playlist)
+  if (cover) return cover
 
   const songs = playlist.songs ?? []
   for (const song of songs) {
-    const artwork = context ? getArtworkForSong(song, context) : song.artwork
-    if (isValidArtworkUrl(artwork)) return artwork.trim()
+    const artwork = context ? getArtworkForSong(song, context) : resolveSongArtwork(song)
+    if (artwork) return artwork
   }
 
   return null
@@ -163,8 +139,8 @@ export function getArtworkForPlaylistCollage(
   const seen = new Set<string>()
 
   for (const song of playlistSongs) {
-    const artwork = context ? getArtworkForSong(song, context) : song.artwork
-    if (!isValidArtworkUrl(artwork)) continue
+    const artwork = context ? getArtworkForSong(song, context) : resolveSongArtwork(song)
+    if (!artwork || !isValidArtworkUrl(artwork)) continue
     const normalized = artwork.trim()
     if (seen.has(normalized)) continue
     seen.add(normalized)
@@ -180,40 +156,37 @@ export function getArtworkForWorld(
   songs: ApiSong[],
   context?: ArtworkContext,
 ): string | null {
-  const registryArt = lookupRegistryWorldArtwork(world)
+  const registryArt = resolveWorldArtwork(world)
   if (registryArt) return registryArt
 
-  if (world.sceneId) {
-    const worldTracks = filterSongsByListeningScene(songs, world.sceneId)
-    for (const song of worldTracks) {
-      const artwork = context ? getArtworkForSong(song, context) : song.artwork
-      if (isValidArtworkUrl(artwork)) return artwork.trim()
-    }
+  if (!world.sceneId) return null
+
+  const worldTracks = filterSongsByListeningScene(songs, world.sceneId)
+  for (const song of worldTracks) {
+    const artwork = context ? getArtworkForSong(song, context) : resolveSongArtwork(song)
+    if (artwork) return artwork
   }
 
   return null
 }
 
 export function getArtworkForTheater(
-  track: ApiSong | null | undefined,
-  context?: ArtworkContext,
+  _track: ApiSong | null | undefined,
+  _context?: ArtworkContext,
 ): string | null {
-  const registryArt = lookupRegistryTheaterArtwork()
-  if (registryArt) return registryArt
-
-  return getArtworkForSong(track, context)
+  return resolvePlayerBackground('master')
 }
 
-/** @deprecated Use getArtworkForSong */
+/** @deprecated Use resolveSongArtwork / getArtworkForSong */
 export const getSongArtwork = getArtworkForSong
 
-/** @deprecated Use getArtworkForAlbum */
+/** @deprecated Use resolveAlbumArtwork / getArtworkForAlbum */
 export const getAlbumArtwork = getArtworkForAlbum
 
-/** @deprecated Use getArtworkForArtist */
+/** @deprecated Use resolveArtistPortrait / getArtworkForArtist */
 export const getArtistArtwork = getArtworkForArtist
 
-/** @deprecated Use getArtworkForPlaylist */
+/** @deprecated Use resolvePlaylistCover / getArtworkForPlaylist */
 export const getPlaylistArtwork = getArtworkForPlaylist
 
 /** @deprecated Use getArtworkForPlaylistCollage */
@@ -227,14 +200,14 @@ export function enrichCatalogArtwork(
   const provisionalIndexes = buildCatalogIndexes(songs, albums, artists)
   const context = buildArtworkContext(provisionalIndexes, albums, artists)
 
+  const enrichedArtists = artists.map((artist) => ({
+    ...artist,
+    artwork: resolveArtistPortrait(artist),
+  }))
+
   const enrichedAlbums = albums.map((album) => ({
     ...album,
     artwork: getArtworkForAlbum(album, context),
-  }))
-
-  const enrichedArtists = artists.map((artist) => ({
-    ...artist,
-    artwork: getArtworkForArtist(artist, context),
   }))
 
   const enrichedContext = buildArtworkContext(provisionalIndexes, enrichedAlbums, enrichedArtists)
@@ -250,4 +223,10 @@ export function enrichCatalogArtwork(
   }
 }
 
-export { listMissingRegistryAssets } from './artworkRegistry'
+export {
+  resolveAlbumArtwork,
+  resolveArtistPortrait,
+  resolvePlaylistCover,
+  resolveSongArtwork,
+  resolveWorldArtwork,
+} from '../data/artworkRegistry'

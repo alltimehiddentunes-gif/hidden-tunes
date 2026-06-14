@@ -56,7 +56,6 @@ function enrichSongForCatalog(base: ApiSong, artist?: ApiArtist): ApiSong {
     ...base,
     artist: base.artist || artist.name,
     artistId: base.artistId || artist.id,
-    artwork: base.artwork || artist.artwork,
   }
 }
 

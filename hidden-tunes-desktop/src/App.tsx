@@ -54,6 +54,7 @@ import {
   getArtworkForPlaylist,
   getArtworkForPlaylistCollage,
   getArtworkForWorld,
+  resolvePlayerBackground,
   type ArtworkContext,
   buildArtworkContext,
 } from './lib/artworkIntegrity'
@@ -1484,7 +1485,7 @@ const ArtistAvatar = memo(function ArtistAvatar({
   return (
     <span className="artist-avatar" aria-hidden="true">
       <ArtworkImage
-        src={artist.artwork}
+        src={getArtworkForArtist(artist)}
         alt=""
         seed={artist.id}
         label={artist.name}
@@ -6097,7 +6098,7 @@ const CinemaPlayerShell = memo(function CinemaPlayerShell({
     >
       <EntityAtmosphereBackdrop
         className="psd-player-master-bg"
-        artworkUrl={displayTrack?.artwork ?? null}
+        artworkUrl={resolvePlayerBackground('master')}
         label={displayTitle}
         variant="player"
       />
@@ -6438,7 +6439,7 @@ const Player2Shell = memo(function Player2Shell({
     >
       <EntityAtmosphereBackdrop
         className="player2-bg"
-        artworkUrl={displayTrack?.artwork ?? null}
+        artworkUrl={resolvePlayerBackground('player2')}
         label={displayTrack?.title ?? PSD_PLAYER2_TITLE_TOP}
         variant="player"
       />
@@ -6809,7 +6810,7 @@ const Player3Shell = memo(function Player3Shell({
     >
       <EntityAtmosphereBackdrop
         className="player3-bg"
-        artworkUrl={displayTrack?.artwork ?? null}
+        artworkUrl={resolvePlayerBackground('player3')}
         label={displayTrack?.title ?? PSD_PLAYER3_TITLE_MAIN}
         variant="player"
       />
@@ -7278,7 +7279,7 @@ const Player4Shell = memo(function Player4Shell({
     >
       <EntityAtmosphereBackdrop
         className="player4-bg"
-        artworkUrl={displayTrack?.artwork ?? null}
+        artworkUrl={resolvePlayerBackground('player4')}
         label={displayTitle}
         variant="player"
       />
@@ -7733,7 +7734,7 @@ const Player5Shell = memo(function Player5Shell({
     >
       <EntityAtmosphereBackdrop
         className="player5-bg"
-        artworkUrl={displayTrack?.artwork ?? null}
+        artworkUrl={resolvePlayerBackground('player5')}
         label={displayTitle}
         variant="player"
       />
@@ -8194,7 +8195,7 @@ const CinematicWaveformShell = memo(function CinematicWaveformShell({
     >
       <EntityAtmosphereBackdrop
         className="psd-waveform-bg"
-        artworkUrl={displayTrack?.artwork ?? null}
+        artworkUrl={resolvePlayerBackground('waveform')}
         label={displayTitle}
         variant="player"
       />
@@ -8428,7 +8429,7 @@ const FullscreenLyricsShell = memo(function FullscreenLyricsShell({
     >
       <EntityAtmosphereBackdrop
         className="psd-lyrics-bg"
-        artworkUrl={displayTrack?.artwork ?? null}
+        artworkUrl={resolvePlayerBackground('lyrics')}
         label={displayTitle}
         variant="player"
       />

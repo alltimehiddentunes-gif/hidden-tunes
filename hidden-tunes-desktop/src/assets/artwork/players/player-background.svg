@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Player background">
+  <defs>
+    <linearGradient id="pb-base" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#050509"/>
+      <stop offset="45%" stop-color="#12081f"/>
+      <stop offset="100%" stop-color="#0d0d14"/>
+    </linearGradient>
+    <radialGradient id="pb-violet" cx="22%" cy="18%" r="55%">
+      <stop offset="0%" stop-color="#6d4aff" stop-opacity="0.22"/>
+      <stop offset="100%" stop-color="#6d4aff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="pb-gold" cx="78%" cy="82%" r="48%">
+      <stop offset="0%" stop-color="#f5c542" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#f5c542" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1920" height="1080" fill="url(#pb-base)"/>
+  <rect width="1920" height="1080" fill="url(#pb-violet)"/>
+  <rect width="1920" height="1080" fill="url(#pb-gold)"/>
+</svg>

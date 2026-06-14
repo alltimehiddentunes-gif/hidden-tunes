@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Wills Afrobeats artist portrait placeholder">
+  <defs>
+    <linearGradient id="wa-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1a1030"/>
+      <stop offset="55%" stop-color="#2d1b4e"/>
+      <stop offset="100%" stop-color="#12081f"/>
+    </linearGradient>
+    <radialGradient id="wa-glow" cx="50%" cy="35%" r="60%">
+      <stop offset="0%" stop-color="#6d4aff" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#6d4aff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#wa-bg)"/>
+  <rect width="512" height="512" fill="url(#wa-glow)"/>
+  <circle cx="256" cy="220" r="118" fill="#12081f" stroke="rgba(245,197,66,0.35)" stroke-width="4"/>
+  <text x="256" y="248" text-anchor="middle" font-family="system-ui,sans-serif" font-size="72" font-weight="700" fill="rgba(245,243,250,0.88)">WA</text>
+</svg>

@@ -131,7 +131,7 @@ function pickDurationSeconds(row: Record<string, unknown>): number | null {
   return null
 }
 
-function pickArtwork(row: Record<string, unknown>): string | null {
+function pickSongArtwork(row: Record<string, unknown>): string | null {
   const candidates = [
     row.artwork,
     row.artwork_url,
@@ -139,8 +139,6 @@ function pickArtwork(row: Record<string, unknown>): string | null {
     row.cover,
     row.album_artwork_url,
     row.thumbnail,
-    row.image_url,
-    row.avatar_url,
   ]
 
   for (const value of candidates) {
@@ -150,6 +148,34 @@ function pickArtwork(row: Record<string, unknown>): string | null {
   }
 
   return null
+}
+
+function pickAlbumArtwork(row: Record<string, unknown>): string | null {
+  const candidates = [
+    row.artwork,
+    row.artwork_url,
+    row.cover_url,
+    row.cover,
+    row.album_artwork_url,
+    row.thumbnail,
+  ]
+
+  for (const value of candidates) {
+    if (typeof value === 'string' && value.trim().startsWith('http')) {
+      return value.trim()
+    }
+  }
+
+  return null
+}
+
+function pickArtistPortrait(row: Record<string, unknown>): string | null {
+  return pickHttpUrl(row, [
+    'image_url',
+    'avatar_url',
+    'portrait_url',
+    'artist_image_url',
+  ])
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -179,9 +205,8 @@ function normalizeSong(row: unknown): ApiSong | null {
   const playback = pickPlaybackUrls(record)
   const nestedArtist = asRecord(record.artists)
   const nestedAlbum = asRecord(record.album) ?? asRecord(record.albums)
-  const directArtwork = pickArtwork(record)
-  const albumArtwork = nestedAlbum ? pickArtwork(nestedAlbum) : null
-  const artistArtwork = nestedArtist ? pickArtwork(nestedArtist) : null
+  const directArtwork = pickSongArtwork(record)
+  const albumArtwork = nestedAlbum ? pickAlbumArtwork(nestedAlbum) : null
 
   return {
     id: String(record.id),
@@ -215,7 +240,7 @@ function normalizeSong(row: unknown): ApiSong | null {
     tags: pickStringList(record.tags),
     description:
       typeof record.description === 'string' ? record.description.trim() : null,
-    artwork: directArtwork ?? albumArtwork ?? artistArtwork,
+    artwork: directArtwork ?? albumArtwork,
     previewUrl: playback.previewUrl,
     audioUrl: playback.audioUrl,
     highQualityUrl: playback.highQualityUrl,
@@ -237,7 +262,7 @@ function normalizeAlbum(row: unknown): ApiAlbum | null {
   return {
     id: String(record.id),
     title: String(record.title || 'Untitled Album'),
-    artwork: pickArtwork(record),
+    artwork: pickAlbumArtwork(record),
     releaseYear,
     createdAt,
     artistId: record.artist_id != null ? String(record.artist_id) : null,
@@ -261,7 +286,7 @@ function normalizeArtist(row: unknown): ApiArtist | null {
   return {
     id: String(record.id),
     name: String(record.name || 'Unknown Artist').trim(),
-    artwork: pickArtwork(record),
+    artwork: pickArtistPortrait(record),
     songCount,
     tracks,
   }
