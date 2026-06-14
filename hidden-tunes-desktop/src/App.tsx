@@ -3318,131 +3318,235 @@ const PlayerBar = memo(function PlayerBar({
   )
 })
 
+
+function buildRailWaveformHeights(seed: string, count = 36) {
+  let hash = 0
+  for (let index = 0; index < seed.length; index += 1) {
+    hash = (hash * 31 + seed.charCodeAt(index)) >>> 0
+  }
+  return Array.from({ length: count }, (_, index) => {
+    const value = Math.sin((hash + index * 17) * 0.73) * 0.5 + 0.5
+    const shaped = 0.28 + value * 0.72
+    return Math.round(shaped * 100)
+  })
+}
+
+const RailWaveformSeek = memo(function RailWaveformSeek({
+  trackId,
+  progressPercent,
+  progressMax,
+  isLoading,
+  onSeek,
+}: {
+  trackId: string | null
+  progressPercent: number
+  progressMax: number
+  isLoading: boolean
+  onSeek: (seconds: number) => void
+}) {
+  const trackRef = useRef<HTMLDivElement>(null)
+  const isSeekingRef = useRef(false)
+  const heights = useMemo(
+    () => buildRailWaveformHeights(trackId ?? 'idle-rail'),
+    [trackId],
+  )
+
+  const resolveSeekSeconds = useCallback(
+    (clientX: number) => {
+      const trackEl = trackRef.current
+      if (!trackEl || progressMax <= 0) return null
+      const rect = trackEl.getBoundingClientRect()
+      if (rect.width <= 0) return null
+      const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width))
+      return ratio * progressMax
+    },
+    [progressMax],
+  )
+
+  const handleSeekClick = (event: ReactMouseEvent<HTMLDivElement>) => {
+    if (progressMax <= 0 || isLoading || isSeekingRef.current) return
+    const seconds = resolveSeekSeconds(event.clientX)
+    if (seconds != null) onSeek(seconds)
+  }
+
+  const handleSeekPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (progressMax <= 0 || isLoading) return
+    const seconds = resolveSeekSeconds(event.clientX)
+    if (seconds == null) return
+    isSeekingRef.current = true
+    event.currentTarget.setPointerCapture(event.pointerId)
+    onSeek(seconds)
+  }
+
+  const handleSeekPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!isSeekingRef.current) return
+    const seconds = resolveSeekSeconds(event.clientX)
+    if (seconds != null) onSeek(seconds)
+  }
+
+  const handleSeekPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!isSeekingRef.current) return
+    isSeekingRef.current = false
+    event.currentTarget.releasePointerCapture(event.pointerId)
+  }
+
+  return (
+    <div
+      ref={trackRef}
+      className="rail-waveform"
+      role="slider"
+      aria-label="Playback position"
+      aria-valuemin={0}
+      aria-valuemax={progressMax > 0 ? progressMax : 0}
+      aria-valuenow={progressMax > 0 ? (progressPercent / 100) * progressMax : 0}
+      aria-disabled={progressMax <= 0 || isLoading}
+      onClick={handleSeekClick}
+      onPointerDown={handleSeekPointerDown}
+      onPointerMove={handleSeekPointerMove}
+      onPointerUp={handleSeekPointerUp}
+      onPointerCancel={handleSeekPointerUp}
+    >
+      {heights.map((height, index) => {
+        const barProgress = ((index + 0.5) / heights.length) * 100
+        const isPlayed = barProgress <= progressPercent
+        return (
+          <span
+            key={index}
+            className={`rail-waveform-bar${isPlayed ? ' is-played' : ''}`}
+            style={{ height: `${height}%` }}
+            aria-hidden="true"
+          />
+        )
+      })}
+    </div>
+  )
+})
+
 const QueueUpNextPanel = memo(function QueueUpNextPanel() {
   const {
     currentTrack,
     currentQueue,
     currentIndex,
-    queueContext,
     isPlaying,
     isLoading,
+    positionSeconds,
+    durationSeconds,
     getUpcomingTracks,
+    seekTo,
   } = useDesktopPlayback()
 
   const listScrollRef = useRef<HTMLOListElement>(null)
   const activeTrackId = currentTrack?.id ?? null
 
-  const queueLabel = QUEUE_CONTEXT_LABELS[queueContext]
   const activeTrack =
     currentIndex >= 0 ? (currentTrack ?? currentQueue[currentIndex] ?? null) : null
+  const hasPlayback = Boolean(activeTrack && currentQueue.length > 0 && currentIndex >= 0)
   const upcomingTracks = getUpcomingTracks()
-  const showRail = Boolean(activeTrack && currentQueue.length > 0 && currentIndex >= 0)
-
-  const queueSnapshot = useMemo(
-    () =>
-      analyzeQueueSnapshot({
-        queue: currentQueue,
-        currentIndex,
-        currentTrack,
-      }),
-    [currentQueue, currentIndex, currentTrack],
-  )
-
-  const queueInsight = useMemo(
-    () => (queueSnapshot ? describeQueueInsight(queueSnapshot) : null),
-    [queueSnapshot],
-  )
+  const progressMax = hasPlayback && durationSeconds > 0 ? durationSeconds : 0
+  const progressValue = progressMax > 0 ? Math.min(positionSeconds, progressMax) : 0
+  const progressPercent =
+    progressMax > 0 ? Math.min(100, (progressValue / progressMax) * 100) : 0
 
   useEffect(() => {
     if (!listScrollRef.current) return
     listScrollRef.current.scrollTop = 0
   }, [activeTrackId, currentIndex])
 
-  if (!showRail || !activeTrack) return null
-
-  const nowPlayingLabel = isLoading
-    ? 'Loading'
-    : isPlaying
-      ? 'Now playing'
-      : 'Paused'
+  const displayTitle = activeTrack?.title ?? 'Nothing playing'
+  const displayArtist = activeTrack?.artist ?? 'Select a world to begin'
 
   return (
     <aside
-      className="queue-rail"
-      aria-label="Playback queue"
+      className="queue-rail now-playing-rail"
+      aria-label="Now playing"
       data-playing={isPlaying ? 'true' : 'false'}
       data-loading={isLoading ? 'true' : 'false'}
+      data-idle={hasPlayback ? 'false' : 'true'}
     >
-      <div className="queue-rail-inner">
-        <header className="queue-rail-header">
-          <div className="queue-rail-heading">
-            <h2>Queue</h2>
-            <span className="queue-rail-position">
-              Track {currentIndex + 1} of {currentQueue.length}
-            </span>
-          </div>
-          <span className="queue-rail-context">{queueLabel}</span>
+      <div className="now-playing-rail-inner">
+        <header className="now-playing-rail-header">
+          <p className="now-playing-rail-eyebrow">Now Playing</p>
         </header>
 
-        {queueInsight ? (
-          <p className="queue-rail-insight">{queueInsight}</p>
-        ) : null}
+        <section className="now-playing-stage" aria-label="Current track">
+          <div className="now-playing-art-shell">
+            <div className="now-playing-art-glow" aria-hidden="true" />
+            <div className="now-playing-art-frame">
+              {hasPlayback && activeTrack ? (
+                <ArtworkImage
+                  src={activeTrack.artwork}
+                  alt=""
+                  seed={activeTrack.id}
+                  priority
+                />
+              ) : (
+                <div className="now-playing-art-placeholder" aria-hidden="true">
+                  <MusicNoteIcon className="now-playing-art-placeholder-icon" />
+                </div>
+              )}
+              {isLoading ? (
+                <span className="now-playing-art-spinner player-spinner" aria-hidden="true" />
+              ) : null}
+            </div>
+            <button
+              type="button"
+              className="now-playing-heart"
+              aria-label="Favorite"
+              title="Favorite"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
+                <path d="M12 20.8l-1.1-1C6.4 15.36 3 12.28 3 8.5 3 6 5 4 7.5 4c1.74 0 3.41 1.01 4.5 2.36C13.09 5.01 14.76 4 16.5 4 19 4 21 6 21 8.5c0 3.78-3.4 6.86-7.9 11.3L12 20.8z" />
+              </svg>
+            </button>
+          </div>
 
-        <section className="queue-now-card" aria-label="Now playing">
-          <div className="queue-now-artwork" aria-hidden="true">
-            <ArtworkImage
-              src={activeTrack.artwork}
-              alt=""
-              seed={activeTrack.id}
-              priority
-            />
-            {isLoading ? (
-              <span className="queue-now-spinner player-spinner" aria-hidden="true" />
-            ) : null}
+          <div className="now-playing-meta">
+            <h3 className="now-playing-title">{displayTitle}</h3>
+            <p className="now-playing-artist">{displayArtist}</p>
           </div>
-          <div className="queue-now-copy">
-            <p className="queue-now-label">{nowPlayingLabel}</p>
-            <p className="queue-now-title">{activeTrack.title}</p>
-            <p className="queue-now-artist">{activeTrack.artist}</p>
-            {activeTrack.album ? (
-              <p className="queue-now-album">{activeTrack.album}</p>
-            ) : null}
+
+          <RailWaveformSeek
+            trackId={activeTrack?.id ?? null}
+            progressPercent={progressPercent}
+            progressMax={progressMax}
+            isLoading={isLoading}
+            onSeek={seekTo}
+          />
+
+          <div className="now-playing-times" aria-hidden="true">
+            <span>{formatPlaybackTime(progressValue)}</span>
+            <span>{formatPlaybackTime(progressMax)}</span>
           </div>
+
+          <PlaybackTransportControls
+            activeTrackId={activeTrack?.id ?? null}
+            className="rail-transport-controls"
+          />
         </section>
 
-        <section className="queue-upnext-section" aria-label="Up next">
-          <div className="queue-upnext-header">
-            <h3>Up next</h3>
-            <span className="queue-upnext-count">
-              {upcomingTracks.length}{' '}
-              {upcomingTracks.length === 1 ? 'track' : 'tracks'}
-            </span>
-          </div>
+        <section className="up-next-section" aria-label="Up next">
+          <h3 className="up-next-label">Up Next</h3>
 
           {upcomingTracks.length === 0 ? (
-            <div className="queue-empty" role="status">
-              <p className="queue-empty-title">End of queue</p>
-              <p className="queue-empty-detail">
-                Nothing lined up after this track.
-              </p>
+            <div className="up-next-empty" role="status">
+              <p>Your queue will appear here.</p>
             </div>
           ) : (
-            <ol className="queue-list queue-list-scroll" ref={listScrollRef}>
+            <ol className="up-next-list" ref={listScrollRef}>
               {upcomingTracks.map((track, index) => (
-                <li className="queue-item" key={`${track.id}-${index}`}>
-                  <span className="queue-index" aria-hidden="true">
-                    {String(currentIndex + index + 2).padStart(2, '0')}
-                  </span>
-                  <div className="queue-item-artwork" aria-hidden="true">
+                <li className="up-next-item" key={`${track.id}-${index}`}>
+                  <div className="up-next-thumb" aria-hidden="true">
                     <ArtworkImage src={track.artwork} alt="" seed={track.id} />
                   </div>
-                  <div className="queue-track">
-                    <span className="queue-track-title">{track.title}</span>
-                    <span className="queue-track-artist">{track.artist}</span>
-                    {track.album ? (
-                      <span className="queue-track-album">{track.album}</span>
-                    ) : null}
+                  <div className="up-next-copy">
+                    <span className="up-next-title">{track.title}</span>
+                    <span className="up-next-artist">{track.artist}</span>
                   </div>
+                  {track.durationSeconds != null && track.durationSeconds > 0 ? (
+                    <span className="up-next-duration">
+                      {formatPlaybackTime(track.durationSeconds)}
+                    </span>
+                  ) : null}
                 </li>
               ))}
             </ol>
