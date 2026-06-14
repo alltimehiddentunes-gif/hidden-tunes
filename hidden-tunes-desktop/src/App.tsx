@@ -112,6 +112,8 @@ import {
   deriveListeningAtmosphere,
   type ListeningContextLines,
 } from './lib/listeningContext'
+import { type NowPlayingStyle } from './lib/nowPlayingStyle'
+import { useAutoOpenPreferredPlayer } from './lib/useAutoOpenPreferredPlayer'
 import heroPhotoUrl from './assets/hero.png'
 import emotionalWorldsReferenceUrl from './assets/emotional-worlds-reference.jpg'
 import psdPlaylistReferenceUrl from './assets/psd-playlist-reference.jpg'
@@ -9269,7 +9271,7 @@ function App() {
 }
 
 function AppShell() {
-  const { currentTrack, playQueue } = useDesktopPlayback()
+  const { currentTrack, playQueue, isPlaying } = useDesktopPlayback()
   const { songs } = useCatalog()
   const [activePage, setActivePage] = usePersistedPreference(
     DESKTOP_PREFERENCE_KEYS.activePage,
@@ -9306,6 +9308,50 @@ function AppShell() {
     parseStoredSearchTerm,
   )
 
+  const anyPlayerOverlayOpen =
+    cinemaOpen
+    || player2Open
+    || player3Open
+    || player4Open
+    || player5Open
+    || waveformOpen
+    || lyricsOpen
+
+  const openPlayerByStyle = useCallback((style: NowPlayingStyle) => {
+    setCinemaOpen(style === 'player-1')
+    setPlayer2Open(style === 'player-2')
+    setPlayer3Open(style === 'player-3')
+    setPlayer4Open(style === 'player-4')
+    setPlayer5Open(style === 'player-5')
+  }, [])
+
+  const {
+    scheduleAutoOpenPlayerAfterSongTap,
+    cancelAutoOpenPlayer,
+  } = useAutoOpenPreferredPlayer({
+    isPlaying,
+    activePage,
+    activeNavKey,
+    activeView,
+    anyPlayerOverlayOpen,
+    openPlayerByStyle,
+  })
+
+  const openCinemaPlayer = useCallback(() => {
+    cancelAutoOpenPlayer()
+    setCinemaOpen(true)
+  }, [cancelAutoOpenPlayer])
+
+  const openPlayer2 = useCallback(() => {
+    cancelAutoOpenPlayer()
+    setPlayer2Open(true)
+  }, [cancelAutoOpenPlayer])
+
+  const openPlayer3 = useCallback(() => {
+    cancelAutoOpenPlayer()
+    setPlayer3Open(true)
+  }, [cancelAutoOpenPlayer])
+
   const openSong = useCallback((song: ApiSong) => {
     setDesktopSelectedTrack(song)
     setSelectedSong(song)
@@ -9341,33 +9387,37 @@ function AppShell() {
 
       openSong(resolved)
       playQueue(playableQueue, safeIndex, context, queueTitle, seedMetadata)
+      scheduleAutoOpenPlayerAfterSongTap(resolved.id)
     },
-    [openSong, playQueue, songs],
+    [openSong, playQueue, scheduleAutoOpenPlayerAfterSongTap, songs],
   )
 
   const openAlbum = useCallback((album: ApiAlbum) => {
+    cancelAutoOpenPlayer()
     setSelectedAlbum(album)
     setSelectedSong(null)
     setSelectedArtist(null)
     setSelectedMood(null)
     setActiveView('album')
-  }, [])
+  }, [cancelAutoOpenPlayer])
 
   const openArtist = useCallback((artist: ApiArtist) => {
+    cancelAutoOpenPlayer()
     setSelectedArtist(artist)
     setSelectedSong(null)
     setSelectedAlbum(null)
     setSelectedMood(null)
     setActiveView('artist')
-  }, [])
+  }, [cancelAutoOpenPlayer])
 
   const openMood = useCallback((mood: MoodRoom) => {
+    cancelAutoOpenPlayer()
     setSelectedMood(mood)
     setSelectedSong(null)
     setSelectedAlbum(null)
     setSelectedArtist(null)
     setActiveView('mood')
-  }, [])
+  }, [cancelAutoOpenPlayer])
 
   const backToPage = useCallback(() => {
     setActiveView('page')
@@ -9378,17 +9428,24 @@ function AppShell() {
   }, [])
 
   const navigateNav = useCallback((navKey: NavKey) => {
+    cancelAutoOpenPlayer()
     const page = resolvePageFromNavKey(navKey)
     setActivePage(page)
     setActiveNavKey(navKey)
     backToPage()
-  }, [backToPage, setActivePage])
+  }, [backToPage, cancelAutoOpenPlayer, setActivePage])
 
   const navigatePage = useCallback((page: PageId, navKey?: NavKey) => {
+    cancelAutoOpenPlayer()
     setActivePage(page)
     setActiveNavKey(navKey ?? resolveDefaultNavKey(page))
     backToPage()
-  }, [backToPage, setActivePage])
+  }, [backToPage, cancelAutoOpenPlayer, setActivePage])
+
+  const backToPageWithCancel = useCallback(() => {
+    cancelAutoOpenPlayer()
+    backToPage()
+  }, [backToPage, cancelAutoOpenPlayer])
 
   return (
     <>
@@ -9466,14 +9523,14 @@ function AppShell() {
                   selectedArtist={selectedArtist}
                   selectedMood={selectedMood}
                   desktopSelectedTrack={desktopSelectedTrack}
-                  onBack={backToPage}
+                  onBack={backToPageWithCancel}
                   activePage={activePage}
                   activeNavKey={activeNavKey}
                   onOpenSong={selectAndPlay}
                   onOpenAlbum={openAlbum}
                   onOpenArtist={openArtist}
                   onOpenMood={openMood}
-                  onOpenCinema={() => setCinemaOpen(true)}
+                  onOpenCinema={openCinemaPlayer}
                   discoverQuery={discoverQuery}
                   setDiscoverQuery={setDiscoverQuery}
                   albumsQuery={albumsQuery}
@@ -9488,8 +9545,8 @@ function AppShell() {
               </div>
             </main>
             <QueueUpNextPanel
-              onOpenPlayer2={() => setPlayer2Open(true)}
-              onOpenPlayer3={() => setPlayer3Open(true)}
+              onOpenPlayer2={openPlayer2}
+              onOpenPlayer3={openPlayer3}
               activeNavKey={activeNavKey}
             />
           </div>
@@ -9498,9 +9555,9 @@ function AppShell() {
       {!waveformOpen && !lyricsOpen && !player2Open && !player3Open && !player4Open && !player5Open && activeNavKey !== 'recent' ? (
         <PlayerBar
           track={desktopSelectedTrack}
-          onOpenCinema={() => setCinemaOpen(true)}
-          onOpenPlayer2={() => setPlayer2Open(true)}
-          onOpenPlayer3={() => setPlayer3Open(true)}
+          onOpenCinema={openCinemaPlayer}
+          onOpenPlayer2={openPlayer2}
+          onOpenPlayer3={openPlayer3}
         />
       ) : null}
       {player5Open ? (
