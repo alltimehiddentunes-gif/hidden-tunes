@@ -7767,3 +7767,36 @@
     gap: 16px;
   }
 }
+
+/* —— Phase 41I: Typography PSD exactness (system fonts only) —— */
+.page-view[data-page="home"] .hero-headline {
+  font-family: var(--font-ui);
+  font-weight: 500;
+  letter-spacing: -0.035em;
+}
+
+.page-view[data-page="home"] .hero-headline-accent {
+  font-family: var(--font-script);
+  font-weight: 400;
+}
+
+.page-view[data-page="home"] .popular-worlds-eyebrow,
+.now-playing-rail-eyebrow {
+  letter-spacing: 0.2em;
+  font-weight: 650;
+}
+
+.page-view[data-page="home"] .world-card-copy h3 {
+  font-family: var(--font-ui);
+  font-weight: 500;
+}
+
+.now-playing-title {
+  font-family: var(--font-ui);
+  font-weight: 600;
+}
+
+.now-playing-artist,
+.now-playing-times {
+  color: var(--psd-metadata);
+}
