@@ -8140,3 +8140,502 @@
     max-width: 100%;
   }
 }
+
+
+/* —— Phase 42B: Remaining PSD destination pages —— */
+.main-scroll--psd {
+  padding-top: clamp(12px, 1.8vw, 18px);
+  padding-inline: clamp(16px, 2.4vw, 28px);
+}
+
+.page-view[data-nav] .catalog-status-bar,
+.page-view[data-nav="home"] ~ .catalog-stale-banner,
+.main-scroll--psd .catalog-status-bar {
+  display: none;
+}
+
+.main-scroll--psd .catalog-stale-banner {
+  margin-bottom: 12px;
+}
+
+.sidebar-premium-cta.is-active {
+  border-color: rgba(255, 186, 61, 0.48);
+  box-shadow: 0 0 24px rgba(255, 186, 61, 0.16);
+}
+
+.psd-page-hero {
+  position: relative;
+  min-height: clamp(200px, 22vh, 260px);
+  margin-inline: calc(-1 * clamp(16px, 2.4vw, 28px));
+  width: calc(100% + 2 * clamp(16px, 2.4vw, 28px));
+  margin-bottom: clamp(18px, 2.6vw, 28px);
+  overflow: hidden;
+}
+
+.psd-page-hero-backdrop {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center top;
+  transform: scale(1.02);
+}
+
+.psd-page-hero-veil {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(5, 5, 9, 0.92) 0%, rgba(5, 5, 9, 0.45) 50%, rgba(5, 5, 9, 0.72) 100%),
+    linear-gradient(180deg, transparent 30%, rgba(5, 5, 9, 0.82) 100%);
+}
+
+.psd-page-hero-copy {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-height: clamp(200px, 22vh, 260px);
+  padding: clamp(24px, 3.5vw, 42px);
+  max-width: min(640px, 90%);
+}
+
+.psd-page-eyebrow {
+  margin: 0 0 8px;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(245, 197, 66, 0.72);
+}
+
+.psd-page-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 600;
+  color: rgba(250, 248, 255, 0.96);
+}
+
+.psd-page-title--library .psd-page-title-main {
+  position: relative;
+  display: inline-block;
+}
+
+.psd-page-title--library .psd-page-title-main::after {
+  content: '';
+  position: absolute;
+  left: -2%;
+  right: -4%;
+  bottom: -0.1em;
+  height: 0.34em;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 24' preserveAspectRatio='none'%3E%3Cpath d='M4 18C36 8 72 4 108 10s72 8 88 4' fill='none' stroke='%23FFBA3D' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+}
+
+.psd-page-subtitle,
+.psd-search-query-line {
+  margin: 10px 0 0;
+  max-width: 52ch;
+  color: rgba(245, 243, 250, 0.62);
+  line-height: 1.55;
+}
+
+.psd-search-query-line strong {
+  color: var(--accent-gold-bright);
+}
+
+.psd-tab-row {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  margin-bottom: 18px;
+  padding-bottom: 4px;
+}
+
+.psd-tab {
+  flex: 0 0 auto;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(13, 13, 20, 0.72);
+  color: rgba(245, 243, 250, 0.68);
+  font-size: 13px;
+}
+
+.psd-tab.is-active {
+  border-color: rgba(109, 74, 255, 0.42);
+  background: linear-gradient(135deg, rgba(109, 74, 255, 0.38), rgba(166, 58, 136, 0.24));
+  color: rgba(250, 248, 255, 0.94);
+}
+
+.psd-panel {
+  margin-bottom: clamp(22px, 3vw, 32px);
+}
+
+.psd-panel-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.psd-panel-header h2 {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: 18px;
+  color: rgba(245, 243, 250, 0.92);
+}
+
+.psd-panel-header span,
+.psd-section-label {
+  font-size: 12px;
+  color: var(--psd-metadata);
+}
+
+.psd-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.psd-stat-card {
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(13, 13, 20, 0.72);
+}
+
+.psd-stat-value {
+  display: block;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--accent-gold-bright);
+}
+
+.psd-card-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.psd-card-grid--6 {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.psd-cover-card {
+  min-width: 0;
+}
+
+.psd-cover-card .art-frame {
+  aspect-ratio: 1;
+  border-radius: 14px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.psd-cover-card strong {
+  display: block;
+  font-size: 13px;
+}
+
+.psd-cover-card span {
+  display: block;
+  font-size: 11px;
+  color: var(--psd-metadata);
+}
+
+.psd-top-result-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(13, 13, 20, 0.72);
+  text-align: left;
+}
+
+.psd-top-result-card .art-frame {
+  width: 72px;
+  flex-shrink: 0;
+}
+
+.psd-top-result-type {
+  display: block;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--accent-gold-bright);
+}
+
+.psd-song-table {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.psd-song-row {
+  display: grid;
+  grid-template-columns: 36px 48px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 8px;
+  border-radius: 12px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+
+.psd-song-row:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.psd-song-row .art-frame {
+  width: 48px;
+}
+
+.psd-song-copy strong {
+  display: block;
+  font-size: 14px;
+}
+
+.psd-song-copy span {
+  display: block;
+  font-size: 12px;
+  color: var(--psd-metadata);
+}
+
+.psd-song-duration {
+  font-size: 12px;
+  color: var(--psd-metadata);
+}
+
+.psd-mini-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.psd-mini-grid--artists {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.psd-mini-grid--albums,
+.psd-mini-grid--playlists {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.psd-mini-card {
+  min-width: 0;
+  text-align: center;
+}
+
+.psd-mini-card .artist-avatar,
+.psd-mini-card .art-frame,
+.psd-playlist-art {
+  margin: 0 auto 8px;
+}
+
+.psd-playlist-art {
+  aspect-ratio: 1;
+  width: 100%;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: rgba(109, 74, 255, 0.18);
+}
+
+.psd-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.psd-btn {
+  padding: 10px 18px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.psd-btn--gold {
+  border: 1px solid rgba(255, 186, 61, 0.42);
+  background: linear-gradient(145deg, var(--accent-gold-bright), var(--accent-gold-deep));
+  color: #1a1208;
+}
+
+.psd-btn--ghost {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(245, 243, 250, 0.86);
+}
+
+.psd-artist-hero,
+.psd-playlist-detail-hero,
+.psd-liked-hero {
+  position: relative;
+  min-height: clamp(240px, 28vh, 320px);
+  margin-inline: calc(-1 * clamp(16px, 2.4vw, 28px));
+  width: calc(100% + 2 * clamp(16px, 2.4vw, 28px));
+  margin-bottom: 22px;
+  overflow: hidden;
+}
+
+.psd-artist-hero-backdrop,
+.psd-playlist-detail-backdrop {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+}
+
+.psd-artist-hero-veil,
+.psd-playlist-detail-veil {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(5, 5, 9, 0.35) 0%, rgba(5, 5, 9, 0.88) 100%);
+}
+
+.psd-artist-hero-inner,
+.psd-playlist-detail-copy,
+.psd-liked-hero-copy {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: flex-end;
+  gap: 18px;
+  min-height: clamp(240px, 28vh, 320px);
+  padding: clamp(24px, 3.5vw, 42px);
+}
+
+.psd-artist-hero-inner .artist-avatar {
+  width: clamp(120px, 14vw, 168px);
+  height: clamp(120px, 14vw, 168px);
+  border-radius: 50%;
+  overflow: hidden;
+  border: 3px solid rgba(255, 186, 61, 0.35);
+}
+
+.psd-liked-hero-art {
+  position: absolute;
+  inset: 0;
+  background-size: 120% auto;
+  background-position: 18% 22%;
+}
+
+.psd-liked-hero-copy {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.psd-track-table-wrap {
+  overflow-x: auto;
+}
+
+.psd-track-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.psd-track-table th,
+.psd-track-table td {
+  padding: 10px 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  text-align: left;
+  font-size: 13px;
+}
+
+.psd-track-table th {
+  color: var(--psd-metadata);
+  font-weight: 500;
+}
+
+.psd-track-title-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: none;
+  background: none;
+  color: inherit;
+  text-align: left;
+  padding: 0;
+}
+
+.psd-track-title-btn .art-frame {
+  width: 40px;
+}
+
+.psd-inferred-hero,
+.psd-premium-hero {
+  margin-bottom: 24px;
+  padding: clamp(24px, 3vw, 36px);
+  border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(13, 13, 20, 0.72);
+}
+
+.psd-premium-hero {
+  position: relative;
+  overflow: hidden;
+  border-color: rgba(255, 186, 61, 0.28);
+  background:
+    radial-gradient(circle at 80% 20%, rgba(255, 186, 61, 0.16), transparent 42%),
+    rgba(13, 13, 20, 0.92);
+}
+
+.psd-premium-glow {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 20% 80%, rgba(109, 74, 255, 0.18), transparent 50%);
+  pointer-events: none;
+}
+
+.psd-premium-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.psd-premium-card {
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 186, 61, 0.18);
+  background: rgba(255, 186, 61, 0.06);
+}
+
+.psd-album-grid-wrap .card-row {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.psd-footer-count {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--psd-metadata);
+}
+
+@media (max-width: 1200px) {
+  .psd-stat-grid,
+  .psd-card-grid--6,
+  .psd-mini-grid--albums,
+  .psd-mini-grid--playlists,
+  .psd-album-grid-wrap .card-row,
+  .psd-premium-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .psd-stat-grid,
+  .psd-card-grid--6,
+  .psd-mini-grid--artists,
+  .psd-mini-grid--albums,
+  .psd-mini-grid--playlists,
+  .psd-album-grid-wrap .card-row,
+  .psd-premium-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
