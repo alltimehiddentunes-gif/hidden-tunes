@@ -22,6 +22,16 @@
   --atmosphere-purple: rgba(109, 74, 255, 0.12);
   --atmosphere-magenta: rgba(166, 58, 136, 0.1);
   --atmosphere-gold: rgba(255, 186, 61, 0.08);
+
+  /* Phase 43A: shared audio-reactive motion (engine writes live values) */
+  --ht-audio-energy: 0;
+  --ht-audio-bass: 0;
+  --ht-audio-mid: 0;
+  --ht-audio-treble: 0;
+  --ht-audio-reactive: 0;
+  --ht-audio-fallback: 1;
+  --ht-audio-playing: 0;
+
   --bg-deep: var(--psd-bg-deep);
   --bg-base: var(--psd-bg-base);
   --bg-elevated: var(--psd-bg-elevated);

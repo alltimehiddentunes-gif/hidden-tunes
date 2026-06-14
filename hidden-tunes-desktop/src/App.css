@@ -6487,15 +6487,20 @@
 .rail-waveform-bar {
   flex: 1;
   max-width: 5px;
-  min-height: 18%;
+  min-height: 8%;
+  height: var(--ht-bar-base, 40%);
   border-radius: 999px;
-  background: rgba(245, 197, 66, 0.18);
-  transition: background var(--transition-fast);
+  background: rgba(109, 74, 255, 0.28);
+  box-shadow: 0 0 8px rgba(109, 74, 255, 0.14);
+  transform: scaleY(var(--ht-bar-scale, 1));
+  transform-origin: bottom center;
+  transition: background 120ms ease, box-shadow 120ms ease;
+  will-change: transform;
 }
 
 .rail-waveform-bar.is-played {
-  background: linear-gradient(180deg, var(--accent-gold-bright), var(--accent-gold-deep));
-  box-shadow: 0 0 10px rgba(255, 186, 61, 0.22);
+  background: linear-gradient(180deg, #ffb84d, #ff8a3d 48%, #ebb923);
+  box-shadow: 0 0 12px rgba(255, 184, 77, calc(0.18 + var(--ht-audio-energy) * 0.28));
 }
 
 .now-playing-times {
@@ -14175,4 +14180,124 @@
   background: transparent;
   color: rgba(245, 243, 250, 0.52);
   cursor: pointer;
+}
+
+/* —— Phase 43A: Real premium audio-reactive player motion —— */
+@keyframes ht-vinyl-spin-rail {
+  from { transform: translateY(-50%) rotate(0deg); }
+  to { transform: translateY(-50%) rotate(360deg); }
+}
+
+@keyframes ht-vinyl-spin-player {
+  from { transform: translateY(-50%) rotate(0deg); }
+  to { transform: translateY(-50%) rotate(360deg); }
+}
+
+.albums-rail-vinyl,
+.psd-player-vinyl {
+  animation: ht-vinyl-spin-rail 22s linear infinite;
+  animation-play-state: paused;
+}
+
+.psd-player-vinyl {
+  animation-name: ht-vinyl-spin-player;
+}
+
+.now-playing-rail[data-playing='true'] .albums-rail-vinyl,
+.cinema-player--psd[data-playing='true'] .psd-player-vinyl {
+  animation-play-state: running;
+}
+
+.premium-cinematic-waveform span {
+  height: var(--ht-bar-base, 40%);
+  transform: scaleY(var(--ht-bar-scale, 1));
+  transform-origin: bottom center;
+  will-change: transform;
+  background: rgba(109, 74, 255, 0.34);
+  box-shadow: 0 0 12px rgba(109, 74, 255, 0.2);
+  transition: background 120ms ease, box-shadow 120ms ease;
+}
+
+.premium-cinematic-waveform span.is-played {
+  background: linear-gradient(180deg, #ffb84d 0%, #ff8a3d 44%, #a63a88 100%);
+  box-shadow: 0 0 18px rgba(255, 184, 77, calc(0.28 + var(--ht-audio-energy) * 0.32));
+}
+
+.premium-cinematic-waveform span:nth-child(-n+24),
+.premium-cinematic-waveform span:nth-child(n+25):nth-child(-n+48),
+.premium-cinematic-waveform span:nth-child(n+49) {
+  background: rgba(109, 74, 255, 0.34);
+  box-shadow: 0 0 12px rgba(109, 74, 255, 0.2);
+}
+
+.premium-cinematic-waveform span.is-played:nth-child(-n+24),
+.premium-cinematic-waveform span.is-played:nth-child(n+25):nth-child(-n+48),
+.premium-cinematic-waveform span.is-played:nth-child(n+49) {
+  background: linear-gradient(180deg, #ffb84d 0%, #ff8a3d 44%, #a63a88 100%);
+  box-shadow: 0 0 18px rgba(255, 184, 77, calc(0.28 + var(--ht-audio-energy) * 0.32));
+}
+
+.now-playing-rail[data-playing='true'] .albums-rail-art-glow,
+.now-playing-rail[data-playing='true'] .rail-psd-art-glow {
+  opacity: calc(0.58 + var(--ht-audio-energy) * 0.42);
+  transform: scale(calc(1 + var(--ht-audio-bass) * 0.1));
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.cinema-player--psd[data-playing='true'] .psd-player-art-glow {
+  opacity: calc(0.68 + var(--ht-audio-energy) * 0.32);
+  filter: blur(calc(16px + var(--ht-audio-bass) * 12px));
+  transition: opacity 200ms ease, filter 200ms ease;
+}
+
+.cinema-player--waveform[data-playing='true'] .psd-waveform-bg {
+  filter: brightness(calc(0.9 + var(--ht-audio-energy) * 0.14))
+    saturate(calc(1 + var(--ht-audio-mid) * 0.16));
+  transition: filter 200ms ease;
+}
+
+.cinema-player--waveform[data-playing='true'] .psd-waveform-veil {
+  background:
+    radial-gradient(ellipse 70% 42% at 50% 12%, rgba(109, 74, 255, calc(0.1 + var(--ht-audio-mid) * 0.16)), transparent 62%),
+    radial-gradient(ellipse 55% 36% at 78% 82%, rgba(255, 184, 77, calc(0.06 + var(--ht-audio-bass) * 0.14)), transparent 58%),
+    rgba(5, 5, 9, 0.62);
+  transition: background 220ms ease;
+}
+
+.cinema-player--lyrics[data-playing='true'] .psd-lyrics-veil {
+  background:
+    radial-gradient(ellipse 80% 50% at 50% 18%, rgba(109, 74, 255, calc(0.08 + var(--ht-audio-mid) * 0.14)), transparent 62%),
+    radial-gradient(ellipse 60% 40% at 80% 78%, rgba(255, 184, 77, calc(0.05 + var(--ht-audio-bass) * 0.12)), transparent 58%),
+    rgba(5, 5, 9, 0.72);
+  transition: background 220ms ease;
+}
+
+.player-bar[data-playing='true'] .progress-fill {
+  box-shadow:
+    0 0 calc(6px + var(--ht-audio-energy) * 14px)
+    rgba(255, 184, 77, calc(0.16 + var(--ht-audio-energy) * 0.36));
+}
+
+.player-bar[data-playing='true'] .player-artwork {
+  box-shadow:
+    0 0 calc(10px + var(--ht-audio-energy) * 18px)
+    rgba(109, 74, 255, calc(0.12 + var(--ht-audio-mid) * 0.22));
+  transition: box-shadow 200ms ease;
+}
+
+.now-playing-rail[data-playing='true'] .albums-rail-waveform .rail-waveform-bar:not(.is-played),
+.now-playing-rail[data-playing='true'] .psd-player-waveform .rail-waveform-bar:not(.is-played) {
+  background: rgba(109, 74, 255, calc(0.22 + var(--ht-audio-treble) * 0.22));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .albums-rail-vinyl,
+  .psd-player-vinyl {
+    animation: none !important;
+  }
+
+  .rail-waveform-bar,
+  .premium-cinematic-waveform span {
+    transform: scaleY(1) !important;
+  }
 }

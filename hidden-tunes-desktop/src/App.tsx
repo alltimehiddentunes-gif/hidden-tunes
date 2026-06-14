@@ -73,6 +73,9 @@ import {
   type StoredPageId,
 } from './lib/localPreferences'
 import { VisualSceneBackdrop } from './components/VisualSceneBackdrop'
+import { PremiumAudioVisualizerProvider } from './components/PremiumAudioVisualizerProvider'
+import { PremiumCinematicWaveform } from './components/PremiumCinematicWaveform'
+import { PremiumReactiveWaveform } from './components/PremiumReactiveWaveform'
 import {
   DesktopPlaybackProvider,
   useDesktopPlayback,
@@ -355,24 +358,6 @@ const PSD_LYRICS_LINES = [
   { tier: 'distant', text: 'resides' },
 ] as const
 const PSD_WAVEFORM_BG_POSITION = '50% 38%'
-const PSD_CINEMATIC_WAVEFORM_HEIGHTS = [
-  14, 22, 30, 38, 46, 54, 60, 66, 72, 76, 80, 84, 86, 88, 90, 92, 94, 96, 98, 100, 98, 96, 94, 92,
-  90, 88, 86, 84, 80, 76, 72, 66, 60, 54, 46, 38, 30, 22, 14, 16, 24, 32, 40, 48, 56, 62, 68, 74,
-  78, 82, 86, 88, 90, 92, 94, 96, 94, 92, 90, 88, 86, 82, 78, 74, 68, 62, 56, 48, 40, 32, 24, 16,
-] as const
-
-function PsdCinematicWaveform({ className = '' }: { className?: string }) {
-  return (
-    <div className={`psd-cinematic-waveform ${className}`.trim()} aria-hidden="true">
-      {PSD_CINEMATIC_WAVEFORM_HEIGHTS.map((height, index) => (
-        <span
-          key={index}
-          style={{ height: `${height}%`, ['--bar-index' as string]: index }}
-        />
-      ))}
-    </div>
-  )
-}
 
 function PsdSocialIcon({ network }: { network: 'instagram' | 'twitter' | 'youtube' | 'spotify' }) {
   const paths: Record<typeof network, ReactNode> = {
@@ -5186,112 +5171,6 @@ const PlayerBar = memo(function PlayerBar({
 })
 
 
-function buildRailWaveformHeights(seed: string, count = 36) {
-  let hash = 0
-  for (let index = 0; index < seed.length; index += 1) {
-    hash = (hash * 31 + seed.charCodeAt(index)) >>> 0
-  }
-  return Array.from({ length: count }, (_, index) => {
-    const value = Math.sin((hash + index * 17) * 0.73) * 0.5 + 0.5
-    const shaped = 0.28 + value * 0.72
-    return Math.round(shaped * 100)
-  })
-}
-
-const RailWaveformSeek = memo(function RailWaveformSeek({
-  trackId,
-  progressPercent,
-  progressMax,
-  isLoading,
-  onSeek,
-  className = 'rail-waveform',
-}: {
-  trackId: string | null
-  progressPercent: number
-  progressMax: number
-  isLoading: boolean
-  onSeek: (seconds: number) => void
-  className?: string
-}) {
-  const trackRef = useRef<HTMLDivElement>(null)
-  const isSeekingRef = useRef(false)
-  const heights = useMemo(
-    () => buildRailWaveformHeights(trackId ?? 'idle-rail'),
-    [trackId],
-  )
-
-  const resolveSeekSeconds = useCallback(
-    (clientX: number) => {
-      const trackEl = trackRef.current
-      if (!trackEl || progressMax <= 0) return null
-      const rect = trackEl.getBoundingClientRect()
-      if (rect.width <= 0) return null
-      const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width))
-      return ratio * progressMax
-    },
-    [progressMax],
-  )
-
-  const handleSeekClick = (event: ReactMouseEvent<HTMLDivElement>) => {
-    if (progressMax <= 0 || isLoading || isSeekingRef.current) return
-    const seconds = resolveSeekSeconds(event.clientX)
-    if (seconds != null) onSeek(seconds)
-  }
-
-  const handleSeekPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (progressMax <= 0 || isLoading) return
-    const seconds = resolveSeekSeconds(event.clientX)
-    if (seconds == null) return
-    isSeekingRef.current = true
-    event.currentTarget.setPointerCapture(event.pointerId)
-    onSeek(seconds)
-  }
-
-  const handleSeekPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (!isSeekingRef.current) return
-    const seconds = resolveSeekSeconds(event.clientX)
-    if (seconds != null) onSeek(seconds)
-  }
-
-  const handleSeekPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (!isSeekingRef.current) return
-    isSeekingRef.current = false
-    event.currentTarget.releasePointerCapture(event.pointerId)
-  }
-
-  return (
-    <div
-      ref={trackRef}
-      className={className}
-      role="slider"
-      aria-label="Playback position"
-      aria-valuemin={0}
-      aria-valuemax={progressMax > 0 ? progressMax : 0}
-      aria-valuenow={progressMax > 0 ? (progressPercent / 100) * progressMax : 0}
-      aria-disabled={progressMax <= 0 || isLoading}
-      onClick={handleSeekClick}
-      onPointerDown={handleSeekPointerDown}
-      onPointerMove={handleSeekPointerMove}
-      onPointerUp={handleSeekPointerUp}
-      onPointerCancel={handleSeekPointerUp}
-    >
-      {heights.map((height, index) => {
-        const barProgress = ((index + 0.5) / heights.length) * 100
-        const isPlayed = barProgress <= progressPercent
-        return (
-          <span
-            key={index}
-            className={`rail-waveform-bar${isPlayed ? ' is-played' : ''}`}
-            style={{ height: `${height}%` }}
-            aria-hidden="true"
-          />
-        )
-      })}
-    </div>
-  )
-})
-
-
 const QueueUpNextPanel = memo(function QueueUpNextPanel({
   onOpenCinema,
   activeNavKey,
@@ -5524,7 +5403,7 @@ const QueueUpNextPanel = memo(function QueueUpNextPanel({
               className="albums-rail-waveform-wrap"
               style={{ ['--albums-rail-progress' as string]: `${progressPercent}%` }}
             >
-              <RailWaveformSeek
+              <PremiumReactiveWaveform
                 trackId={activeTrackId}
                 progressPercent={progressPercent}
                 progressMax={liveProgressMax}
@@ -6068,7 +5947,7 @@ const CinemaPlayerShell = memo(function CinemaPlayerShell({
           className="psd-player-waveform-wrap"
           style={{ ['--psd-player-progress' as string]: `${progressPercent}%` }}
         >
-          <RailWaveformSeek
+          <PremiumReactiveWaveform
             trackId={activeTrackId}
             progressPercent={progressPercent}
             progressMax={liveProgressMax}
@@ -6326,7 +6205,11 @@ const CinematicWaveformShell = memo(function CinematicWaveformShell({
           </p>
         </div>
 
-        <PsdCinematicWaveform className="psd-waveform-visualizer" />
+        <PremiumCinematicWaveform
+          className="psd-waveform-visualizer"
+          trackId={activeTrackId}
+          progressPercent={progressPercent}
+        />
 
         <div className="psd-waveform-lyrics" aria-live="polite">
           {PSD_WAVEFORM_LYRICS.map((line) => (
@@ -7232,6 +7115,7 @@ function PageContent({
 }) {
   void _onOpenMood
   void _onNavigateNav
+  void onPlaylistBack
   if (activeNavKey === 'liked') return <LikedPage onOpenSong={onOpenSong} />
   if (activeNavKey === 'recent') return <RecentPage onOpenSong={onOpenSong} query={recentQuery} />
   if (activeNavKey === 'downloads') {
@@ -7285,9 +7169,11 @@ function App() {
   return (
     <PreferencesResetProvider>
       <DesktopPlaybackProvider>
-        <CatalogProvider>
-          <AppShell />
-        </CatalogProvider>
+        <PremiumAudioVisualizerProvider>
+          <CatalogProvider>
+            <AppShell />
+          </CatalogProvider>
+        </PremiumAudioVisualizerProvider>
       </DesktopPlaybackProvider>
     </PreferencesResetProvider>
   )
