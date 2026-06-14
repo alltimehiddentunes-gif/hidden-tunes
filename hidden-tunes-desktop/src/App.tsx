@@ -143,6 +143,34 @@ const PSD_SEARCH_ALBUM_ROWS = [
   { key: 'psd-album-2', title: 'Reflections at Midnight', meta: 'Various Artists • 2023' },
 ] as const
 
+const PSD_LIBRARY_TABS = ['Overview', 'Songs', 'Albums', 'Artists', 'Playlists', 'Podcasts', 'Genres'] as const
+
+const PSD_LIBRARY_STATS = [
+  { key: 'songs', label: 'Songs', value: '1,248', hint: 'All Songs', tone: 'violet' },
+  { key: 'albums', label: 'Albums', value: '156', hint: 'In Collection', tone: 'purple' },
+  { key: 'artists', label: 'Artists', value: '89', hint: 'Followed', tone: 'orange' },
+  { key: 'playlists', label: 'Playlists', value: '32', hint: 'Created', tone: 'pink' },
+  { key: 'liked', label: 'Liked Songs', value: '482', hint: 'Favorites', tone: 'magenta' },
+] as const
+
+const PSD_LIBRARY_RECENT = [
+  { title: 'Midnight Reflection', artist: 'Wills Afrobeats', tone: 'violet' },
+  { title: 'Afro Sunset', artist: 'Wills Afrobeats', tone: 'sunset' },
+  { title: 'Healing Slowly', artist: 'Wills Afrobeats', tone: 'moon' },
+  { title: 'Night Drive', artist: 'Wills Afrobeats', tone: 'neon' },
+  { title: 'Jazz Cafe', artist: 'Wills Afrobeats', tone: 'jazz' },
+  { title: 'Love Vibes', artist: 'Wills Afrobeats', tone: 'love' },
+] as const
+
+const PSD_LIBRARY_PLAYLISTS = [
+  { title: 'Deep Focus', count: '22 songs', tone: 'forest' },
+  { title: 'Afro Vibes', count: '28 songs', tone: 'afro' },
+  { title: 'Chill & Relax', count: '40 songs', tone: 'lounge' },
+  { title: 'Workout Mix', count: '25 songs', tone: 'run' },
+  { title: 'Late Night Drive', count: '19 songs', tone: 'drive' },
+  { title: 'Rainy Day Comfort', count: '31 songs', tone: 'rain' },
+] as const
+
 const PSD_WAVEFORM_HEIGHTS = [5, 9, 13, 7, 15, 11, 17, 9, 13, 19, 11, 15, 9, 13, 17, 11, 9, 15, 13, 9, 11, 15, 9, 7, 12, 16, 10, 14, 8, 12, 18, 10, 14, 8, 6] as const
 
 const PSD_ARTIST_NAME = 'Wills Afrobeats'
@@ -670,7 +698,7 @@ const TOP_BAR_PLACEHOLDERS: Partial<Record<NavKey, string>> = {
   home: 'Search songs, artists, moods…',
   worlds: 'Search emotional worlds…',
   search: 'Search songs, artists, albums…',
-  library: 'Search your library…',
+  library: 'Search songs, artists, albums, playlists...',
   liked: 'Search liked songs…',
   recent: 'Search recently played…',
   downloads: 'Search downloads…',
@@ -822,7 +850,7 @@ const SIDEBAR_NAV: SidebarNavItem[] = [
   {
     key: 'library',
     page: 'library',
-    label: 'Library',
+    label: 'My Library',
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
         <path d="M4 19V5h4l2 14 4-14h4v14" />
@@ -864,7 +892,7 @@ const SIDEBAR_NAV: SidebarNavItem[] = [
   {
     key: 'liked',
     page: 'library',
-    label: 'Liked',
+    label: 'Liked Songs',
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
         <path d="M12 20.8l-1.1-1C6.4 15.36 3 12.28 3 8.5 3 6 5 4 7.5 4c1.74 0 3.41 1.01 4.5 2.36C13.09 5.01 14.76 4 16.5 4 19 4 21 6 21 8.5c0 3.78-3.4 6.86-7.9 11.3L12 20.8z" />
@@ -874,7 +902,7 @@ const SIDEBAR_NAV: SidebarNavItem[] = [
   {
     key: 'recent',
     page: 'library',
-    label: 'Recent',
+    label: 'Recent Played',
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
         <circle cx="12" cy="12" r="8.5" />
@@ -949,14 +977,6 @@ const HOME_SECTIONS: DiscoverySection[] = [
       { title: 'Monk Mode', subtitle: 'Zero friction', mood: 'mint' },
     ],
   },
-]
-
-const PLAYLISTS = [
-  { title: 'Emotional Apex', tracks: '42 tracks', mood: 'violet' as Mood },
-  { title: 'Neon Aftercare', tracks: '28 tracks', mood: 'cyan' as Mood },
-  { title: 'Soft Collapse', tracks: '19 tracks', mood: 'rose' as Mood },
-  { title: 'Deep Focus Drift', tracks: '56 tracks', mood: 'mint' as Mood },
-  { title: 'Cinematic Dust', tracks: '31 tracks', mood: 'violet' as Mood },
 ]
 
 const TV_SHOWS = [
@@ -3001,112 +3021,124 @@ function EmotionalWorldsPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
   )
 }
 
+function PsdLibraryStatIcon({ type }: { type: string }) {
+  if (type === 'songs') return <MusicNoteIcon className="psd-library-stat-svg" />
+  if (type === 'albums') {
+    return (
+      <svg className="psd-library-stat-svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <rect x="5" y="5" width="14" height="14" rx="3" />
+        <circle cx="12" cy="12" r="3" fill="rgba(5,5,9,0.42)" />
+      </svg>
+    )
+  }
+  if (type === 'artists') {
+    return (
+      <svg className="psd-library-stat-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
+        <path d="M12 4v10" />
+        <path d="M8.5 9.5A3.5 3.5 0 1012 13" />
+        <path d="M15.5 9.5A3.5 3.5 0 1112 13" />
+      </svg>
+    )
+  }
+  if (type === 'playlists') {
+    return (
+      <svg className="psd-library-stat-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
+        <path d="M4 7h10M4 12h8M4 17h5" />
+        <circle cx="17" cy="17" r="3" fill="currentColor" stroke="none" />
+        <path d="M17 7v10" />
+      </svg>
+    )
+  }
+  return <PsdIconHeart className="psd-library-stat-svg" />
+}
+
 function LibraryPage() {
-  const { songs, albums, artists, showCatalogSkeleton } = useCatalog()
-  const [tab, setTab] = useState<
-    'overview' | 'songs' | 'albums' | 'artists' | 'playlists' | 'podcasts' | 'genres'
-  >('overview')
-  const recentSongs = useMemo(() => sortSongsList([...songs], 'latest').slice(0, 6), [songs])
-  const libraryTabs = [
-    { id: 'overview', label: 'Overview' },
-    { id: 'songs', label: 'Songs' },
-    { id: 'albums', label: 'Albums' },
-    { id: 'artists', label: 'Artists' },
-    { id: 'playlists', label: 'Playlists' },
-    { id: 'podcasts', label: 'Podcasts' },
-    { id: 'genres', label: 'Genres' },
-  ] as const
-  const statCards = [
-    { label: 'Songs', value: songs.length, hint: 'In your catalog' },
-    { label: 'Albums', value: albums.length, hint: 'Full journeys' },
-    { label: 'Artists', value: artists.length, hint: 'Creators' },
-    { label: 'Playlists', value: PLAYLISTS.length, hint: 'Curated paths' },
-    { label: 'Hours', value: Math.max(1, Math.round(songs.length * 3.4 / 60)), hint: 'Estimated listening' },
-  ]
+  const [tab, setTab] = useState<(typeof PSD_LIBRARY_TABS)[number]>('Overview')
 
   return (
     <div className="psd-library-destination">
       <PageFrame cinematic>
-        <header className="psd-inline-header psd-inline-header--library" aria-labelledby="library-heading">
-          <h1 id="library-heading" className="psd-page-title psd-page-title--library">
-            <span className="psd-page-title-main">My Library</span>
-          </h1>
-          <p className="psd-page-subtitle">
-            Everything you have saved, replayed, and downloaded — organized for emotional recall.
-          </p>
+        <header className="psd-library-header" aria-labelledby="library-heading">
+          <div>
+            <h1 id="library-heading" className="psd-library-title">My Library</h1>
+            <p className="psd-library-subtitle">All your music, in one place.</p>
+          </div>
+          <button type="button" className="psd-library-add-btn" aria-label="Add New">
+            <PsdIconPlus />
+            <span>Add New</span>
+          </button>
         </header>
 
-        <div className="psd-tab-row psd-tab-row--underline" role="tablist" aria-label="Library sections">
-          {libraryTabs.map((entry) => (
-            <button
-              key={entry.id}
-              type="button"
-              role="tab"
-              className={`psd-tab${tab === entry.id ? ' is-active' : ''}`}
-              aria-selected={tab === entry.id}
-              onClick={() => setTab(entry.id)}
-            >
-              {entry.label}
+        <div className="psd-library-tabs" role="tablist" aria-label="Library sections">
+          {PSD_LIBRARY_TABS.map((entry) => (
+            <button key={entry} type="button" role="tab" className={`psd-library-tab${tab === entry ? ' is-active' : ''}`} aria-selected={tab === entry} onClick={() => setTab(entry)}>
+              {entry}
             </button>
           ))}
         </div>
 
-        <div className="psd-stat-grid">
-          {statCards.map((card) => (
-            <article key={card.label} className="psd-stat-card">
-              <span className="psd-stat-value">{card.value}</span>
-              <strong>{card.label}</strong>
-              <span>{card.hint}</span>
+        <section className="psd-library-stats" aria-label="Library statistics">
+          {PSD_LIBRARY_STATS.map((card) => (
+            <article key={card.key} className="psd-library-stat-card" data-tone={card.tone}>
+              <span className="psd-library-stat-icon" aria-hidden="true">
+                <PsdLibraryStatIcon type={card.key} />
+              </span>
+              <span className="psd-library-stat-copy">
+                <span className="psd-library-stat-label">{card.label}</span>
+                <strong className="psd-library-stat-value">{card.value}</strong>
+                <span className="psd-library-stat-hint">{card.hint}</span>
+              </span>
             </article>
           ))}
-        </div>
-
-        <section className="psd-panel" aria-labelledby="recently-added-heading">
-          <header className="psd-panel-header">
-            <h2 id="recently-added-heading">Recently Added</h2>
-            <span>{recentSongs.length} items</span>
-          </header>
-          {showCatalogSkeleton ? (
-            <div className="psd-card-grid psd-card-grid--6" aria-hidden="true">
-              {Array.from({ length: 6 }, (_, index) => (
-                <div key={index} className="psd-cover-card psd-cover-card--skeleton" />
-              ))}
-            </div>
-          ) : (
-            <div className="psd-card-grid psd-card-grid--6">
-              {recentSongs.map((song) => (
-                <article key={song.id} className="psd-cover-card">
-                  <ArtworkImage src={song.artwork} alt="" seed={song.id} />
-                  <strong>{song.title}</strong>
-                  <span>{song.artist}</span>
-                </article>
-              ))}
-            </div>
-          )}
         </section>
 
-        <section className="psd-panel" aria-labelledby="your-playlists-heading">
-          <header className="psd-panel-header">
-            <h2 id="your-playlists-heading">Your Playlists</h2>
-            <span>{PLAYLISTS.length} playlists</span>
+        <section className="psd-library-section" aria-labelledby="recently-added-heading">
+          <header className="psd-library-section-header">
+            <h2 id="recently-added-heading">Recently Added</h2>
+            <div className="psd-library-section-actions">
+              <button type="button">View all</button>
+              <button type="button" aria-label="Previous recently added" className="psd-library-round-btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg>
+              </button>
+              <button type="button" aria-label="Next recently added" className="psd-library-round-btn"><PsdIconChevronRight /></button>
+            </div>
           </header>
-          <div className="psd-card-grid psd-card-grid--6">
-            {PLAYLISTS.slice(0, 6).map((playlist, index) => {
-              const coverSong = songs[index % Math.max(songs.length, 1)]
-              return (
-                <article key={playlist.title} className="psd-cover-card psd-cover-card--playlist" data-mood={playlist.mood}>
-                  {coverSong?.artwork ? (
-                    <ArtworkImage src={coverSong.artwork} alt="" seed={`${playlist.title}-${coverSong.id}`} />
-                  ) : (
-                    <div className="psd-playlist-art" data-mood={playlist.mood}>
-                      <MusicNoteIcon className="card-art-icon" />
-                    </div>
-                  )}
+          <div className="psd-library-card-row">
+            {PSD_LIBRARY_RECENT.map((song) => (
+              <article key={song.title} className="psd-library-cover-card" data-tone={song.tone}>
+                <div className="psd-library-cover-art">
+                  <span className="psd-library-cover-veil" aria-hidden="true" />
+                  <button type="button" className="psd-library-play-btn" aria-label={`Play ${song.title}`}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
+                  </button>
+                </div>
+                <div className="psd-library-cover-copy">
+                  <strong>{song.title}</strong>
+                  <span>{song.artist}</span>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="psd-library-section psd-library-section--playlists" aria-labelledby="your-playlists-heading">
+          <header className="psd-library-section-header">
+            <h2 id="your-playlists-heading">Your Playlists</h2>
+            <button type="button">View all</button>
+          </header>
+          <div className="psd-library-card-row">
+            {PSD_LIBRARY_PLAYLISTS.map((playlist) => (
+              <article key={playlist.title} className="psd-library-cover-card psd-library-cover-card--playlist" data-tone={playlist.tone}>
+                <div className="psd-library-cover-art">
+                  <span className="psd-library-cover-veil" aria-hidden="true" />
+                  <span className="psd-library-music-badge" aria-hidden="true"><MusicNoteIcon /></span>
+                </div>
+                <div className="psd-library-cover-copy">
                   <strong>{playlist.title}</strong>
-                  <span>{playlist.tracks}</span>
-                </article>
-              )
-            })}
+                  <span>{playlist.count}</span>
+                </div>
+              </article>
+            ))}
           </div>
         </section>
       </PageFrame>

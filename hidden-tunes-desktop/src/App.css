@@ -10056,3 +10056,324 @@
 #root:has(.page-view[data-nav="search"][data-view="page"]) .up-next-section-header .up-next-label {
   margin: 0;
 }
+
+/* Phase 42D: Library page exact PSD reconstruction */
+.main-scroll--psd:has(.psd-library-destination) {
+  padding: 26px 30px 32px;
+}
+
+.page-view[data-nav="library"] .content-inner--cinematic {
+  max-width: none;
+}
+
+.psd-library-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  margin: 24px 4px 15px;
+}
+
+.psd-library-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 48px;
+  line-height: 1.03;
+  font-weight: 500;
+  letter-spacing: -0.045em;
+  color: #fffdf8;
+}
+
+.psd-library-subtitle {
+  margin: 5px 0 0;
+  font-size: 17px;
+  color: rgba(245, 243, 250, 0.74);
+}
+
+.psd-library-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 46px;
+  padding: 0 18px;
+  margin-bottom: 5px;
+  border-radius: 15px;
+  border: 1px solid rgba(184, 80, 255, 0.72);
+  background: linear-gradient(180deg, rgba(75, 16, 113, 0.76), rgba(50, 10, 82, 0.72));
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.psd-library-tabs {
+  display: flex;
+  align-items: center;
+  gap: 38px;
+  margin: 0 4px 13px;
+  padding: 0 0 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.055);
+}
+
+.psd-library-tab {
+  position: relative;
+  padding: 0 0 1px;
+  border: 0;
+  background: transparent;
+  color: rgba(245, 243, 250, 0.84);
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.psd-library-tab::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -15px;
+  height: 2px;
+  border-radius: 999px;
+  background: transparent;
+}
+
+.psd-library-tab.is-active {
+  color: #f066ff;
+}
+
+.psd-library-tab.is-active::after {
+  background: linear-gradient(90deg, #f066ff, #8d4dff);
+}
+
+.psd-library-stats {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 14px;
+  margin: 0 0 27px;
+}
+
+.psd-library-stat-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 145px;
+  padding: 24px 21px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: linear-gradient(180deg, rgba(13, 13, 21, 0.92), rgba(7, 7, 12, 0.94));
+}
+
+.psd-library-stat-icon {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  flex: 0 0 64px;
+  border-radius: 14px;
+  color: #c451ff;
+  background: linear-gradient(145deg, rgba(100, 22, 167, 0.88), rgba(36, 11, 74, 0.92));
+}
+
+.psd-library-stat-card[data-tone="orange"] .psd-library-stat-icon {
+  color: #ff9e20;
+  background: linear-gradient(145deg, rgba(94, 45, 7, 0.88), rgba(34, 15, 5, 0.94));
+}
+
+.psd-library-stat-card[data-tone="pink"] .psd-library-stat-icon,
+.psd-library-stat-card[data-tone="magenta"] .psd-library-stat-icon {
+  color: #ff4da8;
+  background: linear-gradient(145deg, rgba(111, 13, 76, 0.9), rgba(44, 8, 45, 0.94));
+}
+
+.psd-library-stat-svg {
+  width: 35px;
+  height: 35px;
+  display: block;
+}
+
+.psd-library-stat-copy {
+  display: grid;
+  gap: 2px;
+}
+
+.psd-library-stat-label {
+  font-size: 14px;
+  color: rgba(245, 243, 250, 0.9);
+}
+
+.psd-library-stat-value {
+  font-family: var(--font-ui);
+  font-size: 29px;
+  line-height: 1.08;
+  font-weight: 700;
+  color: #ffd229;
+}
+
+.psd-library-stat-hint {
+  margin-top: 4px;
+  font-size: 14px;
+  color: rgba(245, 243, 250, 0.68);
+}
+
+.psd-library-section {
+  margin-bottom: 25px;
+}
+
+.psd-library-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 5px 14px;
+}
+
+.psd-library-section-header h2 {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: 22px;
+  line-height: 1.2;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.psd-library-section-header button {
+  color: rgba(245, 243, 250, 0.76);
+  font-size: 14px;
+}
+
+.psd-library-section-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.psd-library-round-btn {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(5, 5, 9, 0.42);
+}
+
+.psd-library-card-row {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.psd-library-cover-card {
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 11px;
+  border: 1px solid rgba(168, 120, 255, 0.2);
+  background: rgba(9, 9, 15, 0.9);
+}
+
+.psd-library-cover-art {
+  position: relative;
+  height: 184px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 28% 18%, rgba(255, 255, 255, 0.16), transparent 8%),
+    radial-gradient(circle at 74% 44%, rgba(255, 186, 61, 0.22), transparent 9%),
+    linear-gradient(140deg, rgba(73, 24, 160, 0.92), rgba(15, 10, 42, 0.96) 48%, rgba(4, 4, 9, 0.98));
+}
+
+.psd-library-cover-card[data-tone="sunset"] .psd-library-cover-art,
+.psd-library-cover-card[data-tone="afro"] .psd-library-cover-art {
+  background:
+    radial-gradient(circle at 62% 52%, rgba(255, 198, 44, 0.88), transparent 9%),
+    linear-gradient(160deg, rgba(119, 10, 37, 0.92), rgba(255, 75, 24, 0.74) 42%, rgba(8, 5, 12, 0.98) 88%);
+}
+
+.psd-library-cover-card[data-tone="moon"] .psd-library-cover-art,
+.psd-library-cover-card[data-tone="rain"] .psd-library-cover-art {
+  background:
+    radial-gradient(circle at 48% 24%, rgba(181, 236, 255, 0.9), transparent 10%),
+    linear-gradient(150deg, rgba(7, 62, 118, 0.92), rgba(6, 19, 46, 0.96) 54%, rgba(4, 5, 12, 0.98));
+}
+
+.psd-library-cover-card[data-tone="neon"] .psd-library-cover-art,
+.psd-library-cover-card[data-tone="drive"] .psd-library-cover-art {
+  background:
+    linear-gradient(90deg, transparent 42%, rgba(255, 46, 198, 0.34) 43%, transparent 45%, transparent 58%, rgba(51, 115, 255, 0.42) 59%, transparent 61%),
+    linear-gradient(145deg, rgba(6, 10, 64, 0.98), rgba(39, 9, 119, 0.82) 48%, rgba(4, 4, 10, 0.98));
+}
+
+.psd-library-cover-card[data-tone="jazz"] .psd-library-cover-art,
+.psd-library-cover-card[data-tone="lounge"] .psd-library-cover-art {
+  background: linear-gradient(150deg, rgba(108, 35, 8, 0.92), rgba(33, 12, 8, 0.96) 48%, rgba(4, 4, 8, 0.98));
+}
+
+.psd-library-cover-card[data-tone="love"] .psd-library-cover-art,
+.psd-library-cover-card[data-tone="run"] .psd-library-cover-art {
+  background: linear-gradient(140deg, rgba(130, 8, 24, 0.94), rgba(33, 6, 22, 0.96) 58%, rgba(5, 5, 10, 0.98));
+}
+
+.psd-library-cover-card[data-tone="forest"] .psd-library-cover-art {
+  background: linear-gradient(150deg, rgba(9, 28, 58, 0.96), rgba(4, 10, 22, 0.98) 58%, rgba(3, 4, 9, 1));
+}
+
+.psd-library-cover-veil {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 38%, rgba(5, 5, 9, 0.42) 74%, rgba(5, 5, 9, 0.86) 100%);
+}
+
+.psd-library-play-btn,
+.psd-library-music-badge {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+}
+
+.psd-library-play-btn {
+  border: 1px solid #f2c334;
+  color: #f2c334;
+  background: rgba(5, 5, 9, 0.58);
+}
+
+.psd-library-music-badge {
+  color: #f4d6ff;
+  background: linear-gradient(145deg, rgba(130, 43, 204, 0.92), rgba(70, 24, 122, 0.92));
+}
+
+.psd-library-music-badge svg {
+  width: 15px;
+  height: 15px;
+}
+
+.psd-library-cover-copy {
+  display: grid;
+  gap: 4px;
+  padding: 13px 13px 14px;
+}
+
+.psd-library-cover-copy strong {
+  font-family: var(--font-ui);
+  font-size: 14px;
+  line-height: 1.25;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.94);
+}
+
+.psd-library-cover-copy span {
+  font-size: 13px;
+  color: rgba(245, 243, 250, 0.62);
+}
+
+.psd-library-cover-card--playlist .psd-library-cover-art {
+  height: 171px;
+}
+
+@media (max-width: 1400px) {
+  .psd-library-stats,
+  .psd-library-card-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
