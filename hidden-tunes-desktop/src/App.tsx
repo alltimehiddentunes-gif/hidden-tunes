@@ -40,7 +40,6 @@ import {
   buildQueueSeedPool,
   CATALOG_DETAIL_TRACK_PREVIEW_LIMIT,
   capSongPool,
-  resolveAlbumArtwork,
   resolveAlbumDisplayArtist,
   resolveAlbumsForArtist,
   resolveSongsForAlbum,
@@ -51,12 +50,14 @@ import {
 import {
   enrichCatalogArtwork,
   deriveEntityInitials,
-  getPlaylistArtwork,
-  getPlaylistArtworkCollage,
-  getSongArtwork,
+  getArtworkForArtist,
+  getArtworkForPlaylist,
+  getArtworkForPlaylistCollage,
+  getArtworkForWorld,
   type ArtworkContext,
   buildArtworkContext,
 } from './lib/artworkIntegrity'
+import { EntityAtmosphereBackdrop } from './components/EntityAtmosphereBackdrop'
 import {
   logCatalogCacheHit,
   logCatalogCacheMiss,
@@ -82,7 +83,6 @@ import {
   usePreferencesReset,
   type StoredPageId,
 } from './lib/localPreferences'
-import { VisualSceneBackdrop } from './components/VisualSceneBackdrop'
 import { PremiumAudioVisualizerProvider } from './components/PremiumAudioVisualizerProvider'
 import { PremiumCinematicWaveform } from './components/PremiumCinematicWaveform'
 import { PremiumReactiveWaveform } from './components/PremiumReactiveWaveform'
@@ -124,15 +124,6 @@ import {
 import { type NowPlayingStyle } from './lib/nowPlayingStyle'
 import { useAutoOpenPreferredPlayer } from './lib/useAutoOpenPreferredPlayer'
 import heroPhotoUrl from './assets/hero.png'
-import emotionalWorldsReferenceUrl from './assets/emotional-worlds-reference.jpg'
-import psdArtistsReferenceUrl from './assets/psd-artists-reference.jpg'
-import psdPlayerMasterReferenceUrl from './assets/psd-player-master-reference.jpg'
-import psdPlayer2ReferenceUrl from './assets/psd-player2-reference.jpg'
-import psdPlayer3ReferenceUrl from './assets/psd-player3-reference.jpg'
-import psdPlayer4ReferenceUrl from './assets/psd-player4-reference.jpg'
-import psdPlayer5ReferenceUrl from './assets/psd-player5-reference.jpg'
-import psdWaveformReferenceUrl from './assets/psd-waveform-reference.jpg'
-import psdLyricsReferenceUrl from './assets/psd-lyrics-reference.jpg'
 import './App.css'
 
 const PSD_SEARCH_QUERY = 'midnight reflection'
@@ -275,7 +266,6 @@ const PSD_PLAYER_ARTIST = 'Wills Afrobeats'
 const PSD_PLAYER_SOURCE_ALBUM = 'Night Drive'
 const PSD_PLAYER_POSITION_SECONDS = 108
 const PSD_PLAYER_DURATION_SECONDS = 236
-const PSD_PLAYER_MASTER_BG_POSITION = '50% 50%'
 const PSD_PLAYER_TABS = ['LYRICS', 'QUEUE', 'DETAILS'] as const
 const PSD_PLAYER_LYRICS_LINES = [
   { tier: 'dimmed', text: 'In the quiet of the evening' },
@@ -295,7 +285,6 @@ const PSD_PLAYER2_TITLE_BOTTOM = 'MIDNIGHT'
 const PSD_PLAYER2_ARTIST = 'Wills AfroBeats'
 const PSD_PLAYER2_ALBUM = 'Night Drive'
 const PSD_PLAYER2_YEAR = '2024'
-const PSD_PLAYER2_BG_POSITION = '50% 42%'
 const PSD_PLAYER2_DEVICE = 'WH-1000XM5'
 const PSD_PLAYER2_NEXT_TITLE = 'Midnight Reflection'
 const PSD_PLAYER2_NEXT_ARTIST = 'Wills AfroBeats'
@@ -327,7 +316,6 @@ const PSD_PLAYER3_SOURCE = 'Night Drive'
 const PSD_PLAYER3_TITLE_SCRIPT = 'Echoes of'
 const PSD_PLAYER3_TITLE_MAIN = 'MIDNIGHT'
 const PSD_PLAYER3_ARTIST = 'Wills AfroBeats'
-const PSD_PLAYER3_BG_POSITION = '50% 46%'
 const PSD_PLAYER3_DISC_TIME = '2:35'
 const PSD_PLAYER3_TABS = ['LYRICS', 'VISUALIZER', 'DETAILS'] as const
 const PSD_PLAYER3_LYRICS = [
@@ -367,7 +355,6 @@ const PSD_PLAYER4_SOURCE = 'Night Drive'
 const PSD_PLAYER4_TITLE = 'ECHOES OF TOMORROW'
 const PSD_PLAYER4_ARTIST = 'Wills AfroBeats'
 const PSD_PLAYER4_YEAR = '2024'
-const PSD_PLAYER4_BG_POSITION = '50% 44%'
 const PSD_PLAYER4_POSITION_SECONDS = 108
 const PSD_PLAYER4_DURATION_SECONDS = 272
 const PSD_PLAYER4_LYRICS = [
@@ -407,7 +394,6 @@ const PSD_PLAYER5_SOURCE = 'Night Drive'
 const PSD_PLAYER5_TITLE = 'ECHOES OF TOMORROW'
 const PSD_PLAYER5_ARTIST = 'Wills AfroBeats'
 const PSD_PLAYER5_YEAR = '2024'
-const PSD_PLAYER5_BG_POSITION = '50% 46%'
 const PSD_PLAYER5_POSITION_SECONDS = 108
 const PSD_PLAYER5_DURATION_SECONDS = 272
 const PSD_PLAYER5_VOLUME_PERCENT = 80
@@ -508,7 +494,6 @@ const PSD_WAVEFORM_LYRICS = [
 ] as const
 
 const PSD_LYRICS_ALBUM = 'Reflections at Midnight'
-const PSD_LYRICS_BG_POSITION = '62% 46%'
 const PSD_LYRICS_LINES = [
   { tier: 'active-purple', text: 'City lights' },
   { tier: 'active-purple', text: 'paint the sky' },
@@ -527,7 +512,6 @@ const PSD_LYRICS_LINES = [
   { tier: 'distant', text: 'A place where peace' },
   { tier: 'distant', text: 'resides' },
 ] as const
-const PSD_WAVEFORM_BG_POSITION = '50% 38%'
 
 function PsdSocialIcon({ network }: { network: 'instagram' | 'twitter' | 'youtube' | 'spotify' }) {
   const paths: Record<typeof network, ReactNode> = {
@@ -1605,7 +1589,7 @@ const ApiAlbumGrid = memo(function ApiAlbumGrid({
             indexes.artistNames,
           )
           const artistName = resolveAlbumDisplayArtist(album, albumSongs, artistNames)
-          const artwork = resolveAlbumArtwork(album, albumSongs)
+          const artwork = album.artwork
           const trackLabel = `${albumSongs.length} ${albumSongs.length === 1 ? 'track' : 'tracks'}`
           return (
             <button
@@ -1955,7 +1939,7 @@ function EmotionalLanesSection({
             const laneTracks = lane.songIds
               .map((songId) => songsById.get(songId))
               .filter((entry): entry is ApiSong => Boolean(entry))
-            const laneCollage = getPlaylistArtworkCollage(laneTracks, artworkContext)
+            const laneCollage = getArtworkForPlaylistCollage(laneTracks, artworkContext)
             return (
               <button
                 key={lane.id}
@@ -2061,7 +2045,7 @@ function SceneListeningSection({
             const sceneTracks = scene.songIds
               .map((songId) => songsById.get(songId))
               .filter((entry): entry is ApiSong => Boolean(entry))
-            const sceneCollage = getPlaylistArtworkCollage(sceneTracks, artworkContext)
+            const sceneCollage = getArtworkForPlaylistCollage(sceneTracks, artworkContext)
             return (
               <button
                 key={scene.id}
@@ -2441,7 +2425,7 @@ function PopularWorldsSection({
             const worldTracks = world.songIds
               .map((songId) => songsById.get(songId))
               .filter((entry): entry is ApiSong => Boolean(entry))
-            const worldCollage = getPlaylistArtworkCollage(worldTracks, artworkContext)
+            const worldCollage = getArtworkForPlaylistCollage(worldTracks, artworkContext)
             const isActive = selectedSceneId === world.id
             const sceneId = world.visualSceneId ?? resolveVisualScene({
               seed: world.label,
@@ -3026,14 +3010,11 @@ function DiscoverPage({
                 <div className="psd-search-side-card">
                   {PSD_SEARCH_ALBUM_ROWS.map((row, index) => {
                     const album = matchedAlbums[index] ?? null
-                    const albumSongs = album
-                      ? resolveSongsForAlbum(album, indexes.songsByAlbumId, indexes.songsByAlbumName, indexes.artistNames)
-                      : []
                     return (
                       <button key={row.key} type="button" className="psd-search-side-row">
                         <span className="psd-search-side-art">
                           <ArtworkImage
-                            src={album ? resolveAlbumArtwork(album, albumSongs) : null}
+                            src={album?.artwork ?? null}
                             alt=""
                             seed={album?.id ?? row.key}
                             label={album?.title ?? row.title}
@@ -3191,14 +3172,25 @@ function EmotionalWorldsPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
     [indexes, onOpenSong, queuePools, songs],
   )
 
+  const heroWorldArt = useMemo(() => {
+    const card = visibleCards[0]
+    if (!card) return null
+    return getArtworkForWorld(
+      { id: card.sceneId, title: card.title, sceneId: card.sceneId },
+      songs,
+      artworkContext,
+    )
+  }, [artworkContext, songs, visibleCards])
+
   return (
     <div className="emotional-worlds-destination">
       <PageFrame cinematic>
         <section className="emotional-worlds-hero" aria-labelledby="emotional-worlds-heading">
-          <div
+          <EntityAtmosphereBackdrop
             className="emotional-worlds-hero-backdrop"
-            style={{ backgroundImage: `url(${emotionalWorldsReferenceUrl})` }}
-            aria-hidden="true"
+            artworkUrl={heroWorldArt}
+            label="Emotional Worlds"
+            variant="hero"
           />
           <div className="emotional-worlds-hero-veil" aria-hidden="true" />
           <div className="emotional-worlds-hero-copy">
@@ -3247,7 +3239,6 @@ function EmotionalWorldsPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
             {visibleCards.map((card) => {
               const scene = scenes.find((entry) => entry.id === card.sceneId)
               const tracks = filterSongsByListeningScene(songs, card.sceneId)
-              const coverSong = tracks[0]
               const isActive = selectedCardId === card.cardId
               const visualSceneId = scene?.visualSceneId ?? resolveVisualScene({
                 seed: card.title,
@@ -3269,7 +3260,11 @@ function EmotionalWorldsPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
                   >
                     <div className="emotional-world-card-art">
                       <ArtworkImage
-                        src={coverSong ? getSongArtwork(coverSong, artworkContext) : null}
+                        src={getArtworkForWorld(
+                          { id: card.sceneId, title: card.title, sceneId: card.sceneId },
+                          songs,
+                          artworkContext,
+                        )}
                         alt=""
                         seed={card.cardId}
                         label={card.title}
@@ -3352,8 +3347,8 @@ function LibraryPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
       const playlistSongs = recentSongs.slice(sliceStart, sliceStart + 12)
       return {
         ...playlist,
-        collage: getPlaylistArtworkCollage(playlistSongs, artworkContext),
-        heroArt: getPlaylistArtwork(playlistSongs, artworkContext),
+        collage: getArtworkForPlaylistCollage(playlistSongs, artworkContext),
+        heroArt: getArtworkForPlaylist({ title: playlist.title, songs: playlistSongs }, artworkContext),
       }
     }),
     [artworkContext, recentSongs],
@@ -3493,7 +3488,7 @@ function LibraryPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
 
 
 function ArtistsPage({ onOpenArtist }: { onOpenArtist: (artist: ApiArtist) => void }) {
-  const { artists, albums, indexes } = useCatalog()
+  const { artists, albums, indexes, artworkContext } = useCatalog()
   const [tab, setTab] = useState<'overview' | 'songs' | 'albums' | 'playlists' | 'related' | 'about'>('overview')
 
   const featuredArtist = useMemo(
@@ -3530,14 +3525,20 @@ function ArtistsPage({ onOpenArtist }: { onOpenArtist: (artist: ApiArtist) => vo
     { id: 'about', label: 'About' },
   ] as const
 
+  const artistHeroArt = useMemo(
+    () => (featuredArtist ? getArtworkForArtist(featuredArtist, artworkContext) : null),
+    [artworkContext, featuredArtist],
+  )
+
   return (
     <div className="psd-artists-destination">
       <PageFrame cinematic>
         <section className="psd-artist-hero" aria-labelledby="artist-profile-heading">
-          <div
+          <EntityAtmosphereBackdrop
             className="psd-artist-hero-backdrop"
-            style={{ backgroundImage: `url(${psdArtistsReferenceUrl})` }}
-            aria-hidden="true"
+            artworkUrl={artistHeroArt}
+            label={featuredArtist?.name ?? PSD_ARTIST_NAME}
+            variant="hero"
           />
           <div className="psd-artist-hero-veil" aria-hidden="true" />
           <div className="psd-artist-hero-inner">
@@ -3669,14 +3670,11 @@ function ArtistsPage({ onOpenArtist }: { onOpenArtist: (artist: ApiArtist) => vo
             <div className="psd-artist-albums-grid">
               {PSD_ARTIST_ALBUM_CARDS.map((card, index) => {
                 const album = artistAlbums[index] ?? null
-                const albumSongs = album
-                  ? resolveSongsForAlbum(album, indexes.songsByAlbumId, indexes.songsByAlbumName, indexes.artistNames)
-                  : []
                 return (
                   <article key={card.key} className="psd-artist-album-card">
                     <div className="psd-artist-album-art">
                       <ArtworkImage
-                        src={album ? resolveAlbumArtwork(album, albumSongs) : null}
+                        src={album?.artwork ?? null}
                         alt=""
                         seed={album?.id ?? card.key}
                         label={album?.title ?? card.title}
@@ -3705,7 +3703,7 @@ function AlbumsPage({
   query?: string
   setQuery?: (value: string) => void
 }) {
-  const { albums, artistNames, indexes } = useCatalog()
+  const { albums, artistNames } = useCatalog()
   const [internalQuery, setInternalQuery] = usePersistedPreference(
     DESKTOP_PREFERENCE_KEYS.albumsSearch,
     '',
@@ -3776,9 +3774,6 @@ function AlbumsPage({
         <div className="psd-albums-grid">
           {PSD_ALBUMS_GRID_CARDS.map((card, index) => {
             const album = resolveAlbumAtIndex(index)
-            const albumSongs = album
-              ? resolveSongsForAlbum(album, indexes.songsByAlbumId, indexes.songsByAlbumName, indexes.artistNames)
-              : []
             return (
               <article key={card.key} className="psd-albums-gallery-card">
                 <button
@@ -3789,7 +3784,7 @@ function AlbumsPage({
                   <div className="psd-albums-gallery-art-wrap">
                     <div className="psd-albums-gallery-art">
                       <ArtworkImage
-                        src={album ? resolveAlbumArtwork(album, albumSongs) : null}
+                        src={album?.artwork ?? null}
                         alt=""
                         seed={album?.id ?? card.key}
                         label={album?.title ?? card.title}
@@ -3864,7 +3859,7 @@ function PlaylistsPage({
   )
 
   const playlistHeroCollage = useMemo(
-    () => getPlaylistArtworkCollage(playlistSongs, artworkContext),
+    () => getArtworkForPlaylistCollage(playlistSongs, artworkContext),
     [artworkContext, playlistSongs],
   )
 
@@ -4465,7 +4460,7 @@ function DownloadsPage({
                 <li key={row.key} className="psd-downloads-row">
                   <span className="psd-downloads-row-art">
                     <ArtworkCollage
-                      urls={getPlaylistArtworkCollage(playlistSongs, artworkContext)}
+                      urls={getArtworkForPlaylistCollage(playlistSongs, artworkContext)}
                       seed={row.key}
                       label={row.title}
                     />
@@ -4500,14 +4495,11 @@ function DownloadsPage({
             <ul className="psd-downloads-list">
               {PSD_DOWNLOADS_ALBUMS.map((row, index) => {
                 const album = resolveDownloadAlbum(row.title, index)
-                const albumSongs = album
-                  ? resolveSongsForAlbum(album, indexes.songsByAlbumId, indexes.songsByAlbumName, indexes.artistNames)
-                  : []
                 return (
                 <li key={row.key} className="psd-downloads-row">
                   <span className="psd-downloads-row-art">
                     <ArtworkImage
-                      src={album ? resolveAlbumArtwork(album, albumSongs) : null}
+                      src={album?.artwork ?? null}
                       alt=""
                       seed={album?.id ?? row.key}
                       label={album?.title ?? row.title}
@@ -6103,13 +6095,11 @@ const CinemaPlayerShell = memo(function CinemaPlayerShell({
       data-loading={isLoading && isActive ? 'true' : 'false'}
       data-active={isActive ? 'true' : 'false'}
     >
-      <div
+      <EntityAtmosphereBackdrop
         className="psd-player-master-bg"
-        style={{
-          backgroundImage: `url(${psdPlayerMasterReferenceUrl})`,
-          backgroundPosition: PSD_PLAYER_MASTER_BG_POSITION,
-        }}
-        aria-hidden="true"
+        artworkUrl={displayTrack?.artwork ?? null}
+        label={displayTitle}
+        variant="player"
       />
       <div className="psd-player-master-veil" aria-hidden="true" />
 
@@ -6446,13 +6436,11 @@ const Player2Shell = memo(function Player2Shell({
       data-playing={isPlaying && isActive ? 'true' : 'false'}
       data-loading={isLoading && isActive ? 'true' : 'false'}
     >
-      <div
+      <EntityAtmosphereBackdrop
         className="player2-bg"
-        style={{
-          backgroundImage: `url(${psdPlayer2ReferenceUrl})`,
-          backgroundPosition: PSD_PLAYER2_BG_POSITION,
-        }}
-        aria-hidden="true"
+        artworkUrl={displayTrack?.artwork ?? null}
+        label={displayTrack?.title ?? PSD_PLAYER2_TITLE_TOP}
+        variant="player"
       />
       <div className="player2-bg-glow" aria-hidden="true" />
       <div className="player2-veil" aria-hidden="true" />
@@ -6819,13 +6807,11 @@ const Player3Shell = memo(function Player3Shell({
       data-playing={isPlaying && isActive ? 'true' : 'false'}
       data-loading={isLoading && isActive ? 'true' : 'false'}
     >
-      <div
+      <EntityAtmosphereBackdrop
         className="player3-bg"
-        style={{
-          backgroundImage: `url(${psdPlayer3ReferenceUrl})`,
-          backgroundPosition: PSD_PLAYER3_BG_POSITION,
-        }}
-        aria-hidden="true"
+        artworkUrl={displayTrack?.artwork ?? null}
+        label={displayTrack?.title ?? PSD_PLAYER3_TITLE_MAIN}
+        variant="player"
       />
       <div className="player3-bg-shimmer" aria-hidden="true" />
       <div className="player3-veil" aria-hidden="true" />
@@ -7290,13 +7276,11 @@ const Player4Shell = memo(function Player4Shell({
       data-playing={isPlaying && isActive ? 'true' : 'false'}
       data-loading={isLoading && isActive ? 'true' : 'false'}
     >
-      <div
+      <EntityAtmosphereBackdrop
         className="player4-bg"
-        style={{
-          backgroundImage: `url(${psdPlayer4ReferenceUrl})`,
-          backgroundPosition: PSD_PLAYER4_BG_POSITION,
-        }}
-        aria-hidden="true"
+        artworkUrl={displayTrack?.artwork ?? null}
+        label={displayTitle}
+        variant="player"
       />
       <div className="player4-bg-breathe" aria-hidden="true" />
       <div className="player4-veil" aria-hidden="true" />
@@ -7747,13 +7731,11 @@ const Player5Shell = memo(function Player5Shell({
       data-playing={isPlaying && isActive ? 'true' : 'false'}
       data-loading={isLoading && isActive ? 'true' : 'false'}
     >
-      <div
+      <EntityAtmosphereBackdrop
         className="player5-bg"
-        style={{
-          backgroundImage: `url(${psdPlayer5ReferenceUrl})`,
-          backgroundPosition: PSD_PLAYER5_BG_POSITION,
-        }}
-        aria-hidden="true"
+        artworkUrl={displayTrack?.artwork ?? null}
+        label={displayTitle}
+        variant="player"
       />
       <div className="player5-bg-breathe" aria-hidden="true" />
       <div className="player5-veil" aria-hidden="true" />
@@ -8210,13 +8192,11 @@ const CinematicWaveformShell = memo(function CinematicWaveformShell({
       data-loading={isLoading && isActive ? 'true' : 'false'}
       data-active={isActive ? 'true' : 'false'}
     >
-      <div
+      <EntityAtmosphereBackdrop
         className="psd-waveform-bg"
-        style={{
-          backgroundImage: `url(${psdWaveformReferenceUrl})`,
-          backgroundPosition: PSD_WAVEFORM_BG_POSITION,
-        }}
-        aria-hidden="true"
+        artworkUrl={displayTrack?.artwork ?? null}
+        label={displayTitle}
+        variant="player"
       />
       <div className="psd-waveform-veil" aria-hidden="true" />
 
@@ -8446,13 +8426,11 @@ const FullscreenLyricsShell = memo(function FullscreenLyricsShell({
       data-loading={isLoading && isActive ? 'true' : 'false'}
       data-active={isActive ? 'true' : 'false'}
     >
-      <div
+      <EntityAtmosphereBackdrop
         className="psd-lyrics-bg"
-        style={{
-          backgroundImage: `url(${psdLyricsReferenceUrl})`,
-          backgroundPosition: PSD_LYRICS_BG_POSITION,
-        }}
-        aria-hidden="true"
+        artworkUrl={displayTrack?.artwork ?? null}
+        label={displayTitle}
+        variant="player"
       />
       <div className="psd-lyrics-veil" aria-hidden="true" />
 
@@ -8589,9 +8567,6 @@ function SongDetailView({
 
   const created = formatDateLabel(song.createdAt)
   const isActive = currentTrack?.id === song.id
-  const artBackdropStyle = song.artwork
-    ? { backgroundImage: `url(${song.artwork})` }
-    : undefined
 
   const stageAtmosphere = useMemo(
     () => deriveListeningAtmosphere(song, songs),
@@ -8649,15 +8624,11 @@ function SongDetailView({
         data-scene={stageAtmosphere.sceneId}
         data-mood={stageAtmosphere.mood}
       >
-        <VisualSceneBackdrop
-          sceneId={stageAtmosphere.sceneId}
-          seed={song.id}
-          variant="ambient"
-        />
-        <div
+        <EntityAtmosphereBackdrop
           className="listening-stage-art-backdrop"
-          style={artBackdropStyle}
-          aria-hidden="true"
+          artworkUrl={song.artwork}
+          label={song.title}
+          variant="panel"
         />
         <div className="listening-stage-veil" aria-hidden="true" />
         {onOpenCinema ? (
@@ -8738,10 +8709,7 @@ function AlbumDetailView({
     [album, albumSongs, artistNames],
   )
 
-  const artwork = useMemo(
-    () => resolveAlbumArtwork(album, albumSongs),
-    [album, albumSongs],
-  )
+  const artwork = album.artwork
   const tracks = useMemo(
     () => albumSongs.slice(0, CATALOG_DETAIL_TRACK_PREVIEW_LIMIT),
     [albumSongs],
@@ -8944,7 +8912,7 @@ function MoodDetailView({
   )
   const curated = useMemo(() => moodSongs.slice(0, 12), [moodSongs])
   const moodHeroCollage = useMemo(
-    () => getPlaylistArtworkCollage(curated, artworkContext),
+    () => getArtworkForPlaylistCollage(curated, artworkContext),
     [artworkContext, curated],
   )
   const queuePools = useMemo(() => buildQueueCandidatePools(indexes), [indexes])
