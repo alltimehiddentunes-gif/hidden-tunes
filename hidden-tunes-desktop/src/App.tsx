@@ -115,6 +115,7 @@ import psdArtistsReferenceUrl from './assets/psd-artists-reference.jpg'
 import psdAlbumsReferenceUrl from './assets/psd-albums-reference.jpg'
 import psdLikedReferenceUrl from './assets/psd-liked-reference.jpg'
 import psdSearchReferenceUrl from './assets/psd-search-reference.jpg'
+import psdPlayerReferenceUrl from './assets/psd-player-reference.jpg'
 import './App.css'
 
 const PSD_SEARCH_QUERY = 'midnight reflection'
@@ -231,6 +232,12 @@ const PSD_ALBUMS_UP_NEXT_ROWS = [
   { key: 'an4', title: 'Rain & Reflection', artist: 'Wills Afrobeats', duration: '4:12' },
   { key: 'an5', title: 'Night Drive', artist: 'Wills Afrobeats', duration: '4:01' },
 ] as const
+
+const PSD_PLAYER_TITLE = 'Midnight Reflection'
+const PSD_PLAYER_ARTIST = 'Wills Afrobeats'
+const PSD_PLAYER_POSITION_SECONDS = 108
+const PSD_PLAYER_DURATION_SECONDS = 236
+const PSD_PLAYER_ART_POSITION = '50% 22%'
 
 function AlbumStatsRailPanel() {
   return (
@@ -4055,6 +4062,127 @@ const PlaybackTransportControls = memo(function PlaybackTransportControls({
   )
 })
 
+const FullPlayerTransportControls = memo(function FullPlayerTransportControls({
+  activeTrackId,
+}: {
+  activeTrackId: string | null
+}) {
+  const {
+    currentTrack,
+    currentQueue,
+    currentIndex,
+    isPlaying,
+    isLoading,
+    pause,
+    resume,
+    next,
+    previous,
+  } = useDesktopPlayback()
+
+  const isActive = Boolean(activeTrackId && currentTrack?.id === activeTrackId)
+  const hasPrevious = isActive && currentIndex > 0
+  const hasNext =
+    isActive && currentIndex >= 0 && currentIndex < currentQueue.length - 1
+  const showPlaying = isActive && isPlaying
+  const showLoading = isActive && isLoading
+
+  const handlePlayPause = () => {
+    if (!isActive || isLoading) return
+    if (isPlaying) {
+      pause()
+      return
+    }
+    resume()
+  }
+
+  const playLabel = showLoading
+    ? 'Loading track'
+    : showPlaying
+      ? 'Pause'
+      : isActive
+        ? 'Play'
+        : 'Play (select a track)'
+
+  return (
+    <div className="transport-controls psd-player-transport" role="group" aria-label="Playback controls">
+      <button
+        type="button"
+        className="psd-player-transport-btn psd-player-transport-btn--shuffle"
+        aria-label="Shuffle"
+        title="Shuffle"
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+          <path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        className="psd-player-transport-btn psd-player-transport-btn--skip"
+        onClick={previous}
+        disabled={!hasPrevious}
+        aria-label={hasPrevious ? 'Previous track' : 'Previous track unavailable'}
+        title={hasPrevious ? 'Previous track' : 'Previous track unavailable'}
+      >
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M6 6h2v12H6V6zm3.5 6l8.5 6V6l-8.5 6z" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        className={
+          'psd-player-transport-btn psd-player-transport-btn--play'
+          + (showPlaying ? ' is-active' : '')
+          + (showLoading ? ' is-loading' : '')
+        }
+        onClick={handlePlayPause}
+        disabled={!isActive || isLoading}
+        aria-label={playLabel}
+        aria-busy={showLoading}
+        title={playLabel}
+      >
+        <span className="psd-player-transport-play-icon" aria-hidden="true">
+          {showLoading ? (
+            <span className="player-spinner player-spinner--transport" />
+          ) : showPlaying ? (
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M6 5h4v14H6V5zm8 0h4v14h-4V5z" />
+            </svg>
+          ) : (
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M8 5v14l11-7L8 5z" />
+            </svg>
+          )}
+        </span>
+      </button>
+      <button
+        type="button"
+        className="psd-player-transport-btn psd-player-transport-btn--skip"
+        onClick={next}
+        disabled={!hasNext}
+        aria-label={hasNext ? 'Next track' : 'Next track unavailable'}
+        title={hasNext ? 'Next track' : 'Next track unavailable'}
+      >
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M6 18l8.5-6L6 6v12zm10-12h2v12h-2V6z" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        className="psd-player-transport-btn psd-player-transport-btn--repeat"
+        aria-label="Repeat"
+        title="Repeat"
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+          <path d="M17 1l4 4-4 4" />
+          <path d="M3 11V9a4 4 0 014-4h14" />
+          <path d="M7 23l-4-4 4-4" />
+          <path d="M21 13v2a4 4 0 01-4 4H3" />
+        </svg>
+      </button>
+    </div>
+  )
+})
+
 const PlayerBar = memo(function PlayerBar({
   track,
   onOpenCinema,
@@ -4396,12 +4524,14 @@ const RailWaveformSeek = memo(function RailWaveformSeek({
   progressMax,
   isLoading,
   onSeek,
+  className = 'rail-waveform',
 }: {
   trackId: string | null
   progressPercent: number
   progressMax: number
   isLoading: boolean
   onSeek: (seconds: number) => void
+  className?: string
 }) {
   const trackRef = useRef<HTMLDivElement>(null)
   const isSeekingRef = useRef(false)
@@ -4452,7 +4582,7 @@ const RailWaveformSeek = memo(function RailWaveformSeek({
   return (
     <div
       ref={trackRef}
-      className="rail-waveform"
+      className={className}
       role="slider"
       aria-label="Playback position"
       aria-valuemin={0}
@@ -4772,111 +4902,73 @@ const CinemaPlayerShell = memo(function CinemaPlayerShell({
   onClose: () => void
   preferredTrack?: ApiSong | null
 }) {
-  const { songs } = useCatalog()
   const {
     currentTrack,
-    currentQueue,
-    currentIndex,
-    queueContext,
-    queueTitle,
     isPlaying,
     isLoading,
     positionSeconds,
     durationSeconds,
     seekTo,
+    volume,
+    setVolume,
+    audioQualityMode,
+    setAudioQualityMode,
   } = useDesktopPlayback()
 
-  const progressTrackRef = useRef<HTMLDivElement>(null)
-  const isSeekingRef = useRef(false)
+  const volumeTrackRef = useRef<HTMLDivElement>(null)
+  const isAdjustingVolumeRef = useRef(false)
+  const [showVolumePanel, setShowVolumePanel] = useState(false)
+  const [showQualityPanel, setShowQualityPanel] = useState(false)
 
   const displayTrack = currentTrack ?? preferredTrack
   const isActive = Boolean(displayTrack && currentTrack?.id === displayTrack.id)
-  const progressMax = isActive && durationSeconds > 0 ? durationSeconds : 0
-  const progressValue = progressMax > 0 ? Math.min(positionSeconds, progressMax) : 0
-  const progressPercent =
-    progressMax > 0 ? Math.min(100, (progressValue / progressMax) * 100) : 0
-  const queueSnapshot = useMemo(
-    () =>
-      isActive
-        ? analyzeQueueSnapshot({
-            queue: currentQueue,
-            currentIndex,
-            currentTrack,
-          })
-        : null,
-    [currentQueue, currentIndex, currentTrack, isActive],
-  )
+  const liveProgressMax = isActive && durationSeconds > 0 ? durationSeconds : 0
+  const liveProgressValue = liveProgressMax > 0 ? Math.min(positionSeconds, liveProgressMax) : 0
+  const progressMax = liveProgressMax > 0 ? liveProgressMax : PSD_PLAYER_DURATION_SECONDS
+  const progressValue = liveProgressMax > 0
+    ? liveProgressValue
+    : PSD_PLAYER_POSITION_SECONDS
+  const progressPercent = progressMax > 0
+    ? Math.min(100, (progressValue / progressMax) * 100)
+    : 0
+  const volumePercent = Math.min(100, Math.max(0, volume * 100))
 
-  const queueInsight = useMemo(
-    () => (queueSnapshot ? describeQueueInsight(queueSnapshot) : null),
-    [queueSnapshot],
-  )
+  const displayTitle = displayTrack?.title ?? PSD_PLAYER_TITLE
+  const displayArtist = displayTrack?.artist ?? PSD_PLAYER_ARTIST
+  const activeTrackId = displayTrack?.id ?? null
 
-  const cinemaAtmosphere = useMemo(
-    () => deriveListeningAtmosphere(displayTrack, songs),
-    [displayTrack, songs],
-  )
+  const resolveVolume = useCallback((clientX: number) => {
+    const trackEl = volumeTrackRef.current
+    if (!trackEl) return null
+    const rect = trackEl.getBoundingClientRect()
+    if (rect.width <= 0) return null
+    const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width))
+    return ratio
+  }, [])
 
-  const cinemaListeningContext = useMemo(
-    () =>
-      buildListeningContext({
-        track: displayTrack,
-        catalog: songs,
-        queueContext,
-        queueTitle,
-        queueInsight,
-        isPlaying,
-        isLoading,
-        isActive,
-      }),
-    [
-      displayTrack,
-      isActive,
-      isLoading,
-      isPlaying,
-      queueContext,
-      queueInsight,
-      queueTitle,
-      songs,
-    ],
-  )
-
-  const resolveSeekSeconds = useCallback(
-    (clientX: number) => {
-      const trackEl = progressTrackRef.current
-      if (!trackEl || progressMax <= 0) return null
-      const rect = trackEl.getBoundingClientRect()
-      if (rect.width <= 0) return null
-      const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width))
-      return ratio * progressMax
-    },
-    [progressMax],
-  )
-
-  const handleSeekClick = (event: ReactMouseEvent<HTMLDivElement>) => {
-    if (!isActive || progressMax <= 0 || isLoading || isSeekingRef.current) return
-    const seconds = resolveSeekSeconds(event.clientX)
-    if (seconds != null) seekTo(seconds)
+  const handleVolumeClick = (event: ReactMouseEvent<HTMLDivElement>) => {
+    if (isAdjustingVolumeRef.current) return
+    const nextVolume = resolveVolume(event.clientX)
+    if (nextVolume != null) setVolume(nextVolume)
   }
 
-  const handleSeekPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (!isActive || progressMax <= 0 || isLoading) return
-    const seconds = resolveSeekSeconds(event.clientX)
-    if (seconds == null) return
-    isSeekingRef.current = true
+  const handleVolumePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const nextVolume = resolveVolume(event.clientX)
+    if (nextVolume == null) return
+    isAdjustingVolumeRef.current = true
     event.currentTarget.setPointerCapture(event.pointerId)
-    seekTo(seconds)
+    setVolume(nextVolume)
   }
 
-  const handleSeekPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (!isSeekingRef.current) return
-    const seconds = resolveSeekSeconds(event.clientX)
-    if (seconds != null) seekTo(seconds)
+  const handleVolumePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!isAdjustingVolumeRef.current) return
+    const nextVolume = resolveVolume(event.clientX)
+    if (nextVolume != null) setVolume(nextVolume)
   }
 
-  const handleSeekPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (!isSeekingRef.current) return
-    isSeekingRef.current = false
+  const handleVolumePointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!isAdjustingVolumeRef.current) return
+    isAdjustingVolumeRef.current = false
     event.currentTarget.releasePointerCapture(event.pointerId)
   }
 
@@ -4898,145 +4990,195 @@ const CinemaPlayerShell = memo(function CinemaPlayerShell({
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [onClose])
 
-  if (!displayTrack) {
-    return (
-      <div
-        className="cinema-player cinema-player--theater cinema-player--empty"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Fullscreen player"
-      >
-        <div className="cinema-player-backdrop" aria-hidden="true" />
-        <button
-          type="button"
-          className="cinema-player-close"
-          onClick={onClose}
-          aria-label="Exit fullscreen player"
-        >
-          <span className="cinema-player-close-icon" aria-hidden="true">
-            ←
-          </span>
-          Back
-        </button>
-        <div className="cinema-player-empty-stage">
-          <div className="cinema-player-empty-glow" aria-hidden="true" />
-          <div className="cinema-player-empty-icon" aria-hidden="true">
-            <MusicNoteIcon className="cinema-player-empty-icon-svg" />
-          </div>
-          <h1 className="cinema-player-empty-title">Your stage is waiting</h1>
-          <p className="cinema-player-empty-detail">
-            Start a track to open the fullscreen listening experience.
-          </p>
-          <p className="cinema-player-kbd-hint">Press Esc to return</p>
-        </div>
-      </div>
-    )
-  }
-
-  const artBackdropStyle = displayTrack.artwork
-    ? { backgroundImage: `url(${displayTrack.artwork})` }
-    : undefined
-
-  const theaterLyric = useMemo(() => {
-    if (cinemaListeningContext.atmosphereLine) return cinemaListeningContext.atmosphereLine
-    const description = displayTrack?.description?.trim()
-    if (description) return description
-    return 'Feel every sound — let the room disappear around you.'
-  }, [cinemaListeningContext.atmosphereLine, displayTrack?.description])
-
   return (
     <div
-      className="cinema-player cinema-player--theater"
+      className="cinema-player cinema-player--psd"
       role="dialog"
       aria-modal="true"
       aria-label="Fullscreen player"
       data-playing={isPlaying && isActive ? 'true' : 'false'}
       data-loading={isLoading && isActive ? 'true' : 'false'}
       data-active={isActive ? 'true' : 'false'}
-      data-scene={cinemaAtmosphere.sceneId}
-      data-mood={cinemaAtmosphere.mood}
     >
-      <div
-        className="cinema-player-art-backdrop cinema-theater-photo"
-        style={artBackdropStyle}
-        aria-hidden="true"
-      />
-      <div className="cinema-player-backdrop cinema-theater-backdrop" aria-hidden="true" />
-      <div className="cinema-theater-veil" aria-hidden="true" />
-      <button
-        type="button"
-        className="cinema-player-close cinema-theater-close"
-        onClick={onClose}
-        aria-label="Exit fullscreen player"
-      >
-        <span className="cinema-player-close-icon" aria-hidden="true">
-          ←
-        </span>
-        Back
-        <span className="cinema-player-kbd-hint cinema-player-kbd-hint--inline">
-          Esc
-        </span>
-      </button>
-      <div className="cinema-theater-stage">
-        <div className="cinema-theater-lyrics-module" aria-live="polite">
-          <p className="cinema-theater-eyebrow">Now listening</p>
-          <p className="cinema-theater-lyric">{theaterLyric}</p>
-        </div>
+      <header className="psd-player-topbar">
+        <button
+          type="button"
+          className="psd-player-topbar-btn psd-player-topbar-btn--back"
+          onClick={onClose}
+          aria-label="Exit fullscreen player"
+        >
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            <path d="M6 9l6 6 6-6" />
+          </svg>
+        </button>
+        <h1 className="psd-player-topbar-title">Now Playing</h1>
+        <button
+          type="button"
+          className="psd-player-topbar-btn psd-player-topbar-btn--menu"
+          aria-label="More options"
+        >
+          <PsdIconMore />
+        </button>
+      </header>
 
-        <div className="cinema-theater-credit">
-          <h1 className="cinema-theater-title">{displayTrack.title}</h1>
-          <p className="cinema-theater-artist">
-            {displayTrack.artist}
-            {displayTrack.album ? (
-              <span className="cinema-theater-album"> · {displayTrack.album}</span>
+      <div className="psd-player-stage">
+        <div className="psd-player-art-shell">
+          <div className="psd-player-vinyl" aria-hidden="true" />
+          <div className="psd-player-art-glow" aria-hidden="true" />
+          <div className="psd-player-art-frame">
+            {displayTrack?.artwork ? (
+              <ArtworkImage
+                src={displayTrack.artwork}
+                alt=""
+                seed={displayTrack.id}
+                priority
+              />
+            ) : (
+              <span
+                className="psd-player-art-fallback"
+                style={{
+                  backgroundImage: `url(${psdPlayerReferenceUrl})`,
+                  backgroundPosition: PSD_PLAYER_ART_POSITION,
+                }}
+                aria-hidden="true"
+              />
+            )}
+            {isLoading && isActive ? (
+              <span className="psd-player-art-spinner player-spinner" aria-hidden="true" />
             ) : null}
-          </p>
+          </div>
         </div>
 
-        <span className="cinema-theater-quality-badge" aria-hidden="true">
-          Hi-Res
-        </span>
-
-        <PlaybackTransportControls
-          activeTrackId={displayTrack.id}
-          className="cinema-theater-controls"
-        />
+        <div className="psd-player-track-row">
+          <div className="psd-player-track-copy">
+            <h2 className="psd-player-track-title">{displayTitle}</h2>
+            <p className="psd-player-track-artist">
+              <span>{displayArtist}</span>
+              <PsdIconVerified className="psd-player-verified" />
+            </p>
+            <div className="psd-player-meta-row">
+              <span className="psd-player-flac-pill">FLAC</span>
+              <span className="psd-player-format-copy">24-bit • 48kHz</span>
+            </div>
+          </div>
+          <button type="button" className="psd-player-heart" aria-label="Favorite" title="Favorite">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M12 20.8l-1.1-1C6.4 15.36 3 12.28 3 8.5 3 6 5 4 7.5 4c1.74 0 3.41 1.01 4.5 2.36C13.09 5.01 14.76 4 16.5 4 19 4 21 6 21 8.5c0 3.78-3.4 6.86-7.9 11.3L12 20.8z" />
+            </svg>
+          </button>
+        </div>
 
         <div
-          className="cinema-theater-progress progress-wrap"
-          role="group"
-          aria-label="Playback progress"
+          className="psd-player-waveform-wrap"
+          style={{ ['--psd-player-progress' as string]: `${progressPercent}%` }}
         >
-          <span className="progress-time">
-            {formatPlaybackTime(progressValue)}
-          </span>
-          <div
-            ref={progressTrackRef}
-            className={
-              'progress-track cinema-theater-progress-track'
-              + (progressMax > 0 && isActive ? ' progress-track--interactive' : '')
-            }
-            role="slider"
-            aria-label="Seek position"
-            aria-valuemin={0}
-            aria-valuemax={Math.round(progressMax)}
-            aria-valuenow={Math.round(progressValue)}
-            aria-disabled={!isActive || progressMax <= 0 || isLoading}
-            onClick={handleSeekClick}
-            onPointerDown={handleSeekPointerDown}
-            onPointerMove={handleSeekPointerMove}
-            onPointerUp={handleSeekPointerUp}
-            onPointerCancel={handleSeekPointerUp}
+          <RailWaveformSeek
+            trackId={activeTrackId}
+            progressPercent={progressPercent}
+            progressMax={liveProgressMax}
+            isLoading={isLoading && isActive}
+            onSeek={seekTo}
+            className="psd-player-waveform"
+          />
+        </div>
+
+        <div className="psd-player-times" aria-hidden="true">
+          <span>{formatPlaybackTime(progressValue)}</span>
+          <span>{formatPlaybackTime(progressMax)}</span>
+        </div>
+
+        <FullPlayerTransportControls activeTrackId={activeTrackId} />
+
+        <div className="psd-player-quick-actions" role="toolbar" aria-label="Player actions">
+          <button
+            type="button"
+            className="psd-player-quick-action"
+            aria-label="Volume"
+            aria-pressed={showVolumePanel}
+            onClick={() => setShowVolumePanel((open) => !open)}
           >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+              <path d="M11 5L6 9H3v6h3l5 4V5z" />
+              <path d="M15.54 8.46a5 5 0 010 7.07M19.07 4.93a10 10 0 010 14.14" />
+            </svg>
+            <span>Volume</span>
+          </button>
+          <button
+            type="button"
+            className="psd-player-quick-action"
+            aria-label="Queue"
+            onClick={onClose}
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+              <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
+            </svg>
+            <span>Queue</span>
+          </button>
+          <button type="button" className="psd-player-quick-action" aria-label="Lyrics">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+              <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+            </svg>
+            <span>Lyrics</span>
+          </button>
+          <button
+            type="button"
+            className="psd-player-quick-action"
+            aria-label="Equalizer"
+            aria-pressed={showQualityPanel}
+            onClick={() => setShowQualityPanel((open) => !open)}
+          >
+            <PsdIconEqualizer className="psd-player-equalizer-icon" />
+            <span>Equalizer</span>
+          </button>
+        </div>
+
+        {showVolumePanel ? (
+          <div className="psd-player-volume-panel" role="group" aria-label="Volume">
             <div
-              className="progress-fill cinema-theater-progress-fill"
-              style={{ width: `${progressPercent}%` }}
+              ref={volumeTrackRef}
+              className="psd-player-volume-slider"
+              role="slider"
+              aria-label="Volume"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={Math.round(volumePercent)}
+              onClick={handleVolumeClick}
+              onPointerDown={handleVolumePointerDown}
+              onPointerMove={handleVolumePointerMove}
+              onPointerUp={handleVolumePointerUp}
+              onPointerCancel={handleVolumePointerUp}
+            >
+              <div className="psd-player-volume-fill" style={{ width: `${volumePercent}%` }} />
+            </div>
+          </div>
+        ) : null}
+
+        {showQualityPanel ? (
+          <div className="psd-player-quality-options">
+            <AudioQualitySelector
+              value={audioQualityMode}
+              onChange={setAudioQualityMode}
             />
           </div>
-          <span className="progress-time">
-            {progressMax > 0 ? formatPlaybackTime(progressMax) : '—'}
+        ) : null}
+
+        <button
+          type="button"
+          className="psd-player-quality-panel"
+          aria-label="Audio quality"
+          onClick={() => setShowQualityPanel((open) => !open)}
+        >
+          <span className="psd-player-quality-left">
+            <PsdWaveformStrip className="psd-player-quality-wave" />
+            <strong>High Quality</strong>
           </span>
-        </div>
+          <span className="psd-player-quality-center">FLAC • 24bit • 48kHz</span>
+          <span className="psd-player-quality-chevron" aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M6 9l6 6 6-6" />
+            </svg>
+          </span>
+        </button>
       </div>
     </div>
   )
