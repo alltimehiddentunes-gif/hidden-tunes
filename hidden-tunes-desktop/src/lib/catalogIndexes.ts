@@ -57,10 +57,22 @@ export function inferSongGenre(song?: ApiSong) {
 function pushToBucket(map: Map<string, ApiSong[]>, key: string, song: ApiSong) {
   const bucket = map.get(key)
   if (bucket) {
+    if (bucket.some((entry) => entry.id === song.id)) return
     bucket.push(song)
   } else {
     map.set(key, [song])
   }
+}
+
+function dedupeSongsById(songs: ApiSong[]): ApiSong[] {
+  const seen = new Set<string>()
+  const result: ApiSong[] = []
+  for (const song of songs) {
+    if (seen.has(song.id)) continue
+    seen.add(song.id)
+    result.push(song)
+  }
+  return result
 }
 
 export function buildCatalogIndexes(
@@ -95,12 +107,16 @@ export function buildCatalogIndexes(
       pushToBucket(songsByArtistName, artistKey, song)
     }
 
+    if (song.albumId) {
+      pushToBucket(songsByAlbumId, song.albumId, song)
+    }
+
     const albumKey = normalizeAlbumKey(song.album)
     if (albumKey) {
       pushToBucket(songsByAlbumName, albumKey, song)
-      const albumId = albumIdByTitle.get(albumKey)
-      if (albumId) {
-        pushToBucket(songsByAlbumId, albumId, song)
+      const albumIdFromTitle = albumIdByTitle.get(albumKey)
+      if (albumIdFromTitle) {
+        pushToBucket(songsByAlbumId, albumIdFromTitle, song)
       }
     }
 
@@ -205,6 +221,48 @@ export function resolveSongsForArtist(
   return tracks
 }
 
+export function resolveAlbumDisplayArtist(
+  album: ApiAlbum,
+  albumSongs: ApiSong[],
+  artistNames: Map<string, string>,
+): string | null {
+  if (album.artistId) {
+    const linked = artistNames.get(album.artistId)
+    if (linked) return linked
+  }
+
+  if (albumSongs.length === 0) return null
+
+  const counts = new Map<string, number>()
+  for (const song of albumSongs) {
+    const name = song.artist.trim()
+    if (!name) continue
+    counts.set(name, (counts.get(name) ?? 0) + 1)
+  }
+
+  let bestName: string | null = null
+  let bestCount = 0
+  for (const [name, count] of counts) {
+    if (count > bestCount) {
+      bestName = name
+      bestCount = count
+    }
+  }
+
+  return bestName
+}
+
+export function resolveAlbumArtwork(
+  album: ApiAlbum,
+  albumSongs: ApiSong[],
+): string | null {
+  if (album.artwork) return album.artwork
+  for (const song of albumSongs) {
+    if (song.artwork) return song.artwork
+  }
+  return null
+}
+
 export function resolveSongsForAlbum(
   album: ApiAlbum,
   songsByAlbumId: Map<string, ApiSong[]>,
@@ -215,18 +273,19 @@ export function resolveSongsForAlbum(
   if (album.id) {
     const byId = songsByAlbumId.get(album.id)
     if (byId?.length) {
+      const result = dedupeSongsById(byId)
       logAlbumResolve({
         albumId: album.id,
-        resultCount: byId.length,
+        resultCount: result.length,
         durationMs: Math.round(performance.now() - started),
         source: 'id',
       })
-      return byId
+      return result
     }
   }
 
-  const byName = songsByAlbumName.get(normalizeAlbumKey(album.title))
-  const result = byName ?? []
+  const byName = songsByAlbumName.get(normalizeAlbumKey(album.title)) ?? []
+  const result = dedupeSongsById(byName)
   logAlbumResolve({
     albumId: album.id,
     resultCount: result.length,

@@ -40,6 +40,8 @@ import {
   buildQueueSeedPool,
   CATALOG_DETAIL_TRACK_PREVIEW_LIMIT,
   capSongPool,
+  resolveAlbumArtwork,
+  resolveAlbumDisplayArtist,
   resolveSongsForAlbum,
   resolveSongsForArtist,
   resolveSongsForMoodRoom,
@@ -966,12 +968,14 @@ const ApiSongGrid = memo(function ApiSongGrid({
 const ApiAlbumGrid = memo(function ApiAlbumGrid({
   albums,
   artistNames,
+  indexes,
   onSelect,
   listKey = 'albums',
   paginate = true,
 }: {
   albums: ApiAlbum[]
   artistNames: Map<string, string>
+  indexes: CatalogIndexes
   onSelect: (album: ApiAlbum) => void
   listKey?: string
   paginate?: boolean
@@ -995,9 +999,14 @@ const ApiAlbumGrid = memo(function ApiAlbumGrid({
     <>
       <div className="card-row card-row--compact">
         {renderAlbums.map((album) => {
-          const artistName = album.artistId
-            ? artistNames.get(album.artistId)
-            : null
+          const albumSongs = resolveSongsForAlbum(
+            album,
+            indexes.songsByAlbumId,
+            indexes.songsByAlbumName,
+          )
+          const artistName = resolveAlbumDisplayArtist(album, albumSongs, artistNames)
+          const artwork = resolveAlbumArtwork(album, albumSongs)
+          const trackLabel = `${albumSongs.length} ${albumSongs.length === 1 ? 'track' : 'tracks'}`
           return (
             <button
               key={album.id}
@@ -1006,13 +1015,13 @@ const ApiAlbumGrid = memo(function ApiAlbumGrid({
               onClick={() => onSelect(album)}
             >
               <div className="card-art card-art--album">
-                <ArtworkImage src={album.artwork} alt="" seed={album.id} variant="wide" />
+                <ArtworkImage src={artwork} alt="" seed={album.id} variant="wide" />
               </div>
               <div className="card-info">
                 <h3>{album.title}</h3>
-                <p className="card-meta-primary">{artistName || 'Hidden Tunes'}</p>
+                <p className="card-meta-primary">{artistName || 'Unknown artist'}</p>
                 <p className="card-meta-secondary">
-                  {album.releaseYear ? `Released ${album.releaseYear}` : 'Album'}
+                  {album.releaseYear ? `Released ${album.releaseYear} · ${trackLabel}` : trackLabel}
                 </p>
               </div>
             </button>
@@ -1743,7 +1752,7 @@ function ArtistsPage({ onOpenArtist }: { onOpenArtist: (artist: ApiArtist) => vo
 }
 
 function AlbumsPage({ onOpenAlbum }: { onOpenAlbum: (album: ApiAlbum) => void }) {
-  const { albums, artistNames, showCatalogSkeleton, showCatalogError, error, retry } = useCatalog()
+  const { albums, artistNames, indexes, showCatalogSkeleton, showCatalogError, error, retry } = useCatalog()
   const [query, setQuery] = usePersistedPreference(
     DESKTOP_PREFERENCE_KEYS.albumsSearch,
     '',
@@ -1800,6 +1809,7 @@ function AlbumsPage({ onOpenAlbum }: { onOpenAlbum: (album: ApiAlbum) => void })
           <ApiAlbumGrid
             albums={visibleAlbums}
             artistNames={artistNames}
+            indexes={indexes}
             onSelect={onOpenAlbum}
             listKey={listKey}
           />
@@ -2623,7 +2633,6 @@ function AlbumDetailView({
   selectedTrackId: string | null
 }) {
   const { artistNames, indexes } = useCatalog()
-  const artistName = album.artistId ? artistNames.get(album.artistId) : null
   const created = formatDateLabel(album.createdAt)
 
   const albumSongs = useMemo(() => {
@@ -2634,6 +2643,16 @@ function AlbumDetailView({
     )
     return sortSongsList(byAlbum, 'az')
   }, [album, indexes.songsByAlbumId, indexes.songsByAlbumName])
+
+  const artistName = useMemo(
+    () => resolveAlbumDisplayArtist(album, albumSongs, artistNames),
+    [album, albumSongs, artistNames],
+  )
+
+  const artwork = useMemo(
+    () => resolveAlbumArtwork(album, albumSongs),
+    [album, albumSongs],
+  )
   const tracks = useMemo(
     () => albumSongs.slice(0, CATALOG_DETAIL_TRACK_PREVIEW_LIMIT),
     [albumSongs],
@@ -2658,18 +2677,18 @@ function AlbumDetailView({
 
   return (
     <PageFrame>
-      <DetailTopBar title="Album" subtitle="Read-only preview" onBack={onBack} />
+      <DetailTopBar title={album.title} onBack={onBack} />
       <section className="detail-hero detail-hero--album">
         <div className="detail-artwork detail-artwork--wide">
-          <ArtworkImage src={album.artwork} alt="" seed={album.id} variant="wide" priority />
+          <ArtworkImage src={artwork} alt="" seed={album.id} variant="wide" priority />
         </div>
         <div className="detail-hero-copy">
           <p className="detail-eyebrow">Album</p>
           <h1 className="detail-h1">{album.title}</h1>
           <p className="detail-byline">
-            <span className="detail-pill">{artistName || 'Hidden Tunes'}</span>
+            <span className="detail-pill">{artistName || 'Unknown artist'}</span>
             <span className="detail-pill detail-pill--muted">
-              {album.releaseYear ? `Released ${album.releaseYear}` : 'Release year —'}
+              {album.releaseYear ? `Released ${album.releaseYear}` : 'Release year unknown'}
             </span>
           </p>
           <p className="detail-stats">
@@ -2682,7 +2701,6 @@ function AlbumDetailView({
       <section className="detail-panel">
         <div className="detail-panel-header">
           <h3>Track list</h3>
-          <span>UI only · derived from cached songs</span>
         </div>
         {tracks.length === 0 ? (
           <CatalogEmpty title="No tracks found" detail="This album has no matching songs in the cached list yet." />
@@ -2797,6 +2815,7 @@ function ArtistDetailView({
           <ApiAlbumGrid
             albums={artistAlbums}
             artistNames={artistNames}
+            indexes={indexes}
             onSelect={onOpenAlbum}
             listKey={`artist-albums-${artist.id}`}
             paginate={false}
