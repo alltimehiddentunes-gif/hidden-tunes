@@ -112,6 +112,7 @@ import heroPhotoUrl from './assets/hero.png'
 import emotionalWorldsReferenceUrl from './assets/emotional-worlds-reference.jpg'
 import psdPlaylistsReferenceUrl from './assets/psd-playlists-reference.jpg'
 import psdArtistsReferenceUrl from './assets/psd-artists-reference.jpg'
+import psdAlbumsReferenceUrl from './assets/psd-albums-reference.jpg'
 import psdLikedReferenceUrl from './assets/psd-liked-reference.jpg'
 import psdSearchReferenceUrl from './assets/psd-search-reference.jpg'
 import './App.css'
@@ -206,6 +207,66 @@ const PSD_ARTIST_UP_NEXT_ROWS = [
   { key: 'au3', title: 'Rain & Reflection', artist: 'Wills Afrobeats', duration: '4:12' },
   { key: 'au4', title: 'Night Drive', artist: 'Wills Afrobeats', duration: '4:01' },
 ] as const
+
+const PSD_ALBUMS_SUBTITLE = 'All albums in your library'
+const PSD_ALBUMS_FOOTER_COUNT = '24 albums'
+
+const PSD_ALBUMS_GRID_CARDS = [
+  { key: 'alb1', title: 'Reflections at Midnight', artist: 'Wills Afrobeats', year: '2024', songs: '12 songs', artPosition: '8% 24%' },
+  { key: 'alb2', title: 'Afro Sunrise', artist: 'Wills Afrobeats', year: '2023', songs: '10 songs', artPosition: '22% 24%' },
+  { key: 'alb3', title: 'Vibes from Lagos', artist: 'Wills Afrobeats', year: '2023', songs: '14 songs', artPosition: '36% 24%' },
+  { key: 'alb4', title: 'Love & Rhythm', artist: 'Wills Afrobeats', year: '2022', songs: '11 songs', artPosition: '50% 24%' },
+  { key: 'alb5', title: 'The Beginning', artist: 'Wills Afrobeats', year: '2021', songs: '9 songs', artPosition: '64% 24%' },
+  { key: 'alb6', title: 'Jazz Café', artist: 'Wills Afrobeats', year: '2020', songs: '8 songs', artPosition: '78% 24%' },
+  { key: 'alb7', title: 'Deep Focus', artist: 'Wills Afrobeats', year: '2019', songs: '15 songs', artPosition: '8% 58%' },
+  { key: 'alb8', title: 'Moments of Us', artist: 'Wills Afrobeats', year: '2018', songs: '7 songs', artPosition: '22% 58%' },
+  { key: 'alb9', title: 'Rainy Day Comfort', artist: 'Wills Afrobeats', year: '2017', songs: '13 songs', artPosition: '36% 58%' },
+  { key: 'alb10', title: 'Live in Accra', artist: 'Wills Afrobeats', year: '2016', songs: '6 songs', artPosition: '50% 58%' },
+] as const
+
+const PSD_ALBUMS_UP_NEXT_ROWS = [
+  { key: 'an1', title: 'Midnight Reflection', artist: 'Wills Afrobeats', duration: '3:56' },
+  { key: 'an2', title: 'Afro Sunset', artist: 'Wills Afrobeats', duration: '3:21' },
+  { key: 'an3', title: 'Love Vibes', artist: 'Wills Afrobeats', duration: '3:44' },
+  { key: 'an4', title: 'Rain & Reflection', artist: 'Wills Afrobeats', duration: '4:12' },
+  { key: 'an5', title: 'Night Drive', artist: 'Wills Afrobeats', duration: '4:01' },
+] as const
+
+function AlbumStatsRailPanel() {
+  return (
+    <section className="album-stats-rail-panel" aria-label="Album Stats">
+      <header className="psd-albums-section-header">
+        <h3>Album Stats</h3>
+        <span className="album-stats-rail-icon" aria-hidden="true">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
+            <path d="M4 20V10M10 20V4M16 20v-8M22 20H2" />
+          </svg>
+        </span>
+      </header>
+      <div className="album-stats-rail-grid">
+        <article className="album-stats-rail-card">
+          <strong>24</strong>
+          <span>Albums</span>
+        </article>
+        <article className="album-stats-rail-card">
+          <strong>196</strong>
+          <span>Songs</span>
+        </article>
+        <article className="album-stats-rail-card">
+          <strong>18h 42m</strong>
+          <span>Total Time</span>
+        </article>
+      </div>
+      <p className="album-stats-rail-updated">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+          <rect x="3" y="4" width="18" height="18" rx="2" />
+          <path d="M16 2v4M8 2v4M3 10h18" />
+        </svg>
+        Last Updated May 12, 2024
+      </p>
+    </section>
+  )
+}
 
 function PsdSocialIcon({ network }: { network: 'instagram' | 'twitter' | 'youtube' | 'spotify' }) {
   const paths: Record<typeof network, ReactNode> = {
@@ -327,11 +388,6 @@ const APP_VERSION = '0.0.1'
 const GRID_INITIAL_LIMIT = 24
 const GRID_SHOW_MORE_STEP = 24
 const SEARCH_DEBOUNCE_MS = 250
-
-const ALBUM_SORT_OPTIONS = [
-  { value: 'latest', label: 'Latest' },
-  { value: 'az', label: 'A–Z' },
-]
 
 const QUEUE_CONTEXT_LABELS: Record<QueueContext, string> = {
   home: 'Home Queue',
@@ -979,6 +1035,7 @@ const HOME_SECTIONS: DiscoverySection[] = [
   },
 ]
 
+
 const TV_SHOWS = [
   { title: 'Live from the Mood Room', subtitle: 'Session 07 · Violet hour', mood: 'violet' as Mood },
   { title: 'Artist Residency', subtitle: 'Luna Veil · Behind the feeling', mood: 'rose' as Mood },
@@ -1091,75 +1148,6 @@ function CatalogEmpty({
     <div className="catalog-empty">
       <p className="catalog-empty-title">{title}</p>
       <p className="catalog-empty-detail">{detail}</p>
-    </div>
-  )
-}
-
-function CatalogToolbar({
-  searchValue,
-  onSearchChange,
-  searchPlaceholder,
-  sortLabel,
-  sortValue,
-  sortOptions,
-  onSortChange,
-  resultCount,
-  hideSearch = false,
-}: {
-  searchValue: string
-  onSearchChange: (value: string) => void
-  searchPlaceholder: string
-  sortLabel: string
-  sortValue: string
-  sortOptions: { value: string; label: string }[]
-  onSortChange: (value: string) => void
-  resultCount?: number
-  hideSearch?: boolean
-}) {
-  return (
-    <div className="catalog-toolbar">
-      {!hideSearch ? (
-        <div className="search-bar search-bar--premium" role="search">
-          <span className="search-icon" aria-hidden="true">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="11" cy="11" r="7" />
-              <path d="M20 20l-3.5-3.5" />
-            </svg>
-          </span>
-          <input
-            type="search"
-            value={searchValue}
-            onChange={(event) => onSearchChange(event.target.value)}
-            placeholder={searchPlaceholder}
-            aria-label={searchPlaceholder}
-          />
-          {searchValue ? (
-            <button
-              type="button"
-              className="search-clear"
-              onClick={() => onSearchChange('')}
-              aria-label="Clear search"
-            >
-              ×
-            </button>
-          ) : null}
-        </div>
-      ) : null}
-      <div className="catalog-toolbar-row">
-        <label className="sort-control">
-          <span>{sortLabel}</span>
-          <select value={sortValue} onChange={(event) => onSortChange(event.target.value)}>
-            {sortOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        {typeof resultCount === 'number' ? (
-          <span className="catalog-count">{resultCount} shown</span>
-        ) : null}
-      </div>
     </div>
   )
 }
@@ -3359,19 +3347,30 @@ function ArtistsPage({ onOpenArtist }: { onOpenArtist: (artist: ApiArtist) => vo
   )
 }
 
-function AlbumsPage({ onOpenAlbum }: { onOpenAlbum: (album: ApiAlbum) => void }) {
-  const { albums, artistNames, indexes, showCatalogSkeleton, showCatalogError, error, retry } = useCatalog()
-  const [query, setQuery] = usePersistedPreference(
+function AlbumsPage({
+  onOpenAlbum,
+  query: externalQuery,
+  setQuery: externalSetQuery,
+}: {
+  onOpenAlbum: (album: ApiAlbum) => void
+  query?: string
+  setQuery?: (value: string) => void
+}) {
+  const { albums, artistNames, indexes } = useCatalog()
+  const [internalQuery, setInternalQuery] = usePersistedPreference(
     DESKTOP_PREFERENCE_KEYS.albumsSearch,
     '',
     parseStoredSearchTerm,
   )
-  const [sort, setSort] = usePersistedPreference(
+  const query = externalQuery ?? internalQuery
+  const setQuery = externalSetQuery ?? setInternalQuery
+  void setQuery
+  const [sort] = usePersistedPreference(
     DESKTOP_PREFERENCE_KEYS.albumsSort,
     'latest' as AlbumSort,
     parseStoredAlbumSort,
   )
-  const [tab, setTab] = useState<'all' | 'recent' | 'liked'>('all')
+  const [tab, setTab] = useState<'all' | 'collection' | 'recent' | 'by-artist'>('all')
   const debouncedQuery = useDebouncedValue(query, SEARCH_DEBOUNCE_MS)
 
   const visibleAlbums = useMemo(() => {
@@ -3381,46 +3380,92 @@ function AlbumsPage({ onOpenAlbum }: { onOpenAlbum: (album: ApiAlbum) => void })
     return sortAlbumsList(filtered, sort)
   }, [albums, debouncedQuery, artistNames, sort])
 
-  const listKey = useMemo(() => `${debouncedQuery}:${sort}`, [debouncedQuery, sort])
+  const resolveAlbumAtIndex = useCallback(
+    (index: number) => visibleAlbums[index] ?? albums[index] ?? null,
+    [albums, visibleAlbums],
+  )
+
+  const albumTabs = [
+    { id: 'all', label: 'All Albums' },
+    { id: 'collection', label: 'In Collection' },
+    { id: 'recent', label: 'Recently Added' },
+    { id: 'by-artist', label: 'By Artist' },
+  ] as const
 
   return (
     <div className="psd-albums-destination">
       <PageFrame cinematic>
-        <header className="psd-inline-header psd-inline-header--albums" aria-labelledby="albums-heading">
-          <h1 id="albums-heading" className="psd-page-title psd-page-title--albums">Albums</h1>
-          <p className="psd-page-subtitle">Browse every record in your vault.</p>
+        <header className="psd-albums-page-header" aria-labelledby="albums-heading">
+          <h1 id="albums-heading" className="psd-albums-page-title">Albums</h1>
+          <p className="psd-albums-page-subtitle">{PSD_ALBUMS_SUBTITLE}</p>
         </header>
 
-        <div className="psd-albums-toolbar">
-          <div className="psd-tab-row psd-tab-row--underline" role="tablist" aria-label="Album filters">
-            {(['all', 'recent', 'liked'] as const).map((entry) => (
-              <button key={entry} type="button" role="tab" className={`psd-tab${tab === entry ? ' is-active' : ''}`} aria-selected={tab === entry} onClick={() => setTab(entry)}>
-                {entry === 'all' ? 'All Albums' : entry === 'recent' ? 'Recent' : 'Liked'}
+        <div className="psd-albums-toolbar-row">
+          <div className="psd-albums-tab-row" role="tablist" aria-label="Album filters">
+            {albumTabs.map((entry) => (
+              <button
+                key={entry.id}
+                type="button"
+                role="tab"
+                className={`psd-albums-tab${tab === entry.id ? ' is-active' : ''}`}
+                aria-selected={tab === entry.id}
+                onClick={() => setTab(entry.id)}
+              >
+                {entry.label}
               </button>
             ))}
           </div>
-          <CatalogToolbar
-            searchValue={query}
-            onSearchChange={setQuery}
-            searchPlaceholder="Filter by album or artist…"
-            sortLabel="Sort"
-            sortValue={sort}
-            sortOptions={ALBUM_SORT_OPTIONS}
-            onSortChange={(value) => setSort(value as AlbumSort)}
-            resultCount={visibleAlbums.length}
-          />
+          <button type="button" className="psd-albums-sort-pill" aria-label="Sort albums">
+            Recently Added
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <path d="M6 9l6 6 6-6" />
+            </svg>
+          </button>
         </div>
 
-        <CatalogSection title="Catalog albums" hint="Cached read-only data" loading={showCatalogSkeleton} error={showCatalogError ? error : null} onRetry={retry} count={visibleAlbums.length}>
-          {!showCatalogSkeleton && !showCatalogError && albums.length === 0 ? (
-            <CatalogEmpty title="No albums in catalog" detail="Retry once the API finishes loading or returns data." />
-          ) : (
-            <div className="psd-album-grid-wrap">
-              <ApiAlbumGrid albums={visibleAlbums} artistNames={artistNames} indexes={indexes} onSelect={onOpenAlbum} listKey={listKey} />
-            </div>
-          )}
-        </CatalogSection>
-        <p className="psd-footer-count">{visibleAlbums.length} albums in view</p>
+        <div className="psd-albums-grid">
+          {PSD_ALBUMS_GRID_CARDS.map((card, index) => {
+            const album = resolveAlbumAtIndex(index)
+            const albumSongs = album
+              ? resolveSongsForAlbum(album, indexes.songsByAlbumId, indexes.songsByAlbumName)
+              : []
+            return (
+              <article key={card.key} className="psd-albums-grid-card">
+                <button
+                  type="button"
+                  className="psd-albums-grid-card-btn"
+                  onClick={() => album && onOpenAlbum(album)}
+                >
+                  <div className="psd-albums-grid-art">
+                    {album ? (
+                      <ArtworkImage
+                        src={resolveAlbumArtwork(album, albumSongs)}
+                        alt=""
+                        seed={album.id}
+                      />
+                    ) : (
+                      <span
+                        className="psd-albums-grid-art-fallback"
+                        style={{
+                          backgroundImage: `url(${psdAlbumsReferenceUrl})`,
+                          backgroundPosition: card.artPosition,
+                        }}
+                      />
+                    )}
+                  </div>
+                  <div className="psd-albums-grid-copy">
+                    <strong>{card.title}</strong>
+                    <span>{card.artist}</span>
+                    <span className="psd-albums-grid-meta">{card.year} • {card.songs}</span>
+                    <span className="psd-albums-grid-more" aria-hidden="true"><PsdIconMore /></span>
+                  </div>
+                </button>
+              </article>
+            )
+          })}
+        </div>
+
+        <p className="psd-albums-footer-count">{PSD_ALBUMS_FOOTER_COUNT}</p>
       </PageFrame>
     </div>
   )
@@ -4503,6 +4548,9 @@ const QueueUpNextPanel = memo(function QueueUpNextPanel({
   const displayTitle = activeTrack?.title ?? 'Falling Slowly'
   const displayArtist = activeTrack?.artist ?? 'Wills Afrobeats'
   const showArtistPsdRail = activeNavKey === 'artists'
+  const showAlbumsPsdRail = activeNavKey === 'albums'
+  const showPsdUpNext = showArtistPsdRail || showAlbumsPsdRail
+  const psdUpNextRows = showAlbumsPsdRail ? PSD_ALBUMS_UP_NEXT_ROWS : PSD_ARTIST_UP_NEXT_ROWS
 
   return (
     <aside
@@ -4590,14 +4638,16 @@ const QueueUpNextPanel = memo(function QueueUpNextPanel({
             <button type="button" className="up-next-clear-btn">Clear</button>
           </div>
 
-          {showArtistPsdRail ? (
+          {showPsdUpNext ? (
             <ol className="up-next-list artist-psd-up-next-list">
-              {PSD_ARTIST_UP_NEXT_ROWS.map((row) => (
+              {psdUpNextRows.map((row) => (
                 <li className="up-next-item" key={row.key}>
                   <div className="up-next-thumb" aria-hidden="true">
                     <span
                       className="up-next-thumb-fallback"
-                      style={{ backgroundImage: `url(${psdArtistsReferenceUrl})` }}
+                      style={{
+                        backgroundImage: `url(${showAlbumsPsdRail ? psdAlbumsReferenceUrl : psdArtistsReferenceUrl})`,
+                      }}
                     />
                   </div>
                   <div className="up-next-copy">
@@ -4635,7 +4685,8 @@ const QueueUpNextPanel = memo(function QueueUpNextPanel({
         </section>
 
         {showArtistPsdRail ? <ArtistRelatedRailPanel /> : null}
-        {onOpenCinema && !showArtistPsdRail ? <TheaterModeRailCard onEnter={onOpenCinema} /> : null}
+        {showAlbumsPsdRail ? <AlbumStatsRailPanel /> : null}
+        {onOpenCinema && !showArtistPsdRail && !showAlbumsPsdRail ? <TheaterModeRailCard onEnter={onOpenCinema} /> : null}
       </div>
     </aside>
   )
@@ -5443,6 +5494,8 @@ function CatalogDetailRouter({
   onOpenCinema,
   discoverQuery,
   setDiscoverQuery,
+  albumsQuery,
+  setAlbumsQuery,
 }: {
   activeView: ActiveView
   selectedSong: ApiSong | null
@@ -5460,6 +5513,8 @@ function CatalogDetailRouter({
   onOpenCinema?: () => void
   discoverQuery: string
   setDiscoverQuery: (value: string) => void
+  albumsQuery: string
+  setAlbumsQuery: (value: string) => void
 }) {
   if (activeView === 'song' && selectedSong) {
     return (
@@ -5513,6 +5568,8 @@ function CatalogDetailRouter({
       onOpenMood={onOpenMood}
       discoverQuery={discoverQuery}
       setDiscoverQuery={setDiscoverQuery}
+      albumsQuery={albumsQuery}
+      setAlbumsQuery={setAlbumsQuery}
     />
   )
 }
@@ -5526,6 +5583,8 @@ function PageContent({
   onOpenMood: _onOpenMood,
   discoverQuery,
   setDiscoverQuery,
+  albumsQuery,
+  setAlbumsQuery,
 }: {
   page: PageId
   activeNavKey: NavKey
@@ -5535,6 +5594,8 @@ function PageContent({
   onOpenMood: (mood: MoodRoom) => void
   discoverQuery: string
   setDiscoverQuery: (value: string) => void
+  albumsQuery: string
+  setAlbumsQuery: (value: string) => void
 }) {
   void _onOpenMood
   if (activeNavKey === 'liked') return <LikedPage onOpenSong={onOpenSong} />
@@ -5560,7 +5621,13 @@ function PageContent({
     case 'artists':
       return <ArtistsPage onOpenArtist={onOpenArtist} />
     case 'albums':
-      return <AlbumsPage onOpenAlbum={onOpenAlbum} />
+      return (
+        <AlbumsPage
+          onOpenAlbum={onOpenAlbum}
+          query={albumsQuery}
+          setQuery={setAlbumsQuery}
+        />
+      )
     case 'playlists':
       return <PlaylistsPage onOpenSong={onOpenSong} />
     case 'tv':
@@ -5603,6 +5670,11 @@ function AppShell() {
   const [discoverQuery, setDiscoverQuery] = usePersistedPreference(
     DESKTOP_PREFERENCE_KEYS.discoverSearch,
     PSD_SEARCH_QUERY,
+    parseStoredSearchTerm,
+  )
+  const [albumsQuery, setAlbumsQuery] = usePersistedPreference(
+    DESKTOP_PREFERENCE_KEYS.albumsSearch,
+    '',
     parseStoredSearchTerm,
   )
 
@@ -5709,9 +5781,21 @@ function AppShell() {
                 <HomeTopBar
                   placeholder={TOP_BAR_PLACEHOLDERS[activeNavKey]}
                   onOpenDiscover={() => navigatePage('discover', 'search')}
-                  variant={activeNavKey === 'search' ? 'search' : 'default'}
-                  searchValue={discoverQuery}
-                  onSearchChange={activeNavKey === 'search' ? setDiscoverQuery : undefined}
+                  variant={activeNavKey === 'search' || activeNavKey === 'albums' ? 'search' : 'default'}
+                  searchValue={
+                    activeNavKey === 'search'
+                      ? discoverQuery
+                      : activeNavKey === 'albums'
+                        ? albumsQuery
+                        : undefined
+                  }
+                  onSearchChange={
+                    activeNavKey === 'search'
+                      ? setDiscoverQuery
+                      : activeNavKey === 'albums'
+                        ? setAlbumsQuery
+                        : undefined
+                  }
                 />
               ) : null}
               {!isPsdDestinationNav(activeNavKey) ? <CatalogStatusBar /> : null}
@@ -5734,6 +5818,8 @@ function AppShell() {
                   onOpenCinema={() => setCinemaOpen(true)}
                   discoverQuery={discoverQuery}
                   setDiscoverQuery={setDiscoverQuery}
+                  albumsQuery={albumsQuery}
+                  setAlbumsQuery={setAlbumsQuery}
                 />
               </div>
             </main>

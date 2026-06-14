@@ -9528,6 +9528,269 @@
   margin: 0;
 }
 
+/* —— Phase 42F: Albums page exact PSD reconstruction —— */
+#root:has(.page-view[data-nav="albums"][data-view="page"]) {
+  --queue-rail-width: 380px;
+  --player-height: 145px;
+}
+
+#root:has(.page-view[data-nav="albums"][data-view="page"]) .main-scroll--psd {
+  padding-top: 10px;
+}
+
+.psd-albums-page-header {
+  margin-bottom: 12px;
+}
+
+.psd-albums-page-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.9rem, 3.1vw, 2.45rem);
+  font-weight: 600;
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+  color: rgba(250, 248, 255, 0.96);
+}
+
+.psd-albums-page-subtitle {
+  margin: 8px 0 0;
+  font-size: 14px;
+  color: rgba(245, 243, 250, 0.52);
+}
+
+.psd-albums-toolbar-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.psd-albums-tab-row {
+  display: flex;
+  align-items: center;
+  gap: clamp(16px, 2.2vw, 24px);
+  overflow-x: auto;
+  min-width: 0;
+}
+
+.psd-albums-tab {
+  flex: 0 0 auto;
+  padding: 10px 2px 12px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  background: transparent;
+  color: rgba(245, 243, 250, 0.56);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.psd-albums-tab.is-active {
+  color: rgba(250, 248, 255, 0.94);
+  border-bottom-color: rgba(168, 120, 255, 0.92);
+}
+
+.psd-albums-sort-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(13, 13, 20, 0.72);
+  color: rgba(245, 243, 250, 0.78);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.psd-albums-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.psd-albums-grid-card {
+  min-width: 0;
+}
+
+.psd-albums-grid-card-btn {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.psd-albums-grid-art,
+.psd-albums-grid-art .art-frame {
+  aspect-ratio: 1;
+  width: 100%;
+  border-radius: 14px;
+  overflow: hidden;
+  margin-bottom: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 12px 28px rgba(0, 0, 0, 0.28);
+}
+
+.psd-albums-grid-art-fallback {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background-size: 500% auto;
+  background-repeat: no-repeat;
+}
+
+.psd-albums-grid-copy {
+  position: relative;
+  padding-right: 24px;
+}
+
+.psd-albums-grid-copy strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.psd-albums-grid-copy > span {
+  display: block;
+  font-size: 12px;
+  color: var(--psd-metadata);
+}
+
+.psd-albums-grid-meta {
+  margin-top: 2px;
+  font-size: 11px !important;
+}
+
+.psd-albums-grid-more {
+  position: absolute;
+  right: 0;
+  bottom: 2px;
+  color: rgba(245, 243, 250, 0.38);
+}
+
+.psd-albums-footer-count {
+  margin: 0;
+  text-align: center;
+  font-size: 12px;
+  color: var(--psd-metadata);
+}
+
+.psd-albums-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.psd-albums-section-header h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(245, 243, 250, 0.92);
+}
+
+.album-stats-rail-panel {
+  display: none;
+}
+
+#root:has(.page-view[data-nav="albums"][data-view="page"]) .album-stats-rail-panel {
+  display: block;
+}
+
+.album-stats-rail-icon {
+  color: rgba(168, 120, 255, 0.88);
+}
+
+.album-stats-rail-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.album-stats-rail-card {
+  padding: 12px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(10, 10, 16, 0.82);
+  text-align: center;
+}
+
+.album-stats-rail-card strong {
+  display: block;
+  font-size: 18px;
+  color: rgba(250, 248, 255, 0.94);
+}
+
+.album-stats-rail-card span {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--psd-metadata);
+}
+
+.album-stats-rail-updated {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 11px;
+  color: rgba(245, 243, 250, 0.46);
+}
+
+#root:has(.page-view[data-nav="albums"][data-view="page"]) .now-playing-rail-shuffle-badge,
+#root:has(.page-view[data-nav="albums"][data-view="page"]) .now-playing-vinyl-disc,
+#root:has(.page-view[data-nav="albums"][data-view="page"]) .now-playing-rail-badges,
+#root:has(.page-view[data-nav="albums"][data-view="page"]) .up-next-section-header {
+  display: flex;
+}
+
+#root:has(.page-view[data-nav="albums"][data-view="page"]) .player-track-actions {
+  display: flex;
+}
+
+#root:has(.page-view[data-nav="albums"][data-view="page"]) .player-bar .progress-fill {
+  background: linear-gradient(90deg, #a878ff, #ffba3d);
+}
+
+#root:has(.page-view[data-nav="albums"][data-view="page"]) .player-bar .control-btn.play {
+  width: 46px;
+  height: 46px;
+  background: linear-gradient(145deg, var(--accent-gold-bright), var(--accent-gold-deep));
+  color: #1a1208;
+  border: none;
+  box-shadow: 0 8px 22px rgba(255, 186, 61, 0.28);
+}
+
+#root:has(.page-view[data-nav="albums"][data-view="page"]) .rail-theater-card {
+  display: none;
+}
+
+@media (min-width: 1500px) {
+  .psd-albums-grid {
+    gap: 16px;
+  }
+}
+
+@media (max-width: 1280px) {
+  .psd-albums-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
 /* —— Phase 42E: Artist page exact PSD reconstruction —— */
 #root:has(.page-view[data-nav="artists"][data-view="page"]) {
   --queue-rail-width: 380px;
@@ -10052,11 +10315,6 @@
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
-
-#root:has(.page-view[data-nav="search"][data-view="page"]) .up-next-section-header .up-next-label {
-  margin: 0;
-}
-
 /* Phase 42D: Library page exact PSD reconstruction */
 .main-scroll--psd:has(.psd-library-destination) {
   padding: 26px 30px 32px;
