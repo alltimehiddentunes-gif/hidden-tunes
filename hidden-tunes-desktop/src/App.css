@@ -5071,3 +5071,200 @@
   color: rgba(245, 243, 250, 0.5);
   letter-spacing: 0.01em;
 }
+/* —— Premium fullscreen player (Phase 36A) —— */
+.cinema-player-art-backdrop {
+  position: absolute;
+  inset: -8%;
+  z-index: 0;
+  pointer-events: none;
+  background-position: center;
+  background-size: cover;
+  filter: blur(72px) saturate(1.2);
+  opacity: 0.34;
+  transform: scale(1.08);
+}
+
+.cinema-player[data-playing='true'] .cinema-player-art-backdrop {
+  opacity: 0.42;
+}
+
+.cinema-player-context {
+  display: flex;
+  flex-direction: column;
+  align-items: inherit;
+  gap: 8px;
+  width: 100%;
+  margin-top: 2px;
+}
+
+.cinema-player-queue-pill {
+  display: inline-flex;
+  align-self: inherit;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.035);
+  font-size: 10px;
+  font-weight: 560;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(245, 243, 250, 0.56);
+}
+
+.cinema-player-insight {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: rgba(245, 243, 250, 0.5);
+  text-wrap: balance;
+}
+
+.cinema-player-progress {
+  width: 100%;
+  margin-top: clamp(8px, 1.2vw, 14px);
+}
+
+.cinema-player-progress-track {
+  height: 6px;
+}
+
+.cinema-player-progress .progress-time {
+  min-width: 38px;
+  font-size: 11px;
+  color: rgba(245, 243, 250, 0.48);
+}
+
+.cinema-player[data-loading='true'] .cinema-player-eyebrow {
+  color: rgba(168, 85, 247, 0.78);
+}
+
+.cinema-player-kbd-hint {
+  margin: 14px 0 0;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: rgba(245, 243, 250, 0.38);
+}
+
+.cinema-player-kbd-hint--inline {
+  margin: 0 0 0 4px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.cinema-player--empty .cinema-player-close {
+  z-index: 2;
+}
+
+.cinema-player-empty-stage {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+  width: min(460px, 88vw);
+  padding: clamp(28px, 4vw, 40px);
+  border-radius: clamp(22px, 2.8vw, 32px);
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  background:
+    radial-gradient(ellipse 88% 72% at 50% 0%, rgba(168, 85, 247, 0.1), transparent 58%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.015));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 24px 56px rgba(0, 0, 0, 0.22);
+  backdrop-filter: blur(18px);
+}
+
+.cinema-player-empty-glow {
+  position: absolute;
+  inset: 18% 10% auto;
+  height: 42%;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(circle, rgba(168, 85, 247, 0.18), transparent 68%);
+  filter: blur(28px);
+}
+
+.cinema-player-empty-icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.24);
+}
+
+.cinema-player-empty-icon-svg {
+  width: 30px;
+  height: 30px;
+  opacity: 0.72;
+}
+
+.cinema-player-empty-title {
+  margin: 4px 0 0;
+  font-size: clamp(1.35rem, 2.4vw, 1.85rem);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  color: rgba(245, 243, 250, 0.9);
+}
+
+.cinema-player-empty-detail {
+  margin: 0;
+  max-width: 34ch;
+  font-size: 14px;
+  line-height: 1.55;
+  color: rgba(245, 243, 250, 0.52);
+}
+
+.player-cinema-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.035);
+  color: rgba(245, 243, 250, 0.72);
+  cursor: pointer;
+  transition:
+    color var(--transition-fast),
+    background var(--transition-fast),
+    border-color var(--transition-fast),
+    transform var(--transition-fast);
+}
+
+.player-cinema-btn:hover {
+  color: rgba(245, 243, 250, 0.94);
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.12);
+  transform: translateY(-1px);
+}
+
+@media (min-width: 1180px) {
+  .cinema-player-context {
+    align-items: flex-start;
+  }
+
+  .cinema-player-insight {
+    text-align: left;
+  }
+}
+
+@media (max-width: 760px) {
+  .cinema-player-kbd-hint--inline {
+    display: none;
+  }
+
+  .cinema-player-progress {
+    max-width: 100%;
+  }
+}

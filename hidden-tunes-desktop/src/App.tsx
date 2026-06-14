@@ -2185,7 +2185,13 @@ const PlaybackTransportControls = memo(function PlaybackTransportControls({
   )
 })
 
-const PlayerBar = memo(function PlayerBar({ track }: { track: ApiSong | null }) {
+const PlayerBar = memo(function PlayerBar({
+  track,
+  onOpenCinema,
+}: {
+  track: ApiSong | null
+  onOpenCinema?: () => void
+}) {
   const {
     currentTrack,
     currentQueue,
@@ -2365,6 +2371,27 @@ const PlayerBar = memo(function PlayerBar({ track }: { track: ApiSong | null }) 
       </div>
 
       <div className="player-right">
+        {onOpenCinema ? (
+          <button
+            type="button"
+            className="player-cinema-btn"
+            onClick={onOpenCinema}
+            aria-label="Open fullscreen player"
+            title="Fullscreen"
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.75"
+              aria-hidden="true"
+            >
+              <path d="M9 3H3v6M15 3h6v6M9 21H3v-6M15 21h6v-6" />
+            </svg>
+          </button>
+        ) : null}
         <div className="player-quality">
           <AudioQualitySelector
             value={audioQualityMode}
@@ -2599,89 +2626,307 @@ function DetailTopBar({
 }
 
 
-function CinemaPlayerShell({
-  song,
+const CinemaPlayerShell = memo(function CinemaPlayerShell({
   onClose,
+  preferredTrack = null,
 }: {
-  song: ApiSong
   onClose: () => void
+  preferredTrack?: ApiSong | null
 }) {
+  const {
+    currentTrack,
+    currentQueue,
+    currentIndex,
+    queueContext,
+    isPlaying,
+    isLoading,
+    positionSeconds,
+    durationSeconds,
+    seekTo,
+    error,
+  } = useDesktopPlayback()
+
+  const progressTrackRef = useRef<HTMLDivElement>(null)
+  const isSeekingRef = useRef(false)
+
+  const displayTrack = currentTrack ?? preferredTrack
+  const isActive = Boolean(displayTrack && currentTrack?.id === displayTrack.id)
+  const progressMax = isActive && durationSeconds > 0 ? durationSeconds : 0
+  const progressValue = progressMax > 0 ? Math.min(positionSeconds, progressMax) : 0
+  const progressPercent =
+    progressMax > 0 ? Math.min(100, (progressValue / progressMax) * 100) : 0
+  const showQueuePosition =
+    isActive && currentQueue.length > 0 && currentIndex >= 0
+  const queueLabel = QUEUE_CONTEXT_LABELS[queueContext]
+
+  const queueSnapshot = useMemo(
+    () =>
+      isActive
+        ? analyzeQueueSnapshot({
+            queue: currentQueue,
+            currentIndex,
+            currentTrack,
+          })
+        : null,
+    [currentQueue, currentIndex, currentTrack, isActive],
+  )
+
+  const queueInsight = useMemo(
+    () => (queueSnapshot ? describeQueueInsight(queueSnapshot) : null),
+    [queueSnapshot],
+  )
+
+  const resolveSeekSeconds = useCallback(
+    (clientX: number) => {
+      const trackEl = progressTrackRef.current
+      if (!trackEl || progressMax <= 0) return null
+      const rect = trackEl.getBoundingClientRect()
+      if (rect.width <= 0) return null
+      const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width))
+      return ratio * progressMax
+    },
+    [progressMax],
+  )
+
+  const handleSeekClick = (event: ReactMouseEvent<HTMLDivElement>) => {
+    if (!isActive || progressMax <= 0 || isLoading || isSeekingRef.current) return
+    const seconds = resolveSeekSeconds(event.clientX)
+    if (seconds != null) seekTo(seconds)
+  }
+
+  const handleSeekPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!isActive || progressMax <= 0 || isLoading) return
+    const seconds = resolveSeekSeconds(event.clientX)
+    if (seconds == null) return
+    isSeekingRef.current = true
+    event.currentTarget.setPointerCapture(event.pointerId)
+    seekTo(seconds)
+  }
+
+  const handleSeekPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!isSeekingRef.current) return
+    const seconds = resolveSeekSeconds(event.clientX)
+    if (seconds != null) seekTo(seconds)
+  }
+
+  const handleSeekPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!isSeekingRef.current) return
+    isSeekingRef.current = false
+    event.currentTarget.releasePointerCapture(event.pointerId)
+  }
+
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = previousOverflow
+    }
+  }, [])
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      event.preventDefault()
+      onClose()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [onClose])
+
+  const statusLabel = error
+    ? 'Playback issue'
+    : isLoading && isActive
+      ? 'Loading'
+      : isPlaying && isActive
+        ? 'Now playing'
+        : isActive
+          ? 'Paused'
+          : 'Ready to play'
+
+  if (!displayTrack) {
+    return (
+      <div
+        className="cinema-player cinema-player--empty"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Fullscreen player"
+      >
+        <div className="cinema-player-backdrop" aria-hidden="true" />
+        <button
+          type="button"
+          className="cinema-player-close"
+          onClick={onClose}
+          aria-label="Exit fullscreen player"
+        >
+          <span className="cinema-player-close-icon" aria-hidden="true">
+            ←
+          </span>
+          Back
+        </button>
+        <div className="cinema-player-empty-stage">
+          <div className="cinema-player-empty-glow" aria-hidden="true" />
+          <div className="cinema-player-empty-icon" aria-hidden="true">
+            <MusicNoteIcon className="cinema-player-empty-icon-svg" />
+          </div>
+          <h1 className="cinema-player-empty-title">Your stage is waiting</h1>
+          <p className="cinema-player-empty-detail">
+            Start a track to open the fullscreen listening experience.
+          </p>
+          <p className="cinema-player-kbd-hint">Press Esc to return</p>
+        </div>
+      </div>
+    )
+  }
+
+  const artBackdropStyle = displayTrack.artwork
+    ? { backgroundImage: `url(${displayTrack.artwork})` }
+    : undefined
+
   return (
     <div
       className="cinema-player"
       role="dialog"
       aria-modal="true"
-      aria-label="Cinema player"
+      aria-label="Fullscreen player"
+      data-playing={isPlaying && isActive ? 'true' : 'false'}
+      data-loading={isLoading && isActive ? 'true' : 'false'}
+      data-active={isActive ? 'true' : 'false'}
     >
+      <div
+        className="cinema-player-art-backdrop"
+        style={artBackdropStyle}
+        aria-hidden="true"
+      />
       <div className="cinema-player-backdrop" aria-hidden="true" />
       <button
         type="button"
         className="cinema-player-close"
         onClick={onClose}
-        aria-label="Exit cinema player"
+        aria-label="Exit fullscreen player"
       >
         <span className="cinema-player-close-icon" aria-hidden="true">
           ←
         </span>
         Back
+        <span className="cinema-player-kbd-hint cinema-player-kbd-hint--inline">
+          Esc
+        </span>
       </button>
       <div className="cinema-player-stage">
         <div className="cinema-player-artwork-wrap">
           <span className="cinema-player-aura" aria-hidden="true" />
           <div className="cinema-player-artwork">
-            <ArtworkImage src={song.artwork} alt="" seed={song.id} priority />
+            <ArtworkImage
+              src={displayTrack.artwork}
+              alt=""
+              seed={displayTrack.id}
+              priority
+            />
           </div>
         </div>
         <div className="cinema-player-meta">
-          <p className="cinema-player-eyebrow">Now playing</p>
-          <h1 className="cinema-player-title">{song.title}</h1>
+          <p className="cinema-player-eyebrow">{statusLabel}</p>
+          <h1 className="cinema-player-title">{displayTrack.title}</h1>
           <p className="cinema-player-byline">
-            <span>{song.artist}</span>
-            <span className="cinema-player-sep" aria-hidden="true">
-              ·
-            </span>
-            <span>{song.album}</span>
+            <span>{displayTrack.artist}</span>
+            {displayTrack.album ? (
+              <>
+                <span className="cinema-player-sep" aria-hidden="true">
+                  ·
+                </span>
+                <span>{displayTrack.album}</span>
+              </>
+            ) : null}
           </p>
+          {showQueuePosition || queueInsight ? (
+            <div className="cinema-player-context">
+              {showQueuePosition ? (
+                <span className="cinema-player-queue-pill">
+                  {queueLabel} · Track {currentIndex + 1} of {currentQueue.length}
+                </span>
+              ) : null}
+              {queueInsight ? (
+                <p className="cinema-player-insight">{queueInsight}</p>
+              ) : null}
+            </div>
+          ) : null}
           <PlaybackTransportControls
-            activeTrackId={song.id}
+            activeTrackId={displayTrack.id}
             className="cinema-player-controls"
           />
+          <div
+            className="cinema-player-progress progress-wrap"
+            role="group"
+            aria-label="Playback progress"
+          >
+            <span className="progress-time">
+              {formatPlaybackTime(progressValue)}
+            </span>
+            <div
+              ref={progressTrackRef}
+              className={
+                'progress-track cinema-player-progress-track'
+                + (progressMax > 0 && isActive ? ' progress-track--interactive' : '')
+              }
+              role="slider"
+              aria-label="Seek position"
+              aria-valuemin={0}
+              aria-valuemax={Math.round(progressMax)}
+              aria-valuenow={Math.round(progressValue)}
+              aria-disabled={!isActive || progressMax <= 0 || isLoading}
+              onClick={handleSeekClick}
+              onPointerDown={handleSeekPointerDown}
+              onPointerMove={handleSeekPointerMove}
+              onPointerUp={handleSeekPointerUp}
+              onPointerCancel={handleSeekPointerUp}
+            >
+              <div
+                className="progress-fill"
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
+            <span className="progress-time">
+              {progressMax > 0 ? formatPlaybackTime(progressMax) : '—'}
+            </span>
+          </div>
         </div>
       </div>
     </div>
   )
-}
+})
 
 function SongDetailView({
   song,
   onBack,
+  onOpenCinema,
 }: {
   song: ApiSong
   onBack: () => void
+  onOpenCinema?: () => void
 }) {
-  const [cinemaOpen, setCinemaOpen] = useState(false)
   const created = formatDateLabel(song.createdAt)
 
   return (
-    <>
-      <PageFrame>
-        <DetailTopBar title="Song" onBack={onBack} />
-        <div className="listening-stage">
+    <PageFrame>
+      <DetailTopBar title="Song" onBack={onBack} />
+      <div className="listening-stage">
+        {onOpenCinema ? (
           <button
             type="button"
             className="cinema-entry-btn"
-            onClick={() => setCinemaOpen(true)}
-            aria-label="Open cinema player"
-            title="Cinema view"
+            onClick={onOpenCinema}
+            aria-label="Open fullscreen player"
+            title="Fullscreen"
           >
             <span className="cinema-entry-btn-icon" aria-hidden="true">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
                 <path d="M9 3H3v6M15 3h6v6M9 21H3v-6M15 21h6v-6" />
               </svg>
             </span>
-            <span className="cinema-entry-btn-label">Cinema</span>
+            <span className="cinema-entry-btn-label">Fullscreen</span>
           </button>
-          <section className="detail-hero detail-hero--song">
+        ) : null}
+        <section className="detail-hero detail-hero--song">
             <div className="detail-artwork-stage">
               <span className="detail-artwork-aura" aria-hidden="true" />
               <div className="detail-artwork">
@@ -2705,11 +2950,7 @@ function SongDetailView({
             </div>
           </section>
         </div>
-      </PageFrame>
-      {cinemaOpen ? (
-        <CinemaPlayerShell song={song} onClose={() => setCinemaOpen(false)} />
-      ) : null}
-    </>
+    </PageFrame>
   )
 }
 
@@ -3019,6 +3260,7 @@ function CatalogDetailRouter({
   onOpenAlbum,
   onOpenArtist,
   onOpenMood,
+  onOpenCinema,
 }: {
   activeView: ActiveView
   selectedSong: ApiSong | null
@@ -3032,9 +3274,16 @@ function CatalogDetailRouter({
   onOpenAlbum: (album: ApiAlbum) => void
   onOpenArtist: (artist: ApiArtist) => void
   onOpenMood: (mood: MoodRoom) => void
+  onOpenCinema?: () => void
 }) {
   if (activeView === 'song' && selectedSong) {
-    return <SongDetailView song={selectedSong} onBack={onBack} />
+    return (
+      <SongDetailView
+        song={selectedSong}
+        onBack={onBack}
+        onOpenCinema={onOpenCinema}
+      />
+    )
   }
 
   if (activeView === 'album' && selectedAlbum) {
@@ -3143,6 +3392,7 @@ function AppShell() {
   const [selectedArtist, setSelectedArtist] = useState<ApiArtist | null>(null)
   const [selectedMood, setSelectedMood] = useState<MoodRoom | null>(null)
   const [desktopSelectedTrack, setDesktopSelectedTrack] = useState<ApiSong | null>(null)
+  const [cinemaOpen, setCinemaOpen] = useState(false)
 
   const openSong = useCallback((song: ApiSong) => {
     setDesktopSelectedTrack(song)
@@ -3243,6 +3493,7 @@ function AppShell() {
                   onOpenAlbum={openAlbum}
                   onOpenArtist={openArtist}
                   onOpenMood={openMood}
+                  onOpenCinema={() => setCinemaOpen(true)}
                 />
               </div>
             </main>
@@ -3250,7 +3501,16 @@ function AppShell() {
           </div>
         </div>
       </div>
-      <PlayerBar track={desktopSelectedTrack} />
+      <PlayerBar
+        track={desktopSelectedTrack}
+        onOpenCinema={() => setCinemaOpen(true)}
+      />
+      {cinemaOpen ? (
+        <CinemaPlayerShell
+          preferredTrack={desktopSelectedTrack}
+          onClose={() => setCinemaOpen(false)}
+        />
+      ) : null}
     </>
   )
 }
