@@ -1001,6 +1001,71 @@
   background: linear-gradient(160deg, rgba(6, 95, 70, 0.38), rgba(15, 15, 24, 0.98));
 }
 
+.art-empty-state {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(12, 12, 18, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.art-empty-state--wide {
+  min-height: 100%;
+}
+
+.art-empty-initials {
+  font-size: clamp(18px, 2.4vw, 28px);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: rgba(245, 243, 250, 0.72);
+  text-transform: uppercase;
+}
+
+.art-collage {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.art-collage--2 {
+  grid-template-columns: 1fr 1fr;
+}
+
+.art-collage--3,
+.art-collage--4 {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+}
+
+.art-collage-tile {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.psd-library-cover-art .art-frame,
+.psd-playlist-hero-art .art-frame,
+.psd-playlist-hero-art .art-collage,
+.psd-downloads-row-art .art-frame,
+.psd-downloads-row-art .art-collage,
+.psd-playlist-row-thumb .art-frame,
+.psd-liked-row-thumb .art-frame,
+.psd-recent-row-thumb .art-frame,
+.player2-next-thumb .art-frame,
+.player3-upnext-thumb .art-frame,
+.player4-upnext-thumb .art-frame,
+.player5-upnext-thumb .art-frame,
+.albums-rail-up-next-thumb .art-frame,
+.rail-psd-queue-thumb .art-frame {
+  width: 100%;
+  height: 100%;
+}
+
 /* —— Catalog toolbar —— */
 .catalog-toolbar {
   display: flex;
@@ -2941,11 +3006,30 @@
   content: '';
   position: absolute;
   inset: 0;
-  z-index: 0;
+  z-index: 1;
   pointer-events: none;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 28%),
     radial-gradient(ellipse 100% 78% at 50% 100%, rgba(0, 0, 0, 0.42), transparent 62%);
+}
+
+.detail-hero-mood-art {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.detail-hero-mood-art .art-frame,
+.detail-hero-mood-art .art-collage {
+  width: 100%;
+  height: 100%;
+}
+
+.detail-hero-mood-art .card-art-img,
+.detail-hero-mood-art .art-collage-tile {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .detail-hero--mood .visual-scene--hero {
@@ -5297,6 +5381,19 @@
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+.emotional-lane-art .art-frame,
+.emotional-lane-art .art-collage {
+  width: 100%;
+  height: 100%;
+}
+
+.emotional-lane-art .card-art-img,
+.emotional-lane-art .art-collage-tile {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .emotional-lane-copy {
   display: flex;
   flex-direction: column;
@@ -5458,6 +5555,19 @@
   height: 112px;
   overflow: hidden;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.scene-listening-art .art-frame,
+.scene-listening-art .art-collage {
+  width: 100%;
+  height: 100%;
+}
+
+.scene-listening-art .card-art-img,
+.scene-listening-art .art-collage-tile {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .scene-listening-copy {

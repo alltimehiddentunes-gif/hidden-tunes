@@ -134,10 +134,13 @@ function pickDurationSeconds(row: Record<string, unknown>): number | null {
 function pickArtwork(row: Record<string, unknown>): string | null {
   const candidates = [
     row.artwork,
-    row.cover,
+    row.artwork_url,
     row.cover_url,
+    row.cover,
+    row.album_artwork_url,
     row.thumbnail,
     row.image_url,
+    row.avatar_url,
   ]
 
   for (const value of candidates) {
@@ -175,6 +178,10 @@ function normalizeSong(row: unknown): ApiSong | null {
     typeof record.created_at === 'string' ? record.created_at : null
   const playback = pickPlaybackUrls(record)
   const nestedArtist = asRecord(record.artists)
+  const nestedAlbum = asRecord(record.album) ?? asRecord(record.albums)
+  const directArtwork = pickArtwork(record)
+  const albumArtwork = nestedAlbum ? pickArtwork(nestedAlbum) : null
+  const artistArtwork = nestedArtist ? pickArtwork(nestedArtist) : null
 
   return {
     id: String(record.id),
@@ -208,7 +215,7 @@ function normalizeSong(row: unknown): ApiSong | null {
     tags: pickStringList(record.tags),
     description:
       typeof record.description === 'string' ? record.description.trim() : null,
-    artwork: pickArtwork(record),
+    artwork: directArtwork ?? albumArtwork ?? artistArtwork,
     previewUrl: playback.previewUrl,
     audioUrl: playback.audioUrl,
     highQualityUrl: playback.highQualityUrl,

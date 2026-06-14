@@ -49,6 +49,15 @@ import {
   type CatalogIndexes,
 } from './lib/catalogIndexes'
 import {
+  enrichCatalogArtwork,
+  deriveEntityInitials,
+  getPlaylistArtwork,
+  getPlaylistArtworkCollage,
+  getSongArtwork,
+  type ArtworkContext,
+  buildArtworkContext,
+} from './lib/artworkIntegrity'
+import {
   logCatalogCacheHit,
   logCatalogCacheMiss,
   logCatalogFetch,
@@ -116,11 +125,7 @@ import { type NowPlayingStyle } from './lib/nowPlayingStyle'
 import { useAutoOpenPreferredPlayer } from './lib/useAutoOpenPreferredPlayer'
 import heroPhotoUrl from './assets/hero.png'
 import emotionalWorldsReferenceUrl from './assets/emotional-worlds-reference.jpg'
-import psdPlaylistReferenceUrl from './assets/psd-playlist-reference.jpg'
 import psdArtistsReferenceUrl from './assets/psd-artists-reference.jpg'
-import psdAlbumsReferenceUrl from './assets/psd-albums-reference.png'
-import psdLikedReferenceUrl from './assets/psd-liked-reference.jpg'
-import psdSearchReferenceUrl from './assets/psd-search-reference.jpg'
 import psdPlayerMasterReferenceUrl from './assets/psd-player-master-reference.jpg'
 import psdPlayer2ReferenceUrl from './assets/psd-player2-reference.jpg'
 import psdPlayer3ReferenceUrl from './assets/psd-player3-reference.jpg'
@@ -128,10 +133,6 @@ import psdPlayer4ReferenceUrl from './assets/psd-player4-reference.jpg'
 import psdPlayer5ReferenceUrl from './assets/psd-player5-reference.jpg'
 import psdWaveformReferenceUrl from './assets/psd-waveform-reference.jpg'
 import psdLyricsReferenceUrl from './assets/psd-lyrics-reference.jpg'
-import psdRecentReferenceUrl from './assets/psd-recent-reference.jpg'
-import psdNowPlayingReferenceUrl from './assets/psd-now-playing-reference.png'
-import psdDownloadsReferenceUrl from './assets/psd-downloads-reference.jpg'
-import psdLibraryReferenceUrl from './assets/psd-library-reference.jpg'
 import './App.css'
 
 const PSD_SEARCH_QUERY = 'midnight reflection'
@@ -194,8 +195,6 @@ const PSD_PLAYLIST_DESCRIPTION = 'Late nights, open roads and the perfect soundt
 const PSD_PLAYLIST_OWNER = 'Hidden Tunes'
 const PSD_PLAYLIST_META = '50 songs • 3h 12m'
 const PSD_PLAYLIST_FOOTER_META = '50 songs, 3h 12m'
-const PSD_PLAYLIST_HERO_ART = '14% 24%'
-
 const PSD_PLAYLIST_TRACK_ROWS = [
   { key: 'pt1', title: 'Midnight Reflection', artist: 'Wills Afrobeats', duration: '3:56', active: true, artPosition: '8% 58%' },
   { key: 'pt2', title: 'Afro Sunset', artist: 'Wills Afrobeats', duration: '3:21', artPosition: '18% 58%' },
@@ -206,8 +205,6 @@ const PSD_PLAYLIST_TRACK_ROWS = [
   { key: 'pt7', title: 'Jazz Café', artist: 'Wills Afrobeats', duration: '3:36', artPosition: '68% 58%' },
   { key: 'pt8', title: 'Deep Focus', artist: 'Wills Afrobeats', duration: '4:20', artPosition: '78% 58%' },
 ] as const
-
-const PSD_PLAYLIST_RAIL_ART_POSITION = PSD_PLAYLIST_TRACK_ROWS[0].artPosition
 
 const PSD_PLAYLIST_UP_NEXT_ROWS = PSD_PLAYLIST_TRACK_ROWS.slice(1, 5)
 
@@ -245,7 +242,6 @@ const PSD_ALBUMS_SUBTITLE = 'All albums in your library.'
 const PSD_ALBUMS_FOOTER_COUNT = '24 albums'
 const PSD_ALBUMS_RAIL_TITLE = 'Falling Slowly'
 const PSD_ALBUMS_RAIL_ARTIST = 'Wills Afrobeats'
-const PSD_ALBUMS_RAIL_ART_POSITION = '50% 22%'
 
 const PSD_ALBUMS_UP_NEXT_ROWS = [
   { key: 'au1', title: 'Midnight Reflection', artist: 'Wills Afrobeats', duration: '3:56', artPosition: '10% 58%' },
@@ -280,7 +276,6 @@ const PSD_PLAYER_SOURCE_ALBUM = 'Night Drive'
 const PSD_PLAYER_POSITION_SECONDS = 108
 const PSD_PLAYER_DURATION_SECONDS = 236
 const PSD_PLAYER_MASTER_BG_POSITION = '50% 50%'
-const PSD_PLAYER_MASTER_ART_POSITION = '18% 46%'
 const PSD_PLAYER_TABS = ['LYRICS', 'QUEUE', 'DETAILS'] as const
 const PSD_PLAYER_LYRICS_LINES = [
   { tier: 'dimmed', text: 'In the quiet of the evening' },
@@ -301,7 +296,6 @@ const PSD_PLAYER2_ARTIST = 'Wills AfroBeats'
 const PSD_PLAYER2_ALBUM = 'Night Drive'
 const PSD_PLAYER2_YEAR = '2024'
 const PSD_PLAYER2_BG_POSITION = '50% 42%'
-const PSD_PLAYER2_ART_POSITION = '24% 52%'
 const PSD_PLAYER2_DEVICE = 'WH-1000XM5'
 const PSD_PLAYER2_NEXT_TITLE = 'Midnight Reflection'
 const PSD_PLAYER2_NEXT_ARTIST = 'Wills AfroBeats'
@@ -334,7 +328,6 @@ const PSD_PLAYER3_TITLE_SCRIPT = 'Echoes of'
 const PSD_PLAYER3_TITLE_MAIN = 'MIDNIGHT'
 const PSD_PLAYER3_ARTIST = 'Wills AfroBeats'
 const PSD_PLAYER3_BG_POSITION = '50% 46%'
-const PSD_PLAYER3_ART_POSITION = '28% 54%'
 const PSD_PLAYER3_DISC_TIME = '2:35'
 const PSD_PLAYER3_TABS = ['LYRICS', 'VISUALIZER', 'DETAILS'] as const
 const PSD_PLAYER3_LYRICS = [
@@ -375,7 +368,6 @@ const PSD_PLAYER4_TITLE = 'ECHOES OF TOMORROW'
 const PSD_PLAYER4_ARTIST = 'Wills AfroBeats'
 const PSD_PLAYER4_YEAR = '2024'
 const PSD_PLAYER4_BG_POSITION = '50% 44%'
-const PSD_PLAYER4_ART_POSITION = '20% 50%'
 const PSD_PLAYER4_POSITION_SECONDS = 108
 const PSD_PLAYER4_DURATION_SECONDS = 272
 const PSD_PLAYER4_LYRICS = [
@@ -416,7 +408,6 @@ const PSD_PLAYER5_TITLE = 'ECHOES OF TOMORROW'
 const PSD_PLAYER5_ARTIST = 'Wills AfroBeats'
 const PSD_PLAYER5_YEAR = '2024'
 const PSD_PLAYER5_BG_POSITION = '50% 46%'
-const PSD_PLAYER5_ART_POSITION = '22% 50%'
 const PSD_PLAYER5_POSITION_SECONDS = 108
 const PSD_PLAYER5_DURATION_SECONDS = 272
 const PSD_PLAYER5_VOLUME_PERCENT = 80
@@ -489,7 +480,6 @@ const PSD_RAIL_QUEUE_ROWS = [
   { key: 'rq3', title: 'Rain & Reflection', artist: 'Wills Afrobeats', artPosition: '38% 58%' },
   { key: 'rq4', title: 'Jazz Café', artist: 'Wills Afrobeats', artPosition: '46% 58%' },
 ] as const
-const PSD_RAIL_ART_POSITION = '50% 38%'
 
 const PSD_DOWNLOADS_STORAGE_PERCENT = 72
 const PSD_DOWNLOADS_PLAYLISTS = [
@@ -519,7 +509,6 @@ const PSD_WAVEFORM_LYRICS = [
 
 const PSD_LYRICS_ALBUM = 'Reflections at Midnight'
 const PSD_LYRICS_BG_POSITION = '62% 46%'
-const PSD_LYRICS_ART_POSITION = '10% 58%'
 const PSD_LYRICS_LINES = [
   { tier: 'active-purple', text: 'City lights' },
   { tier: 'active-purple', text: 'paint the sky' },
@@ -776,6 +765,7 @@ type CatalogContextValue = {
   albums: ApiAlbum[]
   artists: ApiArtist[]
   indexes: CatalogIndexes
+  artworkContext: ArtworkContext
   searchMetadataIndex: CatalogMetadataIndex
   artistNames: Map<string, string>
   songsByAlbumTitle: Map<string, ApiSong[]>
@@ -933,22 +923,33 @@ function CatalogProvider({ children }: { children: ReactNode }) {
     }
   }, [reloadKey, applyBundle])
 
-  const catalogIndexes = useMemo(
-    () => buildCatalogIndexes(displaySongs, albums, artists),
+  const enrichedCatalog = useMemo(
+    () => enrichCatalogArtwork(displaySongs, albums, artists),
     [displaySongs, albums, artists],
   )
 
+  const catalogIndexes = useMemo(
+    () => buildCatalogIndexes(enrichedCatalog.songs, enrichedCatalog.albums, enrichedCatalog.artists),
+    [enrichedCatalog.albums, enrichedCatalog.artists, enrichedCatalog.songs],
+  )
+
+  const artworkContext = useMemo(
+    () => buildArtworkContext(catalogIndexes, enrichedCatalog.albums, enrichedCatalog.artists),
+    [catalogIndexes, enrichedCatalog.albums, enrichedCatalog.artists],
+  )
+
   const searchMetadataIndex = useMemo(
-    () => buildSearchMetadataIndex(displaySongs, artists),
-    [displaySongs, artists],
+    () => buildSearchMetadataIndex(enrichedCatalog.songs, enrichedCatalog.artists),
+    [enrichedCatalog.artists, enrichedCatalog.songs],
   )
 
   const value = useMemo(
     () => ({
-      songs: displaySongs,
-      albums,
-      artists,
+      songs: enrichedCatalog.songs,
+      albums: enrichedCatalog.albums,
+      artists: enrichedCatalog.artists,
       indexes: catalogIndexes,
+      artworkContext,
       searchMetadataIndex,
       artistNames: catalogIndexes.artistNames,
       songsByAlbumTitle: catalogIndexes.songsByAlbumName,
@@ -968,9 +969,10 @@ function CatalogProvider({ children }: { children: ReactNode }) {
       clearCatalogCache,
     }),
     [
-      displaySongs,
-      albums,
-      artists,
+      enrichedCatalog.albums,
+      enrichedCatalog.artists,
+      enrichedCatalog.songs,
+      artworkContext,
       catalogIndexes,
       searchMetadataIndex,
       loading,
@@ -1320,12 +1322,6 @@ function MusicNoteIcon({ className }: { className?: string }) {
     </svg>
   )
 }
-function catalogFallbackTone(seed: string): Mood {
-  const code = seed.charCodeAt(0) + seed.charCodeAt(seed.length - 1 || 0)
-  const tones: Mood[] = ['violet', 'cyan', 'rose', 'mint']
-  return tones[code % tones.length]
-}
-
 function useVisibleSlice<T>(items: T[], resetKey: string) {
   const [limit, setLimit] = useState(GRID_INITIAL_LIMIT)
 
@@ -1426,26 +1422,31 @@ const ArtworkImage = memo(function ArtworkImage({
   src,
   alt,
   seed,
+  label,
   variant = 'square',
   priority = false,
 }: {
   src: string | null
   alt: string
   seed: string
+  label?: string
   variant?: 'square' | 'wide' | 'circle'
   priority?: boolean
 }) {
   const [failed, setFailed] = useState(false)
-  const tone = useMemo(() => catalogFallbackTone(seed), [seed])
+  const initials = useMemo(
+    () => deriveEntityInitials(label ?? seed),
+    [label, seed],
+  )
 
   return (
     <div className={`art-frame art-frame--${variant}`}>
       {!src || failed ? (
         <div
-          className={`art-fallback art-fallback--${tone} art-fallback--${variant === 'circle' ? 'square' : variant}`}
+          className={`art-empty-state art-empty-state--${variant === 'circle' ? 'square' : variant}`}
           aria-hidden={alt ? undefined : true}
         >
-          <MusicNoteIcon className="card-art-icon" />
+          <span className="art-empty-initials">{initials}</span>
         </div>
       ) : (
         <img
@@ -1462,22 +1463,49 @@ const ArtworkImage = memo(function ArtworkImage({
   )
 })
 
+const ArtworkCollage = memo(function ArtworkCollage({
+  urls,
+  seed,
+  label,
+}: {
+  urls: string[]
+  seed: string
+  label: string
+}) {
+  if (urls.length <= 1) {
+    return (
+      <ArtworkImage
+        src={urls[0] ?? null}
+        alt=""
+        seed={seed}
+        label={label}
+      />
+    )
+  }
+
+  return (
+    <div className={`art-collage art-collage--${Math.min(urls.length, 4)}`} aria-hidden="true">
+      {urls.slice(0, 4).map((url, index) => (
+        <img key={`${seed}-${index}`} src={url} alt="" className="art-collage-tile" loading="lazy" decoding="async" />
+      ))}
+    </div>
+  )
+})
+
 const ArtistAvatar = memo(function ArtistAvatar({
   artist,
 }: {
   artist: ApiArtist
 }) {
-  const tone = useMemo(() => catalogFallbackTone(artist.id), [artist.id])
-
   return (
-    <span className="artist-avatar" aria-hidden="true" data-tone={tone}>
+    <span className="artist-avatar" aria-hidden="true">
       <ArtworkImage
         src={artist.artwork}
         alt=""
         seed={artist.id}
+        label={artist.name}
         variant="circle"
       />
-      <span className="artist-initial">{artist.name.charAt(0)}</span>
     </span>
   )
 })
@@ -1521,7 +1549,7 @@ const ApiSongGrid = memo(function ApiSongGrid({
             onClick={() => onSelect(song, songs.findIndex((entry) => entry.id === song.id))}
           >
             <div className="card-art card-art--song">
-              <ArtworkImage src={song.artwork} alt="" seed={song.id} />
+              <ArtworkImage src={song.artwork} alt="" seed={song.id} label={song.title} />
             </div>
             <div className="card-info">
               <h3>{song.title}</h3>
@@ -1884,7 +1912,9 @@ function EmotionalLanesSection({
   onSelectLane: (laneId: string | null) => void
   loading?: boolean
 }) {
+  const { artworkContext } = useCatalog()
   const lanes = useMemo(() => buildEmotionalLanes(songs), [songs])
+  const songsById = useMemo(() => new Map(songs.map((song) => [song.id, song])), [songs])
   const selectedLane = useMemo(
     () => findEmotionalLane(lanes, selectedLaneId),
     [lanes, selectedLaneId],
@@ -1922,6 +1952,10 @@ function EmotionalLanesSection({
           {lanes.map((lane) => {
             const sceneId = resolveVisualScene({ seed: lane.label, mood: lane.mood })
             const isActive = selectedLaneId === lane.id
+            const laneTracks = lane.songIds
+              .map((songId) => songsById.get(songId))
+              .filter((entry): entry is ApiSong => Boolean(entry))
+            const laneCollage = getPlaylistArtworkCollage(laneTracks, artworkContext)
             return (
               <button
                 key={lane.id}
@@ -1934,7 +1968,16 @@ function EmotionalLanesSection({
                 onClick={() => onSelectLane(isActive ? null : lane.id)}
               >
                 <div className="emotional-lane-art" aria-hidden="true">
-                  <VisualSceneBackdrop sceneId={sceneId} seed={lane.id} variant="thumb" />
+                  {laneCollage.length > 1 ? (
+                    <ArtworkCollage urls={laneCollage} seed={lane.id} label={lane.label} />
+                  ) : (
+                    <ArtworkImage
+                      src={laneCollage[0] ?? null}
+                      alt=""
+                      seed={lane.id}
+                      label={lane.label}
+                    />
+                  )}
                 </div>
                 <div className="emotional-lane-copy">
                   <h3>{lane.label}</h3>
@@ -1976,7 +2019,9 @@ function SceneListeningSection({
   onSelectScene: (sceneId: string | null) => void
   loading?: boolean
 }) {
+  const { artworkContext } = useCatalog()
   const scenes = useMemo(() => buildListeningScenes(songs), [songs])
+  const songsById = useMemo(() => new Map(songs.map((song) => [song.id, song])), [songs])
   const selectedScene = useMemo(
     () => findListeningScene(scenes, selectedSceneId),
     [scenes, selectedSceneId],
@@ -2013,6 +2058,10 @@ function SceneListeningSection({
         <div className="scene-listening-grid" role="list" aria-label="Listening scenes">
           {scenes.map((scene) => {
             const isActive = selectedSceneId === scene.id
+            const sceneTracks = scene.songIds
+              .map((songId) => songsById.get(songId))
+              .filter((entry): entry is ApiSong => Boolean(entry))
+            const sceneCollage = getPlaylistArtworkCollage(sceneTracks, artworkContext)
             return (
               <button
                 key={scene.id}
@@ -2025,11 +2074,16 @@ function SceneListeningSection({
                 onClick={() => onSelectScene(isActive ? null : scene.id)}
               >
                 <div className="scene-listening-art" aria-hidden="true">
-                  <VisualSceneBackdrop
-                    sceneId={scene.visualSceneId}
-                    seed={scene.id}
-                    variant="card"
-                  />
+                  {sceneCollage.length > 1 ? (
+                    <ArtworkCollage urls={sceneCollage} seed={scene.id} label={scene.label} />
+                  ) : (
+                    <ArtworkImage
+                      src={sceneCollage[0] ?? null}
+                      alt=""
+                      seed={scene.id}
+                      label={scene.label}
+                    />
+                  )}
                 </div>
                 <div className="scene-listening-copy">
                   <h3>{scene.label}</h3>
@@ -2199,8 +2253,12 @@ function DiscoveryGrid({ section }: { section: DiscoverySection }) {
             data-scene={sceneId}
           >
             <div className="card-art">
-              <VisualSceneBackdrop sceneId={sceneId} seed={card.title} variant="thumb" />
-              <MusicNoteIcon className="card-art-icon" />
+              <ArtworkImage
+                src={null}
+                alt=""
+                seed={card.title}
+                label={card.title}
+              />
             </div>
             <div className="card-info">
               <h3>{card.title}</h3>
@@ -2351,10 +2409,12 @@ function PopularWorldsSection({
   onSelectScene: (sceneId: string | null) => void
   onPlayWorld: (scene: BuiltListeningScene) => void
 }) {
+  const { artworkContext } = useCatalog()
   const worlds = useMemo(
     () => buildListeningScenes(songs, { minTracks: 0 }).slice(0, 5),
     [songs],
   )
+  const songsById = useMemo(() => new Map(songs.map((song) => [song.id, song])), [songs])
 
   if (!loading && worlds.length === 0) return null
 
@@ -2376,11 +2436,12 @@ function PopularWorldsSection({
         </div>
       ) : (
         <div className="popular-worlds-grid" role="list" aria-label="Popular worlds">
-          {worlds.map((world) => {
+          {worlds.map((world, worldIndex) => {
             const presentation = resolveWorldPresentation(world)
-            const coverSong = world.songIds
-              .map((songId) => songs.find((entry) => entry.id === songId))
-              .find(Boolean)
+            const worldTracks = world.songIds
+              .map((songId) => songsById.get(songId))
+              .filter((entry): entry is ApiSong => Boolean(entry))
+            const worldCollage = getPlaylistArtworkCollage(worldTracks, artworkContext)
             const isActive = selectedSceneId === world.id
             const sceneId = world.visualSceneId ?? resolveVisualScene({
               seed: world.label,
@@ -2401,18 +2462,19 @@ function PopularWorldsSection({
                   onClick={() => onSelectScene(isActive ? null : world.id)}
                 >
                   <div className="world-card-art">
-                    {coverSong?.artwork ? (
-                      <ArtworkImage
-                        src={coverSong.artwork}
-                        alt=""
+                    {worldCollage.length > 1 ? (
+                      <ArtworkCollage
+                        urls={worldCollage}
                         seed={world.id}
-                        priority={worlds.indexOf(world) < 2}
+                        label={presentation.title}
                       />
                     ) : (
-                      <VisualSceneBackdrop
-                        sceneId={sceneId}
+                      <ArtworkImage
+                        src={worldCollage[0] ?? null}
+                        alt=""
                         seed={world.id}
-                        variant="thumb"
+                        label={presentation.title}
+                        priority={worldIndex < 2}
                       />
                     )}
                     <span className="world-card-veil" aria-hidden="true" />
@@ -2827,13 +2889,14 @@ function DiscoverPage({
                     if (playable) playDiscoverSong(playable, 0)
                   }}
                 >
-                  <div
-                    className="psd-search-top-result-art"
-                    style={topResult?.artwork ? undefined : { backgroundImage: `url(${psdSearchReferenceUrl})` }}
-                  >
-                    {topResult?.artwork ? (
-                      <ArtworkImage src={topResult.artwork} alt="" seed={topResult.id} priority />
-                    ) : null}
+                  <div className="psd-search-top-result-art">
+                    <ArtworkImage
+                      src={topResult?.artwork ?? null}
+                      alt=""
+                      seed={topResult?.id ?? 'top-result'}
+                      label={topResult?.title ?? PSD_SEARCH_TOP_RESULT.title}
+                      priority
+                    />
                     <span className="psd-search-top-result-play" aria-hidden="true">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M8 5v14l11-7z" />
@@ -2893,14 +2956,12 @@ function DiscoverPage({
                           {row.active ? <PsdIconEqualizer className="psd-search-equalizer" /> : null}
                         </span>
                         <span className="psd-search-song-thumb">
-                          {playable?.artwork ? (
-                            <ArtworkImage src={playable.artwork} alt="" seed={playable.id} />
-                          ) : (
-                            <span
-                              className="psd-search-song-thumb-fallback"
-                              style={{ backgroundImage: `url(${psdSearchReferenceUrl})` }}
-                            />
-                          )}
+                          <ArtworkImage
+                            src={playable?.artwork ?? null}
+                            alt=""
+                            seed={playable?.id ?? row.key}
+                            label={playable?.title ?? row.title}
+                          />
                         </span>
                         <span className="psd-search-song-copy">
                           <strong>{row.title}</strong>
@@ -2939,10 +3000,7 @@ function DiscoverPage({
                           {artist ? (
                             <ArtistAvatar artist={artist} />
                           ) : (
-                            <span
-                              className="psd-search-side-avatar-fallback"
-                              style={{ backgroundImage: `url(${psdSearchReferenceUrl})` }}
-                            />
+                            <ArtworkImage src={null} alt="" seed={row.key} label={row.name} variant="circle" />
                           )}
                         </span>
                         <span className="psd-search-side-copy">
@@ -2974,18 +3032,12 @@ function DiscoverPage({
                     return (
                       <button key={row.key} type="button" className="psd-search-side-row">
                         <span className="psd-search-side-art">
-                          {album ? (
-                            <ArtworkImage
-                              src={resolveAlbumArtwork(album, albumSongs)}
-                              alt=""
-                              seed={album.id}
-                            />
-                          ) : (
-                            <span
-                              className="psd-search-side-art-fallback"
-                              style={{ backgroundImage: `url(${psdSearchReferenceUrl})` }}
-                            />
-                          )}
+                          <ArtworkImage
+                            src={album ? resolveAlbumArtwork(album, albumSongs) : null}
+                            alt=""
+                            seed={album?.id ?? row.key}
+                            label={album?.title ?? row.title}
+                          />
                         </span>
                         <span className="psd-search-side-copy">
                           <strong>{row.title}</strong>
@@ -3108,7 +3160,7 @@ const EMOTIONAL_WORLDS_CARDS: EmotionalWorldCardSpec[] = [
 ]
 
 function EmotionalWorldsPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
-  const { songs, indexes, showCatalogSkeleton } = useCatalog()
+  const { songs, indexes, artworkContext, showCatalogSkeleton } = useCatalog()
   const scenes = useMemo(() => buildListeningScenes(songs), [songs])
   const [selectedChip, setSelectedChip] = useState<EmotionalWorldChipId>('all')
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null)
@@ -3216,19 +3268,12 @@ function EmotionalWorldsPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
                     onClick={() => setSelectedCardId(isActive ? null : card.cardId)}
                   >
                     <div className="emotional-world-card-art">
-                      {coverSong?.artwork ? (
-                        <ArtworkImage
-                          src={coverSong.artwork}
-                          alt=""
-                          seed={card.cardId}
-                        />
-                      ) : (
-                        <VisualSceneBackdrop
-                          sceneId={visualSceneId}
-                          seed={card.cardId}
-                          variant="thumb"
-                        />
-                      )}
+                      <ArtworkImage
+                        src={coverSong ? getSongArtwork(coverSong, artworkContext) : null}
+                        alt=""
+                        seed={card.cardId}
+                        label={card.title}
+                      />
                       <span className="emotional-world-card-veil" aria-hidden="true" />
                       <button
                         type="button"
@@ -3294,25 +3339,29 @@ function PsdLibraryStatIcon({ type }: { type: string }) {
 }
 
 function LibraryPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
-  const { songs, indexes } = useCatalog()
+  const { songs, indexes, artworkContext } = useCatalog()
   const [tab, setTab] = useState<(typeof PSD_LIBRARY_TABS)[number]>('Overview')
   const recentSongs = useMemo(() => sortSongsList([...songs], 'latest'), [songs])
-  const queuePools = useMemo(() => buildQueueCandidatePools(indexes), [indexes])
-
-  const resolveRecentSong = useCallback(
-    (title: string, index: number) => {
-      const exact = recentSongs.find(
-        (song) => song.title.toLowerCase() === title.toLowerCase(),
-      )
-      return exact ?? recentSongs[index] ?? null
-    },
+  const recentCards = useMemo(
+    () => recentSongs.slice(0, PSD_LIBRARY_RECENT.length),
     [recentSongs],
   )
+  const playlistCards = useMemo(
+    () => PSD_LIBRARY_PLAYLISTS.map((playlist, index) => {
+      const sliceStart = index * 4
+      const playlistSongs = recentSongs.slice(sliceStart, sliceStart + 12)
+      return {
+        ...playlist,
+        collage: getPlaylistArtworkCollage(playlistSongs, artworkContext),
+        heroArt: getPlaylistArtwork(playlistSongs, artworkContext),
+      }
+    }),
+    [artworkContext, recentSongs],
+  )
+  const queuePools = useMemo(() => buildQueueCandidatePools(indexes), [indexes])
 
   const playRecentSong = useCallback(
-    (title: string, index: number) => {
-      const song = resolveRecentSong(title, index)
-      if (!song) return
+    (song: ApiSong, _index: number) => {
       const queue = recentSongs.length > 0 ? recentSongs : [song]
       const queueIndex = Math.max(0, queue.findIndex((entry) => entry.id === song.id))
       onOpenSong(song, queue, queueIndex, 'manual', 'Recently Added', {
@@ -3321,7 +3370,7 @@ function LibraryPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
         candidatePools: queuePools,
       })
     },
-    [indexes, onOpenSong, queuePools, recentSongs, resolveRecentSong],
+    [indexes, onOpenSong, queuePools, recentSongs],
   )
 
   return (
@@ -3384,21 +3433,16 @@ function LibraryPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
             </div>
           </header>
           <div className="psd-library-card-row">
-            {PSD_LIBRARY_RECENT.map((song, index) => (
-              <article key={song.title} className="psd-library-cover-card" data-tone={song.tone}>
-                <div
-                  className="psd-library-cover-art"
-                  style={{
-                    backgroundImage: `url(${psdLibraryReferenceUrl})`,
-                    backgroundPosition: song.artPosition,
-                  }}
-                >
+            {recentCards.map((song, index) => (
+              <article key={song.id} className="psd-library-cover-card" data-tone={PSD_LIBRARY_RECENT[index]?.tone ?? 'violet'}>
+                <div className="psd-library-cover-art">
+                  <ArtworkImage src={song.artwork} alt="" seed={song.id} label={song.title} />
                   <span className="psd-library-cover-veil" aria-hidden="true" />
                   <button
                     type="button"
                     className="psd-library-play-btn"
                     aria-label={`Play ${song.title}`}
-                    onClick={() => playRecentSong(song.title, index)}
+                    onClick={() => playRecentSong(song, index)}
                   >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                       <path d="M8 5v14l11-7z" />
@@ -3420,23 +3464,19 @@ function LibraryPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
             <button type="button" className="psd-library-view-all">View all</button>
           </header>
           <div className="psd-library-card-row">
-            {PSD_LIBRARY_PLAYLISTS.map((playlist) => (
+            {playlistCards.map((playlist) => (
               <article
                 key={playlist.title}
                 className="psd-library-cover-card psd-library-cover-card--playlist"
                 data-tone={playlist.tone}
               >
-                <div
-                  className="psd-library-cover-art"
-                  style={{
-                    backgroundImage: `url(${psdLibraryReferenceUrl})`,
-                    backgroundPosition: playlist.artPosition,
-                  }}
-                >
+                <div className="psd-library-cover-art">
+                  <ArtworkCollage
+                    urls={playlist.collage}
+                    seed={playlist.title}
+                    label={playlist.title}
+                  />
                   <span className="psd-library-cover-veil" aria-hidden="true" />
-                  <span className="psd-library-music-badge" aria-hidden="true">
-                    <MusicNoteIcon />
-                  </span>
                 </div>
                 <div className="psd-library-cover-copy">
                   <strong>{playlist.title}</strong>
@@ -3505,11 +3545,7 @@ function ArtistsPage({ onOpenArtist }: { onOpenArtist: (artist: ApiArtist) => vo
               {featuredArtist ? (
                 <ArtistAvatar artist={featuredArtist} />
               ) : (
-                <span
-                  className="psd-artist-portrait-fallback"
-                  style={{ backgroundImage: `url(${psdArtistsReferenceUrl})` }}
-                  aria-hidden="true"
-                />
+                <ArtworkImage src={null} alt="" seed="artist-hero" label={PSD_ARTIST_NAME} variant="circle" />
               )}
               <span className="psd-artist-portrait-badge" aria-hidden="true">
                 <PsdIconVerified />
@@ -3576,14 +3612,12 @@ function ArtistsPage({ onOpenArtist }: { onOpenArtist: (artist: ApiArtist) => vo
                   >
                     <span className="psd-artist-popular-rank">{row.rank}</span>
                     <span className="psd-artist-popular-thumb">
-                      {playable?.artwork ? (
-                        <ArtworkImage src={playable.artwork} alt="" seed={playable.id} />
-                      ) : (
-                        <span
-                          className="psd-artist-popular-thumb-fallback"
-                          style={{ backgroundImage: `url(${psdArtistsReferenceUrl})` }}
-                        />
-                      )}
+                      <ArtworkImage
+                        src={playable?.artwork ?? null}
+                        alt=""
+                        seed={playable?.id ?? row.key}
+                        label={playable?.title ?? row.title}
+                      />
                     </span>
                     <span className="psd-artist-popular-copy">
                       <strong>{row.title}</strong>
@@ -3641,14 +3675,12 @@ function ArtistsPage({ onOpenArtist }: { onOpenArtist: (artist: ApiArtist) => vo
                 return (
                   <article key={card.key} className="psd-artist-album-card">
                     <div className="psd-artist-album-art">
-                      {album ? (
-                        <ArtworkImage src={resolveAlbumArtwork(album, albumSongs)} alt="" seed={album.id} />
-                      ) : (
-                        <span
-                          className="psd-artist-album-art-fallback"
-                          style={{ backgroundImage: `url(${psdArtistsReferenceUrl})` }}
-                        />
-                      )}
+                      <ArtworkImage
+                        src={album ? resolveAlbumArtwork(album, albumSongs) : null}
+                        alt=""
+                        seed={album?.id ?? card.key}
+                        label={album?.title ?? card.title}
+                      />
                     </div>
                     <strong>{card.title}</strong>
                     <span>{card.artist}</span>
@@ -3756,21 +3788,12 @@ function AlbumsPage({
                 >
                   <div className="psd-albums-gallery-art-wrap">
                     <div className="psd-albums-gallery-art">
-                      {album ? (
-                        <ArtworkImage
-                          src={resolveAlbumArtwork(album, albumSongs)}
-                          alt=""
-                          seed={album.id}
-                        />
-                      ) : (
-                        <span
-                          className="psd-albums-gallery-art-fallback"
-                          style={{
-                            backgroundImage: `url(${psdAlbumsReferenceUrl})`,
-                            backgroundPosition: card.artPosition,
-                          }}
-                        />
-                      )}
+                      <ArtworkImage
+                        src={album ? resolveAlbumArtwork(album, albumSongs) : null}
+                        alt=""
+                        seed={album?.id ?? card.key}
+                        label={album?.title ?? card.title}
+                      />
                     </div>
                     <span className="psd-albums-gallery-art-veil" aria-hidden="true" />
                     <span className="psd-albums-gallery-play-fab" aria-hidden="true">
@@ -3806,7 +3829,7 @@ function PlaylistsPage({
   query?: string
   setQuery?: (value: string) => void
 }) {
-  const { songs, indexes } = useCatalog()
+  const { songs, indexes, artworkContext } = useCatalog()
   const [internalQuery, setInternalQuery] = useState('')
   const playlistQuery = externalQuery ?? internalQuery
   const setPlaylistQuery = externalSetQuery ?? setInternalQuery
@@ -3838,6 +3861,11 @@ function PlaylistsPage({
       })
     },
     [indexes, onOpenSong, playlistSongs, queuePools, resolvePlaylistSong],
+  )
+
+  const playlistHeroCollage = useMemo(
+    () => getPlaylistArtworkCollage(playlistSongs, artworkContext),
+    [artworkContext, playlistSongs],
   )
 
   const playAll = useCallback(() => {
@@ -3873,14 +3901,13 @@ function PlaylistsPage({
         </form>
 
         <section className="psd-playlist-hero" aria-labelledby="playlist-detail-heading">
-          <div
-            className="psd-playlist-hero-art"
-            style={{
-              backgroundImage: `url(${psdPlaylistReferenceUrl})`,
-              backgroundPosition: PSD_PLAYLIST_HERO_ART,
-            }}
-            aria-hidden="true"
-          />
+          <div className="psd-playlist-hero-art" aria-hidden="true">
+            <ArtworkCollage
+              urls={playlistHeroCollage}
+              seed={PSD_PLAYLIST_TITLE}
+              label={PSD_PLAYLIST_TITLE}
+            />
+          </div>
           <div className="psd-playlist-hero-copy">
             <span className="psd-playlist-eyebrow">PLAYLIST</span>
             <h1 id="playlist-detail-heading" className="psd-playlist-title">
@@ -3970,16 +3997,14 @@ function PlaylistsPage({
                           className="psd-playlist-title-btn"
                           onClick={() => playPlaylistTrack(sourceIndex >= 0 ? sourceIndex : index)}
                         >
-                          <span
-                            className="psd-playlist-row-thumb"
-                            style={{
-                              backgroundImage: song?.artwork
-                                ? `url(${song.artwork})`
-                                : `url(${psdPlaylistReferenceUrl})`,
-                              backgroundPosition: row.artPosition,
-                            }}
-                            aria-hidden="true"
-                          />
+                          <span className="psd-playlist-row-thumb">
+                            <ArtworkImage
+                              src={song?.artwork ?? null}
+                              alt=""
+                              seed={song?.id ?? row.key}
+                              label={song?.title ?? row.title}
+                            />
+                          </span>
                           <span className="psd-playlist-title-copy">
                             <strong>{row.title}</strong>
                             <svg className="psd-playlist-row-heart" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -4135,16 +4160,14 @@ function LikedPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
                           className="psd-liked-title-btn"
                           onClick={() => playLikedSong(index)}
                         >
-                          <span
-                            className="psd-liked-row-thumb"
-                            style={{
-                              backgroundImage: song?.artwork
-                                ? `url(${song.artwork})`
-                                : `url(${psdLikedReferenceUrl})`,
-                              backgroundPosition: row.artPosition,
-                            }}
-                            aria-hidden="true"
-                          />
+                          <span className="psd-liked-row-thumb">
+                            <ArtworkImage
+                              src={song?.artwork ?? null}
+                              alt=""
+                              seed={song?.id ?? row.key}
+                              label={song?.title ?? row.title}
+                            />
+                          </span>
                           <span className="psd-liked-title-copy">
                             <strong>{row.title}</strong>
                             <svg className="psd-liked-row-heart" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -4276,16 +4299,14 @@ function RecentPage({
                           onClick={() => playRecentSong(index)}
                           disabled={row.itemType !== 'Song'}
                         >
-                          <span
-                            className="psd-recent-row-thumb"
-                            style={{
-                              backgroundImage: song?.artwork
-                                ? `url(${song.artwork})`
-                                : `url(${psdRecentReferenceUrl})`,
-                              backgroundPosition: row.artPosition,
-                            }}
-                            aria-hidden="true"
-                          />
+                          <span className="psd-recent-row-thumb">
+                            <ArtworkImage
+                              src={song?.artwork ?? null}
+                              alt=""
+                              seed={song?.id ?? row.key}
+                              label={song?.title ?? row.title}
+                            />
+                          </span>
                           <span className="psd-recent-title-copy">
                             <strong>{row.title}</strong>
                             <span>{row.subtitle}</span>
@@ -4340,13 +4361,18 @@ function DownloadsPage({
   query?: string
 }) {
   void query
-  const { songs, indexes } = useCatalog()
+  const { songs, albums, indexes, artworkContext } = useCatalog()
   const queuePools = useMemo(() => buildQueueCandidatePools(indexes), [indexes])
   const [activeTab, setActiveTab] = useState<(typeof PSD_DOWNLOADS_TABS)[number]>('All')
 
   const resolveSong = useCallback(
-    (title: string) => songs.find((song) => song.title.toLowerCase() === title.toLowerCase()) ?? null,
+    (title: string, index = 0) => songs.find((song) => song.title.toLowerCase() === title.toLowerCase()) ?? songs[index] ?? null,
     [songs],
+  )
+
+  const resolveDownloadAlbum = useCallback(
+    (title: string, index = 0) => albums.find((album) => album.title.toLowerCase() === title.toLowerCase()) ?? albums[index] ?? null,
+    [albums],
   )
 
   const playShuffleAll = useCallback(() => {
@@ -4433,16 +4459,17 @@ function DownloadsPage({
           <section className="psd-downloads-section" aria-label="Downloaded playlists">
             <h2 className="psd-downloads-section-title">Playlists (3)</h2>
             <ul className="psd-downloads-list">
-              {PSD_DOWNLOADS_PLAYLISTS.map((row) => (
+              {PSD_DOWNLOADS_PLAYLISTS.map((row, index) => {
+                const playlistSongs = songs.slice(index * 4, index * 4 + 8)
+                return (
                 <li key={row.key} className="psd-downloads-row">
-                  <span
-                    className="psd-downloads-row-art"
-                    style={{
-                      backgroundImage: `url(${psdDownloadsReferenceUrl})`,
-                      backgroundPosition: row.artPosition,
-                    }}
-                    aria-hidden="true"
-                  />
+                  <span className="psd-downloads-row-art">
+                    <ArtworkCollage
+                      urls={getPlaylistArtworkCollage(playlistSongs, artworkContext)}
+                      seed={row.key}
+                      label={row.title}
+                    />
+                  </span>
                   <div className="psd-downloads-row-copy">
                     <p className="psd-downloads-row-title">
                       {row.title}
@@ -4461,7 +4488,8 @@ function DownloadsPage({
                   </span>
                   <PsdDownloadsRowMenu />
                 </li>
-              ))}
+                )
+              })}
             </ul>
           </section>
         ) : null}
@@ -4470,16 +4498,21 @@ function DownloadsPage({
           <section className="psd-downloads-section" aria-label="Downloaded albums">
             <h2 className="psd-downloads-section-title">Albums (2)</h2>
             <ul className="psd-downloads-list">
-              {PSD_DOWNLOADS_ALBUMS.map((row) => (
+              {PSD_DOWNLOADS_ALBUMS.map((row, index) => {
+                const album = resolveDownloadAlbum(row.title, index)
+                const albumSongs = album
+                  ? resolveSongsForAlbum(album, indexes.songsByAlbumId, indexes.songsByAlbumName, indexes.artistNames)
+                  : []
+                return (
                 <li key={row.key} className="psd-downloads-row">
-                  <span
-                    className="psd-downloads-row-art"
-                    style={{
-                      backgroundImage: `url(${psdDownloadsReferenceUrl})`,
-                      backgroundPosition: row.artPosition,
-                    }}
-                    aria-hidden="true"
-                  />
+                  <span className="psd-downloads-row-art">
+                    <ArtworkImage
+                      src={album ? resolveAlbumArtwork(album, albumSongs) : null}
+                      alt=""
+                      seed={album?.id ?? row.key}
+                      label={album?.title ?? row.title}
+                    />
+                  </span>
                   <div className="psd-downloads-row-copy">
                     <p className="psd-downloads-row-title">
                       {row.title}
@@ -4499,7 +4532,8 @@ function DownloadsPage({
                   </span>
                   <PsdDownloadsRowMenu />
                 </li>
-              ))}
+                )
+              })}
             </ul>
           </section>
         ) : null}
@@ -4508,16 +4542,18 @@ function DownloadsPage({
           <section className="psd-downloads-section" aria-label="Downloaded songs">
             <h2 className="psd-downloads-section-title">Songs (6)</h2>
             <ul className="psd-downloads-list">
-              {PSD_DOWNLOADS_SONGS.map((row) => (
+              {PSD_DOWNLOADS_SONGS.map((row, index) => {
+                const song = resolveSong(row.title, index)
+                return (
                 <li key={row.key} className="psd-downloads-row">
-                  <span
-                    className="psd-downloads-row-art"
-                    style={{
-                      backgroundImage: `url(${psdDownloadsReferenceUrl})`,
-                      backgroundPosition: row.artPosition,
-                    }}
-                    aria-hidden="true"
-                  />
+                  <span className="psd-downloads-row-art">
+                    <ArtworkImage
+                      src={song?.artwork ?? null}
+                      alt=""
+                      seed={song?.id ?? row.key}
+                      label={song?.title ?? row.title}
+                    />
+                  </span>
                   <div className="psd-downloads-row-copy">
                     <p className="psd-downloads-row-title">
                       {row.title}
@@ -4535,7 +4571,8 @@ function DownloadsPage({
                   </span>
                   <PsdDownloadsRowMenu />
                 </li>
-              ))}
+                )
+              })}
             </ul>
           </section>
         ) : null}
@@ -5214,9 +5251,13 @@ const PlayerBar = memo(function PlayerBar({
     >
       <div className="player-track">
         <div className="player-artwork" aria-hidden="true">
-          {displayTrack ? (
-            <ArtworkImage src={displayTrack.artwork} alt="" seed={displayTrack.id} priority />
-          ) : null}
+          <ArtworkImage
+            src={displayTrack?.artwork ?? null}
+            alt=""
+            seed={displayTrack?.id ?? 'player-bar'}
+            label={title}
+            priority
+          />
         </div>
         <div className="player-meta">
           <h4>{title}</h4>
@@ -5552,10 +5593,6 @@ const QueueUpNextPanel = memo(function QueueUpNextPanel({
         track: null as ApiSong | null,
       }))
 
-  const luxuryArtUrl = luxuryRailKind === 'playlists' ? psdPlaylistReferenceUrl : psdAlbumsReferenceUrl
-  const luxuryArtPosition = luxuryRailKind === 'playlists'
-    ? PSD_PLAYLIST_RAIL_ART_POSITION
-    : PSD_ALBUMS_RAIL_ART_POSITION
 
   if (isLuxuryRail) {
     return (
@@ -5581,23 +5618,13 @@ const QueueUpNextPanel = memo(function QueueUpNextPanel({
               <span className="albums-rail-art-glow" aria-hidden="true" />
               <span className="albums-rail-vinyl premium-vinyl-disc" aria-hidden="true" />
               <div className="albums-rail-art-frame">
-                {hasPlayback && activeTrack ? (
-                  <ArtworkImage
-                    src={activeTrack.artwork}
-                    alt=""
-                    seed={activeTrack.id}
-                    priority
-                  />
-                ) : (
-                  <span
-                    className="albums-rail-art-fallback"
-                    style={{
-                      backgroundImage: `url(${luxuryArtUrl})`,
-                      backgroundPosition: luxuryArtPosition,
-                    }}
-                    aria-hidden="true"
-                  />
-                )}
+                <ArtworkImage
+                  src={activeTrack?.artwork ?? null}
+                  alt=""
+                  seed={activeTrack?.id ?? 'now-playing'}
+                  label={displayTitle}
+                  priority
+                />
                 {isLoading ? (
                   <span className="albums-rail-art-spinner player-spinner" aria-hidden="true" />
                 ) : null}
@@ -5655,17 +5682,12 @@ const QueueUpNextPanel = memo(function QueueUpNextPanel({
               {queueRows.map((row) => (
                 <li className="albums-rail-up-next-item" key={row.key}>
                   <div className="albums-rail-up-next-thumb" aria-hidden="true">
-                    {row.track ? (
-                      <ArtworkImage src={row.track.artwork} alt="" seed={row.track.id} />
-                    ) : (
-                      <span
-                        className="albums-rail-up-next-thumb-fallback"
-                      style={{
-                        backgroundImage: `url(${luxuryArtUrl})`,
-                        backgroundPosition: row.artPosition,
-                      }}
-                      />
-                    )}
+                    <ArtworkImage
+                      src={row.track?.artwork ?? null}
+                      alt=""
+                      seed={row.track?.id ?? row.key}
+                      label={row.title}
+                    />
                   </div>
                   <div className="albums-rail-up-next-copy">
                     <span className="albums-rail-up-next-track">{row.title}</span>
@@ -5732,23 +5754,13 @@ const QueueUpNextPanel = memo(function QueueUpNextPanel({
             <span className="rail-psd-art-glow" aria-hidden="true" />
             <span className="rail-psd-vinyl premium-vinyl-disc" aria-hidden="true" />
             <div className="rail-psd-art-frame">
-              {hasPlayback && activeTrack ? (
-                <ArtworkImage
-                  src={activeTrack.artwork}
-                  alt=""
-                  seed={activeTrack.id}
-                  priority
-                />
-              ) : (
-                <span
-                  className="rail-psd-art-fallback"
-                  style={{
-                    backgroundImage: `url(${psdNowPlayingReferenceUrl})`,
-                    backgroundPosition: PSD_RAIL_ART_POSITION,
-                  }}
-                  aria-hidden="true"
-                />
-              )}
+              <ArtworkImage
+                src={activeTrack?.artwork ?? null}
+                alt=""
+                seed={activeTrack?.id ?? 'rail-now-playing'}
+                label={displayTitle}
+                priority
+              />
               {isLoading ? (
                 <span className="rail-psd-art-spinner player-spinner" aria-hidden="true" />
               ) : null}
@@ -5850,17 +5862,12 @@ const QueueUpNextPanel = memo(function QueueUpNextPanel({
             {queueRows.map((row) => (
               <li className="rail-psd-queue-item" key={row.key}>
                 <div className="rail-psd-queue-thumb" aria-hidden="true">
-                  {row.track ? (
-                    <ArtworkImage src={row.track.artwork} alt="" seed={row.track.id} />
-                  ) : (
-                    <span
-                      className="rail-psd-queue-thumb-fallback"
-                      style={{
-                        backgroundImage: `url(${psdNowPlayingReferenceUrl})`,
-                        backgroundPosition: row.artPosition,
-                      }}
-                    />
-                  )}
+                  <ArtworkImage
+                    src={row.track?.artwork ?? null}
+                    alt=""
+                    seed={row.track?.id ?? row.key}
+                    label={row.title}
+                  />
                 </div>
                 <div className="rail-psd-queue-copy">
                   <span className="rail-psd-queue-track">{row.title}</span>
@@ -6140,23 +6147,13 @@ const CinemaPlayerShell = memo(function CinemaPlayerShell({
           <div className="psd-player-art-shell psd-player-art-shell--master">
             <div className="psd-player-art-halo" aria-hidden="true" />
             <div className="psd-player-art-frame">
-              {displayTrack?.artwork ? (
-                <ArtworkImage
-                  src={displayTrack.artwork}
-                  alt=""
-                  seed={displayTrack.id}
-                  priority
-                />
-              ) : (
-                <span
-                  className="psd-player-art-fallback"
-                  style={{
-                    backgroundImage: `url(${psdPlayerMasterReferenceUrl})`,
-                    backgroundPosition: PSD_PLAYER_MASTER_ART_POSITION,
-                  }}
-                  aria-hidden="true"
-                />
-              )}
+              <ArtworkImage
+                src={displayTrack?.artwork ?? null}
+                alt=""
+                seed={displayTrack?.id ?? 'player-master'}
+                label={displayTitle}
+                priority
+              />
               {isLoading && isActive ? (
                 <span className="psd-player-art-spinner player-spinner" aria-hidden="true" />
               ) : null}
@@ -6512,18 +6509,13 @@ const Player2Shell = memo(function Player2Shell({
             <div className="player2-art-wrap">
               <div className="player2-art-glow" aria-hidden="true" />
               <div className="player2-art-frame">
-                {displayTrack?.artwork ? (
-                  <ArtworkImage src={displayTrack.artwork} alt="" seed={displayTrack.id} priority />
-                ) : (
-                  <span
-                    className="player2-art-fallback"
-                    style={{
-                      backgroundImage: `url(${psdPlayer2ReferenceUrl})`,
-                      backgroundPosition: PSD_PLAYER2_ART_POSITION,
-                    }}
-                    aria-hidden="true"
-                  />
-                )}
+                <ArtworkImage
+                  src={displayTrack?.artwork ?? null}
+                  alt=""
+                  seed={displayTrack?.id ?? 'player-2'}
+                  label={displayTrack?.title ?? PSD_PLAYER2_TITLE_TOP}
+                  priority
+                />
               </div>
               <button type="button" className="player2-art-play" aria-label="Play from artwork">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -6657,15 +6649,14 @@ const Player2Shell = memo(function Player2Shell({
                 </svg>
               </button>
               <div className="player2-next-card">
-                <span
-                  className="player2-next-thumb"
-                  style={
-                    upcomingTrack?.artwork
-                      ? { backgroundImage: `url(${upcomingTrack.artwork})` }
-                      : { backgroundImage: `url(${psdPlayer2ReferenceUrl})`, backgroundPosition: '72% 58%' }
-                  }
-                  aria-hidden="true"
-                />
+                <span className="player2-next-thumb">
+                  <ArtworkImage
+                    src={upcomingTrack?.artwork ?? null}
+                    alt=""
+                    seed={upcomingTrack?.id ?? 'player2-next'}
+                    label={nextTitle}
+                  />
+                </span>
                 <div className="player2-next-copy">
                   <strong>{nextTitle}</strong>
                   <span>{nextArtist}</span>
@@ -6908,18 +6899,13 @@ const Player3Shell = memo(function Player3Shell({
               <div className="player3-disc-orbit" aria-hidden="true" />
               <div className="player3-disc-ring" aria-hidden="true" />
               <div className="player3-disc">
-                {displayTrack?.artwork ? (
-                  <ArtworkImage src={displayTrack.artwork} alt="" seed={displayTrack.id} priority />
-                ) : (
-                  <span
-                    className="player3-disc-fallback"
-                    style={{
-                      backgroundImage: `url(${psdPlayer3ReferenceUrl})`,
-                      backgroundPosition: PSD_PLAYER3_ART_POSITION,
-                    }}
-                    aria-hidden="true"
-                  />
-                )}
+                <ArtworkImage
+                  src={displayTrack?.artwork ?? null}
+                  alt=""
+                  seed={displayTrack?.id ?? 'player-3'}
+                  label={displayTrack?.title ?? PSD_PLAYER3_TITLE_MAIN}
+                  priority
+                />
                 <span className="player3-disc-vip">VIP</span>
                 <span className="player3-disc-time">{PSD_PLAYER3_DISC_TIME}</span>
               </div>
@@ -7107,18 +7093,14 @@ const Player3Shell = memo(function Player3Shell({
           <ol className="player3-upnext-list">
             {upNextRows.map((row) => (
               <li key={row.key} className={`player3-upnext-item${row.active ? ' is-active' : ''}`}>
-                <span
-                  className="player3-upnext-thumb"
-                  style={
-                    'artwork' in row && row.artwork
-                      ? { backgroundImage: `url(${row.artwork})` }
-                      : {
-                          backgroundImage: `url(${psdPlayer3ReferenceUrl})`,
-                          backgroundPosition: row.artPosition,
-                        }
-                  }
-                  aria-hidden="true"
-                />
+                <span className="player3-upnext-thumb">
+                  <ArtworkImage
+                    src={'artwork' in row && row.artwork ? row.artwork : null}
+                    alt=""
+                    seed={row.key}
+                    label={row.title}
+                  />
+                </span>
                 <div className="player3-upnext-copy">
                   <strong>{row.title}</strong>
                   <span>{row.artist}</span>
@@ -7395,18 +7377,13 @@ const Player4Shell = memo(function Player4Shell({
               <div className="player4-art-col">
                 <div className="player4-art-glow" aria-hidden="true" />
                 <div className="player4-art-frame">
-                  {displayTrack?.artwork ? (
-                    <ArtworkImage src={displayTrack.artwork} alt="" seed={displayTrack.id} priority />
-                  ) : (
-                    <span
-                      className="player4-art-fallback"
-                      style={{
-                        backgroundImage: `url(${psdPlayer4ReferenceUrl})`,
-                        backgroundPosition: PSD_PLAYER4_ART_POSITION,
-                      }}
-                      aria-hidden="true"
-                    />
-                  )}
+                  <ArtworkImage
+                    src={displayTrack?.artwork ?? null}
+                    alt=""
+                    seed={displayTrack?.id ?? 'player-4'}
+                    label={displayTitle}
+                    priority
+                  />
                   <button type="button" className="player4-art-heart" aria-label="Favorite">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                       <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41 1.01 4.5 2.09C13.09 4.01 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
@@ -7577,18 +7554,14 @@ const Player4Shell = memo(function Player4Shell({
           <ol className="player4-upnext-list">
             {upNextRows.map((row) => (
               <li key={row.key} className={`player4-upnext-item${row.active ? ' is-active' : ''}`}>
-                <span
-                  className="player4-upnext-thumb"
-                  style={
-                    'artwork' in row && row.artwork
-                      ? { backgroundImage: `url(${row.artwork})` }
-                      : {
-                          backgroundImage: `url(${psdPlayer4ReferenceUrl})`,
-                          backgroundPosition: row.artPosition,
-                        }
-                  }
-                  aria-hidden="true"
-                />
+                <span className="player4-upnext-thumb" aria-hidden="true">
+                  <ArtworkImage
+                    src={'artwork' in row && row.artwork ? row.artwork : null}
+                    alt=""
+                    seed={row.key}
+                    label={row.title}
+                  />
+                </span>
                 <div className="player4-upnext-copy">
                   <strong>{row.title}</strong>
                   <span>{row.artist}</span>
@@ -7878,18 +7851,13 @@ const Player5Shell = memo(function Player5Shell({
               <div className="player5-art-col">
                 <div className="player5-art-glow" aria-hidden="true" />
                 <div className="player5-art-frame">
-                  {displayTrack?.artwork ? (
-                    <ArtworkImage src={displayTrack.artwork} alt="" seed={displayTrack.id} priority />
-                  ) : (
-                    <span
-                      className="player5-art-fallback"
-                      style={{
-                        backgroundImage: `url(${psdPlayer5ReferenceUrl})`,
-                        backgroundPosition: PSD_PLAYER5_ART_POSITION,
-                      }}
-                      aria-hidden="true"
-                    />
-                  )}
+                  <ArtworkImage
+                    src={displayTrack?.artwork ?? null}
+                    alt=""
+                    seed={displayTrack?.id ?? 'player-5'}
+                    label={displayTitle}
+                    priority
+                  />
                   <button
                     type="button"
                     className="player5-art-play"
@@ -8067,18 +8035,14 @@ const Player5Shell = memo(function Player5Shell({
             {upNextRows.map((row) => (
               <li key={row.key} className={`player5-upnext-item${row.active ? ' is-active' : ''}`}>
                 <span className="player5-upnext-thumb-wrap">
-                  <span
-                    className="player5-upnext-thumb"
-                    style={
-                      'artwork' in row && row.artwork
-                        ? { backgroundImage: `url(${row.artwork})` }
-                        : {
-                            backgroundImage: `url(${psdPlayer5ReferenceUrl})`,
-                            backgroundPosition: row.artPosition,
-                          }
-                    }
-                    aria-hidden="true"
-                  />
+                  <span className="player5-upnext-thumb">
+                    <ArtworkImage
+                      src={'artwork' in row && row.artwork ? row.artwork : null}
+                      alt=""
+                      seed={row.key}
+                      label={row.title}
+                    />
+                  </span>
                   {row.active ? (
                     <span className="player5-upnext-play" aria-hidden="true">
                       <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
@@ -8518,23 +8482,13 @@ const FullscreenLyricsShell = memo(function FullscreenLyricsShell({
       <div className="psd-lyrics-main">
         <div className="psd-lyrics-track-block">
           <div className="psd-lyrics-art">
-            {displayTrack?.artwork ? (
-              <ArtworkImage
-                src={displayTrack.artwork}
-                alt=""
-                seed={displayTrack.id}
-                priority
-              />
-            ) : (
-              <span
-                className="psd-lyrics-art-fallback"
-                style={{
-                  backgroundImage: `url(${psdLikedReferenceUrl})`,
-                  backgroundPosition: PSD_LYRICS_ART_POSITION,
-                }}
-                aria-hidden="true"
-              />
-            )}
+            <ArtworkImage
+              src={displayTrack?.artwork ?? null}
+              alt=""
+              seed={displayTrack?.id ?? 'lyrics-player'}
+              label={displayTitle}
+              priority
+            />
           </div>
           <div className="psd-lyrics-track-copy">
             <h1>{displayTitle}</h1>
@@ -8975,7 +8929,7 @@ function MoodDetailView({
   onBack: () => void
   onOpenSong: QueueSongHandler
 }) {
-  const { songs, indexes } = useCatalog()
+  const { songs, indexes, artworkContext } = useCatalog()
 
   const moodSongs = useMemo(
     () =>
@@ -8989,6 +8943,10 @@ function MoodDetailView({
     [indexes.songsByGenre, indexes.songsByMood, mood.mood, mood.title, songs],
   )
   const curated = useMemo(() => moodSongs.slice(0, 12), [moodSongs])
+  const moodHeroCollage = useMemo(
+    () => getPlaylistArtworkCollage(curated, artworkContext),
+    [artworkContext, curated],
+  )
   const queuePools = useMemo(() => buildQueueCandidatePools(indexes), [indexes])
 
   const descriptionByMood: Record<Mood, string> = useMemo(
@@ -9026,7 +8984,20 @@ function MoodDetailView({
         className={`detail-hero detail-hero--mood detail-hero--${mood.mood}`}
         data-scene={sceneId}
       >
-        <VisualSceneBackdrop sceneId={sceneId} seed={mood.title} variant="hero" />
+        <div className="detail-hero-mood-art" aria-hidden="true">
+          {moodHeroCollage.length > 1 ? (
+            <ArtworkCollage urls={moodHeroCollage} seed={mood.title} label={mood.title} />
+          ) : (
+            <ArtworkImage
+              src={moodHeroCollage[0] ?? null}
+              alt=""
+              seed={mood.title}
+              label={mood.title}
+              variant="wide"
+              priority
+            />
+          )}
+        </div>
         <div className="detail-hero-copy">
           <p className="detail-eyebrow">Mood Room</p>
           <h1 className="detail-h1">{mood.title}</h1>
