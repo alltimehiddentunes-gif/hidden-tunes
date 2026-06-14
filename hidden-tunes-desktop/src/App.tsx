@@ -1726,37 +1726,49 @@ function Hero({
   const homeSceneId = useMemo(() => getTimeAwareHomeScene(), [])
 
   return (
-    <section className="hero" aria-label="Featured" data-scene={homeSceneId}>
+    <section
+      className="hero hero--cinematic"
+      aria-label="Featured"
+      data-scene={homeSceneId}
+    >
       <VisualSceneBackdrop
         sceneId={homeSceneId}
         seed="home-hero"
         variant="hero"
         timeAware
       />
+      <div className="hero-atmosphere" aria-hidden="true">
+        <span className="hero-atmosphere-glow hero-atmosphere-glow--violet" />
+        <span className="hero-atmosphere-glow hero-atmosphere-glow--cyan" />
+        <span className="hero-atmosphere-glow hero-atmosphere-glow--rose" />
+        <span className="hero-atmosphere-haze" />
+        <span className="hero-atmosphere-field" />
+      </div>
       <div className="hero-vignette" aria-hidden="true" />
       <div className="hero-inner">
-        <div className="hero-copy">
-          <div className="hero-brand">
-            <BrandLogo className="hero-brand-logo" decorative />
-            <div className="hero-brand-copy">
-              <p className="hero-eyebrow">Emotional streaming · Desktop</p>
-              <h1>Hidden Tunes</h1>
+        <div className="hero-stage">
+          <div className="hero-copy">
+            <div className="hero-brand">
+              <BrandLogo className="hero-brand-logo" decorative />
+              <div className="hero-brand-copy">
+                <p className="hero-eyebrow">Tonight&apos;s listening room</p>
+                <h1>Hidden Tunes</h1>
+              </div>
+            </div>
+            <p className="hero-tagline">
+              Settle into moods, scenes, and stories — music composed for how you
+              feel, not how a dashboard ranks it.
+            </p>
+            <div className="hero-actions">
+              <button type="button" className="btn-primary" onClick={onExplore}>
+                Explore
+              </button>
+              <button type="button" className="btn-secondary" onClick={onContinueListening}>
+                Continue Listening
+              </button>
             </div>
           </div>
-          <p className="hero-tagline">
-            A cinematic sanctuary for music that moves you — discover moods, rooms,
-            and stories crafted for how you feel right now.
-          </p>
-          <div className="hero-actions">
-            <button type="button" className="btn-primary" onClick={onExplore}>
-              Explore
-            </button>
-            <button type="button" className="btn-secondary" onClick={onContinueListening}>
-              Continue Listening
-            </button>
-          </div>
         </div>
-
       </div>
     </section>
   )
@@ -1869,11 +1881,18 @@ function HomePage({
   )
 
   return (
-    <PageFrame>
-      <Hero
-        onExplore={handleExplore}
-        onContinueListening={handleContinueListening}
-      />
+    <div className="home-atmosphere">
+      <div className="home-atmosphere-layers" aria-hidden="true">
+        <span className="home-atmosphere-orb home-atmosphere-orb--violet" />
+        <span className="home-atmosphere-orb home-atmosphere-orb--cyan" />
+        <span className="home-atmosphere-orb home-atmosphere-orb--rose" />
+        <span className="home-atmosphere-mist" />
+      </div>
+      <PageFrame>
+        <Hero
+          onExplore={handleExplore}
+          onContinueListening={handleContinueListening}
+        />
       <EmotionalLanesSection
         songs={songs}
         selectedLaneId={selectedLaneId}
@@ -1932,7 +1951,7 @@ function HomePage({
       />
       <CatalogSection
         title="Featured"
-        hint="Cached catalog · read-only"
+        hint="Highlights from your collection"
         loading={showCatalogSkeleton}
         error={showCatalogError ? error : null}
         onRetry={retry}
@@ -1950,7 +1969,8 @@ function HomePage({
       {HOME_SECTIONS.slice(1, 3).map((section) => (
         <DiscoveryGrid key={section.title} section={section} />
       ))}
-    </PageFrame>
+      </PageFrame>
+    </div>
   )
 }
 

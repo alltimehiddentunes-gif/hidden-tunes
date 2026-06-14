@@ -6107,3 +6107,315 @@
     max-width: 120px;
   }
 }
+/* —— Atmospheric home rebuild (Phase 41A) —— */
+.home-atmosphere {
+  position: relative;
+  isolation: isolate;
+}
+
+.home-atmosphere-layers {
+  position: absolute;
+  inset: -12% -8% 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.home-atmosphere-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(72px);
+  opacity: 0.55;
+  animation: home-atmosphere-drift 26s ease-in-out infinite alternate;
+}
+
+.home-atmosphere-orb--violet {
+  top: -8%;
+  left: -6%;
+  width: min(52vw, 520px);
+  height: min(52vw, 520px);
+  background: radial-gradient(circle, rgba(134, 59, 255, 0.34) 0%, transparent 68%);
+}
+
+.home-atmosphere-orb--cyan {
+  top: 18%;
+  right: -4%;
+  width: min(44vw, 440px);
+  height: min(44vw, 440px);
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.22) 0%, transparent 70%);
+  animation-delay: -8s;
+}
+
+.home-atmosphere-orb--rose {
+  bottom: 8%;
+  left: 28%;
+  width: min(36vw, 360px);
+  height: min(36vw, 360px);
+  background: radial-gradient(circle, rgba(244, 114, 182, 0.16) 0%, transparent 72%);
+  animation-delay: -14s;
+}
+
+.home-atmosphere-mist {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, transparent 22%, transparent 72%, rgba(5, 5, 8, 0.42) 100%),
+    radial-gradient(ellipse 120% 80% at 50% -10%, rgba(76, 29, 149, 0.14), transparent 58%);
+  opacity: 0.9;
+}
+
+.home-atmosphere .content-inner {
+  position: relative;
+  z-index: 1;
+}
+
+.main-area:has(.page-view[data-page="home"]) {
+  background:
+    radial-gradient(ellipse 110% 62% at 12% -8%, rgba(124, 58, 237, 0.12), transparent 58%),
+    radial-gradient(ellipse 90% 54% at 88% 4%, rgba(14, 165, 233, 0.08), transparent 62%),
+    linear-gradient(180deg, rgba(8, 8, 13, 1) 0%, rgba(10, 10, 16, 1) 48%, rgba(7, 7, 11, 1) 100%);
+}
+
+.main-scroll:has(.page-view[data-page="home"]) {
+  background:
+    radial-gradient(ellipse 92% 58% at 50% -4%, rgba(76, 29, 149, 0.1), transparent 64%),
+    radial-gradient(ellipse 70% 42% at 100% 18%, rgba(56, 189, 248, 0.06), transparent 68%);
+}
+
+.page-view[data-page="home"] .hero.hero--cinematic {
+  min-height: clamp(300px, 38vh, 380px);
+  border-color: rgba(255, 255, 255, 0.11);
+  background:
+    linear-gradient(145deg, rgba(18, 16, 28, 0.72), rgba(8, 8, 14, 0.92));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 28px 64px rgba(0, 0, 0, 0.38),
+    0 0 0 1px rgba(168, 85, 247, 0.12);
+}
+
+.hero-atmosphere {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.hero-atmosphere-glow {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(56px);
+  opacity: 0.72;
+  animation: home-atmosphere-drift 22s ease-in-out infinite alternate;
+}
+
+.hero-atmosphere-glow--violet {
+  top: -18%;
+  left: -8%;
+  width: 58%;
+  height: 72%;
+  background: radial-gradient(circle, rgba(168, 85, 247, 0.34) 0%, transparent 68%);
+}
+
+.hero-atmosphere-glow--cyan {
+  top: 8%;
+  right: -6%;
+  width: 46%;
+  height: 58%;
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.24) 0%, transparent 70%);
+  animation-delay: -7s;
+}
+
+.hero-atmosphere-glow--rose {
+  bottom: -22%;
+  left: 34%;
+  width: 42%;
+  height: 52%;
+  background: radial-gradient(circle, rgba(244, 114, 182, 0.18) 0%, transparent 72%);
+  animation-delay: -12s;
+}
+
+.hero-atmosphere-haze {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(118deg, rgba(255, 255, 255, 0.05) 0%, transparent 34%, rgba(0, 0, 0, 0.12) 100%),
+    radial-gradient(ellipse 90% 72% at 50% 100%, rgba(0, 0, 0, 0.55), transparent 58%);
+}
+
+.hero-atmosphere-field {
+  position: absolute;
+  inset: 0;
+  opacity: 0.35;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.018) 0,
+      rgba(255, 255, 255, 0.018) 1px,
+      transparent 1px,
+      transparent 72px
+    );
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.5), transparent 88%);
+}
+
+.hero--cinematic .visual-scene--hero {
+  opacity: 0.82;
+  mix-blend-mode: screen;
+}
+
+.hero--cinematic .hero-vignette {
+  z-index: 1;
+  background:
+    radial-gradient(ellipse 92% 78% at 50% 108%, rgba(0, 0, 0, 0.62), transparent 58%),
+    linear-gradient(180deg, transparent 42%, rgba(5, 5, 8, 0.28) 100%);
+}
+
+.hero--cinematic .hero-inner {
+  position: relative;
+  z-index: 2;
+  justify-content: flex-start;
+  padding: clamp(42px, 6vw, 62px) clamp(40px, 5.4vw, 64px);
+}
+
+.hero-stage {
+  width: min(100%, 720px);
+}
+
+.hero--cinematic .hero-eyebrow {
+  letter-spacing: 0.24em;
+  color: rgba(196, 181, 253, 0.88);
+  text-transform: uppercase;
+  font-size: 10px;
+}
+
+.hero--cinematic .hero h1 {
+  font-size: clamp(2.35rem, 4.8vw, 3.45rem);
+  font-weight: 650;
+  letter-spacing: -0.05em;
+  line-height: 1.02;
+  background: linear-gradient(180deg, #faf8ff 0%, rgba(245, 243, 250, 0.88) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.hero--cinematic .hero-tagline {
+  max-width: 46ch;
+  margin-top: clamp(16px, 2.4vw, 22px);
+  font-size: clamp(16px, 1.75vw, 18px);
+  line-height: 1.74;
+  color: rgba(245, 243, 250, 0.68);
+}
+
+.hero--cinematic .hero-actions {
+  margin-top: clamp(24px, 3.2vw, 32px);
+}
+
+.hero--cinematic .btn-primary {
+  padding: 13px 30px;
+  box-shadow:
+    0 10px 28px rgba(124, 58, 237, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+
+.hero--cinematic .btn-secondary {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+}
+
+.page-view[data-page="home"] .discovery-section {
+  position: relative;
+  padding: clamp(22px, 3vw, 30px);
+  border-radius: calc(var(--radius-xl) + 4px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background:
+    linear-gradient(168deg, rgba(20, 18, 30, 0.55), rgba(10, 10, 16, 0.72));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 18px 42px rgba(0, 0, 0, 0.16);
+  backdrop-filter: blur(12px);
+}
+
+.page-view[data-page="home"] .section-header h2,
+.page-view[data-page="home"] .emotional-lanes-header h2,
+.page-view[data-page="home"] .scene-listening-header h2,
+.page-view[data-page="home"] .radio-foundation-header h2 {
+  font-family: inherit;
+  font-weight: 600;
+  letter-spacing: -0.035em;
+}
+
+.page-view[data-page="home"] .page-eyebrow,
+.page-view[data-page="home"] .emotional-lanes-eyebrow,
+.page-view[data-page="home"] .scene-listening-eyebrow,
+.page-view[data-page="home"] .radio-foundation-eyebrow {
+  color: rgba(196, 181, 253, 0.78);
+  letter-spacing: 0.2em;
+}
+
+.page-view[data-page="home"] .catalog-toolbar {
+  border-radius: calc(var(--radius-xl) + 2px);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background:
+    linear-gradient(180deg, rgba(22, 20, 32, 0.62), rgba(10, 10, 16, 0.78));
+  backdrop-filter: blur(14px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 16px 36px rgba(0, 0, 0, 0.14);
+}
+
+.page-view[data-page="home"] .discovery-card,
+.page-view[data-page="home"] .discovery-card--api {
+  background:
+    linear-gradient(168deg, rgba(24, 22, 34, 0.88), rgba(12, 12, 18, 0.94));
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.page-view[data-page="home"] .emotional-lane-card,
+.page-view[data-page="home"] .scene-listening-card {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.015));
+}
+
+@keyframes home-atmosphere-drift {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  100% {
+    transform: translate3d(2%, -2%, 0) scale(1.04);
+  }
+}
+
+@media (max-width: 1100px) {
+  .hero--cinematic .hero-inner {
+    justify-content: center;
+    text-align: center;
+  }
+
+  .hero-stage {
+    margin-inline: auto;
+  }
+
+  .hero--cinematic .hero-tagline {
+    margin-inline: auto;
+  }
+}
+
+@media (max-width: 760px) {
+  .page-view[data-page="home"] .discovery-section {
+    padding: 18px 16px 20px;
+  }
+
+  .home-atmosphere-orb {
+    filter: blur(56px);
+    opacity: 0.42;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-atmosphere-orb,
+  .hero-atmosphere-glow {
+    animation: none;
+  }
+}
