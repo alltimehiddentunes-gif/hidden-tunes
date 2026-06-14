@@ -121,6 +121,7 @@ import psdLikedReferenceUrl from './assets/psd-liked-reference.jpg'
 import psdSearchReferenceUrl from './assets/psd-search-reference.jpg'
 import psdPlayerMasterReferenceUrl from './assets/psd-player-master-reference.jpg'
 import psdPlayer2ReferenceUrl from './assets/psd-player2-reference.jpg'
+import psdPlayer3ReferenceUrl from './assets/psd-player3-reference.jpg'
 import psdWaveformReferenceUrl from './assets/psd-waveform-reference.jpg'
 import psdLyricsReferenceUrl from './assets/psd-lyrics-reference.jpg'
 import psdRecentReferenceUrl from './assets/psd-recent-reference.jpg'
@@ -323,6 +324,45 @@ const PSD_PLAYER2_SIDEBAR_NAV = [
   { key: 'liked', label: 'Favorites' },
   { key: 'downloads', label: 'Downloads' },
 ] as const
+
+const PSD_PLAYER3_SOURCE = 'Night Drive'
+const PSD_PLAYER3_TITLE_SCRIPT = 'Echoes of'
+const PSD_PLAYER3_TITLE_MAIN = 'MIDNIGHT'
+const PSD_PLAYER3_ARTIST = 'Wills AfroBeats'
+const PSD_PLAYER3_BG_POSITION = '50% 46%'
+const PSD_PLAYER3_ART_POSITION = '28% 54%'
+const PSD_PLAYER3_DISC_TIME = '2:35'
+const PSD_PLAYER3_TABS = ['LYRICS', 'VISUALIZER', 'DETAILS'] as const
+const PSD_PLAYER3_LYRICS = [
+  'Tell me where the stars go',
+  'When the city sleeps alone',
+  "I'm still chasing echoes",
+  'Echoes of the past',
+  'They pull me close',
+  'Memories like a ghost',
+  'In the midnight glow',
+] as const
+const PSD_PLAYER3_SIDEBAR_NAV = [
+  { key: 'home', label: 'Home' },
+  { key: 'worlds', label: 'Explore' },
+  { key: 'albums', label: 'Albums' },
+  { key: 'artists', label: 'Artists' },
+  { key: 'playlists', label: 'Playlists' },
+  { key: 'liked', label: 'Favorites' },
+  { key: 'downloads', label: 'Downloads' },
+] as const
+const PSD_PLAYER3_UP_NEXT = [
+  { key: 'p3-u1', title: 'Midnight Reflection', artist: 'Wills AfroBeats', active: true, artPosition: '18% 58%' },
+  { key: 'p3-u2', title: 'Afro Sunset', artist: 'Wills AfroBeats', active: false, artPosition: '26% 58%' },
+  { key: 'p3-u3', title: 'Lost in Dreams', artist: 'Wills AfroBeats', active: false, artPosition: '34% 58%' },
+  { key: 'p3-u4', title: 'Healing Slowly', artist: 'Wills AfroBeats', active: false, artPosition: '42% 58%' },
+  { key: 'p3-u5', title: 'Night Drive', artist: 'Wills AfroBeats', active: false, artPosition: '50% 58%' },
+] as const
+const PSD_PLAYER3_STATS = {
+  songs: '24',
+  duration: '1h 42m',
+  plays: '287',
+} as const
 
 const PSD_LIKED_META = '482 songs • 28h 47m'
 const PSD_LIKED_DESCRIPTION = 'All your favorite tracks in one place.'
@@ -4904,10 +4944,12 @@ const PlayerBar = memo(function PlayerBar({
   track,
   onOpenCinema,
   onOpenPlayer2,
+  onOpenPlayer3,
 }: {
   track: ApiSong | null
   onOpenCinema?: () => void
   onOpenPlayer2?: () => void
+  onOpenPlayer3?: () => void
 }) {
   const { songs } = useCatalog()
   const {
@@ -5141,6 +5183,17 @@ const PlayerBar = memo(function PlayerBar({
       </div>
 
       <div className="player-right">
+        {onOpenPlayer3 ? (
+          <button
+            type="button"
+            className="player-cinema-btn player-cinema-btn--player3"
+            onClick={onOpenPlayer3}
+            aria-label="Open Player 3 VIP theater"
+            title="Player 3 VIP"
+          >
+            <span aria-hidden="true">♛</span>
+          </button>
+        ) : null}
         {onOpenPlayer2 ? (
           <button
             type="button"
@@ -5247,12 +5300,12 @@ const PlayerBar = memo(function PlayerBar({
 
 
 const QueueUpNextPanel = memo(function QueueUpNextPanel({
-  onOpenCinema,
   onOpenPlayer2,
+  onOpenPlayer3,
   activeNavKey,
 }: {
-  onOpenCinema?: () => void
   onOpenPlayer2?: () => void
+  onOpenPlayer3?: () => void
   activeNavKey?: NavKey
 }) {
   const isLuxuryRail = activeNavKey === 'albums' || activeNavKey === 'playlists'
@@ -5757,8 +5810,8 @@ const QueueUpNextPanel = memo(function QueueUpNextPanel({
               <div className="rail-psd-volume-fill" style={{ width: `${volumePercent}%` }} />
             </div>
           </div>
-          {onOpenCinema ? (
-            <button type="button" className="rail-psd-full-player" onClick={onOpenCinema}>
+          {onOpenPlayer3 ? (
+            <button type="button" className="rail-psd-full-player" onClick={onOpenPlayer3}>
               Show Full Player
             </button>
           ) : null}
@@ -6556,6 +6609,463 @@ const Player2Shell = memo(function Player2Shell({
               <path d="M6 9l6 6 6-6" />
             </svg>
           </button>
+        </aside>
+      </div>
+    </div>
+  )
+})
+
+const Player3Shell = memo(function Player3Shell({
+  onClose,
+  onNavigateNav,
+  onOpenLyrics,
+  onOpenWaveform,
+  preferredTrack = null,
+}: {
+  onClose: () => void
+  onNavigateNav?: (navKey: NavKey) => void
+  onOpenLyrics?: () => void
+  onOpenWaveform?: () => void
+  preferredTrack?: ApiSong | null
+}) {
+  const {
+    currentTrack,
+    currentQueue,
+    isPlaying,
+    isLoading,
+    positionSeconds,
+    durationSeconds,
+    seekTo,
+    volume,
+    setVolume,
+    getUpcomingTracks,
+  } = useDesktopPlayback()
+
+  const volumeTrackRef = useRef<HTMLDivElement>(null)
+  const isAdjustingVolumeRef = useRef(false)
+  const [playerTab, setPlayerTab] = useState<'lyrics' | 'visualizer' | 'details'>('lyrics')
+
+  const displayTrack = currentTrack ?? preferredTrack
+  const isActive = Boolean(displayTrack && currentTrack?.id === displayTrack.id)
+  const liveProgressMax = isActive && durationSeconds > 0 ? durationSeconds : 0
+  const liveProgressValue = liveProgressMax > 0 ? Math.min(positionSeconds, liveProgressMax) : 0
+  const progressMax = liveProgressMax > 0 ? liveProgressMax : PSD_PLAYER_DURATION_SECONDS
+  const progressValue = liveProgressMax > 0 ? liveProgressValue : PSD_PLAYER_POSITION_SECONDS
+  const progressPercent = progressMax > 0 ? Math.min(100, (progressValue / progressMax) * 100) : 0
+  const volumePercent = Math.min(100, Math.max(0, volume * 100))
+
+  const displayArtist = displayTrack?.artist ?? PSD_PLAYER3_ARTIST
+  const activeTrackId = displayTrack?.id ?? null
+  const upcomingTracks = getUpcomingTracks()
+
+  const upNextRows = useMemo(() => {
+    if (upcomingTracks.length === 0) return PSD_PLAYER3_UP_NEXT
+    return upcomingTracks.slice(0, 5).map((track, index) => ({
+      key: track.id,
+      title: track.title,
+      artist: track.artist,
+      active: index === 0,
+      artPosition: PSD_PLAYER3_UP_NEXT[index]?.artPosition ?? '18% 58%',
+      artwork: track.artwork,
+    }))
+  }, [upcomingTracks])
+
+  const resolveVolume = useCallback((clientX: number) => {
+    const trackEl = volumeTrackRef.current
+    if (!trackEl) return null
+    const rect = trackEl.getBoundingClientRect()
+    if (rect.width <= 0) return null
+    return Math.min(1, Math.max(0, (clientX - rect.left) / rect.width))
+  }, [])
+
+  const handleVolumeClick = (event: ReactMouseEvent<HTMLDivElement>) => {
+    if (isAdjustingVolumeRef.current) return
+    const nextVolume = resolveVolume(event.clientX)
+    if (nextVolume != null) setVolume(nextVolume)
+  }
+
+  const handleVolumePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const nextVolume = resolveVolume(event.clientX)
+    if (nextVolume == null) return
+    isAdjustingVolumeRef.current = true
+    event.currentTarget.setPointerCapture(event.pointerId)
+    setVolume(nextVolume)
+  }
+
+  const handleVolumePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!isAdjustingVolumeRef.current) return
+    const nextVolume = resolveVolume(event.clientX)
+    if (nextVolume != null) setVolume(nextVolume)
+  }
+
+  const handleVolumePointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!isAdjustingVolumeRef.current) return
+    isAdjustingVolumeRef.current = false
+    event.currentTarget.releasePointerCapture(event.pointerId)
+  }
+
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = previousOverflow
+    }
+  }, [])
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      event.preventDefault()
+      onClose()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [onClose])
+
+  const handleNav = (navKey: NavKey) => {
+    onClose()
+    onNavigateNav?.(navKey)
+  }
+
+  const queueCount = currentQueue.length > 0 ? String(currentQueue.length) : PSD_PLAYER3_STATS.songs
+
+  return (
+    <div
+      className="player3-shell"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Player 3 VIP theater"
+      data-playing={isPlaying && isActive ? 'true' : 'false'}
+      data-loading={isLoading && isActive ? 'true' : 'false'}
+    >
+      <div
+        className="player3-bg"
+        style={{
+          backgroundImage: `url(${psdPlayer3ReferenceUrl})`,
+          backgroundPosition: PSD_PLAYER3_BG_POSITION,
+        }}
+        aria-hidden="true"
+      />
+      <div className="player3-bg-shimmer" aria-hidden="true" />
+      <div className="player3-veil" aria-hidden="true" />
+      <div className="player3-particles" aria-hidden="true">
+        {Array.from({ length: 8 }, (_, index) => (
+          <span key={index} className={`player3-particle player3-particle--${index + 1}`} />
+        ))}
+      </div>
+
+      <button type="button" className="player3-collapse" onClick={onClose} aria-label="Exit Player 3">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+      </button>
+
+      <div className="player3-layout">
+        <aside className="player3-sidebar" aria-label="Navigation">
+          <div className="player3-brand">
+            <span className="player3-brand-crown" aria-hidden="true">♛</span>
+            <BrandWaveformMark />
+            <span className="player3-brand-name">Hidden Tunes</span>
+            <span className="player3-brand-vip">VIP</span>
+          </div>
+          <nav className="player3-nav">
+            {PSD_PLAYER3_SIDEBAR_NAV.map((item) => (
+              <button
+                key={item.key}
+                type="button"
+                className={`player3-nav-item${item.key === 'home' ? ' is-active' : ''}`}
+                onClick={() => handleNav(item.key as NavKey)}
+              >
+                <span className="player3-nav-icon" aria-hidden="true" />
+                <span>{item.label}</span>
+              </button>
+            ))}
+          </nav>
+          <div className="player3-profile">
+            <span className="player3-profile-avatar" aria-hidden="true">
+              <span className="player3-profile-crown">♛</span>
+            </span>
+            <strong>{displayArtist}</strong>
+            <span className="player3-profile-badge">PREMIUM</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <path d="M6 9l6 6 6-6" />
+            </svg>
+          </div>
+        </aside>
+
+        <main className="player3-main">
+          <header className="player3-header">
+            <div className="player3-header-source">
+              <span>PLAYING FROM</span>
+              <button type="button" className="player3-source-btn">
+                {PSD_PLAYER3_SOURCE}
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                  <path d="M6 9l6 6 6-6" />
+                </svg>
+              </button>
+            </div>
+            <div className="player3-header-badges">
+              <span className="player3-flac">FLAC</span>
+              <span className="player3-spec">24-BIT / 48KHZ</span>
+              <button type="button" className="player3-header-eq" aria-label="Equalizer" onClick={onOpenWaveform}>
+                <PsdIconEqualizer />
+              </button>
+            </div>
+          </header>
+
+          <div className="player3-stage">
+            <div className="player3-disc-col">
+              <div className="player3-disc-orbit" aria-hidden="true" />
+              <div className="player3-disc-ring" aria-hidden="true" />
+              <div className="player3-disc">
+                {displayTrack?.artwork ? (
+                  <ArtworkImage src={displayTrack.artwork} alt="" seed={displayTrack.id} priority />
+                ) : (
+                  <span
+                    className="player3-disc-fallback"
+                    style={{
+                      backgroundImage: `url(${psdPlayer3ReferenceUrl})`,
+                      backgroundPosition: PSD_PLAYER3_ART_POSITION,
+                    }}
+                    aria-hidden="true"
+                  />
+                )}
+                <span className="player3-disc-vip">VIP</span>
+                <span className="player3-disc-time">{PSD_PLAYER3_DISC_TIME}</span>
+              </div>
+            </div>
+
+            <div className="player3-panel">
+              <div className="player3-tabs" role="tablist" aria-label="Player panels">
+                {PSD_PLAYER3_TABS.map((tab) => {
+                  const tabKey = tab.toLowerCase() as 'lyrics' | 'visualizer' | 'details'
+                  return (
+                    <button
+                      key={tab}
+                      type="button"
+                      role="tab"
+                      className={`player3-tab${playerTab === tabKey ? ' is-active' : ''}`}
+                      aria-selected={playerTab === tabKey}
+                      onClick={() => setPlayerTab(tabKey)}
+                    >
+                      {tab}
+                    </button>
+                  )
+                })}
+              </div>
+
+              {playerTab === 'lyrics' ? (
+                <div className="player3-lyrics" role="tabpanel" aria-label="Lyrics">
+                  <span className="player3-lyrics-quote" aria-hidden="true">“</span>
+                  <div className="player3-lyrics-body">
+                    {PSD_PLAYER3_LYRICS.map((line, index) => (
+                      <p key={line} className={index < 3 ? 'is-active' : ''}>{line}</p>
+                    ))}
+                  </div>
+                  <button type="button" className="player3-lyrics-more" onClick={onOpenLyrics}>
+                    SHOW FULL LYRICS
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                      <path d="M6 9l6 6 6-6" />
+                    </svg>
+                  </button>
+                </div>
+              ) : null}
+
+              {playerTab === 'visualizer' ? (
+                <div className="player3-visualizer-panel" role="tabpanel" aria-label="Visualizer">
+                  <PremiumReactiveWaveform
+                    trackId={activeTrackId}
+                    progressPercent={progressPercent}
+                    progressMax={liveProgressMax}
+                    isLoading={isLoading && isActive}
+                    onSeek={seekTo}
+                    className="player3-panel-waveform premium-reactive-waveform"
+                    barCount={48}
+                  />
+                </div>
+              ) : null}
+
+              {playerTab === 'details' ? (
+                <div className="player3-details-panel" role="tabpanel" aria-label="Details">
+                  <p>{displayArtist}</p>
+                  <p>{PSD_PLAYER3_SOURCE} • {PSD_PLAYER3_STATS.duration}</p>
+                </div>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="player3-track-meta">
+            <div className="player3-title-block">
+              <span className="player3-title-script">{PSD_PLAYER3_TITLE_SCRIPT}</span>
+              <h1 className="player3-title-main">{PSD_PLAYER3_TITLE_MAIN}</h1>
+            </div>
+            <p className="player3-artist">
+              <span>{displayArtist}</span>
+              <PsdIconVerified className="player3-verified" />
+            </p>
+            <div className="player3-track-actions">
+              <button type="button" className="player3-action" aria-label="Favorite">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+                  <path d="M12 20.8l-1.1-1C6.4 15.36 3 12.28 3 8.5 3 6 5 4 7.5 4c1.74 0 3.41 1.01 4.5 2.36C13.09 5.01 14.76 4 16.5 4 19 4 21 6 21 8.5c0 3.78-3.4 6.86-7.9 11.3L12 20.8z" />
+                </svg>
+              </button>
+              <span className="player3-vip-master">VIP MASTER</span>
+              <button type="button" className="player3-action" aria-label="More options">
+                <PsdIconMore />
+              </button>
+            </div>
+          </div>
+
+          <div className="player3-waveform-block">
+            <div className="player3-waveform-row">
+              <span className="player3-time">{formatPlaybackTime(progressValue)}</span>
+              <PremiumReactiveWaveform
+                trackId={activeTrackId}
+                progressPercent={progressPercent}
+                progressMax={liveProgressMax}
+                isLoading={isLoading && isActive}
+                onSeek={seekTo}
+                className="player3-waveform premium-reactive-waveform"
+                barCount={88}
+              />
+              <span className="player3-time">{formatPlaybackTime(progressMax)}</span>
+            </div>
+            <div
+              className="player3-progress-line"
+              style={{ ['--player3-progress' as string]: `${progressPercent}%` }}
+              aria-hidden="true"
+            >
+              <span className="player3-progress-fill" />
+            </div>
+          </div>
+
+          <div className="player3-transport-wrap">
+            <FullPlayerTransportControls activeTrackId={activeTrackId} />
+          </div>
+
+          <footer className="player3-footer">
+            <div className="player3-footer-volume">
+              <span className="player3-footer-label">VOLUME</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+                <path d="M11 5L6 9H3v6h3l5 4V5z" />
+              </svg>
+              <div
+                ref={volumeTrackRef}
+                className="player3-volume-track"
+                style={{ ['--player3-volume' as string]: `${volumePercent}%` }}
+                role="slider"
+                aria-label="Volume"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={Math.round(volumePercent)}
+                onClick={handleVolumeClick}
+                onPointerDown={handleVolumePointerDown}
+                onPointerMove={handleVolumePointerMove}
+                onPointerUp={handleVolumePointerUp}
+                onPointerCancel={handleVolumePointerUp}
+              >
+                <div className="player3-volume-fill" style={{ width: `${volumePercent}%` }} />
+              </div>
+            </div>
+
+            <div className="player3-footer-tools">
+              <button type="button" className="player3-footer-tool" onClick={onOpenWaveform}>
+                <PsdIconEqualizer />
+                <span>EQUALIZER</span>
+              </button>
+              <button type="button" className="player3-footer-tool">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+                  <circle cx="12" cy="12" r="8" />
+                  <path d="M12 8v8M8 12h8" />
+                </svg>
+                <span>ATMOS</span>
+              </button>
+              <button type="button" className="player3-footer-tool">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+                  <path d="M4 14h16M7 10h10M10 6h4" />
+                </svg>
+                <span>LOUDNESS</span>
+              </button>
+            </div>
+
+            <div className="player3-footer-utils">
+              <button type="button" className="player3-footer-util" aria-label="Queue">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+                  <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
+                </svg>
+              </button>
+              <button type="button" className="player3-footer-util" aria-label="Brightness">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+                  <circle cx="12" cy="12" r="4" />
+                  <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2" />
+                </svg>
+              </button>
+              <button type="button" className="player3-footer-util" aria-label="Fullscreen" onClick={onClose}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+                  <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+                </svg>
+              </button>
+            </div>
+          </footer>
+        </main>
+
+        <aside className="player3-rail" aria-label="Up next">
+          <div className="player3-upnext-header">
+            <PsdWaveformStrip className="player3-upnext-wave" />
+            <h2>UP NEXT</h2>
+          </div>
+          <ol className="player3-upnext-list">
+            {upNextRows.map((row) => (
+              <li key={row.key} className={`player3-upnext-item${row.active ? ' is-active' : ''}`}>
+                <span
+                  className="player3-upnext-thumb"
+                  style={
+                    'artwork' in row && row.artwork
+                      ? { backgroundImage: `url(${row.artwork})` }
+                      : {
+                          backgroundImage: `url(${psdPlayer3ReferenceUrl})`,
+                          backgroundPosition: row.artPosition,
+                        }
+                  }
+                  aria-hidden="true"
+                />
+                <div className="player3-upnext-copy">
+                  <strong>{row.title}</strong>
+                  <span>{row.artist}</span>
+                </div>
+                {row.active ? (
+                  <PsdIconEqualizer className="player3-upnext-eq" />
+                ) : (
+                  <button type="button" className="player3-upnext-menu" aria-label={`More options for ${row.title}`}>
+                    <PsdIconMore />
+                  </button>
+                )}
+              </li>
+            ))}
+          </ol>
+
+          <section className="player3-stats" aria-label="Playlist stats">
+            <h3>PLAYLIST STATS</h3>
+            <div className="player3-stats-graph" aria-hidden="true">
+              <svg viewBox="0 0 120 32" preserveAspectRatio="none">
+                <path d="M0 24 L12 18 L24 22 L36 12 L48 16 L60 8 L72 14 L84 10 L96 16 L108 6 L120 12" fill="none" stroke="#fbbf24" strokeWidth="1.5" />
+              </svg>
+            </div>
+            <div className="player3-stats-grid">
+              <div>
+                <strong>{queueCount}</strong>
+                <span>SONGS</span>
+              </div>
+              <div>
+                <strong>{PSD_PLAYER3_STATS.duration}</strong>
+                <span>DURATION</span>
+              </div>
+              <div>
+                <strong>{PSD_PLAYER3_STATS.plays}</strong>
+                <span>PLAYS</span>
+              </div>
+            </div>
+          </section>
         </aside>
       </div>
     </div>
@@ -7709,6 +8219,7 @@ function AppShell() {
   const [desktopSelectedTrack, setDesktopSelectedTrack] = useState<ApiSong | null>(null)
   const [cinemaOpen, setCinemaOpen] = useState(false)
   const [player2Open, setPlayer2Open] = useState(false)
+  const [player3Open, setPlayer3Open] = useState(false)
   const [waveformOpen, setWaveformOpen] = useState(false)
   const [lyricsOpen, setLyricsOpen] = useState(false)
   const [likedQuery, setLikedQuery] = useState('')
@@ -7909,18 +8420,34 @@ function AppShell() {
               </div>
             </main>
             <QueueUpNextPanel
-              onOpenCinema={() => setCinemaOpen(true)}
               onOpenPlayer2={() => setPlayer2Open(true)}
+              onOpenPlayer3={() => setPlayer3Open(true)}
               activeNavKey={activeNavKey}
             />
           </div>
         </div>
       </div>
-      {!waveformOpen && !lyricsOpen && !player2Open && activeNavKey !== 'recent' ? (
+      {!waveformOpen && !lyricsOpen && !player2Open && !player3Open && activeNavKey !== 'recent' ? (
         <PlayerBar
           track={desktopSelectedTrack}
           onOpenCinema={() => setCinemaOpen(true)}
           onOpenPlayer2={() => setPlayer2Open(true)}
+          onOpenPlayer3={() => setPlayer3Open(true)}
+        />
+      ) : null}
+      {player3Open ? (
+        <Player3Shell
+          preferredTrack={desktopSelectedTrack}
+          onClose={() => setPlayer3Open(false)}
+          onNavigateNav={navigateNav}
+          onOpenLyrics={() => {
+            setPlayer3Open(false)
+            setLyricsOpen(true)
+          }}
+          onOpenWaveform={() => {
+            setPlayer3Open(false)
+            setWaveformOpen(true)
+          }}
         />
       ) : null}
       {player2Open ? (
