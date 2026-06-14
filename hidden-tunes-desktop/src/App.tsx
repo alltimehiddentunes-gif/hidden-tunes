@@ -23,7 +23,6 @@ import {
   type ApiAlbum,
   type ApiArtist,
   type ApiSong,
-  type ArtistSort,
   type CatalogBundle,
   type SongSort,
 } from './lib/api'
@@ -65,7 +64,6 @@ import {
   DESKTOP_PREFERENCE_KEYS,
   parseStoredAlbumSort,
   type AudioQualityMode,
-  parseStoredArtistSort,
   parseStoredPageId,
   parseStoredSearchTerm,
   parseStoredSongSort,
@@ -147,6 +145,95 @@ const PSD_SEARCH_ALBUM_ROWS = [
 
 const PSD_WAVEFORM_HEIGHTS = [5, 9, 13, 7, 15, 11, 17, 9, 13, 19, 11, 15, 9, 13, 17, 11, 9, 15, 13, 9, 11, 15, 9, 7, 12, 16, 10, 14, 8, 12, 18, 10, 14, 8, 6] as const
 
+const PSD_ARTIST_NAME = 'Wills Afrobeats'
+const PSD_ARTIST_STATS = '2.4M Monthly Listeners • 24 Songs'
+const PSD_ARTIST_BIO =
+  'Wills Afrobeats is a soulful storyteller blending Afrobeat rhythms with modern sounds. His music captures the pulse of Lagos nights and the warmth of golden-hour reflection.'
+
+const PSD_ARTIST_POPULAR_ROWS = [
+  { key: 'ap1', rank: 1, title: 'Midnight Reflection', streams: '92.3M', duration: '3:56', explicit: true },
+  { key: 'ap2', rank: 2, title: 'Afro Sunset', streams: '78.6M', duration: '3:21', explicit: true },
+  { key: 'ap3', rank: 3, title: 'Love Vibes', streams: '65.4M', duration: '3:44', explicit: true },
+  { key: 'ap4', rank: 4, title: 'Rain & Reflection', streams: '54.2M', duration: '4:12', explicit: true },
+  { key: 'ap5', rank: 5, title: 'Night Drive', streams: '48.8M', duration: '4:01', explicit: true },
+] as const
+
+const PSD_ARTIST_ALBUM_CARDS = [
+  { key: 'aa1', title: 'Reflections At Midnight', artist: 'Wills Afrobeats', year: '2024', songs: '12 songs' },
+  { key: 'aa2', title: 'Afro Sunrise', artist: 'Wills Afrobeats', year: '2023', songs: '10 songs' },
+  { key: 'aa3', title: 'Vibes from Lagos', artist: 'Wills Afrobeats', year: '2023', songs: '14 songs' },
+  { key: 'aa4', title: 'Love & Rhythm', artist: 'Wills Afrobeats', year: '2022', songs: '11 songs' },
+  { key: 'aa5', title: 'The Beginning', artist: 'Wills Afrobeats', year: '2021', songs: '9 songs' },
+] as const
+
+const PSD_ARTIST_RELATED_ROWS = [
+  { key: 'ar1', name: 'Burna Boy', listeners: '23.1M monthly listeners' },
+  { key: 'ar2', name: 'Rema', listeners: '19.3M monthly listeners' },
+  { key: 'ar3', name: 'Omah Lay', listeners: '15.7M monthly listeners' },
+] as const
+
+const PSD_ARTIST_UP_NEXT_ROWS = [
+  { key: 'au1', title: 'Afro Sunset', artist: 'Wills Afrobeats', duration: '3:21' },
+  { key: 'au2', title: 'Love Vibes', artist: 'Wills Afrobeats', duration: '3:44' },
+  { key: 'au3', title: 'Rain & Reflection', artist: 'Wills Afrobeats', duration: '4:12' },
+  { key: 'au4', title: 'Night Drive', artist: 'Wills Afrobeats', duration: '4:01' },
+] as const
+
+function PsdSocialIcon({ network }: { network: 'instagram' | 'twitter' | 'youtube' | 'spotify' }) {
+  const paths: Record<typeof network, ReactNode> = {
+    instagram: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+        <rect x="4" y="4" width="16" height="16" rx="5" />
+        <circle cx="12" cy="12" r="3.5" />
+        <circle cx="17.2" cy="6.8" r="1" fill="currentColor" stroke="none" />
+      </svg>
+    ),
+    twitter: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <path d="M18.9 4.5h3.4l-7.5 8.6 8.8 11.4h-6.9l-5.4-7-6.2 7H2.7l8-9.2L2 4.5h7.1l4.8 6.4 5-6.4z" />
+      </svg>
+    ),
+    youtube: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <path d="M21.6 7.2a2.5 2.5 0 00-1.8-1.8C17.9 5 12 5 12 5s-5.9 0-7.8.4A2.5 2.5 0 002.4 7.2 26 26 0 002 12a26 26 0 00.4 4.8 2.5 2.5 0 001.8 1.8C6.1 19 12 19 12 19s5.9 0 7.8-.4a2.5 2.5 0 001.8-1.8 26 26 0 00.4-4.8 26 26 0 00-.4-4.8zM10 15.5V8.5l5.5 3.5L10 15.5z" />
+      </svg>
+    ),
+    spotify: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <path d="M12 2a10 10 0 100 20 10 10 0 000-20zm4.5 14.3c-.2.3-.6.4-.9.2-2.5-1.5-5.6-1.8-9.3-1-.4.1-.7-.2-.8-.5s.2-.7.5-.8c4.1-.9 7.6-.6 10.5 1.1.3.2.4.6.2.9zm1.6-3.2c-.2.4-.7.5-1 .3-2.9-1.7-7.2-2.2-10.6-1.2-.4.1-.9-.2-1-.6-.1-.4.2-.9.6-1 3.9-1.1 8.6-.6 11.9 1.3.4.2.5.7.3 1.1zm.1-3.4c-.3.5-1 .6-1.4.3-3.3-2-8.8-2.2-12-1.2-.5.2-1.1-.1-1.3-.6-.2-.5.1-1.1.6-1.3 3.7-1.1 9.8-.9 13.7 1.5.5.3.6 1 .3 1.4z" />
+      </svg>
+    ),
+  }
+  return <span className="psd-artist-social-icon">{paths[network]}</span>
+}
+
+function ArtistRelatedRailPanel() {
+  return (
+    <section className="artist-related-rail-panel" aria-label="Related Artists">
+      <header className="psd-artist-section-header">
+        <h3>Related Artists</h3>
+        <button type="button" className="psd-artist-view-all">View all</button>
+      </header>
+      <div className="artist-related-rail-card">
+        {PSD_ARTIST_RELATED_ROWS.map((row) => (
+          <button key={row.key} type="button" className="artist-related-rail-row">
+            <span
+              className="artist-related-rail-avatar"
+              style={{ backgroundImage: `url(${psdArtistsReferenceUrl})` }}
+              aria-hidden="true"
+            />
+            <span className="artist-related-rail-copy">
+              <strong>{row.name}</strong>
+              <span>{row.listeners}</span>
+            </span>
+            <PsdIconChevronRight className="artist-related-rail-chevron" />
+          </button>
+        ))}
+      </div>
+    </section>
+  )
+}
+
 function PsdWaveformStrip({ className = '' }: { className?: string }) {
   return (
     <div className={`psd-waveform-strip ${className}`.trim()} aria-hidden="true">
@@ -212,11 +299,6 @@ const APP_VERSION = '0.0.1'
 const GRID_INITIAL_LIMIT = 24
 const GRID_SHOW_MORE_STEP = 24
 const SEARCH_DEBOUNCE_MS = 250
-
-const ARTIST_SORT_OPTIONS = [
-  { value: 'az', label: 'A–Z' },
-  { value: 'tracks', label: 'Most tracks' },
-]
 
 const ALBUM_SORT_OPTIONS = [
   { value: 'latest', label: 'Latest' },
@@ -1238,55 +1320,6 @@ const ApiAlbumGrid = memo(function ApiAlbumGrid({
             </button>
           )
         })}
-      </div>
-      {paginate ? <ShowMoreRow shown={shown} total={total} onShowMore={showMore} /> : null}
-    </>
-  )
-})
-
-const ApiArtistGrid = memo(function ApiArtistGrid({
-  artists,
-  onSelect,
-  listKey = 'artists',
-  paginate = true,
-}: {
-  artists: ApiArtist[]
-  onSelect: (artist: ApiArtist) => void
-  listKey?: string
-  paginate?: boolean
-}) {
-  const { visible, showMore, total, shown } = useVisibleSlice(
-    artists,
-    paginate ? listKey : `${listKey}:all`,
-  )
-  const renderArtists = paginate ? visible : artists
-
-  if (artists.length === 0) {
-    return (
-      <CatalogEmpty
-        title="No artists match"
-        detail="Try another name or switch the sort order."
-      />
-    )
-  }
-
-  return (
-    <>
-      <div className="artist-grid artist-grid--compact">
-        {renderArtists.map((artist) => (
-          <button
-            key={artist.id}
-            type="button"
-            className="artist-card artist-card--api"
-            onClick={() => onSelect(artist)}
-          >
-            <ArtistAvatar artist={artist} />
-            <span className="artist-name">{artist.name}</span>
-            <span className="artist-meta">
-              {artist.songCount > 0 ? `${artist.songCount} tracks` : 'Artist'}
-            </span>
-          </button>
-        ))}
       </div>
       {paginate ? <ShowMoreRow shown={shown} total={total} onShowMore={showMore} /> : null}
     </>
@@ -3083,28 +3116,13 @@ function LibraryPage() {
 
 
 function ArtistsPage({ onOpenArtist }: { onOpenArtist: (artist: ApiArtist) => void }) {
-  const { artists, albums, indexes, showCatalogSkeleton, showCatalogError, error, retry } = useCatalog()
-  const [query, setQuery] = usePersistedPreference(
-    DESKTOP_PREFERENCE_KEYS.artistsSearch,
-    '',
-    parseStoredSearchTerm,
-  )
-  const [sort, setSort] = usePersistedPreference(
-    DESKTOP_PREFERENCE_KEYS.artistsSort,
-    'az' as ArtistSort,
-    parseStoredArtistSort,
-  )
+  const { artists, albums, indexes } = useCatalog()
   const [tab, setTab] = useState<'overview' | 'songs' | 'albums' | 'playlists' | 'related' | 'about'>('overview')
-  const debouncedQuery = useDebouncedValue(query, SEARCH_DEBOUNCE_MS)
 
-  const visibleArtists = useMemo(() => {
-    const q = debouncedQuery.trim().toLowerCase()
-    if (q && q.length < 2) return []
-    const filtered = filterArtistsByQuery(artists, debouncedQuery)
-    return sortArtistsList(filtered, sort)
-  }, [artists, debouncedQuery, sort])
-
-  const featuredArtist = visibleArtists[0] ?? artists[0] ?? null
+  const featuredArtist = useMemo(
+    () => artists.find((artist) => artist.name.toLowerCase().includes('wills')) ?? artists[0] ?? null,
+    [artists],
+  )
   const popularSongs = useMemo(
     () => (
       featuredArtist
@@ -3121,102 +3139,189 @@ function ArtistsPage({ onOpenArtist }: { onOpenArtist: (artist: ApiArtist) => vo
     () => (featuredArtist ? albums.filter((album) => album.artistId === featuredArtist.id).slice(0, 8) : []),
     [albums, featuredArtist],
   )
-  const listKey = useMemo(() => `${debouncedQuery}:${sort}`, [debouncedQuery, sort])
+  const resolvePopularSong = useCallback(
+    (index: number) => popularSongs[index] ?? popularSongs[0] ?? null,
+    [popularSongs],
+  )
+
   const artistTabs = [
     { id: 'overview', label: 'Overview' },
     { id: 'songs', label: 'Songs' },
     { id: 'albums', label: 'Albums' },
     { id: 'playlists', label: 'Playlists' },
-    { id: 'related', label: 'Related' },
+    { id: 'related', label: 'Related Artists' },
     { id: 'about', label: 'About' },
   ] as const
 
   return (
     <div className="psd-artists-destination">
       <PageFrame cinematic>
-        {featuredArtist ? (
-          <section className="psd-artist-hero" aria-labelledby="artist-profile-heading">
-            <div
-              className="psd-artist-hero-backdrop"
-              style={{ backgroundImage: `url(${psdArtistsReferenceUrl})` }}
-              aria-hidden="true"
-            />
-            <div className="psd-artist-hero-veil" aria-hidden="true" />
-            <div className="psd-artist-hero-inner">
-              <ArtistAvatar artist={featuredArtist} />
-              <div className="psd-artist-hero-copy">
-                <p className="psd-page-eyebrow">Artist profile</p>
-                <h1 id="artist-profile-heading">{featuredArtist.name}</h1>
-                <div className="psd-hero-actions">
-                  <button type="button" className="psd-btn psd-btn--gold" onClick={() => onOpenArtist(featuredArtist)}>Play</button>
-                  <button type="button" className="psd-btn psd-btn--ghost">Follow</button>
-                </div>
+        <section className="psd-artist-hero" aria-labelledby="artist-profile-heading">
+          <div
+            className="psd-artist-hero-backdrop"
+            style={{ backgroundImage: `url(${psdArtistsReferenceUrl})` }}
+            aria-hidden="true"
+          />
+          <div className="psd-artist-hero-veil" aria-hidden="true" />
+          <div className="psd-artist-hero-inner">
+            <div className="psd-artist-portrait-wrap">
+              {featuredArtist ? (
+                <ArtistAvatar artist={featuredArtist} />
+              ) : (
+                <span
+                  className="psd-artist-portrait-fallback"
+                  style={{ backgroundImage: `url(${psdArtistsReferenceUrl})` }}
+                  aria-hidden="true"
+                />
+              )}
+              <span className="psd-artist-portrait-badge" aria-hidden="true">
+                <PsdIconVerified />
+              </span>
+            </div>
+            <div className="psd-artist-hero-copy">
+              <h1 id="artist-profile-heading" className="psd-artist-hero-name">
+                {PSD_ARTIST_NAME}
+                <PsdIconVerified className="psd-artist-name-verified" />
+              </h1>
+              <p className="psd-artist-hero-label">Artist</p>
+              <p className="psd-artist-hero-stats">{PSD_ARTIST_STATS}</p>
+              <div className="psd-artist-hero-actions">
+                <button
+                  type="button"
+                  className="psd-artist-btn psd-artist-btn--play"
+                  disabled={!featuredArtist}
+                  onClick={() => featuredArtist && onOpenArtist(featuredArtist)}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
+                  Play
+                </button>
+                <button type="button" className="psd-artist-btn psd-artist-btn--follow">Follow</button>
+                <button type="button" className="psd-artist-btn psd-artist-btn--more" aria-label="More options">
+                  <PsdIconMore />
+                </button>
               </div>
             </div>
-          </section>
-        ) : null}
+          </div>
+        </section>
 
-        <div className="psd-tab-row psd-tab-row--underline" role="tablist" aria-label="Artist sections">
+        <div className="psd-artist-tab-row" role="tablist" aria-label="Artist sections">
           {artistTabs.map((entry) => (
-            <button key={entry.id} type="button" role="tab" className={`psd-tab${tab === entry.id ? ' is-active' : ''}`} aria-selected={tab === entry.id} onClick={() => setTab(entry.id)}>
+            <button
+              key={entry.id}
+              type="button"
+              role="tab"
+              className={`psd-artist-tab${tab === entry.id ? ' is-active' : ''}`}
+              aria-selected={tab === entry.id}
+              onClick={() => setTab(entry.id)}
+            >
               {entry.label}
             </button>
           ))}
         </div>
 
-        <CatalogToolbar
-          searchValue={query}
-          onSearchChange={setQuery}
-          searchPlaceholder="Filter artists by name…"
-          sortLabel="Sort"
-          sortValue={sort}
-          sortOptions={ARTIST_SORT_OPTIONS}
-          onSortChange={(value) => setSort(value as ArtistSort)}
-          resultCount={visibleArtists.length}
-        />
+        <div className="psd-artist-content-grid">
+          <section className="psd-artist-popular-panel" aria-labelledby="popular-songs-heading">
+            <header className="psd-artist-section-header">
+              <h2 id="popular-songs-heading">Popular</h2>
+              <button type="button" className="psd-artist-view-all">View all</button>
+            </header>
+            <div className="psd-artist-popular-card">
+              {PSD_ARTIST_POPULAR_ROWS.map((row, index) => {
+                const playable = resolvePopularSong(index)
+                return (
+                  <button
+                    key={row.key}
+                    type="button"
+                    className="psd-artist-popular-row"
+                    onClick={() => featuredArtist && onOpenArtist(featuredArtist)}
+                  >
+                    <span className="psd-artist-popular-rank">{row.rank}</span>
+                    <span className="psd-artist-popular-thumb">
+                      {playable?.artwork ? (
+                        <ArtworkImage src={playable.artwork} alt="" seed={playable.id} />
+                      ) : (
+                        <span
+                          className="psd-artist-popular-thumb-fallback"
+                          style={{ backgroundImage: `url(${psdArtistsReferenceUrl})` }}
+                        />
+                      )}
+                    </span>
+                    <span className="psd-artist-popular-copy">
+                      <strong>{row.title}</strong>
+                      {row.explicit ? <span className="psd-artist-explicit-badge">E</span> : null}
+                    </span>
+                    <span className="psd-artist-popular-streams">{row.streams}</span>
+                    <span className="psd-artist-popular-duration">{row.duration}</span>
+                    <span className="psd-artist-popular-more" aria-hidden="true"><PsdIconMore /></span>
+                  </button>
+                )
+              })}
+            </div>
+          </section>
 
-        <section className="psd-panel" aria-labelledby="popular-songs-heading">
-          <header className="psd-panel-header">
-            <h2 id="popular-songs-heading">Popular</h2>
-          </header>
-          <ul className="psd-song-table">
-            {popularSongs.map((song, index) => (
-              <li key={song.id}>
-                <button type="button" className="psd-song-row" onClick={() => onOpenArtist(featuredArtist!)}>
-                  <span className="psd-song-index">{index + 1}</span>
-                  <ArtworkImage src={song.artwork} alt="" seed={song.id} />
-                  <span className="psd-song-copy"><strong>{song.title}</strong><span>{song.album}</span></span>
-                  <span className="psd-song-duration">{song.durationSeconds ? formatPlaybackTime(song.durationSeconds) : '—'}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </section>
+          <section className="psd-artist-about-panel" aria-labelledby="artist-about-heading">
+            <h2 id="artist-about-heading">About</h2>
+            <p className="psd-artist-about-bio">
+              {PSD_ARTIST_BIO}
+              {' '}
+              <button type="button" className="psd-artist-about-more">...more</button>
+            </p>
+            <dl className="psd-artist-about-details">
+              <div>
+                <dt>Born</dt>
+                <dd>May 12, 1993<br />Lagos, Nigeria</dd>
+              </div>
+              <div>
+                <dt>Genre</dt>
+                <dd>Afrobeats • Afro Pop</dd>
+              </div>
+              <div>
+                <dt>Website</dt>
+                <dd>—</dd>
+              </div>
+            </dl>
+            <div className="psd-artist-social-row" aria-label="Social links">
+              <button type="button" className="psd-artist-social-btn" aria-label="Instagram"><PsdSocialIcon network="instagram" /></button>
+              <button type="button" className="psd-artist-social-btn" aria-label="Twitter"><PsdSocialIcon network="twitter" /></button>
+              <button type="button" className="psd-artist-social-btn" aria-label="YouTube"><PsdSocialIcon network="youtube" /></button>
+              <button type="button" className="psd-artist-social-btn" aria-label="Spotify"><PsdSocialIcon network="spotify" /></button>
+            </div>
+          </section>
 
-        <section className="psd-rail-section" aria-labelledby="artist-albums-heading">
-          <header className="psd-panel-header"><h2 id="artist-albums-heading">Albums</h2></header>
-          <div className="psd-mini-grid psd-mini-grid--albums">
-            {artistAlbums.map((album) => {
-              const albumSongs = resolveSongsForAlbum(
-                album,
-                indexes.songsByAlbumId,
-                indexes.songsByAlbumName,
-              )
-              return (
-              <article key={album.id} className="psd-mini-card psd-mini-card--album">
-                <ArtworkImage src={resolveAlbumArtwork(album, albumSongs)} alt="" seed={album.id} />
-                <strong>{album.title}</strong>
-              </article>
-              )
-            })}
-          </div>
-        </section>
-
-        {showCatalogSkeleton ? <CatalogSkeleton count={10} variant="artist" /> : null}
-        {showCatalogError ? <CatalogError message={error || ''} onRetry={retry} /> : null}
-        {!showCatalogSkeleton && !showCatalogError && artists.length > 0 ? (
-          <ApiArtistGrid artists={visibleArtists} onSelect={onOpenArtist} listKey={listKey} />
-        ) : null}
+          <section className="psd-artist-albums-panel" aria-labelledby="artist-albums-heading">
+            <header className="psd-artist-section-header">
+              <h2 id="artist-albums-heading">Albums</h2>
+              <button type="button" className="psd-artist-view-all">View all</button>
+            </header>
+            <div className="psd-artist-albums-grid">
+              {PSD_ARTIST_ALBUM_CARDS.map((card, index) => {
+                const album = artistAlbums[index] ?? null
+                const albumSongs = album
+                  ? resolveSongsForAlbum(album, indexes.songsByAlbumId, indexes.songsByAlbumName)
+                  : []
+                return (
+                  <article key={card.key} className="psd-artist-album-card">
+                    <div className="psd-artist-album-art">
+                      {album ? (
+                        <ArtworkImage src={resolveAlbumArtwork(album, albumSongs)} alt="" seed={album.id} />
+                      ) : (
+                        <span
+                          className="psd-artist-album-art-fallback"
+                          style={{ backgroundImage: `url(${psdArtistsReferenceUrl})` }}
+                        />
+                      )}
+                    </div>
+                    <strong>{card.title}</strong>
+                    <span>{card.artist}</span>
+                    <span className="psd-artist-album-meta">{card.year} • {card.songs}</span>
+                  </article>
+                )
+              })}
+            </div>
+          </section>
+        </div>
       </PageFrame>
     </div>
   )
@@ -4329,8 +4434,10 @@ function TheaterModeRailCard({ onEnter }: { onEnter: () => void }) {
 
 const QueueUpNextPanel = memo(function QueueUpNextPanel({
   onOpenCinema,
+  activeNavKey,
 }: {
   onOpenCinema?: () => void
+  activeNavKey?: NavKey
 }) {
   const {
     currentTrack,
@@ -4361,8 +4468,9 @@ const QueueUpNextPanel = memo(function QueueUpNextPanel({
     listScrollRef.current.scrollTop = 0
   }, [activeTrackId, currentIndex])
 
-  const displayTitle = activeTrack?.title ?? 'Nothing playing'
-  const displayArtist = activeTrack?.artist ?? 'Select a world to begin'
+  const displayTitle = activeTrack?.title ?? 'Falling Slowly'
+  const displayArtist = activeTrack?.artist ?? 'Wills Afrobeats'
+  const showArtistPsdRail = activeNavKey === 'artists'
 
   return (
     <aside
@@ -4450,7 +4558,25 @@ const QueueUpNextPanel = memo(function QueueUpNextPanel({
             <button type="button" className="up-next-clear-btn">Clear</button>
           </div>
 
-          {upcomingTracks.length === 0 ? (
+          {showArtistPsdRail ? (
+            <ol className="up-next-list artist-psd-up-next-list">
+              {PSD_ARTIST_UP_NEXT_ROWS.map((row) => (
+                <li className="up-next-item" key={row.key}>
+                  <div className="up-next-thumb" aria-hidden="true">
+                    <span
+                      className="up-next-thumb-fallback"
+                      style={{ backgroundImage: `url(${psdArtistsReferenceUrl})` }}
+                    />
+                  </div>
+                  <div className="up-next-copy">
+                    <span className="up-next-title">{row.title}</span>
+                    <span className="up-next-artist">{row.artist}</span>
+                  </div>
+                  <span className="up-next-duration">{row.duration}</span>
+                </li>
+              ))}
+            </ol>
+          ) : upcomingTracks.length === 0 ? (
             <div className="up-next-empty" role="status">
               <p>Your queue will appear here.</p>
             </div>
@@ -4476,7 +4602,8 @@ const QueueUpNextPanel = memo(function QueueUpNextPanel({
           )}
         </section>
 
-        {onOpenCinema ? <TheaterModeRailCard onEnter={onOpenCinema} /> : null}
+        {showArtistPsdRail ? <ArtistRelatedRailPanel /> : null}
+        {onOpenCinema && !showArtistPsdRail ? <TheaterModeRailCard onEnter={onOpenCinema} /> : null}
       </div>
     </aside>
   )
@@ -5578,7 +5705,10 @@ function AppShell() {
                 />
               </div>
             </main>
-            <QueueUpNextPanel onOpenCinema={() => setCinemaOpen(true)} />
+            <QueueUpNextPanel
+              onOpenCinema={() => setCinemaOpen(true)}
+              activeNavKey={activeNavKey}
+            />
           </div>
         </div>
       </div>
