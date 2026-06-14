@@ -78,6 +78,9 @@
   --content-max: 1240px;
   --content-max-home: none;
 
+  --world-card-radius: 22px;
+  --hero-min-height: 40vh;
+
   /* Typography tokens — fonts TBD in later phases */
   --font-ui: 'Segoe UI', system-ui, -apple-system, sans-serif;
   --font-display: Georgia, 'Times New Roman', serif;
