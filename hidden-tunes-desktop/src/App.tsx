@@ -119,6 +119,7 @@ import psdPlayerReferenceUrl from './assets/psd-player-reference.jpg'
 import psdWaveformReferenceUrl from './assets/psd-waveform-reference.jpg'
 import psdLyricsReferenceUrl from './assets/psd-lyrics-reference.jpg'
 import psdRecentReferenceUrl from './assets/psd-recent-reference.jpg'
+import psdNowPlayingReferenceUrl from './assets/psd-now-playing-reference.jpg'
 import psdLibraryReferenceUrl from './assets/psd-library-reference.jpg'
 import './App.css'
 
@@ -218,19 +219,6 @@ const PSD_ARTIST_ALBUM_CARDS = [
   { key: 'aa5', title: 'The Beginning', artist: 'Wills Afrobeats', year: '2021', songs: '9 songs' },
 ] as const
 
-const PSD_ARTIST_RELATED_ROWS = [
-  { key: 'ar1', name: 'Burna Boy', listeners: '23.1M monthly listeners' },
-  { key: 'ar2', name: 'Rema', listeners: '19.3M monthly listeners' },
-  { key: 'ar3', name: 'Omah Lay', listeners: '15.7M monthly listeners' },
-] as const
-
-const PSD_ARTIST_UP_NEXT_ROWS = [
-  { key: 'au1', title: 'Afro Sunset', artist: 'Wills Afrobeats', duration: '3:21' },
-  { key: 'au2', title: 'Love Vibes', artist: 'Wills Afrobeats', duration: '3:44' },
-  { key: 'au3', title: 'Rain & Reflection', artist: 'Wills Afrobeats', duration: '4:12' },
-  { key: 'au4', title: 'Night Drive', artist: 'Wills Afrobeats', duration: '4:01' },
-] as const
-
 const PSD_ALBUMS_SUBTITLE = 'All albums in your library'
 const PSD_ALBUMS_FOOTER_COUNT = '24 albums'
 
@@ -245,14 +233,6 @@ const PSD_ALBUMS_GRID_CARDS = [
   { key: 'alb8', title: 'Moments of Us', artist: 'Wills Afrobeats', year: '2018', songs: '7 songs', artPosition: '22% 58%' },
   { key: 'alb9', title: 'Rainy Day Comfort', artist: 'Wills Afrobeats', year: '2017', songs: '13 songs', artPosition: '36% 58%' },
   { key: 'alb10', title: 'Live in Accra', artist: 'Wills Afrobeats', year: '2016', songs: '6 songs', artPosition: '50% 58%' },
-] as const
-
-const PSD_ALBUMS_UP_NEXT_ROWS = [
-  { key: 'an1', title: 'Midnight Reflection', artist: 'Wills Afrobeats', duration: '3:56' },
-  { key: 'an2', title: 'Afro Sunset', artist: 'Wills Afrobeats', duration: '3:21' },
-  { key: 'an3', title: 'Love Vibes', artist: 'Wills Afrobeats', duration: '3:44' },
-  { key: 'an4', title: 'Rain & Reflection', artist: 'Wills Afrobeats', duration: '4:12' },
-  { key: 'an5', title: 'Night Drive', artist: 'Wills Afrobeats', duration: '4:01' },
 ] as const
 
 const PSD_PLAYER_TITLE = 'Midnight Reflection'
@@ -289,6 +269,14 @@ const PSD_RECENT_TABLE_ROWS = [
   { key: 'rp9', title: 'Live in Accra', subtitle: 'Wills Afrobeats', artist: '', itemType: 'Album', played: '3 hours ago', duration: '—', artPosition: '70% 58%' },
   { key: 'rp10', title: 'Rainy Day Comfort', subtitle: 'Wills Afrobeats', artist: 'Wills Afrobeats', itemType: 'Song', played: '4 hours ago', duration: '4:05', artPosition: '78% 58%' },
 ] as const
+
+const PSD_RAIL_QUEUE_ROWS = [
+  { key: 'rq1', title: 'Afro Sunset', artist: 'Wills Afrobeats', artPosition: '22% 58%' },
+  { key: 'rq2', title: 'Love Vibes', artist: 'Wills Afrobeats', artPosition: '30% 58%' },
+  { key: 'rq3', title: 'Rain & Reflection', artist: 'Wills Afrobeats', artPosition: '38% 58%' },
+  { key: 'rq4', title: 'Jazz Café', artist: 'Wills Afrobeats', artPosition: '46% 58%' },
+] as const
+const PSD_RAIL_ART_POSITION = '50% 38%'
 
 const PSD_WAVEFORM_ALBUM = 'Reflections at Midnight'
 const PSD_WAVEFORM_LYRICS = [
@@ -337,42 +325,6 @@ function PsdCinematicWaveform({ className = '' }: { className?: string }) {
   )
 }
 
-function AlbumStatsRailPanel() {
-  return (
-    <section className="album-stats-rail-panel" aria-label="Album Stats">
-      <header className="psd-albums-section-header">
-        <h3>Album Stats</h3>
-        <span className="album-stats-rail-icon" aria-hidden="true">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
-            <path d="M4 20V10M10 20V4M16 20v-8M22 20H2" />
-          </svg>
-        </span>
-      </header>
-      <div className="album-stats-rail-grid">
-        <article className="album-stats-rail-card">
-          <strong>24</strong>
-          <span>Albums</span>
-        </article>
-        <article className="album-stats-rail-card">
-          <strong>196</strong>
-          <span>Songs</span>
-        </article>
-        <article className="album-stats-rail-card">
-          <strong>18h 42m</strong>
-          <span>Total Time</span>
-        </article>
-      </div>
-      <p className="album-stats-rail-updated">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-          <rect x="3" y="4" width="18" height="18" rx="2" />
-          <path d="M16 2v4M8 2v4M3 10h18" />
-        </svg>
-        Last Updated May 12, 2024
-      </p>
-    </section>
-  )
-}
-
 function PsdSocialIcon({ network }: { network: 'instagram' | 'twitter' | 'youtube' | 'spotify' }) {
   const paths: Record<typeof network, ReactNode> = {
     instagram: (
@@ -399,33 +351,6 @@ function PsdSocialIcon({ network }: { network: 'instagram' | 'twitter' | 'youtub
     ),
   }
   return <span className="psd-artist-social-icon">{paths[network]}</span>
-}
-
-function ArtistRelatedRailPanel() {
-  return (
-    <section className="artist-related-rail-panel" aria-label="Related Artists">
-      <header className="psd-artist-section-header">
-        <h3>Related Artists</h3>
-        <button type="button" className="psd-artist-view-all">View all</button>
-      </header>
-      <div className="artist-related-rail-card">
-        {PSD_ARTIST_RELATED_ROWS.map((row) => (
-          <button key={row.key} type="button" className="artist-related-rail-row">
-            <span
-              className="artist-related-rail-avatar"
-              style={{ backgroundImage: `url(${psdArtistsReferenceUrl})` }}
-              aria-hidden="true"
-            />
-            <span className="artist-related-rail-copy">
-              <strong>{row.name}</strong>
-              <span>{row.listeners}</span>
-            </span>
-            <PsdIconChevronRight className="artist-related-rail-chevron" />
-          </button>
-        ))}
-      </div>
-    </section>
-  )
 }
 
 function PsdWaveformStrip({ className = '' }: { className?: string }) {
@@ -5358,40 +5283,14 @@ const RailWaveformSeek = memo(function RailWaveformSeek({
 })
 
 
-function TheaterModeRailCard({ onEnter }: { onEnter: () => void }) {
-  return (
-    <section className="rail-theater-card" aria-label="Theater Mode">
-      <header className="rail-theater-header">
-        <h3 className="rail-theater-title">Theater Mode</h3>
-        <span className="rail-theater-chevron" aria-hidden="true">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M6 8l6 4-6 4M12 8l6 4-6 4" />
-          </svg>
-        </span>
-      </header>
-      <div
-        className="rail-theater-art"
-        style={{ backgroundImage: `url(${emotionalWorldsReferenceUrl})` }}
-        aria-hidden="true"
-      />
-      <p className="rail-theater-copy">Lose yourself in the music.</p>
-      <button type="button" className="rail-theater-enter" onClick={onEnter}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-          <path d="M8 5v14l11-7z" />
-        </svg>
-        Enter Theater
-      </button>
-    </section>
-  )
-}
-
 const QueueUpNextPanel = memo(function QueueUpNextPanel({
   onOpenCinema,
-  activeNavKey,
+  activeNavKey: _activeNavKey,
 }: {
   onOpenCinema?: () => void
   activeNavKey?: NavKey
 }) {
+  void _activeNavKey
   const {
     currentTrack,
     currentQueue,
@@ -5402,55 +5301,149 @@ const QueueUpNextPanel = memo(function QueueUpNextPanel({
     durationSeconds,
     getUpcomingTracks,
     seekTo,
+    volume,
+    setVolume,
   } = useDesktopPlayback()
 
   const listScrollRef = useRef<HTMLOListElement>(null)
+  const progressTrackRef = useRef<HTMLDivElement>(null)
+  const volumeTrackRef = useRef<HTMLDivElement>(null)
+  const isSeekingRef = useRef(false)
+  const isAdjustingVolumeRef = useRef(false)
   const activeTrackId = currentTrack?.id ?? null
 
   const activeTrack =
     currentIndex >= 0 ? (currentTrack ?? currentQueue[currentIndex] ?? null) : null
   const hasPlayback = Boolean(activeTrack && currentQueue.length > 0 && currentIndex >= 0)
   const upcomingTracks = getUpcomingTracks()
-  const progressMax = hasPlayback && durationSeconds > 0 ? durationSeconds : 0
-  const progressValue = progressMax > 0 ? Math.min(positionSeconds, progressMax) : 0
-  const progressPercent =
-    progressMax > 0 ? Math.min(100, (progressValue / progressMax) * 100) : 0
+  const liveProgressMax = hasPlayback && durationSeconds > 0 ? durationSeconds : 0
+  const liveProgressValue = liveProgressMax > 0 ? Math.min(positionSeconds, liveProgressMax) : 0
+  const progressMax = liveProgressMax > 0 ? liveProgressMax : PSD_PLAYER_DURATION_SECONDS
+  const progressValue = liveProgressMax > 0 ? liveProgressValue : PSD_PLAYER_POSITION_SECONDS
+  const progressPercent = progressMax > 0
+    ? Math.min(100, (progressValue / progressMax) * 100)
+    : 0
+  const volumePercent = Math.min(100, Math.max(0, volume * 100))
 
   useEffect(() => {
     if (!listScrollRef.current) return
     listScrollRef.current.scrollTop = 0
   }, [activeTrackId, currentIndex])
 
-  const displayTitle = activeTrack?.title ?? 'Falling Slowly'
-  const displayArtist = activeTrack?.artist ?? 'Wills Afrobeats'
-  const showArtistPsdRail = activeNavKey === 'artists'
-  const showAlbumsPsdRail = activeNavKey === 'albums'
-  const showPsdUpNext = showArtistPsdRail || showAlbumsPsdRail
-  const psdUpNextRows = showAlbumsPsdRail ? PSD_ALBUMS_UP_NEXT_ROWS : PSD_ARTIST_UP_NEXT_ROWS
+  const displayTitle = activeTrack?.title ?? PSD_PLAYER_TITLE
+  const displayArtist = activeTrack?.artist ?? PSD_PLAYER_ARTIST
+
+  const resolveSeekSeconds = useCallback(
+    (clientX: number) => {
+      const trackEl = progressTrackRef.current
+      if (!trackEl || liveProgressMax <= 0) return null
+      const rect = trackEl.getBoundingClientRect()
+      if (rect.width <= 0) return null
+      const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width))
+      return ratio * liveProgressMax
+    },
+    [liveProgressMax],
+  )
+
+  const handleSeekClick = (event: ReactMouseEvent<HTMLDivElement>) => {
+    if (!hasPlayback || liveProgressMax <= 0 || isLoading || isSeekingRef.current) return
+    const seconds = resolveSeekSeconds(event.clientX)
+    if (seconds != null) seekTo(seconds)
+  }
+
+  const handleSeekPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!hasPlayback || liveProgressMax <= 0 || isLoading) return
+    const seconds = resolveSeekSeconds(event.clientX)
+    if (seconds == null) return
+    isSeekingRef.current = true
+    event.currentTarget.setPointerCapture(event.pointerId)
+    seekTo(seconds)
+  }
+
+  const handleSeekPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!isSeekingRef.current) return
+    const seconds = resolveSeekSeconds(event.clientX)
+    if (seconds != null) seekTo(seconds)
+  }
+
+  const handleSeekPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!isSeekingRef.current) return
+    isSeekingRef.current = false
+    event.currentTarget.releasePointerCapture(event.pointerId)
+  }
+
+  const resolveVolume = useCallback((clientX: number) => {
+    const trackEl = volumeTrackRef.current
+    if (!trackEl) return null
+    const rect = trackEl.getBoundingClientRect()
+    if (rect.width <= 0) return null
+    const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width))
+    return ratio
+  }, [])
+
+  const handleVolumeClick = (event: ReactMouseEvent<HTMLDivElement>) => {
+    if (isAdjustingVolumeRef.current) return
+    const nextVolume = resolveVolume(event.clientX)
+    if (nextVolume != null) setVolume(nextVolume)
+  }
+
+  const handleVolumePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const nextVolume = resolveVolume(event.clientX)
+    if (nextVolume == null) return
+    isAdjustingVolumeRef.current = true
+    event.currentTarget.setPointerCapture(event.pointerId)
+    setVolume(nextVolume)
+  }
+
+  const handleVolumePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!isAdjustingVolumeRef.current) return
+    const nextVolume = resolveVolume(event.clientX)
+    if (nextVolume != null) setVolume(nextVolume)
+  }
+
+  const handleVolumePointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!isAdjustingVolumeRef.current) return
+    isAdjustingVolumeRef.current = false
+    event.currentTarget.releasePointerCapture(event.pointerId)
+  }
+
+  const queueRows = upcomingTracks.length > 0
+    ? upcomingTracks.slice(0, 4).map((track, index) => ({
+        key: `${track.id}-${index}`,
+        title: track.title,
+        artist: track.artist,
+        artPosition: PSD_RAIL_QUEUE_ROWS[index]?.artPosition ?? '50% 58%',
+        track,
+      }))
+    : PSD_RAIL_QUEUE_ROWS.map((row) => ({
+        key: row.key,
+        title: row.title,
+        artist: row.artist,
+        artPosition: row.artPosition,
+        track: null as ApiSong | null,
+      }))
 
   return (
     <aside
-      className="queue-rail now-playing-rail"
+      className="queue-rail now-playing-rail now-playing-rail--psd"
       aria-label="Now playing"
       data-playing={isPlaying ? 'true' : 'false'}
       data-loading={isLoading ? 'true' : 'false'}
       data-idle={hasPlayback ? 'false' : 'true'}
     >
       <div className="now-playing-rail-inner">
-        <header className="now-playing-rail-header">
-          <p className="now-playing-rail-eyebrow">Now Playing</p>
-          <span className="now-playing-rail-shuffle-badge" aria-hidden="true">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5" />
+        <header className="rail-psd-header">
+          <h2 className="rail-psd-title">Now Playing</h2>
+          <button type="button" className="rail-psd-close" aria-label="Close now playing">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <path d="M18 6L6 18M6 6l12 12" />
             </svg>
-          </span>
+          </button>
         </header>
 
-        <section className="now-playing-stage" aria-label="Current track">
-          <div className="now-playing-art-shell">
-            <div className="now-playing-vinyl-disc" aria-hidden="true" />
-            <div className="now-playing-art-glow" aria-hidden="true" />
-            <div className="now-playing-art-frame">
+        <section className="rail-psd-stage" aria-label="Current track">
+          <div className="rail-psd-art-shell">
+            <div className="rail-psd-art-frame">
               {hasPlayback && activeTrack ? (
                 <ArtworkImage
                   src={activeTrack.artwork}
@@ -5459,110 +5452,178 @@ const QueueUpNextPanel = memo(function QueueUpNextPanel({
                   priority
                 />
               ) : (
-                <div className="now-playing-art-placeholder" aria-hidden="true">
-                  <MusicNoteIcon className="now-playing-art-placeholder-icon" />
-                </div>
+                <span
+                  className="rail-psd-art-fallback"
+                  style={{
+                    backgroundImage: `url(${psdNowPlayingReferenceUrl})`,
+                    backgroundPosition: PSD_RAIL_ART_POSITION,
+                  }}
+                  aria-hidden="true"
+                />
               )}
               {isLoading ? (
-                <span className="now-playing-art-spinner player-spinner" aria-hidden="true" />
+                <span className="rail-psd-art-spinner player-spinner" aria-hidden="true" />
               ) : null}
             </div>
-            <button
-              type="button"
-              className="now-playing-heart"
-              aria-label="Favorite"
-              title="Favorite"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
+          </div>
+
+          <div className="rail-psd-track-head">
+            <div className="rail-psd-track-copy">
+              <h3 className="rail-psd-track-title">{displayTitle}</h3>
+              <p className="rail-psd-track-artist">
+                <span>{displayArtist}</span>
+                <PsdIconVerified className="rail-psd-verified" />
+              </p>
+            </div>
+            <button type="button" className="rail-psd-heart" aria-label="Favorite">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                 <path d="M12 20.8l-1.1-1C6.4 15.36 3 12.28 3 8.5 3 6 5 4 7.5 4c1.74 0 3.41 1.01 4.5 2.36C13.09 5.01 14.76 4 16.5 4 19 4 21 6 21 8.5c0 3.78-3.4 6.86-7.9 11.3L12 20.8z" />
               </svg>
             </button>
           </div>
 
-          <div className="now-playing-meta">
-            <h3 className="now-playing-title">{displayTitle}</h3>
-            <p className="now-playing-artist">{displayArtist}</p>
+          <div className="rail-psd-quality-row">
+            <span className="rail-psd-hq-pill">HQ</span>
+            <span className="rail-psd-format-copy">24-bit • 48kHz</span>
+            <button type="button" className="rail-psd-more-btn" aria-label="More options">
+              <PsdIconMore />
+            </button>
           </div>
 
-          <RailWaveformSeek
-            trackId={activeTrack?.id ?? null}
-            progressPercent={progressPercent}
-            progressMax={progressMax}
-            isLoading={isLoading}
-            onSeek={seekTo}
-          />
-
-          <div className="now-playing-times" aria-hidden="true">
-            <span>{formatPlaybackTime(progressValue)}</span>
-            <span>{formatPlaybackTime(progressMax)}</span>
+          <div
+            className="rail-psd-progress-wrap"
+            style={{ ['--rail-psd-progress' as string]: `${progressPercent}%` }}
+          >
+            <div
+              ref={progressTrackRef}
+              className={
+                'rail-psd-progress-track'
+                + (liveProgressMax > 0 && hasPlayback ? ' is-interactive' : '')
+              }
+              role="slider"
+              aria-label="Seek position"
+              aria-valuemin={0}
+              aria-valuemax={Math.round(progressMax)}
+              aria-valuenow={Math.round(progressValue)}
+              aria-disabled={!hasPlayback || liveProgressMax <= 0 || isLoading}
+              onClick={handleSeekClick}
+              onPointerDown={handleSeekPointerDown}
+              onPointerMove={handleSeekPointerMove}
+              onPointerUp={handleSeekPointerUp}
+              onPointerCancel={handleSeekPointerUp}
+            >
+              <div className="rail-psd-progress-fill" style={{ width: `${progressPercent}%` }} />
+            </div>
+            <div className="rail-psd-progress-times" aria-hidden="true">
+              <span>{formatPlaybackTime(progressValue)}</span>
+              <span>{formatPlaybackTime(progressMax)}</span>
+            </div>
           </div>
 
-          <PlaybackTransportControls
-            activeTrackId={activeTrack?.id ?? null}
-            className="rail-transport-controls"
-          />
+          <div className="rail-psd-transport-wrap">
+            <FullPlayerTransportControls activeTrackId={activeTrack?.id ?? null} />
+          </div>
 
-          <div className="now-playing-rail-badges" aria-hidden="true">
-            <span className="now-playing-quality-pill">High Quality</span>
-            <span className="now-playing-format-pill">FLAC · 24bit · 48kHz</span>
+          <div className="rail-psd-actions" role="group" aria-label="Player actions">
+            <button type="button" className="rail-psd-action">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+                <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+              </svg>
+              <span>Lyrics</span>
+            </button>
+            <button type="button" className="rail-psd-action">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+                <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
+                <path d="M6 9l4 3-4 3V9z" fill="currentColor" stroke="none" />
+              </svg>
+              <span>Queue</span>
+            </button>
+            <button type="button" className="rail-psd-action">
+              <PsdIconEqualizer className="rail-psd-action-icon" />
+              <span>Equalizer</span>
+            </button>
+            <button type="button" className="rail-psd-action">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+                <rect x="3" y="4" width="18" height="12" rx="2" />
+                <path d="M7 20h10" />
+              </svg>
+              <span>Device</span>
+            </button>
           </div>
         </section>
 
-        <section className="up-next-section" aria-label="Up next">
-          <div className="up-next-section-header">
-            <h3 className="up-next-label">Up Next</h3>
-            <button type="button" className="up-next-clear-btn">Clear</button>
+        <section className="rail-psd-queue-section" aria-label="Next in queue">
+          <div className="rail-psd-queue-header">
+            <h3 className="rail-psd-queue-title">Next In Queue</h3>
+            <button type="button" className="rail-psd-queue-clear">Clear</button>
           </div>
 
-          {showPsdUpNext ? (
-            <ol className="up-next-list artist-psd-up-next-list">
-              {psdUpNextRows.map((row) => (
-                <li className="up-next-item" key={row.key}>
-                  <div className="up-next-thumb" aria-hidden="true">
+          <ol className="rail-psd-queue-list" ref={listScrollRef}>
+            {queueRows.map((row) => (
+              <li className="rail-psd-queue-item" key={row.key}>
+                <div className="rail-psd-queue-thumb" aria-hidden="true">
+                  {row.track ? (
+                    <ArtworkImage src={row.track.artwork} alt="" seed={row.track.id} />
+                  ) : (
                     <span
-                      className="up-next-thumb-fallback"
+                      className="rail-psd-queue-thumb-fallback"
                       style={{
-                        backgroundImage: `url(${showAlbumsPsdRail ? psdAlbumsReferenceUrl : psdArtistsReferenceUrl})`,
+                        backgroundImage: `url(${psdNowPlayingReferenceUrl})`,
+                        backgroundPosition: row.artPosition,
                       }}
                     />
-                  </div>
-                  <div className="up-next-copy">
-                    <span className="up-next-title">{row.title}</span>
-                    <span className="up-next-artist">{row.artist}</span>
-                  </div>
-                  <span className="up-next-duration">{row.duration}</span>
-                </li>
-              ))}
-            </ol>
-          ) : upcomingTracks.length === 0 ? (
-            <div className="up-next-empty" role="status">
-              <p>Your queue will appear here.</p>
-            </div>
-          ) : (
-            <ol className="up-next-list" ref={listScrollRef}>
-              {upcomingTracks.map((track, index) => (
-                <li className="up-next-item" key={`${track.id}-${index}`}>
-                  <div className="up-next-thumb" aria-hidden="true">
-                    <ArtworkImage src={track.artwork} alt="" seed={track.id} />
-                  </div>
-                  <div className="up-next-copy">
-                    <span className="up-next-title">{track.title}</span>
-                    <span className="up-next-artist">{track.artist}</span>
-                  </div>
-                  {track.durationSeconds != null && track.durationSeconds > 0 ? (
-                    <span className="up-next-duration">
-                      {formatPlaybackTime(track.durationSeconds)}
-                    </span>
-                  ) : null}
-                </li>
-              ))}
-            </ol>
-          )}
+                  )}
+                </div>
+                <div className="rail-psd-queue-copy">
+                  <span className="rail-psd-queue-track">{row.title}</span>
+                  <span className="rail-psd-queue-artist">{row.artist}</span>
+                </div>
+                <span className="rail-psd-queue-drag" aria-hidden="true">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <circle cx="5" cy="7" r="1.4" /><circle cx="12" cy="7" r="1.4" /><circle cx="19" cy="7" r="1.4" />
+                    <circle cx="5" cy="12" r="1.4" /><circle cx="12" cy="12" r="1.4" /><circle cx="19" cy="12" r="1.4" />
+                  </svg>
+                </span>
+              </li>
+            ))}
+          </ol>
         </section>
 
-        {showArtistPsdRail ? <ArtistRelatedRailPanel /> : null}
-        {showAlbumsPsdRail ? <AlbumStatsRailPanel /> : null}
-        {onOpenCinema && !showArtistPsdRail && !showAlbumsPsdRail ? <TheaterModeRailCard onEnter={onOpenCinema} /> : null}
+        <footer className="rail-psd-footer">
+          <div className="rail-psd-volume" role="group" aria-label="Volume">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+              <path d="M11 5L6 9H2v6h4l5 4V5z" />
+              <path d="M15.54 8.46a5 5 0 010 7.07" />
+            </svg>
+            <div
+              ref={volumeTrackRef}
+              className="rail-psd-volume-track"
+              style={{ ['--rail-psd-volume' as string]: `${volumePercent}%` }}
+              role="slider"
+              aria-label="Volume"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={Math.round(volumePercent)}
+              onClick={handleVolumeClick}
+              onPointerDown={handleVolumePointerDown}
+              onPointerMove={handleVolumePointerMove}
+              onPointerUp={handleVolumePointerUp}
+              onPointerCancel={handleVolumePointerUp}
+            >
+              <div className="rail-psd-volume-fill" style={{ width: `${volumePercent}%` }} />
+            </div>
+          </div>
+          {onOpenCinema ? (
+            <button type="button" className="rail-psd-full-player" onClick={onOpenCinema}>
+              Show Full Player
+            </button>
+          ) : null}
+          <button type="button" className="rail-psd-expand" aria-label="Expand player">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+              <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+            </svg>
+          </button>
+        </footer>
       </div>
     </aside>
   )
