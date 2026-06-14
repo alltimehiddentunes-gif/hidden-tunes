@@ -110,7 +110,6 @@ import {
 } from './lib/listeningContext'
 import heroPhotoUrl from './assets/hero.png'
 import emotionalWorldsReferenceUrl from './assets/emotional-worlds-reference.jpg'
-import psdPlaylistsReferenceUrl from './assets/psd-playlists-reference.jpg'
 import psdArtistsReferenceUrl from './assets/psd-artists-reference.jpg'
 import psdAlbumsReferenceUrl from './assets/psd-albums-reference.jpg'
 import psdLikedReferenceUrl from './assets/psd-liked-reference.jpg'
@@ -143,6 +142,17 @@ const PSD_SEARCH_ARTIST_ROWS = [
 const PSD_SEARCH_ALBUM_ROWS = [
   { key: 'psd-album-1', title: 'Midnight Reflection', meta: 'Wills Afrobeats • 2024' },
   { key: 'psd-album-2', title: 'Reflections at Midnight', meta: 'Various Artists • 2023' },
+] as const
+
+const PSD_PLAYLIST_TRACK_ROWS = [
+  { title: 'Midnight Reflection', artist: 'Wills Afrobeats', duration: '3:56', tone: 'neon' },
+  { title: 'Afro Sunset', artist: 'Wills Afrobeats', duration: '3:21', tone: 'sunset' },
+  { title: 'Love Vibes', artist: 'Wills Afrobeats', duration: '3:44', tone: 'love' },
+  { title: 'Rain & Reflection', artist: 'Wills Afrobeats', duration: '4:12', tone: 'rain' },
+  { title: 'Night Drive', artist: 'Wills Afrobeats', duration: '4:01', tone: 'drive' },
+  { title: 'Healing Slowly', artist: 'Wills Afrobeats', duration: '3:48', tone: 'moon' },
+  { title: 'Jazz Cafe', artist: 'Wills Afrobeats', duration: '3:36', tone: 'jazz' },
+  { title: 'Deep Focus', artist: 'Wills Afrobeats', duration: '4:20', tone: 'forest' },
 ] as const
 
 const PSD_LIBRARY_TABS = ['Overview', 'Songs', 'Albums', 'Artists', 'Playlists', 'Podcasts', 'Genres'] as const
@@ -3480,75 +3490,104 @@ function AlbumsPage({
 
 function PlaylistsPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
   const { songs, indexes } = useCatalog()
-  const playlistTitle = 'Midnight Vibes'
-  const tracks = useMemo(() => sortSongsList([...songs], 'latest').slice(0, 16), [songs])
   const queuePools = useMemo(() => buildQueueCandidatePools(indexes), [indexes])
+  const playlistTracks = useMemo(
+    () => PSD_PLAYLIST_TRACK_ROWS.map((row, index) => {
+      const matched = songs.find((song) => song.title.toLowerCase() === row.title.toLowerCase())
+      if (matched) return matched
+      return {
+        id: `psd-playlist-${index + 1}`,
+        title: row.title,
+        artist: row.artist,
+        artistId: null,
+        album: 'Night Drive',
+        albumId: null,
+        genre: null,
+        mood: null,
+        tags: [],
+        description: null,
+        artwork: null,
+        previewUrl: null,
+        audioUrl: null,
+        highQualityUrl: null,
+        durationSeconds: null,
+        createdAt: null,
+      } satisfies ApiSong
+    }),
+    [songs],
+  )
   const playTrack = useCallback(
     (song: ApiSong, index: number) => {
-      onOpenSong(song, tracks, index, 'manual', playlistTitle, {
+      onOpenSong(song, playlistTracks, index, 'manual', 'Night Drive', {
         seedType: 'manual',
-        seedTracks: buildQueueSeedPool('manual', tracks, indexes, song),
+        seedTracks: buildQueueSeedPool('manual', playlistTracks, indexes, song),
         candidatePools: queuePools,
       })
     },
-    [indexes, onOpenSong, queuePools, tracks],
+    [indexes, onOpenSong, playlistTracks, queuePools],
   )
 
   return (
-    <div className="psd-playlists-destination">
-      <PageFrame cinematic>
-        <section className="psd-playlist-detail-hero" aria-labelledby="playlist-detail-heading">
-          <div
-            className="psd-playlist-detail-art"
-            style={{ backgroundImage: `url(${psdPlaylistsReferenceUrl})` }}
-            aria-hidden="true"
-          />
-          <div className="psd-playlist-detail-copy">
-            <p className="psd-page-eyebrow">Playlist</p>
-            <h1 id="playlist-detail-heading">{playlistTitle}</h1>
-            <p>{tracks.length} tracks · Hidden Tunes curated</p>
-            <div className="psd-hero-actions">
-              <button type="button" className="psd-btn psd-btn--gold" disabled={tracks.length === 0} onClick={() => tracks[0] && playTrack(tracks[0], 0)}>Play</button>
-              <button type="button" className="psd-btn psd-btn--ghost" disabled={tracks.length === 0}>Shuffle</button>
-              <button type="button" className="psd-btn psd-btn--ghost">Edit</button>
-            </div>
+    <div className="psd-playlist-page">
+      <header className="psd-playlist-topbar">
+        <button type="button" className="psd-playlist-back" aria-label="Back">
+          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
+        </button>
+        <div className="psd-playlist-top-actions">
+          <label className="psd-playlist-search">
+            <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg>
+            <input type="search" placeholder="Search in playlist" aria-label="Search in playlist" />
+          </label>
+          <button type="button" className="psd-playlist-more-top" aria-label="Playlist menu"><PsdIconMore /></button>
+        </div>
+      </header>
+
+      <section className="psd-playlist-hero" aria-labelledby="playlist-detail-heading">
+        <div className="psd-playlist-cover" aria-hidden="true"><span className="psd-playlist-cover-sky" /><span className="psd-playlist-cover-car" /></div>
+        <div className="psd-playlist-hero-copy">
+          <p className="psd-playlist-kicker">PLAYLIST</p>
+          <h1 id="playlist-detail-heading">Night Drive <span className="psd-playlist-moon" aria-hidden="true" /></h1>
+          <p className="psd-playlist-description">Late nights, open roads and the perfect soundtrack.</p>
+          <div className="psd-playlist-owner">
+            <span className="psd-playlist-owner-mark" aria-hidden="true"><BrandWaveformMark /></span>
+            <span><strong>Hidden Tunes <PsdIconVerified /></strong><span>50 songs <b>•</b> 3h 12m</span></span>
           </div>
-        </section>
-
-        <div className="psd-tab-row psd-tab-row--underline" role="tablist" aria-label="Playlist sections">
-          <button type="button" role="tab" className="psd-tab is-active" aria-selected>Tracks</button>
         </div>
+      </section>
 
-        <div className="psd-track-table-wrap">
-          <table className="psd-track-table">
-            <thead>
-              <tr>
-                <th scope="col">#</th>
-                <th scope="col">Title</th>
-                <th scope="col">Album</th>
-                <th scope="col">Date added</th>
-                <th scope="col">Duration</th>
-              </tr>
-            </thead>
-            <tbody>
-              {tracks.map((song, index) => (
-                <tr key={song.id}>
-                  <td>{index + 1}</td>
-                  <td>
-                    <button type="button" className="psd-track-title-btn" onClick={() => playTrack(song, index)}>
-                      <ArtworkImage src={song.artwork} alt="" seed={song.id} />
-                      <span><strong>{song.title}</strong><span>{song.artist}</span></span>
-                    </button>
-                  </td>
-                  <td>{song.album}</td>
-                  <td>Recently</td>
-                  <td>{song.durationSeconds ? formatPlaybackTime(song.durationSeconds) : '—'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <section className="psd-playlist-actions" aria-label="Playlist actions">
+        <button type="button" className="psd-playlist-action-play" onClick={() => playlistTracks[0] && playTrack(playlistTracks[0], 0)}><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>Play</button>
+        <button type="button" className="psd-playlist-action-shuffle"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden="true"><path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5" /></svg>Shuffle</button>
+        <button type="button" className="psd-playlist-circle-action" aria-label="Add collaborator"><svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M19 8v6M16 11h6" /></svg></button>
+        <button type="button" className="psd-playlist-circle-action" aria-label="Download"><svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M12 4v10" /><path d="M8 10l4 4 4-4" /><path d="M5 20h14" /></svg></button>
+        <button type="button" className="psd-playlist-circle-action" aria-label="More options"><PsdIconMore /></button>
+      </section>
+
+      <section className="psd-playlist-table" aria-label="Night Drive tracks">
+        <div className="psd-playlist-table-header"><span>#</span><span>TITLE</span><span>ARTIST</span><span aria-label="Duration"><svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg></span></div>
+        <ol className="psd-playlist-track-list">
+          {PSD_PLAYLIST_TRACK_ROWS.map((row, index) => (
+            <li key={row.title} className={index === 0 ? 'is-active' : undefined}>
+              <button type="button" className="psd-playlist-track-main" onClick={() => playTrack(playlistTracks[index], index)}>
+                <span className="psd-playlist-track-index">{index === 0 ? <PsdIconEqualizer /> : index + 1}</span>
+                <span className="psd-playlist-track-title"><span className="psd-playlist-track-art" data-tone={row.tone} aria-hidden="true" /><span className="psd-playlist-track-name">{row.title}</span><PsdIconHeart className="psd-playlist-row-heart" /></span>
+                <span className="psd-playlist-track-artist">{row.artist}</span>
+                <span className="psd-playlist-track-duration">{row.duration}</span>
+              </button>
+              <button type="button" className="psd-playlist-row-menu" aria-label={`More options for ${row.title}`}><PsdIconMore /></button>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      <footer className="psd-playlist-floating-player" aria-label="Playlist player preview">
+        <div className="psd-playlist-player-track"><span className="psd-playlist-player-art" data-tone="neon" aria-hidden="true" /><span><strong>Midnight Reflection</strong><span>Wills Afrobeats <PsdIconHeart /></span></span></div>
+        <div className="psd-playlist-player-center">
+          <div className="psd-playlist-player-controls"><button type="button" aria-label="Previous"><svg width="36" height="36" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 5h2v14H6zM9 12l9 7V5z" /></svg></button><button type="button" className="psd-playlist-player-play" aria-label="Pause"><svg width="34" height="34" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 5h4v14H7zM13 5h4v14h-4z" /></svg></button><button type="button" aria-label="Next"><svg width="36" height="36" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16 5h2v14h-2zM6 19l9-7-9-7z" /></svg></button></div>
+          <div className="psd-playlist-player-progress"><span>1:48</span><span className="psd-playlist-progress-track"><span /></span><span>3:56</span></div>
         </div>
-      </PageFrame>
+        <div className="psd-playlist-player-right"><button type="button" aria-label="Queue"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M4 7h10M4 12h16M4 17h10" /><path d="M18 5v4M16 7h4" /></svg></button><button type="button" aria-label="Volume"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M11 5L6 9H3v6h3l5 4V5z" /><path d="M15.5 8.5a5 5 0 010 7" /></svg></button><span className="psd-playlist-volume"><span /></span></div>
+      </footer>
     </div>
   )
 }
