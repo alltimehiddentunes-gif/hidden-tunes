@@ -119,7 +119,7 @@ import psdPlayerReferenceUrl from './assets/psd-player-reference.jpg'
 import psdWaveformReferenceUrl from './assets/psd-waveform-reference.jpg'
 import psdLyricsReferenceUrl from './assets/psd-lyrics-reference.jpg'
 import psdRecentReferenceUrl from './assets/psd-recent-reference.jpg'
-import psdNowPlayingReferenceUrl from './assets/psd-now-playing-reference.jpg'
+import psdNowPlayingReferenceUrl from './assets/psd-now-playing-reference.png'
 import psdDownloadsReferenceUrl from './assets/psd-downloads-reference.jpg'
 import psdLibraryReferenceUrl from './assets/psd-library-reference.jpg'
 import './App.css'
@@ -4352,150 +4352,7 @@ function RecentPage({
   )
 }
 
-/* Phase 42X: Downloads page exact PSD reconstruction */
-const DownloadsFloatingPlayer = memo(function DownloadsFloatingPlayer() {
-  const {
-    currentTrack,
-    currentQueue,
-    currentIndex,
-    isPlaying,
-    isLoading,
-    pause,
-    resume,
-    next,
-    previous,
-  } = useDesktopPlayback()
-
-  const displayTrack = currentTrack
-  const title = displayTrack?.title ?? PSD_PLAYER_TITLE
-  const artist = displayTrack?.artist ?? PSD_PLAYER_ARTIST
-  const isActive = Boolean(displayTrack)
-  const hasPrevious = isActive && currentIndex > 0
-  const hasNext = isActive && currentIndex >= 0 && currentIndex < currentQueue.length - 1
-  const showPlaying = isActive && isPlaying
-
-  const handlePlayPause = () => {
-    if (!isActive || isLoading) return
-    if (isPlaying) {
-      pause()
-      return
-    }
-    resume()
-  }
-
-  return (
-    <div className="psd-downloads-mini-player" aria-label="Now playing mini player">
-      <span
-        className="psd-downloads-mini-art"
-        style={{
-          backgroundImage: displayTrack?.artwork
-            ? `url(${displayTrack.artwork})`
-            : `url(${psdDownloadsReferenceUrl})`,
-          backgroundPosition: PSD_DOWNLOADS_SONGS[0].artPosition,
-        }}
-        aria-hidden="true"
-      />
-      <div className="psd-downloads-mini-copy">
-        <strong>{title}</strong>
-        <span>{artist}</span>
-      </div>
-      <div className="psd-downloads-mini-controls">
-        <button
-          type="button"
-          className="psd-downloads-mini-skip"
-          onClick={previous}
-          disabled={!hasPrevious}
-          aria-label="Previous track"
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <path d="M6 6h2v12H6V6zm3.5 6l8.5 6V6l-8.5 6z" />
-          </svg>
-        </button>
-        <button
-          type="button"
-          className="psd-downloads-mini-play"
-          onClick={handlePlayPause}
-          disabled={!isActive || isLoading}
-          aria-label={showPlaying ? 'Pause' : 'Play'}
-        >
-          {showPlaying ? (
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-              <path d="M6 5h4v14H6V5zm8 0h4v14h-4V5z" />
-            </svg>
-          ) : (
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-              <path d="M8 5v14l11-7z" />
-            </svg>
-          )}
-        </button>
-        <button
-          type="button"
-          className="psd-downloads-mini-skip"
-          onClick={next}
-          disabled={!hasNext}
-          aria-label="Next track"
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <path d="M6 18l8.5-6L6 6v12zm10-12h2v12h-2V6z" />
-          </svg>
-        </button>
-      </div>
-    </div>
-  )
-})
-
-function DownloadsBottomNav({
-  onNavigateNav,
-}: {
-  onNavigateNav: (navKey: NavKey) => void
-}) {
-  const items: Array<{ key: NavKey; label: string; active?: boolean }> = [
-    { key: 'home', label: 'Home' },
-    { key: 'search', label: 'Search' },
-    { key: 'library', label: 'Library' },
-    { key: 'downloads', label: 'Downloads', active: true },
-  ]
-
-  return (
-    <nav className="psd-downloads-bottom-nav" aria-label="Mobile navigation">
-      {items.map((item) => (
-        <button
-          key={item.key}
-          type="button"
-          className={`psd-downloads-nav-item${item.active ? ' is-active' : ''}`}
-          onClick={() => onNavigateNav(item.key)}
-          aria-current={item.active ? 'page' : undefined}
-        >
-          <span className="psd-downloads-nav-icon" aria-hidden="true">
-            {item.key === 'home' ? (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
-                <path d="M3 10.5L12 3l9 7.5V20a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1v-9.5z" />
-              </svg>
-            ) : item.key === 'search' ? (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
-                <circle cx="11" cy="11" r="7" />
-                <path d="M20 20l-3.5-3.5" />
-              </svg>
-            ) : item.key === 'library' ? (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
-                <path d="M4 19.5A2.5 2.5 0 016.5 17H20" />
-                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" />
-              </svg>
-            ) : (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
-                <path d="M12 4v10" />
-                <path d="M8.5 10.5L12 14l3.5-3.5" />
-                <path d="M5 18h14" />
-              </svg>
-            )}
-          </span>
-          <span>{item.label}</span>
-        </button>
-      ))}
-    </nav>
-  )
-}
-
+/* Phase 42X-FIX-2: Downloads page desktop shell + PSD content */
 function PsdDownloadsRowMenu() {
   return (
     <button type="button" className="psd-downloads-row-menu" aria-label="More options">
@@ -4507,14 +4364,13 @@ function PsdDownloadsRowMenu() {
 }
 
 function DownloadsPage({
-  onBack,
-  onNavigateNav,
   onOpenSong,
+  query = '',
 }: {
-  onBack: () => void
-  onNavigateNav: (navKey: NavKey) => void
   onOpenSong: QueueSongHandler
+  query?: string
 }) {
+  void query
   const { songs, indexes } = useCatalog()
   const queuePools = useMemo(() => buildQueueCandidatePools(indexes), [indexes])
   const [activeTab, setActiveTab] = useState<(typeof PSD_DOWNLOADS_TABS)[number]>('All')
@@ -4541,29 +4397,8 @@ function DownloadsPage({
   const showSongs = activeTab === 'All' || activeTab === 'Songs'
 
   return (
-    <div className="psd-downloads-page">
-      <header className="psd-downloads-topbar">
-        <button type="button" className="psd-downloads-topbar-btn" onClick={onBack} aria-label="Go back">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-            <path d="M19 12H5M12 19l-7-7 7-7" />
-          </svg>
-        </button>
-        <div className="psd-downloads-topbar-actions">
-          <button type="button" className="psd-downloads-topbar-btn" aria-label="Search">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-              <circle cx="11" cy="11" r="7" />
-              <path d="M20 20l-3.5-3.5" />
-            </svg>
-          </button>
-          <button type="button" className="psd-downloads-topbar-btn" aria-label="More options">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-              <circle cx="12" cy="5" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="12" cy="19" r="1.6" />
-            </svg>
-          </button>
-        </div>
-      </header>
-
-      <div className="psd-downloads-scroll">
+    <div className="psd-downloads-destination">
+      <PageFrame cinematic>
         <h1 className="psd-downloads-title">Downloads</h1>
 
         <section className="psd-downloads-storage" aria-label="Storage usage">
@@ -4735,10 +4570,7 @@ function DownloadsPage({
             </ul>
           </section>
         ) : null}
-      </div>
-
-      <DownloadsFloatingPlayer />
-      <DownloadsBottomNav onNavigateNav={onNavigateNav} />
+      </PageFrame>
     </div>
   )
 }
@@ -5818,6 +5650,7 @@ const QueueUpNextPanel = memo(function QueueUpNextPanel({
 
         <section className="rail-psd-stage" aria-label="Current track">
           <div className="rail-psd-art-shell">
+            <span className="rail-psd-art-glow" aria-hidden="true" />
             <div className="rail-psd-art-frame">
               {hasPlayback && activeTrack ? (
                 <ArtworkImage
@@ -5843,18 +5676,18 @@ const QueueUpNextPanel = memo(function QueueUpNextPanel({
           </div>
 
           <div className="rail-psd-track-head">
-            <div className="rail-psd-track-copy">
+            <div className="rail-psd-title-row">
               <h3 className="rail-psd-track-title">{displayTitle}</h3>
-              <p className="rail-psd-track-artist">
-                <span>{displayArtist}</span>
-                <PsdIconVerified className="rail-psd-verified" />
-              </p>
+              <button type="button" className="rail-psd-heart" aria-label="Favorite">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M12 20.8l-1.1-1C6.4 15.36 3 12.28 3 8.5 3 6 5 4 7.5 4c1.74 0 3.41 1.01 4.5 2.36C13.09 5.01 14.76 4 16.5 4 19 4 21 6 21 8.5c0 3.78-3.4 6.86-7.9 11.3L12 20.8z" />
+                </svg>
+              </button>
             </div>
-            <button type="button" className="rail-psd-heart" aria-label="Favorite">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d="M12 20.8l-1.1-1C6.4 15.36 3 12.28 3 8.5 3 6 5 4 7.5 4c1.74 0 3.41 1.01 4.5 2.36C13.09 5.01 14.76 4 16.5 4 19 4 21 6 21 8.5c0 3.78-3.4 6.86-7.9 11.3L12 20.8z" />
-              </svg>
-            </button>
+            <p className="rail-psd-track-artist">
+              <span>{displayArtist}</span>
+              <PsdIconVerified className="rail-psd-verified" />
+            </p>
           </div>
 
           <div className="rail-psd-quality-row">
@@ -5954,9 +5787,8 @@ const QueueUpNextPanel = memo(function QueueUpNextPanel({
                   <span className="rail-psd-queue-artist">{row.artist}</span>
                 </div>
                 <span className="rail-psd-queue-drag" aria-hidden="true">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                    <circle cx="5" cy="7" r="1.4" /><circle cx="12" cy="7" r="1.4" /><circle cx="19" cy="7" r="1.4" />
-                    <circle cx="5" cy="12" r="1.4" /><circle cx="12" cy="12" r="1.4" /><circle cx="19" cy="12" r="1.4" />
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                    <path d="M4 8h16M4 12h16M4 16h16" />
                   </svg>
                 </span>
               </li>
@@ -7290,6 +7122,7 @@ function CatalogDetailRouter({
   onPlaylistBack,
   onNavigateNav,
   recentQuery = '',
+  downloadsQuery = '',
 }: {
   activeView: ActiveView
   selectedSong: ApiSong | null
@@ -7312,6 +7145,7 @@ function CatalogDetailRouter({
   onPlaylistBack: () => void
   onNavigateNav: (navKey: NavKey) => void
   recentQuery?: string
+  downloadsQuery?: string
 }) {
   if (activeView === 'song' && selectedSong) {
     return (
@@ -7370,6 +7204,7 @@ function CatalogDetailRouter({
       onPlaylistBack={onPlaylistBack}
       onNavigateNav={onNavigateNav}
       recentQuery={recentQuery}
+      downloadsQuery={downloadsQuery}
     />
   )
 }
@@ -7386,8 +7221,9 @@ function PageContent({
   albumsQuery,
   setAlbumsQuery,
   onPlaylistBack,
-  onNavigateNav,
+  onNavigateNav: _onNavigateNav,
   recentQuery = '',
+  downloadsQuery = '',
 }: {
   page: PageId
   activeNavKey: NavKey
@@ -7402,18 +7238,14 @@ function PageContent({
   onPlaylistBack: () => void
   onNavigateNav: (navKey: NavKey) => void
   recentQuery?: string
+  downloadsQuery?: string
 }) {
   void _onOpenMood
+  void _onNavigateNav
   if (activeNavKey === 'liked') return <LikedPage onOpenSong={onOpenSong} />
   if (activeNavKey === 'recent') return <RecentPage onOpenSong={onOpenSong} query={recentQuery} />
   if (activeNavKey === 'downloads') {
-    return (
-      <DownloadsPage
-        onBack={() => onNavigateNav('library')}
-        onNavigateNav={onNavigateNav}
-        onOpenSong={onOpenSong}
-      />
-    )
+    return <DownloadsPage onOpenSong={onOpenSong} query={downloadsQuery} />
   }
   if (activeNavKey === 'premium') return <PremiumPage />
 
@@ -7485,6 +7317,7 @@ function AppShell() {
   const [lyricsOpen, setLyricsOpen] = useState(false)
   const [likedQuery, setLikedQuery] = useState('')
   const [recentQuery, setRecentQuery] = useState('')
+  const [downloadsQuery, setDownloadsQuery] = useState('')
   const [libraryQuery, setLibraryQuery] = useState('')
   const [discoverQuery, setDiscoverQuery] = usePersistedPreference(
     DESKTOP_PREFERENCE_KEYS.discoverSearch,
@@ -7596,7 +7429,7 @@ function AppShell() {
                 isPsdDestinationNav(activeNavKey) && activeView === 'page' ? ' main-scroll--psd' : ''
               }`}
             >
-              {isPsdDestinationNav(activeNavKey) && activeView === 'page' && activeNavKey !== 'playlists' && activeNavKey !== 'downloads' ? (
+              {isPsdDestinationNav(activeNavKey) && activeView === 'page' && activeNavKey !== 'playlists' ? (
                 <HomeTopBar
                   placeholder={TOP_BAR_PLACEHOLDERS[activeNavKey]}
                   onOpenDiscover={() => navigatePage('discover', 'search')}
@@ -7606,6 +7439,7 @@ function AppShell() {
                       || activeNavKey === 'liked'
                       || activeNavKey === 'library'
                       || activeNavKey === 'recent'
+                      || activeNavKey === 'downloads'
                       ? 'search'
                       : 'default'
                   }
@@ -7620,7 +7454,9 @@ function AppShell() {
                             ? libraryQuery
                             : activeNavKey === 'recent'
                               ? recentQuery
-                              : undefined
+                              : activeNavKey === 'downloads'
+                                ? downloadsQuery
+                                : undefined
                   }
                   onSearchChange={
                     activeNavKey === 'search'
@@ -7633,7 +7469,9 @@ function AppShell() {
                             ? setLibraryQuery
                             : activeNavKey === 'recent'
                               ? setRecentQuery
-                              : undefined
+                              : activeNavKey === 'downloads'
+                                ? setDownloadsQuery
+                                : undefined
                   }
                 />
               ) : null}
@@ -7662,6 +7500,7 @@ function AppShell() {
                   onPlaylistBack={() => navigateNav('library')}
                   onNavigateNav={navigateNav}
                   recentQuery={recentQuery}
+                  downloadsQuery={downloadsQuery}
                 />
               </div>
             </main>
@@ -7672,7 +7511,7 @@ function AppShell() {
           </div>
         </div>
       </div>
-      {!waveformOpen && !lyricsOpen && activeNavKey !== 'recent' && activeNavKey !== 'downloads' && (activeNavKey !== 'playlists' || activeView !== 'page') ? (
+      {!waveformOpen && !lyricsOpen && activeNavKey !== 'recent' && (activeNavKey !== 'playlists' || activeView !== 'page') ? (
         <PlayerBar
           track={desktopSelectedTrack}
           onOpenCinema={() => setCinemaOpen(true)}
