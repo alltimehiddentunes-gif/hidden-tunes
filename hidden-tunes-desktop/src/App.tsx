@@ -468,8 +468,9 @@ function CatalogProvider({ children }: { children: ReactNode }) {
 
 type PageId = StoredPageId
 
-type NavItem = {
-  id: PageId
+type SidebarNavItem = {
+  key: string
+  page: PageId
   label: string
   icon: ReactNode
 }
@@ -496,95 +497,171 @@ type MoodRoom = {
   sceneId: VisualSceneId
 }
 
+function BrandWaveformMark({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className ?? 'brand-waveform'}
+      viewBox="0 0 36 36"
+      fill="none"
+      aria-hidden="true"
+    >
+      <rect x="3" y="14" width="3" height="10" rx="1.5" fill="url(#brandWaveGold)" />
+      <rect x="9" y="8" width="3" height="22" rx="1.5" fill="url(#brandWaveGold)" />
+      <rect x="15" y="12" width="3" height="14" rx="1.5" fill="url(#brandWaveGold)" />
+      <rect x="21" y="5" width="3" height="28" rx="1.5" fill="url(#brandWaveGold)" />
+      <rect x="27" y="10" width="3" height="18" rx="1.5" fill="url(#brandWaveGold)" />
+      <path
+        d="M2 18c4-6 8-9 16-9s12 3 16 9"
+        stroke="url(#brandWaveStroke)"
+        strokeWidth="1.25"
+        strokeLinecap="round"
+        opacity="0.55"
+      />
+      <defs>
+        <linearGradient id="brandWaveGold" x1="18" y1="4" x2="18" y2="34" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#FFBA3D" />
+          <stop offset="1" stopColor="#E8B923" />
+        </linearGradient>
+        <linearGradient id="brandWaveStroke" x1="2" y1="9" x2="34" y2="27" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#F5C542" />
+          <stop offset="1" stopColor="#BF7F72" />
+        </linearGradient>
+      </defs>
+    </svg>
+  )
+}
+
+function isSidebarNavActive(item: SidebarNavItem, activePage: PageId) {
+  if (item.page !== activePage) return false
+  if (item.page === 'library') return item.key === 'library'
+  return true
+}
+
 function moodRoomScene(room: Pick<MoodRoom, 'title' | 'mood' | 'sceneId'>): VisualSceneId {
   return room.sceneId ?? resolveVisualScene({ seed: room.title, mood: room.mood })
 }
 
-const MAIN_NAV: NavItem[] = [
+const SIDEBAR_NAV: SidebarNavItem[] = [
   {
-    id: 'home',
+    key: 'home',
+    page: 'home',
     label: 'Home',
     icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
         <path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1V9.5z" />
       </svg>
     ),
   },
   {
-    id: 'discover',
-    label: 'Discover',
+    key: 'worlds',
+    page: 'mood',
+    label: 'Emotional Worlds',
     icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
+        <circle cx="12" cy="12" r="8.5" />
+        <path d="M8.5 12c1.2-2.2 2.4-3.3 3.5-3.3s2.3 1.1 3.5 3.3" />
+        <path d="M12 3v2M12 19v2M3 12h2M19 12h2" />
+      </svg>
+    ),
+  },
+  {
+    key: 'search',
+    page: 'discover',
+    label: 'Search',
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
         <circle cx="11" cy="11" r="7" />
         <path d="M20 20l-3.5-3.5" />
       </svg>
     ),
   },
   {
-    id: 'mood',
-    label: 'Mood Rooms',
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M12 3a6 6 0 016 6c0 4-3 6-6 12-3-6-6-8-6-12a6 6 0 016-6z" />
-      </svg>
-    ),
-  },
-  {
-    id: 'library',
+    key: 'library',
+    page: 'library',
     label: 'Library',
     icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
         <path d="M4 19V5h4l2 14 4-14h4v14" />
       </svg>
     ),
   },
   {
-    id: 'artists',
+    key: 'playlists',
+    page: 'playlists',
+    label: 'Playlists',
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
+        <path d="M9 6h12M9 12h12M9 18h12M3 6h.01M3 12h.01M3 18h.01" />
+      </svg>
+    ),
+  },
+  {
+    key: 'artists',
+    page: 'artists',
     label: 'Artists',
     icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
         <circle cx="12" cy="8" r="4" />
         <path d="M6 20c0-3.3 2.7-6 6-6s6 2.7 6 6" />
       </svg>
     ),
   },
   {
-    id: 'albums',
+    key: 'albums',
+    page: 'albums',
     label: 'Albums',
     icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
         <rect x="3" y="3" width="18" height="18" rx="2" />
         <circle cx="12" cy="12" r="3" />
       </svg>
     ),
   },
   {
-    id: 'playlists',
-    label: 'Playlists',
+    key: 'liked',
+    page: 'library',
+    label: 'Liked',
     icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M9 6h12M9 12h12M9 18h12M3 6h.01M3 12h.01M3 18h.01" />
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
+        <path d="M12 20.8l-1.1-1C6.4 15.36 3 12.28 3 8.5 3 6 5 4 7.5 4c1.74 0 3.41 1.01 4.5 2.36C13.09 5.01 14.76 4 16.5 4 19 4 21 6 21 8.5c0 3.78-3.4 6.86-7.9 11.3L12 20.8z" />
       </svg>
     ),
   },
   {
-    id: 'tv',
-    label: 'Hidden Tunes TV',
+    key: 'recent',
+    page: 'library',
+    label: 'Recent',
     icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <rect x="2" y="5" width="20" height="14" rx="2" />
-        <path d="M10 9l6 4-6 4V9z" />
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
+        <circle cx="12" cy="12" r="8.5" />
+        <path d="M12 7v5l3 2" />
+      </svg>
+    ),
+  },
+  {
+    key: 'downloads',
+    page: 'library',
+    label: 'Downloads',
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
+        <path d="M12 4v10" />
+        <path d="M8.5 10.5L12 14l3.5-3.5" />
+        <path d="M5 18h14" />
+      </svg>
+    ),
+  },
+  {
+    key: 'settings',
+    page: 'settings',
+    label: 'Settings',
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
+        <circle cx="12" cy="12" r="3" />
+        <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
       </svg>
     ),
   },
 ]
-
-const SETTINGS_ICON = (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <circle cx="12" cy="12" r="3" />
-    <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
-  </svg>
-)
 
 const HOME_SECTIONS: DiscoverySection[] = [
   {
@@ -1716,42 +1793,64 @@ const Sidebar = memo(function Sidebar({
   onNavigate: (page: PageId) => void
 }) {
   return (
-    <aside className="sidebar">
+    <aside className="sidebar sidebar--psd">
       <div className="sidebar-brand">
-        <div className="brand-mark" aria-hidden="true">
-          H
-        </div>
+        <BrandWaveformMark />
         <div className="brand-text">
-          <span className="brand-title">Hidden Tunes</span>
-          <span className="brand-sub">Desktop</span>
+          <span className="brand-wordmark">Hidden Tunes</span>
+          <span className="brand-tagline">Feel Every Sound</span>
         </div>
       </div>
 
       <nav className="sidebar-nav" aria-label="Main navigation">
-        {MAIN_NAV.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            className={`nav-item${activePage === item.id ? ' active' : ''}`}
-            aria-current={activePage === item.id ? 'page' : undefined}
-            onClick={() => onNavigate(item.id)}
-          >
-            {item.icon}
-            <span>{item.label}</span>
-          </button>
-        ))}
+        {SIDEBAR_NAV.map((item) => {
+          const isActive = isSidebarNavActive(item, activePage)
+          return (
+            <button
+              key={item.key}
+              type="button"
+              className={`nav-item${isActive ? ' active' : ''}`}
+              aria-current={isActive ? 'page' : undefined}
+              onClick={() => onNavigate(item.page)}
+            >
+              {item.icon}
+              <span>{item.label}</span>
+            </button>
+          )
+        })}
       </nav>
 
-      <div className="sidebar-footer">
-        <button
-          type="button"
-          className={`nav-item${activePage === 'settings' ? ' active' : ''}`}
-          aria-current={activePage === 'settings' ? 'page' : undefined}
-          onClick={() => onNavigate('settings')}
-        >
-          {SETTINGS_ICON}
-          <span>Settings</span>
+      <div className="sidebar-bottom">
+        <button type="button" className="sidebar-premium-cta" aria-label="Go Premium">
+          <span className="sidebar-premium-icon" aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
+              <path d="M5 17l2-7h10l2 7" />
+              <path d="M7 17h10" />
+              <path d="M9 10l1.5-4h3L15 10" />
+            </svg>
+          </span>
+          <span className="sidebar-premium-copy">
+            <span className="sidebar-premium-label">Go Premium</span>
+            <span className="sidebar-premium-hint">Unlock every world</span>
+          </span>
         </button>
+
+        <div className="sidebar-user" aria-label="Profile">
+          <div className="sidebar-user-avatar" aria-hidden="true">
+            <span>H</span>
+          </div>
+          <div className="sidebar-user-copy">
+            <span className="sidebar-user-name">Hidden Listener</span>
+            <span className="sidebar-user-badge">
+              <span className="sidebar-user-badge-check" aria-hidden="true">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z" />
+                </svg>
+              </span>
+              Premium User
+            </span>
+          </div>
+        </div>
       </div>
     </aside>
   )
