@@ -11209,12 +11209,20 @@
   background: linear-gradient(90deg, #7c3aed, #c49aff);
 }
 
-/* Cinematic Waveform page */
+/* —— Phase 42M: Live Waveform cinematic playing page exact PSD reconstruction —— */
+#root:has(.cinema-player--waveform) .sidebar,
+#root:has(.cinema-player--waveform) .queue-rail,
+#root:has(.cinema-player--waveform) .player-bar {
+  display: none !important;
+}
+
 .cinema-player--waveform {
   inset: 0;
   z-index: 121;
   display: flex;
   flex-direction: column;
+  align-items: stretch;
+  justify-content: space-between;
   padding: 0;
   background: #050508;
 }
@@ -11224,15 +11232,16 @@
   inset: 0;
   background-size: cover;
   background-repeat: no-repeat;
-  opacity: 0.92;
+  opacity: 0.94;
 }
 
 .psd-waveform-veil {
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(180deg, rgba(5, 5, 9, 0.42) 0%, rgba(5, 5, 9, 0.2) 34%, rgba(5, 5, 9, 0.72) 100%),
-    radial-gradient(ellipse 80% 50% at 50% 18%, rgba(168, 85, 247, 0.16), transparent 62%);
+    linear-gradient(180deg, rgba(5, 5, 9, 0.5) 0%, rgba(5, 5, 9, 0.14) 36%, rgba(5, 5, 9, 0.78) 100%),
+    radial-gradient(ellipse 72% 44% at 50% 22%, rgba(168, 85, 247, 0.2), transparent 64%),
+    radial-gradient(ellipse 34% 28% at 82% 12%, rgba(192, 38, 211, 0.22), transparent 70%);
   pointer-events: none;
 }
 
@@ -11242,7 +11251,8 @@
   display: grid;
   grid-template-columns: 72px 1fr 72px;
   align-items: center;
-  padding: 18px 28px 10px;
+  flex-shrink: 0;
+  padding: 18px 28px 8px;
 }
 
 .psd-waveform-topbar-copy {
@@ -11253,7 +11263,7 @@
   text-align: center;
 }
 
-.psd-waveform-topbar-copy span {
+.psd-waveform-topbar-copy span:first-child {
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.22em;
@@ -11264,6 +11274,16 @@
   font-size: 15px;
   font-weight: 600;
   color: #c49aff;
+}
+
+.psd-waveform-topbar-rule {
+  display: block;
+  width: 52px;
+  height: 2px;
+  margin-top: 5px;
+  border-radius: 999px;
+  background: #a855f7;
+  box-shadow: 0 0 10px rgba(168, 85, 247, 0.55);
 }
 
 .psd-waveform-topbar-btn {
@@ -11287,7 +11307,7 @@
   justify-self: end;
 }
 
-.psd-waveform-stage {
+.psd-waveform-hero {
   position: relative;
   z-index: 1;
   display: flex;
@@ -11295,16 +11315,29 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 18px;
-  width: min(100%, 720px);
+  gap: 16px;
+  width: min(100%, 780px);
   margin: 0 auto;
-  padding: 12px 28px 28px;
+  padding: 8px 28px 12px;
   text-align: center;
+}
+
+.psd-waveform-controls {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  width: min(100%, 780px);
+  margin: 0 auto;
+  padding: 0 28px 26px;
+  flex-shrink: 0;
 }
 
 .psd-waveform-track-copy h1 {
   margin: 0;
-  font-size: clamp(1.8rem, 3.2vw, 2.4rem);
+  font-size: clamp(1.85rem, 3.4vw, 2.55rem);
   font-weight: 700;
   color: rgba(250, 248, 255, 0.96);
 }
@@ -11316,7 +11349,7 @@
   gap: 8px;
   margin: 10px 0 0;
   font-size: 1rem;
-  color: rgba(245, 243, 250, 0.82);
+  color: rgba(245, 243, 250, 0.9);
 }
 
 .psd-waveform-verified {
@@ -11327,25 +11360,38 @@
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  gap: 4px;
+  gap: 3px;
   width: 100%;
-  max-width: 640px;
-  height: clamp(120px, 18vh, 180px);
-  padding: 0 8px;
+  max-width: 720px;
+  height: clamp(140px, 22vh, 220px);
+  padding: 0 4px;
 }
 
 .psd-cinematic-waveform span {
   flex: 1;
-  max-width: 10px;
-  min-height: 12%;
+  max-width: 8px;
+  min-height: 10%;
   border-radius: 999px;
-  background: linear-gradient(180deg, #ff4ecd 0%, #a855f7 48%, #22d3ee 100%);
-  box-shadow: 0 0 14px rgba(168, 85, 247, 0.34);
-  opacity: 0.92;
+  opacity: 0.94;
+}
+
+.psd-cinematic-waveform span:nth-child(-n+24) {
+  background: linear-gradient(180deg, #ff8ae8 0%, #ff4ecd 44%, #c026d3 100%);
+  box-shadow: 0 0 18px rgba(255, 78, 205, 0.48);
+}
+
+.psd-cinematic-waveform span:nth-child(n+25):nth-child(-n+48) {
+  background: linear-gradient(180deg, #e879f9 0%, #a855f7 50%, #7c3aed 100%);
+  box-shadow: 0 0 18px rgba(168, 85, 247, 0.44);
+}
+
+.psd-cinematic-waveform span:nth-child(n+49) {
+  background: linear-gradient(180deg, #a855f7 0%, #6366f1 46%, #22d3ee 100%);
+  box-shadow: 0 0 18px rgba(34, 211, 238, 0.42);
 }
 
 .psd-waveform-visualizer {
-  margin: 8px 0 4px;
+  margin: 10px 0 6px;
 }
 
 .psd-waveform-lyrics {
@@ -11356,7 +11402,7 @@
   margin: 0;
   font-size: clamp(1rem, 2vw, 1.2rem);
   line-height: 1.55;
-  color: rgba(245, 243, 250, 0.88);
+  color: rgba(245, 243, 250, 0.9);
 }
 
 .psd-waveform-dots {
@@ -11364,6 +11410,7 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
+  margin-top: 2px;
 }
 
 .psd-waveform-dots span {
@@ -11379,25 +11426,31 @@
 }
 
 .psd-waveform-progress-wrap {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  gap: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   width: 100%;
-  max-width: 640px;
+  max-width: 720px;
+}
+
+.psd-waveform-progress-times {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
 }
 
 .psd-waveform-time {
   font-size: 12px;
   font-variant-numeric: tabular-nums;
-  color: rgba(245, 243, 250, 0.48);
+  color: rgba(245, 243, 250, 0.88);
 }
 
 .psd-waveform-progress-track {
   position: relative;
-  height: 4px;
+  height: 3px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(124, 58, 237, 0.22);
   touch-action: none;
 }
 
@@ -11410,23 +11463,24 @@
   position: absolute;
   top: 50%;
   left: var(--psd-waveform-progress, 0%);
-  width: 12px;
-  height: 12px;
+  width: 11px;
+  height: 11px;
   transform: translate(-50%, -50%);
   border-radius: 50%;
   background: #a855f7;
-  box-shadow: 0 0 12px rgba(168, 85, 247, 0.45);
+  box-shadow: 0 0 12px rgba(168, 85, 247, 0.5);
   pointer-events: none;
 }
 
 .psd-waveform-progress-fill {
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, #7c3aed, #c49aff);
+  background: #a855f7;
+  box-shadow: 0 0 10px rgba(168, 85, 247, 0.35);
 }
 
 .cinema-player--waveform .psd-player-transport {
-  gap: 24px;
+  gap: 28px;
 }
 
 .cinema-player--waveform .psd-player-transport-btn--shuffle,
@@ -11439,13 +11493,13 @@
 }
 
 .cinema-player--waveform .psd-player-transport-btn--play {
-  width: 72px;
-  height: 72px;
-  background: rgba(8, 8, 14, 0.55);
+  width: 74px;
+  height: 74px;
+  background: rgba(8, 8, 14, 0.58);
   border: 3px solid #a855f7;
   color: #fff;
   box-shadow:
-    0 0 28px rgba(168, 85, 247, 0.34),
+    0 0 30px rgba(168, 85, 247, 0.38),
     inset 0 0 18px rgba(168, 85, 247, 0.12);
 }
 
@@ -11455,9 +11509,8 @@
   align-items: center;
   gap: 18px;
   width: 100%;
-  max-width: 640px;
-  margin-top: auto;
-  padding-top: 8px;
+  max-width: 720px;
+  padding-top: 4px;
 }
 
 .psd-waveform-footer-btn {
@@ -11487,7 +11540,7 @@
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.18em;
-  color: #a855f7;
+  color: rgba(245, 243, 250, 0.92);
 }
 
 .psd-waveform-footer-wave {
@@ -11507,7 +11560,7 @@
 
 .psd-waveform-quality-options {
   width: 100%;
-  max-width: 640px;
+  max-width: 720px;
 }
 
 /* —— Phase 42K: Library page exact PSD reconstruction —— */

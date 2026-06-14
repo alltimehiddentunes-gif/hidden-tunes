@@ -280,8 +280,12 @@ const PSD_WAVEFORM_LYRICS = [
   'City lights paint the sky',
   'Dreams awake as I pass by',
 ] as const
-const PSD_WAVEFORM_BG_POSITION = '50% 42%'
-const PSD_CINEMATIC_WAVEFORM_HEIGHTS = [18, 32, 48, 62, 74, 82, 88, 92, 88, 82, 74, 68, 72, 78, 84, 90, 94, 96, 94, 88, 80, 70, 58, 44, 30, 22, 34, 52, 68, 80, 88, 92, 86, 76, 64, 50, 38, 28, 40, 58, 72, 84, 90, 84, 72, 58, 42, 28] as const
+const PSD_WAVEFORM_BG_POSITION = '50% 38%'
+const PSD_CINEMATIC_WAVEFORM_HEIGHTS = [
+  14, 22, 30, 38, 46, 54, 60, 66, 72, 76, 80, 84, 86, 88, 90, 92, 94, 96, 98, 100, 98, 96, 94, 92,
+  90, 88, 86, 84, 80, 76, 72, 66, 60, 54, 46, 38, 30, 22, 14, 16, 24, 32, 40, 48, 56, 62, 68, 74,
+  78, 82, 86, 88, 90, 92, 94, 96, 94, 92, 90, 88, 86, 82, 78, 74, 68, 62, 56, 48, 40, 32, 24, 16,
+] as const
 
 function PsdCinematicWaveform({ className = '' }: { className?: string }) {
   return (
@@ -5861,10 +5865,10 @@ const CinematicWaveformShell = memo(function CinematicWaveformShell({
 
   return (
     <div
-      className="cinema-player cinema-player--waveform"
+      className="cinema-player cinema-player--waveform cinema-player--live-waveform"
       role="dialog"
       aria-modal="true"
-      aria-label="Cinematic waveform player"
+      aria-label="Live waveform player"
       data-playing={isPlaying && isActive ? 'true' : 'false'}
       data-loading={isLoading && isActive ? 'true' : 'false'}
       data-active={isActive ? 'true' : 'false'}
@@ -5893,13 +5897,14 @@ const CinematicWaveformShell = memo(function CinematicWaveformShell({
         <div className="psd-waveform-topbar-copy">
           <span>PLAYING FROM ALBUM</span>
           <strong>{displayAlbum}</strong>
+          <span className="psd-waveform-topbar-rule" aria-hidden="true" />
         </div>
         <button type="button" className="psd-waveform-topbar-btn" aria-label="More options">
           <PsdIconMore />
         </button>
       </header>
 
-      <div className="psd-waveform-stage">
+      <div className="psd-waveform-hero">
         <div className="psd-waveform-track-copy">
           <h1>{displayTitle}</h1>
           <p>
@@ -5921,14 +5926,15 @@ const CinematicWaveformShell = memo(function CinematicWaveformShell({
             <span key={index} className={index === 1 ? 'is-active' : ''} />
           ))}
         </div>
+      </div>
 
+      <div className="psd-waveform-controls">
         <div
           className="psd-waveform-progress-wrap"
           style={{ ['--psd-waveform-progress' as string]: `${progressPercent}%` }}
           role="group"
           aria-label="Playback progress"
         >
-          <span className="psd-waveform-time">{formatPlaybackTime(progressValue)}</span>
           <div
             ref={progressTrackRef}
             className={
@@ -5949,7 +5955,10 @@ const CinematicWaveformShell = memo(function CinematicWaveformShell({
           >
             <div className="psd-waveform-progress-fill" style={{ width: `${progressPercent}%` }} />
           </div>
-          <span className="psd-waveform-time">{formatPlaybackTime(progressMax)}</span>
+          <div className="psd-waveform-progress-times">
+            <span className="psd-waveform-time">{formatPlaybackTime(progressValue)}</span>
+            <span className="psd-waveform-time">{formatPlaybackTime(progressMax)}</span>
+          </div>
         </div>
 
         <FullPlayerTransportControls activeTrackId={activeTrackId} />
@@ -6801,7 +6810,7 @@ function AppShell() {
           </div>
         </div>
       </div>
-      {activeNavKey !== 'playlists' || activeView !== 'page' ? (
+      {!waveformOpen && (activeNavKey !== 'playlists' || activeView !== 'page') ? (
         <PlayerBar
           track={desktopSelectedTrack}
           onOpenCinema={() => setCinemaOpen(true)}
