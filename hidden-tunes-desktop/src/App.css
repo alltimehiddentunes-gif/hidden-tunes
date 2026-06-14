@@ -5926,3 +5926,76 @@
     animation: none;
   }
 }
+/* —— Premium desktop stabilization (Phase 40B) —— */
+.listening-stage .cinema-entry-btn {
+  position: absolute;
+  top: clamp(10px, 1.4vw, 16px);
+  right: clamp(10px, 1.4vw, 16px);
+  z-index: 3;
+}
+
+.listening-stage .detail-hero--song {
+  position: relative;
+  z-index: 1;
+}
+
+.page-view[data-view="song"] .listening-stage .detail-hero--song .detail-h1 {
+  max-width: 18ch;
+  font-size: clamp(1.65rem, 2.8vw, 2.35rem);
+  font-weight: 600;
+  line-height: 1.08;
+  letter-spacing: -0.04em;
+}
+
+.listening-stage {
+  padding: clamp(10px, 1.4vw, 16px);
+}
+
+.listening-stage .detail-hero--song {
+  margin: 0;
+}
+
+.page-view[data-page="discover"] .discovery-section {
+  margin-bottom: clamp(32px, 4.2vw, 48px);
+}
+
+.page-view[data-page="discover"] .emotional-lanes-section,
+.page-view[data-page="discover"] .scene-listening-section,
+.page-view[data-page="discover"] .radio-foundation-section {
+  margin-bottom: clamp(28px, 3.6vw, 40px);
+}
+
+.queue-rail-context,
+.queue-rail-position,
+.radio-seed-line,
+.emotional-lane-signals,
+.scene-listening-signals {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.listening-context-strip--player .listening-context-atmosphere,
+.listening-context-strip--player .listening-context-insight {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.listening-context-strip--player .listening-context-pill {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cinema-player-context:empty {
+  display: none;
+}
+
+@media (max-width: 980px) {
+  .page-view[data-view="song"] .listening-stage .detail-hero--song .detail-h1 {
+    max-width: 22ch;
+    font-size: clamp(1.45rem, 5.2vw, 1.9rem);
+  }
+}

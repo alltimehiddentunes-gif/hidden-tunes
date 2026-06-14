@@ -3471,17 +3471,22 @@ const CinemaPlayerShell = memo(function CinemaPlayerShell({
               </>
             ) : null}
           </p>
-          <div className="cinema-player-context">
-            {showQueuePosition ? (
-              <span className="cinema-player-queue-pill">
-                {queueLabel} · Track {currentIndex + 1} of {currentQueue.length}
-              </span>
-            ) : null}
-            <ListeningContextStrip
-              lines={cinemaListeningContext}
-              className="listening-context-strip listening-context-strip--cinema"
-            />
-          </div>
+          {showQueuePosition
+            || cinemaListeningContext.atmosphereLine
+            || cinemaListeningContext.contextPills.length > 0
+            || cinemaListeningContext.insightLine ? (
+            <div className="cinema-player-context">
+              {showQueuePosition ? (
+                <span className="cinema-player-queue-pill">
+                  {queueLabel} · Track {currentIndex + 1} of {currentQueue.length}
+                </span>
+              ) : null}
+              <ListeningContextStrip
+                lines={cinemaListeningContext}
+                className="listening-context-strip listening-context-strip--cinema"
+              />
+            </div>
+          ) : null}
           <PlaybackTransportControls
             activeTrackId={displayTrack.id}
             className="cinema-player-controls"

@@ -122,20 +122,27 @@ export function buildListeningContext(input: {
     pills.push(queueTitle)
   }
 
-  if (lane && !pills.some((pill) => pill.includes(lane.label))) {
-    pills.push(`Lane · ${lane.label}`)
-  }
+  const suppressLaneScenePills =
+    queueContext === 'radio'
+    || Boolean(queueTitle?.startsWith('In this scene'))
+    || Boolean(queueTitle?.startsWith('For this mood'))
 
-  if (scene && !pills.some((pill) => pill.includes(scene.label))) {
-    pills.push(`Scene · ${scene.label}`)
+  if (!suppressLaneScenePills) {
+    if (lane && !pills.some((pill) => pill.includes(lane.label))) {
+      pills.push(`Lane · ${lane.label}`)
+    }
+
+    if (scene && !pills.some((pill) => pill.includes(scene.label))) {
+      pills.push(`Scene · ${scene.label}`)
+    }
   }
 
   let atmosphereLine: string | null = null
-  if (scene && lane) {
+  if (!queueTitle && scene && lane) {
     atmosphereLine = `${scene.label} within ${lane.label}`
-  } else if (scene) {
+  } else if (!queueTitle && scene) {
     atmosphereLine = `Set in ${scene.label}`
-  } else if (lane) {
+  } else if (!queueTitle && lane) {
     atmosphereLine = `Carried by ${lane.label}`
   }
 
