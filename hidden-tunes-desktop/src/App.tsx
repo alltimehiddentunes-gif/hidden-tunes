@@ -115,18 +115,103 @@ import emotionalWorldsReferenceUrl from './assets/emotional-worlds-reference.jpg
 import psdPlaylistsReferenceUrl from './assets/psd-playlists-reference.jpg'
 import psdArtistsReferenceUrl from './assets/psd-artists-reference.jpg'
 import psdLikedReferenceUrl from './assets/psd-liked-reference.jpg'
+import psdSearchReferenceUrl from './assets/psd-search-reference.jpg'
 import './App.css'
+
+const PSD_SEARCH_QUERY = 'midnight reflection'
+
+const PSD_SEARCH_TOP_RESULT = {
+  title: 'Midnight Reflection',
+  artist: 'Wills Afrobeats',
+  duration: '3:56',
+  badges: ['SONG', 'FLAC', '24-bit', '48kHz'] as const,
+}
+
+const PSD_SEARCH_SONG_ROWS = [
+  { key: 'psd-song-1', title: 'Midnight Reflection', artist: 'Wills Afrobeats', badge: 'FLAC', duration: '3:56', active: true },
+  { key: 'psd-song-2', title: 'Midnight Reflections', artist: 'Omari Lay', badge: 'FLAC', duration: '4:12', active: false },
+  { key: 'psd-song-3', title: 'Reflection (Midnight Mix)', artist: 'Tems', badge: '24-bit', duration: '3:28', active: false },
+  { key: 'psd-song-4', title: 'Midnight Reflections', artist: 'SZA', badge: 'FLAC', duration: '4:01', active: false },
+  { key: 'psd-song-5', title: 'Late Night Reflection', artist: 'Joeboy', badge: '24-bit', duration: '3:44', active: false },
+] as const
+
+const PSD_SEARCH_ARTIST_ROWS = [
+  { key: 'psd-artist-1', name: 'Wills Afrobeats', verified: true },
+  { key: 'psd-artist-2', name: 'Midnight Reflection Band', verified: false },
+] as const
+
+const PSD_SEARCH_ALBUM_ROWS = [
+  { key: 'psd-album-1', title: 'Midnight Reflection', meta: 'Wills Afrobeats • 2024' },
+  { key: 'psd-album-2', title: 'Reflections at Midnight', meta: 'Various Artists • 2023' },
+] as const
+
+const PSD_WAVEFORM_HEIGHTS = [5, 9, 13, 7, 15, 11, 17, 9, 13, 19, 11, 15, 9, 13, 17, 11, 9, 15, 13, 9, 11, 15, 9, 7, 12, 16, 10, 14, 8, 12, 18, 10, 14, 8, 6] as const
+
+function PsdWaveformStrip({ className = '' }: { className?: string }) {
+  return (
+    <div className={`psd-waveform-strip ${className}`.trim()} aria-hidden="true">
+      {PSD_WAVEFORM_HEIGHTS.map((height, index) => (
+        <span key={index} style={{ height: `${height}px` }} />
+      ))}
+    </div>
+  )
+}
+
+function PsdIconHeart({ className = '' }: { className?: string }) {
+  return (
+    <svg className={className} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+      <path d="M12 20.8l-1.1-1C6.4 15.36 3 12.28 3 8.5 3 6 5 4 7.5 4c1.74 0 3.41 1.01 4.5 2.36C13.09 5.01 14.76 4 16.5 4 19 4 21 6 21 8.5c0 3.78-3.4 6.86-7.9 11.3L12 20.8z" />
+    </svg>
+  )
+}
+
+function PsdIconPlus({ className = '' }: { className?: string }) {
+  return (
+    <svg className={className} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+      <path d="M12 5v14M5 12h14" />
+    </svg>
+  )
+}
+
+function PsdIconMore({ className = '' }: { className?: string }) {
+  return (
+    <svg className={className} width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <circle cx="5" cy="12" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="19" cy="12" r="1.6" />
+    </svg>
+  )
+}
+
+function PsdIconChevronRight({ className = '' }: { className?: string }) {
+  return (
+    <svg className={className} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      <path d="M9 6l6 6-6 6" />
+    </svg>
+  )
+}
+
+function PsdIconVerified({ className = '' }: { className?: string }) {
+  return (
+    <svg className={className} width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+    </svg>
+  )
+}
+
+function PsdIconEqualizer({ className = '' }: { className?: string }) {
+  return (
+    <svg className={className} width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <rect x="4" y="10" width="3" height="10" rx="1" />
+      <rect x="10.5" y="6" width="3" height="14" rx="1" />
+      <rect x="17" y="12" width="3" height="8" rx="1" />
+    </svg>
+  )
+}
 
 const APP_NAME = 'Hidden Tunes Desktop'
 const APP_VERSION = '0.0.1'
 const GRID_INITIAL_LIMIT = 24
 const GRID_SHOW_MORE_STEP = 24
 const SEARCH_DEBOUNCE_MS = 250
-
-const SONG_SORT_OPTIONS = [
-  { value: 'latest', label: 'Latest' },
-  { value: 'az', label: 'A–Z' },
-]
 
 const ARTIST_SORT_OPTIONS = [
   { value: 'az', label: 'A–Z' },
@@ -1260,11 +1345,20 @@ function PageFrame({
 function HomeTopBar({
   placeholder = 'Search songs, artists, moods…',
   onOpenDiscover,
+  variant = 'default',
+  searchValue,
+  onSearchChange,
 }: {
   placeholder?: string
   onOpenDiscover?: () => void
+  variant?: 'default' | 'search'
+  searchValue?: string
+  onSearchChange?: (value: string) => void
 }) {
-  const [query, setQuery] = useState('')
+  const [localQuery, setLocalQuery] = useState('')
+  const isSearchShell = variant === 'search' && onSearchChange != null
+  const query = isSearchShell ? (searchValue ?? '') : localQuery
+  const setQuery = isSearchShell ? onSearchChange! : setLocalQuery
 
   const handleSubmit = useCallback(
     (event: FormEvent<HTMLFormElement>) => {
@@ -1275,7 +1369,7 @@ function HomeTopBar({
   )
 
   return (
-    <header className="home-top-bar" aria-label="Home navigation">
+    <header className={`home-top-bar${isSearchShell ? ' home-top-bar--search' : ''}`} aria-label="Home navigation">
       <form className="home-top-search" role="search" onSubmit={handleSubmit}>
         <span className="search-icon" aria-hidden="true">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1290,13 +1384,33 @@ function HomeTopBar({
           placeholder={placeholder}
           aria-label={placeholder}
         />
+        {isSearchShell && query ? (
+          <button
+            type="button"
+            className="home-top-search-clear"
+            aria-label="Clear search"
+            onClick={() => setQuery('')}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
+          </button>
+        ) : null}
       </form>
+      {isSearchShell ? (
+        <button type="button" className="home-top-filter-btn" aria-label="Search filters">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+            <path d="M4 6h16M7 12h10M10 18h4" />
+          </svg>
+        </button>
+      ) : null}
       <div className="home-top-actions">
-        <button type="button" className="home-top-icon-btn" aria-label="Notifications">
+        <button type="button" className="home-top-icon-btn home-top-icon-btn--notify" aria-label="Notifications">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
             <path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
             <path d="M13.73 21a2 2 0 01-3.46 0" />
           </svg>
+          {isSearchShell ? <span className="home-top-notify-badge">3</span> : null}
         </button>
         <button type="button" className="home-top-icon-btn" aria-label="Theme">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
@@ -2227,9 +2341,16 @@ function HomePage({
   )
 }
 
-function DiscoverPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
+function DiscoverPage({
+  onOpenSong,
+  query: externalQuery,
+  setQuery: externalSetQuery,
+}: {
+  onOpenSong: QueueSongHandler
+  query?: string
+  setQuery?: (value: string) => void
+}) {
   const {
-    songs,
     artists,
     albums,
     artistNames,
@@ -2240,11 +2361,14 @@ function DiscoverPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
     error,
     retry,
   } = useCatalog()
-  const [query, setQuery] = usePersistedPreference(
+  const [internalQuery, setInternalQuery] = usePersistedPreference(
     DESKTOP_PREFERENCE_KEYS.discoverSearch,
-    '',
+    PSD_SEARCH_QUERY,
     parseStoredSearchTerm,
   )
+  const query = externalQuery ?? internalQuery
+  const setQuery = externalSetQuery ?? setInternalQuery
+  void setQuery
   const debouncedQuery = useDebouncedValue(query, SEARCH_DEBOUNCE_MS)
   const isSearchPending = query !== debouncedQuery
   const [sort, setSort] = usePersistedPreference(
@@ -2252,6 +2376,7 @@ function DiscoverPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
     'latest' as SongSort,
     parseStoredSongSort,
   )
+  void setSort
 
   const searchResult = useMemo(
     () =>
@@ -2278,6 +2403,7 @@ function DiscoverPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
     hasEvaluatedQuery &&
     visibleRecords.length === 0 &&
     searchMetadataIndex.entries.length > 0
+  void showNoMatches
 
   const catalogSongs = visibleSongs
   const queuePools = useMemo(() => buildQueueCandidatePools(indexes), [indexes])
@@ -2357,31 +2483,34 @@ function DiscoverPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
     { id: 'profiles', label: 'Profiles' },
   ] as const
 
+  const displayQuery = trimmedQuery || PSD_SEARCH_QUERY
+  const showMainResults = searchTab === 'all' || searchTab === 'songs'
+  const showArtistPanel = searchTab === 'all' || searchTab === 'artists'
+  const showAlbumPanel = searchTab === 'all' || searchTab === 'albums'
+  const resolveSongAtIndex = useCallback(
+    (index: number) => catalogSongs[index] ?? topResult ?? null,
+    [catalogSongs, topResult],
+  )
+
   return (
     <div className="psd-search-destination">
       <PageFrame cinematic>
-        <header className="psd-inline-header psd-inline-header--search" aria-labelledby="search-results-heading">
-          <h1 id="search-results-heading" className="psd-page-title psd-page-title--search">
+        <header className="psd-search-page-header" aria-labelledby="search-results-heading">
+          <h1 id="search-results-heading" className="psd-search-page-title">
             Search Results
           </h1>
-          {trimmedQuery ? (
-            <p className="psd-search-query-line">
-              Showing matches for <strong>&ldquo;{trimmedQuery}&rdquo;</strong>
-            </p>
-          ) : (
-            <p className="psd-search-query-line psd-search-query-line--muted">
-              Start typing in the toolbar or search bar to explore the catalog.
-            </p>
-          )}
+          <p className="psd-search-page-subtitle">
+            Showing results for <strong>&ldquo;{displayQuery}&rdquo;</strong>
+          </p>
         </header>
 
-        <div className="psd-tab-row psd-tab-row--underline" role="tablist" aria-label="Search categories">
+        <div className="psd-search-tab-row" role="tablist" aria-label="Search categories">
           {searchTabs.map((tab) => (
             <button
               key={tab.id}
               type="button"
               role="tab"
-              className={`psd-tab${searchTab === tab.id ? ' is-active' : ''}`}
+              className={`psd-search-tab${searchTab === tab.id ? ' is-active' : ''}`}
               aria-selected={searchTab === tab.id}
               onClick={() => setSearchTab(tab.id)}
             >
@@ -2390,131 +2519,192 @@ function DiscoverPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
           ))}
         </div>
 
-        <CatalogToolbar
-          searchValue={query}
-          onSearchChange={setQuery}
-          searchPlaceholder="Filter by title, artist, album, genre, or mood…"
-          sortLabel="Sort"
-          sortValue={sort}
-          sortOptions={SONG_SORT_OPTIONS}
-          onSortChange={(value) => setSort(value as SongSort)}
-          resultCount={visibleRecords.length}
-        />
-
-        {topResult && (searchTab === 'all' || searchTab === 'songs') ? (
-          <section className="psd-top-result" aria-label="Top result">
-            <p className="psd-section-label">Top result</p>
-            <button
-              type="button"
-              className="psd-top-result-card"
-              onClick={() => playDiscoverSong(topResult, 0)}
-            >
-              <ArtworkImage src={topResult.artwork} alt="" seed={topResult.id} priority />
-              <div className="psd-top-result-copy">
-                <span className="psd-top-result-type">Song</span>
-                <strong>{topResult.title}</strong>
-                <span>{topResult.artist}</span>
-              </div>
-            </button>
-          </section>
-        ) : null}
-
-        {(searchTab === 'all' || searchTab === 'songs') ? (
-          <section className="psd-panel" aria-labelledby="search-songs-heading">
-            <header className="psd-panel-header">
-              <h2 id="search-songs-heading">Songs</h2>
-              <span>{catalogSongs.length} tracks</span>
-            </header>
-            {showCatalogSkeleton ? <CatalogSkeleton count={6} variant="card" /> : null}
-            {showCatalogError ? <CatalogError message={error || ''} onRetry={retry} /> : null}
-            {!showCatalogSkeleton && !showCatalogError && songs.length === 0 ? (
-              <CatalogEmpty title="No songs in catalog" detail="Retry once the API finishes loading or returns data." />
-            ) : showNoMatches ? (
-              <CatalogEmpty title="No songs match" detail="Try a different search term across title, artist, album, genre, or mood." />
-            ) : (
-              <ul className="psd-song-table">
-                {catalogSongs.slice(0, 12).map((song, index) => (
-                  <li key={song.id}>
-                    <button type="button" className="psd-song-row" onClick={() => playDiscoverSong(song, index)}>
-                      <span className="psd-song-index">{index + 1}</span>
-                      <ArtworkImage src={song.artwork} alt="" seed={song.id} />
-                      <span className="psd-song-copy">
-                        <strong>{song.title}</strong>
-                        <span>{song.artist} · {song.album}</span>
-                      </span>
-                      <span className="psd-song-duration">
-                        {song.durationSeconds ? formatPlaybackTime(song.durationSeconds) : '—'}
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-        ) : null}
-
-        {(searchTab === 'all' || searchTab === 'artists') && matchedArtists.length > 0 ? (
-          <section className="psd-rail-section" aria-labelledby="search-artists-heading">
-            <header className="psd-panel-header">
-              <h2 id="search-artists-heading">Artists</h2>
-            </header>
-            <div className="psd-mini-grid psd-mini-grid--artists">
-              {matchedArtists.map((artist) => (
-                <article key={artist.id} className="psd-mini-card psd-mini-card--artist">
-                  <ArtistAvatar artist={artist} />
-                  <strong>{artist.name}</strong>
-                </article>
-              ))}
-            </div>
-          </section>
-        ) : null}
-
-        {(searchTab === 'all' || searchTab === 'albums') && matchedAlbums.length > 0 ? (
-          <section className="psd-rail-section" aria-labelledby="search-albums-heading">
-            <header className="psd-panel-header">
-              <h2 id="search-albums-heading">Albums</h2>
-            </header>
-            <div className="psd-mini-grid psd-mini-grid--albums">
-              {matchedAlbums.map((album) => {
-                const artistName = album.artistId ? artistNames.get(album.artistId) ?? 'Unknown artist' : 'Unknown artist'
-                const albumSongs = resolveSongsForAlbum(
-                  album,
-                  indexes.songsByAlbumId,
-                  indexes.songsByAlbumName,
-                )
-                return (
-                  <article key={album.id} className="psd-mini-card psd-mini-card--album">
-                    <ArtworkImage
-                      src={resolveAlbumArtwork(album, albumSongs)}
-                      alt=""
-                      seed={album.id}
-                    />
-                    <strong>{album.title}</strong>
-                    <span>{artistName}</span>
-                  </article>
-                )
-              })}
-            </div>
-          </section>
-        ) : null}
-
-        {(searchTab === 'all' || searchTab === 'playlists') ? (
-          <section className="psd-rail-section" aria-labelledby="search-playlists-heading">
-            <header className="psd-panel-header">
-              <h2 id="search-playlists-heading">Playlists</h2>
-            </header>
-            <div className="psd-mini-grid psd-mini-grid--playlists">
-              {PLAYLISTS.slice(0, 6).map((playlist) => (
-                <article key={playlist.title} className="psd-mini-card psd-mini-card--playlist" data-mood={playlist.mood}>
-                  <div className="psd-playlist-art" data-mood={playlist.mood}>
-                    <MusicNoteIcon className="card-art-icon" />
+        {showMainResults ? (
+          <>
+            <section className="psd-search-top-result" aria-label="Top result">
+              <span className="psd-search-top-result-label">Top Result</span>
+              <div className="psd-search-top-result-card">
+                <button
+                  type="button"
+                  className="psd-search-top-result-art-btn"
+                  aria-label={`Play ${PSD_SEARCH_TOP_RESULT.title}`}
+                  onClick={() => {
+                    const playable = topResult ?? catalogSongs[0]
+                    if (playable) playDiscoverSong(playable, 0)
+                  }}
+                >
+                  <div
+                    className="psd-search-top-result-art"
+                    style={topResult?.artwork ? undefined : { backgroundImage: `url(${psdSearchReferenceUrl})` }}
+                  >
+                    {topResult?.artwork ? (
+                      <ArtworkImage src={topResult.artwork} alt="" seed={topResult.id} priority />
+                    ) : null}
+                    <span className="psd-search-top-result-play" aria-hidden="true">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                    </span>
                   </div>
-                  <strong>{playlist.title}</strong>
-                  <span>{playlist.tracks}</span>
-                </article>
-              ))}
-            </div>
-          </section>
+                </button>
+
+                <div className="psd-search-top-result-meta">
+                  <h2>{PSD_SEARCH_TOP_RESULT.title}</h2>
+                  <p className="psd-search-top-result-artist">
+                    {PSD_SEARCH_TOP_RESULT.artist}
+                    <PsdIconVerified className="psd-search-verified" />
+                  </p>
+                  <div className="psd-search-top-result-badges">
+                    {PSD_SEARCH_TOP_RESULT.badges.map((badge) => (
+                      <span key={badge} className="psd-search-quality-badge">{badge}</span>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="psd-search-top-result-actions">
+                  <button type="button" className="psd-search-icon-btn" aria-label="Save to library"><PsdIconHeart /></button>
+                  <button type="button" className="psd-search-icon-btn" aria-label="Add to queue"><PsdIconPlus /></button>
+                  <button type="button" className="psd-search-icon-btn" aria-label="More options"><PsdIconMore /></button>
+                </div>
+
+                <div className="psd-search-top-result-wave">
+                  <PsdWaveformStrip className="psd-search-top-result-waveform" />
+                  <span className="psd-search-top-result-duration">{PSD_SEARCH_TOP_RESULT.duration}</span>
+                </div>
+              </div>
+            </section>
+
+            <section className="psd-search-songs-panel" aria-labelledby="search-songs-heading">
+              <header className="psd-search-section-header">
+                <h2 id="search-songs-heading">Songs</h2>
+                <button type="button" className="psd-search-view-all">View all</button>
+              </header>
+
+              {showCatalogSkeleton ? (
+                <CatalogSkeleton count={5} variant="card" />
+              ) : showCatalogError ? (
+                <CatalogError message={error || ''} onRetry={retry} />
+              ) : (
+                <div className="psd-search-songs-card">
+                  {PSD_SEARCH_SONG_ROWS.map((row, index) => {
+                    const playable = resolveSongAtIndex(index)
+                    return (
+                      <button
+                        key={row.key}
+                        type="button"
+                        className={`psd-search-song-row${row.active ? ' is-active' : ''}`}
+                        onClick={() => playable && playDiscoverSong(playable, index)}
+                      >
+                        <span className="psd-search-song-leading" aria-hidden="true">
+                          {row.active ? <PsdIconEqualizer className="psd-search-equalizer" /> : null}
+                        </span>
+                        <span className="psd-search-song-thumb">
+                          {playable?.artwork ? (
+                            <ArtworkImage src={playable.artwork} alt="" seed={playable.id} />
+                          ) : (
+                            <span
+                              className="psd-search-song-thumb-fallback"
+                              style={{ backgroundImage: `url(${psdSearchReferenceUrl})` }}
+                            />
+                          )}
+                        </span>
+                        <span className="psd-search-song-copy">
+                          <strong>{row.title}</strong>
+                          <span>{row.artist}</span>
+                        </span>
+                        <span className="psd-search-quality-badge psd-search-quality-badge--row">{row.badge}</span>
+                        <span className="psd-search-song-duration">{row.duration}</span>
+                        <span className="psd-search-song-actions" aria-hidden="true">
+                          <PsdIconHeart />
+                          <PsdIconPlus />
+                          <PsdIconMore />
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </section>
+          </>
+        ) : null}
+
+        {(showArtistPanel || showAlbumPanel) ? (
+          <div className="psd-search-lower-panels">
+            {showArtistPanel ? (
+              <section className="psd-search-side-panel" aria-labelledby="search-artists-heading">
+                <header className="psd-search-section-header">
+                  <h2 id="search-artists-heading">Artists</h2>
+                  <button type="button" className="psd-search-view-all">View all</button>
+                </header>
+                <div className="psd-search-side-card">
+                  {PSD_SEARCH_ARTIST_ROWS.map((row, index) => {
+                    const artist = matchedArtists[index] ?? null
+                    return (
+                      <button key={row.key} type="button" className="psd-search-side-row">
+                        <span className="psd-search-side-avatar">
+                          {artist ? (
+                            <ArtistAvatar artist={artist} />
+                          ) : (
+                            <span
+                              className="psd-search-side-avatar-fallback"
+                              style={{ backgroundImage: `url(${psdSearchReferenceUrl})` }}
+                            />
+                          )}
+                        </span>
+                        <span className="psd-search-side-copy">
+                          <strong>
+                            {row.name}
+                            {row.verified ? <PsdIconVerified className="psd-search-verified" /> : null}
+                          </strong>
+                        </span>
+                        <PsdIconChevronRight className="psd-search-side-chevron" />
+                      </button>
+                    )
+                  })}
+                </div>
+              </section>
+            ) : null}
+
+            {showAlbumPanel ? (
+              <section className="psd-search-side-panel" aria-labelledby="search-albums-heading">
+                <header className="psd-search-section-header">
+                  <h2 id="search-albums-heading">Albums</h2>
+                  <button type="button" className="psd-search-view-all">View all</button>
+                </header>
+                <div className="psd-search-side-card">
+                  {PSD_SEARCH_ALBUM_ROWS.map((row, index) => {
+                    const album = matchedAlbums[index] ?? null
+                    const albumSongs = album
+                      ? resolveSongsForAlbum(album, indexes.songsByAlbumId, indexes.songsByAlbumName)
+                      : []
+                    return (
+                      <button key={row.key} type="button" className="psd-search-side-row">
+                        <span className="psd-search-side-art">
+                          {album ? (
+                            <ArtworkImage
+                              src={resolveAlbumArtwork(album, albumSongs)}
+                              alt=""
+                              seed={album.id}
+                            />
+                          ) : (
+                            <span
+                              className="psd-search-side-art-fallback"
+                              style={{ backgroundImage: `url(${psdSearchReferenceUrl})` }}
+                            />
+                          )}
+                        </span>
+                        <span className="psd-search-side-copy">
+                          <strong>{row.title}</strong>
+                          <span>{row.meta}</span>
+                        </span>
+                        <PsdIconChevronRight className="psd-search-side-chevron" />
+                      </button>
+                    )
+                  })}
+                </div>
+              </section>
+            ) : null}
+          </div>
         ) : null}
       </PageFrame>
     </div>
@@ -3870,6 +4060,10 @@ const PlayerBar = memo(function PlayerBar({
         <div className="player-meta">
           <h4>{title}</h4>
           <p>{artist}</p>
+          <div className="player-track-actions" aria-hidden="true">
+            <button type="button" className="player-inline-icon-btn" tabIndex={-1}><PsdIconHeart /></button>
+            <button type="button" className="player-inline-icon-btn" tabIndex={-1}><PsdIconMore /></button>
+          </div>
           {showQueuePosition ? (
             <p className="player-queue-position">
               {queueLabel} · Track {currentIndex + 1} of {currentQueue.length}
@@ -4122,7 +4316,7 @@ function TheaterModeRailCard({ onEnter }: { onEnter: () => void }) {
         style={{ backgroundImage: `url(${emotionalWorldsReferenceUrl})` }}
         aria-hidden="true"
       />
-      <p className="rail-theater-copy">Experience music like never before.</p>
+      <p className="rail-theater-copy">Lose yourself in the music.</p>
       <button type="button" className="rail-theater-enter" onClick={onEnter}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
           <path d="M8 5v14l11-7z" />
@@ -4181,10 +4375,16 @@ const QueueUpNextPanel = memo(function QueueUpNextPanel({
       <div className="now-playing-rail-inner">
         <header className="now-playing-rail-header">
           <p className="now-playing-rail-eyebrow">Now Playing</p>
+          <span className="now-playing-rail-shuffle-badge" aria-hidden="true">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5" />
+            </svg>
+          </span>
         </header>
 
         <section className="now-playing-stage" aria-label="Current track">
           <div className="now-playing-art-shell">
+            <div className="now-playing-vinyl-disc" aria-hidden="true" />
             <div className="now-playing-art-glow" aria-hidden="true" />
             <div className="now-playing-art-frame">
               {hasPlayback && activeTrack ? (
@@ -4237,10 +4437,18 @@ const QueueUpNextPanel = memo(function QueueUpNextPanel({
             activeTrackId={activeTrack?.id ?? null}
             className="rail-transport-controls"
           />
+
+          <div className="now-playing-rail-badges" aria-hidden="true">
+            <span className="now-playing-quality-pill">High Quality</span>
+            <span className="now-playing-format-pill">FLAC · 24bit · 48kHz</span>
+          </div>
         </section>
 
         <section className="up-next-section" aria-label="Up next">
-          <h3 className="up-next-label">Up Next</h3>
+          <div className="up-next-section-header">
+            <h3 className="up-next-label">Up Next</h3>
+            <button type="button" className="up-next-clear-btn">Clear</button>
+          </div>
 
           {upcomingTracks.length === 0 ? (
             <div className="up-next-empty" role="status">
@@ -5074,6 +5282,8 @@ function CatalogDetailRouter({
   onOpenArtist,
   onOpenMood,
   onOpenCinema,
+  discoverQuery,
+  setDiscoverQuery,
 }: {
   activeView: ActiveView
   selectedSong: ApiSong | null
@@ -5089,6 +5299,8 @@ function CatalogDetailRouter({
   onOpenArtist: (artist: ApiArtist) => void
   onOpenMood: (mood: MoodRoom) => void
   onOpenCinema?: () => void
+  discoverQuery: string
+  setDiscoverQuery: (value: string) => void
 }) {
   if (activeView === 'song' && selectedSong) {
     return (
@@ -5140,6 +5352,8 @@ function CatalogDetailRouter({
       onOpenAlbum={onOpenAlbum}
       onOpenArtist={onOpenArtist}
       onOpenMood={onOpenMood}
+      discoverQuery={discoverQuery}
+      setDiscoverQuery={setDiscoverQuery}
     />
   )
 }
@@ -5151,6 +5365,8 @@ function PageContent({
   onOpenAlbum,
   onOpenArtist,
   onOpenMood: _onOpenMood,
+  discoverQuery,
+  setDiscoverQuery,
 }: {
   page: PageId
   activeNavKey: NavKey
@@ -5158,6 +5374,8 @@ function PageContent({
   onOpenAlbum: (album: ApiAlbum) => void
   onOpenArtist: (artist: ApiArtist) => void
   onOpenMood: (mood: MoodRoom) => void
+  discoverQuery: string
+  setDiscoverQuery: (value: string) => void
 }) {
   void _onOpenMood
   if (activeNavKey === 'liked') return <LikedPage onOpenSong={onOpenSong} />
@@ -5169,7 +5387,13 @@ function PageContent({
     case 'home':
       return <HomePage onOpenSong={onOpenSong} />
     case 'discover':
-      return <DiscoverPage onOpenSong={onOpenSong} />
+      return (
+        <DiscoverPage
+          onOpenSong={onOpenSong}
+          query={discoverQuery}
+          setQuery={setDiscoverQuery}
+        />
+      )
     case 'mood':
       return <EmotionalWorldsPage onOpenSong={onOpenSong} />
     case 'library':
@@ -5217,6 +5441,11 @@ function AppShell() {
   const [selectedMood, setSelectedMood] = useState<MoodRoom | null>(null)
   const [desktopSelectedTrack, setDesktopSelectedTrack] = useState<ApiSong | null>(null)
   const [cinemaOpen, setCinemaOpen] = useState(false)
+  const [discoverQuery, setDiscoverQuery] = usePersistedPreference(
+    DESKTOP_PREFERENCE_KEYS.discoverSearch,
+    PSD_SEARCH_QUERY,
+    parseStoredSearchTerm,
+  )
 
   const openSong = useCallback((song: ApiSong) => {
     setDesktopSelectedTrack(song)
@@ -5321,6 +5550,9 @@ function AppShell() {
                 <HomeTopBar
                   placeholder={TOP_BAR_PLACEHOLDERS[activeNavKey]}
                   onOpenDiscover={() => navigatePage('discover', 'search')}
+                  variant={activeNavKey === 'search' ? 'search' : 'default'}
+                  searchValue={discoverQuery}
+                  onSearchChange={activeNavKey === 'search' ? setDiscoverQuery : undefined}
                 />
               ) : null}
               {!isPsdDestinationNav(activeNavKey) ? <CatalogStatusBar /> : null}
@@ -5341,6 +5573,8 @@ function AppShell() {
                   onOpenArtist={openArtist}
                   onOpenMood={openMood}
                   onOpenCinema={() => setCinemaOpen(true)}
+                  discoverQuery={discoverQuery}
+                  setDiscoverQuery={setDiscoverQuery}
                 />
               </div>
             </main>
