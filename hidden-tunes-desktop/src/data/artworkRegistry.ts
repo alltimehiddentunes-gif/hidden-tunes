@@ -1,13 +1,13 @@
 /**
- * Desktop artwork registry — standalone assets per entity type.
- * PSD *-reference.jpg files are design references only and must never appear here.
+ * Desktop UI artwork registry — heroes, playlists, worlds, player backgrounds, premium.
+ * Catalog song/album/artist artwork comes from API fields only.
+ * PSD *-reference.jpg files are design references and must never appear here.
  */
 
 import type { ApiAlbum, ApiArtist, ApiSong } from '../lib/api'
 import artistWillsAfrobeats from '../assets/artwork/artists/artist-wills-afrobeats.svg'
 import artistCaasiWills from '../assets/artwork/artists/artist-caasi-wills.svg'
 import artistPlaceholder from '../assets/artwork/artists/artist-placeholder.svg'
-import playerBackground from '../assets/artwork/players/player-background.svg'
 
 export type PlayerBackgroundType =
   | 'master'
@@ -17,6 +17,10 @@ export type PlayerBackgroundType =
   | 'player5'
   | 'waveform'
   | 'lyrics'
+
+export type HeroArtworkKey = 'home' | 'emotional-worlds' | 'discover'
+
+export type PremiumArtworkKey = 'default' | 'hero'
 
 export type PlaylistArtworkInput = {
   id?: string | null
@@ -40,149 +44,98 @@ export function normalizeArtworkKey(value: string | null | undefined): string {
     .trim()
 }
 
-function artistScopedAlbumKey(albumTitle: string, artistName: string) {
-  return `${normalizeArtworkKey(artistName)}::${normalizeArtworkKey(albumTitle)}`
-}
-
 export function isValidArtworkUrl(value: string | null | undefined): value is string {
   if (typeof value !== 'string') return false
   const trimmed = value.trim()
   return trimmed.startsWith('http') || trimmed.startsWith('/') || trimmed.startsWith('data:')
 }
 
-/** Song title/id → bundled song cover (null = pending export) */
-export const songArtwork: Record<string, string | null> = {
-  'midnight reflection': null,
-  'falling slowly': null,
-  'afro sunset': null,
-  'love vibes': null,
-  'rain reflection': null,
-  'night drive': null,
+/** Home / page hero banners */
+export const heroArtwork: Record<HeroArtworkKey, string> = {
+  home: '/artwork/heroes/hero-afrobeats-celebration.jpg',
+  'emotional-worlds': '/artwork/heroes/hero-golden-peaks.jpg',
+  discover: '/artwork/heroes/hero-afrobeats-celebration.jpg',
 }
 
-/** Album title/id → bundled album cover (null = pending export) */
-export const albumArtwork: Record<string, string | null> = {
-  'reflections at midnight': null,
-  'afro sunrise': null,
-  'vibes from lagos': null,
-  'love rhythm': null,
-  'the beginning': null,
+/** Playlist title/id → standalone cover art */
+export const playlistCovers: Record<string, string> = {
+  'night drive': '/artwork/playlists/playlist-night-drive.jpg',
+  'late night drive': '/artwork/playlists/playlist-night-drive.jpg',
+  'chill vibes': '/artwork/playlists/playlist-neon-rain-lofi.jpg',
+  'chill & relax': '/artwork/playlists/playlist-neon-rain-lofi.jpg',
+  'rainy day comfort': '/artwork/playlists/playlist-neon-rain-lofi.jpg',
+  'deep focus': '/artwork/worlds/world-late-night-focus.jpg',
+  'jazz cafe': '/artwork/worlds/world-serene-waterfall.jpg',
+  'jazz café': '/artwork/worlds/world-serene-waterfall.jpg',
+  'afro vibes': '/artwork/worlds/world-afro-sunset-savanna.jpg',
+  'workout mix': '/artwork/heroes/hero-afrobeats-celebration.jpg',
 }
 
-/** Artist name/id → standalone portrait asset (never song/album art) */
+/** Emotional world scene/title → standalone world art */
+export const worldArtwork: Record<string, string> = {
+  'rainy-window': '/artwork/worlds/world-midnight-lake.jpg',
+  'midnight reflection': '/artwork/worlds/world-midnight-lake.jpg',
+  'city rain': '/artwork/worlds/world-midnight-lake.jpg',
+  'sunday-morning': '/artwork/worlds/world-afro-sunset-savanna.jpg',
+  'afro sunset': '/artwork/worlds/world-afro-sunset-savanna.jpg',
+  'heartbreak-recovery': '/artwork/worlds/world-serene-waterfall.jpg',
+  'healing slowly': '/artwork/worlds/world-serene-waterfall.jpg',
+  'melancholy bloom': '/artwork/worlds/world-serene-waterfall.jpg',
+  'midnight-drive': '/artwork/playlists/playlist-night-drive.jpg',
+  'night drive': '/artwork/playlists/playlist-night-drive.jpg',
+  'city-lights': '/artwork/heroes/hero-golden-peaks.jpg',
+  'sunset glow': '/artwork/worlds/world-afro-sunset-savanna.jpg',
+  'ocean dreams': '/artwork/worlds/world-midnight-lake.jpg',
+  'focus-room': '/artwork/worlds/world-late-night-focus.jpg',
+  'velvet emotions': '/artwork/worlds/world-serene-waterfall.jpg',
+  'uplift boost': '/artwork/heroes/hero-afrobeats-celebration.jpg',
+}
+
+/** Full-screen player / lyrics / waveform backgrounds */
+export const playerBackgrounds: Record<PlayerBackgroundType, string> = {
+  master: '/artwork/player-backgrounds/player-bg-neon-cyberpunk.jpg',
+  player2: '/artwork/worlds/world-midnight-lake.jpg',
+  player3: '/artwork/heroes/hero-golden-peaks.jpg',
+  player4: '/artwork/worlds/world-late-night-focus.jpg',
+  player5: '/artwork/player-backgrounds/auto-player-backgrounds-21.jpg',
+  waveform: '/artwork/worlds/world-midnight-lake.jpg',
+  lyrics: '/artwork/worlds/world-serene-waterfall.jpg',
+}
+
+/** Premium screen hero / feature art */
+export const premiumArtwork: Record<PremiumArtworkKey, string> = {
+  default: '/artwork/premium/premium-spiritual-immersion.jpg',
+  hero: '/artwork/premium/premium-spiritual-immersion.jpg',
+}
+
+/** Artist name/id → standalone portrait (never song/album art) */
 export const artistPortraits: Record<string, string> = {
   'wills afrobeats': artistWillsAfrobeats,
   'caasi wills': artistCaasiWills,
 }
 
-/** Playlist title/id → bundled playlist cover (null = pending export) */
-export const playlistCovers: Record<string, string | null> = {
-  'night drive': null,
-  'chill vibes': null,
-  'jazz cafe': null,
-  'deep focus': null,
-}
-
-/** World id/title → bundled world artwork (null = pending export) */
-export const worldArtwork: Record<string, string | null> = {
-  'rainy window': null,
-  'midnight reflection': null,
-  'sunday morning': null,
-  'afro sunset': null,
-  'heartbreak recovery': null,
-  'healing slowly': null,
-  'midnight drive': null,
-  'night drive': null,
-}
-
-/** Standalone player/theater backgrounds — never song/album/artist portraits */
-export const playerBackgrounds: Record<PlayerBackgroundType, string> = {
-  master: playerBackground,
-  player2: playerBackground,
-  player3: playerBackground,
-  player4: playerBackground,
-  player5: playerBackground,
-  waveform: playerBackground,
-  lyrics: playerBackground,
-}
-
 const artistPortraitById: Record<string, string> = {}
 
-function lookupById(idMap: Record<string, string | null>, id?: string | null) {
+function lookupById(idMap: Record<string, string>, id?: string | null): string | null {
   if (!id) return null
-  const hit = idMap[id]
-  return hit ?? null
+  return idMap[id] ?? null
 }
 
-function lookupByName(map: Record<string, string | null>, name?: string | null) {
+function lookupByName(map: Record<string, string>, name?: string | null): string | null {
   if (!name) return null
   return map[normalizeArtworkKey(name)] ?? null
 }
 
-function lookupPortraitByName(name?: string | null): string | null {
-  if (!name) return null
-  return artistPortraits[normalizeArtworkKey(name)] ?? null
+export function resolveHeroArtwork(key: HeroArtworkKey = 'home'): string {
+  return heroArtwork[key] ?? heroArtwork.home
 }
 
-function lookupAlbumScoped(
-  albumTitle: string,
-  artistName?: string | null,
-): string | null {
-  if (!artistName) return null
-  const key = artistScopedAlbumKey(albumTitle, artistName)
-  return albumArtwork[key] ?? null
-}
-
-export function resolveSongArtwork(song: ApiSong | null | undefined): string | null {
-  if (!song) return null
-
-  const byId = lookupById(songArtwork, song.id)
-  if (byId) return byId
-
-  const byTitle = lookupByName(songArtwork, song.title)
-  if (byTitle) return byTitle
-
-  if (isValidArtworkUrl(song.artwork)) return song.artwork.trim()
-
-  return null
-}
-
-export function resolveAlbumArtwork(
-  album: ApiAlbum | null | undefined,
-  artistName?: string | null,
-): string | null {
-  if (!album) return null
-
-  const byId = lookupById(albumArtwork, album.id)
-  if (byId) return byId
-
-  const scoped = lookupAlbumScoped(album.title, artistName)
-  if (scoped) return scoped
-
-  const byTitle = lookupByName(albumArtwork, album.title)
-  if (byTitle) return byTitle
-
-  if (isValidArtworkUrl(album.artwork)) return album.artwork.trim()
-
-  return null
-}
-
-export function resolveArtistPortrait(artist: ApiArtist | null | undefined): string | null {
-  if (!artist) return null
-
-  const byId = artistPortraitById[artist.id] ?? lookupById(artistPortraits, artist.id)
-  if (byId) return byId
-
-  const byName = lookupPortraitByName(artist.name)
-  if (byName) return byName
-
-  if (isValidArtworkUrl(artist.artwork)) return artist.artwork.trim()
-
-  return artistPlaceholder
+export function resolvePremiumArtwork(key: PremiumArtworkKey = 'default'): string {
+  return premiumArtwork[key] ?? premiumArtwork.default
 }
 
 export function resolvePlaylistCover(playlist: PlaylistArtworkInput): string | null {
-  const byId = lookupById(playlistCovers, playlist.id)
+  const byId = lookupById(playlistCovers, playlist.id ?? undefined)
   if (byId) return byId
 
   const byTitle = lookupByName(playlistCovers, playlist.title)
@@ -197,6 +150,11 @@ export function resolveWorldArtwork(world: WorldArtworkInput): string | null {
   if (world.id) {
     const byId = lookupById(worldArtwork, world.id)
     if (byId) return byId
+    const byScene = lookupById(worldArtwork, world.sceneId ?? undefined)
+    if (byScene) return byScene
+  }
+
+  if (world.sceneId) {
     const byScene = lookupById(worldArtwork, world.sceneId)
     if (byScene) return byScene
   }
@@ -211,16 +169,37 @@ export function resolvePlayerBackground(type: PlayerBackgroundType): string {
   return playerBackgrounds[type]
 }
 
+/** Catalog song artwork only — no UI registry fallback */
+export function resolveSongArtwork(song: ApiSong | null | undefined): string | null {
+  if (!song) return null
+  if (isValidArtworkUrl(song.artwork)) return song.artwork.trim()
+  return null
+}
+
+/** Catalog album artwork only — no UI registry fallback */
+export function resolveAlbumArtwork(
+  album: ApiAlbum | null | undefined,
+  _artistName?: string | null,
+): string | null {
+  if (!album) return null
+  if (isValidArtworkUrl(album.artwork)) return album.artwork.trim()
+  return null
+}
+
+export function resolveArtistPortrait(artist: ApiArtist | null | undefined): string | null {
+  if (!artist) return null
+
+  const byId = artistPortraitById[artist.id] ?? lookupById(artistPortraits, artist.id)
+  if (byId) return byId
+
+  const byName = lookupByName(artistPortraits, artist.name)
+  if (byName) return byName
+
+  if (isValidArtworkUrl(artist.artwork)) return artist.artwork.trim()
+
+  return artistPlaceholder
+}
+
 export function listMissingRegistryAssets(): string[] {
-  const pending: string[] = []
-  const scan = (label: string, map: Record<string, string | null>) => {
-    for (const [key, value] of Object.entries(map)) {
-      if (!value) pending.push(`${label}/${key}`)
-    }
-  }
-  scan('songs', songArtwork)
-  scan('albums', albumArtwork)
-  scan('playlists', playlistCovers)
-  scan('worlds', worldArtwork)
-  return pending
+  return []
 }

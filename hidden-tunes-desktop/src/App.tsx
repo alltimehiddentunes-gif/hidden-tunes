@@ -54,6 +54,8 @@ import {
   getArtworkForPlaylist,
   getArtworkForPlaylistCollage,
   getArtworkForWorld,
+  getArtworkForHero,
+  getArtworkForPremium,
   resolvePlayerBackground,
   type ArtworkContext,
   buildArtworkContext,
@@ -124,7 +126,6 @@ import {
 } from './lib/listeningContext'
 import { type NowPlayingStyle } from './lib/nowPlayingStyle'
 import { useAutoOpenPreferredPlayer } from './lib/useAutoOpenPreferredPlayer'
-import heroPhotoUrl from './assets/hero.png'
 import './App.css'
 
 const PSD_SEARCH_QUERY = 'midnight reflection'
@@ -2339,7 +2340,7 @@ function Hero() {
     <section className="hero hero--psd" aria-label="Tonight's listening invitation">
       <img
         className="hero-photo"
-        src={heroPhotoUrl}
+        src={getArtworkForHero('home')}
         alt=""
         aria-hidden="true"
         decoding="async"
@@ -3173,15 +3174,7 @@ function EmotionalWorldsPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
     [indexes, onOpenSong, queuePools, songs],
   )
 
-  const heroWorldArt = useMemo(() => {
-    const card = visibleCards[0]
-    if (!card) return null
-    return getArtworkForWorld(
-      { id: card.sceneId, title: card.title, sceneId: card.sceneId },
-      songs,
-      artworkContext,
-    )
-  }, [artworkContext, songs, visibleCards])
+  const heroWorldArt = useMemo(() => getArtworkForHero('emotional-worlds'), [])
 
   return (
     <div className="emotional-worlds-destination">
@@ -4576,10 +4569,18 @@ function DownloadsPage({
 
 /* Phase 42B: no dedicated PSD reference — gold luxury from sidebar premium CTA */
 function PremiumPage() {
+  const premiumHeroArt = getArtworkForPremium('hero')
   return (
     <div className="psd-premium-destination">
       <PageFrame cinematic>
         <section className="psd-premium-hero" aria-labelledby="premium-heading">
+          <EntityAtmosphereBackdrop
+            className="psd-premium-hero-backdrop"
+            artworkUrl={premiumHeroArt}
+            label="Hidden Tunes Premium"
+            variant="hero"
+          />
+          <div className="psd-premium-hero-veil" aria-hidden="true" />
           <div className="psd-premium-glow" aria-hidden="true" />
           <p className="psd-page-eyebrow">Hidden Tunes Premium</p>
           <h1 id="premium-heading">Unlock Every World</h1>

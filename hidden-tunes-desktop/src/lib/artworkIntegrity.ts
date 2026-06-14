@@ -11,12 +11,16 @@ import {
   listMissingRegistryAssets,
   resolveAlbumArtwork,
   resolveArtistPortrait,
+  resolveHeroArtwork,
   resolvePlaylistCover,
   resolvePlayerBackground,
+  resolvePremiumArtwork,
   resolveSongArtwork,
   resolveWorldArtwork,
+  type HeroArtworkKey,
   type PlayerBackgroundType,
   type PlaylistArtworkInput,
+  type PremiumArtworkKey,
   type WorldArtworkInput,
 } from '../data/artworkRegistry'
 
@@ -30,8 +34,16 @@ export type PlaylistArtworkTarget = PlaylistArtworkInput
 
 export type WorldArtworkTarget = WorldArtworkInput
 
-export { isValidArtworkUrl, listMissingRegistryAssets, resolvePlayerBackground }
-export type { PlayerBackgroundType }
+export { isValidArtworkUrl, listMissingRegistryAssets, resolveHeroArtwork, resolvePlayerBackground, resolvePremiumArtwork }
+export type { HeroArtworkKey, PlayerBackgroundType, PremiumArtworkKey }
+
+export function getArtworkForHero(key: HeroArtworkKey = 'home'): string {
+  return resolveHeroArtwork(key)
+}
+
+export function getArtworkForPremium(key: PremiumArtworkKey = 'default'): string {
+  return resolvePremiumArtwork(key)
+}
 
 export function deriveEntityInitials(name: string, max = 2): string {
   const parts = name

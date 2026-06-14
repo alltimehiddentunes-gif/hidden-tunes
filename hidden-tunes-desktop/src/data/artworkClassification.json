@@ -1,0 +1,62 @@
+[
+  {
+    "source": "waterfall-forest",
+    "dest": "worlds/world-serene-waterfall.jpg",
+    "category": "Emotional World",
+    "confidence": 95
+  },
+  {
+    "source": "worship-concert-home",
+    "dest": "premium/premium-spiritual-immersion.jpg",
+    "category": "Premium Asset",
+    "confidence": 95
+  },
+  {
+    "source": "moon-lake-mountains",
+    "dest": "worlds/world-midnight-lake.jpg",
+    "category": "Emotional World",
+    "confidence": 90
+  },
+  {
+    "source": "afrobeats-dance-sunset",
+    "dest": "heroes/hero-afrobeats-celebration.jpg",
+    "category": "Home Hero Banner",
+    "confidence": 95
+  },
+  {
+    "source": "mountain-golden-peaks",
+    "dest": "heroes/hero-golden-peaks.jpg",
+    "category": "Home Hero Banner",
+    "confidence": 95
+  },
+  {
+    "source": "cyberpunk-city-neon",
+    "dest": "player-backgrounds/player-bg-neon-cyberpunk.jpg",
+    "category": "Player Background",
+    "confidence": 90
+  },
+  {
+    "source": "late-night-office",
+    "dest": "worlds/world-late-night-focus.jpg",
+    "category": "Emotional World",
+    "confidence": 90
+  },
+  {
+    "source": "sports-car-cyberpunk",
+    "dest": "playlists/playlist-night-drive.jpg",
+    "category": "Playlist Cover",
+    "confidence": 90
+  },
+  {
+    "source": "cozy-neon-interior",
+    "dest": "playlists/playlist-neon-rain-lofi.jpg",
+    "category": "Playlist Cover",
+    "confidence": 95
+  },
+  {
+    "source": "savanna-sunset",
+    "dest": "worlds/world-afro-sunset-savanna.jpg",
+    "category": "Emotional World",
+    "confidence": 90
+  }
+]

@@ -1118,6 +1118,7 @@
 
 .emotional-worlds-hero-backdrop.entity-atmosphere,
 .psd-artist-hero-backdrop.entity-atmosphere,
+.psd-premium-hero-backdrop.entity-atmosphere,
 .psd-player-master-bg.entity-atmosphere,
 .player2-bg.entity-atmosphere,
 .player3-bg.entity-atmosphere,
@@ -8785,6 +8786,20 @@
   inset: 0;
   background: radial-gradient(circle at 20% 80%, rgba(109, 74, 255, 0.18), transparent 50%);
   pointer-events: none;
+  z-index: 1;
+}
+
+.psd-premium-hero-veil {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(13, 13, 20, 0.35), rgba(13, 13, 20, 0.88));
+  pointer-events: none;
+  z-index: 1;
+}
+
+.psd-premium-hero > :not(.psd-premium-hero-backdrop):not(.psd-premium-hero-veil):not(.psd-premium-glow) {
+  position: relative;
+  z-index: 2;
 }
 
 .psd-premium-grid {
