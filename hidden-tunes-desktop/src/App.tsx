@@ -112,7 +112,7 @@ import {
 import './App.css'
 
 const APP_NAME = 'Hidden Tunes Desktop'
-const BRAND_LOGO_URL = `${import.meta.env.BASE_URL}favicon.svg`
+const BRAND_LOGO_URL = `${import.meta.env.BASE_URL}logo.png`
 const APP_VERSION = '0.0.1'
 const GRID_INITIAL_LIMIT = 24
 const GRID_SHOW_MORE_STEP = 24
@@ -1756,10 +1756,7 @@ function Hero({
             </button>
           </div>
         </div>
-        <div className="hero-artwork" aria-hidden="true">
-          <div className="hero-artwork-ring" />
-          <BrandLogo className="hero-artwork-logo" decorative />
-        </div>
+
       </div>
     </section>
   )

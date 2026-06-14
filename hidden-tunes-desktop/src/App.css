@@ -6039,10 +6039,12 @@
 }
 
 .hero-brand-logo {
-  width: clamp(38px, 4.8vw, 50px);
-  height: auto;
+  width: auto;
+  height: clamp(34px, 4.2vw, 46px);
+  max-width: min(148px, 34vw);
   flex-shrink: 0;
-  filter: drop-shadow(0 10px 24px rgba(134, 59, 255, 0.34));
+  object-fit: contain;
+  filter: drop-shadow(0 8px 20px rgba(0, 0, 0, 0.28));
 }
 
 .hero-brand-copy {
@@ -6057,22 +6059,11 @@
   margin-bottom: 0;
 }
 
-.hero-artwork-logo {
-  position: relative;
-  z-index: 1;
-  width: clamp(68px, 9vw, 92px);
-  height: auto;
-  opacity: 0.96;
-  filter: drop-shadow(0 14px 34px rgba(134, 59, 255, 0.38));
-}
 
 .page-view[data-page="home"] .hero-brand-logo {
-  filter: drop-shadow(0 12px 28px rgba(134, 59, 255, 0.4));
+  filter: drop-shadow(0 10px 22px rgba(0, 0, 0, 0.32));
 }
 
-.page-view[data-page="home"] .hero-artwork-logo {
-  filter: drop-shadow(0 16px 38px rgba(134, 59, 255, 0.42));
-}
 
 @media (max-width: 1100px) {
   .hero-brand {
@@ -6093,13 +6084,26 @@
     width: 36px;
   }
 
-  .hero-artwork {
-    width: clamp(132px, 38vw, 168px) !important;
-    height: clamp(132px, 38vw, 168px) !important;
-    flex-basis: clamp(132px, 38vw, 168px) !important;
-  }
+}
+/* —— Desktop home logo correction (Phase 40F-LOGO-CORRECTION) —— */
+.page-view[data-page="home"] .hero-copy {
+  flex: 1 1 auto;
+  max-width: 640px;
+}
 
-  .hero-artwork-logo {
-    width: clamp(56px, 16vw, 72px);
+.page-view[data-page="home"] .hero-inner {
+  justify-content: flex-start;
+}
+
+@media (max-width: 1100px) {
+  .page-view[data-page="home"] .hero-inner {
+    justify-content: center;
+  }
+}
+
+@media (max-width: 640px) {
+  .hero-brand-logo {
+    height: 30px;
+    max-width: 120px;
   }
 }
