@@ -29,6 +29,10 @@ export function normalizeLookupKey(value: string | null | undefined) {
   return value?.trim().toLowerCase() ?? ''
 }
 
+function albumArtistFallbackKey(albumTitle: string, artistId: string) {
+  return `${normalizeAlbumKey(albumTitle)}::artist::${artistId}`
+}
+
 export function inferSongGenre(song?: ApiSong) {
   if (!song) return 'hidden-tunes'
 
@@ -90,9 +94,11 @@ export function buildCatalogIndexes(
   const songsByMood = new Map<string, ApiSong[]>()
   const songsByGenre = new Map<string, ApiSong[]>()
 
-  const albumIdByTitle = new Map<string, string>()
+  const albumTitleCounts = new Map<string, number>()
   for (const album of albums) {
-    albumIdByTitle.set(normalizeAlbumKey(album.title), album.id)
+    const albumKey = normalizeAlbumKey(album.title)
+    if (!albumKey) continue
+    albumTitleCounts.set(albumKey, (albumTitleCounts.get(albumKey) ?? 0) + 1)
   }
 
   for (const song of songs) {
@@ -112,11 +118,12 @@ export function buildCatalogIndexes(
     }
 
     const albumKey = normalizeAlbumKey(song.album)
-    if (albumKey) {
-      pushToBucket(songsByAlbumName, albumKey, song)
-      const albumIdFromTitle = albumIdByTitle.get(albumKey)
-      if (albumIdFromTitle) {
-        pushToBucket(songsByAlbumId, albumIdFromTitle, song)
+    if (albumKey && !song.albumId) {
+      if (song.artistId) {
+        pushToBucket(songsByAlbumName, albumArtistFallbackKey(song.album, song.artistId), song)
+      }
+      if ((albumTitleCounts.get(albumKey) ?? 0) <= 1) {
+        pushToBucket(songsByAlbumName, albumKey, song)
       }
     }
 
@@ -284,7 +291,19 @@ export function resolveSongsForAlbum(
     }
   }
 
-  const byName = songsByAlbumName.get(normalizeAlbumKey(album.title)) ?? []
+  const albumKey = normalizeAlbumKey(album.title)
+  const fallbackSongs = album.artistId
+    ? songsByAlbumName.get(albumArtistFallbackKey(album.title, album.artistId))
+      ?? songsByAlbumName.get(albumKey)
+      ?? []
+    : songsByAlbumName.get(albumKey) ?? []
+  const byName = fallbackSongs.filter((song) => {
+    if (song.albumId) return false
+    if (normalizeAlbumKey(song.album) !== albumKey) return false
+    if (album.artistId && song.artistId) return song.artistId === album.artistId
+    if (album.artistId && !song.artistId) return false
+    return true
+  })
   const result = dedupeSongsById(byName)
   logAlbumResolve({
     albumId: album.id,
