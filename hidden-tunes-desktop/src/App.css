@@ -5063,3 +5063,11 @@
     scroll-behavior: auto;
   }
 }
+/* —— Queue intelligence insight (Phase 35A) —— */
+.queue-rail-insight {
+  margin: -4px 0 2px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: rgba(245, 243, 250, 0.5);
+  letter-spacing: 0.01em;
+}

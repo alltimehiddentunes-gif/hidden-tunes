@@ -84,6 +84,10 @@ import {
   resolveVisualScene,
   type VisualSceneId,
 } from './lib/visualScenes'
+import {
+  analyzeQueueSnapshot,
+  describeQueueInsight,
+} from './lib/queueSnapshot'
 import './App.css'
 
 const APP_NAME = 'Hidden Tunes Desktop'
@@ -2443,6 +2447,21 @@ const QueueUpNextPanel = memo(function QueueUpNextPanel() {
   const upcomingTracks = getUpcomingTracks()
   const showRail = Boolean(activeTrack && currentQueue.length > 0 && currentIndex >= 0)
 
+  const queueSnapshot = useMemo(
+    () =>
+      analyzeQueueSnapshot({
+        queue: currentQueue,
+        currentIndex,
+        currentTrack,
+      }),
+    [currentQueue, currentIndex, currentTrack],
+  )
+
+  const queueInsight = useMemo(
+    () => (queueSnapshot ? describeQueueInsight(queueSnapshot) : null),
+    [queueSnapshot],
+  )
+
   useEffect(() => {
     if (!listScrollRef.current) return
     listScrollRef.current.scrollTop = 0
@@ -2473,6 +2492,10 @@ const QueueUpNextPanel = memo(function QueueUpNextPanel() {
           </div>
           <span className="queue-rail-context">{queueLabel}</span>
         </header>
+
+        {queueInsight ? (
+          <p className="queue-rail-insight">{queueInsight}</p>
+        ) : null}
 
         <section className="queue-now-card" aria-label="Now playing">
           <div className="queue-now-artwork" aria-hidden="true">
