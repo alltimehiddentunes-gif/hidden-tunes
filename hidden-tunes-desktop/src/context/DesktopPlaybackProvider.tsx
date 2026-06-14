@@ -22,6 +22,10 @@ import {
   type InstantPlayableSelection,
 } from '../lib/audioVersions'
 import { logAudioVersionSelection, logQueueExtension } from '../lib/catalogDiagnostics'
+import {
+  buildUpgradeDiagnosticsContext,
+  logAudioUpgrade,
+} from '../lib/desktopPlayback/audioUpgradeDiagnostics'
 import { HtmlAudioPlaybackService } from '../lib/desktopPlayback/HtmlAudioPlaybackService'
 import { buildRelatedQueue } from '../lib/desktopPlayback/queueIntelligence'
 import type {
@@ -45,6 +49,7 @@ type UpgradeSession = {
   song: ApiSong
   selection: InstantPlayableSelection
   upgradeUrl: string
+  upgradeTier: InstantPlayableSelection['tier']
   attempted: boolean
   cancelled: boolean
   startedAtMs: number
@@ -117,12 +122,39 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
     audioQualityModeRef.current = audioQualityMode
   }, [audioQualityMode])
 
-  const cancelUpgradeSession = useCallback(() => {
-    if (upgradeSessionRef.current) {
-      upgradeSessionRef.current.cancelled = true
-    }
-    upgradeSessionRef.current = null
-  }, [])
+  const cancelUpgradeSession = useCallback(
+    (
+      event?:
+        | 'upgrade-cancelled-track-changed'
+        | 'upgrade-cancelled-pause'
+        | 'upgrade-cancelled-target-changed'
+        | 'upgrade-cancelled-session-replaced',
+      reason?: string,
+    ) => {
+      const session = upgradeSessionRef.current
+      if (session && !session.cancelled && event) {
+        logAudioUpgrade(
+          event,
+          buildUpgradeDiagnosticsContext({
+            trackId: session.trackId,
+            trackTitle: session.song.title,
+            qualityMode: audioQualityModeRef.current,
+            sourceTier: session.selection.tier,
+            targetTier: session.upgradeTier,
+            sourceUrl: session.selection.url,
+            targetUrl: session.upgradeUrl,
+            sessionId: session.sessionId,
+            reason,
+          }),
+        )
+      }
+      if (session) {
+        session.cancelled = true
+      }
+      upgradeSessionRef.current = null
+    },
+    [],
+  )
 
   const applyQueueState = useCallback((queue: ApiSong[], index: number) => {
     queueRef.current = queue
@@ -166,7 +198,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
   const playSong = useCallback(
     (song: ApiSong) => {
       const service = getService()
-      cancelUpgradeSession()
+      cancelUpgradeSession('upgrade-cancelled-session-replaced', 'new-track-playback')
       const selection = selectPlayableUrlForQualityMode(song, audioQualityMode)
       const instantUrl = selection?.url ?? null
       const upgradeTarget = resolveUpgradeTargetForQualityMode(
@@ -183,17 +215,33 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
         })
       }
 
-      if (selection && import.meta.env.DEV) {
+      if (selection) {
+        const diagnosticsBase = buildUpgradeDiagnosticsContext({
+          trackId: song.id,
+          trackTitle: song.title,
+          qualityMode: audioQualityMode,
+          sourceTier: selection.tier,
+          sourceUrl: selection.url,
+          targetTier: upgradeTarget?.tier,
+          targetUrl: upgradeTarget?.url,
+        })
+
         if (upgradeTarget) {
-          console.debug('[ht-playback] upgrade target scheduled', {
-            qualityMode: audioQualityMode,
-            instantTier: selection?.tier,
-            upgradeTier: upgradeTarget.tier,
+          logAudioUpgrade('target-selected', diagnosticsBase)
+        } else if (audioQualityMode === 'data-saver') {
+          logAudioUpgrade('upgrade-blocked-data-saver', {
+            ...diagnosticsBase,
+            reason: 'quality-mode-disallows-upgrade',
           })
-        } else if (audioQualityMode === 'data-saver' || audioQualityMode === 'standard') {
-          console.debug('[ht-playback] upgrade skipped by quality mode', {
-            qualityMode: audioQualityMode,
-            instantTier: selection?.tier,
+        } else if (audioQualityMode === 'standard') {
+          logAudioUpgrade('upgrade-blocked-standard', {
+            ...diagnosticsBase,
+            reason: 'quality-mode-disallows-upgrade',
+          })
+        } else {
+          logAudioUpgrade('upgrade-skipped', {
+            ...diagnosticsBase,
+            reason: 'already-at-target-or-unavailable',
           })
         }
       }
@@ -228,11 +276,26 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
               song,
               selection,
               upgradeUrl: upgradeTarget.url,
+              upgradeTier: upgradeTarget.tier,
               attempted: false,
               cancelled: false,
               startedAtMs: performance.now(),
               lastUnstableAtMs: 0,
             }
+            logAudioUpgrade(
+              'upgrade-scheduled',
+              buildUpgradeDiagnosticsContext({
+                trackId: song.id,
+                trackTitle: song.title,
+                qualityMode: audioQualityMode,
+                sourceTier: selection.tier,
+                targetTier: upgradeTarget.tier,
+                sourceUrl: selection.url,
+                targetUrl: upgradeTarget.url,
+                sessionId: upgradeSessionRef.current.sessionId,
+                reason: 'awaiting-stable-playback',
+              }),
+            )
           }
         })
         .catch((err) => {
@@ -266,14 +329,30 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    const cancelIfSession = () => {
-      cancelUpgradeSession()
-    }
 
-    const markUpgradeUnstable = () => {
+    const markUpgradeUnstable = (reason: 'waiting' | 'stalled') => {
       const session = upgradeSessionRef.current
-      if (session && !session.attempted) {
-        session.lastUnstableAtMs = performance.now()
+      if (!session || session.attempted) return
+
+      const wasStable = session.lastUnstableAtMs === 0
+      session.lastUnstableAtMs = performance.now()
+
+      if (wasStable) {
+        logAudioUpgrade(
+          'upgrade-deferred-unstable',
+          buildUpgradeDiagnosticsContext({
+            trackId: session.trackId,
+            trackTitle: session.song.title,
+            qualityMode: audioQualityModeRef.current,
+            sourceTier: session.selection.tier,
+            targetTier: session.upgradeTier,
+            sourceUrl: session.selection.url,
+            targetUrl: session.upgradeUrl,
+            sessionId: session.sessionId,
+            positionSeconds: audio.currentTime,
+            reason: `playback-not-stable:${reason}`,
+          }),
+        )
       }
     }
 
@@ -281,7 +360,10 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       const session = upgradeSessionRef.current
       if (!session || session.cancelled || session.attempted) return
       if (currentTrackRef.current?.id !== session.trackId) {
-        cancelIfSession()
+        cancelUpgradeSession(
+          'upgrade-cancelled-track-changed',
+          'active-track-changed-before-upgrade',
+        )
         return
       }
       if (audio.paused || audio.ended) return
@@ -297,22 +379,31 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
         audioQualityModeRef.current,
       )
       if (!currentTarget || currentTarget.url !== session.upgradeUrl) {
-        cancelIfSession()
+        cancelUpgradeSession(
+          'upgrade-cancelled-target-changed',
+          'upgrade-target-no-longer-valid',
+        )
         return
       }
 
       session.attempted = true
-      if (import.meta.env.DEV) {
-        console.debug('[ht-playback] deferred upgrade starting', {
-          qualityMode: audioQualityModeRef.current,
-          sessionId: session.sessionId,
+      void service.upgradeSource(
+        currentTarget.url,
+        buildUpgradeDiagnosticsContext({
           trackId: session.trackId,
+          trackTitle: session.song.title,
+          qualityMode: audioQualityModeRef.current,
+          sourceTier: session.selection.tier,
+          targetTier: currentTarget.tier,
+          sourceUrl: session.selection.url,
+          targetUrl: currentTarget.url,
+          sessionId: session.sessionId,
+          positionSeconds: audio.currentTime,
           ageMs: Math.round(performance.now() - session.startedAtMs),
           playedSeconds: Math.round(audio.currentTime),
-          upgradeTier: currentTarget.tier,
-        })
-      }
-      void service.upgradeSource(currentTarget.url)
+          reason: 'stable-playback-threshold-met',
+        }),
+      )
     }
 
     const onTimeUpdate = () => {
@@ -327,15 +418,15 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
     const onPause = () => {
       setIsPlaying(false)
       if (!audio.ended && !upgradeSessionRef.current?.attempted) {
-        cancelIfSession()
+        cancelUpgradeSession('upgrade-cancelled-pause', 'playback-paused-before-upgrade')
       }
     }
     const onWaiting = () => {
-      markUpgradeUnstable()
+      markUpgradeUnstable('waiting')
       setIsLoading(true)
     }
     const onStalled = () => {
-      markUpgradeUnstable()
+      markUpgradeUnstable('stalled')
       setIsLoading(true)
     }
     const onCanPlay = () => {
@@ -346,7 +437,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       syncDuration()
     }
     const onEnded = () => {
-      cancelIfSession()
+      cancelUpgradeSession('upgrade-cancelled-track-changed', 'track-ended')
       const queue = queueRef.current
       const nextIndex = queueIndexRef.current + 1
 
@@ -370,7 +461,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       setPositionSeconds(0)
     }
     const onError = () => {
-      cancelIfSession()
+      cancelUpgradeSession('upgrade-cancelled-track-changed', 'media-error')
       setIsPlaying(false)
       setIsLoading(false)
       const mediaError = audio.error
@@ -406,7 +497,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       audio.removeEventListener('loadedmetadata', onLoadedMetadata)
       audio.removeEventListener('ended', onEnded)
       audio.removeEventListener('error', onError)
-      cancelIfSession()
+      cancelUpgradeSession()
       service.destroy()
       serviceRef.current = null
     }

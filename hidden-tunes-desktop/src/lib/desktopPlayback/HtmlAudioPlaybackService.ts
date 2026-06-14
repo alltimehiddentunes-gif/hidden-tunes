@@ -1,3 +1,9 @@
+import {
+  buildUpgradeDiagnosticsContext,
+  logAudioUpgrade,
+  type AudioUpgradeDiagnosticsContext,
+} from './audioUpgradeDiagnostics'
+
 const MEDIA_ERROR_LABELS: Record<number, string> = {
   1: 'MEDIA_ERR_ABORTED',
   2: 'MEDIA_ERR_NETWORK',
@@ -133,14 +139,38 @@ export class HtmlAudioPlaybackService {
     }
   }
 
-  private async restoreSource(snapshot: SourceSnapshot, token: number): Promise<boolean> {
-    if (token !== this.upgradeToken) return false
+  private async restoreSource(
+    snapshot: SourceSnapshot,
+    token: number,
+    diagnostics?: AudioUpgradeDiagnosticsContext,
+  ): Promise<boolean> {
+    if (token !== this.upgradeToken) {
+      logAudioUpgrade(
+        'upgrade-cancelled-token',
+        buildUpgradeDiagnosticsContext({
+          ...diagnostics,
+          upgradeToken: token,
+          reason: 'rollback-superseded',
+        }),
+      )
+      return false
+    }
 
     try {
       this.audio.volume = clampVolume(snapshot.volume)
       this.audio.muted = snapshot.muted
       await this.loadSource(snapshot.url, UPGRADE_SOURCE_TIMEOUT_MS)
-      if (token !== this.upgradeToken) return false
+      if (token !== this.upgradeToken) {
+        logAudioUpgrade(
+          'upgrade-cancelled-token',
+          buildUpgradeDiagnosticsContext({
+            ...diagnostics,
+            upgradeToken: token,
+            reason: 'rollback-superseded-after-load',
+          }),
+        )
+        return false
+      }
 
       this.seekNear(snapshot.time)
 
@@ -148,15 +178,27 @@ export class HtmlAudioPlaybackService {
         await this.audio.play()
       }
 
-      logPlaybackDiagnostics('quality upgrade rollback restored', this.audio, snapshot.url)
+      logAudioUpgrade(
+        'upgrade-rolled-back',
+        buildUpgradeDiagnosticsContext({
+          ...diagnostics,
+          sourceUrl: snapshot.url,
+          positionSeconds: snapshot.time,
+          upgradeToken: token,
+        }),
+      )
       return true
     } catch (error) {
-      if (import.meta.env.DEV) {
-        console.warn('[ht-playback] quality upgrade rollback failed', {
-          url: snapshot.url,
-          error: error instanceof Error ? error.message : String(error),
-        })
-      }
+      logAudioUpgrade(
+        'upgrade-failed',
+        buildUpgradeDiagnosticsContext({
+          ...diagnostics,
+          sourceUrl: snapshot.url,
+          positionSeconds: snapshot.time,
+          upgradeToken: token,
+          reason: `rollback-failed:${error instanceof Error ? error.message : String(error)}`,
+        }),
+      )
       return false
     }
   }
@@ -192,7 +234,10 @@ export class HtmlAudioPlaybackService {
     logPlaybackDiagnostics('after resume/play', this.audio, normalized)
   }
 
-  async upgradeSource(url: string): Promise<boolean> {
+  async upgradeSource(
+    url: string,
+    diagnostics?: AudioUpgradeDiagnosticsContext,
+  ): Promise<boolean> {
     const normalized = url.trim()
     if (!normalized || normalized === this.lastUrl) return false
 
@@ -200,9 +245,22 @@ export class HtmlAudioPlaybackService {
     if (!previousUrl || previousUrl === normalized) return false
 
     const token = ++this.upgradeToken
+    const positionSeconds = Number.isFinite(this.audio.currentTime)
+      ? this.audio.currentTime
+      : 0
+    const context = buildUpgradeDiagnosticsContext({
+      ...diagnostics,
+      sourceUrl: previousUrl,
+      targetUrl: normalized,
+      positionSeconds,
+      upgradeToken: token,
+    })
+
+    logAudioUpgrade('upgrade-started', context)
+
     const snapshot: SourceSnapshot = {
       url: previousUrl,
-      time: Number.isFinite(this.audio.currentTime) ? this.audio.currentTime : 0,
+      time: positionSeconds,
       wasPlaying: !this.audio.paused,
       volume: this.audio.volume,
       muted: this.audio.muted,
@@ -211,7 +269,16 @@ export class HtmlAudioPlaybackService {
 
     try {
       await this.loadSource(normalized, UPGRADE_SOURCE_TIMEOUT_MS)
-      if (token !== this.upgradeToken) return false
+      if (token !== this.upgradeToken) {
+        logAudioUpgrade(
+          'upgrade-cancelled-token',
+          buildUpgradeDiagnosticsContext({
+            ...context,
+            reason: 'superseded-after-load',
+          }),
+        )
+        return false
+      }
 
       this.seekNear(snapshot.time)
 
@@ -219,18 +286,40 @@ export class HtmlAudioPlaybackService {
         await this.audio.play()
       }
 
-      logPlaybackDiagnostics('quality upgrade applied', this.audio, normalized)
+      logAudioUpgrade('upgrade-succeeded', context)
       return true
     } catch (error) {
-      if (token !== this.upgradeToken) return false
+      if (token !== this.upgradeToken) {
+        logAudioUpgrade(
+          'upgrade-cancelled-token',
+          buildUpgradeDiagnosticsContext({
+            ...context,
+            reason: 'superseded-after-error',
+          }),
+        )
+        return false
+      }
 
-      const restored = await this.restoreSource(snapshot, token)
-      if (import.meta.env.DEV) {
-        console.warn('[ht-playback] quality upgrade skipped', {
-          url: normalized,
-          restored,
-          error: error instanceof Error ? error.message : String(error),
-        })
+      const message = error instanceof Error ? error.message : String(error)
+      const timedOut = message.toLowerCase().includes('timed out')
+      logAudioUpgrade(
+        timedOut ? 'upgrade-timed-out' : 'upgrade-failed',
+        buildUpgradeDiagnosticsContext({
+          ...context,
+          reason: message,
+        }),
+      )
+
+      const restored = await this.restoreSource(snapshot, token, context)
+      if (!restored) {
+        logAudioUpgrade(
+          'upgrade-failed',
+          buildUpgradeDiagnosticsContext({
+            ...context,
+            reason: timedOut ? 'timed-out-without-rollback' : 'upgrade-error-without-rollback',
+            restored: false,
+          }),
+        )
       }
       return false
     }
