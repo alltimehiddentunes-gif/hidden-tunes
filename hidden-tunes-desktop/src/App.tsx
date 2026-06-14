@@ -123,6 +123,7 @@ import psdPlayerMasterReferenceUrl from './assets/psd-player-master-reference.jp
 import psdPlayer2ReferenceUrl from './assets/psd-player2-reference.jpg'
 import psdPlayer3ReferenceUrl from './assets/psd-player3-reference.jpg'
 import psdPlayer4ReferenceUrl from './assets/psd-player4-reference.jpg'
+import psdPlayer5ReferenceUrl from './assets/psd-player5-reference.jpg'
 import psdWaveformReferenceUrl from './assets/psd-waveform-reference.jpg'
 import psdLyricsReferenceUrl from './assets/psd-lyrics-reference.jpg'
 import psdRecentReferenceUrl from './assets/psd-recent-reference.jpg'
@@ -405,6 +406,51 @@ const PSD_PLAYER4_SOUND_MODES = [
   { key: 'bass', label: 'BASS BOOST' },
   { key: 'spatial', label: 'SPATIAL AUDIO' },
 ] as const
+
+const DESKTOP_PLAYER_MODE_PLAYER5 = 'player-5' as const
+
+const PSD_PLAYER5_SOURCE = 'Night Drive'
+const PSD_PLAYER5_TITLE = 'ECHOES OF TOMORROW'
+const PSD_PLAYER5_ARTIST = 'Wills AfroBeats'
+const PSD_PLAYER5_YEAR = '2024'
+const PSD_PLAYER5_BG_POSITION = '50% 46%'
+const PSD_PLAYER5_ART_POSITION = '22% 50%'
+const PSD_PLAYER5_POSITION_SECONDS = 108
+const PSD_PLAYER5_DURATION_SECONDS = 272
+const PSD_PLAYER5_VOLUME_PERCENT = 80
+const PSD_PLAYER5_LYRICS = [
+  'Tell me where the stars go',
+  'When the city sleeps alone',
+  "I'm still chasing echoes",
+  'Through the midnight glow',
+  'Where the rivers flow',
+] as const
+const PSD_PLAYER5_MAIN_NAV = [
+  { key: 'home', label: 'Home', active: true },
+  { key: 'worlds', label: 'Explore' },
+  { key: 'albums', label: 'Albums' },
+  { key: 'artists', label: 'Artists' },
+  { key: 'playlists', label: 'Playlists' },
+  { key: 'liked', label: 'Favorites' },
+  { key: 'downloads', label: 'Downloads' },
+] as const
+const PSD_PLAYER5_LIBRARY_NAV = [
+  { key: 'search', label: 'Radio' },
+  { key: 'tv', label: 'Podcasts' },
+] as const
+const PSD_PLAYER5_UP_NEXT = [
+  { key: 'p5-u1', title: 'Midnight Reflection', artist: 'Wills AfroBeats', duration: '3:56', active: true, artPosition: '18% 58%' },
+  { key: 'p5-u2', title: 'Lost in Dreams', artist: 'Wills AfroBeats', duration: '4:12', active: false, artPosition: '26% 58%' },
+  { key: 'p5-u3', title: 'City Lights', artist: 'Wills AfroBeats', duration: '3:28', active: false, artPosition: '34% 58%' },
+  { key: 'p5-u4', title: 'After Hours', artist: 'Wills AfroBeats', duration: '4:01', active: false, artPosition: '42% 58%' },
+  { key: 'p5-u5', title: 'Neon Skyline', artist: 'Wills AfroBeats', duration: '3:44', active: false, artPosition: '50% 58%' },
+] as const
+const PSD_PLAYER5_STATS = {
+  songs: '24',
+  duration: '2h 18m',
+  plays: '348',
+  likes: '128',
+} as const
 
 const PSD_LIKED_META = '482 songs • 28h 47m'
 const PSD_LIKED_DESCRIPTION = 'All your favorite tracks in one place.'
@@ -7577,6 +7623,521 @@ const Player4Shell = memo(function Player4Shell({
   )
 })
 
+const Player5Shell = memo(function Player5Shell({
+  onClose,
+  onNavigateNav,
+  onOpenLyrics,
+  onOpenWaveform,
+  preferredTrack = null,
+}: {
+  onClose: () => void
+  onNavigateNav?: (navKey: NavKey) => void
+  onOpenLyrics?: () => void
+  onOpenWaveform?: () => void
+  preferredTrack?: ApiSong | null
+}) {
+  const {
+    currentTrack,
+    currentQueue,
+    isPlaying,
+    isLoading,
+    positionSeconds,
+    durationSeconds,
+    seekTo,
+    volume,
+    setVolume,
+    pause,
+    resume,
+    getUpcomingTracks,
+  } = useDesktopPlayback()
+
+  const volumeTrackRef = useRef<HTMLDivElement>(null)
+  const isAdjustingVolumeRef = useRef(false)
+
+  const displayTrack = currentTrack ?? preferredTrack
+  const isActive = Boolean(displayTrack && currentTrack?.id === displayTrack.id)
+  const liveProgressMax = isActive && durationSeconds > 0 ? durationSeconds : 0
+  const liveProgressValue = liveProgressMax > 0 ? Math.min(positionSeconds, liveProgressMax) : 0
+  const progressMax = liveProgressMax > 0 ? liveProgressMax : PSD_PLAYER5_DURATION_SECONDS
+  const progressValue = liveProgressMax > 0 ? liveProgressValue : PSD_PLAYER5_POSITION_SECONDS
+  const progressPercent = progressMax > 0 ? Math.min(100, (progressValue / progressMax) * 100) : 0
+  const volumePercent = Math.min(100, Math.max(0, volume * 100))
+  const displayVolumePercent = volumePercent > 0 ? Math.round(volumePercent) : PSD_PLAYER5_VOLUME_PERCENT
+
+  const displayTitle = displayTrack?.title ?? PSD_PLAYER5_TITLE
+  const displayArtist = displayTrack?.artist ?? PSD_PLAYER5_ARTIST
+  const displayAlbum = displayTrack?.album ?? PSD_PLAYER5_SOURCE
+  const activeTrackId = displayTrack?.id ?? null
+  const showPlaying = isActive && isPlaying
+  const showLoading = isActive && isLoading
+  const upcomingTracks = getUpcomingTracks()
+  const queueCount = currentQueue.length > 0 ? String(currentQueue.length) : PSD_PLAYER5_STATS.songs
+
+  const upNextRows = useMemo(() => {
+    if (upcomingTracks.length === 0) return PSD_PLAYER5_UP_NEXT
+    return upcomingTracks.slice(0, 5).map((track, index) => ({
+      key: track.id,
+      title: track.title,
+      artist: track.artist,
+      duration: track.durationSeconds != null && track.durationSeconds > 0
+        ? formatPlaybackTime(track.durationSeconds)
+        : PSD_PLAYER5_UP_NEXT[index]?.duration ?? '3:56',
+      active: index === 0,
+      artPosition: PSD_PLAYER5_UP_NEXT[index]?.artPosition ?? '18% 58%',
+      artwork: track.artwork,
+    }))
+  }, [upcomingTracks])
+
+  const resolveVolume = useCallback((clientX: number) => {
+    const trackEl = volumeTrackRef.current
+    if (!trackEl) return null
+    const rect = trackEl.getBoundingClientRect()
+    if (rect.width <= 0) return null
+    return Math.min(1, Math.max(0, (clientX - rect.left) / rect.width))
+  }, [])
+
+  const handleVolumeClick = (event: ReactMouseEvent<HTMLDivElement>) => {
+    if (isAdjustingVolumeRef.current) return
+    const nextVolume = resolveVolume(event.clientX)
+    if (nextVolume != null) setVolume(nextVolume)
+  }
+
+  const handleVolumePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const nextVolume = resolveVolume(event.clientX)
+    if (nextVolume == null) return
+    isAdjustingVolumeRef.current = true
+    event.currentTarget.setPointerCapture(event.pointerId)
+    setVolume(nextVolume)
+  }
+
+  const handleVolumePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!isAdjustingVolumeRef.current) return
+    const nextVolume = resolveVolume(event.clientX)
+    if (nextVolume != null) setVolume(nextVolume)
+  }
+
+  const handleVolumePointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!isAdjustingVolumeRef.current) return
+    isAdjustingVolumeRef.current = false
+    event.currentTarget.releasePointerCapture(event.pointerId)
+  }
+
+  const handlePlayPause = () => {
+    if (!isActive || isLoading) return
+    if (isPlaying) {
+      pause()
+      return
+    }
+    resume()
+  }
+
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = previousOverflow
+    }
+  }, [])
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      event.preventDefault()
+      onClose()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [onClose])
+
+  const handleNav = (navKey: NavKey) => {
+    onClose()
+    onNavigateNav?.(navKey)
+  }
+
+  const playLabel = showLoading
+    ? 'Loading track'
+    : showPlaying
+      ? 'Pause'
+      : isActive
+        ? 'Play'
+        : 'Play (select a track)'
+
+  return (
+    <div
+      className="player5-shell"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Player 5 VIP theater"
+      data-player-mode={DESKTOP_PLAYER_MODE_PLAYER5}
+      data-playing={isPlaying && isActive ? 'true' : 'false'}
+      data-loading={isLoading && isActive ? 'true' : 'false'}
+    >
+      <div
+        className="player5-bg"
+        style={{
+          backgroundImage: `url(${psdPlayer5ReferenceUrl})`,
+          backgroundPosition: PSD_PLAYER5_BG_POSITION,
+        }}
+        aria-hidden="true"
+      />
+      <div className="player5-bg-breathe" aria-hidden="true" />
+      <div className="player5-veil" aria-hidden="true" />
+
+      <button type="button" className="player5-collapse" onClick={onClose} aria-label="Exit Player 5">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+      </button>
+
+      <div className="player5-layout">
+        <aside className="player5-sidebar" aria-label="Navigation">
+          <div className="player5-brand">
+            <span className="player5-brand-diamond" aria-hidden="true">◆</span>
+            <span className="player5-brand-name">Hidden Tunes</span>
+            <span className="player5-brand-vip">VIP Experience</span>
+          </div>
+
+          <nav className="player5-nav" aria-label="Main navigation">
+            {PSD_PLAYER5_MAIN_NAV.map((item) => (
+              <button
+                key={item.key}
+                type="button"
+                className={`player5-nav-item${'active' in item && item.active ? ' is-active' : ''}`}
+                onClick={() => handleNav(item.key as NavKey)}
+              >
+                <span className="player5-nav-icon" aria-hidden="true" />
+                <span>{item.label}</span>
+              </button>
+            ))}
+            <span className="player5-nav-heading">Your Library</span>
+            {PSD_PLAYER5_LIBRARY_NAV.map((item) => (
+              <button
+                key={item.key}
+                type="button"
+                className="player5-nav-item"
+                onClick={() => handleNav(item.key as NavKey)}
+              >
+                <span className="player5-nav-icon" aria-hidden="true" />
+                <span>{item.label}</span>
+              </button>
+            ))}
+          </nav>
+
+          <div className="player5-profile">
+            <span className="player5-profile-avatar" aria-hidden="true" />
+            <div className="player5-profile-copy">
+              <strong>{displayArtist}</strong>
+              <span className="player5-profile-badge">
+                <span aria-hidden="true">♛</span>
+                Premium Member
+              </span>
+            </div>
+            <button type="button" className="player5-go-premium">Go Premium</button>
+          </div>
+
+          <div className="player5-sidebar-utils">
+            <button type="button" className="player5-sidebar-util" aria-label="Settings">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+              </svg>
+            </button>
+            <button type="button" className="player5-sidebar-util" aria-label="Notifications">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+                <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" />
+              </svg>
+            </button>
+          </div>
+        </aside>
+
+        <div className="player5-center">
+          <main className="player5-main">
+            <header className="player5-header">
+              <div className="player5-header-source">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                  <path d="M6 9l6 6 6-6" />
+                </svg>
+                <span>PLAYING FROM</span>
+                <button type="button" className="player5-source-btn">
+                  {PSD_PLAYER5_SOURCE}
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                    <path d="M6 9l6 6 6-6" />
+                  </svg>
+                </button>
+              </div>
+              <div className="player5-quality-pill">
+                <span className="player5-quality-flac">FLAC</span>
+                <span>24-BIT / 96kHz</span>
+                <PsdWaveformStrip className="player5-quality-wave" />
+              </div>
+            </header>
+
+            <div className="player5-hero">
+              <div className="player5-art-col">
+                <div className="player5-art-glow" aria-hidden="true" />
+                <div className="player5-art-frame">
+                  {displayTrack?.artwork ? (
+                    <ArtworkImage src={displayTrack.artwork} alt="" seed={displayTrack.id} priority />
+                  ) : (
+                    <span
+                      className="player5-art-fallback"
+                      style={{
+                        backgroundImage: `url(${psdPlayer5ReferenceUrl})`,
+                        backgroundPosition: PSD_PLAYER5_ART_POSITION,
+                      }}
+                      aria-hidden="true"
+                    />
+                  )}
+                  <button
+                    type="button"
+                    className="player5-art-play"
+                    onClick={handlePlayPause}
+                    disabled={!isActive || isLoading}
+                    aria-label={playLabel}
+                    aria-busy={showLoading}
+                  >
+                    {showLoading ? (
+                      <span className="player-spinner player-spinner--transport" />
+                    ) : showPlaying ? (
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <path d="M6 5h4v14H6V5zm8 0h4v14h-4V5z" />
+                      </svg>
+                    ) : (
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <path d="M8 5v14l11-7L8 5z" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              <div className="player5-track-col">
+                <p className="player5-eyebrow">
+                  <PsdWaveformStrip className="player5-eyebrow-wave" />
+                  NOW PLAYING
+                </p>
+                <h1 className="player5-title">{displayTitle}</h1>
+                <p className="player5-artist">
+                  <span>{displayArtist}</span>
+                  <PsdIconVerified className="player5-verified" />
+                </p>
+                <p className="player5-meta">{displayAlbum} • {PSD_PLAYER5_YEAR}</p>
+                <div className="player5-track-actions">
+                  <button type="button" className="player5-heart-btn is-active" aria-label="Favorite">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                      <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41 1.01 4.5 2.09C13.09 4.01 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                    </svg>
+                  </button>
+                  <button type="button" className="player5-library-btn">+ Add to Library</button>
+                  <button type="button" className="player5-more-btn" aria-label="More options">
+                    <PsdIconMore />
+                  </button>
+                </div>
+              </div>
+
+              <div className="player5-lyrics-col">
+                <span className="player5-lyrics-quote" aria-hidden="true">“</span>
+                <div className="player5-lyrics-body">
+                  {PSD_PLAYER5_LYRICS.map((line, index) => (
+                    <p key={line} className={index < 3 ? 'is-active' : ''}>{line}</p>
+                  ))}
+                </div>
+                <button type="button" className="player5-lyrics-more" onClick={onOpenLyrics}>
+                  SHOW FULL LYRICS
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                    <path d="M6 9l6 6 6-6" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div className="player5-waveform-block">
+              <PremiumReactiveWaveform
+                trackId={activeTrackId}
+                progressPercent={progressPercent}
+                progressMax={liveProgressMax}
+                isLoading={isLoading && isActive}
+                onSeek={seekTo}
+                className="player5-waveform premium-reactive-waveform"
+                barCount={96}
+              />
+              <div className="player5-progress-row">
+                <span className="player5-time">{formatPlaybackTime(progressValue)}</span>
+                <div
+                  className="player5-progress-line"
+                  style={{ ['--player5-progress' as string]: `${progressPercent}%` }}
+                  aria-hidden="true"
+                >
+                  <span className="player5-progress-fill" />
+                </div>
+                <span className="player5-time">{formatPlaybackTime(progressMax)}</span>
+              </div>
+            </div>
+
+            <div className="player5-transport-wrap">
+              <FullPlayerTransportControls activeTrackId={activeTrackId} />
+            </div>
+          </main>
+
+          <footer className="player5-dock">
+            <div className="player5-dock-volume">
+              <span className="player5-dock-label">VOLUME</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+                <path d="M11 5L6 9H3v6h3l5 4V5z" />
+              </svg>
+              <div
+                ref={volumeTrackRef}
+                className="player5-volume-track"
+                style={{ ['--player5-volume' as string]: `${volumePercent}%` }}
+                role="slider"
+                aria-label="Volume"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={Math.round(volumePercent)}
+                onClick={handleVolumeClick}
+                onPointerDown={handleVolumePointerDown}
+                onPointerMove={handleVolumePointerMove}
+                onPointerUp={handleVolumePointerUp}
+                onPointerCancel={handleVolumePointerUp}
+              >
+                <div className="player5-volume-fill" style={{ width: `${volumePercent}%` }} />
+              </div>
+              <span className="player5-volume-value">{displayVolumePercent}%</span>
+            </div>
+
+            <div className="player5-dock-tools">
+              <button type="button" className="player5-dock-tool" onClick={onOpenWaveform}>
+                <PsdIconEqualizer />
+                <span>EQUALIZER</span>
+              </button>
+              <button type="button" className="player5-dock-tool">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+                  <circle cx="12" cy="12" r="8" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+                <span>ATMOS</span>
+              </button>
+              <div className="player5-dock-crossfade">
+                <span>CROSSFADE</span>
+                <button type="button" className="player5-crossfade-toggle is-on" aria-label="Crossfade on">
+                  <span className="player5-crossfade-knob" />
+                </button>
+              </div>
+            </div>
+
+            <div className="player5-dock-utils">
+              <button type="button" className="player5-dock-util" aria-label="Favorite">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+                  <path d="M12 20.8l-1.1-1C6.4 15.36 3 12.28 3 8.5 3 6 5 4 7.5 4c1.74 0 3.41 1.01 4.5 2.36C13.09 5.01 14.76 4 16.5 4 19 4 21 6 21 8.5c0 3.78-3.4 6.86-7.9 11.3L12 20.8z" />
+                </svg>
+              </button>
+              <button type="button" className="player5-dock-util" aria-label="Queue">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+                  <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
+                </svg>
+              </button>
+              <button type="button" className="player5-dock-util" aria-label="Theme">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+                  <circle cx="12" cy="12" r="4" />
+                  <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2" />
+                </svg>
+              </button>
+              <button type="button" className="player5-dock-util" aria-label="Fullscreen" onClick={onClose}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+                  <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+                </svg>
+              </button>
+            </div>
+          </footer>
+        </div>
+
+        <aside className="player5-rail" aria-label="Up next and stats">
+          <div className="player5-upnext-header">
+            <PsdWaveformStrip className="player5-upnext-wave" />
+            <h2>UP NEXT</h2>
+            <button type="button" className="player5-upnext-menu" aria-label="Queue menu">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+                <path d="M4 8h16M4 12h16M4 16h16" />
+              </svg>
+            </button>
+          </div>
+          <ol className="player5-upnext-list">
+            {upNextRows.map((row) => (
+              <li key={row.key} className={`player5-upnext-item${row.active ? ' is-active' : ''}`}>
+                <span className="player5-upnext-thumb-wrap">
+                  <span
+                    className="player5-upnext-thumb"
+                    style={
+                      'artwork' in row && row.artwork
+                        ? { backgroundImage: `url(${row.artwork})` }
+                        : {
+                            backgroundImage: `url(${psdPlayer5ReferenceUrl})`,
+                            backgroundPosition: row.artPosition,
+                          }
+                    }
+                    aria-hidden="true"
+                  />
+                  {row.active ? (
+                    <span className="player5-upnext-play" aria-hidden="true">
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M8 5v14l11-7L8 5z" />
+                      </svg>
+                    </span>
+                  ) : null}
+                </span>
+                <div className="player5-upnext-copy">
+                  <strong>{row.title}</strong>
+                  <span>{row.artist}</span>
+                </div>
+                {row.active ? (
+                  <PsdIconEqualizer className="player5-upnext-eq" />
+                ) : (
+                  <span className="player5-upnext-duration">{row.duration}</span>
+                )}
+              </li>
+            ))}
+          </ol>
+
+          <section className="player5-stats" aria-label="Listening stats">
+            <div className="player5-stats-header">
+              <h3>LISTENING STATS</h3>
+              <button type="button" className="player5-stats-period">
+                This Month
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                  <path d="M6 9l6 6 6-6" />
+                </svg>
+              </button>
+            </div>
+            <div className="player5-stats-graph" aria-hidden="true">
+              <svg viewBox="0 0 120 32" preserveAspectRatio="none">
+                <path d="M0 26 L10 22 L20 24 L30 18 L40 20 L50 14 L60 16 L70 12 L80 18 L90 10 L100 14 L110 8 L120 12" fill="none" stroke="#2dd4bf" strokeWidth="1.5" />
+              </svg>
+            </div>
+            <div className="player5-stats-grid">
+              <div>
+                <strong>{queueCount}</strong>
+                <span>SONGS</span>
+              </div>
+              <div>
+                <strong>{PSD_PLAYER5_STATS.duration}</strong>
+                <span>DURATION</span>
+              </div>
+              <div>
+                <strong>{PSD_PLAYER5_STATS.plays}</strong>
+                <span>PLAYS</span>
+              </div>
+              <div>
+                <strong>{PSD_PLAYER5_STATS.likes}</strong>
+                <span>LIKES</span>
+              </div>
+            </div>
+          </section>
+        </aside>
+      </div>
+    </div>
+  )
+})
+
 const CinematicWaveformShell = memo(function CinematicWaveformShell({
   onClose,
   preferredTrack = null,
@@ -8726,6 +9287,7 @@ function AppShell() {
   const [player2Open, setPlayer2Open] = useState(false)
   const [player3Open, setPlayer3Open] = useState(false)
   const [player4Open, setPlayer4Open] = useState(false)
+  const [player5Open, setPlayer5Open] = useState(false)
   const [waveformOpen, setWaveformOpen] = useState(false)
   const [lyricsOpen, setLyricsOpen] = useState(false)
   const [likedQuery, setLikedQuery] = useState('')
@@ -8933,12 +9495,27 @@ function AppShell() {
           </div>
         </div>
       </div>
-      {!waveformOpen && !lyricsOpen && !player2Open && !player3Open && !player4Open && activeNavKey !== 'recent' ? (
+      {!waveformOpen && !lyricsOpen && !player2Open && !player3Open && !player4Open && !player5Open && activeNavKey !== 'recent' ? (
         <PlayerBar
           track={desktopSelectedTrack}
           onOpenCinema={() => setCinemaOpen(true)}
           onOpenPlayer2={() => setPlayer2Open(true)}
           onOpenPlayer3={() => setPlayer3Open(true)}
+        />
+      ) : null}
+      {player5Open ? (
+        <Player5Shell
+          preferredTrack={desktopSelectedTrack}
+          onClose={() => setPlayer5Open(false)}
+          onNavigateNav={navigateNav}
+          onOpenLyrics={() => {
+            setPlayer5Open(false)
+            setLyricsOpen(true)
+          }}
+          onOpenWaveform={() => {
+            setPlayer5Open(false)
+            setWaveformOpen(true)
+          }}
         />
       ) : null}
       {player4Open ? (
