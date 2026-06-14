@@ -81,7 +81,6 @@ import {
 } from './context/DesktopPlaybackProvider'
 import type { QueueContext, QueueSeedMetadata } from './lib/desktopPlayback/types'
 import {
-  getTimeAwareHomeScene,
   resolveVisualScene,
   type VisualSceneId,
 } from './lib/visualScenes'
@@ -112,6 +111,7 @@ import {
   type ListeningContextLines,
 } from './lib/listeningContext'
 import heroPhotoUrl from './assets/hero.png'
+import emotionalWorldsReferenceUrl from './assets/emotional-worlds-reference.jpg'
 import './App.css'
 
 const APP_NAME = 'Hidden Tunes Desktop'
@@ -707,51 +707,6 @@ const HOME_SECTIONS: DiscoverySection[] = [
   },
 ]
 
-const MOOD_ROOMS: MoodRoom[] = [
-  {
-    title: 'Velvet Midnight',
-    subtitle: 'Slow burn · intimate',
-    listeners: '2.4k',
-    mood: 'violet',
-    sceneId: 'midnight-drive',
-  },
-  {
-    title: 'Oceanic Calm',
-    subtitle: 'Breath & space',
-    listeners: '1.8k',
-    mood: 'cyan',
-    sceneId: 'ocean-reflection',
-  },
-  {
-    title: 'Rose Neon',
-    subtitle: 'Passion pulse',
-    listeners: '3.1k',
-    mood: 'rose',
-    sceneId: 'neon-city',
-  },
-  {
-    title: 'Forest Echo',
-    subtitle: 'Organic drift',
-    listeners: '920',
-    mood: 'mint',
-    sceneId: 'healing-sunday',
-  },
-  {
-    title: 'Chrome Dreams',
-    subtitle: 'Futurist glide',
-    listeners: '1.2k',
-    mood: 'cyan',
-    sceneId: 'neon-city',
-  },
-  {
-    title: 'Ember Heart',
-    subtitle: 'Warm ache',
-    listeners: '2.0k',
-    mood: 'rose',
-    sceneId: 'slow-love',
-  },
-]
-
 const LIBRARY_ITEMS = [
   { title: 'Ethereal Horizon', meta: 'Luna Veil · Liked 2 days ago', mood: 'violet' as Mood },
   { title: 'Glass Cathedral', meta: 'Noir Ensemble · Added yesterday', mood: 'cyan' as Mood },
@@ -1257,7 +1212,7 @@ function HomeTopBar({ onOpenDiscover }: { onOpenDiscover: () => void }) {
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search songs, albums, artists…"
+          placeholder="Search songs, artists, moods…"
           aria-label="Search catalog"
         />
       </form>
@@ -1279,15 +1234,6 @@ function HomeTopBar({ onOpenDiscover }: { onOpenDiscover: () => void }) {
         </button>
       </div>
     </header>
-  )
-}
-
-function PreviewBanner({ text }: { text: string }) {
-  return (
-    <div className="preview-banner" role="status">
-      <span className="preview-dot" aria-hidden="true" />
-      <span>{text}</span>
-    </div>
   )
 }
 
@@ -2413,56 +2359,260 @@ function DiscoverPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
   )
 }
 
-function MoodRoomsPage({ onOpenMood }: { onOpenMood: (mood: MoodRoom) => void }) {
-  const pageSceneId = useMemo(() => getTimeAwareHomeScene(), [])
+type EmotionalWorldChipId =
+  | 'all'
+  | 'calm'
+  | 'chill'
+  | 'happy'
+  | 'romantic'
+  | 'motivational'
+  | 'melancholy'
+  | 'energetic'
+
+type EmotionalWorldCardSpec = {
+  cardId: string
+  sceneId: string
+  title: string
+  tags: string
+  chips: EmotionalWorldChipId[]
+}
+
+const EMOTIONAL_WORLDS_CHIPS: { id: EmotionalWorldChipId; label: string }[] = [
+  { id: 'all', label: 'All Worlds' },
+  { id: 'calm', label: 'Calm' },
+  { id: 'chill', label: 'Chill' },
+  { id: 'happy', label: 'Happy' },
+  { id: 'romantic', label: 'Romantic' },
+  { id: 'motivational', label: 'Motivational' },
+  { id: 'melancholy', label: 'Melancholy' },
+  { id: 'energetic', label: 'Energetic' },
+]
+
+const EMOTIONAL_WORLDS_CARDS: EmotionalWorldCardSpec[] = [
+  {
+    cardId: 'ew-midnight-reflection',
+    sceneId: 'rainy-window',
+    title: 'Midnight Reflection',
+    tags: 'Deep • Calm • Soul',
+    chips: ['calm', 'chill', 'melancholy'],
+  },
+  {
+    cardId: 'ew-afro-sunset',
+    sceneId: 'sunday-morning',
+    title: 'Afro Sunset',
+    tags: 'Warm • Groove • Soul',
+    chips: ['happy', 'romantic'],
+  },
+  {
+    cardId: 'ew-healing-slowly',
+    sceneId: 'heartbreak-recovery',
+    title: 'Healing Slowly',
+    tags: 'Soft • Reflective • Calm',
+    chips: ['calm', 'melancholy'],
+  },
+  {
+    cardId: 'ew-night-drive',
+    sceneId: 'midnight-drive',
+    title: 'Night Drive',
+    tags: 'Urban • Late Night • Electronic',
+    chips: ['energetic', 'chill'],
+  },
+  {
+    cardId: 'ew-sunset-glow',
+    sceneId: 'city-lights',
+    title: 'Sunset Glow',
+    tags: 'Golden • Warm • R&B',
+    chips: ['happy', 'romantic'],
+  },
+  {
+    cardId: 'ew-velvet-emotions',
+    sceneId: 'focus-room',
+    title: 'Velvet Emotions',
+    tags: 'Intimate • Warm • Soul',
+    chips: ['romantic', 'calm'],
+  },
+  {
+    cardId: 'ew-ocean-dreams',
+    sceneId: 'city-lights',
+    title: 'Ocean Dreams',
+    tags: 'Dreamy • Deep • Calm',
+    chips: ['calm', 'chill'],
+  },
+  {
+    cardId: 'ew-city-rain',
+    sceneId: 'rainy-window',
+    title: 'City Rain',
+    tags: 'Melancholy • Urban • Jazz',
+    chips: ['melancholy', 'chill'],
+  },
+  {
+    cardId: 'ew-uplift-boost',
+    sceneId: 'focus-room',
+    title: 'Uplift Boost',
+    tags: 'Motivational • Bright • Pop',
+    chips: ['motivational', 'energetic', 'happy'],
+  },
+  {
+    cardId: 'ew-melancholy-bloom',
+    sceneId: 'heartbreak-recovery',
+    title: 'Melancholy Bloom',
+    tags: 'Tender • Slow • Reflective',
+    chips: ['melancholy', 'calm'],
+  },
+]
+
+function EmotionalWorldsPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
+  const { songs, indexes, showCatalogSkeleton } = useCatalog()
+  const scenes = useMemo(() => buildListeningScenes(songs), [songs])
+  const [selectedChip, setSelectedChip] = useState<EmotionalWorldChipId>('all')
+  const [selectedCardId, setSelectedCardId] = useState<string | null>(null)
+  const queuePools = useMemo(() => buildQueueCandidatePools(indexes), [indexes])
+
+  const visibleCards = useMemo(() => {
+    if (selectedChip === 'all') return EMOTIONAL_WORLDS_CARDS
+    return EMOTIONAL_WORLDS_CARDS.filter((card) => card.chips.includes(selectedChip))
+  }, [selectedChip])
+
+  const playWorld = useCallback(
+    (card: EmotionalWorldCardSpec) => {
+      const tracks = filterSongsByListeningScene(songs, card.sceneId)
+      if (tracks.length === 0) return
+      onOpenSong(
+        tracks[0],
+        tracks,
+        0,
+        'mood',
+        card.title,
+        {
+          seedType: 'mood',
+          seedTracks: buildQueueSeedPool('mood', tracks, indexes, tracks[0]),
+          candidatePools: queuePools,
+        },
+      )
+    },
+    [indexes, onOpenSong, queuePools, songs],
+  )
 
   return (
-    <PageFrame>
-      <div className="mood-rooms-stage">
-        <VisualSceneBackdrop
-          sceneId={pageSceneId}
-          seed="mood-rooms-page"
-          variant="ambient"
-          timeAware
-        />
-        <PageHeader
-          eyebrow="Atmosphere"
-          title="Mood Rooms"
-          description="Step into shared emotional spaces — ambient rooms tuned for how you feel, with others listening in sync."
-        />
-      </div>
-      <PreviewBanner text="Rooms are UI previews — live sync arrives in a future release" />
-      <div className="mood-room-grid">
-        {MOOD_ROOMS.map((room, index) => {
-          const sceneId = moodRoomScene(room)
-          return (
-          <button
-            key={room.title}
-            type="button"
-            className="mood-room-card"
-            data-mood={room.mood}
-            data-scene={sceneId}
-            onClick={() => onOpenMood(room)}
-          >
-            <VisualSceneBackdrop sceneId={sceneId} seed={room.title} variant="card" />
-            <div className="mood-room-top">
-              <span className="mood-room-index">0{index + 1}</span>
-            </div>
-            <div className="mood-room-body">
-              <div className="mood-room-icon-wrap">
-                <MusicNoteIcon className="card-art-icon" />
-              </div>
-              <h3>{room.title}</h3>
-              <p>{room.subtitle}</p>
-              <span className="btn-secondary btn-sm mood-enter" aria-hidden="true">
-                Enter room
+    <div className="emotional-worlds-destination">
+      <PageFrame cinematic>
+        <section className="emotional-worlds-hero" aria-labelledby="emotional-worlds-heading">
+          <div
+            className="emotional-worlds-hero-backdrop"
+            style={{ backgroundImage: `url(${emotionalWorldsReferenceUrl})` }}
+            aria-hidden="true"
+          />
+          <div className="emotional-worlds-hero-veil" aria-hidden="true" />
+          <div className="emotional-worlds-hero-copy">
+            <h1 id="emotional-worlds-heading" className="emotional-worlds-title">
+              <span className="emotional-worlds-title-main">
+                <span className="emotional-worlds-title-emotional">Emotional</span>
+                {' '}Worlds
               </span>
-            </div>
-          </button>
-          )
-        })}
-      </div>
-    </PageFrame>
+            </h1>
+            <p className="emotional-worlds-description">
+              Music that matches your emotion, elevates your mood, and transports you to another world.
+            </p>
+          </div>
+        </section>
+
+        <div className="emotional-worlds-chips" role="toolbar" aria-label="World categories">
+          {EMOTIONAL_WORLDS_CHIPS.map((chip) => (
+            <button
+              key={chip.id}
+              type="button"
+              className={`emotional-worlds-chip${selectedChip === chip.id ? ' is-active' : ''}`}
+              aria-pressed={selectedChip === chip.id}
+              onClick={() => setSelectedChip(chip.id)}
+            >
+              {chip.label}
+            </button>
+          ))}
+          <span className="emotional-worlds-chips-more" aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M9 6l6 6-6 6" />
+            </svg>
+          </span>
+        </div>
+
+        {showCatalogSkeleton ? (
+          <div className="emotional-worlds-grid emotional-worlds-grid--loading" aria-hidden="true">
+            {Array.from({ length: 10 }, (_, index) => (
+              <div key={index} className="emotional-world-card emotional-world-card--skeleton">
+                <div className="emotional-world-card-art" />
+                <div className="emotional-world-card-line" />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="emotional-worlds-grid" role="list" aria-label="Emotional worlds">
+            {visibleCards.map((card) => {
+              const scene = scenes.find((entry) => entry.id === card.sceneId)
+              const tracks = filterSongsByListeningScene(songs, card.sceneId)
+              const coverSong = tracks[0]
+              const isActive = selectedCardId === card.cardId
+              const visualSceneId = scene?.visualSceneId ?? resolveVisualScene({
+                seed: card.title,
+                mood: scene?.mood ?? 'violet',
+              })
+
+              return (
+                <article
+                  key={card.cardId}
+                  role="listitem"
+                  className={`emotional-world-card${isActive ? ' is-active' : ''}`}
+                  data-scene={visualSceneId}
+                >
+                  <button
+                    type="button"
+                    className="emotional-world-card-select"
+                    aria-pressed={isActive}
+                    onClick={() => setSelectedCardId(isActive ? null : card.cardId)}
+                  >
+                    <div className="emotional-world-card-art">
+                      {coverSong?.artwork ? (
+                        <ArtworkImage
+                          src={coverSong.artwork}
+                          alt=""
+                          seed={card.cardId}
+                        />
+                      ) : (
+                        <VisualSceneBackdrop
+                          sceneId={visualSceneId}
+                          seed={card.cardId}
+                          variant="thumb"
+                        />
+                      )}
+                      <span className="emotional-world-card-veil" aria-hidden="true" />
+                      <button
+                        type="button"
+                        className="emotional-world-play-btn"
+                        aria-label={`Play ${card.title}`}
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          playWorld(card)
+                        }}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                          <path d="M8 5v14l11-7z" />
+                        </svg>
+                      </button>
+                    </div>
+                    <div className="emotional-world-card-copy">
+                      <h3>{card.title}</h3>
+                      <p className="emotional-world-card-tags">{card.tags}</p>
+                      <p className="emotional-world-card-count">
+                        {tracks.length} {tracks.length === 1 ? 'song' : 'songs'}
+                      </p>
+                    </div>
+                  </button>
+                </article>
+              )
+            })}
+          </div>
+        )}
+      </PageFrame>
+    </div>
   )
 }
 
@@ -3421,7 +3571,39 @@ const RailWaveformSeek = memo(function RailWaveformSeek({
   )
 })
 
-const QueueUpNextPanel = memo(function QueueUpNextPanel() {
+
+function TheaterModeRailCard({ onEnter }: { onEnter: () => void }) {
+  return (
+    <section className="rail-theater-card" aria-label="Theater Mode">
+      <header className="rail-theater-header">
+        <h3 className="rail-theater-title">Theater Mode</h3>
+        <span className="rail-theater-chevron" aria-hidden="true">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M6 8l6 4-6 4M12 8l6 4-6 4" />
+          </svg>
+        </span>
+      </header>
+      <div
+        className="rail-theater-art"
+        style={{ backgroundImage: `url(${emotionalWorldsReferenceUrl})` }}
+        aria-hidden="true"
+      />
+      <p className="rail-theater-copy">Experience music like never before.</p>
+      <button type="button" className="rail-theater-enter" onClick={onEnter}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M8 5v14l11-7z" />
+        </svg>
+        Enter Theater
+      </button>
+    </section>
+  )
+}
+
+const QueueUpNextPanel = memo(function QueueUpNextPanel({
+  onOpenCinema,
+}: {
+  onOpenCinema?: () => void
+}) {
   const {
     currentTrack,
     currentQueue,
@@ -3551,6 +3733,8 @@ const QueueUpNextPanel = memo(function QueueUpNextPanel() {
             </ol>
           )}
         </section>
+
+        {onOpenCinema ? <TheaterModeRailCard onEnter={onOpenCinema} /> : null}
       </div>
     </aside>
   )
@@ -4428,7 +4612,7 @@ function PageContent({
   onOpenSong,
   onOpenAlbum,
   onOpenArtist,
-  onOpenMood,
+  onOpenMood: _onOpenMood,
 }: {
   page: PageId
   onOpenSong: QueueSongHandler
@@ -4436,6 +4620,7 @@ function PageContent({
   onOpenArtist: (artist: ApiArtist) => void
   onOpenMood: (mood: MoodRoom) => void
 }) {
+  void _onOpenMood
   switch (page) {
     case 'home':
       return (
@@ -4444,7 +4629,7 @@ function PageContent({
     case 'discover':
       return <DiscoverPage onOpenSong={onOpenSong} />
     case 'mood':
-      return <MoodRoomsPage onOpenMood={onOpenMood} />
+      return <EmotionalWorldsPage onOpenSong={onOpenSong} />
     case 'library':
       return <LibraryPage />
     case 'artists':
@@ -4575,12 +4760,16 @@ function AppShell() {
         <div className="main-area">
           <div className="main-composition">
             <main
-              className={`main-scroll${activePage === 'home' && activeView === 'page' ? ' main-scroll--home' : ''}`}
+              className={`main-scroll${
+                activePage === 'home' && activeView === 'page' ? ' main-scroll--home' : ''
+              }${
+                activePage === 'mood' && activeView === 'page' ? ' main-scroll--mood' : ''
+              }`}
             >
-              {activePage === 'home' && activeView === 'page' ? (
+              {(activePage === 'home' || activePage === 'mood') && activeView === 'page' ? (
                 <HomeTopBar onOpenDiscover={() => navigatePage('discover')} />
               ) : null}
-              {activePage !== 'home' ? <CatalogStatusBar /> : null}
+              {activePage !== 'home' && activePage !== 'mood' ? <CatalogStatusBar /> : null}
               <CatalogStaleBanner />
               <div className="page-view" data-page={activePage} data-view={activeView}>
                 <CatalogDetailRouter
@@ -4600,7 +4789,7 @@ function AppShell() {
                 />
               </div>
             </main>
-            <QueueUpNextPanel />
+            <QueueUpNextPanel onOpenCinema={() => setCinemaOpen(true)} />
           </div>
         </div>
       </div>
