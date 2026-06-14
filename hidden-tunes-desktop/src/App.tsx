@@ -2429,43 +2429,112 @@ const QueueUpNextPanel = memo(function QueueUpNextPanel() {
     currentQueue,
     currentIndex,
     queueContext,
+    isPlaying,
+    isLoading,
     getUpcomingTracks,
   } = useDesktopPlayback()
 
-  if (currentQueue.length <= 1 || currentIndex < 0) return null
+  const listScrollRef = useRef<HTMLOListElement>(null)
+  const activeTrackId = currentTrack?.id ?? null
 
   const queueLabel = QUEUE_CONTEXT_LABELS[queueContext]
-  const activeTrack = currentTrack ?? currentQueue[currentIndex]
-  const upcomingTracks = getUpcomingTracks().slice(0, 4)
+  const activeTrack =
+    currentIndex >= 0 ? (currentTrack ?? currentQueue[currentIndex] ?? null) : null
+  const upcomingTracks = getUpcomingTracks()
+  const showRail = Boolean(activeTrack && currentQueue.length > 0 && currentIndex >= 0)
 
-  if (!activeTrack || upcomingTracks.length === 0) return null
+  useEffect(() => {
+    if (!listScrollRef.current) return
+    listScrollRef.current.scrollTop = 0
+  }, [activeTrackId, currentIndex])
+
+  if (!showRail || !activeTrack) return null
+
+  const nowPlayingLabel = isLoading
+    ? 'Loading'
+    : isPlaying
+      ? 'Now playing'
+      : 'Paused'
 
   return (
-    <aside className="queue-rail" aria-label="Up Next">
-      <div className="queue-rail-header">
-        <h2>Up Next</h2>
-        <span>{queueLabel}</span>
-      </div>
-
-      <div className="queue-now">
-        <p className="queue-now-label">Now playing</p>
-        <p className="queue-now-title">{activeTrack.title}</p>
-        <p className="queue-now-artist">{activeTrack.artist}</p>
-      </div>
-
-      <ol className="queue-list">
-        {upcomingTracks.map((track, index) => (
-          <li className="queue-item" key={`${track.id}-${index}`}>
-            <span className="queue-index" aria-hidden="true">
-              {String(currentIndex + index + 2).padStart(2, '0')}
+    <aside
+      className="queue-rail"
+      aria-label="Playback queue"
+      data-playing={isPlaying ? 'true' : 'false'}
+      data-loading={isLoading ? 'true' : 'false'}
+    >
+      <div className="queue-rail-inner">
+        <header className="queue-rail-header">
+          <div className="queue-rail-heading">
+            <h2>Queue</h2>
+            <span className="queue-rail-position">
+              Track {currentIndex + 1} of {currentQueue.length}
             </span>
-            <span className="queue-track">
-              <span className="queue-track-title">{track.title}</span>
-              <span className="queue-track-artist">{track.artist}</span>
+          </div>
+          <span className="queue-rail-context">{queueLabel}</span>
+        </header>
+
+        <section className="queue-now-card" aria-label="Now playing">
+          <div className="queue-now-artwork" aria-hidden="true">
+            <ArtworkImage
+              src={activeTrack.artwork}
+              alt=""
+              seed={activeTrack.id}
+              priority
+            />
+            {isLoading ? (
+              <span className="queue-now-spinner player-spinner" aria-hidden="true" />
+            ) : null}
+          </div>
+          <div className="queue-now-copy">
+            <p className="queue-now-label">{nowPlayingLabel}</p>
+            <p className="queue-now-title">{activeTrack.title}</p>
+            <p className="queue-now-artist">{activeTrack.artist}</p>
+            {activeTrack.album ? (
+              <p className="queue-now-album">{activeTrack.album}</p>
+            ) : null}
+          </div>
+        </section>
+
+        <section className="queue-upnext-section" aria-label="Up next">
+          <div className="queue-upnext-header">
+            <h3>Up next</h3>
+            <span className="queue-upnext-count">
+              {upcomingTracks.length}{' '}
+              {upcomingTracks.length === 1 ? 'track' : 'tracks'}
             </span>
-          </li>
-        ))}
-      </ol>
+          </div>
+
+          {upcomingTracks.length === 0 ? (
+            <div className="queue-empty" role="status">
+              <p className="queue-empty-title">End of queue</p>
+              <p className="queue-empty-detail">
+                Nothing lined up after this track.
+              </p>
+            </div>
+          ) : (
+            <ol className="queue-list queue-list-scroll" ref={listScrollRef}>
+              {upcomingTracks.map((track, index) => (
+                <li className="queue-item" key={`${track.id}-${index}`}>
+                  <span className="queue-index" aria-hidden="true">
+                    {String(currentIndex + index + 2).padStart(2, '0')}
+                  </span>
+                  <div className="queue-item-artwork" aria-hidden="true">
+                    <ArtworkImage src={track.artwork} alt="" seed={track.id} />
+                  </div>
+                  <div className="queue-track">
+                    <span className="queue-track-title">{track.title}</span>
+                    <span className="queue-track-artist">{track.artist}</span>
+                    {track.album ? (
+                      <span className="queue-track-album">{track.album}</span>
+                    ) : null}
+                  </div>
+                </li>
+              ))}
+            </ol>
+          )}
+        </section>
+      </div>
     </aside>
   )
 })
