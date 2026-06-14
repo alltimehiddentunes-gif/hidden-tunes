@@ -32,6 +32,7 @@ export type InstantPlayableSelection = {
 export type PlayableUrlInput = {
   previewUrl?: string | null
   audioUrl?: string | null
+  highQualityUrl?: string | null
   audioVersions?: SongAudioVersions
 }
 
@@ -156,6 +157,65 @@ export function selectPlayableUrlForQualityMode(
     if (!url || seen.has(url)) continue
     seen.add(url)
     return { url, tier: candidate.tier }
+  }
+
+  return null
+}
+
+function firstHttpUrl(...values: Array<string | null | undefined>): string | null {
+  for (const value of values) {
+    const url = asHttpUrl(value)
+    if (url) return url
+  }
+  return null
+}
+
+export function resolveUpgradeTargetForQualityMode(
+  songOrMetadata: PlayableUrlInput,
+  currentSelection: InstantPlayableSelection | null,
+  qualityMode: AudioQualityMode,
+): InstantPlayableSelection | null {
+  if (!currentSelection) return null
+
+  if (qualityMode === 'data-saver' || qualityMode === 'standard') {
+    return null
+  }
+
+  if (qualityMode === 'auto') {
+    const versionStandardUrl = asHttpUrl(songOrMetadata.audioVersions?.standard?.url)
+    const legacyStandardUrl = asHttpUrl(songOrMetadata.audioUrl)
+    const standardUrl = versionStandardUrl ?? legacyStandardUrl
+
+    if (standardUrl && standardUrl !== currentSelection.url) {
+      return {
+        url: standardUrl,
+        tier: standardUrl === versionStandardUrl ? 'standard' : 'legacyAudioUrl',
+      }
+    }
+
+    const highQualityUrl = firstHttpUrl(
+      songOrMetadata.audioVersions?.highQuality?.url,
+      songOrMetadata.highQualityUrl,
+    )
+    if (highQualityUrl && highQualityUrl !== currentSelection.url) {
+      return { url: highQualityUrl, tier: 'highQuality' }
+    }
+
+    return null
+  }
+
+  const highQualityUrl = firstHttpUrl(
+    songOrMetadata.audioVersions?.highQuality?.url,
+    songOrMetadata.highQualityUrl,
+  )
+
+  if (
+    qualityMode === 'high-quality' &&
+    highQualityUrl &&
+    highQualityUrl !== currentSelection.url &&
+    currentSelection.tier !== 'highQuality'
+  ) {
+    return { url: highQualityUrl, tier: 'highQuality' }
   }
 
   return null

@@ -16,10 +16,10 @@ import {
 } from '../lib/localPreferences'
 import {
   audioVersionAvailability,
+  resolveUpgradeTargetForQualityMode,
   selectPlayableUrlForQualityMode,
 } from '../lib/audioVersions'
 import { logAudioVersionSelection, logQueueExtension } from '../lib/catalogDiagnostics'
-import { resolveUpgradePlayUrl } from '../lib/songMetadata'
 import { HtmlAudioPlaybackService } from '../lib/desktopPlayback/HtmlAudioPlaybackService'
 import { buildRelatedQueue } from '../lib/desktopPlayback/queueIntelligence'
 import type {
@@ -137,7 +137,11 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       const service = getService()
       const selection = selectPlayableUrlForQualityMode(song, audioQualityMode)
       const instantUrl = selection?.url ?? null
-      const upgradeUrl = resolveUpgradePlayUrl(song, instantUrl)
+      const upgradeTarget = resolveUpgradeTargetForQualityMode(
+        song,
+        selection,
+        audioQualityMode,
+      )
 
       if (selection) {
         logAudioVersionSelection({
@@ -145,6 +149,21 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
           qualityMode: audioQualityMode,
           ...audioVersionAvailability(song.audioVersions),
         })
+      }
+
+      if (selection && import.meta.env.DEV) {
+        if (upgradeTarget) {
+          console.debug('[ht-playback] upgrade target selected', {
+            qualityMode: audioQualityMode,
+            instantTier: selection?.tier,
+            upgradeTier: upgradeTarget.tier,
+          })
+        } else if (audioQualityMode === 'data-saver' || audioQualityMode === 'standard') {
+          console.debug('[ht-playback] upgrade skipped by quality mode', {
+            qualityMode: audioQualityMode,
+            instantTier: selection?.tier,
+          })
+        }
       }
 
       setCurrentTrack(song)
@@ -168,8 +187,8 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       void service
         .play(instantUrl, { instant: true })
         .then(() => {
-          if (upgradeUrl) {
-            void service.upgradeSource(upgradeUrl)
+          if (upgradeTarget) {
+            void service.upgradeSource(upgradeTarget.url)
           }
         })
         .catch((err) => {
