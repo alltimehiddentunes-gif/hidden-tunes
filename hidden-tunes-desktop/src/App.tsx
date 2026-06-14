@@ -98,6 +98,12 @@ import {
   filterSongsByListeningScene,
   findListeningScene,
 } from './lib/sceneListening'
+import {
+  buildRadioStation,
+  describeRadioSeed,
+  resolveRadioSeed,
+  type BuiltRadioStation,
+} from './lib/desktopRadio'
 import './App.css'
 
 const APP_NAME = 'Hidden Tunes Desktop'
@@ -1484,6 +1490,127 @@ function SceneListeningSection({
   )
 }
 
+function RadioFoundationSection({
+  songs,
+  browseSongs,
+  selectedLaneId,
+  selectedLaneLabel,
+  selectedSceneId,
+  selectedSceneLabel,
+  onStartRadio,
+  loading = false,
+}: {
+  songs: ApiSong[]
+  browseSongs: ApiSong[]
+  selectedLaneId: string | null
+  selectedLaneLabel?: string | null
+  selectedSceneId: string | null
+  selectedSceneLabel?: string | null
+  onStartRadio: (station: BuiltRadioStation) => void
+  loading?: boolean
+}) {
+  const [builtStation, setBuiltStation] = useState<BuiltRadioStation | null>(null)
+
+  const seed = useMemo(
+    () =>
+      resolveRadioSeed({
+        catalog: songs,
+        browseSongs,
+        selectedLaneId,
+        selectedLaneLabel,
+        selectedSceneId,
+        selectedSceneLabel,
+      }),
+    [
+      browseSongs,
+      selectedLaneId,
+      selectedLaneLabel,
+      selectedSceneId,
+      selectedSceneLabel,
+      songs,
+    ],
+  )
+
+  useEffect(() => {
+    setBuiltStation(null)
+  }, [seed?.id, seed?.type])
+
+  const handleBuildStation = useCallback(() => {
+    if (!seed) return
+    setBuiltStation(buildRadioStation(songs, seed))
+  }, [seed, songs])
+
+  if (!loading && songs.length < 2) return null
+
+  return (
+    <section
+      className="discovery-section radio-foundation-section"
+      aria-labelledby="radio-foundation-heading"
+    >
+      <div className="section-header radio-foundation-header">
+        <div>
+          <p className="page-eyebrow radio-foundation-eyebrow">Radio foundation</p>
+          <h2 id="radio-foundation-heading">Build a station</h2>
+          <span className="section-hint">
+            Preview a scored station from your catalog — start radio only when you choose
+          </span>
+        </div>
+        <button
+          type="button"
+          className="btn-secondary btn-sm radio-build-btn"
+          onClick={handleBuildStation}
+          disabled={!seed || loading}
+        >
+          Build station
+        </button>
+      </div>
+
+      {seed ? (
+        <p className="radio-seed-line">{describeRadioSeed(seed)}</p>
+      ) : (
+        <p className="radio-seed-line radio-seed-line--muted">
+          Select a lane or scene, or browse songs to choose a seed.
+        </p>
+      )}
+
+      {builtStation ? (
+        <div className="radio-station-card">
+          <div className="radio-station-copy">
+            <h3>{builtStation.title}</h3>
+            <p>{builtStation.subtitle}</p>
+            <span className="radio-station-meta">
+              {builtStation.trackCount} tracks in this station preview
+            </span>
+          </div>
+          <ol className="radio-station-preview">
+            {builtStation.tracks.slice(0, 6).map((track, index) => (
+              <li className="radio-station-track" key={`${track.id}-${index}`}>
+                <span className="radio-station-index" aria-hidden="true">
+                  {String(index + 1).padStart(2, '0')}
+                </span>
+                <span className="radio-station-track-title">{track.title}</span>
+                <span className="radio-station-track-artist">{track.artist}</span>
+              </li>
+            ))}
+          </ol>
+          {builtStation.trackCount > 6 ? (
+            <p className="radio-station-more">
+              +{builtStation.trackCount - 6} more in station order
+            </p>
+          ) : null}
+          <button
+            type="button"
+            className="btn-primary btn-sm radio-start-btn"
+            onClick={() => onStartRadio(builtStation)}
+          >
+            Start radio
+          </button>
+        </div>
+      ) : null}
+    </section>
+  )
+}
+
 function DiscoveryGrid({ section }: { section: DiscoverySection }) {
   return (
     <section className="discovery-section" aria-labelledby={`section-${section.title}`}>
@@ -1669,6 +1796,25 @@ function HomePage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
     [browseQueueTitle, browseSongs, indexes, onOpenSong, queuePools],
   )
 
+  const handleStartRadio = useCallback(
+    (station: BuiltRadioStation) => {
+      if (station.tracks.length === 0) return
+      onOpenSong(
+        station.tracks[0],
+        station.tracks,
+        0,
+        'radio',
+        station.title,
+        {
+          seedType: 'discover',
+          seedTracks: station.tracks,
+          candidatePools: queuePools,
+        },
+      )
+    },
+    [indexes, onOpenSong, queuePools],
+  )
+
   return (
     <PageFrame>
       <Hero />
@@ -1682,6 +1828,16 @@ function HomePage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
         songs={songs}
         selectedSceneId={selectedSceneId}
         onSelectScene={setSelectedSceneId}
+        loading={showCatalogSkeleton}
+      />
+      <RadioFoundationSection
+        songs={songs}
+        browseSongs={browseSongs}
+        selectedLaneId={selectedLaneId}
+        selectedLaneLabel={selectedLane?.label ?? null}
+        selectedSceneId={selectedSceneId}
+        selectedSceneLabel={selectedScene?.label ?? null}
+        onStartRadio={handleStartRadio}
         loading={showCatalogSkeleton}
       />
       {(selectedLaneId || selectedSceneId) && browseSongs.length > 0 ? (
@@ -1843,6 +1999,31 @@ function DiscoverPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
     [catalogSongs, indexes, onOpenSong, queuePools, selectedLane, selectedScene, visibleRecords],
   )
 
+  const handleStartRadio = useCallback(
+    (station: BuiltRadioStation) => {
+      if (station.tracks.length === 0) return
+      const record =
+        visibleRecords.find((entry) => entry.id === station.tracks[0].id) ?? null
+      const playableSong = record
+        ? metadataRecordToApiSong(record)
+        : station.tracks[0]
+
+      onOpenSong(
+        playableSong,
+        station.tracks,
+        0,
+        'radio',
+        station.title,
+        {
+          seedType: 'discover',
+          seedTracks: station.tracks,
+          candidatePools: queuePools,
+        },
+      )
+    },
+    [indexes, onOpenSong, queuePools, visibleRecords],
+  )
+
   return (
     <PageFrame>
       <PageHeader
@@ -1860,6 +2041,16 @@ function DiscoverPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
         songs={songs}
         selectedSceneId={selectedSceneId}
         onSelectScene={setSelectedSceneId}
+        loading={showCatalogSkeleton}
+      />
+      <RadioFoundationSection
+        songs={songs}
+        browseSongs={catalogSongs}
+        selectedLaneId={selectedLaneId}
+        selectedLaneLabel={selectedLane?.label ?? null}
+        selectedSceneId={selectedSceneId}
+        selectedSceneLabel={selectedScene?.label ?? null}
+        onStartRadio={handleStartRadio}
         loading={showCatalogSkeleton}
       />
       <CatalogToolbar
