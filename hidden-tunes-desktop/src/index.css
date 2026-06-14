@@ -83,14 +83,14 @@
 
   --sidebar-width: 240px;
   --queue-rail-width: 320px;
-  --now-playing-art-size: 188px;
+  --now-playing-art-size: 198px;
   --rail-waveform-height: 44px;
   --player-height: 90px;
   --content-max: 1240px;
   --content-max-home: none;
 
   --world-card-radius: 22px;
-  --hero-min-height: 40vh;
+  --hero-min-height: 44vh;
 
   /* Typography tokens — fonts TBD in later phases */
   --font-ui: 'Segoe UI', system-ui, -apple-system, sans-serif;

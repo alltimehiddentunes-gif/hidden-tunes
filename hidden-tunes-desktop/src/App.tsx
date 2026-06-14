@@ -1926,9 +1926,8 @@ function PopularWorldsSection({
   return (
     <section className="popular-worlds-section" aria-labelledby="popular-worlds-heading">
       <header className="popular-worlds-header">
-        <p className="popular-worlds-eyebrow">Popular Worlds</p>
-        <h2 id="popular-worlds-heading" className="popular-worlds-title">
-          Choose your atmosphere
+        <h2 id="popular-worlds-heading" className="popular-worlds-eyebrow">
+          Popular Worlds
         </h2>
       </header>
       {loading ? (
