@@ -94,6 +94,7 @@ export function buildCatalogIndexes(
   const songsByMood = new Map<string, ApiSong[]>()
   const songsByGenre = new Map<string, ApiSong[]>()
 
+  const knownAlbumIds = new Set(albums.map((album) => album.id).filter(Boolean))
   const albumTitleCounts = new Map<string, number>()
   for (const album of albums) {
     const albumKey = normalizeAlbumKey(album.title)
@@ -118,7 +119,11 @@ export function buildCatalogIndexes(
     }
 
     const albumKey = normalizeAlbumKey(song.album)
-    if (albumKey && !song.albumId) {
+    // Fallback buckets are only for songs whose albumId cannot resolve to a
+    // catalog album. This covers synthetic album cards without reopening broad
+    // title-only leakage across unrelated albums.
+    const hasUsableAlbumId = Boolean(song.albumId && knownAlbumIds.has(song.albumId))
+    if (albumKey && !hasUsableAlbumId) {
       if (song.artistId) {
         pushToBucket(songsByAlbumName, albumArtistFallbackKey(song.album, song.artistId), song)
       }
@@ -292,13 +297,14 @@ export function resolveSongsForAlbum(
   }
 
   const albumKey = normalizeAlbumKey(album.title)
+  // Exact albumId wins above. Fallback only considers id-unresolved buckets
+  // created by buildCatalogIndexes and then rechecks title/artist identity.
   const fallbackSongs = album.artistId
     ? songsByAlbumName.get(albumArtistFallbackKey(album.title, album.artistId))
       ?? songsByAlbumName.get(albumKey)
       ?? []
     : songsByAlbumName.get(albumKey) ?? []
   const byName = fallbackSongs.filter((song) => {
-    if (song.albumId) return false
     if (normalizeAlbumKey(song.album) !== albumKey) return false
     if (album.artistId && song.artistId) return song.artistId === album.artistId
     if (album.artistId && !song.artistId) return false
