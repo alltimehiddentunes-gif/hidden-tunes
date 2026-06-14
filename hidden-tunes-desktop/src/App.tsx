@@ -5774,10 +5774,12 @@ function DetailTopBar({
 const CinemaPlayerShell = memo(function CinemaPlayerShell({
   onClose,
   onOpenLyrics,
+  onOpenWaveform,
   preferredTrack = null,
 }: {
   onClose: () => void
   onOpenLyrics?: () => void
+  onOpenWaveform?: () => void
   preferredTrack?: ApiSong | null
 }) {
   const {
@@ -6002,8 +6004,7 @@ const CinemaPlayerShell = memo(function CinemaPlayerShell({
             type="button"
             className="psd-player-quick-action"
             aria-label="Equalizer"
-            aria-pressed={showQualityPanel}
-            onClick={() => setShowQualityPanel((open) => !open)}
+            onClick={onOpenWaveform}
           >
             <PsdIconEqualizer className="psd-player-equalizer-icon" />
             <span>Equalizer</span>
@@ -7427,6 +7428,10 @@ function AppShell() {
           onOpenLyrics={() => {
             setCinemaOpen(false)
             setLyricsOpen(true)
+          }}
+          onOpenWaveform={() => {
+            setCinemaOpen(false)
+            setWaveformOpen(true)
           }}
         />
       ) : null}
