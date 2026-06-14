@@ -112,6 +112,7 @@ import {
 import './App.css'
 
 const APP_NAME = 'Hidden Tunes Desktop'
+const BRAND_LOGO_URL = `${import.meta.env.BASE_URL}favicon.svg`
 const APP_VERSION = '0.0.1'
 const GRID_INITIAL_LIMIT = 24
 const GRID_SHOW_MORE_STEP = 24
@@ -702,6 +703,25 @@ function MusicNoteIcon({ className }: { className?: string }) {
     </svg>
   )
 }
+function BrandLogo({
+  className,
+  decorative = false,
+}: {
+  className?: string
+  decorative?: boolean
+}) {
+  return (
+    <img
+      className={className}
+      src={BRAND_LOGO_URL}
+      alt={decorative ? '' : 'Hidden Tunes'}
+      aria-hidden={decorative ? true : undefined}
+      decoding="async"
+      draggable={false}
+    />
+  )
+}
+
 
 function catalogFallbackTone(seed: string): Mood {
   const code = seed.charCodeAt(0) + seed.charCodeAt(seed.length - 1 || 0)
@@ -1716,8 +1736,13 @@ function Hero({
       <div className="hero-vignette" aria-hidden="true" />
       <div className="hero-inner">
         <div className="hero-copy">
-          <p className="hero-eyebrow">Emotional streaming · Desktop</p>
-          <h1>Hidden Tunes</h1>
+          <div className="hero-brand">
+            <BrandLogo className="hero-brand-logo" decorative />
+            <div className="hero-brand-copy">
+              <p className="hero-eyebrow">Emotional streaming · Desktop</p>
+              <h1>Hidden Tunes</h1>
+            </div>
+          </div>
           <p className="hero-tagline">
             A cinematic sanctuary for music that moves you — discover moods, rooms,
             and stories crafted for how you feel right now.
@@ -1733,7 +1758,7 @@ function Hero({
         </div>
         <div className="hero-artwork" aria-hidden="true">
           <div className="hero-artwork-ring" />
-          <MusicNoteIcon className="artwork-placeholder" />
+          <BrandLogo className="hero-artwork-logo" decorative />
         </div>
       </div>
     </section>

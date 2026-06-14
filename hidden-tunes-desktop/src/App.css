@@ -6030,3 +6030,76 @@
 .player-bar--idle .player-meta p {
   color: var(--text-subtle, rgba(255, 255, 255, 0.42));
 }
+/* —— Desktop home branding (Phase 40F) —— */
+.hero-brand {
+  display: flex;
+  align-items: center;
+  gap: clamp(12px, 2vw, 18px);
+  margin-bottom: clamp(12px, 2vw, 16px);
+}
+
+.hero-brand-logo {
+  width: clamp(38px, 4.8vw, 50px);
+  height: auto;
+  flex-shrink: 0;
+  filter: drop-shadow(0 10px 24px rgba(134, 59, 255, 0.34));
+}
+
+.hero-brand-copy {
+  min-width: 0;
+}
+
+.hero-brand-copy .hero-eyebrow {
+  margin-bottom: 8px;
+}
+
+.hero-brand-copy h1 {
+  margin-bottom: 0;
+}
+
+.hero-artwork-logo {
+  position: relative;
+  z-index: 1;
+  width: clamp(68px, 9vw, 92px);
+  height: auto;
+  opacity: 0.96;
+  filter: drop-shadow(0 14px 34px rgba(134, 59, 255, 0.38));
+}
+
+.page-view[data-page="home"] .hero-brand-logo {
+  filter: drop-shadow(0 12px 28px rgba(134, 59, 255, 0.4));
+}
+
+.page-view[data-page="home"] .hero-artwork-logo {
+  filter: drop-shadow(0 16px 38px rgba(134, 59, 255, 0.42));
+}
+
+@media (max-width: 1100px) {
+  .hero-brand {
+    justify-content: center;
+  }
+
+  .hero-brand-copy {
+    text-align: left;
+  }
+}
+
+@media (max-width: 640px) {
+  .hero-brand {
+    gap: 12px;
+  }
+
+  .hero-brand-logo {
+    width: 36px;
+  }
+
+  .hero-artwork {
+    width: clamp(132px, 38vw, 168px) !important;
+    height: clamp(132px, 38vw, 168px) !important;
+    flex-basis: clamp(132px, 38vw, 168px) !important;
+  }
+
+  .hero-artwork-logo {
+    width: clamp(56px, 16vw, 72px);
+  }
+}
