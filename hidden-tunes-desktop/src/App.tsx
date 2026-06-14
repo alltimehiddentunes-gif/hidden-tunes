@@ -120,6 +120,7 @@ import psdWaveformReferenceUrl from './assets/psd-waveform-reference.jpg'
 import psdLyricsReferenceUrl from './assets/psd-lyrics-reference.jpg'
 import psdRecentReferenceUrl from './assets/psd-recent-reference.jpg'
 import psdNowPlayingReferenceUrl from './assets/psd-now-playing-reference.jpg'
+import psdDownloadsReferenceUrl from './assets/psd-downloads-reference.jpg'
 import psdLibraryReferenceUrl from './assets/psd-library-reference.jpg'
 import './App.css'
 
@@ -277,6 +278,26 @@ const PSD_RAIL_QUEUE_ROWS = [
   { key: 'rq4', title: 'Jazz Café', artist: 'Wills Afrobeats', artPosition: '46% 58%' },
 ] as const
 const PSD_RAIL_ART_POSITION = '50% 38%'
+
+const PSD_DOWNLOADS_STORAGE_PERCENT = 72
+const PSD_DOWNLOADS_PLAYLISTS = [
+  { key: 'dw-pl1', title: 'Night Drive', meta: '50 songs • 3h 12m', artPosition: '42% 58%' },
+  { key: 'dw-pl2', title: 'Chill Vibes', meta: '35 songs • 2h 17m', artPosition: '50% 58%' },
+  { key: 'dw-pl3', title: 'Jazz Café', meta: '40 songs • 2h 45m', artPosition: '58% 58%' },
+] as const
+const PSD_DOWNLOADS_ALBUMS = [
+  { key: 'dw-al1', title: 'Midnight Memories', artist: 'Wills Afrobeats', meta: '12 songs • 45 min', artPosition: '14% 58%' },
+  { key: 'dw-al2', title: 'After Hours', artist: 'Wills Afrobeats', meta: '10 songs • 38 min', artPosition: '22% 58%' },
+] as const
+const PSD_DOWNLOADS_SONGS = [
+  { key: 'dw-s1', title: 'Midnight Reflection', meta: 'Wills Afrobeats • Night Drive', artPosition: '10% 58%' },
+  { key: 'dw-s2', title: 'Afro Sunset', meta: 'Wills Afrobeats • Night Drive', artPosition: '18% 58%' },
+  { key: 'dw-s3', title: 'Love Vibes', meta: 'Wills Afrobeats • Night Drive', artPosition: '26% 58%' },
+  { key: 'dw-s4', title: 'Healing Slowly', meta: 'Wills Afrobeats • Night Drive', artPosition: '34% 58%' },
+  { key: 'dw-s5', title: 'Night Drive', meta: 'Wills Afrobeats • Night Drive', artPosition: '42% 58%' },
+  { key: 'dw-s6', title: 'Rainy Day Comfort', meta: 'Wills Afrobeats • Night Drive', artPosition: '50% 58%' },
+] as const
+const PSD_DOWNLOADS_TABS = ['All', 'Playlists', 'Albums', 'Songs', 'Podcasts'] as const
 
 const PSD_WAVEFORM_ALBUM = 'Reflections at Midnight'
 const PSD_WAVEFORM_LYRICS = [
@@ -1636,24 +1657,6 @@ function CatalogStatusSettings({
         </p>
       ) : null}
     </section>
-  )
-}
-
-function PlaceholderNote({
-  title,
-  detail,
-}: {
-  title: string
-  detail: string
-}) {
-  return (
-    <div className="placeholder-note">
-      <div className="placeholder-shimmer" aria-hidden="true" />
-      <div className="placeholder-copy">
-        <strong>{title}</strong>
-        <p>{detail}</p>
-      </div>
-    </div>
   )
 }
 
@@ -4349,21 +4352,393 @@ function RecentPage({
   )
 }
 
-/* Phase 42B: no dedicated PSD reference — inferred from Library download cues */
-function DownloadsPage() {
+/* Phase 42X: Downloads page exact PSD reconstruction */
+const DownloadsFloatingPlayer = memo(function DownloadsFloatingPlayer() {
+  const {
+    currentTrack,
+    currentQueue,
+    currentIndex,
+    isPlaying,
+    isLoading,
+    pause,
+    resume,
+    next,
+    previous,
+  } = useDesktopPlayback()
+
+  const displayTrack = currentTrack
+  const title = displayTrack?.title ?? PSD_PLAYER_TITLE
+  const artist = displayTrack?.artist ?? PSD_PLAYER_ARTIST
+  const isActive = Boolean(displayTrack)
+  const hasPrevious = isActive && currentIndex > 0
+  const hasNext = isActive && currentIndex >= 0 && currentIndex < currentQueue.length - 1
+  const showPlaying = isActive && isPlaying
+
+  const handlePlayPause = () => {
+    if (!isActive || isLoading) return
+    if (isPlaying) {
+      pause()
+      return
+    }
+    resume()
+  }
+
   return (
-    <div className="psd-downloads-destination">
-      <PageFrame cinematic>
-        <section className="psd-inferred-hero" aria-labelledby="downloads-heading">
-          <p className="psd-page-eyebrow">Offline</p>
-          <h1 id="downloads-heading">Downloads</h1>
-          <p className="psd-page-subtitle">Inferred shell — no dedicated PSD reference; styled from sidebar/library download cues.</p>
+    <div className="psd-downloads-mini-player" aria-label="Now playing mini player">
+      <span
+        className="psd-downloads-mini-art"
+        style={{
+          backgroundImage: displayTrack?.artwork
+            ? `url(${displayTrack.artwork})`
+            : `url(${psdDownloadsReferenceUrl})`,
+          backgroundPosition: PSD_DOWNLOADS_SONGS[0].artPosition,
+        }}
+        aria-hidden="true"
+      />
+      <div className="psd-downloads-mini-copy">
+        <strong>{title}</strong>
+        <span>{artist}</span>
+      </div>
+      <div className="psd-downloads-mini-controls">
+        <button
+          type="button"
+          className="psd-downloads-mini-skip"
+          onClick={previous}
+          disabled={!hasPrevious}
+          aria-label="Previous track"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M6 6h2v12H6V6zm3.5 6l8.5 6V6l-8.5 6z" />
+          </svg>
+        </button>
+        <button
+          type="button"
+          className="psd-downloads-mini-play"
+          onClick={handlePlayPause}
+          disabled={!isActive || isLoading}
+          aria-label={showPlaying ? 'Pause' : 'Play'}
+        >
+          {showPlaying ? (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M6 5h4v14H6V5zm8 0h4v14h-4V5z" />
+            </svg>
+          ) : (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M8 5v14l11-7z" />
+            </svg>
+          )}
+        </button>
+        <button
+          type="button"
+          className="psd-downloads-mini-skip"
+          onClick={next}
+          disabled={!hasNext}
+          aria-label="Next track"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M6 18l8.5-6L6 6v12zm10-12h2v12h-2V6z" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  )
+})
+
+function DownloadsBottomNav({
+  onNavigateNav,
+}: {
+  onNavigateNav: (navKey: NavKey) => void
+}) {
+  const items: Array<{ key: NavKey; label: string; active?: boolean }> = [
+    { key: 'home', label: 'Home' },
+    { key: 'search', label: 'Search' },
+    { key: 'library', label: 'Library' },
+    { key: 'downloads', label: 'Downloads', active: true },
+  ]
+
+  return (
+    <nav className="psd-downloads-bottom-nav" aria-label="Mobile navigation">
+      {items.map((item) => (
+        <button
+          key={item.key}
+          type="button"
+          className={`psd-downloads-nav-item${item.active ? ' is-active' : ''}`}
+          onClick={() => onNavigateNav(item.key)}
+          aria-current={item.active ? 'page' : undefined}
+        >
+          <span className="psd-downloads-nav-icon" aria-hidden="true">
+            {item.key === 'home' ? (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
+                <path d="M3 10.5L12 3l9 7.5V20a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1v-9.5z" />
+              </svg>
+            ) : item.key === 'search' ? (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
+                <circle cx="11" cy="11" r="7" />
+                <path d="M20 20l-3.5-3.5" />
+              </svg>
+            ) : item.key === 'library' ? (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
+                <path d="M4 19.5A2.5 2.5 0 016.5 17H20" />
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" />
+              </svg>
+            ) : (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
+                <path d="M12 4v10" />
+                <path d="M8.5 10.5L12 14l3.5-3.5" />
+                <path d="M5 18h14" />
+              </svg>
+            )}
+          </span>
+          <span>{item.label}</span>
+        </button>
+      ))}
+    </nav>
+  )
+}
+
+function PsdDownloadsRowMenu() {
+  return (
+    <button type="button" className="psd-downloads-row-menu" aria-label="More options">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <circle cx="12" cy="5" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="12" cy="19" r="1.6" />
+      </svg>
+    </button>
+  )
+}
+
+function DownloadsPage({
+  onBack,
+  onNavigateNav,
+  onOpenSong,
+}: {
+  onBack: () => void
+  onNavigateNav: (navKey: NavKey) => void
+  onOpenSong: QueueSongHandler
+}) {
+  const { songs, indexes } = useCatalog()
+  const queuePools = useMemo(() => buildQueueCandidatePools(indexes), [indexes])
+  const [activeTab, setActiveTab] = useState<(typeof PSD_DOWNLOADS_TABS)[number]>('All')
+
+  const resolveSong = useCallback(
+    (title: string) => songs.find((song) => song.title.toLowerCase() === title.toLowerCase()) ?? null,
+    [songs],
+  )
+
+  const playShuffleAll = useCallback(() => {
+    const firstSong = resolveSong(PSD_DOWNLOADS_SONGS[0].title) ?? songs[0]
+    if (!firstSong) return
+    const queue = songs.length > 0 ? songs : [firstSong]
+    const queueIndex = Math.max(0, queue.findIndex((entry) => entry.id === firstSong.id))
+    onOpenSong(firstSong, queue, queueIndex, 'manual', 'Downloads', {
+      seedType: 'manual',
+      seedTracks: buildQueueSeedPool('manual', queue, indexes, firstSong),
+      candidatePools: queuePools,
+    })
+  }, [indexes, onOpenSong, queuePools, resolveSong, songs])
+
+  const showPlaylists = activeTab === 'All' || activeTab === 'Playlists'
+  const showAlbums = activeTab === 'All' || activeTab === 'Albums'
+  const showSongs = activeTab === 'All' || activeTab === 'Songs'
+
+  return (
+    <div className="psd-downloads-page">
+      <header className="psd-downloads-topbar">
+        <button type="button" className="psd-downloads-topbar-btn" onClick={onBack} aria-label="Go back">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            <path d="M19 12H5M12 19l-7-7 7-7" />
+          </svg>
+        </button>
+        <div className="psd-downloads-topbar-actions">
+          <button type="button" className="psd-downloads-topbar-btn" aria-label="Search">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+              <circle cx="11" cy="11" r="7" />
+              <path d="M20 20l-3.5-3.5" />
+            </svg>
+          </button>
+          <button type="button" className="psd-downloads-topbar-btn" aria-label="More options">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <circle cx="12" cy="5" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="12" cy="19" r="1.6" />
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <div className="psd-downloads-scroll">
+        <h1 className="psd-downloads-title">Downloads</h1>
+
+        <section className="psd-downloads-storage" aria-label="Storage usage">
+          <div
+            className="psd-downloads-ring"
+            style={{ ['--downloads-ring-percent' as string]: PSD_DOWNLOADS_STORAGE_PERCENT }}
+            aria-hidden="true"
+          >
+            <span>{PSD_DOWNLOADS_STORAGE_PERCENT}%</span>
+          </div>
+          <div className="psd-downloads-storage-copy">
+            <strong>{PSD_DOWNLOADS_STORAGE_PERCENT}% of storage used</strong>
+            <span>57.6 GB / 80 GB</span>
+            <div className="psd-downloads-storage-bar">
+              <div
+                className="psd-downloads-storage-fill"
+                style={{ width: `${PSD_DOWNLOADS_STORAGE_PERCENT}%` }}
+              />
+            </div>
+          </div>
+          <button type="button" className="psd-downloads-smart-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+              <path d="M12 3l1.8 4.6L18 9.4l-3.7 2.8L15.4 17 12 14.3 8.6 17l1.1-4.8L6 9.4l4.2-1.8L12 3z" />
+            </svg>
+            Smart Download
+          </button>
         </section>
-        <PlaceholderNote
-          title="No downloads yet"
-          detail="Saved offline tracks will appear here once download sync is connected."
-        />
-      </PageFrame>
+
+        <div className="psd-downloads-tabs" role="tablist" aria-label="Download categories">
+          {PSD_DOWNLOADS_TABS.map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === tab}
+              className={`psd-downloads-tab${activeTab === tab ? ' is-active' : ''}`}
+              onClick={() => setActiveTab(tab)}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+
+        <div className="psd-downloads-controls">
+          <button type="button" className="psd-downloads-shuffle-all" onClick={playShuffleAll}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+              <path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5" />
+            </svg>
+            Shuffle All
+          </button>
+          <button type="button" className="psd-downloads-sort">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+              <path d="M4 6h16M7 12h10M10 18h4" />
+            </svg>
+            Recently Downloaded
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <path d="M6 9l6 6 6-6" />
+            </svg>
+          </button>
+        </div>
+
+        {showPlaylists ? (
+          <section className="psd-downloads-section" aria-label="Downloaded playlists">
+            <h2 className="psd-downloads-section-title">Playlists (3)</h2>
+            <ul className="psd-downloads-list">
+              {PSD_DOWNLOADS_PLAYLISTS.map((row) => (
+                <li key={row.key} className="psd-downloads-row">
+                  <span
+                    className="psd-downloads-row-art"
+                    style={{
+                      backgroundImage: `url(${psdDownloadsReferenceUrl})`,
+                      backgroundPosition: row.artPosition,
+                    }}
+                    aria-hidden="true"
+                  />
+                  <div className="psd-downloads-row-copy">
+                    <p className="psd-downloads-row-title">
+                      {row.title}
+                      <svg className="psd-downloads-row-badge" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                      </svg>
+                    </p>
+                    <span className="psd-downloads-row-meta">{row.meta}</span>
+                    <span className="psd-downloads-row-status">Downloaded</span>
+                  </div>
+                  <span className="psd-downloads-row-check" aria-hidden="true">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <circle cx="12" cy="12" r="9" />
+                      <path d="M8 12l2.5 2.5L16 9" />
+                    </svg>
+                  </span>
+                  <PsdDownloadsRowMenu />
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
+        {showAlbums ? (
+          <section className="psd-downloads-section" aria-label="Downloaded albums">
+            <h2 className="psd-downloads-section-title">Albums (2)</h2>
+            <ul className="psd-downloads-list">
+              {PSD_DOWNLOADS_ALBUMS.map((row) => (
+                <li key={row.key} className="psd-downloads-row">
+                  <span
+                    className="psd-downloads-row-art"
+                    style={{
+                      backgroundImage: `url(${psdDownloadsReferenceUrl})`,
+                      backgroundPosition: row.artPosition,
+                    }}
+                    aria-hidden="true"
+                  />
+                  <div className="psd-downloads-row-copy">
+                    <p className="psd-downloads-row-title">
+                      {row.title}
+                      <svg className="psd-downloads-row-badge" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                      </svg>
+                    </p>
+                    <span className="psd-downloads-row-meta">{row.artist}</span>
+                    <span className="psd-downloads-row-meta">{row.meta}</span>
+                    <span className="psd-downloads-row-status">Downloaded</span>
+                  </div>
+                  <span className="psd-downloads-row-check" aria-hidden="true">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <circle cx="12" cy="12" r="9" />
+                      <path d="M8 12l2.5 2.5L16 9" />
+                    </svg>
+                  </span>
+                  <PsdDownloadsRowMenu />
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
+        {showSongs ? (
+          <section className="psd-downloads-section" aria-label="Downloaded songs">
+            <h2 className="psd-downloads-section-title">Songs (6)</h2>
+            <ul className="psd-downloads-list">
+              {PSD_DOWNLOADS_SONGS.map((row) => (
+                <li key={row.key} className="psd-downloads-row">
+                  <span
+                    className="psd-downloads-row-art"
+                    style={{
+                      backgroundImage: `url(${psdDownloadsReferenceUrl})`,
+                      backgroundPosition: row.artPosition,
+                    }}
+                    aria-hidden="true"
+                  />
+                  <div className="psd-downloads-row-copy">
+                    <p className="psd-downloads-row-title">
+                      {row.title}
+                      <svg className="psd-downloads-row-badge" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                      </svg>
+                    </p>
+                    <span className="psd-downloads-row-meta">{row.meta}</span>
+                  </div>
+                  <span className="psd-downloads-row-check" aria-hidden="true">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <circle cx="12" cy="12" r="9" />
+                      <path d="M8 12l2.5 2.5L16 9" />
+                    </svg>
+                  </span>
+                  <PsdDownloadsRowMenu />
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+      </div>
+
+      <DownloadsFloatingPlayer />
+      <DownloadsBottomNav onNavigateNav={onNavigateNav} />
     </div>
   )
 }
@@ -6913,6 +7288,7 @@ function CatalogDetailRouter({
   albumsQuery,
   setAlbumsQuery,
   onPlaylistBack,
+  onNavigateNav,
   recentQuery = '',
 }: {
   activeView: ActiveView
@@ -6934,6 +7310,7 @@ function CatalogDetailRouter({
   albumsQuery: string
   setAlbumsQuery: (value: string) => void
   onPlaylistBack: () => void
+  onNavigateNav: (navKey: NavKey) => void
   recentQuery?: string
 }) {
   if (activeView === 'song' && selectedSong) {
@@ -6991,6 +7368,7 @@ function CatalogDetailRouter({
       albumsQuery={albumsQuery}
       setAlbumsQuery={setAlbumsQuery}
       onPlaylistBack={onPlaylistBack}
+      onNavigateNav={onNavigateNav}
       recentQuery={recentQuery}
     />
   )
@@ -7008,6 +7386,7 @@ function PageContent({
   albumsQuery,
   setAlbumsQuery,
   onPlaylistBack,
+  onNavigateNav,
   recentQuery = '',
 }: {
   page: PageId
@@ -7021,12 +7400,21 @@ function PageContent({
   albumsQuery: string
   setAlbumsQuery: (value: string) => void
   onPlaylistBack: () => void
+  onNavigateNav: (navKey: NavKey) => void
   recentQuery?: string
 }) {
   void _onOpenMood
   if (activeNavKey === 'liked') return <LikedPage onOpenSong={onOpenSong} />
   if (activeNavKey === 'recent') return <RecentPage onOpenSong={onOpenSong} query={recentQuery} />
-  if (activeNavKey === 'downloads') return <DownloadsPage />
+  if (activeNavKey === 'downloads') {
+    return (
+      <DownloadsPage
+        onBack={() => onNavigateNav('library')}
+        onNavigateNav={onNavigateNav}
+        onOpenSong={onOpenSong}
+      />
+    )
+  }
   if (activeNavKey === 'premium') return <PremiumPage />
 
   switch (page) {
@@ -7208,7 +7596,7 @@ function AppShell() {
                 isPsdDestinationNav(activeNavKey) && activeView === 'page' ? ' main-scroll--psd' : ''
               }`}
             >
-              {isPsdDestinationNav(activeNavKey) && activeView === 'page' && activeNavKey !== 'playlists' ? (
+              {isPsdDestinationNav(activeNavKey) && activeView === 'page' && activeNavKey !== 'playlists' && activeNavKey !== 'downloads' ? (
                 <HomeTopBar
                   placeholder={TOP_BAR_PLACEHOLDERS[activeNavKey]}
                   onOpenDiscover={() => navigatePage('discover', 'search')}
@@ -7272,6 +7660,7 @@ function AppShell() {
                   albumsQuery={albumsQuery}
                   setAlbumsQuery={setAlbumsQuery}
                   onPlaylistBack={() => navigateNav('library')}
+                  onNavigateNav={navigateNav}
                   recentQuery={recentQuery}
                 />
               </div>
@@ -7283,7 +7672,7 @@ function AppShell() {
           </div>
         </div>
       </div>
-      {!waveformOpen && !lyricsOpen && activeNavKey !== 'recent' && (activeNavKey !== 'playlists' || activeView !== 'page') ? (
+      {!waveformOpen && !lyricsOpen && activeNavKey !== 'recent' && activeNavKey !== 'downloads' && (activeNavKey !== 'playlists' || activeView !== 'page') ? (
         <PlayerBar
           track={desktopSelectedTrack}
           onOpenCinema={() => setCinemaOpen(true)}
