@@ -104,6 +104,11 @@ import {
   resolveRadioSeed,
   type BuiltRadioStation,
 } from './lib/desktopRadio'
+import {
+  buildListeningContext,
+  deriveListeningAtmosphere,
+  type ListeningContextLines,
+} from './lib/listeningContext'
 import './App.css'
 
 const APP_NAME = 'Hidden Tunes Desktop'
@@ -2713,11 +2718,13 @@ const PlayerBar = memo(function PlayerBar({
   track: ApiSong | null
   onOpenCinema?: () => void
 }) {
+  const { songs } = useCatalog()
   const {
     currentTrack,
     currentQueue,
     currentIndex,
     queueContext,
+    queueTitle,
     isPlaying,
     isLoading,
     error,
@@ -2745,6 +2752,49 @@ const PlayerBar = memo(function PlayerBar({
   const volumePercent = Math.min(100, Math.max(0, volume * 100))
   const showQueuePosition = currentQueue.length > 1 && currentIndex >= 0
   const queueLabel = QUEUE_CONTEXT_LABELS[queueContext]
+  const isBarActive = Boolean(displayTrack && currentTrack?.id === displayTrack.id)
+
+  const barQueueSnapshot = useMemo(
+    () =>
+      isBarActive
+        ? analyzeQueueSnapshot({
+            queue: currentQueue,
+            currentIndex,
+            currentTrack,
+          })
+        : null,
+    [currentIndex, currentQueue, currentTrack, isBarActive],
+  )
+
+  const barQueueInsight = useMemo(
+    () => (barQueueSnapshot ? describeQueueInsight(barQueueSnapshot) : null),
+    [barQueueSnapshot],
+  )
+
+  const playerListeningContext = useMemo(
+    () =>
+      buildListeningContext({
+        track: displayTrack,
+        catalog: songs,
+        queueContext,
+        queueTitle,
+        queueInsight: barQueueInsight,
+        isPlaying,
+        isLoading,
+        isActive: isBarActive,
+      }),
+    [
+      barQueueInsight,
+      displayTrack,
+      isBarActive,
+      isLoading,
+      isPlaying,
+      queueContext,
+      queueTitle,
+      songs,
+    ],
+  )
+
   const volumeLevel =
     volume <= 0 ? 'muted' : volume < 0.35 ? 'low' : volume > 0.7 ? 'high' : 'normal'
 
@@ -2849,10 +2899,14 @@ const PlayerBar = memo(function PlayerBar({
           <h4>{title}</h4>
           <p>{artist}</p>
           {showQueuePosition ? (
-            <p style={{ fontSize: 11, color: 'rgba(245, 243, 250, 0.66)' }}>
+            <p className="player-queue-position">
               {queueLabel} · Track {currentIndex + 1} of {currentQueue.length}
             </p>
           ) : null}
+          <ListeningContextStrip
+            lines={playerListeningContext}
+            className="listening-context-strip listening-context-strip--player"
+          />
           {error ? <p className="player-error">{error}</p> : null}
         </div>
       </div>
@@ -3111,6 +3165,42 @@ const QueueUpNextPanel = memo(function QueueUpNextPanel() {
 })
 type ActiveView = 'page' | 'song' | 'album' | 'artist' | 'mood'
 
+function ListeningContextStrip({
+  lines,
+  className = 'listening-context-strip',
+}: {
+  lines: ListeningContextLines
+  className?: string
+}) {
+  if (
+    !lines.atmosphereLine
+    && lines.contextPills.length === 0
+    && !lines.insightLine
+  ) {
+    return null
+  }
+
+  return (
+    <div className={className}>
+      {lines.atmosphereLine ? (
+        <p className="listening-context-atmosphere">{lines.atmosphereLine}</p>
+      ) : null}
+      {lines.contextPills.length > 0 ? (
+        <div className="listening-context-pills">
+          {lines.contextPills.map((pill) => (
+            <span className="listening-context-pill" key={pill}>
+              {pill}
+            </span>
+          ))}
+        </div>
+      ) : null}
+      {lines.insightLine ? (
+        <p className="listening-context-insight">{lines.insightLine}</p>
+      ) : null}
+    </div>
+  )
+}
+
 function formatDateLabel(value: string | null) {
   if (!value) return null
   const time = Date.parse(value)
@@ -3154,17 +3244,18 @@ const CinemaPlayerShell = memo(function CinemaPlayerShell({
   onClose: () => void
   preferredTrack?: ApiSong | null
 }) {
+  const { songs } = useCatalog()
   const {
     currentTrack,
     currentQueue,
     currentIndex,
     queueContext,
+    queueTitle,
     isPlaying,
     isLoading,
     positionSeconds,
     durationSeconds,
     seekTo,
-    error,
   } = useDesktopPlayback()
 
   const progressTrackRef = useRef<HTMLDivElement>(null)
@@ -3195,6 +3286,35 @@ const CinemaPlayerShell = memo(function CinemaPlayerShell({
   const queueInsight = useMemo(
     () => (queueSnapshot ? describeQueueInsight(queueSnapshot) : null),
     [queueSnapshot],
+  )
+
+  const cinemaAtmosphere = useMemo(
+    () => deriveListeningAtmosphere(displayTrack, songs),
+    [displayTrack, songs],
+  )
+
+  const cinemaListeningContext = useMemo(
+    () =>
+      buildListeningContext({
+        track: displayTrack,
+        catalog: songs,
+        queueContext,
+        queueTitle,
+        queueInsight,
+        isPlaying,
+        isLoading,
+        isActive,
+      }),
+    [
+      displayTrack,
+      isActive,
+      isLoading,
+      isPlaying,
+      queueContext,
+      queueInsight,
+      queueTitle,
+      songs,
+    ],
   )
 
   const resolveSeekSeconds = useCallback(
@@ -3254,16 +3374,6 @@ const CinemaPlayerShell = memo(function CinemaPlayerShell({
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [onClose])
 
-  const statusLabel = error
-    ? 'Playback issue'
-    : isLoading && isActive
-      ? 'Loading'
-      : isPlaying && isActive
-        ? 'Now playing'
-        : isActive
-          ? 'Paused'
-          : 'Ready to play'
-
   if (!displayTrack) {
     return (
       <div
@@ -3312,6 +3422,8 @@ const CinemaPlayerShell = memo(function CinemaPlayerShell({
       data-playing={isPlaying && isActive ? 'true' : 'false'}
       data-loading={isLoading && isActive ? 'true' : 'false'}
       data-active={isActive ? 'true' : 'false'}
+      data-scene={cinemaAtmosphere.sceneId}
+      data-mood={cinemaAtmosphere.mood}
     >
       <div
         className="cinema-player-art-backdrop"
@@ -3346,7 +3458,7 @@ const CinemaPlayerShell = memo(function CinemaPlayerShell({
           </div>
         </div>
         <div className="cinema-player-meta">
-          <p className="cinema-player-eyebrow">{statusLabel}</p>
+          <p className="cinema-player-eyebrow">{cinemaListeningContext.eyebrow}</p>
           <h1 className="cinema-player-title">{displayTrack.title}</h1>
           <p className="cinema-player-byline">
             <span>{displayTrack.artist}</span>
@@ -3359,18 +3471,17 @@ const CinemaPlayerShell = memo(function CinemaPlayerShell({
               </>
             ) : null}
           </p>
-          {showQueuePosition || queueInsight ? (
-            <div className="cinema-player-context">
-              {showQueuePosition ? (
-                <span className="cinema-player-queue-pill">
-                  {queueLabel} · Track {currentIndex + 1} of {currentQueue.length}
-                </span>
-              ) : null}
-              {queueInsight ? (
-                <p className="cinema-player-insight">{queueInsight}</p>
-              ) : null}
-            </div>
-          ) : null}
+          <div className="cinema-player-context">
+            {showQueuePosition ? (
+              <span className="cinema-player-queue-pill">
+                {queueLabel} · Track {currentIndex + 1} of {currentQueue.length}
+              </span>
+            ) : null}
+            <ListeningContextStrip
+              lines={cinemaListeningContext}
+              className="listening-context-strip listening-context-strip--cinema"
+            />
+          </div>
           <PlaybackTransportControls
             activeTrackId={displayTrack.id}
             className="cinema-player-controls"
@@ -3425,12 +3536,90 @@ function SongDetailView({
   onBack: () => void
   onOpenCinema?: () => void
 }) {
+  const { songs } = useCatalog()
+  const {
+    currentTrack,
+    currentQueue,
+    currentIndex,
+    queueContext,
+    queueTitle,
+    isPlaying,
+    isLoading,
+  } = useDesktopPlayback()
+
   const created = formatDateLabel(song.createdAt)
+  const isActive = currentTrack?.id === song.id
+  const artBackdropStyle = song.artwork
+    ? { backgroundImage: `url(${song.artwork})` }
+    : undefined
+
+  const stageAtmosphere = useMemo(
+    () => deriveListeningAtmosphere(song, songs),
+    [song, songs],
+  )
+
+  const stageQueueSnapshot = useMemo(
+    () =>
+      isActive
+        ? analyzeQueueSnapshot({
+            queue: currentQueue,
+            currentIndex,
+            currentTrack,
+          })
+        : null,
+    [currentIndex, currentQueue, currentTrack, isActive],
+  )
+
+  const stageQueueInsight = useMemo(
+    () => (stageQueueSnapshot ? describeQueueInsight(stageQueueSnapshot) : null),
+    [stageQueueSnapshot],
+  )
+
+  const stageListeningContext = useMemo(
+    () =>
+      buildListeningContext({
+        track: song,
+        catalog: songs,
+        queueContext,
+        queueTitle,
+        queueInsight: stageQueueInsight,
+        isPlaying,
+        isLoading,
+        isActive,
+      }),
+    [
+      isActive,
+      isLoading,
+      isPlaying,
+      queueContext,
+      queueTitle,
+      song,
+      songs,
+      stageQueueInsight,
+    ],
+  )
 
   return (
     <PageFrame>
       <DetailTopBar title="Song" onBack={onBack} />
-      <div className="listening-stage">
+      <div
+        className="listening-stage"
+        data-playing={isActive && isPlaying ? 'true' : 'false'}
+        data-loading={isActive && isLoading ? 'true' : 'false'}
+        data-scene={stageAtmosphere.sceneId}
+        data-mood={stageAtmosphere.mood}
+      >
+        <VisualSceneBackdrop
+          sceneId={stageAtmosphere.sceneId}
+          seed={song.id}
+          variant="ambient"
+        />
+        <div
+          className="listening-stage-art-backdrop"
+          style={artBackdropStyle}
+          aria-hidden="true"
+        />
+        <div className="listening-stage-veil" aria-hidden="true" />
         {onOpenCinema ? (
           <button
             type="button"
@@ -3447,30 +3636,35 @@ function SongDetailView({
             <span className="cinema-entry-btn-label">Fullscreen</span>
           </button>
         ) : null}
-        <section className="detail-hero detail-hero--song">
-            <div className="detail-artwork-stage">
-              <span className="detail-artwork-aura" aria-hidden="true" />
-              <div className="detail-artwork">
-                <ArtworkImage src={song.artwork} alt="" seed={song.id} priority />
-              </div>
+        <section
+          className="detail-hero detail-hero--song"
+          data-playing={isActive && isPlaying ? 'true' : 'false'}
+          data-loading={isActive && isLoading ? 'true' : 'false'}
+        >
+          <div className="detail-artwork-stage">
+            <span className="detail-artwork-aura" aria-hidden="true" />
+            <div className="detail-artwork">
+              <ArtworkImage src={song.artwork} alt="" seed={song.id} priority />
             </div>
-            <div className="detail-hero-copy">
-              <p className="detail-eyebrow">Now playing</p>
-              <h1 className="detail-h1">{song.title}</h1>
-              <p className="detail-byline">
-                <span className="detail-pill">{song.artist}</span>
-                <span className="detail-pill detail-pill--muted">{song.album}</span>
-              </p>
-              {created ? (
-                <p className="detail-stats">Added {created}</p>
-              ) : null}
-              <PlaybackTransportControls
-                activeTrackId={song.id}
-                className="detail-controls"
-              />
-            </div>
-          </section>
-        </div>
+          </div>
+          <div className="detail-hero-copy">
+            <p className="detail-eyebrow">{stageListeningContext.eyebrow}</p>
+            <h1 className="detail-h1">{song.title}</h1>
+            <p className="detail-byline">
+              <span className="detail-pill">{song.artist}</span>
+              <span className="detail-pill detail-pill--muted">{song.album}</span>
+            </p>
+            <ListeningContextStrip lines={stageListeningContext} />
+            {created ? (
+              <p className="detail-stats">Added {created}</p>
+            ) : null}
+            <PlaybackTransportControls
+              activeTrackId={song.id}
+              className="detail-controls"
+            />
+          </div>
+        </section>
+      </div>
     </PageFrame>
   )
 }
