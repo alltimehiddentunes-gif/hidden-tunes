@@ -2,7 +2,7 @@ import { memo, useLayoutEffect, useMemo, useRef } from 'react'
 import { premiumAudioVisualizerEngine } from '../lib/premiumAudioVisualizer'
 import { buildSeededWaveformHeights } from '../lib/premiumAudioVisualizer/waveformSeed'
 
-const CINEMATIC_BAR_COUNT = 72
+const CINEMATIC_BAR_COUNT = 64
 
 export const PremiumCinematicWaveform = memo(function PremiumCinematicWaveform({
   className = '',

@@ -6,7 +6,7 @@ import type {
 import { buildSeededWaveformHeights } from './waveformSeed'
 
 const DEFAULT_BAR_COUNT = 36
-const CINEMATIC_BAR_COUNT = 72
+const CINEMATIC_BAR_COUNT = 64
 const SILENT_FRAME_LIMIT = 90
 const ENERGY_SMOOTHING = 0.82
 const BAR_SMOOTHING = 0.74
@@ -107,12 +107,7 @@ export class PremiumAudioVisualizerEngine {
   }
 
   private syncMotionLoop(): void {
-    const shouldRun =
-      this.playback.isPlaying
-      || this.registrations.size > 0
-      || this.subscribers.size > 0
-
-    if (!shouldRun) {
+    if (!this.playback.isPlaying) {
       if (this.rafId != null) {
         cancelAnimationFrame(this.rafId)
         this.rafId = null
@@ -126,8 +121,18 @@ export class PremiumAudioVisualizerEngine {
     }
   }
 
+  private frameSkip = 0
+
   private tick = (): void => {
+    if (!this.playback.isPlaying) {
+      this.syncMotionLoop()
+      return
+    }
+
     this.rafId = requestAnimationFrame(this.tick)
+    this.frameSkip = (this.frameSkip + 1) % 2
+    if (this.frameSkip !== 0 && this.snapshot.isFallback) return
+
     this.ensureAudioGraph()
     this.sampleFrame()
     this.applyWaveformDom()

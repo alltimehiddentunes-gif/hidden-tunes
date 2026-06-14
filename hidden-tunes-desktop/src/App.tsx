@@ -5359,7 +5359,7 @@ const QueueUpNextPanel = memo(function QueueUpNextPanel({
           <section className="albums-rail-stage" aria-label="Current track">
             <div className="albums-rail-art-shell">
               <span className="albums-rail-art-glow" aria-hidden="true" />
-              <span className="albums-rail-vinyl" aria-hidden="true" />
+              <span className="albums-rail-vinyl premium-vinyl-disc" aria-hidden="true" />
               <div className="albums-rail-art-frame">
                 {hasPlayback && activeTrack ? (
                   <ArtworkImage
@@ -5510,6 +5510,7 @@ const QueueUpNextPanel = memo(function QueueUpNextPanel({
         <section className="rail-psd-stage" aria-label="Current track">
           <div className="rail-psd-art-shell">
             <span className="rail-psd-art-glow" aria-hidden="true" />
+            <span className="rail-psd-vinyl premium-vinyl-disc" aria-hidden="true" />
             <div className="rail-psd-art-frame">
               {hasPlayback && activeTrack ? (
                 <ArtworkImage
@@ -5898,7 +5899,7 @@ const CinemaPlayerShell = memo(function CinemaPlayerShell({
 
       <div className="psd-player-stage">
         <div className="psd-player-art-shell">
-          <div className="psd-player-vinyl" aria-hidden="true" />
+          <div className="psd-player-vinyl premium-vinyl-disc" aria-hidden="true" />
           <div className="psd-player-art-glow" aria-hidden="true" />
           <div className="psd-player-art-frame">
             {displayTrack?.artwork ? (
@@ -6203,6 +6204,10 @@ const CinematicWaveformShell = memo(function CinematicWaveformShell({
             <span>{displayArtist}</span>
             <PsdIconVerified className="psd-waveform-verified" />
           </p>
+        </div>
+
+        <div className="psd-waveform-art-shell" aria-hidden="true">
+          <span className="psd-waveform-vinyl premium-vinyl-disc" />
         </div>
 
         <PremiumCinematicWaveform
