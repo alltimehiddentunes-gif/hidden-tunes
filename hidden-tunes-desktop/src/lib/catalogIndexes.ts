@@ -79,6 +79,64 @@ function dedupeSongsById(songs: ApiSong[]): ApiSong[] {
   return result
 }
 
+export function songBelongsToArtist(song: ApiSong, artist: ApiArtist): boolean {
+  if (artist.id && song.artistId) {
+    return song.artistId === artist.id
+  }
+  return normalizeArtistKey(song.artist) === normalizeArtistKey(artist.name)
+}
+
+export function songBelongsToAlbum(
+  song: ApiSong,
+  album: ApiAlbum,
+  artistNames: Map<string, string>,
+): boolean {
+  if (album.id && song.albumId) {
+    return song.albumId === album.id
+  }
+
+  if (normalizeAlbumKey(song.album) !== normalizeAlbumKey(album.title)) {
+    return false
+  }
+
+  if (!album.artistId) {
+    return false
+  }
+
+  if (song.artistId) {
+    return song.artistId === album.artistId
+  }
+
+  const albumArtistName = artistNames.get(album.artistId)
+  if (!albumArtistName) {
+    return false
+  }
+
+  return normalizeArtistKey(song.artist) === normalizeArtistKey(albumArtistName)
+}
+
+function strictFilterSongsForArtist(songs: ApiSong[], artist: ApiArtist): ApiSong[] {
+  return dedupeSongsById(songs.filter((song) => songBelongsToArtist(song, artist)))
+}
+
+function strictFilterSongsForAlbum(
+  songs: ApiSong[],
+  album: ApiAlbum,
+  artistNames: Map<string, string>,
+): ApiSong[] {
+  return dedupeSongsById(songs.filter((song) => songBelongsToAlbum(song, album, artistNames)))
+}
+
+export function resolveAlbumsForArtist(
+  artist: ApiArtist,
+  albumsByArtistId: Map<string, ApiAlbum[]>,
+): ApiAlbum[] {
+  if (!artist.id) return []
+  return (albumsByArtistId.get(artist.id) ?? []).filter(
+    (album) => album.artistId === artist.id,
+  )
+}
+
 export function buildCatalogIndexes(
   songs: ApiSong[],
   albums: ApiAlbum[],
@@ -119,9 +177,6 @@ export function buildCatalogIndexes(
     }
 
     const albumKey = normalizeAlbumKey(song.album)
-    // Fallback buckets are only for songs whose albumId cannot resolve to a
-    // catalog album. This covers synthetic album cards without reopening broad
-    // title-only leakage across unrelated albums.
     const hasUsableAlbumId = Boolean(song.albumId && knownAlbumIds.has(song.albumId))
     if (albumKey && !hasUsableAlbumId) {
       if (song.artistId) {
@@ -202,28 +257,34 @@ export function resolveSongsForArtist(
   if (artist.id) {
     const byId = songsByArtistId.get(artist.id)
     if (byId?.length) {
-      logArtistResolve({
-        artistId: artist.id,
-        resultCount: byId.length,
-        durationMs: Math.round(performance.now() - started),
-        source: 'id',
-      })
-      return byId
+      const result = strictFilterSongsForArtist(byId, artist)
+      if (result.length > 0) {
+        logArtistResolve({
+          artistId: artist.id,
+          resultCount: result.length,
+          durationMs: Math.round(performance.now() - started),
+          source: 'id',
+        })
+        return result
+      }
     }
   }
 
   const byName = songsByArtistName.get(normalizeArtistKey(artist.name))
   if (byName?.length) {
-    logArtistResolve({
-      artistId: artist.id,
-      resultCount: byName.length,
-      durationMs: Math.round(performance.now() - started),
-      source: 'name',
-    })
-    return byName
+    const result = strictFilterSongsForArtist(byName, artist)
+    if (result.length > 0) {
+      logArtistResolve({
+        artistId: artist.id,
+        resultCount: result.length,
+        durationMs: Math.round(performance.now() - started),
+        source: 'name',
+      })
+      return result
+    }
   }
 
-  const tracks = artist.tracks ?? []
+  const tracks = strictFilterSongsForArtist(artist.tracks ?? [], artist)
   logArtistResolve({
     artistId: artist.id,
     resultCount: tracks.length,
@@ -279,38 +340,40 @@ export function resolveSongsForAlbum(
   album: ApiAlbum,
   songsByAlbumId: Map<string, ApiSong[]>,
   songsByAlbumName: Map<string, ApiSong[]>,
+  artistNames: Map<string, string>,
 ) {
   const started = performance.now()
 
   if (album.id) {
     const byId = songsByAlbumId.get(album.id)
     if (byId?.length) {
-      const result = dedupeSongsById(byId)
-      logAlbumResolve({
-        albumId: album.id,
-        resultCount: result.length,
-        durationMs: Math.round(performance.now() - started),
-        source: 'id',
-      })
-      return result
+      const result = strictFilterSongsForAlbum(byId, album, artistNames)
+      if (result.length > 0) {
+        logAlbumResolve({
+          albumId: album.id,
+          resultCount: result.length,
+          durationMs: Math.round(performance.now() - started),
+          source: 'id',
+        })
+        return result
+      }
     }
   }
 
-  const albumKey = normalizeAlbumKey(album.title)
-  // Exact albumId wins above. Fallback only considers id-unresolved buckets
-  // created by buildCatalogIndexes and then rechecks title/artist identity.
-  const fallbackSongs = album.artistId
-    ? songsByAlbumName.get(albumArtistFallbackKey(album.title, album.artistId))
-      ?? songsByAlbumName.get(albumKey)
-      ?? []
-    : songsByAlbumName.get(albumKey) ?? []
-  const byName = fallbackSongs.filter((song) => {
-    if (normalizeAlbumKey(song.album) !== albumKey) return false
-    if (album.artistId && song.artistId) return song.artistId === album.artistId
-    if (album.artistId && !song.artistId) return false
-    return true
-  })
-  const result = dedupeSongsById(byName)
+  if (!album.artistId) {
+    logAlbumResolve({
+      albumId: album.id,
+      resultCount: 0,
+      durationMs: Math.round(performance.now() - started),
+      source: 'none',
+    })
+    return []
+  }
+
+  const scopedFallback = songsByAlbumName.get(
+    albumArtistFallbackKey(album.title, album.artistId),
+  ) ?? []
+  const result = strictFilterSongsForAlbum(scopedFallback, album, artistNames)
   logAlbumResolve({
     albumId: album.id,
     resultCount: result.length,

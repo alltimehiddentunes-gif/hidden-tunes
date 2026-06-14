@@ -42,6 +42,7 @@ import {
   capSongPool,
   resolveAlbumArtwork,
   resolveAlbumDisplayArtist,
+  resolveAlbumsForArtist,
   resolveSongsForAlbum,
   resolveSongsForArtist,
   resolveSongsForMoodRoom,
@@ -1393,6 +1394,7 @@ const ApiAlbumGrid = memo(function ApiAlbumGrid({
             album,
             indexes.songsByAlbumId,
             indexes.songsByAlbumName,
+            indexes.artistNames,
           )
           const artistName = resolveAlbumDisplayArtist(album, albumSongs, artistNames)
           const artwork = resolveAlbumArtwork(album, albumSongs)
@@ -2787,7 +2789,7 @@ function DiscoverPage({
                   {PSD_SEARCH_ALBUM_ROWS.map((row, index) => {
                     const album = matchedAlbums[index] ?? null
                     const albumSongs = album
-                      ? resolveSongsForAlbum(album, indexes.songsByAlbumId, indexes.songsByAlbumName)
+                      ? resolveSongsForAlbum(album, indexes.songsByAlbumId, indexes.songsByAlbumName, indexes.artistNames)
                       : []
                     return (
                       <button key={row.key} type="button" className="psd-search-side-row">
@@ -3454,7 +3456,7 @@ function ArtistsPage({ onOpenArtist }: { onOpenArtist: (artist: ApiArtist) => vo
               {PSD_ARTIST_ALBUM_CARDS.map((card, index) => {
                 const album = artistAlbums[index] ?? null
                 const albumSongs = album
-                  ? resolveSongsForAlbum(album, indexes.songsByAlbumId, indexes.songsByAlbumName)
+                  ? resolveSongsForAlbum(album, indexes.songsByAlbumId, indexes.songsByAlbumName, indexes.artistNames)
                   : []
                 return (
                   <article key={card.key} className="psd-artist-album-card">
@@ -3563,7 +3565,7 @@ function AlbumsPage({
           {PSD_ALBUMS_GRID_CARDS.map((card, index) => {
             const album = resolveAlbumAtIndex(index)
             const albumSongs = album
-              ? resolveSongsForAlbum(album, indexes.songsByAlbumId, indexes.songsByAlbumName)
+              ? resolveSongsForAlbum(album, indexes.songsByAlbumId, indexes.songsByAlbumName, indexes.artistNames)
               : []
             return (
               <article key={card.key} className="psd-albums-gallery-card">
@@ -6694,9 +6696,10 @@ function AlbumDetailView({
       album,
       indexes.songsByAlbumId,
       indexes.songsByAlbumName,
+      indexes.artistNames,
     )
     return sortSongsList(byAlbum, 'az')
-  }, [album, indexes.songsByAlbumId, indexes.songsByAlbumName])
+  }, [album, indexes.songsByAlbumId, indexes.songsByAlbumName, indexes.artistNames])
 
   const artistName = useMemo(
     () => resolveAlbumDisplayArtist(album, albumSongs, artistNames),
@@ -6757,7 +6760,7 @@ function AlbumDetailView({
           <h3>Track list</h3>
         </div>
         {tracks.length === 0 ? (
-          <CatalogEmpty title="No tracks found" detail="This album has no matching songs in the cached list yet." />
+          <CatalogEmpty title="No verified tracks" detail="Only identity-matched album tracks are shown here." />
         ) : (
           <ol className="detail-tracklist">
             {tracks.map((track, index) => (
@@ -6822,10 +6825,10 @@ function ArtistDetailView({
     [artist.id, artist.name, artistSongs, onOpenSong, queuePools, topSongs],
   )
 
-  const artistAlbums = useMemo(() => {
-    if (!artist.id) return []
-    return (indexes.albumsByArtistId.get(artist.id) ?? []).slice(0, 12)
-  }, [indexes.albumsByArtistId, artist.id])
+  const artistAlbums = useMemo(
+    () => resolveAlbumsForArtist(artist, indexes.albumsByArtistId).slice(0, 12),
+    [artist, indexes.albumsByArtistId],
+  )
 
   return (
     <PageFrame>
@@ -6850,12 +6853,17 @@ function ArtistDetailView({
           <h3>Top songs</h3>
           <span>From cached catalog</span>
         </div>
-        <ApiSongGrid
-          songs={topSongs}
-          onSelect={playArtistSong}
-          listKey={`artist-songs-${artist.id}`}
-          paginate={false}
-        />
+        {topSongs.length === 0 ? (
+          <CatalogEmpty title="No verified songs" detail="Only identity-matched artist tracks are shown here." />
+        ) : (
+          <ApiSongGrid
+            songs={topSongs}
+            onSelect={playArtistSong}
+            listKey={`artist-songs-${artist.id}`}
+            paginate={false}
+            showEmpty={false}
+          />
+        )}
       </section>
 
       <section className="detail-panel">
@@ -6864,7 +6872,7 @@ function ArtistDetailView({
           <span>From cached catalog</span>
         </div>
         {artistAlbums.length === 0 ? (
-          <CatalogEmpty title="No albums found" detail="This artist has no linked albums in the cached list yet." />
+          <CatalogEmpty title="No verified albums" detail="Only identity-matched artist albums are shown here." />
         ) : (
           <ApiAlbumGrid
             albums={artistAlbums}
