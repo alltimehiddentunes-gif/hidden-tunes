@@ -93,6 +93,11 @@ import {
   filterSongsByEmotionalLane,
   findEmotionalLane,
 } from './lib/emotionalDiscovery'
+import {
+  buildListeningScenes,
+  filterSongsByListeningScene,
+  findListeningScene,
+} from './lib/sceneListening'
 import './App.css'
 
 const APP_NAME = 'Hidden Tunes Desktop'
@@ -1384,6 +1389,101 @@ function EmotionalLanesSection({
   )
 }
 
+function SceneListeningSection({
+  songs,
+  selectedSceneId,
+  onSelectScene,
+  loading = false,
+}: {
+  songs: ApiSong[]
+  selectedSceneId: string | null
+  onSelectScene: (sceneId: string | null) => void
+  loading?: boolean
+}) {
+  const scenes = useMemo(() => buildListeningScenes(songs), [songs])
+  const selectedScene = useMemo(
+    () => findListeningScene(scenes, selectedSceneId),
+    [scenes, selectedSceneId],
+  )
+
+  if (!loading && scenes.length === 0) return null
+
+  return (
+    <section
+      className="discovery-section scene-listening-section"
+      aria-labelledby="scene-listening-heading"
+    >
+      <div className="section-header scene-listening-header">
+        <div>
+          <p className="page-eyebrow scene-listening-eyebrow">Scene listening</p>
+          <h2 id="scene-listening-heading">Scene collections</h2>
+          <span className="section-hint">
+            Curated atmospheres from your catalog — step into a scene, play when ready
+          </span>
+        </div>
+        {selectedSceneId ? (
+          <button
+            type="button"
+            className="btn-secondary btn-sm scene-listening-clear"
+            onClick={() => onSelectScene(null)}
+          >
+            Clear scene
+          </button>
+        ) : null}
+      </div>
+      {loading ? (
+        <CatalogSkeleton />
+      ) : (
+        <div className="scene-listening-grid" role="list" aria-label="Listening scenes">
+          {scenes.map((scene) => {
+            const isActive = selectedSceneId === scene.id
+            return (
+              <button
+                key={scene.id}
+                type="button"
+                role="listitem"
+                className={'scene-listening-card' + (isActive ? ' is-active' : '')}
+                data-mood={scene.mood}
+                data-scene={scene.visualSceneId}
+                aria-pressed={isActive}
+                onClick={() => onSelectScene(isActive ? null : scene.id)}
+              >
+                <div className="scene-listening-art" aria-hidden="true">
+                  <VisualSceneBackdrop
+                    sceneId={scene.visualSceneId}
+                    seed={scene.id}
+                    variant="card"
+                  />
+                </div>
+                <div className="scene-listening-copy">
+                  <h3>{scene.label}</h3>
+                  <p>{scene.subtitle}</p>
+                  <span className="scene-listening-meta">
+                    {scene.trackCount} {scene.trackCount === 1 ? 'track' : 'tracks'}
+                  </span>
+                  {scene.topSignals.length > 0 ? (
+                    <span className="scene-listening-signals">
+                      {scene.topSignals.join(' · ')}
+                    </span>
+                  ) : null}
+                </div>
+              </button>
+            )
+          })}
+        </div>
+      )}
+      {selectedScene ? (
+        <div className="scene-listening-active" role="status">
+          <h3 className="scene-listening-active-heading">
+            In this scene · {selectedScene.label}
+          </h3>
+          <p className="scene-listening-active-detail">{selectedScene.subtitle}</p>
+        </div>
+      ) : null}
+    </section>
+  )
+}
+
 function DiscoveryGrid({ section }: { section: DiscoverySection }) {
   return (
     <section className="discovery-section" aria-labelledby={`section-${section.title}`}>
@@ -1508,17 +1608,28 @@ function HomePage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
   const { songs, indexes, showCatalogSkeleton, showCatalogError, error, retry } = useCatalog()
   const [sort, setSort] = useState<SongSort>('latest')
   const [selectedLaneId, setSelectedLaneId] = useState<string | null>(null)
+  const [selectedSceneId, setSelectedSceneId] = useState<string | null>(null)
   const featured = useMemo(
     () => sortSongsList(songs, sort).slice(0, 12),
     [songs, sort],
   )
-  const laneSongs = useMemo(
-    () => filterSongsByEmotionalLane(songs, selectedLaneId),
-    [songs, selectedLaneId],
-  )
+  const browseSongs = useMemo(() => {
+    let result = songs
+    if (selectedLaneId) {
+      result = filterSongsByEmotionalLane(result, selectedLaneId)
+    }
+    if (selectedSceneId) {
+      result = filterSongsByListeningScene(result, selectedSceneId)
+    }
+    return result
+  }, [songs, selectedLaneId, selectedSceneId])
   const selectedLane = useMemo(
     () => findEmotionalLane(buildEmotionalLanes(songs), selectedLaneId),
     [songs, selectedLaneId],
+  )
+  const selectedScene = useMemo(
+    () => findListeningScene(buildListeningScenes(songs), selectedSceneId),
+    [songs, selectedSceneId],
   )
   const queuePools = useMemo(() => buildQueueCandidatePools(indexes), [indexes])
   const playHomeSong = useCallback(
@@ -1536,20 +1647,26 @@ function HomePage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
     ),
     [featured, indexes, onOpenSong, queuePools],
   )
-  const playLaneSong = useCallback(
+  const browseQueueTitle = selectedScene
+    ? `In this scene · ${selectedScene.label}`
+    : selectedLane
+      ? `For this mood · ${selectedLane.label}`
+      : 'Home'
+
+  const playBrowseSong = useCallback(
     (song: ApiSong, index: number) => onOpenSong(
       song,
-      laneSongs,
+      browseSongs,
       index,
       'home',
-      selectedLane ? `For this mood · ${selectedLane.label}` : 'Home',
+      browseQueueTitle,
       {
         seedType: 'home',
-        seedTracks: buildQueueSeedPool('home', laneSongs, indexes, song),
+        seedTracks: buildQueueSeedPool('home', browseSongs, indexes, song),
         candidatePools: queuePools,
       },
     ),
-    [indexes, laneSongs, onOpenSong, queuePools, selectedLane],
+    [browseQueueTitle, browseSongs, indexes, onOpenSong, queuePools],
   )
 
   return (
@@ -1561,19 +1678,31 @@ function HomePage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
         onSelectLane={setSelectedLaneId}
         loading={showCatalogSkeleton}
       />
-      {selectedLaneId && laneSongs.length > 0 ? (
+      <SceneListeningSection
+        songs={songs}
+        selectedSceneId={selectedSceneId}
+        onSelectScene={setSelectedSceneId}
+        loading={showCatalogSkeleton}
+      />
+      {(selectedLaneId || selectedSceneId) && browseSongs.length > 0 ? (
         <CatalogSection
-          title="For this mood"
-          hint={selectedLane ? `${selectedLane.label} · emotional lane` : 'Emotional lane'}
+          title={selectedSceneId ? 'In this scene' : 'For this mood'}
+          hint={
+            selectedScene
+              ? `${selectedScene.label} · scene collection`
+              : selectedLane
+                ? `${selectedLane.label} · emotional lane`
+                : 'Browse filter'
+          }
           loading={showCatalogSkeleton}
           error={showCatalogError ? error : null}
           onRetry={retry}
-          count={laneSongs.length}
+          count={browseSongs.length}
         >
           <ApiSongGrid
-            songs={laneSongs}
-            onSelect={playLaneSong}
-            listKey={`home-lane-${selectedLaneId}`}
+            songs={browseSongs}
+            onSelect={playBrowseSong}
+            listKey={`home-browse-${selectedLaneId ?? 'all'}-${selectedSceneId ?? 'all'}`}
             paginate
           />
         </CatalogSection>
@@ -1664,13 +1793,24 @@ function DiscoverPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
 
   const listKey = useMemo(() => `${debouncedQuery}:${sort}`, [debouncedQuery, sort])
   const [selectedLaneId, setSelectedLaneId] = useState<string | null>(null)
-  const catalogSongs = useMemo(
-    () => filterSongsByEmotionalLane(visibleSongs, selectedLaneId),
-    [visibleSongs, selectedLaneId],
-  )
+  const [selectedSceneId, setSelectedSceneId] = useState<string | null>(null)
+  const catalogSongs = useMemo(() => {
+    let result = visibleSongs
+    if (selectedLaneId) {
+      result = filterSongsByEmotionalLane(result, selectedLaneId)
+    }
+    if (selectedSceneId) {
+      result = filterSongsByListeningScene(result, selectedSceneId)
+    }
+    return result
+  }, [visibleSongs, selectedLaneId, selectedSceneId])
   const selectedLane = useMemo(
     () => findEmotionalLane(buildEmotionalLanes(songs), selectedLaneId),
     [songs, selectedLaneId],
+  )
+  const selectedScene = useMemo(
+    () => findListeningScene(buildListeningScenes(songs), selectedSceneId),
+    [songs, selectedSceneId],
   )
   const queuePools = useMemo(() => buildQueueCandidatePools(indexes), [indexes])
   const playDiscoverSong = useCallback(
@@ -1688,7 +1828,11 @@ function DiscoverPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
         queueSongs,
         safeIndex,
         'discover',
-        selectedLane ? `For this mood · ${selectedLane.label}` : 'Discover',
+        selectedScene
+          ? `In this scene · ${selectedScene.label}`
+          : selectedLane
+            ? `For this mood · ${selectedLane.label}`
+            : 'Discover',
         {
           seedType: 'discover',
           seedTracks: buildQueueSeedPool('discover', queueSongs, indexes, playableSong),
@@ -1696,7 +1840,7 @@ function DiscoverPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
         },
       )
     },
-    [catalogSongs, indexes, onOpenSong, queuePools, selectedLane, visibleRecords],
+    [catalogSongs, indexes, onOpenSong, queuePools, selectedLane, selectedScene, visibleRecords],
   )
 
   return (
@@ -1712,6 +1856,12 @@ function DiscoverPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
         onSelectLane={setSelectedLaneId}
         loading={showCatalogSkeleton}
       />
+      <SceneListeningSection
+        songs={songs}
+        selectedSceneId={selectedSceneId}
+        onSelectScene={setSelectedSceneId}
+        loading={showCatalogSkeleton}
+      />
       <CatalogToolbar
         searchValue={query}
         onSearchChange={setQuery}
@@ -1723,11 +1873,19 @@ function DiscoverPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
         resultCount={visibleRecords.length}
       />
       <CatalogSection
-        title={selectedLaneId ? 'For this mood' : 'Catalog songs'}
+        title={
+          selectedSceneId
+            ? 'In this scene'
+            : selectedLaneId
+              ? 'For this mood'
+              : 'Catalog songs'
+        }
         hint={
-          selectedLane
-            ? `${selectedLane.label} · emotional lane filter`
-            : 'Client-side filter on loaded data'
+          selectedScene
+            ? `${selectedScene.label} · scene collection filter`
+            : selectedLane
+              ? `${selectedLane.label} · emotional lane filter`
+              : 'Client-side filter on loaded data'
         }
         loading={showCatalogSkeleton}
         error={showCatalogError ? error : null}
@@ -1744,16 +1902,16 @@ function DiscoverPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
             title="No songs match"
             detail="Try a different search term across title, artist, album, genre, or mood."
           />
-        ) : selectedLaneId && catalogSongs.length === 0 ? (
+        ) : (selectedLaneId || selectedSceneId) && catalogSongs.length === 0 ? (
           <CatalogEmpty
-            title="No songs in this lane"
-            detail="Clear the lane or try a different search to widen the mood fit."
+            title="No songs in this selection"
+            detail="Clear the lane or scene, or try a different search to widen the fit."
           />
         ) : (
           <ApiSongGrid
             songs={catalogSongs}
             onSelect={playDiscoverSong}
-            listKey={`${listKey}:${selectedLaneId ?? 'all'}`}
+            listKey={`${listKey}:${selectedLaneId ?? 'all'}:${selectedSceneId ?? 'all'}`}
             showEmpty={false}
           />
         )}
