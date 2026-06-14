@@ -117,6 +117,7 @@ import psdLikedReferenceUrl from './assets/psd-liked-reference.jpg'
 import psdSearchReferenceUrl from './assets/psd-search-reference.jpg'
 import psdPlayerReferenceUrl from './assets/psd-player-reference.jpg'
 import psdWaveformReferenceUrl from './assets/psd-waveform-reference.jpg'
+import psdLyricsReferenceUrl from './assets/psd-lyrics-reference.jpg'
 import psdLibraryReferenceUrl from './assets/psd-library-reference.jpg'
 import './App.css'
 
@@ -279,6 +280,28 @@ const PSD_WAVEFORM_ALBUM = 'Reflections at Midnight'
 const PSD_WAVEFORM_LYRICS = [
   'City lights paint the sky',
   'Dreams awake as I pass by',
+] as const
+
+const PSD_LYRICS_ALBUM = 'Reflections at Midnight'
+const PSD_LYRICS_BG_POSITION = '62% 46%'
+const PSD_LYRICS_ART_POSITION = '10% 58%'
+const PSD_LYRICS_LINES = [
+  { tier: 'active-purple', text: 'City lights' },
+  { tier: 'active-purple', text: 'paint the sky' },
+  { tier: 'active-white', text: 'Dreams awake' },
+  { tier: 'active-white', text: 'as I pass by' },
+  { tier: 'next', text: 'Echoes calling' },
+  { tier: 'next', text: 'in the night' },
+  { tier: 'next', text: 'Heart is racing,' },
+  { tier: 'next', text: 'feels so right' },
+  { tier: 'dimmed', text: 'Lost in thoughts' },
+  { tier: 'dimmed', text: "but I'm alive" },
+  { tier: 'dimmed', text: 'Chasing moments' },
+  { tier: 'dimmed', text: 'that arrive' },
+  { tier: 'distant', text: 'Through the shadows,' },
+  { tier: 'distant', text: 'I will find' },
+  { tier: 'distant', text: 'A place where peace' },
+  { tier: 'distant', text: 'resides' },
 ] as const
 const PSD_WAVEFORM_BG_POSITION = '50% 38%'
 const PSD_CINEMATIC_WAVEFORM_HEIGHTS = [
@@ -5478,11 +5501,11 @@ function DetailTopBar({
 
 const CinemaPlayerShell = memo(function CinemaPlayerShell({
   onClose,
-  onOpenWaveform,
+  onOpenLyrics,
   preferredTrack = null,
 }: {
   onClose: () => void
-  onOpenWaveform?: () => void
+  onOpenLyrics?: () => void
   preferredTrack?: ApiSong | null
 }) {
   const {
@@ -5697,7 +5720,7 @@ const CinemaPlayerShell = memo(function CinemaPlayerShell({
             </svg>
             <span>Queue</span>
           </button>
-          <button type="button" className="psd-player-quick-action" aria-label="Lyrics" onClick={onOpenWaveform}>
+          <button type="button" className="psd-player-quick-action" aria-label="Lyrics" onClick={onOpenLyrics}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
               <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
             </svg>
@@ -5993,6 +6016,240 @@ const CinematicWaveformShell = memo(function CinematicWaveformShell({
             <PsdIconEqualizer className="psd-waveform-footer-equalizer" />
           </button>
         </footer>
+      </div>
+    </div>
+  )
+})
+
+const FullscreenLyricsShell = memo(function FullscreenLyricsShell({
+  onClose,
+  preferredTrack = null,
+}: {
+  onClose: () => void
+  preferredTrack?: ApiSong | null
+}) {
+  const {
+    currentTrack,
+    isPlaying,
+    isLoading,
+    positionSeconds,
+    durationSeconds,
+    seekTo,
+  } = useDesktopPlayback()
+
+  const progressTrackRef = useRef<HTMLDivElement>(null)
+  const isSeekingRef = useRef(false)
+
+  const displayTrack = currentTrack ?? preferredTrack
+  const isActive = Boolean(displayTrack && currentTrack?.id === displayTrack.id)
+  const liveProgressMax = isActive && durationSeconds > 0 ? durationSeconds : 0
+  const liveProgressValue = liveProgressMax > 0 ? Math.min(positionSeconds, liveProgressMax) : 0
+  const progressMax = liveProgressMax > 0 ? liveProgressMax : PSD_PLAYER_DURATION_SECONDS
+  const progressValue = liveProgressMax > 0
+    ? liveProgressValue
+    : PSD_PLAYER_POSITION_SECONDS
+  const progressPercent = progressMax > 0
+    ? Math.min(100, (progressValue / progressMax) * 100)
+    : 0
+
+  const displayTitle = displayTrack?.title ?? PSD_PLAYER_TITLE
+  const displayArtist = displayTrack?.artist ?? PSD_PLAYER_ARTIST
+  const displayAlbum = displayTrack?.album ?? PSD_LYRICS_ALBUM
+  const activeTrackId = displayTrack?.id ?? null
+
+  const resolveSeekSeconds = useCallback(
+    (clientX: number) => {
+      const trackEl = progressTrackRef.current
+      if (!trackEl || liveProgressMax <= 0) return null
+      const rect = trackEl.getBoundingClientRect()
+      if (rect.width <= 0) return null
+      const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width))
+      return ratio * liveProgressMax
+    },
+    [liveProgressMax],
+  )
+
+  const handleSeekClick = (event: ReactMouseEvent<HTMLDivElement>) => {
+    if (!isActive || liveProgressMax <= 0 || isLoading || isSeekingRef.current) return
+    const seconds = resolveSeekSeconds(event.clientX)
+    if (seconds != null) seekTo(seconds)
+  }
+
+  const handleSeekPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!isActive || liveProgressMax <= 0 || isLoading) return
+    const seconds = resolveSeekSeconds(event.clientX)
+    if (seconds == null) return
+    isSeekingRef.current = true
+    event.currentTarget.setPointerCapture(event.pointerId)
+    seekTo(seconds)
+  }
+
+  const handleSeekPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!isSeekingRef.current) return
+    const seconds = resolveSeekSeconds(event.clientX)
+    if (seconds != null) seekTo(seconds)
+  }
+
+  const handleSeekPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!isSeekingRef.current) return
+    isSeekingRef.current = false
+    event.currentTarget.releasePointerCapture(event.pointerId)
+  }
+
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = previousOverflow
+    }
+  }, [])
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      event.preventDefault()
+      onClose()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [onClose])
+
+  return (
+    <div
+      className="cinema-player cinema-player--lyrics psd-lyrics-page"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Fullscreen lyrics"
+      data-playing={isPlaying && isActive ? 'true' : 'false'}
+      data-loading={isLoading && isActive ? 'true' : 'false'}
+      data-active={isActive ? 'true' : 'false'}
+    >
+      <div
+        className="psd-lyrics-bg"
+        style={{
+          backgroundImage: `url(${psdLyricsReferenceUrl})`,
+          backgroundPosition: PSD_LYRICS_BG_POSITION,
+        }}
+        aria-hidden="true"
+      />
+      <div className="psd-lyrics-veil" aria-hidden="true" />
+
+      <header className="psd-lyrics-topbar">
+        <button
+          type="button"
+          className="psd-lyrics-topbar-btn psd-lyrics-topbar-btn--close"
+          onClick={onClose}
+          aria-label="Exit fullscreen lyrics"
+        >
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            <path d="M6 9l6 6 6-6" />
+          </svg>
+        </button>
+        <div className="psd-lyrics-topbar-copy">
+          <span>PLAYING FROM ALBUM</span>
+          <strong>{displayAlbum}</strong>
+        </div>
+        <button type="button" className="psd-lyrics-topbar-btn psd-lyrics-topbar-btn--flag" aria-label="Bookmark">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+            <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+            <path d="M4 22V15" />
+          </svg>
+        </button>
+      </header>
+
+      <div className="psd-lyrics-main">
+        <div className="psd-lyrics-track-block">
+          <div className="psd-lyrics-art">
+            {displayTrack?.artwork ? (
+              <ArtworkImage
+                src={displayTrack.artwork}
+                alt=""
+                seed={displayTrack.id}
+                priority
+              />
+            ) : (
+              <span
+                className="psd-lyrics-art-fallback"
+                style={{
+                  backgroundImage: `url(${psdLikedReferenceUrl})`,
+                  backgroundPosition: PSD_LYRICS_ART_POSITION,
+                }}
+                aria-hidden="true"
+              />
+            )}
+          </div>
+          <div className="psd-lyrics-track-copy">
+            <h1>{displayTitle}</h1>
+            <p>
+              <span>{displayArtist}</span>
+              <PsdIconVerified className="psd-lyrics-verified" />
+            </p>
+          </div>
+        </div>
+
+        <div className="psd-lyrics-stack" aria-live="polite">
+          {PSD_LYRICS_LINES.map((line, index) => (
+            <p
+              key={`${line.tier}-${index}`}
+              className={`psd-lyrics-line psd-lyrics-line--${line.tier}`}
+            >
+              {line.text}
+            </p>
+          ))}
+        </div>
+      </div>
+
+      <div className="psd-lyrics-bottom">
+        <div className="psd-lyrics-mid-controls">
+          <button type="button" className="psd-lyrics-share-btn" aria-label="Share">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+              <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8" />
+              <path d="M16 6l-4-4-4 4M12 2v13" />
+            </svg>
+          </button>
+          <button type="button" className="psd-lyrics-more-btn" aria-label="More options">
+            <PsdIconMore />
+          </button>
+        </div>
+
+        <div
+          className="psd-lyrics-progress-wrap"
+          style={{ ['--psd-lyrics-progress' as string]: `${progressPercent}%` }}
+          role="group"
+          aria-label="Playback progress"
+        >
+          <div
+            ref={progressTrackRef}
+            className={
+              'psd-lyrics-progress-track'
+              + (liveProgressMax > 0 && isActive ? ' is-interactive' : '')
+            }
+            role="slider"
+            aria-label="Seek position"
+            aria-valuemin={0}
+            aria-valuemax={Math.round(progressMax)}
+            aria-valuenow={Math.round(progressValue)}
+            aria-disabled={!isActive || liveProgressMax <= 0 || isLoading}
+            onClick={handleSeekClick}
+            onPointerDown={handleSeekPointerDown}
+            onPointerMove={handleSeekPointerMove}
+            onPointerUp={handleSeekPointerUp}
+            onPointerCancel={handleSeekPointerUp}
+          >
+            <div className="psd-lyrics-progress-fill" style={{ width: `${progressPercent}%` }} />
+          </div>
+          <div className="psd-lyrics-progress-times">
+            <span className="psd-lyrics-time">{formatPlaybackTime(progressValue)}</span>
+            <span className="psd-lyrics-time">{formatPlaybackTime(progressMax)}</span>
+          </div>
+        </div>
+
+        <FullPlayerTransportControls activeTrackId={activeTrackId} />
+
+        <div className="psd-lyrics-quality-label">
+          <PsdWaveformStrip className="psd-lyrics-quality-wave" />
+          <strong>HIGH QUALITY</strong>
+        </div>
       </div>
     </div>
   )
@@ -6629,6 +6886,7 @@ function AppShell() {
   const [desktopSelectedTrack, setDesktopSelectedTrack] = useState<ApiSong | null>(null)
   const [cinemaOpen, setCinemaOpen] = useState(false)
   const [waveformOpen, setWaveformOpen] = useState(false)
+  const [lyricsOpen, setLyricsOpen] = useState(false)
   const [likedQuery, setLikedQuery] = useState('')
   const [libraryQuery, setLibraryQuery] = useState('')
   const [discoverQuery, setDiscoverQuery] = usePersistedPreference(
@@ -6810,7 +7068,7 @@ function AppShell() {
           </div>
         </div>
       </div>
-      {!waveformOpen && (activeNavKey !== 'playlists' || activeView !== 'page') ? (
+      {!waveformOpen && !lyricsOpen && (activeNavKey !== 'playlists' || activeView !== 'page') ? (
         <PlayerBar
           track={desktopSelectedTrack}
           onOpenCinema={() => setCinemaOpen(true)}
@@ -6820,9 +7078,9 @@ function AppShell() {
         <CinemaPlayerShell
           preferredTrack={desktopSelectedTrack}
           onClose={() => setCinemaOpen(false)}
-          onOpenWaveform={() => {
+          onOpenLyrics={() => {
             setCinemaOpen(false)
-            setWaveformOpen(true)
+            setLyricsOpen(true)
           }}
         />
       ) : null}
@@ -6830,6 +7088,12 @@ function AppShell() {
         <CinematicWaveformShell
           preferredTrack={desktopSelectedTrack}
           onClose={() => setWaveformOpen(false)}
+        />
+      ) : null}
+      {lyricsOpen ? (
+        <FullscreenLyricsShell
+          preferredTrack={desktopSelectedTrack}
+          onClose={() => setLyricsOpen(false)}
         />
       ) : null}
     </>
