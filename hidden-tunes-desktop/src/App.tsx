@@ -110,7 +110,7 @@ import {
 } from './lib/listeningContext'
 import heroPhotoUrl from './assets/hero.png'
 import emotionalWorldsReferenceUrl from './assets/emotional-worlds-reference.jpg'
-import psdPlaylistsReferenceUrl from './assets/psd-playlists-reference.jpg'
+import psdPlaylistReferenceUrl from './assets/psd-playlist-reference.jpg'
 import psdArtistsReferenceUrl from './assets/psd-artists-reference.jpg'
 import psdAlbumsReferenceUrl from './assets/psd-albums-reference.jpg'
 import psdLikedReferenceUrl from './assets/psd-liked-reference.jpg'
@@ -173,6 +173,24 @@ const PSD_LIBRARY_PLAYLISTS = [
   { title: 'Workout Mix', count: '25 songs', tone: 'run', artPosition: '42% 88%' },
   { title: 'Late Night Drive', count: '19 songs', tone: 'drive', artPosition: '54% 88%' },
   { title: 'Rainy Day Comfort', count: '31 songs', tone: 'rain', artPosition: '66% 88%' },
+] as const
+
+const PSD_PLAYLIST_TITLE = 'Night Drive'
+const PSD_PLAYLIST_DESCRIPTION = 'Late nights, open roads and the perfect soundtrack.'
+const PSD_PLAYLIST_OWNER = 'Hidden Tunes'
+const PSD_PLAYLIST_META = '50 songs • 3h 12m'
+const PSD_PLAYLIST_FOOTER_META = '50 songs, 3h 12m'
+const PSD_PLAYLIST_HERO_ART = '14% 24%'
+
+const PSD_PLAYLIST_TRACK_ROWS = [
+  { key: 'pt1', title: 'Midnight Reflection', artist: 'Wills Afrobeats', duration: '3:56', active: true, artPosition: '8% 58%' },
+  { key: 'pt2', title: 'Afro Sunset', artist: 'Wills Afrobeats', duration: '3:21', artPosition: '18% 58%' },
+  { key: 'pt3', title: 'Love Vibes', artist: 'Wills Afrobeats', duration: '3:44', artPosition: '28% 58%' },
+  { key: 'pt4', title: 'Rain & Reflection', artist: 'Wills Afrobeats', duration: '4:12', artPosition: '38% 58%' },
+  { key: 'pt5', title: 'Night Drive', artist: 'Wills Afrobeats', duration: '4:01', artPosition: '48% 58%' },
+  { key: 'pt6', title: 'Healing Slowly', artist: 'Wills Afrobeats', duration: '3:48', artPosition: '58% 58%' },
+  { key: 'pt7', title: 'Jazz Café', artist: 'Wills Afrobeats', duration: '3:36', artPosition: '68% 58%' },
+  { key: 'pt8', title: 'Deep Focus', artist: 'Wills Afrobeats', duration: '4:20', artPosition: '78% 58%' },
 ] as const
 
 const PSD_WAVEFORM_HEIGHTS = [5, 9, 13, 7, 15, 11, 17, 9, 13, 19, 11, 15, 9, 13, 17, 11, 9, 15, 13, 9, 11, 15, 9, 7, 12, 16, 10, 14, 8, 12, 18, 10, 14, 8, 6] as const
@@ -3581,77 +3599,448 @@ function AlbumsPage({
   )
 }
 
-function PlaylistsPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
+const PlaylistFloatingPlayer = memo(function PlaylistFloatingPlayer() {
+  const {
+    currentTrack,
+    currentQueue,
+    currentIndex,
+    isPlaying,
+    isLoading,
+    positionSeconds,
+    durationSeconds,
+    volume,
+    seekTo,
+    setVolume,
+    pause,
+    resume,
+    next,
+    previous,
+  } = useDesktopPlayback()
+
+  const progressTrackRef = useRef<HTMLDivElement>(null)
+  const volumeTrackRef = useRef<HTMLDivElement>(null)
+  const isSeekingRef = useRef(false)
+  const isAdjustingVolumeRef = useRef(false)
+
+  const displayTrack = currentTrack
+  const title = displayTrack?.title ?? PSD_PLAYER_TITLE
+  const artist = displayTrack?.artist ?? PSD_PLAYER_ARTIST
+  const isActive = Boolean(displayTrack)
+  const progressMax = isActive && durationSeconds > 0 ? durationSeconds : PSD_PLAYER_DURATION_SECONDS
+  const progressValue = isActive && durationSeconds > 0
+    ? Math.min(positionSeconds, durationSeconds)
+    : PSD_PLAYER_POSITION_SECONDS
+  const progressPercent = progressMax > 0
+    ? Math.min(100, (progressValue / progressMax) * 100)
+    : 0
+  const volumePercent = Math.min(100, Math.max(0, volume * 100))
+  const hasPrevious = isActive && currentIndex > 0
+  const hasNext = isActive && currentIndex >= 0 && currentIndex < currentQueue.length - 1
+  const showPlaying = isActive && isPlaying
+
+  const resolveSeekSeconds = useCallback(
+    (clientX: number) => {
+      const trackEl = progressTrackRef.current
+      if (!trackEl || !isActive || durationSeconds <= 0) return null
+      const rect = trackEl.getBoundingClientRect()
+      if (rect.width <= 0) return null
+      const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width))
+      return ratio * durationSeconds
+    },
+    [durationSeconds, isActive],
+  )
+
+  const resolveVolume = useCallback((clientX: number) => {
+    const trackEl = volumeTrackRef.current
+    if (!trackEl) return null
+    const rect = trackEl.getBoundingClientRect()
+    if (rect.width <= 0) return null
+    const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width))
+    return ratio
+  }, [])
+
+  const handlePlayPause = () => {
+    if (!isActive || isLoading) return
+    if (isPlaying) {
+      pause()
+      return
+    }
+    resume()
+  }
+
+  return (
+    <div className="psd-playlist-floating-player" aria-label="Playlist player">
+      <div className="psd-playlist-floating-top">
+        <div className="psd-playlist-floating-track">
+          <span
+            className="psd-playlist-floating-art"
+            style={{
+              backgroundImage: displayTrack?.artwork
+                ? `url(${displayTrack.artwork})`
+                : `url(${psdPlaylistReferenceUrl})`,
+              backgroundPosition: PSD_PLAYLIST_HERO_ART,
+            }}
+            aria-hidden="true"
+          />
+          <div className="psd-playlist-floating-meta">
+            <strong>{title}</strong>
+            <span>{artist}</span>
+          </div>
+          <button type="button" className="psd-playlist-floating-heart" aria-label="Favorite">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M12 20.8l-1.1-1C6.4 15.36 3 12.28 3 8.5 3 6 5 4 7.5 4c1.74 0 3.41 1.01 4.5 2.36C13.09 5.01 14.76 4 16.5 4 19 4 21 6 21 8.5c0 3.78-3.4 6.86-7.9 11.3L12 20.8z" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="psd-playlist-floating-controls">
+          <button
+            type="button"
+            className="psd-playlist-floating-skip"
+            onClick={previous}
+            disabled={!hasPrevious}
+            aria-label="Previous track"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M6 6h2v12H6V6zm3.5 6l8.5 6V6l-8.5 6z" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            className="psd-playlist-floating-play"
+            onClick={handlePlayPause}
+            disabled={!isActive || isLoading}
+            aria-label={showPlaying ? 'Pause' : 'Play'}
+          >
+            {showPlaying ? (
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M6 5h4v14H6V5zm8 0h4v14h-4V5z" />
+              </svg>
+            ) : (
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M8 5v14l11-7L8 5z" />
+              </svg>
+            )}
+          </button>
+          <button
+            type="button"
+            className="psd-playlist-floating-skip"
+            onClick={next}
+            disabled={!hasNext}
+            aria-label="Next track"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M6 18l8.5-6L6 6v12zm10-12h2v12h-2V6z" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="psd-playlist-floating-utilities">
+          <button type="button" className="psd-playlist-floating-utility" aria-label="Queue">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+              <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
+            </svg>
+          </button>
+          <button type="button" className="psd-playlist-floating-utility" aria-label="Volume">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+              <path d="M11 5L6 9H3v6h3l5 4V5z" />
+              <path d="M15.54 8.46a5 5 0 010 7.07M19.07 4.93a10 10 0 010 14.14" />
+            </svg>
+          </button>
+          <div
+            ref={volumeTrackRef}
+            className="psd-playlist-floating-volume"
+            role="slider"
+            aria-label="Volume"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.round(volumePercent)}
+            onClick={(event) => {
+              const nextVolume = resolveVolume(event.clientX)
+              if (nextVolume != null) setVolume(nextVolume)
+            }}
+            onPointerDown={(event) => {
+              const nextVolume = resolveVolume(event.clientX)
+              if (nextVolume == null) return
+              isAdjustingVolumeRef.current = true
+              event.currentTarget.setPointerCapture(event.pointerId)
+              setVolume(nextVolume)
+            }}
+            onPointerMove={(event) => {
+              if (!isAdjustingVolumeRef.current) return
+              const nextVolume = resolveVolume(event.clientX)
+              if (nextVolume != null) setVolume(nextVolume)
+            }}
+            onPointerUp={(event) => {
+              if (!isAdjustingVolumeRef.current) return
+              isAdjustingVolumeRef.current = false
+              event.currentTarget.releasePointerCapture(event.pointerId)
+            }}
+            onPointerCancel={(event) => {
+              if (!isAdjustingVolumeRef.current) return
+              isAdjustingVolumeRef.current = false
+              event.currentTarget.releasePointerCapture(event.pointerId)
+            }}
+          >
+            <div className="psd-playlist-floating-volume-fill" style={{ width: `${volumePercent}%` }} />
+          </div>
+        </div>
+      </div>
+
+      <div
+        className="psd-playlist-floating-progress-wrap"
+        style={{ ['--psd-playlist-progress' as string]: `${progressPercent}%` }}
+      >
+        <span className="psd-playlist-floating-time">{formatPlaybackTime(progressValue)}</span>
+        <div
+          ref={progressTrackRef}
+          className={`psd-playlist-floating-progress${isActive && durationSeconds > 0 ? ' is-interactive' : ''}`}
+          role="slider"
+          aria-label="Seek position"
+          aria-valuemin={0}
+          aria-valuemax={Math.round(progressMax)}
+          aria-valuenow={Math.round(progressValue)}
+          onClick={(event) => {
+            if (isSeekingRef.current) return
+            const seconds = resolveSeekSeconds(event.clientX)
+            if (seconds != null) seekTo(seconds)
+          }}
+          onPointerDown={(event) => {
+            const seconds = resolveSeekSeconds(event.clientX)
+            if (seconds == null) return
+            isSeekingRef.current = true
+            event.currentTarget.setPointerCapture(event.pointerId)
+            seekTo(seconds)
+          }}
+          onPointerMove={(event) => {
+            if (!isSeekingRef.current) return
+            const seconds = resolveSeekSeconds(event.clientX)
+            if (seconds != null) seekTo(seconds)
+          }}
+          onPointerUp={(event) => {
+            if (!isSeekingRef.current) return
+            isSeekingRef.current = false
+            event.currentTarget.releasePointerCapture(event.pointerId)
+          }}
+          onPointerCancel={(event) => {
+            if (!isSeekingRef.current) return
+            isSeekingRef.current = false
+            event.currentTarget.releasePointerCapture(event.pointerId)
+          }}
+        >
+          <div className="psd-playlist-floating-progress-fill" style={{ width: `${progressPercent}%` }} />
+        </div>
+        <span className="psd-playlist-floating-time">{formatPlaybackTime(progressMax)}</span>
+      </div>
+    </div>
+  )
+})
+
+function PlaylistsPage({
+  onOpenSong,
+  onBack,
+}: {
+  onOpenSong: QueueSongHandler
+  onBack: () => void
+}) {
   const { songs, indexes } = useCatalog()
-  const playlistTitle = 'Midnight Vibes'
-  const tracks = useMemo(() => sortSongsList([...songs], 'latest').slice(0, 16), [songs])
+  const [playlistQuery, setPlaylistQuery] = useState('')
+  const playlistSongs = useMemo(() => sortSongsList([...songs], 'latest'), [songs])
   const queuePools = useMemo(() => buildQueueCandidatePools(indexes), [indexes])
-  const playTrack = useCallback(
-    (song: ApiSong, index: number) => {
-      onOpenSong(song, tracks, index, 'manual', playlistTitle, {
+
+  const resolvePlaylistSong = useCallback(
+    (title: string, index: number) => {
+      const exact = playlistSongs.find(
+        (song) => song.title.toLowerCase() === title.toLowerCase(),
+      )
+      return exact ?? playlistSongs[index] ?? null
+    },
+    [playlistSongs],
+  )
+
+  const playPlaylistTrack = useCallback(
+    (index: number) => {
+      const row = PSD_PLAYLIST_TRACK_ROWS[index]
+      if (!row) return
+      const song = resolvePlaylistSong(row.title, index)
+      if (!song) return
+      const queue = playlistSongs.length > 0 ? playlistSongs : [song]
+      const queueIndex = Math.max(0, queue.findIndex((entry) => entry.id === song.id))
+      onOpenSong(song, queue, queueIndex, 'manual', PSD_PLAYLIST_TITLE, {
         seedType: 'manual',
-        seedTracks: buildQueueSeedPool('manual', tracks, indexes, song),
+        seedTracks: buildQueueSeedPool('manual', queue, indexes, song),
         candidatePools: queuePools,
       })
     },
-    [indexes, onOpenSong, queuePools, tracks],
+    [indexes, onOpenSong, playlistSongs, queuePools, resolvePlaylistSong],
   )
 
+  const playAll = useCallback(() => {
+    playPlaylistTrack(0)
+  }, [playPlaylistTrack])
+
   return (
-    <div className="psd-playlists-destination">
-      <PageFrame cinematic>
-        <section className="psd-playlist-detail-hero" aria-labelledby="playlist-detail-heading">
+    <div className="psd-playlist-page">
+      <header className="psd-playlist-topbar">
+        <button type="button" className="psd-playlist-topbar-btn" onClick={onBack} aria-label="Go back">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            <path d="M19 12H5M12 19l-7-7 7-7" />
+          </svg>
+        </button>
+        <form className="psd-playlist-search" role="search" onSubmit={(event) => event.preventDefault()}>
+          <span className="psd-playlist-search-icon" aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="11" cy="11" r="7" />
+              <path d="M20 20l-3.5-3.5" />
+            </svg>
+          </span>
+          <input
+            type="search"
+            value={playlistQuery}
+            onChange={(event) => setPlaylistQuery(event.target.value)}
+            placeholder="Search in playlist"
+            aria-label="Search in playlist"
+          />
+        </form>
+        <button type="button" className="psd-playlist-topbar-btn" aria-label="More options">
+          <PsdIconMore />
+        </button>
+      </header>
+
+      <div className="psd-playlist-scroll">
+        <section className="psd-playlist-hero" aria-labelledby="playlist-detail-heading">
           <div
-            className="psd-playlist-detail-art"
-            style={{ backgroundImage: `url(${psdPlaylistsReferenceUrl})` }}
+            className="psd-playlist-hero-art"
+            style={{
+              backgroundImage: `url(${psdPlaylistReferenceUrl})`,
+              backgroundPosition: PSD_PLAYLIST_HERO_ART,
+            }}
             aria-hidden="true"
           />
-          <div className="psd-playlist-detail-copy">
-            <p className="psd-page-eyebrow">Playlist</p>
-            <h1 id="playlist-detail-heading">{playlistTitle}</h1>
-            <p>{tracks.length} tracks · Hidden Tunes curated</p>
-            <div className="psd-hero-actions">
-              <button type="button" className="psd-btn psd-btn--gold" disabled={tracks.length === 0} onClick={() => tracks[0] && playTrack(tracks[0], 0)}>Play</button>
-              <button type="button" className="psd-btn psd-btn--ghost" disabled={tracks.length === 0}>Shuffle</button>
-              <button type="button" className="psd-btn psd-btn--ghost">Edit</button>
+          <div className="psd-playlist-hero-copy">
+            <span className="psd-playlist-eyebrow">PLAYLIST</span>
+            <h1 id="playlist-detail-heading" className="psd-playlist-title">
+              {PSD_PLAYLIST_TITLE}
+              <svg className="psd-playlist-moon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M21 14.5A8.5 8.5 0 1111.5 4a6.5 6.5 0 109.5 10.5z" />
+              </svg>
+            </h1>
+            <p className="psd-playlist-description">{PSD_PLAYLIST_DESCRIPTION}</p>
+            <div className="psd-playlist-owner">
+              <span className="psd-playlist-owner-avatar" aria-hidden="true">
+                <PsdWaveformStrip className="psd-playlist-owner-wave" />
+              </span>
+              <span className="psd-playlist-owner-name">{PSD_PLAYLIST_OWNER}</span>
+              <PsdIconVerified className="psd-playlist-owner-verified" />
             </div>
+            <p className="psd-playlist-meta">{PSD_PLAYLIST_META}</p>
           </div>
         </section>
 
-        <div className="psd-tab-row psd-tab-row--underline" role="tablist" aria-label="Playlist sections">
-          <button type="button" role="tab" className="psd-tab is-active" aria-selected>Tracks</button>
+        <div className="psd-playlist-actions" role="toolbar" aria-label="Playlist actions">
+          <button type="button" className="psd-playlist-btn psd-playlist-btn--play" onClick={playAll}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M8 5v14l11-7z" />
+            </svg>
+            Play
+          </button>
+          <button type="button" className="psd-playlist-btn psd-playlist-btn--shuffle" onClick={playAll}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+              <path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5" />
+            </svg>
+            Shuffle
+          </button>
+          <button type="button" className="psd-playlist-icon-btn" aria-label="Add collaborator">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+              <path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M19 8v6M22 11h-6" />
+            </svg>
+          </button>
+          <button type="button" className="psd-playlist-icon-btn" aria-label="Download playlist">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+              <path d="M12 3v12M7 10l5 5 5-5M5 21h14" />
+            </svg>
+          </button>
+          <button type="button" className="psd-playlist-icon-btn" aria-label="More options">
+            <PsdIconMore />
+          </button>
         </div>
 
-        <div className="psd-track-table-wrap">
-          <table className="psd-track-table">
-            <thead>
-              <tr>
-                <th scope="col">#</th>
-                <th scope="col">Title</th>
-                <th scope="col">Album</th>
-                <th scope="col">Date added</th>
-                <th scope="col">Duration</th>
-              </tr>
-            </thead>
-            <tbody>
-              {tracks.map((song, index) => (
-                <tr key={song.id}>
-                  <td>{index + 1}</td>
-                  <td>
-                    <button type="button" className="psd-track-title-btn" onClick={() => playTrack(song, index)}>
-                      <ArtworkImage src={song.artwork} alt="" seed={song.id} />
-                      <span><strong>{song.title}</strong><span>{song.artist}</span></span>
-                    </button>
-                  </td>
-                  <td>{song.album}</td>
-                  <td>Recently</td>
-                  <td>{song.durationSeconds ? formatPlaybackTime(song.durationSeconds) : '—'}</td>
+        <section className="psd-playlist-table-section" aria-label="Playlist tracks">
+          <div className="psd-playlist-table-wrap">
+            <table className="psd-playlist-table">
+              <thead>
+                <tr>
+                  <th scope="col" className="psd-playlist-col-index">#</th>
+                  <th scope="col" className="psd-playlist-col-title">TITLE</th>
+                  <th scope="col" className="psd-playlist-col-artist">ARTIST</th>
+                  <th scope="col" className="psd-playlist-col-duration" aria-label="Duration">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+                      <circle cx="12" cy="12" r="9" />
+                      <path d="M12 7v5l3 2" />
+                    </svg>
+                  </th>
+                  <th scope="col" className="psd-playlist-col-menu"><span className="sr-only">Actions</span></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </PageFrame>
+              </thead>
+              <tbody>
+                {PSD_PLAYLIST_TRACK_ROWS.map((row, index) => {
+                  const song = resolvePlaylistSong(row.title, index)
+                  return (
+                    <tr
+                      key={row.key}
+                      className={`psd-playlist-table-row${'active' in row && row.active ? ' is-active' : ''}`}
+                    >
+                      <td className="psd-playlist-col-index">
+                        {'active' in row && row.active ? (
+                          <PsdIconEqualizer className="psd-playlist-row-equalizer" />
+                        ) : (
+                          index + 1
+                        )}
+                      </td>
+                      <td className="psd-playlist-col-title">
+                        <button
+                          type="button"
+                          className="psd-playlist-title-btn"
+                          onClick={() => playPlaylistTrack(index)}
+                        >
+                          <span
+                            className="psd-playlist-row-thumb"
+                            style={{
+                              backgroundImage: song?.artwork
+                                ? `url(${song.artwork})`
+                                : `url(${psdPlaylistReferenceUrl})`,
+                              backgroundPosition: row.artPosition,
+                            }}
+                            aria-hidden="true"
+                          />
+                          <span className="psd-playlist-title-copy">
+                            <strong>{row.title}</strong>
+                            <svg className="psd-playlist-row-heart" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                              <path d="M12 20.8l-1.1-1C6.4 15.36 3 12.28 3 8.5 3 6 5 4 7.5 4c1.74 0 3.41 1.01 4.5 2.36C13.09 5.01 14.76 4 16.5 4 19 4 21 6 21 8.5c0 3.78-3.4 6.86-7.9 11.3L12 20.8z" />
+                            </svg>
+                          </span>
+                        </button>
+                      </td>
+                      <td className="psd-playlist-col-artist">{row.artist}</td>
+                      <td className="psd-playlist-col-duration">{row.duration}</td>
+                      <td className="psd-playlist-col-menu">
+                        <button type="button" className="psd-playlist-row-menu" aria-label={`More options for ${row.title}`}>
+                          <PsdIconMore />
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+          <p className="psd-playlist-table-footer">{PSD_PLAYLIST_FOOTER_META}</p>
+        </section>
+      </div>
+
+      <PlaylistFloatingPlayer />
     </div>
   )
 }
@@ -6054,6 +6443,7 @@ function CatalogDetailRouter({
   setDiscoverQuery,
   albumsQuery,
   setAlbumsQuery,
+  onPlaylistBack,
 }: {
   activeView: ActiveView
   selectedSong: ApiSong | null
@@ -6073,6 +6463,7 @@ function CatalogDetailRouter({
   setDiscoverQuery: (value: string) => void
   albumsQuery: string
   setAlbumsQuery: (value: string) => void
+  onPlaylistBack: () => void
 }) {
   if (activeView === 'song' && selectedSong) {
     return (
@@ -6128,6 +6519,7 @@ function CatalogDetailRouter({
       setDiscoverQuery={setDiscoverQuery}
       albumsQuery={albumsQuery}
       setAlbumsQuery={setAlbumsQuery}
+      onPlaylistBack={onPlaylistBack}
     />
   )
 }
@@ -6143,6 +6535,7 @@ function PageContent({
   setDiscoverQuery,
   albumsQuery,
   setAlbumsQuery,
+  onPlaylistBack,
 }: {
   page: PageId
   activeNavKey: NavKey
@@ -6154,6 +6547,7 @@ function PageContent({
   setDiscoverQuery: (value: string) => void
   albumsQuery: string
   setAlbumsQuery: (value: string) => void
+  onPlaylistBack: () => void
 }) {
   void _onOpenMood
   if (activeNavKey === 'liked') return <LikedPage onOpenSong={onOpenSong} />
@@ -6187,7 +6581,7 @@ function PageContent({
         />
       )
     case 'playlists':
-      return <PlaylistsPage onOpenSong={onOpenSong} />
+      return <PlaylistsPage onOpenSong={onOpenSong} onBack={onPlaylistBack} />
     case 'tv':
       return <TvPage />
     case 'settings':
@@ -6338,7 +6732,7 @@ function AppShell() {
                 isPsdDestinationNav(activeNavKey) && activeView === 'page' ? ' main-scroll--psd' : ''
               }`}
             >
-              {isPsdDestinationNav(activeNavKey) && activeView === 'page' ? (
+              {isPsdDestinationNav(activeNavKey) && activeView === 'page' && activeNavKey !== 'playlists' ? (
                 <HomeTopBar
                   placeholder={TOP_BAR_PLACEHOLDERS[activeNavKey]}
                   onOpenDiscover={() => navigatePage('discover', 'search')}
@@ -6396,6 +6790,7 @@ function AppShell() {
                   setDiscoverQuery={setDiscoverQuery}
                   albumsQuery={albumsQuery}
                   setAlbumsQuery={setAlbumsQuery}
+                  onPlaylistBack={() => navigateNav('library')}
                 />
               </div>
             </main>
@@ -6406,10 +6801,12 @@ function AppShell() {
           </div>
         </div>
       </div>
-      <PlayerBar
-        track={desktopSelectedTrack}
-        onOpenCinema={() => setCinemaOpen(true)}
-      />
+      {activeNavKey !== 'playlists' || activeView !== 'page' ? (
+        <PlayerBar
+          track={desktopSelectedTrack}
+          onOpenCinema={() => setCinemaOpen(true)}
+        />
+      ) : null}
       {cinemaOpen ? (
         <CinemaPlayerShell
           preferredTrack={desktopSelectedTrack}
