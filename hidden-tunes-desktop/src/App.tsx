@@ -9,6 +9,7 @@ import {
   useState,
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
+  type FormEvent,
   type ReactNode,
 } from 'react'
 import {
@@ -1160,8 +1161,67 @@ function CatalogSection({
   )
 }
 
-function PageFrame({ children }: { children: ReactNode }) {
-  return <div className="content-inner">{children}</div>
+function PageFrame({
+  children,
+  cinematic = false,
+}: {
+  children: ReactNode
+  cinematic?: boolean
+}) {
+  return (
+    <div className={`content-inner${cinematic ? ' content-inner--cinematic' : ''}`}>
+      {children}
+    </div>
+  )
+}
+
+function HomeTopBar({ onOpenDiscover }: { onOpenDiscover: () => void }) {
+  const [query, setQuery] = useState('')
+
+  const handleSubmit = useCallback(
+    (event: FormEvent<HTMLFormElement>) => {
+      event.preventDefault()
+      onOpenDiscover()
+    },
+    [onOpenDiscover],
+  )
+
+  return (
+    <header className="home-top-bar" aria-label="Home navigation">
+      <form className="home-top-search" role="search" onSubmit={handleSubmit}>
+        <span className="search-icon" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="11" cy="11" r="7" />
+            <path d="M20 20l-3.5-3.5" />
+          </svg>
+        </span>
+        <input
+          type="search"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Search songs, albums, artists…"
+          aria-label="Search catalog"
+        />
+      </form>
+      <div className="home-top-actions">
+        <button type="button" className="home-top-icon-btn" aria-label="Notifications">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
+            <path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+            <path d="M13.73 21a2 2 0 01-3.46 0" />
+          </svg>
+        </button>
+        <button type="button" className="home-top-icon-btn" aria-label="Theme">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
+            <circle cx="12" cy="12" r="4" />
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+          </svg>
+        </button>
+        <button type="button" className="home-top-avatar" aria-label="Profile">
+          <span aria-hidden="true">H</span>
+        </button>
+      </div>
+    </header>
+  )
 }
 
 function PreviewBanner({ text }: { text: string }) {
@@ -1739,7 +1799,7 @@ function Hero({
       />
       <div className="hero-atmosphere" aria-hidden="true">
         <span className="hero-atmosphere-glow hero-atmosphere-glow--violet" />
-        <span className="hero-atmosphere-glow hero-atmosphere-glow--cyan" />
+        <span className="hero-atmosphere-glow hero-atmosphere-glow--gold" />
         <span className="hero-atmosphere-glow hero-atmosphere-glow--rose" />
         <span className="hero-atmosphere-haze" />
         <span className="hero-atmosphere-field" />
@@ -1884,11 +1944,11 @@ function HomePage({
     <div className="home-atmosphere">
       <div className="home-atmosphere-layers" aria-hidden="true">
         <span className="home-atmosphere-orb home-atmosphere-orb--violet" />
-        <span className="home-atmosphere-orb home-atmosphere-orb--cyan" />
+        <span className="home-atmosphere-orb home-atmosphere-orb--gold" />
         <span className="home-atmosphere-orb home-atmosphere-orb--rose" />
         <span className="home-atmosphere-mist" />
       </div>
-      <PageFrame>
+      <PageFrame cinematic>
         <Hero
           onExplore={handleExplore}
           onContinueListening={handleContinueListening}
@@ -4280,8 +4340,13 @@ function AppShell() {
         <Sidebar activePage={activePage} onNavigate={navigatePage} />
         <div className="main-area">
           <div className="main-composition">
-            <main className="main-scroll">
-              <CatalogStatusBar />
+            <main
+              className={`main-scroll${activePage === 'home' && activeView === 'page' ? ' main-scroll--home' : ''}`}
+            >
+              {activePage === 'home' && activeView === 'page' ? (
+                <HomeTopBar onOpenDiscover={() => navigatePage('discover')} />
+              ) : null}
+              {activePage !== 'home' ? <CatalogStatusBar /> : null}
               <CatalogStaleBanner />
               <div className="page-view" data-page={activePage} data-view={activeView}>
                 <CatalogDetailRouter

@@ -5,59 +5,84 @@
 }
 
 :root {
-  --bg-deep: #050508;
-  --bg-base: #0a0a10;
-  --bg-elevated: #13131d;
-  --bg-surface: #181822;
-  --bg-glass: rgba(20, 20, 30, 0.88);
-  --bg-glass-hover: rgba(32, 32, 46, 0.92);
+  /* PSD base palette */
+  --psd-bg-deep: #050509;
+  --psd-bg-base: #0d0d14;
+  --psd-bg-elevated: #171724;
+  --psd-violet: #6d4aff;
+  --psd-violet-soft: #8b5cf6;
+  --psd-gold-bright: #ffba3d;
+  --psd-gold: #f5c542;
+  --psd-gold-deep: #e8b923;
+  --psd-magenta: #a63a88;
+  --psd-warm: #bf7f72;
+
+  --bg-deep: var(--psd-bg-deep);
+  --bg-base: var(--psd-bg-base);
+  --bg-elevated: var(--psd-bg-elevated);
+  --bg-surface: #1c1c2a;
+  --bg-glass: rgba(13, 13, 20, 0.88);
+  --bg-glass-hover: rgba(23, 23, 36, 0.92);
 
   --border-subtle: rgba(255, 255, 255, 0.07);
-  --border-glow: rgba(168, 85, 247, 0.28);
-  --border-accent: rgba(56, 189, 248, 0.22);
+  --border-glow: rgba(109, 74, 255, 0.28);
+  --border-accent: rgba(245, 197, 66, 0.22);
 
   --text-primary: #f5f3fa;
   --text-secondary: rgba(245, 243, 250, 0.68);
   --text-muted: rgba(245, 243, 250, 0.42);
 
-  --accent-violet: #a855f7;
-  --accent-cyan: #38bdf8;
-  --accent-rose: #f472b6;
+  --accent-violet: var(--psd-violet);
+  --accent-violet-soft: var(--psd-violet-soft);
+  --accent-gold: var(--psd-gold);
+  --accent-gold-bright: var(--psd-gold-bright);
+  --accent-gold-deep: var(--psd-gold-deep);
+  --accent-magenta: var(--psd-magenta);
+  --accent-warm: var(--psd-warm);
+  --accent-rose: #d46ba8;
   --accent-mint: #34d399;
+  /* Legacy alias — PSD uses gold, not cyan */
+  --accent-cyan: var(--accent-gold);
 
   --gradient-hero: linear-gradient(
     128deg,
-    rgba(76, 29, 149, 0.42) 0%,
-    rgba(12, 14, 24, 0.96) 42%,
-    rgba(8, 51, 68, 0.32) 100%
+    rgba(109, 74, 255, 0.38) 0%,
+    rgba(13, 13, 20, 0.96) 42%,
+    rgba(166, 58, 136, 0.22) 100%
   );
   --gradient-glow: radial-gradient(
     ellipse 70% 55% at 72% 18%,
-    rgba(168, 85, 247, 0.14),
+    rgba(109, 74, 255, 0.14),
     transparent 68%
   );
   --gradient-sidebar: linear-gradient(
     180deg,
-    #16141f 0%,
-    #0c0c12 100%
+    #14141f 0%,
+    var(--psd-bg-deep) 100%
   );
 
   --shadow-soft: 0 12px 40px rgba(0, 0, 0, 0.35);
   --shadow-card: 0 6px 20px rgba(0, 0, 0, 0.28);
   --shadow-lift: 0 10px 28px rgba(0, 0, 0, 0.32);
-  --shadow-glow: 0 0 0 1px rgba(168, 85, 247, 0.12);
+  --shadow-glow: 0 0 0 1px rgba(109, 74, 255, 0.12);
+  --shadow-gold: 0 0 0 1px rgba(245, 197, 66, 0.14);
 
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 16px;
   --radius-xl: 22px;
 
-  --sidebar-width: 252px;
-  --player-height: 74px;
+  --sidebar-width: 240px;
+  --queue-rail-width: 320px;
+  --player-height: 90px;
   --content-max: 1240px;
+  --content-max-home: none;
 
-  --font-sans: 'Segoe UI', system-ui, -apple-system, sans-serif;
-  --font-display: 'Segoe UI', system-ui, sans-serif;
+  /* Typography tokens — fonts TBD in later phases */
+  --font-ui: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-display: Georgia, 'Times New Roman', serif;
+  --font-script: 'Segoe Script', 'Brush Script MT', cursive;
+  --font-sans: var(--font-ui);
 
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-spring: cubic-bezier(0.34, 1.2, 0.64, 1);
@@ -65,7 +90,7 @@
   --transition-smooth: 0.28s var(--ease-out);
   --transition-page: 0.4s var(--ease-out);
 
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 15px;
   line-height: 1.5;
   color: var(--text-primary);
@@ -103,7 +128,7 @@ button {
 }
 
 button:focus-visible {
-  outline: 2px solid var(--accent-cyan);
+  outline: 2px solid var(--accent-gold);
   outline-offset: 2px;
 }
 
