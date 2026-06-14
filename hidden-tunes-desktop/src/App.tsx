@@ -112,11 +112,8 @@ import {
 } from './lib/listeningContext'
 import heroPhotoUrl from './assets/hero.png'
 import emotionalWorldsReferenceUrl from './assets/emotional-worlds-reference.jpg'
-import psdSearchReferenceUrl from './assets/psd-search-reference.jpg'
-import psdLibraryReferenceUrl from './assets/psd-library-reference.jpg'
 import psdPlaylistsReferenceUrl from './assets/psd-playlists-reference.jpg'
 import psdArtistsReferenceUrl from './assets/psd-artists-reference.jpg'
-import psdAlbumsReferenceUrl from './assets/psd-albums-reference.jpg'
 import psdLikedReferenceUrl from './assets/psd-liked-reference.jpg'
 import './App.css'
 
@@ -2363,31 +2360,22 @@ function DiscoverPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
   return (
     <div className="psd-search-destination">
       <PageFrame cinematic>
-        <section className="psd-page-hero psd-page-hero--search" aria-labelledby="search-results-heading">
-          <div
-            className="psd-page-hero-backdrop"
-            style={{ backgroundImage: `url(${psdSearchReferenceUrl})` }}
-            aria-hidden="true"
-          />
-          <div className="psd-page-hero-veil" aria-hidden="true" />
-          <div className="psd-page-hero-copy">
-            <p className="psd-page-eyebrow">Discover</p>
-            <h1 id="search-results-heading" className="psd-page-title psd-page-title--search">
-              Search Results
-            </h1>
-            {trimmedQuery ? (
-              <p className="psd-search-query-line">
-                Showing matches for <strong>&ldquo;{trimmedQuery}&rdquo;</strong>
-              </p>
-            ) : (
-              <p className="psd-search-query-line psd-search-query-line--muted">
-                Start typing in the toolbar or search bar to explore the catalog.
-              </p>
-            )}
-          </div>
-        </section>
+        <header className="psd-inline-header psd-inline-header--search" aria-labelledby="search-results-heading">
+          <h1 id="search-results-heading" className="psd-page-title psd-page-title--search">
+            Search Results
+          </h1>
+          {trimmedQuery ? (
+            <p className="psd-search-query-line">
+              Showing matches for <strong>&ldquo;{trimmedQuery}&rdquo;</strong>
+            </p>
+          ) : (
+            <p className="psd-search-query-line psd-search-query-line--muted">
+              Start typing in the toolbar or search bar to explore the catalog.
+            </p>
+          )}
+        </header>
 
-        <div className="psd-tab-row" role="tablist" aria-label="Search categories">
+        <div className="psd-tab-row psd-tab-row--underline" role="tablist" aria-label="Search categories">
           {searchTabs.map((tab) => (
             <button
               key={tab.id}
@@ -2816,24 +2804,16 @@ function LibraryPage() {
   return (
     <div className="psd-library-destination">
       <PageFrame cinematic>
-        <section className="psd-page-hero psd-page-hero--library" aria-labelledby="library-heading">
-          <div
-            className="psd-page-hero-backdrop"
-            style={{ backgroundImage: `url(${psdLibraryReferenceUrl})` }}
-            aria-hidden="true"
-          />
-          <div className="psd-page-hero-veil" aria-hidden="true" />
-          <div className="psd-page-hero-copy">
-            <h1 id="library-heading" className="psd-page-title psd-page-title--library">
-              <span className="psd-page-title-main">My Library</span>
-            </h1>
-            <p className="psd-page-subtitle">
-              Everything you have saved, replayed, and downloaded — organized for emotional recall.
-            </p>
-          </div>
-        </section>
+        <header className="psd-inline-header psd-inline-header--library" aria-labelledby="library-heading">
+          <h1 id="library-heading" className="psd-page-title psd-page-title--library">
+            <span className="psd-page-title-main">My Library</span>
+          </h1>
+          <p className="psd-page-subtitle">
+            Everything you have saved, replayed, and downloaded — organized for emotional recall.
+          </p>
+        </header>
 
-        <div className="psd-tab-row" role="tablist" aria-label="Library sections">
+        <div className="psd-tab-row psd-tab-row--underline" role="tablist" aria-label="Library sections">
           {libraryTabs.map((entry) => (
             <button
               key={entry.id}
@@ -2986,7 +2966,7 @@ function ArtistsPage({ onOpenArtist }: { onOpenArtist: (artist: ApiArtist) => vo
           </section>
         ) : null}
 
-        <div className="psd-tab-row" role="tablist" aria-label="Artist sections">
+        <div className="psd-tab-row psd-tab-row--underline" role="tablist" aria-label="Artist sections">
           {artistTabs.map((entry) => (
             <button key={entry.id} type="button" role="tab" className={`psd-tab${tab === entry.id ? ' is-active' : ''}`} aria-selected={tab === entry.id} onClick={() => setTab(entry.id)}>
               {entry.label}
@@ -3079,17 +3059,13 @@ function AlbumsPage({ onOpenAlbum }: { onOpenAlbum: (album: ApiAlbum) => void })
   return (
     <div className="psd-albums-destination">
       <PageFrame cinematic>
-        <section className="psd-page-hero psd-page-hero--albums" aria-labelledby="albums-heading">
-          <div className="psd-page-hero-backdrop" style={{ backgroundImage: `url(${psdAlbumsReferenceUrl})` }} aria-hidden="true" />
-          <div className="psd-page-hero-veil" aria-hidden="true" />
-          <div className="psd-page-hero-copy">
-            <h1 id="albums-heading" className="psd-page-title psd-page-title--albums">Albums</h1>
-            <p className="psd-page-subtitle">Immersive records from the cached catalog.</p>
-          </div>
-        </section>
+        <header className="psd-inline-header psd-inline-header--albums" aria-labelledby="albums-heading">
+          <h1 id="albums-heading" className="psd-page-title psd-page-title--albums">Albums</h1>
+          <p className="psd-page-subtitle">Browse every record in your vault.</p>
+        </header>
 
         <div className="psd-albums-toolbar">
-          <div className="psd-tab-row" role="tablist" aria-label="Album filters">
+          <div className="psd-tab-row psd-tab-row--underline" role="tablist" aria-label="Album filters">
             {(['all', 'recent', 'liked'] as const).map((entry) => (
               <button key={entry} type="button" role="tab" className={`psd-tab${tab === entry ? ' is-active' : ''}`} aria-selected={tab === entry} onClick={() => setTab(entry)}>
                 {entry === 'all' ? 'All Albums' : entry === 'recent' ? 'Recent' : 'Liked'}
@@ -3143,8 +3119,11 @@ function PlaylistsPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
     <div className="psd-playlists-destination">
       <PageFrame cinematic>
         <section className="psd-playlist-detail-hero" aria-labelledby="playlist-detail-heading">
-          <div className="psd-playlist-detail-backdrop" style={{ backgroundImage: `url(${psdPlaylistsReferenceUrl})` }} aria-hidden="true" />
-          <div className="psd-playlist-detail-veil" aria-hidden="true" />
+          <div
+            className="psd-playlist-detail-art"
+            style={{ backgroundImage: `url(${psdPlaylistsReferenceUrl})` }}
+            aria-hidden="true"
+          />
           <div className="psd-playlist-detail-copy">
             <p className="psd-page-eyebrow">Playlist</p>
             <h1 id="playlist-detail-heading">{playlistTitle}</h1>
@@ -3157,7 +3136,7 @@ function PlaylistsPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
           </div>
         </section>
 
-        <div className="psd-tab-row" role="tablist" aria-label="Playlist sections">
+        <div className="psd-tab-row psd-tab-row--underline" role="tablist" aria-label="Playlist sections">
           <button type="button" role="tab" className="psd-tab is-active" aria-selected>Tracks</button>
         </div>
 
@@ -3226,7 +3205,7 @@ function LikedPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
             <h1 id="liked-heading">Liked Songs</h1>
             <p>{likedSongs.length} saved tracks from your catalog</p>
             <div className="psd-hero-actions">
-              <button type="button" className="psd-btn psd-btn--gold" disabled={likedSongs.length === 0} onClick={() => likedSongs[0] && playLikedSong(likedSongs[0], 0)}>
+              <button type="button" className="psd-btn psd-btn--violet" disabled={likedSongs.length === 0} onClick={() => likedSongs[0] && playLikedSong(likedSongs[0], 0)}>
                 Play
               </button>
               <button type="button" className="psd-btn psd-btn--ghost" disabled={likedSongs.length === 0} onClick={() => likedSongs[0] && playLikedSong(likedSongs[0], 0)}>
