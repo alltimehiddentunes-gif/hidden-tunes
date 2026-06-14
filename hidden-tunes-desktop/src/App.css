@@ -3047,14 +3047,6 @@
 }
 
 @media (max-width: 640px) {
-  .player-bar {
-    grid-template-columns: 1fr;
-  }
-
-  .player-center {
-    display: none;
-  }
-
   .player-track {
     flex: 1;
     max-width: none;
@@ -5998,4 +5990,43 @@
     max-width: 22ch;
     font-size: clamp(1.45rem, 5.2vw, 1.9rem);
   }
+}
+/* —— Desktop release candidate audit (Phase 40C) —— */
+@media (max-width: 640px) {
+  .player-bar {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto;
+    gap: 8px;
+    padding: 10px 12px 12px;
+  }
+
+  .player-center {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 100%;
+  }
+
+  .player-center .transport-controls {
+    justify-content: center;
+  }
+
+  .player-center .progress-wrap {
+    width: 100%;
+  }
+
+  .player-meta h4,
+  .player-meta p {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.player-bar--idle .player-meta h4 {
+  color: var(--text-muted, rgba(255, 255, 255, 0.62));
+}
+
+.player-bar--idle .player-meta p {
+  color: var(--text-subtle, rgba(255, 255, 255, 0.42));
 }

@@ -113,8 +113,6 @@ import './App.css'
 
 const APP_NAME = 'Hidden Tunes Desktop'
 const APP_VERSION = '0.0.1'
-const PLAYER_BAR_FALLBACK_TITLE = 'Ethereal Horizon'
-const PLAYER_BAR_FALLBACK_ARTIST = 'Luna Veil'
 const GRID_INITIAL_LIMIT = 24
 const GRID_SHOW_MORE_STEP = 24
 const SEARCH_DEBOUNCE_MS = 250
@@ -783,7 +781,7 @@ function CatalogError({
     <div className="catalog-error" role="alert">
       <p className="catalog-error-title">Catalog unavailable</p>
       <p className="catalog-error-detail">
-        {message || 'The Hidden Tunes API may be waking up on Render. Wait a moment, then retry.'}
+        {message || 'Could not reach Hidden Tunes. Wait a moment, then try again.'}
       </p>
       <button type="button" className="btn-secondary btn-sm" onClick={onRetry}>
         Retry catalog load
@@ -1698,7 +1696,13 @@ const Sidebar = memo(function Sidebar({
   )
 })
 
-function Hero() {
+function Hero({
+  onExplore,
+  onContinueListening,
+}: {
+  onExplore: () => void
+  onContinueListening: () => void
+}) {
   const homeSceneId = useMemo(() => getTimeAwareHomeScene(), [])
 
   return (
@@ -1719,10 +1723,10 @@ function Hero() {
             and stories crafted for how you feel right now.
           </p>
           <div className="hero-actions">
-            <button type="button" className="btn-primary">
+            <button type="button" className="btn-primary" onClick={onExplore}>
               Explore
             </button>
-            <button type="button" className="btn-secondary">
+            <button type="button" className="btn-secondary" onClick={onContinueListening}>
               Continue Listening
             </button>
           </div>
@@ -1736,11 +1740,33 @@ function Hero() {
   )
 }
 
-function HomePage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
+function HomePage({
+  onOpenSong,
+  onNavigate,
+  onOpenSongDetail,
+}: {
+  onOpenSong: QueueSongHandler
+  onNavigate: (page: PageId) => void
+  onOpenSongDetail: (song: ApiSong) => void
+}) {
   const { songs, indexes, showCatalogSkeleton, showCatalogError, error, retry } = useCatalog()
   const [sort, setSort] = useState<SongSort>('latest')
   const [selectedLaneId, setSelectedLaneId] = useState<string | null>(null)
   const [selectedSceneId, setSelectedSceneId] = useState<string | null>(null)
+  const { currentTrack } = useDesktopPlayback()
+
+  const handleExplore = useCallback(() => {
+    onNavigate('discover')
+  }, [onNavigate])
+
+  const handleContinueListening = useCallback(() => {
+    if (currentTrack) {
+      onOpenSongDetail(currentTrack)
+      return
+    }
+    onNavigate('discover')
+  }, [currentTrack, onNavigate, onOpenSongDetail])
+
   const featured = useMemo(
     () => sortSongsList(songs, sort).slice(0, 12),
     [songs, sort],
@@ -1822,7 +1848,10 @@ function HomePage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
 
   return (
     <PageFrame>
-      <Hero />
+      <Hero
+        onExplore={handleExplore}
+        onContinueListening={handleContinueListening}
+      />
       <EmotionalLanesSection
         songs={songs}
         selectedLaneId={selectedLaneId}
@@ -2150,10 +2179,6 @@ function MoodRoomsPage({ onOpenMood }: { onOpenMood: (mood: MoodRoom) => void })
             <VisualSceneBackdrop sceneId={sceneId} seed={room.title} variant="card" />
             <div className="mood-room-top">
               <span className="mood-room-index">0{index + 1}</span>
-              <span className="live-pill">
-                <span className="live-dot" aria-hidden="true" />
-                Live
-              </span>
             </div>
             <div className="mood-room-body">
               <div className="mood-room-icon-wrap">
@@ -2161,7 +2186,6 @@ function MoodRoomsPage({ onOpenMood }: { onOpenMood: (mood: MoodRoom) => void })
               </div>
               <h3>{room.title}</h3>
               <p>{room.subtitle}</p>
-              <span className="mood-listeners">{room.listeners} listening</span>
               <span className="btn-secondary btn-sm mood-enter" aria-hidden="true">
                 Enter room
               </span>
@@ -2273,10 +2297,6 @@ function ArtistsPage({ onOpenArtist }: { onOpenArtist: (artist: ApiArtist) => vo
       {!showCatalogSkeleton && !showCatalogError && artists.length > 0 ? (
         <ApiArtistGrid artists={visibleArtists} onSelect={onOpenArtist} listKey={listKey} />
       ) : null}
-      <PlaceholderNote
-        title="Expanded artist pages"
-        detail="Bios, tours, and emotional tags will layer in without leaving the desktop shell."
-      />
     </PageFrame>
   )
 }
@@ -2743,8 +2763,8 @@ const PlayerBar = memo(function PlayerBar({
   const isAdjustingVolumeRef = useRef(false)
 
   const displayTrack = track ?? currentTrack
-  const title = displayTrack?.title ?? PLAYER_BAR_FALLBACK_TITLE
-  const artist = displayTrack?.artist ?? PLAYER_BAR_FALLBACK_ARTIST
+  const title = displayTrack?.title ?? 'Nothing playing'
+  const artist = displayTrack?.artist ?? 'Select a song to begin'
   const progressMax = durationSeconds > 0 ? durationSeconds : 0
   const progressValue = progressMax > 0 ? Math.min(positionSeconds, progressMax) : 0
   const progressPercent =
@@ -3828,7 +3848,7 @@ function ArtistDetailView({
 
   return (
     <PageFrame>
-      <DetailTopBar title="Artist" subtitle="Read-only preview" onBack={onBack} />
+      <DetailTopBar title="Artist" onBack={onBack} />
       <section className="detail-hero detail-hero--artist">
         <div className="detail-artist-badge">
           <ArtistAvatar artist={artist} />
@@ -3980,6 +4000,8 @@ function CatalogDetailRouter({
   onOpenAlbum,
   onOpenArtist,
   onOpenMood,
+  onNavigate,
+  onOpenSongDetail,
   onOpenCinema,
 }: {
   activeView: ActiveView
@@ -3994,6 +4016,8 @@ function CatalogDetailRouter({
   onOpenAlbum: (album: ApiAlbum) => void
   onOpenArtist: (artist: ApiArtist) => void
   onOpenMood: (mood: MoodRoom) => void
+  onNavigate: (page: PageId) => void
+  onOpenSongDetail: (song: ApiSong) => void
   onOpenCinema?: () => void
 }) {
   if (activeView === 'song' && selectedSong) {
@@ -4045,6 +4069,8 @@ function CatalogDetailRouter({
       onOpenAlbum={onOpenAlbum}
       onOpenArtist={onOpenArtist}
       onOpenMood={onOpenMood}
+      onNavigate={onNavigate}
+      onOpenSongDetail={onOpenSongDetail}
     />
   )
 }
@@ -4055,16 +4081,26 @@ function PageContent({
   onOpenAlbum,
   onOpenArtist,
   onOpenMood,
+  onNavigate,
+  onOpenSongDetail,
 }: {
   page: PageId
   onOpenSong: QueueSongHandler
   onOpenAlbum: (album: ApiAlbum) => void
   onOpenArtist: (artist: ApiArtist) => void
   onOpenMood: (mood: MoodRoom) => void
+  onNavigate: (page: PageId) => void
+  onOpenSongDetail: (song: ApiSong) => void
 }) {
   switch (page) {
     case 'home':
-      return <HomePage onOpenSong={onOpenSong} />
+      return (
+        <HomePage
+          onOpenSong={onOpenSong}
+          onNavigate={onNavigate}
+          onOpenSongDetail={onOpenSongDetail}
+        />
+      )
     case 'discover':
       return <DiscoverPage onOpenSong={onOpenSong} />
     case 'mood':
@@ -4082,7 +4118,13 @@ function PageContent({
     case 'settings':
       return <SettingsPage />
     default:
-      return <HomePage onOpenSong={onOpenSong} />
+      return (
+        <HomePage
+          onOpenSong={onOpenSong}
+          onNavigate={onNavigate}
+          onOpenSongDetail={onOpenSongDetail}
+        />
+      )
   }
 }
 
@@ -4213,6 +4255,8 @@ function AppShell() {
                   onOpenAlbum={openAlbum}
                   onOpenArtist={openArtist}
                   onOpenMood={openMood}
+                  onNavigate={navigatePage}
+                  onOpenSongDetail={openSong}
                   onOpenCinema={() => setCinemaOpen(true)}
                 />
               </div>
