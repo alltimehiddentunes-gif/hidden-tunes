@@ -166,21 +166,21 @@ const PSD_LIBRARY_STATS = [
 ] as const
 
 const PSD_LIBRARY_RECENT = [
-  { title: 'Midnight Reflection', artist: 'Wills Afrobeats', tone: 'violet', artPosition: '6% 72%' },
-  { title: 'Afro Sunset', artist: 'Wills Afrobeats', tone: 'sunset', artPosition: '18% 72%' },
-  { title: 'Healing Slowly', artist: 'Wills Afrobeats', tone: 'moon', artPosition: '30% 72%' },
-  { title: 'Night Drive', artist: 'Wills Afrobeats', tone: 'neon', artPosition: '42% 72%' },
-  { title: 'Jazz Café', artist: 'Wills Afrobeats', tone: 'jazz', artPosition: '54% 72%' },
-  { title: 'Love Vibes', artist: 'Wills Afrobeats', tone: 'love', artPosition: '66% 72%' },
+  { title: 'Midnight Reflection', artist: 'Wills Afrobeats', tone: 'violet' },
+  { title: 'Afro Sunset', artist: 'Wills Afrobeats', tone: 'sunset' },
+  { title: 'Healing Slowly', artist: 'Wills Afrobeats', tone: 'moon' },
+  { title: 'Night Drive', artist: 'Wills Afrobeats', tone: 'neon' },
+  { title: 'Jazz Café', artist: 'Wills Afrobeats', tone: 'jazz' },
+  { title: 'Love Vibes', artist: 'Wills Afrobeats', tone: 'love' },
 ] as const
 
 const PSD_LIBRARY_PLAYLISTS = [
-  { title: 'Deep Focus', count: '22 songs', tone: 'forest', artPosition: '6% 88%' },
-  { title: 'Afro Vibes', count: '28 songs', tone: 'afro', artPosition: '18% 88%' },
-  { title: 'Chill & Relax', count: '40 songs', tone: 'lounge', artPosition: '30% 88%' },
-  { title: 'Workout Mix', count: '25 songs', tone: 'run', artPosition: '42% 88%' },
-  { title: 'Late Night Drive', count: '19 songs', tone: 'drive', artPosition: '54% 88%' },
-  { title: 'Rainy Day Comfort', count: '31 songs', tone: 'rain', artPosition: '66% 88%' },
+  { title: 'Deep Focus', count: '22 songs', tone: 'forest' },
+  { title: 'Afro Vibes', count: '28 songs', tone: 'afro' },
+  { title: 'Chill & Relax', count: '40 songs', tone: 'lounge' },
+  { title: 'Workout Mix', count: '25 songs', tone: 'run' },
+  { title: 'Late Night Drive', count: '19 songs', tone: 'drive' },
+  { title: 'Rainy Day Comfort', count: '31 songs', tone: 'rain' },
 ] as const
 
 const PSD_PLAYLIST_TITLE = 'Night Drive'
@@ -189,14 +189,14 @@ const PSD_PLAYLIST_OWNER = 'Hidden Tunes'
 const PSD_PLAYLIST_META = '50 songs • 3h 12m'
 const PSD_PLAYLIST_FOOTER_META = '50 songs, 3h 12m'
 const PSD_PLAYLIST_TRACK_ROWS = [
-  { key: 'pt1', title: 'Midnight Reflection', artist: 'Wills Afrobeats', duration: '3:56', active: true, artPosition: '8% 58%' },
-  { key: 'pt2', title: 'Afro Sunset', artist: 'Wills Afrobeats', duration: '3:21', artPosition: '18% 58%' },
-  { key: 'pt3', title: 'Love Vibes', artist: 'Wills Afrobeats', duration: '3:44', artPosition: '28% 58%' },
-  { key: 'pt4', title: 'Rain & Reflection', artist: 'Wills Afrobeats', duration: '4:12', artPosition: '38% 58%' },
-  { key: 'pt5', title: 'Night Drive', artist: 'Wills Afrobeats', duration: '4:01', artPosition: '48% 58%' },
-  { key: 'pt6', title: 'Healing Slowly', artist: 'Wills Afrobeats', duration: '3:48', artPosition: '58% 58%' },
-  { key: 'pt7', title: 'Jazz Café', artist: 'Wills Afrobeats', duration: '3:36', artPosition: '68% 58%' },
-  { key: 'pt8', title: 'Deep Focus', artist: 'Wills Afrobeats', duration: '4:20', artPosition: '78% 58%' },
+  { key: 'pt1', title: 'Midnight Reflection', artist: 'Wills Afrobeats', duration: '3:56', active: true },
+  { key: 'pt2', title: 'Afro Sunset', artist: 'Wills Afrobeats', duration: '3:21' },
+  { key: 'pt3', title: 'Love Vibes', artist: 'Wills Afrobeats', duration: '3:44' },
+  { key: 'pt4', title: 'Rain & Reflection', artist: 'Wills Afrobeats', duration: '4:12' },
+  { key: 'pt5', title: 'Night Drive', artist: 'Wills Afrobeats', duration: '4:01' },
+  { key: 'pt6', title: 'Healing Slowly', artist: 'Wills Afrobeats', duration: '3:48' },
+  { key: 'pt7', title: 'Jazz Café', artist: 'Wills Afrobeats', duration: '3:36' },
+  { key: 'pt8', title: 'Deep Focus', artist: 'Wills Afrobeats', duration: '4:20' },
 ] as const
 
 const PSD_PLAYLIST_UP_NEXT_ROWS = PSD_PLAYLIST_TRACK_ROWS.slice(1, 5)
@@ -237,10 +237,10 @@ const PSD_ALBUMS_RAIL_TITLE = 'Falling Slowly'
 const PSD_ALBUMS_RAIL_ARTIST = 'Wills Afrobeats'
 
 const PSD_ALBUMS_UP_NEXT_ROWS = [
-  { key: 'au1', title: 'Midnight Reflection', artist: 'Wills Afrobeats', duration: '3:56', artPosition: '10% 58%' },
-  { key: 'au2', title: 'Afro Sunset', artist: 'Wills Afrobeats', duration: '3:21', artPosition: '18% 58%' },
-  { key: 'au3', title: 'Love Vibes', artist: 'Wills Afrobeats', duration: '3:44', artPosition: '26% 58%' },
-  { key: 'au4', title: 'Rain & Reflection', artist: 'Wills Afrobeats', duration: '4:12', artPosition: '34% 58%' },
+  { key: 'au1', title: 'Midnight Reflection', artist: 'Wills Afrobeats', duration: '3:56' },
+  { key: 'au2', title: 'Afro Sunset', artist: 'Wills Afrobeats', duration: '3:21' },
+  { key: 'au3', title: 'Love Vibes', artist: 'Wills Afrobeats', duration: '3:44' },
+  { key: 'au4', title: 'Rain & Reflection', artist: 'Wills Afrobeats', duration: '4:12' },
 ] as const
 
 const PSD_ALBUM_STATS_ROWS = [
@@ -251,16 +251,16 @@ const PSD_ALBUM_STATS_ROWS = [
 const PSD_ALBUM_STATS_UPDATED = 'May 12, 2024'
 
 const PSD_ALBUMS_GRID_CARDS = [
-  { key: 'alb1', title: 'Reflections at Midnight', artist: 'Wills Afrobeats', year: '2024', songs: '12 songs', artPosition: '8% 24%' },
-  { key: 'alb2', title: 'Afro Sunrise', artist: 'Wills Afrobeats', year: '2023', songs: '10 songs', artPosition: '22% 24%' },
-  { key: 'alb3', title: 'Vibes from Lagos', artist: 'Wills Afrobeats', year: '2023', songs: '14 songs', artPosition: '36% 24%' },
-  { key: 'alb4', title: 'Love & Rhythm', artist: 'Wills Afrobeats', year: '2022', songs: '11 songs', artPosition: '50% 24%' },
-  { key: 'alb5', title: 'The Beginning', artist: 'Wills Afrobeats', year: '2021', songs: '9 songs', artPosition: '64% 24%' },
-  { key: 'alb6', title: 'Jazz Café', artist: 'Wills Afrobeats', year: '2020', songs: '8 songs', artPosition: '78% 24%' },
-  { key: 'alb7', title: 'Deep Focus', artist: 'Wills Afrobeats', year: '2019', songs: '15 songs', artPosition: '8% 58%' },
-  { key: 'alb8', title: 'Moments of Us', artist: 'Wills Afrobeats', year: '2018', songs: '7 songs', artPosition: '22% 58%' },
-  { key: 'alb9', title: 'Rainy Day Comfort', artist: 'Wills Afrobeats', year: '2017', songs: '13 songs', artPosition: '36% 58%' },
-  { key: 'alb10', title: 'Live in Accra', artist: 'Wills Afrobeats', year: '2016', songs: '6 songs', artPosition: '50% 58%' },
+  { key: 'alb1', title: 'Reflections at Midnight', artist: 'Wills Afrobeats', year: '2024', songs: '12 songs' },
+  { key: 'alb2', title: 'Afro Sunrise', artist: 'Wills Afrobeats', year: '2023', songs: '10 songs' },
+  { key: 'alb3', title: 'Vibes from Lagos', artist: 'Wills Afrobeats', year: '2023', songs: '14 songs' },
+  { key: 'alb4', title: 'Love & Rhythm', artist: 'Wills Afrobeats', year: '2022', songs: '11 songs' },
+  { key: 'alb5', title: 'The Beginning', artist: 'Wills Afrobeats', year: '2021', songs: '9 songs' },
+  { key: 'alb6', title: 'Jazz Café', artist: 'Wills Afrobeats', year: '2020', songs: '8 songs' },
+  { key: 'alb7', title: 'Deep Focus', artist: 'Wills Afrobeats', year: '2019', songs: '15 songs' },
+  { key: 'alb8', title: 'Moments of Us', artist: 'Wills Afrobeats', year: '2018', songs: '7 songs' },
+  { key: 'alb9', title: 'Rainy Day Comfort', artist: 'Wills Afrobeats', year: '2017', songs: '13 songs' },
+  { key: 'alb10', title: 'Live in Accra', artist: 'Wills Afrobeats', year: '2016', songs: '6 songs' },
 ] as const
 
 const PSD_PLAYER_TITLE = 'Midnight Reflection'
@@ -339,11 +339,11 @@ const PSD_PLAYER3_SIDEBAR_NAV = [
   { key: 'downloads', label: 'Downloads' },
 ] as const
 const PSD_PLAYER3_UP_NEXT = [
-  { key: 'p3-u1', title: 'Midnight Reflection', artist: 'Wills AfroBeats', active: true, artPosition: '18% 58%' },
-  { key: 'p3-u2', title: 'Afro Sunset', artist: 'Wills AfroBeats', active: false, artPosition: '26% 58%' },
-  { key: 'p3-u3', title: 'Lost in Dreams', artist: 'Wills AfroBeats', active: false, artPosition: '34% 58%' },
-  { key: 'p3-u4', title: 'Healing Slowly', artist: 'Wills AfroBeats', active: false, artPosition: '42% 58%' },
-  { key: 'p3-u5', title: 'Night Drive', artist: 'Wills AfroBeats', active: false, artPosition: '50% 58%' },
+  { key: 'p3-u1', title: 'Midnight Reflection', artist: 'Wills AfroBeats', active: true },
+  { key: 'p3-u2', title: 'Afro Sunset', artist: 'Wills AfroBeats', active: false },
+  { key: 'p3-u3', title: 'Lost in Dreams', artist: 'Wills AfroBeats', active: false },
+  { key: 'p3-u4', title: 'Healing Slowly', artist: 'Wills AfroBeats', active: false },
+  { key: 'p3-u5', title: 'Night Drive', artist: 'Wills AfroBeats', active: false },
 ] as const
 const PSD_PLAYER3_STATS = {
   songs: '24',
@@ -378,11 +378,11 @@ const PSD_PLAYER4_EXTRAS_NAV = [
   { key: 'tv', label: 'Podcasts' },
 ] as const
 const PSD_PLAYER4_UP_NEXT = [
-  { key: 'p4-u1', title: 'Midnight Reflection', artist: 'Wills AfroBeats', duration: '3:56', active: true, artPosition: '18% 58%' },
-  { key: 'p4-u2', title: 'Lost in Dreams', artist: 'Wills AfroBeats', duration: '4:12', active: false, artPosition: '26% 58%' },
-  { key: 'p4-u3', title: 'City Lights', artist: 'Wills AfroBeats', duration: '3:28', active: false, artPosition: '34% 58%' },
-  { key: 'p4-u4', title: 'After Hours', artist: 'Wills AfroBeats', duration: '4:01', active: false, artPosition: '42% 58%' },
-  { key: 'p4-u5', title: 'Neon Skyline', artist: 'Wills AfroBeats', duration: '3:44', active: false, artPosition: '50% 58%' },
+  { key: 'p4-u1', title: 'Midnight Reflection', artist: 'Wills AfroBeats', duration: '3:56', active: true },
+  { key: 'p4-u2', title: 'Lost in Dreams', artist: 'Wills AfroBeats', duration: '4:12', active: false },
+  { key: 'p4-u3', title: 'City Lights', artist: 'Wills AfroBeats', duration: '3:28', active: false },
+  { key: 'p4-u4', title: 'After Hours', artist: 'Wills AfroBeats', duration: '4:01', active: false },
+  { key: 'p4-u5', title: 'Neon Skyline', artist: 'Wills AfroBeats', duration: '3:44', active: false },
 ] as const
 const PSD_PLAYER4_SOUND_MODES = [
   { key: 'atmos', label: 'DOLBY ATMOS' },
@@ -420,11 +420,11 @@ const PSD_PLAYER5_LIBRARY_NAV = [
   { key: 'tv', label: 'Podcasts' },
 ] as const
 const PSD_PLAYER5_UP_NEXT = [
-  { key: 'p5-u1', title: 'Midnight Reflection', artist: 'Wills AfroBeats', duration: '3:56', active: true, artPosition: '18% 58%' },
-  { key: 'p5-u2', title: 'Lost in Dreams', artist: 'Wills AfroBeats', duration: '4:12', active: false, artPosition: '26% 58%' },
-  { key: 'p5-u3', title: 'City Lights', artist: 'Wills AfroBeats', duration: '3:28', active: false, artPosition: '34% 58%' },
-  { key: 'p5-u4', title: 'After Hours', artist: 'Wills AfroBeats', duration: '4:01', active: false, artPosition: '42% 58%' },
-  { key: 'p5-u5', title: 'Neon Skyline', artist: 'Wills AfroBeats', duration: '3:44', active: false, artPosition: '50% 58%' },
+  { key: 'p5-u1', title: 'Midnight Reflection', artist: 'Wills AfroBeats', duration: '3:56', active: true },
+  { key: 'p5-u2', title: 'Lost in Dreams', artist: 'Wills AfroBeats', duration: '4:12', active: false },
+  { key: 'p5-u3', title: 'City Lights', artist: 'Wills AfroBeats', duration: '3:28', active: false },
+  { key: 'p5-u4', title: 'After Hours', artist: 'Wills AfroBeats', duration: '4:01', active: false },
+  { key: 'p5-u5', title: 'Neon Skyline', artist: 'Wills AfroBeats', duration: '3:44', active: false },
 ] as const
 const PSD_PLAYER5_STATS = {
   songs: '24',
@@ -437,55 +437,55 @@ const PSD_LIKED_META = '482 songs • 28h 47m'
 const PSD_LIKED_DESCRIPTION = 'All your favorite tracks in one place.'
 
 const PSD_LIKED_TABLE_ROWS = [
-  { key: 'ls1', title: 'Midnight Reflection', artist: 'Wills Afrobeats', album: 'Reflections at Midnight', dateAdded: 'May 12, 2024', duration: '3:56', active: true, artPosition: '10% 58%' },
-  { key: 'ls2', title: 'Afro Sunset', artist: 'Wills Afrobeats', album: 'Afro Sunset', dateAdded: 'May 10, 2024', duration: '3:21', artPosition: '18% 58%' },
-  { key: 'ls3', title: 'Love Vibes', artist: 'Wills Afrobeats', album: 'Love & Rhythm', dateAdded: 'May 9, 2024', duration: '3:44', artPosition: '26% 58%' },
-  { key: 'ls4', title: 'Rain & Reflection', artist: 'Wills Afrobeats', album: 'Rain & Reflection', dateAdded: 'May 8, 2024', duration: '4:12', artPosition: '34% 58%' },
-  { key: 'ls5', title: 'Night Drive', artist: 'Wills Afrobeats', album: 'Vibes from Lagos', dateAdded: 'May 6, 2024', duration: '4:01', artPosition: '42% 58%' },
-  { key: 'ls6', title: 'Healing Slowly', artist: 'Wills Afrobeats', album: 'The Beginning', dateAdded: 'May 5, 2024', duration: '3:48', artPosition: '50% 58%' },
-  { key: 'ls7', title: 'Jazz Café', artist: 'Wills Afrobeats', album: 'Jazz Café', dateAdded: 'May 3, 2024', duration: '3:36', artPosition: '58% 58%' },
-  { key: 'ls8', title: 'Deep Focus', artist: 'Wills Afrobeats', album: 'Deep Focus', dateAdded: 'May 1, 2024', duration: '4:20', artPosition: '66% 58%' },
-  { key: 'ls9', title: 'Moments of Us', artist: 'Wills Afrobeats', album: 'Moments of Us', dateAdded: 'Apr 30, 2024', duration: '3:52', artPosition: '74% 58%' },
-  { key: 'ls10', title: 'Lost In The Moment', artist: 'Zonkeelsy', album: 'Lost In The Moment', dateAdded: 'Apr 28, 2024', duration: '3:12', artPosition: '82% 58%' },
+  { key: 'ls1', title: 'Midnight Reflection', artist: 'Wills Afrobeats', album: 'Reflections at Midnight', dateAdded: 'May 12, 2024', duration: '3:56', active: true },
+  { key: 'ls2', title: 'Afro Sunset', artist: 'Wills Afrobeats', album: 'Afro Sunset', dateAdded: 'May 10, 2024', duration: '3:21' },
+  { key: 'ls3', title: 'Love Vibes', artist: 'Wills Afrobeats', album: 'Love & Rhythm', dateAdded: 'May 9, 2024', duration: '3:44' },
+  { key: 'ls4', title: 'Rain & Reflection', artist: 'Wills Afrobeats', album: 'Rain & Reflection', dateAdded: 'May 8, 2024', duration: '4:12' },
+  { key: 'ls5', title: 'Night Drive', artist: 'Wills Afrobeats', album: 'Vibes from Lagos', dateAdded: 'May 6, 2024', duration: '4:01' },
+  { key: 'ls6', title: 'Healing Slowly', artist: 'Wills Afrobeats', album: 'The Beginning', dateAdded: 'May 5, 2024', duration: '3:48' },
+  { key: 'ls7', title: 'Jazz Café', artist: 'Wills Afrobeats', album: 'Jazz Café', dateAdded: 'May 3, 2024', duration: '3:36' },
+  { key: 'ls8', title: 'Deep Focus', artist: 'Wills Afrobeats', album: 'Deep Focus', dateAdded: 'May 1, 2024', duration: '4:20' },
+  { key: 'ls9', title: 'Moments of Us', artist: 'Wills Afrobeats', album: 'Moments of Us', dateAdded: 'Apr 30, 2024', duration: '3:52' },
+  { key: 'ls10', title: 'Lost In The Moment', artist: 'Zonkeelsy', album: 'Lost In The Moment', dateAdded: 'Apr 28, 2024', duration: '3:12' },
 ] as const
 
 const PSD_RECENT_TABLE_ROWS = [
-  { key: 'rp1', title: 'Falling Slowly', subtitle: 'Wills Afrobeats', artist: 'Wills Afrobeats', itemType: 'Song', played: '2 min ago', duration: '3:42', artPosition: '6% 58%' },
-  { key: 'rp2', title: 'Midnight Reflection', subtitle: 'Wills Afrobeats', artist: 'Wills Afrobeats', itemType: 'Song', played: '8 min ago', duration: '3:56', artPosition: '14% 58%' },
-  { key: 'rp3', title: 'Afro Sunset', subtitle: 'Wills Afrobeats', artist: 'Wills Afrobeats', itemType: 'Song', played: '15 min ago', duration: '3:21', artPosition: '22% 58%' },
-  { key: 'rp4', title: 'Night Drive', subtitle: 'Wills Afrobeats', artist: 'Wills Afrobeats', itemType: 'Song', played: '24 min ago', duration: '4:01', artPosition: '30% 58%' },
-  { key: 'rp5', title: 'Chill & Relax', subtitle: 'Playlist • 40 songs', artist: '', itemType: 'Playlist', played: '37 min ago', duration: '—', artPosition: '38% 58%' },
-  { key: 'rp6', title: 'Healing Slowly', subtitle: 'Wills Afrobeats', artist: 'Wills Afrobeats', itemType: 'Song', played: '1 hour ago', duration: '3:48', artPosition: '46% 58%' },
-  { key: 'rp7', title: 'Love Vibes', subtitle: 'Wills Afrobeats', artist: 'Wills Afrobeats', itemType: 'Song', played: '1 hour ago', duration: '3:44', artPosition: '54% 58%' },
-  { key: 'rp8', title: 'Workout Mix', subtitle: 'Playlist • 25 songs', artist: '', itemType: 'Playlist', played: '2 hours ago', duration: '—', artPosition: '62% 58%' },
-  { key: 'rp9', title: 'Live in Accra', subtitle: 'Wills Afrobeats', artist: '', itemType: 'Album', played: '3 hours ago', duration: '—', artPosition: '70% 58%' },
-  { key: 'rp10', title: 'Rainy Day Comfort', subtitle: 'Wills Afrobeats', artist: 'Wills Afrobeats', itemType: 'Song', played: '4 hours ago', duration: '4:05', artPosition: '78% 58%' },
+  { key: 'rp1', title: 'Falling Slowly', subtitle: 'Wills Afrobeats', artist: 'Wills Afrobeats', itemType: 'Song', played: '2 min ago', duration: '3:42' },
+  { key: 'rp2', title: 'Midnight Reflection', subtitle: 'Wills Afrobeats', artist: 'Wills Afrobeats', itemType: 'Song', played: '8 min ago', duration: '3:56' },
+  { key: 'rp3', title: 'Afro Sunset', subtitle: 'Wills Afrobeats', artist: 'Wills Afrobeats', itemType: 'Song', played: '15 min ago', duration: '3:21' },
+  { key: 'rp4', title: 'Night Drive', subtitle: 'Wills Afrobeats', artist: 'Wills Afrobeats', itemType: 'Song', played: '24 min ago', duration: '4:01' },
+  { key: 'rp5', title: 'Chill & Relax', subtitle: 'Playlist • 40 songs', artist: '', itemType: 'Playlist', played: '37 min ago', duration: '—' },
+  { key: 'rp6', title: 'Healing Slowly', subtitle: 'Wills Afrobeats', artist: 'Wills Afrobeats', itemType: 'Song', played: '1 hour ago', duration: '3:48' },
+  { key: 'rp7', title: 'Love Vibes', subtitle: 'Wills Afrobeats', artist: 'Wills Afrobeats', itemType: 'Song', played: '1 hour ago', duration: '3:44' },
+  { key: 'rp8', title: 'Workout Mix', subtitle: 'Playlist • 25 songs', artist: '', itemType: 'Playlist', played: '2 hours ago', duration: '—' },
+  { key: 'rp9', title: 'Live in Accra', subtitle: 'Wills Afrobeats', artist: '', itemType: 'Album', played: '3 hours ago', duration: '—' },
+  { key: 'rp10', title: 'Rainy Day Comfort', subtitle: 'Wills Afrobeats', artist: 'Wills Afrobeats', itemType: 'Song', played: '4 hours ago', duration: '4:05' },
 ] as const
 
 const PSD_RAIL_QUEUE_ROWS = [
-  { key: 'rq1', title: 'Afro Sunset', artist: 'Wills Afrobeats', artPosition: '22% 58%' },
-  { key: 'rq2', title: 'Love Vibes', artist: 'Wills Afrobeats', artPosition: '30% 58%' },
-  { key: 'rq3', title: 'Rain & Reflection', artist: 'Wills Afrobeats', artPosition: '38% 58%' },
-  { key: 'rq4', title: 'Jazz Café', artist: 'Wills Afrobeats', artPosition: '46% 58%' },
+  { key: 'rq1', title: 'Afro Sunset', artist: 'Wills Afrobeats' },
+  { key: 'rq2', title: 'Love Vibes', artist: 'Wills Afrobeats' },
+  { key: 'rq3', title: 'Rain & Reflection', artist: 'Wills Afrobeats' },
+  { key: 'rq4', title: 'Jazz Café', artist: 'Wills Afrobeats' },
 ] as const
 
 const PSD_DOWNLOADS_STORAGE_PERCENT = 72
 const PSD_DOWNLOADS_PLAYLISTS = [
-  { key: 'dw-pl1', title: 'Night Drive', meta: '50 songs • 3h 12m', artPosition: '42% 58%' },
-  { key: 'dw-pl2', title: 'Chill Vibes', meta: '35 songs • 2h 17m', artPosition: '50% 58%' },
-  { key: 'dw-pl3', title: 'Jazz Café', meta: '40 songs • 2h 45m', artPosition: '58% 58%' },
+  { key: 'dw-pl1', title: 'Night Drive', meta: '50 songs • 3h 12m' },
+  { key: 'dw-pl2', title: 'Chill Vibes', meta: '35 songs • 2h 17m' },
+  { key: 'dw-pl3', title: 'Jazz Café', meta: '40 songs • 2h 45m' },
 ] as const
 const PSD_DOWNLOADS_ALBUMS = [
-  { key: 'dw-al1', title: 'Midnight Memories', artist: 'Wills Afrobeats', meta: '12 songs • 45 min', artPosition: '14% 58%' },
-  { key: 'dw-al2', title: 'After Hours', artist: 'Wills Afrobeats', meta: '10 songs • 38 min', artPosition: '22% 58%' },
+  { key: 'dw-al1', title: 'Midnight Memories', artist: 'Wills Afrobeats', meta: '12 songs • 45 min' },
+  { key: 'dw-al2', title: 'After Hours', artist: 'Wills Afrobeats', meta: '10 songs • 38 min' },
 ] as const
 const PSD_DOWNLOADS_SONGS = [
-  { key: 'dw-s1', title: 'Midnight Reflection', meta: 'Wills Afrobeats • Night Drive', artPosition: '10% 58%' },
-  { key: 'dw-s2', title: 'Afro Sunset', meta: 'Wills Afrobeats • Night Drive', artPosition: '18% 58%' },
-  { key: 'dw-s3', title: 'Love Vibes', meta: 'Wills Afrobeats • Night Drive', artPosition: '26% 58%' },
-  { key: 'dw-s4', title: 'Healing Slowly', meta: 'Wills Afrobeats • Night Drive', artPosition: '34% 58%' },
-  { key: 'dw-s5', title: 'Night Drive', meta: 'Wills Afrobeats • Night Drive', artPosition: '42% 58%' },
-  { key: 'dw-s6', title: 'Rainy Day Comfort', meta: 'Wills Afrobeats • Night Drive', artPosition: '50% 58%' },
+  { key: 'dw-s1', title: 'Midnight Reflection', meta: 'Wills Afrobeats • Night Drive' },
+  { key: 'dw-s2', title: 'Afro Sunset', meta: 'Wills Afrobeats • Night Drive' },
+  { key: 'dw-s3', title: 'Love Vibes', meta: 'Wills Afrobeats • Night Drive' },
+  { key: 'dw-s4', title: 'Healing Slowly', meta: 'Wills Afrobeats • Night Drive' },
+  { key: 'dw-s5', title: 'Night Drive', meta: 'Wills Afrobeats • Night Drive' },
+  { key: 'dw-s6', title: 'Rainy Day Comfort', meta: 'Wills Afrobeats • Night Drive' },
 ] as const
 const PSD_DOWNLOADS_TABS = ['All', 'Playlists', 'Albums', 'Songs', 'Podcasts'] as const
 
@@ -5572,7 +5572,6 @@ const QueueUpNextPanel = memo(function QueueUpNextPanel({
         key: `${track.id}-${index}`,
         title: track.title,
         artist: track.artist,
-        artPosition: (isLuxuryRail ? luxuryFallbackQueue : PSD_RAIL_QUEUE_ROWS)[index]?.artPosition ?? '50% 58%',
         duration: isLuxuryRail && luxuryFallbackQueue[index] && 'duration' in luxuryFallbackQueue[index]
           ? luxuryFallbackQueue[index].duration
           : undefined,
@@ -5582,7 +5581,6 @@ const QueueUpNextPanel = memo(function QueueUpNextPanel({
         key: row.key,
         title: row.title,
         artist: row.artist,
-        artPosition: row.artPosition,
         duration: 'duration' in row ? row.duration : undefined,
         track: null as ApiSong | null,
       }))
@@ -6736,7 +6734,6 @@ const Player3Shell = memo(function Player3Shell({
       title: track.title,
       artist: track.artist,
       active: index === 0,
-      artPosition: PSD_PLAYER3_UP_NEXT[index]?.artPosition ?? '18% 58%',
       artwork: track.artwork,
     }))
   }, [upcomingTracks])
@@ -7189,7 +7186,6 @@ const Player4Shell = memo(function Player4Shell({
         ? formatPlaybackTime(track.durationSeconds)
         : PSD_PLAYER4_UP_NEXT[index]?.duration ?? '3:56',
       active: index === 0,
-      artPosition: PSD_PLAYER4_UP_NEXT[index]?.artPosition ?? '18% 58%',
       artwork: track.artwork,
     }))
   }, [upcomingTracks])
@@ -7644,7 +7640,6 @@ const Player5Shell = memo(function Player5Shell({
         ? formatPlaybackTime(track.durationSeconds)
         : PSD_PLAYER5_UP_NEXT[index]?.duration ?? '3:56',
       active: index === 0,
-      artPosition: PSD_PLAYER5_UP_NEXT[index]?.artPosition ?? '18% 58%',
       artwork: track.artwork,
     }))
   }, [upcomingTracks])
