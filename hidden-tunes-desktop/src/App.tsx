@@ -118,6 +118,7 @@ import psdSearchReferenceUrl from './assets/psd-search-reference.jpg'
 import psdPlayerReferenceUrl from './assets/psd-player-reference.jpg'
 import psdWaveformReferenceUrl from './assets/psd-waveform-reference.jpg'
 import psdLyricsReferenceUrl from './assets/psd-lyrics-reference.jpg'
+import psdRecentReferenceUrl from './assets/psd-recent-reference.jpg'
 import psdLibraryReferenceUrl from './assets/psd-library-reference.jpg'
 import './App.css'
 
@@ -274,6 +275,19 @@ const PSD_LIKED_TABLE_ROWS = [
   { key: 'ls8', title: 'Deep Focus', artist: 'Wills Afrobeats', album: 'Deep Focus', dateAdded: 'May 1, 2024', duration: '4:20', artPosition: '66% 58%' },
   { key: 'ls9', title: 'Moments of Us', artist: 'Wills Afrobeats', album: 'Moments of Us', dateAdded: 'Apr 30, 2024', duration: '3:52', artPosition: '74% 58%' },
   { key: 'ls10', title: 'Lost In The Moment', artist: 'Zonkeelsy', album: 'Lost In The Moment', dateAdded: 'Apr 28, 2024', duration: '3:12', artPosition: '82% 58%' },
+] as const
+
+const PSD_RECENT_TABLE_ROWS = [
+  { key: 'rp1', title: 'Falling Slowly', subtitle: 'Wills Afrobeats', artist: 'Wills Afrobeats', itemType: 'Song', played: '2 min ago', duration: '3:42', artPosition: '6% 58%' },
+  { key: 'rp2', title: 'Midnight Reflection', subtitle: 'Wills Afrobeats', artist: 'Wills Afrobeats', itemType: 'Song', played: '8 min ago', duration: '3:56', artPosition: '14% 58%' },
+  { key: 'rp3', title: 'Afro Sunset', subtitle: 'Wills Afrobeats', artist: 'Wills Afrobeats', itemType: 'Song', played: '15 min ago', duration: '3:21', artPosition: '22% 58%' },
+  { key: 'rp4', title: 'Night Drive', subtitle: 'Wills Afrobeats', artist: 'Wills Afrobeats', itemType: 'Song', played: '24 min ago', duration: '4:01', artPosition: '30% 58%' },
+  { key: 'rp5', title: 'Chill & Relax', subtitle: 'Playlist • 40 songs', artist: '', itemType: 'Playlist', played: '37 min ago', duration: '—', artPosition: '38% 58%' },
+  { key: 'rp6', title: 'Healing Slowly', subtitle: 'Wills Afrobeats', artist: 'Wills Afrobeats', itemType: 'Song', played: '1 hour ago', duration: '3:48', artPosition: '46% 58%' },
+  { key: 'rp7', title: 'Love Vibes', subtitle: 'Wills Afrobeats', artist: 'Wills Afrobeats', itemType: 'Song', played: '1 hour ago', duration: '3:44', artPosition: '54% 58%' },
+  { key: 'rp8', title: 'Workout Mix', subtitle: 'Playlist • 25 songs', artist: '', itemType: 'Playlist', played: '2 hours ago', duration: '—', artPosition: '62% 58%' },
+  { key: 'rp9', title: 'Live in Accra', subtitle: 'Wills Afrobeats', artist: '', itemType: 'Album', played: '3 hours ago', duration: '—', artPosition: '70% 58%' },
+  { key: 'rp10', title: 'Rainy Day Comfort', subtitle: 'Wills Afrobeats', artist: 'Wills Afrobeats', itemType: 'Song', played: '4 hours ago', duration: '4:05', artPosition: '78% 58%' },
 ] as const
 
 const PSD_WAVEFORM_ALBUM = 'Reflections at Midnight'
@@ -460,6 +474,31 @@ function PsdIconVerified({ className = '' }: { className?: string }) {
   return (
     <svg className={className} width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
       <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+    </svg>
+  )
+}
+
+function PsdRecentTypeIcon({ type }: { type: 'Song' | 'Playlist' | 'Album' }) {
+  if (type === 'Playlist') {
+    return (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+        <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
+      </svg>
+    )
+  }
+  if (type === 'Album') {
+    return (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+        <rect x="4" y="4" width="16" height="16" rx="2" />
+        <circle cx="12" cy="12" r="3" />
+      </svg>
+    )
+  }
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+      <path d="M9 18V5l12-2v13" />
+      <circle cx="6" cy="18" r="3" />
+      <circle cx="18" cy="16" r="3" />
     </svg>
   )
 }
@@ -847,7 +886,7 @@ const TOP_BAR_PLACEHOLDERS: Partial<Record<NavKey, string>> = {
   search: 'Search songs, artists, albums…',
   library: 'Search songs, artists, albums, playlists...',
   liked: 'Search liked songs…',
-  recent: 'Search recently played…',
+  recent: 'Search recently played...',
   downloads: 'Search downloads…',
   playlists: 'Search playlists…',
   artists: 'Search artists…',
@@ -4238,45 +4277,148 @@ function LikedPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
   )
 }
 
-/* Phase 42B: no dedicated PSD reference — inferred from Liked/Library row pattern */
-function RecentPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
+/* Phase 42O: Recently Played page exact PSD reconstruction */
+function RecentPage({
+  onOpenSong,
+  query = '',
+}: {
+  onOpenSong: QueueSongHandler
+  query?: string
+}) {
   const { songs, indexes } = useCatalog()
-  const recentSongs = useMemo(() => sortSongsList([...songs], 'latest').slice(0, 20), [songs])
+  const recentSongs = useMemo(() => sortSongsList([...songs], 'latest'), [songs])
   const queuePools = useMemo(() => buildQueueCandidatePools(indexes), [indexes])
+
+  const resolveRecentSongAtIndex = useCallback(
+    (index: number) => {
+      const row = PSD_RECENT_TABLE_ROWS[index]
+      if (!row || row.itemType !== 'Song') return null
+      const exact = recentSongs.find(
+        (song) => song.title.toLowerCase() === row.title.toLowerCase(),
+      )
+      return exact ?? recentSongs[index] ?? null
+    },
+    [recentSongs],
+  )
+
   const playRecentSong = useCallback(
-    (song: ApiSong, index: number) => {
-      onOpenSong(song, recentSongs, index, 'manual', 'Recent Plays', {
+    (index: number) => {
+      const song = resolveRecentSongAtIndex(index)
+      if (!song) return
+      const queue = recentSongs.length > 0 ? recentSongs : [song]
+      const queueIndex = Math.max(0, queue.findIndex((entry) => entry.id === song.id))
+      onOpenSong(song, queue, queueIndex, 'manual', 'Recent Plays', {
         seedType: 'manual',
-        seedTracks: buildQueueSeedPool('manual', recentSongs, indexes, song),
+        seedTracks: buildQueueSeedPool('manual', queue, indexes, song),
         candidatePools: queuePools,
       })
     },
-    [indexes, onOpenSong, queuePools, recentSongs],
+    [indexes, onOpenSong, queuePools, recentSongs, resolveRecentSongAtIndex],
   )
+
+  const normalizedQuery = query.trim().toLowerCase()
+  const visibleRows = useMemo(() => {
+    if (!normalizedQuery) return PSD_RECENT_TABLE_ROWS
+    return PSD_RECENT_TABLE_ROWS.filter((row) => {
+      const haystack = [
+        row.title,
+        row.subtitle,
+        row.artist,
+        row.itemType,
+        row.played,
+      ].join(' ').toLowerCase()
+      return haystack.includes(normalizedQuery)
+    })
+  }, [normalizedQuery])
 
   return (
     <div className="psd-recent-destination">
       <PageFrame cinematic>
-        <section className="psd-inferred-hero" aria-labelledby="recent-heading">
-          <p className="psd-page-eyebrow">Listening history</p>
-          <h1 id="recent-heading">Recently Played</h1>
-          <p className="psd-page-subtitle">Inferred shell — no dedicated PSD reference; styled from Liked/Library patterns.</p>
+        <header className="psd-recent-header" aria-labelledby="recent-heading">
+          <h1 id="recent-heading" className="psd-recent-page-title">Recently Played</h1>
+          <p className="psd-recent-page-subtitle">Your recent music activity</p>
+        </header>
+
+        <section className="psd-recent-table-section" aria-label="Recently played items">
+          <div className="psd-recent-table-wrap">
+            <table className="psd-recent-table">
+              <thead>
+                <tr>
+                  <th scope="col" className="psd-recent-col-index">#</th>
+                  <th scope="col" className="psd-recent-col-title">TITLE</th>
+                  <th scope="col" className="psd-recent-col-artist">ARTIST</th>
+                  <th scope="col" className="psd-recent-col-type">TYPE</th>
+                  <th scope="col" className="psd-recent-col-played">
+                    <span className="psd-recent-played-label">
+                      PLAYED
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                        <path d="M6 9l6 6 6-6" />
+                      </svg>
+                    </span>
+                  </th>
+                  <th scope="col" className="psd-recent-col-duration" aria-label="Duration">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+                      <circle cx="12" cy="12" r="9" />
+                      <path d="M12 7v5l3 2" />
+                    </svg>
+                  </th>
+                  <th scope="col" className="psd-recent-col-menu"><span className="sr-only">Actions</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                {visibleRows.map((row) => {
+                  const index = PSD_RECENT_TABLE_ROWS.findIndex((entry) => entry.key === row.key)
+                  const song = resolveRecentSongAtIndex(index)
+                  return (
+                    <tr key={row.key} className="psd-recent-table-row">
+                      <td className="psd-recent-col-index">{index + 1}</td>
+                      <td className="psd-recent-col-title">
+                        <button
+                          type="button"
+                          className="psd-recent-title-btn"
+                          onClick={() => playRecentSong(index)}
+                          disabled={row.itemType !== 'Song'}
+                        >
+                          <span
+                            className="psd-recent-row-thumb"
+                            style={{
+                              backgroundImage: song?.artwork
+                                ? `url(${song.artwork})`
+                                : `url(${psdRecentReferenceUrl})`,
+                              backgroundPosition: row.artPosition,
+                            }}
+                            aria-hidden="true"
+                          />
+                          <span className="psd-recent-title-copy">
+                            <strong>{row.title}</strong>
+                            <span>{row.subtitle}</span>
+                          </span>
+                        </button>
+                      </td>
+                      <td className="psd-recent-col-artist">{row.artist}</td>
+                      <td className="psd-recent-col-type">
+                        <span className="psd-recent-type-pill">
+                          <PsdRecentTypeIcon type={row.itemType} />
+                          <span>{row.itemType}</span>
+                        </span>
+                      </td>
+                      <td className="psd-recent-col-played">{row.played}</td>
+                      <td className="psd-recent-col-duration">{row.duration}</td>
+                      <td className="psd-recent-col-menu">
+                        <button type="button" className="psd-recent-row-menu" aria-label={`More options for ${row.title}`}>
+                          <PsdIconMore />
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+            <p className="psd-recent-table-footer">
+              Showing 10 of your recently played items
+            </p>
+          </div>
         </section>
-        <ul className="psd-song-table">
-          {recentSongs.map((song, index) => (
-            <li key={song.id}>
-              <button type="button" className="psd-song-row" onClick={() => playRecentSong(song, index)}>
-                <span className="psd-song-index">{index + 1}</span>
-                <ArtworkImage src={song.artwork} alt="" seed={song.id} />
-                <span className="psd-song-copy">
-                  <strong>{song.title}</strong>
-                  <span>{song.artist} · {song.album}</span>
-                </span>
-                <span className="psd-song-duration">{song.durationSeconds ? formatPlaybackTime(song.durationSeconds) : '—'}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
       </PageFrame>
     </div>
   )
@@ -6710,6 +6852,7 @@ function CatalogDetailRouter({
   albumsQuery,
   setAlbumsQuery,
   onPlaylistBack,
+  recentQuery = '',
 }: {
   activeView: ActiveView
   selectedSong: ApiSong | null
@@ -6730,6 +6873,7 @@ function CatalogDetailRouter({
   albumsQuery: string
   setAlbumsQuery: (value: string) => void
   onPlaylistBack: () => void
+  recentQuery?: string
 }) {
   if (activeView === 'song' && selectedSong) {
     return (
@@ -6786,6 +6930,7 @@ function CatalogDetailRouter({
       albumsQuery={albumsQuery}
       setAlbumsQuery={setAlbumsQuery}
       onPlaylistBack={onPlaylistBack}
+      recentQuery={recentQuery}
     />
   )
 }
@@ -6802,6 +6947,7 @@ function PageContent({
   albumsQuery,
   setAlbumsQuery,
   onPlaylistBack,
+  recentQuery = '',
 }: {
   page: PageId
   activeNavKey: NavKey
@@ -6814,10 +6960,11 @@ function PageContent({
   albumsQuery: string
   setAlbumsQuery: (value: string) => void
   onPlaylistBack: () => void
+  recentQuery?: string
 }) {
   void _onOpenMood
   if (activeNavKey === 'liked') return <LikedPage onOpenSong={onOpenSong} />
-  if (activeNavKey === 'recent') return <RecentPage onOpenSong={onOpenSong} />
+  if (activeNavKey === 'recent') return <RecentPage onOpenSong={onOpenSong} query={recentQuery} />
   if (activeNavKey === 'downloads') return <DownloadsPage />
   if (activeNavKey === 'premium') return <PremiumPage />
 
@@ -6888,6 +7035,7 @@ function AppShell() {
   const [waveformOpen, setWaveformOpen] = useState(false)
   const [lyricsOpen, setLyricsOpen] = useState(false)
   const [likedQuery, setLikedQuery] = useState('')
+  const [recentQuery, setRecentQuery] = useState('')
   const [libraryQuery, setLibraryQuery] = useState('')
   const [discoverQuery, setDiscoverQuery] = usePersistedPreference(
     DESKTOP_PREFERENCE_KEYS.discoverSearch,
@@ -7008,6 +7156,7 @@ function AppShell() {
                       || activeNavKey === 'albums'
                       || activeNavKey === 'liked'
                       || activeNavKey === 'library'
+                      || activeNavKey === 'recent'
                       ? 'search'
                       : 'default'
                   }
@@ -7020,7 +7169,9 @@ function AppShell() {
                           ? likedQuery
                           : activeNavKey === 'library'
                             ? libraryQuery
-                            : undefined
+                            : activeNavKey === 'recent'
+                              ? recentQuery
+                              : undefined
                   }
                   onSearchChange={
                     activeNavKey === 'search'
@@ -7031,7 +7182,9 @@ function AppShell() {
                           ? setLikedQuery
                           : activeNavKey === 'library'
                             ? setLibraryQuery
-                            : undefined
+                            : activeNavKey === 'recent'
+                              ? setRecentQuery
+                              : undefined
                   }
                 />
               ) : null}
@@ -7058,6 +7211,7 @@ function AppShell() {
                   albumsQuery={albumsQuery}
                   setAlbumsQuery={setAlbumsQuery}
                   onPlaylistBack={() => navigateNav('library')}
+                  recentQuery={recentQuery}
                 />
               </div>
             </main>
@@ -7068,7 +7222,7 @@ function AppShell() {
           </div>
         </div>
       </div>
-      {!waveformOpen && !lyricsOpen && (activeNavKey !== 'playlists' || activeView !== 'page') ? (
+      {!waveformOpen && !lyricsOpen && activeNavKey !== 'recent' && (activeNavKey !== 'playlists' || activeView !== 'page') ? (
         <PlayerBar
           track={desktopSelectedTrack}
           onOpenCinema={() => setCinemaOpen(true)}
