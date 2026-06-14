@@ -3660,10 +3660,6 @@ const CinemaPlayerShell = memo(function CinemaPlayerShell({
   const progressValue = progressMax > 0 ? Math.min(positionSeconds, progressMax) : 0
   const progressPercent =
     progressMax > 0 ? Math.min(100, (progressValue / progressMax) * 100) : 0
-  const showQueuePosition =
-    isActive && currentQueue.length > 0 && currentIndex >= 0
-  const queueLabel = QUEUE_CONTEXT_LABELS[queueContext]
-
   const queueSnapshot = useMemo(
     () =>
       isActive
@@ -3770,7 +3766,7 @@ const CinemaPlayerShell = memo(function CinemaPlayerShell({
   if (!displayTrack) {
     return (
       <div
-        className="cinema-player cinema-player--empty"
+        className="cinema-player cinema-player--theater cinema-player--empty"
         role="dialog"
         aria-modal="true"
         aria-label="Fullscreen player"
@@ -3806,9 +3802,16 @@ const CinemaPlayerShell = memo(function CinemaPlayerShell({
     ? { backgroundImage: `url(${displayTrack.artwork})` }
     : undefined
 
+  const theaterLyric = useMemo(() => {
+    if (cinemaListeningContext.atmosphereLine) return cinemaListeningContext.atmosphereLine
+    const description = displayTrack?.description?.trim()
+    if (description) return description
+    return 'Feel every sound — let the room disappear around you.'
+  }, [cinemaListeningContext.atmosphereLine, displayTrack?.description])
+
   return (
     <div
-      className="cinema-player"
+      className="cinema-player cinema-player--theater"
       role="dialog"
       aria-modal="true"
       aria-label="Fullscreen player"
@@ -3819,14 +3822,15 @@ const CinemaPlayerShell = memo(function CinemaPlayerShell({
       data-mood={cinemaAtmosphere.mood}
     >
       <div
-        className="cinema-player-art-backdrop"
+        className="cinema-player-art-backdrop cinema-theater-photo"
         style={artBackdropStyle}
         aria-hidden="true"
       />
-      <div className="cinema-player-backdrop" aria-hidden="true" />
+      <div className="cinema-player-backdrop cinema-theater-backdrop" aria-hidden="true" />
+      <div className="cinema-theater-veil" aria-hidden="true" />
       <button
         type="button"
-        className="cinema-player-close"
+        className="cinema-player-close cinema-theater-close"
         onClick={onClose}
         aria-label="Exit fullscreen player"
       >
@@ -3838,87 +3842,65 @@ const CinemaPlayerShell = memo(function CinemaPlayerShell({
           Esc
         </span>
       </button>
-      <div className="cinema-player-stage">
-        <div className="cinema-player-artwork-wrap">
-          <span className="cinema-player-aura" aria-hidden="true" />
-          <div className="cinema-player-artwork">
-            <ArtworkImage
-              src={displayTrack.artwork}
-              alt=""
-              seed={displayTrack.id}
-              priority
-            />
-          </div>
+      <div className="cinema-theater-stage">
+        <div className="cinema-theater-lyrics-module" aria-live="polite">
+          <p className="cinema-theater-eyebrow">Now listening</p>
+          <p className="cinema-theater-lyric">{theaterLyric}</p>
         </div>
-        <div className="cinema-player-meta">
-          <p className="cinema-player-eyebrow">{cinemaListeningContext.eyebrow}</p>
-          <h1 className="cinema-player-title">{displayTrack.title}</h1>
-          <p className="cinema-player-byline">
-            <span>{displayTrack.artist}</span>
+
+        <div className="cinema-theater-credit">
+          <h1 className="cinema-theater-title">{displayTrack.title}</h1>
+          <p className="cinema-theater-artist">
+            {displayTrack.artist}
             {displayTrack.album ? (
-              <>
-                <span className="cinema-player-sep" aria-hidden="true">
-                  ·
-                </span>
-                <span>{displayTrack.album}</span>
-              </>
+              <span className="cinema-theater-album"> · {displayTrack.album}</span>
             ) : null}
           </p>
-          {showQueuePosition
-            || cinemaListeningContext.atmosphereLine
-            || cinemaListeningContext.contextPills.length > 0
-            || cinemaListeningContext.insightLine ? (
-            <div className="cinema-player-context">
-              {showQueuePosition ? (
-                <span className="cinema-player-queue-pill">
-                  {queueLabel} · Track {currentIndex + 1} of {currentQueue.length}
-                </span>
-              ) : null}
-              <ListeningContextStrip
-                lines={cinemaListeningContext}
-                className="listening-context-strip listening-context-strip--cinema"
-              />
-            </div>
-          ) : null}
-          <PlaybackTransportControls
-            activeTrackId={displayTrack.id}
-            className="cinema-player-controls"
-          />
+        </div>
+
+        <span className="cinema-theater-quality-badge" aria-hidden="true">
+          Hi-Res
+        </span>
+
+        <PlaybackTransportControls
+          activeTrackId={displayTrack.id}
+          className="cinema-theater-controls"
+        />
+
+        <div
+          className="cinema-theater-progress progress-wrap"
+          role="group"
+          aria-label="Playback progress"
+        >
+          <span className="progress-time">
+            {formatPlaybackTime(progressValue)}
+          </span>
           <div
-            className="cinema-player-progress progress-wrap"
-            role="group"
-            aria-label="Playback progress"
+            ref={progressTrackRef}
+            className={
+              'progress-track cinema-theater-progress-track'
+              + (progressMax > 0 && isActive ? ' progress-track--interactive' : '')
+            }
+            role="slider"
+            aria-label="Seek position"
+            aria-valuemin={0}
+            aria-valuemax={Math.round(progressMax)}
+            aria-valuenow={Math.round(progressValue)}
+            aria-disabled={!isActive || progressMax <= 0 || isLoading}
+            onClick={handleSeekClick}
+            onPointerDown={handleSeekPointerDown}
+            onPointerMove={handleSeekPointerMove}
+            onPointerUp={handleSeekPointerUp}
+            onPointerCancel={handleSeekPointerUp}
           >
-            <span className="progress-time">
-              {formatPlaybackTime(progressValue)}
-            </span>
             <div
-              ref={progressTrackRef}
-              className={
-                'progress-track cinema-player-progress-track'
-                + (progressMax > 0 && isActive ? ' progress-track--interactive' : '')
-              }
-              role="slider"
-              aria-label="Seek position"
-              aria-valuemin={0}
-              aria-valuemax={Math.round(progressMax)}
-              aria-valuenow={Math.round(progressValue)}
-              aria-disabled={!isActive || progressMax <= 0 || isLoading}
-              onClick={handleSeekClick}
-              onPointerDown={handleSeekPointerDown}
-              onPointerMove={handleSeekPointerMove}
-              onPointerUp={handleSeekPointerUp}
-              onPointerCancel={handleSeekPointerUp}
-            >
-              <div
-                className="progress-fill"
-                style={{ width: `${progressPercent}%` }}
-              />
-            </div>
-            <span className="progress-time">
-              {progressMax > 0 ? formatPlaybackTime(progressMax) : '—'}
-            </span>
+              className="progress-fill cinema-theater-progress-fill"
+              style={{ width: `${progressPercent}%` }}
+            />
           </div>
+          <span className="progress-time">
+            {progressMax > 0 ? formatPlaybackTime(progressMax) : '—'}
+          </span>
         </div>
       </div>
     </div>

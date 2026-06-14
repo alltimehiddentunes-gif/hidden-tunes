@@ -17,6 +17,11 @@
   --psd-magenta: #a63a88;
   --psd-warm: #bf7f72;
 
+  --surface-elevated: #171724;
+  --surface-edge-gold: rgba(245, 197, 66, 0.1);
+  --atmosphere-purple: rgba(109, 74, 255, 0.12);
+  --atmosphere-magenta: rgba(166, 58, 136, 0.1);
+  --atmosphere-gold: rgba(255, 186, 61, 0.08);
   --bg-deep: var(--psd-bg-deep);
   --bg-base: var(--psd-bg-base);
   --bg-elevated: var(--psd-bg-elevated);
