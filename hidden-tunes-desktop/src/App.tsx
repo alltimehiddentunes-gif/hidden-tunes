@@ -112,7 +112,7 @@ import heroPhotoUrl from './assets/hero.png'
 import emotionalWorldsReferenceUrl from './assets/emotional-worlds-reference.jpg'
 import psdPlaylistReferenceUrl from './assets/psd-playlist-reference.jpg'
 import psdArtistsReferenceUrl from './assets/psd-artists-reference.jpg'
-import psdAlbumsReferenceUrl from './assets/psd-albums-reference.jpg'
+import psdAlbumsReferenceUrl from './assets/psd-albums-reference.png'
 import psdLikedReferenceUrl from './assets/psd-liked-reference.jpg'
 import psdSearchReferenceUrl from './assets/psd-search-reference.jpg'
 import psdPlayerReferenceUrl from './assets/psd-player-reference.jpg'
@@ -220,8 +220,25 @@ const PSD_ARTIST_ALBUM_CARDS = [
   { key: 'aa5', title: 'The Beginning', artist: 'Wills Afrobeats', year: '2021', songs: '9 songs' },
 ] as const
 
-const PSD_ALBUMS_SUBTITLE = 'All albums in your library'
+const PSD_ALBUMS_SUBTITLE = 'All albums in your library.'
 const PSD_ALBUMS_FOOTER_COUNT = '24 albums'
+const PSD_ALBUMS_RAIL_TITLE = 'Falling Slowly'
+const PSD_ALBUMS_RAIL_ARTIST = 'Wills Afrobeats'
+const PSD_ALBUMS_RAIL_ART_POSITION = '50% 22%'
+
+const PSD_ALBUMS_UP_NEXT_ROWS = [
+  { key: 'au1', title: 'Midnight Reflection', artist: 'Wills Afrobeats', duration: '3:56', artPosition: '10% 58%' },
+  { key: 'au2', title: 'Afro Sunset', artist: 'Wills Afrobeats', duration: '3:21', artPosition: '18% 58%' },
+  { key: 'au3', title: 'Love Vibes', artist: 'Wills Afrobeats', duration: '3:44', artPosition: '26% 58%' },
+  { key: 'au4', title: 'Rain & Reflection', artist: 'Wills Afrobeats', duration: '4:12', artPosition: '34% 58%' },
+] as const
+
+const PSD_ALBUM_STATS_ROWS = [
+  { value: '24', label: 'Albums' },
+  { value: '196', label: 'Songs' },
+  { value: '18h 42m', label: 'Total Time' },
+] as const
+const PSD_ALBUM_STATS_UPDATED = 'May 12, 2024'
 
 const PSD_ALBUMS_GRID_CARDS = [
   { key: 'alb1', title: 'Reflections at Midnight', artist: 'Wills Afrobeats', year: '2024', songs: '12 songs', artPosition: '8% 24%' },
@@ -3516,6 +3533,7 @@ function AlbumsPage({
 
   return (
     <div className="psd-albums-destination">
+      <div className="psd-albums-atmosphere" aria-hidden="true" />
       <PageFrame cinematic>
         <header className="psd-albums-page-header" aria-labelledby="albums-heading">
           <h1 id="albums-heading" className="psd-albums-page-title">Albums</h1>
@@ -3552,34 +3570,42 @@ function AlbumsPage({
               ? resolveSongsForAlbum(album, indexes.songsByAlbumId, indexes.songsByAlbumName)
               : []
             return (
-              <article key={card.key} className="psd-albums-grid-card">
+              <article key={card.key} className="psd-albums-gallery-card">
                 <button
                   type="button"
-                  className="psd-albums-grid-card-btn"
+                  className="psd-albums-gallery-card-btn"
                   onClick={() => album && onOpenAlbum(album)}
                 >
-                  <div className="psd-albums-grid-art">
-                    {album ? (
-                      <ArtworkImage
-                        src={resolveAlbumArtwork(album, albumSongs)}
-                        alt=""
-                        seed={album.id}
-                      />
-                    ) : (
-                      <span
-                        className="psd-albums-grid-art-fallback"
-                        style={{
-                          backgroundImage: `url(${psdAlbumsReferenceUrl})`,
-                          backgroundPosition: card.artPosition,
-                        }}
-                      />
-                    )}
+                  <div className="psd-albums-gallery-art-wrap">
+                    <div className="psd-albums-gallery-art">
+                      {album ? (
+                        <ArtworkImage
+                          src={resolveAlbumArtwork(album, albumSongs)}
+                          alt=""
+                          seed={album.id}
+                        />
+                      ) : (
+                        <span
+                          className="psd-albums-gallery-art-fallback"
+                          style={{
+                            backgroundImage: `url(${psdAlbumsReferenceUrl})`,
+                            backgroundPosition: card.artPosition,
+                          }}
+                        />
+                      )}
+                    </div>
+                    <span className="psd-albums-gallery-art-veil" aria-hidden="true" />
+                    <span className="psd-albums-gallery-play-fab" aria-hidden="true">
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                    </span>
                   </div>
-                  <div className="psd-albums-grid-copy">
-                    <strong>{card.title}</strong>
-                    <span>{card.artist}</span>
-                    <span className="psd-albums-grid-meta">{card.year} • {card.songs}</span>
-                    <span className="psd-albums-grid-more" aria-hidden="true"><PsdIconMore /></span>
+                  <div className="psd-albums-gallery-copy">
+                    <strong className="psd-albums-gallery-title">{card.title}</strong>
+                    <span className="psd-albums-gallery-artist">{card.artist}</span>
+                    <span className="psd-albums-gallery-meta">{card.year} • {card.songs}</span>
+                    <span className="psd-albums-gallery-more" aria-hidden="true"><PsdIconMore /></span>
                   </div>
                 </button>
               </article>
@@ -5492,12 +5518,12 @@ const RailWaveformSeek = memo(function RailWaveformSeek({
 
 const QueueUpNextPanel = memo(function QueueUpNextPanel({
   onOpenCinema,
-  activeNavKey: _activeNavKey,
+  activeNavKey,
 }: {
   onOpenCinema?: () => void
   activeNavKey?: NavKey
 }) {
-  void _activeNavKey
+  const isAlbumsLuxuryRail = activeNavKey === 'albums'
   const {
     currentTrack,
     currentQueue,
@@ -5537,8 +5563,8 @@ const QueueUpNextPanel = memo(function QueueUpNextPanel({
     listScrollRef.current.scrollTop = 0
   }, [activeTrackId, currentIndex])
 
-  const displayTitle = activeTrack?.title ?? PSD_PLAYER_TITLE
-  const displayArtist = activeTrack?.artist ?? PSD_PLAYER_ARTIST
+  const displayTitle = activeTrack?.title ?? (isAlbumsLuxuryRail ? PSD_ALBUMS_RAIL_TITLE : PSD_PLAYER_TITLE)
+  const displayArtist = activeTrack?.artist ?? (isAlbumsLuxuryRail ? PSD_ALBUMS_RAIL_ARTIST : PSD_PLAYER_ARTIST)
 
   const resolveSeekSeconds = useCallback(
     (clientX: number) => {
@@ -5619,16 +5645,163 @@ const QueueUpNextPanel = memo(function QueueUpNextPanel({
         key: `${track.id}-${index}`,
         title: track.title,
         artist: track.artist,
-        artPosition: PSD_RAIL_QUEUE_ROWS[index]?.artPosition ?? '50% 58%',
+        artPosition: (isAlbumsLuxuryRail ? PSD_ALBUMS_UP_NEXT_ROWS : PSD_RAIL_QUEUE_ROWS)[index]?.artPosition ?? '50% 58%',
+        duration: isAlbumsLuxuryRail ? PSD_ALBUMS_UP_NEXT_ROWS[index]?.duration : undefined,
         track,
       }))
-    : PSD_RAIL_QUEUE_ROWS.map((row) => ({
+    : (isAlbumsLuxuryRail ? PSD_ALBUMS_UP_NEXT_ROWS : PSD_RAIL_QUEUE_ROWS).map((row) => ({
         key: row.key,
         title: row.title,
         artist: row.artist,
         artPosition: row.artPosition,
+        duration: 'duration' in row ? row.duration : undefined,
         track: null as ApiSong | null,
       }))
+
+  if (isAlbumsLuxuryRail) {
+    return (
+      <aside
+        className="queue-rail now-playing-rail now-playing-rail--albums-luxury"
+        aria-label="Now playing"
+        data-playing={isPlaying ? 'true' : 'false'}
+        data-loading={isLoading ? 'true' : 'false'}
+        data-idle={hasPlayback ? 'false' : 'true'}
+      >
+        <div className="now-playing-rail-inner">
+          <header className="albums-rail-header">
+            <h2 className="albums-rail-title">Now Playing</h2>
+            <span className="albums-rail-waveform-icon" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
+                <path d="M4 14V10M8 16V8M12 18V6M16 14V10M20 16V8" />
+              </svg>
+            </span>
+          </header>
+
+          <section className="albums-rail-stage" aria-label="Current track">
+            <div className="albums-rail-art-shell">
+              <span className="albums-rail-art-glow" aria-hidden="true" />
+              <span className="albums-rail-vinyl" aria-hidden="true" />
+              <div className="albums-rail-art-frame">
+                {hasPlayback && activeTrack ? (
+                  <ArtworkImage
+                    src={activeTrack.artwork}
+                    alt=""
+                    seed={activeTrack.id}
+                    priority
+                  />
+                ) : (
+                  <span
+                    className="albums-rail-art-fallback"
+                    style={{
+                      backgroundImage: `url(${psdAlbumsReferenceUrl})`,
+                      backgroundPosition: PSD_ALBUMS_RAIL_ART_POSITION,
+                    }}
+                    aria-hidden="true"
+                  />
+                )}
+                {isLoading ? (
+                  <span className="albums-rail-art-spinner player-spinner" aria-hidden="true" />
+                ) : null}
+              </div>
+            </div>
+
+            <div className="albums-rail-track-row">
+              <div className="albums-rail-track-copy">
+                <h3 className="albums-rail-track-title">{displayTitle}</h3>
+                <p className="albums-rail-track-artist">
+                  <span>{displayArtist}</span>
+                  <PsdIconVerified className="albums-rail-verified" />
+                </p>
+              </div>
+              <button type="button" className="albums-rail-heart" aria-label="Favorite">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M12 20.8l-1.1-1C6.4 15.36 3 12.28 3 8.5 3 6 5 4 7.5 4c1.74 0 3.41 1.01 4.5 2.36C13.09 5.01 14.76 4 16.5 4 19 4 21 6 21 8.5c0 3.78-3.4 6.86-7.9 11.3L12 20.8z" />
+                </svg>
+              </button>
+            </div>
+
+            <div
+              className="albums-rail-waveform-wrap"
+              style={{ ['--albums-rail-progress' as string]: `${progressPercent}%` }}
+            >
+              <RailWaveformSeek
+                trackId={activeTrackId}
+                progressPercent={progressPercent}
+                progressMax={liveProgressMax}
+                isLoading={isLoading && hasPlayback}
+                onSeek={seekTo}
+                className="albums-rail-waveform"
+              />
+            </div>
+
+            <div className="albums-rail-transport-wrap">
+              <FullPlayerTransportControls activeTrackId={activeTrack?.id ?? null} />
+            </div>
+
+            <div className="albums-rail-badges">
+              <span className="albums-rail-quality-pill">High Quality</span>
+              <span className="albums-rail-format-pill">FLAC • 24bit • 48kHz</span>
+            </div>
+          </section>
+
+          <section className="albums-rail-up-next" aria-label="Up next">
+            <div className="albums-rail-up-next-header">
+              <h3 className="albums-rail-up-next-title">Up Next</h3>
+              <button type="button" className="albums-rail-up-next-clear">Clear</button>
+            </div>
+
+            <ol className="albums-rail-up-next-list" ref={listScrollRef}>
+              {queueRows.map((row) => (
+                <li className="albums-rail-up-next-item" key={row.key}>
+                  <div className="albums-rail-up-next-thumb" aria-hidden="true">
+                    {row.track ? (
+                      <ArtworkImage src={row.track.artwork} alt="" seed={row.track.id} />
+                    ) : (
+                      <span
+                        className="albums-rail-up-next-thumb-fallback"
+                        style={{
+                          backgroundImage: `url(${psdAlbumsReferenceUrl})`,
+                          backgroundPosition: row.artPosition,
+                        }}
+                      />
+                    )}
+                  </div>
+                  <div className="albums-rail-up-next-copy">
+                    <span className="albums-rail-up-next-track">{row.title}</span>
+                    <span className="albums-rail-up-next-artist">{row.artist}</span>
+                  </div>
+                  {row.duration ? (
+                    <span className="albums-rail-up-next-duration">{row.duration}</span>
+                  ) : null}
+                </li>
+              ))}
+            </ol>
+          </section>
+
+          <section className="album-stats-rail-panel" aria-label="Album stats">
+            <h3 className="album-stats-rail-title">Album Stats</h3>
+            <div className="album-stats-rail-grid">
+              {PSD_ALBUM_STATS_ROWS.map((stat) => (
+                <article key={stat.label} className="album-stats-rail-card">
+                  <strong>{stat.value}</strong>
+                  <span>{stat.label}</span>
+                </article>
+              ))}
+            </div>
+            <p className="album-stats-rail-updated">
+              <span className="album-stats-rail-icon" aria-hidden="true">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
+                  <rect x="3" y="4" width="18" height="18" rx="2" />
+                  <path d="M16 2v4M8 2v4M3 10h18" />
+                </svg>
+              </span>
+              Last Updated {PSD_ALBUM_STATS_UPDATED}
+            </p>
+          </section>
+        </div>
+      </aside>
+    )
+  }
 
   return (
     <aside
