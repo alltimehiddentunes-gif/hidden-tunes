@@ -5579,6 +5579,198 @@
   margin-top: 12px;
 }
 
+.player-mode-switcher {
+  position: relative;
+  flex-shrink: 0;
+  z-index: 12;
+}
+
+.player-mode-switcher-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: min(220px, 42vw);
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(168, 85, 247, 0.22);
+  background: rgba(255, 255, 255, 0.045);
+  color: rgba(245, 243, 250, 0.88);
+  cursor: pointer;
+  transition:
+    color var(--transition-fast),
+    background var(--transition-fast),
+    border-color var(--transition-fast),
+    opacity var(--transition-fast);
+}
+
+.player-mode-switcher-trigger:hover:not(:disabled) {
+  background: rgba(168, 85, 247, 0.12);
+  border-color: rgba(168, 85, 247, 0.34);
+}
+
+.player-mode-switcher-trigger:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+.player-mode-switcher-trigger-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.player-mode-switcher-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 50;
+  width: min(320px, calc(100vw - 24px));
+  padding: 10px;
+  border-radius: 16px;
+  border: 1px solid rgba(168, 85, 247, 0.22);
+  background:
+    linear-gradient(180deg, rgba(24, 18, 38, 0.96), rgba(12, 10, 20, 0.98));
+  box-shadow:
+    0 18px 48px rgba(0, 0, 0, 0.42),
+    0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+  backdrop-filter: blur(18px);
+}
+
+.player-mode-switcher--align-left .player-mode-switcher-menu {
+  left: 0;
+  right: auto;
+}
+
+.player-mode-switcher-menu-eyebrow {
+  margin: 0 8px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(167, 139, 250, 0.82);
+}
+
+.player-mode-switcher-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.player-mode-switcher-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast);
+}
+
+.player-mode-switcher-item:hover,
+.player-mode-switcher-item:focus-visible {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.06);
+  outline: none;
+}
+
+.player-mode-switcher-item.is-active {
+  background: rgba(168, 85, 247, 0.14);
+  border-color: rgba(168, 85, 247, 0.28);
+}
+
+.player-mode-switcher-item.is-preferred:not(.is-active) {
+  border-color: rgba(168, 85, 247, 0.12);
+}
+
+.player-mode-switcher-item-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.player-mode-switcher-item-copy strong {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(245, 243, 250, 0.94);
+}
+
+.player-mode-switcher-item-copy span {
+  font-size: 11px;
+  line-height: 1.4;
+  color: rgba(245, 243, 250, 0.52);
+}
+
+.player-mode-switcher-item-badge {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 4px 8px;
+  border-radius: 999px;
+  color: #ddd6fe;
+  background: rgba(168, 85, 247, 0.22);
+  border: 1px solid rgba(168, 85, 247, 0.34);
+}
+
+.player-mode-switcher-item-badge--default {
+  color: #c4b5fd;
+  background: rgba(168, 85, 247, 0.12);
+  border-color: rgba(168, 85, 247, 0.2);
+}
+
+.player-mode-switcher-footer {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.player-mode-switcher-set-default {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid rgba(168, 85, 247, 0.18);
+  border-radius: 10px;
+  background: rgba(168, 85, 247, 0.08);
+  color: #ddd6fe;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.player-mode-switcher-set-default:hover {
+  background: rgba(168, 85, 247, 0.14);
+  border-color: rgba(168, 85, 247, 0.28);
+}
+
+.player-mode-switcher-footer-note {
+  margin: 0;
+  padding: 0 4px;
+  font-size: 11px;
+  color: rgba(245, 243, 250, 0.52);
+  text-align: center;
+}
+
+.psd-player-topbar--master .player-mode-switcher-trigger {
+  min-height: 34px;
+}
+
 .rail-psd-footer .player-mode-launcher {
   margin-left: auto;
 }

@@ -88,6 +88,7 @@ import {
 } from './lib/localPreferences'
 import { PlayerLyricsPanel } from './components/PlayerLyricsPanel'
 import { PlayerModeLauncher } from './components/PlayerModeLauncher'
+import { PlayerModeSwitcher } from './components/PlayerModeSwitcher'
 import { PremiumAudioVisualizerProvider } from './components/PremiumAudioVisualizerProvider'
 import { PremiumCinematicWaveform } from './components/PremiumCinematicWaveform'
 import { PremiumReactiveWaveform } from './components/PremiumReactiveWaveform'
@@ -7025,17 +7026,24 @@ function PlayerDetailsPanel({
 }
 
 
+type PlayerShellModeProps = {
+  activePlayerMode: NowPlayingStyle
+  onSwitchPlayerMode: (style: NowPlayingStyle) => void
+}
+
 const CinemaPlayerShell = memo(function CinemaPlayerShell({
   onClose,
   onOpenLyrics,
   onOpenWaveform,
   preferredTrack = null,
+  activePlayerMode,
+  onSwitchPlayerMode,
 }: {
   onClose: () => void
   onOpenLyrics?: () => void
   onOpenWaveform?: () => void
   preferredTrack?: ApiSong | null
-}) {
+} & PlayerShellModeProps) {
   const {
     displayTrack,
     isActive,
@@ -7136,7 +7144,12 @@ const CinemaPlayerShell = memo(function CinemaPlayerShell({
             </svg>
           </p>
         </div>
-        <span className="psd-player-topbar-btn psd-player-topbar-btn--menu" aria-hidden="true" />
+        <PlayerModeSwitcher
+          activeMode={activePlayerMode}
+          onSwitchMode={onSwitchPlayerMode}
+          hasPlayback={isActive}
+          align="right"
+        />
       </header>
 
       <div className="psd-player-master-body">
@@ -7297,13 +7310,15 @@ const Player2Shell = memo(function Player2Shell({
   onOpenLyrics,
   onOpenWaveform,
   preferredTrack = null,
+  activePlayerMode,
+  onSwitchPlayerMode,
 }: {
   onClose: () => void
   onNavigateNav?: (navKey: NavKey) => void
   onOpenLyrics?: () => void
   onOpenWaveform?: () => void
   preferredTrack?: ApiSong | null
-}) {
+} & PlayerShellModeProps) {
   const {
     currentTrack,
     isPlaying,
@@ -7435,8 +7450,12 @@ const Player2Shell = memo(function Player2Shell({
 
         <main className="player2-main">
           <header className="player2-header">
-
-            <span className="player2-header-menu" aria-hidden="true" />
+            <PlayerModeSwitcher
+              activeMode={activePlayerMode}
+              onSwitchMode={onSwitchPlayerMode}
+              hasPlayback={isActive}
+              align="right"
+            />
           </header>
 
           <div className="player2-hero">
@@ -7614,13 +7633,15 @@ const Player3Shell = memo(function Player3Shell({
   onOpenLyrics,
   onOpenWaveform,
   preferredTrack = null,
+  activePlayerMode,
+  onSwitchPlayerMode,
 }: {
   onClose: () => void
   onNavigateNav?: (navKey: NavKey) => void
   onOpenLyrics?: () => void
   onOpenWaveform?: () => void
   preferredTrack?: ApiSong | null
-}) {
+} & PlayerShellModeProps) {
   const {
     currentTrack,
     currentQueue,
@@ -7789,6 +7810,12 @@ const Player3Shell = memo(function Player3Shell({
               </button>
             </div>
             <div className="player3-header-badges">
+              <PlayerModeSwitcher
+                activeMode={activePlayerMode}
+                onSwitchMode={onSwitchPlayerMode}
+                hasPlayback={isActive}
+                align="right"
+              />
               {qualityLabel ? <span className="player3-flac">{qualityLabel}</span> : null}
               <button type="button" className="player3-header-eq" aria-label="Equalizer" onClick={onOpenWaveform}>
                 <PsdIconEqualizer />
@@ -8041,13 +8068,15 @@ const Player4Shell = memo(function Player4Shell({
   onOpenLyrics,
   onOpenWaveform,
   preferredTrack = null,
+  activePlayerMode,
+  onSwitchPlayerMode,
 }: {
   onClose: () => void
   onNavigateNav?: (navKey: NavKey) => void
   onOpenLyrics?: () => void
   onOpenWaveform?: () => void
   preferredTrack?: ApiSong | null
-}) {
+} & PlayerShellModeProps) {
   const {
     currentTrack,
     isPlaying,
@@ -8249,6 +8278,12 @@ const Player4Shell = memo(function Player4Shell({
                   <span>{qualityLabel}</span>
                 </div>
               ) : null}
+              <PlayerModeSwitcher
+                activeMode={activePlayerMode}
+                onSwitchMode={onSwitchPlayerMode}
+                hasPlayback={isActive}
+                align="right"
+              />
             </header>
 
             <div className="player4-hero">
@@ -8458,13 +8493,15 @@ const Player5Shell = memo(function Player5Shell({
   onOpenLyrics,
   onOpenWaveform,
   preferredTrack = null,
+  activePlayerMode,
+  onSwitchPlayerMode,
 }: {
   onClose: () => void
   onNavigateNav?: (navKey: NavKey) => void
   onOpenLyrics?: () => void
   onOpenWaveform?: () => void
   preferredTrack?: ApiSong | null
-}) {
+} & PlayerShellModeProps) {
   const {
     currentTrack,
     currentQueue,
@@ -8698,6 +8735,12 @@ const Player5Shell = memo(function Player5Shell({
                   <PsdWaveformStrip className="player5-quality-wave" />
                 </div>
               ) : null}
+              <PlayerModeSwitcher
+                activeMode={activePlayerMode}
+                onSwitchMode={onSwitchPlayerMode}
+                hasPlayback={isActive}
+                align="right"
+              />
             </header>
 
             <div className="player5-hero">
@@ -10368,6 +10411,8 @@ function AppShell() {
       {player5Open ? (
         <Player5Shell
           preferredTrack={desktopSelectedTrack}
+          activePlayerMode="player-5"
+          onSwitchPlayerMode={openPlayerByStyleNow}
           onClose={() => setPlayer5Open(false)}
           onNavigateNav={navigateNav}
           onOpenLyrics={() => {
@@ -10383,6 +10428,8 @@ function AppShell() {
       {player4Open ? (
         <Player4Shell
           preferredTrack={desktopSelectedTrack}
+          activePlayerMode="player-4"
+          onSwitchPlayerMode={openPlayerByStyleNow}
           onClose={() => setPlayer4Open(false)}
           onNavigateNav={navigateNav}
           onOpenLyrics={() => {
@@ -10398,6 +10445,8 @@ function AppShell() {
       {player3Open ? (
         <Player3Shell
           preferredTrack={desktopSelectedTrack}
+          activePlayerMode="player-3"
+          onSwitchPlayerMode={openPlayerByStyleNow}
           onClose={() => setPlayer3Open(false)}
           onNavigateNav={navigateNav}
           onOpenLyrics={() => {
@@ -10413,6 +10462,8 @@ function AppShell() {
       {player2Open ? (
         <Player2Shell
           preferredTrack={desktopSelectedTrack}
+          activePlayerMode="player-2"
+          onSwitchPlayerMode={openPlayerByStyleNow}
           onClose={() => setPlayer2Open(false)}
           onNavigateNav={navigateNav}
           onOpenLyrics={() => {
@@ -10428,6 +10479,8 @@ function AppShell() {
       {cinemaOpen ? (
         <CinemaPlayerShell
           preferredTrack={desktopSelectedTrack}
+          activePlayerMode="player-1"
+          onSwitchPlayerMode={openPlayerByStyleNow}
           onClose={() => setCinemaOpen(false)}
           onOpenLyrics={() => {
             setCinemaOpen(false)
