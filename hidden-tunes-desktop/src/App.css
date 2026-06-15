@@ -15493,7 +15493,13 @@
 }
 
 .now-playing-rail[data-playing='true'] .premium-vinyl-disc,
-.cinema-player[data-playing='true'] .premium-vinyl-disc {
+.cinema-player[data-playing='true'] .premium-vinyl-disc,
+.cinema-player[data-playing='true'] .psd-player-vinyl,
+.cinema-player[data-playing='true'] .psd-waveform-vinyl,
+.cinema-player[data-playing='true'] .rail-psd-vinyl,
+.cinema-player[data-playing='true'] .albums-rail-vinyl,
+.now-playing-rail[data-playing='true'] .albums-rail-vinyl,
+.now-playing-rail[data-playing='true'] .rail-psd-vinyl {
   animation-play-state: running;
 }
 
@@ -15568,13 +15574,18 @@
 .now-playing-rail[data-playing='true'] .rail-psd-art-glow {
   opacity: calc(0.58 + var(--ht-audio-energy) * 0.38);
   transform: scale(calc(1 + var(--ht-audio-bass) * 0.08));
-  transition: opacity 200ms ease, transform 200ms ease;
+  transition: opacity 280ms ease, transform 280ms ease;
 }
 
 .cinema-player--psd[data-playing='true'] .psd-player-art-glow {
   opacity: calc(0.68 + var(--ht-audio-energy) * 0.28);
   transform: scale(calc(1 + var(--ht-audio-bass) * 0.1));
-  transition: opacity 220ms ease, transform 220ms ease;
+  transition: opacity 280ms ease, transform 280ms ease;
+}
+
+.cinema-player--psd-master[data-playing='true'] .psd-player-art-halo {
+  opacity: calc(0.88 + var(--ht-audio-energy) * 0.12);
+  transition: opacity 280ms ease;
 }
 
 .cinema-player--waveform[data-playing='true'] .psd-waveform-veil {
@@ -16160,7 +16171,12 @@
     radial-gradient(ellipse 55% 40% at 72% 18%, rgba(251, 191, 36, 0.16), transparent 62%),
     radial-gradient(ellipse 45% 35% at 28% 78%, rgba(168, 85, 247, 0.14), transparent 68%);
   animation: player2-bg-pulse 12s ease-in-out infinite alternate;
+  animation-play-state: paused;
   pointer-events: none;
+}
+
+.player2-shell[data-playing='true'] .player2-bg-glow {
+  animation-play-state: running;
 }
 
 @keyframes player2-bg-pulse {
@@ -17180,7 +17196,12 @@
   border-radius: 50%;
   border: 1px dashed rgba(251, 191, 36, 0.18);
   animation: player3-disc-spin 24s linear infinite;
+  animation-play-state: paused;
   pointer-events: none;
+}
+
+.player3-shell[data-playing='true'] .player3-disc-orbit {
+  animation-play-state: running;
 }
 
 @keyframes player3-disc-spin {
