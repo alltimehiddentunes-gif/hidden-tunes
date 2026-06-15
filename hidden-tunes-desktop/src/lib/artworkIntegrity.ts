@@ -22,6 +22,12 @@ import {
   type PremiumArtworkKey,
   type WorldArtworkInput,
 } from '../data/artworkRegistry'
+import {
+  resolveAtmosphereForPlayerMode,
+  resolveAtmosphereForWorld,
+} from './atmosphereManager'
+import type { NowPlayingStyle } from './nowPlayingStyle'
+import type { AtmosphereDefinition, AtmosphereId } from '../types/atmosphere'
 
 export type ArtworkContext = {
   indexes: CatalogIndexes
@@ -168,6 +174,20 @@ export function getArtworkForWorld(
   _context?: ArtworkContext,
 ): string | null {
   return resolveWorldArtwork(world)
+}
+
+/** Read-only atmosphere id for a world card — does not affect artwork resolution yet. */
+export function resolveWorldAtmosphereId(world: WorldArtworkTarget): AtmosphereId {
+  return resolveAtmosphereForWorld({
+    cardId: world.id,
+    sceneId: world.sceneId,
+    title: world.title,
+  }).id
+}
+
+/** Read-only atmosphere metadata for a premium player mode — does not change backgrounds yet. */
+export function getPlayerAtmosphereMetadata(mode: NowPlayingStyle): AtmosphereDefinition {
+  return resolveAtmosphereForPlayerMode(mode)
 }
 
 export function getArtworkForTheater(
