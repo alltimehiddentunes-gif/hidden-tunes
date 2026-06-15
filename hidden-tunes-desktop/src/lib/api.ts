@@ -12,6 +12,11 @@ const REQUEST_TIMEOUT_MS = 20_000
 export const CATALOG_SEARCH_MAX_RESULTS = 240
 export const CATALOG_SEARCH_LIGHTWEIGHT_LIMIT = 80
 
+export type ApiSyncedLyricLine = {
+  text: string
+  timestampMs: number
+}
+
 export type ApiSong = {
   id: string
   title: string
@@ -34,6 +39,13 @@ export type ApiSong = {
   audioVersions?: SongAudioVersions
   durationSeconds: number | null
   createdAt: string | null
+  /** Plain-text lyrics when supplied by catalog — not populated in desktop preview yet. */
+  lyrics?: string | null
+  /** Timestamped lyric lines when supplied by catalog. */
+  syncedLyrics?: ApiSyncedLyricLine[] | null
+  /** Pre-split plain lyric lines when supplied separately from `lyrics`. */
+  lyricLines?: string[] | null
+  lyricsSource?: string | null
 }
 
 export type ApiAlbum = {
@@ -184,6 +196,48 @@ function asRecord(value: unknown): Record<string, unknown> | null {
     : null
 }
 
+function pickSyncedLyricLines(value: unknown): ApiSyncedLyricLine[] | null {
+  if (!Array.isArray(value)) return null
+  const lines: ApiSyncedLyricLine[] = []
+  for (const entry of value) {
+    const record = asRecord(entry)
+    if (!record) continue
+    const text = typeof record.text === 'string'
+      ? record.text.trim()
+      : typeof record.line === 'string'
+        ? record.line.trim()
+        : ''
+    const timestampMs = typeof record.timestampMs === 'number'
+      ? record.timestampMs
+      : typeof record.timestamp_ms === 'number'
+        ? record.timestamp_ms
+        : typeof record.time === 'number'
+          ? record.time
+          : null
+    if (!text || timestampMs == null || !Number.isFinite(timestampMs)) continue
+    lines.push({ text, timestampMs })
+  }
+  return lines.length > 0 ? lines : null
+}
+
+function pickLyricsFields(record: Record<string, unknown>) {
+  const lyrics = typeof record.lyrics === 'string' ? record.lyrics.trim() : null
+  const lyricsSource = typeof record.lyrics_source === 'string'
+    ? record.lyrics_source.trim()
+    : typeof record.lyricsSource === 'string'
+      ? record.lyricsSource.trim()
+      : null
+  const lyricLines = pickStringList(record.lyric_lines ?? record.lyricLines)
+  const syncedLyrics = pickSyncedLyricLines(record.synced_lyrics ?? record.syncedLyrics)
+
+  return {
+    lyrics: lyrics || null,
+    lyricLines: lyricLines.length > 0 ? lyricLines : null,
+    syncedLyrics,
+    lyricsSource: lyricsSource || null,
+  }
+}
+
 function pickStringList(value: unknown): string[] {
   if (!Array.isArray(value)) return []
   const items: string[] = []
@@ -207,6 +261,7 @@ function normalizeSong(row: unknown): ApiSong | null {
   const nestedAlbum = asRecord(record.album) ?? asRecord(record.albums)
   const directArtwork = pickSongArtwork(record)
   const albumArtwork = nestedAlbum ? pickAlbumArtwork(nestedAlbum) : null
+  const lyricsFields = pickLyricsFields(record)
 
   return {
     id: String(record.id),
@@ -247,6 +302,7 @@ function normalizeSong(row: unknown): ApiSong | null {
     audioVersions: playback.audioVersions,
     durationSeconds: pickDurationSeconds(record),
     createdAt,
+    ...lyricsFields,
   }
 }
 

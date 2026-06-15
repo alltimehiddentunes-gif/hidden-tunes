@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore } from 'react'
+import { useEffect, useSyncExternalStore } from 'react'
 import { premiumAudioVisualizerEngine } from './engine'
 import type { PremiumVisualizerSnapshot } from './types'
 
@@ -7,6 +7,8 @@ const THROTTLE_MS = 120
 let lastEmit = 0
 let pending = 0
 const listeners = new Set<() => void>()
+let engineSubscriberCount = 0
+let detachEngine: (() => void) | null = null
 
 function emitThrottled(): void {
   const now = performance.now()
@@ -26,10 +28,18 @@ function emitThrottled(): void {
 
 function subscribe(listener: () => void): () => void {
   listeners.add(listener)
-  const detachEngine = premiumAudioVisualizerEngine.subscribe(emitThrottled)
+  if (engineSubscriberCount === 0) {
+    detachEngine = premiumAudioVisualizerEngine.subscribe(emitThrottled)
+  }
+  engineSubscriberCount += 1
+
   return () => {
     listeners.delete(listener)
-    detachEngine()
+    engineSubscriberCount -= 1
+    if (engineSubscriberCount === 0 && detachEngine) {
+      detachEngine()
+      detachEngine = null
+    }
   }
 }
 
@@ -42,15 +52,9 @@ export function usePremiumAudioVisualizer(): PremiumVisualizerSnapshot {
 }
 
 export function usePremiumAudioVisualizerBoot(): void {
-  const [, setTick] = useState(0)
-
   useEffect(() => {
     premiumAudioVisualizerEngine.start()
-    const detach = premiumAudioVisualizerEngine.subscribe(() => {
-      setTick((value) => value + 1)
-    })
     return () => {
-      detach()
       premiumAudioVisualizerEngine.stop()
     }
   }, [])

@@ -86,6 +86,9 @@ import {
   usePreferencesReset,
   type StoredPageId,
 } from './lib/localPreferences'
+import { PlayerLyricsPanel } from './components/PlayerLyricsPanel'
+import { PlayerModeLauncher } from './components/PlayerModeLauncher'
+import { PlayerModeSwitcher } from './components/PlayerModeSwitcher'
 import { PremiumAudioVisualizerProvider } from './components/PremiumAudioVisualizerProvider'
 import { PremiumCinematicWaveform } from './components/PremiumCinematicWaveform'
 import { PremiumReactiveWaveform } from './components/PremiumReactiveWaveform'
@@ -123,7 +126,12 @@ import {
   deriveListeningAtmosphere,
   type ListeningContextLines,
 } from './lib/listeningContext'
-import { type NowPlayingStyle } from './lib/nowPlayingStyle'
+import {
+  NOW_PLAYING_STYLE_OPTIONS,
+  usePreferredNowPlayingStyle,
+  type NowPlayingStyle,
+} from './lib/nowPlayingStyle'
+import { acquirePlayerOverlayScrollLock } from './lib/playerOverlayChrome'
 import { useAutoOpenPreferredPlayer } from './lib/useAutoOpenPreferredPlayer'
 import './App.css'
 
@@ -564,6 +572,62 @@ const PSD_LYRICS_LINES = [
   { tier: 'distant', text: 'resides' },
 ] as const
 
+/** PSD player design reference — not displayed as live playback data. */
+void [
+  PSD_PLAYER_SOURCE_ALBUM,
+  PSD_PLAYER_LYRICS_LINES,
+  PSD_PLAYER2_TITLE_TOP,
+  PSD_PLAYER2_TITLE_MID,
+  PSD_PLAYER2_TITLE_BOTTOM,
+  PSD_PLAYER2_ARTIST,
+  PSD_PLAYER2_ALBUM,
+  PSD_PLAYER2_YEAR,
+  PSD_PLAYER2_DEVICE,
+  PSD_PLAYER2_NEXT_TITLE,
+  PSD_PLAYER2_NEXT_ARTIST,
+  PSD_PLAYER2_LYRICS_ACTIVE,
+  PSD_PLAYER2_LYRICS_BODY,
+  PSD_PLAYER3_SOURCE,
+  PSD_PLAYER3_TITLE_SCRIPT,
+  PSD_PLAYER3_TITLE_MAIN,
+  PSD_PLAYER3_ARTIST,
+  PSD_PLAYER3_DISC_TIME,
+  PSD_PLAYER3_LYRICS,
+  PSD_PLAYER3_UP_NEXT,
+  PSD_PLAYER3_STATS,
+  PSD_PLAYER4_TITLE,
+  PSD_PLAYER4_ARTIST,
+  PSD_PLAYER4_YEAR,
+  PSD_PLAYER4_POSITION_SECONDS,
+  PSD_PLAYER4_DURATION_SECONDS,
+  PSD_PLAYER4_SOURCE,
+  PSD_PLAYER4_LYRICS,
+  PSD_PLAYER4_UP_NEXT,
+  PSD_PLAYER4_SOUND_MODES,
+  PSD_PLAYER5_TITLE,
+  PSD_PLAYER5_SOURCE,
+  PSD_PLAYER5_ARTIST,
+  PSD_PLAYER5_YEAR,
+  PSD_PLAYER5_POSITION_SECONDS,
+  PSD_PLAYER5_DURATION_SECONDS,
+  PSD_PLAYER5_VOLUME_PERCENT,
+  PSD_PLAYER5_LYRICS,
+  PSD_PLAYER5_UP_NEXT,
+  PSD_PLAYER5_STATS,
+  PSD_WAVEFORM_ALBUM,
+  PSD_WAVEFORM_LYRICS,
+  PSD_LYRICS_ALBUM,
+  PSD_LYRICS_LINES,
+  PSD_PLAYER_TITLE,
+  PSD_PLAYER_ARTIST,
+  PSD_PLAYER_POSITION_SECONDS,
+  PSD_PLAYER_DURATION_SECONDS,
+  PSD_ALBUMS_SUBTITLE,
+  PSD_ALBUMS_FOOTER_COUNT,
+  PSD_LIKED_META,
+  PSD_DOWNLOADS_STORAGE_PERCENT,
+]
+
 function PsdWaveformStrip({ className = '' }: { className?: string }) {
   return (
     <div className={`psd-waveform-strip ${className}`.trim()} aria-hidden="true">
@@ -578,14 +642,6 @@ function PsdIconHeart({ className = '' }: { className?: string }) {
   return (
     <svg className={className} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
       <path d="M12 20.8l-1.1-1C6.4 15.36 3 12.28 3 8.5 3 6 5 4 7.5 4c1.74 0 3.41 1.01 4.5 2.36C13.09 5.01 14.76 4 16.5 4 19 4 21 6 21 8.5c0 3.78-3.4 6.86-7.9 11.3L12 20.8z" />
-    </svg>
-  )
-}
-
-function PsdIconPlus({ className = '' }: { className?: string }) {
-  return (
-    <svg className={className} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-      <path d="M12 5v14M5 12h14" />
     </svg>
   )
 }
@@ -2681,6 +2737,15 @@ function formatSongDurationLabel(
   return `${minutes}:${String(remainder).padStart(2, '0')}`
 }
 
+function formatQueueDurationLabel(queue: ApiSong[]): string {
+  const totalSeconds = queue.reduce((sum, song) => {
+    const duration = song.durationSeconds
+    return duration && duration > 0 ? sum + duration : sum
+  }, 0)
+  if (totalSeconds <= 0) return '—'
+  return formatPlaybackTime(totalSeconds)
+}
+
 function resolveSearchSongBadges(
   song: {
     audioVersions?: ApiSong['audioVersions']
@@ -4201,7 +4266,7 @@ function AlbumsPage({
   query?: string
   setQuery?: (value: string) => void
 }) {
-  const { albums, artistNames } = useCatalog()
+  const { albums, artistNames, indexes } = useCatalog()
   const [internalQuery, setInternalQuery] = usePersistedPreference(
     DESKTOP_PREFERENCE_KEYS.albumsSearch,
     '',
@@ -4210,7 +4275,7 @@ function AlbumsPage({
   const query = externalQuery ?? internalQuery
   const setQuery = externalSetQuery ?? setInternalQuery
   void setQuery
-  const [sort] = usePersistedPreference(
+  const [sort, setSort] = usePersistedPreference(
     DESKTOP_PREFERENCE_KEYS.albumsSort,
     'latest' as AlbumSort,
     parseStoredAlbumSort,
@@ -4230,6 +4295,14 @@ function AlbumsPage({
     [albums, visibleAlbums],
   )
 
+  const albumsSubtitle = visibleAlbums.length === 1
+    ? '1 album in your library.'
+    : `${visibleAlbums.length} albums in your library.`
+  const albumsFooterCount = visibleAlbums.length === 1
+    ? '1 album'
+    : `${visibleAlbums.length} albums`
+  const sortLabel = sort === 'latest' ? 'Recently Added' : 'A–Z'
+
   const albumTabs = [
     { id: 'all', label: 'All Albums' },
     { id: 'collection', label: 'In Collection' },
@@ -4243,7 +4316,7 @@ function AlbumsPage({
       <PageFrame cinematic>
         <header className="psd-albums-page-header" aria-labelledby="albums-heading">
           <h1 id="albums-heading" className="psd-albums-page-title">Albums</h1>
-          <p className="psd-albums-page-subtitle">{PSD_ALBUMS_SUBTITLE}</p>
+          <p className="psd-albums-page-subtitle">{albumsSubtitle}</p>
         </header>
 
         <div className="psd-albums-toolbar-row">
@@ -4261,8 +4334,13 @@ function AlbumsPage({
               </button>
             ))}
           </div>
-          <button type="button" className="psd-albums-sort-pill" aria-label="Sort albums">
-            Recently Added
+          <button
+            type="button"
+            className="psd-albums-sort-pill"
+            aria-label={`Sort albums: ${sortLabel}`}
+            onClick={() => setSort(sort === 'latest' ? 'az' : 'latest')}
+          >
+            {sortLabel}
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
               <path d="M6 9l6 6 6-6" />
             </svg>
@@ -4296,9 +4374,13 @@ function AlbumsPage({
                     </span>
                   </div>
                   <div className="psd-albums-gallery-copy">
-                    <strong className="psd-albums-gallery-title">{card.title}</strong>
-                    <span className="psd-albums-gallery-artist">{card.artist}</span>
-                    <span className="psd-albums-gallery-meta">{card.year} • {card.songs}</span>
+                    <strong className="psd-albums-gallery-title">{album?.title ?? '—'}</strong>
+                    <span className="psd-albums-gallery-artist">
+                      {album ? (album.artistId ? artistNames.get(album.artistId) ?? 'Unknown artist' : 'Unknown artist') : '—'}
+                    </span>
+                    <span className="psd-albums-gallery-meta">
+                      {album?.releaseYear ?? '—'} • {album ? countSongsForAlbum(album, indexes) : 0} songs
+                    </span>
                     <span className="psd-albums-gallery-more" aria-hidden="true"><PsdIconMore /></span>
                   </div>
                 </button>
@@ -4307,7 +4389,7 @@ function AlbumsPage({
           })}
         </div>
 
-        <p className="psd-albums-footer-count">{PSD_ALBUMS_FOOTER_COUNT}</p>
+        <p className="psd-albums-footer-count">{albumsFooterCount}</p>
       </PageFrame>
     </div>
   )
@@ -4629,6 +4711,17 @@ function LikedPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
     playLikedSong(0)
   }, [playLikedSong])
 
+  const likedMeta = useMemo(() => {
+    const count = likedSongs.length
+    const totalSeconds = likedSongs.reduce((sum, song) => sum + (song.durationSeconds ?? 0), 0)
+    const hours = Math.floor(totalSeconds / 3600)
+    const minutes = Math.floor((totalSeconds % 3600) / 60)
+    const durationLabel = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`
+    return `${count} ${count === 1 ? 'song' : 'songs'} • ${durationLabel}`
+  }, [likedSongs])
+
+  const visibleLikedSongs = likedSongs.slice(0, PSD_LIKED_TABLE_ROWS.length)
+
   return (
     <div className="psd-liked-destination">
       <PageFrame cinematic>
@@ -4640,16 +4733,12 @@ function LikedPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
                 <path d="M12 20.8l-1.1-1C6.4 15.36 3 12.28 3 8.5 3 6 5 4 7.5 4c1.74 0 3.41 1.01 4.5 2.36C13.09 5.01 14.76 4 16.5 4 19 4 21 6 21 8.5c0 3.78-3.4 6.86-7.9 11.3L12 20.8z" />
               </svg>
             </div>
-            <button type="button" className="psd-liked-hero-edit" aria-label="Edit playlist cover">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                <path d="M12 20h9M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4L16.5 3.5z" />
-              </svg>
-            </button>
+
           </div>
 
           <div className="psd-liked-hero-copy">
             <h1 id="liked-heading" className="psd-liked-page-title">Liked Songs</h1>
-            <p className="psd-liked-page-meta">{PSD_LIKED_META}</p>
+            <p className="psd-liked-page-meta">{likedMeta}</p>
             <p className="psd-liked-page-description">{PSD_LIKED_DESCRIPTION}</p>
             <div className="psd-liked-hero-toolbar">
               <div className="psd-liked-hero-actions">
@@ -4665,14 +4754,7 @@ function LikedPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
                   </svg>
                   Shuffle
                 </button>
-                <button type="button" className="psd-liked-btn psd-liked-btn--more" aria-label="More options">
-                  <PsdIconMore />
-                </button>
               </div>
-              <button type="button" className="psd-liked-add-playlist">
-                <PsdIconPlus />
-                Add to Playlist
-              </button>
             </div>
           </div>
         </section>
@@ -4697,20 +4779,9 @@ function LikedPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
                 </tr>
               </thead>
               <tbody>
-                {PSD_LIKED_TABLE_ROWS.map((row, index) => {
-                  const song = resolveLikedSongAtIndex(index)
-                  return (
-                    <tr
-                      key={row.key}
-                      className={`psd-liked-table-row${'active' in row && row.active ? ' is-active' : ''}`}
-                    >
-                      <td className="psd-liked-col-index">
-                        {'active' in row && row.active ? (
-                          <PsdIconEqualizer className="psd-liked-row-equalizer" />
-                        ) : (
-                          index + 1
-                        )}
-                      </td>
+                {visibleLikedSongs.map((song, index) => (
+                    <tr key={song.id} className="psd-liked-table-row">
+                      <td className="psd-liked-col-index">{index + 1}</td>
                       <td className="psd-liked-col-title">
                         <button
                           type="button"
@@ -4719,32 +4790,27 @@ function LikedPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
                         >
                           <span className="psd-liked-row-thumb">
                             <ArtworkImage
-                              src={song?.artwork ?? null}
+                              src={song.artwork ?? null}
                               alt=""
-                              seed={song?.id ?? row.key}
-                              label={song?.title ?? row.title}
+                              seed={song.id}
+                              label={song.title}
                             />
                           </span>
                           <span className="psd-liked-title-copy">
-                            <strong>{row.title}</strong>
+                            <strong>{song.title}</strong>
                             <svg className="psd-liked-row-heart" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                               <path d="M12 20.8l-1.1-1C6.4 15.36 3 12.28 3 8.5 3 6 5 4 7.5 4c1.74 0 3.41 1.01 4.5 2.36C13.09 5.01 14.76 4 16.5 4 19 4 21 6 21 8.5c0 3.78-3.4 6.86-7.9 11.3L12 20.8z" />
                             </svg>
                           </span>
                         </button>
                       </td>
-                      <td className="psd-liked-col-artist">{row.artist}</td>
-                      <td className="psd-liked-col-album">{row.album}</td>
-                      <td className="psd-liked-col-date">{row.dateAdded}</td>
-                      <td className="psd-liked-col-duration">{row.duration}</td>
-                      <td className="psd-liked-col-menu">
-                        <button type="button" className="psd-liked-row-menu" aria-label={`More options for ${row.title}`}>
-                          <PsdIconMore />
-                        </button>
-                      </td>
+                      <td className="psd-liked-col-artist">{song.artist}</td>
+                      <td className="psd-liked-col-album">{song.album ?? '—'}</td>
+                      <td className="psd-liked-col-date">—</td>
+                      <td className="psd-liked-col-duration">{formatSongDurationLabel(song)}</td>
+                      <td className="psd-liked-col-menu" aria-hidden="true" />
                     </tr>
-                  )
-                })}
+                  ))}
               </tbody>
             </table>
           </div>
@@ -4794,19 +4860,14 @@ function RecentPage({
   )
 
   const normalizedQuery = query.trim().toLowerCase()
-  const visibleRows = useMemo(() => {
-    if (!normalizedQuery) return PSD_RECENT_TABLE_ROWS
-    return PSD_RECENT_TABLE_ROWS.filter((row) => {
-      const haystack = [
-        row.title,
-        row.subtitle,
-        row.artist,
-        row.itemType,
-        row.played,
-      ].join(' ').toLowerCase()
+  const visibleSongs = useMemo(() => {
+    const base = recentSongs.slice(0, 10)
+    if (!normalizedQuery) return base
+    return base.filter((song) => {
+      const haystack = [song.title, song.artist, song.album ?? ''].join(' ').toLowerCase()
       return haystack.includes(normalizedQuery)
     })
-  }, [normalizedQuery])
+  }, [normalizedQuery, recentSongs])
 
   return (
     <div className="psd-recent-destination">
@@ -4843,54 +4904,45 @@ function RecentPage({
                 </tr>
               </thead>
               <tbody>
-                {visibleRows.map((row) => {
-                  const index = PSD_RECENT_TABLE_ROWS.findIndex((entry) => entry.key === row.key)
-                  const song = resolveRecentSongAtIndex(index)
-                  return (
-                    <tr key={row.key} className="psd-recent-table-row">
+                {visibleSongs.map((song, index) => (
+                    <tr key={song.id} className="psd-recent-table-row">
                       <td className="psd-recent-col-index">{index + 1}</td>
                       <td className="psd-recent-col-title">
                         <button
                           type="button"
                           className="psd-recent-title-btn"
                           onClick={() => playRecentSong(index)}
-                          disabled={row.itemType !== 'Song'}
                         >
                           <span className="psd-recent-row-thumb">
                             <ArtworkImage
-                              src={song?.artwork ?? null}
+                              src={song.artwork ?? null}
                               alt=""
-                              seed={song?.id ?? row.key}
-                              label={song?.title ?? row.title}
+                              seed={song.id}
+                              label={song.title}
                             />
                           </span>
                           <span className="psd-recent-title-copy">
-                            <strong>{row.title}</strong>
-                            <span>{row.subtitle}</span>
+                            <strong>{song.title}</strong>
+                            <span>{song.album ?? 'Song'}</span>
                           </span>
                         </button>
                       </td>
-                      <td className="psd-recent-col-artist">{row.artist}</td>
+                      <td className="psd-recent-col-artist">{song.artist}</td>
                       <td className="psd-recent-col-type">
                         <span className="psd-recent-type-pill">
-                          <PsdRecentTypeIcon type={row.itemType} />
-                          <span>{row.itemType}</span>
+                          <PsdRecentTypeIcon type="Song" />
+                          <span>Song</span>
                         </span>
                       </td>
-                      <td className="psd-recent-col-played">{row.played}</td>
-                      <td className="psd-recent-col-duration">{row.duration}</td>
-                      <td className="psd-recent-col-menu">
-                        <button type="button" className="psd-recent-row-menu" aria-label={`More options for ${row.title}`}>
-                          <PsdIconMore />
-                        </button>
-                      </td>
+                      <td className="psd-recent-col-played">—</td>
+                      <td className="psd-recent-col-duration">{formatSongDurationLabel(song)}</td>
+                      <td className="psd-recent-col-menu" aria-hidden="true" />
                     </tr>
-                  )
-                })}
+                  ))}
               </tbody>
             </table>
             <p className="psd-recent-table-footer">
-              Showing 10 of your recently played items
+              {visibleSongs.length === 0 ? "No recent plays yet" : `Showing ${visibleSongs.length} recently played songs`}
             </p>
           </div>
         </section>
@@ -4900,15 +4952,6 @@ function RecentPage({
 }
 
 /* Phase 42X-FIX-2: Downloads page desktop shell + PSD content */
-function PsdDownloadsRowMenu() {
-  return (
-    <button type="button" className="psd-downloads-row-menu" aria-label="More options">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-        <circle cx="12" cy="5" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="12" cy="19" r="1.6" />
-      </svg>
-    </button>
-  )
-}
 
 function DownloadsPage({
   onOpenSong,
@@ -4953,30 +4996,11 @@ function DownloadsPage({
       <PageFrame cinematic>
         <h1 className="psd-downloads-title">Downloads</h1>
 
-        <section className="psd-downloads-storage" aria-label="Storage usage">
-          <div
-            className="psd-downloads-ring"
-            style={{ ['--downloads-ring-percent' as string]: PSD_DOWNLOADS_STORAGE_PERCENT }}
-            aria-hidden="true"
-          >
-            <span>{PSD_DOWNLOADS_STORAGE_PERCENT}%</span>
-          </div>
+        <section className="psd-downloads-storage" aria-label="Offline downloads preview">
           <div className="psd-downloads-storage-copy">
-            <strong>{PSD_DOWNLOADS_STORAGE_PERCENT}% of storage used</strong>
-            <span>57.6 GB / 80 GB</span>
-            <div className="psd-downloads-storage-bar">
-              <div
-                className="psd-downloads-storage-fill"
-                style={{ width: `${PSD_DOWNLOADS_STORAGE_PERCENT}%` }}
-              />
-            </div>
+            <strong>Offline downloads preview</strong>
+            <span>Device download storage and sync are not connected in this desktop build yet.</span>
           </div>
-          <button type="button" className="psd-downloads-smart-btn">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-              <path d="M12 3l1.8 4.6L18 9.4l-3.7 2.8L15.4 17 12 14.3 8.6 17l1.1-4.8L6 9.4l4.2-1.8L12 3z" />
-            </svg>
-            Smart Download
-          </button>
         </section>
 
         <div className="psd-downloads-tabs" role="tablist" aria-label="Download categories">
@@ -5001,20 +5025,12 @@ function DownloadsPage({
             </svg>
             Shuffle All
           </button>
-          <button type="button" className="psd-downloads-sort">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-              <path d="M4 6h16M7 12h10M10 18h4" />
-            </svg>
-            Recently Downloaded
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-              <path d="M6 9l6 6 6-6" />
-            </svg>
-          </button>
+
         </div>
 
         {showPlaylists ? (
           <section className="psd-downloads-section" aria-label="Downloaded playlists">
-            <h2 className="psd-downloads-section-title">Playlists (3)</h2>
+            <h2 className="psd-downloads-section-title">Playlists ({PSD_DOWNLOADS_PLAYLISTS.length})</h2>
             <ul className="psd-downloads-list">
               {PSD_DOWNLOADS_PLAYLISTS.map((row, index) => {
                 const playlistSongs = songs.slice(index * 4, index * 4 + 8)
@@ -5043,7 +5059,6 @@ function DownloadsPage({
                       <path d="M8 12l2.5 2.5L16 9" />
                     </svg>
                   </span>
-                  <PsdDownloadsRowMenu />
                 </li>
                 )
               })}
@@ -5053,7 +5068,7 @@ function DownloadsPage({
 
         {showAlbums ? (
           <section className="psd-downloads-section" aria-label="Downloaded albums">
-            <h2 className="psd-downloads-section-title">Albums (2)</h2>
+            <h2 className="psd-downloads-section-title">Albums ({PSD_DOWNLOADS_ALBUMS.length})</h2>
             <ul className="psd-downloads-list">
               {PSD_DOWNLOADS_ALBUMS.map((row, index) => {
                 const album = resolveDownloadAlbum(row.title, index)
@@ -5069,7 +5084,7 @@ function DownloadsPage({
                   </span>
                   <div className="psd-downloads-row-copy">
                     <p className="psd-downloads-row-title">
-                      {row.title}
+                      {album?.title ?? row.title}
                       <svg className="psd-downloads-row-badge" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                         <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                       </svg>
@@ -5084,7 +5099,6 @@ function DownloadsPage({
                       <path d="M8 12l2.5 2.5L16 9" />
                     </svg>
                   </span>
-                  <PsdDownloadsRowMenu />
                 </li>
                 )
               })}
@@ -5094,7 +5108,7 @@ function DownloadsPage({
 
         {showSongs ? (
           <section className="psd-downloads-section" aria-label="Downloaded songs">
-            <h2 className="psd-downloads-section-title">Songs (6)</h2>
+            <h2 className="psd-downloads-section-title">Songs ({PSD_DOWNLOADS_SONGS.length})</h2>
             <ul className="psd-downloads-list">
               {PSD_DOWNLOADS_SONGS.map((row, index) => {
                 const song = resolveSong(row.title, index)
@@ -5110,12 +5124,14 @@ function DownloadsPage({
                   </span>
                   <div className="psd-downloads-row-copy">
                     <p className="psd-downloads-row-title">
-                      {row.title}
+                      {song?.title ?? row.title}
                       <svg className="psd-downloads-row-badge" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                         <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                       </svg>
                     </p>
-                    <span className="psd-downloads-row-meta">{row.meta}</span>
+                    <span className="psd-downloads-row-meta">
+                      {song ? `${song.artist}${song.album ? ` • ${song.album}` : ''}` : row.meta}
+                    </span>
                   </div>
                   <span className="psd-downloads-row-check" aria-hidden="true">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -5123,7 +5139,6 @@ function DownloadsPage({
                       <path d="M8 12l2.5 2.5L16 9" />
                     </svg>
                   </span>
-                  <PsdDownloadsRowMenu />
                 </li>
                 )
               })}
@@ -5439,12 +5454,27 @@ function AudioQualitySelector({
   )
 }
 
-function SettingsPage() {
-  const { audioQualityMode, setAudioQualityMode } = useDesktopPlayback()
+function SettingsPage({
+  onOpenPlayerByStyle,
+}: {
+  onOpenPlayerByStyle: (style: NowPlayingStyle) => void
+}) {
+  const {
+    audioQualityMode,
+    setAudioQualityMode,
+    currentTrack,
+    currentQueue,
+    currentIndex,
+  } = useDesktopPlayback()
+  const [preferredPlayerStyle, setPreferredPlayerStyle] = usePreferredNowPlayingStyle()
   const { resetDesktopPreferencesState } = usePreferencesReset()
   const { clearCatalogCache } = useCatalog()
   const [resetNotice, setResetNotice] = useState('')
   const [cacheNotice, setCacheNotice] = useState('')
+
+  const hasActivePlayback = Boolean(
+    currentTrack && currentQueue.length > 0 && currentIndex >= 0,
+  )
 
   const handleResetPreferences = () => {
     resetDesktopPreferencesState()
@@ -5546,6 +5576,66 @@ function SettingsPage() {
                 onChange={setAudioQualityMode}
               />
             </div>
+          </section>
+          <section className="settings-panel settings-panel--player">
+            <h2>Preferred player</h2>
+            <p className="settings-panel-desc">
+              Choose the full-screen Now Playing experience that opens after you tap a song.
+              Your choice is saved on this device and does not interrupt playback.
+            </p>
+            <div
+              className="preferred-player-grid"
+              role="radiogroup"
+              aria-label="Preferred full-screen player"
+            >
+              {NOW_PLAYING_STYLE_OPTIONS.map((option) => {
+                const isActive = preferredPlayerStyle === option.id
+                return (
+                  <article
+                    key={option.id}
+                    className={`preferred-player-card${isActive ? ' is-active' : ''}`}
+                  >
+                    <button
+                      type="button"
+                      className="preferred-player-select"
+                      role="radio"
+                      aria-checked={isActive}
+                      onClick={() => setPreferredPlayerStyle(option.id)}
+                    >
+                      <span className="preferred-player-select-head">
+                        <strong>{option.label}</strong>
+                        {isActive ? (
+                          <span className="settings-badge preferred-player-badge">Selected</span>
+                        ) : null}
+                      </span>
+                      <span className="preferred-player-select-desc">{option.description}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-secondary btn-sm preferred-player-open"
+                      disabled={!hasActivePlayback}
+                      title={
+                        hasActivePlayback
+                          ? `Open ${option.label} with the current track`
+                          : 'Play a song to preview a player'
+                      }
+                      onClick={() => onOpenPlayerByStyle(option.id)}
+                    >
+                      Open
+                    </button>
+                  </article>
+                )
+              })}
+            </div>
+            {hasActivePlayback ? (
+              <p className="settings-reset-note" role="status">
+                Open previews the player with your current track without changing playback.
+              </p>
+            ) : (
+              <p className="settings-reset-note" role="status">
+                Play a song first to preview any player. Your preferred choice still saves immediately.
+              </p>
+            )}
           </section>
           <section className="settings-panel">
             <h2>Appearance</h2>
@@ -5752,16 +5842,23 @@ const FullPlayerTransportControls = memo(function FullPlayerTransportControls({
     currentIndex,
     isPlaying,
     isLoading,
+    shuffleEnabled,
+    repeatMode,
     pause,
     resume,
     next,
     previous,
+    toggleShuffle,
+    toggleRepeat,
   } = useDesktopPlayback()
 
   const isActive = Boolean(activeTrackId && currentTrack?.id === activeTrackId)
-  const hasPrevious = isActive && currentIndex > 0
-  const hasNext =
-    isActive && currentIndex >= 0 && currentIndex < currentQueue.length - 1
+  const hasPrevious = isActive && (
+    currentIndex > 0 || (repeatMode === 'all' && currentQueue.length > 1)
+  )
+  const hasNext = isActive && (
+    (currentIndex >= 0 && currentIndex < currentQueue.length - 1) || repeatMode !== 'off'
+  )
   const showPlaying = isActive && isPlaying
   const showLoading = isActive && isLoading
 
@@ -5782,14 +5879,26 @@ const FullPlayerTransportControls = memo(function FullPlayerTransportControls({
         ? 'Play'
         : 'Play (select a track)'
 
+  const repeatLabel = repeatMode === 'one'
+    ? 'Repeat one'
+    : repeatMode === 'all'
+      ? 'Repeat all'
+      : 'Repeat off'
+
   return (
     <div className="transport-controls psd-player-transport" role="group" aria-label="Playback controls">
       {!hideDecorativeControls ? (
         <button
           type="button"
-          className="psd-player-transport-btn psd-player-transport-btn--shuffle"
-          aria-label="Shuffle"
-          title="Shuffle"
+          className={
+            'psd-player-transport-btn psd-player-transport-btn--shuffle'
+            + (shuffleEnabled ? ' is-active' : '')
+          }
+          onClick={toggleShuffle}
+          disabled={!isActive}
+          aria-label={shuffleEnabled ? 'Shuffle on' : 'Shuffle off'}
+          aria-pressed={shuffleEnabled}
+          title={shuffleEnabled ? 'Shuffle on' : 'Shuffle off'}
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
             <path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5" />
@@ -5850,9 +5959,16 @@ const FullPlayerTransportControls = memo(function FullPlayerTransportControls({
       {!hideDecorativeControls ? (
         <button
           type="button"
-          className="psd-player-transport-btn psd-player-transport-btn--repeat"
-          aria-label="Repeat"
-          title="Repeat"
+          className={
+            'psd-player-transport-btn psd-player-transport-btn--repeat'
+            + (repeatMode !== 'off' ? ' is-active' : '')
+            + (repeatMode === 'one' ? ' is-repeat-one' : '')
+          }
+          onClick={toggleRepeat}
+          disabled={!isActive}
+          aria-label={repeatLabel}
+          aria-pressed={repeatMode !== 'off'}
+          title={repeatLabel}
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
             <path d="M17 1l4 4-4 4" />
@@ -5868,14 +5984,10 @@ const FullPlayerTransportControls = memo(function FullPlayerTransportControls({
 
 const PlayerBar = memo(function PlayerBar({
   track,
-  onOpenCinema,
-  onOpenPlayer2,
-  onOpenPlayer3,
+  onOpenPlayerByStyle,
 }: {
   track: ApiSong | null
-  onOpenCinema?: () => void
-  onOpenPlayer2?: () => void
-  onOpenPlayer3?: () => void
+  onOpenPlayerByStyle: (style: NowPlayingStyle) => void
 }) {
   const { songs } = useCatalog()
   const {
@@ -6122,59 +6234,11 @@ const PlayerBar = memo(function PlayerBar({
       </div>
 
       <div className="player-right">
-        {onOpenPlayer3 ? (
-          <button
-            type="button"
-            className="player-cinema-btn player-cinema-btn--player3"
-            onClick={onOpenPlayer3}
-            aria-label="Open Player 3 VIP theater"
-            title="Player 3 VIP"
-          >
-            <span aria-hidden="true">♛</span>
-          </button>
-        ) : null}
-        {onOpenPlayer2 ? (
-          <button
-            type="button"
-            className="player-cinema-btn player-cinema-btn--player2"
-            onClick={onOpenPlayer2}
-            aria-label="Open Player 2 theater"
-            title="Player 2"
-          >
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.75"
-              aria-hidden="true"
-            >
-              <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
-            </svg>
-          </button>
-        ) : null}
-        {onOpenCinema ? (
-          <button
-            type="button"
-            className="player-cinema-btn"
-            onClick={onOpenCinema}
-            aria-label="Open fullscreen player"
-            title="Fullscreen"
-          >
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.75"
-              aria-hidden="true"
-            >
-              <path d="M9 3H3v6M15 3h6v6M9 21H3v-6M15 21h6v-6" />
-            </svg>
-          </button>
-        ) : null}
+        <PlayerModeLauncher
+          hasPlayback={hasPlayback}
+          onOpenPlayerByStyle={onOpenPlayerByStyle}
+          variant="footer"
+        />
         <div className="player-quality">
           <AudioQualitySelector
             value={audioQualityMode}
@@ -6246,12 +6310,10 @@ const PlayerBar = memo(function PlayerBar({
 
 
 const QueueUpNextPanel = memo(function QueueUpNextPanel({
-  onOpenPlayer2,
-  onOpenPlayer3,
+  onOpenPlayerByStyle,
   activeNavKey,
 }: {
-  onOpenPlayer2?: () => void
-  onOpenPlayer3?: () => void
+  onOpenPlayerByStyle: (style: NowPlayingStyle) => void
   activeNavKey?: NavKey
 }) {
   const isLuxuryRail = activeNavKey === 'albums' || activeNavKey === 'playlists'
@@ -6310,14 +6372,7 @@ const QueueUpNextPanel = memo(function QueueUpNextPanel({
   const canClearQueue = upcomingTracks.length > 0
 
   const queueRows = useMemo(
-    () => upcomingTracks.map((track, index) => ({
-      key: `${track.id}-${index}`,
-      track,
-      title: track.title,
-      artist: track.artist,
-      duration: formatSongDurationLabel(track),
-      queueIndex: currentIndex + 1 + index,
-    })),
+    () => buildPlayerUpNextRows(upcomingTracks, currentIndex, upcomingTracks.length),
     [currentIndex, upcomingTracks],
   )
 
@@ -6497,6 +6552,14 @@ const QueueUpNextPanel = memo(function QueueUpNextPanel({
                 <span className="albums-rail-quality-pill">{railQualityLabel}</span>
               </div>
             ) : null}
+
+            <div className="albums-rail-player-launcher">
+              <PlayerModeLauncher
+                hasPlayback={hasPlayback}
+                onOpenPlayerByStyle={onOpenPlayerByStyle}
+                variant="sidebar"
+              />
+            </div>
           </section>
 
           <section className="albums-rail-up-next" aria-label="Up next">
@@ -6704,18 +6767,11 @@ const QueueUpNextPanel = memo(function QueueUpNextPanel({
               <div className="rail-psd-volume-fill" style={{ width: `${volumePercent}%` }} />
             </div>
           </div>
-          {onOpenPlayer3 ? (
-            <button type="button" className="rail-psd-full-player" onClick={onOpenPlayer3}>
-              Show Full Player
-            </button>
-          ) : null}
-          {onOpenPlayer2 ? (
-            <button type="button" className="rail-psd-expand" aria-label="Expand player" onClick={onOpenPlayer2}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-                <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
-              </svg>
-            </button>
-          ) : null}
+          <PlayerModeLauncher
+            hasPlayback={hasPlayback}
+            onOpenPlayerByStyle={onOpenPlayerByStyle}
+            variant="sidebar"
+          />
         </footer>
       </div>
     </aside>
@@ -6796,49 +6852,337 @@ function DetailTopBar({
 }
 
 
+function usePlayerShellState(preferredTrack: ApiSong | null = null) {
+  const playback = useDesktopPlayback()
+  const {
+    currentTrack,
+    queueTitle,
+    positionSeconds,
+    durationSeconds,
+    audioQualityMode,
+    getUpcomingTracks,
+  } = playback
+
+  const displayTrack = currentTrack ?? preferredTrack ?? null
+  const isActive = Boolean(displayTrack && currentTrack?.id === displayTrack.id)
+  const liveProgressMax = isActive && durationSeconds > 0 ? durationSeconds : 0
+  const liveProgressValue = liveProgressMax > 0 ? Math.min(positionSeconds, liveProgressMax) : 0
+  const progressMax = liveProgressMax
+  const progressValue = liveProgressValue
+  const progressPercent = progressMax > 0
+    ? Math.min(100, (progressValue / progressMax) * 100)
+    : 0
+  const displayTitle = displayTrack?.title ?? 'Nothing playing'
+  const displayArtist = displayTrack?.artist ?? 'Select a song to begin'
+  const displayAlbum = displayTrack?.album ?? (isActive ? queueTitle ?? null : null)
+  const qualityLabel = displayTrack && isActive
+    ? (
+      resolveSearchRowQualityBadge(displayTrack) !== 'SONG'
+        ? resolveSearchRowQualityBadge(displayTrack)
+        : AUDIO_QUALITY_MODE_LABELS[audioQualityMode]
+    )
+    : null
+  const activeTrackId = displayTrack?.id ?? null
+
+  return {
+    ...playback,
+    displayTrack,
+    isActive,
+    liveProgressMax,
+    progressMax,
+    progressValue,
+    progressPercent,
+    displayTitle,
+    displayArtist,
+    displayAlbum,
+    qualityLabel,
+    activeTrackId,
+    getUpcomingTracks,
+  }
+}
+
+function usePlayerShellChrome(onClose: () => void) {
+  useEffect(() => acquirePlayerOverlayScrollLock(), [])
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      event.preventDefault()
+      event.stopPropagation()
+      onClose()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [onClose])
+}
+
+type PlayerUpNextRow = {
+  key: string
+  track: ApiSong
+  title: string
+  artist: string
+  artwork: string | null
+  duration: string
+  queueIndex: number
+  isNext: boolean
+}
+
+function buildPlayerUpNextRows(
+  upcomingTracks: ApiSong[],
+  currentIndex: number,
+  maxRows = 5,
+): PlayerUpNextRow[] {
+  return upcomingTracks.slice(0, maxRows).map((track, offset) => ({
+    key: `${track.id}-${currentIndex + 1 + offset}`,
+    track,
+    title: track.title,
+    artist: track.artist,
+    artwork: track.artwork ?? null,
+    duration: formatSongDurationLabel(track),
+    queueIndex: currentIndex + 1 + offset,
+    isNext: offset === 0,
+  }))
+}
+
+function PlayerUpNextEmptyState({ className = '' }: { className?: string }) {
+  return (
+    <div className={`player-upnext-empty ${className}`.trim()} role="status">
+      <p className="player-upnext-empty-title">Nothing queued next</p>
+      <p className="player-upnext-empty-detail">
+        Upcoming tracks from your current queue will appear here.
+      </p>
+    </div>
+  )
+}
+
+function PlayerQueuePanel() {
+  const { currentQueue, currentIndex, playQueueAtIndex } = useDesktopPlayback()
+  const visibleQueue = currentIndex >= 0
+    ? currentQueue.slice(currentIndex)
+    : []
+
+  if (visibleQueue.length === 0) {
+    return (
+      <div className="player-queue-empty" role="tabpanel" aria-label="Queue">
+        <p className="player-queue-empty-title">Queue is empty</p>
+        <p className="player-queue-empty-detail">Play a song to populate your queue.</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="player-queue-panel" role="tabpanel" aria-label="Queue">
+      <ol className="player-queue-list">
+        {visibleQueue.map((song, offset) => {
+          const queueIndex = currentIndex + offset
+          const isCurrent = offset === 0
+          return (
+            <li key={`${song.id}-${queueIndex}`} className={isCurrent ? 'is-current' : ''}>
+              <button
+                type="button"
+                className="player-queue-row"
+                onClick={() => playQueueAtIndex(queueIndex)}
+              >
+                <span className="player-queue-index">{queueIndex + 1}</span>
+                <ArtworkImage
+                  src={song.artwork ?? null}
+                  alt=""
+                  seed={song.id}
+                  label={song.title}
+                />
+                <span className="player-queue-copy">
+                  <strong>{song.title}</strong>
+                  <span>{song.artist}</span>
+                </span>
+                <span className="player-queue-duration">{formatSongDurationLabel(song)}</span>
+              </button>
+            </li>
+          )
+        })}
+      </ol>
+    </div>
+  )
+}
+
+function PlayerQueueSheet({
+  open,
+  onClose,
+}: {
+  open: boolean
+  onClose: () => void
+}) {
+  const { clearUpcomingQueue, getUpcomingTracks } = useDesktopPlayback()
+  const canClearUpNext = getUpcomingTracks().length > 0
+
+  useEffect(() => {
+    if (!open) return undefined
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      event.preventDefault()
+      event.stopPropagation()
+      onClose()
+    }
+    window.addEventListener('keydown', handleKeyDown, true)
+    return () => window.removeEventListener('keydown', handleKeyDown, true)
+  }, [open, onClose])
+
+  if (!open) return null
+
+  return (
+    <div className="player-queue-sheet" role="dialog" aria-modal="true" aria-label="Queue">
+      <button
+        type="button"
+        className="player-queue-sheet-backdrop"
+        onClick={onClose}
+        aria-label="Close queue"
+        tabIndex={-1}
+      />
+      <div className="player-queue-sheet-panel">
+        <header className="player-queue-sheet-header">
+          <h2 className="player-queue-sheet-title">Queue</h2>
+          {canClearUpNext ? (
+            <button
+              type="button"
+              className="player-queue-sheet-clear"
+              onClick={clearUpcomingQueue}
+            >
+              Clear up next
+            </button>
+          ) : null}
+          <button
+            type="button"
+            className="player-queue-sheet-close"
+            onClick={onClose}
+            aria-label="Close queue"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </header>
+        <div className="player-queue-sheet-body">
+          <PlayerQueuePanel />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function PlayerUpNextClearButton({
+  onClick,
+  className = 'player-upnext-clear',
+}: {
+  onClick: () => void
+  className?: string
+}) {
+  return (
+    <button type="button" className={className} onClick={onClick}>
+      Clear
+    </button>
+  )
+}
+
+function PlayerDetailsPanel({
+  track,
+  albumLabel,
+  qualityLabel,
+}: {
+  track: ApiSong | null
+  albumLabel?: string | null
+  qualityLabel?: string | null
+}) {
+  if (!track) {
+    return (
+      <div className="player-details-empty" role="tabpanel" aria-label="Details">
+        <p className="player-details-empty-title">No track selected</p>
+        <p className="player-details-empty-detail">Play a song to view track details.</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="player-details-panel" role="tabpanel" aria-label="Details">
+      <dl className="player-details-list">
+        <div>
+          <dt>Title</dt>
+          <dd>{track.title}</dd>
+        </div>
+        <div>
+          <dt>Artist</dt>
+          <dd>{track.artist}</dd>
+        </div>
+        {albumLabel ? (
+          <div>
+            <dt>Album</dt>
+            <dd>{albumLabel}</dd>
+          </div>
+        ) : null}
+        {track.album ? (
+          <div>
+            <dt>Release</dt>
+            <dd>{track.album}</dd>
+          </div>
+        ) : null}
+        {qualityLabel ? (
+          <div>
+            <dt>Quality</dt>
+            <dd>{qualityLabel}</dd>
+          </div>
+        ) : null}
+        {track.durationSeconds != null && track.durationSeconds > 0 ? (
+          <div>
+            <dt>Duration</dt>
+            <dd>{formatPlaybackTime(track.durationSeconds)}</dd>
+          </div>
+        ) : null}
+      </dl>
+    </div>
+  )
+}
+
+
+type PlayerShellModeProps = {
+  activePlayerMode: NowPlayingStyle
+  onSwitchPlayerMode: (style: NowPlayingStyle) => void
+}
+
 const CinemaPlayerShell = memo(function CinemaPlayerShell({
   onClose,
   onOpenLyrics,
   onOpenWaveform,
   preferredTrack = null,
+  activePlayerMode,
+  onSwitchPlayerMode,
 }: {
   onClose: () => void
   onOpenLyrics?: () => void
   onOpenWaveform?: () => void
   preferredTrack?: ApiSong | null
-}) {
+} & PlayerShellModeProps) {
   const {
-    currentTrack,
+    displayTrack,
+    isActive,
     isPlaying,
     isLoading,
-    positionSeconds,
-    durationSeconds,
+    liveProgressMax,
+    progressMax,
+    progressValue,
+    progressPercent,
+    displayTitle,
+    displayArtist,
+    displayAlbum,
+    qualityLabel,
+    activeTrackId,
     seekTo,
     volume,
     setVolume,
-  } = useDesktopPlayback()
+    positionSeconds,
+  } = usePlayerShellState(preferredTrack)
 
   const volumeTrackRef = useRef<HTMLDivElement>(null)
   const isAdjustingVolumeRef = useRef(false)
   const [playerTab, setPlayerTab] = useState<'lyrics' | 'queue' | 'details'>('lyrics')
-
-  const displayTrack = currentTrack ?? preferredTrack
-  const isActive = Boolean(displayTrack && currentTrack?.id === displayTrack.id)
-  const liveProgressMax = isActive && durationSeconds > 0 ? durationSeconds : 0
-  const liveProgressValue = liveProgressMax > 0 ? Math.min(positionSeconds, liveProgressMax) : 0
-  const progressMax = liveProgressMax > 0 ? liveProgressMax : PSD_PLAYER_DURATION_SECONDS
-  const progressValue = liveProgressMax > 0
-    ? liveProgressValue
-    : PSD_PLAYER_POSITION_SECONDS
-  const progressPercent = progressMax > 0
-    ? Math.min(100, (progressValue / progressMax) * 100)
-    : 0
   const volumePercent = Math.min(100, Math.max(0, volume * 100))
-
-  const displayTitle = displayTrack?.title ?? PSD_PLAYER_TITLE
-  const displayArtist = displayTrack?.artist ?? PSD_PLAYER_ARTIST
-  const displayAlbum = displayTrack?.album ?? PSD_PLAYER_SOURCE_ALBUM
-  const activeTrackId = displayTrack?.id ?? null
 
   const resolveVolume = useCallback((clientX: number) => {
     const trackEl = volumeTrackRef.current
@@ -6875,27 +7219,11 @@ const CinemaPlayerShell = memo(function CinemaPlayerShell({
     event.currentTarget.releasePointerCapture(event.pointerId)
   }
 
-  useEffect(() => {
-    const previousOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.body.style.overflow = previousOverflow
-    }
-  }, [])
-
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return
-      event.preventDefault()
-      onClose()
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [onClose])
+  usePlayerShellChrome(onClose)
 
   return (
     <div
-      className="cinema-player cinema-player--psd cinema-player--psd-master"
+      className="cinema-player cinema-player--psd cinema-player--psd-master premium-player-overlay"
       role="dialog"
       aria-modal="true"
       aria-label="Fullscreen player"
@@ -6925,19 +7253,18 @@ const CinemaPlayerShell = memo(function CinemaPlayerShell({
         <div className="psd-player-topbar-copy">
           <span className="psd-player-topbar-eyebrow">PLAYING FROM</span>
           <p className="psd-player-topbar-source">
-            <strong>{displayAlbum}</strong>
+            <strong>{displayAlbum ?? 'Your Library'}</strong>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="#a855f7" aria-hidden="true">
               <path d="M12 20.8l-1.1-1C6.4 15.36 3 12.28 3 8.5 3 6 5 4 7.5 4c1.74 0 3.41 1.01 4.5 2.36C13.09 5.01 14.76 4 16.5 4 19 4 21 6 21 8.5c0 3.78-3.4 6.86-7.9 11.3L12 20.8z" />
             </svg>
           </p>
         </div>
-        <button
-          type="button"
-          className="psd-player-topbar-btn psd-player-topbar-btn--menu"
-          aria-label="More options"
-        >
-          <PsdIconMore />
-        </button>
+        <PlayerModeSwitcher
+          activeMode={activePlayerMode}
+          onSwitchMode={onSwitchPlayerMode}
+          hasPlayback={isActive}
+          align="right"
+        />
       </header>
 
       <div className="psd-player-master-body">
@@ -6968,24 +7295,7 @@ const CinemaPlayerShell = memo(function CinemaPlayerShell({
               <span>{displayArtist}</span>
               <PsdIconVerified className="psd-player-verified" />
             </p>
-            <div className="psd-player-master-actions" role="group" aria-label="Track actions">
-              <button type="button" className="psd-player-master-action" aria-label="Favorite">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="#a855f7" aria-hidden="true">
-                  <path d="M12 20.8l-1.1-1C6.4 15.36 3 12.28 3 8.5 3 6 5 4 7.5 4c1.74 0 3.41 1.01 4.5 2.36C13.09 5.01 14.76 4 16.5 4 19 4 21 6 21 8.5c0 3.78-3.4 6.86-7.9 11.3L12 20.8z" />
-                </svg>
-              </button>
-              <button type="button" className="psd-player-master-action" aria-label="Share">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-                  <circle cx="18" cy="5" r="3" />
-                  <circle cx="6" cy="12" r="3" />
-                  <circle cx="18" cy="19" r="3" />
-                  <path d="M8.59 13.51l6.83 3.98M15.41 6.51l-6.82 3.98" />
-                </svg>
-              </button>
-              <button type="button" className="psd-player-master-action" aria-label="More options">
-                <PsdIconMore />
-              </button>
-            </div>
+
           </div>
         </div>
 
@@ -7010,36 +7320,22 @@ const CinemaPlayerShell = memo(function CinemaPlayerShell({
 
           {playerTab === 'lyrics' ? (
             <div className="psd-player-master-lyrics" role="tabpanel" aria-label="Lyrics">
-              <span className="psd-player-master-quote" aria-hidden="true">“</span>
-              <div className="psd-player-master-lyrics-body">
-                {PSD_PLAYER_LYRICS_LINES.map((line) => (
-                  <p
-                    key={line.text}
-                    className={`psd-player-master-lyric-line psd-player-master-lyric-line--${line.tier}`}
-                  >
-                    {line.text}
-                  </p>
-                ))}
-              </div>
-              <p className="psd-player-master-lyrics-credit">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-                  <path d="M12 20h9M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4L16.5 3.5z" />
-                </svg>
-                Written by {displayArtist}
-              </p>
+              <PlayerLyricsPanel
+                track={displayTrack}
+                positionSeconds={isActive ? positionSeconds : 0}
+                variant="embed"
+              />
             </div>
           ) : null}
 
-          {playerTab === 'queue' ? (
-            <div className="psd-player-master-panel-placeholder" role="tabpanel" aria-label="Queue">
-              <p>Queue</p>
-            </div>
-          ) : null}
+          {playerTab === 'queue' ? <PlayerQueuePanel /> : null}
 
           {playerTab === 'details' ? (
-            <div className="psd-player-master-panel-placeholder" role="tabpanel" aria-label="Details">
-              <p>Details</p>
-            </div>
+            <PlayerDetailsPanel
+              track={displayTrack}
+              albumLabel={displayAlbum}
+              qualityLabel={qualityLabel}
+            />
           ) : null}
         </div>
       </div>
@@ -7062,16 +7358,11 @@ const CinemaPlayerShell = memo(function CinemaPlayerShell({
             />
           </div>
           <span className="psd-player-master-time">{formatPlaybackTime(progressMax)}</span>
-          <div className="psd-player-master-badges" aria-label="Audio quality">
-            <span className="psd-player-master-badge-pill psd-player-master-badge-pill--flac">FLAC</span>
-            <span className="psd-player-master-badge-pill">24-bit</span>
-            <span className="psd-player-master-badge-pill">48kHz</span>
-            <span className="psd-player-master-badge-pill psd-player-master-badge-pill--icon" aria-label="Spatial audio">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-                <path d="M8 9v6M16 9v6M12 5v14" />
-              </svg>
-            </span>
-          </div>
+          {qualityLabel ? (
+            <div className="psd-player-master-badges" aria-label="Audio quality">
+              <span className="psd-player-master-badge-pill">{qualityLabel}</span>
+            </div>
+          ) : null}
         </div>
 
         <FullPlayerTransportControls activeTrackId={activeTrackId} />
@@ -7105,12 +7396,6 @@ const CinemaPlayerShell = memo(function CinemaPlayerShell({
             <button type="button" className="psd-player-master-utility" aria-label="Live waveform" onClick={onOpenWaveform}>
               <PsdIconEqualizer className="psd-player-master-utility-icon" />
             </button>
-            <button type="button" className="psd-player-master-utility" aria-label="Brightness">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-                <circle cx="12" cy="12" r="4" />
-                <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
-              </svg>
-            </button>
             <button
               type="button"
               className="psd-player-master-utility"
@@ -7140,15 +7425,18 @@ const Player2Shell = memo(function Player2Shell({
   onOpenLyrics,
   onOpenWaveform,
   preferredTrack = null,
+  activePlayerMode,
+  onSwitchPlayerMode,
 }: {
   onClose: () => void
   onNavigateNav?: (navKey: NavKey) => void
   onOpenLyrics?: () => void
   onOpenWaveform?: () => void
   preferredTrack?: ApiSong | null
-}) {
+} & PlayerShellModeProps) {
   const {
     currentTrack,
+    currentIndex,
     isPlaying,
     isLoading,
     positionSeconds,
@@ -7157,26 +7445,35 @@ const Player2Shell = memo(function Player2Shell({
     volume,
     setVolume,
     getUpcomingTracks,
+    playQueueAtIndex,
   } = useDesktopPlayback()
 
   const volumeTrackRef = useRef<HTMLDivElement>(null)
   const isAdjustingVolumeRef = useRef(false)
+  const [queueSheetOpen, setQueueSheetOpen] = useState(false)
 
   const displayTrack = currentTrack ?? preferredTrack
   const isActive = Boolean(displayTrack && currentTrack?.id === displayTrack.id)
   const liveProgressMax = isActive && durationSeconds > 0 ? durationSeconds : 0
   const liveProgressValue = liveProgressMax > 0 ? Math.min(positionSeconds, liveProgressMax) : 0
-  const progressMax = liveProgressMax > 0 ? liveProgressMax : PSD_PLAYER_DURATION_SECONDS
-  const progressValue = liveProgressMax > 0 ? liveProgressValue : PSD_PLAYER_POSITION_SECONDS
+  const progressMax = liveProgressMax
+  const progressValue = liveProgressValue
   const progressPercent = progressMax > 0 ? Math.min(100, (progressValue / progressMax) * 100) : 0
   const volumePercent = Math.min(100, Math.max(0, volume * 100))
 
-  const displayArtist = displayTrack?.artist ?? PSD_PLAYER2_ARTIST
-  const displayAlbum = displayTrack?.album ?? PSD_PLAYER2_ALBUM
+  const displayTitle = displayTrack?.title ?? 'Nothing playing'
+  const displayArtist = displayTrack?.artist ?? 'Select a song to begin'
+  const displayAlbum = displayTrack?.album ?? null
   const activeTrackId = displayTrack?.id ?? null
   const upcomingTrack = getUpcomingTracks()[0] ?? null
-  const nextTitle = upcomingTrack?.title ?? PSD_PLAYER2_NEXT_TITLE
-  const nextArtist = upcomingTrack?.artist ?? PSD_PLAYER2_NEXT_ARTIST
+  const nextTitle = upcomingTrack?.title ?? 'Nothing queued next'
+  const nextArtist = upcomingTrack?.artist ?? 'Upcoming tracks will appear here'
+  const nextQueueIndex = upcomingTrack && currentIndex >= 0 ? currentIndex + 1 : null
+
+  const handlePlayNextTrack = useCallback(() => {
+    if (nextQueueIndex == null || !isActive) return
+    playQueueAtIndex(nextQueueIndex)
+  }, [isActive, nextQueueIndex, playQueueAtIndex])
 
   const resolveVolume = useCallback((clientX: number) => {
     const trackEl = volumeTrackRef.current
@@ -7212,23 +7509,7 @@ const Player2Shell = memo(function Player2Shell({
     event.currentTarget.releasePointerCapture(event.pointerId)
   }
 
-  useEffect(() => {
-    const previousOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.body.style.overflow = previousOverflow
-    }
-  }, [])
-
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return
-      event.preventDefault()
-      onClose()
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [onClose])
+  usePlayerShellChrome(onClose)
 
   const handleNav = (navKey: NavKey) => {
     onClose()
@@ -7237,7 +7518,7 @@ const Player2Shell = memo(function Player2Shell({
 
   return (
     <div
-      className="player2-shell"
+      className="player2-shell premium-player-overlay"
       role="dialog"
       aria-modal="true"
       aria-label="Player 2 theater"
@@ -7247,7 +7528,7 @@ const Player2Shell = memo(function Player2Shell({
       <EntityAtmosphereBackdrop
         className="player2-bg"
         artworkUrl={resolvePlayerBackground('player2')}
-        label={displayTrack?.title ?? PSD_PLAYER2_TITLE_TOP}
+        label={displayTitle}
         variant="player"
       />
       <div className="player2-bg-glow" aria-hidden="true" />
@@ -7292,13 +7573,12 @@ const Player2Shell = memo(function Player2Shell({
 
         <main className="player2-main">
           <header className="player2-header">
-            <div className="player2-quality-badges">
-              <span className="player2-quality-flac">FLAC</span>
-              <span className="player2-quality-spec">24-BIT / 48KHZ</span>
-            </div>
-            <button type="button" className="player2-header-menu" aria-label="More options">
-              <PsdIconMore />
-            </button>
+            <PlayerModeSwitcher
+              activeMode={activePlayerMode}
+              onSwitchMode={onSwitchPlayerMode}
+              hasPlayback={isActive}
+              align="right"
+            />
           </header>
 
           <div className="player2-hero">
@@ -7309,15 +7589,11 @@ const Player2Shell = memo(function Player2Shell({
                   src={displayTrack?.artwork ?? null}
                   alt=""
                   seed={displayTrack?.id ?? 'player-2'}
-                  label={displayTrack?.title ?? PSD_PLAYER2_TITLE_TOP}
+                  label={displayTitle}
                   priority
                 />
               </div>
-              <button type="button" className="player2-art-play" aria-label="Play from artwork">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                  <path d="M8 5v14l11-7z" />
-                </svg>
-              </button>
+
             </div>
 
             <div className="player2-track-copy">
@@ -7325,30 +7601,12 @@ const Player2Shell = memo(function Player2Shell({
                 <PsdWaveformStrip className="player2-eyebrow-wave" />
                 NOW PLAYING
               </p>
-              <h1 className="player2-title">
-                <span>{PSD_PLAYER2_TITLE_TOP}</span>
-                <span className="player2-title-mid">{PSD_PLAYER2_TITLE_MID}</span>
-                <span>{PSD_PLAYER2_TITLE_BOTTOM}</span>
-              </h1>
+              <h1 className="player2-title">{displayTitle}</h1>
               <p className="player2-artist">
                 <span>{displayArtist}</span>
                 <PsdIconVerified className="player2-verified" />
               </p>
-              <p className="player2-meta">{displayAlbum} • {PSD_PLAYER2_YEAR}</p>
-              <div className="player2-track-actions">
-                <button type="button" className="player2-heart" aria-label="Favorite">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="#a855f7" aria-hidden="true">
-                    <path d="M12 20.8l-1.1-1C6.4 15.36 3 12.28 3 8.5 3 6 5 4 7.5 4c1.74 0 3.41 1.01 4.5 2.36C13.09 5.01 14.76 4 16.5 4 19 4 21 6 21 8.5c0 3.78-3.4 6.86-7.9 11.3L12 20.8z" />
-                  </svg>
-                </button>
-                <span className="player2-mastered-badge">
-                  <PsdWaveformStrip className="player2-mastered-wave" />
-                  MASTERED
-                </span>
-                <button type="button" className="player2-track-menu" aria-label="More options">
-                  <PsdIconMore />
-                </button>
-              </div>
+              <p className="player2-meta">{displayAlbum ?? "Album"}</p>
             </div>
           </div>
 
@@ -7382,14 +7640,14 @@ const Player2Shell = memo(function Player2Shell({
                 <PsdIconEqualizer />
                 <span>EQUALIZER</span>
               </button>
-              <button type="button" className="player2-tool" aria-label="Soundstage">
+              <button type="button" className="player2-tool player-chrome-unwired" disabled aria-label="Soundstage" title="Not available yet">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
                   <path d="M12 3a9 9 0 100 18 9 9 0 000-18z" />
                   <path d="M12 8v8M8 12h8" />
                 </svg>
                 <span>SOUNDSTAGE</span>
               </button>
-              <button type="button" className="player2-tool" aria-label="Timer">
+              <button type="button" className="player2-tool player-chrome-unwired" disabled aria-label="Timer" title="Not available yet">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
                   <circle cx="12" cy="13" r="8" />
                   <path d="M12 9v4l2 2M9 2h6" />
@@ -7400,17 +7658,17 @@ const Player2Shell = memo(function Player2Shell({
           </div>
 
           <footer className="player2-status-bar">
-            <button type="button" className="player2-device">
+            <div className="player2-device" aria-label="Desktop output">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
                 <path d="M3 18v-6a9 9 0 0118 0v6" />
                 <path d="M21 19a2 2 0 01-2 2h-1a2 2 0 01-2-2v-3a2 2 0 012-2h3zM3 19a2 2 0 002 2h1a2 2 0 002-2v-3a2 2 0 00-2-2H3z" />
               </svg>
               <span className="player2-device-label">Headphones</span>
-              <strong className="player2-device-model">{PSD_PLAYER2_DEVICE}</strong>
+              <strong className="player2-device-model">Desktop Output</strong>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                 <path d="M6 9l6 6 6-6" />
               </svg>
-            </button>
+            </div>
 
             <div className="player2-status-volume">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
@@ -7438,13 +7696,22 @@ const Player2Shell = memo(function Player2Shell({
             </div>
 
             <div className="player2-queue-preview">
-              <button type="button" className="player2-queue-btn">
+              <button
+                type="button"
+                className="player2-queue-btn"
+                onClick={() => setQueueSheetOpen(true)}
+              >
                 PLAY QUEUE
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                   <path d="M18 15l-6-6-6 6" />
                 </svg>
               </button>
-              <div className="player2-next-card">
+              <button
+                type="button"
+                className="player2-next-card"
+                onClick={handlePlayNextTrack}
+                disabled={!upcomingTrack || !isActive}
+              >
                 <span className="player2-next-thumb">
                   <ArtworkImage
                     src={upcomingTrack?.artwork ?? null}
@@ -7457,29 +7724,23 @@ const Player2Shell = memo(function Player2Shell({
                   <strong>{nextTitle}</strong>
                   <span>{nextArtist}</span>
                 </div>
-                <button type="button" className="player2-next-play" aria-label={`Play ${nextTitle}`}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <span className="player2-next-play" aria-hidden="true">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M8 5v14l11-7z" />
                   </svg>
-                </button>
-              </div>
+                </span>
+              </button>
             </div>
           </footer>
         </main>
 
         <aside className="player2-lyrics-panel" aria-label="Lyrics">
           <h2 className="player2-lyrics-heading">LYRICS</h2>
-          <div className="player2-lyrics-active">
-            <span className="player2-lyrics-quote" aria-hidden="true">“</span>
-            {PSD_PLAYER2_LYRICS_ACTIVE.map((line) => (
-              <p key={line}>{line}</p>
-            ))}
-          </div>
-          <div className="player2-lyrics-scroll">
-            {PSD_PLAYER2_LYRICS_BODY.map((line) => (
-              <p key={line}>{line}</p>
-            ))}
-          </div>
+          <PlayerLyricsPanel
+            track={displayTrack}
+            positionSeconds={isActive ? positionSeconds : 0}
+            variant="embed"
+          />
           <button type="button" className="player2-lyrics-more" onClick={onOpenLyrics}>
             SHOW FULL LYRICS
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
@@ -7488,6 +7749,7 @@ const Player2Shell = memo(function Player2Shell({
           </button>
         </aside>
       </div>
+      <PlayerQueueSheet open={queueSheetOpen} onClose={() => setQueueSheetOpen(false)} />
     </div>
   )
 })
@@ -7498,16 +7760,19 @@ const Player3Shell = memo(function Player3Shell({
   onOpenLyrics,
   onOpenWaveform,
   preferredTrack = null,
+  activePlayerMode,
+  onSwitchPlayerMode,
 }: {
   onClose: () => void
   onNavigateNav?: (navKey: NavKey) => void
   onOpenLyrics?: () => void
   onOpenWaveform?: () => void
   preferredTrack?: ApiSong | null
-}) {
+} & PlayerShellModeProps) {
   const {
     currentTrack,
     currentQueue,
+    currentIndex,
     isPlaying,
     isLoading,
     positionSeconds,
@@ -7516,35 +7781,49 @@ const Player3Shell = memo(function Player3Shell({
     volume,
     setVolume,
     getUpcomingTracks,
+    playQueueAtIndex,
+    clearUpcomingQueue,
+    audioQualityMode,
   } = useDesktopPlayback()
 
   const volumeTrackRef = useRef<HTMLDivElement>(null)
   const isAdjustingVolumeRef = useRef(false)
   const [playerTab, setPlayerTab] = useState<'lyrics' | 'visualizer' | 'details'>('lyrics')
+  const [queueSheetOpen, setQueueSheetOpen] = useState(false)
 
   const displayTrack = currentTrack ?? preferredTrack
   const isActive = Boolean(displayTrack && currentTrack?.id === displayTrack.id)
   const liveProgressMax = isActive && durationSeconds > 0 ? durationSeconds : 0
   const liveProgressValue = liveProgressMax > 0 ? Math.min(positionSeconds, liveProgressMax) : 0
-  const progressMax = liveProgressMax > 0 ? liveProgressMax : PSD_PLAYER_DURATION_SECONDS
-  const progressValue = liveProgressMax > 0 ? liveProgressValue : PSD_PLAYER_POSITION_SECONDS
+  const progressMax = liveProgressMax
+  const progressValue = liveProgressValue
   const progressPercent = progressMax > 0 ? Math.min(100, (progressValue / progressMax) * 100) : 0
   const volumePercent = Math.min(100, Math.max(0, volume * 100))
 
-  const displayArtist = displayTrack?.artist ?? PSD_PLAYER3_ARTIST
+  const displayTitle = displayTrack?.title ?? 'Nothing playing'
+  const displayArtist = displayTrack?.artist ?? 'Select a song to begin'
+  const displayAlbum = displayTrack?.album ?? null
   const activeTrackId = displayTrack?.id ?? null
+  const qualityLabel = displayTrack && isActive
+    ? (
+      resolveSearchRowQualityBadge(displayTrack) !== 'SONG'
+        ? resolveSearchRowQualityBadge(displayTrack)
+        : AUDIO_QUALITY_MODE_LABELS[audioQualityMode]
+    )
+    : null
   const upcomingTracks = getUpcomingTracks()
 
-  const upNextRows = useMemo(() => {
-    if (upcomingTracks.length === 0) return PSD_PLAYER3_UP_NEXT
-    return upcomingTracks.slice(0, 5).map((track, index) => ({
-      key: track.id,
-      title: track.title,
-      artist: track.artist,
-      active: index === 0,
-      artwork: track.artwork,
-    }))
-  }, [upcomingTracks])
+  const upNextRows = useMemo(
+    () => buildPlayerUpNextRows(upcomingTracks, currentIndex),
+    [currentIndex, upcomingTracks],
+  )
+
+  const handleUpNextRowClick = useCallback(
+    (queueIndex: number) => {
+      playQueueAtIndex(queueIndex)
+    },
+    [playQueueAtIndex],
+  )
 
   const resolveVolume = useCallback((clientX: number) => {
     const trackEl = volumeTrackRef.current
@@ -7580,34 +7859,21 @@ const Player3Shell = memo(function Player3Shell({
     event.currentTarget.releasePointerCapture(event.pointerId)
   }
 
-  useEffect(() => {
-    const previousOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.body.style.overflow = previousOverflow
-    }
-  }, [])
-
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return
-      event.preventDefault()
-      onClose()
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [onClose])
+  usePlayerShellChrome(onClose)
 
   const handleNav = (navKey: NavKey) => {
     onClose()
     onNavigateNav?.(navKey)
   }
 
-  const queueCount = currentQueue.length > 0 ? String(currentQueue.length) : PSD_PLAYER3_STATS.songs
+  const queueCount = currentQueue.length > 0 ? String(currentQueue.length) : '0'
+  const queueFromCurrent = currentIndex >= 0 ? currentQueue.slice(currentIndex) : []
+  const queueDurationLabel = formatQueueDurationLabel(queueFromCurrent)
+  const canClearUpNext = upNextRows.length > 0
 
   return (
     <div
-      className="player3-shell"
+      className="player3-shell premium-player-overlay"
       role="dialog"
       aria-modal="true"
       aria-label="Player 3 VIP theater"
@@ -7617,7 +7883,7 @@ const Player3Shell = memo(function Player3Shell({
       <EntityAtmosphereBackdrop
         className="player3-bg"
         artworkUrl={resolvePlayerBackground('player3')}
-        label={displayTrack?.title ?? PSD_PLAYER3_TITLE_MAIN}
+        label={displayTitle}
         variant="player"
       />
       <div className="player3-bg-shimmer" aria-hidden="true" />
@@ -7671,16 +7937,21 @@ const Player3Shell = memo(function Player3Shell({
           <header className="player3-header">
             <div className="player3-header-source">
               <span>PLAYING FROM</span>
-              <button type="button" className="player3-source-btn">
-                {PSD_PLAYER3_SOURCE}
+              <button type="button" className="player3-source-btn player-chrome-unwired" disabled title="Not available yet">
+{displayAlbum ?? "Your Library"}
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                   <path d="M6 9l6 6 6-6" />
                 </svg>
               </button>
             </div>
             <div className="player3-header-badges">
-              <span className="player3-flac">FLAC</span>
-              <span className="player3-spec">24-BIT / 48KHZ</span>
+              <PlayerModeSwitcher
+                activeMode={activePlayerMode}
+                onSwitchMode={onSwitchPlayerMode}
+                hasPlayback={isActive}
+                align="right"
+              />
+              {qualityLabel ? <span className="player3-flac">{qualityLabel}</span> : null}
               <button type="button" className="player3-header-eq" aria-label="Equalizer" onClick={onOpenWaveform}>
                 <PsdIconEqualizer />
               </button>
@@ -7696,11 +7967,11 @@ const Player3Shell = memo(function Player3Shell({
                   src={displayTrack?.artwork ?? null}
                   alt=""
                   seed={displayTrack?.id ?? 'player-3'}
-                  label={displayTrack?.title ?? PSD_PLAYER3_TITLE_MAIN}
+                  label={displayTitle}
                   priority
                 />
                 <span className="player3-disc-vip">VIP</span>
-                <span className="player3-disc-time">{PSD_PLAYER3_DISC_TIME}</span>
+                <span className="player3-disc-time">{formatPlaybackTime(progressValue)}</span>
               </div>
             </div>
 
@@ -7726,11 +7997,11 @@ const Player3Shell = memo(function Player3Shell({
               {playerTab === 'lyrics' ? (
                 <div className="player3-lyrics" role="tabpanel" aria-label="Lyrics">
                   <span className="player3-lyrics-quote" aria-hidden="true">“</span>
-                  <div className="player3-lyrics-body">
-                    {PSD_PLAYER3_LYRICS.map((line, index) => (
-                      <p key={line} className={index < 3 ? 'is-active' : ''}>{line}</p>
-                    ))}
-                  </div>
+                  <PlayerLyricsPanel
+                    track={displayTrack}
+                    positionSeconds={isActive ? positionSeconds : 0}
+                    variant="embed"
+                  />
                   <button type="button" className="player3-lyrics-more" onClick={onOpenLyrics}>
                     SHOW FULL LYRICS
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
@@ -7757,7 +8028,7 @@ const Player3Shell = memo(function Player3Shell({
               {playerTab === 'details' ? (
                 <div className="player3-details-panel" role="tabpanel" aria-label="Details">
                   <p>{displayArtist}</p>
-                  <p>{PSD_PLAYER3_SOURCE} • {PSD_PLAYER3_STATS.duration}</p>
+                  <p>{displayAlbum ?? "Your Library"}</p>
                 </div>
               ) : null}
             </div>
@@ -7765,24 +8036,13 @@ const Player3Shell = memo(function Player3Shell({
 
           <div className="player3-track-meta">
             <div className="player3-title-block">
-              <span className="player3-title-script">{PSD_PLAYER3_TITLE_SCRIPT}</span>
-              <h1 className="player3-title-main">{PSD_PLAYER3_TITLE_MAIN}</h1>
+              <h1 className="player3-title-main">{displayTitle}</h1>
             </div>
             <p className="player3-artist">
               <span>{displayArtist}</span>
               <PsdIconVerified className="player3-verified" />
             </p>
-            <div className="player3-track-actions">
-              <button type="button" className="player3-action" aria-label="Favorite">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-                  <path d="M12 20.8l-1.1-1C6.4 15.36 3 12.28 3 8.5 3 6 5 4 7.5 4c1.74 0 3.41 1.01 4.5 2.36C13.09 5.01 14.76 4 16.5 4 19 4 21 6 21 8.5c0 3.78-3.4 6.86-7.9 11.3L12 20.8z" />
-                </svg>
-              </button>
-              <span className="player3-vip-master">VIP MASTER</span>
-              <button type="button" className="player3-action" aria-label="More options">
-                <PsdIconMore />
-              </button>
-            </div>
+
           </div>
 
           <div className="player3-waveform-block">
@@ -7842,14 +8102,14 @@ const Player3Shell = memo(function Player3Shell({
                 <PsdIconEqualizer />
                 <span>EQUALIZER</span>
               </button>
-              <button type="button" className="player3-footer-tool">
+              <button type="button" className="player3-footer-tool player-chrome-unwired" disabled title="Not available yet">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
                   <circle cx="12" cy="12" r="8" />
                   <path d="M12 8v8M8 12h8" />
                 </svg>
                 <span>ATMOS</span>
               </button>
-              <button type="button" className="player3-footer-tool">
+              <button type="button" className="player3-footer-tool player-chrome-unwired" disabled title="Not available yet">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
                   <path d="M4 14h16M7 10h10M10 6h4" />
                 </svg>
@@ -7858,12 +8118,17 @@ const Player3Shell = memo(function Player3Shell({
             </div>
 
             <div className="player3-footer-utils">
-              <button type="button" className="player3-footer-util" aria-label="Queue">
+              <button
+                type="button"
+                className="player3-footer-util"
+                aria-label="Queue"
+                onClick={() => setQueueSheetOpen(true)}
+              >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
                   <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
                 </svg>
               </button>
-              <button type="button" className="player3-footer-util" aria-label="Brightness">
+              <button type="button" className="player3-footer-util player-chrome-unwired" disabled aria-label="Brightness" title="Not available yet">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
                   <circle cx="12" cy="12" r="4" />
                   <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2" />
@@ -7882,31 +8147,47 @@ const Player3Shell = memo(function Player3Shell({
           <div className="player3-upnext-header">
             <PsdWaveformStrip className="player3-upnext-wave" />
             <h2>UP NEXT</h2>
+            {canClearUpNext ? (
+              <PlayerUpNextClearButton onClick={clearUpcomingQueue} />
+            ) : null}
           </div>
           <ol className="player3-upnext-list">
-            {upNextRows.map((row) => (
-              <li key={row.key} className={`player3-upnext-item${row.active ? ' is-active' : ''}`}>
-                <span className="player3-upnext-thumb">
-                  <ArtworkImage
-                    src={'artwork' in row && row.artwork ? row.artwork : null}
-                    alt=""
-                    seed={row.key}
-                    label={row.title}
-                  />
-                </span>
-                <div className="player3-upnext-copy">
-                  <strong>{row.title}</strong>
-                  <span>{row.artist}</span>
-                </div>
-                {row.active ? (
-                  <PsdIconEqualizer className="player3-upnext-eq" />
-                ) : (
-                  <button type="button" className="player3-upnext-menu" aria-label={`More options for ${row.title}`}>
-                    <PsdIconMore />
-                  </button>
-                )}
+            {upNextRows.length === 0 ? (
+              <li className="player3-upnext-empty-item">
+                <PlayerUpNextEmptyState />
               </li>
-            ))}
+            ) : (
+              upNextRows.map((row) => (
+                <li
+                  key={row.key}
+                  className={`player3-upnext-item${row.isNext ? ' is-active' : ''}`}
+                >
+                  <button
+                    type="button"
+                    className="player-upnext-row-button player-upnext-row-button--player3"
+                    onClick={() => handleUpNextRowClick(row.queueIndex)}
+                  >
+                    <span className="player3-upnext-thumb">
+                      <ArtworkImage
+                        src={row.artwork}
+                        alt=""
+                        seed={row.track.id}
+                        label={row.title}
+                      />
+                    </span>
+                    <div className="player3-upnext-copy">
+                      <strong>{row.title}</strong>
+                      <span>{row.artist}</span>
+                    </div>
+                    {row.isNext ? (
+                      <PsdIconEqualizer className="player3-upnext-eq" />
+                    ) : (
+                      <span className="player3-upnext-duration">{row.duration}</span>
+                    )}
+                  </button>
+                </li>
+              ))
+            )}
           </ol>
 
           <section className="player3-stats" aria-label="Playlist stats">
@@ -7922,17 +8203,18 @@ const Player3Shell = memo(function Player3Shell({
                 <span>SONGS</span>
               </div>
               <div>
-                <strong>{PSD_PLAYER3_STATS.duration}</strong>
+                <strong>{queueDurationLabel}</strong>
                 <span>DURATION</span>
               </div>
               <div>
-                <strong>{PSD_PLAYER3_STATS.plays}</strong>
+                <strong>—</strong>
                 <span>PLAYS</span>
               </div>
             </div>
           </section>
         </aside>
       </div>
+      <PlayerQueueSheet open={queueSheetOpen} onClose={() => setQueueSheetOpen(false)} />
     </div>
   )
 })
@@ -7943,15 +8225,18 @@ const Player4Shell = memo(function Player4Shell({
   onOpenLyrics,
   onOpenWaveform,
   preferredTrack = null,
+  activePlayerMode,
+  onSwitchPlayerMode,
 }: {
   onClose: () => void
   onNavigateNav?: (navKey: NavKey) => void
   onOpenLyrics?: () => void
   onOpenWaveform?: () => void
   preferredTrack?: ApiSong | null
-}) {
+} & PlayerShellModeProps) {
   const {
     currentTrack,
+    currentIndex,
     isPlaying,
     isLoading,
     positionSeconds,
@@ -7962,41 +8247,52 @@ const Player4Shell = memo(function Player4Shell({
     pause,
     resume,
     getUpcomingTracks,
+    playQueueAtIndex,
+    clearUpcomingQueue,
+    audioQualityMode,
   } = useDesktopPlayback()
 
   const volumeTrackRef = useRef<HTMLDivElement>(null)
   const isAdjustingVolumeRef = useRef(false)
+  const [queueSheetOpen, setQueueSheetOpen] = useState(false)
 
   const displayTrack = currentTrack ?? preferredTrack
   const isActive = Boolean(displayTrack && currentTrack?.id === displayTrack.id)
   const liveProgressMax = isActive && durationSeconds > 0 ? durationSeconds : 0
   const liveProgressValue = liveProgressMax > 0 ? Math.min(positionSeconds, liveProgressMax) : 0
-  const progressMax = liveProgressMax > 0 ? liveProgressMax : PSD_PLAYER4_DURATION_SECONDS
-  const progressValue = liveProgressMax > 0 ? liveProgressValue : PSD_PLAYER4_POSITION_SECONDS
+  const progressMax = liveProgressMax
+  const progressValue = liveProgressValue
   const progressPercent = progressMax > 0 ? Math.min(100, (progressValue / progressMax) * 100) : 0
   const volumePercent = Math.min(100, Math.max(0, volume * 100))
 
-  const displayTitle = displayTrack?.title ?? PSD_PLAYER4_TITLE
-  const displayArtist = displayTrack?.artist ?? PSD_PLAYER4_ARTIST
-  const displayAlbum = displayTrack?.album ?? PSD_PLAYER4_SOURCE
+  const displayTitle = displayTrack?.title ?? 'Nothing playing'
+  const displayArtist = displayTrack?.artist ?? 'Select a song to begin'
+  const displayAlbum = displayTrack?.album ?? null
   const activeTrackId = displayTrack?.id ?? null
+  const qualityLabel = displayTrack && isActive
+    ? (
+      resolveSearchRowQualityBadge(displayTrack) !== 'SONG'
+        ? resolveSearchRowQualityBadge(displayTrack)
+        : AUDIO_QUALITY_MODE_LABELS[audioQualityMode]
+    )
+    : null
   const showPlaying = isActive && isPlaying
   const showLoading = isActive && isLoading
   const upcomingTracks = getUpcomingTracks()
 
-  const upNextRows = useMemo(() => {
-    if (upcomingTracks.length === 0) return PSD_PLAYER4_UP_NEXT
-    return upcomingTracks.slice(0, 5).map((track, index) => ({
-      key: track.id,
-      title: track.title,
-      artist: track.artist,
-      duration: track.durationSeconds != null && track.durationSeconds > 0
-        ? formatPlaybackTime(track.durationSeconds)
-        : PSD_PLAYER4_UP_NEXT[index]?.duration ?? '3:56',
-      active: index === 0,
-      artwork: track.artwork,
-    }))
-  }, [upcomingTracks])
+  const upNextRows = useMemo(
+    () => buildPlayerUpNextRows(upcomingTracks, currentIndex),
+    [currentIndex, upcomingTracks],
+  )
+
+  const handleUpNextRowClick = useCallback(
+    (queueIndex: number) => {
+      playQueueAtIndex(queueIndex)
+    },
+    [playQueueAtIndex],
+  )
+
+  const canClearUpNext = upNextRows.length > 0
 
   const resolveVolume = useCallback((clientX: number) => {
     const trackEl = volumeTrackRef.current
@@ -8041,23 +8337,7 @@ const Player4Shell = memo(function Player4Shell({
     resume()
   }
 
-  useEffect(() => {
-    const previousOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.body.style.overflow = previousOverflow
-    }
-  }, [])
-
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return
-      event.preventDefault()
-      onClose()
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [onClose])
+  usePlayerShellChrome(onClose)
 
   const handleNav = (navKey: NavKey) => {
     onClose()
@@ -8074,7 +8354,7 @@ const Player4Shell = memo(function Player4Shell({
 
   return (
     <div
-      className="player4-shell"
+      className="player4-shell premium-player-overlay"
       role="dialog"
       aria-modal="true"
       aria-label="Player 4 VIP theater"
@@ -8138,7 +8418,7 @@ const Player4Shell = memo(function Player4Shell({
               <strong>{displayArtist}</strong>
               <span className="player4-profile-badge">Premium Member VIP</span>
             </div>
-            <button type="button" className="player4-go-premium">Go Premium</button>
+
           </div>
         </aside>
 
@@ -8147,20 +8427,24 @@ const Player4Shell = memo(function Player4Shell({
             <header className="player4-header">
               <div className="player4-header-source">
                 <span>PLAYING FROM</span>
-                <button type="button" className="player4-source-btn">
-                  {PSD_PLAYER4_SOURCE}
+                <button type="button" className="player4-source-btn player-chrome-unwired" disabled title="Not available yet">
+                  {displayAlbum ?? "Your Library"}
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                     <path d="M6 9l6 6 6-6" />
                   </svg>
                 </button>
               </div>
-              <div className="player4-header-badges">
-                <span>FLAC</span>
-                <span className="player4-header-divider" aria-hidden="true">|</span>
-                <span>24-BIT</span>
-                <span className="player4-header-divider" aria-hidden="true">|</span>
-                <span>96kHz</span>
-              </div>
+              {qualityLabel ? (
+                <div className="player4-header-badges">
+                  <span>{qualityLabel}</span>
+                </div>
+              ) : null}
+              <PlayerModeSwitcher
+                activeMode={activePlayerMode}
+                onSwitchMode={onSwitchPlayerMode}
+                hasPlayback={isActive}
+                align="right"
+              />
             </header>
 
             <div className="player4-hero">
@@ -8174,11 +8458,7 @@ const Player4Shell = memo(function Player4Shell({
                     label={displayTitle}
                     priority
                   />
-                  <button type="button" className="player4-art-heart" aria-label="Favorite">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                      <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41 1.01 4.5 2.09C13.09 4.01 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
-                    </svg>
-                  </button>
+
                   <span className="player4-art-mastered">
                     <PsdWaveformStrip className="player4-mastered-wave" />
                     MASTERED
@@ -8198,7 +8478,7 @@ const Player4Shell = memo(function Player4Shell({
                   <span>{displayArtist}</span>
                   <PsdIconVerified className="player4-verified" />
                 </p>
-                <p className="player4-meta">{displayAlbum} • {PSD_PLAYER4_YEAR}</p>
+                <p className="player4-meta">{displayAlbum ?? "Album"}</p>
                 <div className="player4-track-actions">
                   <button
                     type="button"
@@ -8221,15 +8501,7 @@ const Player4Shell = memo(function Player4Shell({
                     )}
                     <span>{showPlaying ? 'Pause' : 'Play'}</span>
                   </button>
-                  <button type="button" className="player4-shuffle-btn" aria-label="Shuffle">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-                      <path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5" />
-                    </svg>
-                    <span>Shuffle</span>
-                  </button>
-                  <button type="button" className="player4-more-btn" aria-label="More options">
-                    <PsdIconMore />
-                  </button>
+
                 </div>
               </div>
             </div>
@@ -8259,21 +8531,23 @@ const Player4Shell = memo(function Player4Shell({
 
             <section className="player4-lyrics-card" aria-label="Lyrics preview">
               <div className="player4-lyrics-leaks" aria-hidden="true" />
-              <button type="button" className="player4-lyrics-tab is-active" aria-label="Lyrics">
+              <span className="player4-lyrics-tab is-active" aria-current="true">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
                   <path d="M4 19.5A2.5 2.5 0 016.5 17H20" />
                   <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" />
                 </svg>
                 <span>LYRICS</span>
-              </button>
+              </span>
               <button type="button" className="player4-lyrics-tab" aria-label="Visualizer" onClick={onOpenWaveform}>
                 <PsdIconEqualizer />
                 <span>VISUALIZER</span>
               </button>
               <div className="player4-lyrics-body">
-                {PSD_PLAYER4_LYRICS.map((line) => (
-                  <p key={line}>{line}</p>
-                ))}
+                <PlayerLyricsPanel
+                  track={displayTrack}
+                  positionSeconds={isActive ? positionSeconds : 0}
+                  variant="embed"
+                />
               </div>
               <button type="button" className="player4-lyrics-more" onClick={onOpenLyrics}>
                 SHOW FULL LYRICS
@@ -8316,7 +8590,12 @@ const Player4Shell = memo(function Player4Shell({
               <button type="button" className="player4-dock-util" aria-label="Equalizer" onClick={onOpenWaveform}>
                 <PsdIconEqualizer />
               </button>
-              <button type="button" className="player4-dock-util" aria-label="Queue">
+              <button
+                type="button"
+                className="player4-dock-util"
+                aria-label="Queue"
+                onClick={() => setQueueSheetOpen(true)}
+              >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
                   <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
                 </svg>
@@ -8324,12 +8603,6 @@ const Player4Shell = memo(function Player4Shell({
               <button type="button" className="player4-dock-util" aria-label="Theater mode" onClick={onClose}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
                   <rect x="3" y="5" width="18" height="14" rx="2" />
-                </svg>
-              </button>
-              <button type="button" className="player4-dock-util" aria-label="Settings">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-                  <circle cx="12" cy="12" r="3" />
-                  <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
                 </svg>
               </button>
             </div>
@@ -8340,50 +8613,53 @@ const Player4Shell = memo(function Player4Shell({
           <div className="player4-upnext-header">
             <PsdWaveformStrip className="player4-upnext-wave" />
             <h2>UP NEXT</h2>
+            {canClearUpNext ? (
+              <PlayerUpNextClearButton onClick={clearUpcomingQueue} />
+            ) : null}
           </div>
           <ol className="player4-upnext-list">
-            {upNextRows.map((row) => (
-              <li key={row.key} className={`player4-upnext-item${row.active ? ' is-active' : ''}`}>
-                <span className="player4-upnext-thumb" aria-hidden="true">
-                  <ArtworkImage
-                    src={'artwork' in row && row.artwork ? row.artwork : null}
-                    alt=""
-                    seed={row.key}
-                    label={row.title}
-                  />
-                </span>
-                <div className="player4-upnext-copy">
-                  <strong>{row.title}</strong>
-                  <span>{row.artist}</span>
-                </div>
-                {'duration' in row ? (
-                  row.active ? (
-                    <PsdIconEqualizer className="player4-upnext-eq" />
-                  ) : (
-                    <span className="player4-upnext-duration">{row.duration}</span>
-                  )
-                ) : null}
+            {upNextRows.length === 0 ? (
+              <li className="player4-upnext-empty-item">
+                <PlayerUpNextEmptyState />
               </li>
-            ))}
+            ) : (
+              upNextRows.map((row) => (
+                <li
+                  key={row.key}
+                  className={`player4-upnext-item${row.isNext ? ' is-active' : ''}`}
+                >
+                  <button
+                    type="button"
+                    className="player-upnext-row-button player-upnext-row-button--player4"
+                    onClick={() => handleUpNextRowClick(row.queueIndex)}
+                  >
+                    <span className="player4-upnext-thumb" aria-hidden="true">
+                      <ArtworkImage
+                        src={row.artwork}
+                        alt=""
+                        seed={row.track.id}
+                        label={row.title}
+                      />
+                    </span>
+                    <div className="player4-upnext-copy">
+                      <strong>{row.title}</strong>
+                      <span>{row.artist}</span>
+                    </div>
+                    {row.isNext ? (
+                      <PsdIconEqualizer className="player4-upnext-eq" />
+                    ) : (
+                      <span className="player4-upnext-duration">{row.duration}</span>
+                    )}
+                  </button>
+                </li>
+              ))
+            )}
           </ol>
 
-          <section className="player4-sound" aria-label="Sound experience">
-            <div className="player4-sound-header">
-              <PsdWaveformStrip className="player4-sound-wave" />
-              <h3>SOUND EXPERIENCE</h3>
-            </div>
-            <div className="player4-sound-toggles">
-              {PSD_PLAYER4_SOUND_MODES.map((mode) => (
-                <button key={mode.key} type="button" className="player4-sound-toggle is-on">
-                  <span className="player4-sound-toggle-icon" aria-hidden="true" />
-                  <span>{mode.label}</span>
-                  <span className="player4-sound-toggle-state">ON</span>
-                </button>
-              ))}
-            </div>
-          </section>
+
         </aside>
       </div>
+      <PlayerQueueSheet open={queueSheetOpen} onClose={() => setQueueSheetOpen(false)} />
     </div>
   )
 })
@@ -8394,16 +8670,19 @@ const Player5Shell = memo(function Player5Shell({
   onOpenLyrics,
   onOpenWaveform,
   preferredTrack = null,
+  activePlayerMode,
+  onSwitchPlayerMode,
 }: {
   onClose: () => void
   onNavigateNav?: (navKey: NavKey) => void
   onOpenLyrics?: () => void
   onOpenWaveform?: () => void
   preferredTrack?: ApiSong | null
-}) {
+} & PlayerShellModeProps) {
   const {
     currentTrack,
     currentQueue,
+    currentIndex,
     isPlaying,
     isLoading,
     positionSeconds,
@@ -8414,43 +8693,56 @@ const Player5Shell = memo(function Player5Shell({
     pause,
     resume,
     getUpcomingTracks,
+    playQueueAtIndex,
+    clearUpcomingQueue,
+    audioQualityMode,
   } = useDesktopPlayback()
 
   const volumeTrackRef = useRef<HTMLDivElement>(null)
   const isAdjustingVolumeRef = useRef(false)
+  const [queueSheetOpen, setQueueSheetOpen] = useState(false)
 
   const displayTrack = currentTrack ?? preferredTrack
   const isActive = Boolean(displayTrack && currentTrack?.id === displayTrack.id)
   const liveProgressMax = isActive && durationSeconds > 0 ? durationSeconds : 0
   const liveProgressValue = liveProgressMax > 0 ? Math.min(positionSeconds, liveProgressMax) : 0
-  const progressMax = liveProgressMax > 0 ? liveProgressMax : PSD_PLAYER5_DURATION_SECONDS
-  const progressValue = liveProgressMax > 0 ? liveProgressValue : PSD_PLAYER5_POSITION_SECONDS
+  const progressMax = liveProgressMax
+  const progressValue = liveProgressValue
   const progressPercent = progressMax > 0 ? Math.min(100, (progressValue / progressMax) * 100) : 0
   const volumePercent = Math.min(100, Math.max(0, volume * 100))
-  const displayVolumePercent = volumePercent > 0 ? Math.round(volumePercent) : PSD_PLAYER5_VOLUME_PERCENT
+  const displayVolumePercent = Math.round(volumePercent)
 
-  const displayTitle = displayTrack?.title ?? PSD_PLAYER5_TITLE
-  const displayArtist = displayTrack?.artist ?? PSD_PLAYER5_ARTIST
-  const displayAlbum = displayTrack?.album ?? PSD_PLAYER5_SOURCE
+  const displayTitle = displayTrack?.title ?? 'Nothing playing'
+  const displayArtist = displayTrack?.artist ?? 'Select a song to begin'
+  const displayAlbum = displayTrack?.album ?? null
   const activeTrackId = displayTrack?.id ?? null
+  const qualityLabel = displayTrack && isActive
+    ? (
+      resolveSearchRowQualityBadge(displayTrack) !== 'SONG'
+        ? resolveSearchRowQualityBadge(displayTrack)
+        : AUDIO_QUALITY_MODE_LABELS[audioQualityMode]
+    )
+    : null
   const showPlaying = isActive && isPlaying
   const showLoading = isActive && isLoading
   const upcomingTracks = getUpcomingTracks()
-  const queueCount = currentQueue.length > 0 ? String(currentQueue.length) : PSD_PLAYER5_STATS.songs
+  const queueCount = currentQueue.length > 0 ? String(currentQueue.length) : '0'
+  const queueFromCurrent = currentIndex >= 0 ? currentQueue.slice(currentIndex) : []
+  const queueDurationLabel = formatQueueDurationLabel(queueFromCurrent)
 
-  const upNextRows = useMemo(() => {
-    if (upcomingTracks.length === 0) return PSD_PLAYER5_UP_NEXT
-    return upcomingTracks.slice(0, 5).map((track, index) => ({
-      key: track.id,
-      title: track.title,
-      artist: track.artist,
-      duration: track.durationSeconds != null && track.durationSeconds > 0
-        ? formatPlaybackTime(track.durationSeconds)
-        : PSD_PLAYER5_UP_NEXT[index]?.duration ?? '3:56',
-      active: index === 0,
-      artwork: track.artwork,
-    }))
-  }, [upcomingTracks])
+  const upNextRows = useMemo(
+    () => buildPlayerUpNextRows(upcomingTracks, currentIndex),
+    [currentIndex, upcomingTracks],
+  )
+
+  const handleUpNextRowClick = useCallback(
+    (queueIndex: number) => {
+      playQueueAtIndex(queueIndex)
+    },
+    [playQueueAtIndex],
+  )
+
+  const canClearUpNext = upNextRows.length > 0
 
   const resolveVolume = useCallback((clientX: number) => {
     const trackEl = volumeTrackRef.current
@@ -8495,23 +8787,7 @@ const Player5Shell = memo(function Player5Shell({
     resume()
   }
 
-  useEffect(() => {
-    const previousOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.body.style.overflow = previousOverflow
-    }
-  }, [])
-
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return
-      event.preventDefault()
-      onClose()
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [onClose])
+  usePlayerShellChrome(onClose)
 
   const handleNav = (navKey: NavKey) => {
     onClose()
@@ -8528,7 +8804,7 @@ const Player5Shell = memo(function Player5Shell({
 
   return (
     <div
-      className="player5-shell"
+      className="player5-shell premium-player-overlay"
       role="dialog"
       aria-modal="true"
       aria-label="Player 5 VIP theater"
@@ -8594,17 +8870,26 @@ const Player5Shell = memo(function Player5Shell({
                 Premium Member
               </span>
             </div>
-            <button type="button" className="player5-go-premium">Go Premium</button>
+            <button
+              type="button"
+              className="player5-go-premium"
+              onClick={() => {
+                onClose()
+                onNavigateNav?.('premium')
+              }}
+            >
+              Go Premium
+            </button>
           </div>
 
           <div className="player5-sidebar-utils">
-            <button type="button" className="player5-sidebar-util" aria-label="Settings">
+            <button type="button" className="player5-sidebar-util player-chrome-unwired" disabled aria-label="Settings" title="Not available yet">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
                 <circle cx="12" cy="12" r="3" />
                 <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
               </svg>
             </button>
-            <button type="button" className="player5-sidebar-util" aria-label="Notifications">
+            <button type="button" className="player5-sidebar-util player-chrome-unwired" disabled aria-label="Notifications" title="Not available yet">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
                 <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" />
               </svg>
@@ -8620,18 +8905,25 @@ const Player5Shell = memo(function Player5Shell({
                   <path d="M6 9l6 6 6-6" />
                 </svg>
                 <span>PLAYING FROM</span>
-                <button type="button" className="player5-source-btn">
-                  {PSD_PLAYER5_SOURCE}
+                <button type="button" className="player5-source-btn player-chrome-unwired" disabled title="Not available yet">
+                  {displayAlbum ?? "Your Library"}
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                     <path d="M6 9l6 6 6-6" />
                   </svg>
                 </button>
               </div>
-              <div className="player5-quality-pill">
-                <span className="player5-quality-flac">FLAC</span>
-                <span>24-BIT / 96kHz</span>
-                <PsdWaveformStrip className="player5-quality-wave" />
-              </div>
+              {qualityLabel ? (
+                <div className="player5-quality-pill">
+                  <span className="player5-quality-flac">{qualityLabel}</span>
+                  <PsdWaveformStrip className="player5-quality-wave" />
+                </div>
+              ) : null}
+              <PlayerModeSwitcher
+                activeMode={activePlayerMode}
+                onSwitchMode={onSwitchPlayerMode}
+                hasPlayback={isActive}
+                align="right"
+              />
             </header>
 
             <div className="player5-hero">
@@ -8678,26 +8970,18 @@ const Player5Shell = memo(function Player5Shell({
                   <span>{displayArtist}</span>
                   <PsdIconVerified className="player5-verified" />
                 </p>
-                <p className="player5-meta">{displayAlbum} • {PSD_PLAYER5_YEAR}</p>
-                <div className="player5-track-actions">
-                  <button type="button" className="player5-heart-btn is-active" aria-label="Favorite">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                      <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41 1.01 4.5 2.09C13.09 4.01 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
-                    </svg>
-                  </button>
-                  <button type="button" className="player5-library-btn">+ Add to Library</button>
-                  <button type="button" className="player5-more-btn" aria-label="More options">
-                    <PsdIconMore />
-                  </button>
-                </div>
+                <p className="player5-meta">{displayAlbum ?? "Album"}</p>
+
               </div>
 
               <div className="player5-lyrics-col">
                 <span className="player5-lyrics-quote" aria-hidden="true">“</span>
                 <div className="player5-lyrics-body">
-                  {PSD_PLAYER5_LYRICS.map((line, index) => (
-                    <p key={line} className={index < 3 ? 'is-active' : ''}>{line}</p>
-                  ))}
+                  <PlayerLyricsPanel
+                    track={displayTrack}
+                    positionSeconds={isActive ? positionSeconds : 0}
+                    variant="embed"
+                  />
                 </div>
                 <button type="button" className="player5-lyrics-more" onClick={onOpenLyrics}>
                   SHOW FULL LYRICS
@@ -8767,33 +9051,38 @@ const Player5Shell = memo(function Player5Shell({
                 <PsdIconEqualizer />
                 <span>EQUALIZER</span>
               </button>
-              <button type="button" className="player5-dock-tool">
+              <button type="button" className="player5-dock-tool player-chrome-unwired" disabled title="Not available yet">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
                   <circle cx="12" cy="12" r="8" />
                   <circle cx="12" cy="12" r="3" />
                 </svg>
                 <span>ATMOS</span>
               </button>
-              <div className="player5-dock-crossfade">
+              <div className="player5-dock-crossfade player-chrome-unwired" aria-hidden="true">
                 <span>CROSSFADE</span>
-                <button type="button" className="player5-crossfade-toggle is-on" aria-label="Crossfade on">
+                <span className="player5-crossfade-toggle is-on">
                   <span className="player5-crossfade-knob" />
-                </button>
+                </span>
               </div>
             </div>
 
             <div className="player5-dock-utils">
-              <button type="button" className="player5-dock-util" aria-label="Favorite">
+              <button type="button" className="player5-dock-util player-chrome-unwired" disabled aria-label="Favorite" title="Not available yet">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
                   <path d="M12 20.8l-1.1-1C6.4 15.36 3 12.28 3 8.5 3 6 5 4 7.5 4c1.74 0 3.41 1.01 4.5 2.36C13.09 5.01 14.76 4 16.5 4 19 4 21 6 21 8.5c0 3.78-3.4 6.86-7.9 11.3L12 20.8z" />
                 </svg>
               </button>
-              <button type="button" className="player5-dock-util" aria-label="Queue">
+              <button
+                type="button"
+                className="player5-dock-util"
+                aria-label="Queue"
+                onClick={() => setQueueSheetOpen(true)}
+              >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
                   <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
                 </svg>
               </button>
-              <button type="button" className="player5-dock-util" aria-label="Theme">
+              <button type="button" className="player5-dock-util player-chrome-unwired" disabled aria-label="Theme" title="Not available yet">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
                   <circle cx="12" cy="12" r="4" />
                   <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2" />
@@ -8812,54 +9101,67 @@ const Player5Shell = memo(function Player5Shell({
           <div className="player5-upnext-header">
             <PsdWaveformStrip className="player5-upnext-wave" />
             <h2>UP NEXT</h2>
-            <button type="button" className="player5-upnext-menu" aria-label="Queue menu">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-                <path d="M4 8h16M4 12h16M4 16h16" />
-              </svg>
-            </button>
+            {canClearUpNext ? (
+              <PlayerUpNextClearButton onClick={clearUpcomingQueue} />
+            ) : null}
           </div>
           <ol className="player5-upnext-list">
-            {upNextRows.map((row) => (
-              <li key={row.key} className={`player5-upnext-item${row.active ? ' is-active' : ''}`}>
-                <span className="player5-upnext-thumb-wrap">
-                  <span className="player5-upnext-thumb">
-                    <ArtworkImage
-                      src={'artwork' in row && row.artwork ? row.artwork : null}
-                      alt=""
-                      seed={row.key}
-                      label={row.title}
-                    />
-                  </span>
-                  {row.active ? (
-                    <span className="player5-upnext-play" aria-hidden="true">
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M8 5v14l11-7L8 5z" />
-                      </svg>
-                    </span>
-                  ) : null}
-                </span>
-                <div className="player5-upnext-copy">
-                  <strong>{row.title}</strong>
-                  <span>{row.artist}</span>
-                </div>
-                {row.active ? (
-                  <PsdIconEqualizer className="player5-upnext-eq" />
-                ) : (
-                  <span className="player5-upnext-duration">{row.duration}</span>
-                )}
+            {upNextRows.length === 0 ? (
+              <li className="player5-upnext-empty-item">
+                <PlayerUpNextEmptyState />
               </li>
-            ))}
+            ) : (
+              upNextRows.map((row) => (
+                <li
+                  key={row.key}
+                  className={`player5-upnext-item${row.isNext ? ' is-active' : ''}`}
+                >
+                  <button
+                    type="button"
+                    className="player-upnext-row-button player-upnext-row-button--player5"
+                    onClick={() => handleUpNextRowClick(row.queueIndex)}
+                  >
+                    <span className="player5-upnext-thumb-wrap">
+                      <span className="player5-upnext-thumb">
+                        <ArtworkImage
+                          src={row.artwork}
+                          alt=""
+                          seed={row.track.id}
+                          label={row.title}
+                        />
+                      </span>
+                      {row.isNext ? (
+                        <span className="player5-upnext-play" aria-hidden="true">
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M8 5v14l11-7L8 5z" />
+                          </svg>
+                        </span>
+                      ) : null}
+                    </span>
+                    <div className="player5-upnext-copy">
+                      <strong>{row.title}</strong>
+                      <span>{row.artist}</span>
+                    </div>
+                    {row.isNext ? (
+                      <PsdIconEqualizer className="player5-upnext-eq" />
+                    ) : (
+                      <span className="player5-upnext-duration">{row.duration}</span>
+                    )}
+                  </button>
+                </li>
+              ))
+            )}
           </ol>
 
           <section className="player5-stats" aria-label="Listening stats">
             <div className="player5-stats-header">
               <h3>LISTENING STATS</h3>
-              <button type="button" className="player5-stats-period">
+              <span className="player5-stats-period player-chrome-unwired" aria-hidden="true">
                 This Month
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                   <path d="M6 9l6 6 6-6" />
                 </svg>
-              </button>
+              </span>
             </div>
             <div className="player5-stats-graph" aria-hidden="true">
               <svg viewBox="0 0 120 32" preserveAspectRatio="none">
@@ -8872,21 +9174,22 @@ const Player5Shell = memo(function Player5Shell({
                 <span>SONGS</span>
               </div>
               <div>
-                <strong>{PSD_PLAYER5_STATS.duration}</strong>
+                <strong>{queueDurationLabel}</strong>
                 <span>DURATION</span>
               </div>
               <div>
-                <strong>{PSD_PLAYER5_STATS.plays}</strong>
+                <strong>—</strong>
                 <span>PLAYS</span>
               </div>
               <div>
-                <strong>{PSD_PLAYER5_STATS.likes}</strong>
+                <strong>—</strong>
                 <span>LIKES</span>
               </div>
             </div>
           </section>
         </aside>
       </div>
+      <PlayerQueueSheet open={queueSheetOpen} onClose={() => setQueueSheetOpen(false)} />
     </div>
   )
 })
@@ -8917,17 +9220,15 @@ const CinematicWaveformShell = memo(function CinematicWaveformShell({
   const isActive = Boolean(displayTrack && currentTrack?.id === displayTrack.id)
   const liveProgressMax = isActive && durationSeconds > 0 ? durationSeconds : 0
   const liveProgressValue = liveProgressMax > 0 ? Math.min(positionSeconds, liveProgressMax) : 0
-  const progressMax = liveProgressMax > 0 ? liveProgressMax : PSD_PLAYER_DURATION_SECONDS
-  const progressValue = liveProgressMax > 0
-    ? liveProgressValue
-    : PSD_PLAYER_POSITION_SECONDS
+  const progressMax = liveProgressMax
+  const progressValue = liveProgressValue
   const progressPercent = progressMax > 0
     ? Math.min(100, (progressValue / progressMax) * 100)
     : 0
 
-  const displayTitle = displayTrack?.title ?? PSD_PLAYER_TITLE
-  const displayArtist = displayTrack?.artist ?? PSD_PLAYER_ARTIST
-  const displayAlbum = displayTrack?.album ?? PSD_WAVEFORM_ALBUM
+  const displayTitle = displayTrack?.title ?? 'Nothing playing'
+  const displayArtist = displayTrack?.artist ?? 'Select a song to begin'
+  const displayAlbum = displayTrack?.album ?? null
   const activeTrackId = displayTrack?.id ?? null
 
   const resolveSeekSeconds = useCallback(
@@ -8969,27 +9270,11 @@ const CinematicWaveformShell = memo(function CinematicWaveformShell({
     event.currentTarget.releasePointerCapture(event.pointerId)
   }
 
-  useEffect(() => {
-    const previousOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.body.style.overflow = previousOverflow
-    }
-  }, [])
-
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return
-      event.preventDefault()
-      onClose()
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [onClose])
+  usePlayerShellChrome(onClose)
 
   return (
     <div
-      className="cinema-player cinema-player--waveform cinema-player--live-waveform"
+      className="cinema-player cinema-player--waveform cinema-player--live-waveform premium-player-overlay"
       role="dialog"
       aria-modal="true"
       aria-label="Live waveform player"
@@ -9021,9 +9306,7 @@ const CinematicWaveformShell = memo(function CinematicWaveformShell({
           <strong>{displayAlbum}</strong>
           <span className="psd-waveform-topbar-rule" aria-hidden="true" />
         </div>
-        <button type="button" className="psd-waveform-topbar-btn" aria-label="More options">
-          <PsdIconMore />
-        </button>
+        <span className="psd-waveform-topbar-btn" aria-hidden="true" />
       </header>
 
       <div className="psd-waveform-hero">
@@ -9046,9 +9329,11 @@ const CinematicWaveformShell = memo(function CinematicWaveformShell({
         />
 
         <div className="psd-waveform-lyrics" aria-live="polite">
-          {PSD_WAVEFORM_LYRICS.map((line) => (
-            <p key={line}><em>{line}</em></p>
-          ))}
+          <PlayerLyricsPanel
+            track={displayTrack}
+            positionSeconds={isActive ? positionSeconds : 0}
+            variant="inline"
+          />
         </div>
 
         <div className="psd-waveform-dots" aria-hidden="true">
@@ -9103,15 +9388,9 @@ const CinematicWaveformShell = memo(function CinematicWaveformShell({
         ) : null}
 
         <footer className="psd-waveform-footer">
-          <button type="button" className="psd-waveform-footer-btn" aria-label="Cast">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-              <rect x="5" y="2" width="14" height="20" rx="2" />
-              <path d="M12 18h.01" />
-            </svg>
-          </button>
           <button type="button" className="psd-waveform-footer-quality" onClick={() => setShowQualityPanel((open) => !open)}>
             <PsdWaveformStrip className="psd-waveform-footer-wave" />
-            <strong>HIGH QUALITY</strong>
+            <strong>{AUDIO_QUALITY_MODE_LABELS[audioQualityMode]}</strong>
           </button>
           <button
             type="button"
@@ -9142,6 +9421,7 @@ const FullscreenLyricsShell = memo(function FullscreenLyricsShell({
     positionSeconds,
     durationSeconds,
     seekTo,
+    audioQualityMode,
   } = useDesktopPlayback()
 
   const progressTrackRef = useRef<HTMLDivElement>(null)
@@ -9151,18 +9431,23 @@ const FullscreenLyricsShell = memo(function FullscreenLyricsShell({
   const isActive = Boolean(displayTrack && currentTrack?.id === displayTrack.id)
   const liveProgressMax = isActive && durationSeconds > 0 ? durationSeconds : 0
   const liveProgressValue = liveProgressMax > 0 ? Math.min(positionSeconds, liveProgressMax) : 0
-  const progressMax = liveProgressMax > 0 ? liveProgressMax : PSD_PLAYER_DURATION_SECONDS
-  const progressValue = liveProgressMax > 0
-    ? liveProgressValue
-    : PSD_PLAYER_POSITION_SECONDS
+  const progressMax = liveProgressMax
+  const progressValue = liveProgressValue
   const progressPercent = progressMax > 0
     ? Math.min(100, (progressValue / progressMax) * 100)
     : 0
 
-  const displayTitle = displayTrack?.title ?? PSD_PLAYER_TITLE
-  const displayArtist = displayTrack?.artist ?? PSD_PLAYER_ARTIST
-  const displayAlbum = displayTrack?.album ?? PSD_LYRICS_ALBUM
+  const displayTitle = displayTrack?.title ?? 'Nothing playing'
+  const displayArtist = displayTrack?.artist ?? 'Select a song to begin'
+  const displayAlbum = displayTrack?.album ?? null
   const activeTrackId = displayTrack?.id ?? null
+  const qualityLabel = displayTrack && isActive
+    ? (
+      resolveSearchRowQualityBadge(displayTrack) !== 'SONG'
+        ? resolveSearchRowQualityBadge(displayTrack)
+        : AUDIO_QUALITY_MODE_LABELS[audioQualityMode]
+    )
+    : null
 
   const resolveSeekSeconds = useCallback(
     (clientX: number) => {
@@ -9203,27 +9488,11 @@ const FullscreenLyricsShell = memo(function FullscreenLyricsShell({
     event.currentTarget.releasePointerCapture(event.pointerId)
   }
 
-  useEffect(() => {
-    const previousOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.body.style.overflow = previousOverflow
-    }
-  }, [])
-
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return
-      event.preventDefault()
-      onClose()
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [onClose])
+  usePlayerShellChrome(onClose)
 
   return (
     <div
-      className="cinema-player cinema-player--lyrics psd-lyrics-page"
+      className="cinema-player cinema-player--lyrics psd-lyrics-page premium-player-overlay"
       role="dialog"
       aria-modal="true"
       aria-label="Fullscreen lyrics"
@@ -9254,7 +9523,7 @@ const FullscreenLyricsShell = memo(function FullscreenLyricsShell({
           <span>PLAYING FROM ALBUM</span>
           <strong>{displayAlbum}</strong>
         </div>
-        <button type="button" className="psd-lyrics-topbar-btn psd-lyrics-topbar-btn--flag" aria-label="Bookmark">
+        <button type="button" className="psd-lyrics-topbar-btn psd-lyrics-topbar-btn--flag player-chrome-unwired" disabled aria-label="Bookmark" title="Not available yet">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
             <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
             <path d="M4 22V15" />
@@ -9283,30 +9552,15 @@ const FullscreenLyricsShell = memo(function FullscreenLyricsShell({
         </div>
 
         <div className="psd-lyrics-stack" aria-live="polite">
-          {PSD_LYRICS_LINES.map((line, index) => (
-            <p
-              key={`${line.tier}-${index}`}
-              className={`psd-lyrics-line psd-lyrics-line--${line.tier}`}
-            >
-              {line.text}
-            </p>
-          ))}
+          <PlayerLyricsPanel
+            track={displayTrack}
+            positionSeconds={isActive ? positionSeconds : 0}
+            variant="stack"
+          />
         </div>
       </div>
 
       <div className="psd-lyrics-bottom">
-        <div className="psd-lyrics-mid-controls">
-          <button type="button" className="psd-lyrics-share-btn" aria-label="Share">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-              <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8" />
-              <path d="M16 6l-4-4-4 4M12 2v13" />
-            </svg>
-          </button>
-          <button type="button" className="psd-lyrics-more-btn" aria-label="More options">
-            <PsdIconMore />
-          </button>
-        </div>
-
         <div
           className="psd-lyrics-progress-wrap"
           style={{ ['--psd-lyrics-progress' as string]: `${progressPercent}%` }}
@@ -9341,10 +9595,12 @@ const FullscreenLyricsShell = memo(function FullscreenLyricsShell({
 
         <FullPlayerTransportControls activeTrackId={activeTrackId} />
 
-        <div className="psd-lyrics-quality-label">
-          <PsdWaveformStrip className="psd-lyrics-quality-wave" />
-          <strong>HIGH QUALITY</strong>
-        </div>
+        {qualityLabel ? (
+          <div className="psd-lyrics-quality-label">
+            <PsdWaveformStrip className="psd-lyrics-quality-wave" />
+            <strong>{qualityLabel}</strong>
+          </div>
+        ) : null}
       </div>
     </div>
   )
@@ -9829,6 +10085,7 @@ function CatalogDetailRouter({
   setAlbumsQuery,
   onPlaylistBack,
   onNavigateNav,
+  onOpenPlayerByStyle,
   recentQuery = '',
   downloadsQuery = '',
   playlistsQuery = '',
@@ -9855,6 +10112,7 @@ function CatalogDetailRouter({
   setAlbumsQuery: (value: string) => void
   onPlaylistBack: () => void
   onNavigateNav: (navKey: NavKey) => void
+  onOpenPlayerByStyle: (style: NowPlayingStyle) => void
   recentQuery?: string
   downloadsQuery?: string
   playlistsQuery?: string
@@ -9917,6 +10175,7 @@ function CatalogDetailRouter({
       setAlbumsQuery={setAlbumsQuery}
       onPlaylistBack={onPlaylistBack}
       onNavigateNav={onNavigateNav}
+      onOpenPlayerByStyle={onOpenPlayerByStyle}
       recentQuery={recentQuery}
       downloadsQuery={downloadsQuery}
       playlistsQuery={playlistsQuery}
@@ -9939,6 +10198,7 @@ function PageContent({
   setAlbumsQuery,
   onPlaylistBack,
   onNavigateNav,
+  onOpenPlayerByStyle,
   recentQuery = '',
   downloadsQuery = '',
   playlistsQuery = '',
@@ -9957,6 +10217,7 @@ function PageContent({
   setAlbumsQuery: (value: string) => void
   onPlaylistBack: () => void
   onNavigateNav: (navKey: NavKey) => void
+  onOpenPlayerByStyle: (style: NowPlayingStyle) => void
   recentQuery?: string
   downloadsQuery?: string
   playlistsQuery?: string
@@ -10033,7 +10294,7 @@ function PageContent({
     case 'tv':
       return <TvPage />
     case 'settings':
-      return <SettingsPage />
+      return <SettingsPage onOpenPlayerByStyle={onOpenPlayerByStyle} />
     default:
       return (
         <HomePage
@@ -10061,7 +10322,7 @@ function App() {
 }
 
 function AppShell() {
-  const { currentTrack, playQueue, isPlaying } = useDesktopPlayback()
+  const { currentTrack, playQueue, isPlaying, isLoading } = useDesktopPlayback()
   const { songs } = useCatalog()
   const [activePage, setActivePage] = usePersistedPreference(
     DESKTOP_PREFERENCE_KEYS.activePage,
@@ -10108,6 +10369,8 @@ function AppShell() {
     || lyricsOpen
 
   const openPlayerByStyle = useCallback((style: NowPlayingStyle) => {
+    setWaveformOpen(false)
+    setLyricsOpen(false)
     setCinemaOpen(style === 'player-1')
     setPlayer2Open(style === 'player-2')
     setPlayer3Open(style === 'player-3')
@@ -10115,11 +10378,15 @@ function AppShell() {
     setPlayer5Open(style === 'player-5')
   }, [])
 
+  const playerPreferredTrack = currentTrack ?? desktopSelectedTrack
+
   const {
     scheduleAutoOpenPlayerAfterSongTap,
     cancelAutoOpenPlayer,
   } = useAutoOpenPreferredPlayer({
     isPlaying,
+    isLoading,
+    currentTrackId: currentTrack?.id ?? null,
     activePage,
     activeNavKey,
     activeView,
@@ -10127,20 +10394,15 @@ function AppShell() {
     openPlayerByStyle,
   })
 
+  const openPlayerByStyleNow = useCallback((style: NowPlayingStyle) => {
+    cancelAutoOpenPlayer()
+    openPlayerByStyle(style)
+  }, [cancelAutoOpenPlayer, openPlayerByStyle])
+
   const openCinemaPlayer = useCallback(() => {
     cancelAutoOpenPlayer()
-    setCinemaOpen(true)
-  }, [cancelAutoOpenPlayer])
-
-  const openPlayer2 = useCallback(() => {
-    cancelAutoOpenPlayer()
-    setPlayer2Open(true)
-  }, [cancelAutoOpenPlayer])
-
-  const openPlayer3 = useCallback(() => {
-    cancelAutoOpenPlayer()
-    setPlayer3Open(true)
-  }, [cancelAutoOpenPlayer])
+    openPlayerByStyle('player-1')
+  }, [cancelAutoOpenPlayer, openPlayerByStyle])
 
   const openSong = useCallback((song: ApiSong) => {
     setDesktopSelectedTrack(song)
@@ -10332,6 +10594,7 @@ function AppShell() {
                   setAlbumsQuery={setAlbumsQuery}
                   onPlaylistBack={() => navigateNav('library')}
                   onNavigateNav={navigateNav}
+                  onOpenPlayerByStyle={openPlayerByStyleNow}
                   recentQuery={recentQuery}
                   downloadsQuery={downloadsQuery}
                   playlistsQuery={playlistsQuery}
@@ -10341,8 +10604,7 @@ function AppShell() {
               </div>
             </main>
             <QueueUpNextPanel
-              onOpenPlayer2={openPlayer2}
-              onOpenPlayer3={openPlayer3}
+              onOpenPlayerByStyle={openPlayerByStyleNow}
               activeNavKey={activeNavKey}
             />
           </div>
@@ -10350,15 +10612,15 @@ function AppShell() {
       </div>
       {!waveformOpen && !lyricsOpen && !player2Open && !player3Open && !player4Open && !player5Open && activeNavKey !== 'recent' ? (
         <PlayerBar
-          track={desktopSelectedTrack}
-          onOpenCinema={openCinemaPlayer}
-          onOpenPlayer2={openPlayer2}
-          onOpenPlayer3={openPlayer3}
+          track={playerPreferredTrack}
+          onOpenPlayerByStyle={openPlayerByStyleNow}
         />
       ) : null}
       {player5Open ? (
         <Player5Shell
-          preferredTrack={desktopSelectedTrack}
+          preferredTrack={playerPreferredTrack}
+          activePlayerMode="player-5"
+          onSwitchPlayerMode={openPlayerByStyleNow}
           onClose={() => setPlayer5Open(false)}
           onNavigateNav={navigateNav}
           onOpenLyrics={() => {
@@ -10373,7 +10635,9 @@ function AppShell() {
       ) : null}
       {player4Open ? (
         <Player4Shell
-          preferredTrack={desktopSelectedTrack}
+          preferredTrack={playerPreferredTrack}
+          activePlayerMode="player-4"
+          onSwitchPlayerMode={openPlayerByStyleNow}
           onClose={() => setPlayer4Open(false)}
           onNavigateNav={navigateNav}
           onOpenLyrics={() => {
@@ -10388,7 +10652,9 @@ function AppShell() {
       ) : null}
       {player3Open ? (
         <Player3Shell
-          preferredTrack={desktopSelectedTrack}
+          preferredTrack={playerPreferredTrack}
+          activePlayerMode="player-3"
+          onSwitchPlayerMode={openPlayerByStyleNow}
           onClose={() => setPlayer3Open(false)}
           onNavigateNav={navigateNav}
           onOpenLyrics={() => {
@@ -10403,7 +10669,9 @@ function AppShell() {
       ) : null}
       {player2Open ? (
         <Player2Shell
-          preferredTrack={desktopSelectedTrack}
+          preferredTrack={playerPreferredTrack}
+          activePlayerMode="player-2"
+          onSwitchPlayerMode={openPlayerByStyleNow}
           onClose={() => setPlayer2Open(false)}
           onNavigateNav={navigateNav}
           onOpenLyrics={() => {
@@ -10418,7 +10686,9 @@ function AppShell() {
       ) : null}
       {cinemaOpen ? (
         <CinemaPlayerShell
-          preferredTrack={desktopSelectedTrack}
+          preferredTrack={playerPreferredTrack}
+          activePlayerMode="player-1"
+          onSwitchPlayerMode={openPlayerByStyleNow}
           onClose={() => setCinemaOpen(false)}
           onOpenLyrics={() => {
             setCinemaOpen(false)
@@ -10432,13 +10702,13 @@ function AppShell() {
       ) : null}
       {waveformOpen ? (
         <CinematicWaveformShell
-          preferredTrack={desktopSelectedTrack}
+          preferredTrack={playerPreferredTrack}
           onClose={() => setWaveformOpen(false)}
         />
       ) : null}
       {lyricsOpen ? (
         <FullscreenLyricsShell
-          preferredTrack={desktopSelectedTrack}
+          preferredTrack={playerPreferredTrack}
           onClose={() => setLyricsOpen(false)}
         />
       ) : null}

@@ -10,6 +10,8 @@ type NavSnapshot = {
 
 type UseAutoOpenPreferredPlayerOptions = {
   isPlaying: boolean
+  isLoading: boolean
+  currentTrackId: string | null
   activePage: string
   activeNavKey: string
   activeView: string
@@ -19,6 +21,8 @@ type UseAutoOpenPreferredPlayerOptions = {
 
 export function useAutoOpenPreferredPlayer({
   isPlaying,
+  isLoading,
+  currentTrackId,
   activePage,
   activeNavKey,
   activeView,
@@ -27,20 +31,46 @@ export function useAutoOpenPreferredPlayer({
 }: UseAutoOpenPreferredPlayerOptions) {
   const timerRef = useRef<number | null>(null)
   const sessionRef = useRef(0)
-  const trackIdRef = useRef<string | null>(null)
+  const pendingTrackIdRef = useRef<string | null>(null)
+  const delayElapsedRef = useRef(false)
   const playbackStartedRef = useRef(false)
   const sawSongViewRef = useRef(false)
   const navSnapshotRef = useRef<NavSnapshot>({ activePage, activeNavKey })
 
-  const cancelAutoOpenPlayer = useCallback(() => {
+  const clearTimer = useCallback(() => {
     if (timerRef.current != null) {
       window.clearTimeout(timerRef.current)
       timerRef.current = null
     }
-    trackIdRef.current = null
+  }, [])
+
+  const cancelAutoOpenPlayer = useCallback(() => {
+    clearTimer()
+    pendingTrackIdRef.current = null
+    delayElapsedRef.current = false
     playbackStartedRef.current = false
     sawSongViewRef.current = false
-  }, [])
+  }, [clearTimer])
+
+  const tryCompleteAutoOpen = useCallback(() => {
+    const trackId = pendingTrackIdRef.current
+    if (!trackId || !delayElapsedRef.current) return false
+    if (anyPlayerOverlayOpen) return false
+    if (isLoading) return false
+    if (!isPlaying) return false
+    if (currentTrackId !== trackId) return false
+
+    cancelAutoOpenPlayer()
+    openPlayerByStyle(getPreferredNowPlayingStyle())
+    return true
+  }, [
+    anyPlayerOverlayOpen,
+    cancelAutoOpenPlayer,
+    currentTrackId,
+    isLoading,
+    isPlaying,
+    openPlayerByStyle,
+  ])
 
   const openPreferredNowPlayingPage = useCallback(() => {
     cancelAutoOpenPlayer()
@@ -50,22 +80,26 @@ export function useAutoOpenPreferredPlayer({
   const scheduleAutoOpenPlayerAfterSongTap = useCallback((trackId: string) => {
     cancelAutoOpenPlayer()
     const session = ++sessionRef.current
-    trackIdRef.current = trackId
+    pendingTrackIdRef.current = trackId
+    delayElapsedRef.current = false
     navSnapshotRef.current = { activePage, activeNavKey }
 
     timerRef.current = window.setTimeout(() => {
       if (sessionRef.current !== session) return
-      if (trackIdRef.current !== trackId) return
+      if (pendingTrackIdRef.current !== trackId) return
+      delayElapsedRef.current = true
       timerRef.current = null
-      trackIdRef.current = null
-      playbackStartedRef.current = false
-      sawSongViewRef.current = false
-      openPreferredNowPlayingPage()
+      tryCompleteAutoOpen()
     }, AUTO_OPEN_PLAYER_DELAY_MS)
-  }, [activeNavKey, activePage, cancelAutoOpenPlayer, openPreferredNowPlayingPage])
+  }, [activeNavKey, activePage, cancelAutoOpenPlayer, tryCompleteAutoOpen])
 
   useEffect(() => {
-    if (!trackIdRef.current) return
+    if (!pendingTrackIdRef.current) return
+    tryCompleteAutoOpen()
+  }, [currentTrackId, isLoading, isPlaying, tryCompleteAutoOpen])
+
+  useEffect(() => {
+    if (!pendingTrackIdRef.current) return
     if (isPlaying) {
       playbackStartedRef.current = true
       return
@@ -76,7 +110,7 @@ export function useAutoOpenPreferredPlayer({
   }, [cancelAutoOpenPlayer, isPlaying])
 
   useEffect(() => {
-    if (!trackIdRef.current) return
+    if (!pendingTrackIdRef.current) return
     const snapshot = navSnapshotRef.current
     if (activePage !== snapshot.activePage || activeNavKey !== snapshot.activeNavKey) {
       cancelAutoOpenPlayer()
@@ -84,7 +118,7 @@ export function useAutoOpenPreferredPlayer({
   }, [activeNavKey, activePage, cancelAutoOpenPlayer])
 
   useEffect(() => {
-    if (!trackIdRef.current) return
+    if (!pendingTrackIdRef.current) return
     if (activeView === 'song') {
       sawSongViewRef.current = true
       return
@@ -95,7 +129,7 @@ export function useAutoOpenPreferredPlayer({
   }, [activeView, cancelAutoOpenPlayer])
 
   useEffect(() => {
-    if (!trackIdRef.current || !anyPlayerOverlayOpen) return
+    if (!pendingTrackIdRef.current || !anyPlayerOverlayOpen) return
     cancelAutoOpenPlayer()
   }, [anyPlayerOverlayOpen, cancelAutoOpenPlayer])
 

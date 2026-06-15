@@ -10,6 +10,7 @@ const CINEMATIC_BAR_COUNT = 64
 const SILENT_FRAME_LIMIT = 90
 const ENERGY_SMOOTHING = 0.82
 const BAR_SMOOTHING = 0.74
+const IDLE_DECAY_THRESHOLD = 0.015
 
 const EMPTY_BARS = Object.freeze(Array.from({ length: DEFAULT_BAR_COUNT }, () => 0))
 
@@ -24,6 +25,22 @@ function prefersReducedMotion(): boolean {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches
 }
 
+function sampleReactiveValue(
+  values: Float32Array,
+  barCount: number,
+  index: number,
+): number {
+  if (barCount <= 1 || values.length === 0) return values[index] ?? 0
+
+  const position = (index / (barCount - 1)) * (values.length - 1)
+  const left = Math.floor(position)
+  const right = Math.min(values.length - 1, left + 1)
+  const fraction = position - left
+  const leftValue = values[left] ?? 0
+  const rightValue = values[right] ?? leftValue
+  return leftValue * (1 - fraction) + rightValue * fraction
+}
+
 export class PremiumAudioVisualizerEngine {
   private audioContext: AudioContext | null = null
   private analyser: AnalyserNode | null = null
@@ -32,8 +49,10 @@ export class PremiumAudioVisualizerEngine {
   private connectFailed = false
   private silentFrames = 0
   private peakSignal = 0
+  private loggedSilentFallback = false
 
   private rafId: number | null = null
+  private idleDecayRafId: number | null = null
   private subscribers = new Set<() => void>()
   private registrations = new Set<PremiumWaveformRegistration>()
   private playback: PremiumVisualizerPlaybackState = {
@@ -73,11 +92,17 @@ export class PremiumAudioVisualizerEngine {
   }
 
   setPlaybackState(next: PremiumVisualizerPlaybackState): void {
+    const trackChanged = next.trackId !== this.playback.trackId
     this.playback = next
     this.snapshot = {
       ...this.snapshot,
       isPlaying: next.isPlaying,
     }
+
+    if (trackChanged) {
+      this.resetVisualizerStateForTrack()
+    }
+
     this.syncMotionLoop()
   }
 
@@ -99,25 +124,50 @@ export class PremiumAudioVisualizerEngine {
   }
 
   stop(): void {
-    if (this.rafId != null) {
-      cancelAnimationFrame(this.rafId)
-      this.rafId = null
-    }
+    this.stopMotionLoop()
+    this.stopIdleDecay()
     this.teardownAudioGraph()
+  }
+
+  private resetVisualizerStateForTrack(): void {
+    this.silentFrames = 0
+    this.peakSignal = 0
+    this.fallbackPhase = 0
+    this.loggedSilentFallback = false
+    this.smoothedBars.fill(0)
+    this.cinematicSmoothedBars.fill(0)
+    this.snapshot = {
+      ...this.snapshot,
+      waveformBars: EMPTY_BARS,
+      energyLevel: 0,
+      bassEnergy: 0,
+      midEnergy: 0,
+      trebleEnergy: 0,
+      isAudioReactive: false,
+      isFallback: true,
+    }
+    this.applyWaveformDom()
+    this.applyGlobalCssVars()
   }
 
   private syncMotionLoop(): void {
     if (!this.playback.isPlaying) {
-      if (this.rafId != null) {
-        cancelAnimationFrame(this.rafId)
-        this.rafId = null
-      }
-      this.applyIdleVisuals()
+      this.stopMotionLoop()
+      this.startIdleDecay()
       return
     }
 
+    this.stopIdleDecay()
+
     if (this.rafId == null) {
       this.rafId = requestAnimationFrame(this.tick)
+    }
+  }
+
+  private stopMotionLoop(): void {
+    if (this.rafId != null) {
+      cancelAnimationFrame(this.rafId)
+      this.rafId = null
     }
   }
 
@@ -135,6 +185,79 @@ export class PremiumAudioVisualizerEngine {
 
     this.ensureAudioGraph()
     this.sampleFrame()
+    this.applyWaveformDom()
+    this.applyGlobalCssVars()
+    this.notifySubscribers()
+  }
+
+  private startIdleDecay(): void {
+    if (this.idleDecayRafId != null) return
+    this.idleDecayRafId = requestAnimationFrame(this.idleDecayTick)
+  }
+
+  private stopIdleDecay(): void {
+    if (this.idleDecayRafId != null) {
+      cancelAnimationFrame(this.idleDecayRafId)
+      this.idleDecayRafId = null
+    }
+  }
+
+  private idleDecayTick = (): void => {
+    if (this.playback.isPlaying) {
+      this.stopIdleDecay()
+      return
+    }
+
+    const decay = 0.2
+    let maxResidual = 0
+
+    for (let index = 0; index < DEFAULT_BAR_COUNT; index += 1) {
+      this.smoothedBars[index] = this.lerp(this.smoothedBars[index], 0, decay)
+      maxResidual = Math.max(maxResidual, this.smoothedBars[index])
+    }
+
+    for (let index = 0; index < CINEMATIC_BAR_COUNT; index += 1) {
+      this.cinematicSmoothedBars[index] = this.lerp(this.cinematicSmoothedBars[index], 0, decay)
+      maxResidual = Math.max(maxResidual, this.cinematicSmoothedBars[index])
+    }
+
+    this.snapshot = {
+      ...this.snapshot,
+      waveformBars: Array.from(this.smoothedBars),
+      energyLevel: this.lerp(this.snapshot.energyLevel, 0, decay),
+      bassEnergy: this.lerp(this.snapshot.bassEnergy, 0, decay),
+      midEnergy: this.lerp(this.snapshot.midEnergy, 0, decay),
+      trebleEnergy: this.lerp(this.snapshot.trebleEnergy, 0, decay),
+      isPlaying: false,
+    }
+
+    this.applyWaveformDom()
+    this.applyGlobalCssVars()
+
+    const energyResidual = Math.max(
+      this.snapshot.energyLevel,
+      this.snapshot.bassEnergy,
+      this.snapshot.midEnergy,
+      this.snapshot.trebleEnergy,
+    )
+
+    if (maxResidual > IDLE_DECAY_THRESHOLD || energyResidual > IDLE_DECAY_THRESHOLD) {
+      this.idleDecayRafId = requestAnimationFrame(this.idleDecayTick)
+      return
+    }
+
+    this.idleDecayRafId = null
+    this.smoothedBars.fill(0)
+    this.cinematicSmoothedBars.fill(0)
+    this.snapshot = {
+      ...this.snapshot,
+      waveformBars: EMPTY_BARS,
+      energyLevel: 0,
+      bassEnergy: 0,
+      midEnergy: 0,
+      trebleEnergy: 0,
+      isPlaying: false,
+    }
     this.applyWaveformDom()
     this.applyGlobalCssVars()
     this.notifySubscribers()
@@ -160,7 +283,7 @@ export class PremiumAudioVisualizerEngine {
         return
       }
 
-      if (!audio.crossOrigin && !audio.src && !audio.currentSrc) {
+      if (!audio.crossOrigin) {
         audio.crossOrigin = 'anonymous'
       }
 
@@ -289,7 +412,8 @@ export class PremiumAudioVisualizerEngine {
       this.silentFrames >= SILENT_FRAME_LIMIT && this.peakSignal < 0.05
 
     if (analyserSilent) {
-      if (import.meta.env.DEV && !this.snapshot.isFallback) {
+      if (import.meta.env.DEV && !this.loggedSilentFallback) {
+        this.loggedSilentFallback = true
         console.warn(
           '[ht-visualizer] Analyser signal silent — likely CORS on remote audio. Using fallback.',
           { src: this.connectedAudio?.currentSrc || this.connectedAudio?.src },
@@ -319,7 +443,7 @@ export class PremiumAudioVisualizerEngine {
       this.playback.durationSeconds > 0
         ? this.playback.positionSeconds / this.playback.durationSeconds
         : 0
-    const motionScale = reducedMotion ? 0 : this.playback.isPlaying ? 1 : 0.15
+    const motionScale = reducedMotion ? 0 : this.playback.isPlaying ? 1 : 0
 
     this.fallbackPhase += this.playback.isPlaying ? 0.045 : 0
 
@@ -348,7 +472,7 @@ export class PremiumAudioVisualizerEngine {
 
     const energy = this.playback.isPlaying
       ? Math.min(1, 0.18 + progressRatio * 0.42 + (reducedMotion ? 0 : 0.12))
-      : 0.06
+      : 0
 
     this.snapshot = {
       waveformBars: Array.from(this.smoothedBars),
@@ -393,7 +517,8 @@ export class PremiumAudioVisualizerEngine {
 
   private applyWaveformDom(): void {
     const isPlaying = this.playback.isPlaying
-    const energy = isPlaying ? this.snapshot.energyLevel : this.snapshot.energyLevel * 0.35
+    const energy = isPlaying ? this.snapshot.energyLevel : this.snapshot.energyLevel * 0.25
+    const reactiveMix = isPlaying ? 1 : 0.2
 
     this.registrations.forEach((registration) => {
       const values =
@@ -403,7 +528,7 @@ export class PremiumAudioVisualizerEngine {
 
       registration.bars.forEach((bar, index) => {
         const base = (registration.baseHeights[index] ?? 40) / 100
-        const reactive = values[index] ?? 0
+        const reactive = sampleReactiveValue(values, registration.barCount, index) * reactiveMix
         const scale = Math.max(0.12, base * (0.42 + reactive * (0.95 + energy * 0.35)))
         bar.style.setProperty('--ht-bar-scale', scale.toFixed(3))
         const barProgress = ((index + 0.5) / registration.barCount) * 100
@@ -425,20 +550,7 @@ export class PremiumAudioVisualizerEngine {
     root.style.setProperty('--ht-audio-playing', this.playback.isPlaying ? '1' : '0')
     root.dataset.htAudioReactive = this.snapshot.isAudioReactive ? 'true' : 'false'
     root.dataset.htAudioFallback = this.snapshot.isFallback ? 'true' : 'false'
-  }
-
-  private applyIdleVisuals(): void {
-    this.snapshot = {
-      ...this.snapshot,
-      energyLevel: this.lerp(this.snapshot.energyLevel, 0, 0.2),
-      bassEnergy: this.lerp(this.snapshot.bassEnergy, 0, 0.2),
-      midEnergy: this.lerp(this.snapshot.midEnergy, 0, 0.2),
-      trebleEnergy: this.lerp(this.snapshot.trebleEnergy, 0, 0.2),
-      isPlaying: false,
-    }
-    this.applyWaveformDom()
-    this.applyGlobalCssVars()
-    this.notifySubscribers()
+    root.dataset.htAudioPlaying = this.playback.isPlaying ? 'true' : 'false'
   }
 
   private lerp(current: number, target: number, alpha: number): number {
