@@ -15,6 +15,9 @@ const STORAGE_PREFIX = 'ht-desktop:'
 export const DESKTOP_PREFERENCE_KEYS = {
   activePage: 'active-page',
   audioQualityMode: 'audio-quality-mode',
+  atmosphereEnabled: 'atmosphere-enabled',
+  atmosphereId: 'atmosphere-id',
+  atmosphereIntensity: 'atmosphere-intensity',
   discoverSearch: 'discover-search',
   discoverSort: 'discover-sort',
   artistsSearch: 'artists-search',

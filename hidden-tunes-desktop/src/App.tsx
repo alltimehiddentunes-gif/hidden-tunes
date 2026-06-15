@@ -86,6 +86,7 @@ import {
   usePreferencesReset,
   type StoredPageId,
 } from './lib/localPreferences'
+import { AtmosphereSettingsPanel } from './components/AtmosphereSettingsPanel'
 import { PlayerLyricsPanel } from './components/PlayerLyricsPanel'
 import { PlayerModeLauncher } from './components/PlayerModeLauncher'
 import { PlayerModeSwitcher } from './components/PlayerModeSwitcher'
@@ -96,6 +97,8 @@ import {
   DesktopPlaybackProvider,
   useDesktopPlayback,
 } from './context/DesktopPlaybackProvider'
+import { AtmosphereProvider, useAtmosphere } from './context/AtmosphereContext'
+import { resolveAtmosphereForWorld } from './lib/atmosphereManager'
 import type { QueueContext, QueueSeedMetadata } from './lib/desktopPlayback/types'
 import {
   resolveVisualScene,
@@ -3274,6 +3277,7 @@ const EMOTIONAL_WORLDS_CARDS: EmotionalWorldCardSpec[] = [
 
 function EmotionalWorldsPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
   const { songs, indexes, showCatalogSkeleton } = useCatalog()
+  const { setActiveAtmosphereId } = useAtmosphere()
   const [selectedChip, setSelectedChip] = useState<EmotionalWorldChipId>('all')
   const queuePools = useMemo(() => buildQueueCandidatePools(indexes), [indexes])
 
@@ -3302,6 +3306,12 @@ function EmotionalWorldsPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
     (card: EmotionalWorldCardSpec) => {
       const tracks = filterSongsByListeningScene(songs, card.sceneId)
       if (tracks.length === 0) return
+      const atmosphere = resolveAtmosphereForWorld({
+        cardId: card.cardId,
+        sceneId: card.sceneId,
+        title: card.title,
+      })
+      setActiveAtmosphereId(atmosphere.id)
       onOpenSong(
         tracks[0],
         tracks,
@@ -3315,7 +3325,7 @@ function EmotionalWorldsPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
         },
       )
     },
-    [indexes, onOpenSong, queuePools, songs],
+    [indexes, onOpenSong, queuePools, setActiveAtmosphereId, songs],
   )
 
   const playHero = useCallback(() => {
@@ -5577,6 +5587,7 @@ function SettingsPage({
               />
             </div>
           </section>
+          <AtmosphereSettingsPanel />
           <section className="settings-panel settings-panel--player">
             <h2>Preferred player</h2>
             <p className="settings-panel-desc">
@@ -8698,6 +8709,12 @@ const Player5Shell = memo(function Player5Shell({
     audioQualityMode,
   } = useDesktopPlayback()
 
+  const {
+    resolvedAtmosphere,
+    atmosphereEnabled,
+    atmosphereIntensity,
+  } = useAtmosphere()
+
   const volumeTrackRef = useRef<HTMLDivElement>(null)
   const isAdjustingVolumeRef = useRef(false)
   const [queueSheetOpen, setQueueSheetOpen] = useState(false)
@@ -8811,6 +8828,9 @@ const Player5Shell = memo(function Player5Shell({
       data-player-mode={DESKTOP_PLAYER_MODE_PLAYER5}
       data-playing={isPlaying && isActive ? 'true' : 'false'}
       data-loading={isLoading && isActive ? 'true' : 'false'}
+      data-atmosphere-id={resolvedAtmosphere.id}
+      data-atmosphere-enabled={atmosphereEnabled ? 'true' : 'false'}
+      data-atmosphere-intensity={atmosphereIntensity}
     >
       <EntityAtmosphereBackdrop
         className="player5-bg"
@@ -8964,6 +8984,10 @@ const Player5Shell = memo(function Player5Shell({
                 <p className="player5-eyebrow">
                   <PsdWaveformStrip className="player5-eyebrow-wave" />
                   NOW PLAYING
+                </p>
+                <p className="player5-atmosphere-meta" aria-label="Active atmosphere">
+                  {resolvedAtmosphere.name}
+                  {atmosphereEnabled ? ` · ${atmosphereIntensity}` : ' · paused'}
                 </p>
                 <h1 className="player5-title">{displayTitle}</h1>
                 <p className="player5-artist">
@@ -10311,11 +10335,13 @@ function App() {
   return (
     <PreferencesResetProvider>
       <DesktopPlaybackProvider>
-        <PremiumAudioVisualizerProvider>
-          <CatalogProvider>
-            <AppShell />
-          </CatalogProvider>
-        </PremiumAudioVisualizerProvider>
+        <AtmosphereProvider>
+          <PremiumAudioVisualizerProvider>
+            <CatalogProvider>
+              <AppShell />
+            </CatalogProvider>
+          </PremiumAudioVisualizerProvider>
+        </AtmosphereProvider>
       </DesktopPlaybackProvider>
     </PreferencesResetProvider>
   )
