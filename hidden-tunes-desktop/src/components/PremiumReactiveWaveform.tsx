@@ -44,14 +44,14 @@ export const PremiumReactiveWaveform = memo(function PremiumReactiveWaveform({
 
   useLayoutEffect(() => {
     const root = trackRef.current
-    if (!root) return undefined
+    if (!root || progressMax <= 0) return undefined
 
     const bars = barRefs.current.filter((bar): bar is HTMLSpanElement => Boolean(bar))
     registrationRef.current.root = root
     registrationRef.current.bars = bars
 
     return premiumAudioVisualizerEngine.registerWaveform(registrationRef.current)
-  }, [barCount, baseHeights])
+  }, [barCount, baseHeights, progressMax])
 
   const resolveSeekSeconds = useCallback(
     (clientX: number) => {
@@ -97,6 +97,8 @@ export const PremiumReactiveWaveform = memo(function PremiumReactiveWaveform({
       ref={trackRef}
       className={className}
       data-premium-waveform="rail"
+      data-ht-waveform-idle={progressMax <= 0 ? 'true' : 'false'}
+      data-ht-waveform-loading={isLoading ? 'true' : 'false'}
       role="slider"
       aria-label="Playback position"
       aria-valuemin={0}

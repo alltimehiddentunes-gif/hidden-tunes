@@ -8,10 +8,12 @@ export const PremiumCinematicWaveform = memo(function PremiumCinematicWaveform({
   className = '',
   trackId = null,
   progressPercent = 0,
+  isActive = true,
 }: {
   className?: string
   trackId?: string | null
   progressPercent?: number
+  isActive?: boolean
 }) {
   const rootRef = useRef<HTMLDivElement>(null)
   const barRefs = useRef<(HTMLSpanElement | null)[]>([])
@@ -33,20 +35,21 @@ export const PremiumCinematicWaveform = memo(function PremiumCinematicWaveform({
 
   useLayoutEffect(() => {
     const root = rootRef.current
-    if (!root) return undefined
+    if (!root || !isActive || !trackId) return undefined
 
     const bars = barRefs.current.filter((bar): bar is HTMLSpanElement => Boolean(bar))
     registrationRef.current.root = root
     registrationRef.current.bars = bars
 
     return premiumAudioVisualizerEngine.registerWaveform(registrationRef.current)
-  }, [baseHeights])
+  }, [baseHeights, isActive, trackId])
 
   return (
     <div
       ref={rootRef}
       className={`psd-cinematic-waveform premium-cinematic-waveform ${className}`.trim()}
       data-premium-waveform="cinematic"
+      data-ht-waveform-idle={!isActive || !trackId ? 'true' : 'false'}
       aria-hidden="true"
     >
       {baseHeights.map((height, index) => (

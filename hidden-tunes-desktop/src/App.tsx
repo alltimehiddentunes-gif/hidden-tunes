@@ -9285,6 +9285,7 @@ const CinematicWaveformShell = memo(function CinematicWaveformShell({
           className="psd-waveform-visualizer"
           trackId={activeTrackId}
           progressPercent={progressPercent}
+          isActive={isActive}
         />
 
         <div className="psd-waveform-lyrics" aria-live="polite">

@@ -15709,6 +15709,22 @@
   contain: layout style paint;
 }
 
+.premium-reactive-waveform[data-ht-waveform-idle='true'],
+.premium-cinematic-waveform[data-ht-waveform-idle='true'] {
+  pointer-events: none;
+}
+
+.premium-reactive-waveform[data-ht-waveform-idle='true'] .rail-waveform-bar,
+.premium-cinematic-waveform[data-ht-waveform-idle='true'] span {
+  transform: scaleY(1);
+  opacity: 0.38;
+}
+
+:root[data-ht-audio-fallback='true'] .premium-reactive-waveform:not([data-ht-waveform-idle='true']),
+:root[data-ht-audio-fallback='true'] .premium-cinematic-waveform:not([data-ht-waveform-idle='true']) {
+  opacity: 0.96;
+}
+
 .premium-cinematic-waveform span {
   height: var(--ht-bar-base, 40%);
   transform: scaleY(var(--ht-bar-scale, 1));

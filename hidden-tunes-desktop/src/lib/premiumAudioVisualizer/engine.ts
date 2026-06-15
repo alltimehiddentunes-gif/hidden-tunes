@@ -151,6 +151,12 @@ export class PremiumAudioVisualizerEngine {
   }
 
   private syncMotionLoop(): void {
+    if (this.registrations.size === 0 && this.subscribers.size === 0) {
+      this.stopMotionLoop()
+      this.stopIdleDecay()
+      return
+    }
+
     if (!this.playback.isPlaying) {
       this.stopMotionLoop()
       this.startIdleDecay()
