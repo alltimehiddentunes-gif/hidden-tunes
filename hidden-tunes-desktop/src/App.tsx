@@ -87,6 +87,7 @@ import {
   type StoredPageId,
 } from './lib/localPreferences'
 import { PlayerLyricsPanel } from './components/PlayerLyricsPanel'
+import { PlayerModeLauncher } from './components/PlayerModeLauncher'
 import { PremiumAudioVisualizerProvider } from './components/PremiumAudioVisualizerProvider'
 import { PremiumCinematicWaveform } from './components/PremiumCinematicWaveform'
 import { PremiumReactiveWaveform } from './components/PremiumReactiveWaveform'
@@ -5972,14 +5973,10 @@ const FullPlayerTransportControls = memo(function FullPlayerTransportControls({
 
 const PlayerBar = memo(function PlayerBar({
   track,
-  onOpenCinema,
-  onOpenPlayer2,
-  onOpenPlayer3,
+  onOpenPlayerByStyle,
 }: {
   track: ApiSong | null
-  onOpenCinema?: () => void
-  onOpenPlayer2?: () => void
-  onOpenPlayer3?: () => void
+  onOpenPlayerByStyle: (style: NowPlayingStyle) => void
 }) {
   const { songs } = useCatalog()
   const {
@@ -6226,59 +6223,11 @@ const PlayerBar = memo(function PlayerBar({
       </div>
 
       <div className="player-right">
-        {onOpenPlayer3 ? (
-          <button
-            type="button"
-            className="player-cinema-btn player-cinema-btn--player3"
-            onClick={onOpenPlayer3}
-            aria-label="Open Player 3 VIP theater"
-            title="Player 3 VIP"
-          >
-            <span aria-hidden="true">♛</span>
-          </button>
-        ) : null}
-        {onOpenPlayer2 ? (
-          <button
-            type="button"
-            className="player-cinema-btn player-cinema-btn--player2"
-            onClick={onOpenPlayer2}
-            aria-label="Open Player 2 theater"
-            title="Player 2"
-          >
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.75"
-              aria-hidden="true"
-            >
-              <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
-            </svg>
-          </button>
-        ) : null}
-        {onOpenCinema ? (
-          <button
-            type="button"
-            className="player-cinema-btn"
-            onClick={onOpenCinema}
-            aria-label="Open fullscreen player"
-            title="Fullscreen"
-          >
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.75"
-              aria-hidden="true"
-            >
-              <path d="M9 3H3v6M15 3h6v6M9 21H3v-6M15 21h6v-6" />
-            </svg>
-          </button>
-        ) : null}
+        <PlayerModeLauncher
+          hasPlayback={hasPlayback}
+          onOpenPlayerByStyle={onOpenPlayerByStyle}
+          variant="footer"
+        />
         <div className="player-quality">
           <AudioQualitySelector
             value={audioQualityMode}
@@ -6350,12 +6299,10 @@ const PlayerBar = memo(function PlayerBar({
 
 
 const QueueUpNextPanel = memo(function QueueUpNextPanel({
-  onOpenPlayer2,
-  onOpenPlayer3,
+  onOpenPlayerByStyle,
   activeNavKey,
 }: {
-  onOpenPlayer2?: () => void
-  onOpenPlayer3?: () => void
+  onOpenPlayerByStyle: (style: NowPlayingStyle) => void
   activeNavKey?: NavKey
 }) {
   const isLuxuryRail = activeNavKey === 'albums' || activeNavKey === 'playlists'
@@ -6601,6 +6548,14 @@ const QueueUpNextPanel = memo(function QueueUpNextPanel({
                 <span className="albums-rail-quality-pill">{railQualityLabel}</span>
               </div>
             ) : null}
+
+            <div className="albums-rail-player-launcher">
+              <PlayerModeLauncher
+                hasPlayback={hasPlayback}
+                onOpenPlayerByStyle={onOpenPlayerByStyle}
+                variant="sidebar"
+              />
+            </div>
           </section>
 
           <section className="albums-rail-up-next" aria-label="Up next">
@@ -6808,18 +6763,11 @@ const QueueUpNextPanel = memo(function QueueUpNextPanel({
               <div className="rail-psd-volume-fill" style={{ width: `${volumePercent}%` }} />
             </div>
           </div>
-          {onOpenPlayer3 ? (
-            <button type="button" className="rail-psd-full-player" onClick={onOpenPlayer3}>
-              Show Full Player
-            </button>
-          ) : null}
-          {onOpenPlayer2 ? (
-            <button type="button" className="rail-psd-expand" aria-label="Expand player" onClick={onOpenPlayer2}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-                <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
-              </svg>
-            </button>
-          ) : null}
+          <PlayerModeLauncher
+            hasPlayback={hasPlayback}
+            onOpenPlayerByStyle={onOpenPlayerByStyle}
+            variant="sidebar"
+          />
         </footer>
       </div>
     </aside>
@@ -10205,16 +10153,6 @@ function AppShell() {
     setCinemaOpen(true)
   }, [cancelAutoOpenPlayer])
 
-  const openPlayer2 = useCallback(() => {
-    cancelAutoOpenPlayer()
-    setPlayer2Open(true)
-  }, [cancelAutoOpenPlayer])
-
-  const openPlayer3 = useCallback(() => {
-    cancelAutoOpenPlayer()
-    setPlayer3Open(true)
-  }, [cancelAutoOpenPlayer])
-
   const openSong = useCallback((song: ApiSong) => {
     setDesktopSelectedTrack(song)
     setSelectedSong(song)
@@ -10415,8 +10353,7 @@ function AppShell() {
               </div>
             </main>
             <QueueUpNextPanel
-              onOpenPlayer2={openPlayer2}
-              onOpenPlayer3={openPlayer3}
+              onOpenPlayerByStyle={openPlayerByStyleNow}
               activeNavKey={activeNavKey}
             />
           </div>
@@ -10425,9 +10362,7 @@ function AppShell() {
       {!waveformOpen && !lyricsOpen && !player2Open && !player3Open && !player4Open && !player5Open && activeNavKey !== 'recent' ? (
         <PlayerBar
           track={desktopSelectedTrack}
-          onOpenCinema={openCinemaPlayer}
-          onOpenPlayer2={openPlayer2}
-          onOpenPlayer3={openPlayer3}
+          onOpenPlayerByStyle={openPlayerByStyleNow}
         />
       ) : null}
       {player5Open ? (
