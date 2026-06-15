@@ -173,11 +173,107 @@ function filterSongsByLibraryQuery(songs: ApiSong[], query: string) {
   })
 }
 
-const PSD_PLAYLIST_TITLE = 'Night Drive'
-const PSD_PLAYLIST_DESCRIPTION = 'Late nights, open roads and the perfect soundtrack.'
-const PSD_PLAYLIST_OWNER = 'Hidden Tunes'
-const PSD_PLAYLIST_META = '50 songs • 3h 12m'
-const PSD_PLAYLIST_FOOTER_META = '50 songs, 3h 12m'
+type EditorialPlaylistSpec = {
+  id: string
+  title: string
+  aliases?: readonly string[]
+  description: string
+  owner: string
+  sceneId: string
+  showMoon?: boolean
+}
+
+const EDITORIAL_PLAYLIST_SPECS: EditorialPlaylistSpec[] = [
+  {
+    id: 'night-drive',
+    title: 'Night Drive',
+    aliases: ['late night drive'],
+    description: 'Late nights, open roads and the perfect soundtrack.',
+    owner: 'Hidden Tunes',
+    sceneId: 'midnight-drive',
+    showMoon: true,
+  },
+  {
+    id: 'deep-focus',
+    title: 'Deep Focus',
+    description: 'Clear headspace and steady concentration.',
+    owner: 'Hidden Tunes',
+    sceneId: 'focus-room',
+  },
+  {
+    id: 'afro-vibes',
+    title: 'Afro Vibes',
+    description: 'Warm grooves and golden-hour rhythm.',
+    owner: 'Hidden Tunes',
+    sceneId: 'sunday-morning',
+  },
+  {
+    id: 'chill-relax',
+    title: 'Chill & Relax',
+    aliases: ['chill vibes'],
+    description: 'Soft calm for unwinding and reflection.',
+    owner: 'Hidden Tunes',
+    sceneId: 'heartbreak-recovery',
+  },
+  {
+    id: 'workout-mix',
+    title: 'Workout Mix',
+    description: 'High-energy momentum to keep you moving.',
+    owner: 'Hidden Tunes',
+    sceneId: 'city-lights',
+  },
+  {
+    id: 'rainy-day-comfort',
+    title: 'Rainy Day Comfort',
+    description: 'Rain-lit calm and gentle comfort.',
+    owner: 'Hidden Tunes',
+    sceneId: 'rainy-window',
+  },
+]
+
+function resolveEditorialPlaylistSpec(query: string): EditorialPlaylistSpec {
+  const normalized = query.trim().toLowerCase()
+  if (!normalized) return EDITORIAL_PLAYLIST_SPECS[0]
+  const matched = EDITORIAL_PLAYLIST_SPECS.find((spec) => {
+    if (spec.id.toLowerCase() === normalized) return true
+    if (spec.title.toLowerCase() === normalized) return true
+    return spec.aliases?.some((alias) => alias.toLowerCase() === normalized) ?? false
+  })
+  return matched ?? EDITORIAL_PLAYLIST_SPECS[0]
+}
+
+function resolveEditorialPlaylistTracks(songs: ApiSong[], sceneId: string) {
+  return sortSongsList(filterSongsByListeningScene(songs, sceneId), 'latest')
+}
+
+function formatPlaylistDurationLabel(songs: ApiSong[]) {
+  const totalSeconds = songs.reduce((sum, song) => sum + (song.durationSeconds ?? 0), 0)
+  if (totalSeconds <= 0) return null
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  if (hours > 0) return `${hours}h ${minutes}m`
+  return `${minutes} min`
+}
+
+function formatPlaylistMetaLine(songCount: number, songs: ApiSong[]) {
+  const songLabel = `${songCount.toLocaleString()} ${songCount === 1 ? 'song' : 'songs'}`
+  const duration = formatPlaylistDurationLabel(songs)
+  return duration ? `${songLabel} · ${duration}` : songLabel
+}
+
+function filterPlaylistTracksBySearch(tracks: ApiSong[], query: string) {
+  const normalized = query.trim().toLowerCase()
+  if (!normalized) return tracks
+  return tracks.filter((song) => {
+    const haystack = [song.title, song.artist, song.album, song.genre, song.mood]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase()
+    return haystack.includes(normalized)
+  })
+}
+
+
 const PSD_PLAYLIST_TRACK_ROWS = [
   { key: 'pt1', title: 'Midnight Reflection', artist: 'Wills Afrobeats', duration: '3:56', active: true },
   { key: 'pt2', title: 'Afro Sunset', artist: 'Wills Afrobeats', duration: '3:21' },
@@ -4263,64 +4359,81 @@ function AlbumsPage({
 
 function PlaylistsPage({
   onOpenSong,
-  query: externalQuery,
-  setQuery: externalSetQuery,
+  query: selectedPlaylistQuery = '',
+  setQuery: setSelectedPlaylistQuery,
 }: {
   onOpenSong: QueueSongHandler
   query?: string
   setQuery?: (value: string) => void
 }) {
   const { songs, indexes, artworkContext } = useCatalog()
-  const [internalQuery, setInternalQuery] = useState('')
-  const playlistQuery = externalQuery ?? internalQuery
-  const setPlaylistQuery = externalSetQuery ?? setInternalQuery
-  const playlistSongs = useMemo(() => sortSongsList([...songs], 'latest'), [songs])
+  const { currentTrack, isPlaying } = useDesktopPlayback()
+  const [trackSearch, setTrackSearch] = useState('')
+
+  const activeSpec = useMemo(
+    () => resolveEditorialPlaylistSpec(selectedPlaylistQuery),
+    [selectedPlaylistQuery],
+  )
+
+  const playlistTracks = useMemo(
+    () => resolveEditorialPlaylistTracks(songs, activeSpec.sceneId),
+    [activeSpec.sceneId, songs],
+  )
+
+  const visibleTracks = useMemo(
+    () => filterPlaylistTracksBySearch(playlistTracks, trackSearch),
+    [playlistTracks, trackSearch],
+  )
+
   const queuePools = useMemo(() => buildQueueCandidatePools(indexes), [indexes])
 
-  const resolvePlaylistSong = useCallback(
-    (title: string, index: number) => {
-      const exact = playlistSongs.find(
-        (song) => song.title.toLowerCase() === title.toLowerCase(),
-      )
-      return exact ?? playlistSongs[index] ?? null
-    },
-    [playlistSongs],
+  const playlistHeroArt = useMemo(() => {
+    const registryCover = getArtworkForPlaylist(
+      { id: activeSpec.id, title: activeSpec.title },
+      artworkContext,
+    )
+    if (registryCover) return [registryCover]
+    return getArtworkForPlaylistCollage(playlistTracks, artworkContext)
+  }, [activeSpec.id, activeSpec.title, artworkContext, playlistTracks])
+
+  const relatedPlaylists = useMemo(
+    () => EDITORIAL_PLAYLIST_SPECS.filter((spec) => spec.id !== activeSpec.id),
+    [activeSpec.id],
   )
 
   const playPlaylistTrack = useCallback(
-    (index: number) => {
-      const row = PSD_PLAYLIST_TRACK_ROWS[index]
-      if (!row) return
-      const song = resolvePlaylistSong(row.title, index)
-      if (!song) return
-      const queue = playlistSongs.length > 0 ? playlistSongs : [song]
-      const queueIndex = Math.max(0, queue.findIndex((entry) => entry.id === song.id))
-      onOpenSong(song, queue, queueIndex, 'manual', PSD_PLAYLIST_TITLE, {
+    (song: ApiSong, index: number) => {
+      if (playlistTracks.length === 0) return
+      onOpenSong(song, playlistTracks, index, 'manual', activeSpec.title, {
         seedType: 'manual',
-        seedTracks: buildQueueSeedPool('manual', queue, indexes, song),
+        seedTracks: buildQueueSeedPool('manual', playlistTracks, indexes, song),
         candidatePools: queuePools,
       })
     },
-    [indexes, onOpenSong, playlistSongs, queuePools, resolvePlaylistSong],
-  )
-
-  const playlistHeroCollage = useMemo(
-    () => getArtworkForPlaylistCollage(playlistSongs, artworkContext),
-    [artworkContext, playlistSongs],
+    [activeSpec.title, indexes, onOpenSong, playlistTracks, queuePools],
   )
 
   const playAll = useCallback(() => {
-    playPlaylistTrack(0)
-  }, [playPlaylistTrack])
+    const first = playlistTracks[0]
+    if (!first) return
+    playPlaylistTrack(first, 0)
+  }, [playPlaylistTrack, playlistTracks])
 
-  const normalizedQuery = playlistQuery.trim().toLowerCase()
-  const visibleRows = useMemo(() => {
-    if (!normalizedQuery) return PSD_PLAYLIST_TRACK_ROWS
-    return PSD_PLAYLIST_TRACK_ROWS.filter((row) => {
-      const haystack = [row.title, row.artist, row.duration].join(' ').toLowerCase()
-      return haystack.includes(normalizedQuery)
-    })
-  }, [normalizedQuery])
+  const selectPlaylist = useCallback(
+    (title: string) => {
+      setSelectedPlaylistQuery?.(title)
+      setTrackSearch('')
+    },
+    [setSelectedPlaylistQuery],
+  )
+
+  const isTrackActive = useCallback(
+    (songId: string) => currentTrack?.id === songId && isPlaying,
+    [currentTrack?.id, isPlaying],
+  )
+
+  const playlistMeta = formatPlaylistMetaLine(playlistTracks.length, playlistTracks)
+  const hasPlayableTracks = playlistTracks.length > 0
 
   return (
     <div className="psd-playlists-destination">
@@ -4334,145 +4447,192 @@ function PlaylistsPage({
           </span>
           <input
             type="search"
-            value={playlistQuery}
-            onChange={(event) => setPlaylistQuery(event.target.value)}
+            value={trackSearch}
+            onChange={(event) => setTrackSearch(event.target.value)}
             placeholder="Search in playlist"
             aria-label="Search in playlist"
           />
         </form>
 
         <section className="psd-playlist-hero" aria-labelledby="playlist-detail-heading">
+          <EntityAtmosphereBackdrop
+            className="psd-playlist-hero-backdrop"
+            artworkUrl={playlistHeroArt[0] ?? null}
+            label={activeSpec.title}
+            variant="hero"
+          />
           <div className="psd-playlist-hero-art" aria-hidden="true">
             <ArtworkCollage
-              urls={playlistHeroCollage}
-              seed={PSD_PLAYLIST_TITLE}
-              label={PSD_PLAYLIST_TITLE}
+              urls={playlistHeroArt}
+              seed={activeSpec.id}
+              label={activeSpec.title}
             />
           </div>
           <div className="psd-playlist-hero-copy">
             <span className="psd-playlist-eyebrow">PLAYLIST</span>
             <h1 id="playlist-detail-heading" className="psd-playlist-title">
-              {PSD_PLAYLIST_TITLE}
-              <svg className="psd-playlist-moon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d="M21 14.5A8.5 8.5 0 1111.5 4a6.5 6.5 0 109.5 10.5z" />
-              </svg>
+              {activeSpec.title}
+              {activeSpec.showMoon ? (
+                <svg className="psd-playlist-moon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M21 14.5A8.5 8.5 0 1111.5 4a6.5 6.5 0 109.5 10.5z" />
+                </svg>
+              ) : null}
             </h1>
-            <p className="psd-playlist-description">{PSD_PLAYLIST_DESCRIPTION}</p>
+            <p className="psd-playlist-description">{activeSpec.description}</p>
             <div className="psd-playlist-owner">
               <span className="psd-playlist-owner-avatar" aria-hidden="true">
                 <PsdWaveformStrip className="psd-playlist-owner-wave" />
               </span>
-              <span className="psd-playlist-owner-name">{PSD_PLAYLIST_OWNER}</span>
-              <PsdIconVerified className="psd-playlist-owner-verified" />
+              <span className="psd-playlist-owner-name">{activeSpec.owner}</span>
             </div>
-            <p className="psd-playlist-meta">{PSD_PLAYLIST_META}</p>
+            <p className="psd-playlist-meta">{playlistMeta}</p>
           </div>
         </section>
 
         <div className="psd-playlist-actions" role="toolbar" aria-label="Playlist actions">
-          <button type="button" className="psd-playlist-btn psd-playlist-btn--play" onClick={playAll}>
+          <button
+            type="button"
+            className="psd-playlist-btn psd-playlist-btn--play"
+            disabled={!hasPlayableTracks}
+            onClick={playAll}
+          >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
               <path d="M8 5v14l11-7z" />
             </svg>
             Play
           </button>
-          <button type="button" className="psd-playlist-btn psd-playlist-btn--shuffle" onClick={playAll}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-              <path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5" />
-            </svg>
-            Shuffle
-          </button>
-          <button type="button" className="psd-playlist-icon-btn" aria-label="Add collaborator">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-              <path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2" />
-              <circle cx="9" cy="7" r="4" />
-              <path d="M19 8v6M22 11h-6" />
-            </svg>
-          </button>
-          <button type="button" className="psd-playlist-icon-btn" aria-label="Download playlist">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-              <path d="M12 3v12M7 10l5 5 5-5M5 21h14" />
-            </svg>
-          </button>
-          <button type="button" className="psd-playlist-icon-btn" aria-label="More options">
-            <PsdIconMore />
-          </button>
         </div>
 
         <section className="psd-playlist-table-section" aria-label="Playlist tracks">
-          <div className="psd-playlist-table-wrap">
-            <table className="psd-playlist-table">
-              <thead>
-                <tr>
-                  <th scope="col" className="psd-playlist-col-index">#</th>
-                  <th scope="col" className="psd-playlist-col-title">TITLE</th>
-                  <th scope="col" className="psd-playlist-col-artist">ARTIST</th>
-                  <th scope="col" className="psd-playlist-col-duration" aria-label="Duration">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-                      <circle cx="12" cy="12" r="9" />
-                      <path d="M12 7v5l3 2" />
-                    </svg>
-                  </th>
-                  <th scope="col" className="psd-playlist-col-menu"><span className="sr-only">Actions</span></th>
-                </tr>
-              </thead>
-              <tbody>
-                {visibleRows.map((row, index) => {
-                  const sourceIndex = PSD_PLAYLIST_TRACK_ROWS.findIndex((entry) => entry.key === row.key)
-                  const song = resolvePlaylistSong(row.title, sourceIndex >= 0 ? sourceIndex : index)
-                  return (
-                    <tr
-                      key={row.key}
-                      className={`psd-playlist-table-row${'active' in row && row.active ? ' is-active' : ''}`}
-                    >
-                      <td className="psd-playlist-col-index">
-                        {'active' in row && row.active ? (
-                          <PsdIconEqualizer className="psd-playlist-row-equalizer" />
-                        ) : (
-                          index + 1
-                        )}
-                      </td>
-                      <td className="psd-playlist-col-title">
-                        <button
-                          type="button"
-                          className="psd-playlist-title-btn"
-                          onClick={() => playPlaylistTrack(sourceIndex >= 0 ? sourceIndex : index)}
-                        >
-                          <span className="psd-playlist-row-thumb">
-                            <ArtworkImage
-                              src={song?.artwork ?? null}
-                              alt=""
-                              seed={song?.id ?? row.key}
-                              label={song?.title ?? row.title}
-                            />
-                          </span>
-                          <span className="psd-playlist-title-copy">
-                            <strong>{row.title}</strong>
-                            <svg className="psd-playlist-row-heart" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                              <path d="M12 20.8l-1.1-1C6.4 15.36 3 12.28 3 8.5 3 6 5 4 7.5 4c1.74 0 3.41 1.01 4.5 2.36C13.09 5.01 14.76 4 16.5 4 19 4 21 6 21 8.5c0 3.78-3.4 6.86-7.9 11.3L12 20.8z" />
-                            </svg>
-                          </span>
-                        </button>
-                      </td>
-                      <td className="psd-playlist-col-artist">{row.artist}</td>
-                      <td className="psd-playlist-col-duration">{row.duration}</td>
-                      <td className="psd-playlist-col-menu">
-                        <button type="button" className="psd-playlist-row-menu" aria-label={`More options for ${row.title}`}>
-                          <PsdIconMore />
-                        </button>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-          <p className="psd-playlist-table-footer">{PSD_PLAYLIST_FOOTER_META}</p>
+          {!hasPlayableTracks ? (
+            <CatalogEmpty
+              title="No tracks available"
+              detail={`${activeSpec.title} has no catalog matches yet. Tracks appear when listening-scene identity resolves in your library.`}
+            />
+          ) : visibleTracks.length === 0 ? (
+            <CatalogEmpty
+              title="No matches in playlist"
+              detail={trackSearch.trim() ? `Nothing in ${activeSpec.title} matched "${trackSearch.trim()}".` : 'Try another search.'}
+            />
+          ) : (
+            <div className="psd-playlist-table-wrap">
+              <table className="psd-playlist-table">
+                <thead>
+                  <tr>
+                    <th scope="col" className="psd-playlist-col-index">#</th>
+                    <th scope="col" className="psd-playlist-col-title">TITLE</th>
+                    <th scope="col" className="psd-playlist-col-artist">ARTIST</th>
+                    <th scope="col" className="psd-playlist-col-duration" aria-label="Duration">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+                        <circle cx="12" cy="12" r="9" />
+                        <path d="M12 7v5l3 2" />
+                      </svg>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibleTracks.map((song, index) => {
+                    const sourceIndex = playlistTracks.findIndex((entry) => entry.id === song.id)
+                    const queueIndex = sourceIndex >= 0 ? sourceIndex : index
+                    const active = isTrackActive(song.id)
+                    return (
+                      <tr
+                        key={song.id}
+                        className={`psd-playlist-table-row${active ? ' is-active' : ''}`}
+                      >
+                        <td className="psd-playlist-col-index">
+                          {active ? (
+                            <PsdIconEqualizer className="psd-playlist-row-equalizer" />
+                          ) : (
+                            queueIndex + 1
+                          )}
+                        </td>
+                        <td className="psd-playlist-col-title">
+                          <button
+                            type="button"
+                            className="psd-playlist-title-btn"
+                            onClick={() => playPlaylistTrack(song, queueIndex)}
+                          >
+                            <span className="psd-playlist-row-thumb">
+                              <ArtworkImage
+                                src={song.artwork ?? null}
+                                alt=""
+                                seed={song.id}
+                                label={song.title}
+                              />
+                            </span>
+                            <span className="psd-playlist-title-copy">
+                              <strong>{song.title}</strong>
+                            </span>
+                          </button>
+                        </td>
+                        <td className="psd-playlist-col-artist">{song.artist}</td>
+                        <td className="psd-playlist-col-duration">{formatSongDurationLabel(song)}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {hasPlayableTracks ? (
+            <p className="psd-playlist-table-footer">{playlistMeta}</p>
+          ) : null}
         </section>
+
+        {relatedPlaylists.length > 0 ? (
+          <section className="psd-playlist-related-panel" aria-labelledby="playlist-related-heading">
+            <header className="psd-playlist-section-header">
+              <h2 id="playlist-related-heading">More playlists</h2>
+            </header>
+            <div className="psd-playlist-related-grid">
+              {relatedPlaylists.map((spec) => {
+                const cover = getArtworkForPlaylist(
+                  { id: spec.id, title: spec.title },
+                  artworkContext,
+                )
+                const trackCount = resolveEditorialPlaylistTracks(songs, spec.sceneId).length
+                return (
+                  <button
+                    key={spec.id}
+                    type="button"
+                    className="psd-playlist-related-card"
+                    onClick={() => selectPlaylist(spec.title)}
+                  >
+                    <div className="psd-playlist-related-art">
+                      {cover ? (
+                        <ArtworkImage
+                          src={cover}
+                          alt=""
+                          seed={spec.id}
+                          label={spec.title}
+                        />
+                      ) : (
+                        <ArtworkCollage
+                          urls={getArtworkForPlaylistCollage(
+                            resolveEditorialPlaylistTracks(songs, spec.sceneId),
+                            artworkContext,
+                          )}
+                          seed={spec.id}
+                          label={spec.title}
+                        />
+                      )}
+                    </div>
+                    <strong>{spec.title}</strong>
+                    <span>
+                      {trackCount} {trackCount === 1 ? 'song' : 'songs'}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </section>
+        ) : null}
       </PageFrame>
     </div>
   )
 }
+
 
 
 function LikedPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
