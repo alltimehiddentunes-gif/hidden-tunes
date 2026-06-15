@@ -6918,6 +6918,45 @@ function usePlayerShellChrome(onClose: () => void) {
   }, [onClose])
 }
 
+type PlayerUpNextRow = {
+  key: string
+  track: ApiSong
+  title: string
+  artist: string
+  artwork: string | null
+  duration: string
+  queueIndex: number
+  isNext: boolean
+}
+
+function buildPlayerUpNextRows(
+  upcomingTracks: ApiSong[],
+  currentIndex: number,
+  maxRows = 5,
+): PlayerUpNextRow[] {
+  return upcomingTracks.slice(0, maxRows).map((track, offset) => ({
+    key: `${track.id}-${currentIndex + 1 + offset}`,
+    track,
+    title: track.title,
+    artist: track.artist,
+    artwork: track.artwork ?? null,
+    duration: formatSongDurationLabel(track),
+    queueIndex: currentIndex + 1 + offset,
+    isNext: offset === 0,
+  }))
+}
+
+function PlayerUpNextEmptyState({ className = '' }: { className?: string }) {
+  return (
+    <div className={`player-upnext-empty ${className}`.trim()} role="status">
+      <p className="player-upnext-empty-title">Nothing queued next</p>
+      <p className="player-upnext-empty-detail">
+        Upcoming tracks from your current queue will appear here.
+      </p>
+    </div>
+  )
+}
+
 function PlayerQueuePanel() {
   const { currentQueue, currentIndex, playQueueAtIndex } = useDesktopPlayback()
   const visibleQueue = currentIndex >= 0
@@ -7645,6 +7684,7 @@ const Player3Shell = memo(function Player3Shell({
   const {
     currentTrack,
     currentQueue,
+    currentIndex,
     isPlaying,
     isLoading,
     positionSeconds,
@@ -7653,6 +7693,7 @@ const Player3Shell = memo(function Player3Shell({
     volume,
     setVolume,
     getUpcomingTracks,
+    playQueueAtIndex,
     audioQualityMode,
   } = useDesktopPlayback()
 
@@ -7682,16 +7723,17 @@ const Player3Shell = memo(function Player3Shell({
     : null
   const upcomingTracks = getUpcomingTracks()
 
-  const upNextRows = useMemo(() => {
-    if (upcomingTracks.length === 0) return []
-    return upcomingTracks.slice(0, 5).map((track, index) => ({
-      key: track.id,
-      title: track.title,
-      artist: track.artist,
-      active: index === 0,
-      artwork: track.artwork,
-    }))
-  }, [upcomingTracks])
+  const upNextRows = useMemo(
+    () => buildPlayerUpNextRows(upcomingTracks, currentIndex),
+    [currentIndex, upcomingTracks],
+  )
+
+  const handleUpNextRowClick = useCallback(
+    (queueIndex: number) => {
+      playQueueAtIndex(queueIndex)
+    },
+    [playQueueAtIndex],
+  )
 
   const resolveVolume = useCallback((clientX: number) => {
     const trackEl = volumeTrackRef.current
@@ -8009,29 +8051,42 @@ const Player3Shell = memo(function Player3Shell({
             <h2>UP NEXT</h2>
           </div>
           <ol className="player3-upnext-list">
-            {upNextRows.map((row) => (
-              <li key={row.key} className={`player3-upnext-item${row.active ? ' is-active' : ''}`}>
-                <span className="player3-upnext-thumb">
-                  <ArtworkImage
-                    src={'artwork' in row && row.artwork ? row.artwork : null}
-                    alt=""
-                    seed={row.key}
-                    label={row.title}
-                  />
-                </span>
-                <div className="player3-upnext-copy">
-                  <strong>{row.title}</strong>
-                  <span>{row.artist}</span>
-                </div>
-                {row.active ? (
-                  <PsdIconEqualizer className="player3-upnext-eq" />
-                ) : (
-                  <button type="button" className="player3-upnext-menu" aria-label={`More options for ${row.title}`}>
-                    <PsdIconMore />
-                  </button>
-                )}
+            {upNextRows.length === 0 ? (
+              <li className="player3-upnext-empty-item">
+                <PlayerUpNextEmptyState />
               </li>
-            ))}
+            ) : (
+              upNextRows.map((row) => (
+                <li
+                  key={row.key}
+                  className={`player3-upnext-item${row.isNext ? ' is-active' : ''}`}
+                >
+                  <button
+                    type="button"
+                    className="player-upnext-row-button player-upnext-row-button--player3"
+                    onClick={() => handleUpNextRowClick(row.queueIndex)}
+                  >
+                    <span className="player3-upnext-thumb">
+                      <ArtworkImage
+                        src={row.artwork}
+                        alt=""
+                        seed={row.track.id}
+                        label={row.title}
+                      />
+                    </span>
+                    <div className="player3-upnext-copy">
+                      <strong>{row.title}</strong>
+                      <span>{row.artist}</span>
+                    </div>
+                    {row.isNext ? (
+                      <PsdIconEqualizer className="player3-upnext-eq" />
+                    ) : (
+                      <span className="player3-upnext-duration">{row.duration}</span>
+                    )}
+                  </button>
+                </li>
+              ))
+            )}
           </ol>
 
           <section className="player3-stats" aria-label="Playlist stats">
@@ -8079,6 +8134,7 @@ const Player4Shell = memo(function Player4Shell({
 } & PlayerShellModeProps) {
   const {
     currentTrack,
+    currentIndex,
     isPlaying,
     isLoading,
     positionSeconds,
@@ -8089,6 +8145,7 @@ const Player4Shell = memo(function Player4Shell({
     pause,
     resume,
     getUpcomingTracks,
+    playQueueAtIndex,
     audioQualityMode,
   } = useDesktopPlayback()
 
@@ -8119,19 +8176,17 @@ const Player4Shell = memo(function Player4Shell({
   const showLoading = isActive && isLoading
   const upcomingTracks = getUpcomingTracks()
 
-  const upNextRows = useMemo(() => {
-    if (upcomingTracks.length === 0) return []
-    return upcomingTracks.slice(0, 5).map((track, index) => ({
-      key: track.id,
-      title: track.title,
-      artist: track.artist,
-      duration: track.durationSeconds != null && track.durationSeconds > 0
-        ? formatPlaybackTime(track.durationSeconds)
-        : '—',
-      active: index === 0,
-      artwork: track.artwork,
-    }))
-  }, [upcomingTracks])
+  const upNextRows = useMemo(
+    () => buildPlayerUpNextRows(upcomingTracks, currentIndex),
+    [currentIndex, upcomingTracks],
+  )
+
+  const handleUpNextRowClick = useCallback(
+    (queueIndex: number) => {
+      playQueueAtIndex(queueIndex)
+    },
+    [playQueueAtIndex],
+  )
 
   const resolveVolume = useCallback((clientX: number) => {
     const trackEl = volumeTrackRef.current
@@ -8455,29 +8510,42 @@ const Player4Shell = memo(function Player4Shell({
             <h2>UP NEXT</h2>
           </div>
           <ol className="player4-upnext-list">
-            {upNextRows.map((row) => (
-              <li key={row.key} className={`player4-upnext-item${row.active ? ' is-active' : ''}`}>
-                <span className="player4-upnext-thumb" aria-hidden="true">
-                  <ArtworkImage
-                    src={'artwork' in row && row.artwork ? row.artwork : null}
-                    alt=""
-                    seed={row.key}
-                    label={row.title}
-                  />
-                </span>
-                <div className="player4-upnext-copy">
-                  <strong>{row.title}</strong>
-                  <span>{row.artist}</span>
-                </div>
-                {'duration' in row ? (
-                  row.active ? (
-                    <PsdIconEqualizer className="player4-upnext-eq" />
-                  ) : (
-                    <span className="player4-upnext-duration">{row.duration}</span>
-                  )
-                ) : null}
+            {upNextRows.length === 0 ? (
+              <li className="player4-upnext-empty-item">
+                <PlayerUpNextEmptyState />
               </li>
-            ))}
+            ) : (
+              upNextRows.map((row) => (
+                <li
+                  key={row.key}
+                  className={`player4-upnext-item${row.isNext ? ' is-active' : ''}`}
+                >
+                  <button
+                    type="button"
+                    className="player-upnext-row-button player-upnext-row-button--player4"
+                    onClick={() => handleUpNextRowClick(row.queueIndex)}
+                  >
+                    <span className="player4-upnext-thumb" aria-hidden="true">
+                      <ArtworkImage
+                        src={row.artwork}
+                        alt=""
+                        seed={row.track.id}
+                        label={row.title}
+                      />
+                    </span>
+                    <div className="player4-upnext-copy">
+                      <strong>{row.title}</strong>
+                      <span>{row.artist}</span>
+                    </div>
+                    {row.isNext ? (
+                      <PsdIconEqualizer className="player4-upnext-eq" />
+                    ) : (
+                      <span className="player4-upnext-duration">{row.duration}</span>
+                    )}
+                  </button>
+                </li>
+              ))
+            )}
           </ol>
 
 
@@ -8505,6 +8573,7 @@ const Player5Shell = memo(function Player5Shell({
   const {
     currentTrack,
     currentQueue,
+    currentIndex,
     isPlaying,
     isLoading,
     positionSeconds,
@@ -8515,6 +8584,7 @@ const Player5Shell = memo(function Player5Shell({
     pause,
     resume,
     getUpcomingTracks,
+    playQueueAtIndex,
     audioQualityMode,
   } = useDesktopPlayback()
 
@@ -8547,19 +8617,17 @@ const Player5Shell = memo(function Player5Shell({
   const upcomingTracks = getUpcomingTracks()
   const queueCount = currentQueue.length > 0 ? String(currentQueue.length) : '0'
 
-  const upNextRows = useMemo(() => {
-    if (upcomingTracks.length === 0) return []
-    return upcomingTracks.slice(0, 5).map((track, index) => ({
-      key: track.id,
-      title: track.title,
-      artist: track.artist,
-      duration: track.durationSeconds != null && track.durationSeconds > 0
-        ? formatPlaybackTime(track.durationSeconds)
-        : '—',
-      active: index === 0,
-      artwork: track.artwork,
-    }))
-  }, [upcomingTracks])
+  const upNextRows = useMemo(
+    () => buildPlayerUpNextRows(upcomingTracks, currentIndex),
+    [currentIndex, upcomingTracks],
+  )
+
+  const handleUpNextRowClick = useCallback(
+    (queueIndex: number) => {
+      playQueueAtIndex(queueIndex)
+    },
+    [playQueueAtIndex],
+  )
 
   const resolveVolume = useCallback((clientX: number) => {
     const trackEl = volumeTrackRef.current
@@ -8920,36 +8988,51 @@ const Player5Shell = memo(function Player5Shell({
             </button>
           </div>
           <ol className="player5-upnext-list">
-            {upNextRows.map((row) => (
-              <li key={row.key} className={`player5-upnext-item${row.active ? ' is-active' : ''}`}>
-                <span className="player5-upnext-thumb-wrap">
-                  <span className="player5-upnext-thumb">
-                    <ArtworkImage
-                      src={'artwork' in row && row.artwork ? row.artwork : null}
-                      alt=""
-                      seed={row.key}
-                      label={row.title}
-                    />
-                  </span>
-                  {row.active ? (
-                    <span className="player5-upnext-play" aria-hidden="true">
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M8 5v14l11-7L8 5z" />
-                      </svg>
-                    </span>
-                  ) : null}
-                </span>
-                <div className="player5-upnext-copy">
-                  <strong>{row.title}</strong>
-                  <span>{row.artist}</span>
-                </div>
-                {row.active ? (
-                  <PsdIconEqualizer className="player5-upnext-eq" />
-                ) : (
-                  <span className="player5-upnext-duration">{row.duration}</span>
-                )}
+            {upNextRows.length === 0 ? (
+              <li className="player5-upnext-empty-item">
+                <PlayerUpNextEmptyState />
               </li>
-            ))}
+            ) : (
+              upNextRows.map((row) => (
+                <li
+                  key={row.key}
+                  className={`player5-upnext-item${row.isNext ? ' is-active' : ''}`}
+                >
+                  <button
+                    type="button"
+                    className="player-upnext-row-button player-upnext-row-button--player5"
+                    onClick={() => handleUpNextRowClick(row.queueIndex)}
+                  >
+                    <span className="player5-upnext-thumb-wrap">
+                      <span className="player5-upnext-thumb">
+                        <ArtworkImage
+                          src={row.artwork}
+                          alt=""
+                          seed={row.track.id}
+                          label={row.title}
+                        />
+                      </span>
+                      {row.isNext ? (
+                        <span className="player5-upnext-play" aria-hidden="true">
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M8 5v14l11-7L8 5z" />
+                          </svg>
+                        </span>
+                      ) : null}
+                    </span>
+                    <div className="player5-upnext-copy">
+                      <strong>{row.title}</strong>
+                      <span>{row.artist}</span>
+                    </div>
+                    {row.isNext ? (
+                      <PsdIconEqualizer className="player5-upnext-eq" />
+                    ) : (
+                      <span className="player5-upnext-duration">{row.duration}</span>
+                    )}
+                  </button>
+                </li>
+              ))
+            )}
           </ol>
 
           <section className="player5-stats" aria-label="Listening stats">
