@@ -86,6 +86,7 @@ import {
   usePreferencesReset,
   type StoredPageId,
 } from './lib/localPreferences'
+import { PlayerLyricsPanel } from './components/PlayerLyricsPanel'
 import { PremiumAudioVisualizerProvider } from './components/PremiumAudioVisualizerProvider'
 import { PremiumCinematicWaveform } from './components/PremiumCinematicWaveform'
 import { PremiumReactiveWaveform } from './components/PremiumReactiveWaveform'
@@ -123,7 +124,11 @@ import {
   deriveListeningAtmosphere,
   type ListeningContextLines,
 } from './lib/listeningContext'
-import { type NowPlayingStyle } from './lib/nowPlayingStyle'
+import {
+  NOW_PLAYING_STYLE_OPTIONS,
+  usePreferredNowPlayingStyle,
+  type NowPlayingStyle,
+} from './lib/nowPlayingStyle'
 import { useAutoOpenPreferredPlayer } from './lib/useAutoOpenPreferredPlayer'
 import './App.css'
 
@@ -5437,12 +5442,27 @@ function AudioQualitySelector({
   )
 }
 
-function SettingsPage() {
-  const { audioQualityMode, setAudioQualityMode } = useDesktopPlayback()
+function SettingsPage({
+  onOpenPlayerByStyle,
+}: {
+  onOpenPlayerByStyle: (style: NowPlayingStyle) => void
+}) {
+  const {
+    audioQualityMode,
+    setAudioQualityMode,
+    currentTrack,
+    currentQueue,
+    currentIndex,
+  } = useDesktopPlayback()
+  const [preferredPlayerStyle, setPreferredPlayerStyle] = usePreferredNowPlayingStyle()
   const { resetDesktopPreferencesState } = usePreferencesReset()
   const { clearCatalogCache } = useCatalog()
   const [resetNotice, setResetNotice] = useState('')
   const [cacheNotice, setCacheNotice] = useState('')
+
+  const hasActivePlayback = Boolean(
+    currentTrack && currentQueue.length > 0 && currentIndex >= 0,
+  )
 
   const handleResetPreferences = () => {
     resetDesktopPreferencesState()
@@ -5544,6 +5564,66 @@ function SettingsPage() {
                 onChange={setAudioQualityMode}
               />
             </div>
+          </section>
+          <section className="settings-panel settings-panel--player">
+            <h2>Preferred player</h2>
+            <p className="settings-panel-desc">
+              Choose the full-screen Now Playing experience that opens after you tap a song.
+              Your choice is saved on this device and does not interrupt playback.
+            </p>
+            <div
+              className="preferred-player-grid"
+              role="radiogroup"
+              aria-label="Preferred full-screen player"
+            >
+              {NOW_PLAYING_STYLE_OPTIONS.map((option) => {
+                const isActive = preferredPlayerStyle === option.id
+                return (
+                  <article
+                    key={option.id}
+                    className={`preferred-player-card${isActive ? ' is-active' : ''}`}
+                  >
+                    <button
+                      type="button"
+                      className="preferred-player-select"
+                      role="radio"
+                      aria-checked={isActive}
+                      onClick={() => setPreferredPlayerStyle(option.id)}
+                    >
+                      <span className="preferred-player-select-head">
+                        <strong>{option.label}</strong>
+                        {isActive ? (
+                          <span className="settings-badge preferred-player-badge">Selected</span>
+                        ) : null}
+                      </span>
+                      <span className="preferred-player-select-desc">{option.description}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-secondary btn-sm preferred-player-open"
+                      disabled={!hasActivePlayback}
+                      title={
+                        hasActivePlayback
+                          ? `Open ${option.label} with the current track`
+                          : 'Play a song to preview a player'
+                      }
+                      onClick={() => onOpenPlayerByStyle(option.id)}
+                    >
+                      Open
+                    </button>
+                  </article>
+                )
+              })}
+            </div>
+            {hasActivePlayback ? (
+              <p className="settings-reset-note" role="status">
+                Open previews the player with your current track without changing playback.
+              </p>
+            ) : (
+              <p className="settings-reset-note" role="status">
+                Play a song first to preview any player. Your preferred choice still saves immediately.
+              </p>
+            )}
           </section>
           <section className="settings-panel">
             <h2>Appearance</h2>
@@ -6889,18 +6969,6 @@ function usePlayerShellChrome(onClose: () => void) {
   }, [onClose])
 }
 
-function PlayerLyricsEmptyState({ artist }: { artist?: string | null }) {
-  return (
-    <div className="player-lyrics-empty">
-      <p className="player-lyrics-empty-title">Lyrics unavailable</p>
-      <p className="player-lyrics-empty-detail">
-        Synced lyrics are not available for this track in the desktop catalog yet.
-      </p>
-      {artist ? <p className="player-lyrics-empty-credit">Written by {artist}</p> : null}
-    </div>
-  )
-}
-
 function PlayerQueuePanel() {
   const { currentQueue, currentIndex, playQueueAtIndex } = useDesktopPlayback()
   const visibleQueue = currentIndex >= 0
@@ -7037,6 +7105,7 @@ const CinemaPlayerShell = memo(function CinemaPlayerShell({
     seekTo,
     volume,
     setVolume,
+    positionSeconds,
   } = usePlayerShellState(preferredTrack)
 
   const volumeTrackRef = useRef<HTMLDivElement>(null)
@@ -7175,7 +7244,11 @@ const CinemaPlayerShell = memo(function CinemaPlayerShell({
 
           {playerTab === 'lyrics' ? (
             <div className="psd-player-master-lyrics" role="tabpanel" aria-label="Lyrics">
-              <PlayerLyricsEmptyState artist={displayArtist} />
+              <PlayerLyricsPanel
+                track={displayTrack}
+                positionSeconds={isActive ? positionSeconds : 0}
+                variant="embed"
+              />
             </div>
           ) : null}
 
@@ -7570,7 +7643,11 @@ const Player2Shell = memo(function Player2Shell({
 
         <aside className="player2-lyrics-panel" aria-label="Lyrics">
           <h2 className="player2-lyrics-heading">LYRICS</h2>
-          <PlayerLyricsEmptyState artist={displayArtist} />
+          <PlayerLyricsPanel
+            track={displayTrack}
+            positionSeconds={isActive ? positionSeconds : 0}
+            variant="embed"
+          />
           <button type="button" className="player2-lyrics-more" onClick={onOpenLyrics}>
             SHOW FULL LYRICS
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
@@ -7810,7 +7887,11 @@ const Player3Shell = memo(function Player3Shell({
               {playerTab === 'lyrics' ? (
                 <div className="player3-lyrics" role="tabpanel" aria-label="Lyrics">
                   <span className="player3-lyrics-quote" aria-hidden="true">“</span>
-                  <PlayerLyricsEmptyState artist={displayArtist} />
+                  <PlayerLyricsPanel
+                    track={displayTrack}
+                    positionSeconds={isActive ? positionSeconds : 0}
+                    variant="embed"
+                  />
                   <button type="button" className="player3-lyrics-more" onClick={onOpenLyrics}>
                     SHOW FULL LYRICS
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
@@ -8318,7 +8399,11 @@ const Player4Shell = memo(function Player4Shell({
                 <span>VISUALIZER</span>
               </button>
               <div className="player4-lyrics-body">
-                <PlayerLyricsEmptyState artist={displayArtist} />
+                <PlayerLyricsPanel
+                  track={displayTrack}
+                  positionSeconds={isActive ? positionSeconds : 0}
+                  variant="embed"
+                />
               </div>
               <button type="button" className="player4-lyrics-more" onClick={onOpenLyrics}>
                 SHOW FULL LYRICS
@@ -8718,7 +8803,11 @@ const Player5Shell = memo(function Player5Shell({
               <div className="player5-lyrics-col">
                 <span className="player5-lyrics-quote" aria-hidden="true">“</span>
                 <div className="player5-lyrics-body">
-                  <PlayerLyricsEmptyState artist={displayArtist} />
+                  <PlayerLyricsPanel
+                    track={displayTrack}
+                    positionSeconds={isActive ? positionSeconds : 0}
+                    variant="embed"
+                  />
                 </div>
                 <button type="button" className="player5-lyrics-more" onClick={onOpenLyrics}>
                   SHOW FULL LYRICS
@@ -9047,7 +9136,11 @@ const CinematicWaveformShell = memo(function CinematicWaveformShell({
         />
 
         <div className="psd-waveform-lyrics" aria-live="polite">
-          <PlayerLyricsEmptyState artist={displayArtist} />
+          <PlayerLyricsPanel
+            track={displayTrack}
+            positionSeconds={isActive ? positionSeconds : 0}
+            variant="inline"
+          />
         </div>
 
         <div className="psd-waveform-dots" aria-hidden="true">
@@ -9266,7 +9359,11 @@ const FullscreenLyricsShell = memo(function FullscreenLyricsShell({
         </div>
 
         <div className="psd-lyrics-stack" aria-live="polite">
-          <PlayerLyricsEmptyState artist={displayArtist} />
+          <PlayerLyricsPanel
+            track={displayTrack}
+            positionSeconds={isActive ? positionSeconds : 0}
+            variant="stack"
+          />
         </div>
       </div>
 
@@ -9795,6 +9892,7 @@ function CatalogDetailRouter({
   setAlbumsQuery,
   onPlaylistBack,
   onNavigateNav,
+  onOpenPlayerByStyle,
   recentQuery = '',
   downloadsQuery = '',
   playlistsQuery = '',
@@ -9821,6 +9919,7 @@ function CatalogDetailRouter({
   setAlbumsQuery: (value: string) => void
   onPlaylistBack: () => void
   onNavigateNav: (navKey: NavKey) => void
+  onOpenPlayerByStyle: (style: NowPlayingStyle) => void
   recentQuery?: string
   downloadsQuery?: string
   playlistsQuery?: string
@@ -9883,6 +9982,7 @@ function CatalogDetailRouter({
       setAlbumsQuery={setAlbumsQuery}
       onPlaylistBack={onPlaylistBack}
       onNavigateNav={onNavigateNav}
+      onOpenPlayerByStyle={onOpenPlayerByStyle}
       recentQuery={recentQuery}
       downloadsQuery={downloadsQuery}
       playlistsQuery={playlistsQuery}
@@ -9905,6 +10005,7 @@ function PageContent({
   setAlbumsQuery,
   onPlaylistBack,
   onNavigateNav,
+  onOpenPlayerByStyle,
   recentQuery = '',
   downloadsQuery = '',
   playlistsQuery = '',
@@ -9923,6 +10024,7 @@ function PageContent({
   setAlbumsQuery: (value: string) => void
   onPlaylistBack: () => void
   onNavigateNav: (navKey: NavKey) => void
+  onOpenPlayerByStyle: (style: NowPlayingStyle) => void
   recentQuery?: string
   downloadsQuery?: string
   playlistsQuery?: string
@@ -9999,7 +10101,7 @@ function PageContent({
     case 'tv':
       return <TvPage />
     case 'settings':
-      return <SettingsPage />
+      return <SettingsPage onOpenPlayerByStyle={onOpenPlayerByStyle} />
     default:
       return (
         <HomePage
@@ -10092,6 +10194,11 @@ function AppShell() {
     anyPlayerOverlayOpen,
     openPlayerByStyle,
   })
+
+  const openPlayerByStyleNow = useCallback((style: NowPlayingStyle) => {
+    cancelAutoOpenPlayer()
+    openPlayerByStyle(style)
+  }, [cancelAutoOpenPlayer, openPlayerByStyle])
 
   const openCinemaPlayer = useCallback(() => {
     cancelAutoOpenPlayer()
@@ -10298,6 +10405,7 @@ function AppShell() {
                   setAlbumsQuery={setAlbumsQuery}
                   onPlaylistBack={() => navigateNav('library')}
                   onNavigateNav={navigateNav}
+                  onOpenPlayerByStyle={openPlayerByStyleNow}
                   recentQuery={recentQuery}
                   downloadsQuery={downloadsQuery}
                   playlistsQuery={playlistsQuery}

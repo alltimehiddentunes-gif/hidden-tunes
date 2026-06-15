@@ -1,14 +1,51 @@
+import {
+  buildAudioVersionsFromLegacy,
+  type SongAudioVersions,
+} from './audioVersions'
+
+export type { AudioVersionSource, SongAudioVersions } from './audioVersions'
+
 export const API_BASE_URL = 'https://hidden-tunes-api.onrender.com'
 
 const REQUEST_TIMEOUT_MS = 20_000
+
+export const CATALOG_SEARCH_MAX_RESULTS = 240
+export const CATALOG_SEARCH_LIGHTWEIGHT_LIMIT = 80
+
+export type ApiSyncedLyricLine = {
+  text: string
+  timestampMs: number
+}
 
 export type ApiSong = {
   id: string
   title: string
   artist: string
+  artistId: string | null
   album: string
+  albumId: string | null
+  genre: string | null
+  mood: string | null
+  tags: string[]
+  description: string | null
   artwork: string | null
+  /** Optional lightweight preview — resolved on play, not required for search. */
+  previewUrl: string | null
+  /** Optional stream/audio URL — resolved on play, not required for search. */
+  audioUrl: string | null
+  /** Optional higher-quality source — future upgrade path. */
+  highQualityUrl: string | null
+  /** Multi-tier playable sources — populated from legacy fields today. */
+  audioVersions?: SongAudioVersions
+  durationSeconds: number | null
   createdAt: string | null
+  /** Plain-text lyrics when supplied by catalog — not populated in desktop preview yet. */
+  lyrics?: string | null
+  /** Timestamped lyric lines when supplied by catalog. */
+  syncedLyrics?: ApiSyncedLyricLine[] | null
+  /** Pre-split plain lyric lines when supplied separately from `lyrics`. */
+  lyricLines?: string[] | null
+  lyricsSource?: string | null
 }
 
 export type ApiAlbum = {
@@ -35,6 +72,7 @@ export type ApiArtist = {
   name: string
   artwork: string | null
   songCount: number
+  tracks: ApiSong[]
 }
 
 type PaginationOptions = {
@@ -51,13 +89,68 @@ function buildQuery(options?: PaginationOptions) {
   })
 }
 
-function pickArtwork(row: Record<string, unknown>): string | null {
+function pickHttpUrl(row: Record<string, unknown>, keys: string[]): string | null {
+  for (const key of keys) {
+    const value = row[key]
+    if (typeof value === 'string' && value.trim().startsWith('http')) {
+      return value.trim()
+    }
+  }
+  return null
+}
+
+function pickPlaybackUrls(row: Record<string, unknown>) {
+  const previewUrl = pickHttpUrl(row, ['previewUrl', 'preview_url'])
+  const streamUrl = pickHttpUrl(row, ['streamUrl', 'stream_url', 'url'])
+  const audioUrl = pickHttpUrl(row, ['audioUrl', 'audio_url']) ?? streamUrl
+  const highQualityUrl = pickHttpUrl(row, ['highQualityUrl', 'high_quality_url'])
+  const losslessUrl = pickHttpUrl(row, ['losslessUrl', 'lossless_url'])
+  const durationSeconds = pickDurationSeconds(row)
+
+  const audioVersions = buildAudioVersionsFromLegacy({
+    previewUrl,
+    streamUrl,
+    audioUrl,
+    highQualityUrl,
+    losslessUrl,
+    durationSeconds,
+  })
+
+  const resolvedHighQuality =
+    highQualityUrl ?? audioVersions?.highQuality?.url ?? null
+
+  return {
+    previewUrl,
+    audioUrl: audioUrl ?? previewUrl,
+    highQualityUrl:
+      resolvedHighQuality && resolvedHighQuality !== previewUrl
+        ? resolvedHighQuality
+        : null,
+    audioVersions,
+  }
+}
+
+
+function pickDurationSeconds(row: Record<string, unknown>): number | null {
+  const candidates = [row.duration_seconds, row.duration]
+
+  for (const value of candidates) {
+    if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+      return value
+    }
+  }
+
+  return null
+}
+
+function pickSongArtwork(row: Record<string, unknown>): string | null {
   const candidates = [
     row.artwork,
-    row.cover,
+    row.artwork_url,
     row.cover_url,
+    row.cover,
+    row.album_artwork_url,
     row.thumbnail,
-    row.image_url,
   ]
 
   for (const value of candidates) {
@@ -69,10 +162,92 @@ function pickArtwork(row: Record<string, unknown>): string | null {
   return null
 }
 
+function pickAlbumArtwork(row: Record<string, unknown>): string | null {
+  const candidates = [
+    row.artwork,
+    row.artwork_url,
+    row.cover_url,
+    row.cover,
+    row.album_artwork_url,
+    row.thumbnail,
+  ]
+
+  for (const value of candidates) {
+    if (typeof value === 'string' && value.trim().startsWith('http')) {
+      return value.trim()
+    }
+  }
+
+  return null
+}
+
+function pickArtistPortrait(row: Record<string, unknown>): string | null {
+  return pickHttpUrl(row, [
+    'image_url',
+    'avatar_url',
+    'portrait_url',
+    'artist_image_url',
+  ])
+}
+
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : null
+}
+
+function pickSyncedLyricLines(value: unknown): ApiSyncedLyricLine[] | null {
+  if (!Array.isArray(value)) return null
+  const lines: ApiSyncedLyricLine[] = []
+  for (const entry of value) {
+    const record = asRecord(entry)
+    if (!record) continue
+    const text = typeof record.text === 'string'
+      ? record.text.trim()
+      : typeof record.line === 'string'
+        ? record.line.trim()
+        : ''
+    const timestampMs = typeof record.timestampMs === 'number'
+      ? record.timestampMs
+      : typeof record.timestamp_ms === 'number'
+        ? record.timestamp_ms
+        : typeof record.time === 'number'
+          ? record.time
+          : null
+    if (!text || timestampMs == null || !Number.isFinite(timestampMs)) continue
+    lines.push({ text, timestampMs })
+  }
+  return lines.length > 0 ? lines : null
+}
+
+function pickLyricsFields(record: Record<string, unknown>) {
+  const lyrics = typeof record.lyrics === 'string' ? record.lyrics.trim() : null
+  const lyricsSource = typeof record.lyrics_source === 'string'
+    ? record.lyrics_source.trim()
+    : typeof record.lyricsSource === 'string'
+      ? record.lyricsSource.trim()
+      : null
+  const lyricLines = pickStringList(record.lyric_lines ?? record.lyricLines)
+  const syncedLyrics = pickSyncedLyricLines(record.synced_lyrics ?? record.syncedLyrics)
+
+  return {
+    lyrics: lyrics || null,
+    lyricLines: lyricLines.length > 0 ? lyricLines : null,
+    syncedLyrics,
+    lyricsSource: lyricsSource || null,
+  }
+}
+
+function pickStringList(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  const items: string[] = []
+  for (const entry of value) {
+    if (typeof entry === 'string') {
+      const trimmed = entry.trim()
+      if (trimmed) items.push(trimmed)
+    }
+  }
+  return items
 }
 
 function normalizeSong(row: unknown): ApiSong | null {
@@ -81,16 +256,53 @@ function normalizeSong(row: unknown): ApiSong | null {
 
   const createdAt =
     typeof record.created_at === 'string' ? record.created_at : null
+  const playback = pickPlaybackUrls(record)
+  const nestedArtist = asRecord(record.artists)
+  const nestedAlbum = asRecord(record.album) ?? asRecord(record.albums)
+  const directArtwork = pickSongArtwork(record)
+  const albumArtwork = nestedAlbum ? pickAlbumArtwork(nestedAlbum) : null
+  const lyricsFields = pickLyricsFields(record)
 
   return {
     id: String(record.id),
     title: String(record.title || 'Untitled'),
     artist: String(
-      record.artist || record.artist_name || 'Unknown Artist',
-    ),
+      record.artist ||
+        record.artist_name ||
+        nestedArtist?.name ||
+        'Unknown Artist',
+    ).trim(),
+    artistId:
+      record.artistId != null
+        ? String(record.artistId)
+        : record.artist_id != null
+          ? String(record.artist_id)
+          : null,
     album: String(record.album || record.album_title || 'Singles'),
-    artwork: pickArtwork(record),
+    albumId:
+      record.albumId != null
+        ? String(record.albumId)
+        : record.album_id != null
+          ? String(record.album_id)
+          : null,
+    genre:
+      record.genre != null
+        ? String(record.genre)
+        : record.category != null
+          ? String(record.category)
+          : null,
+    mood: record.mood != null ? String(record.mood) : null,
+    tags: pickStringList(record.tags),
+    description:
+      typeof record.description === 'string' ? record.description.trim() : null,
+    artwork: directArtwork ?? albumArtwork,
+    previewUrl: playback.previewUrl,
+    audioUrl: playback.audioUrl,
+    highQualityUrl: playback.highQualityUrl,
+    audioVersions: playback.audioVersions,
+    durationSeconds: pickDurationSeconds(record),
     createdAt,
+    ...lyricsFields,
   }
 }
 
@@ -106,7 +318,7 @@ function normalizeAlbum(row: unknown): ApiAlbum | null {
   return {
     id: String(record.id),
     title: String(record.title || 'Untitled Album'),
-    artwork: pickArtwork(record),
+    artwork: pickAlbumArtwork(record),
     releaseYear,
     createdAt,
     artistId: record.artist_id != null ? String(record.artist_id) : null,
@@ -117,18 +329,22 @@ function normalizeArtist(row: unknown): ApiArtist | null {
   const record = asRecord(row)
   if (!record || record.id == null) return null
 
+  const rawTracks = Array.isArray(record.tracks) ? record.tracks : []
+  const tracks = rawTracks
+    .map((track) => normalizeSong(track))
+    .filter((song): song is ApiSong => Boolean(song))
+
   const songCount =
     typeof record.songCount === 'number'
       ? record.songCount
-      : Array.isArray(record.tracks)
-        ? record.tracks.length
-        : 0
+      : tracks.length
 
   return {
     id: String(record.id),
-    name: String(record.name || 'Unknown Artist'),
-    artwork: pickArtwork(record),
+    name: String(record.name || 'Unknown Artist').trim(),
+    artwork: pickArtistPortrait(record),
     songCount,
+    tracks,
   }
 }
 
@@ -199,6 +415,9 @@ export async function fetchArtists(
 }
 
 export async function fetchCatalogBundle(): Promise<CatalogBundle> {
+  // Partial catalog today: songs page 1 + embedded artist tracks.
+  // Search uses metadata-first cached entries; playback URLs resolve on tap.
+  // Future: `/api/catalog/metadata` for paginated 100k-song metadata.
   const [songs, albums, artists] = await Promise.all([
     fetchSongs({ limit: 100, page: 1 }),
     fetchAlbums({ limit: 100, page: 1 }),
@@ -209,17 +428,6 @@ export async function fetchCatalogBundle(): Promise<CatalogBundle> {
 
 function normalizeQuery(query: string) {
   return query.trim().toLowerCase()
-}
-
-export function filterSongsByQuery(songs: ApiSong[], query: string) {
-  const q = normalizeQuery(query)
-  if (!q) return songs
-  return songs.filter(
-    (song) =>
-      song.title.toLowerCase().includes(q) ||
-      song.artist.toLowerCase().includes(q) ||
-      song.album.toLowerCase().includes(q),
-  )
 }
 
 export function sortSongsList(songs: ApiSong[], sort: SongSort) {
