@@ -7287,6 +7287,7 @@ const CinemaPlayerShell = memo(function CinemaPlayerShell({
               <PlayerLyricsPanel
                 track={displayTrack}
                 positionSeconds={isActive ? positionSeconds : 0}
+                isLoading={isLoading && isActive}
                 variant="embed"
               />
             </div>
@@ -7702,6 +7703,7 @@ const Player2Shell = memo(function Player2Shell({
           <PlayerLyricsPanel
             track={displayTrack}
             positionSeconds={isActive ? positionSeconds : 0}
+            isLoading={isLoading && isActive}
             variant="embed"
           />
           <button type="button" className="player2-lyrics-more" onClick={onOpenLyrics}>
@@ -7954,6 +7956,7 @@ const Player3Shell = memo(function Player3Shell({
                   <PlayerLyricsPanel
                     track={displayTrack}
                     positionSeconds={isActive ? positionSeconds : 0}
+                    isLoading={isLoading && isActive}
                     variant="embed"
                   />
                   <button type="button" className="player3-lyrics-more" onClick={onOpenLyrics}>
@@ -8493,6 +8496,7 @@ const Player4Shell = memo(function Player4Shell({
                 <PlayerLyricsPanel
                   track={displayTrack}
                   positionSeconds={isActive ? positionSeconds : 0}
+                  isLoading={isLoading && isActive}
                   variant="embed"
                 />
               </div>
@@ -8933,6 +8937,7 @@ const Player5Shell = memo(function Player5Shell({
                   <PlayerLyricsPanel
                     track={displayTrack}
                     positionSeconds={isActive ? positionSeconds : 0}
+                    isLoading={isLoading && isActive}
                     variant="embed"
                   />
                 </div>
@@ -9286,6 +9291,7 @@ const CinematicWaveformShell = memo(function CinematicWaveformShell({
           <PlayerLyricsPanel
             track={displayTrack}
             positionSeconds={isActive ? positionSeconds : 0}
+            isLoading={isLoading && isActive}
             variant="inline"
           />
         </div>
@@ -9502,6 +9508,7 @@ const FullscreenLyricsShell = memo(function FullscreenLyricsShell({
           <PlayerLyricsPanel
             track={displayTrack}
             positionSeconds={isActive ? positionSeconds : 0}
+            isLoading={isLoading && isActive}
             variant="stack"
           />
         </div>

@@ -1,6 +1,7 @@
-import { memo } from 'react'
+import { memo, useMemo } from 'react'
 import type { ApiSong } from '../lib/api'
 import {
+  selectNearbySyncedLines,
   syncedLineDisplayClass,
   usePlayerLyrics,
   type PlayerLyricsViewState,
@@ -88,12 +89,14 @@ function PlayerLyricsPlainView({
 function PlayerLyricsSyncedView({
   lines,
   activeIndex,
+  startIndex,
   credit,
   sourceLabel,
   className = '',
 }: {
   lines: Array<{ text: string; timestampMs: number }>
   activeIndex: number
+  startIndex: number
   credit: string | null
   sourceLabel: string | null
   className?: string
@@ -102,8 +105,8 @@ function PlayerLyricsSyncedView({
     <div className={`player-lyrics-synced ${className}`.trim()} aria-label="Synced lyrics">
       {lines.map((line, index) => (
         <p
-          key={`${line.timestampMs}-${index}`}
-          className={syncedLineDisplayClass(index, activeIndex)}
+          key={`${line.timestampMs}-${startIndex + index}`}
+          className={syncedLineDisplayClass(startIndex + index, activeIndex)}
         >
           {line.text}
         </p>
@@ -123,6 +126,24 @@ export const PlayerLyricsPanel = memo(function PlayerLyricsPanel({
 }: PlayerLyricsPanelProps) {
   const lyrics = usePlayerLyrics(track, positionSeconds, { isLoading })
 
+  const syncedWindow = useMemo(() => {
+    if (lyrics.availability !== 'synced') {
+      return { lines: lyrics.syncedLines, startIndex: 0 }
+    }
+
+    const radius = variant === 'stack' ? 8 : variant === 'embed' ? 5 : 2
+    return selectNearbySyncedLines(
+      lyrics.syncedLines,
+      lyrics.activeSyncedLineIndex,
+      radius,
+    )
+  }, [
+    lyrics.activeSyncedLineIndex,
+    lyrics.availability,
+    lyrics.syncedLines,
+    variant,
+  ])
+
   if (lyrics.availability === 'loading') {
     return <PlayerLyricsLoadingView viewState={lyrics} className={className} />
   }
@@ -134,7 +155,8 @@ export const PlayerLyricsPanel = memo(function PlayerLyricsPanel({
   if (lyrics.availability === 'synced') {
     return (
       <PlayerLyricsSyncedView
-        lines={lyrics.syncedLines}
+        lines={syncedWindow.lines}
+        startIndex={syncedWindow.startIndex}
         activeIndex={lyrics.activeSyncedLineIndex}
         credit={lyrics.credit}
         sourceLabel={lyrics.sourceLabel}

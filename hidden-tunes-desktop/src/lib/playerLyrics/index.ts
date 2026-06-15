@@ -12,6 +12,7 @@ export {
   normalizeSyncedLyricLines,
   parsePlainLyricLines,
   resolvePlayerLyrics,
+  selectNearbySyncedLines,
   syncedLineDisplayClass,
 } from './resolvePlayerLyrics'
 export { usePlayerLyrics, type UsePlayerLyricsResult } from './usePlayerLyrics'

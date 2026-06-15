@@ -9,8 +9,7 @@ import type {
 const UNAVAILABLE_TITLE = 'Lyrics unavailable'
 
 const UNAVAILABLE_DETAIL =
-  'Synced lyrics are not available for this track in the desktop catalog yet. '
-  + 'Lyrics licensing and sync will arrive in a future catalog update.'
+  'This track does not include lyrics in the desktop catalog yet.'
 
 const LOADING_TITLE = 'Loading lyrics'
 const LOADING_DETAIL = 'Checking for lyrics on this track…'
@@ -100,7 +99,7 @@ function buildUnavailableState(track: PlayerLyricsTrackInput | null): PlayerLyri
     sourceLabel: resolveSourceLabel(track?.lyricsSource ?? null),
     emptyTitle: track ? UNAVAILABLE_TITLE : NO_TRACK_TITLE,
     emptyDetail: track ? UNAVAILABLE_DETAIL : NO_TRACK_DETAIL,
-    credit: artist ? `Written by ${artist}` : null,
+    credit: null,
     trackTitle: track?.title ?? null,
     trackArtist: artist,
   }
@@ -175,6 +174,26 @@ export function resolvePlayerLyrics(
   }
 
   return buildUnavailableState(track)
+}
+
+export function selectNearbySyncedLines(
+  lines: SyncedLyricLine[],
+  activeIndex: number,
+  radius = 4,
+): { lines: SyncedLyricLine[]; startIndex: number } {
+  if (lines.length === 0) return { lines: [], startIndex: 0 }
+
+  if (activeIndex < 0) {
+    const end = Math.min(lines.length, radius * 2 + 1)
+    return { lines: lines.slice(0, end), startIndex: 0 }
+  }
+
+  const startIndex = Math.max(0, activeIndex - radius)
+  const endIndex = Math.min(lines.length, activeIndex + radius + 1)
+  return {
+    lines: lines.slice(startIndex, endIndex),
+    startIndex,
+  }
 }
 
 export function syncedLineDisplayClass(index: number, activeIndex: number): string {
