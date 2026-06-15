@@ -127,33 +127,6 @@ import { type NowPlayingStyle } from './lib/nowPlayingStyle'
 import { useAutoOpenPreferredPlayer } from './lib/useAutoOpenPreferredPlayer'
 import './App.css'
 
-const PSD_SEARCH_QUERY = 'midnight reflection'
-
-const PSD_SEARCH_TOP_RESULT = {
-  title: 'Midnight Reflection',
-  artist: 'Wills Afrobeats',
-  duration: '3:56',
-  badges: ['SONG', 'FLAC', '24-bit', '48kHz'] as const,
-}
-
-const PSD_SEARCH_SONG_ROWS = [
-  { key: 'psd-song-1', title: 'Midnight Reflection', artist: 'Wills Afrobeats', badge: 'FLAC', duration: '3:56', active: true },
-  { key: 'psd-song-2', title: 'Midnight Reflections', artist: 'Omari Lay', badge: 'FLAC', duration: '4:12', active: false },
-  { key: 'psd-song-3', title: 'Reflection (Midnight Mix)', artist: 'Tems', badge: '24-bit', duration: '3:28', active: false },
-  { key: 'psd-song-4', title: 'Midnight Reflections', artist: 'SZA', badge: 'FLAC', duration: '4:01', active: false },
-  { key: 'psd-song-5', title: 'Late Night Reflection', artist: 'Joeboy', badge: '24-bit', duration: '3:44', active: false },
-] as const
-
-const PSD_SEARCH_ARTIST_ROWS = [
-  { key: 'psd-artist-1', name: 'Wills Afrobeats', verified: true },
-  { key: 'psd-artist-2', name: 'Midnight Reflection Band', verified: false },
-] as const
-
-const PSD_SEARCH_ALBUM_ROWS = [
-  { key: 'psd-album-1', title: 'Midnight Reflection', meta: 'Wills Afrobeats • 2024' },
-  { key: 'psd-album-2', title: 'Reflections at Midnight', meta: 'Various Artists • 2023' },
-] as const
-
 const PSD_LIBRARY_TABS = ['Overview', 'Songs', 'Albums', 'Artists', 'Playlists', 'Podcasts', 'Genres'] as const
 
 const PSD_LIBRARY_STATS = [
@@ -2641,12 +2614,73 @@ function HomePage({
   )
 }
 
+
+const SEARCH_SONG_PREVIEW_LIMIT = 5
+const SEARCH_SONG_EXPANDED_LIMIT = 24
+const SEARCH_ARTIST_PREVIEW_LIMIT = 4
+const SEARCH_ARTIST_EXPANDED_LIMIT = 16
+const SEARCH_ALBUM_PREVIEW_LIMIT = 4
+const SEARCH_ALBUM_EXPANDED_LIMIT = 16
+
+function formatSongDurationLabel(
+  song: { durationSeconds: number | null } | null | undefined,
+) {
+  if (!song?.durationSeconds || song.durationSeconds <= 0) return '—'
+  const total = Math.floor(song.durationSeconds)
+  const minutes = Math.floor(total / 60)
+  const remainder = total % 60
+  return `${minutes}:${String(remainder).padStart(2, '0')}`
+}
+
+function resolveSearchSongBadges(
+  song: {
+    audioVersions?: ApiSong['audioVersions']
+    highQualityUrl?: string | null
+    losslessUrl?: string | null
+  } | null | undefined,
+): string[] {
+  if (!song) return ['SONG']
+  const badges: string[] = ['SONG']
+  if (song.audioVersions?.lossless?.url || song.losslessUrl) {
+    badges.push('FLAC')
+  } else if (song.audioVersions?.highQuality?.url || song.highQualityUrl) {
+    badges.push('HQ')
+  }
+  return badges
+}
+
+function resolveSearchRowQualityBadge(
+  song: {
+    audioVersions?: ApiSong['audioVersions']
+    highQualityUrl?: string | null
+    losslessUrl?: string | null
+  } | null | undefined,
+) {
+  const badges = resolveSearchSongBadges(song)
+  return badges.find((badge) => badge !== 'SONG') ?? 'SONG'
+}
+
+function formatAlbumSearchMeta(
+  album: ApiAlbum,
+  artistNames: Map<string, string>,
+) {
+  const artistName = album.artistId ? artistNames.get(album.artistId) ?? 'Unknown artist' : 'Unknown artist'
+  const year = album.releaseYear ? String(album.releaseYear) : null
+  return year ? `${artistName} • ${year}` : artistName
+}
+
 function DiscoverPage({
   onOpenSong,
+  onOpenArtist,
+  onOpenAlbum,
+  onNavigateNav,
   query: externalQuery,
   setQuery: externalSetQuery,
 }: {
   onOpenSong: QueueSongHandler
+  onOpenArtist: (artist: ApiArtist) => void
+  onOpenAlbum: (album: ApiAlbum) => void
+  onNavigateNav: (navKey: NavKey) => void
   query?: string
   setQuery?: (value: string) => void
 }) {
@@ -2661,22 +2695,21 @@ function DiscoverPage({
     error,
     retry,
   } = useCatalog()
+  const { currentTrack, isPlaying } = useDesktopPlayback()
   const [internalQuery, setInternalQuery] = usePersistedPreference(
     DESKTOP_PREFERENCE_KEYS.discoverSearch,
-    PSD_SEARCH_QUERY,
+    '',
     parseStoredSearchTerm,
   )
   const query = externalQuery ?? internalQuery
   const setQuery = externalSetQuery ?? setInternalQuery
-  void setQuery
   const debouncedQuery = useDebouncedValue(query, SEARCH_DEBOUNCE_MS)
   const isSearchPending = query !== debouncedQuery
-  const [sort, setSort] = usePersistedPreference(
+  const [sort] = usePersistedPreference(
     DESKTOP_PREFERENCE_KEYS.discoverSort,
     'latest' as SongSort,
     parseStoredSongSort,
   )
-  void setSort
 
   const searchResult = useMemo(
     () =>
@@ -2697,23 +2730,17 @@ function DiscoverPage({
     [visibleRecords],
   )
 
-  const hasEvaluatedQuery = debouncedQuery.trim().length > 0
-  const showNoMatches =
-    !isSearchPending &&
-    hasEvaluatedQuery &&
-    visibleRecords.length === 0 &&
-    searchMetadataIndex.entries.length > 0
-  void showNoMatches
-
-  const catalogSongs = visibleSongs
+  const trimmedQuery = debouncedQuery.trim()
+  const hasEvaluatedQuery = trimmedQuery.length > 0
   const queuePools = useMemo(() => buildQueueCandidatePools(indexes), [indexes])
+
   const playDiscoverSong = useCallback(
     (song: ApiSong, index: number) => {
       const record =
         visibleRecords.find((entry) => entry.id === song.id)
         ?? visibleRecords[index]
       const playableSong = record ? metadataRecordToApiSong(record) : song
-      const queueSongs = catalogSongs
+      const queueSongs = visibleSongs
       const queueIndex = queueSongs.findIndex((entry) => entry.id === playableSong.id)
       const safeIndex = queueIndex >= 0 ? queueIndex : index
 
@@ -2722,7 +2749,7 @@ function DiscoverPage({
         queueSongs,
         safeIndex,
         'discover',
-        'Discover',
+        trimmedQuery ? `Search · ${trimmedQuery}` : 'Search',
         {
           seedType: 'discover',
           seedTracks: buildQueueSeedPool('discover', queueSongs, indexes, playableSong),
@@ -2730,67 +2757,73 @@ function DiscoverPage({
         },
       )
     },
-    [catalogSongs, indexes, onOpenSong, queuePools, visibleRecords],
+    [indexes, onOpenSong, queuePools, trimmedQuery, visibleRecords, visibleSongs],
   )
 
-  const handleStartRadio = useCallback(
-    (station: BuiltRadioStation) => {
-      if (station.tracks.length === 0) return
-      const record =
-        visibleRecords.find((entry) => entry.id === station.tracks[0].id) ?? null
-      const playableSong = record
-        ? metadataRecordToApiSong(record)
-        : station.tracks[0]
-
-      onOpenSong(
-        playableSong,
-        station.tracks,
-        0,
-        'radio',
-        station.title,
-        {
-          seedType: 'discover',
-          seedTracks: station.tracks,
-          candidatePools: queuePools,
-        },
-      )
-    },
-    [indexes, onOpenSong, queuePools, visibleRecords],
-  )
-  void handleStartRadio
-
-  const [searchTab, setSearchTab] = useState<
-    'all' | 'songs' | 'artists' | 'albums' | 'playlists' | 'podcasts' | 'profiles'
-  >('all')
+  const [searchTab, setSearchTab] = useState<'all' | 'songs' | 'artists' | 'albums'>('all')
 
   const matchedArtists = useMemo(
-    () => sortArtistsList(filterArtistsByQuery(artists, debouncedQuery), 'az').slice(0, 8),
+    () => sortArtistsList(filterArtistsByQuery(artists, debouncedQuery), 'az'),
     [artists, debouncedQuery],
   )
   const matchedAlbums = useMemo(
-    () => sortAlbumsList(filterAlbumsByQuery(albums, debouncedQuery, artistNames), 'latest').slice(0, 8),
+    () => sortAlbumsList(filterAlbumsByQuery(albums, debouncedQuery, artistNames), 'latest'),
     [albums, artistNames, debouncedQuery],
   )
+
   const topResult = visibleSongs[0] ?? null
-  const trimmedQuery = debouncedQuery.trim()
+  const topResultRecord = visibleRecords[0] ?? null
+
+  const songLimit = searchTab === 'songs'
+    ? SEARCH_SONG_EXPANDED_LIMIT
+    : SEARCH_SONG_PREVIEW_LIMIT
+  const artistLimit = searchTab === 'artists'
+    ? SEARCH_ARTIST_EXPANDED_LIMIT
+    : SEARCH_ARTIST_PREVIEW_LIMIT
+  const albumLimit = searchTab === 'albums'
+    ? SEARCH_ALBUM_EXPANDED_LIMIT
+    : SEARCH_ALBUM_PREVIEW_LIMIT
+
+  const songRows = useMemo(
+    () => visibleSongs.slice(0, songLimit),
+    [songLimit, visibleSongs],
+  )
+  const artistRows = useMemo(
+    () => matchedArtists.slice(0, artistLimit),
+    [artistLimit, matchedArtists],
+  )
+  const albumRows = useMemo(
+    () => matchedAlbums.slice(0, albumLimit),
+    [albumLimit, matchedAlbums],
+  )
+
   const searchTabs = [
     { id: 'all', label: 'All' },
     { id: 'songs', label: 'Songs' },
     { id: 'artists', label: 'Artists' },
     { id: 'albums', label: 'Albums' },
-    { id: 'playlists', label: 'Playlists' },
-    { id: 'podcasts', label: 'Podcasts' },
-    { id: 'profiles', label: 'Profiles' },
   ] as const
 
-  const displayQuery = trimmedQuery || PSD_SEARCH_QUERY
   const showMainResults = searchTab === 'all' || searchTab === 'songs'
   const showArtistPanel = searchTab === 'all' || searchTab === 'artists'
   const showAlbumPanel = searchTab === 'all' || searchTab === 'albums'
-  const resolveSongAtIndex = useCallback(
-    (index: number) => catalogSongs[index] ?? topResult ?? null,
-    [catalogSongs, topResult],
+
+  const showNoMatches =
+    !isSearchPending &&
+    !showCatalogSkeleton &&
+    !showCatalogError &&
+    hasEvaluatedQuery &&
+    visibleSongs.length === 0 &&
+    matchedArtists.length === 0 &&
+    matchedAlbums.length === 0
+
+  const isSongActive = useCallback(
+    (songId: string) => currentTrack?.id === songId && isPlaying,
+    [currentTrack?.id, isPlaying],
   )
+
+  void onNavigateNav
+  void setQuery
 
   return (
     <div className="psd-search-destination">
@@ -2800,7 +2833,13 @@ function DiscoverPage({
             Search Results
           </h1>
           <p className="psd-search-page-subtitle">
-            Showing results for <strong>&ldquo;{displayQuery}&rdquo;</strong>
+            {trimmedQuery ? (
+              <>
+                Showing results for <strong>&ldquo;{trimmedQuery}&rdquo;</strong>
+              </>
+            ) : (
+              <>Browsing your catalog</>
+            )}
           </p>
         </header>
 
@@ -2819,184 +2858,203 @@ function DiscoverPage({
           ))}
         </div>
 
-        {showMainResults ? (
+        {showCatalogSkeleton ? (
+          <CatalogSkeleton count={8} variant="card" />
+        ) : showCatalogError ? (
+          <CatalogError message={error || ''} onRetry={retry} />
+        ) : showNoMatches ? (
+          <CatalogEmpty
+            title="No matches found"
+            detail={`Nothing in your catalog matched "${trimmedQuery}". Try another search term.`}
+          />
+        ) : (
           <>
-            <section className="psd-search-top-result" aria-label="Top result">
-              <span className="psd-search-top-result-label">Top Result</span>
-              <div className="psd-search-top-result-card">
-                <button
-                  type="button"
-                  className="psd-search-top-result-art-btn"
-                  aria-label={`Play ${PSD_SEARCH_TOP_RESULT.title}`}
-                  onClick={() => {
-                    const playable = topResult ?? catalogSongs[0]
-                    if (playable) playDiscoverSong(playable, 0)
-                  }}
-                >
-                  <div className="psd-search-top-result-art">
-                    <ArtworkImage
-                      src={topResult?.artwork ?? null}
-                      alt=""
-                      seed={topResult?.id ?? 'top-result'}
-                      label={topResult?.title ?? PSD_SEARCH_TOP_RESULT.title}
-                      priority
-                    />
-                    <span className="psd-search-top-result-play" aria-hidden="true">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M8 5v14l11-7z" />
-                      </svg>
+            {showMainResults && topResult ? (
+              <section className="psd-search-top-result" aria-label="Top result">
+                <span className="psd-search-top-result-label">Top Result</span>
+                <div className="psd-search-top-result-card">
+                  <button
+                    type="button"
+                    className="psd-search-top-result-art-btn"
+                    aria-label={`Play ${topResult.title}`}
+                    onClick={() => playDiscoverSong(topResult, 0)}
+                  >
+                    <div className="psd-search-top-result-art">
+                      <ArtworkImage
+                        src={topResult.artwork ?? null}
+                        alt=""
+                        seed={topResult.id}
+                        label={topResult.title}
+                        priority
+                      />
+                      <span className="psd-search-top-result-play" aria-hidden="true">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M8 5v14l11-7z" />
+                        </svg>
+                      </span>
+                    </div>
+                  </button>
+
+                  <div className="psd-search-top-result-meta">
+                    <h2>{topResult.title}</h2>
+                    <p className="psd-search-top-result-artist">{topResult.artist}</p>
+                    <div className="psd-search-top-result-badges">
+                      {resolveSearchSongBadges(topResultRecord ?? topResult).map((badge) => (
+                        <span key={badge} className="psd-search-quality-badge">{badge}</span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="psd-search-top-result-wave">
+                    <PsdWaveformStrip className="psd-search-top-result-waveform" />
+                    <span className="psd-search-top-result-duration">
+                      {formatSongDurationLabel(topResult)}
                     </span>
                   </div>
-                </button>
-
-                <div className="psd-search-top-result-meta">
-                  <h2>{PSD_SEARCH_TOP_RESULT.title}</h2>
-                  <p className="psd-search-top-result-artist">
-                    {PSD_SEARCH_TOP_RESULT.artist}
-                    <PsdIconVerified className="psd-search-verified" />
-                  </p>
-                  <div className="psd-search-top-result-badges">
-                    {PSD_SEARCH_TOP_RESULT.badges.map((badge) => (
-                      <span key={badge} className="psd-search-quality-badge">{badge}</span>
-                    ))}
-                  </div>
                 </div>
+              </section>
+            ) : null}
 
-                <div className="psd-search-top-result-actions">
-                  <button type="button" className="psd-search-icon-btn" aria-label="Save to library"><PsdIconHeart /></button>
-                  <button type="button" className="psd-search-icon-btn" aria-label="Add to queue"><PsdIconPlus /></button>
-                  <button type="button" className="psd-search-icon-btn" aria-label="More options"><PsdIconMore /></button>
-                </div>
+            {showMainResults && songRows.length > 0 ? (
+              <section className="psd-search-songs-panel" aria-labelledby="search-songs-heading">
+                <header className="psd-search-section-header">
+                  <h2 id="search-songs-heading">Songs</h2>
+                  {searchTab === 'all' && visibleSongs.length > SEARCH_SONG_PREVIEW_LIMIT ? (
+                    <button
+                      type="button"
+                      className="psd-search-view-all"
+                      onClick={() => setSearchTab('songs')}
+                    >
+                      View all
+                    </button>
+                  ) : null}
+                </header>
 
-                <div className="psd-search-top-result-wave">
-                  <PsdWaveformStrip className="psd-search-top-result-waveform" />
-                  <span className="psd-search-top-result-duration">{PSD_SEARCH_TOP_RESULT.duration}</span>
-                </div>
-              </div>
-            </section>
-
-            <section className="psd-search-songs-panel" aria-labelledby="search-songs-heading">
-              <header className="psd-search-section-header">
-                <h2 id="search-songs-heading">Songs</h2>
-                <button type="button" className="psd-search-view-all">View all</button>
-              </header>
-
-              {showCatalogSkeleton ? (
-                <CatalogSkeleton count={5} variant="card" />
-              ) : showCatalogError ? (
-                <CatalogError message={error || ''} onRetry={retry} />
-              ) : (
                 <div className="psd-search-songs-card">
-                  {PSD_SEARCH_SONG_ROWS.map((row, index) => {
-                    const playable = resolveSongAtIndex(index)
+                  {songRows.map((song, index) => {
+                    const active = isSongActive(song.id)
                     return (
                       <button
-                        key={row.key}
+                        key={song.id}
                         type="button"
-                        className={`psd-search-song-row${row.active ? ' is-active' : ''}`}
-                        onClick={() => playable && playDiscoverSong(playable, index)}
+                        className={`psd-search-song-row${active ? ' is-active' : ''}`}
+                        onClick={() => playDiscoverSong(song, index)}
                       >
                         <span className="psd-search-song-leading" aria-hidden="true">
-                          {row.active ? <PsdIconEqualizer className="psd-search-equalizer" /> : null}
+                          {active ? <PsdIconEqualizer className="psd-search-equalizer" /> : null}
                         </span>
                         <span className="psd-search-song-thumb">
                           <ArtworkImage
-                            src={playable?.artwork ?? null}
+                            src={song.artwork ?? null}
                             alt=""
-                            seed={playable?.id ?? row.key}
-                            label={playable?.title ?? row.title}
+                            seed={song.id}
+                            label={song.title}
                           />
                         </span>
                         <span className="psd-search-song-copy">
-                          <strong>{row.title}</strong>
-                          <span>{row.artist}</span>
+                          <strong>{song.title}</strong>
+                          <span>{song.artist}</span>
                         </span>
-                        <span className="psd-search-quality-badge psd-search-quality-badge--row">{row.badge}</span>
-                        <span className="psd-search-song-duration">{row.duration}</span>
-                        <span className="psd-search-song-actions" aria-hidden="true">
-                          <PsdIconHeart />
-                          <PsdIconPlus />
-                          <PsdIconMore />
+                        <span className="psd-search-quality-badge psd-search-quality-badge--row">
+                          {resolveSearchRowQualityBadge(song)}
+                        </span>
+                        <span className="psd-search-song-duration">
+                          {formatSongDurationLabel(song)}
                         </span>
                       </button>
                     )
                   })}
                 </div>
-              )}
-            </section>
-          </>
-        ) : null}
+              </section>
+            ) : null}
 
-        {(showArtistPanel || showAlbumPanel) ? (
-          <div className="psd-search-lower-panels">
-            {showArtistPanel ? (
-              <section className="psd-search-side-panel" aria-labelledby="search-artists-heading">
-                <header className="psd-search-section-header">
-                  <h2 id="search-artists-heading">Artists</h2>
-                  <button type="button" className="psd-search-view-all">View all</button>
-                </header>
-                <div className="psd-search-side-card">
-                  {PSD_SEARCH_ARTIST_ROWS.map((row, index) => {
-                    const artist = matchedArtists[index] ?? null
-                    return (
-                      <button key={row.key} type="button" className="psd-search-side-row">
-                        <span className="psd-search-side-avatar">
-                          {artist ? (
+            {(showArtistPanel && artistRows.length > 0) || (showAlbumPanel && albumRows.length > 0) ? (
+              <div className="psd-search-lower-panels">
+                {showArtistPanel && artistRows.length > 0 ? (
+                  <section className="psd-search-side-panel" aria-labelledby="search-artists-heading">
+                    <header className="psd-search-section-header">
+                      <h2 id="search-artists-heading">Artists</h2>
+                      {searchTab === 'all' && matchedArtists.length > SEARCH_ARTIST_PREVIEW_LIMIT ? (
+                        <button
+                          type="button"
+                          className="psd-search-view-all"
+                          onClick={() => setSearchTab('artists')}
+                        >
+                          View all
+                        </button>
+                      ) : null}
+                    </header>
+                    <div className="psd-search-side-card">
+                      {artistRows.map((artist) => (
+                        <button
+                          key={artist.id}
+                          type="button"
+                          className="psd-search-side-row"
+                          onClick={() => onOpenArtist(artist)}
+                        >
+                          <span className="psd-search-side-avatar">
                             <ArtistAvatar artist={artist} />
-                          ) : (
-                            <ArtworkImage src={null} alt="" seed={row.key} label={row.name} variant="circle" />
-                          )}
-                        </span>
-                        <span className="psd-search-side-copy">
-                          <strong>
-                            {row.name}
-                            {row.verified ? <PsdIconVerified className="psd-search-verified" /> : null}
-                          </strong>
-                        </span>
-                        <PsdIconChevronRight className="psd-search-side-chevron" />
-                      </button>
-                    )
-                  })}
-                </div>
-              </section>
-            ) : null}
+                          </span>
+                          <span className="psd-search-side-copy">
+                            <strong>{artist.name}</strong>
+                          </span>
+                          <PsdIconChevronRight className="psd-search-side-chevron" />
+                        </button>
+                      ))}
+                    </div>
+                  </section>
+                ) : null}
 
-            {showAlbumPanel ? (
-              <section className="psd-search-side-panel" aria-labelledby="search-albums-heading">
-                <header className="psd-search-section-header">
-                  <h2 id="search-albums-heading">Albums</h2>
-                  <button type="button" className="psd-search-view-all">View all</button>
-                </header>
-                <div className="psd-search-side-card">
-                  {PSD_SEARCH_ALBUM_ROWS.map((row, index) => {
-                    const album = matchedAlbums[index] ?? null
-                    return (
-                      <button key={row.key} type="button" className="psd-search-side-row">
-                        <span className="psd-search-side-art">
-                          <ArtworkImage
-                            src={album?.artwork ?? null}
-                            alt=""
-                            seed={album?.id ?? row.key}
-                            label={album?.title ?? row.title}
-                          />
-                        </span>
-                        <span className="psd-search-side-copy">
-                          <strong>{row.title}</strong>
-                          <span>{row.meta}</span>
-                        </span>
-                        <PsdIconChevronRight className="psd-search-side-chevron" />
-                      </button>
-                    )
-                  })}
-                </div>
-              </section>
+                {showAlbumPanel && albumRows.length > 0 ? (
+                  <section className="psd-search-side-panel" aria-labelledby="search-albums-heading">
+                    <header className="psd-search-section-header">
+                      <h2 id="search-albums-heading">Albums</h2>
+                      {searchTab === 'all' && matchedAlbums.length > SEARCH_ALBUM_PREVIEW_LIMIT ? (
+                        <button
+                          type="button"
+                          className="psd-search-view-all"
+                          onClick={() => setSearchTab('albums')}
+                        >
+                          View all
+                        </button>
+                      ) : null}
+                    </header>
+                    <div className="psd-search-side-card">
+                      {albumRows.map((album) => (
+                        <button
+                          key={album.id}
+                          type="button"
+                          className="psd-search-side-row"
+                          onClick={() => onOpenAlbum(album)}
+                        >
+                          <span className="psd-search-side-art">
+                            <ArtworkImage
+                              src={album.artwork ?? null}
+                              alt=""
+                              seed={album.id}
+                              label={album.title}
+                            />
+                          </span>
+                          <span className="psd-search-side-copy">
+                            <strong>{album.title}</strong>
+                            <span>{formatAlbumSearchMeta(album, artistNames)}</span>
+                          </span>
+                          <PsdIconChevronRight className="psd-search-side-chevron" />
+                        </button>
+                      ))}
+                    </div>
+                  </section>
+                ) : null}
+              </div>
             ) : null}
-          </div>
-        ) : null}
+          </>
+        )}
       </PageFrame>
     </div>
   )
 }
+
+
 
 type EmotionalWorldChipId =
   | 'all'
@@ -9155,6 +9213,9 @@ function PageContent({
       return (
         <DiscoverPage
           onOpenSong={onOpenSong}
+          onOpenArtist={onOpenArtist}
+          onOpenAlbum={onOpenAlbum}
+          onNavigateNav={onNavigateNav}
           query={discoverQuery}
           setQuery={setDiscoverQuery}
         />
@@ -9240,7 +9301,7 @@ function AppShell() {
   const [libraryQuery, setLibraryQuery] = useState('')
   const [discoverQuery, setDiscoverQuery] = usePersistedPreference(
     DESKTOP_PREFERENCE_KEYS.discoverSearch,
-    PSD_SEARCH_QUERY,
+    '',
     parseStoredSearchTerm,
   )
   const [albumsQuery, setAlbumsQuery] = usePersistedPreference(
