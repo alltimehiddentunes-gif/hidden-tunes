@@ -4494,6 +4494,16 @@
   }
 }
 
+.premium-player-overlay {
+  will-change: opacity, transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .premium-player-overlay {
+    animation: none !important;
+  }
+}
+
 .cinema-player-backdrop {
   position: absolute;
   inset: 0;

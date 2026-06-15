@@ -131,6 +131,7 @@ import {
   usePreferredNowPlayingStyle,
   type NowPlayingStyle,
 } from './lib/nowPlayingStyle'
+import { acquirePlayerOverlayScrollLock } from './lib/playerOverlayChrome'
 import { useAutoOpenPreferredPlayer } from './lib/useAutoOpenPreferredPlayer'
 import './App.css'
 
@@ -6901,18 +6902,13 @@ function usePlayerShellState(preferredTrack: ApiSong | null = null) {
 }
 
 function usePlayerShellChrome(onClose: () => void) {
-  useEffect(() => {
-    const previousOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.body.style.overflow = previousOverflow
-    }
-  }, [])
+  useEffect(() => acquirePlayerOverlayScrollLock(), [])
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return
       event.preventDefault()
+      event.stopPropagation()
       onClose()
     }
     window.addEventListener('keydown', handleKeyDown)
@@ -7227,7 +7223,7 @@ const CinemaPlayerShell = memo(function CinemaPlayerShell({
 
   return (
     <div
-      className="cinema-player cinema-player--psd cinema-player--psd-master"
+      className="cinema-player cinema-player--psd cinema-player--psd-master premium-player-overlay"
       role="dialog"
       aria-modal="true"
       aria-label="Fullscreen player"
@@ -7522,7 +7518,7 @@ const Player2Shell = memo(function Player2Shell({
 
   return (
     <div
-      className="player2-shell"
+      className="player2-shell premium-player-overlay"
       role="dialog"
       aria-modal="true"
       aria-label="Player 2 theater"
@@ -7877,7 +7873,7 @@ const Player3Shell = memo(function Player3Shell({
 
   return (
     <div
-      className="player3-shell"
+      className="player3-shell premium-player-overlay"
       role="dialog"
       aria-modal="true"
       aria-label="Player 3 VIP theater"
@@ -8358,7 +8354,7 @@ const Player4Shell = memo(function Player4Shell({
 
   return (
     <div
-      className="player4-shell"
+      className="player4-shell premium-player-overlay"
       role="dialog"
       aria-modal="true"
       aria-label="Player 4 VIP theater"
@@ -8808,7 +8804,7 @@ const Player5Shell = memo(function Player5Shell({
 
   return (
     <div
-      className="player5-shell"
+      className="player5-shell premium-player-overlay"
       role="dialog"
       aria-modal="true"
       aria-label="Player 5 VIP theater"
@@ -9278,7 +9274,7 @@ const CinematicWaveformShell = memo(function CinematicWaveformShell({
 
   return (
     <div
-      className="cinema-player cinema-player--waveform cinema-player--live-waveform"
+      className="cinema-player cinema-player--waveform cinema-player--live-waveform premium-player-overlay"
       role="dialog"
       aria-modal="true"
       aria-label="Live waveform player"
@@ -9496,7 +9492,7 @@ const FullscreenLyricsShell = memo(function FullscreenLyricsShell({
 
   return (
     <div
-      className="cinema-player cinema-player--lyrics psd-lyrics-page"
+      className="cinema-player cinema-player--lyrics psd-lyrics-page premium-player-overlay"
       role="dialog"
       aria-modal="true"
       aria-label="Fullscreen lyrics"
@@ -10326,7 +10322,7 @@ function App() {
 }
 
 function AppShell() {
-  const { currentTrack, playQueue, isPlaying } = useDesktopPlayback()
+  const { currentTrack, playQueue, isPlaying, isLoading } = useDesktopPlayback()
   const { songs } = useCatalog()
   const [activePage, setActivePage] = usePersistedPreference(
     DESKTOP_PREFERENCE_KEYS.activePage,
@@ -10373,6 +10369,8 @@ function AppShell() {
     || lyricsOpen
 
   const openPlayerByStyle = useCallback((style: NowPlayingStyle) => {
+    setWaveformOpen(false)
+    setLyricsOpen(false)
     setCinemaOpen(style === 'player-1')
     setPlayer2Open(style === 'player-2')
     setPlayer3Open(style === 'player-3')
@@ -10380,11 +10378,15 @@ function AppShell() {
     setPlayer5Open(style === 'player-5')
   }, [])
 
+  const playerPreferredTrack = currentTrack ?? desktopSelectedTrack
+
   const {
     scheduleAutoOpenPlayerAfterSongTap,
     cancelAutoOpenPlayer,
   } = useAutoOpenPreferredPlayer({
     isPlaying,
+    isLoading,
+    currentTrackId: currentTrack?.id ?? null,
     activePage,
     activeNavKey,
     activeView,
@@ -10399,8 +10401,8 @@ function AppShell() {
 
   const openCinemaPlayer = useCallback(() => {
     cancelAutoOpenPlayer()
-    setCinemaOpen(true)
-  }, [cancelAutoOpenPlayer])
+    openPlayerByStyle('player-1')
+  }, [cancelAutoOpenPlayer, openPlayerByStyle])
 
   const openSong = useCallback((song: ApiSong) => {
     setDesktopSelectedTrack(song)
@@ -10610,13 +10612,13 @@ function AppShell() {
       </div>
       {!waveformOpen && !lyricsOpen && !player2Open && !player3Open && !player4Open && !player5Open && activeNavKey !== 'recent' ? (
         <PlayerBar
-          track={desktopSelectedTrack}
+          track={playerPreferredTrack}
           onOpenPlayerByStyle={openPlayerByStyleNow}
         />
       ) : null}
       {player5Open ? (
         <Player5Shell
-          preferredTrack={desktopSelectedTrack}
+          preferredTrack={playerPreferredTrack}
           activePlayerMode="player-5"
           onSwitchPlayerMode={openPlayerByStyleNow}
           onClose={() => setPlayer5Open(false)}
@@ -10633,7 +10635,7 @@ function AppShell() {
       ) : null}
       {player4Open ? (
         <Player4Shell
-          preferredTrack={desktopSelectedTrack}
+          preferredTrack={playerPreferredTrack}
           activePlayerMode="player-4"
           onSwitchPlayerMode={openPlayerByStyleNow}
           onClose={() => setPlayer4Open(false)}
@@ -10650,7 +10652,7 @@ function AppShell() {
       ) : null}
       {player3Open ? (
         <Player3Shell
-          preferredTrack={desktopSelectedTrack}
+          preferredTrack={playerPreferredTrack}
           activePlayerMode="player-3"
           onSwitchPlayerMode={openPlayerByStyleNow}
           onClose={() => setPlayer3Open(false)}
@@ -10667,7 +10669,7 @@ function AppShell() {
       ) : null}
       {player2Open ? (
         <Player2Shell
-          preferredTrack={desktopSelectedTrack}
+          preferredTrack={playerPreferredTrack}
           activePlayerMode="player-2"
           onSwitchPlayerMode={openPlayerByStyleNow}
           onClose={() => setPlayer2Open(false)}
@@ -10684,7 +10686,7 @@ function AppShell() {
       ) : null}
       {cinemaOpen ? (
         <CinemaPlayerShell
-          preferredTrack={desktopSelectedTrack}
+          preferredTrack={playerPreferredTrack}
           activePlayerMode="player-1"
           onSwitchPlayerMode={openPlayerByStyleNow}
           onClose={() => setCinemaOpen(false)}
@@ -10700,13 +10702,13 @@ function AppShell() {
       ) : null}
       {waveformOpen ? (
         <CinematicWaveformShell
-          preferredTrack={desktopSelectedTrack}
+          preferredTrack={playerPreferredTrack}
           onClose={() => setWaveformOpen(false)}
         />
       ) : null}
       {lyricsOpen ? (
         <FullscreenLyricsShell
-          preferredTrack={desktopSelectedTrack}
+          preferredTrack={playerPreferredTrack}
           onClose={() => setLyricsOpen(false)}
         />
       ) : null}
