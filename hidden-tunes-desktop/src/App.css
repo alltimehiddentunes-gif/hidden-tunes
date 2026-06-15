@@ -11002,6 +11002,61 @@
   gap: 14px;
 }
 
+/* —— Phase 44K: Artist PSD parity + wiring —— */
+.psd-artist-album-card {
+  border: none;
+  background: none;
+  color: inherit;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.psd-artist-album-card:hover .psd-artist-album-art {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.34);
+}
+
+.psd-artist-album-art {
+  transition:
+    transform var(--transition-fast),
+    box-shadow var(--transition-fast);
+}
+
+.psd-artist-popular-row.is-active {
+  background: rgba(109, 74, 255, 0.12);
+}
+
+.psd-artist-popular-row {
+  transition: background var(--transition-fast);
+}
+
+.psd-artist-popular-row:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.psd-artist-view-all {
+  cursor: pointer;
+}
+
+.psd-artist-view-all:hover {
+  color: rgba(250, 248, 255, 0.92);
+}
+
+.psd-artist-browse-panel {
+  margin-top: clamp(24px, 3vw, 36px);
+}
+
+.psd-artist-btn--follow {
+  cursor: pointer;
+}
+
+.detail-hero-actions {
+  margin-top: 14px;
+  display: flex;
+  gap: 10px;
+}
+
 .psd-artist-album-card {
   min-width: 0;
 }
