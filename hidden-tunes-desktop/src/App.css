@@ -7998,6 +7998,50 @@
   color: var(--psd-metadata);
 }
 
+
+/* —— Phase 44F: Home PSD hero actions + featured rows —— */
+.hero--psd .psd-hero-actions {
+  margin-top: clamp(18px, 2.8vw, 28px);
+}
+
+.hero--psd .psd-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.hero--psd .psd-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.home-section-view-all {
+  flex-shrink: 0;
+}
+
+.card-row--artists .discovery-card--artist {
+  text-align: center;
+}
+
+.card-row--artists .card-art--artist {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 10px;
+}
+
+.card-row--artists .artist-avatar {
+  width: clamp(108px, 10vw, 136px);
+  height: clamp(108px, 10vw, 136px);
+}
+
+.page-view[data-page="home"] .home-secondary .section-header--catalog h2 {
+  font-family: var(--font-ui);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
 /* —— Phase 42A: Emotional Worlds PSD page —— */
 .main-scroll--mood {
   padding-top: clamp(12px, 1.8vw, 18px);

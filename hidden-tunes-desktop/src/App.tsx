@@ -104,7 +104,6 @@ import {
 } from './lib/queueSnapshot'
 import {
   buildEmotionalLanes,
-  filterSongsByEmotionalLane,
   findEmotionalLane,
 } from './lib/emotionalDiscovery'
 import {
@@ -1065,18 +1064,6 @@ type SidebarNavItem = {
 
 type Mood = 'violet' | 'cyan' | 'rose' | 'mint'
 
-type DiscoveryCard = {
-  title: string
-  subtitle: string
-  mood: Mood
-}
-
-type DiscoverySection = {
-  title: string
-  hint: string
-  cards: DiscoveryCard[]
-}
-
 type MoodRoom = {
   title: string
   subtitle: string
@@ -1246,50 +1233,6 @@ const SIDEBAR_NAV: SidebarNavItem[] = [
         <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
       </svg>
     ),
-  },
-]
-
-const HOME_SECTIONS: DiscoverySection[] = [
-  {
-    title: 'Trending Now',
-    hint: 'Curated for the moment',
-    cards: [
-      { title: 'Neon Pulse', subtitle: 'Electric emotions', mood: 'violet' },
-      { title: 'Midnight Drive', subtitle: 'Late-night energy', mood: 'cyan' },
-      { title: 'Velvet Sky', subtitle: 'Dreamy atmospheres', mood: 'rose' },
-      { title: 'Crystal Echo', subtitle: 'Shimmering highs', mood: 'mint' },
-      { title: 'Deep Current', subtitle: 'Submerged bass', mood: 'cyan' },
-    ],
-  },
-  {
-    title: 'Emotional Picks',
-    hint: 'Feel something real',
-    cards: [
-      { title: 'Soft Collapse', subtitle: 'Intimate & raw', mood: 'rose' },
-      { title: 'Golden Hour', subtitle: 'Warm nostalgia', mood: 'violet' },
-      { title: 'Silent Storm', subtitle: 'Power in restraint', mood: 'mint' },
-      { title: 'Fading Light', subtitle: 'Bittersweet closure', mood: 'violet' },
-    ],
-  },
-  {
-    title: 'Night Vibes',
-    hint: 'After dark selections',
-    cards: [
-      { title: 'Lunar Drift', subtitle: 'Weightless nights', mood: 'cyan' },
-      { title: 'Smoke & Mirrors', subtitle: 'Mysterious grooves', mood: 'violet' },
-      { title: 'City Glow', subtitle: 'Urban nocturne', mood: 'rose' },
-      { title: '3AM Frequency', subtitle: 'Insomniac anthems', mood: 'mint' },
-    ],
-  },
-  {
-    title: 'Focus Mode',
-    hint: 'Clarity without distraction',
-    cards: [
-      { title: 'Deep Work', subtitle: 'Minimal & steady', mood: 'mint' },
-      { title: 'Flow State', subtitle: 'Rhythmic precision', mood: 'cyan' },
-      { title: 'Quiet Mind', subtitle: 'Ambient clarity', mood: 'violet' },
-      { title: 'Monk Mode', subtitle: 'Zero friction', mood: 'mint' },
-    ],
   },
 ]
 
@@ -1619,6 +1562,60 @@ const ApiAlbumGrid = memo(function ApiAlbumGrid({
   )
 })
 
+
+const ApiArtistGrid = memo(function ApiArtistGrid({
+  artists,
+  onSelect,
+  listKey = 'artists',
+  paginate = true,
+}: {
+  artists: ApiArtist[]
+  onSelect: (artist: ApiArtist) => void
+  listKey?: string
+  paginate?: boolean
+}) {
+  const { visible, showMore, total, shown } = useVisibleSlice(
+    artists,
+    paginate ? listKey : `${listKey}:all`,
+  )
+  const renderArtists = paginate ? visible : artists
+
+  if (artists.length === 0) {
+    return (
+      <CatalogEmpty
+        title="No artists match"
+        detail="Adjust your search or explore the cached catalog."
+      />
+    )
+  }
+
+  return (
+    <>
+      <div className="card-row card-row--compact card-row--artists">
+        {renderArtists.map((artist) => (
+          <button
+            key={artist.id}
+            type="button"
+            className="discovery-card discovery-card--api discovery-card--artist"
+            onClick={() => onSelect(artist)}
+          >
+            <div className="card-art card-art--artist">
+              <ArtistAvatar artist={artist} />
+            </div>
+            <div className="card-info">
+              <h3>{artist.name}</h3>
+              <p className="card-meta-primary">
+                {artist.songCount} {artist.songCount === 1 ? 'song' : 'songs'}
+              </p>
+            </div>
+          </button>
+        ))}
+      </div>
+      {paginate ? <ShowMoreRow shown={shown} total={total} onShowMore={showMore} /> : null}
+    </>
+  )
+})
+
 function CatalogSection({
   title,
   hint,
@@ -1626,6 +1623,8 @@ function CatalogSection({
   error,
   onRetry,
   count,
+  onViewAll,
+  viewAllLabel = 'View all',
   children,
 }: {
   title: string
@@ -1634,6 +1633,8 @@ function CatalogSection({
   error: string | null
   onRetry: () => void
   count?: number
+  onViewAll?: () => void
+  viewAllLabel?: string
   children: ReactNode
 }) {
   const hintText =
@@ -1646,6 +1647,11 @@ function CatalogSection({
           <h2 id={`catalog-${title}`}>{title}</h2>
           <span className="section-hint">{hintText}</span>
         </div>
+        {onViewAll ? (
+          <button type="button" className="btn-secondary btn-sm home-section-view-all" onClick={onViewAll}>
+            {viewAllLabel}
+          </button>
+        ) : null}
       </div>
       {loading ? <CatalogSkeleton /> : null}
       {!loading && error ? <CatalogError message={error} onRetry={onRetry} /> : null}
@@ -1671,12 +1677,14 @@ function PageFrame({
 function HomeTopBar({
   placeholder = 'Search songs, artists, moods…',
   onOpenDiscover,
+  onSearchSubmit,
   variant = 'default',
   searchValue,
   onSearchChange,
 }: {
   placeholder?: string
   onOpenDiscover?: () => void
+  onSearchSubmit?: (query: string) => void
   variant?: 'default' | 'search'
   searchValue?: string
   onSearchChange?: (value: string) => void
@@ -1689,9 +1697,13 @@ function HomeTopBar({
   const handleSubmit = useCallback(
     (event: FormEvent<HTMLFormElement>) => {
       event.preventDefault()
+      const trimmed = query.trim()
+      if (trimmed) {
+        onSearchSubmit?.(trimmed)
+      }
       onOpenDiscover?.()
     },
-    [onOpenDiscover],
+    [onOpenDiscover, onSearchSubmit, query],
   )
 
   return (
@@ -1730,24 +1742,6 @@ function HomeTopBar({
           </svg>
         </button>
       ) : null}
-      <div className="home-top-actions">
-        <button type="button" className="home-top-icon-btn home-top-icon-btn--notify" aria-label="Notifications">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
-            <path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
-            <path d="M13.73 21a2 2 0 01-3.46 0" />
-          </svg>
-          {isSearchShell ? <span className="home-top-notify-badge">3</span> : null}
-        </button>
-        <button type="button" className="home-top-icon-btn" aria-label="Theme">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
-            <circle cx="12" cy="12" r="4" />
-            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
-          </svg>
-        </button>
-        <button type="button" className="home-top-avatar" aria-label="Profile">
-          <span aria-hidden="true">H</span>
-        </button>
-      </div>
     </header>
   )
 }
@@ -2221,42 +2215,6 @@ function RadioFoundationSection({
   )
 }
 
-function DiscoveryGrid({ section }: { section: DiscoverySection }) {
-  return (
-    <section className="discovery-section" aria-labelledby={`section-${section.title}`}>
-      <div className="section-header">
-        <h2 id={`section-${section.title}`}>{section.title}</h2>
-        <span>{section.hint}</span>
-      </div>
-      <div className="card-row">
-        {section.cards.map((card) => {
-          const sceneId = resolveVisualScene({ seed: card.title, mood: card.mood })
-          return (
-          <article
-            key={card.title}
-            className="discovery-card"
-            data-mood={card.mood}
-            data-scene={sceneId}
-          >
-            <div className="card-art">
-              <ArtworkImage
-                src={null}
-                alt=""
-                seed={card.title}
-                label={card.title}
-              />
-            </div>
-            <div className="card-info">
-              <h3>{card.title}</h3>
-              <p>{card.subtitle}</p>
-            </div>
-          </article>
-          )
-        })}
-      </div>
-    </section>
-  )
-}
 
 const Sidebar = memo(function Sidebar({
   activeNavKey,
@@ -2335,7 +2293,15 @@ const Sidebar = memo(function Sidebar({
   )
 })
 
-function Hero() {
+function Hero({
+  onPlay,
+  onExploreWorlds,
+  canPlay,
+}: {
+  onPlay: () => void
+  onExploreWorlds: () => void
+  canPlay: boolean
+}) {
   return (
     <section className="hero hero--psd" aria-label="Tonight's listening invitation">
       <img
@@ -2356,6 +2322,22 @@ function Hero() {
             <span className="hero-headline-break" />
             go tonight?
           </h1>
+          <div className="hero-actions psd-hero-actions">
+            <button
+              type="button"
+              className="psd-btn psd-btn--gold"
+              disabled={!canPlay}
+              onClick={onPlay}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+              Play
+            </button>
+            <button type="button" className="psd-btn psd-btn--ghost" onClick={onExploreWorlds}>
+              Explore Worlds
+            </button>
+          </div>
         </div>
       </div>
     </section>
@@ -2382,18 +2364,24 @@ function resolveWorldPresentation(scene: BuiltListeningScene) {
   }
 }
 
+/** Reserved listening surfaces — removed from Home in 44F; kept for Worlds phases. */
+const HOME_LEGACY_SECTIONS = {
+  EmotionalLanesSection,
+  SceneListeningSection,
+  RadioFoundationSection,
+} as const
+void HOME_LEGACY_SECTIONS
+
 function PopularWorldsSection({
   songs,
   loading = false,
-  selectedSceneId,
-  onSelectScene,
   onPlayWorld,
+  onBrowseWorlds,
 }: {
   songs: ApiSong[]
   loading?: boolean
-  selectedSceneId: string | null
-  onSelectScene: (sceneId: string | null) => void
   onPlayWorld: (scene: BuiltListeningScene) => void
+  onBrowseWorlds?: () => void
 }) {
   const { artworkContext } = useCatalog()
   const worlds = useMemo(
@@ -2427,8 +2415,12 @@ function PopularWorldsSection({
             const worldTracks = world.songIds
               .map((songId) => songsById.get(songId))
               .filter((entry): entry is ApiSong => Boolean(entry))
+            const worldArt = getArtworkForWorld(
+              { id: world.id, title: presentation.title, sceneId: world.id },
+              songs,
+              artworkContext,
+            )
             const worldCollage = getArtworkForPlaylistCollage(worldTracks, artworkContext)
-            const isActive = selectedSceneId === world.id
             const sceneId = world.visualSceneId ?? resolveVisualScene({
               seed: world.label,
               mood: world.mood,
@@ -2438,17 +2430,24 @@ function PopularWorldsSection({
               <article
                 key={world.id}
                 role="listitem"
-                className={`world-card${isActive ? ' is-active' : ''}`}
+                className="world-card"
                 data-scene={sceneId}
               >
                 <button
                   type="button"
                   className="world-card-select"
-                  aria-pressed={isActive}
-                  onClick={() => onSelectScene(isActive ? null : world.id)}
+                  onClick={() => onBrowseWorlds?.()}
                 >
                   <div className="world-card-art">
-                    {worldCollage.length > 1 ? (
+                    {worldArt ? (
+                      <ArtworkImage
+                        src={worldArt}
+                        alt=""
+                        seed={world.id}
+                        label={presentation.title}
+                        priority={worldIndex < 2}
+                      />
+                    ) : worldCollage.length > 1 ? (
                       <ArtworkCollage
                         urls={worldCollage}
                         seed={world.id}
@@ -2494,190 +2493,149 @@ function PopularWorldsSection({
 
 function HomePage({
   onOpenSong,
+  onOpenArtist,
+  onOpenAlbum,
+  onNavigateNav,
 }: {
   onOpenSong: QueueSongHandler
+  onOpenArtist: (artist: ApiArtist) => void
+  onOpenAlbum: (album: ApiAlbum) => void
+  onNavigateNav: (navKey: NavKey) => void
 }) {
-  const { songs, indexes, showCatalogSkeleton, showCatalogError, error, retry } = useCatalog()
-  const [selectedLaneId, setSelectedLaneId] = useState<string | null>(null)
-  const [selectedSceneId, setSelectedSceneId] = useState<string | null>(null)
+  const {
+    songs,
+    albums,
+    artists,
+    artistNames,
+    indexes,
+    showCatalogSkeleton,
+    showCatalogError,
+    error,
+    retry,
+  } = useCatalog()
 
-  const featured = useMemo(
-    () => sortSongsList(songs, 'latest').slice(0, 12),
-    [songs],
+  const heroQueue = useMemo(() => sortSongsList(songs, 'latest').slice(0, 12), [songs])
+  const trendingSongs = useMemo(() => sortSongsList(songs, 'latest').slice(0, 6), [songs])
+  const featuredArtists = useMemo(
+    () => sortArtistsList(artists, 'tracks').slice(0, 6),
+    [artists],
   )
-  const browseSongs = useMemo(() => {
-    let result = songs
-    if (selectedLaneId) {
-      result = filterSongsByEmotionalLane(result, selectedLaneId)
-    }
-    if (selectedSceneId) {
-      result = filterSongsByListeningScene(result, selectedSceneId)
-    }
-    return result
-  }, [songs, selectedLaneId, selectedSceneId])
-  const selectedLane = useMemo(
-    () => findEmotionalLane(buildEmotionalLanes(songs), selectedLaneId),
-    [songs, selectedLaneId],
-  )
-  const selectedScene = useMemo(
-    () => findListeningScene(buildListeningScenes(songs), selectedSceneId),
-    [songs, selectedSceneId],
+  const newAlbums = useMemo(
+    () => sortAlbumsList(albums, 'latest').slice(0, 6),
+    [albums],
   )
   const queuePools = useMemo(() => buildQueueCandidatePools(indexes), [indexes])
-  const playHomeSong = useCallback(
-    (song: ApiSong, index: number) => onOpenSong(
-      song,
-      featured,
-      index,
-      'home',
-      'Home',
-      {
-        seedType: 'home',
-        seedTracks: buildQueueSeedPool('home', featured, indexes, song),
-        candidatePools: queuePools,
-      },
-    ),
-    [featured, indexes, onOpenSong, queuePools],
-  )
-  const browseQueueTitle = selectedScene
-    ? `In this scene · ${selectedScene.label}`
-    : selectedLane
-      ? `For this mood · ${selectedLane.label}`
-      : 'Home'
 
-  const playBrowseSong = useCallback(
-    (song: ApiSong, index: number) => onOpenSong(
-      song,
-      browseSongs,
-      index,
-      'home',
-      browseQueueTitle,
-      {
+  const playFromQueue = useCallback(
+    (song: ApiSong, queue: ApiSong[], queueTitle: string) => {
+      const queueIndex = Math.max(0, queue.findIndex((entry) => entry.id === song.id))
+      onOpenSong(song, queue.length > 0 ? queue : [song], queueIndex, 'home', queueTitle, {
         seedType: 'home',
-        seedTracks: buildQueueSeedPool('home', browseSongs, indexes, song),
+        seedTracks: buildQueueSeedPool('home', queue, indexes, song),
         candidatePools: queuePools,
-      },
-    ),
-    [browseQueueTitle, browseSongs, indexes, onOpenSong, queuePools],
-  )
-
-  const handleStartRadio = useCallback(
-    (station: BuiltRadioStation) => {
-      if (station.tracks.length === 0) return
-      onOpenSong(
-        station.tracks[0],
-        station.tracks,
-        0,
-        'radio',
-        station.title,
-        {
-          seedType: 'discover',
-          seedTracks: station.tracks,
-          candidatePools: queuePools,
-        },
-      )
+      })
     },
     [indexes, onOpenSong, queuePools],
+  )
+
+  const playHero = useCallback(() => {
+    const song = heroQueue[0]
+    if (!song) return
+    playFromQueue(song, heroQueue, 'Home')
+  }, [heroQueue, playFromQueue])
+
+  const playTrendingSong = useCallback(
+    (song: ApiSong) => {
+      const queue = trendingSongs.length > 0 ? trendingSongs : [song]
+      playFromQueue(song, queue, 'Trending Now')
+    },
+    [playFromQueue, trendingSongs],
   )
 
   const playWorld = useCallback(
     (scene: BuiltListeningScene) => {
       const tracks = filterSongsByListeningScene(songs, scene.id)
       if (tracks.length === 0) return
-      onOpenSong(
-        tracks[0],
-        tracks,
-        0,
-        'home',
-        resolveWorldPresentation(scene).title,
-        {
-          seedType: 'home',
-          seedTracks: buildQueueSeedPool('home', tracks, indexes, tracks[0]),
-          candidatePools: queuePools,
-        },
-      )
+      playFromQueue(tracks[0], tracks, resolveWorldPresentation(scene).title)
     },
-    [indexes, onOpenSong, queuePools, songs],
+    [playFromQueue, songs],
   )
 
   return (
     <div className="home-destination">
       <PageFrame cinematic>
-        <Hero />
+        <Hero
+          onPlay={playHero}
+          onExploreWorlds={() => onNavigateNav('worlds')}
+          canPlay={heroQueue.length > 0}
+        />
         <PopularWorldsSection
           songs={songs}
           loading={showCatalogSkeleton}
-          selectedSceneId={selectedSceneId}
-          onSelectScene={setSelectedSceneId}
           onPlayWorld={playWorld}
+          onBrowseWorlds={() => onNavigateNav('worlds')}
         />
-      <div className="home-secondary" aria-label="More listening paths">
-      <EmotionalLanesSection
-        songs={songs}
-        selectedLaneId={selectedLaneId}
-        onSelectLane={setSelectedLaneId}
-        loading={showCatalogSkeleton}
-      />
-      <SceneListeningSection
-        songs={songs}
-        selectedSceneId={selectedSceneId}
-        onSelectScene={setSelectedSceneId}
-        loading={showCatalogSkeleton}
-      />
-      <RadioFoundationSection
-        songs={songs}
-        browseSongs={browseSongs}
-        selectedLaneId={selectedLaneId}
-        selectedLaneLabel={selectedLane?.label ?? null}
-        selectedSceneId={selectedSceneId}
-        selectedSceneLabel={selectedScene?.label ?? null}
-        onStartRadio={handleStartRadio}
-        loading={showCatalogSkeleton}
-      />
-      {(selectedLaneId || selectedSceneId) && browseSongs.length > 0 ? (
-        <CatalogSection
-          title={selectedSceneId ? 'In this scene' : 'For this mood'}
-          hint={
-            selectedScene
-              ? `${selectedScene.label} · scene collection`
-              : selectedLane
-                ? `${selectedLane.label} · emotional lane`
-                : 'Browse filter'
-          }
-          loading={showCatalogSkeleton}
-          error={showCatalogError ? error : null}
-          onRetry={retry}
-          count={browseSongs.length}
-        >
-          <ApiSongGrid
-            songs={browseSongs}
-            onSelect={playBrowseSong}
-            listKey={`home-browse-${selectedLaneId ?? 'all'}-${selectedSceneId ?? 'all'}`}
-            paginate
-          />
-        </CatalogSection>
-      ) : null}
-      <CatalogSection
-        title="From your collection"
-        hint="Quiet highlights beneath the worlds"
-        loading={showCatalogSkeleton}
-        error={showCatalogError ? error : null}
-        onRetry={retry}
-        count={featured.length}
-      >
-        {!showCatalogSkeleton && !showCatalogError && songs.length === 0 ? (
-          <CatalogEmpty
-            title="Catalog is empty"
-            detail="The API responded but returned no songs yet."
-          />
-        ) : (
-          <ApiSongGrid songs={featured} onSelect={playHomeSong} listKey="home-featured" paginate={false} />
-        )}
-      </CatalogSection>
-      {HOME_SECTIONS.slice(1, 3).map((section) => (
-        <DiscoveryGrid key={section.title} section={section} />
-      ))}
-      </div>
+        <div className="home-secondary" aria-label="Featured from your catalog">
+          {trendingSongs.length > 0 || showCatalogSkeleton ? (
+            <CatalogSection
+              title="Trending Now"
+              hint="Curated for the moment"
+              loading={showCatalogSkeleton}
+              error={showCatalogError ? error : null}
+              onRetry={retry}
+              count={trendingSongs.length}
+              onViewAll={() => onNavigateNav('search')}
+            >
+              <ApiSongGrid
+                songs={trendingSongs}
+                onSelect={(song) => playTrendingSong(song)}
+                listKey="home-trending"
+                paginate={false}
+                showEmpty={false}
+              />
+            </CatalogSection>
+          ) : null}
+
+          {featuredArtists.length > 0 || showCatalogSkeleton ? (
+            <CatalogSection
+              title="Featured Artists"
+              hint="Voices in your library"
+              loading={showCatalogSkeleton}
+              error={showCatalogError ? error : null}
+              onRetry={retry}
+              count={featuredArtists.length}
+              onViewAll={() => onNavigateNav('artists')}
+            >
+              <ApiArtistGrid
+                artists={featuredArtists}
+                onSelect={onOpenArtist}
+                listKey="home-artists"
+                paginate={false}
+              />
+            </CatalogSection>
+          ) : null}
+
+          {newAlbums.length > 0 || showCatalogSkeleton ? (
+            <CatalogSection
+              title="New Albums"
+              hint="Fresh from your catalog"
+              loading={showCatalogSkeleton}
+              error={showCatalogError ? error : null}
+              onRetry={retry}
+              count={newAlbums.length}
+              onViewAll={() => onNavigateNav('albums')}
+            >
+              <ApiAlbumGrid
+                albums={newAlbums}
+                artistNames={artistNames}
+                indexes={indexes}
+                onSelect={onOpenAlbum}
+                listKey="home-albums"
+                paginate={false}
+              />
+            </CatalogSection>
+          ) : null}
+        </div>
       </PageFrame>
     </div>
   )
@@ -9117,7 +9075,7 @@ function PageContent({
   albumsQuery,
   setAlbumsQuery,
   onPlaylistBack,
-  onNavigateNav: _onNavigateNav,
+  onNavigateNav,
   recentQuery = '',
   downloadsQuery = '',
   playlistsQuery = '',
@@ -9141,7 +9099,6 @@ function PageContent({
   setPlaylistsQuery?: (value: string) => void
 }) {
   void _onOpenMood
-  void _onNavigateNav
   void onPlaylistBack
   if (activeNavKey === 'liked') return <LikedPage onOpenSong={onOpenSong} />
   if (activeNavKey === 'recent') return <RecentPage onOpenSong={onOpenSong} query={recentQuery} />
@@ -9152,7 +9109,14 @@ function PageContent({
 
   switch (page) {
     case 'home':
-      return <HomePage onOpenSong={onOpenSong} />
+      return (
+        <HomePage
+          onOpenSong={onOpenSong}
+          onOpenArtist={onOpenArtist}
+          onOpenAlbum={onOpenAlbum}
+          onNavigateNav={onNavigateNav}
+        />
+      )
     case 'discover':
       return (
         <DiscoverPage
@@ -9188,7 +9152,14 @@ function PageContent({
     case 'settings':
       return <SettingsPage />
     default:
-      return <HomePage onOpenSong={onOpenSong} />
+      return (
+        <HomePage
+          onOpenSong={onOpenSong}
+          onOpenArtist={onOpenArtist}
+          onOpenAlbum={onOpenAlbum}
+          onNavigateNav={onNavigateNav}
+        />
+      )
   }
 }
 
@@ -9402,6 +9373,11 @@ function AppShell() {
                 <HomeTopBar
                   placeholder={TOP_BAR_PLACEHOLDERS[activeNavKey]}
                   onOpenDiscover={() => navigatePage('discover', 'search')}
+                  onSearchSubmit={(query) => {
+                    if (activeNavKey === 'home' && query) {
+                      setDiscoverQuery(query)
+                    }
+                  }}
                   variant={
                     activeNavKey === 'search'
                       || activeNavKey === 'albums'
