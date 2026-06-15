@@ -2736,6 +2736,15 @@ function formatSongDurationLabel(
   return `${minutes}:${String(remainder).padStart(2, '0')}`
 }
 
+function formatQueueDurationLabel(queue: ApiSong[]): string {
+  const totalSeconds = queue.reduce((sum, song) => {
+    const duration = song.durationSeconds
+    return duration && duration > 0 ? sum + duration : sum
+  }, 0)
+  if (totalSeconds <= 0) return '—'
+  return formatPlaybackTime(totalSeconds)
+}
+
 function resolveSearchSongBadges(
   song: {
     audioVersions?: ApiSong['audioVersions']
@@ -6362,14 +6371,7 @@ const QueueUpNextPanel = memo(function QueueUpNextPanel({
   const canClearQueue = upcomingTracks.length > 0
 
   const queueRows = useMemo(
-    () => upcomingTracks.map((track, index) => ({
-      key: `${track.id}-${index}`,
-      track,
-      title: track.title,
-      artist: track.artist,
-      duration: formatSongDurationLabel(track),
-      queueIndex: currentIndex + 1 + index,
-    })),
+    () => buildPlayerUpNextRows(upcomingTracks, currentIndex, upcomingTracks.length),
     [currentIndex, upcomingTracks],
   )
 
@@ -7006,6 +7008,84 @@ function PlayerQueuePanel() {
   )
 }
 
+function PlayerQueueSheet({
+  open,
+  onClose,
+}: {
+  open: boolean
+  onClose: () => void
+}) {
+  const { clearUpcomingQueue, getUpcomingTracks } = useDesktopPlayback()
+  const canClearUpNext = getUpcomingTracks().length > 0
+
+  useEffect(() => {
+    if (!open) return undefined
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      event.preventDefault()
+      event.stopPropagation()
+      onClose()
+    }
+    window.addEventListener('keydown', handleKeyDown, true)
+    return () => window.removeEventListener('keydown', handleKeyDown, true)
+  }, [open, onClose])
+
+  if (!open) return null
+
+  return (
+    <div className="player-queue-sheet" role="dialog" aria-modal="true" aria-label="Queue">
+      <button
+        type="button"
+        className="player-queue-sheet-backdrop"
+        onClick={onClose}
+        aria-label="Close queue"
+        tabIndex={-1}
+      />
+      <div className="player-queue-sheet-panel">
+        <header className="player-queue-sheet-header">
+          <h2 className="player-queue-sheet-title">Queue</h2>
+          {canClearUpNext ? (
+            <button
+              type="button"
+              className="player-queue-sheet-clear"
+              onClick={clearUpcomingQueue}
+            >
+              Clear up next
+            </button>
+          ) : null}
+          <button
+            type="button"
+            className="player-queue-sheet-close"
+            onClick={onClose}
+            aria-label="Close queue"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </header>
+        <div className="player-queue-sheet-body">
+          <PlayerQueuePanel />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function PlayerUpNextClearButton({
+  onClick,
+  className = 'player-upnext-clear',
+}: {
+  onClick: () => void
+  className?: string
+}) {
+  return (
+    <button type="button" className={className} onClick={onClick}>
+      Clear
+    </button>
+  )
+}
+
 function PlayerDetailsPanel({
   track,
   albumLabel,
@@ -7360,6 +7440,7 @@ const Player2Shell = memo(function Player2Shell({
 } & PlayerShellModeProps) {
   const {
     currentTrack,
+    currentIndex,
     isPlaying,
     isLoading,
     positionSeconds,
@@ -7368,11 +7449,12 @@ const Player2Shell = memo(function Player2Shell({
     volume,
     setVolume,
     getUpcomingTracks,
-    next,
+    playQueueAtIndex,
   } = useDesktopPlayback()
 
   const volumeTrackRef = useRef<HTMLDivElement>(null)
   const isAdjustingVolumeRef = useRef(false)
+  const [queueSheetOpen, setQueueSheetOpen] = useState(false)
 
   const displayTrack = currentTrack ?? preferredTrack
   const isActive = Boolean(displayTrack && currentTrack?.id === displayTrack.id)
@@ -7388,8 +7470,14 @@ const Player2Shell = memo(function Player2Shell({
   const displayAlbum = displayTrack?.album ?? null
   const activeTrackId = displayTrack?.id ?? null
   const upcomingTrack = getUpcomingTracks()[0] ?? null
-  const nextTitle = upcomingTrack?.title ?? 'Up next'
-  const nextArtist = upcomingTrack?.artist ?? ''
+  const nextTitle = upcomingTrack?.title ?? 'Nothing queued next'
+  const nextArtist = upcomingTrack?.artist ?? 'Upcoming tracks will appear here'
+  const nextQueueIndex = upcomingTrack && currentIndex >= 0 ? currentIndex + 1 : null
+
+  const handlePlayNextTrack = useCallback(() => {
+    if (nextQueueIndex == null || !isActive) return
+    playQueueAtIndex(nextQueueIndex)
+  }, [isActive, nextQueueIndex, playQueueAtIndex])
 
   const resolveVolume = useCallback((clientX: number) => {
     const trackEl = volumeTrackRef.current
@@ -7612,13 +7700,22 @@ const Player2Shell = memo(function Player2Shell({
             </div>
 
             <div className="player2-queue-preview">
-              <button type="button" className="player2-queue-btn">
+              <button
+                type="button"
+                className="player2-queue-btn"
+                onClick={() => setQueueSheetOpen(true)}
+              >
                 PLAY QUEUE
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                   <path d="M18 15l-6-6-6 6" />
                 </svg>
               </button>
-              <div className="player2-next-card">
+              <button
+                type="button"
+                className="player2-next-card"
+                onClick={handlePlayNextTrack}
+                disabled={!upcomingTrack || !isActive}
+              >
                 <span className="player2-next-thumb">
                   <ArtworkImage
                     src={upcomingTrack?.artwork ?? null}
@@ -7631,18 +7728,12 @@ const Player2Shell = memo(function Player2Shell({
                   <strong>{nextTitle}</strong>
                   <span>{nextArtist}</span>
                 </div>
-                <button
-                  type="button"
-                  className="player2-next-play"
-                  aria-label={`Play ${nextTitle}`}
-                  onClick={next}
-                  disabled={!upcomingTrack || !isActive}
-                >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <span className="player2-next-play" aria-hidden="true">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M8 5v14l11-7z" />
                   </svg>
-                </button>
-              </div>
+                </span>
+              </button>
             </div>
           </footer>
         </main>
@@ -7662,6 +7753,7 @@ const Player2Shell = memo(function Player2Shell({
           </button>
         </aside>
       </div>
+      <PlayerQueueSheet open={queueSheetOpen} onClose={() => setQueueSheetOpen(false)} />
     </div>
   )
 })
@@ -7694,12 +7786,14 @@ const Player3Shell = memo(function Player3Shell({
     setVolume,
     getUpcomingTracks,
     playQueueAtIndex,
+    clearUpcomingQueue,
     audioQualityMode,
   } = useDesktopPlayback()
 
   const volumeTrackRef = useRef<HTMLDivElement>(null)
   const isAdjustingVolumeRef = useRef(false)
   const [playerTab, setPlayerTab] = useState<'lyrics' | 'visualizer' | 'details'>('lyrics')
+  const [queueSheetOpen, setQueueSheetOpen] = useState(false)
 
   const displayTrack = currentTrack ?? preferredTrack
   const isActive = Boolean(displayTrack && currentTrack?.id === displayTrack.id)
@@ -7777,6 +7871,9 @@ const Player3Shell = memo(function Player3Shell({
   }
 
   const queueCount = currentQueue.length > 0 ? String(currentQueue.length) : '0'
+  const queueFromCurrent = currentIndex >= 0 ? currentQueue.slice(currentIndex) : []
+  const queueDurationLabel = formatQueueDurationLabel(queueFromCurrent)
+  const canClearUpNext = upNextRows.length > 0
 
   return (
     <div
@@ -8025,7 +8122,12 @@ const Player3Shell = memo(function Player3Shell({
             </div>
 
             <div className="player3-footer-utils">
-              <button type="button" className="player3-footer-util" aria-label="Queue">
+              <button
+                type="button"
+                className="player3-footer-util"
+                aria-label="Queue"
+                onClick={() => setQueueSheetOpen(true)}
+              >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
                   <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
                 </svg>
@@ -8049,6 +8151,9 @@ const Player3Shell = memo(function Player3Shell({
           <div className="player3-upnext-header">
             <PsdWaveformStrip className="player3-upnext-wave" />
             <h2>UP NEXT</h2>
+            {canClearUpNext ? (
+              <PlayerUpNextClearButton onClick={clearUpcomingQueue} />
+            ) : null}
           </div>
           <ol className="player3-upnext-list">
             {upNextRows.length === 0 ? (
@@ -8102,7 +8207,7 @@ const Player3Shell = memo(function Player3Shell({
                 <span>SONGS</span>
               </div>
               <div>
-                <strong>{formatPlaybackTime(progressMax)}</strong>
+                <strong>{queueDurationLabel}</strong>
                 <span>DURATION</span>
               </div>
               <div>
@@ -8113,6 +8218,7 @@ const Player3Shell = memo(function Player3Shell({
           </section>
         </aside>
       </div>
+      <PlayerQueueSheet open={queueSheetOpen} onClose={() => setQueueSheetOpen(false)} />
     </div>
   )
 })
@@ -8146,11 +8252,13 @@ const Player4Shell = memo(function Player4Shell({
     resume,
     getUpcomingTracks,
     playQueueAtIndex,
+    clearUpcomingQueue,
     audioQualityMode,
   } = useDesktopPlayback()
 
   const volumeTrackRef = useRef<HTMLDivElement>(null)
   const isAdjustingVolumeRef = useRef(false)
+  const [queueSheetOpen, setQueueSheetOpen] = useState(false)
 
   const displayTrack = currentTrack ?? preferredTrack
   const isActive = Boolean(displayTrack && currentTrack?.id === displayTrack.id)
@@ -8187,6 +8295,8 @@ const Player4Shell = memo(function Player4Shell({
     },
     [playQueueAtIndex],
   )
+
+  const canClearUpNext = upNextRows.length > 0
 
   const resolveVolume = useCallback((clientX: number) => {
     const trackEl = volumeTrackRef.current
@@ -8484,7 +8594,12 @@ const Player4Shell = memo(function Player4Shell({
               <button type="button" className="player4-dock-util" aria-label="Equalizer" onClick={onOpenWaveform}>
                 <PsdIconEqualizer />
               </button>
-              <button type="button" className="player4-dock-util" aria-label="Queue">
+              <button
+                type="button"
+                className="player4-dock-util"
+                aria-label="Queue"
+                onClick={() => setQueueSheetOpen(true)}
+              >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
                   <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
                 </svg>
@@ -8492,12 +8607,6 @@ const Player4Shell = memo(function Player4Shell({
               <button type="button" className="player4-dock-util" aria-label="Theater mode" onClick={onClose}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
                   <rect x="3" y="5" width="18" height="14" rx="2" />
-                </svg>
-              </button>
-              <button type="button" className="player4-dock-util" aria-label="Settings">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-                  <circle cx="12" cy="12" r="3" />
-                  <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
                 </svg>
               </button>
             </div>
@@ -8508,6 +8617,9 @@ const Player4Shell = memo(function Player4Shell({
           <div className="player4-upnext-header">
             <PsdWaveformStrip className="player4-upnext-wave" />
             <h2>UP NEXT</h2>
+            {canClearUpNext ? (
+              <PlayerUpNextClearButton onClick={clearUpcomingQueue} />
+            ) : null}
           </div>
           <ol className="player4-upnext-list">
             {upNextRows.length === 0 ? (
@@ -8551,6 +8663,7 @@ const Player4Shell = memo(function Player4Shell({
 
         </aside>
       </div>
+      <PlayerQueueSheet open={queueSheetOpen} onClose={() => setQueueSheetOpen(false)} />
     </div>
   )
 })
@@ -8585,11 +8698,13 @@ const Player5Shell = memo(function Player5Shell({
     resume,
     getUpcomingTracks,
     playQueueAtIndex,
+    clearUpcomingQueue,
     audioQualityMode,
   } = useDesktopPlayback()
 
   const volumeTrackRef = useRef<HTMLDivElement>(null)
   const isAdjustingVolumeRef = useRef(false)
+  const [queueSheetOpen, setQueueSheetOpen] = useState(false)
 
   const displayTrack = currentTrack ?? preferredTrack
   const isActive = Boolean(displayTrack && currentTrack?.id === displayTrack.id)
@@ -8616,6 +8731,8 @@ const Player5Shell = memo(function Player5Shell({
   const showLoading = isActive && isLoading
   const upcomingTracks = getUpcomingTracks()
   const queueCount = currentQueue.length > 0 ? String(currentQueue.length) : '0'
+  const queueFromCurrent = currentIndex >= 0 ? currentQueue.slice(currentIndex) : []
+  const queueDurationLabel = formatQueueDurationLabel(queueFromCurrent)
 
   const upNextRows = useMemo(
     () => buildPlayerUpNextRows(upcomingTracks, currentIndex),
@@ -8628,6 +8745,8 @@ const Player5Shell = memo(function Player5Shell({
     },
     [playQueueAtIndex],
   )
+
+  const canClearUpNext = upNextRows.length > 0
 
   const resolveVolume = useCallback((clientX: number) => {
     const trackEl = volumeTrackRef.current
@@ -8957,7 +9076,12 @@ const Player5Shell = memo(function Player5Shell({
                   <path d="M12 20.8l-1.1-1C6.4 15.36 3 12.28 3 8.5 3 6 5 4 7.5 4c1.74 0 3.41 1.01 4.5 2.36C13.09 5.01 14.76 4 16.5 4 19 4 21 6 21 8.5c0 3.78-3.4 6.86-7.9 11.3L12 20.8z" />
                 </svg>
               </button>
-              <button type="button" className="player5-dock-util" aria-label="Queue">
+              <button
+                type="button"
+                className="player5-dock-util"
+                aria-label="Queue"
+                onClick={() => setQueueSheetOpen(true)}
+              >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
                   <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
                 </svg>
@@ -8981,11 +9105,9 @@ const Player5Shell = memo(function Player5Shell({
           <div className="player5-upnext-header">
             <PsdWaveformStrip className="player5-upnext-wave" />
             <h2>UP NEXT</h2>
-            <button type="button" className="player5-upnext-menu" aria-label="Queue menu">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-                <path d="M4 8h16M4 12h16M4 16h16" />
-              </svg>
-            </button>
+            {canClearUpNext ? (
+              <PlayerUpNextClearButton onClick={clearUpcomingQueue} />
+            ) : null}
           </div>
           <ol className="player5-upnext-list">
             {upNextRows.length === 0 ? (
@@ -9056,7 +9178,7 @@ const Player5Shell = memo(function Player5Shell({
                 <span>SONGS</span>
               </div>
               <div>
-                <strong>{formatPlaybackTime(progressMax)}</strong>
+                <strong>{queueDurationLabel}</strong>
                 <span>DURATION</span>
               </div>
               <div>
@@ -9071,6 +9193,7 @@ const Player5Shell = memo(function Player5Shell({
           </section>
         </aside>
       </div>
+      <PlayerQueueSheet open={queueSheetOpen} onClose={() => setQueueSheetOpen(false)} />
     </div>
   )
 })

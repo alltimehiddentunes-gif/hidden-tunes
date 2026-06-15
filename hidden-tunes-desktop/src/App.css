@@ -16740,6 +16740,19 @@
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(8, 8, 14, 0.52);
   min-width: 220px;
+  width: 100%;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.player2-next-card:disabled {
+  cursor: default;
+  opacity: 0.82;
+}
+
+.player2-next-card:not(:disabled):hover {
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .player2-next-thumb {
@@ -17628,6 +17641,7 @@
 
 .player3-upnext-header h2 {
   margin: 0;
+  flex: 1;
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.18em;
@@ -18551,6 +18565,7 @@
 
 .player4-upnext-header h2 {
   margin: 0;
+  flex: 1;
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.16em;
@@ -19876,4 +19891,94 @@
   bottom: 0.1rem;
   font-size: 0.55rem;
   font-weight: 700;
+}
+
+.player-upnext-clear,
+.player-queue-sheet-clear {
+  margin-left: auto;
+  border: none;
+  background: transparent;
+  color: rgba(245, 243, 250, 0.52);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.player-upnext-clear:hover,
+.player-queue-sheet-clear:hover {
+  color: rgba(245, 243, 250, 0.82);
+}
+
+.player-queue-sheet {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.player-queue-sheet-backdrop {
+  position: absolute;
+  inset: 0;
+  border: none;
+  background: rgba(0, 0, 0, 0.62);
+  cursor: pointer;
+}
+
+.player-queue-sheet-panel {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 420px);
+  max-height: min(72vh, 560px);
+  display: flex;
+  flex-direction: column;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(12, 12, 18, 0.96);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.48);
+}
+
+.player-queue-sheet-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.player-queue-sheet-title {
+  margin: 0;
+  flex: 1;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.player-queue-sheet-clear {
+  margin-left: 0;
+}
+
+.player-queue-sheet-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(245, 243, 250, 0.72);
+  cursor: pointer;
+}
+
+.player-queue-sheet-close:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.player-queue-sheet-body {
+  padding: 8px 12px 16px;
+  overflow: auto;
+  min-height: 0;
 }
