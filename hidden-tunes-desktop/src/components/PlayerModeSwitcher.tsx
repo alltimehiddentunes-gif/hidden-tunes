@@ -68,6 +68,7 @@ export const PlayerModeSwitcher = memo(function PlayerModeSwitcher({
 
   const handleSelect = (style: NowPlayingStyle) => {
     if (!hasPlayback) return
+    setPreferredStyle(style)
     if (style !== activeMode) {
       onSwitchMode(style)
     }
@@ -122,7 +123,7 @@ export const PlayerModeSwitcher = memo(function PlayerModeSwitcher({
           role="menu"
           aria-label="Switch player mode"
         >
-          <p className="player-mode-switcher-menu-eyebrow">Listening view</p>
+          <p className="player-mode-switcher-menu-eyebrow">Player style</p>
           <ul className="player-mode-switcher-list">
             {NOW_PLAYING_STYLE_OPTIONS.map((option) => {
               const isActive = option.id === activeMode
@@ -159,7 +160,7 @@ export const PlayerModeSwitcher = memo(function PlayerModeSwitcher({
           <div className="player-mode-switcher-footer">
             {preferredStyle === activeMode ? (
               <p className="player-mode-switcher-footer-note">
-                Default player for new songs
+                Saved as your default player
               </p>
             ) : (
               <button
