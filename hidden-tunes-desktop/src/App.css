@@ -16826,7 +16826,8 @@
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(8, 8, 14, 0.52);
   color: rgba(245, 243, 250, 0.72);
-  cursor: pointer;
+  cursor: default;
+  pointer-events: none;
 }
 
 .player2-device-label {
