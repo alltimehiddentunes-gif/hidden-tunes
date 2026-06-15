@@ -274,26 +274,6 @@ function filterPlaylistTracksBySearch(tracks: ApiSong[], query: string) {
 }
 
 
-const PSD_PLAYLIST_TRACK_ROWS = [
-  { key: 'pt1', title: 'Midnight Reflection', artist: 'Wills Afrobeats', duration: '3:56', active: true },
-  { key: 'pt2', title: 'Afro Sunset', artist: 'Wills Afrobeats', duration: '3:21' },
-  { key: 'pt3', title: 'Love Vibes', artist: 'Wills Afrobeats', duration: '3:44' },
-  { key: 'pt4', title: 'Rain & Reflection', artist: 'Wills Afrobeats', duration: '4:12' },
-  { key: 'pt5', title: 'Night Drive', artist: 'Wills Afrobeats', duration: '4:01' },
-  { key: 'pt6', title: 'Healing Slowly', artist: 'Wills Afrobeats', duration: '3:48' },
-  { key: 'pt7', title: 'Jazz Café', artist: 'Wills Afrobeats', duration: '3:36' },
-  { key: 'pt8', title: 'Deep Focus', artist: 'Wills Afrobeats', duration: '4:20' },
-] as const
-
-const PSD_PLAYLIST_UP_NEXT_ROWS = PSD_PLAYLIST_TRACK_ROWS.slice(1, 5)
-
-const PSD_PLAYLIST_STATS_ROWS = [
-  { value: '50', label: 'Songs' },
-  { value: '3h 12m', label: 'Duration' },
-  { value: '12', label: 'Albums' },
-] as const
-const PSD_PLAYLIST_STATS_UPDATED = 'May 12, 2024'
-
 const PSD_WAVEFORM_HEIGHTS = [5, 9, 13, 7, 15, 11, 17, 9, 13, 19, 11, 15, 9, 13, 17, 11, 9, 15, 13, 9, 11, 15, 9, 7, 12, 16, 10, 14, 8, 12, 18, 10, 14, 8, 6] as const
 
 const ARTIST_POPULAR_PREVIEW = 5
@@ -326,23 +306,6 @@ function countSongsForAlbum(album: ApiAlbum, indexes: CatalogIndexes) {
 
 const PSD_ALBUMS_SUBTITLE = 'All albums in your library.'
 const PSD_ALBUMS_FOOTER_COUNT = '24 albums'
-const PSD_ALBUMS_RAIL_TITLE = 'Falling Slowly'
-const PSD_ALBUMS_RAIL_ARTIST = 'Wills Afrobeats'
-
-const PSD_ALBUMS_UP_NEXT_ROWS = [
-  { key: 'au1', title: 'Midnight Reflection', artist: 'Wills Afrobeats', duration: '3:56' },
-  { key: 'au2', title: 'Afro Sunset', artist: 'Wills Afrobeats', duration: '3:21' },
-  { key: 'au3', title: 'Love Vibes', artist: 'Wills Afrobeats', duration: '3:44' },
-  { key: 'au4', title: 'Rain & Reflection', artist: 'Wills Afrobeats', duration: '4:12' },
-] as const
-
-const PSD_ALBUM_STATS_ROWS = [
-  { value: '24', label: 'Albums' },
-  { value: '196', label: 'Songs' },
-  { value: '18h 42m', label: 'Total Time' },
-] as const
-const PSD_ALBUM_STATS_UPDATED = 'May 12, 2024'
-
 const PSD_ALBUMS_GRID_CARDS = [
   { key: 'alb1', title: 'Reflections at Midnight', artist: 'Wills Afrobeats', year: '2024', songs: '12 songs' },
   { key: 'alb2', title: 'Afro Sunrise', artist: 'Wills Afrobeats', year: '2023', songs: '10 songs' },
@@ -553,13 +516,6 @@ const PSD_RECENT_TABLE_ROWS = [
   { key: 'rp8', title: 'Workout Mix', subtitle: 'Playlist • 25 songs', artist: '', itemType: 'Playlist', played: '2 hours ago', duration: '—' },
   { key: 'rp9', title: 'Live in Accra', subtitle: 'Wills Afrobeats', artist: '', itemType: 'Album', played: '3 hours ago', duration: '—' },
   { key: 'rp10', title: 'Rainy Day Comfort', subtitle: 'Wills Afrobeats', artist: 'Wills Afrobeats', itemType: 'Song', played: '4 hours ago', duration: '4:05' },
-] as const
-
-const PSD_RAIL_QUEUE_ROWS = [
-  { key: 'rq1', title: 'Afro Sunset', artist: 'Wills Afrobeats' },
-  { key: 'rq2', title: 'Love Vibes', artist: 'Wills Afrobeats' },
-  { key: 'rq3', title: 'Rain & Reflection', artist: 'Wills Afrobeats' },
-  { key: 'rq4', title: 'Jazz Café', artist: 'Wills Afrobeats' },
 ] as const
 
 const PSD_DOWNLOADS_STORAGE_PERCENT = 72
@@ -5733,8 +5689,10 @@ const PlaybackTransportControls = memo(function PlaybackTransportControls({
 
 const FullPlayerTransportControls = memo(function FullPlayerTransportControls({
   activeTrackId,
+  hideDecorativeControls = false,
 }: {
   activeTrackId: string | null
+  hideDecorativeControls?: boolean
 }) {
   const {
     currentTrack,
@@ -5774,16 +5732,18 @@ const FullPlayerTransportControls = memo(function FullPlayerTransportControls({
 
   return (
     <div className="transport-controls psd-player-transport" role="group" aria-label="Playback controls">
-      <button
-        type="button"
-        className="psd-player-transport-btn psd-player-transport-btn--shuffle"
-        aria-label="Shuffle"
-        title="Shuffle"
-      >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-          <path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5" />
-        </svg>
-      </button>
+      {!hideDecorativeControls ? (
+        <button
+          type="button"
+          className="psd-player-transport-btn psd-player-transport-btn--shuffle"
+          aria-label="Shuffle"
+          title="Shuffle"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+            <path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5" />
+          </svg>
+        </button>
+      ) : null}
       <button
         type="button"
         className="psd-player-transport-btn psd-player-transport-btn--skip"
@@ -5835,19 +5795,21 @@ const FullPlayerTransportControls = memo(function FullPlayerTransportControls({
           <path d="M6 18l8.5-6L6 6v12zm10-12h2v12h-2V6z" />
         </svg>
       </button>
-      <button
-        type="button"
-        className="psd-player-transport-btn psd-player-transport-btn--repeat"
-        aria-label="Repeat"
-        title="Repeat"
-      >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-          <path d="M17 1l4 4-4 4" />
-          <path d="M3 11V9a4 4 0 014-4h14" />
-          <path d="M7 23l-4-4 4-4" />
-          <path d="M21 13v2a4 4 0 01-4 4H3" />
-        </svg>
-      </button>
+      {!hideDecorativeControls ? (
+        <button
+          type="button"
+          className="psd-player-transport-btn psd-player-transport-btn--repeat"
+          aria-label="Repeat"
+          title="Repeat"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+            <path d="M17 1l4 4-4 4" />
+            <path d="M3 11V9a4 4 0 014-4h14" />
+            <path d="M7 23l-4-4 4-4" />
+            <path d="M21 13v2a4 4 0 01-4 4H3" />
+          </svg>
+        </button>
+      ) : null}
     </div>
   )
 })
@@ -6225,16 +6187,19 @@ const QueueUpNextPanel = memo(function QueueUpNextPanel({
   activeNavKey?: NavKey
 }) {
   const isLuxuryRail = activeNavKey === 'albums' || activeNavKey === 'playlists'
-  const luxuryRailKind = activeNavKey === 'playlists' ? 'playlists' : 'albums'
   const {
     currentTrack,
     currentQueue,
     currentIndex,
+    queueTitle,
     isPlaying,
     isLoading,
     positionSeconds,
     durationSeconds,
+    audioQualityMode,
     getUpcomingTracks,
+    playQueueAtIndex,
+    clearUpcomingQueue,
     seekTo,
     volume,
     setVolume,
@@ -6245,7 +6210,6 @@ const QueueUpNextPanel = memo(function QueueUpNextPanel({
   const volumeTrackRef = useRef<HTMLDivElement>(null)
   const isSeekingRef = useRef(false)
   const isAdjustingVolumeRef = useRef(false)
-  const activeTrackId = currentTrack?.id ?? null
 
   const activeTrack =
     currentIndex >= 0 ? (currentTrack ?? currentQueue[currentIndex] ?? null) : null
@@ -6253,31 +6217,56 @@ const QueueUpNextPanel = memo(function QueueUpNextPanel({
   const upcomingTracks = getUpcomingTracks()
   const liveProgressMax = hasPlayback && durationSeconds > 0 ? durationSeconds : 0
   const liveProgressValue = liveProgressMax > 0 ? Math.min(positionSeconds, liveProgressMax) : 0
-  const progressMax = liveProgressMax > 0 ? liveProgressMax : PSD_PLAYER_DURATION_SECONDS
-  const progressValue = liveProgressMax > 0 ? liveProgressValue : PSD_PLAYER_POSITION_SECONDS
+  const progressMax = liveProgressMax
+  const progressValue = liveProgressValue
   const progressPercent = progressMax > 0
     ? Math.min(100, (progressValue / progressMax) * 100)
     : 0
   const volumePercent = Math.min(100, Math.max(0, volume * 100))
+  const activeTrackId = activeTrack?.id ?? null
+
+  const displayTitle = hasPlayback ? (activeTrack?.title ?? 'Unknown track') : 'Nothing playing'
+  const displayArtist = hasPlayback
+    ? (activeTrack?.artist ?? 'Unknown artist')
+    : 'Select a song to start'
+  const displayAlbum = hasPlayback
+    ? (activeTrack?.album ?? queueTitle ?? null)
+    : null
+  const railQualityLabel = hasPlayback
+    ? (
+      resolveSearchRowQualityBadge(activeTrack) !== 'SONG'
+        ? resolveSearchRowQualityBadge(activeTrack)
+        : AUDIO_QUALITY_MODE_LABELS[audioQualityMode]
+    )
+    : null
+  const canClearQueue = upcomingTracks.length > 0
+
+  const queueRows = useMemo(
+    () => upcomingTracks.map((track, index) => ({
+      key: `${track.id}-${index}`,
+      track,
+      title: track.title,
+      artist: track.artist,
+      duration: formatSongDurationLabel(track),
+      queueIndex: currentIndex + 1 + index,
+    })),
+    [currentIndex, upcomingTracks],
+  )
 
   useEffect(() => {
     if (!listScrollRef.current) return
     listScrollRef.current.scrollTop = 0
   }, [activeTrackId, currentIndex])
 
-  const displayTitle = activeTrack?.title ?? (
-    luxuryRailKind === 'playlists'
-      ? PSD_PLAYLIST_TRACK_ROWS[0].title
-      : luxuryRailKind === 'albums'
-        ? PSD_ALBUMS_RAIL_TITLE
-        : PSD_PLAYER_TITLE
-  )
-  const displayArtist = activeTrack?.artist ?? (
-    luxuryRailKind === 'playlists'
-      ? PSD_PLAYLIST_TRACK_ROWS[0].artist
-      : luxuryRailKind === 'albums'
-        ? PSD_ALBUMS_RAIL_ARTIST
-        : PSD_PLAYER_ARTIST
+  const handleClearQueue = useCallback(() => {
+    clearUpcomingQueue()
+  }, [clearUpcomingQueue])
+
+  const handleQueueRowClick = useCallback(
+    (queueIndex: number) => {
+      playQueueAtIndex(queueIndex)
+    },
+    [playQueueAtIndex],
   )
 
   const resolveSeekSeconds = useCallback(
@@ -6354,33 +6343,21 @@ const QueueUpNextPanel = memo(function QueueUpNextPanel({
     event.currentTarget.releasePointerCapture(event.pointerId)
   }
 
-  const luxuryFallbackQueue = luxuryRailKind === 'playlists'
-    ? PSD_PLAYLIST_UP_NEXT_ROWS
-    : PSD_ALBUMS_UP_NEXT_ROWS
-
-  const queueRows = upcomingTracks.length > 0
-    ? upcomingTracks.slice(0, 4).map((track, index) => ({
-        key: `${track.id}-${index}`,
-        title: track.title,
-        artist: track.artist,
-        duration: isLuxuryRail && luxuryFallbackQueue[index] && 'duration' in luxuryFallbackQueue[index]
-          ? luxuryFallbackQueue[index].duration
-          : undefined,
-        track,
-      }))
-    : (isLuxuryRail ? luxuryFallbackQueue : PSD_RAIL_QUEUE_ROWS).map((row) => ({
-        key: row.key,
-        title: row.title,
-        artist: row.artist,
-        duration: 'duration' in row ? row.duration : undefined,
-        track: null as ApiSong | null,
-      }))
-
+  const queueEmptyState = (
+    <div className="queue-empty rail-queue-empty">
+      <p className="queue-empty-title">Nothing queued next</p>
+      <p className="queue-empty-detail">
+        {hasPlayback
+          ? 'Upcoming tracks from your current queue will appear here.'
+          : 'Play a song to build your queue.'}
+      </p>
+    </div>
+  )
 
   if (isLuxuryRail) {
     return (
       <aside
-        className={`queue-rail now-playing-rail now-playing-rail--albums-luxury${luxuryRailKind === 'playlists' ? ' now-playing-rail--playlists-luxury' : ''}`}
+        className={`queue-rail now-playing-rail now-playing-rail--albums-luxury${activeNavKey === 'playlists' ? ' now-playing-rail--playlists-luxury' : ''}`}
         aria-label="Now playing"
         data-playing={isPlaying ? 'true' : 'false'}
         data-loading={isLoading ? 'true' : 'false'}
@@ -6419,14 +6396,11 @@ const QueueUpNextPanel = memo(function QueueUpNextPanel({
                 <h3 className="albums-rail-track-title">{displayTitle}</h3>
                 <p className="albums-rail-track-artist">
                   <span>{displayArtist}</span>
-                  <PsdIconVerified className="albums-rail-verified" />
                 </p>
+                {displayAlbum ? (
+                  <p className="albums-rail-track-album">{displayAlbum}</p>
+                ) : null}
               </div>
-              <button type="button" className="albums-rail-heart" aria-label="Favorite">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                  <path d="M12 20.8l-1.1-1C6.4 15.36 3 12.28 3 8.5 3 6 5 4 7.5 4c1.74 0 3.41 1.01 4.5 2.36C13.09 5.01 14.76 4 16.5 4 19 4 21 6 21 8.5c0 3.78-3.4 6.86-7.9 11.3L12 20.8z" />
-                </svg>
-              </button>
             </div>
 
             <div
@@ -6444,70 +6418,62 @@ const QueueUpNextPanel = memo(function QueueUpNextPanel({
             </div>
 
             <div className="albums-rail-transport-wrap">
-              <FullPlayerTransportControls activeTrackId={activeTrack?.id ?? null} />
+              <FullPlayerTransportControls
+                activeTrackId={activeTrack?.id ?? null}
+                hideDecorativeControls
+              />
             </div>
 
-            <div className="albums-rail-badges">
-              {luxuryRailKind === 'albums' ? (
-                <span className="albums-rail-quality-pill">High Quality</span>
-              ) : null}
-              <span className="albums-rail-format-pill">FLAC • 24bit • 48kHz</span>
-            </div>
+            {hasPlayback && railQualityLabel ? (
+              <div className="albums-rail-badges">
+                <span className="albums-rail-quality-pill">{railQualityLabel}</span>
+              </div>
+            ) : null}
           </section>
 
           <section className="albums-rail-up-next" aria-label="Up next">
             <div className="albums-rail-up-next-header">
               <h3 className="albums-rail-up-next-title">Up Next</h3>
-              <button type="button" className="albums-rail-up-next-clear">Clear</button>
+              {canClearQueue ? (
+                <button
+                  type="button"
+                  className="albums-rail-up-next-clear"
+                  onClick={handleClearQueue}
+                >
+                  Clear
+                </button>
+              ) : null}
             </div>
 
-            <ol className="albums-rail-up-next-list" ref={listScrollRef}>
-              {queueRows.map((row) => (
-                <li className="albums-rail-up-next-item" key={row.key}>
-                  <div className="albums-rail-up-next-thumb" aria-hidden="true">
-                    <ArtworkImage
-                      src={row.track?.artwork ?? null}
-                      alt=""
-                      seed={row.track?.id ?? row.key}
-                      label={row.title}
-                    />
-                  </div>
-                  <div className="albums-rail-up-next-copy">
-                    <span className="albums-rail-up-next-track">{row.title}</span>
-                    <span className="albums-rail-up-next-artist">{row.artist}</span>
-                  </div>
-                  {row.duration ? (
-                    <span className="albums-rail-up-next-duration">{row.duration}</span>
-                  ) : null}
-                </li>
-              ))}
-            </ol>
-          </section>
-
-          <section
-            className={luxuryRailKind === 'playlists' ? 'playlist-stats-rail-panel' : 'album-stats-rail-panel'}
-            aria-label={luxuryRailKind === 'playlists' ? 'Playlist stats' : 'Album stats'}
-          >
-            <h3 className="album-stats-rail-title">
-              {luxuryRailKind === 'playlists' ? 'Playlist Stats' : 'Album Stats'}
-            </h3>
-            <div className="album-stats-rail-grid">
-              {(luxuryRailKind === 'playlists' ? PSD_PLAYLIST_STATS_ROWS : PSD_ALBUM_STATS_ROWS).map((stat) => (
-                <article key={stat.label} className="album-stats-rail-card">
-                  <strong>{stat.value}</strong>
-                  <span>{stat.label}</span>
-                </article>
-              ))}
-            </div>
-            <p className="album-stats-rail-updated">
-              <span className="album-stats-rail-icon" aria-hidden="true">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
-                  <rect x="3" y="4" width="18" height="18" rx="2" />
-                  <path d="M16 2v4M8 2v4M3 10h18" />
-                </svg>
-              </span>
-              Last Updated {luxuryRailKind === 'playlists' ? PSD_PLAYLIST_STATS_UPDATED : PSD_ALBUM_STATS_UPDATED}
-            </p>
+            {queueRows.length === 0 ? (
+              queueEmptyState
+            ) : (
+              <ol className="albums-rail-up-next-list" ref={listScrollRef}>
+                {queueRows.map((row) => (
+                  <li className="albums-rail-up-next-item" key={row.key}>
+                    <button
+                      type="button"
+                      className="albums-rail-up-next-button"
+                      onClick={() => handleQueueRowClick(row.queueIndex)}
+                    >
+                      <div className="albums-rail-up-next-thumb" aria-hidden="true">
+                        <ArtworkImage
+                          src={row.track.artwork ?? null}
+                          alt=""
+                          seed={row.track.id}
+                          label={row.title}
+                        />
+                      </div>
+                      <div className="albums-rail-up-next-copy">
+                        <span className="albums-rail-up-next-track">{row.title}</span>
+                        <span className="albums-rail-up-next-artist">{row.artist}</span>
+                      </div>
+                      <span className="albums-rail-up-next-duration">{row.duration}</span>
+                    </button>
+                  </li>
+                ))}
+              </ol>
+            )}
           </section>
         </div>
       </aside>
@@ -6525,11 +6491,6 @@ const QueueUpNextPanel = memo(function QueueUpNextPanel({
       <div className="now-playing-rail-inner">
         <header className="rail-psd-header">
           <h2 className="rail-psd-title">Now Playing</h2>
-          <button type="button" className="rail-psd-close" aria-label="Close now playing">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-              <path d="M18 6L6 18M6 6l12 12" />
-            </svg>
-          </button>
         </header>
 
         <section className="rail-psd-stage" aria-label="Current track">
@@ -6553,25 +6514,20 @@ const QueueUpNextPanel = memo(function QueueUpNextPanel({
           <div className="rail-psd-track-head">
             <div className="rail-psd-title-row">
               <h3 className="rail-psd-track-title">{displayTitle}</h3>
-              <button type="button" className="rail-psd-heart" aria-label="Favorite">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                  <path d="M12 20.8l-1.1-1C6.4 15.36 3 12.28 3 8.5 3 6 5 4 7.5 4c1.74 0 3.41 1.01 4.5 2.36C13.09 5.01 14.76 4 16.5 4 19 4 21 6 21 8.5c0 3.78-3.4 6.86-7.9 11.3L12 20.8z" />
-                </svg>
-              </button>
             </div>
             <p className="rail-psd-track-artist">
               <span>{displayArtist}</span>
-              <PsdIconVerified className="rail-psd-verified" />
             </p>
+            {displayAlbum ? (
+              <p className="rail-psd-track-album">{displayAlbum}</p>
+            ) : null}
           </div>
 
-          <div className="rail-psd-quality-row">
-            <span className="rail-psd-hq-pill">HQ</span>
-            <span className="rail-psd-format-copy">24-bit • 48kHz</span>
-            <button type="button" className="rail-psd-more-btn" aria-label="More options">
-              <PsdIconMore />
-            </button>
-          </div>
+          {hasPlayback && railQualityLabel ? (
+            <div className="rail-psd-quality-row">
+              <span className="rail-psd-hq-pill">{railQualityLabel}</span>
+            </div>
+          ) : null}
 
           <div
             className="rail-psd-progress-wrap"
@@ -6604,66 +6560,56 @@ const QueueUpNextPanel = memo(function QueueUpNextPanel({
           </div>
 
           <div className="rail-psd-transport-wrap">
-            <FullPlayerTransportControls activeTrackId={activeTrack?.id ?? null} />
-          </div>
-
-          <div className="rail-psd-actions" role="group" aria-label="Player actions">
-            <button type="button" className="rail-psd-action">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-                <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
-              </svg>
-              <span>Lyrics</span>
-            </button>
-            <button type="button" className="rail-psd-action">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-                <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
-                <path d="M6 9l4 3-4 3V9z" fill="currentColor" stroke="none" />
-              </svg>
-              <span>Queue</span>
-            </button>
-            <button type="button" className="rail-psd-action">
-              <PsdIconEqualizer className="rail-psd-action-icon" />
-              <span>Equalizer</span>
-            </button>
-            <button type="button" className="rail-psd-action">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-                <rect x="3" y="4" width="18" height="12" rx="2" />
-                <path d="M7 20h10" />
-              </svg>
-              <span>Device</span>
-            </button>
+            <FullPlayerTransportControls
+              activeTrackId={activeTrack?.id ?? null}
+              hideDecorativeControls
+            />
           </div>
         </section>
 
         <section className="rail-psd-queue-section" aria-label="Next in queue">
           <div className="rail-psd-queue-header">
             <h3 className="rail-psd-queue-title">Next In Queue</h3>
-            <button type="button" className="rail-psd-queue-clear">Clear</button>
+            {canClearQueue ? (
+              <button
+                type="button"
+                className="rail-psd-queue-clear"
+                onClick={handleClearQueue}
+              >
+                Clear
+              </button>
+            ) : null}
           </div>
 
-          <ol className="rail-psd-queue-list" ref={listScrollRef}>
-            {queueRows.map((row) => (
-              <li className="rail-psd-queue-item" key={row.key}>
-                <div className="rail-psd-queue-thumb" aria-hidden="true">
-                  <ArtworkImage
-                    src={row.track?.artwork ?? null}
-                    alt=""
-                    seed={row.track?.id ?? row.key}
-                    label={row.title}
-                  />
-                </div>
-                <div className="rail-psd-queue-copy">
-                  <span className="rail-psd-queue-track">{row.title}</span>
-                  <span className="rail-psd-queue-artist">{row.artist}</span>
-                </div>
-                <span className="rail-psd-queue-drag" aria-hidden="true">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                    <path d="M4 8h16M4 12h16M4 16h16" />
-                  </svg>
-                </span>
-              </li>
-            ))}
-          </ol>
+          {queueRows.length === 0 ? (
+            queueEmptyState
+          ) : (
+            <ol className="rail-psd-queue-list" ref={listScrollRef}>
+              {queueRows.map((row) => (
+                <li className="rail-psd-queue-item" key={row.key}>
+                  <button
+                    type="button"
+                    className="rail-psd-queue-button"
+                    onClick={() => handleQueueRowClick(row.queueIndex)}
+                  >
+                    <div className="rail-psd-queue-thumb" aria-hidden="true">
+                      <ArtworkImage
+                        src={row.track.artwork ?? null}
+                        alt=""
+                        seed={row.track.id}
+                        label={row.title}
+                      />
+                    </div>
+                    <div className="rail-psd-queue-copy">
+                      <span className="rail-psd-queue-track">{row.title}</span>
+                      <span className="rail-psd-queue-artist">{row.artist}</span>
+                    </div>
+                    <span className="rail-psd-queue-duration">{row.duration}</span>
+                  </button>
+                </li>
+              ))}
+            </ol>
+          )}
         </section>
 
         <footer className="rail-psd-footer">
@@ -6695,16 +6641,19 @@ const QueueUpNextPanel = memo(function QueueUpNextPanel({
               Show Full Player
             </button>
           ) : null}
-          <button type="button" className="rail-psd-expand" aria-label="Expand player" onClick={onOpenPlayer2}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-              <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
-            </svg>
-          </button>
+          {onOpenPlayer2 ? (
+            <button type="button" className="rail-psd-expand" aria-label="Expand player" onClick={onOpenPlayer2}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+                <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+              </svg>
+            </button>
+          ) : null}
         </footer>
       </div>
     </aside>
   )
 })
+
 type ActiveView = 'page' | 'song' | 'album' | 'artist' | 'mood'
 
 function ListeningContextStrip({

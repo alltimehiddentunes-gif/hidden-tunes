@@ -571,6 +571,31 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
     return queueRef.current.slice(nextIndex)
   }, [])
 
+  const playQueueAtIndex = useCallback(
+    (index: number) => {
+      const queue = queueRef.current
+      if (index < 0 || index >= queue.length) return
+      applyQueueState(queue, index)
+      extendQueueIfNeeded(queue, index)
+      playSong(queue[index])
+    },
+    [applyQueueState, extendQueueIfNeeded, playSong],
+  )
+
+  const clearUpcomingQueue = useCallback(() => {
+    const queue = queueRef.current
+    const index = queueIndexRef.current
+    if (index < 0 || index >= queue.length - 1) return
+
+    const trimmed = queue.slice(0, index + 1)
+    queueRef.current = trimmed
+    queueSeedTracksRef.current = trimmed
+    queueSeedTypeRef.current = 'manual'
+    setCurrentQueue(trimmed)
+    setQueueContext('manual')
+    setQueueSeedType('manual')
+  }, [])
+
   const pause = useCallback(() => {
     cancelUpgradeSession()
     getService().pause()
@@ -641,6 +666,8 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       next,
       previous,
       getUpcomingTracks,
+      playQueueAtIndex,
+      clearUpcomingQueue,
       pause,
       resume,
       seekTo,
@@ -667,6 +694,8 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       next,
       previous,
       getUpcomingTracks,
+      playQueueAtIndex,
+      clearUpcomingQueue,
       pause,
       resume,
       seekTo,

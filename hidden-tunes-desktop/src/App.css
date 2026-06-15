@@ -11004,6 +11004,61 @@
 
 
 
+
+/* —— Phase 44N: Now Playing sidebar PSD parity + wiring —— */
+.rail-queue-empty {
+  margin-top: 4px;
+}
+
+.now-playing-rail[data-idle='true'] .rail-psd-track-title,
+.now-playing-rail[data-idle='true'] .albums-rail-track-title {
+  color: rgba(245, 243, 250, 0.72);
+}
+
+.rail-psd-track-album,
+.albums-rail-track-album {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--psd-metadata);
+}
+
+.rail-psd-queue-button,
+.albums-rail-up-next-button {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.rail-psd-queue-button:hover,
+.albums-rail-up-next-button:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.rail-psd-queue-duration,
+.albums-rail-up-next-duration {
+  font-size: 12px;
+  color: var(--psd-metadata);
+}
+
+.rail-psd-queue-clear,
+.albums-rail-up-next-clear {
+  cursor: pointer;
+}
+
+.rail-psd-queue-clear:disabled,
+.albums-rail-up-next-clear:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 /* —— Phase 44M: Premium PSD parity + wiring —— */
 .psd-premium-hero-inner {
   display: grid;
