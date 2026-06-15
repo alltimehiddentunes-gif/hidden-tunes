@@ -41,6 +41,7 @@ import {
   resolveAndroidAutoMediaId,
 } from "../services/androidAutoCatalogSync";
 import {
+  isHiddenAudioEnabledOnAndroid,
   isHiddenAudioEnabledOnIOS,
   isHiddenAudioNativePlaybackEnabled,
 } from "../constants/playbackConfig";
@@ -380,6 +381,37 @@ const ACTIVE_QUEUE_KEY = "hidden_tunes_active_queue";
 const ACTIVE_QUEUE_INDEX_KEY = "hidden_tunes_active_queue_index";
 const ACTIVE_QUEUE_MODE_KEY = "hidden_tunes_active_queue_mode";
 const ACTIVE_QUEUE_CONTEXT_KEY = "hidden_tunes_active_queue_context";
+const COMPACT_PLAYBACK_SESSION_KEY = "hidden_tunes_compact_playback_session_v1";
+
+type CompactPlaybackSession = {
+  currentSongId: string;
+  queueIds: string[];
+  queueIndex: number;
+  positionMillis: number;
+  isPlaying: boolean;
+  contextSource: PlaybackQueueContext["source"];
+  queueMode?: ActiveQueueMode;
+  context?: PlaybackQueueContext;
+  savedAt: number;
+};
+
+const LEGACY_PLAYBACK_SESSION_KEYS = [
+  CURRENT_SONG_KEY,
+  ACTIVE_QUEUE_KEY,
+  ACTIVE_QUEUE_INDEX_KEY,
+  ACTIVE_QUEUE_MODE_KEY,
+  ACTIVE_QUEUE_CONTEXT_KEY,
+  PLAYBACK_WAS_PLAYING_KEY,
+];
+
+function isOversizedAndroidStorageError(error: unknown) {
+  const message = String((error as Error)?.message || error || "");
+  return (
+    message.includes("CursorWindow") ||
+    message.includes("Row too big") ||
+    message.includes("requiredPos")
+  );
+}
 
 function yieldToNextFrame(): Promise<void> {
   return new Promise((resolve) => {
@@ -1000,7 +1032,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
 
   const syncNativeRemoteQueueAvailability = useCallback(async () => {
-    if (!isHiddenAudioEnabledOnIOS()) return;
+    if (!isHiddenAudioEnabledOnIOS() && !isHiddenAudioEnabledOnAndroid()) return;
 
     const queue = activeQueueRef.current;
     const safeIndex = activeQueueIndexRef.current;
@@ -1146,6 +1178,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
     await AsyncStorage.multiRemove(keys);
   }, []);
+
+  const clearLegacyPlaybackSessionPayloads = useCallback(
+    async (reason: string) => {
+      await removeStoredValues(LEGACY_PLAYBACK_SESSION_KEYS);
+      logLockscreenPlaybackDiagnostic("compact_session_legacy_payload_too_large", {
+        reason,
+      });
+    },
+    [removeStoredValues]
+  );
 
   const invalidateSavedPlaybackSessionAfterIntentionalClose = useCallback(
     async (source: string) => {
@@ -1363,6 +1405,132 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   );
 
 
+  const resolveCompactSessionSong = useCallback(
+    (songId: string): AppSong | null => {
+      const cleanId = String(songId || "").trim();
+      if (!cleanId) return null;
+      const pools = [
+        activeQueueRef.current,
+        (getCachedHiddenTunesCatalog()?.songs || []) as AppSong[],
+      ];
+
+      for (const pool of pools) {
+        const match = pool.find((song) => String(song?.id || "") === cleanId);
+        if (!match) continue;
+        const normalized = normalizeSong(match as AppSong);
+        if (!isYouTubeSong(normalized) && getPlayableUri(normalized)) {
+          return normalized;
+        }
+      }
+      return null;
+    },
+    [getPlayableUri, isYouTubeSong, normalizeSong]
+  );
+
+  const applyCompactPlaybackSession = useCallback(
+    async (rawSession: string | null, source: string) => {
+      if (!rawSession) return false;
+      logLockscreenPlaybackDiagnostic("compact_session_restore_start", { source });
+
+      try {
+        const parsed = JSON.parse(rawSession) as Partial<CompactPlaybackSession>;
+        const queueIds = Array.isArray(parsed.queueIds)
+          ? parsed.queueIds.map((id) => String(id || "").trim()).filter(Boolean)
+          : [];
+        const restoredQueue = queueIds
+          .map((id) => resolveCompactSessionSong(id))
+          .filter(Boolean) as AppSong[];
+        const requestedIndex = Number(parsed.queueIndex || 0);
+        const safeIndex = restoredQueue.length
+          ? Math.max(0, Math.min(Number.isNaN(requestedIndex) ? 0 : requestedIndex, restoredQueue.length - 1))
+          : 0;
+        const currentSongId = String(parsed.currentSongId || "").trim();
+        const restoredSong =
+          resolveCompactSessionSong(currentSongId) ||
+          restoredQueue[safeIndex] ||
+          null;
+
+        if (!restoredSong) {
+          logLockscreenPlaybackDiagnostic("compact_session_restore_failed", {
+            source,
+            reason: "current_song_missing",
+            currentSongId,
+            queueIds: queueIds.length,
+          });
+          return false;
+        }
+
+        const finalQueue =
+          restoredQueue.length > 0
+            ? restoredQueue
+            : [restoredSong];
+        const finalIndex = Math.max(
+          0,
+          Math.min(
+            finalQueue.findIndex((song) => String(song.id) === String(restoredSong.id)),
+            finalQueue.length - 1
+          )
+        );
+        const queueIndex = finalIndex >= 0 ? finalIndex : safeIndex;
+        const mode: ActiveQueueMode =
+          parsed.queueMode === "youtube" ||
+          parsed.queueMode === "radio" ||
+          parsed.queueMode === "smart" ||
+          parsed.queueMode === "standard"
+            ? parsed.queueMode
+            : "standard";
+        const context = normalizePlaybackQueueContext(
+          parsed.context,
+          parsed.contextSource || "unknown"
+        );
+        const position = Math.max(0, Math.floor(Number(parsed.positionMillis || 0)));
+
+        currentSongRef.current = restoredSong;
+        setCurrentSong(restoredSong);
+        activeQueueRef.current = finalQueue;
+        setActiveQueue(finalQueue);
+        activeQueueIndexRef.current = queueIndex;
+        setActiveQueueIndex(queueIndex);
+        activeQueueModeRef.current = mode;
+        setActiveQueueMode(mode);
+        activeQueueContextRef.current = context;
+        setActiveQueueContext(context);
+        positionMillisRef.current = position;
+        lastSavedPositionRef.current = position;
+        setPositionMillis(position);
+
+        const partial = restoredQueue.length !== queueIds.length;
+        logLockscreenPlaybackDiagnostic(
+          partial ? "compact_session_restore_partial" : "compact_session_restore_success",
+          {
+            source,
+            songId: restoredSong.id,
+            queueLength: finalQueue.length,
+            missingQueueIds: Math.max(0, queueIds.length - restoredQueue.length),
+            queueIndex,
+            isPlaying: Boolean(parsed.isPlaying),
+          }
+        );
+        return true;
+      } catch (error) {
+        logLockscreenPlaybackDiagnostic("compact_session_restore_failed", {
+          source,
+          message: String((error as Error)?.message || error),
+        });
+        return false;
+      }
+    },
+    [
+      resolveCompactSessionSong,
+      setActiveQueue,
+      setActiveQueueContext,
+      setActiveQueueIndex,
+      setActiveQueueMode,
+      setCurrentSong,
+      setPositionMillis,
+    ]
+  );
+
   const reconcileHiddenAudioActiveState = useCallback(
     async (source: string) => {
       if (!isHiddenAudioNativePlaybackEnabled()) {
@@ -1447,175 +1615,197 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const hydrateJsPlaybackSessionFromStorage = useCallback(async () => {
     try {
-      const [
-        savedSong,
-        savedQueue,
-        savedIndex,
-        savedMode,
-        savedContext,
-        savedPosition,
-        savedWasPlaying,
-        intentionalAppClose,
-      ] = await Promise.all([
-        AsyncStorage.getItem(CURRENT_SONG_KEY),
-        AsyncStorage.getItem(ACTIVE_QUEUE_KEY),
-        AsyncStorage.getItem(ACTIVE_QUEUE_INDEX_KEY),
-        AsyncStorage.getItem(ACTIVE_QUEUE_MODE_KEY),
-        AsyncStorage.getItem(ACTIVE_QUEUE_CONTEXT_KEY),
-        AsyncStorage.getItem(POSITION_KEY),
-        AsyncStorage.getItem(PLAYBACK_WAS_PLAYING_KEY),
+      const [compactSession, intentionalAppClose] = await Promise.all([
+        AsyncStorage.getItem(COMPACT_PLAYBACK_SESSION_KEY),
         AsyncStorage.getItem(INTENTIONAL_APP_CLOSE_KEY),
       ]);
 
-      const sessionIntentionallyClosed = Boolean(intentionalAppClose);
-      let hydrated = false;
+      let hydrated = await applyCompactPlaybackSession(
+        compactSession,
+        "hydrate_js_session"
+      );
 
-      if (savedSong) {
-        const restoredSong = normalizeSong(JSON.parse(savedSong));
-        if (!isYouTubeSong(restoredSong) && getPlayableUri(restoredSong)) {
-          currentSongRef.current = restoredSong;
-          setCurrentSong(restoredSong);
-          hydrated = true;
-        }
-      }
-
-      let restoredQueue = activeQueueRef.current;
-      if (savedQueue) {
-        const parsedQueue = JSON.parse(savedQueue);
-        if (Array.isArray(parsedQueue)) {
-          const normalizedQueue = parsedQueue
-            .map(normalizeSong)
-            .filter((song: AppSong) => !isYouTubeSong(song) && Boolean(getPlayableUri(song)));
-          if (normalizedQueue.length > 0) {
-            restoredQueue = normalizedQueue;
-            activeQueueRef.current = normalizedQueue;
-            setActiveQueue(normalizedQueue);
-            hydrated = true;
-          }
-        }
-      }
-
-      if (restoredQueue.length > 0) {
-        const parsedIndex = Number(savedIndex || 0);
-        const restoredIndex = Number.isNaN(parsedIndex)
-          ? Math.max(
-              0,
-              restoredQueue.findIndex((song) => song.id === currentSongRef.current?.id)
-            )
-          : Math.max(0, Math.min(parsedIndex, restoredQueue.length - 1));
-        activeQueueIndexRef.current = restoredIndex;
-        setActiveQueueIndex(restoredIndex);
-
-        if (
-          Platform.OS === "android" &&
-          !currentSongRef.current &&
-          restoredQueue[restoredIndex] &&
-          getPlayableUri(restoredQueue[restoredIndex])
-        ) {
-          const recoveredSong = restoredQueue[restoredIndex];
-          currentSongRef.current = recoveredSong;
-          setCurrentSong(recoveredSong);
-          hydrated = true;
-          logLockscreenPlaybackDiagnostic("android_recovered_current_song_from_queue", {
-            songId: recoveredSong.id,
-            queueIndex: restoredIndex,
-            queueLength: restoredQueue.length,
-          });
-        } else if (
-          Platform.OS === "android" &&
-          !currentSongRef.current &&
-          restoredQueue.length > 0
-        ) {
-          await AsyncStorage.multiRemove([
-            CURRENT_SONG_KEY,
-            PLAYBACK_WAS_PLAYING_KEY,
+      if (!hydrated && !compactSession) {
+        try {
+          const [
+            savedSong,
+            savedQueue,
+            savedIndex,
+            savedMode,
+            savedContext,
+            savedPosition,
+            savedWasPlaying,
+          ] = await Promise.all([
+            AsyncStorage.getItem(CURRENT_SONG_KEY),
+            AsyncStorage.getItem(ACTIVE_QUEUE_KEY),
+            AsyncStorage.getItem(ACTIVE_QUEUE_INDEX_KEY),
+            AsyncStorage.getItem(ACTIVE_QUEUE_MODE_KEY),
+            AsyncStorage.getItem(ACTIVE_QUEUE_CONTEXT_KEY),
+            AsyncStorage.getItem(POSITION_KEY),
+            AsyncStorage.getItem(PLAYBACK_WAS_PLAYING_KEY),
           ]);
-          delete storageValueCacheRef.current[CURRENT_SONG_KEY];
-          delete storageValueCacheRef.current[PLAYBACK_WAS_PLAYING_KEY];
-          logLockscreenPlaybackDiagnostic("android_cleared_invalid_saved_session", {
-            queueLength: restoredQueue.length,
-            queueIndex: restoredIndex,
+
+          let restoredSong: AppSong | null = null;
+          if (savedSong) {
+            const parsedSong = JSON.parse(savedSong);
+            restoredSong =
+              typeof parsedSong === "string"
+                ? resolveCompactSessionSong(parsedSong)
+                : normalizeSong(parsedSong);
+            if (
+              restoredSong &&
+              !isYouTubeSong(restoredSong) &&
+              getPlayableUri(restoredSong)
+            ) {
+              currentSongRef.current = restoredSong;
+              setCurrentSong(restoredSong);
+              hydrated = true;
+            }
+          }
+
+          let restoredQueue = activeQueueRef.current;
+          if (savedQueue) {
+            const parsedQueue = JSON.parse(savedQueue);
+            if (Array.isArray(parsedQueue)) {
+              const normalizedQueue = parsedQueue
+                .map((entry) =>
+                  typeof entry === "string"
+                    ? resolveCompactSessionSong(entry)
+                    : normalizeSong(entry)
+                )
+                .filter(
+                  (song: AppSong | null) =>
+                    Boolean(song) &&
+                    !isYouTubeSong(song as AppSong) &&
+                    Boolean(getPlayableUri(song as AppSong))
+                ) as AppSong[];
+              if (normalizedQueue.length > 0) {
+                restoredQueue = normalizedQueue;
+                activeQueueRef.current = normalizedQueue;
+                setActiveQueue(normalizedQueue);
+                hydrated = true;
+              }
+            }
+          }
+
+          if (restoredQueue.length > 0) {
+            const parsedIndex = Number(savedIndex || 0);
+            const restoredIndex = Number.isNaN(parsedIndex)
+              ? Math.max(
+                  0,
+                  restoredQueue.findIndex((song) => song.id === currentSongRef.current?.id)
+                )
+              : Math.max(0, Math.min(parsedIndex, restoredQueue.length - 1));
+            activeQueueIndexRef.current = restoredIndex;
+            setActiveQueueIndex(restoredIndex);
+
+            if (
+              Platform.OS === "android" &&
+              !currentSongRef.current &&
+              restoredQueue[restoredIndex] &&
+              getPlayableUri(restoredQueue[restoredIndex])
+            ) {
+              const recoveredSong = restoredQueue[restoredIndex];
+              currentSongRef.current = recoveredSong;
+              setCurrentSong(recoveredSong);
+              hydrated = true;
+              logLockscreenPlaybackDiagnostic("android_recovered_current_song_from_queue", {
+                songId: recoveredSong.id,
+                queueIndex: restoredIndex,
+                queueLength: restoredQueue.length,
+              });
+            }
+
+            const mode: ActiveQueueMode =
+              savedMode === "youtube" ||
+              savedMode === "radio" ||
+              savedMode === "smart" ||
+              savedMode === "standard"
+                ? savedMode
+                : activeQueueModeRef.current;
+            activeQueueModeRef.current = mode;
+            setActiveQueueMode(mode);
+
+            if (savedContext) {
+              try {
+                const context = normalizePlaybackQueueContext(JSON.parse(savedContext));
+                activeQueueContextRef.current = context;
+                setActiveQueueContext(context);
+              } catch {
+                // keep existing context
+              }
+            }
+          }
+
+          if (savedPosition) {
+            const parsedPosition = Number(savedPosition);
+            if (!Number.isNaN(parsedPosition) && parsedPosition >= 0) {
+              positionMillisRef.current = parsedPosition;
+              lastSavedPositionRef.current = parsedPosition;
+              setPositionMillis(parsedPosition);
+              hydrated = true;
+            }
+          }
+
+          if (
+            savedWasPlaying === "true" &&
+            currentSongRef.current &&
+            getPlayableUri(currentSongRef.current)
+          ) {
+            hydrated = true;
+            logLockscreenPlaybackDiagnostic("foreground_saved_session_hydrated_before_probe", {
+              songId: currentSongRef.current?.id || null,
+              queueLength: activeQueueRef.current.length,
+              queueIndex: activeQueueIndexRef.current,
+              isPlaying: false,
+              awaitingNativeProbe: true,
+            });
+          }
+        } catch (legacyError) {
+          if (isOversizedAndroidStorageError(legacyError)) {
+            await clearLegacyPlaybackSessionPayloads("hydrate_js_session");
+          }
+          logLockscreenPlaybackDiagnostic("foreground_restore_queue_context_failed", {
+            source: "hydrate_js_session",
+            message: String((legacyError as Error)?.message || legacyError),
           });
         }
-
-        const mode: ActiveQueueMode =
-          savedMode === "youtube" ||
-          savedMode === "radio" ||
-          savedMode === "smart" ||
-          savedMode === "standard"
-            ? savedMode
-            : activeQueueModeRef.current;
-        activeQueueModeRef.current = mode;
-        setActiveQueueMode(mode);
-
-        if (savedContext) {
-          try {
-            const context = normalizePlaybackQueueContext(JSON.parse(savedContext));
-            activeQueueContextRef.current = context;
-            setActiveQueueContext(context);
-          } catch {
-            // keep existing context
-          }
-        }
       }
 
-      if (savedPosition) {
-        const parsedPosition = Number(savedPosition);
-        if (!Number.isNaN(parsedPosition) && parsedPosition >= 0) {
-          positionMillisRef.current = parsedPosition;
-          lastSavedPositionRef.current = parsedPosition;
-          setPositionMillis(parsedPosition);
-          hydrated = true;
-        }
-      }
-
-      if (sessionIntentionallyClosed) {
+      if (intentionalAppClose) {
         resetHiddenAudioSessionAfterIntentionalClose();
         hiddenAudioActiveRef.current = false;
         isPlayingRef.current = false;
         setIsPlayingState(false);
         await removeStoredValues([PLAYBACK_WAS_PLAYING_KEY, INTENTIONAL_APP_CLOSE_KEY]);
-        delete storageValueCacheRef.current[INTENTIONAL_APP_CLOSE_KEY];
-        delete storageValueCacheRef.current[PLAYBACK_WAS_PLAYING_KEY];
         logLockscreenPlaybackDiagnostic("hydration_skipped_after_intentional_close", {
           songId: currentSongRef.current?.id || null,
           queueLength: activeQueueRef.current.length,
           queueIndex: activeQueueIndexRef.current,
         });
-      } else if (
-        savedWasPlaying === "true" &&
-        currentSongRef.current &&
-        getPlayableUri(currentSongRef.current)
-      ) {
-        hydrated = true;
-        logLockscreenPlaybackDiagnostic("foreground_saved_session_hydrated_before_probe", {
-          songId: currentSongRef.current?.id || null,
-          queueLength: activeQueueRef.current.length,
-          queueIndex: activeQueueIndexRef.current,
-          isPlaying: false,
-          awaitingNativeProbe: true,
-        });
       }
 
       return hydrated;
     } catch (error) {
-      logLockscreenPlaybackDiagnostic("foreground_restore_queue_context_failed", {
+      logLockscreenPlaybackDiagnostic("compact_session_restore_failed", {
         source: "hydrate_js_session",
         message: String((error as Error)?.message || error),
       });
       return false;
     }
   }, [
+    applyCompactPlaybackSession,
+    clearLegacyPlaybackSessionPayloads,
     getPlayableUri,
     isYouTubeSong,
     normalizeSong,
     removeStoredValues,
+    resolveCompactSessionSong,
     setActiveQueue,
     setActiveQueueContext,
     setActiveQueueIndex,
     setActiveQueueMode,
     setCurrentSong,
-    setIsPlaying,
     setPositionMillis,
   ]);
 
@@ -2054,13 +2244,21 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
       if (activeQueueRef.current.length === 0) {
         try {
-          const savedQueue = await AsyncStorage.getItem(ACTIVE_QUEUE_KEY);
+          const compactSession = await AsyncStorage.getItem(COMPACT_PLAYBACK_SESSION_KEY);
+          if (await applyCompactPlaybackSession(compactSession, "foreground_native_alive_queue_rebuild")) {
+            restoredSong = currentSongRef.current;
+          }
+          const savedQueue = activeQueueRef.current.length ? null : await AsyncStorage.getItem(ACTIVE_QUEUE_KEY);
           const savedIndex = await AsyncStorage.getItem(ACTIVE_QUEUE_INDEX_KEY);
           const savedContext = await AsyncStorage.getItem(ACTIVE_QUEUE_CONTEXT_KEY);
-          if (savedQueue) {
+          if (!activeQueueRef.current.length && savedQueue) {
             const parsedQueue = JSON.parse(savedQueue)
-              .map(normalizeSong)
-              .filter((song: AppSong) => !isYouTubeSong(song));
+              .map((entry: AppSong | string) =>
+                typeof entry === "string"
+                  ? resolveCompactSessionSong(entry)
+                  : normalizeSong(entry)
+              )
+              .filter((song: AppSong | null) => Boolean(song) && !isYouTubeSong(song as AppSong)) as AppSong[];
             if (parsedQueue.length > 0) {
               activeQueueRef.current = parsedQueue;
               setActiveQueue(parsedQueue);
@@ -2083,6 +2281,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             reason: "queue_context_parse",
             message: String((error as Error)?.message || error),
           });
+          if (isOversizedAndroidStorageError(error)) {
+            await clearLegacyPlaybackSessionPayloads("foreground_native_alive_queue_rebuild");
+          }
           logLockscreenPlaybackDiagnostic("foreground_restore_queue_context_failed", {
             message: String((error as Error)?.message || error),
           });
@@ -2174,11 +2375,15 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       foregroundResyncInFlightRef.current = false;
     }
   }, [
+    applyCompactPlaybackSession,
+    clearLegacyPlaybackSessionPayloads,
+    clearStalePlaybackFlagsForNativeIdle,
     getPlayableUri,
     hydrateJsPlaybackSessionFromStorage,
     reconcileHiddenAudioActiveState,
     normalizeSong,
     isYouTubeSong,
+    resolveCompactSessionSong,
     restoreForegroundFromSavedSession,
     setActiveQueue,
     setActiveQueueIndex,
@@ -2474,17 +2679,17 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       if (isYouTubeSong(song)) return;
 
       try {
-        const serialized = JSON.stringify(song);
+        const songId = String(song.id || "").trim();
+        if (!songId || lastCurrentSongPersistRef.current === songId) return;
 
-        if (lastCurrentSongPersistRef.current === serialized) return;
-
-        lastCurrentSongPersistRef.current = serialized;
-        await setStoredValueIfChanged(CURRENT_SONG_KEY, serialized);
+        lastCurrentSongPersistRef.current = songId;
+        delete storageValueCacheRef.current[CURRENT_SONG_KEY];
+        await AsyncStorage.removeItem(CURRENT_SONG_KEY);
       } catch (error) {
         console.log("Save current song error:", error);
       }
     },
-    [isYouTubeSong, setStoredValueIfChanged]
+    [isYouTubeSong]
   );
 
   const saveRecentlyPlayed = useCallback(async (song: AppSong) => {
@@ -2545,11 +2750,35 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       context: PlaybackQueueContext = activeQueueContextRef.current
     ) => {
       try {
-        const normalizedQueue = queue.map(normalizeSong);
-        const serializedQueue = JSON.stringify(normalizedQueue);
+        const normalizedQueue = queue
+          .map(normalizeSong)
+          .filter((song) => !isYouTubeSong(song) && Boolean(getPlayableUri(song)));
+        const queueIds = normalizedQueue
+          .map((song) => String(song.id || "").trim())
+          .filter(Boolean);
         const normalizedContext = normalizePlaybackQueueContext(context);
         const serializedContext = JSON.stringify(normalizedContext);
-        const persistKey = `${serializedQueue}|${index}|${mode}|${serializedContext}`;
+        const safeIndex = normalizedQueue.length
+          ? Math.max(0, Math.min(index, normalizedQueue.length - 1))
+          : 0;
+        const currentSong =
+          currentSongRef.current && !isYouTubeSong(currentSongRef.current)
+            ? normalizeSong(currentSongRef.current)
+            : normalizedQueue[safeIndex] || null;
+        const compactSession: CompactPlaybackSession = {
+          currentSongId: String(currentSong?.id || queueIds[safeIndex] || ""),
+          queueIds,
+          queueIndex: safeIndex,
+          positionMillis: Math.max(0, Math.floor(positionMillisRef.current || 0)),
+          isPlaying: Boolean(isPlayingRef.current),
+          contextSource: normalizedContext.source || "unknown",
+          queueMode: mode,
+          context: normalizedContext,
+          savedAt: Date.now(),
+        };
+        const serializedCompactSession = JSON.stringify(compactSession);
+        const serializedQueue = JSON.stringify(queueIds);
+        const persistKey = `${serializedCompactSession}|${mode}|${serializedContext}`;
 
         if (lastActiveQueuePersistRef.current === persistKey) return;
 
@@ -2557,21 +2786,31 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         recordQueuePersistWrite(normalizedQueue.length, "persist_active_queue");
 
         await AsyncStorage.multiSet([
+          [COMPACT_PLAYBACK_SESSION_KEY, serializedCompactSession],
           [ACTIVE_QUEUE_KEY, serializedQueue],
-          [ACTIVE_QUEUE_INDEX_KEY, String(index)],
+          [ACTIVE_QUEUE_INDEX_KEY, String(safeIndex)],
           [ACTIVE_QUEUE_MODE_KEY, mode],
           [ACTIVE_QUEUE_CONTEXT_KEY, serializedContext],
         ]);
 
+        storageValueCacheRef.current[COMPACT_PLAYBACK_SESSION_KEY] = serializedCompactSession;
         storageValueCacheRef.current[ACTIVE_QUEUE_KEY] = serializedQueue;
-        storageValueCacheRef.current[ACTIVE_QUEUE_INDEX_KEY] = String(index);
+        storageValueCacheRef.current[ACTIVE_QUEUE_INDEX_KEY] = String(safeIndex);
         storageValueCacheRef.current[ACTIVE_QUEUE_MODE_KEY] = mode;
         storageValueCacheRef.current[ACTIVE_QUEUE_CONTEXT_KEY] = serializedContext;
+        delete storageValueCacheRef.current[CURRENT_SONG_KEY];
+        await AsyncStorage.removeItem(CURRENT_SONG_KEY);
+        logLockscreenPlaybackDiagnostic("compact_session_save_success", {
+          currentSongId: compactSession.currentSongId,
+          queueLength: queueIds.length,
+          queueIndex: safeIndex,
+          contextSource: compactSession.contextSource,
+        });
       } catch (error) {
         console.log("Persist active queue error:", error);
       }
     },
-    [normalizeSong]
+    [getPlayableUri, isYouTubeSong, normalizeSong]
   );
 
   const persistActiveQueueDeferred = useCallback(
@@ -5896,6 +6135,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       ACTIVE_QUEUE_INDEX_KEY,
       ACTIVE_QUEUE_MODE_KEY,
       ACTIVE_QUEUE_CONTEXT_KEY,
+      COMPACT_PLAYBACK_SESSION_KEY,
     ]);
   }, [removeStoredValues]);
 
@@ -5904,6 +6144,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
     try {
       const [
+        compactSession,
         savedSong,
         savedPosition,
         savedRepeatMode,
@@ -5912,6 +6153,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         savedMuted,
         savedSmartAutoplay,
       ] = await Promise.all([
+        AsyncStorage.getItem(COMPACT_PLAYBACK_SESSION_KEY),
         AsyncStorage.getItem(CURRENT_SONG_KEY),
         AsyncStorage.getItem(POSITION_KEY),
         AsyncStorage.getItem(REPEAT_MODE_KEY),
@@ -5925,10 +6167,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       setSmartAutoplayEnabled(smartEnabled);
       smartAutoplayEnabledRef.current = smartEnabled;
 
-      if (savedSong) {
-        const parsedSong = normalizeSong(JSON.parse(savedSong));
+      if (compactSession) {
+        await applyCompactPlaybackSession(compactSession, "restore_saved_data_light");
+      } else if (savedSong) {
+        const parsedSongPayload = JSON.parse(savedSong);
+        const parsedSong =
+          typeof parsedSongPayload === "string"
+            ? resolveCompactSessionSong(parsedSongPayload)
+            : normalizeSong(parsedSongPayload);
 
-        if (!isYouTubeSong(parsedSong)) {
+        if (parsedSong && !isYouTubeSong(parsedSong)) {
           setCurrentSong(parsedSong);
           currentSongRef.current = parsedSong;
         }
@@ -5947,8 +6195,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           const parsedActiveQueue = JSON.parse(savedActiveQueue);
           if (Array.isArray(parsedActiveQueue)) {
             const normalizedQueue = parsedActiveQueue
-              .map(normalizeSong)
-              .filter((song) => !isYouTubeSong(song));
+              .map((entry) =>
+                typeof entry === "string"
+                  ? resolveCompactSessionSong(entry)
+                  : normalizeSong(entry)
+              )
+              .filter((song) => Boolean(song) && !isYouTubeSong(song as AppSong)) as AppSong[];
             if (normalizedQueue.length > 0) {
               setActiveQueue(normalizedQueue);
               activeQueueRef.current = normalizedQueue;
@@ -6020,7 +6272,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     } finally {
       logPlayerContextDebug("[startup-ready] restore-light-end");
     }
-  }, [normalizeSong, isYouTubeSong]);
+  }, [
+    applyCompactPlaybackSession,
+    isYouTubeSong,
+    normalizeSong,
+    resolveCompactSessionSong,
+  ]);
 
   const restoreSavedDataHeavy = useCallback(async () => {
     logPlayerContextDebug("[startup-ready] restore-heavy-start");
@@ -6410,18 +6667,18 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               if (canResumeNative) {
                 await bridgeHiddenAudioPlay();
               } else {
-                const catalog = getCachedHiddenTunesCatalog();
-                const fallbackQueue = buildAndroidAutoFallbackQueue(catalog);
-                const song = currentSongRef.current || fallbackQueue[0] || null;
-                if (!song) {
-                  throw new Error("HiddenAudio cannot play without a loaded track");
+                const song = currentSongRef.current;
+                if (!song || !getPlayableUri(song)) {
+                  logLockscreenPlaybackDiagnostic("android_auto_command_blocked_no_native_track", {
+                    command: "play",
+                    reason: "no_current_valid_song",
+                  });
+                  break;
                 }
                 const queue =
                   activeQueueRef.current.length > 0
                     ? activeQueueRef.current
-                    : fallbackQueue.length > 0
-                      ? fallbackQueue
-                      : [song];
+                    : [song];
                 const queueIndex = Math.max(
                   0,
                   queue.findIndex((entry) => entry.id === song.id)
@@ -6855,7 +7112,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           Boolean(currentSongRef.current) ||
           activeQueueRef.current.length > 0 ||
           isPlayingRef.current ||
-          Boolean(await AsyncStorage.getItem(CURRENT_SONG_KEY));
+          Boolean(await AsyncStorage.getItem(COMPACT_PLAYBACK_SESSION_KEY));
 
         if (backgroundish && hasSavedOrLiveSession) {
           markHiddenAudioBridgeActive(true);
