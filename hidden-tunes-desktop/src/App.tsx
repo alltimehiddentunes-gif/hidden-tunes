@@ -5179,9 +5179,93 @@ function DownloadsPage({
   )
 }
 
-/* Phase 42B: no dedicated PSD reference — gold luxury from sidebar premium CTA */
-function PremiumPage() {
+type PremiumFeatureAction = 'settings' | 'worlds'
+
+type PremiumFeatureSpec = {
+  id: string
+  title: string
+  description: string
+  status: 'available' | 'coming-soon'
+  action?: PremiumFeatureAction
+  actionLabel?: string
+}
+
+type PremiumPlanSpec = {
+  id: string
+  title: string
+  priceLabel: string
+  detail: string
+  badge?: string
+}
+
+const PREMIUM_FEATURE_SPECS: PremiumFeatureSpec[] = [
+  {
+    id: 'hq-audio',
+    title: 'High Quality Audio',
+    description: 'Choose standard, high-quality, or lossless playback for this desktop install.',
+    status: 'available',
+    action: 'settings',
+    actionLabel: 'Open settings',
+  },
+  {
+    id: 'worlds',
+    title: 'Emotional Worlds',
+    description: 'Browse cinematic listening scenes curated from your catalog moods and genres.',
+    status: 'available',
+    action: 'worlds',
+    actionLabel: 'Browse worlds',
+  },
+  {
+    id: 'cinema',
+    title: 'Cinematic Player Modes',
+    description: 'Full-screen premium player experiences with reactive visuals and lyrics stages.',
+    status: 'coming-soon',
+  },
+  {
+    id: 'offline',
+    title: 'Offline Listening',
+    description: 'Keep selected songs and playlists available when you are away from the network.',
+    status: 'coming-soon',
+  },
+]
+
+const PREMIUM_PLAN_SPECS: PremiumPlanSpec[] = [
+  {
+    id: 'monthly',
+    title: 'Monthly',
+    priceLabel: 'Coming soon',
+    detail: 'Flexible membership preview for desktop.',
+  },
+  {
+    id: 'annual',
+    title: 'Annual',
+    priceLabel: 'Coming soon',
+    detail: 'Best value membership preview for desktop.',
+    badge: 'Best value',
+  },
+]
+
+function PremiumPage({ onNavigateNav }: { onNavigateNav: (navKey: NavKey) => void }) {
   const premiumHeroArt = getArtworkForPremium('hero')
+  const featuresRef = useRef<HTMLElement | null>(null)
+  const plansRef = useRef<HTMLElement | null>(null)
+
+  const scrollToSection = useCallback((node: HTMLElement | null) => {
+    node?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [])
+
+  const handleFeatureAction = useCallback(
+    (feature: PremiumFeatureSpec) => {
+      if (feature.status !== 'available' || !feature.action) return
+      if (feature.action === 'settings') {
+        onNavigateNav('settings')
+        return
+      }
+      onNavigateNav('worlds')
+    },
+    [onNavigateNav],
+  )
+
   return (
     <div className="psd-premium-destination">
       <PageFrame cinematic>
@@ -5194,26 +5278,121 @@ function PremiumPage() {
           />
           <div className="psd-premium-hero-veil" aria-hidden="true" />
           <div className="psd-premium-glow" aria-hidden="true" />
-          <p className="psd-page-eyebrow">Hidden Tunes Premium</p>
-          <h1 id="premium-heading">Unlock Every World</h1>
-          <p className="psd-page-subtitle">Gold luxury shell inferred from sidebar premium CTA — no dedicated full-page PSD.</p>
-          <div className="psd-hero-actions">
-            <button type="button" className="psd-btn psd-btn--gold">Go Premium</button>
-            <button type="button" className="psd-btn psd-btn--ghost">Compare plans</button>
+          <div className="psd-premium-hero-inner">
+            <div className="psd-premium-hero-art" aria-hidden="true">
+              <ArtworkImage
+                src={premiumHeroArt}
+                alt=""
+                seed="premium-hero"
+                label="Hidden Tunes Premium"
+              />
+            </div>
+            <div className="psd-premium-hero-copy">
+              <p className="psd-page-eyebrow">Hidden Tunes Premium</p>
+              <h1 id="premium-heading">Unlock Every World</h1>
+              <p className="psd-page-subtitle">
+                Cinematic listening, deeper worlds, and gold-tier atmosphere — built for emotional immersion.
+              </p>
+              <div className="psd-hero-actions psd-premium-hero-actions">
+                <button
+                  type="button"
+                  className="psd-btn psd-btn--gold"
+                  onClick={() => scrollToSection(featuresRef.current)}
+                >
+                  Explore features
+                </button>
+                <button
+                  type="button"
+                  className="psd-btn psd-btn--ghost"
+                  onClick={() => scrollToSection(plansRef.current)}
+                >
+                  Compare plans
+                </button>
+              </div>
+            </div>
           </div>
         </section>
-        <div className="psd-premium-grid">
-          {['Lossless audio', 'Every emotional world', 'Cinema listening', 'Offline downloads'].map((perk) => (
-            <article key={perk} className="psd-premium-card">
-              <span className="psd-premium-card-icon" aria-hidden="true">✦</span>
-              <strong>{perk}</strong>
-            </article>
-          ))}
-        </div>
+
+        <section className="psd-premium-notice" aria-label="Membership availability">
+          <span className="psd-premium-notice-badge">Preview</span>
+          <div className="psd-premium-notice-copy">
+            <strong>Membership checkout is not available on this desktop preview.</strong>
+            <p>
+              Explore included playback quality settings and emotional worlds now. Billing and plan management will arrive in a future release.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="psd-btn psd-btn--ghost psd-btn--compact"
+            onClick={() => onNavigateNav('settings')}
+          >
+            Manage in Settings
+          </button>
+        </section>
+
+        <section
+          ref={featuresRef}
+          className="psd-premium-section"
+          aria-labelledby="premium-features-heading"
+        >
+          <header className="psd-premium-section-header">
+            <h2 id="premium-features-heading">Premium features</h2>
+            <p>Only live capabilities are marked available. Everything else stays clearly preview-only.</p>
+          </header>
+          <div className="psd-premium-grid">
+            {PREMIUM_FEATURE_SPECS.map((feature) => (
+              <article key={feature.id} className="psd-premium-card" data-status={feature.status}>
+                <div className="psd-premium-card-top">
+                  <span className="psd-premium-card-icon" aria-hidden="true">✦</span>
+                  <span className={`psd-premium-status${feature.status === 'available' ? ' is-live' : ''}`}>
+                    {feature.status === 'available' ? 'Available' : 'Coming soon'}
+                  </span>
+                </div>
+                <strong>{feature.title}</strong>
+                <p>{feature.description}</p>
+                {feature.status === 'available' && feature.action && feature.actionLabel ? (
+                  <button
+                    type="button"
+                    className="psd-premium-card-action"
+                    onClick={() => handleFeatureAction(feature)}
+                  >
+                    {feature.actionLabel}
+                  </button>
+                ) : null}
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section
+          ref={plansRef}
+          className="psd-premium-section psd-premium-plans"
+          aria-labelledby="premium-plans-heading"
+        >
+          <header className="psd-premium-section-header">
+            <h2 id="premium-plans-heading">Plans</h2>
+            <p>Preview pricing only — checkout is not connected on desktop yet.</p>
+          </header>
+          <div className="psd-premium-plan-grid">
+            {PREMIUM_PLAN_SPECS.map((plan) => (
+              <article key={plan.id} className="psd-premium-plan-card" data-plan={plan.id}>
+                {plan.badge ? <span className="psd-premium-plan-badge">{plan.badge}</span> : null}
+                <h3>{plan.title}</h3>
+                <p className="psd-premium-plan-price">{plan.priceLabel}</p>
+                <p className="psd-premium-plan-detail">{plan.detail}</p>
+                <button type="button" className="psd-premium-plan-cta" disabled>
+                  Not available yet
+                </button>
+              </article>
+            ))}
+          </div>
+        </section>
       </PageFrame>
     </div>
   )
 }
+
+
 
 function TvPage() {
   return (
@@ -9774,7 +9953,7 @@ function PageContent({
   if (activeNavKey === 'downloads') {
     return <DownloadsPage onOpenSong={onOpenSong} query={downloadsQuery} />
   }
-  if (activeNavKey === 'premium') return <PremiumPage />
+  if (activeNavKey === 'premium') return <PremiumPage onNavigateNav={onNavigateNav} />
 
   switch (page) {
     case 'home':
