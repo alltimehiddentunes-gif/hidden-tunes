@@ -42,7 +42,7 @@ export const PlayerModeLauncher = memo(function PlayerModeLauncher({
   variant = 'footer',
 }: PlayerModeLauncherProps) {
   const [open, setOpen] = useState(false)
-  const [preferredStyle] = usePreferredNowPlayingStyle()
+  const [preferredStyle, setPreferredStyle] = usePreferredNowPlayingStyle()
   const rootRef = useRef<HTMLDivElement>(null)
   const menuId = useId()
 
@@ -78,6 +78,7 @@ export const PlayerModeLauncher = memo(function PlayerModeLauncher({
 
   const handleSelect = (style: NowPlayingStyle) => {
     if (!hasPlayback) return
+    setPreferredStyle(style)
     onOpenPlayerByStyle(style)
     closeMenu()
   }
