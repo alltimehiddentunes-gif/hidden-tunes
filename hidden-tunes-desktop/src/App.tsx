@@ -592,9 +592,12 @@ void [
   PSD_PLAYER4_YEAR,
   PSD_PLAYER4_POSITION_SECONDS,
   PSD_PLAYER4_DURATION_SECONDS,
+  PSD_PLAYER4_SOURCE,
   PSD_PLAYER4_LYRICS,
   PSD_PLAYER4_UP_NEXT,
+  PSD_PLAYER4_SOUND_MODES,
   PSD_PLAYER5_TITLE,
+  PSD_PLAYER5_SOURCE,
   PSD_PLAYER5_ARTIST,
   PSD_PLAYER5_YEAR,
   PSD_PLAYER5_POSITION_SECONDS,
@@ -611,6 +614,10 @@ void [
   PSD_PLAYER_ARTIST,
   PSD_PLAYER_POSITION_SECONDS,
   PSD_PLAYER_DURATION_SECONDS,
+  PSD_ALBUMS_SUBTITLE,
+  PSD_ALBUMS_FOOTER_COUNT,
+  PSD_LIKED_META,
+  PSD_DOWNLOADS_STORAGE_PERCENT,
 ]
 
 function PsdWaveformStrip({ className = '' }: { className?: string }) {
@@ -627,14 +634,6 @@ function PsdIconHeart({ className = '' }: { className?: string }) {
   return (
     <svg className={className} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
       <path d="M12 20.8l-1.1-1C6.4 15.36 3 12.28 3 8.5 3 6 5 4 7.5 4c1.74 0 3.41 1.01 4.5 2.36C13.09 5.01 14.76 4 16.5 4 19 4 21 6 21 8.5c0 3.78-3.4 6.86-7.9 11.3L12 20.8z" />
-    </svg>
-  )
-}
-
-function PsdIconPlus({ className = '' }: { className?: string }) {
-  return (
-    <svg className={className} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-      <path d="M12 5v14M5 12h14" />
     </svg>
   )
 }
@@ -4250,7 +4249,7 @@ function AlbumsPage({
   query?: string
   setQuery?: (value: string) => void
 }) {
-  const { albums, artistNames } = useCatalog()
+  const { albums, artistNames, indexes } = useCatalog()
   const [internalQuery, setInternalQuery] = usePersistedPreference(
     DESKTOP_PREFERENCE_KEYS.albumsSearch,
     '',
@@ -4259,7 +4258,7 @@ function AlbumsPage({
   const query = externalQuery ?? internalQuery
   const setQuery = externalSetQuery ?? setInternalQuery
   void setQuery
-  const [sort] = usePersistedPreference(
+  const [sort, setSort] = usePersistedPreference(
     DESKTOP_PREFERENCE_KEYS.albumsSort,
     'latest' as AlbumSort,
     parseStoredAlbumSort,
@@ -4279,6 +4278,14 @@ function AlbumsPage({
     [albums, visibleAlbums],
   )
 
+  const albumsSubtitle = visibleAlbums.length === 1
+    ? '1 album in your library.'
+    : `${visibleAlbums.length} albums in your library.`
+  const albumsFooterCount = visibleAlbums.length === 1
+    ? '1 album'
+    : `${visibleAlbums.length} albums`
+  const sortLabel = sort === 'latest' ? 'Recently Added' : 'A–Z'
+
   const albumTabs = [
     { id: 'all', label: 'All Albums' },
     { id: 'collection', label: 'In Collection' },
@@ -4292,7 +4299,7 @@ function AlbumsPage({
       <PageFrame cinematic>
         <header className="psd-albums-page-header" aria-labelledby="albums-heading">
           <h1 id="albums-heading" className="psd-albums-page-title">Albums</h1>
-          <p className="psd-albums-page-subtitle">{PSD_ALBUMS_SUBTITLE}</p>
+          <p className="psd-albums-page-subtitle">{albumsSubtitle}</p>
         </header>
 
         <div className="psd-albums-toolbar-row">
@@ -4310,8 +4317,13 @@ function AlbumsPage({
               </button>
             ))}
           </div>
-          <button type="button" className="psd-albums-sort-pill" aria-label="Sort albums">
-            Recently Added
+          <button
+            type="button"
+            className="psd-albums-sort-pill"
+            aria-label={`Sort albums: ${sortLabel}`}
+            onClick={() => setSort(sort === 'latest' ? 'az' : 'latest')}
+          >
+            {sortLabel}
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
               <path d="M6 9l6 6 6-6" />
             </svg>
@@ -4345,9 +4357,13 @@ function AlbumsPage({
                     </span>
                   </div>
                   <div className="psd-albums-gallery-copy">
-                    <strong className="psd-albums-gallery-title">{card.title}</strong>
-                    <span className="psd-albums-gallery-artist">{card.artist}</span>
-                    <span className="psd-albums-gallery-meta">{card.year} • {card.songs}</span>
+                    <strong className="psd-albums-gallery-title">{album?.title ?? '—'}</strong>
+                    <span className="psd-albums-gallery-artist">
+                      {album ? (album.artistId ? artistNames.get(album.artistId) ?? 'Unknown artist' : 'Unknown artist') : '—'}
+                    </span>
+                    <span className="psd-albums-gallery-meta">
+                      {album?.releaseYear ?? '—'} • {album ? countSongsForAlbum(album, indexes) : 0} songs
+                    </span>
                     <span className="psd-albums-gallery-more" aria-hidden="true"><PsdIconMore /></span>
                   </div>
                 </button>
@@ -4356,7 +4372,7 @@ function AlbumsPage({
           })}
         </div>
 
-        <p className="psd-albums-footer-count">{PSD_ALBUMS_FOOTER_COUNT}</p>
+        <p className="psd-albums-footer-count">{albumsFooterCount}</p>
       </PageFrame>
     </div>
   )
@@ -4678,6 +4694,17 @@ function LikedPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
     playLikedSong(0)
   }, [playLikedSong])
 
+  const likedMeta = useMemo(() => {
+    const count = likedSongs.length
+    const totalSeconds = likedSongs.reduce((sum, song) => sum + (song.durationSeconds ?? 0), 0)
+    const hours = Math.floor(totalSeconds / 3600)
+    const minutes = Math.floor((totalSeconds % 3600) / 60)
+    const durationLabel = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`
+    return `${count} ${count === 1 ? 'song' : 'songs'} • ${durationLabel}`
+  }, [likedSongs])
+
+  const visibleLikedSongs = likedSongs.slice(0, PSD_LIKED_TABLE_ROWS.length)
+
   return (
     <div className="psd-liked-destination">
       <PageFrame cinematic>
@@ -4689,16 +4716,12 @@ function LikedPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
                 <path d="M12 20.8l-1.1-1C6.4 15.36 3 12.28 3 8.5 3 6 5 4 7.5 4c1.74 0 3.41 1.01 4.5 2.36C13.09 5.01 14.76 4 16.5 4 19 4 21 6 21 8.5c0 3.78-3.4 6.86-7.9 11.3L12 20.8z" />
               </svg>
             </div>
-            <button type="button" className="psd-liked-hero-edit" aria-label="Edit playlist cover">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                <path d="M12 20h9M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4L16.5 3.5z" />
-              </svg>
-            </button>
+
           </div>
 
           <div className="psd-liked-hero-copy">
             <h1 id="liked-heading" className="psd-liked-page-title">Liked Songs</h1>
-            <p className="psd-liked-page-meta">{PSD_LIKED_META}</p>
+            <p className="psd-liked-page-meta">{likedMeta}</p>
             <p className="psd-liked-page-description">{PSD_LIKED_DESCRIPTION}</p>
             <div className="psd-liked-hero-toolbar">
               <div className="psd-liked-hero-actions">
@@ -4714,14 +4737,7 @@ function LikedPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
                   </svg>
                   Shuffle
                 </button>
-                <button type="button" className="psd-liked-btn psd-liked-btn--more" aria-label="More options">
-                  <PsdIconMore />
-                </button>
               </div>
-              <button type="button" className="psd-liked-add-playlist">
-                <PsdIconPlus />
-                Add to Playlist
-              </button>
             </div>
           </div>
         </section>
@@ -4746,20 +4762,9 @@ function LikedPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
                 </tr>
               </thead>
               <tbody>
-                {PSD_LIKED_TABLE_ROWS.map((row, index) => {
-                  const song = resolveLikedSongAtIndex(index)
-                  return (
-                    <tr
-                      key={row.key}
-                      className={`psd-liked-table-row${'active' in row && row.active ? ' is-active' : ''}`}
-                    >
-                      <td className="psd-liked-col-index">
-                        {'active' in row && row.active ? (
-                          <PsdIconEqualizer className="psd-liked-row-equalizer" />
-                        ) : (
-                          index + 1
-                        )}
-                      </td>
+                {visibleLikedSongs.map((song, index) => (
+                    <tr key={song.id} className="psd-liked-table-row">
+                      <td className="psd-liked-col-index">{index + 1}</td>
                       <td className="psd-liked-col-title">
                         <button
                           type="button"
@@ -4768,32 +4773,27 @@ function LikedPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
                         >
                           <span className="psd-liked-row-thumb">
                             <ArtworkImage
-                              src={song?.artwork ?? null}
+                              src={song.artwork ?? null}
                               alt=""
-                              seed={song?.id ?? row.key}
-                              label={song?.title ?? row.title}
+                              seed={song.id}
+                              label={song.title}
                             />
                           </span>
                           <span className="psd-liked-title-copy">
-                            <strong>{row.title}</strong>
+                            <strong>{song.title}</strong>
                             <svg className="psd-liked-row-heart" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                               <path d="M12 20.8l-1.1-1C6.4 15.36 3 12.28 3 8.5 3 6 5 4 7.5 4c1.74 0 3.41 1.01 4.5 2.36C13.09 5.01 14.76 4 16.5 4 19 4 21 6 21 8.5c0 3.78-3.4 6.86-7.9 11.3L12 20.8z" />
                             </svg>
                           </span>
                         </button>
                       </td>
-                      <td className="psd-liked-col-artist">{row.artist}</td>
-                      <td className="psd-liked-col-album">{row.album}</td>
-                      <td className="psd-liked-col-date">{row.dateAdded}</td>
-                      <td className="psd-liked-col-duration">{row.duration}</td>
-                      <td className="psd-liked-col-menu">
-                        <button type="button" className="psd-liked-row-menu" aria-label={`More options for ${row.title}`}>
-                          <PsdIconMore />
-                        </button>
-                      </td>
+                      <td className="psd-liked-col-artist">{song.artist}</td>
+                      <td className="psd-liked-col-album">{song.album ?? '—'}</td>
+                      <td className="psd-liked-col-date">—</td>
+                      <td className="psd-liked-col-duration">{formatSongDurationLabel(song)}</td>
+                      <td className="psd-liked-col-menu" aria-hidden="true" />
                     </tr>
-                  )
-                })}
+                  ))}
               </tbody>
             </table>
           </div>
@@ -4843,19 +4843,14 @@ function RecentPage({
   )
 
   const normalizedQuery = query.trim().toLowerCase()
-  const visibleRows = useMemo(() => {
-    if (!normalizedQuery) return PSD_RECENT_TABLE_ROWS
-    return PSD_RECENT_TABLE_ROWS.filter((row) => {
-      const haystack = [
-        row.title,
-        row.subtitle,
-        row.artist,
-        row.itemType,
-        row.played,
-      ].join(' ').toLowerCase()
+  const visibleSongs = useMemo(() => {
+    const base = recentSongs.slice(0, 10)
+    if (!normalizedQuery) return base
+    return base.filter((song) => {
+      const haystack = [song.title, song.artist, song.album ?? ''].join(' ').toLowerCase()
       return haystack.includes(normalizedQuery)
     })
-  }, [normalizedQuery])
+  }, [normalizedQuery, recentSongs])
 
   return (
     <div className="psd-recent-destination">
@@ -4892,54 +4887,45 @@ function RecentPage({
                 </tr>
               </thead>
               <tbody>
-                {visibleRows.map((row) => {
-                  const index = PSD_RECENT_TABLE_ROWS.findIndex((entry) => entry.key === row.key)
-                  const song = resolveRecentSongAtIndex(index)
-                  return (
-                    <tr key={row.key} className="psd-recent-table-row">
+                {visibleSongs.map((song, index) => (
+                    <tr key={song.id} className="psd-recent-table-row">
                       <td className="psd-recent-col-index">{index + 1}</td>
                       <td className="psd-recent-col-title">
                         <button
                           type="button"
                           className="psd-recent-title-btn"
                           onClick={() => playRecentSong(index)}
-                          disabled={row.itemType !== 'Song'}
                         >
                           <span className="psd-recent-row-thumb">
                             <ArtworkImage
-                              src={song?.artwork ?? null}
+                              src={song.artwork ?? null}
                               alt=""
-                              seed={song?.id ?? row.key}
-                              label={song?.title ?? row.title}
+                              seed={song.id}
+                              label={song.title}
                             />
                           </span>
                           <span className="psd-recent-title-copy">
-                            <strong>{row.title}</strong>
-                            <span>{row.subtitle}</span>
+                            <strong>{song.title}</strong>
+                            <span>{song.album ?? 'Song'}</span>
                           </span>
                         </button>
                       </td>
-                      <td className="psd-recent-col-artist">{row.artist}</td>
+                      <td className="psd-recent-col-artist">{song.artist}</td>
                       <td className="psd-recent-col-type">
                         <span className="psd-recent-type-pill">
-                          <PsdRecentTypeIcon type={row.itemType} />
-                          <span>{row.itemType}</span>
+                          <PsdRecentTypeIcon type="Song" />
+                          <span>Song</span>
                         </span>
                       </td>
-                      <td className="psd-recent-col-played">{row.played}</td>
-                      <td className="psd-recent-col-duration">{row.duration}</td>
-                      <td className="psd-recent-col-menu">
-                        <button type="button" className="psd-recent-row-menu" aria-label={`More options for ${row.title}`}>
-                          <PsdIconMore />
-                        </button>
-                      </td>
+                      <td className="psd-recent-col-played">—</td>
+                      <td className="psd-recent-col-duration">{formatSongDurationLabel(song)}</td>
+                      <td className="psd-recent-col-menu" aria-hidden="true" />
                     </tr>
-                  )
-                })}
+                  ))}
               </tbody>
             </table>
             <p className="psd-recent-table-footer">
-              Showing 10 of your recently played items
+              {visibleSongs.length === 0 ? "No recent plays yet" : `Showing ${visibleSongs.length} recently played songs`}
             </p>
           </div>
         </section>
@@ -4949,15 +4935,6 @@ function RecentPage({
 }
 
 /* Phase 42X-FIX-2: Downloads page desktop shell + PSD content */
-function PsdDownloadsRowMenu() {
-  return (
-    <button type="button" className="psd-downloads-row-menu" aria-label="More options">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-        <circle cx="12" cy="5" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="12" cy="19" r="1.6" />
-      </svg>
-    </button>
-  )
-}
 
 function DownloadsPage({
   onOpenSong,
@@ -5002,30 +4979,11 @@ function DownloadsPage({
       <PageFrame cinematic>
         <h1 className="psd-downloads-title">Downloads</h1>
 
-        <section className="psd-downloads-storage" aria-label="Storage usage">
-          <div
-            className="psd-downloads-ring"
-            style={{ ['--downloads-ring-percent' as string]: PSD_DOWNLOADS_STORAGE_PERCENT }}
-            aria-hidden="true"
-          >
-            <span>{PSD_DOWNLOADS_STORAGE_PERCENT}%</span>
-          </div>
+        <section className="psd-downloads-storage" aria-label="Offline downloads preview">
           <div className="psd-downloads-storage-copy">
-            <strong>{PSD_DOWNLOADS_STORAGE_PERCENT}% of storage used</strong>
-            <span>57.6 GB / 80 GB</span>
-            <div className="psd-downloads-storage-bar">
-              <div
-                className="psd-downloads-storage-fill"
-                style={{ width: `${PSD_DOWNLOADS_STORAGE_PERCENT}%` }}
-              />
-            </div>
+            <strong>Offline downloads preview</strong>
+            <span>Device download storage and sync are not connected in this desktop build yet.</span>
           </div>
-          <button type="button" className="psd-downloads-smart-btn">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-              <path d="M12 3l1.8 4.6L18 9.4l-3.7 2.8L15.4 17 12 14.3 8.6 17l1.1-4.8L6 9.4l4.2-1.8L12 3z" />
-            </svg>
-            Smart Download
-          </button>
         </section>
 
         <div className="psd-downloads-tabs" role="tablist" aria-label="Download categories">
@@ -5050,20 +5008,12 @@ function DownloadsPage({
             </svg>
             Shuffle All
           </button>
-          <button type="button" className="psd-downloads-sort">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-              <path d="M4 6h16M7 12h10M10 18h4" />
-            </svg>
-            Recently Downloaded
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-              <path d="M6 9l6 6 6-6" />
-            </svg>
-          </button>
+
         </div>
 
         {showPlaylists ? (
           <section className="psd-downloads-section" aria-label="Downloaded playlists">
-            <h2 className="psd-downloads-section-title">Playlists (3)</h2>
+            <h2 className="psd-downloads-section-title">Playlists ({PSD_DOWNLOADS_PLAYLISTS.length})</h2>
             <ul className="psd-downloads-list">
               {PSD_DOWNLOADS_PLAYLISTS.map((row, index) => {
                 const playlistSongs = songs.slice(index * 4, index * 4 + 8)
@@ -5092,7 +5042,6 @@ function DownloadsPage({
                       <path d="M8 12l2.5 2.5L16 9" />
                     </svg>
                   </span>
-                  <PsdDownloadsRowMenu />
                 </li>
                 )
               })}
@@ -5102,7 +5051,7 @@ function DownloadsPage({
 
         {showAlbums ? (
           <section className="psd-downloads-section" aria-label="Downloaded albums">
-            <h2 className="psd-downloads-section-title">Albums (2)</h2>
+            <h2 className="psd-downloads-section-title">Albums ({PSD_DOWNLOADS_ALBUMS.length})</h2>
             <ul className="psd-downloads-list">
               {PSD_DOWNLOADS_ALBUMS.map((row, index) => {
                 const album = resolveDownloadAlbum(row.title, index)
@@ -5118,7 +5067,7 @@ function DownloadsPage({
                   </span>
                   <div className="psd-downloads-row-copy">
                     <p className="psd-downloads-row-title">
-                      {row.title}
+                      {album?.title ?? row.title}
                       <svg className="psd-downloads-row-badge" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                         <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                       </svg>
@@ -5133,7 +5082,6 @@ function DownloadsPage({
                       <path d="M8 12l2.5 2.5L16 9" />
                     </svg>
                   </span>
-                  <PsdDownloadsRowMenu />
                 </li>
                 )
               })}
@@ -5143,7 +5091,7 @@ function DownloadsPage({
 
         {showSongs ? (
           <section className="psd-downloads-section" aria-label="Downloaded songs">
-            <h2 className="psd-downloads-section-title">Songs (6)</h2>
+            <h2 className="psd-downloads-section-title">Songs ({PSD_DOWNLOADS_SONGS.length})</h2>
             <ul className="psd-downloads-list">
               {PSD_DOWNLOADS_SONGS.map((row, index) => {
                 const song = resolveSong(row.title, index)
@@ -5159,12 +5107,14 @@ function DownloadsPage({
                   </span>
                   <div className="psd-downloads-row-copy">
                     <p className="psd-downloads-row-title">
-                      {row.title}
+                      {song?.title ?? row.title}
                       <svg className="psd-downloads-row-badge" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                         <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                       </svg>
                     </p>
-                    <span className="psd-downloads-row-meta">{row.meta}</span>
+                    <span className="psd-downloads-row-meta">
+                      {song ? `${song.artist}${song.album ? ` • ${song.album}` : ''}` : row.meta}
+                    </span>
                   </div>
                   <span className="psd-downloads-row-check" aria-hidden="true">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -5172,7 +5122,6 @@ function DownloadsPage({
                       <path d="M8 12l2.5 2.5L16 9" />
                     </svg>
                   </span>
-                  <PsdDownloadsRowMenu />
                 </li>
                 )
               })}
@@ -7344,6 +7293,7 @@ const Player2Shell = memo(function Player2Shell({
     volume,
     setVolume,
     getUpcomingTracks,
+    next,
   } = useDesktopPlayback()
 
   const volumeTrackRef = useRef<HTMLDivElement>(null)
@@ -7602,7 +7552,13 @@ const Player2Shell = memo(function Player2Shell({
                   <strong>{nextTitle}</strong>
                   <span>{nextArtist}</span>
                 </div>
-                <button type="button" className="player2-next-play" aria-label={`Play ${nextTitle}`}>
+                <button
+                  type="button"
+                  className="player2-next-play"
+                  aria-label={`Play ${nextTitle}`}
+                  onClick={next}
+                  disabled={!upcomingTrack || !isActive}
+                >
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                     <path d="M8 5v14l11-7z" />
                   </svg>
@@ -7651,6 +7607,7 @@ const Player3Shell = memo(function Player3Shell({
     volume,
     setVolume,
     getUpcomingTracks,
+    audioQualityMode,
   } = useDesktopPlayback()
 
   const volumeTrackRef = useRef<HTMLDivElement>(null)
@@ -7670,6 +7627,13 @@ const Player3Shell = memo(function Player3Shell({
   const displayArtist = displayTrack?.artist ?? 'Select a song to begin'
   const displayAlbum = displayTrack?.album ?? null
   const activeTrackId = displayTrack?.id ?? null
+  const qualityLabel = displayTrack && isActive
+    ? (
+      resolveSearchRowQualityBadge(displayTrack) !== 'SONG'
+        ? resolveSearchRowQualityBadge(displayTrack)
+        : AUDIO_QUALITY_MODE_LABELS[audioQualityMode]
+    )
+    : null
   const upcomingTracks = getUpcomingTracks()
 
   const upNextRows = useMemo(() => {
@@ -7800,8 +7764,7 @@ const Player3Shell = memo(function Player3Shell({
               </button>
             </div>
             <div className="player3-header-badges">
-              <span className="player3-flac">FLAC</span>
-              <span className="player3-spec">24-BIT / 48KHZ</span>
+              {qualityLabel ? <span className="player3-flac">{qualityLabel}</span> : null}
               <button type="button" className="player3-header-eq" aria-label="Equalizer" onClick={onOpenWaveform}>
                 <PsdIconEqualizer />
               </button>
@@ -8068,6 +8031,7 @@ const Player4Shell = memo(function Player4Shell({
     pause,
     resume,
     getUpcomingTracks,
+    audioQualityMode,
   } = useDesktopPlayback()
 
   const volumeTrackRef = useRef<HTMLDivElement>(null)
@@ -8086,6 +8050,13 @@ const Player4Shell = memo(function Player4Shell({
   const displayArtist = displayTrack?.artist ?? 'Select a song to begin'
   const displayAlbum = displayTrack?.album ?? null
   const activeTrackId = displayTrack?.id ?? null
+  const qualityLabel = displayTrack && isActive
+    ? (
+      resolveSearchRowQualityBadge(displayTrack) !== 'SONG'
+        ? resolveSearchRowQualityBadge(displayTrack)
+        : AUDIO_QUALITY_MODE_LABELS[audioQualityMode]
+    )
+    : null
   const showPlaying = isActive && isPlaying
   const showLoading = isActive && isLoading
   const upcomingTracks = getUpcomingTracks()
@@ -8238,19 +8209,17 @@ const Player4Shell = memo(function Player4Shell({
               <div className="player4-header-source">
                 <span>PLAYING FROM</span>
                 <button type="button" className="player4-source-btn">
-                  {PSD_PLAYER4_SOURCE}
+                  {displayAlbum ?? "Your Library"}
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                     <path d="M6 9l6 6 6-6" />
                   </svg>
                 </button>
               </div>
-              <div className="player4-header-badges">
-                <span>FLAC</span>
-                <span className="player4-header-divider" aria-hidden="true">|</span>
-                <span>24-BIT</span>
-                <span className="player4-header-divider" aria-hidden="true">|</span>
-                <span>96kHz</span>
-              </div>
+              {qualityLabel ? (
+                <div className="player4-header-badges">
+                  <span>{qualityLabel}</span>
+                </div>
+              ) : null}
             </header>
 
             <div className="player4-hero">
@@ -8264,11 +8233,7 @@ const Player4Shell = memo(function Player4Shell({
                     label={displayTitle}
                     priority
                   />
-                  <button type="button" className="player4-art-heart" aria-label="Favorite">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                      <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41 1.01 4.5 2.09C13.09 4.01 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
-                    </svg>
-                  </button>
+
                   <span className="player4-art-mastered">
                     <PsdWaveformStrip className="player4-mastered-wave" />
                     MASTERED
@@ -8447,21 +8412,7 @@ const Player4Shell = memo(function Player4Shell({
             ))}
           </ol>
 
-          <section className="player4-sound" aria-label="Sound experience">
-            <div className="player4-sound-header">
-              <PsdWaveformStrip className="player4-sound-wave" />
-              <h3>SOUND EXPERIENCE</h3>
-            </div>
-            <div className="player4-sound-toggles">
-              {PSD_PLAYER4_SOUND_MODES.map((mode) => (
-                <button key={mode.key} type="button" className="player4-sound-toggle is-on">
-                  <span className="player4-sound-toggle-icon" aria-hidden="true" />
-                  <span>{mode.label}</span>
-                  <span className="player4-sound-toggle-state">ON</span>
-                </button>
-              ))}
-            </div>
-          </section>
+
         </aside>
       </div>
     </div>
@@ -8494,6 +8445,7 @@ const Player5Shell = memo(function Player5Shell({
     pause,
     resume,
     getUpcomingTracks,
+    audioQualityMode,
   } = useDesktopPlayback()
 
   const volumeTrackRef = useRef<HTMLDivElement>(null)
@@ -8513,6 +8465,13 @@ const Player5Shell = memo(function Player5Shell({
   const displayArtist = displayTrack?.artist ?? 'Select a song to begin'
   const displayAlbum = displayTrack?.album ?? null
   const activeTrackId = displayTrack?.id ?? null
+  const qualityLabel = displayTrack && isActive
+    ? (
+      resolveSearchRowQualityBadge(displayTrack) !== 'SONG'
+        ? resolveSearchRowQualityBadge(displayTrack)
+        : AUDIO_QUALITY_MODE_LABELS[audioQualityMode]
+    )
+    : null
   const showPlaying = isActive && isPlaying
   const showLoading = isActive && isLoading
   const upcomingTracks = getUpcomingTracks()
@@ -8658,7 +8617,16 @@ const Player5Shell = memo(function Player5Shell({
                 Premium Member
               </span>
             </div>
-            <button type="button" className="player5-go-premium">Go Premium</button>
+            <button
+              type="button"
+              className="player5-go-premium"
+              onClick={() => {
+                onClose()
+                onNavigateNav?.('premium')
+              }}
+            >
+              Go Premium
+            </button>
           </div>
 
           <div className="player5-sidebar-utils">
@@ -8685,17 +8653,18 @@ const Player5Shell = memo(function Player5Shell({
                 </svg>
                 <span>PLAYING FROM</span>
                 <button type="button" className="player5-source-btn">
-                  {PSD_PLAYER5_SOURCE}
+                  {displayAlbum ?? "Your Library"}
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                     <path d="M6 9l6 6 6-6" />
                   </svg>
                 </button>
               </div>
-              <div className="player5-quality-pill">
-                <span className="player5-quality-flac">FLAC</span>
-                <span>24-BIT / 96kHz</span>
-                <PsdWaveformStrip className="player5-quality-wave" />
-              </div>
+              {qualityLabel ? (
+                <div className="player5-quality-pill">
+                  <span className="player5-quality-flac">{qualityLabel}</span>
+                  <PsdWaveformStrip className="player5-quality-wave" />
+                </div>
+              ) : null}
             </header>
 
             <div className="player5-hero">
@@ -9135,7 +9104,7 @@ const CinematicWaveformShell = memo(function CinematicWaveformShell({
         <footer className="psd-waveform-footer">
           <button type="button" className="psd-waveform-footer-quality" onClick={() => setShowQualityPanel((open) => !open)}>
             <PsdWaveformStrip className="psd-waveform-footer-wave" />
-            <strong>HIGH QUALITY</strong>
+            <strong>{AUDIO_QUALITY_MODE_LABELS[audioQualityMode]}</strong>
           </button>
           <button
             type="button"
@@ -9166,6 +9135,7 @@ const FullscreenLyricsShell = memo(function FullscreenLyricsShell({
     positionSeconds,
     durationSeconds,
     seekTo,
+    audioQualityMode,
   } = useDesktopPlayback()
 
   const progressTrackRef = useRef<HTMLDivElement>(null)
@@ -9185,6 +9155,13 @@ const FullscreenLyricsShell = memo(function FullscreenLyricsShell({
   const displayArtist = displayTrack?.artist ?? 'Select a song to begin'
   const displayAlbum = displayTrack?.album ?? null
   const activeTrackId = displayTrack?.id ?? null
+  const qualityLabel = displayTrack && isActive
+    ? (
+      resolveSearchRowQualityBadge(displayTrack) !== 'SONG'
+        ? resolveSearchRowQualityBadge(displayTrack)
+        : AUDIO_QUALITY_MODE_LABELS[audioQualityMode]
+    )
+    : null
 
   const resolveSeekSeconds = useCallback(
     (clientX: number) => {
@@ -9328,10 +9305,12 @@ const FullscreenLyricsShell = memo(function FullscreenLyricsShell({
 
         <FullPlayerTransportControls activeTrackId={activeTrackId} />
 
-        <div className="psd-lyrics-quality-label">
-          <PsdWaveformStrip className="psd-lyrics-quality-wave" />
-          <strong>HIGH QUALITY</strong>
-        </div>
+        {qualityLabel ? (
+          <div className="psd-lyrics-quality-label">
+            <PsdWaveformStrip className="psd-lyrics-quality-wave" />
+            <strong>{qualityLabel}</strong>
+          </div>
+        ) : null}
       </div>
     </div>
   )
