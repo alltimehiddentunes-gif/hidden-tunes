@@ -5585,9 +5585,11 @@ function formatPlaybackTime(seconds: number) {
 const PlaybackTransportControls = memo(function PlaybackTransportControls({
   activeTrackId,
   className = 'player-controls',
+  showShuffleRepeat = false,
 }: {
   activeTrackId: string | null
   className?: string
+  showShuffleRepeat?: boolean
 }) {
   const {
     currentTrack,
@@ -5595,16 +5597,23 @@ const PlaybackTransportControls = memo(function PlaybackTransportControls({
     currentIndex,
     isPlaying,
     isLoading,
+    shuffleEnabled,
+    repeatMode,
     pause,
     resume,
     next,
     previous,
+    toggleShuffle,
+    toggleRepeat,
   } = useDesktopPlayback()
 
   const isActive = Boolean(activeTrackId && currentTrack?.id === activeTrackId)
-  const hasPrevious = isActive && currentIndex > 0
-  const hasNext =
-    isActive && currentIndex >= 0 && currentIndex < currentQueue.length - 1
+  const hasPrevious = isActive && (
+    currentIndex > 0 || (repeatMode === 'all' && currentQueue.length > 1)
+  )
+  const hasNext = isActive && (
+    (currentIndex >= 0 && currentIndex < currentQueue.length - 1) || repeatMode !== 'off'
+  )
   const showPlaying = isActive && isPlaying
   const showLoading = isActive && isLoading
 
@@ -5625,8 +5634,29 @@ const PlaybackTransportControls = memo(function PlaybackTransportControls({
         ? 'Play'
         : 'Play (select a track)'
 
+  const repeatLabel = repeatMode === 'one'
+    ? 'Repeat one'
+    : repeatMode === 'all'
+      ? 'Repeat all'
+      : 'Repeat off'
+
   return (
     <div className={`transport-controls ${className}`} role="group" aria-label="Playback controls">
+      {showShuffleRepeat ? (
+        <button
+          type="button"
+          className={`control-btn control-btn--shuffle${shuffleEnabled ? ' is-active' : ''}`}
+          onClick={toggleShuffle}
+          disabled={!isActive}
+          aria-label={shuffleEnabled ? 'Shuffle on' : 'Shuffle off'}
+          aria-pressed={shuffleEnabled}
+          title={shuffleEnabled ? 'Shuffle on' : 'Shuffle off'}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+            <path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5" />
+          </svg>
+        </button>
+      ) : null}
       <button
         type="button"
         className="control-btn control-btn--skip"
@@ -5683,6 +5713,28 @@ const PlaybackTransportControls = memo(function PlaybackTransportControls({
           </svg>
         </span>
       </button>
+      {showShuffleRepeat ? (
+        <button
+          type="button"
+          className={
+            'control-btn control-btn--repeat'
+            + (repeatMode !== 'off' ? ' is-active' : '')
+            + (repeatMode === 'one' ? ' is-repeat-one' : '')
+          }
+          onClick={toggleRepeat}
+          disabled={!isActive}
+          aria-label={repeatLabel}
+          aria-pressed={repeatMode !== 'off'}
+          title={repeatLabel}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+            <path d="M17 1l4 4-4 4" />
+            <path d="M3 11V9a4 4 0 014-4h14" />
+            <path d="M7 23l-4-4 4-4" />
+            <path d="M21 13v2a4 4 0 01-4 4H3" />
+          </svg>
+        </button>
+      ) : null}
     </div>
   )
 })
@@ -5846,12 +5898,22 @@ const PlayerBar = memo(function PlayerBar({
 
   const progressTrackRef = useRef<HTMLDivElement>(null)
   const volumeTrackRef = useRef<HTMLDivElement>(null)
+  const volumeBeforeMuteRef = useRef(1)
   const isSeekingRef = useRef(false)
   const isAdjustingVolumeRef = useRef(false)
 
-  const displayTrack = track ?? currentTrack
+  const hasPlayback = Boolean(currentTrack && currentQueue.length > 0 && currentIndex >= 0)
+  const displayTrack = hasPlayback ? (track ?? currentTrack) : null
   const title = displayTrack?.title ?? 'Nothing playing'
   const artist = displayTrack?.artist ?? 'Select a song to begin'
+  const albumLabel = displayTrack?.album ?? (hasPlayback ? queueTitle ?? null : null)
+  const qualityLabel = hasPlayback
+    ? (
+      resolveSearchRowQualityBadge(displayTrack) !== 'SONG'
+        ? resolveSearchRowQualityBadge(displayTrack)
+        : AUDIO_QUALITY_MODE_LABELS[audioQualityMode]
+    )
+    : null
   const progressMax = durationSeconds > 0 ? durationSeconds : 0
   const progressValue = progressMax > 0 ? Math.min(positionSeconds, progressMax) : 0
   const progressPercent =
@@ -5859,7 +5921,7 @@ const PlayerBar = memo(function PlayerBar({
   const volumePercent = Math.min(100, Math.max(0, volume * 100))
   const showQueuePosition = currentQueue.length > 1 && currentIndex >= 0
   const queueLabel = QUEUE_CONTEXT_LABELS[queueContext]
-  const isBarActive = Boolean(displayTrack && currentTrack?.id === displayTrack.id)
+  const isBarActive = hasPlayback && Boolean(displayTrack && currentTrack?.id === displayTrack.id)
 
   const barQueueSnapshot = useMemo(
     () =>
@@ -5995,6 +6057,7 @@ const PlayerBar = memo(function PlayerBar({
       aria-label="Player"
       data-playing={isPlaying ? 'true' : 'false'}
       data-loading={isLoading ? 'true' : 'false'}
+      data-idle={hasPlayback ? 'false' : 'true'}
     >
       <div className="player-track">
         <div className="player-artwork" aria-hidden="true">
@@ -6009,10 +6072,8 @@ const PlayerBar = memo(function PlayerBar({
         <div className="player-meta">
           <h4>{title}</h4>
           <p>{artist}</p>
-          <div className="player-track-actions" aria-hidden="true">
-            <button type="button" className="player-inline-icon-btn" tabIndex={-1}><PsdIconHeart /></button>
-            <button type="button" className="player-inline-icon-btn" tabIndex={-1}><PsdIconMore /></button>
-          </div>
+          {albumLabel ? <p className="player-album-label">{albumLabel}</p> : null}
+          {qualityLabel ? <span className="player-quality-pill">{qualityLabel}</span> : null}
           {showQueuePosition ? (
             <p className="player-queue-position">
               {queueLabel} · Track {currentIndex + 1} of {currentQueue.length}
@@ -6027,7 +6088,7 @@ const PlayerBar = memo(function PlayerBar({
       </div>
 
       <div className="player-center">
-        <PlaybackTransportControls activeTrackId={displayTrack?.id ?? null} />
+        <PlaybackTransportControls activeTrackId={displayTrack?.id ?? null} showShuffleRepeat />
         <div
           className="progress-wrap"
           role="group"
@@ -6124,15 +6185,22 @@ const PlayerBar = memo(function PlayerBar({
         <div className={`player-volume player-volume--${volumeLevel}`}>
         <button
           type="button"
-          className="control-btn"
+          className="control-btn player-volume-toggle"
           aria-label={
             volume <= 0
-              ? 'Volume muted'
+              ? 'Unmute'
               : volume < 0.35
                 ? 'Volume low'
-                : 'Volume'
+                : 'Mute'
           }
-          tabIndex={-1}
+          onClick={() => {
+            if (volume <= 0) {
+              setVolume(volumeBeforeMuteRef.current > 0 ? volumeBeforeMuteRef.current : 0.7)
+              return
+            }
+            volumeBeforeMuteRef.current = volume
+            setVolume(0)
+          }}
         >
           {volume <= 0 ? (
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

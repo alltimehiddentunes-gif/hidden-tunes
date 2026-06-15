@@ -11005,6 +11005,56 @@
 
 
 
+
+/* —— Phase 44O: Footer player PSD parity + wiring —— */
+.player-bar[data-idle='true'] .player-meta h4 {
+  color: rgba(245, 243, 250, 0.72);
+}
+
+.player-album-label {
+  margin: 2px 0 0;
+  font-size: 11px;
+  color: var(--psd-metadata);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.player-quality-pill {
+  display: inline-flex;
+  margin-top: 6px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent-gold-bright);
+  background: rgba(255, 186, 61, 0.1);
+  border: 1px solid rgba(255, 186, 61, 0.22);
+}
+
+.control-btn--shuffle.is-active,
+.control-btn--repeat.is-active {
+  color: var(--accent-gold-bright);
+  background: rgba(255, 186, 61, 0.12);
+}
+
+.control-btn--repeat.is-repeat-one {
+  color: var(--accent-violet-soft);
+  background: rgba(168, 85, 247, 0.14);
+}
+
+.player-volume-toggle {
+  cursor: pointer;
+}
+
+.transport-controls .control-btn--shuffle,
+.transport-controls .control-btn--repeat {
+  width: 32px;
+  height: 32px;
+}
+
 /* —— Phase 44N: Now Playing sidebar PSD parity + wiring —— */
 .rail-queue-empty {
   margin-top: 4px;

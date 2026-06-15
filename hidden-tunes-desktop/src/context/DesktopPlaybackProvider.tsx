@@ -56,6 +56,24 @@ type UpgradeSession = {
   lastUnstableAtMs: number
 }
 
+function shuffleSongs(queue: ApiSong[]) {
+  const array = [...queue]
+  for (let i = array.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1))
+    const swap = array[i]
+    array[i] = array[j]
+    array[j] = swap
+  }
+  return array
+}
+
+function shuffleQueueFromIndex(queue: ApiSong[], startIndex: number) {
+  if (queue.length <= 1 || startIndex < 0 || startIndex >= queue.length) return queue
+  const current = queue[startIndex]
+  const others = queue.filter((_, index) => index !== startIndex)
+  return [current, ...shuffleSongs(others)]
+}
+
 function contextToSeedType(context: QueueContext): QueueSeedType {
   if (
     context === 'home' ||
@@ -91,6 +109,9 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
   const audioQualityModeRef = useRef<AudioQualityMode>('auto')
   const upgradeSessionRef = useRef<UpgradeSession | null>(null)
   const upgradeSessionIdRef = useRef(0)
+  const unshuffledQueueRef = useRef<ApiSong[]>([])
+  const shuffleEnabledRef = useRef(false)
+  const repeatModeRef = useRef<'off' | 'all' | 'one'>('off')
 
   const getService = useCallback(() => {
     if (!serviceRef.current) {
@@ -112,11 +133,21 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
   const [positionSeconds, setPositionSeconds] = useState(0)
   const [durationSeconds, setDurationSeconds] = useState(0)
   const [volume, setVolumeState] = useState(1)
+  const [shuffleEnabled, setShuffleEnabled] = useState(false)
+  const [repeatMode, setRepeatMode] = useState<'off' | 'all' | 'one'>('off')
   const [audioQualityMode, setAudioQualityMode] = usePersistedPreference(
     DESKTOP_PREFERENCE_KEYS.audioQualityMode,
     'auto',
     parseStoredAudioQualityMode,
   )
+
+  useEffect(() => {
+    shuffleEnabledRef.current = shuffleEnabled
+  }, [shuffleEnabled])
+
+  useEffect(() => {
+    repeatModeRef.current = repeatMode
+  }, [repeatMode])
 
   useEffect(() => {
     audioQualityModeRef.current = audioQualityMode
@@ -439,7 +470,14 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
     const onEnded = () => {
       cancelUpgradeSession('upgrade-cancelled-track-changed', 'track-ended')
       const queue = queueRef.current
-      const nextIndex = queueIndexRef.current + 1
+      const currentIndexValue = queueIndexRef.current
+
+      if (repeatModeRef.current === 'one' && currentIndexValue >= 0 && queue[currentIndexValue]) {
+        playSongRef.current(queue[currentIndexValue])
+        return
+      }
+
+      const nextIndex = currentIndexValue + 1
 
       if (nextIndex < queue.length) {
         queueIndexRef.current = nextIndex
@@ -454,6 +492,13 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
         queueIndexRef.current = nextIndex
         setCurrentIndex(nextIndex)
         playSongRef.current(extendedQueue[nextIndex])
+        return
+      }
+
+      if (repeatModeRef.current === 'all' && queue.length > 0) {
+        queueIndexRef.current = 0
+        setCurrentIndex(0)
+        playSongRef.current(queue[0])
         return
       }
 
@@ -519,21 +564,29 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
         Math.max(0, Number.isFinite(startIndex) ? startIndex : 0),
       )
 
+      unshuffledQueueRef.current = playableQueue
+      let resolvedQueue = playableQueue
+      let resolvedIndex = safeIndex
+      if (shuffleEnabledRef.current && playableQueue.length > 1) {
+        resolvedQueue = shuffleQueueFromIndex(playableQueue, safeIndex)
+        resolvedIndex = 0
+      }
+
       const nextSeedType = seedMetadata?.seedType ?? contextToSeedType(context)
       queueSeedTypeRef.current = nextSeedType
       queueSeedIdRef.current = seedMetadata?.seedId
-      queueSeedTracksRef.current = seedMetadata?.seedTracks ?? playableQueue
+      queueSeedTracksRef.current = seedMetadata?.seedTracks ?? resolvedQueue
       queueCandidatePoolsRef.current = seedMetadata?.candidatePools
 
-      applyQueueState(playableQueue, safeIndex)
-      currentTrackRef.current = playableQueue[safeIndex]
-      setCurrentTrack(playableQueue[safeIndex])
+      applyQueueState(resolvedQueue, resolvedIndex)
+      currentTrackRef.current = resolvedQueue[resolvedIndex]
+      setCurrentTrack(resolvedQueue[resolvedIndex])
       setQueueContext(context)
       setQueueSeedType(nextSeedType)
       setQueueSeedId(seedMetadata?.seedId)
       setQueueTitle(nextQueueTitle)
-      extendQueueIfNeeded(playableQueue, safeIndex)
-      playSong(playableQueue[safeIndex])
+      extendQueueIfNeeded(resolvedQueue, resolvedIndex)
+      playSong(resolvedQueue[resolvedIndex])
     },
     [applyQueueState, extendQueueIfNeeded, playSong],
   )
@@ -548,7 +601,13 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
   const next = useCallback(() => {
     const queue = queueRef.current
     const nextIndex = queueIndexRef.current + 1
-    if (nextIndex >= queue.length) return
+    if (nextIndex >= queue.length) {
+      if (repeatModeRef.current === 'all' && queue.length > 0) {
+        applyQueueState(queue, 0)
+        playSong(queue[0])
+      }
+      return
+    }
 
     applyQueueState(queue, nextIndex)
     const extendedQueue = extendQueueIfNeeded(queue, nextIndex)
@@ -558,7 +617,16 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
   const previous = useCallback(() => {
     const queue = queueRef.current
     const previousIndex = queueIndexRef.current - 1
-    if (previousIndex < 0 || previousIndex >= queue.length) return
+    if (previousIndex < 0) {
+      if (repeatModeRef.current === 'all' && queue.length > 1) {
+        const lastIndex = queue.length - 1
+        applyQueueState(queue, lastIndex)
+        extendQueueIfNeeded(queue, lastIndex)
+        playSong(queue[lastIndex])
+      }
+      return
+    }
+    if (previousIndex >= queue.length) return
 
     applyQueueState(queue, previousIndex)
     extendQueueIfNeeded(queue, previousIndex)
@@ -594,6 +662,39 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
     setCurrentQueue(trimmed)
     setQueueContext('manual')
     setQueueSeedType('manual')
+  }, [])
+
+  const toggleShuffle = useCallback(() => {
+    setShuffleEnabled((enabled) => {
+      const next = !enabled
+      const queue = queueRef.current
+      const index = queueIndexRef.current
+      if (next && queue.length > 1 && index >= 0) {
+        const upcoming = queue.slice(index + 1)
+        if (upcoming.length > 1) {
+          const reshuffled = [...queue.slice(0, index + 1), ...shuffleSongs(upcoming)]
+          queueRef.current = reshuffled
+          setCurrentQueue(reshuffled)
+        }
+      } else if (!next && unshuffledQueueRef.current.length > 0) {
+        const currentId = queue[index]?.id
+        const restored = unshuffledQueueRef.current
+        const restoredIndex = currentId
+          ? restored.findIndex((song) => song.id === currentId)
+          : index
+        if (restoredIndex >= 0) {
+          queueRef.current = restored
+          queueIndexRef.current = restoredIndex
+          setCurrentQueue(restored)
+          setCurrentIndex(restoredIndex)
+        }
+      }
+      return next
+    })
+  }, [])
+
+  const toggleRepeat = useCallback(() => {
+    setRepeatMode((mode) => (mode === 'off' ? 'all' : mode === 'all' ? 'one' : 'off'))
   }, [])
 
   const pause = useCallback(() => {
@@ -661,6 +762,8 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       durationSeconds,
       volume,
       audioQualityMode,
+      shuffleEnabled,
+      repeatMode,
       playTrack,
       playQueue,
       next,
@@ -668,6 +771,8 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       getUpcomingTracks,
       playQueueAtIndex,
       clearUpcomingQueue,
+      toggleShuffle,
+      toggleRepeat,
       pause,
       resume,
       seekTo,
@@ -689,6 +794,8 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       durationSeconds,
       volume,
       audioQualityMode,
+      shuffleEnabled,
+      repeatMode,
       playTrack,
       playQueue,
       next,
@@ -696,6 +803,8 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       getUpcomingTracks,
       playQueueAtIndex,
       clearUpcomingQueue,
+      toggleShuffle,
+      toggleRepeat,
       pause,
       resume,
       seekTo,

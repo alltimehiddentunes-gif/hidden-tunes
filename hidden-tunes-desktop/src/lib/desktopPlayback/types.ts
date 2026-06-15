@@ -26,6 +26,8 @@ export type QueueCandidatePools = {
   songsByAlbumName?: Map<string, ApiSong[]>
 }
 
+export type RepeatMode = 'off' | 'all' | 'one'
+
 export type QueueSeedMetadata = {
   seedType?: QueueSeedType
   seedId?: string
@@ -48,6 +50,8 @@ export type DesktopPlaybackState = {
   durationSeconds: number
   volume: number
   audioQualityMode: AudioQualityMode
+  shuffleEnabled: boolean
+  repeatMode: RepeatMode
 }
 
 export type DesktopPlaybackActions = {
@@ -64,6 +68,8 @@ export type DesktopPlaybackActions = {
   getUpcomingTracks: () => ApiSong[]
   playQueueAtIndex: (index: number) => void
   clearUpcomingQueue: () => void
+  toggleShuffle: () => void
+  toggleRepeat: () => void
   pause: () => void
   resume: () => void
   seekTo: (seconds: number) => void
