@@ -5,7 +5,6 @@ import {
   resolveSongsForAlbum,
   type CatalogIndexes,
 } from './catalogIndexes'
-import { filterSongsByListeningScene } from './sceneListening'
 import {
   isValidArtworkUrl,
   listMissingRegistryAssets,
@@ -165,21 +164,10 @@ export function getArtworkForPlaylistCollage(
 
 export function getArtworkForWorld(
   world: WorldArtworkTarget,
-  songs: ApiSong[],
-  context?: ArtworkContext,
+  _songs?: ApiSong[],
+  _context?: ArtworkContext,
 ): string | null {
-  const registryArt = resolveWorldArtwork(world)
-  if (registryArt) return registryArt
-
-  if (!world.sceneId) return null
-
-  const worldTracks = filterSongsByListeningScene(songs, world.sceneId)
-  for (const song of worldTracks) {
-    const artwork = context ? getArtworkForSong(song, context) : resolveSongArtwork(song)
-    if (artwork) return artwork
-  }
-
-  return null
+  return resolveWorldArtwork(world)
 }
 
 export function getArtworkForTheater(

@@ -3101,16 +3101,30 @@ const EMOTIONAL_WORLDS_CARDS: EmotionalWorldCardSpec[] = [
 ]
 
 function EmotionalWorldsPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
-  const { songs, indexes, artworkContext, showCatalogSkeleton } = useCatalog()
-  const scenes = useMemo(() => buildListeningScenes(songs), [songs])
+  const { songs, indexes, showCatalogSkeleton } = useCatalog()
   const [selectedChip, setSelectedChip] = useState<EmotionalWorldChipId>('all')
-  const [selectedCardId, setSelectedCardId] = useState<string | null>(null)
   const queuePools = useMemo(() => buildQueueCandidatePools(indexes), [indexes])
 
+  const playableCards = useMemo(
+    () => EMOTIONAL_WORLDS_CARDS.filter(
+      (card) => filterSongsByListeningScene(songs, card.sceneId).length > 0,
+    ),
+    [songs],
+  )
+
   const visibleCards = useMemo(() => {
-    if (selectedChip === 'all') return EMOTIONAL_WORLDS_CARDS
-    return EMOTIONAL_WORLDS_CARDS.filter((card) => card.chips.includes(selectedChip))
-  }, [selectedChip])
+    const pool = showCatalogSkeleton ? EMOTIONAL_WORLDS_CARDS : playableCards
+    if (selectedChip === 'all') return pool
+    return pool.filter((card) => card.chips.includes(selectedChip))
+  }, [playableCards, selectedChip, showCatalogSkeleton])
+
+  const activeChips = useMemo(() => {
+    if (showCatalogSkeleton) return EMOTIONAL_WORLDS_CHIPS
+    return EMOTIONAL_WORLDS_CHIPS.filter((chip) => {
+      if (chip.id === 'all') return playableCards.length > 0
+      return playableCards.some((card) => card.chips.includes(chip.id))
+    })
+  }, [playableCards, showCatalogSkeleton])
 
   const playWorld = useCallback(
     (card: EmotionalWorldCardSpec) => {
@@ -3132,7 +3146,16 @@ function EmotionalWorldsPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
     [indexes, onOpenSong, queuePools, songs],
   )
 
+  const playHero = useCallback(() => {
+    const card = visibleCards.find(
+      (entry) => filterSongsByListeningScene(songs, entry.sceneId).length > 0,
+    ) ?? playableCards[0]
+    if (!card) return
+    playWorld(card)
+  }, [playWorld, playableCards, songs, visibleCards])
+
   const heroWorldArt = useMemo(() => getArtworkForHero('emotional-worlds'), [])
+  const canPlayHero = playableCards.length > 0
 
   return (
     <div className="emotional-worlds-destination">
@@ -3155,27 +3178,37 @@ function EmotionalWorldsPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
             <p className="emotional-worlds-description">
               Music that matches your emotion, elevates your mood, and transports you to another world.
             </p>
+            <div className="emotional-worlds-hero-actions psd-hero-actions">
+              <button
+                type="button"
+                className="psd-btn psd-btn--gold"
+                disabled={!canPlayHero}
+                onClick={playHero}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M8 5v14l11-7z" />
+                </svg>
+                Start Listening
+              </button>
+            </div>
           </div>
         </section>
 
-        <div className="emotional-worlds-chips" role="toolbar" aria-label="World categories">
-          {EMOTIONAL_WORLDS_CHIPS.map((chip) => (
-            <button
-              key={chip.id}
-              type="button"
-              className={`emotional-worlds-chip${selectedChip === chip.id ? ' is-active' : ''}`}
-              aria-pressed={selectedChip === chip.id}
-              onClick={() => setSelectedChip(chip.id)}
-            >
-              {chip.label}
-            </button>
-          ))}
-          <span className="emotional-worlds-chips-more" aria-hidden="true">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M9 6l6 6-6 6" />
-            </svg>
-          </span>
-        </div>
+        {activeChips.length > 0 ? (
+          <div className="emotional-worlds-chips" role="toolbar" aria-label="World categories">
+            {activeChips.map((chip) => (
+              <button
+                key={chip.id}
+                type="button"
+                className={`emotional-worlds-chip${selectedChip === chip.id ? ' is-active' : ''}`}
+                aria-pressed={selectedChip === chip.id}
+                onClick={() => setSelectedChip(chip.id)}
+              >
+                {chip.label}
+              </button>
+            ))}
+          </div>
+        ) : null}
 
         {showCatalogSkeleton ? (
           <div className="emotional-worlds-grid emotional-worlds-grid--loading" aria-hidden="true">
@@ -3186,12 +3219,21 @@ function EmotionalWorldsPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
               </div>
             ))}
           </div>
+        ) : visibleCards.length === 0 ? (
+          <CatalogEmpty
+            title="No worlds match"
+            detail="Try another mood filter or wait for more catalog songs to load."
+          />
         ) : (
           <div className="emotional-worlds-grid" role="list" aria-label="Emotional worlds">
             {visibleCards.map((card) => {
-              const scene = scenes.find((entry) => entry.id === card.sceneId)
               const tracks = filterSongsByListeningScene(songs, card.sceneId)
-              const isActive = selectedCardId === card.cardId
+              const worldArt = getArtworkForWorld({
+                id: card.cardId,
+                title: card.title,
+                sceneId: card.sceneId,
+              })
+              const scene = buildListeningScenes(songs).find((entry) => entry.id === card.sceneId)
               const visualSceneId = scene?.visualSceneId ?? resolveVisualScene({
                 seed: card.title,
                 mood: scene?.mood ?? 'violet',
@@ -3201,41 +3243,33 @@ function EmotionalWorldsPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
                 <article
                   key={card.cardId}
                   role="listitem"
-                  className={`emotional-world-card${isActive ? ' is-active' : ''}`}
+                  className="emotional-world-card"
                   data-scene={visualSceneId}
                 >
+                  <div className="emotional-world-card-art">
+                    <ArtworkImage
+                      src={worldArt}
+                      alt=""
+                      seed={card.cardId}
+                      label={card.title}
+                    />
+                    <span className="emotional-world-card-veil" aria-hidden="true" />
+                    <button
+                      type="button"
+                      className="emotional-world-play-btn"
+                      aria-label={`Play ${card.title}`}
+                      onClick={() => playWorld(card)}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                    </button>
+                  </div>
                   <button
                     type="button"
                     className="emotional-world-card-select"
-                    aria-pressed={isActive}
-                    onClick={() => setSelectedCardId(isActive ? null : card.cardId)}
+                    onClick={() => playWorld(card)}
                   >
-                    <div className="emotional-world-card-art">
-                      <ArtworkImage
-                        src={getArtworkForWorld(
-                          { id: card.sceneId, title: card.title, sceneId: card.sceneId },
-                          songs,
-                          artworkContext,
-                        )}
-                        alt=""
-                        seed={card.cardId}
-                        label={card.title}
-                      />
-                      <span className="emotional-world-card-veil" aria-hidden="true" />
-                      <button
-                        type="button"
-                        className="emotional-world-play-btn"
-                        aria-label={`Play ${card.title}`}
-                        onClick={(event) => {
-                          event.stopPropagation()
-                          playWorld(card)
-                        }}
-                      >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                          <path d="M8 5v14l11-7z" />
-                        </svg>
-                      </button>
-                    </div>
                     <div className="emotional-world-card-copy">
                       <h3>{card.title}</h3>
                       <p className="emotional-world-card-tags">{card.tags}</p>
