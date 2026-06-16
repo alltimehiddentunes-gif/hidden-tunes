@@ -1,3 +1,9 @@
+import {
+  buildUpgradeDiagnosticsContext,
+  logAudioUpgrade,
+  type AudioUpgradeDiagnosticsContext,
+} from './audioUpgradeDiagnostics'
+
 const MEDIA_ERROR_LABELS: Record<number, string> = {
   1: 'MEDIA_ERR_ABORTED',
   2: 'MEDIA_ERR_NETWORK',
@@ -45,17 +51,28 @@ type PlayOptions = {
   instant?: boolean
 }
 
+const UPGRADE_SOURCE_TIMEOUT_MS = 10000
+
+type SourceSnapshot = {
+  url: string
+  time: number
+  wasPlaying: boolean
+  volume: number
+  muted: boolean
+  pauseSerial: number
+}
+
 export class HtmlAudioPlaybackService {
   private readonly audio: HTMLAudioElement
   private lastUrl: string | null = null
   private upgradeToken = 0
+  private pauseSerial = 0
 
   constructor() {
     this.audio = new Audio()
     this.audio.preload = 'metadata'
     this.audio.volume = 1
     this.audio.muted = false
-    this.audio.crossOrigin = 'anonymous'
     this.audio.setAttribute('data-ht-playback', 'true')
 
     if (typeof document !== 'undefined' && !this.audio.isConnected) {
@@ -68,7 +85,7 @@ export class HtmlAudioPlaybackService {
     return this.audio
   }
 
-  private waitForCanPlay(): Promise<void> {
+  private waitForCanPlay(timeoutMs?: number): Promise<void> {
     const audio = this.audio
 
     if (audio.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) {
@@ -76,6 +93,7 @@ export class HtmlAudioPlaybackService {
     }
 
     return new Promise((resolve, reject) => {
+      let timeoutId: ReturnType<typeof setTimeout> | null = null
       const onCanPlay = () => {
         cleanup()
         resolve()
@@ -84,14 +102,105 @@ export class HtmlAudioPlaybackService {
         cleanup()
         reject(new Error(describeMediaError(audio)))
       }
+      const onTimeout = () => {
+        cleanup()
+        reject(new Error('Timed out waiting for audio source to become playable'))
+      }
       const cleanup = () => {
+        if (timeoutId) {
+          clearTimeout(timeoutId)
+          timeoutId = null
+        }
         audio.removeEventListener('canplay', onCanPlay)
         audio.removeEventListener('error', onError)
       }
 
       audio.addEventListener('canplay', onCanPlay)
       audio.addEventListener('error', onError)
+      if (timeoutMs && timeoutMs > 0) {
+        timeoutId = setTimeout(onTimeout, timeoutMs)
+      }
     })
+  }
+
+  private async loadSource(url: string, timeoutMs?: number): Promise<void> {
+    this.audio.src = url
+    this.lastUrl = url
+    this.audio.load()
+    await this.waitForCanPlay(timeoutMs)
+  }
+
+  private seekNear(seconds: number): void {
+    if (!Number.isFinite(seconds) || seconds <= 0) return
+    try {
+      this.audio.currentTime = seconds
+    } catch {
+      // Metadata may not be ready yet — ignore safely.
+    }
+  }
+
+  private async restoreSource(
+    snapshot: SourceSnapshot,
+    token: number,
+    diagnostics?: AudioUpgradeDiagnosticsContext,
+  ): Promise<boolean> {
+    if (token !== this.upgradeToken) {
+      logAudioUpgrade(
+        'upgrade-cancelled-token',
+        buildUpgradeDiagnosticsContext({
+          ...diagnostics,
+          upgradeToken: token,
+          reason: 'rollback-superseded',
+        }),
+      )
+      return false
+    }
+
+    try {
+      this.audio.volume = clampVolume(snapshot.volume)
+      this.audio.muted = snapshot.muted
+      await this.loadSource(snapshot.url, UPGRADE_SOURCE_TIMEOUT_MS)
+      if (token !== this.upgradeToken) {
+        logAudioUpgrade(
+          'upgrade-cancelled-token',
+          buildUpgradeDiagnosticsContext({
+            ...diagnostics,
+            upgradeToken: token,
+            reason: 'rollback-superseded-after-load',
+          }),
+        )
+        return false
+      }
+
+      this.seekNear(snapshot.time)
+
+      if (snapshot.wasPlaying && snapshot.pauseSerial === this.pauseSerial) {
+        await this.audio.play()
+      }
+
+      logAudioUpgrade(
+        'upgrade-rolled-back',
+        buildUpgradeDiagnosticsContext({
+          ...diagnostics,
+          sourceUrl: snapshot.url,
+          positionSeconds: snapshot.time,
+          upgradeToken: token,
+        }),
+      )
+      return true
+    } catch (error) {
+      logAudioUpgrade(
+        'upgrade-failed',
+        buildUpgradeDiagnosticsContext({
+          ...diagnostics,
+          sourceUrl: snapshot.url,
+          positionSeconds: snapshot.time,
+          upgradeToken: token,
+          reason: `rollback-failed:${error instanceof Error ? error.message : String(error)}`,
+        }),
+      )
+      return false
+    }
   }
 
   async play(url: string, options?: PlayOptions): Promise<void> {
@@ -104,6 +213,7 @@ export class HtmlAudioPlaybackService {
     this.audio.muted = false
 
     if (this.lastUrl !== normalized) {
+      this.upgradeToken += 1
       this.audio.pause()
       this.audio.src = normalized
       this.lastUrl = normalized
@@ -124,64 +234,99 @@ export class HtmlAudioPlaybackService {
     logPlaybackDiagnostics('after resume/play', this.audio, normalized)
   }
 
-  async upgradeSource(url: string): Promise<boolean> {
+  async upgradeSource(
+    url: string,
+    diagnostics?: AudioUpgradeDiagnosticsContext,
+  ): Promise<boolean> {
     const normalized = url.trim()
     if (!normalized || normalized === this.lastUrl) return false
 
+    const previousUrl = this.lastUrl ?? (this.audio.currentSrc || this.audio.src)
+    if (!previousUrl || previousUrl === normalized) return false
+
     const token = ++this.upgradeToken
-    const position = this.audio.currentTime
-    const wasPlaying = !this.audio.paused
+    const positionSeconds = Number.isFinite(this.audio.currentTime)
+      ? this.audio.currentTime
+      : 0
+    const context = buildUpgradeDiagnosticsContext({
+      ...diagnostics,
+      sourceUrl: previousUrl,
+      targetUrl: normalized,
+      positionSeconds,
+      upgradeToken: token,
+    })
+
+    logAudioUpgrade('upgrade-started', context)
+
+    const snapshot: SourceSnapshot = {
+      url: previousUrl,
+      time: positionSeconds,
+      wasPlaying: !this.audio.paused,
+      volume: this.audio.volume,
+      muted: this.audio.muted,
+      pauseSerial: this.pauseSerial,
+    }
 
     try {
-      await new Promise<void>((resolve, reject) => {
-        const onCanPlay = () => {
-          cleanup()
-          resolve()
-        }
-        const onError = () => {
-          cleanup()
-          reject(new Error(describeMediaError(this.audio)))
-        }
-        const cleanup = () => {
-          this.audio.removeEventListener('canplay', onCanPlay)
-          this.audio.removeEventListener('error', onError)
-        }
-
-        this.audio.addEventListener('canplay', onCanPlay)
-        this.audio.addEventListener('error', onError)
-        this.audio.src = normalized
-        this.lastUrl = normalized
-        this.audio.load()
-      })
-
-      if (token !== this.upgradeToken) return false
-
-      if (position > 0) {
-        try {
-          this.audio.currentTime = position
-        } catch {
-          // Metadata may not be ready yet — ignore safely.
-        }
+      await this.loadSource(normalized, UPGRADE_SOURCE_TIMEOUT_MS)
+      if (token !== this.upgradeToken) {
+        logAudioUpgrade(
+          'upgrade-cancelled-token',
+          buildUpgradeDiagnosticsContext({
+            ...context,
+            reason: 'superseded-after-load',
+          }),
+        )
+        return false
       }
 
-      if (wasPlaying) {
+      this.seekNear(snapshot.time)
+
+      if (snapshot.wasPlaying && snapshot.pauseSerial === this.pauseSerial) {
         await this.audio.play()
       }
 
-      logPlaybackDiagnostics('quality upgrade applied', this.audio, normalized)
+      logAudioUpgrade('upgrade-succeeded', context)
       return true
     } catch (error) {
-      if (import.meta.env.DEV) {
-        console.warn('[ht-playback] quality upgrade skipped', {
-          url: normalized,
-          error: error instanceof Error ? error.message : String(error),
-        })
+      if (token !== this.upgradeToken) {
+        logAudioUpgrade(
+          'upgrade-cancelled-token',
+          buildUpgradeDiagnosticsContext({
+            ...context,
+            reason: 'superseded-after-error',
+          }),
+        )
+        return false
+      }
+
+      const message = error instanceof Error ? error.message : String(error)
+      const timedOut = message.toLowerCase().includes('timed out')
+      logAudioUpgrade(
+        timedOut ? 'upgrade-timed-out' : 'upgrade-failed',
+        buildUpgradeDiagnosticsContext({
+          ...context,
+          reason: message,
+        }),
+      )
+
+      const restored = await this.restoreSource(snapshot, token, context)
+      if (!restored) {
+        logAudioUpgrade(
+          'upgrade-failed',
+          buildUpgradeDiagnosticsContext({
+            ...context,
+            reason: timedOut ? 'timed-out-without-rollback' : 'upgrade-error-without-rollback',
+            restored: false,
+          }),
+        )
       }
       return false
     }
   }
 
   pause(): void {
+    this.pauseSerial += 1
     this.audio.pause()
   }
 
@@ -217,6 +362,7 @@ export class HtmlAudioPlaybackService {
 
   stop(): void {
     this.upgradeToken += 1
+    this.pauseSerial += 1
     this.audio.pause()
     this.audio.currentTime = 0
   }
