@@ -129,9 +129,7 @@ const HIDDEN_AUDIO_GROUP = "HiddenAudioModule";
 const NATIVE_FILES = [
   "HiddenAudioModule.swift",
   "HiddenAudioModule.m",
-  "CarPlaySceneDelegate.swift",
   "HiddenAudioCarPlayManager.swift",
-  "HiddenAudioCarPlayCatalog.swift",
 ];
 
 function getRepoSourceDir(projectRoot) {
