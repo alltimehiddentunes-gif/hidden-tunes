@@ -6,21 +6,14 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
     _ templateApplicationScene: CPTemplateApplicationScene,
     didConnect interfaceController: CPInterfaceController
   ) {
-    let item = CPListItem(
-      text: "Hidden Tunes is connected",
-      detailText: nil
-    )
-    let section = CPListSection(items: [item])
-    let template = CPListTemplate(
-      title: "Hidden Tunes",
-      sections: [section]
-    )
-
-    interfaceController.setRootTemplate(template, animated: false, completion: nil)
+    HiddenAudioCarPlayManager.shared.startIfNeeded()
+    HiddenAudioCarPlayManager.shared.connect(interfaceController)
   }
 
   func templateApplicationScene(
     _ templateApplicationScene: CPTemplateApplicationScene,
     didDisconnect interfaceController: CPInterfaceController
-  ) {}
+  ) {
+    HiddenAudioCarPlayManager.shared.disconnect()
+  }
 }

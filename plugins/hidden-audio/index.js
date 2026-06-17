@@ -131,6 +131,7 @@ const NATIVE_FILES = [
   "HiddenAudioModule.m",
   "CarPlaySceneDelegate.swift",
   "HiddenAudioCarPlayManager.swift",
+  "HiddenAudioCarPlayCatalog.swift",
 ];
 
 function getRepoSourceDir(projectRoot) {
@@ -147,9 +148,10 @@ function getRepoSourceDir(projectRoot) {
 
 const withCarPlayEntitlements = (config) => {
   return withEntitlementsPlist(config, (config) => {
-    config.modResults["com.apple.developer.carplay-audio"] = true;
-    const playableContentEntitlement = "com.apple.developer." + "playable-content";
-    delete config.modResults[playableContentEntitlement];
+    // Playable-content is safe to ship while waiting for Apple approval.
+    // Do NOT add com.apple.developer.carplay-audio here unless Apple has
+    // explicitly enabled the CarPlay Audio App capability for this bundle id.
+    config.modResults["com.apple.developer.playable-content"] = true;
     return config;
   });
 };
