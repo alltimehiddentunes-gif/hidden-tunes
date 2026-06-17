@@ -146,34 +146,36 @@ function getRepoSourceDir(projectRoot) {
 
 
 
-const withCarPlayEntitlements = (config) => {
+const withHiddenAudioEntitlements = (config) => {
   return withEntitlementsPlist(config, (config) => {
-    // Playable-content is safe to ship while waiting for Apple approval.
-    // Do NOT add com.apple.developer.carplay-audio here unless Apple has
-    // explicitly enabled the CarPlay Audio App capability for this bundle id.
-    config.modResults["com.apple.developer.playable-content"] = true;
+    delete config.modResults["com.apple.developer.carplay-audio"];
+    delete config.modResults["com.apple.developer.playable-content"];
     return config;
   });
 };
 
-const withCarPlayInfoPlist = (config) => {
+const withHiddenAudioInfoPlist = (config) => {
   return withInfoPlist(config, (config) => {
     config.modResults.UIBackgroundModes = Array.isArray(config.modResults.UIBackgroundModes)
       ? Array.from(new Set([...config.modResults.UIBackgroundModes, "audio"]))
       : ["audio"];
 
-    config.modResults.UIApplicationSceneManifest = {
-      UIApplicationSupportsMultipleScenes: true,
-      UISceneConfigurations: {
-        CPTemplateApplicationSceneSessionRoleApplication: [
-          {
-            UISceneClassName: "CPTemplateApplicationScene",
-            UISceneConfigurationName: "CarPlay",
-            UISceneDelegateClassName: "$(PRODUCT_MODULE_NAME).CarPlaySceneDelegate",
-          },
-        ],
-      },
-    };
+    const sceneManifest = config.modResults.UIApplicationSceneManifest;
+    const sceneConfigurations = sceneManifest?.UISceneConfigurations;
+    if (sceneConfigurations) {
+      delete sceneConfigurations.CPTemplateApplicationSceneSessionRoleApplication;
+
+      if (Object.keys(sceneConfigurations).length === 0) {
+        delete sceneManifest.UISceneConfigurations;
+      }
+    }
+
+    if (
+      sceneManifest &&
+      Object.keys(sceneManifest).every((key) => key === "UIApplicationSupportsMultipleScenes")
+    ) {
+      delete config.modResults.UIApplicationSceneManifest;
+    }
 
     return config;
   });
@@ -481,8 +483,8 @@ const withHiddenAudioAndroidProguard = (config) => {
 };
 
 const withHiddenAudio = (config) => {
-  config = withCarPlayEntitlements(config);
-  config = withCarPlayInfoPlist(config);
+  config = withHiddenAudioEntitlements(config);
+  config = withHiddenAudioInfoPlist(config);
   config = withHiddenAudioNativeSources(config);
   config = withHiddenAudioXcodeProject(config);
   config = withHiddenAudioAndroidSources(config);
