@@ -84,6 +84,7 @@ import {
 } from "@/utils/discoveryPreferences";
 
 const CATALOG_PAGE_SIZE = 31;
+const HOME_SCROLL_SETTLE_MS = 520;
 
 type CatalogGroup = {
   id: string;
@@ -113,6 +114,28 @@ function uniqSongs(songs: HiddenTunesSong[]) {
     seen.add(id);
     return true;
   });
+}
+
+function buildSongListSignature(songs: Array<{ id?: unknown; artist?: unknown }>) {
+  if (!songs.length) return "empty";
+  const first = songs[0];
+  const middle = songs[Math.floor(songs.length / 2)];
+  const last = songs[songs.length - 1];
+  return [
+    songs.length,
+    first?.id || first?.artist || "",
+    middle?.id || middle?.artist || "",
+    last?.id || last?.artist || "",
+  ].join(":");
+}
+
+function buildArtistSignature(items: Array<{ artist?: unknown }>) {
+  if (!items.length) return "empty";
+  return Array.from(
+    new Set(items.map((item) => String(item?.artist || "").toLowerCase()).filter(Boolean))
+  )
+    .sort()
+    .join("|");
 }
 
 function buildMatchedGroup(
@@ -506,6 +529,8 @@ export default function MusicFeedScreen() {
   const [homeLogoFailed, setHomeLogoFailed] = useState(false);
   const heroIndexRef = useRef(0);
   const heroListRef = useRef<FlatList<HeroCard> | null>(null);
+  const homeVerticalScrollingRef = useRef(false);
+  const homeScrollSettleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { width: viewportWidth } = useWindowDimensions();
   const heroCardWidth = Math.min(540, Math.max(320, viewportWidth - 36));
   const heroCardHeight = Math.min(430, Math.max(340, Math.round(heroCardWidth * 0.92)));
@@ -567,6 +592,20 @@ export default function MusicFeedScreen() {
     }
   }, []);
 
+  const songsSignature = useMemo(() => buildSongListSignature(songs), [songs]);
+  const recentArtistSignature = useMemo(
+    () => buildArtistSignature(Array.isArray(recentlyPlayed) ? recentlyPlayed : []),
+    [recentlyPlayed]
+  );
+  const favoriteArtistSignature = useMemo(
+    () => buildArtistSignature(Array.isArray(favorites) ? favorites : []),
+    [favorites]
+  );
+  const activeQueueSignature = useMemo(
+    () => buildSongListSignature(Array.isArray(activeQueue) ? (activeQueue as HiddenTunesSong[]) : []),
+    [activeQueue]
+  );
+
   const visiblePlaylists = useMemo(() => playlists.slice(0, 6), [playlists]);
   const featuredSongs = useMemo(() => songs.slice(0, 8), [songs]);
   const moodGenreChips = useMemo(() => genres.slice(0, 4), [genres]);
@@ -576,11 +615,11 @@ export default function MusicFeedScreen() {
   );
   const moodRooms = useMemo(
     () => (showDeferredHomeSections ? buildMoodRooms(songs) : []),
-    [showDeferredHomeSections, songs]
+    [showDeferredHomeSections, songsSignature]
   );
   const openRooms = useMemo(
     () => (showDeferredHomeSections ? buildOpenRooms(songs) : []),
-    [showDeferredHomeSections, songs]
+    [showDeferredHomeSections, songsSignature]
   );
   const visibleArtists = useMemo(
     () => (showDeferredHomeSections ? artists.slice(0, 12) : []),
@@ -590,12 +629,13 @@ export default function MusicFeedScreen() {
     () => (showDeferredHomeSections ? albums.slice(0, 12) : []),
     [albums, showDeferredHomeSections]
   );
+  const genreSignature = useMemo(() => buildSongListSignature(genres), [genres]);
   const visibleGenres = useMemo(
     () =>
       showDeferredHomeSections
         ? sortItemsByPreferredGenres(genres).slice(0, 10)
         : [],
-    [genres, showDeferredHomeSections]
+    [genreSignature, showDeferredHomeSections]
   );
   const visibleCatalogSongs = useMemo(() => songs.slice(0, visibleCatalogCount), [songs, visibleCatalogCount]);
   const canLoadMore = visibleCatalogCount < songs.length;
@@ -606,24 +646,49 @@ export default function MusicFeedScreen() {
 
   const becauseYouListened = useMemo(() => {
     if (!showDeferredHomeSections) return [];
-    const recentArtists = new Set(
-      (Array.isArray(recentlyPlayed) ? recentlyPlayed : [])
-        .map((entry) => String(entry?.artist || "").toLowerCase())
-        .filter(Boolean)
-    );
-    const favoriteArtists = new Set((favorites || []).map((song: any) => String(song.artist || "").toLowerCase()));
+    const recentArtists = new Set(recentArtistSignature.split("|").filter(Boolean));
+    const favoriteArtists = new Set(favoriteArtistSignature.split("|").filter(Boolean));
     const candidates = songs.filter((song) => {
       const artist = String(song.artist || "").toLowerCase();
       return recentArtists.has(artist) || favoriteArtists.has(artist);
     });
     return uniqSongs(candidates.length ? candidates : songs.slice(8, 24)).slice(0, 12);
-  }, [favorites, recentlyPlayed, showDeferredHomeSections, songs]);
+  }, [favoriteArtistSignature, recentArtistSignature, showDeferredHomeSections, songsSignature]);
 
   const smartQueueSongs = useMemo(() => {
     if (!showDeferredHomeSections) return [];
     const queueSongs = Array.isArray(activeQueue) ? (activeQueue as HiddenTunesSong[]) : [];
     return uniqSongs((queueSongs.length ? queueSongs : songs.slice(12, 30)).filter(Boolean)).slice(0, 12);
-  }, [activeQueue, showDeferredHomeSections, songs]);
+  }, [activeQueueSignature, showDeferredHomeSections, songsSignature]);
+
+  useEffect(() => {
+    return () => {
+      if (homeScrollSettleTimerRef.current) {
+        clearTimeout(homeScrollSettleTimerRef.current);
+        homeScrollSettleTimerRef.current = null;
+      }
+    };
+  }, []);
+
+  const handleHomeScrollBegin = useCallback(() => {
+    if (homeScrollSettleTimerRef.current) {
+      clearTimeout(homeScrollSettleTimerRef.current);
+      homeScrollSettleTimerRef.current = null;
+    }
+    homeVerticalScrollingRef.current = true;
+    markFastScrolling(true);
+  }, []);
+
+  const handleHomeScrollEnd = useCallback(() => {
+    markFastScrolling(false);
+    if (homeScrollSettleTimerRef.current) {
+      clearTimeout(homeScrollSettleTimerRef.current);
+    }
+    homeScrollSettleTimerRef.current = setTimeout(() => {
+      homeVerticalScrollingRef.current = false;
+      homeScrollSettleTimerRef.current = null;
+    }, HOME_SCROLL_SETTLE_MS);
+  }, []);
 
   const homeScreenFocusedRef = useRef(true);
 
@@ -653,7 +718,7 @@ export default function MusicFeedScreen() {
     let timer: ReturnType<typeof setInterval> | null = null;
     const interaction = InteractionManager.runAfterInteractions(() => {
       timer = setInterval(() => {
-        if (!isAppActiveForWork() || !homeScreenFocusedRef.current) return;
+        if (!isAppActiveForWork() || !homeScreenFocusedRef.current || homeVerticalScrollingRef.current) return;
         setHeroIndex((current) => {
           const next = (current + 1) % heroCards.length;
           heroIndexRef.current = next;
@@ -936,10 +1001,10 @@ export default function MusicFeedScreen() {
             keyExtractor={keyExtractor}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.list}
-            onScrollBeginDrag={() => markFastScrolling(true)}
-            onMomentumScrollBegin={() => markFastScrolling(true)}
-            onScrollEndDrag={() => markFastScrolling(false)}
-            onMomentumScrollEnd={() => markFastScrolling(false)}
+            onScrollBeginDrag={handleHomeScrollBegin}
+            onMomentumScrollBegin={handleHomeScrollBegin}
+            onScrollEndDrag={handleHomeScrollEnd}
+            onMomentumScrollEnd={handleHomeScrollEnd}
             removeClippedSubviews={catalogListPerf.removeClippedSubviews}
             initialNumToRender={catalogListPerf.initialNumToRender}
             maxToRenderPerBatch={catalogListPerf.maxToRenderPerBatch}
