@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  FlatList,
   ScrollView,
   StyleSheet,
   useWindowDimensions,
@@ -301,6 +302,13 @@ export default function WorldsIndexScreen() {
 
   const deepAlbums = useMemo(() => albums.slice(0, 10), [albums]);
   const deepCuts = useMemo(() => uniqSongs(songs.slice(12, 36)).slice(0, 8), [songs]);
+  const deepRailItems = useMemo(
+    () => [
+      ...deepAlbums.map((album) => ({ type: "album" as const, id: `album-${album.id}`, album })),
+      ...deepCuts.map((song) => ({ type: "song" as const, id: `deep-${song.id}`, song })),
+    ],
+    [deepAlbums, deepCuts]
+  );
   const visibleArtists = useMemo(() => artists.slice(0, 12), [artists]);
 
   const discoveryCarousel = useMemo(() => {
@@ -533,16 +541,20 @@ export default function WorldsIndexScreen() {
                     <Text style={styles.sectionMeta}>{discoveryCarousel.length} picks</Text>
                   </View>
 
-                  <ScrollView
+                  <FlatList
                     horizontal
+                    data={discoveryCarousel}
+                    keyExtractor={(item) => item.id}
                     showsHorizontalScrollIndicator={false}
                     decelerationRate="fast"
                     snapToInterval={heroWidth + railGap}
                     contentContainerStyle={[styles.carouselRail, { gap: railGap, paddingRight: horizontalPadding }]}
-                  >
-                    {discoveryCarousel.map((item) => (
+                    initialNumToRender={3}
+                    maxToRenderPerBatch={3}
+                    windowSize={5}
+                    removeClippedSubviews
+                    renderItem={({ item }) => (
                       <TouchableOpacity
-                        key={item.id}
                         activeOpacity={0.9}
                         style={[styles.carouselCard, { width: heroWidth }]}
                         onPress={() => openCarouselItem(item)}
@@ -576,8 +588,8 @@ export default function WorldsIndexScreen() {
                           </TouchableOpacity>
                         ) : null}
                       </TouchableOpacity>
-                    ))}
-                  </ScrollView>
+                    )}
+                  />
                 </View>
               ) : null}
 
@@ -585,10 +597,18 @@ export default function WorldsIndexScreen() {
                 <View style={styles.continueStrip}>
                   <Text style={styles.sectionEyebrow}>NOW TUNED</Text>
                   <Text style={styles.sectionTitle}>{isPlaying ? "Keep Listening" : "Recent Rooms"}</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.mediaRail, { gap: railGap }]}>
-                    {continueTracks.map((song) => (
+                  <FlatList
+                    horizontal
+                    data={continueTracks}
+                    keyExtractor={(song) => `continue-${song.id}`}
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={[styles.mediaRail, { gap: railGap }]}
+                    initialNumToRender={4}
+                    maxToRenderPerBatch={4}
+                    windowSize={5}
+                    removeClippedSubviews
+                    renderItem={({ item: song }) => (
                       <TouchableOpacity
-                        key={`continue-${song.id}`}
                         activeOpacity={0.88}
                         style={styles.continueTile}
                         onPress={() => playQueue(song, continueTracks, "Continue Listening", "full_catalog")}
@@ -597,8 +617,8 @@ export default function WorldsIndexScreen() {
                         <Text numberOfLines={1} style={styles.cardTitle}>{song.title}</Text>
                         <Text numberOfLines={1} style={styles.cardSubtitle}>{song.artist}</Text>
                       </TouchableOpacity>
-                    ))}
-                  </ScrollView>
+                    )}
+                  />
                 </View>
               ) : null}
 
@@ -611,10 +631,18 @@ export default function WorldsIndexScreen() {
                     </View>
                     <Text style={styles.sectionMeta}>{songs.length.toLocaleString()} tracks</Text>
                   </View>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.roomRail, { gap: railGap, paddingRight: horizontalPadding }]}>
-                    {listeningRooms.map((room) => (
+                  <FlatList
+                    horizontal
+                    data={listeningRooms}
+                    keyExtractor={(room) => room.id}
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={[styles.roomRail, { gap: railGap, paddingRight: horizontalPadding }]}
+                    initialNumToRender={3}
+                    maxToRenderPerBatch={3}
+                    windowSize={5}
+                    removeClippedSubviews
+                    renderItem={({ item: room }) => (
                       <TouchableOpacity
-                        key={room.id}
                         activeOpacity={0.9}
                         style={[styles.roomCard, { width: featureCardWidth }]}
                         onPress={() => openRoom(room)}
@@ -633,8 +661,8 @@ export default function WorldsIndexScreen() {
                           <Ionicons name="play" size={14} color="#000" />
                         </TouchableOpacity>
                       </TouchableOpacity>
-                    ))}
-                  </ScrollView>
+                    )}
+                  />
                 </View>
               ) : null}
 
@@ -666,10 +694,18 @@ export default function WorldsIndexScreen() {
                 <View style={styles.cinematicSection}>
                   <Text style={styles.sectionEyebrow}>GENRE SPOTLIGHTS</Text>
                   <Text style={styles.sectionTitle}>Stations And Scenes</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.mediaRail, { gap: railGap, paddingRight: horizontalPadding }]}>
-                    {stationRooms.map((room) => (
+                  <FlatList
+                    horizontal
+                    data={stationRooms}
+                    keyExtractor={(room) => room.id}
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={[styles.mediaRail, { gap: railGap, paddingRight: horizontalPadding }]}
+                    initialNumToRender={3}
+                    maxToRenderPerBatch={3}
+                    windowSize={5}
+                    removeClippedSubviews
+                    renderItem={({ item: room }) => (
                       <TouchableOpacity
-                        key={room.id}
                         activeOpacity={0.9}
                         style={[styles.stationCard, { width: featureCardWidth }]}
                         onPress={() => openRoom(room)}
@@ -683,8 +719,8 @@ export default function WorldsIndexScreen() {
                           <Text numberOfLines={2} style={styles.cardSubtitle}>{room.subtitle}</Text>
                         </View>
                       </TouchableOpacity>
-                    ))}
-                  </ScrollView>
+                    )}
+                  />
                 </View>
               ) : null}
 
@@ -692,10 +728,18 @@ export default function WorldsIndexScreen() {
                 <View style={styles.cinematicSection}>
                   <Text style={styles.sectionEyebrow}>GENRES</Text>
                   <Text style={styles.sectionTitle}>Genre Spotlights</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.mediaRail, { gap: railGap, paddingRight: horizontalPadding }]}>
-                    {visibleGenres.map((genre) => (
+                  <FlatList
+                    horizontal
+                    data={visibleGenres}
+                    keyExtractor={(genre) => String(genre.id)}
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={[styles.mediaRail, { gap: railGap, paddingRight: horizontalPadding }]}
+                    initialNumToRender={4}
+                    maxToRenderPerBatch={4}
+                    windowSize={5}
+                    removeClippedSubviews
+                    renderItem={({ item: genre }) => (
                       <TouchableOpacity
-                        key={genre.id}
                         activeOpacity={0.88}
                         style={[styles.genreSpotlight, { width: albumCardWidth }]}
                         onPress={() => openGenre(genre)}
@@ -704,41 +748,49 @@ export default function WorldsIndexScreen() {
                         <Text numberOfLines={1} style={styles.cardTitle}>{genre.title}</Text>
                         <Text style={styles.cardSubtitle}>{genre.songs.length} song{genre.songs.length === 1 ? "" : "s"}</Text>
                       </TouchableOpacity>
-                    ))}
-                  </ScrollView>
+                    )}
+                  />
                 </View>
               ) : null}
 
-              {(deepAlbums.length > 0 || deepCuts.length > 0) ? (
+              {deepRailItems.length > 0 ? (
                 <View style={styles.cinematicSection}>
                   <Text style={styles.sectionEyebrow}>DEEP CUTS AND ALBUMS</Text>
                   <Text style={styles.sectionTitle}>Stay Awhile</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.mediaRail, { gap: railGap, paddingRight: horizontalPadding }]}>
-                    {deepAlbums.map((album) => (
-                      <TouchableOpacity
-                        key={`album-${album.id}`}
-                        activeOpacity={0.88}
-                        style={[styles.albumCard, { width: albumCardWidth }]}
-                        onPress={() => openAlbum(album)}
-                      >
-                        <HTImage source={album.artwork} style={styles.albumArt} contentFit="cover" />
-                        <Text numberOfLines={1} style={styles.cardTitle}>{album.title}</Text>
-                        <Text numberOfLines={1} style={styles.cardSubtitle}>{album.artist}</Text>
-                      </TouchableOpacity>
-                    ))}
-                    {deepCuts.map((song) => (
-                      <TouchableOpacity
-                        key={`deep-${song.id}`}
-                        activeOpacity={0.88}
-                        style={[styles.albumCard, { width: albumCardWidth }]}
-                        onPress={() => playQueue(song, deepCuts, "Deep Cuts", "full_catalog")}
-                      >
-                        <HTImage source={song} style={styles.albumArt} contentFit="cover" />
-                        <Text numberOfLines={1} style={styles.cardTitle}>{song.title}</Text>
-                        <Text numberOfLines={1} style={styles.cardSubtitle}>{song.artist}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
+                  <FlatList
+                    horizontal
+                    data={deepRailItems}
+                    keyExtractor={(item) => item.id}
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={[styles.mediaRail, { gap: railGap, paddingRight: horizontalPadding }]}
+                    initialNumToRender={4}
+                    maxToRenderPerBatch={4}
+                    windowSize={5}
+                    removeClippedSubviews
+                    renderItem={({ item }) =>
+                      item.type === "album" ? (
+                        <TouchableOpacity
+                          activeOpacity={0.88}
+                          style={[styles.albumCard, { width: albumCardWidth }]}
+                          onPress={() => openAlbum(item.album)}
+                        >
+                          <HTImage source={item.album.artwork} style={styles.albumArt} contentFit="cover" />
+                          <Text numberOfLines={1} style={styles.cardTitle}>{item.album.title}</Text>
+                          <Text numberOfLines={1} style={styles.cardSubtitle}>{item.album.artist}</Text>
+                        </TouchableOpacity>
+                      ) : (
+                        <TouchableOpacity
+                          activeOpacity={0.88}
+                          style={[styles.albumCard, { width: albumCardWidth }]}
+                          onPress={() => playQueue(item.song, deepCuts, "Deep Cuts", "full_catalog")}
+                        >
+                          <HTImage source={item.song} style={styles.albumArt} contentFit="cover" />
+                          <Text numberOfLines={1} style={styles.cardTitle}>{item.song.title}</Text>
+                          <Text numberOfLines={1} style={styles.cardSubtitle}>{item.song.artist}</Text>
+                        </TouchableOpacity>
+                      )
+                    }
+                  />
                 </View>
               ) : null}
 
@@ -746,10 +798,18 @@ export default function WorldsIndexScreen() {
                 <View style={styles.cinematicSection}>
                   <Text style={styles.sectionEyebrow}>CREATORS TO FOLLOW</Text>
                   <Text style={styles.sectionTitle}>Creators</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.mediaRail, { gap: railGap, paddingRight: horizontalPadding }]}>
-                    {visibleArtists.map((artist) => (
+                  <FlatList
+                    horizontal
+                    data={visibleArtists}
+                    keyExtractor={(artist) => String(artist.id)}
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={[styles.mediaRail, { gap: railGap, paddingRight: horizontalPadding }]}
+                    initialNumToRender={4}
+                    maxToRenderPerBatch={4}
+                    windowSize={5}
+                    removeClippedSubviews
+                    renderItem={({ item: artist }) => (
                       <TouchableOpacity
-                        key={artist.id}
                         activeOpacity={0.88}
                         style={[styles.creatorCard, { width: creatorCardWidth }]}
                         onPress={() => openArtist(artist)}
@@ -758,8 +818,8 @@ export default function WorldsIndexScreen() {
                         <Text numberOfLines={1} style={styles.cardTitle}>{artist.name}</Text>
                         <Text style={styles.cardSubtitle}>{artist.songs.length} song{artist.songs.length === 1 ? "" : "s"}</Text>
                       </TouchableOpacity>
-                    ))}
-                  </ScrollView>
+                    )}
+                  />
                 </View>
               ) : null}
             </>

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  FlatList,
   KeyboardAvoidingView,
   Linking,
   Platform,
@@ -1637,30 +1638,48 @@ if (apkExternalAudioResults.length > 0) {
                 {apkAlbumResults.length > 0 ? (
                   <View style={styles.sectionBlock}>
                     <Text style={styles.sectionEyebrow}>ALBUMS</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rail}>
-                      {apkAlbumResults.map((album) => (
-                        <TouchableOpacity key={album.id} activeOpacity={0.88} style={styles.albumCard} onPress={() => playAlbumResult(album)}>
+                    <FlatList
+                      horizontal
+                      data={apkAlbumResults}
+                      keyExtractor={(album) => String(album.id)}
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={styles.rail}
+                      initialNumToRender={4}
+                      maxToRenderPerBatch={4}
+                      windowSize={5}
+                      removeClippedSubviews
+                      renderItem={({ item: album }) => (
+                        <TouchableOpacity activeOpacity={0.88} style={styles.albumCard} onPress={() => playAlbumResult(album)}>
                           <HTImage source={album} style={styles.albumImage} contentFit="cover" />
                           <Text numberOfLines={2} style={styles.albumTitle}>{album.title}</Text>
                           <Text numberOfLines={1} style={styles.albumArtist}>{album.artist}</Text>
                         </TouchableOpacity>
-                      ))}
-                    </ScrollView>
+                      )}
+                    />
                   </View>
                 ) : null}
 
                 {apkArtistResults.length > 0 ? (
                   <View style={styles.sectionBlock}>
                     <Text style={styles.sectionEyebrow}>ARTISTS</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rail}>
-                      {apkArtistResults.map((artist) => (
-                        <TouchableOpacity key={artist.id} activeOpacity={0.88} style={styles.artistCard} onPress={() => playArtistResult(artist)}>
+                    <FlatList
+                      horizontal
+                      data={apkArtistResults}
+                      keyExtractor={(artist) => String(artist.id)}
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={styles.rail}
+                      initialNumToRender={4}
+                      maxToRenderPerBatch={4}
+                      windowSize={5}
+                      removeClippedSubviews
+                      renderItem={({ item: artist }) => (
+                        <TouchableOpacity activeOpacity={0.88} style={styles.artistCard} onPress={() => playArtistResult(artist)}>
                           <HTImage source={artist} style={styles.artistImage} contentFit="cover" />
                           <Text numberOfLines={2} style={styles.artistName}>{artist.name}</Text>
                           <Text numberOfLines={1} style={styles.artistMeta}>{artist.songs.length} song{artist.songs.length === 1 ? "" : "s"}</Text>
                         </TouchableOpacity>
-                      ))}
-                    </ScrollView>
+                      )}
+                    />
                   </View>
                 ) : null}
 
@@ -1712,10 +1731,18 @@ if (apkExternalAudioResults.length > 0) {
                 {apkPlaylistResults.length > 0 ? (
                   <View style={styles.sectionBlock}>
                     <Text style={styles.sectionEyebrow}>PLAYLISTS</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rail}>
-                      {apkPlaylistResults.map((playlist) => (
+                    <FlatList
+                      horizontal
+                      data={apkPlaylistResults}
+                      keyExtractor={(playlist) => String(playlist.id)}
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={styles.rail}
+                      initialNumToRender={4}
+                      maxToRenderPerBatch={4}
+                      windowSize={5}
+                      removeClippedSubviews
+                      renderItem={({ item: playlist }) => (
                         <TouchableOpacity
-                          key={playlist.id}
                           activeOpacity={0.88}
                           style={styles.albumCard}
                           onPress={() => playPlaylistResult(playlist)}
@@ -1724,8 +1751,8 @@ if (apkExternalAudioResults.length > 0) {
                           <Text numberOfLines={2} style={styles.albumTitle}>{playlist.title}</Text>
                           <Text numberOfLines={1} style={styles.albumArtist}>{playlist.description || "Collection"}</Text>
                         </TouchableOpacity>
-                      ))}
-                    </ScrollView>
+                      )}
+                    />
                   </View>
                 ) : null}
 
@@ -1872,10 +1899,18 @@ if (apkExternalAudioResults.length > 0) {
                   <View style={styles.sectionBlock}>
                     <Text style={styles.sectionEyebrow}>ARTISTS</Text>
                     <Text style={styles.sectionTitle}>Popular artists</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rail}>
-                      {discoveryArtists.map((artist) => (
+                    <FlatList
+                      horizontal
+                      data={discoveryArtists}
+                      keyExtractor={(artist) => String(artist.id)}
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={styles.rail}
+                      initialNumToRender={4}
+                      maxToRenderPerBatch={4}
+                      windowSize={5}
+                      removeClippedSubviews
+                      renderItem={({ item: artist }) => (
                         <TouchableOpacity
-                          key={artist.id}
                           activeOpacity={0.88}
                           style={styles.artistCard}
                           onPress={() => openArtist(artist)}
@@ -1885,8 +1920,8 @@ if (apkExternalAudioResults.length > 0) {
                             {artist.name}
                           </Text>
                         </TouchableOpacity>
-                      ))}
-                    </ScrollView>
+                      )}
+                    />
                   </View>
                 ) : null}
 
@@ -1894,10 +1929,18 @@ if (apkExternalAudioResults.length > 0) {
                   <View style={styles.sectionBlock}>
                     <Text style={styles.sectionEyebrow}>ALBUMS</Text>
                     <Text style={styles.sectionTitle}>Album spotlight</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rail}>
-                      {discoveryAlbums.map((album) => (
+                    <FlatList
+                      horizontal
+                      data={discoveryAlbums}
+                      keyExtractor={(album) => String(album.id)}
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={styles.rail}
+                      initialNumToRender={4}
+                      maxToRenderPerBatch={4}
+                      windowSize={5}
+                      removeClippedSubviews
+                      renderItem={({ item: album }) => (
                         <TouchableOpacity
-                          key={album.id}
                           activeOpacity={0.88}
                           style={styles.albumCard}
                           onPress={() => openAlbum(album)}
@@ -1910,8 +1953,8 @@ if (apkExternalAudioResults.length > 0) {
                             {album.artist}
                           </Text>
                         </TouchableOpacity>
-                      ))}
-                    </ScrollView>
+                      )}
+                    />
                   </View>
                 ) : null}
 
