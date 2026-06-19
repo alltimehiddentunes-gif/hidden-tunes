@@ -61,6 +61,7 @@ type ProviderDefinition = {
 
 const DEFAULT_TIMEOUT_MS = 4200;
 const DEFAULT_LIMIT = 8;
+const ARCHIVE_METADATA_LIMIT = 5;
 const AUDIUS_APP_NAME = "HiddenTunes";
 const ARCHIVE_SEARCH_URL = "https://archive.org/advancedsearch.php";
 
@@ -259,7 +260,7 @@ async function searchArchiveLike(
   const docs = Array.isArray(json?.response?.docs) ? json.response.docs : [];
 
   const resolved = await Promise.all(
-    docs.map(async (item: any): Promise<FreeMusicSearchResult | null> => {
+    docs.slice(0, Math.min(limit, ARCHIVE_METADATA_LIMIT)).map(async (item: any): Promise<FreeMusicSearchResult | null> => {
       const identifier = cleanText(item?.identifier);
       if (!identifier) return null;
 

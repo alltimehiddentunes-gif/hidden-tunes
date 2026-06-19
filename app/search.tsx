@@ -85,7 +85,10 @@ const EMPTY_SEARCH_RESULTS = EMPTY_UNIVERSAL_SEARCH_RESULTS;
 const SEARCH_BACKEND_RESULT_LIMIT = 100;
 const SEARCH_BACKEND_DEBOUNCE_MS = 280;
 const SEARCH_BACKEND_CACHE_LIMIT = 32;
+const SEARCH_LOCAL_CACHE_LIMIT = 24;
+const SEARCH_EXTERNAL_CACHE_LIMIT = 16;
 const SEARCH_EXTERNAL_AUDIO_LIMIT = 16;
+const SEARCH_PROVIDER_QUERY_LIMIT = 8;
 const SEARCH_TV_LIMIT = 8;
 
 const TRENDING_SEARCHES = [
@@ -133,34 +136,6 @@ function toSearchGenres(genres: HiddenTunesGenreCatalogItem[]) {
     query: genre.title,
     emoji: "",
   })) as HiddenTunesGenre[];
-}
-
-function normalizeExternalSearchSong(track: any, index: number): HiddenTunesNormalizedSong {
-  const sourceName = String(track?.sourceName || "External");
-  const id = String(
-    track?.id || `${sourceName}-${track?.artist || "artist"}-${track?.title || "track"}-${index}`
-  );
-  const artwork = track?.cover || track?.artwork || track?.thumbnail || "";
-  const streamUrl = track?.streamUrl || track?.url || track?.audio || "";
-
-  return {
-    id,
-    title: String(track?.title || "Untitled"),
-    artist: String(track?.artist || sourceName),
-    album: track?.album ? String(track.album) : undefined,
-    genre: track?.genre ? String(track.genre) : undefined,
-    mood: track?.mood ? String(track.mood) : undefined,
-    cover: artwork,
-    artwork,
-    thumbnail: artwork,
-    streamUrl,
-    url: streamUrl,
-    sourceName,
-    source: String(track?.source || sourceName.toLowerCase()),
-    type: String(track?.type || sourceName.toLowerCase()),
-    isOnline: true,
-    raw: track,
-  } as HiddenTunesNormalizedSong;
 }
 
 function findSongIndex(songs: HiddenTunesSong[], song: { id?: string }) {
@@ -234,6 +209,32 @@ function dedupeByKey<T>(items: T[], getKey: (item: T) => string) {
   });
 }
 
+function setBoundedCache<K, V>(cache: Map<K, V>, key: K, value: V, limit: number) {
+  cache.set(key, value);
+  if (cache.size <= limit) return;
+  const oldestKey = cache.keys().next().value;
+  if (oldestKey) cache.delete(oldestKey);
+}
+
+function buildSearchCatalogSignature(catalog?: HiddenTunesDerivedCatalog | null) {
+  if (!catalog) return "empty";
+  const firstSong = catalog.songs[0]?.id || "";
+  const lastSong = catalog.songs[catalog.songs.length - 1]?.id || "";
+  const firstArtist = catalog.artists[0]?.id || catalog.artists[0]?.name || "";
+  const lastArtist = catalog.artists[catalog.artists.length - 1]?.id || catalog.artists[catalog.artists.length - 1]?.name || "";
+  return [
+    catalog.songs.length,
+    firstSong,
+    lastSong,
+    catalog.albums.length,
+    catalog.artists.length,
+    firstArtist,
+    lastArtist,
+    catalog.genres.length,
+    catalog.playlists.length,
+  ].join(":");
+}
+
 function songMatchesCatalogQuery(song: HiddenTunesSong, query: string) {
   return textMatchesQuery(catalogSongSearchText(song), query);
 }
@@ -301,6 +302,8 @@ export default function SearchScreen() {
 
   const backendSearchRequestIdRef = useRef(0);
   const backendSearchCacheRef = useRef(new Map<string, HiddenTunesNormalizedSong[]>());
+  const localSearchCacheRef = useRef(new Map<string, SearchGroupedResults>());
+  const externalSearchCacheRef = useRef(new Map<string, HiddenTunesNormalizedSong[]>());
   const externalSearchRequestIdRef = useRef(0);
   const tvSearchRequestIdRef = useRef(0);
 
@@ -309,6 +312,7 @@ export default function SearchScreen() {
   const albums = catalog?.albums || [];
   const genres = catalog?.genres || [];
   const playlists = catalog?.playlists || [];
+  const catalogSignature = useMemo(() => buildSearchCatalogSignature(catalog), [catalog]);
 
   useEffect(() => {
     let cancelled = false;
@@ -351,12 +355,18 @@ export default function SearchScreen() {
   );
 
   const cleanSubmittedSearchQuery = submittedSearchQuery.trim();
-  const backendSearchCacheKey = cleanSubmittedSearchQuery.toLowerCase().replace(/\s+/g, " ");
+  const normalizedSearchQuery = cleanSubmittedSearchQuery.toLowerCase().replace(/\s+/g, " ");
+  const backendSearchCacheKey = normalizedSearchQuery;
+  const localSearchCacheKey = `${normalizedSearchQuery}|${catalogSignature}`;
 
   const localSearchResults = useMemo(() => {
     if (!cleanSubmittedSearchQuery) return EMPTY_SEARCH_RESULTS;
-    return runUniversalCatalogSearch(searchCatalog, cleanSubmittedSearchQuery);
-  }, [cleanSubmittedSearchQuery, searchCatalog]);
+    const cached = localSearchCacheRef.current.get(localSearchCacheKey);
+    if (cached) return cached;
+    const results = runUniversalCatalogSearch(searchCatalog, cleanSubmittedSearchQuery);
+    setBoundedCache(localSearchCacheRef.current, localSearchCacheKey, results, SEARCH_LOCAL_CACHE_LIMIT);
+    return results;
+  }, [cleanSubmittedSearchQuery, localSearchCacheKey, searchCatalog]);
 
   const shouldRunBackendSearch = cleanSubmittedSearchQuery.length > 0;
 
@@ -571,18 +581,26 @@ export default function SearchScreen() {
 
     if (!shouldRunExternalSearch) return;
 
+    const cachedExternalSongs = externalSearchCacheRef.current.get(normalizedSearchQuery);
     const requestId = externalSearchRequestIdRef.current + 1;
     externalSearchRequestIdRef.current = requestId;
-    setExternalSearchSongs([]);
     setExternalSearchQuery(query);
     setExternalSearchCompletedQuery("");
 
-    void searchFreeMusicProviders(query, { limit: SEARCH_EXTERNAL_AUDIO_LIMIT })
+    if (cachedExternalSongs) {
+      setExternalSearchSongs(cachedExternalSongs);
+      setExternalSearchCompletedQuery(query);
+      return;
+    }
+
+    setExternalSearchSongs([]);
+
+    void searchFreeMusicProviders(query, { limit: SEARCH_PROVIDER_QUERY_LIMIT })
       .then((response) => {
         if (externalSearchRequestIdRef.current !== requestId) return;
-        setExternalSearchSongs(
-          dedupeSongs(response.results.map(freeMusicResultToSong)).slice(0, SEARCH_EXTERNAL_AUDIO_LIMIT)
-        );
+        const providerSongs = dedupeSongs(response.results.map(freeMusicResultToSong)).slice(0, SEARCH_EXTERNAL_AUDIO_LIMIT);
+        setBoundedCache(externalSearchCacheRef.current, normalizedSearchQuery, providerSongs, SEARCH_EXTERNAL_CACHE_LIMIT);
+        setExternalSearchSongs(providerSongs);
       })
       .catch((error) => {
         if (externalSearchRequestIdRef.current !== requestId) return;
@@ -593,7 +611,7 @@ export default function SearchScreen() {
         if (externalSearchRequestIdRef.current !== requestId) return;
         setExternalSearchCompletedQuery(query);
       });
-  }, [cleanSubmittedSearchQuery, shouldRunExternalSearch]);
+  }, [cleanSubmittedSearchQuery, normalizedSearchQuery, shouldRunExternalSearch]);
 
   const externalSearchResults = useMemo(() => {
     if (cleanSubmittedSearchQuery.length < 2) return EMPTY_SEARCH_RESULTS;
@@ -689,28 +707,30 @@ export default function SearchScreen() {
     [audioSearchResults, tvSearchResults]
   );
 
+  const directCatalogMatches = useMemo(() => {
+    if (!cleanSubmittedSearchQuery) return [] as HiddenTunesSong[];
+    return songs.filter((song) => songMatchesCatalogQuery(song, cleanSubmittedSearchQuery));
+  }, [catalogSignature, cleanSubmittedSearchQuery]);
+
   const searchResultSongs = useMemo(() => {
     const backendSongs = songsFromSearchHits(backendSearchResults);
     const internalSongs = songsFromSearchHits(internalSearchResults);
     const merged = dedupeSongs([
       ...backendSongs,
       ...internalSongs,
-      ...songs.filter((song) => songMatchesCatalogQuery(song, cleanSubmittedSearchQuery)),
+      ...directCatalogMatches,
     ]);
     return unwrapRankedSearchItems(rankSearchSongs(merged, cleanSubmittedSearchQuery));
-  }, [backendSearchResults, cleanSubmittedSearchQuery, internalSearchResults, songs]);
+  }, [backendSearchResults, cleanSubmittedSearchQuery, directCatalogMatches, internalSearchResults]);
 
   const reliableCatalogSongResults = useMemo(() => {
     if (!cleanSubmittedSearchQuery) return [] as HiddenTunesSong[];
 
-    const directMatches = songs.filter((song) =>
-      songMatchesCatalogQuery(song, cleanSubmittedSearchQuery)
-    );
-    const merged = dedupeSongs([...searchResultSongs, ...directMatches]);
+    const merged = dedupeSongs([...searchResultSongs, ...directCatalogMatches]);
     return unwrapRankedSearchItems(
       rankSearchSongs(merged, cleanSubmittedSearchQuery, { limit: 80 })
     );
-  }, [cleanSubmittedSearchQuery, searchResultSongs, songs]);
+  }, [cleanSubmittedSearchQuery, directCatalogMatches, searchResultSongs]);
 
   const reliableCatalogSongIds = useMemo(
     () => new Set(reliableCatalogSongResults.map((song) => String(song.id || ""))),
@@ -722,7 +742,7 @@ export default function SearchScreen() {
     const direct = dedupeSongs(reliableCatalogSongResults);
     const needsRelated = direct.length < 4;
     const related = needsRelated
-      ? buildRelatedInternalDiscovery(cleanSubmittedSearchQuery, songs, direct, 28)
+      ? buildRelatedInternalDiscovery(cleanSubmittedSearchQuery, songs, direct, 18)
       : [];
     return rankApkSongResults(direct, cleanSubmittedSearchQuery, related);
   }, [cleanSubmittedSearchQuery, reliableCatalogSongResults, songs]);
