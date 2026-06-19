@@ -29,6 +29,13 @@ export type SearchDiagnosticEvent =
   | "search_ranking_applied"
   | "search_top_result"
   | "search_result_score"
+  | "provider_start"
+  | "provider_success"
+  | "provider_error"
+  | "provider_timeout"
+  | "provider_empty"
+  | "merge_complete"
+  | "fallback_shown"
   | "search_direct_match_count"
   | "search_fallback_demoted";
 

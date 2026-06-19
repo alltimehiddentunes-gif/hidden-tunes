@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   ScrollView,
   StyleSheet,
@@ -40,8 +41,11 @@ import {
   type HiddenTunesArtist,
   type HiddenTunesNormalizedSong,
 } from "../services/hiddenTunesApi";
-import { searchArchiveAudio } from "../services/archiveSearch";
-import { searchJamendoMusic } from "../services/jamendoSearch";
+import {
+  freeMusicResultToSong,
+  providerLabel,
+  searchFreeMusicProviders,
+} from "../services/freeMusicProviders";
 import { fetchTvCatalog, type HiddenTunesTvVideo } from "../services/tvCatalogApi";
 import type { InstantSearchCatalog } from "../services/instantCatalogSearch";
 import {
@@ -551,10 +555,7 @@ export default function SearchScreen() {
     });
   }, [backendSearchPendingForQuery, cleanSubmittedSearchQuery]);
 
-  const shouldRunExternalSearch =
-    cleanSubmittedSearchQuery.length >= 2 &&
-    !backendSearchPendingForQuery &&
-    !hasInternalCatalogResults;
+  const shouldRunExternalSearch = cleanSubmittedSearchQuery.length >= 2;
 
   useEffect(() => {
     const query = cleanSubmittedSearchQuery;
@@ -572,20 +573,20 @@ export default function SearchScreen() {
 
     const requestId = externalSearchRequestIdRef.current + 1;
     externalSearchRequestIdRef.current = requestId;
+    setExternalSearchSongs([]);
     setExternalSearchQuery(query);
     setExternalSearchCompletedQuery("");
 
-    void Promise.all([searchJamendoMusic(query), searchArchiveAudio(query)])
-      .then(([jamendo, archive]) => {
+    void searchFreeMusicProviders(query, { limit: SEARCH_EXTERNAL_AUDIO_LIMIT })
+      .then((response) => {
         if (externalSearchRequestIdRef.current !== requestId) return;
-        const externalSongs = [...jamendo, ...archive]
-          .slice(0, SEARCH_EXTERNAL_AUDIO_LIMIT)
-          .map(normalizeExternalSearchSong);
-        setExternalSearchSongs(externalSongs);
+        setExternalSearchSongs(
+          dedupeSongs(response.results.map(freeMusicResultToSong)).slice(0, SEARCH_EXTERNAL_AUDIO_LIMIT)
+        );
       })
       .catch((error) => {
         if (externalSearchRequestIdRef.current !== requestId) return;
-        console.log("Search external fallback error:", error);
+        console.log("Search external provider error:", error);
         setExternalSearchSongs([]);
       })
       .finally(() => {
@@ -893,33 +894,11 @@ export default function SearchScreen() {
   }, [cleanSubmittedSearchQuery, genres, internalSearchResults.moodRooms]);
 
   const apkExternalAudioResults = useMemo(() => {
-    const hasInternalApk =
-      apkSongResults.length > 0 ||
-      apkAlbumResults.length > 0 ||
-      apkArtistResults.length > 0 ||
-      apkRoomResults.length > 0 ||
-      apkPlaylistResults.length > 0 ||
-      apkStationResults.length > 0;
-
-    if (hasInternalApk || hasInternalCatalogResults) {
-      return [] as HiddenTunesSong[];
-    }
-
     return audioSearchResults.internetAudio
       .map((hit) => hit.payload as HiddenTunesSong)
       .filter(Boolean)
       .slice(0, SEARCH_EXTERNAL_AUDIO_LIMIT);
-  }, [
-    apkAlbumResults.length,
-    apkArtistResults.length,
-    apkPlaylistResults.length,
-    apkRoomResults.length,
-    apkSongResults.length,
-    apkSongRanked.length,
-    apkStationResults.length,
-    audioSearchResults.internetAudio,
-    hasInternalCatalogResults,
-  ]);
+  }, [audioSearchResults.internetAudio]);
 
   const apkTvResults = useMemo(() => {
     if (cleanSubmittedSearchQuery.length < 2) return [];
@@ -944,7 +923,6 @@ export default function SearchScreen() {
     cleanSubmittedSearchQuery.length > 0 &&
     !searchDebouncePending &&
     !backendSearchPendingForQuery &&
-    !externalSearchPendingForQuery &&
     !(shouldRunTvSearch && tvSearchCompletedQuery !== cleanSubmittedSearchQuery);
   const showSearchLoading =
     hasSearchText &&
@@ -978,9 +956,20 @@ export default function SearchScreen() {
 
   const playSearchResultSong = useCallback(
     (song: HiddenTunesSong, resultType: string = "song") => {
+      const raw = (song as any).raw || {};
+      const externalUrl = String(raw.externalUrl || (song as any).externalUrl || "").trim();
+
+      if (resultType === "external" && raw.canPlayNatively === false) {
+        if (externalUrl) void Linking.openURL(externalUrl);
+        return;
+      }
+
+      const playableExternalResults = apkExternalAudioResults.filter(
+        (item) => (item as any).raw?.canPlayNatively !== false && String(item.streamUrl || item.url || "").trim()
+      );
       const queue =
         resultType === "external"
-          ? apkExternalAudioResults
+          ? playableExternalResults.length ? playableExternalResults : [song]
           : apkSongResults.length
             ? apkSongResults
             : reliableCatalogSongResults.length
@@ -1722,7 +1711,7 @@ if (apkExternalAudioResults.length > 0) {
 
                 {apkExternalAudioResults.length > 0 ? (
                   <View style={styles.sectionBlock}>
-                    <Text style={styles.sectionEyebrow}>INTERNET AUDIO</Text>
+                    <Text style={styles.sectionEyebrow}>FREE & LEGAL SOURCES</Text>
                     {apkExternalAudioResults.map((song, index) => (
                       <TouchableOpacity
                         key={`external-${song.id}-${index}`}
@@ -1736,10 +1725,10 @@ if (apkExternalAudioResults.length > 0) {
                         <View style={styles.songCopy}>
                           <Text numberOfLines={1} style={styles.songTitle}>{song.title}</Text>
                           <Text numberOfLines={1} style={styles.songArtist}>{song.artist}</Text>
-                          <Text numberOfLines={1} style={styles.songMeta}>{(song as any).sourceName || "Internet audio"}</Text>
+                          <Text numberOfLines={1} style={styles.songMeta}>{providerLabel((song as any).source || (song as any).raw?.source || (song as any).sourceName)} - {(song as any).raw?.license || (song as any).license || "Free/legal reference"}</Text>
                         </View>
                         <View style={styles.playCircle}>
-                          <Ionicons name="play" size={16} color={COLORS.text} />
+                          <Ionicons name={(song as any).raw?.canPlayNatively === false ? "open-outline" : "play"} size={16} color={COLORS.text} />
                         </View>
                       </TouchableOpacity>
                     ))}
@@ -1789,7 +1778,19 @@ if (apkExternalAudioResults.length > 0) {
                   <View style={styles.emptyPanel}>
                     <Ionicons name="search" size={34} color={COLORS.primaryGlow} />
                     <Text style={styles.emptyTitle}>No matches yet</Text>
-                    <Text style={styles.emptyText}>Try another artist, album, genre, or mood.</Text>
+                    <Text style={styles.emptyText}>Try another artist, genre, mood, or one of these searches.</Text>
+                    <View style={[styles.chipRow, { justifyContent: "center", marginTop: 16 }]}>
+                      {UNIVERSAL_SEARCH_EMPTY_SUGGESTIONS.slice(0, 4).map((chip) => (
+                        <TouchableOpacity
+                          key={chip}
+                          activeOpacity={0.86}
+                          style={styles.chipMuted}
+                          onPress={() => handleSuggestionPress(chip)}
+                        >
+                          <Text style={styles.chipMutedText}>{chip}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
                   </View>
                 ) : null}
               </View>
