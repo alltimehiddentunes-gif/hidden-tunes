@@ -4,12 +4,12 @@ export type ArchiveTrack = {
   artist: string;
   cover: string;
   streamUrl: string;
-  sourceName: "Internet Archive";
+  sourceName: string;
   isOnline: true;
 };
 
 const SEARCH_URL = "https://archive.org/advancedsearch.php";
-const ARCHIVE_ENABLED = false;
+const ARCHIVE_ENABLED = true;
 
 function encodeArchiveFileUrl(identifier: string, fileName: string) {
   const safeFileName = fileName
@@ -94,10 +94,10 @@ export async function searchArchiveAudio(
         return {
           id: `archive-${identifier}`,
           title: String(item.title || identifier || "Untitled"),
-          artist: String(item.creator || "Internet Archive"),
+          artist: String(item.creator || "Hidden Tunes"),
           cover: `https://archive.org/services/img/${identifier}`,
           streamUrl,
-          sourceName: "Internet Archive",
+          sourceName: "Hidden Tunes",
           isOnline: true,
         };
       })

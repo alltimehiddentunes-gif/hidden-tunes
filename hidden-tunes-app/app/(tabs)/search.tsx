@@ -40,12 +40,13 @@ import { useTrackPlaybackStatus } from "../../context/playerContextSlices";
 import { normalizeGenreName } from "../../utils/genreNormalization";
 import { HIDDEN_TUNES_GENRES } from "../../utils/genres";
 
-import { searchArchiveAudio } from "../../services/archiveSearch";
 import type { BackendYouTubeTrack } from "../../services/youtubeBackend";
 import {
-  normalizeArchiveTrack,
-  normalizeAudiusTrack,
-} from "../../services/musicNormalizer";
+  countLocalInstantSongs,
+  HIDDEN_TUNES_SEARCH_LABEL,
+  runSearchWaterfall,
+  WATERFALL_MIN_SONGS,
+} from "../../services/searchWaterfall";
 import {
   searchHiddenTunesSongsPage,
   getHiddenTunesSongsPage,
@@ -103,7 +104,6 @@ import {
   type CatalogSearchIndex,
 } from "../../utils/catalogSearchIndex";
 import {
-  mergeCatalogSongLists,
   rankCatalogSongs,
   type CatalogSongMatchReason,
   type CatalogSongSearchHit,
@@ -201,18 +201,8 @@ const FILTERS: { key: SearchType; label: string }[] = [
   { key: "archive", label: "VAULT" },
 ];
 
-function formatSearchSourceLabel(source?: string) {
-  const lower = String(source || "").toLowerCase();
-
-  if (lower.includes("youtube")) return "Hidden Tunes TV";
-  if (lower.includes("hidden tunes") || lower.includes("hidden-tunes")) {
-    return "Hidden Tunes";
-  }
-  if (lower.includes("audius") || lower.includes("archive")) {
-    return "Extended catalog";
-  }
-
-  return "Hidden Tunes";
+function formatSearchSourceLabel(_source?: string) {
+  return HIDDEN_TUNES_SEARCH_LABEL;
 }
 
 function sanitizeYouTubeVideoId(value: any) {
@@ -296,7 +286,7 @@ function normalizeYouTubeResult(track: BackendYouTubeTrack): BackendYouTubeTrack
     artwork: cover,
     cover,
     source: "youtube",
-    sourceName: "YouTube",
+    sourceName: "YouTube" as const,
     type: "youtube_video",
     isYouTube: true,
     isOnline: true,
@@ -314,12 +304,7 @@ function normalizeNativeResult(item: any): NativeSearchTrack {
         ? "audius"
         : "hidden-tunes";
 
-  const sourceName =
-    source === "archive"
-      ? "Internet Archive"
-      : source === "audius"
-        ? "Audius"
-        : "Hidden Tunes";
+  const sourceName = HIDDEN_TUNES_SEARCH_LABEL;
 
   const type: NativeSearchTrack["type"] =
     source === "archive" ? "archive" : source === "audius" ? "audius" : "r2";
@@ -749,7 +734,7 @@ const SearchResultRow = memo(function SearchResultRow({
         <View style={styles.sourceBadge} pointerEvents="none">
           <Ionicons name="tv" size={13} color={sourceColorValue} />
           <Text style={[styles.sourceBadgeText, { color: sourceColorValue }]}>
-            Hidden Tunes TV
+            {HIDDEN_TUNES_SEARCH_LABEL}
           </Text>
         </View>
       </View>
@@ -1079,8 +1064,16 @@ export default function SearchScreen() {
       }
     }
 
+    if (collected.length < VISIBLE_SONG_LIMIT) {
+      for (const item of results) {
+        if (isYouTubeTrack(item)) continue;
+        addSong(item);
+        if (collected.length >= VISIBLE_SONG_LIMIT) break;
+      }
+    }
+
     return collected;
-  }, [groupedSearchResults, rankedCatalogSongHits, showGroupedSearch]);
+  }, [groupedSearchResults, rankedCatalogSongHits, results, showGroupedSearch]);
 
   const catalogLookupSources = useMemo(
     () => [remoteCatalogSongs, catalogSongsForSearch],
@@ -1190,15 +1183,16 @@ export default function SearchScreen() {
 
   const showPremiumSearchEmpty = useMemo(() => {
     if (!showGroupedSearch) return false;
-    if (loading || refreshing) return false;
+    if (refreshing) return false;
 
     if (
       trimmedQuery.length >= LOCAL_SEARCH_MIN_CHARS &&
       trimmedQuery.length < API_SEARCH_MIN_CHARS
     ) {
-      return !instantGroupedResults.hasAnyResults;
+      return !instantGroupedResults.hasAnyResults && !loading;
     }
 
+    if (loading && !hasCatalogSearchResults) return true;
     if (!hasCheckedSearchFallbacks) return false;
     if (trimmedQuery.length < API_SEARCH_MIN_CHARS) return false;
 
@@ -1671,129 +1665,58 @@ export default function SearchScreen() {
         return;
       }
 
-      const finalResults: SearchResultTrack[] = [];
-
-      if (source === "all" || source === "hidden") {
-        try {
-          const hiddenTunesPage = await searchHiddenTunesSongsPage(safeText, 1, 60);
-          setHasMoreHiddenResults(hiddenTunesPage.hasMore);
-
-          const mergedHiddenCatalog = mergeCatalogSongLists(
-            hiddenTunesPage.songs,
-            getHiddenTunesCatalogSnapshot().slice(0, LOCAL_RANK_CATALOG_LIMIT)
-          );
-          const rankedHidden = rankCatalogSongs(mergedHiddenCatalog, safeText, 60);
-
-          setRemoteCatalogSongs(hiddenTunesPage.songs);
-          setCatalogSearchSource({
-            name:
-              hiddenTunesPage.songs.length > 0
-                ? "backend_api"
-                : "local_ranked_fallback",
-            count: mergedHiddenCatalog.length,
-          });
-
-          finalResults.push(
-            ...rankedHidden.map((hit) =>
-              normalizeNativeResult({
-                ...hit.song,
-                source: "hidden-tunes",
-                sourceName: "Hidden Tunes",
-                type: "r2",
-                matchReason: hit.matchReason,
-              })
-            )
-          );
-        } catch (error) {
-        }
-      }
-
-      if (source === "all" || source === "audius") {
-        try {
-          const response = await fetch(
-            `https://discoveryprovider.audius.co/v1/tracks/search?query=${encodeURIComponent(
-              safeText
-            )}`
-          );
-
-          const rawText = await response.text();
-
-          if (rawText.trim().startsWith("{")) {
-            const json = JSON.parse(rawText);
-
-            finalResults.push(
-              ...(json.data || []).map((item: any) => {
-                const streamUrl = `https://discoveryprovider.audius.co/v1/tracks/${item.id}/stream`;
-
-                return normalizeNativeResult({
-                  ...normalizeAudiusTrack({
-                    ...item,
-                    streamUrl,
-                    source: "audius",
-                  }),
-                  source: "audius",
-                  sourceName: "Audius",
-                  type: "audius",
-                  cover:
-                    item.artwork?.["480x480"] ||
-                    item.artwork?.["1000x1000"] ||
-                    item.artwork?.["150x150"] ||
-                    "",
-                  streamUrl,
-                  url: streamUrl,
-                });
-              })
-            );
-          }
-        } catch (error) {
-        }
-      }
-
-      if (source === "all" || source === "archive") {
-        try {
-          const archiveResults = await searchArchiveAudio(safeText);
-
-          finalResults.push(
-            ...archiveResults.map((item: any) =>
-              normalizeNativeResult({
-                ...normalizeArchiveTrack({
-                  ...item,
-                  source: "archive",
-                }),
-                source: "archive",
-                sourceName: "Internet Archive",
-                type: "archive",
-                cover: item.cover || item.artwork || item.thumbnail || "",
-              })
-            )
-          );
-        } catch (error) {
-        }
-      }
-
-      const normalizedResults = orderFlatSearchResults(
-        dedupeByKey(finalResults.map((item) => normalizeSearchTrack(item))),
-        safeText
+      const waterfall = await runSearchWaterfall(
+        safeText,
+        source === "hidden"
+          ? "hidden"
+          : source === "audius"
+            ? "audius"
+            : source === "archive"
+              ? "archive"
+              : "all"
       );
-      logApiRefresh("search_results", refreshStart, {
-        query: safeText,
-        source,
-        count: normalizedResults.length,
-      });
 
-      if (requestId !== searchRequestIdRef.current) return;
+      if (waterfall) {
+        setHasMoreHiddenResults(waterfall.hasMoreHidden);
 
-      setResults(normalizedResults);
-      await setCachedSearchResults(safeText, source, normalizedResults);
-      lastCompletedSearchRef.current = { key: searchKey, at: Date.now() };
-      logPerformanceSummary("search_results", {
-        cache: showedCachedResults ? "hit" : "miss",
-        apiRefreshMs: Date.now() - refreshStart,
-        itemCount: normalizedResults.length,
-        emptyStateReason: normalizedResults.length
-          ? "content_available"
-          : "cache_api_and_fallback_empty",
-      });
+        if (waterfall.remoteCatalogSongs.length > 0) {
+          setRemoteCatalogSongs(waterfall.remoteCatalogSongs);
+          setCatalogSearchSource({
+            name: "backend_api",
+            count: waterfall.remoteCatalogSongs.length,
+          });
+        }
+
+        const normalizedResults = orderFlatSearchResults(
+          dedupeByKey(
+            waterfall.tracks.map((item) =>
+              normalizeSearchTrack(normalizeNativeResult(item))
+            )
+          ),
+          safeText
+        );
+
+        logApiRefresh("search_results", refreshStart, {
+          query: safeText,
+          source,
+          count: normalizedResults.length,
+        });
+
+        if (requestId !== searchRequestIdRef.current) return;
+
+        setResults(normalizedResults);
+        await setCachedSearchResults(safeText, source, normalizedResults);
+        lastCompletedSearchRef.current = { key: searchKey, at: Date.now() };
+        logPerformanceSummary("search_results", {
+          cache: showedCachedResults ? "hit" : "miss",
+          apiRefreshMs: Date.now() - refreshStart,
+          itemCount: normalizedResults.length,
+          emptyStateReason: normalizedResults.length
+            ? "content_available"
+            : "waterfall_empty",
+        });
+        return;
+      }
     } catch (error) {
       if (requestId !== searchRequestIdRef.current) return;
 
@@ -1877,18 +1800,6 @@ export default function SearchScreen() {
     }
   }, []);
 
-  const commitSearch = useCallback(
-    (text: string, source: SearchType = activeSource) => {
-      handleQueryChange(text);
-
-      const safeText = String(text || "").trim();
-      if (safeText.length >= API_SEARCH_MIN_CHARS) {
-        void searchTracks(text, source);
-      }
-    },
-    [activeSource, handleQueryChange]
-  );
-
   const scheduleNetworkSearch = useCallback(
     (text: string, source: SearchType = activeSource) => {
       if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
@@ -1912,7 +1823,9 @@ export default function SearchScreen() {
         if (
           showGroupedSearch &&
           (source === "all" || source === "hidden") &&
-          runInstantCatalogSearch(universalCatalog, safeText).hasAnyResults
+          countLocalInstantSongs(catalogSongsForSearch, safeText) >=
+            WATERFALL_MIN_SONGS &&
+          runInstantCatalogSearch(universalCatalog, safeText).songs.length >= 2
         ) {
           setHasCheckedSearchFallbacks(true);
           setLoading(false);
@@ -1922,7 +1835,15 @@ export default function SearchScreen() {
         void searchTracks(text, source);
       }, SEARCH_DEBOUNCE_MS);
     },
-    [activeSource, showGroupedSearch, universalCatalog]
+    [activeSource, catalogSongsForSearch, showGroupedSearch, universalCatalog]
+  );
+
+  const commitSearch = useCallback(
+    (text: string, source: SearchType = activeSource) => {
+      handleQueryChange(text);
+      scheduleNetworkSearch(text, source);
+    },
+    [activeSource, handleQueryChange, scheduleNetworkSearch]
   );
 
   const handleSongResultPress = useCallback(
@@ -2200,13 +2121,31 @@ export default function SearchScreen() {
           color={COLORS.textMuted}
           style={styles.premiumEmptyIcon}
         />
-        <Text style={styles.premiumEmptyTitle}>No exact matches found</Text>
-        <Text style={styles.premiumEmptySub}>
-          Try another title, artist, album, genre, or mood.
+        <Text style={styles.premiumEmptyTitle}>
+          {loading ? "Searching Hidden Tunes..." : "No matches yet"}
         </Text>
+        <Text style={styles.premiumEmptySub}>
+          {loading
+            ? "Checking the catalog and nearby libraries for playable matches."
+            : "Try another title, artist, album, genre, or mood."}
+        </Text>
+        {!loading ? (
+          <View style={styles.premiumEmptyChips}>
+            {TRENDING_SEARCHES.slice(0, 4).map((item) => (
+              <TouchableOpacity
+                key={item}
+                activeOpacity={0.86}
+                style={styles.premiumEmptyChip}
+                onPress={() => commitSearch(item, activeSource)}
+              >
+                <Text style={styles.premiumEmptyChipText}>{item}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        ) : null}
       </View>
     );
-  }, []);
+  }, [activeSource, commitSearch, loading]);
 
   function renderDiscovery() {
     return (
@@ -2463,9 +2402,7 @@ export default function SearchScreen() {
                 setActiveSource(source);
 
                 if (query.trim().length >= LOCAL_SEARCH_MIN_CHARS) {
-                  if (query.trim().length >= API_SEARCH_MIN_CHARS) {
-                    commitSearch(query, source);
-                  }
+                  scheduleNetworkSearch(query, source);
                 }
               }}
             >
@@ -3107,6 +3044,26 @@ const styles = StyleSheet.create({
     marginTop: 8,
     textAlign: "center",
     lineHeight: 18,
+  },
+  premiumEmptyChips: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: 8,
+    marginTop: 16,
+  },
+  premiumEmptyChip: {
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: "rgba(255,255,255,0.07)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+  },
+  premiumEmptyChipText: {
+    color: COLORS.text,
+    fontSize: 12,
+    fontWeight: "600",
   },
   compactTvSection: {
     marginTop: 8,
