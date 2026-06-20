@@ -5,7 +5,10 @@
  */
 module.exports = ({ config }) => {
   const appJson = require("./app.json");
-  const profile = process.env.EAS_BUILD_PROFILE || "";
+  const profile =
+    process.env.EAS_BUILD_PROFILE ||
+    process.env.EXPO_PUBLIC_BUILD_PROFILE ||
+    "";
   const isDevClientBuild = profile === "developmentClient";
   const isStandaloneBuild = !isDevClientBuild;
 
@@ -33,7 +36,16 @@ module.exports = ({ config }) => {
     return pluginName === "expo-splash-screen";
   });
 
-  const plugins = hasSplashPlugin ? basePlugins : [...basePlugins, splashPlugin];
+  const hasStandaloneGuard = basePlugins.some((entry) => {
+    const pluginName = Array.isArray(entry) ? entry[0] : entry;
+    return pluginName === "./plugins/standalone-build-guard";
+  });
+
+  let plugins = hasSplashPlugin ? basePlugins : [...basePlugins, splashPlugin];
+
+  if (isStandaloneBuild && !hasStandaloneGuard) {
+    plugins = [...plugins, "./plugins/standalone-build-guard"];
+  }
 
   return {
     ...appJson.expo,

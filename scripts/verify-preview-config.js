@@ -1,16 +1,26 @@
 #!/usr/bin/env node
 /**
  * Sanity-check that preview/production builds ship as standalone Hidden Tunes
- * (no expo-dev-client plugin in resolved config).
+ * (no expo-dev-client plugin or autolinking in resolved config).
  */
+const fs = require("fs");
 const path = require("path");
 
 function loadConfig(profile) {
   process.env.EAS_BUILD_PROFILE = profile;
+  process.env.EXPO_PUBLIC_BUILD_PROFILE = profile;
   const configPath = path.join(__dirname, "..", "app.config.js");
   delete require.cache[require.resolve(configPath)];
   const appConfig = require(configPath);
   return appConfig({ config: {} });
+}
+
+function loadReactNativeConfig(profile) {
+  process.env.EAS_BUILD_PROFILE = profile;
+  process.env.EXPO_PUBLIC_BUILD_PROFILE = profile;
+  const configPath = path.join(__dirname, "..", "react-native.config.js");
+  delete require.cache[require.resolve(configPath)];
+  return require(configPath);
 }
 
 function pluginNames(plugins = []) {
@@ -43,6 +53,34 @@ function assertStandalone(profile) {
     process.exit(1);
   }
 
+  if (!names.includes("./plugins/standalone-build-guard")) {
+    console.error(
+      `[verify-preview-config] FAIL: ${profile} build missing ./plugins/standalone-build-guard`
+    );
+    process.exit(1);
+  }
+
+  const rnConfig = loadReactNativeConfig(profile);
+  const disabled = { ios: null, android: null };
+
+  for (const pkg of [
+    "expo-dev-client",
+    "expo-dev-launcher",
+    "expo-dev-menu",
+    "expo-dev-menu-interface",
+  ]) {
+    const platforms = rnConfig.dependencies?.[pkg]?.platforms;
+    if (
+      platforms?.ios !== disabled.ios ||
+      platforms?.android !== disabled.android
+    ) {
+      console.error(
+        `[verify-preview-config] FAIL: ${profile} react-native.config must disable ${pkg} on both platforms`
+      );
+      process.exit(1);
+    }
+  }
+
   console.log(`[verify-preview-config] OK: ${profile} standalone config`);
 }
 
@@ -53,6 +91,14 @@ const devResolved = loadConfig("developmentClient");
 if (!pluginNames(devResolved.plugins).includes("expo-dev-client")) {
   console.error(
     "[verify-preview-config] FAIL: developmentClient build missing expo-dev-client"
+  );
+  process.exit(1);
+}
+
+const devRnConfig = loadReactNativeConfig("developmentClient");
+if (Object.keys(devRnConfig.dependencies || {}).length > 0) {
+  console.error(
+    "[verify-preview-config] FAIL: developmentClient must not disable dev-client autolinking"
   );
   process.exit(1);
 }

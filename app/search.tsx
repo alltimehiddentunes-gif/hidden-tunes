@@ -1495,7 +1495,7 @@ export default function SearchScreen() {
     logSearchDiagnostic("search_room_results", { count: apkRoomResults.length, query: cleanSubmittedSearchQuery });
     logSearchDiagnostic("search_station_results", { count: apkStationResults.length, query: cleanSubmittedSearchQuery });
     logSearchDiagnostic("search_tv_results", { count: apkTvResults.length, query: cleanSubmittedSearchQuery });
-if (apkExternalAudioResults.length > 0) {
+    if (apkExternalAudioResults.length > 0) {
       logSearchDiagnostic("search_external_fallback_used", {
         query: cleanSubmittedSearchQuery,
         count: apkExternalAudioResults.length,

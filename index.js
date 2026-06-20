@@ -13,4 +13,6 @@
  *   Use only for quick UI checks, not playback QA.
  */
 
+require("react-native-gesture-handler");
+
 require("expo-router/entry");

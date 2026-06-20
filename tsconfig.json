@@ -16,6 +16,7 @@
   ],
   "exclude": [
     "navigation-old",
+    "hidden-tunes-desktop",
     "node_modules"
   ]
 }
