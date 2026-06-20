@@ -14,6 +14,16 @@ export const TESTER_COPY = {
   tvCatalogRefresh:
     "TV catalog isn't available right now. Pull to refresh when you're back online.",
   tvSearchUnavailable: "TV search isn't available right now. Try again in a moment.",
+  podcastDiscoveryLoading: "Finding Hidden Tunes podcasts…",
+  podcastDiscoveryEmpty:
+    "No shows in this room yet. Try another category or search Hidden Tunes Podcasts.",
+  podcastEpisodesEmpty:
+    "No episodes in this show yet. Pull to refresh when you're online.",
+  podcastSearchUnavailable:
+    "Podcast search isn't available right now. Try again in a moment.",
   radioLoadFailed: "Couldn't load tracks right now. Pull to refresh when you're online.",
+  radioStationsLoading: "Finding Hidden Tunes stations…",
+  radioStationsEmpty:
+    "No stations in this room yet. Try another category or open a listening room.",
   lyricsLoadFailed: "Lyrics aren't available for this track right now.",
 } as const;

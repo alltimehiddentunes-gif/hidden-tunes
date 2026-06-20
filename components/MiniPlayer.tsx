@@ -43,6 +43,10 @@ import {
   usePlayerProgress,
   usePlayerState,
 } from "../context/PlayerContext";
+import {
+  isPodcastEpisodeSong,
+  isRadioStreamSong,
+} from "../services/playback/playbackRouter";
 import HTImage from "./HTImage";
 import { FALLBACK_ARTWORK } from "../utils/artwork";
 import { isFastScrolling } from "../utils/performanceMode";
@@ -428,16 +432,27 @@ function MiniPlayer() {
   }, [currentSong, loadYouTubeMini]);
 
   const isYoutubeMode = !currentSong && !!youtubeVideo;
+  const isLiveRadioMode = isRadioStreamSong(currentSong);
+  const isPodcastMode = isPodcastEpisodeSong(currentSong);
 
   const radioQueueLength = radioQueue?.length || 0;
   const youtubeQueueLength = youtubeQueue?.length || 0;
 
   const queueLabel = useMemo(() => {
+    if (isLiveRadioMode) return "Live radio";
+    if (isPodcastMode) return "Podcast";
     if (radioMode && radioQueueLength > 0) return "Radio queue";
     if (youtubeQueueLength > 0) return `${youtubeQueueLength} in queue`;
     if (isYoutubeMode) return "YouTube";
     return "Now playing";
-  }, [radioMode, radioQueueLength, youtubeQueueLength, isYoutubeMode]);
+  }, [
+    isLiveRadioMode,
+    isPodcastMode,
+    radioMode,
+    radioQueueLength,
+    youtubeQueueLength,
+    isYoutubeMode,
+  ]);
 
   const title = useMemo(() => {
     if (isYoutubeMode) return youtubeVideo?.title || "YouTube Video";
@@ -544,9 +559,11 @@ function MiniPlayer() {
 
   const badgeIconName = useMemo(() => {
     if (isYoutubeMode) return "tv";
+    if (isLiveRadioMode) return "radio";
+    if (isPodcastMode) return "mic-outline";
     if (radioMode) return "radio";
     return "pulse";
-  }, [isYoutubeMode, radioMode]);
+  }, [isYoutubeMode, isLiveRadioMode, isPodcastMode, radioMode]);
 
   const mainIconName = useMemo(() => {
     if (isYoutubeMode) return "open-outline";

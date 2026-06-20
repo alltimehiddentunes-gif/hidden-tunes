@@ -230,7 +230,7 @@ export type AppSong = {
 };
 
 type RepeatMode = "off" | "one" | "all";
-type ActiveQueueMode = "standard" | "youtube" | "radio" | "smart";
+type ActiveQueueMode = "standard" | "youtube" | "radio" | "smart" | "live_stream" | "podcast";
 
 export type PlaybackQueueContext = {
   source:
@@ -243,6 +243,7 @@ export type PlaybackQueueContext = {
     | "queue"
     | "playlist"
     | "radio"
+    | "podcast"
     | "recently_added"
     | "because_you_listened"
     | "smart_queue"
@@ -327,13 +328,15 @@ export type PlayerContextType = {
     song: AppSong,
     queue?: AppSong[],
     index?: number,
-    queueContext?: PlaybackQueueContext
+    queueContext?: PlaybackQueueContext,
+    queueMode?: ActiveQueueMode
   ) => Promise<void>;
   playQueue: (
     queue: AppSong[],
     startIndex?: number,
     priorInterruptDone?: boolean,
-    queueContext?: PlaybackQueueContext
+    queueContext?: PlaybackQueueContext,
+    queueMode?: ActiveQueueMode
   ) => Promise<void>;
   playAudiusTrack: (song: AppSong) => Promise<void>;
   playYouTubeQueue: (
@@ -1318,6 +1321,28 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     );
   }, []);
 
+  const resolveQueueModeForSong = useCallback(
+    (song: AppSong, override?: ActiveQueueMode): ActiveQueueMode => {
+      if (override) return override;
+      if (song.source === "radio" || song.type === "live_stream") {
+        return "live_stream";
+      }
+      if (song.source === "podcast" || song.type === "podcast") {
+        return "podcast";
+      }
+      return "standard";
+    },
+    []
+  );
+
+  const isLiveStreamSong = useCallback((song?: AppSong | null) => {
+    return (
+      song?.source === "radio" ||
+      song?.type === "live_stream" ||
+      activeQueueModeRef.current === "live_stream"
+    );
+  }, []);
+
   const getPlayableUri = useCallback((song: AppSong) => {
     const possible =
       song.streamUrl ||
@@ -1389,8 +1414,17 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       const youtube = isYouTubeSong(song);
       const playableUrl = getPlayableUri(song);
 
+      const isLiveStream =
+        song.source === "radio" || song.type === "live_stream";
+      const isPodcastTrack =
+        song.source === "podcast" || song.type === "podcast";
+
       const normalizedType = youtube
         ? "youtube_video"
+        : isPodcastTrack
+        ? "podcast"
+        : isLiveStream
+        ? "live_stream"
         : song.type || (playableUrl ? "r2" : "local");
 
       const syncedLyrics =
@@ -1421,7 +1455,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         sourceName: youtube
           ? "YouTube"
           : song.sourceName || song.source || "Hidden Tunes",
-        source: youtube ? "youtube" : song.source || "hidden-tunes",
+        source: youtube
+          ? "youtube"
+          : song.source === "radio" || song.source === "podcast"
+          ? song.source
+          : song.source || "hidden-tunes",
         type: normalizedType,
         isOnline: song.isOnline ?? Boolean(playableUrl),
         album: song.album,
@@ -3653,6 +3691,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         queueLength: activeQueueRef.current.length,
       });
     }
+    if (activeQueueModeRef.current === "live_stream") {
+      logAutoNextSkipped("live_stream", { source: "nextSong" });
+      return;
+    }
+
     const { queue } = getActiveQueuePlaybackState();
 
     logQueuePlaybackEvent("queue_next_start", {
@@ -3698,6 +3741,20 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           queueLength: queue.length,
           nextIndex: -1,
         });
+
+        if (
+          activeQueueModeRef.current === "live_stream" ||
+          activeQueueModeRef.current === "podcast"
+        ) {
+          logAutoNextSkipped("non_standard_queue_mode", {
+            mode: activeQueueModeRef.current,
+            queueLength: queue.length,
+          });
+          setIsPlaying(false);
+          setPositionMillis(0);
+          setDurationMillis(0);
+          return;
+        }
 
         const boundedQueueEndContext = activeQueueContextRef.current;
         if (isBoundedPlaybackContext(boundedQueueEndContext.source)) {
@@ -3834,6 +3891,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     });
 
     try {
+      if (isLiveStreamSong(currentSongRef.current)) {
+        logAutoNextSkipped("live_stream", {
+          songId: currentSongRef.current?.id,
+        });
+        return;
+      }
+
       if (repeatModeRef.current === "one") {
         logAutoNextSkipped("repeat_one", {
           songId: currentSongRef.current?.id,
@@ -3897,6 +3961,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setDurationMillis,
     clearLoadingRecoveryTimeout,
     clearFinishWatchdog,
+    isLiveStreamSong,
   ]);
 
   handleTrackFinishedRef.current = handleTrackFinished;
@@ -5286,6 +5351,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
       if (!smartAutoplayEnabledRef.current) return false;
 
+      if (
+        activeQueueModeRef.current === "live_stream" ||
+        activeQueueModeRef.current === "podcast"
+      ) {
+        return false;
+      }
+
       const current = currentSongRef.current;
       if (!current) return false;
 
@@ -5543,7 +5615,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       queue: AppSong[],
       startIndex = 0,
       priorInterruptDone = false,
-      queueContext: PlaybackQueueContext = DEFAULT_QUEUE_CONTEXT
+      queueContext: PlaybackQueueContext = DEFAULT_QUEUE_CONTEXT,
+      queueMode?: ActiveQueueMode
     ) => {
       logLockscreenPlaybackDiagnostic("playable_tap_received", {
         source: "playQueue",
@@ -5598,8 +5671,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       setActiveQueue(nativeQueue);
       activeQueueIndexRef.current = safeIndex;
       setActiveQueueIndex(safeIndex);
-      activeQueueModeRef.current = "standard";
-      setActiveQueueMode("standard");
+      const resolvedMode = resolveQueueModeForSong(selectedNormalized, queueMode);
+      activeQueueModeRef.current = resolvedMode;
+      setActiveQueueMode(resolvedMode);
       activeQueueContextRef.current = normalizedContext;
       setActiveQueueContext(normalizedContext);
 
@@ -5617,7 +5691,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       radioModeRef.current = false;
       void setStoredValueIfChanged(RADIO_MODE_KEY, "false");
 
-      void syncActiveQueue(nativeQueue, safeIndex, "standard", normalizedContext);
+      void syncActiveQueue(nativeQueue, safeIndex, resolvedMode, normalizedContext);
       void removeStoredValues([POSITION_KEY]);
 
       let interruptDone = priorInterruptDone;
@@ -5691,6 +5765,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       openPlayerForPlayableTap,
       setIsPlaying,
       deferPlaybackSideEffects,
+      resolveQueueModeForSong,
     ]
   );
 
@@ -5699,7 +5774,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       song: AppSong,
       queue?: AppSong[],
       index?: number,
-      queueContext: PlaybackQueueContext = DEFAULT_QUEUE_CONTEXT
+      queueContext: PlaybackQueueContext = DEFAULT_QUEUE_CONTEXT,
+      queueMode?: ActiveQueueMode
     ) => {
       const normalizedSong = normalizeSong(song);
 
@@ -5864,7 +5940,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         resolved.queue,
         resolved.index,
         switchingToNewSong,
-        resolved.context
+        resolved.context,
+        queueMode || resolveQueueModeForSong(normalizedSong)
       );
     },
     [
@@ -6425,7 +6502,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               const safeMode: ActiveQueueMode =
                 savedActiveQueueMode === "radio" ||
                 savedActiveQueueMode === "standard" ||
-                savedActiveQueueMode === "smart"
+                savedActiveQueueMode === "smart" ||
+                savedActiveQueueMode === "live_stream" ||
+                savedActiveQueueMode === "podcast"
                   ? savedActiveQueueMode
                   : "standard";
               setActiveQueueMode(safeMode);
@@ -6593,7 +6672,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           const safeMode: ActiveQueueMode =
             savedActiveQueueMode === "radio" ||
             savedActiveQueueMode === "standard" ||
-            savedActiveQueueMode === "smart"
+            savedActiveQueueMode === "smart" ||
+            savedActiveQueueMode === "live_stream" ||
+            savedActiveQueueMode === "podcast"
               ? savedActiveQueueMode
               : "standard";
 

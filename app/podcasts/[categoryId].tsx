@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   RefreshControl,
   StyleSheet,
@@ -14,153 +13,115 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 
-import { RadioStationCard } from "../../components/radio/RadioBrowserCards";
-import { getRadioCategory } from "../../constants/radioCategories";
+import { PodcastShowCard } from "../../components/podcast/PodcastDiscoveryCards";
 import { COLORS } from "../../constants/theme";
-import { usePlaybackRouter } from "../../hooks/usePlaybackRouter";
+import { TESTER_COPY } from "../../constants/testerExperience";
+import { getPodcastShowsForCategory } from "../../services/podcastDiscoveryApi";
+import type { HiddenTunesPodcastShow } from "../../services/podcastCatalogApi";
+import { getLaunchPodcastCategory } from "../../utils/launchPodcastCategories";
+import { podcastShowSubtitle } from "../../utils/openHiddenTunesPodcast";
 import {
-  fetchRadioStationsPage,
-  RADIO_STATION_PAGE_SIZE,
-} from "../../services/radio/radioBrowserApi";
-import {
-  hydrateCachedRadioStations,
-  readCachedRadioStations,
-  writeCachedRadioStations,
-} from "../../services/radio/radioCache";
-import {
-  normalizeRadioStation,
-  stationRowSubtitle,
-} from "../../services/radio/radioNormalizer";
-import type { HiddenTunesStation } from "../../types/radio";
+  hydrateCachedPodcastShows,
+  readCachedPodcastShows,
+} from "../../utils/podcastDiscoveryCache";
 import {
   createStableKeyExtractor,
   getListPerformanceSettings,
 } from "../../utils/performanceMode";
 
-export default function RadioCategoryScreen() {
-  const { playRadioStation } = usePlaybackRouter();
+export default function PodcastCategoryScreen() {
   const params = useLocalSearchParams<{ categoryId?: string }>();
   const categoryId = String(params.categoryId || "").trim();
-  const category = useMemo(() => getRadioCategory(categoryId), [categoryId]);
-
-  const [stations, setStations] = useState<HiddenTunesStation[]>(() =>
-    readCachedRadioStations(categoryId) || []
+  const category = useMemo(
+    () => getLaunchPodcastCategory(categoryId),
+    [categoryId]
   );
-  const [loading, setLoading] = useState(() => stations.length === 0);
-  const [refreshing, setRefreshing] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
-  const [hasCheckedNetwork, setHasCheckedNetwork] = useState(false);
 
-  const loadInitial = useCallback(
+  const [shows, setShows] = useState<HiddenTunesPodcastShow[]>(() =>
+    readCachedPodcastShows(categoryId) || []
+  );
+  const [loading, setLoading] = useState(() => shows.length === 0);
+  const [refreshing, setRefreshing] = useState(false);
+  const [hasCheckedFallbacks, setHasCheckedFallbacks] = useState(false);
+
+  const loadShows = useCallback(
     async (forceRefresh = false) => {
       if (!categoryId) return;
 
       try {
-        if (!forceRefresh) {
-          const cached = readCachedRadioStations(categoryId) || (await hydrateCachedRadioStations(categoryId));
-          if (cached?.length) {
-            setStations(cached);
-            setHasMore(cached.length >= RADIO_STATION_PAGE_SIZE);
-            return;
-          }
-        }
-
-        const page = await fetchRadioStationsPage(categoryId, 0, RADIO_STATION_PAGE_SIZE);
-        const merged = writeCachedRadioStations(categoryId, page, { append: false });
-        setStations(merged);
-        setHasMore(page.length >= RADIO_STATION_PAGE_SIZE);
+        const next = await getPodcastShowsForCategory(categoryId, { forceRefresh });
+        setShows(next);
       } finally {
         setLoading(false);
         setRefreshing(false);
-        setHasCheckedNetwork(true);
+        setHasCheckedFallbacks(true);
       }
     },
     [categoryId]
   );
 
   useEffect(() => {
+    if (!categoryId || shows.length > 0) return;
+
+    void hydrateCachedPodcastShows(categoryId).then((cached) => {
+      if (!cached?.length) return;
+      setShows(cached);
+      setLoading(false);
+    });
+  }, [categoryId, shows.length]);
+
+  useEffect(() => {
     if (!categoryId) return;
-    void loadInitial(false);
-  }, [categoryId, loadInitial]);
+    void loadShows(false);
+  }, [categoryId, loadShows]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    void loadInitial(true);
-  }, [loadInitial]);
+    void loadShows(true);
+  }, [loadShows]);
 
-  const loadMore = useCallback(async () => {
-    if (!categoryId || loadingMore || !hasMore || loading) return;
-
-    setLoadingMore(true);
-    try {
-      const page = await fetchRadioStationsPage(
-        categoryId,
-        stations.length,
-        RADIO_STATION_PAGE_SIZE
-      );
-
-      if (!page.length) {
-        setHasMore(false);
-        return;
-      }
-
-      const merged = writeCachedRadioStations(categoryId, page, { append: true });
-      setStations(merged);
-      setHasMore(page.length >= RADIO_STATION_PAGE_SIZE);
-    } finally {
-      setLoadingMore(false);
-    }
-  }, [categoryId, hasMore, loading, loadingMore, stations.length]);
-
-  const playStation = useCallback(
-    async (station: HiddenTunesStation) => {
-      const result = await playRadioStation(normalizeRadioStation(station));
-
-      if (!result.ok) {
-        Alert.alert(
-          "Unavailable",
-          result.error || "This station is unavailable right now."
-        );
-      }
-    },
-    [playRadioStation]
-  );
-
-  const openListeningRoom = useCallback(() => {
-    if (!category) return;
-
+  const openShow = useCallback((show: HiddenTunesPodcastShow) => {
     router.push({
-      pathname: "/radio",
+      pathname: "/podcasts/show/[showId]",
       params: {
-        title: category.title,
-        query: category.listeningRoomQuery,
-        genre: category.tag || "",
+        showId: show.id,
+        title: show.title,
       },
     } as any);
-  }, [category]);
+  }, []);
+
+  const renderShowRow = useCallback(
+    ({ item }: { item: HiddenTunesPodcastShow }) => (
+      <PodcastShowCard
+        show={item}
+        subtitle={podcastShowSubtitle(item)}
+        onPress={() => openShow(item)}
+      />
+    ),
+    [openShow]
+  );
 
   const listPerformance = useMemo(
-    () => getListPerformanceSettings(stations.length),
-    [stations.length]
+    () => getListPerformanceSettings(shows.length),
+    [shows.length]
   );
 
   const keyExtractor = useMemo(
-    () => createStableKeyExtractor("radio-station"),
+    () => createStableKeyExtractor("hidden-tunes-podcast-show"),
     []
   );
 
   const showEmpty =
-    hasCheckedNetwork && !loading && !refreshing && stations.length === 0;
+    hasCheckedFallbacks && !loading && !refreshing && shows.length === 0;
 
   if (!category) {
     return (
       <LinearGradient colors={["#120818", "#050308"]} style={styles.container}>
         <View style={styles.center}>
           <Text style={styles.emptyTitle}>This room is not available</Text>
-          <Text style={styles.emptyText}>Try another search.</Text>
+          <Text style={styles.emptyText}>{TESTER_COPY.podcastDiscoveryEmpty}</Text>
           <TouchableOpacity style={styles.backLink} onPress={() => router.back()}>
-            <Text style={styles.backLinkText}>Back to Live Stations</Text>
+            <Text style={styles.backLinkText}>Back to Hidden Tunes Podcasts</Text>
           </TouchableOpacity>
         </View>
       </LinearGradient>
@@ -179,20 +140,20 @@ export default function RadioCategoryScreen() {
         </TouchableOpacity>
 
         <View style={styles.headerText}>
-          <Text style={styles.kicker}>HIDDEN TUNES RADIO</Text>
+          <Text style={styles.kicker}>HIDDEN TUNES PODCASTS</Text>
           <Text style={styles.title}>{category.title}</Text>
           <Text style={styles.subtitle}>{category.subtitle}</Text>
         </View>
       </View>
 
-      {loading && stations.length === 0 ? (
+      {loading && shows.length === 0 ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.loadingText}>Finding stations...</Text>
+          <Text style={styles.loadingText}>{TESTER_COPY.podcastDiscoveryLoading}</Text>
         </View>
       ) : (
         <FlatList
-          data={stations}
+          data={shows}
           keyExtractor={keyExtractor}
           contentContainerStyle={styles.listContent}
           refreshControl={
@@ -202,51 +163,32 @@ export default function RadioCategoryScreen() {
               tintColor={COLORS.primary}
             />
           }
-          onEndReachedThreshold={0.4}
-          onEndReached={() => {
-            void loadMore();
-          }}
           ListHeaderComponent={
             <Text style={styles.sectionTitle}>
-              {stations.length > 0
-                ? `${stations.length} live stations`
-                : "Live stations"}
+              {shows.length > 0
+                ? `${shows.length} Hidden Tunes shows in this room`
+                : "Hidden Tunes shows in this room"}
             </Text>
-          }
-          ListFooterComponent={
-            loadingMore ? (
-              <ActivityIndicator
-                style={styles.footerSpinner}
-                color={COLORS.primary}
-              />
-            ) : null
           }
           ListEmptyComponent={
             showEmpty ? (
               <View style={styles.emptyBox}>
-                <Ionicons name="radio-outline" size={48} color={COLORS.textMuted} />
+                <Ionicons name="mic-outline" size={48} color={COLORS.textMuted} />
                 <Text style={styles.emptyTitle}>{category.emptyTitle}</Text>
                 <Text style={styles.emptyText}>{category.emptyMessage}</Text>
                 <TouchableOpacity
                   activeOpacity={0.86}
                   style={styles.fallbackButton}
-                  onPress={openListeningRoom}
+                  onPress={() => router.push("/podcasts" as any)}
                 >
                   <Text style={styles.fallbackButtonText}>
-                    Open listening room
+                    Search Hidden Tunes Podcasts
                   </Text>
                 </TouchableOpacity>
               </View>
             ) : null
           }
-          renderItem={({ item }) => (
-            <RadioStationCard
-              name={item.name}
-              subtitle={stationRowSubtitle(item)}
-              favicon={item.favicon}
-              onPress={() => playStation(item)}
-            />
-          )}
+          renderItem={renderShowRow}
           {...listPerformance}
           removeClippedSubviews
         />
@@ -313,9 +255,6 @@ const styles = StyleSheet.create({
   loadingText: {
     color: COLORS.textMuted,
     fontSize: 14,
-  },
-  footerSpinner: {
-    marginVertical: 16,
   },
   emptyBox: {
     alignItems: "center",
