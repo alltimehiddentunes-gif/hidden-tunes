@@ -90,6 +90,45 @@ function buildRecentIdSet(recentlyPlayed: DiscoverySong[] = []) {
   );
 }
 
+function songMatchesListenerAffinity(
+  song: DiscoverySong,
+  recentlyPlayed: DiscoverySong[],
+  favorites: DiscoverySong[]
+) {
+  const recentArtists = new Set(
+    recentlyPlayed.map((item) => cleanKey(item.artist)).filter(Boolean)
+  );
+  const recentGenres = new Set(
+    recentlyPlayed.map((item) => cleanKey(item.genre)).filter(Boolean)
+  );
+  const recentMoods = new Set(
+    recentlyPlayed.map((item) => cleanKey(item.mood)).filter(Boolean)
+  );
+  const favoriteArtists = new Set(
+    favorites.map((item) => cleanKey(item.artist)).filter(Boolean)
+  );
+  const favoriteGenres = new Set(
+    favorites.map((item) => cleanKey(item.genre)).filter(Boolean)
+  );
+
+  const artist = cleanKey(song.artist);
+  const genre = cleanKey(song.genre);
+  const mood = cleanKey(song.mood);
+
+  return (
+    (artist && (recentArtists.has(artist) || favoriteArtists.has(artist))) ||
+    (genre && (recentGenres.has(genre) || favoriteGenres.has(genre))) ||
+    (mood && recentMoods.has(mood))
+  );
+}
+
+function fillRecommendationShelf(
+  primary: HiddenTunesNormalizedSong[],
+  ...fallbackPools: HiddenTunesNormalizedSong[][]
+) {
+  return dedupeSongs([...primary, ...fallbackPools.flat()]).slice(0, DEFAULT_LIMIT);
+}
+
 function onboardingGenreBoost(
   song: DiscoverySong,
   onboarding?: OnboardingPreferences | null
@@ -126,14 +165,22 @@ export function buildBecauseYouPlayed<T extends HiddenTunesNormalizedSong>(
 ) {
   if (!recentlyPlayed.length) return [] as T[];
 
-  return buildBecauseYouListened(songs, recentlyPlayed, favorites, limit);
+  const recentIds = buildRecentIdSet(recentlyPlayed);
+
+  return dedupeSongs(
+    buildBecauseYouListened(songs, recentlyPlayed, favorites, limit * 3)
+  )
+    .filter((song) => !recentIds.has(String(song.id || "")))
+    .filter((song) => songMatchesListenerAffinity(song, recentlyPlayed, favorites))
+    .slice(0, limit);
 }
 
 export function buildMoreLikeThis<T extends HiddenTunesNormalizedSong>(
   songs: T[],
   currentSong?: DiscoverySong | null,
   recentlyPlayed: DiscoverySong[] = [],
-  limit = DEFAULT_LIMIT
+  limit = DEFAULT_LIMIT,
+  onboarding?: OnboardingPreferences | null
 ) {
   const seed =
     currentSong ||
@@ -141,6 +188,20 @@ export function buildMoreLikeThis<T extends HiddenTunesNormalizedSong>(
     null;
 
   if (!seed) {
+    const preferredGenre = onboarding?.preferredGenres?.[0];
+    if (preferredGenre) {
+      return dedupeSongs(
+        songs.filter((song) => songHasNormalizedGenre(song, preferredGenre))
+      ).slice(0, limit);
+    }
+
+    const preferredMood = onboarding?.preferredMoods?.[0];
+    if (preferredMood) {
+      return dedupeSongs(
+        filterSongsByCatalogLabel(songs, preferredMood, "mood")
+      ).slice(0, limit);
+    }
+
     return [] as T[];
   }
 
@@ -418,6 +479,19 @@ export function buildSmartRadioEntries(
     });
   }
 
+  if (!entries.length) {
+    pushEntry({
+      id: "hidden-tunes-trending-radio",
+      title: "Hidden Tunes Radio",
+      subtitle: "Trending mix",
+      kind: "genre",
+      params: {
+        title: "Hidden Tunes Radio",
+        query: "Hidden Tunes trending",
+      },
+    });
+  }
+
   return entries.slice(0, 4);
 }
 
@@ -438,12 +512,27 @@ export function buildSmartRecommendationsBundle(
   const moreLikeThis = buildMoreLikeThis(
     input.songs,
     input.currentSong,
-    recentlyPlayed
+    recentlyPlayed,
+    DEFAULT_LIMIT,
+    input.onboarding
   );
 
-  const recommendedForYou = hasPersonalHistory
+  const editorialFallback = buildNewUserRecommendations(input);
+  const personalRecommended = hasPersonalHistory
     ? buildRecommendedForYou(rankedSongs, recentlyPlayed, favorites)
     : [];
+
+  const recommendedForYou = hasPersonalHistory
+    ? fillRecommendationShelf(
+        personalRecommended,
+        dedupeSongs(rankedSongs),
+        editorialFallback
+      )
+    : fillRecommendationShelf(
+        editorialFallback,
+        dedupeSongs(rankedSongs),
+        dedupeSongs(input.songs)
+      );
 
   const continueListening = buildContinueListeningRail(
     input.songs,
@@ -457,18 +546,14 @@ export function buildSmartRecommendationsBundle(
     recentlyPlayed
   );
 
-  const newUserRecommendations = hasPersonalHistory
-    ? []
-    : buildNewUserRecommendations(input);
+  const newUserRecommendations = hasPersonalHistory ? [] : editorialFallback;
 
   const smartRadioEntries = buildSmartRadioEntries(input);
 
   return {
     becauseYouPlayed,
     moreLikeThis,
-    recommendedForYou: hasPersonalHistory
-      ? recommendedForYou
-      : newUserRecommendations,
+    recommendedForYou,
     continueListening,
     rediscoverFavorites,
     newUserRecommendations,

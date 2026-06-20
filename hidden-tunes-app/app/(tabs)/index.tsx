@@ -1554,7 +1554,7 @@ function HomeScreen() {
         case "catalog-header":
           return (
             <Text style={styles.sectionTitleBlock}>
-              Full Catalog Â· {visibleAllSongs.length}/{featuredSongs.length}
+              Full Catalog · {visibleAllSongs.length}/{featuredSongs.length}
             </Text>
           );
 

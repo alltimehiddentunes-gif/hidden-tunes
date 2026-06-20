@@ -644,7 +644,6 @@ export default memo(function ExploreScreen() {
 
   const smartRecommendations = sharedDiscovery.smartRecommendations;
 
-  const rankedCloudSongs = sharedDiscovery.rankedSongs;
   const rankedAlbums = sharedDiscovery.rankedAlbums;
   const rankedArtists = sharedDiscovery.rankedArtists;
   const moodRooms = useMemo(
