@@ -80,6 +80,7 @@ import {
 import { useRuntimeRenderProbe } from "../../utils/runtimeInstrumentation";
 import {
   openGenreCatalog,
+  openLaunchWorld,
   openMoodCatalog,
 } from "../../utils/catalogNavigation";
 import {
@@ -630,6 +631,18 @@ export default memo(function ExploreScreen() {
     () => sharedDiscovery.genreSpotlights,
     [sharedDiscovery.genreSpotlights]
   );
+  const launchWorlds = useMemo(
+    () => sharedDiscovery.launchWorlds,
+    [sharedDiscovery.launchWorlds]
+  );
+  const genreHubs = useMemo(
+    () => sharedDiscovery.genreHubs,
+    [sharedDiscovery.genreHubs]
+  );
+  const moodCollections = useMemo(
+    () => sharedDiscovery.moodCollections,
+    [sharedDiscovery.moodCollections]
+  );
   const recentlyAdded = sharedDiscovery.recentlyDiscovered;
   const curatedSections = sharedDiscovery.curatedSections;
 
@@ -722,6 +735,10 @@ export default memo(function ExploreScreen() {
 
   const openMood = useCallback((mood: string) => {
     openMoodCatalog(mood);
+  }, []);
+
+  const handleOpenLaunchWorld = useCallback((worldId: string) => {
+    openLaunchWorld(worldId);
   }, []);
 
   const openCloudSong = useCallback(
@@ -916,6 +933,9 @@ export default memo(function ExploreScreen() {
         continueSongs={continueSongs}
         recentlyAdded={recentlyAddedDeduped}
         curatedSections={curatedSectionsDeduped}
+        launchWorlds={launchWorlds}
+        genreHubs={genreHubs}
+        moodCollections={moodCollections}
         genreWorlds={genreWorlds}
         showHeavySections={showHeavySections}
         playlists={playlists}
@@ -927,6 +947,7 @@ export default memo(function ExploreScreen() {
         onStartDiscovery={handleStartDiscovery}
         openGenre={openGenre}
         openMood={openMood}
+        onOpenLaunchWorld={handleOpenLaunchWorld}
         renderMoodRoom={renderMoodRoom}
         renderSmartPick={renderSmartPick}
         renderRecentSong={renderRecentSong}
@@ -941,12 +962,16 @@ export default memo(function ExploreScreen() {
       continueSongs,
       curatedSectionsDeduped,
       exploreMountStage,
+      genreHubs,
       genreWorlds,
       getCloudItemLayout,
+      handleOpenLaunchWorld,
       handleStartDiscovery,
       hasCheckedDiscoveryFallbacks,
       horizontalRailTuning,
       loading,
+      launchWorlds,
+      moodCollections,
       moodRooms,
       onRefresh,
       openGenre,

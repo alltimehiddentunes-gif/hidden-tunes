@@ -47,6 +47,10 @@ import {
   runSearchWaterfall,
 } from "../../services/searchWaterfall";
 import {
+  buildLocalCatalogSearchFallback,
+  mergeUnifiedSongResults,
+} from "../../services/unifiedSearchResults";
+import {
   searchHiddenTunesSongsPage,
   getHiddenTunesSecondaryCatalogSections,
   hydrateHiddenTunesCatalogCache,
@@ -1679,9 +1683,20 @@ export default function SearchScreen() {
           setRemoteCatalogSongs(waterfall.remoteCatalogSongs);
         }
 
+        const catalogFallback = buildLocalCatalogSearchFallback(
+          getHiddenTunesCatalogSnapshot().slice(0, LOCAL_RANK_CATALOG_LIMIT),
+          safeText,
+          24
+        );
+
+        const mergedTracks = mergeUnifiedSongResults(
+          waterfall.tracks,
+          catalogFallback
+        );
+
         const normalizedResults = orderFlatSearchResults(
           dedupeByKey(
-            waterfall.tracks.map((item) =>
+            mergedTracks.map((item) =>
               normalizeSearchTrack(normalizeNativeResult(item))
             )
           ),
@@ -1713,7 +1728,17 @@ export default function SearchScreen() {
       if (requestId !== searchRequestIdRef.current) return;
 
       if (!showedCachedResults) {
-        setResults([]);
+        const catalogFallback = buildLocalCatalogSearchFallback(
+          getHiddenTunesCatalogSnapshot().slice(0, LOCAL_RANK_CATALOG_LIMIT),
+          safeText,
+          24
+        ).map((item) => normalizeSearchTrack(normalizeNativeResult(item)));
+
+        setResults(
+          catalogFallback.length
+            ? orderFlatSearchResults(dedupeByKey(catalogFallback), safeText)
+            : []
+        );
       }
 
     } finally {
@@ -2114,6 +2139,14 @@ export default function SearchScreen() {
       trimmedQuery.length >= LOCAL_SEARCH_MIN_CHARS &&
       trimmedQuery.length < API_SEARCH_MIN_CHARS;
 
+    const suggestedSongs = cloudSongs.slice(0, 6);
+    const popularArtists = cloudArtists.slice(0, 6);
+    const genreSuggestions =
+      matchedGenres.length > 0
+        ? matchedGenres.slice(0, 6)
+        : HIDDEN_TUNES_GENRES.slice(0, 6);
+    const relatedSearches = recentSearches.slice(0, 4);
+
     return (
       <View style={styles.premiumEmptyBox}>
         <Ionicons
@@ -2127,7 +2160,7 @@ export default function SearchScreen() {
             ? "Searching Hidden Tunes..."
             : isShortQuery
               ? "Keep typing to search"
-              : "No matches yet"}
+              : "Explore more Hidden Tunes"}
         </Text>
         <Text style={styles.premiumEmptySub}>
           {loading
@@ -2137,22 +2170,121 @@ export default function SearchScreen() {
               : TESTER_COPY.searchNoMatch}
         </Text>
         {!loading ? (
-          <View style={styles.premiumEmptyChips}>
-            {TRENDING_SEARCHES.slice(0, 4).map((item) => (
-              <TouchableOpacity
-                key={item}
-                activeOpacity={0.86}
-                style={styles.premiumEmptyChip}
-                onPress={() => commitSearch(item, activeSource)}
-              >
-                <Text style={styles.premiumEmptyChipText}>{item}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          <>
+            {relatedSearches.length > 0 ? (
+              <View style={styles.premiumEmptySection}>
+                <Text style={styles.premiumEmptySectionTitle}>Related searches</Text>
+                <View style={styles.premiumEmptyChips}>
+                  {relatedSearches.map((item) => (
+                    <TouchableOpacity
+                      key={`related-${item}`}
+                      activeOpacity={0.86}
+                      style={styles.premiumEmptyChip}
+                      onPress={() => commitSearch(item, activeSource)}
+                    >
+                      <Text style={styles.premiumEmptyChipText}>{item}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            ) : null}
+
+            <View style={styles.premiumEmptySection}>
+              <Text style={styles.premiumEmptySectionTitle}>Trending moods</Text>
+              <View style={styles.premiumEmptyChips}>
+                {TRENDING_SEARCHES.slice(0, 4).map((item) => (
+                  <TouchableOpacity
+                    key={item}
+                    activeOpacity={0.86}
+                    style={styles.premiumEmptyChip}
+                    onPress={() => commitSearch(item, activeSource)}
+                  >
+                    <Text style={styles.premiumEmptyChipText}>{item}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            <View style={styles.premiumEmptySection}>
+              <Text style={styles.premiumEmptySectionTitle}>Browse genres</Text>
+              <View style={styles.premiumEmptyChips}>
+                {genreSuggestions.map((genre) => (
+                  <TouchableOpacity
+                    key={genre.id}
+                    activeOpacity={0.86}
+                    style={styles.premiumEmptyChip}
+                    onPress={() => openGenreCatalog(genre)}
+                  >
+                    <Text style={styles.premiumEmptyChipText}>{genre.title}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {popularArtists.length > 0 ? (
+              <View style={styles.premiumEmptySection}>
+                <Text style={styles.premiumEmptySectionTitle}>Popular artists</Text>
+                <View style={styles.premiumEmptyChips}>
+                  {popularArtists.map((artist) => (
+                    <TouchableOpacity
+                      key={String(artist.id || artist.name)}
+                      activeOpacity={0.86}
+                      style={styles.premiumEmptyChip}
+                      onPress={() =>
+                        router.push({
+                          pathname: "/artist/[id]",
+                          params: { id: String(artist.id || artist.name) },
+                        } as any)
+                      }
+                    >
+                      <Text style={styles.premiumEmptyChipText}>
+                        {artist.name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            ) : null}
+
+            {suggestedSongs.length > 0 ? (
+              <View style={styles.premiumEmptySection}>
+                <Text style={styles.premiumEmptySectionTitle}>Suggested songs</Text>
+                {suggestedSongs.map((track, trackIndex) => {
+                  const playIndex = searchPlayQueue.findIndex(
+                    (item) => String(item.id) === String(track.id)
+                  );
+
+                  return (
+                    <SearchCatalogSongPressableRow
+                      key={String(track.id || trackIndex)}
+                      song={track}
+                      index={playIndex >= 0 ? playIndex : trackIndex}
+                      active={currentSongId === String(track.id)}
+                      isPlayingSong={isPlaying}
+                      onRowPress={handleSongResultPress}
+                    />
+                  );
+                })}
+              </View>
+            ) : null}
+          </>
         ) : null}
       </View>
     );
-  }, [activeSource, commitSearch, loading, trimmedQuery]);
+  }, [
+    activeSource,
+    cloudArtists,
+    cloudSongs,
+    commitSearch,
+    currentSongId,
+    handleSongResultPress,
+    isPlaying,
+    loading,
+    matchedGenres,
+    recentSearches,
+    searchPlayQueue,
+    trimmedQuery,
+  ]);
 
   function renderDiscovery() {
     return (
@@ -3055,7 +3187,18 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     justifyContent: "center",
     gap: 8,
-    marginTop: 16,
+    marginTop: 4,
+  },
+  premiumEmptySection: {
+    width: "100%",
+    marginTop: 18,
+    alignItems: "flex-start",
+  },
+  premiumEmptySectionTitle: {
+    color: COLORS.text,
+    fontSize: 14,
+    fontWeight: "800",
+    marginBottom: 10,
   },
   premiumEmptyChip: {
     borderRadius: 999,

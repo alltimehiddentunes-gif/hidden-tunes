@@ -7,6 +7,10 @@ import {
   prefetchCatalogView,
 } from "../services/unifiedCatalog";
 import { scheduleNavigationPrewarm } from "./performanceMode";
+import {
+  getLaunchWorldById,
+  getLaunchWorldCatalogParams,
+} from "./launchEmotionalWorlds";
 
 export type CatalogNavigationParams = {
   id?: string;
@@ -96,4 +100,18 @@ export function openMoodCatalog(title: string, query?: string) {
     query: query || `${safeTitle} music`,
     id: safeTitle.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
   });
+}
+
+export function openLaunchWorld(worldId: string) {
+  const world = getLaunchWorldById(worldId);
+  if (!world) return;
+
+  openCatalogNavigation(getLaunchWorldCatalogParams(world));
+}
+
+export function scheduleLaunchWorldPrewarm(worldId: string) {
+  const world = getLaunchWorldById(worldId);
+  if (!world) return undefined;
+
+  return scheduleCatalogNavigationPrewarm(getLaunchWorldCatalogParams(world));
 }

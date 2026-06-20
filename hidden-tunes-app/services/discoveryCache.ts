@@ -12,6 +12,11 @@ import {
   rankSongsForListener,
 } from "./listenerRanking";
 import {
+  buildGenreHubRows,
+  buildLaunchWorldSpotlights,
+  buildMoodCollectionRows,
+} from "../utils/discoveryFoundation";
+import {
   buildBecauseYouListened,
   buildCuratedDiscoverySections,
   buildGenreSpotlights,
@@ -39,6 +44,9 @@ export type SharedDiscoverySnapshot = {
   curatedSections: SmartDiscoverySection<HiddenTunesNormalizedSong>[];
   moodRooms: ReturnType<typeof buildMoodRooms<HiddenTunesNormalizedSong>>;
   genreSpotlights: ReturnType<typeof buildGenreSpotlights<HiddenTunesNormalizedSong>>;
+  launchWorlds: ReturnType<typeof buildLaunchWorldSpotlights<HiddenTunesNormalizedSong>>;
+  genreHubs: ReturnType<typeof buildGenreHubRows<HiddenTunesNormalizedSong>>;
+  moodCollections: ReturnType<typeof buildMoodCollectionRows<HiddenTunesNormalizedSong>>;
 };
 
 export type SharedDiscoveryInput = {
@@ -153,6 +161,9 @@ function buildSharedDiscoverySnapshot(input: SharedDiscoveryInput): SharedDiscov
   const curatedSections = buildCuratedDiscoverySections(songs, undefined, preferenceMaps);
   const moodRooms = buildMoodRooms(songs, preferenceMaps, MAX_MOOD_ROOMS);
   const genreSpotlights = buildGenreSpotlights(songs, preferenceMaps, MAX_GENRE_SPOTLIGHTS);
+  const launchWorlds = buildLaunchWorldSpotlights(songs, 10);
+  const genreHubs = buildGenreHubRows(songs, 8);
+  const moodCollections = buildMoodCollectionRows(songs, 6);
 
   return {
     preferenceMaps,
@@ -165,6 +176,9 @@ function buildSharedDiscoverySnapshot(input: SharedDiscoveryInput): SharedDiscov
     curatedSections,
     moodRooms,
     genreSpotlights,
+    launchWorlds,
+    genreHubs,
+    moodCollections,
   };
 }
 

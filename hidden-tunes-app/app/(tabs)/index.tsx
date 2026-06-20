@@ -21,7 +21,7 @@ import {
   HomeCatalogSongRow,
   HomeFeaturedCard,
 } from "../../components/catalog/HomePlaybackRows";
-import { SubtleTvEntryLink } from "../../components/EmotionalDiscoveryChips";
+import { EmotionalDiscoveryChips, SubtleTvEntryLink } from "../../components/EmotionalDiscoveryChips";
 import MoodRoomCard from "../../components/explore/MoodRoomCard";
 import NeonEQ from "../../components/NeonEQ";
 import HTImage from "../../components/HTImage";
@@ -1426,6 +1426,9 @@ function HomeScreen() {
             </View>
           );
 
+        case "emotional-worlds-chips":
+          return <EmotionalDiscoveryChips style={styles.emotionalWorldsChips} />;
+
         case "mood-rooms-header":
           return (
             <View style={styles.sectionRow}>
@@ -2418,6 +2421,10 @@ const styles = StyleSheet.create({
     marginTop: 36,
     marginBottom: 14,
     letterSpacing: -0.2,
+  },
+
+  emotionalWorldsChips: {
+    marginTop: 28,
   },
 
   moodRail: {

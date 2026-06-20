@@ -27,7 +27,7 @@ import {
   shouldShowCatalogEmpty,
 } from "../../utils/catalogEmptyStateTiming";
 import HTImage from "../HTImage";
-import { SubtleTvEntryLink } from "../EmotionalDiscoveryChips";
+import { SubtleTvEntryLink, EmotionalDiscoveryChips } from "../EmotionalDiscoveryChips";
 
 export type ExploreMountStage = 0 | 1 | 2 | 3 | 4;
 
@@ -45,6 +45,27 @@ type GenreWorld = {
   subtitle: string;
   songs: HiddenTunesNormalizedSong[];
   artwork: string[];
+  worldId?: string;
+  gradient?: readonly [string, string, ...string[]];
+};
+
+type GenreHubItem = {
+  id: string;
+  title: string;
+  subtitle: string;
+  genreTitle: string;
+  songs: HiddenTunesNormalizedSong[];
+  artwork: string[];
+};
+
+type MoodCollectionItem = {
+  id: string;
+  title: string;
+  subtitle: string;
+  worldId: string;
+  songs: HiddenTunesNormalizedSong[];
+  artwork: string[];
+  gradient: readonly [string, string, ...string[]];
 };
 
 type GenreItem = {
@@ -73,6 +94,9 @@ export type ExploreListHeaderProps = {
   continueSongs: HiddenTunesNormalizedSong[];
   recentlyAdded: HiddenTunesNormalizedSong[];
   curatedSections: SmartDiscoverySection<HiddenTunesNormalizedSong>[];
+  launchWorlds: GenreWorld[];
+  genreHubs: GenreHubItem[];
+  moodCollections: MoodCollectionItem[];
   genreWorlds: GenreWorld[];
   showHeavySections: boolean;
   playlists: any[];
@@ -93,6 +117,7 @@ export type ExploreListHeaderProps = {
   onStartDiscovery: () => void;
   openGenre: (genre: GenreItem) => void;
   openMood: (title: string) => void;
+  onOpenLaunchWorld: (worldId: string) => void;
   renderMoodRoom: ListRenderItem<MoodRoomItem>;
   renderSmartPick: ListRenderItem<HiddenTunesNormalizedSong>;
   renderRecentSong: ListRenderItem<HiddenTunesNormalizedSong>;
@@ -474,6 +499,174 @@ export const ExploreCuratedSections = memo(function ExploreCuratedSections({
   );
 });
 
+export const ExploreLaunchWorldsGrid = memo(function ExploreLaunchWorldsGrid({
+  launchWorlds,
+  onOpenLaunchWorld,
+}: {
+  launchWorlds: GenreWorld[];
+  onOpenLaunchWorld: (worldId: string) => void;
+}) {
+  return (
+    <>
+      <Text style={styles.sectionTitleBlock}>Emotional Worlds</Text>
+      {launchWorlds.length > 0 ? (
+        <View style={styles.genreGrid}>
+          {launchWorlds.map((world, index) => {
+            const primaryArtwork = world.artwork[0] || "";
+            const worldId = world.worldId || world.id.replace(/^world-/, "");
+
+            return (
+              <TouchableOpacity
+                key={world.id}
+                activeOpacity={0.86}
+                style={[
+                  styles.genreWorldCard,
+                  index % 2 === 1 && styles.genreWorldCardAlt,
+                ]}
+                onPress={() => onOpenLaunchWorld(worldId)}
+              >
+                <View style={styles.genreWorldGlow} />
+                <View style={styles.genreAccentLine} />
+                <View style={styles.genreArtworkStack}>
+                  {primaryArtwork ? (
+                    <HTImage uri={primaryArtwork} style={styles.genreArtwork} />
+                  ) : (
+                    <LinearGradient
+                      colors={world.gradient || GRADIENTS.card}
+                      style={[styles.genreArtwork, styles.genreArtworkFallback]}
+                    >
+                      <Ionicons name="sparkles" size={28} color={COLORS.textMuted} />
+                    </LinearGradient>
+                  )}
+                </View>
+                <View style={styles.genreWorldTop}>
+                  <View style={styles.genreIndexBadge}>
+                    <Text style={styles.genreIndexText}>
+                      {String(index + 1).padStart(2, "0")}
+                    </Text>
+                  </View>
+                  <View style={styles.genreVibePill}>
+                    <Text numberOfLines={1} style={styles.genreVibeText}>
+                      {world.songs.length} songs
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.genreWorldContent}>
+                  <Text numberOfLines={1} style={styles.genreTitle}>
+                    {world.title}
+                  </Text>
+                  <Text numberOfLines={2} style={styles.genreWorldSubtitle}>
+                    {world.subtitle}
+                  </Text>
+                </View>
+                <View style={styles.genreCtaRow}>
+                  <Ionicons name="arrow-forward" size={16} color={COLORS.primary} />
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      ) : (
+        <View style={styles.sectionEmpty}>
+          <Text style={styles.sectionEmptyText}>
+            Emotional worlds are loading from your Hidden Tunes catalog.
+          </Text>
+        </View>
+      )}
+    </>
+  );
+});
+
+export const ExploreGenreHubRow = memo(function ExploreGenreHubRow({
+  genreHubs,
+  openGenre,
+}: {
+  genreHubs: GenreHubItem[];
+  openGenre: (genre: GenreItem) => void;
+}) {
+  if (!genreHubs.length) return null;
+
+  return (
+    <View style={styles.genreHubSection}>
+      <Text style={styles.sectionTitleBlock}>Genre Hubs</Text>
+      <View style={styles.genreHubChipWrap}>
+        {genreHubs.map((hub) => (
+          <TouchableOpacity
+            key={hub.id}
+            activeOpacity={0.86}
+            style={styles.genreHubChip}
+            onPress={() =>
+              openGenre({
+                id: hub.genreTitle,
+                title: hub.genreTitle,
+                query: hub.genreTitle,
+              })
+            }
+          >
+            <Text style={styles.genreHubChipText}>{hub.title}</Text>
+            <Text style={styles.genreHubChipMeta}>{hub.songs.length}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </View>
+  );
+});
+
+export const ExploreMoodCollectionsRail = memo(function ExploreMoodCollectionsRail({
+  moodCollections,
+  onOpenLaunchWorld,
+}: {
+  moodCollections: MoodCollectionItem[];
+  onOpenLaunchWorld: (worldId: string) => void;
+}) {
+  if (!moodCollections.length) return null;
+
+  return (
+    <View style={styles.moodRailSection}>
+      <Text style={styles.sectionTitleBlock}>Mood Collections</Text>
+      <FlatList
+        horizontal
+        data={moodCollections}
+        keyExtractor={(item) => item.id}
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.moodRail}
+        initialNumToRender={4}
+        maxToRenderPerBatch={4}
+        windowSize={5}
+        updateCellsBatchingPeriod={50}
+        removeClippedSubviews
+        renderItem={({ item }) => (
+          <TouchableOpacity
+            activeOpacity={0.88}
+            style={styles.moodCollectionCard}
+            onPress={() => onOpenLaunchWorld(item.worldId)}
+          >
+            {item.artwork[0] ? (
+              <HTImage uri={item.artwork[0]} style={styles.moodCollectionArt} />
+            ) : (
+              <LinearGradient
+                colors={item.gradient}
+                style={styles.moodCollectionArt}
+              >
+                <Ionicons name="musical-notes" size={22} color={COLORS.textMuted} />
+              </LinearGradient>
+            )}
+            <View style={styles.moodCollectionCopy}>
+              <Text numberOfLines={1} style={styles.moodCollectionTitle}>
+                {item.title}
+              </Text>
+              <Text numberOfLines={2} style={styles.moodCollectionSubtitle}>
+                {item.subtitle}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        )}
+      />
+    </View>
+  );
+});
+
+/** @deprecated Use ExploreLaunchWorldsGrid */
 export const ExploreGenreGrid = memo(function ExploreGenreGrid({
   genreWorlds,
   openGenre,
@@ -704,10 +897,13 @@ const ExploreListHeader = memo(function ExploreListHeader(
       ) : null}
 
       {stageVisible(props.mountStage, 2) ? (
-        <ExploreContinueListening
-          cloudSongs={props.cloudSongs}
-          playSong={props.playSong}
-        />
+        <>
+          <EmotionalDiscoveryChips style={styles.emotionalWorldsChips} />
+          <ExploreContinueListening
+            cloudSongs={props.cloudSongs}
+            playSong={props.playSong}
+          />
+        </>
       ) : null}
 
       {stageVisible(props.mountStage, 1) ? (
@@ -743,7 +939,17 @@ const ExploreListHeader = memo(function ExploreListHeader(
       ) : null}
 
       {stageVisible(props.mountStage, 3) ? (
-        <ExploreGenreGrid genreWorlds={props.genreWorlds} openGenre={props.openGenre} />
+        <>
+          <ExploreMoodCollectionsRail
+            moodCollections={props.moodCollections}
+            onOpenLaunchWorld={props.onOpenLaunchWorld}
+          />
+          <ExploreGenreHubRow genreHubs={props.genreHubs} openGenre={props.openGenre} />
+          <ExploreLaunchWorldsGrid
+            launchWorlds={props.launchWorlds}
+            onOpenLaunchWorld={props.onOpenLaunchWorld}
+          />
+        </>
       ) : null}
 
       {stageVisible(props.mountStage, 4) ? (
@@ -1070,6 +1276,79 @@ const styles = StyleSheet.create({
     fontSize: 25,
     fontWeight: "900",
     letterSpacing: -0.7,
+  },
+  genreWorldSubtitle: {
+    color: COLORS.textMuted,
+    fontSize: 11,
+    lineHeight: 15,
+    marginTop: 6,
+    fontWeight: "600",
+  },
+  emotionalWorldsChips: {
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  genreHubSection: {
+    marginBottom: 8,
+  },
+  genreHubChipWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    paddingHorizontal: 20,
+    marginBottom: 18,
+  },
+  genreHubChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,0.055)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.09)",
+  },
+  genreHubChipText: {
+    color: COLORS.text,
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  genreHubChipMeta: {
+    color: COLORS.primary,
+    fontSize: 11,
+    fontWeight: "800",
+  },
+  moodCollectionCard: {
+    width: 148,
+    borderRadius: 20,
+    overflow: "hidden",
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+  },
+  moodCollectionArt: {
+    width: "100%",
+    height: 108,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  moodCollectionCopy: {
+    paddingHorizontal: 10,
+    paddingTop: 8,
+    paddingBottom: 10,
+    gap: 2,
+  },
+  moodCollectionTitle: {
+    color: COLORS.text,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  moodCollectionSubtitle: {
+    color: COLORS.textMuted,
+    fontSize: 10,
+    lineHeight: 13,
+    fontWeight: "500",
   },
   genreCtaRow: { alignSelf: "flex-start", zIndex: 2 },
   skeletonPanel: {

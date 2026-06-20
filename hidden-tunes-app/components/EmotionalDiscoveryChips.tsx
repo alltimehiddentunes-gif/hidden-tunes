@@ -11,7 +11,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 
 import { COLORS } from "../constants/theme";
-import { openMoodCatalog } from "../utils/catalogNavigation";
+import {
+  openLaunchWorld,
+  scheduleLaunchWorldPrewarm,
+} from "../utils/catalogNavigation";
 import { EMOTIONAL_DISCOVERY_SHORTCUTS } from "../utils/emotionalDiscoveryShortcuts";
 
 type EmotionalDiscoveryChipsProps = {
@@ -21,8 +24,8 @@ type EmotionalDiscoveryChipsProps = {
 };
 
 export const EmotionalDiscoveryChips = memo(function EmotionalDiscoveryChips({
-  title = "Emotional Discovery",
-  subtitle = "Feel your way into the catalog",
+  title = "Emotional Worlds",
+  subtitle = "Hidden Tunes rooms shaped by mood and feeling",
   style,
 }: EmotionalDiscoveryChipsProps) {
   return (
@@ -41,7 +44,8 @@ export const EmotionalDiscoveryChips = memo(function EmotionalDiscoveryChips({
             accessibilityRole="button"
             accessibilityLabel={item.title}
             style={({ pressed }) => [styles.chip, pressed && styles.chipPressed]}
-            onPress={() => openMoodCatalog(item.title, item.query)}
+            onPressIn={() => scheduleLaunchWorldPrewarm(item.id)}
+            onPress={() => openLaunchWorld(item.id)}
           >
             <Ionicons name={item.icon} size={13} color={COLORS.primary} />
             <Text style={styles.chipText}>{item.title}</Text>

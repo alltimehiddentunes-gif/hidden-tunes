@@ -30,6 +30,7 @@ export type HomeFeedRow =
   | { key: string; kind: "curated-section"; section: SmartDiscoverySection<HiddenTunesNormalizedSong> }
   | { key: string; kind: "mood-rooms-header" }
   | { key: string; kind: "mood-rooms-rail" }
+  | { key: string; kind: "emotional-worlds-chips" }
   | { key: string; kind: "genre-spotlight-header" }
   | { key: string; kind: "catalog-header" }
   | { key: string; kind: "show-more" }
@@ -121,6 +122,8 @@ export function buildHomeFeedRows(input: BuildHomeFeedRowsInput): HomeFeedRow[] 
   }
 
   if (input.feedMountStage >= 2) {
+    rows.push({ key: "emotional-worlds-chips", kind: "emotional-worlds-chips" });
+
     if (input.rankedArtistsCount > 0) {
       rows.push({ key: "title-creators", kind: "section-title", title: "Creators In Your Orbit" });
       rows.push({ key: "rail-artists", kind: "artists-rail" });

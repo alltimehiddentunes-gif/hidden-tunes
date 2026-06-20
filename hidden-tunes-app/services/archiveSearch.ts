@@ -1,3 +1,5 @@
+import { fetchWithTimeout } from "../utils/fetchWithTimeout";
+
 export type ArchiveTrack = {
   id: string;
   title: string;
@@ -10,6 +12,10 @@ export type ArchiveTrack = {
 
 const SEARCH_URL = "https://archive.org/advancedsearch.php";
 const ARCHIVE_ENABLED = true;
+const ARCHIVE_SEARCH_TIMEOUT_MS = 8000;
+const ARCHIVE_METADATA_TIMEOUT_MS = 5000;
+const ARCHIVE_RESULT_ROWS = 8;
+const ARCHIVE_METADATA_CONCURRENCY = 3;
 
 function encodeArchiveFileUrl(identifier: string, fileName: string) {
   const safeFileName = fileName
@@ -22,7 +28,11 @@ function encodeArchiveFileUrl(identifier: string, fileName: string) {
 
 async function getPlayableAudioUrl(identifier: string) {
   try {
-    const response = await fetch(`https://archive.org/metadata/${identifier}`);
+    const response = await fetchWithTimeout(
+      `https://archive.org/metadata/${identifier}`,
+      undefined,
+      ARCHIVE_METADATA_TIMEOUT_MS
+    );
     const text = await response.text();
 
     if (!text.trim().startsWith("{")) {
@@ -54,6 +64,30 @@ async function getPlayableAudioUrl(identifier: string) {
   }
 }
 
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  mapper: (item: T) => Promise<R | null>
+) {
+  const results: R[] = [];
+  let cursor = 0;
+
+  async function worker() {
+    while (cursor < items.length) {
+      const index = cursor;
+      cursor += 1;
+      const value = await mapper(items[index]);
+      if (value) results.push(value);
+    }
+  }
+
+  await Promise.all(
+    Array.from({ length: Math.min(concurrency, items.length) }, () => worker())
+  );
+
+  return results;
+}
+
 export async function searchArchiveAudio(
   query: string
 ): Promise<ArchiveTrack[]> {
@@ -70,11 +104,15 @@ export async function searchArchiveAudio(
     params.append("fl[]", "identifier");
     params.append("fl[]", "title");
     params.append("fl[]", "creator");
-    params.append("rows", "12");
+    params.append("rows", String(ARCHIVE_RESULT_ROWS));
     params.append("page", "1");
     params.append("output", "json");
 
-    const response = await fetch(`${SEARCH_URL}?${params.toString()}`);
+    const response = await fetchWithTimeout(
+      `${SEARCH_URL}?${params.toString()}`,
+      undefined,
+      ARCHIVE_SEARCH_TIMEOUT_MS
+    );
     const text = await response.text();
 
     if (!text.trim().startsWith("{")) {
@@ -84,8 +122,10 @@ export async function searchArchiveAudio(
     const json = JSON.parse(text);
     const docs = json?.response?.docs || [];
 
-    const tracks = await Promise.all(
-      docs.map(async (item: any) => {
+    const tracks = await mapWithConcurrency(
+      docs,
+      ARCHIVE_METADATA_CONCURRENCY,
+      async (item: any) => {
         const identifier = String(item.identifier || "");
 
         if (!identifier) return null;
@@ -102,11 +142,11 @@ export async function searchArchiveAudio(
           streamUrl,
           sourceName: "Hidden Tunes",
           isOnline: true,
-        };
-      })
+        } as ArchiveTrack;
+      }
     );
 
-    return tracks.filter(Boolean) as ArchiveTrack[];
+    return tracks;
   } catch {
     return [];
   }

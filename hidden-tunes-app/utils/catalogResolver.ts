@@ -12,6 +12,11 @@ import {
   normalizeGenreName,
 } from "./genreNormalization";
 import { songMatchesMoodLabel } from "./moodRooms";
+import {
+  filterSongsForLaunchWorld,
+  getLaunchWorldById,
+  getLaunchWorldByTitle,
+} from "./launchEmotionalWorlds";
 
 export type CatalogResolverType =
   | "genre"
@@ -323,6 +328,13 @@ export function matchSongsForCatalogTarget<T extends CatalogSongLike>(
   songs: T[],
   target: CatalogTarget
 ): T[] {
+  const launchWorld =
+    getLaunchWorldById(target.id) || getLaunchWorldByTitle(target.title);
+
+  if (launchWorld) {
+    return filterSongsForLaunchWorld(songs, launchWorld);
+  }
+
   const seen = new Set<string>();
   const matches: T[] = [];
 

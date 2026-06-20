@@ -11,10 +11,18 @@ import {
   mergeCatalogSongLists,
   rankCatalogSongs,
 } from "../utils/catalogSongRanking";
+import { fetchWithTimeout } from "../utils/fetchWithTimeout";
+import {
+  brandUnifiedSearchTrack,
+  HIDDEN_TUNES_SEARCH_LABEL,
+} from "./unifiedSearchResults";
 
-export const HIDDEN_TUNES_SEARCH_LABEL = "Hidden Tunes";
+export { HIDDEN_TUNES_SEARCH_LABEL };
 export const WATERFALL_MIN_SONGS = 2;
 export const LOCAL_CATALOG_MERGE_LIMIT = 160;
+const AUDIUS_SEARCH_TIMEOUT_MS = 7000;
+const ARCHIVE_SEARCH_TIMEOUT_MS = 9000;
+const HIDDEN_TUNES_SEARCH_TIMEOUT_MS = 12000;
 
 function normalizeDedupeText(value: string) {
   return String(value || "")
@@ -65,11 +73,7 @@ export function dedupeWaterfallTracks(
 export type WaterfallSearchSource = "all" | "hidden" | "audius" | "archive";
 
 function brandTrack(item: Record<string, unknown>, internalSource: string) {
-  return {
-    ...item,
-    source: internalSource,
-    sourceName: HIDDEN_TUNES_SEARCH_LABEL,
-  };
+  return brandUnifiedSearchTrack(item, internalSource);
 }
 
 function countPlayableTracks(items: Record<string, unknown>[]) {
@@ -90,10 +94,12 @@ export async function fetchAudiusSearchTracks(
   if (!safeText) return [];
 
   try {
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `https://discoveryprovider.audius.co/v1/tracks/search?query=${encodeURIComponent(
         safeText
-      )}&limit=${Math.min(Math.max(limit, 1), 30)}`
+      )}&limit=${Math.min(Math.max(limit, 1), 30)}`,
+      undefined,
+      AUDIUS_SEARCH_TIMEOUT_MS
     );
 
     if (!response.ok) return [];
@@ -134,6 +140,28 @@ export async function fetchAudiusSearchTracks(
   }
 }
 
+async function fetchFallbackProviders(
+  query: string,
+  audiusLimit = 20
+): Promise<Record<string, unknown>[]> {
+  const [audiusResult, archiveResult] = await Promise.allSettled([
+    fetchAudiusSearchTracks(query, audiusLimit),
+    fetchArchiveSearchTracks(query),
+  ]);
+
+  const merged: Record<string, unknown>[] = [];
+
+  if (audiusResult.status === "fulfilled") {
+    merged.push(...audiusResult.value);
+  }
+
+  if (archiveResult.status === "fulfilled") {
+    merged.push(...archiveResult.value);
+  }
+
+  return merged;
+}
+
 export async function fetchArchiveSearchTracks(
   query: string
 ): Promise<Record<string, unknown>[]> {
@@ -167,27 +195,59 @@ export async function fetchHiddenTunesBackendTracks(query: string) {
     return { tracks: [] as Record<string, unknown>[], hasMore: false };
   }
 
-  const hiddenTunesPage = await searchHiddenTunesSongsPage(safeText, 1, 60);
-  const mergedHiddenCatalog = mergeCatalogSongLists(
-    hiddenTunesPage.songs,
-    getHiddenTunesCatalogSnapshot().slice(0, LOCAL_CATALOG_MERGE_LIMIT)
-  );
-  const rankedHidden = rankCatalogSongs(mergedHiddenCatalog, safeText, 60);
+  try {
+    const hiddenTunesPage = await Promise.race([
+      searchHiddenTunesSongsPage(safeText, 1, 60),
+      new Promise<never>((_, reject) => {
+        setTimeout(
+          () => reject(new Error("hidden_tunes_search_timeout")),
+          HIDDEN_TUNES_SEARCH_TIMEOUT_MS
+        );
+      }),
+    ]);
 
-  return {
-    tracks: rankedHidden.map((hit) =>
-      brandTrack(
-        {
-          ...hit.song,
-          type: "r2",
-          matchReason: hit.matchReason,
-        },
-        "hidden-tunes"
-      )
-    ),
-    hasMore: hiddenTunesPage.hasMore,
-    remoteSongs: hiddenTunesPage.songs || [],
-  };
+    const mergedHiddenCatalog = mergeCatalogSongLists(
+      hiddenTunesPage.songs,
+      getHiddenTunesCatalogSnapshot().slice(0, LOCAL_CATALOG_MERGE_LIMIT)
+    );
+    const rankedHidden = rankCatalogSongs(mergedHiddenCatalog, safeText, 60);
+
+    return {
+      tracks: rankedHidden.map((hit) =>
+        brandTrack(
+          {
+            ...hit.song,
+            type: "r2",
+            matchReason: hit.matchReason,
+          },
+          "hidden-tunes"
+        )
+      ),
+      hasMore: hiddenTunesPage.hasMore,
+      remoteSongs: hiddenTunesPage.songs || [],
+    };
+  } catch {
+    const localOnly = rankCatalogSongs(
+      getHiddenTunesCatalogSnapshot().slice(0, LOCAL_CATALOG_MERGE_LIMIT),
+      safeText,
+      60
+    );
+
+    return {
+      tracks: localOnly.map((hit) =>
+        brandTrack(
+          {
+            ...hit.song,
+            type: "r2",
+            matchReason: hit.matchReason,
+          },
+          "hidden-tunes"
+        )
+      ),
+      hasMore: false,
+      remoteSongs: [],
+    };
+  }
 }
 
 export async function runSearchWaterfall(
@@ -229,11 +289,7 @@ export async function runSearchWaterfall(
   }
 
   if (countPlayableTracks(finalResults) < WATERFALL_MIN_SONGS) {
-    finalResults.push(...(await fetchAudiusSearchTracks(safeText, 20)));
-  }
-
-  if (countPlayableTracks(finalResults) < WATERFALL_MIN_SONGS) {
-    finalResults.push(...(await fetchArchiveSearchTracks(safeText)));
+    finalResults.push(...(await fetchFallbackProviders(safeText, 20)));
   }
 
   return {

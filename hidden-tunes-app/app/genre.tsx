@@ -30,6 +30,7 @@ import {
   resolveCatalogEmptyState,
   type CatalogResolverType,
 } from "../utils/catalogResolver";
+import { getLaunchWorldEmptyCopy } from "../utils/launchEmotionalWorlds";
 import {
   shouldReplaceCatalogResults,
   shouldResetCatalogFallbackGate,
@@ -182,6 +183,11 @@ export default function GenreScreen() {
         resolvedCount: cloudTracks.length,
       }),
     [cloudTracks.length, hasCheckedFallbacks, loading, refreshing]
+  );
+
+  const launchWorldEmptyCopy = useMemo(
+    () => getLaunchWorldEmptyCopy(title),
+    [title]
   );
 
   const genreAudioPreloadTarget = useMemo(() => {
@@ -586,10 +592,8 @@ export default function GenreScreen() {
                   size={58}
                   color={COLORS.textMuted}
                 />
-                <Text style={styles.emptyTitle}>This room is still warming up</Text>
-                <Text style={styles.emptyText}>
-                  Pull refresh or try another mood — matching songs may still be loading in the background.
-                </Text>
+                <Text style={styles.emptyTitle}>{launchWorldEmptyCopy.emptyTitle}</Text>
+                <Text style={styles.emptyText}>{launchWorldEmptyCopy.emptyMessage}</Text>
               </View>
             ) : null
           }
