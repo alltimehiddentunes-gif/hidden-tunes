@@ -268,6 +268,65 @@ export async function saveTvHomeCache(payload: TvHomeCachePayload) {
   } catch {}
 }
 
+export const ARCHIVE_CONCERT_LANE_ID = "archive-concerts";
+export const ARCHIVE_CONCERT_LANE_TITLE = "Concert Vault";
+
+export type TvHomeLane = {
+  id: string;
+  title: string;
+  videos: HiddenTunesTvVideo[];
+};
+
+function dedupeTvVideos(videos: HiddenTunesTvVideo[]) {
+  const seen = new Set<string>();
+
+  return videos.filter((video) => {
+    const key = String(video.id || video.source_id || "").trim();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+export async function fetchArchiveConcertLane(options?: {
+  signal?: AbortSignal;
+  query?: string;
+}): Promise<TvHomeLane> {
+  const videos = await fetchArchiveConcertVideos({
+    query: options?.query,
+    signal: options?.signal,
+  });
+
+  return {
+    id: ARCHIVE_CONCERT_LANE_ID,
+    title: ARCHIVE_CONCERT_LANE_TITLE,
+    videos,
+  };
+}
+
+export async function fetchTvSearchVideos(
+  query: string,
+  options?: { signal?: AbortSignal; limit?: number }
+) {
+  const cleanQuery = String(query || "").trim();
+  if (cleanQuery.length < 2) return [] as HiddenTunesTvVideo[];
+
+  const limit = Math.max(1, Number(options?.limit || TV_LANE_PAGE_LIMIT * 2));
+
+  const [backendResponse, archiveVideos] = await Promise.all([
+    fetchTvCatalog({ q: cleanQuery, page: 1, limit }, { signal: options?.signal }),
+    fetchArchiveConcertVideos({
+      query: cleanQuery,
+      signal: options?.signal,
+      rows: limit,
+      useCache: false,
+    }),
+  ]);
+
+  const backendVideos = backendResponse.success ? backendResponse.videos : [];
+  return dedupeTvVideos([...backendVideos, ...archiveVideos]).slice(0, limit);
+}
+
 export async function fetchTvHomeLanes() {
   const laneResults = await Promise.all(
     TV_PREMIUM_LANES.map(async (lane) => {
@@ -280,33 +339,32 @@ export async function fetchTvHomeLanes() {
     })
   );
 
-  const archiveConcertVideos = await fetchArchiveConcertVideos();
-  const allLaneResults = archiveConcertVideos.length
-    ? [
-        ...laneResults,
-        {
-          id: "archive-concerts",
-          title: "Concert Vault",
-          videos: archiveConcertVideos,
-        },
-      ]
-    : laneResults;
-
   const payload: TvHomeCachePayload = {
     version: 1,
     savedAt: new Date().toISOString(),
-    lanes: allLaneResults,
+    lanes: laneResults,
   };
 
-  const hasAnyVideos = allLaneResults.some((lane) => lane.videos.length > 0);
+  const hasAnyVideos = laneResults.some((lane) => lane.videos.length > 0);
   if (hasAnyVideos) {
     await saveTvHomeCache(payload);
   }
 
   return {
-    lanes: allLaneResults,
+    lanes: laneResults,
     hasAnyVideos,
   };
+}
+
+export function mergeArchiveLaneIntoLanes(
+  lanes: TvHomeLane[],
+  archiveLane: TvHomeLane
+) {
+  if (!archiveLane.videos.length) {
+    return lanes.filter((lane) => lane.id !== ARCHIVE_CONCERT_LANE_ID);
+  }
+
+  return [...lanes.filter((lane) => lane.id !== ARCHIVE_CONCERT_LANE_ID), archiveLane];
 }
 
 export function buildTvPlayerQueueItem(video: HiddenTunesTvVideo) {

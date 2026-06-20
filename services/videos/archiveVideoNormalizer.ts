@@ -1,5 +1,6 @@
 import type { HiddenTunesTvVideo } from "../tvCatalogApi";
 import type { ArchiveVideoApiDocument } from "./archiveVideoApi";
+import { isVideoItemPlayableInCurrentRoute, normalizeVideoItem } from "./videoNormalizer";
 
 function cleanText(value: unknown, maxLength = 500) {
   if (typeof value !== "string") return "";
@@ -56,5 +57,8 @@ export function archiveVideoDocumentsToTvVideos(
 ): HiddenTunesTvVideo[] {
   return docs
     .map((item) => archiveVideoDocumentToTvVideo(item))
-    .filter((item): item is HiddenTunesTvVideo => item !== null);
+    .filter((item): item is HiddenTunesTvVideo => {
+      if (!item) return false;
+      return isVideoItemPlayableInCurrentRoute(normalizeVideoItem(item));
+    });
 }

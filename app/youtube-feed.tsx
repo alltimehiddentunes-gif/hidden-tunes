@@ -16,19 +16,20 @@ import AppShell from "../components/navigation/AppShell";
 import TvVideoCard from "../components/tv/TvVideoCard";
 import { COLORS, GRADIENTS } from "@/constants/theme";
 import {
-  fetchTvCatalog,
+  ARCHIVE_CONCERT_LANE_ID,
+  fetchArchiveConcertLane,
   fetchTvHomeLanes,
+  fetchTvSearchVideos,
   loadTvHomeCache,
+  mergeArchiveLaneIntoLanes,
+  saveTvHomeCache,
   TV_LANE_PAGE_LIMIT,
   type HiddenTunesTvVideo,
+  type TvHomeLane,
 } from "@/services/tvCatalogApi";
 import { openVideoItem } from "@/services/videos/openVideoItem";
 
-type TvLane = {
-  id: string;
-  title: string;
-  videos: HiddenTunesTvVideo[];
-};
+type TvLane = TvHomeLane;
 
 function displayLaneTitle(title: string) {
   if (title === "Documentary Nights") return "Documentary";
@@ -42,6 +43,7 @@ export default function YouTubeFeedScreen() {
   const [query, setQuery] = useState("");
   const [searching, setSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<HiddenTunesTvVideo[]>([]);
+  const [archiveLaneLoading, setArchiveLaneLoading] = useState(false);
   const { width } = useWindowDimensions();
   const railCardWidth = Math.min(260, Math.max(178, width * 0.58));
   const featuredWidth = Math.max(300, width - 36);
@@ -56,9 +58,35 @@ export default function YouTubeFeedScreen() {
     setLoading(true);
     try {
       const cached = await loadTvHomeCache();
+      const cachedHasArchiveLane = cached?.lanes?.some(
+        (lane) => lane.id === ARCHIVE_CONCERT_LANE_ID && lane.videos.length > 0
+      );
       if (cached?.lanes?.length) setLanes(cached.lanes);
+
       const data = await fetchTvHomeLanes();
       if (data.lanes.length) setLanes(data.lanes);
+
+      if (!cachedHasArchiveLane) {
+        setArchiveLaneLoading(true);
+      }
+
+      void fetchArchiveConcertLane()
+        .then((archiveLane) => {
+          setLanes((previous) => {
+            const next = mergeArchiveLaneIntoLanes(previous, archiveLane);
+            if (next.some((lane) => lane.videos.length > 0)) {
+              void saveTvHomeCache({
+                version: 1,
+                savedAt: new Date().toISOString(),
+                lanes: next,
+              });
+            }
+            return next;
+          });
+        })
+        .finally(() => {
+          setArchiveLaneLoading(false);
+        });
     } catch {
       setLanes([]);
     } finally {
@@ -79,17 +107,25 @@ export default function YouTubeFeedScreen() {
     }
 
     let cancelled = false;
+    const controller = new AbortController();
     const timer = setTimeout(async () => {
       setSearching(true);
-      const response = await fetchTvCatalog({ q: clean, page: 1, limit: TV_LANE_PAGE_LIMIT * 2 });
-      if (!cancelled) {
-        setSearchResults(response.success ? response.videos : []);
-        setSearching(false);
+      try {
+        const videos = await fetchTvSearchVideos(clean, {
+          signal: controller.signal,
+          limit: TV_LANE_PAGE_LIMIT * 2,
+        });
+        if (!cancelled) setSearchResults(videos);
+      } catch {
+        if (!cancelled) setSearchResults([]);
+      } finally {
+        if (!cancelled) setSearching(false);
       }
     }, 320);
 
     return () => {
       cancelled = true;
+      controller.abort();
       clearTimeout(timer);
     };
   }, [query]);
@@ -170,6 +206,7 @@ export default function YouTubeFeedScreen() {
                 <View style={styles.emptyBox}>
                   <Ionicons name="search" size={42} color={COLORS.textMuted} />
                   <Text style={styles.emptyTitle}>No TV matches</Text>
+                  <Text style={styles.emptyText}>Try another artist, genre, or concert title.</Text>
                 </View>
               ) : null}
             </View>
@@ -183,6 +220,12 @@ export default function YouTubeFeedScreen() {
               ) : null}
               {recentlyAddedLane ? renderLane(recentlyAddedLane) : null}
               {channelLanes.map(renderLane)}
+              {archiveLaneLoading ? (
+                <View style={styles.centerBlock}>
+                  <ActivityIndicator size="small" color={COLORS.primary} />
+                  <Text style={styles.loadingText}>Loading concert vault</Text>
+                </View>
+              ) : null}
             </>
           ) : (
             <View style={styles.emptyBox}>

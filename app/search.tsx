@@ -45,7 +45,7 @@ import {
   freeMusicResultToSong,
   searchFreeMusicProviders,
 } from "../services/freeMusicProviders";
-import { fetchTvCatalog, type HiddenTunesTvVideo } from "../services/tvCatalogApi";
+import { fetchTvSearchVideos, type HiddenTunesTvVideo } from "../services/tvCatalogApi";
 import { openVideoItem } from "../services/videos/openVideoItem";
 import { getVideoDisplayCategory, getVideoDisplayCreator, normalizeVideoItem } from "../services/videos/videoNormalizer";
 import type { InstantSearchCatalog } from "../services/instantCatalogSearch";
@@ -656,13 +656,10 @@ export default function SearchScreen() {
     setTvSearchQuery(query);
     setTvSearchCompletedQuery("");
 
-    void fetchTvCatalog(
-      { q: query, page: 1, limit: SEARCH_TV_LIMIT },
-      { signal: controller.signal }
-    )
-      .then((response) => {
+    void fetchTvSearchVideos(query, { signal: controller.signal, limit: SEARCH_TV_LIMIT })
+      .then((videos) => {
         if (tvSearchRequestIdRef.current !== requestId) return;
-        setTvSearchVideos(response.success ? response.videos : []);
+        setTvSearchVideos(videos);
       })
       .catch((error) => {
         if (tvSearchRequestIdRef.current !== requestId) return;
