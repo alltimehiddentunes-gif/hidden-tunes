@@ -173,7 +173,8 @@ function buildCatalogUrl(query: TvCatalogQuery = {}) {
 }
 
 export async function fetchTvCatalog(
-  query: TvCatalogQuery = {}
+  query: TvCatalogQuery = {},
+  options?: { signal?: AbortSignal }
 ): Promise<TvCatalogResponse> {
   const url = buildCatalogUrl(query);
 
@@ -184,6 +185,7 @@ export async function fetchTvCatalog(
         Accept: "application/json",
       },
       cache: "no-store",
+      signal: options?.signal,
     });
 
     const payload = (await response.json()) as Record<string, unknown>;

@@ -7,6 +7,10 @@ import {
   useSyncExternalStore,
 } from "react";
 
+import {
+  buildPlayerFeedSnapshot,
+  setPlayerFeedSnapshot,
+} from "../utils/playerFeedStore";
 import { trackPlaybackSubscriberRender } from "../utils/playbackRenderDiagnostics";
 import {
   getNowPlayingSnapshot,
@@ -138,6 +142,30 @@ export function NowPlayingStoreSync() {
   useEffect(() => {
     setNowPlayingSnapshot({ currentSongId, isPlaying });
   }, [currentSongId, isPlaying]);
+
+  return null;
+}
+
+export function PlayerFeedStoreSync() {
+  const state = useContext(PlayerStateContext);
+
+  useEffect(() => {
+    if (!state) return;
+
+    setPlayerFeedSnapshot(
+      buildPlayerFeedSnapshot({
+        recentlyPlayed: state.recentlyPlayed,
+        favorites: state.favorites,
+        activeQueue: state.activeQueue,
+        currentSong: state.currentSong,
+      })
+    );
+  }, [
+    state?.recentlyPlayed,
+    state?.favorites,
+    state?.activeQueue,
+    state?.currentSong,
+  ]);
 
   return null;
 }

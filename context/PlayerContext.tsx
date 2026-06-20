@@ -178,6 +178,7 @@ import {
 } from "../utils/emotionalQueueTrackBridge";
 import {
   NowPlayingStoreSync,
+  PlayerFeedStoreSync,
   PlayerActionsContext,
   PlayerProgressContext,
   PlayerStateContext,
@@ -7973,6 +7974,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       <PlayerStateContext.Provider value={stateValue}>
         <PlayerProgressContext.Provider value={progressValue}>
           <NowPlayingStoreSync />
+          <PlayerFeedStoreSync />
           {children}
         </PlayerProgressContext.Provider>
       </PlayerStateContext.Provider>

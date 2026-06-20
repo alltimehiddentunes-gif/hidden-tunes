@@ -30,9 +30,10 @@ import Animated, {
 
 import AppShell from "@/components/navigation/AppShell";
 import { EmotionalDiscoveryChips } from "@/components/EmotionalDiscoveryChips";
+import { HomeHeroCard, type HomeHeroCardData } from "@/components/home/HomeHeroCard";
+import { usePlayerFeedSnapshot } from "@/utils/playerFeedStore";
 import HTImage from "@/components/HTImage";
 import LiveWaveform from "@/components/LiveWaveform";
-import NeonEQ from "@/components/NeonEQ";
 import UnifiedMediaCard from "@/components/UnifiedMediaCard";
 import { HomeCatalogSongRow, HomeFeaturedCard } from "@/components/catalog/HomePlaybackRows";
 import {
@@ -46,8 +47,6 @@ import {
 } from "@/constants/theme";
 import {
   usePlayerActions,
-  usePlayerNowPlaying,
-  usePlayerState,
 } from "@/context/PlayerContext";
 import type { PlaybackQueueContext } from "@/context/PlayerContext";
 import {
@@ -127,15 +126,6 @@ function buildSongListSignature(songs: Array<{ id?: unknown; artist?: unknown }>
     middle?.id || middle?.artist || "",
     last?.id || last?.artist || "",
   ].join(":");
-}
-
-function buildArtistSignature(items: Array<{ artist?: unknown }>) {
-  if (!items.length) return "empty";
-  return Array.from(
-    new Set(items.map((item) => String(item?.artist || "").toLowerCase()).filter(Boolean))
-  )
-    .sort()
-    .join("|");
 }
 
 function buildMatchedGroup(
@@ -411,25 +401,12 @@ const PremiumHeroPressable = memo(function PremiumHeroPressable({
   );
 });
 
-type HeroCard = {
-  key: string;
-  label: string;
-  title: string;
-  subtitle: string;
-  song: HiddenTunesNormalizedSong;
-  icon: keyof typeof Ionicons.glyphMap;
-  isCurrent?: boolean;
-};
-
-function findSongIndex(songs: HiddenTunesSong[], song: { id?: string }) {
-  const id = String(song?.id || "");
-  return songs.findIndex((candidate) => String(candidate.id) === id);
-}
+type HeroCard = HomeHeroCardData;
 
 function buildHeroCards(
   songs: HiddenTunesSong[],
   featuredSongs: HiddenTunesSong[],
-  currentSong: { id?: string; title?: string; artist?: string; user?: { name?: string } } | null,
+  currentSong: { id?: string; title?: string; artist?: string } | null,
   recentlyPlayed: Array<{ id?: string; title?: string; artist?: string }>
 ): HeroCard[] {
   const cards: HeroCard[] = [];
@@ -449,7 +426,6 @@ function buildHeroCards(
       title: currentSong.title || match.title || "Now playing",
       subtitle:
         currentSong.artist ||
-        currentSong.user?.name ||
         match.artist ||
         "Hidden Tunes",
       song: match as unknown as HiddenTunesNormalizedSong,
@@ -515,10 +491,14 @@ function buildHeroCards(
   }).slice(0, 6);
 }
 
+function findSongIndex(songs: HiddenTunesSong[], song: { id?: string }) {
+  const id = String(song?.id || "");
+  return songs.findIndex((candidate) => String(candidate.id) === id);
+}
+
 export default function MusicFeedScreen() {
   const { playSong } = usePlayerActions();
-  const { currentSong, isPlaying } = usePlayerNowPlaying();
-  const { recentlyPlayed, favorites, activeQueue } = usePlayerState();
+  const playerFeed = usePlayerFeedSnapshot();
 
   const [catalog, setCatalog] = useState<HiddenTunesDerivedCatalog | null>(null);
   const [loading, setLoading] = useState(true);
@@ -593,18 +573,9 @@ export default function MusicFeedScreen() {
   }, []);
 
   const songsSignature = useMemo(() => buildSongListSignature(songs), [songs]);
-  const recentArtistSignature = useMemo(
-    () => buildArtistSignature(Array.isArray(recentlyPlayed) ? recentlyPlayed : []),
-    [recentlyPlayed]
-  );
-  const favoriteArtistSignature = useMemo(
-    () => buildArtistSignature(Array.isArray(favorites) ? favorites : []),
-    [favorites]
-  );
-  const activeQueueSignature = useMemo(
-    () => buildSongListSignature(Array.isArray(activeQueue) ? (activeQueue as HiddenTunesSong[]) : []),
-    [activeQueue]
-  );
+  const recentArtistSignature = playerFeed.recentArtistSignature;
+  const favoriteArtistSignature = playerFeed.favoriteArtistSignature;
+  const activeQueueSignature = playerFeed.activeQueueSignature;
 
   const visiblePlaylists = useMemo(() => playlists.slice(0, 6), [playlists]);
   const featuredSongs = useMemo(() => songs.slice(0, 8), [songs]);
@@ -657,9 +628,11 @@ export default function MusicFeedScreen() {
 
   const smartQueueSongs = useMemo(() => {
     if (!showDeferredHomeSections) return [];
-    const queueSongs = Array.isArray(activeQueue) ? (activeQueue as HiddenTunesSong[]) : [];
+    const queueSongs = Array.isArray(playerFeed.activeQueue)
+      ? (playerFeed.activeQueue as HiddenTunesSong[])
+      : [];
     return uniqSongs((queueSongs.length ? queueSongs : songs.slice(12, 30)).filter(Boolean)).slice(0, 12);
-  }, [activeQueueSignature, showDeferredHomeSections, songsSignature]);
+  }, [activeQueueSignature, playerFeed.activeQueue, showDeferredHomeSections, songsSignature]);
 
   useEffect(() => {
     return () => {
@@ -706,10 +679,10 @@ export default function MusicFeedScreen() {
       buildHeroCards(
         songs,
         featuredSongs,
-        currentSong,
-        Array.isArray(recentlyPlayed) ? recentlyPlayed : []
+        playerFeed.currentSongMeta,
+        playerFeed.recentHead
       ),
-    [currentSong, featuredSongs, recentlyPlayed, songs]
+    [featuredSongs, playerFeed.currentSongMeta, playerFeed.recentHead, songs]
   );
 
   useEffect(() => {
@@ -817,14 +790,18 @@ export default function MusicFeedScreen() {
 
   const handleHeroPress = useCallback(
     (card: HeroCard) => {
-      if (card.isCurrent) {
+      const isCurrent =
+        card.isCurrent ||
+        String(playerFeed.currentSongMeta?.id || "") === String(card.song?.id || "");
+
+      if (isCurrent) {
         router.push("/player" as any);
         return;
       }
 
       playCatalogSong(card.song);
     },
-    [playCatalogSong]
+    [playCatalogSong, playerFeed.currentSongMeta?.id]
   );
 
   const handleHeroMomentumEnd = useCallback(
@@ -841,96 +818,21 @@ export default function MusicFeedScreen() {
   );
 
   const renderHeroCard = useCallback(
-    ({ item, index }: { item: HeroCard; index: number }) => {
-      const isPlayingCard =
-        Boolean(currentSong) &&
-        String(item.song?.id || "") === String(currentSong?.id || "");
-
-      return (
-        <View style={[styles.heroSlide, { width: heroCardWidth }]}>
-          <LinearGradient colors={GRADIENTS.neon} style={styles.heroBorder}>
-            <PremiumHeroPressable
-              height={heroCardHeight}
-              isActive={isPlayingCard || index === heroIndexRef.current}
-              onPress={() => handleHeroPress(item)}
-            >
-              <View style={styles.heroInner}>
-                <View style={styles.heroArtworkPanel}>
-                  <PremiumLuxuryPulse style={styles.heroArtworkAura} />
-                  <HTImage
-                    source={item.song}
-                    style={styles.heroArtworkImage}
-                    contentFit="cover"
-                    contentPosition="center"
-                  />
-                  <LinearGradient
-                    pointerEvents="none"
-                    colors={["transparent", "rgba(0,0,0,0.18)", "rgba(0,0,0,0.55)"]}
-                    style={styles.heroArtworkFade}
-                  />
-                </View>
-
-                <LinearGradient
-                  pointerEvents="none"
-                  colors={["transparent", "rgba(0,0,0,0.35)", "rgba(0,0,0,0.88)"]}
-                  style={styles.heroTextScrim}
-                />
-
-                <View style={styles.heroTextBlock}>
-                  <View style={styles.livePill}>
-                    {isPlayingCard ? (
-                      <NeonEQ isPlaying={isPlaying} size="small" />
-                    ) : (
-                      <Ionicons name={item.icon} size={12} color={COLORS.primary} />
-                    )}
-                    <Text style={styles.liveText}>
-                      {isPlayingCard ? "Now Playing" : item.label}
-                    </Text>
-                  </View>
-
-                  <Text
-                    numberOfLines={2}
-                    ellipsizeMode="tail"
-                    style={styles.heroSong}
-                  >
-                    {item.title}
-                  </Text>
-                  <Text
-                    numberOfLines={1}
-                    ellipsizeMode="tail"
-                    style={styles.heroArtist}
-                  >
-                    {item.subtitle}
-                  </Text>
-
-                  <View style={styles.heroBottomRow}>
-                    <View style={styles.heroPlayButton}>
-                      <Ionicons
-                        name={isPlayingCard && isPlaying ? "pause" : "play"}
-                        size={16}
-                        color="#000"
-                      />
-                      <Text style={styles.heroPlayText}>
-                        {isPlayingCard ? "OPEN PLAYER" : "PLAY"}
-                      </Text>
-                    </View>
-
-                    {heroCards.length > 1 ? (
-                      <View style={styles.heroCountPill}>
-                        <Text style={styles.heroCountText}>
-                          {index + 1}/{heroCards.length}
-                        </Text>
-                      </View>
-                    ) : null}
-                  </View>
-                </View>
-              </View>
-            </PremiumHeroPressable>
-          </LinearGradient>
-        </View>
-      );
-    },
-    [currentSong?.id, handleHeroPress, heroCardHeight, heroCardWidth, heroCards.length, isPlaying]
+    ({ item, index }: { item: HeroCard; index: number }) => (
+      <HomeHeroCard
+        item={item}
+        index={index}
+        heroCardWidth={heroCardWidth}
+        heroCardHeight={heroCardHeight}
+        totalCards={heroCards.length}
+        activeSlideIndex={heroIndexRef.current}
+        onPress={handleHeroPress}
+        HeroPressable={PremiumHeroPressable}
+        LuxuryPulse={PremiumLuxuryPulse}
+        styles={styles}
+      />
+    ),
+    [handleHeroPress, heroCardHeight, heroCardWidth, heroCards.length]
   );
 
   const keyExtractor = useCallback(

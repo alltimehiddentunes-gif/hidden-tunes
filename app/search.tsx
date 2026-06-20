@@ -18,13 +18,12 @@ import { router, useLocalSearchParams } from "expo-router";
 
 import AppShell from "../components/navigation/AppShell";
 import HTImage from "../components/HTImage";
-import NeonEQ from "../components/NeonEQ";
 import DebouncedSearchInput from "../components/search/DebouncedSearchInput";
+import { SearchApkSongRow } from "../components/search/SearchApkSongRow";
+import { usePlayerFeedSnapshot } from "../utils/playerFeedStore";
 import { COLORS, GRADIENTS } from "../constants/theme";
 import {
   usePlayerActions,
-  usePlayerNowPlaying,
-  usePlayerState,
 } from "../context/PlayerContext";
 import {
   fetchHiddenTunesCatalog,
@@ -89,6 +88,7 @@ const SEARCH_LOCAL_CACHE_LIMIT = 24;
 const SEARCH_EXTERNAL_CACHE_LIMIT = 16;
 const SEARCH_EXTERNAL_AUDIO_LIMIT = 16;
 const SEARCH_PROVIDER_QUERY_LIMIT = 8;
+const SEARCH_EXTERNAL_DEBOUNCE_MS = 320;
 const SEARCH_TV_LIMIT = 8;
 
 const TRENDING_SEARCHES = [
@@ -257,8 +257,7 @@ function withInheritedSearchArtwork<
 export default function SearchScreen() {
   const params = useLocalSearchParams<{ q?: string }>();
   const { playSong } = usePlayerActions();
-  const { currentSong, isPlaying } = usePlayerNowPlaying();
-  const { recentlyPlayed, favorites } = usePlayerState();
+  const playerFeed = usePlayerFeedSnapshot();
 
   const [catalog, setCatalog] = useState<HiddenTunesDerivedCatalog | null>(null);
   const [loading, setLoading] = useState(true);
@@ -573,22 +572,29 @@ export default function SearchScreen() {
 
     setExternalSearchSongs([]);
 
-    void searchFreeMusicProviders(query, { limit: SEARCH_PROVIDER_QUERY_LIMIT })
-      .then((response) => {
-        if (externalSearchRequestIdRef.current !== requestId) return;
-        const providerSongs = dedupeSongs(response.results.map(freeMusicResultToSong)).slice(0, SEARCH_EXTERNAL_AUDIO_LIMIT);
-        setBoundedCache(externalSearchCacheRef.current, normalizedSearchQuery, providerSongs, SEARCH_EXTERNAL_CACHE_LIMIT);
-        setExternalSearchSongs(providerSongs);
-      })
-      .catch((error) => {
-        if (externalSearchRequestIdRef.current !== requestId) return;
-        console.log("Search external provider error:", error);
-        setExternalSearchSongs([]);
-      })
-      .finally(() => {
-        if (externalSearchRequestIdRef.current !== requestId) return;
-        setExternalSearchCompletedQuery(query);
-      });
+    const timer = setTimeout(() => {
+      void searchFreeMusicProviders(query, { limit: SEARCH_PROVIDER_QUERY_LIMIT })
+        .then((response) => {
+          if (externalSearchRequestIdRef.current !== requestId) return;
+          const providerSongs = dedupeSongs(response.results.map(freeMusicResultToSong)).slice(0, SEARCH_EXTERNAL_AUDIO_LIMIT);
+          setBoundedCache(externalSearchCacheRef.current, normalizedSearchQuery, providerSongs, SEARCH_EXTERNAL_CACHE_LIMIT);
+          setExternalSearchSongs(providerSongs);
+        })
+        .catch((error) => {
+          if (externalSearchRequestIdRef.current !== requestId) return;
+          console.log("Search external provider error:", error);
+          setExternalSearchSongs([]);
+        })
+        .finally(() => {
+          if (externalSearchRequestIdRef.current !== requestId) return;
+          setExternalSearchCompletedQuery(query);
+        });
+    }, SEARCH_EXTERNAL_DEBOUNCE_MS);
+
+    return () => {
+      clearTimeout(timer);
+      externalSearchRequestIdRef.current += 1;
+    };
   }, [cleanSubmittedSearchQuery, normalizedSearchQuery, shouldRunExternalSearch]);
 
   const externalSearchResults = useMemo(() => {
@@ -635,18 +641,23 @@ export default function SearchScreen() {
 
     if (!shouldRunTvSearch) return;
 
+    const controller = new AbortController();
     const requestId = tvSearchRequestIdRef.current + 1;
     tvSearchRequestIdRef.current = requestId;
     setTvSearchQuery(query);
     setTvSearchCompletedQuery("");
 
-    void fetchTvCatalog({ q: query, page: 1, limit: SEARCH_TV_LIMIT })
+    void fetchTvCatalog(
+      { q: query, page: 1, limit: SEARCH_TV_LIMIT },
+      { signal: controller.signal }
+    )
       .then((response) => {
         if (tvSearchRequestIdRef.current !== requestId) return;
         setTvSearchVideos(response.success ? response.videos : []);
       })
       .catch((error) => {
         if (tvSearchRequestIdRef.current !== requestId) return;
+        if (error instanceof Error && error.name === "AbortError") return;
         console.log("Search TV fallback error:", error);
         setTvSearchVideos([]);
       })
@@ -654,6 +665,10 @@ export default function SearchScreen() {
         if (tvSearchRequestIdRef.current !== requestId) return;
         setTvSearchCompletedQuery(query);
       });
+
+    return () => {
+      controller.abort();
+    };
   }, [cleanSubmittedSearchQuery, shouldRunTvSearch]);
 
   const tvSearchResults = useMemo(() => {
@@ -925,13 +940,15 @@ export default function SearchScreen() {
   const discoveryAlbums = useMemo(() => albums.slice(0, 10), [albums]);
   const discoveryGenres = useMemo(() => genres.slice(0, 8), [genres]);
   const discoverySongs = useMemo(() => {
+    const recentlyPlayed = Array.isArray(playerFeed.recentlyPlayed)
+      ? playerFeed.recentlyPlayed
+      : [];
+    const favorites = Array.isArray(playerFeed.favorites) ? playerFeed.favorites : [];
     const recentIds = new Set(
-      (Array.isArray(recentlyPlayed) ? recentlyPlayed : [])
-        .map((entry) => String(entry?.id || ""))
-        .filter(Boolean)
+      recentlyPlayed.map((entry) => String((entry as { id?: string })?.id || "")).filter(Boolean)
     );
     const recentMatches = songs.filter((song) => recentIds.has(String(song.id)));
-    const favoriteMatches = (favorites || []).slice(0, 6) as HiddenTunesSong[];
+    const favoriteMatches = favorites.slice(0, 6) as HiddenTunesSong[];
     const merged = [...favoriteMatches, ...recentMatches, ...songs.slice(0, 12)];
     const seen = new Set<string>();
     return merged.filter((song) => {
@@ -940,7 +957,7 @@ export default function SearchScreen() {
       seen.add(id);
       return true;
     }).slice(0, 10);
-  }, [favorites, recentlyPlayed, songs]);
+  }, [playerFeed.favorites, playerFeed.recentlyPlayed, songs]);
 
   const playSearchResultSong = useCallback(
     (song: HiddenTunesSong, resultType: string = "song") => {
@@ -1572,33 +1589,14 @@ export default function SearchScreen() {
                 {apkSongResults.length > 0 ? (
                   <View style={styles.sectionBlock}>
                     <Text style={styles.sectionEyebrow}>SONGS</Text>
-                    {apkSongResults.slice(0, 18).map((song, index) => {
-                      const active = String(currentSong?.id || "") === String(song.id || "");
-                      return (
-                        <TouchableOpacity
-                          key={`song-${song.id}-${index}`}
-                          activeOpacity={0.86}
-                          style={[styles.songRow, active && styles.songRowActive]}
-                          onPress={() => playSearchResultSong(song, "song")}
-                        >
-                          <LinearGradient colors={active ? GRADIENTS.neon : GRADIENTS.card} style={styles.coverBorder}>
-                            <HTImage source={song} style={styles.cover} contentFit="cover" />
-                          </LinearGradient>
-                          <View style={styles.songCopy}>
-                            <Text numberOfLines={1} style={styles.songTitle}>{song.title}</Text>
-                            <Text numberOfLines={1} style={styles.songArtist}>{song.artist || "Hidden Tunes"}</Text>
-                            <Text numberOfLines={1} style={styles.songMeta}>{song.album || song.genre || song.mood || "Catalog result"}</Text>
-                          </View>
-                          {active && isPlaying ? (
-                            <NeonEQ isPlaying={isPlaying} size="small" />
-                          ) : (
-                            <View style={styles.playCircle}>
-                              <Ionicons name="play" size={16} color={COLORS.text} />
-                            </View>
-                          )}
-                        </TouchableOpacity>
-                      );
-                    })}
+                    {apkSongResults.slice(0, 18).map((song, index) => (
+                      <SearchApkSongRow
+                        key={`song-${song.id}-${index}`}
+                        song={song as unknown as HiddenTunesNormalizedSong}
+                        onPress={() => playSearchResultSong(song, "song")}
+                        styles={styles}
+                      />
+                    ))}
                   </View>
                 ) : null}
 
