@@ -312,7 +312,7 @@ function HomeScreen() {
   }, []);
 
   const scheduleHydrateCatalogFromStorage = useCallback(() => {
-    scheduleStartupTask("background", "home_catalog_storage_hydrate", async () => {
+    scheduleStartupTask("afterPaint", "home_catalog_storage_hydrate", async () => {
       try {
         const cached = await hydrateHiddenTunesCatalogCache();
 
@@ -458,7 +458,11 @@ function HomeScreen() {
           await runCatalogApiRefresh();
           shouldFinishLoadGate = true;
         } else {
-          scheduleStartupTask("background", "home_catalog_api_refresh", runCatalogApiRefresh);
+          scheduleStartupTask(
+            showedCachedCatalog ? "idle" : "background",
+            "home_catalog_api_refresh",
+            runCatalogApiRefresh
+          );
         }
       } catch {
         if (!featuredSongsCountRef.current) {
@@ -488,37 +492,44 @@ function HomeScreen() {
     if (initialHomeLoadRef.current) return;
     initialHomeLoadRef.current = true;
 
-    const interactionHandle = InteractionManager.runAfterInteractions(() => {
-      requestAnimationFrame(() => {
-        void loadFeaturedSongsRef.current(true);
+    const runInitialLoad = () => {
+      void loadFeaturedSongsRef.current(!hasInitialCachedCatalog);
 
-        if (!hasInitialCachedCatalog) {
-          Animated.parallel([
-            Animated.timing(fadeAnim, {
-              toValue: 1,
-              duration: 420,
-              useNativeDriver: true,
-            }),
-            Animated.timing(slideAnim, {
-              toValue: 0,
-              duration: 420,
-              useNativeDriver: true,
-            }),
-            Animated.spring(heroScale, {
-              toValue: 1,
-              friction: 9,
-              tension: 55,
-              useNativeDriver: true,
-            }),
-          ]).start();
-        }
-      });
-    });
-
-    return () => {
-      interactionHandle.cancel();
+      if (!hasInitialCachedCatalog) {
+        Animated.parallel([
+          Animated.timing(fadeAnim, {
+            toValue: 1,
+            duration: 420,
+            useNativeDriver: true,
+          }),
+          Animated.timing(slideAnim, {
+            toValue: 0,
+            duration: 420,
+            useNativeDriver: true,
+          }),
+          Animated.spring(heroScale, {
+            toValue: 1,
+            friction: 9,
+            tension: 55,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      }
     };
-  }, [fadeAnim, heroScale, slideAnim]);
+
+    if (hasInitialCachedCatalog) {
+      runInitialLoad();
+      return undefined;
+    }
+
+    const cancel = scheduleStartupTask(
+      "afterPaint",
+      "home_initial_catalog_load",
+      runInitialLoad
+    );
+
+    return cancel;
+  }, [fadeAnim, hasInitialCachedCatalog, heroScale, slideAnim]);
 
   useFocusEffect(
     useCallback(() => {

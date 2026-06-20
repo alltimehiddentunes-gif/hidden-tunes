@@ -5,7 +5,10 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import RemoteMediaControlsBridge from "../components/RemoteMediaControlsBridge";
 import { PlayerProvider } from "../context/PlayerContext";
+import { preloadOnboardingStatus } from "../services/onboardingPreferences";
+import { hydrateHiddenTunesCatalogCache } from "../services/hiddenTunesApi";
 import { markAppMounted } from "../utils/startupDiagnostics";
+import { scheduleStartupTask } from "../utils/startupScheduler";
 import { startRuntimeInstrumentation } from "../utils/runtimeInstrumentation";
 
 SplashScreen.preventAutoHideAsync().catch(() => {
@@ -27,6 +30,12 @@ function RootLayout() {
   useEffect(() => {
     markAppMounted("root_layout");
     startRuntimeInstrumentation();
+
+    void preloadOnboardingStatus();
+
+    scheduleStartupTask("afterPaint", "startup_catalog_memory_hydrate", async () => {
+      await hydrateHiddenTunesCatalogCache();
+    });
 
     const hideSplash = async () => {
       try {

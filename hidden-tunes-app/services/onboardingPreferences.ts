@@ -47,13 +47,39 @@ export async function getStoredUserRole() {
   return normalizeUserRole(storedRole);
 }
 
+let onboardingCompleteCache: boolean | null = null;
+let onboardingStatusPromise: Promise<boolean> | null = null;
+
+export function peekOnboardingComplete() {
+  return onboardingCompleteCache;
+}
+
+export function primeOnboardingCompleteCache(completed: boolean) {
+  onboardingCompleteCache = completed;
+}
+
+export function preloadOnboardingStatus() {
+  if (!onboardingStatusPromise) {
+    onboardingStatusPromise = hasCompletedOnboarding();
+  }
+
+  return onboardingStatusPromise;
+}
+
 export async function hasCompletedOnboarding() {
+  if (onboardingCompleteCache !== null) {
+    return onboardingCompleteCache;
+  }
+
   const [completed, legacyCompleted] = await AsyncStorage.multiGet([
     ONBOARDING_STORAGE_KEYS.completed,
     ONBOARDING_STORAGE_KEYS.legacyCompleted,
   ]);
 
-  return completed[1] === "true" || legacyCompleted[1] === "true";
+  onboardingCompleteCache =
+    completed[1] === "true" || legacyCompleted[1] === "true";
+
+  return onboardingCompleteCache;
 }
 
 export async function saveOnboardingPreferences(
@@ -74,4 +100,6 @@ export async function saveOnboardingPreferences(
     [ONBOARDING_STORAGE_KEYS.preferredEnergy, preferences.preferredEnergy],
     [ONBOARDING_STORAGE_KEYS.discoveryStyle, preferences.discoveryStyle],
   ]);
+
+  primeOnboardingCompleteCache(true);
 }

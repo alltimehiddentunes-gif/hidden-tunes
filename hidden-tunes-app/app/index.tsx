@@ -12,24 +12,37 @@ import { LinearGradient } from "expo-linear-gradient";
 
 import { APP_BRAND_NAME, TESTER_COPY } from "../constants/testerExperience";
 import { COLORS, GRADIENTS } from "../constants/theme";
-import { hasCompletedOnboarding } from "../services/onboardingPreferences";
+import {
+  peekOnboardingComplete,
+  preloadOnboardingStatus,
+} from "../services/onboardingPreferences";
 import { scheduleStartupTask } from "../utils/startupScheduler";
 
+function resolveInitialRoute() {
+  const cached = peekOnboardingComplete();
+
+  if (cached === true) return "/(tabs)";
+  if (cached === false) return "/onboarding";
+  return null;
+}
+
 export default function IndexScreen() {
-  const [target, setTarget] = useState<string | null>(null);
+  const [target, setTarget] = useState<string | null>(() => resolveInitialRoute());
 
   useEffect(() => {
-    const cancel = scheduleStartupTask("afterPaint", "onboarding_route_check", async () => {
-      try {
-        const completed = await hasCompletedOnboarding();
+    if (target) return undefined;
+
+    const cancel = scheduleStartupTask(
+      "critical",
+      "onboarding_route_check",
+      async () => {
+        const completed = await preloadOnboardingStatus();
         setTarget(completed ? "/(tabs)" : "/onboarding");
-      } catch {
-        setTarget("/onboarding");
       }
-    });
+    );
 
     return cancel;
-  }, []);
+  }, [target]);
 
   if (target) {
     return <Redirect href={target as any} />;
