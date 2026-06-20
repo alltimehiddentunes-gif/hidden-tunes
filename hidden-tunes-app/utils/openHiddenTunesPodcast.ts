@@ -8,7 +8,7 @@ import {
 import { HIDDEN_TUNES_PODCASTS_LABEL } from "./launchPodcastCategories";
 
 const HIDDEN_PROVIDER_PATTERN =
-  /\b(podcast index|spotify|apple podcasts|google podcasts|rss)\b/i;
+  /\b(podcast index|podcastindex|spotify|apple podcasts|google podcasts|anchor\.fm|buzzsprout|acast|libsyn|overcast|stitcher|iheart|rss feed|rss)\b/i;
 
 export function sanitizePodcastDiscoveryText(value?: string | null) {
   const text = String(value || "").trim();
@@ -70,9 +70,9 @@ export function openHiddenTunesPodcastEpisode(
 ) {
   Alert.alert(
     HIDDEN_TUNES_PODCASTS_LABEL,
-    `In-app podcast playback is coming soon. Episode listings for ${
-      podcastDiscoveryDisplayName(showTitle) || "this show"
-    } are ready now in Hidden Tunes Podcasts.`,
+    `In-app podcast playback is coming soon. Episode listings for ${podcastDiscoveryDisplayName(
+      showTitle
+    )} are ready now in Hidden Tunes Podcasts.`,
     [{ text: "OK", style: "default" }]
   );
 }

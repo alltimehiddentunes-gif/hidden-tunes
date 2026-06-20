@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -39,6 +39,7 @@ export default function PodcastDiscoveryHomeScreen() {
   const [searchResults, setSearchResults] = useState<HiddenTunesPodcastShow[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchChecked, setSearchChecked] = useState(false);
+  const searchRequestRef = useRef(0);
 
   const isSearching = searchQuery.trim().length > 0;
 
@@ -72,12 +73,15 @@ export default function PodcastDiscoveryHomeScreen() {
     }
 
     setSearchLoading(true);
+    const requestId = ++searchRequestRef.current;
     const timer = setTimeout(() => {
       void searchPodcastShows(clean)
         .then((shows) => {
+          if (requestId !== searchRequestRef.current) return;
           setSearchResults(shows);
         })
         .finally(() => {
+          if (requestId !== searchRequestRef.current) return;
           setSearchLoading(false);
           setSearchChecked(true);
         });
@@ -172,8 +176,8 @@ export default function PodcastDiscoveryHomeScreen() {
               searchChecked ? (
                 <View style={styles.emptyBox}>
                   <Ionicons name="mic-outline" size={48} color={COLORS.textMuted} />
-                  <Text style={styles.emptyTitle}>No shows matched</Text>
-                  <Text style={styles.emptyText}>{TESTER_COPY.podcastDiscoveryEmpty}</Text>
+                <Text style={styles.emptyTitle}>No Hidden Tunes shows matched</Text>
+                <Text style={styles.emptyText}>{TESTER_COPY.podcastDiscoveryEmpty}</Text>
                 </View>
               ) : null
             }

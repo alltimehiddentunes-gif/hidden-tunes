@@ -46,11 +46,17 @@ function dedupeShows(shows: HiddenTunesPodcastShow[]) {
 
 function dedupeEpisodes(episodes: HiddenTunesPodcastEpisode[]) {
   const seenIds = new Set<string>();
+  const seenAudio = new Set<string>();
   const deduped: HiddenTunesPodcastEpisode[] = [];
 
   for (const episode of episodes) {
     if (seenIds.has(episode.id)) continue;
+
+    const audioKey = String(episode.audio_url || "").trim().toLowerCase();
+    if (audioKey && seenAudio.has(audioKey)) continue;
+
     seenIds.add(episode.id);
+    if (audioKey) seenAudio.add(audioKey);
     deduped.push(episode);
   }
 
@@ -67,7 +73,7 @@ async function fetchShowsFromNetwork(categoryId: string) {
     limit: SHOW_PAGE_LIMIT,
   });
 
-  let shows = primary.success ? primary.shows : [];
+  let shows = dedupeShows(primary.success ? primary.shows : []);
 
   if (!shows.length && category.fallbackQuery) {
     const fallback = await fetchPodcastShows({
@@ -76,11 +82,11 @@ async function fetchShowsFromNetwork(categoryId: string) {
       limit: SHOW_PAGE_LIMIT,
     });
     if (fallback.success) {
-      shows = fallback.shows;
+      shows = dedupeShows(fallback.shows);
     }
   }
 
-  return dedupeShows(shows);
+  return shows;
 }
 
 async function fetchSearchShowsFromNetwork(query: string) {
