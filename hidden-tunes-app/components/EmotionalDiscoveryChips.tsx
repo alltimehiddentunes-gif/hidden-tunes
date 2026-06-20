@@ -64,12 +64,12 @@ export const SubtleTvEntryLink = memo(function SubtleTvEntryLink({
   return (
     <Pressable
       accessibilityRole="link"
-      accessibilityLabel="Open Hidden Tunes TV"
+      accessibilityLabel="Open Hidden Tunes Videos"
       style={({ pressed }) => [styles.tvLink, pressed && styles.tvLinkPressed, style]}
-      onPress={() => router.push("/tv" as any)}
+      onPress={() => router.push("/videos" as any)}
     >
-      <Ionicons name="tv-outline" size={14} color={COLORS.textMuted} />
-      <Text style={styles.tvLinkText}>Hidden Tunes TV</Text>
+      <Ionicons name="videocam-outline" size={14} color={COLORS.textMuted} />
+      <Text style={styles.tvLinkText}>Hidden Tunes Videos</Text>
       <Ionicons name="chevron-forward" size={14} color={COLORS.textMuted} />
     </Pressable>
   );

@@ -318,6 +318,13 @@ export default function ProfileScreen() {
           />
 
           <ProfileItem
+            icon="videocam-outline"
+            title="Hidden Tunes Videos"
+            subtitle="Browse video discovery rooms"
+            onPress={() => router.push("/videos" as never)}
+          />
+
+          <ProfileItem
             icon="radio"
             title="Personal Radio"
             subtitle="Song listening room"
