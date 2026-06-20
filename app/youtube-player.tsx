@@ -738,7 +738,7 @@ export default function YouTubePlayerScreen() {
             />
             <Text style={styles.noVideoText}>
               {unsupportedVideo
-                ? "This video source is not playable in Hidden Tunes yet. Try another from Hidden Tunes TV."
+                ? "This video is unavailable right now."
                 : "This video can't play inside Hidden Tunes. Try another from Hidden Tunes TV."}
             </Text>
           </View>
