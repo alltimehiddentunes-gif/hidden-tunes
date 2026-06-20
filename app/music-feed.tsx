@@ -29,7 +29,7 @@ import Animated, {
 } from "react-native-reanimated";
 
 import AppShell from "@/components/navigation/AppShell";
-import { SubtleTvEntryLink } from "@/components/EmotionalDiscoveryChips";
+import { EmotionalDiscoveryChips } from "@/components/EmotionalDiscoveryChips";
 import HTImage from "@/components/HTImage";
 import LiveWaveform from "@/components/LiveWaveform";
 import NeonEQ from "@/components/NeonEQ";
@@ -1102,6 +1102,8 @@ export default function MusicFeedScreen() {
 
                 {showDeferredHomeSections ? (
                 <>
+                    <EmotionalDiscoveryChips style={styles.emotionalWorldsSection} />
+
                     {moodRooms.length > 0 ? (
                       <View style={styles.cinematicSection}>
                         <Text style={styles.sectionEyebrow}>FOR YOUR MOOD</Text>
@@ -1744,6 +1746,10 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
     fontSize: 12,
     fontWeight: "700",
+  },
+  emotionalWorldsSection: {
+    marginTop: 28,
+    marginHorizontal: 0,
   },
   cinematicSection: {
     marginBottom: SPACING.section - 4,

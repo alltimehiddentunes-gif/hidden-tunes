@@ -21,8 +21,8 @@ type EmotionalDiscoveryChipsProps = {
 };
 
 export const EmotionalDiscoveryChips = memo(function EmotionalDiscoveryChips({
-  title = "Emotional Discovery",
-  subtitle = "Feel your way into the catalog",
+  title = "Emotional Worlds",
+  subtitle = "Hidden Tunes rooms shaped by mood and feeling",
   style,
 }: EmotionalDiscoveryChipsProps) {
   return (
@@ -33,6 +33,22 @@ export const EmotionalDiscoveryChips = memo(function EmotionalDiscoveryChips({
           {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
         </View>
       ) : null}
+
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Live Radio. Global stations for every mood"
+        style={({ pressed }) => [styles.liveRadioCard, pressed && styles.liveRadioCardPressed]}
+        onPress={() => router.push("/stations" as any)}
+      >
+        <View style={styles.liveRadioIcon}>
+          <Ionicons name="radio-outline" size={18} color={COLORS.cyan} />
+        </View>
+        <View style={styles.liveRadioCopy}>
+          <Text style={styles.liveRadioTitle}>Live Radio</Text>
+          <Text style={styles.liveRadioSubtitle}>Global stations for every mood</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
+      </Pressable>
 
       <View style={styles.chipWrap}>
         {EMOTIONAL_DISCOVERY_SHORTCUTS.map((item) => (
@@ -88,6 +104,46 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
     fontSize: 12,
     marginTop: 4,
+    fontWeight: "600",
+  },
+  liveRadioCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 12,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.055)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.09)",
+  },
+  liveRadioCardPressed: {
+    backgroundColor: "rgba(34,211,238,0.1)",
+    borderColor: "rgba(34,211,238,0.32)",
+  },
+  liveRadioIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(34,211,238,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(34,211,238,0.24)",
+  },
+  liveRadioCopy: {
+    flex: 1,
+    gap: 2,
+  },
+  liveRadioTitle: {
+    color: COLORS.text,
+    fontSize: 14,
+    fontWeight: "900",
+  },
+  liveRadioSubtitle: {
+    color: COLORS.textMuted,
+    fontSize: 11,
     fontWeight: "600",
   },
   chipWrap: {
