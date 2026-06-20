@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { getVideoDisplayCreator, normalizeVideoItem } from "./videos/videoNormalizer";
+import { fetchArchiveConcertVideos } from "./videos/archiveVideoDiscovery";
 
 export const TV_CATALOG_BASE_URL = "https://admin.hiddentunes.com";
 export const TV_CATALOG_API_PATH = "/api/tv/videos";
@@ -279,19 +280,31 @@ export async function fetchTvHomeLanes() {
     })
   );
 
+  const archiveConcertVideos = await fetchArchiveConcertVideos();
+  const allLaneResults = archiveConcertVideos.length
+    ? [
+        ...laneResults,
+        {
+          id: "archive-concerts",
+          title: "Concert Vault",
+          videos: archiveConcertVideos,
+        },
+      ]
+    : laneResults;
+
   const payload: TvHomeCachePayload = {
     version: 1,
     savedAt: new Date().toISOString(),
-    lanes: laneResults,
+    lanes: allLaneResults,
   };
 
-  const hasAnyVideos = laneResults.some((lane) => lane.videos.length > 0);
+  const hasAnyVideos = allLaneResults.some((lane) => lane.videos.length > 0);
   if (hasAnyVideos) {
     await saveTvHomeCache(payload);
   }
 
   return {
-    lanes: laneResults,
+    lanes: allLaneResults,
     hasAnyVideos,
   };
 }

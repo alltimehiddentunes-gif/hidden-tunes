@@ -157,5 +157,7 @@ export function getVideoDisplayCategory(video: VideoItem) {
 }
 
 export function isVideoItemPlayableInCurrentRoute(video: VideoItem) {
-  return video.videoSource === "youtube" && Boolean(video.externalVideoId);
+  if (video.videoSource === "youtube") return Boolean(video.externalVideoId);
+  if (video.videoSource === "archive") return Boolean(video.embedUrl);
+  return false;
 }

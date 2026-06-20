@@ -87,6 +87,9 @@ function isAllowedEmbedUrl(url: string) {
     clean.startsWith("about:blank") ||
     clean.includes("youtube.com/embed/") ||
     clean.includes("youtube-nocookie.com/embed/") ||
+    clean.includes("archive.org/embed/") ||
+    clean.includes("archive.org/download/") ||
+    clean.includes("archive.org/services/") ||
     clean.includes("googlevideo.com") ||
     clean.includes("gstatic.com") ||
     clean.includes("google.com") ||
@@ -94,6 +97,71 @@ function isAllowedEmbedUrl(url: string) {
     clean.startsWith(PRIMARY_EMBED_ORIGIN.toLowerCase()) ||
     clean.startsWith(FALLBACK_EMBED_ORIGIN.toLowerCase())
   );
+}
+
+function cleanRouteText(value: unknown) {
+  return String(value || "").trim();
+}
+
+function normalizeVideoSourceParam(value: unknown) {
+  const source = cleanRouteText(value).toLowerCase();
+  return source === "archive" ? "archive" : "youtube";
+}
+
+function isArchiveEmbedUrl(value: unknown) {
+  const raw = cleanRouteText(value);
+  if (!raw) return false;
+
+  try {
+    const url = new URL(raw);
+    return url.protocol === "https:" && url.hostname === "archive.org" && url.pathname.startsWith("/embed/");
+  } catch {
+    return false;
+  }
+}
+
+function buildArchiveEmbedPlayerHtml(embedUrl: string) {
+  return `<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
+    />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <style>
+      html, body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #000;
+      }
+      iframe {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        border: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <iframe
+      id="ht-archive-player"
+      src="${embedUrl}"
+      title="Hidden Tunes TV"
+      allow="autoplay; fullscreen; picture-in-picture"
+      allowfullscreen
+      webkitallowfullscreen="true"
+      mozallowfullscreen="true"
+      referrerpolicy="strict-origin-when-cross-origin"
+    ></iframe>
+  </body>
+</html>`;
 }
 
 function buildEmbedPlayerHtml(
@@ -185,26 +253,29 @@ function buildEmbedPlayerHtml(
 }
 
 function normalizeQueueItem(item: any): YouTubeQueueItem | null {
-  const videoId = sanitizeYouTubeVideoId(
-    item?.videoId || item?.externalVideoId || item?.source_id || item?.id
-  );
+  const videoSource = normalizeVideoSourceParam(item?.videoSource);
+  const embedUrl = typeof item?.embedUrl === "string" ? item.embedUrl : undefined;
+  const playbackUrl = typeof item?.playbackUrl === "string" ? item.playbackUrl : undefined;
+  const rawId = cleanRouteText(item?.videoId || item?.externalVideoId || item?.source_id || item?.id);
+  const videoId = videoSource === "archive" ? rawId : sanitizeYouTubeVideoId(rawId);
 
   if (!videoId) return null;
+  if (videoSource === "archive" && !isArchiveEmbedUrl(embedUrl)) return null;
 
-  const artist = String(item?.artist || item?.channelTitle || "YouTube");
+  const artist = String(item?.artist || item?.channelTitle || "Hidden Tunes TV");
   const thumbnail = String(item?.thumbnail || item?.cover || item?.artwork || "");
 
   return {
     id: videoId,
     videoId,
     externalVideoId: videoId,
-    videoSource: String(item?.videoSource || "youtube"),
-    title: String(item?.title || "YouTube Music"),
+    videoSource,
+    title: String(item?.title || "Hidden Tunes TV"),
     artist,
     channelTitle: String(item?.channelTitle || artist),
     thumbnail,
-    embedUrl: typeof item?.embedUrl === "string" ? item.embedUrl : undefined,
-    playbackUrl: typeof item?.playbackUrl === "string" ? item.playbackUrl : undefined,
+    embedUrl,
+    playbackUrl,
   };
 }
 
@@ -219,9 +290,12 @@ export default function YouTubePlayerScreen() {
   const errorSkipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const playbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const initialVideoId = sanitizeYouTubeVideoId(
-    params.videoId || params.externalVideoId || params.source_id || params.id
-  );
+  const initialVideoSource = normalizeVideoSourceParam(params.videoSource);
+  const initialRouteId = cleanRouteText(params.videoId || params.externalVideoId || params.source_id || params.id);
+  const initialVideoId =
+    initialVideoSource === "archive" ? initialRouteId : sanitizeYouTubeVideoId(initialRouteId);
+  const initialEmbedUrl = cleanRouteText(params.embedUrl);
+  const initialPlaybackUrl = cleanRouteText(params.playbackUrl);
   const unsupportedVideo = String(params.unsupportedVideo || "0") === "1";
   const initialTitle = String(params.title || "YouTube Music");
   const initialArtist = String(
@@ -243,6 +317,9 @@ export default function YouTubePlayerScreen() {
       id: initialVideoId,
       videoId: initialVideoId,
       source_id: initialVideoId,
+      videoSource: initialVideoSource,
+      embedUrl: initialEmbedUrl,
+      playbackUrl: initialPlaybackUrl,
       title: initialTitle,
       artist: initialArtist,
       channelTitle: initialArtist,
@@ -256,6 +333,9 @@ export default function YouTubePlayerScreen() {
     initialVideoId,
     initialTitle,
     initialArtist,
+    initialVideoSource,
+    initialEmbedUrl,
+    initialPlaybackUrl,
   ]);
 
   const startIndex = useMemo(() => {
@@ -282,6 +362,8 @@ export default function YouTubePlayerScreen() {
   const currentVideo = queue[currentIndex] || queue[0];
 
   const videoId = currentVideo?.videoId || initialVideoId;
+  const videoSource = currentVideo?.videoSource || initialVideoSource;
+  const currentEmbedUrl = currentVideo?.embedUrl || initialEmbedUrl;
   const title = currentVideo?.title || initialTitle;
   const artist =
     currentVideo?.artist ||
@@ -293,10 +375,13 @@ export default function YouTubePlayerScreen() {
 
   const playerReadyRef = useRef(false);
 
-  const embedHtml = useMemo(
-    () => (videoId ? buildEmbedPlayerHtml(videoId, embedPageOrigin, true) : ""),
-    [embedPageOrigin, videoId]
-  );
+  const embedHtml = useMemo(() => {
+    if (videoSource === "archive") {
+      return isArchiveEmbedUrl(currentEmbedUrl) ? buildArchiveEmbedPlayerHtml(currentEmbedUrl) : "";
+    }
+
+    return videoId ? buildEmbedPlayerHtml(videoId, embedPageOrigin, true) : "";
+  }, [currentEmbedUrl, embedPageOrigin, videoId, videoSource]);
 
   useEffect(() => {
     stopPlayback?.();
@@ -395,6 +480,11 @@ export default function YouTubePlayerScreen() {
   function togglePlayPause() {
     if (!playerReady) {
       setPlayerStatus("Almost ready. Try again in a moment.");
+      return;
+    }
+
+    if (videoSource === "archive") {
+      setPlayerStatus("Use the video controls in the player.");
       return;
     }
 
@@ -590,12 +680,12 @@ export default function YouTubePlayerScreen() {
         {videoId && embedHtml && !unsupportedVideo ? (
           <WebView
             ref={webViewRef}
-            key={`tv-embed-${videoId}-${embedPageOrigin}`}
+            key={`tv-embed-${videoSource}-${videoId}-${embedPageOrigin}`}
             source={{
               html: embedHtml,
-              baseUrl: embedPageOrigin,
+              baseUrl: videoSource === "archive" ? "https://archive.org" : embedPageOrigin,
               headers: {
-                Referer: `${embedPageOrigin}/`,
+                Referer: videoSource === "archive" ? "https://archive.org/" : `${embedPageOrigin}/`,
               },
             }}
             originWhitelist={["*"]}

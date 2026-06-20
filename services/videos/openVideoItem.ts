@@ -46,7 +46,8 @@ function buildRouteQueue(videos: HiddenTunesTvVideo[] | undefined) {
 export function openVideoItem(videoInput: HiddenTunesTvVideo | VideoItem, options: OpenVideoOptions = {}) {
   const video = toVideoItem(videoInput);
   const queue = buildRouteQueue(options.queueVideos);
-  const routeVideoId = video.videoSource === "youtube" ? video.externalVideoId || "" : "";
+  const routeVideoId =
+    video.videoSource === "youtube" ? video.externalVideoId || "" : video.externalVideoId || video.id;
   const startIndex =
     typeof options.startIndex === "number"
       ? options.startIndex
@@ -63,6 +64,8 @@ export function openVideoItem(videoInput: HiddenTunesTvVideo | VideoItem, option
       artist: getVideoDisplayCreator(video),
       channelTitle: getVideoDisplayCreator(video),
       thumbnail: video.thumbnailUrl || "",
+      embedUrl: video.embedUrl || "",
+      playbackUrl: video.playbackUrl || "",
       category: video.category || "",
       format: video.format || "",
       startIndex: String(startIndex),
