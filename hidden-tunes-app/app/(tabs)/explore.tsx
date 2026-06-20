@@ -24,6 +24,10 @@ import ExploreListHeader, {
 } from "../../components/explore/ExploreListHeader";
 import MoodRoomCard from "../../components/explore/MoodRoomCard";
 import { FALLBACK_ARTWORK, getArtworkUri } from "../../utils/artwork";
+import {
+  capScreenCatalogSongs,
+  MAX_SCREEN_CATALOG_SONGS,
+} from "../../utils/screenCatalogLimits";
 
 import {
   getHiddenTunesSecondaryCatalogSections,
@@ -282,6 +286,7 @@ export default memo(function ExploreScreen() {
   const [exploreMountStage, setExploreMountStage] = useState<ExploreMountStage>(0);
   const exploreStageScheduledRef = useRef(false);
   const exploreStageTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const screenMountedRef = useRef(true);
 
   const logExploreStageReady = useCallback((stage: ExploreMountStage) => {
     if (typeof __DEV__ === "undefined" || !__DEV__) return;
@@ -325,7 +330,9 @@ export default memo(function ExploreScreen() {
   }, [advanceExploreMountStage]);
 
   useEffect(() => {
+    screenMountedRef.current = true;
     return () => {
+      screenMountedRef.current = false;
       exploreStageTimersRef.current.forEach(clearTimeout);
       exploreStageTimersRef.current = [];
     };
@@ -351,22 +358,30 @@ export default memo(function ExploreScreen() {
       const sections = await getHiddenTunesSecondaryCatalogSections({
         forceRefresh,
       });
+      if (!screenMountedRef.current) return;
 
       setAlbums(sections.albums);
       setArtists(sections.artists);
       setPlaylists(sections.playlists.slice(0, 8));
     } catch (error) {
     } finally {
-      setShowHeavySections(true);
+      if (screenMountedRef.current) {
+        setShowHeavySections(true);
+      }
     }
   }, []);
 
-  const applyExploreSongs = useCallback((nextSongs: HiddenTunesNormalizedSong[]) => {
+  const applyExploreSongs = useCallback((nextSongsInput: HiddenTunesNormalizedSong[]) => {
+    const nextSongs = capScreenCatalogSongs(
+      dedupeSongs((nextSongsInput || []).map(safeSong))
+    );
     exploreSongCountRef.current = nextSongs.length;
     exploreHasSongsRef.current = nextSongs.length > 0;
     setCloudSongs(nextSongs);
     setSongPage(1);
-    setHasMoreSongs(nextSongs.length >= 24);
+    setHasMoreSongs(
+      nextSongs.length >= 24 && nextSongs.length < MAX_SCREEN_CATALOG_SONGS
+    );
     const sliceForDerivation = nextSongs.slice(0, DISCOVERY_COMPUTE_SONG_LIMIT);
     setAlbums(extractHiddenTunesAlbums(sliceForDerivation));
     setArtists(extractHiddenTunesArtists(sliceForDerivation));
@@ -398,6 +413,7 @@ export default memo(function ExploreScreen() {
             });
           } else {
             const cached = await hydrateHiddenTunesCatalogCache();
+            if (!screenMountedRef.current) return;
 
             if (cached.length) {
               applyExploreSongs(
@@ -437,6 +453,7 @@ export default memo(function ExploreScreen() {
           const songResults = forceRefresh
             ? await refreshHiddenTunesSongs()
             : await fetchCoordinatedCatalogFirstPage({ limit: 24 });
+          if (!screenMountedRef.current) return;
 
           const nextSongs = Array.isArray(songResults)
             ? dedupeSongs(songResults.map(safeSong))
@@ -547,17 +564,24 @@ export default memo(function ExploreScreen() {
         page: nextPage,
         limit: 30,
       });
-      const nextSongs = dedupeSongs([
-        ...cloudSongs,
-        ...(page.songs || []).map(safeSong),
-      ]);
+      const nextSongs = capScreenCatalogSongs(
+        dedupeSongs([
+          ...cloudSongs,
+          ...(page.songs || []).map(safeSong),
+        ])
+      );
+
+      if (!screenMountedRef.current) return;
 
       setCloudSongs(nextSongs);
       setSongPage(nextPage);
-      setHasMoreSongs(page.hasMore);
-      setAlbums(extractHiddenTunesAlbums(nextSongs));
+      setHasMoreSongs(
+        page.hasMore && nextSongs.length < MAX_SCREEN_CATALOG_SONGS
+      );
+      const sliceForDerivation = nextSongs.slice(0, DISCOVERY_COMPUTE_SONG_LIMIT);
+      setAlbums(extractHiddenTunesAlbums(sliceForDerivation));
       setArtists((current) => {
-        const derived = extractHiddenTunesArtists(nextSongs);
+        const derived = extractHiddenTunesArtists(sliceForDerivation);
         const seen = new Set<string>();
         return [...current, ...derived].filter((artist) => {
           const key = String(artist.id || artist.slug || artist.name).toLowerCase();

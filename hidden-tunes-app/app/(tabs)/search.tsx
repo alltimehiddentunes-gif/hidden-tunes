@@ -821,7 +821,6 @@ export default function SearchScreen() {
   const searchPlayTapRef = useRef(createTapGuardState());
   const inFlightSearchKeyRef = useRef<string | null>(null);
   const fuzzySearchGenerationRef = useRef(0);
-  const catalogSearchGenerationRef = useRef(0);
   const tvFetchGenerationRef = useRef(0);
   const tvFetchInFlightRef = useRef<string | null>(null);
   const fuzzySearchInFlightRef = useRef<string | null>(null);
@@ -835,6 +834,12 @@ export default function SearchScreen() {
   } | null>(null);
   const searchTimingRef = useRef({ query: "", startedAt: 0 });
   const searchFirstResultLoggedRef = useRef("");
+  const screenMountedRef = useRef(true);
+  const recentSearchesRef = useRef<string[]>([]);
+  const recentSearchPersistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
+  const fuzzyInteractionRef = useRef<{ cancel: () => void } | null>(null);
   const screenStartedAt = useRef(startPerformanceTimer()).current;
 
   const [query, setQuery] = useState("");
@@ -857,9 +862,6 @@ export default function SearchScreen() {
   const [cloudPlaylists, setCloudPlaylists] = useState<HiddenTunesCloudPlaylist[]>(
     []
   );
-  const [fullCatalogSongs, setFullCatalogSongs] = useState<
-    HiddenTunesNormalizedSong[]
-  >([]);
   const [tvSearchVideos, setTvSearchVideos] = useState<HiddenTunesTvVideo[]>([]);
   const [deferredFuzzySearch, setDeferredFuzzySearch] = useState<{
     query: string;
@@ -868,10 +870,23 @@ export default function SearchScreen() {
   const [remoteCatalogSongs, setRemoteCatalogSongs] = useState<
     HiddenTunesNormalizedSong[]
   >([]);
-  const [catalogSearchSource, setCatalogSearchSource] = useState({
-    name: "local_snapshot",
-    count: 0,
-  });
+
+  useEffect(() => {
+    recentSearchesRef.current = recentSearches;
+  }, [recentSearches]);
+
+  useEffect(() => {
+    screenMountedRef.current = true;
+    return () => {
+      screenMountedRef.current = false;
+      if (recentSearchPersistTimerRef.current) {
+        clearTimeout(recentSearchPersistTimerRef.current);
+        recentSearchPersistTimerRef.current = null;
+      }
+      fuzzyInteractionRef.current?.cancel();
+      fuzzyInteractionRef.current = null;
+    };
+  }, []);
 
   const matchedGenres = useMemo(() => {
     const safeQuery = query.trim().toLowerCase();
@@ -933,12 +948,8 @@ export default function SearchScreen() {
       return remoteCatalogSongs.slice(0, LOCAL_RANK_CATALOG_LIMIT);
     }
 
-    if (fullCatalogSongs.length > 0) {
-      return fullCatalogSongs.slice(0, INSTANT_CATALOG_SONG_LIMIT);
-    }
-
     return getHiddenTunesCatalogSnapshot().slice(0, INSTANT_CATALOG_SONG_LIMIT);
-  }, [fullCatalogSongs, remoteCatalogSongs]);
+  }, [remoteCatalogSongs]);
 
   const universalCatalog = useMemo(
     () => ({
@@ -1191,7 +1202,6 @@ export default function SearchScreen() {
   useEffect(() => {
     setDeferredFuzzySearch({ query: "", results: null });
     setRemoteCatalogSongs([]);
-    setCatalogSearchSource({ name: "local_snapshot", count: 0 });
   }, [trimmedQuery]);
 
   useEffect(() => {
@@ -1209,7 +1219,8 @@ export default function SearchScreen() {
 
       fuzzySearchInFlightRef.current = queryAtSchedule;
 
-      InteractionManager.runAfterInteractions(() => {
+      fuzzyInteractionRef.current?.cancel();
+      const interactionHandle = InteractionManager.runAfterInteractions(() => {
         if (generation !== fuzzySearchGenerationRef.current) return;
         if (queryAtSchedule !== activeSearchQuery) {
           fuzzySearchInFlightRef.current = null;
@@ -1223,26 +1234,26 @@ export default function SearchScreen() {
           fuzzySearchInFlightRef.current = null;
           return;
         }
+        if (!screenMountedRef.current) {
+          fuzzySearchInFlightRef.current = null;
+          return;
+        }
 
         fuzzySearchInFlightRef.current = null;
         setDeferredFuzzySearch({ query: queryAtSchedule, results });
       });
+      fuzzyInteractionRef.current = interactionHandle;
     }, FUZZY_SEARCH_DEBOUNCE_MS);
 
     return () => {
       clearTimeout(timer);
+      fuzzyInteractionRef.current?.cancel();
+      fuzzyInteractionRef.current = null;
       if (fuzzySearchInFlightRef.current === queryAtSchedule) {
         fuzzySearchInFlightRef.current = null;
       }
     };
   }, [activeSearchQuery, universalCatalog]);
-
-  useEffect(() => {
-    if (fullCatalogSongs.length > 0) {
-      invalidateCatalogSearchIndex();
-      catalogIndexRef.current = null;
-    }
-  }, [fullCatalogSongs]);
 
   // useScrollToTop(resultListRef);
 
@@ -1297,6 +1308,10 @@ export default function SearchScreen() {
 
       cloudDiscoveryLoadedRef.current = true;
       void loadCloudDiscovery(true);
+
+      return () => {
+        setDeferredFuzzySearch({ query: "", results: null });
+      };
     }, [])
   );
 
@@ -1351,17 +1366,34 @@ export default function SearchScreen() {
     }
   }
 
-  async function saveRecentSearch(text: string) {
+  function saveRecentSearch(text: string) {
     const clean = text.trim();
     if (!clean || clean.length < 2) return;
 
-    const next = [clean, ...recentSearches.filter((item) => item !== clean)].slice(
+    const next = [clean, ...recentSearchesRef.current.filter((item) => item !== clean)].slice(
       0,
       12
     );
 
+    const unchanged =
+      next.length === recentSearchesRef.current.length &&
+      next.every((value, index) => value === recentSearchesRef.current[index]);
+    if (unchanged) return;
+
+    recentSearchesRef.current = next;
     setRecentSearches(next);
-    await AsyncStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(next));
+
+    if (recentSearchPersistTimerRef.current) {
+      clearTimeout(recentSearchPersistTimerRef.current);
+    }
+
+    recentSearchPersistTimerRef.current = setTimeout(() => {
+      recentSearchPersistTimerRef.current = null;
+      void AsyncStorage.setItem(
+        SEARCH_HISTORY_KEY,
+        JSON.stringify(recentSearchesRef.current)
+      ).catch(() => {});
+    }, 1200);
   }
 
   async function saveTvDiscoveryQuery(text: string) {
@@ -1391,19 +1423,22 @@ export default function SearchScreen() {
     const refreshStart = startPerformanceTimer();
 
     try {
-      if (showLoader) setLoadingCloud(true);
+      if (showLoader && screenMountedRef.current) setLoadingCloud(true);
 
       const memorySnapshot = getHiddenTunesCatalogSnapshot();
       const cached = memorySnapshot.length
         ? memorySnapshot
         : await hydrateHiddenTunesCatalogCache();
+      if (!screenMountedRef.current) return;
+
+      const catalogSlice = cached.slice(0, INSTANT_CATALOG_SONG_LIMIT);
 
       if (cached.length) {
         invalidateCatalogSearchIndex();
-        setFullCatalogSongs(cached.slice(0, INSTANT_CATALOG_SONG_LIMIT));
+        catalogIndexRef.current = null;
         setCloudSongs(
           dedupeByKey(
-            cached.slice(0, 24).map((item: any) =>
+            catalogSlice.slice(0, 24).map((item: any) =>
               normalizeNativeResult({
                 ...item,
                 source: "hidden-tunes",
@@ -1413,9 +1448,9 @@ export default function SearchScreen() {
             )
           )
         );
-        setCloudAlbums(extractHiddenTunesAlbums(cached));
+        setCloudAlbums(extractHiddenTunesAlbums(catalogSlice));
         setCloudArtists(
-          extractHiddenTunesArtists(cached).slice(0, 12) as any
+          extractHiddenTunesArtists(catalogSlice).slice(0, 12) as any
         );
         setLoadingCloud(false);
         logCacheResult("search", true, { count: cached.length });
@@ -1434,9 +1469,12 @@ export default function SearchScreen() {
         });
 
         const cacheInfo = await getHiddenTunesCatalogCacheInfo();
+        if (!screenMountedRef.current) return;
+
         if (cacheInfo.isFresh) {
           void getHiddenTunesSecondaryCatalogSections({ forceRefresh: false }).then(
             (sections) => {
+              if (!screenMountedRef.current) return;
               setCloudAlbums(sections.albums || []);
               setCloudArtists(sections.artists || []);
               setCloudPlaylists(sections.playlists || []);
@@ -1452,13 +1490,7 @@ export default function SearchScreen() {
         limit: 24,
         forceRefresh: cached.length === 0,
       });
-
-      const catalogSnapshot = getHiddenTunesCatalogSnapshot();
-      if (catalogSnapshot.length) {
-        setFullCatalogSongs(catalogSnapshot.slice(0, INSTANT_CATALOG_SONG_LIMIT));
-      } else if (songs.length) {
-        setFullCatalogSongs(songs.slice(0, INSTANT_CATALOG_SONG_LIMIT));
-      }
+      if (!screenMountedRef.current) return;
 
       setCloudSongs(
         dedupeByKey(
@@ -1493,6 +1525,7 @@ export default function SearchScreen() {
 
       void getHiddenTunesSecondaryCatalogSections({ forceRefresh: false }).then(
         (sections) => {
+          if (!screenMountedRef.current) return;
           setCloudAlbums(sections.albums || []);
           setCloudArtists(sections.artists || []);
           setCloudPlaylists(sections.playlists || []);
@@ -1500,8 +1533,10 @@ export default function SearchScreen() {
       );
     } catch {
     } finally {
-      setLoadingCloud(false);
-      setRefreshing(false);
+      if (screenMountedRef.current) {
+        setLoadingCloud(false);
+        setRefreshing(false);
+      }
     }
   }
 
@@ -1614,7 +1649,7 @@ export default function SearchScreen() {
     inFlightSearchKeyRef.current = searchKey;
 
     try {
-      await saveRecentSearch(safeText);
+      saveRecentSearch(safeText);
 
       if (source === "youtube") {
         if (requestId !== searchRequestIdRef.current) return;
@@ -1645,10 +1680,6 @@ export default function SearchScreen() {
 
         if (waterfall.remoteCatalogSongs.length > 0) {
           setRemoteCatalogSongs(waterfall.remoteCatalogSongs);
-          setCatalogSearchSource({
-            name: "backend_api",
-            count: waterfall.remoteCatalogSongs.length,
-          });
         }
 
         const normalizedResults = orderFlatSearchResults(

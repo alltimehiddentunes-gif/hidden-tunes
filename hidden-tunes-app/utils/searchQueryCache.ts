@@ -4,6 +4,10 @@ const STORAGE_PREFIX = "hidden_tunes_search_results_v1";
 type SearchSource = "all" | "hidden" | "audius" | "archive" | "youtube" | string;
 const CACHE_TTL_MS = 30 * 60 * 1000;
 const MAX_MEMORY_ENTRIES = 24;
+const STORAGE_WRITE_DEBOUNCE_MS = 1500;
+
+const pendingStorageWrites = new Map<string, CachedSearchPayload>();
+const storageWriteTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 type CachedSearchPayload = {
   results: unknown[];
@@ -30,6 +34,28 @@ function trimMemoryCache() {
 
   const oldestKey = memoryCache.keys().next().value;
   if (oldestKey) memoryCache.delete(oldestKey);
+}
+
+function schedulePersistSearchCache(key: string, payload: CachedSearchPayload) {
+  pendingStorageWrites.set(key, payload);
+
+  const existing = storageWriteTimers.get(key);
+  if (existing) clearTimeout(existing);
+
+  storageWriteTimers.set(
+    key,
+    setTimeout(() => {
+      storageWriteTimers.delete(key);
+      const pending = pendingStorageWrites.get(key);
+      pendingStorageWrites.delete(key);
+      if (!pending) return;
+
+      void AsyncStorage.setItem(
+        `${STORAGE_PREFIX}:${key}`,
+        JSON.stringify(pending)
+      ).catch(() => {});
+    }, STORAGE_WRITE_DEBOUNCE_MS)
+  );
 }
 
 export async function getCachedSearchResults<T = unknown>(
@@ -73,10 +99,7 @@ export async function setCachedSearchResults<T = unknown>(
 
   memoryCache.set(key, payload);
   trimMemoryCache();
-
-  try {
-    await AsyncStorage.setItem(`${STORAGE_PREFIX}:${key}`, JSON.stringify(payload));
-  } catch {}
+  schedulePersistSearchCache(key, payload);
 }
 
 export function clearSearchQueryCache() {

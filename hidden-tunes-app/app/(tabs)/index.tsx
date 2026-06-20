@@ -43,6 +43,7 @@ import {
   type HiddenTunesNormalizedSong,
 } from "../../services/hiddenTunesApi";
 import { preloadImages } from "../../utils/imagePreloader";
+import { capScreenCatalogSongs, MAX_SCREEN_CATALOG_SONGS } from "../../utils/screenCatalogLimits";
 import {
   getSharedDiscoverySnapshot,
   MAX_DISCOVERY_INPUT_SONGS,
@@ -176,7 +177,7 @@ function HomeSkeletonCards() {
 function buildInitialHomeSongs() {
   const snapshot = getHiddenTunesCatalogSnapshot();
   if (!snapshot.length) return [] as HiddenTunesNormalizedSong[];
-  return dedupeSongs(snapshot.map(safeSong));
+  return capScreenCatalogSongs(dedupeSongs(snapshot.map(safeSong)));
 }
 
 function HomeScreen() {
@@ -200,6 +201,7 @@ function HomeScreen() {
   const homeFirstContentRecordedRef = useRef(
     initialFeaturedSongsRef.current.length > 0
   );
+  const screenMountedRef = useRef(true);
   const hasInitialCachedCatalog = initialFeaturedSongsRef.current.length > 0;
   const fadeAnim = useRef(
     new Animated.Value(hasInitialCachedCatalog ? 1 : 0)
@@ -284,18 +286,29 @@ function HomeScreen() {
     );
   }, [markHomeCachedContentReady]);
 
+  useEffect(() => {
+    screenMountedRef.current = true;
+    return () => {
+      screenMountedRef.current = false;
+    };
+  }, []);
+
   const defaultHeroTrack = featuredSongs[0];
 
   // useScrollToTop(scrollRef);
 
   const applyFeaturedSongs = useCallback((songs: HiddenTunesNormalizedSong[]) => {
-    const nextSongs = dedupeSongs((songs || []).map(safeSong));
+    const nextSongs = capScreenCatalogSongs(
+      dedupeSongs((songs || []).map(safeSong))
+    );
 
     featuredSongsCountRef.current = nextSongs.length;
     setFeaturedSongs(nextSongs);
     setVisibleSongCount(INITIAL_HOME_SONG_ROWS);
     setSongPage(1);
-    setHasMoreSongPages(nextSongs.length >= 20);
+    setHasMoreSongPages(
+      nextSongs.length >= 20 && nextSongs.length < MAX_SCREEN_CATALOG_SONGS
+    );
 
     const heroSong = nextSongs[0];
     if (heroSong?.artwork) {
@@ -322,6 +335,7 @@ function HomeScreen() {
     scheduleStartupTask("afterPaint", "home_catalog_storage_hydrate", async () => {
       try {
         const cached = await hydrateHiddenTunesCatalogCache();
+        if (!screenMountedRef.current) return;
 
         if (cached.length) {
           if (
@@ -403,6 +417,7 @@ function HomeScreen() {
           const songs = forceRefresh
             ? await refreshHiddenTunesSongs()
             : await fetchCoordinatedCatalogFirstPage();
+          if (!screenMountedRef.current) return;
 
           if (
             shouldReplaceCatalogResults(songs, featuredSongsCountRef.current, {
@@ -1064,17 +1079,23 @@ function HomeScreen() {
         page: nextPage,
         limit: 30,
       });
-      const nextSongs = dedupeSongs([
-        ...featuredSongs,
-        ...(page.songs || []).map(safeSong),
-      ]);
+      const nextSongs = capScreenCatalogSongs(
+        dedupeSongs([
+          ...featuredSongs,
+          ...(page.songs || []).map(safeSong),
+        ])
+      );
+
+      if (!screenMountedRef.current) return;
 
       setFeaturedSongs(nextSongs);
       setVisibleSongCount((current) =>
         Math.min(nextSongs.length, current + HOME_SONG_ROWS_INCREMENT)
       );
       setSongPage(nextPage);
-      setHasMoreSongPages(page.hasMore);
+      setHasMoreSongPages(
+        page.hasMore && nextSongs.length < MAX_SCREEN_CATALOG_SONGS
+      );
     } catch (error) {
     } finally {
       setLoadingMoreSongs(false);

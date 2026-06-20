@@ -73,6 +73,15 @@ export type CatalogViewResult = {
 
 const viewCache = new Map<string, CatalogViewCacheEntry>();
 const inflightLoads = new Map<string, Promise<CatalogViewResult>>();
+const MAX_VIEW_CACHE_ENTRIES = 28;
+
+function trimViewCache() {
+  while (viewCache.size > MAX_VIEW_CACHE_ENTRIES) {
+    const oldestKey = viewCache.keys().next().value;
+    if (!oldestKey) break;
+    viewCache.delete(oldestKey);
+  }
+}
 
 function dedupeCatalogSongs(songs: HiddenTunesNormalizedSong[]) {
   const seen = new Set<string>();
@@ -171,6 +180,7 @@ function writeUnifiedViewCache(
     cachedAt,
     source,
   });
+  trimViewCache();
 
   void writePersistedCatalogView({
     cacheKey: target.cacheKey,
