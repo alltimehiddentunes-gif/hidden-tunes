@@ -554,7 +554,7 @@ type CatalogSongRowPressHandler = (
 ) => void;
 
 /** Plain Pressable catalog row — no MediaCard (avoids nested touchable swallowing taps). */
-function SearchCatalogSongPressableRow({
+const SearchCatalogSongPressableRow = memo(function SearchCatalogSongPressableRow({
   song,
   index,
   subtitle,
@@ -578,7 +578,6 @@ function SearchCatalogSongPressableRow({
   const artistLine =
     subtitle ||
     `${String(getArtist(playable))} • ${playable.sourceName || "Hidden Tunes"}`;
-  const artworkUri = getCover(playable);
 
   return (
     <Pressable
@@ -600,7 +599,7 @@ function SearchCatalogSongPressableRow({
         ]}
       >
         <HTImage
-          source={artworkUri}
+          source={playable}
           style={styles.catalogSongArtwork}
           contentFit="cover"
         />
@@ -628,7 +627,7 @@ function SearchCatalogSongPressableRow({
       </LinearGradient>
     </Pressable>
   );
-}
+});
 
 function SearchGroupedMainSongRow({
   hit,
@@ -800,10 +799,6 @@ const SearchResultRow = memo(function SearchResultRow({
       </View>
     </View>
   );
-}, (prev, next) => {
-  const prevId = String((prev.item as any)?.id || "");
-  const nextId = String((next.item as any)?.id || "");
-  return prevId === nextId && prev.index === next.index;
 });
 
 function SearchSkeletonRows() {

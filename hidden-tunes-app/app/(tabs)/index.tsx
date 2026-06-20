@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Animated,
   Dimensions,
+  Image,
   FlatList,
   InteractionManager,
   RefreshControl,
@@ -27,7 +28,7 @@ import HTImage from "../../components/HTImage";
 import LiveWaveform from "../../components/LiveWaveform";
 
 import { TESTER_COPY } from "../../constants/testerExperience";
-import { COLORS, GRADIENTS } from "../../constants/theme";
+import { COLORS, GRADIENTS, HOME_HEADER, SHADOWS } from "../../constants/theme";
 import {
   usePlayerActions,
   usePlayerNowPlaying,
@@ -298,7 +299,7 @@ function HomeScreen() {
 
     const heroSong = nextSongs[0];
     if (heroSong?.artwork) {
-      scheduleStartupTask("background", "home_primary_artwork_prefetch", () =>
+      scheduleStartupTask("idle", "home_primary_artwork_prefetch", () =>
         preloadImages([heroSong.artwork, heroSong.cover].filter(Boolean))
       );
     }
@@ -1104,14 +1105,17 @@ function HomeScreen() {
               <HTImage source={item.song} style={styles.heroImage} />
 
               <LinearGradient
-                colors={["transparent", "rgba(0,0,0,0.98)"]}
-                style={styles.overlay}
-              >
+                colors={["transparent", "rgba(0,0,0,0.42)", "rgba(0,0,0,0.9)"]}
+                style={styles.heroScrim}
+                pointerEvents="none"
+              />
+
+              <View style={styles.heroFooter}>
                 <View style={styles.livePill}>
                   {isPlayingCard ? (
                     <NeonEQ isPlaying={isPlaying === true} size="small" />
                   ) : (
-                    <Ionicons name={item.icon} size={13} color={COLORS.primary} />
+                    <Ionicons name={item.icon} size={12} color={COLORS.primary} />
                   )}
 
                   <Text style={styles.liveText}>
@@ -1119,7 +1123,7 @@ function HomeScreen() {
                   </Text>
                 </View>
 
-                <Text numberOfLines={1} style={styles.heroSong}>
+                <Text numberOfLines={2} style={styles.heroSong}>
                   {item.title}
                 </Text>
 
@@ -1147,7 +1151,7 @@ function HomeScreen() {
                     </View>
                   )}
                 </View>
-              </LinearGradient>
+              </View>
             </TouchableOpacity>
           </LinearGradient>
         </View>
@@ -1193,6 +1197,11 @@ function HomeScreen() {
     [newestSongs.length]
   );
 
+  const moodRoomsListTuning = useMemo(
+    () => getHorizontalListPerformanceSettings(moodRooms.length),
+    [moodRooms.length]
+  );
+
   const renderFeaturedItem = useCallback(
     ({ item, index }: { item: HiddenTunesNormalizedSong; index: number }) => (
       <HomeFeaturedCard item={item} index={index} onPress={playFeaturedSong} />
@@ -1235,7 +1244,7 @@ function HomeScreen() {
                   }
                 >
                   <HTImage source={artist} style={styles.artistImage} />
-                  <Text numberOfLines={1} style={styles.artistName}>
+                  <Text numberOfLines={2} style={styles.artistName}>
                     {artist.name}
                   </Text>
                   <Text numberOfLines={1} style={styles.artistMeta}>
@@ -1272,7 +1281,7 @@ function HomeScreen() {
                   }
                 >
                   <HTImage source={album} style={styles.albumImage} />
-                  <Text numberOfLines={1} style={styles.artistName}>
+                  <Text numberOfLines={2} style={styles.artistName}>
                     {album.title}
                   </Text>
                   <Text numberOfLines={1} style={styles.artistMeta}>
@@ -1408,6 +1417,7 @@ function HomeScreen() {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.moodRail}
               nestedScrollEnabled
+              {...moodRoomsListTuning}
               renderItem={({ item: room }) => (
                 <MoodRoomCard
                   title={room.title}
@@ -1506,17 +1516,19 @@ function HomeScreen() {
     () => (
       <>
         <View style={styles.header}>
-          <View style={styles.logoBox}>
-            <View style={styles.logoGlow} />
-            <HTImage
-              source={FALLBACK_ARTWORK}
-              style={styles.logoImage}
-              contentFit="cover"
-            />
-          </View>
-
-          <View>
-            <Text style={styles.logoText}>Hidden Tunes</Text>
+          <View style={styles.brandRow}>
+            <View style={styles.logoMark}>
+              <Image
+                source={require("../../assets/images/logo.png")}
+                style={styles.logoImage}
+                resizeMode="contain"
+              />
+            </View>
+            <View style={styles.headerCopy}>
+              <Text numberOfLines={1} ellipsizeMode="tail" style={styles.brandTitle}>
+                Hidden Tunes
+              </Text>
+            </View>
           </View>
 
           <TouchableOpacity
@@ -1524,11 +1536,9 @@ function HomeScreen() {
             onPress={() => router.push("/search")}
             activeOpacity={0.85}
           >
-            <Ionicons name="search" size={22} color={COLORS.text} />
+            <Ionicons name="search" size={22} color={COLORS.cyan} />
           </TouchableOpacity>
         </View>
-
-        <Text style={styles.homeEyebrow}>For Your Mood</Text>
 
         <TouchableOpacity
           activeOpacity={0.9}
@@ -1851,92 +1861,74 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-    paddingTop: 52,
-    paddingHorizontal: 20,
+    justifyContent: "space-between",
+    paddingTop: HOME_HEADER.contentPaddingTop,
+    paddingBottom: 2,
+    paddingHorizontal: HOME_HEADER.contentPaddingHorizontal,
+    marginBottom: HOME_HEADER.rowMarginBottom,
   },
 
-  logoBox: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
-    borderWidth: 1,
-    borderColor: "rgba(168,85,247,0.5)",
+  brandRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+    gap: HOME_HEADER.brandGap,
+  },
+
+  headerCopy: {
+    flex: 1,
+    paddingRight: 8,
+    justifyContent: "center",
+  },
+
+  logoMark: {
+    width: HOME_HEADER.markWidth,
+    height: HOME_HEADER.markHeight,
+    borderRadius: HOME_HEADER.markRadius,
+    backgroundColor: "rgba(255,255,255,0.96)",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(168,85,247,0.1)",
-    shadowColor: COLORS.primary,
-    shadowOpacity: 0.22,
-    shadowRadius: 12,
-    shadowOffset: {
-      width: 0,
-      height: 0,
-    },
-    elevation: 5,
     overflow: "hidden",
-  },
-
-  logoGlow: {
-    position: "absolute",
-    width: 76,
-    height: 76,
-    borderRadius: 38,
-    backgroundColor: "rgba(168,85,247,0.16)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.22)",
+    ...SHADOWS.premium,
   },
 
   logoImage: {
-    width: 82,
-    height: 82,
-    borderRadius: 41,
+    width: HOME_HEADER.imageWidth,
+    height: HOME_HEADER.imageHeight,
   },
 
-  logoText: {
+  brandTitle: {
     color: COLORS.text,
-    fontSize: 23,
+    fontSize: HOME_HEADER.titleSize,
     fontWeight: "900",
-    marginLeft: 14,
-  },
-
-  logoSub: {
-    color: COLORS.textMuted,
-    fontSize: 12,
-    fontWeight: "800",
-    marginLeft: 14,
-    marginTop: 3,
+    letterSpacing: 0,
+    lineHeight: HOME_HEADER.titleLineHeight,
   },
 
   searchButton: {
-    marginLeft: "auto",
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+    width: HOME_HEADER.actionSize,
+    height: HOME_HEADER.actionSize,
+    borderRadius: HOME_HEADER.actionRadius,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.06)",
+    backgroundColor: "rgba(34,211,238,0.1)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-  },
-
-  homeEyebrow: {
-    color: COLORS.textMuted,
-    fontSize: 12,
-    fontWeight: "800",
-    paddingHorizontal: 20,
-    marginTop: 10,
-    letterSpacing: 1.4,
-    textTransform: "uppercase",
+    borderColor: "rgba(34,211,238,0.22)",
   },
 
   heroSubtitle: {
     color: COLORS.textMuted,
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 12,
+    lineHeight: 16,
     paddingHorizontal: 20,
-    marginTop: 8,
-    fontWeight: "700",
+    marginTop: 6,
+    fontWeight: "600",
   },
 
   searchBar: {
-    marginTop: 12,
+    marginTop: 10,
     marginHorizontal: 20,
     height: 54,
     borderRadius: 27,
@@ -1957,7 +1949,7 @@ const styles = StyleSheet.create({
   },
 
   heroOuter: {
-    marginTop: 24,
+    marginTop: 18,
     marginHorizontal: 20,
     position: "relative",
   },
@@ -1967,8 +1959,8 @@ const styles = StyleSheet.create({
     left: -5,
     right: -5,
     top: -5,
-    height: 328,
-    borderRadius: 39,
+    height: 278,
+    borderRadius: 35,
     backgroundColor: "transparent",
     borderWidth: 2,
     borderColor: "rgba(168,85,247,0.72)",
@@ -2007,14 +1999,14 @@ const styles = StyleSheet.create({
   },
 
   heroBorder: {
-    height: 318,
-    borderRadius: 34,
+    height: 268,
+    borderRadius: 30,
     padding: 2,
   },
 
   heroCard: {
     flex: 1,
-    borderRadius: 32,
+    borderRadius: 28,
     overflow: "hidden",
     backgroundColor: COLORS.card,
   },
@@ -2025,45 +2017,58 @@ const styles = StyleSheet.create({
     position: "absolute",
   },
 
-  overlay: {
-    flex: 1,
-    justifyContent: "flex-end",
-    padding: 24,
+  heroScrim: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: "46%",
+  },
+
+  heroFooter: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: 14,
+    paddingBottom: 14,
+    paddingTop: 10,
   },
 
   livePill: {
     alignSelf: "flex-start",
-    minHeight: 32,
-    borderRadius: 16,
-    paddingHorizontal: 12,
+    minHeight: 28,
+    borderRadius: 14,
+    paddingHorizontal: 10,
     backgroundColor: "rgba(0,0,0,0.58)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.12)",
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    marginBottom: 14,
+    gap: 6,
+    marginBottom: 8,
   },
 
   liveText: {
     color: COLORS.text,
-    fontSize: 10,
-    fontWeight: "900",
-    letterSpacing: 1,
+    fontSize: 9,
+    fontWeight: "800",
+    letterSpacing: 0.8,
   },
 
   heroSong: {
     color: COLORS.text,
-    fontSize: 30,
-    fontWeight: "900",
+    fontSize: 20,
+    lineHeight: 24,
+    fontWeight: "800",
   },
 
   heroArtist: {
     color: COLORS.textMuted,
-    marginTop: 6,
-    marginBottom: 18,
-    fontSize: 14,
-    fontWeight: "700",
+    marginTop: 4,
+    marginBottom: 10,
+    fontSize: 12,
+    fontWeight: "600",
   },
 
   heroNowPlayingWaveformOverlay: {
@@ -2145,8 +2150,8 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 18,
-    paddingVertical: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
     borderRadius: 999,
   },
 
@@ -2288,8 +2293,8 @@ const styles = StyleSheet.create({
   },
 
   sectionRow: {
-    marginTop: 40,
-    marginBottom: 18,
+    marginTop: 34,
+    marginBottom: 14,
     paddingHorizontal: 20,
     flexDirection: "row",
     alignItems: "center",
@@ -2303,9 +2308,9 @@ const styles = StyleSheet.create({
 
   sectionSubtitle: {
     color: COLORS.textMuted,
-    fontSize: 12,
-    marginTop: 4,
-    fontWeight: "600",
+    fontSize: 11,
+    marginTop: 3,
+    fontWeight: "500",
   },
 
   seeAllLink: {
@@ -2362,17 +2367,19 @@ const styles = StyleSheet.create({
 
   sectionTitle: {
     color: COLORS.text,
-    fontSize: 22,
-    fontWeight: "900",
+    fontSize: 18,
+    fontWeight: "800",
+    letterSpacing: -0.2,
   },
 
   sectionTitleBlock: {
     color: COLORS.text,
-    fontSize: 22,
-    fontWeight: "900",
+    fontSize: 18,
+    fontWeight: "800",
     paddingHorizontal: 20,
-    marginTop: 40,
-    marginBottom: 18,
+    marginTop: 36,
+    marginBottom: 14,
+    letterSpacing: -0.2,
   },
 
   moodRail: {
@@ -2499,7 +2506,7 @@ const styles = StyleSheet.create({
   },
 
   featuredOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.flatten(StyleSheet.absoluteFill),
   },
 
   featuredRank: {
@@ -2625,9 +2632,9 @@ const styles = StyleSheet.create({
   },
 
   artistCard: {
-    width: 148,
-    borderRadius: 26,
-    padding: 14,
+    width: 140,
+    borderRadius: 24,
+    padding: 10,
     backgroundColor: "rgba(255,255,255,0.065)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.1)",
@@ -2635,41 +2642,43 @@ const styles = StyleSheet.create({
   },
 
   albumCard: {
-    width: 162,
-    borderRadius: 26,
-    padding: 14,
+    width: 154,
+    borderRadius: 24,
+    padding: 10,
     backgroundColor: "rgba(255,255,255,0.065)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.1)",
   },
 
   artistImage: {
-    width: 112,
-    height: 112,
-    borderRadius: 56,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
     backgroundColor: COLORS.card,
-    marginBottom: 12,
+    marginBottom: 8,
   },
 
   albumImage: {
     width: "100%",
-    height: 138,
-    borderRadius: 20,
+    height: 148,
+    borderRadius: 18,
     backgroundColor: COLORS.card,
-    marginBottom: 12,
+    marginBottom: 8,
   },
 
   artistName: {
     color: COLORS.text,
-    fontSize: 14,
-    fontWeight: "900",
+    fontSize: 12,
+    fontWeight: "800",
+    textAlign: "center",
   },
 
   artistMeta: {
     color: COLORS.textMuted,
-    fontSize: 12,
-    fontWeight: "700",
-    marginTop: 5,
+    fontSize: 11,
+    fontWeight: "600",
+    marginTop: 3,
+    textAlign: "center",
   },
 
   rowPlayButton: {

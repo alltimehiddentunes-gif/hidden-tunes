@@ -174,7 +174,6 @@ const MiniPlayerArtwork = memo(function MiniPlayerArtwork({
       <View style={styles.coverFrame}>
         {cover ? (
           <HTImage
-            key={trackKey}
             source={cover}
             style={styles.cover}
             contentFit="cover"

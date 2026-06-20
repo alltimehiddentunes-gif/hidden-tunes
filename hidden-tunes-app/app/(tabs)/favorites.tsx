@@ -1,3 +1,4 @@
+import React, { memo, useCallback, useMemo } from "react";
 import {
   FlatList,
   StyleSheet,
@@ -18,6 +19,10 @@ import {
   usePlayerNowPlaying,
   usePlayerState,
 } from "../../context/PlayerContext";
+import {
+  createStableKeyExtractor,
+  getListPerformanceSettings,
+} from "../../utils/performanceMode";
 
 function sanitizeYouTubeVideoId(value: any) {
   const text = String(value || "").replace("youtube-", "").trim();
@@ -28,10 +33,176 @@ function sanitizeYouTubeVideoId(value: any) {
   return match ? match[0] : "";
 }
 
+type FavoriteRowProps = {
+  item: any;
+  active: boolean;
+  isPlaying: boolean;
+  onPlay: (item: any) => void;
+  onToggleFavorite: (item: any) => void;
+};
+
+const FavoriteRow = memo(function FavoriteRow({
+  item,
+  active,
+  isPlaying,
+  onPlay,
+  onToggleFavorite,
+}: FavoriteRowProps) {
+  const isYouTube =
+    item.type === "youtube_video" ||
+    item.source === "youtube" ||
+    item.sourceName === "YouTube" ||
+    Boolean(item.videoId);
+
+  const artist =
+    item.artist ||
+    item.user?.name ||
+    item.channelTitle ||
+    "Unknown Artist";
+
+  return (
+    <TouchableOpacity
+      style={[styles.songRow, active && styles.activeRow]}
+      activeOpacity={0.85}
+      onPress={() => onPlay(item)}
+    >
+      <LinearGradient colors={GRADIENTS.neon} style={styles.coverBorder}>
+        <HTImage source={item} style={styles.cover} />
+      </LinearGradient>
+
+      <View style={styles.songInfo}>
+        <View style={styles.badgeRow}>
+          {isYouTube ? (
+            <>
+              <Ionicons name="tv" size={13} color="#ff0033" />
+              <Text style={styles.badgeText}>Hidden Tunes TV</Text>
+            </>
+          ) : (
+            <>
+              <Ionicons
+                name="musical-notes"
+                size={13}
+                color={COLORS.primary}
+              />
+              <Text style={styles.badgeText}>Hidden Tunes</Text>
+            </>
+          )}
+        </View>
+
+        <Text
+          numberOfLines={1}
+          style={[styles.songTitle, active && styles.activeText]}
+        >
+          {item.title}
+        </Text>
+
+        <Text numberOfLines={1} style={styles.songArtist}>
+          {artist}
+        </Text>
+      </View>
+
+      {active ? (
+        <NeonEQ isPlaying={isPlaying} size="small" />
+      ) : (
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={() => onToggleFavorite(item)}
+        >
+          <Ionicons name="heart" size={24} color={COLORS.pink} />
+        </TouchableOpacity>
+      )}
+    </TouchableOpacity>
+  );
+});
+
 export default function FavoritesScreen() {
   const { playAudiusTrack, toggleFavorite } = usePlayerActions();
   const { favorites } = usePlayerState();
   const { currentSong, isPlaying } = usePlayerNowPlaying();
+
+  const listPerformance = useMemo(
+    () => getListPerformanceSettings(favorites.length),
+    [favorites.length]
+  );
+
+  const keyExtractor = useMemo(
+    () => createStableKeyExtractor("favorite"),
+    []
+  );
+
+  const handlePlayFavorite = useCallback(
+    (item: any) => {
+      const isYouTube =
+        item.type === "youtube_video" ||
+        item.source === "youtube" ||
+        item.sourceName === "YouTube" ||
+        Boolean(item.videoId);
+
+      if (isYouTube) {
+        const videoId = sanitizeYouTubeVideoId(item.videoId || item.id);
+
+        if (!videoId) {
+          if (__DEV__) {
+            console.warn("Missing YouTube favorite videoId:", item?.id);
+          }
+          return;
+        }
+
+        const artist =
+          item.artist ||
+          item.user?.name ||
+          item.channelTitle ||
+          "Unknown Artist";
+        const thumbnail =
+          typeof item.thumbnail === "string"
+            ? item.thumbnail
+            : typeof item.cover === "string"
+              ? item.cover
+              : typeof item.artwork === "string"
+                ? item.artwork
+                : "";
+
+        router.push({
+          pathname: "/youtube-player",
+          params: {
+            id: videoId,
+            videoId,
+            title: item.title || "YouTube Music",
+            artist,
+            channelTitle: item.channelTitle || artist,
+            thumbnail,
+          },
+        } as any);
+
+        return;
+      }
+
+      playAudiusTrack(item);
+    },
+    [playAudiusTrack]
+  );
+
+  const renderFavorite = useCallback(
+    ({ item }: { item: any }) => {
+      const isYouTube =
+        item.type === "youtube_video" ||
+        item.source === "youtube" ||
+        item.sourceName === "YouTube" ||
+        Boolean(item.videoId);
+      const active = currentSong?.id === item.id && !isYouTube;
+
+      return (
+        <FavoriteRow
+          item={item}
+          active={active}
+          isPlaying={active && isPlaying}
+          onPlay={handlePlayFavorite}
+          onToggleFavorite={toggleFavorite}
+        />
+      );
+    },
+    [currentSong?.id, handlePlayFavorite, isPlaying, toggleFavorite]
+  );
 
   return (
     <LinearGradient colors={GRADIENTS.main} style={styles.container}>
@@ -53,125 +224,15 @@ export default function FavoritesScreen() {
       ) : (
         <FlatList
           data={favorites}
-          keyExtractor={(item, index) =>
-            item.id ? `favorite-${item.id}-${index}` : `favorite-${index}`
-          }
-          contentContainerStyle={{ paddingBottom: 180 }}
+          keyExtractor={keyExtractor}
+          contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
-          renderItem={({ item }) => {
-            const isYouTube =
-              item.type === "youtube_video" ||
-              item.source === "youtube" ||
-              item.sourceName === "YouTube" ||
-              Boolean(item.videoId);
-
-            const active = currentSong?.id === item.id && !isYouTube;
-
-            const videoId = sanitizeYouTubeVideoId(item.videoId || item.id);
-
-            const artist =
-              item.artist ||
-              item.user?.name ||
-              item.channelTitle ||
-              "Unknown Artist";
-
-            const thumbnail =
-              typeof item.thumbnail === "string"
-                ? item.thumbnail
-                : typeof item.cover === "string"
-                ? item.cover
-                : typeof item.artwork === "string"
-                ? item.artwork
-                : "";
-
-            const coverSource =
-              typeof item.cover === "string"
-                ? { uri: item.cover }
-                : typeof item.thumbnail === "string"
-                ? { uri: item.thumbnail }
-                : item.cover;
-
-            function openFavorite() {
-              if (isYouTube) {
-                if (!videoId) {
-                  console.log("Missing YouTube favorite videoId:", item);
-                  return;
-                }
-
-                router.push({
-                  pathname: "/youtube-player",
-                  params: {
-                    id: videoId,
-                    videoId,
-                    title: item.title || "YouTube Music",
-                    artist,
-                    channelTitle: item.channelTitle || artist,
-                    thumbnail,
-                  },
-                } as any);
-
-                return;
-              }
-
-              playAudiusTrack(item);
-            }
-
-            return (
-              <TouchableOpacity
-                style={[styles.songRow, active && styles.activeRow]}
-                activeOpacity={0.85}
-                onPress={openFavorite}
-              >
-                <LinearGradient colors={GRADIENTS.neon} style={styles.coverBorder}>
-                  <HTImage source={coverSource} style={styles.cover} />
-                </LinearGradient>
-
-                <View style={styles.songInfo}>
-                  <View style={styles.badgeRow}>
-                    {isYouTube ? (
-                      <>
-                        <Ionicons name="tv" size={13} color="#ff0033" />
-                        <Text style={styles.badgeText}>Hidden Tunes TV</Text>
-                      </>
-                    ) : (
-                      <>
-                        <Ionicons
-                          name="musical-notes"
-                          size={13}
-                          color={COLORS.primary}
-                        />
-                        <Text style={styles.badgeText}>
-                          {item.sourceName || "Music"}
-                        </Text>
-                      </>
-                    )}
-                  </View>
-
-                  <Text
-                    numberOfLines={1}
-                    style={[styles.songTitle, active && styles.activeText]}
-                  >
-                    {item.title}
-                  </Text>
-
-                  <Text numberOfLines={1} style={styles.songArtist}>
-                    {artist}
-                  </Text>
-                </View>
-
-                {active ? (
-                  <NeonEQ isPlaying={isPlaying} size="small" />
-                ) : (
-                  <TouchableOpacity
-                    activeOpacity={0.8}
-                    onPress={() => toggleFavorite(item)}
-                  >
-                    <Ionicons name="heart" size={24} color={COLORS.pink} />
-                  </TouchableOpacity>
-                )}
-              </TouchableOpacity>
-            );
-          }}
+          initialNumToRender={listPerformance.initialNumToRender}
+          maxToRenderPerBatch={listPerformance.maxToRenderPerBatch}
+          windowSize={listPerformance.windowSize}
+          updateCellsBatchingPeriod={listPerformance.updateCellsBatchingPeriod}
+          removeClippedSubviews
+          renderItem={renderFavorite}
         />
       )}
     </LinearGradient>
@@ -217,6 +278,10 @@ const styles = StyleSheet.create({
     marginTop: 6,
     marginBottom: 24,
     fontWeight: "700",
+  },
+
+  listContent: {
+    paddingBottom: 180,
   },
 
   emptyBox: {

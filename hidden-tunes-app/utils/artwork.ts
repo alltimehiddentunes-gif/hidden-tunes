@@ -211,9 +211,44 @@ export function getArtworkValue(item: any, fallback = FALLBACK_ARTWORK): any {
   return resolveArtwork(item, fallback).value;
 }
 
-export function getArtworkUri(item: any, fallback = FALLBACK_ARTWORK) {
+export function getArtworkUri(
+  item: any,
+  fallback = FALLBACK_ARTWORK,
+  options?: { maxPx?: number }
+) {
   const artwork = getArtworkValue(item, fallback);
-  return typeof artwork === "string" ? artwork : fallback;
+  const uri = typeof artwork === "string" ? artwork : fallback;
+  const maxPx = Number(options?.maxPx);
+
+  if (!Number.isFinite(maxPx) || maxPx <= 0) {
+    return uri;
+  }
+
+  return pickArtworkForSlot(uri, maxPx, fallback);
+}
+
+export function pickArtworkForSlot(
+  url: string,
+  maxPx = 120,
+  fallback = FALLBACK_ARTWORK
+) {
+  if (!isHttpsArtworkUrl(url)) return fallback;
+
+  let tuned = cleanArtworkString(url);
+
+  if (maxPx <= 150) {
+    tuned = tuned.replace(/1000x1000/g, "150x150");
+    tuned = tuned.replace(/480x480/g, "150x150");
+  } else if (maxPx <= 320) {
+    tuned = tuned.replace(/1000x1000/g, "480x480");
+  }
+
+  if (maxPx <= 120 && tuned.includes("img.youtube.com")) {
+    tuned = tuned.replace("maxresdefault", "mqdefault");
+    tuned = tuned.replace("hqdefault", "mqdefault");
+  }
+
+  return normalizeArtworkUrl(tuned, fallback);
 }
 
 export function getArtworkSource(item: any, fallback = FALLBACK_ARTWORK) {

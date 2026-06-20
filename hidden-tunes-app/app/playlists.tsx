@@ -1,7 +1,6 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, memo } from "react";
 import {
   FlatList,
-  Image,
   Modal,
   Pressable,
   RefreshControl,
@@ -17,7 +16,9 @@ import { useFocusEffect, router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 
+import HTImage from "../components/HTImage";
 import { COLORS, GRADIENTS } from "../constants/theme";
+import { getListPerformanceSettings } from "../utils/performanceMode";
 
 import {
   generateSmartPlaylists,
@@ -30,6 +31,80 @@ import {
 import { getHiddenTunesSongs } from "../services/hiddenTunesApi";
 
 type LibraryPlaylist = UserPlaylist | SmartPlaylist;
+
+const PlaylistListCard = memo(function PlaylistListCard({
+  item,
+  smart,
+  onOpen,
+  onRename,
+}: {
+  item: LibraryPlaylist;
+  smart: boolean;
+  onOpen: (playlist: LibraryPlaylist) => void;
+  onRename: (playlist: UserPlaylist) => void;
+}) {
+  return (
+    <TouchableOpacity
+      activeOpacity={0.86}
+      style={styles.card}
+      onPress={() => onOpen(item)}
+    >
+      {item.artwork ? (
+        <HTImage uri={item.artwork} style={styles.cover} contentFit="cover" />
+      ) : (
+        <View style={styles.placeholder}>
+          <Ionicons
+            name={smart ? "sparkles" : "musical-notes"}
+            size={34}
+            color={COLORS.textMuted}
+          />
+        </View>
+      )}
+
+      <View style={styles.info}>
+        <View style={styles.titleRow}>
+          <Text style={styles.playlistName} numberOfLines={1}>
+            {item.title}
+          </Text>
+
+          {smart && (
+            <View style={styles.smartBadge}>
+              <Ionicons name="sparkles" size={10} color="#000" />
+              <Text style={styles.smartBadgeText}>SMART</Text>
+            </View>
+          )}
+        </View>
+
+        <Text style={styles.meta} numberOfLines={2}>
+          {item.tracks.length} track{item.tracks.length === 1 ? "" : "s"} ·{" "}
+          {smart
+            ? item.description || "Made for you"
+            : `Updated ${formatDate(item.updatedAt)}`}
+        </Text>
+      </View>
+
+      {!smart && (
+        <TouchableOpacity
+          activeOpacity={0.82}
+          style={styles.moreButton}
+          onPress={() => onRename(item as UserPlaylist)}
+        >
+          <Ionicons
+            name="create-outline"
+            size={20}
+            color={COLORS.textMuted}
+          />
+        </TouchableOpacity>
+      )}
+
+      <Ionicons
+        name="chevron-forward"
+        size={20}
+        color={COLORS.textMuted}
+      />
+    </TouchableOpacity>
+  );
+});
 
 function formatDate(value?: string) {
   if (!value) return "Recently updated";
@@ -179,6 +254,11 @@ export default function PlaylistsScreen() {
 
   const totalFound = filteredPlaylists.length + filteredSmartPlaylists.length;
 
+  const listPerformance = useMemo(
+    () => getListPerformanceSettings(filteredPlaylists.length),
+    [filteredPlaylists.length]
+  );
+
   function openPlaylist(playlist: LibraryPlaylist) {
     router.push({
       pathname: "/playlist/[id]",
@@ -186,70 +266,17 @@ export default function PlaylistsScreen() {
     } as any);
   }
 
-  function renderPlaylistCard(item: LibraryPlaylist, smart = false) {
-    return (
-      <TouchableOpacity
-        key={item.id}
-        activeOpacity={0.86}
-        style={styles.card}
-        onPress={() => openPlaylist(item)}
-      >
-        {item.artwork ? (
-          <Image source={{ uri: item.artwork }} style={styles.cover} />
-        ) : (
-          <View style={styles.placeholder}>
-            <Ionicons
-              name={smart ? "sparkles" : "musical-notes"}
-              size={34}
-              color={COLORS.textMuted}
-            />
-          </View>
-        )}
-
-        <View style={styles.info}>
-          <View style={styles.titleRow}>
-            <Text style={styles.playlistName} numberOfLines={1}>
-              {item.title}
-            </Text>
-
-            {smart && (
-              <View style={styles.smartBadge}>
-                <Ionicons name="sparkles" size={10} color="#000" />
-                <Text style={styles.smartBadgeText}>SMART</Text>
-              </View>
-            )}
-          </View>
-
-          <Text style={styles.meta} numberOfLines={2}>
-            {item.tracks.length} track{item.tracks.length === 1 ? "" : "s"} ·{" "}
-            {smart
-              ? item.description || "Made for you"
-              : `Updated ${formatDate(item.updatedAt)}`}
-          </Text>
-        </View>
-
-        {!smart && (
-          <TouchableOpacity
-            activeOpacity={0.82}
-            style={styles.moreButton}
-            onPress={() => openRenameModal(item as UserPlaylist)}
-          >
-            <Ionicons
-              name="create-outline"
-              size={20}
-              color={COLORS.textMuted}
-            />
-          </TouchableOpacity>
-        )}
-
-        <Ionicons
-          name="chevron-forward"
-          size={20}
-          color={COLORS.textMuted}
-        />
-      </TouchableOpacity>
-    );
-  }
+  const renderPlaylistItem = useCallback(
+    ({ item }: { item: LibraryPlaylist }) => (
+      <PlaylistListCard
+        item={item}
+        smart={false}
+        onOpen={openPlaylist}
+        onRename={openRenameModal}
+      />
+    ),
+    [openRenameModal]
+  );
 
   return (
     <LinearGradient colors={GRADIENTS.main as any} style={styles.container}>
@@ -265,6 +292,11 @@ export default function PlaylistsScreen() {
         }
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}
+        initialNumToRender={listPerformance.initialNumToRender}
+        maxToRenderPerBatch={listPerformance.maxToRenderPerBatch}
+        windowSize={listPerformance.windowSize}
+        updateCellsBatchingPeriod={listPerformance.updateCellsBatchingPeriod}
+        removeClippedSubviews
         ListHeaderComponent={
           <>
             <View style={styles.header}>
@@ -354,9 +386,10 @@ export default function PlaylistsScreen() {
                       onPress={() => openPlaylist(item)}
                     >
                       {item.artwork ? (
-                        <Image
-                          source={{ uri: item.artwork }}
+                        <HTImage
+                          uri={item.artwork}
                           style={styles.smartCover}
+                          contentFit="cover"
                         />
                       ) : (
                         <View style={styles.smartPlaceholder}>
@@ -426,7 +459,7 @@ export default function PlaylistsScreen() {
             </View>
           ) : null
         }
-        renderItem={({ item }) => renderPlaylistCard(item, false)}
+        renderItem={renderPlaylistItem}
       />
 
       <Modal visible={renameVisible} transparent animationType="fade">

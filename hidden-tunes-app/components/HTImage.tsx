@@ -8,6 +8,7 @@ import {
   getArtworkValue,
   isArtworkUrlFailed,
   markArtworkUrlFailed,
+  pickArtworkForSlot,
 } from "../utils/artwork";
 import { recordArtworkFailure } from "../utils/performanceLogs";
 import { isFastScrolling, subscribeFastScrolling } from "../utils/performanceMode";
@@ -65,6 +66,21 @@ function HTImage({
     return typeof artwork === "string" ? { uri: artwork } : artwork;
   }, [fallback]);
 
+  const slotMaxPx = useMemo(() => {
+    const width = Number(flatStyle.width);
+    const height = Number(flatStyle.height);
+
+    if (Number.isFinite(width) && width > 0) {
+      return Math.ceil(width * 2);
+    }
+
+    if (Number.isFinite(height) && height > 0) {
+      return Math.ceil(height * 2);
+    }
+
+    return 0;
+  }, [flatStyle.height, flatStyle.width]);
+
   const resolvedCandidates = useMemo(() => {
     const explicitCandidates = Array.isArray(candidates)
       ? candidates.flatMap((candidate) => getArtworkCandidates(candidate, fallback))
@@ -82,8 +98,12 @@ function HTImage({
         seen.add(key);
         return true;
       })
-      .slice(0, MAX_ARTWORK_CANDIDATES);
-  }, [candidates, fallback, source, uri]);
+      .slice(0, MAX_ARTWORK_CANDIDATES)
+      .map((item) => {
+        if (typeof item !== "string" || slotMaxPx <= 0) return item;
+        return pickArtworkForSlot(item, slotMaxPx, fallback);
+      });
+  }, [candidates, fallback, slotMaxPx, source, uri]);
 
   const resolvedSource = useMemo(() => {
     const candidate = resolvedCandidates[candidateIndex] || fallback;

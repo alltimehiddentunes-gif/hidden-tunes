@@ -678,7 +678,6 @@ export default function PlayerScreen() {
             <Animated.View style={[styles.artworkWrapper, artworkAnimated]}>
               {artworkSource ? (
                 <HTImage
-                  key={String(currentSong.id)}
                   source={artworkSource}
                   style={styles.artwork}
                   contentFit="cover"

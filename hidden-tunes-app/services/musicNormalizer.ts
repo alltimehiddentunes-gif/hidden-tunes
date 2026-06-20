@@ -146,9 +146,9 @@ export function normalizeYouTubeTrack(item: any): HiddenTunesTrack {
 
 export function normalizeAudiusTrack(item: any): HiddenTunesTrack {
   const artwork =
-    item.artwork?.["1000x1000"] ||
-    item.artwork?.["480x480"] ||
     item.artwork?.["150x150"] ||
+    item.artwork?.["480x480"] ||
+    item.artwork?.["1000x1000"] ||
     item.artwork ||
     item.thumbnail ||
     "";
