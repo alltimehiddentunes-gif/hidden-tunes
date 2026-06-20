@@ -61,7 +61,7 @@ export async function getSmartQueue(): Promise<SmartQueueTrack[]> {
 
     return parsed.map(normalizeTrack);
   } catch (error) {
-    console.log("Get smart queue error:", error);
+    if (__DEV__) console.log("Get smart queue error:", error);
     return [];
   }
 }
@@ -77,7 +77,7 @@ export async function saveSmartQueue(tracks: SmartQueueTrack[]) {
 
     return normalized;
   } catch (error) {
-    console.log("Save smart queue error:", error);
+    if (__DEV__) console.log("Save smart queue error:", error);
     return [];
   }
 }
@@ -98,7 +98,7 @@ export async function addToSmartQueue(track: SmartQueueTrack) {
 
     return updated;
   } catch (error) {
-    console.log("Add smart queue error:", error);
+    if (__DEV__) console.log("Add smart queue error:", error);
     return [];
   }
 }
@@ -107,7 +107,7 @@ export async function clearSmartQueue() {
   try {
     await AsyncStorage.removeItem(SMART_QUEUE_KEY);
   } catch (error) {
-    console.log("Clear smart queue error:", error);
+    if (__DEV__) console.log("Clear smart queue error:", error);
   }
 }
 
@@ -138,7 +138,7 @@ export async function getRelatedTracks(
 
     return filtered.slice(0, 25);
   } catch (error) {
-    console.log("Related tracks error:", error);
+    if (__DEV__) console.log("Related tracks error:", error);
     return [];
   }
 }

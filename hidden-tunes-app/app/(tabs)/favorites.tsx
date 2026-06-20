@@ -1,6 +1,5 @@
 import {
   FlatList,
-  Image,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -11,6 +10,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 
+import HTImage from "../../components/HTImage";
 import NeonEQ from "../../components/NeonEQ";
 import { COLORS, GRADIENTS } from "../../constants/theme";
 import {
@@ -123,7 +123,7 @@ export default function FavoritesScreen() {
                 onPress={openFavorite}
               >
                 <LinearGradient colors={GRADIENTS.neon} style={styles.coverBorder}>
-                  <Image source={coverSource} style={styles.cover} />
+                  <HTImage source={coverSource} style={styles.cover} />
                 </LinearGradient>
 
                 <View style={styles.songInfo}>

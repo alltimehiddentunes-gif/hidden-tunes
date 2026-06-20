@@ -24,7 +24,7 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 
 import NeonEQ from "../../components/NeonEQ";
 import AddToPlaylistButton from "../../components/AddToPlaylistButton";
@@ -54,6 +54,8 @@ import {
   getHiddenTunesArtists,
   getHiddenTunesCloudPlaylists,
   getHiddenTunesCatalogSnapshot,
+  getHiddenTunesCatalogCacheInfo,
+  fetchCoordinatedCatalogFirstPage,
   extractHiddenTunesAlbums,
   extractHiddenTunesArtists,
   type HiddenTunesAlbum,
@@ -192,12 +194,26 @@ const TRENDING_SEARCHES = [
 ];
 
 const FILTERS: { key: SearchType; label: string }[] = [
-  { key: "hidden", label: "HIDDEN" },
-  { key: "youtube", label: "YOUTUBE" },
+  { key: "hidden", label: "CATALOG" },
+  { key: "youtube", label: "TV" },
   { key: "all", label: "ALL" },
-  { key: "audius", label: "AUDIUS" },
-  { key: "archive", label: "ARCHIVE" },
+  { key: "audius", label: "MORE" },
+  { key: "archive", label: "VAULT" },
 ];
+
+function formatSearchSourceLabel(source?: string) {
+  const lower = String(source || "").toLowerCase();
+
+  if (lower.includes("youtube")) return "Hidden Tunes TV";
+  if (lower.includes("hidden tunes") || lower.includes("hidden-tunes")) {
+    return "Hidden Tunes";
+  }
+  if (lower.includes("audius") || lower.includes("archive")) {
+    return "Extended catalog";
+  }
+
+  return "Hidden Tunes";
+}
 
 function sanitizeYouTubeVideoId(value: any) {
   const text = String(value || "").replace("youtube-", "").trim();
@@ -672,8 +688,8 @@ const SearchResultRow = memo(function SearchResultRow({
   const { isActive, isPlaying } = useTrackPlaybackStatus(youtube ? "" : trackId);
   const artist = String(getArtist(normalized));
   const title = String(normalized.title || "Unknown Song");
-  const sourceName = String(normalized.sourceName || "Hidden Tunes");
-  const sourceColorValue = sourceColor(sourceName);
+  const sourceName = formatSearchSourceLabel(normalized.sourceName);
+  const sourceColorValue = sourceColor(normalized.sourceName);
 
   const onCatalogSongPress: CatalogSongRowPressHandler = (song, rowIndex) => {
     handlersRef.current?.handleSongResultPress(song, rowIndex);
@@ -1174,13 +1190,23 @@ export default function SearchScreen() {
 
   const showPremiumSearchEmpty = useMemo(() => {
     if (!showGroupedSearch) return false;
-    if (!hasCheckedSearchFallbacks || loading || refreshing) return false;
+    if (loading || refreshing) return false;
+
+    if (
+      trimmedQuery.length >= LOCAL_SEARCH_MIN_CHARS &&
+      trimmedQuery.length < API_SEARCH_MIN_CHARS
+    ) {
+      return !instantGroupedResults.hasAnyResults;
+    }
+
+    if (!hasCheckedSearchFallbacks) return false;
     if (trimmedQuery.length < API_SEARCH_MIN_CHARS) return false;
 
     return !hasCatalogSearchResults;
   }, [
     hasCatalogSearchResults,
     hasCheckedSearchFallbacks,
+    instantGroupedResults.hasAnyResults,
     loading,
     refreshing,
     showGroupedSearch,
@@ -1280,14 +1306,24 @@ export default function SearchScreen() {
     []
   );
 
-  useEffect(() => {
-    loadRecentSearches();
-    loadCloudDiscovery(true);
+  const cloudDiscoveryLoadedRef = useRef(false);
 
+  useEffect(() => {
     return () => {
       if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
     };
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadRecentSearches();
+
+      if (cloudDiscoveryLoadedRef.current) return;
+
+      cloudDiscoveryLoadedRef.current = true;
+      void loadCloudDiscovery(true);
+    }, [])
+  );
 
   useEffect(() => {
     if (activeSource !== "youtube") {
@@ -1418,13 +1454,36 @@ export default function SearchScreen() {
           firstContentMs: Date.now() - screenStartedAt,
           itemCount: cached.length,
         });
+
+        const cacheInfo = await getHiddenTunesCatalogCacheInfo();
+        if (cacheInfo.isFresh) {
+          void Promise.allSettled([
+            getHiddenTunesAlbums({ forceRefresh: false }),
+            getHiddenTunesArtists({ forceRefresh: false }),
+            getHiddenTunesCloudPlaylists(),
+          ]).then(([albumsResult, artistsResult, playlistsResult]) => {
+            if (albumsResult.status === "fulfilled") {
+              setCloudAlbums(albumsResult.value || []);
+            }
+
+            if (artistsResult.status === "fulfilled") {
+              setCloudArtists(artistsResult.value || []);
+            }
+
+            if (playlistsResult.status === "fulfilled") {
+              setCloudPlaylists(playlistsResult.value || []);
+            }
+          });
+          return;
+        }
       } else {
         logCacheResult("search", false);
       }
 
-      const songs = await getHiddenTunesSongsPage({ page: 1, limit: 24 }).then(
-        (page) => page.songs
-      );
+      const songs = await fetchCoordinatedCatalogFirstPage({
+        limit: 24,
+        forceRefresh: cached.length === 0,
+      });
 
       const catalogSnapshot = getHiddenTunesCatalogSnapshot();
       if (catalogSnapshot.length) {
@@ -1849,20 +1908,26 @@ export default function SearchScreen() {
 
       searchTimeoutRef.current = setTimeout(() => {
         if (generation !== searchDebounceGenerationRef.current) return;
+
+        if (
+          showGroupedSearch &&
+          (source === "all" || source === "hidden") &&
+          runInstantCatalogSearch(universalCatalog, safeText).hasAnyResults
+        ) {
+          setHasCheckedSearchFallbacks(true);
+          setLoading(false);
+          return;
+        }
+
         void searchTracks(text, source);
       }, SEARCH_DEBOUNCE_MS);
     },
-    [activeSource, showGroupedSearch]
+    [activeSource, showGroupedSearch, universalCatalog]
   );
 
   const handleSongResultPress = useCallback(
     (rawSong: HiddenTunesNormalizedSong | NativeSearchTrack | any, index: number) => {
       const song = resolveSearchPlayableSong(rawSong, catalogLookupSources);
-
-      if (typeof __DEV__ !== "undefined" && __DEV__) {
-        console.log("[search] visible result tapped", "song", song.title);
-        console.log("[search] song row tapped", song.id, song.title);
-      }
 
       let queue =
         searchPlayQueue.length > 0

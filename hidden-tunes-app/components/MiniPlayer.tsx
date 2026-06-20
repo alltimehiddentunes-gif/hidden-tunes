@@ -361,16 +361,22 @@ function MiniPlayer() {
 
   useEffect(() => {
     mountedRef.current = true;
-
     loadYouTubeMini();
+
+    return () => {
+      mountedRef.current = false;
+    };
+  }, [loadYouTubeMini]);
+
+  useEffect(() => {
+    if (currentSong) return undefined;
 
     const timer = setInterval(loadYouTubeMini, YOUTUBE_POLL_MS);
 
     return () => {
-      mountedRef.current = false;
       clearInterval(timer);
     };
-  }, [loadYouTubeMini]);
+  }, [currentSong, loadYouTubeMini]);
 
   const isYoutubeMode = !currentSong && !!youtubeVideo;
 
@@ -566,7 +572,7 @@ const styles = StyleSheet.create({
   },
 
   sheen: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.flatten(StyleSheet.absoluteFill),
     backgroundColor: "rgba(255,255,255,0.03)",
   },
 
@@ -704,7 +710,7 @@ const styles = StyleSheet.create({
   },
 
   progressGlow: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.flatten(StyleSheet.absoluteFill),
     backgroundColor: "rgba(192,132,252,0.08)",
   },
 

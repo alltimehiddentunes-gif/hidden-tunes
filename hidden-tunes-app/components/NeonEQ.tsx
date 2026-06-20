@@ -40,22 +40,12 @@ function NeonEQ({ isPlaying = false, size = "medium" }: NeonEQProps) {
   }, [size]);
 
   useEffect(() => {
-    let animations: Animated.CompositeAnimation[] = [];
-
     if (!isPlaying) {
-      bars.forEach((bar) => {
-        bar.stopAnimation();
-        Animated.timing(bar, {
-          toValue: 0.25,
-          duration: 180,
-          useNativeDriver: false,
-        }).start();
-      });
-
-      return;
+      bars.forEach((bar) => bar.stopAnimation());
+      return undefined;
     }
 
-    animations = bars.map((bar, index) => {
+    const animations = bars.map((bar, index) => {
       bar.stopAnimation();
 
       return Animated.loop(
@@ -85,6 +75,25 @@ function NeonEQ({ isPlaying = false, size = "medium" }: NeonEQProps) {
     () => [styles.container, { height: dimensions.maxHeight, gap: dimensions.gap }],
     [dimensions.maxHeight, dimensions.gap]
   );
+
+  if (!isPlaying) {
+    return (
+      <View style={containerStyle}>
+        {Array.from({ length: BAR_COUNT }, (_, index) => (
+          <View
+            key={index}
+            style={[
+              styles.bar,
+              {
+                width: dimensions.barWidth,
+                height: dimensions.maxHeight * 0.25,
+              },
+            ]}
+          />
+        ))}
+      </View>
+    );
+  }
 
   return (
     <View style={containerStyle}>

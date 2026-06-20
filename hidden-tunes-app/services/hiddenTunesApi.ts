@@ -20,6 +20,16 @@ import {
 import { isAppActiveForWork } from "../utils/performanceMode";
 import { scheduleStartupTask } from "../utils/startupScheduler";
 
+function logHiddenTunesDev(message: string, ...details: unknown[]) {
+  if (typeof __DEV__ !== "undefined" && __DEV__) {
+    if (details.length > 0) {
+      console.log(message, ...details);
+    } else {
+      console.log(message);
+    }
+  }
+}
+
 const HIDDEN_TUNES_API_BASE_URL = "https://hidden-tunes-api.onrender.com";
 const HIDDEN_TUNES_LYRICS_API_BASE_URL =
   "https://hidden-tunes-api.onrender.com";
@@ -613,7 +623,7 @@ async function readCachedSongsV5FromStorage(): Promise<HiddenTunesNormalizedSong
 
     return songs;
   } catch (error) {
-    console.log("Hidden Tunes v5 cache read error:", error);
+    logHiddenTunesDev("Hidden Tunes v5 cache read error:", error);
     return null;
   }
 }
@@ -652,7 +662,7 @@ async function readCachedSongsV4FromStorage(): Promise<HiddenTunesNormalizedSong
 
     return songs;
   } catch (error) {
-    console.log("Hidden Tunes v4 cache read error:", error);
+    logHiddenTunesDev("Hidden Tunes v4 cache read error:", error);
     return finalizeSongs([]);
   }
 }
@@ -869,7 +879,7 @@ async function readCachedSongsFromStorage() {
 
     return await readCachedSongsV4FromStorage();
   } catch (error) {
-    console.log("Hidden Tunes cache read error:", error);
+    logHiddenTunesDev("Hidden Tunes cache read error:", error);
     return finalizeSongs([]);
   }
 }
@@ -903,7 +913,7 @@ async function writeCachedSongs(songs: HiddenTunesNormalizedSong[]) {
       [CACHE_TIME_KEY_V5, persistedAt],
     ]);
   } catch (error) {
-    console.log("Hidden Tunes cache write error:", error);
+    logHiddenTunesDev("Hidden Tunes cache write error:", error);
   }
 }
 
@@ -939,7 +949,7 @@ async function readCachedArtists() {
 
     return artists;
   } catch (error) {
-    console.log("Hidden Tunes artists cache read error:", error);
+    logHiddenTunesDev("Hidden Tunes artists cache read error:", error);
     return [];
   }
 }
@@ -954,7 +964,7 @@ async function writeCachedArtists(artists: HiddenTunesArtist[]) {
       [ARTISTS_CACHE_TIME_KEY, String(Date.now())],
     ]);
   } catch (error) {
-    console.log("Hidden Tunes artists cache write error:", error);
+    logHiddenTunesDev("Hidden Tunes artists cache write error:", error);
   }
 }
 
@@ -1152,7 +1162,7 @@ export async function getHiddenTunesSongsPage(options?: {
       nextPage: page + 1,
     };
   } catch (error) {
-    console.log("Hidden Tunes songs page API error:", {
+    logHiddenTunesDev("Hidden Tunes songs page API error:", {
       page,
       limit,
       url,
@@ -1244,7 +1254,7 @@ export async function getHiddenTunesSongs(options?: { forceRefresh?: boolean }) 
   try {
     return await songsFetchPromise;
   } catch (error) {
-    console.log("Hidden Tunes API fallback to cache:", error);
+    logHiddenTunesDev("Hidden Tunes API fallback to cache:", error);
     return await readCachedSongs();
   } finally {
     songsFetchPromise = null;
@@ -1295,7 +1305,7 @@ export async function searchHiddenTunesSongs(query: string) {
       .filter(Boolean) as HiddenTunesNormalizedSong[]
     );
   } catch (error) {
-    console.log("Hidden Tunes backend search fallback:", error);
+    logHiddenTunesDev("Hidden Tunes backend search fallback:", error);
 
     const songs = await getHiddenTunesSongs({ forceRefresh: false });
 
@@ -1438,7 +1448,7 @@ export async function getHiddenTunesAlbumById(id: string) {
       }
     }
   } catch (error) {
-    console.log("Hidden Tunes album page fallback:", error);
+    logHiddenTunesDev("Hidden Tunes album page fallback:", error);
   }
 
   return (
@@ -1482,7 +1492,7 @@ export async function getHiddenTunesArtists(options?: {
   try {
     return await artistsFetchPromise;
   } catch (error) {
-    console.log("Hidden Tunes artists API fallback:", error);
+    logHiddenTunesDev("Hidden Tunes artists API fallback:", error);
 
     const cachedArtists = await readCachedArtists();
     if (cachedArtists.length > 0) return cachedArtists;
@@ -1546,7 +1556,7 @@ export async function getHiddenTunesArtistsPage(options?: {
       nextPage: page + 1,
     };
   } catch (error) {
-    console.log("Hidden Tunes artists page API error:", {
+    logHiddenTunesDev("Hidden Tunes artists page API error:", {
       page,
       limit,
       url,
@@ -1681,7 +1691,7 @@ export async function getHiddenTunesArtistById(id: string) {
       }
     }
   } catch (error) {
-    console.log("Hidden Tunes artist page fallback:", error);
+    logHiddenTunesDev("Hidden Tunes artist page fallback:", error);
   }
 
   return (
@@ -1803,7 +1813,7 @@ export async function getHiddenTunesLyrics(songId: string) {
 
       return lyrics;
     } catch (error) {
-      console.log("Lyrics endpoint failed, trying next:", url, error);
+      logHiddenTunesDev("Lyrics endpoint failed, trying next:", url, error);
     }
   }
 
