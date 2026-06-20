@@ -40,9 +40,9 @@ export default function VideoDiscoveryHomeScreen() {
 
         <View style={styles.headerText}>
           <Text style={styles.kicker}>HIDDEN TUNES VIDEOS</Text>
-          <Text style={styles.title}>Video Discovery</Text>
+          <Text style={styles.title}>Browse Videos</Text>
           <Text style={styles.subtitle}>
-            Curated visual rooms from the Hidden Tunes catalog
+            Curated visual rooms from Hidden Tunes
           </Text>
         </View>
       </View>

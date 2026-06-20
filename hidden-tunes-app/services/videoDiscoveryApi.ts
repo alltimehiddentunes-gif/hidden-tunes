@@ -75,7 +75,9 @@ export async function getVideosForCategory(
 
   const fetchPromise = fetchVideosFromNetwork(safeId)
     .then((videos) => {
-      writeCachedVideos(safeId, videos);
+      if (videos.length > 0) {
+        writeCachedVideos(safeId, videos);
+      }
       return videos;
     })
     .catch(async () => {

@@ -92,6 +92,17 @@ export default function VideoCategoryScreen() {
     [videos]
   );
 
+  const renderVideoRow = useCallback(
+    ({ item }: { item: HiddenTunesTvVideo }) => (
+      <VideoListRow
+        video={item}
+        subtitle={videoDiscoverySubtitle(item)}
+        onPress={() => openVideo(item)}
+      />
+    ),
+    [openVideo]
+  );
+
   const listPerformance = useMemo(
     () => getListPerformanceSettings(videos.length),
     [videos.length]
@@ -183,13 +194,7 @@ export default function VideoCategoryScreen() {
               </View>
             ) : null
           }
-          renderItem={({ item }) => (
-            <VideoListRow
-              video={item}
-              subtitle={videoDiscoverySubtitle(item)}
-              onPress={() => openVideo(item)}
-            />
-          )}
+          renderItem={renderVideoRow}
           {...listPerformance}
           removeClippedSubviews
         />

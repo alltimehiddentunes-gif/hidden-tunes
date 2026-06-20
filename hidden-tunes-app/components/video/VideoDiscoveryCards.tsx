@@ -10,6 +10,7 @@ import {
   HIDDEN_TUNES_VIDEOS_LABEL,
   type LaunchVideoCategory,
 } from "../../utils/launchVideoCategories";
+import { videoDiscoveryDisplayName } from "../../utils/openHiddenTunesVideo";
 
 type VideoCategoryCardProps = {
   category: LaunchVideoCategory;
@@ -80,13 +81,12 @@ export const VideoListRow = memo(function VideoListRow({
 
       <View style={styles.rowCopy}>
         <Text numberOfLines={2} style={styles.rowTitle}>
-          {video.title}
+          {videoDiscoveryDisplayName(video.title)}
         </Text>
         <Text numberOfLines={1} style={styles.rowSubtitle}>
           {subtitle ||
-            video.channel_name ||
-            video.genre ||
-            HIDDEN_TUNES_VIDEOS_LABEL}
+            videoDiscoveryDisplayName(video.channel_name) ||
+            videoDiscoveryDisplayName(video.genre)}
         </Text>
       </View>
 
