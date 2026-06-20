@@ -352,9 +352,9 @@ export function getLaunchWorldEmptyCopy(title: string) {
 
   if (!world) {
     return {
-      emptyTitle: "This room is still warming up",
+      emptyTitle: "This Hidden Tunes room is warming up",
       emptyMessage:
-        "Pull refresh or try another mood — matching Hidden Tunes tracks may still be loading.",
+        "Try another emotional world, genre hub, or search while more tracks arrive in your catalog.",
     };
   }
 

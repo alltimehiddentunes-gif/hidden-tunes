@@ -93,7 +93,7 @@ import {
 import { openGenreCatalog } from "../../utils/catalogNavigation";
 import { shouldShowCatalogEmpty } from "../../utils/catalogEmptyStateTiming";
 import UniversalSearchGroupedResults from "../../components/UniversalSearchGroupedResults";
-import { SubtleTvEntryLink } from "../../components/EmotionalDiscoveryChips";
+import { SubtleTvEntryLink, EmotionalDiscoveryChips } from "../../components/EmotionalDiscoveryChips";
 import {
   invalidateCatalogSearchIndex,
   runInstantCatalogSearch,
@@ -2189,6 +2189,12 @@ export default function SearchScreen() {
               </View>
             ) : null}
 
+            <EmotionalDiscoveryChips
+              title="Emotional Worlds"
+              subtitle="Open a Hidden Tunes listening room"
+              style={styles.premiumEmptyDiscoveryChips}
+            />
+
             <View style={styles.premiumEmptySection}>
               <Text style={styles.premiumEmptySectionTitle}>Trending moods</Text>
               <View style={styles.premiumEmptyChips}>
@@ -3193,6 +3199,12 @@ const styles = StyleSheet.create({
     width: "100%",
     marginTop: 18,
     alignItems: "flex-start",
+  },
+  premiumEmptyDiscoveryChips: {
+    width: "100%",
+    marginHorizontal: 0,
+    marginTop: 18,
+    marginBottom: 0,
   },
   premiumEmptySectionTitle: {
     color: COLORS.text,

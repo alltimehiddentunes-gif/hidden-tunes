@@ -15,6 +15,7 @@ import { router } from "expo-router";
 
 import { TESTER_COPY } from "../../constants/testerExperience";
 import { COLORS, GRADIENTS } from "../../constants/theme";
+import { HIDDEN_TUNES_GENRES } from "../../utils/genres";
 import {
   usePlayerActions,
   usePlayerNowPlaying,
@@ -28,6 +29,7 @@ import {
 } from "../../utils/catalogEmptyStateTiming";
 import HTImage from "../HTImage";
 import { SubtleTvEntryLink, EmotionalDiscoveryChips } from "../EmotionalDiscoveryChips";
+import { LAUNCH_EMOTIONAL_WORLDS } from "../../utils/launchEmotionalWorlds";
 
 export type ExploreMountStage = 0 | 1 | 2 | 3 | 4;
 
@@ -547,7 +549,9 @@ export const ExploreLaunchWorldsGrid = memo(function ExploreLaunchWorldsGrid({
                   </View>
                   <View style={styles.genreVibePill}>
                     <Text numberOfLines={1} style={styles.genreVibeText}>
-                      {world.songs.length} songs
+                      {world.songs.length > 0
+                        ? `${world.songs.length} songs`
+                        : "Hidden Tunes room"}
                     </Text>
                   </View>
                 </View>
@@ -584,13 +588,23 @@ export const ExploreGenreHubRow = memo(function ExploreGenreHubRow({
   genreHubs: GenreHubItem[];
   openGenre: (genre: GenreItem) => void;
 }) {
-  if (!genreHubs.length) return null;
+  const hubs =
+    genreHubs.length > 0
+      ? genreHubs
+      : HIDDEN_TUNES_GENRES.slice(0, 8).map((genre) => ({
+          id: `genre-${genre.title}`,
+          title: genre.title,
+          subtitle: "Hidden Tunes genre hub",
+          genreTitle: genre.title,
+          songs: [] as HiddenTunesNormalizedSong[],
+          artwork: [] as string[],
+        }));
 
   return (
     <View style={styles.genreHubSection}>
       <Text style={styles.sectionTitleBlock}>Genre Hubs</Text>
       <View style={styles.genreHubChipWrap}>
-        {genreHubs.map((hub) => (
+        {hubs.map((hub) => (
           <TouchableOpacity
             key={hub.id}
             activeOpacity={0.86}
@@ -604,7 +618,9 @@ export const ExploreGenreHubRow = memo(function ExploreGenreHubRow({
             }
           >
             <Text style={styles.genreHubChipText}>{hub.title}</Text>
-            <Text style={styles.genreHubChipMeta}>{hub.songs.length}</Text>
+            {hub.songs.length > 0 ? (
+              <Text style={styles.genreHubChipMeta}>{hub.songs.length}</Text>
+            ) : null}
           </TouchableOpacity>
         ))}
       </View>
@@ -619,49 +635,77 @@ export const ExploreMoodCollectionsRail = memo(function ExploreMoodCollectionsRa
   moodCollections: MoodCollectionItem[];
   onOpenLaunchWorld: (worldId: string) => void;
 }) {
-  if (!moodCollections.length) return null;
+  const moodWorldIds = new Set([
+    "heartbreak-recovery",
+    "late-night-vibes",
+    "deep-focus",
+    "night-drive",
+  ]);
+  const fallbackWorlds = LAUNCH_EMOTIONAL_WORLDS.filter((world) =>
+    moodWorldIds.has(world.id)
+  );
+
+  if (moodCollections.length > 0) {
+    return (
+      <View style={styles.moodRailSection}>
+        <Text style={styles.sectionTitleBlock}>Mood Collections</Text>
+        <FlatList
+          horizontal
+          data={moodCollections}
+          keyExtractor={(item) => item.id}
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.moodRail}
+          initialNumToRender={4}
+          maxToRenderPerBatch={4}
+          windowSize={5}
+          updateCellsBatchingPeriod={50}
+          removeClippedSubviews
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              activeOpacity={0.88}
+              style={styles.moodCollectionCard}
+              onPress={() => onOpenLaunchWorld(item.worldId)}
+            >
+              {item.artwork[0] ? (
+                <HTImage uri={item.artwork[0]} style={styles.moodCollectionArt} />
+              ) : (
+                <LinearGradient
+                  colors={item.gradient}
+                  style={styles.moodCollectionArt}
+                >
+                  <Ionicons name="musical-notes" size={22} color={COLORS.textMuted} />
+                </LinearGradient>
+              )}
+              <View style={styles.moodCollectionCopy}>
+                <Text numberOfLines={1} style={styles.moodCollectionTitle}>
+                  {item.title}
+                </Text>
+                <Text numberOfLines={2} style={styles.moodCollectionSubtitle}>
+                  {item.subtitle}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          )}
+        />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.moodRailSection}>
       <Text style={styles.sectionTitleBlock}>Mood Collections</Text>
-      <FlatList
-        horizontal
-        data={moodCollections}
-        keyExtractor={(item) => item.id}
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.moodRail}
-        initialNumToRender={4}
-        maxToRenderPerBatch={4}
-        windowSize={5}
-        updateCellsBatchingPeriod={50}
-        removeClippedSubviews
-        renderItem={({ item }) => (
+      <View style={styles.genreHubChipWrap}>
+        {fallbackWorlds.map((world) => (
           <TouchableOpacity
-            activeOpacity={0.88}
-            style={styles.moodCollectionCard}
-            onPress={() => onOpenLaunchWorld(item.worldId)}
+            key={world.id}
+            activeOpacity={0.86}
+            style={styles.genreHubChip}
+            onPress={() => onOpenLaunchWorld(world.id)}
           >
-            {item.artwork[0] ? (
-              <HTImage uri={item.artwork[0]} style={styles.moodCollectionArt} />
-            ) : (
-              <LinearGradient
-                colors={item.gradient}
-                style={styles.moodCollectionArt}
-              >
-                <Ionicons name="musical-notes" size={22} color={COLORS.textMuted} />
-              </LinearGradient>
-            )}
-            <View style={styles.moodCollectionCopy}>
-              <Text numberOfLines={1} style={styles.moodCollectionTitle}>
-                {item.title}
-              </Text>
-              <Text numberOfLines={2} style={styles.moodCollectionSubtitle}>
-                {item.subtitle}
-              </Text>
-            </View>
+            <Text style={styles.genreHubChipText}>{world.title}</Text>
           </TouchableOpacity>
-        )}
-      />
+        ))}
+      </View>
     </View>
   );
 });
@@ -739,7 +783,7 @@ export const ExploreGenreGrid = memo(function ExploreGenreGrid({
       ) : (
         <View style={styles.sectionEmpty}>
           <Text style={styles.sectionEmptyText}>
-            Genre rooms are still loading from your catalog.
+            {TESTER_COPY.catalogWarming}
           </Text>
         </View>
       )}

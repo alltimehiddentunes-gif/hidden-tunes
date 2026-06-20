@@ -620,7 +620,6 @@ export default memo(function ExploreScreen() {
   );
 
   const rankedCloudSongs = sharedDiscovery.rankedSongs;
-  const visibleCloudSongs = rankedCloudSongs;
   const rankedAlbums = sharedDiscovery.rankedAlbums;
   const rankedArtists = sharedDiscovery.rankedArtists;
   const moodRooms = useMemo(
@@ -717,7 +716,6 @@ export default memo(function ExploreScreen() {
   }, [genreWorlds]);
 
   const primaryMoodRoom = moodRooms[0];
-  const primaryGenreWorld = genreWorlds[0];
 
   // Note: Avoid mass artwork preloading on Explore; let visible rows load naturally.
 

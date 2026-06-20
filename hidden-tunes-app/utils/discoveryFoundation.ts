@@ -92,8 +92,6 @@ export function buildLaunchWorldSpotlights<T extends ArtworkSong>(
 
   const groups = LAUNCH_EMOTIONAL_WORLDS.map((world) => {
     const matched = filterSongsForLaunchWorld(songs, world);
-    if (matched.length < world.minPreviewSongs) return null;
-
     const { url, song: artworkSong } = pickArtworkForGroup(matched, usedArtworkKeys);
 
     return {
@@ -108,7 +106,7 @@ export function buildLaunchWorldSpotlights<T extends ArtworkSong>(
       score: matched.length,
       gradient: world.gradient,
     };
-  }).filter((group): group is NonNullable<typeof group> => group !== null);
+  });
 
   return groups.sort((a, b) => b.score - a.score).slice(0, limit);
 }
@@ -137,30 +135,30 @@ export function buildMoodCollectionRows<T extends ArtworkSong>(
   songs: T[],
   limit = 6
 ): MoodCollectionRow<T>[] {
-  const moodWorlds = LAUNCH_EMOTIONAL_WORLDS.filter(
-    (world) => world.resolverType === "mood" || world.id === "deep-focus"
-  );
+  const moodWorldIds = new Set([
+    "heartbreak-recovery",
+    "late-night-vibes",
+    "deep-focus",
+    "night-drive",
+  ]);
+  const moodWorlds = LAUNCH_EMOTIONAL_WORLDS.filter((world) => moodWorldIds.has(world.id));
   const usedArtworkKeys = new Set<string>();
 
-  const rows = moodWorlds
-    .map((world) => {
-      const matched = filterSongsForLaunchWorld(songs, world);
-      if (matched.length < world.minPreviewSongs) return null;
+  const rows = moodWorlds.map((world) => {
+    const matched = filterSongsForLaunchWorld(songs, world);
+    const { url } = pickArtworkForGroup(matched, usedArtworkKeys);
 
-      const { url } = pickArtworkForGroup(matched, usedArtworkKeys);
-
-      return {
-        id: `mood-collection-${world.id}`,
-        worldId: world.id,
-        title: world.title,
-        subtitle: world.subtitle,
-        songs: matched.slice(0, 8),
-        artwork: url ? [url] : [],
-        gradient: world.gradient,
-        score: matched.length,
-      };
-    })
-    .filter((row): row is NonNullable<typeof row> => row !== null);
+    return {
+      id: `mood-collection-${world.id}`,
+      worldId: world.id,
+      title: world.title,
+      subtitle: world.subtitle,
+      songs: matched.slice(0, 8),
+      artwork: url ? [url] : [],
+      gradient: world.gradient,
+      score: matched.length,
+    };
+  });
 
   return rows.sort((a, b) => b.score - a.score).slice(0, limit);
 }
