@@ -2025,6 +2025,22 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
         const snapshot = await bridgeProbeNativePlayback();
         const nativeAlive = nativeSnapshotRetainsSessionForPlatform(snapshot);
+        const restoringLiveStream =
+          activeQueueModeRef.current === "live_stream" ||
+          isLiveStreamSong(restoredSong);
+
+        if (
+          restoringLiveStream &&
+          snapshot &&
+          !nativeAlive &&
+          !nativeSessionExists(snapshot)
+        ) {
+          logLockscreenPlaybackDiagnostic("foreground_sync_idle_no_session", {
+            reason,
+            liveStream: true,
+          });
+          return false;
+        }
 
         if (nativeAlive && snapshot) {
           markHiddenAudioBridgeActive(true);
@@ -2140,6 +2156,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       syncNativeRemoteQueueAvailability,
       clearIntentionalPause,
       markIntentionalPause,
+      isLiveStreamSong,
     ]
   );
 
@@ -5479,6 +5496,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const previousSong = useCallback(async (options?: { source?: "remote" | "app" }) => {
     if (options?.source !== "remote" && !queueControlTapGuardRef.current("previous_song")) return;
+    if (activeQueueModeRef.current === "live_stream") {
+      logAutoNextSkipped("live_stream", { source: "previousSong" });
+      return;
+    }
     logLockscreenPlaybackDiagnostic("app_previous_pressed", {
       songId: currentSongRef.current?.id || null,
       queueIndex: activeQueueIndexRef.current,
@@ -7050,6 +7071,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           }
           case "next": {
             logLockscreenPlaybackDiagnostic("remote_next_received", data);
+            if (activeQueueModeRef.current === "live_stream") {
+              logLockscreenPlaybackDiagnostic("remote_next_blocked_live_stream", data);
+              break;
+            }
             const { queue } = getActiveQueuePlaybackState();
             if (!queue.length) {
               const catalog = getCachedHiddenTunesCatalog();
@@ -7079,6 +7104,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           }
           case "previous": {
             logLockscreenPlaybackDiagnostic("remote_previous_received", data);
+            if (activeQueueModeRef.current === "live_stream") {
+              logLockscreenPlaybackDiagnostic("remote_previous_blocked_live_stream", data);
+              break;
+            }
             const { queue: previousQueue, safeIndex: previousIndex } =
               getActiveQueuePlaybackState();
             if (!previousQueue.length) {

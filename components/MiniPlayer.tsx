@@ -241,8 +241,10 @@ const MiniPlayerArtwork = memo(function MiniPlayerArtwork({
 
 const MiniPlayerProgress = memo(function MiniPlayerProgress({
   isYoutubeMode,
+  isLiveRadioMode,
 }: {
   isYoutubeMode: boolean;
+  isLiveRadioMode: boolean;
 }) {
   const { position, duration } = usePlayerProgress();
   const trackWidth = useSharedValue(0);
@@ -284,6 +286,14 @@ const MiniPlayerProgress = memo(function MiniPlayerProgress({
     );
   }
 
+  if (isLiveRadioMode) {
+    return (
+      <Text numberOfLines={1} style={styles.youtubeNote}>
+        Live stream
+      </Text>
+    );
+  }
+
   return (
     <View>
       <View style={styles.progressTrack} onLayout={onTrackLayout}>
@@ -304,12 +314,14 @@ const MiniPlayerMetadata = memo(function MiniPlayerMetadata({
   queueLabel,
   badgeIconName,
   isYoutubeMode,
+  isLiveRadioMode,
 }: {
   title: string;
   artist: string;
   queueLabel: string;
   badgeIconName: string;
   isYoutubeMode: boolean;
+  isLiveRadioMode: boolean;
 }) {
   const opacity = useSharedValue(1);
   const translateY = useSharedValue(0);
@@ -349,7 +361,7 @@ const MiniPlayerMetadata = memo(function MiniPlayerMetadata({
         {artist}
       </Text>
 
-      <MiniPlayerProgress isYoutubeMode={isYoutubeMode} />
+      <MiniPlayerProgress isYoutubeMode={isYoutubeMode} isLiveRadioMode={isLiveRadioMode} />
     </Animated.View>
   );
 });
@@ -439,7 +451,7 @@ function MiniPlayer() {
   const youtubeQueueLength = youtubeQueue?.length || 0;
 
   const queueLabel = useMemo(() => {
-    if (isLiveRadioMode) return "Live radio";
+    if (isLiveRadioMode) return "Live Radio";
     if (isPodcastMode) return "Podcast";
     if (radioMode && radioQueueLength > 0) return "Radio queue";
     if (youtubeQueueLength > 0) return `${youtubeQueueLength} in queue`;
@@ -456,20 +468,32 @@ function MiniPlayer() {
 
   const title = useMemo(() => {
     if (isYoutubeMode) return youtubeVideo?.title || "YouTube Video";
+    if (isLiveRadioMode) return currentSong?.title || "Live station";
     return currentSong?.title || "Unknown track";
-  }, [isYoutubeMode, youtubeVideo?.title, currentSong?.title]);
+  }, [isYoutubeMode, isLiveRadioMode, youtubeVideo?.title, currentSong?.title]);
 
   const artist = useMemo(() => {
     if (isYoutubeMode) {
       return youtubeVideo?.channelTitle || youtubeVideo?.artist || "YouTube";
     }
 
+    if (isLiveRadioMode) {
+      const subtitle =
+        currentSong?.artist ||
+        currentSong?.genre ||
+        currentSong?.user?.name ||
+        "";
+      return subtitle || "Hidden Tunes Radio";
+    }
+
     return currentSong?.artist || currentSong?.user?.name || "Unknown artist";
   }, [
     isYoutubeMode,
+    isLiveRadioMode,
     youtubeVideo?.channelTitle,
     youtubeVideo?.artist,
     currentSong?.artist,
+    currentSong?.genre,
     currentSong?.user?.name,
   ]);
 
@@ -645,11 +669,12 @@ function MiniPlayer() {
                 queueLabel={queueLabel}
                 badgeIconName={badgeIconName}
                 isYoutubeMode={isYoutubeMode}
+                isLiveRadioMode={isLiveRadioMode}
               />
             </AnimatedPressable>
 
             <View pointerEvents="box-none" style={styles.controlsCluster}>
-              {!isYoutubeMode && (
+              {!isYoutubeMode && !isLiveRadioMode && (
                 <MiniControlButton
                   accessibilityLabel="Previous track"
                   buttonId="previous"
@@ -660,7 +685,7 @@ function MiniPlayer() {
                 </MiniControlButton>
               )}
 
-              {!isYoutubeMode && (
+              {!isYoutubeMode && !isLiveRadioMode && (
                 <MiniControlButton
                   accessibilityLabel="Next track"
                   buttonId="next"

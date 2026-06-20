@@ -151,6 +151,17 @@ export function getUserFacingMatchReason(_reason: unknown) {
   return isDiagnosticsUiEnabled() ? cleanText(_reason) : "";
 }
 
+export function getFriendlyRadioPlaybackError(error: unknown) {
+  const message = cleanText((error as Error)?.message || error);
+  if (!message || isTechnicalDisplayText(message)) {
+    return "This station is unavailable right now.";
+  }
+  if (/network|fetch|timeout|offline/i.test(message)) {
+    return "Try again in a moment.";
+  }
+  return "This station is unavailable right now.";
+}
+
 export function getFriendlyPlaybackError(error: unknown) {
   const message = cleanText((error as Error)?.message || error);
   if (!message || isTechnicalDisplayText(message)) {

@@ -36,6 +36,7 @@ import {
   usePlayerProgress,
   usePlayerState,
 } from "../context/PlayerContext";
+import { isRadioStreamSong } from "../services/playback/playbackRouter";
 import { openGenreCatalog, openMoodCatalog } from "../utils/catalogNavigation";
 import { normalizeGenreName } from "../utils/genreNormalization";
 import { getBestLyricsPayload, setLyricsMemoryCache } from "../utils/lyrics";
@@ -296,6 +297,7 @@ const PlayerProgressPanel = memo(function PlayerProgressPanel({
 const PlayerControlsDock = memo(function PlayerControlsDock({
   compactLayout,
   disabled,
+  hideQueueSkipControls,
   shuffle,
   repeatMode,
   isPlaying,
@@ -308,6 +310,7 @@ const PlayerControlsDock = memo(function PlayerControlsDock({
 }: {
   compactLayout: boolean;
   disabled: boolean;
+  hideQueueSkipControls?: boolean;
   shuffle: boolean;
   repeatMode: string;
   isPlaying: boolean;
@@ -325,9 +328,11 @@ const PlayerControlsDock = memo(function PlayerControlsDock({
           <Ionicons name="shuffle" size={22} color={shuffle ? COLORS.primaryGlow : COLORS.text} />
         </PremiumIconButton>
 
-        <PremiumIconButton disabled={disabled} onPress={onPrevious}>
-          <Ionicons name="play-skip-back" size={27} color={COLORS.text} />
-        </PremiumIconButton>
+        {!hideQueueSkipControls ? (
+          <PremiumIconButton disabled={disabled} onPress={onPrevious}>
+            <Ionicons name="play-skip-back" size={27} color={COLORS.text} />
+          </PremiumIconButton>
+        ) : null}
 
         <PremiumPlayButton
           isPlaying={isPlaying}
@@ -336,9 +341,11 @@ const PlayerControlsDock = memo(function PlayerControlsDock({
           onPress={onTogglePlayPause}
         />
 
-        <PremiumIconButton disabled={disabled} onPress={onNext}>
-          <Ionicons name="play-skip-forward" size={27} color={COLORS.text} />
-        </PremiumIconButton>
+        {!hideQueueSkipControls ? (
+          <PremiumIconButton disabled={disabled} onPress={onNext}>
+            <Ionicons name="play-skip-forward" size={27} color={COLORS.text} />
+          </PremiumIconButton>
+        ) : null}
 
         <PremiumIconButton disabled={disabled} onPress={onCycleRepeat}>
           <View style={styles.repeatIconWrap}>
@@ -423,10 +430,16 @@ export default function PlayerScreen() {
   const metadataOpacity = useSharedValue(1);
   const metadataTranslateY = useSharedValue(0);
 
-  const title = currentSong?.title || "No track selected";
-  const artist =
-    currentSong?.artist || currentSong?.user?.name || "Hidden Tunes";
+  const isLiveRadioMode =
+    isRadioStreamSong(currentSong) || activeQueueMode === "live_stream";
+  const title = isLiveRadioMode
+    ? currentSong?.title || "Live station"
+    : currentSong?.title || "No track selected";
+  const artist = isLiveRadioMode
+    ? currentSong?.artist || currentSong?.genre || "Hidden Tunes Radio"
+    : currentSong?.artist || currentSong?.user?.name || "Hidden Tunes";
   const queueLabel = useMemo(() => {
+    if (isLiveRadioMode) return "LIVE RADIO";
     if (activeQueueMode === "smart") return "SMART AUTOPLAY";
     if (radioMode) return "RADIO MODE";
     if (youtubeQueue?.length) return `${youtubeQueue.length} IN QUEUE`;
@@ -435,6 +448,7 @@ export default function PlayerScreen() {
   }, [
     activeQueue?.length,
     activeQueueMode,
+    isLiveRadioMode,
     radioMode,
     youtubeQueue?.length,
   ]);
@@ -869,7 +883,9 @@ export default function PlayerScreen() {
           </Animated.View>
 
           <View style={styles.sessionPillRow}>
-            <Text style={styles.sessionPill}>{activeQueue?.length || 1} Track Session</Text>
+            <Text style={styles.sessionPill}>
+              {isLiveRadioMode ? "Live Radio" : `${activeQueue?.length || 1} Track Session`}
+            </Text>
             <TouchableOpacity
               activeOpacity={0.82}
               onPress={handleSmartToggle}
@@ -913,6 +929,7 @@ export default function PlayerScreen() {
           <PlayerControlsDock
             compactLayout={compactLayout}
             disabled={!currentSong}
+            hideQueueSkipControls={isLiveRadioMode}
             shuffle={shuffle}
             repeatMode={repeatMode}
             isPlaying={isPlaying}
