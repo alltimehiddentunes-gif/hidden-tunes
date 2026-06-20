@@ -40,9 +40,9 @@ export default function RadioBrowserHomeScreen() {
 
         <View style={styles.headerText}>
           <Text style={styles.kicker}>HIDDEN TUNES RADIO</Text>
-          <Text style={styles.title}>Radio Browser</Text>
+          <Text style={styles.title}>Live Stations</Text>
           <Text style={styles.subtitle}>
-            Live stations curated as Hidden Tunes rooms
+            Browse live rooms curated for Hidden Tunes
           </Text>
         </View>
       </View>

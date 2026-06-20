@@ -18,9 +18,13 @@ import { COLORS } from "../../constants/theme";
 import { TESTER_COPY } from "../../constants/testerExperience";
 import {
   getRadioStationsForCategory,
+  sanitizeStationTagsForDisplay,
   type HiddenTunesStation,
 } from "../../services/radioStationApi";
-import { readCachedRadioStations } from "../../utils/radioStationCache";
+import {
+  hydrateCachedRadioStations,
+  readCachedRadioStations,
+} from "../../utils/radioStationCache";
 import {
   getLaunchRadioCategory,
 } from "../../utils/launchRadioCategories";
@@ -30,11 +34,8 @@ import {
 } from "../../utils/performanceMode";
 
 function stationSubtitle(station: HiddenTunesStation) {
-  const parts = [
-    station.country,
-    station.language,
-    station.tags.slice(0, 2).join(" · "),
-  ].filter(Boolean);
+  const tags = sanitizeStationTagsForDisplay(station.tags).slice(0, 2).join(" · ");
+  const parts = [station.country, station.language, tags].filter(Boolean);
 
   return parts.join(" · ") || "Hidden Tunes station";
 }
@@ -71,6 +72,16 @@ export default function RadioCategoryScreen() {
     },
     [categoryId]
   );
+
+  useEffect(() => {
+    if (!categoryId || stations.length > 0) return;
+
+    void hydrateCachedRadioStations(categoryId).then((cached) => {
+      if (!cached?.length) return;
+      setStations(cached);
+      setLoading(false);
+    });
+  }, [categoryId, stations.length]);
 
   useEffect(() => {
     if (!categoryId) return;
@@ -126,9 +137,10 @@ export default function RadioCategoryScreen() {
     return (
       <LinearGradient colors={["#120818", "#050308"]} style={styles.container}>
         <View style={styles.center}>
-          <Text style={styles.emptyTitle}>Category not found</Text>
+          <Text style={styles.emptyTitle}>This room is not available</Text>
+          <Text style={styles.emptyText}>{TESTER_COPY.radioStationsEmpty}</Text>
           <TouchableOpacity style={styles.backLink} onPress={() => router.back()}>
-            <Text style={styles.backLinkText}>Back to Radio Browser</Text>
+            <Text style={styles.backLinkText}>Back to Hidden Tunes Radio</Text>
           </TouchableOpacity>
         </View>
       </LinearGradient>
@@ -173,8 +185,8 @@ export default function RadioCategoryScreen() {
           ListHeaderComponent={
             <Text style={styles.sectionTitle}>
               {stations.length > 0
-                ? `${stations.length} stations in this room`
-                : "Stations in this room"}
+                ? `${stations.length} Hidden Tunes stations in this room`
+                : "Hidden Tunes stations in this room"}
             </Text>
           }
           ListEmptyComponent={

@@ -14,6 +14,7 @@ import { router, useLocalSearchParams } from "expo-router";
 
 import HTImage from "../../components/HTImage";
 import { COLORS } from "../../constants/theme";
+import { sanitizeStationTagsForDisplay } from "../../services/radioStationApi";
 import { getCachedRadioStation } from "../../utils/radioStationCache";
 import { getLaunchRadioCategory } from "../../utils/launchRadioCategories";
 
@@ -106,9 +107,12 @@ export default function RadioStationDetailScreen() {
           {station?.language ? (
             <Text style={styles.metaLine}>Language · {station.language}</Text>
           ) : null}
-          {station?.tags?.length ? (
+          {sanitizeStationTagsForDisplay(station?.tags || []).length ? (
             <Text style={styles.metaLine}>
-              Vibe · {station.tags.slice(0, 4).join(", ")}
+              Vibe ·{" "}
+              {sanitizeStationTagsForDisplay(station?.tags || [])
+                .slice(0, 4)
+                .join(", ")}
             </Text>
           ) : null}
           {station?.bitrate ? (

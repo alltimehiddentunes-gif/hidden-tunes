@@ -83,7 +83,7 @@ export const SubtleRadioEntryLink = memo(function SubtleRadioEntryLink({
   return (
     <Pressable
       accessibilityRole="link"
-      accessibilityLabel="Open Hidden Tunes Radio Browser"
+      accessibilityLabel="Open Hidden Tunes Radio"
       style={({ pressed }) => [styles.tvLink, pressed && styles.tvLinkPressed, style]}
       onPress={() => router.push("/stations" as any)}
     >

@@ -52,12 +52,39 @@ type RadioBrowserStation = {
   clickcount?: number;
 };
 
+const HIDDEN_PROVIDER_TAG =
+  /^(radio[- ]?browser|icecast|shoutcast|radionomy|tunein|streema|live365)$/i;
+
 function normalizeTags(value: unknown) {
-  return String(value || "")
-    .split(",")
-    .map((tag) => tag.trim().toLowerCase())
-    .filter(Boolean)
-    .slice(0, 8);
+  return sanitizeStationTagsForDisplay(
+    String(value || "")
+      .split(",")
+      .map((tag) => tag.trim().toLowerCase())
+      .filter(Boolean)
+  ).slice(0, 8);
+}
+
+export function sanitizeStationTagsForDisplay(tags: string[]) {
+  return tags.filter((tag) => !HIDDEN_PROVIDER_TAG.test(String(tag || "").trim()));
+}
+
+function dedupeRadioStations(stations: HiddenTunesStation[]) {
+  const seenIds = new Set<string>();
+  const seenStreams = new Set<string>();
+  const deduped: HiddenTunesStation[] = [];
+
+  for (const station of stations) {
+    if (seenIds.has(station.id)) continue;
+
+    const streamKey = station.streamUrl.trim().toLowerCase();
+    if (seenStreams.has(streamKey)) continue;
+
+    seenIds.add(station.id);
+    seenStreams.add(streamKey);
+    deduped.push(station);
+  }
+
+  return deduped;
 }
 
 function pickStreamUrl(station: RadioBrowserStation) {
@@ -159,16 +186,12 @@ async function fetchStationsFromNetwork(categoryId: string) {
   if (!category) return [];
 
   const raw = await fetchRadioBrowserJson(buildCategoryPath(category));
-  const seen = new Set<string>();
 
-  return raw
-    .map((station) => normalizeRadioBrowserStation(station, category.id))
-    .filter((station): station is HiddenTunesStation => {
-      if (!station) return false;
-      if (seen.has(station.id)) return false;
-      seen.add(station.id);
-      return true;
-    });
+  return dedupeRadioStations(
+    raw
+      .map((station) => normalizeRadioBrowserStation(station, category.id))
+      .filter((station): station is HiddenTunesStation => Boolean(station))
+  );
 }
 
 export async function getRadioStationsForCategory(
@@ -194,18 +217,13 @@ export async function getRadioStationsForCategory(
       writeCachedRadioStations(safeId, stations);
       return stations;
     })
-    .catch(() => {
-      const stale =
-        readCachedRadioStations(safeId) ||
-        memoryCacheFallback(safeId);
-      return stale || [];
+    .catch(async () => {
+      const memoryStale = readCachedRadioStations(safeId);
+      if (memoryStale?.length) return memoryStale;
+      return (await hydrateCachedRadioStations(safeId)) || [];
     });
 
   return setRadioStationInflight(safeId, fetchPromise);
-}
-
-function memoryCacheFallback(categoryId: string) {
-  return readCachedRadioStations(categoryId);
 }
 
 export function prefetchRadioStationsForCategory(categoryId: string) {
