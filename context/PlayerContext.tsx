@@ -33,7 +33,10 @@ import {
   getSmartQueue,
   saveSmartQueue,
 } from "../services/smartQueue";
-import { getCachedHiddenTunesCatalog } from "../services/hiddenTunes";
+import {
+  getCachedHiddenTunesCatalog,
+  isDerivedCatalogTrusted,
+} from "../services/hiddenTunes";
 import { syncAndroidAutoCatalogFromDerived } from "../services/androidAutoCatalogBridge";
 import { syncCarPlayCatalogFromDerived } from "../services/carPlayCatalogBridge";
 import {
@@ -776,6 +779,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const intentionalPauseRef = useRef({ at: 0, reason: "" });
   const playbackInterruptionActiveRef = useRef(false);
   const foregroundResyncInFlightRef = useRef(false);
+  const hydrateJsSessionCompletedRef = useRef(false);
+  const compactSessionRestoreBlockedRef = useRef(false);
   const lastPlayerOpenRequestRef = useRef({ songId: "", at: 0 });
   const handleTrackFinishedRef = useRef<(() => Promise<void>) | null>(null);
   const finishWatchdogTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
@@ -1430,6 +1435,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const applyCompactPlaybackSession = useCallback(
     async (rawSession: string | null, source: string) => {
       if (!rawSession) return false;
+
+      if (compactSessionRestoreBlockedRef.current) {
+        logLockscreenPlaybackDiagnostic("compact_session_restore_skipped_blocked", {
+          source,
+        });
+        return false;
+      }
+
       logLockscreenPlaybackDiagnostic("compact_session_restore_start", { source });
 
       try {
@@ -1451,6 +1464,28 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           null;
 
         if (!restoredSong) {
+          const catalog = getCachedHiddenTunesCatalog();
+          const catalogReady =
+            Boolean(catalog) && isDerivedCatalogTrusted(catalog);
+
+          if (!catalogReady) {
+            logLockscreenPlaybackDiagnostic("compact_session_restore_deferred", {
+              source,
+              reason: "catalog_not_ready",
+              currentSongId,
+              queueIds: queueIds.length,
+            });
+            return false;
+          }
+
+          try {
+            await AsyncStorage.removeItem(COMPACT_PLAYBACK_SESSION_KEY);
+            delete storageValueCacheRef.current[COMPACT_PLAYBACK_SESSION_KEY];
+          } catch {
+            // non-fatal
+          }
+
+          compactSessionRestoreBlockedRef.current = true;
           logLockscreenPlaybackDiagnostic("compact_session_restore_failed", {
             source,
             reason: "current_song_missing",
@@ -1464,14 +1499,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           restoredQueue.length > 0
             ? restoredQueue
             : [restoredSong];
-        const finalIndex = Math.max(
-          0,
-          Math.min(
-            finalQueue.findIndex((song) => String(song.id) === String(restoredSong.id)),
-            finalQueue.length - 1
-          )
+        const locatedIndex = finalQueue.findIndex(
+          (song) => String(song.id) === String(restoredSong.id)
         );
-        const queueIndex = finalIndex >= 0 ? finalIndex : safeIndex;
+        const queueIndex = Math.min(
+          Math.max(locatedIndex >= 0 ? locatedIndex : safeIndex, 0),
+          Math.max(finalQueue.length - 1, 0)
+        );
         const mode: ActiveQueueMode =
           parsed.queueMode === "youtube" ||
           parsed.queueMode === "radio" ||
@@ -1499,16 +1533,63 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         lastSavedPositionRef.current = position;
         setPositionMillis(position);
 
+        isPlayingRef.current = false;
+        setIsPlayingState(false);
+        hiddenAudioActiveRef.current = false;
+
         const partial = restoredQueue.length !== queueIds.length;
+        const missingQueueIds = Math.max(0, queueIds.length - restoredQueue.length);
+
+        if (partial && missingQueueIds > 0) {
+          const reducedSession: CompactPlaybackSession = {
+            currentSongId: String(restoredSong.id || ""),
+            queueIds: finalQueue.map((song) => String(song.id || "").trim()).filter(Boolean),
+            queueIndex,
+            positionMillis: position,
+            isPlaying: false,
+            contextSource: context.source || "unknown",
+            queueMode: mode,
+            context,
+            savedAt: Date.now(),
+          };
+          const serializedReduced = JSON.stringify(reducedSession);
+          const serializedQueueIds = JSON.stringify(reducedSession.queueIds);
+          await AsyncStorage.multiSet([
+            [COMPACT_PLAYBACK_SESSION_KEY, serializedReduced],
+            [ACTIVE_QUEUE_KEY, serializedQueueIds],
+            [ACTIVE_QUEUE_INDEX_KEY, String(queueIndex)],
+            [ACTIVE_QUEUE_MODE_KEY, mode],
+            [ACTIVE_QUEUE_CONTEXT_KEY, JSON.stringify(context)],
+          ]);
+          storageValueCacheRef.current[COMPACT_PLAYBACK_SESSION_KEY] = serializedReduced;
+          storageValueCacheRef.current[ACTIVE_QUEUE_KEY] = serializedQueueIds;
+          storageValueCacheRef.current[ACTIVE_QUEUE_INDEX_KEY] = String(queueIndex);
+          storageValueCacheRef.current[ACTIVE_QUEUE_MODE_KEY] = mode;
+          storageValueCacheRef.current[ACTIVE_QUEUE_CONTEXT_KEY] = JSON.stringify(context);
+          try {
+            await AsyncStorage.removeItem(PLAYBACK_WAS_PLAYING_KEY);
+            delete storageValueCacheRef.current[PLAYBACK_WAS_PLAYING_KEY];
+          } catch {
+            // non-fatal
+          }
+        } else {
+          try {
+            await AsyncStorage.removeItem(PLAYBACK_WAS_PLAYING_KEY);
+            delete storageValueCacheRef.current[PLAYBACK_WAS_PLAYING_KEY];
+          } catch {
+            // non-fatal
+          }
+        }
+
         logLockscreenPlaybackDiagnostic(
           partial ? "compact_session_restore_partial" : "compact_session_restore_success",
           {
             source,
             songId: restoredSong.id,
             queueLength: finalQueue.length,
-            missingQueueIds: Math.max(0, queueIds.length - restoredQueue.length),
+            missingQueueIds,
             queueIndex,
-            isPlaying: Boolean(parsed.isPlaying),
+            isPlaying: false,
           }
         );
         return true;
@@ -1580,7 +1661,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           activeQueueRef.current.length > 0 ||
           isPlayingRef.current
         ) {
-          if (snapshot && nativeSessionExists(snapshot)) {
+          if (
+            snapshot &&
+            snapshot.hasLoadedTrack === true &&
+            nativeSessionExists(snapshot)
+          ) {
             markHiddenAudioBridgeActive(true);
             hiddenAudioActiveRef.current = true;
             logForegroundPreservedPausedNativeSession(
@@ -1614,6 +1699,17 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   );
 
   const hydrateJsPlaybackSessionFromStorage = useCallback(async () => {
+    if (hydrateJsSessionCompletedRef.current) {
+      logLockscreenPlaybackDiagnostic("hydrate_js_session_skipped_already_ran", {
+        songId: currentSongRef.current?.id || null,
+        queueLength: activeQueueRef.current.length,
+      });
+      return (
+        Boolean(currentSongRef.current) || activeQueueRef.current.length > 0
+      );
+    }
+    hydrateJsSessionCompletedRef.current = true;
+
     try {
       const [compactSession, intentionalAppClose] = await Promise.all([
         AsyncStorage.getItem(COMPACT_PLAYBACK_SESSION_KEY),
@@ -1819,7 +1915,20 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       });
 
       try {
-        const hydrated = await hydrateJsPlaybackSessionFromStorage();
+        const alreadyHydrated =
+          Boolean(currentSongRef.current) && activeQueueRef.current.length > 0;
+        const hydrated = alreadyHydrated
+          ? true
+          : await hydrateJsPlaybackSessionFromStorage();
+
+        if (alreadyHydrated) {
+          logLockscreenPlaybackDiagnostic("foreground_restore_using_existing_js_session", {
+            reason,
+            songId: currentSongRef.current?.id || null,
+            queueLength: activeQueueRef.current.length,
+          });
+        }
+
         const restoredSong = currentSongRef.current;
         const restoredQueue = activeQueueRef.current;
 
@@ -2107,7 +2216,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       }
 
       if (!nativeRetainsPlayableTrack) {
-        if (nativeSessionExists(snapshot)) {
+        if (
+          snapshot &&
+          snapshot.hasLoadedTrack === true &&
+          nativeSessionExists(snapshot)
+        ) {
           markHiddenAudioBridgeActive(true);
           hiddenAudioActiveRef.current = true;
           setPositionMillis(snapshot.positionMillis);
@@ -2139,6 +2252,24 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             songId: currentSongRef.current?.id || null,
             queueLength: activeQueueRef.current.length,
           });
+          resetHiddenAudioSessionAfterIntentionalClose();
+          hiddenAudioActiveRef.current = false;
+          isPlayingRef.current = false;
+          setIsPlayingState(false);
+          await removeStoredValues([PLAYBACK_WAS_PLAYING_KEY]);
+          logLockscreenPlaybackDiagnostic("foreground_restore_deferred_native_idle", {
+            source: "foreground_sync",
+            songId: currentSongRef.current?.id || null,
+            queueLength: activeQueueRef.current.length,
+            nativeStatus: snapshot.nativeStatus,
+            hasLoadedTrack: snapshot.hasLoadedTrack ?? null,
+            note: "js_session_preserved_no_restore_retry",
+          });
+          logLockscreenPlaybackDiagnostic("foreground_sync_complete", {
+            restored: false,
+            reason: "native_idle_js_session_no_retry",
+          });
+          return;
         }
         logLockscreenPlaybackDiagnostic("native_player_missing_on_foreground", {
           nativeStatus: snapshot.nativeStatus,
@@ -2393,6 +2524,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setIsPlaying,
     setPositionMillis,
     syncNativeRemoteQueueAvailability,
+    removeStoredValues,
   ]);
 
 
@@ -6167,8 +6299,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       setSmartAutoplayEnabled(smartEnabled);
       smartAutoplayEnabledRef.current = smartEnabled;
 
-      if (compactSession) {
-        await applyCompactPlaybackSession(compactSession, "restore_saved_data_light");
+      let compactHydrated = false;
+      if (compactSession && !hydrateJsSessionCompletedRef.current) {
+        compactHydrated = await applyCompactPlaybackSession(
+          compactSession,
+          "restore_saved_data_light"
+        );
       } else if (savedSong) {
         const parsedSongPayload = JSON.parse(savedSong);
         const parsedSong =
@@ -6182,7 +6318,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      if (isHiddenAudioNativePlaybackEnabled()) {
+      if (
+        isHiddenAudioNativePlaybackEnabled() &&
+        !currentSongRef.current &&
+        activeQueueRef.current.length === 0
+      ) {
         const [savedActiveQueue, savedActiveQueueIndex, savedActiveQueueMode, savedActiveQueueContext] =
           await Promise.all([
             AsyncStorage.getItem(ACTIVE_QUEUE_KEY),
@@ -6266,6 +6406,19 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       if (savedMuted === "true") {
         setIsMuted(true);
         isMutedRef.current = true;
+      }
+
+      if (
+        compactSession &&
+        !compactHydrated &&
+        !currentSongRef.current &&
+        !compactSessionRestoreBlockedRef.current &&
+        isDerivedCatalogTrusted(getCachedHiddenTunesCatalog())
+      ) {
+        await applyCompactPlaybackSession(
+          compactSession,
+          "restore_saved_data_light_catalog_ready"
+        );
       }
     } catch (error) {
       console.log("Restore player data (light) error:", error);
@@ -7086,7 +7239,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     void (async () => {
       if (isHiddenAudioNativePlaybackEnabled()) {
-        if (!currentSongRef.current || activeQueueRef.current.length === 0) {
+        if (
+          !hydrateJsSessionCompletedRef.current &&
+          (!currentSongRef.current || activeQueueRef.current.length === 0)
+        ) {
           const hydrated = await hydrateJsPlaybackSessionFromStorage();
           if (hydrated) {
             logLockscreenPlaybackDiagnostic(
