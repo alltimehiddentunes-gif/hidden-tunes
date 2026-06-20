@@ -7,6 +7,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { COLORS } from "../../constants/theme";
 import type { RadioCategory } from "../../constants/radioCategories";
 import type { RadioStationListItem } from "../../types/radio";
+import { getUserFacingRadioSubtitle } from "../../services/ui/displayMetadata";
 
 type RadioCategoryCardProps = {
   category: RadioCategory;
@@ -79,7 +80,7 @@ export const RadioStationCard = memo(function RadioStationCard({
         </Text>
         {item.subtitle ? (
           <Text numberOfLines={1} style={styles.stationSubtitle}>
-            {item.subtitle}
+            {getUserFacingRadioSubtitle(item)}
           </Text>
         ) : null}
       </View>

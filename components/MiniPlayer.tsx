@@ -50,6 +50,11 @@ import {
 import HTImage from "./HTImage";
 import { FALLBACK_ARTWORK } from "../utils/artwork";
 import { isFastScrolling } from "../utils/performanceMode";
+import {
+  getUserFacingArtist,
+  getUserFacingPodcastSubtitle,
+  getUserFacingRadioSubtitle,
+} from "../services/ui/displayMetadata";
 
 type YouTubeMini = {
   id: string;
@@ -474,27 +479,32 @@ function MiniPlayer() {
 
   const artist = useMemo(() => {
     if (isYoutubeMode) {
-      return youtubeVideo?.channelTitle || youtubeVideo?.artist || "YouTube";
+      return (
+        getUserFacingArtist({
+          artist: youtubeVideo?.channelTitle || youtubeVideo?.artist,
+        }) || "Hidden Tunes TV"
+      );
     }
 
     if (isLiveRadioMode) {
-      const subtitle =
-        currentSong?.artist ||
-        currentSong?.genre ||
-        currentSong?.user?.name ||
-        "";
-      return subtitle || "Hidden Tunes Radio";
+      return getUserFacingRadioSubtitle({
+        subtitle: currentSong?.artist,
+        genre: currentSong?.genre,
+      });
     }
 
-    return currentSong?.artist || currentSong?.user?.name || "Unknown artist";
+    if (isPodcastMode) {
+      return getUserFacingPodcastSubtitle(null, currentSong?.artist);
+    }
+
+    return getUserFacingArtist(currentSong);
   }, [
     isYoutubeMode,
     isLiveRadioMode,
+    isPodcastMode,
     youtubeVideo?.channelTitle,
     youtubeVideo?.artist,
-    currentSong?.artist,
-    currentSong?.genre,
-    currentSong?.user?.name,
+    currentSong,
   ]);
 
   const cover = useMemo(() => {

@@ -11,6 +11,7 @@ import {
   type LaunchPodcastCategory,
 } from "../../utils/launchPodcastCategories";
 import { podcastDiscoveryDisplayName } from "../../utils/openHiddenTunesPodcast";
+import { getUserFacingPodcastSubtitle } from "../../services/ui/displayMetadata";
 
 type PodcastCategoryCardProps = {
   category: LaunchPodcastCategory;
@@ -83,7 +84,7 @@ export const PodcastShowCard = memo(function PodcastShowCard({
           {podcastDiscoveryDisplayName(show.title)}
         </Text>
         <Text numberOfLines={1} style={styles.showSubtitle}>
-          {subtitle || HIDDEN_TUNES_PODCASTS_LABEL}
+          {subtitle || getUserFacingPodcastSubtitle(null, show.title)}
         </Text>
       </View>
 
@@ -126,7 +127,7 @@ export const PodcastEpisodeRow = memo(function PodcastEpisodeRow({
           {podcastDiscoveryDisplayName(episode.title)}
         </Text>
         <Text numberOfLines={1} style={styles.episodeSubtitle}>
-          {subtitle || HIDDEN_TUNES_PODCASTS_LABEL}
+          {subtitle || getUserFacingPodcastSubtitle(episode)}
         </Text>
       </View>
 

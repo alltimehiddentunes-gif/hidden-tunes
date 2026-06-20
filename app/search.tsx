@@ -80,6 +80,13 @@ import { logEntityTapReceived } from "../utils/entityDiagnostics";
 import { resolveStationEntity } from "../utils/entityResolution";
 import { resolveEntityArtwork } from "../utils/artwork";
 import { markFastScrolling } from "../utils/performanceMode";
+import {
+  getUserFacingArtist,
+  getUserFacingRadioSubtitle,
+  getUserFacingSearchSubtitle,
+  getUserFacingSongSubtitle,
+  getUserFacingVideoSubtitle,
+} from "../services/ui/displayMetadata";
 
 const EMPTY_SEARCH_RESULTS = EMPTY_UNIVERSAL_SEARCH_RESULTS;
 
@@ -1611,7 +1618,9 @@ export default function SearchScreen() {
                         <TouchableOpacity activeOpacity={0.88} style={styles.albumCard} onPress={() => playAlbumResult(album)}>
                           <HTImage source={album} style={styles.albumImage} contentFit="cover" />
                           <Text numberOfLines={2} style={styles.albumTitle}>{album.title}</Text>
-                          <Text numberOfLines={1} style={styles.albumArtist}>{album.artist}</Text>
+                          <Text numberOfLines={1} style={styles.albumArtist}>
+                            {getUserFacingArtist(album)}
+                          </Text>
                         </TouchableOpacity>
                       )}
                     />
@@ -1680,7 +1689,12 @@ export default function SearchScreen() {
                             </LinearGradient>
                           )}
                           <Text numberOfLines={1} style={styles.roomTitle}>{station.title}</Text>
-                          <Text style={styles.roomMeta}>{station.subtitle}</Text>
+                          <Text style={styles.roomMeta}>
+                            {getUserFacingRadioSubtitle({
+                              subtitle: station.subtitle,
+                              genre: station.kind === "room" ? "Mood room" : undefined,
+                            })}
+                          </Text>
                         </TouchableOpacity>
                       ))}
                     </View>
@@ -1730,10 +1744,19 @@ export default function SearchScreen() {
                         </LinearGradient>
                         <View style={styles.songCopy}>
                           <Text numberOfLines={1} style={styles.songTitle}>{song.title}</Text>
-                          <Text numberOfLines={1} style={styles.songArtist}>{song.artist}</Text>
+                          <Text numberOfLines={1} style={styles.songArtist}>
+                            {getUserFacingArtist(song)}
+                          </Text>
+                          <Text numberOfLines={1} style={styles.songMeta}>
+                            {getUserFacingSongSubtitle(song)}
+                          </Text>
                         </View>
                         <View style={styles.playCircle}>
-                          <Ionicons name={(song as any).raw?.canPlayNatively === false ? "open-outline" : "play"} size={16} color={COLORS.text} />
+                          <Ionicons
+                            name={(song as any).raw?.canPlayNatively === false ? "open-outline" : "play"}
+                            size={16}
+                            color={COLORS.text}
+                          />
                         </View>
                       </TouchableOpacity>
                     ))}
@@ -1747,7 +1770,10 @@ export default function SearchScreen() {
                       const video = hit.payload as HiddenTunesTvVideo;
                       const item = normalizeVideoItem(video);
                       const creator = getVideoDisplayCreator(item);
-                      const category = getVideoDisplayCategory(item) || hit.subtitle || "Video result";
+                      const category =
+                        getVideoDisplayCategory(item) ||
+                        getUserFacingVideoSubtitle(video, hit.subtitle) ||
+                        "Video";
                       return (
                         <TouchableOpacity
                           key={`tv-${video.id}-${index}`}
@@ -1841,8 +1867,8 @@ export default function SearchScreen() {
                         </LinearGradient>
                         <View style={styles.songCopy}>
                           <Text numberOfLines={1} style={styles.songTitle}>{song.title}</Text>
-                          <Text numberOfLines={1} style={styles.songArtist}>{song.artist}</Text>
-                          <Text numberOfLines={1} style={styles.songMeta}>{song.album || song.genre || "Hidden Tunes"}</Text>
+                          <Text numberOfLines={1} style={styles.songArtist}>{getUserFacingArtist(song)}</Text>
+                          <Text numberOfLines={1} style={styles.songMeta}>{getUserFacingSongSubtitle(song)}</Text>
                         </View>
                         <View style={styles.playCircle}>
                           <Ionicons name="play" size={16} color={COLORS.text} />
@@ -1907,7 +1933,7 @@ export default function SearchScreen() {
                             {album.title}
                           </Text>
                           <Text numberOfLines={1} style={styles.albumArtist}>
-                            {album.artist}
+                            {getUserFacingArtist(album)}
                           </Text>
                         </TouchableOpacity>
                       )}

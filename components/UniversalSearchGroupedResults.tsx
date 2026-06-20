@@ -12,6 +12,10 @@ import type { UniversalMatchReason } from "../utils/universalSearch";
 import { UNIVERSAL_SEARCH_EMPTY_SUGGESTIONS } from "../utils/universalSearch";
 import { isSameSearchInputQuery } from "../utils/searchInputTiming";
 import {
+  getUserFacingMatchReason,
+  getUserFacingSearchSubtitle,
+} from "../services/ui/displayMetadata";
+import {
   createStableKeyExtractor,
   getNestedSongListLayout,
   LIST_ITEM_HEIGHTS,
@@ -38,9 +42,12 @@ const MatchReasonPill = memo(function MatchReasonPill({
 }: {
   reason: UniversalMatchReason;
 }) {
+  const label = getUserFacingMatchReason(reason);
+  if (!label) return null;
+
   return (
     <View style={styles.reasonPill}>
-      <Text style={styles.reasonText}>{reason}</Text>
+      <Text style={styles.reasonText}>{label}</Text>
     </View>
   );
 });
@@ -98,7 +105,10 @@ const SearchSongRow = memo(function SearchSongRow({
     >
       <MediaCard
         title={hit.payload.title}
-        subtitle={hit.subtitle || hit.payload.artist}
+        subtitle={getUserFacingSearchSubtitle(hit.payload, {
+          kind: "song",
+          fallback: hit.subtitle,
+        })}
         image={hit.payload}
         type="song"
         size="medium"
@@ -212,7 +222,10 @@ function UniversalSearchGroupedResults({
                 >
                   <MediaCard
                     title={artist.name}
-                    subtitle={hit.subtitle || "Artist"}
+                    subtitle={getUserFacingSearchSubtitle(artist, {
+                      kind: "artist",
+                      fallback: hit.subtitle,
+                    })}
                     image={artist}
                     artworkCandidates={artist.songs || []}
                     type="artist"
@@ -236,7 +249,10 @@ function UniversalSearchGroupedResults({
                 >
                   <MediaCard
                     title={album.title}
-                    subtitle={hit.subtitle || album.artist}
+                    subtitle={getUserFacingSearchSubtitle(album, {
+                      kind: "album",
+                      fallback: hit.subtitle || album.artist,
+                    })}
                     image={album}
                     artworkCandidates={album.songs || []}
                     type="album"
@@ -278,7 +294,10 @@ function UniversalSearchGroupedResults({
                 >
                   <MediaCard
                     title={playlist.title}
-                    subtitle={hit.subtitle || "Collection"}
+                    subtitle={getUserFacingSearchSubtitle(playlist, {
+                      kind: "playlist",
+                      fallback: hit.subtitle,
+                    })}
                     image={playlist}
                     artworkCandidates={playlist.songs || []}
                     type="album"
@@ -305,7 +324,10 @@ function UniversalSearchGroupedResults({
               >
                 <MediaCard
                   title={song.title}
-                  subtitle={hit.subtitle || song.artist}
+                  subtitle={getUserFacingSearchSubtitle(song, {
+                    kind: hit.id.startsWith("lyric:") ? "lyric" : "song",
+                    fallback: hit.subtitle,
+                  })}
                   image={song}
                   type="song"
                   size="medium"
@@ -361,7 +383,10 @@ function UniversalSearchGroupedResults({
             >
               <MediaCard
                 title={hit.payload.name}
-                subtitle={hit.subtitle || "Artist"}
+                subtitle={getUserFacingSearchSubtitle(hit.payload, {
+                  kind: "artist",
+                  fallback: hit.subtitle,
+                })}
                 image={hit.payload}
                 artworkCandidates={(hit.payload as any).songs || []}
                 type="artist"
@@ -387,7 +412,10 @@ function UniversalSearchGroupedResults({
             >
               <MediaCard
                 title={hit.payload.title}
-                subtitle={hit.subtitle || hit.payload.artist}
+                subtitle={getUserFacingSearchSubtitle(hit.payload, {
+                  kind: "album",
+                  fallback: hit.subtitle || hit.payload.artist,
+                })}
                 image={hit.payload}
                 artworkCandidates={(hit.payload as any).songs || []}
                 type="album"
@@ -414,7 +442,7 @@ function UniversalSearchGroupedResults({
               >
                 <Text style={styles.genreEmoji}>{hit.payload.emoji || "🎵"}</Text>
                 <Text style={styles.genreChipText}>{hit.payload.title}</Text>
-                <Text style={styles.genreReason}>{hit.reason}</Text>
+                <Text style={styles.genreReason}>{getUserFacingMatchReason(hit.reason)}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -434,7 +462,7 @@ function UniversalSearchGroupedResults({
               >
                 <Text style={styles.genreEmoji}>{hit.payload.emoji || "✨"}</Text>
                 <Text style={styles.genreChipText}>{hit.payload.title}</Text>
-                <Text style={styles.genreReason}>{hit.reason}</Text>
+                <Text style={styles.genreReason}>{getUserFacingMatchReason(hit.reason)}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -453,7 +481,10 @@ function UniversalSearchGroupedResults({
             >
               <MediaCard
                 title={hit.payload.title}
-                subtitle={hit.payload.artist}
+                subtitle={getUserFacingSearchSubtitle(hit.payload, {
+                  kind: "lyric",
+                  fallback: hit.payload.artist,
+                })}
                 image={hit.payload}
                 type="song"
                 size="medium"
@@ -483,7 +514,10 @@ function UniversalSearchGroupedResults({
             >
               <MediaCard
                 title={hit.payload.title}
-                subtitle={hit.subtitle || hit.payload.description || "Collection"}
+                subtitle={getUserFacingSearchSubtitle(hit.payload, {
+                  kind: "playlist",
+                  fallback: hit.subtitle || hit.payload.description,
+                })}
                 image={hit.payload}
                 artworkCandidates={(hit.payload as any).songs || []}
                 type="album"
@@ -499,7 +533,7 @@ function UniversalSearchGroupedResults({
 
       {display.internetAudio.length > 0 && (
         <View style={styles.sectionBlock}>
-          <SectionHeader title="Internet Audio" count={grouped.internetAudio.length} />
+          <SectionHeader title="More Listening" count={grouped.internetAudio.length} />
           <FlatList
             data={display.internetAudio}
             scrollEnabled={false}

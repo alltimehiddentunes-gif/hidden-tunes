@@ -5,6 +5,10 @@ import { Ionicons } from "@expo/vector-icons";
 
 import MediaCard from "../MediaCard";
 import NeonEQ from "../NeonEQ";
+import {
+  getUserFacingArtist,
+  getUserFacingSongSubtitle,
+} from "../../services/ui/displayMetadata";
 
 type CatalogSongRowProps = {
   song: {
@@ -37,7 +41,12 @@ function CatalogSongRow({
     <View style={[styles.shell, active && styles.shellActive]}>
       <MediaCard
         title={song.title}
-        subtitle={`${song.artist} • ${song.album || "Hidden Tunes"}`}
+        subtitle={(() => {
+          const artist = getUserFacingArtist(song);
+          const meta = getUserFacingSongSubtitle(song);
+          if (artist && meta) return `${artist} • ${meta}`;
+          return artist || meta || "Hidden Tunes";
+        })()}
         image={image}
         type="song"
         size="medium"

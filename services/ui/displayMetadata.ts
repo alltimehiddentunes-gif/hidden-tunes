@@ -4,7 +4,41 @@ const URL_PATTERN = /https?:\/\//i;
 const UUID_PATTERN =
   /\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b/i;
 const TECHNICAL_LABEL_PATTERN =
-  /\b(audius|jamendo|internet archive|archive\.org|free music archive|musopen|supabase|cloudflare|r2\.cloudflarestorage|render\.com|provider|backend|catalog api|stream url|diagnostic|playback engine|smart session|search session|artist-uploaded|reference stream)\b/i;
+  /\b(audius|audius artist|jamendo|internet archive|archive\.org|free music archive|musopen|supabase|cloudflare|r2\.cloudflarestorage|render\.com|provider|backend|catalog api|catalog result|from catalog search|stream url|embed url|source url|diagnostic|playback engine|smart session|search session|artist-uploaded|reference stream)\b/i;
+
+export type SearchDisplayKind =
+  | "song"
+  | "lyric"
+  | "artist"
+  | "album"
+  | "playlist"
+  | "genre"
+  | "radio"
+  | "podcast"
+  | "video";
+
+type DisplayVideoLike = {
+  channel_name?: string | null;
+  channelTitle?: string | null;
+  category?: string | null;
+  genre?: string | null;
+  format?: string | null;
+  mood?: string | null;
+};
+
+type DisplayRadioLike = {
+  title?: string | null;
+  country?: string | null;
+  genre?: string | null;
+  tags?: string[] | null;
+  subtitle?: string | null;
+};
+
+type DisplayPodcastEpisodeLike = {
+  title?: string | null;
+  show_title?: string | null;
+  showTitle?: string | null;
+};
 
 type DisplaySongLike = {
   id?: string | number | null;
@@ -22,11 +56,23 @@ type DisplaySongLike = {
   streamUrl?: string | null;
   url?: string | null;
   user?: { name?: string | null } | null;
-  raw?: { source?: string | null; license?: string | null } | null;
+  raw?: unknown;
 };
 
 function cleanText(value: unknown) {
   return String(value || "").trim();
+}
+
+function pickFriendlyText(...candidates: unknown[]) {
+  for (const candidate of candidates) {
+    const text = cleanText(candidate);
+    if (text && !isTechnicalDisplayText(text)) return text;
+  }
+  return "";
+}
+
+function joinFriendlyParts(parts: string[], separator = " · ") {
+  return parts.filter((part) => part && !isTechnicalDisplayText(part)).join(separator);
 }
 
 export function isDiagnosticsUiEnabled() {
@@ -58,7 +104,8 @@ export function isYouTubeDisplayItem(item: DisplaySongLike | null | undefined) {
 
 export function isExternalFallbackSong(item: DisplaySongLike | null | undefined) {
   if (!item) return false;
-  const source = cleanText(item.source || item.raw?.source).toLowerCase();
+  const raw = item.raw as { source?: string | null; license?: string | null } | null | undefined;
+  const source = cleanText(item.source || raw?.source).toLowerCase();
   return (
     source === "audius" ||
     source === "archive" ||
@@ -98,13 +145,96 @@ export function getUserFacingSongSubtitle(item: DisplaySongLike | null | undefin
     if (!isTechnicalDisplayText(candidate)) return candidate;
   }
 
-  if (isExternalFallbackSong(item)) return "Free & legal source";
   return "";
 }
 
 export function getUserFacingSourceBadge(item: DisplaySongLike | null | undefined) {
   if (isYouTubeDisplayItem(item)) return "Hidden Tunes TV";
   return APP_BRAND_NAME;
+}
+
+export function getUserFacingMediaBadge(item: DisplaySongLike | null | undefined) {
+  return getUserFacingSourceBadge(item);
+}
+
+export function getUserFacingVideoSubtitle(
+  video: DisplayVideoLike | null | undefined,
+  fallback?: string
+) {
+  const channel = pickFriendlyText(video?.channel_name, video?.channelTitle);
+  const format = pickFriendlyText(video?.format, video?.category, video?.genre, video?.mood);
+  const combined = joinFriendlyParts([channel, format]);
+  if (combined) return combined;
+
+  const safeFallback = pickFriendlyText(fallback);
+  if (safeFallback) return safeFallback;
+  return "Video";
+}
+
+export function getUserFacingRadioSubtitle(station: DisplayRadioLike | null | undefined) {
+  const country = pickFriendlyText(station?.country);
+  const genre = pickFriendlyText(station?.genre);
+  const rawSubtitle = pickFriendlyText(station?.subtitle);
+
+  if (rawSubtitle && !isTechnicalDisplayText(rawSubtitle)) {
+    if (/live radio/i.test(rawSubtitle)) return rawSubtitle;
+    if (country || genre) {
+      return joinFriendlyParts(["Live Radio", country, genre]);
+    }
+    return rawSubtitle;
+  }
+
+  const joined = joinFriendlyParts(["Live Radio", country, genre]);
+  return joined || "Live Radio";
+}
+
+export function getUserFacingPodcastSubtitle(
+  episode: DisplayPodcastEpisodeLike | null | undefined,
+  showName?: string | null
+) {
+  const show = pickFriendlyText(showName, episode?.show_title, episode?.showTitle);
+  if (show) return joinFriendlyParts(["Podcast", show]);
+  return "Podcast";
+}
+
+export function getUserFacingSearchSubtitle(
+  item: DisplaySongLike | null | undefined,
+  options?: {
+    kind?: SearchDisplayKind;
+    fallback?: string;
+    showName?: string;
+  }
+) {
+  const kind = options?.kind || "song";
+  const fallback = pickFriendlyText(options?.fallback);
+
+  switch (kind) {
+    case "video":
+      return getUserFacingVideoSubtitle(item as DisplayVideoLike, fallback);
+    case "radio":
+      return getUserFacingRadioSubtitle(item as DisplayRadioLike);
+    case "podcast":
+      return getUserFacingPodcastSubtitle(item, options?.showName);
+    case "artist":
+      return fallback || "Artist";
+    case "album":
+      return pickFriendlyText(item?.artist) || fallback || APP_BRAND_NAME;
+    case "playlist":
+      return fallback || "Collection";
+    case "genre":
+      return fallback || "Mood";
+    case "lyric":
+    case "song":
+    default: {
+      const artist = getUserFacingArtist(item);
+      const meta = getUserFacingSongSubtitle(item);
+      if (artist && meta) return `${artist} • ${meta}`;
+      if (artist) return artist;
+      if (meta) return meta;
+      if (fallback) return fallback;
+      return APP_BRAND_NAME;
+    }
+  }
 }
 
 export function getUserFacingTrackRowSubtitle(item: DisplaySongLike | null | undefined) {

@@ -1,5 +1,6 @@
 import type { HiddenTunesTvVideo } from "../tvCatalogApi";
 import { FALLBACK_ARTWORK } from "../../utils/artwork";
+import { isTechnicalDisplayText } from "../ui/displayMetadata";
 
 export type VideoSource =
   | "youtube"
@@ -149,11 +150,15 @@ export function normalizeVideoItem(video: HiddenTunesTvVideo): VideoItem {
 }
 
 export function getVideoDisplayCreator(video: VideoItem) {
-  return video.creatorName || video.channelTitle || "Hidden Tunes TV";
+  const creator = video.creatorName || video.channelTitle || "";
+  if (creator && !isTechnicalDisplayText(creator)) return creator;
+  return "Hidden Tunes TV";
 }
 
 export function getVideoDisplayCategory(video: VideoItem) {
-  return video.category || video.format || video.genre || "";
+  const category = video.category || video.format || video.genre || video.mood || "";
+  if (category && !isTechnicalDisplayText(category)) return category;
+  return "";
 }
 
 export function isVideoItemPlayableInCurrentRoute(video: VideoItem) {

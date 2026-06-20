@@ -7,6 +7,10 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useTrackPlaybackStatus } from "../../context/playerContextSlices";
 import { COLORS, GRADIENTS } from "../../constants/theme";
 import type { HiddenTunesNormalizedSong } from "../../services/hiddenTunesApi";
+import {
+  getUserFacingArtist,
+  getUserFacingSongSubtitle,
+} from "../../services/ui/displayMetadata";
 import HTImage from "../HTImage";
 import NeonEQ from "../NeonEQ";
 
@@ -47,10 +51,10 @@ export const SearchApkSongRow = memo(function SearchApkSongRow({
           {song.title}
         </Text>
         <Text numberOfLines={1} style={styles.songArtist}>
-          {song.artist || "Hidden Tunes"}
+          {getUserFacingArtist(song)}
         </Text>
         <Text numberOfLines={1} style={styles.songMeta}>
-          {song.album || song.genre || song.mood || "Catalog result"}
+          {getUserFacingSongSubtitle(song)}
         </Text>
       </View>
       {isActive && isPlaying ? (

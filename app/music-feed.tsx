@@ -82,6 +82,7 @@ import {
   hydrateDiscoveryPreferredGenres,
   sortItemsByPreferredGenres,
 } from "@/utils/discoveryPreferences";
+import { getUserFacingArtist } from "@/services/ui/displayMetadata";
 
 const CATALOG_PAGE_SIZE = 31;
 const HOME_SCROLL_SETTLE_MS = 520;
@@ -426,8 +427,8 @@ function buildHeroCards(
       label: "NOW PLAYING",
       title: currentSong.title || match.title || "Now playing",
       subtitle:
-        currentSong.artist ||
-        match.artist ||
+        getUserFacingArtist(currentSong) ||
+        getUserFacingArtist(match) ||
         "Hidden Tunes",
       song: match as unknown as HiddenTunesNormalizedSong,
       icon: "pulse",
@@ -440,7 +441,7 @@ function buildHeroCards(
       key: `featured-${primary.id}`,
       label: "FEATURED",
       title: primary.title,
-      subtitle: primary.artist || "Hidden Tunes",
+      subtitle: getUserFacingArtist(primary) || "Hidden Tunes",
       song: primary as unknown as HiddenTunesNormalizedSong,
       icon: "sparkles",
     });
@@ -451,7 +452,7 @@ function buildHeroCards(
       key: `pick-${pick.id}`,
       label: "PICK",
       title: pick.title,
-      subtitle: pick.artist || "Editor pick",
+      subtitle: getUserFacingArtist(pick) || "Editor pick",
       song: pick as unknown as HiddenTunesNormalizedSong,
       icon: "cloud-done",
     });
@@ -462,7 +463,7 @@ function buildHeroCards(
       key: `genre-${genreSong.id}`,
       label: String(genreSong.genre || "GENRE").toUpperCase(),
       title: genreSong.title,
-      subtitle: genreSong.artist || "Genre spotlight",
+      subtitle: getUserFacingArtist(genreSong) || "Genre spotlight",
       song: genreSong as unknown as HiddenTunesNormalizedSong,
       icon: "albums",
     });
@@ -477,7 +478,10 @@ function buildHeroCards(
         key: `recent-${recentSong.id}`,
         label: "RECENTLY PLAYED",
         title: recent.title || recentSong.title,
-        subtitle: recent.artist || recentSong.artist || "In rotation",
+        subtitle:
+          getUserFacingArtist(recent) ||
+          getUserFacingArtist(recentSong) ||
+          "In rotation",
         song: recentSong as unknown as HiddenTunesNormalizedSong,
         icon: "time",
       });

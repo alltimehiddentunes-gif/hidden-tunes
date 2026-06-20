@@ -30,6 +30,7 @@ import { useAppActiveState } from "../../utils/performanceMode";
 import { logPerformanceOffscreenWorkPaused } from "../../utils/performanceLogs";
 import { useTrackPlaybackStatus } from "../../context/playerContextSlices";
 import type { HiddenTunesNormalizedSong } from "../../services/hiddenTunesApi";
+import { getUserFacingArtist } from "../../services/ui/displayMetadata";
 import HTImage from "../HTImage";
 import NeonEQ from "../NeonEQ";
 import CatalogSongRow from "./CatalogSongRow";
@@ -188,7 +189,7 @@ export const HomeFeaturedCard = memo(function HomeFeaturedCard({
         </Text>
 
         <Text numberOfLines={1} ellipsizeMode="tail" style={styles.featuredArtist}>
-          {item.artist}
+          {getUserFacingArtist(item)}
         </Text>
 
         <View style={styles.featuredBottom}>
