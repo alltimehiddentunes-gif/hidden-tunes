@@ -21,7 +21,7 @@ import {
   HomeCatalogSongRow,
   HomeFeaturedCard,
 } from "../../components/catalog/HomePlaybackRows";
-import { EmotionalDiscoveryChips, SubtleTvEntryLink } from "../../components/EmotionalDiscoveryChips";
+import { EmotionalDiscoveryChips, SubtleRadioEntryLink, SubtleTvEntryLink } from "../../components/EmotionalDiscoveryChips";
 import MoodRoomCard from "../../components/explore/MoodRoomCard";
 import NeonEQ from "../../components/NeonEQ";
 import HTImage from "../../components/HTImage";
@@ -1522,6 +1522,7 @@ function HomeScreen() {
         case "footer-spacer":
           return (
             <View style={styles.footerSpacer}>
+              <SubtleRadioEntryLink />
               <SubtleTvEntryLink />
               <View style={{ height: 120 }} />
             </View>

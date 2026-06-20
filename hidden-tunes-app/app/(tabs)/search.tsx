@@ -93,7 +93,7 @@ import {
 import { openGenreCatalog } from "../../utils/catalogNavigation";
 import { shouldShowCatalogEmpty } from "../../utils/catalogEmptyStateTiming";
 import UniversalSearchGroupedResults from "../../components/UniversalSearchGroupedResults";
-import { SubtleTvEntryLink, EmotionalDiscoveryChips } from "../../components/EmotionalDiscoveryChips";
+import { SubtleTvEntryLink, EmotionalDiscoveryChips, SubtleRadioEntryLink } from "../../components/EmotionalDiscoveryChips";
 import {
   invalidateCatalogSearchIndex,
   runInstantCatalogSearch,
@@ -2468,6 +2468,7 @@ export default function SearchScreen() {
           </View>
         )}
 
+        <SubtleRadioEntryLink style={styles.searchTvEntry} />
         <SubtleTvEntryLink style={styles.searchTvEntry} />
       </>
     );
@@ -2766,7 +2767,10 @@ export default function SearchScreen() {
                 </TouchableOpacity>
               ) : null}
               {showGroupedSearch ? (
-                <SubtleTvEntryLink style={styles.searchTvEntry} />
+                <>
+                  <SubtleRadioEntryLink style={styles.searchTvEntry} />
+                  <SubtleTvEntryLink style={styles.searchTvEntry} />
+                </>
               ) : null}
             </>
           }

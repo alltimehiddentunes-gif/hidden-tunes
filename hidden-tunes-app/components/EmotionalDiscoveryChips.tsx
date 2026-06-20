@@ -75,6 +75,25 @@ export const SubtleTvEntryLink = memo(function SubtleTvEntryLink({
   );
 });
 
+export const SubtleRadioEntryLink = memo(function SubtleRadioEntryLink({
+  style,
+}: {
+  style?: StyleProp<ViewStyle>;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="link"
+      accessibilityLabel="Open Hidden Tunes Radio Browser"
+      style={({ pressed }) => [styles.tvLink, pressed && styles.tvLinkPressed, style]}
+      onPress={() => router.push("/stations" as any)}
+    >
+      <Ionicons name="radio-outline" size={14} color={COLORS.textMuted} />
+      <Text style={styles.tvLinkText}>Hidden Tunes Radio</Text>
+      <Ionicons name="chevron-forward" size={14} color={COLORS.textMuted} />
+    </Pressable>
+  );
+});
+
 const styles = StyleSheet.create({
   wrap: {
     marginHorizontal: 20,

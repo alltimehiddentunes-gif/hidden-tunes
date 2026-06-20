@@ -15,5 +15,8 @@ export const TESTER_COPY = {
     "TV catalog isn't available right now. Pull to refresh when you're back online.",
   tvSearchUnavailable: "TV search isn't available right now. Try again in a moment.",
   radioLoadFailed: "Couldn't load tracks right now. Pull to refresh when you're online.",
+  radioStationsLoading: "Finding Hidden Tunes stations…",
+  radioStationsEmpty:
+    "No stations in this room yet. Try another category or open a listening room.",
   lyricsLoadFailed: "Lyrics aren't available for this track right now.",
 } as const;

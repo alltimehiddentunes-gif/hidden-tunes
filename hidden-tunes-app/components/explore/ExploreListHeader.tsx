@@ -28,7 +28,7 @@ import {
   shouldShowCatalogEmpty,
 } from "../../utils/catalogEmptyStateTiming";
 import HTImage from "../HTImage";
-import { SubtleTvEntryLink, EmotionalDiscoveryChips } from "../EmotionalDiscoveryChips";
+import { SubtleTvEntryLink, EmotionalDiscoveryChips, SubtleRadioEntryLink } from "../EmotionalDiscoveryChips";
 import { LAUNCH_EMOTIONAL_WORLDS } from "../../utils/launchEmotionalWorlds";
 
 export type ExploreMountStage = 0 | 1 | 2 | 3 | 4;
@@ -900,6 +900,7 @@ export const ExploreHeavySections = memo(function ExploreHeavySections({
         </View>
       ) : null}
 
+      <SubtleRadioEntryLink style={styles.exploreTvEntry} />
       <SubtleTvEntryLink style={styles.exploreTvEntry} />
     </>
   );

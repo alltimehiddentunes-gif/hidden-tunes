@@ -311,9 +311,16 @@ export default function ProfileScreen() {
           <Text style={styles.sectionTitle}>Discovery</Text>
 
           <ProfileItem
+            icon="radio-outline"
+            title="Hidden Tunes Radio"
+            subtitle="Browse live station rooms"
+            onPress={() => router.push("/stations" as never)}
+          />
+
+          <ProfileItem
             icon="radio"
             title="Personal Radio"
-            subtitle="Endless smart music discovery"
+            subtitle="Song listening room"
             onPress={() => router.push("/radio" as never)}
           />
 
