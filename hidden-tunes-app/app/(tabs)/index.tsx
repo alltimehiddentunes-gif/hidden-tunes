@@ -642,11 +642,16 @@ function HomeScreen() {
   const [onboardingPrefs, setOnboardingPrefs] = useState<OnboardingPreferences | null>(
     () => peekOnboardingPreferences()
   );
+  const [launchContentCacheVersion, setLaunchContentCacheVersion] = useState(0);
 
   useEffect(() => {
     void loadOnboardingPreferences().then(setOnboardingPrefs);
     void hydrateSmartRecommendationsCache();
-    void hydrateLaunchContentCache();
+    void hydrateLaunchContentCache().then((snapshot) => {
+      if (snapshot) {
+        setLaunchContentCacheVersion((current) => current + 1);
+      }
+    });
   }, []);
 
   const discoveryListenersRef = useRef({
@@ -756,7 +761,7 @@ function HomeScreen() {
         sharedDiscovery,
         smartRecommendations,
       }),
-    [discoveryInputSongs, sharedDiscovery, smartRecommendations]
+    [discoveryInputSongs, launchContentCacheVersion, sharedDiscovery, smartRecommendations]
   );
 
   const homeFeedRows = useMemo(

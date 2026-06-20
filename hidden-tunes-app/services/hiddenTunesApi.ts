@@ -1857,7 +1857,12 @@ export async function getHiddenTunesCloudPlaylists(options?: {
 
 export async function getHiddenTunesCloudPlaylistById(id: string) {
   const playlists = await getHiddenTunesCloudPlaylists();
-  return playlists.find((playlist) => playlist.id === id) || null;
+  const match = playlists.find((playlist) => playlist.id === id);
+  if (match) return match;
+
+  const songs = await getHiddenTunesSongs();
+  const { resolveLaunchFeaturedPlaylistById } = await import("./launchContentLayer");
+  return resolveLaunchFeaturedPlaylistById(id, songs) || null;
 }
 
 function normalizeLyricsResponse(

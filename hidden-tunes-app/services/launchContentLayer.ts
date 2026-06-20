@@ -12,8 +12,13 @@ import {
   CONTINUE_EXPLORING_CHIPS,
   type LaunchContentChip,
 } from "../utils/launchContentRegistry";
+import { EMOTIONAL_DISCOVERY_SHORTCUTS } from "../utils/launchEmotionalWorlds";
+import { getVisibleCoreGenres } from "../utils/genreAliases";
 import { getSongDedupeKey } from "../utils/catalogDedupe";
-import { schedulePersistLaunchContent } from "../utils/launchContentCache";
+import {
+  readCachedLaunchContent,
+  schedulePersistLaunchContent,
+} from "../utils/launchContentCache";
 
 const DEFAULT_SONG_LIMIT = 8;
 const DEFAULT_PLAYLIST_LIMIT = 4;
@@ -82,7 +87,7 @@ function buildLaunchCacheKey(input: LaunchContentInput) {
   ].join("::");
 }
 
-function buildFeaturedPlaylistsFromSongs(
+export function buildLaunchFeaturedPlaylistsFromSongs(
   songs: HiddenTunesNormalizedSong[],
   limit = DEFAULT_PLAYLIST_LIMIT
 ): HiddenTunesCloudPlaylist[] {
@@ -135,11 +140,31 @@ function buildFeaturedPlaylistsFromSongs(
   return playlists.filter((playlist) => playlist.tracks.length > 0).slice(0, limit);
 }
 
+export function resolveLaunchFeaturedPlaylistById(
+  id: string,
+  songs: HiddenTunesNormalizedSong[]
+) {
+  return buildLaunchFeaturedPlaylistsFromSongs(songs, DEFAULT_PLAYLIST_LIMIT).find(
+    (playlist) => playlist.id === id
+  );
+}
+
+function buildFallbackWorldChips(limit = DEFAULT_CHIP_LIMIT): LaunchContentChip[] {
+  return EMOTIONAL_DISCOVERY_SHORTCUTS.slice(0, limit).map((world) => ({
+    id: `world-${world.id}`,
+    title: world.title,
+    subtitle: "Hidden Tunes room",
+    icon: world.icon,
+    pathname: "/genre",
+    worldId: world.id,
+  }));
+}
+
 function buildWorldChips(
   sharedDiscovery: SharedDiscoverySnapshot,
   limit = DEFAULT_CHIP_LIMIT
 ): LaunchContentChip[] {
-  return sharedDiscovery.launchWorlds.slice(0, limit).map((world) => ({
+  const fromDiscovery = sharedDiscovery.launchWorlds.slice(0, limit).map((world) => ({
     id: `world-${world.worldId || world.id}`,
     title: world.title,
     subtitle: world.subtitle,
@@ -147,17 +172,44 @@ function buildWorldChips(
     pathname: "/genre",
     worldId: world.worldId || world.id.replace(/^world-/, ""),
   }));
+
+  if (fromDiscovery.length >= limit) {
+    return fromDiscovery;
+  }
+
+  const seen = new Set(fromDiscovery.map((chip) => chip.worldId));
+  const fallback = buildFallbackWorldChips(limit).filter(
+    (chip) => chip.worldId && !seen.has(chip.worldId)
+  );
+
+  return [...fromDiscovery, ...fallback].slice(0, limit);
+}
+
+function buildFallbackGenreChips(limit = DEFAULT_CHIP_LIMIT): LaunchContentChip[] {
+  return getVisibleCoreGenres().slice(0, limit).map((genre) => ({
+    id: `genre-${genre.id}`,
+    title: genre.title,
+    subtitle: "Genre room",
+    icon: "musical-notes-outline" as const,
+    pathname: "/genre",
+    params: {
+      id: genre.id,
+      title: genre.title,
+      query: genre.title,
+      type: "genre",
+    },
+  }));
 }
 
 function buildGenreChips(
   sharedDiscovery: SharedDiscoverySnapshot,
   limit = DEFAULT_CHIP_LIMIT
 ): LaunchContentChip[] {
-  return sharedDiscovery.genreHubs.slice(0, limit).map((hub) => ({
+  const fromDiscovery = sharedDiscovery.genreHubs.slice(0, limit).map((hub) => ({
     id: `genre-${hub.id}`,
     title: hub.genreTitle || hub.title,
     subtitle: hub.subtitle,
-    icon: "musical-notes-outline",
+    icon: "musical-notes-outline" as const,
     pathname: "/genre",
     params: {
       id: hub.id.replace(/^genre-/, ""),
@@ -166,6 +218,17 @@ function buildGenreChips(
       type: "genre",
     },
   }));
+
+  if (fromDiscovery.length >= limit) {
+    return fromDiscovery;
+  }
+
+  const seen = new Set(fromDiscovery.map((chip) => chip.params?.id));
+  const fallback = buildFallbackGenreChips(limit).filter(
+    (chip) => chip.params?.id && !seen.has(chip.params.id)
+  );
+
+  return [...fromDiscovery, ...fallback].slice(0, limit);
 }
 
 function buildHiddenPicks(
@@ -193,6 +256,38 @@ function buildTrendingNow(
   );
 }
 
+function mergeLaunchContentSnapshots(
+  primary: LaunchContentSnapshot,
+  fallback: LaunchContentSnapshot
+): LaunchContentSnapshot {
+  return {
+    featuredPlaylists: primary.featuredPlaylists.length
+      ? primary.featuredPlaylists
+      : fallback.featuredPlaylists,
+    featuredWorlds: primary.featuredWorlds.length
+      ? primary.featuredWorlds
+      : fallback.featuredWorlds,
+    featuredGenres: primary.featuredGenres.length
+      ? primary.featuredGenres
+      : fallback.featuredGenres,
+    featuredRadios: primary.featuredRadios.length
+      ? primary.featuredRadios
+      : fallback.featuredRadios,
+    featuredVideos: primary.featuredVideos.length
+      ? primary.featuredVideos
+      : fallback.featuredVideos,
+    featuredPodcasts: primary.featuredPodcasts.length
+      ? primary.featuredPodcasts
+      : fallback.featuredPodcasts,
+    trendingNow: primary.trendingNow.length ? primary.trendingNow : fallback.trendingNow,
+    newReleases: primary.newReleases.length ? primary.newReleases : fallback.newReleases,
+    hiddenPicks: primary.hiddenPicks.length ? primary.hiddenPicks : fallback.hiddenPicks,
+    continueExploring: primary.continueExploring.length
+      ? primary.continueExploring
+      : fallback.continueExploring,
+  };
+}
+
 function buildLaunchContentSnapshot(input: LaunchContentInput): LaunchContentSnapshot {
   const songs = input.songs || [];
   const sharedDiscovery = input.sharedDiscovery;
@@ -201,7 +296,7 @@ function buildLaunchContentSnapshot(input: LaunchContentInput): LaunchContentSna
   const featuredPlaylists =
     input.playlists?.length
       ? input.playlists.slice(0, DEFAULT_PLAYLIST_LIMIT)
-      : buildFeaturedPlaylistsFromSongs(songs, DEFAULT_PLAYLIST_LIMIT);
+      : buildLaunchFeaturedPlaylistsFromSongs(songs, DEFAULT_PLAYLIST_LIMIT);
 
   const featuredWorlds = buildWorldChips(sharedDiscovery, DEFAULT_CHIP_LIMIT);
   const featuredGenres = buildGenreChips(sharedDiscovery, DEFAULT_CHIP_LIMIT);
@@ -211,6 +306,12 @@ function buildLaunchContentSnapshot(input: LaunchContentInput): LaunchContentSna
   );
   const featuredVideos = buildFeaturedVideoChips(DEFAULT_CHIP_LIMIT);
   const featuredPodcasts = buildFeaturedPodcastChips(DEFAULT_CHIP_LIMIT);
+  const trendingNow = buildTrendingNow(sharedDiscovery, songs);
+  const trendingKeys = new Set(trendingNow.map(getSongDedupeKey).filter(Boolean));
+  const newReleaseCandidates = sharedDiscovery.recentlyDiscovered.filter((song) => {
+    const key = getSongDedupeKey(song);
+    return key && !trendingKeys.has(key);
+  });
 
   return {
     featuredPlaylists,
@@ -219,8 +320,8 @@ function buildLaunchContentSnapshot(input: LaunchContentInput): LaunchContentSna
     featuredRadios,
     featuredVideos,
     featuredPodcasts,
-    trendingNow: buildTrendingNow(sharedDiscovery, songs),
-    newReleases: dedupePlayableSongs(sharedDiscovery.recentlyDiscovered, DEFAULT_SONG_LIMIT),
+    trendingNow,
+    newReleases: dedupePlayableSongs(newReleaseCandidates, DEFAULT_SONG_LIMIT),
     hiddenPicks: buildHiddenPicks(sharedDiscovery),
     continueExploring: CONTINUE_EXPLORING_CHIPS,
   };
@@ -233,12 +334,15 @@ export function getLaunchContentSnapshot(input: LaunchContentInput): LaunchConte
     return cachedSnapshot;
   }
 
+  const cached = readCachedLaunchContent();
   const snapshot = buildLaunchContentSnapshot(input);
-  cachedKey = key;
-  cachedSnapshot = snapshot;
-  schedulePersistLaunchContent(key, snapshot);
+  const merged = cached ? mergeLaunchContentSnapshots(snapshot, cached) : snapshot;
 
-  return snapshot;
+  cachedKey = key;
+  cachedSnapshot = merged;
+  schedulePersistLaunchContent(key, merged);
+
+  return merged;
 }
 
 export function resetLaunchContentCache() {

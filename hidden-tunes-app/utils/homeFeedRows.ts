@@ -240,7 +240,9 @@ export function buildHomeFeedRows(input: BuildHomeFeedRowsInput): HomeFeedRow[] 
       launch.continueExploring
     );
 
-    rows.push({ key: "emotional-worlds-chips", kind: "emotional-worlds-chips" });
+    if (launch.featuredWorlds.length === 0) {
+      rows.push({ key: "emotional-worlds-chips", kind: "emotional-worlds-chips" });
+    }
 
     if (input.rankedArtistsCount > 0) {
       rows.push({ key: "title-creators", kind: "section-title", title: "Creators In Your Orbit" });
