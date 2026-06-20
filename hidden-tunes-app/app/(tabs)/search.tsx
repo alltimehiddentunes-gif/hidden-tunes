@@ -49,7 +49,6 @@ import {
 import {
   searchHiddenTunesSongsPage,
   getHiddenTunesSecondaryCatalogSections,
-  getHiddenTunesSongsPage,
   hydrateHiddenTunesCatalogCache,
   getHiddenTunesCatalogSnapshot,
   getHiddenTunesCatalogCacheInfo,
@@ -67,7 +66,6 @@ import {
   logCacheResult,
   logPerformanceSummary,
   logScreenReady,
-  logTapToPlay,
   startPerformanceTimer,
 } from "../../utils/performanceLogs";
 import {
@@ -97,7 +95,6 @@ import {
   runInstantCatalogSearch,
 } from "../../services/instantCatalogSearch";
 import {
-  buildCatalogSearchIndex,
   type CatalogSearchIndex,
 } from "../../utils/catalogSearchIndex";
 import {
@@ -3245,18 +3242,6 @@ const styles = StyleSheet.create({
     height: 46,
     alignItems: "center",
     justifyContent: "center",
-  },
-  sourceBadge: {
-    position: "absolute",
-    left: 112,
-    bottom: 24,
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  sourceBadgeText: {
-    marginLeft: 5,
-    fontSize: 11,
-    fontWeight: "900",
   },
   loadMoreFooter: {
     minHeight: 74,

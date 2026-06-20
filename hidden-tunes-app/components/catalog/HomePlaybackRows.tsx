@@ -69,7 +69,7 @@ export const HomeFeaturedCard = memo(function HomeFeaturedCard({
       <HTImage source={item} style={styles.featuredCover} />
 
       <LinearGradient
-        colors={["transparent", "rgba(0,0,0,0.96)"]}
+        colors={["transparent", "rgba(0,0,0,0.35)", "rgba(0,0,0,0.88)"]}
         style={styles.featuredOverlay}
       />
 
@@ -92,7 +92,7 @@ export const HomeFeaturedCard = memo(function HomeFeaturedCard({
           </Text>
         </View>
 
-        <Text numberOfLines={1} style={styles.featuredTitle}>
+        <Text numberOfLines={2} style={styles.featuredTitle}>
           {item.title}
         </Text>
 
@@ -132,8 +132,8 @@ const styles = StyleSheet.create({
   },
   featuredCard: {
     width: FEATURED_CARD_WIDTH,
-    height: 272,
-    borderRadius: 32,
+    height: 228,
+    borderRadius: 28,
     marginRight: 16,
     overflow: "hidden",
     backgroundColor: COLORS.card,
@@ -149,7 +149,7 @@ const styles = StyleSheet.create({
     position: "absolute",
   },
   featuredOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.flatten(StyleSheet.absoluteFill),
   },
   featuredRank: {
     position: "absolute",
@@ -172,7 +172,9 @@ const styles = StyleSheet.create({
   featuredContent: {
     flex: 1,
     justifyContent: "flex-end",
-    padding: 18,
+    paddingHorizontal: 14,
+    paddingBottom: 14,
+    paddingTop: 8,
   },
   featuredBadge: {
     alignSelf: "flex-start",
@@ -185,7 +187,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 7,
-    marginBottom: 10,
+    marginBottom: 6,
   },
   featuredBadgeText: {
     color: COLORS.text,
@@ -195,17 +197,18 @@ const styles = StyleSheet.create({
   },
   featuredTitle: {
     color: COLORS.text,
-    fontSize: 21,
-    fontWeight: "900",
+    fontSize: 16,
+    lineHeight: 20,
+    fontWeight: "800",
   },
   featuredArtist: {
     color: COLORS.textMuted,
-    fontSize: 13,
-    fontWeight: "700",
-    marginTop: 6,
+    fontSize: 11,
+    fontWeight: "600",
+    marginTop: 4,
   },
   featuredBottom: {
-    marginTop: 14,
+    marginTop: 10,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",

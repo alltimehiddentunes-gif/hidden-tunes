@@ -34,7 +34,7 @@ const counters = {
   configureAudio: createBucket(),
   applyProgressUpdateInterval: createBucket(),
   playbackProgressNative: createBucket(),
-  playbackProgressExpo: createBucket(),
+  playbackProgressHiddenAudio: createBucket(),
   playbackReactStateUpdates: createBucket(),
   playbackStatusSpam: createBucket(),
   appStateTransitions: createBucket(),
@@ -196,7 +196,7 @@ export function recordAppStateTransition(
 }
 
 export function recordPlaybackProgressUpdate(
-  engine: "track_player" | "expo_av",
+  engine: "track_player" | "hidden_audio",
   appState: AppStateStatus
 ) {
   if (!isRuntimeInstrumentationEnabled()) return;
@@ -204,7 +204,7 @@ export function recordPlaybackProgressUpdate(
   const bucket =
     engine === "track_player"
       ? counters.playbackProgressNative
-      : counters.playbackProgressExpo;
+      : counters.playbackProgressHiddenAudio;
 
   bump(bucket);
 
@@ -400,7 +400,7 @@ function printRuntimeSummary() {
     },
     playback: {
       progressNativePerMin: perMinute(counters.playbackProgressNative),
-      progressExpoPerMin: perMinute(counters.playbackProgressExpo),
+      progressHiddenAudioPerMin: perMinute(counters.playbackProgressHiddenAudio),
       reactStateUpdatesPerMin: perMinute(counters.playbackReactStateUpdates),
       statusSpamPerMin: perMinute(counters.playbackStatusSpam),
     },

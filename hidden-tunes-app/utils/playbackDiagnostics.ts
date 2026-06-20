@@ -192,7 +192,7 @@ export function logPauseResumeStart(details: PlaybackDiagDetails = {}) {
 export function logPauseResumeComplete(details: PlaybackDiagDetails = {}) {
   completePendingPlaybackTiming(
     undefined,
-    details.engine ? String(details.engine) : "expo_av"
+    details.engine ? String(details.engine) : "hidden_audio"
   );
 }
 

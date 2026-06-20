@@ -49,7 +49,7 @@ const MoodRoomCard = memo(function MoodRoomCard({
         <Text numberOfLines={1} style={styles.title}>
           {title}
         </Text>
-        <Text numberOfLines={2} style={styles.subtitle}>
+        <Text numberOfLines={1} style={styles.subtitle}>
           {subtitle}
         </Text>
       </View>
@@ -61,8 +61,8 @@ export default MoodRoomCard;
 
 const styles = StyleSheet.create({
   card: {
-    width: 156,
-    borderRadius: 22,
+    width: 148,
+    borderRadius: 20,
     overflow: "hidden",
     backgroundColor: "rgba(255,255,255,0.05)",
     borderWidth: 1,
@@ -74,7 +74,7 @@ const styles = StyleSheet.create({
   },
   artWrap: {
     width: "100%",
-    height: 92,
+    height: 108,
     backgroundColor: COLORS.card,
   },
   art: {
@@ -84,24 +84,25 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   artOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.flatten(StyleSheet.absoluteFill),
   },
   copy: {
-    paddingHorizontal: 12,
-    paddingTop: 10,
-    paddingBottom: 14,
-    gap: 4,
+    paddingHorizontal: 10,
+    paddingTop: 8,
+    paddingBottom: 10,
+    gap: 2,
   },
   title: {
     color: COLORS.text,
-    fontSize: 14,
-    fontWeight: "800",
-    letterSpacing: 0.2,
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 0.1,
   },
   subtitle: {
     color: COLORS.textMuted,
-    fontSize: 11,
-    lineHeight: 15,
+    fontSize: 10,
+    lineHeight: 13,
     fontWeight: "500",
+    opacity: 0.88,
   },
 });

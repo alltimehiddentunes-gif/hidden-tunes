@@ -48,6 +48,32 @@ export const Colors = {
     tabIconSelected: COLORS.primary,
   },
 };
+/** APK home header proportions (music-feed / 2815e04). */
+export const HOME_HEADER = {
+  contentPaddingTop: 28,
+  contentPaddingHorizontal: 18,
+  rowMarginBottom: 14,
+  brandGap: 9,
+  titleSize: 27,
+  titleLineHeight: 32,
+  markWidth: 74,
+  markHeight: 48,
+  markRadius: 18,
+  imageWidth: 64,
+  imageHeight: 42,
+  actionSize: 48,
+  actionRadius: 24,
+} as const;
+
+export const SHADOWS = {
+  premium: {
+    shadowColor: COLORS.primaryGlow,
+    shadowOpacity: 0.22,
+    shadowRadius: 22,
+    shadowOffset: { width: 0, height: 14 },
+    elevation: 12,
+  },
+} as const;
 
 export const GRADIENTS = {
   main: ["#04010A", "#090312", "#000000"] as const,

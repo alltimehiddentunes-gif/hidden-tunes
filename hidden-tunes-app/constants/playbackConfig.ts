@@ -4,7 +4,7 @@ import { Platform } from "react-native";
  * Native queue playback via react-native-track-player.
  *
  * WORKS IN: EAS preview/production + Development Client (Android; iOS when enabled below).
- * NEVER IN: Expo Go — RNTP is not bundled there; expo-av handles playback.
+ * NEVER IN: Expo Go — RNTP is not bundled there; HiddenAudio handles playback in dev/preview builds.
  *
  * DAILY ANDROID TESTING: use preview APK (`npm run build:preview:android`) — no Metro.
  * DEV CLIENT + METRO: only when debugging native modules or instant reload.
@@ -19,7 +19,7 @@ import { Platform } from "react-native";
 export const USE_NATIVE_TRACK_PLAYER = true;
 
 /**
- * iOS uses expo-av until RNTP lock-screen playback is stable on preview builds.
+ * iOS uses HiddenAudio until RNTP lock-screen playback is stable on preview builds.
  * Android keeps USE_NATIVE_TRACK_PLAYER. Set true to re-test RNTP on iOS.
  */
 export const USE_NATIVE_TRACK_PLAYER_ON_IOS = false;

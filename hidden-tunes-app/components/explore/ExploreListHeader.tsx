@@ -1130,7 +1130,7 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   heroImage: { width: "100%", height: "100%", position: "absolute" },
-  heroOverlay: { ...StyleSheet.absoluteFillObject },
+  heroOverlay: { ...StyleSheet.flatten(StyleSheet.absoluteFill) },
   heroBadge: {
     position: "absolute",
     top: 18,

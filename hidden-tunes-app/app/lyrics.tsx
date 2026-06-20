@@ -666,7 +666,7 @@ const styles = StyleSheet.create({
   },
 
   backgroundArt: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.flatten(StyleSheet.absoluteFill),
     width: "100%",
     height: "100%",
     transform: [{ scale: 1.12 }],
@@ -674,7 +674,7 @@ const styles = StyleSheet.create({
   },
 
   ambientGradient: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.flatten(StyleSheet.absoluteFill),
   },
 
   vignetteTop: {
@@ -816,7 +816,7 @@ const styles = StyleSheet.create({
   },
 
   lyricsPanelFade: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.flatten(StyleSheet.absoluteFill),
     zIndex: 1,
   },
 
