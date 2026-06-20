@@ -1,5 +1,5 @@
 import { memo, useCallback } from "react";
-import { StyleSheet, TouchableOpacity, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
 
@@ -49,13 +49,16 @@ function CatalogSongRow({
         {active ? (
           <NeonEQ isPlaying={isPlaying} size="small" />
         ) : (
-          <TouchableOpacity
-            activeOpacity={0.85}
-            style={styles.playButton}
+          <Pressable
+            android_ripple={{ color: "rgba(168,85,247,0.2)" }}
             onPress={handlePress}
+            style={({ pressed }) => [
+              styles.playButton,
+              pressed && styles.playButtonPressed,
+            ]}
           >
             <Ionicons name="play" size={18} color="#000" />
-          </TouchableOpacity>
+          </Pressable>
         )}
       </View>
     </View>
@@ -92,5 +95,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#facc15",
+  },
+  playButtonPressed: {
+    opacity: 0.88,
+    transform: [{ scale: 0.94 }],
   },
 });

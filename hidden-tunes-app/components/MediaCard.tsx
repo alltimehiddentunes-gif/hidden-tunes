@@ -1,8 +1,8 @@
 import React, { memo, useMemo } from "react";
 import {
+  Pressable,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from "react-native";
 
@@ -16,6 +16,8 @@ import {
   getArtworkCandidates,
   resolveEntityArtwork,
 } from "../utils/artwork";
+
+const CARD_RIPPLE = { color: "rgba(168,85,247,0.2)" };
 
 type MediaCardProps = {
   title: string;
@@ -43,7 +45,7 @@ function MediaCard({
   const artworkSize = useMemo(() => {
     if (size === "large") return 150;
     if (size === "small") return 58;
-    return 82;
+    return 72;
   }, [size]);
 
   const artworkRadius = useMemo(() => artworkSize * 0.24, [artworkSize]);
@@ -81,10 +83,15 @@ function MediaCard({
   }, [type]);
 
   return (
-    <TouchableOpacity
-      activeOpacity={0.88}
+    <Pressable
+      android_ripple={CARD_RIPPLE}
+      disabled={!onPress}
       onPress={onPress}
-      style={[styles.wrapper, size === "large" && styles.largeWrapper]}
+      style={({ pressed }) => [
+        styles.wrapper,
+        size === "large" && styles.largeWrapper,
+        pressed && !!onPress && styles.pressed,
+      ]}
     >
       <LinearGradient
         colors={GRADIENTS.card}
@@ -106,7 +113,7 @@ function MediaCard({
 
         <View style={[styles.info, size === "large" && styles.largeInfo]}>
           <Text
-            numberOfLines={size === "large" ? 2 : 1}
+            numberOfLines={size === "large" ? 2 : 2}
             style={[styles.title, size === "large" && styles.largeTitle]}
           >
             {title}
@@ -120,16 +127,19 @@ function MediaCard({
         </View>
 
         {showPlayButton && (
-          <TouchableOpacity
-            activeOpacity={0.85}
+          <Pressable
+            android_ripple={CARD_RIPPLE}
             onPress={onPlayPress || onPress}
-            style={styles.playButton}
+            style={({ pressed }) => [
+              styles.playButton,
+              pressed && styles.playButtonPressed,
+            ]}
           >
             <Ionicons name="play" size={18} color="#050505" />
-          </TouchableOpacity>
+          </Pressable>
         )}
       </LinearGradient>
-    </TouchableOpacity>
+    </Pressable>
   );
 }
 
@@ -146,12 +156,17 @@ const styles = StyleSheet.create({
     marginBottom: 0,
   },
 
+  pressed: {
+    opacity: 0.92,
+    transform: [{ scale: 0.985 }],
+  },
+
   card: {
-    minHeight: 96,
+    minHeight: 84,
     flexDirection: "row",
     alignItems: "center",
-    borderRadius: 28,
-    padding: 14,
+    borderRadius: 24,
+    padding: 12,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.07)",
     shadowColor: "#A855F7",
@@ -205,22 +220,23 @@ const styles = StyleSheet.create({
   },
 
   title: {
-    fontSize: 16,
-    fontWeight: "900",
+    fontSize: 13,
+    lineHeight: 17,
+    fontWeight: "800",
     color: COLORS.text,
-    letterSpacing: -0.2,
+    letterSpacing: -0.15,
   },
 
   largeTitle: {
-    fontSize: 16,
-    lineHeight: 21,
+    fontSize: 14,
+    lineHeight: 18,
   },
 
   subtitle: {
-    marginTop: 6,
-    fontSize: 13,
+    marginTop: 4,
+    fontSize: 12,
     color: COLORS.textMuted,
-    fontWeight: "700",
+    fontWeight: "600",
   },
 
   playButton: {
@@ -239,5 +255,10 @@ const styles = StyleSheet.create({
       height: 5,
     },
     elevation: 3,
+  },
+
+  playButtonPressed: {
+    opacity: 0.88,
+    transform: [{ scale: 0.94 }],
   },
 });

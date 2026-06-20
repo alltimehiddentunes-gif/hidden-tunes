@@ -97,6 +97,7 @@ const MiniControlButton = memo(function MiniControlButton({
     <Animated.View style={animatedStyle}>
       <Pressable
         accessibilityLabel={accessibilityLabel}
+        android_ripple={{ color: "rgba(168,85,247,0.22)" }}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
         onPress={handlePress}
@@ -437,13 +438,13 @@ function MiniPlayer() {
     router.push("/player");
   }, [isYoutubeMode, youtubeVideo]);
 
-  const handleMainButton = useCallback(async () => {
+  const handleMainButton = useCallback(() => {
     if (isYoutubeMode) {
       openPlayer();
       return;
     }
 
-    await togglePlayPause();
+    void togglePlayPause();
   }, [isYoutubeMode, openPlayer, togglePlayPause]);
 
   const handleNext = useCallback(() => {

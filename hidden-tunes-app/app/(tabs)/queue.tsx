@@ -2,6 +2,7 @@ import React, { memo, useCallback, useMemo, useRef, useState } from "react";
 import {
   Alert,
   FlatList,
+  Pressable,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -23,6 +24,10 @@ import NeonEQ from "../../components/NeonEQ";
 
 import { clearSmartQueue } from "../../services/smartQueue";
 import { getArtworkValue } from "../../utils/artwork";
+import {
+  createTapGuardState,
+  shouldIgnoreDuplicateTap,
+} from "../../utils/tapPressGuard";
 
 function getArtist(item: any) {
   return item?.artist || item?.user?.name || item?.channelTitle || "Unknown Artist";
@@ -77,9 +82,16 @@ const QueueItem = memo(function QueueItem({
             <NeonEQ isPlaying={isPlaying} size="small" />
           </View>
         ) : (
-          <TouchableOpacity activeOpacity={0.85} style={styles.playButton} onPress={handlePress}>
+          <Pressable
+            android_ripple={{ color: "rgba(168,85,247,0.2)" }}
+            onPress={handlePress}
+            style={({ pressed }) => [
+              styles.playButton,
+              pressed && styles.playButtonPressed,
+            ]}
+          >
             <Ionicons name="play" size={18} color="#000" />
-          </TouchableOpacity>
+          </Pressable>
         )}
       </View>
     </View>
@@ -108,17 +120,30 @@ export default function QueueScreen() {
 
   const listRef = useRef<FlatList<any>>(null);
   const [clearingSmart, setClearingSmart] = useState(false);
+  const queuePlayTapRef = useRef(createTapGuardState());
 
   // useScrollToTop(listRef);
 
   const queue = useMemo(() => {
     if (!activeQueue?.length) return [];
 
-    return activeQueue.map((track: any, index: number) => ({
-      ...track,
-      queueIndex: index,
-      queueType: activeQueueMode || "standard",
-    }));
+    return activeQueue.map((track: any, index: number) => {
+      const artist = getArtist(track);
+      const image = getImage(track);
+
+      return {
+        ...track,
+        queueIndex: index,
+        queueType: activeQueueMode || "standard",
+        artist,
+        user: track.user || { name: artist },
+        cover: image,
+        thumbnail: track.thumbnail || image,
+        artwork: track.artwork || image,
+        sourceName: track.sourceName || "Hidden Tunes",
+        isOnline: track.isOnline ?? true,
+      };
+    });
   }, [activeQueue, activeQueueMode]);
 
   const nowPlaying = useMemo(() => {
@@ -176,23 +201,15 @@ export default function QueueScreen() {
 
   const playQueueItem = useCallback(
     (item: any) => {
-      const index = typeof item.queueIndex === "number" ? item.queueIndex : 0;
-      const artist = getArtist(item);
-      const image = getImage(item);
+      const tapKey = String(item?.id || item?.queueIndex || "queue");
+      if (shouldIgnoreDuplicateTap(queuePlayTapRef.current, tapKey)) {
+        return;
+      }
 
-      const normalized = {
-        ...item,
-        artist,
-        user: item.user || { name: artist },
-        cover: image,
-        thumbnail: item.thumbnail || image,
-        artwork: item.artwork || image,
-        sourceName: item.sourceName || "Hidden Tunes",
-        isOnline: item.isOnline ?? true,
-      };
+      const index = typeof item.queueIndex === "number" ? item.queueIndex : 0;
 
       const playWithQueue = () => {
-        void playSong(normalized, queue, index).catch((error: unknown) => {
+        void playSong(item, queue, index).catch((error: unknown) => {
           if (__DEV__) console.log("Queue play error:", error);
         });
       };
@@ -205,8 +222,8 @@ export default function QueueScreen() {
         return;
       }
 
-      if (normalized.type === "youtube" || normalized.sourceName === "YouTube") {
-        void playAudiusTrack(normalized).catch((error: unknown) => {
+      if (item.type === "youtube" || item.sourceName === "YouTube") {
+        void playAudiusTrack(item).catch((error: unknown) => {
           if (__DEV__) console.log("Queue YouTube/Audius play error:", error);
         });
         return;
@@ -886,6 +903,11 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
     alignItems: "center",
     justifyContent: "center",
+  },
+
+  playButtonPressed: {
+    opacity: 0.88,
+    transform: [{ scale: 0.94 }],
   },
 
   eqBox: {

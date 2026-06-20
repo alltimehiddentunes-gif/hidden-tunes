@@ -114,6 +114,10 @@ import {
   type HiddenTunesTvVideo,
 } from "../../services/tvCatalogApi";
 import { useRuntimeRenderProbe } from "../../utils/runtimeInstrumentation";
+import {
+  createTapGuardState,
+  shouldIgnoreDuplicateTap,
+} from "../../utils/tapPressGuard";
 
 type SearchType = "all" | "hidden" | "audius" | "archive" | "youtube";
 
@@ -426,7 +430,7 @@ function buildSearchPlayQueue(
 }
 
 type SearchRowHandlers = {
-  handlePress: (item: SearchResultTrack) => void;
+  handlePress: (item: SearchResultTrack, index: number) => void;
   handleSongResultPress: (item: SearchResultTrack, index: number) => void;
   openArtistFromTrack: (item: SearchResultTrack) => void;
   openAlbumFromTrack: (item: SearchResultTrack) => void;
@@ -668,6 +672,7 @@ const SearchResultRow = memo(function SearchResultRow({
 }) {
   const normalized = normalizeSearchTrack(item);
   const youtube = isYouTubeTrack(normalized);
+  const playable = normalizePlayableSong(normalized);
   const trackId = String(normalized.id || "");
   const { isActive, isPlaying } = useTrackPlaybackStatus(youtube ? "" : trackId);
   const artist = String(getArtist(normalized));
@@ -678,23 +683,21 @@ const SearchResultRow = memo(function SearchResultRow({
   };
 
   const onTvPress = () => {
-    void handlersRef.current?.handlePress(item);
+    handlersRef.current?.handlePress(item, index);
   };
 
   if (youtube) {
     return (
       <View style={[styles.resultShell, isActive && styles.resultShellActive]}>
-        <TouchableOpacity activeOpacity={0.88} onPress={onTvPress}>
-          <MediaCard
-            title={title}
-            subtitle={artist}
-            image={normalized}
-            type="radio"
-            size="medium"
-            showPlayButton={false}
-            onPress={onTvPress}
-          />
-        </TouchableOpacity>
+        <MediaCard
+          title={title}
+          subtitle={artist}
+          image={normalized}
+          type="radio"
+          size="medium"
+          showPlayButton={false}
+          onPress={onTvPress}
+        />
 
         <View style={styles.resultOverlayActions} pointerEvents="box-none">
           <TouchableOpacity
@@ -752,7 +755,7 @@ const SearchResultRow = memo(function SearchResultRow({
           <Ionicons name="person-outline" size={17} color={COLORS.text} />
         </TouchableOpacity>
 
-        <AddToPlaylistButton track={normalizePlayableSong(item) as any} />
+        <AddToPlaylistButton track={playable as any} />
 
         <TouchableOpacity
           activeOpacity={0.82}
@@ -767,13 +770,16 @@ const SearchResultRow = memo(function SearchResultRow({
             <NeonEQ isPlaying={isPlaying} size="small" />
           </View>
         ) : (
-          <TouchableOpacity
-            activeOpacity={0.85}
-            style={styles.playButton}
-            onPress={() => onCatalogSongPress(normalizePlayableSong(item), index)}
+          <Pressable
+            android_ripple={{ color: "rgba(168,85,247,0.2)" }}
+            onPress={() => onCatalogSongPress(playable, index)}
+            style={({ pressed }) => [
+              styles.playButton,
+              pressed && styles.playButtonPressed,
+            ]}
           >
             <Ionicons name="play" size={20} color="#000" />
-          </TouchableOpacity>
+          </Pressable>
         )}
       </View>
     </View>
@@ -812,6 +818,7 @@ export default function SearchScreen() {
     openArtistFromTrack: () => {},
     openAlbumFromTrack: () => {},
   });
+  const searchPlayTapRef = useRef(createTapGuardState());
   const inFlightSearchKeyRef = useRef<string | null>(null);
   const fuzzySearchGenerationRef = useRef(0);
   const catalogSearchGenerationRef = useRef(0);
@@ -1793,15 +1800,15 @@ export default function SearchScreen() {
 
   const handleSongResultPress = useCallback(
     (rawSong: HiddenTunesNormalizedSong | NativeSearchTrack | any, index: number) => {
-      const song = resolveSearchPlayableSong(rawSong, catalogLookupSources);
+      const tapKey = `${String(rawSong?.id || "row")}:${index}`;
+      if (shouldIgnoreDuplicateTap(searchPlayTapRef.current, tapKey)) {
+        return;
+      }
 
-      let queue =
-        searchPlayQueue.length > 0
-          ? searchPlayQueue
-          : [song];
-      let playIndex = queue.findIndex(
-        (item) => String(item.id) === String(song.id)
-      );
+      let song = normalizePlayableSong(rawSong);
+      if (!hasPlayableAudio(song)) {
+        song = resolveSearchPlayableSong(rawSong, catalogLookupSources);
+      }
 
       if (!hasPlayableAudio(song)) {
         if (__DEV__) {
@@ -1814,8 +1821,25 @@ export default function SearchScreen() {
         return;
       }
 
+      const queueBase = searchPlayQueue.length > 0 ? searchPlayQueue : [song];
+      let queue = queueBase;
+      let playIndex = index;
+
+      if (
+        playIndex < 0 ||
+        playIndex >= queue.length ||
+        String(queue[playIndex]?.id) !== String(song.id)
+      ) {
+        playIndex = queue.findIndex(
+          (item) => String(item.id) === String(song.id)
+        );
+      }
+
       if (playIndex < 0) {
-        queue = [song, ...queue.filter((item) => String(item.id) !== String(song.id))];
+        queue = [
+          song,
+          ...queue.filter((item) => String(item.id) !== String(song.id)),
+        ];
         playIndex = 0;
       }
 
@@ -1899,9 +1923,9 @@ export default function SearchScreen() {
   }, [query]);
 
   const handlePress = useCallback(
-    async (item: SearchResultTrack) => {
+    (item: SearchResultTrack, index: number) => {
       if (isYouTubeTrack(item)) {
-        await stopPlayback();
+        void stopPlayback();
 
         const normalizedTrack = normalizeYouTubeResult(item);
         const videoId = getYoutubeVideoId(normalizedTrack);
@@ -1934,7 +1958,7 @@ export default function SearchScreen() {
         return;
       }
 
-      handleSongResultPress(item, 0);
+      handleSongResultPress(item, index);
     },
     [buildYouTubeQueue, handleSongResultPress, stopPlayback]
   );
@@ -3177,6 +3201,10 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
     alignItems: "center",
     justifyContent: "center",
+  },
+  playButtonPressed: {
+    opacity: 0.88,
+    transform: [{ scale: 0.94 }],
   },
   youtubeButton: {
     backgroundColor: "#ff0033",
