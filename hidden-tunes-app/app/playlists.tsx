@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState, memo } from "react";
+import { useCallback, useMemo, useRef, useState, memo } from "react";
 import {
   FlatList,
   Modal,
@@ -28,7 +28,10 @@ import {
   type UserPlaylist,
 } from "../services/playlists";
 
-import { getHiddenTunesSongs } from "../services/hiddenTunesApi";
+import {
+  getHiddenTunesCatalogSnapshot,
+  getHiddenTunesSongs,
+} from "../services/hiddenTunesApi";
 
 type LibraryPlaylist = UserPlaylist | SmartPlaylist;
 
@@ -138,19 +141,34 @@ export default function PlaylistsScreen() {
     null
   );
   const [renameText, setRenameText] = useState("");
+  const catalogLoadedRef = useRef(false);
 
   useFocusEffect(
     useCallback(() => {
-      loadPlaylists();
+      void loadPlaylists({ refreshUserOnly: catalogLoadedRef.current });
+      catalogLoadedRef.current = true;
     }, [])
   );
 
-  async function loadPlaylists() {
+  async function loadPlaylists(options?: {
+    refreshUserOnly?: boolean;
+    forceCatalogRefresh?: boolean;
+  }) {
     try {
-      const [userData, cloudSongs] = await Promise.all([
-        getUserPlaylists(),
-        getHiddenTunesSongs(),
-      ]);
+      const userData = await getUserPlaylists();
+      let cloudSongs = getHiddenTunesCatalogSnapshot();
+
+      if (
+        !options?.refreshUserOnly ||
+        !cloudSongs.length ||
+        options?.forceCatalogRefresh
+      ) {
+        if (!cloudSongs.length || options?.forceCatalogRefresh) {
+          cloudSongs = await getHiddenTunesSongs({
+            forceRefresh: Boolean(options?.forceCatalogRefresh),
+          });
+        }
+      }
 
       const safeUserPlaylists = Array.isArray(userData) ? userData : [];
       const safeCloudSongs = Array.isArray(cloudSongs) ? cloudSongs : [];
@@ -167,7 +185,7 @@ export default function PlaylistsScreen() {
   async function handleRefresh() {
     try {
       setRefreshing(true);
-      await loadPlaylists();
+      await loadPlaylists({ forceCatalogRefresh: true });
     } finally {
       setRefreshing(false);
     }

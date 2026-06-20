@@ -24,6 +24,7 @@ import {
 import {
   extractHiddenTunesArtists,
   getHiddenTunesArtistById,
+  getHiddenTunesCatalogCacheInfo,
   getHiddenTunesCatalogSnapshot,
   hydrateHiddenTunesCatalogCache,
   type HiddenTunesAlbum,
@@ -47,6 +48,7 @@ import {
   getListPerformanceSettings,
   markFastScrolling,
 } from "../../utils/performanceMode";
+import { scheduleDelayedNonEssentialWork } from "../../utils/backgroundWork";
 import {
   loadArtistDetailSnapshot,
   saveArtistDetailSnapshot,
@@ -226,32 +228,44 @@ export default function ArtistScreen() {
           }
         }
 
-        const data = await getHiddenTunesArtistById(artistId);
-        logApiRefresh("artist", refreshStart, {
-          id: artistId,
-          found: Boolean(data),
-          tracks: data?.tracks.length || 0,
-        });
-        logPerformanceSummary("artist", {
-          cache: showedCachedArtist ? "hit" : "miss",
-          apiRefreshMs: Date.now() - refreshStart,
-          itemCount: data?.tracks.length || 0,
-          emptyStateReason: data
-            ? "content_available"
-            : "cache_api_and_fallback_empty",
-        });
+        const cacheInfo = await getHiddenTunesCatalogCacheInfo();
 
-        if (data) {
-          setArtist(data);
-          void saveArtistDetailSnapshot(data);
-          if (!showedCachedArtist) {
-            logScreenReady("artist", screenStartedAt, {
-              cache: "miss",
-              tracks: data.tracks.length,
-            });
+        const applyArtistApiResult = async () => {
+          const data = await getHiddenTunesArtistById(artistId);
+          logApiRefresh("artist", refreshStart, {
+            id: artistId,
+            found: Boolean(data),
+            tracks: data?.tracks.length || 0,
+          });
+          logPerformanceSummary("artist", {
+            cache: showedCachedArtist ? "hit" : "miss",
+            apiRefreshMs: Date.now() - refreshStart,
+            itemCount: data?.tracks.length || 0,
+            emptyStateReason: data
+              ? "content_available"
+              : "cache_api_and_fallback_empty",
+          });
+
+          if (data) {
+            setArtist(data);
+            void saveArtistDetailSnapshot(data);
+            if (!showedCachedArtist) {
+              logScreenReady("artist", screenStartedAt, {
+                cache: "miss",
+                tracks: data.tracks.length,
+              });
+            }
+          } else if (!showedCachedArtist) {
+            setArtist(null);
           }
-        } else if (!showedCachedArtist) {
-          setArtist(null);
+        };
+
+        if (showedCachedArtist && cacheInfo.isFresh) {
+          scheduleDelayedNonEssentialWork(() => {
+            void applyArtistApiResult();
+          });
+        } else {
+          await applyArtistApiResult();
         }
       } catch (error) {
         console.log("Load artist error:", error);

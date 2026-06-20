@@ -49,11 +49,9 @@ import {
 } from "../../services/searchWaterfall";
 import {
   searchHiddenTunesSongsPage,
+  getHiddenTunesSecondaryCatalogSections,
   getHiddenTunesSongsPage,
   hydrateHiddenTunesCatalogCache,
-  getHiddenTunesAlbums,
-  getHiddenTunesArtists,
-  getHiddenTunesCloudPlaylists,
   getHiddenTunesCatalogSnapshot,
   getHiddenTunesCatalogCacheInfo,
   fetchCoordinatedCatalogFirstPage,
@@ -1407,7 +1405,10 @@ export default function SearchScreen() {
     try {
       if (showLoader) setLoadingCloud(true);
 
-      const cached = await hydrateHiddenTunesCatalogCache();
+      const memorySnapshot = getHiddenTunesCatalogSnapshot();
+      const cached = memorySnapshot.length
+        ? memorySnapshot
+        : await hydrateHiddenTunesCatalogCache();
 
       if (cached.length) {
         invalidateCatalogSearchIndex();
@@ -1446,23 +1447,13 @@ export default function SearchScreen() {
 
         const cacheInfo = await getHiddenTunesCatalogCacheInfo();
         if (cacheInfo.isFresh) {
-          void Promise.allSettled([
-            getHiddenTunesAlbums({ forceRefresh: false }),
-            getHiddenTunesArtists({ forceRefresh: false }),
-            getHiddenTunesCloudPlaylists(),
-          ]).then(([albumsResult, artistsResult, playlistsResult]) => {
-            if (albumsResult.status === "fulfilled") {
-              setCloudAlbums(albumsResult.value || []);
+          void getHiddenTunesSecondaryCatalogSections({ forceRefresh: false }).then(
+            (sections) => {
+              setCloudAlbums(sections.albums || []);
+              setCloudArtists(sections.artists || []);
+              setCloudPlaylists(sections.playlists || []);
             }
-
-            if (artistsResult.status === "fulfilled") {
-              setCloudArtists(artistsResult.value || []);
-            }
-
-            if (playlistsResult.status === "fulfilled") {
-              setCloudPlaylists(playlistsResult.value || []);
-            }
-          });
+          );
           return;
         }
       } else {
@@ -1512,23 +1503,13 @@ export default function SearchScreen() {
         });
       }
 
-      void Promise.allSettled([
-        getHiddenTunesAlbums({ forceRefresh: false }),
-        getHiddenTunesArtists({ forceRefresh: false }),
-        getHiddenTunesCloudPlaylists(),
-      ]).then(([albumsResult, artistsResult, playlistsResult]) => {
-        if (albumsResult.status === "fulfilled") {
-          setCloudAlbums(albumsResult.value || []);
+      void getHiddenTunesSecondaryCatalogSections({ forceRefresh: false }).then(
+        (sections) => {
+          setCloudAlbums(sections.albums || []);
+          setCloudArtists(sections.artists || []);
+          setCloudPlaylists(sections.playlists || []);
         }
-
-        if (artistsResult.status === "fulfilled") {
-          setCloudArtists(artistsResult.value || []);
-        }
-
-        if (playlistsResult.status === "fulfilled") {
-          setCloudPlaylists(playlistsResult.value || []);
-        }
-      });
+      );
     } catch {
     } finally {
       setLoadingCloud(false);

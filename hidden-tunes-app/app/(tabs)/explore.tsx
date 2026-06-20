@@ -26,9 +26,7 @@ import MoodRoomCard from "../../components/explore/MoodRoomCard";
 import { FALLBACK_ARTWORK, getArtworkUri } from "../../utils/artwork";
 
 import {
-  getHiddenTunesAlbums,
-  getHiddenTunesArtists,
-  getHiddenTunesCloudPlaylists,
+  getHiddenTunesSecondaryCatalogSections,
   getHiddenTunesSongsPage,
   fetchCoordinatedCatalogFirstPage,
   getHiddenTunesCatalogSnapshot,
@@ -350,29 +348,13 @@ export default memo(function ExploreScreen() {
 
   const loadCatalogSecondarySections = useCallback(async (forceRefresh = false) => {
     try {
-      const [albumResults, artistResults, playlistResults] = await Promise.allSettled([
-        getHiddenTunesAlbums({ forceRefresh }),
-        getHiddenTunesArtists({ forceRefresh }),
-        getHiddenTunesCloudPlaylists(),
-      ]);
+      const sections = await getHiddenTunesSecondaryCatalogSections({
+        forceRefresh,
+      });
 
-      setAlbums(
-        albumResults.status === "fulfilled" && Array.isArray(albumResults.value)
-          ? albumResults.value
-          : []
-      );
-
-      setArtists(
-        artistResults.status === "fulfilled" && Array.isArray(artistResults.value)
-          ? artistResults.value
-          : []
-      );
-
-      setPlaylists(
-        playlistResults.status === "fulfilled" && Array.isArray(playlistResults.value)
-          ? playlistResults.value.slice(0, 8)
-          : []
-      );
+      setAlbums(sections.albums);
+      setArtists(sections.artists);
+      setPlaylists(sections.playlists.slice(0, 8));
     } catch (error) {
     } finally {
       setShowHeavySections(true);
@@ -414,37 +396,37 @@ export default memo(function ExploreScreen() {
               count: memorySnapshot.length,
               source: "memory",
             });
-          }
+          } else {
+            const cached = await hydrateHiddenTunesCatalogCache();
 
-          const cached = await hydrateHiddenTunesCatalogCache();
-
-          if (cached.length) {
-            applyExploreSongs(
-              dedupeSongs(
-                cached.slice(0, INITIAL_EXPLORE_SNAPSHOT_LIMIT).map(safeSong)
-              )
-            );
-            setLoading(false);
-            setRefreshing(false);
-            showedCachedCatalog = true;
-            markFirstCachedContentVisible("explore");
-            logCacheResult("explore", true, { count: cached.length });
-            logScreenReady("explore", screenStartedAt, {
-              cache: "hit",
-              count: cached.length,
-            });
-            recordScreenOpen("explore", {
-              openMs: Date.now() - screenStartedAt,
-              firstContentMs: Date.now() - screenStartedAt,
-            });
-            logPerformanceSummary("explore", {
-              cache: "hit",
-              firstContentMs: Date.now() - screenStartedAt,
-              itemCount: cached.length,
-            });
-          } else if (showLoader && !showedCachedCatalog) {
-            setLoading(true);
-            logCacheResult("explore", false);
+            if (cached.length) {
+              applyExploreSongs(
+                dedupeSongs(
+                  cached.slice(0, INITIAL_EXPLORE_SNAPSHOT_LIMIT).map(safeSong)
+                )
+              );
+              setLoading(false);
+              setRefreshing(false);
+              showedCachedCatalog = true;
+              markFirstCachedContentVisible("explore");
+              logCacheResult("explore", true, { count: cached.length });
+              logScreenReady("explore", screenStartedAt, {
+                cache: "hit",
+                count: cached.length,
+              });
+              recordScreenOpen("explore", {
+                openMs: Date.now() - screenStartedAt,
+                firstContentMs: Date.now() - screenStartedAt,
+              });
+              logPerformanceSummary("explore", {
+                cache: "hit",
+                firstContentMs: Date.now() - screenStartedAt,
+                itemCount: cached.length,
+              });
+            } else if (showLoader && !showedCachedCatalog) {
+              setLoading(true);
+              logCacheResult("explore", false);
+            }
           }
         } else if (showLoader) {
           setLoading(true);
@@ -1559,7 +1541,7 @@ const styles = StyleSheet.create({
     position: "absolute",
   },
   heroOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.flatten(StyleSheet.absoluteFill),
   },
   heroBadge: {
     position: "absolute",

@@ -312,6 +312,13 @@ function HomeScreen() {
   }, []);
 
   const scheduleHydrateCatalogFromStorage = useCallback(() => {
+    if (getHiddenTunesCatalogSnapshot().length) {
+      if (featuredSongsCountRef.current > 0) {
+        finishInitialHomeLoadGate();
+      }
+      return;
+    }
+
     scheduleStartupTask("afterPaint", "home_catalog_storage_hydrate", async () => {
       try {
         const cached = await hydrateHiddenTunesCatalogCache();
@@ -380,7 +387,6 @@ function HomeScreen() {
               count: memorySnapshot.length,
               source: "memory",
             });
-            scheduleHydrateCatalogFromStorage();
           } else {
             if (showLoader) {
               setLoadingSongs(true);

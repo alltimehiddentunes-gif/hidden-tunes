@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
   Alert,
   FlatList,
@@ -25,7 +25,7 @@ import MediaCard from "../../components/MediaCard";
 import PlaylistArtworkCollage from "../../components/PlaylistArtworkCollage";
 import NeonEQ from "../../components/NeonEQ";
 
-import { getHiddenTunesSongs } from "../../services/hiddenTunesApi";
+import { getHiddenTunesCatalogSnapshot, getHiddenTunesSongs } from "../../services/hiddenTunesApi";
 
 import {
   clearUserPlaylist,
@@ -76,19 +76,33 @@ export default function PlaylistDetailScreen() {
   const smart = isSmartPlaylist(playlist);
   const tracks = useMemo(() => playlist?.tracks || [], [playlist]);
 
-  async function loadPlaylist() {
+  const smartCatalogLoadedRef = useRef<string | null>(null);
+
+  async function loadPlaylist(options?: { forceCatalogRefresh?: boolean }) {
     try {
       const userPlaylist = await getUserPlaylistById(playlistId);
 
       if (userPlaylist) {
+        smartCatalogLoadedRef.current = null;
         setPlaylist(userPlaylist);
         return;
       }
 
-      const [cloudSongs, userPlaylists] = await Promise.all([
-        getHiddenTunesSongs(),
-        getUserPlaylists(),
-      ]);
+      if (
+        smartCatalogLoadedRef.current === playlistId &&
+        !options?.forceCatalogRefresh
+      ) {
+        return;
+      }
+
+      const snapshot = getHiddenTunesCatalogSnapshot();
+      const cloudSongs =
+        snapshot.length && !options?.forceCatalogRefresh
+          ? snapshot
+          : await getHiddenTunesSongs({
+              forceRefresh: Boolean(options?.forceCatalogRefresh),
+            });
+      const userPlaylists = await getUserPlaylists();
 
       const smartPlaylists = generateSmartPlaylists(
         Array.isArray(cloudSongs) ? cloudSongs : [],
@@ -99,6 +113,7 @@ export default function PlaylistDetailScreen() {
         smartPlaylists.find((item) => item.id === playlistId) || null;
 
       setPlaylist(smartPlaylist);
+      smartCatalogLoadedRef.current = playlistId;
     } catch (error) {
       console.log("Load playlist detail error:", error);
       setPlaylist(null);
@@ -107,7 +122,7 @@ export default function PlaylistDetailScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      loadPlaylist();
+      void loadPlaylist();
     }, [playlistId])
   );
 

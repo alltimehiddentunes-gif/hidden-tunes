@@ -25,6 +25,7 @@ import {
 import {
   extractHiddenTunesAlbums,
   getHiddenTunesAlbumById,
+  getHiddenTunesCatalogCacheInfo,
   getHiddenTunesCatalogSnapshot,
   hydrateHiddenTunesCatalogCache,
   type HiddenTunesAlbum,
@@ -50,6 +51,7 @@ import {
   pickFirstPlayableTrack,
 } from "../../utils/audioPreloadTargeting";
 import { scheduleDebouncedAudioPreload } from "../../utils/audioPreloadScheduler";
+import { scheduleDelayedNonEssentialWork } from "../../utils/backgroundWork";
 import { trackRenderProbe } from "../../utils/renderDiagnostics";
 import {
   loadAlbumDetailSnapshot,
@@ -235,32 +237,44 @@ export default function AlbumScreen() {
           }
         }
 
-        const data = await getHiddenTunesAlbumById(albumId);
-        logApiRefresh("album", refreshStart, {
-          id: albumId,
-          found: Boolean(data),
-          tracks: data?.tracks.length || 0,
-        });
-        logPerformanceSummary("album", {
-          cache: showedCachedAlbum ? "hit" : "miss",
-          apiRefreshMs: Date.now() - refreshStart,
-          itemCount: data?.tracks.length || 0,
-          emptyStateReason: data
-            ? "content_available"
-            : "cache_api_and_fallback_empty",
-        });
+        const cacheInfo = await getHiddenTunesCatalogCacheInfo();
 
-        if (data) {
-          setAlbum(data);
-          void saveAlbumDetailSnapshot(data);
-          if (!showedCachedAlbum) {
-            logScreenReady("album", screenStartedAt, {
-              cache: "miss",
-              tracks: data.tracks.length,
-            });
+        const applyAlbumApiResult = async () => {
+          const data = await getHiddenTunesAlbumById(albumId);
+          logApiRefresh("album", refreshStart, {
+            id: albumId,
+            found: Boolean(data),
+            tracks: data?.tracks.length || 0,
+          });
+          logPerformanceSummary("album", {
+            cache: showedCachedAlbum ? "hit" : "miss",
+            apiRefreshMs: Date.now() - refreshStart,
+            itemCount: data?.tracks.length || 0,
+            emptyStateReason: data
+              ? "content_available"
+              : "cache_api_and_fallback_empty",
+          });
+
+          if (data) {
+            setAlbum(data);
+            void saveAlbumDetailSnapshot(data);
+            if (!showedCachedAlbum) {
+              logScreenReady("album", screenStartedAt, {
+                cache: "miss",
+                tracks: data.tracks.length,
+              });
+            }
+          } else if (!showedCachedAlbum || allowClearOnMiss) {
+            setAlbum(null);
           }
-        } else if (!showedCachedAlbum || allowClearOnMiss) {
-          setAlbum(null);
+        };
+
+        if (showedCachedAlbum && cacheInfo.isFresh) {
+          scheduleDelayedNonEssentialWork(() => {
+            void applyAlbumApiResult();
+          });
+        } else {
+          await applyAlbumApiResult();
         }
       } catch (error) {
         console.log("Load album error:", error);
