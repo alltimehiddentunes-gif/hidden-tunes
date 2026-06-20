@@ -1,11 +1,12 @@
 import React, { memo } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 
-import HTImage from "../HTImage";
 import { COLORS } from "../../constants/theme";
 import type { RadioCategory } from "../../constants/radioCategories";
+import type { RadioStationListItem } from "../../types/radio";
 
 type RadioCategoryCardProps = {
   category: RadioCategory;
@@ -34,35 +35,50 @@ export const RadioCategoryCard = memo(function RadioCategoryCard({
 });
 
 type RadioStationCardProps = {
-  name: string;
-  subtitle?: string;
-  favicon?: string;
+  item: RadioStationListItem;
   onPress: () => void;
 };
 
+const RadioStationArt = memo(function RadioStationArt({
+  artworkUrl,
+}: {
+  artworkUrl?: string;
+}) {
+  if (!artworkUrl) {
+    return (
+      <View style={styles.stationArtFallback}>
+        <Ionicons name="radio-outline" size={18} color={COLORS.textMuted} />
+      </View>
+    );
+  }
+
+  return (
+    <Image
+      source={{ uri: artworkUrl }}
+      style={styles.stationArt}
+      contentFit="cover"
+      recyclingKey={artworkUrl}
+      transition={0}
+      cachePolicy="memory-disk"
+    />
+  );
+});
+
 export const RadioStationCard = memo(function RadioStationCard({
-  name,
-  subtitle,
-  favicon,
+  item,
   onPress,
 }: RadioStationCardProps) {
   return (
     <TouchableOpacity activeOpacity={0.88} style={styles.stationRow} onPress={onPress}>
-      {favicon ? (
-        <HTImage uri={favicon} style={styles.stationArt} />
-      ) : (
-        <View style={styles.stationArtFallback}>
-          <Ionicons name="radio-outline" size={22} color={COLORS.textMuted} />
-        </View>
-      )}
+      <RadioStationArt artworkUrl={item.artworkUrl} />
 
       <View style={styles.stationCopy}>
         <Text numberOfLines={1} style={styles.stationTitle}>
-          {name}
+          {item.title}
         </Text>
-        {subtitle ? (
+        {item.subtitle ? (
           <Text numberOfLines={1} style={styles.stationSubtitle}>
-            {subtitle}
+            {item.subtitle}
           </Text>
         ) : null}
       </View>
@@ -111,23 +127,24 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderRadius: 18,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 16,
     backgroundColor: "rgba(255,255,255,0.05)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.08)",
-    marginBottom: 10,
+    marginBottom: 8,
   },
   stationArt: {
-    width: 52,
-    height: 52,
-    borderRadius: 14,
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,0.06)",
   },
   stationArtFallback: {
-    width: 52,
-    height: 52,
-    borderRadius: 14,
+    width: 44,
+    height: 44,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "rgba(255,255,255,0.06)",

@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -6,42 +6,49 @@ import {
   RefreshControl,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { router, useLocalSearchParams } from "expo-router";
+import { router } from "expo-router";
 
 import { RadioStationCard } from "../../components/radio/RadioBrowserCards";
-import { getRadioCategory } from "../../constants/radioCategories";
 import { COLORS } from "../../constants/theme";
 import { TESTER_COPY } from "../../constants/testerExperience";
 import { useLazyRadioStationList } from "../../hooks/useLazyRadioStationList";
 import { usePlaybackRouter } from "../../hooks/usePlaybackRouter";
-import { loadRadioCategoryPage } from "../../services/radio/radioBrowserApi";
+import { loadRadioSearchPage } from "../../services/radio/radioBrowserApi";
+import { normalizeRadioSearchCacheKey } from "../../services/radio/radioCache";
 import { normalizeRadioStation } from "../../services/radio/radioNormalizer";
 import type { RadioStationListItem } from "../../types/radio";
 import {
   createStableKeyExtractor,
   getListPerformanceSettings,
 } from "../../utils/performanceMode";
+import { useDebouncedSearchQuery } from "../../utils/useDebouncedValue";
 
-export default function RadioCategoryScreen() {
+const RADIO_SEARCH_DEBOUNCE_MS = 350;
+
+export default function RadioSearchScreen() {
   const { playRadioStation } = usePlaybackRouter();
-  const params = useLocalSearchParams<{ categoryId?: string }>();
-  const categoryId = String(params.categoryId || "").trim();
-  const category = useMemo(() => getRadioCategory(categoryId), [categoryId]);
+  const [query, setQuery] = useState("");
+  const debouncedQuery = useDebouncedSearchQuery(query, RADIO_SEARCH_DEBOUNCE_MS);
+  const cacheKey = useMemo(
+    () => normalizeRadioSearchCacheKey(debouncedQuery),
+    [debouncedQuery]
+  );
 
   const loadPage = useCallback(
     (offset: number, options: { append: boolean; forceRefresh: boolean }) =>
-      loadRadioCategoryPage(categoryId, {
+      loadRadioSearchPage(debouncedQuery, {
         offset,
         append: options.append,
         forceRefresh: options.forceRefresh,
       }),
-    [categoryId]
+    [debouncedQuery]
   );
 
   const {
@@ -55,9 +62,9 @@ export default function RadioCategoryScreen() {
     resolveStation,
     listCountLabel,
   } = useLazyRadioStationList({
-    cacheKey: categoryId,
-    requestKey: `category:${categoryId}`,
-    enabled: Boolean(categoryId),
+    cacheKey,
+    requestKey: `search:${cacheKey || "idle"}`,
+    enabled: Boolean(cacheKey),
     loadPage,
   });
 
@@ -81,26 +88,13 @@ export default function RadioCategoryScreen() {
     [playRadioStation, resolveStation]
   );
 
-  const openListeningRoom = useCallback(() => {
-    if (!category) return;
-
-    router.push({
-      pathname: "/radio",
-      params: {
-        title: category.title,
-        query: category.listeningRoomQuery,
-        genre: category.tag || "",
-      },
-    } as any);
-  }, [category]);
-
   const listPerformance = useMemo(
     () => getListPerformanceSettings(listItems.length),
     [listItems.length]
   );
 
   const keyExtractor = useMemo(
-    () => createStableKeyExtractor("radio-station"),
+    () => createStableKeyExtractor("radio-search-station"),
     []
   );
 
@@ -111,21 +105,13 @@ export default function RadioCategoryScreen() {
     [playStation]
   );
 
-  const showEmpty = hasLoadedOnce && !loading && !refreshing && listItems.length === 0;
-
-  if (!category) {
-    return (
-      <LinearGradient colors={["#120818", "#050308"]} style={styles.container}>
-        <View style={styles.center}>
-          <Text style={styles.emptyTitle}>This room is not available</Text>
-          <Text style={styles.emptyText}>Try another search.</Text>
-          <TouchableOpacity style={styles.backLink} onPress={() => router.back()}>
-            <Text style={styles.backLinkText}>Back to Live Stations</Text>
-          </TouchableOpacity>
-        </View>
-      </LinearGradient>
-    );
-  }
+  const showPrompt = !debouncedQuery;
+  const showEmpty =
+    Boolean(debouncedQuery) &&
+    hasLoadedOnce &&
+    !loading &&
+    !refreshing &&
+    listItems.length === 0;
 
   return (
     <LinearGradient colors={["#120818", "#050308"]} style={styles.container}>
@@ -140,12 +126,39 @@ export default function RadioCategoryScreen() {
 
         <View style={styles.headerText}>
           <Text style={styles.kicker}>HIDDEN TUNES RADIO</Text>
-          <Text style={styles.title}>{category.title}</Text>
-          <Text style={styles.subtitle}>{category.subtitle}</Text>
+          <Text style={styles.title}>Search Stations</Text>
+          <Text style={styles.subtitle}>Find live stations by name</Text>
         </View>
       </View>
 
-      {loading && listItems.length === 0 ? (
+      <View style={styles.searchBar}>
+        <Ionicons name="search-outline" size={18} color={COLORS.textMuted} />
+        <TextInput
+          value={query}
+          onChangeText={setQuery}
+          placeholder="Search live stations"
+          placeholderTextColor={COLORS.textMuted}
+          style={styles.searchInput}
+          autoCorrect={false}
+          autoCapitalize="none"
+          returnKeyType="search"
+        />
+        {query ? (
+          <TouchableOpacity onPress={() => setQuery("")} hitSlop={8}>
+            <Ionicons name="close-circle" size={18} color={COLORS.textMuted} />
+          </TouchableOpacity>
+        ) : null}
+      </View>
+
+      {showPrompt ? (
+        <View style={styles.center}>
+          <Ionicons name="radio-outline" size={48} color={COLORS.textMuted} />
+          <Text style={styles.promptTitle}>Search live stations</Text>
+          <Text style={styles.promptText}>
+            Results load when you search. Only a few stations load at a time.
+          </Text>
+        </View>
+      ) : loading && listItems.length === 0 ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color={COLORS.primary} />
           <Text style={styles.loadingText}>{TESTER_COPY.radioStationsLoading}</Text>
@@ -155,6 +168,7 @@ export default function RadioCategoryScreen() {
           data={listItems}
           keyExtractor={keyExtractor}
           contentContainerStyle={styles.listContent}
+          keyboardShouldPersistTaps="handled"
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -165,9 +179,9 @@ export default function RadioCategoryScreen() {
           onEndReachedThreshold={0.35}
           onEndReached={loadMore}
           ListHeaderComponent={
-            <Text style={styles.sectionTitle}>
-              {listCountLabel || "Live stations"}
-            </Text>
+            listCountLabel ? (
+              <Text style={styles.sectionTitle}>{listCountLabel}</Text>
+            ) : null
           }
           ListFooterComponent={
             loadingMore ? (
@@ -180,18 +194,8 @@ export default function RadioCategoryScreen() {
           ListEmptyComponent={
             showEmpty ? (
               <View style={styles.emptyBox}>
-                <Ionicons name="radio-outline" size={48} color={COLORS.textMuted} />
-                <Text style={styles.emptyTitle}>{category.emptyTitle}</Text>
-                <Text style={styles.emptyText}>{category.emptyMessage}</Text>
-                <TouchableOpacity
-                  activeOpacity={0.86}
-                  style={styles.fallbackButton}
-                  onPress={openListeningRoom}
-                >
-                  <Text style={styles.fallbackButtonText}>
-                    Open listening room
-                  </Text>
-                </TouchableOpacity>
+                <Text style={styles.emptyTitle}>No stations found</Text>
+                <Text style={styles.emptyText}>{TESTER_COPY.radioStationsEmpty}</Text>
               </View>
             ) : null
           }
@@ -241,6 +245,25 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 6,
   },
+  searchBar: {
+    marginHorizontal: 20,
+    marginBottom: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+  },
+  searchInput: {
+    flex: 1,
+    color: COLORS.text,
+    fontSize: 15,
+    padding: 0,
+  },
   listContent: {
     paddingHorizontal: 20,
     paddingBottom: 120,
@@ -257,7 +280,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 12,
-    paddingHorizontal: 24,
+    paddingHorizontal: 28,
+  },
+  promptTitle: {
+    color: COLORS.text,
+    fontSize: 18,
+    fontWeight: "800",
+  },
+  promptText: {
+    color: COLORS.textMuted,
+    fontSize: 13,
+    lineHeight: 18,
+    textAlign: "center",
   },
   loadingText: {
     color: COLORS.textMuted,
@@ -275,7 +309,6 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     fontSize: 18,
     fontWeight: "800",
-    marginTop: 12,
     textAlign: "center",
   },
   emptyText: {
@@ -284,27 +317,5 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     marginTop: 8,
     textAlign: "center",
-  },
-  fallbackButton: {
-    marginTop: 18,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 999,
-    backgroundColor: "rgba(168,85,247,0.16)",
-    borderWidth: 1,
-    borderColor: "rgba(168,85,247,0.35)",
-  },
-  fallbackButtonText: {
-    color: COLORS.text,
-    fontSize: 13,
-    fontWeight: "800",
-  },
-  backLink: {
-    marginTop: 16,
-  },
-  backLinkText: {
-    color: COLORS.primary,
-    fontSize: 14,
-    fontWeight: "700",
   },
 });

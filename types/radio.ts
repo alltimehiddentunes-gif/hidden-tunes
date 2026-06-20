@@ -14,6 +14,7 @@ export type RadioBrowserStationRaw = {
   clickcount?: number;
 };
 
+/** Full station record stored in cache — includes stream URL for playback on tap. */
 export type HiddenTunesStation = {
   id: string;
   name: string;
@@ -26,6 +27,17 @@ export type HiddenTunesStation = {
   codec?: string;
   categoryId: string;
   cachedAt: number;
+};
+
+/** Lightweight row model for FlatList — no stream URL in render props. */
+export type RadioStationListItem = {
+  id: string;
+  title: string;
+  country?: string;
+  genre?: string;
+  tags: string[];
+  artworkUrl?: string;
+  subtitle: string;
 };
 
 export type RadioStation = {

@@ -2,8 +2,11 @@ import { getRadioCategory, type RadioCategory } from "../../constants/radioCateg
 import type { HiddenTunesStation, RadioBrowserStationRaw } from "../../types/radio";
 import { normalizeRadioBrowserStation } from "./radioNormalizer";
 import {
+  countCachedRadioStations,
   getRadioStationInflight,
   hydrateCachedRadioStations,
+  normalizeRadioSearchCacheKey,
+  readCachedRadioPage,
   readCachedRadioStations,
   setRadioStationInflight,
   writeCachedRadioStations,
@@ -19,15 +22,48 @@ const RADIO_BROWSER_USER_AGENT = "HiddenTunes/1.0 (mobile radio browser)";
 const STATION_FETCH_TIMEOUT_MS = 12000;
 
 export const RADIO_STATION_PAGE_SIZE = 32;
+export const RADIO_SEARCH_MAX_RESULTS = 120;
+
+const browseAbortControllers = new Map<string, AbortController>();
+
+export function cancelRadioBrowseRequest(requestKey: string) {
+  const key = String(requestKey || "").trim();
+  if (!key) return;
+
+  const controller = browseAbortControllers.get(key);
+  if (!controller) return;
+
+  controller.abort();
+  browseAbortControllers.delete(key);
+}
+
+function beginBrowseRequest(requestKey: string) {
+  cancelRadioBrowseRequest(requestKey);
+  const controller = new AbortController();
+  browseAbortControllers.set(requestKey, controller);
+  return controller.signal;
+}
+
+function endBrowseRequest(requestKey: string, signal: AbortSignal) {
+  const controller = browseAbortControllers.get(requestKey);
+  if (controller?.signal === signal) {
+    browseAbortControllers.delete(requestKey);
+  }
+}
 
 async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const parentSignal = init.signal;
+
+  const onAbort = () => controller.abort();
+  parentSignal?.addEventListener("abort", onAbort);
 
   try {
     return await fetch(url, { ...init, signal: controller.signal });
   } finally {
     clearTimeout(timer);
+    parentSignal?.removeEventListener("abort", onAbort);
   }
 }
 
@@ -49,10 +85,24 @@ function buildCategoryPath(category: RadioCategory, offset: number, limit: numbe
   return `/json/stations/search?tag=${tag}&limit=${safeLimit}&offset=${safeOffset}&order=votes&reverse=true&hidebroken=true`;
 }
 
-async function fetchRadioBrowserJson(path: string) {
+function buildSearchPath(query: string, offset: number, limit: number) {
+  const safeLimit = Math.max(1, Math.min(limit, 40));
+  const safeOffset = Math.max(0, offset);
+  const safeQuery = encodeURIComponent(String(query || "").trim());
+
+  return `/json/stations/search?name=${safeQuery}&limit=${safeLimit}&offset=${safeOffset}&order=votes&reverse=true&hidebroken=true`;
+}
+
+async function fetchRadioBrowserJson(path: string, signal?: AbortSignal) {
   let lastError: unknown = null;
 
   for (const server of RADIO_BROWSER_SERVERS) {
+    if (signal?.aborted) {
+      const error = new Error("radio_browse_aborted");
+      error.name = "AbortError";
+      throw error;
+    }
+
     try {
       const response = await fetchWithTimeout(
         `${server}${path}`,
@@ -61,6 +111,7 @@ async function fetchRadioBrowserJson(path: string) {
             "User-Agent": RADIO_BROWSER_USER_AGENT,
             Accept: "application/json",
           },
+          signal,
         },
         STATION_FETCH_TIMEOUT_MS
       );
@@ -78,6 +129,9 @@ async function fetchRadioBrowserJson(path: string) {
 
       return JSON.parse(text) as RadioBrowserStationRaw[];
     } catch (error) {
+      if ((error as Error)?.name === "AbortError") {
+        throw error;
+      }
       lastError = error;
     }
   }
@@ -105,12 +159,16 @@ function dedupeRadioStations(stations: HiddenTunesStation[]) {
 export async function fetchRadioStationsPage(
   categoryId: string,
   offset = 0,
-  limit = RADIO_STATION_PAGE_SIZE
+  limit = RADIO_STATION_PAGE_SIZE,
+  signal?: AbortSignal
 ) {
   const category = getRadioCategory(categoryId);
   if (!category) return [];
 
-  const raw = await fetchRadioBrowserJson(buildCategoryPath(category, offset, limit));
+  const raw = await fetchRadioBrowserJson(
+    buildCategoryPath(category, offset, limit),
+    signal
+  );
 
   let normalized = dedupeRadioStations(
     raw
@@ -125,61 +183,183 @@ export async function fetchRadioStationsPage(
   return normalized.slice(0, limit);
 }
 
-export async function loadRadioStationsForCategory(
-  categoryId: string,
-  options?: {
-    offset?: number;
-    limit?: number;
-    forceRefresh?: boolean;
-    append?: boolean;
-  }
+export async function fetchRadioSearchPage(
+  query: string,
+  offset = 0,
+  limit = RADIO_STATION_PAGE_SIZE,
+  signal?: AbortSignal
 ) {
-  const safeId = String(categoryId || "").trim();
-  if (!safeId) return { stations: [] as HiddenTunesStation[], hasMore: false };
+  const safeQuery = String(query || "").trim();
+  if (!safeQuery) return [];
+
+  const raw = await fetchRadioBrowserJson(buildSearchPath(safeQuery, offset, limit), signal);
+
+  return dedupeRadioStations(
+    raw
+      .map((station) => normalizeRadioBrowserStation(station, "search"))
+      .filter((station): station is HiddenTunesStation => Boolean(station))
+  ).slice(0, limit);
+}
+
+type LoadRadioPageOptions = {
+  offset?: number;
+  limit?: number;
+  forceRefresh?: boolean;
+  append?: boolean;
+  requestKey?: string;
+};
+
+type LoadRadioPageResult = {
+  stations: HiddenTunesStation[];
+  hasMore: boolean;
+  fromCache: boolean;
+};
+
+async function loadCachedOrHydratedPage(
+  cacheKey: string,
+  offset: number,
+  limit: number
+) {
+  const memoryPage = readCachedRadioPage(cacheKey, offset, limit);
+  if (memoryPage.length) {
+    const total = countCachedRadioStations(cacheKey);
+    return {
+      stations: memoryPage,
+      hasMore: total > offset + memoryPage.length || memoryPage.length >= limit,
+      fromCache: true,
+    } satisfies LoadRadioPageResult;
+  }
+
+  const hydrated = await hydrateCachedRadioStations(cacheKey);
+  if (!hydrated?.length) return null;
+
+  const page = hydrated.slice(offset, offset + limit);
+  if (!page.length) return null;
+
+  return {
+    stations: page,
+    hasMore: hydrated.length > offset + page.length || page.length >= limit,
+    fromCache: true,
+  } satisfies LoadRadioPageResult;
+}
+
+async function loadRadioPage(
+  cacheKey: string,
+  fetchPage: (offset: number, limit: number, signal?: AbortSignal) => Promise<HiddenTunesStation[]>,
+  options?: LoadRadioPageOptions
+): Promise<LoadRadioPageResult> {
+  const safeKey = String(cacheKey || "").trim();
+  if (!safeKey) return { stations: [], hasMore: false, fromCache: false };
 
   const offset = Math.max(0, Number(options?.offset) || 0);
   const limit = Math.max(1, Math.min(Number(options?.limit) || RADIO_STATION_PAGE_SIZE, 40));
   const append = Boolean(options?.append);
+  const requestKey = options?.requestKey || safeKey;
+  const signal = beginBrowseRequest(requestKey);
 
-  if (!options?.forceRefresh && offset === 0 && !append) {
-    const memoryHit = readCachedRadioStations(safeId);
-    if (memoryHit?.length) {
-      return { stations: memoryHit, hasMore: memoryHit.length >= limit };
+  try {
+    if (!options?.forceRefresh) {
+      const cached = await loadCachedOrHydratedPage(safeKey, offset, limit);
+      if (cached) return cached;
+
+      if (offset === 0 && !append) {
+        const inflight = getRadioStationInflight(safeKey);
+        if (inflight) {
+          const stations = await inflight;
+          return {
+            stations: stations.slice(0, limit),
+            hasMore: stations.length >= limit,
+            fromCache: true,
+          };
+        }
+      }
     }
 
-    const inflight = getRadioStationInflight(safeId);
-    if (inflight) {
-      const stations = await inflight;
-      return { stations, hasMore: stations.length >= limit };
+    const fetchPromise = fetchPage(offset, limit, signal)
+      .then((page) => writeCachedRadioStations(safeKey, page, { append: append || offset > 0 }))
+      .catch(async (error) => {
+        if ((error as Error)?.name === "AbortError") {
+          throw error;
+        }
+
+        const fallback =
+          readCachedRadioStations(safeKey) || (await hydrateCachedRadioStations(safeKey)) || [];
+        return fallback.slice(offset, offset + limit);
+      });
+
+    if (offset === 0 && !append && !options?.forceRefresh) {
+      setRadioStationInflight(safeKey, fetchPromise);
     }
 
-    const storageHit = await hydrateCachedRadioStations(safeId);
-    if (storageHit?.length) {
-      return { stations: storageHit, hasMore: storageHit.length >= limit };
+    const stations = await fetchPromise;
+
+    return {
+      stations,
+      hasMore: stations.length >= limit,
+      fromCache: false,
+    };
+  } finally {
+    endBrowseRequest(requestKey, signal);
+  }
+}
+
+export async function loadRadioCategoryPage(
+  categoryId: string,
+  options?: LoadRadioPageOptions
+) {
+  const safeId = String(categoryId || "").trim();
+  if (!safeId) return { stations: [], hasMore: false, fromCache: false };
+
+  return loadRadioPage(
+    safeId,
+    (offset, limit, signal) => fetchRadioStationsPage(safeId, offset, limit, signal),
+    {
+      ...options,
+      requestKey: `category:${safeId}`,
     }
+  );
+}
+
+export async function loadRadioSearchPage(query: string, options?: LoadRadioPageOptions) {
+  const safeQuery = String(query || "").trim();
+  const cacheKey = normalizeRadioSearchCacheKey(safeQuery);
+  if (!cacheKey) return { stations: [], hasMore: false, fromCache: false };
+
+  const offset = Math.max(0, Number(options?.offset) || 0);
+  if (offset + RADIO_STATION_PAGE_SIZE > RADIO_SEARCH_MAX_RESULTS) {
+    return { stations: [], hasMore: false, fromCache: false };
   }
 
-  const fetchPromise = fetchRadioStationsPage(safeId, offset, limit)
-    .then((page) => {
-      const merged = writeCachedRadioStations(safeId, page, { append });
-      return merged;
-    })
-    .catch(async () => {
-      const cached = readCachedRadioStations(safeId) || (await hydrateCachedRadioStations(safeId));
-      return cached || [];
-    });
+  const result = await loadRadioPage(
+    cacheKey,
+    (pageOffset, limit, signal) => fetchRadioSearchPage(safeQuery, pageOffset, limit, signal),
+    {
+      ...options,
+      requestKey: `search:${cacheKey}`,
+    }
+  );
 
-  if (offset === 0 && !append && !options?.forceRefresh) {
-    setRadioStationInflight(safeId, fetchPromise);
-  }
-
-  const stations = await fetchPromise;
-  const pageCount = append
-    ? stations.length - offset
-    : Math.min(stations.length, limit);
+  const cappedHasMore =
+    result.hasMore && offset + result.stations.length < RADIO_SEARCH_MAX_RESULTS;
 
   return {
-    stations,
-    hasMore: pageCount >= limit,
+    ...result,
+    hasMore: cappedHasMore,
   };
+}
+
+export async function resolveRadioStationForPlayback(
+  cacheKey: string,
+  stationId: string,
+  fallback?: HiddenTunesStation | null
+) {
+  if (fallback?.id === stationId && fallback.streamUrl) {
+    return fallback;
+  }
+
+  const cached = readCachedRadioStations(cacheKey)?.find((station) => station.id === stationId);
+  if (cached) return cached;
+
+  const hydrated = await hydrateCachedRadioStations(cacheKey);
+  return hydrated?.find((station) => station.id === stationId) || fallback || null;
 }

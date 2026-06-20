@@ -3,6 +3,7 @@ import type {
   HiddenTunesStation,
   RadioBrowserStationRaw,
   RadioStation,
+  RadioStationListItem,
 } from "../../types/radio";
 
 const HIDDEN_PROVIDER_TAG =
@@ -104,8 +105,22 @@ export function radioStationToAppSong(station: RadioStation): AppSong {
   };
 }
 
-export function stationRowSubtitle(station: HiddenTunesStation) {
-  const tags = sanitizeStationTagsForDisplay(station.tags).slice(0, 2).join(" · ");
+export function stationRowSubtitle(station: Pick<HiddenTunesStation, "country" | "tags">) {
+  const tags = sanitizeStationTagsForDisplay(station.tags || []).slice(0, 2).join(" · ");
   const parts = [station.country, tags].filter(Boolean);
   return parts.join(" · ") || "Live station";
+}
+
+export function toRadioStationListItem(station: HiddenTunesStation): RadioStationListItem {
+  const tags = sanitizeStationTagsForDisplay(station.tags || []);
+
+  return {
+    id: station.id,
+    title: station.name,
+    country: station.country,
+    genre: tags[0],
+    tags,
+    artworkUrl: station.favicon,
+    subtitle: stationRowSubtitle(station),
+  };
 }

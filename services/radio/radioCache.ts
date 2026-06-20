@@ -5,6 +5,8 @@ import type { HiddenTunesStation } from "../../types/radio";
 const STORAGE_PREFIX = "hidden_tunes_radio_stations_v2";
 const CACHE_TTL_MS = 18 * 60 * 60 * 1000;
 const MAX_MEMORY_ENTRIES = 24;
+const MAX_STATIONS_PER_KEY = 2000;
+const STORAGE_WRITE_DEBOUNCE_MS = 1200;
 
 type CachedStationPayload = {
   stations: HiddenTunesStation[];
@@ -13,12 +15,26 @@ type CachedStationPayload = {
 
 const memoryCache = new Map<string, CachedStationPayload>();
 const inflight = new Map<string, Promise<HiddenTunesStation[]>>();
+const pendingStorageWrites = new Map<string, CachedStationPayload>();
+const storageWriteTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 export function normalizeRadioCategoryCacheKey(categoryId: string) {
   return String(categoryId || "global")
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9_-]+/g, "-");
+}
+
+export function normalizeRadioSearchCacheKey(query: string) {
+  const safeQuery = String(query || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .slice(0, 80);
+
+  if (!safeQuery) return "";
+
+  return `search:${safeQuery.replace(/[^a-z0-9 _-]+/g, "")}`;
 }
 
 function isFresh(cachedAt: number) {
@@ -31,79 +47,25 @@ function trimMemoryCache() {
   if (oldestKey) memoryCache.delete(oldestKey);
 }
 
-export function readCachedRadioStations(categoryId: string) {
-  const key = normalizeRadioCategoryCacheKey(categoryId);
-  const memoryEntry = memoryCache.get(key);
-  if (memoryEntry && isFresh(memoryEntry.cachedAt)) {
-    return memoryEntry.stations;
-  }
-  return null;
-}
+function schedulePersistStationCache(key: string, payload: CachedStationPayload) {
+  pendingStorageWrites.set(key, payload);
 
-export async function hydrateCachedRadioStations(categoryId: string) {
-  const key = normalizeRadioCategoryCacheKey(categoryId);
-  const memoryEntry = memoryCache.get(key);
-  if (memoryEntry && isFresh(memoryEntry.cachedAt)) {
-    return memoryEntry.stations;
-  }
+  const existing = storageWriteTimers.get(key);
+  if (existing) clearTimeout(existing);
 
-  try {
-    const raw = await AsyncStorage.getItem(`${STORAGE_PREFIX}:${key}`);
-    if (!raw) return null;
+  storageWriteTimers.set(
+    key,
+    setTimeout(() => {
+      storageWriteTimers.delete(key);
+      const pending = pendingStorageWrites.get(key);
+      pendingStorageWrites.delete(key);
+      if (!pending) return;
 
-    const parsed = JSON.parse(raw) as CachedStationPayload;
-    if (!Array.isArray(parsed?.stations) || !isFresh(parsed.cachedAt)) {
-      await AsyncStorage.removeItem(`${STORAGE_PREFIX}:${key}`);
-      return null;
-    }
-
-    memoryCache.set(key, parsed);
-    return parsed.stations;
-  } catch {
-    return null;
-  }
-}
-
-export function writeCachedRadioStations(
-  categoryId: string,
-  stations: HiddenTunesStation[],
-  options?: { append?: boolean }
-) {
-  const key = normalizeRadioCategoryCacheKey(categoryId);
-  const existing = readCachedRadioStations(categoryId) || [];
-  const merged = options?.append
-    ? dedupeRadioStations([...existing, ...stations])
-    : dedupeRadioStations(stations);
-
-  const payload: CachedStationPayload = {
-    stations: merged,
-    cachedAt: Date.now(),
-  };
-
-  memoryCache.set(key, payload);
-  trimMemoryCache();
-
-  void AsyncStorage.setItem(`${STORAGE_PREFIX}:${key}`, JSON.stringify(payload)).catch(
-    () => {}
+      void AsyncStorage.setItem(`${STORAGE_PREFIX}:${key}`, JSON.stringify(pending)).catch(
+        () => {}
+      );
+    }, STORAGE_WRITE_DEBOUNCE_MS)
   );
-
-  return merged;
-}
-
-export function getRadioStationInflight(categoryId: string) {
-  return inflight.get(normalizeRadioCategoryCacheKey(categoryId));
-}
-
-export function setRadioStationInflight(
-  categoryId: string,
-  promise: Promise<HiddenTunesStation[]>
-) {
-  const key = normalizeRadioCategoryCacheKey(categoryId);
-  inflight.set(key, promise);
-  promise.finally(() => {
-    if (inflight.get(key) === promise) inflight.delete(key);
-  });
-  return promise;
 }
 
 function dedupeRadioStations(stations: HiddenTunesStation[]) {
@@ -120,5 +82,100 @@ function dedupeRadioStations(stations: HiddenTunesStation[]) {
     deduped.push(station);
   }
 
-  return deduped;
+  return deduped.slice(0, MAX_STATIONS_PER_KEY);
+}
+
+function getMemoryEntry(cacheKey: string) {
+  const entry = memoryCache.get(cacheKey);
+  if (!entry || !isFresh(entry.cachedAt)) return null;
+  return entry;
+}
+
+export function readCachedRadioStations(cacheKey: string) {
+  const key = normalizeRadioCategoryCacheKey(cacheKey);
+  return getMemoryEntry(key)?.stations || null;
+}
+
+export function readCachedRadioPage(cacheKey: string, offset: number, limit: number) {
+  const stations = readCachedRadioStations(cacheKey);
+  if (!stations?.length) return [];
+  const safeOffset = Math.max(0, offset);
+  const safeLimit = Math.max(1, limit);
+  return stations.slice(safeOffset, safeOffset + safeLimit);
+}
+
+export function getCachedRadioStationById(cacheKey: string, stationId: string) {
+  const stations = readCachedRadioStations(cacheKey);
+  if (!stations?.length) return null;
+  return stations.find((station) => station.id === stationId) || null;
+}
+
+export async function hydrateCachedRadioStations(cacheKey: string) {
+  const key = normalizeRadioCategoryCacheKey(cacheKey);
+  const memoryEntry = getMemoryEntry(key);
+  if (memoryEntry) return memoryEntry.stations;
+
+  try {
+    const raw = await AsyncStorage.getItem(`${STORAGE_PREFIX}:${key}`);
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw) as CachedStationPayload;
+    if (!Array.isArray(parsed?.stations) || !isFresh(parsed.cachedAt)) {
+      await AsyncStorage.removeItem(`${STORAGE_PREFIX}:${key}`);
+      return null;
+    }
+
+    const payload: CachedStationPayload = {
+      stations: dedupeRadioStations(parsed.stations),
+      cachedAt: parsed.cachedAt,
+    };
+
+    memoryCache.set(key, payload);
+    return payload.stations;
+  } catch {
+    return null;
+  }
+}
+
+export function writeCachedRadioStations(
+  cacheKey: string,
+  stations: HiddenTunesStation[],
+  options?: { append?: boolean }
+) {
+  const key = normalizeRadioCategoryCacheKey(cacheKey);
+  const existing = readCachedRadioStations(cacheKey) || [];
+  const merged = options?.append
+    ? dedupeRadioStations([...existing, ...stations])
+    : dedupeRadioStations(stations);
+
+  const payload: CachedStationPayload = {
+    stations: merged,
+    cachedAt: Date.now(),
+  };
+
+  memoryCache.set(key, payload);
+  trimMemoryCache();
+  schedulePersistStationCache(key, payload);
+
+  return merged;
+}
+
+export function getRadioStationInflight(cacheKey: string) {
+  return inflight.get(normalizeRadioCategoryCacheKey(cacheKey));
+}
+
+export function setRadioStationInflight(
+  cacheKey: string,
+  promise: Promise<HiddenTunesStation[]>
+) {
+  const key = normalizeRadioCategoryCacheKey(cacheKey);
+  inflight.set(key, promise);
+  promise.finally(() => {
+    if (inflight.get(key) === promise) inflight.delete(key);
+  });
+  return promise;
+}
+
+export function countCachedRadioStations(cacheKey: string) {
+  return readCachedRadioStations(cacheKey)?.length || 0;
 }

@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ScrollView,
   StyleSheet,
@@ -21,6 +21,10 @@ export default function RadioStationsHomeScreen() {
       pathname: "/stations/[categoryId]",
       params: { categoryId },
     } as any);
+  }, []);
+
+  const openSearch = useCallback(() => {
+    router.push("/stations/search" as any);
   }, []);
 
   const categories = useMemo(() => RADIO_CATEGORIES, []);
@@ -47,6 +51,16 @@ export default function RadioStationsHomeScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
+        <TouchableOpacity
+          activeOpacity={0.88}
+          style={styles.searchLink}
+          onPress={openSearch}
+        >
+          <Ionicons name="search-outline" size={18} color={COLORS.primary} />
+          <Text style={styles.searchLinkText}>Search live stations</Text>
+          <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
+        </TouchableOpacity>
+
         <View style={styles.grid}>
           {categories.map((category) => (
             <RadioCategoryCard
@@ -118,11 +132,29 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 120,
   },
+  searchLink: {
+    marginTop: 8,
+    marginBottom: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+  },
+  searchLinkText: {
+    flex: 1,
+    color: COLORS.text,
+    fontSize: 14,
+    fontWeight: "700",
+  },
   grid: {
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "space-between",
-    marginTop: 8,
   },
   listeningRoomLink: {
     marginTop: 8,
