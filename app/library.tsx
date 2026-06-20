@@ -93,6 +93,14 @@ const LIBRARY_GROUPS: { id: string; label: string; sections: LibrarySection[] }[
         href: "/music-feed",
         accent: COLORS.cyan,
       },
+      {
+        id: "live-radio",
+        title: "Live Radio",
+        eyebrow: "STATIONS",
+        icon: "radio",
+        href: "/stations",
+        accent: COLORS.primary,
+      },
     ],
   },
 ];
