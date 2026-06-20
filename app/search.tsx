@@ -44,7 +44,6 @@ import {
 } from "../services/hiddenTunesApi";
 import {
   freeMusicResultToSong,
-  providerLabel,
   searchFreeMusicProviders,
 } from "../services/freeMusicProviders";
 import { fetchTvCatalog, type HiddenTunesTvVideo } from "../services/tvCatalogApi";
@@ -1758,7 +1757,7 @@ export default function SearchScreen() {
 
                 {apkExternalAudioResults.length > 0 ? (
                   <View style={styles.sectionBlock}>
-                    <Text style={styles.sectionEyebrow}>FREE & LEGAL SOURCES</Text>
+                    <Text style={styles.sectionEyebrow}>MORE LISTENING</Text>
                     {apkExternalAudioResults.map((song, index) => (
                       <TouchableOpacity
                         key={`external-${song.id}-${index}`}
@@ -1772,7 +1771,6 @@ export default function SearchScreen() {
                         <View style={styles.songCopy}>
                           <Text numberOfLines={1} style={styles.songTitle}>{song.title}</Text>
                           <Text numberOfLines={1} style={styles.songArtist}>{song.artist}</Text>
-                          <Text numberOfLines={1} style={styles.songMeta}>{providerLabel((song as any).source || (song as any).raw?.source || (song as any).sourceName)} - {(song as any).raw?.license || (song as any).license || "Free/legal reference"}</Text>
                         </View>
                         <View style={styles.playCircle}>
                           <Ionicons name={(song as any).raw?.canPlayNatively === false ? "open-outline" : "play"} size={16} color={COLORS.text} />

@@ -1907,13 +1907,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const restoreForegroundFromSavedSession = useCallback(
     async (reason: string) => {
-      logLockscreenPlaybackDiagnostic("foreground_restore_from_saved_session_attempt", {
-        reason,
-        currentSongId: currentSongRef.current?.id || null,
-        queueLength: activeQueueRef.current.length,
-        positionMillis: positionMillisRef.current,
-      });
-
       try {
         const alreadyHydrated =
           Boolean(currentSongRef.current) && activeQueueRef.current.length > 0;
@@ -1932,13 +1925,27 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         const restoredSong = currentSongRef.current;
         const restoredQueue = activeQueueRef.current;
 
-        if (!hydrated || !restoredSong || restoredQueue.length === 0) {
+        if (!restoredSong?.id || restoredQueue.length === 0) {
+          if (!hydrated) {
+            logLockscreenPlaybackDiagnostic("foreground_sync_idle_no_session", {
+              reason,
+            });
+            return false;
+          }
+
           logLockscreenPlaybackDiagnostic("foreground_restore_skipped_no_native_track", {
-            reason: hydrated ? "saved_queue_missing" : "saved_current_song_missing",
+            reason: restoredSong?.id ? "saved_queue_missing" : "saved_current_song_missing",
             songId: restoredSong?.id || null,
           });
           return false;
         }
+
+        logLockscreenPlaybackDiagnostic("foreground_restore_from_saved_session_attempt", {
+          reason,
+          currentSongId: restoredSong.id || null,
+          queueLength: restoredQueue.length,
+          positionMillis: positionMillisRef.current,
+        });
 
         const durationSeconds = getSongDurationSeconds(restoredSong);
         if (durationSeconds > 0) {
@@ -2268,6 +2275,21 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           logLockscreenPlaybackDiagnostic("foreground_sync_complete", {
             restored: false,
             reason: "native_idle_js_session_no_retry",
+          });
+          return;
+        }
+        if (
+          activeQueueRef.current.length === 0 &&
+          snapshot.nativeStatus === "idle" &&
+          snapshot.hasLoadedTrack === false
+        ) {
+          logLockscreenPlaybackDiagnostic("foreground_sync_idle_no_session", {
+            nativeStatus: snapshot.nativeStatus,
+            hasLoadedTrack: snapshot.hasLoadedTrack,
+          });
+          logLockscreenPlaybackDiagnostic("foreground_sync_complete", {
+            restored: false,
+            reason: "idle_no_session",
           });
           return;
         }
