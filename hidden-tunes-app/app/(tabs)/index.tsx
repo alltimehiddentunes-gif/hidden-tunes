@@ -56,6 +56,11 @@ import {
 import { buildMoreLikeThisMood, type DiscoverySong } from "../../services/smartDiscovery";
 import { hydrateSmartRecommendationsCache } from "../../utils/smartRecommendationsCache";
 import { openSmartRadioEntry } from "../../utils/smartRadioNavigation";
+import { getLaunchContentSnapshot } from "../../services/launchContentLayer";
+import { hydrateLaunchContentCache } from "../../utils/launchContentCache";
+import { LaunchContentChips } from "../../components/launch/LaunchContentChips";
+import { LaunchContentPlaylistRail } from "../../components/launch/LaunchContentPlaylistRail";
+import { LAUNCH_CONTENT_LABELS } from "../../utils/launchContentRegistry";
 import { FALLBACK_ARTWORK, getArtworkUri } from "../../utils/artwork";
 import {
   logApiRefresh,
@@ -641,6 +646,7 @@ function HomeScreen() {
   useEffect(() => {
     void loadOnboardingPreferences().then(setOnboardingPrefs);
     void hydrateSmartRecommendationsCache();
+    void hydrateLaunchContentCache();
   }, []);
 
   const discoveryListenersRef = useRef({
@@ -743,6 +749,16 @@ function HomeScreen() {
   const showMoreButton =
     feedMountStage >= 3 && (hasMoreCloudSongs || hasMoreSongPages);
 
+  const launchContent = useMemo(
+    () =>
+      getLaunchContentSnapshot({
+        songs: discoveryInputSongs,
+        sharedDiscovery,
+        smartRecommendations,
+      }),
+    [discoveryInputSongs, sharedDiscovery, smartRecommendations]
+  );
+
   const homeFeedRows = useMemo(
     () =>
       buildHomeFeedRows({
@@ -753,7 +769,7 @@ function HomeScreen() {
         rediscoverFavorites: smartRecommendations.rediscoverFavorites.slice(0, 6),
         moreLikeThisSongs: smartRecommendations.moreLikeThis.slice(0, 6),
         moreLikeThisMoodSongs: moreLikeThisMood.songs,
-        smartRadioEntries: sharedDiscovery.smartRadioEntries,
+        launchContent,
         rankedArtistsCount: rankedArtists.length,
         rankedAlbumsCount: rankedAlbums.length,
         curatedSections,
@@ -770,12 +786,12 @@ function HomeScreen() {
       curatedSections,
       feedMountStage,
       featuredSongs.length,
+      launchContent,
       moodRooms,
       moreLikeThisMood.songs,
       primaryGenreSpotlight,
       rankedAlbums.length,
       rankedArtists.length,
-      sharedDiscovery.smartRadioEntries,
       showMoreButton,
       smartRecommendations.continueListening,
       smartRecommendations.moreLikeThis,
@@ -1455,13 +1471,23 @@ function HomeScreen() {
             </View>
           );
 
-        case "emotional-worlds-chips":
-          return <EmotionalDiscoveryChips style={styles.emotionalWorldsChips} />;
+        case "launch-playlists-rail":
+          return (
+            <LaunchContentPlaylistRail
+              title={item.title}
+              playlists={item.playlists}
+            />
+          );
 
-        case "smart-radio-rail":
+        case "launch-chips":
+          return <LaunchContentChips title={item.title} chips={item.chips} />;
+
+        case "launch-featured-radios":
           return (
             <>
-              <Text style={styles.sectionTitleBlock}>Smart Radio</Text>
+              <Text style={styles.sectionTitleBlock}>
+                {LAUNCH_CONTENT_LABELS.featuredRadios}
+              </Text>
               <FlatList
                 horizontal
                 data={item.entries}
@@ -1489,6 +1515,9 @@ function HomeScreen() {
               />
             </>
           );
+
+        case "emotional-worlds-chips":
+          return <EmotionalDiscoveryChips style={styles.emotionalWorldsChips} />;
 
         case "mood-rooms-header":
           return (

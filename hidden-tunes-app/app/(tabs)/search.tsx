@@ -94,6 +94,13 @@ import { openGenreCatalog } from "../../utils/catalogNavigation";
 import { shouldShowCatalogEmpty } from "../../utils/catalogEmptyStateTiming";
 import UniversalSearchGroupedResults from "../../components/UniversalSearchGroupedResults";
 import { SubtleTvEntryLink, EmotionalDiscoveryChips, SubtleRadioEntryLink, SubtlePodcastEntryLink } from "../../components/EmotionalDiscoveryChips";
+import { LaunchContentChips } from "../../components/launch/LaunchContentChips";
+import {
+  buildFeaturedPodcastChips,
+  buildFeaturedVideoChips,
+  CONTINUE_EXPLORING_CHIPS,
+  LAUNCH_CONTENT_LABELS,
+} from "../../utils/launchContentRegistry";
 import {
   invalidateCatalogSearchIndex,
   runInstantCatalogSearch,
@@ -2320,6 +2327,50 @@ export default function SearchScreen() {
           </Text>
         </View>
 
+        {cloudSongs.length > 0 ? (
+          <View style={styles.discoverySection}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>{LAUNCH_CONTENT_LABELS.trendingNow}</Text>
+              <Text style={styles.sectionSub}>Fresh momentum across Hidden Tunes</Text>
+            </View>
+
+            {cloudSongs.slice(0, 6).map((track, trackIndex) => {
+              const playIndex = searchPlayQueue.findIndex(
+                (item) => String(item.id) === String(track.id)
+              );
+
+              return (
+                <View key={`trending-${track.id}`} style={styles.groupedSongRowWrap}>
+                  <SearchCatalogSongPressableRow
+                    song={track}
+                    index={playIndex >= 0 ? playIndex : trackIndex}
+                    subtitle={track.artist}
+                    onRowPress={handleSongResultPress}
+                  />
+                </View>
+              );
+            })}
+          </View>
+        ) : null}
+
+        <LaunchContentChips
+          title={LAUNCH_CONTENT_LABELS.featuredVideos}
+          chips={buildFeaturedVideoChips(4)}
+          nested={false}
+        />
+
+        <LaunchContentChips
+          title={LAUNCH_CONTENT_LABELS.featuredPodcasts}
+          chips={buildFeaturedPodcastChips(4)}
+          nested={false}
+        />
+
+        <LaunchContentChips
+          title={LAUNCH_CONTENT_LABELS.continueExploring}
+          chips={CONTINUE_EXPLORING_CHIPS}
+          nested={false}
+        />
+
         {recentSearches.length > 0 && (
           <View style={styles.discoverySection}>
             <View style={styles.sectionHeaderRow}>
@@ -2454,7 +2505,7 @@ export default function SearchScreen() {
         {cloudPlaylists.length > 0 && (
           <View style={styles.discoverySection}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Listening Rooms</Text>
+              <Text style={styles.sectionTitle}>{LAUNCH_CONTENT_LABELS.featuredPlaylists}</Text>
               <Text style={styles.sectionSub}>Curated paths through the catalog</Text>
             </View>
 

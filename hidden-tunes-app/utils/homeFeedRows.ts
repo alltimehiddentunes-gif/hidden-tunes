@@ -1,5 +1,8 @@
 import type { HiddenTunesNormalizedSong } from "../services/hiddenTunesApi";
+import type { LaunchContentSnapshot } from "../services/launchContentLayer";
 import type { SmartRadioEntry } from "../services/smartRecommendations";
+import type { LaunchContentChip } from "./launchContentRegistry";
+import { LAUNCH_CONTENT_LABELS } from "./launchContentRegistry";
 import type { SmartDiscoverySection } from "../services/smartDiscovery";
 import {
   getSongDedupeKey,
@@ -32,7 +35,9 @@ export type HomeFeedRow =
   | { key: string; kind: "mood-rooms-header" }
   | { key: string; kind: "mood-rooms-rail" }
   | { key: string; kind: "emotional-worlds-chips" }
-  | { key: string; kind: "smart-radio-rail"; entries: SmartRadioEntry[] }
+  | { key: string; kind: "launch-playlists-rail"; title: string; playlists: LaunchContentSnapshot["featuredPlaylists"] }
+  | { key: string; kind: "launch-chips"; title: string; chips: LaunchContentChip[] }
+  | { key: string; kind: "launch-featured-radios"; entries: SmartRadioEntry[] }
   | { key: string; kind: "genre-spotlight-header" }
   | { key: string; kind: "catalog-header" }
   | { key: string; kind: "show-more" }
@@ -48,7 +53,7 @@ export type BuildHomeFeedRowsInput = {
   rediscoverFavorites: HiddenTunesNormalizedSong[];
   moreLikeThisSongs: HiddenTunesNormalizedSong[];
   moreLikeThisMoodSongs: HiddenTunesNormalizedSong[];
-  smartRadioEntries: SmartRadioEntry[];
+  launchContent: LaunchContentSnapshot;
   rankedArtistsCount: number;
   rankedAlbumsCount: number;
   curatedSections: SmartDiscoverySection<HiddenTunesNormalizedSong>[];
@@ -67,6 +72,7 @@ export function buildHomeFeedRows(input: BuildHomeFeedRowsInput): HomeFeedRow[] 
 
   const rows: HomeFeedRow[] = [];
   const usedSongKeys = new Set<string>();
+  const launch = input.launchContent;
 
   const appendUniqueSongRows = (
     sectionId: string,
@@ -106,6 +112,15 @@ export function buildHomeFeedRows(input: BuildHomeFeedRowsInput): HomeFeedRow[] 
 
     rows.push({ key: titleKey, kind: "section-title", title });
     appendUniqueSongRows(sectionId, songs);
+  };
+
+  const pushLaunchChips = (
+    key: string,
+    title: string,
+    chips: LaunchContentChip[]
+  ) => {
+    if (!chips.length) return;
+    rows.push({ key, kind: "launch-chips", title, chips });
   };
 
   rows.push({ key: "recently-added", kind: "recently-added" });
@@ -157,15 +172,75 @@ export function buildHomeFeedRows(input: BuildHomeFeedRowsInput): HomeFeedRow[] 
   }
 
   if (input.feedMountStage >= 2) {
-    rows.push({ key: "emotional-worlds-chips", kind: "emotional-worlds-chips" });
+    pushUniqueSongRows(
+      "trending-now",
+      LAUNCH_CONTENT_LABELS.trendingNow,
+      launch.trendingNow,
+      "title-trending-now"
+    );
 
-    if (input.smartRadioEntries.length > 0) {
+    pushUniqueSongRows(
+      "new-releases",
+      LAUNCH_CONTENT_LABELS.newReleases,
+      launch.newReleases,
+      "title-new-releases"
+    );
+
+    pushUniqueSongRows(
+      "hidden-picks",
+      LAUNCH_CONTENT_LABELS.hiddenPicks,
+      launch.hiddenPicks,
+      "title-hidden-picks"
+    );
+
+    if (launch.featuredPlaylists.length > 0) {
       rows.push({
-        key: "smart-radio-rail",
-        kind: "smart-radio-rail",
-        entries: input.smartRadioEntries,
+        key: "launch-featured-playlists",
+        kind: "launch-playlists-rail",
+        title: LAUNCH_CONTENT_LABELS.featuredPlaylists,
+        playlists: launch.featuredPlaylists,
       });
     }
+
+    pushLaunchChips(
+      "launch-featured-worlds",
+      LAUNCH_CONTENT_LABELS.featuredWorlds,
+      launch.featuredWorlds
+    );
+
+    pushLaunchChips(
+      "launch-featured-genres",
+      LAUNCH_CONTENT_LABELS.featuredGenres,
+      launch.featuredGenres
+    );
+
+    if (launch.featuredRadios.length > 0) {
+      rows.push({
+        key: "launch-featured-radios",
+        kind: "launch-featured-radios",
+        entries: launch.featuredRadios,
+      });
+    }
+
+    pushLaunchChips(
+      "launch-featured-videos",
+      LAUNCH_CONTENT_LABELS.featuredVideos,
+      launch.featuredVideos
+    );
+
+    pushLaunchChips(
+      "launch-featured-podcasts",
+      LAUNCH_CONTENT_LABELS.featuredPodcasts,
+      launch.featuredPodcasts
+    );
+
+    pushLaunchChips(
+      "launch-continue-exploring",
+      LAUNCH_CONTENT_LABELS.continueExploring,
+      launch.continueExploring
+    );
+
+    rows.push({ key: "emotional-worlds-chips", kind: "emotional-worlds-chips" });
 
     if (input.rankedArtistsCount > 0) {
       rows.push({ key: "title-creators", kind: "section-title", title: "Creators In Your Orbit" });
