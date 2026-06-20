@@ -96,6 +96,12 @@ export function readCachedRadioStations(cacheKey: string) {
   return getMemoryEntry(key)?.stations || null;
 }
 
+export function isRadioCacheFresh(cacheKey: string) {
+  const key = normalizeRadioCategoryCacheKey(cacheKey);
+  const entry = memoryCache.get(key);
+  return Boolean(entry && isFresh(entry.cachedAt));
+}
+
 export function readCachedRadioPage(cacheKey: string, offset: number, limit: number) {
   const stations = readCachedRadioStations(cacheKey);
   if (!stations?.length) return [];

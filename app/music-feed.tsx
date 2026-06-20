@@ -100,7 +100,7 @@ function getArtwork(song?: HiddenTunesSong | null) {
 }
 
 function songText(song: HiddenTunesSong) {
-  return [song.title, song.artist, song.album, song.genre, song.mood, song.lyrics]
+  return [song.title, song.artist, song.album, song.genre, song.mood]
     .filter(Boolean)
     .join(" ")
     .toLowerCase();

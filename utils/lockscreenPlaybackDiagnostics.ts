@@ -1,6 +1,11 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { AppState, Platform } from "react-native";
 
+import {
+  isDiagnosticsAsyncStorageEnabled,
+  isLockscreenDiagnosticsLoggingEnabled,
+  isPlaybackFailureEvent,
+} from "./devDiagnostics";
 import { logPerformanceDiagThrottled } from "./performanceLogs";
 
 export const LOCKSCREEN_DIAGNOSTIC_STORAGE_KEY =
@@ -192,10 +197,20 @@ function shouldThrottleLockscreenEvent(event: string) {
   return false;
 }
 
+function shouldRecordLockscreenEvent(event: string) {
+  if (isLockscreenDiagnosticsLoggingEnabled()) return true;
+  return isPlaybackFailureEvent(event);
+}
+
 function appendLog(entry: LockscreenPlaybackDiagnosticEntry) {
+  if (!shouldRecordLockscreenEvent(entry.event)) return;
+
   memoryLogs = [...memoryLogs, entry].slice(-MAX_STORED_LOGS);
   notifyListeners();
-  schedulePersist();
+
+  if (isDiagnosticsAsyncStorageEnabled()) {
+    schedulePersist();
+  }
 }
 
 export function subscribeLockscreenPlaybackDiagnostics(
@@ -332,9 +347,11 @@ export function logAndRememberLockscreenDiagnostic(
   logLockscreenPlaybackDiagnostic(event, details);
 }
 
-void hydrateLockscreenPlaybackDiagnostics().catch(() => {
-  // Diagnostics hydration must never affect app startup.
-});
+if (isDiagnosticsAsyncStorageEnabled()) {
+  void hydrateLockscreenPlaybackDiagnostics().catch(() => {
+    // Diagnostics hydration must never affect app startup.
+  });
+}
 
 export function isInterruptionHiddenAudioStopReason(reason: string) {
   return (

@@ -19,7 +19,6 @@ import { TESTER_COPY } from "../../../constants/testerExperience";
 import { usePlaybackRouter } from "../../../hooks/usePlaybackRouter";
 import {
   getPodcastEpisodesForShow,
-  prefetchPodcastEpisodesForShow,
 } from "../../../services/podcastDiscoveryApi";
 import type { HiddenTunesPodcastEpisode } from "../../../services/podcastCatalogApi";
 import { normalizePodcastEpisode } from "../../../services/podcasts/podcastNormalizer";
@@ -28,7 +27,6 @@ import {
   podcastEpisodeSubtitle,
 } from "../../../utils/openHiddenTunesPodcast";
 import {
-  hydrateCachedPodcastEpisodes,
   readCachedPodcastEpisodes,
 } from "../../../utils/podcastDiscoveryCache";
 import {
@@ -54,9 +52,29 @@ export default function PodcastShowScreen() {
     async (forceRefresh = false) => {
       if (!showId) return;
 
+      if (!forceRefresh) {
+        const cached = readCachedPodcastEpisodes(showId);
+        if (cached?.length) {
+          setEpisodes((current) =>
+            current.length === cached.length &&
+            current.every((item, index) => item.id === cached[index]?.id)
+              ? current
+              : cached
+          );
+          setLoading(false);
+          setHasCheckedFallbacks(true);
+          return;
+        }
+      }
+
       try {
         const next = await getPodcastEpisodesForShow(showId, { forceRefresh });
-        setEpisodes(next);
+        setEpisodes((current) =>
+          current.length === next.length &&
+          current.every((item, index) => item.id === next[index]?.id)
+            ? current
+            : next
+        );
       } finally {
         setLoading(false);
         setRefreshing(false);
@@ -68,21 +86,6 @@ export default function PodcastShowScreen() {
 
   useEffect(() => {
     if (!showId) return;
-    prefetchPodcastEpisodesForShow(showId);
-  }, [showId]);
-
-  useEffect(() => {
-    if (!showId || episodes.length > 0) return;
-
-    void hydrateCachedPodcastEpisodes(showId).then((cached) => {
-      if (!cached?.length) return;
-      setEpisodes(cached);
-      setLoading(false);
-    });
-  }, [showId, episodes.length]);
-
-  useEffect(() => {
-    if (!showId) return;
     void loadEpisodes(false);
   }, [showId, loadEpisodes]);
 
@@ -90,6 +93,14 @@ export default function PodcastShowScreen() {
     setRefreshing(true);
     void loadEpisodes(true);
   }, [loadEpisodes]);
+
+  const playbackQueue = useMemo(
+    () =>
+      episodes
+        .map((item) => normalizePodcastEpisode(item, showTitle))
+        .filter((item): item is NonNullable<typeof item> => Boolean(item)),
+    [episodes, showTitle]
+  );
 
   const openEpisode = useCallback(
     async (episode: HiddenTunesPodcastEpisode) => {
@@ -100,11 +111,7 @@ export default function PodcastShowScreen() {
         return;
       }
 
-      const queue = episodes
-        .map((item) => normalizePodcastEpisode(item, showTitle))
-        .filter((item): item is NonNullable<typeof item> => Boolean(item));
-
-      const result = await playPodcastEpisode(normalized, queue);
+      const result = await playPodcastEpisode(normalized, playbackQueue);
 
       if (!result.ok) {
         setPlaybackError(
@@ -115,7 +122,7 @@ export default function PodcastShowScreen() {
 
       setPlaybackError(null);
     },
-    [episodes, playPodcastEpisode, showTitle]
+    [playbackQueue, playPodcastEpisode, showTitle]
   );
 
   const renderEpisodeRow = useCallback(

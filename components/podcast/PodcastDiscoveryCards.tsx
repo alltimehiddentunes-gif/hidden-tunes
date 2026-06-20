@@ -67,7 +67,9 @@ export const PodcastShowCard = memo(function PodcastShowCard({
           source={{ uri: show.artwork_url }}
           style={styles.showArt}
           contentFit="cover"
-          transition={120}
+          transition={0}
+          cachePolicy="memory-disk"
+          priority="low"
           recyclingKey={show.id}
         />
       ) : (
@@ -108,7 +110,9 @@ export const PodcastEpisodeRow = memo(function PodcastEpisodeRow({
           source={{ uri: episode.artwork_url }}
           style={styles.episodeArt}
           contentFit="cover"
-          transition={120}
+          transition={0}
+          cachePolicy="memory-disk"
+          priority="low"
           recyclingKey={episode.id}
         />
       ) : (

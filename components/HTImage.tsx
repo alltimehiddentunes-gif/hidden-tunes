@@ -14,7 +14,7 @@ import {
   logPerformanceImageSourceMemoized,
   recordArtworkFailure,
 } from "../utils/performanceLogs";
-import { isFastScrolling, subscribeFastScrolling } from "../utils/performanceMode";
+import { isFastScrolling } from "../utils/performanceMode";
 
 type Props = {
   uri?: string | null;
@@ -24,6 +24,8 @@ type Props = {
   style?: StyleProp<ImageStyle>;
   contentFit?: "cover" | "contain" | "fill" | "none" | "scale-down";
   contentPosition?: "center" | "top" | "bottom" | "left" | "right";
+  /** Off by default — list rows should not prefetch offscreen artwork. */
+  prefetch?: boolean;
 };
 
 const MAX_ARTWORK_CANDIDATES = 5;
@@ -76,6 +78,7 @@ function HTImage({
   style,
   contentFit = "cover",
   contentPosition = "center",
+  prefetch = false,
 }: Props) {
   const fallbackSource = useMemo(() => {
     if (fallback === FALLBACK_ARTWORK || fallback === FALLBACK_ARTWORK_ASSET) {
@@ -87,7 +90,6 @@ function HTImage({
 
   const [candidateIndex, setCandidateIndex] = useState(0);
   const [stablePlaceholder, setStablePlaceholder] = useState<any>(fallbackSource);
-  const [fastScrolling, setFastScrolling] = useState(isFastScrolling());
   const [showingFallback, setShowingFallback] = useState(false);
   const [imageReady, setImageReady] = useState(false);
   const failureCountRef = useRef(0);
@@ -161,6 +163,8 @@ function HTImage({
   }, [fallbackSource]);
 
   useEffect(() => {
+    if (!prefetch) return;
+
     const uriValue =
       typeof resolvedSource === "object" && resolvedSource?.uri
         ? String(resolvedSource.uri)
@@ -179,13 +183,9 @@ function HTImage({
 
     prefetchedUriRef.current = uriValue;
     void Image.prefetch(uriValue).catch(() => undefined);
-  }, [resolvedSource]);
+  }, [prefetch, resolvedSource]);
 
-  useEffect(() => {
-    return subscribeFastScrolling((next) => {
-      setFastScrolling((current) => (current === next ? current : next));
-    });
-  }, []);
+  const fastScrolling = isFastScrolling();
 
   return (
     <View

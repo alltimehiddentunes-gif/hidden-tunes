@@ -1,6 +1,11 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { AppState, Platform } from "react-native";
 
+import {
+  isDiagnosticsAsyncStorageEnabled,
+  isPlaybackFailureEvent,
+} from "./devDiagnostics";
+
 const PREFIX = "[HT_PLAYBACK_CRITICAL]";
 const STORAGE_KEY = "@ht_playback_critical_logs_v1";
 const MAX_STORED_LOGS = 100;
@@ -153,10 +158,21 @@ function shouldThrottleCriticalLog(
   return false;
 }
 
+function shouldRecordCriticalEvent(event: string) {
+  if (typeof __DEV__ !== "undefined" && __DEV__) return true;
+  if (isDiagnosticsAsyncStorageEnabled()) return true;
+  return isPlaybackFailureEvent(event);
+}
+
 function appendLogEntry(entry: PlaybackCriticalLogEntry) {
+  if (!shouldRecordCriticalEvent(entry.event)) return;
+
   memoryLogs = [...memoryLogs, entry].slice(-MAX_STORED_LOGS);
   notifyListeners();
-  schedulePersist();
+
+  if (isDiagnosticsAsyncStorageEnabled() || isPlaybackFailureEvent(entry.event)) {
+    schedulePersist();
+  }
 }
 
 export function subscribePlaybackCriticalLogs(listener: () => void): () => void {
@@ -225,12 +241,13 @@ export function formatPlaybackCriticalLogsForExport(
     .join("\n");
 }
 
-/** Production-safe; always emitted. No progress / tick spam. */
+/** Critical playback events — failures always recorded; routine tap traces dev-only. */
 export function logPlaybackCritical(
   event: string,
   details: PlaybackCriticalDetails = {}
 ): void {
   if (shouldThrottleCriticalLog(event, details)) return;
+  if (!shouldRecordCriticalEvent(event)) return;
 
   const entry = createLogEntry(event, details);
 

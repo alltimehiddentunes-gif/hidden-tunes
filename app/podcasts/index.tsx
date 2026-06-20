@@ -20,13 +20,11 @@ import {
 } from "../../components/podcast/PodcastDiscoveryCards";
 import { COLORS } from "../../constants/theme";
 import { TESTER_COPY } from "../../constants/testerExperience";
-import {
-  prefetchPodcastShowsForCategory,
-  searchPodcastShows,
-} from "../../services/podcastDiscoveryApi";
+import { searchPodcastShows } from "../../services/podcastDiscoveryApi";
 import type { HiddenTunesPodcastShow } from "../../services/podcastCatalogApi";
 import { LAUNCH_PODCAST_CATEGORIES } from "../../utils/launchPodcastCategories";
 import { podcastShowSubtitle } from "../../utils/openHiddenTunesPodcast";
+import { readCachedPodcastSearch } from "../../utils/podcastDiscoveryCache";
 import {
   createStableKeyExtractor,
   getListPerformanceSettings,
@@ -44,7 +42,6 @@ export default function PodcastDiscoveryHomeScreen() {
   const isSearching = searchQuery.trim().length > 0;
 
   const openCategory = useCallback((categoryId: string) => {
-    prefetchPodcastShowsForCategory(categoryId);
     router.push({
       pathname: "/podcasts/[categoryId]",
       params: { categoryId },
@@ -68,6 +65,14 @@ export default function PodcastDiscoveryHomeScreen() {
     if (!clean) {
       setSearchResults([]);
       setSearchChecked(false);
+      setSearchLoading(false);
+      return;
+    }
+
+    const cached = readCachedPodcastSearch(clean);
+    if (cached?.length) {
+      setSearchResults(cached);
+      setSearchChecked(true);
       setSearchLoading(false);
       return;
     }

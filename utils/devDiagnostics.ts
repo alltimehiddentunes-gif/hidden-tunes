@@ -35,3 +35,22 @@ export function isRuntimeInstrumentationEnabled() {
 export function isVerbosePlaybackDiagnosticsEnabled() {
   return isRuntimeInstrumentationEnabled() || isHeavyPerfDiagnosticsEnabled();
 }
+
+/** Persist lockscreen/critical diagnostic rings to AsyncStorage — dev-only by default. */
+export function isDiagnosticsAsyncStorageEnabled() {
+  return (
+    isDevEnvironment() &&
+    (ENABLE_HEAVY_PERF_DIAGNOSTICS || ENABLE_RUNTIME_INSTRUMENTATION)
+  );
+}
+
+/** Verbose lockscreen event ring buffer — dev-only unless heavy perf is on. */
+export function isLockscreenDiagnosticsLoggingEnabled() {
+  return isDiagnosticsAsyncStorageEnabled();
+}
+
+export function isPlaybackFailureEvent(event: string) {
+  return /fail|error|unexpected|unavailable|blocked|denied|timeout|crash/i.test(
+    event
+  );
+}

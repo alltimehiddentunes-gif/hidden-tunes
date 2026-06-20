@@ -60,6 +60,7 @@ const RadioStationArt = memo(function RadioStationArt({
       recyclingKey={artworkUrl}
       transition={0}
       cachePolicy="memory-disk"
+      priority="low"
     />
   );
 });

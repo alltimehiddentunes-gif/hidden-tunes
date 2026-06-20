@@ -171,24 +171,6 @@ function textMatchesQuery(value: unknown, query: string) {
   return normalizedQuery.split(" ").every((part) => text.includes(part));
 }
 
-function catalogSongSearchText(song: HiddenTunesSong) {
-  const raw = (song as any).raw || {};
-  return [
-    song.title,
-    song.artist,
-    song.album,
-    song.genre,
-    song.mood,
-    song.lyrics,
-    raw.tags,
-    raw.description,
-    raw.creator,
-    raw.uploader,
-  ]
-    .filter(Boolean)
-    .join(" ");
-}
-
 function dedupeSongs<T extends { id?: string; title?: string; artist?: string }>(items: T[]) {
   const seen = new Set<string>();
   return items.filter((item, index) => {
@@ -233,10 +215,6 @@ function buildSearchCatalogSignature(catalog?: HiddenTunesDerivedCatalog | null)
     catalog.genres.length,
     catalog.playlists.length,
   ].join(":");
-}
-
-function songMatchesCatalogQuery(song: HiddenTunesSong, query: string) {
-  return textMatchesQuery(catalogSongSearchText(song), query);
 }
 
 function songBelongsToAlbum(song: HiddenTunesSong, album: HiddenTunesAlbumCatalogItem) {
@@ -707,30 +685,20 @@ export default function SearchScreen() {
     [audioSearchResults, tvSearchResults]
   );
 
-  const directCatalogMatches = useMemo(() => {
-    if (!cleanSubmittedSearchQuery) return [] as HiddenTunesSong[];
-    return songs.filter((song) => songMatchesCatalogQuery(song, cleanSubmittedSearchQuery));
-  }, [catalogSignature, cleanSubmittedSearchQuery]);
-
   const searchResultSongs = useMemo(() => {
     const backendSongs = songsFromSearchHits(backendSearchResults);
     const internalSongs = songsFromSearchHits(internalSearchResults);
-    const merged = dedupeSongs([
-      ...backendSongs,
-      ...internalSongs,
-      ...directCatalogMatches,
-    ]);
+    const merged = dedupeSongs([...backendSongs, ...internalSongs]);
     return unwrapRankedSearchItems(rankSearchSongs(merged, cleanSubmittedSearchQuery));
-  }, [backendSearchResults, cleanSubmittedSearchQuery, directCatalogMatches, internalSearchResults]);
+  }, [backendSearchResults, cleanSubmittedSearchQuery, internalSearchResults]);
 
   const reliableCatalogSongResults = useMemo(() => {
     if (!cleanSubmittedSearchQuery) return [] as HiddenTunesSong[];
 
-    const merged = dedupeSongs([...searchResultSongs, ...directCatalogMatches]);
     return unwrapRankedSearchItems(
-      rankSearchSongs(merged, cleanSubmittedSearchQuery, { limit: 80 })
+      rankSearchSongs(searchResultSongs, cleanSubmittedSearchQuery, { limit: 80 })
     );
-  }, [cleanSubmittedSearchQuery, directCatalogMatches, searchResultSongs]);
+  }, [cleanSubmittedSearchQuery, searchResultSongs]);
 
   const reliableCatalogSongIds = useMemo(
     () => new Set(reliableCatalogSongResults.map((song) => String(song.id || ""))),

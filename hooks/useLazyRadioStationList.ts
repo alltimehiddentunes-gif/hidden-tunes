@@ -6,7 +6,11 @@ import {
   cancelRadioBrowseRequest,
   RADIO_STATION_PAGE_SIZE,
 } from "../services/radio/radioBrowserApi";
-import { readCachedRadioPage } from "../services/radio/radioCache";
+import {
+  hydrateCachedRadioStations,
+  isRadioCacheFresh,
+  readCachedRadioPage,
+} from "../services/radio/radioCache";
 
 type LoadPageResult = {
   stations: HiddenTunesStation[];
@@ -23,6 +27,14 @@ type UseLazyRadioStationListOptions = {
   ) => Promise<LoadPageResult>;
 };
 
+function listItemsMatch(
+  current: RadioStationListItem[],
+  next: RadioStationListItem[]
+) {
+  if (current.length !== next.length) return false;
+  return current.every((item, index) => item.id === next[index]?.id);
+}
+
 export function useLazyRadioStationList({
   cacheKey,
   requestKey,
@@ -31,6 +43,9 @@ export function useLazyRadioStationList({
 }: UseLazyRadioStationListOptions) {
   const stationStoreRef = useRef(new Map<string, HiddenTunesStation>());
   const requestGenerationRef = useRef(0);
+  const loadPageRef = useRef(loadPage);
+
+  loadPageRef.current = loadPage;
 
   const [listItems, setListItems] = useState<RadioStationListItem[]>(() => {
     if (!enabled || !cacheKey) return [];
@@ -57,7 +72,12 @@ export function useLazyRadioStationList({
     (stations: HiddenTunesStation[], append: boolean, nextHasMore: boolean) => {
       rememberStations(stations);
       const nextItems = stations.map(toRadioStationListItem);
-      setListItems((current) => (append ? [...current, ...nextItems] : nextItems));
+
+      setListItems((current) => {
+        if (append) return [...current, ...nextItems];
+        if (listItemsMatch(current, nextItems)) return current;
+        return nextItems;
+      });
       setHasMore(nextHasMore);
       setHasLoadedOnce(true);
     },
@@ -67,11 +87,11 @@ export function useLazyRadioStationList({
   const fetchPage = useCallback(
     async (offset: number, append: boolean, forceRefresh: boolean) => {
       const generation = requestGenerationRef.current;
-      const result = await loadPage(offset, { append, forceRefresh });
+      const result = await loadPageRef.current(offset, { append, forceRefresh });
       if (generation !== requestGenerationRef.current) return;
       applyPage(result.stations, append, result.hasMore);
     },
-    [applyPage, loadPage]
+    [applyPage]
   );
 
   useEffect(() => {
@@ -90,10 +110,11 @@ export function useLazyRadioStationList({
 
     requestGenerationRef.current += 1;
     const generation = requestGenerationRef.current;
-
-    stationStoreRef.current.clear();
+    let cancelled = false;
 
     const cachedPage = readCachedRadioPage(cacheKey, 0, RADIO_STATION_PAGE_SIZE);
+    const hasFreshCache = cachedPage.length > 0 && isRadioCacheFresh(cacheKey);
+
     if (cachedPage.length) {
       rememberStations(cachedPage);
       setListItems(cachedPage.map(toRadioStationListItem));
@@ -101,20 +122,43 @@ export function useLazyRadioStationList({
       setLoading(false);
       setHasLoadedOnce(true);
     } else {
+      stationStoreRef.current.clear();
       setListItems([]);
       setHasMore(true);
       setLoading(true);
       setHasLoadedOnce(false);
     }
 
-    void fetchPage(0, false, false).finally(() => {
+    const run = async () => {
+      if (!cachedPage.length) {
+        const hydrated = await hydrateCachedRadioStations(cacheKey);
+        if (cancelled || generation !== requestGenerationRef.current) return;
+
+        if (hydrated?.length) {
+          const hydratedPage = hydrated.slice(0, RADIO_STATION_PAGE_SIZE);
+          rememberStations(hydratedPage);
+          setListItems(hydratedPage.map(toRadioStationListItem));
+          setHasMore(hydrated.length >= RADIO_STATION_PAGE_SIZE);
+          setLoading(false);
+          setHasLoadedOnce(true);
+
+          if (isRadioCacheFresh(cacheKey)) return;
+        }
+      }
+
+      if (hasFreshCache) return;
+
+      await fetchPage(0, false, false);
       if (generation === requestGenerationRef.current) {
         setLoading(false);
         setRefreshing(false);
       }
-    });
+    };
+
+    void run();
 
     return () => {
+      cancelled = true;
       requestGenerationRef.current += 1;
       cancelRadioBrowseRequest(requestKey);
     };

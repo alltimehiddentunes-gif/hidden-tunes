@@ -21,7 +21,6 @@ import type { HiddenTunesPodcastShow } from "../../services/podcastCatalogApi";
 import { getLaunchPodcastCategory } from "../../utils/launchPodcastCategories";
 import { podcastShowSubtitle } from "../../utils/openHiddenTunesPodcast";
 import {
-  hydrateCachedPodcastShows,
   readCachedPodcastShows,
 } from "../../utils/podcastDiscoveryCache";
 import {
@@ -48,9 +47,29 @@ export default function PodcastCategoryScreen() {
     async (forceRefresh = false) => {
       if (!categoryId) return;
 
+      if (!forceRefresh) {
+        const cached = readCachedPodcastShows(categoryId);
+        if (cached?.length) {
+          setShows((current) =>
+            current.length === cached.length &&
+            current.every((item, index) => item.id === cached[index]?.id)
+              ? current
+              : cached
+          );
+          setLoading(false);
+          setHasCheckedFallbacks(true);
+          return;
+        }
+      }
+
       try {
         const next = await getPodcastShowsForCategory(categoryId, { forceRefresh });
-        setShows(next);
+        setShows((current) =>
+          current.length === next.length &&
+          current.every((item, index) => item.id === next[index]?.id)
+            ? current
+            : next
+        );
       } finally {
         setLoading(false);
         setRefreshing(false);
@@ -59,16 +78,6 @@ export default function PodcastCategoryScreen() {
     },
     [categoryId]
   );
-
-  useEffect(() => {
-    if (!categoryId || shows.length > 0) return;
-
-    void hydrateCachedPodcastShows(categoryId).then((cached) => {
-      if (!cached?.length) return;
-      setShows(cached);
-      setLoading(false);
-    });
-  }, [categoryId, shows.length]);
 
   useEffect(() => {
     if (!categoryId) return;
