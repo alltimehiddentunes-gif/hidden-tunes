@@ -46,6 +46,8 @@ import {
   searchFreeMusicProviders,
 } from "../services/freeMusicProviders";
 import { fetchTvCatalog, type HiddenTunesTvVideo } from "../services/tvCatalogApi";
+import { openVideoItem } from "../services/videos/openVideoItem";
+import { getVideoDisplayCategory, getVideoDisplayCreator, normalizeVideoItem } from "../services/videos/videoNormalizer";
 import type { InstantSearchCatalog } from "../services/instantCatalogSearch";
 import {
   buildTrustedBackendSongHits,
@@ -1411,16 +1413,8 @@ export default function SearchScreen() {
   );
 
 
-  const openTv = useCallback((video: any) => {
-    router.push({
-      pathname: "/youtube-player",
-      params: {
-        videoId: video.source_id || video.id,
-        title: video.title,
-        channelTitle: video.channel_name || video.channelTitle || "Hidden Tunes TV",
-        thumbnail: video.thumbnail_url || video.thumbnail || "",
-      },
-    } as any);
+  const openTv = useCallback((video: HiddenTunesTvVideo) => {
+    openVideoItem(video);
   }, []);
 
   const handleSearchImmediateChange = useCallback((text: string) => {
@@ -1751,6 +1745,9 @@ export default function SearchScreen() {
                     <Text style={styles.sectionEyebrow}>VIDEOS</Text>
                     {apkTvResults.map((hit, index) => {
                       const video = hit.payload as HiddenTunesTvVideo;
+                      const item = normalizeVideoItem(video);
+                      const creator = getVideoDisplayCreator(item);
+                      const category = getVideoDisplayCategory(item) || hit.subtitle || "Video result";
                       return (
                         <TouchableOpacity
                           key={`tv-${video.id}-${index}`}
@@ -1760,21 +1757,17 @@ export default function SearchScreen() {
                         >
                           <LinearGradient colors={GRADIENTS.card} style={styles.coverBorder}>
                             <HTImage
-                              source={{
-                                artwork:
-                                  video.thumbnail_url ||
-                                  `https://img.youtube.com/vi/${video.source_id}/hqdefault.jpg`,
-                              }}
+                              source={{ artwork: item.thumbnailUrl || "" }}
                               style={styles.cover}
                               contentFit="cover"
                             />
                           </LinearGradient>
                           <View style={styles.songCopy}>
-                            <Text numberOfLines={1} style={styles.songTitle}>{video.title}</Text>
+                            <Text numberOfLines={1} style={styles.songTitle}>{item.title}</Text>
                             <Text numberOfLines={1} style={styles.songArtist}>
-                              {video.channel_name || "Hidden Tunes TV"}
+                              {creator}
                             </Text>
-                            <Text numberOfLines={1} style={styles.songMeta}>{hit.subtitle || "Video result"}</Text>
+                            <Text numberOfLines={1} style={styles.songMeta}>{category}</Text>
                           </View>
                           <View style={styles.playCircle}>
                             <Ionicons name="play" size={16} color={COLORS.text} />

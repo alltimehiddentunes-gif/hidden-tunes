@@ -12,19 +12,17 @@ import {
 
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
-
 import AppShell from "../components/navigation/AppShell";
 import TvVideoCard from "../components/tv/TvVideoCard";
 import { COLORS, GRADIENTS } from "@/constants/theme";
 import {
-  buildTvPlayerQueue,
   fetchTvCatalog,
   fetchTvHomeLanes,
   loadTvHomeCache,
   TV_LANE_PAGE_LIMIT,
   type HiddenTunesTvVideo,
 } from "@/services/tvCatalogApi";
+import { openVideoItem } from "@/services/videos/openVideoItem";
 
 type TvLane = {
   id: string;
@@ -36,10 +34,6 @@ function displayLaneTitle(title: string) {
   if (title === "Documentary Nights") return "Documentary";
   if (title === "Live Performances") return "Live Performance";
   return title;
-}
-
-function getVideoId(video: HiddenTunesTvVideo) {
-  return video.source_id || video.id || "";
 }
 
 export default function YouTubeFeedScreen() {
@@ -101,23 +95,7 @@ export default function YouTubeFeedScreen() {
   }, [query]);
 
   const openVideo = useCallback((video: HiddenTunesTvVideo, queueVideos?: HiddenTunesTvVideo[]) => {
-    const videoId = getVideoId(video);
-    if (!videoId) return;
-
-    const queue = buildTvPlayerQueue(queueVideos?.length ? queueVideos : [video]);
-    const startIndex = Math.max(0, queue.findIndex((item) => item.videoId === videoId));
-
-    router.push({
-      pathname: "/youtube-player",
-      params: {
-        videoId,
-        title: video.title || "Hidden Tunes TV",
-        thumbnail: video.thumbnail_url || "",
-        channelTitle: video.channel_name || "Hidden Tunes TV",
-        queue: JSON.stringify(queue),
-        startIndex: String(startIndex),
-      },
-    });
+    openVideoItem(video, { queueVideos: queueVideos?.length ? queueVideos : [video] });
   }, []);
 
   const renderLane = useCallback((lane: TvLane) => {

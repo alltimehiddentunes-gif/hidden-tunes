@@ -6,6 +6,7 @@ import { Ionicons } from "@expo/vector-icons";
 
 import { COLORS } from "@/constants/theme";
 import type { HiddenTunesTvVideo } from "@/services/tvCatalogApi";
+import { getVideoDisplayCategory, getVideoDisplayCreator, normalizeVideoItem } from "@/services/videos/videoNormalizer";
 
 type TvVideoCardProps = {
   video: HiddenTunesTvVideo;
@@ -14,9 +15,10 @@ type TvVideoCardProps = {
 };
 
 function TvVideoCard({ video, width = 168, onPress }: TvVideoCardProps) {
-  const thumbnail =
-    video.thumbnail_url ||
-    `https://i.ytimg.com/vi/${video.source_id}/hqdefault.jpg`;
+  const item = normalizeVideoItem(video);
+  const thumbnail = item.thumbnailUrl || "";
+  const creator = getVideoDisplayCreator(item);
+  const category = getVideoDisplayCategory(item);
 
   return (
     <TouchableOpacity
@@ -38,16 +40,16 @@ function TvVideoCard({ video, width = 168, onPress }: TvVideoCardProps) {
       </View>
 
       <Text numberOfLines={2} style={styles.title}>
-        {video.title}
+        {item.title}
       </Text>
 
       <Text numberOfLines={1} style={styles.channel}>
-        {video.channel_name || "Hidden Tunes TV"}
+        {creator}
       </Text>
 
-      {video.genre ? (
+      {category ? (
         <Text numberOfLines={1} style={styles.meta}>
-          {video.genre}
+          {category}
         </Text>
       ) : null}
     </TouchableOpacity>

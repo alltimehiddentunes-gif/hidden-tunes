@@ -19,10 +19,14 @@ import { usePlayerActions } from "../context/PlayerContext";
 type YouTubeQueueItem = {
   id: string;
   videoId: string;
+  externalVideoId?: string;
+  videoSource?: string;
   title: string;
   artist: string;
   channelTitle: string;
   thumbnail: string;
+  embedUrl?: string;
+  playbackUrl?: string;
 };
 
 const YOUTUBE_MINI_KEY = "hidden_tunes_current_youtube";
@@ -182,7 +186,7 @@ function buildEmbedPlayerHtml(
 
 function normalizeQueueItem(item: any): YouTubeQueueItem | null {
   const videoId = sanitizeYouTubeVideoId(
-    item?.videoId || item?.source_id || item?.id
+    item?.videoId || item?.externalVideoId || item?.source_id || item?.id
   );
 
   if (!videoId) return null;
@@ -193,10 +197,14 @@ function normalizeQueueItem(item: any): YouTubeQueueItem | null {
   return {
     id: videoId,
     videoId,
+    externalVideoId: videoId,
+    videoSource: String(item?.videoSource || "youtube"),
     title: String(item?.title || "YouTube Music"),
     artist,
     channelTitle: String(item?.channelTitle || artist),
     thumbnail,
+    embedUrl: typeof item?.embedUrl === "string" ? item.embedUrl : undefined,
+    playbackUrl: typeof item?.playbackUrl === "string" ? item.playbackUrl : undefined,
   };
 }
 
@@ -212,8 +220,9 @@ export default function YouTubePlayerScreen() {
   const playbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const initialVideoId = sanitizeYouTubeVideoId(
-    params.source_id || params.videoId || params.id
+    params.videoId || params.externalVideoId || params.source_id || params.id
   );
+  const unsupportedVideo = String(params.unsupportedVideo || "0") === "1";
   const initialTitle = String(params.title || "YouTube Music");
   const initialArtist = String(
     params.artist || params.channelTitle || "Hidden Tunes TV"
@@ -578,7 +587,7 @@ export default function YouTubePlayerScreen() {
       </View>
 
       <View style={styles.playerFrame}>
-        {videoId && embedHtml ? (
+        {videoId && embedHtml && !unsupportedVideo ? (
           <WebView
             ref={webViewRef}
             key={`tv-embed-${videoId}-${embedPageOrigin}`}
@@ -638,8 +647,9 @@ export default function YouTubePlayerScreen() {
               color={COLORS.textMuted}
             />
             <Text style={styles.noVideoText}>
-              This video can&apos;t play inside Hidden Tunes. Try another from
-              Hidden Tunes TV.
+              {unsupportedVideo
+                ? "This video source is not playable in Hidden Tunes yet. Try another from Hidden Tunes TV."
+                : "This video can't play inside Hidden Tunes. Try another from Hidden Tunes TV."}
             </Text>
           </View>
         )}

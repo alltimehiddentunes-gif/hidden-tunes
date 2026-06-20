@@ -1,5 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+import { getVideoDisplayCreator, normalizeVideoItem } from "./videos/videoNormalizer";
+
 export const TV_CATALOG_BASE_URL = "https://admin.hiddentunes.com";
 export const TV_CATALOG_API_PATH = "/api/tv/videos";
 export const TV_DEFAULT_PAGE_LIMIT = 20;
@@ -295,19 +297,20 @@ export async function fetchTvHomeLanes() {
 }
 
 export function buildTvPlayerQueueItem(video: HiddenTunesTvVideo) {
-  const thumbnail =
-    video.thumbnail_url ||
-    `https://i.ytimg.com/vi/${video.source_id}/hqdefault.jpg`;
+  const item = normalizeVideoItem(video);
+  const creator = getVideoDisplayCreator(item);
 
   return {
-    id: video.source_id,
-    videoId: video.source_id,
-    title: video.title,
-    artist: video.channel_name || "Hidden Tunes TV",
-    channelTitle: video.channel_name || "Hidden Tunes TV",
-    thumbnail,
-    source_url: video.source_url,
-    embed_url: video.embed_url,
+    id: item.externalVideoId || item.id,
+    videoId: item.videoSource === "youtube" ? item.externalVideoId || "" : "",
+    externalVideoId: item.externalVideoId,
+    videoSource: item.videoSource,
+    title: item.title,
+    artist: creator,
+    channelTitle: creator,
+    thumbnail: item.thumbnailUrl || "",
+    source_url: item.playbackUrl,
+    embed_url: item.embedUrl,
   };
 }
 

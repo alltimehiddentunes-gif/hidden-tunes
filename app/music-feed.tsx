@@ -76,6 +76,7 @@ import {
 } from "@/utils/performanceMode";
 import { logPerformanceOffscreenWorkPaused } from "@/utils/performanceLogs";
 import { TESTER_COPY } from "@/constants/testerExperience";
+import { openVideoItem } from "@/services/videos/openVideoItem";
 import PremiumEmptyState from "@/components/PremiumEmptyState";
 import {
   hydrateDiscoveryPreferredGenres,
@@ -759,15 +760,7 @@ export default function MusicFeedScreen() {
   }, []);
 
   const openTv = useCallback((video: any) => {
-    router.push({
-      pathname: "/youtube-player",
-      params: {
-        videoId: video.source_id || video.id,
-        title: video.title,
-        channelTitle: video.channel_name || video.channelTitle || "Hidden Tunes TV",
-        thumbnail: video.thumbnail_url || video.thumbnail || "",
-      },
-    } as any);
+    openVideoItem(video);
   }, []);
 
   const openSearch = useCallback(() => {

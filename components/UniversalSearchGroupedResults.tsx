@@ -7,6 +7,7 @@ import { COLORS } from "../constants/theme";
 import { TESTER_COPY } from "../constants/testerExperience";
 import PremiumEmptyState from "./PremiumEmptyState";
 import type { UniversalSearchGroupedResults as GroupedResults } from "../services/universalSearchService";
+import { getVideoDisplayCategory, getVideoDisplayCreator, normalizeVideoItem } from "../services/videos/videoNormalizer";
 import type { UniversalMatchReason } from "../utils/universalSearch";
 import { UNIVERSAL_SEARCH_EMPTY_SUGGESTIONS } from "../utils/universalSearch";
 import { isSameSearchInputQuery } from "../utils/searchInputTiming";
@@ -178,6 +179,7 @@ function UniversalSearchGroupedResults({
           {topResults.map((hit) => {
             if (hit.id.startsWith("tv:")) {
               const video = hit.payload as any;
+              const item = normalizeVideoItem(video);
               return (
                 <TouchableOpacity
                   key={hit.id}
@@ -186,13 +188,9 @@ function UniversalSearchGroupedResults({
                   onPress={() => onTvPress(video)}
                 >
                   <MediaCard
-                    title={video.title}
-                    subtitle={hit.subtitle || "Hidden Tunes TV"}
-                    image={{
-                      uri:
-                        video.thumbnail_url ||
-                        `https://img.youtube.com/vi/${video.source_id}/hqdefault.jpg`,
-                    }}
+                    title={item.title}
+                    subtitle={getVideoDisplayCategory(item) || getVideoDisplayCreator(item)}
+                    image={{ uri: item.thumbnailUrl || "" }}
                     type="radio"
                     size="medium"
                     showPlayButton={false}
@@ -522,6 +520,7 @@ function UniversalSearchGroupedResults({
           <SectionHeader title="Videos" count={grouped.tv.length} />
           {display.tv.map((hit) => {
             const video = hit.payload as any;
+            const item = normalizeVideoItem(video);
             return (
               <TouchableOpacity
                 key={hit.id}
@@ -530,13 +529,9 @@ function UniversalSearchGroupedResults({
                 onPress={() => onTvPress(video)}
               >
                 <MediaCard
-                  title={video.title}
-                  subtitle={hit.subtitle || "Hidden Tunes TV"}
-                  image={{
-                    uri:
-                      video.thumbnail_url ||
-                      `https://img.youtube.com/vi/${video.source_id}/hqdefault.jpg`,
-                  }}
+                  title={item.title}
+                  subtitle={getVideoDisplayCategory(item) || getVideoDisplayCreator(item)}
+                  image={{ uri: item.thumbnailUrl || "" }}
                   type="radio"
                   size="medium"
                   showPlayButton={false}
