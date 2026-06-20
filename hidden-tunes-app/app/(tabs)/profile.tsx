@@ -341,8 +341,8 @@ export default function ProfileScreen() {
           <ProfileItem
             icon="sparkles"
             title="Recommended For You"
-            subtitle="Smart discovery engine"
-            onPress={() => openPlaceholder("Recommended For You")}
+            subtitle="Personalized picks on Explore"
+            onPress={() => router.push("/(tabs)/explore" as never)}
           />
         </View>
 

@@ -7,10 +7,18 @@ import {
 } from "./hiddenTunesApi";
 import {
   buildListenerPreferenceMaps,
+  applyOnboardingToPreferenceMaps,
   rankAlbumsForListener,
   rankArtistsForListener,
   rankSongsForListener,
 } from "./listenerRanking";
+import type { OnboardingPreferences } from "./onboardingPreferences";
+import {
+  buildSmartRecommendationsBundle,
+  type SmartRecommendationsBundle,
+  type SmartRadioEntry,
+} from "./smartRecommendations";
+import { schedulePersistSmartRecommendations } from "../utils/smartRecommendationsCache";
 import {
   buildGenreHubRows,
   buildLaunchWorldSpotlights,
@@ -47,6 +55,8 @@ export type SharedDiscoverySnapshot = {
   launchWorlds: ReturnType<typeof buildLaunchWorldSpotlights<HiddenTunesNormalizedSong>>;
   genreHubs: ReturnType<typeof buildGenreHubRows<HiddenTunesNormalizedSong>>;
   moodCollections: ReturnType<typeof buildMoodCollectionRows<HiddenTunesNormalizedSong>>;
+  smartRecommendations: SmartRecommendationsBundle;
+  smartRadioEntries: SmartRadioEntry[];
 };
 
 export type SharedDiscoveryInput = {
@@ -55,6 +65,8 @@ export type SharedDiscoveryInput = {
   favorites?: DiscoverySong[];
   albums?: HiddenTunesAlbum[];
   artists?: HiddenTunesArtist[];
+  onboarding?: OnboardingPreferences | null;
+  currentSong?: DiscoverySong | null;
 };
 
 let cachedKey: string | null = null;
@@ -118,11 +130,24 @@ function buildCollectionsFingerprint(
   return `collections:derived:${extractedAlbums.length}:${albumHead}:${extractedArtists.length}:${artistHead}`;
 }
 
+function buildOnboardingFingerprint(onboarding?: OnboardingPreferences | null) {
+  if (!onboarding) return "onboarding:none";
+
+  return [
+    onboarding.preferredEnergy,
+    onboarding.discoveryStyle,
+    onboarding.preferredGenres.slice(0, 4).join("|"),
+    onboarding.preferredMoods.slice(0, 4).join("|"),
+  ].join(":");
+}
+
 export function buildDiscoveryCacheKey(input: SharedDiscoveryInput) {
   return [
     buildCatalogFingerprint(input.songs),
     buildListenerFingerprint(input.recentlyPlayed, input.favorites),
     buildCollectionsFingerprint(input.songs, input.albums, input.artists),
+    buildOnboardingFingerprint(input.onboarding),
+    String(input.currentSong?.id || ""),
   ].join("::");
 }
 
@@ -131,9 +156,12 @@ function buildSharedDiscoverySnapshot(input: SharedDiscoveryInput): SharedDiscov
   const recentlyPlayed = input.recentlyPlayed || [];
   const favorites = input.favorites || [];
 
-  const preferenceMaps = buildListenerPreferenceMaps(
-    recentlyPlayed as HiddenTunesNormalizedSong[],
-    favorites as HiddenTunesNormalizedSong[]
+  const preferenceMaps = applyOnboardingToPreferenceMaps(
+    buildListenerPreferenceMaps(
+      recentlyPlayed as HiddenTunesNormalizedSong[],
+      favorites as HiddenTunesNormalizedSong[]
+    ),
+    input.onboarding
   );
 
   const rankedSongs = rankSongsForListener(songs, preferenceMaps);
@@ -165,6 +193,20 @@ function buildSharedDiscoverySnapshot(input: SharedDiscoveryInput): SharedDiscov
   const genreHubs = buildGenreHubRows(songs, 8);
   const moodCollections = buildMoodCollectionRows(songs, 6);
 
+  const smartRecommendations = buildSmartRecommendationsBundle({
+    songs,
+    recentlyPlayed,
+    favorites,
+    rankedSongs,
+    rankedArtists,
+    rankedAlbums,
+    currentSong: input.currentSong,
+    onboarding: input.onboarding,
+    launchWorlds,
+    genreHubs,
+    moodCollections,
+  });
+
   return {
     preferenceMaps,
     rankedSongs,
@@ -179,6 +221,8 @@ function buildSharedDiscoverySnapshot(input: SharedDiscoveryInput): SharedDiscov
     launchWorlds,
     genreHubs,
     moodCollections,
+    smartRecommendations,
+    smartRadioEntries: smartRecommendations.smartRadioEntries,
   };
 }
 
@@ -194,6 +238,8 @@ export function getSharedDiscoverySnapshot(
   const snapshot = buildSharedDiscoverySnapshot(input);
   cachedKey = key;
   cachedSnapshot = snapshot;
+
+  schedulePersistSmartRecommendations(key, snapshot.smartRecommendations);
 
   return snapshot;
 }

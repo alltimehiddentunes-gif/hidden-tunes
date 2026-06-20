@@ -3,6 +3,7 @@ import type {
   HiddenTunesArtist,
   HiddenTunesNormalizedSong,
 } from "./hiddenTunesApi";
+import type { OnboardingPreferences } from "./onboardingPreferences";
 import {
   getCanonicalGenre,
   getCanonicalGenres,
@@ -15,7 +16,7 @@ type ListenerTrack = Partial<HiddenTunesNormalizedSong> & {
   lastPlayedAt?: number;
 };
 
-type PreferenceMaps = {
+export type PreferenceMaps = {
   songs: Map<string, number>;
   artists: Map<string, number>;
   albums: Map<string, number>;
@@ -81,6 +82,27 @@ export function buildListenerPreferenceMaps(
     addGenrePreferenceScore(maps.genres, item.genre, 35);
     addGenrePreferenceScore(maps.genres, item.mood, 35);
   });
+
+  return maps;
+}
+
+export function applyOnboardingToPreferenceMaps(
+  maps: PreferenceMaps,
+  onboarding?: OnboardingPreferences | null
+) {
+  if (!onboarding) return maps;
+
+  onboarding.preferredGenres.forEach((genre, index) => {
+    addGenrePreferenceScore(maps.genres, genre, 40 - index * 4);
+  });
+
+  onboarding.preferredMoods.forEach((mood, index) => {
+    addGenrePreferenceScore(maps.genres, mood, 34 - index * 4);
+  });
+
+  if (onboarding.discoveryStyle === "adventurous") {
+    addScore(maps.genres, "recent", 6);
+  }
 
   return maps;
 }

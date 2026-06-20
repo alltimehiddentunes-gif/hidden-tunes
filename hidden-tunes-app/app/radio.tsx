@@ -207,7 +207,7 @@ export default function RadioScreen() {
             .map((item) => cleanQuery(String(item || "")))
             .filter(Boolean)
         )
-      );
+      ).slice(0, 4);
 
       let combinedCloudSongs: HiddenTunesNormalizedSong[] = [];
 

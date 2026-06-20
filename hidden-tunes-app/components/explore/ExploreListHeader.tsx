@@ -22,7 +22,9 @@ import {
   usePlayerState,
 } from "../../context/PlayerContext";
 import type { HiddenTunesNormalizedSong } from "../../services/hiddenTunesApi";
+import type { SmartRadioEntry } from "../../services/smartRecommendations";
 import type { SmartDiscoverySection } from "../../services/smartDiscovery";
+import { openSmartRadioEntry } from "../../utils/smartRadioNavigation";
 import { FALLBACK_ARTWORK, getArtworkUri } from "../../utils/artwork";
 import {
   shouldShowCatalogEmpty,
@@ -92,8 +94,12 @@ export type ExploreListHeaderProps = {
   hasCheckedDiscoveryFallbacks: boolean;
   moodRooms: MoodRoomItem[];
   primaryMoodRoomId?: string;
+  recommendedForYou: HiddenTunesNormalizedSong[];
   smartPicks: HiddenTunesNormalizedSong[];
   continueSongs: HiddenTunesNormalizedSong[];
+  rediscoverFavorites: HiddenTunesNormalizedSong[];
+  moreLikeThis: HiddenTunesNormalizedSong[];
+  smartRadioEntries: SmartRadioEntry[];
   recentlyAdded: HiddenTunesNormalizedSong[];
   curatedSections: SmartDiscoverySection<HiddenTunesNormalizedSong>[];
   launchWorlds: GenreWorld[];
@@ -350,8 +356,12 @@ export const ExploreContinueListening = memo(function ExploreContinueListening({
 });
 
 export const ExploreDiscoveryRails = memo(function ExploreDiscoveryRails({
+  recommendedForYou,
   smartPicks,
   continueSongs,
+  rediscoverFavorites,
+  moreLikeThis,
+  smartRadioEntries,
   recentlyAdded,
   horizontalRailTuning,
   getCloudItemLayout,
@@ -359,8 +369,12 @@ export const ExploreDiscoveryRails = memo(function ExploreDiscoveryRails({
   renderRecentSong,
   renderCloudSong,
 }: {
+  recommendedForYou: HiddenTunesNormalizedSong[];
   smartPicks: HiddenTunesNormalizedSong[];
   continueSongs: HiddenTunesNormalizedSong[];
+  rediscoverFavorites: HiddenTunesNormalizedSong[];
+  moreLikeThis: HiddenTunesNormalizedSong[];
+  smartRadioEntries: SmartRadioEntry[];
   recentlyAdded: HiddenTunesNormalizedSong[];
   horizontalRailTuning: HorizontalTuning;
   getCloudItemLayout: ExploreListHeaderProps["getCloudItemLayout"];
@@ -368,24 +382,105 @@ export const ExploreDiscoveryRails = memo(function ExploreDiscoveryRails({
   renderRecentSong: ListRenderItem<HiddenTunesNormalizedSong>;
   renderCloudSong: ListRenderItem<HiddenTunesNormalizedSong>;
 }) {
+  const renderSongRail = (
+    title: string,
+    songs: HiddenTunesNormalizedSong[],
+    keyPrefix: string,
+    renderItem: ListRenderItem<HiddenTunesNormalizedSong>,
+    seeAll?: { label: string; onPress: () => void }
+  ) => {
+    if (!songs.length) return null;
+
+    return (
+      <>
+        <View style={styles.rowHeader}>
+          <Text style={styles.sectionTitle}>{title}</Text>
+          {seeAll ? (
+            <TouchableOpacity onPress={seeAll.onPress}>
+              <Text style={styles.seeAll}>{seeAll.label}</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
+        <FlatList
+          horizontal
+          data={songs}
+          keyExtractor={(item) => `${keyPrefix}-${item.id}`}
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.cloudRow}
+          renderItem={renderItem}
+          getItemLayout={getCloudItemLayout}
+          initialNumToRender={horizontalRailTuning.initialNumToRender}
+          maxToRenderPerBatch={horizontalRailTuning.maxToRenderPerBatch}
+          windowSize={horizontalRailTuning.windowSize}
+          updateCellsBatchingPeriod={horizontalRailTuning.updateCellsBatchingPeriod}
+          removeClippedSubviews
+        />
+      </>
+    );
+  };
+
   return (
     <>
-      {smartPicks.length > 0 ? (
+      {renderSongRail(
+        "Recommended For You",
+        recommendedForYou,
+        "recommended",
+        renderSmartPick
+      )}
+
+      {renderSongRail(
+        "Because You Played",
+        smartPicks,
+        "smart",
+        renderSmartPick,
+        { label: "Queue", onPress: () => router.push("/queue" as any) }
+      )}
+
+      {renderSongRail(
+        "Continue Listening",
+        continueSongs,
+        "recent",
+        renderRecentSong,
+        { label: "See all", onPress: () => router.push("/recently-played" as any) }
+      )}
+
+      {renderSongRail(
+        "Rediscover Favorites",
+        rediscoverFavorites,
+        "rediscover",
+        renderSmartPick
+      )}
+
+      {renderSongRail("More Like This", moreLikeThis, "more-like-this", renderSmartPick)}
+
+      {smartRadioEntries.length > 0 ? (
         <>
           <View style={styles.rowHeader}>
-            <Text style={styles.sectionTitle}>Because You Listened</Text>
-            <TouchableOpacity onPress={() => router.push("/queue" as any)}>
-              <Text style={styles.seeAll}>Queue</Text>
-            </TouchableOpacity>
+            <Text style={styles.sectionTitle}>Smart Radio</Text>
           </View>
           <FlatList
             horizontal
-            data={smartPicks}
-            keyExtractor={(item) => `smart-${item.id}`}
+            data={smartRadioEntries}
+            keyExtractor={(entry) => entry.id}
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.cloudRow}
-            renderItem={renderSmartPick}
-            getItemLayout={getCloudItemLayout}
+            contentContainerStyle={styles.smartRadioRow}
+            renderItem={({ item: entry }) => (
+              <TouchableOpacity
+                activeOpacity={0.88}
+                style={styles.smartRadioChip}
+                onPress={() => openSmartRadioEntry(entry)}
+              >
+                <Ionicons name="radio-outline" size={16} color={COLORS.primary} />
+                <View style={styles.smartRadioChipCopy}>
+                  <Text numberOfLines={1} style={styles.smartRadioChipTitle}>
+                    {entry.title}
+                  </Text>
+                  <Text numberOfLines={1} style={styles.smartRadioChipSubtitle}>
+                    {entry.subtitle}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            )}
             initialNumToRender={horizontalRailTuning.initialNumToRender}
             maxToRenderPerBatch={horizontalRailTuning.maxToRenderPerBatch}
             windowSize={horizontalRailTuning.windowSize}
@@ -395,52 +490,7 @@ export const ExploreDiscoveryRails = memo(function ExploreDiscoveryRails({
         </>
       ) : null}
 
-      {continueSongs.length > 0 ? (
-        <>
-          <View style={styles.rowHeader}>
-            <Text style={styles.sectionTitle}>Return To The Feeling</Text>
-            <TouchableOpacity onPress={() => router.push("/recently-played" as any)}>
-              <Text style={styles.seeAll}>See all</Text>
-            </TouchableOpacity>
-          </View>
-          <FlatList
-            horizontal
-            data={continueSongs}
-            keyExtractor={(item) => `recent-${item.id}`}
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.cloudRow}
-            renderItem={renderRecentSong}
-            getItemLayout={getCloudItemLayout}
-            initialNumToRender={horizontalRailTuning.initialNumToRender}
-            maxToRenderPerBatch={horizontalRailTuning.maxToRenderPerBatch}
-            windowSize={horizontalRailTuning.windowSize}
-            updateCellsBatchingPeriod={horizontalRailTuning.updateCellsBatchingPeriod}
-            removeClippedSubviews
-          />
-        </>
-      ) : null}
-
-      {recentlyAdded.length > 0 ? (
-        <>
-          <View style={styles.rowHeader}>
-            <Text style={styles.sectionTitle}>Recently Added</Text>
-          </View>
-          <FlatList
-            horizontal
-            data={recentlyAdded}
-            keyExtractor={(item) => `recently-added-${item.id}`}
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.cloudRow}
-            renderItem={renderCloudSong}
-            getItemLayout={getCloudItemLayout}
-            initialNumToRender={horizontalRailTuning.initialNumToRender}
-            maxToRenderPerBatch={horizontalRailTuning.maxToRenderPerBatch}
-            windowSize={horizontalRailTuning.windowSize}
-            updateCellsBatchingPeriod={horizontalRailTuning.updateCellsBatchingPeriod}
-            removeClippedSubviews
-          />
-        </>
-      ) : null}
+      {renderSongRail("Recently Added", recentlyAdded, "recently-added", renderCloudSong)}
     </>
   );
 });
@@ -963,8 +1013,12 @@ const ExploreListHeader = memo(function ExploreListHeader(
 
       {stageVisible(props.mountStage, 2) ? (
         <ExploreDiscoveryRails
+          recommendedForYou={props.recommendedForYou}
           smartPicks={props.smartPicks}
           continueSongs={props.continueSongs}
+          rediscoverFavorites={props.rediscoverFavorites}
+          moreLikeThis={props.moreLikeThis}
+          smartRadioEntries={props.smartRadioEntries}
           recentlyAdded={props.recentlyAdded}
           horizontalRailTuning={props.horizontalRailTuning}
           getCloudItemLayout={props.getCloudItemLayout}
@@ -1213,6 +1267,41 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   cloudRow: { gap: CARD_GAP, paddingBottom: 32, paddingRight: 20 },
+
+  smartRadioRow: {
+    gap: 10,
+    paddingBottom: 28,
+    paddingHorizontal: 20,
+  },
+
+  smartRadioChip: {
+    width: 220,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+  },
+
+  smartRadioChipCopy: {
+    flex: 1,
+  },
+
+  smartRadioChipTitle: {
+    color: COLORS.text,
+    fontSize: 14,
+    fontWeight: "700",
+  },
+
+  smartRadioChipSubtitle: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    marginTop: 2,
+  },
   genreGrid: { gap: 14, marginBottom: 28 },
   genreWorldCard: {
     width: "100%",

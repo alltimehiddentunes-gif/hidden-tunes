@@ -48,7 +48,14 @@ import {
   getSharedDiscoverySnapshot,
   MAX_DISCOVERY_INPUT_SONGS,
 } from "../../services/discoveryCache";
+import {
+  loadOnboardingPreferences,
+  peekOnboardingPreferences,
+  type OnboardingPreferences,
+} from "../../services/onboardingPreferences";
 import { buildMoreLikeThisMood, type DiscoverySong } from "../../services/smartDiscovery";
+import { hydrateSmartRecommendationsCache } from "../../utils/smartRecommendationsCache";
+import { openSmartRadioEntry } from "../../utils/smartRadioNavigation";
 import { FALLBACK_ARTWORK, getArtworkUri } from "../../utils/artwork";
 import {
   logApiRefresh,
@@ -627,6 +634,15 @@ function HomeScreen() {
     [favorites]
   );
 
+  const [onboardingPrefs, setOnboardingPrefs] = useState<OnboardingPreferences | null>(
+    () => peekOnboardingPreferences()
+  );
+
+  useEffect(() => {
+    void loadOnboardingPreferences().then(setOnboardingPrefs);
+    void hydrateSmartRecommendationsCache();
+  }, []);
+
   const discoveryListenersRef = useRef({
     recentlyPlayed: listenerRecentlyPlayed,
     favorites: listenerFavorites,
@@ -665,21 +681,24 @@ function HomeScreen() {
         songs: discoveryInputSongs,
         recentlyPlayed: discoveryListenersRef.current.recentlyPlayed,
         favorites: discoveryListenersRef.current.favorites,
+        onboarding: onboardingPrefs,
+        currentSong,
       }),
-    [discoveryInputSongs, discoveryListenersVersion]
+    [currentSong, discoveryInputSongs, discoveryListenersVersion, onboardingPrefs]
   );
 
+  const smartRecommendations = sharedDiscovery.smartRecommendations;
   const rankedSongs = sharedDiscovery.rankedSongs;
   const rankedAlbums = sharedDiscovery.rankedAlbums;
   const rankedArtists = sharedDiscovery.rankedArtists;
   const newestSongs = sharedDiscovery.recentlyDiscovered;
-  const becauseYouListened = useMemo(() => {
-    const raw = sharedDiscovery.becauseYouListenedRaw.slice(0, 6);
+  const becauseYouPlayed = useMemo(() => {
+    const raw = smartRecommendations.becauseYouPlayed.slice(0, 6);
     if (!currentSong?.id) return raw;
 
     const currentId = String(currentSong.id);
     return raw.filter((song) => String(song.id || "") !== currentId);
-  }, [currentSong?.id, sharedDiscovery.becauseYouListenedRaw]);
+  }, [currentSong?.id, smartRecommendations.becauseYouPlayed]);
   const curatedSections = useMemo(
     () => sharedDiscovery.curatedSections,
     [sharedDiscovery.curatedSections]
@@ -728,8 +747,13 @@ function HomeScreen() {
     () =>
       buildHomeFeedRows({
         feedMountStage,
-        becauseYouListened,
+        recommendedForYou: smartRecommendations.recommendedForYou.slice(0, 6),
+        becauseYouPlayed,
+        continueListening: smartRecommendations.continueListening.slice(0, 6),
+        rediscoverFavorites: smartRecommendations.rediscoverFavorites.slice(0, 6),
+        moreLikeThisSongs: smartRecommendations.moreLikeThis.slice(0, 6),
         moreLikeThisMoodSongs: moreLikeThisMood.songs,
+        smartRadioEntries: sharedDiscovery.smartRadioEntries,
         rankedArtistsCount: rankedArtists.length,
         rankedAlbumsCount: rankedAlbums.length,
         curatedSections,
@@ -742,7 +766,7 @@ function HomeScreen() {
       }),
     [
       activeMoodRoom,
-      becauseYouListened,
+      becauseYouPlayed,
       curatedSections,
       feedMountStage,
       featuredSongs.length,
@@ -751,7 +775,12 @@ function HomeScreen() {
       primaryGenreSpotlight,
       rankedAlbums.length,
       rankedArtists.length,
+      sharedDiscovery.smartRadioEntries,
       showMoreButton,
+      smartRecommendations.continueListening,
+      smartRecommendations.moreLikeThis,
+      smartRecommendations.recommendedForYou,
+      smartRecommendations.rediscoverFavorites,
       visibleAllSongs,
     ]
   );
@@ -1428,6 +1457,38 @@ function HomeScreen() {
 
         case "emotional-worlds-chips":
           return <EmotionalDiscoveryChips style={styles.emotionalWorldsChips} />;
+
+        case "smart-radio-rail":
+          return (
+            <>
+              <Text style={styles.sectionTitleBlock}>Smart Radio</Text>
+              <FlatList
+                horizontal
+                data={item.entries}
+                keyExtractor={(entry) => entry.id}
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.smartRadioRail}
+                nestedScrollEnabled
+                renderItem={({ item: entry }) => (
+                  <TouchableOpacity
+                    activeOpacity={0.88}
+                    style={styles.smartRadioChip}
+                    onPress={() => openSmartRadioEntry(entry)}
+                  >
+                    <Ionicons name="radio-outline" size={16} color={COLORS.primary} />
+                    <View style={styles.smartRadioChipCopy}>
+                      <Text numberOfLines={1} style={styles.smartRadioChipTitle}>
+                        {entry.title}
+                      </Text>
+                      <Text numberOfLines={1} style={styles.smartRadioChipSubtitle}>
+                        {entry.subtitle}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                )}
+              />
+            </>
+          );
 
         case "mood-rooms-header":
           return (
@@ -2427,6 +2488,42 @@ const styles = StyleSheet.create({
 
   emotionalWorldsChips: {
     marginTop: 28,
+  },
+
+  smartRadioRail: {
+    paddingLeft: 20,
+    paddingRight: 28,
+    gap: 10,
+    paddingBottom: 8,
+  },
+
+  smartRadioChip: {
+    width: 220,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+  },
+
+  smartRadioChipCopy: {
+    flex: 1,
+  },
+
+  smartRadioChipTitle: {
+    color: COLORS.text,
+    fontSize: 14,
+    fontWeight: "700",
+  },
+
+  smartRadioChipSubtitle: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    marginTop: 2,
   },
 
   moodRail: {

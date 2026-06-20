@@ -1,4 +1,5 @@
 import type { HiddenTunesNormalizedSong } from "../services/hiddenTunesApi";
+import type { SmartRadioEntry } from "../services/smartRecommendations";
 import type { SmartDiscoverySection } from "../services/smartDiscovery";
 import {
   getSongDedupeKey,
@@ -31,6 +32,7 @@ export type HomeFeedRow =
   | { key: string; kind: "mood-rooms-header" }
   | { key: string; kind: "mood-rooms-rail" }
   | { key: string; kind: "emotional-worlds-chips" }
+  | { key: string; kind: "smart-radio-rail"; entries: SmartRadioEntry[] }
   | { key: string; kind: "genre-spotlight-header" }
   | { key: string; kind: "catalog-header" }
   | { key: string; kind: "show-more" }
@@ -40,8 +42,13 @@ export type HomeFeedMountStage = 0 | 1 | 2 | 3;
 
 export type BuildHomeFeedRowsInput = {
   feedMountStage: HomeFeedMountStage;
-  becauseYouListened: HiddenTunesNormalizedSong[];
+  recommendedForYou: HiddenTunesNormalizedSong[];
+  becauseYouPlayed: HiddenTunesNormalizedSong[];
+  continueListening: HiddenTunesNormalizedSong[];
+  rediscoverFavorites: HiddenTunesNormalizedSong[];
+  moreLikeThisSongs: HiddenTunesNormalizedSong[];
   moreLikeThisMoodSongs: HiddenTunesNormalizedSong[];
+  smartRadioEntries: SmartRadioEntry[];
   rankedArtistsCount: number;
   rankedAlbumsCount: number;
   curatedSections: SmartDiscoverySection<HiddenTunesNormalizedSong>[];
@@ -103,14 +110,42 @@ export function buildHomeFeedRows(input: BuildHomeFeedRowsInput): HomeFeedRow[] 
 
   rows.push({ key: "recently-added", kind: "recently-added" });
 
-  if (input.becauseYouListened.length > 0) {
+  pushUniqueSongRows(
+    "recommended-for-you",
+    "Recommended For You",
+    input.recommendedForYou,
+    "title-recommended-for-you"
+  );
+
+  if (input.becauseYouPlayed.length > 0) {
     pushUniqueSongRows(
-      "because-you-listened",
-      "Because You Listened",
-      input.becauseYouListened,
-      "title-because-you-listened"
+      "because-you-played",
+      "Because You Played",
+      input.becauseYouPlayed,
+      "title-because-you-played"
     );
   }
+
+  pushUniqueSongRows(
+    "continue-listening",
+    "Continue Listening",
+    input.continueListening,
+    "title-continue-listening"
+  );
+
+  pushUniqueSongRows(
+    "rediscover-favorites",
+    "Rediscover Favorites",
+    input.rediscoverFavorites,
+    "title-rediscover-favorites"
+  );
+
+  pushUniqueSongRows(
+    "more-like-this",
+    "More Like This",
+    input.moreLikeThisSongs,
+    "title-more-like-this"
+  );
 
   if (input.moreLikeThisMoodSongs.length > 0) {
     pushUniqueSongRows(
@@ -123,6 +158,14 @@ export function buildHomeFeedRows(input: BuildHomeFeedRowsInput): HomeFeedRow[] 
 
   if (input.feedMountStage >= 2) {
     rows.push({ key: "emotional-worlds-chips", kind: "emotional-worlds-chips" });
+
+    if (input.smartRadioEntries.length > 0) {
+      rows.push({
+        key: "smart-radio-rail",
+        kind: "smart-radio-rail",
+        entries: input.smartRadioEntries,
+      });
+    }
 
     if (input.rankedArtistsCount > 0) {
       rows.push({ key: "title-creators", kind: "section-title", title: "Creators In Your Orbit" });

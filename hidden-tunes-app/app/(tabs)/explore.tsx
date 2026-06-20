@@ -17,7 +17,7 @@ import { router, useFocusEffect } from "expo-router";
 import AddToPlaylistButton from "../../components/AddToPlaylistButton";
 import HTImage from "../../components/HTImage";
 import { COLORS, GRADIENTS } from "../../constants/theme";
-import { usePlayerActions, usePlayerState } from "../../context/PlayerContext";
+import { usePlayerActions, usePlayerNowPlaying, usePlayerState } from "../../context/PlayerContext";
 import ExploreListHeader, {
   type ExploreListHeaderProps,
   type ExploreMountStage,
@@ -44,7 +44,13 @@ import {
   type HiddenTunesNormalizedSong,
 } from "../../services/hiddenTunesApi";
 import { getSharedDiscoverySnapshot } from "../../services/discoveryCache";
+import {
+  loadOnboardingPreferences,
+  peekOnboardingPreferences,
+  type OnboardingPreferences,
+} from "../../services/onboardingPreferences";
 import type { DiscoverySong } from "../../services/smartDiscovery";
+import { hydrateSmartRecommendationsCache } from "../../utils/smartRecommendationsCache";
 import {
   logApiRefresh,
   logCacheResult,
@@ -92,8 +98,6 @@ import { normalizeGenreName } from "../../utils/genreNormalization";
 
 const INITIAL_EXPLORE_SNAPSHOT_LIMIT = 160;
 const DISCOVERY_COMPUTE_SONG_LIMIT = 220;
-const CONTINUE_LISTENING_SEED_LIMIT = 26;
-
 
 type GenreItem = {
   id: string;
@@ -260,7 +264,16 @@ function buildInitialExploreSongs() {
 export default memo(function ExploreScreen() {
   useRuntimeRenderProbe("Explore");
   const { playSong } = usePlayerActions();
+  const { currentSong } = usePlayerNowPlaying();
   const { recentlyPlayed, favorites } = usePlayerState();
+  const [onboardingPrefs, setOnboardingPrefs] = useState<OnboardingPreferences | null>(
+    () => peekOnboardingPreferences()
+  );
+
+  useEffect(() => {
+    void loadOnboardingPreferences().then(setOnboardingPrefs);
+    void hydrateSmartRecommendationsCache();
+  }, []);
   const listRef = useRef<FlatList<HiddenTunesNormalizedSong>>(null);
   const screenStartedAt = useRef(startPerformanceTimer()).current;
   const initialExploreLoadRef = useRef(false);
@@ -615,9 +628,21 @@ export default memo(function ExploreScreen() {
         favorites: listenerFavorites,
         albums,
         artists,
+        onboarding: onboardingPrefs,
+        currentSong,
       }),
-    [albums, artists, cloudSongs, listenerFavorites, listenerRecentlyPlayed]
+    [
+      albums,
+      artists,
+      cloudSongs,
+      currentSong,
+      listenerFavorites,
+      listenerRecentlyPlayed,
+      onboardingPrefs,
+    ]
   );
+
+  const smartRecommendations = sharedDiscovery.smartRecommendations;
 
   const rankedCloudSongs = sharedDiscovery.rankedSongs;
   const rankedAlbums = sharedDiscovery.rankedAlbums;
@@ -645,23 +670,27 @@ export default memo(function ExploreScreen() {
   const recentlyAdded = sharedDiscovery.recentlyDiscovered;
   const curatedSections = sharedDiscovery.curatedSections;
 
-  const continueSongsSeed = useMemo(() => {
-    const mappedRecent = listenerRecentlyPlayed
-      .slice(0, CONTINUE_LISTENING_SEED_LIMIT)
-      .map(safeSong);
-
-    return dedupeSongs([...mappedRecent, ...cloudSongs]).slice(0, 10);
-  }, [cloudSongs, listenerRecentlyPlayed]);
-
   const exploreSectionSongs = useMemo(() => {
     const sections = dedupeAdjacentDiscoverySections([
       {
-        id: "smart-picks",
-        songs: sharedDiscovery.becauseYouListenedRanked.slice(0, 10).map(safeSong),
+        id: "recommended-for-you",
+        songs: smartRecommendations.recommendedForYou.slice(0, 10).map(safeSong),
+      },
+      {
+        id: "because-you-played",
+        songs: smartRecommendations.becauseYouPlayed.slice(0, 10).map(safeSong),
       },
       {
         id: "continue-listening",
-        songs: continueSongsSeed,
+        songs: smartRecommendations.continueListening.slice(0, 10).map(safeSong),
+      },
+      {
+        id: "rediscover-favorites",
+        songs: smartRecommendations.rediscoverFavorites.slice(0, 10).map(safeSong),
+      },
+      {
+        id: "more-like-this",
+        songs: smartRecommendations.moreLikeThis.slice(0, 10).map(safeSong),
       },
       {
         id: "recently-added",
@@ -675,8 +704,11 @@ export default memo(function ExploreScreen() {
 
     logCatalogDedupeSummary(
       "explore-sections",
-      sharedDiscovery.becauseYouListenedRanked.length +
-        continueSongsSeed.length +
+      smartRecommendations.recommendedForYou.length +
+        smartRecommendations.becauseYouPlayed.length +
+        smartRecommendations.continueListening.length +
+        smartRecommendations.rediscoverFavorites.length +
+        smartRecommendations.moreLikeThis.length +
         recentlyAdded.length,
       sections.reduce((total, section) => total + section.songs.length, 0)
     );
@@ -684,8 +716,11 @@ export default memo(function ExploreScreen() {
     const byId = new Map(sections.map((section) => [section.id, section.songs]));
 
     return {
-      smartPicks: byId.get("smart-picks") || [],
+      recommendedForYou: byId.get("recommended-for-you") || [],
+      smartPicks: byId.get("because-you-played") || [],
       continueSongs: byId.get("continue-listening") || [],
+      rediscoverFavorites: byId.get("rediscover-favorites") || [],
+      moreLikeThis: byId.get("more-like-this") || [],
       recentlyAdded: byId.get("recently-added") || [],
       curatedSections: curatedSections
         .map((section) => ({
@@ -694,15 +729,13 @@ export default memo(function ExploreScreen() {
         }))
         .filter((section) => section.songs.length > 0),
     };
-  }, [
-    continueSongsSeed,
-    curatedSections,
-    recentlyAdded,
-    sharedDiscovery.becauseYouListenedRanked,
-  ]);
+  }, [curatedSections, recentlyAdded, smartRecommendations]);
 
+  const recommendedForYou = exploreSectionSongs.recommendedForYou;
   const smartPicks = exploreSectionSongs.smartPicks;
   const continueSongs = exploreSectionSongs.continueSongs;
+  const rediscoverFavorites = exploreSectionSongs.rediscoverFavorites;
+  const moreLikeThis = exploreSectionSongs.moreLikeThis;
   const recentlyAddedDeduped = exploreSectionSongs.recentlyAdded;
   const curatedSectionsDeduped = exploreSectionSongs.curatedSections;
 
@@ -928,7 +961,11 @@ export default memo(function ExploreScreen() {
         moodRooms={moodRooms}
         primaryMoodRoomId={primaryMoodRoom?.id}
         smartPicks={smartPicks}
+        recommendedForYou={recommendedForYou}
         continueSongs={continueSongs}
+        rediscoverFavorites={rediscoverFavorites}
+        moreLikeThis={moreLikeThis}
+        smartRadioEntries={sharedDiscovery.smartRadioEntries}
         recentlyAdded={recentlyAddedDeduped}
         curatedSections={curatedSectionsDeduped}
         launchWorlds={launchWorlds}
@@ -969,6 +1006,7 @@ export default memo(function ExploreScreen() {
       horizontalRailTuning,
       loading,
       launchWorlds,
+      moreLikeThis,
       moodCollections,
       moodRooms,
       onRefresh,
@@ -979,6 +1017,8 @@ export default memo(function ExploreScreen() {
       primaryMoodRoom?.id,
       rankedAlbums,
       rankedArtists,
+      recommendedForYou,
+      rediscoverFavorites,
       recentlyAddedDeduped,
       refreshing,
       renderAlbumItem,
@@ -988,6 +1028,7 @@ export default memo(function ExploreScreen() {
       renderPlaylistItem,
       renderRecentSong,
       renderSmartPick,
+      sharedDiscovery.smartRadioEntries,
       showHeavySections,
       smartPicks,
     ]

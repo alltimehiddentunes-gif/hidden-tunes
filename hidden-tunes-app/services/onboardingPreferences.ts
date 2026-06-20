@@ -82,6 +82,75 @@ export async function hasCompletedOnboarding() {
   return onboardingCompleteCache;
 }
 
+let cachedPreferences: OnboardingPreferences | null = null;
+let preferencesLoadPromise: Promise<OnboardingPreferences> | null = null;
+
+export function peekOnboardingPreferences() {
+  return cachedPreferences;
+}
+
+export async function loadOnboardingPreferences(): Promise<OnboardingPreferences> {
+  if (cachedPreferences) {
+    return cachedPreferences;
+  }
+
+  if (preferencesLoadPromise) {
+    return preferencesLoadPromise;
+  }
+
+  preferencesLoadPromise = (async () => {
+    try {
+      const entries = await AsyncStorage.multiGet([
+        ONBOARDING_STORAGE_KEYS.userRole,
+        ONBOARDING_STORAGE_KEYS.preferredGenres,
+        ONBOARDING_STORAGE_KEYS.preferredMoods,
+        ONBOARDING_STORAGE_KEYS.preferredEnergy,
+        ONBOARDING_STORAGE_KEYS.discoveryStyle,
+      ]);
+
+      const values = Object.fromEntries(entries);
+
+      cachedPreferences = {
+        userRole: normalizeUserRole(values[ONBOARDING_STORAGE_KEYS.userRole]),
+        preferredGenres: parseStoredStringArray(
+          values[ONBOARDING_STORAGE_KEYS.preferredGenres]
+        ),
+        preferredMoods: parseStoredStringArray(
+          values[ONBOARDING_STORAGE_KEYS.preferredMoods]
+        ),
+        preferredEnergy:
+          (values[ONBOARDING_STORAGE_KEYS.preferredEnergy] as EnergyPreference) ||
+          DEFAULT_LISTENER_PREFERENCES.preferredEnergy,
+        discoveryStyle:
+          (values[ONBOARDING_STORAGE_KEYS.discoveryStyle] as DiscoveryStyle) ||
+          DEFAULT_LISTENER_PREFERENCES.discoveryStyle,
+      };
+
+      return cachedPreferences;
+    } catch {
+      cachedPreferences = DEFAULT_LISTENER_PREFERENCES;
+      return cachedPreferences;
+    } finally {
+      preferencesLoadPromise = null;
+    }
+  })();
+
+  return preferencesLoadPromise;
+}
+
+function parseStoredStringArray(value: string | null | undefined) {
+  if (!value) return [] as string[];
+
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed)
+      ? parsed.map((item) => String(item || "").trim()).filter(Boolean)
+      : [];
+  } catch {
+    return [];
+  }
+}
+
 export async function saveOnboardingPreferences(
   preferences: OnboardingPreferences
 ) {
@@ -101,5 +170,6 @@ export async function saveOnboardingPreferences(
     [ONBOARDING_STORAGE_KEYS.discoveryStyle, preferences.discoveryStyle],
   ]);
 
+  cachedPreferences = preferences;
   primeOnboardingCompleteCache(true);
 }

@@ -148,10 +148,11 @@ export function getTopRecentlyPlayed(
 }
 
 export function buildRecommendationSeedFromRecent(
-  tracks: RecentlyPlayedTrack[]
+  tracks: RecentlyPlayedTrack[],
+  fallbackQuery = "Hidden Tunes trending"
 ) {
   if (!tracks.length) {
-    return "popular afrobeats songs";
+    return fallbackQuery;
   }
 
   const top = getTopRecentlyPlayed(
@@ -177,7 +178,5 @@ export function buildRecommendationSeedFromRecent(
 
   const seed = `${artists} ${titles}`.trim();
 
-  return seed.length > 0
-    ? `${seed} similar songs`
-    : "popular afrobeats songs";
+  return seed.length > 0 ? `${seed} similar songs` : fallbackQuery;
 }
