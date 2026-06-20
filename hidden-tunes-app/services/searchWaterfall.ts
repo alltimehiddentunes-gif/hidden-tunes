@@ -13,8 +13,54 @@ import {
 } from "../utils/catalogSongRanking";
 
 export const HIDDEN_TUNES_SEARCH_LABEL = "Hidden Tunes";
-export const WATERFALL_MIN_SONGS = 4;
+export const WATERFALL_MIN_SONGS = 2;
 export const LOCAL_CATALOG_MERGE_LIMIT = 160;
+
+function normalizeDedupeText(value: string) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function getTrackArtistLabel(track: Record<string, unknown>) {
+  const user = track.user as { name?: string } | undefined;
+  return String(track.artist || user?.name || "").trim();
+}
+
+function providerPriority(source: unknown) {
+  const value = String(source || "");
+  if (value === "hidden-tunes" || value === "r2") return 0;
+  if (value === "audius") return 1;
+  if (value === "archive") return 2;
+  return 3;
+}
+
+export function dedupeWaterfallTracks(
+  tracks: Record<string, unknown>[]
+): Record<string, unknown>[] {
+  const bestByKey = new Map<string, Record<string, unknown>>();
+
+  for (const track of tracks) {
+    const idKey = String(track.id || track.streamUrl || track.url || "").trim();
+    const titleArtistKey = `${normalizeDedupeText(String(track.title || ""))}|${normalizeDedupeText(getTrackArtistLabel(track))}`;
+    const key = idKey || titleArtistKey;
+
+    if (!key || key === "|") continue;
+
+    const existing = bestByKey.get(key);
+    if (!existing) {
+      bestByKey.set(key, track);
+      continue;
+    }
+
+    if (providerPriority(track.source) < providerPriority(existing.source)) {
+      bestByKey.set(key, track);
+    }
+  }
+
+  return Array.from(bestByKey.values());
+}
 
 export type WaterfallSearchSource = "all" | "hidden" | "audius" | "archive";
 
@@ -166,12 +212,20 @@ export async function runSearchWaterfall(
 
   if (source === "audius") {
     finalResults.push(...(await fetchAudiusSearchTracks(safeText, 30)));
-    return { tracks: finalResults, hasMoreHidden: false, remoteCatalogSongs };
+    return {
+      tracks: dedupeWaterfallTracks(finalResults),
+      hasMoreHidden: false,
+      remoteCatalogSongs,
+    };
   }
 
   if (source === "archive") {
     finalResults.push(...(await fetchArchiveSearchTracks(safeText)));
-    return { tracks: finalResults, hasMoreHidden: false, remoteCatalogSongs };
+    return {
+      tracks: dedupeWaterfallTracks(finalResults),
+      hasMoreHidden: false,
+      remoteCatalogSongs,
+    };
   }
 
   if (countPlayableTracks(finalResults) < WATERFALL_MIN_SONGS) {
@@ -182,7 +236,11 @@ export async function runSearchWaterfall(
     finalResults.push(...(await fetchArchiveSearchTracks(safeText)));
   }
 
-  return { tracks: finalResults, hasMoreHidden, remoteCatalogSongs };
+  return {
+    tracks: dedupeWaterfallTracks(finalResults),
+    hasMoreHidden,
+    remoteCatalogSongs,
+  };
 }
 
 export function countLocalInstantSongs(

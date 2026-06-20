@@ -20,7 +20,7 @@ function encodeArchiveFileUrl(identifier: string, fileName: string) {
   return `https://archive.org/download/${identifier}/${safeFileName}`;
 }
 
-async function getPlayableMp3(identifier: string) {
+async function getPlayableAudioUrl(identifier: string) {
   try {
     const response = await fetch(`https://archive.org/metadata/${identifier}`);
     const text = await response.text();
@@ -32,20 +32,23 @@ async function getPlayableMp3(identifier: string) {
     const json = JSON.parse(text);
     const files = json?.files || [];
 
-    const mp3File = files.find((file: any) => {
+    const audioFile = files.find((file: any) => {
       const name = String(file?.name || "").toLowerCase();
       const format = String(file?.format || "").toLowerCase();
 
       return (
         name.endsWith(".mp3") ||
+        name.endsWith(".ogg") ||
         format.includes("vbr mp3") ||
-        format.includes("mp3")
+        format.includes("mp3") ||
+        format.includes("ogg") ||
+        format.includes("vorbis")
       );
     });
 
-    if (!mp3File?.name) return null;
+    if (!audioFile?.name) return null;
 
-    return encodeArchiveFileUrl(identifier, mp3File.name);
+    return encodeArchiveFileUrl(identifier, audioFile.name);
   } catch {
     return null;
   }
@@ -67,7 +70,7 @@ export async function searchArchiveAudio(
     params.append("fl[]", "identifier");
     params.append("fl[]", "title");
     params.append("fl[]", "creator");
-    params.append("rows", "5");
+    params.append("rows", "12");
     params.append("page", "1");
     params.append("output", "json");
 
@@ -87,7 +90,7 @@ export async function searchArchiveAudio(
 
         if (!identifier) return null;
 
-        const streamUrl = await getPlayableMp3(identifier);
+        const streamUrl = await getPlayableAudioUrl(identifier);
 
         if (!streamUrl) return null;
 

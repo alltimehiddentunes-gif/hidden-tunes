@@ -32,6 +32,7 @@ import HTImage from "../../components/HTImage";
 import MediaCard from "../../components/MediaCard";
 
 import { COLORS, GRADIENTS } from "../../constants/theme";
+import { TESTER_COPY } from "../../constants/testerExperience";
 import {
   usePlayerActions,
   usePlayerNowPlaying,
@@ -42,10 +43,8 @@ import { HIDDEN_TUNES_GENRES } from "../../utils/genres";
 
 import type { BackendYouTubeTrack } from "../../services/youtubeBackend";
 import {
-  countLocalInstantSongs,
   HIDDEN_TUNES_SEARCH_LABEL,
   runSearchWaterfall,
-  WATERFALL_MIN_SONGS,
 } from "../../services/searchWaterfall";
 import {
   searchHiddenTunesSongsPage,
@@ -129,7 +128,7 @@ type NativeSearchTrack = {
   artwork?: string;
   cover?: string;
   source?: "audius" | "archive" | "hidden-tunes";
-  sourceName?: "Audius" | "Internet Archive" | "Hidden Tunes" | string;
+  sourceName?: string;
   streamUrl?: string;
   url?: string;
   duration?: number;
@@ -193,15 +192,9 @@ const TRENDING_SEARCHES = [
 
 const FILTERS: { key: SearchType; label: string }[] = [
   { key: "hidden", label: "CATALOG" },
-  { key: "youtube", label: "TV" },
   { key: "all", label: "ALL" },
-  { key: "audius", label: "MORE" },
-  { key: "archive", label: "VAULT" },
+  { key: "youtube", label: "TV" },
 ];
-
-function formatSearchSourceLabel(_source?: string) {
-  return HIDDEN_TUNES_SEARCH_LABEL;
-}
 
 function sanitizeYouTubeVideoId(value: any) {
   const text = String(value || "").replace("youtube-", "").trim();
@@ -223,21 +216,44 @@ function normalizeDuration(duration: unknown): number | undefined {
   return undefined;
 }
 
+function normalizeDedupeText(value: string) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
 function dedupeByKey<
-  T extends { id?: string; videoId?: string; url?: string; streamUrl?: string },
+  T extends {
+    id?: string;
+    videoId?: string;
+    url?: string;
+    streamUrl?: string;
+    title?: string;
+    artist?: string;
+  },
 >(items: T[]) {
-  const seen = new Set<string>();
+  const seenIds = new Set<string>();
+  const seenTitleArtist = new Set<string>();
 
   return items.filter((item) => {
-    const key = String(
+    const idKey = String(
       item.videoId || item.id || item.streamUrl || item.url || ""
     ).replace("youtube-", "");
 
-    if (!key) return false;
-    if (seen.has(key)) return false;
+    if (idKey) {
+      if (seenIds.has(idKey)) return false;
+      seenIds.add(idKey);
+    }
 
-    seen.add(key);
-    return true;
+    const titleArtistKey = `${normalizeDedupeText(String(item.title || ""))}|${normalizeDedupeText(String(item.artist || getArtist(item)))}`;
+
+    if (titleArtistKey !== "|") {
+      if (seenTitleArtist.has(titleArtistKey)) return false;
+      seenTitleArtist.add(titleArtistKey);
+    }
+
+    return Boolean(idKey || titleArtistKey !== "|");
   });
 }
 
@@ -409,18 +425,6 @@ function buildSearchPlayQueue(
   return queue;
 }
 
-function sourceColor(source?: string) {
-  if (source === "YouTube" || source === "youtube") return "#ff0033";
-  if (source === "Internet Archive" || source === "archive") {
-    return COLORS.pink || "#ec4899";
-  }
-  if (source === "Hidden Tunes" || source === "hidden-tunes") {
-    return COLORS.primary;
-  }
-
-  return COLORS.primary;
-}
-
 type SearchRowHandlers = {
   handlePress: (item: SearchResultTrack) => void;
   handleSongResultPress: (item: SearchResultTrack, index: number) => void;
@@ -573,9 +577,7 @@ const SearchCatalogSongPressableRow = memo(function SearchCatalogSongPressableRo
 }) {
   const playable = normalizePlayableSong(song);
   const title = String(playable.title || "Unknown Song");
-  const artistLine =
-    subtitle ||
-    `${String(getArtist(playable))} • ${playable.sourceName || "Hidden Tunes"}`;
+  const artistLine = subtitle || String(getArtist(playable));
 
   return (
     <Pressable
@@ -670,8 +672,6 @@ const SearchResultRow = memo(function SearchResultRow({
   const { isActive, isPlaying } = useTrackPlaybackStatus(youtube ? "" : trackId);
   const artist = String(getArtist(normalized));
   const title = String(normalized.title || "Unknown Song");
-  const sourceName = formatSearchSourceLabel(normalized.sourceName);
-  const sourceColorValue = sourceColor(normalized.sourceName);
 
   const onCatalogSongPress: CatalogSongRowPressHandler = (song, rowIndex) => {
     handlersRef.current?.handleSongResultPress(song, rowIndex);
@@ -687,7 +687,7 @@ const SearchResultRow = memo(function SearchResultRow({
         <TouchableOpacity activeOpacity={0.88} onPress={onTvPress}>
           <MediaCard
             title={title}
-            subtitle={`${artist} • ${sourceName}`}
+            subtitle={artist}
             image={normalized}
             type="radio"
             size="medium"
@@ -727,13 +727,6 @@ const SearchResultRow = memo(function SearchResultRow({
             </TouchableOpacity>
           )}
         </View>
-
-        <View style={styles.sourceBadge} pointerEvents="none">
-          <Ionicons name="tv" size={13} color={sourceColorValue} />
-          <Text style={[styles.sourceBadgeText, { color: sourceColorValue }]}>
-            {HIDDEN_TUNES_SEARCH_LABEL}
-          </Text>
-        </View>
       </View>
     );
   }
@@ -743,7 +736,7 @@ const SearchResultRow = memo(function SearchResultRow({
       <SearchCatalogSongPressableRow
         song={item}
         index={index}
-        subtitle={`${artist} • ${sourceName}`}
+        subtitle={artist}
         active={isActive}
         isPlayingSong={isPlaying}
         onRowPress={onCatalogSongPress}
@@ -782,18 +775,6 @@ const SearchResultRow = memo(function SearchResultRow({
             <Ionicons name="play" size={20} color="#000" />
           </TouchableOpacity>
         )}
-      </View>
-
-      <View style={styles.sourceBadge} pointerEvents="none">
-        <Ionicons
-          name="cloud-done"
-          size={13}
-          color={sourceColorValue}
-        />
-
-        <Text style={[styles.sourceBadgeText, { color: sourceColorValue }]}>
-          {sourceName}
-        </Text>
       </View>
     </View>
   );
@@ -1796,22 +1777,10 @@ export default function SearchScreen() {
       searchTimeoutRef.current = setTimeout(() => {
         if (generation !== searchDebounceGenerationRef.current) return;
 
-        if (
-          showGroupedSearch &&
-          (source === "all" || source === "hidden") &&
-          countLocalInstantSongs(catalogSongsForSearch, safeText) >=
-            WATERFALL_MIN_SONGS &&
-          runInstantCatalogSearch(universalCatalog, safeText).songs.length >= 2
-        ) {
-          setHasCheckedSearchFallbacks(true);
-          setLoading(false);
-          return;
-        }
-
         void searchTracks(text, source);
       }, SEARCH_DEBOUNCE_MS);
     },
-    [activeSource, catalogSongsForSearch, showGroupedSearch, universalCatalog]
+    [activeSource, showGroupedSearch]
   );
 
   const commitSearch = useCallback(
@@ -2089,6 +2058,10 @@ export default function SearchScreen() {
   );
 
   const renderPremiumSearchEmpty = useCallback(() => {
+    const isShortQuery =
+      trimmedQuery.length >= LOCAL_SEARCH_MIN_CHARS &&
+      trimmedQuery.length < API_SEARCH_MIN_CHARS;
+
     return (
       <View style={styles.premiumEmptyBox}>
         <Ionicons
@@ -2098,12 +2071,18 @@ export default function SearchScreen() {
           style={styles.premiumEmptyIcon}
         />
         <Text style={styles.premiumEmptyTitle}>
-          {loading ? "Searching Hidden Tunes..." : "No matches yet"}
+          {loading
+            ? "Searching Hidden Tunes..."
+            : isShortQuery
+              ? "Keep typing to search"
+              : "No matches yet"}
         </Text>
         <Text style={styles.premiumEmptySub}>
           {loading
-            ? "Checking the catalog and nearby libraries for playable matches."
-            : "Try another title, artist, album, genre, or mood."}
+            ? "Searching your Hidden Tunes catalog..."
+            : isShortQuery
+              ? "Type one more letter to search the full catalog."
+              : TESTER_COPY.searchNoMatch}
         </Text>
         {!loading ? (
           <View style={styles.premiumEmptyChips}>
@@ -2121,7 +2100,7 @@ export default function SearchScreen() {
         ) : null}
       </View>
     );
-  }, [activeSource, commitSearch, loading]);
+  }, [activeSource, commitSearch, loading, trimmedQuery]);
 
   function renderDiscovery() {
     return (
@@ -2185,7 +2164,7 @@ export default function SearchScreen() {
                   <SearchCatalogSongPressableRow
                     song={track}
                     index={playIndex >= 0 ? playIndex : trackIndex}
-                    subtitle={`${track.artist} • Hidden Tunes`}
+                    subtitle={track.artist}
                     onRowPress={handleSongResultPress}
                   />
                 </View>
@@ -2415,7 +2394,7 @@ export default function SearchScreen() {
         <View style={styles.loadingBox}>
           <View style={styles.loadingTitleRow}>
             <ActivityIndicator size="small" color={COLORS.primary} />
-            <Text style={styles.loadingText}>Finding the best matches...</Text>
+            <Text style={styles.loadingText}>Searching Hidden Tunes...</Text>
           </View>
           <SearchSkeletonRows />
         </View>
@@ -2486,7 +2465,7 @@ export default function SearchScreen() {
                 <View style={styles.loadingInline}>
                   <ActivityIndicator size="small" color={COLORS.primary} />
                   <Text style={styles.loadingInlineText}>
-                    Finding more matches...
+                    Searching Hidden Tunes...
                   </Text>
                 </View>
               ) : null}
@@ -2554,15 +2533,13 @@ export default function SearchScreen() {
               {!showGroupedSearch || listResults.length > 0 ? (
                 <View style={styles.compactSectionHeader}>
                   <Text style={styles.compactSectionTitle}>
-                    {showGroupedSearch ? "More Matches" : "Hidden Tunes Matches"}
+                    {showGroupedSearch ? "All Matches" : "Hidden Tunes Matches"}
                   </Text>
                   <Text style={styles.compactSectionSub}>
                     {results.length > 0
-                      ? `${results.length} tracks found • ${
-                          activeSource === "youtube" ? "TV" : "ready"
-                        }`
+                      ? `${results.length} tracks found • ready`
                       : showGroupedSearch
-                        ? "Streaming and catalog matches"
+                        ? "Hidden Tunes catalog matches"
                         : "Start typing to discover"}
                   </Text>
                 </View>
