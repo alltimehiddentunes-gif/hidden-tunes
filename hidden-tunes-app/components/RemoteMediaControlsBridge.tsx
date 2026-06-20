@@ -13,6 +13,9 @@ import {
   syncRemoteMediaSession,
 } from "../services/remoteMediaControls";
 
+const REMOTE_MEDIA_POSITION_SYNC_MIN_MS = 5000;
+const REMOTE_MEDIA_POSITION_DELTA_SEC = 5;
+
 function RemoteMediaControlsBridge() {
   const { currentSong, isPlaying, isLoading } = usePlayerNowPlaying();
   const { positionMillis, durationMillis } = usePlayerProgress();
@@ -24,12 +27,21 @@ function RemoteMediaControlsBridge() {
   const nextSongRef = useRef(nextSong);
   const previousSongRef = useRef(previousSong);
   const stopPlaybackRef = useRef(stopPlayback);
+  const lastRemoteSyncRef = useRef({
+    songId: "",
+    isPlaying: false,
+    isLoading: false,
+    positionSec: -1,
+    at: 0,
+  });
 
-  isPlayingRef.current = isPlaying;
-  togglePlayPauseRef.current = togglePlayPause;
-  nextSongRef.current = nextSong;
-  previousSongRef.current = previousSong;
-  stopPlaybackRef.current = stopPlayback;
+  useEffect(() => {
+    isPlayingRef.current = isPlaying;
+    togglePlayPauseRef.current = togglePlayPause;
+    nextSongRef.current = nextSong;
+    previousSongRef.current = previousSong;
+    stopPlaybackRef.current = stopPlayback;
+  }, [isPlaying, togglePlayPause, nextSong, previousSong, stopPlayback]);
 
   useEffect(() => {
     if (!isRemoteMediaControlsAvailable()) return;
@@ -70,6 +82,32 @@ function RemoteMediaControlsBridge() {
   useEffect(() => {
     if (!isRemoteMediaControlsAvailable()) return;
     if (isTrackPlayerFeatureEnabled()) return;
+
+    const songId = currentSong?.id || "";
+    const positionSec = Math.max(0, Math.round(positionMillis / 1000));
+    const now = Date.now();
+    const last = lastRemoteSyncRef.current;
+
+    const metadataChanged =
+      songId !== last.songId ||
+      isPlaying !== last.isPlaying ||
+      isLoading !== last.isLoading;
+    const positionChanged =
+      Math.abs(positionSec - last.positionSec) >=
+      REMOTE_MEDIA_POSITION_DELTA_SEC;
+    const timeElapsed = now - last.at >= REMOTE_MEDIA_POSITION_SYNC_MIN_MS;
+
+    if (!metadataChanged && !positionChanged && !timeElapsed) {
+      return;
+    }
+
+    lastRemoteSyncRef.current = {
+      songId,
+      isPlaying,
+      isLoading,
+      positionSec,
+      at: now,
+    };
 
     void syncRemoteMediaSession({
       song: currentSong,

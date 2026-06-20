@@ -42,7 +42,9 @@ async function loadMediaControlModule(): Promise<MediaControlModule | null> {
     mediaModulePromise = import("expo-media-control")
       .then((module) => module)
       .catch((error) => {
-        console.log("[HTRemoteMedia] module load failed:", error);
+        logRemoteMedia("module load failed", {
+          message: String((error as Error)?.message || error),
+        });
         return null;
       });
   }
@@ -81,7 +83,9 @@ async function handleMediaControlEvent(
         break;
     }
   } catch (error) {
-    console.log("[HTRemoteMedia] command handler error:", error);
+    logRemoteMedia("command handler error", {
+      message: String((error as Error)?.message || error),
+    });
   }
 }
 
@@ -142,7 +146,9 @@ export async function enableRemoteMediaControls(
   } catch (error) {
     controlsEnabled = false;
     handlers = null;
-    console.log("[HTRemoteMedia] enable failed:", error);
+    logRemoteMedia("enable failed", {
+      message: String((error as Error)?.message || error),
+    });
     return false;
   }
 }
@@ -164,7 +170,9 @@ export async function disableRemoteMediaControls(): Promise<void> {
   try {
     await mediaModule.MediaControl.disableMediaControls();
   } catch (error) {
-    console.log("[HTRemoteMedia] disable error:", error);
+    logRemoteMedia("disable error", {
+      message: String((error as Error)?.message || error),
+    });
   }
 }
 
@@ -228,6 +236,8 @@ export async function syncRemoteMediaSession(
       positionSeconds
     );
   } catch (error) {
-    console.log("[HTRemoteMedia] sync error:", error);
+    logRemoteMedia("sync error", {
+      message: String((error as Error)?.message || error),
+    });
   }
 }

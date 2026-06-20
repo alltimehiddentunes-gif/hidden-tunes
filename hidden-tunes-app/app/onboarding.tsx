@@ -140,7 +140,9 @@ export default function OnboardingScreen() {
   }, [step]);
 
   function finishOnboarding(preferences: OnboardingPreferences) {
-    console.log("[onboarding] continue pressed");
+    if (typeof __DEV__ !== "undefined" && __DEV__) {
+      console.log("[onboarding] continue pressed");
+    }
 
     void saveOnboardingPreferences(preferences).catch(() => {});
     void runOnboardingPrewarm(preferences);

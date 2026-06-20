@@ -1,11 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
-  Audio,
-  AVPlaybackStatus,
-  InterruptionModeAndroid,
-  InterruptionModeIOS,
-} from "expo-av";
-import {
   ReactNode,
   useCallback,
   useEffect,
@@ -14,6 +8,8 @@ import {
   useState,
 } from "react";
 import { AppState, AppStateStatus, InteractionManager } from "react-native";
+
+import HiddenAudio, { HiddenAudioStatus } from "../modules/HiddenAudio";
 
 import { BackendYouTubeTrack } from "../services/youtubeBackend";
 
@@ -79,6 +75,10 @@ import {
   resolveLyricsDisplay,
   toSyncedLyricLines,
 } from "../utils/lyrics";
+import {
+  logPlayerContextDev,
+  logPlayerContextError,
+} from "../utils/playerContextLogs";
 import {
   logAudioLoadFailure,
   logAudioLoadStart,
@@ -276,8 +276,10 @@ const PLAYBACK_UPDATE_INTERVAL_MS = 2000;
 const PLAYBACK_UPDATE_INTERVAL_BACKGROUND_MS = 1000;
 const POSITION_STATE_UPDATE_MIN_MS = 2000;
 const POSITION_STATE_UPDATE_BACKGROUND_MS = 2000;
-const POSITION_SAVE_INTERVAL_MS = 12000;
-const POSITION_SAVE_DISTANCE_MS = 5000;
+const POSITION_SAVE_INTERVAL_MS = 15000;
+const POSITION_SAVE_DISTANCE_MS = 8000;
+const POSITION_PERSIST_DEBOUNCE_MS = 900;
+const ACTIVE_QUEUE_PERSIST_DEBOUNCE_MS = 600;
 const DURATION_UPDATE_THRESHOLD_MS = 1500;
 const TRACK_END_THRESHOLD_MS = 750;
 const MIN_DURATION_FOR_POSITION_FINISH_MS = 4000;
@@ -311,7 +313,11 @@ function parseSyncedLyrics(input?: string | null): SyncedLyricLine[] {
 }
 
 export function PlayerProvider({ children }: { children: ReactNode }) {
-  const soundRef = useRef<Audio.Sound | null>(null);
+  const hiddenAudioLoadedRef = useRef(false);
+  const hiddenAudioPollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(
+    null
+  );
+  const lastHiddenAudioPollPlayingRef = useRef(false);
   const isChangingTrackRef = useRef(false);
   const isMountedRef = useRef(true);
   const loadRequestIdRef = useRef(0);
@@ -341,10 +347,22 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const lastSavedPositionRef = useRef(0);
   const lastPositionStateUpdateRef = useRef(0);
   const lastActiveQueuePersistRef = useRef("");
+  const positionPersistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
+  const pendingPositionMillisRef = useRef<number | null>(null);
+  const activeQueuePersistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
+  const pendingActiveQueuePersistRef = useRef<{
+    queue: AppSong[];
+    index: number;
+    mode: ActiveQueueMode;
+  } | null>(null);
   const lastCurrentSongPersistRef = useRef("");
   const storageValueCacheRef = useRef<Record<string, string>>({});
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
-  const preloadedSoundRef = useRef<Audio.Sound | null>(null);
+  const preloadedUrlRef = useRef<string | null>(null);
   const preloadedSongIdRef = useRef<string | null>(null);
   const preloadInFlightRef = useRef(false);
   const pendingSmartExtendRef = useRef(false);
@@ -447,7 +465,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     await AsyncStorage.multiRemove(keys);
   }, []);
 
-  const savePlaybackPosition = useCallback(async (millis: number) => {
+  const writePlaybackPosition = useCallback(async (millis: number) => {
     const safeMillis = Math.max(0, Math.floor(millis || 0));
 
     try {
@@ -455,9 +473,41 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       storageValueCacheRef.current[POSITION_KEY] = String(safeMillis);
       await AsyncStorage.setItem(POSITION_KEY, String(safeMillis));
     } catch (error) {
-      console.log("Save playback position error:", error);
+      logPlayerContextError("Save playback position error:", error);
     }
   }, []);
+
+  const savePlaybackPosition = useCallback(
+    (millis: number, options?: { immediate?: boolean }) => {
+      pendingPositionMillisRef.current = millis;
+
+      if (options?.immediate) {
+        if (positionPersistTimerRef.current) {
+          clearTimeout(positionPersistTimerRef.current);
+          positionPersistTimerRef.current = null;
+        }
+
+        pendingPositionMillisRef.current = null;
+        void writePlaybackPosition(millis);
+        return;
+      }
+
+      if (positionPersistTimerRef.current) {
+        clearTimeout(positionPersistTimerRef.current);
+      }
+
+      positionPersistTimerRef.current = setTimeout(() => {
+        positionPersistTimerRef.current = null;
+        const pending = pendingPositionMillisRef.current;
+        pendingPositionMillisRef.current = null;
+
+        if (pending === null) return;
+
+        void writePlaybackPosition(pending);
+      }, POSITION_PERSIST_DEBOUNCE_MS);
+    },
+    [writePlaybackPosition]
+  );
 
   const sanitizeYouTubeVideoId = useCallback((value: any) => {
     const text = String(value || "").replace("youtube-", "").trim();
@@ -704,41 +754,43 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const configureAudio = useCallback(async (reason = "unspecified") => {
     recordConfigureAudioCall(reason);
+  }, []);
 
-    try {
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: false,
-        interruptionModeIOS: InterruptionModeIOS.DoNotMix,
-        staysActiveInBackground: true,
-        playsInSilentModeIOS: true,
-        interruptionModeAndroid: InterruptionModeAndroid.DoNotMix,
-        shouldDuckAndroid: false,
-        playThroughEarpieceAndroid: false,
-      });
-    } catch (error) {
-      console.log("Configure audio error:", error);
+  const stopHiddenAudioPolling = useCallback(() => {
+    if (hiddenAudioPollIntervalRef.current) {
+      clearInterval(hiddenAudioPollIntervalRef.current);
+      hiddenAudioPollIntervalRef.current = null;
     }
   }, []);
 
+  const resolveHiddenAudioUrl = useCallback(
+    (song: AppSong): string | null => {
+      const audio = song.audio;
+
+      if (typeof audio === "string") {
+        const trimmed = audio.trim();
+        if (trimmed.length > 0) return trimmed;
+      }
+
+      if (
+        audio &&
+        typeof audio === "object" &&
+        "uri" in audio &&
+        typeof (audio as { uri?: unknown }).uri === "string"
+      ) {
+        const uri = String((audio as { uri: string }).uri).trim();
+        if (uri.length > 0) return uri;
+      }
+
+      return getPlayableUri(song);
+    },
+    [getPlayableUri]
+  );
+
   const clearPreloadedSound = useCallback(async () => {
-    const preloaded = preloadedSoundRef.current;
-    preloadedSoundRef.current = null;
+    preloadedUrlRef.current = null;
     preloadedSongIdRef.current = null;
     preloadInFlightRef.current = false;
-
-    if (!preloaded) return;
-
-    try {
-      preloaded.setOnPlaybackStatusUpdate(null);
-
-      try {
-        await preloaded.stopAsync();
-      } catch {}
-
-      await preloaded.unloadAsync();
-    } catch (error) {
-      console.log("Clear preloaded sound error:", error);
-    }
   }, []);
 
   const unloadCurrentSound = useCallback(async () => {
@@ -753,51 +805,22 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const sound = soundRef.current;
-    soundRef.current = null;
-
-    if (!sound) return;
+    if (!hiddenAudioLoadedRef.current) return;
 
     unloadPromiseRef.current = (async () => {
       try {
-        sound.setOnPlaybackStatusUpdate(null);
-
-        try {
-          await sound.stopAsync();
-        } catch {}
-
-        await sound.unloadAsync();
+        stopHiddenAudioPolling();
+        await HiddenAudio.pause();
       } catch (error) {
-        console.log("Unload sound error:", error);
+        logPlayerContextError("Unload HiddenAudio error:", error);
       } finally {
+        hiddenAudioLoadedRef.current = false;
         unloadPromiseRef.current = null;
       }
     })();
 
     await unloadPromiseRef.current;
-  }, []);
-
-  const applyProgressUpdateInterval = useCallback(async (reason = "unspecified") => {
-    recordApplyProgressUpdateIntervalCall(reason);
-
-    if (trackPlayerActiveRef.current) {
-      await bridgeSetProgressInterval(appStateRef.current);
-      return;
-    }
-
-    const sound = soundRef.current;
-    if (!sound) return;
-
-    try {
-      await sound.setStatusAsync({
-        progressUpdateIntervalMillis: getProgressUpdateIntervalMs(
-          appStateRef.current
-        ),
-      });
-    } catch (error) {
-      console.log("Apply progress update interval error:", error);
-    }
-  }, []);
+  }, [stopHiddenAudioPolling]);
 
   const saveCurrentSong = useCallback(
     async (song: AppSong) => {
@@ -811,7 +834,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         lastCurrentSongPersistRef.current = serialized;
         await setStoredValueIfChanged(CURRENT_SONG_KEY, serialized);
       } catch (error) {
-        console.log("Save current song error:", error);
+        logPlayerContextError("Save current song error:", error);
       }
     },
     [isYouTubeSong, setStoredValueIfChanged]
@@ -822,7 +845,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       const updated = await addToRecentlyPlayed(song);
       setRecentlyPlayed(updated);
     } catch (error) {
-      console.log("Add recently played error:", error);
+      logPlayerContextError("Add recently played error:", error);
     }
   }, []);
 
@@ -831,13 +854,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       void saveCurrentSong(song);
       void saveRecentlyPlayed(song);
       void addToSmartQueue(song as any).catch((error) => {
-        console.log("Add smart queue error:", error);
+        logPlayerContextError("Add smart queue error:", error);
       });
     },
     [saveCurrentSong, saveRecentlyPlayed]
   );
 
-  const persistActiveQueue = useCallback(
+  const writeActiveQueuePersist = useCallback(
     async (queue: AppSong[], index: number, mode: ActiveQueueMode) => {
       try {
         const normalizedQueue = queue.map(normalizeSong);
@@ -859,10 +882,35 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         storageValueCacheRef.current[ACTIVE_QUEUE_INDEX_KEY] = String(index);
         storageValueCacheRef.current[ACTIVE_QUEUE_MODE_KEY] = mode;
       } catch (error) {
-        console.log("Persist active queue error:", error);
+        logPlayerContextError("Persist active queue error:", error);
       }
     },
     [normalizeSong]
+  );
+
+  const persistActiveQueue = useCallback(
+    (queue: AppSong[], index: number, mode: ActiveQueueMode) => {
+      pendingActiveQueuePersistRef.current = { queue, index, mode };
+
+      if (activeQueuePersistTimerRef.current) {
+        clearTimeout(activeQueuePersistTimerRef.current);
+      }
+
+      activeQueuePersistTimerRef.current = setTimeout(() => {
+        activeQueuePersistTimerRef.current = null;
+        const pending = pendingActiveQueuePersistRef.current;
+        pendingActiveQueuePersistRef.current = null;
+
+        if (!pending) return;
+
+        void writeActiveQueuePersist(
+          pending.queue,
+          pending.index,
+          pending.mode
+        );
+      }, ACTIVE_QUEUE_PERSIST_DEBOUNCE_MS);
+    },
+    [writeActiveQueuePersist]
   );
 
   const syncActiveQueue = useCallback(
@@ -906,7 +954,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           [YOUTUBE_QUEUE_INDEX_KEY, String(index)],
         ]);
       } catch (error) {
-        console.log("Persist YouTube queue error:", error);
+        logPlayerContextError("Persist YouTube queue error:", error);
       }
     },
     [normalizeYouTubeTrack]
@@ -921,7 +969,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           [RADIO_MODE_KEY, String(enabled)],
         ]);
       } catch (error) {
-        console.log("Persist radio state error:", error);
+        logPlayerContextError("Persist radio state error:", error);
       }
     },
     []
@@ -1022,7 +1070,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       });
 
     queueTransitionTailRef.current = transitionTask.catch((error) => {
-      console.log("Queue transition error:", error);
+      logPlayerContextError("Queue transition error:", error);
     });
 
     await transitionTask;
@@ -1066,58 +1114,38 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       if (preloadInFlightRef.current) return;
       if (preloadedSongIdRef.current === upcomingSong.id) return;
 
-      const playableUri = getPlayableUri(upcomingSong);
+      const playableUrl = resolveHiddenAudioUrl(upcomingSong);
 
-      if (!playableUri && !upcomingSong.audio) return;
+      if (!playableUrl) return;
 
       preloadInFlightRef.current = true;
 
       try {
         await clearPreloadedSound();
-
-        const source = upcomingSong.audio
-          ? upcomingSong.audio
-          : { uri: playableUri! };
-
-        const { sound } = await Audio.Sound.createAsync(source, {
-          shouldPlay: false,
-          volume: 0,
-        });
-
-        if (preloadedSoundRef.current) {
-          try {
-            await sound.unloadAsync();
-          } catch {}
-
-          return;
-        }
-
-        preloadedSoundRef.current = sound;
+        preloadedUrlRef.current = playableUrl;
         preloadedSongIdRef.current = upcomingSong.id;
       } catch (error) {
-        console.log("Preload upcoming track error:", error);
+        logPlayerContextError("Preload upcoming track error:", error);
       } finally {
         preloadInFlightRef.current = false;
       }
     },
-    [clearPreloadedSound, getPlayableUri]
+    [clearPreloadedSound, resolveHiddenAudioUrl]
   );
 
-  const takePreloadedSound = useCallback(async (songId: string) => {
-    if (preloadedSongIdRef.current !== songId || !preloadedSoundRef.current) {
+  const consumePreloadedUrl = useCallback((songId: string) => {
+    if (preloadedSongIdRef.current !== songId || !preloadedUrlRef.current) {
       return null;
     }
 
-    if (typeof __DEV__ !== "undefined" && __DEV__) {
-      console.log("[audio-preload] preload-hit", { songId });
-    }
+    logPlayerContextDev("[audio-preload] preload-hit", { songId });
 
-    const sound = preloadedSoundRef.current;
-    preloadedSoundRef.current = null;
+    const url = preloadedUrlRef.current;
+    preloadedUrlRef.current = null;
     preloadedSongIdRef.current = null;
     preloadInFlightRef.current = false;
 
-    return sound;
+    return url;
   }, []);
 
   const preloadIdlePlayableTrack = useCallback(
@@ -1125,13 +1153,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       const source = options?.source || "idle";
 
       const logSkip = (reason: string) => {
-        if (typeof __DEV__ !== "undefined" && __DEV__) {
-          console.log("[audio-preload] preload-skip", {
-            reason,
-            source,
-            songId: song?.id,
-          });
-        }
+        logPlayerContextDev("[audio-preload] preload-skip", {
+          reason,
+          source,
+          songId: song?.id,
+        });
       };
 
       if (trackPlayerActiveRef.current) {
@@ -1149,7 +1175,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      if (soundRef.current && isPlayingRef.current) {
+      if (hiddenAudioLoadedRef.current && isPlayingRef.current) {
         logSkip("already_playing");
         return;
       }
@@ -1170,7 +1196,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
       if (
         currentSongRef.current?.id === normalizedSong.id &&
-        soundRef.current
+        hiddenAudioLoadedRef.current
       ) {
         logSkip("already_current");
         return;
@@ -1181,12 +1207,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      if (typeof __DEV__ !== "undefined" && __DEV__) {
-        console.log("[audio-preload] preload-start", {
-          songId: normalizedSong.id,
-          source,
-        });
-      }
+      logPlayerContextDev("[audio-preload] preload-start", {
+        songId: normalizedSong.id,
+        source,
+      });
 
       await preloadUpcomingTrack(normalizedSong);
     },
@@ -1216,19 +1240,15 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const interruptCurrentPlaybackForUserTap = useCallback(
     async (targetSongId?: string) => {
-      const sound = soundRef.current;
-
-      if (typeof __DEV__ !== "undefined" && __DEV__) {
-        console.log("[tap-interrupt]", {
-          trackPlayerActive: trackPlayerActiveRef.current,
-          hasCurrentSound: Boolean(sound),
-          hasPreloadedSound: Boolean(preloadedSoundRef.current),
-          currentSongId: currentSongRef.current?.id || null,
-          targetSongId: targetSongId || null,
-          nativeEnabled:
-            isTrackPlayerFeatureEnabled() && supportsNativeTrackPlayer(),
-        });
-      }
+      logPlayerContextDev("[tap-interrupt]", {
+        trackPlayerActive: trackPlayerActiveRef.current,
+        hasHiddenAudioLoaded: hiddenAudioLoadedRef.current,
+        hasPreloadedUrl: Boolean(preloadedUrlRef.current),
+        currentSongId: currentSongRef.current?.id || null,
+        targetSongId: targetSongId || null,
+        nativeEnabled:
+          isTrackPlayerFeatureEnabled() && supportsNativeTrackPlayer(),
+      });
 
       clearFinishWatchdog("user_tap_interrupt");
 
@@ -1236,57 +1256,47 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         try {
           await bridgeInterruptForUserTap();
         } catch (error) {
-          console.log("Interrupt TrackPlayer playback error:", error);
+          logPlayerContextError("Interrupt TrackPlayer playback error:", error);
         }
       }
 
       const preservePreloadForTap =
         Boolean(targetSongId) &&
         targetSongId === preloadedSongIdRef.current &&
-        Boolean(preloadedSoundRef.current);
+        Boolean(preloadedUrlRef.current);
 
       if (preservePreloadForTap) {
-        if (typeof __DEV__ !== "undefined" && __DEV__) {
-          console.log("[audio-preload] preload-preserved-for-tap", {
-            songId: targetSongId,
-          });
-        }
-      } else if (preloadedSoundRef.current) {
+        logPlayerContextDev("[audio-preload] preload-preserved-for-tap", {
+          songId: targetSongId,
+        });
+      } else if (preloadedUrlRef.current) {
         try {
           await clearPreloadedSound();
         } catch (error) {
-          console.log("Interrupt preloaded sound error:", error);
+          logPlayerContextError("Interrupt preloaded sound error:", error);
         }
       }
 
-      if (sound) {
+      if (hiddenAudioLoadedRef.current) {
         try {
-          const status = await sound.getStatusAsync();
-
-          if (status.isLoaded) {
-            sound.setOnPlaybackStatusUpdate(null);
-
-            try {
-              await sound.stopAsync();
-            } catch {}
-
-            try {
-              await sound.unloadAsync();
-            } catch {}
-          }
+          stopHiddenAudioPolling();
+          await HiddenAudio.pause();
         } catch (error) {
-          console.log("Interrupt expo-av playback error:", error);
+          logPlayerContextError("Interrupt HiddenAudio playback error:", error);
         } finally {
-          if (soundRef.current === sound) {
-            soundRef.current = null;
-          }
+          hiddenAudioLoadedRef.current = false;
         }
       }
 
       isPlayingRef.current = false;
       setIsPlaying(false);
     },
-    [clearFinishWatchdog, clearPreloadedSound, setIsPlaying]
+    [
+      clearFinishWatchdog,
+      clearPreloadedSound,
+      setIsPlaying,
+      stopHiddenAudioPolling,
+    ]
   );
 
   const advanceTrackPlayerQueueFromJs = useCallback(
@@ -1365,7 +1375,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           });
         });
       } catch (error) {
-        console.log("TrackPlayer queue advance error:", error);
+        logPlayerContextError("TrackPlayer queue advance error:", error);
         logAutoNextFailure({ reason: "track_player_queue_advance_error", source });
       } finally {
         autoAdvanceRef.current = false;
@@ -1450,7 +1460,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
           await advanceTrackPlayerQueueFromJs("next_song_reload");
         } catch (error) {
-          console.log("TrackPlayer next error:", error);
+          logPlayerContextError("TrackPlayer next error:", error);
           logAutoNextFailure({ reason: "track_player_next_error" });
         }
       });
@@ -1462,7 +1472,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       const { queue, safeIndex: currentIndex } = getActiveQueuePlaybackState();
 
       if (!queue.length) {
-        logAutoNextSkipped("queue_empty", { source: "nextSong_expo_av" });
+        logAutoNextSkipped("queue_empty", { source: "nextSong_hidden_audio" });
         return;
       }
 
@@ -1557,11 +1567,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           songId: currentSongRef.current?.id,
         });
 
-        const activeSound = soundRef.current;
-
-        if (activeSound) {
-          await activeSound.setPositionAsync(0);
-          await activeSound.playAsync();
+        if (hiddenAudioLoadedRef.current) {
+          await HiddenAudio.seek(0);
+          await HiddenAudio.play();
           setIsPlaying(true);
           logAutoNextSuccess({ reason: "repeat_one_restart" });
         } else {
@@ -1601,7 +1609,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    if (!soundRef.current && !trackPlayerActiveRef.current) {
+    if (!hiddenAudioLoadedRef.current && !trackPlayerActiveRef.current) {
       logAutoNextSkipped("sound_unloaded", { songId: currentSongRef.current?.id });
       logHTAutoNext("reason", {
         reason: "paused-no-sound",
@@ -1663,30 +1671,33 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         source: sourceDuration ? "watchdog" : "end-check",
       });
 
-      const sound = soundRef.current;
-      if (!sound || isChangingTrackRef.current || autoAdvanceRef.current) {
+      if (
+        !hiddenAudioLoadedRef.current ||
+        isChangingTrackRef.current ||
+        autoAdvanceRef.current
+      ) {
         return;
       }
 
       try {
-        const status = await sound.getStatusAsync();
+        const status = await HiddenAudio.getStatus();
 
-        if (!status.isLoaded || currentSongRef.current?.id !== songId) {
+        if (currentSongRef.current?.id !== songId) {
           return;
         }
 
-        const statusPosition = status.positionMillis || 0;
-        const statusDuration = status.durationMillis || sourceDuration || 0;
+        const statusPosition = status.position || 0;
+        const statusDuration = status.duration || sourceDuration || 0;
         const nearEnd =
           statusDuration >= MIN_DURATION_FOR_POSITION_FINISH_MS &&
           statusPosition >= statusDuration - LOCK_SCREEN_END_WINDOW_MS;
 
-        if (status.didJustFinish || (!status.isPlaying && nearEnd)) {
+        if (!status.isPlaying && nearEnd) {
           logHTLockAutoNext("force-advance", {
             songId,
             position: statusPosition,
             duration: statusDuration,
-            didJustFinish: Boolean(status.didJustFinish),
+            didJustFinish: false,
           });
           scheduleTrackAdvance();
           return;
@@ -1704,7 +1715,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           );
         }
       } catch (error) {
-        console.log("Lock screen end check error:", error);
+        logPlayerContextError("Lock screen end check error:", error);
       }
     },
     [scheduleTrackAdvance]
@@ -1851,22 +1862,19 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const sound = soundRef.current;
-
-    if (!sound || isChangingTrackRef.current || autoAdvanceRef.current) return;
+    if (
+      !hiddenAudioLoadedRef.current ||
+      isChangingTrackRef.current ||
+      autoAdvanceRef.current
+    ) {
+      return;
+    }
 
     try {
-      const status = await sound.getStatusAsync();
+      const status = await HiddenAudio.getStatus();
 
-      if (!status.isLoaded) return;
-
-      const position = status.positionMillis || 0;
-      const duration = status.durationMillis || 0;
-
-      if (status.didJustFinish) {
-        scheduleTrackAdvance();
-        return;
-      }
+      const position = status.position || 0;
+      const duration = status.duration || 0;
 
       const nearEndWhilePaused =
         repeatModeRef.current !== "one" &&
@@ -1878,19 +1886,18 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         scheduleTrackAdvance();
       }
     } catch (error) {
-      console.log("Catch up playback error:", error);
+      logPlayerContextError("Catch up playback error:", error);
     }
   }, [scheduleTrackAdvance]);
 
-  const handlePlaybackStatusUpdate = useCallback(
-    async (status: AVPlaybackStatus) => {
+  const applyHiddenAudioStatus = useCallback(
+    async (status: HiddenAudioStatus) => {
       if (trackPlayerActiveRef.current) return;
-      if (!status.isLoaded) return;
 
-      recordRuntimePlaybackProgressUpdate("expo_av", appStateRef.current);
+      recordRuntimePlaybackProgressUpdate("hidden_audio", appStateRef.current);
 
-      const nextPosition = status.positionMillis || 0;
-      const nextDuration = status.durationMillis || 0;
+      const nextPosition = status.position || 0;
+      const nextDuration = status.duration || 0;
       const nextIsPlaying = status.isPlaying || false;
       const previousPosition = positionMillisRef.current;
       const now = Date.now();
@@ -1928,7 +1935,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
       armFinishWatchdog(nextPosition, nextDuration, nextIsPlaying);
 
-      if (status.didJustFinish && !isChangingTrackRef.current) {
+      const didJustFinish =
+        nextDuration >= MIN_DURATION_FOR_POSITION_FINISH_MS &&
+        lastHiddenAudioPollPlayingRef.current &&
+        !nextIsPlaying &&
+        (nextPosition >= nextDuration - TRACK_END_THRESHOLD_MS ||
+          previousPosition >= nextDuration - TRACK_END_THRESHOLD_MS);
+
+      lastHiddenAudioPollPlayingRef.current = nextIsPlaying;
+
+      if (didJustFinish && !isChangingTrackRef.current) {
         const { queue, safeIndex } = getActiveQueuePlaybackState();
         const nextIndex = getNextQueueIndex(safeIndex, queue.length);
 
@@ -1995,6 +2011,42 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     ]
   );
 
+  const startHiddenAudioPolling = useCallback(() => {
+    stopHiddenAudioPolling();
+
+    const poll = async () => {
+      if (!hiddenAudioLoadedRef.current || trackPlayerActiveRef.current) {
+        return;
+      }
+
+      try {
+        const status = await HiddenAudio.getStatus();
+        await applyHiddenAudioStatus(status);
+      } catch (error) {
+        logPlayerContextError("HiddenAudio status poll error:", error);
+      }
+    };
+
+    void poll();
+
+    hiddenAudioPollIntervalRef.current = setInterval(() => {
+      void poll();
+    }, getProgressUpdateIntervalMs(appStateRef.current));
+  }, [applyHiddenAudioStatus, stopHiddenAudioPolling]);
+
+  const applyProgressUpdateInterval = useCallback(async (reason = "unspecified") => {
+    recordApplyProgressUpdateIntervalCall(reason);
+
+    if (trackPlayerActiveRef.current) {
+      await bridgeSetProgressInterval(appStateRef.current);
+      return;
+    }
+
+    if (hiddenAudioLoadedRef.current) {
+      startHiddenAudioPolling();
+    }
+  }, [startHiddenAudioPolling]);
+
   const loadAndPlay = useCallback(
     async (song: AppSong, options?: LoadAndPlayOptions) => {
       let requestId = 0;
@@ -2038,7 +2090,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         }
 
         if (isYouTubeSong(normalizedSong)) {
-          console.log(
+          logPlayerContextDev(
             "Blocked native YouTube playback. Use /youtube-player WebView instead."
           );
           setIsPlaying(false);
@@ -2085,7 +2137,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
                   startPositionMillis = millis;
                 }
               } catch (error) {
-                console.log("Restore TrackPlayer position error:", error);
+                logPlayerContextError("Restore TrackPlayer position error:", error);
               }
             }
 
@@ -2178,7 +2230,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               savePlaybackSideEffects(normalizedSong);
             }, 0);
           } catch (error) {
-            console.log("TrackPlayer load and play error:", error);
+            logPlayerContextError("TrackPlayer load and play error:", error);
             logAudioLoadFailure({
               songId: normalizedSong.id,
               reason: String((error as Error)?.message || "track_player_load_error"),
@@ -2202,13 +2254,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           return;
         }
 
-        void configureAudio("load_and_play_expo");
+        void configureAudio("load_and_play_hidden_audio");
 
         setCurrentSong(normalizedSong);
         currentSongRef.current = normalizedSong;
         setIsPlaying(true);
         setPositionMillis(0);
         setDurationMillis(0);
+        lastHiddenAudioPollPlayingRef.current = false;
 
         if (
           preloadedSongIdRef.current &&
@@ -2223,16 +2276,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           return;
         }
 
-        const playableUri = getPlayableUri(normalizedSong);
+        const usedPreloadedUrl = Boolean(
+          preloadedSongIdRef.current === normalizedSong.id &&
+            preloadedUrlRef.current
+        );
+        const audioUrl =
+          consumePreloadedUrl(normalizedSong.id) ||
+          resolveHiddenAudioUrl(normalizedSong);
 
-        const source = normalizedSong.audio
-          ? normalizedSong.audio
-          : playableUri
-          ? { uri: playableUri }
-          : null;
-
-        if (!source) {
-          console.log(
+        if (!audioUrl) {
+          logPlayerContextError(
             "Missing audio source:",
             JSON.stringify(normalizedSong, null, 2)
           );
@@ -2245,51 +2298,33 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           return;
         }
 
-        const progressUpdateIntervalMillis = getProgressUpdateIntervalMs(
-          appStateRef.current
-        );
-        const usedPreloadedSound = Boolean(
-          preloadedSongIdRef.current === normalizedSong.id &&
-            preloadedSoundRef.current
-        );
-        let sound = await takePreloadedSound(normalizedSong.id);
-
-        if (sound) {
-          sound.setOnPlaybackStatusUpdate(handlePlaybackStatusUpdate);
-          await sound.setStatusAsync({
-            progressUpdateIntervalMillis,
-            volume: isMutedRef.current ? 0 : volumeRef.current,
+        try {
+          await HiddenAudio.load(audioUrl);
+        } catch (loadError) {
+          logAudioLoadFailure({
+            songId: normalizedSong.id,
+            reason: String(
+              (loadError as Error)?.message || "hidden_audio_load_error"
+            ),
           });
-          await sound.playAsync();
-        } else {
-          const created = await Audio.Sound.createAsync(
-            source,
-            {
-              shouldPlay: true,
-              volume: isMutedRef.current ? 0 : volumeRef.current,
-              progressUpdateIntervalMillis,
-            },
-            handlePlaybackStatusUpdate
-          );
-          sound = created.sound;
-        }
-
-        if (loadRequestIdRef.current !== requestId || !isMountedRef.current) {
-          sound.setOnPlaybackStatusUpdate(null);
-
-          try {
-            await sound.stopAsync();
-          } catch {}
-
-          await sound.unloadAsync();
+          setIsPlaying(false);
+          setIsLoading(false);
           return;
         }
 
-        soundRef.current = sound;
+        if (loadRequestIdRef.current !== requestId || !isMountedRef.current) {
+          try {
+            await HiddenAudio.pause();
+          } catch {}
+          return;
+        }
+
+        hiddenAudioLoadedRef.current = true;
+
         logAudioLoadSuccess({
           songId: normalizedSong.id,
           requestId,
-          preloaded: usedPreloadedSound,
+          preloaded: usedPreloadedUrl,
         });
 
         try {
@@ -2299,14 +2334,26 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             const millis = Number(savedPosition);
 
             if (!Number.isNaN(millis) && millis > 0) {
-              await sound.setPositionAsync(millis);
+              await HiddenAudio.seek(millis);
               positionMillisRef.current = millis;
               setPositionMillisState(millis);
             }
           }
         } catch (error) {
-          console.log("Restore playback position error:", error);
+          logPlayerContextError("Restore playback position error:", error);
         }
+
+        if (loadRequestIdRef.current !== requestId || !isMountedRef.current) {
+          try {
+            stopHiddenAudioPolling();
+            await HiddenAudio.pause();
+          } catch {}
+          hiddenAudioLoadedRef.current = false;
+          return;
+        }
+
+        await HiddenAudio.play();
+        lastHiddenAudioPollPlayingRef.current = true;
 
         if (loadRequestIdRef.current !== requestId || !isMountedRef.current) {
           return;
@@ -2320,9 +2367,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         setTimeout(() => {
           savePlaybackSideEffects(normalizedSong);
         }, 0);
-        await applyProgressUpdateInterval("load_and_play_expo");
+        await applyProgressUpdateInterval("load_and_play_hidden_audio");
       } catch (error) {
-        console.log("Load and play error:", error);
+        logPlayerContextError("Load and play error:", error);
         logAudioLoadFailure({
           songId: song?.id,
           reason: String((error as Error)?.message || "load_and_play_error"),
@@ -2349,9 +2396,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       bridgeTryUserTapFastPlay,
       unloadCurrentSound,
       getActiveQueuePlaybackState,
-      getPlayableUri,
-      handlePlaybackStatusUpdate,
-      takePreloadedSound,
+      resolveHiddenAudioUrl,
+      consumePreloadedUrl,
+      stopHiddenAudioPolling,
       applyProgressUpdateInterval,
       syncStateFromTrackPlayerIndex,
       setIsPlaying,
@@ -2463,7 +2510,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
       return true;
     } catch (error) {
-      console.log("Smart autoplay extend error:", error);
+      logPlayerContextError("Smart autoplay extend error:", error);
       return false;
     }
   }, [
@@ -2499,7 +2546,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             void removeStoredValues([POSITION_KEY]);
           }
         } catch (error) {
-          console.log("TrackPlayer previous error:", error);
+          logPlayerContextError("TrackPlayer previous error:", error);
         }
       });
 
@@ -2582,21 +2629,22 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         setIsLoading(true);
       }
 
-      const currentLoadedSound = soundRef.current;
-
-      if (currentSongRef.current?.id === selectedSong.id && currentLoadedSound) {
+      if (
+        currentSongRef.current?.id === selectedSong.id &&
+        hiddenAudioLoadedRef.current
+      ) {
         try {
-          const status = await currentLoadedSound.getStatusAsync();
+          const status = await HiddenAudio.getStatus();
 
-          if (status.isLoaded) {
-            if (!status.isPlaying) {
-              await currentLoadedSound.playAsync();
-            }
-
-            setIsPlaying(true);
-            savePlaybackSideEffects(selectedSong);
-            return;
+          if (!status.isPlaying) {
+            await HiddenAudio.play();
+            lastHiddenAudioPollPlayingRef.current = true;
           }
+
+          setIsPlaying(true);
+          void applyProgressUpdateInterval("play_queue_resume");
+          savePlaybackSideEffects(selectedSong);
+          return;
         } catch {}
       }
 
@@ -2613,6 +2661,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       removeStoredValues,
       interruptCurrentPlaybackForUserTap,
       loadAndPlay,
+      applyProgressUpdateInterval,
       setIsPlaying,
       savePlaybackSideEffects,
     ]
@@ -2642,7 +2691,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       }
 
       if (isYouTubeSong(normalizedSong)) {
-        console.log("Blocked playSong for YouTube. Route to /youtube-player instead.");
+        logPlayerContextDev(
+          "Blocked playSong for YouTube. Route to /youtube-player instead."
+        );
         return;
       }
 
@@ -2688,21 +2739,22 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      const currentLoadedSound = soundRef.current;
-
-      if (currentSongRef.current?.id === normalizedSong.id && currentLoadedSound) {
+      if (
+        currentSongRef.current?.id === normalizedSong.id &&
+        hiddenAudioLoadedRef.current
+      ) {
         try {
-          const status = await currentLoadedSound.getStatusAsync();
+          const status = await HiddenAudio.getStatus();
 
-          if (status.isLoaded) {
-            if (!status.isPlaying) {
-              await currentLoadedSound.playAsync();
-            }
-
-            setIsPlaying(true);
-            savePlaybackSideEffects(normalizedSong);
-            return;
+          if (!status.isPlaying) {
+            await HiddenAudio.play();
+            lastHiddenAudioPollPlayingRef.current = true;
           }
+
+          setIsPlaying(true);
+          void applyProgressUpdateInterval("play_song_resume");
+          savePlaybackSideEffects(normalizedSong);
+          return;
         } catch {}
       }
 
@@ -2778,6 +2830,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       removeStoredValues,
       interruptCurrentPlaybackForUserTap,
       loadAndPlay,
+      applyProgressUpdateInterval,
       setIsPlaying,
       savePlaybackSideEffects,
     ]
@@ -2788,7 +2841,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       const normalizedSong = normalizeSong(song);
 
       if (isYouTubeSong(normalizedSong)) {
-        console.log(
+        logPlayerContextDev(
           "Blocked playAudiusTrack for YouTube. Use /youtube-player WebView instead."
         );
         setIsPlaying(false);
@@ -2872,7 +2925,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
         await persistRadioState(queue, 0, true);
       } catch (error) {
-        console.log("Start radio error:", error);
+        logPlayerContextError("Start radio error:", error);
       } finally {
         setIsLoading(false);
       }
@@ -2897,7 +2950,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
       await persistRadioState(queue, 0, true);
     } catch (error) {
-      console.log("Start personal radio error:", error);
+      logPlayerContextError("Start personal radio error:", error);
     } finally {
       setIsLoading(false);
     }
@@ -2929,7 +2982,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
       return false;
     } catch (error) {
-      console.log("Play next radio error:", error);
+      logPlayerContextError("Play next radio error:", error);
       return false;
     }
   }, [persistRadioState, playRadioAtIndex]);
@@ -2970,7 +3023,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       lastCurrentSongPersistRef.current = "";
       await removeStoredValues([CURRENT_SONG_KEY, POSITION_KEY]);
     } catch (error) {
-      console.log("Stop playback error:", error);
+      logPlayerContextError("Stop playback error:", error);
     } finally {
       isChangingTrackRef.current = false;
     }
@@ -2996,44 +3049,33 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const sound = soundRef.current;
-
     if (isChangingTrackRef.current) return;
 
-    if (!sound) {
+    if (!hiddenAudioLoadedRef.current) {
       const restoredSong = currentSongRef.current;
 
       if (restoredSong) {
         await loadAndPlay(restoredSong);
       }
 
-      logPauseResumeComplete({ engine: "expo_av_restore" });
+      logPauseResumeComplete({ engine: "hidden_audio_restore" });
       return;
     }
 
-    const status = await sound.getStatusAsync();
-
-    if (!status.isLoaded) {
-      const restoredSong = currentSongRef.current;
-
-      if (restoredSong) {
-        await loadAndPlay(restoredSong);
-      }
-
-      logPauseResumeComplete({ engine: "expo_av_reload" });
-      return;
-    }
+    const status = await HiddenAudio.getStatus();
 
     if (status.isPlaying) {
       clearFinishWatchdog("pause");
-      await sound.pauseAsync();
+      await HiddenAudio.pause();
+      lastHiddenAudioPollPlayingRef.current = false;
       setIsPlaying(false);
     } else {
-      await sound.playAsync();
+      await HiddenAudio.play();
+      lastHiddenAudioPollPlayingRef.current = true;
       setIsPlaying(true);
     }
 
-    logPauseResumeComplete({ engine: "expo_av" });
+    logPauseResumeComplete({ engine: "hidden_audio" });
   }, [loadAndPlay, setIsPlaying, clearFinishWatchdog]);
 
   const seekTo = useCallback(
@@ -3047,10 +3089,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      if (!soundRef.current) return;
+      if (!hiddenAudioLoadedRef.current) return;
 
       clearFinishWatchdog("seek");
-      await soundRef.current.setPositionAsync(safeMillis);
+      await HiddenAudio.seek(safeMillis);
       setPositionMillis(safeMillis);
       positionMillisRef.current = safeMillis;
 
@@ -3072,9 +3114,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    if (!isMutedRef.current && soundRef.current) {
-      await soundRef.current.setVolumeAsync(safeValue);
-    }
+    // HiddenAudio has no volume API; volume state is persisted for RNTP / UI only.
   }, [setStoredValueIfChanged]);
 
   const toggleMute = useCallback(async () => {
@@ -3090,9 +3130,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    if (soundRef.current) {
-      await soundRef.current.setVolumeAsync(nextMuted ? 0 : volumeRef.current);
-    }
+    // HiddenAudio has no volume API; mute state is persisted for RNTP / UI only.
   }, [setStoredValueIfChanged]);
 
   const toggleShuffle = useCallback(() => {
@@ -3178,7 +3216,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, [removeStoredValues]);
 
   const restoreSavedDataLight = useCallback(async () => {
-    console.log("[startup-ready] restore-light-start");
+    logPlayerContextDev("[startup-ready] restore-light-start");
 
     try {
       const [
@@ -3248,14 +3286,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         isMutedRef.current = true;
       }
     } catch (error) {
-      console.log("Restore player data (light) error:", error);
+      logPlayerContextError("Restore player data (light) error:", error);
     } finally {
-      console.log("[startup-ready] restore-light-end");
+      logPlayerContextDev("[startup-ready] restore-light-end");
     }
   }, [normalizeSong, isYouTubeSong]);
 
   const restoreSavedDataHeavy = useCallback(async () => {
-    console.log("[startup-ready] restore-heavy-start");
+    logPlayerContextDev("[startup-ready] restore-heavy-start");
 
     try {
       const [
@@ -3369,10 +3407,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
       setRecentlyPlayed(upgradedRecent);
     } catch (error) {
-      console.log("Restore player data (heavy) error:", error);
+      logPlayerContextError("Restore player data (heavy) error:", error);
     } finally {
       markPlaybackRestoreComplete();
-      console.log("[startup-ready] restore-heavy-end");
+      logPlayerContextDev("[startup-ready] restore-heavy-end");
     }
   }, [normalizeSong, isYouTubeSong, normalizeYouTubeTrack]);
 
@@ -3449,7 +3487,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         void advanceTrackPlayerQueueFromJs("native_queue_ended");
       },
       onPlaybackError: (message) => {
-        console.log("TrackPlayer playback error:", message);
+        logPlayerContextError("TrackPlayer playback error:", message);
       },
     });
 
@@ -3493,6 +3531,15 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       isMountedRef.current = false;
       loadRequestIdRef.current += 1;
       clearFinishWatchdog();
+      if (positionPersistTimerRef.current) {
+        clearTimeout(positionPersistTimerRef.current);
+        positionPersistTimerRef.current = null;
+      }
+      if (activeQueuePersistTimerRef.current) {
+        clearTimeout(activeQueuePersistTimerRef.current);
+        activeQueuePersistTimerRef.current = null;
+      }
+      stopHiddenAudioPolling();
       unloadCurrentSound();
     };
   }, [
@@ -3500,6 +3547,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     restoreSavedDataLight,
     restoreSavedDataHeavy,
     unloadCurrentSound,
+    stopHiddenAudioPolling,
     clearFinishWatchdog,
   ]);
 
@@ -3519,13 +3567,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       });
 
       // iOS lock often goes active -> inactive -> background. Re-applying audio mode on
-      // inactive disrupts the shared AVAudioSession and can stop RNTP/expo-av mid-song.
+      // inactive disrupts the shared AVAudioSession and can stop RNTP/HiddenAudio mid-song.
       if (nextState === "inactive" && previousState === "active") {
-        void savePlaybackPosition(positionMillisRef.current);
+        savePlaybackPosition(positionMillisRef.current, { immediate: true });
       }
 
       if (nextState === "background" && previousState !== "background") {
-        void savePlaybackPosition(positionMillisRef.current);
+        savePlaybackPosition(positionMillisRef.current, { immediate: true });
 
         // RNTP is already playing — avoid audio session / updateOptions churn on lock.
         if (trackPlayerActiveRef.current && isPlayingRef.current) {
@@ -3536,7 +3584,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         configureAudio("app_state_background");
         void applyProgressUpdateInterval("app_state_background");
 
-        if (isPlayingRef.current && soundRef.current) {
+        if (isPlayingRef.current && hiddenAudioLoadedRef.current) {
           armFinishWatchdog(
             positionMillisRef.current,
             durationMillisRef.current,
