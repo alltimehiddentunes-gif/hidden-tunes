@@ -325,6 +325,13 @@ export default function ProfileScreen() {
           />
 
           <ProfileItem
+            icon="mic-outline"
+            title="Hidden Tunes Podcasts"
+            subtitle="Browse podcast discovery rooms"
+            onPress={() => router.push("/podcasts" as never)}
+          />
+
+          <ProfileItem
             icon="radio"
             title="Personal Radio"
             subtitle="Song listening room"

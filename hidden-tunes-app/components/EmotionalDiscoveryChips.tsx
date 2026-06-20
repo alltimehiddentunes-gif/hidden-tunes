@@ -94,6 +94,25 @@ export const SubtleRadioEntryLink = memo(function SubtleRadioEntryLink({
   );
 });
 
+export const SubtlePodcastEntryLink = memo(function SubtlePodcastEntryLink({
+  style,
+}: {
+  style?: StyleProp<ViewStyle>;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="link"
+      accessibilityLabel="Open Hidden Tunes Podcasts"
+      style={({ pressed }) => [styles.tvLink, pressed && styles.tvLinkPressed, style]}
+      onPress={() => router.push("/podcasts" as any)}
+    >
+      <Ionicons name="mic-outline" size={14} color={COLORS.textMuted} />
+      <Text style={styles.tvLinkText}>Hidden Tunes Podcasts</Text>
+      <Ionicons name="chevron-forward" size={14} color={COLORS.textMuted} />
+    </Pressable>
+  );
+});
+
 const styles = StyleSheet.create({
   wrap: {
     marginHorizontal: 20,

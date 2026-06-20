@@ -93,7 +93,7 @@ import {
 import { openGenreCatalog } from "../../utils/catalogNavigation";
 import { shouldShowCatalogEmpty } from "../../utils/catalogEmptyStateTiming";
 import UniversalSearchGroupedResults from "../../components/UniversalSearchGroupedResults";
-import { SubtleTvEntryLink, EmotionalDiscoveryChips, SubtleRadioEntryLink } from "../../components/EmotionalDiscoveryChips";
+import { SubtleTvEntryLink, EmotionalDiscoveryChips, SubtleRadioEntryLink, SubtlePodcastEntryLink } from "../../components/EmotionalDiscoveryChips";
 import {
   invalidateCatalogSearchIndex,
   runInstantCatalogSearch,
@@ -120,7 +120,7 @@ import {
   shouldIgnoreDuplicateTap,
 } from "../../utils/tapPressGuard";
 
-type SearchType = "all" | "hidden" | "audius" | "archive" | "youtube";
+type SearchType = "all" | "hidden" | "audius" | "archive" | "youtube" | "podcasts";
 
 type NativeSearchTrack = {
   id: string;
@@ -199,6 +199,7 @@ const FILTERS: { key: SearchType; label: string }[] = [
   { key: "hidden", label: "CATALOG" },
   { key: "all", label: "ALL" },
   { key: "youtube", label: "TV" },
+  { key: "podcasts", label: "Podcasts" },
 ];
 
 function sanitizeYouTubeVideoId(value: any) {
@@ -1078,6 +1079,10 @@ export default function SearchScreen() {
       return results.filter((item) => isYouTubeTrack(item));
     }
 
+    if (activeSource === "podcasts") {
+      return [];
+    }
+
     if (activeSource === "hidden") {
       return results.filter((item) => isHiddenTunesCatalogTrack(item));
     }
@@ -1652,6 +1657,18 @@ export default function SearchScreen() {
     try {
       saveRecentSearch(safeText);
 
+      if (source === "podcasts") {
+        if (requestId !== searchRequestIdRef.current) return;
+
+        setLoading(false);
+        setRefreshing(false);
+        router.push({
+          pathname: "/podcasts",
+          params: { q: safeText },
+        } as any);
+        return;
+      }
+
       if (source === "youtube") {
         if (requestId !== searchRequestIdRef.current) return;
 
@@ -1762,6 +1779,7 @@ export default function SearchScreen() {
       !hasMoreHiddenResults ||
       safeText.length < API_SEARCH_MIN_CHARS ||
       activeSource === "youtube" ||
+      activeSource === "podcasts" ||
       activeSource === "audius" ||
       activeSource === "archive"
     ) {
@@ -2470,6 +2488,7 @@ export default function SearchScreen() {
 
         <SubtleRadioEntryLink style={styles.searchTvEntry} />
         <SubtleTvEntryLink style={styles.searchTvEntry} />
+        <SubtlePodcastEntryLink style={styles.searchTvEntry} />
       </>
     );
   }
@@ -2770,6 +2789,7 @@ export default function SearchScreen() {
                 <>
                   <SubtleRadioEntryLink style={styles.searchTvEntry} />
                   <SubtleTvEntryLink style={styles.searchTvEntry} />
+                  <SubtlePodcastEntryLink style={styles.searchTvEntry} />
                 </>
               ) : null}
             </>
