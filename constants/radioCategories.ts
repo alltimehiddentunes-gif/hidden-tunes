@@ -7,7 +7,13 @@ import {
   type RadioEmotionalWorld,
 } from "./radioEmotionalWorlds";
 
-export type RadioCategoryTier = "internal" | "emotional" | "browse" | "mature";
+export type RadioCategoryTier =
+  | "home-lane"
+  | "emotional"
+  | "browse"
+  | "mature";
+
+export type RadioLaneKind = "featured" | "trending" | "popular" | "recommended";
 
 export type RadioCategory = {
   id: string;
@@ -18,6 +24,8 @@ export type RadioCategory = {
   tag?: string;
   countryCode?: string;
   useTopVotes?: boolean;
+  useTopClick?: boolean;
+  laneKind?: RadioLaneKind;
   isMature?: boolean;
   tier: RadioCategoryTier;
   listeningRoomQuery: string;
@@ -36,22 +44,57 @@ function emotionalWorldToCategory(world: RadioEmotionalWorld): RadioCategory {
   };
 }
 
-export const RADIO_CATEGORIES: RadioCategory[] = [
+export const RADIO_HOME_LANE_CATEGORIES: RadioCategory[] = [
   {
     id: "featured",
     title: "Featured Stations",
-    subtitle: "Editorial picks across Hidden Tunes Radio",
+    subtitle: "Curated premium picks — stable streams, strong branding",
     icon: "star-outline",
     gradient: ["#241028", "#100810"],
     useTopVotes: true,
-    tier: "internal",
+    laneKind: "featured",
+    tier: "home-lane",
     listeningRoomQuery: "featured radio",
   },
-  ...RADIO_EMOTIONAL_WORLDS.map(emotionalWorldToCategory),
+  {
+    id: "trending",
+    title: "Trending Now",
+    subtitle: "Most played and opened stations right now",
+    icon: "trending-up-outline",
+    gradient: ["#1A1830", "#0A0818"],
+    useTopClick: true,
+    laneKind: "trending",
+    tier: "home-lane",
+    listeningRoomQuery: "trending radio",
+  },
+  {
+    id: "popular",
+    title: "Most Popular",
+    subtitle: "Long-term audience favorites",
+    icon: "flame-outline",
+    gradient: ["#2A1420", "#100810"],
+    useTopVotes: true,
+    laneKind: "popular",
+    tier: "home-lane",
+    listeningRoomQuery: "popular radio",
+  },
+  {
+    id: "recommended",
+    title: "Recommended For You",
+    subtitle: "Personal picks based on your listening",
+    icon: "sparkles-outline",
+    gradient: ["#102028", "#081014"],
+    laneKind: "recommended",
+    tier: "home-lane",
+    listeningRoomQuery: "recommended radio",
+  },
+];
+
+export const RADIO_BROWSE_CATEGORIES: RadioCategory[] = [
   {
     id: "browse-country",
-    title: "Browse by Country",
-    subtitle: "United States stations to start",
+    title: "Countries",
+    subtitle: "Browse stations by region",
     icon: "flag-outline",
     gradient: ["#102028", "#081014"],
     countryCode: "US",
@@ -60,8 +103,8 @@ export const RADIO_CATEGORIES: RadioCategory[] = [
   },
   {
     id: "browse-language",
-    title: "Browse by Language",
-    subtitle: "English-language stations",
+    title: "Languages",
+    subtitle: "Find stations in your language",
     icon: "chatbubble-ellipses-outline",
     gradient: ["#141820", "#080A10"],
     tag: "english",
@@ -70,7 +113,7 @@ export const RADIO_CATEGORIES: RadioCategory[] = [
   },
   {
     id: "browse-genre",
-    title: "Browse by Genre",
+    title: "Genres",
     subtitle: "Pop, rock, jazz, and more",
     icon: "musical-notes-outline",
     gradient: ["#101828", "#080C14"],
@@ -79,9 +122,9 @@ export const RADIO_CATEGORIES: RadioCategory[] = [
     listeningRoomQuery: "genre radio",
   },
   {
-    id: "news-talk",
-    title: "News & Talk",
-    subtitle: "Headlines, talk, and public voices",
+    id: "talk",
+    title: "Talk",
+    subtitle: "News, conversation, and public voices",
     icon: "newspaper-outline",
     gradient: ["#181818", "#0A0A0A"],
     tag: "talk",
@@ -99,9 +142,9 @@ export const RADIO_CATEGORIES: RadioCategory[] = [
     listeningRoomQuery: "sports radio",
   },
   {
-    id: "gospel-worship",
-    title: "Gospel & Worship",
-    subtitle: "Praise, worship, and sacred calm",
+    id: "faith",
+    title: "Faith",
+    subtitle: "Gospel, worship, and sacred calm",
     icon: "sparkles-outline",
     gradient: ["#1A1830", "#0A0818"],
     tag: "christian",
@@ -109,29 +152,9 @@ export const RADIO_CATEGORIES: RadioCategory[] = [
     listeningRoomQuery: "gospel worship",
   },
   {
-    id: "african-radio",
-    title: "African Radio",
-    subtitle: "Afro sounds and continental voices",
-    icon: "earth-outline",
-    gradient: ["#2A1420", "#100810"],
-    tag: "afrobeat",
-    tier: "browse",
-    listeningRoomQuery: "afrobeat radio",
-  },
-  {
-    id: "world-radio",
-    title: "World Radio",
-    subtitle: "Global stations from every corner",
-    icon: "globe-outline",
-    gradient: ["#102030", "#080C14"],
-    tag: "world",
-    tier: "browse",
-    listeningRoomQuery: "world music radio",
-  },
-  {
-    id: "mature",
-    title: "Mature / 18+",
-    subtitle: "Adult stations — enable in Profile settings",
+    id: "adult",
+    title: "Adult 18+",
+    subtitle: "Mature stations — enable in Profile settings",
     icon: "eye-off-outline",
     gradient: ["#201418", "#0C0808"],
     tag: "adult",
@@ -139,6 +162,12 @@ export const RADIO_CATEGORIES: RadioCategory[] = [
     tier: "mature",
     listeningRoomQuery: "adult talk radio",
   },
+];
+
+export const RADIO_CATEGORIES: RadioCategory[] = [
+  ...RADIO_HOME_LANE_CATEGORIES,
+  ...RADIO_EMOTIONAL_WORLDS.map(emotionalWorldToCategory),
+  ...RADIO_BROWSE_CATEGORIES,
 ];
 
 const CATEGORY_BY_ID = new Map(RADIO_CATEGORIES.map((category) => [category.id, category]));
@@ -149,24 +178,38 @@ export function getRadioCategory(id: string) {
 
 export function getVisibleRadioCategories(includeMature: boolean) {
   return RADIO_CATEGORIES.filter(
-    (category) =>
-      category.tier !== "internal" &&
-      (!category.isMature || includeMature)
+    (category) => !category.isMature || includeMature
   );
 }
 
 export function getBrowsableRadioCategories(includeMature: boolean) {
-  return getVisibleRadioCategories(includeMature).filter(
-    (category) => category.tier === "browse" || category.tier === "mature"
+  return RADIO_BROWSE_CATEGORIES.filter(
+    (category) => !category.isMature || includeMature
   );
 }
 
-export function getEmotionalRadioCategories(includeMature: boolean) {
-  return getVisibleRadioCategories(includeMature).filter(
-    (category) => category.tier === "emotional"
-  );
+export function getEmotionalRadioCategories(_includeMature: boolean) {
+  return RADIO_EMOTIONAL_WORLDS.map(emotionalWorldToCategory);
+}
+
+export function getHomeLaneCategories() {
+  return RADIO_HOME_LANE_CATEGORIES;
 }
 
 export function getProbeableRadioCategories(includeMature: boolean) {
-  return getVisibleRadioCategories(includeMature);
+  return [...getBrowsableRadioCategories(includeMature), ...getEmotionalRadioCategories(includeMature)];
+}
+
+/** @deprecated Legacy ids mapped for cached entries */
+export const RADIO_LEGACY_CATEGORY_ALIASES: Record<string, string> = {
+  "news-talk": "talk",
+  "gospel-worship": "faith",
+  mature: "adult",
+  "african-radio": "afro-heat",
+  "world-radio": "world-mix",
+};
+
+export function resolveRadioCategoryId(id: string) {
+  const safe = String(id || "").trim();
+  return RADIO_LEGACY_CATEGORY_ALIASES[safe] || safe;
 }

@@ -1,15 +1,9 @@
-import {
-  getRadioEmotionalWorld,
-  stationMatchesEmotionalWorld,
-} from "../../constants/radioEmotionalWorlds";
-import { resolveRadioCategoryId } from "../../constants/radioCategories";
-import type { HiddenTunesStation } from "../../types/radio";
-import { logRadioDiscoveryFetch } from "../../utils/radioDiscoveryDiagnostics";
-import { readCachedRadioPage } from "./radioCache";
-import { loadRadioCategoryPage } from "./radioBrowserApi";
+import { resolvePodcastCategoryId } from "../../constants/podcastCategories";
+import { readCachedPodcastShows } from "../../utils/podcastDiscoveryCache";
+import { loadPodcastCategoryPage } from "../podcastDiscoveryApi";
 
 type AvailabilityEntry = {
-  hasStations: boolean;
+  hasShows: boolean;
   checkedAt: number;
 };
 
@@ -28,37 +22,34 @@ function readAvailability(categoryId: string) {
 }
 
 async function probeCategory(categoryId: string) {
-  const resolvedId = resolveRadioCategoryId(categoryId);
-  const cachedPage = readCachedRadioPage(resolvedId, 0, 1);
-  if (cachedPage.length > 0) {
+  const resolvedId = resolvePodcastCategoryId(categoryId);
+  const cached = readCachedPodcastShows(resolvedId);
+  if (cached?.length) {
     availabilityCache.set(categoryId, {
-      hasStations: true,
+      hasShows: true,
       checkedAt: Date.now(),
     });
     return true;
   }
 
-  logRadioDiscoveryFetch("category-probe", resolvedId);
-  const result = await loadRadioCategoryPage(resolvedId, {
-    offset: 0,
-    limit: 1,
+  const result = await loadPodcastCategoryPage(resolvedId, 0, {
     forceRefresh: false,
-  }).catch(() => ({ stations: [], hasMore: false, fromCache: false }));
+  }).catch(() => ({ shows: [], hasMore: false }));
 
-  const hasStations = result.stations.length > 0;
+  const hasShows = result.shows.length > 0;
   availabilityCache.set(categoryId, {
-    hasStations,
+    hasShows,
     checkedAt: Date.now(),
   });
-  return hasStations;
+  return hasShows;
 }
 
-export async function probeRadioCategoryHasStations(categoryId: string) {
+export async function probePodcastCategoryHasShows(categoryId: string) {
   const safeId = String(categoryId || "").trim();
   if (!safeId) return false;
 
   const cached = readAvailability(safeId);
-  if (cached) return cached.hasStations;
+  if (cached) return cached.hasShows;
 
   const inflight = inflightProbes.get(safeId);
   if (inflight) return inflight;
@@ -70,18 +61,10 @@ export async function probeRadioCategoryHasStations(categoryId: string) {
   return promise;
 }
 
-export async function filterAvailableRadioCategoryIds(categoryIds: string[]) {
+export async function filterAvailablePodcastCategoryIds(categoryIds: string[]) {
   const uniqueIds = [...new Set(categoryIds.map((id) => String(id || "").trim()).filter(Boolean))];
-  const results = await mapWithConcurrency(uniqueIds, 2, probeRadioCategoryHasStations);
+  const results = await mapWithConcurrency(uniqueIds, 2, probePodcastCategoryHasShows);
   return uniqueIds.filter((_, index) => results[index]);
-}
-
-export function invalidateRadioCategoryAvailability(categoryId?: string) {
-  if (categoryId) {
-    availabilityCache.delete(categoryId);
-    return;
-  }
-  availabilityCache.clear();
 }
 
 async function mapWithConcurrency<T, R>(
@@ -103,17 +86,4 @@ async function mapWithConcurrency<T, R>(
   const workers = Array.from({ length: Math.min(concurrency, items.length) }, () => worker());
   await Promise.all(workers);
   return results;
-}
-
-export function pickStationsForEmotionalWorld(
-  pool: HiddenTunesStation[],
-  worldId: string,
-  limit = 8
-) {
-  const emotionalWorld = getRadioEmotionalWorld(worldId);
-  if (!emotionalWorld) return [];
-
-  return pool
-    .filter((station) => stationMatchesEmotionalWorld(station.tags || [], emotionalWorld))
-    .slice(0, limit);
 }

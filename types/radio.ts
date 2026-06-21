@@ -27,6 +27,9 @@ export type HiddenTunesStation = {
   tags: string[];
   bitrate?: number;
   codec?: string;
+  votes?: number;
+  clickcount?: number;
+  quality_score?: number;
   categoryId: string;
   cachedAt: number;
   is_mature?: boolean;
@@ -47,6 +50,7 @@ export type RadioStationListItem = {
   bitrate?: number;
   codec?: string;
   qualityLabel?: string;
+  qualityScore?: number;
   is_mature?: boolean;
   content_rating?: ContentRating;
 };

@@ -5,7 +5,9 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Image } from "expo-image";
 
 import { COLORS } from "../../constants/theme";
-import type { HiddenTunesPodcastEpisode, HiddenTunesPodcastShow } from "../../services/podcastCatalogApi";
+import type { HiddenTunesPodcastShow } from "../../services/podcastCatalogApi";
+import type { PodcastCategory } from "../../constants/podcastCategories";
+import type { PodcastShowListItem } from "../../types/podcastDiscovery";
 import {
   HIDDEN_TUNES_PODCASTS_LABEL,
   type LaunchPodcastCategory,
@@ -16,9 +18,10 @@ import { useMatureContentSettings } from "../../hooks/useMatureContentSettings";
 import { isMaturePodcastEpisode } from "../../utils/maturePodcastVisibility";
 import { isMatureContentItem } from "../../types/matureContent";
 import MatureContentBadge from "../mature/MatureContentBadge";
+import type { HiddenTunesPodcastEpisode } from "../../services/podcastCatalogApi";
 
 type PodcastCategoryCardProps = {
-  category: LaunchPodcastCategory;
+  category: LaunchPodcastCategory | PodcastCategory;
   showCount?: number;
   onPress: () => void;
 };
@@ -29,11 +32,7 @@ export const PodcastCategoryCard = memo(function PodcastCategoryCard({
   onPress,
 }: PodcastCategoryCardProps) {
   return (
-    <TouchableOpacity
-      activeOpacity={0.88}
-      style={styles.card}
-      onPress={onPress}
-    >
+    <TouchableOpacity activeOpacity={0.88} style={styles.card} onPress={onPress}>
       <LinearGradient colors={category.gradient} style={styles.gradient}>
         <View style={styles.iconWrap}>
           <Ionicons name={category.icon} size={22} color={COLORS.primary} />
@@ -54,51 +53,201 @@ export const PodcastCategoryCard = memo(function PodcastCategoryCard({
   );
 });
 
-type PodcastShowCardProps = {
-  show: HiddenTunesPodcastShow;
-  subtitle?: string;
+type PodcastEmotionalWorldCardProps = {
+  category: PodcastCategory;
+  showCount?: number;
   onPress: () => void;
 };
 
-export const PodcastShowCard = memo(function PodcastShowCard({
-  show,
-  subtitle,
+export const PodcastEmotionalWorldCard = memo(function PodcastEmotionalWorldCard({
+  category,
+  showCount,
   onPress,
-}: PodcastShowCardProps) {
-  const { includeMatureInApi } = useMatureContentSettings();
-  const showMatureArt = !isMatureContentItem(show) || includeMatureInApi;
+}: PodcastEmotionalWorldCardProps) {
+  return (
+    <TouchableOpacity activeOpacity={0.88} style={styles.worldCard} onPress={onPress}>
+      <LinearGradient colors={category.gradient} style={styles.worldGradient}>
+        <View style={styles.worldIconWrap}>
+          <Ionicons name={category.icon} size={20} color={COLORS.primary} />
+        </View>
+        <Text numberOfLines={1} style={styles.worldTitle}>
+          {category.title}
+        </Text>
+        <Text numberOfLines={2} style={styles.worldSubtitle}>
+          {category.subtitle}
+        </Text>
+        {typeof showCount === "number" && showCount > 0 ? (
+          <Text style={styles.worldMeta}>{showCount}+ shows</Text>
+        ) : null}
+      </LinearGradient>
+    </TouchableOpacity>
+  );
+});
+
+type PodcastShowCardProps = {
+  show: HiddenTunesPodcastShow;
+  item?: PodcastShowListItem;
+  subtitle?: string;
+  onPress: () => void;
+  variant?: "list" | "premium";
+};
+
+function PodcastShowMetaChips({ item }: { item: PodcastShowListItem }) {
+  const chips = [item.publisher, item.category, item.episodeLabel, item.language, item.qualityLabel]
+    .filter(Boolean)
+    .slice(0, 3);
+
+  if (!chips.length) return null;
 
   return (
-    <TouchableOpacity activeOpacity={0.88} style={styles.showRow} onPress={onPress}>
-      {show.artwork_url && showMatureArt ? (
-        <Image
-          source={{ uri: show.artwork_url }}
-          style={styles.showArt}
-          contentFit="cover"
-          transition={0}
-          cachePolicy="memory-disk"
-          priority="low"
-          recyclingKey={show.id}
-        />
-      ) : (
-        <View style={styles.showArtFallback}>
-          <Ionicons name="mic-outline" size={22} color={COLORS.textMuted} />
+    <View style={styles.chipRow}>
+      {chips.map((chip) => (
+        <View key={`${item.id}-${chip}`} style={styles.chip}>
+          <Text numberOfLines={1} style={styles.chipText}>
+            {chip}
+          </Text>
         </View>
-      )}
+      ))}
+    </View>
+  );
+}
+
+const PodcastShowArt = memo(function PodcastShowArt({
+  artworkUrl,
+  item,
+  size = 64,
+}: {
+  artworkUrl?: string;
+  item: PodcastShowListItem | HiddenTunesPodcastShow;
+  size?: number;
+}) {
+  const { includeMatureInApi } = useMatureContentSettings();
+  const showMatureArt = !isMatureContentItem(item) || includeMatureInApi;
+  const radius = size >= 64 ? 16 : 14;
+
+  if (!artworkUrl || !showMatureArt) {
+    return (
+      <View
+        style={[styles.showArtFallback, { width: size, height: size, borderRadius: radius }]}
+      >
+        <Ionicons name="mic-outline" size={size >= 64 ? 24 : 20} color={COLORS.textMuted} />
+      </View>
+    );
+  }
+
+  return (
+    <Image
+      source={{ uri: artworkUrl }}
+      style={{ width: size, height: size, borderRadius: radius, backgroundColor: "rgba(255,255,255,0.06)" }}
+      contentFit="cover"
+      recyclingKey={artworkUrl}
+      transition={0}
+      cachePolicy="memory-disk"
+      priority="low"
+    />
+  );
+});
+
+export const PodcastShowCard = memo(function PodcastShowCard({
+  show,
+  item,
+  subtitle,
+  onPress,
+  variant = "list",
+}: PodcastShowCardProps) {
+  const isPremium = variant === "premium";
+  const listItem =
+    item ||
+    ({
+      id: show.id,
+      title: podcastDiscoveryDisplayName(show.title),
+      artworkUrl: show.artwork_url,
+      publisher: show.host_name,
+      category: show.primary_category || show.categories?.[0],
+      episodeCount: show.episode_count,
+      episodeLabel:
+        typeof show.episode_count === "number" && show.episode_count > 0
+          ? `${show.episode_count} episodes`
+          : undefined,
+      language: show.language,
+      is_mature: show.is_mature,
+      content_rating: show.content_rating,
+    } satisfies PodcastShowListItem);
+
+  return (
+    <TouchableOpacity
+      activeOpacity={0.88}
+      style={[styles.showRow, isPremium && styles.showRowPremium]}
+      onPress={onPress}
+    >
+      <PodcastShowArt
+        artworkUrl={listItem.artworkUrl || show.artwork_url}
+        item={listItem}
+        size={isPremium ? 64 : 64}
+      />
 
       <View style={styles.showCopy}>
         <View style={styles.showTitleRow}>
-          <Text numberOfLines={2} style={styles.showTitle}>
-            {podcastDiscoveryDisplayName(show.title)}
+          <Text numberOfLines={isPremium ? 1 : 2} style={[styles.showTitle, isPremium && styles.showTitlePremium]}>
+            {listItem.title}
           </Text>
-          <MatureContentBadge item={show} />
+          <MatureContentBadge item={listItem} />
         </View>
         <Text numberOfLines={1} style={styles.showSubtitle}>
           {subtitle || getUserFacingPodcastSubtitle(null, show.title)}
         </Text>
+        {isPremium ? <PodcastShowMetaChips item={listItem} /> : null}
       </View>
 
       <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
+    </TouchableOpacity>
+  );
+});
+
+type PodcastShowRailCardProps = {
+  item: PodcastShowListItem;
+  onPress: () => void;
+};
+
+export const PodcastShowRailCard = memo(function PodcastShowRailCard({
+  item,
+  onPress,
+}: PodcastShowRailCardProps) {
+  const { includeMatureInApi } = useMatureContentSettings();
+  const showMatureArt = !isMatureContentItem(item) || includeMatureInApi;
+
+  return (
+    <TouchableOpacity activeOpacity={0.88} style={styles.railCard} onPress={onPress}>
+      <LinearGradient colors={["rgba(255,255,255,0.08)", "rgba(255,255,255,0.03)"]} style={styles.railGradient}>
+        {item.artworkUrl && showMatureArt ? (
+          <Image
+            source={{ uri: item.artworkUrl }}
+            style={styles.railArt}
+            contentFit="cover"
+            transition={0}
+            cachePolicy="memory-disk"
+            priority="low"
+          />
+        ) : (
+          <View style={styles.railArtFallback}>
+            <Ionicons name="mic-outline" size={28} color={COLORS.primaryGlow} />
+          </View>
+        )}
+        <View style={styles.railTitleRow}>
+          <Text numberOfLines={2} style={styles.railTitle}>
+            {item.title}
+          </Text>
+          <MatureContentBadge item={item} />
+        </View>
+        <Text numberOfLines={1} style={styles.railSubtitle}>
+          {item.publisher || item.category || "Hidden Tunes Podcast"}
+        </Text>
+        {item.episodeLabel ? (
+          <Text numberOfLines={1} style={styles.railMeta}>
+            {item.episodeLabel}
+          </Text>
+        ) : null}
+      </LinearGradient>
     </TouchableOpacity>
   );
 });
@@ -199,6 +348,46 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     marginTop: 10,
   },
+  worldCard: {
+    width: 168,
+    marginRight: 12,
+    borderRadius: 20,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+  },
+  worldGradient: {
+    minHeight: 168,
+    padding: 14,
+    justifyContent: "flex-end",
+  },
+  worldIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(0,0,0,0.24)",
+    marginBottom: 10,
+  },
+  worldTitle: {
+    color: COLORS.text,
+    fontSize: 14,
+    fontWeight: "900",
+  },
+  worldSubtitle: {
+    color: COLORS.textMuted,
+    fontSize: 10,
+    lineHeight: 14,
+    marginTop: 4,
+    fontWeight: "600",
+  },
+  worldMeta: {
+    color: COLORS.primary,
+    fontSize: 10,
+    fontWeight: "800",
+    marginTop: 8,
+  },
   showRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -211,15 +400,12 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.08)",
     marginBottom: 10,
   },
-  showArt: {
-    width: 64,
-    height: 64,
-    borderRadius: 16,
+  showRowPremium: {
+    paddingVertical: 12,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.06)",
   },
   showArtFallback: {
-    width: 64,
-    height: 64,
-    borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "rgba(255,255,255,0.06)",
@@ -240,10 +426,82 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     flexShrink: 1,
   },
+  showTitlePremium: {
+    fontSize: 16,
+  },
   showSubtitle: {
     color: COLORS.textMuted,
     fontSize: 12,
     fontWeight: "600",
+  },
+  chipRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    marginTop: 4,
+  },
+  chip: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,0.06)",
+  },
+  chipText: {
+    color: COLORS.textMuted,
+    fontSize: 10,
+    fontWeight: "700",
+  },
+  railCard: {
+    width: 148,
+    marginRight: 12,
+    borderRadius: 18,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+  },
+  railGradient: {
+    minHeight: 196,
+    padding: 12,
+  },
+  railArt: {
+    width: "100%",
+    height: 96,
+    borderRadius: 14,
+    marginBottom: 10,
+    backgroundColor: "rgba(255,255,255,0.06)",
+  },
+  railArtFallback: {
+    width: "100%",
+    height: 96,
+    borderRadius: 14,
+    marginBottom: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.06)",
+  },
+  railTitleRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 6,
+  },
+  railTitle: {
+    color: COLORS.text,
+    fontSize: 13,
+    fontWeight: "900",
+    lineHeight: 17,
+    flex: 1,
+  },
+  railSubtitle: {
+    color: COLORS.textMuted,
+    fontSize: 11,
+    fontWeight: "600",
+    marginTop: 4,
+  },
+  railMeta: {
+    color: COLORS.primary,
+    fontSize: 10,
+    fontWeight: "800",
+    marginTop: 6,
   },
   episodeRow: {
     flexDirection: "row",

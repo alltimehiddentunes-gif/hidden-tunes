@@ -150,6 +150,7 @@ export function toRadioStationListItem(station: HiddenTunesStation): RadioStatio
     bitrate: station.bitrate,
     codec: station.codec,
     qualityLabel: qualityLabel || undefined,
+    qualityScore: station.quality_score,
     is_mature: station.is_mature,
     content_rating: station.content_rating,
   };

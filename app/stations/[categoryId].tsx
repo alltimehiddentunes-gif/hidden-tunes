@@ -16,7 +16,7 @@ import { router, useLocalSearchParams } from "expo-router";
 
 import { RadioStationCard } from "../../components/radio/RadioBrowserCards";
 import MatureContentConsentModal from "../../components/mature/MatureContentConsentModal";
-import { getRadioCategory } from "../../constants/radioCategories";
+import { getRadioCategory, resolveRadioCategoryId } from "../../constants/radioCategories";
 import { COLORS } from "../../constants/theme";
 import { TESTER_COPY } from "../../constants/testerExperience";
 import { useLazyRadioStationList } from "../../hooks/useLazyRadioStationList";
@@ -36,7 +36,7 @@ export default function RadioCategoryScreen() {
   const { consentVisible, runWithMatureConsent, cancelConsent, confirmConsent } =
     useMatureContentGate();
   const params = useLocalSearchParams<{ categoryId?: string }>();
-  const categoryId = String(params.categoryId || "").trim();
+  const categoryId = resolveRadioCategoryId(String(params.categoryId || "").trim());
   const category = useMemo(() => getRadioCategory(categoryId), [categoryId]);
 
   const loadPage = useCallback(

@@ -16,18 +16,22 @@ import { router, useLocalSearchParams } from "expo-router";
 
 import {
   PodcastCategoryCard,
+  PodcastEmotionalWorldCard,
   PodcastShowCard,
+  PodcastShowRailCard,
 } from "../../components/podcast/PodcastDiscoveryCards";
 import MatureContentConsentModal from "../../components/mature/MatureContentConsentModal";
+import { getPodcastEmotionalWorld } from "../../constants/podcastEmotionalWorlds";
+import { PODCAST_MATURE_HUB_ID } from "../../constants/podcastMatureCategories";
+import { PODCAST_HOME_LANE_PAGE_SIZE } from "../../constants/podcastFoundation";
 import { COLORS } from "../../constants/theme";
 import { TESTER_COPY } from "../../constants/testerExperience";
 import { useMatureContentGate } from "../../hooks/useMatureContentGate";
 import { useLazyPodcastShowList } from "../../hooks/useLazyPodcastShowList";
+import { usePodcastHomeDiscovery } from "../../hooks/usePodcastHomeDiscovery";
 import { loadPodcastSearchPage } from "../../services/podcastDiscoveryApi";
 import type { HiddenTunesPodcastShow } from "../../services/podcastCatalogApi";
-import { getVisiblePodcastCategories } from "../../utils/launchPodcastCategories";
-import { useMatureContentSettings } from "../../hooks/useMatureContentSettings";
-import { podcastShowSubtitle } from "../../utils/openHiddenTunesPodcast";
+import type { PodcastShowListItem } from "../../types/podcastDiscovery";
 import { useDebouncedSearchQuery } from "../../utils/useDebouncedValue";
 import {
   createStableKeyExtractor,
@@ -36,8 +40,68 @@ import {
 
 const PODCAST_SEARCH_DEBOUNCE_MS = 350;
 
+type ShowRailSectionProps = {
+  title: string;
+  eyebrow: string;
+  shows: PodcastShowListItem[];
+  onPressShow: (item: PodcastShowListItem) => void;
+  seeAllCategoryId?: string;
+};
+
+function ShowRailSection({
+  title,
+  eyebrow,
+  shows,
+  onPressShow,
+  seeAllCategoryId,
+}: ShowRailSectionProps) {
+  if (!shows.length) return null;
+
+  return (
+    <View style={styles.sectionBlock}>
+      <View style={styles.sectionHeader}>
+        <View style={styles.sectionHeaderText}>
+          <Text style={styles.sectionEyebrow}>{eyebrow}</Text>
+          <Text style={styles.sectionTitle}>{title}</Text>
+          <Text style={styles.sectionMeta}>
+            {Math.min(shows.length, PODCAST_HOME_LANE_PAGE_SIZE)} shows
+          </Text>
+        </View>
+        {seeAllCategoryId ? (
+          <TouchableOpacity
+            activeOpacity={0.85}
+            style={styles.seeAllButton}
+            onPress={() =>
+              router.push({
+                pathname: "/podcasts/[categoryId]",
+                params: { categoryId: seeAllCategoryId },
+              } as any)
+            }
+          >
+            <Text style={styles.seeAllText}>See all</Text>
+            <Ionicons name="chevron-forward" size={14} color={COLORS.primary} />
+          </TouchableOpacity>
+        ) : null}
+      </View>
+      <FlatList
+        horizontal
+        data={shows}
+        keyExtractor={(item) => `${eyebrow}-${item.id}`}
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.railContent}
+        initialNumToRender={4}
+        maxToRenderPerBatch={4}
+        windowSize={5}
+        removeClippedSubviews
+        renderItem={({ item }) => (
+          <PodcastShowRailCard item={item} onPress={() => onPressShow(item)} />
+        )}
+      />
+    </View>
+  );
+}
+
 export default function PodcastDiscoveryHomeScreen() {
-  const { includeMatureInApi } = useMatureContentSettings();
   const { consentVisible, runWithMatureConsent, cancelConsent, confirmConsent } =
     useMatureContentGate();
   const params = useLocalSearchParams<{ q?: string; query?: string }>();
@@ -48,8 +112,19 @@ export default function PodcastDiscoveryHomeScreen() {
     () => (debouncedQuery ? `search:${debouncedQuery.toLowerCase()}` : ""),
     [debouncedQuery]
   );
-
   const isSearching = debouncedQuery.trim().length > 0;
+
+  const {
+    featured,
+    trending,
+    popular,
+    recommended,
+    recentlyPlayed,
+    emotionalWorlds,
+    browseCategories,
+    loading,
+    resolveShow,
+  } = usePodcastHomeDiscovery();
 
   const loadSearchPage = useCallback(
     (offset: number, options: { append: boolean; forceRefresh: boolean }) =>
@@ -77,14 +152,54 @@ export default function PodcastDiscoveryHomeScreen() {
     loadPage: loadSearchPage,
   });
 
-  const openCategory = useCallback((categoryId: string) => {
-    router.push({
-      pathname: "/podcasts/[categoryId]",
-      params: { categoryId },
-    } as any);
-  }, []);
+  const openCategory = useCallback(
+    (categoryId: string) => {
+      if (categoryId === PODCAST_MATURE_HUB_ID) {
+        router.push("/podcasts/mature" as any);
+        return;
+      }
+      router.push({
+        pathname: "/podcasts/[categoryId]",
+        params: { categoryId },
+      } as any);
+    },
+    []
+  );
 
   const openShow = useCallback(
+    (item: PodcastShowListItem) => {
+      const show =
+        resolveShow(item.id) ||
+        ({
+          id: item.id,
+          slug: item.id,
+          title: item.title,
+          artwork_url: item.artworkUrl,
+          host_name: item.publisher,
+          categories: item.category ? [item.category] : [],
+          primary_category: item.category,
+          episode_count: item.episodeCount,
+          language: item.language,
+          is_mature: item.is_mature,
+          content_rating: item.content_rating,
+          sourceName: "Hidden Tunes",
+        } satisfies HiddenTunesPodcastShow);
+
+      runWithMatureConsent(show, () => {
+        router.push({
+          pathname: "/podcasts/show/[showId]",
+          params: {
+            showId: show.id,
+            title: show.title,
+            isMature: show.is_mature ? "1" : "0",
+          },
+        } as any);
+      });
+    },
+    [resolveShow, runWithMatureConsent]
+  );
+
+  const openShowFromSearch = useCallback(
     (show: HiddenTunesPodcastShow) => {
       runWithMatureConsent(show, () => {
         router.push({
@@ -98,11 +213,6 @@ export default function PodcastDiscoveryHomeScreen() {
       });
     },
     [runWithMatureConsent]
-  );
-
-  const categories = useMemo(
-    () => getVisiblePodcastCategories(includeMatureInApi),
-    [includeMatureInApi]
   );
 
   useEffect(() => {
@@ -124,11 +234,11 @@ export default function PodcastDiscoveryHomeScreen() {
     ({ item }: { item: HiddenTunesPodcastShow }) => (
       <PodcastShowCard
         show={item}
-        subtitle={podcastShowSubtitle(item)}
-        onPress={() => openShow(item)}
+        variant="premium"
+        onPress={() => openShowFromSearch(item)}
       />
     ),
-    [openShow]
+    [openShowFromSearch]
   );
 
   return (
@@ -143,11 +253,9 @@ export default function PodcastDiscoveryHomeScreen() {
         </TouchableOpacity>
 
         <View style={styles.headerText}>
-          <Text style={styles.kicker}>HIDDEN TUNES PODCASTS</Text>
-          <Text style={styles.title}>Browse Shows</Text>
-          <Text style={styles.subtitle}>
-            Curated podcast rooms from Hidden Tunes
-          </Text>
+          <Text style={styles.kicker}>HIDDEN TUNES</Text>
+          <Text style={styles.title}>PODCASTS</Text>
+          <Text style={styles.subtitle}>Premium podcast discovery tuned to your mood</Text>
         </View>
       </View>
 
@@ -181,7 +289,7 @@ export default function PodcastDiscoveryHomeScreen() {
             keyExtractor={searchKeyExtractor}
             contentContainerStyle={styles.listContent}
             ListHeaderComponent={
-              <Text style={styles.sectionTitle}>
+              <Text style={styles.sectionCountLabel}>
                 {searchCountLabel || "Hidden Tunes shows"}
               </Text>
             }
@@ -196,8 +304,8 @@ export default function PodcastDiscoveryHomeScreen() {
               searchChecked ? (
                 <View style={styles.emptyBox}>
                   <Ionicons name="mic-outline" size={48} color={COLORS.textMuted} />
-                <Text style={styles.emptyTitle}>No Hidden Tunes shows matched</Text>
-                <Text style={styles.emptyText}>{TESTER_COPY.podcastDiscoveryEmpty}</Text>
+                  <Text style={styles.emptyTitle}>No Hidden Tunes shows matched</Text>
+                  <Text style={styles.emptyText}>{TESTER_COPY.podcastDiscoveryEmpty}</Text>
                 </View>
               ) : null
             }
@@ -206,20 +314,92 @@ export default function PodcastDiscoveryHomeScreen() {
             removeClippedSubviews
           />
         )
+      ) : loading ? (
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+          <Text style={styles.loadingText}>{TESTER_COPY.podcastDiscoveryLoading}</Text>
+        </View>
       ) : (
-        <ScrollView
-          contentContainerStyle={styles.content}
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.grid}>
-            {categories.map((category) => (
-              <PodcastCategoryCard
-                key={category.id}
-                category={category}
-                onPress={() => openCategory(category.id)}
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          <ShowRailSection
+            eyebrow="FEATURED"
+            title="Featured Podcasts"
+            shows={featured}
+            onPressShow={openShow}
+            seeAllCategoryId="featured"
+          />
+          <ShowRailSection
+            eyebrow="TRENDING"
+            title="Trending Podcasts"
+            shows={trending}
+            onPressShow={openShow}
+            seeAllCategoryId="trending"
+          />
+          <ShowRailSection
+            eyebrow="POPULAR"
+            title="Most Popular"
+            shows={popular}
+            onPressShow={openShow}
+            seeAllCategoryId="popular"
+          />
+          <ShowRailSection
+            eyebrow="RECENT"
+            title="Recently Played"
+            shows={recentlyPlayed}
+            onPressShow={openShow}
+          />
+          <ShowRailSection
+            eyebrow="FOR YOU"
+            title="Recommended For You"
+            shows={recommended}
+            onPressShow={openShow}
+            seeAllCategoryId="recommended"
+          />
+
+          {emotionalWorlds.length > 0 ? (
+            <View style={styles.sectionBlock}>
+              <Text style={styles.sectionEyebrow}>EMOTIONAL PODCASTS</Text>
+              <Text style={styles.sectionTitle}>Podcasts tuned to how you feel</Text>
+              <FlatList
+                horizontal
+                data={emotionalWorlds}
+                keyExtractor={(entry) => entry.world.id}
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.railContent}
+                initialNumToRender={3}
+                maxToRenderPerBatch={3}
+                windowSize={5}
+                removeClippedSubviews
+                renderItem={({ item }) => {
+                  const catalogTarget =
+                    getPodcastEmotionalWorld(item.world.id)?.catalogTarget || undefined;
+                  return (
+                    <PodcastEmotionalWorldCard
+                      category={item.world}
+                      showCount={catalogTarget}
+                      onPress={() => openCategory(item.world.id)}
+                    />
+                  );
+                }}
               />
-            ))}
-          </View>
+            </View>
+          ) : null}
+
+          {browseCategories.length > 0 ? (
+            <View style={styles.sectionBlock}>
+              <Text style={styles.sectionEyebrow}>BROWSE CATEGORIES</Text>
+              <Text style={styles.sectionTitle}>Business · Faith · African Voices · More</Text>
+              <View style={styles.grid}>
+                {browseCategories.map((category) => (
+                  <PodcastCategoryCard
+                    key={category.id}
+                    category={category}
+                    onPress={() => openCategory(category.id)}
+                  />
+                ))}
+              </View>
+            </View>
+          ) : null}
         </ScrollView>
       )}
 
@@ -298,17 +478,63 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 120,
   },
-  grid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
+  sectionBlock: {
     marginTop: 8,
+    marginBottom: 10,
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 12,
+    marginBottom: 12,
+  },
+  sectionHeaderText: {
+    flex: 1,
+  },
+  sectionEyebrow: {
+    color: COLORS.primary,
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 1.4,
   },
   sectionTitle: {
+    color: COLORS.text,
+    fontSize: 20,
+    fontWeight: "900",
+    marginTop: 4,
+  },
+  sectionMeta: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    fontWeight: "600",
+    marginTop: 4,
+  },
+  sectionCountLabel: {
     color: COLORS.textMuted,
     fontSize: 12,
     fontWeight: "700",
     marginBottom: 12,
+    marginTop: 8,
+  },
+  seeAllButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+    paddingTop: 18,
+  },
+  seeAllText: {
+    color: COLORS.primary,
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  railContent: {
+    paddingRight: 8,
+  },
+  grid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
     marginTop: 8,
   },
   center: {

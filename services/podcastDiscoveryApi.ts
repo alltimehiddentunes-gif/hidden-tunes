@@ -4,7 +4,18 @@ import {
   type HiddenTunesPodcastEpisode,
   type HiddenTunesPodcastShow,
 } from "./podcastCatalogApi";
-import { getLaunchPodcastCategory } from "../utils/launchPodcastCategories";
+import {
+  getPodcastCategory,
+  resolvePodcastCategoryId,
+  type PodcastCategory,
+} from "../constants/podcastCategories";
+import {
+  PODCAST_FEATURED_MIN_QUALITY,
+  PODCAST_POPULAR_MIN_QUALITY,
+  podcastHomeLaneCacheKey,
+  type PodcastHomeLaneId,
+} from "../constants/podcastFoundation";
+import { showMatchesEmotionalWorld, getPodcastEmotionalWorld } from "../constants/podcastEmotionalWorlds";
 import { shouldIncludeMatureInApi } from "../utils/matureContentSettings";
 import { MEDIA_DISCOVERY_PAGE_SIZE, pageFromOffset } from "../constants/mediaDiscovery";
 import {
@@ -26,6 +37,12 @@ import {
   writeCachedPodcastSearch,
   writeCachedPodcastShows,
 } from "../utils/podcastDiscoveryCache";
+import {
+  enrichShowWithQuality,
+  sortShowsByEpisodeCount,
+  sortShowsByQuality,
+  sortShowsByRecency,
+} from "./podcast/podcastQualityScore";
 
 const SHOW_PAGE_LIMIT = MEDIA_DISCOVERY_PAGE_SIZE;
 const EPISODE_PAGE_LIMIT = MEDIA_DISCOVERY_PAGE_SIZE;
@@ -79,8 +96,61 @@ function filterMatureEpisodes(episodes: HiddenTunesPodcastEpisode[]) {
   return filterVisiblePodcastEpisodes(episodes);
 }
 
+function stripMatureFromStandardDiscovery(shows: HiddenTunesPodcastShow[], category: PodcastCategory) {
+  if (category.isMature || category.tier === "mature" || category.tier === "mature-hub") {
+    return shows;
+  }
+  return shows.filter((show) => !show.is_mature);
+}
+
+function curateShowsForCategory(shows: HiddenTunesPodcastShow[], category: PodcastCategory) {
+  let curated = dedupeShows(shows.map(enrichShowWithQuality));
+
+  if (category.tier === "emotional") {
+    const world = getPodcastEmotionalWorld(category.id);
+    if (world) {
+      curated = curated.filter((show) => showMatchesEmotionalWorld(show, world));
+    }
+  }
+
+  if (category.laneKind === "featured") {
+    curated = sortShowsByQuality(
+      curated.filter((show) => (show.quality_score || 0) >= PODCAST_FEATURED_MIN_QUALITY)
+    );
+  } else if (category.laneKind === "trending") {
+    curated = sortShowsByRecency(curated);
+  } else if (category.laneKind === "popular") {
+    curated = sortShowsByEpisodeCount(
+      curated.filter((show) => (show.quality_score || 0) >= PODCAST_POPULAR_MIN_QUALITY)
+    );
+  } else if (category.tier === "emotional" || category.tier === "browse") {
+    curated = sortShowsByQuality(curated);
+  } else if (category.tier === "mature" || category.tier === "mature-hub") {
+    curated = sortShowsByQuality(curated);
+  }
+
+  return stripMatureFromStandardDiscovery(curated, category);
+}
+
+function resolveCategoryCacheKey(categoryId: string) {
+  const resolvedId = resolvePodcastCategoryId(categoryId);
+  const category = getPodcastCategory(resolvedId);
+  if (!category) return resolvedId;
+
+  if (category.tier === "home-lane" && category.laneKind && category.laneKind !== "recommended") {
+    return podcastHomeLaneCacheKey(category.laneKind as PodcastHomeLaneId);
+  }
+
+  if (category.laneKind === "recommended") {
+    return podcastHomeLaneCacheKey("recommended");
+  }
+
+  return resolvedId;
+}
+
 async function fetchShowsFromNetwork(categoryId: string, page = 1) {
-  const category = getLaunchPodcastCategory(categoryId);
+  const resolvedId = resolvePodcastCategoryId(categoryId);
+  const category = getPodcastCategory(resolvedId);
   if (!category) return { shows: [] as HiddenTunesPodcastShow[], hasMore: false };
   if (category.isMature && !shouldIncludeMatureInApi()) {
     return { shows: [], hasMore: false };
@@ -92,10 +162,10 @@ async function fetchShowsFromNetwork(categoryId: string, page = 1) {
     ...category.catalogQuery,
     page,
     limit: SHOW_PAGE_LIMIT,
-    includeMature,
+    includeMature: category.isMature || category.tier === "mature" ? true : includeMature,
   });
 
-  let shows = dedupeShows(primary.success ? primary.shows : []);
+  let shows = primary.success ? primary.shows : [];
   let hasMore = primary.success ? primary.pagination.hasMore : false;
 
   if (!shows.length && category.fallbackQuery && page === 1) {
@@ -103,15 +173,17 @@ async function fetchShowsFromNetwork(categoryId: string, page = 1) {
       ...category.fallbackQuery,
       page: 1,
       limit: SHOW_PAGE_LIMIT,
-      includeMature,
+      includeMature: category.isMature || category.tier === "mature" ? true : includeMature,
     });
     if (fallback.success) {
-      shows = dedupeShows(fallback.shows);
+      shows = fallback.shows;
       hasMore = fallback.pagination.hasMore;
     }
   }
 
-  if (category.isMature) {
+  shows = curateShowsForCategory(shows, category);
+
+  if (category.isMature || category.tier === "mature") {
     shows = shows.map((show) => ({
       ...show,
       is_mature: true,
@@ -136,8 +208,12 @@ async function fetchSearchShowsFromNetwork(query: string, page = 1) {
     includeMature: shouldIncludeMatureInApi(),
   });
 
+  const shows = dedupeShows(response.success ? response.shows : [])
+    .map(enrichShowWithQuality)
+    .filter((show) => !show.is_mature || shouldIncludeMatureInApi());
+
   return {
-    shows: filterMatureShows(response.success ? dedupeShows(response.shows) : []),
+    shows: filterMatureShows(shows),
     hasMore: response.success ? response.pagination.hasMore : false,
   };
 }
@@ -161,18 +237,24 @@ export async function loadPodcastCategoryPage(
   offset = 0,
   options?: { forceRefresh?: boolean; append?: boolean }
 ) {
-  const safeId = String(categoryId || "").trim();
-  if (!safeId) return { shows: [], hasMore: false };
+  const resolvedId = resolvePodcastCategoryId(String(categoryId || "").trim());
+  if (!resolvedId) return { shows: [], hasMore: false };
 
-  const category = getLaunchPodcastCategory(safeId);
+  const category = getPodcastCategory(resolvedId);
   if (category?.isMature && !shouldIncludeMatureInApi()) {
     return { shows: [], hasMore: false };
   }
 
+  if (category?.laneKind === "recommended") {
+    const { loadRecommendedPodcastLanePage } = await import("./podcast/podcastHomeLanes");
+    return loadRecommendedPodcastLanePage(offset, options);
+  }
+
+  const cacheKey = resolveCategoryCacheKey(resolvedId);
   const page = pageFromOffset(offset, SHOW_PAGE_LIMIT);
 
   if (!options?.forceRefresh && offset === 0 && !options?.append) {
-    const memoryHit = readCachedPodcastShows(safeId);
+    const memoryHit = readCachedPodcastShows(cacheKey);
     if (memoryHit?.length) {
       const visible = filterMatureShows(memoryHit.slice(0, SHOW_PAGE_LIMIT));
       return {
@@ -182,15 +264,15 @@ export async function loadPodcastCategoryPage(
     }
   }
 
-  const fetchPromise = fetchShowsFromNetwork(safeId, page).then(({ shows, hasMore }) => {
+  const fetchPromise = fetchShowsFromNetwork(resolvedId, page).then(({ shows, hasMore }) => {
     if (shows.length > 0) {
-      writeCachedPodcastShows(safeId, shows, { append: Boolean(options?.append || offset > 0) });
+      writeCachedPodcastShows(cacheKey, shows, { append: Boolean(options?.append || offset > 0) });
     }
     return { shows, hasMore };
   });
 
   if (offset === 0 && !options?.append && !options?.forceRefresh) {
-    const inflight = getPodcastShowsInflight(safeId);
+    const inflight = getPodcastShowsInflight(cacheKey);
     if (inflight) {
       const shows = await inflight;
       return {
@@ -199,7 +281,7 @@ export async function loadPodcastCategoryPage(
       };
     }
     return setPodcastShowsInflight(
-      safeId,
+      cacheKey,
       fetchPromise.then((result) => result.shows)
     ).then((shows) => ({
       shows: filterMatureShows(shows.slice(0, SHOW_PAGE_LIMIT)),
@@ -315,37 +397,39 @@ export async function getPodcastShowsForCategory(
   categoryId: string,
   options?: { forceRefresh?: boolean }
 ) {
-  const safeId = String(categoryId || "").trim();
-  if (!safeId) return [];
+  const resolvedId = resolvePodcastCategoryId(String(categoryId || "").trim());
+  if (!resolvedId) return [];
 
-  const category = getLaunchPodcastCategory(safeId);
+  const category = getPodcastCategory(resolvedId);
   if (category?.isMature && !shouldIncludeMatureInApi()) return [];
 
+  const cacheKey = resolveCategoryCacheKey(resolvedId);
+
   if (!options?.forceRefresh) {
-    const memoryHit = readCachedPodcastShows(safeId);
+    const memoryHit = readCachedPodcastShows(cacheKey);
     if (memoryHit?.length) return filterMatureShows(memoryHit);
 
-    const inflight = getPodcastShowsInflight(safeId);
+    const inflight = getPodcastShowsInflight(cacheKey);
     if (inflight) return inflight;
 
-    const storageHit = await hydrateCachedPodcastShows(safeId);
+    const storageHit = await hydrateCachedPodcastShows(cacheKey);
     if (storageHit?.length) return filterMatureShows(storageHit);
   }
 
-  const fetchPromise = fetchShowsFromNetwork(safeId, 1)
+  const fetchPromise = fetchShowsFromNetwork(resolvedId, 1)
     .then(({ shows }) => {
       if (shows.length > 0) {
-        writeCachedPodcastShows(safeId, shows);
+        writeCachedPodcastShows(cacheKey, shows);
       }
       return shows;
     })
     .catch(async () => {
-      const memoryStale = readCachedPodcastShows(safeId);
+      const memoryStale = readCachedPodcastShows(cacheKey);
       if (memoryStale?.length) return filterMatureShows(memoryStale);
-      return filterMatureShows((await hydrateCachedPodcastShows(safeId)) || []);
+      return filterMatureShows((await hydrateCachedPodcastShows(cacheKey)) || []);
     });
 
-  return setPodcastShowsInflight(safeId, fetchPromise);
+  return setPodcastShowsInflight(cacheKey, fetchPromise);
 }
 
 export async function searchPodcastShows(

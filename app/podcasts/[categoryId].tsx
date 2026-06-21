@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -15,13 +15,17 @@ import { router, useLocalSearchParams } from "expo-router";
 
 import { PodcastShowCard } from "../../components/podcast/PodcastDiscoveryCards";
 import MatureContentConsentModal from "../../components/mature/MatureContentConsentModal";
+import {
+  getLaunchPodcastCategory,
+  resolvePodcastCategoryId,
+} from "../../utils/launchPodcastCategories";
+import { PODCAST_MATURE_HUB_ID } from "../../constants/podcastMatureCategories";
 import { COLORS } from "../../constants/theme";
 import { TESTER_COPY } from "../../constants/testerExperience";
 import { useLazyPodcastShowList } from "../../hooks/useLazyPodcastShowList";
 import { useMatureContentGate } from "../../hooks/useMatureContentGate";
 import { loadPodcastCategoryPage } from "../../services/podcastDiscoveryApi";
 import type { HiddenTunesPodcastShow } from "../../services/podcastCatalogApi";
-import { getLaunchPodcastCategory } from "../../utils/launchPodcastCategories";
 import { podcastShowSubtitle } from "../../utils/openHiddenTunesPodcast";
 import {
   createStableKeyExtractor,
@@ -32,11 +36,14 @@ export default function PodcastCategoryScreen() {
   const { consentVisible, runWithMatureConsent, cancelConsent, confirmConsent } =
     useMatureContentGate();
   const params = useLocalSearchParams<{ categoryId?: string }>();
-  const categoryId = String(params.categoryId || "").trim();
-  const category = useMemo(
-    () => getLaunchPodcastCategory(categoryId),
-    [categoryId]
-  );
+  const categoryId = resolvePodcastCategoryId(String(params.categoryId || "").trim());
+  const category = useMemo(() => getLaunchPodcastCategory(categoryId), [categoryId]);
+
+  useEffect(() => {
+    if (category?.tier === "mature-hub" || categoryId === PODCAST_MATURE_HUB_ID) {
+      router.replace("/podcasts/mature" as any);
+    }
+  }, [category?.tier, categoryId]);
 
   const loadPage = useCallback(
     (offset: number, options: { append: boolean; forceRefresh: boolean }) =>
@@ -61,7 +68,7 @@ export default function PodcastCategoryScreen() {
     listCountLabel,
   } = useLazyPodcastShowList({
     cacheKey: categoryId,
-    enabled: Boolean(categoryId),
+    enabled: Boolean(categoryId) && category?.tier !== "mature-hub",
     loadPage,
   });
 
@@ -85,6 +92,7 @@ export default function PodcastCategoryScreen() {
     ({ item }: { item: HiddenTunesPodcastShow }) => (
       <PodcastShowCard
         show={item}
+        variant="premium"
         subtitle={podcastShowSubtitle(item)}
         onPress={() => openShow(item)}
       />
@@ -102,16 +110,18 @@ export default function PodcastCategoryScreen() {
     []
   );
 
-  const showEmpty = hasLoadedOnce && !loading && !refreshing && shows.length === 0;
+  useEffect(() => {
+    if (!hasLoadedOnce || loading || refreshing || shows.length > 0) return;
+    router.replace("/podcasts" as any);
+  }, [hasLoadedOnce, shows.length, loading, refreshing]);
 
   if (!category) {
     return (
       <LinearGradient colors={["#120818", "#050308"]} style={styles.container}>
         <View style={styles.center}>
           <Text style={styles.emptyTitle}>This room is not available</Text>
-          <Text style={styles.emptyText}>{TESTER_COPY.podcastDiscoveryEmpty}</Text>
           <TouchableOpacity style={styles.backLink} onPress={() => router.back()}>
-            <Text style={styles.backLinkText}>Back to Hidden Tunes Podcasts</Text>
+            <Text style={styles.backLinkText}>Back to Podcasts</Text>
           </TouchableOpacity>
         </View>
       </LinearGradient>
@@ -163,24 +173,6 @@ export default function PodcastCategoryScreen() {
           ListFooterComponent={
             loadingMore ? (
               <ActivityIndicator style={styles.footerSpinner} color={COLORS.primary} />
-            ) : null
-          }
-          ListEmptyComponent={
-            showEmpty ? (
-              <View style={styles.emptyBox}>
-                <Ionicons name="mic-outline" size={48} color={COLORS.textMuted} />
-                <Text style={styles.emptyTitle}>{category.emptyTitle}</Text>
-                <Text style={styles.emptyText}>{category.emptyMessage}</Text>
-                <TouchableOpacity
-                  activeOpacity={0.86}
-                  style={styles.fallbackButton}
-                  onPress={() => router.push("/podcasts" as any)}
-                >
-                  <Text style={styles.fallbackButtonText}>
-                    Search Hidden Tunes Podcasts
-                  </Text>
-                </TouchableOpacity>
-              </View>
             ) : null
           }
           renderItem={renderShowRow}
@@ -260,38 +252,11 @@ const styles = StyleSheet.create({
   footerSpinner: {
     marginVertical: 16,
   },
-  emptyBox: {
-    alignItems: "center",
-    paddingVertical: 28,
-    paddingHorizontal: 12,
-  },
   emptyTitle: {
     color: COLORS.text,
     fontSize: 18,
     fontWeight: "800",
-    marginTop: 12,
     textAlign: "center",
-  },
-  emptyText: {
-    color: COLORS.textMuted,
-    fontSize: 13,
-    lineHeight: 18,
-    marginTop: 8,
-    textAlign: "center",
-  },
-  fallbackButton: {
-    marginTop: 18,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 999,
-    backgroundColor: "rgba(168,85,247,0.16)",
-    borderWidth: 1,
-    borderColor: "rgba(168,85,247,0.35)",
-  },
-  fallbackButtonText: {
-    color: COLORS.text,
-    fontSize: 13,
-    fontWeight: "800",
   },
   backLink: {
     marginTop: 16,

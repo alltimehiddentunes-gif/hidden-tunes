@@ -18,6 +18,9 @@ export type HiddenTunesPodcastShow = {
   primary_category?: string;
   categories: string[];
   episode_count?: number;
+  language?: string;
+  last_published_at?: string;
+  quality_score?: number;
   is_featured?: boolean;
   is_exclusive?: boolean;
   is_mature?: boolean;
@@ -153,6 +156,11 @@ export function normalizePodcastShow(
     episode_count: Number.isFinite(Number(raw.episode_count))
       ? Number(raw.episode_count)
       : undefined,
+    language: cleanText(raw.language, 40) || undefined,
+    last_published_at:
+      cleanText(raw.last_published_at, 40) ||
+      cleanText(raw.last_episode_at, 40) ||
+      undefined,
     is_featured: Boolean(raw.is_featured),
     is_exclusive: Boolean(raw.is_exclusive),
     is_mature: mature.is_mature,

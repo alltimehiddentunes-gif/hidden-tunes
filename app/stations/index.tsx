@@ -20,6 +20,8 @@ import {
   RadioStationRailCard,
 } from "../../components/radio/RadioBrowserCards";
 import MatureContentConsentModal from "../../components/mature/MatureContentConsentModal";
+import { getRadioEmotionalWorld } from "../../constants/radioEmotionalWorlds";
+import { RADIO_HOME_LANE_PAGE_SIZE } from "../../constants/radioFoundation";
 import { COLORS } from "../../constants/theme";
 import { useMatureContentGate } from "../../hooks/useMatureContentGate";
 import { usePlaybackRouter } from "../../hooks/usePlaybackRouter";
@@ -33,15 +35,44 @@ type StationSectionProps = {
   eyebrow: string;
   stations: RadioStationListItem[];
   onPressStation: (item: RadioStationListItem) => void;
+  seeAllCategoryId?: string;
 };
 
-function StationRailSection({ title, eyebrow, stations, onPressStation }: StationSectionProps) {
+function StationRailSection({
+  title,
+  eyebrow,
+  stations,
+  onPressStation,
+  seeAllCategoryId,
+}: StationSectionProps) {
   if (!stations.length) return null;
 
   return (
     <View style={styles.sectionBlock}>
-      <Text style={styles.sectionEyebrow}>{eyebrow}</Text>
-      <Text style={styles.sectionTitle}>{title}</Text>
+      <View style={styles.sectionHeader}>
+        <View style={styles.sectionHeaderText}>
+          <Text style={styles.sectionEyebrow}>{eyebrow}</Text>
+          <Text style={styles.sectionTitle}>{title}</Text>
+          <Text style={styles.sectionMeta}>
+            {Math.min(stations.length, RADIO_HOME_LANE_PAGE_SIZE)} stations
+          </Text>
+        </View>
+        {seeAllCategoryId ? (
+          <TouchableOpacity
+            activeOpacity={0.85}
+            style={styles.seeAllButton}
+            onPress={() =>
+              router.push({
+                pathname: "/stations/[categoryId]",
+                params: { categoryId: seeAllCategoryId },
+              } as any)
+            }
+          >
+            <Text style={styles.seeAllText}>See all</Text>
+            <Ionicons name="chevron-forward" size={14} color={COLORS.primary} />
+          </TouchableOpacity>
+        ) : null}
+      </View>
       <FlatList
         horizontal
         data={stations}
@@ -132,8 +163,8 @@ export default function RadioStationsHomeScreen() {
         </TouchableOpacity>
 
         <View style={styles.headerText}>
-          <Text style={styles.kicker}>HIDDEN TUNES RADIO</Text>
-          <Text style={styles.title}>Live Stations</Text>
+          <Text style={styles.kicker}>HIDDEN TUNES</Text>
+          <Text style={styles.title}>LIVE RADIO</Text>
           <Text style={styles.subtitle}>Premium live discovery tuned to your mood</Text>
         </View>
       </View>
@@ -157,61 +188,67 @@ export default function RadioStationsHomeScreen() {
               title="Featured Stations"
               stations={featured}
               onPressStation={handleStationPress}
+              seeAllCategoryId="featured"
             />
             <StationRailSection
               eyebrow="TRENDING"
-              title="Trending Stations"
+              title="Trending Now"
               stations={trending}
               onPressStation={handleStationPress}
+              seeAllCategoryId="trending"
             />
             <StationRailSection
               eyebrow="POPULAR"
-              title="Popular Stations"
+              title="Most Popular"
               stations={popular}
               onPressStation={handleStationPress}
+              seeAllCategoryId="popular"
             />
             <StationRailSection
               eyebrow="RECENT"
-              title="Recently Played Stations"
+              title="Recently Played"
               stations={recentlyPlayed}
               onPressStation={handleStationPress}
             />
             <StationRailSection
               eyebrow="FOR YOU"
-              title="Recommended Stations"
+              title="Recommended For You"
               stations={recommended}
               onPressStation={handleStationPress}
+              seeAllCategoryId="recommended"
             />
 
-            {emotionalWorlds.length > 0 ? (
-              <View style={styles.sectionBlock}>
-                <Text style={styles.sectionEyebrow}>EMOTIONAL WORLDS</Text>
-                <Text style={styles.sectionTitle}>Radio tuned to how you feel</Text>
-                <FlatList
-                  horizontal
-                  data={emotionalWorlds}
-                  keyExtractor={(entry) => entry.world.id}
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.railContent}
-                  initialNumToRender={3}
-                  maxToRenderPerBatch={3}
-                  windowSize={5}
-                  removeClippedSubviews
-                  renderItem={({ item }) => (
+            <View style={styles.sectionBlock}>
+              <Text style={styles.sectionEyebrow}>EMOTIONAL WORLDS RADIO</Text>
+              <Text style={styles.sectionTitle}>Radio tuned to how you feel</Text>
+              <FlatList
+                horizontal
+                data={emotionalWorlds}
+                keyExtractor={(entry) => entry.world.id}
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.railContent}
+                initialNumToRender={3}
+                maxToRenderPerBatch={3}
+                windowSize={5}
+                removeClippedSubviews
+                renderItem={({ item }) => {
+                  const catalogTarget =
+                    getRadioEmotionalWorld(item.world.id)?.catalogTarget || undefined;
+                  return (
                     <RadioEmotionalWorldCard
                       category={item.world}
-                      stationCount={item.previewStations.length}
+                      stationCount={catalogTarget}
                       onPress={() => openCategory(item.world.id)}
                     />
-                  )}
-                />
-              </View>
-            ) : null}
+                  );
+                }}
+              />
+            </View>
 
             {browseCategories.length > 0 ? (
               <View style={styles.sectionBlock}>
                 <Text style={styles.sectionEyebrow}>BROWSE</Text>
-                <Text style={styles.sectionTitle}>Country, language, and genre</Text>
+                <Text style={styles.sectionTitle}>Countries · Languages · Genres · More</Text>
                 <View style={styles.grid}>
                   {browseCategories.map((category) => (
                     <RadioCategoryCard
@@ -327,6 +364,16 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginBottom: 10,
   },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 12,
+    marginBottom: 12,
+  },
+  sectionHeaderText: {
+    flex: 1,
+  },
   sectionEyebrow: {
     color: COLORS.primary,
     fontSize: 11,
@@ -338,7 +385,23 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "900",
     marginTop: 4,
-    marginBottom: 12,
+  },
+  sectionMeta: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    fontWeight: "600",
+    marginTop: 4,
+  },
+  seeAllButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+    paddingTop: 18,
+  },
+  seeAllText: {
+    color: COLORS.primary,
+    fontSize: 13,
+    fontWeight: "800",
   },
   railContent: {
     paddingRight: 8,

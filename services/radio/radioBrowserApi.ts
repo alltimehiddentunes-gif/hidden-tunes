@@ -1,10 +1,26 @@
 import { MEDIA_DISCOVERY_PAGE_SIZE } from "../../constants/mediaDiscovery";
-import { getRadioCategory, type RadioCategory } from "../../constants/radioCategories";
+import {
+  getRadioCategory,
+  resolveRadioCategoryId,
+  type RadioCategory,
+} from "../../constants/radioCategories";
+import {
+  RADIO_FEATURED_MIN_QUALITY,
+  RADIO_POPULAR_MIN_QUALITY,
+  radioHomeLaneCacheKey,
+  type RadioHomeLaneId,
+} from "../../constants/radioFoundation";
 import { isMatureContentItem } from "../../types/matureContent";
 import type { HiddenTunesStation, RadioBrowserStationRaw } from "../../types/radio";
 import { logRadioDiscoveryFetch } from "../../utils/radioDiscoveryDiagnostics";
 import { shouldIncludeMatureInApi } from "../../utils/matureContentSettings";
 import { normalizeRadioBrowserStation } from "./radioNormalizer";
+import {
+  enrichStationWithQuality,
+  sortStationsByClicks,
+  sortStationsByQuality,
+  sortStationsByVotes,
+} from "./radioQualityScore";
 import {
   countCachedRadioStations,
   getRadioStationInflight,
@@ -74,6 +90,10 @@ async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: numbe
 function buildCategoryPath(category: RadioCategory, offset: number, limit: number) {
   const safeLimit = Math.max(1, Math.min(limit, 40));
   const safeOffset = Math.max(0, offset);
+
+  if (category.useTopClick) {
+    return `/json/stations/topclick/${safeLimit + safeOffset}`;
+  }
 
   if (category.useTopVotes) {
     return `/json/stations/topvote/${safeLimit + safeOffset}`;
@@ -165,32 +185,77 @@ function dedupeRadioStations(stations: HiddenTunesStation[]) {
   return deduped;
 }
 
+function normalizeAndCurateStations(
+  raw: RadioBrowserStationRaw[],
+  category: RadioCategory,
+  offset: number,
+  limit: number
+) {
+  let stations = dedupeRadioStations(
+    raw
+      .map((rawStation) => {
+        const base = normalizeRadioBrowserStation(rawStation, category.id);
+        if (!base) return null;
+        return enrichStationWithQuality(base, rawStation);
+      })
+      .filter((station): station is HiddenTunesStation => Boolean(station))
+  );
+
+  if (category.useTopClick || category.useTopVotes) {
+    if (offset > 0) {
+      stations = stations.slice(offset);
+    }
+  }
+
+  if (category.laneKind === "featured") {
+    stations = sortStationsByQuality(
+      stations.filter((station) => (station.quality_score || 0) >= RADIO_FEATURED_MIN_QUALITY)
+    );
+  } else if (category.laneKind === "trending") {
+    stations = sortStationsByClicks(stations);
+  } else if (category.laneKind === "popular") {
+    stations = sortStationsByVotes(
+      stations.filter((station) => (station.quality_score || 0) >= RADIO_POPULAR_MIN_QUALITY)
+    );
+  }
+
+  return filterMatureStations(stations.slice(0, limit));
+}
+
+function resolveCategoryCacheKey(categoryId: string) {
+  const resolvedId = resolveRadioCategoryId(categoryId);
+  const category = getRadioCategory(resolvedId);
+  if (!category) return resolvedId;
+
+  if (category.tier === "home-lane" && category.laneKind && category.laneKind !== "recommended") {
+    return radioHomeLaneCacheKey(category.laneKind as RadioHomeLaneId);
+  }
+
+  if (category.laneKind === "recommended") {
+    return radioHomeLaneCacheKey("recommended");
+  }
+
+  return resolvedId;
+}
+
 export async function fetchRadioStationsPage(
   categoryId: string,
   offset = 0,
   limit = RADIO_STATION_PAGE_SIZE,
   signal?: AbortSignal
 ) {
-  const category = getRadioCategory(categoryId);
+  const resolvedId = resolveRadioCategoryId(categoryId);
+  const category = getRadioCategory(resolvedId);
   if (!category) return [];
   if (category.isMature && !shouldIncludeMatureInApi()) return [];
+  if (category.laneKind === "recommended") return [];
 
   const raw = await fetchRadioBrowserJson(
     buildCategoryPath(category, offset, limit),
     signal
   );
 
-  let normalized = dedupeRadioStations(
-    raw
-      .map((station) => normalizeRadioBrowserStation(station, category.id))
-      .filter((station): station is HiddenTunesStation => Boolean(station))
-  );
-
-  if (category.useTopVotes && offset > 0) {
-    normalized = normalized.slice(offset);
-  }
-
-  return filterMatureStations(normalized.slice(0, limit));
+  return normalizeAndCurateStations(raw, category, offset, limit);
 }
 
 export async function fetchRadioSearchPage(
@@ -207,7 +272,11 @@ export async function fetchRadioSearchPage(
   return filterMatureStations(
     dedupeRadioStations(
       raw
-        .map((station) => normalizeRadioBrowserStation(station, "search"))
+        .map((rawStation) => {
+          const base = normalizeRadioBrowserStation(rawStation, "search");
+          if (!base) return null;
+          return enrichStationWithQuality(base, rawStation);
+        })
         .filter((station): station is HiddenTunesStation => Boolean(station))
     ).slice(0, limit)
   );
@@ -322,20 +391,27 @@ export async function loadRadioCategoryPage(
   categoryId: string,
   options?: LoadRadioPageOptions
 ) {
-  const safeId = String(categoryId || "").trim();
-  if (!safeId) return { stations: [], hasMore: false, fromCache: false };
+  const resolvedId = resolveRadioCategoryId(String(categoryId || "").trim());
+  if (!resolvedId) return { stations: [], hasMore: false, fromCache: false };
 
-  const category = getRadioCategory(safeId);
+  const category = getRadioCategory(resolvedId);
   if (category?.isMature && !shouldIncludeMatureInApi()) {
     return { stations: [], hasMore: false, fromCache: false };
   }
 
+  if (category?.laneKind === "recommended") {
+    const { loadRecommendedRadioLanePage } = await import("./radioHomeLanes");
+    return loadRecommendedRadioLanePage(options);
+  }
+
+  const cacheKey = resolveCategoryCacheKey(resolvedId);
+
   return loadRadioPage(
-    safeId,
-    (offset, limit, signal) => fetchRadioStationsPage(safeId, offset, limit, signal),
+    cacheKey,
+    (offset, limit, signal) => fetchRadioStationsPage(resolvedId, offset, limit, signal),
     {
       ...options,
-      requestKey: `category:${safeId}`,
+      requestKey: `category:${resolvedId}`,
     }
   );
 }
