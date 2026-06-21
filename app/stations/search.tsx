@@ -16,9 +16,11 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 
 import { RadioStationCard } from "../../components/radio/RadioBrowserCards";
+import MatureContentConsentModal from "../../components/mature/MatureContentConsentModal";
 import { COLORS } from "../../constants/theme";
 import { TESTER_COPY } from "../../constants/testerExperience";
 import { useLazyRadioStationList } from "../../hooks/useLazyRadioStationList";
+import { useMatureContentGate } from "../../hooks/useMatureContentGate";
 import { usePlaybackRouter } from "../../hooks/usePlaybackRouter";
 import { loadRadioSearchPage } from "../../services/radio/radioBrowserApi";
 import { normalizeRadioSearchCacheKey } from "../../services/radio/radioCache";
@@ -34,6 +36,8 @@ const RADIO_SEARCH_DEBOUNCE_MS = 350;
 
 export default function RadioSearchScreen() {
   const { playRadioStation } = usePlaybackRouter();
+  const { consentVisible, runWithMatureConsent, cancelConsent, confirmConsent } =
+    useMatureContentGate();
   const [query, setQuery] = useState("");
   const debouncedQuery = useDebouncedSearchQuery(query, RADIO_SEARCH_DEBOUNCE_MS);
   const cacheKey = useMemo(
@@ -88,6 +92,15 @@ export default function RadioSearchScreen() {
     [playRadioStation, resolveStation]
   );
 
+  const handleStationPress = useCallback(
+    (item: RadioStationListItem) => {
+      runWithMatureConsent(item, () => {
+        void playStation(item);
+      });
+    },
+    [playStation, runWithMatureConsent]
+  );
+
   const listPerformance = useMemo(
     () => getListPerformanceSettings(listItems.length),
     [listItems.length]
@@ -100,9 +113,9 @@ export default function RadioSearchScreen() {
 
   const renderItem = useCallback(
     ({ item }: { item: RadioStationListItem }) => (
-      <RadioStationCard item={item} onPress={() => playStation(item)} />
+      <RadioStationCard item={item} onPress={() => handleStationPress(item)} />
     ),
-    [playStation]
+    [handleStationPress]
   );
 
   const showPrompt = !debouncedQuery;
@@ -204,6 +217,12 @@ export default function RadioSearchScreen() {
           removeClippedSubviews
         />
       )}
+
+      <MatureContentConsentModal
+        visible={consentVisible}
+        onCancel={cancelConsent}
+        onConfirm={confirmConsent}
+      />
     </LinearGradient>
   );
 }

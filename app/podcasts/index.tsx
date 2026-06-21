@@ -18,11 +18,16 @@ import {
   PodcastCategoryCard,
   PodcastShowCard,
 } from "../../components/podcast/PodcastDiscoveryCards";
+import MatureContentConsentModal from "../../components/mature/MatureContentConsentModal";
 import { COLORS } from "../../constants/theme";
 import { TESTER_COPY } from "../../constants/testerExperience";
+import { useMatureContentGate } from "../../hooks/useMatureContentGate";
 import { searchPodcastShows } from "../../services/podcastDiscoveryApi";
 import type { HiddenTunesPodcastShow } from "../../services/podcastCatalogApi";
-import { LAUNCH_PODCAST_CATEGORIES } from "../../utils/launchPodcastCategories";
+import { getVisiblePodcastCategories } from "../../utils/launchPodcastCategories";
+import { useMatureContentSettings } from "../../hooks/useMatureContentSettings";
+import { isMatureContentItem } from "../../types/matureContent";
+import { shouldIncludeMatureInApi } from "../../utils/matureContentSettings";
 import { podcastShowSubtitle } from "../../utils/openHiddenTunesPodcast";
 import { readCachedPodcastSearch, hydrateCachedPodcastSearch } from "../../utils/podcastDiscoveryCache";
 import {
@@ -30,7 +35,15 @@ import {
   getListPerformanceSettings,
 } from "../../utils/performanceMode";
 
+function visiblePodcastShows(shows: HiddenTunesPodcastShow[]) {
+  if (shouldIncludeMatureInApi()) return shows;
+  return shows.filter((show) => !isMatureContentItem(show));
+}
+
 export default function PodcastDiscoveryHomeScreen() {
+  const { includeMatureInApi } = useMatureContentSettings();
+  const { consentVisible, runWithMatureConsent, cancelConsent, confirmConsent } =
+    useMatureContentGate();
   const params = useLocalSearchParams<{ q?: string; query?: string }>();
   const initialQuery = String(params.q || params.query || "").trim();
   const [searchQuery, setSearchQuery] = useState(initialQuery);
@@ -48,17 +61,26 @@ export default function PodcastDiscoveryHomeScreen() {
     } as any);
   }, []);
 
-  const openShow = useCallback((show: HiddenTunesPodcastShow) => {
-    router.push({
-      pathname: "/podcasts/show/[showId]",
-      params: {
-        showId: show.id,
-        title: show.title,
-      },
-    } as any);
-  }, []);
+  const openShow = useCallback(
+    (show: HiddenTunesPodcastShow) => {
+      runWithMatureConsent(show, () => {
+        router.push({
+          pathname: "/podcasts/show/[showId]",
+          params: {
+            showId: show.id,
+            title: show.title,
+            isMature: show.is_mature ? "1" : "0",
+          },
+        } as any);
+      });
+    },
+    [runWithMatureConsent]
+  );
 
-  const categories = useMemo(() => LAUNCH_PODCAST_CATEGORIES, []);
+  const categories = useMemo(
+    () => getVisiblePodcastCategories(includeMatureInApi),
+    [includeMatureInApi]
+  );
 
   useEffect(() => {
     const clean = searchQuery.trim();
@@ -71,7 +93,7 @@ export default function PodcastDiscoveryHomeScreen() {
 
     const cached = readCachedPodcastSearch(clean);
     if (cached?.length) {
-      setSearchResults(cached);
+      setSearchResults(visiblePodcastShows(cached));
       setSearchChecked(true);
       setSearchLoading(false);
       return;
@@ -85,7 +107,7 @@ export default function PodcastDiscoveryHomeScreen() {
         if (requestId !== searchRequestRef.current) return;
 
         if (storageHit?.length) {
-          setSearchResults(storageHit);
+          setSearchResults(visiblePodcastShows(storageHit));
           setSearchChecked(true);
           setSearchLoading(false);
           return;
@@ -94,7 +116,7 @@ export default function PodcastDiscoveryHomeScreen() {
         try {
           const shows = await searchPodcastShows(clean);
           if (requestId !== searchRequestRef.current) return;
-          setSearchResults(shows);
+          setSearchResults(visiblePodcastShows(shows));
         } finally {
           if (requestId !== searchRequestRef.current) return;
           setSearchLoading(false);
@@ -218,6 +240,12 @@ export default function PodcastDiscoveryHomeScreen() {
           </View>
         </ScrollView>
       )}
+
+      <MatureContentConsentModal
+        visible={consentVisible}
+        onCancel={cancelConsent}
+        onConfirm={confirmConsent}
+      />
     </LinearGradient>
   );
 }

@@ -5,6 +5,8 @@ import {
   type HiddenTunesPodcastShow,
 } from "./podcastCatalogApi";
 import { getLaunchPodcastCategory } from "../utils/launchPodcastCategories";
+import { isMatureContentItem } from "../types/matureContent";
+import { shouldIncludeMatureInApi } from "../utils/matureContentSettings";
 import {
   getPodcastEpisodesInflight,
   getPodcastShowsInflight,
@@ -63,14 +65,28 @@ function dedupeEpisodes(episodes: HiddenTunesPodcastEpisode[]) {
   return deduped;
 }
 
+function filterMatureShows(shows: HiddenTunesPodcastShow[]) {
+  if (shouldIncludeMatureInApi()) return shows;
+  return shows.filter((show) => !isMatureContentItem(show));
+}
+
+function filterMatureEpisodes(episodes: HiddenTunesPodcastEpisode[]) {
+  if (shouldIncludeMatureInApi()) return episodes;
+  return episodes.filter((episode) => !isMatureContentItem(episode));
+}
+
 async function fetchShowsFromNetwork(categoryId: string) {
   const category = getLaunchPodcastCategory(categoryId);
   if (!category) return [];
+  if (category.isMature && !shouldIncludeMatureInApi()) return [];
+
+  const includeMature = shouldIncludeMatureInApi();
 
   const primary = await fetchPodcastShows({
     ...category.catalogQuery,
     page: category.catalogQuery.page || 1,
     limit: SHOW_PAGE_LIMIT,
+    includeMature,
   });
 
   let shows = dedupeShows(primary.success ? primary.shows : []);
@@ -80,13 +96,25 @@ async function fetchShowsFromNetwork(categoryId: string) {
       ...category.fallbackQuery,
       page: category.fallbackQuery.page || 1,
       limit: SHOW_PAGE_LIMIT,
+      includeMature,
     });
     if (fallback.success) {
       shows = dedupeShows(fallback.shows);
     }
   }
 
-  return shows;
+  if (category.isMature) {
+    shows = shows.map((show) => ({
+      ...show,
+      is_mature: true,
+      content_rating:
+        show.content_rating && show.content_rating !== "clean"
+          ? show.content_rating
+          : "adult",
+    }));
+  }
+
+  return filterMatureShows(shows);
 }
 
 async function fetchSearchShowsFromNetwork(query: string) {
@@ -94,9 +122,10 @@ async function fetchSearchShowsFromNetwork(query: string) {
     q: query,
     page: 1,
     limit: SEARCH_PAGE_LIMIT,
+    includeMature: shouldIncludeMatureInApi(),
   });
 
-  return response.success ? dedupeShows(response.shows) : [];
+  return filterMatureShows(response.success ? dedupeShows(response.shows) : []);
 }
 
 async function fetchEpisodesFromNetwork(showId: string) {
@@ -104,9 +133,10 @@ async function fetchEpisodesFromNetwork(showId: string) {
     show_id: showId,
     page: 1,
     limit: EPISODE_PAGE_LIMIT,
+    includeMature: shouldIncludeMatureInApi(),
   });
 
-  return response.success ? dedupeEpisodes(response.episodes) : [];
+  return filterMatureEpisodes(response.success ? dedupeEpisodes(response.episodes) : []);
 }
 
 export async function getPodcastShowsForCategory(
@@ -116,15 +146,18 @@ export async function getPodcastShowsForCategory(
   const safeId = String(categoryId || "").trim();
   if (!safeId) return [];
 
+  const category = getLaunchPodcastCategory(safeId);
+  if (category?.isMature && !shouldIncludeMatureInApi()) return [];
+
   if (!options?.forceRefresh) {
     const memoryHit = readCachedPodcastShows(safeId);
-    if (memoryHit?.length) return memoryHit;
+    if (memoryHit?.length) return filterMatureShows(memoryHit);
 
     const inflight = getPodcastShowsInflight(safeId);
     if (inflight) return inflight;
 
     const storageHit = await hydrateCachedPodcastShows(safeId);
-    if (storageHit?.length) return storageHit;
+    if (storageHit?.length) return filterMatureShows(storageHit);
   }
 
   const fetchPromise = fetchShowsFromNetwork(safeId)
@@ -154,13 +187,13 @@ export async function searchPodcastShows(
 
   if (!options?.forceRefresh) {
     const memoryHit = readCachedPodcastSearch(cacheKey);
-    if (memoryHit?.length) return memoryHit;
+    if (memoryHit?.length) return filterMatureShows(memoryHit);
 
     const inflight = getPodcastShowsInflight(`search:${cacheKey}`);
     if (inflight) return inflight;
 
     const storageHit = await hydrateCachedPodcastSearch(cacheKey);
-    if (storageHit?.length) return storageHit;
+    if (storageHit?.length) return filterMatureShows(storageHit);
   }
 
   const fetchPromise = fetchSearchShowsFromNetwork(safeQuery)
@@ -188,13 +221,13 @@ export async function getPodcastEpisodesForShow(
 
   if (!options?.forceRefresh) {
     const memoryHit = readCachedPodcastEpisodes(safeId);
-    if (memoryHit?.length) return memoryHit;
+    if (memoryHit?.length) return filterMatureEpisodes(memoryHit);
 
     const inflight = getPodcastEpisodesInflight(safeId);
     if (inflight) return inflight;
 
     const storageHit = await hydrateCachedPodcastEpisodes(safeId);
-    if (storageHit?.length) return storageHit;
+    if (storageHit?.length) return filterMatureEpisodes(storageHit);
   }
 
   const fetchPromise = fetchEpisodesFromNetwork(safeId)

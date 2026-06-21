@@ -12,6 +12,7 @@ export type RadioCategory = {
   tag?: string;
   countryCode?: string;
   useTopVotes?: boolean;
+  isMature?: boolean;
   listeningRoomQuery: string;
   emptyTitle: string;
   emptyMessage: string;
@@ -150,10 +151,28 @@ export const RADIO_CATEGORIES: RadioCategory[] = [
     emptyTitle: "Nothing here yet.",
     emptyMessage: "Try another category or open a listening room.",
   },
+  {
+    id: "mature",
+    title: "Mature Radio",
+    subtitle: "18+ stations — enable in Profile settings",
+    icon: "eye-off-outline",
+    gradient: ["#201418", "#0C0808"],
+    tag: "adult",
+    isMature: true,
+    listeningRoomQuery: "adult talk radio",
+    emptyTitle: "No mature stations right now",
+    emptyMessage: "Turn on Show 18+ Content in Profile to browse this room.",
+  },
 ];
 
 const CATEGORY_BY_ID = new Map(RADIO_CATEGORIES.map((category) => [category.id, category]));
 
 export function getRadioCategory(id: string) {
   return CATEGORY_BY_ID.get(String(id || "").trim()) || null;
+}
+
+export function getVisibleRadioCategories(includeMature: boolean) {
+  return RADIO_CATEGORIES.filter(
+    (category) => !category.isMature || includeMature
+  );
 }

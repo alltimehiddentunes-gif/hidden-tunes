@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+import { isMatureContentItem } from "../../types/matureContent";
 import type { HiddenTunesStation } from "../../types/radio";
 
 const STORAGE_PREFIX = "hidden_tunes_radio_stations_v2";
@@ -184,4 +185,79 @@ export function setRadioStationInflight(
 
 export function countCachedRadioStations(cacheKey: string) {
   return readCachedRadioStations(cacheKey)?.length || 0;
+}
+
+function stripMatureStations(stations: HiddenTunesStation[]) {
+  return stations.filter((station) => !isMatureContentItem(station));
+}
+
+function purgeMatureFromMemoryCache() {
+  for (const [key, entry] of memoryCache.entries()) {
+    if (key === "mature") {
+      memoryCache.delete(key);
+      continue;
+    }
+
+    const filtered = stripMatureStations(entry.stations);
+    if (filtered.length !== entry.stations.length) {
+      memoryCache.set(key, { ...entry, stations: filtered });
+    }
+  }
+}
+
+export function clearMatureRadioCache() {
+  memoryCache.delete("mature");
+  purgeMatureFromMemoryCache();
+
+  for (const timer of storageWriteTimers.values()) {
+    clearTimeout(timer);
+  }
+  storageWriteTimers.clear();
+  pendingStorageWrites.clear();
+  inflight.clear();
+
+  void (async () => {
+    try {
+      const keys = await AsyncStorage.getAllKeys();
+      const radioKeys = keys.filter((key) => key.startsWith(`${STORAGE_PREFIX}:`));
+
+      await Promise.all(
+        radioKeys.map(async (storageKey) => {
+          const cacheKey = storageKey.slice(`${STORAGE_PREFIX}:`.length);
+          if (cacheKey === "mature") {
+            await AsyncStorage.removeItem(storageKey);
+            return;
+          }
+
+          const raw = await AsyncStorage.getItem(storageKey);
+          if (!raw) return;
+
+          try {
+            const parsed = JSON.parse(raw) as CachedStationPayload;
+            if (!Array.isArray(parsed?.stations)) {
+              await AsyncStorage.removeItem(storageKey);
+              return;
+            }
+
+            const filtered = stripMatureStations(parsed.stations);
+            if (filtered.length === 0) {
+              await AsyncStorage.removeItem(storageKey);
+              return;
+            }
+
+            if (filtered.length !== parsed.stations.length) {
+              await AsyncStorage.setItem(
+                storageKey,
+                JSON.stringify({ ...parsed, stations: filtered })
+              );
+            }
+          } catch {
+            await AsyncStorage.removeItem(storageKey);
+          }
+        })
+      );
+    } catch {
+      // Best-effort cache purge.
+    }
+  })();
 }

@@ -12,6 +12,9 @@ import {
 } from "../../utils/launchPodcastCategories";
 import { podcastDiscoveryDisplayName } from "../../utils/openHiddenTunesPodcast";
 import { getUserFacingPodcastSubtitle } from "../../services/ui/displayMetadata";
+import { useMatureContentSettings } from "../../hooks/useMatureContentSettings";
+import { isMatureContentItem } from "../../types/matureContent";
+import MatureContentBadge from "../mature/MatureContentBadge";
 
 type PodcastCategoryCardProps = {
   category: LaunchPodcastCategory;
@@ -61,9 +64,12 @@ export const PodcastShowCard = memo(function PodcastShowCard({
   subtitle,
   onPress,
 }: PodcastShowCardProps) {
+  const { includeMatureInApi } = useMatureContentSettings();
+  const showMatureArt = !isMatureContentItem(show) || includeMatureInApi;
+
   return (
     <TouchableOpacity activeOpacity={0.88} style={styles.showRow} onPress={onPress}>
-      {show.artwork_url ? (
+      {show.artwork_url && showMatureArt ? (
         <Image
           source={{ uri: show.artwork_url }}
           style={styles.showArt}
@@ -80,9 +86,12 @@ export const PodcastShowCard = memo(function PodcastShowCard({
       )}
 
       <View style={styles.showCopy}>
-        <Text numberOfLines={2} style={styles.showTitle}>
-          {podcastDiscoveryDisplayName(show.title)}
-        </Text>
+        <View style={styles.showTitleRow}>
+          <Text numberOfLines={2} style={styles.showTitle}>
+            {podcastDiscoveryDisplayName(show.title)}
+          </Text>
+          <MatureContentBadge item={show} />
+        </View>
         <Text numberOfLines={1} style={styles.showSubtitle}>
           {subtitle || getUserFacingPodcastSubtitle(null, show.title)}
         </Text>
@@ -104,9 +113,12 @@ export const PodcastEpisodeRow = memo(function PodcastEpisodeRow({
   subtitle,
   onPress,
 }: PodcastEpisodeRowProps) {
+  const { includeMatureInApi } = useMatureContentSettings();
+  const showMatureArt = !isMatureContentItem(episode) || includeMatureInApi;
+
   return (
     <TouchableOpacity activeOpacity={0.88} style={styles.episodeRow} onPress={onPress}>
-      {episode.artwork_url ? (
+      {episode.artwork_url && showMatureArt ? (
         <Image
           source={{ uri: episode.artwork_url }}
           style={styles.episodeArt}
@@ -123,9 +135,12 @@ export const PodcastEpisodeRow = memo(function PodcastEpisodeRow({
       )}
 
       <View style={styles.episodeCopy}>
-        <Text numberOfLines={2} style={styles.episodeTitle}>
-          {podcastDiscoveryDisplayName(episode.title)}
-        </Text>
+        <View style={styles.episodeTitleRow}>
+          <Text numberOfLines={2} style={styles.episodeTitle}>
+            {podcastDiscoveryDisplayName(episode.title)}
+          </Text>
+          <MatureContentBadge item={episode} />
+        </View>
         <Text numberOfLines={1} style={styles.episodeSubtitle}>
           {subtitle || getUserFacingPodcastSubtitle(episode)}
         </Text>
@@ -206,11 +221,17 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 3,
   },
+  showTitleRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+  },
   showTitle: {
     color: COLORS.text,
     fontSize: 15,
     fontWeight: "800",
     lineHeight: 19,
+    flexShrink: 1,
   },
   showSubtitle: {
     color: COLORS.textMuted,
@@ -246,11 +267,17 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 3,
   },
+  episodeTitleRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+  },
   episodeTitle: {
     color: COLORS.text,
     fontSize: 14,
     fontWeight: "800",
     lineHeight: 18,
+    flexShrink: 1,
   },
   episodeSubtitle: {
     color: COLORS.textMuted,

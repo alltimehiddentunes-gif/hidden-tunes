@@ -1,3 +1,7 @@
+import type { ContentRating } from "../types/matureContent";
+import { parseContentRating } from "../types/matureContent";
+import { resolvePodcastMatureFields } from "../utils/matureContentDetection";
+
 export const PODCAST_CATALOG_BASE_URL = "https://admin.hiddentunes.com";
 export const PODCAST_SHOWS_API_PATH = "/api/podcasts/shows";
 export const PODCAST_EPISODES_API_PATH = "/api/podcasts/episodes";
@@ -16,6 +20,9 @@ export type HiddenTunesPodcastShow = {
   episode_count?: number;
   is_featured?: boolean;
   is_exclusive?: boolean;
+  is_mature?: boolean;
+  mature_reason?: string;
+  content_rating?: ContentRating;
   sourceName: "Hidden Tunes";
 };
 
@@ -30,6 +37,9 @@ export type HiddenTunesPodcastEpisode = {
   published_at?: string;
   episode_number?: number;
   season_number?: number;
+  is_mature?: boolean;
+  mature_reason?: string;
+  content_rating?: ContentRating;
   sourceName: "Hidden Tunes";
 };
 
@@ -41,6 +51,7 @@ export type PodcastShowsQuery = {
   collection?: string;
   is_featured?: boolean;
   is_exclusive?: boolean;
+  includeMature?: boolean;
 };
 
 export type PodcastEpisodesQuery = {
@@ -49,6 +60,7 @@ export type PodcastEpisodesQuery = {
   q?: string;
   show_id?: string;
   category?: string;
+  includeMature?: boolean;
 };
 
 export type PodcastCatalogPagination = {
@@ -119,6 +131,16 @@ export function normalizePodcastShow(
 
   if (!id || !title) return null;
 
+  const categories = normalizeCategories(raw.categories || raw.primary_category);
+  const mature = resolvePodcastMatureFields({
+    title,
+    categories,
+    primary_category: cleanText(raw.primary_category, 120) || undefined,
+    is_mature: Boolean(raw.is_mature),
+    mature_reason: cleanText(raw.mature_reason, 200) || undefined,
+    content_rating: parseContentRating(raw.content_rating),
+  });
+
   return {
     id,
     slug,
@@ -127,12 +149,15 @@ export function normalizePodcastShow(
     artwork_url: cleanText(raw.artwork_url, 2000) || undefined,
     host_name: cleanText(raw.host_name, 120) || undefined,
     primary_category: cleanText(raw.primary_category, 120) || undefined,
-    categories: normalizeCategories(raw.categories || raw.primary_category),
+    categories,
     episode_count: Number.isFinite(Number(raw.episode_count))
       ? Number(raw.episode_count)
       : undefined,
     is_featured: Boolean(raw.is_featured),
     is_exclusive: Boolean(raw.is_exclusive),
+    is_mature: mature.is_mature,
+    mature_reason: mature.mature_reason,
+    content_rating: mature.content_rating,
     sourceName: "Hidden Tunes",
   };
 }
@@ -145,6 +170,13 @@ export function normalizePodcastEpisode(
   const title = String(raw.title || "").trim();
 
   if (!id || !showId || !title) return null;
+
+  const mature = resolvePodcastMatureFields({
+    title,
+    is_mature: Boolean(raw.is_mature),
+    mature_reason: cleanText(raw.mature_reason, 200) || undefined,
+    content_rating: parseContentRating(raw.content_rating),
+  });
 
   return {
     id,
@@ -163,6 +195,9 @@ export function normalizePodcastEpisode(
     season_number: Number.isFinite(Number(raw.season_number))
       ? Number(raw.season_number)
       : undefined,
+    is_mature: mature.is_mature,
+    mature_reason: mature.mature_reason,
+    content_rating: mature.content_rating,
     sourceName: "Hidden Tunes",
   };
 }
@@ -183,6 +218,7 @@ function buildShowsUrl(query: PodcastShowsQuery = {}) {
   if (query.collection?.trim()) params.set("collection", query.collection.trim());
   if (query.is_featured) params.set("is_featured", "true");
   if (query.is_exclusive) params.set("is_exclusive", "true");
+  if (query.includeMature) params.set("includeMature", "true");
 
   return `${PODCAST_CATALOG_BASE_URL}${PODCAST_SHOWS_API_PATH}?${params.toString()}`;
 }
@@ -201,6 +237,7 @@ function buildEpisodesUrl(query: PodcastEpisodesQuery = {}) {
   if (query.q?.trim()) params.set("q", query.q.trim());
   if (query.show_id?.trim()) params.set("show_id", query.show_id.trim());
   if (query.category?.trim()) params.set("category", query.category.trim());
+  if (query.includeMature) params.set("includeMature", "true");
 
   return `${PODCAST_CATALOG_BASE_URL}${PODCAST_EPISODES_API_PATH}?${params.toString()}`;
 }

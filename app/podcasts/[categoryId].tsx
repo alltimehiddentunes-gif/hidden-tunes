@@ -14,12 +14,16 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 
 import { PodcastShowCard } from "../../components/podcast/PodcastDiscoveryCards";
+import MatureContentConsentModal from "../../components/mature/MatureContentConsentModal";
 import { COLORS } from "../../constants/theme";
 import { TESTER_COPY } from "../../constants/testerExperience";
+import { useMatureContentGate } from "../../hooks/useMatureContentGate";
 import { getPodcastShowsForCategory } from "../../services/podcastDiscoveryApi";
 import type { HiddenTunesPodcastShow } from "../../services/podcastCatalogApi";
 import { getLaunchPodcastCategory } from "../../utils/launchPodcastCategories";
 import { podcastShowSubtitle } from "../../utils/openHiddenTunesPodcast";
+import { isMatureContentItem } from "../../types/matureContent";
+import { shouldIncludeMatureInApi } from "../../utils/matureContentSettings";
 import {
   readCachedPodcastShows,
   hydrateCachedPodcastShows,
@@ -29,7 +33,14 @@ import {
   getListPerformanceSettings,
 } from "../../utils/performanceMode";
 
+function visiblePodcastShows(shows: HiddenTunesPodcastShow[]) {
+  if (shouldIncludeMatureInApi()) return shows;
+  return shows.filter((show) => !isMatureContentItem(show));
+}
+
 export default function PodcastCategoryScreen() {
+  const { consentVisible, runWithMatureConsent, cancelConsent, confirmConsent } =
+    useMatureContentGate();
   const params = useLocalSearchParams<{ categoryId?: string }>();
   const categoryId = String(params.categoryId || "").trim();
   const category = useMemo(
@@ -38,7 +49,7 @@ export default function PodcastCategoryScreen() {
   );
 
   const [shows, setShows] = useState<HiddenTunesPodcastShow[]>(() =>
-    readCachedPodcastShows(categoryId) || []
+    visiblePodcastShows(readCachedPodcastShows(categoryId) || [])
   );
   const [loading, setLoading] = useState(() => shows.length === 0);
   const [refreshing, setRefreshing] = useState(false);
@@ -51,11 +62,12 @@ export default function PodcastCategoryScreen() {
       if (!forceRefresh) {
         const cached = readCachedPodcastShows(categoryId);
         if (cached?.length) {
+          const visible = visiblePodcastShows(cached);
           setShows((current) =>
-            current.length === cached.length &&
-            current.every((item, index) => item.id === cached[index]?.id)
+            current.length === visible.length &&
+            current.every((item, index) => item.id === visible[index]?.id)
               ? current
-              : cached
+              : visible
           );
           setLoading(false);
           setHasCheckedFallbacks(true);
@@ -64,11 +76,12 @@ export default function PodcastCategoryScreen() {
 
         const storageHit = await hydrateCachedPodcastShows(categoryId);
         if (storageHit?.length) {
+          const visible = visiblePodcastShows(storageHit);
           setShows((current) =>
-            current.length === storageHit.length &&
-            current.every((item, index) => item.id === storageHit[index]?.id)
+            current.length === visible.length &&
+            current.every((item, index) => item.id === visible[index]?.id)
               ? current
-              : storageHit
+              : visible
           );
           setLoading(false);
           setHasCheckedFallbacks(true);
@@ -103,15 +116,21 @@ export default function PodcastCategoryScreen() {
     void loadShows(true);
   }, [loadShows]);
 
-  const openShow = useCallback((show: HiddenTunesPodcastShow) => {
-    router.push({
-      pathname: "/podcasts/show/[showId]",
-      params: {
-        showId: show.id,
-        title: show.title,
-      },
-    } as any);
-  }, []);
+  const openShow = useCallback(
+    (show: HiddenTunesPodcastShow) => {
+      runWithMatureConsent(show, () => {
+        router.push({
+          pathname: "/podcasts/show/[showId]",
+          params: {
+            showId: show.id,
+            title: show.title,
+            isMature: show.is_mature ? "1" : "0",
+          },
+        } as any);
+      });
+    },
+    [runWithMatureConsent]
+  );
 
   const renderShowRow = useCallback(
     ({ item }: { item: HiddenTunesPodcastShow }) => (
@@ -216,6 +235,12 @@ export default function PodcastCategoryScreen() {
           removeClippedSubviews
         />
       )}
+
+      <MatureContentConsentModal
+        visible={consentVisible}
+        onCancel={cancelConsent}
+        onConfirm={confirmConsent}
+      />
     </LinearGradient>
   );
 }

@@ -3,6 +3,7 @@ import {
   Image,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TouchableOpacity,
   View,
@@ -14,8 +15,10 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router, useFocusEffect } from "expo-router";
 
 import AppShell from "../components/navigation/AppShell";
+import MatureContentConsentModal from "../components/mature/MatureContentConsentModal";
 import { COLORS, GRADIENTS } from "../constants/theme";
 import { usePlayerState } from "../context/PlayerContext";
+import { useMatureContentSettings } from "../hooks/useMatureContentSettings";
 import { getDownloadedSongs } from "../services/downloads";
 import {
   getStoredUserRole,
@@ -209,6 +212,8 @@ function ProfileRow({
 export default function ProfileScreen() {
   const { favorites, recentlyPlayed, activeQueue, songs, onlineSongs } =
     usePlayerState();
+  const { enabled, enableWithConsent, disable } = useMatureContentSettings();
+  const [enableMatureModalVisible, setEnableMatureModalVisible] = useState(false);
   const [userRole, setUserRole] = useState<UserRole>("listener");
   const [downloadsCount, setDownloadsCount] = useState<number | null>(null);
 
@@ -295,6 +300,28 @@ export default function ProfileScreen() {
     router.push(href as never);
   }, []);
 
+  const handleMatureToggle = useCallback(
+    (nextValue: boolean) => {
+      if (nextValue) {
+        setEnableMatureModalVisible(true);
+        return;
+      }
+
+      void disable();
+    },
+    [disable]
+  );
+
+  const cancelEnableMature = useCallback(() => {
+    setEnableMatureModalVisible(false);
+  }, []);
+
+  const confirmEnableMature = useCallback(() => {
+    void enableWithConsent().then(() => {
+      setEnableMatureModalVisible(false);
+    });
+  }, [enableWithConsent]);
+
   return (
     <AppShell>
       <LinearGradient colors={GRADIENTS.main} style={styles.screen}>
@@ -351,6 +378,33 @@ export default function ProfileScreen() {
           </View>
 
           <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Content preferences</Text>
+
+            <View style={styles.settingRow}>
+              <LinearGradient colors={GRADIENTS.card} style={styles.itemIcon}>
+                <Ionicons name="eye-off-outline" size={21} color={COLORS.primary} />
+              </LinearGradient>
+
+              <View style={styles.itemTextWrap}>
+                <Text style={styles.itemTitle}>Show 18+ Content</Text>
+                <Text style={styles.itemSubtitle}>
+                  Include mature radio and podcast results
+                </Text>
+              </View>
+
+              <Switch
+                value={enabled}
+                onValueChange={handleMatureToggle}
+                trackColor={{
+                  false: "rgba(255,255,255,0.12)",
+                  true: "rgba(168,85,247,0.45)",
+                }}
+                thumbColor={enabled ? COLORS.primary : "#f4f3f4"}
+              />
+            </View>
+          </View>
+
+          <View style={styles.section}>
             <Text style={styles.sectionTitle}>Account & tools</Text>
 
             {PROFILE_ACTIONS.map((action) => (
@@ -399,6 +453,12 @@ export default function ProfileScreen() {
             </View>
           ) : null}
         </ScrollView>
+
+        <MatureContentConsentModal
+          visible={enableMatureModalVisible}
+          onCancel={cancelEnableMature}
+          onConfirm={confirmEnableMature}
+        />
       </LinearGradient>
     </AppShell>
   );
@@ -608,6 +668,16 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 17,
     marginTop: 4,
+  },
+  settingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 16,
+    borderRadius: 22,
+    marginBottom: 11,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
   },
   versionRow: {
     marginTop: 24,

@@ -8,6 +8,9 @@ import { COLORS } from "../../constants/theme";
 import type { RadioCategory } from "../../constants/radioCategories";
 import type { RadioStationListItem } from "../../types/radio";
 import { getUserFacingRadioSubtitle } from "../../services/ui/displayMetadata";
+import { useMatureContentSettings } from "../../hooks/useMatureContentSettings";
+import { isMatureContentItem } from "../../types/matureContent";
+import MatureContentBadge from "../mature/MatureContentBadge";
 
 type RadioCategoryCardProps = {
   category: RadioCategory;
@@ -42,10 +45,15 @@ type RadioStationCardProps = {
 
 const RadioStationArt = memo(function RadioStationArt({
   artworkUrl,
+  item,
 }: {
   artworkUrl?: string;
+  item: RadioStationListItem;
 }) {
-  if (!artworkUrl) {
+  const { includeMatureInApi } = useMatureContentSettings();
+  const showMatureArt = !isMatureContentItem(item) || includeMatureInApi;
+
+  if (!artworkUrl || !showMatureArt) {
     return (
       <View style={styles.stationArtFallback}>
         <Ionicons name="radio-outline" size={18} color={COLORS.textMuted} />
@@ -72,12 +80,15 @@ export const RadioStationCard = memo(function RadioStationCard({
 }: RadioStationCardProps) {
   return (
     <TouchableOpacity activeOpacity={0.88} style={styles.stationRow} onPress={onPress}>
-      <RadioStationArt artworkUrl={item.artworkUrl} />
+      <RadioStationArt artworkUrl={item.artworkUrl} item={item} />
 
       <View style={styles.stationCopy}>
-        <Text numberOfLines={1} style={styles.stationTitle}>
-          {item.title}
-        </Text>
+        <View style={styles.stationTitleRow}>
+          <Text numberOfLines={1} style={styles.stationTitle}>
+            {item.title}
+          </Text>
+          <MatureContentBadge item={item} />
+        </View>
         {item.subtitle ? (
           <Text numberOfLines={1} style={styles.stationSubtitle}>
             {getUserFacingRadioSubtitle(item)}
@@ -155,10 +166,16 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 2,
   },
+  stationTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
   stationTitle: {
     color: COLORS.text,
     fontSize: 15,
     fontWeight: "800",
+    flexShrink: 1,
   },
   stationSubtitle: {
     color: COLORS.textMuted,

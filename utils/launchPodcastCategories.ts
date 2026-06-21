@@ -5,6 +5,7 @@ import type { PodcastShowsQuery } from "../services/podcastCatalogApi";
 import type { MoodRoomGradient } from "./moodRooms";
 
 export const HIDDEN_TUNES_PODCASTS_LABEL = "Hidden Tunes Podcasts";
+export const MATURE_PODCAST_CATEGORY_ID = "adult-conversations";
 
 export type LaunchPodcastCategory = {
   id: string;
@@ -16,6 +17,7 @@ export type LaunchPodcastCategory = {
   fallbackQuery?: PodcastShowsQuery;
   emptyTitle: string;
   emptyMessage: string;
+  isMature?: boolean;
 };
 
 function categoryConfig(
@@ -24,7 +26,8 @@ function categoryConfig(
   subtitle: string,
   icon: ComponentProps<typeof Ionicons>["name"],
   gradient: MoodRoomGradient,
-  emptyHint: string
+  emptyHint: string,
+  options?: { isMature?: boolean }
 ): LaunchPodcastCategory {
   return {
     id,
@@ -36,6 +39,7 @@ function categoryConfig(
     fallbackQuery: { q: title },
     emptyTitle: `${title} is warming up`,
     emptyMessage: `Hidden Tunes is syncing ${emptyHint}. Try another room or pull to refresh.`,
+    isMature: options?.isMature,
   };
 }
 
@@ -174,7 +178,8 @@ export const LAUNCH_PODCAST_CATEGORIES: LaunchPodcastCategory[] = [
     "Mature talk curated for Hidden Tunes",
     "eye-outline",
     ["#201418", "#0C0808"],
-    "adult conversation shows"
+    "adult conversation shows",
+    { isMature: true }
   ),
   categoryConfig(
     "human-psychology",
@@ -229,4 +234,10 @@ export const LAUNCH_PODCAST_CATEGORIES: LaunchPodcastCategory[] = [
 export function getLaunchPodcastCategory(categoryId: string) {
   const safeId = String(categoryId || "").trim().toLowerCase();
   return LAUNCH_PODCAST_CATEGORIES.find((category) => category.id === safeId) || null;
+}
+
+export function getVisiblePodcastCategories(includeMature: boolean) {
+  return LAUNCH_PODCAST_CATEGORIES.filter(
+    (category) => !category.isMature || includeMature
+  );
 }

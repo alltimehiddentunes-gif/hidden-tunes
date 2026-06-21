@@ -14,8 +14,10 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 
 import { PodcastEpisodeRow } from "../../../components/podcast/PodcastDiscoveryCards";
+import MatureContentConsentModal from "../../../components/mature/MatureContentConsentModal";
 import { COLORS } from "../../../constants/theme";
 import { TESTER_COPY } from "../../../constants/testerExperience";
+import { useMatureContentGate } from "../../../hooks/useMatureContentGate";
 import { usePlaybackRouter } from "../../../hooks/usePlaybackRouter";
 import {
   getPodcastEpisodesForShow,
@@ -37,10 +39,13 @@ import {
 
 export default function PodcastShowScreen() {
   const { playPodcastEpisode } = usePlaybackRouter();
+  const { consentVisible, runWithMatureConsent, cancelConsent, confirmConsent } =
+    useMatureContentGate();
   const [playbackError, setPlaybackError] = useState<string | null>(null);
-  const params = useLocalSearchParams<{ showId?: string; title?: string }>();
+  const params = useLocalSearchParams<{ showId?: string; title?: string; isMature?: string }>();
   const showId = String(params.showId || "").trim();
   const showTitle = podcastDiscoveryDisplayName(params.title);
+  const showIsMature = params.isMature === "1";
 
   const [episodes, setEpisodes] = useState<HiddenTunesPodcastEpisode[]>(() =>
     readCachedPodcastEpisodes(showId) || []
@@ -139,15 +144,29 @@ export default function PodcastShowScreen() {
     [playbackQueue, playPodcastEpisode, showTitle]
   );
 
+  const handleEpisodePress = useCallback(
+    (episode: HiddenTunesPodcastEpisode) => {
+      const matureItem = {
+        is_mature: episode.is_mature || showIsMature,
+        content_rating: episode.content_rating,
+      };
+
+      runWithMatureConsent(matureItem, () => {
+        void openEpisode(episode);
+      });
+    },
+    [openEpisode, runWithMatureConsent, showIsMature]
+  );
+
   const renderEpisodeRow = useCallback(
     ({ item }: { item: HiddenTunesPodcastEpisode }) => (
       <PodcastEpisodeRow
         episode={item}
         subtitle={podcastEpisodeSubtitle(item)}
-        onPress={() => openEpisode(item)}
+        onPress={() => handleEpisodePress(item)}
       />
     ),
-    [openEpisode]
+    [handleEpisodePress]
   );
 
   const listPerformance = useMemo(
@@ -244,6 +263,12 @@ export default function PodcastShowScreen() {
         Podcast playback stays separate from song playback so your queue, MiniPlayer,
         and auto-next stay stable.
       </Text>
+
+      <MatureContentConsentModal
+        visible={consentVisible}
+        onCancel={cancelConsent}
+        onConfirm={confirmConsent}
+      />
     </LinearGradient>
   );
 }

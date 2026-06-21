@@ -12,10 +12,13 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 
 import { RadioCategoryCard } from "../../components/radio/RadioBrowserCards";
-import { RADIO_CATEGORIES } from "../../constants/radioCategories";
+import { getVisibleRadioCategories } from "../../constants/radioCategories";
 import { COLORS } from "../../constants/theme";
+import { useMatureContentSettings } from "../../hooks/useMatureContentSettings";
 
 export default function RadioStationsHomeScreen() {
+  const { includeMatureInApi } = useMatureContentSettings();
+
   const openCategory = useCallback((categoryId: string) => {
     router.push({
       pathname: "/stations/[categoryId]",
@@ -27,7 +30,10 @@ export default function RadioStationsHomeScreen() {
     router.push("/stations/search" as any);
   }, []);
 
-  const categories = useMemo(() => RADIO_CATEGORIES, []);
+  const categories = useMemo(
+    () => getVisibleRadioCategories(includeMatureInApi),
+    [includeMatureInApi]
+  );
 
   return (
     <LinearGradient colors={["#120818", "#050308"]} style={styles.container}>

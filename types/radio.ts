@@ -1,3 +1,5 @@
+import type { ContentRating } from "./matureContent";
+
 export type RadioBrowserStationRaw = {
   stationuuid?: string;
   name?: string;
@@ -27,6 +29,9 @@ export type HiddenTunesStation = {
   codec?: string;
   categoryId: string;
   cachedAt: number;
+  is_mature?: boolean;
+  mature_reason?: string;
+  content_rating?: ContentRating;
 };
 
 /** Lightweight row model for FlatList — no stream URL in render props. */
@@ -38,6 +43,8 @@ export type RadioStationListItem = {
   tags: string[];
   artworkUrl?: string;
   subtitle: string;
+  is_mature?: boolean;
+  content_rating?: ContentRating;
 };
 
 export type RadioStation = {

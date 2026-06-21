@@ -5,6 +5,8 @@ import type {
   RadioStation,
   RadioStationListItem,
 } from "../../types/radio";
+import { resolveRadioMatureFields } from "../../utils/matureContentDetection";
+import { getRadioCategory } from "../../constants/radioCategories";
 
 const HIDDEN_PROVIDER_TAG =
   /^(radio[- ]?browser|icecast|shoutcast|radionomy|tunein|streema|live365)$/i;
@@ -47,6 +49,13 @@ export function normalizeRadioBrowserStation(
 
   if (!id || !name || !streamUrl) return null;
 
+  const category = getRadioCategory(categoryId);
+  const mature = resolveRadioMatureFields({
+    name,
+    tags: normalizeTags(station.tags),
+    categoryIsMature: category?.isMature,
+  });
+
   return {
     id,
     name,
@@ -65,6 +74,9 @@ export function normalizeRadioBrowserStation(
     codec: String(station.codec || "").trim() || undefined,
     categoryId,
     cachedAt: Date.now(),
+    is_mature: mature.is_mature,
+    mature_reason: mature.mature_reason,
+    content_rating: mature.content_rating,
   };
 }
 
@@ -122,5 +134,7 @@ export function toRadioStationListItem(station: HiddenTunesStation): RadioStatio
     tags,
     artworkUrl: station.favicon,
     subtitle: stationRowSubtitle(station),
+    is_mature: station.is_mature,
+    content_rating: station.content_rating,
   };
 }

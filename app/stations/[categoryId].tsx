@@ -15,10 +15,12 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 
 import { RadioStationCard } from "../../components/radio/RadioBrowserCards";
+import MatureContentConsentModal from "../../components/mature/MatureContentConsentModal";
 import { getRadioCategory } from "../../constants/radioCategories";
 import { COLORS } from "../../constants/theme";
 import { TESTER_COPY } from "../../constants/testerExperience";
 import { useLazyRadioStationList } from "../../hooks/useLazyRadioStationList";
+import { useMatureContentGate } from "../../hooks/useMatureContentGate";
 import { usePlaybackRouter } from "../../hooks/usePlaybackRouter";
 import { loadRadioCategoryPage } from "../../services/radio/radioBrowserApi";
 import { normalizeRadioStation } from "../../services/radio/radioNormalizer";
@@ -30,6 +32,8 @@ import {
 
 export default function RadioCategoryScreen() {
   const { playRadioStation } = usePlaybackRouter();
+  const { consentVisible, runWithMatureConsent, cancelConsent, confirmConsent } =
+    useMatureContentGate();
   const params = useLocalSearchParams<{ categoryId?: string }>();
   const categoryId = String(params.categoryId || "").trim();
   const category = useMemo(() => getRadioCategory(categoryId), [categoryId]);
@@ -81,6 +85,15 @@ export default function RadioCategoryScreen() {
     [playRadioStation, resolveStation]
   );
 
+  const handleStationPress = useCallback(
+    (item: RadioStationListItem) => {
+      runWithMatureConsent(item, () => {
+        void playStation(item);
+      });
+    },
+    [playStation, runWithMatureConsent]
+  );
+
   const openListeningRoom = useCallback(() => {
     if (!category) return;
 
@@ -106,9 +119,9 @@ export default function RadioCategoryScreen() {
 
   const renderItem = useCallback(
     ({ item }: { item: RadioStationListItem }) => (
-      <RadioStationCard item={item} onPress={() => playStation(item)} />
+      <RadioStationCard item={item} onPress={() => handleStationPress(item)} />
     ),
-    [playStation]
+    [handleStationPress]
   );
 
   const showEmpty = hasLoadedOnce && !loading && !refreshing && listItems.length === 0;
@@ -200,6 +213,12 @@ export default function RadioCategoryScreen() {
           removeClippedSubviews
         />
       )}
+
+      <MatureContentConsentModal
+        visible={consentVisible}
+        onCancel={cancelConsent}
+        onConfirm={confirmConsent}
+      />
     </LinearGradient>
   );
 }

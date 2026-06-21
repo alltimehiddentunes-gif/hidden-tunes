@@ -4,6 +4,8 @@ import type {
   HiddenTunesPodcastEpisode,
   HiddenTunesPodcastShow,
 } from "../services/podcastCatalogApi";
+import { isMatureContentItem } from "../types/matureContent";
+import { MATURE_PODCAST_CATEGORY_ID } from "./launchPodcastCategories";
 
 const SHOWS_STORAGE_PREFIX = "hidden_tunes_podcast_shows_v1";
 const EPISODES_STORAGE_PREFIX = "hidden_tunes_podcast_episodes_v1";
@@ -221,4 +223,120 @@ export function writeCachedPodcastSearch(
   shows: HiddenTunesPodcastShow[]
 ) {
   writeCachedPodcastShows(`search:${query}`, shows);
+}
+
+function stripMatureShows(shows: HiddenTunesPodcastShow[]) {
+  return shows.filter((show) => !isMatureContentItem(show));
+}
+
+function stripMatureEpisodes(episodes: HiddenTunesPodcastEpisode[]) {
+  return episodes.filter((episode) => !isMatureContentItem(episode));
+}
+
+function purgeMatureFromPodcastMemoryCache() {
+  const matureKey = normalizeCacheKey(MATURE_PODCAST_CATEGORY_ID);
+  showsMemoryCache.delete(matureKey);
+
+  for (const [key, entry] of showsMemoryCache.entries()) {
+    const filtered = stripMatureShows(entry.shows);
+    if (filtered.length !== entry.shows.length) {
+      showsMemoryCache.set(key, { ...entry, shows: filtered });
+    }
+  }
+
+  for (const [key, entry] of episodesMemoryCache.entries()) {
+    const filtered = stripMatureEpisodes(entry.episodes);
+    if (filtered.length !== entry.episodes.length) {
+      episodesMemoryCache.set(key, { ...entry, episodes: filtered });
+    }
+  }
+}
+
+export async function clearMaturePodcastCache() {
+  showsMemoryCache.delete(normalizeCacheKey(MATURE_PODCAST_CATEGORY_ID));
+  purgeMatureFromPodcastMemoryCache();
+  showsInflight.clear();
+  episodesInflight.clear();
+
+  for (const timer of storageWriteTimers.values()) {
+    clearTimeout(timer);
+  }
+  storageWriteTimers.clear();
+  pendingStorageWrites.clear();
+
+  try {
+    const keys = await AsyncStorage.getAllKeys();
+    const showKeys = keys.filter((key) => key.startsWith(`${SHOWS_STORAGE_PREFIX}:`));
+    const episodeKeys = keys.filter((key) =>
+      key.startsWith(`${EPISODES_STORAGE_PREFIX}:`)
+    );
+
+    await Promise.all(
+      showKeys.map(async (storageKey) => {
+        const cacheKey = storageKey.slice(`${SHOWS_STORAGE_PREFIX}:`.length);
+        if (cacheKey === normalizeCacheKey(MATURE_PODCAST_CATEGORY_ID)) {
+          await AsyncStorage.removeItem(storageKey);
+          return;
+        }
+
+        const raw = await AsyncStorage.getItem(storageKey);
+        if (!raw) return;
+
+        try {
+          const parsed = JSON.parse(raw) as CachedShowsPayload;
+          if (!Array.isArray(parsed?.shows)) {
+            await AsyncStorage.removeItem(storageKey);
+            return;
+          }
+
+          const filtered = stripMatureShows(parsed.shows);
+          if (filtered.length === 0) {
+            await AsyncStorage.removeItem(storageKey);
+            return;
+          }
+
+          if (filtered.length !== parsed.shows.length) {
+            await AsyncStorage.setItem(
+              storageKey,
+              JSON.stringify({ ...parsed, shows: filtered })
+            );
+          }
+        } catch {
+          await AsyncStorage.removeItem(storageKey);
+        }
+      })
+    );
+
+    await Promise.all(
+      episodeKeys.map(async (storageKey) => {
+        const raw = await AsyncStorage.getItem(storageKey);
+        if (!raw) return;
+
+        try {
+          const parsed = JSON.parse(raw) as CachedEpisodesPayload;
+          if (!Array.isArray(parsed?.episodes)) {
+            await AsyncStorage.removeItem(storageKey);
+            return;
+          }
+
+          const filtered = stripMatureEpisodes(parsed.episodes);
+          if (filtered.length === 0) {
+            await AsyncStorage.removeItem(storageKey);
+            return;
+          }
+
+          if (filtered.length !== parsed.episodes.length) {
+            await AsyncStorage.setItem(
+              storageKey,
+              JSON.stringify({ ...parsed, episodes: filtered })
+            );
+          }
+        } catch {
+          await AsyncStorage.removeItem(storageKey);
+        }
+      })
+    );
+  } catch {
+    // Best-effort cache purge.
+  }
 }

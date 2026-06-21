@@ -1,5 +1,7 @@
 import { getRadioCategory, type RadioCategory } from "../../constants/radioCategories";
+import { isMatureContentItem } from "../../types/matureContent";
 import type { HiddenTunesStation, RadioBrowserStationRaw } from "../../types/radio";
+import { shouldIncludeMatureInApi } from "../../utils/matureContentSettings";
 import { normalizeRadioBrowserStation } from "./radioNormalizer";
 import {
   countCachedRadioStations,
@@ -139,6 +141,11 @@ async function fetchRadioBrowserJson(path: string, signal?: AbortSignal) {
   throw lastError instanceof Error ? lastError : new Error("radio_browser_failed");
 }
 
+function filterMatureStations(stations: HiddenTunesStation[]) {
+  if (shouldIncludeMatureInApi()) return stations;
+  return stations.filter((station) => !isMatureContentItem(station));
+}
+
 function dedupeRadioStations(stations: HiddenTunesStation[]) {
   const seenIds = new Set<string>();
   const seenStreams = new Set<string>();
@@ -164,6 +171,7 @@ export async function fetchRadioStationsPage(
 ) {
   const category = getRadioCategory(categoryId);
   if (!category) return [];
+  if (category.isMature && !shouldIncludeMatureInApi()) return [];
 
   const raw = await fetchRadioBrowserJson(
     buildCategoryPath(category, offset, limit),
@@ -180,7 +188,7 @@ export async function fetchRadioStationsPage(
     normalized = normalized.slice(offset);
   }
 
-  return normalized.slice(0, limit);
+  return filterMatureStations(normalized.slice(0, limit));
 }
 
 export async function fetchRadioSearchPage(
@@ -194,11 +202,13 @@ export async function fetchRadioSearchPage(
 
   const raw = await fetchRadioBrowserJson(buildSearchPath(safeQuery, offset, limit), signal);
 
-  return dedupeRadioStations(
-    raw
-      .map((station) => normalizeRadioBrowserStation(station, "search"))
-      .filter((station): station is HiddenTunesStation => Boolean(station))
-  ).slice(0, limit);
+  return filterMatureStations(
+    dedupeRadioStations(
+      raw
+        .map((station) => normalizeRadioBrowserStation(station, "search"))
+        .filter((station): station is HiddenTunesStation => Boolean(station))
+    ).slice(0, limit)
+  );
 }
 
 type LoadRadioPageOptions = {
@@ -224,7 +234,7 @@ async function loadCachedOrHydratedPage(
   if (memoryPage.length) {
     const total = countCachedRadioStations(cacheKey);
     return {
-      stations: memoryPage,
+      stations: filterMatureStations(memoryPage),
       hasMore: total > offset + memoryPage.length || memoryPage.length >= limit,
       fromCache: true,
     } satisfies LoadRadioPageResult;
@@ -237,7 +247,7 @@ async function loadCachedOrHydratedPage(
   if (!page.length) return null;
 
   return {
-    stations: page,
+    stations: filterMatureStations(page),
     hasMore: hydrated.length > offset + page.length || page.length >= limit,
     fromCache: true,
   } satisfies LoadRadioPageResult;
@@ -267,7 +277,7 @@ async function loadRadioPage(
         if (inflight) {
           const stations = await inflight;
           return {
-            stations: stations.slice(0, limit),
+            stations: filterMatureStations(stations.slice(0, limit)),
             hasMore: stations.length >= limit,
             fromCache: true,
           };
@@ -284,7 +294,7 @@ async function loadRadioPage(
 
         const fallback =
           readCachedRadioStations(safeKey) || (await hydrateCachedRadioStations(safeKey)) || [];
-        return fallback.slice(offset, offset + limit);
+        return filterMatureStations(fallback.slice(offset, offset + limit));
       });
 
     if (offset === 0 && !append && !options?.forceRefresh) {
@@ -294,7 +304,7 @@ async function loadRadioPage(
     const stations = await fetchPromise;
 
     return {
-      stations,
+      stations: filterMatureStations(stations),
       hasMore: stations.length >= limit,
       fromCache: false,
     };
@@ -309,6 +319,11 @@ export async function loadRadioCategoryPage(
 ) {
   const safeId = String(categoryId || "").trim();
   if (!safeId) return { stations: [], hasMore: false, fromCache: false };
+
+  const category = getRadioCategory(safeId);
+  if (category?.isMature && !shouldIncludeMatureInApi()) {
+    return { stations: [], hasMore: false, fromCache: false };
+  }
 
   return loadRadioPage(
     safeId,
