@@ -5,8 +5,8 @@ import { resolvePodcastMatureFields } from "../utils/matureContentDetection";
 export const PODCAST_CATALOG_BASE_URL = "https://admin.hiddentunes.com";
 export const PODCAST_SHOWS_API_PATH = "/api/podcasts/shows";
 export const PODCAST_EPISODES_API_PATH = "/api/podcasts/episodes";
-export const PODCAST_DEFAULT_PAGE_LIMIT = 20;
-export const PODCAST_CATEGORY_PAGE_LIMIT = 24;
+export const PODCAST_DEFAULT_PAGE_LIMIT = 40;
+export const PODCAST_CATEGORY_PAGE_LIMIT = 40;
 
 export type HiddenTunesPodcastShow = {
   id: string;

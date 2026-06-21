@@ -27,7 +27,11 @@ function categoryConfig(
   icon: ComponentProps<typeof Ionicons>["name"],
   gradient: MoodRoomGradient,
   emptyHint: string,
-  options?: { isMature?: boolean }
+  options?: {
+    isMature?: boolean;
+    catalogQuery?: PodcastShowsQuery;
+    fallbackQuery?: PodcastShowsQuery;
+  }
 ): LaunchPodcastCategory {
   return {
     id,
@@ -35,8 +39,8 @@ function categoryConfig(
     subtitle,
     icon,
     gradient,
-    catalogQuery: { category: title },
-    fallbackQuery: { q: title },
+    catalogQuery: options?.catalogQuery || { category: title },
+    fallbackQuery: options?.fallbackQuery || { q: title },
     emptyTitle: `${title} is warming up`,
     emptyMessage: `Hidden Tunes is syncing ${emptyHint}. Try another room or pull to refresh.`,
     isMature: options?.isMature,
@@ -44,6 +48,33 @@ function categoryConfig(
 }
 
 export const LAUNCH_PODCAST_CATEGORIES: LaunchPodcastCategory[] = [
+  categoryConfig(
+    "featured",
+    "Featured Podcasts",
+    "Editorial picks from Hidden Tunes",
+    "star-outline",
+    ["#241028", "#100810"],
+    "featured shows",
+    { catalogQuery: { is_featured: true } }
+  ),
+  categoryConfig(
+    "trending",
+    "Trending Podcasts",
+    "What listeners are talking about",
+    "trending-up-outline",
+    ["#101828", "#080C14"],
+    "trending shows",
+    { catalogQuery: { collection: "trending" }, fallbackQuery: { q: "trending podcasts" } }
+  ),
+  categoryConfig(
+    "new-releases",
+    "New Releases",
+    "Fresh episodes and new shows",
+    "sparkles-outline",
+    ["#181828", "#0A0A14"],
+    "new release shows",
+    { catalogQuery: { collection: "new" }, fallbackQuery: { q: "new podcast releases" } }
+  ),
   categoryConfig(
     "business",
     "Business",
@@ -61,14 +92,6 @@ export const LAUNCH_PODCAST_CATEGORIES: LaunchPodcastCategory[] = [
     "technology shows"
   ),
   categoryConfig(
-    "finance",
-    "Finance",
-    "Money, markets, and wealth mindset",
-    "cash-outline",
-    ["#142018", "#08100C"],
-    "finance shows"
-  ),
-  categoryConfig(
     "education",
     "Education",
     "Learning, skills, and knowledge rooms",
@@ -77,117 +100,13 @@ export const LAUNCH_PODCAST_CATEGORIES: LaunchPodcastCategory[] = [
     "education shows"
   ),
   categoryConfig(
-    "news",
-    "News",
-    "Headlines and conversation you can trust",
-    "newspaper-outline",
-    ["#201818", "#0C0808"],
-    "news shows"
-  ),
-  categoryConfig(
-    "sports",
-    "Sports",
-    "Game talk, culture, and competition",
-    "football-outline",
-    ["#142820", "#081410"],
-    "sports shows"
-  ),
-  categoryConfig(
-    "faith",
-    "Faith",
-    "Spiritual growth and sacred calm",
+    "christian-gospel",
+    "Christian / Gospel",
+    "Faith, worship, and spiritual growth",
     "sparkles-outline",
     ["#1A1830", "#0A0818"],
-    "faith shows"
-  ),
-  categoryConfig(
-    "health",
-    "Health",
-    "Wellness, body, and balanced living",
-    "heart-outline",
-    ["#201828", "#0C0814"],
-    "health shows"
-  ),
-  categoryConfig(
-    "motivation",
-    "Motivation",
-    "Momentum, mindset, and daily fuel",
-    "flame-outline",
-    ["#281418", "#100808"],
-    "motivation shows"
-  ),
-  categoryConfig(
-    "relationships",
-    "Relationships",
-    "Connection, love, and real talk",
-    "people-outline",
-    ["#241028", "#100810"],
-    "relationship shows"
-  ),
-  categoryConfig(
-    "dating",
-    "Dating",
-    "Modern dating with Hidden Tunes voice",
-    "heart-outline",
-    ["#2A1420", "#100810"],
-    "dating shows"
-  ),
-  categoryConfig(
-    "marriage",
-    "Marriage",
-    "Partnership, commitment, and repair",
-    "infinite-outline",
-    ["#201820", "#0C0810"],
-    "marriage shows"
-  ),
-  categoryConfig(
-    "family",
-    "Family",
-    "Home, parenting, and togetherness",
-    "home-outline",
-    ["#241810", "#100C08"],
-    "family shows"
-  ),
-  categoryConfig(
-    "breakup-recovery",
-    "Breakup Recovery",
-    "Healing, closure, and fresh starts",
-    "bandage-outline",
-    ["#181820", "#0A0A12"],
-    "breakup recovery shows"
-  ),
-  categoryConfig(
-    "communication",
-    "Communication",
-    "Words, listening, and understanding",
-    "chatbubbles-outline",
-    ["#142028", "#080C12"],
-    "communication shows"
-  ),
-  categoryConfig(
-    "personal-development",
-    "Personal Development",
-    "Growth habits and better you energy",
-    "trending-up-outline",
-    ["#101828", "#080C14"],
-    "personal development shows"
-  ),
-  categoryConfig(
-    "adult-conversations",
-    "Adult Conversations",
-    "Mature talk curated for Hidden Tunes",
-    "eye-outline",
-    ["#201418", "#0C0808"],
-    "adult conversation shows",
-    { isMature: true }
-  ),
-  categoryConfig(
-    "human-psychology",
-    "Human Psychology",
-    "Mind patterns, behavior, and insight",
-    "bulb-outline",
-    ["#181828", "#0A0A14"],
-    "psychology shows"
+    "Christian and gospel shows",
+    { catalogQuery: { category: "Faith" }, fallbackQuery: { q: "gospel podcast" } }
   ),
   categoryConfig(
     "african-voices",
@@ -198,36 +117,38 @@ export const LAUNCH_PODCAST_CATEGORIES: LaunchPodcastCategory[] = [
     "African voice shows"
   ),
   categoryConfig(
-    "african-business",
-    "African Business",
-    "Enterprise, hustle, and African markets",
-    "business-outline",
-    ["#241810", "#100C08"],
-    "African business shows"
+    "true-crime",
+    "True Crime",
+    "Mystery, cases, and investigative stories",
+    "search-outline",
+    ["#201418", "#0C0808"],
+    "true crime shows",
+    { fallbackQuery: { q: "true crime podcast" } }
   ),
   categoryConfig(
-    "african-culture",
-    "African Culture",
-    "Heritage, art, and cultural depth",
-    "color-palette-outline",
+    "health",
+    "Health",
+    "Wellness, body, and balanced living",
+    "heart-outline",
     ["#201828", "#0C0814"],
-    "African culture shows"
+    "health shows"
   ),
   categoryConfig(
-    "artist-interviews",
-    "Artist Interviews",
-    "Creators, craft, and studio stories",
-    "mic-outline",
+    "relationships",
+    "Relationships",
+    "Connection, love, and real talk",
+    "people-outline",
     ["#241028", "#100810"],
-    "artist interview shows"
+    "relationship shows"
   ),
   categoryConfig(
-    "behind-the-music",
-    "Behind The Music",
-    "Industry rooms and making-of stories",
-    "musical-notes-outline",
-    ["#181828", "#0A0A14"],
-    "behind the music shows"
+    "adult-conversations",
+    "Mature / 18+",
+    "Adult talk curated for Hidden Tunes",
+    "eye-outline",
+    ["#201418", "#0C0808"],
+    "adult conversation shows",
+    { isMature: true }
   ),
 ];
 

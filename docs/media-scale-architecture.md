@@ -10,8 +10,8 @@ This document unifies scalable **radio** and **podcast** catalog design. It supe
 
 | Domain | Backend target | Mobile constraint |
 |--------|----------------|-------------------|
-| Radio | **40,000+** indexed · **10,000+** quality-approved · **1,000+** featured · mature/18+ gated | Zero stations at startup; **40/page** only — never load/search full catalog on device |
-| Podcast | Backend-indexed shows + episodes at scale | Zero full catalog at startup |
+| Radio | **100,000+** indexed · **10,000+** quality-approved · **1,000+** featured · mature/18+ gated | Zero stations at startup; **40/page** only — never load/search full catalog on device |
+| Podcast | **100,000+** shows · **10M+** episodes long-term | Zero full catalog at startup; **40/page** lazy load |
 
 Shared principles:
 
@@ -28,28 +28,26 @@ Shared principles:
 
 | Area | Today | Scale gap |
 |------|-------|-----------|
-| `services/radio/radioBrowserApi.ts` | Direct Radio Browser API from device; 32/page; search max 120 | No backend index; no mature gating; no quality tiers |
-| `services/radio/radioCache.ts` | Memory + AsyncStorage; 18h TTL; up to 2,000 stations/key | Stores full `streamUrl`; no mature metadata |
-| `services/radio/radioNormalizer.ts` | Radio Browser → `HiddenTunesStation` | No `isMature`, `contentRating`, `qualityTier` |
-| `hooks/useLazyRadioStationList.ts` | Cache-first infinite scroll | Good pattern — swap `loadPage` to backend API |
-| `types/radio.ts` | Full station + lightweight list item | Missing mature + rating fields |
-| `constants/radioCategories.ts` | 12 static categories → Radio Browser tags | No backend category IDs; no mature lane |
-| `app/stations/index.tsx` | Categories only, no station fetch | ✅ Correct baseline |
-| `app/stations/[categoryId].tsx` | Lazy category browse | Hits third-party API |
-| `app/stations/search.tsx` | Debounced search (350ms) | Device-side Radio Browser search |
+| `services/radio/radioBrowserApi.ts` | Direct Radio Browser API from device; **40/page**; search max 200 | No backend index; mature gating client-side |
+| `hooks/useLazyRadioStationList.ts` | Cache-first infinite scroll at 40/page | Good pattern — swap `loadPage` to backend API |
+| `hooks/useLazyPodcastShowList.ts` | Cache-first infinite scroll at 40/page | Wired on category + search screens |
+| `hooks/useLazyPodcastEpisodeList.ts` | Cache-first infinite scroll at 40/page | Wired on show screen |
+| `hooks/useDeferredSearchMediaSections.ts` | Lazy podcast + live radio in main search | Max 40/section; mature filtered |
+| `app/search.tsx` | Music-first search + deferred PODCASTS / RADIO STATIONS sections | Lower priority than songs/artists/albums |
+| `app/profile.tsx` | Show Mature Content toggle + consent | OFF by default |
+| `constants/radioCategories.ts` | 10 scale-ready discovery lanes incl. mature | Client static until backend `/api/radio/categories` |
+| `utils/launchPodcastCategories.ts` | 12 scale-ready discovery lanes incl. mature | Client static until backend `/api/podcasts/categories` |
 
 ### Podcast
 
 | Area | Today | Scale gap |
 |------|-------|-----------|
-| `services/podcastCatalogApi.ts` | Hidden Tunes admin API (`/api/podcasts/shows`, `/api/podcasts/episodes`); 20–24/page | Partial backend; no mature fields; no dedicated search/categories endpoints |
-| `services/podcastDiscoveryApi.ts` | Category + search wrappers; single-page fetch (24–30 items) | No infinite scroll pagination; prefetch helpers exist |
-| `utils/podcastDiscoveryCache.ts` | 12h TTL; 32 memory keys | Caches full first page only; no page-level keys |
-| `utils/launchPodcastCategories.ts` | ~15 static categories with `catalogQuery` | Client-side category config; no backend `/categories` |
-| `types/podcast.ts` | Minimal `PodcastEpisode` playback shape | No mature/rating on catalog types |
-| `app/podcasts/index.tsx` | Categories + inline search (page 1 only) | No trending/new/continue lanes at scale |
-| `app/podcasts/[categoryId].tsx` | Single fetch per category | No 40/page lazy load |
-| `app/podcasts/show/[showId].tsx` | Episodes page 1 only (30 max) | No episode pagination; no mature gate |
+| `services/podcastDiscoveryApi.ts` | Paginated category/search/episodes at **40/page** | Backend index at 100k+ scale |
+| `utils/podcastDiscoveryCache.ts` | 12h TTL; append-aware page cache | Page-level keys when backend lands |
+| `utils/launchPodcastCategories.ts` | 12 discovery lanes with mature category | Backend `/api/podcasts/categories` future |
+| `app/podcasts/index.tsx` | Categories + lazy search at 40/page | ✅ |
+| `app/podcasts/[categoryId].tsx` | Lazy category browse at 40/page | ✅ |
+| `app/podcasts/show/[showId].tsx` | Lazy episodes at 40/page + mature gate | ✅ |
 
 ### Playback (unchanged in this phase)
 
@@ -454,6 +452,26 @@ Never render arrays > current loaded pages in memory without virtualization (Fla
 - Debounce: ~350ms (keep current radio/podcast UX)
 - Abort stale requests (keep existing AbortController patterns)
 - Client never filters thousands of records — server returns paginated slice
+
+---
+
+## Backend indexing checklist (future)
+
+Required for **100,000+ radio** and **100,000+ podcasts** at full scale:
+
+- **`quality_score`** — rank playable, high-quality stations and shows
+- **Dead stream removal** — hide broken stations after validation threshold
+- **Deduplication** — canonical rows per stream/show hash; hide duplicates on mobile
+- **Country index** — playable counts per ISO; mobile shows countries with stations only
+- **Language index** — browse/filter lanes by language without client-side scans
+- **Genre index** — category and genre facets for discovery lanes
+- **`is_mature` / mature flag** — 18+ gating on list/search endpoints
+- **`explicit` / content rating** — separate explicit vs adult talk where applicable
+- **Safe search filter** — default endpoints exclude mature unless user opted in + consented
+- **Featured ranking** — editorial `featured_rank` for home/discovery lanes
+- **Trending ranking** — backend `trending_score` for podcast/radio trending lanes
+
+Mobile never loads the full catalog — **40 items/page** only.
 
 ---
 

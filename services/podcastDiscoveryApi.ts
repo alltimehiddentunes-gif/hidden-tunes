@@ -6,6 +6,7 @@ import {
 } from "./podcastCatalogApi";
 import { getLaunchPodcastCategory } from "../utils/launchPodcastCategories";
 import { shouldIncludeMatureInApi } from "../utils/matureContentSettings";
+import { MEDIA_DISCOVERY_PAGE_SIZE, pageFromOffset } from "../constants/mediaDiscovery";
 import {
   filterVisiblePodcastEpisodes,
   filterVisiblePodcastShows,
@@ -26,9 +27,11 @@ import {
   writeCachedPodcastShows,
 } from "../utils/podcastDiscoveryCache";
 
-const SHOW_PAGE_LIMIT = 24;
-const EPISODE_PAGE_LIMIT = 30;
-const SEARCH_PAGE_LIMIT = 28;
+const SHOW_PAGE_LIMIT = MEDIA_DISCOVERY_PAGE_SIZE;
+const EPISODE_PAGE_LIMIT = MEDIA_DISCOVERY_PAGE_SIZE;
+const SEARCH_PAGE_LIMIT = MEDIA_DISCOVERY_PAGE_SIZE;
+
+export { MEDIA_DISCOVERY_PAGE_SIZE as PODCAST_DISCOVERY_PAGE_SIZE };
 
 function dedupeShows(shows: HiddenTunesPodcastShow[]) {
   const seenIds = new Set<string>();
@@ -76,31 +79,35 @@ function filterMatureEpisodes(episodes: HiddenTunesPodcastEpisode[]) {
   return filterVisiblePodcastEpisodes(episodes);
 }
 
-async function fetchShowsFromNetwork(categoryId: string) {
+async function fetchShowsFromNetwork(categoryId: string, page = 1) {
   const category = getLaunchPodcastCategory(categoryId);
-  if (!category) return [];
-  if (category.isMature && !shouldIncludeMatureInApi()) return [];
+  if (!category) return { shows: [] as HiddenTunesPodcastShow[], hasMore: false };
+  if (category.isMature && !shouldIncludeMatureInApi()) {
+    return { shows: [], hasMore: false };
+  }
 
   const includeMature = shouldIncludeMatureInApi();
 
   const primary = await fetchPodcastShows({
     ...category.catalogQuery,
-    page: category.catalogQuery.page || 1,
+    page,
     limit: SHOW_PAGE_LIMIT,
     includeMature,
   });
 
   let shows = dedupeShows(primary.success ? primary.shows : []);
+  let hasMore = primary.success ? primary.pagination.hasMore : false;
 
-  if (!shows.length && category.fallbackQuery) {
+  if (!shows.length && category.fallbackQuery && page === 1) {
     const fallback = await fetchPodcastShows({
       ...category.fallbackQuery,
-      page: category.fallbackQuery.page || 1,
+      page: 1,
       limit: SHOW_PAGE_LIMIT,
       includeMature,
     });
     if (fallback.success) {
       shows = dedupeShows(fallback.shows);
+      hasMore = fallback.pagination.hasMore;
     }
   }
 
@@ -115,29 +122,193 @@ async function fetchShowsFromNetwork(categoryId: string) {
     }));
   }
 
-  return filterMatureShows(shows);
+  return {
+    shows: filterMatureShows(shows),
+    hasMore,
+  };
 }
 
-async function fetchSearchShowsFromNetwork(query: string) {
+async function fetchSearchShowsFromNetwork(query: string, page = 1) {
   const response = await fetchPodcastShows({
     q: query,
-    page: 1,
+    page,
     limit: SEARCH_PAGE_LIMIT,
     includeMature: shouldIncludeMatureInApi(),
   });
 
-  return filterMatureShows(response.success ? dedupeShows(response.shows) : []);
+  return {
+    shows: filterMatureShows(response.success ? dedupeShows(response.shows) : []),
+    hasMore: response.success ? response.pagination.hasMore : false,
+  };
 }
 
-async function fetchEpisodesFromNetwork(showId: string) {
+async function fetchEpisodesFromNetwork(showId: string, page = 1) {
   const response = await fetchPodcastEpisodes({
     show_id: showId,
-    page: 1,
+    page,
     limit: EPISODE_PAGE_LIMIT,
     includeMature: shouldIncludeMatureInApi(),
   });
 
-  return filterMatureEpisodes(response.success ? dedupeEpisodes(response.episodes) : []);
+  return {
+    episodes: filterMatureEpisodes(response.success ? dedupeEpisodes(response.episodes) : []),
+    hasMore: response.success ? response.pagination.hasMore : false,
+  };
+}
+
+export async function loadPodcastCategoryPage(
+  categoryId: string,
+  offset = 0,
+  options?: { forceRefresh?: boolean; append?: boolean }
+) {
+  const safeId = String(categoryId || "").trim();
+  if (!safeId) return { shows: [], hasMore: false };
+
+  const category = getLaunchPodcastCategory(safeId);
+  if (category?.isMature && !shouldIncludeMatureInApi()) {
+    return { shows: [], hasMore: false };
+  }
+
+  const page = pageFromOffset(offset, SHOW_PAGE_LIMIT);
+
+  if (!options?.forceRefresh && offset === 0 && !options?.append) {
+    const memoryHit = readCachedPodcastShows(safeId);
+    if (memoryHit?.length) {
+      const visible = filterMatureShows(memoryHit.slice(0, SHOW_PAGE_LIMIT));
+      return {
+        shows: visible,
+        hasMore: memoryHit.length >= SHOW_PAGE_LIMIT,
+      };
+    }
+  }
+
+  const fetchPromise = fetchShowsFromNetwork(safeId, page).then(({ shows, hasMore }) => {
+    if (shows.length > 0) {
+      writeCachedPodcastShows(safeId, shows, { append: Boolean(options?.append || offset > 0) });
+    }
+    return { shows, hasMore };
+  });
+
+  if (offset === 0 && !options?.append && !options?.forceRefresh) {
+    const inflight = getPodcastShowsInflight(safeId);
+    if (inflight) {
+      const shows = await inflight;
+      return {
+        shows: filterMatureShows(shows.slice(0, SHOW_PAGE_LIMIT)),
+        hasMore: shows.length >= SHOW_PAGE_LIMIT,
+      };
+    }
+    return setPodcastShowsInflight(
+      safeId,
+      fetchPromise.then((result) => result.shows)
+    ).then((shows) => ({
+      shows: filterMatureShows(shows.slice(0, SHOW_PAGE_LIMIT)),
+      hasMore: shows.length >= SHOW_PAGE_LIMIT,
+    }));
+  }
+
+  return fetchPromise;
+}
+
+export async function loadPodcastSearchPage(
+  query: string,
+  options?: { offset?: number; forceRefresh?: boolean; append?: boolean }
+) {
+  const safeQuery = String(query || "").trim();
+  if (!safeQuery) return { shows: [], hasMore: false };
+
+  const offset = Math.max(0, Number(options?.offset) || 0);
+  const cacheKey = safeQuery.toLowerCase();
+  const page = pageFromOffset(offset, SEARCH_PAGE_LIMIT);
+
+  if (!options?.forceRefresh && offset === 0 && !options?.append) {
+    const memoryHit = readCachedPodcastSearch(cacheKey);
+    if (memoryHit?.length) {
+      return {
+        shows: filterMatureShows(memoryHit.slice(0, SEARCH_PAGE_LIMIT)),
+        hasMore: memoryHit.length >= SEARCH_PAGE_LIMIT,
+      };
+    }
+  }
+
+  const fetchPromise = fetchSearchShowsFromNetwork(safeQuery, page).then(({ shows, hasMore }) => {
+    if (shows.length > 0) {
+      writeCachedPodcastSearch(cacheKey, shows, {
+        append: Boolean(options?.append || offset > 0),
+      });
+    }
+    return { shows, hasMore };
+  });
+
+  if (offset === 0 && !options?.append && !options?.forceRefresh) {
+    const inflight = getPodcastShowsInflight(`search:${cacheKey}`);
+    if (inflight) {
+      const shows = await inflight;
+      return {
+        shows: filterMatureShows(shows.slice(0, SEARCH_PAGE_LIMIT)),
+        hasMore: shows.length >= SEARCH_PAGE_LIMIT,
+      };
+    }
+    return setPodcastShowsInflight(
+      `search:${cacheKey}`,
+      fetchPromise.then((result) => result.shows)
+    ).then((shows) => ({
+      shows: filterMatureShows(shows.slice(0, SEARCH_PAGE_LIMIT)),
+      hasMore: shows.length >= SEARCH_PAGE_LIMIT,
+    }));
+  }
+
+  return fetchPromise;
+}
+
+export async function loadPodcastEpisodesPage(
+  showId: string,
+  offset = 0,
+  options?: { forceRefresh?: boolean; append?: boolean }
+) {
+  const safeId = String(showId || "").trim();
+  if (!safeId) return { episodes: [], hasMore: false };
+
+  const page = pageFromOffset(offset, EPISODE_PAGE_LIMIT);
+
+  if (!options?.forceRefresh && offset === 0 && !options?.append) {
+    const memoryHit = readCachedPodcastEpisodes(safeId);
+    if (memoryHit?.length) {
+      return {
+        episodes: filterMatureEpisodes(memoryHit.slice(0, EPISODE_PAGE_LIMIT)),
+        hasMore: memoryHit.length >= EPISODE_PAGE_LIMIT,
+      };
+    }
+  }
+
+  const fetchPromise = fetchEpisodesFromNetwork(safeId, page).then(({ episodes, hasMore }) => {
+    if (episodes.length > 0) {
+      writeCachedPodcastEpisodes(safeId, episodes, {
+        append: Boolean(options?.append || offset > 0),
+      });
+    }
+    return { episodes, hasMore };
+  });
+
+  if (offset === 0 && !options?.append && !options?.forceRefresh) {
+    const inflight = getPodcastEpisodesInflight(safeId);
+    if (inflight) {
+      const episodes = await inflight;
+      return {
+        episodes: filterMatureEpisodes(episodes.slice(0, EPISODE_PAGE_LIMIT)),
+        hasMore: episodes.length >= EPISODE_PAGE_LIMIT,
+      };
+    }
+    return setPodcastEpisodesInflight(
+      safeId,
+      fetchPromise.then((result) => result.episodes)
+    ).then((episodes) => ({
+      episodes: filterMatureEpisodes(episodes.slice(0, EPISODE_PAGE_LIMIT)),
+      hasMore: episodes.length >= EPISODE_PAGE_LIMIT,
+    }));
+  }
+
+  return fetchPromise;
 }
 
 export async function getPodcastShowsForCategory(
@@ -161,8 +332,8 @@ export async function getPodcastShowsForCategory(
     if (storageHit?.length) return filterMatureShows(storageHit);
   }
 
-  const fetchPromise = fetchShowsFromNetwork(safeId)
-    .then((shows) => {
+  const fetchPromise = fetchShowsFromNetwork(safeId, 1)
+    .then(({ shows }) => {
       if (shows.length > 0) {
         writeCachedPodcastShows(safeId, shows);
       }
@@ -197,8 +368,8 @@ export async function searchPodcastShows(
     if (storageHit?.length) return filterMatureShows(storageHit);
   }
 
-  const fetchPromise = fetchSearchShowsFromNetwork(safeQuery)
-    .then((shows) => {
+  const fetchPromise = fetchSearchShowsFromNetwork(safeQuery, 1)
+    .then(({ shows }) => {
       if (shows.length > 0) {
         writeCachedPodcastSearch(cacheKey, shows);
       }
@@ -231,8 +402,8 @@ export async function getPodcastEpisodesForShow(
     if (storageHit?.length) return filterMatureEpisodes(storageHit);
   }
 
-  const fetchPromise = fetchEpisodesFromNetwork(safeId)
-    .then((episodes) => {
+  const fetchPromise = fetchEpisodesFromNetwork(safeId, 1)
+    .then(({ episodes }) => {
       if (episodes.length > 0) {
         writeCachedPodcastEpisodes(safeId, episodes);
       }

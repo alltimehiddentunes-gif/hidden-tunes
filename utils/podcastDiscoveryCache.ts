@@ -109,17 +109,35 @@ export async function hydrateCachedPodcastShows(categoryId: string) {
 
 export function writeCachedPodcastShows(
   categoryId: string,
-  shows: HiddenTunesPodcastShow[]
+  shows: HiddenTunesPodcastShow[],
+  options?: { append?: boolean }
 ) {
   const key = normalizeCacheKey(categoryId);
+  const existing = readCachedPodcastShows(categoryId) || [];
+  const merged = options?.append ? dedupePodcastShows([...existing, ...shows]) : shows;
   const payload: CachedShowsPayload = {
-    shows,
+    shows: merged,
     cachedAt: Date.now(),
   };
 
   showsMemoryCache.set(key, payload);
   trimMemoryCache(showsMemoryCache);
   schedulePersistCache(SHOWS_STORAGE_PREFIX, key, payload);
+
+  return merged;
+}
+
+function dedupePodcastShows(shows: HiddenTunesPodcastShow[]) {
+  const seen = new Set<string>();
+  const deduped: HiddenTunesPodcastShow[] = [];
+
+  for (const show of shows) {
+    if (seen.has(show.id)) continue;
+    seen.add(show.id);
+    deduped.push(show);
+  }
+
+  return deduped;
 }
 
 export function getPodcastShowsInflight(categoryId: string) {
@@ -177,17 +195,37 @@ export async function hydrateCachedPodcastEpisodes(showId: string) {
 
 export function writeCachedPodcastEpisodes(
   showId: string,
-  episodes: HiddenTunesPodcastEpisode[]
+  episodes: HiddenTunesPodcastEpisode[],
+  options?: { append?: boolean }
 ) {
   const key = normalizeCacheKey(showId);
+  const existing = readCachedPodcastEpisodes(showId) || [];
+  const merged = options?.append
+    ? dedupePodcastEpisodes([...existing, ...episodes])
+    : episodes;
   const payload: CachedEpisodesPayload = {
-    episodes,
+    episodes: merged,
     cachedAt: Date.now(),
   };
 
   episodesMemoryCache.set(key, payload);
   trimMemoryCache(episodesMemoryCache);
   schedulePersistCache(EPISODES_STORAGE_PREFIX, key, payload);
+
+  return merged;
+}
+
+function dedupePodcastEpisodes(episodes: HiddenTunesPodcastEpisode[]) {
+  const seen = new Set<string>();
+  const deduped: HiddenTunesPodcastEpisode[] = [];
+
+  for (const episode of episodes) {
+    if (seen.has(episode.id)) continue;
+    seen.add(episode.id);
+    deduped.push(episode);
+  }
+
+  return deduped;
 }
 
 export function getPodcastEpisodesInflight(showId: string) {
@@ -220,9 +258,10 @@ export async function hydrateCachedPodcastSearch(query: string) {
 
 export function writeCachedPodcastSearch(
   query: string,
-  shows: HiddenTunesPodcastShow[]
+  shows: HiddenTunesPodcastShow[],
+  options?: { append?: boolean }
 ) {
-  writeCachedPodcastShows(`search:${query}`, shows);
+  writeCachedPodcastShows(`search:${query}`, shows, options);
 }
 
 function stripMatureShows(shows: HiddenTunesPodcastShow[]) {

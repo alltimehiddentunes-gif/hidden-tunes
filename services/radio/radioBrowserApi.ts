@@ -1,3 +1,4 @@
+import { MEDIA_DISCOVERY_PAGE_SIZE } from "../../constants/mediaDiscovery";
 import { getRadioCategory, type RadioCategory } from "../../constants/radioCategories";
 import { isMatureContentItem } from "../../types/matureContent";
 import type { HiddenTunesStation, RadioBrowserStationRaw } from "../../types/radio";
@@ -23,8 +24,8 @@ const RADIO_BROWSER_SERVERS = [
 const RADIO_BROWSER_USER_AGENT = "HiddenTunes/1.0 (mobile radio browser)";
 const STATION_FETCH_TIMEOUT_MS = 12000;
 
-export const RADIO_STATION_PAGE_SIZE = 32;
-export const RADIO_SEARCH_MAX_RESULTS = 120;
+export const RADIO_STATION_PAGE_SIZE = MEDIA_DISCOVERY_PAGE_SIZE;
+export const RADIO_SEARCH_MAX_RESULTS = 200;
 
 const browseAbortControllers = new Map<string, AbortController>();
 

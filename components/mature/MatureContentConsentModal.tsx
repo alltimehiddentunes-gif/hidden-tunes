@@ -24,8 +24,7 @@ export default function MatureContentConsentModal({
         <Pressable style={styles.card} onPress={() => undefined}>
           <Text style={styles.title}>Mature Content</Text>
           <Text style={styles.message}>
-            This content may include adult or explicit material. Confirm you are
-            18 or older to continue.
+            I confirm that I am 18 or older and want to access mature content.
           </Text>
 
           <View style={styles.actions}>

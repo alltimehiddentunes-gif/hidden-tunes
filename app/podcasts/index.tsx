@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -22,17 +22,19 @@ import MatureContentConsentModal from "../../components/mature/MatureContentCons
 import { COLORS } from "../../constants/theme";
 import { TESTER_COPY } from "../../constants/testerExperience";
 import { useMatureContentGate } from "../../hooks/useMatureContentGate";
-import { searchPodcastShows } from "../../services/podcastDiscoveryApi";
+import { useLazyPodcastShowList } from "../../hooks/useLazyPodcastShowList";
+import { loadPodcastSearchPage } from "../../services/podcastDiscoveryApi";
 import type { HiddenTunesPodcastShow } from "../../services/podcastCatalogApi";
 import { getVisiblePodcastCategories } from "../../utils/launchPodcastCategories";
 import { useMatureContentSettings } from "../../hooks/useMatureContentSettings";
-import { filterVisiblePodcastShows } from "../../utils/maturePodcastVisibility";
 import { podcastShowSubtitle } from "../../utils/openHiddenTunesPodcast";
-import { readCachedPodcastSearch, hydrateCachedPodcastSearch } from "../../utils/podcastDiscoveryCache";
+import { useDebouncedSearchQuery } from "../../utils/useDebouncedValue";
 import {
   createStableKeyExtractor,
   getListPerformanceSettings,
 } from "../../utils/performanceMode";
+
+const PODCAST_SEARCH_DEBOUNCE_MS = 350;
 
 export default function PodcastDiscoveryHomeScreen() {
   const { includeMatureInApi } = useMatureContentSettings();
@@ -41,12 +43,39 @@ export default function PodcastDiscoveryHomeScreen() {
   const params = useLocalSearchParams<{ q?: string; query?: string }>();
   const initialQuery = String(params.q || params.query || "").trim();
   const [searchQuery, setSearchQuery] = useState(initialQuery);
-  const [searchResults, setSearchResults] = useState<HiddenTunesPodcastShow[]>([]);
-  const [searchLoading, setSearchLoading] = useState(false);
-  const [searchChecked, setSearchChecked] = useState(false);
-  const searchRequestRef = useRef(0);
+  const debouncedQuery = useDebouncedSearchQuery(searchQuery, PODCAST_SEARCH_DEBOUNCE_MS);
+  const searchCacheKey = useMemo(
+    () => (debouncedQuery ? `search:${debouncedQuery.toLowerCase()}` : ""),
+    [debouncedQuery]
+  );
 
-  const isSearching = searchQuery.trim().length > 0;
+  const isSearching = debouncedQuery.trim().length > 0;
+
+  const loadSearchPage = useCallback(
+    (offset: number, options: { append: boolean; forceRefresh: boolean }) =>
+      loadPodcastSearchPage(debouncedQuery, {
+        offset,
+        append: options.append,
+        forceRefresh: options.forceRefresh,
+      }).then((result) => ({
+        shows: result.shows,
+        hasMore: result.hasMore,
+      })),
+    [debouncedQuery]
+  );
+
+  const {
+    shows: searchResults,
+    loading: searchLoading,
+    loadingMore: searchLoadingMore,
+    hasLoadedOnce: searchChecked,
+    loadMore: loadMoreSearch,
+    listCountLabel: searchCountLabel,
+  } = useLazyPodcastShowList({
+    cacheKey: searchCacheKey,
+    enabled: Boolean(searchCacheKey),
+    loadPage: loadSearchPage,
+  });
 
   const openCategory = useCallback((categoryId: string) => {
     router.push({
@@ -75,52 +104,6 @@ export default function PodcastDiscoveryHomeScreen() {
     () => getVisiblePodcastCategories(includeMatureInApi),
     [includeMatureInApi]
   );
-
-  useEffect(() => {
-    const clean = searchQuery.trim();
-    if (!clean) {
-      setSearchResults([]);
-      setSearchChecked(false);
-      setSearchLoading(false);
-      return;
-    }
-
-    const cached = readCachedPodcastSearch(clean);
-    if (cached?.length) {
-      setSearchResults(filterVisiblePodcastShows(cached));
-      setSearchChecked(true);
-      setSearchLoading(false);
-      return;
-    }
-
-    setSearchLoading(true);
-    const requestId = ++searchRequestRef.current;
-    const timer = setTimeout(() => {
-      void (async () => {
-        const storageHit = await hydrateCachedPodcastSearch(clean);
-        if (requestId !== searchRequestRef.current) return;
-
-        if (storageHit?.length) {
-          setSearchResults(filterVisiblePodcastShows(storageHit));
-          setSearchChecked(true);
-          setSearchLoading(false);
-          return;
-        }
-
-        try {
-          const shows = await searchPodcastShows(clean);
-          if (requestId !== searchRequestRef.current) return;
-          setSearchResults(filterVisiblePodcastShows(shows));
-        } finally {
-          if (requestId !== searchRequestRef.current) return;
-          setSearchLoading(false);
-          setSearchChecked(true);
-        }
-      })();
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [searchQuery, includeMatureInApi]);
 
   useEffect(() => {
     if (!initialQuery) return;
@@ -199,10 +182,15 @@ export default function PodcastDiscoveryHomeScreen() {
             contentContainerStyle={styles.listContent}
             ListHeaderComponent={
               <Text style={styles.sectionTitle}>
-                {searchResults.length > 0
-                  ? `${searchResults.length} Hidden Tunes shows`
-                  : "Hidden Tunes shows"}
+                {searchCountLabel || "Hidden Tunes shows"}
               </Text>
+            }
+            onEndReachedThreshold={0.35}
+            onEndReached={loadMoreSearch}
+            ListFooterComponent={
+              searchLoadingMore ? (
+                <ActivityIndicator style={styles.footerSpinner} color={COLORS.primary} />
+              ) : null
             }
             ListEmptyComponent={
               searchChecked ? (
@@ -352,5 +340,8 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     marginTop: 8,
     textAlign: "center",
+  },
+  footerSpinner: {
+    marginVertical: 16,
   },
 });

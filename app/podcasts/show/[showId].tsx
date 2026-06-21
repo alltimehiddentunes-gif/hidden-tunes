@@ -18,11 +18,10 @@ import MatureContentConsentModal from "../../../components/mature/MatureContentC
 import { COLORS } from "../../../constants/theme";
 import { TESTER_COPY } from "../../../constants/testerExperience";
 import { useMatureContentGate } from "../../../hooks/useMatureContentGate";
+import { useLazyPodcastEpisodeList } from "../../../hooks/useLazyPodcastEpisodeList";
 import { useMatureContentSettings } from "../../../hooks/useMatureContentSettings";
 import { usePlaybackRouter } from "../../../hooks/usePlaybackRouter";
-import {
-  getPodcastEpisodesForShow,
-} from "../../../services/podcastDiscoveryApi";
+import { loadPodcastEpisodesPage } from "../../../services/podcastDiscoveryApi";
 import type { HiddenTunesPodcastEpisode } from "../../../services/podcastCatalogApi";
 import { normalizePodcastEpisode } from "../../../services/podcasts/podcastNormalizer";
 import {
@@ -30,22 +29,14 @@ import {
   podcastEpisodeSubtitle,
 } from "../../../utils/openHiddenTunesPodcast";
 import {
-  readCachedPodcastEpisodes,
-  hydrateCachedPodcastEpisodes,
-} from "../../../utils/podcastDiscoveryCache";
-import {
   createStableKeyExtractor,
   getListPerformanceSettings,
 } from "../../../utils/performanceMode";
-import {
-  enrichEpisodesWithShowMaturity,
-  filterVisiblePodcastEpisodes,
-  isMaturePodcastEpisode,
-} from "../../../utils/maturePodcastVisibility";
+import { isMaturePodcastEpisode } from "../../../utils/maturePodcastVisibility";
 
 export default function PodcastShowScreen() {
   const { playPodcastEpisode } = usePlaybackRouter();
-  const { hasConsent, includeMatureInApi } = useMatureContentSettings();
+  const { hasConsent } = useMatureContentSettings();
   const { consentVisible, runWithMatureConsent, cancelConsent, confirmConsent } =
     useMatureContentGate();
   const [playbackError, setPlaybackError] = useState<string | null>(null);
@@ -54,81 +45,29 @@ export default function PodcastShowScreen() {
   const showTitle = podcastDiscoveryDisplayName(params.title);
   const showIsMature = params.isMature === "1";
 
-  const normalizeVisibleEpisodes = useCallback(
-    (items: HiddenTunesPodcastEpisode[]) => {
-      const enriched = enrichEpisodesWithShowMaturity(items, showIsMature);
-      return filterVisiblePodcastEpisodes(enriched, { showIsMature });
-    },
-    [showIsMature]
+  const loadPage = useCallback(
+    (offset: number, options: { append: boolean; forceRefresh: boolean }) =>
+      loadPodcastEpisodesPage(showId, offset, {
+        append: options.append,
+        forceRefresh: options.forceRefresh,
+      }),
+    [showId]
   );
 
-  const [episodes, setEpisodes] = useState<HiddenTunesPodcastEpisode[]>(() =>
-    normalizeVisibleEpisodes(readCachedPodcastEpisodes(showId) || [])
-  );
-  const [loading, setLoading] = useState(() => episodes.length === 0);
-  const [refreshing, setRefreshing] = useState(false);
-  const [hasCheckedFallbacks, setHasCheckedFallbacks] = useState(false);
-
-  const loadEpisodes = useCallback(
-    async (forceRefresh = false) => {
-      if (!showId) return;
-
-      if (!forceRefresh) {
-        const cached = readCachedPodcastEpisodes(showId);
-        if (cached?.length) {
-          const visible = normalizeVisibleEpisodes(cached);
-          setEpisodes((current) =>
-            current.length === visible.length &&
-            current.every((item, index) => item.id === visible[index]?.id)
-              ? current
-              : visible
-          );
-          setLoading(false);
-          setHasCheckedFallbacks(true);
-          return;
-        }
-
-        const storageHit = await hydrateCachedPodcastEpisodes(showId);
-        if (storageHit?.length) {
-          const visible = normalizeVisibleEpisodes(storageHit);
-          setEpisodes((current) =>
-            current.length === visible.length &&
-            current.every((item, index) => item.id === visible[index]?.id)
-              ? current
-              : visible
-          );
-          setLoading(false);
-          setHasCheckedFallbacks(true);
-          return;
-        }
-      }
-
-      try {
-        const next = await getPodcastEpisodesForShow(showId, { forceRefresh });
-        const visible = normalizeVisibleEpisodes(next);
-        setEpisodes((current) =>
-          current.length === visible.length &&
-          current.every((item, index) => item.id === visible[index]?.id)
-            ? current
-            : visible
-        );
-      } finally {
-        setLoading(false);
-        setRefreshing(false);
-        setHasCheckedFallbacks(true);
-      }
-    },
-    [normalizeVisibleEpisodes, showId]
-  );
-
-  useEffect(() => {
-    if (!showId) return;
-    void loadEpisodes(false);
-  }, [showId, loadEpisodes]);
-
-  useEffect(() => {
-    setEpisodes((current) => normalizeVisibleEpisodes(current));
-  }, [includeMatureInApi, normalizeVisibleEpisodes]);
+  const {
+    episodes,
+    loading,
+    refreshing,
+    loadingMore,
+    hasLoadedOnce: hasCheckedFallbacks,
+    onRefresh,
+    loadMore,
+  } = useLazyPodcastEpisodeList({
+    showId,
+    showIsMature,
+    enabled: Boolean(showId),
+    loadPage,
+  });
 
   const deepLinkGateRef = useRef(false);
   useEffect(() => {
@@ -146,11 +85,6 @@ export default function PodcastShowScreen() {
       router.back();
     }
   }, [cancelConsent, hasConsent, showIsMature]);
-
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    void loadEpisodes(true);
-  }, [loadEpisodes]);
 
   const playbackQueue = useMemo(
     () =>
@@ -277,6 +211,8 @@ export default function PodcastShowScreen() {
               tintColor={COLORS.primary}
             />
           }
+          onEndReachedThreshold={0.35}
+          onEndReached={loadMore}
           ListHeaderComponent={
             <Text style={styles.sectionTitle}>
               {episodes.length > 0
@@ -291,6 +227,11 @@ export default function PodcastShowScreen() {
                 <Text style={styles.emptyTitle}>Episodes are warming up</Text>
                 <Text style={styles.emptyText}>{TESTER_COPY.podcastEpisodesEmpty}</Text>
               </View>
+            ) : null
+          }
+          ListFooterComponent={
+            loadingMore ? (
+              <ActivityIndicator style={styles.footerSpinner} color={COLORS.primary} />
             ) : null
           }
           renderItem={renderEpisodeRow}
@@ -415,5 +356,8 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     textAlign: "center",
     fontWeight: "600",
+  },
+  footerSpinner: {
+    marginVertical: 16,
   },
 });

@@ -13,7 +13,7 @@ import {
 
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 
 import { RadioStationCard } from "../../components/radio/RadioBrowserCards";
 import MatureContentConsentModal from "../../components/mature/MatureContentConsentModal";
@@ -35,10 +35,12 @@ import { useDebouncedSearchQuery } from "../../utils/useDebouncedValue";
 const RADIO_SEARCH_DEBOUNCE_MS = 350;
 
 export default function RadioSearchScreen() {
+  const params = useLocalSearchParams<{ q?: string }>();
+  const initialQuery = String(params.q || "").trim();
   const { playRadioStation } = usePlaybackRouter();
   const { consentVisible, runWithMatureConsent, cancelConsent, confirmConsent } =
     useMatureContentGate();
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery);
   const debouncedQuery = useDebouncedSearchQuery(query, RADIO_SEARCH_DEBOUNCE_MS);
   const cacheKey = useMemo(
     () => normalizeRadioSearchCacheKey(debouncedQuery),

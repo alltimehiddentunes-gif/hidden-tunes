@@ -17,24 +17,18 @@ import { PodcastShowCard } from "../../components/podcast/PodcastDiscoveryCards"
 import MatureContentConsentModal from "../../components/mature/MatureContentConsentModal";
 import { COLORS } from "../../constants/theme";
 import { TESTER_COPY } from "../../constants/testerExperience";
+import { useLazyPodcastShowList } from "../../hooks/useLazyPodcastShowList";
 import { useMatureContentGate } from "../../hooks/useMatureContentGate";
-import { getPodcastShowsForCategory } from "../../services/podcastDiscoveryApi";
+import { loadPodcastCategoryPage } from "../../services/podcastDiscoveryApi";
 import type { HiddenTunesPodcastShow } from "../../services/podcastCatalogApi";
 import { getLaunchPodcastCategory } from "../../utils/launchPodcastCategories";
 import { podcastShowSubtitle } from "../../utils/openHiddenTunesPodcast";
-import { filterVisiblePodcastShows } from "../../utils/maturePodcastVisibility";
-import { useMatureContentSettings } from "../../hooks/useMatureContentSettings";
-import {
-  readCachedPodcastShows,
-  hydrateCachedPodcastShows,
-} from "../../utils/podcastDiscoveryCache";
 import {
   createStableKeyExtractor,
   getListPerformanceSettings,
 } from "../../utils/performanceMode";
 
 export default function PodcastCategoryScreen() {
-  const { includeMatureInApi } = useMatureContentSettings();
   const { consentVisible, runWithMatureConsent, cancelConsent, confirmConsent } =
     useMatureContentGate();
   const params = useLocalSearchParams<{ categoryId?: string }>();
@@ -44,77 +38,32 @@ export default function PodcastCategoryScreen() {
     [categoryId]
   );
 
-  const [shows, setShows] = useState<HiddenTunesPodcastShow[]>(() =>
-    filterVisiblePodcastShows(readCachedPodcastShows(categoryId) || [])
-  );
-  const [loading, setLoading] = useState(() => shows.length === 0);
-  const [refreshing, setRefreshing] = useState(false);
-  const [hasCheckedFallbacks, setHasCheckedFallbacks] = useState(false);
-
-  const loadShows = useCallback(
-    async (forceRefresh = false) => {
-      if (!categoryId) return;
-
-      if (!forceRefresh) {
-        const cached = readCachedPodcastShows(categoryId);
-        if (cached?.length) {
-          const visible = filterVisiblePodcastShows(cached);
-          setShows((current) =>
-            current.length === visible.length &&
-            current.every((item, index) => item.id === visible[index]?.id)
-              ? current
-              : visible
-          );
-          setLoading(false);
-          setHasCheckedFallbacks(true);
-          return;
-        }
-
-        const storageHit = await hydrateCachedPodcastShows(categoryId);
-        if (storageHit?.length) {
-          const visible = filterVisiblePodcastShows(storageHit);
-          setShows((current) =>
-            current.length === visible.length &&
-            current.every((item, index) => item.id === visible[index]?.id)
-              ? current
-              : visible
-          );
-          setLoading(false);
-          setHasCheckedFallbacks(true);
-          return;
-        }
-      }
-
-      try {
-        const next = await getPodcastShowsForCategory(categoryId, { forceRefresh });
-        setShows((current) =>
-          current.length === next.length &&
-          current.every((item, index) => item.id === next[index]?.id)
-            ? current
-            : next
-        );
-      } finally {
-        setLoading(false);
-        setRefreshing(false);
-        setHasCheckedFallbacks(true);
-      }
-    },
+  const loadPage = useCallback(
+    (offset: number, options: { append: boolean; forceRefresh: boolean }) =>
+      loadPodcastCategoryPage(categoryId, offset, {
+        append: options.append,
+        forceRefresh: options.forceRefresh,
+      }).then((result) => ({
+        shows: result.shows,
+        hasMore: result.hasMore,
+      })),
     [categoryId]
   );
 
-  useEffect(() => {
-    if (!categoryId) return;
-    void loadShows(false);
-  }, [categoryId, includeMatureInApi, loadShows]);
-
-  useEffect(() => {
-    setShows((current) => filterVisiblePodcastShows(current));
-  }, [includeMatureInApi]);
-
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    void loadShows(true);
-  }, [loadShows]);
+  const {
+    shows,
+    loading,
+    refreshing,
+    loadingMore,
+    hasLoadedOnce,
+    onRefresh,
+    loadMore,
+    listCountLabel,
+  } = useLazyPodcastShowList({
+    cacheKey: categoryId,
+    enabled: Boolean(categoryId),
+    loadPage,
+  });
 
   const openShow = useCallback(
     (show: HiddenTunesPodcastShow) => {
@@ -153,8 +102,7 @@ export default function PodcastCategoryScreen() {
     []
   );
 
-  const showEmpty =
-    hasCheckedFallbacks && !loading && !refreshing && shows.length === 0;
+  const showEmpty = hasLoadedOnce && !loading && !refreshing && shows.length === 0;
 
   if (!category) {
     return (
@@ -205,12 +153,17 @@ export default function PodcastCategoryScreen() {
               tintColor={COLORS.primary}
             />
           }
+          onEndReachedThreshold={0.35}
+          onEndReached={loadMore}
           ListHeaderComponent={
             <Text style={styles.sectionTitle}>
-              {shows.length > 0
-                ? `${shows.length} Hidden Tunes shows in this room`
-                : "Hidden Tunes shows in this room"}
+              {listCountLabel || "Hidden Tunes shows in this room"}
             </Text>
+          }
+          ListFooterComponent={
+            loadingMore ? (
+              <ActivityIndicator style={styles.footerSpinner} color={COLORS.primary} />
+            ) : null
           }
           ListEmptyComponent={
             showEmpty ? (
@@ -303,6 +256,9 @@ const styles = StyleSheet.create({
   loadingText: {
     color: COLORS.textMuted,
     fontSize: 14,
+  },
+  footerSpinner: {
+    marginVertical: 16,
   },
   emptyBox: {
     alignItems: "center",

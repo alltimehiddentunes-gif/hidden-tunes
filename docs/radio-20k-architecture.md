@@ -1,7 +1,7 @@
-# Radio 40K+ Architecture
+# Radio 100K+ Architecture
 
-> **Target updated:** 40,000+ indexed stations (previously scoped at 20K).  
-> Phase **RADIO-SCALE-A** — audit and design only. No backend implementation or playback changes in this phase.
+> **Target updated:** **100,000+** indexed radio stations and **100,000+** podcasts (mobile loads **40/page** only).
+> Phase **RADIO-SCALE-A** — audit and design. Backend indexing required for full scale.
 
 ## North-star goal
 
@@ -15,7 +15,8 @@ Hidden Tunes achieves scale on the **backend index**; the mobile app never holds
 
 | Layer | Target |
 |-------|--------|
-| **Indexed catalog** | **40,000+** stations (metadata only in database) |
+| **Indexed catalog** | **100,000+** radio stations (metadata only in database) |
+| **Podcast catalog** | **100,000+** shows · **10M+** episodes long-term |
 | **Quality-approved** | **10,000+** stations surfaced in default browse/search |
 | **Featured** | **1,000+** editorially promoted stations |
 | **Mature / 18+** | Gated behind explicit user consent — unchanged |
@@ -27,7 +28,7 @@ Hidden Tunes achieves scale on the **backend index**; the mobile app never holds
 
 ### Catalog scale
 
-- Support **40,000+ indexed stations** in Postgres (Supabase)
+- Support **100,000+ indexed stations** in Postgres (Supabase)
 - Store **metadata only** in the database — names, tags, country, logos, quality fields, stream URL as backend-only column
 - **Do not preload streams** — no bulk stream fetch, probe, or cache warming at ingest time
 - **Periodically validate streams** via scheduled backend jobs (HEAD/range probe or lightweight playback check)
