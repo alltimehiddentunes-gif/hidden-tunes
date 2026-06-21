@@ -31,6 +31,11 @@ export function isRuntimeInstrumentationEnabled() {
   return isDevEnvironment() && ENABLE_RUNTIME_INSTRUMENTATION;
 }
 
+/** Radio discovery fetch/render ring buffer — dev + heavy perf flag only. */
+export function isRadioDiscoveryDiagnosticsEnabled() {
+  return isDevEnvironment() && ENABLE_HEAVY_PERF_DIAGNOSTICS;
+}
+
 /** Verbose playback/progress/queue logs — opt-in only (runtime or heavy perf flags). */
 export function isVerbosePlaybackDiagnosticsEnabled() {
   return isRuntimeInstrumentationEnabled() || isHeavyPerfDiagnosticsEnabled();

@@ -80,7 +80,7 @@ export function useRadioHomeDiscovery(): RadioHomeDiscoveryState {
 
   useEffect(() => {
     logRadioDiscoveryRender("radio-home");
-  });
+  }, []);
 
   useEffect(() => {
     let cancelled = false;

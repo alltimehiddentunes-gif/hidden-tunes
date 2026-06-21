@@ -1,3 +1,5 @@
+import { isRadioDiscoveryDiagnosticsEnabled } from "./devDiagnostics";
+
 type RadioDiscoveryFetchEvent = {
   source: string;
   detail?: string;
@@ -15,11 +17,15 @@ const fetchEvents: RadioDiscoveryFetchEvent[] = [];
 const renderEvents: RadioDiscoveryRenderEvent[] = [];
 
 export function logRadioDiscoveryFetch(source: string, detail?: string) {
+  if (!isRadioDiscoveryDiagnosticsEnabled()) return;
+
   fetchEvents.push({ source, detail, at: Date.now() });
   if (fetchEvents.length > MAX_EVENTS) fetchEvents.shift();
 }
 
 export function logRadioDiscoveryRender(surface: string) {
+  if (!isRadioDiscoveryDiagnosticsEnabled()) return;
+
   const last = renderEvents[renderEvents.length - 1];
   if (last?.surface === surface && Date.now() - last.at < 500) {
     last.count += 1;
@@ -47,6 +53,7 @@ export function getRadioDiscoveryDiagnosticsReport() {
     }));
 
   return {
+    enabled: isRadioDiscoveryDiagnosticsEnabled(),
     totalFetches: fetchEvents.length,
     fetchCounts: Object.fromEntries(fetchCounts.entries()),
     recentFetches: fetchEvents.slice(-12).map((event) => ({
