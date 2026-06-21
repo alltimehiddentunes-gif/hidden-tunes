@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  FlatList,
   ScrollView,
   StyleSheet,
   Text,
@@ -44,6 +45,7 @@ export default function YouTubeFeedScreen() {
   const [searching, setSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<HiddenTunesTvVideo[]>([]);
   const [archiveLaneLoading, setArchiveLaneLoading] = useState(false);
+  const tvSearchRequestIdRef = useRef(0);
   const { width } = useWindowDimensions();
   const railCardWidth = Math.min(260, Math.max(178, width * 0.58));
   const featuredWidth = Math.max(300, width - 36);
@@ -61,14 +63,38 @@ export default function YouTubeFeedScreen() {
       const cachedHasArchiveLane = cached?.lanes?.some(
         (lane) => lane.id === ARCHIVE_CONCERT_LANE_ID && lane.videos.length > 0
       );
-      if (cached?.lanes?.length) setLanes(cached.lanes);
+      if (cached?.lanes?.length) {
+        setLanes(cached.lanes);
+        setLoading(false);
+
+        if (!cachedHasArchiveLane) {
+          setArchiveLaneLoading(true);
+        }
+
+        void fetchArchiveConcertLane()
+          .then((archiveLane) => {
+            setLanes((previous) => {
+              const next = mergeArchiveLaneIntoLanes(previous, archiveLane);
+              if (next.some((lane) => lane.videos.length > 0)) {
+                void saveTvHomeCache({
+                  version: 1,
+                  savedAt: new Date().toISOString(),
+                  lanes: next,
+                });
+              }
+              return next;
+            });
+          })
+          .finally(() => {
+            setArchiveLaneLoading(false);
+          });
+        return;
+      }
 
       const data = await fetchTvHomeLanes();
       if (data.lanes.length) setLanes(data.lanes);
 
-      if (!cachedHasArchiveLane) {
-        setArchiveLaneLoading(true);
-      }
+      setArchiveLaneLoading(true);
 
       void fetchArchiveConcertLane()
         .then((archiveLane) => {
@@ -108,6 +134,7 @@ export default function YouTubeFeedScreen() {
 
     let cancelled = false;
     const controller = new AbortController();
+    const requestId = ++tvSearchRequestIdRef.current;
     const timer = setTimeout(async () => {
       setSearching(true);
       try {
@@ -115,11 +142,16 @@ export default function YouTubeFeedScreen() {
           signal: controller.signal,
           limit: TV_LANE_PAGE_LIMIT * 2,
         });
-        if (!cancelled) setSearchResults(videos);
+        if (cancelled || requestId !== tvSearchRequestIdRef.current) return;
+        setSearchResults(videos);
       } catch {
-        if (!cancelled) setSearchResults([]);
+        if (!cancelled && requestId === tvSearchRequestIdRef.current) {
+          setSearchResults([]);
+        }
       } finally {
-        if (!cancelled) setSearching(false);
+        if (!cancelled && requestId === tvSearchRequestIdRef.current) {
+          setSearching(false);
+        }
       }
     }, 320);
 

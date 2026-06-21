@@ -1,9 +1,9 @@
 import { memo } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
-import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 
+import HTImage from "@/components/HTImage";
 import { COLORS } from "@/constants/theme";
 import type { HiddenTunesTvVideo } from "@/services/tvCatalogApi";
 import { getVideoDisplayCategory, getVideoDisplayCreator, normalizeVideoItem } from "@/services/videos/videoNormalizer";
@@ -27,12 +27,10 @@ function TvVideoCard({ video, width = 168, onPress }: TvVideoCardProps) {
       style={[styles.card, { width }]}
     >
       <View style={styles.thumbWrap}>
-        <Image
-          source={{ uri: thumbnail }}
+        <HTImage
+          uri={thumbnail}
           style={styles.thumb}
           contentFit="cover"
-          transition={120}
-          recyclingKey={video.id}
         />
         <View style={styles.playBadge}>
           <Ionicons name="play" size={14} color="#000" />

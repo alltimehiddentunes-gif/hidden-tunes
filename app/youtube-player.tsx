@@ -286,6 +286,7 @@ export default function YouTubePlayerScreen() {
   const { stopPlayback } = usePlayerActions();
 
   const startedAtRef = useRef<number>(Date.now());
+  const youtubeMiniPayloadRef = useRef("");
   const autoNextLockRef = useRef(false);
   const errorSkipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const playbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -428,17 +429,19 @@ export default function YouTubePlayerScreen() {
     if (!videoId) return;
 
     try {
-      await AsyncStorage.setItem(
-        YOUTUBE_MINI_KEY,
-        JSON.stringify({
-          id: videoId,
-          videoId,
-          title,
-          channelTitle: artist,
-          artist,
-          thumbnail,
-        })
-      );
+      const payload = JSON.stringify({
+        id: videoId,
+        videoId,
+        title,
+        channelTitle: artist,
+        artist,
+        thumbnail,
+      });
+
+      if (youtubeMiniPayloadRef.current === payload) return;
+      youtubeMiniPayloadRef.current = payload;
+
+      await AsyncStorage.setItem(YOUTUBE_MINI_KEY, payload);
     } catch {}
   }
 

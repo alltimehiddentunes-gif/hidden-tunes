@@ -76,6 +76,7 @@ import {
 } from "../utils/searchApkParity";
 import { logPlaybackCritical } from "../utils/playbackCriticalLogs";
 import { logSearchDiagnostic, logSearchRankingDiagnostics } from "../utils/searchDiagnostics";
+import { isHeavyPerfDiagnosticsEnabled } from "../utils/devDiagnostics";
 import { logEntityTapReceived } from "../utils/entityDiagnostics";
 import { resolveStationEntity } from "../utils/entityResolution";
 import { resolveEntityArtwork } from "../utils/artwork";
@@ -337,8 +338,37 @@ export default function SearchScreen() {
       playlists: toSearchPlaylists(playlists),
       tvVideos: [],
     }),
-    [albums, artists, genres, playlists, songs]
+    [catalogSignature, albums, artists, genres, playlists, songs]
   );
+
+  const albumLookup = useMemo(() => {
+    const byId = new Map<string, HiddenTunesAlbumCatalogItem>();
+    const byTitleArtist = new Map<string, HiddenTunesAlbumCatalogItem>();
+
+    for (const item of albums) {
+      const id = String(item.id || "").trim();
+      if (id) byId.set(id, item);
+      byTitleArtist.set(
+        `${normalizeSearchText(item.title)}|${normalizeSearchText(item.artist)}`,
+        item
+      );
+    }
+
+    return { byId, byTitleArtist };
+  }, [catalogSignature, albums]);
+
+  const artistLookup = useMemo(() => {
+    const byId = new Map<string, HiddenTunesArtistCatalogItem>();
+    const byName = new Map<string, HiddenTunesArtistCatalogItem>();
+
+    for (const item of artists) {
+      const id = String(item.id || "").trim();
+      if (id) byId.set(id, item);
+      byName.set(normalizeSearchText(item.name), item);
+    }
+
+    return { byId, byName };
+  }, [catalogSignature, artists]);
 
   const cleanSubmittedSearchQuery = submittedSearchQuery.trim();
   const normalizedSearchQuery = cleanSubmittedSearchQuery.toLowerCase().replace(/\s+/g, " ");
@@ -748,11 +778,9 @@ export default function SearchScreen() {
       .map((hit) => {
         const album = hit.payload;
         const catalogAlbum =
-          albums.find((item) => item.id === album.id) ||
-          albums.find(
-            (item) =>
-              normalizeSearchText(item.title) === normalizeSearchText(album.title) &&
-              normalizeSearchText(item.artist) === normalizeSearchText(album.artist)
+          albumLookup.byId.get(String(album.id || "")) ||
+          albumLookup.byTitleArtist.get(
+            `${normalizeSearchText(album.title)}|${normalizeSearchText(album.artist)}`
           );
 
         const songsForAlbum =
@@ -774,7 +802,7 @@ export default function SearchScreen() {
 
     return rankApkAlbumResults(fromBackbone, cleanSubmittedSearchQuery);
   }, [
-    albums,
+    albumLookup,
     cleanSubmittedSearchQuery,
     internalSearchResults.albums,
     reliableCatalogSongResults,
@@ -787,10 +815,8 @@ export default function SearchScreen() {
       .map((hit) => {
         const artist = hit.payload;
         const catalogArtist =
-          artists.find((item) => item.id === artist.id) ||
-          artists.find(
-            (item) => normalizeSearchText(item.name) === normalizeSearchText(artist.name)
-          );
+          artistLookup.byId.get(String(artist.id || "")) ||
+          artistLookup.byName.get(normalizeSearchText(artist.name));
 
         const base = catalogArtist || {
           id: artist.id,
@@ -806,7 +832,7 @@ export default function SearchScreen() {
 
     return rankApkArtistResults(fromBackbone, cleanSubmittedSearchQuery);
   }, [
-    artists,
+    artistLookup,
     cleanSubmittedSearchQuery,
     internalSearchResults.artists,
     reliableCatalogSongResults,
@@ -931,14 +957,14 @@ export default function SearchScreen() {
   const showSearchResults =
     cleanSubmittedSearchQuery.length > 0 &&
     !searchDebouncePending &&
-    !backendSearchPendingForQuery &&
-    !(shouldRunTvSearch && tvSearchCompletedQuery !== cleanSubmittedSearchQuery);
+    !backendSearchPendingForQuery;
+  const tvSearchPendingForQuery =
+    shouldRunTvSearch && tvSearchCompletedQuery !== cleanSubmittedSearchQuery;
   const showSearchLoading =
     hasSearchText &&
     (searchDebouncePending ||
       backendSearchPendingForQuery ||
-      externalSearchPendingForQuery ||
-      (shouldRunTvSearch && tvSearchCompletedQuery !== cleanSubmittedSearchQuery));
+      externalSearchPendingForQuery);
 
   const showDiscovery = !hasSearchText || cleanSubmittedSearchQuery.length === 0;
 
@@ -1441,6 +1467,7 @@ export default function SearchScreen() {
   }, [cleanSubmittedSearchQuery]);
 
   useEffect(() => {
+    if (!isHeavyPerfDiagnosticsEnabled()) return;
     if (!showSearchResults || !cleanSubmittedSearchQuery) return;
 
     const diagnosticsKey = [

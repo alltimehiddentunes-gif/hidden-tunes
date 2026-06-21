@@ -97,8 +97,9 @@ import {
   recordQueuePersistWrite,
 } from "../utils/runtimeInstrumentation";
 import {
-  getActiveLyricLine,
+  findActiveLyricIndex,
   getBestLyricsPayload,
+  getLyricsSyncOffset,
   parseLrc,
   resolveLyricsDisplay,
   toSyncedLyricLines,
@@ -1288,10 +1289,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const serialized = String(safeMillis);
 
     if (storageValueCacheRef.current[POSITION_KEY] === serialized) {
-      logPerformanceStorageWriteThrottled("playback_position", {
-        reason: "unchanged",
-        millis: safeMillis,
-      });
       return;
     }
 
@@ -2732,19 +2729,26 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     currentSong?.synced_lyrics,
   ]);
 
-  const currentLyricLine = useMemo(() => {
-    const active = getActiveLyricLine(
-      currentLyricsDisplay.lines,
-      positionMillis,
-      currentLyricsDisplay.mode
-    );
+  const currentLyricLineIndex = useMemo(() => {
+    if (currentLyricsDisplay.mode === "none" || !currentLyricsDisplay.lines.length) {
+      return -1;
+    }
 
-    return active ? { time: active.timeMs, text: active.text } : null;
+    return findActiveLyricIndex(
+      currentLyricsDisplay.lines,
+      positionMillis + getLyricsSyncOffset(currentLyricsDisplay.mode)
+    );
   }, [
     currentLyricsDisplay.lines,
     currentLyricsDisplay.mode,
     positionMillis,
   ]);
+
+  const currentLyricLine = useMemo(() => {
+    if (currentLyricLineIndex < 0) return null;
+    const active = currentLyricsDisplay.lines[currentLyricLineIndex];
+    return active ? { time: active.timeMs, text: active.text } : null;
+  }, [currentLyricLineIndex, currentLyricsDisplay.lines]);
 
   const onlineSongs: AppSong[] = useMemo(() => {
     return youtubeQueue.map((track) => {

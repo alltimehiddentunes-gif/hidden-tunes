@@ -22,6 +22,7 @@ import { getLaunchPodcastCategory } from "../../utils/launchPodcastCategories";
 import { podcastShowSubtitle } from "../../utils/openHiddenTunesPodcast";
 import {
   readCachedPodcastShows,
+  hydrateCachedPodcastShows,
 } from "../../utils/podcastDiscoveryCache";
 import {
   createStableKeyExtractor,
@@ -55,6 +56,19 @@ export default function PodcastCategoryScreen() {
             current.every((item, index) => item.id === cached[index]?.id)
               ? current
               : cached
+          );
+          setLoading(false);
+          setHasCheckedFallbacks(true);
+          return;
+        }
+
+        const storageHit = await hydrateCachedPodcastShows(categoryId);
+        if (storageHit?.length) {
+          setShows((current) =>
+            current.length === storageHit.length &&
+            current.every((item, index) => item.id === storageHit[index]?.id)
+              ? current
+              : storageHit
           );
           setLoading(false);
           setHasCheckedFallbacks(true);

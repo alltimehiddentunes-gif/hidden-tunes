@@ -73,6 +73,7 @@ import {
   getListPerformanceSettings,
   isAppActiveForWork,
   markFastScrolling,
+  useAppActiveState,
 } from "@/utils/performanceMode";
 import { logPerformanceOffscreenWorkPaused } from "@/utils/performanceLogs";
 import { TESTER_COPY } from "@/constants/testerExperience";
@@ -176,13 +177,22 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 const PremiumAmbientGlow = memo(function PremiumAmbientGlow({
   style,
   color,
+  paused = false,
 }: {
   style: object;
   color: string;
+  paused?: boolean;
 }) {
+  const appActive = useAppActiveState();
   const opacity = useSharedValue<number>(LUXURY_GLOW.opacityMin);
 
   useEffect(() => {
+    if (!appActive || paused) {
+      cancelAnimation(opacity);
+      opacity.value = withTiming(LUXURY_GLOW.opacityMin, { duration: 220 });
+      return;
+    }
+
     opacity.value = withRepeat(
       withSequence(
         withTiming(LUXURY_GLOW.opacityMax, {
@@ -199,7 +209,7 @@ const PremiumAmbientGlow = memo(function PremiumAmbientGlow({
     );
 
     return () => cancelAnimation(opacity);
-  }, [opacity]);
+  }, [appActive, opacity, paused]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
@@ -215,13 +225,24 @@ const PremiumAmbientGlow = memo(function PremiumAmbientGlow({
 
 const PremiumLuxuryPulse = memo(function PremiumLuxuryPulse({
   style,
+  paused = false,
 }: {
   style?: object;
+  paused?: boolean;
 }) {
+  const appActive = useAppActiveState();
   const opacity = useSharedValue<number>(LUXURY_GLOW.opacityMin);
   const scale = useSharedValue<number>(LUXURY_GLOW.scaleMin);
 
   useEffect(() => {
+    if (!appActive || paused) {
+      cancelAnimation(opacity);
+      cancelAnimation(scale);
+      opacity.value = withTiming(LUXURY_GLOW.opacityMin, { duration: 220 });
+      scale.value = withTiming(LUXURY_GLOW.scaleMin, { duration: 220 });
+      return;
+    }
+
     opacity.value = withRepeat(
       withSequence(
         withTiming(LUXURY_GLOW.opacityMax, {
@@ -255,7 +276,7 @@ const PremiumLuxuryPulse = memo(function PremiumLuxuryPulse({
       cancelAnimation(opacity);
       cancelAnimation(scale);
     };
-  }, [opacity, scale]);
+  }, [appActive, opacity, paused, scale]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
@@ -274,10 +295,12 @@ const CreatorRailCard = memo(function CreatorRailCard({
   artist,
   width,
   onPress,
+  animationsPaused = false,
 }: {
   artist: HiddenTunesArtistCatalogItem;
   width: number;
   onPress: () => void;
+  animationsPaused?: boolean;
 }) {
   return (
     <TouchableOpacity
@@ -286,7 +309,7 @@ const CreatorRailCard = memo(function CreatorRailCard({
       onPress={onPress}
     >
       <View style={styles.creatorArtWrap}>
-        <PremiumLuxuryPulse style={styles.creatorArtAura} />
+        <PremiumLuxuryPulse style={styles.creatorArtAura} paused={animationsPaused} />
         <HTImage
           source={artist}
           style={styles.creatorArt}
@@ -308,10 +331,12 @@ const AlbumRailCard = memo(function AlbumRailCard({
   album,
   width,
   onPress,
+  animationsPaused = false,
 }: {
   album: HiddenTunesAlbumCatalogItem;
   width: number;
   onPress: () => void;
+  animationsPaused?: boolean;
 }) {
   return (
     <TouchableOpacity
@@ -320,7 +345,7 @@ const AlbumRailCard = memo(function AlbumRailCard({
       onPress={onPress}
     >
       <View style={styles.albumArtWrap}>
-        <PremiumLuxuryPulse style={styles.albumArtAura} />
+        <PremiumLuxuryPulse style={styles.albumArtAura} paused={animationsPaused} />
         <HTImage
           source={album}
           style={styles.albumArt}
@@ -400,6 +425,126 @@ const PremiumHeroPressable = memo(function PremiumHeroPressable({
       <Animated.View style={[styles.heroActiveGlow, glowStyle]} pointerEvents="none" />
       {children}
     </AnimatedPressable>
+  );
+});
+
+const HomeHeroCarousel = memo(function HomeHeroCarousel({
+  cards,
+  heroCardWidth,
+  heroCardHeight,
+  onPress,
+  animationsPaused,
+  focused,
+}: {
+  cards: HeroCard[];
+  heroCardWidth: number;
+  heroCardHeight: number;
+  onPress: (card: HeroCard) => void;
+  animationsPaused: boolean;
+  focused: boolean;
+}) {
+  const [heroIndex, setHeroIndex] = useState(0);
+  const heroListRef = useRef<FlatList<HeroCard> | null>(null);
+
+  useEffect(() => {
+    if (cards.length <= 1) return;
+
+    let timer: ReturnType<typeof setInterval> | null = null;
+    const interaction = InteractionManager.runAfterInteractions(() => {
+      timer = setInterval(() => {
+        if (!isAppActiveForWork() || !focused || animationsPaused) return;
+        setHeroIndex((current) => {
+          const next = (current + 1) % cards.length;
+          heroListRef.current?.scrollToIndex({ index: next, animated: true });
+          return next;
+        });
+      }, 6500);
+    });
+
+    return () => {
+      interaction.cancel();
+      if (timer) clearInterval(timer);
+    };
+  }, [animationsPaused, cards.length, focused]);
+
+  const handleHeroMomentumEnd = useCallback(
+    (event: { nativeEvent: { contentOffset: { x: number } } }) => {
+      const offset = event.nativeEvent.contentOffset.x || 0;
+      const nextIndex = Math.max(
+        0,
+        Math.min(cards.length - 1, Math.round(offset / heroCardWidth))
+      );
+      setHeroIndex(nextIndex);
+    },
+    [cards.length, heroCardWidth]
+  );
+
+  const handleHeroPress = useCallback(
+    (card: HeroCard) => {
+      onPress(card);
+    },
+    [onPress]
+  );
+
+  const HeroLuxuryPulse = useCallback(
+    ({ style }: { style: object }) => (
+      <PremiumLuxuryPulse style={style} paused={animationsPaused} />
+    ),
+    [animationsPaused]
+  );
+
+  const renderHeroCard = useCallback(
+    ({ item, index }: { item: HeroCard; index: number }) => (
+      <HomeHeroCard
+        item={item}
+        index={index}
+        heroCardWidth={heroCardWidth}
+        heroCardHeight={heroCardHeight}
+        totalCards={cards.length}
+        activeSlideIndex={heroIndex}
+        onPress={handleHeroPress}
+        HeroPressable={PremiumHeroPressable}
+        LuxuryPulse={HeroLuxuryPulse}
+        styles={styles}
+      />
+    ),
+    [HeroLuxuryPulse, cards.length, handleHeroPress, heroCardHeight, heroCardWidth, heroIndex]
+  );
+
+  if (!cards.length) return null;
+
+  return (
+    <View style={styles.heroStage}>
+      <PremiumLuxuryPulse style={styles.heroStageGlow} paused={animationsPaused} />
+      <FlatList
+        ref={heroListRef}
+        horizontal
+        data={cards}
+        keyExtractor={(item) => item.key}
+        renderItem={renderHeroCard}
+        showsHorizontalScrollIndicator={false}
+        snapToInterval={heroCardWidth}
+        decelerationRate="fast"
+        onMomentumScrollEnd={handleHeroMomentumEnd}
+        onScrollToIndexFailed={() => {}}
+        contentContainerStyle={styles.heroList}
+      />
+
+      {cards.length > 1 ? (
+        <View style={styles.heroDots}>
+          {cards.map((card, index) => (
+            <View
+              key={card.key}
+              style={[styles.heroDot, index === heroIndex && styles.heroDotActive]}
+            >
+              {index === heroIndex ? (
+                <PremiumLuxuryPulse style={styles.heroDotGlow} paused={animationsPaused} />
+              ) : null}
+            </View>
+          ))}
+        </View>
+      ) : null}
+    </View>
   );
 });
 
@@ -508,12 +653,11 @@ export default function MusicFeedScreen() {
   const [catalog, setCatalog] = useState<HiddenTunesDerivedCatalog | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [heroIndex, setHeroIndex] = useState(0);
   const [visibleCatalogCount, setVisibleCatalogCount] = useState(CATALOG_PAGE_SIZE);
   const [showDeferredHomeSections, setShowDeferredHomeSections] = useState(false);
   const [homeLogoFailed, setHomeLogoFailed] = useState(false);
-  const heroIndexRef = useRef(0);
-  const heroListRef = useRef<FlatList<HeroCard> | null>(null);
+  const [homeAnimationsPaused, setHomeAnimationsPaused] = useState(false);
+  const [homeFocused, setHomeFocused] = useState(true);
   const homeVerticalScrollingRef = useRef(false);
   const homeScrollSettleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { width: viewportWidth } = useWindowDimensions();
@@ -654,6 +798,7 @@ export default function MusicFeedScreen() {
       homeScrollSettleTimerRef.current = null;
     }
     homeVerticalScrollingRef.current = true;
+    setHomeAnimationsPaused(true);
     markFastScrolling(true);
   }, []);
 
@@ -664,17 +809,16 @@ export default function MusicFeedScreen() {
     }
     homeScrollSettleTimerRef.current = setTimeout(() => {
       homeVerticalScrollingRef.current = false;
+      setHomeAnimationsPaused(false);
       homeScrollSettleTimerRef.current = null;
     }, HOME_SCROLL_SETTLE_MS);
   }, []);
 
-  const homeScreenFocusedRef = useRef(true);
-
   useFocusEffect(
     useCallback(() => {
-      homeScreenFocusedRef.current = true;
+      setHomeFocused(true);
       return () => {
-        homeScreenFocusedRef.current = false;
+        setHomeFocused(false);
       };
     }, [])
   );
@@ -689,28 +833,6 @@ export default function MusicFeedScreen() {
       ),
     [featuredSongs, playerFeed.currentSongMeta, playerFeed.recentHead, songs]
   );
-
-  useEffect(() => {
-    if (heroCards.length <= 1) return;
-
-    let timer: ReturnType<typeof setInterval> | null = null;
-    const interaction = InteractionManager.runAfterInteractions(() => {
-      timer = setInterval(() => {
-        if (!isAppActiveForWork() || !homeScreenFocusedRef.current || homeVerticalScrollingRef.current) return;
-        setHeroIndex((current) => {
-          const next = (current + 1) % heroCards.length;
-          heroIndexRef.current = next;
-          heroListRef.current?.scrollToIndex({ index: next, animated: true });
-          return next;
-        });
-      }, 6500);
-    });
-
-    return () => {
-      interaction.cancel();
-      if (timer) clearInterval(timer);
-    };
-  }, [heroCards.length]);
 
   const playCatalogSong = useCallback(
     (song: HiddenTunesSong | HiddenTunesNormalizedSong) => {
@@ -801,37 +923,6 @@ export default function MusicFeedScreen() {
     [playCatalogSong, playerFeed.currentSongMeta?.id]
   );
 
-  const handleHeroMomentumEnd = useCallback(
-    (event: { nativeEvent: { contentOffset: { x: number } } }) => {
-      const offset = event.nativeEvent.contentOffset.x || 0;
-      const nextIndex = Math.max(
-        0,
-        Math.min(heroCards.length - 1, Math.round(offset / heroCardWidth))
-      );
-      heroIndexRef.current = nextIndex;
-      setHeroIndex(nextIndex);
-    },
-    [heroCardWidth, heroCards.length]
-  );
-
-  const renderHeroCard = useCallback(
-    ({ item, index }: { item: HeroCard; index: number }) => (
-      <HomeHeroCard
-        item={item}
-        index={index}
-        heroCardWidth={heroCardWidth}
-        heroCardHeight={heroCardHeight}
-        totalCards={heroCards.length}
-        activeSlideIndex={heroIndexRef.current}
-        onPress={handleHeroPress}
-        HeroPressable={PremiumHeroPressable}
-        LuxuryPulse={PremiumLuxuryPulse}
-        styles={styles}
-      />
-    ),
-    [handleHeroPress, heroCardHeight, heroCardWidth, heroCards.length]
-  );
-
   const keyExtractor = useCallback(
     (item: HiddenTunesSong, index: number) => String(item.id || index),
     []
@@ -850,9 +941,9 @@ export default function MusicFeedScreen() {
   return (
     <AppShell>
       <LinearGradient colors={GRADIENTS.main} style={styles.container}>
-        <PremiumAmbientGlow style={styles.glowPurple} color="rgba(168,85,247,0.2)" />
-        <PremiumAmbientGlow style={styles.glowCyan} color="rgba(34,211,238,0.14)" />
-        <PremiumAmbientGlow style={styles.glowCenter} color="rgba(168,85,247,0.12)" />
+        <PremiumAmbientGlow style={styles.glowPurple} color="rgba(168,85,247,0.2)" paused={homeAnimationsPaused} />
+        <PremiumAmbientGlow style={styles.glowCyan} color="rgba(34,211,238,0.14)" paused={homeAnimationsPaused} />
+        <PremiumAmbientGlow style={styles.glowCenter} color="rgba(168,85,247,0.12)" paused={homeAnimationsPaused} />
 
         <View style={styles.header}>
           <View style={styles.brandRow}>
@@ -931,40 +1022,14 @@ export default function MusicFeedScreen() {
                 </TouchableOpacity>
 
                 {heroCards.length > 0 ? (
-                  <View style={styles.heroStage}>
-                    <PremiumLuxuryPulse style={styles.heroStageGlow} />
-                    <FlatList
-                      ref={heroListRef}
-                      horizontal
-                      data={heroCards}
-                      keyExtractor={(item) => item.key}
-                      renderItem={renderHeroCard}
-                      showsHorizontalScrollIndicator={false}
-                      snapToInterval={heroCardWidth}
-                      decelerationRate="fast"
-                      onMomentumScrollEnd={handleHeroMomentumEnd}
-                      onScrollToIndexFailed={() => {}}
-                      contentContainerStyle={styles.heroList}
-                    />
-
-                    {heroCards.length > 1 ? (
-                      <View style={styles.heroDots}>
-                        {heroCards.map((card, index) => (
-                          <View
-                            key={card.key}
-                            style={[
-                              styles.heroDot,
-                              index === heroIndex && styles.heroDotActive,
-                            ]}
-                          >
-                            {index === heroIndex ? (
-                              <PremiumLuxuryPulse style={styles.heroDotGlow} />
-                            ) : null}
-                          </View>
-                        ))}
-                      </View>
-                    ) : null}
-                  </View>
+                  <HomeHeroCarousel
+                    cards={heroCards}
+                    heroCardWidth={heroCardWidth}
+                    heroCardHeight={heroCardHeight}
+                    onPress={handleHeroPress}
+                    animationsPaused={homeAnimationsPaused}
+                    focused={homeFocused}
+                  />
                 ) : null}
 
                 <>
@@ -1115,6 +1180,7 @@ export default function MusicFeedScreen() {
                               artist={artist}
                               width={railCardWidth}
                               onPress={() => openArtist(artist)}
+                              animationsPaused={homeAnimationsPaused}
                             />
                           ))}
                         </ScrollView>
@@ -1136,6 +1202,7 @@ export default function MusicFeedScreen() {
                               album={album}
                               width={railCardWidth}
                               onPress={() => openAlbum(album)}
+                              animationsPaused={homeAnimationsPaused}
                             />
                           ))}
                         </ScrollView>

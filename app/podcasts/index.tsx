@@ -24,7 +24,7 @@ import { searchPodcastShows } from "../../services/podcastDiscoveryApi";
 import type { HiddenTunesPodcastShow } from "../../services/podcastCatalogApi";
 import { LAUNCH_PODCAST_CATEGORIES } from "../../utils/launchPodcastCategories";
 import { podcastShowSubtitle } from "../../utils/openHiddenTunesPodcast";
-import { readCachedPodcastSearch } from "../../utils/podcastDiscoveryCache";
+import { readCachedPodcastSearch, hydrateCachedPodcastSearch } from "../../utils/podcastDiscoveryCache";
 import {
   createStableKeyExtractor,
   getListPerformanceSettings,
@@ -80,16 +80,27 @@ export default function PodcastDiscoveryHomeScreen() {
     setSearchLoading(true);
     const requestId = ++searchRequestRef.current;
     const timer = setTimeout(() => {
-      void searchPodcastShows(clean)
-        .then((shows) => {
+      void (async () => {
+        const storageHit = await hydrateCachedPodcastSearch(clean);
+        if (requestId !== searchRequestRef.current) return;
+
+        if (storageHit?.length) {
+          setSearchResults(storageHit);
+          setSearchChecked(true);
+          setSearchLoading(false);
+          return;
+        }
+
+        try {
+          const shows = await searchPodcastShows(clean);
           if (requestId !== searchRequestRef.current) return;
           setSearchResults(shows);
-        })
-        .finally(() => {
+        } finally {
           if (requestId !== searchRequestRef.current) return;
           setSearchLoading(false);
           setSearchChecked(true);
-        });
+        }
+      })();
     }, 300);
 
     return () => clearTimeout(timer);

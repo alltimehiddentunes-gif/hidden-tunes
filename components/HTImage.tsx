@@ -10,10 +10,7 @@ import {
   isArtworkUrlFailed,
   markArtworkUrlFailed,
 } from "../utils/artwork";
-import {
-  logPerformanceImageSourceMemoized,
-  recordArtworkFailure,
-} from "../utils/performanceLogs";
+import { recordArtworkFailure } from "../utils/performanceLogs";
 import { isFastScrolling } from "../utils/performanceMode";
 
 type Props = {
@@ -46,7 +43,6 @@ function memoizedUriSource(uri: string) {
     if (oldest) imageSourceCache.delete(oldest);
   }
 
-  logPerformanceImageSourceMemoized("ht_image_uri", { uri: normalized });
   return source;
 }
 const IMAGE_FADE_MS = 220;

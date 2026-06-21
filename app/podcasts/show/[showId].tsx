@@ -28,6 +28,7 @@ import {
 } from "../../../utils/openHiddenTunesPodcast";
 import {
   readCachedPodcastEpisodes,
+  hydrateCachedPodcastEpisodes,
 } from "../../../utils/podcastDiscoveryCache";
 import {
   createStableKeyExtractor,
@@ -60,6 +61,19 @@ export default function PodcastShowScreen() {
             current.every((item, index) => item.id === cached[index]?.id)
               ? current
               : cached
+          );
+          setLoading(false);
+          setHasCheckedFallbacks(true);
+          return;
+        }
+
+        const storageHit = await hydrateCachedPodcastEpisodes(showId);
+        if (storageHit?.length) {
+          setEpisodes((current) =>
+            current.length === storageHit.length &&
+            current.every((item, index) => item.id === storageHit[index]?.id)
+              ? current
+              : storageHit
           );
           setLoading(false);
           setHasCheckedFallbacks(true);

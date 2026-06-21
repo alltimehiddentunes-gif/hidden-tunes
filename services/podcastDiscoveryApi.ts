@@ -213,12 +213,10 @@ export async function getPodcastEpisodesForShow(
   return setPodcastEpisodesInflight(safeId, fetchPromise);
 }
 
-export function prefetchPodcastShowsForCategory(categoryId: string) {
-  if (readCachedPodcastShows(categoryId)?.length) return;
-  void getPodcastShowsForCategory(categoryId).catch(() => {});
+export function prefetchPodcastShowsForCategory(_categoryId: string) {
+  // Intentionally disabled — browse screens load cache-first on demand only.
 }
 
-export function prefetchPodcastEpisodesForShow(showId: string) {
-  if (readCachedPodcastEpisodes(showId)?.length) return;
-  void getPodcastEpisodesForShow(showId).catch(() => {});
+export function prefetchPodcastEpisodesForShow(_showId: string) {
+  // Intentionally disabled — browse screens load cache-first on demand only.
 }

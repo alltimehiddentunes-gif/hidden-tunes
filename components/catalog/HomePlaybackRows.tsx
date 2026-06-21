@@ -71,16 +71,21 @@ const FeaturedCardGlow = memo(function FeaturedCardGlow({
   const scale = useSharedValue<number>(LUXURY_GLOW.scaleMin);
 
   useEffect(() => {
-    if (!appActive) {
+    if (!appActive || !active) {
       cancelAnimation(opacity);
       cancelAnimation(scale);
-      opacity.value = withTiming(LUXURY_GLOW.opacityMin, { duration: 220 });
+      opacity.value = withTiming(
+        active ? LUXURY_GLOW.opacityMin + 0.04 : LUXURY_GLOW.opacityMin,
+        { duration: 220 }
+      );
       scale.value = withTiming(LUXURY_GLOW.scaleMin, { duration: 220 });
-      logPerformanceOffscreenWorkPaused("featured_card_glow", { reason: "app_inactive" });
+      if (!appActive) {
+        logPerformanceOffscreenWorkPaused("featured_card_glow", { reason: "app_inactive" });
+      }
       return;
     }
 
-    const peak = active ? LUXURY_GLOW.opacityMax + 0.08 : LUXURY_GLOW.opacityMax;
+    const peak = LUXURY_GLOW.opacityMax + 0.08;
     const floor = LUXURY_GLOW.opacityMin;
 
     opacity.value = withRepeat(
