@@ -22,8 +22,8 @@ import { getPodcastShowsForCategory } from "../../services/podcastDiscoveryApi";
 import type { HiddenTunesPodcastShow } from "../../services/podcastCatalogApi";
 import { getLaunchPodcastCategory } from "../../utils/launchPodcastCategories";
 import { podcastShowSubtitle } from "../../utils/openHiddenTunesPodcast";
-import { isMatureContentItem } from "../../types/matureContent";
-import { shouldIncludeMatureInApi } from "../../utils/matureContentSettings";
+import { filterVisiblePodcastShows } from "../../utils/maturePodcastVisibility";
+import { useMatureContentSettings } from "../../hooks/useMatureContentSettings";
 import {
   readCachedPodcastShows,
   hydrateCachedPodcastShows,
@@ -33,12 +33,8 @@ import {
   getListPerformanceSettings,
 } from "../../utils/performanceMode";
 
-function visiblePodcastShows(shows: HiddenTunesPodcastShow[]) {
-  if (shouldIncludeMatureInApi()) return shows;
-  return shows.filter((show) => !isMatureContentItem(show));
-}
-
 export default function PodcastCategoryScreen() {
+  const { includeMatureInApi } = useMatureContentSettings();
   const { consentVisible, runWithMatureConsent, cancelConsent, confirmConsent } =
     useMatureContentGate();
   const params = useLocalSearchParams<{ categoryId?: string }>();
@@ -49,7 +45,7 @@ export default function PodcastCategoryScreen() {
   );
 
   const [shows, setShows] = useState<HiddenTunesPodcastShow[]>(() =>
-    visiblePodcastShows(readCachedPodcastShows(categoryId) || [])
+    filterVisiblePodcastShows(readCachedPodcastShows(categoryId) || [])
   );
   const [loading, setLoading] = useState(() => shows.length === 0);
   const [refreshing, setRefreshing] = useState(false);
@@ -62,7 +58,7 @@ export default function PodcastCategoryScreen() {
       if (!forceRefresh) {
         const cached = readCachedPodcastShows(categoryId);
         if (cached?.length) {
-          const visible = visiblePodcastShows(cached);
+          const visible = filterVisiblePodcastShows(cached);
           setShows((current) =>
             current.length === visible.length &&
             current.every((item, index) => item.id === visible[index]?.id)
@@ -76,7 +72,7 @@ export default function PodcastCategoryScreen() {
 
         const storageHit = await hydrateCachedPodcastShows(categoryId);
         if (storageHit?.length) {
-          const visible = visiblePodcastShows(storageHit);
+          const visible = filterVisiblePodcastShows(storageHit);
           setShows((current) =>
             current.length === visible.length &&
             current.every((item, index) => item.id === visible[index]?.id)
@@ -109,7 +105,11 @@ export default function PodcastCategoryScreen() {
   useEffect(() => {
     if (!categoryId) return;
     void loadShows(false);
-  }, [categoryId, loadShows]);
+  }, [categoryId, includeMatureInApi, loadShows]);
+
+  useEffect(() => {
+    setShows((current) => filterVisiblePodcastShows(current));
+  }, [includeMatureInApi]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);

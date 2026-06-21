@@ -13,6 +13,7 @@ import {
 import { podcastDiscoveryDisplayName } from "../../utils/openHiddenTunesPodcast";
 import { getUserFacingPodcastSubtitle } from "../../services/ui/displayMetadata";
 import { useMatureContentSettings } from "../../hooks/useMatureContentSettings";
+import { isMaturePodcastEpisode } from "../../utils/maturePodcastVisibility";
 import { isMatureContentItem } from "../../types/matureContent";
 import MatureContentBadge from "../mature/MatureContentBadge";
 
@@ -105,16 +106,22 @@ export const PodcastShowCard = memo(function PodcastShowCard({
 type PodcastEpisodeRowProps = {
   episode: HiddenTunesPodcastEpisode;
   subtitle?: string;
+  showIsMature?: boolean;
   onPress: () => void;
 };
 
 export const PodcastEpisodeRow = memo(function PodcastEpisodeRow({
   episode,
   subtitle,
+  showIsMature = false,
   onPress,
 }: PodcastEpisodeRowProps) {
   const { includeMatureInApi } = useMatureContentSettings();
-  const showMatureArt = !isMatureContentItem(episode) || includeMatureInApi;
+  const matureItem = {
+    is_mature: isMaturePodcastEpisode(episode, showIsMature),
+    content_rating: episode.content_rating,
+  };
+  const showMatureArt = !isMaturePodcastEpisode(episode, showIsMature) || includeMatureInApi;
 
   return (
     <TouchableOpacity activeOpacity={0.88} style={styles.episodeRow} onPress={onPress}>
@@ -139,7 +146,7 @@ export const PodcastEpisodeRow = memo(function PodcastEpisodeRow({
           <Text numberOfLines={2} style={styles.episodeTitle}>
             {podcastDiscoveryDisplayName(episode.title)}
           </Text>
-          <MatureContentBadge item={episode} />
+          <MatureContentBadge item={matureItem} />
         </View>
         <Text numberOfLines={1} style={styles.episodeSubtitle}>
           {subtitle || getUserFacingPodcastSubtitle(episode)}

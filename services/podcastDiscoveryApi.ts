@@ -5,8 +5,11 @@ import {
   type HiddenTunesPodcastShow,
 } from "./podcastCatalogApi";
 import { getLaunchPodcastCategory } from "../utils/launchPodcastCategories";
-import { isMatureContentItem } from "../types/matureContent";
 import { shouldIncludeMatureInApi } from "../utils/matureContentSettings";
+import {
+  filterVisiblePodcastEpisodes,
+  filterVisiblePodcastShows,
+} from "../utils/maturePodcastVisibility";
 import {
   getPodcastEpisodesInflight,
   getPodcastShowsInflight,
@@ -66,13 +69,11 @@ function dedupeEpisodes(episodes: HiddenTunesPodcastEpisode[]) {
 }
 
 function filterMatureShows(shows: HiddenTunesPodcastShow[]) {
-  if (shouldIncludeMatureInApi()) return shows;
-  return shows.filter((show) => !isMatureContentItem(show));
+  return filterVisiblePodcastShows(shows);
 }
 
 function filterMatureEpisodes(episodes: HiddenTunesPodcastEpisode[]) {
-  if (shouldIncludeMatureInApi()) return episodes;
-  return episodes.filter((episode) => !isMatureContentItem(episode));
+  return filterVisiblePodcastEpisodes(episodes);
 }
 
 async function fetchShowsFromNetwork(categoryId: string) {
@@ -169,8 +170,8 @@ export async function getPodcastShowsForCategory(
     })
     .catch(async () => {
       const memoryStale = readCachedPodcastShows(safeId);
-      if (memoryStale?.length) return memoryStale;
-      return (await hydrateCachedPodcastShows(safeId)) || [];
+      if (memoryStale?.length) return filterMatureShows(memoryStale);
+      return filterMatureShows((await hydrateCachedPodcastShows(safeId)) || []);
     });
 
   return setPodcastShowsInflight(safeId, fetchPromise);
@@ -205,8 +206,8 @@ export async function searchPodcastShows(
     })
     .catch(async () => {
       const memoryStale = readCachedPodcastSearch(cacheKey);
-      if (memoryStale?.length) return memoryStale;
-      return (await hydrateCachedPodcastSearch(cacheKey)) || [];
+      if (memoryStale?.length) return filterMatureShows(memoryStale);
+      return filterMatureShows((await hydrateCachedPodcastSearch(cacheKey)) || []);
     });
 
   return setPodcastShowsInflight(`search:${cacheKey}`, fetchPromise);
@@ -239,8 +240,8 @@ export async function getPodcastEpisodesForShow(
     })
     .catch(async () => {
       const memoryStale = readCachedPodcastEpisodes(safeId);
-      if (memoryStale?.length) return memoryStale;
-      return (await hydrateCachedPodcastEpisodes(safeId)) || [];
+      if (memoryStale?.length) return filterMatureEpisodes(memoryStale);
+      return filterMatureEpisodes((await hydrateCachedPodcastEpisodes(safeId)) || []);
     });
 
   return setPodcastEpisodesInflight(safeId, fetchPromise);

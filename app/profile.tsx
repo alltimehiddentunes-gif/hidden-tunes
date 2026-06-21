@@ -388,7 +388,7 @@ export default function ProfileScreen() {
               <View style={styles.itemTextWrap}>
                 <Text style={styles.itemTitle}>Show 18+ Content</Text>
                 <Text style={styles.itemSubtitle}>
-                  Include mature radio and podcast results
+                  Include mature radio, podcast shows, and episodes
                 </Text>
               </View>
 

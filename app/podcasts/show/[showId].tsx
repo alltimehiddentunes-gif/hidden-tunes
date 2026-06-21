@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -18,6 +18,7 @@ import MatureContentConsentModal from "../../../components/mature/MatureContentC
 import { COLORS } from "../../../constants/theme";
 import { TESTER_COPY } from "../../../constants/testerExperience";
 import { useMatureContentGate } from "../../../hooks/useMatureContentGate";
+import { useMatureContentSettings } from "../../../hooks/useMatureContentSettings";
 import { usePlaybackRouter } from "../../../hooks/usePlaybackRouter";
 import {
   getPodcastEpisodesForShow,
@@ -36,9 +37,15 @@ import {
   createStableKeyExtractor,
   getListPerformanceSettings,
 } from "../../../utils/performanceMode";
+import {
+  enrichEpisodesWithShowMaturity,
+  filterVisiblePodcastEpisodes,
+  isMaturePodcastEpisode,
+} from "../../../utils/maturePodcastVisibility";
 
 export default function PodcastShowScreen() {
   const { playPodcastEpisode } = usePlaybackRouter();
+  const { hasConsent, includeMatureInApi } = useMatureContentSettings();
   const { consentVisible, runWithMatureConsent, cancelConsent, confirmConsent } =
     useMatureContentGate();
   const [playbackError, setPlaybackError] = useState<string | null>(null);
@@ -47,8 +54,16 @@ export default function PodcastShowScreen() {
   const showTitle = podcastDiscoveryDisplayName(params.title);
   const showIsMature = params.isMature === "1";
 
+  const normalizeVisibleEpisodes = useCallback(
+    (items: HiddenTunesPodcastEpisode[]) => {
+      const enriched = enrichEpisodesWithShowMaturity(items, showIsMature);
+      return filterVisiblePodcastEpisodes(enriched, { showIsMature });
+    },
+    [showIsMature]
+  );
+
   const [episodes, setEpisodes] = useState<HiddenTunesPodcastEpisode[]>(() =>
-    readCachedPodcastEpisodes(showId) || []
+    normalizeVisibleEpisodes(readCachedPodcastEpisodes(showId) || [])
   );
   const [loading, setLoading] = useState(() => episodes.length === 0);
   const [refreshing, setRefreshing] = useState(false);
@@ -61,11 +76,12 @@ export default function PodcastShowScreen() {
       if (!forceRefresh) {
         const cached = readCachedPodcastEpisodes(showId);
         if (cached?.length) {
+          const visible = normalizeVisibleEpisodes(cached);
           setEpisodes((current) =>
-            current.length === cached.length &&
-            current.every((item, index) => item.id === cached[index]?.id)
+            current.length === visible.length &&
+            current.every((item, index) => item.id === visible[index]?.id)
               ? current
-              : cached
+              : visible
           );
           setLoading(false);
           setHasCheckedFallbacks(true);
@@ -74,11 +90,12 @@ export default function PodcastShowScreen() {
 
         const storageHit = await hydrateCachedPodcastEpisodes(showId);
         if (storageHit?.length) {
+          const visible = normalizeVisibleEpisodes(storageHit);
           setEpisodes((current) =>
-            current.length === storageHit.length &&
-            current.every((item, index) => item.id === storageHit[index]?.id)
+            current.length === visible.length &&
+            current.every((item, index) => item.id === visible[index]?.id)
               ? current
-              : storageHit
+              : visible
           );
           setLoading(false);
           setHasCheckedFallbacks(true);
@@ -88,11 +105,12 @@ export default function PodcastShowScreen() {
 
       try {
         const next = await getPodcastEpisodesForShow(showId, { forceRefresh });
+        const visible = normalizeVisibleEpisodes(next);
         setEpisodes((current) =>
-          current.length === next.length &&
-          current.every((item, index) => item.id === next[index]?.id)
+          current.length === visible.length &&
+          current.every((item, index) => item.id === visible[index]?.id)
             ? current
-            : next
+            : visible
         );
       } finally {
         setLoading(false);
@@ -100,13 +118,34 @@ export default function PodcastShowScreen() {
         setHasCheckedFallbacks(true);
       }
     },
-    [showId]
+    [normalizeVisibleEpisodes, showId]
   );
 
   useEffect(() => {
     if (!showId) return;
     void loadEpisodes(false);
   }, [showId, loadEpisodes]);
+
+  useEffect(() => {
+    setEpisodes((current) => normalizeVisibleEpisodes(current));
+  }, [includeMatureInApi, normalizeVisibleEpisodes]);
+
+  const deepLinkGateRef = useRef(false);
+  useEffect(() => {
+    if (!showId || !showIsMature || hasConsent || deepLinkGateRef.current) return;
+
+    deepLinkGateRef.current = true;
+    runWithMatureConsent({ is_mature: true, content_rating: "adult" }, () => {
+      // Deep-linked mature show — consent granted, stay on page.
+    });
+  }, [hasConsent, runWithMatureConsent, showId, showIsMature]);
+
+  const handleCancelConsent = useCallback(() => {
+    cancelConsent();
+    if (showIsMature && !hasConsent) {
+      router.back();
+    }
+  }, [cancelConsent, hasConsent, showIsMature]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -147,7 +186,7 @@ export default function PodcastShowScreen() {
   const handleEpisodePress = useCallback(
     (episode: HiddenTunesPodcastEpisode) => {
       const matureItem = {
-        is_mature: episode.is_mature || showIsMature,
+        is_mature: isMaturePodcastEpisode(episode, showIsMature),
         content_rating: episode.content_rating,
       };
 
@@ -162,11 +201,12 @@ export default function PodcastShowScreen() {
     ({ item }: { item: HiddenTunesPodcastEpisode }) => (
       <PodcastEpisodeRow
         episode={item}
+        showIsMature={showIsMature}
         subtitle={podcastEpisodeSubtitle(item)}
         onPress={() => handleEpisodePress(item)}
       />
     ),
-    [handleEpisodePress]
+    [handleEpisodePress, showIsMature]
   );
 
   const listPerformance = useMemo(
@@ -266,7 +306,7 @@ export default function PodcastShowScreen() {
 
       <MatureContentConsentModal
         visible={consentVisible}
-        onCancel={cancelConsent}
+        onCancel={handleCancelConsent}
         onConfirm={confirmConsent}
       />
     </LinearGradient>

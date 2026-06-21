@@ -26,19 +26,13 @@ import { searchPodcastShows } from "../../services/podcastDiscoveryApi";
 import type { HiddenTunesPodcastShow } from "../../services/podcastCatalogApi";
 import { getVisiblePodcastCategories } from "../../utils/launchPodcastCategories";
 import { useMatureContentSettings } from "../../hooks/useMatureContentSettings";
-import { isMatureContentItem } from "../../types/matureContent";
-import { shouldIncludeMatureInApi } from "../../utils/matureContentSettings";
+import { filterVisiblePodcastShows } from "../../utils/maturePodcastVisibility";
 import { podcastShowSubtitle } from "../../utils/openHiddenTunesPodcast";
 import { readCachedPodcastSearch, hydrateCachedPodcastSearch } from "../../utils/podcastDiscoveryCache";
 import {
   createStableKeyExtractor,
   getListPerformanceSettings,
 } from "../../utils/performanceMode";
-
-function visiblePodcastShows(shows: HiddenTunesPodcastShow[]) {
-  if (shouldIncludeMatureInApi()) return shows;
-  return shows.filter((show) => !isMatureContentItem(show));
-}
 
 export default function PodcastDiscoveryHomeScreen() {
   const { includeMatureInApi } = useMatureContentSettings();
@@ -93,7 +87,7 @@ export default function PodcastDiscoveryHomeScreen() {
 
     const cached = readCachedPodcastSearch(clean);
     if (cached?.length) {
-      setSearchResults(visiblePodcastShows(cached));
+      setSearchResults(filterVisiblePodcastShows(cached));
       setSearchChecked(true);
       setSearchLoading(false);
       return;
@@ -107,7 +101,7 @@ export default function PodcastDiscoveryHomeScreen() {
         if (requestId !== searchRequestRef.current) return;
 
         if (storageHit?.length) {
-          setSearchResults(visiblePodcastShows(storageHit));
+          setSearchResults(filterVisiblePodcastShows(storageHit));
           setSearchChecked(true);
           setSearchLoading(false);
           return;
@@ -116,7 +110,7 @@ export default function PodcastDiscoveryHomeScreen() {
         try {
           const shows = await searchPodcastShows(clean);
           if (requestId !== searchRequestRef.current) return;
-          setSearchResults(visiblePodcastShows(shows));
+          setSearchResults(filterVisiblePodcastShows(shows));
         } finally {
           if (requestId !== searchRequestRef.current) return;
           setSearchLoading(false);
@@ -126,7 +120,7 @@ export default function PodcastDiscoveryHomeScreen() {
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [searchQuery]);
+  }, [searchQuery, includeMatureInApi]);
 
   useEffect(() => {
     if (!initialQuery) return;

@@ -86,10 +86,12 @@ export async function enableMatureContentWithConsent() {
 export async function grantMatureContentConsent() {
   const consentAt = new Date().toISOString();
 
-  await AsyncStorage.setItem(MATURE_CONTENT_CONSENT_KEY, consentAt);
+  await Promise.all([
+    AsyncStorage.setItem(MATURE_CONTENT_ENABLED_KEY, "true"),
+    AsyncStorage.setItem(MATURE_CONTENT_CONSENT_KEY, consentAt),
+  ]);
 
   applySettings({
-    ...settings,
     enabled: true,
     hasConsent: true,
     consentAt,
