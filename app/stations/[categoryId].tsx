@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -25,6 +25,7 @@ import { usePlaybackRouter } from "../../hooks/usePlaybackRouter";
 import { loadRadioCategoryPage } from "../../services/radio/radioBrowserApi";
 import { normalizeRadioStation } from "../../services/radio/radioNormalizer";
 import type { RadioStationListItem } from "../../types/radio";
+import { logRadioDiscoveryRender } from "../../utils/radioDiscoveryDiagnostics";
 import {
   createStableKeyExtractor,
   getListPerformanceSettings,
@@ -94,19 +95,6 @@ export default function RadioCategoryScreen() {
     [playStation, runWithMatureConsent]
   );
 
-  const openListeningRoom = useCallback(() => {
-    if (!category) return;
-
-    router.push({
-      pathname: "/radio",
-      params: {
-        title: category.title,
-        query: category.listeningRoomQuery,
-        genre: category.tag || "",
-      },
-    } as any);
-  }, [category]);
-
   const listPerformance = useMemo(
     () => getListPerformanceSettings(listItems.length),
     [listItems.length]
@@ -119,12 +107,23 @@ export default function RadioCategoryScreen() {
 
   const renderItem = useCallback(
     ({ item }: { item: RadioStationListItem }) => (
-      <RadioStationCard item={item} onPress={() => handleStationPress(item)} />
+      <RadioStationCard
+        item={item}
+        variant="premium"
+        onPress={() => handleStationPress(item)}
+      />
     ),
     [handleStationPress]
   );
 
-  const showEmpty = hasLoadedOnce && !loading && !refreshing && listItems.length === 0;
+  useEffect(() => {
+    logRadioDiscoveryRender(`radio-category:${categoryId}`);
+  }, [categoryId]);
+
+  useEffect(() => {
+    if (!hasLoadedOnce || loading || refreshing || listItems.length > 0) return;
+    router.replace("/stations" as any);
+  }, [hasLoadedOnce, listItems.length, loading, refreshing]);
 
   if (!category) {
     return (
@@ -188,24 +187,6 @@ export default function RadioCategoryScreen() {
                 style={styles.footerSpinner}
                 color={COLORS.primary}
               />
-            ) : null
-          }
-          ListEmptyComponent={
-            showEmpty ? (
-              <View style={styles.emptyBox}>
-                <Ionicons name="radio-outline" size={48} color={COLORS.textMuted} />
-                <Text style={styles.emptyTitle}>{category.emptyTitle}</Text>
-                <Text style={styles.emptyText}>{category.emptyMessage}</Text>
-                <TouchableOpacity
-                  activeOpacity={0.86}
-                  style={styles.fallbackButton}
-                  onPress={openListeningRoom}
-                >
-                  <Text style={styles.fallbackButtonText}>
-                    Open listening room
-                  </Text>
-                </TouchableOpacity>
-              </View>
             ) : null
           }
           renderItem={renderItem}

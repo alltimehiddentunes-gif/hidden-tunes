@@ -2,6 +2,12 @@ import type { ComponentProps } from "react";
 import type { Ionicons } from "@expo/vector-icons";
 
 import type { MoodRoomGradient } from "../utils/moodRooms";
+import {
+  RADIO_EMOTIONAL_WORLDS,
+  type RadioEmotionalWorld,
+} from "./radioEmotionalWorlds";
+
+export type RadioCategoryTier = "internal" | "emotional" | "browse" | "mature";
 
 export type RadioCategory = {
   id: string;
@@ -13,55 +19,64 @@ export type RadioCategory = {
   countryCode?: string;
   useTopVotes?: boolean;
   isMature?: boolean;
+  tier: RadioCategoryTier;
   listeningRoomQuery: string;
-  emptyTitle: string;
-  emptyMessage: string;
 };
+
+function emotionalWorldToCategory(world: RadioEmotionalWorld): RadioCategory {
+  return {
+    id: world.id,
+    title: world.title,
+    subtitle: world.subtitle,
+    icon: world.icon,
+    gradient: world.gradient,
+    tag: world.tag,
+    tier: "emotional",
+    listeningRoomQuery: world.listeningRoomQuery,
+  };
+}
 
 export const RADIO_CATEGORIES: RadioCategory[] = [
   {
     id: "featured",
     title: "Featured Stations",
-    subtitle: "Popular picks across Hidden Tunes Radio",
+    subtitle: "Editorial picks across Hidden Tunes Radio",
     icon: "star-outline",
     gradient: ["#241028", "#100810"],
     useTopVotes: true,
+    tier: "internal",
     listeningRoomQuery: "featured radio",
-    emptyTitle: "Nothing here yet.",
-    emptyMessage: "Try another category or open a listening room.",
   },
+  ...RADIO_EMOTIONAL_WORLDS.map(emotionalWorldToCategory),
   {
     id: "browse-country",
     title: "Browse by Country",
-    subtitle: "Stations grouped by region",
+    subtitle: "United States stations to start",
     icon: "flag-outline",
     gradient: ["#102028", "#081014"],
     countryCode: "US",
+    tier: "browse",
     listeningRoomQuery: "local radio",
-    emptyTitle: "Nothing here yet.",
-    emptyMessage: "Try another category or open a listening room.",
   },
   {
     id: "browse-language",
     title: "Browse by Language",
-    subtitle: "Find stations in your language",
+    subtitle: "English-language stations",
     icon: "chatbubble-ellipses-outline",
     gradient: ["#141820", "#080A10"],
     tag: "english",
+    tier: "browse",
     listeningRoomQuery: "english radio",
-    emptyTitle: "Nothing here yet.",
-    emptyMessage: "Try another category or open a listening room.",
   },
   {
     id: "browse-genre",
     title: "Browse by Genre",
-    subtitle: "Pop, jazz, classical, and more",
+    subtitle: "Pop, rock, jazz, and more",
     icon: "musical-notes-outline",
     gradient: ["#101828", "#080C14"],
     tag: "pop",
+    tier: "browse",
     listeningRoomQuery: "genre radio",
-    emptyTitle: "Nothing here yet.",
-    emptyMessage: "Try another category or open a listening room.",
   },
   {
     id: "news-talk",
@@ -69,10 +84,9 @@ export const RADIO_CATEGORIES: RadioCategory[] = [
     subtitle: "Headlines, talk, and public voices",
     icon: "newspaper-outline",
     gradient: ["#181818", "#0A0A0A"],
-    tag: "news",
+    tag: "talk",
+    tier: "browse",
     listeningRoomQuery: "news talk",
-    emptyTitle: "Nothing here yet.",
-    emptyMessage: "Try another category or open a listening room.",
   },
   {
     id: "sports",
@@ -81,9 +95,8 @@ export const RADIO_CATEGORIES: RadioCategory[] = [
     icon: "football-outline",
     gradient: ["#142820", "#081410"],
     tag: "sports",
+    tier: "browse",
     listeningRoomQuery: "sports radio",
-    emptyTitle: "Nothing here yet.",
-    emptyMessage: "Try another category or open a listening room.",
   },
   {
     id: "gospel-worship",
@@ -91,10 +104,9 @@ export const RADIO_CATEGORIES: RadioCategory[] = [
     subtitle: "Praise, worship, and sacred calm",
     icon: "sparkles-outline",
     gradient: ["#1A1830", "#0A0818"],
-    tag: "gospel",
+    tag: "christian",
+    tier: "browse",
     listeningRoomQuery: "gospel worship",
-    emptyTitle: "Nothing here yet.",
-    emptyMessage: "Try another category or open a listening room.",
   },
   {
     id: "african-radio",
@@ -102,10 +114,9 @@ export const RADIO_CATEGORIES: RadioCategory[] = [
     subtitle: "Afro sounds and continental voices",
     icon: "earth-outline",
     gradient: ["#2A1420", "#100810"],
-    tag: "africa",
-    listeningRoomQuery: "african radio",
-    emptyTitle: "Nothing here yet.",
-    emptyMessage: "Try another category or open a listening room.",
+    tag: "afrobeat",
+    tier: "browse",
+    listeningRoomQuery: "afrobeat radio",
   },
   {
     id: "world-radio",
@@ -113,10 +124,9 @@ export const RADIO_CATEGORIES: RadioCategory[] = [
     subtitle: "Global stations from every corner",
     icon: "globe-outline",
     gradient: ["#102030", "#080C14"],
-    useTopVotes: true,
-    listeningRoomQuery: "world music",
-    emptyTitle: "Nothing here yet.",
-    emptyMessage: "Try another category or open a listening room.",
+    tag: "world",
+    tier: "browse",
+    listeningRoomQuery: "world music radio",
   },
   {
     id: "mature",
@@ -126,9 +136,8 @@ export const RADIO_CATEGORIES: RadioCategory[] = [
     gradient: ["#201418", "#0C0808"],
     tag: "adult",
     isMature: true,
+    tier: "mature",
     listeningRoomQuery: "adult talk radio",
-    emptyTitle: "No mature stations right now",
-    emptyMessage: "Turn on Show Mature Content in Profile to browse this room.",
   },
 ];
 
@@ -140,6 +149,24 @@ export function getRadioCategory(id: string) {
 
 export function getVisibleRadioCategories(includeMature: boolean) {
   return RADIO_CATEGORIES.filter(
-    (category) => !category.isMature || includeMature
+    (category) =>
+      category.tier !== "internal" &&
+      (!category.isMature || includeMature)
   );
+}
+
+export function getBrowsableRadioCategories(includeMature: boolean) {
+  return getVisibleRadioCategories(includeMature).filter(
+    (category) => category.tier === "browse" || category.tier === "mature"
+  );
+}
+
+export function getEmotionalRadioCategories(includeMature: boolean) {
+  return getVisibleRadioCategories(includeMature).filter(
+    (category) => category.tier === "emotional"
+  );
+}
+
+export function getProbeableRadioCategories(includeMature: boolean) {
+  return getVisibleRadioCategories(includeMature);
 }

@@ -1,5 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback } from "react";
 import {
+  ActivityIndicator,
+  Alert,
+  FlatList,
   ScrollView,
   StyleSheet,
   Text,
@@ -11,13 +14,67 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 
-import { RadioCategoryCard } from "../../components/radio/RadioBrowserCards";
-import { getVisibleRadioCategories } from "../../constants/radioCategories";
+import {
+  RadioCategoryCard,
+  RadioEmotionalWorldCard,
+  RadioStationRailCard,
+} from "../../components/radio/RadioBrowserCards";
+import MatureContentConsentModal from "../../components/mature/MatureContentConsentModal";
 import { COLORS } from "../../constants/theme";
-import { useMatureContentSettings } from "../../hooks/useMatureContentSettings";
+import { useMatureContentGate } from "../../hooks/useMatureContentGate";
+import { usePlaybackRouter } from "../../hooks/usePlaybackRouter";
+import { useRadioHomeDiscovery } from "../../hooks/useRadioHomeDiscovery";
+import { loadRadioCategoryPage } from "../../services/radio/radioBrowserApi";
+import { normalizeRadioStation } from "../../services/radio/radioNormalizer";
+import type { RadioStationListItem } from "../../types/radio";
+
+type StationSectionProps = {
+  title: string;
+  eyebrow: string;
+  stations: RadioStationListItem[];
+  onPressStation: (item: RadioStationListItem) => void;
+};
+
+function StationRailSection({ title, eyebrow, stations, onPressStation }: StationSectionProps) {
+  if (!stations.length) return null;
+
+  return (
+    <View style={styles.sectionBlock}>
+      <Text style={styles.sectionEyebrow}>{eyebrow}</Text>
+      <Text style={styles.sectionTitle}>{title}</Text>
+      <FlatList
+        horizontal
+        data={stations}
+        keyExtractor={(item) => `${eyebrow}-${item.id}`}
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.railContent}
+        initialNumToRender={4}
+        maxToRenderPerBatch={4}
+        windowSize={5}
+        removeClippedSubviews
+        renderItem={({ item }) => (
+          <RadioStationRailCard item={item} onPress={() => onPressStation(item)} />
+        )}
+      />
+    </View>
+  );
+}
 
 export default function RadioStationsHomeScreen() {
-  const { includeMatureInApi } = useMatureContentSettings();
+  const { playRadioStation } = usePlaybackRouter();
+  const { consentVisible, runWithMatureConsent, cancelConsent, confirmConsent } =
+    useMatureContentGate();
+  const {
+    featured,
+    trending,
+    popular,
+    recommended,
+    recentlyPlayed,
+    emotionalWorlds,
+    browseCategories,
+    loading,
+    resolveStation,
+  } = useRadioHomeDiscovery();
 
   const openCategory = useCallback((categoryId: string) => {
     router.push({
@@ -30,9 +87,37 @@ export default function RadioStationsHomeScreen() {
     router.push("/stations/search" as any);
   }, []);
 
-  const categories = useMemo(
-    () => getVisibleRadioCategories(includeMatureInApi),
-    [includeMatureInApi]
+  const playStation = useCallback(
+    async (item: RadioStationListItem) => {
+      let station = resolveStation(item.id);
+
+      if (!station) {
+        const resolved = await loadRadioCategoryPage("featured", { offset: 0, limit: 40 }).catch(
+          () => null
+        );
+        station = resolved?.stations.find((entry) => entry.id === item.id) || null;
+      }
+
+      if (!station) {
+        Alert.alert("Unavailable", "This station is unavailable right now.");
+        return;
+      }
+
+      const result = await playRadioStation(normalizeRadioStation(station));
+      if (!result.ok) {
+        Alert.alert("Unavailable", result.error || "This station is unavailable right now.");
+      }
+    },
+    [playRadioStation, resolveStation]
+  );
+
+  const handleStationPress = useCallback(
+    (item: RadioStationListItem) => {
+      runWithMatureConsent(item, () => {
+        void playStation(item);
+      });
+    },
+    [playStation, runWithMatureConsent]
   );
 
   return (
@@ -49,33 +134,97 @@ export default function RadioStationsHomeScreen() {
         <View style={styles.headerText}>
           <Text style={styles.kicker}>HIDDEN TUNES RADIO</Text>
           <Text style={styles.title}>Live Stations</Text>
-          <Text style={styles.subtitle}>Browse live rooms by mood and genre</Text>
+          <Text style={styles.subtitle}>Premium live discovery tuned to your mood</Text>
         </View>
       </View>
 
-      <ScrollView
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
-        <TouchableOpacity
-          activeOpacity={0.88}
-          style={styles.searchLink}
-          onPress={openSearch}
-        >
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <TouchableOpacity activeOpacity={0.88} style={styles.searchLink} onPress={openSearch}>
           <Ionicons name="search-outline" size={18} color={COLORS.primary} />
           <Text style={styles.searchLinkText}>Search live stations</Text>
           <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
         </TouchableOpacity>
 
-        <View style={styles.grid}>
-          {categories.map((category) => (
-            <RadioCategoryCard
-              key={category.id}
-              category={category}
-              onPress={() => openCategory(category.id)}
+        {loading ? (
+          <View style={styles.loadingPanel}>
+            <ActivityIndicator size="small" color={COLORS.primary} />
+            <Text style={styles.loadingText}>Loading live stations...</Text>
+          </View>
+        ) : (
+          <>
+            <StationRailSection
+              eyebrow="FEATURED"
+              title="Featured Stations"
+              stations={featured}
+              onPressStation={handleStationPress}
             />
-          ))}
-        </View>
+            <StationRailSection
+              eyebrow="TRENDING"
+              title="Trending Stations"
+              stations={trending}
+              onPressStation={handleStationPress}
+            />
+            <StationRailSection
+              eyebrow="POPULAR"
+              title="Popular Stations"
+              stations={popular}
+              onPressStation={handleStationPress}
+            />
+            <StationRailSection
+              eyebrow="RECENT"
+              title="Recently Played Stations"
+              stations={recentlyPlayed}
+              onPressStation={handleStationPress}
+            />
+            <StationRailSection
+              eyebrow="FOR YOU"
+              title="Recommended Stations"
+              stations={recommended}
+              onPressStation={handleStationPress}
+            />
+
+            {emotionalWorlds.length > 0 ? (
+              <View style={styles.sectionBlock}>
+                <Text style={styles.sectionEyebrow}>EMOTIONAL WORLDS</Text>
+                <Text style={styles.sectionTitle}>Radio tuned to how you feel</Text>
+                <FlatList
+                  horizontal
+                  data={emotionalWorlds}
+                  keyExtractor={(entry) => entry.world.id}
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.railContent}
+                  initialNumToRender={3}
+                  maxToRenderPerBatch={3}
+                  windowSize={5}
+                  removeClippedSubviews
+                  renderItem={({ item }) => (
+                    <RadioEmotionalWorldCard
+                      category={item.world}
+                      stationCount={item.previewStations.length}
+                      onPress={() => openCategory(item.world.id)}
+                    />
+                  )}
+                />
+              </View>
+            ) : null}
+
+            {browseCategories.length > 0 ? (
+              <View style={styles.sectionBlock}>
+                <Text style={styles.sectionEyebrow}>BROWSE</Text>
+                <Text style={styles.sectionTitle}>Country, language, and genre</Text>
+                <View style={styles.grid}>
+                  {browseCategories.map((category) => (
+                    <RadioCategoryCard
+                      key={category.id}
+                      category={category}
+                      onPress={() => openCategory(category.id)}
+                    />
+                  ))}
+                </View>
+              </View>
+            ) : null}
+          </>
+        )}
 
         <TouchableOpacity
           activeOpacity={0.86}
@@ -92,6 +241,12 @@ export default function RadioStationsHomeScreen() {
           <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
         </TouchableOpacity>
       </ScrollView>
+
+      <MatureContentConsentModal
+        visible={consentVisible}
+        onCancel={cancelConsent}
+        onConfirm={confirmConsent}
+      />
     </LinearGradient>
   );
 }
@@ -156,6 +311,37 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     fontSize: 14,
     fontWeight: "700",
+  },
+  loadingPanel: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 36,
+    gap: 10,
+  },
+  loadingText: {
+    color: COLORS.textMuted,
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  sectionBlock: {
+    marginTop: 8,
+    marginBottom: 10,
+  },
+  sectionEyebrow: {
+    color: COLORS.primary,
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 1.4,
+  },
+  sectionTitle: {
+    color: COLORS.text,
+    fontSize: 20,
+    fontWeight: "900",
+    marginTop: 4,
+    marginBottom: 12,
+  },
+  railContent: {
+    paddingRight: 8,
   },
   grid: {
     flexDirection: "row",

@@ -115,7 +115,11 @@ export default function RadioSearchScreen() {
 
   const renderItem = useCallback(
     ({ item }: { item: RadioStationListItem }) => (
-      <RadioStationCard item={item} onPress={() => handleStationPress(item)} />
+      <RadioStationCard
+        item={item}
+        variant="premium"
+        onPress={() => handleStationPress(item)}
+      />
     ),
     [handleStationPress]
   );

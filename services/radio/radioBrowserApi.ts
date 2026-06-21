@@ -2,6 +2,7 @@ import { MEDIA_DISCOVERY_PAGE_SIZE } from "../../constants/mediaDiscovery";
 import { getRadioCategory, type RadioCategory } from "../../constants/radioCategories";
 import { isMatureContentItem } from "../../types/matureContent";
 import type { HiddenTunesStation, RadioBrowserStationRaw } from "../../types/radio";
+import { logRadioDiscoveryFetch } from "../../utils/radioDiscoveryDiagnostics";
 import { shouldIncludeMatureInApi } from "../../utils/matureContentSettings";
 import { normalizeRadioBrowserStation } from "./radioNormalizer";
 import {
@@ -287,7 +288,10 @@ async function loadRadioPage(
     }
 
     const fetchPromise = fetchPage(offset, limit, signal)
-      .then((page) => writeCachedRadioStations(safeKey, page, { append: append || offset > 0 }))
+      .then((page) => {
+        logRadioDiscoveryFetch("radio-page", `${safeKey}@${offset}`);
+        return writeCachedRadioStations(safeKey, page, { append: append || offset > 0 });
+      })
       .catch(async (error) => {
         if ((error as Error)?.name === "AbortError") {
           throw error;

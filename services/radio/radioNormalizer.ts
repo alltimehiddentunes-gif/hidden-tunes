@@ -117,23 +117,39 @@ export function radioStationToAppSong(station: RadioStation): AppSong {
   };
 }
 
-export function stationRowSubtitle(station: Pick<HiddenTunesStation, "country" | "tags">) {
+export function stationQualityLabel(station: Pick<HiddenTunesStation, "bitrate" | "codec">) {
+  const bitrate = Number(station.bitrate);
+  const codec = String(station.codec || "").trim().toUpperCase();
+  if (Number.isFinite(bitrate) && bitrate > 0 && codec) return `${bitrate}k ${codec}`;
+  if (Number.isFinite(bitrate) && bitrate > 0) return `${bitrate}k`;
+  if (codec) return codec;
+  return "";
+}
+
+export function stationRowSubtitle(
+  station: Pick<HiddenTunesStation, "country" | "language" | "tags">
+) {
   const tags = sanitizeStationTagsForDisplay(station.tags || []).slice(0, 2).join(" · ");
-  const parts = [station.country, tags].filter(Boolean);
+  const parts = [station.country, station.language, tags].filter(Boolean);
   return parts.join(" · ") || "Live station";
 }
 
 export function toRadioStationListItem(station: HiddenTunesStation): RadioStationListItem {
   const tags = sanitizeStationTagsForDisplay(station.tags || []);
+  const qualityLabel = stationQualityLabel(station);
 
   return {
     id: station.id,
     title: station.name,
     country: station.country,
+    language: station.language,
     genre: tags[0],
     tags,
     artworkUrl: station.favicon,
     subtitle: stationRowSubtitle(station),
+    bitrate: station.bitrate,
+    codec: station.codec,
+    qualityLabel: qualityLabel || undefined,
     is_mature: station.is_mature,
     content_rating: station.content_rating,
   };

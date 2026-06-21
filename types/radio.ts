@@ -39,10 +39,14 @@ export type RadioStationListItem = {
   id: string;
   title: string;
   country?: string;
+  language?: string;
   genre?: string;
   tags: string[];
   artworkUrl?: string;
   subtitle: string;
+  bitrate?: number;
+  codec?: string;
+  qualityLabel?: string;
   is_mature?: boolean;
   content_rating?: ContentRating;
 };
