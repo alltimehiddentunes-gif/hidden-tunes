@@ -2,7 +2,7 @@
 
 Phase **MEDIA-SCALE-A** — audit and design only. No backend implementation, no playback changes, no HiddenAudio native changes.
 
-This document unifies scalable **radio** and **podcast** catalog design. It supersedes scope for future implementation phases; see also [radio-20k-architecture.md](./radio-20k-architecture.md) for radio-specific migration notes.
+This document unifies scalable **radio** and **podcast** catalog design. It supersedes scope for future implementation phases; see also [radio-20k-architecture.md](./radio-20k-architecture.md) for radio-specific design (**40,000+ indexed stations** target).
 
 ---
 
@@ -10,7 +10,7 @@ This document unifies scalable **radio** and **podcast** catalog design. It supe
 
 | Domain | Backend target | Mobile constraint |
 |--------|----------------|-------------------|
-| Radio | 20,000+ indexed · 5,000+ quality-approved · mature/18+ gated | Zero stations at startup |
+| Radio | **40,000+** indexed · **10,000+** quality-approved · **1,000+** featured · mature/18+ gated | Zero stations at startup; **40/page** only — never load/search full catalog on device |
 | Podcast | Backend-indexed shows + episodes at scale | Zero full catalog at startup |
 
 Shared principles:
@@ -91,22 +91,34 @@ Shared principles:
 
 ## 1. Radio Architecture
 
+> **Long-term target:** 40,000+ indexed · 10,000+ quality-approved · 1,000+ featured stations. Mobile loads **40/page** only; backend filters dead/unavailable stations; search returns playable quality stations; mature/18+ remains gated. Full spec: [radio-20k-architecture.md](./radio-20k-architecture.md).
+
 ### Scale tiers
 
 | Tier | Count | Mobile visibility |
 |------|-------|-------------------|
-| `indexed` | 20,000+ | Backend/ingest only |
-| `approved` | 5,000+ | Default browse + search |
-| `featured` | 500+ | Curated lanes / home rows |
+| `indexed` | **40,000+** | Backend/ingest only (metadata in DB; streams validated async) |
+| `approved` | **10,000+** | Default browse + search (active, playable, deduped — dead/unavailable filtered on backend) |
+| `featured` | **1,000+** | Curated lanes / home rows |
+
+### Backend principles (40k scale)
+
+- **Metadata only** in database — do not preload streams at ingest
+- **Periodic stream validation** — track `failure_count`, `last_checked_at`, `last_successful_check_at`
+- **Aggressive dedupe** — canonical row per `stream_url_hash`; hide duplicates on mobile
+- **`quality_score`** — drives search/browse ranking alongside relevance
+- **Hide dead, spam, and test stations** from all mobile endpoints
+- **Country coverage** — index every country from Radio Browser + future providers; mobile shows only countries with playable stations
+- **Multi-provider ingest** — Radio Browser, additional directories, public broadcasters, country aggregators (see radio doc)
 
 ### Quality scoring (backend)
 
 Automated signals combined with editorial override:
 
-- Stream health (last successful validation)
+- Stream health (`last_successful_check_at`, failure streak)
 - Bitrate / codec suitability
 - Vote / click popularity (from ingest source)
-- Duplicate stream dedupe (`stream_url_hash`)
+- Duplicate penalty (non-canonical rows excluded)
 - Broken-station auto-demotion (`is_broken`)
 
 Mobile receives `qualityTier` optionally for sort badges; scoring math stays on backend.
@@ -114,9 +126,13 @@ Mobile receives `qualityTier` optionally for sort badges; scoring math stays on 
 ### Browse + search
 
 - **Categories:** metadata only on `/stations` — no station rows
+- **Countries:** `/api/radio/countries` — playable counts only
 - **Category page:** `GET /api/radio/stations?category=&page=&limit=40`
-- **Search:** `GET /api/radio/search?q=&page=&limit=40` — full-text on name, tags, genre, country, language
+- **Search:** `GET /api/radio/search?q=&page=&limit=40` — backend FTS; sort by **relevance + `quality_score`**; **playable quality stations only** (dead/unavailable excluded)
+- **Infinite scroll:** next **40** per page; cache recent pages only
+- **Mature / 18+:** remains gated — excluded from list/search unless user enables + consents
 - **Stream URL:** issued on play via backend (not bulk-loaded in list responses)
+- **Never** load or search 40,000 stations on device
 
 ### Radio list item (mobile-safe JSON)
 
@@ -421,7 +437,7 @@ Never render arrays > current loaded pages in memory without virtualization (Fla
 
 **Never on device:**
 
-- Full 20k radio export
+- Full 40k radio export
 - Full podcast catalog dump
 - Bulk stream or RSS validation
 - Preload mature artwork when mature setting is OFF
@@ -498,7 +514,7 @@ Never render arrays > current loaded pages in memory without virtualization (Fla
 
 - No Supabase migrations or API code
 - No playback / HiddenAudio / queue changes
-- No loading 20k radio stations or huge podcast catalogs on device
+- No loading 40k radio stations or huge podcast catalogs on device
 - No on-device stream or feed validation
 - No logo/artwork preload passes
 - No breaking changes to music, video, or existing playback

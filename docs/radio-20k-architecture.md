@@ -1,382 +1,389 @@
-# Radio 20K+ Architecture
+# Radio 40K+ Architecture
 
-Phase **RADIO-20K-A** — audit and design only. No backend implementation or playback changes in this phase.
+> **Target updated:** 40,000+ indexed stations (previously scoped at 20K).  
+> Phase **RADIO-SCALE-A** — audit and design only. No backend implementation or playback changes in this phase.
+
+## North-star goal
+
+Build one of the **largest searchable radio catalogs in any music app** while keeping **startup, scrolling, heat, memory, and playback performance unchanged**.
+
+Hidden Tunes achieves scale on the **backend index**; the mobile app never holds or searches the full catalog.
+
+---
 
 ## Goals
 
-- Index **20,000+** radio stations on the backend
-- Surface **5,000+** quality-approved stations to mobile browse/search
-- Promote **500+** featured stations in curated lanes
-- Gate **mature / 18+** content behind explicit user consent
-- Keep the mobile app fast: **zero stations at startup**, paginated lazy loads only
+| Layer | Target |
+|-------|--------|
+| **Indexed catalog** | **40,000+** stations (metadata only in database) |
+| **Quality-approved** | **10,000+** stations surfaced in default browse/search |
+| **Featured** | **1,000+** editorially promoted stations |
+| **Mature / 18+** | Gated behind explicit user consent — unchanged |
+| **Mobile** | Zero stations at startup; **40/page** lazy loads only (never the full catalog) |
 
-## Current State (Audit)
+---
+
+## Backend requirements
+
+### Catalog scale
+
+- Support **40,000+ indexed stations** in Postgres (Supabase)
+- Store **metadata only** in the database — names, tags, country, logos, quality fields, stream URL as backend-only column
+- **Do not preload streams** — no bulk stream fetch, probe, or cache warming at ingest time
+- **Periodically validate streams** via scheduled backend jobs (HEAD/range probe or lightweight playback check)
+- **Deduplicate aggressively** — canonical row per `stream_url_hash`; merge duplicates from multiple providers
+- **Assign `quality_score`** (0–100) from health, bitrate, popularity, editorial signals
+- **Track failures** — `failure_count`, consecutive failure streak, last error reason
+- **Track last successful checks** — `last_checked_at`, `last_successful_check_at`
+
+### Stream validation policy
+
+| Rule | Behavior |
+|------|----------|
+| Ingest | Accept metadata + stream URL; mark `validation_status = pending` |
+| First validation | Async job within 24h of ingest |
+| Re-validation | Rolling sweep — high-traffic stations weekly; long tail monthly |
+| Failure threshold | N consecutive failures → `is_broken = true`, hidden from mobile |
+| Recovery | Successful check resets failure streak; station re-enters browse pool if quality rules pass |
+
+### Dedupe strategy
+
+1. **Primary key:** normalized `stream_url_hash` (HTTPS canonical URL)
+2. **Secondary:** fuzzy name + country + bitrate within provider merge window
+3. **Cross-provider:** same stream from Radio Browser + broadcaster directory → one canonical `radio_stations.id`
+4. **Winner selection:** highest `quality_score`, most recent successful check, richest metadata
+5. **Losers:** soft-linked to canonical row or marked `is_duplicate = true`, never shown on mobile
+
+### Quality scoring (backend-only math)
+
+Signals combined into `quality_score`:
+
+- Last successful stream check (heavy weight)
+- Bitrate / codec suitability
+- Vote / click / listen popularity (when available)
+- Logo/metadata completeness
+- Provider trust tier
+- Failure history (penalty)
+- Duplicate penalty (non-canonical rows score 0 for mobile)
+
+Mobile may receive `qualityTier` badge hints; scoring formula stays on backend.
+
+### Tier targets
+
+| Tier | Count | Mobile visibility |
+|------|-------|-------------------|
+| `indexed` | 40,000+ | Ingest/admin only — includes unvalidated or low-score rows |
+| `approved` | **10,000+** | Default browse + search — backend filters dead/unavailable stations |
+| `featured` | **1,000+** | Curated lanes (`featured_rank` set) |
+
+---
+
+## Search requirements
+
+All search runs against the **backend index** — never on device.
+
+| Rule | Detail |
+|------|--------|
+| Query target | Postgres FTS / `tsvector` on name, tags, genre, country, language |
+| Sort | **Relevance** (text rank) **+ `quality_score`** (boost playable, high-quality stations) |
+| Visibility | **`is_active = true`**, **`is_broken = false`**, **`is_duplicate = false`** — backend filters dead/unavailable stations |
+| Playable quality | Search and browse show **only quality-approved, playable stations** (`approved` / `featured` tiers) |
+| Hide dead | Stations with failed validation or expired grace period |
+| Hide spam/test | `is_spam = true` or name/tag blocklist match — ingest quarantine |
+| Hide duplicates | Only canonical row per `stream_url_hash` in results |
+| Pagination | **40 stations per page**; mobile infinite scroll requests next page |
+| Mature | Excluded unless `includeMature=true` + user consent |
+
+**No client-side scan of 40k records** — every search is an API call.
+
+---
+
+## Country coverage
+
+| Backend | Mobile |
+|---------|--------|
+| Index **every country** available from Radio Browser and future providers | Show **only countries with ≥1 playable station** |
+| Maintain `radio_countries` table synced from ingest | Country browse/filter uses `/api/radio/countries` |
+| Store `station_count_playable` per country (denormalized, refreshed by jobs) | Empty countries never appear in UI |
+
+Country lanes and filters derive from backend counts — not hard-coded ISO lists on device.
+
+---
+
+## Future provider support
+
+Ingest pipeline designed for multiple sources with unified canonical schema:
+
+| Provider type | Examples | Notes |
+|---------------|----------|-------|
+| **Radio Browser** | Primary bulk ingest | UUID → `source_station_uuid` |
+| **Additional radio directories** | Partner XML/JSON feeds | Map to same `radio_stations` shape |
+| **Public broadcaster directories** | NPR, BBC, national PSB APIs | Higher trust tier in `quality_score` |
+| **Country-specific aggregators** | Regional open-data radio lists | Country code + language normalization |
+
+Each provider row includes:
+
+- `source` — e.g. `radio_browser`, `broadcasters_uk`, `partner_xyz`
+- `source_station_uuid` — provider-native ID
+- `source_imported_at` — last sync timestamp
+
+Mobile never talks to third-party radio APIs directly in production.
+
+---
+
+## Current state (audit snapshot)
 
 ### `services/radio/`
 
-| File | Role today | 20K gap |
-|------|------------|---------|
-| `radioBrowserApi.ts` | Direct Radio Browser API client; category/search pagination (max 40/page); abort + dedupe | Hits third-party API from device; no mature gating; no quality tiers; search capped at 120 results |
-| `radioCache.ts` | In-memory + AsyncStorage cache per category/search key; 18h TTL; max 2,000 stations/key | Can grow unbounded per key on device; stores full `streamUrl` blobs; no mature/consent metadata |
-| `radioNormalizer.ts` | Radio Browser raw → `HiddenTunesStation`; playback → `AppSong` via `radioStationToAppSong` | No mature flags; favicon passed through; HTTPS stream filter only |
+| File | Role today | Scale gap |
+|------|------------|-----------|
+| `radioBrowserApi.ts` | Direct Radio Browser API from device | No backend index; no quality tiers; search capped at 120 |
+| `radioCache.ts` | Memory + AsyncStorage; 18h TTL; up to 2,000/key | Stores `streamUrl`; no mature/quality metadata |
+| `radioNormalizer.ts` | Radio Browser → `HiddenTunesStation` | No mature, quality, or backend ID fields |
+| `hooks/useLazyRadioStationList.ts` | Cache-first infinite scroll | ✅ Reusable — swap `loadPage` to backend API |
 
-**Key constants today**
+### Mobile screens
 
-- `RADIO_STATION_PAGE_SIZE = 32` (API allows up to 40)
-- `RADIO_SEARCH_MAX_RESULTS = 120`
-- Page fetch timeout: 12s
-- Cache TTL: 18 hours
-
-### `app/stations/`
-
-| Screen | Behavior today | 20K gap |
-|--------|----------------|---------|
-| `index.tsx` | Static category grid from `RADIO_CATEGORIES`; **no station fetch** | Good baseline — categories only |
-| `[categoryId].tsx` | Lazy list via `useLazyRadioStationList` + `loadRadioCategoryPage` | Fetches Radio Browser by tag/country/top-votes; no mature filter |
-| `search.tsx` | Debounced search (350ms); lazy pages via `loadRadioSearchPage` | Device-side name search against Radio Browser; no mature gating |
-
-### `hooks/useLazyRadioStationList.ts`
-
-- Initializes from memory cache page 0 when available (not startup-global)
-- Hydrates AsyncStorage on mount; fetches page 0 if stale
-- `loadMore` appends by offset = `listItems.length`
-- Keeps full `HiddenTunesStation` (incl. `streamUrl`) in a ref map for playback on tap
-- **Reusable pattern** for backend pagination — swap `loadPage` implementation only
-
-### `types/radio.ts`
-
-- `RadioBrowserStationRaw` — third-party shape
-- `HiddenTunesStation` — cached full record with `streamUrl`
-- `RadioStationListItem` — list row without stream URL (good for FlatList)
-- **Missing:** `isMature`, `contentRating`, `qualityTier`, `featuredRank`, backend `stationId`
-
-### `constants/radioCategories.ts`
-
-- 12 hard-coded mood/genre categories with Radio Browser `tag`, `countryCode`, or `useTopVotes`
-- Each maps to a listening-room query for `/radio` song fallback
-- **Missing:** mature category, featured lane config, backend category IDs
-
-### Related (unchanged in this phase)
-
-- `app/radio.tsx` — song listening rooms (YouTube/catalog), separate from live station browse
-- `components/radio/RadioBrowserCards.tsx` — category + station cards
-- `hooks/usePlaybackRouter.ts` — `playRadioStation` → existing live-stream playback (do not rewrite)
+| Screen | Today | Target |
+|--------|-------|--------|
+| `app/stations/index.tsx` | Categories only, no fetch | ✅ Keep |
+| `app/stations/[categoryId].tsx` | Lazy browse via Radio Browser | 40/page via Hidden Tunes API |
+| `app/stations/search.tsx` | Device-side Radio Browser search | Backend search, 40/page |
 
 ---
 
-## Target Architecture
+## Target architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                        Supabase (Postgres)                       │
-│  radio_stations (20k+ indexed)                                   │
-│  radio_categories / radio_station_categories                     │
-│  radio_featured (500+ curated)                                   │
-│  radio_quality_reviews (approval workflow)                       │
-└───────────────────────────┬─────────────────────────────────────┘
-                            │
-┌───────────────────────────▼─────────────────────────────────────┐
-│              Hidden Tunes Radio API (Render / admin)               │
-│  GET /api/radio/categories                                       │
-│  GET /api/radio/stations?category=&page=&limit=40&mature=        │
-│  GET /api/radio/search?q=&page=&limit=40&mature=                 │
-│  GET /api/radio/stations/:id/stream  (playback token / URL)      │
-│  POST /api/radio/ingest/*  (batch jobs only — not mobile)         │
-└───────────────────────────┬─────────────────────────────────────┘
-                            │
-┌───────────────────────────▼─────────────────────────────────────┐
-│                     Mobile app (Expo)                            │
-│  Startup: 0 stations                                             │
-│  /stations: categories only (static or API metadata)             │
-│  /stations/[id]: 40/page lazy list                               │
-│  /stations/search: 40/page backend search                        │
-│  Playback: stream URL fetched on tap (or from page payload)      │
-│  Mature: OFF by default; consent modal before play               │
-└─────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│                        Supabase (Postgres)                            │
+│  radio_stations (40k+ indexed, metadata + backend-only stream_url)   │
+│  radio_countries (playable counts per ISO code)                      │
+│  radio_categories · radio_station_categories                         │
+│  radio_provider_sync (ingest cursors per source)                     │
+│  radio_validation_jobs · radio_quality_reviews                       │
+└───────────────────────────────┬──────────────────────────────────────┘
+                                │
+┌───────────────────────────────▼──────────────────────────────────────┐
+│              Hidden Tunes Radio API (admin.hiddentunes.com)            │
+│  GET /api/radio/categories                                           │
+│  GET /api/radio/countries                                            │
+│  GET /api/radio/stations?category=&page=&limit=40                    │
+│  GET /api/radio/search?q=&page=&limit=40                             │
+│  GET /api/radio/stations/:id/play   (stream URL on tap only)         │
+│  POST /api/radio/ingest/*           (batch jobs — not mobile)        │
+└───────────────────────────────┬──────────────────────────────────────┘
+                                │
+┌───────────────────────────────▼──────────────────────────────────────┐
+│                     Mobile app (Expo)                                  │
+│  Startup: 0 stations                                                 │
+│  /stations: categories (+ countries metadata only)                   │
+│  Browse/search: 40/page · infinite scroll · cache recent pages only  │
+│  Never load 40k locally · never search 40k on device               │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Supabase Table Shape (proposed)
+## Supabase table shape (proposed)
 
 ### `radio_stations`
 
-Primary indexed catalog. Ingestion jobs populate this; mobile never writes.
+Primary indexed catalog. **Metadata in DB; streams validated asynchronously.**
 
 | Column | Type | Notes |
 |--------|------|-------|
 | `id` | `uuid` PK | Stable Hidden Tunes station ID |
 | `slug` | `text` unique | URL-safe identifier |
 | `name` | `text` not null | Display name |
-| `stream_url` | `text` not null | **Backend only** — not in list/search JSON by default |
-| `stream_url_hash` | `text` | Dedupe key |
-| `logo_url` | `text` nullable | Optional; never preloaded on mobile |
+| `stream_url` | `text` not null | **Backend only** — never in list/search JSON |
+| `stream_url_hash` | `text` unique | Dedupe key |
+| `logo_url` | `text` nullable | Never bulk-preloaded on mobile |
 | `country_code` | `char(2)` | ISO |
 | `language` | `text` | |
-| `tags` | `text[]` | Normalized lowercase tags |
-| `genre` | `text` | Primary genre for subtitle |
+| `tags` | `text[]` | Normalized lowercase |
+| `genre` | `text` | Primary genre |
 | `bitrate` | `int` | |
 | `codec` | `text` | |
-| `source` | `text` | e.g. `radio_browser`, `manual`, `partner` |
-| `source_station_uuid` | `text` | Original Radio Browser UUID if applicable |
+| `source` | `text` | `radio_browser`, `broadcaster`, `partner`, … |
+| `source_station_uuid` | `text` | Provider-native ID |
+| `source_imported_at` | `timestamptz` | |
 | `quality_tier` | `text` | `indexed` \| `approved` \| `featured` |
-| `quality_score` | `numeric` | 0–100 internal ranking |
-| `is_active` | `boolean` default true | Soft delete / broken stream |
-| `is_broken` | `boolean` default false | Set by backend health checks |
+| `quality_score` | `numeric` | 0–100 ranking |
+| `validation_status` | `text` | `pending` \| `valid` \| `broken` \| `unknown` |
+| `is_active` | `boolean` default true | Soft delete |
+| `is_broken` | `boolean` default false | Failed validation threshold |
+| `is_duplicate` | `boolean` default false | Non-canonical duplicate row |
+| `canonical_station_id` | `uuid` nullable | Points to winner when duplicate |
+| `is_spam` | `boolean` default false | Quarantined spam/test |
+| `failure_count` | `int` default 0 | Consecutive or rolling failures |
+| `last_failure_reason` | `text` nullable | Last probe error |
+| `last_checked_at` | `timestamptz` | Last validation attempt |
+| `last_successful_check_at` | `timestamptz` nullable | Last known good stream |
 | `is_mature` | `boolean` default false | 18+ gate |
-| `mature_labels` | `text[]` | e.g. `explicit`, `adult-talk` |
-| `featured_rank` | `int` nullable | Lower = higher priority; null if not featured |
+| `mature_labels` | `text[]` | Audit trail |
+| `featured_rank` | `int` nullable | Lower = higher priority |
 | `vote_count` | `int` default 0 | Popularity signal |
-| `last_checked_at` | `timestamptz` | Stream validation timestamp |
-| `created_at` | `timestamptz` | |
-| `updated_at` | `timestamptz` | |
+| `created_at` / `updated_at` | `timestamptz` | |
 
-**Tier targets**
-
-- `indexed` — all ingested (~20k+)
-- `approved` — passes quality rules (~5k+)
-- `featured` — editorial + score (`featured_rank` set, ~500+)
-
-### `radio_categories`
-
-Curated browse lanes (replaces hard-coded tag → Radio Browser mapping over time).
+### `radio_countries`
 
 | Column | Type | Notes |
 |--------|------|-------|
-| `id` | `text` PK | e.g. `jazz`, `gospel`, `mature` |
-| `title` | `text` | |
-| `subtitle` | `text` | |
-| `icon` | `text` | Ionicons name |
-| `gradient` | `jsonb` | `[from, to]` |
-| `sort_order` | `int` | |
-| `is_mature` | `boolean` default false | Category-level gate |
-| `is_visible` | `boolean` default true | |
-| `filter_tags` | `text[]` | Backend query filter |
-| `filter_country_code` | `text` nullable | |
+| `country_code` | `char(2)` PK | ISO |
+| `name` | `text` | Display name |
+| `station_count_indexed` | `int` | Total indexed |
+| `station_count_playable` | `int` | Active + not broken — **mobile filter** |
+| `last_synced_at` | `timestamptz` | |
 
-### `radio_station_categories`
+Only countries with `station_count_playable > 0` appear in mobile country browse.
 
-Many-to-many station ↔ category.
+### Supporting tables
 
-| Column | Type |
-|--------|------|
-| `station_id` | `uuid` FK → `radio_stations.id` |
-| `category_id` | `text` FK → `radio_categories.id` |
-
-### `radio_search_documents` (optional Phase B)
-
-Postgres `tsvector` or Supabase full-text for name/tags search at 20k scale.
+- **`radio_categories`** / **`radio_station_categories`** — curated browse lanes
+- **`radio_provider_sync`** — per-source ingest cursor, last run, row counts
+- **`radio_search_documents`** — `tsvector` for 40k-scale FTS
+- **`radio_validation_jobs`** — job queue / audit log for stream checks
 
 ---
 
-## API Endpoints (proposed)
+## API endpoints (proposed)
 
-Base: `https://admin.hiddentunes.com/api/radio` (consistent with TV catalog pattern).
+Base: `https://admin.hiddentunes.com/api/radio`
 
 ### Public (mobile)
 
 | Method | Path | Query | Response |
 |--------|------|-------|----------|
-| `GET` | `/categories` | — | `{ categories: RadioCategoryMeta[] }` — no stations |
-| `GET` | `/stations` | `category`, `page` (1-based), `limit` (max 40), `mature` (`0`\|`1`) | `{ stations: RadioStationListItem[], pagination }` |
-| `GET` | `/search` | `q`, `page`, `limit` (max 40), `mature` | Same list shape; mature stations excluded unless `mature=1` |
-| `GET` | `/stations/:id` | — | Single station metadata for deep link |
-| `GET` | `/stations/:id/play` | — | `{ streamUrl, expiresAt? }` — fetched **on tap**, not at list load |
+| `GET` | `/categories` | — | Category metadata only — no stations |
+| `GET` | `/countries` | `includeMature` | Countries with playable stations + counts |
+| `GET` | `/stations` | `category`, `country`, `page`, `limit` (max 40), `includeMature` | 40/page; active, non-duplicate, non-broken |
+| `GET` | `/search` | `q`, `page`, `limit` (max 40), `includeMature` | Sorted by relevance + `quality_score` |
+| `GET` | `/stations/:id` | — | Single station metadata |
+| `GET` | `/stations/:id/play` | — | Stream URL on tap only |
 
-**List item JSON (mobile-safe)**
-
-```json
-{
-  "id": "uuid",
-  "title": "Station Name",
-  "country": "US",
-  "genre": "Jazz",
-  "tags": ["jazz", "smooth"],
-  "subtitle": "US · Jazz",
-  "isMature": false
-}
-```
-
-No `stream_url`, `source`, `radio_browser`, or ingest fields in list/search responses.
+**List item JSON (mobile-safe)** — no `stream_url`, provider IDs, or validation internals.
 
 ### Internal (ingest / admin only)
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| `POST` | `/ingest/radio-browser/sync` | Batch import from Radio Browser |
-| `POST` | `/ingest/stations/validate` | Backend stream health sweep |
-| `PATCH` | `/admin/stations/:id/quality` | Promote to approved/featured |
-| `PATCH` | `/admin/stations/:id/mature` | Set mature flags |
+| `POST` | `/ingest/radio-browser/sync` | Bulk import from Radio Browser |
+| `POST` | `/ingest/provider/:source/sync` | Additional directory ingest |
+| `POST` | `/ingest/stations/validate` | Stream health sweep |
+| `POST` | `/ingest/stations/dedupe` | Cross-provider merge pass |
+| `PATCH` | `/admin/stations/:id/quality` | Promote/demote tiers |
+| `PATCH` | `/admin/stations/:id/mature` | Mature flags |
 
 ---
 
-## Mature / 18+ Fields
+## Mobile rules (unchanged performance contract)
 
-### Backend
-
-- `radio_stations.is_mature = true` when tags/name match mature dictionaries **or** manual review
-- `radio_stations.mature_labels` for audit trail
-- `radio_categories.is_mature = true` for dedicated mature lane (hidden until consent)
-- API default: **`mature=0`** — exclude mature stations from all list/search
-- API with **`mature=1`** — include mature stations (still requires mobile consent before play)
-
-### Mobile settings (local)
-
-| Key | Storage | Default |
-|-----|---------|---------|
-| `hidden_tunes_radio_mature_enabled` | AsyncStorage | `false` |
-| `hidden_tunes_radio_mature_consent_at` | AsyncStorage | null |
-| `hidden_tunes_radio_mature_consent_version` | AsyncStorage | `1` |
-
-### Consent rules
-
-1. **Mature OFF (default)**  
-   - Settings toggle off  
-   - API calls use `mature=0`  
-   - Mature category card hidden on `/stations`  
-   - Mature stations never appear in search results  
-
-2. **Enable mature browsing**  
-   - User toggles “Show 18+ stations” in radio settings  
-   - Show one-time **18+ consent modal** (copy + Confirm / Cancel)  
-   - On Confirm: persist `mature_enabled=true` + consent timestamp  
-   - On Cancel: toggle stays off; no API change  
-
-3. **Play mature station**  
-   - Even with mature browsing on, **tap to play** shows consent modal if not yet confirmed for current consent version  
-   - Confirm → fetch stream via `/stations/:id/play` → existing `playRadioStation`  
-   - Cancel → **do not play**; no stream fetch  
-
-4. **Revoke consent**  
-   - Turning mature OFF clears consent flags  
-   - Purge mature pages from local cache keys prefixed `mature:`  
-
----
-
-## Mobile Lazy Loading Rules
-
-| Rule | Current | Target |
-|------|---------|--------|
-| Startup | ✅ No station fetch | Keep — zero stations |
-| `/stations` | ✅ Categories only | Keep; optional lightweight `/categories` metadata |
-| Category page | 32/page via Radio Browser | **40/page** via Hidden Tunes API |
-| Search | 32/page, max 120 | **40/page**, backend pagination + total count |
-| Logos | Passed as `artworkUrl`; Image lazy per row | **No preload**; load on visible row only; placeholder if missing |
-| Stream URLs | In list cache (`HiddenTunesStation`) | **Fetch on tap** via `/play` endpoint |
-| Pull-to-refresh | Force refresh page 0 | Keep |
-| Infinite scroll | `onEndReached` → append | Keep; stop when `pagination.hasMore=false` |
+| Rule | Requirement |
+|------|-------------|
+| Startup | **Zero** station fetch |
+| `/stations` | Categories (+ countries metadata) only |
+| Category page | **40 stations per page** |
+| Search | **40 stations per page** from backend |
+| Infinite scroll | Load next 40 when user reaches list end |
+| Local catalog | **Never** load 40,000 stations |
+| Local search | **Never** search 40,000 on device |
+| Cache | Recent browse/search **pages only** (~200 rows/key max) |
+| Stream URLs | Fetch on tap via `/play` — not in list payloads |
+| Logos | Lazy per visible row — no offscreen preload |
+| Playback | Existing `playRadioStation` path — no rewrite |
 
 ### Pagination contract
 
 ```typescript
 type RadioPagination = {
-  page: number;
-  limit: number;
+  page: number;       // 1-based
+  limit: number;      // max 40
   total: number;
   totalPages: number;
   hasMore: boolean;
 };
 ```
 
-- Default `limit = 40`
-- Mobile never requests `limit > 40`
-- Offset derived as `(page - 1) * limit` on backend
+---
+
+## Mature / 18+ (unchanged)
+
+- Default: mature excluded from all list/search/country endpoints
+- Mobile: `includeMature=true` only when user setting + consent enabled
+- Tap mature station → 18+ consent modal before play
+- See [media-scale-architecture.md](./media-scale-architecture.md) for unified mature rules across radio + podcast
 
 ---
 
-## Search Rules
+## What must stay on backend
 
-1. **Minimum query length:** 2 characters (keep current debounce ~350ms)
-2. **Backend full-text** on `name`, `tags`, `genre`, `country_code`
-3. **Quality filter for mobile:** default `quality_tier IN ('approved', 'featured')` for search/browse; ingest tier `indexed` admin-only unless explicitly expanded later
-4. **Mature filter:** respect `mature` query param + mobile setting
-5. **No client-side scan** of 20k records — every search is an API call
-6. **Cache:** only current query page results in memory (reuse `radioCache` pattern with smaller `MAX_STATIONS_PER_KEY = 200` per query)
-
----
-
-## What Must Stay on Backend
-
-| Responsibility | Why |
-|----------------|-----|
-| Ingest 20k+ stations from Radio Browser / partners | Device cannot bulk import |
-| Stream URL validation & broken flag | Never validate on device |
-| Quality scoring & approval workflow | Editorial + automated rules |
-| Mature classification | Consistent gating; audit trail |
-| Full-text search index | 20k scale |
-| Featured ranking | 500+ curated ordering |
-| Stream URL issuance (`/play`) | Hide raw provider URLs; rotate if needed |
-| Rate limiting & abuse protection | Protect origin streams |
-| Dedupe by `stream_url_hash` | Single canonical station per stream |
+| Responsibility | Why at 40k scale |
+|----------------|------------------|
+| Ingest 40k+ from Radio Browser + future providers | Device cannot bulk import |
+| Metadata-only storage + async stream validation | No preload storms |
+| Aggressive dedupe across providers | Single canonical catalog |
+| `quality_score` + failure tracking | Rank playable stations |
+| Full-text search + relevance sort | 40k cannot be searched on device |
+| Hide dead / spam / duplicate rows | Clean mobile experience |
+| Country playable counts | Show only countries with stations |
+| Stream URL issuance on play | Security + rotation |
+| Rate limiting | Protect origin streams |
 
 ---
 
-## What Mobile Can Safely Cache
+## What mobile can safely cache
 
-| Data | Cache? | TTL | Max size |
-|------|--------|-----|----------|
-| Category metadata | Yes | 24h | ~12–20 rows |
-| Station list pages (no stream URL) | Yes | 18h | 200 rows/key |
-| Search result pages | Yes | 30m | 200 rows/query |
-| Stream URL | **No** — fetch on play | — | — |
-| Logos | Optional image disk cache per URL | Standard HTImage | No bulk prefetch |
+| Data | Cache? | TTL | Max |
+|------|--------|-----|-----|
+| Category + country metadata | Yes | 24h | ~50 rows |
+| Browse/search pages (no stream URL) | Yes | 18h | 200 rows/key |
+| Stream URL | On play only | Session | 1 |
 | Mature consent flags | Yes | Until revoked | 3 keys |
-| Featured station IDs | Yes | 12h | 500 IDs max |
 
-**Never cache on mobile**
-
-- Full 20k station export
-- Bulk stream URLs
-- Ingest / admin payloads
-- Raw Radio Browser responses
+**Never on mobile:** full 40k export, bulk stream URLs, ingest payloads, raw provider responses, on-device stream validation.
 
 ---
 
-## Migration Path (future phases)
+## Migration path (future phases)
 
-### Phase RADIO-20K-B — Backend ingest + API
+### Phase RADIO-SCALE-B — Backend ingest + API
 
-- Create Supabase tables + indexes (`quality_tier`, `is_mature`, `tsvector`)
-- Ingest job: Radio Browser → `radio_stations` (tier `indexed`)
-- Promotion job: top votes + health check → `approved`
-- Editorial: `featured_rank` for 500+
-- Implement `/categories`, `/stations`, `/search`, `/stations/:id/play`
+- Supabase migrations for 40k-scale indexes (`stream_url_hash`, `quality_score`, `tsvector`, country counts)
+- Multi-provider ingest: Radio Browser first, then broadcaster/partner adapters
+- Validation + dedupe jobs; failure tracking
+- Public API: categories, countries, stations, search, play
 
-### Phase RADIO-20K-C — Mobile adapter swap
+### Phase RADIO-SCALE-C — Mobile adapter swap
 
-- Add `services/radio/radioCatalogApi.ts` mirroring `tvCatalogApi.ts`
-- Replace `radioBrowserApi.ts` calls in `[categoryId].tsx` / `search.tsx` only
-- Keep `useLazyRadioStationList`, `radioNormalizer`, `playRadioStation` path
-- Add mature settings + consent modal component
-- Bump page size to 40
+- `services/radio/radioCatalogApi.ts` replaces direct Radio Browser calls
+- Keep `useLazyRadioStationList`, `playRadioStation` — no playback rewrite
+- 40/page everywhere; mature consent UI
 
-### Phase RADIO-20K-D — Deprecate direct Radio Browser
+### Phase RADIO-SCALE-D — Deprecate device-side Radio Browser
 
-- Feature flag: `RADIO_USE_BACKEND_INDEX=true`
-- Remove device-side Radio Browser fetch in production builds
-- Keep Radio Browser ingest on server only
+- `RADIO_USE_BACKEND_INDEX=true` in production
+- Radio Browser used for **server ingest only**
 
 ---
 
-## Non-Goals (this phase)
+## Non-goals
 
-- No Supabase migrations
-- No API implementation
-- No playback / HiddenAudio changes
-- No changes to `app/radio.tsx` listening rooms
-- No loading 20k stations on device
-- No on-device stream validation
-- No logo prefetch pass
+- No loading 40k stations on device
+- No on-device stream validation or search
+- No playback / HiddenAudio / queue changes
+- No logo preload passes
+- No UI redesign
 
 ---
 
-## Validation Checklist (when implementing later)
+## Validation checklist
 
-- [ ] Cold app start: zero radio network requests
-- [ ] `/stations` opens without station list fetch
-- [ ] Category page loads exactly 40 stations
-- [ ] Search loads 40 at a time; mature off → zero mature hits
-- [ ] Mature on + consent → mature results visible
-- [ ] Tap mature station without consent → modal; cancel does not play
-- [ ] Tap approved station → plays via existing live-stream path
+- [ ] Cold start: zero radio network requests
+- [ ] `/stations` opens with categories only
+- [ ] Category/search: exactly 40 stations per page; infinite scroll loads next 40
+- [ ] Search sorted by relevance + quality; no dead/spam/duplicate rows
+- [ ] Country list shows only countries with playable stations
+- [ ] Stream URL fetched on tap only
+- [ ] Startup, scroll, heat, memory, playback unchanged vs today
 - [ ] Background / lock-screen radio unchanged
