@@ -399,6 +399,7 @@ export const PODCAST_LEGACY_CATEGORY_ALIASES: Record<string, string> = {
   "christian-gospel": "faith",
   "adult-conversations": PODCAST_MATURE_HUB_ID,
   education: "science",
+  "mature-human-behavior": "mature-adult-psychology",
 };
 
 export function resolvePodcastCategoryId(id: string) {

@@ -16,6 +16,10 @@ import { logRadioDiscoveryFetch } from "../../utils/radioDiscoveryDiagnostics";
 import { shouldIncludeMatureInApi } from "../../utils/matureContentSettings";
 import { normalizeRadioBrowserStation } from "./radioNormalizer";
 import {
+  isMatureRadioCategory,
+  loadMatureRadioCategoryPage,
+} from "../mature/matureRadioDiscovery";
+import {
   enrichStationWithQuality,
   sortStationsByClicks,
   sortStationsByQuality,
@@ -247,6 +251,12 @@ export async function fetchRadioStationsPage(
   if (!category) return [];
   if (category.isMature && !shouldIncludeMatureInApi()) return [];
   if (category.laneKind === "recommended") return [];
+
+  if (category.tier === "mature" && isMatureRadioCategory(resolvedId)) {
+    if (signal?.aborted) return [];
+    const result = await loadMatureRadioCategoryPage(resolvedId, offset);
+    return result.stations.slice(0, limit);
+  }
 
   const raw = await fetchRadioBrowserJson(
     buildCategoryPath(category, offset, limit),

@@ -158,6 +158,12 @@ async function fetchShowsFromNetwork(categoryId: string, page = 1) {
     return { shows: [], hasMore: false };
   }
 
+  if (category.tier === "mature" && category.isMature) {
+    const { loadMaturePodcastCategoryPage } = await import("./mature/maturePodcastDiscovery");
+    const offset = (page - 1) * SHOW_PAGE_LIMIT;
+    return loadMaturePodcastCategoryPage(resolvedId, offset);
+  }
+
   const includeMature = shouldIncludeMatureInApi();
 
   const primary = await fetchPodcastShows({

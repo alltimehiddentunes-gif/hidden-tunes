@@ -6,6 +6,7 @@ import {
   RADIO_EMOTIONAL_WORLDS,
   type RadioEmotionalWorld,
 } from "./radioEmotionalWorlds";
+import { MATURE_RADIO_QUERY_GROUPS } from "./matureRadioQueryGroups";
 
 export type RadioCategoryTier =
   | "home-lane"
@@ -241,23 +242,25 @@ export const RADIO_BROWSE_CATEGORIES: RadioCategory[] = [
     tier: "browse",
     listeningRoomQuery: "popular worldwide radio",
   },
-  {
-    id: "adult",
-    title: "Adult 18+",
-    subtitle: "Mature stations — enable in Profile settings",
-    icon: "eye-off-outline",
-    gradient: ["#201418", "#0C0808"],
-    tag: "adult",
-    isMature: true,
-    tier: "mature",
-    listeningRoomQuery: "adult talk radio",
-  },
 ];
+
+export const RADIO_MATURE_CATEGORIES: RadioCategory[] = MATURE_RADIO_QUERY_GROUPS.map((group) => ({
+  id: group.id,
+  title: group.title,
+  subtitle: group.subtitle,
+  icon: "radio-outline" as const,
+  gradient: ["#201418", "#0C0808"] as MoodRoomGradient,
+  tag: group.tag,
+  isMature: true,
+  tier: "mature" as const,
+  listeningRoomQuery: group.searchQueries[0] || "adult talk radio",
+}));
 
 export const RADIO_CATEGORIES: RadioCategory[] = [
   ...RADIO_HOME_LANE_CATEGORIES,
   ...RADIO_EMOTIONAL_WORLDS.map(emotionalWorldToCategory),
   ...RADIO_BROWSE_CATEGORIES,
+  ...RADIO_MATURE_CATEGORIES,
 ];
 
 const CATEGORY_BY_ID = new Map(RADIO_CATEGORIES.map((category) => [category.id, category]));
@@ -273,9 +276,16 @@ export function getVisibleRadioCategories(includeMature: boolean) {
 }
 
 export function getBrowsableRadioCategories(includeMature: boolean) {
-  return RADIO_BROWSE_CATEGORIES.filter(
+  const browse = RADIO_BROWSE_CATEGORIES.filter(
     (category) => !category.isMature || includeMature
   );
+  if (!includeMature) return browse;
+  return [...browse, ...RADIO_MATURE_CATEGORIES];
+}
+
+export function getMatureRadioCategories(includeMature: boolean) {
+  if (!includeMature) return [];
+  return RADIO_MATURE_CATEGORIES;
 }
 
 export function getEmotionalRadioCategories(_includeMature: boolean) {
@@ -294,7 +304,8 @@ export function getProbeableRadioCategories(includeMature: boolean) {
 export const RADIO_LEGACY_CATEGORY_ALIASES: Record<string, string> = {
   "news-talk": "talk",
   "gospel-worship": "faith",
-  mature: "adult",
+  mature: "adult-talk",
+  adult: "adult-talk",
   "african-radio": "afro-heat",
   "world-radio": "world-mix",
 };
