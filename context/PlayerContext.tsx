@@ -457,6 +457,19 @@ function logPlayerContextDebug(...args: unknown[]) {
   console.log(...args);
 }
 
+function logTapLatencyDiagnostic(
+  event: string,
+  startedAt: number,
+  details: Record<string, unknown> = {}
+) {
+  if (!__DEV__) return;
+  console.log("[HTTapLatency]", event, {
+    elapsedMs: Math.max(0, Date.now() - startedAt),
+    at: Date.now(),
+    ...details,
+  });
+}
+
 const DEFAULT_QUEUE_CONTEXT: PlaybackQueueContext = { source: "unknown" };
 
 function cleanContextValue(value: unknown) {
@@ -763,6 +776,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const isChangingTrackRef = useRef(false);
   const isMountedRef = useRef(true);
   const loadRequestIdRef = useRef(0);
+  const latestPlaySongTapIdRef = useRef(0);
   const inFlightPlaySongIdRef = useRef<string | null>(null);
   const queueControlTapGuardRef = useRef(createKeyedTapGuard(420));
   const loadingRecoveryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -2982,12 +2996,19 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         logPlayerContextDebug("persistence_deferred", { label });
       }
 
+      const deferredStartedAt = Date.now();
       InteractionManager.runAfterInteractions(() => {
         setTimeout(() => {
           try {
-            void Promise.resolve(work()).catch((error) => {
-              console.log("Deferred playback start work error:", label, error);
-            });
+            void Promise.resolve(work())
+              .then(() => {
+                logTapLatencyDiagnostic("non_critical_work_completed", deferredStartedAt, {
+                  label,
+                });
+              })
+              .catch((error) => {
+                console.log("Deferred playback start work error:", label, error);
+              });
           } catch (error) {
             console.log("Deferred playback start work error:", label, error);
           }
@@ -4670,6 +4691,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         inFlightPlaySongIdRef.current = normalizedSong.id;
         armLoadingRecoveryTimeout(requestId, normalizedSong.id);
 
+        const audioLoadStartedAt = Date.now();
         logAudioLoadStart({
           songId: normalizedSong.id,
           requestId,
@@ -4781,7 +4803,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
             let preserveNativePlayback = false;
             let nativeActiveUrlForReplace = "";
-            if (!isAutoAdvanceLoad && !autoAdvanceRef.current && isHiddenAudioNativePlaybackEnabled()) {
+            const shouldProbeNativePlayback =
+              !options?.userInitiated || !options?.userInterruptDone;
+            if (
+              shouldProbeNativePlayback &&
+              !isAutoAdvanceLoad &&
+              !autoAdvanceRef.current &&
+              isHiddenAudioNativePlaybackEnabled()
+            ) {
               try {
                 const existingSnapshot = await bridgeProbeNativePlayback();
                 const nativeActiveUrl = getNativeActiveTrackUrl(existingSnapshot);
@@ -4885,7 +4914,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               preloadedSongIdRef.current &&
               preloadedSongIdRef.current !== normalizedSong.id
             ) {
-              await clearPreloadedSound();
+              void clearPreloadedSound();
             }
 
             if (!preserveNativePlayback) {
@@ -4944,15 +4973,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               deferPlaybackSideEffects(normalizedSong, "load_and_play_side_effects");
               return;
             }
-
-            await bridgeHiddenAudioUpdateNowPlaying({
-              title: normalizedSong.title || "Unknown Song",
-              artist: normalizedSong.artist || "Unknown Artist",
-              album: normalizedSong.album || "",
-              durationSeconds,
-              positionSeconds: startPositionSeconds,
-              artworkUrl,
-            });
 
             logPlayerContextDebug("hidden_audio_play_start", {
               songId: normalizedSong.id,
@@ -5031,7 +5051,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             hiddenAudioActiveRef.current = true;
             playbackInterruptionActiveRef.current = false;
             clearHiddenAudioBridgePlayBlock();
-            await syncNativeRemoteQueueAvailability();
+            void syncNativeRemoteQueueAvailability();
 
             const startPositionMillis = Math.round(startPositionSeconds * 1000);
             const statusAfterPlay = await syncHiddenAudioState("load_and_play_after_play");
@@ -5078,6 +5098,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
                 logPlaybackCritical("hidden_audio_play_success", {
                   songId: normalizedSong.id,
                   platform: Platform.OS,
+                  playbackState: statusAfterPlay.playbackState || null,
+                });
+                logTapLatencyDiagnostic("first_audio_playing", audioLoadStartedAt, {
+                  songId: normalizedSong.id,
+                  requestId,
                   playbackState: statusAfterPlay.playbackState || null,
                 });
                 logTapToPlayConfirmed({
@@ -5803,9 +5828,21 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       queueContext: PlaybackQueueContext = DEFAULT_QUEUE_CONTEXT,
       queueMode?: ActiveQueueMode
     ) => {
-      const normalizedSong = normalizeSong(song);
+      const tapStartedAt = Date.now();
+      const tapRequestId = latestPlaySongTapIdRef.current + 1;
+      latestPlaySongTapIdRef.current = tapRequestId;
+      loadRequestIdRef.current += 1;
 
-      await reconcileHiddenAudioBridgeWithNative();
+      const normalizedSong = normalizeSong(song);
+      const requestedQueueIndex =
+        typeof index === "number" ? index : activeQueueIndexRef.current;
+      const isLatestTap = () => latestPlaySongTapIdRef.current === tapRequestId;
+
+      logTapLatencyDiagnostic("tap_received", tapStartedAt, {
+        songId: normalizedSong.id,
+        hasQueue: Boolean(queue?.length),
+        requestedIndex: index,
+      });
 
       logTapToPlayStart({
         songId: normalizedSong.id,
@@ -5832,8 +5869,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       );
 
       const switchingToNewSong = currentSongRef.current?.id !== normalizedSong.id;
-      const requestedQueueIndex =
-        typeof index === "number" ? index : activeQueueIndexRef.current;
       const isSameTrackAndIndex =
         currentSongRef.current?.id === normalizedSong.id &&
         requestedQueueIndex === activeQueueIndexRef.current;
@@ -5842,11 +5877,36 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         primePlaybackTapUi(normalizedSong, "play_song", {
           queueIndex: requestedQueueIndex,
         });
+        logTapLatencyDiagnostic("playSong_started", tapStartedAt, {
+          songId: normalizedSong.id,
+          tapRequestId,
+        });
+        void reconcileHiddenAudioBridgeWithNative();
         await interruptCurrentPlaybackForUserTap(normalizedSong.id);
+        if (!isLatestTap()) {
+          logTapLatencyDiagnostic("stale_tap_ignored_after_interrupt", tapStartedAt, {
+            songId: normalizedSong.id,
+            tapRequestId,
+            latestTapId: latestPlaySongTapIdRef.current,
+          });
+          return;
+        }
       } else if (!isSameTrackAndIndex) {
         primePlaybackTapUi(normalizedSong, "play_song_queue_jump", {
           queueIndex: requestedQueueIndex,
         });
+        logTapLatencyDiagnostic("playSong_started", tapStartedAt, {
+          songId: normalizedSong.id,
+          tapRequestId,
+        });
+        void reconcileHiddenAudioBridgeWithNative();
+      } else {
+        logTapLatencyDiagnostic("playSong_started", tapStartedAt, {
+          songId: normalizedSong.id,
+          tapRequestId,
+          sameTrack: true,
+        });
+        void reconcileHiddenAudioBridgeWithNative();
       }
 
       if (switchingToNewSong || !isSameTrackAndIndex) {
@@ -5933,6 +5993,21 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         queue?.length ? queue : activeQueueRef.current,
         queue?.length ? index : activeQueueIndexRef.current
       );
+      logTapLatencyDiagnostic("playable_url_resolved", tapStartedAt, {
+        songId: normalizedSong.id,
+        hasPlayableUri: Boolean(getPlayableUri(normalizedSong)),
+        queueLength: resolved.queue.length,
+        queueIndex: resolved.index,
+      });
+
+      if (!isLatestTap()) {
+        logTapLatencyDiagnostic("stale_tap_ignored_before_queue", tapStartedAt, {
+          songId: normalizedSong.id,
+          tapRequestId,
+          latestTapId: latestPlaySongTapIdRef.current,
+        });
+        return;
+      }
 
       if (!resolved.queue.length) {
         setIsLoading(false);
@@ -5962,6 +6037,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         queueLength: resolved.queue.length,
         queueIndex: resolved.index,
       });
+      logTapLatencyDiagnostic("audio_load_started", tapStartedAt, {
+        songId: normalizedSong.id,
+        tapRequestId,
+      });
       await playQueue(
         resolved.queue,
         resolved.index,
@@ -5982,7 +6061,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       tryResumeHiddenAudioForSong,
       loadAndPlay,
       setIsPlaying,
+      setIsLoading,
       deferPlaybackSideEffects,
+      getPlayableUri,
+      primePlaybackTapUi,
+      reconcileHiddenAudioBridgeWithNative,
+      resolveQueueModeForSong,
     ]
   );
 
