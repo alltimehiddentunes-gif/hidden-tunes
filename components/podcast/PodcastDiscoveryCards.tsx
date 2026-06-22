@@ -92,10 +92,27 @@ type PodcastShowCardProps = {
   variant?: "list" | "premium";
 };
 
+function formatPodcastDate(value?: string) {
+  if (!value) return undefined;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return undefined;
+  return `Latest ${date.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  })}`;
+}
+
 function PodcastShowMetaChips({ item }: { item: PodcastShowListItem }) {
-  const chips = [item.publisher, item.category, item.episodeLabel, item.language, item.qualityLabel]
+  const chips = [
+    item.publisher,
+    item.language,
+    item.category,
+    formatPodcastDate(item.latestEpisodeDate),
+    item.episodeLabel,
+  ]
     .filter(Boolean)
-    .slice(0, 3);
+    .slice(0, 5);
 
   if (!chips.length) return null;
 
@@ -170,6 +187,7 @@ export const PodcastShowCard = memo(function PodcastShowCard({
           ? `${show.episode_count} episodes`
           : undefined,
       language: show.language,
+      latestEpisodeDate: show.last_published_at,
       is_mature: show.is_mature,
       content_rating: show.content_rating,
     } satisfies PodcastShowListItem);

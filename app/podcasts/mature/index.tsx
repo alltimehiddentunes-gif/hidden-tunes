@@ -1,5 +1,12 @@
-import { useCallback, useMemo } from "react";
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useCallback, useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -11,16 +18,49 @@ import { getMaturePodcastSubcategories } from "../../../constants/podcastCategor
 import { COLORS } from "../../../constants/theme";
 import { useMatureContentGate } from "../../../hooks/useMatureContentGate";
 import { useMatureContentSettings } from "../../../hooks/useMatureContentSettings";
+import { filterAvailablePodcastCategoryIds } from "../../../services/podcast/podcastCategoryAvailability";
 
 export default function PodcastMatureHubScreen() {
   const { includeMatureInApi } = useMatureContentSettings();
   const { consentVisible, runWithMatureConsent, cancelConsent, confirmConsent } =
     useMatureContentGate();
 
-  const subcategories = useMemo(
-    () => (includeMatureInApi ? getMaturePodcastSubcategories() : []),
-    [includeMatureInApi]
+  const [subcategories, setSubcategories] = useState(() =>
+    includeMatureInApi ? getMaturePodcastSubcategories() : []
   );
+  const [loadingCategories, setLoadingCategories] = useState(includeMatureInApi);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!includeMatureInApi) {
+      setSubcategories([]);
+      setLoadingCategories(false);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const candidates = getMaturePodcastSubcategories();
+    setLoadingCategories(true);
+
+    void filterAvailablePodcastCategoryIds(candidates.map((category) => category.id))
+      .then((availableIds) => {
+        if (cancelled) return;
+        setSubcategories(candidates.filter((category) => availableIds.includes(category.id)));
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setSubcategories([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingCategories(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [includeMatureInApi]);
 
   const openSubcategory = useCallback((categoryId: string) => {
     router.push({
@@ -70,22 +110,35 @@ export default function PodcastMatureHubScreen() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.grid}>
-          {subcategories.map((category) => (
-            <PodcastCategoryCard
-              key={category.id}
-              category={category}
-              onPress={() =>
-                runWithMatureConsent(
-                  { is_mature: true, content_rating: "adult" },
-                  () => openSubcategory(category.id)
-                )
-              }
-            />
-          ))}
+      {loadingCategories ? (
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+          <Text style={styles.gateText}>Loading adult podcast rooms...</Text>
         </View>
-      </ScrollView>
+      ) : subcategories.length > 0 ? (
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          <View style={styles.grid}>
+            {subcategories.map((category) => (
+              <PodcastCategoryCard
+                key={category.id}
+                category={category}
+                onPress={() =>
+                  runWithMatureConsent(
+                    { is_mature: true, content_rating: "adult" },
+                    () => openSubcategory(category.id)
+                  )
+                }
+              />
+            ))}
+          </View>
+        </ScrollView>
+      ) : (
+        <View style={styles.center}>
+          <Ionicons name="eye-off-outline" size={48} color={COLORS.textMuted} />
+          <Text style={styles.gateTitle}>Adult podcast rooms are unavailable right now</Text>
+          <Text style={styles.gateText}>Try again later or browse standard podcast categories.</Text>
+        </View>
+      )}
 
       <MatureContentConsentModal
         visible={consentVisible}

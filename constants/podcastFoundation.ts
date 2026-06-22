@@ -19,6 +19,7 @@ export const PODCAST_CATALOG_TARGETS = {
   deepFocus: 200,
   afroHeat: 300,
   hiddenTreasures: 500,
+  worldStories: 200,
   africanVoices: 300,
 } as const;
 

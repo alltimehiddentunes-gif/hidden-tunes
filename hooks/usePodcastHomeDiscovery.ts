@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   getBrowsablePodcastCategories,
   getEmotionalPodcastCategories,
+  getMaturePodcastSubcategories,
   type PodcastCategory,
 } from "../constants/podcastCategories";
 import { PODCAST_HOME_LANE_PAGE_SIZE } from "../constants/podcastFoundation";
@@ -29,6 +30,7 @@ type PodcastHomeDiscoveryState = {
   recentlyPlayed: PodcastShowListItem[];
   emotionalWorlds: PodcastEmotionalWorldPreview[];
   browseCategories: PodcastCategory[];
+  matureCategories: PodcastCategory[];
   loading: boolean;
   resolveShow: (showId: string) => HiddenTunesPodcastShow | null;
 };
@@ -45,7 +47,9 @@ export function usePodcastHomeDiscovery(): PodcastHomeDiscoveryState {
   const [popularPool, setPopularPool] = useState<HiddenTunesPodcastShow[]>([]);
   const [recommendedPool, setRecommendedPool] = useState<HiddenTunesPodcastShow[]>([]);
   const [recentlyPlayed, setRecentlyPlayed] = useState<PodcastShowListItem[]>([]);
+  const [emotionalWorlds, setEmotionalWorlds] = useState<PodcastEmotionalWorldPreview[]>([]);
   const [browseCategories, setBrowseCategories] = useState<PodcastCategory[]>([]);
+  const [matureCategories, setMatureCategories] = useState<PodcastCategory[]>([]);
   const [loading, setLoading] = useState(true);
 
   const rememberShows = useCallback((shows: HiddenTunesPodcastShow[]) => {
@@ -104,15 +108,30 @@ export function usePodcastHomeDiscovery(): PodcastHomeDiscoveryState {
       rememberShows(recommended);
       setRecommendedPool(recommended);
 
+      const emotionalCandidates = getEmotionalPodcastCategories(includeMatureInApi);
       const browseCandidates = getBrowsablePodcastCategories(includeMatureInApi);
-      const availableBrowse = await filterAvailablePodcastCategoryIds(
-        browseCandidates.map((category) => category.id)
-      );
+      const matureCandidates = includeMatureInApi ? getMaturePodcastSubcategories() : [];
+
+      const [availableEmotional, availableBrowse, availableMature] = await Promise.all([
+        filterAvailablePodcastCategoryIds(emotionalCandidates.map((category) => category.id)),
+        filterAvailablePodcastCategoryIds(browseCandidates.map((category) => category.id)),
+        matureCandidates.length
+          ? filterAvailablePodcastCategoryIds(matureCandidates.map((category) => category.id))
+          : Promise.resolve([]),
+      ]);
 
       if (cancelled) return;
 
+      setEmotionalWorlds(
+        emotionalCandidates
+          .filter((category) => availableEmotional.includes(category.id))
+          .map((world) => ({ world }))
+      );
       setBrowseCategories(
         browseCandidates.filter((category) => availableBrowse.includes(category.id))
+      );
+      setMatureCategories(
+        matureCandidates.filter((category) => availableMature.includes(category.id))
       );
     })();
 
@@ -120,14 +139,6 @@ export function usePodcastHomeDiscovery(): PodcastHomeDiscoveryState {
       cancelled = true;
     };
   }, [includeMatureInApi, rememberShows]);
-
-  const emotionalWorlds = useMemo(
-    () =>
-      getEmotionalPodcastCategories(includeMatureInApi).map((world) => ({
-        world,
-      })),
-    [includeMatureInApi]
-  );
 
   const resolveShow = useCallback((showId: string) => {
     return showStoreRef.current.get(showId) || null;
@@ -141,6 +152,7 @@ export function usePodcastHomeDiscovery(): PodcastHomeDiscoveryState {
     recentlyPlayed,
     emotionalWorlds,
     browseCategories,
+    matureCategories,
     loading,
     resolveShow,
   };

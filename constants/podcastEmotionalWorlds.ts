@@ -91,6 +91,18 @@ export const PODCAST_EMOTIONAL_WORLDS: PodcastEmotionalWorld[] = [
     matchCategories: ["Society", "Arts"],
     catalogTarget: PODCAST_CATALOG_TARGETS.hiddenTreasures,
   },
+  {
+    id: "world-stories",
+    title: "World Stories",
+    subtitle: "Culture, migration, identity, and global voices",
+    icon: "earth-outline",
+    gradient: ["#142020", "#081010"],
+    catalogQuery: { q: "world stories culture podcast" },
+    fallbackQuery: { q: "global voices culture stories podcast" },
+    matchTags: ["world", "culture", "global", "migration", "identity", "story"],
+    matchCategories: ["Society", "History", "African Voices"],
+    catalogTarget: PODCAST_CATALOG_TARGETS.worldStories,
+  },
 ];
 
 const WORLD_BY_ID = new Map(PODCAST_EMOTIONAL_WORLDS.map((world) => [world.id, world]));

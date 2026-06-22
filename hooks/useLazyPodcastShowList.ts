@@ -48,8 +48,16 @@ export function useLazyPodcastShowList({
   const requestGenerationRef = useRef(0);
   const loadPageRef = useRef(loadPage);
   const loadingMoreRef = useRef(false);
+  const mountedRef = useRef(true);
 
   loadPageRef.current = loadPage;
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   const readCachedFirstPage = useCallback((key: string) => {
     const cached = readCachedPodcastShows(key);
@@ -161,7 +169,9 @@ export function useLazyPodcastShowList({
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    void fetchPage(0, false, true).finally(() => setRefreshing(false));
+    void fetchPage(0, false, true).finally(() => {
+      if (mountedRef.current) setRefreshing(false);
+    });
   }, [fetchPage]);
 
   const loadMore = useCallback(() => {
@@ -173,7 +183,7 @@ export function useLazyPodcastShowList({
     setLoadingMore(true);
     void fetchPage(shows.length, true, false).finally(() => {
       loadingMoreRef.current = false;
-      setLoadingMore(false);
+      if (mountedRef.current) setLoadingMore(false);
     });
   }, [enabled, fetchPage, hasMore, loading, loadingMore, refreshing, shows.length]);
 

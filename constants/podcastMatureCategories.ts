@@ -18,6 +18,15 @@ export const PODCAST_MATURE_HUB_ID = "mature";
 
 export const PODCAST_MATURE_SUBCATEGORIES: PodcastMatureCategory[] = [
   {
+    id: "mature-adult-talk",
+    title: "Adult Talk",
+    subtitle: "Grown conversations with consent-first access",
+    icon: "chatbubbles-outline",
+    gradient: ["#201418", "#0C0808"],
+    catalogQuery: { q: "adult talk podcast" },
+    fallbackQuery: { q: "mature conversations podcast" },
+  },
+  {
     id: "mature-dating",
     title: "Dating",
     subtitle: "Modern dating talk for adults",

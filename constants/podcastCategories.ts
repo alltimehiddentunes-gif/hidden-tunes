@@ -225,6 +225,36 @@ export const PODCAST_BROWSE_CATEGORIES: PodcastCategory[] = [
     tier: "browse",
   },
   {
+    id: "true-crime",
+    title: "True Crime",
+    subtitle: "Investigations, mysteries, and justice stories",
+    icon: "search-outline",
+    gradient: ["#201418", "#0C0808"],
+    catalogQuery: { category: "True Crime" },
+    fallbackQuery: { q: "true crime podcast" },
+    tier: "browse",
+  },
+  {
+    id: "comedy",
+    title: "Comedy",
+    subtitle: "Smart laughs, culture, and sharp conversation",
+    icon: "happy-outline",
+    gradient: ["#241820", "#10080C"],
+    catalogQuery: { category: "Comedy" },
+    fallbackQuery: { q: "comedy podcast" },
+    tier: "browse",
+  },
+  {
+    id: "news",
+    title: "News",
+    subtitle: "Current events and informed daily context",
+    icon: "newspaper-outline",
+    gradient: ["#101828", "#080C14"],
+    catalogQuery: { category: "News" },
+    fallbackQuery: { q: "news podcast" },
+    tier: "browse",
+  },
+  {
     id: PODCAST_MATURE_HUB_ID,
     title: "Mature 18+",
     subtitle: "Adult shows — enable in Profile settings",
@@ -290,7 +320,6 @@ export const PODCAST_LEGACY_CATEGORY_ALIASES: Record<string, string> = {
   "christian-gospel": "faith",
   "adult-conversations": PODCAST_MATURE_HUB_ID,
   education: "science",
-  "true-crime": "history",
 };
 
 export function resolvePodcastCategoryId(id: string) {

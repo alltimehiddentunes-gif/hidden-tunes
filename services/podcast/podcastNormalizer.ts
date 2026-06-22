@@ -10,6 +10,7 @@ export function toPodcastShowListItem(show: HiddenTunesPodcastShow): PodcastShow
     typeof show.episode_count === "number" && show.episode_count > 0
       ? `${show.episode_count} episode${show.episode_count === 1 ? "" : "s"}`
       : undefined;
+  const latestEpisodeDate = show.last_published_at || undefined;
 
   let qualityLabel: string | undefined;
   const score = show.quality_score || 0;
@@ -26,6 +27,7 @@ export function toPodcastShowListItem(show: HiddenTunesPodcastShow): PodcastShow
     episodeCount: show.episode_count,
     episodeLabel,
     language: show.language,
+    latestEpisodeDate,
     qualityScore: show.quality_score,
     qualityLabel,
     is_mature: show.is_mature,

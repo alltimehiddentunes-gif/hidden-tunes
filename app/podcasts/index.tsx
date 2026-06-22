@@ -122,6 +122,7 @@ export default function PodcastDiscoveryHomeScreen() {
     recentlyPlayed,
     emotionalWorlds,
     browseCategories,
+    matureCategories,
     loading,
     resolveShow,
   } = usePodcastHomeDiscovery();
@@ -337,7 +338,7 @@ export default function PodcastDiscoveryHomeScreen() {
           />
           <ShowRailSection
             eyebrow="POPULAR"
-            title="Most Popular"
+            title="Popular Podcasts"
             shows={popular}
             onPressShow={openShow}
             seeAllCategoryId="popular"
@@ -395,6 +396,27 @@ export default function PodcastDiscoveryHomeScreen() {
                     key={category.id}
                     category={category}
                     onPress={() => openCategory(category.id)}
+                  />
+                ))}
+              </View>
+            </View>
+          ) : null}
+
+          {matureCategories.length > 0 ? (
+            <View style={styles.sectionBlock}>
+              <Text style={styles.sectionEyebrow}>ADULT PODCASTS</Text>
+              <Text style={styles.sectionTitle}>Mature conversations</Text>
+              <View style={styles.grid}>
+                {matureCategories.map((category) => (
+                  <PodcastCategoryCard
+                    key={category.id}
+                    category={category}
+                    onPress={() =>
+                      runWithMatureConsent(
+                        { is_mature: true, content_rating: "adult" },
+                        () => openCategory(category.id)
+                      )
+                    }
                   />
                 ))}
               </View>
