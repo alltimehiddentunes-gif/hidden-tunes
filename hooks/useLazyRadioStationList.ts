@@ -44,8 +44,17 @@ export function useLazyRadioStationList({
   const stationStoreRef = useRef(new Map<string, HiddenTunesStation>());
   const requestGenerationRef = useRef(0);
   const loadPageRef = useRef(loadPage);
+  const loadingMoreRef = useRef(false);
+  const mountedRef = useRef(true);
 
   loadPageRef.current = loadPage;
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   const [listItems, setListItems] = useState<RadioStationListItem[]>(() => {
     if (!enabled || !cacheKey) return [];
@@ -166,14 +175,22 @@ export function useLazyRadioStationList({
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    void fetchPage(0, false, true).finally(() => setRefreshing(false));
+    void fetchPage(0, false, true).finally(() => {
+      if (mountedRef.current) setRefreshing(false);
+    });
   }, [fetchPage]);
 
   const loadMore = useCallback(() => {
-    if (!enabled || loading || loadingMore || refreshing || !hasMore) return;
+    if (!enabled || loading || loadingMore || refreshing || !hasMore || loadingMoreRef.current) {
+      return;
+    }
 
+    loadingMoreRef.current = true;
     setLoadingMore(true);
-    void fetchPage(listItems.length, true, false).finally(() => setLoadingMore(false));
+    void fetchPage(listItems.length, true, false).finally(() => {
+      loadingMoreRef.current = false;
+      if (mountedRef.current) setLoadingMore(false);
+    });
   }, [
     enabled,
     fetchPage,

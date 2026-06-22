@@ -218,32 +218,34 @@ export default function RadioStationsHomeScreen() {
               seeAllCategoryId="recommended"
             />
 
-            <View style={styles.sectionBlock}>
-              <Text style={styles.sectionEyebrow}>EMOTIONAL WORLDS RADIO</Text>
-              <Text style={styles.sectionTitle}>Radio tuned to how you feel</Text>
-              <FlatList
-                horizontal
-                data={emotionalWorlds}
-                keyExtractor={(entry) => entry.world.id}
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.railContent}
-                initialNumToRender={3}
-                maxToRenderPerBatch={3}
-                windowSize={5}
-                removeClippedSubviews
-                renderItem={({ item }) => {
-                  const catalogTarget =
-                    getRadioEmotionalWorld(item.world.id)?.catalogTarget || undefined;
-                  return (
-                    <RadioEmotionalWorldCard
-                      category={item.world}
-                      stationCount={catalogTarget}
-                      onPress={() => openCategory(item.world.id)}
-                    />
-                  );
-                }}
-              />
-            </View>
+            {emotionalWorlds.length > 0 ? (
+              <View style={styles.sectionBlock}>
+                <Text style={styles.sectionEyebrow}>EMOTIONAL WORLDS RADIO</Text>
+                <Text style={styles.sectionTitle}>Radio tuned to how you feel</Text>
+                <FlatList
+                  horizontal
+                  data={emotionalWorlds}
+                  keyExtractor={(entry) => entry.world.id}
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.railContent}
+                  initialNumToRender={3}
+                  maxToRenderPerBatch={3}
+                  windowSize={5}
+                  removeClippedSubviews
+                  renderItem={({ item }) => {
+                    const catalogTarget =
+                      getRadioEmotionalWorld(item.world.id)?.catalogTarget || undefined;
+                    return (
+                      <RadioEmotionalWorldCard
+                        category={item.world}
+                        stationCount={catalogTarget}
+                        onPress={() => openCategory(item.world.id)}
+                      />
+                    );
+                  }}
+                />
+              </View>
+            ) : null}
 
             {browseCategories.length > 0 ? (
               <View style={styles.sectionBlock}>

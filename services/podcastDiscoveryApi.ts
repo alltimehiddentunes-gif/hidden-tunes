@@ -123,6 +123,8 @@ function curateShowsForCategory(shows: HiddenTunesPodcastShow[], category: Podca
     curated = sortShowsByEpisodeCount(
       curated.filter((show) => (show.quality_score || 0) >= PODCAST_POPULAR_MIN_QUALITY)
     );
+  } else if (category.id === "new-releases" || category.id === "new-this-week" || category.id === "recently-added") {
+    curated = sortShowsByRecency(curated);
   } else if (category.tier === "emotional" || category.tier === "browse") {
     curated = sortShowsByQuality(curated);
   } else if (category.tier === "mature" || category.tier === "mature-hub") {
@@ -208,9 +210,11 @@ async function fetchSearchShowsFromNetwork(query: string, page = 1) {
     includeMature: shouldIncludeMatureInApi(),
   });
 
-  const shows = dedupeShows(response.success ? response.shows : [])
-    .map(enrichShowWithQuality)
-    .filter((show) => !show.is_mature || shouldIncludeMatureInApi());
+  const shows = sortShowsByQuality(
+    dedupeShows(response.success ? response.shows : [])
+      .map(enrichShowWithQuality)
+      .filter((show) => !show.is_mature || shouldIncludeMatureInApi())
+  );
 
   return {
     shows: filterMatureShows(shows),

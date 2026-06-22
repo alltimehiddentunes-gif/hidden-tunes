@@ -42,8 +42,6 @@ const RADIO_BROWSER_USER_AGENT = "HiddenTunes/1.0 (mobile radio browser)";
 const STATION_FETCH_TIMEOUT_MS = 12000;
 
 export const RADIO_STATION_PAGE_SIZE = MEDIA_DISCOVERY_PAGE_SIZE;
-export const RADIO_SEARCH_MAX_RESULTS = 200;
-
 const browseAbortControllers = new Map<string, AbortController>();
 
 export function cancelRadioBrowseRequest(requestKey: string) {
@@ -269,17 +267,17 @@ export async function fetchRadioSearchPage(
 
   const raw = await fetchRadioBrowserJson(buildSearchPath(safeQuery, offset, limit), signal);
 
-  return filterMatureStations(
-    dedupeRadioStations(
-      raw
-        .map((rawStation) => {
-          const base = normalizeRadioBrowserStation(rawStation, "search");
-          if (!base) return null;
-          return enrichStationWithQuality(base, rawStation);
-        })
-        .filter((station): station is HiddenTunesStation => Boolean(station))
-    ).slice(0, limit)
+  const stations = dedupeRadioStations(
+    raw
+      .map((rawStation) => {
+        const base = normalizeRadioBrowserStation(rawStation, "search");
+        if (!base) return null;
+        return enrichStationWithQuality(base, rawStation);
+      })
+      .filter((station): station is HiddenTunesStation => Boolean(station))
   );
+
+  return filterMatureStations(sortStationsByQuality(stations).slice(0, limit));
 }
 
 type LoadRadioPageOptions = {
@@ -421,12 +419,7 @@ export async function loadRadioSearchPage(query: string, options?: LoadRadioPage
   const cacheKey = normalizeRadioSearchCacheKey(safeQuery);
   if (!cacheKey) return { stations: [], hasMore: false, fromCache: false };
 
-  const offset = Math.max(0, Number(options?.offset) || 0);
-  if (offset + RADIO_STATION_PAGE_SIZE > RADIO_SEARCH_MAX_RESULTS) {
-    return { stations: [], hasMore: false, fromCache: false };
-  }
-
-  const result = await loadRadioPage(
+  return loadRadioPage(
     cacheKey,
     (pageOffset, limit, signal) => fetchRadioSearchPage(safeQuery, pageOffset, limit, signal),
     {
@@ -434,14 +427,6 @@ export async function loadRadioSearchPage(query: string, options?: LoadRadioPage
       requestKey: `search:${cacheKey}`,
     }
   );
-
-  const cappedHasMore =
-    result.hasMore && offset + result.stations.length < RADIO_SEARCH_MAX_RESULTS;
-
-  return {
-    ...result,
-    hasMore: cappedHasMore,
-  };
 }
 
 export async function resolveRadioStationForPlayback(

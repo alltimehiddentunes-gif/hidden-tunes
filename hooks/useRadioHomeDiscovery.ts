@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   getBrowsableRadioCategories,
@@ -47,6 +47,7 @@ export function useRadioHomeDiscovery(): RadioHomeDiscoveryState {
   const [popularPool, setPopularPool] = useState<HiddenTunesStation[]>([]);
   const [recommendedPool, setRecommendedPool] = useState<HiddenTunesStation[]>([]);
   const [recentlyPlayed, setRecentlyPlayed] = useState<RadioStationListItem[]>([]);
+  const [emotionalWorlds, setEmotionalWorlds] = useState<RadioEmotionalWorldPreview[]>([]);
   const [browseCategories, setBrowseCategories] = useState<RadioCategory[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -114,13 +115,20 @@ export function useRadioHomeDiscovery(): RadioHomeDiscoveryState {
       rememberStations(recommended);
       setRecommendedPool(recommended);
 
+      const emotionalCandidates = getEmotionalRadioCategories(includeMatureInApi);
       const browseCandidates = getBrowsableRadioCategories(includeMatureInApi);
-      const availableBrowse = await filterAvailableRadioCategoryIds(
-        browseCandidates.map((category) => category.id)
-      );
+      const [availableEmotional, availableBrowse] = await Promise.all([
+        filterAvailableRadioCategoryIds(emotionalCandidates.map((category) => category.id)),
+        filterAvailableRadioCategoryIds(browseCandidates.map((category) => category.id)),
+      ]);
 
       if (cancelled) return;
 
+      setEmotionalWorlds(
+        emotionalCandidates
+          .filter((category) => availableEmotional.includes(category.id))
+          .map((world) => ({ world }))
+      );
       setBrowseCategories(
         browseCandidates.filter((category) => availableBrowse.includes(category.id))
       );
@@ -130,14 +138,6 @@ export function useRadioHomeDiscovery(): RadioHomeDiscoveryState {
       cancelled = true;
     };
   }, [includeMatureInApi, rememberStations]);
-
-  const emotionalWorlds = useMemo(
-    () =>
-      getEmotionalRadioCategories(includeMatureInApi).map((world) => ({
-        world,
-      })),
-    [includeMatureInApi]
-  );
 
   const resolveStation = useCallback((stationId: string) => {
     return stationStoreRef.current.get(stationId) || null;
