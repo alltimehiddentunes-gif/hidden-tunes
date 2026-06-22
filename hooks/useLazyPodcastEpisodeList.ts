@@ -12,6 +12,7 @@ import {
   enrichEpisodesWithShowMaturity,
   filterVisiblePodcastEpisodes,
 } from "../utils/maturePodcastVisibility";
+import { filterPlayablePodcastEpisodes } from "../services/podcast/podcastDiscoverability";
 
 type LoadPageResult = {
   episodes: HiddenTunesPodcastEpisode[];
@@ -57,7 +58,9 @@ export function useLazyPodcastEpisodeList({
   const normalizeVisible = useCallback(
     (items: HiddenTunesPodcastEpisode[]) => {
       const enriched = enrichEpisodesWithShowMaturity(items, showIsMature);
-      return filterVisiblePodcastEpisodes(enriched, { showIsMature });
+      return filterPlayablePodcastEpisodes(
+        filterVisiblePodcastEpisodes(enriched, { showIsMature })
+      );
     },
     [showIsMature]
   );

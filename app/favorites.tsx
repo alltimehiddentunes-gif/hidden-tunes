@@ -25,6 +25,7 @@ import {
 } from "../context/PlayerContext";
 import { useFavorites } from "../hooks/useFavorites";
 import { usePlaybackRouter } from "../hooks/usePlaybackRouter";
+import { normalizePodcastEpisode } from "../services/podcasts/podcastNormalizer";
 import type { FavoriteItemType, UnifiedFavoriteItem } from "../types/favorites";
 import { songFavoriteToAppSong } from "../services/favorites/unifiedFavorites";
 import { logVisibleFeatureChecklist } from "../utils/visibleFeatureDiagnostics";
@@ -155,8 +156,8 @@ export default function FavoritesScreen() {
             },
           } as any);
           return;
-        case "podcast_episode":
-          void playPodcastEpisode(
+        case "podcast_episode": {
+          const normalized = normalizePodcastEpisode(
             {
               id: item.id,
               show_id: String(item.metadata?.showId || ""),
@@ -171,10 +172,13 @@ export default function FavoritesScreen() {
               is_mature: item.metadata?.is_mature,
               content_rating: item.metadata?.content_rating,
               sourceName: "Hidden Tunes",
-            } as any,
-            []
+            },
+            String(item.metadata?.showTitle || item.subtitle || item.title)
           );
+          if (!normalized) return;
+          void playPodcastEpisode(normalized, [normalized]);
           return;
+        }
         default:
           return;
       }

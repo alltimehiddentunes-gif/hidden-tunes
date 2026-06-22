@@ -11,6 +11,7 @@ export function normalizePodcastEpisode(
 
   return {
     id: episode.id,
+    showId: episode.show_id,
     title: episode.title,
     podcastTitle: podcastTitle.trim() || "Hidden Tunes Podcast",
     audioUrl,

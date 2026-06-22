@@ -242,8 +242,11 @@ export default function PodcastShowScreen() {
             showEmpty ? (
               <View style={styles.emptyBox}>
                 <Ionicons name="play-outline" size={48} color={COLORS.textMuted} />
-                <Text style={styles.emptyTitle}>Episodes are warming up</Text>
-                <Text style={styles.emptyText}>{TESTER_COPY.podcastEpisodesEmpty}</Text>
+                <Text style={styles.emptyTitle}>No playable episodes yet</Text>
+                <Text style={styles.emptyText}>
+                  This show has no HTTPS audio episodes right now. Try another show or search Hidden
+                  Tunes Podcasts.
+                </Text>
               </View>
             ) : null
           }

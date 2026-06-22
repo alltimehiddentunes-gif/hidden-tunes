@@ -14,6 +14,7 @@ import {
 } from "../../utils/launchPodcastCategories";
 import { podcastDiscoveryDisplayName } from "../../utils/openHiddenTunesPodcast";
 import { getUserFacingPodcastSubtitle } from "../../services/ui/displayMetadata";
+import { isPlayablePodcastEpisode } from "../../services/podcast/podcastDiscoverability";
 import { useMatureContentSettings } from "../../hooks/useMatureContentSettings";
 import { isMaturePodcastEpisode } from "../../utils/maturePodcastVisibility";
 import { isMatureContentItem } from "../../types/matureContent";
@@ -280,6 +281,7 @@ type PodcastEpisodeRowProps = {
   episode: HiddenTunesPodcastEpisode;
   subtitle?: string;
   showIsMature?: boolean;
+  isPlayable?: boolean;
   onPress: () => void;
 };
 
@@ -287,9 +289,11 @@ export const PodcastEpisodeRow = memo(function PodcastEpisodeRow({
   episode,
   subtitle,
   showIsMature = false,
+  isPlayable = true,
   onPress,
 }: PodcastEpisodeRowProps) {
   const { includeMatureInApi } = useMatureContentSettings();
+  const playable = isPlayable && isPlayablePodcastEpisode(episode);
   const matureItem = {
     is_mature: isMaturePodcastEpisode(episode, showIsMature),
     content_rating: episode.content_rating,
@@ -297,7 +301,12 @@ export const PodcastEpisodeRow = memo(function PodcastEpisodeRow({
   const showMatureArt = !isMaturePodcastEpisode(episode, showIsMature) || includeMatureInApi;
 
   return (
-    <TouchableOpacity activeOpacity={0.88} style={styles.episodeRow} onPress={onPress}>
+    <TouchableOpacity
+      activeOpacity={playable ? 0.88 : 1}
+      style={[styles.episodeRow, !playable && styles.episodeRowDisabled]}
+      onPress={playable ? onPress : undefined}
+      disabled={!playable}
+    >
       {episode.artwork_url && showMatureArt ? (
         <Image
           source={{ uri: episode.artwork_url }}
@@ -322,18 +331,26 @@ export const PodcastEpisodeRow = memo(function PodcastEpisodeRow({
           <MatureContentBadge item={matureItem} />
         </View>
         <Text numberOfLines={1} style={styles.episodeSubtitle}>
-          {subtitle || getUserFacingPodcastSubtitle(episode)}
+          {playable
+            ? subtitle || getUserFacingPodcastSubtitle(episode)
+            : "Unavailable · no playable audio"}
         </Text>
       </View>
 
-      <FavoriteButton
-        item={buildPodcastEpisodeFavoriteItem(episode, {
-          showTitle: subtitle,
-          showIsMature,
-        })}
-        size={18}
-      />
-      <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
+      {playable ? (
+        <FavoriteButton
+          item={buildPodcastEpisodeFavoriteItem(episode, {
+            showTitle: subtitle,
+            showIsMature,
+          })}
+          size={18}
+        />
+      ) : null}
+      {playable ? (
+        <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
+      ) : (
+        <Ionicons name="ban-outline" size={18} color={COLORS.textMuted} />
+      )}
     </TouchableOpacity>
   );
 });
@@ -545,6 +562,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.08)",
     marginBottom: 10,
+  },
+  episodeRowDisabled: {
+    opacity: 0.55,
   },
   episodeArt: {
     width: 52,

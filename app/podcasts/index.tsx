@@ -22,7 +22,6 @@ import {
 } from "../../components/podcast/PodcastDiscoveryCards";
 import MediaSearchEmptyState from "../../components/discovery/MediaSearchEmptyState";
 import MatureContentConsentModal from "../../components/mature/MatureContentConsentModal";
-import { getPodcastEmotionalWorld } from "../../constants/podcastEmotionalWorlds";
 import { PODCAST_MATURE_HUB_ID } from "../../constants/podcastMatureCategories";
 import { PODCAST_HOME_LANE_PAGE_SIZE } from "../../constants/podcastFoundation";
 import { COLORS } from "../../constants/theme";
@@ -468,17 +467,12 @@ export default function PodcastDiscoveryHomeScreen() {
                 maxToRenderPerBatch={3}
                 windowSize={5}
                 removeClippedSubviews
-                renderItem={({ item }) => {
-                  const catalogTarget =
-                    getPodcastEmotionalWorld(item.world.id)?.catalogTarget || undefined;
-                  return (
-                    <PodcastEmotionalWorldCard
-                      category={item.world}
-                      showCount={catalogTarget}
-                      onPress={() => openCategory(item.world.id)}
-                    />
-                  );
-                }}
+                renderItem={({ item }) => (
+                  <PodcastEmotionalWorldCard
+                    category={item.world}
+                    onPress={() => openCategory(item.world.id)}
+                  />
+                )}
               />
             </View>
           ) : null}

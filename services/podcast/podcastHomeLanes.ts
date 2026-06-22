@@ -2,7 +2,20 @@ import { PODCAST_HOME_LANE_PAGE_SIZE, podcastHomeLaneCacheKey } from "../../cons
 import type { HiddenTunesPodcastShow } from "../podcastCatalogApi";
 import { readCachedPodcastShows, writeCachedPodcastShows } from "../../utils/podcastDiscoveryCache";
 import { loadPodcastCategoryPage } from "../podcastDiscoveryApi";
+import { filterDiscoverablePodcastShows } from "./podcastDiscoverability";
 import { sortShowsByQuality } from "./podcastQualityScore";
+
+const HOME_LANE_FALLBACK_IDS = [
+  "trending",
+  "popular",
+  "business",
+  "relationships",
+  "health",
+  "comedy",
+  "news",
+  "faith",
+  "african-voices",
+] as const;
 
 function dedupeById(shows: HiddenTunesPodcastShow[]) {
   const seen = new Set<string>();
@@ -11,6 +24,46 @@ function dedupeById(shows: HiddenTunesPodcastShow[]) {
     seen.add(show.id);
     return true;
   });
+}
+
+async function loadLaneShows(
+  laneId: string,
+  offset = 0,
+  options?: { forceRefresh?: boolean; append?: boolean }
+) {
+  const result = await loadPodcastCategoryPage(laneId, offset, options).catch(() => ({
+    shows: [] as HiddenTunesPodcastShow[],
+    hasMore: false,
+  }));
+
+  return {
+    ...result,
+    shows: filterDiscoverablePodcastShows(result.shows),
+  };
+}
+
+export async function loadPodcastHomeLaneWithFallback(
+  preferredLaneId: "featured" | "trending" | "popular",
+  offset = 0,
+  options?: { forceRefresh?: boolean; append?: boolean }
+) {
+  if (offset > 0) {
+    return loadLaneShows(preferredLaneId, offset, options);
+  }
+
+  const laneOrder = [
+    preferredLaneId,
+    ...HOME_LANE_FALLBACK_IDS.filter((laneId) => laneId !== preferredLaneId),
+  ];
+
+  for (const laneId of laneOrder) {
+    const result = await loadLaneShows(laneId, 0, options);
+    if (result.shows.length) {
+      return result;
+    }
+  }
+
+  return { shows: [], hasMore: false };
 }
 
 export function buildRecommendedPodcastShows(
@@ -57,7 +110,10 @@ export async function loadRecommendedPodcastLanePage(
   if (!options?.forceRefresh && offset === 0) {
     const cached = readCachedPodcastShows(cacheKey);
     if (cached?.length) {
-      const page = cached.slice(offset, offset + PODCAST_HOME_LANE_PAGE_SIZE);
+      const page = filterDiscoverablePodcastShows(cached).slice(
+        offset,
+        offset + PODCAST_HOME_LANE_PAGE_SIZE
+      );
       return {
         shows: page,
         hasMore: cached.length > offset + page.length,
@@ -66,8 +122,8 @@ export async function loadRecommendedPodcastLanePage(
   }
 
   const [featuredResult, trendingResult] = await Promise.all([
-    loadPodcastCategoryPage("featured", 0, { forceRefresh: false }),
-    loadPodcastCategoryPage("trending", 0, { forceRefresh: false }),
+    loadPodcastHomeLaneWithFallback("featured", 0, { forceRefresh: false }),
+    loadPodcastHomeLaneWithFallback("trending", 0, { forceRefresh: false }),
   ]);
 
   const recommended = buildRecommendedPodcastShows(
@@ -106,5 +162,5 @@ export async function loadPodcastHomeLanePage(
   offset = 0,
   options?: { forceRefresh?: boolean; append?: boolean }
 ) {
-  return loadPodcastCategoryPage(laneId, offset, options);
+  return loadPodcastHomeLaneWithFallback(laneId, offset, options);
 }

@@ -44,6 +44,11 @@ import {
   sortShowsByRecency,
 } from "./podcast/podcastQualityScore";
 import { buildPodcastSearchQueries } from "../utils/mediaSearchQueryExpansion";
+import {
+  filterDiscoverablePodcastShows,
+  filterPlayablePodcastEpisodes,
+  rankShowsByPlayabilitySignal,
+} from "./podcast/podcastDiscoverability";
 
 const SHOW_PAGE_LIMIT = MEDIA_DISCOVERY_PAGE_SIZE;
 const EPISODE_PAGE_LIMIT = MEDIA_DISCOVERY_PAGE_SIZE;
@@ -135,6 +140,10 @@ function curateShowsForCategory(shows: HiddenTunesPodcastShow[], category: Podca
   return stripMatureFromStandardDiscovery(curated, category);
 }
 
+function finalizeDiscoverableShows(shows: HiddenTunesPodcastShow[]) {
+  return filterDiscoverablePodcastShows(shows);
+}
+
 function resolveCategoryCacheKey(categoryId: string) {
   const resolvedId = resolvePodcastCategoryId(categoryId);
   const category = getPodcastCategory(resolvedId);
@@ -190,7 +199,7 @@ async function fetchShowsFromNetwork(categoryId: string, page = 1) {
     }
   }
 
-  shows = curateShowsForCategory(shows, category);
+  shows = finalizeDiscoverableShows(curateShowsForCategory(shows, category));
 
   if (category.isMature || category.tier === "mature") {
     shows = shows.map((show) => ({
@@ -231,7 +240,7 @@ async function fetchSearchShowsFromNetwork(query: string, page = 1) {
 
     if (!response.success) continue;
 
-    const batch = sortShowsByQuality(
+    const batch = rankShowsByPlayabilitySignal(
       dedupeShows(response.shows)
         .map(enrichShowWithQuality)
         .filter((show) => !show.is_mature || includeMature)
@@ -246,7 +255,7 @@ async function fetchSearchShowsFromNetwork(query: string, page = 1) {
   }
 
   return {
-    shows: filterMatureShows(merged.slice(0, SEARCH_PAGE_LIMIT)),
+    shows: filterMatureShows(filterDiscoverablePodcastShows(merged.slice(0, SEARCH_PAGE_LIMIT))),
     hasMore,
   };
 }
@@ -260,7 +269,11 @@ async function fetchEpisodesFromNetwork(showId: string, page = 1) {
   });
 
   return {
-    episodes: filterMatureEpisodes(response.success ? dedupeEpisodes(response.episodes) : []),
+    episodes: filterMatureEpisodes(
+      filterPlayablePodcastEpisodes(
+        response.success ? dedupeEpisodes(response.episodes) : []
+      )
+    ),
     hasMore: response.success ? response.pagination.hasMore : false,
   };
 }

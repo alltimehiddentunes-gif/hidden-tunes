@@ -231,6 +231,7 @@ export type AppSong = {
   album?: string;
   albumId?: string;
   artistId?: string;
+  showId?: string;
   genre?: string;
   mood?: string;
   duration?: number | string;

@@ -2,31 +2,42 @@ import { loadRecentlyPlayed } from "../recentlyPlayedEngine";
 import type { HiddenTunesPodcastShow } from "../podcastCatalogApi";
 import type { PodcastShowListItem } from "../../types/podcastDiscovery";
 import { readCachedPodcastShows } from "../../utils/podcastDiscoveryCache";
+import { isDiscoverablePodcastShow } from "./podcastDiscoverability";
 import { toPodcastShowListItem } from "./podcastNormalizer";
 
 function stripPodcastPrefix(id: string) {
   return String(id || "").replace(/^podcast-/i, "").trim();
 }
 
-function buildFallbackShow(entry: {
-  id: string;
-  title?: string;
-  artist?: string;
-  artworkUrl?: string;
-  coverUrl?: string;
-  thumbnail?: string;
-}): HiddenTunesPodcastShow {
-  const episodeId = stripPodcastPrefix(entry.id);
-  return {
-    id: episodeId,
-    slug: episodeId,
-    title: entry.title || "Podcast Show",
-    host_name: entry.artist || undefined,
-    artwork_url:
-      entry.artworkUrl || entry.coverUrl || entry.thumbnail || undefined,
-    categories: [],
-    sourceName: "Hidden Tunes",
-  };
+function findCachedShow(showId: string, showTitle?: string) {
+  const cacheKeys = [
+    "featured",
+    "trending",
+    "popular",
+    "recommended",
+    "business",
+    "relationships",
+    "health",
+    "comedy",
+    "news",
+    "faith",
+    "african-voices",
+  ];
+
+  for (const cacheKey of cacheKeys) {
+    const cached = readCachedPodcastShows(cacheKey);
+    const match = cached?.find(
+      (show) =>
+        show.id === showId ||
+        (showTitle &&
+          show.title.trim().toLowerCase() === showTitle.trim().toLowerCase())
+    );
+    if (match && isDiscoverablePodcastShow(match)) {
+      return match;
+    }
+  }
+
+  return null;
 }
 
 export async function loadRecentlyPlayedPodcastItems(limit = 40) {
@@ -40,34 +51,20 @@ export async function loadRecentlyPlayedPodcastItems(limit = 40) {
   const shows: HiddenTunesPodcastShow[] = [];
 
   for (const entry of podcastEntries) {
-    const episodeId = stripPodcastPrefix(entry.id);
-    const showKey = String(entry.artist || entry.title || episodeId).trim().toLowerCase();
-    if (seenShows.has(showKey)) continue;
+    const showId = String(entry.showId || "").trim();
+    const showTitle = String(entry.artist || entry.title || "").trim();
+    const showKey = (showId || showTitle).toLowerCase();
+    if (!showKey || seenShows.has(showKey)) continue;
+
+    const cached = showId
+      ? findCachedShow(showId, showTitle)
+      : findCachedShow("", showTitle);
+
+    if (!cached) continue;
+
     seenShows.add(showKey);
-
-    const cached =
-      readCachedPodcastShows("featured")?.find(
-        (show) => show.id === episodeId || show.title === entry.artist
-      ) ||
-      readCachedPodcastShows("trending")?.find(
-        (show) => show.title === entry.artist || show.id === episodeId
-      );
-
-    if (cached) {
-      shows.push(cached);
-      items.push(toPodcastShowListItem(cached));
-    } else {
-      const fallback = buildFallbackShow({
-        id: entry.id,
-        title: entry.artist || entry.title,
-        artist: entry.artist,
-        artworkUrl: entry.artworkUrl,
-        coverUrl: entry.coverUrl,
-        thumbnail: entry.thumbnail,
-      });
-      shows.push(fallback);
-      items.push(toPodcastShowListItem(fallback));
-    }
+    shows.push(cached);
+    items.push(toPodcastShowListItem(cached));
 
     if (items.length >= limit) break;
   }

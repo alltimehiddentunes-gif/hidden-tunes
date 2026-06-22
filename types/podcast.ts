@@ -1,5 +1,6 @@
 export type PodcastEpisode = {
   id: string;
+  showId?: string;
   title: string;
   podcastTitle: string;
   audioUrl: string;

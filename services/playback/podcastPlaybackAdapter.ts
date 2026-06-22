@@ -17,6 +17,7 @@ export function podcastEpisodeToAppSong(episode: PodcastEpisode): AppSong {
     sourceName: "Hidden Tunes",
     type: "podcast",
     isOnline: true,
+    showId: episode.showId,
   };
 }
 
