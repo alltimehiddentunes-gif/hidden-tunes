@@ -9,9 +9,6 @@ import { RADIO_HOME_LANE_PAGE_SIZE } from "../constants/radioFoundation";
 import type { HiddenTunesStation, RadioStationListItem } from "../types/radio";
 import { useMatureContentSettings } from "./useMatureContentSettings";
 import {
-  filterAvailableRadioCategoryIds,
-} from "../services/radio/radioCategoryAvailability";
-import {
   loadRadioHomeLanePage,
   rememberRecommendedLane,
 } from "../services/radio/radioHomeLanes";
@@ -117,21 +114,11 @@ export function useRadioHomeDiscovery(): RadioHomeDiscoveryState {
 
       const emotionalCandidates = getEmotionalRadioCategories(includeMatureInApi);
       const browseCandidates = getBrowsableRadioCategories(includeMatureInApi);
-      const [availableEmotional, availableBrowse] = await Promise.all([
-        filterAvailableRadioCategoryIds(emotionalCandidates.map((category) => category.id)),
-        filterAvailableRadioCategoryIds(browseCandidates.map((category) => category.id)),
-      ]);
 
       if (cancelled) return;
 
-      setEmotionalWorlds(
-        emotionalCandidates
-          .filter((category) => availableEmotional.includes(category.id))
-          .map((world) => ({ world }))
-      );
-      setBrowseCategories(
-        browseCandidates.filter((category) => availableBrowse.includes(category.id))
-      );
+      setEmotionalWorlds(emotionalCandidates.map((world) => ({ world })));
+      setBrowseCategories(browseCandidates);
     })();
 
     return () => {

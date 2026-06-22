@@ -499,7 +499,7 @@ export default function SearchScreen() {
         limit: SEARCH_BACKEND_RESULT_LIMIT,
       })
         .then((results) => {
-          if (backendSearchRequestIdRef.current !== requestId) return;
+          if (backendSearchRequestIdRef.current !== requestId || !mountedRef.current) return;
           backendSearchCacheRef.current.set(cacheKey, results);
           if (backendSearchCacheRef.current.size > SEARCH_BACKEND_CACHE_LIMIT) {
             const oldestQuery = backendSearchCacheRef.current.keys().next().value;
@@ -525,7 +525,7 @@ export default function SearchScreen() {
         })
         .catch((error) => {
           if (controller.signal.aborted) return;
-          if (backendSearchRequestIdRef.current !== requestId) return;
+          if (backendSearchRequestIdRef.current !== requestId || !mountedRef.current) return;
           console.log("Search backend query error:", error);
           setBackendSearchSongs([]);
           const message = error instanceof Error ? error.message : String(error);
@@ -540,7 +540,7 @@ export default function SearchScreen() {
         })
         .finally(() => {
           if (controller.signal.aborted) return;
-          if (backendSearchRequestIdRef.current !== requestId) return;
+          if (backendSearchRequestIdRef.current !== requestId || !mountedRef.current) return;
           setBackendSearchCompletedQuery(query);
         });
     }, SEARCH_BACKEND_DEBOUNCE_MS);
@@ -548,6 +548,7 @@ export default function SearchScreen() {
     return () => {
       clearTimeout(timer);
       controller.abort();
+      backendSearchRequestIdRef.current += 1;
     };
   }, [backendSearchCacheKey, cleanSubmittedSearchQuery]);
 
@@ -669,18 +670,18 @@ export default function SearchScreen() {
     const timer = setTimeout(() => {
       void searchFreeMusicProviders(query, { limit: SEARCH_PROVIDER_QUERY_LIMIT })
         .then((response) => {
-          if (externalSearchRequestIdRef.current !== requestId) return;
+          if (externalSearchRequestIdRef.current !== requestId || !mountedRef.current) return;
           const providerSongs = dedupeSongs(response.results.map(freeMusicResultToSong)).slice(0, SEARCH_EXTERNAL_AUDIO_LIMIT);
           setBoundedCache(externalSearchCacheRef.current, normalizedSearchQuery, providerSongs, SEARCH_EXTERNAL_CACHE_LIMIT);
           setExternalSearchSongs(providerSongs);
         })
         .catch((error) => {
-          if (externalSearchRequestIdRef.current !== requestId) return;
+          if (externalSearchRequestIdRef.current !== requestId || !mountedRef.current) return;
           console.log("Search external provider error:", error);
           setExternalSearchSongs([]);
         })
         .finally(() => {
-          if (externalSearchRequestIdRef.current !== requestId) return;
+          if (externalSearchRequestIdRef.current !== requestId || !mountedRef.current) return;
           setExternalSearchCompletedQuery(query);
         });
     }, SEARCH_EXTERNAL_DEBOUNCE_MS);
@@ -743,22 +744,23 @@ export default function SearchScreen() {
 
     void fetchTvSearchVideos(query, { signal: controller.signal, limit: SEARCH_TV_LIMIT })
       .then((videos) => {
-        if (tvSearchRequestIdRef.current !== requestId) return;
+        if (tvSearchRequestIdRef.current !== requestId || !mountedRef.current) return;
         setTvSearchVideos(videos);
       })
       .catch((error) => {
-        if (tvSearchRequestIdRef.current !== requestId) return;
+        if (tvSearchRequestIdRef.current !== requestId || !mountedRef.current) return;
         if (error instanceof Error && error.name === "AbortError") return;
         console.log("Search TV fallback error:", error);
         setTvSearchVideos([]);
       })
       .finally(() => {
-        if (tvSearchRequestIdRef.current !== requestId) return;
+        if (tvSearchRequestIdRef.current !== requestId || !mountedRef.current) return;
         setTvSearchCompletedQuery(query);
       });
 
     return () => {
       controller.abort();
+      tvSearchRequestIdRef.current += 1;
     };
   }, [cleanSubmittedSearchQuery, shouldRunTvSearch]);
 

@@ -168,9 +168,11 @@ export function useLazyPodcastShowList({
   }, [cacheKey, enabled, fetchPage, readCachedFirstPage]);
 
   const onRefresh = useCallback(() => {
+    const generation = requestGenerationRef.current;
     setRefreshing(true);
     void fetchPage(0, false, true).finally(() => {
-      if (mountedRef.current) setRefreshing(false);
+      if (!mountedRef.current || generation !== requestGenerationRef.current) return;
+      setRefreshing(false);
     });
   }, [fetchPage]);
 
@@ -179,11 +181,13 @@ export function useLazyPodcastShowList({
       return;
     }
 
+    const generation = requestGenerationRef.current;
     loadingMoreRef.current = true;
     setLoadingMore(true);
     void fetchPage(shows.length, true, false).finally(() => {
       loadingMoreRef.current = false;
-      if (mountedRef.current) setLoadingMore(false);
+      if (!mountedRef.current || generation !== requestGenerationRef.current) return;
+      setLoadingMore(false);
     });
   }, [enabled, fetchPage, hasMore, loading, loadingMore, refreshing, shows.length]);
 

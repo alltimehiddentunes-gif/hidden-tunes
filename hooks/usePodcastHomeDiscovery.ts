@@ -9,7 +9,6 @@ import {
 import { PODCAST_HOME_LANE_PAGE_SIZE } from "../constants/podcastFoundation";
 import type { HiddenTunesPodcastShow } from "../services/podcastCatalogApi";
 import type { PodcastShowListItem } from "../types/podcastDiscovery";
-import { filterAvailablePodcastCategoryIds } from "../services/podcast/podcastCategoryAvailability";
 import {
   loadPodcastHomeLanePage,
   rememberRecommendedPodcastLane,
@@ -112,27 +111,11 @@ export function usePodcastHomeDiscovery(): PodcastHomeDiscoveryState {
       const browseCandidates = getBrowsablePodcastCategories(includeMatureInApi);
       const matureCandidates = includeMatureInApi ? getMaturePodcastSubcategories() : [];
 
-      const [availableEmotional, availableBrowse, availableMature] = await Promise.all([
-        filterAvailablePodcastCategoryIds(emotionalCandidates.map((category) => category.id)),
-        filterAvailablePodcastCategoryIds(browseCandidates.map((category) => category.id)),
-        matureCandidates.length
-          ? filterAvailablePodcastCategoryIds(matureCandidates.map((category) => category.id))
-          : Promise.resolve([]),
-      ]);
-
       if (cancelled) return;
 
-      setEmotionalWorlds(
-        emotionalCandidates
-          .filter((category) => availableEmotional.includes(category.id))
-          .map((world) => ({ world }))
-      );
-      setBrowseCategories(
-        browseCandidates.filter((category) => availableBrowse.includes(category.id))
-      );
-      setMatureCategories(
-        matureCandidates.filter((category) => availableMature.includes(category.id))
-      );
+      setEmotionalWorlds(emotionalCandidates.map((world) => ({ world })));
+      setBrowseCategories(browseCandidates);
+      setMatureCategories(matureCandidates);
     })();
 
     return () => {

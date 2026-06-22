@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import { usePathname, useRouter } from "expo-router";
-import { ReactNode, useMemo } from "react";
+import { ReactNode, useMemo, useRef } from "react";
 import {
   Platform,
   Pressable,
@@ -17,6 +17,7 @@ import { COLORS } from "../../constants/theme";
 import MiniPlayer from "../MiniPlayer";
 import PremiumBackground, { type PremiumBackgroundVariant } from "../PremiumBackground";
 import { MOBILE_BOTTOM_NAV_ITEMS, type AppNavigationItem } from "./navigationConfig";
+import { createKeyedTapGuard } from "../../utils/tapGuard";
 
 const MINI_PLAYER_ROUTES = [
   "/music-feed",
@@ -80,6 +81,7 @@ export default function AppShell({
   const router = useRouter();
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
+  const navTapGuardRef = useRef(createKeyedTapGuard(360));
   const bottomOffset = Math.max(insets.bottom, 8);
   const showMiniPlayer = isMiniPlayerRoute(pathname);
   const backgroundVariant = getBackgroundVariant(pathname);
@@ -122,7 +124,11 @@ export default function AppShell({
                 key={item.label}
                 accessibilityRole="button"
                 accessibilityLabel={`${item.label} tab`}
-                onPress={() => router.push(item.route as any)}
+                onPress={() => {
+                  if (item.active) return;
+                  if (!navTapGuardRef.current(item.route)) return;
+                  router.push(item.route as any);
+                }}
                 style={({ pressed }) => [
                   styles.navItem,
                   item.active && styles.navItemActive,

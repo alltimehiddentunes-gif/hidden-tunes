@@ -6,6 +6,7 @@ import { loadPodcastSearchPage } from "../services/podcastDiscoveryApi";
 import { loadRadioSearchPage } from "../services/radio/radioBrowserApi";
 import { toRadioStationListItem } from "../services/radio/radioNormalizer";
 import type { HiddenTunesStation, RadioStationListItem } from "../types/radio";
+import { useMountedRef } from "./useMountedRef";
 import {
   logHeatRequestCancelled,
   logHeatRequestComplete,
@@ -42,6 +43,15 @@ export function useDeferredSearchMediaSections(submittedQuery: string) {
   const [state, setState] = useState<DeferredSearchMediaState>(EMPTY_STATE);
   const requestGenerationRef = useRef(0);
   const stationStoreRef = useRef(new Map<string, HiddenTunesStation>());
+  const mountedRef = useMountedRef();
+
+  const safeSetState = useCallback(
+    (updater: (current: DeferredSearchMediaState) => DeferredSearchMediaState) => {
+      if (!mountedRef.current) return;
+      setState(updater);
+    },
+    [mountedRef]
+  );
 
   useEffect(() => {
     const query = submittedQuery.trim();
@@ -49,14 +59,14 @@ export function useDeferredSearchMediaSections(submittedQuery: string) {
     if (query.length < 2) {
       requestGenerationRef.current += 1;
       stationStoreRef.current.clear();
-      setState(EMPTY_STATE);
+      safeSetState(() => EMPTY_STATE);
       return;
     }
 
     const generation = requestGenerationRef.current + 1;
     requestGenerationRef.current = generation;
 
-    setState((current) => ({
+    safeSetState(() => ({
       ...EMPTY_STATE,
       podcastLoading: true,
       radioLoading: false,
@@ -75,7 +85,7 @@ export function useDeferredSearchMediaSections(submittedQuery: string) {
           forceRefresh: false,
         }).catch(() => ({ shows: [], hasMore: false }));
 
-        if (requestGenerationRef.current !== generation) {
+        if (requestGenerationRef.current !== generation || !mountedRef.current) {
           logHeatStaleResult("search:podcast", { query, generation });
           return;
         }
@@ -84,7 +94,7 @@ export function useDeferredSearchMediaSections(submittedQuery: string) {
           query,
           count: podcastResult.shows.length,
         });
-        setState((current) => ({
+        safeSetState((current) => ({
           ...current,
           podcastShows: podcastResult.shows.slice(0, MEDIA_DISCOVERY_PAGE_SIZE),
           podcastLoading: false,
@@ -103,7 +113,7 @@ export function useDeferredSearchMediaSections(submittedQuery: string) {
               forceRefresh: false,
             }).catch(() => ({ stations: [], hasMore: false, fromCache: false }));
 
-            if (requestGenerationRef.current !== generation) {
+            if (requestGenerationRef.current !== generation || !mountedRef.current) {
               logHeatStaleResult("search:radio", { query, generation });
               return;
             }
@@ -117,7 +127,7 @@ export function useDeferredSearchMediaSections(submittedQuery: string) {
               query,
               count: radioResult.stations.length,
             });
-            setState((current) => ({
+            safeSetState((current) => ({
               ...current,
               radioStations: radioResult.stations
                 .slice(0, MEDIA_DISCOVERY_PAGE_SIZE)
@@ -137,7 +147,7 @@ export function useDeferredSearchMediaSections(submittedQuery: string) {
       requestGenerationRef.current += 1;
       logHeatRequestCancelled("search:media", { query, generation });
     };
-  }, [submittedQuery]);
+  }, [mountedRef, safeSetState, submittedQuery]);
 
   const trimmedSubmittedQuery = submittedQuery.trim();
   const podcastReadyForQuery =

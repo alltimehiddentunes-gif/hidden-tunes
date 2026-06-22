@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
 import {
-  ActivityIndicator,
   ScrollView,
   StyleSheet,
   Text,
@@ -18,7 +17,6 @@ import { getMaturePodcastSubcategories } from "../../../constants/podcastCategor
 import { COLORS } from "../../../constants/theme";
 import { useMatureContentGate } from "../../../hooks/useMatureContentGate";
 import { useMatureContentSettings } from "../../../hooks/useMatureContentSettings";
-import { filterAvailablePodcastCategoryIds } from "../../../services/podcast/podcastCategoryAvailability";
 
 export default function PodcastMatureHubScreen() {
   const { includeMatureInApi } = useMatureContentSettings();
@@ -28,38 +26,9 @@ export default function PodcastMatureHubScreen() {
   const [subcategories, setSubcategories] = useState(() =>
     includeMatureInApi ? getMaturePodcastSubcategories() : []
   );
-  const [loadingCategories, setLoadingCategories] = useState(includeMatureInApi);
 
   useEffect(() => {
-    let cancelled = false;
-
-    if (!includeMatureInApi) {
-      setSubcategories([]);
-      setLoadingCategories(false);
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    const candidates = getMaturePodcastSubcategories();
-    setLoadingCategories(true);
-
-    void filterAvailablePodcastCategoryIds(candidates.map((category) => category.id))
-      .then((availableIds) => {
-        if (cancelled) return;
-        setSubcategories(candidates.filter((category) => availableIds.includes(category.id)));
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setSubcategories([]);
-      })
-      .finally(() => {
-        if (!cancelled) setLoadingCategories(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
+    setSubcategories(includeMatureInApi ? getMaturePodcastSubcategories() : []);
   }, [includeMatureInApi]);
 
   const openSubcategory = useCallback((categoryId: string) => {
@@ -110,12 +79,7 @@ export default function PodcastMatureHubScreen() {
         </View>
       </View>
 
-      {loadingCategories ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.gateText}>Loading adult podcast rooms...</Text>
-        </View>
-      ) : subcategories.length > 0 ? (
+      {subcategories.length > 0 ? (
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <View style={styles.grid}>
             {subcategories.map((category) => (
