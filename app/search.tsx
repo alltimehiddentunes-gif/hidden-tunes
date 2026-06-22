@@ -25,6 +25,7 @@ import { RadioStationCard } from "../components/radio/RadioBrowserCards";
 import FavoriteButton from "../components/FavoriteButton";
 import MatureContentConsentModal from "../components/mature/MatureContentConsentModal";
 import { useDeferredSearchMediaSections } from "../hooks/useDeferredSearchMediaSections";
+import { useRenderBurstDiagnostics } from "../hooks/useRenderBurstDiagnostics";
 import { useMatureContentGate } from "../hooks/useMatureContentGate";
 import { usePlaybackRouter } from "../hooks/usePlaybackRouter";
 import { usePlayerFeedSnapshot } from "../utils/playerFeedStore";
@@ -115,7 +116,7 @@ const SEARCH_LOCAL_CACHE_LIMIT = 24;
 const SEARCH_EXTERNAL_CACHE_LIMIT = 16;
 const SEARCH_EXTERNAL_AUDIO_LIMIT = 16;
 const SEARCH_PROVIDER_QUERY_LIMIT = 8;
-const SEARCH_EXTERNAL_DEBOUNCE_MS = 320;
+const SEARCH_EXTERNAL_DEBOUNCE_MS = 500;
 const SEARCH_TV_LIMIT = 8;
 
 const TRENDING_SEARCHES = [
@@ -301,6 +302,11 @@ export default function SearchScreen() {
   const [submittedSearchQuery, setSubmittedSearchQuery] = useState(
     initialQuery.length >= 2 ? initialQuery : ""
   );
+
+  useRenderBurstDiagnostics("screen:search", {
+    queryLength: searchQuery.length,
+    submittedLength: submittedSearchQuery.length,
+  });
   const [backendSearchSongs, setBackendSearchSongs] = useState<HiddenTunesNormalizedSong[]>([]);
   const [backendSearchQuery, setBackendSearchQuery] = useState("");
   const [backendSearchCompletedQuery, setBackendSearchCompletedQuery] = useState("");
@@ -1915,7 +1921,7 @@ export default function SearchScreen() {
                 ) : null}
 
                 {cleanSubmittedSearchQuery.length >= 2 &&
-                deferredMedia.mediaReadyForQuery &&
+                deferredMedia.podcastReadyForQuery &&
                 deferredMedia.podcastShows.length > 0 ? (
                   <View style={styles.sectionBlock}>
                     <View style={styles.sectionHeaderRow}>
@@ -1956,7 +1962,7 @@ export default function SearchScreen() {
                 ) : null}
 
                 {cleanSubmittedSearchQuery.length >= 2 &&
-                deferredMedia.mediaReadyForQuery &&
+                deferredMedia.radioReadyForQuery &&
                 deferredMedia.radioStations.length > 0 ? (
                   <View style={styles.sectionBlock}>
                     <View style={styles.sectionHeaderRow}>

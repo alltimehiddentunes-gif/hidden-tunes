@@ -18,6 +18,7 @@ import WorldHeader from "../components/worlds/WorldHeader";
 import WorldTrackRow from "../components/worlds/WorldTrackRow";
 import { COLORS, GRADIENTS } from "../constants/theme";
 import { searchTracks } from "../search/searchTracks";
+import { useRenderBurstDiagnostics } from "../hooks/useRenderBurstDiagnostics";
 import { useWorldCatalogTracks } from "../state/useWorldCatalogTracks";
 import type { Track } from "../types/music";
 import {
@@ -39,6 +40,12 @@ function WorldDetailScreen() {
 
   const world = useMemo(() => getWorldUiMeta(worldId), [worldId]);
   const { tracks: catalogTracks, loading } = useWorldCatalogTracks();
+
+  useRenderBurstDiagnostics("screen:world-detail", {
+    worldId: world?.id || "missing",
+    trackCount: catalogTracks.length,
+    loading,
+  });
 
   const alignedTracks = useMemo(() => {
     if (!world?.searchQuery || !catalogTracks.length) {

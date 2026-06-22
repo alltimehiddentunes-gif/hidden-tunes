@@ -6,8 +6,15 @@ import { loadPodcastSearchPage } from "../services/podcastDiscoveryApi";
 import { loadRadioSearchPage } from "../services/radio/radioBrowserApi";
 import { toRadioStationListItem } from "../services/radio/radioNormalizer";
 import type { HiddenTunesStation, RadioStationListItem } from "../types/radio";
+import {
+  logHeatRequestCancelled,
+  logHeatRequestComplete,
+  logHeatRequestStart,
+  logHeatStaleResult,
+} from "../utils/heatPerformanceDiagnostics";
 
-const SEARCH_MEDIA_DEFER_MS = 480;
+const SEARCH_MEDIA_DEFER_MS = 700;
+const SEARCH_MEDIA_SECONDARY_DEFER_MS = 180;
 
 type DeferredSearchMediaState = {
   podcastShows: HiddenTunesPodcastShow[];
@@ -52,60 +59,92 @@ export function useDeferredSearchMediaSections(submittedQuery: string) {
     setState((current) => ({
       ...EMPTY_STATE,
       podcastLoading: true,
-      radioLoading: true,
+      radioLoading: false,
       podcastQuery: query,
-      radioQuery: query,
+      radioQuery: "",
     }));
+
+    let radioTimer: ReturnType<typeof setTimeout> | null = null;
 
     const timer = setTimeout(() => {
       void (async () => {
-        const podcastPromise = loadPodcastSearchPage(query, {
+        const podcastStartedAt = Date.now();
+        logHeatRequestStart("search:podcast", { query, generation });
+        const podcastResult = await loadPodcastSearchPage(query, {
           offset: 0,
           forceRefresh: false,
         }).catch(() => ({ shows: [], hasMore: false }));
 
-        const radioPromise = loadRadioSearchPage(query, {
-          offset: 0,
-          limit: MEDIA_DISCOVERY_PAGE_SIZE,
-          forceRefresh: false,
-        }).catch(() => ({ stations: [], hasMore: false, fromCache: false }));
+        if (requestGenerationRef.current !== generation) {
+          logHeatStaleResult("search:podcast", { query, generation });
+          return;
+        }
 
-        const [podcastResult, radioResult] = await Promise.all([
-          podcastPromise,
-          radioPromise,
-        ]);
-
-        if (requestGenerationRef.current !== generation) return;
-
-        radioResult.stations.slice(0, MEDIA_DISCOVERY_PAGE_SIZE).forEach((station) => {
-          stationStoreRef.current.set(station.id, station);
+        logHeatRequestComplete("search:podcast", podcastStartedAt, {
+          query,
+          count: podcastResult.shows.length,
         });
-
-        setState({
+        setState((current) => ({
+          ...current,
           podcastShows: podcastResult.shows.slice(0, MEDIA_DISCOVERY_PAGE_SIZE),
-          radioStations: radioResult.stations
-            .slice(0, MEDIA_DISCOVERY_PAGE_SIZE)
-            .map(toRadioStationListItem),
           podcastLoading: false,
-          radioLoading: false,
           podcastQuery: query,
-          radioQuery: query,
           podcastHasMore: podcastResult.hasMore,
-          radioHasMore: radioResult.hasMore,
-        });
+          radioLoading: true,
+        }));
+
+        radioTimer = setTimeout(() => {
+          void (async () => {
+            const radioStartedAt = Date.now();
+            logHeatRequestStart("search:radio", { query, generation });
+            const radioResult = await loadRadioSearchPage(query, {
+              offset: 0,
+              limit: MEDIA_DISCOVERY_PAGE_SIZE,
+              forceRefresh: false,
+            }).catch(() => ({ stations: [], hasMore: false, fromCache: false }));
+
+            if (requestGenerationRef.current !== generation) {
+              logHeatStaleResult("search:radio", { query, generation });
+              return;
+            }
+
+            stationStoreRef.current.clear();
+            radioResult.stations.slice(0, MEDIA_DISCOVERY_PAGE_SIZE).forEach((station) => {
+              stationStoreRef.current.set(station.id, station);
+            });
+
+            logHeatRequestComplete("search:radio", radioStartedAt, {
+              query,
+              count: radioResult.stations.length,
+            });
+            setState((current) => ({
+              ...current,
+              radioStations: radioResult.stations
+                .slice(0, MEDIA_DISCOVERY_PAGE_SIZE)
+                .map(toRadioStationListItem),
+              radioLoading: false,
+              radioQuery: query,
+              radioHasMore: radioResult.hasMore,
+            }));
+          })();
+        }, SEARCH_MEDIA_SECONDARY_DEFER_MS);
       })();
     }, SEARCH_MEDIA_DEFER_MS);
 
     return () => {
       clearTimeout(timer);
+      if (radioTimer) clearTimeout(radioTimer);
       requestGenerationRef.current += 1;
+      logHeatRequestCancelled("search:media", { query, generation });
     };
   }, [submittedQuery]);
 
-  const mediaReadyForQuery =
-    submittedQuery.trim().length >= 2 &&
-    state.podcastQuery === submittedQuery.trim() &&
-    state.radioQuery === submittedQuery.trim();
+  const trimmedSubmittedQuery = submittedQuery.trim();
+  const podcastReadyForQuery =
+    trimmedSubmittedQuery.length >= 2 && state.podcastQuery === trimmedSubmittedQuery;
+  const radioReadyForQuery =
+    trimmedSubmittedQuery.length >= 2 && state.radioQuery === trimmedSubmittedQuery;
+  const mediaReadyForQuery = podcastReadyForQuery && radioReadyForQuery;
 
   const resolveRadioStation = useCallback(
     (stationId: string) => stationStoreRef.current.get(stationId) || null,
@@ -115,6 +154,8 @@ export function useDeferredSearchMediaSections(submittedQuery: string) {
   return {
     ...state,
     mediaReadyForQuery,
+    podcastReadyForQuery,
+    radioReadyForQuery,
     maxSectionSize: MEDIA_DISCOVERY_PAGE_SIZE,
     resolveRadioStation,
   };
