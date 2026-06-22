@@ -2,7 +2,6 @@ import { memo, useCallback, useEffect, useRef } from "react";
 import {
   StyleProp,
   StyleSheet,
-  Text,
   TextInput,
   TextInputProps,
   TouchableOpacity,
@@ -44,8 +43,6 @@ function DebouncedSearchInput({
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latestValueRef = useRef(value);
 
-  latestValueRef.current = value;
-
   const scheduleDebouncedChange = useCallback(
     (text: string) => {
       if (debounceTimerRef.current) {
@@ -70,6 +67,7 @@ function DebouncedSearchInput({
 
   const handleChangeText = useCallback(
     (text: string) => {
+      latestValueRef.current = text;
       onImmediateChange?.(text);
       scheduleDebouncedChange(text);
     },
@@ -83,10 +81,15 @@ function DebouncedSearchInput({
     }
 
     debounceGateRef.current.reset();
+    latestValueRef.current = "";
     onImmediateChange?.("");
     onDebouncedChange("");
     onClear?.();
   }, [onClear, onDebouncedChange, onImmediateChange]);
+
+  useEffect(() => {
+    latestValueRef.current = value;
+  }, [value]);
 
   useEffect(() => {
     return () => {

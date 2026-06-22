@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -184,11 +184,13 @@ export default function RadioScreen() {
     return mood || guessMoodFromText(`${title} ${artist} ${query}`);
   }, [mood, title, artist, query]);
 
-  useEffect(() => {
-    loadRadio();
-  }, [query, artist, genre, mood]);
+  const radioLoadRequestRef = useRef(0);
 
-  async function loadRadio() {
+  const loadRadio = useCallback(async () => {
+    const requestId = radioLoadRequestRef.current + 1;
+    radioLoadRequestRef.current = requestId;
+    const isCurrentRequest = () => radioLoadRequestRef.current === requestId;
+
     try {
       setLoading(true);
       setStatusText("Finding tracks for you...");
@@ -214,6 +216,7 @@ export default function RadioScreen() {
 
       for (const searchTerm of searchQueries) {
         const results = await searchHiddenTunesSongs(searchTerm);
+        if (!isCurrentRequest()) return;
 
         if (Array.isArray(results)) {
           combinedCloudSongs = [...combinedCloudSongs, ...results.map(safeSong)];
@@ -221,6 +224,7 @@ export default function RadioScreen() {
       }
 
       const uniqueCloudSongs = dedupeSongs(combinedCloudSongs);
+      if (!isCurrentRequest()) return;
 
       setCloudTracks(uniqueCloudSongs);
 
@@ -242,6 +246,8 @@ export default function RadioScreen() {
         youtubeQueries.slice(0, 3).map((item) => searchYouTubeBackend(item))
       );
 
+      if (!isCurrentRequest()) return;
+
       const merged = responses.flat().filter(Boolean);
       const uniqueYouTube = dedupeYouTubeTracks(merged);
 
@@ -252,13 +258,25 @@ export default function RadioScreen() {
           : "No tracks found for this vibe"
       );
     } catch {
+      if (!isCurrentRequest()) return;
       setCloudTracks([]);
       setYoutubeTracks([]);
       setStatusText(TESTER_COPY.radioLoadFailed);
     } finally {
-      setLoading(false);
+      if (isCurrentRequest()) setLoading(false);
     }
-  }
+  }, [artist, genre, mood, query, radioGenre, radioMood, title]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      void loadRadio();
+    }, 0);
+
+    return () => {
+      clearTimeout(timer);
+      radioLoadRequestRef.current += 1;
+    };
+  }, [loadRadio]);
 
   function openCloudTrack(song: HiddenTunesNormalizedSong, index: number) {
     try {
