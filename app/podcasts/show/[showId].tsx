@@ -14,6 +14,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 
 import { PodcastEpisodeRow } from "../../../components/podcast/PodcastDiscoveryCards";
+import FavoriteButton from "../../../components/FavoriteButton";
 import MatureContentConsentModal from "../../../components/mature/MatureContentConsentModal";
 import { COLORS } from "../../../constants/theme";
 import { TESTER_COPY } from "../../../constants/testerExperience";
@@ -33,6 +34,7 @@ import {
   getListPerformanceSettings,
 } from "../../../utils/performanceMode";
 import { isMaturePodcastEpisode } from "../../../utils/maturePodcastVisibility";
+import { buildPodcastShowFavoriteItem } from "../../../services/favorites/favoriteItemBuilders";
 
 export default function PodcastShowScreen() {
   const { playPodcastEpisode } = usePlaybackRouter();
@@ -188,6 +190,18 @@ export default function PodcastShowScreen() {
           </Text>
           <Text style={styles.subtitle}>Episodes in this show</Text>
         </View>
+
+        <FavoriteButton
+          item={buildPodcastShowFavoriteItem({
+            id: showId,
+            slug: showId,
+            title: showTitle,
+            categories: [],
+            sourceName: "Hidden Tunes",
+            is_mature: showIsMature,
+          })}
+          size={20}
+        />
       </View>
 
       {playbackError ? (

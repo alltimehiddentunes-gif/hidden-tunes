@@ -3,12 +3,15 @@ import { StyleSheet, TouchableOpacity, View } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
 
+import FavoriteButton from "../FavoriteButton";
 import MediaCard from "../MediaCard";
 import NeonEQ from "../NeonEQ";
 import {
   getUserFacingArtist,
   getUserFacingSongSubtitle,
 } from "../../services/ui/displayMetadata";
+import { buildSongFavoriteItem } from "../../services/favorites/favoriteItemBuilders";
+import { COLORS } from "../../constants/theme";
 
 type CatalogSongRowProps = {
   song: {
@@ -55,6 +58,7 @@ function CatalogSongRow({
       />
 
       <View style={styles.action}>
+        <FavoriteButton item={buildSongFavoriteItem(song)} size={20} color={COLORS.text} />
         {active ? (
           <NeonEQ isPlaying={isPlaying} size="small" />
         ) : (

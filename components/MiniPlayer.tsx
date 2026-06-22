@@ -48,6 +48,8 @@ import {
   isRadioStreamSong,
 } from "../services/playback/playbackRouter";
 import HTImage from "./HTImage";
+import FavoriteButton from "./FavoriteButton";
+import { buildSongFavoriteItem } from "../services/favorites/favoriteItemBuilders";
 import { FALLBACK_ARTWORK } from "../utils/artwork";
 import { isFastScrolling } from "../utils/performanceMode";
 import {
@@ -684,6 +686,9 @@ function MiniPlayer() {
             </AnimatedPressable>
 
             <View pointerEvents="box-none" style={styles.controlsCluster}>
+              {!isYoutubeMode && !isLiveRadioMode && !isPodcastMode && currentSong?.id ? (
+                <FavoriteButton item={buildSongFavoriteItem(currentSong)} size={18} />
+              ) : null}
               {!isYoutubeMode && !isLiveRadioMode && (
                 <MiniControlButton
                   accessibilityLabel="Previous track"

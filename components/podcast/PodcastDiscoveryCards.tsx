@@ -18,6 +18,11 @@ import { useMatureContentSettings } from "../../hooks/useMatureContentSettings";
 import { isMaturePodcastEpisode } from "../../utils/maturePodcastVisibility";
 import { isMatureContentItem } from "../../types/matureContent";
 import MatureContentBadge from "../mature/MatureContentBadge";
+import FavoriteButton from "../FavoriteButton";
+import {
+  buildPodcastEpisodeFavoriteItem,
+  buildPodcastShowFavoriteItem,
+} from "../../services/favorites/favoriteItemBuilders";
 import type { HiddenTunesPodcastEpisode } from "../../services/podcastCatalogApi";
 
 type PodcastCategoryCardProps = {
@@ -217,6 +222,7 @@ export const PodcastShowCard = memo(function PodcastShowCard({
         {isPremium ? <PodcastShowMetaChips item={listItem} /> : null}
       </View>
 
+      <FavoriteButton item={buildPodcastShowFavoriteItem(show)} size={18} />
       <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
     </TouchableOpacity>
   );
@@ -320,6 +326,13 @@ export const PodcastEpisodeRow = memo(function PodcastEpisodeRow({
         </Text>
       </View>
 
+      <FavoriteButton
+        item={buildPodcastEpisodeFavoriteItem(episode, {
+          showTitle: subtitle,
+          showIsMature,
+        })}
+        size={18}
+      />
       <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
     </TouchableOpacity>
   );

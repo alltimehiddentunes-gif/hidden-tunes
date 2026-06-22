@@ -26,6 +26,7 @@ import Animated, {
 } from "react-native-reanimated";
 
 import AddToPlaylistModal from "../components/AddToPlaylistModal";
+import FavoriteButton from "../components/FavoriteButton";
 import HTImage from "../components/HTImage";
 import NeonEQ from "../components/NeonEQ";
 import AppShell from "../components/navigation/AppShell";
@@ -37,6 +38,7 @@ import {
   usePlayerState,
 } from "../context/PlayerContext";
 import { isRadioStreamSong } from "../services/playback/playbackRouter";
+import { buildSongFavoriteItem } from "../services/favorites/favoriteItemBuilders";
 import { openGenreCatalog, openMoodCatalog } from "../utils/catalogNavigation";
 import { normalizeGenreName } from "../utils/genreNormalization";
 import { getBestLyricsPayload, setLyricsMemoryCache } from "../utils/lyrics";
@@ -980,6 +982,13 @@ export default function PlayerScreen() {
               <Ionicons name="add-circle" size={19} color={COLORS.text} />
               <Text style={styles.extraActionText}>Add to Playlist</Text>
             </Pressable>
+
+            {currentSong?.id ? (
+              <View style={styles.extraAction}>
+                <FavoriteButton item={buildSongFavoriteItem(currentSong)} size={19} activeColor={COLORS.pink} />
+                <Text style={styles.extraActionText}>Favorite</Text>
+              </View>
+            ) : null}
           </View>
 
           {nextUpSong ? (

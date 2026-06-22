@@ -19,6 +19,7 @@ import MatureContentConsentModal from "../components/mature/MatureContentConsent
 import { COLORS, GRADIENTS } from "../constants/theme";
 import { usePlayerState } from "../context/PlayerContext";
 import { useMatureContentSettings } from "../hooks/useMatureContentSettings";
+import { useFavorites } from "../hooks/useFavorites";
 import { getDownloadedSongs } from "../services/downloads";
 import {
   getStoredUserRole,
@@ -210,8 +211,8 @@ function ProfileRow({
 }
 
 export default function ProfileScreen() {
-  const { favorites, recentlyPlayed, activeQueue, songs, onlineSongs } =
-    usePlayerState();
+  const { recentlyPlayed, activeQueue, songs, onlineSongs } = usePlayerState();
+  const { favorites: unifiedFavorites } = useFavorites();
   const { enabled, enableWithConsent, disable } = useMatureContentSettings();
   const [enableMatureModalVisible, setEnableMatureModalVisible] = useState(false);
   const [userRole, setUserRole] = useState<UserRole>("listener");
@@ -242,8 +243,8 @@ export default function ProfileScreen() {
     }
 
     cards.push({
-      value: String(favorites.length),
-      label: favorites.length === 1 ? "Favorite" : "Favorites",
+      value: String(unifiedFavorites.length),
+      label: unifiedFavorites.length === 1 ? "Favorite" : "Favorites",
     });
 
     cards.push({
@@ -270,7 +271,7 @@ export default function ProfileScreen() {
     activeQueue.length,
     catalogTrackCount,
     downloadsCount,
-    favorites.length,
+    unifiedFavorites.length,
     recentlyPlayed.length,
   ]);
 

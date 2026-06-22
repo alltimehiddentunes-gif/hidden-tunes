@@ -14,10 +14,12 @@ import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
 import ArtistTrackRow from "../../components/catalog/ArtistTrackRow";
+import FavoriteButton from "../../components/FavoriteButton";
 import HTImage from "../../components/HTImage";
 import PremiumBackground from "../../components/PremiumBackground";
 
 import { COLORS, GRADIENTS } from "../../constants/theme";
+import { buildArtistFavoriteItem } from "../../services/favorites/favoriteItemBuilders";
 import {
   usePlayerActions,
   usePlayerNowPlaying,
@@ -510,6 +512,18 @@ export default function ArtistScreen() {
             >
               <Ionicons name="shuffle" size={20} color={COLORS.text} />
             </TouchableOpacity>
+
+            {artist?.id ? (
+              <FavoriteButton
+                item={buildArtistFavoriteItem({
+                  id: String(artist.id),
+                  name: artist.name,
+                  artwork: artistArtwork,
+                  genre: artist.genre,
+                })}
+                size={20}
+              />
+            ) : null}
           </View>
         </View>
 

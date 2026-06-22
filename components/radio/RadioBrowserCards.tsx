@@ -11,6 +11,8 @@ import { getUserFacingRadioSubtitle } from "../../services/ui/displayMetadata";
 import { useMatureContentSettings } from "../../hooks/useMatureContentSettings";
 import { isMatureContentItem } from "../../types/matureContent";
 import MatureContentBadge from "../mature/MatureContentBadge";
+import FavoriteButton from "../FavoriteButton";
+import { buildRadioStationFavoriteItem } from "../../services/favorites/favoriteItemBuilders";
 
 type RadioCategoryCardProps = {
   category: RadioCategory;
@@ -157,6 +159,7 @@ export const RadioStationCard = memo(function RadioStationCard({
         {isPremium ? <StationMetaChips item={item} /> : null}
       </View>
 
+      <FavoriteButton item={buildRadioStationFavoriteItem(item)} size={18} />
       <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
     </TouchableOpacity>
   );

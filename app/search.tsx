@@ -22,6 +22,7 @@ import DebouncedSearchInput from "../components/search/DebouncedSearchInput";
 import { SearchApkSongRow } from "../components/search/SearchApkSongRow";
 import { PodcastShowCard } from "../components/podcast/PodcastDiscoveryCards";
 import { RadioStationCard } from "../components/radio/RadioBrowserCards";
+import FavoriteButton from "../components/FavoriteButton";
 import MatureContentConsentModal from "../components/mature/MatureContentConsentModal";
 import { useDeferredSearchMediaSections } from "../hooks/useDeferredSearchMediaSections";
 import { useMatureContentGate } from "../hooks/useMatureContentGate";
@@ -90,6 +91,12 @@ import { isHeavyPerfDiagnosticsEnabled } from "../utils/devDiagnostics";
 import { logEntityTapReceived } from "../utils/entityDiagnostics";
 import { resolveStationEntity } from "../utils/entityResolution";
 import { resolveEntityArtwork } from "../utils/artwork";
+import {
+  buildAlbumFavoriteItem,
+  buildArtistFavoriteItem,
+  buildRadioStationFavoriteItem,
+  buildSongFavoriteItem,
+} from "../services/favorites/favoriteItemBuilders";
 import { markFastScrolling } from "../utils/performanceMode";
 import {
   getUserFacingArtist,
@@ -959,13 +966,13 @@ export default function SearchScreen() {
   }, [cleanSubmittedSearchQuery, searchResults.tv]);
 
   const apkResultCount =
-    apkSongResults.length +
-    apkAlbumResults.length +
-    apkArtistResults.length +
-    apkRoomResults.length +
-    apkPlaylistResults.length +
-    apkStationResults.length +
-    apkExternalAudioResults.length +
+    apkSongResults.length
+    apkAlbumResults.length
+    apkArtistResults.length
+    apkRoomResults.length
+    apkPlaylistResults.length
+    apkStationResults.length
+    apkExternalAudioResults.length
     apkTvResults.length;
 
   const hasSearchText = searchQuery.trim().length > 0;
@@ -1686,13 +1693,24 @@ export default function SearchScreen() {
                       windowSize={5}
                       removeClippedSubviews
                       renderItem={({ item: album }) => (
-                        <TouchableOpacity activeOpacity={0.88} style={styles.albumCard} onPress={() => playAlbumResult(album)}>
-                          <HTImage source={album} style={styles.albumImage} contentFit="cover" />
-                          <Text numberOfLines={2} style={styles.albumTitle}>{album.title}</Text>
-                          <Text numberOfLines={1} style={styles.albumArtist}>
-                            {getUserFacingArtist(album)}
-                          </Text>
-                        </TouchableOpacity>
+                        <View style={styles.albumCardWrap}>
+                          <TouchableOpacity activeOpacity={0.88} style={styles.albumCard} onPress={() => playAlbumResult(album)}>
+                            <HTImage source={album} style={styles.albumImage} contentFit="cover" />
+                            <Text numberOfLines={2} style={styles.albumTitle}>{album.title}</Text>
+                            <Text numberOfLines={1} style={styles.albumArtist}>
+                              {getUserFacingArtist(album)}
+                            </Text>
+                          </TouchableOpacity>
+                          <FavoriteButton
+                            item={buildAlbumFavoriteItem({
+                              id: String(album.id),
+                              title: album.title,
+                              artist: album.artist,
+                              artwork: album.artwork,
+                            })}
+                            size={16}
+                          />
+                        </View>
                       )}
                     />
                   </View>
@@ -1712,11 +1730,21 @@ export default function SearchScreen() {
                       windowSize={5}
                       removeClippedSubviews
                       renderItem={({ item: artist }) => (
-                        <TouchableOpacity activeOpacity={0.88} style={styles.artistCard} onPress={() => playArtistResult(artist)}>
-                          <HTImage source={artist} style={styles.artistImage} contentFit="cover" />
-                          <Text numberOfLines={2} style={styles.artistName}>{artist.name}</Text>
-                          <Text numberOfLines={1} style={styles.artistMeta}>{artist.songs.length} song{artist.songs.length === 1 ? "" : "s"}</Text>
-                        </TouchableOpacity>
+                        <View style={styles.albumCardWrap}>
+                          <TouchableOpacity activeOpacity={0.88} style={styles.artistCard} onPress={() => playArtistResult(artist)}>
+                            <HTImage source={artist} style={styles.artistImage} contentFit="cover" />
+                            <Text numberOfLines={2} style={styles.artistName}>{artist.name}</Text>
+                            <Text numberOfLines={1} style={styles.artistMeta}>{artist.songs.length} song{artist.songs.length === 1 ? "" : "s"}</Text>
+                          </TouchableOpacity>
+                          <FavoriteButton
+                            item={buildArtistFavoriteItem({
+                              id: String(artist.id),
+                              name: artist.name,
+                              artwork: artist.artwork,
+                            })}
+                            size={16}
+                          />
+                        </View>
                       )}
                     />
                   </View>
@@ -1822,6 +1850,7 @@ export default function SearchScreen() {
                             {getUserFacingSongSubtitle(song)}
                           </Text>
                         </View>
+                        <FavoriteButton item={buildSongFavoriteItem(song)} size={18} />
                         <View style={styles.playCircle}>
                           <Ionicons
                             name={(song as any).raw?.canPlayNatively === false ? "open-outline" : "play"}
@@ -2459,6 +2488,11 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   albumCard: { width: 132 },
+  albumCardWrap: {
+    width: 132,
+    alignItems: "center",
+    gap: 4,
+  },
   albumImage: {
     width: 132,
     height: 132,

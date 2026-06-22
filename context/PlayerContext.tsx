@@ -28,6 +28,16 @@ import {
   RecentlyPlayedTrack,
 } from "../services/recentlyPlayedEngine";
 
+import { buildSongFavoriteItem } from "../services/favorites/favoriteItemBuilders";
+import {
+  hydrateUnifiedFavorites,
+  isFavorite as isUnifiedFavorite,
+  songFavoriteToAppSong,
+  subscribeUnifiedFavorites,
+  toggleFavorite as toggleUnifiedFavorite,
+  getUnifiedFavoritesSnapshot,
+} from "../services/favorites/unifiedFavorites";
+
 import {
   addToSmartQueue,
   getSmartQueue,
@@ -904,7 +914,17 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     return advanceEmotionalQueueState();
   }, []);
 
-  const [favorites, setFavorites] = useState<AppSong[]>([]);
+  const unifiedFavoritesSnapshot = useSyncExternalStore(
+    subscribeUnifiedFavorites,
+    getUnifiedFavoritesSnapshot,
+    getUnifiedFavoritesSnapshot
+  );
+
+  const favorites = useMemo(() => {
+    return unifiedFavoritesSnapshot.items
+      .filter((item) => item.type === "song")
+      .map((item) => songFavoriteToAppSong(item) as AppSong);
+  }, [unifiedFavoritesSnapshot.version, unifiedFavoritesSnapshot.items]);
   const [recentlyPlayed, setRecentlyPlayed] = useState<RecentlyPlayedTrack[]>([]);
 
   const [youtubeQueue, setYouTubeQueue] = useState<BackendYouTubeTrack[]>([]);
@@ -6474,16 +6494,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       if (!song?.id) return;
 
       const normalizedSong = normalizeSong(song);
-      const exists = favorites.some((item) => item.id === normalizedSong.id);
-
-      const updated = exists
-        ? favorites.filter((item) => item.id !== normalizedSong.id)
-        : [normalizedSong, ...favorites];
-
-      setFavorites(updated);
-      await setStoredValueIfChanged(FAVORITES_KEY, JSON.stringify(updated));
+      const item = buildSongFavoriteItem(normalizedSong);
+      item.id = makeSafeSongId(normalizedSong);
+      await toggleUnifiedFavorite(item);
     },
-    [favorites, normalizeSong, setStoredValueIfChanged]
+    [normalizeSong, makeSafeSongId]
   );
 
   const isFavorite = useCallback(
@@ -6491,9 +6506,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       if (!song?.id) return false;
 
       const normalizedId = makeSafeSongId(song);
-      return favorites.some((item) => item.id === normalizedId);
+      return isUnifiedFavorite("song", normalizedId);
     },
-    [favorites, makeSafeSongId]
+    [makeSafeSongId]
   );
 
   const clearActiveQueue = useCallback(async () => {
@@ -6697,8 +6712,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     logPlayerContextDebug("[startup-ready] restore-heavy-start");
 
     try {
+      await hydrateUnifiedFavorites();
+
       const [
-        savedFavorites,
         savedQueue,
         savedIndex,
         savedRadioMode,
@@ -6708,7 +6724,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         savedActiveQueueMode,
         savedActiveQueueContext,
       ] = await Promise.all([
-        AsyncStorage.getItem(FAVORITES_KEY),
         AsyncStorage.getItem(YOUTUBE_QUEUE_KEY),
         AsyncStorage.getItem(YOUTUBE_QUEUE_INDEX_KEY),
         AsyncStorage.getItem(RADIO_MODE_KEY),
@@ -6723,15 +6738,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         loadRadioQueue(),
         loadRecentlyPlayed(),
       ]);
-
-      if (savedFavorites) {
-        const parsedFavorites = JSON.parse(savedFavorites);
-        if (Array.isArray(parsedFavorites)) {
-          setFavorites(parsedFavorites.map(normalizeSong));
-        }
-      }
-
-      await yieldToNextFrame();
 
       if (savedQueue) {
         const parsedQueue = JSON.parse(savedQueue);

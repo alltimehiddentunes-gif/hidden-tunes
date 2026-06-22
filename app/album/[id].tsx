@@ -15,10 +15,12 @@ import { Ionicons } from "@expo/vector-icons";
 
 import NeonEQ from "../../components/NeonEQ";
 import AddToPlaylistButton from "../../components/AddToPlaylistButton";
+import FavoriteButton from "../../components/FavoriteButton";
 import HTImage from "../../components/HTImage";
 import PremiumBackground from "../../components/PremiumBackground";
 
 import { COLORS, GRADIENTS } from "../../constants/theme";
+import { buildAlbumFavoriteItem, buildSongFavoriteItem } from "../../services/favorites/favoriteItemBuilders";
 import {
   usePlayerActions,
   usePlayerNowPlaying,
@@ -675,6 +677,19 @@ export default function AlbumScreen() {
                 >
                   <Ionicons name="shuffle" size={20} color={COLORS.text} />
                 </TouchableOpacity>
+
+                {album?.id ? (
+                  <FavoriteButton
+                    item={buildAlbumFavoriteItem({
+                      id: String(album.id),
+                      title: album.title,
+                      artist: album.artist,
+                      artwork: albumArtwork,
+                      artistId: album.artistId,
+                    })}
+                    size={20}
+                  />
+                ) : null}
               </View>
             </View>
 
@@ -723,6 +738,7 @@ export default function AlbumScreen() {
               </View>
 
               <AddToPlaylistButton track={item as any} />
+              <FavoriteButton item={buildSongFavoriteItem(item)} size={20} />
 
               <Ionicons
                 name={active && isPlaying ? "pause-circle" : "play-circle"}

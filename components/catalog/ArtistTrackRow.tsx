@@ -4,9 +4,11 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
 import AddToPlaylistButton from "../AddToPlaylistButton";
+import FavoriteButton from "../FavoriteButton";
 import HTImage from "../HTImage";
 import NeonEQ from "../NeonEQ";
 import { COLORS } from "../../constants/theme";
+import { buildSongFavoriteItem } from "../../services/favorites/favoriteItemBuilders";
 
 type ArtistTrackRowProps = {
   track: {
@@ -66,6 +68,7 @@ function ArtistTrackRow({
         </Text>
       </View>
 
+      <FavoriteButton item={buildSongFavoriteItem(track)} size={20} />
       <AddToPlaylistButton track={track as any} />
 
       <Ionicons

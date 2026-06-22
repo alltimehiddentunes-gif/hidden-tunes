@@ -13,6 +13,8 @@ import {
 } from "../../services/ui/displayMetadata";
 import HTImage from "../HTImage";
 import NeonEQ from "../NeonEQ";
+import FavoriteButton from "../FavoriteButton";
+import { buildSongFavoriteItem } from "../../services/favorites/favoriteItemBuilders";
 
 type SearchApkSongRowProps = {
   song: HiddenTunesNormalizedSong;
@@ -27,6 +29,7 @@ type SearchApkSongRowProps = {
     songArtist: object;
     songMeta: object;
     playCircle: object;
+    resultActions?: object;
   };
 };
 
@@ -57,13 +60,16 @@ export const SearchApkSongRow = memo(function SearchApkSongRow({
           {getUserFacingSongSubtitle(song)}
         </Text>
       </View>
-      {isActive && isPlaying ? (
-        <NeonEQ isPlaying={isPlaying} size="small" />
-      ) : (
-        <View style={styles.playCircle}>
-          <Ionicons name="play" size={16} color={COLORS.text} />
-        </View>
-      )}
+      <View style={[styles.resultActions, { flexDirection: "row", alignItems: "center", gap: 4 }]}>
+        <FavoriteButton item={buildSongFavoriteItem(song)} size={18} />
+        {isActive && isPlaying ? (
+          <NeonEQ isPlaying={isPlaying} size="small" />
+        ) : (
+          <View style={styles.playCircle}>
+            <Ionicons name="play" size={16} color={COLORS.text} />
+          </View>
+        )}
+      </View>
     </TouchableOpacity>
   );
 });
