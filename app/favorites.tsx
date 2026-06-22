@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import {
   ScrollView,
   StyleSheet,
@@ -27,6 +27,7 @@ import { useFavorites } from "../hooks/useFavorites";
 import { usePlaybackRouter } from "../hooks/usePlaybackRouter";
 import type { FavoriteItemType, UnifiedFavoriteItem } from "../types/favorites";
 import { songFavoriteToAppSong } from "../services/favorites/unifiedFavorites";
+import { logVisibleFeatureChecklist } from "../utils/visibleFeatureDiagnostics";
 
 type FavoriteSection = {
   id: string;
@@ -76,6 +77,14 @@ export default function FavoritesScreen() {
   }, [visibleFavorites]);
 
   const totalVisible = visibleFavorites.length;
+
+  useEffect(() => {
+    logVisibleFeatureChecklist({
+      favoritesScreenMounted: true,
+      favoriteSectionCount: sections.length,
+      favoriteItemCount: totalVisible,
+    });
+  }, [sections.length, totalVisible]);
 
   const playFavoriteSong = useCallback(
     (item: UnifiedFavoriteItem, index: number) => {

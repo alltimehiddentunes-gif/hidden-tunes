@@ -50,6 +50,22 @@ export const EmotionalDiscoveryChips = memo(function EmotionalDiscoveryChips({
         <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
       </Pressable>
 
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Podcasts. Shows and episodes for every mood"
+        style={({ pressed }) => [styles.liveRadioCard, pressed && styles.podcastCardPressed]}
+        onPress={() => router.push("/podcasts" as any)}
+      >
+        <View style={styles.podcastIcon}>
+          <Ionicons name="mic-outline" size={18} color={COLORS.primary} />
+        </View>
+        <View style={styles.liveRadioCopy}>
+          <Text style={styles.liveRadioTitle}>Podcasts</Text>
+          <Text style={styles.liveRadioSubtitle}>Shows and episodes for every mood</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
+      </Pressable>
+
       <View style={styles.chipWrap}>
         {EMOTIONAL_DISCOVERY_SHORTCUTS.map((item) => (
           <Pressable
@@ -122,6 +138,10 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(34,211,238,0.1)",
     borderColor: "rgba(34,211,238,0.32)",
   },
+  podcastCardPressed: {
+    backgroundColor: "rgba(168,85,247,0.1)",
+    borderColor: "rgba(168,85,247,0.32)",
+  },
   liveRadioIcon: {
     width: 38,
     height: 38,
@@ -131,6 +151,16 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(34,211,238,0.12)",
     borderWidth: 1,
     borderColor: "rgba(34,211,238,0.24)",
+  },
+  podcastIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(168,85,247,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(168,85,247,0.24)",
   },
   liveRadioCopy: {
     flex: 1,

@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+
+import { useMountedRef } from "./useMountedRef";
 
 import { MEDIA_DISCOVERY_PAGE_SIZE } from "../constants/mediaDiscovery";
 import type { HiddenTunesPodcastEpisode } from "../services/podcastCatalogApi";
@@ -48,6 +50,7 @@ export function useLazyPodcastEpisodeList({
   const requestGenerationRef = useRef(0);
   const loadPageRef = useRef(loadPage);
   const loadingMoreRef = useRef(false);
+  const mountedRef = useMountedRef();
 
   loadPageRef.current = loadPage;
 
@@ -166,22 +169,28 @@ export function useLazyPodcastEpisodeList({
   }, [normalizeVisible]);
 
   const onRefresh = useCallback(() => {
+    const generation = requestGenerationRef.current;
     setRefreshing(true);
-    void fetchPage(0, false, true).finally(() => setRefreshing(false));
-  }, [fetchPage]);
+    void fetchPage(0, false, true).finally(() => {
+      if (!mountedRef.current || generation !== requestGenerationRef.current) return;
+      setRefreshing(false);
+    });
+  }, [fetchPage, mountedRef]);
 
   const loadMore = useCallback(() => {
     if (!enabled || loading || loadingMore || refreshing || !hasMore || loadingMoreRef.current) {
       return;
     }
 
+    const generation = requestGenerationRef.current;
     loadingMoreRef.current = true;
     setLoadingMore(true);
     void fetchPage(episodes.length, true, false).finally(() => {
       loadingMoreRef.current = false;
+      if (!mountedRef.current || generation !== requestGenerationRef.current) return;
       setLoadingMore(false);
     });
-  }, [enabled, episodes.length, fetchPage, hasMore, loading, loadingMore, refreshing]);
+  }, [enabled, episodes.length, fetchPage, hasMore, loading, loadingMore, mountedRef, refreshing]);
 
   return {
     episodes,

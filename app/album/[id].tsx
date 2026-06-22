@@ -247,6 +247,7 @@ export default function AlbumScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [hasCheckedFallbacks, setHasCheckedFallbacks] = useState(false);
   const albumRef = useRef<HiddenTunesAlbum | null>(null);
+  const loadRequestIdRef = useRef(0);
 
   const tracks = useMemo(() => {
     const apiTracks = sortAlbumTracks((album?.tracks || []).map(safeSong));
@@ -292,17 +293,29 @@ export default function AlbumScreen() {
 
   const loadAlbum = useCallback(
     async (showLoader = true, allowClearOnMiss = false) => {
-      const albumId = String(id || "");
+      const albumId = String(id || "").trim();
+      if (!albumId) {
+        setAlbum(null);
+        setHasCheckedFallbacks(true);
+        setLoading(false);
+        setRefreshing(false);
+        return;
+      }
+
+      const requestId = ++loadRequestIdRef.current;
+      const isActive = () => loadRequestIdRef.current === requestId;
       let showedCachedAlbum = false;
       const refreshStart = startPerformanceTimer();
 
       try {
         if (shouldResetCatalogFallbackGate(albumRef.current?.tracks?.length || 0)) {
+          if (!isActive()) return;
           setHasCheckedFallbacks(false);
         }
         if (showLoader && !albumRef.current) setLoading(true);
 
         const snapshotAlbum = await loadAlbumDetailSnapshot(albumId);
+        if (!isActive()) return;
         if (snapshotAlbum) {
           setAlbum(snapshotAlbum);
           setLoading(false);
@@ -332,6 +345,7 @@ export default function AlbumScreen() {
           const cachedSongs = memoryAlbum
             ? memorySongs
             : await hydrateHiddenTunesCatalogCache();
+          if (!isActive()) return;
           const cachedAlbum =
             memoryAlbum ||
             findAlbumById(extractHiddenTunesAlbums(cachedSongs), albumId);
@@ -341,6 +355,7 @@ export default function AlbumScreen() {
               cachedAlbum.tracks.length > 0
                 ? cachedAlbum
                 : await applyAlbumCatalogFallback(albumId, cachedAlbum);
+            if (!isActive()) return;
             setAlbum(hydrated);
             setLoading(false);
             showedCachedAlbum = true;
@@ -364,6 +379,7 @@ export default function AlbumScreen() {
         }
 
         const data = await getHiddenTunesAlbumById(albumId);
+        if (!isActive()) return;
         logApiRefresh("album", refreshStart, {
           id: albumId,
           found: Boolean(data),
@@ -383,6 +399,7 @@ export default function AlbumScreen() {
             data.tracks.length > 0
               ? data
               : await applyAlbumCatalogFallback(albumId, data);
+          if (!isActive()) return;
           if (hydrated) {
             setAlbum(hydrated);
             void saveAlbumDetailSnapshot(hydrated);
@@ -395,6 +412,7 @@ export default function AlbumScreen() {
           }
         } else {
           const fallbackAlbum = await applyAlbumCatalogFallback(albumId, albumRef.current);
+          if (!isActive()) return;
           if (fallbackAlbum?.tracks?.length) {
             setAlbum(fallbackAlbum);
             void saveAlbumDetailSnapshot(fallbackAlbum);
@@ -410,11 +428,13 @@ export default function AlbumScreen() {
         }
       } catch (error) {
         console.log("Load album error:", error);
-        if (!showedCachedAlbum || allowClearOnMiss) setAlbum(null);
+        if (isActive() && (!showedCachedAlbum || allowClearOnMiss)) setAlbum(null);
       } finally {
-        setHasCheckedFallbacks(true);
-        setLoading(false);
-        setRefreshing(false);
+        if (isActive()) {
+          setHasCheckedFallbacks(true);
+          setLoading(false);
+          setRefreshing(false);
+        }
       }
     },
     [id, screenStartedAt]
@@ -422,7 +442,10 @@ export default function AlbumScreen() {
 
   useEffect(() => {
     logEntityTapReceived("album", { id: String(id || "") });
-    loadAlbum(true);
+    void loadAlbum(true);
+    return () => {
+      loadRequestIdRef.current += 1;
+    };
   }, [id, loadAlbum]);
 
   useEffect(() => {

@@ -25,6 +25,7 @@ import { RadioStationCard } from "../components/radio/RadioBrowserCards";
 import FavoriteButton from "../components/FavoriteButton";
 import MatureContentConsentModal from "../components/mature/MatureContentConsentModal";
 import { useDeferredSearchMediaSections } from "../hooks/useDeferredSearchMediaSections";
+import { useMountedRef } from "../hooks/useMountedRef";
 import { useRenderBurstDiagnostics } from "../hooks/useRenderBurstDiagnostics";
 import { useMatureContentGate } from "../hooks/useMatureContentGate";
 import { usePlaybackRouter } from "../hooks/usePlaybackRouter";
@@ -89,6 +90,7 @@ import {
 import { logPlaybackCritical } from "../utils/playbackCriticalLogs";
 import { logSearchDiagnostic, logSearchRankingDiagnostics } from "../utils/searchDiagnostics";
 import { isHeavyPerfDiagnosticsEnabled } from "../utils/devDiagnostics";
+import { logVisibleFeatureChecklist } from "../utils/visibleFeatureDiagnostics";
 import { logEntityTapReceived } from "../utils/entityDiagnostics";
 import { resolveStationEntity } from "../utils/entityResolution";
 import { resolveEntityArtwork } from "../utils/artwork";
@@ -323,6 +325,7 @@ export default function SearchScreen() {
   const externalSearchCacheRef = useRef(new Map<string, HiddenTunesNormalizedSong[]>());
   const externalSearchRequestIdRef = useRef(0);
   const tvSearchRequestIdRef = useRef(0);
+  const mountedRef = useMountedRef();
 
   const songs = catalog?.songs || [];
   const artists = catalog?.artists || [];
@@ -405,6 +408,27 @@ export default function SearchScreen() {
   const deferredMedia = useDeferredSearchMediaSections(cleanSubmittedSearchQuery);
   const backendSearchCacheKey = normalizedSearchQuery;
   const localSearchCacheKey = `${normalizedSearchQuery}|${catalogSignature}`;
+
+  useEffect(() => {
+    if (cleanSubmittedSearchQuery.length < 2) return;
+
+    logVisibleFeatureChecklist({
+      mainSearchPodcastSectionsEnabled:
+        deferredMedia.podcastLoading || deferredMedia.podcastReadyForQuery,
+      mainSearchRadioSectionsEnabled:
+        deferredMedia.radioLoading || deferredMedia.radioReadyForQuery,
+      searchPodcastCount: deferredMedia.podcastShows.length,
+      searchRadioCount: deferredMedia.radioStations.length,
+    });
+  }, [
+    cleanSubmittedSearchQuery,
+    deferredMedia.podcastLoading,
+    deferredMedia.podcastReadyForQuery,
+    deferredMedia.podcastShows.length,
+    deferredMedia.radioLoading,
+    deferredMedia.radioReadyForQuery,
+    deferredMedia.radioStations.length,
+  ]);
 
   const localSearchResults = useMemo(() => {
     if (!cleanSubmittedSearchQuery) return EMPTY_SEARCH_RESULTS;
@@ -1499,12 +1523,12 @@ export default function SearchScreen() {
       runWithMatureConsent(item, () => {
         void (async () => {
           const station = deferredMedia.resolveRadioStation(item.id);
-          if (!station) return;
+          if (!station || !mountedRef.current) return;
           await playRadioStation(normalizeRadioStation(station));
         })();
       });
     },
-    [deferredMedia.resolveRadioStation, playRadioStation, runWithMatureConsent]
+    [deferredMedia.resolveRadioStation, mountedRef, playRadioStation, runWithMatureConsent]
   );
 
   const handleSearchImmediateChange = useCallback((text: string) => {

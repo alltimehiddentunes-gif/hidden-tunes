@@ -22,6 +22,7 @@ import {
 import { PODCAST_MATURE_HUB_ID } from "../../constants/podcastMatureCategories";
 import { COLORS } from "../../constants/theme";
 import { TESTER_COPY } from "../../constants/testerExperience";
+import { useMountedRef } from "../../hooks/useMountedRef";
 import { useLazyPodcastShowList } from "../../hooks/useLazyPodcastShowList";
 import { useMatureContentGate } from "../../hooks/useMatureContentGate";
 import { loadPodcastCategoryPage } from "../../services/podcastDiscoveryApi";
@@ -38,12 +39,14 @@ export default function PodcastCategoryScreen() {
   const params = useLocalSearchParams<{ categoryId?: string }>();
   const categoryId = resolvePodcastCategoryId(String(params.categoryId || "").trim());
   const category = useMemo(() => getLaunchPodcastCategory(categoryId), [categoryId]);
+  const mountedRef = useMountedRef();
 
   useEffect(() => {
+    if (!mountedRef.current) return;
     if (category?.tier === "mature-hub" || categoryId === PODCAST_MATURE_HUB_ID) {
       router.replace("/podcasts/mature" as any);
     }
-  }, [category?.tier, categoryId]);
+  }, [category?.tier, categoryId, mountedRef]);
 
   const loadPage = useCallback(
     (offset: number, options: { append: boolean; forceRefresh: boolean }) =>
@@ -111,9 +114,11 @@ export default function PodcastCategoryScreen() {
   );
 
   useEffect(() => {
-    if (!hasLoadedOnce || loading || refreshing || shows.length > 0) return;
+    if (!mountedRef.current || !hasLoadedOnce || loading || refreshing || shows.length > 0) {
+      return;
+    }
     router.replace("/podcasts" as any);
-  }, [hasLoadedOnce, shows.length, loading, refreshing]);
+  }, [hasLoadedOnce, shows.length, loading, refreshing, mountedRef]);
 
   if (!category) {
     return (

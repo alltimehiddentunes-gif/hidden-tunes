@@ -19,6 +19,7 @@ import MatureContentConsentModal from "../../../components/mature/MatureContentC
 import { COLORS } from "../../../constants/theme";
 import { TESTER_COPY } from "../../../constants/testerExperience";
 import { useMatureContentGate } from "../../../hooks/useMatureContentGate";
+import { useMountedRef } from "../../../hooks/useMountedRef";
 import { useLazyPodcastEpisodeList } from "../../../hooks/useLazyPodcastEpisodeList";
 import { useMatureContentSettings } from "../../../hooks/useMatureContentSettings";
 import { usePlaybackRouter } from "../../../hooks/usePlaybackRouter";
@@ -42,6 +43,7 @@ export default function PodcastShowScreen() {
   const { consentVisible, runWithMatureConsent, cancelConsent, confirmConsent } =
     useMatureContentGate();
   const [playbackError, setPlaybackError] = useState<string | null>(null);
+  const mountedRef = useMountedRef();
   const params = useLocalSearchParams<{ showId?: string; title?: string; isMature?: string }>();
   const showId = String(params.showId || "").trim();
   const showTitle = podcastDiscoveryDisplayName(params.title);
@@ -101,11 +103,13 @@ export default function PodcastShowScreen() {
       const normalized = normalizePodcastEpisode(episode, showTitle);
 
       if (!normalized) {
+        if (!mountedRef.current) return;
         setPlaybackError("This episode is unavailable right now.");
         return;
       }
 
       const result = await playPodcastEpisode(normalized, playbackQueue);
+      if (!mountedRef.current) return;
 
       if (!result.ok) {
         setPlaybackError(
@@ -116,7 +120,7 @@ export default function PodcastShowScreen() {
 
       setPlaybackError(null);
     },
-    [playbackQueue, playPodcastEpisode, showTitle]
+    [mountedRef, playbackQueue, playPodcastEpisode, showTitle]
   );
 
   const handleEpisodePress = useCallback(

@@ -34,6 +34,10 @@ import type { HiddenTunesPodcastShow } from "../../services/podcastCatalogApi";
 import type { PodcastShowListItem } from "../../types/podcastDiscovery";
 import { useDebouncedSearchQuery } from "../../utils/useDebouncedValue";
 import {
+  logVisibleFeatureChecklist,
+  logVisibleFeatureDiagnostic,
+} from "../../utils/visibleFeatureDiagnostics";
+import {
   createStableKeyExtractor,
   getListPerformanceSettings,
 } from "../../utils/performanceMode";
@@ -126,6 +130,46 @@ export default function PodcastDiscoveryHomeScreen() {
     loading,
     resolveShow,
   } = usePodcastHomeDiscovery();
+
+  useEffect(() => {
+    logVisibleFeatureDiagnostic("podcast_route_mounted");
+  }, []);
+
+  useEffect(() => {
+    if (loading) return;
+
+    const podcastSectionsCount = [
+      featured,
+      trending,
+      popular,
+      recommended,
+      recentlyPlayed,
+      emotionalWorlds,
+      browseCategories,
+      matureCategories,
+    ].filter((section) => section.length > 0).length;
+
+    logVisibleFeatureChecklist({
+      podcastRouteMounted: true,
+      podcastSectionsCount,
+      featuredCount: featured.length,
+      trendingCount: trending.length,
+      popularCount: popular.length,
+      emotionalWorldCount: emotionalWorlds.length,
+      browseCategoryCount: browseCategories.length,
+      matureCategoryCount: matureCategories.length,
+    });
+  }, [
+    loading,
+    featured,
+    trending,
+    popular,
+    recommended,
+    recentlyPlayed,
+    emotionalWorlds,
+    browseCategories,
+    matureCategories,
+  ]);
 
   const loadSearchPage = useCallback(
     (offset: number, options: { append: boolean; forceRefresh: boolean }) =>

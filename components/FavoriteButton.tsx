@@ -23,6 +23,11 @@ function FavoriteButton({
   hitSlop = 8,
 }: FavoriteButtonProps) {
   const { isFavorite, toggleFavorite } = useFavorites();
+
+  if (!item?.id || !item?.type) {
+    return null;
+  }
+
   const favorited = isFavorite(item.type, item.id);
 
   const handlePress = useCallback(() => {
@@ -67,6 +72,11 @@ export const FavoriteToggleButton = memo(function FavoriteToggleButton({
   activeColor,
 }: FavoriteToggleButtonProps) {
   const { isFavorite, toggleFavorite } = useFavorites();
+
+  if (!id || !type) {
+    return null;
+  }
+
   const favorited = isFavorite(type, id);
 
   const handlePress = useCallback(() => {

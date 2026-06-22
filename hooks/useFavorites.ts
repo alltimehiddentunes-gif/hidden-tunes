@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 
 import {
   addFavorite as addFavoriteItem,
@@ -14,7 +14,10 @@ import {
 } from "../services/favorites/unifiedFavorites";
 import type { FavoriteItemType, UnifiedFavoriteItem } from "../types/favorites";
 import { favoriteStorageKey } from "../types/favorites";
+import { logVisibleFeatureDiagnostic } from "../utils/visibleFeatureDiagnostics";
 import { useMatureContentSettings } from "./useMatureContentSettings";
+
+let favoritesProviderLogged = false;
 
 export function useFavorites() {
   const snapshot = useSyncExternalStore(
@@ -23,6 +26,16 @@ export function useFavorites() {
     getUnifiedFavoritesSnapshot
   );
   const { includeMatureInApi } = useMatureContentSettings();
+
+  useEffect(() => {
+    void hydrateUnifiedFavorites().then(() => {
+      if (favoritesProviderLogged) return;
+      favoritesProviderLogged = true;
+      logVisibleFeatureDiagnostic("favorites_provider_mounted", {
+        favoriteCount: getUnifiedFavoritesSnapshot().items.length,
+      });
+    });
+  }, []);
 
   const lookupMap = useMemo(() => snapshot.lookup, [snapshot.lookup, snapshot.version]);
 

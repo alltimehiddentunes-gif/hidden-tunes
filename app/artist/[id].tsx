@@ -137,6 +137,7 @@ export default function ArtistScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [hasCheckedFallbacks, setHasCheckedFallbacks] = useState(false);
   const artistRef = useRef<HiddenTunesArtist | null>(null);
+  const loadRequestIdRef = useRef(0);
 
   const tracks = useMemo(() => {
     const apiTracks = (artist?.tracks || []).map(safeSong);
@@ -171,17 +172,29 @@ export default function ArtistScreen() {
 
   const loadArtist = useCallback(
     async (showLoader = true, allowClearOnMiss = false) => {
-      const artistId = String(id || "");
+      const artistId = String(id || "").trim();
+      if (!artistId) {
+        setArtist(null);
+        setHasCheckedFallbacks(true);
+        setLoading(false);
+        setRefreshing(false);
+        return;
+      }
+
+      const requestId = ++loadRequestIdRef.current;
+      const isActive = () => loadRequestIdRef.current === requestId;
       let showedCachedArtist = false;
       const refreshStart = startPerformanceTimer();
 
       try {
         if (shouldResetCatalogFallbackGate(artistRef.current?.tracks?.length || 0)) {
+          if (!isActive()) return;
           setHasCheckedFallbacks(false);
         }
         if (showLoader && !artistRef.current) setLoading(true);
 
         const snapshotArtist = await loadArtistDetailSnapshot(artistId);
+        if (!isActive()) return;
         if (snapshotArtist) {
           setArtist(snapshotArtist);
           setLoading(false);
@@ -211,6 +224,7 @@ export default function ArtistScreen() {
           const cachedSongs = memoryArtist
             ? memorySongs
             : await hydrateHiddenTunesCatalogCache();
+          if (!isActive()) return;
           const cachedArtist =
             memoryArtist ||
             findArtistById(extractHiddenTunesArtists(cachedSongs), artistId);
@@ -239,6 +253,7 @@ export default function ArtistScreen() {
         }
 
         const data = await getHiddenTunesArtistById(artistId);
+        if (!isActive()) return;
         logApiRefresh("artist", refreshStart, {
           id: artistId,
           found: Boolean(data),
@@ -262,16 +277,18 @@ export default function ArtistScreen() {
               tracks: data.tracks.length,
             });
           }
-        } else if (!showedCachedArtist) {
+        } else if (!showedCachedArtist && (allowClearOnMiss || !artistRef.current)) {
           setArtist(null);
         }
       } catch (error) {
         console.log("Load artist error:", error);
-        if (!showedCachedArtist) setArtist(null);
+        if (isActive() && !showedCachedArtist) setArtist(null);
       } finally {
-        setHasCheckedFallbacks(true);
-        setLoading(false);
-        setRefreshing(false);
+        if (isActive()) {
+          setHasCheckedFallbacks(true);
+          setLoading(false);
+          setRefreshing(false);
+        }
       }
     },
     [id, screenStartedAt]
@@ -279,7 +296,10 @@ export default function ArtistScreen() {
 
   useEffect(() => {
     logEntityTapReceived("artist", { id: String(id || "") });
-    loadArtist(true);
+    void loadArtist(true);
+    return () => {
+      loadRequestIdRef.current += 1;
+    };
   }, [id, loadArtist]);
 
   async function onRefresh() {

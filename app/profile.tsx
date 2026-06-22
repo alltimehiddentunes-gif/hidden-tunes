@@ -39,6 +39,8 @@ type ProfileRoute =
   | "/recently-played"
   | "/queue"
   | "/radio"
+  | "/podcasts"
+  | "/stations"
   | "/music-feed"
   | "/worlds"
   | "/youtube-feed";
@@ -141,6 +143,18 @@ const DISCOVERY_SHORTCUTS: ProfileShortcut[] = [
     subtitle: "Smart endless discovery",
     icon: "radio-outline",
     href: "/radio",
+  },
+  {
+    title: "Podcasts",
+    subtitle: "Featured, trending, and mood lanes",
+    icon: "mic-outline",
+    href: "/podcasts",
+  },
+  {
+    title: "Live Radio",
+    subtitle: "Global stations by mood and genre",
+    icon: "radio",
+    href: "/stations",
   },
   {
     title: "Hidden Tunes TV",

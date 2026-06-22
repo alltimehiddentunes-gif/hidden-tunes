@@ -88,7 +88,9 @@ function dedupeFavorites(items: UnifiedFavoriteItem[]) {
 function normalizeFavoriteItem(raw: unknown): UnifiedFavoriteItem | null {
   if (!raw || typeof raw !== "object") return null;
   const item = raw as UnifiedFavoriteItem;
-  if (!item.id || !item.type || !item.title) return null;
+  const id = String(item.id || "").trim();
+  const type = item.type;
+  if (!id || !type) return null;
 
   const allowed: FavoriteItemType[] = [
     "song",
@@ -99,12 +101,14 @@ function normalizeFavoriteItem(raw: unknown): UnifiedFavoriteItem | null {
     "podcast_episode",
   ];
 
-  if (!allowed.includes(item.type)) return null;
+  if (!allowed.includes(type)) return null;
+
+  const title = String(item.title || item.subtitle || "Untitled").trim() || "Untitled";
 
   return {
-    id: String(item.id),
-    type: item.type,
-    title: String(item.title),
+    id,
+    type,
+    title,
     subtitle: item.subtitle ? String(item.subtitle) : undefined,
     artwork: item.artwork ? String(item.artwork) : undefined,
     source: item.source ? String(item.source) : undefined,

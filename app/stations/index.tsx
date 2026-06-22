@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -29,6 +29,7 @@ import { useRadioHomeDiscovery } from "../../hooks/useRadioHomeDiscovery";
 import { loadRadioCategoryPage } from "../../services/radio/radioBrowserApi";
 import { normalizeRadioStation } from "../../services/radio/radioNormalizer";
 import type { RadioStationListItem } from "../../types/radio";
+import { logVisibleFeatureChecklist } from "../../utils/visibleFeatureDiagnostics";
 
 type StationSectionProps = {
   title: string;
@@ -106,6 +107,39 @@ export default function RadioStationsHomeScreen() {
     loading,
     resolveStation,
   } = useRadioHomeDiscovery();
+
+  useEffect(() => {
+    if (loading) return;
+
+    const radioSectionsCount = [
+      featured,
+      trending,
+      popular,
+      recommended,
+      recentlyPlayed,
+      emotionalWorlds,
+      browseCategories,
+    ].filter((section) => section.length > 0).length;
+
+    logVisibleFeatureChecklist({
+      radioRouteMounted: true,
+      radioSectionsCount,
+      featuredCount: featured.length,
+      trendingCount: trending.length,
+      popularCount: popular.length,
+      emotionalWorldCount: emotionalWorlds.length,
+      browseCategoryCount: browseCategories.length,
+    });
+  }, [
+    loading,
+    featured,
+    trending,
+    popular,
+    recommended,
+    recentlyPlayed,
+    emotionalWorlds,
+    browseCategories,
+  ]);
 
   const openCategory = useCallback((categoryId: string) => {
     router.push({
