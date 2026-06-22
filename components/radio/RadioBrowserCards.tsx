@@ -1,6 +1,8 @@
 import React, { memo } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Image } from "expo-image";
+
+import HTImage from "../HTImage";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 
@@ -99,14 +101,11 @@ const RadioStationArt = memo(function RadioStationArt({
   }
 
   return (
-    <Image
-      source={{ uri: artworkUrl }}
+    <HTImage
+      uri={artworkUrl}
       style={{ width: size, height: size, borderRadius: radius, backgroundColor: "rgba(255,255,255,0.06)" }}
       contentFit="cover"
-      recyclingKey={artworkUrl}
-      transition={0}
-      cachePolicy="memory-disk"
-      priority="low"
+      prefetch={false}
     />
   );
 });

@@ -33,8 +33,7 @@ import {
   getListPerformanceSettings,
 } from "../../utils/performanceMode";
 import { useDebouncedSearchQuery } from "../../utils/useDebouncedValue";
-
-const RADIO_SEARCH_DEBOUNCE_MS = 350;
+import { RADIO_SEARCH_DEBOUNCE_MS } from "../../utils/searchPerformance";
 
 export default function RadioSearchScreen() {
   const params = useLocalSearchParams<{ q?: string }>();

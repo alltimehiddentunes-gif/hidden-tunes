@@ -77,6 +77,7 @@ export function useLazyPodcastShowList({
 
   const applyPage = useCallback(
     (nextShows: HiddenTunesPodcastShow[], append: boolean, nextHasMore: boolean) => {
+      if (!mountedRef.current) return;
       setShows((current) => {
         const merged = append ? dedupeShows([...current, ...nextShows]) : nextShows;
         if (!append && listIdsMatch(current, merged)) return current;
@@ -135,7 +136,7 @@ export function useLazyPodcastShowList({
     const run = async () => {
       if (!cachedPage.length) {
         const hydrated = await hydrateCachedPodcastShows(cacheKey);
-        if (cancelled || generation !== requestGenerationRef.current) return;
+        if (cancelled || generation !== requestGenerationRef.current || !mountedRef.current) return;
 
         if (hydrated?.length) {
           const visible = filterVisiblePodcastShows(
@@ -153,7 +154,7 @@ export function useLazyPodcastShowList({
       }
 
       await fetchPage(0, false, false);
-      if (generation === requestGenerationRef.current) {
+      if (generation === requestGenerationRef.current && mountedRef.current) {
         setLoading(false);
         setRefreshing(false);
       }

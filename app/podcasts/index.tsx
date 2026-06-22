@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -24,6 +23,7 @@ import MediaSearchEmptyState from "../../components/discovery/MediaSearchEmptySt
 import MatureContentConsentModal from "../../components/mature/MatureContentConsentModal";
 import { PODCAST_MATURE_HUB_ID } from "../../constants/podcastMatureCategories";
 import { PODCAST_HOME_LANE_PAGE_SIZE } from "../../constants/podcastFoundation";
+import type { PodcastCategory } from "../../constants/podcastCategories";
 import { COLORS } from "../../constants/theme";
 import { TESTER_COPY } from "../../constants/testerExperience";
 import { useMatureContentGate } from "../../hooks/useMatureContentGate";
@@ -34,17 +34,35 @@ import { loadPodcastSearchPage } from "../../services/podcastDiscoveryApi";
 import type { HiddenTunesPodcastShow } from "../../services/podcastCatalogApi";
 import type { PodcastShowListItem } from "../../types/podcastDiscovery";
 import { useDebouncedSearchQuery } from "../../utils/useDebouncedValue";
+import { safeRouterPush } from "../../utils/safeNavigation";
+import { PODCAST_SEARCH_DEBOUNCE_MS } from "../../utils/searchPerformance";
 import {
   logVisibleFeatureChecklist,
   logVisibleFeatureDiagnostic,
 } from "../../utils/visibleFeatureDiagnostics";
 import {
   createStableKeyExtractor,
+  getHorizontalListPerformanceSettings,
   getListPerformanceSettings,
 } from "../../utils/performanceMode";
 import { PODCAST_MATURE_SEARCH_SUGGESTION } from "../../utils/mediaSearchQueryExpansion";
 
-const PODCAST_SEARCH_DEBOUNCE_MS = 350;
+type PodcastEmotionalWorldPreview = {
+  world: PodcastCategory;
+};
+
+type PodcastHomeSection =
+  | {
+      key: string;
+      kind: "rail";
+      eyebrow: string;
+      title: string;
+      shows: PodcastShowListItem[];
+      seeAllCategoryId?: string;
+    }
+  | { key: string; kind: "emotional"; worlds: PodcastEmotionalWorldPreview[] }
+  | { key: string; kind: "browse"; categories: PodcastCategory[] }
+  | { key: string; kind: "mature"; categories: PodcastCategory[] };
 
 type ShowRailSectionProps = {
   title: string;
@@ -62,6 +80,7 @@ function ShowRailSection({
   seeAllCategoryId,
 }: ShowRailSectionProps) {
   if (!shows.length) return null;
+  const railPerformance = getHorizontalListPerformanceSettings(shows.length);
 
   return (
     <View style={styles.sectionBlock}>
@@ -77,12 +96,13 @@ function ShowRailSection({
           <TouchableOpacity
             activeOpacity={0.85}
             style={styles.seeAllButton}
-            onPress={() =>
-              router.push({
+            onPress={() => {
+              if (!seeAllCategoryId) return;
+              safeRouterPush({
                 pathname: "/podcasts/[categoryId]",
                 params: { categoryId: seeAllCategoryId },
-              } as any)
-            }
+              });
+            }}
           >
             <Text style={styles.seeAllText}>See all</Text>
             <Ionicons name="chevron-forward" size={14} color={COLORS.primary} />
@@ -95,10 +115,7 @@ function ShowRailSection({
         keyExtractor={(item) => `${eyebrow}-${item.id}`}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.railContent}
-        initialNumToRender={4}
-        maxToRenderPerBatch={4}
-        windowSize={5}
-        removeClippedSubviews
+        {...railPerformance}
         renderItem={({ item }) => (
           <PodcastShowRailCard item={item} onPress={() => onPressShow(item)} />
         )}
@@ -203,13 +220,13 @@ export default function PodcastDiscoveryHomeScreen() {
   const openCategory = useCallback(
     (categoryId: string) => {
       if (categoryId === PODCAST_MATURE_HUB_ID) {
-        router.push("/podcasts/mature" as any);
+        safeRouterPush("/podcasts/mature" as any);
         return;
       }
-      router.push({
+      safeRouterPush({
         pathname: "/podcasts/[categoryId]",
         params: { categoryId },
-      } as any);
+      });
     },
     []
   );
@@ -234,14 +251,14 @@ export default function PodcastDiscoveryHomeScreen() {
         } satisfies HiddenTunesPodcastShow);
 
       runWithMatureConsent(show, () => {
-        router.push({
+        safeRouterPush({
           pathname: "/podcasts/show/[showId]",
           params: {
             showId: show.id,
             title: show.title,
             isMature: show.is_mature ? "1" : "0",
           },
-        } as any);
+        });
       });
     },
     [resolveShow, runWithMatureConsent]
@@ -250,14 +267,14 @@ export default function PodcastDiscoveryHomeScreen() {
   const openShowFromSearch = useCallback(
     (show: HiddenTunesPodcastShow) => {
       runWithMatureConsent(show, () => {
-        router.push({
+        safeRouterPush({
           pathname: "/podcasts/show/[showId]",
           params: {
             showId: show.id,
             title: show.title,
             isMature: show.is_mature ? "1" : "0",
           },
-        } as any);
+        });
       });
     },
     [runWithMatureConsent]
@@ -346,6 +363,169 @@ export default function PodcastDiscoveryHomeScreen() {
     ]
   );
 
+  const homeSections = useMemo(() => {
+    const sections: PodcastHomeSection[] = [];
+
+    if (featured.length) {
+      sections.push({
+        key: "featured",
+        kind: "rail",
+        eyebrow: "FEATURED",
+        title: "Featured Podcasts",
+        shows: featured,
+        seeAllCategoryId: "featured",
+      });
+    }
+    if (trending.length) {
+      sections.push({
+        key: "trending",
+        kind: "rail",
+        eyebrow: "TRENDING",
+        title: "Trending Podcasts",
+        shows: trending,
+        seeAllCategoryId: "trending",
+      });
+    }
+    if (popular.length) {
+      sections.push({
+        key: "popular",
+        kind: "rail",
+        eyebrow: "POPULAR",
+        title: "Popular Podcasts",
+        shows: popular,
+        seeAllCategoryId: "popular",
+      });
+    }
+    if (recentlyPlayed.length) {
+      sections.push({
+        key: "recent",
+        kind: "rail",
+        eyebrow: "RECENT",
+        title: "Recently Played",
+        shows: recentlyPlayed,
+      });
+    }
+    if (recommended.length) {
+      sections.push({
+        key: "recommended",
+        kind: "rail",
+        eyebrow: "FOR YOU",
+        title: "Recommended For You",
+        shows: recommended,
+        seeAllCategoryId: "recommended",
+      });
+    }
+    if (emotionalWorlds.length) {
+      sections.push({ key: "emotional", kind: "emotional", worlds: emotionalWorlds });
+    }
+    if (browseCategories.length) {
+      sections.push({ key: "browse", kind: "browse", categories: browseCategories });
+    }
+    if (matureCategories.length) {
+      sections.push({ key: "mature", kind: "mature", categories: matureCategories });
+    }
+
+    return sections;
+  }, [
+    browseCategories,
+    emotionalWorlds,
+    featured,
+    matureCategories,
+    popular,
+    recentlyPlayed,
+    recommended,
+    trending,
+  ]);
+
+  const renderHomeSection = useCallback(
+    ({ item }: { item: PodcastHomeSection }) => {
+      if (item.kind === "rail") {
+        return (
+          <ShowRailSection
+            eyebrow={item.eyebrow}
+            title={item.title}
+            shows={item.shows}
+            onPressShow={openShow}
+            seeAllCategoryId={item.seeAllCategoryId}
+          />
+        );
+      }
+
+      if (item.kind === "emotional") {
+        return (
+          <View style={styles.sectionBlock}>
+            <Text style={styles.sectionEyebrow}>EMOTIONAL PODCASTS</Text>
+            <Text style={styles.sectionTitle}>Podcasts tuned to how you feel</Text>
+            <FlatList
+              horizontal
+              data={item.worlds}
+              keyExtractor={(entry) => entry.world.id}
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.railContent}
+              {...getHorizontalListPerformanceSettings(item.worlds.length)}
+              renderItem={({ item: worldItem }) => (
+                <PodcastEmotionalWorldCard
+                  category={worldItem.world}
+                  onPress={() => openCategory(worldItem.world.id)}
+                />
+              )}
+            />
+          </View>
+        );
+      }
+
+      if (item.kind === "browse") {
+        return (
+          <View style={styles.sectionBlock}>
+            <Text style={styles.sectionEyebrow}>BROWSE CATEGORIES</Text>
+            <Text style={styles.sectionTitle}>Business · Faith · African Voices · More</Text>
+            <View style={styles.grid}>
+              {item.categories.map((category) => (
+                <PodcastCategoryCard
+                  key={category.id}
+                  category={category}
+                  onPress={() => openCategory(category.id)}
+                />
+              ))}
+            </View>
+          </View>
+        );
+      }
+
+      return (
+        <View style={styles.sectionBlock}>
+          <Text style={styles.sectionEyebrow}>ADULT PODCASTS</Text>
+          <Text style={styles.sectionTitle}>Mature conversations</Text>
+          <View style={styles.grid}>
+            {item.categories.map((category) => (
+              <PodcastCategoryCard
+                key={category.id}
+                category={category}
+                onPress={() =>
+                  runWithMatureConsent(
+                    { is_mature: true, content_rating: "adult" },
+                    () => openCategory(category.id)
+                  )
+                }
+              />
+            ))}
+          </View>
+        </View>
+      );
+    },
+    [openCategory, openShow, runWithMatureConsent]
+  );
+
+  const homeListPerformance = useMemo(
+    () => ({
+      initialNumToRender: 2,
+      maxToRenderPerBatch: 2,
+      windowSize: 3,
+      removeClippedSubviews: true,
+    }),
+    []
+  );
+
   return (
     <LinearGradient colors={["#120818", "#050308"]} style={styles.container}>
       <View style={styles.header}>
@@ -417,103 +597,14 @@ export default function PodcastDiscoveryHomeScreen() {
           <Text style={styles.loadingText}>{TESTER_COPY.podcastDiscoveryLoading}</Text>
         </View>
       ) : (
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-          <ShowRailSection
-            eyebrow="FEATURED"
-            title="Featured Podcasts"
-            shows={featured}
-            onPressShow={openShow}
-            seeAllCategoryId="featured"
-          />
-          <ShowRailSection
-            eyebrow="TRENDING"
-            title="Trending Podcasts"
-            shows={trending}
-            onPressShow={openShow}
-            seeAllCategoryId="trending"
-          />
-          <ShowRailSection
-            eyebrow="POPULAR"
-            title="Popular Podcasts"
-            shows={popular}
-            onPressShow={openShow}
-            seeAllCategoryId="popular"
-          />
-          <ShowRailSection
-            eyebrow="RECENT"
-            title="Recently Played"
-            shows={recentlyPlayed}
-            onPressShow={openShow}
-          />
-          <ShowRailSection
-            eyebrow="FOR YOU"
-            title="Recommended For You"
-            shows={recommended}
-            onPressShow={openShow}
-            seeAllCategoryId="recommended"
-          />
-
-          {emotionalWorlds.length > 0 ? (
-            <View style={styles.sectionBlock}>
-              <Text style={styles.sectionEyebrow}>EMOTIONAL PODCASTS</Text>
-              <Text style={styles.sectionTitle}>Podcasts tuned to how you feel</Text>
-              <FlatList
-                horizontal
-                data={emotionalWorlds}
-                keyExtractor={(entry) => entry.world.id}
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.railContent}
-                initialNumToRender={3}
-                maxToRenderPerBatch={3}
-                windowSize={5}
-                removeClippedSubviews
-                renderItem={({ item }) => (
-                  <PodcastEmotionalWorldCard
-                    category={item.world}
-                    onPress={() => openCategory(item.world.id)}
-                  />
-                )}
-              />
-            </View>
-          ) : null}
-
-          {browseCategories.length > 0 ? (
-            <View style={styles.sectionBlock}>
-              <Text style={styles.sectionEyebrow}>BROWSE CATEGORIES</Text>
-              <Text style={styles.sectionTitle}>Business · Faith · African Voices · More</Text>
-              <View style={styles.grid}>
-                {browseCategories.map((category) => (
-                  <PodcastCategoryCard
-                    key={category.id}
-                    category={category}
-                    onPress={() => openCategory(category.id)}
-                  />
-                ))}
-              </View>
-            </View>
-          ) : null}
-
-          {matureCategories.length > 0 ? (
-            <View style={styles.sectionBlock}>
-              <Text style={styles.sectionEyebrow}>ADULT PODCASTS</Text>
-              <Text style={styles.sectionTitle}>Mature conversations</Text>
-              <View style={styles.grid}>
-                {matureCategories.map((category) => (
-                  <PodcastCategoryCard
-                    key={category.id}
-                    category={category}
-                    onPress={() =>
-                      runWithMatureConsent(
-                        { is_mature: true, content_rating: "adult" },
-                        () => openCategory(category.id)
-                      )
-                    }
-                  />
-                ))}
-              </View>
-            </View>
-          ) : null}
-        </ScrollView>
+        <FlatList
+          data={homeSections}
+          keyExtractor={(item) => item.key}
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          renderItem={renderHomeSection}
+          {...homeListPerformance}
+        />
       )}
 
       <MatureContentConsentModal

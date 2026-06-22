@@ -4,6 +4,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { Image } from "expo-image";
 
+import HTImage from "../HTImage";
+
 import { COLORS } from "../../constants/theme";
 import type { HiddenTunesPodcastShow } from "../../services/podcastCatalogApi";
 import type { PodcastCategory } from "../../constants/podcastCategories";
@@ -159,14 +161,11 @@ const PodcastShowArt = memo(function PodcastShowArt({
   }
 
   return (
-    <Image
-      source={{ uri: artworkUrl }}
+    <HTImage
+      uri={artworkUrl}
       style={{ width: size, height: size, borderRadius: radius, backgroundColor: "rgba(255,255,255,0.06)" }}
       contentFit="cover"
-      recyclingKey={artworkUrl}
-      transition={0}
-      cachePolicy="memory-disk"
-      priority="low"
+      prefetch={false}
     />
   );
 });

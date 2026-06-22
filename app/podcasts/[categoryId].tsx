@@ -13,6 +13,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 
+import { safeRouterPush } from "../../utils/safeNavigation";
+
 import { PodcastShowCard } from "../../components/podcast/PodcastDiscoveryCards";
 import MatureContentConsentModal from "../../components/mature/MatureContentConsentModal";
 import {
@@ -79,14 +81,14 @@ export default function PodcastCategoryScreen() {
   const openShow = useCallback(
     (show: HiddenTunesPodcastShow) => {
       runWithMatureConsent(show, () => {
-        router.push({
+        safeRouterPush({
           pathname: "/podcasts/show/[showId]",
           params: {
             showId: show.id,
             title: show.title,
             isMature: show.is_mature ? "1" : "0",
           },
-        } as any);
+        });
       });
     },
     [runWithMatureConsent]

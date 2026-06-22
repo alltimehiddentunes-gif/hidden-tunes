@@ -44,6 +44,7 @@ import {
   sortShowsByRecency,
 } from "./podcast/podcastQualityScore";
 import { buildPodcastSearchQueries } from "../utils/mediaSearchQueryExpansion";
+import { PODCAST_SEARCH_MAX_FALLBACK_QUERIES } from "../utils/searchPerformance";
 import {
   filterDiscoverablePodcastShows,
   filterPlayablePodcastEpisodes,
@@ -220,8 +221,9 @@ async function fetchShowsFromNetwork(categoryId: string, page = 1) {
 
 async function fetchSearchShowsFromNetwork(query: string, page = 1) {
   const includeMature = shouldIncludeMatureInApi();
-  const searchQueries =
-    page === 1 ? buildPodcastSearchQueries(query, { includeMature }) : [String(query || "").trim()];
+  const searchQueries = (
+    page === 1 ? buildPodcastSearchQueries(query, { includeMature }) : [String(query || "").trim()]
+  ).slice(0, PODCAST_SEARCH_MAX_FALLBACK_QUERIES);
 
   let merged: HiddenTunesPodcastShow[] = [];
   let hasMore = false;

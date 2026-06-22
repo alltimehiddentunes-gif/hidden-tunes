@@ -92,6 +92,10 @@ import { logSearchDiagnostic, logSearchRankingDiagnostics } from "../utils/searc
 import { isHeavyPerfDiagnosticsEnabled } from "../utils/devDiagnostics";
 import { logVisibleFeatureChecklist } from "../utils/visibleFeatureDiagnostics";
 import { logEntityTapReceived } from "../utils/entityDiagnostics";
+import {
+  SEARCH_BACKEND_DEBOUNCE_MS,
+  SEARCH_EXTERNAL_DEBOUNCE_MS,
+} from "../utils/searchPerformance";
 import { resolveStationEntity } from "../utils/entityResolution";
 import { resolveEntityArtwork } from "../utils/artwork";
 import {
@@ -112,13 +116,11 @@ import {
 const EMPTY_SEARCH_RESULTS = EMPTY_UNIVERSAL_SEARCH_RESULTS;
 
 const SEARCH_BACKEND_RESULT_LIMIT = 100;
-const SEARCH_BACKEND_DEBOUNCE_MS = 280;
 const SEARCH_BACKEND_CACHE_LIMIT = 32;
 const SEARCH_LOCAL_CACHE_LIMIT = 24;
 const SEARCH_EXTERNAL_CACHE_LIMIT = 16;
 const SEARCH_EXTERNAL_AUDIO_LIMIT = 16;
 const SEARCH_PROVIDER_QUERY_LIMIT = 8;
-const SEARCH_EXTERNAL_DEBOUNCE_MS = 500;
 const SEARCH_TV_LIMIT = 8;
 
 const TRENDING_SEARCHES = [
@@ -637,7 +639,8 @@ export default function SearchScreen() {
     });
   }, [backendSearchPendingForQuery, cleanSubmittedSearchQuery]);
 
-  const shouldRunExternalSearch = cleanSubmittedSearchQuery.length >= 2;
+  const shouldRunExternalSearch =
+    cleanSubmittedSearchQuery.length >= 2 && !hasInternalCatalogResults;
 
   useEffect(() => {
     const query = cleanSubmittedSearchQuery;
@@ -651,7 +654,12 @@ export default function SearchScreen() {
       return;
     }
 
-    if (!shouldRunExternalSearch) return;
+    if (!shouldRunExternalSearch) {
+      setExternalSearchSongs([]);
+      setExternalSearchQuery(query);
+      setExternalSearchCompletedQuery(query);
+      return;
+    }
 
     const cachedExternalSongs = externalSearchCacheRef.current.get(normalizedSearchQuery);
     const requestId = externalSearchRequestIdRef.current + 1;
@@ -690,7 +698,7 @@ export default function SearchScreen() {
       clearTimeout(timer);
       externalSearchRequestIdRef.current += 1;
     };
-  }, [cleanSubmittedSearchQuery, normalizedSearchQuery, shouldRunExternalSearch]);
+  }, [cleanSubmittedSearchQuery, hasInternalCatalogResults, normalizedSearchQuery, shouldRunExternalSearch]);
 
   const externalSearchResults = useMemo(() => {
     if (cleanSubmittedSearchQuery.length < 2) return EMPTY_SEARCH_RESULTS;

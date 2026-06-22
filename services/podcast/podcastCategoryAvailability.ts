@@ -1,6 +1,10 @@
-import { resolvePodcastCategoryId } from "../../constants/podcastCategories";
+import {
+  getPodcastCategory,
+  resolvePodcastCategoryId,
+} from "../../constants/podcastCategories";
+import { shouldIncludeMatureInApi } from "../../utils/matureContentSettings";
 import { readCachedPodcastShows } from "../../utils/podcastDiscoveryCache";
-import { loadPodcastCategoryPage } from "../podcastDiscoveryApi";
+import { fetchPodcastShows } from "../podcastCatalogApi";
 
 type AvailabilityEntry = {
   hasShows: boolean;
@@ -32,11 +36,28 @@ async function probeCategory(categoryId: string) {
     return true;
   }
 
-  const result = await loadPodcastCategoryPage(resolvedId, 0, {
-    forceRefresh: false,
-  }).catch(() => ({ shows: [], hasMore: false }));
+  const category = getPodcastCategory(resolvedId);
+  if (!category) {
+    availabilityCache.set(categoryId, { hasShows: false, checkedAt: Date.now() });
+    return false;
+  }
 
-  const hasShows = result.shows.length > 0;
+  if ((category.isMature || category.tier === "mature") && !shouldIncludeMatureInApi()) {
+    availabilityCache.set(categoryId, { hasShows: false, checkedAt: Date.now() });
+    return false;
+  }
+
+  const includeMature =
+    category.isMature || category.tier === "mature" ? true : shouldIncludeMatureInApi();
+
+  const result = await fetchPodcastShows({
+    ...category.catalogQuery,
+    page: 1,
+    limit: 1,
+    includeMature,
+  }).catch(() => null);
+
+  const hasShows = Boolean(result?.success && result.shows.length > 0);
   availabilityCache.set(categoryId, {
     hasShows,
     checkedAt: Date.now(),

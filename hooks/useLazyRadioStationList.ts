@@ -79,6 +79,7 @@ export function useLazyRadioStationList({
 
   const applyPage = useCallback(
     (stations: HiddenTunesStation[], append: boolean, nextHasMore: boolean) => {
+      if (!mountedRef.current) return;
       rememberStations(stations);
       const nextItems = stations.map(toRadioStationListItem);
 

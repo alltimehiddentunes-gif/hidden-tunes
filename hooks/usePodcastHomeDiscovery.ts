@@ -9,6 +9,7 @@ import {
 import { PODCAST_HOME_LANE_PAGE_SIZE } from "../constants/podcastFoundation";
 import type { HiddenTunesPodcastShow } from "../services/podcastCatalogApi";
 import type { PodcastShowListItem } from "../types/podcastDiscovery";
+import { HOME_LANE_STAGGER_MS } from "../utils/searchPerformance";
 import {
   loadPodcastHomeLanePage,
   rememberRecommendedPodcastLane,
@@ -63,11 +64,23 @@ export function usePodcastHomeDiscovery(): PodcastHomeDiscoveryState {
     void (async () => {
       setLoading(true);
 
-      const [featuredResult, trendingResult, popularResult] = await Promise.all([
-        loadPodcastHomeLanePage("featured", 0, { forceRefresh: false }).catch(() => ({
-          shows: [],
-          hasMore: false,
-        })),
+      const featuredResult = await loadPodcastHomeLanePage("featured", 0, {
+        forceRefresh: false,
+      }).catch(() => ({
+        shows: [],
+        hasMore: false,
+      }));
+
+      if (cancelled) return;
+
+      rememberShows(featuredResult.shows);
+      setFeaturedPool(featuredResult.shows);
+      setLoading(false);
+
+      await new Promise((resolve) => setTimeout(resolve, HOME_LANE_STAGGER_MS));
+      if (cancelled) return;
+
+      const [trendingResult, popularResult] = await Promise.all([
         loadPodcastHomeLanePage("trending", 0, { forceRefresh: false }).catch(() => ({
           shows: [],
           hasMore: false,
@@ -80,15 +93,9 @@ export function usePodcastHomeDiscovery(): PodcastHomeDiscoveryState {
 
       if (cancelled) return;
 
-      rememberShows([
-        ...featuredResult.shows,
-        ...trendingResult.shows,
-        ...popularResult.shows,
-      ]);
-      setFeaturedPool(featuredResult.shows);
+      rememberShows([...trendingResult.shows, ...popularResult.shows]);
       setTrendingPool(trendingResult.shows);
       setPopularPool(popularResult.shows);
-      setLoading(false);
 
       const recentResult = await loadRecentlyPlayedPodcastItems(PODCAST_HOME_LANE_PAGE_SIZE).catch(
         () => ({ items: [], shows: [] })

@@ -8,14 +8,15 @@ import { toRadioStationListItem } from "../services/radio/radioNormalizer";
 import type { HiddenTunesStation, RadioStationListItem } from "../types/radio";
 import { useMountedRef } from "./useMountedRef";
 import {
+  SEARCH_MEDIA_DEFER_MS,
+  SEARCH_MEDIA_SECONDARY_DEFER_MS,
+} from "../utils/searchPerformance";
+import {
   logHeatRequestCancelled,
   logHeatRequestComplete,
   logHeatRequestStart,
   logHeatStaleResult,
 } from "../utils/heatPerformanceDiagnostics";
-
-const SEARCH_MEDIA_DEFER_MS = 700;
-const SEARCH_MEDIA_SECONDARY_DEFER_MS = 180;
 
 type DeferredSearchMediaState = {
   podcastShows: HiddenTunesPodcastShow[];
@@ -68,8 +69,6 @@ export function useDeferredSearchMediaSections(submittedQuery: string) {
 
     safeSetState(() => ({
       ...EMPTY_STATE,
-      podcastLoading: true,
-      radioLoading: false,
       podcastQuery: query,
       radioQuery: "",
     }));
@@ -77,6 +76,14 @@ export function useDeferredSearchMediaSections(submittedQuery: string) {
     let radioTimer: ReturnType<typeof setTimeout> | null = null;
 
     const timer = setTimeout(() => {
+      if (requestGenerationRef.current !== generation || !mountedRef.current) return;
+
+      safeSetState((current) => ({
+        ...current,
+        podcastLoading: true,
+        podcastQuery: query,
+      }));
+
       void (async () => {
         const podcastStartedAt = Date.now();
         logHeatRequestStart("search:podcast", { query, generation });

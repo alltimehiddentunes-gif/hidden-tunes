@@ -14,6 +14,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 
+import { safeRouterPush } from "../../utils/safeNavigation";
+import { getHorizontalListPerformanceSettings } from "../../utils/performanceMode";
+
 import {
   RadioCategoryCard,
   RadioEmotionalWorldCard,
@@ -47,6 +50,7 @@ function StationRailSection({
   seeAllCategoryId,
 }: StationSectionProps) {
   if (!stations.length) return null;
+  const railPerformance = getHorizontalListPerformanceSettings(stations.length);
 
   return (
     <View style={styles.sectionBlock}>
@@ -62,12 +66,13 @@ function StationRailSection({
           <TouchableOpacity
             activeOpacity={0.85}
             style={styles.seeAllButton}
-            onPress={() =>
-              router.push({
+            onPress={() => {
+              if (!seeAllCategoryId) return;
+              safeRouterPush({
                 pathname: "/stations/[categoryId]",
                 params: { categoryId: seeAllCategoryId },
-              } as any)
-            }
+              });
+            }}
           >
             <Text style={styles.seeAllText}>See all</Text>
             <Ionicons name="chevron-forward" size={14} color={COLORS.primary} />
@@ -80,10 +85,7 @@ function StationRailSection({
         keyExtractor={(item) => `${eyebrow}-${item.id}`}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.railContent}
-        initialNumToRender={4}
-        maxToRenderPerBatch={4}
-        windowSize={5}
-        removeClippedSubviews
+        {...railPerformance}
         renderItem={({ item }) => (
           <RadioStationRailCard item={item} onPress={() => onPressStation(item)} />
         )}
@@ -142,14 +144,14 @@ export default function RadioStationsHomeScreen() {
   ]);
 
   const openCategory = useCallback((categoryId: string) => {
-    router.push({
+    safeRouterPush({
       pathname: "/stations/[categoryId]",
       params: { categoryId },
-    } as any);
+    });
   }, []);
 
   const openSearch = useCallback(() => {
-    router.push("/stations/search" as any);
+    safeRouterPush("/stations/search" as any);
   }, []);
 
   const playStation = useCallback(

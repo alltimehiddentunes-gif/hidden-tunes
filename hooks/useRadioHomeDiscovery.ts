@@ -7,6 +7,7 @@ import {
 } from "../constants/radioCategories";
 import { RADIO_HOME_LANE_PAGE_SIZE } from "../constants/radioFoundation";
 import type { HiddenTunesStation, RadioStationListItem } from "../types/radio";
+import { HOME_LANE_STAGGER_MS } from "../utils/searchPerformance";
 import { useMatureContentSettings } from "./useMatureContentSettings";
 import {
   loadRadioHomeLanePage,
@@ -64,13 +65,27 @@ export function useRadioHomeDiscovery(): RadioHomeDiscoveryState {
     void (async () => {
       setLoading(true);
 
-      logRadioDiscoveryFetch("home:lanes", "featured+trending+popular");
-      const [featuredResult, trendingResult, popularResult] = await Promise.all([
-        loadRadioHomeLanePage("featured", { offset: 0, forceRefresh: false }).catch(() => ({
-          stations: [],
-          hasMore: false,
-          fromCache: false,
-        })),
+      logRadioDiscoveryFetch("home:lanes", "featured");
+      const featuredResult = await loadRadioHomeLanePage("featured", {
+        offset: 0,
+        forceRefresh: false,
+      }).catch(() => ({
+        stations: [],
+        hasMore: false,
+        fromCache: false,
+      }));
+
+      if (cancelled) return;
+
+      rememberStations(featuredResult.stations);
+      setFeaturedPool(featuredResult.stations);
+      setLoading(false);
+
+      await new Promise((resolve) => setTimeout(resolve, HOME_LANE_STAGGER_MS));
+      if (cancelled) return;
+
+      logRadioDiscoveryFetch("home:lanes", "trending+popular");
+      const [trendingResult, popularResult] = await Promise.all([
         loadRadioHomeLanePage("trending", { offset: 0, forceRefresh: false }).catch(() => ({
           stations: [],
           hasMore: false,
@@ -85,15 +100,9 @@ export function useRadioHomeDiscovery(): RadioHomeDiscoveryState {
 
       if (cancelled) return;
 
-      rememberStations([
-        ...featuredResult.stations,
-        ...trendingResult.stations,
-        ...popularResult.stations,
-      ]);
-      setFeaturedPool(featuredResult.stations);
+      rememberStations([...trendingResult.stations, ...popularResult.stations]);
       setTrendingPool(trendingResult.stations);
       setPopularPool(popularResult.stations);
-      setLoading(false);
 
       const recentResult = await loadRecentlyPlayedRadioItems(RADIO_HOME_LANE_PAGE_SIZE).catch(
         () => ({ items: [], stations: [] })
