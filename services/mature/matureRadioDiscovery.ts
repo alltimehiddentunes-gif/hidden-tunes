@@ -156,7 +156,9 @@ async function fetchMatureRadioBatch(
       .filter((station): station is HiddenTunesStation => Boolean(station))
   );
 
-  const ranked = filterAndRankMatureRadioStations(merged);
+  const ranked = filterAndRankMatureRadioStations(merged, {
+    categoryId: group.id,
+  });
   const sourceHasMore = batches.some((batch) => batch.length >= MATURE_DISCOVERY_PAGE_SIZE);
 
   return { ranked, sourceHasMore };

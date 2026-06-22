@@ -31,6 +31,13 @@ export function isRuntimeInstrumentationEnabled() {
   return isDevEnvironment() && ENABLE_RUNTIME_INSTRUMENTATION;
 }
 
+/** Mature discovery category counts — dev-only, flip to true during mature QA. */
+export const ENABLE_MATURE_DISCOVERY_DIAGNOSTICS = false;
+
+export function isMatureDiscoveryDiagnosticsEnabled() {
+  return isDevEnvironment() && ENABLE_MATURE_DISCOVERY_DIAGNOSTICS;
+}
+
 /** Radio discovery fetch/render ring buffer — dev + heavy perf flag only. */
 export function isRadioDiscoveryDiagnosticsEnabled() {
   return isDevEnvironment() && ENABLE_HEAVY_PERF_DIAGNOSTICS;

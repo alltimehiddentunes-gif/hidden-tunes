@@ -20,6 +20,7 @@ import {
   resolvePodcastCategoryId,
 } from "../../utils/launchPodcastCategories";
 import { PODCAST_MATURE_HUB_ID } from "../../constants/podcastMatureCategories";
+import { MATURE_MIN_CATEGORY_RESULTS } from "../../constants/matureDiscoveryFoundation";
 import { COLORS } from "../../constants/theme";
 import { TESTER_COPY } from "../../constants/testerExperience";
 import { useMountedRef } from "../../hooks/useMountedRef";
@@ -117,8 +118,11 @@ export default function PodcastCategoryScreen() {
     if (!mountedRef.current || !hasLoadedOnce || loading || refreshing || shows.length > 0) {
       return;
     }
+    if (category?.tier === "mature") {
+      return;
+    }
     router.replace("/podcasts" as any);
-  }, [hasLoadedOnce, shows.length, loading, refreshing, mountedRef]);
+  }, [category?.tier, hasLoadedOnce, shows.length, loading, refreshing, mountedRef]);
 
   if (!category) {
     return (
@@ -176,9 +180,36 @@ export default function PodcastCategoryScreen() {
             </Text>
           }
           ListFooterComponent={
-            loadingMore ? (
-              <ActivityIndicator style={styles.footerSpinner} color={COLORS.primary} />
-            ) : null
+            <>
+              {loadingMore ? (
+                <ActivityIndicator style={styles.footerSpinner} color={COLORS.primary} />
+              ) : null}
+              {category.tier === "mature" &&
+              shows.length > 0 &&
+              shows.length < MATURE_MIN_CATEGORY_RESULTS ? (
+                <View style={styles.supplementBox}>
+                  <Text style={styles.supplementTitle}>More Mature Podcasts</Text>
+                  <Text style={styles.supplementText}>
+                    This room is still growing. Related mature shows from adjacent categories are
+                    included when the primary catalog is sparse.
+                  </Text>
+                </View>
+              ) : null}
+              {category.tier === "mature" && hasLoadedOnce && !loading && shows.length === 0 ? (
+                <View style={styles.supplementBox}>
+                  <Text style={styles.supplementTitle}>Mature podcasts are syncing</Text>
+                  <Text style={styles.supplementText}>
+                    Try Dating, Relationships, or After Dark from the mature hub, or pull to refresh.
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.backLink}
+                    onPress={() => router.push("/podcasts/mature" as any)}
+                  >
+                    <Text style={styles.backLinkText}>Browse all mature rooms</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : null}
+            </>
           }
           renderItem={renderShowRow}
           {...listPerformance}
@@ -270,5 +301,25 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     fontSize: 14,
     fontWeight: "700",
+  },
+  supplementBox: {
+    marginTop: 8,
+    marginBottom: 24,
+    padding: 16,
+    borderRadius: 16,
+    backgroundColor: "rgba(168,85,247,0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(168,85,247,0.2)",
+  },
+  supplementTitle: {
+    color: COLORS.text,
+    fontSize: 15,
+    fontWeight: "800",
+    marginBottom: 6,
+  },
+  supplementText: {
+    color: COLORS.textMuted,
+    fontSize: 13,
+    lineHeight: 18,
   },
 });

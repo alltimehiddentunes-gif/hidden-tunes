@@ -11,7 +11,13 @@ export const MATURE_RADIO_CATALOG_TARGET_MAX = 2_000;
 export const MATURE_DISCOVERY_PAGE_SIZE = MEDIA_DISCOVERY_PAGE_SIZE;
 
 /** Keywords queried in parallel per virtual page (multi-source expansion). */
-export const MATURE_KEYWORDS_PER_FETCH = 3;
+export const MATURE_KEYWORDS_PER_FETCH = 4;
+
+/** Minimum shows before adjacent-category supplement kicks in. */
+export const MATURE_MIN_CATEGORY_RESULTS = 20;
+
+/** Relaxed quality floor when supplementing sparse mature categories. */
+export const MATURE_RELAXED_PODCAST_MIN_QUALITY = 20;
 
 /** Minimum quality_score for mature podcast surfacing. */
 export const MATURE_PODCAST_MIN_QUALITY = 25;

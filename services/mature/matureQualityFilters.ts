@@ -7,6 +7,12 @@ import {
 } from "../../constants/matureDiscoveryFoundation";
 import { enrichShowWithQuality, sortShowsByQuality } from "../podcast/podcastQualityScore";
 import { sortStationsByQuality } from "../radio/radioQualityScore";
+import {
+  logMaturePodcastCategoryAudit,
+  logMatureRadioCategoryAudit,
+  type MaturePodcastAuditCounts,
+  type MatureRadioAuditCounts,
+} from "../../utils/matureDiscoveryDiagnostics";
 
 const SPAM_KEYWORD_PATTERN =
   /\b(free download|click here|subscribe now|best podcast ever|#1 podcast|crypto|nft|viagra|casino|betting)\b/i;
@@ -53,17 +59,43 @@ export function isLowQualityPodcastShow(show: HiddenTunesPodcastShow) {
   return false;
 }
 
+export function isMaturePlayableShow(show: HiddenTunesPodcastShow) {
+  if (isLowQualityPodcastShow(show)) return false;
+  const episodes = Math.max(0, Number(show.episode_count) || 0);
+  const hasPublished = Boolean(String(show.last_published_at || "").trim());
+  return episodes > 0 && hasPublished;
+}
+
 export function scoreMaturePodcastShow(show: HiddenTunesPodcastShow) {
   const enriched = enrichShowWithQuality(show);
   let score = enriched.quality_score || 0;
 
+  const episodes = Math.max(0, Number(show.episode_count) || 0);
+  if (episodes >= 1) score += 12;
+  if (episodes >= 3) score += 15;
+  if (episodes >= 10) score += 6;
+
   const artwork = String(show.artwork_url || "").trim();
   if (!artwork) score -= 8;
   else if (!artwork.startsWith("https://")) score -= 3;
+  else score += 6;
 
   if (!String(show.host_name || "").trim()) score -= 4;
+  else score += 4;
+
+  if (!String(show.description || "").trim()) score -= 3;
+  else score += 5;
+
   if (!String(show.language || "").trim()) score -= 2;
-  if ((show.episode_count || 0) < 2) score -= 6;
+  else score += 2;
+
+  const publishedMs = show.last_published_at ? Date.parse(show.last_published_at) : NaN;
+  if (Number.isFinite(publishedMs)) {
+    const days = (Date.now() - publishedMs) / (1000 * 60 * 60 * 24);
+    if (days <= 30) score += 12;
+    else if (days <= 90) score += 8;
+    else if (days <= 180) score += 4;
+  }
 
   if (isSpamPodcastText(`${show.title} ${show.description || ""}`)) score -= 25;
 
@@ -104,12 +136,26 @@ export function dedupeMaturePodcastShows(shows: HiddenTunesPodcastShow[]) {
 
 export function filterAndRankMaturePodcastShows(
   shows: HiddenTunesPodcastShow[],
-  options?: { minQuality?: number }
+  options?: { minQuality?: number; categoryId?: string; source?: string }
 ) {
   const minQuality = options?.minQuality ?? MATURE_PODCAST_MIN_QUALITY;
+  const deduped = dedupeMaturePodcastShows(shows);
+  const qualityPassed = deduped.filter((show) => passesMaturePodcastQualityGate(show, minQuality));
+  const playableShows = qualityPassed.filter(isMaturePlayableShow);
 
-  const filtered = dedupeMaturePodcastShows(shows)
-    .filter((show) => passesMaturePodcastQualityGate(show, minQuality))
+  if (options?.categoryId) {
+    const audit: MaturePodcastAuditCounts = {
+      categoryId: options.categoryId,
+      raw: shows.length,
+      afterDedupe: deduped.length,
+      afterQuality: qualityPassed.length,
+      playableShows: playableShows.length,
+      source: options.source,
+    };
+    logMaturePodcastCategoryAudit(audit);
+  }
+
+  const ranked = qualityPassed
     .map((show) => ({
       ...enrichShowWithQuality(show),
       quality_score: scoreMaturePodcastShow(show),
@@ -118,9 +164,15 @@ export function filterAndRankMaturePodcastShows(
         show.content_rating && show.content_rating !== "clean"
           ? show.content_rating
           : ("adult" as const),
-    }));
+    }))
+    .sort((left, right) => {
+      const leftPlayable = isMaturePlayableShow(left) ? 1 : 0;
+      const rightPlayable = isMaturePlayableShow(right) ? 1 : 0;
+      if (rightPlayable !== leftPlayable) return rightPlayable - leftPlayable;
+      return (right.quality_score || 0) - (left.quality_score || 0);
+    });
 
-  return sortShowsByQuality(filtered);
+  return sortShowsByQuality(ranked);
 }
 
 export function passesMatureRadioQualityGate(
@@ -130,7 +182,8 @@ export function passesMatureRadioQualityGate(
   const name = String(station.name || "").trim();
   if (!name || name.length < 2) return false;
   if (isSpamPodcastText(name)) return false;
-  if (!String(station.streamUrl || "").trim()) return false;
+  const streamUrl = String(station.streamUrl || "").trim();
+  if (!streamUrl.startsWith("https://")) return false;
   return (station.quality_score || 0) >= minQuality;
 }
 
@@ -153,11 +206,14 @@ export function dedupeMatureRadioStations(stations: HiddenTunesStation[]) {
 
 export function filterAndRankMatureRadioStations(
   stations: HiddenTunesStation[],
-  options?: { minQuality?: number }
+  options?: { minQuality?: number; categoryId?: string }
 ) {
   const minQuality = options?.minQuality ?? MATURE_RADIO_MIN_QUALITY;
-
-  const filtered = dedupeMatureRadioStations(stations)
+  const deduped = dedupeMatureRadioStations(stations);
+  const playableStreams = deduped.filter((station) =>
+    String(station.streamUrl || "").trim().startsWith("https://")
+  );
+  const filtered = playableStreams
     .filter((station) => passesMatureRadioQualityGate(station, minQuality))
     .map((station) => ({
       ...station,
@@ -167,6 +223,17 @@ export function filterAndRankMatureRadioStations(
           ? station.content_rating
           : ("adult" as const),
     }));
+
+  if (options?.categoryId) {
+    const audit: MatureRadioAuditCounts = {
+      categoryId: options.categoryId,
+      raw: stations.length,
+      afterDedupe: deduped.length,
+      playableStreams: playableStreams.length,
+      afterQuality: filtered.length,
+    };
+    logMatureRadioCategoryAudit(audit);
+  }
 
   return sortStationsByQuality(filtered);
 }
