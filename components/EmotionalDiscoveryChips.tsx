@@ -36,23 +36,7 @@ export const EmotionalDiscoveryChips = memo(function EmotionalDiscoveryChips({
 
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Live Radio. Global stations for every mood"
-        style={({ pressed }) => [styles.liveRadioCard, pressed && styles.liveRadioCardPressed]}
-        onPress={() => router.push("/stations" as any)}
-      >
-        <View style={styles.liveRadioIcon}>
-          <Ionicons name="radio-outline" size={18} color={COLORS.cyan} />
-        </View>
-        <View style={styles.liveRadioCopy}>
-          <Text style={styles.liveRadioTitle}>Live Radio</Text>
-          <Text style={styles.liveRadioSubtitle}>Global stations for every mood</Text>
-        </View>
-        <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
-      </Pressable>
-
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Podcasts. Shows and episodes for every mood"
+        accessibilityLabel="Podcasts. Featured shows and mood lanes"
         style={({ pressed }) => [styles.liveRadioCard, pressed && styles.podcastCardPressed]}
         onPress={() => router.push("/podcasts" as any)}
       >
@@ -61,7 +45,23 @@ export const EmotionalDiscoveryChips = memo(function EmotionalDiscoveryChips({
         </View>
         <View style={styles.liveRadioCopy}>
           <Text style={styles.liveRadioTitle}>Podcasts</Text>
-          <Text style={styles.liveRadioSubtitle}>Shows and episodes for every mood</Text>
+          <Text style={styles.liveRadioSubtitle}>Featured shows, categories, and mood lanes</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
+      </Pressable>
+
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Live Radio. Thousands of live global stations"
+        style={({ pressed }) => [styles.liveRadioCard, pressed && styles.liveRadioCardPressed]}
+        onPress={() => router.push("/stations" as any)}
+      >
+        <View style={styles.liveRadioIcon}>
+          <Ionicons name="radio" size={18} color={COLORS.cyan} />
+        </View>
+        <View style={styles.liveRadioCopy}>
+          <Text style={styles.liveRadioTitle}>Live Radio</Text>
+          <Text style={styles.liveRadioSubtitle}>Thousands of live global stations</Text>
         </View>
         <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
       </Pressable>

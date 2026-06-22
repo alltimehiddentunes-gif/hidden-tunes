@@ -18,6 +18,7 @@ export type NavigationRoute =
   | "/queue"
   | "/lyrics"
   | "/radio"
+  | "/library"
   | "/favorites"
   | "/playlists"
   | "/recently-played"
@@ -91,13 +92,21 @@ export const NAVIGATION_ITEMS: AppNavigationItem[] = [
   {
     id: "library",
     label: "Library",
-    route: "/favorites",
+    route: "/library",
     icon: "library-outline",
     activeIcon: "library",
     section: "library",
     mobileVisible: true,
     desktopVisible: true,
-    matches: ["/favorites", "/playlists", "/playlist", "/recently-played", "/cloud-playlists"],
+    matches: [
+      "/library",
+      "/favorites",
+      "/playlists",
+      "/playlist",
+      "/recently-played",
+      "/cloud-playlists",
+      "/downloads",
+    ],
   },
   {
     id: "tv",
@@ -145,7 +154,7 @@ export const NAVIGATION_ITEMS: AppNavigationItem[] = [
   },
   {
     id: "radio",
-    label: "Radio",
+    label: "Personal Radio",
     route: "/radio",
     icon: "radio-outline",
     activeIcon: "radio",

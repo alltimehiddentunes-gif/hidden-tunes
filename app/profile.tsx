@@ -39,6 +39,7 @@ type ProfileRoute =
   | "/recently-played"
   | "/queue"
   | "/radio"
+  | "/library"
   | "/podcasts"
   | "/stations"
   | "/music-feed"
@@ -87,6 +88,12 @@ const PROFILE_ACTIONS: ProfileAction[] = [
 ];
 
 const LIBRARY_SHORTCUTS: ProfileShortcut[] = [
+  {
+    title: "Your Library",
+    subtitle: "Albums, playlists, favorites, podcasts, and radio",
+    icon: "library-outline",
+    href: "/library",
+  },
   {
     title: "Search",
     subtitle: "Find songs, artists, moods, and lyrics",
@@ -140,8 +147,8 @@ const DISCOVERY_SHORTCUTS: ProfileShortcut[] = [
   },
   {
     title: "Personal Radio",
-    subtitle: "Smart endless discovery",
-    icon: "radio-outline",
+    subtitle: "Your smart endless music mix",
+    icon: "infinite-outline",
     href: "/radio",
   },
   {
@@ -152,7 +159,7 @@ const DISCOVERY_SHORTCUTS: ProfileShortcut[] = [
   },
   {
     title: "Live Radio",
-    subtitle: "Global stations by mood and genre",
+    subtitle: "Thousands of live global stations",
     icon: "radio",
     href: "/stations",
   },

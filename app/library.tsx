@@ -78,6 +78,30 @@ const LIBRARY_GROUPS: { id: string; label: string; sections: LibrarySection[] }[
     label: "Collection",
     sections: [
       {
+        id: "personal-radio",
+        title: "Personal Radio",
+        eyebrow: "SMART MIX",
+        icon: "infinite-outline",
+        href: "/radio",
+        accent: COLORS.pink,
+      },
+      {
+        id: "live-radio",
+        title: "Live Radio",
+        eyebrow: "LIVE STATIONS",
+        icon: "radio",
+        href: "/stations",
+        accent: COLORS.primary,
+      },
+      {
+        id: "podcasts",
+        title: "Podcasts",
+        eyebrow: "SHOWS",
+        icon: "mic",
+        href: "/podcasts",
+        accent: COLORS.cyan,
+      },
+      {
         id: "albums",
         title: "Albums",
         eyebrow: "RELEASES",
@@ -91,22 +115,6 @@ const LIBRARY_GROUPS: { id: string; label: string; sections: LibrarySection[] }[
         eyebrow: "CREATORS",
         icon: "people",
         href: "/music-feed",
-        accent: COLORS.cyan,
-      },
-      {
-        id: "live-radio",
-        title: "Live Radio",
-        eyebrow: "STATIONS",
-        icon: "radio",
-        href: "/stations",
-        accent: COLORS.primary,
-      },
-      {
-        id: "podcasts",
-        title: "Podcasts",
-        eyebrow: "SHOWS",
-        icon: "mic",
-        href: "/podcasts",
         accent: COLORS.cyan,
       },
     ],
@@ -215,7 +223,7 @@ export default function LibraryScreen() {
               Your Library
             </Text>
             <Text numberOfLines={2} ellipsizeMode="tail" style={styles.heroSubtitle}>
-              Albums, artists, playlists, favorites, and downloads in one place.
+              Playlists, favorites, podcasts, live radio, and downloads in one place.
             </Text>
           </LinearGradient>
 

@@ -22,6 +22,7 @@ const MINI_PLAYER_ROUTES = [
   "/music-feed",
   "/worlds",
   "/queue",
+  "/library",
   "/favorites",
   "/playlists",
   "/recently-played",
@@ -45,6 +46,7 @@ function getBackgroundVariant(pathname: string): PremiumBackgroundVariant {
   if (pathname.startsWith("/worlds")) return "explore";
   if (pathname.startsWith("/player") || pathname.startsWith("/queue") || pathname.startsWith("/lyrics") || pathname.startsWith("/radio")) return "player";
   if (
+    pathname.startsWith("/library") ||
     pathname.startsWith("/favorites") ||
     pathname.startsWith("/playlists") ||
     pathname.startsWith("/playlist") ||
