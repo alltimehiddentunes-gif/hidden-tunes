@@ -16,11 +16,13 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 
 import { RadioStationCard } from "../../components/radio/RadioBrowserCards";
+import MediaSearchEmptyState from "../../components/discovery/MediaSearchEmptyState";
 import MatureContentConsentModal from "../../components/mature/MatureContentConsentModal";
 import { COLORS } from "../../constants/theme";
 import { TESTER_COPY } from "../../constants/testerExperience";
 import { useLazyRadioStationList } from "../../hooks/useLazyRadioStationList";
 import { useMatureContentGate } from "../../hooks/useMatureContentGate";
+import { useMatureContentSettings } from "../../hooks/useMatureContentSettings";
 import { usePlaybackRouter } from "../../hooks/usePlaybackRouter";
 import { loadRadioSearchPage } from "../../services/radio/radioBrowserApi";
 import { normalizeRadioSearchCacheKey } from "../../services/radio/radioCache";
@@ -40,6 +42,7 @@ export default function RadioSearchScreen() {
   const { playRadioStation } = usePlaybackRouter();
   const { consentVisible, runWithMatureConsent, cancelConsent, confirmConsent } =
     useMatureContentGate();
+  const { includeMatureInApi } = useMatureContentSettings();
   const [query, setQuery] = useState(initialQuery);
   const debouncedQuery = useDebouncedSearchQuery(query, RADIO_SEARCH_DEBOUNCE_MS);
   const cacheKey = useMemo(
@@ -146,7 +149,7 @@ export default function RadioSearchScreen() {
         <View style={styles.headerText}>
           <Text style={styles.kicker}>HIDDEN TUNES RADIO</Text>
           <Text style={styles.title}>Search Stations</Text>
-          <Text style={styles.subtitle}>Find live stations by name</Text>
+          <Text style={styles.subtitle}>Find live stations by name, country, genre, or mood</Text>
         </View>
       </View>
 
@@ -170,13 +173,12 @@ export default function RadioSearchScreen() {
       </View>
 
       {showPrompt ? (
-        <View style={styles.center}>
-          <Ionicons name="radio-outline" size={48} color={COLORS.textMuted} />
-          <Text style={styles.promptTitle}>Search live stations</Text>
-          <Text style={styles.promptText}>
-            Results load when you search. Only a few stations load at a time.
-          </Text>
-        </View>
+        <MediaSearchEmptyState
+          kind="radio"
+          query=""
+          includeMature={includeMatureInApi}
+          onSuggestionPress={setQuery}
+        />
       ) : loading && listItems.length === 0 ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color={COLORS.primary} />
@@ -212,10 +214,12 @@ export default function RadioSearchScreen() {
           }
           ListEmptyComponent={
             showEmpty ? (
-              <View style={styles.emptyBox}>
-                <Text style={styles.emptyTitle}>No stations found</Text>
-                <Text style={styles.emptyText}>{TESTER_COPY.radioStationsEmpty}</Text>
-              </View>
+              <MediaSearchEmptyState
+                kind="radio"
+                query={debouncedQuery}
+                includeMature={includeMatureInApi}
+                onSuggestionPress={setQuery}
+              />
             ) : null
           }
           renderItem={renderItem}

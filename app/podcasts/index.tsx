@@ -20,6 +20,7 @@ import {
   PodcastShowCard,
   PodcastShowRailCard,
 } from "../../components/podcast/PodcastDiscoveryCards";
+import MediaSearchEmptyState from "../../components/discovery/MediaSearchEmptyState";
 import MatureContentConsentModal from "../../components/mature/MatureContentConsentModal";
 import { getPodcastEmotionalWorld } from "../../constants/podcastEmotionalWorlds";
 import { PODCAST_MATURE_HUB_ID } from "../../constants/podcastMatureCategories";
@@ -27,6 +28,7 @@ import { PODCAST_HOME_LANE_PAGE_SIZE } from "../../constants/podcastFoundation";
 import { COLORS } from "../../constants/theme";
 import { TESTER_COPY } from "../../constants/testerExperience";
 import { useMatureContentGate } from "../../hooks/useMatureContentGate";
+import { useMatureContentSettings } from "../../hooks/useMatureContentSettings";
 import { useLazyPodcastShowList } from "../../hooks/useLazyPodcastShowList";
 import { usePodcastHomeDiscovery } from "../../hooks/usePodcastHomeDiscovery";
 import { loadPodcastSearchPage } from "../../services/podcastDiscoveryApi";
@@ -41,6 +43,7 @@ import {
   createStableKeyExtractor,
   getListPerformanceSettings,
 } from "../../utils/performanceMode";
+import { PODCAST_MATURE_SEARCH_SUGGESTION } from "../../utils/mediaSearchQueryExpansion";
 
 const PODCAST_SEARCH_DEBOUNCE_MS = 350;
 
@@ -108,6 +111,7 @@ function ShowRailSection({
 export default function PodcastDiscoveryHomeScreen() {
   const { consentVisible, runWithMatureConsent, cancelConsent, confirmConsent } =
     useMatureContentGate();
+  const { includeMatureInApi } = useMatureContentSettings();
   const params = useLocalSearchParams<{ q?: string; query?: string }>();
   const initialQuery = String(params.q || params.query || "").trim();
   const [searchQuery, setSearchQuery] = useState(initialQuery);
@@ -286,6 +290,63 @@ export default function PodcastDiscoveryHomeScreen() {
     [openShowFromSearch]
   );
 
+  const handleSearchSuggestion = useCallback(
+    (suggestion: string) => {
+      if (suggestion === PODCAST_MATURE_SEARCH_SUGGESTION) {
+        openCategory(PODCAST_MATURE_HUB_ID);
+        return;
+      }
+      setSearchQuery(suggestion);
+    },
+    [openCategory]
+  );
+
+  const searchEmptyComponent = useMemo(
+    () => (
+      <View>
+        <MediaSearchEmptyState
+          kind="podcast"
+          query={debouncedQuery}
+          includeMature={includeMatureInApi}
+          onSuggestionPress={handleSearchSuggestion}
+        />
+        {featured.length > 0 ? (
+          <ShowRailSection
+            eyebrow="FEATURED"
+            title="Featured Podcasts"
+            shows={featured}
+            onPressShow={openShow}
+            seeAllCategoryId="featured"
+          />
+        ) : null}
+        {browseCategories.length > 0 ? (
+          <View style={styles.sectionBlock}>
+            <Text style={styles.sectionEyebrow}>BROWSE</Text>
+            <Text style={styles.sectionTitle}>Popular categories</Text>
+            <View style={styles.grid}>
+              {browseCategories.slice(0, 6).map((category) => (
+                <PodcastCategoryCard
+                  key={category.id}
+                  category={category}
+                  onPress={() => openCategory(category.id)}
+                />
+              ))}
+            </View>
+          </View>
+        ) : null}
+      </View>
+    ),
+    [
+      browseCategories,
+      debouncedQuery,
+      featured,
+      handleSearchSuggestion,
+      includeMatureInApi,
+      openCategory,
+      openShow,
+    ]
+  );
+
   return (
     <LinearGradient colors={["#120818", "#050308"]} style={styles.container}>
       <View style={styles.header}>
@@ -345,15 +406,7 @@ export default function PodcastDiscoveryHomeScreen() {
                 <ActivityIndicator style={styles.footerSpinner} color={COLORS.primary} />
               ) : null
             }
-            ListEmptyComponent={
-              searchChecked ? (
-                <View style={styles.emptyBox}>
-                  <Ionicons name="mic-outline" size={48} color={COLORS.textMuted} />
-                  <Text style={styles.emptyTitle}>No Hidden Tunes shows matched</Text>
-                  <Text style={styles.emptyText}>{TESTER_COPY.podcastDiscoveryEmpty}</Text>
-                </View>
-              ) : null
-            }
+            ListEmptyComponent={searchChecked ? searchEmptyComponent : null}
             renderItem={renderSearchRow}
             {...searchPerformance}
             removeClippedSubviews

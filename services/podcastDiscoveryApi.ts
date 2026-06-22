@@ -43,6 +43,7 @@ import {
   sortShowsByQuality,
   sortShowsByRecency,
 } from "./podcast/podcastQualityScore";
+import { buildPodcastSearchQueries } from "../utils/mediaSearchQueryExpansion";
 
 const SHOW_PAGE_LIMIT = MEDIA_DISCOVERY_PAGE_SIZE;
 const EPISODE_PAGE_LIMIT = MEDIA_DISCOVERY_PAGE_SIZE;
@@ -209,22 +210,44 @@ async function fetchShowsFromNetwork(categoryId: string, page = 1) {
 }
 
 async function fetchSearchShowsFromNetwork(query: string, page = 1) {
-  const response = await fetchPodcastShows({
-    q: query,
-    page,
-    limit: SEARCH_PAGE_LIMIT,
-    includeMature: shouldIncludeMatureInApi(),
-  });
+  const includeMature = shouldIncludeMatureInApi();
+  const searchQueries =
+    page === 1 ? buildPodcastSearchQueries(query, { includeMature }) : [String(query || "").trim()];
 
-  const shows = sortShowsByQuality(
-    dedupeShows(response.success ? response.shows : [])
-      .map(enrichShowWithQuality)
-      .filter((show) => !show.is_mature || shouldIncludeMatureInApi())
-  );
+  let merged: HiddenTunesPodcastShow[] = [];
+  let hasMore = false;
+
+  for (let index = 0; index < searchQueries.length; index += 1) {
+    const searchQuery = searchQueries[index];
+    if (!searchQuery) continue;
+    if (page === 1 && merged.length >= SEARCH_PAGE_LIMIT) break;
+
+    const response = await fetchPodcastShows({
+      q: searchQuery,
+      page,
+      limit: SEARCH_PAGE_LIMIT,
+      includeMature,
+    });
+
+    if (!response.success) continue;
+
+    const batch = sortShowsByQuality(
+      dedupeShows(response.shows)
+        .map(enrichShowWithQuality)
+        .filter((show) => !show.is_mature || includeMature)
+    );
+
+    merged = dedupeShows([...merged, ...batch]);
+    hasMore = hasMore || response.pagination.hasMore;
+
+    if (page !== 1) break;
+    if (index === 0 && merged.length > 0) break;
+    if (merged.length >= SEARCH_PAGE_LIMIT) break;
+  }
 
   return {
-    shows: filterMatureShows(shows),
-    hasMore: response.success ? response.pagination.hasMore : false,
+    shows: filterMatureShows(merged.slice(0, SEARCH_PAGE_LIMIT)),
+    hasMore,
   };
 }
 

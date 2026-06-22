@@ -25,6 +25,7 @@ import {
   sortStationsByQuality,
   sortStationsByVotes,
 } from "./radioQualityScore";
+import { fetchExpandedRadioSearchPage } from "./radioSearchDiscovery";
 import {
   countCachedRadioStations,
   getRadioStationInflight,
@@ -275,19 +276,15 @@ export async function fetchRadioSearchPage(
   const safeQuery = String(query || "").trim();
   if (!safeQuery) return [];
 
-  const raw = await fetchRadioBrowserJson(buildSearchPath(safeQuery, offset, limit), signal);
-
-  const stations = dedupeRadioStations(
-    raw
-      .map((rawStation) => {
-        const base = normalizeRadioBrowserStation(rawStation, "search");
-        if (!base) return null;
-        return enrichStationWithQuality(base, rawStation);
-      })
-      .filter((station): station is HiddenTunesStation => Boolean(station))
+  const stations = await fetchExpandedRadioSearchPage(
+    safeQuery,
+    offset,
+    limit,
+    (path, requestSignal) => fetchRadioBrowserJson(path, requestSignal ?? signal),
+    signal
   );
 
-  return filterMatureStations(sortStationsByQuality(stations).slice(0, limit));
+  return stations;
 }
 
 type LoadRadioPageOptions = {
