@@ -7,6 +7,7 @@ import {
   getMatureRadioGroupsForAvailabilityProbe,
   getMatureRadioQueryGroup,
   MATURE_RADIO_MERGED_TALK_ID,
+  type MatureRadioQueryGroup,
 } from "../../constants/matureRadioQueryGroups";
 import type { RadioCategory } from "../../constants/radioCategories";
 import { matureRadioGroupToCategory } from "../../constants/radioCategories";
