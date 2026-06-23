@@ -3,14 +3,8 @@ import { MATURE_DISCOVERY_PAGE_SIZE } from "./matureDiscoveryFoundation";
 export type MaturePodcastHubLaneId =
   | "featured"
   | "trending"
-  | "popular"
   | "new-episodes"
-  | "dating-relationships"
-  | "sexual-health"
-  | "adult-psychology"
-  | "adult-comedy"
-  | "real-stories"
-  | "after-dark"
+  | "popular"
   | "hidden-gems";
 
 export type MaturePodcastHubLane = {
@@ -18,81 +12,39 @@ export type MaturePodcastHubLane = {
   title: string;
   eyebrow: string;
   searchQuery: string;
-  categoryLinkId?: string;
 };
 
+/** Podcast-first hub rails — category browsing lives in the grid below. */
 export const MATURE_PODCAST_HUB_LANES: MaturePodcastHubLane[] = [
   {
     id: "featured",
-    title: "Featured Mature Podcasts",
+    title: "Featured Mature",
     eyebrow: "FEATURED",
-    searchQuery: "relationships dating advice podcast",
+    searchQuery: "relationships dating intimacy podcast",
   },
   {
     id: "trending",
-    title: "Trending Mature Podcasts",
+    title: "Trending Mature",
     eyebrow: "TRENDING",
-    searchQuery: "trending relationships podcast",
-  },
-  {
-    id: "popular",
-    title: "Popular Mature Podcasts",
-    eyebrow: "POPULAR",
-    searchQuery: "popular love advice podcast",
+    searchQuery: "trending love advice relationships podcast",
   },
   {
     id: "new-episodes",
     title: "New Episodes",
     eyebrow: "NEW",
-    searchQuery: "new relationship podcast episodes",
+    searchQuery: "new dating relationships podcast episodes",
   },
   {
-    id: "dating-relationships",
-    title: "Dating & Relationships",
-    eyebrow: "DATING",
-    searchQuery: "dating relationships podcast",
-    categoryLinkId: "mature-dating",
-  },
-  {
-    id: "sexual-health",
-    title: "Sexual Health",
-    eyebrow: "HEALTH",
-    searchQuery: "sexual health intimacy podcast",
-    categoryLinkId: "mature-sexual-health",
-  },
-  {
-    id: "adult-psychology",
-    title: "Adult Psychology",
-    eyebrow: "MIND",
-    searchQuery: "psychology relationships podcast",
-    categoryLinkId: "mature-adult-psychology",
-  },
-  {
-    id: "adult-comedy",
-    title: "Adult Comedy",
-    eyebrow: "COMEDY",
-    searchQuery: "adult comedy uncensored podcast",
-    categoryLinkId: "mature-adult-comedy",
-  },
-  {
-    id: "real-stories",
-    title: "Real Stories",
-    eyebrow: "STORIES",
-    searchQuery: "confessions real stories podcast",
-    categoryLinkId: "mature-real-stories",
-  },
-  {
-    id: "after-dark",
-    title: "After Dark",
-    eyebrow: "AFTER DARK",
-    searchQuery: "after dark late night talk podcast",
-    categoryLinkId: "mature-after-dark-conversations",
+    id: "popular",
+    title: "Most Popular",
+    eyebrow: "POPULAR",
+    searchQuery: "popular relationships love advice podcast",
   },
   {
     id: "hidden-gems",
     title: "Hidden Gems",
     eyebrow: "GEMS",
-    searchQuery: "underrated relationships podcast",
+    searchQuery: "underrated mature relationships podcast",
   },
 ];
 

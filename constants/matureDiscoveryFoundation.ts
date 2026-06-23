@@ -31,5 +31,8 @@ export const MATURE_RADIO_MIN_QUALITY = 28;
  */
 export const MATURE_MAX_VIRTUAL_PAGES = 500;
 
+/** Minimum playable stations before a mature radio category is shown on its own. */
+export const MATURE_RADIO_MIN_CATEGORY_STATIONS = 5;
+
 /** Max days since last publish before demoting abandoned shows. */
 export const MATURE_ABANDONED_PODCAST_DAYS = 540;

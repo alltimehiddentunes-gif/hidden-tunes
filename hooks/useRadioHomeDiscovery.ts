@@ -123,11 +123,22 @@ export function useRadioHomeDiscovery(): RadioHomeDiscoveryState {
 
       const emotionalCandidates = getEmotionalRadioCategories(includeMatureInApi);
       const browseCandidates = getBrowsableRadioCategories(includeMatureInApi);
+      const nonMatureBrowse = browseCandidates.filter((category) => !category.isMature);
 
       if (cancelled) return;
 
       setEmotionalWorlds(emotionalCandidates.map((world) => ({ world })));
-      setBrowseCategories(browseCandidates);
+
+      if (includeMatureInApi) {
+        const { filterAvailableMatureRadioCategories } = await import(
+          "../services/mature/matureRadioCategoryAvailability"
+        );
+        const matureRadioCategories = await filterAvailableMatureRadioCategories().catch(() => []);
+        if (cancelled) return;
+        setBrowseCategories([...nonMatureBrowse, ...matureRadioCategories]);
+      } else {
+        setBrowseCategories(nonMatureBrowse);
+      }
     })();
 
     return () => {

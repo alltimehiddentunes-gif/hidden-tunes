@@ -15,21 +15,17 @@ function toLaneItems(shows: HiddenTunesPodcastShow[]) {
   return shows.slice(0, MATURE_PODCAST_HUB_LANE_PAGE_SIZE).map(toPodcastShowListItem);
 }
 
+const EMPTY_LANES: Record<MaturePodcastHubLaneId, PodcastShowListItem[]> = {
+  featured: [],
+  trending: [],
+  popular: [],
+  "new-episodes": [],
+  "hidden-gems": [],
+};
+
 export function useMaturePodcastHubDiscovery(enabled: boolean) {
   const showStoreRef = useRef(new Map<string, HiddenTunesPodcastShow>());
-  const [laneShows, setLaneShows] = useState<Record<MaturePodcastHubLaneId, PodcastShowListItem[]>>({
-    featured: [],
-    trending: [],
-    popular: [],
-    "new-episodes": [],
-    "dating-relationships": [],
-    "sexual-health": [],
-    "adult-psychology": [],
-    "adult-comedy": [],
-    "real-stories": [],
-    "after-dark": [],
-    "hidden-gems": [],
-  });
+  const [laneShows, setLaneShows] = useState(EMPTY_LANES);
   const [loading, setLoading] = useState(enabled);
 
   const rememberShows = useCallback((shows: HiddenTunesPodcastShow[]) => {
@@ -40,19 +36,7 @@ export function useMaturePodcastHubDiscovery(enabled: boolean) {
 
   useEffect(() => {
     if (!enabled) {
-      setLaneShows({
-        featured: [],
-        trending: [],
-        popular: [],
-        "new-episodes": [],
-        "dating-relationships": [],
-        "sexual-health": [],
-        "adult-psychology": [],
-        "adult-comedy": [],
-        "real-stories": [],
-        "after-dark": [],
-        "hidden-gems": [],
-      });
+      setLaneShows(EMPTY_LANES);
       setLoading(false);
       return;
     }
@@ -61,19 +45,7 @@ export function useMaturePodcastHubDiscovery(enabled: boolean) {
 
     void (async () => {
       setLoading(true);
-      const nextLanes: Record<MaturePodcastHubLaneId, PodcastShowListItem[]> = {
-        featured: [],
-        trending: [],
-        popular: [],
-        "new-episodes": [],
-        "dating-relationships": [],
-        "sexual-health": [],
-        "adult-psychology": [],
-        "adult-comedy": [],
-        "real-stories": [],
-        "after-dark": [],
-        "hidden-gems": [],
-      };
+      const nextLanes: Record<MaturePodcastHubLaneId, PodcastShowListItem[]> = { ...EMPTY_LANES };
 
       for (let index = 0; index < MATURE_PODCAST_HUB_LANES.length; index += 1) {
         if (cancelled) return;

@@ -78,20 +78,24 @@ export function scoreMaturePodcastShow(show: HiddenTunesPodcastShow) {
   let score = enriched.quality_score || 0;
 
   const episodes = Math.max(0, Number(show.episode_count) || 0);
-  if (episodes >= 1) score += 12;
-  if (episodes >= 3) score += 15;
-  if (episodes >= 10) score += 6;
+  if (episodes >= 1) score += 14;
+  if (episodes >= 3) score += 18;
+  if (episodes >= 10) score += 10;
+  if (episodes >= 25) score += 6;
 
   const artwork = String(show.artwork_url || "").trim();
-  if (!artwork) score -= 8;
-  else if (!artwork.startsWith("https://")) score -= 3;
+  if (!artwork) score -= 12;
+  else if (!artwork.startsWith("https://")) score -= 4;
+  else score += 8;
+
+  const host = String(show.host_name || "").trim();
+  if (!host) score -= 6;
   else score += 6;
 
-  if (!String(show.host_name || "").trim()) score -= 4;
+  const description = String(show.description || "").trim();
+  if (!description) score -= 5;
+  else if (description.length >= 80) score += 8;
   else score += 4;
-
-  if (!String(show.description || "").trim()) score -= 3;
-  else score += 5;
 
   if (!String(show.language || "").trim()) score -= 2;
   else score += 2;
@@ -99,9 +103,13 @@ export function scoreMaturePodcastShow(show: HiddenTunesPodcastShow) {
   const publishedMs = show.last_published_at ? Date.parse(show.last_published_at) : NaN;
   if (Number.isFinite(publishedMs)) {
     const days = (Date.now() - publishedMs) / (1000 * 60 * 60 * 24);
-    if (days <= 30) score += 12;
-    else if (days <= 90) score += 8;
-    else if (days <= 180) score += 4;
+    if (days <= 14) score += 18;
+    else if (days <= 30) score += 14;
+    else if (days <= 90) score += 10;
+    else if (days <= 180) score += 5;
+    else if (days > MATURE_ABANDONED_PODCAST_DAYS) score -= 12;
+  } else if (episodes <= 0) {
+    score -= 20;
   }
 
   if (isSpamPodcastText(`${show.title} ${show.description || ""}`)) score -= 25;

@@ -4,9 +4,56 @@ export type MatureRadioQueryGroup = {
   subtitle: string;
   searchQueries: string[];
   tag?: string;
+  /** When true, category is only shown if other groups fall below the station threshold. */
+  mergeTarget?: boolean;
+  /** When true, category is hidden individually when below the station threshold. */
+  mergeWhenWeak?: boolean;
 };
 
-export const MATURE_RADIO_QUERY_GROUPS: MatureRadioQueryGroup[] = [
+/** Primary mature radio rooms surfaced when they have enough playable streams. */
+export const MATURE_RADIO_PRIMARY_GROUPS: MatureRadioQueryGroup[] = [
+  {
+    id: "adult-talk",
+    title: "Adult Talk",
+    subtitle: "Grown-up conversation stations",
+    searchQueries: [
+      "adult talk radio",
+      "mature talk radio",
+      "grown up talk radio",
+      "relationship talk radio",
+      "real talk radio",
+    ],
+    tag: "adult",
+    mergeWhenWeak: true,
+  },
+  {
+    id: "relationship-radio",
+    title: "Relationship Radio",
+    subtitle: "Love, couples, and connection on air",
+    searchQueries: [
+      "relationship radio",
+      "love talk radio",
+      "couples radio",
+      "marriage talk radio",
+      "relationship advice radio",
+    ],
+    tag: "relationships",
+    mergeWhenWeak: true,
+  },
+  {
+    id: "love-advice-radio",
+    title: "Love Advice Radio",
+    subtitle: "Romance and partnership on the airwaves",
+    searchQueries: [
+      "love advice radio",
+      "romance talk radio",
+      "dating advice radio",
+      "love talk radio",
+      "modern love radio",
+    ],
+    tag: "love",
+    mergeWhenWeak: true,
+  },
   {
     id: "late-night-radio",
     title: "Late Night Radio",
@@ -19,58 +66,21 @@ export const MATURE_RADIO_QUERY_GROUPS: MatureRadioQueryGroup[] = [
       "night talk radio",
     ],
     tag: "late night",
+    mergeWhenWeak: true,
   },
   {
-    id: "adult-talk",
-    title: "Adult Talk",
-    subtitle: "Grown-up conversation stations",
+    id: "call-in-shows",
+    title: "Call-In Radio",
+    subtitle: "Listener-driven talk and advice lines",
     searchQueries: [
-      "adult talk radio",
-      "mature talk radio",
-      "explicit talk radio",
-      "grown up talk radio",
-      "relationship talk radio",
+      "call in radio",
+      "phone in talk radio",
+      "listener call radio",
+      "advice line radio",
+      "open line radio",
     ],
-    tag: "adult",
-  },
-  {
-    id: "relationship-radio",
-    title: "Relationship Radio",
-    subtitle: "Love, couples, and connection on air",
-    searchQueries: [
-      "relationship radio",
-      "love talk radio",
-      "couples radio",
-      "dating talk radio",
-      "marriage talk radio",
-    ],
-    tag: "relationships",
-  },
-  {
-    id: "dating-radio",
-    title: "Dating Radio",
-    subtitle: "Modern dating and singles talk",
-    searchQueries: [
-      "dating radio",
-      "singles radio",
-      "dating advice radio",
-      "modern dating radio",
-      "first dates radio",
-    ],
-    tag: "dating",
-  },
-  {
-    id: "adult-comedy-radio",
-    title: "Adult Comedy Radio",
-    subtitle: "Uncensored humor and late-night comedy",
-    searchQueries: [
-      "adult comedy radio",
-      "uncensored comedy radio",
-      "comedy talk radio",
-      "stand up comedy radio",
-      "late night comedy radio",
-    ],
-    tag: "comedy",
+    tag: "talk",
+    mergeWhenWeak: true,
   },
   {
     id: "psychology-radio",
@@ -84,19 +94,39 @@ export const MATURE_RADIO_QUERY_GROUPS: MatureRadioQueryGroup[] = [
       "emotional intelligence radio",
     ],
     tag: "psychology",
+    mergeWhenWeak: true,
+  },
+];
+
+/** Supplementary groups whose inventory merges into mature talk when weak. */
+export const MATURE_RADIO_SUPPLEMENT_GROUPS: MatureRadioQueryGroup[] = [
+  {
+    id: "dating-radio",
+    title: "Dating Radio",
+    subtitle: "Modern dating and singles talk",
+    searchQueries: [
+      "dating radio",
+      "singles radio",
+      "modern dating radio",
+      "first dates radio",
+      "dating talk radio",
+    ],
+    tag: "dating",
+    mergeWhenWeak: true,
   },
   {
-    id: "call-in-shows",
-    title: "Call-In Shows",
-    subtitle: "Listener-driven talk and advice lines",
+    id: "adult-comedy-radio",
+    title: "Adult Comedy Radio",
+    subtitle: "Uncensored humor and late-night comedy",
     searchQueries: [
-      "call in radio",
-      "phone in talk radio",
-      "listener call radio",
-      "advice line radio",
-      "open line radio",
+      "adult comedy radio",
+      "uncensored comedy radio",
+      "comedy talk radio",
+      "stand up comedy radio",
+      "late night comedy radio",
     ],
-    tag: "talk",
+    tag: "comedy",
+    mergeWhenWeak: true,
   },
   {
     id: "unfiltered-talk",
@@ -106,10 +136,11 @@ export const MATURE_RADIO_QUERY_GROUPS: MatureRadioQueryGroup[] = [
       "unfiltered talk radio",
       "uncensored talk radio",
       "no filter radio",
-      "real talk radio",
       "taboo talk radio",
+      "honest talk radio",
     ],
     tag: "talk",
+    mergeWhenWeak: true,
   },
   {
     id: "international-adult-radio",
@@ -123,7 +154,36 @@ export const MATURE_RADIO_QUERY_GROUPS: MatureRadioQueryGroup[] = [
       "international relationship radio",
     ],
     tag: "talk",
+    mergeWhenWeak: true,
   },
+];
+
+export const MATURE_RADIO_MERGED_TALK_ID = "mature-talk-radio";
+
+export const MATURE_RADIO_MERGED_TALK_GROUP: MatureRadioQueryGroup = {
+  id: MATURE_RADIO_MERGED_TALK_ID,
+  title: "Mature Talk",
+  subtitle: "Live grown-up conversation from across mature radio",
+  searchQueries: [
+    "adult talk radio",
+    "relationship talk radio",
+    "love advice radio",
+    "dating talk radio",
+    "late night talk radio",
+    "call in talk radio",
+    "psychology talk radio",
+    "uncensored talk radio",
+    "international talk radio",
+    "comedy talk radio",
+  ],
+  tag: "talk",
+  mergeTarget: true,
+};
+
+export const MATURE_RADIO_QUERY_GROUPS: MatureRadioQueryGroup[] = [
+  ...MATURE_RADIO_PRIMARY_GROUPS,
+  ...MATURE_RADIO_SUPPLEMENT_GROUPS,
+  MATURE_RADIO_MERGED_TALK_GROUP,
 ];
 
 const GROUP_BY_ID = new Map(MATURE_RADIO_QUERY_GROUPS.map((entry) => [entry.id, entry]));
@@ -135,9 +195,14 @@ export function getMatureRadioQueryGroup(id: string) {
 export function resolveMatureRadioQueryGroupId(categoryId: string) {
   const safe = String(categoryId || "").trim();
   if (safe === "adult" || safe === "mature") return "adult-talk";
+  if (safe === MATURE_RADIO_MERGED_TALK_ID) return MATURE_RADIO_MERGED_TALK_ID;
   return safe;
 }
 
 export function countMatureRadioQuerySlots() {
   return MATURE_RADIO_QUERY_GROUPS.reduce((sum, group) => sum + group.searchQueries.length, 0);
+}
+
+export function getMatureRadioGroupsForAvailabilityProbe() {
+  return [...MATURE_RADIO_PRIMARY_GROUPS, ...MATURE_RADIO_SUPPLEMENT_GROUPS];
 }

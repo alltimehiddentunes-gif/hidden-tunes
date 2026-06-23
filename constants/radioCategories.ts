@@ -6,7 +6,11 @@ import {
   RADIO_EMOTIONAL_WORLDS,
   type RadioEmotionalWorld,
 } from "./radioEmotionalWorlds";
-import { MATURE_RADIO_QUERY_GROUPS } from "./matureRadioQueryGroups";
+import {
+  MATURE_RADIO_MERGED_TALK_GROUP,
+  MATURE_RADIO_QUERY_GROUPS,
+  type MatureRadioQueryGroup,
+} from "./matureRadioQueryGroups";
 
 export type RadioCategoryTier =
   | "home-lane"
@@ -244,23 +248,32 @@ export const RADIO_BROWSE_CATEGORIES: RadioCategory[] = [
   },
 ];
 
-export const RADIO_MATURE_CATEGORIES: RadioCategory[] = MATURE_RADIO_QUERY_GROUPS.map((group) => ({
-  id: group.id,
-  title: group.title,
-  subtitle: group.subtitle,
-  icon: "radio-outline" as const,
-  gradient: ["#201418", "#0C0808"] as MoodRoomGradient,
-  tag: group.tag,
-  isMature: true,
-  tier: "mature" as const,
-  listeningRoomQuery: group.searchQueries[0] || "adult talk radio",
-}));
+export function matureRadioGroupToCategory(group: MatureRadioQueryGroup): RadioCategory {
+  return {
+    id: group.id,
+    title: group.title,
+    subtitle: group.subtitle,
+    icon: "radio-outline",
+    gradient: ["#201418", "#0C0808"] as MoodRoomGradient,
+    tag: group.tag,
+    isMature: true,
+    tier: "mature",
+    listeningRoomQuery: group.searchQueries[0] || "adult talk radio",
+  };
+}
+
+export const RADIO_MATURE_CATEGORIES: RadioCategory[] = MATURE_RADIO_QUERY_GROUPS.filter(
+  (group) => !group.mergeTarget
+).map(matureRadioGroupToCategory);
+
+export const RADIO_MATURE_MERGED_CATEGORY = matureRadioGroupToCategory(MATURE_RADIO_MERGED_TALK_GROUP);
 
 export const RADIO_CATEGORIES: RadioCategory[] = [
   ...RADIO_HOME_LANE_CATEGORIES,
   ...RADIO_EMOTIONAL_WORLDS.map(emotionalWorldToCategory),
   ...RADIO_BROWSE_CATEGORIES,
   ...RADIO_MATURE_CATEGORIES,
+  RADIO_MATURE_MERGED_CATEGORY,
 ];
 
 const CATEGORY_BY_ID = new Map(RADIO_CATEGORIES.map((category) => [category.id, category]));

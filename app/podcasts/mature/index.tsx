@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   StyleSheet,
   Text,
@@ -16,21 +17,26 @@ import {
   PodcastCategoryCard,
   PodcastShowRailCard,
 } from "../../../components/podcast/PodcastDiscoveryCards";
+import { RadioCategoryCard, RadioStationRailCard } from "../../../components/radio/RadioBrowserCards";
 import MatureContentConsentModal from "../../../components/mature/MatureContentConsentModal";
 import { MATURE_PODCAST_HUB_LANE_PAGE_SIZE } from "../../../constants/maturePodcastHubLanes";
 import type { PodcastCategory } from "../../../constants/podcastCategories";
+import type { RadioCategory } from "../../../constants/radioCategories";
 import { COLORS } from "../../../constants/theme";
 import { TESTER_COPY } from "../../../constants/testerExperience";
 import { useMatureContentGate } from "../../../hooks/useMatureContentGate";
 import { useMatureContentSettings } from "../../../hooks/useMatureContentSettings";
 import { useMaturePodcastCategoryAvailability } from "../../../hooks/useMaturePodcastCategoryAvailability";
 import { useMaturePodcastHubDiscovery } from "../../../hooks/useMaturePodcastHubDiscovery";
+import { useMatureRadioCategoryAvailability } from "../../../hooks/useMatureRadioCategoryAvailability";
+import { useMatureRadioHubDiscovery } from "../../../hooks/useMatureRadioHubDiscovery";
+import { usePlaybackRouter } from "../../../hooks/usePlaybackRouter";
 import type { HiddenTunesPodcastShow } from "../../../services/podcastCatalogApi";
+import { normalizeRadioStation } from "../../../services/radio/radioNormalizer";
 import type { PodcastShowListItem } from "../../../types/podcastDiscovery";
+import type { RadioStationListItem } from "../../../types/radio";
 import { safeRouterPush } from "../../../utils/safeNavigation";
-import {
-  getHorizontalListPerformanceSettings,
-} from "../../../utils/performanceMode";
+import { getHorizontalListPerformanceSettings } from "../../../utils/performanceMode";
 
 type MatureHubSection =
   | {
@@ -39,8 +45,13 @@ type MatureHubSection =
       eyebrow: string;
       title: string;
       shows: PodcastShowListItem[];
-      seeAllCategoryId?: string;
     }
+  | {
+      key: string;
+      kind: "radio-rail";
+      stations: RadioStationListItem[];
+    }
+  | { key: string; kind: "radio-browse"; categories: RadioCategory[] }
   | { key: string; kind: "browse"; categories: PodcastCategory[] };
 
 type ShowRailSectionProps = {
@@ -48,16 +59,9 @@ type ShowRailSectionProps = {
   eyebrow: string;
   shows: PodcastShowListItem[];
   onPressShow: (item: PodcastShowListItem) => void;
-  seeAllCategoryId?: string;
 };
 
-function ShowRailSection({
-  title,
-  eyebrow,
-  shows,
-  onPressShow,
-  seeAllCategoryId,
-}: ShowRailSectionProps) {
+function ShowRailSection({ title, eyebrow, shows, onPressShow }: ShowRailSectionProps) {
   if (!shows.length) return null;
   const railPerformance = getHorizontalListPerformanceSettings(shows.length);
 
@@ -71,21 +75,6 @@ function ShowRailSection({
             {Math.min(shows.length, MATURE_PODCAST_HUB_LANE_PAGE_SIZE)} shows
           </Text>
         </View>
-        {seeAllCategoryId ? (
-          <TouchableOpacity
-            activeOpacity={0.85}
-            style={styles.seeAllButton}
-            onPress={() => {
-              safeRouterPush({
-                pathname: "/podcasts/[categoryId]",
-                params: { categoryId: seeAllCategoryId },
-              });
-            }}
-          >
-            <Text style={styles.seeAllText}>See all</Text>
-            <Ionicons name="chevron-forward" size={14} color={COLORS.primary} />
-          </TouchableOpacity>
-        ) : null}
       </View>
       <FlatList
         horizontal
@@ -102,17 +91,54 @@ function ShowRailSection({
   );
 }
 
+function RadioRailSection({
+  stations,
+  onPressStation,
+}: {
+  stations: RadioStationListItem[];
+  onPressStation: (item: RadioStationListItem) => void;
+}) {
+  if (!stations.length) return null;
+  const railPerformance = getHorizontalListPerformanceSettings(stations.length);
+
+  return (
+    <View style={styles.sectionBlock}>
+      <View style={styles.sectionHeader}>
+        <View style={styles.sectionHeaderText}>
+          <Text style={styles.sectionEyebrow}>LIVE</Text>
+          <Text style={styles.sectionTitle}>Live Mature Radio</Text>
+          <Text style={styles.sectionMeta}>{stations.length} stations</Text>
+        </View>
+      </View>
+      <FlatList
+        horizontal
+        data={stations}
+        keyExtractor={(item) => `live-radio-${item.id}`}
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.railContent}
+        {...railPerformance}
+        renderItem={({ item }) => (
+          <RadioStationRailCard item={item} onPress={() => onPressStation(item)} />
+        )}
+      />
+    </View>
+  );
+}
+
 export default function PodcastMatureHubScreen() {
+  const { playRadioStation } = usePlaybackRouter();
   const { includeMatureInApi } = useMatureContentSettings();
   const { consentVisible, runWithMatureConsent, cancelConsent, confirmConsent } =
     useMatureContentGate();
 
   const { laneShows, populatedLanes, loading: loadingLanes, resolveShow } =
     useMaturePodcastHubDiscovery(includeMatureInApi);
-  const { categories: availableCategories, loadingCategories } =
-    useMaturePodcastCategoryAvailability(includeMatureInApi);
+  const { categories: availableCategories } = useMaturePodcastCategoryAvailability(includeMatureInApi);
+  const { stations: liveRadioStations, resolveStation } = useMatureRadioHubDiscovery(includeMatureInApi);
+  const { categories: matureRadioCategories } = useMatureRadioCategoryAvailability(includeMatureInApi);
 
-  const loading = includeMatureInApi && (loadingLanes || loadingCategories);
+  const showInitialLoading =
+    includeMatureInApi && loadingLanes && populatedLanes.length === 0 && liveRadioStations.length === 0;
 
   const openSubcategory = useCallback((categoryId: string) => {
     safeRouterPush({
@@ -154,6 +180,38 @@ export default function PodcastMatureHubScreen() {
     [resolveShow, runWithMatureConsent]
   );
 
+  const playStation = useCallback(
+    async (item: RadioStationListItem) => {
+      const station = resolveStation(item.id);
+      if (!station) {
+        Alert.alert("Unavailable", "This station is unavailable right now.");
+        return;
+      }
+
+      const result = await playRadioStation(normalizeRadioStation(station));
+      if (!result.ok) {
+        Alert.alert("Unavailable", result.error || "This station is unavailable right now.");
+      }
+    },
+    [playRadioStation, resolveStation]
+  );
+
+  const openRadioStation = useCallback(
+    (item: RadioStationListItem) => {
+      runWithMatureConsent(item, () => {
+        void playStation(item);
+      });
+    },
+    [playStation, runWithMatureConsent]
+  );
+
+  const openRadioCategory = useCallback((categoryId: string) => {
+    safeRouterPush({
+      pathname: "/stations/[categoryId]",
+      params: { categoryId },
+    });
+  }, []);
+
   const homeSections = useMemo(() => {
     const sections: MatureHubSection[] = [];
 
@@ -166,7 +224,22 @@ export default function PodcastMatureHubScreen() {
         eyebrow: lane.eyebrow,
         title: lane.title,
         shows,
-        seeAllCategoryId: lane.categoryLinkId,
+      });
+    }
+
+    if (liveRadioStations.length) {
+      sections.push({
+        key: "live-radio",
+        kind: "radio-rail",
+        stations: liveRadioStations,
+      });
+    }
+
+    if (matureRadioCategories.length) {
+      sections.push({
+        key: "radio-browse",
+        kind: "radio-browse",
+        categories: matureRadioCategories,
       });
     }
 
@@ -179,7 +252,7 @@ export default function PodcastMatureHubScreen() {
     }
 
     return sections;
-  }, [availableCategories, laneShows, populatedLanes]);
+  }, [availableCategories, laneShows, liveRadioStations, matureRadioCategories, populatedLanes]);
 
   const renderHomeSection = useCallback(
     ({ item }: { item: MatureHubSection }) => {
@@ -190,15 +263,41 @@ export default function PodcastMatureHubScreen() {
             title={item.title}
             shows={item.shows}
             onPressShow={openShow}
-            seeAllCategoryId={item.seeAllCategoryId}
           />
+        );
+      }
+
+      if (item.kind === "radio-rail") {
+        return <RadioRailSection stations={item.stations} onPressStation={openRadioStation} />;
+      }
+
+      if (item.kind === "radio-browse") {
+        return (
+          <View style={styles.sectionBlock}>
+            <Text style={styles.sectionEyebrow}>LIVE RADIO</Text>
+            <Text style={styles.sectionTitle}>Mature radio rooms</Text>
+            <View style={styles.grid}>
+              {item.categories.map((category) => (
+                <RadioCategoryCard
+                  key={category.id}
+                  category={category}
+                  onPress={() =>
+                    runWithMatureConsent(
+                      { is_mature: true, content_rating: "adult" },
+                      () => openRadioCategory(category.id)
+                    )
+                  }
+                />
+              ))}
+            </View>
+          </View>
         );
       }
 
       return (
         <View style={styles.sectionBlock}>
-          <Text style={styles.sectionEyebrow}>BROWSE ROOMS</Text>
-          <Text style={styles.sectionTitle}>All mature podcast categories</Text>
+          <Text style={styles.sectionEyebrow}>PODCASTS</Text>
+          <Text style={styles.sectionTitle}>Mature podcast categories</Text>
           <View style={styles.grid}>
             {item.categories.map((category) => (
               <PodcastCategoryCard
@@ -216,7 +315,7 @@ export default function PodcastMatureHubScreen() {
         </View>
       );
     },
-    [openShow, openSubcategory, runWithMatureConsent]
+    [openRadioCategory, openRadioStation, openShow, openSubcategory, runWithMatureConsent]
   );
 
   const listPerformance = useMemo(
@@ -263,14 +362,14 @@ export default function PodcastMatureHubScreen() {
         </TouchableOpacity>
         <View style={styles.headerText}>
           <Text style={styles.kicker}>MATURE 18+</Text>
-          <Text style={styles.title}>Adult Podcast Discovery</Text>
+            <Text style={styles.title}>Mature Audio Discovery</Text>
           <Text style={styles.subtitle}>
-            Featured · Trending · Dating · Psychology · After Dark · More
+            Podcasts first · Live radio when available · Dating · After Dark · More
           </Text>
         </View>
       </View>
 
-      {loading ? (
+      {showInitialLoading ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color={COLORS.primary} />
           <Text style={styles.loadingText}>{TESTER_COPY.podcastDiscoveryLoading}</Text>
@@ -287,8 +386,8 @@ export default function PodcastMatureHubScreen() {
       ) : (
         <View style={styles.center}>
           <Ionicons name="eye-off-outline" size={48} color={COLORS.textMuted} />
-          <Text style={styles.gateTitle}>Adult podcast rooms are unavailable right now</Text>
-          <Text style={styles.gateText}>Try again later or browse standard podcast categories.</Text>
+          <Text style={styles.gateTitle}>Mature audio is unavailable right now</Text>
+          <Text style={styles.gateText}>Try again later or browse standard podcast and radio categories.</Text>
         </View>
       )}
 
