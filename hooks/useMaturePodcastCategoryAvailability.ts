@@ -1,8 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { PODCAST_MATURE_SUBCATEGORIES } from "../constants/podcastMatureCategories";
 import type { PodcastCategory } from "../constants/podcastCategories";
-import { filterAvailableMaturePodcastCategories } from "../services/mature/maturePodcastCategoryAvailability";
 
 function matureSubToCategoryFromDef(
   sub: (typeof PODCAST_MATURE_SUBCATEGORIES)[number]
@@ -20,37 +19,18 @@ function matureSubToCategoryFromDef(
   };
 }
 
+/** Static mature podcast tiles — no availability probe storm on hub mount. */
 export function useMaturePodcastCategoryAvailability(enabled: boolean) {
-  const [categories, setCategories] = useState<PodcastCategory[]>([]);
-  const [loading, setLoading] = useState(enabled);
+  const categories = useMemo(
+    () => (enabled ? PODCAST_MATURE_SUBCATEGORIES.map(matureSubToCategoryFromDef) : []),
+    [enabled]
+  );
+
+  const [loadingCategories] = useState(false);
 
   useEffect(() => {
-    if (!enabled) {
-      setCategories([]);
-      setLoading(false);
-      return;
-    }
-
-    let cancelled = false;
-    setLoading(true);
-
-    void filterAvailableMaturePodcastCategories()
-      .then((available) => {
-        if (cancelled) return;
-        setCategories(available.map(matureSubToCategoryFromDef));
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setCategories(PODCAST_MATURE_SUBCATEGORIES.map(matureSubToCategoryFromDef));
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
+    // Categories are catalog metadata only until a category page is opened.
   }, [enabled]);
 
-  return { categories, loadingCategories: loading };
+  return { categories, loadingCategories };
 }

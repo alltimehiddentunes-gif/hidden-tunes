@@ -1,3 +1,4 @@
+import { DISCOVERY_QUALITY_RANK_CAP } from "../../constants/discoveryPerformanceBudget";
 import type { HiddenTunesPodcastShow } from "../podcastCatalogApi";
 import type { HiddenTunesStation } from "../../types/radio";
 import {
@@ -154,7 +155,8 @@ export function filterAndRankMaturePodcastShows(
   options?: { minQuality?: number; categoryId?: string; source?: string }
 ) {
   const minQuality = options?.minQuality ?? MATURE_PODCAST_MIN_QUALITY;
-  const deduped = dedupeMaturePodcastShows(shows);
+  const capped = shows.slice(0, DISCOVERY_QUALITY_RANK_CAP);
+  const deduped = dedupeMaturePodcastShows(capped);
   const qualityPassed = deduped.filter((show) => passesMaturePodcastQualityGate(show, minQuality));
   const playableShows = qualityPassed.filter(isMaturePlayableShow);
 
@@ -224,7 +226,8 @@ export function filterAndRankMatureRadioStations(
   options?: { minQuality?: number; categoryId?: string }
 ) {
   const minQuality = options?.minQuality ?? MATURE_RADIO_MIN_QUALITY;
-  const deduped = dedupeMatureRadioStations(stations);
+  const capped = stations.slice(0, DISCOVERY_QUALITY_RANK_CAP);
+  const deduped = dedupeMatureRadioStations(capped);
   const playableStreams = deduped.filter((station) =>
     String(station.streamUrl || "").trim().startsWith("https://")
   );

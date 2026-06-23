@@ -34,6 +34,13 @@ export function isRuntimeInstrumentationEnabled() {
 /** Mature discovery category counts — dev-only, flip to true during mature QA. */
 export const ENABLE_MATURE_DISCOVERY_DIAGNOSTICS = false;
 
+/** Discovery request/render timing — dev-only, flip during heat QA. */
+export const ENABLE_DISCOVERY_PERF_DIAGNOSTICS = false;
+
+export function isDiscoveryPerfDiagnosticsEnabled() {
+  return isDevEnvironment() && ENABLE_DISCOVERY_PERF_DIAGNOSTICS;
+}
+
 export function isMatureDiscoveryDiagnosticsEnabled() {
   return isDevEnvironment() && ENABLE_MATURE_DISCOVERY_DIAGNOSTICS;
 }

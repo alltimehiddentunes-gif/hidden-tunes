@@ -1,10 +1,15 @@
 import {
   MATURE_DISCOVERY_PAGE_SIZE,
-  MATURE_KEYWORDS_PER_FETCH,
   MATURE_MAX_VIRTUAL_PAGES,
   MATURE_MIN_CATEGORY_RESULTS,
   MATURE_RELAXED_PODCAST_MIN_QUALITY,
 } from "../../constants/matureDiscoveryFoundation";
+import {
+  MATURE_FALLBACK_TRIGGER_COUNT,
+  MATURE_MAX_FALLBACK_QUERIES_PER_PAGE,
+  MATURE_PRIMARY_QUERIES_PER_PAGE,
+  DISCOVERY_QUALITY_RANK_CAP,
+} from "../../constants/discoveryPerformanceBudget";
 import { getMaturePodcastAdjacentGroupIds } from "../../constants/matureCategoryFallbacks";
 import {
   buildMaturePodcastKeywordQuery,
@@ -14,9 +19,7 @@ import {
 } from "../../constants/maturePodcastQueryGroups";
 import { pageFromOffset } from "../../constants/mediaDiscovery";
 import { shouldIncludeMatureInApi } from "../../utils/matureContentSettings";
-import {
-  logMatureDiscoveryWeakCategory,
-} from "../../utils/matureDiscoveryDiagnostics";
+import { logMatureDiscoveryWeakCategory } from "../../utils/matureDiscoveryDiagnostics";
 import {
   fetchPodcastShows,
   type HiddenTunesPodcastShow,
@@ -32,6 +35,13 @@ type MaturePodcastPageResult = {
   supplementaryTitles?: string[];
 };
 
+type LoadOptions = {
+  forceRefresh?: boolean;
+  append?: boolean;
+  /** Allow adjacent-category supplement (load-more / explicit refresh only). */
+  allowSparseExpansion?: boolean;
+};
+
 const inflightRequests = new Map<string, Promise<MaturePodcastPageResult>>();
 let requestGeneration = 0;
 const generationByKey = new Map<string, number>();
@@ -43,17 +53,19 @@ function resolveQueryGroup(categoryId: string) {
 
 function buildFetchPlan(group: MaturePodcastQueryGroup, virtualPage: number) {
   const keywords = group.keywords;
-  const startIndex = (virtualPage * MATURE_KEYWORDS_PER_FETCH) % keywords.length;
-  const keywordPage =
-    Math.floor((virtualPage * MATURE_KEYWORDS_PER_FETCH) / keywords.length) + 1;
+  const primaryIndex = virtualPage % keywords.length;
+  const keywordPage = Math.floor(virtualPage / keywords.length) + 1;
 
-  const selected: Array<{ keyword: string; page: number }> = [];
-  for (let i = 0; i < MATURE_KEYWORDS_PER_FETCH; i += 1) {
-    const keyword = keywords[(startIndex + i) % keywords.length];
-    selected.push({ keyword, page: keywordPage });
-  }
-
-  return selected;
+  return {
+    primary: { keyword: keywords[primaryIndex], page: keywordPage },
+    fallback:
+      MATURE_MAX_FALLBACK_QUERIES_PER_PAGE > 0 && keywords.length > 1
+        ? {
+            keyword: keywords[(primaryIndex + 1) % keywords.length],
+            page: keywordPage,
+          }
+        : null,
+  };
 }
 
 async function fetchMaturePodcastKeywordResponses(
@@ -61,11 +73,32 @@ async function fetchMaturePodcastKeywordResponses(
   virtualPage: number
 ) {
   const plan = buildFetchPlan(group, virtualPage);
-  return Promise.all(
-    plan.map(({ keyword, page }) =>
-      fetchPodcastShows(buildMaturePodcastKeywordQuery(keyword, page, MATURE_DISCOVERY_PAGE_SIZE))
+  const primaryResponse = await fetchPodcastShows(
+    buildMaturePodcastKeywordQuery(
+      plan.primary.keyword,
+      plan.primary.page,
+      MATURE_DISCOVERY_PAGE_SIZE
     )
   );
+
+  const responses = [primaryResponse];
+  const primaryShows = primaryResponse.success ? primaryResponse.shows : [];
+
+  if (
+    plan.fallback &&
+    primaryShows.length < MATURE_FALLBACK_TRIGGER_COUNT
+  ) {
+    const fallbackResponse = await fetchPodcastShows(
+      buildMaturePodcastKeywordQuery(
+        plan.fallback.keyword,
+        plan.fallback.page,
+        MATURE_DISCOVERY_PAGE_SIZE
+      )
+    );
+    responses.push(fallbackResponse);
+  }
+
+  return responses;
 }
 
 async function fetchMaturePodcastBatch(
@@ -75,20 +108,21 @@ async function fetchMaturePodcastBatch(
 ) {
   const responses = await fetchMaturePodcastKeywordResponses(group, virtualPage);
   const merged = responses.flatMap((response) => (response.success ? response.shows : []));
-  const sourceHasMore = responses.some((response) => response.success && response.pagination.hasMore);
-  const ranked = filterAndRankMaturePodcastShows(merged, {
-    categoryId: auditCategoryId || group.id,
-    source: `keywords:page${virtualPage}`,
-  });
+  const sourceHasMore = responses.some(
+    (response) => response.success && response.pagination.hasMore
+  );
+  const ranked = filterAndRankMaturePodcastShows(
+    merged.slice(0, DISCOVERY_QUALITY_RANK_CAP),
+    {
+      categoryId: auditCategoryId || group.id,
+      source: `keywords:page${virtualPage}`,
+    }
+  );
 
   return { ranked, sourceHasMore, rawCount: merged.length };
 }
 
-async function fetchAdjacentSupplement(
-  groupId: string,
-  existingIds: Set<string>,
-  maxGroups = 2
-) {
+async function fetchAdjacentSupplement(groupId: string, existingIds: Set<string>, maxGroups = 1) {
   const adjacentIds = getMaturePodcastAdjacentGroupIds(groupId).slice(0, maxGroups);
   let merged: HiddenTunesPodcastShow[] = [];
 
@@ -102,7 +136,7 @@ async function fetchAdjacentSupplement(
     if (merged.length >= MATURE_DISCOVERY_PAGE_SIZE) break;
   }
 
-  return filterAndRankMaturePodcastShows(merged, {
+  return filterAndRankMaturePodcastShows(merged.slice(0, DISCOVERY_QUALITY_RANK_CAP), {
     categoryId: groupId,
     minQuality: MATURE_RELAXED_PODCAST_MIN_QUALITY,
     source: "adjacent-fallback",
@@ -111,10 +145,9 @@ async function fetchAdjacentSupplement(
 
 async function expandSparseMatureCategory(
   group: MaturePodcastQueryGroup,
-  initialRanked: HiddenTunesPodcastShow[],
-  virtualPage: number
+  initialRanked: HiddenTunesPodcastShow[]
 ) {
-  if (virtualPage !== 0 || initialRanked.length >= MATURE_MIN_CATEGORY_RESULTS) {
+  if (initialRanked.length >= MATURE_MIN_CATEGORY_RESULTS) {
     return { shows: initialRanked, supplementaryTitles: [] as string[] };
   }
 
@@ -122,42 +155,28 @@ async function expandSparseMatureCategory(
   const seenIds = new Set(merged.map((show) => show.id));
   const supplementaryTitles: string[] = [];
 
-  if (merged.length < MATURE_MIN_CATEGORY_RESULTS) {
-    const nextPage = await fetchMaturePodcastBatch(group, 1, group.id);
-    for (const show of nextPage.ranked) {
-      if (seenIds.has(show.id)) continue;
-      seenIds.add(show.id);
-      merged.push(show);
-    }
-    merged = filterAndRankMaturePodcastShows(merged, {
-      categoryId: group.id,
-      source: "secondary-keyword-page",
-    });
-  }
-
-  if (merged.length < MATURE_MIN_CATEGORY_RESULTS) {
-    const supplement = await fetchAdjacentSupplement(group.id, seenIds);
-    if (supplement.length) {
-      supplementaryTitles.push(
-        ...getMaturePodcastAdjacentGroupIds(group.id)
-          .slice(0, 2)
-          .map((id) => getMaturePodcastQueryGroup(id)?.title || id)
-          .filter(Boolean)
-      );
-    }
-    merged = filterAndRankMaturePodcastShows(
-      dedupeMaturePodcastShows([...merged, ...supplement]),
-      {
-        categoryId: group.id,
-        minQuality: MATURE_RELAXED_PODCAST_MIN_QUALITY,
-        source: "expanded-category",
-      }
+  const supplement = await fetchAdjacentSupplement(group.id, seenIds, 1);
+  if (supplement.length) {
+    supplementaryTitles.push(
+      getMaturePodcastAdjacentGroupIds(group.id)
+        .slice(0, 1)
+        .map((id) => getMaturePodcastQueryGroup(id)?.title || id)
+        .filter(Boolean)[0] || ""
     );
   }
 
+  merged = filterAndRankMaturePodcastShows(
+    dedupeMaturePodcastShows([...merged, ...supplement]).slice(0, DISCOVERY_QUALITY_RANK_CAP),
+    {
+      categoryId: group.id,
+      minQuality: MATURE_RELAXED_PODCAST_MIN_QUALITY,
+      source: "expanded-category",
+    }
+  );
+
   logMatureDiscoveryWeakCategory("podcast", group.id, merged.length, MATURE_MIN_CATEGORY_RESULTS);
 
-  return { shows: merged, supplementaryTitles };
+  return { shows: merged, supplementaryTitles: supplementaryTitles.filter(Boolean) };
 }
 
 export function isMaturePodcastCategory(categoryId: string) {
@@ -167,7 +186,7 @@ export function isMaturePodcastCategory(categoryId: string) {
 export async function loadMaturePodcastCategoryPage(
   categoryId: string,
   offset = 0,
-  _options?: { forceRefresh?: boolean; append?: boolean }
+  options?: LoadOptions
 ): Promise<MaturePodcastPageResult> {
   if (!shouldIncludeMatureInApi()) {
     return { shows: [], hasMore: false };
@@ -193,8 +212,8 @@ export async function loadMaturePodcastCategoryPage(
   const promise = (async () => {
     const { ranked, sourceHasMore } = await fetchMaturePodcastBatch(group, virtualPage, group.id);
     const expanded =
-      virtualPage === 0
-        ? await expandSparseMatureCategory(group, ranked, virtualPage)
+      options?.allowSparseExpansion && virtualPage === 0
+        ? await expandSparseMatureCategory(group, ranked)
         : { shows: ranked, supplementaryTitles: [] as string[] };
 
     if (generationByKey.get(requestKey) !== generation) {
@@ -227,3 +246,7 @@ export function cancelMaturePodcastDiscovery() {
   inflightRequests.clear();
   generationByKey.clear();
 }
+
+// Preserve export for callers referencing keyword slot count.
+export const MATURE_KEYWORD_SLOTS_PER_PAGE =
+  MATURE_PRIMARY_QUERIES_PER_PAGE + MATURE_MAX_FALLBACK_QUERIES_PER_PAGE;

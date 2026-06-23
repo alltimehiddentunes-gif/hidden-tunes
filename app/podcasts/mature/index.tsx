@@ -131,14 +131,15 @@ export default function PodcastMatureHubScreen() {
   const { consentVisible, runWithMatureConsent, cancelConsent, confirmConsent } =
     useMatureContentGate();
 
-  const { laneShows, populatedLanes, loading: loadingLanes, resolveShow } =
+  const { laneShows, populatedLanes, loading: loadingLanes, resolveShow, loadMoreRails, hasMoreRails } =
     useMaturePodcastHubDiscovery(includeMatureInApi);
   const { categories: availableCategories } = useMaturePodcastCategoryAvailability(includeMatureInApi);
-  const { stations: liveRadioStations, resolveStation } = useMatureRadioHubDiscovery(includeMatureInApi);
+  const { stations: liveRadioStations, resolveStation } = useMatureRadioHubDiscovery(includeMatureInApi, {
+    defer: true,
+  });
   const { categories: matureRadioCategories } = useMatureRadioCategoryAvailability(includeMatureInApi);
 
-  const showInitialLoading =
-    includeMatureInApi && loadingLanes && populatedLanes.length === 0 && liveRadioStations.length === 0;
+  const showInitialLoading = includeMatureInApi && loadingLanes && populatedLanes.length === 0;
 
   const openSubcategory = useCallback((categoryId: string) => {
     safeRouterPush({
@@ -374,13 +375,25 @@ export default function PodcastMatureHubScreen() {
           <ActivityIndicator size="large" color={COLORS.primary} />
           <Text style={styles.loadingText}>{TESTER_COPY.podcastDiscoveryLoading}</Text>
         </View>
-      ) : homeSections.length > 0 ? (
+      ) : homeSections.length > 0 || availableCategories.length > 0 ? (
         <FlatList
           data={homeSections}
           keyExtractor={(item) => item.key}
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
           renderItem={renderHomeSection}
+          onEndReachedThreshold={0.4}
+          onEndReached={() => {
+            if (hasMoreRails) loadMoreRails();
+          }}
+          ListHeaderComponent={
+            showInitialLoading ? (
+              <View style={styles.inlineLoading}>
+                <ActivityIndicator size="small" color={COLORS.primary} />
+                <Text style={styles.loadingText}>{TESTER_COPY.podcastDiscoveryLoading}</Text>
+              </View>
+            ) : null
+          }
           {...listPerformance}
         />
       ) : (
@@ -504,6 +517,12 @@ const styles = StyleSheet.create({
   loadingText: {
     color: COLORS.textMuted,
     fontSize: 14,
+  },
+  inlineLoading: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 12,
   },
   gateTitle: {
     color: COLORS.text,

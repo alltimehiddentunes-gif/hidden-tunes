@@ -3,18 +3,23 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   getBrowsableRadioCategories,
   getEmotionalRadioCategories,
+  getMatureRadioCategories,
   type RadioCategory,
 } from "../constants/radioCategories";
 import { RADIO_HOME_LANE_PAGE_SIZE } from "../constants/radioFoundation";
+import {
+  DISCOVERY_DEFER_RAIL_IDLE_MS,
+  DISCOVERY_PRIORITY_RAIL_LIMIT,
+} from "../constants/discoveryPerformanceBudget";
 import type { HiddenTunesStation, RadioStationListItem } from "../types/radio";
-import { HOME_LANE_STAGGER_MS } from "../utils/searchPerformance";
-import { useMatureContentSettings } from "./useMatureContentSettings";
+import { DISCOVERY_LANE_STAGGER_MS } from "../utils/searchPerformance";
 import {
   loadRadioHomeLanePage,
   rememberRecommendedLane,
 } from "../services/radio/radioHomeLanes";
 import { loadRecentlyPlayedRadioItems } from "../services/radio/recentlyPlayedRadio";
 import { toRadioStationListItem } from "../services/radio/radioNormalizer";
+import { useMatureContentSettings } from "./useMatureContentSettings";
 import { logRadioDiscoveryFetch, logRadioDiscoveryRender } from "../utils/radioDiscoveryDiagnostics";
 
 export type RadioEmotionalWorldPreview = {
@@ -62,6 +67,17 @@ export function useRadioHomeDiscovery(): RadioHomeDiscoveryState {
   useEffect(() => {
     let cancelled = false;
 
+    const nonMatureBrowse = getBrowsableRadioCategories(includeMatureInApi).filter(
+      (category) => !category.isMature
+    );
+    setEmotionalWorlds(
+      getEmotionalRadioCategories(includeMatureInApi).map((world) => ({ world }))
+    );
+    setBrowseCategories([
+      ...nonMatureBrowse,
+      ...(includeMatureInApi ? getMatureRadioCategories(true) : []),
+    ]);
+
     void (async () => {
       setLoading(true);
 
@@ -81,27 +97,42 @@ export function useRadioHomeDiscovery(): RadioHomeDiscoveryState {
       setFeaturedPool(featuredResult.stations);
       setLoading(false);
 
-      await new Promise((resolve) => setTimeout(resolve, HOME_LANE_STAGGER_MS));
+      if (DISCOVERY_PRIORITY_RAIL_LIMIT < 2) return;
+
+      await new Promise((resolve) => setTimeout(resolve, DISCOVERY_LANE_STAGGER_MS));
       if (cancelled) return;
 
-      logRadioDiscoveryFetch("home:lanes", "trending+popular");
-      const [trendingResult, popularResult] = await Promise.all([
-        loadRadioHomeLanePage("trending", { offset: 0, forceRefresh: false }).catch(() => ({
-          stations: [],
-          hasMore: false,
-          fromCache: false,
-        })),
-        loadRadioHomeLanePage("popular", { offset: 0, forceRefresh: false }).catch(() => ({
-          stations: [],
-          hasMore: false,
-          fromCache: false,
-        })),
-      ]);
+      logRadioDiscoveryFetch("home:lanes", "trending");
+      const trendingResult = await loadRadioHomeLanePage("trending", {
+        offset: 0,
+        forceRefresh: false,
+      }).catch(() => ({
+        stations: [],
+        hasMore: false,
+        fromCache: false,
+      }));
 
       if (cancelled) return;
 
-      rememberStations([...trendingResult.stations, ...popularResult.stations]);
+      rememberStations(trendingResult.stations);
       setTrendingPool(trendingResult.stations);
+
+      await new Promise((resolve) => setTimeout(resolve, DISCOVERY_DEFER_RAIL_IDLE_MS));
+      if (cancelled) return;
+
+      logRadioDiscoveryFetch("home:lanes", "popular");
+      const popularResult = await loadRadioHomeLanePage("popular", {
+        offset: 0,
+        forceRefresh: false,
+      }).catch(() => ({
+        stations: [],
+        hasMore: false,
+        fromCache: false,
+      }));
+
+      if (cancelled) return;
+
+      rememberStations(popularResult.stations);
       setPopularPool(popularResult.stations);
 
       const recentResult = await loadRecentlyPlayedRadioItems(RADIO_HOME_LANE_PAGE_SIZE).catch(
@@ -120,25 +151,6 @@ export function useRadioHomeDiscovery(): RadioHomeDiscoveryState {
       );
       rememberStations(recommended);
       setRecommendedPool(recommended);
-
-      const emotionalCandidates = getEmotionalRadioCategories(includeMatureInApi);
-      const browseCandidates = getBrowsableRadioCategories(includeMatureInApi);
-      const nonMatureBrowse = browseCandidates.filter((category) => !category.isMature);
-
-      if (cancelled) return;
-
-      setEmotionalWorlds(emotionalCandidates.map((world) => ({ world })));
-
-      if (includeMatureInApi) {
-        const { filterAvailableMatureRadioCategories } = await import(
-          "../services/mature/matureRadioCategoryAvailability"
-        );
-        const matureRadioCategories = await filterAvailableMatureRadioCategories().catch(() => []);
-        if (cancelled) return;
-        setBrowseCategories([...nonMatureBrowse, ...matureRadioCategories]);
-      } else {
-        setBrowseCategories(nonMatureBrowse);
-      }
     })();
 
     return () => {

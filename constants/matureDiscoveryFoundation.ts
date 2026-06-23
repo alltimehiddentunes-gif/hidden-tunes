@@ -1,4 +1,8 @@
 import { MEDIA_DISCOVERY_PAGE_SIZE } from "./mediaDiscovery";
+import {
+  MATURE_KEYWORDS_PER_FETCH,
+  MATURE_PRIMARY_QUERIES_PER_PAGE,
+} from "./discoveryPerformanceBudget";
 
 /** Long-term catalog target — never loaded on device in bulk. */
 export const MATURE_PODCAST_CATALOG_TARGET = 20_000;
@@ -10,8 +14,8 @@ export const MATURE_RADIO_CATALOG_TARGET_MAX = 2_000;
 /** Mobile page size — unchanged from standard discovery. */
 export const MATURE_DISCOVERY_PAGE_SIZE = MEDIA_DISCOVERY_PAGE_SIZE;
 
-/** Keywords queried in parallel per virtual page (multi-source expansion). */
-export const MATURE_KEYWORDS_PER_FETCH = 4;
+/** Keywords queried per virtual page (1 primary + optional 1 fallback). */
+export { MATURE_KEYWORDS_PER_FETCH, MATURE_PRIMARY_QUERIES_PER_PAGE };
 
 /** Minimum shows before adjacent-category supplement kicks in. */
 export const MATURE_MIN_CATEGORY_RESULTS = 20;

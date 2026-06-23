@@ -1,11 +1,13 @@
+import { MATURE_RADIO_MIN_CATEGORY_STATIONS } from "../../constants/matureDiscoveryFoundation";
+import { MATURE_CATEGORY_PREFETCH } from "../../constants/discoveryPerformanceBudget";
 import {
   MATURE_RADIO_MERGED_TALK_GROUP,
-  MATURE_RADIO_MERGED_TALK_ID,
+  MATURE_RADIO_PRIMARY_GROUPS,
+  MATURE_RADIO_SUPPLEMENT_GROUPS,
   getMatureRadioGroupsForAvailabilityProbe,
   getMatureRadioQueryGroup,
-  type MatureRadioQueryGroup,
+  MATURE_RADIO_MERGED_TALK_ID,
 } from "../../constants/matureRadioQueryGroups";
-import { MATURE_RADIO_MIN_CATEGORY_STATIONS } from "../../constants/matureDiscoveryFoundation";
 import type { RadioCategory } from "../../constants/radioCategories";
 import { matureRadioGroupToCategory } from "../../constants/radioCategories";
 import { loadMatureRadioCategoryPage } from "./matureRadioDiscovery";
@@ -167,6 +169,10 @@ export async function resolveMatureRadioCategoryVisibility(forceRefresh = false)
 }
 
 export async function filterAvailableMatureRadioCategories() {
+  if (!MATURE_CATEGORY_PREFETCH) {
+    return MATURE_RADIO_PRIMARY_GROUPS.map(matureRadioGroupToCategory);
+  }
+
   const visibility = await resolveMatureRadioCategoryVisibility();
   const categories = [...visibility.visibleCategories];
   if (visibility.mergedCategory) {

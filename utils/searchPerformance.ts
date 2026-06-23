@@ -19,7 +19,20 @@ export const PODCAST_SEARCH_DEBOUNCE_MS = 480;
 export const RADIO_SEARCH_DEBOUNCE_MS = 480;
 
 /** Max podcast search alias attempts per query (page 1). */
-export const PODCAST_SEARCH_MAX_FALLBACK_QUERIES = 3;
+export const PODCAST_SEARCH_MAX_FALLBACK_QUERIES = 2;
 
 /** Home discovery: ms between featured and secondary lane fetches. */
-export const HOME_LANE_STAGGER_MS = 120;
+export const HOME_LANE_STAGGER_MS = 150;
+
+export {
+  RADIO_PAGE_SIZE,
+  PODCAST_PAGE_SIZE,
+  MAX_FALLBACK_QUERIES,
+  MAX_PARALLEL_DISCOVERY_REQUESTS,
+  MATURE_CATEGORY_PREFETCH,
+  DISCOVERY_PRIORITY_RAIL_LIMIT,
+  DISCOVERY_IDLE_RAIL_LIMIT,
+  DISCOVERY_LANE_STAGGER_MS,
+  DISCOVERY_DEFER_RAIL_IDLE_MS,
+  DISCOVERY_DEFER_RADIO_IDLE_MS,
+} from "../constants/discoveryPerformanceBudget";

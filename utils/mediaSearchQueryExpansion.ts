@@ -1,7 +1,8 @@
+import { MAX_FALLBACK_QUERIES } from "../constants/discoveryPerformanceBudget";
 import { shouldIncludeMatureInApi } from "./matureContentSettings";
 
-export const MEDIA_SEARCH_MAX_ALIAS_QUERIES = 4;
-export const MEDIA_SEARCH_MAX_FALLBACK_ATTEMPTS = 5;
+export const MEDIA_SEARCH_MAX_ALIAS_QUERIES = MAX_FALLBACK_QUERIES;
+export const MEDIA_SEARCH_MAX_FALLBACK_ATTEMPTS = MAX_FALLBACK_QUERIES;
 
 export type MediaSearchExpansion = {
   canonical: string;

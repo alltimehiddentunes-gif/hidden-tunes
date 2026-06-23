@@ -1,39 +1,18 @@
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 
+import { MATURE_RADIO_PRIMARY_GROUPS } from "../constants/matureRadioQueryGroups";
 import type { RadioCategory } from "../constants/radioCategories";
-import { filterAvailableMatureRadioCategories } from "../services/mature/matureRadioCategoryAvailability";
+import { matureRadioGroupToCategory } from "../constants/radioCategories";
 
+/** Static mature radio tiles — no multi-category probe on hub mount. */
 export function useMatureRadioCategoryAvailability(enabled: boolean) {
-  const [categories, setCategories] = useState<RadioCategory[]>([]);
-  const [loadingCategories, setLoadingCategories] = useState(enabled);
+  const categories = useMemo(
+    () =>
+      enabled ? MATURE_RADIO_PRIMARY_GROUPS.map(matureRadioGroupToCategory) : ([] as RadioCategory[]),
+    [enabled]
+  );
 
-  useEffect(() => {
-    if (!enabled) {
-      setCategories([]);
-      setLoadingCategories(false);
-      return;
-    }
-
-    let cancelled = false;
-    setLoadingCategories(true);
-
-    void filterAvailableMatureRadioCategories()
-      .then((available) => {
-        if (cancelled) return;
-        setCategories(available);
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setCategories([]);
-      })
-      .finally(() => {
-        if (!cancelled) setLoadingCategories(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [enabled]);
+  const [loadingCategories] = useState(false);
 
   return { categories, loadingCategories };
 }

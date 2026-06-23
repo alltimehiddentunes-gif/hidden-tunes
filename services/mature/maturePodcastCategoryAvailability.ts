@@ -1,3 +1,4 @@
+import { MATURE_CATEGORY_PREFETCH } from "../../constants/discoveryPerformanceBudget";
 import { PODCAST_MATURE_SUBCATEGORIES } from "../../constants/podcastMatureCategories";
 import {
   buildMaturePodcastKeywordQuery,
@@ -78,6 +79,10 @@ async function mapWithConcurrency<T, R>(
 }
 
 export async function filterAvailableMaturePodcastCategories() {
+  if (!MATURE_CATEGORY_PREFETCH) {
+    return PODCAST_MATURE_SUBCATEGORIES;
+  }
+
   const categories = PODCAST_MATURE_SUBCATEGORIES;
   const results = await mapWithConcurrency(categories, 2, (category) =>
     probeMaturePodcastCategoryHasShows(category.id, category.queryGroupId)

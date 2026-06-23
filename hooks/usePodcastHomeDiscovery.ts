@@ -3,12 +3,17 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   getBrowsablePodcastCategories,
   getEmotionalPodcastCategories,
+  getMaturePodcastSubcategories,
   type PodcastCategory,
 } from "../constants/podcastCategories";
 import { PODCAST_HOME_LANE_PAGE_SIZE } from "../constants/podcastFoundation";
+import {
+  DISCOVERY_DEFER_RAIL_IDLE_MS,
+  DISCOVERY_PRIORITY_RAIL_LIMIT,
+} from "../constants/discoveryPerformanceBudget";
 import type { HiddenTunesPodcastShow } from "../services/podcastCatalogApi";
 import type { PodcastShowListItem } from "../types/podcastDiscovery";
-import { HOME_LANE_STAGGER_MS } from "../utils/searchPerformance";
+import { DISCOVERY_LANE_STAGGER_MS } from "../utils/searchPerformance";
 import {
   loadPodcastHomeLanePage,
   rememberRecommendedPodcastLane,
@@ -60,6 +65,12 @@ export function usePodcastHomeDiscovery(): PodcastHomeDiscoveryState {
   useEffect(() => {
     let cancelled = false;
 
+    setEmotionalWorlds(
+      getEmotionalPodcastCategories(includeMatureInApi).map((world) => ({ world }))
+    );
+    setBrowseCategories(getBrowsablePodcastCategories(includeMatureInApi));
+    setMatureCategories(includeMatureInApi ? getMaturePodcastSubcategories() : []);
+
     void (async () => {
       setLoading(true);
 
@@ -76,24 +87,36 @@ export function usePodcastHomeDiscovery(): PodcastHomeDiscoveryState {
       setFeaturedPool(featuredResult.shows);
       setLoading(false);
 
-      await new Promise((resolve) => setTimeout(resolve, HOME_LANE_STAGGER_MS));
+      if (DISCOVERY_PRIORITY_RAIL_LIMIT < 2) return;
+
+      await new Promise((resolve) => setTimeout(resolve, DISCOVERY_LANE_STAGGER_MS));
       if (cancelled) return;
 
-      const [trendingResult, popularResult] = await Promise.all([
-        loadPodcastHomeLanePage("trending", 0, { forceRefresh: false }).catch(() => ({
-          shows: [],
-          hasMore: false,
-        })),
-        loadPodcastHomeLanePage("popular", 0, { forceRefresh: false }).catch(() => ({
-          shows: [],
-          hasMore: false,
-        })),
-      ]);
+      const trendingResult = await loadPodcastHomeLanePage("trending", 0, {
+        forceRefresh: false,
+      }).catch(() => ({
+        shows: [],
+        hasMore: false,
+      }));
 
       if (cancelled) return;
 
-      rememberShows([...trendingResult.shows, ...popularResult.shows]);
+      rememberShows(trendingResult.shows);
       setTrendingPool(trendingResult.shows);
+
+      await new Promise((resolve) => setTimeout(resolve, DISCOVERY_DEFER_RAIL_IDLE_MS));
+      if (cancelled) return;
+
+      const popularResult = await loadPodcastHomeLanePage("popular", 0, {
+        forceRefresh: false,
+      }).catch(() => ({
+        shows: [],
+        hasMore: false,
+      }));
+
+      if (cancelled) return;
+
+      rememberShows(popularResult.shows);
       setPopularPool(popularResult.shows);
 
       const recentResult = await loadRecentlyPlayedPodcastItems(PODCAST_HOME_LANE_PAGE_SIZE).catch(
@@ -112,41 +135,6 @@ export function usePodcastHomeDiscovery(): PodcastHomeDiscoveryState {
       );
       rememberShows(recommended);
       setRecommendedPool(recommended);
-
-      const emotionalCandidates = getEmotionalPodcastCategories(includeMatureInApi);
-      const browseCandidates = getBrowsablePodcastCategories(includeMatureInApi);
-
-      if (cancelled) return;
-
-      setEmotionalWorlds(emotionalCandidates.map((world) => ({ world })));
-      setBrowseCategories(browseCandidates);
-
-      if (includeMatureInApi) {
-        const { filterAvailableMaturePodcastCategories } = await import(
-          "../services/mature/maturePodcastCategoryAvailability"
-        );
-        const { PODCAST_MATURE_SUBCATEGORIES } = await import(
-          "../constants/podcastMatureCategories"
-        );
-        const available = await filterAvailableMaturePodcastCategories().catch(() => []);
-        if (cancelled) return;
-        const availableIds = new Set(available.map((cat) => cat.id));
-        setMatureCategories(
-          PODCAST_MATURE_SUBCATEGORIES.filter((cat) => availableIds.has(cat.id)).map((sub) => ({
-            id: sub.id,
-            title: sub.title,
-            subtitle: sub.subtitle,
-            icon: sub.icon,
-            gradient: sub.gradient,
-            catalogQuery: sub.catalogQuery,
-            fallbackQuery: sub.fallbackQuery,
-            tier: "mature" as const,
-            isMature: true,
-          }))
-        );
-      } else {
-        setMatureCategories([]);
-      }
     })();
 
     return () => {

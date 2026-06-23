@@ -1,8 +1,12 @@
 import {
   MATURE_DISCOVERY_PAGE_SIZE,
-  MATURE_KEYWORDS_PER_FETCH,
   MATURE_MAX_VIRTUAL_PAGES,
 } from "../../constants/matureDiscoveryFoundation";
+import {
+  DISCOVERY_QUALITY_RANK_CAP,
+  MATURE_FALLBACK_TRIGGER_COUNT,
+  MATURE_MAX_FALLBACK_QUERIES_PER_PAGE,
+} from "../../constants/discoveryPerformanceBudget";
 import {
   getMatureRadioQueryGroup,
   resolveMatureRadioQueryGroupId,
@@ -114,20 +118,25 @@ function resolveQueryGroup(categoryId: string) {
 
 function buildFetchPlan(group: MatureRadioQueryGroup, virtualPage: number) {
   const queries = group.searchQueries;
-  const startIndex = (virtualPage * MATURE_KEYWORDS_PER_FETCH) % queries.length;
+  const startIndex = virtualPage % queries.length;
   const queryOffset = virtualPage * MATURE_DISCOVERY_PAGE_SIZE;
 
-  const selected: Array<{ query: string; offset: number; useTag: boolean }> = [];
-  for (let i = 0; i < MATURE_KEYWORDS_PER_FETCH; i += 1) {
-    const query = queries[(startIndex + i) % queries.length];
-    selected.push({
-      query,
-      offset: queryOffset,
-      useTag: i === 0 && Boolean(group.tag),
-    });
-  }
+  const primary = {
+    query: queries[startIndex],
+    offset: queryOffset,
+    useTag: Boolean(group.tag),
+  };
 
-  return selected;
+  const fallback =
+    MATURE_MAX_FALLBACK_QUERIES_PER_PAGE > 0 && queries.length > 1
+      ? {
+          query: queries[(startIndex + 1) % queries.length],
+          offset: queryOffset,
+          useTag: false,
+        }
+      : null;
+
+  return { primary, fallback };
 }
 
 async function fetchMatureRadioBatch(
@@ -136,15 +145,21 @@ async function fetchMatureRadioBatch(
   signal?: AbortSignal
 ) {
   const plan = buildFetchPlan(group, virtualPage);
-  const batches = await Promise.all(
-    plan.map(async ({ query, offset, useTag }) => {
-      const path =
-        useTag && group.tag
-          ? buildTagSearchPath(group.tag, offset, MATURE_DISCOVERY_PAGE_SIZE)
-          : buildNameSearchPath(query, offset, MATURE_DISCOVERY_PAGE_SIZE);
-      return fetchRadioBrowserJson(path, signal);
-    })
-  );
+
+  async function runQuery(entry: { query: string; offset: number; useTag: boolean }) {
+    const path =
+      entry.useTag && group.tag
+        ? buildTagSearchPath(group.tag, entry.offset, MATURE_DISCOVERY_PAGE_SIZE)
+        : buildNameSearchPath(entry.query, entry.offset, MATURE_DISCOVERY_PAGE_SIZE);
+    return fetchRadioBrowserJson(path, signal);
+  }
+
+  const primaryBatch = await runQuery(plan.primary);
+  const batches = [primaryBatch];
+
+  if (plan.fallback && primaryBatch.length < MATURE_FALLBACK_TRIGGER_COUNT) {
+    batches.push(await runQuery(plan.fallback));
+  }
 
   const merged = batches.flatMap((rawStations) =>
     rawStations
@@ -156,9 +171,12 @@ async function fetchMatureRadioBatch(
       .filter((station): station is HiddenTunesStation => Boolean(station))
   );
 
-  const ranked = filterAndRankMatureRadioStations(merged, {
-    categoryId: group.id,
-  });
+  const ranked = filterAndRankMatureRadioStations(
+    merged.slice(0, DISCOVERY_QUALITY_RANK_CAP),
+    {
+      categoryId: group.id,
+    }
+  );
   const sourceHasMore = batches.some((batch) => batch.length >= MATURE_DISCOVERY_PAGE_SIZE);
 
   return { ranked, sourceHasMore };
