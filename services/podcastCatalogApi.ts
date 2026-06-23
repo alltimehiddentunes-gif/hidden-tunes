@@ -1,5 +1,11 @@
 import type { ContentRating } from "../types/matureContent";
 import { parseContentRating } from "../types/matureContent";
+import {
+  fetchItunesPodcastEpisodes,
+  fetchItunesPodcastShows,
+  isItunesPodcastShowId,
+} from "./podcast/podcastItunesRssSource";
+import { logPodcastRuntime } from "../utils/podcastRuntimeDiagnostics";
 import { resolvePodcastMatureFields } from "../utils/matureContentDetection";
 
 export const PODCAST_CATALOG_BASE_URL = "https://admin.hiddentunes.com";
@@ -266,46 +272,170 @@ function parsePagination(
   };
 }
 
+function extractShowsPayload(payload: Record<string, unknown>) {
+  const data = payload.data as Record<string, unknown> | undefined;
+  return ((payload.shows || data?.shows || []) as Record<string, unknown>[]);
+}
+
+function extractEpisodesPayload(payload: Record<string, unknown>) {
+  const data = payload.data as Record<string, unknown> | undefined;
+  return ((payload.episodes || data?.episodes || []) as Record<string, unknown>[]);
+}
+
+async function fetchHiddenTunesPodcastShows(query: PodcastShowsQuery = {}) {
+  const url = buildShowsUrl(query);
+  logPodcastRuntime("home_request", { url, query: query.q || query.category || query.collection || "browse" });
+
+  const response = await fetch(url, {
+    method: "GET",
+    headers: { Accept: "application/json" },
+    cache: "no-store",
+  });
+
+  logPodcastRuntime("home_response", { url, status: response.status, ok: response.ok });
+
+  if (!response.ok) {
+    return {
+      success: false as const,
+      shows: [] as HiddenTunesPodcastShow[],
+      pagination: emptyPagination(query),
+      error: "Failed to load Hidden Tunes podcast catalog.",
+      source: "hidden-tunes" as const,
+    };
+  }
+
+  const payload = (await response.json()) as Record<string, unknown>;
+
+  if (payload.success === false) {
+    return {
+      success: false as const,
+      shows: [] as HiddenTunesPodcastShow[],
+      pagination: emptyPagination(query),
+      error: String(payload.error || "Failed to load Hidden Tunes podcast catalog."),
+      source: "hidden-tunes" as const,
+    };
+  }
+
+  const shows = extractShowsPayload(payload)
+    .map((row) => normalizePodcastShow(row))
+    .filter((row): row is HiddenTunesPodcastShow => row !== null);
+
+  logPodcastRuntime("home_response", {
+    source: "hidden-tunes",
+    count: shows.length,
+    titles: shows.slice(0, 5).map((show) => show.title).join(" | "),
+  });
+
+  return {
+    success: shows.length > 0,
+    shows,
+    pagination: parsePagination(payload, query, shows.length),
+    source: "hidden-tunes" as const,
+  };
+}
+
+async function fetchHiddenTunesPodcastEpisodes(query: PodcastEpisodesQuery = {}) {
+  const url = buildEpisodesUrl(query);
+  logPodcastRuntime("episode_request", { url, showId: query.show_id || "" });
+
+  const response = await fetch(url, {
+    method: "GET",
+    headers: { Accept: "application/json" },
+    cache: "no-store",
+  });
+
+  logPodcastRuntime("episode_response", {
+    url,
+    status: response.status,
+    ok: response.ok,
+    showId: query.show_id || "",
+  });
+
+  if (!response.ok) {
+    return {
+      success: false as const,
+      episodes: [] as HiddenTunesPodcastEpisode[],
+      pagination: emptyPagination(query),
+      error: "Failed to load Hidden Tunes podcast episodes.",
+      source: "hidden-tunes" as const,
+    };
+  }
+
+  const payload = (await response.json()) as Record<string, unknown>;
+
+  if (payload.success === false) {
+    return {
+      success: false as const,
+      episodes: [] as HiddenTunesPodcastEpisode[],
+      pagination: emptyPagination(query),
+      error: String(payload.error || "Failed to load Hidden Tunes podcast episodes."),
+      source: "hidden-tunes" as const,
+    };
+  }
+
+  const episodes = extractEpisodesPayload(payload)
+    .map((row) => normalizePodcastEpisode(row))
+    .filter((row): row is HiddenTunesPodcastEpisode => row !== null);
+
+  logPodcastRuntime("episode_response", {
+    source: "hidden-tunes",
+    count: episodes.length,
+    showId: query.show_id || "",
+    audioPresent: episodes.slice(0, 3).every((ep) => Boolean(ep.audio_url)),
+  });
+
+  return {
+    success: episodes.length > 0,
+    episodes,
+    pagination: parsePagination(payload, query, episodes.length),
+    source: "hidden-tunes" as const,
+  };
+}
+
 export async function fetchPodcastShows(
   query: PodcastShowsQuery = {}
 ): Promise<PodcastShowsResponse> {
   try {
-    const response = await fetch(buildShowsUrl(query), {
-      method: "GET",
-      headers: { Accept: "application/json" },
-      cache: "no-store",
+    const primary = await fetchHiddenTunesPodcastShows(query);
+    if (primary.success && primary.shows.length > 0) {
+      return {
+        success: true,
+        shows: primary.shows,
+        pagination: primary.pagination,
+      };
+    }
+
+    const fallback = await fetchItunesPodcastShows(query);
+    logPodcastRuntime("home_response", {
+      source: fallback.source,
+      count: fallback.shows.length,
+      titles: fallback.shows.slice(0, 5).map((show) => show.title).join(" | "),
     });
 
-    if (!response.ok) {
+    if (fallback.shows.length > 0) {
       return {
-        success: false,
-        shows: [],
-        pagination: emptyPagination(query),
-        error: "Failed to load Hidden Tunes podcast catalog.",
+        success: true,
+        shows: fallback.shows,
+        pagination: fallback.pagination,
       };
     }
-
-    const payload = (await response.json()) as Record<string, unknown>;
-
-    if (payload.success === false) {
-      return {
-        success: false,
-        shows: [],
-        pagination: emptyPagination(query),
-        error: String(payload.error || "Failed to load Hidden Tunes podcast catalog."),
-      };
-    }
-
-    const shows = ((payload.shows || []) as Record<string, unknown>[])
-      .map((row) => normalizePodcastShow(row))
-      .filter((row): row is HiddenTunesPodcastShow => row !== null);
 
     return {
-      success: true,
-      shows,
-      pagination: parsePagination(payload, query, shows.length),
+      success: false,
+      shows: [],
+      pagination: emptyPagination(query),
+      error: primary.error || "No podcast shows available.",
     };
   } catch {
+    const fallback = await fetchItunesPodcastShows(query).catch(() => null);
+    if (fallback?.shows.length) {
+      return {
+        success: true,
+        shows: fallback.shows,
+        pagination: fallback.pagination,
+      };
+    }
+
     return {
       success: false,
       shows: [],
@@ -318,43 +448,57 @@ export async function fetchPodcastShows(
 export async function fetchPodcastEpisodes(
   query: PodcastEpisodesQuery = {}
 ): Promise<PodcastEpisodesResponse> {
+  const showId = String(query.show_id || "").trim();
+
   try {
-    const response = await fetch(buildEpisodesUrl(query), {
-      method: "GET",
-      headers: { Accept: "application/json" },
-      cache: "no-store",
+    if (!isItunesPodcastShowId(showId)) {
+      const primary = await fetchHiddenTunesPodcastEpisodes(query);
+      if (primary.success && primary.episodes.length > 0) {
+        return {
+          success: true,
+          episodes: primary.episodes,
+          pagination: primary.pagination,
+        };
+      }
+    }
+
+    const fallback = await fetchItunesPodcastEpisodes(query);
+    logPodcastRuntime("episode_response", {
+      source: fallback.source,
+      count: fallback.episodes.length,
+      showId,
+      audioPresent: fallback.episodes.slice(0, 3).every((ep) => Boolean(ep.audio_url)),
     });
 
-    if (!response.ok) {
+    if (fallback.episodes.length > 0) {
+      logPodcastRuntime("episode_audio_url", {
+        showId,
+        count: fallback.episodes.length,
+        sample: fallback.episodes[0]?.audio_url || "",
+      });
       return {
-        success: false,
-        episodes: [],
-        pagination: emptyPagination(query),
-        error: "Failed to load Hidden Tunes podcast episodes.",
+        success: true,
+        episodes: fallback.episodes,
+        pagination: fallback.pagination,
       };
     }
-
-    const payload = (await response.json()) as Record<string, unknown>;
-
-    if (payload.success === false) {
-      return {
-        success: false,
-        episodes: [],
-        pagination: emptyPagination(query),
-        error: String(payload.error || "Failed to load Hidden Tunes podcast episodes."),
-      };
-    }
-
-    const episodes = ((payload.episodes || []) as Record<string, unknown>[])
-      .map((row) => normalizePodcastEpisode(row))
-      .filter((row): row is HiddenTunesPodcastEpisode => row !== null);
 
     return {
-      success: true,
-      episodes,
-      pagination: parsePagination(payload, query, episodes.length),
+      success: false,
+      episodes: [],
+      pagination: emptyPagination(query),
+      error: "No playable podcast episodes available.",
     };
   } catch {
+    const fallback = await fetchItunesPodcastEpisodes(query).catch(() => null);
+    if (fallback?.episodes.length) {
+      return {
+        success: true,
+        episodes: fallback.episodes,
+        pagination: fallback.pagination,
+      };
+    }
+
     return {
       success: false,
       episodes: [],

@@ -7,6 +7,7 @@ import {
   isPodcastEpisodeSong,
   podcastEpisodeToAppSong,
 } from "./podcastPlaybackAdapter";
+import { logPodcastRuntime } from "../../utils/podcastRuntimeDiagnostics";
 import {
   isRadioStreamSong,
   radioStationToAppSong,
@@ -79,7 +80,17 @@ export async function routePodcastPlayback(
     playable.findIndex((song) => song.id === target.id)
   );
 
+  logPodcastRuntime("episode_play_tap", {
+    title: episode.title,
+    audioPresent: Boolean(target.audioUrl),
+    playerReceivedUrl: Boolean(target.audioUrl || target.streamUrl),
+  });
+
   if (!playable.length || !target.audioUrl) {
+    logPodcastRuntime("episode_play_error", {
+      title: episode.title,
+      reason: "missing_audio_url",
+    });
     return {
       ok: false,
       error: "This episode is unavailable right now.",
@@ -94,8 +105,16 @@ export async function routePodcastPlayback(
       { source: "podcast", label: episode.podcastTitle },
       "podcast"
     );
+    logPodcastRuntime("episode_play_success", {
+      title: episode.title,
+      queueSize: playable.length,
+    });
     return { ok: true };
-  } catch {
+  } catch (error) {
+    logPodcastRuntime("episode_play_error", {
+      title: episode.title,
+      reason: error instanceof Error ? error.message : String(error),
+    });
     return {
       ok: false,
       error: "This episode is unavailable right now.",

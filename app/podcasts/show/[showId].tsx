@@ -36,6 +36,7 @@ import {
 } from "../../../utils/performanceMode";
 import { isMaturePodcastEpisode } from "../../../utils/maturePodcastVisibility";
 import { buildPodcastShowFavoriteItem } from "../../../services/favorites/favoriteItemBuilders";
+import { logPodcastRuntime } from "../../../utils/podcastRuntimeDiagnostics";
 
 export default function PodcastShowScreen() {
   const { playPodcastEpisode } = usePlaybackRouter();
@@ -48,6 +49,11 @@ export default function PodcastShowScreen() {
   const showId = String(params.showId || "").trim();
   const showTitle = podcastDiscoveryDisplayName(params.title);
   const showIsMature = params.isMature === "1";
+
+  useEffect(() => {
+    if (!showId) return;
+    logPodcastRuntime("show_open", { showId, title: showTitle });
+  }, [showId, showTitle]);
 
   const loadPage = useCallback(
     (offset: number, options: { append: boolean; forceRefresh: boolean }) =>
