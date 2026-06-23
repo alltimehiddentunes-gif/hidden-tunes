@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useMemo } from "react";
 import {
-  ScrollView,
+  ActivityIndicator,
+  FlatList,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -11,32 +12,222 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 
-import { PodcastCategoryCard } from "../../../components/podcast/PodcastDiscoveryCards";
+import {
+  PodcastCategoryCard,
+  PodcastShowRailCard,
+} from "../../../components/podcast/PodcastDiscoveryCards";
 import MatureContentConsentModal from "../../../components/mature/MatureContentConsentModal";
-import { getMaturePodcastSubcategories } from "../../../constants/podcastCategories";
+import { MATURE_PODCAST_HUB_LANE_PAGE_SIZE } from "../../../constants/maturePodcastHubLanes";
+import type { PodcastCategory } from "../../../constants/podcastCategories";
 import { COLORS } from "../../../constants/theme";
+import { TESTER_COPY } from "../../../constants/testerExperience";
 import { useMatureContentGate } from "../../../hooks/useMatureContentGate";
 import { useMatureContentSettings } from "../../../hooks/useMatureContentSettings";
+import { useMaturePodcastCategoryAvailability } from "../../../hooks/useMaturePodcastCategoryAvailability";
+import { useMaturePodcastHubDiscovery } from "../../../hooks/useMaturePodcastHubDiscovery";
+import type { HiddenTunesPodcastShow } from "../../../services/podcastCatalogApi";
+import type { PodcastShowListItem } from "../../../types/podcastDiscovery";
+import { safeRouterPush } from "../../../utils/safeNavigation";
+import {
+  getHorizontalListPerformanceSettings,
+} from "../../../utils/performanceMode";
+
+type MatureHubSection =
+  | {
+      key: string;
+      kind: "rail";
+      eyebrow: string;
+      title: string;
+      shows: PodcastShowListItem[];
+      seeAllCategoryId?: string;
+    }
+  | { key: string; kind: "browse"; categories: PodcastCategory[] };
+
+type ShowRailSectionProps = {
+  title: string;
+  eyebrow: string;
+  shows: PodcastShowListItem[];
+  onPressShow: (item: PodcastShowListItem) => void;
+  seeAllCategoryId?: string;
+};
+
+function ShowRailSection({
+  title,
+  eyebrow,
+  shows,
+  onPressShow,
+  seeAllCategoryId,
+}: ShowRailSectionProps) {
+  if (!shows.length) return null;
+  const railPerformance = getHorizontalListPerformanceSettings(shows.length);
+
+  return (
+    <View style={styles.sectionBlock}>
+      <View style={styles.sectionHeader}>
+        <View style={styles.sectionHeaderText}>
+          <Text style={styles.sectionEyebrow}>{eyebrow}</Text>
+          <Text style={styles.sectionTitle}>{title}</Text>
+          <Text style={styles.sectionMeta}>
+            {Math.min(shows.length, MATURE_PODCAST_HUB_LANE_PAGE_SIZE)} shows
+          </Text>
+        </View>
+        {seeAllCategoryId ? (
+          <TouchableOpacity
+            activeOpacity={0.85}
+            style={styles.seeAllButton}
+            onPress={() => {
+              safeRouterPush({
+                pathname: "/podcasts/[categoryId]",
+                params: { categoryId: seeAllCategoryId },
+              });
+            }}
+          >
+            <Text style={styles.seeAllText}>See all</Text>
+            <Ionicons name="chevron-forward" size={14} color={COLORS.primary} />
+          </TouchableOpacity>
+        ) : null}
+      </View>
+      <FlatList
+        horizontal
+        data={shows}
+        keyExtractor={(item) => `${eyebrow}-${item.id}`}
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.railContent}
+        {...railPerformance}
+        renderItem={({ item }) => (
+          <PodcastShowRailCard item={item} onPress={() => onPressShow(item)} />
+        )}
+      />
+    </View>
+  );
+}
 
 export default function PodcastMatureHubScreen() {
   const { includeMatureInApi } = useMatureContentSettings();
   const { consentVisible, runWithMatureConsent, cancelConsent, confirmConsent } =
     useMatureContentGate();
 
-  const [subcategories, setSubcategories] = useState(() =>
-    includeMatureInApi ? getMaturePodcastSubcategories() : []
-  );
+  const { laneShows, populatedLanes, loading: loadingLanes, resolveShow } =
+    useMaturePodcastHubDiscovery(includeMatureInApi);
+  const { categories: availableCategories, loadingCategories } =
+    useMaturePodcastCategoryAvailability(includeMatureInApi);
 
-  useEffect(() => {
-    setSubcategories(includeMatureInApi ? getMaturePodcastSubcategories() : []);
-  }, [includeMatureInApi]);
+  const loading = includeMatureInApi && (loadingLanes || loadingCategories);
 
   const openSubcategory = useCallback((categoryId: string) => {
-    router.push({
+    safeRouterPush({
       pathname: "/podcasts/[categoryId]",
       params: { categoryId },
-    } as any);
+    });
   }, []);
+
+  const openShow = useCallback(
+    (item: PodcastShowListItem) => {
+      const show =
+        resolveShow(item.id) ||
+        ({
+          id: item.id,
+          slug: item.id,
+          title: item.title,
+          artwork_url: item.artworkUrl,
+          host_name: item.publisher,
+          categories: item.category ? [item.category] : [],
+          primary_category: item.category,
+          episode_count: item.episodeCount,
+          language: item.language,
+          is_mature: true,
+          content_rating: "adult",
+          sourceName: "Hidden Tunes",
+        } satisfies HiddenTunesPodcastShow);
+
+      runWithMatureConsent(show, () => {
+        safeRouterPush({
+          pathname: "/podcasts/show/[showId]",
+          params: {
+            showId: show.id,
+            title: show.title,
+            isMature: "1",
+          },
+        });
+      });
+    },
+    [resolveShow, runWithMatureConsent]
+  );
+
+  const homeSections = useMemo(() => {
+    const sections: MatureHubSection[] = [];
+
+    for (const lane of populatedLanes) {
+      const shows = laneShows[lane.id] || [];
+      if (!shows.length) continue;
+      sections.push({
+        key: lane.id,
+        kind: "rail",
+        eyebrow: lane.eyebrow,
+        title: lane.title,
+        shows,
+        seeAllCategoryId: lane.categoryLinkId,
+      });
+    }
+
+    if (availableCategories.length) {
+      sections.push({
+        key: "browse",
+        kind: "browse",
+        categories: availableCategories,
+      });
+    }
+
+    return sections;
+  }, [availableCategories, laneShows, populatedLanes]);
+
+  const renderHomeSection = useCallback(
+    ({ item }: { item: MatureHubSection }) => {
+      if (item.kind === "rail") {
+        return (
+          <ShowRailSection
+            eyebrow={item.eyebrow}
+            title={item.title}
+            shows={item.shows}
+            onPressShow={openShow}
+            seeAllCategoryId={item.seeAllCategoryId}
+          />
+        );
+      }
+
+      return (
+        <View style={styles.sectionBlock}>
+          <Text style={styles.sectionEyebrow}>BROWSE ROOMS</Text>
+          <Text style={styles.sectionTitle}>All mature podcast categories</Text>
+          <View style={styles.grid}>
+            {item.categories.map((category) => (
+              <PodcastCategoryCard
+                key={category.id}
+                category={category}
+                onPress={() =>
+                  runWithMatureConsent(
+                    { is_mature: true, content_rating: "adult" },
+                    () => openSubcategory(category.id)
+                  )
+                }
+              />
+            ))}
+          </View>
+        </View>
+      );
+    },
+    [openShow, openSubcategory, runWithMatureConsent]
+  );
+
+  const listPerformance = useMemo(
+    () => ({
+      initialNumToRender: 2,
+      maxToRenderPerBatch: 2,
+      windowSize: 3,
+      removeClippedSubviews: true,
+    }),
+    []
+  );
 
   if (!includeMatureInApi) {
     return (
@@ -72,30 +263,27 @@ export default function PodcastMatureHubScreen() {
         </TouchableOpacity>
         <View style={styles.headerText}>
           <Text style={styles.kicker}>MATURE 18+</Text>
-          <Text style={styles.title}>Adult Podcast Rooms</Text>
+          <Text style={styles.title}>Adult Podcast Discovery</Text>
           <Text style={styles.subtitle}>
-            Dating · Relationships · Marriage · Psychology · After Dark · More
+            Featured · Trending · Dating · Psychology · After Dark · More
           </Text>
         </View>
       </View>
 
-      {subcategories.length > 0 ? (
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-          <View style={styles.grid}>
-            {subcategories.map((category) => (
-              <PodcastCategoryCard
-                key={category.id}
-                category={category}
-                onPress={() =>
-                  runWithMatureConsent(
-                    { is_mature: true, content_rating: "adult" },
-                    () => openSubcategory(category.id)
-                  )
-                }
-              />
-            ))}
-          </View>
-        </ScrollView>
+      {loading ? (
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+          <Text style={styles.loadingText}>{TESTER_COPY.podcastDiscoveryLoading}</Text>
+        </View>
+      ) : homeSections.length > 0 ? (
+        <FlatList
+          data={homeSections}
+          keyExtractor={(item) => item.key}
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          renderItem={renderHomeSection}
+          {...listPerformance}
+        />
       ) : (
         <View style={styles.center}>
           <Ionicons name="eye-off-outline" size={48} color={COLORS.textMuted} />
@@ -155,6 +343,52 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 120,
   },
+  sectionBlock: {
+    marginTop: 8,
+    marginBottom: 10,
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 12,
+    marginBottom: 12,
+  },
+  sectionHeaderText: {
+    flex: 1,
+  },
+  sectionEyebrow: {
+    color: COLORS.primary,
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 1.4,
+  },
+  sectionTitle: {
+    color: COLORS.text,
+    fontSize: 20,
+    fontWeight: "900",
+    marginTop: 4,
+  },
+  sectionMeta: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    fontWeight: "600",
+    marginTop: 4,
+  },
+  seeAllButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+    paddingTop: 18,
+  },
+  seeAllText: {
+    color: COLORS.primary,
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  railContent: {
+    paddingRight: 8,
+  },
   grid: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -167,6 +401,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 28,
     gap: 10,
+  },
+  loadingText: {
+    color: COLORS.textMuted,
+    fontSize: 14,
   },
   gateTitle: {
     color: COLORS.text,

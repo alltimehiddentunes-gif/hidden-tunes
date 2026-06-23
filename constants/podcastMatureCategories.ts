@@ -41,20 +41,17 @@ function matureCategory(
     queryGroupId,
     catalogQuery: { q: primaryQuery, includeMature: true },
     fallbackQuery: group?.keywords[1]
-      ? { q: `${group.keywords[1]} podcast`, includeMature: true }
+      ? {
+          q: group.keywords[1].includes("podcast")
+            ? group.keywords[1]
+            : `${group.keywords[1]} podcast`,
+          includeMature: true,
+        }
       : undefined,
   };
 }
 
 export const PODCAST_MATURE_SUBCATEGORIES: PodcastMatureCategory[] = [
-  matureCategory(
-    "mature-adult-talk",
-    "Adult Talk",
-    "Grown conversations with consent-first access",
-    "chatbubbles-outline",
-    ["#201418", "#0C0808"],
-    "adult-talk"
-  ),
   matureCategory(
     "mature-dating",
     "Dating",
@@ -80,12 +77,28 @@ export const PODCAST_MATURE_SUBCATEGORIES: PodcastMatureCategory[] = [
     "marriage"
   ),
   matureCategory(
+    "mature-breakups-divorce",
+    "Breakups & Divorce",
+    "Healing, separation, and moving forward",
+    "heart-dislike-outline",
+    ["#281018", "#100810"],
+    "breakups-divorce"
+  ),
+  matureCategory(
     "mature-sexual-health",
     "Sexual Health",
     "Education, intimacy, and wellbeing",
     "fitness-outline",
     ["#201020", "#0C0810"],
     "sexual-health"
+  ),
+  matureCategory(
+    "mature-intimacy-communication",
+    "Intimacy & Communication",
+    "Connection, trust, and honest talk",
+    "chatbubble-ellipses-outline",
+    ["#1A2030", "#0A0C14"],
+    "intimacy-communication"
   ),
   matureCategory(
     "mature-adult-psychology",
@@ -96,6 +109,54 @@ export const PODCAST_MATURE_SUBCATEGORIES: PodcastMatureCategory[] = [
     "adult-psychology"
   ),
   matureCategory(
+    "mature-human-behavior",
+    "Human Behavior",
+    "Why we think, feel, and connect",
+    "analytics-outline",
+    ["#142028", "#080C10"],
+    "human-behavior"
+  ),
+  matureCategory(
+    "mature-love-advice",
+    "Love Advice",
+    "Romance, attraction, and partnership",
+    "heart-circle-outline",
+    ["#241018", "#100810"],
+    "love-advice"
+  ),
+  matureCategory(
+    "mature-relationship-therapy",
+    "Relationship Therapy",
+    "Couples work and repair conversations",
+    "medkit-outline",
+    ["#182028", "#0A0C12"],
+    "relationship-therapy"
+  ),
+  matureCategory(
+    "mature-mens-issues",
+    "Men's Issues",
+    "Modern manhood and relationships",
+    "male-outline",
+    ["#101828", "#080810"],
+    "mens-issues"
+  ),
+  matureCategory(
+    "mature-womens-issues",
+    "Women's Issues",
+    "Modern womanhood and connection",
+    "female-outline",
+    ["#281020", "#100810"],
+    "womens-issues"
+  ),
+  matureCategory(
+    "mature-lgbtq-conversations",
+    "LGBTQ+ Conversations",
+    "Queer stories, love, and community",
+    "color-palette-outline",
+    ["#201830", "#0C0814"],
+    "lgbtq-conversations"
+  ),
+  matureCategory(
     "mature-adult-comedy",
     "Adult Comedy",
     "Unfiltered humor for grown listeners",
@@ -104,12 +165,12 @@ export const PODCAST_MATURE_SUBCATEGORIES: PodcastMatureCategory[] = [
     "adult-comedy"
   ),
   matureCategory(
-    "mature-after-dark",
-    "After Dark",
-    "Late-night adult conversations",
-    "moon-outline",
-    ["#1A1038", "#080612"],
-    "after-dark"
+    "mature-confessions",
+    "Confessions",
+    "Anonymous stories and honest secrets",
+    "lock-open-outline",
+    ["#201418", "#0C0808"],
+    "confessions"
   ),
   matureCategory(
     "mature-real-stories",
@@ -120,12 +181,12 @@ export const PODCAST_MATURE_SUBCATEGORIES: PodcastMatureCategory[] = [
     "real-stories"
   ),
   matureCategory(
-    "mature-unfiltered-interviews",
-    "Unfiltered Interviews",
-    "Raw conversations without filters",
-    "mic-outline",
-    ["#201418", "#0C0808"],
-    "unfiltered-interviews"
+    "mature-after-dark-conversations",
+    "After Dark Conversations",
+    "Late-night adult conversations",
+    "moon-outline",
+    ["#1A1038", "#080612"],
+    "after-dark-conversations"
   ),
   matureCategory(
     "mature-lifestyle-18",
@@ -134,6 +195,22 @@ export const PODCAST_MATURE_SUBCATEGORIES: PodcastMatureCategory[] = [
     "wine-outline",
     ["#241820", "#100C10"],
     "lifestyle-18"
+  ),
+  matureCategory(
+    "mature-late-night-talk",
+    "Late Night Talk",
+    "Grown conversations after hours",
+    "cloudy-night-outline",
+    ["#181028", "#080610"],
+    "late-night-talk"
+  ),
+  matureCategory(
+    "mature-unfiltered-interviews",
+    "Unfiltered Interviews",
+    "Raw conversations without filters",
+    "mic-outline",
+    ["#201418", "#0C0808"],
+    "unfiltered-interviews"
   ),
 ];
 

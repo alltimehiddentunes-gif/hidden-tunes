@@ -6,6 +6,7 @@ import {
   MATURE_RADIO_MIN_QUALITY,
 } from "../../constants/matureDiscoveryFoundation";
 import { enrichShowWithQuality, sortShowsByQuality } from "../podcast/podcastQualityScore";
+import { isItunesPodcastShowId } from "../podcast/podcastItunesRssSource";
 import { sortStationsByQuality } from "../radio/radioQualityScore";
 import {
   logMaturePodcastCategoryAudit,
@@ -62,8 +63,14 @@ export function isLowQualityPodcastShow(show: HiddenTunesPodcastShow) {
 export function isMaturePlayableShow(show: HiddenTunesPodcastShow) {
   if (isLowQualityPodcastShow(show)) return false;
   const episodes = Math.max(0, Number(show.episode_count) || 0);
-  const hasPublished = Boolean(String(show.last_published_at || "").trim());
-  return episodes > 0 && hasPublished;
+  if (episodes <= 0) return false;
+
+  if (isItunesPodcastShowId(show.id)) {
+    const artwork = String(show.artwork_url || "").trim();
+    return artwork.startsWith("https://") || episodes >= 1;
+  }
+
+  return Boolean(String(show.last_published_at || "").trim());
 }
 
 export function scoreMaturePodcastShow(show: HiddenTunesPodcastShow) {

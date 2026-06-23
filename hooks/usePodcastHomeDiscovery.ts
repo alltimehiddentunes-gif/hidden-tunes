@@ -3,7 +3,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   getBrowsablePodcastCategories,
   getEmotionalPodcastCategories,
-  getMaturePodcastSubcategories,
   type PodcastCategory,
 } from "../constants/podcastCategories";
 import { PODCAST_HOME_LANE_PAGE_SIZE } from "../constants/podcastFoundation";
@@ -116,13 +115,38 @@ export function usePodcastHomeDiscovery(): PodcastHomeDiscoveryState {
 
       const emotionalCandidates = getEmotionalPodcastCategories(includeMatureInApi);
       const browseCandidates = getBrowsablePodcastCategories(includeMatureInApi);
-      const matureCandidates = includeMatureInApi ? getMaturePodcastSubcategories() : [];
 
       if (cancelled) return;
 
       setEmotionalWorlds(emotionalCandidates.map((world) => ({ world })));
       setBrowseCategories(browseCandidates);
-      setMatureCategories(matureCandidates);
+
+      if (includeMatureInApi) {
+        const { filterAvailableMaturePodcastCategories } = await import(
+          "../services/mature/maturePodcastCategoryAvailability"
+        );
+        const { PODCAST_MATURE_SUBCATEGORIES } = await import(
+          "../constants/podcastMatureCategories"
+        );
+        const available = await filterAvailableMaturePodcastCategories().catch(() => []);
+        if (cancelled) return;
+        const availableIds = new Set(available.map((cat) => cat.id));
+        setMatureCategories(
+          PODCAST_MATURE_SUBCATEGORIES.filter((cat) => availableIds.has(cat.id)).map((sub) => ({
+            id: sub.id,
+            title: sub.title,
+            subtitle: sub.subtitle,
+            icon: sub.icon,
+            gradient: sub.gradient,
+            catalogQuery: sub.catalogQuery,
+            fallbackQuery: sub.fallbackQuery,
+            tier: "mature" as const,
+            isMature: true,
+          }))
+        );
+      } else {
+        setMatureCategories([]);
+      }
     })();
 
     return () => {
