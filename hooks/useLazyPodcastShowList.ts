@@ -7,6 +7,16 @@ import {
   readCachedPodcastShows,
 } from "../utils/podcastDiscoveryCache";
 import { filterVisiblePodcastShows } from "../utils/maturePodcastVisibility";
+import {
+  createDiscoveryScreenController,
+  type DiscoveryScreenController,
+} from "../utils/discoveryRequestManager";
+
+type LoadPageOptions = {
+  append: boolean;
+  forceRefresh: boolean;
+  signal?: AbortSignal;
+};
 
 type LoadPageResult = {
   shows: HiddenTunesPodcastShow[];
@@ -16,10 +26,9 @@ type LoadPageResult = {
 type UseLazyPodcastShowListOptions = {
   cacheKey: string;
   enabled?: boolean;
-  loadPage: (
-    offset: number,
-    options: { append: boolean; forceRefresh: boolean }
-  ) => Promise<LoadPageResult>;
+  /** When set, fetches run through discoveryRequestManager with abort support. */
+  discoveryScreen?: string;
+  loadPage: (offset: number, options: LoadPageOptions) => Promise<LoadPageResult>;
 };
 
 function listIdsMatch(current: HiddenTunesPodcastShow[], next: HiddenTunesPodcastShow[]) {
@@ -43,14 +52,31 @@ function dedupeShows(shows: HiddenTunesPodcastShow[]) {
 export function useLazyPodcastShowList({
   cacheKey,
   enabled = true,
+  discoveryScreen,
   loadPage,
 }: UseLazyPodcastShowListOptions) {
   const requestGenerationRef = useRef(0);
   const loadPageRef = useRef(loadPage);
   const loadingMoreRef = useRef(false);
   const mountedRef = useRef(true);
+  const discoveryControllerRef = useRef<DiscoveryScreenController | null>(null);
 
   loadPageRef.current = loadPage;
+
+  useEffect(() => {
+    if (!discoveryScreen) {
+      discoveryControllerRef.current = null;
+      return;
+    }
+
+    const controller = createDiscoveryScreenController(discoveryScreen);
+    discoveryControllerRef.current = controller;
+
+    return () => {
+      controller.bumpGeneration();
+      discoveryControllerRef.current = null;
+    };
+  }, [discoveryScreen, cacheKey]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -93,11 +119,24 @@ export function useLazyPodcastShowList({
   const fetchPage = useCallback(
     async (offset: number, append: boolean, forceRefresh: boolean) => {
       const generation = requestGenerationRef.current;
-      const result = await loadPageRef.current(offset, { append, forceRefresh });
+
+      const runLoad = async (signal?: AbortSignal) =>
+        loadPageRef.current(offset, { append, forceRefresh, signal });
+
+      let result: LoadPageResult | null;
+      const controller = discoveryControllerRef.current;
+
+      if (controller) {
+        result = await controller.run(`page:${cacheKey}:${offset}`, (signal) => runLoad(signal));
+        if (result == null) return;
+      } else {
+        result = await runLoad();
+      }
+
       if (generation !== requestGenerationRef.current) return;
       applyPage(result.shows, append, result.hasMore);
     },
-    [applyPage]
+    [applyPage, cacheKey]
   );
 
   useEffect(() => {

@@ -229,22 +229,41 @@ No crash logs were available in-repo. Likely causes from architecture:
 
 ---
 
+## P0 Fixes Implemented (2026-06-22)
+
+The following root-cause mitigations are now in code on `carplay-scene-safe-test`:
+
+| P0 item | Status | Implementation |
+|---------|--------|----------------|
+| Skip HT podcast API when known 404 | **DONE** | `constants/podcastBackendAvailability.ts` — `HT_PODCAST_API_KNOWN_UNAVAILABLE`; `fetchPodcastShows` / `fetchPodcastEpisodes` go direct to iTunes/RSS |
+| Cap home lane fallback chain | **DONE** | `podcastHomeLanes.ts` — max **1 primary + 1 fallback** lane (removed 9-lane probe loop) |
+| RSS abort + limited parse | **DONE** | `podcastItunesRssSource.ts` — `AbortSignal` on fetch; `parseRssItemsUpTo` stops after page-needed count; cache + clear on show unmount |
+| Pass AbortSignal through discovery | **DONE** | Signal threaded: home rails → category/search/episodes API → iTunes/RSS |
+| Global request manager | **DONE** | `useLazyPodcastShowList`, `useLazyPodcastEpisodeList`, `useDeferredSearchMediaSections`, mature hub (prior commit) |
+| Remove auto idle rail expansion | **DONE** | Removed `DISCOVERY_DEFER_RAIL_IDLE_MS` timer from `usePodcastHomeDiscovery` and `useRadioHomeDiscovery` — extra rails load on scroll only |
+
+**Backend blocker (documented):** `PODCAST_BACKEND_BLOCKER` in `constants/podcastBackendAvailability.ts` — HT `/api/podcasts/*` returns 404; mobile uses iTunes + RSS only.
+
+**Re-test required:** Enable diagnostics and run 20-minute device protocol before TestFlight sign-off.
+
+---
+
 ## Recommended Fixes (Ordered by Impact)
 
-*Investigation recommendations only — not implemented in this pass.*
+*Original investigation recommendations — P0 items above are implemented; P1/P2 remain for follow-up.*
 
 ### P0 — Stop the heat generators
 
-1. **Skip HT podcast API when known 404** — short-circuit `fetchPodcastShows` to iTunes when HT health check fails (or env flag), eliminating 50% of podcast HTTP.
-2. **Cap or remove `loadPodcastHomeLaneWithFallback` chain** — max 1 fallback lane, or cache-first without probing 9 categories.
-3. **RSS: stream/limit parse** — fetch with `AbortSignal`, parse only first N items for page 1; do not load entire feed into one string on JS thread.
-4. **Pass `AbortSignal` through home `loadRail` → `fetchPodcastShows`** — make cancellation actually stop network.
+1. ~~**Skip HT podcast API when known 404**~~ — **Implemented** (`podcastBackendAvailability.ts`).
+2. ~~**Cap or remove `loadPodcastHomeLaneWithFallback` chain**~~ — **Implemented** (1+1 fallback max).
+3. ~~**RSS: stream/limit parse**~~ — **Implemented** (abortable fetch, capped parse, show-unmount cache clear).
+4. ~~**Pass `AbortSignal` through home `loadRail` → `fetchPodcastShows`**~~ — **Implemented**.
 
 ### P1 — Make guards global
 
-5. **Route all discovery through `discoveryRequestManager`** — category, search, mature hub, episodes.
-6. **Remove auto idle `loadMoreRails` timer** — load popular/recent only on scroll `onEndReached` (keep expansion, reduce background churn).
-7. **Bump controller generation on rail effect cleanup** — prevent setState after unmount.
+5. ~~**Route all discovery through `discoveryRequestManager`**~~ — **Partially implemented** (category, search, episodes, mature hub, global search media).
+6. ~~**Remove auto idle `loadMoreRails` timer**~~ — **Implemented**.
+7. ~~**Bump controller generation on rail effect cleanup**~~ — **Implemented** (podcast/radio home).
 
 ### P2 — Reduce JS work
 
@@ -256,11 +275,9 @@ No crash logs were available in-repo. Likely causes from architecture:
 
 ## Final Recommendation
 
-**NOT READY FOR TESTFLIGHT**
+**CONDITIONALLY READY FOR DEVICE RE-TEST**
 
-Root causes for heating, freezes, and likely crashes are **identified in code** with high confidence. The recent optimization pass addressed symptoms (shell paint, rail thumbnails, partial request manager) but **did not remove the primary cost centers**: HT+iTunes double-fetch, 9-lane fallback chains, and full RSS JS parsing.
-
-**Next step:** Enable diagnostics on a physical iPhone dev build, run the 20-minute protocol, and confirm ranks #1–#3 in `[HTDiscoveryPerf]` / `[HiddenTunes:runtime]` logs before implementing P0 fixes.
+P0 code-path fixes are implemented. Physical iPhone verification with diagnostics enabled is still required before TestFlight.
 
 ---
 

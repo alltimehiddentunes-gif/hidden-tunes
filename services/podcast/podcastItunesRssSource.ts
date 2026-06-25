@@ -10,7 +10,18 @@ export const ITUNES_SHOW_ID_PREFIX = "itunes-";
 const ITUNES_SEARCH_URL = "https://itunes.apple.com/search";
 const MAX_ITUNES_RESULTS = 200;
 
+/** Cap RSS item scan depth — parse only what the current page needs. */
+const RSS_PARSE_BUFFER_ITEMS = 8;
+
 const feedUrlByShowId = new Map<string, string>();
+
+type RssEpisodeCacheEntry = {
+  episodes: HiddenTunesPodcastEpisode[];
+  feedFullyScanned: boolean;
+};
+
+const rssEpisodeCache = new Map<string, RssEpisodeCacheEntry>();
+const rssInflightByShowId = new Map<string, Promise<RssEpisodeCacheEntry>>();
 
 export function isItunesPodcastShowId(showId: string) {
   return String(showId || "").startsWith(ITUNES_SHOW_ID_PREFIX);
@@ -24,6 +35,16 @@ export function registerPodcastFeedUrl(showId: string, feedUrl: string) {
 
 export function resolvePodcastFeedUrl(showId: string) {
   return feedUrlByShowId.get(String(showId || "").trim()) || null;
+}
+
+export function clearRssEpisodeCacheForShow(showId?: string) {
+  if (showId) {
+    rssEpisodeCache.delete(String(showId).trim());
+    rssInflightByShowId.delete(String(showId).trim());
+    return;
+  }
+  rssEpisodeCache.clear();
+  rssInflightByShowId.clear();
 }
 
 function buildItunesShowId(collectionId: number | string) {
@@ -51,22 +72,100 @@ function stableEpisodeId(showId: string, guid: string, title: string, index: num
   return `${showId}-ep-${hash.toString(16)}`;
 }
 
-function parseRssItems(xml: string) {
-  const items: Array<{ title: string; guid: string; audioUrl: string; publishedAt?: string }> = [];
+function parseRssItemBlock(
+  showId: string,
+  block: string,
+  index: number
+): HiddenTunesPodcastEpisode | null {
+  const audioUrl = extractEnclosureUrl(block);
+  if (!audioUrl.startsWith("https://")) return null;
+
+  const title = extractTag(block, "title") || "Episode";
+  const guid = extractTag(block, "guid");
+  return {
+    id: stableEpisodeId(showId, guid, title, index),
+    show_id: showId,
+    title,
+    audio_url: audioUrl,
+    published_at: extractTag(block, "pubDate") || undefined,
+    sourceName: "Hidden Tunes",
+  };
+}
+
+function parseRssItemsUpTo(showId: string, xml: string, maxPlayableItems: number) {
+  const episodes: HiddenTunesPodcastEpisode[] = [];
   const re = /<item\b[\s\S]*?<\/item>/gi;
-  let match;
+  let match: RegExpExecArray | null = null;
+  let itemIndex = 0;
+
   while ((match = re.exec(xml))) {
-    const block = match[0];
-    const audioUrl = extractEnclosureUrl(block);
-    if (!audioUrl.startsWith("https://")) continue;
-    items.push({
-      title: extractTag(block, "title") || "Episode",
-      guid: extractTag(block, "guid"),
-      audioUrl,
-      publishedAt: extractTag(block, "pubDate") || undefined,
-    });
+    const episode = parseRssItemBlock(showId, match[0], itemIndex);
+    itemIndex += 1;
+    if (!episode) continue;
+
+    episodes.push(episode);
+    if (episodes.length >= maxPlayableItems) {
+      return { episodes, feedFullyScanned: false };
+    }
   }
-  return items;
+
+  return { episodes, feedFullyScanned: true };
+}
+
+async function loadRssEpisodesForShow(
+  showId: string,
+  feedUrl: string,
+  minPlayableItems: number,
+  signal?: AbortSignal
+): Promise<RssEpisodeCacheEntry> {
+  const existing = rssEpisodeCache.get(showId);
+  if (existing && (existing.feedFullyScanned || existing.episodes.length >= minPlayableItems)) {
+    return existing;
+  }
+
+  const inflight = rssInflightByShowId.get(showId);
+  if (inflight) return inflight;
+
+  const promise = (async () => {
+    const response = await fetch(feedUrl, {
+      headers: { Accept: "application/rss+xml, application/xml, text/xml" },
+      signal,
+    });
+
+    if (signal?.aborted) {
+      throw new DOMException("Aborted", "AbortError");
+    }
+
+    if (!response.ok) {
+      return { episodes: [] as HiddenTunesPodcastEpisode[], feedFullyScanned: true };
+    }
+
+    const xml = await response.text();
+
+    if (signal?.aborted) {
+      throw new DOMException("Aborted", "AbortError");
+    }
+
+    const priorCount = existing?.episodes.length || 0;
+    const target = Math.max(minPlayableItems, priorCount);
+    const parsed = parseRssItemsUpTo(showId, xml, target + RSS_PARSE_BUFFER_ITEMS);
+
+    const entry: RssEpisodeCacheEntry = {
+      episodes: parsed.episodes,
+      feedFullyScanned: parsed.feedFullyScanned,
+    };
+
+    rssEpisodeCache.set(showId, entry);
+    return entry;
+  })();
+
+  rssInflightByShowId.set(showId, promise);
+
+  try {
+    return await promise;
+  } finally {
+    rssInflightByShowId.delete(showId);
+  }
 }
 
 function buildItunesSearchTerm(query: PodcastShowsQuery) {
@@ -140,22 +239,6 @@ function mapItunesShow(raw: ItunesPodcastResult): HiddenTunesPodcastShow | null 
   };
 }
 
-function mapRssEpisode(
-  showId: string,
-  item: { title: string; guid: string; audioUrl: string; publishedAt?: string },
-  index: number
-): HiddenTunesPodcastEpisode | null {
-  if (!item.audioUrl.startsWith("https://")) return null;
-  return {
-    id: stableEpisodeId(showId, item.guid, item.title, index),
-    show_id: showId,
-    title: item.title,
-    audio_url: item.audioUrl,
-    published_at: item.publishedAt,
-    sourceName: "Hidden Tunes",
-  };
-}
-
 export async function fetchItunesPodcastShows(query: PodcastShowsQuery = {}) {
   const page = Math.max(1, Number(query.page || 1));
   const limit = Math.min(50, Math.max(1, Number(query.limit || 40)));
@@ -186,7 +269,8 @@ export async function fetchItunesPodcastShows(query: PodcastShowsQuery = {}) {
       },
       source: "itunes" as const,
     };
-  } catch {
+  } catch (error) {
+    if ((error as Error)?.name === "AbortError") throw error;
     return {
       success: false,
       shows: [] as HiddenTunesPodcastShow[],
@@ -200,6 +284,7 @@ export async function fetchItunesPodcastEpisodes(query: PodcastEpisodesQuery = {
   const showId = String(query.show_id || "").trim();
   const page = Math.max(1, Number(query.page || 1));
   const limit = Math.min(50, Math.max(1, Number(query.limit || 40)));
+  const signal = query.signal;
 
   const feedUrl = resolvePodcastFeedUrl(showId);
   if (!feedUrl) {
@@ -212,24 +297,19 @@ export async function fetchItunesPodcastEpisodes(query: PodcastEpisodesQuery = {
   }
 
   try {
-    const response = await fetch(feedUrl, { headers: { Accept: "application/rss+xml, application/xml, text/xml" } });
-    if (!response.ok) {
-      return {
-        success: false,
-        episodes: [] as HiddenTunesPodcastEpisode[],
-        pagination: { page, limit, total: 0, totalPages: 0, hasMore: false },
-        source: "itunes-rss" as const,
-      };
+    const minNeeded = page * limit;
+    const cacheEntry = await loadRssEpisodesForShow(showId, feedUrl, minNeeded, signal);
+
+    if (signal?.aborted) {
+      throw new DOMException("Aborted", "AbortError");
     }
 
-    const xml = await response.text();
-    const parsed = parseRssItems(xml);
-    const episodes = parsed
-      .map((item, index) => mapRssEpisode(showId, item, index))
-      .filter((episode): episode is HiddenTunesPodcastEpisode => episode !== null);
-
     const start = (page - 1) * limit;
-    const pageEpisodes = episodes.slice(start, start + limit);
+    const pageEpisodes = cacheEntry.episodes.slice(start, start + limit);
+    const total = cacheEntry.episodes.length;
+    const hasMore =
+      start + limit < total ||
+      (!cacheEntry.feedFullyScanned && pageEpisodes.length >= limit);
 
     return {
       success: pageEpisodes.length > 0,
@@ -237,13 +317,14 @@ export async function fetchItunesPodcastEpisodes(query: PodcastEpisodesQuery = {
       pagination: {
         page,
         limit,
-        total: episodes.length,
-        totalPages: Math.ceil(episodes.length / limit),
-        hasMore: start + limit < episodes.length,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasMore,
       },
       source: "itunes-rss" as const,
     };
-  } catch {
+  } catch (error) {
+    if ((error as Error)?.name === "AbortError") throw error;
     return {
       success: false,
       episodes: [] as HiddenTunesPodcastEpisode[],

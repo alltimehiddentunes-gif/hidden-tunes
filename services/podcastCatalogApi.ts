@@ -3,7 +3,6 @@ import { parseContentRating } from "../types/matureContent";
 import {
   fetchItunesPodcastEpisodes,
   fetchItunesPodcastShows,
-  isItunesPodcastShowId,
 } from "./podcast/podcastItunesRssSource";
 import {
   logPodcastDiscoveryBatch,
@@ -11,6 +10,12 @@ import {
   logPodcastRuntime,
 } from "../utils/podcastRuntimeDiagnostics";
 import { resolvePodcastMatureFields } from "../utils/matureContentDetection";
+import {
+  noteHiddenTunesPodcastEpisodesApi404,
+  noteHiddenTunesPodcastShowsApi404,
+  shouldSkipHiddenTunesPodcastEpisodesApi,
+  shouldSkipHiddenTunesPodcastShowsApi,
+} from "../constants/podcastBackendAvailability";
 
 export const PODCAST_CATALOG_BASE_URL = "https://admin.hiddentunes.com";
 export const PODCAST_SHOWS_API_PATH = "/api/podcasts/shows";
@@ -75,6 +80,7 @@ export type PodcastEpisodesQuery = {
   show_id?: string;
   category?: string;
   includeMature?: boolean;
+  signal?: AbortSignal;
 };
 
 export type PodcastCatalogPagination = {
@@ -301,6 +307,9 @@ async function fetchHiddenTunesPodcastShows(query: PodcastShowsQuery = {}) {
   logPodcastRuntime("home_response", { url, status: response.status, ok: response.ok });
 
   if (!response.ok) {
+    if (response.status === 404) {
+      noteHiddenTunesPodcastShowsApi404();
+    }
     return {
       success: false as const,
       shows: [] as HiddenTunesPodcastShow[],
@@ -351,6 +360,7 @@ async function fetchHiddenTunesPodcastEpisodes(query: PodcastEpisodesQuery = {})
     method: "GET",
     headers: { Accept: "application/json" },
     cache: "no-store",
+    signal: query.signal,
   });
 
   logPodcastRuntime("episode_response", {
@@ -361,6 +371,9 @@ async function fetchHiddenTunesPodcastEpisodes(query: PodcastEpisodesQuery = {})
   });
 
   if (!response.ok) {
+    if (response.status === 404) {
+      noteHiddenTunesPodcastEpisodesApi404();
+    }
     return {
       success: false as const,
       episodes: [] as HiddenTunesPodcastEpisode[],
@@ -410,13 +423,15 @@ export async function fetchPodcastShows(
   query: PodcastShowsQuery = {}
 ): Promise<PodcastShowsResponse> {
   try {
-    const primary = await fetchHiddenTunesPodcastShows(query);
-    if (primary.success && primary.shows.length > 0) {
-      return {
-        success: true,
-        shows: primary.shows,
-        pagination: primary.pagination,
-      };
+    if (!shouldSkipHiddenTunesPodcastShowsApi()) {
+      const primary = await fetchHiddenTunesPodcastShows(query);
+      if (primary.success && primary.shows.length > 0) {
+        return {
+          success: true,
+          shows: primary.shows,
+          pagination: primary.pagination,
+        };
+      }
     }
 
     const fallback = await fetchItunesPodcastShows(query);
@@ -438,9 +453,10 @@ export async function fetchPodcastShows(
       success: false,
       shows: [],
       pagination: emptyPagination(query),
-      error: primary.error || "No podcast shows available.",
+      error: "No podcast shows available.",
     };
-  } catch {
+  } catch (error) {
+    if ((error as Error)?.name === "AbortError") throw error;
     const fallback = await fetchItunesPodcastShows(query).catch(() => null);
     if (fallback?.shows.length) {
       return {
@@ -465,7 +481,7 @@ export async function fetchPodcastEpisodes(
   const showId = String(query.show_id || "").trim();
 
   try {
-    if (!isItunesPodcastShowId(showId)) {
+    if (!shouldSkipHiddenTunesPodcastEpisodesApi(showId)) {
       const primary = await fetchHiddenTunesPodcastEpisodes(query);
       if (primary.success && primary.episodes.length > 0) {
         return {
@@ -500,7 +516,8 @@ export async function fetchPodcastEpisodes(
       pagination: emptyPagination(query),
       error: "No playable podcast episodes available.",
     };
-  } catch {
+  } catch (error) {
+    if ((error as Error)?.name === "AbortError") throw error;
     const fallback = await fetchItunesPodcastEpisodes(query).catch(() => null);
     if (fallback?.episodes.length) {
       return {

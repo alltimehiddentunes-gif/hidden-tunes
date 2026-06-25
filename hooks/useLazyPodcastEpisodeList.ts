@@ -13,6 +13,17 @@ import {
   filterVisiblePodcastEpisodes,
 } from "../utils/maturePodcastVisibility";
 import { filterPlayablePodcastEpisodes } from "../services/podcast/podcastDiscoverability";
+import { clearRssEpisodeCacheForShow } from "../services/podcast/podcastItunesRssSource";
+import {
+  createDiscoveryScreenController,
+  type DiscoveryScreenController,
+} from "../utils/discoveryRequestManager";
+
+type LoadPageOptions = {
+  append: boolean;
+  forceRefresh: boolean;
+  signal?: AbortSignal;
+};
 
 type LoadPageResult = {
   episodes: HiddenTunesPodcastEpisode[];
@@ -23,10 +34,9 @@ type UseLazyPodcastEpisodeListOptions = {
   showId: string;
   showIsMature?: boolean;
   enabled?: boolean;
-  loadPage: (
-    offset: number,
-    options: { append: boolean; forceRefresh: boolean }
-  ) => Promise<LoadPageResult>;
+  /** When set, fetches run through discoveryRequestManager with abort support. */
+  discoveryScreen?: string;
+  loadPage: (offset: number, options: LoadPageOptions) => Promise<LoadPageResult>;
 };
 
 function dedupeEpisodes(episodes: HiddenTunesPodcastEpisode[]) {
@@ -46,14 +56,27 @@ export function useLazyPodcastEpisodeList({
   showId,
   showIsMature = false,
   enabled = true,
+  discoveryScreen = "podcast-show-episodes",
   loadPage,
 }: UseLazyPodcastEpisodeListOptions) {
   const requestGenerationRef = useRef(0);
   const loadPageRef = useRef(loadPage);
   const loadingMoreRef = useRef(false);
   const mountedRef = useMountedRef();
+  const discoveryControllerRef = useRef<DiscoveryScreenController | null>(null);
 
   loadPageRef.current = loadPage;
+
+  useEffect(() => {
+    const controller = createDiscoveryScreenController(discoveryScreen);
+    discoveryControllerRef.current = controller;
+
+    return () => {
+      controller.bumpGeneration();
+      clearRssEpisodeCacheForShow(showId);
+      discoveryControllerRef.current = null;
+    };
+  }, [discoveryScreen, showId]);
 
   const normalizeVisible = useCallback(
     (items: HiddenTunesPodcastEpisode[]) => {
@@ -98,16 +121,30 @@ export function useLazyPodcastEpisodeList({
   const fetchPage = useCallback(
     async (offset: number, append: boolean, forceRefresh: boolean) => {
       const generation = requestGenerationRef.current;
-      const result = await loadPageRef.current(offset, { append, forceRefresh });
+
+      const runLoad = async (signal?: AbortSignal) =>
+        loadPageRef.current(offset, { append, forceRefresh, signal });
+
+      let result: LoadPageResult | null;
+      const controller = discoveryControllerRef.current;
+
+      if (controller) {
+        result = await controller.run(`episodes:${showId}:${offset}`, (signal) => runLoad(signal));
+        if (result == null) return;
+      } else {
+        result = await runLoad();
+      }
+
       if (generation !== requestGenerationRef.current) return;
       applyPage(normalizeVisible(result.episodes), append, result.hasMore);
     },
-    [applyPage, normalizeVisible]
+    [applyPage, normalizeVisible, showId]
   );
 
   useEffect(() => {
     if (!enabled || !showId) {
       requestGenerationRef.current += 1;
+      discoveryControllerRef.current?.bumpGeneration();
       setEpisodes([]);
       setLoading(false);
       setRefreshing(false);
@@ -164,6 +201,8 @@ export function useLazyPodcastEpisodeList({
     return () => {
       cancelled = true;
       requestGenerationRef.current += 1;
+      discoveryControllerRef.current?.bumpGeneration();
+      clearRssEpisodeCacheForShow(showId);
     };
   }, [enabled, fetchPage, normalizeVisible, readCachedFirstPage, showId]);
 

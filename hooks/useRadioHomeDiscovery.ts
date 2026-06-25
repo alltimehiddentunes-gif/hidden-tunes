@@ -8,7 +8,6 @@ import {
 } from "../constants/radioCategories";
 import { RADIO_HOME_LANE_PAGE_SIZE } from "../constants/radioFoundation";
 import {
-  DISCOVERY_DEFER_RAIL_IDLE_MS,
   DISCOVERY_IDLE_RAIL_LIMIT,
   DISCOVERY_PRIORITY_RAIL_LIMIT,
 } from "../constants/discoveryPerformanceBudget";
@@ -21,7 +20,6 @@ import {
 import { loadRecentlyPlayedRadioItems } from "../services/radio/recentlyPlayedRadio";
 import { toRadioStationListItem } from "../services/radio/radioNormalizer";
 import { useMatureContentSettings } from "./useMatureContentSettings";
-import { shouldRunNonEssentialWork } from "../utils/performanceMode";
 import { logRadioDiscoveryFetch, logRadioDiscoveryRender } from "../utils/radioDiscoveryDiagnostics";
 import {
   trackDiscoveryScreenMount,
@@ -208,20 +206,9 @@ export function useRadioHomeDiscovery(): RadioHomeDiscoveryState {
 
     return () => {
       cancelled = true;
+      controller.bumpGeneration();
     };
   }, [loadedRailCount, rememberStations, recomputeRecommended]);
-
-  useEffect(() => {
-    if (loadedRailCount >= RADIO_HOME_RAILS.length) return;
-
-    const timer = setTimeout(() => {
-      if (shouldRunNonEssentialWork()) {
-        loadMoreRails();
-      }
-    }, DISCOVERY_DEFER_RAIL_IDLE_MS);
-
-    return () => clearTimeout(timer);
-  }, [loadMoreRails, loadedRailCount]);
 
   const resolveStation = useCallback((stationId: string) => {
     return stationStoreRef.current.get(stationId) || null;

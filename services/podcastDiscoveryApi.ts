@@ -162,7 +162,7 @@ function resolveCategoryCacheKey(categoryId: string) {
   return resolvedId;
 }
 
-async function fetchShowsFromNetwork(categoryId: string, page = 1) {
+async function fetchShowsFromNetwork(categoryId: string, page = 1, signal?: AbortSignal) {
   const resolvedId = resolvePodcastCategoryId(categoryId);
   const category = getPodcastCategory(resolvedId);
   if (!category) return { shows: [] as HiddenTunesPodcastShow[], hasMore: false };
@@ -185,6 +185,7 @@ async function fetchShowsFromNetwork(categoryId: string, page = 1) {
     page,
     limit: SHOW_PAGE_LIMIT,
     includeMature: category.isMature || category.tier === "mature" ? true : includeMature,
+    signal,
   });
 
   let shows = primary.success ? primary.shows : [];
@@ -196,6 +197,7 @@ async function fetchShowsFromNetwork(categoryId: string, page = 1) {
       page: 1,
       limit: SHOW_PAGE_LIMIT,
       includeMature: category.isMature || category.tier === "mature" ? true : includeMature,
+      signal,
     });
     if (fallback.success) {
       shows = fallback.shows;
@@ -228,7 +230,7 @@ async function fetchShowsFromNetwork(categoryId: string, page = 1) {
   };
 }
 
-async function fetchSearchShowsFromNetwork(query: string, page = 1) {
+async function fetchSearchShowsFromNetwork(query: string, page = 1, signal?: AbortSignal) {
   const includeMature = shouldIncludeMatureInApi();
   const searchQueries = (
     page === 1 ? buildPodcastSearchQueries(query, { includeMature }) : [String(query || "").trim()]
@@ -247,6 +249,7 @@ async function fetchSearchShowsFromNetwork(query: string, page = 1) {
       page,
       limit: SEARCH_PAGE_LIMIT,
       includeMature,
+      signal,
     });
 
     if (!response.success) continue;
@@ -261,7 +264,7 @@ async function fetchSearchShowsFromNetwork(query: string, page = 1) {
     hasMore = hasMore || response.pagination.hasMore;
 
     if (page !== 1) break;
-    if (index === 0 && merged.length > 0) break;
+    if (merged.length > 0) break;
     if (merged.length >= SEARCH_PAGE_LIMIT) break;
   }
 
@@ -282,12 +285,13 @@ function logSearchDiscoveryResult(query: string, shows: HiddenTunesPodcastShow[]
   });
 }
 
-async function fetchEpisodesFromNetwork(showId: string, page = 1) {
+async function fetchEpisodesFromNetwork(showId: string, page = 1, signal?: AbortSignal) {
   const response = await fetchPodcastEpisodes({
     show_id: showId,
     page,
     limit: EPISODE_PAGE_LIMIT,
     includeMature: shouldIncludeMatureInApi(),
+    signal,
   });
 
   return {
@@ -303,7 +307,7 @@ async function fetchEpisodesFromNetwork(showId: string, page = 1) {
 export async function loadPodcastCategoryPage(
   categoryId: string,
   offset = 0,
-  options?: { forceRefresh?: boolean; append?: boolean }
+  options?: { forceRefresh?: boolean; append?: boolean; signal?: AbortSignal }
 ) {
   const resolvedId = resolvePodcastCategoryId(String(categoryId || "").trim());
   if (!resolvedId) return { shows: [], hasMore: false };
@@ -332,7 +336,7 @@ export async function loadPodcastCategoryPage(
     }
   }
 
-  const fetchPromise = fetchShowsFromNetwork(resolvedId, page).then(({ shows, hasMore }) => {
+  const fetchPromise = fetchShowsFromNetwork(resolvedId, page, options?.signal).then(({ shows, hasMore }) => {
     if (shows.length > 0) {
       writeCachedPodcastShows(cacheKey, shows, { append: Boolean(options?.append || offset > 0) });
     }
@@ -362,7 +366,7 @@ export async function loadPodcastCategoryPage(
 
 export async function loadPodcastSearchPage(
   query: string,
-  options?: { offset?: number; forceRefresh?: boolean; append?: boolean }
+  options?: { offset?: number; forceRefresh?: boolean; append?: boolean; signal?: AbortSignal }
 ) {
   const safeQuery = String(query || "").trim();
   if (!safeQuery) return { shows: [], hasMore: false };
@@ -381,7 +385,7 @@ export async function loadPodcastSearchPage(
     }
   }
 
-  const fetchPromise = fetchSearchShowsFromNetwork(safeQuery, page).then(({ shows, hasMore }) => {
+  const fetchPromise = fetchSearchShowsFromNetwork(safeQuery, page, options?.signal).then(({ shows, hasMore }) => {
     if (shows.length > 0) {
       writeCachedPodcastSearch(cacheKey, shows, {
         append: Boolean(options?.append || offset > 0),
@@ -414,7 +418,7 @@ export async function loadPodcastSearchPage(
 export async function loadPodcastEpisodesPage(
   showId: string,
   offset = 0,
-  options?: { forceRefresh?: boolean; append?: boolean }
+  options?: { forceRefresh?: boolean; append?: boolean; signal?: AbortSignal }
 ) {
   const safeId = String(showId || "").trim();
   if (!safeId) return { episodes: [], hasMore: false };
@@ -431,7 +435,7 @@ export async function loadPodcastEpisodesPage(
     }
   }
 
-  const fetchPromise = fetchEpisodesFromNetwork(safeId, page).then(({ episodes, hasMore }) => {
+  const fetchPromise = fetchEpisodesFromNetwork(safeId, page, options?.signal).then(({ episodes, hasMore }) => {
     if (episodes.length > 0) {
       writeCachedPodcastEpisodes(safeId, episodes, {
         append: Boolean(options?.append || offset > 0),

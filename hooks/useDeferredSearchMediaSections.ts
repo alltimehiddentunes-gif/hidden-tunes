@@ -17,6 +17,7 @@ import {
   logHeatRequestStart,
   logHeatStaleResult,
 } from "../utils/heatPerformanceDiagnostics";
+import { createDiscoveryScreenController } from "../utils/discoveryRequestManager";
 
 type DeferredSearchMediaState = {
   podcastShows: HiddenTunesPodcastShow[];
@@ -43,6 +44,7 @@ const EMPTY_STATE: DeferredSearchMediaState = {
 export function useDeferredSearchMediaSections(submittedQuery: string) {
   const [state, setState] = useState<DeferredSearchMediaState>(EMPTY_STATE);
   const requestGenerationRef = useRef(0);
+  const discoveryControllerRef = useRef(createDiscoveryScreenController("global-search-media"));
   const stationStoreRef = useRef(new Map<string, HiddenTunesStation>());
   const mountedRef = useMountedRef();
 
@@ -59,6 +61,7 @@ export function useDeferredSearchMediaSections(submittedQuery: string) {
 
     if (query.length < 2) {
       requestGenerationRef.current += 1;
+      discoveryControllerRef.current.bumpGeneration();
       stationStoreRef.current.clear();
       safeSetState(() => EMPTY_STATE);
       return;
@@ -66,6 +69,7 @@ export function useDeferredSearchMediaSections(submittedQuery: string) {
 
     const generation = requestGenerationRef.current + 1;
     requestGenerationRef.current = generation;
+    discoveryControllerRef.current.bumpGeneration();
 
     safeSetState(() => ({
       ...EMPTY_STATE,
@@ -87,10 +91,14 @@ export function useDeferredSearchMediaSections(submittedQuery: string) {
       void (async () => {
         const podcastStartedAt = Date.now();
         logHeatRequestStart("search:podcast", { query, generation });
-        const podcastResult = await loadPodcastSearchPage(query, {
-          offset: 0,
-          forceRefresh: false,
-        }).catch(() => ({ shows: [], hasMore: false }));
+        const podcastResult =
+          (await discoveryControllerRef.current.run(`search:podcast:${query}`, (signal) =>
+            loadPodcastSearchPage(query, {
+              offset: 0,
+              forceRefresh: false,
+              signal,
+            }).catch(() => ({ shows: [], hasMore: false }))
+          )) || { shows: [], hasMore: false };
 
         if (requestGenerationRef.current !== generation || !mountedRef.current) {
           logHeatStaleResult("search:podcast", { query, generation });
@@ -114,11 +122,15 @@ export function useDeferredSearchMediaSections(submittedQuery: string) {
           void (async () => {
             const radioStartedAt = Date.now();
             logHeatRequestStart("search:radio", { query, generation });
-            const radioResult = await loadRadioSearchPage(query, {
-              offset: 0,
-              limit: MEDIA_DISCOVERY_PAGE_SIZE,
-              forceRefresh: false,
-            }).catch(() => ({ stations: [], hasMore: false, fromCache: false }));
+            const radioResult =
+              (await discoveryControllerRef.current.run(`search:radio:${query}`, () =>
+                loadRadioSearchPage(query, {
+                  offset: 0,
+                  limit: MEDIA_DISCOVERY_PAGE_SIZE,
+                  forceRefresh: false,
+                  requestKey: `search:${query}`,
+                }).catch(() => ({ stations: [], hasMore: false, fromCache: false }))
+              )) || { stations: [], hasMore: false, fromCache: false };
 
             if (requestGenerationRef.current !== generation || !mountedRef.current) {
               logHeatStaleResult("search:radio", { query, generation });
@@ -152,6 +164,7 @@ export function useDeferredSearchMediaSections(submittedQuery: string) {
       clearTimeout(timer);
       if (radioTimer) clearTimeout(radioTimer);
       requestGenerationRef.current += 1;
+      discoveryControllerRef.current.bumpGeneration();
       logHeatRequestCancelled("search:media", { query, generation });
     };
   }, [mountedRef, safeSetState, submittedQuery]);

@@ -67,10 +67,11 @@ export default function PodcastShowScreen() {
   }, [showId, showIdIsCategory, showIdIsValid, showTitle]);
 
   const loadPage = useCallback(
-    (offset: number, options: { append: boolean; forceRefresh: boolean }) =>
+    (offset: number, options: { append: boolean; forceRefresh: boolean; signal?: AbortSignal }) =>
       loadPodcastEpisodesPage(showId, offset, {
         append: options.append,
         forceRefresh: options.forceRefresh,
+        signal: options.signal,
       }),
     [showId]
   );
@@ -87,6 +88,7 @@ export default function PodcastShowScreen() {
     showId,
     showIsMature,
     enabled: Boolean(showId),
+    discoveryScreen: showId ? `podcast-show:${showId}` : undefined,
     loadPage,
   });
 

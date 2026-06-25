@@ -205,11 +205,12 @@ export default function PodcastDiscoveryHomeScreen() {
   ]);
 
   const loadSearchPage = useCallback(
-    (offset: number, options: { append: boolean; forceRefresh: boolean }) =>
+    (offset: number, options: { append: boolean; forceRefresh: boolean; signal?: AbortSignal }) =>
       loadPodcastSearchPage(debouncedQuery, {
         offset,
         append: options.append,
         forceRefresh: options.forceRefresh,
+        signal: options.signal,
       }).then((result) => ({
         shows: result.shows,
         hasMore: result.hasMore,
@@ -226,6 +227,7 @@ export default function PodcastDiscoveryHomeScreen() {
     listCountLabel: searchCountLabel,
   } = useLazyPodcastShowList({
     cacheKey: searchCacheKey,
+    discoveryScreen: searchCacheKey ? `podcast-search:${searchCacheKey}` : undefined,
     enabled: Boolean(searchCacheKey),
     loadPage: loadSearchPage,
   });

@@ -8,7 +8,6 @@ import {
 } from "../constants/podcastCategories";
 import { PODCAST_HOME_LANE_PAGE_SIZE } from "../constants/podcastFoundation";
 import {
-  DISCOVERY_DEFER_RAIL_IDLE_MS,
   DISCOVERY_IDLE_RAIL_LIMIT,
   DISCOVERY_PRIORITY_RAIL_LIMIT,
 } from "../constants/discoveryPerformanceBudget";
@@ -22,7 +21,6 @@ import {
 import { loadRecentlyPlayedPodcastItems } from "../services/podcast/recentlyPlayedPodcasts";
 import { toPodcastShowListItem } from "../services/podcast/podcastNormalizer";
 import { useMatureContentSettings } from "./useMatureContentSettings";
-import { shouldRunNonEssentialWork } from "../utils/performanceMode";
 import {
   trackDiscoveryScreenMount,
   trackDiscoveryScreenUnmount,
@@ -136,7 +134,7 @@ export function usePodcastHomeDiscovery(): PodcastHomeDiscoveryState {
     const controller = controllerRef.current;
     let cancelled = false;
 
-    const loadRail = async (railId: PodcastHomeRailId) => {
+    const loadRail = async (railId: PodcastHomeRailId, signal: AbortSignal) => {
       if (railId === "recent") {
         return loadRecentlyPlayedPodcastItems(PODCAST_HOME_LANE_PAGE_SIZE).catch(() => ({
           items: [] as PodcastShowListItem[],
@@ -144,7 +142,7 @@ export function usePodcastHomeDiscovery(): PodcastHomeDiscoveryState {
         }));
       }
 
-      return loadPodcastHomeLanePage(railId, 0, { forceRefresh: false }).catch(() => ({
+      return loadPodcastHomeLanePage(railId, 0, { forceRefresh: false, signal }).catch(() => ({
         shows: [] as HiddenTunesPodcastShow[],
         hasMore: false,
       }));
@@ -161,7 +159,7 @@ export function usePodcastHomeDiscovery(): PodcastHomeDiscoveryState {
         if (cancelled) return;
 
         const railId = pendingRails[index];
-        const result = await controller.run(`rail:${railId}`, async () => loadRail(railId));
+        const result = await controller.run(`rail:${railId}`, (signal) => loadRail(railId, signal));
         if (cancelled || result == null) return;
 
         loadedRailsRef.current.add(railId);
@@ -202,20 +200,9 @@ export function usePodcastHomeDiscovery(): PodcastHomeDiscoveryState {
 
     return () => {
       cancelled = true;
+      controller.bumpGeneration();
     };
   }, [loadedRailCount, rememberShows, recomputeRecommended]);
-
-  useEffect(() => {
-    if (loadedRailCount >= PODCAST_HOME_RAILS.length) return;
-
-    const timer = setTimeout(() => {
-      if (shouldRunNonEssentialWork()) {
-        loadMoreRails();
-      }
-    }, DISCOVERY_DEFER_RAIL_IDLE_MS);
-
-    return () => clearTimeout(timer);
-  }, [loadMoreRails, loadedRailCount]);
 
   const resolveShow = useCallback((showId: string) => {
     return showStoreRef.current.get(showId) || null;

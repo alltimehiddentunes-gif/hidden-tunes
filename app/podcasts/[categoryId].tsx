@@ -53,10 +53,11 @@ export default function PodcastCategoryScreen() {
   }, [category?.tier, categoryId, mountedRef]);
 
   const loadPage = useCallback(
-    (offset: number, options: { append: boolean; forceRefresh: boolean }) =>
+    (offset: number, options: { append: boolean; forceRefresh: boolean; signal?: AbortSignal }) =>
       loadPodcastCategoryPage(categoryId, offset, {
         append: options.append,
         forceRefresh: options.forceRefresh,
+        signal: options.signal,
       }).then((result) => ({
         shows: result.shows,
         hasMore: result.hasMore,
@@ -75,6 +76,7 @@ export default function PodcastCategoryScreen() {
     listCountLabel,
   } = useLazyPodcastShowList({
     cacheKey: categoryId,
+    discoveryScreen: `podcast-category:${categoryId}`,
     enabled: Boolean(categoryId) && category?.tier !== "mature-hub",
     loadPage,
   });
