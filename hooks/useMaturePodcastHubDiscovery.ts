@@ -5,6 +5,7 @@ import {
   MATURE_PODCAST_HUB_LANE_PAGE_SIZE,
   type MaturePodcastHubLaneId,
 } from "../constants/maturePodcastHubLanes";
+import { MATURE_MIN_HUB_RAIL_ITEMS } from "../constants/matureDiscoveryFoundation";
 import {
   DISCOVERY_IDLE_RAIL_LIMIT,
   DISCOVERY_LANE_STAGGER_MS,
@@ -15,8 +16,9 @@ import { cancelMaturePodcastDiscovery } from "../services/mature/maturePodcastDi
 import { loadMaturePodcastHubLanePage } from "../services/mature/maturePodcastHubLanes";
 import type { PodcastShowListItem } from "../types/podcastDiscovery";
 import { toPodcastShowListItem } from "../services/podcast/podcastNormalizer";
+import { createDiscoveryScreenController } from "../utils/discoveryRequestManager";
+import { scheduleMatureInventoryAuditIfEnabled } from "../utils/matureInventoryAudit";
 import {
-  trackDiscoveryRequestCancelled,
   trackDiscoveryScreenMount,
   trackDiscoveryScreenUnmount,
 } from "../utils/discoveryPerformanceDiagnostics";
@@ -27,20 +29,22 @@ function toLaneItems(shows: HiddenTunesPodcastShow[]) {
   return shows.slice(0, MATURE_PODCAST_HUB_LANE_PAGE_SIZE).map(toPodcastShowListItem);
 }
 
-const EMPTY_LANES: Record<MaturePodcastHubLaneId, PodcastShowListItem[]> = {
-  featured: [],
-  trending: [],
-  popular: [],
-  "new-episodes": [],
-  "hidden-gems": [],
-};
+function buildEmptyLanes(): Record<MaturePodcastHubLaneId, PodcastShowListItem[]> {
+  return MATURE_PODCAST_HUB_LANES.reduce(
+    (lanes, lane) => {
+      lanes[lane.id] = [];
+      return lanes;
+    },
+    {} as Record<MaturePodcastHubLaneId, PodcastShowListItem[]>
+  );
+}
 
 export function useMaturePodcastHubDiscovery(enabled: boolean) {
   const showStoreRef = useRef(new Map<string, HiddenTunesPodcastShow>());
-  const [laneShows, setLaneShows] = useState(EMPTY_LANES);
+  const controllerRef = useRef(createDiscoveryScreenController(SCREEN));
+  const [laneShows, setLaneShows] = useState(buildEmptyLanes);
   const [loadedLaneCount, setLoadedLaneCount] = useState(DISCOVERY_PRIORITY_RAIL_LIMIT);
   const [loading, setLoading] = useState(enabled);
-  const generationRef = useRef(0);
 
   const rememberShows = useCallback((shows: HiddenTunesPodcastShow[]) => {
     shows.forEach((show) => {
@@ -56,36 +60,45 @@ export function useMaturePodcastHubDiscovery(enabled: boolean) {
 
   useEffect(() => {
     if (!enabled) {
-      generationRef.current += 1;
+      controllerRef.current.bumpGeneration();
       cancelMaturePodcastDiscovery();
-      setLaneShows(EMPTY_LANES);
+      setLaneShows(buildEmptyLanes());
       setLoadedLaneCount(DISCOVERY_PRIORITY_RAIL_LIMIT);
       setLoading(false);
       return;
     }
 
     trackDiscoveryScreenMount(SCREEN);
-    const generation = ++generationRef.current;
+    scheduleMatureInventoryAuditIfEnabled();
+
+    const controller = controllerRef.current;
+    const generation = controller.getGeneration();
     let cancelled = false;
 
     void (async () => {
       setLoading(true);
-      const nextLanes: Record<MaturePodcastHubLaneId, PodcastShowListItem[]> = { ...EMPTY_LANES };
+      const nextLanes = buildEmptyLanes();
       const lanesToLoad = MATURE_PODCAST_HUB_LANES.slice(0, loadedLaneCount);
 
       for (let index = 0; index < lanesToLoad.length; index += 1) {
-        if (cancelled || generationRef.current !== generation) return;
+        if (cancelled || controller.getGeneration() !== generation) return;
 
         const lane = lanesToLoad[index];
-        const result = await loadMaturePodcastHubLanePage(lane.id, 0).catch(() => ({
-          shows: [],
-          hasMore: false,
-        }));
+        const result = await controller.run(`hub-lane:${lane.id}`, (signal) =>
+          loadMaturePodcastHubLanePage(lane.id, 0, { signal }).catch(() => ({
+            shows: [],
+            hasMore: false,
+          }))
+        );
 
-        if (cancelled || generationRef.current !== generation) return;
+        if (cancelled || controller.getGeneration() !== generation) return;
 
-        rememberShows(result.shows);
-        nextLanes[lane.id] = toLaneItems(result.shows);
+        const shows = result?.shows || [];
+        if (shows.length >= MATURE_MIN_HUB_RAIL_ITEMS) {
+          rememberShows(shows);
+          nextLanes[lane.id] = toLaneItems(shows);
+        }
+
         setLaneShows({ ...nextLanes });
 
         if (index === 0) setLoading(false);
@@ -95,15 +108,14 @@ export function useMaturePodcastHubDiscovery(enabled: boolean) {
         }
       }
 
-      if (!cancelled && generationRef.current === generation) {
+      if (!cancelled && controller.getGeneration() === generation) {
         setLoading(false);
       }
     })();
 
     return () => {
       cancelled = true;
-      generationRef.current += 1;
-      trackDiscoveryRequestCancelled(SCREEN, "hub-lanes");
+      controller.bumpGeneration();
       trackDiscoveryScreenUnmount(SCREEN);
     };
   }, [enabled, loadedLaneCount, rememberShows]);
@@ -113,7 +125,7 @@ export function useMaturePodcastHubDiscovery(enabled: boolean) {
   }, []);
 
   const populatedLanes = MATURE_PODCAST_HUB_LANES.filter(
-    (lane) => (laneShows[lane.id] || []).length > 0
+    (lane) => (laneShows[lane.id] || []).length >= MATURE_MIN_HUB_RAIL_ITEMS
   );
 
   const hasMoreRails = loadedLaneCount < MATURE_PODCAST_HUB_LANES.length;

@@ -19,13 +19,16 @@ export const DISCOVERY_PRIORITY_RAIL_LIMIT = 2;
 /** Additional rails loaded after idle or scroll. */
 export const DISCOVERY_IDLE_RAIL_LIMIT = 2;
 
-/** Mature category page: primary keyword queries per virtual page. */
-export const MATURE_PRIMARY_QUERIES_PER_PAGE = 1;
+/** Mature category page: keyword queries rotated per virtual page (not all at once). */
+export const MATURE_KEYWORDS_PER_VIRTUAL_PAGE = 3;
 
-/** Mature category page: optional fallback keyword when primary is sparse. */
+/** Mature category page: primary keyword queries per virtual page. */
+export const MATURE_PRIMARY_QUERIES_PER_PAGE = MATURE_KEYWORDS_PER_VIRTUAL_PAGE;
+
+/** Mature category page: optional extra keyword when a rotated batch is sparse. */
 export const MATURE_MAX_FALLBACK_QUERIES_PER_PAGE = 1;
 
-/** Minimum primary results before issuing the single fallback keyword query. */
+/** Minimum batch results before issuing one extra rotated keyword query. */
 export const MATURE_FALLBACK_TRIGGER_COUNT = 20;
 
 /** Cap service-layer quality scoring input (post-fetch, pre-rank). */

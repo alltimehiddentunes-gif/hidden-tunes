@@ -22,7 +22,12 @@ function matureSubToCategoryFromDef(
 /** Static mature podcast tiles — no availability probe storm on hub mount. */
 export function useMaturePodcastCategoryAvailability(enabled: boolean) {
   const categories = useMemo(
-    () => (enabled ? PODCAST_MATURE_SUBCATEGORIES.map(matureSubToCategoryFromDef) : []),
+    () =>
+      enabled
+        ? PODCAST_MATURE_SUBCATEGORIES.filter((sub) => sub.hubStandalone !== false).map(
+            matureSubToCategoryFromDef
+          )
+        : [],
     [enabled]
   );
 

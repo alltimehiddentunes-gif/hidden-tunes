@@ -20,6 +20,7 @@ import {
 import { RadioCategoryCard, RadioStationRailCard } from "../../../components/radio/RadioBrowserCards";
 import MatureContentConsentModal from "../../../components/mature/MatureContentConsentModal";
 import { MATURE_PODCAST_HUB_LANE_PAGE_SIZE } from "../../../constants/maturePodcastHubLanes";
+import { MATURE_RADIO_HEADLINE_MIN_STATIONS } from "../../../constants/matureDiscoveryFoundation";
 import type { PodcastCategory } from "../../../constants/podcastCategories";
 import type { RadioCategory } from "../../../constants/radioCategories";
 import { COLORS } from "../../../constants/theme";
@@ -107,7 +108,7 @@ function RadioRailSection({
       <View style={styles.sectionHeader}>
         <View style={styles.sectionHeaderText}>
           <Text style={styles.sectionEyebrow}>LIVE</Text>
-          <Text style={styles.sectionTitle}>Live Mature Radio</Text>
+          <Text style={styles.sectionTitle}>Live Mature Talk</Text>
           <Text style={styles.sectionMeta}>{stations.length} stations</Text>
         </View>
       </View>
@@ -216,6 +217,9 @@ export default function PodcastMatureHubScreen() {
     });
   }, []);
 
+  const showMatureRadioBrowse =
+    matureRadioCategories.length > 0 && liveRadioStations.length >= MATURE_RADIO_HEADLINE_MIN_STATIONS;
+
   const homeSections = useMemo(() => {
     const sections: MatureHubSection[] = [];
 
@@ -231,22 +235,6 @@ export default function PodcastMatureHubScreen() {
       });
     }
 
-    if (liveRadioStations.length) {
-      sections.push({
-        key: "live-radio",
-        kind: "radio-rail",
-        stations: liveRadioStations,
-      });
-    }
-
-    if (matureRadioCategories.length) {
-      sections.push({
-        key: "radio-browse",
-        kind: "radio-browse",
-        categories: matureRadioCategories,
-      });
-    }
-
     if (availableCategories.length) {
       sections.push({
         key: "browse",
@@ -255,8 +243,31 @@ export default function PodcastMatureHubScreen() {
       });
     }
 
+    if (liveRadioStations.length) {
+      sections.push({
+        key: "live-radio",
+        kind: "radio-rail",
+        stations: liveRadioStations,
+      });
+    }
+
+    if (showMatureRadioBrowse) {
+      sections.push({
+        key: "radio-browse",
+        kind: "radio-browse",
+        categories: matureRadioCategories,
+      });
+    }
+
     return sections;
-  }, [availableCategories, laneShows, liveRadioStations, matureRadioCategories, populatedLanes]);
+  }, [
+    availableCategories,
+    laneShows,
+    liveRadioStations,
+    matureRadioCategories,
+    populatedLanes,
+    showMatureRadioBrowse,
+  ]);
 
   const renderHomeSection = useCallback(
     ({ item }: { item: MatureHubSection }) => {
@@ -279,7 +290,7 @@ export default function PodcastMatureHubScreen() {
         return (
           <View style={styles.sectionBlock}>
             <Text style={styles.sectionEyebrow}>LIVE RADIO</Text>
-            <Text style={styles.sectionTitle}>Mature radio rooms</Text>
+            <Text style={styles.sectionTitle}>Mature talk stations</Text>
             <View style={styles.grid}>
               {item.categories.map((category) => (
                 <RadioCategoryCard

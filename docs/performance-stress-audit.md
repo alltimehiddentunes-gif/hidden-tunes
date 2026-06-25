@@ -147,3 +147,97 @@ Run 20 minutes on physical device:
 npm run typecheck
 git diff --check
 ```
+
+---
+
+## Physical Device Verification (2026-06-22)
+
+### Session status
+
+| Field | Value |
+|-------|-------|
+| **Executed by** | Agent (static/code review only) |
+| **Physical iPhone session** | **NOT RUN** — no device attached to this environment |
+| **Build under test** | `carplay-scene-safe-test` @ `a25054e` + `0329fc6` (perf optimize + audit doc) |
+| **Prior iOS IPA** | `1.0.122` (EAS build from earlier session — not re-tested here) |
+| **Duration** | 0 min (required: 20 min continuous) |
+| **Device model** | N/A |
+| **iOS version** | N/A |
+
+### Required scenario (not executed)
+
+The following 20-minute continuous session was **not performed** on a physical iPhone in this environment:
+
+1. Open Home
+2. Browse Podcasts rapidly
+3. Open multiple podcast categories + shows
+4. Play several podcast episodes
+5. Browse Live Radio
+6. Search: `ghana`, `love`, `gospel`, `business`
+7. Rapid tab switching: Home / Search / Library / Podcasts / Radio
+8. Toggle Mature OFF/ON (with consent)
+9. Background and reopen
+
+### Recorded metrics
+
+| Metric | Result |
+|--------|--------|
+| CPU spikes | **N/A** — requires Xcode Instruments or dev build with `ENABLE_DISCOVERY_PERF_DIAGNOSTICS` |
+| Memory usage | **N/A** — requires Instruments / Xcode Memory Debugger |
+| Active request count | **N/A** — `[HTDiscoveryPerf]` disabled in production (`ENABLE_DISCOVERY_PERF_DIAGNOSTICS = false`) |
+| JS thread stalls | **N/A** — requires `ENABLE_HEAVY_PERF_DIAGNOSTICS` on dev device |
+| Crashes | **Unknown** — no session run |
+| Freezes / black screens | **Unknown** — no session run |
+| Navigation lockups | **Unknown** — no session run |
+| Phone temperature | **Unknown** — no session run |
+
+### Pass criteria checklist
+
+| Criterion | Status |
+|-----------|--------|
+| No crashes | **UNVERIFIED** |
+| No black screens | **UNVERIFIED** |
+| No navigation lockups | **UNVERIFIED** |
+| No heavy heat after prolonged browsing | **UNVERIFIED** |
+| Radio browsing responsive | **UNVERIFIED** |
+| Podcast browsing responsive | **UNVERIFIED** |
+| Audio starts promptly | **UNVERIFIED** |
+| Latest tap wins | **UNVERIFIED** |
+| Expansion still works (all categories/mature/rails) | **UNVERIFIED** on device; **PASS** static code review |
+
+### What was verified without a device
+
+| Check | Result |
+|-------|--------|
+| `npm run typecheck` | **PASS** (at commit `a25054e`) |
+| Progressive rail loading wired | **PASS** — `usePodcastHomeDiscovery`, `useRadioHomeDiscovery` |
+| Request manager (max 2 concurrent, abort, latest-wins) | **PASS** — `discoveryRequestManager.ts` |
+| Mature podcast AbortController | **PASS** — `maturePodcastDiscovery.ts` |
+| Instant podcast shell (categories while rails load) | **PASS** — `app/podcasts/index.tsx` |
+| Thumbnail decode hints on list art | **PASS** — `HTImage`, rail cards |
+| Playback path unchanged (immediate play) | **PASS** — `playbackRouter.ts` |
+| No feature/category/mature removal in perf diff | **PASS** |
+
+### Remaining hotspots (likely, pending device proof)
+
+1. **Cold-cache iTunes/RSS** — first podcast show open may still spike JS during XML parse
+2. **Mature category pagination** — quality scoring on 80-item cap still on main thread
+3. **Radio Browser failover** — 3 mirrors × keyword queries under poor network
+4. **Production diagnostics off** — heat/freeze root cause harder to capture without dev build + toggles enabled
+
+### How to run the device session locally
+
+1. Install latest `carplay-scene-safe-test` dev or TestFlight build on iPhone
+2. Optional: set `ENABLE_DISCOVERY_PERF_DIAGNOSTICS = true` and `ENABLE_HEAVY_PERF_DIAGNOSTICS = true` in `utils/devDiagnostics.ts` for a **dev build only**
+3. Connect Xcode → Devices → Open Instruments (Time Profiler + Allocations) if measuring CPU/memory
+4. Run the 20-minute scenario above; watch Metro logs for `[HTDiscoveryPerf]` (`activeRequests` should stay ≤ 2)
+5. Note phone warmth at minutes 5, 10, 15, 20
+6. Fill in this section with real results and update the final verdict
+
+### Final recommendation
+
+**NOT READY FOR TESTFLIGHT**
+
+Physical-device verification is **mandatory** and was **not completed**. Static analysis and typecheck support the performance fixes, but pass criteria (no crashes, no freezes, no heat regression, responsive podcast/radio, prompt audio) **cannot be signed off without a 20-minute iPhone session**.
+
+After a successful physical session with zero failures, update the table above and change the verdict to **READY FOR TESTFLIGHT**.

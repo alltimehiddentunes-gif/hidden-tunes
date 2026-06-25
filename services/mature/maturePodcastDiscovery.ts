@@ -7,7 +7,7 @@ import {
 import {
   MATURE_FALLBACK_TRIGGER_COUNT,
   MATURE_MAX_FALLBACK_QUERIES_PER_PAGE,
-  MATURE_PRIMARY_QUERIES_PER_PAGE,
+  MATURE_KEYWORDS_PER_VIRTUAL_PAGE,
   DISCOVERY_QUALITY_RANK_CAP,
 } from "../../constants/discoveryPerformanceBudget";
 import { getMaturePodcastAdjacentGroupIds } from "../../constants/matureCategoryFallbacks";
@@ -27,6 +27,7 @@ import {
 import {
   dedupeMaturePodcastShows,
   filterAndRankMaturePodcastShows,
+  isMaturePlayableShow,
 } from "./matureQualityFilters";
 
 type MaturePodcastPageResult = {
@@ -54,19 +55,28 @@ function resolveQueryGroup(categoryId: string) {
 
 function buildFetchPlan(group: MaturePodcastQueryGroup, virtualPage: number) {
   const keywords = group.keywords;
-  const primaryIndex = virtualPage % keywords.length;
-  const keywordPage = Math.floor(virtualPage / keywords.length) + 1;
+  const perPage = Math.min(MATURE_KEYWORDS_PER_VIRTUAL_PAGE, keywords.length);
+  const baseOffset = virtualPage * perPage;
+  const keywordPage = Math.floor(baseOffset / keywords.length) + 1;
+  const chunkStart = baseOffset % keywords.length;
 
-  return {
-    primary: { keyword: keywords[primaryIndex], page: keywordPage },
-    fallback:
-      MATURE_MAX_FALLBACK_QUERIES_PER_PAGE > 0 && keywords.length > 1
-        ? {
-            keyword: keywords[(primaryIndex + 1) % keywords.length],
-            page: keywordPage,
-          }
-        : null,
-  };
+  const rotated: { keyword: string; page: number }[] = [];
+  for (let index = 0; index < perPage; index += 1) {
+    rotated.push({
+      keyword: keywords[(chunkStart + index) % keywords.length],
+      page: keywordPage,
+    });
+  }
+
+  const extra =
+    MATURE_MAX_FALLBACK_QUERIES_PER_PAGE > 0 && keywords.length > perPage
+      ? {
+          keyword: keywords[(chunkStart + perPage) % keywords.length],
+          page: keywordPage,
+        }
+      : null;
+
+  return { rotated, extra, queryTerms: rotated.map((entry) => entry.keyword) };
 }
 
 async function fetchMaturePodcastKeywordResponses(
@@ -75,43 +85,55 @@ async function fetchMaturePodcastKeywordResponses(
   signal?: AbortSignal
 ) {
   const plan = buildFetchPlan(group, virtualPage);
-  const primaryResponse = await fetchPodcastShows({
-    ...buildMaturePodcastKeywordQuery(
-      plan.primary.keyword,
-      plan.primary.page,
-      MATURE_DISCOVERY_PAGE_SIZE
-    ),
-    signal,
-  });
+  const responses = [];
 
-  const responses = [primaryResponse];
-  const primaryShows = primaryResponse.success ? primaryResponse.shows : [];
-
-  if (
-    plan.fallback &&
-    primaryShows.length < MATURE_FALLBACK_TRIGGER_COUNT
-  ) {
-    const fallbackResponse = await fetchPodcastShows({
-      ...buildMaturePodcastKeywordQuery(
-        plan.fallback.keyword,
-        plan.fallback.page,
-        MATURE_DISCOVERY_PAGE_SIZE
-      ),
-      signal,
-    });
-    responses.push(fallbackResponse);
+  for (const entry of plan.rotated) {
+    if (signal?.aborted) break;
+    responses.push(
+      await fetchPodcastShows({
+        ...buildMaturePodcastKeywordQuery(
+          entry.keyword,
+          entry.page,
+          MATURE_DISCOVERY_PAGE_SIZE
+        ),
+        signal,
+      })
+    );
   }
 
-  return responses;
+  const mergedSoFar = responses.flatMap((response) => (response.success ? response.shows : []));
+
+  if (
+    plan.extra &&
+    mergedSoFar.length < MATURE_FALLBACK_TRIGGER_COUNT &&
+    !signal?.aborted
+  ) {
+    responses.push(
+      await fetchPodcastShows({
+        ...buildMaturePodcastKeywordQuery(
+          plan.extra.keyword,
+          plan.extra.page,
+          MATURE_DISCOVERY_PAGE_SIZE
+        ),
+        signal,
+      })
+    );
+  }
+
+  return { responses, queryTerms: plan.queryTerms };
 }
 
-async function fetchMaturePodcastBatch(
+export async function fetchMaturePodcastBatch(
   group: MaturePodcastQueryGroup,
   virtualPage: number,
   auditCategoryId?: string,
   signal?: AbortSignal
 ) {
-  const responses = await fetchMaturePodcastKeywordResponses(group, virtualPage, signal);
+  const { responses, queryTerms } = await fetchMaturePodcastKeywordResponses(
+    group,
+    virtualPage,
+    signal
+  );
   const merged = responses.flatMap((response) => (response.success ? response.shows : []));
   const sourceHasMore = responses.some(
     (response) => response.success && response.pagination.hasMore
@@ -121,10 +143,11 @@ async function fetchMaturePodcastBatch(
     {
       categoryId: auditCategoryId || group.id,
       source: `keywords:page${virtualPage}`,
+      queryTermsUsed: queryTerms,
     }
   );
 
-  return { ranked, sourceHasMore, rawCount: merged.length };
+  return { ranked, sourceHasMore, rawCount: merged.length, queryTerms };
 }
 
 async function fetchAdjacentSupplement(groupId: string, existingIds: Set<string>, maxGroups = 1) {
@@ -233,10 +256,11 @@ export async function loadMaturePodcastCategoryPage(
       return { shows: [], hasMore: false };
     }
 
-    const shows = expanded.shows.slice(0, MATURE_DISCOVERY_PAGE_SIZE);
+    const playable = expanded.shows.filter(isMaturePlayableShow);
+    const shows = playable.slice(0, MATURE_DISCOVERY_PAGE_SIZE);
     const hasMore =
       virtualPage + 1 < MATURE_MAX_VIRTUAL_PAGES &&
-      (sourceHasMore || expanded.shows.length >= MATURE_DISCOVERY_PAGE_SIZE);
+      (sourceHasMore || playable.length >= MATURE_DISCOVERY_PAGE_SIZE);
 
     return {
       shows,
@@ -274,4 +298,4 @@ export function cancelMaturePodcastDiscovery(requestKey?: string) {
 
 // Preserve export for callers referencing keyword slot count.
 export const MATURE_KEYWORD_SLOTS_PER_PAGE =
-  MATURE_PRIMARY_QUERIES_PER_PAGE + MATURE_MAX_FALLBACK_QUERIES_PER_PAGE;
+  MATURE_KEYWORDS_PER_VIRTUAL_PAGE + MATURE_MAX_FALLBACK_QUERIES_PER_PAGE;

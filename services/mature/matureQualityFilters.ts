@@ -152,21 +152,34 @@ export function dedupeMaturePodcastShows(shows: HiddenTunesPodcastShow[]) {
 
 export function filterAndRankMaturePodcastShows(
   shows: HiddenTunesPodcastShow[],
-  options?: { minQuality?: number; categoryId?: string; source?: string }
+  options?: {
+    minQuality?: number;
+    categoryId?: string;
+    source?: string;
+    queryTermsUsed?: string[];
+    finalDisplayedCount?: number;
+  }
 ) {
   const minQuality = options?.minQuality ?? MATURE_PODCAST_MIN_QUALITY;
   const capped = shows.slice(0, DISCOVERY_QUALITY_RANK_CAP);
   const deduped = dedupeMaturePodcastShows(capped);
+  const showsWithEpisodes = deduped.filter(
+    (show) => Math.max(0, Number(show.episode_count) || 0) > 0
+  );
   const qualityPassed = deduped.filter((show) => passesMaturePodcastQualityGate(show, minQuality));
   const playableShows = qualityPassed.filter(isMaturePlayableShow);
 
   if (options?.categoryId) {
     const audit: MaturePodcastAuditCounts = {
       categoryId: options.categoryId,
+      queryTermsUsed: options.queryTermsUsed,
       raw: shows.length,
       afterDedupe: deduped.length,
+      showsWithEpisodes: showsWithEpisodes.length,
       afterQuality: qualityPassed.length,
       playableShows: playableShows.length,
+      finalDisplayedCount: options.finalDisplayedCount ?? playableShows.length,
+      first20Titles: playableShows.slice(0, 20).map((show) => String(show.title || "").trim()),
       source: options.source,
     };
     logMaturePodcastCategoryAudit(audit);
@@ -231,6 +244,7 @@ export function filterAndRankMatureRadioStations(
   const playableStreams = deduped.filter((station) =>
     String(station.streamUrl || "").trim().startsWith("https://")
   );
+  const httpsStreams = playableStreams.length;
   const filtered = playableStreams
     .filter((station) => passesMatureRadioQualityGate(station, minQuality))
     .map((station) => ({
@@ -248,7 +262,10 @@ export function filterAndRankMatureRadioStations(
       raw: stations.length,
       afterDedupe: deduped.length,
       playableStreams: playableStreams.length,
+      httpsStreams,
       afterQuality: filtered.length,
+      finalDisplayedCount: filtered.length,
+      first20StationNames: filtered.slice(0, 20).map((station) => String(station.name || "").trim()),
     };
     logMatureRadioCategoryAudit(audit);
   }

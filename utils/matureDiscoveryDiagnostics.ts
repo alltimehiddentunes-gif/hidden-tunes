@@ -3,10 +3,14 @@ import { isMatureDiscoveryDiagnosticsEnabled } from "./devDiagnostics";
 export type MaturePodcastAuditCounts = {
   categoryId: string;
   keywordBatch?: string;
+  queryTermsUsed?: string[];
   raw: number;
   afterDedupe: number;
+  showsWithEpisodes?: number;
   afterQuality: number;
   playableShows: number;
+  finalDisplayedCount?: number;
+  first20Titles?: string[];
   source?: string;
 };
 
@@ -15,10 +19,13 @@ export type MatureRadioAuditCounts = {
   raw: number;
   afterDedupe: number;
   playableStreams: number;
+  httpsStreams?: number;
   afterQuality: number;
+  finalDisplayedCount?: number;
+  first20StationNames?: string[];
 };
 
-type Details = Record<string, string | number | boolean | null | undefined>;
+type Details = Record<string, string | number | boolean | null | undefined | string[]>;
 
 function shouldLog() {
   return isMatureDiscoveryDiagnosticsEnabled();
@@ -45,4 +52,11 @@ export function logMatureDiscoveryWeakCategory(
 ) {
   if (count >= threshold) return;
   logMatureDiscovery("mature_weak_category", { kind, categoryId, count, threshold });
+}
+
+export function logMatureInventoryAuditSummary(
+  kind: "podcast" | "radio",
+  summary: Record<string, string | number | boolean | string[]>
+) {
+  logMatureDiscovery(`mature_${kind}_inventory_summary`, summary);
 }

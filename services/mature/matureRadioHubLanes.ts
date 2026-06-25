@@ -2,7 +2,7 @@ import { MATURE_DISCOVERY_PAGE_SIZE } from "../../constants/matureDiscoveryFound
 import { shouldIncludeMatureInApi } from "../../utils/matureContentSettings";
 import { readCachedRadioPage, writeCachedRadioStations } from "../radio/radioCache";
 import type { HiddenTunesStation } from "../../types/radio";
-import { dedupeMatureRadioStations } from "./matureQualityFilters";
+import { dedupeMatureRadioStations, filterAndRankMatureRadioStations } from "./matureQualityFilters";
 import { loadMatureRadioCategoryPage } from "./matureRadioDiscovery";
 
 const HUB_RADIO_CACHE_KEY = "mature-hub:live-radio";
@@ -32,9 +32,9 @@ export async function loadMatureRadioHubLanePage(options?: { forceRefresh?: bool
     hasMore: false,
   }));
 
-  const ranked = dedupeById(result.stations).filter((station) =>
-    String(station.streamUrl || "").trim().startsWith("https://")
-  );
+  const ranked = filterAndRankMatureRadioStations(dedupeById(result.stations), {
+    categoryId: "hub:live-mature-talk",
+  }).filter((station) => String(station.streamUrl || "").trim().startsWith("https://"));
 
   if (ranked.length > 0) {
     writeCachedRadioStations(HUB_RADIO_CACHE_KEY, ranked.slice(0, MATURE_DISCOVERY_PAGE_SIZE), {

@@ -14,8 +14,17 @@ export const MATURE_RADIO_CATALOG_TARGET_MAX = 2_000;
 /** Mobile page size — unchanged from standard discovery. */
 export const MATURE_DISCOVERY_PAGE_SIZE = MEDIA_DISCOVERY_PAGE_SIZE;
 
-/** Keywords queried per virtual page (1 primary + optional 1 fallback). */
+/** Keywords queried per virtual page (rotated batch, not all at once). */
 export { MATURE_KEYWORDS_PER_FETCH, MATURE_PRIMARY_QUERIES_PER_PAGE };
+
+/** Target playable shows per mature category page. */
+export const MATURE_TARGET_CATEGORY_SHOWS = 40;
+
+/** Minimum items before a mature hub rail is shown. */
+export const MATURE_MIN_HUB_RAIL_ITEMS = 10;
+
+/** Mature radio stations required before headline placement. */
+export const MATURE_RADIO_HEADLINE_MIN_STATIONS = 10;
 
 /** Minimum shows before adjacent-category supplement kicks in. */
 export const MATURE_MIN_CATEGORY_RESULTS = 20;
