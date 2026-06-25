@@ -2,6 +2,8 @@ import type {
   HiddenTunesPodcastEpisode,
   HiddenTunesPodcastShow,
 } from "../podcastCatalogApi";
+import { HIDDEN_TUNES_PODCASTS_LABEL } from "../../constants/podcastCategories";
+import { isValidPodcastShowId } from "../../utils/podcastShowId";
 
 const DEAD_SHOW_PATTERN =
   /\b(test feed|placeholder|lorem ipsum|sample podcast|demo feed|untitled podcast|podcast show)\b/i;
@@ -19,8 +21,11 @@ export function filterPlayablePodcastEpisodes(episodes: HiddenTunesPodcastEpisod
 }
 
 export function isDiscoverablePodcastShow(show: HiddenTunesPodcastShow) {
+  if (!isValidPodcastShowId(show.id)) return false;
+
   const title = String(show.title || "").trim();
   if (!title || title.length < 2) return false;
+  if (title === HIDDEN_TUNES_PODCASTS_LABEL) return false;
   if (DEAD_SHOW_PATTERN.test(title)) return false;
 
   const combined = `${title} ${show.description || ""} ${show.host_name || ""}`;

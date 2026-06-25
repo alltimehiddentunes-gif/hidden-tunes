@@ -1,11 +1,8 @@
-import { Alert } from "react-native";
-
-import {
-  formatPodcastEpisodeDuration,
-  type HiddenTunesPodcastEpisode,
-  type HiddenTunesPodcastShow,
+import type {
+  HiddenTunesPodcastEpisode,
+  HiddenTunesPodcastShow,
 } from "../services/podcastCatalogApi";
-import { HIDDEN_TUNES_PODCASTS_LABEL } from "./launchPodcastCategories";
+import { formatPodcastEpisodeDuration } from "../services/podcastCatalogApi";
 
 const HIDDEN_PROVIDER_PATTERN =
   /\b(podcast index|podcastindex|spotify|apple podcasts|google podcasts|anchor\.fm|buzzsprout|acast|libsyn|overcast|stitcher|iheart|rss feed|rss)\b/i;
@@ -23,8 +20,7 @@ export function sanitizePodcastDiscoveryText(value?: string | null) {
 }
 
 export function podcastDiscoveryDisplayName(value?: string | null) {
-  const cleaned = sanitizePodcastDiscoveryText(value);
-  return cleaned || HIDDEN_TUNES_PODCASTS_LABEL;
+  return sanitizePodcastDiscoveryText(value);
 }
 
 export function podcastShowSubtitle(show: HiddenTunesPodcastShow) {
@@ -38,7 +34,7 @@ export function podcastShowSubtitle(show: HiddenTunesPodcastShow) {
     .map((part) => sanitizePodcastDiscoveryText(part))
     .filter(Boolean);
 
-  return parts.join(" · ") || HIDDEN_TUNES_PODCASTS_LABEL;
+  return parts.join(" · ") || "Podcast";
 }
 
 export function podcastEpisodeSubtitle(episode: HiddenTunesPodcastEpisode) {
@@ -61,18 +57,5 @@ export function podcastEpisodeSubtitle(episode: HiddenTunesPodcastEpisode) {
       : null,
   ].filter(Boolean);
 
-  return parts.join(" · ") || HIDDEN_TUNES_PODCASTS_LABEL;
-}
-
-export function openHiddenTunesPodcastEpisode(
-  episode: HiddenTunesPodcastEpisode,
-  showTitle?: string
-) {
-  Alert.alert(
-    HIDDEN_TUNES_PODCASTS_LABEL,
-    `In-app podcast playback is coming soon. Episode listings for ${podcastDiscoveryDisplayName(
-      showTitle
-    )} are ready now in Hidden Tunes Podcasts.`,
-    [{ text: "OK", style: "default" }]
-  );
+  return parts.join(" · ") || "Episode";
 }

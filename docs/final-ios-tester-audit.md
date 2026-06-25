@@ -1,8 +1,9 @@
 # Final iOS Tester Audit
 
-**Branch:** `carplay-scene-safe-test`  
-**HEAD:** `6ec13d1f665a2de721eb54239413363d729d0585`  
-**Date:** 2026-06-22  
+**Branch:** `carplay-scene-safe-test`
+**HEAD:** `dcf6600e4e97489e90f1cd1d77f8ed88dd557d6e` (includes this audit doc)
+**Build HEAD:** `6ec13d1f665a2de721eb54239413363d729d0585` (code baked into EAS build)
+**Date:** 2026-06-22
 **Scope:** Audit-only — no new features, no redesign. Android build intentionally skipped (Play upload key mismatch).
 
 ---
@@ -77,16 +78,16 @@ Nothing removed from catalog expansion in this audit cycle.
 
 ### First 10 iTunes show titles (`love podcast`)
 
-1. The Bad Girls Bible - Sex, Relationships, Dating, Love & Marriage Advice  
-2. Love Letters  
-3. Crazy Love Podcast  
-4. This is Love  
-5. Love Story: John F. Kennedy Jr. & Carolyn Bessette Official Podcast  
-6. Love at First Sight  
-7. Modern Love  
-8. I Am Enough: Mastering Self Love Podcast  
-9. Create The Love Podcast  
-10. The Secure Love Podcast with Julie Menanno  
+1. The Bad Girls Bible - Sex, Relationships, Dating, Love & Marriage Advice
+2. Love Letters
+3. Crazy Love Podcast
+4. This is Love
+5. Love Story: John F. Kennedy Jr. & Carolyn Bessette Official Podcast
+6. Love at First Sight
+7. Modern Love
+8. I Am Enough: Mastering Self Love Podcast
+9. Create The Love Podcast
+10. The Secure Love Podcast with Julie Menanno
 
 ### First 5 episode titles (Bad Girls Bible RSS sample)
 
@@ -94,9 +95,9 @@ Episodes load from RSS with HTTPS enclosures; sample feed has 63 playable episod
 
 ### Playback path (code)
 
-- Show screen: `app/podcasts/show/[showId].tsx`  
-- Episodes: `loadPodcastEpisodesPage` → iTunes RSS when HT 404  
-- Play: `playPodcastEpisode(normalized, playbackQueue)` via `usePlaybackRouter`  
+- Show screen: `app/podcasts/show/[showId].tsx`
+- Episodes: `loadPodcastEpisodesPage` → iTunes RSS when HT 404
+- Play: `playPodcastEpisode(normalized, playbackQueue)` via `usePlaybackRouter`
 - **No** `openHiddenTunesPodcastEpisode` "coming soon" alert in active path (dead export only)
 
 ### Navigation entry points
@@ -210,13 +211,13 @@ No empty results for common terms at probe limit.
 
 **Not run in this audit session** (no physical device/simulator attached to agent). Pending manual TestFlight verification:
 
-- [ ] 5 min aggressive search  
-- [ ] 5 min fast page switching  
-- [ ] 5 min radio browse  
-- [ ] 5 min podcast browse  
-- [ ] Rapid song/station taps  
-- [ ] Mature ON/OFF toggle  
-- [ ] Background/reopen  
+- [ ] 5 min aggressive search
+- [ ] 5 min fast page switching
+- [ ] 5 min radio browse
+- [ ] 5 min podcast browse
+- [ ] Rapid song/station taps
+- [ ] Mature ON/OFF toggle
+- [ ] Background/reopen
 
 Expected: no crash, no black pages, no freeze, no heavy heat.
 
@@ -239,9 +240,14 @@ Expected: no crash, no black pages, no freeze, no heavy heat.
 |-------|-------|
 | Profile | `production` |
 | Platform | iOS only |
-| Command | `eas build --platform ios --profile production --clear-cache` |
-| Build status | See build section below (submitted from WSL if Expo auth available) |
-| Android | **NOT BUILT** (blocked) |
+| Command | `eas build --platform ios --profile production --clear-cache --non-interactive` |
+| Build ID | `b28fdac0-ee60-4228-9fa3-3dbe4969d717` |
+| Build number | **1.0.122** |
+| Status | **FINISHED** |
+| Build page | https://expo.dev/accounts/hiddentunes_1/projects/hidden-tunes/builds/b28fdac0-ee60-4228-9fa3-3dbe4969d717 |
+| IPA artifact | https://expo.dev/artifacts/eas/JLxdiT3uCLOcYzN9iMSbL7jM3_hfqiw7jLUKLXZZhoU.ipa |
+| Android | **NOT BUILT** (Play upload key mismatch — blocked) |
+| Expo account | `hiddentunes_1` |
 
 ---
 
@@ -257,11 +263,11 @@ Expected: no crash, no black pages, no freeze, no heavy heat.
 
 Do **not** mark production-ready if device QA finds:
 
-- Placeholder podcasts  
-- Non-playing episodes  
-- Empty common radio searches  
-- Mature gating leaks  
-- Crashes on fast navigation  
-- Heavy heat during browse  
+- Placeholder podcasts
+- Non-playing episodes
+- Empty common radio searches
+- Mature gating leaks
+- Crashes on fast navigation
+- Heavy heat during browse
 
 Code + API audit: **none of the above blockers detected.**

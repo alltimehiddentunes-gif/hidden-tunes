@@ -14,6 +14,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 
 import { safeRouterPush } from "../../utils/safeNavigation";
+import { isValidPodcastShowId } from "../../utils/podcastShowId";
 
 import { PodcastShowCard } from "../../components/podcast/PodcastDiscoveryCards";
 import MatureContentConsentModal from "../../components/mature/MatureContentConsentModal";
@@ -80,6 +81,8 @@ export default function PodcastCategoryScreen() {
 
   const openShow = useCallback(
     (show: HiddenTunesPodcastShow) => {
+      if (!isValidPodcastShowId(show.id) || !String(show.title || "").trim()) return;
+
       runWithMatureConsent(show, () => {
         safeRouterPush({
           pathname: "/podcasts/show/[showId]",
@@ -95,14 +98,17 @@ export default function PodcastCategoryScreen() {
   );
 
   const renderShowRow = useCallback(
-    ({ item }: { item: HiddenTunesPodcastShow }) => (
-      <PodcastShowCard
-        show={item}
-        variant="premium"
-        subtitle={podcastShowSubtitle(item)}
-        onPress={() => openShow(item)}
-      />
-    ),
+    ({ item }: { item: HiddenTunesPodcastShow }) => {
+      if (!isValidPodcastShowId(item.id)) return null;
+      return (
+        <PodcastShowCard
+          show={item}
+          variant="premium"
+          subtitle={podcastShowSubtitle(item)}
+          onPress={() => openShow(item)}
+        />
+      );
+    },
     [openShow]
   );
 
@@ -116,15 +122,10 @@ export default function PodcastCategoryScreen() {
     []
   );
 
-  useEffect(() => {
-    if (!mountedRef.current || !hasLoadedOnce || loading || refreshing || shows.length > 0) {
-      return;
-    }
-    if (category?.tier === "mature") {
-      return;
-    }
-    router.replace("/podcasts" as any);
-  }, [category?.tier, hasLoadedOnce, shows.length, loading, refreshing, mountedRef]);
+  const visibleShows = useMemo(
+    () => shows.filter((show) => isValidPodcastShowId(show.id)),
+    [shows]
+  );
 
   if (!category) {
     return (
@@ -157,14 +158,14 @@ export default function PodcastCategoryScreen() {
         </View>
       </View>
 
-      {loading && shows.length === 0 ? (
+      {loading && visibleShows.length === 0 ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color={COLORS.primary} />
           <Text style={styles.loadingText}>{TESTER_COPY.podcastDiscoveryLoading}</Text>
         </View>
       ) : (
         <FlatList
-          data={shows}
+          data={visibleShows}
           keyExtractor={keyExtractor}
           contentContainerStyle={styles.listContent}
           refreshControl={
@@ -178,8 +179,18 @@ export default function PodcastCategoryScreen() {
           onEndReached={loadMore}
           ListHeaderComponent={
             <Text style={styles.sectionTitle}>
-              {listCountLabel || "Hidden Tunes shows in this room"}
+              {listCountLabel || (visibleShows.length ? "Shows in this category" : "")}
             </Text>
+          }
+          ListEmptyComponent={
+            hasLoadedOnce && !loading && !refreshing ? (
+              <View style={styles.emptyBox}>
+                <Text style={styles.emptyTitle}>No playable shows in this category</Text>
+                <Text style={styles.emptyText}>
+                  Try another category or search for a podcast show.
+                </Text>
+              </View>
+            ) : null
           }
           ListFooterComponent={
             <>
@@ -187,8 +198,8 @@ export default function PodcastCategoryScreen() {
                 <ActivityIndicator style={styles.footerSpinner} color={COLORS.primary} />
               ) : null}
               {category.tier === "mature" &&
-              shows.length > 0 &&
-              shows.length < MATURE_MIN_CATEGORY_RESULTS ? (
+              visibleShows.length > 0 &&
+              visibleShows.length < MATURE_MIN_CATEGORY_RESULTS ? (
                 <View style={styles.supplementBox}>
                   <Text style={styles.supplementTitle}>More Mature Podcasts</Text>
                   <Text style={styles.supplementText}>
@@ -197,7 +208,7 @@ export default function PodcastCategoryScreen() {
                   </Text>
                 </View>
               ) : null}
-              {category.tier === "mature" && hasLoadedOnce && !loading && shows.length === 0 ? (
+              {category.tier === "mature" && hasLoadedOnce && !loading && visibleShows.length === 0 ? (
                 <View style={styles.supplementBox}>
                   <Text style={styles.supplementTitle}>Mature podcasts are syncing</Text>
                   <Text style={styles.supplementText}>
@@ -289,6 +300,18 @@ const styles = StyleSheet.create({
   },
   footerSpinner: {
     marginVertical: 16,
+  },
+  emptyBox: {
+    alignItems: "center",
+    paddingVertical: 28,
+    paddingHorizontal: 12,
+  },
+  emptyText: {
+    color: COLORS.textMuted,
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 8,
+    textAlign: "center",
   },
   emptyTitle: {
     color: COLORS.text,

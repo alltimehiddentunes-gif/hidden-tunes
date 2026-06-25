@@ -50,6 +50,7 @@ import {
   filterPlayablePodcastEpisodes,
   rankShowsByPlayabilitySignal,
 } from "./podcast/podcastDiscoverability";
+import { logPodcastDiscoveryBatch } from "../utils/podcastRuntimeDiagnostics";
 
 const SHOW_PAGE_LIMIT = MEDIA_DISCOVERY_PAGE_SIZE;
 const EPISODE_PAGE_LIMIT = MEDIA_DISCOVERY_PAGE_SIZE;
@@ -204,6 +205,12 @@ async function fetchShowsFromNetwork(categoryId: string, page = 1) {
 
   shows = finalizeDiscoverableShows(curateShowsForCategory(shows, category));
 
+  logPodcastDiscoveryBatch("category", {
+    count: shows.length,
+    items: shows,
+    error: shows.length ? undefined : `category_empty:${resolvedId}`,
+  });
+
   if (category.isMature || category.tier === "mature") {
     shows = shows.map((show) => ({
       ...show,
@@ -258,10 +265,21 @@ async function fetchSearchShowsFromNetwork(query: string, page = 1) {
     if (merged.length >= SEARCH_PAGE_LIMIT) break;
   }
 
-  return {
+  const result = {
     shows: filterMatureShows(filterDiscoverablePodcastShows(merged.slice(0, SEARCH_PAGE_LIMIT))),
     hasMore,
   };
+
+  logSearchDiscoveryResult(query, result.shows);
+  return result;
+}
+
+function logSearchDiscoveryResult(query: string, shows: HiddenTunesPodcastShow[]) {
+  logPodcastDiscoveryBatch("search", {
+    count: shows.length,
+    items: shows,
+    error: shows.length ? undefined : `search_empty:${query}`,
+  });
 }
 
 async function fetchEpisodesFromNetwork(showId: string, page = 1) {

@@ -35,6 +35,7 @@ import type { HiddenTunesPodcastShow } from "../../services/podcastCatalogApi";
 import type { PodcastShowListItem } from "../../types/podcastDiscovery";
 import { useDebouncedSearchQuery } from "../../utils/useDebouncedValue";
 import { safeRouterPush } from "../../utils/safeNavigation";
+import { isValidPodcastShowId } from "../../utils/podcastShowId";
 import { PODCAST_SEARCH_DEBOUNCE_MS } from "../../utils/searchPerformance";
 import {
   logVisibleFeatureChecklist,
@@ -46,6 +47,15 @@ import {
   getListPerformanceSettings,
 } from "../../utils/performanceMode";
 import { PODCAST_MATURE_SEARCH_SUGGESTION } from "../../utils/mediaSearchQueryExpansion";
+
+const PODCAST_DISCOVERY_UNAVAILABLE =
+  "Podcast discovery is temporarily unavailable.";
+
+function filterRenderableShowItems(shows: PodcastShowListItem[]) {
+  return shows.filter(
+    (item) => isValidPodcastShowId(item.id) && String(item.title || "").trim().length > 1
+  );
+}
 
 type PodcastEmotionalWorldPreview = {
   world: PodcastCategory;
@@ -233,6 +243,8 @@ export default function PodcastDiscoveryHomeScreen() {
 
   const openShow = useCallback(
     (item: PodcastShowListItem) => {
+      if (!isValidPodcastShowId(item.id)) return;
+
       const show =
         resolveShow(item.id) ||
         ({
@@ -250,6 +262,8 @@ export default function PodcastDiscoveryHomeScreen() {
           sourceName: "Hidden Tunes",
         } satisfies HiddenTunesPodcastShow);
 
+      if (!String(show.title || "").trim()) return;
+
       runWithMatureConsent(show, () => {
         safeRouterPush({
           pathname: "/podcasts/show/[showId]",
@@ -266,6 +280,8 @@ export default function PodcastDiscoveryHomeScreen() {
 
   const openShowFromSearch = useCallback(
     (show: HiddenTunesPodcastShow) => {
+      if (!isValidPodcastShowId(show.id) || !String(show.title || "").trim()) return;
+
       runWithMatureConsent(show, () => {
         safeRouterPush({
           pathname: "/podcasts/show/[showId]",
@@ -296,13 +312,16 @@ export default function PodcastDiscoveryHomeScreen() {
   );
 
   const renderSearchRow = useCallback(
-    ({ item }: { item: HiddenTunesPodcastShow }) => (
-      <PodcastShowCard
-        show={item}
-        variant="premium"
-        onPress={() => openShowFromSearch(item)}
-      />
-    ),
+    ({ item }: { item: HiddenTunesPodcastShow }) => {
+      if (!isValidPodcastShowId(item.id)) return null;
+      return (
+        <PodcastShowCard
+          show={item}
+          variant="premium"
+          onPress={() => openShowFromSearch(item)}
+        />
+      );
+    },
     [openShowFromSearch]
   );
 
@@ -317,6 +336,22 @@ export default function PodcastDiscoveryHomeScreen() {
     [openCategory]
   );
 
+  const filteredFeatured = useMemo(() => filterRenderableShowItems(featured), [featured]);
+  const filteredTrending = useMemo(() => filterRenderableShowItems(trending), [trending]);
+  const filteredPopular = useMemo(() => filterRenderableShowItems(popular), [popular]);
+  const filteredRecommended = useMemo(
+    () => filterRenderableShowItems(recommended),
+    [recommended]
+  );
+  const filteredRecentlyPlayed = useMemo(
+    () => filterRenderableShowItems(recentlyPlayed),
+    [recentlyPlayed]
+  );
+  const filteredSearchResults = useMemo(
+    () => searchResults.filter((show) => isValidPodcastShowId(show.id)),
+    [searchResults]
+  );
+
   const searchEmptyComponent = useMemo(
     () => (
       <View>
@@ -326,11 +361,11 @@ export default function PodcastDiscoveryHomeScreen() {
           includeMature={includeMatureInApi}
           onSuggestionPress={handleSearchSuggestion}
         />
-        {featured.length > 0 ? (
+        {filteredFeatured.length > 0 ? (
           <ShowRailSection
             eyebrow="FEATURED"
             title="Featured Podcasts"
-            shows={featured}
+            shows={filteredFeatured}
             onPressShow={openShow}
             seeAllCategoryId="featured"
           />
@@ -355,7 +390,7 @@ export default function PodcastDiscoveryHomeScreen() {
     [
       browseCategories,
       debouncedQuery,
-      featured,
+      filteredFeatured,
       handleSearchSuggestion,
       includeMatureInApi,
       openCategory,
@@ -363,55 +398,71 @@ export default function PodcastDiscoveryHomeScreen() {
     ]
   );
 
+  const hasShowRails = useMemo(
+    () =>
+      filteredFeatured.length > 0 ||
+      filteredTrending.length > 0 ||
+      filteredPopular.length > 0 ||
+      filteredRecommended.length > 0 ||
+      filteredRecentlyPlayed.length > 0,
+    [
+      filteredFeatured.length,
+      filteredTrending.length,
+      filteredPopular.length,
+      filteredRecommended.length,
+      filteredRecentlyPlayed.length,
+    ]
+  );
+
   const homeSections = useMemo(() => {
     const sections: PodcastHomeSection[] = [];
 
-    if (featured.length) {
+    if (filteredFeatured.length) {
       sections.push({
         key: "featured",
         kind: "rail",
         eyebrow: "FEATURED",
         title: "Featured Podcasts",
-        shows: featured,
+        shows: filteredFeatured,
         seeAllCategoryId: "featured",
       });
     }
-    if (trending.length) {
+    if (filteredTrending.length) {
       sections.push({
         key: "trending",
         kind: "rail",
         eyebrow: "TRENDING",
         title: "Trending Podcasts",
-        shows: trending,
+        shows: filteredTrending,
         seeAllCategoryId: "trending",
       });
     }
-    if (popular.length) {
+    if (filteredPopular.length) {
       sections.push({
         key: "popular",
         kind: "rail",
         eyebrow: "POPULAR",
         title: "Popular Podcasts",
-        shows: popular,
+        shows: filteredPopular,
         seeAllCategoryId: "popular",
       });
     }
-    if (recentlyPlayed.length) {
+    if (filteredRecentlyPlayed.length) {
       sections.push({
         key: "recent",
         kind: "rail",
         eyebrow: "RECENT",
         title: "Recently Played",
-        shows: recentlyPlayed,
+        shows: filteredRecentlyPlayed,
       });
     }
-    if (recommended.length) {
+    if (filteredRecommended.length) {
       sections.push({
         key: "recommended",
         kind: "rail",
         eyebrow: "FOR YOU",
         title: "Recommended For You",
-        shows: recommended,
+        shows: filteredRecommended,
         seeAllCategoryId: "recommended",
       });
     }
@@ -429,12 +480,12 @@ export default function PodcastDiscoveryHomeScreen() {
   }, [
     browseCategories,
     emotionalWorlds,
-    featured,
+    filteredFeatured,
+    filteredPopular,
+    filteredRecentlyPlayed,
+    filteredRecommended,
+    filteredTrending,
     matureCategories,
-    popular,
-    recentlyPlayed,
-    recommended,
-    trending,
   ]);
 
   const renderHomeSection = useCallback(
@@ -570,12 +621,12 @@ export default function PodcastDiscoveryHomeScreen() {
           </View>
         ) : (
           <FlatList
-            data={searchResults}
+            data={filteredSearchResults}
             keyExtractor={searchKeyExtractor}
             contentContainerStyle={styles.listContent}
             ListHeaderComponent={
               <Text style={styles.sectionCountLabel}>
-                {searchCountLabel || "Hidden Tunes shows"}
+                {searchCountLabel || (filteredSearchResults.length ? "Shows" : "")}
               </Text>
             }
             onEndReachedThreshold={0.35}
@@ -602,6 +653,16 @@ export default function PodcastDiscoveryHomeScreen() {
           keyExtractor={(item) => item.key}
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
+          ListHeaderComponent={
+            !hasShowRails ? (
+              <View style={styles.unavailableBox}>
+                <Text style={styles.unavailableTitle}>{PODCAST_DISCOVERY_UNAVAILABLE}</Text>
+                <Text style={styles.unavailableText}>
+                  Browse categories below or search for a real podcast show.
+                </Text>
+              </View>
+            ) : null
+          }
           renderItem={renderHomeSection}
           {...homeListPerformance}
         />
@@ -773,5 +834,25 @@ const styles = StyleSheet.create({
   },
   footerSpinner: {
     marginVertical: 16,
+  },
+  unavailableBox: {
+    marginTop: 8,
+    marginBottom: 16,
+    padding: 16,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+  },
+  unavailableTitle: {
+    color: COLORS.text,
+    fontSize: 15,
+    fontWeight: "800",
+  },
+  unavailableText: {
+    color: COLORS.textMuted,
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 6,
   },
 });

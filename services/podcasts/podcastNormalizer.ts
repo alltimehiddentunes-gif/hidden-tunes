@@ -13,7 +13,7 @@ export function normalizePodcastEpisode(
     id: episode.id,
     showId: episode.show_id,
     title: episode.title,
-    podcastTitle: podcastTitle.trim() || "Hidden Tunes Podcast",
+    podcastTitle: podcastTitle.trim() || "Podcast",
     audioUrl,
     artworkUrl: episode.artwork_url,
     duration: episode.duration_seconds,

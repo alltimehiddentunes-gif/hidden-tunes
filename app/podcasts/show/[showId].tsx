@@ -27,9 +27,10 @@ import { loadPodcastEpisodesPage } from "../../../services/podcastDiscoveryApi";
 import type { HiddenTunesPodcastEpisode } from "../../../services/podcastCatalogApi";
 import { normalizePodcastEpisode } from "../../../services/podcasts/podcastNormalizer";
 import {
-  podcastDiscoveryDisplayName,
   podcastEpisodeSubtitle,
+  sanitizePodcastDiscoveryText,
 } from "../../../utils/openHiddenTunesPodcast";
+import { isPodcastCategoryId, isValidPodcastShowId } from "../../../utils/podcastShowId";
 import {
   createStableKeyExtractor,
   getListPerformanceSettings,
@@ -47,13 +48,23 @@ export default function PodcastShowScreen() {
   const mountedRef = useMountedRef();
   const params = useLocalSearchParams<{ showId?: string; title?: string; isMature?: string }>();
   const showId = String(params.showId || "").trim();
-  const showTitle = podcastDiscoveryDisplayName(params.title);
+  const showTitle =
+    sanitizePodcastDiscoveryText(params.title) ||
+    String(params.title || "").trim() ||
+    "Podcast";
   const showIsMature = params.isMature === "1";
+  const showIdIsValid = isValidPodcastShowId(showId);
+  const showIdIsCategory = isPodcastCategoryId(showId);
 
   useEffect(() => {
     if (!showId) return;
-    logPodcastRuntime("show_open", { showId, title: showTitle });
-  }, [showId, showTitle]);
+    logPodcastRuntime("show_open", {
+      showId,
+      title: showTitle,
+      valid: showIdIsValid,
+      categoryMisroute: showIdIsCategory,
+    });
+  }, [showId, showIdIsCategory, showIdIsValid, showTitle]);
 
   const loadPage = useCallback(
     (offset: number, options: { append: boolean; forceRefresh: boolean }) =>
@@ -168,14 +179,14 @@ export default function PodcastShowScreen() {
   const showEmpty =
     hasCheckedFallbacks && !loading && !refreshing && episodes.length === 0;
 
-  if (!showId) {
+  if (!showId || !showIdIsValid || showIdIsCategory) {
     return (
       <LinearGradient colors={["#120818", "#050308"]} style={styles.container}>
         <View style={styles.center}>
           <Text style={styles.emptyTitle}>This show is not available</Text>
           <Text style={styles.emptyText}>{TESTER_COPY.podcastDiscoveryEmpty}</Text>
           <TouchableOpacity style={styles.backLink} onPress={() => router.back()}>
-            <Text style={styles.backLinkText}>Back to Hidden Tunes Podcasts</Text>
+            <Text style={styles.backLinkText}>Back to Podcasts</Text>
           </TouchableOpacity>
         </View>
       </LinearGradient>
@@ -194,7 +205,7 @@ export default function PodcastShowScreen() {
         </TouchableOpacity>
 
         <View style={styles.headerText}>
-          <Text style={styles.kicker}>HIDDEN TUNES PODCASTS</Text>
+          <Text style={styles.kicker}>PODCAST SHOW</Text>
           <Text style={styles.title} numberOfLines={2}>
             {showTitle}
           </Text>
@@ -239,9 +250,7 @@ export default function PodcastShowScreen() {
           onEndReached={loadMore}
           ListHeaderComponent={
             <Text style={styles.sectionTitle}>
-              {episodes.length > 0
-                ? `${episodes.length} Hidden Tunes episodes`
-                : "Hidden Tunes episodes"}
+              {episodes.length > 0 ? `${episodes.length} episodes` : "Episodes"}
             </Text>
           }
           ListEmptyComponent={
@@ -250,8 +259,8 @@ export default function PodcastShowScreen() {
                 <Ionicons name="play-outline" size={48} color={COLORS.textMuted} />
                 <Text style={styles.emptyTitle}>No playable episodes yet</Text>
                 <Text style={styles.emptyText}>
-                  This show has no HTTPS audio episodes right now. Try another show or search Hidden
-                  Tunes Podcasts.
+                  This show has no HTTPS audio episodes right now. Try another show or search for a
+                  podcast.
                 </Text>
               </View>
             ) : null

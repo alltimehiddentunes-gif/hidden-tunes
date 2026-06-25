@@ -1,6 +1,6 @@
 import type { HiddenTunesPodcastShow } from "../podcastCatalogApi";
 import type { PodcastShowListItem } from "../../types/podcastDiscovery";
-import { podcastDiscoveryDisplayName } from "../../utils/openHiddenTunesPodcast";
+import { sanitizePodcastDiscoveryText } from "../../utils/openHiddenTunesPodcast";
 import { getUserFacingPodcastSubtitle } from "../ui/displayMetadata";
 
 export function toPodcastShowListItem(show: HiddenTunesPodcastShow): PodcastShowListItem {
@@ -19,7 +19,7 @@ export function toPodcastShowListItem(show: HiddenTunesPodcastShow): PodcastShow
 
   return {
     id: show.id,
-    title: podcastDiscoveryDisplayName(show.title),
+    title: sanitizePodcastDiscoveryText(show.title) || show.title,
     subtitle: getUserFacingPodcastSubtitle(null, show.title),
     artworkUrl: show.artwork_url,
     publisher,

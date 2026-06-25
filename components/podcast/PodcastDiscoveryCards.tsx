@@ -10,12 +10,10 @@ import { COLORS } from "../../constants/theme";
 import type { HiddenTunesPodcastShow } from "../../services/podcastCatalogApi";
 import type { PodcastCategory } from "../../constants/podcastCategories";
 import type { PodcastShowListItem } from "../../types/podcastDiscovery";
-import {
-  HIDDEN_TUNES_PODCASTS_LABEL,
-  type LaunchPodcastCategory,
-} from "../../utils/launchPodcastCategories";
-import { podcastDiscoveryDisplayName } from "../../utils/openHiddenTunesPodcast";
+import { sanitizePodcastDiscoveryText } from "../../utils/openHiddenTunesPodcast";
 import { getUserFacingPodcastSubtitle } from "../../services/ui/displayMetadata";
+import type { LaunchPodcastCategory } from "../../utils/launchPodcastCategories";
+import { isValidPodcastShowId } from "../../utils/podcastShowId";
 import { isPlayablePodcastEpisode } from "../../services/podcast/podcastDiscoverability";
 import { useMatureContentSettings } from "../../hooks/useMatureContentSettings";
 import { isMaturePodcastEpisode } from "../../utils/maturePodcastVisibility";
@@ -53,8 +51,8 @@ export const PodcastCategoryCard = memo(function PodcastCategoryCard({
         </Text>
         <Text numberOfLines={1} style={styles.meta}>
           {typeof showCount === "number" && showCount > 0
-            ? `${showCount} Hidden Tunes shows`
-            : HIDDEN_TUNES_PODCASTS_LABEL}
+            ? `${showCount} shows`
+            : "Category"}
         </Text>
       </LinearGradient>
     </TouchableOpacity>
@@ -177,12 +175,15 @@ export const PodcastShowCard = memo(function PodcastShowCard({
   onPress,
   variant = "list",
 }: PodcastShowCardProps) {
+  if (!isValidPodcastShowId(show.id)) return null;
+
   const isPremium = variant === "premium";
+  const displayTitle = sanitizePodcastDiscoveryText(show.title) || show.title;
   const listItem =
     item ||
     ({
       id: show.id,
-      title: podcastDiscoveryDisplayName(show.title),
+      title: displayTitle,
       artworkUrl: show.artwork_url,
       publisher: show.host_name,
       category: show.primary_category || show.categories?.[0],
@@ -237,6 +238,8 @@ export const PodcastShowRailCard = memo(function PodcastShowRailCard({
   item,
   onPress,
 }: PodcastShowRailCardProps) {
+  if (!isValidPodcastShowId(item.id)) return null;
+
   const { includeMatureInApi } = useMatureContentSettings();
   const showMatureArt = !isMatureContentItem(item) || includeMatureInApi;
 
@@ -264,7 +267,7 @@ export const PodcastShowRailCard = memo(function PodcastShowRailCard({
           <MatureContentBadge item={item} />
         </View>
         <Text numberOfLines={1} style={styles.railSubtitle}>
-          {item.publisher || item.category || "Hidden Tunes Podcast"}
+          {item.publisher || item.category || ""}
         </Text>
         {item.episodeLabel ? (
           <Text numberOfLines={1} style={styles.railMeta}>
@@ -325,7 +328,7 @@ export const PodcastEpisodeRow = memo(function PodcastEpisodeRow({
       <View style={styles.episodeCopy}>
         <View style={styles.episodeTitleRow}>
           <Text numberOfLines={2} style={styles.episodeTitle}>
-            {podcastDiscoveryDisplayName(episode.title)}
+            {sanitizePodcastDiscoveryText(episode.title) || episode.title}
           </Text>
           <MatureContentBadge item={matureItem} />
         </View>

@@ -3,7 +3,7 @@ import type { RadioStationListItem } from "../../types/radio";
 import type { FavoriteItemMetadata, UnifiedFavoriteItem } from "../../types/favorites";
 import { isMatureContentItem } from "../../types/matureContent";
 import { isMaturePodcastEpisode } from "../../utils/maturePodcastVisibility";
-import { podcastDiscoveryDisplayName } from "../../utils/openHiddenTunesPodcast";
+import { sanitizePodcastDiscoveryText } from "../../utils/openHiddenTunesPodcast";
 import { getArtworkUri } from "../../utils/artwork";
 
 function resolveArtwork(source: unknown) {
@@ -189,7 +189,7 @@ export function buildPodcastShowFavoriteItem(show: HiddenTunesPodcastShow): Unif
   return {
     id: String(show.id),
     type: "podcast_show",
-    title: podcastDiscoveryDisplayName(show.title),
+    title: sanitizePodcastDiscoveryText(show.title) || show.title,
     subtitle: String(show.host_name || show.primary_category || "Podcast"),
     artwork: show.artwork_url,
     source: "podcast",
@@ -214,7 +214,7 @@ export function buildPodcastEpisodeFavoriteItem(
   return {
     id: String(episode.id),
     type: "podcast_episode",
-    title: podcastDiscoveryDisplayName(episode.title),
+    title: sanitizePodcastDiscoveryText(episode.title) || episode.title,
     subtitle: options?.showTitle || "Podcast Episode",
     artwork: episode.artwork_url,
     source: "podcast",

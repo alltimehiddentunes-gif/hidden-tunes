@@ -36,6 +36,7 @@ import { normalizeRadioStation } from "../../../services/radio/radioNormalizer";
 import type { PodcastShowListItem } from "../../../types/podcastDiscovery";
 import type { RadioStationListItem } from "../../../types/radio";
 import { safeRouterPush } from "../../../utils/safeNavigation";
+import { isValidPodcastShowId } from "../../../utils/podcastShowId";
 import { getHorizontalListPerformanceSettings } from "../../../utils/performanceMode";
 
 type MatureHubSection =
@@ -150,6 +151,8 @@ export default function PodcastMatureHubScreen() {
 
   const openShow = useCallback(
     (item: PodcastShowListItem) => {
+      if (!isValidPodcastShowId(item.id) || !String(item.title || "").trim()) return;
+
       const show =
         resolveShow(item.id) ||
         ({

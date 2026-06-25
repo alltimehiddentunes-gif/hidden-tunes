@@ -5,7 +5,11 @@ import {
   fetchItunesPodcastShows,
   isItunesPodcastShowId,
 } from "./podcast/podcastItunesRssSource";
-import { logPodcastRuntime } from "../utils/podcastRuntimeDiagnostics";
+import {
+  logPodcastDiscoveryBatch,
+  logPodcastEpisodeBatch,
+  logPodcastRuntime,
+} from "../utils/podcastRuntimeDiagnostics";
 import { resolvePodcastMatureFields } from "../utils/matureContentDetection";
 
 export const PODCAST_CATALOG_BASE_URL = "https://admin.hiddentunes.com";
@@ -320,10 +324,13 @@ async function fetchHiddenTunesPodcastShows(query: PodcastShowsQuery = {}) {
     .map((row) => normalizePodcastShow(row))
     .filter((row): row is HiddenTunesPodcastShow => row !== null);
 
-  logPodcastRuntime("home_response", {
-    source: "hidden-tunes",
+  logPodcastDiscoveryBatch("home", {
+    url,
+    status: response.status,
+    ok: response.ok,
     count: shows.length,
-    titles: shows.slice(0, 5).map((show) => show.title).join(" | "),
+    items: shows,
+    error: shows.length ? undefined : "hidden-tunes_empty",
   });
 
   return {
@@ -377,11 +384,16 @@ async function fetchHiddenTunesPodcastEpisodes(query: PodcastEpisodesQuery = {})
     .map((row) => normalizePodcastEpisode(row))
     .filter((row): row is HiddenTunesPodcastEpisode => row !== null);
 
-  logPodcastRuntime("episode_response", {
-    source: "hidden-tunes",
+  logPodcastEpisodeBatch(String(query.show_id || ""), {
+    url,
+    status: response.status,
+    ok: response.ok,
     count: episodes.length,
-    showId: query.show_id || "",
-    audioPresent: episodes.slice(0, 3).every((ep) => Boolean(ep.audio_url)),
+    titles: episodes.slice(0, 10).map((episode) => episode.title),
+    audioUrlsPresent: episodes
+      .slice(0, 10)
+      .map((episode) => Boolean(episode.audio_url?.startsWith("https://"))),
+    error: episodes.length ? undefined : "hidden-tunes_empty",
   });
 
   return {
@@ -406,10 +418,10 @@ export async function fetchPodcastShows(
     }
 
     const fallback = await fetchItunesPodcastShows(query);
-    logPodcastRuntime("home_response", {
-      source: fallback.source,
+    logPodcastDiscoveryBatch("home", {
       count: fallback.shows.length,
-      titles: fallback.shows.slice(0, 5).map((show) => show.title).join(" | "),
+      items: fallback.shows,
+      error: fallback.shows.length ? undefined : "itunes_empty",
     });
 
     if (fallback.shows.length > 0) {
@@ -463,19 +475,16 @@ export async function fetchPodcastEpisodes(
     }
 
     const fallback = await fetchItunesPodcastEpisodes(query);
-    logPodcastRuntime("episode_response", {
-      source: fallback.source,
+    logPodcastEpisodeBatch(showId, {
       count: fallback.episodes.length,
-      showId,
-      audioPresent: fallback.episodes.slice(0, 3).every((ep) => Boolean(ep.audio_url)),
+      titles: fallback.episodes.slice(0, 10).map((episode) => episode.title),
+      audioUrlsPresent: fallback.episodes
+        .slice(0, 10)
+        .map((episode) => Boolean(episode.audio_url?.startsWith("https://"))),
+      error: fallback.episodes.length ? undefined : "itunes_empty",
     });
 
     if (fallback.episodes.length > 0) {
-      logPodcastRuntime("episode_audio_url", {
-        showId,
-        count: fallback.episodes.length,
-        sample: fallback.episodes[0]?.audio_url || "",
-      });
       return {
         success: true,
         episodes: fallback.episodes,
