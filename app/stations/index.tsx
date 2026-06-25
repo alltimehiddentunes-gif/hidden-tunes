@@ -107,6 +107,8 @@ export default function RadioStationsHomeScreen() {
     emotionalWorlds,
     browseCategories,
     loading,
+    loadingMoreRails,
+    loadMoreRails,
     resolveStation,
   } = useRadioHomeDiscovery();
 
@@ -205,21 +207,33 @@ export default function RadioStationsHomeScreen() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        onScroll={(event) => {
+          const { contentOffset, layoutMeasurement, contentSize } = event.nativeEvent;
+          const progress =
+            (contentOffset.y + layoutMeasurement.height) / Math.max(contentSize.height, 1);
+          if (progress > 0.55) {
+            loadMoreRails();
+          }
+        }}
+        scrollEventThrottle={160}
+      >
         <TouchableOpacity activeOpacity={0.88} style={styles.searchLink} onPress={openSearch}>
           <Ionicons name="search-outline" size={18} color={COLORS.primary} />
           <Text style={styles.searchLinkText}>Search live stations</Text>
           <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
         </TouchableOpacity>
 
-        {loading ? (
+        {loading && featured.length === 0 ? (
           <View style={styles.loadingPanel}>
             <ActivityIndicator size="small" color={COLORS.primary} />
             <Text style={styles.loadingText}>Loading live stations...</Text>
           </View>
-        ) : (
-          <>
-            <StationRailSection
+        ) : null}
+
+        <StationRailSection
               eyebrow="FEATURED"
               title="Featured Stations"
               stations={featured}
@@ -298,8 +312,10 @@ export default function RadioStationsHomeScreen() {
                 </View>
               </View>
             ) : null}
-          </>
-        )}
+
+        {loadingMoreRails ? (
+          <ActivityIndicator style={styles.loadingPanel} color={COLORS.primary} />
+        ) : null}
 
         <TouchableOpacity
           activeOpacity={0.86}

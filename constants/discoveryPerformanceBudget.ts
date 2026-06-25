@@ -8,7 +8,7 @@ export const PODCAST_PAGE_SIZE = MEDIA_DISCOVERY_PAGE_SIZE;
 export const MAX_FALLBACK_QUERIES = 2;
 
 /** Max concurrent discovery network calls (category/rail fetches). */
-export const MAX_PARALLEL_DISCOVERY_REQUESTS = 1;
+export const MAX_PARALLEL_DISCOVERY_REQUESTS = 2;
 
 /** When false, mature category tiles render from catalog metadata without probe storms. */
 export const MATURE_CATEGORY_PREFETCH = false;

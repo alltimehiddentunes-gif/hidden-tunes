@@ -65,6 +65,7 @@ export type PodcastShowsQuery = {
   is_featured?: boolean;
   is_exclusive?: boolean;
   includeMature?: boolean;
+  signal?: AbortSignal;
 };
 
 export type PodcastEpisodesQuery = {
@@ -294,6 +295,7 @@ async function fetchHiddenTunesPodcastShows(query: PodcastShowsQuery = {}) {
     method: "GET",
     headers: { Accept: "application/json" },
     cache: "no-store",
+    signal: query.signal,
   });
 
   logPodcastRuntime("home_response", { url, status: response.status, ok: response.ok });

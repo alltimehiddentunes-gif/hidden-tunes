@@ -2,7 +2,7 @@ import { router } from "expo-router";
 
 import { createKeyedTapGuard } from "./tapGuard";
 
-const navTapGuard = createKeyedTapGuard(360);
+const navTapGuard = createKeyedTapGuard(280);
 let lastPushKey = "";
 let lastPushAt = 0;
 
@@ -23,7 +23,7 @@ export function safeRouterPush(
 ) {
   const key = routeKey(href);
   const now = Date.now();
-  const minIntervalMs = options?.minIntervalMs ?? 360;
+  const minIntervalMs = options?.minIntervalMs ?? 280;
 
   if (options?.skipIfSame !== false && key === lastPushKey && now - lastPushAt < minIntervalMs) {
     return false;

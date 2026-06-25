@@ -1,0 +1,579 @@
+diff --git a/app/favorites.tsx b/app/favorites.tsx
+index 0d2bbbf..a8a31f0 100644
+--- a/app/favorites.tsx
++++ b/app/favorites.tsx
+@@ -1,6 +1,6 @@
+ import { useCallback, useMemo } from "react";
+ import {
+-  FlatList,
++  ScrollView,
+   StyleSheet,
+   Text,
+   TouchableOpacity,
+@@ -14,6 +14,8 @@ import { router } from "expo-router";
+ import AppShell from "../components/navigation/AppShell";
+ import HTImage from "../components/HTImage";
+ import NeonEQ from "../components/NeonEQ";
++import FavoriteButton from "../components/FavoriteButton";
++import MatureContentBadge from "../components/mature/MatureContentBadge";
+ import { COLORS, GRADIENTS } from "../constants/theme";
+ import PremiumEmptyState from "../components/PremiumEmptyState";
+ import {
+@@ -21,189 +23,203 @@ import {
+   usePlayerNowPlaying,
+   usePlayerState,
+ } from "../context/PlayerContext";
++import { useFavorites } from "../hooks/useFavorites";
++import { usePlaybackRouter } from "../hooks/usePlaybackRouter";
++import type { FavoriteItemType, UnifiedFavoriteItem } from "../types/favorites";
++import { songFavoriteToAppSong } from "../services/favorites/unifiedFavorites";
+ 
+-type FavoriteItem = {
+-  id?: string;
+-  title?: string;
+-  artist?: string;
+-  type?: string;
+-  source?: string;
+-  sourceName?: string;
+-  videoId?: string;
+-  channelTitle?: string;
+-  thumbnail?: string;
+-  cover?: string;
+-  artwork?: string;
+-  user?: { name?: string };
++type FavoriteSection = {
++  id: string;
++  title: string;
++  type: FavoriteItemType;
++  items: UnifiedFavoriteItem[];
+ };
+ 
++const SECTION_ORDER: Array<{ type: FavoriteItemType; title: string }> = [
++  { type: "song", title: "Favorite Songs" },
++  { type: "artist", title: "Favorite Artists" },
++  { type: "album", title: "Favorite Albums" },
++  { type: "radio_station", title: "Favorite Radio Stations" },
++  { type: "podcast_show", title: "Favorite Podcasts" },
++  { type: "podcast_episode", title: "Favorite Podcast Episodes" },
++];
++
+ function sanitizeYouTubeVideoId(value: unknown) {
+   const text = String(value || "").replace("youtube-", "").trim();
+-
+   if (/^[a-zA-Z0-9_-]{11}$/.test(text)) return text;
+-
+   const match = text.match(/[a-zA-Z0-9_-]{11}/);
+   return match ? match[0] : "";
+ }
+ 
+-function isYouTubeFavorite(item: FavoriteItem) {
++function isYouTubeFavorite(item: UnifiedFavoriteItem) {
+   return (
+-    item.type === "youtube_video" ||
+     item.source === "youtube" ||
+-    item.sourceName === "YouTube" ||
+-    Boolean(item.videoId)
++    item.metadata?.legacyType === "youtube_video" ||
++    Boolean(item.metadata?.videoId)
+   );
+ }
+ 
+-type LibraryShortcut = {
+-  label: string;
+-  description: string;
+-  icon: keyof typeof Ionicons.glyphMap;
+-  href: "/playlists" | "/recently-played" | "/music-feed";
+-};
+-
+-const LIBRARY_SHORTCUTS: LibraryShortcut[] = [
+-  {
+-    label: "Playlists",
+-    description: "Smart and saved playlists",
+-    icon: "albums-outline",
+-    href: "/playlists",
+-  },
+-  {
+-    label: "Recently Played",
+-    description: "Your listening history",
+-    icon: "time-outline",
+-    href: "/recently-played",
+-  },
+-  {
+-    label: "Explore Music",
+-    description: "Discover more to save",
+-    icon: "sparkles-outline",
+-    href: "/music-feed",
+-  },
+-];
+-
+ export default function FavoritesScreen() {
+-  const { playSong, toggleFavorite } = usePlayerActions();
+-  const { favorites } = usePlayerState();
++  const { playSong } = usePlayerActions();
++  const { favorites: songFavorites } = usePlayerState();
++  const { visibleFavorites } = useFavorites();
++  const { playRadioStation, playPodcastEpisode } = usePlaybackRouter();
+   const { currentSong, isPlaying } = usePlayerNowPlaying();
+ 
+-  const favoriteSongs = useMemo(
+-    () => (Array.isArray(favorites) ? favorites : []) as FavoriteItem[],
+-    [favorites]
+-  );
++  const sections = useMemo(() => {
++    return SECTION_ORDER.map(({ type, title }) => ({
++      id: type,
++      type,
++      title,
++      items: visibleFavorites.filter((item) => item.type === type),
++    })).filter((section) => section.items.length > 0) as FavoriteSection[];
++  }, [visibleFavorites]);
+ 
+-  const playFavorite = useCallback(
+-    (item: FavoriteItem, index: number) => {
+-      if (isYouTubeFavorite(item)) {
+-        const videoId = sanitizeYouTubeVideoId(item.videoId || item.id);
+-        if (!videoId) {
+-          console.log("Missing YouTube favorite videoId:", item);
+-          return;
+-        }
++  const totalVisible = visibleFavorites.length;
+ 
+-        const artist =
+-          item.artist || item.user?.name || item.channelTitle || "Unknown Artist";
+-        const thumbnail =
+-          typeof item.thumbnail === "string"
+-            ? item.thumbnail
+-            : typeof item.cover === "string"
+-              ? item.cover
+-              : typeof item.artwork === "string"
+-                ? item.artwork
+-                : "";
++  const playFavoriteSong = useCallback(
++    (item: UnifiedFavoriteItem, index: number) => {
++      if (isYouTubeFavorite(item)) {
++        const videoId = sanitizeYouTubeVideoId(item.metadata?.videoId || item.id);
++        if (!videoId) return;
+ 
+         router.push({
+           pathname: "/youtube-player",
+           params: {
+             videoId,
+-            title: item.title || "YouTube Music",
+-            channelTitle: item.channelTitle || artist,
+-            thumbnail,
++            title: item.title,
++            channelTitle: item.subtitle || item.metadata?.artistName || "Unknown Artist",
++            thumbnail: item.artwork || "",
+           },
+         } as any);
+-
+         return;
+       }
+ 
+-      void playSong(item as any, favoriteSongs as any, index, {
++      const song = songFavoriteToAppSong(item);
++      const queue = songFavorites;
++      void playSong(song as any, queue as any, index, {
+         source: "playlist",
+         label: "Favorites",
+-        artistName: item.artist || item.user?.name,
++        artistName: song.artist,
+       });
+     },
+-    [favoriteSongs, playSong]
++    [playSong, songFavorites]
+   );
+ 
+-  const renderShortcut = (shortcut: LibraryShortcut) => (
+-    <TouchableOpacity
+-      key={shortcut.href}
+-      activeOpacity={0.88}
+-      style={styles.shortcutCard}
+-      onPress={() => router.push(shortcut.href as any)}
+-    >
+-      <View style={styles.shortcutIcon}>
+-        <Ionicons name={shortcut.icon} size={20} color={COLORS.primaryGlow} />
+-      </View>
+-      <View style={styles.shortcutCopy}>
+-        <Text style={styles.shortcutLabel}>{shortcut.label}</Text>
+-        <Text style={styles.shortcutDescription} numberOfLines={1}>
+-          {shortcut.description}
+-        </Text>
+-      </View>
+-      <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
+-    </TouchableOpacity>
++  const openFavorite = useCallback(
++    (item: UnifiedFavoriteItem) => {
++      switch (item.type) {
++        case "song":
++          playFavoriteSong(item, 0);
++          return;
++        case "artist":
++          router.push({
++            pathname: "/artist/[id]",
++            params: { id: item.id },
++          } as any);
++          return;
++        case "album":
++          router.push({
++            pathname: "/album/[id]",
++            params: { id: item.id },
++          } as any);
++          return;
++        case "radio_station":
++          void playRadioStation({
++            id: item.id,
++            title: item.title,
++            streamUrl: String(item.metadata?.streamUrl || ""),
++            artworkUrl: item.artwork,
++            country: item.metadata?.stationCountry,
++            genre: item.metadata?.stationGenre,
++            tags: item.metadata?.stationGenre ? [String(item.metadata.stationGenre)] : [],
++            source: "radio",
++          });
++          return;
++        case "podcast_show":
++          router.push({
++            pathname: "/podcasts/show/[showId]",
++            params: {
++              showId: item.id,
++              title: item.title,
++              isMature: item.metadata?.is_mature ? "1" : "0",
++            },
++          } as any);
++          return;
++        case "podcast_episode":
++          void playPodcastEpisode(
++            {
++              id: item.id,
++              show_id: String(item.metadata?.showId || ""),
++              title: item.title,
++              artwork_url: item.artwork,
++              audio_url: String(item.metadata?.streamUrl || ""),
++              duration_seconds:
++                typeof item.metadata?.duration === "number"
++                  ? item.metadata.duration
++                  : undefined,
++              published_at: item.metadata?.episodeDate,
++              is_mature: item.metadata?.is_mature,
++              content_rating: item.metadata?.content_rating,
++              sourceName: "Hidden Tunes",
++            } as any,
++            []
++          );
++          return;
++        default:
++          return;
++      }
++    },
++    [playFavoriteSong, playPodcastEpisode, playRadioStation]
+   );
+ 
+-  const renderFavorite = ({ item, index }: { item: FavoriteItem; index: number }) => {
+-    const isYoutube = isYouTubeFavorite(item);
+-    const active = !isYoutube && String(currentSong?.id || "") === String(item.id || "");
+-    const artist = item.artist || item.user?.name || item.channelTitle || "Unknown Artist";
++  const typeIcon = (type: FavoriteItemType) => {
++    if (type === "artist") return "person";
++    if (type === "album") return "albums";
++    if (type === "radio_station") return "radio";
++    if (type === "podcast_show" || type === "podcast_episode") return "mic";
++    return "musical-notes";
++  };
++
++  const renderFavoriteRow = (item: UnifiedFavoriteItem, index: number) => {
++    const isSong = item.type === "song";
++    const active = isSong && String(currentSong?.id || "") === String(item.id || "");
+ 
+     return (
+       <TouchableOpacity
+-        style={[styles.songRow, active && styles.activeRow]}
++        key={`${item.type}-${item.id}-${index}`}
++        style={[styles.row, active && styles.rowActive]}
+         activeOpacity={0.85}
+-        onPress={() => playFavorite(item, index)}
++        onPress={() => openFavorite(item)}
+       >
+         <LinearGradient colors={GRADIENTS.neon} style={styles.coverBorder}>
+-          <HTImage source={item} style={styles.cover} contentFit="cover" />
++          <HTImage
++            source={{ artwork: item.artwork, cover: item.artwork, thumbnail: item.artwork }}
++            style={styles.cover}
++            contentFit="cover"
++          />
+         </LinearGradient>
+ 
+-        <View style={styles.songInfo}>
++        <View style={styles.copy}>
+           <View style={styles.badgeRow}>
+-            {isYoutube ? (
+-              <>
+-                <Ionicons name="tv" size={13} color="#ff0033" />
+-                <Text style={styles.badgeText}>Hidden Tunes TV</Text>
+-              </>
+-            ) : (
+-              <>
+-                <Ionicons name="musical-notes" size={13} color={COLORS.primary} />
+-                <Text style={styles.badgeText}>{item.sourceName || "Hidden Tunes"}</Text>
+-              </>
+-            )}
++            <Ionicons name={typeIcon(item.type) as any} size={13} color={COLORS.primary} />
++            <Text style={styles.badgeText}>{item.source || "Hidden Tunes"}</Text>
++            <MatureContentBadge item={item.metadata} />
+           </View>
+-
+-          <Text numberOfLines={1} style={[styles.songTitle, active && styles.activeText]}>
+-            {item.title || "Untitled"}
+-          </Text>
+-
+-          <Text numberOfLines={1} style={styles.songArtist}>
+-            {artist}
++          <Text numberOfLines={1} style={[styles.title, active && styles.titleActive]}>
++            {item.title}
+           </Text>
++          {item.subtitle ? (
++            <Text numberOfLines={1} style={styles.subtitle}>
++              {item.subtitle}
++            </Text>
++          ) : null}
+         </View>
+ 
+         {active ? (
+           <NeonEQ isPlaying={isPlaying} size="small" />
+         ) : (
+-          <TouchableOpacity
+-            activeOpacity={0.8}
+-            onPress={() => void toggleFavorite(item as any)}
+-            hitSlop={8}
+-          >
+-            <Ionicons name="heart" size={24} color={COLORS.pink} />
+-          </TouchableOpacity>
++          <FavoriteButton item={item} size={22} />
+         )}
+       </TouchableOpacity>
+     );
+@@ -217,36 +233,36 @@ export default function FavoritesScreen() {
+ 
+         <View style={styles.header}>
+           <Text style={styles.kicker}>LIBRARY</Text>
+-          <Text style={styles.title}>Favorites</Text>
+-          <Text style={styles.subtitle}>
+-            {favoriteSongs.length === 0
+-              ? "Saved sounds will appear here"
+-              : `${favoriteSongs.length} saved sound${favoriteSongs.length === 1 ? "" : "s"}`}
++          <Text style={styles.heading}>Favorites</Text>
++          <Text style={styles.headerSubtitle}>
++            {totalVisible === 0
++              ? "Your favorites will appear here."
++              : `${totalVisible} saved item${totalVisible === 1 ? "" : "s"}`}
+           </Text>
+         </View>
+ 
+-        <View style={styles.shortcutsPanel}>{LIBRARY_SHORTCUTS.map(renderShortcut)}</View>
+-
+-        {favoriteSongs.length === 0 ? (
++        {totalVisible === 0 ? (
+           <View style={styles.emptyBox}>
+             <PremiumEmptyState
+               icon="heart-outline"
+-              title="Your saved sound is waiting"
+-              message="Tap the heart on any track or TV pick and it will land here in a clean, private collection."
++              title="Your favorites will appear here."
++              message="Save songs, artists, albums, radio stations, and podcasts with the heart icon."
+               actionLabel="Browse Music"
+               onAction={() => router.push("/music-feed" as any)}
+             />
+           </View>
+         ) : (
+-          <FlatList
+-            data={favoriteSongs}
+-            keyExtractor={(item, index) =>
+-              item.id ? `favorite-${item.id}-${index}` : `favorite-${index}`
+-            }
+-            renderItem={renderFavorite}
++          <ScrollView
+             showsVerticalScrollIndicator={false}
+             contentContainerStyle={styles.listContent}
+-          />
++          >
++            {sections.map((section) => (
++              <View key={section.id} style={styles.sectionBlock}>
++                <Text style={styles.sectionEyebrow}>{section.title.toUpperCase()}</Text>
++                {section.items.map((item, index) => renderFavoriteRow(item, index))}
++              </View>
++            ))}
++          </ScrollView>
+         )}
+       </LinearGradient>
+     </AppShell>
+@@ -286,58 +302,18 @@ const styles = StyleSheet.create({
+     fontWeight: "900",
+     letterSpacing: 2,
+   },
+-  title: {
++  heading: {
+     color: COLORS.text,
+     fontSize: 34,
+     fontWeight: "900",
+     marginTop: 6,
+   },
+-  subtitle: {
++  headerSubtitle: {
+     color: COLORS.textMuted,
+     fontSize: 14,
+     marginTop: 6,
+     fontWeight: "700",
+   },
+-  shortcutsPanel: {
+-    gap: 10,
+-    marginBottom: 20,
+-  },
+-  shortcutCard: {
+-    flexDirection: "row",
+-    alignItems: "center",
+-    gap: 12,
+-    borderRadius: 20,
+-    paddingHorizontal: 14,
+-    paddingVertical: 12,
+-    backgroundColor: "rgba(255,255,255,0.05)",
+-    borderWidth: 1,
+-    borderColor: "rgba(255,255,255,0.08)",
+-  },
+-  shortcutIcon: {
+-    width: 42,
+-    height: 42,
+-    borderRadius: 14,
+-    alignItems: "center",
+-    justifyContent: "center",
+-    backgroundColor: "rgba(168,85,247,0.12)",
+-    borderWidth: 1,
+-    borderColor: "rgba(168,85,247,0.22)",
+-  },
+-  shortcutCopy: {
+-    flex: 1,
+-    minWidth: 0,
+-  },
+-  shortcutLabel: {
+-    color: COLORS.text,
+-    fontSize: 14,
+-    fontWeight: "900",
+-  },
+-  shortcutDescription: {
+-    color: COLORS.textMuted,
+-    fontSize: 12,
+-    marginTop: 3,
+-    fontWeight: "700",
+-  },
+   emptyBox: {
+     flex: 1,
+     alignItems: "center",
+@@ -345,59 +321,30 @@ const styles = StyleSheet.create({
+     paddingBottom: 120,
+     paddingHorizontal: 12,
+   },
+-  emptyIcon: {
+-    width: 126,
+-    height: 126,
+-    borderRadius: 63,
+-    alignItems: "center",
+-    justifyContent: "center",
+-    backgroundColor: "rgba(168,85,247,0.1)",
+-    borderWidth: 1,
+-    borderColor: "rgba(168,85,247,0.25)",
++  listContent: {
++    paddingBottom: 180,
++    gap: 18,
+   },
+-  emptyTitle: {
+-    color: COLORS.text,
+-    fontSize: 22,
+-    fontWeight: "900",
+-    marginTop: 18,
++  sectionBlock: {
++    gap: 10,
+   },
+-  emptyText: {
++  sectionEyebrow: {
+     color: COLORS.textMuted,
+-    fontSize: 14,
+-    marginTop: 8,
+-    textAlign: "center",
+-    lineHeight: 22,
+-    fontWeight: "700",
+-  },
+-  emptyButton: {
+-    marginTop: 22,
+-    flexDirection: "row",
+-    alignItems: "center",
+-    gap: 8,
+-    backgroundColor: COLORS.primary,
+-    paddingHorizontal: 20,
+-    paddingVertical: 13,
+-    borderRadius: 999,
+-  },
+-  emptyButtonText: {
+-    color: "#000",
+-    fontSize: 14,
++    fontSize: 11,
+     fontWeight: "900",
++    letterSpacing: 1.4,
++    marginBottom: 4,
+   },
+-  listContent: {
+-    paddingBottom: 180,
+-  },
+-  songRow: {
++  row: {
+     backgroundColor: "rgba(255,255,255,0.055)",
+     borderRadius: 24,
+     padding: 12,
+-    marginBottom: 12,
+     flexDirection: "row",
+     alignItems: "center",
+     borderWidth: 1,
+     borderColor: "rgba(255,255,255,0.08)",
+   },
+-  activeRow: {
++  rowActive: {
+     borderColor: "rgba(168,85,247,0.55)",
+     backgroundColor: "rgba(168,85,247,0.12)",
+   },
+@@ -413,7 +360,7 @@ const styles = StyleSheet.create({
+     borderRadius: 18,
+     backgroundColor: COLORS.cardLight,
+   },
+-  songInfo: {
++  copy: {
+     flex: 1,
+     marginLeft: 14,
+     minWidth: 0,
+@@ -421,25 +368,25 @@ const styles = StyleSheet.create({
+   badgeRow: {
+     flexDirection: "row",
+     alignItems: "center",
++    gap: 5,
+     marginBottom: 5,
+   },
+   badgeText: {
+     color: COLORS.textMuted,
+     fontSize: 10,
+     fontWeight: "900",
+-    marginLeft: 5,
+     textTransform: "uppercase",
+     letterSpacing: 0.8,
+   },
+-  songTitle: {
++  title: {
+     color: COLORS.text,
+     fontSize: 15,
+     fontWeight: "900",
+   },
+-  activeText: {
++  titleActive: {
+     color: COLORS.primary,
+   },
+-  songArtist: {
++  subtitle: {
+     color: COLORS.textMuted,
+     marginTop: 5,
+     fontSize: 13,

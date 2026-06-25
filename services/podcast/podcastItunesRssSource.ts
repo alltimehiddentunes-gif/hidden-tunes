@@ -100,7 +100,7 @@ type ItunesPodcastResult = {
   description?: string;
 };
 
-async function searchItunesPodcasts(term: string, limit: number) {
+async function searchItunesPodcasts(term: string, limit: number, signal?: AbortSignal) {
   const params = new URLSearchParams({
     term,
     media: "podcast",
@@ -110,6 +110,7 @@ async function searchItunesPodcasts(term: string, limit: number) {
 
   const response = await fetch(`${ITUNES_SEARCH_URL}?${params.toString()}`, {
     headers: { Accept: "application/json" },
+    signal,
   });
 
   if (!response.ok) return [];
@@ -161,7 +162,11 @@ export async function fetchItunesPodcastShows(query: PodcastShowsQuery = {}) {
   const term = buildItunesSearchTerm(query);
 
   try {
-    const results = await searchItunesPodcasts(term, Math.min(page * limit, MAX_ITUNES_RESULTS));
+    const results = await searchItunesPodcasts(
+      term,
+      Math.min(page * limit, MAX_ITUNES_RESULTS),
+      query.signal
+    );
     const shows = results
       .map(mapItunesShow)
       .filter((show): show is HiddenTunesPodcastShow => show !== null);

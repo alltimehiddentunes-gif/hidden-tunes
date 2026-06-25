@@ -45,6 +45,7 @@ import {
   createStableKeyExtractor,
   getHorizontalListPerformanceSettings,
   getListPerformanceSettings,
+  markFastScrolling,
 } from "../../utils/performanceMode";
 import { PODCAST_MATURE_SEARCH_SUGGESTION } from "../../utils/mediaSearchQueryExpansion";
 
@@ -158,6 +159,8 @@ export default function PodcastDiscoveryHomeScreen() {
     browseCategories,
     matureCategories,
     loading,
+    loadingMoreRails,
+    loadMoreRails,
     resolveShow,
   } = usePodcastHomeDiscovery();
 
@@ -642,25 +645,29 @@ export default function PodcastDiscoveryHomeScreen() {
             removeClippedSubviews
           />
         )
-      ) : loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.loadingText}>{TESTER_COPY.podcastDiscoveryLoading}</Text>
-        </View>
       ) : (
         <FlatList
           data={homeSections}
           keyExtractor={(item) => item.key}
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
+          onEndReachedThreshold={0.25}
+          onEndReached={loadMoreRails}
+          onScrollBeginDrag={() => markFastScrolling(true)}
+          onMomentumScrollEnd={() => markFastScrolling(false)}
           ListHeaderComponent={
-            !hasShowRails ? (
+            !hasShowRails && !loading ? (
               <View style={styles.unavailableBox}>
                 <Text style={styles.unavailableTitle}>{PODCAST_DISCOVERY_UNAVAILABLE}</Text>
                 <Text style={styles.unavailableText}>
                   Browse categories below or search for a real podcast show.
                 </Text>
               </View>
+            ) : null
+          }
+          ListFooterComponent={
+            loading || loadingMoreRails ? (
+              <ActivityIndicator style={styles.footerSpinner} color={COLORS.primary} />
             ) : null
           }
           renderItem={renderHomeSection}

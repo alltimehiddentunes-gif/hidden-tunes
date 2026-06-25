@@ -176,7 +176,7 @@ export const RadioStationRailCard = memo(function RadioStationRailCard({
       <LinearGradient colors={["rgba(255,255,255,0.08)", "rgba(255,255,255,0.03)"]} style={styles.railGradient}>
         {item.artworkUrl && showMatureArt ? (
           <Image
-            source={{ uri: item.artworkUrl }}
+            source={{ uri: item.artworkUrl, width: 148, height: 96 }}
             style={styles.railArt}
             contentFit="cover"
             transition={0}

@@ -23,6 +23,9 @@ type Props = {
   contentPosition?: "center" | "top" | "bottom" | "left" | "right";
   /** Off by default — list rows should not prefetch offscreen artwork. */
   prefetch?: boolean;
+  /** Downscale decode size for list thumbnails. */
+  maxDecodeWidth?: number;
+  maxDecodeHeight?: number;
 };
 
 const MAX_ARTWORK_CANDIDATES = 5;
@@ -75,6 +78,8 @@ function HTImage({
   contentFit = "cover",
   contentPosition = "center",
   prefetch = false,
+  maxDecodeWidth,
+  maxDecodeHeight,
 }: Props) {
   const fallbackSource = useMemo(() => {
     if (fallback === FALLBACK_ARTWORK || fallback === FALLBACK_ARTWORK_ASSET) {
@@ -124,11 +129,19 @@ function HTImage({
     }
 
     if (typeof artwork === "string") {
-      return memoizedUriSource(artwork);
+      const uriSource = memoizedUriSource(artwork);
+      if (maxDecodeWidth || maxDecodeHeight) {
+        return {
+          ...uriSource,
+          width: maxDecodeWidth,
+          height: maxDecodeHeight,
+        };
+      }
+      return uriSource;
     }
 
     return artwork;
-  }, [candidateIndex, fallback, resolvedCandidates]);
+  }, [candidateIndex, fallback, maxDecodeHeight, maxDecodeWidth, resolvedCandidates]);
 
   const recyclingKey = useMemo(() => {
     const key = candidateKey(resolvedSource);

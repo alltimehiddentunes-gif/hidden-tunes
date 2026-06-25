@@ -164,6 +164,8 @@ const PodcastShowArt = memo(function PodcastShowArt({
       style={{ width: size, height: size, borderRadius: radius, backgroundColor: "rgba(255,255,255,0.06)" }}
       contentFit="cover"
       prefetch={false}
+      maxDecodeWidth={size * 2}
+      maxDecodeHeight={size * 2}
     />
   );
 });
@@ -248,7 +250,7 @@ export const PodcastShowRailCard = memo(function PodcastShowRailCard({
       <LinearGradient colors={["rgba(255,255,255,0.08)", "rgba(255,255,255,0.03)"]} style={styles.railGradient}>
         {item.artworkUrl && showMatureArt ? (
           <Image
-            source={{ uri: item.artworkUrl }}
+            source={{ uri: item.artworkUrl, width: 148, height: 96 }}
             style={styles.railArt}
             contentFit="cover"
             transition={0}

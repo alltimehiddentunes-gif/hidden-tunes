@@ -45,6 +45,7 @@ type LoadOptions = {
 const inflightRequests = new Map<string, Promise<MaturePodcastPageResult>>();
 let requestGeneration = 0;
 const generationByKey = new Map<string, number>();
+const browseAbortControllers = new Map<string, AbortController>();
 
 function resolveQueryGroup(categoryId: string) {
   const groupId = resolveMaturePodcastQueryGroupId(categoryId);
@@ -70,16 +71,18 @@ function buildFetchPlan(group: MaturePodcastQueryGroup, virtualPage: number) {
 
 async function fetchMaturePodcastKeywordResponses(
   group: MaturePodcastQueryGroup,
-  virtualPage: number
+  virtualPage: number,
+  signal?: AbortSignal
 ) {
   const plan = buildFetchPlan(group, virtualPage);
-  const primaryResponse = await fetchPodcastShows(
-    buildMaturePodcastKeywordQuery(
+  const primaryResponse = await fetchPodcastShows({
+    ...buildMaturePodcastKeywordQuery(
       plan.primary.keyword,
       plan.primary.page,
       MATURE_DISCOVERY_PAGE_SIZE
-    )
-  );
+    ),
+    signal,
+  });
 
   const responses = [primaryResponse];
   const primaryShows = primaryResponse.success ? primaryResponse.shows : [];
@@ -88,13 +91,14 @@ async function fetchMaturePodcastKeywordResponses(
     plan.fallback &&
     primaryShows.length < MATURE_FALLBACK_TRIGGER_COUNT
   ) {
-    const fallbackResponse = await fetchPodcastShows(
-      buildMaturePodcastKeywordQuery(
+    const fallbackResponse = await fetchPodcastShows({
+      ...buildMaturePodcastKeywordQuery(
         plan.fallback.keyword,
         plan.fallback.page,
         MATURE_DISCOVERY_PAGE_SIZE
-      )
-    );
+      ),
+      signal,
+    });
     responses.push(fallbackResponse);
   }
 
@@ -104,9 +108,10 @@ async function fetchMaturePodcastKeywordResponses(
 async function fetchMaturePodcastBatch(
   group: MaturePodcastQueryGroup,
   virtualPage: number,
-  auditCategoryId?: string
+  auditCategoryId?: string,
+  signal?: AbortSignal
 ) {
-  const responses = await fetchMaturePodcastKeywordResponses(group, virtualPage);
+  const responses = await fetchMaturePodcastKeywordResponses(group, virtualPage, signal);
   const merged = responses.flatMap((response) => (response.success ? response.shows : []));
   const sourceHasMore = responses.some(
     (response) => response.success && response.pagination.hasMore
@@ -209,8 +214,16 @@ export async function loadMaturePodcastCategoryPage(
   const inflight = inflightRequests.get(requestKey);
   if (inflight) return inflight;
 
+  const controller = new AbortController();
+  browseAbortControllers.set(requestKey, controller);
+
   const promise = (async () => {
-    const { ranked, sourceHasMore } = await fetchMaturePodcastBatch(group, virtualPage, group.id);
+    const { ranked, sourceHasMore } = await fetchMaturePodcastBatch(
+      group,
+      virtualPage,
+      group.id,
+      controller.signal
+    );
     const expanded =
       options?.allowSparseExpansion && virtualPage === 0
         ? await expandSparseMatureCategory(group, ranked)
@@ -238,11 +251,23 @@ export async function loadMaturePodcastCategoryPage(
     return await promise;
   } finally {
     inflightRequests.delete(requestKey);
+    browseAbortControllers.delete(requestKey);
   }
 }
 
-export function cancelMaturePodcastDiscovery() {
+export function cancelMaturePodcastDiscovery(requestKey?: string) {
   requestGeneration += 1;
+
+  if (requestKey) {
+    browseAbortControllers.get(requestKey)?.abort();
+    browseAbortControllers.delete(requestKey);
+    generationByKey.delete(requestKey);
+    inflightRequests.delete(requestKey);
+    return;
+  }
+
+  browseAbortControllers.forEach((controller) => controller.abort());
+  browseAbortControllers.clear();
   inflightRequests.clear();
   generationByKey.clear();
 }
