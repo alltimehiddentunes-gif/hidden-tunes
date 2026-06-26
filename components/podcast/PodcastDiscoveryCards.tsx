@@ -1,5 +1,5 @@
 import React, { memo } from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { StyleSheet, Text, TouchableOpacity, View, type GestureResponderEvent } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { Image } from "expo-image";
@@ -18,6 +18,7 @@ import { isPlayablePodcastEpisode } from "../../services/podcast/podcastDiscover
 import { useMatureContentSettings } from "../../hooks/useMatureContentSettings";
 import { isMaturePodcastEpisode } from "../../utils/maturePodcastVisibility";
 import { isMatureContentItem } from "../../types/matureContent";
+import { logPodcastRuntime } from "../../utils/podcastRuntimeDiagnostics";
 import MatureContentBadge from "../mature/MatureContentBadge";
 import FavoriteButton from "../FavoriteButton";
 import {
@@ -286,7 +287,7 @@ type PodcastEpisodeRowProps = {
   subtitle?: string;
   showIsMature?: boolean;
   isPlayable?: boolean;
-  onPress: () => void;
+  onPress: (event?: GestureResponderEvent) => void;
 };
 
 export const PodcastEpisodeRow = memo(function PodcastEpisodeRow({
@@ -304,13 +305,56 @@ export const PodcastEpisodeRow = memo(function PodcastEpisodeRow({
   };
   const showMatureArt = !isMaturePodcastEpisode(episode, showIsMature) || includeMatureInApi;
 
+  logPodcastRuntime("PODCAST_EPISODE_ROW_RENDERED", {
+    episodeId: episode.id,
+    showId: episode.show_id,
+    title: episode.title,
+    playable,
+  });
+
+  const stopEpisodePropagation = (event?: GestureResponderEvent) => {
+    event?.stopPropagation?.();
+    logPodcastRuntime("PODCAST_EPISODE_PARENT_NAV_BLOCKED", {
+      episodeId: episode.id,
+      showId: episode.show_id,
+      title: episode.title,
+    });
+  };
+
+  const handlePressIn = (event: GestureResponderEvent) => {
+    stopEpisodePropagation(event);
+    logPodcastRuntime("PODCAST_EPISODE_PRESS_IN", {
+      episodeId: episode.id,
+      showId: episode.show_id,
+      title: episode.title,
+      playable,
+    });
+  };
+
+  const handlePress = (event: GestureResponderEvent) => {
+    stopEpisodePropagation(event);
+    logPodcastRuntime("PODCAST_EPISODE_PRESS_PLAYBACK_ONLY", {
+      episodeId: episode.id,
+      showId: episode.show_id,
+      title: episode.title,
+    });
+    onPress(event);
+  };
+
+  const handleResponderCapture = (event: GestureResponderEvent) => {
+    if (playable) stopEpisodePropagation(event);
+    return false;
+  };
+
   return (
-    <TouchableOpacity
-      activeOpacity={playable ? 0.88 : 1}
-      style={[styles.episodeRow, !playable && styles.episodeRowDisabled]}
-      onPress={playable ? onPress : undefined}
-      disabled={!playable}
-    >
+    <View onStartShouldSetResponderCapture={handleResponderCapture}>
+      <TouchableOpacity
+        activeOpacity={playable ? 0.88 : 1}
+        style={[styles.episodeRow, !playable && styles.episodeRowDisabled]}
+        onPressIn={playable ? handlePressIn : undefined}
+        onPress={playable ? handlePress : undefined}
+        disabled={!playable}
+      >
       {episode.artwork_url && showMatureArt ? (
         <Image
           source={{ uri: episode.artwork_url }}
@@ -355,7 +399,8 @@ export const PodcastEpisodeRow = memo(function PodcastEpisodeRow({
       ) : (
         <Ionicons name="ban-outline" size={18} color={COLORS.textMuted} />
       )}
-    </TouchableOpacity>
+      </TouchableOpacity>
+    </View>
   );
 });
 

@@ -7,6 +7,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  type GestureResponderEvent,
 } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
@@ -155,7 +156,8 @@ export default function PodcastShowScreen() {
   );
 
   const handleEpisodePress = useCallback(
-    (episode: HiddenTunesPodcastEpisode) => {
+    (episode: HiddenTunesPodcastEpisode, event?: GestureResponderEvent) => {
+      event?.stopPropagation?.();
       const matureItem = {
         is_mature: isMaturePodcastEpisode(episode, showIsMature),
         content_rating: episode.content_rating,
@@ -174,7 +176,7 @@ export default function PodcastShowScreen() {
         episode={item}
         showIsMature={showIsMature}
         subtitle={podcastEpisodeSubtitle(item)}
-        onPress={() => handleEpisodePress(item)}
+        onPress={(event) => handleEpisodePress(item, event)}
       />
     ),
     [handleEpisodePress, showIsMature]
