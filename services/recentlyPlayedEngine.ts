@@ -25,7 +25,6 @@ export type RecentlyPlayedTrack = {
   sourceName?: string;
   type?: "local" | "audius" | "archive" | "youtube";
   isOnline?: boolean;
-  showId?: string;
   playedAt: number;
   playCount: number;
 };
@@ -101,8 +100,6 @@ export async function addToRecentlyPlayed(song: any) {
     album_cover: song.album_cover || song.albumCover || artworkUri,
 
     streamUrl: song.streamUrl,
-
-    showId: typeof song.showId === "string" ? song.showId : undefined,
 
     sourceName: song.sourceName,
 

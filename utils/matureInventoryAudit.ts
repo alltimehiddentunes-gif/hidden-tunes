@@ -19,7 +19,7 @@ export async function runMatureRadioInventoryAuditIfEnabled() {
     String(station.streamUrl || "").trim().startsWith("https://")
   );
 
-  logMatureInventoryAuditSummary("radio", {
+  logMatureInventoryAuditSummary({
     rawStations: result.stations.length,
     playableStreams: playable.length,
     httpsStreams: playable.length,

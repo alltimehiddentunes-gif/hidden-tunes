@@ -231,7 +231,6 @@ export type AppSong = {
   album?: string;
   albumId?: string;
   artistId?: string;
-  showId?: string;
   genre?: string;
   mood?: string;
   duration?: number | string;
@@ -243,7 +242,7 @@ export type AppSong = {
 };
 
 type RepeatMode = "off" | "one" | "all";
-type ActiveQueueMode = "standard" | "youtube" | "radio" | "smart" | "live_stream" | "podcast";
+type ActiveQueueMode = "standard" | "youtube" | "radio" | "smart" | "live_stream";
 
 export type PlaybackQueueContext = {
   source:
@@ -256,7 +255,6 @@ export type PlaybackQueueContext = {
     | "queue"
     | "playlist"
     | "radio"
-    | "podcast"
     | "recently_added"
     | "because_you_listened"
     | "smart_queue"
@@ -494,8 +492,14 @@ function normalizePlaybackQueueContext(
 ): PlaybackQueueContext {
   if (!context) return { source: fallbackSource };
 
+  const rawSource = String(context.source || fallbackSource);
+  const source =
+    rawSource === "podcast"
+      ? "unknown"
+      : ((context.source || fallbackSource) as PlaybackQueueContext["source"]);
+
   return {
-    source: context.source || fallbackSource,
+    source,
     label: cleanContextValue(context.label),
     albumId: cleanContextValue(context.albumId),
     albumTitle: cleanContextValue(context.albumTitle),
@@ -1360,9 +1364,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       if (song.source === "radio" || song.type === "live_stream") {
         return "live_stream";
       }
-      if (song.source === "podcast" || song.type === "podcast") {
-        return "podcast";
-      }
       return "standard";
     },
     []
@@ -1449,15 +1450,17 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
       const isLiveStream =
         song.source === "radio" || song.type === "live_stream";
-      const isPodcastTrack =
+      const isLegacyPodcastTrack =
         song.source === "podcast" || song.type === "podcast";
 
       const normalizedType = youtube
         ? "youtube_video"
-        : isPodcastTrack
-        ? "podcast"
         : isLiveStream
         ? "live_stream"
+        : isLegacyPodcastTrack
+        ? playableUrl
+          ? "r2"
+          : "local"
         : song.type || (playableUrl ? "r2" : "local");
 
       const syncedLyrics =
@@ -1490,8 +1493,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           : song.sourceName || song.source || "Hidden Tunes",
         source: youtube
           ? "youtube"
-          : song.source === "radio" || song.source === "podcast"
+          : song.source === "radio"
           ? song.source
+          : isLegacyPodcastTrack
+          ? "hidden-tunes"
           : song.source || "hidden-tunes",
         type: normalizedType,
         isOnline: song.isOnline ?? Boolean(playableUrl),
@@ -3806,10 +3811,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           nextIndex: -1,
         });
 
-        if (
-          activeQueueModeRef.current === "live_stream" ||
-          activeQueueModeRef.current === "podcast"
-        ) {
+        if (activeQueueModeRef.current === "live_stream") {
           logAutoNextSkipped("non_standard_queue_mode", {
             mode: activeQueueModeRef.current,
             queueLength: queue.length,
@@ -5419,10 +5421,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
       if (!smartAutoplayEnabledRef.current) return false;
 
-      if (
-        activeQueueModeRef.current === "live_stream" ||
-        activeQueueModeRef.current === "podcast"
-      ) {
+      if (activeQueueModeRef.current === "live_stream") {
         return false;
       }
 
@@ -6629,8 +6628,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
                 savedActiveQueueMode === "radio" ||
                 savedActiveQueueMode === "standard" ||
                 savedActiveQueueMode === "smart" ||
-                savedActiveQueueMode === "live_stream" ||
-                savedActiveQueueMode === "podcast"
+                savedActiveQueueMode === "live_stream"
                   ? savedActiveQueueMode
                   : "standard";
               setActiveQueueMode(safeMode);
@@ -6790,8 +6788,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             savedActiveQueueMode === "radio" ||
             savedActiveQueueMode === "standard" ||
             savedActiveQueueMode === "smart" ||
-            savedActiveQueueMode === "live_stream" ||
-            savedActiveQueueMode === "podcast"
+            savedActiveQueueMode === "live_stream"
               ? savedActiveQueueMode
               : "standard";
 

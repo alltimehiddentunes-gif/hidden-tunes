@@ -1,5 +1,5 @@
 import { Redirect } from "expo-router";
 
-export default function PodcastsRemovedCatchAll() {
+export default function LegacyRouteRedirect() {
   return <Redirect href="/library" />;
 }

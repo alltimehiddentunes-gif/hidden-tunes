@@ -1,19 +1,5 @@
 import { isMatureDiscoveryDiagnosticsEnabled } from "./devDiagnostics";
 
-export type MaturePodcastAuditCounts = {
-  categoryId: string;
-  keywordBatch?: string;
-  queryTermsUsed?: string[];
-  raw: number;
-  afterDedupe: number;
-  showsWithEpisodes?: number;
-  afterQuality: number;
-  playableShows: number;
-  finalDisplayedCount?: number;
-  first20Titles?: string[];
-  source?: string;
-};
-
 export type MatureRadioAuditCounts = {
   categoryId: string;
   raw: number;
@@ -36,27 +22,21 @@ export function logMatureDiscovery(event: string, details: Details = {}) {
   console.log("[HTMatureDiscovery]", event, { at: Date.now(), ...details });
 }
 
-export function logMaturePodcastCategoryAudit(counts: MaturePodcastAuditCounts) {
-  logMatureDiscovery("mature_podcast_category_audit", counts);
-}
-
 export function logMatureRadioCategoryAudit(counts: MatureRadioAuditCounts) {
   logMatureDiscovery("mature_radio_category_audit", counts);
 }
 
 export function logMatureDiscoveryWeakCategory(
-  kind: "podcast" | "radio",
   categoryId: string,
   count: number,
   threshold: number
 ) {
   if (count >= threshold) return;
-  logMatureDiscovery("mature_weak_category", { kind, categoryId, count, threshold });
+  logMatureDiscovery("mature_weak_category", { kind: "radio", categoryId, count, threshold });
 }
 
 export function logMatureInventoryAuditSummary(
-  kind: "podcast" | "radio",
   summary: Record<string, string | number | boolean | string[]>
 ) {
-  logMatureDiscovery(`mature_${kind}_inventory_summary`, summary);
+  logMatureDiscovery("mature_radio_inventory_summary", summary);
 }
