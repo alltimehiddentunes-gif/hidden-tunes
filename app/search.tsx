@@ -21,12 +21,16 @@ import HTImage from "../components/HTImage";
 import DebouncedSearchInput from "../components/search/DebouncedSearchInput";
 import { SearchApkSongRow } from "../components/search/SearchApkSongRow";
 import { RadioStationCard } from "../components/radio/RadioBrowserCards";
+import { PodcastEpisodeCard, PodcastShowCard } from "../components/podcast/PodcastCards";
+import MaturePodcastConsentModal from "../components/podcast/MaturePodcastConsentModal";
 import FavoriteButton from "../components/FavoriteButton";
 import MatureContentConsentModal from "../components/mature/MatureContentConsentModal";
 import { useDeferredSearchMediaSections } from "../hooks/useDeferredSearchMediaSections";
+import { useDeferredSearchPodcastSections } from "../hooks/useDeferredSearchPodcastSections";
 import { useMountedRef } from "../hooks/useMountedRef";
 import { useRenderBurstDiagnostics } from "../hooks/useRenderBurstDiagnostics";
 import { useMatureContentGate } from "../hooks/useMatureContentGate";
+import { useMaturePodcastGate } from "../hooks/useMaturePodcastGate";
 import { usePlaybackRouter } from "../hooks/usePlaybackRouter";
 import { usePlayerFeedSnapshot } from "../utils/playerFeedStore";
 import { COLORS, GRADIENTS } from "../constants/theme";
@@ -56,6 +60,7 @@ import {
 import { fetchTvSearchVideos, type HiddenTunesTvVideo } from "../services/tvCatalogApi";
 import { normalizeRadioStation } from "../services/radio/radioNormalizer";
 import type { RadioStationListItem } from "../types/radio";
+import type { PodcastEpisode } from "../types/podcast";
 import { openVideoItem } from "../services/videos/openVideoItem";
 import { getVideoDisplayCategory, getVideoDisplayCreator, normalizeVideoItem } from "../services/videos/videoNormalizer";
 import type { InstantSearchCatalog } from "../services/instantCatalogSearch";
@@ -286,13 +291,19 @@ function withInheritedSearchArtwork<
 export default function SearchScreen() {
   const params = useLocalSearchParams<{ q?: string }>();
   const { playSong } = usePlayerActions();
-  const { playRadioStation } = usePlaybackRouter();
+  const { playRadioStation, playPodcastEpisode } = usePlaybackRouter();
   const {
     consentVisible: matureConsentVisible,
     runWithMatureConsent,
     cancelConsent: cancelMatureConsent,
     confirmConsent: confirmMatureConsent,
   } = useMatureContentGate();
+  const {
+    consentVisible: maturePodcastConsentVisible,
+    runWithMaturePodcastConsent,
+    cancelConsent: cancelMaturePodcastConsent,
+    confirmConsent: confirmMaturePodcastConsent,
+  } = useMaturePodcastGate();
   const playerFeed = usePlayerFeedSnapshot();
 
   const [catalog, setCatalog] = useState<HiddenTunesDerivedCatalog | null>(null);
@@ -405,6 +416,7 @@ export default function SearchScreen() {
   const cleanSubmittedSearchQuery = submittedSearchQuery.trim();
   const normalizedSearchQuery = cleanSubmittedSearchQuery.toLowerCase().replace(/\s+/g, " ");
   const deferredMedia = useDeferredSearchMediaSections(cleanSubmittedSearchQuery);
+  const deferredPodcasts = useDeferredSearchPodcastSections(cleanSubmittedSearchQuery);
   const backendSearchCacheKey = normalizedSearchQuery;
   const localSearchCacheKey = `${normalizedSearchQuery}|${catalogSignature}`;
 
@@ -1516,6 +1528,15 @@ export default function SearchScreen() {
     [deferredMedia.resolveRadioStation, mountedRef, playRadioStation, runWithMatureConsent]
   );
 
+  const playSearchPodcastEpisode = useCallback(
+    (episode: PodcastEpisode) => {
+      runWithMaturePodcastConsent(episode, () => {
+        void playPodcastEpisode(episode);
+      });
+    },
+    [playPodcastEpisode, runWithMaturePodcastConsent]
+  );
+
   const handleSearchImmediateChange = useCallback((text: string) => {
     setSearchQuery(text);
     if (text.trim().length === 0) {
@@ -1959,9 +1980,49 @@ export default function SearchScreen() {
                   </View>
                 ) : null}
 
+                {cleanSubmittedSearchQuery.length >= 2 && deferredPodcasts.loading ? (
+                  <View style={styles.sectionBlock}>
+                    <Text style={styles.sectionEyebrow}>PODCASTS</Text>
+                    <View style={styles.deferredLoadingRow}>
+                      <ActivityIndicator size="small" color={COLORS.primary} />
+                      <Text style={styles.deferredLoadingText}>Finding podcasts...</Text>
+                    </View>
+                  </View>
+                ) : null}
+
+                {cleanSubmittedSearchQuery.length >= 2 &&
+                deferredPodcasts.readyForQuery &&
+                deferredPodcasts.results.length > 0 ? (
+                  <View style={styles.sectionBlock}>
+                    <Text style={styles.sectionEyebrow}>PODCASTS</Text>
+                    {deferredPodcasts.results.map((result, index) =>
+                      result.kind === "show" && result.show ? (
+                        <PodcastShowCard
+                          key={`search-podcast-show-${result.show.id}-${index}`}
+                          show={result.show}
+                          onPress={() =>
+                            router.push({
+                              pathname: "/podcasts/show/[id]",
+                              params: { id: result.show!.id },
+                            } as any)
+                          }
+                        />
+                      ) : result.episode ? (
+                        <PodcastEpisodeCard
+                          key={`search-podcast-episode-${result.episode.id}-${index}`}
+                          episode={result.episode}
+                          onPress={() => playSearchPodcastEpisode(result.episode!)}
+                        />
+                      ) : null
+                    )}
+                  </View>
+                ) : null}
+
                 {apkResultCount === 0 &&
                 deferredMedia.radioStations.length === 0 &&
-                !deferredMedia.radioLoading ? (
+                deferredPodcasts.results.length === 0 &&
+                !deferredMedia.radioLoading &&
+                !deferredPodcasts.loading ? (
                   <View style={styles.emptyPanel}>
                     <Ionicons name="search" size={34} color={COLORS.primaryGlow} />
                     <Text style={styles.emptyTitle}>No matches yet</Text>
@@ -2126,6 +2187,11 @@ export default function SearchScreen() {
         visible={matureConsentVisible}
         onCancel={cancelMatureConsent}
         onConfirm={confirmMatureConsent}
+      />
+      <MaturePodcastConsentModal
+        visible={maturePodcastConsentVisible}
+        onCancel={cancelMaturePodcastConsent}
+        onConfirm={confirmMaturePodcastConsent}
       />
     </AppShell>
   );

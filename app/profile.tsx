@@ -16,9 +16,16 @@ import { router, useFocusEffect } from "expo-router";
 
 import AppShell from "../components/navigation/AppShell";
 import MatureContentConsentModal from "../components/mature/MatureContentConsentModal";
+import MaturePodcastConsentModal from "../components/podcast/MaturePodcastConsentModal";
 import { COLORS, GRADIENTS } from "../constants/theme";
 import { usePlayerState } from "../context/PlayerContext";
 import { useMatureContentSettings } from "../hooks/useMatureContentSettings";
+import {
+  disableMaturePodcasts,
+  enableMaturePodcastsWithConsent,
+  shouldIncludeMaturePodcasts,
+  subscribeMaturePodcastSettings,
+} from "../utils/maturePodcastSettings";
 import { useFavorites } from "../hooks/useFavorites";
 import { getDownloadedSongs } from "../services/downloads";
 import {
@@ -229,6 +236,11 @@ export default function ProfileScreen() {
   const { favorites: unifiedFavorites } = useFavorites();
   const { enabled, enableWithConsent, disable } = useMatureContentSettings();
   const [enableMatureModalVisible, setEnableMatureModalVisible] = useState(false);
+  const [maturePodcastsEnabled, setMaturePodcastsEnabled] = useState(
+    shouldIncludeMaturePodcasts()
+  );
+  const [enableMaturePodcastsModalVisible, setEnableMaturePodcastsModalVisible] =
+    useState(false);
   const [userRole, setUserRole] = useState<UserRole>("listener");
   const [downloadsCount, setDownloadsCount] = useState<number | null>(null);
 
@@ -308,6 +320,10 @@ export default function ProfileScreen() {
   useFocusEffect(
     useCallback(() => {
       void refreshProfileData();
+      setMaturePodcastsEnabled(shouldIncludeMaturePodcasts());
+      return subscribeMaturePodcastSettings(() => {
+        setMaturePodcastsEnabled(shouldIncludeMaturePodcasts());
+      });
     }, [refreshProfileData])
   );
 
@@ -336,6 +352,21 @@ export default function ProfileScreen() {
       setEnableMatureModalVisible(false);
     });
   }, [enableWithConsent]);
+
+  const handleMaturePodcastsToggle = useCallback((nextValue: boolean) => {
+    if (nextValue) {
+      setEnableMaturePodcastsModalVisible(true);
+      return;
+    }
+    void disableMaturePodcasts();
+  }, []);
+
+  const confirmEnableMaturePodcasts = useCallback(() => {
+    void enableMaturePodcastsWithConsent().then(() => {
+      setEnableMaturePodcastsModalVisible(false);
+      setMaturePodcastsEnabled(true);
+    });
+  }, []);
 
   return (
     <AppShell>
@@ -417,6 +448,29 @@ export default function ProfileScreen() {
                 thumbColor={enabled ? COLORS.primary : "#f4f3f4"}
               />
             </View>
+
+            <View style={styles.settingRow}>
+              <LinearGradient colors={GRADIENTS.card} style={styles.itemIcon}>
+                <Ionicons name="mic-outline" size={21} color={COLORS.danger} />
+              </LinearGradient>
+
+              <View style={styles.itemTextWrap}>
+                <Text style={styles.itemTitle}>Mature Podcasts 18+</Text>
+                <Text style={styles.itemSubtitle}>
+                  Explicit podcast categories and search results
+                </Text>
+              </View>
+
+              <Switch
+                value={maturePodcastsEnabled}
+                onValueChange={handleMaturePodcastsToggle}
+                trackColor={{
+                  false: "rgba(255,255,255,0.12)",
+                  true: "rgba(239,68,68,0.45)",
+                }}
+                thumbColor={maturePodcastsEnabled ? COLORS.danger : "#f4f3f4"}
+              />
+            </View>
           </View>
 
           <View style={styles.section}>
@@ -473,6 +527,11 @@ export default function ProfileScreen() {
           visible={enableMatureModalVisible}
           onCancel={cancelEnableMature}
           onConfirm={confirmEnableMature}
+        />
+        <MaturePodcastConsentModal
+          visible={enableMaturePodcastsModalVisible}
+          onCancel={() => setEnableMaturePodcastsModalVisible(false)}
+          onConfirm={confirmEnableMaturePodcasts}
         />
       </LinearGradient>
     </AppShell>

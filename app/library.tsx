@@ -78,6 +78,14 @@ const LIBRARY_GROUPS: { id: string; label: string; sections: LibrarySection[] }[
     label: "Collection",
     sections: [
       {
+        id: "podcasts",
+        title: "Podcasts",
+        eyebrow: "STORIES",
+        icon: "mic",
+        href: "/podcasts",
+        accent: COLORS.cyan,
+      },
+      {
         id: "personal-radio",
         title: "Personal Radio",
         eyebrow: "SMART MIX",

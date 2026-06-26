@@ -36,6 +36,22 @@ export const EmotionalDiscoveryChips = memo(function EmotionalDiscoveryChips({
 
       <Pressable
         accessibilityRole="button"
+        accessibilityLabel="Podcasts. Stories, interviews, and global voices"
+        style={({ pressed }) => [styles.liveRadioCard, pressed && styles.liveRadioCardPressed]}
+        onPress={() => router.push("/podcasts" as any)}
+      >
+        <View style={styles.liveRadioIcon}>
+          <Ionicons name="mic" size={18} color={COLORS.primary} />
+        </View>
+        <View style={styles.liveRadioCopy}>
+          <Text style={styles.liveRadioTitle}>Podcasts</Text>
+          <Text style={styles.liveRadioSubtitle}>Stories, interviews, and global voices</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
+      </Pressable>
+
+      <Pressable
+        accessibilityRole="button"
         accessibilityLabel="Live Radio. Thousands of live global stations"
         style={({ pressed }) => [styles.liveRadioCard, pressed && styles.liveRadioCardPressed]}
         onPress={() => router.push("/stations" as any)}
