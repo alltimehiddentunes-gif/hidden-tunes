@@ -1,11 +1,12 @@
 import type { PodcastSeed } from "../types/podcast";
 
 // Large-scale podcast ingestion belongs in backend/admin pipeline, not the mobile bundle.
+// Seeds below were verified for RSS audio enclosures (smoke test 2026-06-22).
 
 export const GENERAL_PODCAST_FEEDS: PodcastSeed[] = [
   {
-    title: "NPR News Now",
-    feedUrl: "https://feeds.npr.org/1001/rss.xml",
+    title: "Radiolab",
+    feedUrl: "https://feeds.simplecast.com/EmVW7VGp",
     category: "society",
     language: "english",
     country: "US",
@@ -43,18 +44,18 @@ export const MUSIC_PODCAST_FEEDS: PodcastSeed[] = [
     matureLevel: "safe",
   },
   {
-    title: "All Songs Considered",
-    feedUrl: "https://feeds.npr.org/510019/rss.xml",
-    category: "music-history",
+    title: "Dissect",
+    feedUrl: "https://feeds.megaphone.fm/dissect",
+    category: "album-stories",
     language: "english",
     country: "US",
     isExplicit: false,
     matureLevel: "safe",
   },
   {
-    title: "Dissect",
-    feedUrl: "https://feeds.megaphone.fm/dissect",
-    category: "album-stories",
+    title: "Lex Fridman Podcast",
+    feedUrl: "https://lexfridman.com/feed/podcast/",
+    category: "artist-interviews",
     language: "english",
     country: "US",
     isExplicit: false,
@@ -64,18 +65,8 @@ export const MUSIC_PODCAST_FEEDS: PodcastSeed[] = [
 
 export const EMOTIONAL_WORLD_PODCAST_FEEDS: PodcastSeed[] = [
   {
-    title: "On Being",
-    feedUrl: "https://feeds.simplecast.com/4T39YAg_",
-    category: "healing-journey",
-    language: "english",
-    country: "US",
-    isExplicit: false,
-    matureLevel: "safe",
-    emotionalWorld: "Healing Journey",
-  },
-  {
-    title: "The Happiness Lab",
-    feedUrl: "https://feeds.megaphone.fm/happinesslab",
+    title: "Huberman Lab",
+    feedUrl: "https://feeds.megaphone.fm/hubermanlab",
     category: "focus-chamber",
     language: "english",
     country: "US",
@@ -87,7 +78,7 @@ export const EMOTIONAL_WORLD_PODCAST_FEEDS: PodcastSeed[] = [
 
 export const GLOBAL_PODCAST_FEEDS: PodcastSeed[] = [
   {
-    title: "Africa Daily",
+    title: "6 Minute English",
     feedUrl: "https://podcasts.files.bbci.co.uk/p02pc9tn.rss",
     category: "africa",
     language: "english",
@@ -108,15 +99,6 @@ export const GLOBAL_PODCAST_FEEDS: PodcastSeed[] = [
 
 export const LANGUAGE_PODCAST_FEEDS: PodcastSeed[] = [
   {
-    title: "Journal en français facile",
-    feedUrl: "https://rfipodcast.akamaized.net/feed/rss/fr/journal-en-francais-facile",
-    category: "french",
-    language: "french",
-    country: "FR",
-    isExplicit: false,
-    matureLevel: "safe",
-  },
-  {
     title: "Coffee Break Spanish",
     feedUrl: "https://rss.acast.com/coffeebreakspanish",
     category: "spanish",
@@ -129,18 +111,9 @@ export const LANGUAGE_PODCAST_FEEDS: PodcastSeed[] = [
 
 export const MATURE_PODCAST_FEEDS: PodcastSeed[] = [
   {
-    title: "Call Her Daddy",
-    feedUrl: "https://feeds.megaphone.fm/call-her-daddy",
-    category: "mature-relationships",
-    language: "english",
-    country: "US",
-    isExplicit: true,
-    matureLevel: "adult",
-  },
-  {
-    title: "Guys We F****d",
-    feedUrl: "https://feeds.megaphone.fm/guyswefcked",
-    category: "dating-after-dark",
+    title: "This Past Weekend w/ Theo Von",
+    feedUrl: "https://feeds.megaphone.fm/thispastweekend",
+    category: "adult-comedy",
     language: "english",
     country: "US",
     isExplicit: true,

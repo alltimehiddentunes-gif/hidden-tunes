@@ -217,7 +217,20 @@ export async function getPodcastShowsByCategory(categoryId: string, includeMatur
       }
     })
   );
-  return shows.filter((show): show is PodcastShow => Boolean(show && filterMatureShow(show, mature)));
+
+  const withEpisodes = await Promise.all(
+    shows.map(async (show) => {
+      if (!show || !filterMatureShow(show, mature)) return null;
+      const { episodes } = await getPodcastEpisodes(show.id, {
+        offset: 0,
+        limit: 1,
+        includeMature: mature,
+      });
+      return episodes.length > 0 ? show : null;
+    })
+  );
+
+  return withEpisodes.filter((show): show is PodcastShow => Boolean(show));
 }
 
 export function getPodcastCategoriesList(includeMature?: boolean) {
@@ -242,8 +255,21 @@ export async function getPodcastHome(includeMature?: boolean) {
       )
     ).filter((show): show is PodcastShow => Boolean(show && filterMatureShow(show, mature)));
 
+    const playableShows = (
+      await Promise.all(
+        shows.map(async (show) => {
+          const result = await getPodcastEpisodes(show.id, {
+            offset: 0,
+            limit: 1,
+            includeMature: mature,
+          });
+          return result.episodes.length > 0 ? show : null;
+        })
+      )
+    ).filter((show): show is PodcastShow => Boolean(show));
+
     const episodePairs = await Promise.all(
-      shows.slice(0, 8).map(async (show) => {
+      playableShows.slice(0, 8).map(async (show) => {
         const result = await getPodcastEpisodes(show.id, { offset: 0, limit: 1, includeMature: mature });
         return result.episodes[0] || null;
       })
@@ -264,18 +290,18 @@ export async function getPodcastHome(includeMature?: boolean) {
     });
 
     logPodcastDiagnostic("podcast_home_load_success", {
-      shows: shows.length,
+      shows: playableShows.length,
       newEpisodes: newEpisodes.length,
     });
 
     return {
-      featured: shows.slice(0, 6),
-      trending: [...shows].sort((a, b) =>
+      featured: playableShows.slice(0, 6),
+      trending: [...playableShows].sort((a, b) =>
         String(b.lastEpisodeDate || "").localeCompare(String(a.lastEpisodeDate || ""))
       ).slice(0, 6),
       newEpisodes,
-      popularShows: shows.slice(0, 8),
-      recommended: shows.slice(2, 10),
+      popularShows: playableShows.slice(0, 8),
+      recommended: playableShows.slice(2, 10),
       recentlyPlayed: recent,
       rootSections,
       browseCategories,
