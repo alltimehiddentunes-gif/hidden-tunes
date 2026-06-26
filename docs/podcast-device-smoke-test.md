@@ -1,20 +1,22 @@
 # Podcast Device Smoke Test Report
 
 **Branch:** `carplay-scene-safe-test`  
-**Base commit:** `d6ecf8b` — Rebuild podcast discovery with mature gating and standard playback  
-**Date:** 2026-06-22  
-**Final status:** **PENDING DEVICE VERIFICATION** (static + RSS pass; physical device QA required before push)
+**Commits under test:**
+- `d6ecf8b` — Rebuild podcast discovery with mature gating and standard playback
+- `b8784ea` — Fix broken podcast RSS seeds and add device smoke test report
+
+**Last updated:** 2026-06-22 (Final Device QA phase)  
+**Final verdict:** **BLOCKED — physical device QA not completed in agent environment**
 
 ---
 
-## Commands Run
+## Pre-flight (Final QA phase)
 
-| Command | Result |
-|---------|--------|
-| `git status --short` | Clean (before fixes); changes after seed fix documented below |
-| `npm run typecheck` | **PASS** (`tsc --noEmit`, exit 0) |
-| `git diff --check` | **PASS** (no whitespace issues) |
-| RSS enclosure audit (curl + grep) | See feed table below |
+| Command | Result | When |
+|---------|--------|------|
+| `git status --short` | **PASS** — clean working tree | 2026-06-22 |
+| `npm run typecheck` | **PASS** — `tsc --noEmit`, exit 0 | 2026-06-22 |
+| `git diff --check` | **PASS** — no whitespace issues | 2026-06-22 |
 
 ---
 
@@ -22,159 +24,164 @@
 
 | Field | Value |
 |-------|--------|
-| Physical device | **Not run in this session** — agent environment has no iOS/Android device |
-| Simulator | **Not run** |
-| Tester | Automated static/RSS validation + code path review |
-| Build | `d6ecf8b` + seed fixes (uncommitted at doc write) |
+| Device model | **Not tested** — no physical iPhone/Android available to Cursor agent |
+| OS version | **N/A** |
+| Build type | **N/A** (Expo Go / EAS dev client / release — must be recorded by human tester) |
+| Tester | Cursor agent (static + RSS only); **human device run required** |
+| Test commit | `b8784ea` (HEAD) |
 
-**Action required:** Run the manual checklist below on a real device before push.
+### Agent limitation
 
----
+This environment cannot:
 
-## Navigation Tests
+- Launch the app on a physical iPhone or Android device
+- Observe MiniPlayer, audio output, lock-screen controls, or thermal behavior
+- Confirm mature gate UX on a real screen
 
-| Step | Static / code review | Device result |
-|------|----------------------|---------------|
-| Open app | N/A | **PENDING** |
-| Library → Podcasts | Route `/podcasts` wired in `library.tsx` | **PENDING** |
-| Explore → Podcasts | Card in `EmotionalDiscoveryChips.tsx` | **PENDING** |
-| Open `/podcasts` | `app/podcasts/index.tsx` home screen | **PENDING** |
-| Open podcast category | `app/podcasts/category/[id].tsx` | **PENDING** |
-| Open podcast show | `app/podcasts/show/[id].tsx` | **PENDING** |
-| Open episode detail | `app/podcasts/episode/[id].tsx` | **PENDING** |
-| Tap episode play | `playPodcastEpisode` → `playSong(..., "standard")` | **PENDING** |
+**All playback, mature, and regression rows below marked PENDING must be completed on a physical device before push.**
 
 ---
 
-## Feed RSS Validation (pre-device)
+## Navigation (device)
 
-Verified via `curl` + enclosure count on 2026-06-22.
+| Step | Result |
+|------|--------|
+| Open app | **PENDING** |
+| Library → Podcasts | **PENDING** |
+| Explore → Podcasts | **PENDING** |
+| Open `/podcasts` | **PENDING** |
+| Open podcast category | **PENDING** |
+| Open podcast show | **PENDING** |
+| Open episode detail | **PENDING** |
 
-| Feed | In seeds (after fix) | Enclosures | Playable |
-|------|----------------------|------------|----------|
-| NPR News Now (`1001`) | **Removed** — 0 audio enclosures | 0 | **NO** |
-| Radiolab (replaces NPR) | Yes | 659 | **YES** |
-| Song Exploder | Yes | 614 | **YES** |
-| TED Talks Daily | Yes | 2739 | **YES** |
-| BBC Global News | Yes | 266 | **YES** |
-| Huberman Lab | Yes (emotional) | 418 | **YES** |
-| Lex Fridman Podcast | Yes (music/interviews) | 498 | **YES** |
-| Dissect | Yes | 360 | **YES** |
-| Coffee Break Spanish | Yes | 331 | **YES** |
-| BBC Documentary | Yes | 412 | **YES** |
-| This Past Weekend (mature) | Yes | 552 | **YES** |
-| On Being / Happiness Lab | **Removed** — 404 | 0 | **NO** |
-| Call Her Daddy / Guys We F****d | **Removed** — 404 | 0 | **NO** |
-| All Songs Considered NPR | **Removed** — empty channel | 0 | **NO** |
-
-**Note:** Huberman Lab and Lex Fridman are now seeded (replacing broken feeds). NPR is represented by Radiolab in general podcasts, not NPR-branded.
+Code wiring verified statically: routes exist at `app/podcasts/*`, library tile and explore card point to `/podcasts`.
 
 ---
 
-## Playback Results (device)
+## Feed playback (device) — required shows
 
-| Check | Expected | Device result |
-|-------|----------|---------------|
-| Audio starts | HTTPS mp3/m4a via `hidden-tunes` / `r2` | **PENDING** |
-| MiniPlayer appears | `playSong` primes player | **PENDING** |
-| Pause / resume | Standard queue mode | **PENDING** |
-| Seek | No crash on podcast file | **PENDING** |
-| Player screen opens | Tap mini player | **PENDING** |
-| Next / previous | Standard queue, filtered playable episodes | **PENDING** |
-| No excessive heating | No background RSS crawl loops | **PENDING** (code: TTL cache, 8s timeout, no infinite retry) |
+| Feed | Category path hint | RSS pre-check | Device playback |
+|------|-------------------|---------------|-----------------|
+| **Radiolab** | Society / Featured | **PASS** (659 enclosures) | **PENDING** |
+| **Song Exploder** | Music → Album Stories | **PASS** (614) | **PENDING** |
+| **TED Talks Daily** | Lifestyle → Self Growth | **PASS** (2739) | **PENDING** |
+| **BBC Global News** | Society / Featured | **PASS** (266) | **PENDING** |
+| **Huberman Lab** | Emotional Worlds → Focus Chamber | **PASS** (418) | **PENDING** |
+| **Lex Fridman Podcast** | Music → Artist Interviews | **PASS** (498) | **PENDING** |
+| **This Past Weekend** (mature) | Mature → Adult Comedy | **PASS** (552) | **PENDING** |
 
-**Static confirmation:** No `activeQueueMode: "podcast"`. Playback uses `source: "hidden-tunes"`, `type: "r2"`, mode `"standard"`.
+### Per-feed device checklist (fill when testing)
 
----
+For each feed above, confirm on device:
 
-## Mature Gate Results
-
-| Check | Code path | Device result |
-|-------|-----------|---------------|
-| Mature hidden by default | `shouldIncludeMaturePodcasts()` false | **PENDING** |
-| `/podcasts/mature` age gate | Consent modal + toggle | **PENDING** |
-| Profile enables mature | `enableMaturePodcastsWithConsent` | **PENDING** |
-| Disabling hides mature | `disableMaturePodcasts` | **PENDING** |
-| Search hides mature when off | `useDeferredSearchPodcastSections` | **PENDING** |
-| Direct mature link blocked | Show/episode redirect to `/podcasts/mature` | **PENDING** |
-
-**Static confirmation:** Mature radio uses separate `matureContentSettings` — untouched.
+- [ ] Audio starts within ~10s of tap
+- [ ] MiniPlayer appears
+- [ ] Full player opens from MiniPlayer
+- [ ] Pause / resume
+- [ ] Seek (pass or fails safely without crash)
+- [ ] Next / previous in show queue (no crash)
+- [ ] Background / lock screen (no crash)
 
 ---
 
-## Regression Tests
+## Playback behavior (device)
 
-| Area | Static review | Device result |
-|------|---------------|---------------|
-| Normal songs play | `PlayerContext` unchanged | **PENDING** |
-| Radio plays | `routeRadioPlayback` unchanged | **PENDING** |
-| Live stream mode | `live_stream` path intact | **PENDING** |
-| Search | Podcast section appended after radio | **PENDING** |
-| Favorites | Unified favorites union unchanged | **PENDING** |
-| Queue | Standard mode for podcasts | **PENDING** |
-| Recently played (music) | `recentlyPlayedEngine` unchanged | **PENDING** |
-| Mature radio | Separate settings keys | **PENDING** |
-| HiddenAudio | No changes | **PENDING** |
+| Check | Result |
+|-------|--------|
+| Audio starts | **PENDING** |
+| MiniPlayer appears | **PENDING** |
+| Full player opens | **PENDING** |
+| Pause works | **PENDING** |
+| Resume works | **PENDING** |
+| Seek works or fails safely | **PENDING** |
+| Next does not crash | **PENDING** |
+| Previous does not crash | **PENDING** |
+| Background / lock screen stable | **PENDING** |
+| No excessive heating during browse + one episode | **PENDING** |
 
----
-
-## Issues Found and Fixes Made
-
-### Critical: Broken RSS seeds (no playable audio)
-
-**Problem:** Several seeded feeds returned 404 or had zero `<enclosure>` audio URLs. Tapping episodes from those shows would fail or show empty lists — violates “no fake playable cards.”
-
-**Fixes (this session):**
-
-1. **`data/podcastSeeds.ts`** — Replaced broken feeds with verified playable RSS:
-   - NPR News Now → **Radiolab**
-   - Removed All Songs Considered, On Being, Happiness Lab, Call Her Daddy, Guys We F****d, RFI French
-   - Added **Huberman Lab**, **Lex Fridman Podcast**, **This Past Weekend** (mature)
-
-2. **`services/podcastService.ts`** — Home and category rails now **exclude shows with zero playable episodes** after parse.
-
-3. Removed temporary `tmp-test-rss-feeds.mjs` from project root.
-
-### Non-issues confirmed
-
-- Tap failures show `Alert.alert("Unavailable", ...)` — no silent taps
-- Mature gate uses separate AsyncStorage from mature radio
-- No podcast queue mode introduced
+**Static:** `playPodcastEpisode` → `playSong(..., "standard")`, `source: "hidden-tunes"`, `type: "r2"`. No podcast queue mode.
 
 ---
 
-## Manual Device Checklist (copy for QA)
+## Mature gate (device)
 
+| Step | Result |
+|------|--------|
+| 1. Mature podcasts hidden by default | **PENDING** |
+| 2. `/podcasts/mature` shows age gate | **PENDING** |
+| 3. Enable Mature Podcasts 18+ in Profile | **PENDING** |
+| 4. Mature podcasts appear after enable | **PENDING** |
+| 5. Play This Past Weekend | **PENDING** |
+| 6. Disable Mature Podcasts 18+ | **PENDING** |
+| 7. Mature podcasts disappear | **PENDING** |
+| 8. Mature search results hidden when disabled | **PENDING** |
+
+**Static:** Separate `maturePodcastSettings` from mature radio; search uses `shouldIncludeMaturePodcasts()`.
+
+---
+
+## Regression (device)
+
+| Area | Result |
+|------|--------|
+| Normal songs play | **PENDING** |
+| Radio plays | **PENDING** |
+| `live_stream` mode works | **PENDING** |
+| Search works | **PENDING** |
+| Favorites work | **PENDING** |
+| Queue works | **PENDING** |
+| Recently played (music) works | **PENDING** |
+| Mature radio still works | **PENDING** |
+| HiddenAudio route untouched | **PENDING** (static: no changes to hidden-audio paths) |
+
+---
+
+## Issues found and fixes (cumulative)
+
+### `b8784ea` — Broken RSS seeds (pre-device)
+
+| Issue | Fix |
+|-------|-----|
+| NPR `1001`, empty NPR hubs, 404 Megaphone URLs | Replaced with verified feeds in `data/podcastSeeds.ts` |
+| Shows with zero playable episodes on home | Filter in `services/podcastService.ts` |
+
+### Final device QA phase
+
+| Issue | Fix |
+|-------|-----|
+| None found on device | **N/A** — device session not run |
+
+---
+
+## Human tester quick script
+
+1. Build or open dev client on **physical** iPhone/Android at `b8784ea`.
+2. Record: device model, OS, build type at top of this doc.
+3. Run navigation + six safe feeds + mature flow + regression list above.
+4. If any episode card does not play: note show/episode; file bug (normalize or hide).
+5. If **all** rows pass, run locally:
+
+```bash
+git add docs/podcast-device-smoke-test.md
+git commit -m "Validate podcast playback on device"
+git status --short
+git log --oneline -3
 ```
-[ ] Library → Podcasts opens home
-[ ] Explore → Podcasts card opens home
-[ ] Featured / New Episodes show real shows
-[ ] Tap Song Exploder episode → plays, MiniPlayer shows
-[ ] Tap TED episode → plays
-[ ] Tap BBC episode → plays
-[ ] Tap Huberman Lab episode → plays
-[ ] Tap Lex Fridman episode → plays
-[ ] Pause / resume / seek on podcast
-[ ] Next/previous in show episode list
-[ ] Mature section locked → unlock in Profile → Theo Von show appears → plays
-[ ] Disable mature → mature hidden in search
-[ ] Song from library still plays
-[ ] Radio station still plays (live_stream)
-[ ] Favorites / queue unchanged
-```
+
+6. Do **not** push until reviewed.
 
 ---
 
-## Final Pass / Fail
+## Final verdict
 
 | Layer | Result |
 |-------|--------|
 | Typecheck / diff-check | **PASS** |
-| RSS feed audit | **PASS** (after seed fix) |
-| Code rules (no podcast queue mode) | **PASS** |
-| Physical device playback | **PENDING** |
-| **Overall release readiness** | **FAIL until device checklist complete** |
+| RSS feed audit | **PASS** |
+| Code architecture rules | **PASS** |
+| **Physical device QA** | **NOT RUN** |
+| **Release readiness** | **FAIL — blocked on device sign-off** |
 
-Do **not** push until device QA passes.
+**Commit `Validate podcast playback on device` was NOT created** — device tests did not pass in this session because no physical device was available.
 
-Commit `Validate podcast playback on device` should only be created after manual device checklist is green.
+Do **not** push `carplay-scene-safe-test` until a human completes device QA and creates the validation commit.
