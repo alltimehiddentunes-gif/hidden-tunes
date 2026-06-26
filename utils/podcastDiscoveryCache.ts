@@ -6,6 +6,7 @@ import type {
 } from "../services/podcastCatalogApi";
 import { isMatureContentItem } from "../types/matureContent";
 import { MATURE_PODCAST_CATEGORY_ID } from "./launchPodcastCategories";
+import { registerPodcastFeedUrl } from "../services/podcast/podcastItunesRssSource";
 
 const SHOWS_STORAGE_PREFIX = "hidden_tunes_podcast_shows_v1";
 const EPISODES_STORAGE_PREFIX = "hidden_tunes_podcast_episodes_v1";
@@ -35,6 +36,12 @@ function normalizeCacheKey(value: string) {
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9_-]+/g, "-");
+}
+
+function registerCachedPodcastFeeds(shows: HiddenTunesPodcastShow[]) {
+  shows.forEach((show) => {
+    if (show.feed_url) registerPodcastFeedUrl(show.id, show.feed_url);
+  });
 }
 
 function isFresh(cachedAt: number) {
@@ -78,6 +85,7 @@ export function readCachedPodcastShows(categoryId: string) {
   const key = normalizeCacheKey(categoryId);
   const memoryEntry = showsMemoryCache.get(key);
   if (memoryEntry && isFresh(memoryEntry.cachedAt)) {
+    registerCachedPodcastFeeds(memoryEntry.shows);
     return memoryEntry.shows;
   }
   return null;
@@ -87,6 +95,7 @@ export async function hydrateCachedPodcastShows(categoryId: string) {
   const key = normalizeCacheKey(categoryId);
   const memoryEntry = showsMemoryCache.get(key);
   if (memoryEntry && isFresh(memoryEntry.cachedAt)) {
+    registerCachedPodcastFeeds(memoryEntry.shows);
     return memoryEntry.shows;
   }
 
@@ -101,6 +110,7 @@ export async function hydrateCachedPodcastShows(categoryId: string) {
     }
 
     showsMemoryCache.set(key, parsed);
+    registerCachedPodcastFeeds(parsed.shows);
     return parsed.shows;
   } catch {
     return null;
@@ -121,6 +131,7 @@ export function writeCachedPodcastShows(
   };
 
   showsMemoryCache.set(key, payload);
+  registerCachedPodcastFeeds(merged);
   trimMemoryCache(showsMemoryCache);
   schedulePersistCache(SHOWS_STORAGE_PREFIX, key, payload);
 

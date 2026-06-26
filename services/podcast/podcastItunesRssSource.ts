@@ -235,6 +235,7 @@ function mapItunesShow(raw: ItunesPodcastResult): HiddenTunesPodcastShow | null 
     categories: raw.genres || (raw.primaryGenreName ? [raw.primaryGenreName] : []),
     episode_count: raw.trackCount,
     last_published_at: raw.releaseDate,
+    feed_url: raw.feedUrl,
     sourceName: "Hidden Tunes",
   };
 }

@@ -9,6 +9,7 @@ export type PodcastShowListItem = {
   episodeLabel?: string;
   language?: string;
   latestEpisodeDate?: string;
+  feedUrl?: string;
   qualityScore?: number;
   qualityLabel?: string;
   is_mature?: boolean;

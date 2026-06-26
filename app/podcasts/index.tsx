@@ -262,6 +262,7 @@ export default function PodcastDiscoveryHomeScreen() {
           primary_category: item.category,
           episode_count: item.episodeCount,
           language: item.language,
+          feed_url: item.feedUrl,
           is_mature: item.is_mature,
           content_rating: item.content_rating,
           sourceName: "Hidden Tunes",

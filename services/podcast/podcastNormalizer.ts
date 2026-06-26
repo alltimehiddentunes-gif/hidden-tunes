@@ -28,6 +28,7 @@ export function toPodcastShowListItem(show: HiddenTunesPodcastShow): PodcastShow
     episodeLabel,
     language: show.language,
     latestEpisodeDate,
+    feedUrl: show.feed_url,
     qualityScore: show.quality_score,
     qualityLabel,
     is_mature: show.is_mature,
