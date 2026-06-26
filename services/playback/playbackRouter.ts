@@ -70,26 +70,30 @@ export async function routePodcastPlayback(
   queueEpisodes: PodcastEpisode[],
   deps: PlaybackRouterDeps
 ): Promise<PlaybackRouteResult> {
+  const target = podcastEpisodeToAppSong(episode);
+  const targetAudioUrl = String(target.audioUrl || target.streamUrl || "").trim();
   const playable = queueEpisodes
     .map(podcastEpisodeToAppSong)
-    .filter((song) => Boolean(song.audioUrl || song.streamUrl));
-
-  const target = podcastEpisodeToAppSong(episode);
+    .filter((song) => Boolean(String(song.audioUrl || song.streamUrl || "").trim()));
+  const queue = playable.some((song) => song.id === target.id) ? playable : [target, ...playable];
   const startIndex = Math.max(
     0,
-    playable.findIndex((song) => song.id === target.id)
+    queue.findIndex((song) => song.id === target.id)
   );
 
-  logPodcastRuntime("episode_play_tap", {
+  logPodcastRuntime("PODCAST_EPISODE_PLAY_ATTEMPT", {
+    episodeId: episode.id,
+    showId: episode.showId,
     title: episode.title,
-    audioPresent: Boolean(target.audioUrl),
-    playerReceivedUrl: Boolean(target.audioUrl || target.streamUrl),
+    audioPresent: Boolean(targetAudioUrl),
+    queueSize: queue.length,
   });
 
-  if (!playable.length || !target.audioUrl) {
-    logPodcastRuntime("episode_play_error", {
+  if (!targetAudioUrl) {
+    logPodcastRuntime("PODCAST_EPISODE_MISSING_AUDIO_URL", {
+      episodeId: episode.id,
+      showId: episode.showId,
       title: episode.title,
-      reason: "missing_audio_url",
     });
     return {
       ok: false,
@@ -98,20 +102,25 @@ export async function routePodcastPlayback(
   }
 
   try {
-    await deps.playQueue(
-      playable,
+    await deps.playSong(
+      target,
+      queue,
       startIndex,
-      false,
       { source: "podcast", label: episode.podcastTitle },
       "podcast"
     );
-    logPodcastRuntime("episode_play_success", {
+    logPodcastRuntime("PODCAST_EPISODE_PLAY_STARTED", {
+      episodeId: episode.id,
+      showId: episode.showId,
       title: episode.title,
-      queueSize: playable.length,
+      queueSize: queue.length,
+      startIndex,
     });
     return { ok: true };
   } catch (error) {
     logPodcastRuntime("episode_play_error", {
+      episodeId: episode.id,
+      showId: episode.showId,
       title: episode.title,
       reason: error instanceof Error ? error.message : String(error),
     });

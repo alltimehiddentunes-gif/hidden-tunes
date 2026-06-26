@@ -119,9 +119,21 @@ export default function PodcastShowScreen() {
 
   const openEpisode = useCallback(
     async (episode: HiddenTunesPodcastEpisode) => {
+      logPodcastRuntime("PODCAST_EPISODE_TAP", {
+        episodeId: episode.id,
+        showId: episode.show_id || showId,
+        title: episode.title,
+        audioPresent: Boolean(String(episode.audio_url || "").trim()),
+      });
+
       const normalized = normalizePodcastEpisode(episode, showTitle);
 
       if (!normalized) {
+        logPodcastRuntime("PODCAST_EPISODE_MISSING_AUDIO_URL", {
+          episodeId: episode.id,
+          showId: episode.show_id || showId,
+          title: episode.title,
+        });
         if (!mountedRef.current) return;
         setPlaybackError("This episode is unavailable right now.");
         return;
@@ -139,7 +151,7 @@ export default function PodcastShowScreen() {
 
       setPlaybackError(null);
     },
-    [mountedRef, playbackQueue, playPodcastEpisode, showTitle]
+    [mountedRef, playbackQueue, playPodcastEpisode, showId, showTitle]
   );
 
   const handleEpisodePress = useCallback(
