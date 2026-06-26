@@ -132,12 +132,14 @@ Lint: pre-existing project noise unchanged; new podcast files follow existing pa
 
 ## Known Limitations
 
-1. **Curated seed set only** (~15 feeds) — architecture supports more via backend/admin ingestion
-2. **On-device RSS fetch** — subject to network and feed availability; 8s timeout, TTL caches
-3. **Search** scans cached seed metadata, not full-text across all episode bodies
-4. **Follow/save** uses separate AsyncStorage, not unified favorites
-5. **Recently played** uses separate podcast store; does not appear in main music recently played UI
-6. **Physical device QA** required for tap-to-play on real networks
+1. **Curated seed set only** (~12 feeds) — architecture supports more via backend/admin ingestion
+2. **RSS home loading disabled** (`ENABLE_PODCAST_RSS_HOME_LOADING = false`) — home uses static seed metadata; episodes load when a show is opened
+3. **Show-level RSS only** — max 10 episodes, 5s timeout per feed
+4. **On-device RSS fetch** — subject to network; one feed at a time on show page
+5. **Search** — seed title/category match only, no live episode search
+6. **Follow/save** uses separate AsyncStorage, not unified favorites
+7. **Recently played** uses separate podcast store
+8. **Physical device QA** required after heat/loading fix
 
 ---
 
@@ -151,7 +153,13 @@ Large-scale podcast ingestion belongs in backend/admin pipeline, not the mobile 
 - Mature classification at ingest time
 - Search index for 10k+ shows
 
-Mobile client should switch from `data/podcastSeeds.ts` to API endpoints when backend is ready.
+Mobile client should switch from `data/podcastSeeds.ts` to API endpoints when backend is ready. **Mobile must only browse lightweight metadata and load one show RSS at a time.**
+
+---
+
+## Performance Fix (2026-06-22)
+
+See `docs/podcast-heat-loading-fix-report.md`. Home no longer fetches/parses RSS on mount. Pre-fix behavior caused device heat and infinite loading from parallel full-feed parses (TED ~2700 items).
 
 ---
 

@@ -5,8 +5,28 @@
 - `d6ecf8b` — Rebuild podcast discovery with mature gating and standard playback
 - `b8784ea` — Fix broken podcast RSS seeds and add device smoke test report
 
-**Last updated:** 2026-06-22 (Final Device QA phase)  
-**Final verdict:** **BLOCKED — physical device QA not completed in agent environment**
+**Last updated:** 2026-06-22 (post heat/loading fix)  
+**Final verdict:** **RE-TEST ON DEVICE** after heat fix commit
+
+---
+
+## Heat / Loading Fix (2026-06-22)
+
+**Symptom reported:** Podcasts stuck on "Loading podcasts...", device heated and froze.
+
+**Root cause:** `getPodcastHome()` fetched and parsed up to 12 full RSS feeds in parallel on mount (including feeds with 600–2700 items).
+
+**Fix applied:** Static seed home (`ENABLE_PODCAST_RSS_HOME_LOADING = false`). RSS loads only when opening one show (max 10 episodes, 5s timeout).
+
+See `docs/podcast-heat-loading-fix-report.md`.
+
+**Expected after fix:**
+- Home appears in < 1 second
+- No infinite loading spinner
+- No heating while browsing Podcasts home
+- Episodes load only on show page
+
+---
 
 ---
 

@@ -77,11 +77,18 @@ function isSupportedAudio(url: string, type?: string) {
   );
 }
 
-function splitItems(xml: string) {
-  return [...xml.matchAll(/<item[\s\S]*?<\/item>/gi)].map((match) => match[0]);
+function splitItems(xml: string, maxItems: number) {
+  const items: string[] = [];
+  const pattern = /<item[\s\S]*?<\/item>/gi;
+  let match = pattern.exec(xml);
+  while (match && items.length < maxItems) {
+    items.push(match[0]);
+    match = pattern.exec(xml);
+  }
+  return items;
 }
 
-export function parseRssFeed(xml: string): ParsedRssFeed | null {
+export function parseRssFeed(xml: string, maxItems = 10): ParsedRssFeed | null {
   try {
     const channelMatch = xml.match(/<channel[\s\S]*?<\/channel>/i);
     const channel = channelMatch ? channelMatch[0] : xml;
@@ -101,10 +108,11 @@ export function parseRssFeed(xml: string): ParsedRssFeed | null {
 
     const episodes: ParsedRssEpisode[] = [];
 
-    for (const itemBlock of splitItems(xml)) {
+    for (const itemBlock of splitItems(xml, maxItems)) {
       const guid = extractTag(itemBlock, "guid") || extractTag(itemBlock, "link") || "";
       const itemTitle = extractTag(itemBlock, "title") || "Untitled Episode";
-      const itemDescription = extractTag(itemBlock, "description") || extractTag(itemBlock, "itunes:summary") || "";
+      const itemDescription =
+        extractTag(itemBlock, "description") || extractTag(itemBlock, "itunes:summary") || "";
       const pubDate = extractTag(itemBlock, "pubDate");
       const itemLink = extractTag(itemBlock, "link");
       const enclosure = parseEnclosure(itemBlock);
@@ -147,23 +155,27 @@ export function parseRssFeed(xml: string): ParsedRssFeed | null {
   }
 }
 
-export const PODCAST_FETCH_TIMEOUT_MS = 8000;
-export const PODCAST_PAGE_SIZE = 40;
+export async function fetchRssXml(feedUrl: string, timeoutMs: number): Promise<string | null> {
+  const fetchTask = (async () => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetch(feedUrl, {
+        signal: controller.signal,
+        headers: { Accept: "application/rss+xml, application/xml, text/xml, */*" },
+      });
+      if (!response.ok) return null;
+      return await response.text();
+    } catch {
+      return null;
+    } finally {
+      clearTimeout(timer);
+    }
+  })();
 
-export async function fetchRssXml(feedUrl: string): Promise<string | null> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), PODCAST_FETCH_TIMEOUT_MS);
+  const timeoutTask = new Promise<null>((resolve) => {
+    setTimeout(() => resolve(null), timeoutMs);
+  });
 
-  try {
-    const response = await fetch(feedUrl, {
-      signal: controller.signal,
-      headers: { Accept: "application/rss+xml, application/xml, text/xml, */*" },
-    });
-    if (!response.ok) return null;
-    return await response.text();
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(timer);
-  }
+  return Promise.race([fetchTask, timeoutTask]);
 }

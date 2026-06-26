@@ -1,25 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 
-import {
-  PodcastCategoryCard,
-  PodcastEpisodeCard,
-  PodcastShowCard,
-} from "../../../components/podcast/PodcastCards";
-import MaturePodcastConsentModal from "../../../components/podcast/MaturePodcastConsentModal";
+import { PodcastCategoryCard, PodcastShowCard } from "../../../components/podcast/PodcastCards";
 import {
   getPodcastCategory,
   PODCAST_ROOT_SECTIONS,
@@ -27,11 +13,11 @@ import {
   type PodcastCategoryDef,
 } from "../../../constants/podcastCategories";
 import { COLORS } from "../../../constants/theme";
-import { useMaturePodcastGate } from "../../../hooks/useMaturePodcastGate";
-import { usePlaybackRouter } from "../../../hooks/usePlaybackRouter";
-import { getPodcastEpisodes, getPodcastShowsByCategory } from "../../../services/podcastService";
-import type { PodcastEpisode, PodcastShow } from "../../../types/podcast";
-import { shouldIncludeMaturePodcasts } from "../../../utils/maturePodcastSettings";
+import { getPodcastShowsByCategory } from "../../../services/podcastService";
+import {
+  shouldIncludeMaturePodcasts,
+  subscribeMaturePodcastSettings,
+} from "../../../utils/maturePodcastSettings";
 import { safeRouterPush } from "../../../utils/safeNavigation";
 
 export default function PodcastCategoryScreen() {
@@ -42,61 +28,34 @@ export default function PodcastCategoryScreen() {
     () => PODCAST_ROOT_SECTIONS.find((section) => section.id === categoryId),
     [categoryId]
   );
+  const [matureEnabled, setMatureEnabled] = useState(shouldIncludeMaturePodcasts());
 
-  const { playPodcastEpisode } = usePlaybackRouter();
-  const { consentVisible, runWithMaturePodcastConsent, cancelConsent, confirmConsent } =
-    useMaturePodcastGate();
+  useEffect(() => {
+    const unsubscribe = subscribeMaturePodcastSettings(() => {
+      setMatureEnabled(shouldIncludeMaturePodcasts());
+    });
+    return () => {
+      unsubscribe();
+    };
+  }, []);
 
-  const [shows, setShows] = useState<PodcastShow[]>([]);
-  const [episodes, setEpisodes] = useState<PodcastEpisode[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    const includeMature = shouldIncludeMaturePodcasts();
+  const shows = useMemo(() => {
     const childIds =
       parentSection?.children?.map((child) => child.id) ||
       (category && !parentSection ? [category.id] : []);
-
     const ids = childIds.length ? childIds : [categoryId];
-    const showLists = await Promise.all(
-      ids.map((id) => getPodcastShowsByCategory(id, includeMature))
-    );
-    const mergedShows = showLists.flat();
-
-    const latestEpisodes: PodcastEpisode[] = [];
-    for (const show of mergedShows.slice(0, 6)) {
-      const result = await getPodcastEpisodes(show.id, {
-        offset: 0,
-        limit: 2,
-        includeMature,
-      });
-      latestEpisodes.push(...result.episodes);
-    }
-
-    setShows(mergedShows);
-    setEpisodes(latestEpisodes);
-    setLoading(false);
-  }, [category, categoryId, parentSection]);
+    return ids.flatMap((id) => getPodcastShowsByCategory(id, matureEnabled));
+  }, [category, categoryId, parentSection, matureEnabled]);
 
   useEffect(() => {
     if (category?.matureOnly && !shouldIncludeMaturePodcasts()) {
       router.replace("/podcasts/mature" as any);
-      return;
     }
-    void load();
-  }, [category, load]);
+  }, [category]);
 
-  const playEpisode = useCallback(
-    (episode: PodcastEpisode) => {
-      runWithMaturePodcastConsent(episode, () => {
-        void playPodcastEpisode(episode).then((result) => {
-          if (!result.ok) Alert.alert("Unavailable", result.error);
-        });
-      });
-    },
-    [playPodcastEpisode, runWithMaturePodcastConsent]
-  );
+  const openShow = useCallback((showId: string) => {
+    safeRouterPush({ pathname: "/podcasts/show/[id]", params: { id: showId } });
+  }, []);
 
   if (!category && !parentSection) {
     return (
@@ -122,15 +81,8 @@ export default function PodcastCategoryScreen() {
         </View>
       </View>
 
-      <ScrollView
-        contentContainerStyle={styles.content}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={load} tintColor={COLORS.primary} />}
-      >
-        {loading ? (
-          <View style={styles.loadingPanel}>
-            <ActivityIndicator color={COLORS.primary} />
-          </View>
-        ) : null}
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <Text style={styles.hintText}>Open a show to load episodes</Text>
 
         {parentSection?.children?.length ? (
           <View style={styles.section}>
@@ -156,38 +108,13 @@ export default function PodcastCategoryScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Shows</Text>
             {shows.map((show) => (
-              <PodcastShowCard
-                key={show.id}
-                show={show}
-                onPress={() =>
-                  safeRouterPush({ pathname: "/podcasts/show/[id]", params: { id: show.id } })
-                }
-              />
+              <PodcastShowCard key={show.id} show={show} onPress={() => openShow(show.id)} />
             ))}
           </View>
-        ) : !loading ? (
+        ) : (
           <Text style={styles.emptyText}>No shows in this room yet.</Text>
-        ) : null}
-
-        {episodes.length > 0 ? (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Latest Episodes</Text>
-            {episodes.map((episode) => (
-              <PodcastEpisodeCard
-                key={episode.id}
-                episode={episode}
-                onPress={() => playEpisode(episode)}
-              />
-            ))}
-          </View>
-        ) : null}
+        )}
       </ScrollView>
-
-      <MaturePodcastConsentModal
-        visible={consentVisible}
-        onCancel={cancelConsent}
-        onConfirm={confirmConsent}
-      />
     </LinearGradient>
   );
 }
@@ -201,9 +128,9 @@ const styles = StyleSheet.create({
   title: { color: COLORS.text, fontSize: 24, fontWeight: "900" },
   subtitle: { color: COLORS.textMuted, fontSize: 13, marginTop: 4 },
   content: { paddingHorizontal: 18, paddingBottom: 120, gap: 20 },
+  hintText: { color: COLORS.textSoft, fontSize: 13, textAlign: "center" },
   section: { gap: 8 },
   sectionTitle: { color: COLORS.text, fontSize: 16, fontWeight: "800" },
-  loadingPanel: { paddingVertical: 30, alignItems: "center" },
   emptyText: { color: COLORS.textMuted, textAlign: "center", paddingVertical: 24 },
   fallback: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#000" },
   fallbackText: { color: COLORS.textMuted },

@@ -1,13 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -18,7 +10,6 @@ import MaturePodcastConsentModal from "../../components/podcast/MaturePodcastCon
 import { PODCAST_ROOT_SECTIONS, type PodcastCategoryDef } from "../../constants/podcastCategories";
 import { COLORS } from "../../constants/theme";
 import { getPodcastShowsByCategory } from "../../services/podcastService";
-import type { PodcastShow } from "../../types/podcast";
 import {
   disableMaturePodcasts,
   enableMaturePodcastsWithConsent,
@@ -29,45 +20,30 @@ import { safeRouterPush } from "../../utils/safeNavigation";
 
 export default function MaturePodcastsScreen() {
   const [enabled, setEnabled] = useState(shouldIncludeMaturePodcasts());
-  const [shows, setShows] = useState<PodcastShow[]>([]);
-  const [loading, setLoading] = useState(false);
   const [consentVisible, setConsentVisible] = useState(false);
 
-  const loadShows = useCallback(async () => {
-    if (!shouldIncludeMaturePodcasts()) {
-      setShows([]);
-      return;
-    }
-    setLoading(true);
+  const shows = useMemo(() => {
+    if (!shouldIncludeMaturePodcasts()) return [];
     const matureSection = PODCAST_ROOT_SECTIONS.find((section) => section.id === "mature-podcasts");
     const categoryIds = matureSection?.children?.map((child) => child.id) || [];
-    const lists = await Promise.all(
-      categoryIds.map((id) => getPodcastShowsByCategory(id, true))
-    );
-    setShows(lists.flat());
-    setLoading(false);
-  }, []);
+    return categoryIds.flatMap((id) => getPodcastShowsByCategory(id, true));
+  }, [enabled]);
 
   useEffect(() => {
     setEnabled(shouldIncludeMaturePodcasts());
-    void loadShows();
     const unsubscribe = subscribeMaturePodcastSettings(() => {
       setEnabled(shouldIncludeMaturePodcasts());
-      void loadShows();
     });
     return () => {
       unsubscribe();
     };
-  }, [loadShows]);
+  }, []);
 
   const handleToggle = (value: boolean) => {
     if (value) {
       setConsentVisible(true);
     } else {
-      void disableMaturePodcasts().then(() => {
-        setEnabled(false);
-        setShows([]);
-      });
+      void disableMaturePodcasts();
     }
   };
 
@@ -75,7 +51,6 @@ export default function MaturePodcastsScreen() {
     void enableMaturePodcastsWithConsent().then(() => {
       setEnabled(true);
       setConsentVisible(false);
-      void loadShows();
     });
   };
 
@@ -125,6 +100,7 @@ export default function MaturePodcastsScreen() {
         {enabled && matureSection?.children?.length ? (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Mature Categories</Text>
+            <Text style={styles.hintText}>Open a show to load episodes</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               {matureSection.children.map((child: PodcastCategoryDef) => (
                 <PodcastCategoryCard
@@ -145,7 +121,6 @@ export default function MaturePodcastsScreen() {
         {enabled ? (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Mature Shows</Text>
-            {loading ? <ActivityIndicator color={COLORS.primary} /> : null}
             {shows.map((show) => (
               <PodcastShowCard
                 key={show.id}
@@ -155,7 +130,7 @@ export default function MaturePodcastsScreen() {
                 }
               />
             ))}
-            {!loading && !shows.length ? (
+            {!shows.length ? (
               <Text style={styles.empty}>No mature shows available right now.</Text>
             ) : null}
           </View>
@@ -206,5 +181,6 @@ const styles = StyleSheet.create({
   lockedText: { color: COLORS.textMuted, textAlign: "center", lineHeight: 18 },
   section: { gap: 10 },
   sectionTitle: { color: COLORS.text, fontSize: 16, fontWeight: "800" },
+  hintText: { color: COLORS.textSoft, fontSize: 13 },
   empty: { color: COLORS.textMuted, textAlign: "center", paddingVertical: 16 },
 });

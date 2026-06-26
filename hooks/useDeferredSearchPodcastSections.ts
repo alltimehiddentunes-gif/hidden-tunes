@@ -49,29 +49,27 @@ export function useDeferredSearchPodcastSections(submittedQuery: string) {
     const timer = setTimeout(() => {
       if (generationRef.current !== generation || !mountedRef.current) return;
 
-      void (async () => {
-        try {
-          const results = await searchPodcasts(query, {
-            includeMature: shouldIncludeMaturePodcasts(),
-            limit: 12,
-          });
-          if (generationRef.current !== generation || !mountedRef.current) return;
-          safeSet(() => ({
-            results,
-            loading: false,
-            readyForQuery: query,
-            query,
-          }));
-        } catch {
-          if (generationRef.current !== generation || !mountedRef.current) return;
-          safeSet(() => ({
-            results: [],
-            loading: false,
-            readyForQuery: query,
-            query,
-          }));
-        }
-      })();
+      try {
+        const results = searchPodcasts(query, {
+          includeMature: shouldIncludeMaturePodcasts(),
+          limit: 12,
+        });
+        if (generationRef.current !== generation || !mountedRef.current) return;
+        safeSet(() => ({
+          results,
+          loading: false,
+          readyForQuery: query,
+          query,
+        }));
+      } catch {
+        if (generationRef.current !== generation || !mountedRef.current) return;
+        safeSet(() => ({
+          results: [],
+          loading: false,
+          readyForQuery: query,
+          query,
+        }));
+      }
     }, SEARCH_MEDIA_DEFER_MS);
 
     return () => clearTimeout(timer);

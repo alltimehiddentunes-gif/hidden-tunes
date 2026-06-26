@@ -1,9 +1,7 @@
 import { useCallback } from "react";
 import {
-  ActivityIndicator,
   Alert,
   FlatList,
-  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -30,26 +28,11 @@ import type { PodcastEpisode } from "../../types/podcast";
 import { shouldIncludeMaturePodcasts } from "../../utils/maturePodcastSettings";
 import { safeRouterPush } from "../../utils/safeNavigation";
 
-function SectionHeader({
-  title,
-  eyebrow,
-  onSeeAll,
-}: {
-  title: string;
-  eyebrow: string;
-  onSeeAll?: () => void;
-}) {
+function SectionHeader({ title, eyebrow }: { title: string; eyebrow: string }) {
   return (
     <View style={styles.sectionHeader}>
-      <View>
-        <Text style={styles.sectionEyebrow}>{eyebrow}</Text>
-        <Text style={styles.sectionTitle}>{title}</Text>
-      </View>
-      {onSeeAll ? (
-        <TouchableOpacity activeOpacity={0.85} onPress={onSeeAll}>
-          <Text style={styles.seeAll}>See all</Text>
-        </TouchableOpacity>
-      ) : null}
+      <Text style={styles.sectionEyebrow}>{eyebrow}</Text>
+      <Text style={styles.sectionTitle}>{title}</Text>
     </View>
   );
 }
@@ -60,15 +43,10 @@ export default function PodcastHomeScreen() {
     useMaturePodcastGate();
   const {
     featured,
-    trending,
-    newEpisodes,
     popularShows,
-    recommended,
     recentlyPlayed,
     rootSections,
-    loading,
     error,
-    refresh,
   } = usePodcastHome();
 
   const playEpisode = useCallback(
@@ -90,6 +68,10 @@ export default function PodcastHomeScreen() {
     safeRouterPush({ pathname: "/podcasts/category/[id]", params: { id: categoryId } });
   }, []);
 
+  const openShow = useCallback((showId: string) => {
+    safeRouterPush({ pathname: "/podcasts/show/[id]", params: { id: showId } });
+  }, []);
+
   return (
     <AppShell>
       <LinearGradient colors={["#030008", "#090214", "#000000"]} style={styles.screen}>
@@ -104,23 +86,14 @@ export default function PodcastHomeScreen() {
           </View>
         </View>
 
-        <ScrollView
-          contentContainerStyle={styles.content}
-          refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={COLORS.primary} />}
-          showsVerticalScrollIndicator={false}
-        >
-          {loading && !featured.length ? (
-            <View style={styles.loadingPanel}>
-              <ActivityIndicator color={COLORS.primary} />
-              <Text style={styles.loadingText}>Loading podcasts...</Text>
-            </View>
-          ) : null}
-
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           {error ? (
             <View style={styles.emptyPanel}>
               <Text style={styles.emptyTitle}>{error}</Text>
             </View>
           ) : null}
+
+          <Text style={styles.hintText}>Open a show to load episodes</Text>
 
           {recentlyPlayed.length > 0 ? (
             <View style={styles.sectionBlock}>
@@ -142,37 +115,7 @@ export default function PodcastHomeScreen() {
                 <PodcastShowCard
                   key={`featured-${show.id}`}
                   show={show}
-                  onPress={() =>
-                    safeRouterPush({ pathname: "/podcasts/show/[id]", params: { id: show.id } })
-                  }
-                />
-              ))}
-            </View>
-          ) : null}
-
-          {newEpisodes.length > 0 ? (
-            <View style={styles.sectionBlock}>
-              <SectionHeader eyebrow="NEW" title="New Episodes" />
-              {newEpisodes.map((episode) => (
-                <PodcastEpisodeCard
-                  key={`new-${episode.id}`}
-                  episode={episode}
-                  onPress={() => playEpisode(episode)}
-                />
-              ))}
-            </View>
-          ) : null}
-
-          {trending.length > 0 ? (
-            <View style={styles.sectionBlock}>
-              <SectionHeader eyebrow="TRENDING" title="Trending Podcasts" />
-              {trending.map((show) => (
-                <PodcastShowCard
-                  key={`trending-${show.id}`}
-                  show={show}
-                  onPress={() =>
-                    safeRouterPush({ pathname: "/podcasts/show/[id]", params: { id: show.id } })
-                  }
+                  onPress={() => openShow(show.id)}
                 />
               ))}
             </View>
@@ -180,29 +123,12 @@ export default function PodcastHomeScreen() {
 
           {popularShows.length > 0 ? (
             <View style={styles.sectionBlock}>
-              <SectionHeader eyebrow="POPULAR" title="Popular Shows" />
+              <SectionHeader eyebrow="CURATED" title="Popular Shows" />
               {popularShows.map((show) => (
                 <PodcastShowCard
                   key={`popular-${show.id}`}
                   show={show}
-                  onPress={() =>
-                    safeRouterPush({ pathname: "/podcasts/show/[id]", params: { id: show.id } })
-                  }
-                />
-              ))}
-            </View>
-          ) : null}
-
-          {recommended.length > 0 ? (
-            <View style={styles.sectionBlock}>
-              <SectionHeader eyebrow="FOR YOU" title="Recommended For You" />
-              {recommended.map((show) => (
-                <PodcastShowCard
-                  key={`rec-${show.id}`}
-                  show={show}
-                  onPress={() =>
-                    safeRouterPush({ pathname: "/podcasts/show/[id]", params: { id: show.id } })
-                  }
+                  onPress={() => openShow(show.id)}
                 />
               ))}
             </View>
@@ -284,18 +210,16 @@ const styles = StyleSheet.create({
   title: { color: COLORS.text, fontSize: 28, fontWeight: "900", marginTop: 4 },
   subtitle: { color: COLORS.textMuted, fontSize: 13, marginTop: 4 },
   content: { paddingHorizontal: 18, paddingBottom: 120, gap: 18 },
-  sectionBlock: { gap: 4 },
-  sectionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-end",
-    marginBottom: 8,
+  hintText: {
+    color: COLORS.textSoft,
+    fontSize: 13,
+    textAlign: "center",
+    marginBottom: 4,
   },
+  sectionBlock: { gap: 4 },
+  sectionHeader: { marginBottom: 8 },
   sectionEyebrow: { color: COLORS.primaryGlow, fontSize: 10, fontWeight: "800", letterSpacing: 1.2 },
   sectionTitle: { color: COLORS.text, fontSize: 18, fontWeight: "800", marginTop: 2 },
-  seeAll: { color: COLORS.primary, fontSize: 12, fontWeight: "700" },
-  loadingPanel: { alignItems: "center", paddingVertical: 40, gap: 10 },
-  loadingText: { color: COLORS.textMuted },
   emptyPanel: { paddingVertical: 24 },
   emptyTitle: { color: COLORS.textMuted, textAlign: "center" },
   matureCard: {

@@ -38,16 +38,21 @@ export default function PodcastEpisodeScreen() {
   useEffect(() => {
     void (async () => {
       setLoading(true);
-      const resolved = await resolvePodcastEpisodeById(
-        episodeId,
-        shouldIncludeMaturePodcasts()
-      );
-      if (resolved?.matureLevel !== "safe" && !shouldIncludeMaturePodcasts()) {
-        router.replace("/podcasts/mature" as any);
-        return;
+      try {
+        const resolved = await resolvePodcastEpisodeById(
+          episodeId,
+          shouldIncludeMaturePodcasts()
+        );
+        if (resolved?.matureLevel !== "safe" && !shouldIncludeMaturePodcasts()) {
+          router.replace("/podcasts/mature" as any);
+          return;
+        }
+        setEpisode(resolved);
+      } catch {
+        setEpisode(null);
+      } finally {
+        setLoading(false);
       }
-      setEpisode(resolved);
-      setLoading(false);
     })();
   }, [episodeId]);
 
