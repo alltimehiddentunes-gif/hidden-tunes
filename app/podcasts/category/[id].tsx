@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 
-import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 
 import { PodcastCategoryCard, PodcastShowCard } from "../../../components/podcast/PodcastCards";
+import PodcastEmptyCategoryState from "../../../components/podcast/PodcastEmptyCategoryState";
+import PodcastScreenHeader from "../../../components/podcast/PodcastScreenHeader";
+import PodcastSearchBar from "../../../components/podcast/PodcastSearchBar";
+import PodcastSearchResults from "../../../components/podcast/PodcastSearchResults";
 import {
   getPodcastCategory,
   PODCAST_ROOT_SECTIONS,
@@ -13,12 +16,16 @@ import {
   type PodcastCategoryDef,
 } from "../../../constants/podcastCategories";
 import { COLORS } from "../../../constants/theme";
-import { getPodcastShowsByCategory } from "../../../services/podcastService";
+import {
+  getNonEmptyPodcastChildCategories,
+  getPodcastShowsByCategory,
+} from "../../../services/podcastService";
 import {
   shouldIncludeMaturePodcasts,
   subscribeMaturePodcastSettings,
 } from "../../../utils/maturePodcastSettings";
 import { safeRouterPush } from "../../../utils/safeNavigation";
+import { usePodcastLocalSearch } from "../../../hooks/usePodcastLocalSearch";
 
 export default function PodcastCategoryScreen() {
   const params = useLocalSearchParams<{ id?: string }>();
@@ -29,6 +36,19 @@ export default function PodcastCategoryScreen() {
     [categoryId]
   );
   const [matureEnabled, setMatureEnabled] = useState(shouldIncludeMaturePodcasts());
+  const matureOnly = Boolean(category?.matureOnly || parentSection?.matureOnly);
+  const searchCategoryIds = useMemo(() => {
+    if (parentSection?.children?.length) {
+      return getNonEmptyPodcastChildCategories(parentSection.id, matureEnabled).map(
+        (child) => child.id
+      );
+    }
+    return [categoryId];
+  }, [categoryId, matureEnabled, parentSection]);
+  const { query, setQuery, results, hasQuery } = usePodcastLocalSearch({
+    matureOnly,
+    categoryIds: searchCategoryIds,
+  });
 
   useEffect(() => {
     const unsubscribe = subscribeMaturePodcastSettings(() => {
@@ -39,13 +59,19 @@ export default function PodcastCategoryScreen() {
     };
   }, []);
 
+  const nonEmptyChildren = useMemo(() => {
+    if (!parentSection) return [];
+    return getNonEmptyPodcastChildCategories(parentSection.id, matureEnabled);
+  }, [matureEnabled, parentSection]);
+
   const shows = useMemo(() => {
-    const childIds =
-      parentSection?.children?.map((child) => child.id) ||
-      (category && !parentSection ? [category.id] : []);
-    const ids = childIds.length ? childIds : [categoryId];
-    return ids.flatMap((id) => getPodcastShowsByCategory(id, matureEnabled));
-  }, [category, categoryId, parentSection, matureEnabled]);
+    if (parentSection?.children?.length) {
+      return nonEmptyChildren.flatMap((child) =>
+        getPodcastShowsByCategory(child.id, matureEnabled)
+      );
+    }
+    return getPodcastShowsByCategory(categoryId, matureEnabled);
+  }, [categoryId, matureEnabled, nonEmptyChildren, parentSection]);
 
   useEffect(() => {
     if (category?.matureOnly && !shouldIncludeMaturePodcasts()) {
@@ -67,53 +93,51 @@ export default function PodcastCategoryScreen() {
 
   const title = parentSection?.title || category?.title || "Podcasts";
   const description = parentSection?.description || category?.description || "";
+  const isEmpty = shows.length === 0;
 
   return (
     <LinearGradient colors={["#030008", "#090214", "#000000"]} style={styles.screen}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="chevron-back" size={24} color={COLORS.text} />
-        </TouchableOpacity>
-        <View style={styles.headerText}>
-          <Text style={styles.kicker}>PODCASTS</Text>
-          <Text style={styles.title}>{title}</Text>
-          <Text style={styles.subtitle}>{description}</Text>
-        </View>
-      </View>
+      <PodcastScreenHeader title={title} subtitle={description} kicker="PODCASTS">
+        <PodcastSearchBar value={query} onChangeText={setQuery} />
+      </PodcastScreenHeader>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.hintText}>Open a show to load episodes</Text>
+        <PodcastSearchResults results={results} hasQuery={hasQuery} onOpenShow={openShow} />
 
-        {parentSection?.children?.length ? (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Browse</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {parentSection.children.map((child: PodcastCategoryDef) => (
-                <PodcastCategoryCard
-                  key={child.id}
-                  category={child}
-                  onPress={() =>
-                    safeRouterPush({
-                      pathname: "/podcasts/category/[id]",
-                      params: { id: child.id },
-                    })
-                  }
-                />
-              ))}
-            </ScrollView>
-          </View>
+        {!hasQuery ? (
+          <>
+            {parentSection && nonEmptyChildren.length > 0 ? (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Browse</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  {nonEmptyChildren.map((child: PodcastCategoryDef) => (
+                    <PodcastCategoryCard
+                      key={child.id}
+                      category={child}
+                      onPress={() =>
+                        safeRouterPush({
+                          pathname: "/podcasts/category/[id]",
+                          params: { id: child.id },
+                        })
+                      }
+                    />
+                  ))}
+                </ScrollView>
+              </View>
+            ) : null}
+
+            {shows.length > 0 ? (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Shows</Text>
+                {shows.map((show) => (
+                  <PodcastShowCard key={show.id} show={show} onPress={() => openShow(show.id)} />
+                ))}
+              </View>
+            ) : isEmpty ? (
+              <PodcastEmptyCategoryState onBrowseAll={() => router.replace("/podcasts" as any)} />
+            ) : null}
+          </>
         ) : null}
-
-        {shows.length > 0 ? (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Shows</Text>
-            {shows.map((show) => (
-              <PodcastShowCard key={show.id} show={show} onPress={() => openShow(show.id)} />
-            ))}
-          </View>
-        ) : (
-          <Text style={styles.emptyText}>No shows in this room yet.</Text>
-        )}
       </ScrollView>
     </LinearGradient>
   );
@@ -121,17 +145,9 @@ export default function PodcastCategoryScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  header: { flexDirection: "row", padding: 18, gap: 8 },
-  backButton: { padding: 4 },
-  headerText: { flex: 1 },
-  kicker: { color: COLORS.primaryGlow, fontSize: 10, fontWeight: "800" },
-  title: { color: COLORS.text, fontSize: 24, fontWeight: "900" },
-  subtitle: { color: COLORS.textMuted, fontSize: 13, marginTop: 4 },
   content: { paddingHorizontal: 18, paddingBottom: 120, gap: 20 },
-  hintText: { color: COLORS.textSoft, fontSize: 13, textAlign: "center" },
   section: { gap: 8 },
   sectionTitle: { color: COLORS.text, fontSize: 16, fontWeight: "800" },
-  emptyText: { color: COLORS.textMuted, textAlign: "center", paddingVertical: 24 },
   fallback: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#000" },
   fallbackText: { color: COLORS.textMuted },
 });

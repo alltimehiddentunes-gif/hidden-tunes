@@ -16,6 +16,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import HTImage from "../../../components/HTImage";
 import { PodcastEpisodeCard } from "../../../components/podcast/PodcastCards";
 import MaturePodcastConsentModal from "../../../components/podcast/MaturePodcastConsentModal";
+import PodcastScreenHeader from "../../../components/podcast/PodcastScreenHeader";
 import { COLORS } from "../../../constants/theme";
 import { useMaturePodcastGate } from "../../../hooks/useMaturePodcastGate";
 import { usePlaybackRouter } from "../../../hooks/usePlaybackRouter";
@@ -26,13 +27,14 @@ import {
   resolvePodcastShowById,
 } from "../../../services/podcastService";
 import type { PodcastEpisode, PodcastShow } from "../../../types/podcast";
+import { isPlayablePodcastAudioUrl } from "../../../utils/podcastPlaybackAdapter";
 import { shouldIncludeMaturePodcasts } from "../../../utils/maturePodcastSettings";
 
 export default function PodcastShowScreen() {
   const params = useLocalSearchParams<{ id?: string }>();
   const showId = String(params.id || "").trim();
 
-  const { playPodcastEpisode } = usePlaybackRouter();
+  const { playPodcastEpisodeFromShow } = usePlaybackRouter();
   const { consentVisible, runWithMaturePodcastConsent, cancelConsent, confirmConsent } =
     useMaturePodcastGate();
 
@@ -100,34 +102,30 @@ export default function PodcastShowScreen() {
   }, [loadEpisodes]);
 
   const playEpisode = useCallback(
-    (episode: PodcastEpisode, queue: PodcastEpisode[], index: number) => {
+    (episode: PodcastEpisode, index: number) => {
       runWithMaturePodcastConsent(episode, () => {
-        void playPodcastEpisode(episode, queue, index).then((result) => {
+        void playPodcastEpisodeFromShow(episode, episodes, index).then((result) => {
           if (!result.ok) Alert.alert("Unavailable", result.error);
         });
       });
     },
-    [playPodcastEpisode, runWithMaturePodcastConsent]
+    [episodes, playPodcastEpisodeFromShow, runWithMaturePodcastConsent]
   );
 
   if (!show) {
     return (
-      <View style={styles.centerScreen}>
-        <Text style={styles.emptyText}>This feed could not be loaded</Text>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Text style={styles.backLink}>Go back</Text>
-        </TouchableOpacity>
-      </View>
+      <LinearGradient colors={["#030008", "#090214", "#000000"]} style={styles.screen}>
+        <PodcastScreenHeader title="Podcast" subtitle="This feed could not be loaded" />
+        <View style={styles.centerContent}>
+          <Text style={styles.emptyText}>This feed could not be loaded</Text>
+        </View>
+      </LinearGradient>
     );
   }
 
   return (
     <LinearGradient colors={["#030008", "#090214", "#000000"]} style={styles.screen}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="chevron-back" size={24} color={COLORS.text} />
-        </TouchableOpacity>
-      </View>
+      <PodcastScreenHeader title={show.title} subtitle={show.publisher} kicker="PODCAST" />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.hero}>
@@ -138,8 +136,6 @@ export default function PodcastShowScreen() {
               <Ionicons name="mic-outline" size={36} color={COLORS.textMuted} />
             </View>
           )}
-          <Text style={styles.title}>{show.title}</Text>
-          <Text style={styles.publisher}>{show.publisher}</Text>
           {show.isExplicit ? <Text style={styles.explicit}>EXPLICIT</Text> : null}
           {show.description ? <Text style={styles.description}>{show.description}</Text> : null}
 
@@ -165,21 +161,24 @@ export default function PodcastShowScreen() {
           ) : null}
 
           {!episodesLoading && episodes.length > 0
-            ? episodes.map((episode, index) => (
-                <PodcastEpisodeCard
-                  key={episode.id}
-                  episode={episode}
-                  onPress={() => playEpisode(episode, episodes, index)}
-                />
-              ))
+            ? episodes.map((episode, index) => {
+                const playable = Boolean(
+                  episode.audioUrl?.trim() && isPlayablePodcastAudioUrl(episode.audioUrl)
+                );
+                return (
+                  <PodcastEpisodeCard
+                    key={episode.id}
+                    episode={episode}
+                    disabled={!playable}
+                    onPress={() => playEpisode(episode, index)}
+                  />
+                );
+              })
             : null}
 
           {!episodesLoading && episodesError ? (
             <View style={styles.errorPanel}>
               <Text style={styles.emptyText}>{episodesError}</Text>
-              <TouchableOpacity style={styles.retryButton} onPress={() => void loadEpisodes()}>
-                <Text style={styles.retryText}>Try again</Text>
-              </TouchableOpacity>
             </View>
           ) : null}
         </View>
@@ -196,9 +195,7 @@ export default function PodcastShowScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  centerScreen: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#000" },
-  header: { paddingHorizontal: 18, paddingTop: 12 },
-  backButton: { padding: 4, alignSelf: "flex-start" },
+  centerContent: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24 },
   content: { paddingHorizontal: 18, paddingBottom: 120 },
   hero: { alignItems: "center", paddingTop: 8, gap: 8 },
   artwork: { width: 180, height: 180, borderRadius: 24 },
@@ -210,8 +207,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: "rgba(255,255,255,0.06)",
   },
-  title: { color: COLORS.text, fontSize: 24, fontWeight: "900", textAlign: "center" },
-  publisher: { color: COLORS.textMuted, fontSize: 14 },
   explicit: { color: COLORS.danger, fontWeight: "800", fontSize: 11 },
   description: { color: COLORS.textSoft, fontSize: 13, lineHeight: 19, textAlign: "center" },
   followButton: {
@@ -231,16 +226,6 @@ const styles = StyleSheet.create({
   sectionTitle: { color: COLORS.text, fontSize: 16, fontWeight: "800" },
   loadingRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 16 },
   loadingText: { color: COLORS.textMuted, fontSize: 13 },
-  errorPanel: { alignItems: "center", paddingVertical: 16, gap: 10 },
+  errorPanel: { alignItems: "center", paddingVertical: 16 },
   emptyText: { color: COLORS.textMuted, textAlign: "center" },
-  retryButton: {
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderRadius: 999,
-    backgroundColor: "rgba(168,85,247,0.2)",
-    borderWidth: 1,
-    borderColor: "rgba(168,85,247,0.35)",
-  },
-  retryText: { color: COLORS.text, fontWeight: "700" },
-  backLink: { color: COLORS.primary, marginTop: 12 },
 });

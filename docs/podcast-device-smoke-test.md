@@ -30,7 +30,20 @@ See `docs/podcast-heat-loading-fix-report.md`.
 
 ---
 
-## Pre-flight (Final QA phase)
+## Final UX pass (2026-06-22)
+
+Additional fixes in commit `Fix podcast UX navigation search empty states performance and auto next`:
+
+- Local search on home, mature, and category screens (`ENABLE_PODCAST_RSS_SEARCH = false`)
+- Shared safe-area header + back button on all podcast routes
+- Empty categories hidden; deep-link empty room shows helpful state
+- Mature categories dynamic (only populated rooms)
+- `playPodcastEpisodeFromShow()` auto-next via standard queue (max 10 episodes)
+- Mini player on `/podcasts`
+
+See `docs/podcast-final-device-fix-report.md`.
+
+---
 
 | Command | Result | When |
 |---------|--------|------|

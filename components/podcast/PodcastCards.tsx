@@ -7,6 +7,14 @@ import HTImage from "../HTImage";
 import { COLORS } from "../../constants/theme";
 import type { PodcastCategoryDef } from "../../constants/podcastCategories";
 import type { PodcastEpisode, PodcastShow } from "../../types/podcast";
+import { isPlayablePodcastAudioUrl } from "../../utils/podcastPlaybackAdapter";
+
+function formatEpisodeDate(value?: string) {
+  if (!value) return undefined;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+}
 
 type PodcastCategoryCardProps = {
   category: PodcastCategoryDef;
@@ -76,24 +84,31 @@ type PodcastEpisodeCardProps = {
   episode: PodcastEpisode;
   onPress: () => void;
   disabled?: boolean;
+  unavailableLabel?: string;
 };
 
 export const PodcastEpisodeCard = memo(function PodcastEpisodeCard({
   episode,
   onPress,
   disabled,
+  unavailableLabel,
 }: PodcastEpisodeCardProps) {
+  const hasAudio = Boolean(
+    episode.audioUrl?.trim() && isPlayablePodcastAudioUrl(episode.audioUrl)
+  );
+  const isDisabled = disabled || !hasAudio;
   const durationLabel =
     typeof episode.durationSeconds === "number" && episode.durationSeconds > 0
       ? `${Math.round(episode.durationSeconds / 60)} min`
       : undefined;
+  const dateLabel = formatEpisodeDate(episode.publishedAt);
 
   return (
     <TouchableOpacity
       activeOpacity={0.88}
-      style={[styles.episodeRow, disabled && styles.episodeDisabled]}
-      onPress={disabled ? undefined : onPress}
-      disabled={disabled}
+      style={[styles.episodeRow, isDisabled && styles.episodeDisabled]}
+      onPress={isDisabled ? undefined : onPress}
+      disabled={isDisabled}
     >
       {episode.artworkUrl ? (
         <HTImage uri={episode.artworkUrl} style={styles.episodeArt} contentFit="cover" />
@@ -111,11 +126,18 @@ export const PodcastEpisodeCard = memo(function PodcastEpisodeCard({
         </Text>
         <View style={styles.metaRow}>
           {durationLabel ? <Text style={styles.metaText}>{durationLabel}</Text> : null}
+          {dateLabel ? <Text style={styles.metaText}>{dateLabel}</Text> : null}
           {episode.isExplicit ? <Text style={styles.explicitBadge}>EXPLICIT</Text> : null}
-          <Text style={styles.typeBadge}>Podcast</Text>
+          {!hasAudio ? (
+            <Text style={styles.unavailableText}>
+              {unavailableLabel || "Episode unavailable"}
+            </Text>
+          ) : (
+            <Text style={styles.typeBadge}>Podcast</Text>
+          )}
         </View>
       </View>
-      <View style={styles.playCircle}>
+      <View style={[styles.playCircle, isDisabled && styles.playCircleDisabled]}>
         <Ionicons name="play" size={14} color={COLORS.text} />
       </View>
     </TouchableOpacity>
@@ -225,6 +247,11 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: "700",
   },
+  unavailableText: {
+    color: COLORS.danger,
+    fontSize: 10,
+    fontWeight: "700",
+  },
   playCircle: {
     width: 32,
     height: 32,
@@ -234,5 +261,8 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(168,85,247,0.22)",
     borderWidth: 1,
     borderColor: "rgba(168,85,247,0.35)",
+  },
+  playCircleDisabled: {
+    opacity: 0.35,
   },
 });

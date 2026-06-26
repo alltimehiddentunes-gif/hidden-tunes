@@ -1,6 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { buildStaticPodcastHomeSync } from "../services/podcastService";
+import {
+  buildStaticPodcastHomeSync,
+  getPodcastHomeShowSections,
+} from "../services/podcastService";
 import type { PodcastCategoryDef } from "../constants/podcastCategories";
 import type { PodcastEpisode, PodcastShow } from "../types/podcast";
 import { loadPodcastRecentlyPlayed } from "../services/podcastRecentlyPlayed";
@@ -15,14 +18,17 @@ type PodcastHomeState = {
   recentlyPlayed: PodcastEpisode[];
   rootSections: PodcastCategoryDef[];
   browseCategories: PodcastCategoryDef[];
+  homeShowSections: ReturnType<typeof getPodcastHomeShowSections>;
   loading: boolean;
   error: string | null;
   refresh: () => void;
 };
 
 function createHomeState(includeMature: boolean): Omit<PodcastHomeState, "refresh"> {
+  const home = buildStaticPodcastHomeSync(includeMature);
   return {
-    ...buildStaticPodcastHomeSync(includeMature),
+    ...home,
+    homeShowSections: getPodcastHomeShowSections(includeMature),
     loading: false,
     error: null,
   };
@@ -69,5 +75,5 @@ export function usePodcastHome(): PodcastHomeState {
     };
   }, [load]);
 
-  return { ...state, refresh: load };
+  return useMemo(() => ({ ...state, refresh: load }), [load, state]);
 }

@@ -12,10 +12,15 @@ export type PodcastDiagnosticEvent =
   | "podcast_episode_play_failed"
   | "podcast_static_home_rendered"
   | "podcast_home_rss_disabled"
+  | "podcast_category_hidden_empty"
+  | "podcast_search_started"
+  | "podcast_search_results"
+  | "mature_podcast_category_hidden_empty"
   | "podcast_show_feed_load_start"
   | "podcast_show_feed_load_success"
   | "podcast_show_feed_load_failed"
-  | "podcast_show_feed_timeout";
+  | "podcast_show_feed_timeout"
+  | "podcast_auto_next_queue_created";
 
 export function logPodcastDiagnostic(
   event: PodcastDiagnosticEvent,

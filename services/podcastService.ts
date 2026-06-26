@@ -7,6 +7,7 @@ import {
   getBrowsablePodcastCategories,
   getPodcastCategories,
   PODCAST_ROOT_SECTIONS,
+  type PodcastCategoryDef,
 } from "../constants/podcastCategories";
 import type {
   PodcastEpisode,
@@ -31,8 +32,32 @@ import { fetchRssXml, parseRssFeed, type ParsedRssFeed } from "./podcast/rssPars
 import { loadPodcastRecentlyPlayed } from "./podcastRecentlyPlayed";
 
 export const ENABLE_PODCAST_RSS_HOME_LOADING = false;
+export const ENABLE_PODCAST_RSS_SEARCH = false;
 export const PODCAST_SHOW_EPISODE_LIMIT = 10;
 export const PODCAST_FEED_TIMEOUT_MS = 5000;
+
+export type PodcastHomeShowSection = {
+  id: string;
+  title: string;
+  shows: PodcastShow[];
+};
+
+const PODCAST_HOME_ROOT_SECTIONS: Array<{ id: string; title: string }> = [
+  { id: "music-podcasts", title: "Music Podcasts" },
+  { id: "emotional-worlds-podcasts", title: "Emotional Worlds" },
+  { id: "lifestyle-podcasts", title: "Lifestyle" },
+  { id: "global-podcasts", title: "Global" },
+  { id: "language-podcasts", title: "Language" },
+];
+
+const MATURE_PAGE_CATEGORY_GROUPS: Array<{ id: string; title: string; categoryIds: string[] }> = [
+  { id: "adult-comedy", title: "Adult Comedy", categoryIds: ["adult-comedy"] },
+  {
+    id: "relationships-dating",
+    title: "Relationships & Dating",
+    categoryIds: ["mature-relationships", "dating-after-dark"],
+  },
+];
 
 function hashString(value: string) {
   let hash = 0;
@@ -243,6 +268,121 @@ export async function getPodcastEpisodes(
   };
 }
 
+export function getPodcastCategoryShowCount(categoryId: string, includeMature?: boolean) {
+  return getSeedsForCategory(categoryId, includeMature ?? shouldIncludeMaturePodcasts()).length;
+}
+
+export function getNonEmptyPodcastChildCategories(
+  sectionId: string,
+  includeMature?: boolean
+): PodcastCategoryDef[] {
+  const mature = includeMature ?? shouldIncludeMaturePodcasts();
+  const section = PODCAST_ROOT_SECTIONS.find((entry) => entry.id === sectionId);
+  if (!section?.children?.length) return [];
+
+  return section.children.filter((child) => {
+    const count = getPodcastCategoryShowCount(child.id, mature);
+    if (count === 0) {
+      logPodcastDiagnostic(
+        child.matureOnly ? "mature_podcast_category_hidden_empty" : "podcast_category_hidden_empty",
+        { categoryId: child.id }
+      );
+    }
+    return count > 0;
+  }) as PodcastCategoryDef[];
+}
+
+export function getPodcastShowsForRootSection(sectionId: string, includeMature?: boolean) {
+  const mature = includeMature ?? shouldIncludeMaturePodcasts();
+  const children = getNonEmptyPodcastChildCategories(sectionId, mature);
+  const seen = new Set<string>();
+  const shows: PodcastShow[] = [];
+
+  for (const child of children) {
+    for (const show of getPodcastShowsByCategory(child.id, mature)) {
+      if (seen.has(show.id)) continue;
+      seen.add(show.id);
+      shows.push(show);
+    }
+  }
+
+  return shows;
+}
+
+export function getPodcastHomeShowSections(includeMature?: boolean): PodcastHomeShowSection[] {
+  const mature = includeMature ?? shouldIncludeMaturePodcasts();
+  const home = buildStaticPodcastHomeSync(mature);
+  const sections: PodcastHomeShowSection[] = [];
+
+  if (home.featured.length > 0) {
+    sections.push({ id: "featured-podcasts", title: "Featured Podcasts", shows: home.featured });
+  }
+
+  for (const config of PODCAST_HOME_ROOT_SECTIONS) {
+    const shows = getPodcastShowsForRootSection(config.id, mature);
+    if (shows.length > 0) {
+      sections.push({ id: config.id, title: config.title, shows });
+    }
+  }
+
+  const allShows = getSafePodcastSeeds(mature)
+    .map(seedToStaticShow)
+    .filter((show) => filterMatureShow(show, mature));
+
+  if (allShows.length > 0) {
+    sections.push({ id: "all-podcasts", title: "All Podcasts", shows: allShows });
+  }
+
+  return sections;
+}
+
+export function getMaturePodcastPageSections(includeMature?: boolean) {
+  const mature = includeMature ?? shouldIncludeMaturePodcasts();
+  if (!mature) {
+    return { sections: [] as PodcastHomeShowSection[], categories: [] as PodcastCategoryDef[] };
+  }
+
+  const matureShows = getSafePodcastSeeds(true)
+    .filter((seed) => seed.matureLevel !== "safe")
+    .map(seedToStaticShow);
+
+  const sections: PodcastHomeShowSection[] = [];
+
+  if (matureShows.length > 0) {
+    sections.push({
+      id: "featured-mature",
+      title: "Featured Mature",
+      shows: matureShows.slice(0, 4),
+    });
+  }
+
+  for (const group of MATURE_PAGE_CATEGORY_GROUPS) {
+    const seen = new Set<string>();
+    const shows = group.categoryIds
+      .flatMap((categoryId) => getPodcastShowsByCategory(categoryId, true))
+      .filter((show) => {
+        if (seen.has(show.id)) return false;
+        seen.add(show.id);
+        return true;
+      });
+
+    if (shows.length > 0) {
+      sections.push({ id: group.id, title: group.title, shows });
+    }
+  }
+
+  const nonEmptyCategories = getNonEmptyPodcastChildCategories("mature-podcasts", true);
+  if (matureShows.length > 0) {
+    sections.push({
+      id: "all-mature-podcasts",
+      title: "All Mature Podcasts",
+      shows: matureShows,
+    });
+  }
+
+  return { sections, categories: nonEmptyCategories };
+}
+
 export function getPodcastShowsByCategory(categoryId: string, includeMature?: boolean) {
   const mature = includeMature ?? shouldIncludeMaturePodcasts();
   return getSeedsForCategory(categoryId, mature)
@@ -265,14 +405,17 @@ export function buildStaticPodcastHomeSync(includeMature?: boolean) {
   const shows = seeds.map(seedToStaticShow).filter((show) => filterMatureShow(show, mature));
 
   const browseCategories = getBrowsablePodcastCategories(mature).filter((category) => {
-    return getSeedsForCategory(category.id, mature).length > 0;
+    return getPodcastCategoryShowCount(category.id, mature) > 0;
   });
 
   const rootSections = PODCAST_ROOT_SECTIONS.filter((section) => {
     if (!mature && section.matureOnly) return false;
-    if (section.matureOnly) return true;
-    return section.children?.some((child) => getSeedsForCategory(child.id, mature).length > 0);
-  });
+    if (section.matureOnly) return false;
+    return getNonEmptyPodcastChildCategories(section.id, mature).length > 0;
+  }).map((section) => ({
+    ...section,
+    children: getNonEmptyPodcastChildCategories(section.id, mature),
+  }));
 
   return {
     featured: shows.slice(0, 6),
@@ -313,20 +456,47 @@ export async function getPodcastHome(includeMature?: boolean) {
 
 export function searchPodcasts(
   query: string,
-  options?: { includeMature?: boolean; limit?: number }
+  options?: {
+    includeMature?: boolean;
+    matureOnly?: boolean;
+    categoryIds?: string[];
+    limit?: number;
+  }
 ) {
   const trimmed = query.trim();
   if (trimmed.length < 2) return [] as PodcastSearchResult[];
 
+  if (ENABLE_PODCAST_RSS_SEARCH) {
+    logPodcastDiagnostic("podcast_home_rss_disabled");
+  }
+
   const includeMature = options?.includeMature ?? shouldIncludeMaturePodcasts();
+  const matureOnly = options?.matureOnly ?? false;
+  const categoryIds = options?.categoryIds;
   const limit = options?.limit ?? 20;
   const needle = trimmed.toLowerCase();
+
+  logPodcastDiagnostic("podcast_search_started", { query: trimmed, matureOnly });
+
   const results: PodcastSearchResult[] = [];
 
   for (const seed of getSafePodcastSeeds(includeMature)) {
     if (results.length >= limit) break;
+    if (matureOnly && seed.matureLevel === "safe") continue;
+    if (categoryIds?.length && !categoryIds.includes(seed.category)) continue;
 
-    const haystack = `${seed.title} ${seed.category} ${seed.language}`.toLowerCase();
+    const haystack = [
+      seed.title,
+      seed.category,
+      seed.language,
+      seed.country,
+      seed.emotionalWorld,
+      seed.matureLevel,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+
     if (!haystack.includes(needle)) continue;
 
     const show = seedToStaticShow(seed);
@@ -335,6 +505,7 @@ export function searchPodcasts(
     results.push({ kind: "show", show });
   }
 
+  logPodcastDiagnostic("podcast_search_results", { count: results.length, matureOnly });
   return results;
 }
 

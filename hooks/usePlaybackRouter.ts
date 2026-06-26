@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 
-import { usePlayerActions } from "../context/PlayerContext";
+import { usePlayerActions, type AppSong } from "../context/PlayerContext";
 import {
   routeRadioPlayback,
   type PlaybackRouterDeps,
@@ -13,6 +13,9 @@ import {
   isPlayablePodcastAudioUrl,
   podcastEpisodeToAppSong,
 } from "../utils/podcastPlaybackAdapter";
+import { playPodcastEpisodeFromShow } from "../utils/podcastPlayback";
+
+const PODCAST_QUEUE_CONTEXT = { source: "unknown" as const, label: "Podcasts" };
 
 export function usePlaybackRouter() {
   const { playSong, playQueue, stopPlayback } = usePlayerActions();
@@ -24,13 +27,38 @@ export function usePlaybackRouter() {
       stopPlayback,
     };
 
+    const playPodcastEpisodeFromShowWithRecent = async (
+      episode: PodcastEpisode,
+      episodes: PodcastEpisode[],
+      startIndex?: number
+    ) => {
+      const result = await playPodcastEpisodeFromShow({
+        episode,
+        episodes,
+        startIndex,
+        playSong,
+      });
+
+      if (result.ok) {
+        await addPodcastRecentlyPlayed(result.episode);
+        return { ok: true as const };
+      }
+
+      return { ok: false as const, error: result.error };
+    };
+
     return {
       playRadioStation: (station: RadioStation) => routeRadioPlayback(station, deps),
+      playPodcastEpisodeFromShow: playPodcastEpisodeFromShowWithRecent,
       playPodcastEpisode: async (
         episode: PodcastEpisode,
         queue?: PodcastEpisode[],
         index = 0
       ) => {
+        if (queue?.length) {
+          return playPodcastEpisodeFromShowWithRecent(episode, queue, index);
+        }
+
         const audioUrl = String(episode.audioUrl || "").trim();
         if (!audioUrl || !isPlayablePodcastAudioUrl(audioUrl)) {
           logPodcastDiagnostic("podcast_episode_play_failed", {
@@ -42,22 +70,12 @@ export function usePlaybackRouter() {
 
         logPodcastDiagnostic("podcast_episode_play_start", { episodeId: episode.id });
 
-        const playableQueue = (queue || [episode]).filter(
-          (item) => item.audioUrl && isPlayablePodcastAudioUrl(item.audioUrl)
-        );
-        if (!playableQueue.length) {
-          return { ok: false as const, error: "This episode is unavailable" };
-        }
-
-        const songs = playableQueue.map(podcastEpisodeToAppSong);
-        const safeIndex = Math.max(0, Math.min(index, songs.length - 1));
-
         try {
           await playSong(
-            songs[safeIndex],
-            songs,
-            safeIndex,
-            { source: "unknown", label: "Podcasts" },
+            podcastEpisodeToAppSong(episode),
+            [podcastEpisodeToAppSong(episode)],
+            0,
+            PODCAST_QUEUE_CONTEXT,
             "standard"
           );
           await addPodcastRecentlyPlayed(episode);

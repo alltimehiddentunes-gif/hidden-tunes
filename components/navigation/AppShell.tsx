@@ -28,6 +28,7 @@ const MINI_PLAYER_ROUTES = [
   "/playlists",
   "/recently-played",
   "/radio",
+  "/podcasts",
   "/lyrics",
   "/player",
   "/cloud-playlists",

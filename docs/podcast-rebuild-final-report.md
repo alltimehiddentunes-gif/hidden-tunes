@@ -126,7 +126,18 @@ Empty categories are hidden (no seeds → no section).
 | `npx tsc --noEmit` | **PASS** |
 | `git diff --check` | **PASS** |
 
-Lint: pre-existing project noise unchanged; new podcast files follow existing patterns.
+## Final device fix pass (2026-06-22)
+
+- Mobile RSS home loading disabled permanently
+- Search is local seed metadata only (`ENABLE_PODCAST_RSS_SEARCH = false`)
+- RSS loads only per show (one feed, max 10 episodes, 5s timeout)
+- Empty categories hidden; mature categories dynamic
+- Shared safe-area header + back on all podcast routes
+- Auto-next uses standard queue via `playPodcastEpisodeFromShow()`
+- Backend/admin ingestion required for scale beyond curated seeds
+
+See `docs/podcast-final-device-fix-report.md`.
+
 
 ---
 

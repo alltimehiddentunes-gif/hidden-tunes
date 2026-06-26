@@ -15,11 +15,16 @@ import { router, useLocalSearchParams } from "expo-router";
 
 import HTImage from "../../../components/HTImage";
 import MaturePodcastConsentModal from "../../../components/podcast/MaturePodcastConsentModal";
+import PodcastScreenHeader from "../../../components/podcast/PodcastScreenHeader";
 import { COLORS } from "../../../constants/theme";
 import { useMaturePodcastGate } from "../../../hooks/useMaturePodcastGate";
 import { usePlaybackRouter } from "../../../hooks/usePlaybackRouter";
 import { savePodcastEpisode } from "../../../services/podcastLibrary";
-import { resolvePodcastEpisodeById } from "../../../services/podcastService";
+import {
+  getPodcastEpisodes,
+  PODCAST_SHOW_EPISODE_LIMIT,
+  resolvePodcastEpisodeById,
+} from "../../../services/podcastService";
 import type { PodcastEpisode } from "../../../types/podcast";
 import { shouldIncludeMaturePodcasts } from "../../../utils/maturePodcastSettings";
 import { safeRouterPush } from "../../../utils/safeNavigation";
@@ -28,11 +33,12 @@ export default function PodcastEpisodeScreen() {
   const params = useLocalSearchParams<{ id?: string }>();
   const episodeId = String(params.id || "").trim();
 
-  const { playPodcastEpisode } = usePlaybackRouter();
+  const { playPodcastEpisodeFromShow } = usePlaybackRouter();
   const { consentVisible, runWithMaturePodcastConsent, cancelConsent, confirmConsent } =
     useMaturePodcastGate();
 
   const [episode, setEpisode] = useState<PodcastEpisode | null>(null);
+  const [episodes, setEpisodes] = useState<PodcastEpisode[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -48,8 +54,18 @@ export default function PodcastEpisodeScreen() {
           return;
         }
         setEpisode(resolved);
+
+        if (resolved?.showId) {
+          const result = await getPodcastEpisodes(resolved.showId, {
+            offset: 0,
+            limit: PODCAST_SHOW_EPISODE_LIMIT,
+            includeMature: shouldIncludeMaturePodcasts(),
+          });
+          setEpisodes(result.episodes);
+        }
       } catch {
         setEpisode(null);
+        setEpisodes([]);
       } finally {
         setLoading(false);
       }
@@ -58,29 +74,35 @@ export default function PodcastEpisodeScreen() {
 
   const play = useCallback(() => {
     if (!episode) return;
+    const startIndex = episodes.findIndex((item) => item.id === episode.id);
     runWithMaturePodcastConsent(episode, () => {
-      void playPodcastEpisode(episode).then((result) => {
-        if (!result.ok) Alert.alert("Unavailable", result.error);
-      });
+      void playPodcastEpisodeFromShow(episode, episodes, startIndex >= 0 ? startIndex : 0).then(
+        (result) => {
+          if (!result.ok) Alert.alert("Unavailable", result.error);
+        }
+      );
     });
-  }, [episode, playPodcastEpisode, runWithMaturePodcastConsent]);
+  }, [episode, episodes, playPodcastEpisodeFromShow, runWithMaturePodcastConsent]);
 
   if (loading) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator color={COLORS.primary} />
-      </View>
+      <LinearGradient colors={["#030008", "#090214", "#000000"]} style={styles.screen}>
+        <PodcastScreenHeader title="Episode" subtitle="Loading episode..." kicker="PODCAST" />
+        <View style={styles.center}>
+          <ActivityIndicator color={COLORS.primary} />
+        </View>
+      </LinearGradient>
     );
   }
 
   if (!episode) {
     return (
-      <View style={styles.center}>
-        <Text style={styles.empty}>This episode is unavailable</Text>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Text style={styles.link}>Go back</Text>
-        </TouchableOpacity>
-      </View>
+      <LinearGradient colors={["#030008", "#090214", "#000000"]} style={styles.screen}>
+        <PodcastScreenHeader title="Episode" subtitle="Unavailable" kicker="PODCAST" />
+        <View style={styles.center}>
+          <Text style={styles.empty}>This episode is unavailable</Text>
+        </View>
+      </LinearGradient>
     );
   }
 
@@ -91,9 +113,7 @@ export default function PodcastEpisodeScreen() {
 
   return (
     <LinearGradient colors={["#030008", "#090214", "#000000"]} style={styles.screen}>
-      <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-        <Ionicons name="chevron-back" size={24} color={COLORS.text} />
-      </TouchableOpacity>
+      <PodcastScreenHeader title={episode.title} subtitle={episode.showTitle} kicker="PODCAST" />
 
       <ScrollView contentContainerStyle={styles.content}>
         {episode.artworkUrl ? (
@@ -104,7 +124,6 @@ export default function PodcastEpisodeScreen() {
           </View>
         )}
 
-        <Text style={styles.title}>{episode.title}</Text>
         <TouchableOpacity
           onPress={() =>
             safeRouterPush({ pathname: "/podcasts/show/[id]", params: { id: episode.showId } })
@@ -149,8 +168,7 @@ export default function PodcastEpisodeScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#000" },
-  backButton: { padding: 18 },
+  center: { flex: 1, alignItems: "center", justifyContent: "center" },
   content: { paddingHorizontal: 18, paddingBottom: 120, alignItems: "center" },
   art: { width: 220, height: 220, borderRadius: 24 },
   artFallback: {
@@ -161,8 +179,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: "rgba(255,255,255,0.06)",
   },
-  title: { color: COLORS.text, fontSize: 24, fontWeight: "900", textAlign: "center", marginTop: 16 },
-  showTitle: { color: COLORS.primaryGlow, fontSize: 14, marginTop: 6, textAlign: "center" },
+  showTitle: { color: COLORS.primaryGlow, fontSize: 14, marginTop: 16, textAlign: "center" },
   metaRow: { flexDirection: "row", gap: 10, marginTop: 10, flexWrap: "wrap", justifyContent: "center" },
   meta: { color: COLORS.textSoft, fontSize: 12 },
   explicit: { color: COLORS.danger, fontSize: 11, fontWeight: "800" },
@@ -189,5 +206,4 @@ const styles = StyleSheet.create({
   },
   saveText: { color: COLORS.primary, fontWeight: "700" },
   empty: { color: COLORS.textMuted },
-  link: { color: COLORS.primary, marginTop: 12 },
 });
