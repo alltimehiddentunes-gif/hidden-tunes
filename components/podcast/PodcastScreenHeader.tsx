@@ -24,7 +24,7 @@ export default function PodcastScreenHeader({
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={[styles.wrap, { paddingTop: Math.max(insets.top, 12) }]}>
+    <View style={[styles.wrap, { paddingTop: insets.top + 12 }]}>
       <View style={styles.row}>
         <TouchableOpacity
           onPress={() => navigatePodcastBack(fallbackRoute)}

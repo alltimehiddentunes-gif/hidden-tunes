@@ -85,6 +85,9 @@ type PodcastEpisodeCardProps = {
   onPress: () => void;
   disabled?: boolean;
   unavailableLabel?: string;
+  played?: boolean;
+  showDownloadPlaceholder?: boolean;
+  index?: number;
 };
 
 export const PodcastEpisodeCard = memo(function PodcastEpisodeCard({
@@ -92,6 +95,9 @@ export const PodcastEpisodeCard = memo(function PodcastEpisodeCard({
   onPress,
   disabled,
   unavailableLabel,
+  played = false,
+  showDownloadPlaceholder = true,
+  index = 0,
 }: PodcastEpisodeCardProps) {
   const hasAudio = Boolean(
     episode.audioUrl?.trim() && isPlayablePodcastAudioUrl(episode.audioUrl)
@@ -106,19 +112,26 @@ export const PodcastEpisodeCard = memo(function PodcastEpisodeCard({
   return (
     <TouchableOpacity
       activeOpacity={0.88}
-      style={[styles.episodeRow, isDisabled && styles.episodeDisabled]}
+      style={[styles.episodeCard, isDisabled && styles.episodeDisabled]}
       onPress={isDisabled ? undefined : onPress}
       disabled={isDisabled}
+      accessibilityRole="button"
+      accessibilityLabel={
+        isDisabled
+          ? `${episode.title}, episode unavailable`
+          : `Play episode ${index + 1}, ${episode.title}`
+      }
+      accessibilityState={{ disabled: isDisabled }}
     >
       {episode.artworkUrl ? (
-        <HTImage uri={episode.artworkUrl} style={styles.episodeArt} contentFit="cover" />
+        <HTImage uri={episode.artworkUrl} style={styles.episodeArtLarge} contentFit="cover" />
       ) : (
-        <View style={styles.showArtFallback}>
-          <Ionicons name="play-outline" size={18} color={COLORS.textMuted} />
+        <View style={styles.episodeArtLargeFallback}>
+          <Ionicons name="play-outline" size={20} color={COLORS.textMuted} />
         </View>
       )}
       <View style={styles.showCopy}>
-        <Text numberOfLines={2} style={styles.showTitle}>
+        <Text numberOfLines={2} style={styles.episodeTitle}>
           {episode.title}
         </Text>
         <Text numberOfLines={1} style={styles.showSubtitle}>
@@ -128,17 +141,31 @@ export const PodcastEpisodeCard = memo(function PodcastEpisodeCard({
           {durationLabel ? <Text style={styles.metaText}>{durationLabel}</Text> : null}
           {dateLabel ? <Text style={styles.metaText}>{dateLabel}</Text> : null}
           {episode.isExplicit ? <Text style={styles.explicitBadge}>EXPLICIT</Text> : null}
+          {played ? <Text style={styles.playedBadge}>PLAYED</Text> : null}
           {!hasAudio ? (
             <Text style={styles.unavailableText}>
               {unavailableLabel || "Episode unavailable"}
             </Text>
-          ) : (
-            <Text style={styles.typeBadge}>Podcast</Text>
-          )}
+          ) : null}
         </View>
       </View>
-      <View style={[styles.playCircle, isDisabled && styles.playCircleDisabled]}>
-        <Ionicons name="play" size={14} color={COLORS.text} />
+      <View style={styles.episodeActions}>
+        {showDownloadPlaceholder ? (
+          <View
+            style={styles.downloadPlaceholder}
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+          >
+            <Ionicons name="download-outline" size={16} color={COLORS.textMuted} />
+          </View>
+        ) : null}
+        <View
+          style={[styles.playCircle, isDisabled && styles.playCircleDisabled]}
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+        >
+          <Ionicons name="play" size={14} color={COLORS.text} />
+        </View>
       </View>
     </TouchableOpacity>
   );
@@ -222,14 +249,58 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingVertical: 10,
   },
+  episodeCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    padding: 12,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.04)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.07)",
+    marginBottom: 10,
+  },
   episodeDisabled: {
-    opacity: 0.45,
+    opacity: 0.5,
   },
   episodeArt: {
     width: 48,
     height: 48,
     borderRadius: 12,
     backgroundColor: "rgba(255,255,255,0.06)",
+  },
+  episodeArtLarge: {
+    width: 64,
+    height: 64,
+    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.06)",
+  },
+  episodeArtLargeFallback: {
+    width: 64,
+    height: 64,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.06)",
+  },
+  episodeTitle: {
+    color: COLORS.text,
+    fontSize: 15,
+    fontWeight: "700",
+    lineHeight: 20,
+  },
+  episodeActions: {
+    alignItems: "center",
+    gap: 8,
+  },
+  downloadPlaceholder: {
+    opacity: 0.35,
+    padding: 2,
+  },
+  playedBadge: {
+    color: COLORS.primaryGlow,
+    fontSize: 10,
+    fontWeight: "800",
   },
   metaRow: {
     flexDirection: "row",

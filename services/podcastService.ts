@@ -519,6 +519,48 @@ export function resolvePodcastShowById(showId: string) {
   return getStaticPodcastShow(showId);
 }
 
+export function getRelatedPodcastShows(show: PodcastShow, limit = 5): PodcastShow[] {
+  const mature = shouldIncludeMaturePodcasts();
+  const candidates = getSafePodcastSeeds(mature)
+    .map(seedToStaticShow)
+    .filter((item) => item.id !== show.id && filterMatureShow(item, mature));
+
+  const scored = candidates
+    .map((candidate) => {
+      let score = 0;
+      if (candidate.categories.some((category) => show.categories.includes(category))) {
+        score += 3;
+      }
+      if (candidate.language === show.language) score += 2;
+      if (candidate.matureLevel === show.matureLevel) score += 1;
+      if (candidate.publisher === show.publisher || candidate.title === show.title) score += 1;
+      return { candidate, score };
+    })
+    .sort((a, b) => b.score - a.score);
+
+  const related: PodcastShow[] = [];
+  const seen = new Set<string>();
+
+  for (const entry of scored) {
+    if (related.length >= limit) break;
+    if (seen.has(entry.candidate.id)) continue;
+    if (entry.score <= 0 && related.length > 0) continue;
+    related.push(entry.candidate);
+    seen.add(entry.candidate.id);
+  }
+
+  if (related.length < limit) {
+    for (const candidate of candidates) {
+      if (related.length >= limit) break;
+      if (seen.has(candidate.id)) continue;
+      related.push(candidate);
+      seen.add(candidate.id);
+    }
+  }
+
+  return related.slice(0, limit);
+}
+
 export async function resolvePodcastEpisodeById(episodeId: string, includeMature?: boolean) {
   const mature = includeMature ?? shouldIncludeMaturePodcasts();
 
