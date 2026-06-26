@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   UIManager,
   View,
+  type TextLayoutEvent,
 } from "react-native";
 
 import { COLORS } from "../../constants/theme";
@@ -33,10 +34,9 @@ export const PodcastReadMoreText = memo(function PodcastReadMoreText({
   }, []);
 
   const onTextLayout = useCallback(
-    (event: { nativeEvent: { lines: { length: number }[] } }) => {
+    (event: TextLayoutEvent) => {
       if (expanded) return;
-      const lineCount = event.nativeEvent.lines?.length ?? 0;
-      if (lineCount > maxLines) {
+      if (event.nativeEvent.lines.length > maxLines) {
         setCanExpand(true);
       }
     },

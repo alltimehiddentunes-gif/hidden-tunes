@@ -1,10 +1,10 @@
 import { memo, useEffect, useRef } from "react";
-import { Animated, TouchableOpacity, View, type ViewStyle } from "react-native";
+import { Animated, StyleSheet, TouchableOpacity, View, type StyleProp, type ViewStyle } from "react-native";
 
 type FadeInViewProps = {
   children: React.ReactNode;
   delay?: number;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 };
 
 export const FadeInView = memo(function FadeInView({
@@ -34,7 +34,7 @@ type ScalePressableProps = {
   children: React.ReactNode;
   onPress: () => void;
   disabled?: boolean;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
   accessibilityLabel: string;
 };
 
