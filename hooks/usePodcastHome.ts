@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 
-import { getStaticPodcastHomeFromSeeds } from "../services/podcastService";
+import { buildStaticPodcastHomeSync } from "../services/podcastService";
 import type { PodcastCategoryDef } from "../constants/podcastCategories";
 import type { PodcastEpisode, PodcastShow } from "../types/podcast";
+import { loadPodcastRecentlyPlayed } from "../services/podcastRecentlyPlayed";
 import { shouldIncludeMaturePodcasts, subscribeMaturePodcastSettings } from "../utils/maturePodcastSettings";
 
 type PodcastHomeState = {
@@ -19,49 +20,43 @@ type PodcastHomeState = {
   refresh: () => void;
 };
 
-const EMPTY_HOME = {
-  featured: [] as PodcastShow[],
-  trending: [] as PodcastShow[],
-  newEpisodes: [] as PodcastEpisode[],
-  popularShows: [] as PodcastShow[],
-  recommended: [] as PodcastShow[],
-  recentlyPlayed: [] as PodcastEpisode[],
-  rootSections: [] as PodcastCategoryDef[],
-  browseCategories: [] as PodcastCategoryDef[],
-};
-
-export function usePodcastHome(): PodcastHomeState {
-  const [state, setState] = useState<Omit<PodcastHomeState, "refresh">>({
-    ...EMPTY_HOME,
+function createHomeState(includeMature: boolean): Omit<PodcastHomeState, "refresh"> {
+  return {
+    ...buildStaticPodcastHomeSync(includeMature),
     loading: false,
     error: null,
-  });
+  };
+}
+
+async function loadRecentlyPlayedWithTimeout(limit: number, timeoutMs = 2000) {
+  try {
+    return await Promise.race([
+      loadPodcastRecentlyPlayed(limit),
+      new Promise<PodcastEpisode[]>((resolve) => {
+        setTimeout(() => resolve([]), timeoutMs);
+      }),
+    ]);
+  } catch {
+    return [];
+  }
+}
+
+export function usePodcastHome(): PodcastHomeState {
+  const [state, setState] = useState<Omit<PodcastHomeState, "refresh">>(() =>
+    createHomeState(shouldIncludeMaturePodcasts())
+  );
 
   const load = useCallback(async () => {
-    setState((current) => ({ ...current, loading: true, error: null }));
-    try {
-      const home = await getStaticPodcastHomeFromSeeds(shouldIncludeMaturePodcasts());
-      setState({
-        featured: home.featured,
-        trending: home.trending,
-        newEpisodes: home.newEpisodes,
-        popularShows: home.popularShows,
-        recommended: home.recommended,
-        recentlyPlayed: home.recentlyPlayed,
-        rootSections: home.rootSections,
-        browseCategories: home.browseCategories,
-        loading: false,
-        error: null,
-      });
-    } catch {
-      setState((current) => ({
-        ...current,
-        loading: false,
-        error: "Podcasts could not be loaded right now.",
-      }));
-    } finally {
-      setState((current) => ({ ...current, loading: false }));
-    }
+    const includeMature = shouldIncludeMaturePodcasts();
+    setState(createHomeState(includeMature));
+
+    const recent = await loadRecentlyPlayedWithTimeout(8);
+    setState((current) => ({
+      ...current,
+      recentlyPlayed: recent,
+      loading: false,
+      error: null,
+    }));
   }, []);
 
   useEffect(() => {

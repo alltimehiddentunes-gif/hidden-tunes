@@ -254,7 +254,7 @@ export function getPodcastCategoriesList(includeMature?: boolean) {
   return getPodcastCategories(includeMature ?? shouldIncludeMaturePodcasts());
 }
 
-export async function getStaticPodcastHomeFromSeeds(includeMature?: boolean) {
+export function buildStaticPodcastHomeSync(includeMature?: boolean) {
   const mature = includeMature ?? shouldIncludeMaturePodcasts();
   logPodcastDiagnostic("podcast_static_home_rendered");
   if (!ENABLE_PODCAST_RSS_HOME_LOADING) {
@@ -263,7 +263,6 @@ export async function getStaticPodcastHomeFromSeeds(includeMature?: boolean) {
 
   const seeds = getSafePodcastSeeds(mature);
   const shows = seeds.map(seedToStaticShow).filter((show) => filterMatureShow(show, mature));
-  const recent = await loadPodcastRecentlyPlayed(8);
 
   const browseCategories = getBrowsablePodcastCategories(mature).filter((category) => {
     return getSeedsForCategory(category.id, mature).length > 0;
@@ -281,9 +280,18 @@ export async function getStaticPodcastHomeFromSeeds(includeMature?: boolean) {
     newEpisodes: [] as PodcastEpisode[],
     popularShows: shows.slice(0, 8),
     recommended: shows.slice(2, 10),
-    recentlyPlayed: recent,
+    recentlyPlayed: [] as PodcastEpisode[],
     rootSections,
     browseCategories,
+  };
+}
+
+export async function getStaticPodcastHomeFromSeeds(includeMature?: boolean) {
+  const home = buildStaticPodcastHomeSync(includeMature);
+  const recent = await loadPodcastRecentlyPlayed(8);
+  return {
+    ...home,
+    recentlyPlayed: recent,
   };
 }
 

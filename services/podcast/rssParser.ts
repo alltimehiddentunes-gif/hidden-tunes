@@ -63,8 +63,19 @@ function parseEnclosure(block: string) {
   return { url, type };
 }
 
+function parseMediaContent(block: string) {
+  const url = extractAttr(block, "media:content", "url");
+  const type = extractAttr(block, "media:content", "type");
+  if (!url) return undefined;
+  return { url, type };
+}
+
+const PODCAST_AUDIO_HOST =
+  /megaphone\.fm|simplecast\.com|podtrac\.com|blubrry\.com|acast\.com|libsyn\.com|spreaker\.com|anchor\.fm|buzzsprout\.com|omnycontent\.com|art19\.com/i;
+
 function isSupportedAudio(url: string, type?: string) {
   const lower = `${url} ${type || ""}`.toLowerCase();
+  if (lower.includes("audio/")) return true;
   return (
     lower.includes(".mp3") ||
     lower.includes(".m4a") ||
@@ -73,7 +84,8 @@ function isSupportedAudio(url: string, type?: string) {
     lower.includes("audio/mpeg") ||
     lower.includes("audio/mp4") ||
     lower.includes("audio/aac") ||
-    lower.includes("audio/ogg")
+    lower.includes("audio/ogg") ||
+    PODCAST_AUDIO_HOST.test(url)
   );
 }
 
@@ -108,14 +120,14 @@ export function parseRssFeed(xml: string, maxItems = 10): ParsedRssFeed | null {
 
     const episodes: ParsedRssEpisode[] = [];
 
-    for (const itemBlock of splitItems(xml, maxItems)) {
+    for (const itemBlock of splitItems(channel, maxItems)) {
       const guid = extractTag(itemBlock, "guid") || extractTag(itemBlock, "link") || "";
       const itemTitle = extractTag(itemBlock, "title") || "Untitled Episode";
       const itemDescription =
         extractTag(itemBlock, "description") || extractTag(itemBlock, "itunes:summary") || "";
       const pubDate = extractTag(itemBlock, "pubDate");
       const itemLink = extractTag(itemBlock, "link");
-      const enclosure = parseEnclosure(itemBlock);
+      const enclosure = parseEnclosure(itemBlock) || parseMediaContent(itemBlock);
       const durationSeconds = parseDurationToSeconds(extractTag(itemBlock, "itunes:duration"));
       const imageUrlItem =
         extractAttr(itemBlock, "itunes:image", "href") || extractTag(itemBlock, "image");
@@ -156,26 +168,18 @@ export function parseRssFeed(xml: string, maxItems = 10): ParsedRssFeed | null {
 }
 
 export async function fetchRssXml(feedUrl: string, timeoutMs: number): Promise<string | null> {
-  const fetchTask = (async () => {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
-    try {
-      const response = await fetch(feedUrl, {
-        signal: controller.signal,
-        headers: { Accept: "application/rss+xml, application/xml, text/xml, */*" },
-      });
-      if (!response.ok) return null;
-      return await response.text();
-    } catch {
-      return null;
-    } finally {
-      clearTimeout(timer);
-    }
-  })();
-
-  const timeoutTask = new Promise<null>((resolve) => {
-    setTimeout(() => resolve(null), timeoutMs);
-  });
-
-  return Promise.race([fetchTask, timeoutTask]);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(feedUrl, {
+      signal: controller.signal,
+      headers: { Accept: "application/rss+xml, application/xml, text/xml, */*" },
+    });
+    if (!response.ok) return null;
+    return await response.text();
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
 }

@@ -2,11 +2,14 @@ import type { AppSong } from "../context/PlayerContext";
 import type { PodcastEpisode } from "../types/podcast";
 
 const SUPPORTED_AUDIO_EXTENSIONS = /\.(mp3|m4a|aac|ogg)(\?|$)/i;
+const PODCAST_AUDIO_HOST =
+  /megaphone\.fm|simplecast\.com|podtrac\.com|blubrry\.com|acast\.com|libsyn\.com|spreaker\.com|anchor\.fm|buzzsprout\.com|omnycontent\.com|art19\.com|bbci\.co\.uk/i;
 
 export function isPlayablePodcastAudioUrl(url: string) {
   const clean = String(url || "").trim();
   if (!clean.startsWith("https://") && !clean.startsWith("http://")) return false;
   if (SUPPORTED_AUDIO_EXTENSIONS.test(clean)) return true;
+  if (PODCAST_AUDIO_HOST.test(clean)) return true;
   return clean.includes("/audio") || clean.includes("media") || clean.includes("podcast");
 }
 
