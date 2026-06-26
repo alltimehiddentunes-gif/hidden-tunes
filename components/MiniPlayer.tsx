@@ -44,7 +44,6 @@ import {
   usePlayerState,
 } from "../context/PlayerContext";
 import {
-  isPodcastEpisodeSong,
   isRadioStreamSong,
 } from "../services/playback/playbackRouter";
 import HTImage from "./HTImage";
@@ -54,7 +53,6 @@ import { FALLBACK_ARTWORK } from "../utils/artwork";
 import { isFastScrolling } from "../utils/performanceMode";
 import {
   getUserFacingArtist,
-  getUserFacingPodcastSubtitle,
   getUserFacingRadioSubtitle,
 } from "../services/ui/displayMetadata";
 
@@ -452,21 +450,18 @@ function MiniPlayer() {
 
   const isYoutubeMode = !currentSong && !!youtubeVideo;
   const isLiveRadioMode = isRadioStreamSong(currentSong);
-  const isPodcastMode = isPodcastEpisodeSong(currentSong);
 
   const radioQueueLength = radioQueue?.length || 0;
   const youtubeQueueLength = youtubeQueue?.length || 0;
 
   const queueLabel = useMemo(() => {
     if (isLiveRadioMode) return "Live Radio";
-    if (isPodcastMode) return "Podcast";
     if (radioMode && radioQueueLength > 0) return "Radio queue";
     if (youtubeQueueLength > 0) return `${youtubeQueueLength} in queue`;
     if (isYoutubeMode) return "YouTube";
     return "Now playing";
   }, [
     isLiveRadioMode,
-    isPodcastMode,
     radioMode,
     radioQueueLength,
     youtubeQueueLength,
@@ -495,15 +490,10 @@ function MiniPlayer() {
       });
     }
 
-    if (isPodcastMode) {
-      return getUserFacingPodcastSubtitle(null, currentSong?.artist);
-    }
-
     return getUserFacingArtist(currentSong);
   }, [
     isYoutubeMode,
     isLiveRadioMode,
-    isPodcastMode,
     youtubeVideo?.channelTitle,
     youtubeVideo?.artist,
     currentSong,
@@ -596,10 +586,9 @@ function MiniPlayer() {
   const badgeIconName = useMemo(() => {
     if (isYoutubeMode) return "tv";
     if (isLiveRadioMode) return "radio";
-    if (isPodcastMode) return "mic-outline";
     if (radioMode) return "radio";
     return "pulse";
-  }, [isYoutubeMode, isLiveRadioMode, isPodcastMode, radioMode]);
+  }, [isYoutubeMode, isLiveRadioMode, radioMode]);
 
   const mainIconName = useMemo(() => {
     if (isYoutubeMode) return "open-outline";
@@ -686,7 +675,7 @@ function MiniPlayer() {
             </AnimatedPressable>
 
             <View pointerEvents="box-none" style={styles.controlsCluster}>
-              {!isYoutubeMode && !isLiveRadioMode && !isPodcastMode && currentSong?.id ? (
+              {!isYoutubeMode && !isLiveRadioMode && currentSong?.id ? (
                 <FavoriteButton item={buildSongFavoriteItem(currentSong)} size={18} />
               ) : null}
               {!isYoutubeMode && !isLiveRadioMode && (

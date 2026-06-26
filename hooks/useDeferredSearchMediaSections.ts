@@ -1,16 +1,11 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 
 import { MEDIA_DISCOVERY_PAGE_SIZE } from "../constants/mediaDiscovery";
-import type { HiddenTunesPodcastShow } from "../services/podcastCatalogApi";
-import { loadPodcastSearchPage } from "../services/podcastDiscoveryApi";
 import { loadRadioSearchPage } from "../services/radio/radioBrowserApi";
 import { toRadioStationListItem } from "../services/radio/radioNormalizer";
 import type { HiddenTunesStation, RadioStationListItem } from "../types/radio";
 import { useMountedRef } from "./useMountedRef";
-import {
-  SEARCH_MEDIA_DEFER_MS,
-  SEARCH_MEDIA_SECONDARY_DEFER_MS,
-} from "../utils/searchPerformance";
+import { SEARCH_MEDIA_DEFER_MS } from "../utils/searchPerformance";
 import {
   logHeatRequestCancelled,
   logHeatRequestComplete,
@@ -20,24 +15,16 @@ import {
 import { createDiscoveryScreenController } from "../utils/discoveryRequestManager";
 
 type DeferredSearchMediaState = {
-  podcastShows: HiddenTunesPodcastShow[];
   radioStations: RadioStationListItem[];
-  podcastLoading: boolean;
   radioLoading: boolean;
-  podcastQuery: string;
   radioQuery: string;
-  podcastHasMore: boolean;
   radioHasMore: boolean;
 };
 
 const EMPTY_STATE: DeferredSearchMediaState = {
-  podcastShows: [],
   radioStations: [],
-  podcastLoading: false,
   radioLoading: false,
-  podcastQuery: "",
   radioQuery: "",
-  podcastHasMore: false,
   radioHasMore: false,
 };
 
@@ -73,96 +60,59 @@ export function useDeferredSearchMediaSections(submittedQuery: string) {
 
     safeSetState(() => ({
       ...EMPTY_STATE,
-      podcastQuery: query,
       radioQuery: "",
     }));
-
-    let radioTimer: ReturnType<typeof setTimeout> | null = null;
 
     const timer = setTimeout(() => {
       if (requestGenerationRef.current !== generation || !mountedRef.current) return;
 
       safeSetState((current) => ({
         ...current,
-        podcastLoading: true,
-        podcastQuery: query,
+        radioLoading: true,
+        radioQuery: query,
       }));
 
       void (async () => {
-        const podcastStartedAt = Date.now();
-        logHeatRequestStart("search:podcast", { query, generation });
-        const podcastResult =
-          (await discoveryControllerRef.current.run(`search:podcast:${query}`, (signal) =>
-            loadPodcastSearchPage(query, {
+        const radioStartedAt = Date.now();
+        logHeatRequestStart("search:radio", { query, generation });
+        const radioResult =
+          (await discoveryControllerRef.current.run(`search:radio:${query}`, () =>
+            loadRadioSearchPage(query, {
               offset: 0,
+              limit: MEDIA_DISCOVERY_PAGE_SIZE,
               forceRefresh: false,
-              signal,
-            }).catch(() => ({ shows: [], hasMore: false }))
-          )) || { shows: [], hasMore: false };
+              requestKey: `search:${query}`,
+            }).catch(() => ({ stations: [], hasMore: false, fromCache: false }))
+          )) || { stations: [], hasMore: false, fromCache: false };
 
         if (requestGenerationRef.current !== generation || !mountedRef.current) {
-          logHeatStaleResult("search:podcast", { query, generation });
+          logHeatStaleResult("search:radio", { query, generation });
           return;
         }
 
-        logHeatRequestComplete("search:podcast", podcastStartedAt, {
+        stationStoreRef.current.clear();
+        radioResult.stations.slice(0, MEDIA_DISCOVERY_PAGE_SIZE).forEach((station) => {
+          stationStoreRef.current.set(station.id, station);
+        });
+
+        logHeatRequestComplete("search:radio", radioStartedAt, {
           query,
-          count: podcastResult.shows.length,
+          count: radioResult.stations.length,
         });
         safeSetState((current) => ({
           ...current,
-          podcastShows: podcastResult.shows.slice(0, MEDIA_DISCOVERY_PAGE_SIZE),
-          podcastLoading: false,
-          podcastQuery: query,
-          podcastHasMore: podcastResult.hasMore,
-          radioLoading: true,
+          radioStations: radioResult.stations
+            .slice(0, MEDIA_DISCOVERY_PAGE_SIZE)
+            .map(toRadioStationListItem),
+          radioLoading: false,
+          radioQuery: query,
+          radioHasMore: radioResult.hasMore,
         }));
-
-        radioTimer = setTimeout(() => {
-          void (async () => {
-            const radioStartedAt = Date.now();
-            logHeatRequestStart("search:radio", { query, generation });
-            const radioResult =
-              (await discoveryControllerRef.current.run(`search:radio:${query}`, () =>
-                loadRadioSearchPage(query, {
-                  offset: 0,
-                  limit: MEDIA_DISCOVERY_PAGE_SIZE,
-                  forceRefresh: false,
-                  requestKey: `search:${query}`,
-                }).catch(() => ({ stations: [], hasMore: false, fromCache: false }))
-              )) || { stations: [], hasMore: false, fromCache: false };
-
-            if (requestGenerationRef.current !== generation || !mountedRef.current) {
-              logHeatStaleResult("search:radio", { query, generation });
-              return;
-            }
-
-            stationStoreRef.current.clear();
-            radioResult.stations.slice(0, MEDIA_DISCOVERY_PAGE_SIZE).forEach((station) => {
-              stationStoreRef.current.set(station.id, station);
-            });
-
-            logHeatRequestComplete("search:radio", radioStartedAt, {
-              query,
-              count: radioResult.stations.length,
-            });
-            safeSetState((current) => ({
-              ...current,
-              radioStations: radioResult.stations
-                .slice(0, MEDIA_DISCOVERY_PAGE_SIZE)
-                .map(toRadioStationListItem),
-              radioLoading: false,
-              radioQuery: query,
-              radioHasMore: radioResult.hasMore,
-            }));
-          })();
-        }, SEARCH_MEDIA_SECONDARY_DEFER_MS);
       })();
     }, SEARCH_MEDIA_DEFER_MS);
 
     return () => {
       clearTimeout(timer);
-      if (radioTimer) clearTimeout(radioTimer);
       requestGenerationRef.current += 1;
       discoveryControllerRef.current.bumpGeneration();
       logHeatRequestCancelled("search:media", { query, generation });
@@ -170,11 +120,9 @@ export function useDeferredSearchMediaSections(submittedQuery: string) {
   }, [mountedRef, safeSetState, submittedQuery]);
 
   const trimmedSubmittedQuery = submittedQuery.trim();
-  const podcastReadyForQuery =
-    trimmedSubmittedQuery.length >= 2 && state.podcastQuery === trimmedSubmittedQuery;
   const radioReadyForQuery =
     trimmedSubmittedQuery.length >= 2 && state.radioQuery === trimmedSubmittedQuery;
-  const mediaReadyForQuery = podcastReadyForQuery && radioReadyForQuery;
+  const mediaReadyForQuery = radioReadyForQuery;
 
   const resolveRadioStation = useCallback(
     (stationId: string) => stationStoreRef.current.get(stationId) || null,
@@ -184,7 +132,6 @@ export function useDeferredSearchMediaSections(submittedQuery: string) {
   return {
     ...state,
     mediaReadyForQuery,
-    podcastReadyForQuery,
     radioReadyForQuery,
     maxSectionSize: MEDIA_DISCOVERY_PAGE_SIZE,
     resolveRadioStation,

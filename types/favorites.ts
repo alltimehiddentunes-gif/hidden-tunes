@@ -4,9 +4,7 @@ export type FavoriteItemType =
   | "song"
   | "artist"
   | "album"
-  | "radio_station"
-  | "podcast_show"
-  | "podcast_episode";
+  | "radio_station";
 
 export type FavoriteItemMetadata = {
   artistName?: string;
@@ -15,17 +13,12 @@ export type FavoriteItemMetadata = {
   stationLanguage?: string;
   stationGenre?: string;
   streamUrl?: string;
-  podcastPublisher?: string;
-  podcastFeedUrl?: string;
-  episodeDate?: string;
   duration?: number | string;
   is_mature?: boolean;
   mature_reason?: string;
   content_rating?: ContentRating;
   videoId?: string;
   legacyType?: string;
-  showId?: string;
-  showTitle?: string;
   artistId?: string;
   albumId?: string;
   sourceName?: string;

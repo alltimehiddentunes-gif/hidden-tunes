@@ -1,9 +1,6 @@
-import type { HiddenTunesPodcastEpisode, HiddenTunesPodcastShow } from "../podcastCatalogApi";
 import type { RadioStationListItem } from "../../types/radio";
 import type { FavoriteItemMetadata, UnifiedFavoriteItem } from "../../types/favorites";
 import { isMatureContentItem } from "../../types/matureContent";
-import { isMaturePodcastEpisode } from "../../utils/maturePodcastVisibility";
-import { sanitizePodcastDiscoveryText } from "../../utils/openHiddenTunesPodcast";
 import { getArtworkUri } from "../../utils/artwork";
 
 function resolveArtwork(source: unknown) {
@@ -181,54 +178,6 @@ export function buildRadioStationFavoriteItem(
       stationGenre: genre,
       streamUrl: (station as { streamUrl?: string }).streamUrl,
       ...matureMetadata(station),
-    },
-  };
-}
-
-export function buildPodcastShowFavoriteItem(show: HiddenTunesPodcastShow): UnifiedFavoriteItem {
-  return {
-    id: String(show.id),
-    type: "podcast_show",
-    title: sanitizePodcastDiscoveryText(show.title) || show.title,
-    subtitle: String(show.host_name || show.primary_category || "Podcast"),
-    artwork: show.artwork_url,
-    source: "podcast",
-    addedAt: new Date().toISOString(),
-    metadata: {
-      podcastPublisher: show.host_name,
-      ...matureMetadata(show),
-    },
-  };
-}
-
-export function buildPodcastEpisodeFavoriteItem(
-  episode: HiddenTunesPodcastEpisode,
-  options?: {
-    showTitle?: string;
-    showIsMature?: boolean;
-    podcastFeedUrl?: string;
-  }
-): UnifiedFavoriteItem {
-  const mature = isMaturePodcastEpisode(episode, options?.showIsMature);
-
-  return {
-    id: String(episode.id),
-    type: "podcast_episode",
-    title: sanitizePodcastDiscoveryText(episode.title) || episode.title,
-    subtitle: options?.showTitle || "Podcast Episode",
-    artwork: episode.artwork_url,
-    source: "podcast",
-    addedAt: new Date().toISOString(),
-    metadata: {
-      episodeDate: episode.published_at,
-      duration: episode.duration_seconds,
-      streamUrl: episode.audio_url,
-      podcastFeedUrl: options?.podcastFeedUrl,
-      showId: episode.show_id,
-      showTitle: options?.showTitle,
-      is_mature: mature || episode.is_mature,
-      content_rating: episode.content_rating,
-      mature_reason: episode.mature_reason,
     },
   };
 }

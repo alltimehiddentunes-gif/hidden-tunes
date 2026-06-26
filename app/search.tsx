@@ -20,7 +20,6 @@ import AppShell from "../components/navigation/AppShell";
 import HTImage from "../components/HTImage";
 import DebouncedSearchInput from "../components/search/DebouncedSearchInput";
 import { SearchApkSongRow } from "../components/search/SearchApkSongRow";
-import { PodcastShowCard } from "../components/podcast/PodcastDiscoveryCards";
 import { RadioStationCard } from "../components/radio/RadioBrowserCards";
 import FavoriteButton from "../components/FavoriteButton";
 import MatureContentConsentModal from "../components/mature/MatureContentConsentModal";
@@ -55,10 +54,8 @@ import {
   searchFreeMusicProviders,
 } from "../services/freeMusicProviders";
 import { fetchTvSearchVideos, type HiddenTunesTvVideo } from "../services/tvCatalogApi";
-import type { HiddenTunesPodcastShow } from "../services/podcastCatalogApi";
 import { normalizeRadioStation } from "../services/radio/radioNormalizer";
 import type { RadioStationListItem } from "../types/radio";
-import { podcastShowSubtitle } from "../utils/openHiddenTunesPodcast";
 import { openVideoItem } from "../services/videos/openVideoItem";
 import { getVideoDisplayCategory, getVideoDisplayCreator, normalizeVideoItem } from "../services/videos/videoNormalizer";
 import type { InstantSearchCatalog } from "../services/instantCatalogSearch";
@@ -415,18 +412,12 @@ export default function SearchScreen() {
     if (cleanSubmittedSearchQuery.length < 2) return;
 
     logVisibleFeatureChecklist({
-      mainSearchPodcastSectionsEnabled:
-        deferredMedia.podcastLoading || deferredMedia.podcastReadyForQuery,
       mainSearchRadioSectionsEnabled:
         deferredMedia.radioLoading || deferredMedia.radioReadyForQuery,
-      searchPodcastCount: deferredMedia.podcastShows.length,
       searchRadioCount: deferredMedia.radioStations.length,
     });
   }, [
     cleanSubmittedSearchQuery,
-    deferredMedia.podcastLoading,
-    deferredMedia.podcastReadyForQuery,
-    deferredMedia.podcastShows.length,
     deferredMedia.radioLoading,
     deferredMedia.radioReadyForQuery,
     deferredMedia.radioStations.length,
@@ -1512,22 +1503,6 @@ export default function SearchScreen() {
     openVideoItem(video);
   }, []);
 
-  const openSearchPodcastShow = useCallback(
-    (show: HiddenTunesPodcastShow) => {
-      runWithMatureConsent(show, () => {
-        router.push({
-          pathname: "/podcasts/show/[showId]",
-          params: {
-            showId: show.id,
-            title: show.title,
-            isMature: show.is_mature ? "1" : "0",
-          },
-        } as any);
-      });
-    },
-    [runWithMatureConsent]
-  );
-
   const playSearchRadioStation = useCallback(
     (item: RadioStationListItem) => {
       runWithMatureConsent(item, () => {
@@ -1944,47 +1919,6 @@ export default function SearchScreen() {
                   </View>
                 ) : null}
 
-                {cleanSubmittedSearchQuery.length >= 2 && deferredMedia.podcastLoading ? (
-                  <View style={styles.sectionBlock}>
-                    <Text style={styles.sectionEyebrow}>PODCASTS</Text>
-                    <View style={styles.deferredLoadingRow}>
-                      <ActivityIndicator size="small" color={COLORS.primary} />
-                      <Text style={styles.deferredLoadingText}>Finding podcasts...</Text>
-                    </View>
-                  </View>
-                ) : null}
-
-                {cleanSubmittedSearchQuery.length >= 2 &&
-                deferredMedia.podcastReadyForQuery &&
-                deferredMedia.podcastShows.length > 0 ? (
-                  <View style={styles.sectionBlock}>
-                    <View style={styles.sectionHeaderRow}>
-                      <Text style={styles.sectionEyebrow}>PODCASTS</Text>
-                      {deferredMedia.podcastHasMore ? (
-                        <TouchableOpacity
-                          activeOpacity={0.86}
-                          onPress={() =>
-                            router.push({
-                              pathname: "/podcasts",
-                              params: { q: cleanSubmittedSearchQuery },
-                            } as any)
-                          }
-                        >
-                          <Text style={styles.seeMoreLink}>See more podcasts</Text>
-                        </TouchableOpacity>
-                      ) : null}
-                    </View>
-                    {deferredMedia.podcastShows.map((show) => (
-                      <PodcastShowCard
-                        key={`search-podcast-${show.id}`}
-                        show={show}
-                        subtitle={podcastShowSubtitle(show)}
-                        onPress={() => openSearchPodcastShow(show)}
-                      />
-                    ))}
-                  </View>
-                ) : null}
-
                 {cleanSubmittedSearchQuery.length >= 2 && deferredMedia.radioLoading ? (
                   <View style={styles.sectionBlock}>
                     <Text style={styles.sectionEyebrow}>RADIO STATIONS</Text>
@@ -2026,9 +1960,7 @@ export default function SearchScreen() {
                 ) : null}
 
                 {apkResultCount === 0 &&
-                deferredMedia.podcastShows.length === 0 &&
                 deferredMedia.radioStations.length === 0 &&
-                !deferredMedia.podcastLoading &&
                 !deferredMedia.radioLoading ? (
                   <View style={styles.emptyPanel}>
                     <Ionicons name="search" size={34} color={COLORS.primaryGlow} />

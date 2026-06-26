@@ -94,14 +94,6 @@ const LIBRARY_GROUPS: { id: string; label: string; sections: LibrarySection[] }[
         accent: COLORS.primary,
       },
       {
-        id: "podcasts",
-        title: "Podcasts",
-        eyebrow: "SHOWS",
-        icon: "mic",
-        href: "/podcasts",
-        accent: COLORS.cyan,
-      },
-      {
         id: "albums",
         title: "Albums",
         eyebrow: "RELEASES",
@@ -223,7 +215,7 @@ export default function LibraryScreen() {
               Your Library
             </Text>
             <Text numberOfLines={2} ellipsizeMode="tail" style={styles.heroSubtitle}>
-              Playlists, favorites, podcasts, live radio, and downloads in one place.
+              Playlists, favorites, live radio, and downloads in one place.
             </Text>
           </LinearGradient>
 

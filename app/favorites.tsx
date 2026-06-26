@@ -25,7 +25,6 @@ import {
 } from "../context/PlayerContext";
 import { useFavorites } from "../hooks/useFavorites";
 import { usePlaybackRouter } from "../hooks/usePlaybackRouter";
-import { normalizePodcastEpisode } from "../services/podcasts/podcastNormalizer";
 import type { FavoriteItemType, UnifiedFavoriteItem } from "../types/favorites";
 import { songFavoriteToAppSong } from "../services/favorites/unifiedFavorites";
 import { logVisibleFeatureChecklist } from "../utils/visibleFeatureDiagnostics";
@@ -42,8 +41,6 @@ const SECTION_ORDER: Array<{ type: FavoriteItemType; title: string }> = [
   { type: "artist", title: "Favorite Artists" },
   { type: "album", title: "Favorite Albums" },
   { type: "radio_station", title: "Favorite Radio Stations" },
-  { type: "podcast_show", title: "Favorite Podcasts" },
-  { type: "podcast_episode", title: "Favorite Podcast Episodes" },
 ];
 
 function sanitizeYouTubeVideoId(value: unknown) {
@@ -65,7 +62,7 @@ export default function FavoritesScreen() {
   const { playSong } = usePlayerActions();
   const { favorites: songFavorites } = usePlayerState();
   const { visibleFavorites } = useFavorites();
-  const { playRadioStation, playPodcastEpisode } = usePlaybackRouter();
+  const { playRadioStation } = usePlaybackRouter();
   const { currentSong, isPlaying } = usePlayerNowPlaying();
 
   const sections = useMemo(() => {
@@ -146,51 +143,17 @@ export default function FavoritesScreen() {
             source: "radio",
           });
           return;
-        case "podcast_show":
-          router.push({
-            pathname: "/podcasts/show/[showId]",
-            params: {
-              showId: item.id,
-              title: item.title,
-              isMature: item.metadata?.is_mature ? "1" : "0",
-            },
-          } as any);
-          return;
-        case "podcast_episode": {
-          const normalized = normalizePodcastEpisode(
-            {
-              id: item.id,
-              show_id: String(item.metadata?.showId || ""),
-              title: item.title,
-              artwork_url: item.artwork,
-              audio_url: String(item.metadata?.streamUrl || ""),
-              duration_seconds:
-                typeof item.metadata?.duration === "number"
-                  ? item.metadata.duration
-                  : undefined,
-              published_at: item.metadata?.episodeDate,
-              is_mature: item.metadata?.is_mature,
-              content_rating: item.metadata?.content_rating,
-              sourceName: "Hidden Tunes",
-            },
-            String(item.metadata?.showTitle || item.subtitle || item.title)
-          );
-          if (!normalized) return;
-          void playPodcastEpisode(normalized, [normalized]);
-          return;
-        }
         default:
           return;
       }
     },
-    [playFavoriteSong, playPodcastEpisode, playRadioStation]
+    [playFavoriteSong, playRadioStation]
   );
 
   const typeIcon = (type: FavoriteItemType) => {
     if (type === "artist") return "person";
     if (type === "album") return "albums";
     if (type === "radio_station") return "radio";
-    if (type === "podcast_show" || type === "podcast_episode") return "mic";
     return "musical-notes";
   };
 
@@ -259,7 +222,7 @@ export default function FavoritesScreen() {
             <PremiumEmptyState
               icon="heart-outline"
               title="Your favorites will appear here."
-              message="Save songs, artists, albums, radio stations, and podcasts with the heart icon."
+              message="Save songs, artists, albums, and radio stations with the heart icon."
               actionLabel="Browse Music"
               onAction={() => router.push("/music-feed" as any)}
             />

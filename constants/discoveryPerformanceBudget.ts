@@ -2,7 +2,6 @@ import { MEDIA_DISCOVERY_PAGE_SIZE } from "./mediaDiscovery";
 
 /** Mobile page sizes — discovery lists load 40 at a time. */
 export const RADIO_PAGE_SIZE = MEDIA_DISCOVERY_PAGE_SIZE;
-export const PODCAST_PAGE_SIZE = MEDIA_DISCOVERY_PAGE_SIZE;
 
 /** Max search alias / fallback queries per user search (page 1). */
 export const MAX_FALLBACK_QUERIES = 2;
@@ -32,7 +31,7 @@ export const MATURE_MAX_FALLBACK_QUERIES_PER_PAGE = 1;
 export const MATURE_FALLBACK_TRIGGER_COUNT = 20;
 
 /** Cap service-layer quality scoring input (post-fetch, pre-rank). */
-export const DISCOVERY_QUALITY_RANK_CAP = PODCAST_PAGE_SIZE * 2;
+export const DISCOVERY_QUALITY_RANK_CAP = MEDIA_DISCOVERY_PAGE_SIZE * 2;
 
 /** Ms between sequential discovery lane fetches. */
 export const DISCOVERY_LANE_STAGGER_MS = 150;

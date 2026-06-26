@@ -1,6 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-import { clearMaturePodcastCache } from "./podcastDiscoveryCache";
 import { clearMatureRadioCache } from "../services/radio/radioCache";
 
 export const MATURE_CONTENT_ENABLED_KEY = "@hidden_tunes_mature_content_enabled_v1";
@@ -105,7 +104,6 @@ export async function disableMatureContent() {
   ]);
 
   clearMatureRadioCache();
-  await clearMaturePodcastCache();
 
   applySettings({ ...DEFAULT_SETTINGS });
 }

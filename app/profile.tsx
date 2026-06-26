@@ -40,7 +40,6 @@ type ProfileRoute =
   | "/queue"
   | "/radio"
   | "/library"
-  | "/podcasts"
   | "/stations"
   | "/music-feed"
   | "/worlds"
@@ -90,7 +89,7 @@ const PROFILE_ACTIONS: ProfileAction[] = [
 const LIBRARY_SHORTCUTS: ProfileShortcut[] = [
   {
     title: "Your Library",
-    subtitle: "Albums, playlists, favorites, podcasts, and radio",
+    subtitle: "Albums, playlists, favorites, and radio",
     icon: "library-outline",
     href: "/library",
   },
@@ -150,12 +149,6 @@ const DISCOVERY_SHORTCUTS: ProfileShortcut[] = [
     subtitle: "Your smart endless music mix",
     icon: "infinite-outline",
     href: "/radio",
-  },
-  {
-    title: "Podcasts",
-    subtitle: "Featured, trending, and mood lanes",
-    icon: "mic-outline",
-    href: "/podcasts",
   },
   {
     title: "Live Radio",
@@ -410,7 +403,7 @@ export default function ProfileScreen() {
               <View style={styles.itemTextWrap}>
                 <Text style={styles.itemTitle}>Show 18+ Content</Text>
                 <Text style={styles.itemSubtitle}>
-                  Include mature radio, podcast shows, and episodes
+                  Include mature radio stations
                 </Text>
               </View>
 

@@ -14,7 +14,6 @@ export type SearchDisplayKind =
   | "playlist"
   | "genre"
   | "radio"
-  | "podcast"
   | "video";
 
 type DisplayVideoLike = {
@@ -32,12 +31,6 @@ type DisplayRadioLike = {
   genre?: string | null;
   tags?: string[] | null;
   subtitle?: string | null;
-};
-
-type DisplayPodcastEpisodeLike = {
-  title?: string | null;
-  show_title?: string | null;
-  showTitle?: string | null;
 };
 
 type DisplaySongLike = {
@@ -188,15 +181,6 @@ export function getUserFacingRadioSubtitle(station: DisplayRadioLike | null | un
   return joined || "Live Radio";
 }
 
-export function getUserFacingPodcastSubtitle(
-  episode: DisplayPodcastEpisodeLike | null | undefined,
-  showName?: string | null
-) {
-  const show = pickFriendlyText(showName, episode?.show_title, episode?.showTitle);
-  if (show) return joinFriendlyParts(["Podcast", show]);
-  return "Podcast";
-}
-
 export function getUserFacingSearchSubtitle(
   item: DisplaySongLike | null | undefined,
   options?: {
@@ -213,8 +197,6 @@ export function getUserFacingSearchSubtitle(
       return getUserFacingVideoSubtitle(item as DisplayVideoLike, fallback);
     case "radio":
       return getUserFacingRadioSubtitle(item as DisplayRadioLike);
-    case "podcast":
-      return getUserFacingPodcastSubtitle(item, options?.showName);
     case "artist":
       return fallback || "Artist";
     case "album":

@@ -2,13 +2,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 import { COLORS } from "../../constants/theme";
-import {
-  getPodcastSearchSuggestions,
-  getRadioSearchSuggestions,
-} from "../../utils/mediaSearchQueryExpansion";
+import { getRadioSearchSuggestions } from "../../utils/mediaSearchQueryExpansion";
 
 type MediaSearchEmptyStateProps = {
-  kind: "radio" | "podcast";
+  kind: "radio";
   query: string;
   includeMature?: boolean;
   onSuggestionPress: (suggestion: string) => void;
@@ -20,28 +17,19 @@ export default function MediaSearchEmptyState({
   includeMature = false,
   onSuggestionPress,
 }: MediaSearchEmptyStateProps) {
-  const suggestions =
-    kind === "radio"
-      ? getRadioSearchSuggestions(includeMature)
-      : getPodcastSearchSuggestions(includeMature);
+  const suggestions = getRadioSearchSuggestions(includeMature);
 
   return (
     <View style={styles.container}>
-      <Ionicons
-        name={kind === "radio" ? "radio-outline" : "mic-outline"}
-        size={48}
-        color={COLORS.textMuted}
-      />
+      <Ionicons name="radio-outline" size={48} color={COLORS.textMuted} />
       <Text style={styles.title}>
         {query
           ? "We couldn't find an exact match. Try one of these popular searches."
-          : kind === "radio"
-            ? "Search live stations"
-            : "Search Hidden Tunes podcasts"}
+          : "Search live stations"}
       </Text>
       {query ? (
         <Text style={styles.subtitle}>
-          No exact results for "{query}". These picks often surface great {kind === "radio" ? "stations" : "shows"}.
+          No exact results for "{query}". These picks often surface great stations.
         </Text>
       ) : null}
       <View style={styles.chips}>
