@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  BackHandler,
   ScrollView,
   StyleSheet,
   Text,
@@ -26,12 +27,12 @@ import {
   toggleTvChannelFavorite,
 } from "@/services/tv/tvFavorites";
 import {
-  clearTvPlaybackSession,
   getTvPlaybackSession,
+  setTvPlaybackSession,
 } from "@/services/tv/tvPlaybackSession";
 import { recordTvRecentlyWatched } from "@/services/tv/tvRecentlyWatched";
-import type { TVChannel } from "@/types/tv";
-import { closeTvPlayer, openTvChannelPlayer } from "@/utils/tvNavigation";
+import type { TVChannel, TvLiveSectionId, TvPlaybackContext } from "@/types/tv";
+import { closeTvPlayer } from "@/utils/tvNavigation";
 import { useMountedRef } from "@/utils/useMountedRef";
 
 function buildHlsPlayerHtml(streamUrl: string, autoplay = true) {
@@ -75,7 +76,6 @@ function buildHlsPlayerHtml(streamUrl: string, autoplay = true) {
         video.addEventListener("playing", function () { post("playing"); });
         video.addEventListener("pause", function () { post("paused"); });
         video.addEventListener("error", function () { post("error"); });
-        video.addEventListener("stalled", function () { post("stalled"); });
 
         try {
           video.src = streamUrl;
@@ -118,10 +118,11 @@ export default function TvPlayerScreen() {
   const mountedRef = useMountedRef();
   const webViewRef = useRef<WebView>(null);
   const watchedSavedRef = useRef<string | null>(null);
+  const sessionRef = useRef<TvPlaybackContext | null>(getTvPlaybackSession());
+  const stopRequestedRef = useRef(false);
   const { stopPlayback } = usePlayerActions();
 
   const initialChannelId = String(params.channelId || "").trim();
-  const session = getTvPlaybackSession();
 
   const [activeChannelId, setActiveChannelId] = useState(initialChannelId);
   const [isPlaying, setIsPlaying] = useState(true);
@@ -130,13 +131,14 @@ export default function TvPlayerScreen() {
   const [isFavorite, setIsFavorite] = useState(false);
   const [relatedChannels, setRelatedChannels] = useState<TVChannel[]>([]);
   const [playerKey, setPlayerKey] = useState(0);
+  const [playerMounted, setPlayerMounted] = useState(true);
 
   const channel = useMemo(
     () => (activeChannelId ? getTvChannelById(activeChannelId) : null),
     [activeChannelId]
   );
 
-  const queueIds = session?.channelIds || [];
+  const queueIds = sessionRef.current?.channelIds || [];
   const currentIndex = Math.max(0, queueIds.indexOf(activeChannelId));
 
   const embedHtml = useMemo(() => {
@@ -160,18 +162,54 @@ export default function TvPlayerScreen() {
   }, [mountedRef]);
 
   useEffect(() => {
+    const session = getTvPlaybackSession();
+    if (session) {
+      sessionRef.current = session;
+    }
+
     stopPlayback?.();
-  }, [stopPlayback]);
+  }, []);
+
+  const destroyPlayerSurface = useCallback(() => {
+    if (stopRequestedRef.current) return;
+    stopRequestedRef.current = true;
+    setPlayerMounted(false);
+    webViewRef.current?.injectJavaScript(
+      `try {
+        var v = document.getElementById("player");
+        if (v) {
+          v.pause();
+          v.removeAttribute("src");
+          v.load();
+        }
+      } catch (e) {}
+      true;`
+    );
+  }, []);
+
+  const handleExit = useCallback(() => {
+    destroyPlayerSurface();
+    requestAnimationFrame(() => {
+      closeTvPlayer();
+    });
+  }, [destroyPlayerSurface]);
 
   useEffect(() => {
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      handleExit();
+      return true;
+    });
+
     return () => {
-      clearTvPlaybackSession();
+      subscription.remove();
     };
-  }, []);
+  }, [handleExit]);
 
   useEffect(() => {
     if (!channel) return;
 
+    setPlayerMounted(true);
+    stopRequestedRef.current = false;
     setIsLoading(true);
     setHasError(false);
     setIsPlaying(true);
@@ -186,16 +224,48 @@ export default function TvPlayerScreen() {
     }
   }, [channel, loadRelated, refreshFavoriteState]);
 
+  const switchToChannel = useCallback(
+    (
+      nextChannel: TVChannel,
+      options: { sectionId?: TvLiveSectionId; channelIds?: string[] } = {}
+    ) => {
+      const ids =
+        options.channelIds && options.channelIds.length
+          ? options.channelIds
+          : sessionRef.current?.channelIds || [nextChannel.id];
+      const sectionId =
+        options.sectionId || sessionRef.current?.sectionId || "related";
+      const startIndex = Math.max(0, ids.indexOf(nextChannel.id));
+      const nextSession: TvPlaybackContext = {
+        sectionId,
+        channelIds: ids,
+        startIndex,
+      };
+
+      sessionRef.current = nextSession;
+      setTvPlaybackSession(nextSession);
+      watchedSavedRef.current = null;
+      setActiveChannelId(nextChannel.id);
+    },
+    []
+  );
+
   const goToQueueIndex = useCallback(
     (nextIndex: number) => {
-      if (!queueIds.length) return;
+      const ids = sessionRef.current?.channelIds || [];
+      if (!ids.length) return;
+
       const bounded =
-        ((nextIndex % queueIds.length) + queueIds.length) % queueIds.length;
-      const nextId = queueIds[bounded];
+        ((nextIndex % ids.length) + ids.length) % ids.length;
+      const nextId = ids[bounded];
       if (!nextId || nextId === activeChannelId) return;
-      setActiveChannelId(nextId);
+
+      const nextChannel = getTvChannelById(nextId);
+      if (!nextChannel) return;
+
+      switchToChannel(nextChannel);
     },
-    [activeChannelId, queueIds]
+    [activeChannelId, switchToChannel]
   );
 
   const handlePrevious = useCallback(() => {
@@ -243,7 +313,7 @@ export default function TvPlayerScreen() {
       return;
     }
 
-    if (message === "error" || message === "timeout" || message === "stalled") {
+    if (message === "error" || message === "timeout") {
       setIsLoading(false);
       setHasError(true);
       setIsPlaying(false);
@@ -260,13 +330,12 @@ export default function TvPlayerScreen() {
 
   const openRelatedChannel = useCallback(
     (related: TVChannel) => {
-      openTvChannelPlayer(related, {
+      switchToChannel(related, {
         sectionId: "related",
         channelIds: relatedChannels.map((entry) => entry.id),
-        matureEnabled: related.isMature,
       });
     },
-    [relatedChannels]
+    [relatedChannels, switchToChannel]
   );
 
   if (!channel) {
@@ -274,7 +343,7 @@ export default function TvPlayerScreen() {
       <LinearGradient colors={GRADIENTS.main} style={styles.container}>
         <View style={styles.fallbackBox}>
           <Text style={styles.fallbackTitle}>Channel unavailable</Text>
-          <TouchableOpacity style={styles.primaryButton} onPress={closeTvPlayer}>
+          <TouchableOpacity style={styles.primaryButton} onPress={handleExit}>
             <Text style={styles.primaryButtonText}>Go back</Text>
           </TouchableOpacity>
         </View>
@@ -285,7 +354,7 @@ export default function TvPlayerScreen() {
   return (
     <LinearGradient colors={GRADIENTS.main} style={styles.container}>
       <View style={styles.topBar}>
-        <TouchableOpacity style={styles.iconButton} onPress={closeTvPlayer}>
+        <TouchableOpacity style={styles.iconButton} onPress={handleExit}>
           <Ionicons name="chevron-back" size={22} color={COLORS.text} />
         </TouchableOpacity>
 
@@ -320,7 +389,7 @@ export default function TvPlayerScreen() {
               </TouchableOpacity>
             </View>
           </View>
-        ) : embedHtml ? (
+        ) : embedHtml && playerMounted ? (
           <WebView
             key={`tv-player-${playerKey}`}
             ref={webViewRef}
@@ -332,19 +401,19 @@ export default function TvPlayerScreen() {
             domStorageEnabled
             onMessage={handleWebViewMessage}
             onError={() => {
-              setHasError(true);
               setIsLoading(false);
+              setHasError(true);
             }}
             onHttpError={() => {
-              setHasError(true);
               setIsLoading(false);
+              setHasError(true);
             }}
           />
-        ) : (
+        ) : !embedHtml ? (
           <View style={styles.errorOverlay}>
             <Text style={styles.errorTitle}>Stream format not supported</Text>
           </View>
-        )}
+        ) : null}
 
         {isLoading && !hasError ? (
           <View style={styles.loadingOverlay}>

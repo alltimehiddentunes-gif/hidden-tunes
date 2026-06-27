@@ -76,6 +76,12 @@ function TvLiveHomeSections({
       nextHasMore[section.id] = result.hasMore;
     }
 
+    if (!mountedRef.current) return;
+
+    setSectionChannels(nextSections);
+    setSectionHasMore(nextHasMore);
+    setLoading(false);
+
     const [recent, favorites] = await Promise.all([
       loadTvRecentlyWatched(),
       loadTvFavorites(),
@@ -83,8 +89,6 @@ function TvLiveHomeSections({
 
     if (!mountedRef.current) return;
 
-    setSectionChannels(nextSections);
-    setSectionHasMore(nextHasMore);
     setRecentChannels(
       recent
         .map((entry) => getTvChannelById(entry.channelId))
@@ -97,7 +101,6 @@ function TvLiveHomeSections({
         .filter((channel): channel is TVChannel => channel !== null)
         .slice(0, 16)
     );
-    setLoading(false);
   }, [matureEnabled, mountedRef]);
 
   useEffect(() => {
