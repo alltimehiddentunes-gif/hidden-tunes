@@ -16,7 +16,11 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 
+import TvLiveHomeSections, {
+  preloadMatureTvPreference,
+} from "@/components/tv/TvLiveHomeSections";
 import TvVideoCard from "@/components/tv/TvVideoCard";
+import VideoDiscoverySection from "@/components/tv/VideoDiscoverySection";
 import { TESTER_COPY } from "@/constants/testerExperience";
 import { COLORS, GRADIENTS } from "@/constants/theme";
 import {
@@ -72,6 +76,7 @@ export default function HiddenTunesTVScreen() {
   const [catalogEmpty, setCatalogEmpty] = useState(false);
   const [searchEmpty, setSearchEmpty] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [matureTvEnabled, setMatureTvEnabled] = useState(false);
 
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchRequestRef = useRef(0);
@@ -214,8 +219,13 @@ export default function HiddenTunesTVScreen() {
       let active = true;
 
       async function bootstrap() {
-        const cache = await loadTvHomeCache();
+        const [cache, matureEnabled] = await Promise.all([
+          loadTvHomeCache(),
+          preloadMatureTvPreference(),
+        ]);
         if (!active) return;
+
+        setMatureTvEnabled(matureEnabled);
 
         if (cache) {
           applyHomeCache(cache);
@@ -274,32 +284,6 @@ export default function HiddenTunesTVScreen() {
     };
   }, [query, runCatalogSearch]);
 
-  const renderLane = (lane: TvLaneState) => {
-    if (!lane.videos.length) return null;
-
-    return (
-      <View key={lane.id} style={styles.laneSection}>
-        <View style={styles.laneHeader}>
-          <Text style={styles.laneTitle}>{lane.title}</Text>
-          <Text style={styles.laneCount}>{lane.videos.length} videos</Text>
-        </View>
-
-        <FlatList
-          horizontal
-          data={lane.videos}
-          keyExtractor={(item) => `${lane.id}-${item.id}`}
-          showsHorizontalScrollIndicator={false}
-          renderItem={({ item }) => (
-            <TvVideoCard
-              video={item}
-              onPress={(video) => openTvVideo(video, lane.videos)}
-            />
-          )}
-        />
-      </View>
-    );
-  };
-
   const showCatalogEmpty =
     !isSearching && homeReady && !hasHomeContent && catalogEmpty;
   const showSearchEmpty =
@@ -312,7 +296,8 @@ export default function HiddenTunesTVScreen() {
           <Text style={styles.kicker}>CURATED</Text>
           <Text style={styles.title}>Hidden Tunes TV</Text>
           <Text style={styles.subtitle}>
-            Premium TV from the Hidden Tunes catalog. Official embeds only.
+            Live TV channels and curated video discovery. Official streams and
+            embeds only.
           </Text>
         </View>
 
@@ -440,16 +425,24 @@ export default function HiddenTunesTVScreen() {
             <Text style={styles.refreshingText}>Refreshing catalog...</Text>
           ) : null}
 
+          <TvLiveHomeSections
+            matureEnabled={matureTvEnabled}
+            onMatureEnabledChange={setMatureTvEnabled}
+          />
+
           {showCatalogEmpty ? (
             <View style={styles.emptyBox}>
               <Ionicons name="tv-outline" size={38} color={COLORS.textMuted} />
               <Text style={styles.emptyTitle}>
-                Hidden Tunes TV catalog is being prepared. Add approved playable
+                Video Discovery catalog is being prepared. Add approved playable
                 videos from admin.
               </Text>
             </View>
           ) : (
-            lanes.map(renderLane)
+            <VideoDiscoverySection
+              lanes={lanes}
+              onPressVideo={openTvVideo}
+            />
           )}
 
           <View style={{ height: 130 }} />
