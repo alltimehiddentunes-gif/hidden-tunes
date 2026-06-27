@@ -86,6 +86,9 @@ export default function PodcastCategoryScreen() {
       params: {
         showId: show.id,
         title: show.title,
+        hostName: show.host_name || "",
+        artworkUrl: show.artwork_url || "",
+        description: show.description || "",
       },
     } as any);
   }, []);

@@ -222,3 +222,34 @@ export function writeCachedPodcastSearch(
 ) {
   writeCachedPodcastShows(`search:${query}`, shows);
 }
+
+export function listCachedPodcastShows() {
+  const seen = new Set<string>();
+  const shows: HiddenTunesPodcastShow[] = [];
+
+  for (const entry of showsMemoryCache.values()) {
+    if (!isFresh(entry.cachedAt)) continue;
+
+    for (const show of entry.shows) {
+      if (seen.has(show.id)) continue;
+      seen.add(show.id);
+      shows.push(show);
+    }
+  }
+
+  return shows;
+}
+
+export function findCachedPodcastShowById(showId: string) {
+  const safeId = String(showId || "").trim();
+  if (!safeId) return null;
+
+  for (const entry of showsMemoryCache.values()) {
+    if (!isFresh(entry.cachedAt)) continue;
+
+    const match = entry.shows.find((show) => show.id === safeId);
+    if (match) return match;
+  }
+
+  return null;
+}
