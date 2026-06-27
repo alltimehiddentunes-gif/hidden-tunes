@@ -2,27 +2,23 @@ import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   StyleSheet,
-  Switch,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
 
-import { Ionicons } from "@expo/vector-icons";
-
 import TvChannelRail from "@/components/tv/TvChannelRail";
+import TvMatureGateSection from "@/components/tv/TvMatureGateSection";
 import { COLORS } from "@/constants/theme";
 import { getTvChannelById } from "@/data/tvChannelSeedCatalog";
-import {
-  isMatureTvEnabled,
-  setMatureTvEnabled,
-} from "@/services/matureTvPreferences";
+import { getMatureTvEnabled } from "@/services/matureTvPreferences";
 import {
   LIVE_TV_HOME_SECTIONS,
   TV_CHANNEL_PAGE_SIZE,
-  getMatureTvChannels,
+  filterMatureTvChannels,
   getRecommendedTvChannels,
   getTvChannelsForSection,
+  hasActiveMatureTvChannels,
 } from "@/services/tv/tvChannelService";
 import { loadTvFavorites } from "@/services/tv/tvFavorites";
 import { loadTvRecentlyWatched } from "@/services/tv/tvRecentlyWatched";
@@ -53,13 +49,10 @@ function TvLiveHomeSections({
     null
   );
 
-  const recommendedChannels = useMemo(
-    () => getRecommendedTvChannels(matureEnabled, 16),
-    [matureEnabled]
-  );
+  const recommendedChannels = useMemo(() => getRecommendedTvChannels(16), []);
 
-  const matureChannels = useMemo(
-    () => getMatureTvChannels(matureEnabled),
+  const activeMatureChannels = useMemo(
+    () => hasActiveMatureTvChannels(matureEnabled),
     [matureEnabled]
   );
 
@@ -90,16 +83,20 @@ function TvLiveHomeSections({
     if (!mountedRef.current) return;
 
     setRecentChannels(
-      recent
-        .map((entry) => getTvChannelById(entry.channelId))
-        .filter((channel): channel is TVChannel => channel !== null)
-        .slice(0, 16)
+      filterMatureTvChannels(
+        recent
+          .map((entry) => getTvChannelById(entry.channelId))
+          .filter((channel): channel is TVChannel => channel !== null),
+        matureEnabled
+      ).slice(0, 16)
     );
     setFavoriteChannels(
-      favorites
-        .map((entry) => getTvChannelById(entry.channelId))
-        .filter((channel): channel is TVChannel => channel !== null)
-        .slice(0, 16)
+      filterMatureTvChannels(
+        favorites
+          .map((entry) => getTvChannelById(entry.channelId))
+          .filter((channel): channel is TVChannel => channel !== null),
+        matureEnabled
+      ).slice(0, 16)
     );
   }, [matureEnabled, mountedRef]);
 
@@ -142,14 +139,6 @@ function TvLiveHomeSections({
       setLoadingMoreSection(null);
     },
     [loadingMoreSection, matureEnabled, mountedRef, sectionChannels]
-  );
-
-  const handleMatureToggle = useCallback(
-    async (next: boolean) => {
-      onMatureEnabledChange(next);
-      await setMatureTvEnabled(next);
-    },
-    [onMatureEnabledChange]
   );
 
   if (loading) {
@@ -236,43 +225,11 @@ function TvLiveHomeSections({
         />
       ) : null}
 
-      <View style={styles.matureSection}>
-        <View style={styles.matureHeader}>
-          <Ionicons name="lock-closed" size={18} color={COLORS.textMuted} />
-          <View style={styles.matureCopy}>
-            <Text style={styles.matureTitle}>Mature TV</Text>
-            <Text style={styles.matureSub}>
-              Off by default. Requires 18+ consent. Licensed sources only.
-            </Text>
-          </View>
-          <Switch
-            value={matureEnabled}
-            onValueChange={(value) => void handleMatureToggle(value)}
-          />
-        </View>
-
-        {!matureEnabled ? (
-          <Text style={styles.matureLocked}>
-            Enable mature content to unlock this section.
-          </Text>
-        ) : matureChannels.length ? (
-          <TvChannelRail
-            title="Mature TV"
-            channels={matureChannels}
-            onPressChannel={(channel) =>
-              openFromSection(
-                "mature",
-                channel,
-                matureChannels.map((entry) => entry.id)
-              )
-            }
-          />
-        ) : (
-          <Text style={styles.matureLocked}>
-            Mature channels are being prepared.
-          </Text>
-        )}
-      </View>
+      <TvMatureGateSection
+        matureEnabled={matureEnabled}
+        onMatureEnabledChange={onMatureEnabledChange}
+        hasActiveMatureChannels={activeMatureChannels}
+      />
     </View>
   );
 }
@@ -280,7 +237,7 @@ function TvLiveHomeSections({
 export default memo(TvLiveHomeSections);
 
 export async function preloadMatureTvPreference() {
-  return isMatureTvEnabled();
+  return getMatureTvEnabled();
 }
 
 const styles = StyleSheet.create({
@@ -312,46 +269,5 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     fontSize: 11,
     fontWeight: "800",
-  },
-
-  matureSection: {
-    marginTop: 4,
-    marginBottom: 18,
-    padding: 14,
-    borderRadius: 18,
-    backgroundColor: "rgba(255,255,255,0.04)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
-  },
-
-  matureHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-
-  matureCopy: {
-    flex: 1,
-  },
-
-  matureTitle: {
-    color: COLORS.text,
-    fontSize: 16,
-    fontWeight: "900",
-  },
-
-  matureSub: {
-    color: COLORS.textMuted,
-    fontSize: 11,
-    lineHeight: 16,
-    fontWeight: "700",
-    marginTop: 2,
-  },
-
-  matureLocked: {
-    color: COLORS.textDim,
-    fontSize: 12,
-    fontWeight: "700",
-    marginTop: 12,
   },
 });

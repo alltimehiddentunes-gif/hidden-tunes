@@ -658,37 +658,40 @@ export const TV_CHANNEL_SEEDS: TVChannel[] = [
     id: "mature-late-night",
     name: "Late Night Talk",
     description: "Licensed late-night talk and mature comedy.",
-    streamUrl: "https://latenight-samsungus.amagi.tv/playlist.m3u8",
+    streamUrl: "",
     country: "US",
     language: "English",
     category: "mature",
     sourceType: "fast",
     isMature: true,
     isActive: false,
+    isVerifiedLegal: false,
   }),
   seedChannel({
     id: "mature-after-dark",
     name: "After Dark",
     description: "Licensed mature entertainment programming.",
-    streamUrl: "https://afterdark-samsungus.amagi.tv/playlist.m3u8",
+    streamUrl: "",
     country: "US",
     language: "English",
     category: "mature",
     sourceType: "fast",
     isMature: true,
     isActive: false,
+    isVerifiedLegal: false,
   }),
   seedChannel({
     id: "mature-uncensored-docs",
     name: "Uncensored Docs",
     description: "Mature documentary programming.",
-    streamUrl: "https://uncensoreddocs-samsungus.amagi.tv/playlist.m3u8",
+    streamUrl: "",
     country: "US",
     language: "English",
     category: "mature",
     sourceType: "fast",
     isMature: true,
     isActive: false,
+    isVerifiedLegal: false,
   }),
 ];
 
@@ -698,19 +701,34 @@ export function getTvChannelById(channelId: string) {
   return channelById.get(channelId) || null;
 }
 
-export function getVisibleTvChannels(matureEnabled: boolean) {
-  return TV_CHANNEL_SEEDS.filter((channel) => {
-    if (!channel.isActive) return false;
-    if (channel.isMature && !matureEnabled) return false;
-    return true;
-  });
+export function isMatureTvChannel(channel: Pick<TVChannel, "isMature" | "category">) {
+  return channel.isMature || channel.category === "mature";
+}
+
+export function getPublicTvChannels() {
+  return TV_CHANNEL_SEEDS.filter(
+    (channel) => channel.isActive && !isMatureTvChannel(channel)
+  );
+}
+
+export function getVisibleTvChannels() {
+  return getPublicTvChannels();
 }
 
 export function getTvChannelsByCategory(
   category: TvChannelCategory,
-  matureEnabled: boolean
+  matureEnabled = false
 ) {
-  return getVisibleTvChannels(matureEnabled).filter(
-    (channel) => channel.category === category
-  );
+  if (category === "mature") {
+    if (!matureEnabled) return [];
+
+    return TV_CHANNEL_SEEDS.filter(
+      (channel) =>
+        isMatureTvChannel(channel) &&
+        channel.isActive &&
+        channel.isVerifiedLegal
+    );
+  }
+
+  return getPublicTvChannels().filter((channel) => channel.category === category);
 }

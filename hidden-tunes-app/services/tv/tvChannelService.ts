@@ -1,7 +1,8 @@
 import {
+  getPublicTvChannels,
   getTvChannelById,
   getTvChannelsByCategory,
-  getVisibleTvChannels,
+  isMatureTvChannel,
 } from "@/data/tvChannelSeedCatalog";
 import { isTvChannelMarkedBroken } from "@/services/tv/tvBrokenChannels";
 import type { TVChannel, TvLiveSectionId } from "@/types/tv";
@@ -27,26 +28,37 @@ function filterBroken(channels: TVChannel[]) {
   return channels.filter((channel) => !isTvChannelMarkedBroken(channel.id));
 }
 
-export function getFeaturedTvChannels(matureEnabled: boolean, limit = TV_CHANNEL_PAGE_SIZE) {
+export function filterMatureTvChannels(
+  channels: TVChannel[],
+  matureEnabled: boolean
+) {
+  if (matureEnabled) return channels;
+  return channels.filter((channel) => !isMatureTvChannel(channel));
+}
+
+export function getFeaturedTvChannels(limit = TV_CHANNEL_PAGE_SIZE) {
   const featured = filterBroken(
-    getVisibleTvChannels(matureEnabled).filter((channel) => channel.isFeatured)
+    getPublicTvChannels().filter((channel) => channel.isFeatured)
   );
 
   if (featured.length >= 8) {
     return featured.slice(0, limit);
   }
 
-  return filterBroken(getVisibleTvChannels(matureEnabled)).slice(0, limit);
+  return filterBroken(getPublicTvChannels()).slice(0, limit);
 }
 
-export function getRecommendedTvChannels(matureEnabled: boolean, limit = 16) {
-  const pool = filterBroken(getVisibleTvChannels(matureEnabled));
-  return pool.slice(0, limit);
+export function getRecommendedTvChannels(limit = 16) {
+  return filterBroken(getPublicTvChannels()).slice(0, limit);
 }
 
 export function getMatureTvChannels(matureEnabled: boolean) {
   if (!matureEnabled) return [];
   return filterBroken(getTvChannelsByCategory("mature", true));
+}
+
+export function hasActiveMatureTvChannels(matureEnabled: boolean) {
+  return getMatureTvChannels(matureEnabled).length > 0;
 }
 
 export function getTvChannelsForSection(
@@ -62,20 +74,24 @@ export function getTvChannelsForSection(
   if (options.channelIds?.length) {
     pool = options.channelIds
       .map((id) => getTvChannelById(id))
-      .filter((channel): channel is TVChannel => channel !== null)
-      .filter((channel) => channel.isActive && (!channel.isMature || matureEnabled));
+      .filter((channel): channel is TVChannel => {
+        if (!channel || !channel.isActive) return false;
+        if (isMatureTvChannel(channel) && !matureEnabled) return false;
+        if (isMatureTvChannel(channel) && !channel.isVerifiedLegal) return false;
+        return !isTvChannelMarkedBroken(channel.id);
+      });
   } else if (sectionId === "featured") {
-    pool = getFeaturedTvChannels(matureEnabled, 200);
+    pool = getFeaturedTvChannels(200);
   } else if (sectionId === "recommended") {
-    pool = getRecommendedTvChannels(matureEnabled, 200);
+    pool = getRecommendedTvChannels(200);
   } else if (sectionId === "all") {
-    pool = filterBroken(getVisibleTvChannels(matureEnabled));
+    pool = filterBroken(getPublicTvChannels());
   } else if (sectionId === "mature") {
     pool = getMatureTvChannels(matureEnabled);
   } else {
     const section = LIVE_TV_HOME_SECTIONS.find((entry) => entry.id === sectionId);
     if (section?.category) {
-      pool = filterBroken(getTvChannelsByCategory(section.category, matureEnabled));
+      pool = filterBroken(getTvChannelsByCategory(section.category, false));
     }
   }
 
@@ -90,8 +106,14 @@ export function getTvChannelsForSection(
 }
 
 export function getRelatedTvChannels(channel: TVChannel, matureEnabled: boolean, limit = 8) {
+  if (isMatureTvChannel(channel)) {
+    return filterBroken(
+      getMatureTvChannels(matureEnabled).filter((entry) => entry.id !== channel.id)
+    ).slice(0, limit);
+  }
+
   const sameCategory = filterBroken(
-    getTvChannelsByCategory(channel.category, matureEnabled).filter(
+    getTvChannelsByCategory(channel.category, false).filter(
       (entry) => entry.id !== channel.id
     )
   );
@@ -101,7 +123,7 @@ export function getRelatedTvChannels(channel: TVChannel, matureEnabled: boolean,
   }
 
   const fallback = filterBroken(
-    getVisibleTvChannels(matureEnabled).filter((entry) => entry.id !== channel.id)
+    getPublicTvChannels().filter((entry) => entry.id !== channel.id)
   );
 
   return [...sameCategory, ...fallback].slice(0, limit);
@@ -117,7 +139,8 @@ export function resolveTvPlaybackQueue(
       .map((id) => getTvChannelById(id))
       .filter((channel): channel is TVChannel => {
         if (!channel || !channel.isActive) return false;
-        if (channel.isMature && !matureEnabled) return false;
+        if (isMatureTvChannel(channel) && !matureEnabled) return false;
+        if (isMatureTvChannel(channel) && !channel.isVerifiedLegal) return false;
         return !isTvChannelMarkedBroken(channel.id);
       });
   }
@@ -130,13 +153,13 @@ export function resolveTvPlaybackQueue(
 
 export function searchTvChannelsLocal(
   query: string,
-  matureEnabled: boolean,
+  _matureEnabled = false,
   limit = TV_CHANNEL_PAGE_SIZE
 ) {
   const clean = query.trim().toLowerCase();
   if (!clean) return [];
 
-  return filterBroken(getVisibleTvChannels(matureEnabled))
+  return filterBroken(getPublicTvChannels())
     .filter((channel) => {
       const haystack = [
         channel.name,

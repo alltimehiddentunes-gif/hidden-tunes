@@ -19,7 +19,7 @@ import TvChannelCard from "@/components/tv/TvChannelCard";
 import { COLORS, GRADIENTS } from "@/constants/theme";
 import { getTvChannelById } from "@/data/tvChannelSeedCatalog";
 import { usePlayerActions } from "@/context/PlayerContext";
-import { isMatureTvEnabled } from "@/services/matureTvPreferences";
+import { getMatureTvEnabled } from "@/services/matureTvPreferences";
 import { markTvChannelBroken } from "@/services/tv/tvBrokenChannels";
 import { getRelatedTvChannels } from "@/services/tv/tvChannelService";
 import {
@@ -154,7 +154,7 @@ export default function TvPlayerScreen() {
   }, [mountedRef]);
 
   const loadRelated = useCallback(async (target: TVChannel) => {
-    const matureEnabled = await isMatureTvEnabled();
+    const matureEnabled = await getMatureTvEnabled();
     const related = getRelatedTvChannels(target, matureEnabled, 8);
     if (mountedRef.current) {
       setRelatedChannels(related);
