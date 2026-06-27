@@ -1,6 +1,6 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
-  Alert,
+  ActivityIndicator,
   ScrollView,
   StyleSheet,
   Text,
@@ -14,11 +14,16 @@ import { router, useLocalSearchParams } from "expo-router";
 
 import HTImage from "../../components/HTImage";
 import { COLORS } from "../../constants/theme";
+import { usePlaybackRouter } from "../../hooks/usePlaybackRouter";
 import { sanitizeStationTagsForDisplay } from "../../services/radioStationApi";
+import { normalizeRadioStation } from "../../services/radio/radioNormalizer";
 import { getCachedRadioStation } from "../../utils/radioStationCache";
 import { getLaunchRadioCategory } from "../../utils/launchRadioCategories";
 
 export default function RadioStationDetailScreen() {
+  const { playRadioStation } = usePlaybackRouter();
+  const [tuningIn, setTuningIn] = useState(false);
+  const [playbackError, setPlaybackError] = useState<string | null>(null);
   const params = useLocalSearchParams<{
     categoryId?: string;
     stationId?: string;
@@ -52,19 +57,27 @@ export default function RadioStationDetailScreen() {
     } as any);
   }, [category]);
 
-  const handleTuneIn = useCallback(() => {
-    Alert.alert(
-      "Hidden Tunes Radio",
-      "In-app live station playback is coming soon. Song listening rooms are ready now with Hidden Tunes catalog tracks.",
-      [
-        { text: "Not now", style: "cancel" },
-        {
-          text: "Open listening room",
-          onPress: openListeningRoom,
-        },
-      ]
-    );
-  }, [openListeningRoom]);
+  const handleTuneIn = useCallback(async () => {
+    if (!station?.streamUrl) {
+      setPlaybackError("This station stream is unavailable right now.");
+      return;
+    }
+
+    setPlaybackError(null);
+    setTuningIn(true);
+
+    try {
+      const result = await playRadioStation(normalizeRadioStation(station));
+
+      if (!result.ok) {
+        setPlaybackError(
+          result.error || "This station stream is unavailable right now."
+        );
+      }
+    } finally {
+      setTuningIn(false);
+    }
+  }, [playRadioStation, station]);
 
   return (
     <LinearGradient colors={["#120818", "#050308"]} style={styles.container}>
@@ -124,10 +137,21 @@ export default function RadioStationDetailScreen() {
           activeOpacity={0.88}
           style={styles.primaryButton}
           onPress={handleTuneIn}
+          disabled={tuningIn}
         >
-          <Ionicons name="radio-outline" size={18} color="#000" />
-          <Text style={styles.primaryButtonText}>Tune in</Text>
+          {tuningIn ? (
+            <ActivityIndicator color="#000" />
+          ) : (
+            <>
+              <Ionicons name="radio-outline" size={18} color="#000" />
+              <Text style={styles.primaryButtonText}>Tune in</Text>
+            </>
+          )}
         </TouchableOpacity>
+
+        {playbackError ? (
+          <Text style={styles.errorText}>{playbackError}</Text>
+        ) : null}
 
         <TouchableOpacity
           activeOpacity={0.86}
@@ -268,5 +292,13 @@ const styles = StyleSheet.create({
     lineHeight: 17,
     marginTop: 16,
     textAlign: "center",
+  },
+  errorText: {
+    color: "#F87171",
+    fontSize: 13,
+    lineHeight: 18,
+    marginBottom: 8,
+    textAlign: "center",
+    fontWeight: "600",
   },
 });

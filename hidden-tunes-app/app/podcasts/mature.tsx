@@ -28,6 +28,10 @@ import {
   setMaturePodcastsEnabled,
 } from "../../services/maturePodcastPreferences";
 import { useMountedRef } from "../../utils/useMountedRef";
+import {
+  openMaturePodcastCategory,
+  openPodcastShow,
+} from "../../utils/podcastNavigation";
 
 export default function MaturePodcastsScreen() {
   const mountedRef = useMountedRef();
@@ -68,23 +72,11 @@ export default function MaturePodcastsScreen() {
   }, [refreshCatalog]);
 
   const openCategory = useCallback((categoryId: string) => {
-    router.push({
-      pathname: "/podcasts/category/[id]",
-      params: { id: categoryId },
-    } as any);
+    openMaturePodcastCategory(categoryId);
   }, []);
 
   const openShow = useCallback((show: HiddenTunesPodcastShow) => {
-    router.push({
-      pathname: "/podcasts/show/[showId]",
-      params: {
-        showId: show.id,
-        title: show.title,
-        hostName: show.host_name || "",
-        artworkUrl: show.artwork_url || "",
-        description: show.description || "",
-      },
-    } as any);
+    openPodcastShow(show);
   }, []);
 
   const headerSubtitle = useMemo(() => {

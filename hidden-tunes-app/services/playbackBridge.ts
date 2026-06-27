@@ -261,8 +261,8 @@ export function subscribeBridgeEvents(
   return subscribeTrackPlayerEvents(handlers);
 }
 
-const RNTP_PROGRESS_INTERVAL_ACTIVE_S = 1;
-const RNTP_PROGRESS_INTERVAL_BACKGROUND_S = 2;
+const RNTP_PROGRESS_INTERVAL_ACTIVE_S = 2.5;
+const RNTP_PROGRESS_INTERVAL_BACKGROUND_S = 4;
 
 function resolveBridgeProgressIntervalSeconds(appState: AppStateStatus) {
   return appState === "active"

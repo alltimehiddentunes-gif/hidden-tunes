@@ -20,14 +20,15 @@ import {
 } from "../../components/podcast/PodcastDiscoveryCards";
 import { COLORS } from "../../constants/theme";
 import { TESTER_COPY } from "../../constants/testerExperience";
-import {
-  prefetchPodcastShowsForCategory,
-} from "../../services/podcastDiscoveryApi";
 import { isMaturePodcastsEnabled } from "../../services/maturePodcastPreferences";
 import type { HiddenTunesPodcastShow } from "../../services/podcastCatalogApi";
 import { LAUNCH_PODCAST_CATEGORIES } from "../../utils/launchPodcastCategories";
 import { searchLocalPodcastDiscovery } from "../../utils/podcastLocalSearch";
 import { PODCAST_SEARCH_DEBOUNCE_MS } from "../../utils/podcastPerformanceLimits";
+import {
+  openPodcastCategory,
+  openPodcastShow,
+} from "../../utils/podcastNavigation";
 import { podcastShowSubtitle } from "../../utils/openHiddenTunesPodcast";
 import { useMountedRef } from "../../utils/useMountedRef";
 import {
@@ -50,24 +51,11 @@ export default function PodcastDiscoveryHomeScreen() {
   const isSearching = searchQuery.trim().length > 0;
 
   const openCategory = useCallback((categoryId: string) => {
-    prefetchPodcastShowsForCategory(categoryId);
-    router.push({
-      pathname: "/podcasts/[categoryId]",
-      params: { categoryId },
-    } as any);
+    openPodcastCategory(categoryId);
   }, []);
 
   const openShow = useCallback((show: HiddenTunesPodcastShow) => {
-    router.push({
-      pathname: "/podcasts/show/[showId]",
-      params: {
-        showId: show.id,
-        title: show.title,
-        hostName: show.host_name || "",
-        artworkUrl: show.artwork_url || "",
-        description: show.description || "",
-      },
-    } as any);
+    openPodcastShow(show);
   }, []);
 
   const categories = useMemo(() => LAUNCH_PODCAST_CATEGORIES, []);

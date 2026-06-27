@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   BackHandler,
+  FlatList,
   ScrollView,
   StyleSheet,
   Text,
@@ -38,6 +39,7 @@ import {
 } from "@/services/tv/tvPlaybackActivity";
 import type { TVChannel, TvLiveSectionId, TvPlaybackContext } from "@/types/tv";
 import { closeTvPlayer } from "@/utils/tvNavigation";
+import { getHorizontalListPerformanceSettings } from "@/utils/performanceMode";
 import { useMountedRef } from "@/utils/useMountedRef";
 
 function buildHlsPlayerHtml(streamUrl: string, autoplay = true) {
@@ -363,6 +365,18 @@ export default function TvPlayerScreen() {
     [relatedChannels, switchToChannel]
   );
 
+  const relatedListSettings = useMemo(
+    () => getHorizontalListPerformanceSettings(relatedChannels.length),
+    [relatedChannels.length]
+  );
+
+  const renderRelatedChannel = useCallback(
+    ({ item }: { item: TVChannel }) => (
+      <TvChannelCard channel={item} onPress={openRelatedChannel} />
+    ),
+    [openRelatedChannel]
+  );
+
   if (!channel) {
     return (
       <LinearGradient colors={GRADIENTS.main} style={styles.container}>
@@ -508,15 +522,18 @@ export default function TvPlayerScreen() {
         {relatedChannels.length ? (
           <View style={styles.relatedSection}>
             <Text style={styles.relatedTitle}>Related Channels</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {relatedChannels.map((related) => (
-                <TvChannelCard
-                  key={related.id}
-                  channel={related}
-                  onPress={openRelatedChannel}
-                />
-              ))}
-            </ScrollView>
+            <FlatList
+              horizontal
+              data={relatedChannels}
+              keyExtractor={(item) => item.id}
+              showsHorizontalScrollIndicator={false}
+              renderItem={renderRelatedChannel}
+              initialNumToRender={relatedListSettings.initialNumToRender}
+              maxToRenderPerBatch={relatedListSettings.maxToRenderPerBatch}
+              windowSize={relatedListSettings.windowSize}
+              updateCellsBatchingPeriod={relatedListSettings.updateCellsBatchingPeriod}
+              removeClippedSubviews={relatedListSettings.removeClippedSubviews}
+            />
           </View>
         ) : null}
       </ScrollView>

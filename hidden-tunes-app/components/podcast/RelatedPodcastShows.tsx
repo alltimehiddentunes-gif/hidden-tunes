@@ -1,10 +1,9 @@
 import { memo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
-import { router } from "expo-router";
-
 import { COLORS } from "../../constants/theme";
 import type { HiddenTunesPodcastShow } from "../../services/podcastCatalogApi";
+import { openPodcastShow } from "../../utils/podcastNavigation";
 import { PodcastShowCard } from "./PodcastDiscoveryCards";
 import { podcastShowSubtitle } from "../../utils/openHiddenTunesPodcast";
 
@@ -27,18 +26,7 @@ export const RelatedPodcastShows = memo(function RelatedPodcastShows({
           key={show.id}
           show={show}
           subtitle={podcastShowSubtitle(show)}
-          onPress={() =>
-            router.push({
-              pathname: "/podcasts/show/[showId]",
-              params: {
-                showId: show.id,
-                title: show.title,
-                hostName: show.host_name || "",
-                artworkUrl: show.artwork_url || "",
-                description: show.description || "",
-              },
-            } as any)
-          }
+          onPress={() => openPodcastShow(show)}
         />
       ))}
     </View>

@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, useCallback } from "react";
 import { FlatList, StyleSheet, Text, View } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
@@ -6,6 +6,7 @@ import { Ionicons } from "@expo/vector-icons";
 import TvVideoCard from "@/components/tv/TvVideoCard";
 import { COLORS } from "@/constants/theme";
 import type { HiddenTunesTvVideo } from "@/services/tvCatalogApi";
+import { getHorizontalListPerformanceSettings } from "@/utils/performanceMode";
 
 type VideoLane = {
   id: string;
@@ -18,14 +19,31 @@ type VideoDiscoverySectionProps = {
   onPressVideo: (video: HiddenTunesTvVideo, queue: HiddenTunesTvVideo[]) => void;
 };
 
-function renderLane(
-  lane: VideoLane,
-  onPressVideo: (video: HiddenTunesTvVideo, queue: HiddenTunesTvVideo[]) => void
-) {
+type VideoLaneRowProps = {
+  lane: VideoLane;
+  onPressVideo: (video: HiddenTunesTvVideo, queue: HiddenTunesTvVideo[]) => void;
+};
+
+const VideoLaneRow = memo(function VideoLaneRow({
+  lane,
+  onPressVideo,
+}: VideoLaneRowProps) {
+  const listSettings = getHorizontalListPerformanceSettings(lane.videos.length);
+
+  const renderItem = useCallback(
+    ({ item }: { item: HiddenTunesTvVideo }) => (
+      <TvVideoCard
+        video={item}
+        onPress={(video) => onPressVideo(video, lane.videos)}
+      />
+    ),
+    [lane.videos, onPressVideo]
+  );
+
   if (!lane.videos.length) return null;
 
   return (
-    <View key={lane.id} style={styles.laneSection}>
+    <View style={styles.laneSection}>
       <View style={styles.laneHeader}>
         <Text style={styles.laneTitle}>{lane.title}</Text>
         <Text style={styles.laneCount}>{lane.videos.length} videos</Text>
@@ -36,20 +54,16 @@ function renderLane(
         data={lane.videos}
         keyExtractor={(item) => `${lane.id}-${item.id}`}
         showsHorizontalScrollIndicator={false}
-        renderItem={({ item }) => (
-          <TvVideoCard
-            video={item}
-            onPress={(video) => onPressVideo(video, lane.videos)}
-          />
-        )}
-        initialNumToRender={6}
-        maxToRenderPerBatch={4}
-        windowSize={5}
-        removeClippedSubviews
+        renderItem={renderItem}
+        initialNumToRender={listSettings.initialNumToRender}
+        maxToRenderPerBatch={listSettings.maxToRenderPerBatch}
+        windowSize={listSettings.windowSize}
+        updateCellsBatchingPeriod={listSettings.updateCellsBatchingPeriod}
+        removeClippedSubviews={listSettings.removeClippedSubviews}
       />
     </View>
   );
-}
+});
 
 function VideoDiscoverySection({ lanes, onPressVideo }: VideoDiscoverySectionProps) {
   const hasVideos = lanes.some((lane) => lane.videos.length > 0);
@@ -70,7 +84,9 @@ function VideoDiscoverySection({ lanes, onPressVideo }: VideoDiscoverySectionPro
         </View>
       </View>
 
-      {lanes.map((lane) => renderLane(lane, onPressVideo))}
+      {lanes.map((lane) => (
+        <VideoLaneRow key={lane.id} lane={lane} onPressVideo={onPressVideo} />
+      ))}
     </View>
   );
 }

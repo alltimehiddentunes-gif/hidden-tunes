@@ -29,16 +29,31 @@ export async function probeTvStreamUrl(streamUrl: string) {
       method: "GET",
       headers: {
         Accept: "application/vnd.apple.mpegurl, application/x-mpegURL, */*",
+        Range: "bytes=0-511",
       },
       signal: controller.signal,
     });
 
     clearTimeout(timeout);
 
-    if (!response.ok) return false;
+    if (!response.ok && response.status !== 206) return false;
+
+    const reader = response.body?.getReader?.();
+    if (reader) {
+      const { value, done } = await reader.read();
+      await reader.cancel().catch(() => undefined);
+
+      if (!value || done) {
+        return response.ok;
+      }
+
+      const head = new TextDecoder().decode(value.slice(0, 512));
+      return head.includes("#EXTM3U") || /\.m3u8/i.test(head);
+    }
 
     const body = await response.text();
-    return body.includes("#EXTM3U") || /\.m3u8/i.test(body);
+    const head = body.slice(0, 512);
+    return head.includes("#EXTM3U") || /\.m3u8/i.test(head);
   } catch {
     return false;
   }

@@ -18,6 +18,7 @@ import { getMatureShowsByCategory } from "../../../services/podcastService";
 import type { HiddenTunesPodcastShow } from "../../../services/podcastCatalogApi";
 import { isMaturePodcastsEnabled } from "../../../services/maturePodcastPreferences";
 import { getMaturePodcastCategory } from "../../../utils/maturePodcastCategories";
+import { openPodcastShow } from "../../../utils/podcastNavigation";
 import { podcastShowSubtitle } from "../../../utils/openHiddenTunesPodcast";
 import {
   createStableKeyExtractor,
@@ -69,16 +70,7 @@ export default function MaturePodcastCategoryScreen() {
   }, [categoryId, mountedRef]);
 
   const openShow = useCallback((show: HiddenTunesPodcastShow) => {
-    router.push({
-      pathname: "/podcasts/show/[showId]",
-      params: {
-        showId: show.id,
-        title: show.title,
-        hostName: show.host_name || "",
-        artworkUrl: show.artwork_url || "",
-        description: show.description || "",
-      },
-    } as any);
+    openPodcastShow(show);
   }, []);
 
   const renderShowRow = useCallback(

@@ -33,10 +33,14 @@ export const LaunchContentChips = memo(function LaunchContentChips({
       return;
     }
 
-    router.push({
-      pathname: chip.pathname as any,
-      params: chip.params,
-    });
+    router.push(
+      chip.params
+        ? ({
+            pathname: chip.pathname as any,
+            params: chip.params,
+          } as any)
+        : (chip.pathname as any)
+    );
   };
 
   const renderItem: ListRenderItem<LaunchContentChip> = ({ item }) => (

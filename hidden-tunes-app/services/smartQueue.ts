@@ -82,6 +82,46 @@ export async function saveSmartQueue(tracks: SmartQueueTrack[]) {
   }
 }
 
+let pendingSmartQueue: SmartQueueTrack[] | null = null;
+let smartQueuePersistTimer: ReturnType<typeof setTimeout> | null = null;
+let lastSmartQueueSerialized = "";
+
+const SMART_QUEUE_PERSIST_DEBOUNCE_MS = 900;
+
+async function flushScheduledSmartQueue() {
+  smartQueuePersistTimer = null;
+
+  if (!pendingSmartQueue) return;
+
+  const normalized = pendingSmartQueue.map(normalizeTrack);
+  pendingSmartQueue = null;
+
+  const serialized = JSON.stringify(normalized);
+  if (serialized === lastSmartQueueSerialized) {
+    return;
+  }
+
+  lastSmartQueueSerialized = serialized;
+
+  try {
+    await AsyncStorage.setItem(SMART_QUEUE_KEY, serialized);
+  } catch (error) {
+    if (__DEV__) console.log("Save smart queue error:", error);
+  }
+}
+
+export function scheduleSaveSmartQueue(tracks: SmartQueueTrack[]) {
+  pendingSmartQueue = tracks;
+
+  if (smartQueuePersistTimer) {
+    clearTimeout(smartQueuePersistTimer);
+  }
+
+  smartQueuePersistTimer = setTimeout(() => {
+    void flushScheduledSmartQueue();
+  }, SMART_QUEUE_PERSIST_DEBOUNCE_MS);
+}
+
 export async function addToSmartQueue(track: SmartQueueTrack) {
   try {
     const current = await getSmartQueue();

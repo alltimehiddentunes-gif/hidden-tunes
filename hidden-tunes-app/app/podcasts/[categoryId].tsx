@@ -19,6 +19,7 @@ import { TESTER_COPY } from "../../constants/testerExperience";
 import { getPodcastShowsForCategory } from "../../services/podcastDiscoveryApi";
 import type { HiddenTunesPodcastShow } from "../../services/podcastCatalogApi";
 import { getLaunchPodcastCategory } from "../../utils/launchPodcastCategories";
+import { openPodcastShow } from "../../utils/podcastNavigation";
 import { podcastShowSubtitle } from "../../utils/openHiddenTunesPodcast";
 import {
   hydrateCachedPodcastShows,
@@ -90,16 +91,7 @@ export default function PodcastCategoryScreen() {
   }, [loadShows]);
 
   const openShow = useCallback((show: HiddenTunesPodcastShow) => {
-    router.push({
-      pathname: "/podcasts/show/[showId]",
-      params: {
-        showId: show.id,
-        title: show.title,
-        hostName: show.host_name || "",
-        artworkUrl: show.artwork_url || "",
-        description: show.description || "",
-      },
-    } as any);
+    openPodcastShow(show);
   }, []);
 
   const renderShowRow = useCallback(

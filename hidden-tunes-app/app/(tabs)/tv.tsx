@@ -81,6 +81,8 @@ export default function HiddenTunesTVScreen() {
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchRequestRef = useRef(0);
   const hydratedFromCacheRef = useRef(false);
+  const tvHomeNetworkLoadedRef = useRef(false);
+  const searchLoadMoreGuardRef = useRef(false);
 
   const hasHomeContent = useMemo(
     () => lanes.some((lane) => lane.videos.length > 0),
@@ -202,9 +204,19 @@ export default function HiddenTunesTVScreen() {
   );
 
   const loadMoreSearch = useCallback(() => {
-    if (!isSearching || !searchHasMore || isLoadingMoreSearch) return;
+    if (
+      !isSearching ||
+      !searchHasMore ||
+      isLoadingMoreSearch ||
+      searchLoadMoreGuardRef.current
+    ) {
+      return;
+    }
 
-    runCatalogSearch(query, searchPage + 1, true);
+    searchLoadMoreGuardRef.current = true;
+    void runCatalogSearch(query, searchPage + 1, true).finally(() => {
+      searchLoadMoreGuardRef.current = false;
+    });
   }, [
     isSearching,
     isLoadingMoreSearch,
@@ -231,7 +243,10 @@ export default function HiddenTunesTVScreen() {
           applyHomeCache(cache);
         }
 
-        refreshHome(!cache);
+        if (!tvHomeNetworkLoadedRef.current) {
+          tvHomeNetworkLoadedRef.current = true;
+          refreshHome(!cache);
+        }
 
         if (initialQuery) {
           runCatalogSearch(initialQuery, 1, false);

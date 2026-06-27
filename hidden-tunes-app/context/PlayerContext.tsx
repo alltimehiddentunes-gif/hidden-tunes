@@ -32,7 +32,7 @@ import {
   addToSmartQueue,
   getRelatedTracks,
   getSmartQueue,
-  saveSmartQueue,
+  scheduleSaveSmartQueue,
 } from "../services/smartQueue";
 import { isTvPlayerOpen } from "../services/tv/tvPlaybackActivity";
 import { isTrackPlayerFeatureEnabled } from "../constants/playbackConfig";
@@ -363,6 +363,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const lastPositionSaveRef = useRef(0);
   const lastSavedPositionRef = useRef(0);
   const lastPositionStateUpdateRef = useRef(0);
+  const lastDurationStateUpdateRef = useRef(0);
   const lastActiveQueuePersistRef = useRef("");
   const positionPersistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null
@@ -484,11 +485,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const writePlaybackPosition = useCallback(async (millis: number) => {
     const safeMillis = Math.max(0, Math.floor(millis || 0));
+    const serialized = String(safeMillis);
+
+    if (storageValueCacheRef.current[POSITION_KEY] === serialized) {
+      return;
+    }
 
     try {
       lastSavedPositionRef.current = safeMillis;
-      storageValueCacheRef.current[POSITION_KEY] = String(safeMillis);
-      await AsyncStorage.setItem(POSITION_KEY, String(safeMillis));
+      storageValueCacheRef.current[POSITION_KEY] = serialized;
+      await AsyncStorage.setItem(POSITION_KEY, serialized);
     } catch (error) {
       logPlayerContextError("Save playback position error:", error);
     }
@@ -982,7 +988,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
       setTimeout(() => {
         void persistActiveQueue(normalizedQueue, safeIndex, mode);
-        void saveSmartQueue(normalizedQueue as any);
+        scheduleSaveSmartQueue(normalizedQueue as any);
       }, 0);
     },
     [normalizeSong, isYouTubeSong, persistActiveQueue]
@@ -2057,7 +2063,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           POSITION_SAVE_DISTANCE_MS
       ) {
         lastPositionSaveRef.current = now;
-        await savePlaybackPosition(nextPosition);
+        void savePlaybackPosition(nextPosition);
       }
     },
     [
@@ -3632,9 +3638,15 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         }
 
         if (progress.durationMillis > 0) {
-          durationMillisRef.current = progress.durationMillis;
-          recordPlaybackReactStateUpdate("duration");
-          setDurationMillisState(progress.durationMillis);
+          if (
+            Math.abs(progress.durationMillis - durationMillisRef.current) >=
+            DURATION_UPDATE_THRESHOLD_MS
+          ) {
+            durationMillisRef.current = progress.durationMillis;
+            lastDurationStateUpdateRef.current = now;
+            recordPlaybackReactStateUpdate("duration");
+            setDurationMillisState(progress.durationMillis);
+          }
         }
 
         if (progress.isPlaying !== isPlayingRef.current) {

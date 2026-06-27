@@ -92,6 +92,7 @@ export function buildFeaturedPodcastChips(limit = 6): LaunchContentChip[] {
     title: category.title,
     subtitle: category.subtitle,
     icon: category.icon,
-    pathname: `/podcasts/${category.id}`,
+    pathname: "/podcasts/[categoryId]",
+    params: { categoryId: category.id },
   }));
 }

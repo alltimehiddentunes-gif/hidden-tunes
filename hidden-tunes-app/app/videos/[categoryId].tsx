@@ -16,13 +16,13 @@ import { router, useLocalSearchParams } from "expo-router";
 import { VideoListRow } from "../../components/video/VideoDiscoveryCards";
 import { COLORS } from "../../constants/theme";
 import { TESTER_COPY } from "../../constants/testerExperience";
+import { usePlaybackRouter } from "../../hooks/usePlaybackRouter";
 import {
   getVideosForCategory,
 } from "../../services/videoDiscoveryApi";
 import type { HiddenTunesTvVideo } from "../../services/tvCatalogApi";
 import { getLaunchVideoCategory } from "../../utils/launchVideoCategories";
 import {
-  openHiddenTunesVideo,
   videoDiscoverySubtitle,
 } from "../../utils/openHiddenTunesVideo";
 import {
@@ -35,6 +35,7 @@ import {
 } from "../../utils/performanceMode";
 
 export default function VideoCategoryScreen() {
+  const { playYouTubeVideo } = usePlaybackRouter();
   const params = useLocalSearchParams<{ categoryId?: string }>();
   const categoryId = String(params.categoryId || "").trim();
   const category = useMemo(
@@ -87,9 +88,9 @@ export default function VideoCategoryScreen() {
 
   const openVideo = useCallback(
     (video: HiddenTunesTvVideo) => {
-      openHiddenTunesVideo(video, videos);
+      playYouTubeVideo(video, videos);
     },
-    [videos]
+    [playYouTubeVideo, videos]
   );
 
   const renderVideoRow = useCallback(

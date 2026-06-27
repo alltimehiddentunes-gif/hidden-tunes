@@ -91,6 +91,7 @@ import {
   setCachedSearchResults,
 } from "../../utils/searchQueryCache";
 import { openGenreCatalog } from "../../utils/catalogNavigation";
+import { openPodcastHome } from "../../utils/podcastNavigation";
 import { shouldShowCatalogEmpty } from "../../utils/catalogEmptyStateTiming";
 import UniversalSearchGroupedResults from "../../components/UniversalSearchGroupedResults";
 import { SubtleTvEntryLink, EmotionalDiscoveryChips, SubtleRadioEntryLink, SubtlePodcastEntryLink } from "../../components/EmotionalDiscoveryChips";
@@ -977,6 +978,9 @@ export default function SearchScreen() {
     ]
   );
 
+  const universalCatalogRef = useRef(universalCatalog);
+  universalCatalogRef.current = universalCatalog;
+
   const instantGroupedResults = useMemo(() => {
     if (!showGroupedSearch) return EMPTY_GROUPED_RESULTS;
     return runInstantCatalogSearch(universalCatalog, activeSearchQuery);
@@ -1240,7 +1244,10 @@ export default function SearchScreen() {
           return;
         }
 
-        const results = runUniversalCatalogSearch(universalCatalog, queryAtSchedule);
+        const results = runUniversalCatalogSearch(
+          universalCatalogRef.current,
+          queryAtSchedule
+        );
 
         if (generation !== fuzzySearchGenerationRef.current) return;
         if (queryAtSchedule !== activeSearchQuery) {
@@ -1266,7 +1273,7 @@ export default function SearchScreen() {
         fuzzySearchInFlightRef.current = null;
       }
     };
-  }, [activeSearchQuery, universalCatalog]);
+  }, [activeSearchQuery]);
 
   // useScrollToTop(resultListRef);
 
@@ -1669,10 +1676,7 @@ export default function SearchScreen() {
 
         setLoading(false);
         setRefreshing(false);
-        router.push({
-          pathname: "/podcasts",
-          params: { q: safeText },
-        } as any);
+        openPodcastHome(safeText);
         return;
       }
 

@@ -1,6 +1,7 @@
-import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  InteractionManager,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -54,6 +55,8 @@ function TvLiveHomeSections({
   const [loadingMoreSection, setLoadingMoreSection] = useState<string | null>(
     null
   );
+  const sectionChannelsRef = useRef<Record<string, TVChannel[]>>({});
+  const matureEnabledRef = useRef(matureEnabled);
 
   const recommendedChannels = useMemo(() => getRecommendedTvChannels(16), []);
 
@@ -80,6 +83,7 @@ function TvLiveHomeSections({
     if (!mountedRef.current) return;
 
     setSectionChannels(nextSections);
+    sectionChannelsRef.current = nextSections;
     setSectionHasMore(nextHasMore);
     setMatureChannels(
       getTvChannelsForSection("mature", matureEnabled, {
@@ -115,8 +119,10 @@ function TvLiveHomeSections({
   }, [matureEnabled, mountedRef]);
 
   useEffect(() => {
+    if (matureEnabledRef.current === matureEnabled) return;
+    matureEnabledRef.current = matureEnabled;
     void hydrateSections();
-  }, [hydrateSections]);
+  }, [hydrateSections, matureEnabled]);
 
   useFocusEffect(
     useCallback(() => {
@@ -124,16 +130,22 @@ function TvLiveHomeSections({
 
       let active = true;
 
-      void (async () => {
-        const catalogChanged = await runTvChannelVerificationIfDue();
-        if (catalogChanged && active && mountedRef.current) {
+      const interactionHandle = InteractionManager.runAfterInteractions(() => {
+        void (async () => {
           await hydrateSections();
-        }
-      })();
+          if (!active) return;
+
+          const catalogChanged = await runTvChannelVerificationIfDue();
+          if (catalogChanged && active && mountedRef.current) {
+            await hydrateSections();
+          }
+        })();
+      });
 
       return () => {
         active = false;
         setTvTabFocused(false);
+        interactionHandle.cancel();
       };
     }, [hydrateSections, mountedRef])
   );
@@ -154,7 +166,7 @@ function TvLiveHomeSections({
       if (loadingMoreSection) return;
 
       setLoadingMoreSection(sectionId);
-      const current = sectionChannels[sectionId] || [];
+      const current = sectionChannelsRef.current[sectionId] || [];
       const result = getTvChannelsForSection(sectionId, matureEnabled, {
         offset: current.length,
         limit: TV_CHANNEL_PAGE_SIZE,
@@ -162,17 +174,21 @@ function TvLiveHomeSections({
 
       if (!mountedRef.current) return;
 
-      setSectionChannels((prev) => ({
-        ...prev,
-        [sectionId]: [...current, ...result.channels],
-      }));
+      setSectionChannels((prev) => {
+        const next = {
+          ...prev,
+          [sectionId]: [...current, ...result.channels],
+        };
+        sectionChannelsRef.current = next;
+        return next;
+      });
       setSectionHasMore((prev) => ({
         ...prev,
         [sectionId]: result.hasMore,
       }));
       setLoadingMoreSection(null);
     },
-    [loadingMoreSection, matureEnabled, mountedRef, sectionChannels]
+    [loadingMoreSection, matureEnabled, mountedRef]
   );
 
   if (loading) {

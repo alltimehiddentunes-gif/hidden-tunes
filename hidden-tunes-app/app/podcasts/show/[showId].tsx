@@ -109,33 +109,24 @@ export default function PodcastShowScreen() {
   }>();
 
   const showId = String(params.showId || "").trim();
-  const showTitle = podcastDiscoveryDisplayName(params.title);
   const isMatureShow = isMatureSeedShowId(showId);
 
   const show = useMemo(() => {
     if (isMatureShow && !matureEnabled) {
       const seed = getMaturePodcastSeedById(showId);
-      if (!seed) {
+      if (seed) {
         return buildShowFromParams({
           showId,
-          title: params.title,
-          hostName: params.hostName,
-          artworkUrl: params.artworkUrl,
-          description: params.description,
+          title: seed.title,
+          hostName: seed.publisher,
+          artworkUrl: seed.artworkUrl,
+          description: seed.description,
         });
       }
-
-      return buildShowFromParams({
-        showId,
-        title: seed.title,
-        hostName: seed.publisher,
-        artworkUrl: seed.artworkUrl,
-        description: seed.description,
-      });
     }
 
     const cached = findCachedPodcastShowById(showId);
-    if (cached && !(isMatureShow && !matureEnabled)) return cached;
+    if (cached) return cached;
 
     const matureShow = getMaturePodcastShowById(showId, matureEnabled);
     if (matureShow) return matureShow;
@@ -143,19 +134,10 @@ export default function PodcastShowScreen() {
     return buildShowFromParams({
       showId,
       title: params.title,
-      hostName: params.hostName,
-      artworkUrl: params.artworkUrl,
-      description: params.description,
     });
-  }, [
-    matureEnabled,
-    params.artworkUrl,
-    params.description,
-    params.hostName,
-    params.title,
-    showId,
-    isMatureShow,
-  ]);
+  }, [isMatureShow, matureEnabled, params.title, showId]);
+
+  const showTitle = podcastDiscoveryDisplayName(show.title);
 
   const cleanedDescription = useMemo(
     () => cleanPodcastDescription(show.description),
