@@ -28,8 +28,10 @@ import {
   createStableKeyExtractor,
   getListPerformanceSettings,
 } from "../../utils/performanceMode";
+import { useMountedRef } from "../../utils/useMountedRef";
 
 export default function PodcastCategoryScreen() {
+  const mountedRef = useMountedRef();
   const params = useLocalSearchParams<{ categoryId?: string }>();
   const categoryId = String(params.categoryId || "").trim();
   const category = useMemo(
@@ -43,32 +45,39 @@ export default function PodcastCategoryScreen() {
   const [loading, setLoading] = useState(() => shows.length === 0);
   const [refreshing, setRefreshing] = useState(false);
   const [hasCheckedFallbacks, setHasCheckedFallbacks] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const loadShows = useCallback(
     async (forceRefresh = false) => {
       if (!categoryId) return;
 
       try {
+        setLoadError(null);
         const next = await getPodcastShowsForCategory(categoryId, { forceRefresh });
+        if (!mountedRef.current) return;
         setShows(next);
+      } catch {
+        if (!mountedRef.current) return;
+        setLoadError("Podcasts could not be loaded right now.");
       } finally {
+        if (!mountedRef.current) return;
         setLoading(false);
         setRefreshing(false);
         setHasCheckedFallbacks(true);
       }
     },
-    [categoryId]
+    [categoryId, mountedRef]
   );
 
   useEffect(() => {
     if (!categoryId || shows.length > 0) return;
 
     void hydrateCachedPodcastShows(categoryId).then((cached) => {
-      if (!cached?.length) return;
+      if (!mountedRef.current || !cached?.length) return;
       setShows(cached);
       setLoading(false);
     });
-  }, [categoryId, shows.length]);
+  }, [categoryId, mountedRef, shows.length]);
 
   useEffect(() => {
     if (!categoryId) return;
@@ -149,10 +158,26 @@ export default function PodcastCategoryScreen() {
         </View>
       </View>
 
-      {loading && shows.length === 0 ? (
+      {loading && shows.length === 0 && !loadError ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color={COLORS.primary} />
           <Text style={styles.loadingText}>{TESTER_COPY.podcastDiscoveryLoading}</Text>
+        </View>
+      ) : loadError && shows.length === 0 ? (
+        <View style={styles.center}>
+          <Ionicons name="alert-circle-outline" size={48} color={COLORS.textMuted} />
+          <Text style={styles.emptyTitle}>{loadError}</Text>
+          <Text style={styles.emptyText}>Try again.</Text>
+          <TouchableOpacity
+            activeOpacity={0.86}
+            style={styles.retryButton}
+            onPress={() => {
+              setLoading(true);
+              void loadShows(true);
+            }}
+          >
+            <Text style={styles.retryButtonText}>Try again</Text>
+          </TouchableOpacity>
         </View>
       ) : (
         <FlatList
@@ -299,5 +324,19 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     fontSize: 14,
     fontWeight: "700",
+  },
+  retryButton: {
+    marginTop: 18,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 999,
+    backgroundColor: "rgba(168,85,247,0.16)",
+    borderWidth: 1,
+    borderColor: "rgba(168,85,247,0.35)",
+  },
+  retryButtonText: {
+    color: COLORS.text,
+    fontSize: 13,
+    fontWeight: "800",
   },
 });

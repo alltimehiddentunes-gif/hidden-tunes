@@ -9,8 +9,30 @@ import {
   normalizeCategoryId,
   seedCategoryMatches,
 } from "../utils/podcastCategoryMatching";
+import { PODCAST_MAX_SEARCH_RESULTS } from "../utils/podcastPerformanceLimits";
 
 const EXPLICIT_SEARCH_ALIASES = ["explicit", "e", "nsfw", "18+", "adult", "mature"];
+
+const SEED_HAYSTACKS = new Map(
+  MATURE_PODCAST_SEEDS.map((seed) => [seed.id, buildSeedHaystack(seed)])
+);
+
+function buildSeedHaystack(seed: MaturePodcastSeed) {
+  return [
+    seed.title,
+    seed.publisher,
+    seed.description,
+    seed.matureLevel,
+    seed.isExplicit ? "explicit" : "",
+    ...seed.categories,
+    ...seed.keywords,
+    ...EXPLICIT_SEARCH_ALIASES.filter((alias) =>
+      seed.keywords.some((keyword) => keyword.includes(alias))
+    ),
+  ]
+    .join(" ")
+    .toLowerCase();
+}
 
 function matureSeedToShow(seed: MaturePodcastSeed): HiddenTunesPodcastShow {
   const primaryCategory =
@@ -63,9 +85,26 @@ export type MaturePodcastCategoryWithCount = MaturePodcastCategory & {
 };
 
 export function getVisibleMatureCategories(matureEnabled: boolean) {
+  if (!matureEnabled) {
+    logMaturePodcastCategoryCounts([], false);
+    return [];
+  }
+
+  const counts = new Map<string, number>(
+    MATURE_PODCAST_CATEGORY_DEFINITIONS.map((category) => [category.id, 0])
+  );
+
+  for (const seed of MATURE_PODCAST_SEEDS) {
+    for (const category of MATURE_PODCAST_CATEGORY_DEFINITIONS) {
+      if (seedCategoryMatches(seed.categories, category.id)) {
+        counts.set(category.id, (counts.get(category.id) || 0) + 1);
+      }
+    }
+  }
+
   const visible = MATURE_PODCAST_CATEGORY_DEFINITIONS.map((category) => ({
     ...category,
-    showCount: getMatureShowsByCategory(category.id, matureEnabled).length,
+    showCount: counts.get(category.id) || 0,
   })).filter((category) => category.showCount > 0);
 
   logMaturePodcastCategoryCounts(visible, matureEnabled);
@@ -91,20 +130,7 @@ export function logMaturePodcastCategoryCounts(
 }
 
 function haystackForSeed(seed: MaturePodcastSeed) {
-  return [
-    seed.title,
-    seed.publisher,
-    seed.description,
-    seed.matureLevel,
-    seed.isExplicit ? "explicit" : "",
-    ...seed.categories,
-    ...seed.keywords,
-    ...EXPLICIT_SEARCH_ALIASES.filter((alias) =>
-      seed.keywords.some((keyword) => keyword.includes(alias))
-    ),
-  ]
-    .join(" ")
-    .toLowerCase();
+  return SEED_HAYSTACKS.get(seed.id) || buildSeedHaystack(seed);
 }
 
 export function searchMaturePodcastSeeds(
@@ -121,10 +147,10 @@ export function searchMaturePodcastSeeds(
 
   if (!tokens.length) return [];
 
-  const matches = getActiveMatureSeeds(matureEnabled).filter((seed) => {
+  const matches = MATURE_PODCAST_SEEDS.filter((seed) => {
     const haystack = haystackForSeed(seed);
     return tokens.every((token) => haystack.includes(token));
-  });
+  }).slice(0, PODCAST_MAX_SEARCH_RESULTS);
 
   const shows = matches.map(matureSeedToShow);
 
@@ -148,7 +174,7 @@ export function mergePodcastShowResults(
     merged.push(show);
   }
 
-  return merged;
+  return merged.slice(0, PODCAST_MAX_SEARCH_RESULTS);
 }
 
 export function getMaturePodcastSeedById(showId: string) {

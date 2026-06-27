@@ -30,7 +30,6 @@ import {
 import { isMaturePodcastsEnabled } from "../../../services/maturePodcastPreferences";
 import {
   getPodcastEpisodesForShow,
-  prefetchPodcastEpisodesForShow,
 } from "../../../services/podcastDiscoveryApi";
 import type {
   HiddenTunesPodcastEpisode,
@@ -45,6 +44,8 @@ import {
   readCachedPodcastEpisodes,
 } from "../../../utils/podcastDiscoveryCache";
 import { getRelatedPodcastShows } from "../../../utils/podcastRelatedShows";
+import { PODCAST_MAX_QUEUE_EPISODES } from "../../../utils/podcastPerformanceLimits";
+import { useMountedRef } from "../../../utils/useMountedRef";
 import { podcastDiscoveryDisplayName } from "../../../utils/openHiddenTunesPodcast";
 import {
   createStableKeyExtractor,
@@ -85,6 +86,7 @@ function buildShowFromParams(params: {
 
 export default function PodcastShowScreen() {
   const insets = useSafeAreaInsets();
+  const mountedRef = useMountedRef();
   const { playPodcastEpisode } = usePlaybackRouter();
   const [playbackError, setPlaybackError] = useState<string | null>(null);
   const [isFollowing, setIsFollowing] = useState(false);
@@ -138,6 +140,7 @@ export default function PodcastShowScreen() {
   const [loading, setLoading] = useState(() => episodes.length === 0);
   const [refreshing, setRefreshing] = useState(false);
   const [hasCheckedFallbacks, setHasCheckedFallbacks] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const normalizedQueue = useMemo(() => {
     return episodes
@@ -158,35 +161,44 @@ export default function PodcastShowScreen() {
       if (!showId) return;
 
       try {
+        setLoadError(null);
         const next = await getPodcastEpisodesForShow(showId, { forceRefresh });
+        if (!mountedRef.current) return;
         setEpisodes(next);
+      } catch {
+        if (!mountedRef.current) return;
+        setLoadError("Episodes unavailable right now.");
       } finally {
+        if (!mountedRef.current) return;
         setLoading(false);
         setRefreshing(false);
         setHasCheckedFallbacks(true);
       }
     },
-    [showId]
+    [mountedRef, showId]
   );
 
   useEffect(() => {
-    void isMaturePodcastsEnabled().then(setMatureEnabled);
-  }, []);
-
-  useEffect(() => {
-    if (!showId) return;
-    prefetchPodcastEpisodesForShow(showId);
-  }, [showId]);
+    void isMaturePodcastsEnabled()
+      .then((enabled) => {
+        if (!mountedRef.current) return;
+        setMatureEnabled(enabled);
+      })
+      .catch(() => {
+        if (!mountedRef.current) return;
+        setMatureEnabled(false);
+      });
+  }, [mountedRef]);
 
   useEffect(() => {
     if (!showId || episodes.length > 0) return;
 
     void hydrateCachedPodcastEpisodes(showId).then((cached) => {
-      if (!cached?.length) return;
+      if (!mountedRef.current || !cached?.length) return;
       setEpisodes(cached);
       setLoading(false);
     });
-  }, [showId, episodes.length]);
+  }, [episodes.length, mountedRef, showId]);
 
   useEffect(() => {
     if (!showId) return;
@@ -217,7 +229,10 @@ export default function PodcastShowScreen() {
         return;
       }
 
-      const queue = normalizedQueue.slice(index);
+      const queue = normalizedQueue.slice(
+        index,
+        index + PODCAST_MAX_QUEUE_EPISODES
+      );
       const result = await playPodcastEpisode(normalized, queue);
 
       if (!result.ok) {
@@ -268,7 +283,8 @@ export default function PodcastShowScreen() {
       const shuffledEpisodes = shuffleEpisodes(episodes);
       const shuffledQueue = shuffledEpisodes
         .map((item) => normalizePodcastEpisode(item, showTitle))
-        .filter((item): item is PodcastEpisode => Boolean(item));
+        .filter((item): item is PodcastEpisode => Boolean(item))
+        .slice(0, PODCAST_MAX_QUEUE_EPISODES);
 
       if (!shuffledQueue.length) {
         setPlaybackError("This episode audio is unavailable right now.");
@@ -409,9 +425,29 @@ export default function PodcastShowScreen() {
           ListEmptyComponent={
             showEmpty ? (
               <View style={styles.emptyBox}>
-                <Ionicons name="play-outline" size={48} color={COLORS.textMuted} />
-                <Text style={styles.emptyTitle}>Episodes are warming up</Text>
-                <Text style={styles.emptyText}>{TESTER_COPY.podcastEpisodesEmpty}</Text>
+                <Ionicons
+                  name={loadError ? "alert-circle-outline" : "play-outline"}
+                  size={48}
+                  color={COLORS.textMuted}
+                />
+                <Text style={styles.emptyTitle}>
+                  {loadError || "Episodes unavailable right now."}
+                </Text>
+                <Text style={styles.emptyText}>
+                  {loadError ? "Try again." : TESTER_COPY.podcastEpisodesEmpty}
+                </Text>
+                {loadError ? (
+                  <TouchableOpacity
+                    activeOpacity={0.86}
+                    style={styles.retryButton}
+                    onPress={() => {
+                      setLoading(true);
+                      void loadEpisodes(true);
+                    }}
+                  >
+                    <Text style={styles.retryButtonText}>Try again</Text>
+                  </TouchableOpacity>
+                ) : null}
               </View>
             ) : null
           }
@@ -488,5 +524,19 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     textAlign: "center",
     fontWeight: "600",
+  },
+  retryButton: {
+    marginTop: 18,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 999,
+    backgroundColor: "rgba(168,85,247,0.16)",
+    borderWidth: 1,
+    borderColor: "rgba(168,85,247,0.35)",
+  },
+  retryButtonText: {
+    color: COLORS.text,
+    fontSize: 13,
+    fontWeight: "800",
   },
 });

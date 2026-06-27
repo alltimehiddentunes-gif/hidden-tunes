@@ -23,8 +23,10 @@ import {
   createStableKeyExtractor,
   getListPerformanceSettings,
 } from "../../../utils/performanceMode";
+import { useMountedRef } from "../../../utils/useMountedRef";
 
 export default function MaturePodcastCategoryScreen() {
+  const mountedRef = useMountedRef();
   const params = useLocalSearchParams<{ id?: string }>();
   const categoryId = String(params.id || "").trim();
   const category = useMemo(
@@ -34,21 +36,37 @@ export default function MaturePodcastCategoryScreen() {
 
   const [matureEnabled, setMatureEnabled] = useState(false);
   const [loadingPrefs, setLoadingPrefs] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [shows, setShows] = useState<HiddenTunesPodcastShow[]>([]);
 
   useEffect(() => {
-    void isMaturePodcastsEnabled().then((enabled) => {
-      setMatureEnabled(enabled);
-      setLoadingPrefs(false);
+    void isMaturePodcastsEnabled()
+      .then((enabled) => {
+        if (!mountedRef.current) return;
+        setMatureEnabled(enabled);
 
-      if (!enabled) {
+        if (!enabled) {
+          setShows([]);
+          return;
+        }
+
+        try {
+          setShows(getMatureShowsByCategory(categoryId, true));
+        } catch {
+          setLoadError("Podcasts could not be loaded right now.");
+          setShows([]);
+        }
+      })
+      .catch(() => {
+        if (!mountedRef.current) return;
+        setLoadError("Podcasts could not be loaded right now.");
         setShows([]);
-        return;
-      }
-
-      setShows(getMatureShowsByCategory(categoryId, true));
-    });
-  }, [categoryId]);
+      })
+      .finally(() => {
+        if (!mountedRef.current) return;
+        setLoadingPrefs(false);
+      });
+  }, [categoryId, mountedRef]);
 
   const openShow = useCallback((show: HiddenTunesPodcastShow) => {
     router.push({
@@ -137,6 +155,28 @@ export default function MaturePodcastCategoryScreen() {
       {loadingPrefs ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color={COLORS.primary} />
+        </View>
+      ) : loadError ? (
+        <View style={styles.center}>
+          <Ionicons name="alert-circle-outline" size={48} color={COLORS.textMuted} />
+          <Text style={styles.emptyTitle}>{loadError}</Text>
+          <Text style={styles.emptyText}>Try again.</Text>
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={() => {
+              setLoadingPrefs(true);
+              setLoadError(null);
+              try {
+                setShows(getMatureShowsByCategory(categoryId, matureEnabled));
+              } catch {
+                setLoadError("Podcasts could not be loaded right now.");
+              } finally {
+                setLoadingPrefs(false);
+              }
+            }}
+          >
+            <Text style={styles.retryButtonText}>Try again</Text>
+          </TouchableOpacity>
         </View>
       ) : (
         <FlatList
@@ -249,5 +289,19 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     fontSize: 14,
     fontWeight: "700",
+  },
+  retryButton: {
+    marginTop: 18,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 999,
+    backgroundColor: "rgba(168,85,247,0.16)",
+    borderWidth: 1,
+    borderColor: "rgba(168,85,247,0.35)",
+  },
+  retryButtonText: {
+    color: COLORS.text,
+    fontSize: 13,
+    fontWeight: "800",
   },
 });

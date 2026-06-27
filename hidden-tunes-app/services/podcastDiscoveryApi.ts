@@ -6,6 +6,12 @@ import {
 } from "./podcastCatalogApi";
 import { getLaunchPodcastCategory } from "../utils/launchPodcastCategories";
 import {
+  isMatureSeedShowId,
+  PODCAST_EPISODE_FETCH_TIMEOUT_MS,
+  PODCAST_MAX_EPISODES_PER_SHOW,
+} from "../utils/podcastPerformanceLimits";
+import { withTimeout } from "../utils/withTimeout";
+import {
   getPodcastEpisodesInflight,
   getPodcastShowsInflight,
   hydrateCachedPodcastEpisodes,
@@ -22,8 +28,8 @@ import {
 } from "../utils/podcastDiscoveryCache";
 
 const SHOW_PAGE_LIMIT = 24;
-const EPISODE_PAGE_LIMIT = 30;
-const SEARCH_PAGE_LIMIT = 28;
+const EPISODE_PAGE_LIMIT = PODCAST_MAX_EPISODES_PER_SHOW;
+const SEARCH_PAGE_LIMIT = 25;
 
 function dedupeShows(shows: HiddenTunesPodcastShow[]) {
   const seenIds = new Set<string>();
@@ -100,13 +106,29 @@ async function fetchSearchShowsFromNetwork(query: string) {
 }
 
 async function fetchEpisodesFromNetwork(showId: string) {
-  const response = await fetchPodcastEpisodes({
-    show_id: showId,
-    page: 1,
-    limit: EPISODE_PAGE_LIMIT,
-  });
+  const response = await withTimeout(
+    fetchPodcastEpisodes({
+      show_id: showId,
+      page: 1,
+      limit: EPISODE_PAGE_LIMIT,
+    }),
+    PODCAST_EPISODE_FETCH_TIMEOUT_MS,
+    {
+      success: false,
+      episodes: [],
+      pagination: {
+        page: 1,
+        limit: EPISODE_PAGE_LIMIT,
+        total: 0,
+        totalPages: 0,
+        hasMore: false,
+      },
+    }
+  );
 
-  return response.success ? dedupeEpisodes(response.episodes) : [];
+  return response.success
+    ? dedupeEpisodes(response.episodes).slice(0, EPISODE_PAGE_LIMIT)
+    : [];
 }
 
 export async function getPodcastShowsForCategory(
@@ -186,6 +208,10 @@ export async function getPodcastEpisodesForShow(
   const safeId = String(showId || "").trim();
   if (!safeId) return [];
 
+  if (isMatureSeedShowId(safeId)) {
+    return [];
+  }
+
   if (!options?.forceRefresh) {
     const memoryHit = readCachedPodcastEpisodes(safeId);
     if (memoryHit?.length) return memoryHit;
@@ -219,6 +245,7 @@ export function prefetchPodcastShowsForCategory(categoryId: string) {
 }
 
 export function prefetchPodcastEpisodesForShow(showId: string) {
+  if (isMatureSeedShowId(showId)) return;
   if (readCachedPodcastEpisodes(showId)?.length) return;
   void getPodcastEpisodesForShow(showId).catch(() => {});
 }

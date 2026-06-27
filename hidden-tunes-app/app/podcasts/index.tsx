@@ -22,16 +22,14 @@ import { COLORS } from "../../constants/theme";
 import { TESTER_COPY } from "../../constants/testerExperience";
 import {
   prefetchPodcastShowsForCategory,
-  searchPodcastShows,
 } from "../../services/podcastDiscoveryApi";
 import { isMaturePodcastsEnabled } from "../../services/maturePodcastPreferences";
-import {
-  mergePodcastShowResults,
-  searchMaturePodcastSeeds,
-} from "../../services/podcastService";
 import type { HiddenTunesPodcastShow } from "../../services/podcastCatalogApi";
 import { LAUNCH_PODCAST_CATEGORIES } from "../../utils/launchPodcastCategories";
+import { searchLocalPodcastDiscovery } from "../../utils/podcastLocalSearch";
+import { PODCAST_SEARCH_DEBOUNCE_MS } from "../../utils/podcastPerformanceLimits";
 import { podcastShowSubtitle } from "../../utils/openHiddenTunesPodcast";
+import { useMountedRef } from "../../utils/useMountedRef";
 import {
   createStableKeyExtractor,
   getListPerformanceSettings,
@@ -44,8 +42,10 @@ export default function PodcastDiscoveryHomeScreen() {
   const [searchResults, setSearchResults] = useState<HiddenTunesPodcastShow[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchChecked, setSearchChecked] = useState(false);
+  const [searchError, setSearchError] = useState(false);
   const [matureEnabled, setMatureEnabled] = useState(false);
   const searchRequestRef = useRef(0);
+  const mountedRef = useMountedRef();
 
   const isSearching = searchQuery.trim().length > 0;
 
@@ -73,8 +73,16 @@ export default function PodcastDiscoveryHomeScreen() {
   const categories = useMemo(() => LAUNCH_PODCAST_CATEGORIES, []);
 
   useEffect(() => {
-    void isMaturePodcastsEnabled().then(setMatureEnabled);
-  }, []);
+    void isMaturePodcastsEnabled()
+      .then((enabled) => {
+        if (!mountedRef.current) return;
+        setMatureEnabled(enabled);
+      })
+      .catch(() => {
+        if (!mountedRef.current) return;
+        setMatureEnabled(false);
+      });
+  }, [mountedRef]);
 
   useEffect(() => {
     const clean = searchQuery.trim();
@@ -86,25 +94,26 @@ export default function PodcastDiscoveryHomeScreen() {
     }
 
     setSearchLoading(true);
+    setSearchError(false);
     const requestId = ++searchRequestRef.current;
     const timer = setTimeout(() => {
-      void Promise.all([
-        searchPodcastShows(clean),
-        Promise.resolve(searchMaturePodcastSeeds(clean, matureEnabled)),
-      ])
-        .then(([apiShows, matureShows]) => {
-          if (requestId !== searchRequestRef.current) return;
-          setSearchResults(mergePodcastShowResults(apiShows, matureShows));
-        })
-        .finally(() => {
-          if (requestId !== searchRequestRef.current) return;
-          setSearchLoading(false);
-          setSearchChecked(true);
-        });
-    }, 300);
+      try {
+        const results = searchLocalPodcastDiscovery(clean, matureEnabled);
+        if (!mountedRef.current || requestId !== searchRequestRef.current) return;
+        setSearchResults(results);
+      } catch {
+        if (!mountedRef.current || requestId !== searchRequestRef.current) return;
+        setSearchResults([]);
+        setSearchError(true);
+      } finally {
+        if (!mountedRef.current || requestId !== searchRequestRef.current) return;
+        setSearchLoading(false);
+        setSearchChecked(true);
+      }
+    }, PODCAST_SEARCH_DEBOUNCE_MS);
 
     return () => clearTimeout(timer);
-  }, [matureEnabled, searchQuery]);
+  }, [matureEnabled, mountedRef, searchQuery]);
 
   useEffect(() => {
     if (!initialQuery) return;
@@ -189,7 +198,20 @@ export default function PodcastDiscoveryHomeScreen() {
               </Text>
             }
             ListEmptyComponent={
-              searchChecked ? (
+              searchError ? (
+                <View style={styles.emptyBox}>
+                  <Ionicons name="alert-circle-outline" size={48} color={COLORS.textMuted} />
+                  <Text style={styles.emptyTitle}>Podcasts could not be loaded right now.</Text>
+                  <Text style={styles.emptyText}>Try again.</Text>
+                  <TouchableOpacity
+                    activeOpacity={0.86}
+                    style={styles.retryButton}
+                    onPress={() => setSearchQuery((value) => value.trim())}
+                  >
+                    <Text style={styles.retryButtonText}>Try again</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : searchChecked ? (
                 <View style={styles.emptyBox}>
                   <Ionicons name="mic-outline" size={48} color={COLORS.textMuted} />
                 <Text style={styles.emptyTitle}>No Hidden Tunes shows matched</Text>
@@ -381,5 +403,19 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     marginTop: 8,
     textAlign: "center",
+  },
+  retryButton: {
+    marginTop: 18,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 999,
+    backgroundColor: "rgba(168,85,247,0.16)",
+    borderWidth: 1,
+    borderColor: "rgba(168,85,247,0.35)",
+  },
+  retryButtonText: {
+    color: COLORS.text,
+    fontSize: 13,
+    fontWeight: "800",
   },
 });

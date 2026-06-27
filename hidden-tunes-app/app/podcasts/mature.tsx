@@ -23,10 +23,13 @@ import {
   isMaturePodcastsEnabled,
   setMaturePodcastsEnabled,
 } from "../../services/maturePodcastPreferences";
+import { useMountedRef } from "../../utils/useMountedRef";
 
 export default function MaturePodcastsScreen() {
+  const mountedRef = useMountedRef();
   const [matureEnabled, setMatureEnabled] = useState(false);
   const [loadingPrefs, setLoadingPrefs] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [categories, setCategories] = useState<MaturePodcastCategoryWithCount[]>(
     []
   );
@@ -36,12 +39,21 @@ export default function MaturePodcastsScreen() {
   }, []);
 
   useEffect(() => {
-    void isMaturePodcastsEnabled().then((enabled) => {
-      setMatureEnabled(enabled);
-      refreshCategories(enabled);
-      setLoadingPrefs(false);
-    });
-  }, [refreshCategories]);
+    void isMaturePodcastsEnabled()
+      .then((enabled) => {
+        if (!mountedRef.current) return;
+        setMatureEnabled(enabled);
+        refreshCategories(enabled);
+      })
+      .catch(() => {
+        if (!mountedRef.current) return;
+        setLoadError("Podcasts could not be loaded right now.");
+      })
+      .finally(() => {
+        if (!mountedRef.current) return;
+        setLoadingPrefs(false);
+      });
+  }, [mountedRef, refreshCategories]);
 
   const handleToggle = useCallback(async (next: boolean) => {
     setMatureEnabled(next);
@@ -105,6 +117,35 @@ export default function MaturePodcastsScreen() {
       {loadingPrefs ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color={COLORS.primary} />
+        </View>
+      ) : loadError ? (
+        <View style={styles.center}>
+          <Ionicons name="alert-circle-outline" size={48} color={COLORS.textMuted} />
+          <Text style={styles.emptyTitle}>{loadError}</Text>
+          <Text style={styles.emptyText}>Try again.</Text>
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={() => {
+              setLoadingPrefs(true);
+              setLoadError(null);
+              void isMaturePodcastsEnabled()
+                .then((enabled) => {
+                  if (!mountedRef.current) return;
+                  setMatureEnabled(enabled);
+                  refreshCategories(enabled);
+                })
+                .catch(() => {
+                  if (!mountedRef.current) return;
+                  setLoadError("Podcasts could not be loaded right now.");
+                })
+                .finally(() => {
+                  if (!mountedRef.current) return;
+                  setLoadingPrefs(false);
+                });
+            }}
+          >
+            <Text style={styles.retryButtonText}>Try again</Text>
+          </TouchableOpacity>
         </View>
       ) : !matureEnabled ? (
         <View style={styles.center}>
@@ -224,5 +265,19 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
     textAlign: "center",
+  },
+  retryButton: {
+    marginTop: 18,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 999,
+    backgroundColor: "rgba(168,85,247,0.16)",
+    borderWidth: 1,
+    borderColor: "rgba(168,85,247,0.35)",
+  },
+  retryButtonText: {
+    color: COLORS.text,
+    fontSize: 13,
+    fontWeight: "800",
   },
 });
