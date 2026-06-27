@@ -1,7 +1,10 @@
 import { router } from "expo-router";
 
 import { getTvChannelById } from "@/data/tvChannelSeedCatalog";
-import { resolveTvPlaybackQueue } from "@/services/tv/tvChannelService";
+import {
+  isTvChannelPlayable,
+  resolveTvPlaybackQueue,
+} from "@/services/tv/tvChannelService";
 import {
   clearTvPlaybackSession,
   setTvPlaybackSession,
@@ -24,6 +27,8 @@ export function openTvChannelPlayer(
   if (!resolved) return;
 
   const matureEnabled = options.matureEnabled === true;
+  if (!isTvChannelPlayable(resolved, matureEnabled)) return;
+
   const queue = resolveTvPlaybackQueue(
     options.sectionId,
     options.channelIds || [],

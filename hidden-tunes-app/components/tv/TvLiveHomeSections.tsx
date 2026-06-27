@@ -15,7 +15,7 @@ import { getMatureTvEnabled } from "@/services/matureTvPreferences";
 import {
   LIVE_TV_HOME_SECTIONS,
   TV_CHANNEL_PAGE_SIZE,
-  filterMatureTvChannels,
+  filterPlayableTvChannels,
   getRecommendedTvChannels,
   getTvChannelsForSection,
   hasActiveMatureTvChannels,
@@ -83,7 +83,7 @@ function TvLiveHomeSections({
     if (!mountedRef.current) return;
 
     setRecentChannels(
-      filterMatureTvChannels(
+      filterPlayableTvChannels(
         recent
           .map((entry) => getTvChannelById(entry.channelId))
           .filter((channel): channel is TVChannel => channel !== null),
@@ -91,7 +91,7 @@ function TvLiveHomeSections({
       ).slice(0, 16)
     );
     setFavoriteChannels(
-      filterMatureTvChannels(
+      filterPlayableTvChannels(
         favorites
           .map((entry) => getTvChannelById(entry.channelId))
           .filter((channel): channel is TVChannel => channel !== null),

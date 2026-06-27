@@ -62,6 +62,7 @@ export const TV_CHANNEL_SEEDS: TVChannel[] = [
     language: "Spanish",
     category: "music",
     sourceType: "fast",
+    isActive: false,
   }),
   seedChannel({
     id: "stingray-classica",
@@ -128,6 +129,7 @@ export const TV_CHANNEL_SEEDS: TVChannel[] = [
     language: "English",
     category: "music",
     sourceType: "fast",
+    isActive: false,
   }),
   seedChannel({
     id: "qwest-tv-jazz",
@@ -153,6 +155,7 @@ export const TV_CHANNEL_SEEDS: TVChannel[] = [
     category: "movie",
     sourceType: "fast",
     isFeatured: true,
+    isActive: false,
   }),
   seedChannel({
     id: "maverick-black-cinema",
@@ -208,6 +211,7 @@ export const TV_CHANNEL_SEEDS: TVChannel[] = [
     category: "movie",
     subCategory: "classics",
     sourceType: "fast",
+    isActive: false,
   }),
   seedChannel({
     id: "hallmark-movies-more",
@@ -220,6 +224,7 @@ export const TV_CHANNEL_SEEDS: TVChannel[] = [
     category: "movie",
     subCategory: "family",
     sourceType: "fast",
+    isActive: false,
   }),
   seedChannel({
     id: "pluto-action-movies",
@@ -425,6 +430,7 @@ export const TV_CHANNEL_SEEDS: TVChannel[] = [
     language: "English",
     category: "concerts",
     sourceType: "official_stream",
+    isActive: false,
   }),
 
   // Culture & Arts
@@ -475,6 +481,7 @@ export const TV_CHANNEL_SEEDS: TVChannel[] = [
     language: "English",
     category: "culture",
     sourceType: "public_broadcaster",
+    isActive: false,
   }),
   seedChannel({
     id: "fashiontv-europe",
@@ -486,6 +493,7 @@ export const TV_CHANNEL_SEEDS: TVChannel[] = [
     language: "English",
     category: "culture",
     sourceType: "fast",
+    isActive: false,
   }),
 
   // Documentaries
@@ -502,6 +510,7 @@ export const TV_CHANNEL_SEEDS: TVChannel[] = [
     category: "documentary",
     sourceType: "public_broadcaster",
     isFeatured: true,
+    isActive: false,
   }),
   seedChannel({
     id: "love-nature",
@@ -524,6 +533,7 @@ export const TV_CHANNEL_SEEDS: TVChannel[] = [
     language: "English",
     category: "documentary",
     sourceType: "public_broadcaster",
+    isActive: false,
   }),
   seedChannel({
     id: "cgtn-documentary",
@@ -557,6 +567,7 @@ export const TV_CHANNEL_SEEDS: TVChannel[] = [
     language: "English",
     category: "documentary",
     sourceType: "public_broadcaster",
+    isActive: false,
   }),
   seedChannel({
     id: "cna-originals",
@@ -609,6 +620,7 @@ export const TV_CHANNEL_SEEDS: TVChannel[] = [
     language: "English",
     category: "news",
     sourceType: "public_broadcaster",
+    isActive: false,
   }),
   seedChannel({
     id: "bloomberg-tv",
@@ -632,6 +644,7 @@ export const TV_CHANNEL_SEEDS: TVChannel[] = [
     category: "news",
     sourceType: "public_broadcaster",
     isFeatured: true,
+    isActive: false,
   }),
   seedChannel({
     id: "abc-news-au",
@@ -690,6 +703,7 @@ export const TV_CHANNEL_SEEDS: TVChannel[] = [
     language: "English",
     category: "news",
     sourceType: "fast",
+    isActive: false,
   }),
   seedChannel({
     id: "newsmax-tv",
@@ -712,6 +726,7 @@ export const TV_CHANNEL_SEEDS: TVChannel[] = [
     language: "English",
     category: "news",
     sourceType: "fast",
+    isActive: false,
   }),
   seedChannel({
     id: "cbc-news-toronto",
@@ -734,6 +749,7 @@ export const TV_CHANNEL_SEEDS: TVChannel[] = [
     language: "English",
     category: "news",
     sourceType: "official_stream",
+    isActive: false,
   }),
 
   // Education
@@ -758,6 +774,7 @@ export const TV_CHANNEL_SEEDS: TVChannel[] = [
     language: "English",
     category: "education",
     sourceType: "public_broadcaster",
+    isActive: false,
   }),
 
   // International / public broadcasters
@@ -795,6 +812,7 @@ export const TV_CHANNEL_SEEDS: TVChannel[] = [
     language: "Italian",
     category: "international",
     sourceType: "public_broadcaster",
+    isActive: false,
   }),
   seedChannel({
     id: "arirang-un",
@@ -861,10 +879,31 @@ export function isMatureTvChannel(channel: Pick<TVChannel, "isMature" | "categor
   return channel.isMature || channel.category === "mature";
 }
 
-export function getPublicTvChannels() {
-  return TV_CHANNEL_SEEDS.filter(
-    (channel) => channel.isActive && !isMatureTvChannel(channel)
+export function hasPlayableTvStreamUrl(channel: Pick<TVChannel, "streamUrl">) {
+  const url = channel.streamUrl?.trim() ?? "";
+  return url.length > 0 && /\.m3u8($|\?)/i.test(url);
+}
+
+export function isPlayableVerifiedPublicTvChannel(channel: TVChannel) {
+  return (
+    channel.isActive &&
+    channel.isVerifiedLegal &&
+    hasPlayableTvStreamUrl(channel) &&
+    !isMatureTvChannel(channel)
   );
+}
+
+export function isPlayableVerifiedMatureTvChannel(channel: TVChannel) {
+  return (
+    isMatureTvChannel(channel) &&
+    channel.isActive &&
+    channel.isVerifiedLegal &&
+    hasPlayableTvStreamUrl(channel)
+  );
+}
+
+export function getPublicTvChannels() {
+  return TV_CHANNEL_SEEDS.filter((channel) => isPlayableVerifiedPublicTvChannel(channel));
 }
 
 export function getVisibleTvChannels() {
@@ -878,12 +917,7 @@ export function getTvChannelsByCategory(
   if (category === "mature") {
     if (!matureEnabled) return [];
 
-    return TV_CHANNEL_SEEDS.filter(
-      (channel) =>
-        isMatureTvChannel(channel) &&
-        channel.isActive &&
-        channel.isVerifiedLegal
-    );
+    return TV_CHANNEL_SEEDS.filter((channel) => isPlayableVerifiedMatureTvChannel(channel));
   }
 
   return getPublicTvChannels().filter((channel) => channel.category === category);
