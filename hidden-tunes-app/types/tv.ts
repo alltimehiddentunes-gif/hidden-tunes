@@ -1,5 +1,6 @@
 export type TvChannelCategory =
   | "music"
+  | "movie"
   | "worship"
   | "concerts"
   | "culture"
@@ -9,6 +10,17 @@ export type TvChannelCategory =
   | "local"
   | "international"
   | "mature";
+
+export type TvMovieSubCategory =
+  | "classics"
+  | "action"
+  | "comedy"
+  | "family"
+  | "horror"
+  | "sci_fi"
+  | "western"
+  | "indie"
+  | "public_domain";
 
 export type TvStreamType = "hls" | "dash" | "web";
 
@@ -32,6 +44,7 @@ export type TVChannel = {
   language?: string;
 
   category: TvChannelCategory;
+  subCategory?: TvMovieSubCategory;
 
   quality?: TvChannelQuality;
   streamType?: TvStreamType;
@@ -48,6 +61,7 @@ export type TVChannel = {
 export type TvLiveSectionId =
   | "featured"
   | "music"
+  | "movie"
   | "worship"
   | "concerts"
   | "culture"

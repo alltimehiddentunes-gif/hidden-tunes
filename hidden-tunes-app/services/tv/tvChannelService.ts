@@ -17,6 +17,7 @@ export const LIVE_TV_HOME_SECTIONS: Array<{
 }> = [
   { id: "featured", title: "Featured Live TV", featured: true },
   { id: "music", title: "Music TV", category: "music" },
+  { id: "movie", title: "Movie Channels", category: "movie" },
   { id: "worship", title: "Worship / Gospel TV", category: "worship" },
   { id: "concerts", title: "Live Concerts", category: "concerts" },
   { id: "culture", title: "Culture & Arts", category: "culture" },

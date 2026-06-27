@@ -154,6 +154,8 @@ function TvLiveHomeSections({
     <View>
       {LIVE_TV_HOME_SECTIONS.map((section) => {
         const channels = sectionChannels[section.id] || [];
+        if (!channels.length) return null;
+
         const channelIds = channels.map((channel) => channel.id);
 
         return (
