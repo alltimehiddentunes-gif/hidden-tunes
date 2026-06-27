@@ -20,6 +20,9 @@ import {
   getTvChannelsForSection,
   hasActiveMatureTvChannels,
 } from "@/services/tv/tvChannelService";
+import { isMatureTvTestModeEnabled } from "@/services/tv/matureTvTestMode";
+import { loadTvChannelRuntimeStatus } from "@/services/tv/tvChannelRuntimeStatus";
+import { runTvChannelVerificationIfDue } from "@/services/tv/tvChannelVerification";
 import { loadTvFavorites } from "@/services/tv/tvFavorites";
 import { loadTvRecentlyWatched } from "@/services/tv/tvRecentlyWatched";
 import type { TVChannel, TvLiveSectionId } from "@/types/tv";
@@ -39,6 +42,7 @@ function TvLiveHomeSections({
   const [loading, setLoading] = useState(true);
   const [recentChannels, setRecentChannels] = useState<TVChannel[]>([]);
   const [favoriteChannels, setFavoriteChannels] = useState<TVChannel[]>([]);
+  const [matureChannels, setMatureChannels] = useState<TVChannel[]>([]);
   const [sectionChannels, setSectionChannels] = useState<
     Record<string, TVChannel[]>
   >({});
@@ -57,6 +61,8 @@ function TvLiveHomeSections({
   );
 
   const hydrateSections = useCallback(async () => {
+    await loadTvChannelRuntimeStatus();
+
     const nextSections: Record<string, TVChannel[]> = {};
     const nextHasMore: Record<string, boolean> = {};
 
@@ -73,6 +79,12 @@ function TvLiveHomeSections({
 
     setSectionChannels(nextSections);
     setSectionHasMore(nextHasMore);
+    setMatureChannels(
+      getTvChannelsForSection("mature", matureEnabled, {
+        offset: 0,
+        limit: TV_CHANNEL_PAGE_SIZE,
+      }).channels
+    );
     setLoading(false);
 
     const [recent, favorites] = await Promise.all([
@@ -101,8 +113,15 @@ function TvLiveHomeSections({
   }, [matureEnabled, mountedRef]);
 
   useEffect(() => {
-    void hydrateSections();
-  }, [hydrateSections]);
+    void (async () => {
+      await hydrateSections();
+
+      const catalogChanged = await runTvChannelVerificationIfDue();
+      if (catalogChanged && mountedRef.current) {
+        await hydrateSections();
+      }
+    })();
+  }, [hydrateSections, mountedRef]);
 
   const openFromSection = useCallback(
     (sectionId: TvLiveSectionId, channel: TVChannel, channelIds: string[]) => {
@@ -231,7 +250,26 @@ function TvLiveHomeSections({
         matureEnabled={matureEnabled}
         onMatureEnabledChange={onMatureEnabledChange}
         hasActiveMatureChannels={activeMatureChannels}
+        testModeEnabled={isMatureTvTestModeEnabled()}
       />
+
+      {matureEnabled && matureChannels.length ? (
+        <TvChannelRail
+          title={
+            isMatureTvTestModeEnabled()
+              ? "Mature TV — Gate Playback Tests"
+              : "Mature TV"
+          }
+          channels={matureChannels}
+          onPressChannel={(channel) =>
+            openFromSection(
+              "mature",
+              channel,
+              matureChannels.map((entry) => entry.id)
+            )
+          }
+        />
+      ) : null}
     </View>
   );
 }

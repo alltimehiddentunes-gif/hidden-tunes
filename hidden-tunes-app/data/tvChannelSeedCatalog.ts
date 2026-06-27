@@ -1,21 +1,32 @@
-import type { TVChannel, TvChannelCategory } from "@/types/tv";
+import type { TVChannel, TvChannelCategory, TvChannelCatalogStatus } from "@/types/tv";
+import {
+  getMatureTvTestChannelById,
+  getMatureTvTestChannels,
+} from "@/data/matureTvTestChannelCatalog";
+import { isTvChannelCatalogActive } from "@/services/tv/tvChannelRuntimeStatus";
 
-type SeedInput = Omit<TVChannel, "isLive" | "isActive" | "isVerifiedLegal" | "isMature"> & {
+type SeedInput = Omit<
+  TVChannel,
+  "isLive" | "isActive" | "catalogStatus" | "isVerifiedLegal" | "isMature"
+> & {
   isLive?: boolean;
-  isActive?: boolean;
+  catalogStatus?: TvChannelCatalogStatus;
   isVerifiedLegal?: boolean;
   isMature?: boolean;
 };
 
 function seedChannel(input: SeedInput): TVChannel {
+  const catalogStatus = input.catalogStatus ?? "active";
+
   return {
+    ...input,
     isLive: input.isLive ?? true,
-    isActive: input.isActive ?? true,
+    catalogStatus,
+    isActive: catalogStatus === "active",
     isVerifiedLegal: input.isVerifiedLegal ?? true,
     isMature: input.isMature ?? false,
     streamType: input.streamType ?? "hls",
     quality: input.quality ?? "HD",
-    ...input,
   };
 }
 
@@ -62,7 +73,7 @@ export const TV_CHANNEL_SEEDS: TVChannel[] = [
     language: "Spanish",
     category: "music",
     sourceType: "fast",
-    isActive: false,
+    catalogStatus: "temporarily_unavailable",
   }),
   seedChannel({
     id: "stingray-classica",
@@ -129,7 +140,7 @@ export const TV_CHANNEL_SEEDS: TVChannel[] = [
     language: "English",
     category: "music",
     sourceType: "fast",
-    isActive: false,
+    catalogStatus: "temporarily_unavailable",
   }),
   seedChannel({
     id: "qwest-tv-jazz",
@@ -155,7 +166,7 @@ export const TV_CHANNEL_SEEDS: TVChannel[] = [
     category: "movie",
     sourceType: "fast",
     isFeatured: true,
-    isActive: false,
+    catalogStatus: "temporarily_unavailable",
   }),
   seedChannel({
     id: "maverick-black-cinema",
@@ -211,7 +222,7 @@ export const TV_CHANNEL_SEEDS: TVChannel[] = [
     category: "movie",
     subCategory: "classics",
     sourceType: "fast",
-    isActive: false,
+    catalogStatus: "temporarily_unavailable",
   }),
   seedChannel({
     id: "hallmark-movies-more",
@@ -224,7 +235,7 @@ export const TV_CHANNEL_SEEDS: TVChannel[] = [
     category: "movie",
     subCategory: "family",
     sourceType: "fast",
-    isActive: false,
+    catalogStatus: "temporarily_unavailable",
   }),
   seedChannel({
     id: "pluto-action-movies",
@@ -430,7 +441,7 @@ export const TV_CHANNEL_SEEDS: TVChannel[] = [
     language: "English",
     category: "concerts",
     sourceType: "official_stream",
-    isActive: false,
+    catalogStatus: "removed",
   }),
 
   // Culture & Arts
@@ -481,7 +492,7 @@ export const TV_CHANNEL_SEEDS: TVChannel[] = [
     language: "English",
     category: "culture",
     sourceType: "public_broadcaster",
-    isActive: false,
+    catalogStatus: "temporarily_unavailable",
   }),
   seedChannel({
     id: "fashiontv-europe",
@@ -493,7 +504,7 @@ export const TV_CHANNEL_SEEDS: TVChannel[] = [
     language: "English",
     category: "culture",
     sourceType: "fast",
-    isActive: false,
+    catalogStatus: "removed",
   }),
 
   // Documentaries
@@ -510,7 +521,7 @@ export const TV_CHANNEL_SEEDS: TVChannel[] = [
     category: "documentary",
     sourceType: "public_broadcaster",
     isFeatured: true,
-    isActive: false,
+    catalogStatus: "temporarily_unavailable",
   }),
   seedChannel({
     id: "love-nature",
@@ -533,7 +544,7 @@ export const TV_CHANNEL_SEEDS: TVChannel[] = [
     language: "English",
     category: "documentary",
     sourceType: "public_broadcaster",
-    isActive: false,
+    catalogStatus: "temporarily_unavailable",
   }),
   seedChannel({
     id: "cgtn-documentary",
@@ -567,7 +578,7 @@ export const TV_CHANNEL_SEEDS: TVChannel[] = [
     language: "English",
     category: "documentary",
     sourceType: "public_broadcaster",
-    isActive: false,
+    catalogStatus: "temporarily_unavailable",
   }),
   seedChannel({
     id: "cna-originals",
@@ -620,7 +631,7 @@ export const TV_CHANNEL_SEEDS: TVChannel[] = [
     language: "English",
     category: "news",
     sourceType: "public_broadcaster",
-    isActive: false,
+    catalogStatus: "temporarily_unavailable",
   }),
   seedChannel({
     id: "bloomberg-tv",
@@ -644,7 +655,7 @@ export const TV_CHANNEL_SEEDS: TVChannel[] = [
     category: "news",
     sourceType: "public_broadcaster",
     isFeatured: true,
-    isActive: false,
+    catalogStatus: "temporarily_unavailable",
   }),
   seedChannel({
     id: "abc-news-au",
@@ -703,7 +714,7 @@ export const TV_CHANNEL_SEEDS: TVChannel[] = [
     language: "English",
     category: "news",
     sourceType: "fast",
-    isActive: false,
+    catalogStatus: "temporarily_unavailable",
   }),
   seedChannel({
     id: "newsmax-tv",
@@ -726,7 +737,7 @@ export const TV_CHANNEL_SEEDS: TVChannel[] = [
     language: "English",
     category: "news",
     sourceType: "fast",
-    isActive: false,
+    catalogStatus: "temporarily_unavailable",
   }),
   seedChannel({
     id: "cbc-news-toronto",
@@ -749,7 +760,7 @@ export const TV_CHANNEL_SEEDS: TVChannel[] = [
     language: "English",
     category: "news",
     sourceType: "official_stream",
-    isActive: false,
+    catalogStatus: "temporarily_unavailable",
   }),
 
   // Education
@@ -774,7 +785,7 @@ export const TV_CHANNEL_SEEDS: TVChannel[] = [
     language: "English",
     category: "education",
     sourceType: "public_broadcaster",
-    isActive: false,
+    catalogStatus: "removed",
   }),
 
   // International / public broadcasters
@@ -812,7 +823,7 @@ export const TV_CHANNEL_SEEDS: TVChannel[] = [
     language: "Italian",
     category: "international",
     sourceType: "public_broadcaster",
-    isActive: false,
+    catalogStatus: "temporarily_unavailable",
   }),
   seedChannel({
     id: "arirang-un",
@@ -838,7 +849,7 @@ export const TV_CHANNEL_SEEDS: TVChannel[] = [
     category: "mature",
     sourceType: "fast",
     isMature: true,
-    isActive: false,
+    catalogStatus: "removed",
     isVerifiedLegal: false,
   }),
   seedChannel({
@@ -851,7 +862,7 @@ export const TV_CHANNEL_SEEDS: TVChannel[] = [
     category: "mature",
     sourceType: "fast",
     isMature: true,
-    isActive: false,
+    catalogStatus: "removed",
     isVerifiedLegal: false,
   }),
   seedChannel({
@@ -864,7 +875,7 @@ export const TV_CHANNEL_SEEDS: TVChannel[] = [
     category: "mature",
     sourceType: "fast",
     isMature: true,
-    isActive: false,
+    catalogStatus: "removed",
     isVerifiedLegal: false,
   }),
 ];
@@ -872,6 +883,9 @@ export const TV_CHANNEL_SEEDS: TVChannel[] = [
 const channelById = new Map(TV_CHANNEL_SEEDS.map((channel) => [channel.id, channel]));
 
 export function getTvChannelById(channelId: string) {
+  const testChannel = getMatureTvTestChannelById(channelId);
+  if (testChannel) return testChannel;
+
   return channelById.get(channelId) || null;
 }
 
@@ -886,7 +900,7 @@ export function hasPlayableTvStreamUrl(channel: Pick<TVChannel, "streamUrl">) {
 
 export function isPlayableVerifiedPublicTvChannel(channel: TVChannel) {
   return (
-    channel.isActive &&
+    isTvChannelCatalogActive(channel) &&
     channel.isVerifiedLegal &&
     hasPlayableTvStreamUrl(channel) &&
     !isMatureTvChannel(channel)
@@ -896,7 +910,7 @@ export function isPlayableVerifiedPublicTvChannel(channel: TVChannel) {
 export function isPlayableVerifiedMatureTvChannel(channel: TVChannel) {
   return (
     isMatureTvChannel(channel) &&
-    channel.isActive &&
+    isTvChannelCatalogActive(channel) &&
     channel.isVerifiedLegal &&
     hasPlayableTvStreamUrl(channel)
   );
@@ -917,7 +931,11 @@ export function getTvChannelsByCategory(
   if (category === "mature") {
     if (!matureEnabled) return [];
 
-    return TV_CHANNEL_SEEDS.filter((channel) => isPlayableVerifiedMatureTvChannel(channel));
+    const licensed = TV_CHANNEL_SEEDS.filter((channel) =>
+      isPlayableVerifiedMatureTvChannel(channel)
+    );
+
+    return [...licensed, ...getMatureTvTestChannels()];
   }
 
   return getPublicTvChannels().filter((channel) => channel.category === category);

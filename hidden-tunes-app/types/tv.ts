@@ -1,3 +1,8 @@
+export type TvChannelCatalogStatus =
+  | "active"
+  | "temporarily_unavailable"
+  | "removed";
+
 export type TvChannelCategory =
   | "music"
   | "movie"
@@ -28,7 +33,8 @@ export type TvSourceType =
   | "official_stream"
   | "public_broadcaster"
   | "fast"
-  | "youtube_metadata";
+  | "youtube_metadata"
+  | "test";
 
 export type TvChannelQuality = "SD" | "HD" | "FHD";
 
@@ -50,7 +56,9 @@ export type TVChannel = {
   streamType?: TvStreamType;
 
   isLive: boolean;
+  /** Derived from catalogStatus for legacy checks. */
   isActive: boolean;
+  catalogStatus: TvChannelCatalogStatus;
   isMature: boolean;
   isVerifiedLegal: boolean;
   isFeatured?: boolean;

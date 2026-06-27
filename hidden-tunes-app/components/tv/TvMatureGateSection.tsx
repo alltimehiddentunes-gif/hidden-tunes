@@ -10,12 +10,14 @@ type TvMatureGateSectionProps = {
   matureEnabled: boolean;
   onMatureEnabledChange: (enabled: boolean) => void;
   hasActiveMatureChannels: boolean;
+  testModeEnabled?: boolean;
 };
 
 function TvMatureGateSection({
   matureEnabled,
   onMatureEnabledChange,
   hasActiveMatureChannels,
+  testModeEnabled = false,
 }: TvMatureGateSectionProps) {
   const handleToggle = useCallback(
     (next: boolean) => {
@@ -80,7 +82,18 @@ function TvMatureGateSection({
             are available.
           </Text>
         </View>
-      ) : hasActiveMatureChannels ? null : (
+      ) : hasActiveMatureChannels ? (
+        testModeEnabled ? (
+          <View style={styles.stateCard}>
+            <Ionicons name="flask-outline" size={28} color={COLORS.textMuted} />
+            <Text style={styles.stateTitle}>Internal mature gate playback tests</Text>
+            <Text style={styles.stateText}>
+              Verified public HLS streams are available behind this 18+ gate for
+              pipeline testing only. They are hidden in production builds.
+            </Text>
+          </View>
+        ) : null
+      ) : (
         <View style={styles.stateCard}>
           <Ionicons name="shield-checkmark-outline" size={28} color={COLORS.textMuted} />
           <Text style={styles.stateTitle}>No verified mature TV channels are active yet.</Text>
