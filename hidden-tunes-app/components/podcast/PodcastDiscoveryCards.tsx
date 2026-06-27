@@ -12,8 +12,13 @@ import {
 } from "../../utils/launchPodcastCategories";
 import { podcastDiscoveryDisplayName } from "../../utils/openHiddenTunesPodcast";
 
+type PodcastCategoryCardCategory = Pick<
+  LaunchPodcastCategory,
+  "title" | "subtitle" | "icon" | "gradient"
+>;
+
 type PodcastCategoryCardProps = {
-  category: LaunchPodcastCategory;
+  category: PodcastCategoryCardCategory;
   showCount?: number;
   onPress: () => void;
 };

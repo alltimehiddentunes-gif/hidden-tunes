@@ -25,6 +25,10 @@ import {
   togglePodcastShowFollow,
 } from "../../../services/podcastLibrary";
 import {
+  getMaturePodcastShowById,
+} from "../../../services/podcastService";
+import { isMaturePodcastsEnabled } from "../../../services/maturePodcastPreferences";
+import {
   getPodcastEpisodesForShow,
   prefetchPodcastEpisodesForShow,
 } from "../../../services/podcastDiscoveryApi";
@@ -87,6 +91,7 @@ export default function PodcastShowScreen() {
   const [followBusy, setFollowBusy] = useState(false);
   const [playLatestBusy, setPlayLatestBusy] = useState(false);
   const [shuffleBusy, setShuffleBusy] = useState(false);
+  const [matureEnabled, setMatureEnabled] = useState(false);
 
   const params = useLocalSearchParams<{
     showId?: string;
@@ -102,6 +107,10 @@ export default function PodcastShowScreen() {
   const show = useMemo(() => {
     const cached = findCachedPodcastShowById(showId);
     if (cached) return cached;
+
+    const matureShow = getMaturePodcastShowById(showId, matureEnabled);
+    if (matureShow) return matureShow;
+
     return buildShowFromParams({
       showId,
       title: params.title,
@@ -110,6 +119,7 @@ export default function PodcastShowScreen() {
       description: params.description,
     });
   }, [
+    matureEnabled,
     params.artworkUrl,
     params.description,
     params.hostName,
@@ -158,6 +168,10 @@ export default function PodcastShowScreen() {
     },
     [showId]
   );
+
+  useEffect(() => {
+    void isMaturePodcastsEnabled().then(setMatureEnabled);
+  }, []);
 
   useEffect(() => {
     if (!showId) return;

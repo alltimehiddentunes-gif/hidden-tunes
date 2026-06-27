@@ -24,6 +24,11 @@ import {
   prefetchPodcastShowsForCategory,
   searchPodcastShows,
 } from "../../services/podcastDiscoveryApi";
+import { isMaturePodcastsEnabled } from "../../services/maturePodcastPreferences";
+import {
+  mergePodcastShowResults,
+  searchMaturePodcastSeeds,
+} from "../../services/podcastService";
 import type { HiddenTunesPodcastShow } from "../../services/podcastCatalogApi";
 import { LAUNCH_PODCAST_CATEGORIES } from "../../utils/launchPodcastCategories";
 import { podcastShowSubtitle } from "../../utils/openHiddenTunesPodcast";
@@ -39,6 +44,7 @@ export default function PodcastDiscoveryHomeScreen() {
   const [searchResults, setSearchResults] = useState<HiddenTunesPodcastShow[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchChecked, setSearchChecked] = useState(false);
+  const [matureEnabled, setMatureEnabled] = useState(false);
   const searchRequestRef = useRef(0);
 
   const isSearching = searchQuery.trim().length > 0;
@@ -67,6 +73,10 @@ export default function PodcastDiscoveryHomeScreen() {
   const categories = useMemo(() => LAUNCH_PODCAST_CATEGORIES, []);
 
   useEffect(() => {
+    void isMaturePodcastsEnabled().then(setMatureEnabled);
+  }, []);
+
+  useEffect(() => {
     const clean = searchQuery.trim();
     if (!clean) {
       setSearchResults([]);
@@ -78,10 +88,13 @@ export default function PodcastDiscoveryHomeScreen() {
     setSearchLoading(true);
     const requestId = ++searchRequestRef.current;
     const timer = setTimeout(() => {
-      void searchPodcastShows(clean)
-        .then((shows) => {
+      void Promise.all([
+        searchPodcastShows(clean),
+        Promise.resolve(searchMaturePodcastSeeds(clean, matureEnabled)),
+      ])
+        .then(([apiShows, matureShows]) => {
           if (requestId !== searchRequestRef.current) return;
-          setSearchResults(shows);
+          setSearchResults(mergePodcastShowResults(apiShows, matureShows));
         })
         .finally(() => {
           if (requestId !== searchRequestRef.current) return;
@@ -91,7 +104,7 @@ export default function PodcastDiscoveryHomeScreen() {
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [searchQuery]);
+  }, [matureEnabled, searchQuery]);
 
   useEffect(() => {
     if (!initialQuery) return;
@@ -194,6 +207,23 @@ export default function PodcastDiscoveryHomeScreen() {
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
         >
+          <TouchableOpacity
+            activeOpacity={0.88}
+            style={styles.matureEntry}
+            onPress={() => router.push("/podcasts/mature" as any)}
+          >
+            <View style={styles.matureEntryIcon}>
+              <Ionicons name="eye-outline" size={18} color={COLORS.primary} />
+            </View>
+            <View style={styles.matureEntryCopy}>
+              <Text style={styles.matureEntryTitle}>Mature Podcasts 18+</Text>
+              <Text style={styles.matureEntrySubtitle}>
+                Explicit relationship, comedy, and education rooms
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
+          </TouchableOpacity>
+
           <View style={styles.grid}>
             {categories.map((category) => (
               <PodcastCategoryCard
@@ -270,6 +300,40 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 20,
     paddingBottom: 120,
+  },
+  matureEntry: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    padding: 14,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+    marginTop: 8,
+    marginBottom: 14,
+  },
+  matureEntryIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(168,85,247,0.12)",
+  },
+  matureEntryCopy: {
+    flex: 1,
+    gap: 2,
+  },
+  matureEntryTitle: {
+    color: COLORS.text,
+    fontSize: 15,
+    fontWeight: "800",
+  },
+  matureEntrySubtitle: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    fontWeight: "600",
   },
   listContent: {
     paddingHorizontal: 20,
