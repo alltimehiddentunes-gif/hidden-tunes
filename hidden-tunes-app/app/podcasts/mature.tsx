@@ -13,12 +13,16 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 
+import { MaturePodcastShowRail } from "../../components/podcast/MaturePodcastShowRail";
 import { PodcastCategoryCard } from "../../components/podcast/PodcastDiscoveryCards";
 import { COLORS } from "../../constants/theme";
 import {
+  getMatureDiscoveryRails,
   getVisibleMatureCategories,
+  type MatureDiscoveryRail,
   type MaturePodcastCategoryWithCount,
 } from "../../services/podcastService";
+import type { HiddenTunesPodcastShow } from "../../services/podcastCatalogApi";
 import {
   isMaturePodcastsEnabled,
   setMaturePodcastsEnabled,
@@ -33,9 +37,11 @@ export default function MaturePodcastsScreen() {
   const [categories, setCategories] = useState<MaturePodcastCategoryWithCount[]>(
     []
   );
+  const [rails, setRails] = useState<MatureDiscoveryRail[]>([]);
 
-  const refreshCategories = useCallback(async (enabled: boolean) => {
+  const refreshCatalog = useCallback((enabled: boolean) => {
     setCategories(getVisibleMatureCategories(enabled));
+    setRails(getMatureDiscoveryRails(enabled));
   }, []);
 
   useEffect(() => {
@@ -43,7 +49,7 @@ export default function MaturePodcastsScreen() {
       .then((enabled) => {
         if (!mountedRef.current) return;
         setMatureEnabled(enabled);
-        refreshCategories(enabled);
+        refreshCatalog(enabled);
       })
       .catch(() => {
         if (!mountedRef.current) return;
@@ -53,13 +59,13 @@ export default function MaturePodcastsScreen() {
         if (!mountedRef.current) return;
         setLoadingPrefs(false);
       });
-  }, [mountedRef, refreshCategories]);
+  }, [mountedRef, refreshCatalog]);
 
   const handleToggle = useCallback(async (next: boolean) => {
     setMatureEnabled(next);
     await setMaturePodcastsEnabled(next);
-    refreshCategories(next);
-  }, [refreshCategories]);
+    refreshCatalog(next);
+  }, [refreshCatalog]);
 
   const openCategory = useCallback((categoryId: string) => {
     router.push({
@@ -68,17 +74,35 @@ export default function MaturePodcastsScreen() {
     } as any);
   }, []);
 
+  const openShow = useCallback((show: HiddenTunesPodcastShow) => {
+    router.push({
+      pathname: "/podcasts/show/[showId]",
+      params: {
+        showId: show.id,
+        title: show.title,
+        hostName: show.host_name || "",
+        artworkUrl: show.artwork_url || "",
+        description: show.description || "",
+      },
+    } as any);
+  }, []);
+
   const headerSubtitle = useMemo(() => {
     if (!matureEnabled) {
-      return "Enable 18+ to browse explicit Hidden Tunes podcast rooms.";
+      return "Enable 18+ to browse explicit podcast rooms.";
     }
 
     if (!categories.length) {
       return "Mature rooms are syncing. Check back soon.";
     }
 
-    return "Explicit Hidden Tunes shows for adult listeners.";
+    return "Explicit shows for adult listeners — local discovery, no feed loading here.";
   }, [categories.length, matureEnabled]);
+
+  const browseCategories = useMemo(
+    () => categories.filter((category) => category.id !== "all-mature"),
+    [categories]
+  );
 
   return (
     <LinearGradient colors={["#120818", "#050308"]} style={styles.container}>
@@ -132,7 +156,7 @@ export default function MaturePodcastsScreen() {
                 .then((enabled) => {
                   if (!mountedRef.current) return;
                   setMatureEnabled(enabled);
-                  refreshCategories(enabled);
+                  refreshCatalog(enabled);
                 })
                 .catch(() => {
                   if (!mountedRef.current) return;
@@ -160,16 +184,35 @@ export default function MaturePodcastsScreen() {
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.grid}>
-            {categories.map((category) => (
-              <PodcastCategoryCard
-                key={category.id}
-                category={category}
-                showCount={category.showCount}
-                onPress={() => openCategory(category.id)}
-              />
-            ))}
-          </View>
+          {rails.map((rail) => (
+            <MaturePodcastShowRail
+              key={rail.id}
+              title={rail.title}
+              shows={rail.shows}
+              onPressShow={openShow}
+              onPressSeeAll={
+                rail.categoryId
+                  ? () => openCategory(rail.categoryId!)
+                  : undefined
+              }
+            />
+          ))}
+
+          {browseCategories.length > 0 ? (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Browse by category</Text>
+              <View style={styles.grid}>
+                {browseCategories.map((category) => (
+                  <PodcastCategoryCard
+                    key={category.id}
+                    category={category}
+                    showCount={category.showCount}
+                    onPress={() => openCategory(category.id)}
+                  />
+                ))}
+              </View>
+            </View>
+          ) : null}
         </ScrollView>
       )}
     </LinearGradient>
@@ -240,12 +283,21 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 20,
     paddingBottom: 120,
+    paddingTop: 4,
+  },
+  section: {
+    marginTop: 8,
+  },
+  sectionTitle: {
+    color: COLORS.text,
+    fontSize: 17,
+    fontWeight: "800",
+    marginBottom: 12,
   },
   grid: {
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "space-between",
-    marginTop: 8,
   },
   center: {
     flex: 1,

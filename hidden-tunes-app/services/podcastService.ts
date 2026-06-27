@@ -189,3 +189,99 @@ export function getMaturePodcastShowById(
   if (!seed || !matureEnabled) return null;
   return matureSeedToShow(seed);
 }
+
+export type MatureDiscoveryRail = {
+  id: string;
+  title: string;
+  categoryId?: string;
+  shows: HiddenTunesPodcastShow[];
+};
+
+const MATURE_RAIL_LIMIT = 8;
+
+function pickMatureShows(
+  matureEnabled: boolean,
+  picker: (seeds: MaturePodcastSeed[]) => MaturePodcastSeed[]
+) {
+  if (!matureEnabled) return [];
+  return picker(getActiveMatureSeeds(matureEnabled))
+    .slice(0, MATURE_RAIL_LIMIT)
+    .map(matureSeedToShow);
+}
+
+export function getMatureDiscoveryRails(matureEnabled: boolean): MatureDiscoveryRail[] {
+  if (!matureEnabled) return [];
+
+  const allShows = getAllMatureShows(matureEnabled);
+  if (allShows.length > 0) {
+    writeCachedPodcastShows("mature:all", allShows);
+  }
+
+  const rails: MatureDiscoveryRail[] = [
+    {
+      id: "featured",
+      title: "Featured Mature",
+      shows: pickMatureShows(matureEnabled, (seeds) =>
+        seeds.filter((seed) => seed.featured)
+      ),
+    },
+    {
+      id: "trending",
+      title: "Trending Mature",
+      shows: pickMatureShows(matureEnabled, (seeds) =>
+        seeds.filter((seed) => seed.trending)
+      ),
+    },
+    {
+      id: "relationships-dating",
+      title: "Relationships & Dating",
+      categoryId: "relationships-dating",
+      shows: getMatureShowsByCategory("relationships-dating", matureEnabled).slice(
+        0,
+        MATURE_RAIL_LIMIT
+      ),
+    },
+    {
+      id: "sex-education",
+      title: "Sex Education",
+      categoryId: "sex-education",
+      shows: getMatureShowsByCategory("sex-education", matureEnabled).slice(
+        0,
+        MATURE_RAIL_LIMIT
+      ),
+    },
+    {
+      id: "adult-comedy",
+      title: "Adult Comedy",
+      categoryId: "adult-comedy",
+      shows: getMatureShowsByCategory("adult-comedy", matureEnabled).slice(
+        0,
+        MATURE_RAIL_LIMIT
+      ),
+    },
+    {
+      id: "after-dark-talk",
+      title: "After Dark Talk",
+      categoryId: "after-dark-talk",
+      shows: getMatureShowsByCategory("after-dark-talk", matureEnabled).slice(
+        0,
+        MATURE_RAIL_LIMIT
+      ),
+    },
+    {
+      id: "new",
+      title: "New Mature Shows",
+      shows: pickMatureShows(matureEnabled, (seeds) =>
+        seeds.filter((seed) => seed.isNew)
+      ),
+    },
+    {
+      id: "all-mature",
+      title: "All Mature Podcasts",
+      categoryId: "all-mature",
+      shows: allShows.slice(0, MATURE_RAIL_LIMIT),
+    },
+  ];
+
+  return rails.filter((rail) => rail.shows.length > 0);
+}

@@ -26,6 +26,7 @@ import {
 } from "../../../services/podcastLibrary";
 import {
   getMaturePodcastShowById,
+  getMaturePodcastSeedById,
 } from "../../../services/podcastService";
 import { isMaturePodcastsEnabled } from "../../../services/maturePodcastPreferences";
 import {
@@ -44,7 +45,10 @@ import {
   readCachedPodcastEpisodes,
 } from "../../../utils/podcastDiscoveryCache";
 import { getRelatedPodcastShows } from "../../../utils/podcastRelatedShows";
-import { PODCAST_MAX_QUEUE_EPISODES } from "../../../utils/podcastPerformanceLimits";
+import {
+  isMatureSeedShowId,
+  PODCAST_MAX_QUEUE_EPISODES,
+} from "../../../utils/podcastPerformanceLimits";
 import { useMountedRef } from "../../../utils/useMountedRef";
 import { podcastDiscoveryDisplayName } from "../../../utils/openHiddenTunesPodcast";
 import {
@@ -94,6 +98,7 @@ export default function PodcastShowScreen() {
   const [playLatestBusy, setPlayLatestBusy] = useState(false);
   const [shuffleBusy, setShuffleBusy] = useState(false);
   const [matureEnabled, setMatureEnabled] = useState(false);
+  const [maturePrefsLoaded, setMaturePrefsLoaded] = useState(false);
 
   const params = useLocalSearchParams<{
     showId?: string;
@@ -105,10 +110,32 @@ export default function PodcastShowScreen() {
 
   const showId = String(params.showId || "").trim();
   const showTitle = podcastDiscoveryDisplayName(params.title);
+  const isMatureShow = isMatureSeedShowId(showId);
 
   const show = useMemo(() => {
+    if (isMatureShow && !matureEnabled) {
+      const seed = getMaturePodcastSeedById(showId);
+      if (!seed) {
+        return buildShowFromParams({
+          showId,
+          title: params.title,
+          hostName: params.hostName,
+          artworkUrl: params.artworkUrl,
+          description: params.description,
+        });
+      }
+
+      return buildShowFromParams({
+        showId,
+        title: seed.title,
+        hostName: seed.publisher,
+        artworkUrl: seed.artworkUrl,
+        description: seed.description,
+      });
+    }
+
     const cached = findCachedPodcastShowById(showId);
-    if (cached) return cached;
+    if (cached && !(isMatureShow && !matureEnabled)) return cached;
 
     const matureShow = getMaturePodcastShowById(showId, matureEnabled);
     if (matureShow) return matureShow;
@@ -127,6 +154,7 @@ export default function PodcastShowScreen() {
     params.hostName,
     params.title,
     showId,
+    isMatureShow,
   ]);
 
   const cleanedDescription = useMemo(
@@ -187,6 +215,10 @@ export default function PodcastShowScreen() {
       .catch(() => {
         if (!mountedRef.current) return;
         setMatureEnabled(false);
+      })
+      .finally(() => {
+        if (!mountedRef.current) return;
+        setMaturePrefsLoaded(true);
       });
   }, [mountedRef]);
 
@@ -202,8 +234,13 @@ export default function PodcastShowScreen() {
 
   useEffect(() => {
     if (!showId) return;
+    if (isMatureShow && !matureEnabled) {
+      setLoading(false);
+      setHasCheckedFallbacks(true);
+      return;
+    }
     void loadEpisodes(false);
-  }, [showId, loadEpisodes]);
+  }, [isMatureShow, loadEpisodes, matureEnabled, showId]);
 
   useEffect(() => {
     if (!showId) return;
@@ -377,6 +414,29 @@ export default function PodcastShowScreen() {
           <Text style={styles.emptyText}>{TESTER_COPY.podcastDiscoveryEmpty}</Text>
           <TouchableOpacity style={styles.backLink} onPress={() => router.back()}>
             <Text style={styles.backLinkText}>Back to Hidden Tunes Podcasts</Text>
+          </TouchableOpacity>
+        </View>
+      </LinearGradient>
+    );
+  }
+
+  if (maturePrefsLoaded && isMatureShow && !matureEnabled) {
+    return (
+      <LinearGradient colors={["#120818", "#050308"]} style={styles.container}>
+        <View style={styles.center}>
+          <Ionicons name="eye-off-outline" size={48} color={COLORS.textMuted} />
+          <Text style={styles.emptyTitle}>Mature podcasts are hidden</Text>
+          <Text style={styles.emptyText}>
+            Enable Mature Podcasts 18+ in settings to open this show.
+          </Text>
+          <TouchableOpacity
+            style={styles.backLink}
+            onPress={() => router.push("/podcasts/mature" as any)}
+          >
+            <Text style={styles.backLinkText}>Open Mature Podcasts settings</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.backLink} onPress={() => router.back()}>
+            <Text style={styles.backLinkText}>Go back</Text>
           </TouchableOpacity>
         </View>
       </LinearGradient>

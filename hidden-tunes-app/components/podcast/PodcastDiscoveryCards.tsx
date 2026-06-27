@@ -58,12 +58,14 @@ type PodcastShowCardProps = {
   show: HiddenTunesPodcastShow;
   subtitle?: string;
   onPress: () => void;
+  showExplicitBadge?: boolean;
 };
 
 export const PodcastShowCard = memo(function PodcastShowCard({
   show,
   subtitle,
   onPress,
+  showExplicitBadge = false,
 }: PodcastShowCardProps) {
   return (
     <TouchableOpacity activeOpacity={0.88} style={styles.showRow} onPress={onPress}>
@@ -82,9 +84,16 @@ export const PodcastShowCard = memo(function PodcastShowCard({
       )}
 
       <View style={styles.showCopy}>
-        <Text numberOfLines={2} style={styles.showTitle}>
-          {podcastDiscoveryDisplayName(show.title)}
-        </Text>
+        <View style={styles.showTitleRow}>
+          <Text numberOfLines={2} style={[styles.showTitle, styles.showTitleFlex]}>
+            {podcastDiscoveryDisplayName(show.title)}
+          </Text>
+          {showExplicitBadge ? (
+            <View style={styles.explicitBadge}>
+              <Text style={styles.explicitBadgeText}>E</Text>
+            </View>
+          ) : null}
+        </View>
         <Text numberOfLines={1} style={styles.showSubtitle}>
           {subtitle || HIDDEN_TUNES_PODCASTS_LABEL}
         </Text>
@@ -206,11 +215,34 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 3,
   },
+  showTitleRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 6,
+  },
+  showTitleFlex: {
+    flex: 1,
+  },
   showTitle: {
     color: COLORS.text,
     fontSize: 15,
     fontWeight: "800",
     lineHeight: 19,
+  },
+  explicitBadge: {
+    minWidth: 20,
+    height: 20,
+    borderRadius: 6,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(248,113,113,0.2)",
+    borderWidth: 1,
+    borderColor: "rgba(248,113,113,0.45)",
+  },
+  explicitBadgeText: {
+    color: "#FCA5A5",
+    fontSize: 11,
+    fontWeight: "900",
   },
   showSubtitle: {
     color: COLORS.textMuted,
