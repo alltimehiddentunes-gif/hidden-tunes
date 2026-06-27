@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useFocusEffect } from "expo-router";
 
 import TvChannelRail from "@/components/tv/TvChannelRail";
 import TvMatureGateSection from "@/components/tv/TvMatureGateSection";
@@ -23,6 +24,7 @@ import {
 import { isMatureTvTestModeEnabled } from "@/services/tv/matureTvTestMode";
 import { loadTvChannelRuntimeStatus } from "@/services/tv/tvChannelRuntimeStatus";
 import { runTvChannelVerificationIfDue } from "@/services/tv/tvChannelVerification";
+import { setTvTabFocused } from "@/services/tv/tvPlaybackActivity";
 import { loadTvFavorites } from "@/services/tv/tvFavorites";
 import { loadTvRecentlyWatched } from "@/services/tv/tvRecentlyWatched";
 import type { TVChannel, TvLiveSectionId } from "@/types/tv";
@@ -113,15 +115,28 @@ function TvLiveHomeSections({
   }, [matureEnabled, mountedRef]);
 
   useEffect(() => {
-    void (async () => {
-      await hydrateSections();
+    void hydrateSections();
+  }, [hydrateSections]);
 
-      const catalogChanged = await runTvChannelVerificationIfDue();
-      if (catalogChanged && mountedRef.current) {
-        await hydrateSections();
-      }
-    })();
-  }, [hydrateSections, mountedRef]);
+  useFocusEffect(
+    useCallback(() => {
+      setTvTabFocused(true);
+
+      let active = true;
+
+      void (async () => {
+        const catalogChanged = await runTvChannelVerificationIfDue();
+        if (catalogChanged && active && mountedRef.current) {
+          await hydrateSections();
+        }
+      })();
+
+      return () => {
+        active = false;
+        setTvTabFocused(false);
+      };
+    }, [hydrateSections, mountedRef])
+  );
 
   const openFromSection = useCallback(
     (sectionId: TvLiveSectionId, channel: TVChannel, channelIds: string[]) => {

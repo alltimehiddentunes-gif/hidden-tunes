@@ -21,6 +21,7 @@ import { getTvChannelById } from "@/data/tvChannelSeedCatalog";
 import { usePlayerActions } from "@/context/PlayerContext";
 import { getMatureTvEnabled } from "@/services/matureTvPreferences";
 import { markTvChannelBroken } from "@/services/tv/tvBrokenChannels";
+import { markTvChannelTemporarilyUnavailable } from "@/services/tv/tvChannelVerification";
 import { getRelatedTvChannels } from "@/services/tv/tvChannelService";
 import {
   isTvChannelFavorite,
@@ -31,6 +32,10 @@ import {
   setTvPlaybackSession,
 } from "@/services/tv/tvPlaybackSession";
 import { recordTvRecentlyWatched } from "@/services/tv/tvRecentlyWatched";
+import {
+  markTvPlayerClosed,
+  markTvPlayerOpen,
+} from "@/services/tv/tvPlaybackActivity";
 import type { TVChannel, TvLiveSectionId, TvPlaybackContext } from "@/types/tv";
 import { closeTvPlayer } from "@/utils/tvNavigation";
 import { useMountedRef } from "@/utils/useMountedRef";
@@ -118,6 +123,7 @@ export default function TvPlayerScreen() {
   const mountedRef = useMountedRef();
   const webViewRef = useRef<WebView>(null);
   const watchedSavedRef = useRef<string | null>(null);
+  const failureHandledRef = useRef<string | null>(null);
   const sessionRef = useRef<TvPlaybackContext | null>(getTvPlaybackSession());
   const stopRequestedRef = useRef(false);
   const { stopPlayback } = usePlayerActions();
@@ -161,19 +167,11 @@ export default function TvPlayerScreen() {
     }
   }, [mountedRef]);
 
-  useEffect(() => {
-    const session = getTvPlaybackSession();
-    if (session) {
-      sessionRef.current = session;
-    }
-
-    stopPlayback?.();
-  }, []);
-
   const destroyPlayerSurface = useCallback(() => {
     if (stopRequestedRef.current) return;
     stopRequestedRef.current = true;
     setPlayerMounted(false);
+    setIsPlaying(false);
     webViewRef.current?.injectJavaScript(
       `try {
         var v = document.getElementById("player");
@@ -185,7 +183,38 @@ export default function TvPlayerScreen() {
       } catch (e) {}
       true;`
     );
+    webViewRef.current?.stopLoading?.();
   }, []);
+
+  const reportStreamFailure = useCallback(
+    (reason: string) => {
+      if (!channel) return;
+      if (failureHandledRef.current === channel.id) return;
+
+      failureHandledRef.current = channel.id;
+      markTvChannelBroken(channel.id);
+      void markTvChannelTemporarilyUnavailable(channel.id, reason);
+      setIsLoading(false);
+      setHasError(true);
+      setIsPlaying(false);
+    },
+    [channel]
+  );
+
+  useEffect(() => {
+    const session = getTvPlaybackSession();
+    if (session) {
+      sessionRef.current = session;
+    }
+
+    markTvPlayerOpen();
+    void stopPlayback?.();
+
+    return () => {
+      destroyPlayerSurface();
+      markTvPlayerClosed();
+    };
+  }, [destroyPlayerSurface, stopPlayback]);
 
   const handleExit = useCallback(() => {
     destroyPlayerSurface();
@@ -208,6 +237,7 @@ export default function TvPlayerScreen() {
   useEffect(() => {
     if (!channel) return;
 
+    failureHandledRef.current = null;
     setPlayerMounted(true);
     stopRequestedRef.current = false;
     setIsLoading(true);
@@ -292,11 +322,8 @@ export default function TvPlayerScreen() {
   }, [channel, mountedRef]);
 
   const handleReportBroken = useCallback(() => {
-    if (!channel) return;
-    markTvChannelBroken(channel.id);
-    setHasError(true);
-    setIsLoading(false);
-  }, [channel]);
+    reportStreamFailure("playback_failed");
+  }, [reportStreamFailure]);
 
   const handleWebViewMessage = useCallback((event: WebViewMessageEvent) => {
     const message = String(event.nativeEvent.data || "");
@@ -314,11 +341,9 @@ export default function TvPlayerScreen() {
     }
 
     if (message === "error" || message === "timeout") {
-      setIsLoading(false);
-      setHasError(true);
-      setIsPlaying(false);
+      reportStreamFailure("stream_error");
     }
-  }, []);
+  }, [reportStreamFailure]);
 
   const handleTogglePlayback = useCallback(() => {
     const nextPlaying = !isPlaying;
@@ -398,15 +423,15 @@ export default function TvPlayerScreen() {
             allowsInlineMediaPlayback
             mediaPlaybackRequiresUserAction={false}
             javaScriptEnabled
-            domStorageEnabled
+            domStorageEnabled={false}
+            cacheEnabled={false}
+            incognito
             onMessage={handleWebViewMessage}
             onError={() => {
-              setIsLoading(false);
-              setHasError(true);
+              reportStreamFailure("webview_error");
             }}
             onHttpError={() => {
-              setIsLoading(false);
-              setHasError(true);
+              reportStreamFailure("webview_http_error");
             }}
           />
         ) : !embedHtml ? (
@@ -452,6 +477,9 @@ export default function TvPlayerScreen() {
               source={{ uri: channel.logoUrl }}
               style={styles.channelLogo}
               contentFit="contain"
+              recyclingKey={channel.id}
+              cachePolicy="memory-disk"
+              priority="low"
             />
           ) : (
             <View style={styles.channelLogoFallback}>

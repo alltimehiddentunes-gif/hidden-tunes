@@ -30,8 +30,10 @@ function TvChannelCard({ channel, width = 148, onPress }: TvChannelCardProps) {
             source={{ uri: channel.logoUrl }}
             style={styles.logo}
             contentFit="contain"
-            transition={100}
+            transition={0}
             recyclingKey={channel.id}
+            cachePolicy="memory-disk"
+            priority="low"
           />
         ) : (
           <View style={styles.logoFallback}>
@@ -70,7 +72,14 @@ function TvChannelCard({ channel, width = 148, onPress }: TvChannelCardProps) {
   );
 }
 
-export default memo(TvChannelCard);
+export default memo(TvChannelCard, (prev, next) => {
+  return (
+    prev.channel.id === next.channel.id &&
+    prev.width === next.width &&
+    prev.channel.name === next.channel.name &&
+    prev.channel.logoUrl === next.channel.logoUrl
+  );
+});
 
 const styles = StyleSheet.create({
   card: {

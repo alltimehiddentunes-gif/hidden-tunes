@@ -3,7 +3,7 @@ import { FlatList, StyleSheet, Text, View } from "react-native";
 
 import { COLORS } from "@/constants/theme";
 import type { TVChannel } from "@/types/tv";
-import { getListPerformanceSettings } from "@/utils/performanceMode";
+import { getHorizontalListPerformanceSettings } from "@/utils/performanceMode";
 
 import TvChannelCard from "./TvChannelCard";
 
@@ -20,7 +20,7 @@ function TvChannelRail({
   onPressChannel,
   countLabel,
 }: TvChannelRailProps) {
-  const listSettings = getListPerformanceSettings(channels.length);
+  const listSettings = getHorizontalListPerformanceSettings(channels.length);
 
   const renderItem = useCallback(
     ({ item }: { item: TVChannel }) => (

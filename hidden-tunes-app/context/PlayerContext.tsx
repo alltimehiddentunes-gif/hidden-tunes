@@ -34,6 +34,7 @@ import {
   getSmartQueue,
   saveSmartQueue,
 } from "../services/smartQueue";
+import { isTvPlayerOpen } from "../services/tv/tvPlaybackActivity";
 import { isTrackPlayerFeatureEnabled } from "../constants/playbackConfig";
 import { supportsNativeTrackPlayer } from "../utils/expoRuntime";
 import {
@@ -288,13 +289,13 @@ function yieldToNextFrame(): Promise<void> {
   });
 }
 
-const PLAYBACK_UPDATE_INTERVAL_MS = 2000;
-const PLAYBACK_UPDATE_INTERVAL_BACKGROUND_MS = 1000;
+const PLAYBACK_UPDATE_INTERVAL_MS = 2500;
+const PLAYBACK_UPDATE_INTERVAL_BACKGROUND_MS = 4000;
 const POSITION_STATE_UPDATE_MIN_MS = 2000;
 const POSITION_STATE_UPDATE_BACKGROUND_MS = 2000;
 const POSITION_SAVE_INTERVAL_MS = 15000;
 const POSITION_SAVE_DISTANCE_MS = 8000;
-const POSITION_PERSIST_DEBOUNCE_MS = 900;
+const POSITION_PERSIST_DEBOUNCE_MS = 1500;
 const ACTIVE_QUEUE_PERSIST_DEBOUNCE_MS = 600;
 const DURATION_UPDATE_THRESHOLD_MS = 1500;
 const TRACK_END_THRESHOLD_MS = 750;
@@ -2050,6 +2051,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       }
 
       if (
+        !isTvPlayerOpen() &&
         now - lastPositionSaveRef.current > POSITION_SAVE_INTERVAL_MS &&
         Math.abs(nextPosition - lastSavedPositionRef.current) >=
           POSITION_SAVE_DISTANCE_MS
@@ -2073,6 +2075,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     stopHiddenAudioPolling();
 
     const poll = async () => {
+      if (isTvPlayerOpen()) return;
       if (!hiddenAudioLoadedRef.current || trackPlayerActiveRef.current) {
         return;
       }
@@ -3084,6 +3087,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const stopPlayback = useCallback(async () => {
     try {
+      stopHiddenAudioPolling();
       isChangingTrackRef.current = true;
       pendingSmartExtendRef.current = false;
       clearFinishWatchdog("stop_playback");
@@ -3117,6 +3121,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setDurationMillis,
     removeStoredValues,
     clearFinishWatchdog,
+    stopHiddenAudioPolling,
   ]);
 
   const togglePlayPause = useCallback(async () => {
@@ -3639,6 +3644,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         }
 
         if (
+          !isTvPlayerOpen() &&
           now - lastPositionSaveRef.current > POSITION_SAVE_INTERVAL_MS &&
           Math.abs(progress.positionMillis - lastSavedPositionRef.current) >=
             POSITION_SAVE_DISTANCE_MS
