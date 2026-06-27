@@ -16,11 +16,13 @@ import { router, useLocalSearchParams } from "expo-router";
 import { RadioStationCard } from "../../components/radio/RadioBrowserCards";
 import { COLORS } from "../../constants/theme";
 import { TESTER_COPY } from "../../constants/testerExperience";
+import { usePlaybackRouter } from "../../hooks/usePlaybackRouter";
 import {
   getRadioStationsForCategory,
   sanitizeStationTagsForDisplay,
   type HiddenTunesStation,
 } from "../../services/radioStationApi";
+import { normalizeRadioStation } from "../../services/radio/radioNormalizer";
 import {
   hydrateCachedRadioStations,
   readCachedRadioStations,
@@ -41,6 +43,7 @@ function stationSubtitle(station: HiddenTunesStation) {
 }
 
 export default function RadioCategoryScreen() {
+  const { playRadioStation } = usePlaybackRouter();
   const params = useLocalSearchParams<{ categoryId?: string }>();
   const categoryId = String(params.categoryId || "").trim();
   const category = useMemo(
@@ -94,7 +97,15 @@ export default function RadioCategoryScreen() {
   }, [loadStations]);
 
   const openStation = useCallback(
-    (station: HiddenTunesStation) => {
+    async (station: HiddenTunesStation) => {
+      const stationQueue = stations.map((item) => normalizeRadioStation(item));
+      const result = await playRadioStation(
+        normalizeRadioStation(station),
+        stationQueue
+      );
+
+      if (result.ok) return;
+
       router.push({
         pathname: "/stations/detail",
         params: {
@@ -104,7 +115,7 @@ export default function RadioCategoryScreen() {
         },
       } as any);
     },
-    [categoryId]
+    [categoryId, playRadioStation, stations]
   );
 
   const openListeningRoom = useCallback(() => {

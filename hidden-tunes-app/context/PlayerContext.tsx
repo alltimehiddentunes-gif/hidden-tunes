@@ -42,6 +42,7 @@ import {
   bridgeGetProgress,
   bridgeInterruptForUserTap,
   bridgePlayQueueFromIndex,
+  bridgePlay,
   bridgeResetPlayback,
   bridgeSeekTo,
   bridgeSetProgressInterval,
@@ -56,6 +57,7 @@ import {
   subscribeBridgeEvents,
 } from "../services/playbackBridge";
 import { getArtworkValue } from "../utils/artwork";
+import { isBoundedQueuePlayback } from "../utils/playbackMode";
 import { scheduleStartupTask } from "../utils/startupScheduler";
 import {
   recordAppStateTransition,
@@ -173,7 +175,13 @@ export type AppSong = {
 };
 
 type RepeatMode = "off" | "one" | "all";
-type ActiveQueueMode = "standard" | "youtube" | "radio" | "smart";
+type ActiveQueueMode =
+  | "standard"
+  | "youtube"
+  | "radio"
+  | "smart"
+  | "live_stream"
+  | "podcast";
 
 export type PlayerContextType = {
   currentSong: AppSong | null;
@@ -209,11 +217,17 @@ export type PlayerContextType = {
   radioMode: boolean;
   radioIndex: number;
 
-  playSong: (song: AppSong, queue?: AppSong[], index?: number) => Promise<void>;
+  playSong: (
+    song: AppSong,
+    queue?: AppSong[],
+    index?: number,
+    queueMode?: ActiveQueueMode
+  ) => Promise<void>;
   playQueue: (
     queue: AppSong[],
     startIndex?: number,
-    priorInterruptDone?: boolean
+    priorInterruptDone?: boolean,
+    queueMode?: ActiveQueueMode
   ) => Promise<void>;
   playAudiusTrack: (song: AppSong) => Promise<void>;
   playYouTubeQueue: (
@@ -230,6 +244,8 @@ export type PlayerContextType = {
   stopPlayback: () => Promise<void>;
   nextSong: () => Promise<void>;
   previousSong: () => Promise<void>;
+  replayCurrentTrack: () => Promise<void>;
+  seekRelative: (offsetMillis: number) => Promise<void>;
   seekTo: (millis: number) => Promise<void>;
   setVolume: (value: number) => Promise<void>;
   toggleMute: () => Promise<void>;
@@ -525,6 +541,33 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       song?.source === "youtube" ||
       Boolean(song?.videoId)
     );
+  }, []);
+
+  const resolveQueueModeForSong = useCallback(
+    (song: AppSong, override?: ActiveQueueMode): ActiveQueueMode => {
+      if (override) return override;
+      if (song.source === "radio" || song.type === "live_stream") {
+        return "live_stream";
+      }
+      if (song.source === "podcast" || song.type === "podcast") {
+        return "standard";
+      }
+      return "standard";
+    },
+    []
+  );
+
+  const isLiveStreamSong = useCallback((song?: AppSong | null) => {
+    return (
+      song?.source === "radio" ||
+      song?.type === "live_stream" ||
+      activeQueueModeRef.current === "live_stream"
+    );
+  }, []);
+
+  const shouldOfferSmartQueueExtend = useCallback(() => {
+    if (!smartAutoplayEnabledRef.current) return false;
+    return !isBoundedQueuePlayback(currentSongRef.current);
   }, []);
 
   const getPlayableUri = useCallback((song: AppSong) => {
@@ -1321,7 +1364,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           const nextIndex = getNextQueueIndex(currentIndex, queue.length);
 
           if (nextIndex === -1) {
-            if (!smartAutoplayEnabledRef.current) {
+            if (!shouldOfferSmartQueueExtend()) {
               logAutoNextSkipped("queue_ended_smart_autoplay_disabled", {
                 queueLength: queue.length,
                 source,
@@ -1391,6 +1434,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       runQueueTransition,
       setIsPlaying,
       syncStateFromTrackPlayerIndex,
+      shouldOfferSmartQueueExtend,
     ]
   );
 
@@ -1416,7 +1460,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         const nextIndex = getNextQueueIndex(currentIndex, queue.length);
 
         if (nextIndex === -1) {
-          if (!smartAutoplayEnabledRef.current) {
+          if (!shouldOfferSmartQueueExtend()) {
             logAutoNextSkipped("queue_ended_smart_autoplay_disabled", {
               queueLength: queue.length,
             });
@@ -1489,7 +1533,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           nextIndex: -1,
         });
 
-        if (!smartAutoplayEnabledRef.current) {
+        if (!shouldOfferSmartQueueExtend()) {
           logAutoNextSkipped("queue_ended_smart_autoplay_disabled", {
             queueLength: queue.length,
             repeatMode: repeatModeRef.current,
@@ -1553,6 +1597,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     removeStoredValues,
     syncStateFromTrackPlayerIndex,
     advanceTrackPlayerQueueFromJs,
+    shouldOfferSmartQueueExtend,
   ]);
 
   const handleTrackFinished = useCallback(async () => {
@@ -1562,6 +1607,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     });
 
     try {
+      if (isLiveStreamSong(currentSongRef.current)) {
+        logAutoNextSkipped("live_stream", {
+          songId: currentSongRef.current?.id,
+        });
+        return;
+      }
+
       if (repeatModeRef.current === "one") {
         logAutoNextSkipped("repeat_one", {
           songId: currentSongRef.current?.id,
@@ -1585,7 +1637,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       clearFinishWatchdog("track_finished");
       autoAdvanceRef.current = false;
     }
-  }, [nextSong, removeStoredValues, setIsPlaying, clearFinishWatchdog]);
+  }, [
+    nextSong,
+    removeStoredValues,
+    setIsPlaying,
+    clearFinishWatchdog,
+    isLiveStreamSong,
+  ]);
 
   handleTrackFinishedRef.current = handleTrackFinished;
 
@@ -1828,7 +1886,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
     pendingSmartExtendRef.current = false;
 
-    if (!smartAutoplayEnabledRef.current) return;
+    if (!shouldOfferSmartQueueExtend()) return;
 
     const { queue, safeIndex } = getActiveQueuePlaybackState();
 
@@ -2476,10 +2534,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const extendQueueWithSmartTracks = useCallback(async () => {
     try {
-      if (!smartAutoplayEnabledRef.current) return false;
+      if (!shouldOfferSmartQueueExtend()) return false;
 
       const current = currentSongRef.current;
       if (!current) return false;
+      if (isBoundedQueuePlayback(current)) return false;
 
       const memory = await getSmartQueue();
       const currentQueue = activeQueueRef.current.filter(
@@ -2520,6 +2579,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     syncActiveQueue,
     removeStoredValues,
     loadAndPlay,
+    shouldOfferSmartQueueExtend,
   ]);
 
   extendQueueWithSmartTracksRef.current = extendQueueWithSmartTracks;
@@ -2581,7 +2641,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     async (
       queue: AppSong[],
       startIndex = 0,
-      priorInterruptDone = false
+      priorInterruptDone = false,
+      queueMode?: ActiveQueueMode
     ) => {
       const nativeQueue = queue
         .map(normalizeSong)
@@ -2612,7 +2673,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       radioModeRef.current = false;
       void setStoredValueIfChanged(RADIO_MODE_KEY, "false");
 
-      void syncActiveQueue(nativeQueue, safeIndex, "standard");
+      const resolvedMode = resolveQueueModeForSong(
+        nativeQueue[safeIndex],
+        queueMode
+      );
+
+      void syncActiveQueue(nativeQueue, safeIndex, resolvedMode);
       void removeStoredValues([POSITION_KEY]);
 
       const selectedSong = nativeQueue[safeIndex];
@@ -2664,11 +2730,17 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       applyProgressUpdateInterval,
       setIsPlaying,
       savePlaybackSideEffects,
+      resolveQueueModeForSong,
     ]
   );
 
   const playSong = useCallback(
-    async (song: AppSong, queue?: AppSong[], index?: number) => {
+    async (
+      song: AppSong,
+      queue?: AppSong[],
+      index?: number,
+      queueMode?: ActiveQueueMode
+    ) => {
       const normalizedSong = normalizeSong(song);
 
       logTapToPlayStart({
@@ -2735,7 +2807,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         recordQueueControl("play_song", nativeQueue.length, {
           songId: normalizedSong.id,
         });
-        await playQueue(nativeQueue, repaired.index, switchingToNewSong);
+        await playQueue(
+          nativeQueue,
+          repaired.index,
+          switchingToNewSong,
+          queueMode || resolveQueueModeForSong(normalizedSong)
+        );
         return;
       }
 
@@ -2812,7 +2889,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           }, 0);
         }
       } else {
-        void syncActiveQueue([normalizedSong], 0, "standard");
+        void syncActiveQueue(
+          [normalizedSong],
+          0,
+          resolveQueueModeForSong(normalizedSong, queueMode)
+        );
       }
 
       void removeStoredValues([POSITION_KEY]);
@@ -2833,6 +2914,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       applyProgressUpdateInterval,
       setIsPlaying,
       savePlaybackSideEffects,
+      resolveQueueModeForSong,
     ]
   );
 
@@ -3040,8 +3122,21 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const togglePlayPause = useCallback(async () => {
     logPauseResumeStart({ source: "toggle_play_pause" });
 
+    const song = currentSongRef.current;
+    const liveStream = isLiveStreamSong(song);
+
     if (trackPlayerActiveRef.current) {
       if (isChangingTrackRef.current) return;
+
+      if (liveStream) {
+        const progress = await bridgeGetProgress();
+
+        if (!progress.isPlaying && song) {
+          await loadAndPlay(normalizeSong(song), { userInitiated: true });
+          logPauseResumeComplete({ engine: "track_player_live_reconnect" });
+          return;
+        }
+      }
 
       const playing = await bridgeTogglePlayPause();
       setIsPlaying(playing);
@@ -3062,6 +3157,22 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    if (liveStream && song) {
+      const status = await HiddenAudio.getStatus();
+
+      if (status.isPlaying) {
+        clearFinishWatchdog("pause");
+        await HiddenAudio.pause();
+        lastHiddenAudioPollPlayingRef.current = false;
+        setIsPlaying(false);
+      } else {
+        await loadAndPlay(normalizeSong(song), { userInitiated: true });
+      }
+
+      logPauseResumeComplete({ engine: "hidden_audio_live_reconnect" });
+      return;
+    }
+
     const status = await HiddenAudio.getStatus();
 
     if (status.isPlaying) {
@@ -3076,10 +3187,18 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }
 
     logPauseResumeComplete({ engine: "hidden_audio" });
-  }, [loadAndPlay, setIsPlaying, clearFinishWatchdog]);
+  }, [
+    loadAndPlay,
+    setIsPlaying,
+    clearFinishWatchdog,
+    isLiveStreamSong,
+    normalizeSong,
+  ]);
 
   const seekTo = useCallback(
     async (millis: number) => {
+      if (isLiveStreamSong(currentSongRef.current)) return;
+
       const safeMillis = Math.max(0, Math.floor(millis || 0));
 
       if (trackPlayerActiveRef.current) {
@@ -3098,8 +3217,68 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
       await savePlaybackPosition(safeMillis);
     },
-    [setPositionMillis, savePlaybackPosition, clearFinishWatchdog]
+    [setPositionMillis, savePlaybackPosition, clearFinishWatchdog, isLiveStreamSong]
   );
+
+  const seekRelative = useCallback(
+    async (offsetMillis: number) => {
+      if (isLiveStreamSong(currentSongRef.current)) return;
+
+      const duration = durationMillisRef.current;
+      const nextPosition = Math.max(
+        0,
+        Math.min(
+          positionMillisRef.current + offsetMillis,
+          duration > 0 ? duration : Number.MAX_SAFE_INTEGER
+        )
+      );
+
+      await seekTo(nextPosition);
+    },
+    [isLiveStreamSong, seekTo]
+  );
+
+  const replayCurrentTrack = useCallback(async () => {
+    const song = currentSongRef.current;
+    if (!song) return;
+
+    if (isLiveStreamSong(song)) {
+      await loadAndPlay(normalizeSong(song), { userInitiated: true });
+      return;
+    }
+
+    if (trackPlayerActiveRef.current) {
+      await bridgeSeekTo(0);
+      setPositionMillis(0);
+      positionMillisRef.current = 0;
+      await bridgePlay();
+      setIsPlaying(true);
+      await savePlaybackPosition(0, { immediate: true });
+      return;
+    }
+
+    if (!hiddenAudioLoadedRef.current) {
+      await loadAndPlay(normalizeSong(song), { userInitiated: true });
+      return;
+    }
+
+    clearFinishWatchdog("replay");
+    await HiddenAudio.seek(0);
+    setPositionMillis(0);
+    positionMillisRef.current = 0;
+    await HiddenAudio.play();
+    lastHiddenAudioPollPlayingRef.current = true;
+    setIsPlaying(true);
+    await savePlaybackPosition(0, { immediate: true });
+  }, [
+    clearFinishWatchdog,
+    isLiveStreamSong,
+    loadAndPlay,
+    normalizeSong,
+    savePlaybackPosition,
+    setIsPlaying,
+    setPositionMillis,
+  ]);
 
   const setVolume = useCallback(async (value: number) => {
     const safeValue = Math.max(0, Math.min(value, 1));
@@ -3379,7 +3558,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           const safeMode: ActiveQueueMode =
             savedActiveQueueMode === "radio" ||
             savedActiveQueueMode === "standard" ||
-            savedActiveQueueMode === "smart"
+            savedActiveQueueMode === "smart" ||
+            savedActiveQueueMode === "live_stream" ||
+            savedActiveQueueMode === "podcast"
               ? savedActiveQueueMode
               : "standard";
 
@@ -3685,6 +3866,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       stopPlayback,
       nextSong,
       previousSong,
+      replayCurrentTrack,
+      seekRelative,
       seekTo,
       setVolume,
       toggleMute,
@@ -3709,6 +3892,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       stopPlayback,
       nextSong,
       previousSong,
+      replayCurrentTrack,
+      seekRelative,
       seekTo,
       setVolume,
       toggleMute,

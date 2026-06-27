@@ -43,6 +43,10 @@ import HTImage from "./HTImage";
 import { FALLBACK_ARTWORK, getArtworkValue } from "../utils/artwork";
 import { isFastScrolling } from "../utils/performanceMode";
 import { useRuntimeRenderProbe } from "../utils/runtimeInstrumentation";
+import {
+  isPodcastEpisodeSong,
+  isRadioStreamSong,
+} from "../services/playback/playbackRouter";
 
 type YouTubeMini = {
   id: string;
@@ -204,8 +208,10 @@ const MiniPlayerArtwork = memo(function MiniPlayerArtwork({
 
 const MiniPlayerProgress = memo(function MiniPlayerProgress({
   isYoutubeMode,
+  isLiveRadioMode,
 }: {
   isYoutubeMode: boolean;
+  isLiveRadioMode: boolean;
 }) {
   const { position, duration } = usePlayerProgress();
   const trackWidth = useSharedValue(0);
@@ -247,6 +253,14 @@ const MiniPlayerProgress = memo(function MiniPlayerProgress({
     );
   }
 
+  if (isLiveRadioMode) {
+    return (
+      <Text numberOfLines={1} style={styles.youtubeNote}>
+        Live radio
+      </Text>
+    );
+  }
+
   return (
     <View style={styles.progressTrack} onLayout={onTrackLayout}>
       <Animated.View style={[styles.progressFill, fillStyle]} />
@@ -261,12 +275,14 @@ const MiniPlayerMetadata = memo(function MiniPlayerMetadata({
   queueLabel,
   badgeIconName,
   isYoutubeMode,
+  isLiveRadioMode,
 }: {
   title: string;
   artist: string;
   queueLabel: string;
   badgeIconName: string;
   isYoutubeMode: boolean;
+  isLiveRadioMode: boolean;
 }) {
   const opacity = useSharedValue(1);
   const translateY = useSharedValue(0);
@@ -306,7 +322,10 @@ const MiniPlayerMetadata = memo(function MiniPlayerMetadata({
         {artist}
       </Text>
 
-      <MiniPlayerProgress isYoutubeMode={isYoutubeMode} />
+      <MiniPlayerProgress
+        isYoutubeMode={isYoutubeMode}
+        isLiveRadioMode={isLiveRadioMode}
+      />
     </Animated.View>
   );
 });
@@ -320,6 +339,8 @@ function MiniPlayer() {
     radioMode,
     youtubeQueue,
     radioQueue,
+    activeQueue,
+    activeQueueIndex,
   } = usePlayerState();
   const { togglePlayPause, nextSong } = usePlayerActions();
 
@@ -379,16 +400,27 @@ function MiniPlayer() {
   }, [currentSong, loadYouTubeMini]);
 
   const isYoutubeMode = !currentSong && !!youtubeVideo;
+  const isLiveRadioMode = isRadioStreamSong(currentSong);
+  const isPodcastMode = isPodcastEpisodeSong(currentSong);
 
   const radioQueueLength = radioQueue?.length || 0;
   const youtubeQueueLength = youtubeQueue?.length || 0;
 
   const queueLabel = useMemo(() => {
+    if (isLiveRadioMode) return "LIVE";
+    if (isPodcastMode) return "Podcast";
     if (radioMode && radioQueueLength > 0) return "Radio queue";
     if (youtubeQueueLength > 0) return `${youtubeQueueLength} in queue`;
     if (isYoutubeMode) return "YouTube";
     return "Now playing";
-  }, [radioMode, radioQueueLength, youtubeQueueLength, isYoutubeMode]);
+  }, [
+    isLiveRadioMode,
+    isPodcastMode,
+    radioMode,
+    radioQueueLength,
+    youtubeQueueLength,
+    isYoutubeMode,
+  ]);
 
   const title = useMemo(() => {
     if (isYoutubeMode) return youtubeVideo?.title || "YouTube Video";
@@ -453,9 +485,27 @@ function MiniPlayer() {
 
   const badgeIconName = useMemo(() => {
     if (isYoutubeMode) return "tv";
+    if (isLiveRadioMode) return "radio";
+    if (isPodcastMode) return "mic-outline";
     if (radioMode) return "radio";
     return "pulse";
-  }, [isYoutubeMode, radioMode]);
+  }, [isYoutubeMode, isLiveRadioMode, isPodcastMode, radioMode]);
+
+  const canMiniNext = useMemo(() => {
+    if (isYoutubeMode) return false;
+    if (!activeQueue?.length || activeQueue.length <= 1) return false;
+    if (isPodcastMode || isLiveRadioMode) {
+      const index = typeof activeQueueIndex === "number" ? activeQueueIndex : 0;
+      return index < activeQueue.length - 1;
+    }
+    return true;
+  }, [
+    activeQueue,
+    activeQueueIndex,
+    isLiveRadioMode,
+    isPodcastMode,
+    isYoutubeMode,
+  ]);
 
   const mainIconName = useMemo(() => {
     if (isYoutubeMode) return "open-outline";
@@ -514,9 +564,10 @@ function MiniPlayer() {
               queueLabel={queueLabel}
               badgeIconName={badgeIconName}
               isYoutubeMode={isYoutubeMode}
+              isLiveRadioMode={isLiveRadioMode}
             />
 
-            {!isYoutubeMode && (
+            {canMiniNext ? (
               <MiniControlButton
                 accessibilityLabel="Next track"
                 onPress={handleNext}
@@ -524,7 +575,7 @@ function MiniPlayer() {
               >
                 <Ionicons name="play-skip-forward" size={19} color={COLORS.text} />
               </MiniControlButton>
-            )}
+            ) : null}
 
             <MiniControlButton
               accessibilityLabel={isYoutubeMode ? "Open video" : "Play or pause"}

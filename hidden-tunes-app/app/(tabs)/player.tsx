@@ -38,6 +38,7 @@ import {
 import LiveWaveform from "../../components/LiveWaveform";
 import AddToPlaylistModal from "../../components/AddToPlaylistModal";
 import HTImage from "../../components/HTImage";
+import { PlaybackSeekChips } from "../../components/player/PlaybackSeekChips";
 import { FALLBACK_ARTWORK, getArtworkValue } from "../../utils/artwork";
 import { getBestLyricsPayload, setLyricsMemoryCache } from "../../utils/lyrics";
 import { openGenreCatalog, openMoodCatalog } from "../../utils/catalogNavigation";
@@ -45,6 +46,7 @@ import { normalizeGenreName } from "../../utils/genreNormalization";
 import { isFastScrolling } from "../../utils/performanceMode";
 import { useRenderCountProbe } from "../../utils/performanceVerification";
 import { useRuntimeRenderProbe } from "../../utils/runtimeInstrumentation";
+import { getPlaybackSurfaceMode } from "../../utils/playbackMode";
 
 type PlayerMetadataType = "album" | "mood" | "genre";
 
@@ -124,33 +126,40 @@ const AmbientGlow = memo(function AmbientGlow() {
 const PremiumIconButton = memo(function PremiumIconButton({
   children,
   onPress,
+  disabled = false,
 }: {
   children: React.ReactNode;
   onPress?: () => void;
+  disabled?: boolean;
 }) {
   const scale = useSharedValue(1);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
+    opacity: disabled ? 0.35 : 1,
   }));
 
   const handlePressIn = useCallback(() => {
+    if (disabled) return;
     scale.value = withSpring(0.9, { damping: 16, stiffness: 420 });
-  }, [scale]);
+  }, [disabled, scale]);
 
   const handlePressOut = useCallback(() => {
+    if (disabled) return;
     scale.value = withSpring(1, { damping: 14, stiffness: 360 });
-  }, [scale]);
+  }, [disabled, scale]);
 
   const handlePress = useCallback(() => {
+    if (disabled) return;
     fireLightHaptic();
     scale.value = withSequence(withSpring(0.9), withSpring(1));
     onPress?.();
-  }, [onPress, scale]);
+  }, [disabled, onPress, scale]);
 
   return (
     <Animated.View style={animatedStyle}>
       <Pressable
+        disabled={disabled}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
         onPress={handlePress}
@@ -275,12 +284,16 @@ const PlayerWaveform = memo(function PlayerWaveform({
 
 const PlayerProgressSection = memo(function PlayerProgressSection({
   seekTo,
+  disabled = false,
 }: {
   seekTo: (value: number) => void | Promise<void>;
+  disabled?: boolean;
 }) {
   const { positionMillis, durationMillis, position, duration } = usePlayerProgress();
   const playbackPosition = positionMillis ?? position ?? 0;
   const playbackDuration = durationMillis ?? duration ?? 1;
+
+  if (disabled) return null;
 
   return (
     <View style={styles.sliderContainer}>
@@ -326,6 +339,8 @@ export default function PlayerScreen() {
   const {
     togglePlayPause,
     seekTo,
+    seekRelative,
+    replayCurrentTrack,
     nextSong,
     previousSong,
     setVolume,
@@ -351,7 +366,34 @@ export default function PlayerScreen() {
     return isFavorite?.(currentSong);
   }, [isFavorite, currentSong]);
 
+  const playbackMode = useMemo(
+    () => getPlaybackSurfaceMode(currentSong),
+    [currentSong]
+  );
+
+  const isPodcastMode = playbackMode === "podcast";
+  const isLiveRadioMode = playbackMode === "radio";
+  const isMusicMode = playbackMode === "music";
+
+  const canQueuePrevious = useMemo(() => {
+    if (!activeQueue?.length || activeQueue.length <= 1) return false;
+    const index = typeof activeQueueIndex === "number" ? activeQueueIndex : 0;
+    if (!isMusicMode) return index > 0;
+    if (repeatMode === "all") return true;
+    return index > 0;
+  }, [activeQueue, activeQueueIndex, isMusicMode, repeatMode]);
+
+  const canQueueNext = useMemo(() => {
+    if (!activeQueue?.length || activeQueue.length <= 1) return false;
+    const index = typeof activeQueueIndex === "number" ? activeQueueIndex : 0;
+    if (!isMusicMode) return index < activeQueue.length - 1;
+    if (repeatMode === "all" || repeatMode === "one") return true;
+    return index < activeQueue.length - 1;
+  }, [activeQueue, activeQueueIndex, isMusicMode, repeatMode]);
+
   const queueLabel = useMemo(() => {
+    if (isLiveRadioMode) return "LIVE";
+    if (isPodcastMode) return "PODCAST";
     if (activeQueueMode === "smart") return "SMART AUTOPLAY";
     if (radioMode && radioQueue?.length) return "RADIO MODE";
     if (youtubeQueue?.length) return `${youtubeQueue.length} IN QUEUE`;
@@ -360,6 +402,8 @@ export default function PlayerScreen() {
   }, [
     activeQueue?.length,
     activeQueueMode,
+    isLiveRadioMode,
+    isPodcastMode,
     radioMode,
     radioQueue?.length,
     youtubeQueue?.length,
@@ -368,6 +412,14 @@ export default function PlayerScreen() {
   const artist = useMemo(() => {
     if (!currentSong) return "Hidden Tunes";
 
+    if (isPodcastMode) {
+      return currentSong.artist || currentSong.channelTitle || "Hidden Tunes Podcast";
+    }
+
+    if (isLiveRadioMode) {
+      return currentSong.artist || "Hidden Tunes Radio";
+    }
+
     return (
       currentSong.artist ||
       currentSong.user?.name ||
@@ -375,7 +427,19 @@ export default function PlayerScreen() {
       currentSong.sourceName ||
       "Hidden Tunes"
     );
-  }, [currentSong]);
+  }, [currentSong, isLiveRadioMode, isPodcastMode]);
+
+  const handleReplay = useCallback(() => {
+    void replayCurrentTrack();
+  }, [replayCurrentTrack]);
+
+  const handleSeekBack = useCallback(() => {
+    void seekRelative(-15000);
+  }, [seekRelative]);
+
+  const handleSeekForward = useCallback(() => {
+    void seekRelative(30000);
+  }, [seekRelative]);
 
   const artworkSource = useMemo(() => {
     if (!currentSong) return null;
@@ -709,35 +773,54 @@ export default function PlayerScreen() {
             <Text numberOfLines={1} style={styles.artistName}>
               {artist}
             </Text>
+
+            {isLiveRadioMode ? (
+              <View style={styles.liveBadge}>
+                <Text style={styles.liveBadgeText}>LIVE</Text>
+              </View>
+            ) : null}
           </View>
 
-          <TouchableOpacity
-            activeOpacity={0.85}
-            style={[styles.favoriteButton, favoriteActive && styles.favoriteActive]}
-            onPress={handleFavorite}
-          >
-            <Ionicons
-              name={favoriteActive ? "heart" : "heart-outline"}
-              size={26}
-              color={favoriteActive ? COLORS.primary : COLORS.text}
-            />
-          </TouchableOpacity>
+          {isMusicMode ? (
+            <TouchableOpacity
+              activeOpacity={0.85}
+              style={[styles.favoriteButton, favoriteActive && styles.favoriteActive]}
+              onPress={handleFavorite}
+            >
+              <Ionicons
+                name={favoriteActive ? "heart" : "heart-outline"}
+                size={26}
+                color={favoriteActive ? COLORS.primary : COLORS.text}
+              />
+            </TouchableOpacity>
+          ) : null}
         </Animated.View>
 
-        <PlayerWaveform isPlaying={isPlaying} />
+        {!isLiveRadioMode ? <PlayerWaveform isPlaying={isPlaying} /> : null}
 
-        <PlayerProgressSection seekTo={seekTo} />
+        <PlayerProgressSection seekTo={seekTo} disabled={isLiveRadioMode} />
+
+        {isPodcastMode ? (
+          <PlaybackSeekChips
+            onSeekBack={handleSeekBack}
+            onSeekForward={handleSeekForward}
+          />
+        ) : null}
 
         <View style={styles.controlsRow}>
-          <PremiumIconButton onPress={toggleShuffle}>
-            <Ionicons
-              name="shuffle"
-              size={24}
-              color={shuffle ? COLORS.primary : COLORS.textMuted}
-            />
-          </PremiumIconButton>
+          {isMusicMode ? (
+            <PremiumIconButton onPress={toggleShuffle}>
+              <Ionicons
+                name="shuffle"
+                size={24}
+                color={shuffle ? COLORS.primary : COLORS.textMuted}
+              />
+            </PremiumIconButton>
+          ) : (
+            <View style={styles.iconButtonSpacer} />
+          )}
 
-          <PremiumIconButton onPress={previousSong}>
+          <PremiumIconButton onPress={previousSong} disabled={!canQueuePrevious}>
             <Ionicons name="play-skip-back" size={34} color={COLORS.text} />
           </PremiumIconButton>
 
@@ -747,17 +830,29 @@ export default function PlayerScreen() {
             onPress={togglePlayPause}
           />
 
-          <PremiumIconButton onPress={nextSong}>
+          <PremiumIconButton onPress={nextSong} disabled={!canQueueNext}>
             <Ionicons name="play-skip-forward" size={34} color={COLORS.text} />
           </PremiumIconButton>
 
-          <PremiumIconButton onPress={toggleRepeatMode}>
-            <Ionicons
-              name={repeatMode === "one" ? "repeat-outline" : "repeat"}
-              size={24}
-              color={repeatMode !== "off" ? COLORS.primary : COLORS.textMuted}
-            />
-          </PremiumIconButton>
+          {isMusicMode ? (
+            <PremiumIconButton onPress={toggleRepeatMode}>
+              <Ionicons
+                name={repeatMode === "one" ? "repeat-outline" : "repeat"}
+                size={24}
+                color={repeatMode !== "off" ? COLORS.primary : COLORS.textMuted}
+              />
+            </PremiumIconButton>
+          ) : isLiveRadioMode || isPodcastMode ? (
+            <PremiumIconButton onPress={handleReplay}>
+              <Ionicons
+                name="refresh"
+                size={24}
+                color={COLORS.text}
+              />
+            </PremiumIconButton>
+          ) : (
+            <View style={styles.iconButtonSpacer} />
+          )}
         </View>
 
         <View style={styles.extraActions}>
@@ -1227,6 +1322,29 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.075)",
     alignItems: "center",
     justifyContent: "center",
+  },
+
+  iconButtonSpacer: {
+    width: 54,
+    height: 54,
+  },
+
+  liveBadge: {
+    alignSelf: "flex-start",
+    marginTop: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+    backgroundColor: "rgba(248,113,113,0.18)",
+    borderWidth: 1,
+    borderColor: "rgba(248,113,113,0.35)",
+  },
+
+  liveBadgeText: {
+    color: "#FCA5A5",
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 1,
   },
 
   playButtonWrap: {

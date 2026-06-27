@@ -30,6 +30,8 @@ export type PlayerActionsContextValue = Pick<
   | "stopPlayback"
   | "nextSong"
   | "previousSong"
+  | "replayCurrentTrack"
+  | "seekRelative"
   | "seekTo"
   | "setVolume"
   | "toggleMute"
