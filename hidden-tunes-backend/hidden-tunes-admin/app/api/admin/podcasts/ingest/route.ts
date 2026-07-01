@@ -31,7 +31,13 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const result = await ingestPodcastFeed(body.feed_url ?? body.feedUrl);
+    const result = await ingestPodcastFeed(body.feed_url ?? body.feedUrl, {
+      auto_approve:
+        body.auto_approve === true ||
+        body.auto_approve === "true" ||
+        body.autoApprove === true ||
+        body.autoApprove === "true",
+    });
     return NextResponse.json(result);
   } catch (error) {
     const message =

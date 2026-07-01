@@ -9,6 +9,7 @@ export default function PodcastIngestTestPage() {
   const [isCheckingSession, setIsCheckingSession] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [feedUrl, setFeedUrl] = useState("");
+  const [autoApprove, setAutoApprove] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [responseJson, setResponseJson] = useState<string | null>(null);
 
@@ -49,7 +50,10 @@ export default function PodcastIngestTestPage() {
           Authorization: `Bearer ${accessToken}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ feed_url: feedUrl.trim() }),
+        body: JSON.stringify({
+          feed_url: feedUrl.trim(),
+          auto_approve: autoApprove,
+        }),
       });
 
       const data = await response.json();
@@ -117,6 +121,16 @@ export default function PodcastIngestTestPage() {
               required
               className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none ring-yellow-300/40 focus:ring-2"
             />
+          </label>
+
+          <label className="flex items-center gap-3 text-sm text-white/80">
+            <input
+              type="checkbox"
+              checked={autoApprove}
+              onChange={(event) => setAutoApprove(event.target.checked)}
+              className="h-4 w-4 rounded border-white/20 bg-black/30"
+            />
+            Auto approve safe feed
           </label>
 
           <button

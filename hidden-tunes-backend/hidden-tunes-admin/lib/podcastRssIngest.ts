@@ -5,47 +5,30 @@ import {
   slugifyPodcast,
   validatePodcastFeedUrl,
 } from "@/lib/podcastAdminCatalog";
-import { isPlayablePodcastAudioUrl } from "@/lib/podcastCatalog";
+import {
+  evaluatePodcastEpisodeAutoApproval,
+  evaluatePodcastFeedAutoApproval,
+  resolveEpisodeLifecycleFields,
+  resolveShowLifecycleFields,
+} from "@/lib/podcastAutoApproval";
+import type {
+  ParsedPodcastEpisode,
+  ParsedPodcastFeed,
+  PodcastIngestOptions,
+  PodcastIngestResult,
+} from "@/lib/podcastIngestTypes";
 import { cleanText } from "@/lib/tvCatalog";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
+export type {
+  ParsedPodcastEpisode,
+  ParsedPodcastFeed,
+  PodcastIngestOptions,
+  PodcastIngestResult,
+} from "@/lib/podcastIngestTypes";
+
 const FEED_FETCH_TIMEOUT_MS = 20_000;
 const FEED_USER_AGENT = "HiddenTunes-Podcast-Ingest/1.0";
-
-export type ParsedPodcastEpisode = {
-  title: string;
-  description: string | null;
-  artwork_url: string | null;
-  audio_url: string;
-  duration_seconds: number | null;
-  published_at: string | null;
-  episode_number: number | null;
-  season_number: number | null;
-};
-
-export type ParsedPodcastFeed = {
-  title: string;
-  description: string | null;
-  artwork_url: string | null;
-  host_name: string | null;
-  publisher: string | null;
-  language: string | null;
-  primary_category: string | null;
-  categories: string[];
-  episodes: ParsedPodcastEpisode[];
-};
-
-export type PodcastIngestResult = {
-  success: boolean;
-  show_id: string;
-  created_show: boolean;
-  feed_url: string;
-  episodes_found: number;
-  episodes_inserted: number;
-  episodes_updated: number;
-  episodes_skipped: number;
-  message: string;
-};
 
 const xmlParser = new XMLParser({
   ignoreAttributes: false,
@@ -455,9 +438,86 @@ async function loadExistingEpisodesByAudioUrl(showId: string) {
   return map;
 }
 
+function parseAutoApprove(value: unknown) {
+  return value === true || value === "true" || value === 1 || value === "1";
+}
+
+function shouldPreserveShowModeration(
+  existing:
+    | {
+        status?: string | null;
+        is_active?: boolean | null;
+      }
+    | null
+    | undefined,
+  autoApprove: boolean
+) {
+  if (!existing) return false;
+  if (!autoApprove) return true;
+  if (existing.status === "rejected" || existing.status === "blocked") {
+    return true;
+  }
+  if (existing.status === "approved" && existing.is_active) {
+    return true;
+  }
+  return false;
+}
+
+function shouldPreserveEpisodeModeration(
+  existing:
+    | {
+        status?: string | null;
+        is_active?: boolean | null;
+      }
+    | null
+    | undefined,
+  autoApprove: boolean
+) {
+  if (!existing) return false;
+  if (!autoApprove) return true;
+  if (existing.status === "rejected" || existing.status === "blocked") {
+    return true;
+  }
+  if (existing.status === "approved" && existing.is_active) {
+    return true;
+  }
+  return false;
+}
+
+function countEpisodeOutcome(
+  lifecycle: {
+    status: string;
+    playback_status: string;
+    is_active: boolean;
+  },
+  counters: {
+    episodes_auto_approved: number;
+    episodes_pending: number;
+    episodes_failed: number;
+  }
+) {
+  if (
+    lifecycle.status === "approved" &&
+    lifecycle.is_active &&
+    lifecycle.playback_status === "playable"
+  ) {
+    counters.episodes_auto_approved += 1;
+    return;
+  }
+
+  if (lifecycle.playback_status === "failed") {
+    counters.episodes_failed += 1;
+    return;
+  }
+
+  counters.episodes_pending += 1;
+}
+
 export async function ingestPodcastFeed(
-  feedUrlInput: unknown
+  feedUrlInput: unknown,
+  options: PodcastIngestOptions = {}
 ): Promise<PodcastIngestResult> {
+  const autoApprove = parseAutoApprove(options.auto_approve);
   const feedUrl = validatePodcastFeedUrl(feedUrlInput);
   if (!feedUrl) {
     throw new Error("A valid http(s) RSS feed URL is required.");
@@ -465,6 +525,7 @@ export async function ingestPodcastFeed(
 
   const xml = await fetchPodcastFeedXml(feedUrl);
   const parsed = parsePodcastFeedXml(xml);
+  const autoApproval = evaluatePodcastFeedAutoApproval(parsed, feedUrl);
   const now = new Date().toISOString();
 
   const { data: existingShow, error: existingShowError } = await supabaseAdmin
@@ -479,6 +540,25 @@ export async function ingestPodcastFeed(
 
   let showId = String(existingShow?.id || "");
   let createdShow = false;
+  const preserveShowModeration = shouldPreserveShowModeration(existingShow, autoApprove);
+
+  const showLifecycle = resolveShowLifecycleFields(
+    autoApproval.show,
+    autoApprove,
+    preserveShowModeration,
+    existingShow as
+      | {
+          status?: string | null;
+          feed_status?: string | null;
+          is_active?: boolean | null;
+        }
+      | undefined
+  );
+
+  const showIsApprovedForEpisodes =
+    showLifecycle.status === "approved" &&
+    showLifecycle.is_active &&
+    showLifecycle.feed_status === "active";
 
   const showMetadata = {
     title: parsed.title,
@@ -491,6 +571,9 @@ export async function ingestPodcastFeed(
     categories: parsed.categories,
     feed_url: feedUrl,
     last_checked_at: now,
+    status: showLifecycle.status,
+    feed_status: showLifecycle.feed_status,
+    is_active: showLifecycle.is_active,
   };
 
   if (!showId) {
@@ -500,9 +583,6 @@ export async function ingestPodcastFeed(
       .insert({
         ...showMetadata,
         slug,
-        status: "pending",
-        feed_status: "unchecked",
-        is_active: false,
         is_verified: false,
         is_featured: false,
         is_exclusive: false,
@@ -532,9 +612,56 @@ export async function ingestPodcastFeed(
   let episodesInserted = 0;
   let episodesUpdated = 0;
   let episodesSkipped = 0;
+  const outcomeCounters = {
+    episodes_auto_approved: 0,
+    episodes_pending: 0,
+    episodes_failed: 0,
+  };
 
   for (const episode of parsed.episodes) {
+    const episodeEvaluation = evaluatePodcastEpisodeAutoApproval(
+      episode,
+      parsed,
+      showIsApprovedForEpisodes
+    );
+
     const existing = existingEpisodes.get(episode.audio_url);
+    const preserveEpisodeModeration = shouldPreserveEpisodeModeration(
+      existing as
+        | {
+            status?: string | null;
+            is_active?: boolean | null;
+          }
+        | undefined,
+      autoApprove
+    );
+
+    let lifecycle = resolveEpisodeLifecycleFields(
+      episodeEvaluation,
+      autoApprove,
+      preserveEpisodeModeration,
+      existing as
+        | {
+            status?: string | null;
+            playback_status?: string | null;
+            is_active?: boolean | null;
+          }
+        | undefined
+    );
+
+    if (
+      autoApprove &&
+      !preserveEpisodeModeration &&
+      !showIsApprovedForEpisodes
+    ) {
+      lifecycle = {
+        status: "pending",
+        is_active: false,
+        playback_status:
+          episodeEvaluation.playback_status === "failed" ? "failed" : "unchecked",
+      };
+    }
+
     const metadata = {
       title: episode.title,
       description: episode.description,
@@ -544,6 +671,9 @@ export async function ingestPodcastFeed(
       episode_number: episode.episode_number,
       season_number: episode.season_number,
       last_checked_at: now,
+      status: lifecycle.status,
+      playback_status: lifecycle.playback_status,
+      is_active: lifecycle.is_active,
     };
 
     if (existing) {
@@ -558,19 +688,16 @@ export async function ingestPodcastFeed(
       }
 
       episodesUpdated += 1;
+      countEpisodeOutcome(lifecycle, outcomeCounters);
       continue;
     }
 
-    const hasHttpsAudio = Boolean(isPlayablePodcastAudioUrl(episode.audio_url));
     const { error: insertEpisodeError } = await supabaseAdmin
       .from("podcast_episodes")
       .insert({
         show_id: showId,
         ...metadata,
         audio_url: episode.audio_url,
-        status: "pending",
-        playback_status: hasHttpsAudio ? "unchecked" : "failed",
-        is_active: false,
         is_verified: false,
       });
 
@@ -580,6 +707,24 @@ export async function ingestPodcastFeed(
     }
 
     episodesInserted += 1;
+    countEpisodeOutcome(lifecycle, outcomeCounters);
+  }
+
+  const showAutoApproved =
+    autoApprove &&
+    showLifecycle.status === "approved" &&
+    showLifecycle.is_active &&
+    showLifecycle.feed_status === "active";
+
+  let message = createdShow
+    ? "Podcast show ingested as pending. Episodes remain pending until approved."
+    : "Existing podcast show refreshed. Moderation state preserved.";
+
+  if (autoApprove && showAutoApproved) {
+    message = `Podcast show auto-approved with ${outcomeCounters.episodes_auto_approved} playable episode(s).`;
+  } else if (autoApprove) {
+    message =
+      "Auto-approve requested, but the show did not pass safety gates. Items remain pending or failed.";
   }
 
   return {
@@ -587,12 +732,15 @@ export async function ingestPodcastFeed(
     show_id: showId,
     created_show: createdShow,
     feed_url: feedUrl,
+    auto_approve_requested: autoApprove,
+    show_auto_approved: showAutoApproved,
     episodes_found: parsed.episodes.length,
     episodes_inserted: episodesInserted,
     episodes_updated: episodesUpdated,
     episodes_skipped: episodesSkipped,
-    message: createdShow
-      ? "Podcast show ingested as pending. Episodes remain pending until approved."
-      : "Existing podcast show refreshed. Moderation state preserved.",
+    episodes_auto_approved: outcomeCounters.episodes_auto_approved,
+    episodes_pending: outcomeCounters.episodes_pending,
+    episodes_failed: outcomeCounters.episodes_failed,
+    message,
   };
 }
