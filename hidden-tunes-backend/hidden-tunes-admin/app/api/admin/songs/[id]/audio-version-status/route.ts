@@ -40,9 +40,8 @@ export async function GET(
 
     return NextResponse.json(
       {
-        success: result.success,
-        status: result.audio_version_status ?? null,
         ...result,
+        status: result.audio_version_status ?? null,
       },
       { status: result.httpStatus || (result.success ? 200 : 500) }
     );
