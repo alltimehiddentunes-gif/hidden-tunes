@@ -5,8 +5,8 @@ import {
   TV_PUBLIC_VIDEO_SELECT,
   TvPublicVideo,
   parsePositiveInt,
-  toTvPublicVideo,
 } from "@/lib/tvCatalog";
+import { TV_RELIABILITY_THRESHOLD, toTvPublicMetadata } from "@/lib/tvStationHealth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -43,18 +43,23 @@ export async function GET(request: NextRequest) {
     .eq("status", "approved")
     .eq("is_active", true)
     .eq("playback_status", "playable")
+    .gte("reliability_score", TV_RELIABILITY_THRESHOLD)
     .order("created_at", { ascending: false });
 
   const category = cleanFilter(params.get("category"));
   const genre = cleanFilter(params.get("genre"));
   const mood = cleanFilter(params.get("mood"));
   const format = cleanFilter(params.get("format"));
+  const country = cleanFilter(params.get("country"));
+  const language = cleanFilter(params.get("language"));
   const searchQuery = cleanFilter(params.get("q"));
 
   if (category) query = query.ilike("category", category);
   if (genre) query = query.ilike("genre", genre);
   if (mood) query = query.ilike("mood", mood);
   if (format) query = query.ilike("format", format);
+  if (country) query = query.ilike("region", country);
+  if (language) query = query.ilike("language", language);
 
   if (searchQuery) {
     const escaped = searchQuery.replace(/[%_]/g, "\\$&");
@@ -72,7 +77,7 @@ export async function GET(request: NextRequest) {
   const total = count || 0;
   const totalPages = total > 0 ? Math.ceil(total / limit) : 0;
   const videos = ((data || []) as Record<string, unknown>[]).map((row) =>
-    toTvPublicVideo(row)
+    toTvPublicMetadata(row)
   ) as TvPublicVideo[];
 
   return NextResponse.json({

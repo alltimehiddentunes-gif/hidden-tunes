@@ -26,7 +26,9 @@ import { COLORS, GRADIENTS } from "@/constants/theme";
 import {
   TV_DEFAULT_PAGE_LIMIT,
   buildTvPlayerQueue,
+  buildTvPlayerQueueItem,
   fetchTvCatalog,
+  fetchTvPlayback,
   fetchTvHomeLanes,
   loadTvHomeCache,
   type HiddenTunesTvVideo,
@@ -90,12 +92,21 @@ export default function HiddenTunesTVScreen() {
   );
 
   const openTvVideo = useCallback(
-    (video: HiddenTunesTvVideo, queueVideos: HiddenTunesTvVideo[]) => {
+    async (video: HiddenTunesTvVideo, queueVideos: HiddenTunesTvVideo[]) => {
+      const playback = await fetchTvPlayback(video);
+      if (!playback) {
+        setStatusMessage(TESTER_COPY.tvSearchUnavailable);
+        return;
+      }
+
       const queue = buildTvPlayerQueue(queueVideos);
-      const startIndex = Math.max(
-        0,
-        queue.findIndex((item) => item.videoId === video.source_id)
-      );
+      const tappedItem = buildTvPlayerQueueItem(video, playback);
+      const foundIndex = queue.findIndex((item) => item.videoId === video.source_id);
+      if (foundIndex >= 0) {
+        queue[foundIndex] = tappedItem;
+      } else {
+        queue.unshift(tappedItem);
+      }
 
       router.push({
         pathname: "/youtube-player",
@@ -109,7 +120,7 @@ export default function HiddenTunesTVScreen() {
             video.thumbnail_url ||
             `https://i.ytimg.com/vi/${video.source_id}/hqdefault.jpg`,
           queue: JSON.stringify(queue),
-          startIndex: String(startIndex >= 0 ? startIndex : 0),
+          startIndex: String(foundIndex >= 0 ? foundIndex : 0),
         },
       } as any);
     },

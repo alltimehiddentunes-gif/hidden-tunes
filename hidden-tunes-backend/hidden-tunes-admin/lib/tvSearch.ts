@@ -14,6 +14,7 @@ import {
   parsePositiveInt,
   toTvPublicVideo,
 } from "@/lib/tvCatalog";
+import { TV_RELIABILITY_THRESHOLD, toTvPublicMetadata } from "@/lib/tvStationHealth";
 
 const YOUTUBE_SEARCH_API = "https://www.googleapis.com/youtube/v3/search";
 const DEFAULT_LIMIT = 20;
@@ -66,8 +67,8 @@ function mapYouTubeSearchItem(item: YouTubeSearchItem): TvPublicVideo | null {
     title,
     source_type: TV_VIDEO_SOURCE_TYPE,
     source_id: videoId,
-    source_url: buildYouTubeWatchUrl(videoId),
-    embed_url: buildYouTubeEmbedUrl(videoId),
+    source_url: "",
+    embed_url: null,
     thumbnail_url: thumbnailUrl,
     channel_name: channelName,
     category: inferred.category,
@@ -93,6 +94,7 @@ export async function searchTvCatalogPlayable(
     .eq("status", "approved")
     .eq("is_active", true)
     .eq("playback_status", "playable")
+    .gte("reliability_score", TV_RELIABILITY_THRESHOLD)
     .or(`title.ilike.%${escaped}%,channel_name.ilike.%${escaped}%`)
     .order("created_at", { ascending: false })
     .range(from, to);
@@ -102,7 +104,7 @@ export async function searchTvCatalogPlayable(
   }
 
   const videos = ((data || []) as Record<string, unknown>[]).map((row) =>
-    toTvPublicVideo(row)
+    toTvPublicMetadata(row)
   );
 
   return {
@@ -208,8 +210,6 @@ export async function runTvLiveSearch(options: {
   const query = cleanText(options.query, 200) || "";
   const page = parsePositiveInt(String(options.page || 1), 1, 10_000);
   const limit = parsePositiveInt(String(options.limit || DEFAULT_LIMIT), DEFAULT_LIMIT, MAX_LIMIT);
-  const incomingToken = cleanText(options.pageToken, 200);
-
   if (!query) {
     return {
       videos: [],
@@ -222,46 +222,18 @@ export async function runTvLiveSearch(options: {
     };
   }
 
-  if (incomingToken) {
-    const live = await searchYouTubeLivePlayable(query, limit, incomingToken);
-
-    return {
-      videos: live.videos,
-      catalogCount: 0,
-      liveCount: live.videos.length,
-      liveSearchEnabled: hasYouTubeDataApiKey(),
-      nextPageToken: live.nextPageToken,
-      total: live.videos.length,
-      error: live.error,
-    };
-  }
-
   const catalog = await searchTvCatalogPlayable(query, page, limit);
-  const remaining = Math.max(0, limit - catalog.videos.length);
-  let liveVideos: TvPublicVideo[] = [];
-  let nextPageToken: string | null = null;
-  let liveError: string | null = null;
-
-  if (remaining > 0) {
-    const catalogIds = new Set(catalog.videos.map((video) => video.source_id));
-    const live = await searchYouTubeLivePlayable(query, remaining, null);
-    liveError = live.error;
-    nextPageToken = live.nextPageToken;
-    liveVideos = live.videos.filter((video) => !catalogIds.has(video.source_id));
-  }
-
-  const videos = dedupeBySourceId([...catalog.videos, ...liveVideos]);
+  const videos = dedupeBySourceId(catalog.videos);
   const catalogTotal = catalog.total;
-  const hasMore =
-    page * limit < catalogTotal || Boolean(nextPageToken && liveVideos.length > 0);
+  const hasMore = page * limit < catalogTotal;
 
   return {
     videos,
     catalogCount: catalog.videos.length,
-    liveCount: liveVideos.length,
-    liveSearchEnabled: hasYouTubeDataApiKey(),
-    nextPageToken,
+    liveCount: 0,
+    liveSearchEnabled: false,
+    nextPageToken: null,
     total: hasMore ? videos.length + 1 : videos.length,
-    error: liveError,
+    error: null,
   };
 }

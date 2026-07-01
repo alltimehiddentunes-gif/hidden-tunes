@@ -1,7 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export const TV_CATALOG_BASE_URL = "https://admin.hiddentunes.com";
-export const TV_CATALOG_API_PATH = "/api/tv/videos";
+export const TV_CATALOG_API_PATH = "/api/tv/stations";
 export const TV_DEFAULT_PAGE_LIMIT = 20;
 export const TV_LANE_PAGE_LIMIT = 12;
 export const TV_HOME_CACHE_KEY = "hidden_tunes_tv_home_cache_v1";
@@ -12,8 +12,8 @@ export type HiddenTunesTvVideo = {
   title: string;
   source_type: string;
   source_id: string;
-  source_url: string;
-  embed_url: string | null;
+  source_url?: string;
+  embed_url?: string | null;
   thumbnail_url: string | null;
   channel_name: string | null;
   category: string | null;
@@ -21,6 +21,14 @@ export type HiddenTunesTvVideo = {
   mood: string | null;
   format: string | null;
   tags: string[];
+};
+
+export type HiddenTunesTvPlayback = {
+  id: string;
+  source_type: string;
+  source_id: string;
+  stream_url: string;
+  embed_url: string | null;
 };
 
 export type TvCatalogQuery = {
@@ -143,8 +151,8 @@ export function normalizeTvCatalogVideo(raw: Record<string, unknown>): HiddenTun
     title,
     source_type: String(raw.source_type || "youtube_video"),
     source_id: sourceId,
-    source_url: String(raw.source_url || ""),
-    embed_url: cleanText(raw.embed_url, 2000),
+    source_url: undefined,
+    embed_url: null,
     thumbnail_url: cleanText(raw.thumbnail_url, 2000),
     channel_name: cleanText(raw.channel_name, 200),
     category: cleanText(raw.category, 120),
@@ -153,6 +161,42 @@ export function normalizeTvCatalogVideo(raw: Record<string, unknown>): HiddenTun
     format: cleanText(raw.format, 120),
     tags: normalizeTags(raw.tags),
   };
+}
+
+function buildPlayUrl(videoId: string) {
+  return `${TV_CATALOG_BASE_URL}${TV_CATALOG_API_PATH}/${encodeURIComponent(
+    videoId
+  )}/play`;
+}
+
+export async function fetchTvPlayback(
+  video: HiddenTunesTvVideo
+): Promise<HiddenTunesTvPlayback | null> {
+  try {
+    const response = await fetch(buildPlayUrl(video.id), {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+      },
+      cache: "no-store",
+    });
+
+    const payload = (await response.json()) as Record<string, unknown>;
+    if (!response.ok || payload.success === false) return null;
+
+    const streamUrl = cleanText(payload.stream_url, 2000);
+    if (!streamUrl) return null;
+
+    return {
+      id: String(payload.id || video.id),
+      source_type: String(payload.source_type || video.source_type),
+      source_id: String(payload.source_id || video.source_id),
+      stream_url: streamUrl,
+      embed_url: cleanText(payload.embed_url, 2000),
+    };
+  } catch {
+    return null;
+  }
 }
 
 function buildCatalogUrl(query: TvCatalogQuery = {}) {
@@ -292,7 +336,10 @@ export async function fetchTvHomeLanes() {
   };
 }
 
-export function buildTvPlayerQueueItem(video: HiddenTunesTvVideo) {
+export function buildTvPlayerQueueItem(
+  video: HiddenTunesTvVideo,
+  playback?: HiddenTunesTvPlayback | null
+) {
   const thumbnail =
     video.thumbnail_url ||
     `https://i.ytimg.com/vi/${video.source_id}/hqdefault.jpg`;
@@ -304,8 +351,8 @@ export function buildTvPlayerQueueItem(video: HiddenTunesTvVideo) {
     artist: video.channel_name || "Hidden Tunes TV",
     channelTitle: video.channel_name || "Hidden Tunes TV",
     thumbnail,
-    source_url: video.source_url,
-    embed_url: video.embed_url,
+    source_url: playback?.stream_url,
+    embed_url: playback?.embed_url || null,
   };
 }
 

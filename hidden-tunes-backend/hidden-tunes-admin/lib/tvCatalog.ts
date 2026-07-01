@@ -85,6 +85,13 @@ export type TvVideoRow = {
   playback_status: TvPlaybackStatus | string;
   is_active: boolean;
   is_featured: boolean;
+  reliability_score?: number | null;
+  consecutive_failures?: number | null;
+  quarantined_at?: string | null;
+  disabled_at?: string | null;
+  last_health_checked_at?: string | null;
+  last_health_error?: string | null;
+  source_key?: string | null;
   imported_from_source_id: string | null;
   created_at: string | null;
   updated_at: string | null;
@@ -119,18 +126,18 @@ export const TV_SOURCE_SELECT =
   "id, source_type, source_url, source_id, title, default_category, default_genre, default_mood, scan_frequency, auto_approve, is_active, last_scanned_at, created_at";
 
 export const TV_VIDEO_SELECT =
-  "id, source_type, source_id, source_url, embed_url, title, description, thumbnail_url, duration_seconds, channel_name, category, genre, mood, format, tags, language, region, published_at, status, playback_status, is_active, is_featured, imported_from_source_id, created_at, updated_at";
+  "id, source_type, source_id, source_url, embed_url, title, description, thumbnail_url, duration_seconds, channel_name, category, genre, mood, format, tags, language, region, published_at, status, playback_status, is_active, is_featured, reliability_score, consecutive_failures, quarantined_at, disabled_at, last_health_checked_at, last_health_error, source_key, imported_from_source_id, created_at, updated_at";
 
 export const TV_PUBLIC_VIDEO_SELECT =
-  "id, title, source_type, source_id, source_url, embed_url, thumbnail_url, channel_name, category, genre, mood, format, tags";
+  "id, title, source_type, source_id, thumbnail_url, channel_name, category, genre, mood, format, tags, reliability_score";
 
 export type TvPublicVideo = {
   id: string;
   title: string;
   source_type: string;
   source_id: string;
-  source_url: string;
-  embed_url: string | null;
+  source_url?: string;
+  embed_url?: string | null;
   thumbnail_url: string | null;
   channel_name: string | null;
   category: string | null;
@@ -146,7 +153,7 @@ export function toTvPublicVideo(row: Record<string, unknown>): TvPublicVideo {
     title: String(row.title || "Untitled"),
     source_type: String(row.source_type || ""),
     source_id: String(row.source_id || ""),
-    source_url: String(row.source_url || ""),
+    source_url: cleanText(row.source_url, 2000) || "",
     embed_url: cleanText(row.embed_url, 2000),
     thumbnail_url: cleanText(row.thumbnail_url, 2000),
     channel_name: cleanText(row.channel_name, 200),

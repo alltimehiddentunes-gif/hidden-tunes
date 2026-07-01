@@ -161,6 +161,10 @@ export function searchMaturePodcastSeeds(
   return shows;
 }
 
+export function rankMaturePodcastSeeds(query: string) {
+  return searchMaturePodcastSeeds(query, true);
+}
+
 export function mergePodcastShowResults(
   primary: HiddenTunesPodcastShow[],
   mature: HiddenTunesPodcastShow[]

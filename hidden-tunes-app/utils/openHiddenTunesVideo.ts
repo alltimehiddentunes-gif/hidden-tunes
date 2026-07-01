@@ -2,6 +2,8 @@ import { router } from "expo-router";
 
 import {
   buildTvPlayerQueue,
+  buildTvPlayerQueueItem,
+  fetchTvPlayback,
   type HiddenTunesTvVideo,
 } from "../services/tvCatalogApi";
 import { HIDDEN_TUNES_VIDEOS_LABEL } from "./launchVideoCategories";
@@ -38,15 +40,31 @@ function buildHiddenTunesVideoQueue(videos: HiddenTunesTvVideo[]) {
   }));
 }
 
-export function openHiddenTunesVideo(
+export async function openHiddenTunesVideo(
   video: HiddenTunesTvVideo,
   queueVideos: HiddenTunesTvVideo[]
 ) {
+  const playback = await fetchTvPlayback(video);
+  if (!playback) return;
+
   const queue = buildHiddenTunesVideoQueue(queueVideos);
-  const startIndex = Math.max(
-    0,
-    queue.findIndex((item) => item.videoId === video.source_id)
-  );
+  const tappedItem = buildTvPlayerQueueItem(video, playback);
+  const foundIndex = queue.findIndex((item) => item.videoId === video.source_id);
+  const displayTappedItem = {
+    ...tappedItem,
+    title: videoDiscoveryDisplayName(tappedItem.title),
+    artist: videoDiscoveryDisplayName(
+      tappedItem.artist === "Hidden Tunes TV" ? null : tappedItem.artist
+    ),
+    channelTitle: videoDiscoveryDisplayName(
+      tappedItem.channelTitle === "Hidden Tunes TV" ? null : tappedItem.channelTitle
+    ),
+  };
+  if (foundIndex >= 0) {
+    queue[foundIndex] = displayTappedItem;
+  } else {
+    queue.unshift(displayTappedItem);
+  }
 
   router.push({
     pathname: "/youtube-player",
@@ -60,7 +78,7 @@ export function openHiddenTunesVideo(
         video.thumbnail_url ||
         `https://i.ytimg.com/vi/${video.source_id}/hqdefault.jpg`,
       queue: JSON.stringify(queue),
-      startIndex: String(startIndex >= 0 ? startIndex : 0),
+      startIndex: String(foundIndex >= 0 ? foundIndex : 0),
     },
   } as any);
 }

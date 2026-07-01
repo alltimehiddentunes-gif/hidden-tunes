@@ -8,6 +8,7 @@ import { getLaunchPodcastCategory } from "../utils/launchPodcastCategories";
 import {
   isMatureSeedShowId,
   PODCAST_EPISODE_FETCH_TIMEOUT_MS,
+  PODCAST_CATEGORY_PAGE_SIZE,
   PODCAST_MAX_EPISODES_PER_SHOW,
 } from "../utils/podcastPerformanceLimits";
 import { withTimeout } from "../utils/withTimeout";
@@ -248,4 +249,38 @@ export function prefetchPodcastEpisodesForShow(showId: string) {
   if (isMatureSeedShowId(showId)) return;
   if (readCachedPodcastEpisodes(showId)?.length) return;
   void getPodcastEpisodesForShow(showId).catch(() => {});
+}
+
+export async function getPodcastBrowseAllShows(
+  page = 1,
+  options?: { forceRefresh?: boolean }
+) {
+  const safePage = Math.max(1, page);
+  const response = await fetchPodcastShows({
+    page: safePage,
+    limit: PODCAST_CATEGORY_PAGE_SIZE,
+  });
+
+  if (!response.success) {
+    return {
+      shows: [],
+      pagination: {
+        page: safePage,
+        limit: PODCAST_CATEGORY_PAGE_SIZE,
+        total: 0,
+        totalPages: 0,
+        hasMore: false,
+      },
+    };
+  }
+
+  const shows = dedupeShows(response.shows);
+  if (options?.forceRefresh && safePage === 1 && shows.length > 0) {
+    writeCachedPodcastShows("browse:all", shows);
+  }
+
+  return {
+    ...response,
+    shows,
+  };
 }

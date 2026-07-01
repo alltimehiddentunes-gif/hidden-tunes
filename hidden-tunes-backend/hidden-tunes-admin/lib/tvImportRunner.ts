@@ -126,6 +126,9 @@ async function importSingleVideo(
     status: moderation.status,
     playback_status: moderation.playback_status,
     is_active: moderation.is_active,
+    reliability_score: moderation.playback_status === "playable" ? 100 : 50,
+    consecutive_failures: 0,
+    source_key: `${TV_VIDEO_SOURCE_TYPE}:${videoId}`,
     is_featured: false,
     imported_from_source_id: source.id,
   };

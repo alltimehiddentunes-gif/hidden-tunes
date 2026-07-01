@@ -93,6 +93,10 @@ export function shouldRunNonEssentialWork() {
   return appIsActive && !isFastScrolling();
 }
 
+export function isBrowsingUnderLoad() {
+  return !shouldRunNonEssentialWork();
+}
+
 export function getPrefetchLimit(requested = 4) {
   if (!appIsActive) return 0;
   if (isFastScrolling()) return Math.min(requested, 1);
