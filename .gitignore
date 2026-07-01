@@ -6,3 +6,9 @@ build/
 .env.local
 android/
 ios/
+
+# Phase 1 — generated/cache/audit junk
+current-dirty-tree.txt
+hidden-tunes-app/.expo-export-test/
+hidden-tunes-desktop/premium-verify-*.json
+hidden-tunes-desktop/queue-verify-out.json
