@@ -9,6 +9,7 @@
     "vercel-build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
+    "typecheck": "tsc --noEmit",
     "reset-admin-auth": "node scripts/reset-admin-auth.mjs"
   },
   "dependencies": {
