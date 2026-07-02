@@ -20,6 +20,7 @@ async function main() {
     TV_RELIABILITY_THRESHOLD,
     applyTvHealthProbe,
     dedupeTvGrowthCandidates,
+    detectTvStreamPayload,
     isPublicTvRow,
     validatePublicTvUrl,
   } = await import("../lib/tvStationHealth");
@@ -118,6 +119,13 @@ const deduped = dedupeTvGrowthCandidates(
   }
 );
 assert.equal(deduped.length, 1);
+
+  const manifest = detectTvStreamPayload(
+    "application/vnd.apple.mpegurl",
+    "#EXTM3U\n#EXTINF:10.0,\nsegment.ts"
+  );
+  assert.equal(manifest.isHlsManifest, true);
+  assert.equal(manifest.isVideoLike, true);
 
   console.log("tv station health tests passed");
 }

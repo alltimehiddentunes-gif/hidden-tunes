@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
@@ -10,31 +10,59 @@ import type { HiddenTunesTvVideo } from "@/services/tvCatalogApi";
 type TvVideoCardProps = {
   video: HiddenTunesTvVideo;
   width?: number;
+  loading?: boolean;
+  disabled?: boolean;
   onPress: (video: HiddenTunesTvVideo) => void;
 };
 
-function TvVideoCard({ video, width = 168, onPress }: TvVideoCardProps) {
+function TvVideoCard({
+  video,
+  width = 168,
+  loading = false,
+  disabled = false,
+  onPress,
+}: TvVideoCardProps) {
   const thumbnail =
+    video.logo ||
     video.thumbnail_url ||
-    `https://i.ytimg.com/vi/${video.source_id}/hqdefault.jpg`;
+    (video.source_id
+      ? `https://i.ytimg.com/vi/${video.source_id}/hqdefault.jpg`
+      : undefined);
+
+  const subtitle =
+    video.categories?.[0] ||
+    video.genre ||
+    video.country ||
+    null;
 
   return (
     <TouchableOpacity
       activeOpacity={0.88}
+      disabled={disabled}
       onPress={() => onPress(video)}
-      style={[styles.card, { width }]}
+      style={[styles.card, { width }, disabled && styles.cardDisabled]}
     >
       <View style={styles.thumbWrap}>
-        <Image
-          source={{ uri: thumbnail }}
-          style={styles.thumb}
-          contentFit="cover"
-          transition={120}
-          recyclingKey={video.id}
-        />
-        <View style={styles.playBadge}>
-          <Ionicons name="play" size={14} color="#000" />
-        </View>
+        {thumbnail ? (
+          <Image
+            source={{ uri: thumbnail }}
+            style={styles.thumb}
+            contentFit="cover"
+            transition={120}
+            recyclingKey={video.id}
+          />
+        ) : (
+          <View style={[styles.thumb, styles.thumbFallback]} />
+        )}
+        {loading ? (
+          <View style={styles.loadingOverlay}>
+            <ActivityIndicator color={COLORS.primary} />
+          </View>
+        ) : (
+          <View style={styles.playBadge}>
+            <Ionicons name="play" size={14} color="#000" />
+          </View>
+        )}
       </View>
 
       <Text numberOfLines={2} style={styles.title}>
@@ -42,12 +70,12 @@ function TvVideoCard({ video, width = 168, onPress }: TvVideoCardProps) {
       </Text>
 
       <Text numberOfLines={1} style={styles.channel}>
-        {video.channel_name || "Hidden Tunes TV"}
+        {video.channel_name || video.country || "Hidden Tunes TV"}
       </Text>
 
-      {video.genre ? (
+      {subtitle ? (
         <Text numberOfLines={1} style={styles.meta}>
-          {video.genre}
+          {subtitle}
         </Text>
       ) : null}
     </TouchableOpacity>
@@ -59,6 +87,10 @@ export default memo(TvVideoCard);
 const styles = StyleSheet.create({
   card: {
     marginRight: 12,
+  },
+
+  cardDisabled: {
+    opacity: 0.72,
   },
 
   thumbWrap: {
@@ -74,6 +106,17 @@ const styles = StyleSheet.create({
   thumb: {
     width: "100%",
     height: "100%",
+  },
+
+  thumbFallback: {
+    backgroundColor: "rgba(255,255,255,0.08)",
+  },
+
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(0,0,0,0.45)",
   },
 
   playBadge: {

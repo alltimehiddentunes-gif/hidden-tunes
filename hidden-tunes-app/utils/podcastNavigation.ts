@@ -42,6 +42,13 @@ export function openPodcastCategory(categoryId: string) {
   const safeId = String(categoryId || "").trim();
   if (!safeId) return;
 
+  if (safeId === "motivation") {
+    guardedNavigate("motivation:home", () => {
+      router.push("/motivation" as any);
+    });
+    return;
+  }
+
   guardedNavigate(`podcasts:category:${safeId}`, () => {
     prefetchPodcastShowsForCategory(safeId);
     router.push({

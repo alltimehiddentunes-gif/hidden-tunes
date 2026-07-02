@@ -129,40 +129,53 @@ export const TV_VIDEO_SELECT =
   "id, source_type, source_id, source_url, embed_url, title, description, thumbnail_url, duration_seconds, channel_name, category, genre, mood, format, tags, language, region, published_at, status, playback_status, is_active, is_featured, reliability_score, consecutive_failures, quarantined_at, disabled_at, last_health_checked_at, last_health_error, source_key, imported_from_source_id, created_at, updated_at";
 
 export const TV_PUBLIC_VIDEO_SELECT =
-  "id, title, source_type, source_id, thumbnail_url, channel_name, category, genre, mood, format, tags, reliability_score";
+  "id, title, description, thumbnail_url, channel_name, category, genre, mood, format, tags, language, region, reliability_score, is_featured";
 
-export type TvPublicVideo = {
+export type TvPublicStation = {
   id: string;
   title: string;
-  source_type: string;
-  source_id: string;
-  source_url?: string;
-  embed_url?: string | null;
-  thumbnail_url: string | null;
-  channel_name: string | null;
-  category: string | null;
-  genre: string | null;
-  mood: string | null;
-  format: string | null;
-  tags: string[];
+  description: string | null;
+  logo: string | null;
+  country: string | null;
+  language: string | null;
+  categories: string[];
+  reliability_score: number;
+  is_featured: boolean;
 };
 
-export function toTvPublicVideo(row: Record<string, unknown>): TvPublicVideo {
+/** @deprecated Use TvPublicStation — kept for internal callers during migration. */
+export type TvPublicVideo = TvPublicStation;
+
+export function toTvPublicStation(row: Record<string, unknown>): TvPublicStation {
+  const categories = new Set<string>();
+
+  for (const key of ["category", "genre", "mood", "format"] as const) {
+    const value = cleanText(row[key], 120);
+    if (value) categories.add(value);
+  }
+
+  for (const tag of normalizeTvTags(row.tags)) {
+    categories.add(tag);
+  }
+
   return {
     id: String(row.id || ""),
     title: String(row.title || "Untitled"),
-    source_type: String(row.source_type || ""),
-    source_id: String(row.source_id || ""),
-    source_url: cleanText(row.source_url, 2000) || "",
-    embed_url: cleanText(row.embed_url, 2000),
-    thumbnail_url: cleanText(row.thumbnail_url, 2000),
-    channel_name: cleanText(row.channel_name, 200),
-    category: cleanText(row.category, 120),
-    genre: cleanText(row.genre, 120),
-    mood: cleanText(row.mood, 120),
-    format: cleanText(row.format, 120),
-    tags: normalizeTvTags(row.tags),
+    description: cleanText(row.description, 2000),
+    logo: cleanText(row.thumbnail_url, 2000),
+    country: cleanText(row.region, 120),
+    language: cleanText(row.language, 80),
+    categories: [...categories],
+    reliability_score: Math.max(
+      0,
+      Math.min(100, Math.round(Number(row.reliability_score ?? 0)))
+    ),
+    is_featured: row.is_featured === true,
   };
+}
+
+export function toTvPublicVideo(row: Record<string, unknown>): TvPublicStation {
+  return toTvPublicStation(row);
 }
 
 export function cleanText(value: unknown, maxLength = 500) {

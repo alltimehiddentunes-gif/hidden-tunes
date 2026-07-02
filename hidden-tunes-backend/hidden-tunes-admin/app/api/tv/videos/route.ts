@@ -53,8 +53,12 @@ export async function GET(request: NextRequest) {
   const country = cleanFilter(params.get("country"));
   const language = cleanFilter(params.get("language"));
   const searchQuery = cleanFilter(params.get("q"));
+  const featuredOnly = params.get("featured") === "true";
 
-  if (category) query = query.ilike("category", category);
+  if (featuredOnly) query = query.eq("is_featured", true);
+  if (category) {
+    query = query.or(`category.ilike.${category},tags.cs.{${category}}`);
+  }
   if (genre) query = query.ilike("genre", genre);
   if (mood) query = query.ilike("mood", mood);
   if (format) query = query.ilike("format", format);

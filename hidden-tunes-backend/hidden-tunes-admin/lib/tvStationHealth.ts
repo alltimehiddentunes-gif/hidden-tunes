@@ -6,7 +6,7 @@ import {
   TvVideoRow,
   cleanText,
   fetchYouTubeOEmbedMetadata,
-  toTvPublicVideo,
+  toTvPublicStation,
 } from "@/lib/tvCatalog";
 
 export const TV_RELIABILITY_THRESHOLD = 60;
@@ -53,13 +53,26 @@ export type TvGrowthCandidate = {
   source_url: string;
   embed_url?: string | null;
   title: string;
+  description?: string | null;
   channel_name?: string | null;
   thumbnail_url?: string | null;
   category?: string | null;
+  categories?: string[];
   genre?: string | null;
+  mood?: string | null;
+  format?: string | null;
+  language?: string | null;
   country?: string | null;
   region?: string | null;
+  tags?: string[];
+  is_featured?: boolean;
   source_key?: string | null;
+};
+
+export type TvStreamProbeDetails = {
+  contentType: string | null;
+  isHlsManifest: boolean;
+  isVideoLike: boolean;
 };
 
 function clampScore(score: number) {
@@ -180,6 +193,30 @@ export function applyTvHealthProbe(
   };
 }
 
+export function detectTvStreamPayload(
+  contentType: string | null,
+  bodySample: string
+): TvStreamProbeDetails {
+  const normalizedType = String(contentType || "").toLowerCase();
+  const sample = bodySample.slice(0, 4096);
+  const isHlsManifest =
+    sample.includes("#EXTM3U") ||
+    sample.includes("#EXT-X-STREAM-INF") ||
+    sample.includes("#EXTINF:");
+  const isVideoLike =
+    isHlsManifest ||
+    normalizedType.includes("mpegurl") ||
+    normalizedType.includes("mp2t") ||
+    normalizedType.includes("video/") ||
+    /\.m3u8(?:\?|$)/i.test(sample);
+
+  return {
+    contentType,
+    isHlsManifest,
+    isVideoLike,
+  };
+}
+
 export async function probeTvStation(row: TvHealthRow): Promise<TvHealthProbeResult> {
   if (String(row.source_type || "").startsWith("youtube")) {
     const metadata = await fetchYouTubeOEmbedMetadata(String(row.source_id || ""));
@@ -215,7 +252,22 @@ export async function probeTvStation(row: TvHealthRow): Promise<TvHealthProbeRes
         reason: `Stream probe returned HTTP ${response.status}.`,
       };
     }
-    return { playable: true, playback_status: "playable", reason: "Stream probe passed." };
+
+    const contentType = response.headers.get("content-type");
+    const bodySample = await response.text();
+    const details = detectTvStreamPayload(contentType, bodySample);
+    const urlLooksLikeHls = /\.m3u8(?:\?|$)/i.test(urlCheck.url);
+
+    if (!details.isVideoLike && !urlLooksLikeHls) {
+      return {
+        playable: false,
+        playback_status: "failed",
+        reason: "Stream probe did not detect HLS or video payload.",
+      };
+    }
+
+    const suffix = details.isHlsManifest ? "HLS manifest detected." : "Stream probe passed.";
+    return { playable: true, playback_status: "playable", reason: suffix };
   } catch (error) {
     return {
       playable: false,
@@ -348,22 +400,41 @@ export async function importVerifiedTvGrowthCandidates(candidates: TvGrowthCandi
       continue;
     }
 
+    const tags = [
+      ...new Set(
+        [
+          ...(candidate.tags || []),
+          ...(candidate.categories || []),
+          candidate.category,
+          candidate.genre,
+          candidate.mood,
+          candidate.format,
+        ].filter(Boolean) as string[]
+      ),
+    ];
+
     const { error } = await supabaseAdmin.from("tv_videos").insert({
       source_type: candidate.source_type || TV_VIDEO_SOURCE_TYPE,
       source_id: candidate.source_id,
       source_url: urlCheck.url,
       embed_url: candidate.embed_url || null,
       title: candidate.title,
+      description: candidate.description || null,
       channel_name: candidate.channel_name || null,
       thumbnail_url: candidate.thumbnail_url || null,
-      category: candidate.category || null,
+      category: candidate.category || candidate.categories?.[0] || null,
       genre: candidate.genre || null,
+      mood: candidate.mood || null,
+      format: candidate.format || null,
+      tags: tags.length > 0 ? tags : null,
+      language: candidate.language || null,
       region: candidate.country || candidate.region || null,
       source_key:
         candidate.source_key || `${candidate.source_type}:${candidate.source_id}`,
       status: "approved",
       playback_status: "playable",
       is_active: true,
+      is_featured: candidate.is_featured === true,
       reliability_score: 100,
       consecutive_failures: 0,
       last_health_checked_at: new Date().toISOString(),
@@ -379,7 +450,9 @@ export async function importVerifiedTvGrowthCandidates(candidates: TvGrowthCandi
 export async function getTvHealthSummary() {
   const { data, error } = await supabaseAdmin
     .from("tv_videos")
-    .select("playback_status, is_active, reliability_score, quarantined_at");
+    .select(
+      "status, playback_status, is_active, reliability_score, quarantined_at, category, tags"
+    );
   if (error) throw new Error(error.message);
 
   const rows = (data || []) as Array<Record<string, unknown>>;
@@ -395,6 +468,42 @@ export async function getTvHealthSummary() {
   const belowThreshold = rows.filter(
     (row) => Number(row.reliability_score ?? 100) < TV_RELIABILITY_THRESHOLD
   ).length;
+  const publicVerified = rows.filter((row) =>
+    isPublicTvRow({
+      status: String(row.status || ""),
+      is_active: row.is_active === true,
+      playback_status: String(row.playback_status || ""),
+      reliability_score: Number(row.reliability_score ?? 100),
+    })
+  ).length;
+  const hiddenOrQuarantined = total - publicVerified;
+
+  const categoryCounts = new Map<string, number>();
+  for (const row of rows) {
+    if (
+      !isPublicTvRow({
+        status: String(row.status || ""),
+        is_active: row.is_active === true,
+        playback_status: String(row.playback_status || ""),
+        reliability_score: Number(row.reliability_score ?? 100),
+      })
+    ) {
+      continue;
+    }
+
+    const labels = new Set<string>();
+    const category = String(row.category || "").trim();
+    if (category) labels.add(category);
+    if (Array.isArray(row.tags)) {
+      for (const tag of row.tags) {
+        const value = String(tag || "").trim();
+        if (value) labels.add(value);
+      }
+    }
+    for (const label of labels) {
+      categoryCounts.set(label, (categoryCounts.get(label) || 0) + 1);
+    }
+  }
 
   const sum = scores.reduce((acc, score) => acc + score, 0);
   const sorted = [...scores].sort((a, b) => a - b);
@@ -405,9 +514,15 @@ export async function getTvHealthSummary() {
     failed,
     quarantined,
     active: rows.filter((row) => row.is_active === true).length,
+    publicVerified,
+    hiddenOrQuarantined,
+    gapToTarget: Math.max(0, TV_GROWTH_TARGET_STATIONS - publicVerified),
     belowReliabilityThreshold: belowThreshold,
     reliabilityThreshold: TV_RELIABILITY_THRESHOLD,
     targetStations: TV_GROWTH_TARGET_STATIONS,
+    populatedCategories: Object.fromEntries(
+      [...categoryCounts.entries()].sort((a, b) => a[0].localeCompare(b[0]))
+    ),
     reliability: {
       min: sorted[0] ?? 0,
       max: sorted[sorted.length - 1] ?? 0,
@@ -417,10 +532,5 @@ export async function getTvHealthSummary() {
 }
 
 export function toTvPublicMetadata(row: Record<string, unknown>): TvPublicVideo {
-  const publicVideo = toTvPublicVideo(row);
-  return {
-    ...publicVideo,
-    source_url: "",
-    embed_url: null,
-  };
+  return toTvPublicStation(row);
 }

@@ -13,7 +13,19 @@
     "reset-admin-auth": "node scripts/reset-admin-auth.mjs",
     "tv:health": "tsx scripts/run-tv-health-checks.ts",
     "tv:growth": "tsx scripts/run-tv-growth-job.ts",
-    "test:tv-health": "tsx scripts/test-tv-station-health.ts"
+    "tv:expand": "tsx scripts/run-tv-catalog-expansion.ts",
+    "tv:extract-seeds": "tsx scripts/extract-mobile-tv-seeds.ts",
+    "test:tv-health": "tsx scripts/test-tv-station-health.ts",
+    "test:tv-catalog": "tsx scripts/test-tv-catalog-worker.ts",
+    "test:tv-public": "tsx scripts/test-tv-public-metadata.ts",
+    "motivation:build-candidates": "tsx scripts/build-motivation-candidates.ts",
+    "motivation:import": "tsx scripts/run-motivation-import.ts",
+    "motivation:verify": "tsx scripts/run-motivation-verify.ts",
+    "motivation:status": "tsx scripts/run-motivation-status.ts",
+    "motivation:probe": "tsx scripts/run-motivation-probe.ts",
+    "test:motivation-public": "tsx scripts/test-motivation-public-metadata.ts",
+    "verify:motivation-catalog": "tsx scripts/verify-motivation-catalog.ts",
+    "verify:motivation-play-sample": "tsx scripts/verify-motivation-play-sample.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1045.0",

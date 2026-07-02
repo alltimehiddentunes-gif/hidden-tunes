@@ -131,6 +131,9 @@ export default function TvPlayerScreen() {
   const { stopPlayback } = usePlayerActions();
 
   const initialChannelId = String(params.channelId || "").trim();
+  const backendStreamUrl = String(params.streamUrl || "").trim();
+  const backendTitle = String(params.title || "Hidden Tunes TV").trim();
+  const backendLogo = String(params.logo || "").trim();
 
   const [activeChannelId, setActiveChannelId] = useState(initialChannelId);
   const [isPlaying, setIsPlaying] = useState(true);
@@ -141,10 +144,32 @@ export default function TvPlayerScreen() {
   const [playerKey, setPlayerKey] = useState(0);
   const [playerMounted, setPlayerMounted] = useState(true);
 
-  const channel = useMemo(
-    () => (activeChannelId ? getTvChannelById(activeChannelId) : null),
-    [activeChannelId]
-  );
+  const channel = useMemo(() => {
+    if (backendStreamUrl) {
+      return {
+        id: activeChannelId || initialChannelId || `backend-${backendTitle}`,
+        name: backendTitle,
+        logoUrl: backendLogo || undefined,
+        streamUrl: backendStreamUrl,
+        streamType: "hls" as const,
+        category: "news" as const,
+        isLive: true,
+        isActive: true,
+        catalogStatus: "active" as const,
+        isMature: false,
+        isVerifiedLegal: true,
+        sourceType: "official_stream" as const,
+      };
+    }
+
+    return activeChannelId ? getTvChannelById(activeChannelId) : null;
+  }, [
+    activeChannelId,
+    backendLogo,
+    backendStreamUrl,
+    backendTitle,
+    initialChannelId,
+  ]);
 
   const queueIds = sessionRef.current?.channelIds || [];
   const currentIndex = Math.max(0, queueIds.indexOf(activeChannelId));
@@ -248,13 +273,17 @@ export default function TvPlayerScreen() {
     setPlayerKey((value) => value + 1);
 
     void refreshFavoriteState(channel);
-    void loadRelated(channel);
+    if (!backendStreamUrl) {
+      void loadRelated(channel);
+    } else {
+      setRelatedChannels([]);
+    }
 
-    if (watchedSavedRef.current !== channel.id) {
+    if (!backendStreamUrl && watchedSavedRef.current !== channel.id) {
       watchedSavedRef.current = channel.id;
       void recordTvRecentlyWatched(channel);
     }
-  }, [channel, loadRelated, refreshFavoriteState]);
+  }, [backendStreamUrl, channel, loadRelated, refreshFavoriteState]);
 
   const switchToChannel = useCallback(
     (

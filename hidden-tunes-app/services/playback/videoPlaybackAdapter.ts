@@ -1,5 +1,5 @@
 import type { HiddenTunesTvVideo } from "../tvCatalogApi";
-import { openHiddenTunesVideo } from "../../utils/openHiddenTunesVideo";
+import { openHiddenTunesTvStation } from "../../utils/openHiddenTunesTvStation";
 import {
   normalizeVideoItem,
   videoItemToTvVideo,
@@ -20,7 +20,7 @@ export function routeVideoPlayback(
   deps: { stopPlayback?: () => Promise<void> }
 ) {
   void deps.stopPlayback?.();
-  void openHiddenTunesVideo(video, queueVideos);
+  void openHiddenTunesTvStation(video, queueVideos, deps);
 }
 
 export function routeVideoItemPlayback(

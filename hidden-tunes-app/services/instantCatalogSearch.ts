@@ -187,7 +187,7 @@ function searchTvFast(videos: HiddenTunesTvVideo[], query: string) {
         video.channel_name,
         video.genre,
         video.mood,
-        video.category,
+        video.categories,
       ]),
       query,
       1

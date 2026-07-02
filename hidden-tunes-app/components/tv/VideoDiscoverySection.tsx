@@ -16,16 +16,19 @@ type VideoLane = {
 
 type VideoDiscoverySectionProps = {
   lanes: VideoLane[];
+  openingStationId?: string | null;
   onPressVideo: (video: HiddenTunesTvVideo, queue: HiddenTunesTvVideo[]) => void;
 };
 
 type VideoLaneRowProps = {
   lane: VideoLane;
+  openingStationId?: string | null;
   onPressVideo: (video: HiddenTunesTvVideo, queue: HiddenTunesTvVideo[]) => void;
 };
 
 const VideoLaneRow = memo(function VideoLaneRow({
   lane,
+  openingStationId,
   onPressVideo,
 }: VideoLaneRowProps) {
   const listSettings = getHorizontalListPerformanceSettings(lane.videos.length);
@@ -34,10 +37,12 @@ const VideoLaneRow = memo(function VideoLaneRow({
     ({ item }: { item: HiddenTunesTvVideo }) => (
       <TvVideoCard
         video={item}
+        loading={openingStationId === item.id}
+        disabled={Boolean(openingStationId)}
         onPress={(video) => onPressVideo(video, lane.videos)}
       />
     ),
-    [lane.videos, onPressVideo]
+    [lane.videos, onPressVideo, openingStationId]
   );
 
   if (!lane.videos.length) return null;
@@ -46,7 +51,7 @@ const VideoLaneRow = memo(function VideoLaneRow({
     <View style={styles.laneSection}>
       <View style={styles.laneHeader}>
         <Text style={styles.laneTitle}>{lane.title}</Text>
-        <Text style={styles.laneCount}>{lane.videos.length} videos</Text>
+        <Text style={styles.laneCount}>{lane.videos.length} stations</Text>
       </View>
 
       <FlatList
@@ -65,7 +70,11 @@ const VideoLaneRow = memo(function VideoLaneRow({
   );
 });
 
-function VideoDiscoverySection({ lanes, onPressVideo }: VideoDiscoverySectionProps) {
+function VideoDiscoverySection({
+  lanes,
+  openingStationId,
+  onPressVideo,
+}: VideoDiscoverySectionProps) {
   const hasVideos = lanes.some((lane) => lane.videos.length > 0);
   if (!hasVideos) return null;
 
@@ -76,16 +85,21 @@ function VideoDiscoverySection({ lanes, onPressVideo }: VideoDiscoverySectionPro
           <Ionicons name="play-circle" size={18} color={COLORS.cyan} />
         </View>
         <View style={styles.sectionCopy}>
-          <Text style={styles.sectionTitle}>Video Discovery</Text>
+          <Text style={styles.sectionTitle}>TV Stations</Text>
           <Text style={styles.sectionSub}>
-            Music videos, interviews, live performances, concerts, and
-            documentaries from the Hidden Tunes catalog.
+            Backend-verified stations. Stream URLs load only when you tap a
+            channel.
           </Text>
         </View>
       </View>
 
       {lanes.map((lane) => (
-        <VideoLaneRow key={lane.id} lane={lane} onPressVideo={onPressVideo} />
+        <VideoLaneRow
+          key={lane.id}
+          lane={lane}
+          openingStationId={openingStationId}
+          onPressVideo={onPressVideo}
+        />
       ))}
     </View>
   );

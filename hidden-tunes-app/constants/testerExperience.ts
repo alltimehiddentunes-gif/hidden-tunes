@@ -14,6 +14,9 @@ export const TESTER_COPY = {
   tvCatalogRefresh:
     "TV catalog isn't available right now. Pull to refresh when you're back online.",
   tvSearchUnavailable: "TV search isn't available right now. Try again in a moment.",
+  tvStationUnavailable:
+    "This TV station isn't playable right now. Try another channel.",
+  tvStationOpening: "Opening TV station...",
   videoDiscoveryLoading: "Finding Hidden Tunes videos…",
   videoDiscoveryEmpty:
     "No videos in this collection yet. Try another category or pull to refresh.",

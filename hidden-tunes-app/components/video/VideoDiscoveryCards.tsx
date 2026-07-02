@@ -61,8 +61,11 @@ export const VideoListRow = memo(function VideoListRow({
   onPress,
 }: VideoListRowProps) {
   const thumbnail =
+    video.logo ||
     video.thumbnail_url ||
-    `https://i.ytimg.com/vi/${video.source_id}/hqdefault.jpg`;
+    (video.source_id
+      ? `https://i.ytimg.com/vi/${video.source_id}/hqdefault.jpg`
+      : undefined);
 
   return (
     <TouchableOpacity activeOpacity={0.88} style={styles.row} onPress={onPress}>

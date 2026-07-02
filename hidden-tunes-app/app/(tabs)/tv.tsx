@@ -14,8 +14,9 @@ import {
 
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { useFocusEffect, useLocalSearchParams } from "expo-router";
 
+import TvBrowseCategories from "@/components/tv/TvBrowseCategories";
 import TvLiveHomeSections, {
   preloadMatureTvPreference,
 } from "@/components/tv/TvLiveHomeSections";
@@ -23,15 +24,18 @@ import TvVideoCard from "@/components/tv/TvVideoCard";
 import VideoDiscoverySection from "@/components/tv/VideoDiscoverySection";
 import { TESTER_COPY } from "@/constants/testerExperience";
 import { COLORS, GRADIENTS } from "@/constants/theme";
+import { usePlayerActions } from "@/context/PlayerContext";
 import {
   TV_DEFAULT_PAGE_LIMIT,
-  buildTvPlayerQueue,
   fetchTvCatalog,
+  fetchTvCategories,
   fetchTvHomeLanes,
   loadTvHomeCache,
   type HiddenTunesTvVideo,
+  type TvBrowseCategory,
   type TvHomeCachePayload,
 } from "@/services/tvCatalogApi";
+import { openHiddenTunesTvStation } from "@/utils/openHiddenTunesTvStation";
 
 const SEARCH_DEBOUNCE_MS = 300;
 
@@ -76,7 +80,20 @@ export default function HiddenTunesTVScreen() {
   const [catalogEmpty, setCatalogEmpty] = useState(false);
   const [searchEmpty, setSearchEmpty] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [openingStationId, setOpeningStationId] = useState<string | null>(null);
   const [matureTvEnabled, setMatureTvEnabled] = useState(false);
+  const [browseCategories, setBrowseCategories] = useState<TvBrowseCategory[]>(
+    []
+  );
+  const [activeBrowseCategory, setActiveBrowseCategory] = useState<string | null>(
+    null
+  );
+  const [categoryResults, setCategoryResults] = useState<HiddenTunesTvVideo[]>(
+    []
+  );
+  const [isLoadingCategory, setIsLoadingCategory] = useState(false);
+
+  const { stopPlayback } = usePlayerActions();
 
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchRequestRef = useRef(0);
@@ -85,35 +102,82 @@ export default function HiddenTunesTVScreen() {
   const searchLoadMoreGuardRef = useRef(false);
 
   const hasHomeContent = useMemo(
-    () => lanes.some((lane) => lane.videos.length > 0),
-    [lanes]
+    () =>
+      lanes.some((lane) => lane.videos.length > 0) ||
+      categoryResults.length > 0,
+    [categoryResults.length, lanes]
   );
 
-  const openTvVideo = useCallback(
-    (video: HiddenTunesTvVideo, queueVideos: HiddenTunesTvVideo[]) => {
-      const queue = buildTvPlayerQueue(queueVideos);
-      const startIndex = Math.max(
-        0,
-        queue.findIndex((item) => item.videoId === video.source_id)
-      );
+  const loadBrowseCategory = useCallback(async (category: TvBrowseCategory) => {
+    setActiveBrowseCategory(category.slug);
+    setIsLoadingCategory(true);
+    setStatusMessage(null);
 
-      router.push({
-        pathname: "/youtube-player",
-        params: {
-          id: video.source_id,
-          videoId: video.source_id,
-          title: video.title,
-          artist: video.channel_name || "Hidden Tunes TV",
-          channelTitle: video.channel_name || "Hidden Tunes TV",
-          thumbnail:
-            video.thumbnail_url ||
-            `https://i.ytimg.com/vi/${video.source_id}/hqdefault.jpg`,
-          queue: JSON.stringify(queue),
-          startIndex: String(startIndex >= 0 ? startIndex : 0),
-        },
-      } as any);
+    try {
+      const attempts = [
+        { category: category.name },
+        category.name === "Music TV" ? { category: "Music" } : null,
+        category.name === "Motivation" ? { mood: "Motivation" } : null,
+      ].filter(Boolean) as Array<{ category?: string; mood?: string }>;
+
+      for (const query of attempts) {
+        const response = await fetchTvCatalog({
+          page: 1,
+          limit: TV_DEFAULT_PAGE_LIMIT,
+          ...query,
+        });
+
+        if (response.success && response.videos.length > 0) {
+          setCategoryResults(response.videos);
+          setIsLoadingCategory(false);
+          return;
+        }
+      }
+
+      setCategoryResults([]);
+      setStatusMessage(`No playable stations in ${category.name} right now.`);
+    } catch {
+      setCategoryResults([]);
+      setStatusMessage(TESTER_COPY.tvCatalogRefresh);
+    } finally {
+      setIsLoadingCategory(false);
+    }
+  }, []);
+
+  const handleSelectBrowseCategory = useCallback(
+    (category: TvBrowseCategory) => {
+      if (activeBrowseCategory === category.slug) {
+        setActiveBrowseCategory(null);
+        setCategoryResults([]);
+        setStatusMessage(null);
+        return;
+      }
+
+      void loadBrowseCategory(category);
     },
-    []
+    [activeBrowseCategory, loadBrowseCategory]
+  );
+  const openTvVideo = useCallback(
+    async (video: HiddenTunesTvVideo, queueVideos: HiddenTunesTvVideo[]) => {
+      if (openingStationId) return;
+
+      setOpeningStationId(video.id);
+      setStatusMessage(TESTER_COPY.tvStationOpening);
+
+      const result = await openHiddenTunesTvStation(video, queueVideos, {
+        stopPlayback,
+      });
+
+      setOpeningStationId(null);
+
+      if (result.ok) {
+        setStatusMessage(null);
+        return;
+      }
+
+      setStatusMessage(result.error || TESTER_COPY.tvStationUnavailable);
+    },
+    [openingStationId, stopPlayback]
   );
 
   const applyHomeCache = useCallback((cache: TvHomeCachePayload | null) => {
@@ -231,13 +295,15 @@ export default function HiddenTunesTVScreen() {
       let active = true;
 
       async function bootstrap() {
-        const [cache, matureEnabled] = await Promise.all([
+        const [cache, matureEnabled, categories] = await Promise.all([
           loadTvHomeCache(),
           preloadMatureTvPreference(),
+          fetchTvCategories(),
         ]);
         if (!active) return;
 
         setMatureTvEnabled(matureEnabled);
+        setBrowseCategories(categories);
 
         if (cache) {
           applyHomeCache(cache);
@@ -419,7 +485,11 @@ export default function HiddenTunesTVScreen() {
               <TvVideoCard
                 video={item}
                 width={searchCardWidth}
-                onPress={(video) => openTvVideo(video, searchResults)}
+                loading={openingStationId === item.id}
+                disabled={Boolean(openingStationId)}
+                onPress={(video) => {
+                  void openTvVideo(video, searchResults);
+                }}
               />
             </View>
           )}
@@ -445,6 +515,40 @@ export default function HiddenTunesTVScreen() {
             onMatureEnabledChange={setMatureTvEnabled}
           />
 
+          {browseCategories.length > 0 ? (
+            <TvBrowseCategories
+              categories={browseCategories}
+              activeCategory={activeBrowseCategory}
+              onSelectCategory={handleSelectBrowseCategory}
+            />
+          ) : null}
+
+          {isLoadingCategory ? (
+            <View style={styles.loadingBox}>
+              <ActivityIndicator color={COLORS.primary} />
+              <Text style={styles.loadingText}>Loading TV stations...</Text>
+            </View>
+          ) : null}
+
+          {categoryResults.length > 0 ? (
+            <View style={styles.categoryResultsSection}>
+              <Text style={styles.resultsTitle}>Category stations</Text>
+              {categoryResults.map((item) => (
+                <View key={item.id} style={styles.searchRow}>
+                  <TvVideoCard
+                    video={item}
+                    width={searchCardWidth}
+                    loading={openingStationId === item.id}
+                    disabled={Boolean(openingStationId)}
+                    onPress={(video) => {
+                      void openTvVideo(video, categoryResults);
+                    }}
+                  />
+                </View>
+              ))}
+            </View>
+          ) : null}
+
           {showCatalogEmpty ? (
             <View style={styles.emptyBox}>
               <Ionicons name="tv-outline" size={38} color={COLORS.textMuted} />
@@ -456,7 +560,10 @@ export default function HiddenTunesTVScreen() {
           ) : (
             <VideoDiscoverySection
               lanes={lanes}
-              onPressVideo={openTvVideo}
+              openingStationId={openingStationId}
+              onPressVideo={(video, queueVideos) => {
+                void openTvVideo(video, queueVideos);
+              }}
             />
           )}
 
@@ -596,6 +703,10 @@ const styles = StyleSheet.create({
 
   searchRow: {
     marginBottom: 14,
+  },
+
+  categoryResultsSection: {
+    marginBottom: 20,
   },
 
   loadingBox: {

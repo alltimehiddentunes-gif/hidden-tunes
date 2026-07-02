@@ -61,21 +61,26 @@ function mapYouTubeSearchItem(item: YouTubeSearchItem): TvPublicVideo | null {
     buildYouTubeThumbnailUrl(videoId);
 
   const inferred = inferCategoryGenreMoodFormat(title, channelName, {});
+  const categories = normalizeTvTags([
+    inferred.category,
+    inferred.genre,
+    inferred.mood,
+    inferred.format,
+    ...inferred.tags,
+    "tv-search",
+    "youtube-live",
+  ]).filter(Boolean);
 
   return {
     id: `tv-search-${videoId}`,
     title,
-    source_type: TV_VIDEO_SOURCE_TYPE,
-    source_id: videoId,
-    source_url: "",
-    embed_url: null,
-    thumbnail_url: thumbnailUrl,
-    channel_name: channelName,
-    category: inferred.category,
-    genre: inferred.genre,
-    mood: inferred.mood,
-    format: inferred.format,
-    tags: normalizeTvTags([...inferred.tags, "tv-search", "youtube-live"]),
+    description: null,
+    logo: thumbnailUrl,
+    country: null,
+    language: null,
+    categories,
+    reliability_score: TV_RELIABILITY_THRESHOLD,
+    is_featured: false,
   };
 }
 
@@ -192,9 +197,9 @@ function dedupeBySourceId(videos: TvPublicVideo[]) {
   const merged: TvPublicVideo[] = [];
 
   for (const video of videos) {
-    const sourceId = String(video.source_id || "").trim();
-    if (!sourceId || seen.has(sourceId)) continue;
-    seen.add(sourceId);
+    const key = String(video.id || "").trim();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
     merged.push(video);
   }
 
