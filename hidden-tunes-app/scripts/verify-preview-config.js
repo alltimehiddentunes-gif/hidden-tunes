@@ -59,6 +59,13 @@ function assertStandalone(profile) {
     process.exit(1);
   }
 
+  if (!names.includes("./plugins/hidden-audio")) {
+    console.error(
+      `[verify-preview-config] FAIL: ${profile} build missing ./plugins/hidden-audio`
+    );
+    process.exit(1);
+  }
+
   const rnConfig = loadReactNativeConfig(profile);
   const disabled = { ios: null, android: null };
 

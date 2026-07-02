@@ -1,6 +1,7 @@
 /**
- * Standalone native builds must not autolink expo-dev-client.
- * iOS uses HiddenAudio instead of react-native-track-player.
+ * Standalone preview/production must not autolink expo-dev-client native code.
+ * iOS playback uses the hidden-audio config plugin (HiddenAudio native module).
+ * Android keeps react-native-track-player; iOS RNTP autolinking stays off.
  */
 const profile =
   process.env.EAS_BUILD_PROFILE ||
@@ -8,7 +9,9 @@ const profile =
   "";
 
 const isDevClientBuild = profile === "developmentClient";
-const isStandaloneBuild = !isDevClientBuild;
+const isStandaloneProfile =
+  profile === "preview" || profile === "production" || profile === "local";
+const isStandaloneBuild = !isDevClientBuild && isStandaloneProfile;
 const disabled = { ios: null, android: null };
 
 const dependencies = {

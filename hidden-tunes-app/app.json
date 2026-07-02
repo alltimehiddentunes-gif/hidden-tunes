@@ -57,7 +57,8 @@
           "enableBackgroundAudio": true,
           "audioSessionCategory": "playback"
         }
-      ]
+      ],
+      "./plugins/hidden-audio"
     ],
     "experiments": {
       "typedRoutes": true

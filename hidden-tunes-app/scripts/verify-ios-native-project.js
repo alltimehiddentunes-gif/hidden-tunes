@@ -69,6 +69,15 @@ for (const token of blockedPodTokens) {
   }
 }
 
+if (
+  !pbxproj.includes("HiddenAudioModule.swift") &&
+  !pbxproj.includes("HiddenAudioModule")
+) {
+  fail(
+    "Xcode project missing HiddenAudio native module (run prebuild after wiring ./plugins/hidden-audio)"
+  );
+}
+
 if (!fs.existsSync(workspacePath) && !fs.existsSync(projectPath)) {
   fail("No Xcode workspace or project found.");
 }

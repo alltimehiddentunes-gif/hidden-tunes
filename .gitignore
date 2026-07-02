@@ -4,8 +4,9 @@ dist/
 build/
 .env
 .env.local
-android/
-ios/
+# Generated Expo prebuild output only (keep plugins/hidden-audio/{android,ios} tracked)
+hidden-tunes-app/android/
+hidden-tunes-app/ios/
 
 # Phase 1 — generated/cache/audit junk
 current-dirty-tree.txt
