@@ -33,7 +33,16 @@ module.exports = ({ config }) => {
     return pluginName === "expo-splash-screen";
   });
 
-  const plugins = hasSplashPlugin ? basePlugins : [...basePlugins, splashPlugin];
+  const hasStandaloneGuard = basePlugins.some((entry) => {
+    const pluginName = Array.isArray(entry) ? entry[0] : entry;
+    return pluginName === "./plugins/standalone-build-guard";
+  });
+
+  let plugins = hasSplashPlugin ? basePlugins : [...basePlugins, splashPlugin];
+
+  if (isStandaloneBuild && !hasStandaloneGuard) {
+    plugins = [...plugins, "./plugins/standalone-build-guard"];
+  }
 
   return {
     ...appJson.expo,

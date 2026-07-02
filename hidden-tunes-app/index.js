@@ -14,6 +14,8 @@
  *   Lock-screen native auto-next cannot be validated in Expo Go.
  */
 
+require("react-native-gesture-handler");
+
 const { isTrackPlayerFeatureEnabled } = require("./constants/playbackConfig");
 const {
   canRegisterTrackPlayerPlaybackService,
