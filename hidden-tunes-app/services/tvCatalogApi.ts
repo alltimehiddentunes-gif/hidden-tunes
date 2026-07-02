@@ -1,7 +1,8 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export const TV_CATALOG_BASE_URL = "https://admin.hiddentunes.com";
-export const TV_CATALOG_API_PATH = "/api/tv/stations";
+export const TV_CATALOG_API_PATH = "/api/tv/videos";
+export const TV_PLAY_API_PATH = "/api/tv/videos";
 export const TV_DEFAULT_PAGE_LIMIT = 20;
 export const TV_LANE_PAGE_LIMIT = 12;
 export const TV_HOME_CACHE_KEY = "hidden_tunes_tv_home_cache_v1";
@@ -164,7 +165,7 @@ export function normalizeTvCatalogVideo(raw: Record<string, unknown>): HiddenTun
 }
 
 function buildPlayUrl(videoId: string) {
-  return `${TV_CATALOG_BASE_URL}${TV_CATALOG_API_PATH}/${encodeURIComponent(
+  return `${TV_CATALOG_BASE_URL}${TV_PLAY_API_PATH}/${encodeURIComponent(
     videoId
   )}/play`;
 }

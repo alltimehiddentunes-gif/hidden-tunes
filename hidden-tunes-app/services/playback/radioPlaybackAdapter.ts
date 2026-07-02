@@ -23,6 +23,4 @@ export function radioStationToAppSong(station: RadioStation): AppSong {
   };
 }
 
-export function isRadioStreamSong(song?: AppSong | null) {
-  return song?.source === "radio" || song?.type === "live_stream";
-}
+export { isRadioStreamSong } from "../../utils/playbackSongIdentity";

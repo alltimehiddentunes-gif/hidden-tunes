@@ -2,7 +2,7 @@ import type { AppSong } from "../context/PlayerContext";
 import {
   isPodcastEpisodeSong,
   isRadioStreamSong,
-} from "../services/playback/playbackRouter";
+} from "./playbackSongIdentity";
 
 export type PlaybackSurfaceMode = "music" | "podcast" | "radio";
 

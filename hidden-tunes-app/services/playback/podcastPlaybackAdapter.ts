@@ -1,5 +1,6 @@
 import type { AppSong } from "../../context/PlayerContext";
 import type { PodcastEpisode } from "../../types/podcast";
+import { isPodcastEpisodeSong } from "../../utils/playbackSongIdentity";
 
 export function podcastEpisodeToAppSong(episode: PodcastEpisode): AppSong {
   return {
@@ -20,6 +21,4 @@ export function podcastEpisodeToAppSong(episode: PodcastEpisode): AppSong {
   };
 }
 
-export function isPodcastEpisodeSong(song?: AppSong | null) {
-  return song?.source === "podcast" || song?.type === "podcast";
-}
+export { isPodcastEpisodeSong } from "../../utils/playbackSongIdentity";

@@ -46,7 +46,7 @@ import { useRuntimeRenderProbe } from "../utils/runtimeInstrumentation";
 import {
   isPodcastEpisodeSong,
   isRadioStreamSong,
-} from "../services/playback/playbackRouter";
+} from "../utils/playbackSongIdentity";
 
 type YouTubeMini = {
   id: string;
