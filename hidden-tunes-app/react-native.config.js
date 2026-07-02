@@ -1,5 +1,5 @@
 /**
- * Standalone preview/production builds must not autolink expo-dev-client.
+ * Standalone native builds must not autolink expo-dev-client.
  * iOS uses HiddenAudio instead of react-native-track-player.
  */
 const profile =
@@ -7,7 +7,8 @@ const profile =
   process.env.EXPO_PUBLIC_BUILD_PROFILE ||
   "";
 
-const isStandaloneBuild = profile === "preview" || profile === "production";
+const isDevClientBuild = profile === "developmentClient";
+const isStandaloneBuild = !isDevClientBuild;
 const disabled = { ios: null, android: null };
 
 const dependencies = {

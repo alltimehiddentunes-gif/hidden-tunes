@@ -85,6 +85,7 @@ function assertStandalone(profile) {
 
 assertStandalone("preview");
 assertStandalone("production");
+assertStandalone("local");
 
 const devResolved = loadConfig("developmentClient");
 if (!pluginNames(devResolved.plugins).includes("expo-dev-client")) {
