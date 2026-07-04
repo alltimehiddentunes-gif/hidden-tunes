@@ -2377,7 +2377,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         }
 
         try {
-          await HiddenAudio.load(audioUrl);
+          await HiddenAudio.load(audioUrl, normalizedSong);
         } catch (loadError) {
           logPlayerContextDev("[playback-error]", {
             songId: normalizedSong.id,
