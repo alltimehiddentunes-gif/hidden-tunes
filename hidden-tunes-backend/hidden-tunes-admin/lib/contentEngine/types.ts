@@ -27,10 +27,27 @@ export const CONTENT_PLAYBACK_STATUSES = [
   "blocked",
 ] as const;
 
+export const CONTENT_JOB_TYPES = [
+  "ingest",
+  "refresh",
+  "health_check",
+  "verify",
+  "cleanup",
+] as const;
+
+export const CONTENT_JOB_STATUSES = [
+  "pending",
+  "running",
+  "completed",
+  "failed",
+] as const;
+
 export type ContentEngineType = (typeof CONTENT_ENGINE_TYPES)[number];
 export type ContentLifecycleStatus = (typeof CONTENT_LIFECYCLE_STATUSES)[number];
 export type ContentHealthStatus = (typeof CONTENT_HEALTH_STATUSES)[number];
 export type ContentPlaybackStatus = (typeof CONTENT_PLAYBACK_STATUSES)[number];
+export type ContentJobType = (typeof CONTENT_JOB_TYPES)[number];
+export type ContentJobStatus = (typeof CONTENT_JOB_STATUSES)[number];
 
 export type ContentHealthCheckResult = {
   statusCode: number | null;
@@ -69,6 +86,43 @@ export type ContentCursorPage<T> = {
   nextCursor: string | null;
   hasMore: boolean;
 };
+
+export type ContentJobRow = {
+  id: string;
+  content_type: ContentEngineType;
+  job_type: ContentJobType;
+  status: ContentJobStatus;
+  priority: number;
+  attempts: number;
+  max_attempts: number;
+  scheduled_at: string;
+  started_at: string | null;
+  completed_at: string | null;
+  error_message: string | null;
+  payload: Record<string, unknown>;
+  result: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+};
+
+export function isContentJobType(value: unknown): value is ContentJobType {
+  return (
+    value === "ingest" ||
+    value === "refresh" ||
+    value === "health_check" ||
+    value === "verify" ||
+    value === "cleanup"
+  );
+}
+
+export function isContentJobStatus(value: unknown): value is ContentJobStatus {
+  return (
+    value === "pending" ||
+    value === "running" ||
+    value === "completed" ||
+    value === "failed"
+  );
+}
 
 export function isContentEngineType(value: unknown): value is ContentEngineType {
   return (

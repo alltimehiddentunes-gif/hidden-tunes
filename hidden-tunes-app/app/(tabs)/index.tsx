@@ -16,6 +16,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useFocusEffect } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
   HomeCatalogSongRow,
@@ -186,6 +187,9 @@ function HomeSkeletonCards() {
   );
 }
 
+const HOME_TAB_BOTTOM_PADDING = 120;
+const HOME_MINI_PLAYER_BOTTOM_PADDING = 220;
+
 function buildInitialHomeSongs() {
   const snapshot = getHiddenTunesCatalogSnapshot();
   if (!snapshot.length) return [] as HiddenTunesNormalizedSong[];
@@ -198,6 +202,13 @@ function HomeScreen() {
   const { playSong, preloadIdlePlayableTrack } = usePlayerActions();
   const { currentSong, isPlaying } = usePlayerNowPlaying();
   const { recentlyPlayed, favorites } = usePlayerState();
+  const insets = useSafeAreaInsets();
+  const homeScrollBottomPadding = useMemo(
+    () =>
+      (currentSong ? HOME_MINI_PLAYER_BOTTOM_PADDING : HOME_TAB_BOTTOM_PADDING) +
+      insets.bottom,
+    [currentSong, insets.bottom]
+  );
 
   const initialFeaturedSongsRef = useRef(buildInitialHomeSongs());
   const isLoadingRef = useRef(false);
@@ -1620,7 +1631,6 @@ function HomeScreen() {
               <SubtleRadioEntryLink />
               <SubtleTvEntryLink />
               <SubtlePodcastEntryLink />
-              <View style={{ height: 120 }} />
             </View>
           );
 
@@ -1895,7 +1905,7 @@ function HomeScreen() {
           renderItem={renderHomeFeedRow}
           ListHeaderComponent={listHeaderElement}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={{ paddingBottom: homeScrollBottomPadding }}
           refreshControl={
             <RefreshControl
               tintColor={COLORS.primary}
@@ -1992,9 +2002,6 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(34,211,238,0.12)",
   },
 
-  scrollContent: {
-    paddingBottom: 160,
-  },
 
   header: {
     flexDirection: "row",

@@ -16,6 +16,13 @@
 
 require("react-native-gesture-handler");
 
+try {
+  const { traceStartup } = require("./utils/startupTrace");
+  traceStartup("index.js loaded");
+} catch (error) {
+  console.log("[HTStartup] STEP 0 index.js trace init failed", String(error));
+}
+
 const { isTrackPlayerFeatureEnabled } = require("./constants/playbackConfig");
 const {
   canRegisterTrackPlayerPlaybackService,
@@ -61,6 +68,13 @@ if (isTrackPlayerFeatureEnabled() && canRegisterTrackPlayerPlaybackService()) {
       `[HiddenTunes][${getPlatformRuntimeLabel()}] Track Player service already registered — skipped duplicate.`
     );
   }
+}
+
+try {
+  const { traceStartup } = require("./utils/startupTrace");
+  traceStartup("expo-router entry loading");
+} catch (error) {
+  console.log("[HTStartup] STEP pre-entry trace failed", String(error));
 }
 
 require("expo-router/entry");

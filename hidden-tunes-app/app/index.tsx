@@ -17,6 +17,7 @@ import {
   preloadOnboardingStatus,
 } from "../services/onboardingPreferences";
 import { scheduleStartupTask } from "../utils/startupScheduler";
+import { traceStartup } from "../utils/startupTrace";
 
 function resolveInitialRoute() {
   const cached = peekOnboardingComplete();
@@ -28,6 +29,10 @@ function resolveInitialRoute() {
 
 export default function IndexScreen() {
   const [target, setTarget] = useState<string | null>(() => resolveInitialRoute());
+
+  useEffect(() => {
+    traceStartup("app/index.tsx mounted", { initialTarget: target });
+  }, [target]);
 
   useEffect(() => {
     if (target) return undefined;

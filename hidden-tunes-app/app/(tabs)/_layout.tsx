@@ -8,6 +8,7 @@ import { StyleSheet, View } from "react-native";
 import MiniPlayer from "../../components/MiniPlayer";
 import PerformanceOverlay from "../../components/PerformanceOverlay";
 import { runTabShellStartup } from "../../services/startupCoordinator";
+import { traceStartup } from "../../utils/startupTrace";
 
 type TabIconProps = {
   focused: boolean;
@@ -61,6 +62,7 @@ function queueTabShellStartup() {
 
 export default function TabLayout() {
   useEffect(() => {
+    traceStartup("(tabs)/_layout.tsx mounted — navigation shell ready");
     queueTabShellStartup();
   }, []);
 

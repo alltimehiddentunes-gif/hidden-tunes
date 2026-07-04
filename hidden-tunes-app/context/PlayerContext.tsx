@@ -12,6 +12,11 @@ import { AppState, AppStateStatus, InteractionManager } from "react-native";
 import HiddenAudio, {
   HiddenAudioStatus,
   isHiddenAudioNativeEngineAvailable,
+  subscribeHiddenAudioNativeDiagnostics,
+  subscribeHiddenAudioPlaybackEnded,
+  subscribeHiddenAudioProgress,
+  subscribeHiddenAudioProgressChanged,
+  subscribeHiddenAudioStateChanged,
 } from "../modules/HiddenAudio";
 
 import { BackendYouTubeTrack } from "../services/youtubeBackend";
@@ -2103,6 +2108,39 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       void poll();
     }, getProgressUpdateIntervalMs(appStateRef.current));
   }, [applyHiddenAudioStatus, stopHiddenAudioPolling]);
+
+  useEffect(() => {
+    if (!isHiddenAudioNativeEngineAvailable()) return undefined;
+
+    const listenerId = `hidden_audio_native_${Date.now()}`;
+    recordListenerRegister("hidden_audio_native_events", listenerId);
+
+    const unsubscribeProgressChanged = subscribeHiddenAudioProgressChanged(
+      (status) => {
+        if (!hiddenAudioLoadedRef.current || trackPlayerActiveRef.current) return;
+        if (isTvPlayerOpen()) return;
+        void applyHiddenAudioStatus(status);
+      }
+    );
+
+    const unsubscribeProgress = subscribeHiddenAudioProgress(() => {});
+    const unsubscribeState = subscribeHiddenAudioStateChanged(() => {});
+    const unsubscribeDiagnostics = subscribeHiddenAudioNativeDiagnostics(() => {});
+
+    const unsubscribePlaybackEnded = subscribeHiddenAudioPlaybackEnded(() => {
+      if (!hiddenAudioLoadedRef.current || trackPlayerActiveRef.current) return;
+      scheduleTrackAdvance();
+    });
+
+    return () => {
+      recordListenerUnregister("hidden_audio_native_events", listenerId);
+      unsubscribeProgressChanged();
+      unsubscribeProgress();
+      unsubscribeState();
+      unsubscribeDiagnostics();
+      unsubscribePlaybackEnded();
+    };
+  }, [applyHiddenAudioStatus, scheduleTrackAdvance]);
 
   const applyProgressUpdateInterval = useCallback(async (reason = "unspecified") => {
     recordApplyProgressUpdateIntervalCall(reason);

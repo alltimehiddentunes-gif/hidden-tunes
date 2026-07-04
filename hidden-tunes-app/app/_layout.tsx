@@ -9,7 +9,10 @@ import { preloadOnboardingStatus } from "../services/onboardingPreferences";
 import { hydrateHiddenTunesCatalogCache } from "../services/hiddenTunesApi";
 import { markAppMounted } from "../utils/startupDiagnostics";
 import { scheduleStartupTask } from "../utils/startupScheduler";
+import { traceStartup } from "../utils/startupTrace";
 import { startRuntimeInstrumentation } from "../utils/runtimeInstrumentation";
+
+traceStartup("app/_layout.tsx module evaluated");
 
 SplashScreen.preventAutoHideAsync().catch(() => {
   // Splash may already be hidden on fast reload — safe to ignore.
@@ -28,6 +31,7 @@ function RootLayout() {
   const memoizedScreenOptions = useMemo(() => screenOptions, []);
 
   useEffect(() => {
+    traceStartup("RootLayout mounted");
     markAppMounted("root_layout");
     startRuntimeInstrumentation();
 

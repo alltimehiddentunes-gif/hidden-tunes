@@ -1,4 +1,4 @@
-import { NativeModules } from "react-native";
+import { NativeEventEmitter, NativeModules } from "react-native";
 
 import { isHttpsArtworkUrl } from "../utils/artwork";
 
@@ -46,6 +46,10 @@ type HiddenAudioNativeModule = {
 
 const HiddenAudioNative = (NativeModules.HiddenAudioModule ||
   NativeModules.HiddenAudio) as HiddenAudioNativeModule | undefined;
+
+const hiddenAudioEvents = HiddenAudioNative
+  ? new NativeEventEmitter(HiddenAudioNative as never)
+  : null;
 
 let lastLoadedUrl = "";
 
@@ -241,5 +245,125 @@ const HiddenAudio = {
     return getNativeStatus();
   },
 };
+
+export type HiddenAudioProgressEvent = {
+  type?: string;
+  progress?: Record<string, unknown>;
+};
+
+export type HiddenAudioStateEvent = {
+  type?: string;
+  state?: Record<string, unknown>;
+};
+
+export type HiddenAudioPlaybackEndedEvent = {
+  type?: string;
+  track?: Record<string, unknown> | null;
+  index?: number;
+  positionSeconds?: number;
+  durationSeconds?: number;
+  status?: string;
+};
+
+export type HiddenAudioNativeDiagnosticEvent = {
+  type?: string;
+  eventName?: string;
+  data?: Record<string, unknown>;
+};
+
+function parseHiddenAudioProgressEvent(
+  event: HiddenAudioProgressEvent
+): HiddenAudioStatus | null {
+  const progressMap = (event?.progress || {}) as Record<string, unknown>;
+  if (!Object.keys(progressMap).length) return null;
+
+  const positionSeconds = Number(
+    progressMap.positionSeconds ?? progressMap.currentTime ?? 0
+  );
+  const durationSeconds = Number(
+    progressMap.durationSeconds ?? progressMap.duration ?? 0
+  );
+  const isPlayingValue = progressMap.isPlaying;
+  const status = String(progressMap.status || "");
+
+  const position = Math.max(
+    0,
+    Math.floor((Number.isFinite(positionSeconds) ? positionSeconds : 0) * 1000)
+  );
+  const duration = Math.max(
+    0,
+    Math.floor((Number.isFinite(durationSeconds) ? durationSeconds : 0) * 1000)
+  );
+
+  return {
+    position,
+    duration,
+    isPlaying:
+      isPlayingValue === true ||
+      isPlayingValue === 1 ||
+      isPlayingValue === "1" ||
+      status === "playing" ||
+      status === "buffering",
+    playbackState: status || undefined,
+  };
+}
+
+function addHiddenAudioListener<Event>(
+  eventName: string,
+  handler: (event: Event) => void
+): () => void {
+  if (!hiddenAudioEvents) return () => {};
+
+  const subscription = hiddenAudioEvents.addListener(eventName, handler);
+  return () => subscription.remove();
+}
+
+export function subscribeHiddenAudioProgressChanged(
+  handler: (status: HiddenAudioStatus) => void
+): () => void {
+  return addHiddenAudioListener<HiddenAudioProgressEvent>(
+    "HiddenAudioProgressChanged",
+    (event) => {
+      const parsed = parseHiddenAudioProgressEvent(event);
+      if (parsed) handler(parsed);
+    }
+  );
+}
+
+export function subscribeHiddenAudioProgress(
+  handler: (status: HiddenAudioStatus) => void
+): () => void {
+  return addHiddenAudioListener<HiddenAudioProgressEvent>(
+    "HiddenAudioProgress",
+    (event) => {
+      const parsed = parseHiddenAudioProgressEvent(event);
+      if (parsed) handler(parsed);
+    }
+  );
+}
+
+export function subscribeHiddenAudioStateChanged(
+  handler: (event: HiddenAudioStateEvent) => void
+): () => void {
+  return addHiddenAudioListener<HiddenAudioStateEvent>("HiddenAudioState", handler);
+}
+
+export function subscribeHiddenAudioNativeDiagnostics(
+  handler: (event: HiddenAudioNativeDiagnosticEvent) => void
+): () => void {
+  return addHiddenAudioListener<HiddenAudioNativeDiagnosticEvent>(
+    "HiddenAudioDiagnostic",
+    handler
+  );
+}
+
+export function subscribeHiddenAudioPlaybackEnded(
+  handler: (event: HiddenAudioPlaybackEndedEvent) => void
+): () => void {
+  return addHiddenAudioListener<HiddenAudioPlaybackEndedEvent>(
+    "HiddenAudioPlaybackEnded",
+    handler
+  );
+}
 
 export default HiddenAudio;

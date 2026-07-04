@@ -46,22 +46,51 @@ export type LaunchContentInput = {
 
 let cachedKey: string | null = null;
 let cachedSnapshot: LaunchContentSnapshot | null = null;
+let warnedInvalidLaunchSongs = false;
 
-function songIdentity(song: HiddenTunesNormalizedSong) {
+function warnInvalidLaunchSongsDropped(dropped: number) {
+  if (dropped <= 0 || warnedInvalidLaunchSongs) return;
+  warnedInvalidLaunchSongs = true;
+  console.warn(
+    `[launchContentLayer] Dropped ${dropped} invalid launch song ${dropped === 1 ? "entry" : "entries"}`
+  );
+}
+
+function sanitizeSongs(
+  songs: Array<HiddenTunesNormalizedSong | null | undefined>
+): HiddenTunesNormalizedSong[] {
+  let dropped = 0;
+  const valid = songs.filter((song): song is HiddenTunesNormalizedSong => {
+    if (!song || typeof song !== "object") {
+      dropped += 1;
+      return false;
+    }
+    return true;
+  });
+  warnInvalidLaunchSongsDropped(dropped);
+  return valid;
+}
+
+function songIdentity(song?: HiddenTunesNormalizedSong | null) {
+  if (!song) return "";
   return String(song.id || song.streamUrl || song.url || "").trim();
 }
 
-function isPlayableSong(song: HiddenTunesNormalizedSong) {
+function isPlayableSong(song?: HiddenTunesNormalizedSong | null) {
+  if (!song) return false;
   return Boolean(
     String(song.streamUrl || song.url || (song as { audioUrl?: string }).audioUrl || "").trim()
   );
 }
 
-function dedupePlayableSongs(songs: HiddenTunesNormalizedSong[], limit = DEFAULT_SONG_LIMIT) {
+function dedupePlayableSongs(
+  songs: Array<HiddenTunesNormalizedSong | null | undefined>,
+  limit = DEFAULT_SONG_LIMIT
+) {
   const seen = new Set<string>();
   const unique: HiddenTunesNormalizedSong[] = [];
 
-  songs.forEach((song) => {
+  sanitizeSongs(songs).forEach((song) => {
     if (!isPlayableSong(song)) return;
     const key = getSongDedupeKey(song);
     if (!key || seen.has(key)) return;
@@ -73,7 +102,7 @@ function dedupePlayableSongs(songs: HiddenTunesNormalizedSong[], limit = DEFAULT
 }
 
 function buildLaunchCacheKey(input: LaunchContentInput) {
-  const songs = input.songs || [];
+  const songs = sanitizeSongs(input.songs || []);
   const first = songIdentity(songs[0]);
   const last = songIdentity(songs[songs.length - 1]);
   const playlistHead = String(input.playlists?.[0]?.id || input.sharedDiscovery.rankedAlbums[0]?.id || "");
@@ -91,18 +120,19 @@ export function buildLaunchFeaturedPlaylistsFromSongs(
   songs: HiddenTunesNormalizedSong[],
   limit = DEFAULT_PLAYLIST_LIMIT
 ): HiddenTunesCloudPlaylist[] {
-  const newestSongs = buildRecentlyDiscovered(songs, 40);
-  const afroSongs = songs.filter((song) =>
+  const safeSongs = sanitizeSongs(songs);
+  const newestSongs = buildRecentlyDiscovered(safeSongs, 40);
+  const afroSongs = safeSongs.filter((song) =>
     `${song.genre || ""} ${song.mood || ""} ${song.title || ""}`
       .toLowerCase()
       .includes("afro")
   );
-  const gospelSongs = songs.filter((song) =>
+  const gospelSongs = safeSongs.filter((song) =>
     `${song.genre || ""} ${song.mood || ""} ${song.title || ""}`
       .toLowerCase()
       .match(/gospel|worship|praise/)
   );
-  const instrumentalSongs = songs.filter((song) =>
+  const instrumentalSongs = safeSongs.filter((song) =>
     `${song.genre || ""} ${song.title || ""}`.toLowerCase().includes("instrumental")
   );
 
@@ -235,7 +265,9 @@ function buildHiddenPicks(
   sharedDiscovery: SharedDiscoverySnapshot,
   limit = DEFAULT_SONG_LIMIT
 ) {
-  const curatedSongs = sharedDiscovery.curatedSections.flatMap((section) => section.songs);
+  const curatedSongs = sharedDiscovery.curatedSections.flatMap(
+    (section) => section.songs || []
+  );
   const recommended = sharedDiscovery.smartRecommendations?.recommendedForYou || [];
 
   return dedupePlayableSongs([...curatedSongs, ...recommended], limit);
@@ -288,8 +320,21 @@ function mergeLaunchContentSnapshots(
   };
 }
 
+const EMPTY_LAUNCH_SNAPSHOT: LaunchContentSnapshot = {
+  featuredPlaylists: [],
+  featuredWorlds: buildFallbackWorldChips(DEFAULT_CHIP_LIMIT),
+  featuredGenres: buildFallbackGenreChips(DEFAULT_CHIP_LIMIT),
+  featuredRadios: [],
+  featuredVideos: buildFeaturedVideoChips(DEFAULT_CHIP_LIMIT),
+  featuredPodcasts: buildFeaturedPodcastChips(DEFAULT_CHIP_LIMIT),
+  trendingNow: [],
+  newReleases: [],
+  hiddenPicks: [],
+  continueExploring: CONTINUE_EXPLORING_CHIPS,
+};
+
 function buildLaunchContentSnapshot(input: LaunchContentInput): LaunchContentSnapshot {
-  const songs = input.songs || [];
+  const songs = sanitizeSongs(input.songs || []);
   const sharedDiscovery = input.sharedDiscovery;
   const smartRecommendations = input.smartRecommendations || sharedDiscovery.smartRecommendations;
 
@@ -308,10 +353,12 @@ function buildLaunchContentSnapshot(input: LaunchContentInput): LaunchContentSna
   const featuredPodcasts = buildFeaturedPodcastChips(DEFAULT_CHIP_LIMIT);
   const trendingNow = buildTrendingNow(sharedDiscovery, songs);
   const trendingKeys = new Set(trendingNow.map(getSongDedupeKey).filter(Boolean));
-  const newReleaseCandidates = sharedDiscovery.recentlyDiscovered.filter((song) => {
-    const key = getSongDedupeKey(song);
-    return key && !trendingKeys.has(key);
-  });
+  const newReleaseCandidates = sanitizeSongs(sharedDiscovery.recentlyDiscovered).filter(
+    (song) => {
+      const key = getSongDedupeKey(song);
+      return key && !trendingKeys.has(key);
+    }
+  );
 
   return {
     featuredPlaylists,
@@ -328,26 +375,32 @@ function buildLaunchContentSnapshot(input: LaunchContentInput): LaunchContentSna
 }
 
 export function getLaunchContentSnapshot(input: LaunchContentInput): LaunchContentSnapshot {
-  const key = buildLaunchCacheKey(input);
+  try {
+    const key = buildLaunchCacheKey(input);
 
-  if (cachedKey === key && cachedSnapshot) {
-    return cachedSnapshot;
+    if (cachedKey === key && cachedSnapshot) {
+      return cachedSnapshot;
+    }
+
+    const cached = readCachedLaunchContent();
+    const snapshot = buildLaunchContentSnapshot(input);
+    const merged = cached ? mergeLaunchContentSnapshots(snapshot, cached) : snapshot;
+
+    cachedKey = key;
+    cachedSnapshot = merged;
+    schedulePersistLaunchContent(key, merged);
+
+    return merged;
+  } catch (error) {
+    console.warn("[launchContentLayer] Falling back to safe launch content:", error);
+    return cachedSnapshot || readCachedLaunchContent() || EMPTY_LAUNCH_SNAPSHOT;
   }
-
-  const cached = readCachedLaunchContent();
-  const snapshot = buildLaunchContentSnapshot(input);
-  const merged = cached ? mergeLaunchContentSnapshots(snapshot, cached) : snapshot;
-
-  cachedKey = key;
-  cachedSnapshot = merged;
-  schedulePersistLaunchContent(key, merged);
-
-  return merged;
 }
 
 export function resetLaunchContentCache() {
   cachedKey = null;
   cachedSnapshot = null;
+  warnedInvalidLaunchSongs = false;
 }
 
 export function peekLaunchContentSnapshot() {
