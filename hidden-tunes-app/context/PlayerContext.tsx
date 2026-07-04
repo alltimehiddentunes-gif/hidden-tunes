@@ -9,7 +9,10 @@ import {
 } from "react";
 import { AppState, AppStateStatus, InteractionManager } from "react-native";
 
-import HiddenAudio, { HiddenAudioStatus } from "../modules/HiddenAudio";
+import HiddenAudio, {
+  HiddenAudioStatus,
+  isHiddenAudioNativeEngineAvailable,
+} from "../modules/HiddenAudio";
 
 import { BackendYouTubeTrack } from "../services/youtubeBackend";
 
@@ -2351,6 +2354,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           consumePreloadedUrl(normalizedSong.id) ||
           resolveHiddenAudioUrl(normalizedSong);
 
+        logPlayerContextDev("[playback-resolve]", {
+          songId: normalizedSong.id,
+          title: normalizedSong.title,
+          resolvedUrl: audioUrl ? audioUrl.slice(0, 120) : null,
+          engine: "hidden_audio",
+          hiddenAudioNativeAvailable: isHiddenAudioNativeEngineAvailable(),
+        });
+
         if (!audioUrl) {
           logPlayerContextError(
             "Missing audio source:",
@@ -2368,6 +2379,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         try {
           await HiddenAudio.load(audioUrl);
         } catch (loadError) {
+          logPlayerContextDev("[playback-error]", {
+            songId: normalizedSong.id,
+            engine: "hidden_audio",
+            message: String((loadError as Error)?.message || loadError),
+          });
           logAudioLoadFailure({
             songId: normalizedSong.id,
             reason: String(
