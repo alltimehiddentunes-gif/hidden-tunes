@@ -56,7 +56,7 @@ export async function GET(_request: Request, context: RouteContext) {
 
   const { data: showRow, error: showError } = await supabaseAdmin
     .from("podcast_shows")
-    .select("id")
+    .select("id, is_mature")
     .eq("id", String(row.show_id || ""))
     .eq("status", "approved")
     .eq("is_active", true)
@@ -73,6 +73,13 @@ export async function GET(_request: Request, context: RouteContext) {
 
   if (!showRow) {
     return jsonPodcastError("Podcast show is unavailable.", 404);
+  }
+
+  if (showRow.is_mature === true) {
+    return jsonPodcastError(
+      "Mature podcast playback requires age confirmation.",
+      403
+    );
   }
 
   return NextResponse.json({

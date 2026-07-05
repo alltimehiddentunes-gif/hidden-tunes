@@ -1,4 +1,8 @@
 import { cleanText, parsePositiveInt } from "@/lib/tvCatalog";
+import {
+  resolvePodcastCategorySlugs,
+  buildShowCategoryOrFilterForSlugs,
+} from "@/lib/podcastCategorySlugs";
 
 export const PODCAST_SHOW_STATUSES = [
   "pending",
@@ -29,7 +33,7 @@ export const PODCAST_EPISODE_PLAYBACK_STATUSES = [
 ] as const;
 
 export const PODCAST_DEFAULT_PAGE_SIZE = 20;
-export const PODCAST_MAX_PAGE_SIZE = 30;
+export const PODCAST_MAX_PAGE_SIZE = 40;
 
 export type PodcastShowStatus = (typeof PODCAST_SHOW_STATUSES)[number];
 export type PodcastFeedStatus = (typeof PODCAST_FEED_STATUSES)[number];
@@ -206,13 +210,8 @@ function escapeIlikePattern(value: string) {
 }
 
 export function buildShowCategoryOrFilter(category: string) {
-  const escaped = escapeIlikePattern(category);
-  const needsQuotes = /[^a-zA-Z0-9_-]/.test(category);
-  const encoded = needsQuotes
-    ? `"${category.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`
-    : category;
-
-  return `primary_category.ilike.%${escaped}%,categories.cs.{${encoded}}`;
+  const slugs = resolvePodcastCategorySlugs(category);
+  return buildShowCategoryOrFilterForSlugs(slugs);
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -222,11 +221,16 @@ export function applyPublicShowFilters(query: any, options: {
   isFeatured?: boolean;
   isExclusive?: boolean;
   searchQuery?: string | null;
+  includeMature?: boolean;
 }) {
   let next = query
     .eq("status", "approved")
     .eq("is_active", true)
     .eq("feed_status", "active");
+
+  if (!options.includeMature) {
+    next = next.eq("is_mature", false);
+  }
 
   if (options.isFeatured) {
     next = next.eq("is_featured", true);

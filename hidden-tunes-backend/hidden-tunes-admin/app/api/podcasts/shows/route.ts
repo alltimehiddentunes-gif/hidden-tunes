@@ -36,6 +36,9 @@ export async function GET(request: NextRequest) {
     isFeatured: parseBooleanQuery(params.get("is_featured")),
     isExclusive: parseBooleanQuery(params.get("is_exclusive")),
     searchQuery: cleanPodcastFilter(params.get("q")),
+    includeMature: parseBooleanQuery(
+      params.get("include_mature") || params.get("includeMature")
+    ),
   });
 
   const { data, error, count } = await query.range(from, to);

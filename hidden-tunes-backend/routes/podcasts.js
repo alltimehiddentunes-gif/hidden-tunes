@@ -30,6 +30,7 @@ const SHOW_SELECT = `
   host_name,
   artwork_url,
   primary_category,
+  mature_category,
   categories,
   language,
   is_mature
@@ -67,11 +68,79 @@ const CATEGORY_GRADIENTS = [
   ["#123224", "#07140E"],
 ];
 
+const MATURE_CATEGORIES = [
+  {
+    id: "relationships",
+    slug: "relationships",
+    title: "Relationships",
+    subtitle: "Adult relationship conversations",
+    icon: "heart-outline",
+  },
+  {
+    id: "dating",
+    slug: "dating",
+    title: "Dating",
+    subtitle: "Modern dating, boundaries, and stories",
+    icon: "chatbubbles-outline",
+  },
+  {
+    id: "intimacy-education",
+    slug: "intimacy-education",
+    title: "Intimacy Education",
+    subtitle: "Consent-forward adult education",
+    icon: "school-outline",
+  },
+  {
+    id: "adult-lifestyle",
+    slug: "adult-lifestyle",
+    title: "Adult Lifestyle",
+    subtitle: "Culture and lifestyle for adults",
+    icon: "sparkles-outline",
+  },
+  {
+    id: "confessions-stories",
+    slug: "confessions-stories",
+    title: "Confessions / Stories",
+    subtitle: "Personal stories and candid conversations",
+    icon: "book-outline",
+  },
+  {
+    id: "wellness-18",
+    slug: "wellness-18",
+    title: "Wellness 18+",
+    subtitle: "Adult wellness and health conversations",
+    icon: "pulse-outline",
+  },
+  {
+    id: "mature-comedy",
+    slug: "mature-comedy",
+    title: "Mature Comedy",
+    subtitle: "Explicit comedy for adult listeners",
+    icon: "happy-outline",
+  },
+  {
+    id: "mature-talk-shows",
+    slug: "mature-talk-shows",
+    title: "Mature Talk Shows",
+    subtitle: "Unfiltered interviews and talk shows",
+    icon: "mic-outline",
+  },
+];
+
 const PODCAST_SEED_FEEDS = [
+  {
+    title: "Call Her Daddy",
+    aliases: ["Call Her Daddy - Alex Cooper", "Call Her Daddy with Alex Cooper"],
+    feedUrl: "https://feeds.simplecast.com/mKn_QmLS",
+    category: "relationships-dating",
+    matureCategory: "dating",
+    isMature: true,
+  },
   {
     title: "Girls Gotta Eat",
     feedUrl: "https://feeds.megaphone.fm/DEARMEDIALLC6497520465",
     category: "relationships-dating",
+    matureCategory: "dating",
     isMature: true,
   },
   {
@@ -79,6 +148,7 @@ const PODCAST_SEED_FEEDS = [
     aliases: ["Why Won't You Date Me? with Nicole Byer"],
     feedUrl: "https://rss.art19.com/why-wont-you-date-me",
     category: "relationships-dating",
+    matureCategory: "mature-comedy",
     isMature: true,
   },
 ];
@@ -110,6 +180,14 @@ function normalizePage(query = {}) {
 
 function includeMature(query = {}) {
   return String(query.include_mature || query.includeMature || "").toLowerCase() === "true";
+}
+
+function matureGateEnabled(query = {}) {
+  const matureEnabled =
+    String(query.mature_enabled || query.matureEnabled || "").toLowerCase() === "true";
+  const ageConfirmed =
+    String(query.age_confirmed || query.ageConfirmed || "").toLowerCase() === "true";
+  return matureEnabled && ageConfirmed;
 }
 
 function slugifyCategory(value) {
@@ -366,6 +444,7 @@ function findSeedFeed({ id = "", title = "" } = {}) {
 
 async function fetchFeedXmlWithDiagnostics(seed) {
   const startedAt = Date.now();
+  console.log("[podcasts] rss feed url", seed.feedUrl);
   logPodcastRss({
     event: "rss_fetch_start",
     title: seed.title,
@@ -444,6 +523,26 @@ async function loadPodcastShowForSeed(seed) {
   return "";
 }
 
+async function hasCachedPodcastEpisodes(showId, allowMature) {
+  if (!showId) return false;
+
+  let request = supabase
+    .from("podcast_episodes")
+    .select("id, podcast_shows!inner(is_mature)", { count: "exact", head: true })
+    .eq("show_id", showId)
+    .eq("status", "approved")
+    .eq("is_active", true)
+    .eq("playback_status", "playable");
+
+  if (!allowMature) {
+    request = request.eq("podcast_shows.is_mature", false);
+  }
+
+  const { count, error } = await request;
+  if (error) throw error;
+  return Number(count || 0) > 0;
+}
+
 async function importSeedPodcastFeed(seed) {
   const { xml, httpStatus } = await fetchFeedXmlWithDiagnostics(seed);
   const parsed = parsePodcastXml(xml);
@@ -479,6 +578,7 @@ async function importSeedPodcastFeed(seed) {
     is_active: true,
     is_verified: true,
     is_mature: seed.isMature === true,
+    mature_category: seed.isMature === true ? seed.matureCategory || null : null,
     last_checked_at: now,
   };
 
@@ -570,6 +670,36 @@ async function importSeedPodcastFeed(seed) {
   return { showId, parsedEpisodeCount: parsedEpisodes.length, httpStatus };
 }
 
+async function importPodcastFeedForShow(showId, allowMature) {
+  if (!showId) return null;
+
+  let request = supabase
+    .from("podcast_shows")
+    .select("id, title, feed_url, primary_category, is_mature")
+    .eq("id", showId)
+    .eq("status", "approved")
+    .eq("is_active", true)
+    .limit(1);
+
+  if (!allowMature) {
+    request = request.eq("is_mature", false);
+  }
+
+  const { data, error } = await request;
+  if (error) throw error;
+
+  const show = data?.[0];
+  const feedUrl = normalizeHttpUrl(show?.feed_url);
+  if (!show?.id || !feedUrl) return null;
+
+  return importSeedPodcastFeed({
+    title: show.title || "Hidden Tunes Podcast",
+    feedUrl,
+    category: show.primary_category || "podcasts",
+    isMature: show.is_mature === true,
+  });
+}
+
 async function resolvePodcastShowId({ id = "", title = "", includeMatureShows = false } = {}) {
   const cleanId = String(id || "").trim();
 
@@ -579,6 +709,11 @@ async function resolvePodcastShowId({ id = "", title = "", includeMatureShows = 
 
   const seed = findSeedFeed({ id: cleanId, title });
   if (seed) {
+    const existingShowId = await loadPodcastShowForSeed(seed);
+    if (await hasCachedPodcastEpisodes(existingShowId, includeMatureShows)) {
+      return existingShowId;
+    }
+
     const imported = await importSeedPodcastFeed(seed);
     return imported.showId;
   }
@@ -644,6 +779,20 @@ function normalizeCategory(row, itemCount, index) {
   };
 }
 
+function normalizeMatureCategory(category, itemCount, index) {
+  return {
+    id: category.id,
+    slug: category.slug,
+    title: category.title,
+    subtitle: category.subtitle,
+    icon: category.icon,
+    artwork_url: null,
+    item_count: Number(itemCount || 0),
+    gradient: CATEGORY_GRADIENTS[index % CATEGORY_GRADIENTS.length],
+    children: [],
+  };
+}
+
 function normalizeEpisodeMetadata(row, categorySlug = "") {
   const show = getShow(row);
   return {
@@ -654,7 +803,8 @@ function normalizeEpisodeMetadata(row, categorySlug = "") {
     description: row.description || "",
     duration_seconds: Number(row.duration_seconds || 0),
     artwork_url: row.artwork_url || show.artwork_url || null,
-    category_slug: categorySlug || slugifyCategory(show.primary_category),
+    category_slug:
+      categorySlug || slugifyCategory(show.mature_category || show.primary_category),
     language: show.language || "",
     published_at: row.published_at || null,
     is_mature: show.is_mature === true,
@@ -687,6 +837,31 @@ function applyPublicEpisodeFilters(request, allowMature) {
   }
 
   return next;
+}
+
+function applyMatureEpisodeFilters(request) {
+  return request
+    .eq("status", "approved")
+    .eq("is_active", true)
+    .eq("playback_status", "playable")
+    .eq("podcast_shows.status", "approved")
+    .eq("podcast_shows.is_active", true)
+    .eq("podcast_shows.feed_status", "active")
+    .eq("podcast_shows.is_mature", true);
+}
+
+async function countMatureEpisodesForCategory(slug) {
+  let request = supabase
+    .from("podcast_episodes")
+    .select("id, podcast_shows!inner(mature_category, is_mature)", {
+      count: "exact",
+      head: true,
+    })
+    .eq("podcast_shows.mature_category", slug);
+
+  request = applyMatureEpisodeFilters(request);
+  const { count, error } = await request;
+  return { count: count || 0, error };
 }
 
 async function fetchActiveCategories() {
@@ -804,6 +979,7 @@ router.get("/show/:id/episodes", async (req, res) => {
     limit: pagination.limit,
     includeMature: allowMature,
   });
+  console.log("[podcasts] detail fetch", { id, slug: id });
 
   try {
     const showId = await resolvePodcastShowId({
@@ -813,6 +989,7 @@ router.get("/show/:id/episodes", async (req, res) => {
     });
 
     if (!showId) {
+      console.log("[podcasts] episodes returned", 0);
       logPodcastRss({
         event: "episode_endpoint_return",
         showId: id,
@@ -827,24 +1004,40 @@ router.get("/show/:id/episodes", async (req, res) => {
       });
     }
 
-    const rangeEnd = pagination.offset + pagination.limit;
-    let request = supabase
-      .from("podcast_episodes")
-      .select(EPISODE_SELECT)
-      .eq("show_id", showId)
-      .order("published_at", { ascending: false, nullsFirst: false })
-      .range(pagination.offset, rangeEnd);
+    const fetchRows = async () => {
+      const rangeEnd = pagination.offset + pagination.limit;
+      let request = supabase
+        .from("podcast_episodes")
+        .select(EPISODE_SELECT)
+        .eq("show_id", showId)
+        .order("published_at", { ascending: false, nullsFirst: false })
+        .range(pagination.offset, rangeEnd);
 
-    request = applyPublicEpisodeFilters(request, allowMature);
+      request = applyPublicEpisodeFilters(request, allowMature);
+      return request;
+    };
 
-    const { data, error } = await request;
+    let { data, error } = await fetchRows();
     if (error) {
       logSupabaseError("GET /api/podcasts/show/:id/episodes", error, { id, showId });
       return res.status(500).json({ error: "Failed to fetch podcast episodes" });
     }
 
+    if ((data || []).length === 0 && pagination.page === 1) {
+      await importPodcastFeedForShow(showId, allowMature);
+      const refreshed = await fetchRows();
+      data = refreshed.data;
+      error = refreshed.error;
+
+      if (error) {
+        logSupabaseError("GET /api/podcasts/show/:id/episodes", error, { id, showId });
+        return res.status(500).json({ error: "Failed to fetch podcast episodes" });
+      }
+    }
+
     const rows = data || [];
     const pageRows = rows.slice(0, pagination.limit);
+    console.log("[podcasts] episodes returned", pageRows.length);
 
     logPodcastRss({
       event: "episode_endpoint_return",
@@ -1023,6 +1216,225 @@ router.get("/search", async (req, res) => {
       durationMs: timer.durationMs(),
       message: error?.message || "unknown_error",
       q,
+    });
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+router.get("/mature/categories", async (req, res) => {
+  const timer = createRequestTimer();
+  const gateOk = matureGateEnabled(req.query);
+
+  logApiRequest("GET /api/podcasts/mature/categories", { gateOk });
+
+  try {
+    if (!gateOk) {
+      return res.status(403).json({ error: "Mature podcasts require age confirmation" });
+    }
+
+    const categories = [];
+    for (const category of MATURE_CATEGORIES) {
+      const { count, error } = await countMatureEpisodesForCategory(category.slug);
+      if (error) {
+        logSupabaseError("GET /api/podcasts/mature/categories", error, {
+          category: category.slug,
+        });
+        return res.status(500).json({ error: "Failed to fetch mature categories" });
+      }
+      categories.push(normalizeMatureCategory(category, count, categories.length));
+    }
+
+    logApiSuccess("GET /api/podcasts/mature/categories", {
+      durationMs: timer.durationMs(),
+      resultCount: categories.length,
+    });
+
+    return res.json({ categories });
+  } catch (error) {
+    logApiError("GET /api/podcasts/mature/categories", {
+      durationMs: timer.durationMs(),
+      message: error?.message || "unknown_error",
+    });
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+router.get("/mature/episodes", async (req, res) => {
+  const timer = createRequestTimer();
+  const gateOk = matureGateEnabled(req.query);
+  const category = String(req.query.category || "").trim();
+  const pagination = normalizePage(req.query);
+
+  logApiRequest("GET /api/podcasts/mature/episodes", {
+    category,
+    gateOk,
+    page: pagination.page,
+    limit: pagination.limit,
+  });
+
+  try {
+    if (!gateOk) {
+      return res.status(403).json({ error: "Mature podcasts require age confirmation" });
+    }
+
+    const rangeEnd = pagination.offset + pagination.limit;
+    let request = supabase
+      .from("podcast_episodes")
+      .select(EPISODE_SELECT)
+      .order("published_at", { ascending: false, nullsFirst: false })
+      .range(pagination.offset, rangeEnd);
+
+    request = applyMatureEpisodeFilters(request);
+
+    if (category) {
+      request = request.eq("podcast_shows.mature_category", category);
+    }
+
+    const { data, error } = await request;
+    if (error) {
+      logSupabaseError("GET /api/podcasts/mature/episodes", error, { category });
+      return res.status(500).json({ error: "Failed to fetch mature episodes" });
+    }
+
+    const rows = data || [];
+    const pageRows = rows.slice(0, pagination.limit);
+
+    logApiSuccess("GET /api/podcasts/mature/episodes", {
+      durationMs: timer.durationMs(),
+      resultCount: pageRows.length,
+      hasMore: rows.length > pagination.limit,
+    });
+
+    return res.json({
+      items: pageRows.map((row) => normalizeEpisodeMetadata(row, category)),
+      page: pagination.page,
+      limit: pagination.limit,
+      hasMore: rows.length > pagination.limit,
+    });
+  } catch (error) {
+    logApiError("GET /api/podcasts/mature/episodes", {
+      durationMs: timer.durationMs(),
+      message: error?.message || "unknown_error",
+      category,
+    });
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+router.get("/mature/search", async (req, res) => {
+  const timer = createRequestTimer();
+  const gateOk = matureGateEnabled(req.query);
+  const q = String(req.query.q || "").trim();
+  const search = escapeIlikePattern(q);
+  const pagination = normalizePage(req.query);
+
+  logApiRequest("GET /api/podcasts/mature/search", {
+    q,
+    gateOk,
+    page: pagination.page,
+    limit: pagination.limit,
+  });
+
+  try {
+    if (!gateOk) {
+      return res.status(403).json({ error: "Mature podcasts require age confirmation" });
+    }
+
+    if (!search) {
+      return res.json({
+        items: [],
+        page: pagination.page,
+        limit: pagination.limit,
+        hasMore: false,
+      });
+    }
+
+    const rangeEnd = pagination.offset + pagination.limit;
+    let request = supabase
+      .from("podcast_episodes")
+      .select(EPISODE_SELECT)
+      .or(`title.ilike.%${search}%,description.ilike.%${search}%`)
+      .order("published_at", { ascending: false, nullsFirst: false })
+      .range(pagination.offset, rangeEnd);
+
+    request = applyMatureEpisodeFilters(request);
+
+    const { data, error } = await request;
+    if (error) {
+      logSupabaseError("GET /api/podcasts/mature/search", error, { q });
+      return res.status(500).json({ error: "Failed to search mature episodes" });
+    }
+
+    const rows = data || [];
+    const pageRows = rows.slice(0, pagination.limit);
+
+    logApiSuccess("GET /api/podcasts/mature/search", {
+      durationMs: timer.durationMs(),
+      resultCount: pageRows.length,
+      hasMore: rows.length > pagination.limit,
+    });
+
+    return res.json({
+      items: pageRows.map((row) => normalizeEpisodeMetadata(row)),
+      page: pagination.page,
+      limit: pagination.limit,
+      hasMore: rows.length > pagination.limit,
+    });
+  } catch (error) {
+    logApiError("GET /api/podcasts/mature/search", {
+      durationMs: timer.durationMs(),
+      message: error?.message || "unknown_error",
+      q,
+    });
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+router.get("/mature/episodes/:id/play", async (req, res) => {
+  const timer = createRequestTimer();
+  const gateOk = matureGateEnabled(req.query);
+  const id = String(req.params.id || "").trim();
+
+  logApiRequest("GET /api/podcasts/mature/episodes/:id/play", { id, gateOk });
+
+  try {
+    if (!gateOk) {
+      return res.status(403).json({ error: "Mature podcasts require age confirmation" });
+    }
+
+    let request = supabase
+      .from("podcast_episodes")
+      .select(EPISODE_PLAY_SELECT)
+      .eq("id", id)
+      .eq("status", "approved")
+      .eq("is_active", true)
+      .eq("playback_status", "playable")
+      .eq("podcast_shows.status", "approved")
+      .eq("podcast_shows.is_active", true)
+      .eq("podcast_shows.feed_status", "active")
+      .eq("podcast_shows.is_mature", true);
+
+    const { data, error } = await request.maybeSingle();
+    if (error) {
+      logSupabaseError("GET /api/podcasts/mature/episodes/:id/play", error, { id });
+      return res.status(500).json({ error: "Failed to fetch mature podcast audio" });
+    }
+
+    if (!data?.audio_url) {
+      return res.status(404).json({ error: "Podcast audio unavailable" });
+    }
+
+    logApiSuccess("GET /api/podcasts/mature/episodes/:id/play", {
+      durationMs: timer.durationMs(),
+      resultCount: 1,
+    });
+
+    return res.json(normalizeEpisodePlay(data));
+  } catch (error) {
+    logApiError("GET /api/podcasts/mature/episodes/:id/play", {
+      durationMs: timer.durationMs(),
+      message: error?.message || "unknown_error",
+      id,
     });
     return res.status(500).json({ error: "Server error" });
   }
