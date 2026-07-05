@@ -145,6 +145,18 @@ function extractCategories(channel: Record<string, unknown>) {
   return Array.from(categories);
 }
 
+function extractEpisodeGuid(item: Record<string, unknown>) {
+  const guid = item.guid;
+  if (typeof guid === "string") {
+    return cleanText(guid, 500);
+  }
+  if (guid && typeof guid === "object") {
+    const record = guid as Record<string, unknown>;
+    return cleanText(record["#text"] || record.text, 500);
+  }
+  return cleanText(item.id, 500);
+}
+
 function extractEpisodeAudioUrl(item: Record<string, unknown>) {
   const enclosures = asArray(item.enclosure);
   for (const enclosure of enclosures) {
@@ -221,6 +233,7 @@ function parseRssChannel(channel: Record<string, unknown>): ParsedPodcastFeed {
       season_number: Number.isFinite(Number(record["itunes:season"]))
         ? Number(record["itunes:season"])
         : null,
+      guid: extractEpisodeGuid(record),
     });
   }
 
@@ -292,6 +305,7 @@ function parseAtomFeed(feed: Record<string, unknown>): ParsedPodcastFeed {
       published_at: parsePublishedAt(record.published || record.updated),
       episode_number: null,
       season_number: null,
+      guid: cleanText(record.id, 500),
     });
   }
 
@@ -347,9 +361,12 @@ export function parsePodcastFeedXml(xml: string): ParsedPodcastFeed {
   throw new Error("Unsupported feed format.");
 }
 
-export async function fetchPodcastFeedXml(feedUrl: string) {
+export async function fetchPodcastFeedXml(
+  feedUrl: string,
+  timeoutMs = FEED_FETCH_TIMEOUT_MS
+) {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), FEED_FETCH_TIMEOUT_MS);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     const response = await fetch(feedUrl, {
@@ -419,27 +436,104 @@ async function ensureUniqueShowSlug(baseTitle: string) {
   throw new Error("Could not generate a unique show slug.");
 }
 
-async function loadExistingEpisodesByAudioUrl(showId: string) {
-  const { data, error } = await supabaseAdmin
+async function loadExistingEpisodes(showId: string) {
+  const selectWithGuid =
+    "id, audio_url, episode_guid, title, published_at, status, playback_status, is_active, is_verified";
+  const selectFallback =
+    "id, audio_url, title, published_at, status, playback_status, is_active, is_verified";
+
+  let data: Record<string, unknown>[] | null = null;
+  let errorMessage = "";
+
+  const primary = await supabaseAdmin
     .from("podcast_episodes")
-    .select("id, audio_url, status, playback_status, is_active, is_verified")
+    .select(selectWithGuid)
     .eq("show_id", showId);
 
-  if (error) {
-    throw new Error(error.message);
+  if (primary.error) {
+    errorMessage = primary.error.message;
+    const fallback = await supabaseAdmin
+      .from("podcast_episodes")
+      .select(selectFallback)
+      .eq("show_id", showId);
+
+    if (fallback.error) {
+      throw new Error(fallback.error.message);
+    }
+
+    data = (fallback.data || []) as Record<string, unknown>[];
+  } else {
+    data = (primary.data || []) as Record<string, unknown>[];
   }
 
-  const map = new Map<string, Record<string, unknown>>();
+  void errorMessage;
+
+  const byAudioUrl = new Map<string, Record<string, unknown>>();
+  const byGuid = new Map<string, Record<string, unknown>>();
+  const byTitlePublished = new Map<string, Record<string, unknown>>();
+
   for (const row of data || []) {
-    const audioUrl = cleanText((row as { audio_url?: string }).audio_url, 2000);
-    if (audioUrl) map.set(audioUrl, row as Record<string, unknown>);
+    const record = row as Record<string, unknown>;
+    const audioUrl = cleanText(record.audio_url, 2000);
+    const guid = cleanText(record.episode_guid, 500);
+    const title = cleanText(record.title, 300)?.toLowerCase() || "";
+    const publishedAt = cleanText(record.published_at, 40) || "";
+
+    if (audioUrl) byAudioUrl.set(audioUrl, record);
+    if (guid) byGuid.set(guid, record);
+    if (title) {
+      byTitlePublished.set(`${title}|${publishedAt}`, record);
+    }
   }
 
-  return map;
+  return { byAudioUrl, byGuid, byTitlePublished };
+}
+
+function findExistingEpisode(
+  maps: Awaited<ReturnType<typeof loadExistingEpisodes>>,
+  episode: ParsedPodcastEpisode
+) {
+  const guid = cleanText(episode.guid, 500);
+  if (guid && maps.byGuid.has(guid)) {
+    return maps.byGuid.get(guid) || null;
+  }
+
+  const audioUrl = cleanText(episode.audio_url, 2000);
+  if (audioUrl && maps.byAudioUrl.has(audioUrl)) {
+    return maps.byAudioUrl.get(audioUrl) || null;
+  }
+
+  const title = cleanText(episode.title, 300)?.toLowerCase() || "";
+  const publishedAt = cleanText(episode.published_at, 40) || "";
+  if (title) {
+    return maps.byTitlePublished.get(`${title}|${publishedAt}`) || null;
+  }
+
+  return null;
 }
 
 function parseAutoApprove(value: unknown) {
   return value === true || value === "true" || value === 1 || value === "1";
+}
+
+function isMissingEpisodeGuidColumnError(message: string) {
+  return /episode_guid/i.test(message) && /does not exist|column/i.test(message);
+}
+
+function isMissingMatureCategoryColumnError(message: string) {
+  return /mature_category/i.test(message) && /does not exist|column/i.test(message);
+}
+
+function stripEpisodeGuid(metadata: Record<string, unknown>) {
+  const next = { ...metadata };
+  delete next.episode_guid;
+  return next;
+}
+
+function stripMatureCategory(metadata: Record<string, unknown>) {
+  const next = { ...metadata };
+  delete next.mature_category;
+  return next;
 }
 
 function shouldPreserveShowModeration(
@@ -518,17 +612,45 @@ export async function ingestPodcastFeed(
   options: PodcastIngestOptions = {}
 ): Promise<PodcastIngestResult> {
   const autoApprove = parseAutoApprove(options.auto_approve);
+  const isMature = options.is_mature === true;
+  const matureCategory = isMature ? cleanText(options.mature_category, 120) : null;
   const feedUrl = validatePodcastFeedUrl(feedUrlInput);
   if (!feedUrl) {
     throw new Error("A valid http(s) RSS feed URL is required.");
   }
 
-  const xml = await fetchPodcastFeedXml(feedUrl);
+  const xml = await fetchPodcastFeedXml(
+    feedUrl,
+    options.feed_timeout_ms || FEED_FETCH_TIMEOUT_MS
+  );
   const parsed = parsePodcastFeedXml(xml);
+
+  const maxEpisodes = Math.min(
+    PODCAST_MAX_INGEST_EPISODES,
+    Math.max(1, Number(options.max_episodes || PODCAST_MAX_INGEST_EPISODES))
+  );
+  parsed.episodes = parsed.episodes.slice(0, maxEpisodes);
+
+  if (options.category_slug) {
+    const categorySlug = cleanText(options.category_slug, 120);
+    if (categorySlug) {
+      parsed.primary_category = categorySlug;
+      parsed.categories = Array.from(
+        new Set([categorySlug, ...parsed.categories])
+      ).slice(0, 8);
+    }
+  }
+
+  if (isMature && matureCategory) {
+    parsed.categories = Array.from(
+      new Set([matureCategory, ...parsed.categories])
+    ).slice(0, 12);
+  }
+
   const autoApproval = evaluatePodcastFeedAutoApproval(parsed, feedUrl);
   const now = new Date().toISOString();
 
-  const { data: existingShow, error: existingShowError } = await supabaseAdmin
+  const { data: existingShowRow, error: existingShowError } = await supabaseAdmin
     .from("podcast_shows")
     .select("id, slug, status, feed_status, is_active")
     .eq("feed_url", feedUrl)
@@ -538,7 +660,29 @@ export async function ingestPodcastFeed(
     throw new Error(existingShowError.message);
   }
 
-  let showId = String(existingShow?.id || "");
+  let existingShow = existingShowRow;
+  let showId = String(existingShowRow?.id || "");
+
+  if (!showId) {
+    const preferredSlug = cleanText(options.show_slug, 80);
+    if (preferredSlug) {
+      const { data: slugMatch, error: slugError } = await supabaseAdmin
+        .from("podcast_shows")
+        .select("id, slug, status, feed_status, is_active")
+        .eq("slug", preferredSlug)
+        .maybeSingle();
+
+      if (slugError) {
+        throw new Error(slugError.message);
+      }
+
+      if (slugMatch?.id) {
+        existingShow = slugMatch;
+        showId = String(slugMatch.id);
+      }
+    }
+  }
+
   let createdShow = false;
   const preserveShowModeration = shouldPreserveShowModeration(existingShow, autoApprove);
 
@@ -560,7 +704,7 @@ export async function ingestPodcastFeed(
     showLifecycle.is_active &&
     showLifecycle.feed_status === "active";
 
-  const showMetadata = {
+  const showMetadata: Record<string, unknown> = {
     title: parsed.title,
     description: parsed.description,
     artwork_url: parsed.artwork_url,
@@ -570,45 +714,80 @@ export async function ingestPodcastFeed(
     primary_category: parsed.primary_category,
     categories: parsed.categories,
     feed_url: feedUrl,
+    is_mature: isMature,
     last_checked_at: now,
     status: showLifecycle.status,
     feed_status: showLifecycle.feed_status,
     is_active: showLifecycle.is_active,
   };
 
+  if (isMature && matureCategory) {
+    showMetadata.mature_category = matureCategory;
+  }
+
   if (!showId) {
-    const slug = await ensureUniqueShowSlug(parsed.title);
-    const { data: insertedShow, error: insertShowError } = await supabaseAdmin
+    const preferredSlug = cleanText(options.show_slug, 80);
+    const slug = preferredSlug || (await ensureUniqueShowSlug(parsed.title));
+    const insertPayload = {
+      ...showMetadata,
+      slug,
+      is_verified: false,
+      is_featured: false,
+      is_exclusive: false,
+    };
+
+    let insertResult = await supabaseAdmin
       .from("podcast_shows")
-      .insert({
-        ...showMetadata,
-        slug,
-        is_verified: false,
-        is_featured: false,
-        is_exclusive: false,
-        is_mature: false,
-      })
+      .insert(insertPayload)
       .select("id")
       .single();
 
-    if (insertShowError) {
-      throw new Error(insertShowError.message);
+    if (
+      insertResult.error &&
+      isMissingMatureCategoryColumnError(insertResult.error.message)
+    ) {
+      insertResult = await supabaseAdmin
+        .from("podcast_shows")
+        .insert({
+          ...stripMatureCategory(showMetadata),
+          slug,
+          is_verified: false,
+          is_featured: false,
+          is_exclusive: false,
+        })
+        .select("id")
+        .single();
     }
 
-    showId = String(insertedShow.id);
+    if (insertResult.error) {
+      throw new Error(insertResult.error.message);
+    }
+
+    showId = String(insertResult.data?.id || "");
     createdShow = true;
   } else {
-    const { error: updateShowError } = await supabaseAdmin
-      .from("podcast_shows")
-      .update(showMetadata)
-      .eq("id", showId);
+    let updateShowError = (
+      await supabaseAdmin.from("podcast_shows").update(showMetadata).eq("id", showId)
+    ).error;
+
+    if (
+      updateShowError &&
+      isMissingMatureCategoryColumnError(updateShowError.message)
+    ) {
+      updateShowError = (
+        await supabaseAdmin
+          .from("podcast_shows")
+          .update(stripMatureCategory(showMetadata))
+          .eq("id", showId)
+      ).error;
+    }
 
     if (updateShowError) {
       throw new Error(updateShowError.message);
     }
   }
 
-  const existingEpisodes = await loadExistingEpisodesByAudioUrl(showId);
+  const existingEpisodes = await loadExistingEpisodes(showId);
   let episodesInserted = 0;
   let episodesUpdated = 0;
   let episodesSkipped = 0;
@@ -625,7 +804,7 @@ export async function ingestPodcastFeed(
       showIsApprovedForEpisodes
     );
 
-    const existing = existingEpisodes.get(episode.audio_url);
+    const existing = findExistingEpisode(existingEpisodes, episode);
     const preserveEpisodeModeration = shouldPreserveEpisodeModeration(
       existing as
         | {
@@ -662,7 +841,7 @@ export async function ingestPodcastFeed(
       };
     }
 
-    const metadata = {
+    const metadata: Record<string, unknown> = {
       title: episode.title,
       description: episode.description,
       artwork_url: episode.artwork_url,
@@ -676,11 +855,30 @@ export async function ingestPodcastFeed(
       is_active: lifecycle.is_active,
     };
 
+    const episodeGuid = cleanText(episode.guid, 500);
+    if (episodeGuid) {
+      metadata.episode_guid = episodeGuid;
+    }
+
     if (existing) {
-      const { error: updateEpisodeError } = await supabaseAdmin
-        .from("podcast_episodes")
-        .update(metadata)
-        .eq("id", String(existing.id));
+      let updateEpisodeError = (
+        await supabaseAdmin
+          .from("podcast_episodes")
+          .update(metadata)
+          .eq("id", String(existing.id))
+      ).error;
+
+      if (
+        updateEpisodeError &&
+        isMissingEpisodeGuidColumnError(updateEpisodeError.message)
+      ) {
+        updateEpisodeError = (
+          await supabaseAdmin
+            .from("podcast_episodes")
+            .update(stripEpisodeGuid(metadata))
+            .eq("id", String(existing.id))
+        ).error;
+      }
 
       if (updateEpisodeError) {
         episodesSkipped += 1;
@@ -692,14 +890,28 @@ export async function ingestPodcastFeed(
       continue;
     }
 
-    const { error: insertEpisodeError } = await supabaseAdmin
-      .from("podcast_episodes")
-      .insert({
+    let insertEpisodeError = (
+      await supabaseAdmin.from("podcast_episodes").insert({
         show_id: showId,
         ...metadata,
         audio_url: episode.audio_url,
         is_verified: false,
-      });
+      })
+    ).error;
+
+    if (
+      insertEpisodeError &&
+      isMissingEpisodeGuidColumnError(insertEpisodeError.message)
+    ) {
+      insertEpisodeError = (
+        await supabaseAdmin.from("podcast_episodes").insert({
+          show_id: showId,
+          ...stripEpisodeGuid(metadata),
+          audio_url: episode.audio_url,
+          is_verified: false,
+        })
+      ).error;
+    }
 
     if (insertEpisodeError) {
       episodesSkipped += 1;
@@ -708,6 +920,11 @@ export async function ingestPodcastFeed(
 
     episodesInserted += 1;
     countEpisodeOutcome(lifecycle, outcomeCounters);
+  }
+
+  if (createdShow && episodesInserted === 0 && episodesUpdated === 0) {
+    await supabaseAdmin.from("podcast_shows").delete().eq("id", showId);
+    throw new Error("Feed produced no importable episodes.");
   }
 
   const showAutoApproved =

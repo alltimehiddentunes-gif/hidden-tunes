@@ -7,6 +7,7 @@ export type ParsedPodcastEpisode = {
   published_at: string | null;
   episode_number: number | null;
   season_number: number | null;
+  guid: string | null;
 };
 
 export type ParsedPodcastFeed = {
@@ -23,6 +24,12 @@ export type ParsedPodcastFeed = {
 
 export type PodcastIngestOptions = {
   auto_approve?: boolean;
+  category_slug?: string;
+  show_slug?: string;
+  is_mature?: boolean;
+  mature_category?: string | null;
+  max_episodes?: number;
+  feed_timeout_ms?: number;
 };
 
 export type PodcastIngestResult = {
