@@ -332,6 +332,13 @@ export default function ProfileScreen() {
           />
 
           <ProfileItem
+            icon="book-outline"
+            title="Hidden Tunes Audiobooks"
+            subtitle="Browse audiobook discovery shelves"
+            onPress={() => router.push("/audiobooks" as never)}
+          />
+
+          <ProfileItem
             icon="radio"
             title="Personal Radio"
             subtitle="Song listening room"

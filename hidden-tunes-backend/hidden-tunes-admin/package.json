@@ -33,6 +33,8 @@
     "podcast:verify-public": "tsx scripts/verify-podcast-public-catalog.ts",
     "podcast:catalog-audit": "tsx scripts/run-podcast-catalog-audit.ts",
     "test:podcast-seed-catalog": "tsx scripts/test-podcast-seed-catalog.ts",
+    "audiobook:seed-ingest": "tsx scripts/run-audiobook-seed-ingest.ts",
+    "audiobook:seed-ingest:dry": "tsx scripts/run-audiobook-seed-ingest.ts --dry-run",
     "test:motivation-public": "tsx scripts/test-motivation-public-metadata.ts",
     "verify:motivation-catalog": "tsx scripts/verify-motivation-catalog.ts",
     "verify:motivation-play-sample": "tsx scripts/verify-motivation-play-sample.ts"
