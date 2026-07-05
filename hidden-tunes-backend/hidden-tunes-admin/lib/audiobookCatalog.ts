@@ -114,12 +114,48 @@ export function cleanAudiobookFilter(value: string | null) {
   return cleaned || null;
 }
 
+export function serializeAudiobookError(error: unknown) {
+  if (!error) return null;
+
+  if (error instanceof Error) {
+    return {
+      message: error.message || "Unknown error.",
+      name: error.name,
+      stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
+    };
+  }
+
+  if (typeof error === "object") {
+    const record = error as Record<string, unknown>;
+    const message =
+      typeof record.message === "string" && record.message.trim()
+        ? record.message
+        : typeof record.error_description === "string"
+          ? record.error_description
+          : "Unknown database error.";
+
+    return {
+      message,
+      code: record.code || null,
+      details: record.details || null,
+      hint: record.hint || null,
+      schema_mode: record.schema_mode || null,
+    };
+  }
+
+  return String(error);
+}
+
+export function logAudiobookError(context: string, error: unknown) {
+  console.error(`[audiobooks] ${context}`, serializeAudiobookError(error));
+}
+
 export function jsonAudiobookError(error: string, status: number, details?: unknown) {
   return Response.json(
     {
       success: false,
       error,
-      details: details || null,
+      details: serializeAudiobookError(details),
     },
     { status }
   );
@@ -352,10 +388,11 @@ export async function loadAudiobookPlayback(idParam: string, mature: boolean) {
 }
 
 export async function countAudiobooksForCategory(slug: string, mature: boolean) {
-  const { count, error } = await applyPublicAudiobookFilters(
+  const query = await applyPublicAudiobookFilters(
     supabaseAdmin.from("audiobooks").select("id", { count: "exact", head: true }),
     { category: slug, mature }
   );
+  const { count, error } = await query;
 
   if (error) throw error;
   return count || 0;

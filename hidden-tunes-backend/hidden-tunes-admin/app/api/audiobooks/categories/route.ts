@@ -14,7 +14,7 @@ export async function GET() {
     const categories = await listAudiobookCategories(false);
     return NextResponse.json({ success: true, categories });
   } catch (error) {
-    logAudiobookError("Failed to load audiobook tree.", error);
-    return jsonAudiobookError("Failed to load audiobook tree.", 500, error);
+    logAudiobookError("Failed to load audiobook categories.", error);
+    return jsonAudiobookError("Failed to load audiobook categories.", 500, error);
   }
 }

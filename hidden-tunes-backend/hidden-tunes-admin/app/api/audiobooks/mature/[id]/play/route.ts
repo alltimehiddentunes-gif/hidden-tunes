@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 
-import { jsonAudiobookError, loadAudiobookPlayback } from "@/lib/audiobookCatalog";
+import {
+  jsonAudiobookError,
+  loadAudiobookPlayback,
+  logAudiobookError,
+} from "@/lib/audiobookCatalog";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,12 +31,11 @@ export async function GET(_request: Request, context: RouteContext) {
       audio_url: playback.file.audio_url,
     });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Unknown database error.";
+    logAudiobookError("Failed to resolve mature audiobook playback.", error);
     return jsonAudiobookError(
       "Failed to resolve mature audiobook playback.",
       500,
-      message
+      error
     );
   }
 }

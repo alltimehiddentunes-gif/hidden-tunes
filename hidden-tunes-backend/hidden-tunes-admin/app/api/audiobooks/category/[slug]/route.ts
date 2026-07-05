@@ -4,6 +4,7 @@ import {
   cleanAudiobookFilter,
   jsonAudiobookError,
   listAudiobooks,
+  logAudiobookError,
   parseAudiobookLimit,
   parseAudiobookPage,
 } from "@/lib/audiobookCatalog";
@@ -39,8 +40,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
       pagination: result.pagination,
     });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Unknown database error.";
-    return jsonAudiobookError("Failed to load audiobook category.", 500, message);
+    logAudiobookError("Failed to load audiobook category.", error);
+    return jsonAudiobookError("Failed to load audiobook category.", 500, error);
   }
 }

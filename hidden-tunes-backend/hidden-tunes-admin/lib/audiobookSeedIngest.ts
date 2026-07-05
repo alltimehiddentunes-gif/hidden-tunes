@@ -1,4 +1,8 @@
 import { AUDIOBOOK_CATEGORIES } from "@/lib/audiobookCatalog";
+import {
+  evaluateLibriVoxAudiobook,
+  evaluateLibriVoxChapterAudio,
+} from "@/lib/audiobookAutoApproval";
 import { cleanText } from "@/lib/tvCatalog";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
@@ -264,7 +268,7 @@ async function seedCategories() {
     name: category.name,
     slug: category.slug,
     sort_order: category.sort_order,
-    is_mature: category.slug === "mature",
+    is_active: true,
   }));
 
   const { error } = await supabaseAdmin
@@ -275,16 +279,33 @@ async function seedCategories() {
   return rows.length;
 }
 
+function librivoxBookSourceKey(sourceId: string) {
+  return `librivox:book:${sourceId}`;
+}
+
+function librivoxAuthorSourceKey(sourceId: string) {
+  return `librivox:author:${sourceId}`;
+}
+
+function librivoxChapterSourceKey(bookSourceId: string, chapterSourceId: string) {
+  return `librivox:book:${bookSourceId}:chapter:${chapterSourceId}`;
+}
+
+function librivoxFileSourceKey(bookSourceId: string, chapterSourceId: string) {
+  return `librivox:book:${bookSourceId}:file:${chapterSourceId}`;
+}
+
 async function upsertAuthor(book: LibriVoxBook) {
   const author = Array.isArray(book.authors) ? book.authors[0] : undefined;
   const sourceId = author?.id ? String(author.id) : `book-${book.id || "unknown"}`;
   const name = normalizeAuthorName(author);
-
+  const sourceKey = librivoxAuthorSourceKey(sourceId);
   const slug = slugify(`${name}-${sourceId}`, "author");
+
   const { data: existing, error: existingError } = await supabaseAdmin
     .from("audiobook_authors")
     .select("id, name")
-    .eq("slug", slug)
+    .eq("source_key", sourceKey)
     .maybeSingle();
 
   if (existingError) throw existingError;
@@ -292,10 +313,17 @@ async function upsertAuthor(book: LibriVoxBook) {
 
   const { data, error } = await supabaseAdmin
     .from("audiobook_authors")
-    .insert({
-      slug,
-      name,
-    })
+    .upsert(
+      {
+        slug,
+        name,
+        source_type: "librivox",
+        source_id: sourceId,
+        source_key: sourceKey,
+        is_active: true,
+      },
+      { onConflict: "source_key" }
+    )
     .select("id, name")
     .single();
 
@@ -318,51 +346,46 @@ async function upsertBook(book: LibriVoxBook, category: AudiobookSeedCategorySlu
   const author = await upsertAuthor(book);
   const title = cleanText(book.title, 300) || `LibriVox Audiobook ${sourceId}`;
   const slug = slugify(`${title}-${sourceId}`, "audiobook");
-  const { data: categoryRow, error: categoryError } = await supabaseAdmin
-    .from("audiobook_categories")
-    .select("id")
-    .eq("slug", category)
-    .maybeSingle();
-
-  if (categoryError) throw categoryError;
+  const sourceKey = librivoxBookSourceKey(sourceId);
+  const primaryAudioUrl = cleanHttpsUrl(playableSections[0]?.listen_url);
+  const approval = evaluateLibriVoxAudiobook({
+    title,
+    description: cleanText(book.description, 4000),
+    playableSectionCount: playableSections.length,
+    primaryAudioUrl,
+  });
 
   const bookPayload = {
     slug,
-    source: "librivox",
-    source_id: sourceId,
     title,
     description: cleanText(book.description, 4000),
     cover_url: buildArchiveFallbackCover(book),
     author_id: author.id,
-    category_id: categoryRow?.id || null,
+    author_name: author.name,
+    category_slug: category,
+    categories: mapGenres(book, category),
     language: cleanText(book.language, 40),
     publisher: "LibriVox",
+    source_type: "librivox",
+    source_url: cleanHttpsUrl(book.url_librivox) || cleanHttpsUrl(book.url_rss),
+    source_key: sourceKey,
+    rights: "public_domain",
     duration_seconds: normalizeSeconds(book.totaltimesecs) || 0,
-    is_public: true,
+    chapter_count: playableSections.length,
+    status: approval.status,
+    playback_status: approval.playback_status,
+    is_active: approval.is_active,
+    is_verified: approval.is_verified,
     is_mature: false,
+    published_at: new Date().toISOString(),
+    last_checked_at: new Date().toISOString(),
   };
 
-  const { data: existingBook, error: existingBookError } = await supabaseAdmin
+  const { data: audiobook, error } = await supabaseAdmin
     .from("audiobooks")
+    .upsert(bookPayload, { onConflict: "source_key" })
     .select("id")
-    .eq("source", "librivox")
-    .eq("source_id", sourceId)
-    .maybeSingle();
-
-  if (existingBookError) throw existingBookError;
-
-  const { data: audiobook, error } = existingBook?.id
-    ? await supabaseAdmin
-        .from("audiobooks")
-        .update(bookPayload)
-        .eq("id", existingBook.id)
-        .select("id")
-        .single()
-    : await supabaseAdmin
-        .from("audiobooks")
-        .insert(bookPayload)
-        .select("id")
-        .single();
+    .single();
 
   if (error) throw error;
 
@@ -375,60 +398,58 @@ async function upsertBook(book: LibriVoxBook, category: AudiobookSeedCategorySlu
     const audioUrl = cleanHttpsUrl(section.listen_url);
     if (!audioUrl) continue;
 
+    const chapterTitle =
+      cleanText(section.title, 300) || `${title} - Chapter ${index + 1}`;
+    const chapterSourceKey = librivoxChapterSourceKey(sourceId, chapterSourceId);
     const chapterPayload = {
       audiobook_id: audiobook.id,
-      title: cleanText(section.title, 300) || `${title} - Chapter ${index + 1}`,
-      slug: slugify(`${title}-${index + 1}-${chapterSourceId}`, "chapter"),
+      title: chapterTitle,
       chapter_number: index + 1,
       duration_seconds: normalizeSeconds(section.playtime) || 0,
-      audio_url: audioUrl,
+      source_key: chapterSourceKey,
+      is_active: true,
     };
-    const { data: existingChapter, error: existingChapterError } =
-      await supabaseAdmin
-        .from("audiobook_chapters")
-        .select("id")
-        .eq("audiobook_id", audiobook.id)
-        .eq("chapter_number", index + 1)
-        .maybeSingle();
 
-    if (existingChapterError) throw existingChapterError;
-
-    const { error: chapterError } = existingChapter?.id
-      ? await supabaseAdmin
-          .from("audiobook_chapters")
-          .update(chapterPayload)
-          .eq("id", existingChapter.id)
-      : await supabaseAdmin.from("audiobook_chapters").insert(chapterPayload);
+    const { data: chapterRow, error: chapterError } = await supabaseAdmin
+      .from("audiobook_chapters")
+      .upsert(chapterPayload, { onConflict: "source_key" })
+      .select("id")
+      .single();
 
     if (chapterError) throw chapterError;
     chaptersUpserted += 1;
 
+    const fileApproval = evaluateLibriVoxChapterAudio(audioUrl);
     const filePayload = {
       audiobook_id: audiobook.id,
-      storage_provider: "external",
+      chapter_id: chapterRow.id,
+      title: chapterTitle,
       audio_url: audioUrl,
-      bitrate: null,
+      duration_seconds: normalizeSeconds(section.playtime) || 0,
       format: "mp3",
-      size_bytes: null,
+      mime_type: "audio/mpeg",
+      is_primary: index === 0,
+      playback_status: fileApproval.playback_status,
+      is_active: fileApproval.is_active,
+      source_key: librivoxFileSourceKey(sourceId, chapterSourceId),
     };
-    const { data: existingFile, error: existingFileError } = await supabaseAdmin
+
+    const { error: fileError } = await supabaseAdmin
       .from("audiobook_files")
-      .select("id")
-      .eq("audiobook_id", audiobook.id)
-      .eq("audio_url", audioUrl)
-      .maybeSingle();
-
-    if (existingFileError) throw existingFileError;
-
-    const { error: fileError } = existingFile?.id
-      ? await supabaseAdmin
-          .from("audiobook_files")
-          .update(filePayload)
-          .eq("id", existingFile.id)
-      : await supabaseAdmin.from("audiobook_files").insert(filePayload);
+      .upsert(filePayload, { onConflict: "source_key" });
 
     if (fileError) throw fileError;
     filesUpserted += 1;
+  }
+
+  await supabaseAdmin
+    .from("audiobooks")
+    .update({ chapter_count: chaptersUpserted })
+    .eq("id", audiobook.id);
+
+  if (!approval.is_active || chaptersUpserted === 0 || filesUpserted === 0) {
+    await supabaseAdmin.from("audiobooks").delete().eq("id", audiobook.id);
+    return { skipped: true as const };
   }
 
   return {

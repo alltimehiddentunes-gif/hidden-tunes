@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 
-import { jsonAudiobookError, listAudiobookCategories } from "@/lib/audiobookCatalog";
+import {
+  jsonAudiobookError,
+  listAudiobookCategories,
+  logAudiobookError,
+} from "@/lib/audiobookCatalog";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,8 +14,11 @@ export async function GET() {
     const categories = await listAudiobookCategories(true);
     return NextResponse.json({ success: true, categories });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Unknown database error.";
-    return jsonAudiobookError("Failed to load mature audiobook categories.", 500, message);
+    logAudiobookError("Failed to load mature audiobook categories.", error);
+    return jsonAudiobookError(
+      "Failed to load mature audiobook categories.",
+      500,
+      error
+    );
   }
 }

@@ -4,6 +4,7 @@ import {
   cleanAudiobookFilter,
   jsonAudiobookError,
   listAudiobooks,
+  logAudiobookError,
   parseAudiobookLimit,
   parseAudiobookPage,
 } from "@/lib/audiobookCatalog";
@@ -29,8 +30,7 @@ export async function GET(request: NextRequest) {
       pagination: result.pagination,
     });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Unknown database error.";
-    return jsonAudiobookError("Failed to search mature audiobooks.", 500, message);
+    logAudiobookError("Failed to search mature audiobooks.", error);
+    return jsonAudiobookError("Failed to search mature audiobooks.", 500, error);
   }
 }
