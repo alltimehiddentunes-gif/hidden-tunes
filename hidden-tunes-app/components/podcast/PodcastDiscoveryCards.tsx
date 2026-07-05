@@ -1,21 +1,27 @@
-import React, { memo } from "react";
+import React, { memo, useRef, type ComponentProps } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { Image } from "expo-image";
 
+import LazyCategoryCardArtwork from "../discovery/LazyCategoryCardArtwork";
+import { useLazyCategoryArtwork } from "../discovery/categoryScrollVisibility";
 import { COLORS } from "../../constants/theme";
 import type { HiddenTunesPodcastEpisode, HiddenTunesPodcastShow } from "../../services/podcastCatalogApi";
-import {
-  HIDDEN_TUNES_PODCASTS_LABEL,
-  type LaunchPodcastCategory,
-} from "../../utils/launchPodcastCategories";
+import { HIDDEN_TUNES_PODCASTS_LABEL } from "../../utils/launchPodcastCategories";
+import type { MoodRoomGradient } from "../../utils/moodRooms";
+import { resolveCategoryArtworkUrl } from "../../utils/categoryArtwork";
 import { podcastDiscoveryDisplayName } from "../../utils/openHiddenTunesPodcast";
 
-type PodcastCategoryCardCategory = Pick<
-  LaunchPodcastCategory,
-  "title" | "subtitle" | "icon" | "gradient"
->;
+type PodcastCategoryCardCategory = {
+  title: string;
+  subtitle: string;
+  icon: string;
+  gradient: MoodRoomGradient;
+  artworkUrl?: string | null;
+  imageUrl?: string | null;
+  artwork_url?: string | null;
+};
 
 type PodcastCategoryCardProps = {
   category: PodcastCategoryCardCategory;
@@ -28,27 +34,41 @@ export const PodcastCategoryCard = memo(function PodcastCategoryCard({
   showCount,
   onPress,
 }: PodcastCategoryCardProps) {
+  const cardRef = useRef<View>(null);
+  const artworkUrl = resolveCategoryArtworkUrl(category);
+  const shouldLoadArtwork = useLazyCategoryArtwork(cardRef, artworkUrl);
+
   return (
     <TouchableOpacity
+      ref={cardRef}
       activeOpacity={0.88}
       style={styles.card}
       onPress={onPress}
     >
       <LinearGradient colors={category.gradient} style={styles.gradient}>
-        <View style={styles.iconWrap}>
-          <Ionicons name={category.icon} size={22} color={COLORS.primary} />
+        {artworkUrl ? (
+          <LazyCategoryCardArtwork uri={artworkUrl} shouldLoad={shouldLoadArtwork} />
+        ) : null}
+        <View style={styles.content}>
+          <View style={styles.iconWrap}>
+            <Ionicons
+              name={category.icon as ComponentProps<typeof Ionicons>["name"]}
+              size={22}
+              color={COLORS.primary}
+            />
+          </View>
+          <Text numberOfLines={1} style={styles.title}>
+            {category.title}
+          </Text>
+          <Text numberOfLines={2} style={styles.subtitle}>
+            {category.subtitle}
+          </Text>
+          <Text numberOfLines={1} style={styles.meta}>
+            {typeof showCount === "number" && showCount > 0
+              ? `${showCount} Hidden Tunes shows`
+              : HIDDEN_TUNES_PODCASTS_LABEL}
+          </Text>
         </View>
-        <Text numberOfLines={1} style={styles.title}>
-          {category.title}
-        </Text>
-        <Text numberOfLines={2} style={styles.subtitle}>
-          {category.subtitle}
-        </Text>
-        <Text numberOfLines={1} style={styles.meta}>
-          {typeof showCount === "number" && showCount > 0
-            ? `${showCount} Hidden Tunes shows`
-            : HIDDEN_TUNES_PODCASTS_LABEL}
-        </Text>
       </LinearGradient>
     </TouchableOpacity>
   );
@@ -156,8 +176,12 @@ const styles = StyleSheet.create({
   },
   gradient: {
     minHeight: 156,
-    padding: 14,
     justifyContent: "flex-end",
+    overflow: "hidden",
+  },
+  content: {
+    padding: 14,
+    zIndex: 1,
   },
   iconWrap: {
     width: 42,

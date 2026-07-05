@@ -1,12 +1,11 @@
 import {
-  fetchPodcastEpisodes,
+  fetchPodcastShowEpisodes,
   fetchPodcastShows,
   type HiddenTunesPodcastEpisode,
   type HiddenTunesPodcastShow,
 } from "./podcastCatalogApi";
 import { getLaunchPodcastCategory } from "../utils/launchPodcastCategories";
 import {
-  isMatureSeedShowId,
   PODCAST_EPISODE_FETCH_TIMEOUT_MS,
   PODCAST_CATEGORY_PAGE_SIZE,
   PODCAST_MAX_EPISODES_PER_SHOW,
@@ -106,30 +105,27 @@ async function fetchSearchShowsFromNetwork(query: string) {
   return response.success ? dedupeShows(response.shows) : [];
 }
 
-async function fetchEpisodesFromNetwork(showId: string) {
+async function fetchEpisodesFromNetwork(
+  showId: string,
+  options?: { title?: string; includeMature?: boolean }
+) {
   const response = await withTimeout(
-    fetchPodcastEpisodes({
-      show_id: showId,
+    fetchPodcastShowEpisodes(showId, {
+      title: options?.title,
+      includeMature: options?.includeMature,
       page: 1,
       limit: EPISODE_PAGE_LIMIT,
     }),
     PODCAST_EPISODE_FETCH_TIMEOUT_MS,
     {
-      success: false,
-      episodes: [],
-      pagination: {
-        page: 1,
-        limit: EPISODE_PAGE_LIMIT,
-        total: 0,
-        totalPages: 0,
-        hasMore: false,
-      },
+      items: [],
+      page: 1,
+      limit: EPISODE_PAGE_LIMIT,
+      hasMore: false,
     }
   );
 
-  return response.success
-    ? dedupeEpisodes(response.episodes).slice(0, EPISODE_PAGE_LIMIT)
-    : [];
+  return dedupeEpisodes(response.items).slice(0, EPISODE_PAGE_LIMIT);
 }
 
 export async function getPodcastShowsForCategory(
@@ -204,14 +200,10 @@ export async function searchPodcastShows(
 
 export async function getPodcastEpisodesForShow(
   showId: string,
-  options?: { forceRefresh?: boolean }
+  options?: { forceRefresh?: boolean; title?: string; includeMature?: boolean }
 ) {
   const safeId = String(showId || "").trim();
   if (!safeId) return [];
-
-  if (isMatureSeedShowId(safeId)) {
-    return [];
-  }
 
   if (!options?.forceRefresh) {
     const memoryHit = readCachedPodcastEpisodes(safeId);
@@ -224,7 +216,10 @@ export async function getPodcastEpisodesForShow(
     if (storageHit?.length) return storageHit;
   }
 
-  const fetchPromise = fetchEpisodesFromNetwork(safeId)
+  const fetchPromise = fetchEpisodesFromNetwork(safeId, {
+    title: options?.title,
+    includeMature: options?.includeMature,
+  })
     .then((episodes) => {
       if (episodes.length > 0) {
         writeCachedPodcastEpisodes(safeId, episodes);
@@ -246,7 +241,6 @@ export function prefetchPodcastShowsForCategory(categoryId: string) {
 }
 
 export function prefetchPodcastEpisodesForShow(showId: string) {
-  if (isMatureSeedShowId(showId)) return;
   if (readCachedPodcastEpisodes(showId)?.length) return;
   void getPodcastEpisodesForShow(showId).catch(() => {});
 }

@@ -1,8 +1,18 @@
 export const PODCAST_CATALOG_BASE_URL = "https://admin.hiddentunes.com";
+export const HIDDEN_TUNES_PODCAST_API_BASE_URL =
+  "https://hidden-tunes-api.onrender.com";
 export const PODCAST_SHOWS_API_PATH = "/api/podcasts/shows";
 export const PODCAST_EPISODES_API_PATH = "/api/podcasts/episodes";
 export const PODCAST_DEFAULT_PAGE_LIMIT = 20;
 export const PODCAST_CATEGORY_PAGE_LIMIT = 24;
+export const PODCAST_BACKEND_PAGE_LIMIT = 40;
+
+const PODCAST_CATEGORY_GRADIENTS = [
+  ["#1A0830", "#12071F"],
+  ["#10233A", "#07111F"],
+  ["#2A1234", "#120612"],
+  ["#123224", "#07140E"],
+] as const;
 
 export type HiddenTunesPodcastShow = {
   id: string;
@@ -21,8 +31,10 @@ export type HiddenTunesPodcastShow = {
 
 export type HiddenTunesPodcastEpisode = {
   id: string;
-  show_id: string;
+  show_id?: string;
   title: string;
+  podcast_title?: string;
+  host?: string;
   description?: string;
   artwork_url?: string;
   audio_url?: string;
@@ -30,7 +42,40 @@ export type HiddenTunesPodcastEpisode = {
   published_at?: string;
   episode_number?: number;
   season_number?: number;
+  category_slug?: string;
+  language?: string;
+  is_mature?: boolean;
   sourceName: "Hidden Tunes";
+};
+
+export type HiddenTunesPodcastCategory = {
+  id: string;
+  slug: string;
+  title: string;
+  subtitle: string;
+  icon: string;
+  artwork_url?: string | null;
+  artworkUrl?: string | null;
+  imageUrl?: string | null;
+  item_count: number;
+  gradient: readonly [string, string];
+  children: HiddenTunesPodcastCategory[];
+};
+
+export type PodcastEpisodePage = {
+  items: HiddenTunesPodcastEpisode[];
+  page: number;
+  limit: number;
+  hasMore: boolean;
+};
+
+export type HiddenTunesPodcastPlay = {
+  id: string;
+  title: string;
+  podcast_title: string;
+  artwork_url?: string | null;
+  duration_seconds?: number;
+  audio_url: string;
 };
 
 export type PodcastShowsQuery = {
@@ -144,12 +189,14 @@ export function normalizePodcastEpisode(
   const showId = String(raw.show_id || "").trim();
   const title = String(raw.title || "").trim();
 
-  if (!id || !showId || !title) return null;
+  if (!id || !title) return null;
 
   return {
     id,
-    show_id: showId,
+    show_id: showId || undefined,
     title,
+    podcast_title: cleanText(raw.podcast_title, 200) || undefined,
+    host: cleanText(raw.host, 160) || undefined,
     description: cleanText(raw.description, 1200) || undefined,
     artwork_url: cleanText(raw.artwork_url, 2000) || undefined,
     audio_url: cleanText(raw.audio_url, 2000) || undefined,
@@ -163,8 +210,99 @@ export function normalizePodcastEpisode(
     season_number: Number.isFinite(Number(raw.season_number))
       ? Number(raw.season_number)
       : undefined,
+    category_slug: cleanText(raw.category_slug, 120) || undefined,
+    language: cleanText(raw.language, 40) || undefined,
+    is_mature: raw.is_mature === true,
     sourceName: "Hidden Tunes",
   };
+}
+
+function normalizeNumber(value: unknown) {
+  const numberValue = Number(value || 0);
+  return Number.isFinite(numberValue) ? numberValue : 0;
+}
+
+function normalizePodcastCategory(
+  raw: Record<string, unknown>,
+  index = 0
+): HiddenTunesPodcastCategory | null {
+  const id = String(raw.id || raw.slug || `podcast-category-${index}`).trim();
+  const slug = String(raw.slug || raw.id || "").trim();
+  const title = String(raw.title || "Podcasts").trim();
+  if (!id || !slug || !title) return null;
+
+  return {
+    id,
+    slug,
+    title,
+    subtitle: String(raw.subtitle || ""),
+    icon: String(raw.icon || "mic-outline"),
+    artwork_url:
+      typeof raw.artwork_url === "string" && raw.artwork_url
+        ? raw.artwork_url
+        : null,
+    artworkUrl:
+      typeof raw.artwork_url === "string" && raw.artwork_url
+        ? raw.artwork_url
+        : null,
+    imageUrl:
+      typeof raw.artwork_url === "string" && raw.artwork_url
+        ? raw.artwork_url
+        : null,
+    item_count: normalizeNumber(raw.item_count),
+    gradient:
+      (raw.gradient as readonly [string, string] | undefined) ||
+      PODCAST_CATEGORY_GRADIENTS[index % PODCAST_CATEGORY_GRADIENTS.length],
+    children: Array.isArray(raw.children)
+      ? raw.children
+          .map((child, childIndex) =>
+            normalizePodcastCategory(child as Record<string, unknown>, childIndex)
+          )
+          .filter((child): child is HiddenTunesPodcastCategory => child !== null)
+      : [],
+  };
+}
+
+function normalizePodcastPlay(raw: Record<string, unknown>): HiddenTunesPodcastPlay {
+  return {
+    id: String(raw.id || ""),
+    title: String(raw.title || "Untitled Episode"),
+    podcast_title: String(raw.podcast_title || "Hidden Tunes Podcast"),
+    artwork_url:
+      typeof raw.artwork_url === "string" && raw.artwork_url
+        ? raw.artwork_url
+        : null,
+    duration_seconds: Number.isFinite(Number(raw.duration_seconds))
+      ? Number(raw.duration_seconds)
+      : undefined,
+    audio_url: String(raw.audio_url || ""),
+  };
+}
+
+function buildBackendUrl(
+  path: string,
+  params?: Record<string, string | number | boolean | undefined>
+) {
+  const url = new URL(`${HIDDEN_TUNES_PODCAST_API_BASE_URL}${path}`);
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value === undefined || value === "") return;
+    url.searchParams.set(key, String(value));
+  });
+  return url.toString();
+}
+
+async function fetchPodcastBackendJson<T>(url: string): Promise<T> {
+  const response = await fetch(url, {
+    method: "GET",
+    headers: { Accept: "application/json" },
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw new Error(`podcasts_api_${response.status}`);
+  }
+
+  return response.json() as Promise<T>;
 }
 
 function buildShowsUrl(query: PodcastShowsQuery = {}) {
@@ -317,6 +455,136 @@ export async function fetchPodcastEpisodes(
       error: "Network error while loading Hidden Tunes podcast episodes.",
     };
   }
+}
+
+export async function fetchPodcastTree(options?: { includeMature?: boolean }) {
+  const payload = await fetchPodcastBackendJson<{
+    categories?: Record<string, unknown>[];
+  }>(
+    buildBackendUrl("/api/podcasts/tree", {
+      include_mature: options?.includeMature ? "true" : undefined,
+    })
+  );
+
+  return (payload.categories || [])
+    .map((category, index) => normalizePodcastCategory(category, index))
+    .filter((category): category is HiddenTunesPodcastCategory => category !== null);
+}
+
+export async function fetchPodcastCategoryEpisodes(
+  slug: string,
+  options?: { page?: number; limit?: number; includeMature?: boolean }
+): Promise<PodcastEpisodePage> {
+  const safePage = Math.max(1, Number(options?.page || 1));
+  const safeLimit = Math.min(
+    PODCAST_BACKEND_PAGE_LIMIT,
+    Math.max(1, Number(options?.limit || PODCAST_BACKEND_PAGE_LIMIT))
+  );
+  const payload = await fetchPodcastBackendJson<{
+    items?: Record<string, unknown>[];
+    page?: number;
+    limit?: number;
+    hasMore?: boolean;
+  }>(
+    buildBackendUrl(`/api/podcasts/category/${encodeURIComponent(slug)}`, {
+      page: safePage,
+      limit: safeLimit,
+      include_mature: options?.includeMature ? "true" : undefined,
+    })
+  );
+
+  return {
+    items: (payload.items || [])
+      .map((item) => normalizePodcastEpisode(item))
+      .filter((item): item is HiddenTunesPodcastEpisode => item !== null),
+    page: Number(payload.page || safePage),
+    limit: Number(payload.limit || safeLimit),
+    hasMore: payload.hasMore === true,
+  };
+}
+
+export async function fetchPodcastShowEpisodes(
+  showId: string,
+  options?: {
+    page?: number;
+    limit?: number;
+    includeMature?: boolean;
+    title?: string;
+  }
+): Promise<PodcastEpisodePage> {
+  const safePage = Math.max(1, Number(options?.page || 1));
+  const safeLimit = Math.min(
+    PODCAST_BACKEND_PAGE_LIMIT,
+    Math.max(1, Number(options?.limit || PODCAST_BACKEND_PAGE_LIMIT))
+  );
+  const payload = await fetchPodcastBackendJson<{
+    items?: Record<string, unknown>[];
+    page?: number;
+    limit?: number;
+    hasMore?: boolean;
+  }>(
+    buildBackendUrl(`/api/podcasts/show/${encodeURIComponent(showId)}/episodes`, {
+      title: options?.title,
+      page: safePage,
+      limit: safeLimit,
+      include_mature: options?.includeMature ? "true" : undefined,
+    })
+  );
+
+  return {
+    items: (payload.items || [])
+      .map((item) => normalizePodcastEpisode(item))
+      .filter((item): item is HiddenTunesPodcastEpisode => item !== null),
+    page: Number(payload.page || safePage),
+    limit: Number(payload.limit || safeLimit),
+    hasMore: payload.hasMore === true,
+  };
+}
+
+export async function searchPodcastEpisodes(
+  query: string,
+  options?: { page?: number; limit?: number; includeMature?: boolean }
+): Promise<PodcastEpisodePage> {
+  const safePage = Math.max(1, Number(options?.page || 1));
+  const safeLimit = Math.min(
+    PODCAST_BACKEND_PAGE_LIMIT,
+    Math.max(1, Number(options?.limit || PODCAST_BACKEND_PAGE_LIMIT))
+  );
+  const payload = await fetchPodcastBackendJson<{
+    items?: Record<string, unknown>[];
+    page?: number;
+    limit?: number;
+    hasMore?: boolean;
+  }>(
+    buildBackendUrl("/api/podcasts/search", {
+      q: query,
+      page: safePage,
+      limit: safeLimit,
+      include_mature: options?.includeMature ? "true" : undefined,
+    })
+  );
+
+  return {
+    items: (payload.items || [])
+      .map((item) => normalizePodcastEpisode(item))
+      .filter((item): item is HiddenTunesPodcastEpisode => item !== null),
+    page: Number(payload.page || safePage),
+    limit: Number(payload.limit || safeLimit),
+    hasMore: payload.hasMore === true,
+  };
+}
+
+export async function fetchPodcastEpisodePlay(
+  id: string,
+  options?: { includeMature?: boolean }
+) {
+  return normalizePodcastPlay(
+    await fetchPodcastBackendJson<Record<string, unknown>>(
+      buildBackendUrl(`/api/podcasts/${encodeURIComponent(id)}/play`, {
+        include_mature: options?.includeMature ? "true" : undefined,
+      })
+    )
+  );
 }
 
 export function formatPodcastEpisodeDuration(seconds?: number) {

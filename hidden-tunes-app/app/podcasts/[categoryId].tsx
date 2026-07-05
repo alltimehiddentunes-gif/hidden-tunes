@@ -13,18 +13,21 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 
-import { PodcastShowCard } from "../../components/podcast/PodcastDiscoveryCards";
+import { PodcastEpisodeRow } from "../../components/podcast/PodcastDiscoveryCards";
 import { COLORS } from "../../constants/theme";
 import { TESTER_COPY } from "../../constants/testerExperience";
-import { getPodcastShowsForCategory } from "../../services/podcastDiscoveryApi";
-import type { HiddenTunesPodcastShow } from "../../services/podcastCatalogApi";
-import { getLaunchPodcastCategory } from "../../utils/launchPodcastCategories";
-import { openPodcastShow } from "../../utils/podcastNavigation";
-import { podcastShowSubtitle } from "../../utils/openHiddenTunesPodcast";
+import { usePlaybackRouter } from "../../hooks/usePlaybackRouter";
+import { isMaturePodcastsEnabled } from "../../services/maturePodcastPreferences";
 import {
-  hydrateCachedPodcastShows,
-  readCachedPodcastShows,
-} from "../../utils/podcastDiscoveryCache";
+  fetchPodcastCategoryEpisodes,
+  fetchPodcastEpisodePlay,
+  fetchPodcastTree,
+  formatPodcastEpisodeDuration,
+  PODCAST_BACKEND_PAGE_LIMIT,
+  type HiddenTunesPodcastCategory,
+  type HiddenTunesPodcastEpisode,
+} from "../../services/podcastCatalogApi";
+import type { PodcastEpisode } from "../../types/podcast";
 import {
   createStableKeyExtractor,
   getListPerformanceSettings,
@@ -35,90 +38,162 @@ export default function PodcastCategoryScreen() {
   const mountedRef = useMountedRef();
   const params = useLocalSearchParams<{ categoryId?: string }>();
   const categoryId = String(params.categoryId || "").trim();
-  const category = useMemo(
-    () => getLaunchPodcastCategory(categoryId),
-    [categoryId]
-  );
+  const { playPodcastEpisode } = usePlaybackRouter();
 
-  const [shows, setShows] = useState<HiddenTunesPodcastShow[]>(() =>
-    readCachedPodcastShows(categoryId) || []
-  );
-  const [loading, setLoading] = useState(() => shows.length === 0);
+  const [category, setCategory] = useState<HiddenTunesPodcastCategory | null>(null);
+  const [episodes, setEpisodes] = useState<HiddenTunesPodcastEpisode[]>([]);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [hasCheckedFallbacks, setHasCheckedFallbacks] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [matureEnabled, setMatureEnabled] = useState(false);
 
-  const loadShows = useCallback(
-    async (forceRefresh = false) => {
+  const categoryTitle = category?.title || categoryId.replace(/-/g, " ");
+  const categorySubtitle = category?.subtitle || "Playable Hidden Tunes podcast episodes";
+
+  const toPlayableEpisode = useCallback(
+    (
+      play: Awaited<ReturnType<typeof fetchPodcastEpisodePlay>>,
+      metadata?: HiddenTunesPodcastEpisode
+    ): PodcastEpisode => ({
+      id: play.id,
+      title: play.title,
+      podcastTitle: play.podcast_title || metadata?.podcast_title || "Hidden Tunes Podcast",
+      audioUrl: play.audio_url,
+      artworkUrl: play.artwork_url || metadata?.artwork_url || undefined,
+      duration: play.duration_seconds || metadata?.duration_seconds,
+      publishedAt: metadata?.published_at,
+      source: "podcast",
+    }),
+    []
+  );
+
+  const playEpisode = useCallback(
+    async (episode: HiddenTunesPodcastEpisode) => {
+      const play = await fetchPodcastEpisodePlay(episode.id, {
+        includeMature: matureEnabled,
+      });
+      if (!play.audio_url) return;
+
+      const playable = toPlayableEpisode(play, episode);
+      await playPodcastEpisode(playable, [playable]);
+      router.push("/player" as any);
+    },
+    [matureEnabled, playPodcastEpisode, toPlayableEpisode]
+  );
+
+  const loadEpisodes = useCallback(
+    async (nextPage = 1, mode: "replace" | "append" = "replace") => {
       if (!categoryId) return;
 
       try {
         setLoadError(null);
-        const next = await getPodcastShowsForCategory(categoryId, { forceRefresh });
+        const next = await fetchPodcastCategoryEpisodes(categoryId, {
+          page: nextPage,
+          limit: PODCAST_BACKEND_PAGE_LIMIT,
+          includeMature: matureEnabled,
+        });
         if (!mountedRef.current) return;
-        setShows(next);
+        setEpisodes((current) =>
+          mode === "append" ? [...current, ...next.items] : next.items
+        );
+        setPage(next.page);
+        setHasMore(next.hasMore);
       } catch {
         if (!mountedRef.current) return;
         setLoadError("Podcasts could not be loaded right now.");
       } finally {
         if (!mountedRef.current) return;
         setLoading(false);
+        setLoadingMore(false);
         setRefreshing(false);
         setHasCheckedFallbacks(true);
       }
     },
-    [categoryId, mountedRef]
+    [categoryId, matureEnabled, mountedRef]
   );
 
   useEffect(() => {
-    if (!categoryId || shows.length > 0) return;
-
-    void hydrateCachedPodcastShows(categoryId).then((cached) => {
-      if (!mountedRef.current || !cached?.length) return;
-      setShows(cached);
-      setLoading(false);
-    });
-  }, [categoryId, mountedRef, shows.length]);
+    void isMaturePodcastsEnabled()
+      .then((enabled) => {
+        if (!mountedRef.current) return;
+        setMatureEnabled(enabled);
+      })
+      .catch(() => {
+        if (!mountedRef.current) return;
+        setMatureEnabled(false);
+      });
+  }, [mountedRef]);
 
   useEffect(() => {
     if (!categoryId) return;
-    void loadShows(false);
-  }, [categoryId, loadShows]);
+
+    void fetchPodcastTree({ includeMature: matureEnabled })
+      .then((tree) => {
+        if (!mountedRef.current) return;
+        setCategory(tree.find((item) => item.slug === categoryId) || null);
+      })
+      .catch(() => {
+        if (!mountedRef.current) return;
+        setCategory(null);
+      });
+  }, [categoryId, matureEnabled, mountedRef]);
+
+  useEffect(() => {
+    if (!categoryId) return;
+    setLoading(true);
+    setEpisodes([]);
+    setPage(1);
+    setHasMore(false);
+    void loadEpisodes(1, "replace");
+  }, [categoryId, loadEpisodes]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    void loadShows(true);
-  }, [loadShows]);
+    void loadEpisodes(1, "replace");
+  }, [loadEpisodes]);
 
-  const openShow = useCallback((show: HiddenTunesPodcastShow) => {
-    openPodcastShow(show);
-  }, []);
+  const loadMore = useCallback(() => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    void loadEpisodes(page + 1, "append");
+  }, [hasMore, loadEpisodes, loadingMore, page]);
 
-  const renderShowRow = useCallback(
-    ({ item }: { item: HiddenTunesPodcastShow }) => (
-      <PodcastShowCard
-        show={item}
-        subtitle={podcastShowSubtitle(item)}
-        onPress={() => openShow(item)}
+  const renderEpisodeRow = useCallback(
+    ({ item }: { item: HiddenTunesPodcastEpisode }) => (
+      <PodcastEpisodeRow
+        episode={item}
+        subtitle={[
+          item.podcast_title,
+          formatPodcastEpisodeDuration(item.duration_seconds) || undefined,
+        ]
+          .filter(Boolean)
+          .join(" - ")}
+        onPress={() => {
+          void playEpisode(item);
+        }}
       />
     ),
-    [openShow]
+    [playEpisode]
   );
 
   const listPerformance = useMemo(
-    () => getListPerformanceSettings(shows.length),
-    [shows.length]
+    () => getListPerformanceSettings(episodes.length),
+    [episodes.length]
   );
 
   const keyExtractor = useMemo(
-    () => createStableKeyExtractor("hidden-tunes-podcast-show"),
+    () => createStableKeyExtractor("hidden-tunes-podcast-episode"),
     []
   );
 
   const showEmpty =
-    hasCheckedFallbacks && !loading && !refreshing && shows.length === 0;
+    hasCheckedFallbacks && !loading && !refreshing && episodes.length === 0;
 
-  if (!category) {
+  if (!categoryId) {
     return (
       <LinearGradient colors={["#120818", "#050308"]} style={styles.container}>
         <View style={styles.center}>
@@ -145,17 +220,17 @@ export default function PodcastCategoryScreen() {
 
         <View style={styles.headerText}>
           <Text style={styles.kicker}>HIDDEN TUNES PODCASTS</Text>
-          <Text style={styles.title}>{category.title}</Text>
-          <Text style={styles.subtitle}>{category.subtitle}</Text>
+          <Text style={styles.title}>{categoryTitle}</Text>
+          <Text style={styles.subtitle}>{categorySubtitle}</Text>
         </View>
       </View>
 
-      {loading && shows.length === 0 && !loadError ? (
+      {loading && episodes.length === 0 && !loadError ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color={COLORS.primary} />
           <Text style={styles.loadingText}>{TESTER_COPY.podcastDiscoveryLoading}</Text>
         </View>
-      ) : loadError && shows.length === 0 ? (
+      ) : loadError && episodes.length === 0 ? (
         <View style={styles.center}>
           <Ionicons name="alert-circle-outline" size={48} color={COLORS.textMuted} />
           <Text style={styles.emptyTitle}>{loadError}</Text>
@@ -165,7 +240,7 @@ export default function PodcastCategoryScreen() {
             style={styles.retryButton}
             onPress={() => {
               setLoading(true);
-              void loadShows(true);
+              void loadEpisodes(1, "replace");
             }}
           >
             <Text style={styles.retryButtonText}>Try again</Text>
@@ -173,7 +248,7 @@ export default function PodcastCategoryScreen() {
         </View>
       ) : (
         <FlatList
-          data={shows}
+          data={episodes}
           keyExtractor={keyExtractor}
           contentContainerStyle={styles.listContent}
           refreshControl={
@@ -185,17 +260,33 @@ export default function PodcastCategoryScreen() {
           }
           ListHeaderComponent={
             <Text style={styles.sectionTitle}>
-              {shows.length > 0
-                ? `${shows.length} Hidden Tunes shows in this room`
-                : "Hidden Tunes shows in this room"}
+              {episodes.length > 0
+                ? `${episodes.length} Hidden Tunes episodes in this room`
+                : "Hidden Tunes episodes in this room"}
             </Text>
+          }
+          ListFooterComponent={
+            hasMore ? (
+              <TouchableOpacity
+                activeOpacity={0.86}
+                style={styles.fallbackButton}
+                onPress={loadMore}
+                disabled={loadingMore}
+              >
+                {loadingMore ? (
+                  <ActivityIndicator size="small" color={COLORS.primary} />
+                ) : (
+                  <Text style={styles.fallbackButtonText}>Load more</Text>
+                )}
+              </TouchableOpacity>
+            ) : null
           }
           ListEmptyComponent={
             showEmpty ? (
               <View style={styles.emptyBox}>
                 <Ionicons name="mic-outline" size={48} color={COLORS.textMuted} />
-                <Text style={styles.emptyTitle}>{category.emptyTitle}</Text>
-                <Text style={styles.emptyText}>{category.emptyMessage}</Text>
+                <Text style={styles.emptyTitle}>No episodes are available here yet</Text>
+                <Text style={styles.emptyText}>{TESTER_COPY.podcastDiscoveryEmpty}</Text>
                 <TouchableOpacity
                   activeOpacity={0.86}
                   style={styles.fallbackButton}
@@ -208,7 +299,7 @@ export default function PodcastCategoryScreen() {
               </View>
             ) : null
           }
-          renderItem={renderShowRow}
+          renderItem={renderEpisodeRow}
           {...listPerformance}
           removeClippedSubviews
         />
@@ -248,6 +339,7 @@ const styles = StyleSheet.create({
     fontSize: 26,
     fontWeight: "900",
     marginTop: 4,
+    textTransform: "capitalize",
   },
   subtitle: {
     color: COLORS.textMuted,
@@ -298,37 +390,39 @@ const styles = StyleSheet.create({
   fallbackButton: {
     marginTop: 18,
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 10,
     borderRadius: 999,
-    backgroundColor: "rgba(168,85,247,0.16)",
+    backgroundColor: "rgba(168,85,247,0.14)",
     borderWidth: 1,
-    borderColor: "rgba(168,85,247,0.35)",
+    borderColor: "rgba(168,85,247,0.28)",
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 42,
   },
   fallbackButtonText: {
     color: COLORS.text,
-    fontSize: 13,
     fontWeight: "800",
-  },
-  backLink: {
-    marginTop: 16,
-  },
-  backLinkText: {
-    color: COLORS.primary,
-    fontSize: 14,
-    fontWeight: "700",
+    fontSize: 13,
   },
   retryButton: {
     marginTop: 18,
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 10,
     borderRadius: 999,
-    backgroundColor: "rgba(168,85,247,0.16)",
-    borderWidth: 1,
-    borderColor: "rgba(168,85,247,0.35)",
+    backgroundColor: COLORS.primary,
   },
   retryButtonText: {
-    color: COLORS.text,
+    color: "#09030F",
+    fontWeight: "900",
     fontSize: 13,
+  },
+  backLink: {
+    marginTop: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  backLinkText: {
+    color: COLORS.primary,
     fontWeight: "800",
   },
 });

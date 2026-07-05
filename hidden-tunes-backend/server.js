@@ -7,6 +7,7 @@ import artistsRouter from "./routes/artists.js";
 import albumsRouter from "./routes/albums.js";
 import adminUploadRouter from "./routes/adminUpload.js";
 import lyricsRouter from "./routes/lyrics.js";
+import podcastsRouter from "./routes/podcasts.js";
 import audioVersionHealthRouter from "./routes/audioVersionHealth.js";
 import audioVersionWorkerRouter from "./routes/audioVersionWorker.js";
 
@@ -42,6 +43,7 @@ app.use("/api/songs", songsRouter);
 app.use("/api/artists", artistsRouter);
 app.use("/api/albums", albumsRouter);
 app.use("/api/lyrics", lyricsRouter);
+app.use("/api/podcasts", podcastsRouter);
 app.use("/api/admin", adminUploadRouter);
 
 app.use((req, res) => {

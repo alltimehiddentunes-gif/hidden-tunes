@@ -36,7 +36,7 @@ import type {
   HiddenTunesPodcastEpisode,
   HiddenTunesPodcastShow,
 } from "../../../services/podcastCatalogApi";
-import { normalizePodcastEpisode } from "../../../services/podcasts/podcastNormalizer";
+import { fetchPodcastEpisodePlay } from "../../../services/podcastCatalogApi";
 import type { PodcastEpisode } from "../../../types/podcast";
 import { cleanPodcastDescription } from "../../../utils/podcastDescription";
 import {
@@ -47,7 +47,6 @@ import {
 import { getRelatedPodcastShows } from "../../../utils/podcastRelatedShows";
 import {
   isMatureSeedShowId,
-  PODCAST_MAX_QUEUE_EPISODES,
 } from "../../../utils/podcastPerformanceLimits";
 import { useMountedRef } from "../../../utils/useMountedRef";
 import { podcastDiscoveryDisplayName } from "../../../utils/openHiddenTunesPodcast";
@@ -152,14 +151,7 @@ export default function PodcastShowScreen() {
   const [hasCheckedFallbacks, setHasCheckedFallbacks] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const normalizedQueue = useMemo(() => {
-    return episodes
-      .map((item) => normalizePodcastEpisode(item, showTitle))
-      .filter((item): item is PodcastEpisode => Boolean(item));
-  }, [episodes, showTitle]);
-
-  const latestNormalized = normalizedQueue[0] || null;
-  const latestPlayable = Boolean(latestNormalized?.audioUrl);
+  const latestPlayable = episodes.length > 0;
 
   const relatedShows = useMemo(
     () => getRelatedPodcastShows(show, 5),
@@ -172,7 +164,11 @@ export default function PodcastShowScreen() {
 
       try {
         setLoadError(null);
-        const next = await getPodcastEpisodesForShow(showId, { forceRefresh });
+        const next = await getPodcastEpisodesForShow(showId, {
+          forceRefresh,
+          title: showTitle,
+          includeMature: matureEnabled,
+        });
         if (!mountedRef.current) return;
         setEpisodes(next);
       } catch {
@@ -185,7 +181,7 @@ export default function PodcastShowScreen() {
         setHasCheckedFallbacks(true);
       }
     },
-    [mountedRef, showId]
+    [matureEnabled, mountedRef, showId, showTitle]
   );
 
   useEffect(() => {
@@ -216,13 +212,31 @@ export default function PodcastShowScreen() {
 
   useEffect(() => {
     if (!showId) return;
+    if (!maturePrefsLoaded) return;
     if (isMatureShow && !matureEnabled) {
       setLoading(false);
       setHasCheckedFallbacks(true);
       return;
     }
     void loadEpisodes(false);
-  }, [isMatureShow, loadEpisodes, matureEnabled, showId]);
+  }, [isMatureShow, loadEpisodes, matureEnabled, maturePrefsLoaded, showId]);
+
+  const toPlayableEpisode = useCallback(
+    (
+      play: Awaited<ReturnType<typeof fetchPodcastEpisodePlay>>,
+      metadata?: HiddenTunesPodcastEpisode
+    ): PodcastEpisode => ({
+      id: play.id,
+      title: play.title,
+      podcastTitle: play.podcast_title || metadata?.podcast_title || showTitle,
+      audioUrl: play.audio_url,
+      artworkUrl: play.artwork_url || metadata?.artwork_url || undefined,
+      duration: play.duration_seconds || metadata?.duration_seconds,
+      publishedAt: metadata?.published_at,
+      source: "podcast",
+    }),
+    [showTitle]
+  );
 
   useEffect(() => {
     if (!showId) return;
@@ -242,17 +256,16 @@ export default function PodcastShowScreen() {
       const episode = episodes[index];
       if (!episode) return;
 
-      const normalized = normalizePodcastEpisode(episode, showTitle);
-      if (!normalized) {
+      const play = await fetchPodcastEpisodePlay(episode.id, {
+        includeMature: matureEnabled,
+      });
+      if (!play.audio_url) {
         setPlaybackError("This episode audio is unavailable right now.");
         return;
       }
 
-      const queue = normalizedQueue.slice(
-        index,
-        index + PODCAST_MAX_QUEUE_EPISODES
-      );
-      const result = await playPodcastEpisode(normalized, queue);
+      const playable = toPlayableEpisode(play, episode);
+      const result = await playPodcastEpisode(playable, [playable]);
 
       if (!result.ok) {
         setPlaybackError(
@@ -263,7 +276,7 @@ export default function PodcastShowScreen() {
 
       setPlaybackError(null);
     },
-    [episodes, normalizedQueue, playPodcastEpisode, showTitle]
+    [episodes, matureEnabled, playPodcastEpisode, toPlayableEpisode]
   );
 
   const onRefresh = useCallback(() => {
@@ -295,22 +308,28 @@ export default function PodcastShowScreen() {
   }, [latestPlayable, playEpisodeAtIndex, playLatestBusy]);
 
   const handleShuffle = useCallback(async () => {
-    if (!normalizedQueue.length || shuffleBusy) return;
+    if (!episodes.length || shuffleBusy) return;
 
     setShuffleBusy(true);
     try {
       const shuffledEpisodes = shuffleEpisodes(episodes);
-      const shuffledQueue = shuffledEpisodes
-        .map((item) => normalizePodcastEpisode(item, showTitle))
-        .filter((item): item is PodcastEpisode => Boolean(item))
-        .slice(0, PODCAST_MAX_QUEUE_EPISODES);
+      const firstEpisode = shuffledEpisodes[0];
 
-      if (!shuffledQueue.length) {
+      if (!firstEpisode) {
         setPlaybackError("This episode audio is unavailable right now.");
         return;
       }
 
-      const result = await playPodcastEpisode(shuffledQueue[0], shuffledQueue);
+      const play = await fetchPodcastEpisodePlay(firstEpisode.id, {
+        includeMature: matureEnabled,
+      });
+      if (!play.audio_url) {
+        setPlaybackError("This episode audio is unavailable right now.");
+        return;
+      }
+
+      const playable = toPlayableEpisode(play, firstEpisode);
+      const result = await playPodcastEpisode(playable, [playable]);
 
       if (!result.ok) {
         setPlaybackError(
@@ -323,7 +342,13 @@ export default function PodcastShowScreen() {
     } finally {
       setShuffleBusy(false);
     }
-  }, [episodes, normalizedQueue.length, playPodcastEpisode, showTitle, shuffleBusy]);
+  }, [
+    episodes,
+    matureEnabled,
+    playPodcastEpisode,
+    shuffleBusy,
+    toPlayableEpisode,
+  ]);
 
   const renderEpisodeRow = useCallback(
     ({ item, index }: { item: HiddenTunesPodcastEpisode; index: number }) => (
