@@ -25,6 +25,7 @@ import {
 } from "../../components/catalog/HomePlaybackRows";
 import { EmotionalDiscoveryChips } from "../../components/EmotionalDiscoveryChips";
 import { HomePremiumShortcut } from "../../components/home/HomePremiumShortcut";
+import { HomeDiscoveryModulesRail } from "../../components/home/HomeDiscoveryModulesRail";
 import { HOME_DISCOVERY_SHORTCUTS } from "../../constants/discoveryShortcuts";
 import MoodRoomCard from "../../components/explore/MoodRoomCard";
 import NeonEQ from "../../components/NeonEQ";
@@ -236,7 +237,6 @@ function HomeScreen() {
   const heroScale = useRef(
     new Animated.Value(hasInitialCachedCatalog ? 1 : 0.96)
   ).current;
-  const heroGlowAnim = useRef(new Animated.Value(0.42)).current;
 
   const [featuredSongs, setFeaturedSongs] = useState<HiddenTunesNormalizedSong[]>(
     () => initialFeaturedSongsRef.current
@@ -572,65 +572,6 @@ function HomeScreen() {
     return cancel;
   }, [fadeAnim, hasInitialCachedCatalog, heroScale, slideAnim]);
 
-  useFocusEffect(
-    useCallback(() => {
-      let heroGlowLoop: Animated.CompositeAnimation | null = null;
-
-      const stopHeroGlow = () => {
-        heroGlowLoop?.stop();
-        heroGlowLoop = null;
-      };
-
-      const startHeroGlow = () => {
-        if (heroGlowLoop) return;
-
-        heroGlowLoop = Animated.loop(
-          Animated.sequence([
-            Animated.timing(heroGlowAnim, {
-              toValue: 1,
-              duration: 2600,
-              useNativeDriver: true,
-            }),
-            Animated.timing(heroGlowAnim, {
-              toValue: 0.42,
-              duration: 2600,
-              useNativeDriver: true,
-            }),
-          ])
-        );
-
-        heroGlowLoop.start();
-      };
-
-      const syncHeroGlow = () => {
-        if (shouldRunNonEssentialWork()) {
-          startHeroGlow();
-          return;
-        }
-
-        stopHeroGlow();
-        heroGlowAnim.stopAnimation();
-        heroGlowAnim.setValue(0.42);
-      };
-
-      syncHeroGlow();
-
-      const unsubscribeFastScroll = subscribeFastScrolling(() => {
-        syncHeroGlow();
-      });
-      const appStateSubscription = AppState.addEventListener("change", () => {
-        syncHeroGlow();
-      });
-
-      return () => {
-        unsubscribeFastScroll();
-        appStateSubscription.remove();
-        stopHeroGlow();
-        heroGlowAnim.stopAnimation();
-      };
-    }, [heroGlowAnim])
-  );
-
   const scheduleDeferredHomeSections = useCallback(() => {
     if (deferredSectionsScheduledRef.current) return;
     deferredSectionsScheduledRef.current = true;
@@ -660,11 +601,11 @@ function HomeScreen() {
     };
   }, []);
 
-  useEffect(() => {
-    if (featuredSongs.length > 0) {
+  useFocusEffect(
+    useCallback(() => {
       scheduleDeferredHomeSections();
-    }
-  }, [featuredSongs.length, scheduleDeferredHomeSections]);
+    }, [scheduleDeferredHomeSections])
+  );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -1344,6 +1285,9 @@ function HomeScreen() {
   const renderHomeFeedRow = useCallback(
     ({ item }: { item: HomeFeedRow }) => {
       switch (item.kind) {
+        case "discovery-modules-rail":
+          return <HomeDiscoveryModulesRail />;
+
         case "section-title":
           return <Text style={styles.sectionTitleBlock}>{item.title}</Text>;
 
@@ -1376,10 +1320,18 @@ function HomeScreen() {
                   }
                 >
                   <HTImage source={artist} style={styles.artistImage} />
-                  <Text numberOfLines={2} style={styles.artistName}>
+                  <Text
+                    ellipsizeMode="tail"
+                    numberOfLines={1}
+                    style={styles.artistName}
+                  >
                     {artist.name}
                   </Text>
-                  <Text numberOfLines={1} style={styles.artistMeta}>
+                  <Text
+                    ellipsizeMode="tail"
+                    numberOfLines={1}
+                    style={styles.artistMeta}
+                  >
                     {artist.tracks?.length || 0}
                   </Text>
                 </TouchableOpacity>
@@ -1413,10 +1365,18 @@ function HomeScreen() {
                   }
                 >
                   <HTImage source={album} style={styles.albumImage} />
-                  <Text numberOfLines={2} style={styles.artistName}>
+                  <Text
+                    ellipsizeMode="tail"
+                    numberOfLines={1}
+                    style={styles.artistName}
+                  >
                     {album.title}
                   </Text>
-                  <Text numberOfLines={1} style={styles.artistMeta}>
+                  <Text
+                    ellipsizeMode="tail"
+                    numberOfLines={1}
+                    style={styles.artistMeta}
+                  >
                     {album.artist}
                   </Text>
                 </TouchableOpacity>
@@ -1735,23 +1695,7 @@ function HomeScreen() {
             },
           ]}
         >
-          <Animated.View
-            pointerEvents="none"
-            style={[
-              styles.heroBoxGlow,
-              {
-                opacity: heroGlowAnim,
-                transform: [
-                  {
-                    scale: heroGlowAnim.interpolate({
-                      inputRange: [0.42, 1],
-                      outputRange: [0.98, 1.035],
-                    }),
-                  },
-                ],
-              },
-            ]}
-          />
+          <View pointerEvents="none" style={styles.heroBoxGlow} />
           {heroCards.length > 0 ? (
             <FlatList
               ref={heroListRef}
@@ -1872,7 +1816,6 @@ function HomeScreen() {
       handleHeroMomentumEnd,
       hasCheckedCatalogFallbacks,
       heroCards,
-      heroGlowAnim,
       heroIndex,
       heroScale,
       isPlaying,
@@ -2060,6 +2003,7 @@ const styles = StyleSheet.create({
     top: -5,
     height: 278,
     borderRadius: 35,
+    opacity: 0.52,
     backgroundColor: "transparent",
     borderWidth: 2,
     borderColor: "rgba(168,85,247,0.72)",
@@ -2744,7 +2688,7 @@ const styles = StyleSheet.create({
   },
 
   artistCard: {
-    width: 140,
+    width: 152,
     borderRadius: 24,
     padding: 10,
     backgroundColor: "rgba(255,255,255,0.065)",
@@ -2754,7 +2698,7 @@ const styles = StyleSheet.create({
   },
 
   albumCard: {
-    width: 154,
+    width: 168,
     borderRadius: 24,
     padding: 10,
     backgroundColor: "rgba(255,255,255,0.065)",
