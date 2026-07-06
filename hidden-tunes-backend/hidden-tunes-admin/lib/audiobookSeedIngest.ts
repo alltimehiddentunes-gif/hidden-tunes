@@ -362,11 +362,15 @@ async function seedCategories() {
     is_active: true,
   }));
 
-  const { error } = await supabaseAdmin
-    .from("audiobook_categories")
-    .upsert(rows, { onConflict: "slug" });
+  for (const row of rows) {
+    await updateThenInsertByColumn(
+      "audiobook_categories",
+      "slug",
+      row.slug,
+      row
+    );
+  }
 
-  if (error) throw error;
   return rows.length;
 }
 
@@ -386,6 +390,70 @@ function librivoxFileSourceKey(bookSourceId: string, chapterSourceId: string) {
   return `librivox:book:${bookSourceId}:file:${chapterSourceId}`;
 }
 
+async function updateThenInsertByColumn(
+  table: string,
+  matchColumn: string,
+  matchValue: string,
+  payload: Record<string, unknown>,
+  selectColumns = "id"
+) {
+  const client = supabaseAdmin as never as {
+    from: (table: string) => {
+      select: (columns: string) => {
+        eq: (
+          column: string,
+          value: string
+        ) => {
+          limit: (
+            count: number
+          ) => Promise<{ data: Array<Record<string, unknown>> | null; error: Error | null }>;
+        };
+      };
+      update: (
+        payload: Record<string, unknown>
+      ) => {
+        eq: (column: string, value: string) => Promise<{ error: Error | null }>;
+      };
+      insert: (
+        payload: Record<string, unknown>
+      ) => {
+        select: (
+          columns: string
+        ) => {
+          single: () => Promise<{ data: Record<string, unknown> | null; error: Error | null }>;
+        };
+      };
+    };
+  };
+
+  const { data: existing, error: selectError } = await client
+    .from(table)
+    .select(selectColumns)
+    .eq(matchColumn, matchValue)
+    .limit(1);
+
+  if (selectError) throw selectError;
+
+  if (existing && existing.length > 0) {
+    const { error: updateError } = await client
+      .from(table)
+      .update(payload)
+      .eq(matchColumn, matchValue);
+
+    if (updateError) throw updateError;
+    return existing[0];
+  }
+
+  const { data: inserted, error: insertError } = await client
+    .from(table)
+    .insert(payload)
+    .select(selectColumns)
+    .single();
+
+  if (insertError) throw insertError;
+  return inserted || {};
+}
+
 async function upsertAuthor(book: LibriVoxBook) {
   const author = Array.isArray(book.authors) ? book.authors[0] : undefined;
   const sourceId = author?.id ? String(author.id) : `book-${book.id || "unknown"}`;
@@ -402,23 +470,20 @@ async function upsertAuthor(book: LibriVoxBook) {
   if (existingError) throw existingError;
   if (existing?.id) return existing as { id: string; name: string };
 
-  const { data, error } = await supabaseAdmin
-    .from("audiobook_authors")
-    .upsert(
-      {
-        slug,
-        name,
-        source_type: "librivox",
-        source_id: sourceId,
-        source_key: sourceKey,
-        is_active: true,
-      },
-      { onConflict: "source_key" }
-    )
-    .select("id, name")
-    .single();
-
-  if (error) throw error;
+  const data = await updateThenInsertByColumn(
+    "audiobook_authors",
+    "source_key",
+    sourceKey,
+    {
+      slug,
+      name,
+      source_type: "librivox",
+      source_id: sourceId,
+      source_key: sourceKey,
+      is_active: true,
+    },
+    "id, name"
+  );
   return data as { id: string; name: string };
 }
 
@@ -521,19 +586,20 @@ async function upsertBook(book: LibriVoxBook, category: AudiobookSeedCategorySlu
   ].filter((link): link is { label: string; url: string } => Boolean(link.url));
 
   if (sourceLinks.length > 0) {
-    const { error: linkError } = await supabaseAdmin
-      .from("audiobook_external_links")
-      .upsert(
-        sourceLinks.map((link) => ({
+    for (const link of sourceLinks) {
+      await updateThenInsertByColumn(
+        "audiobook_external_links",
+        "source_key",
+        `${sourceKey}:link:${link.url}`,
+        {
           audiobook_id: audiobook.id,
           label: link.label,
           url: link.url,
           source_type: "librivox",
           source_key: `${sourceKey}:link:${link.url}`,
-        })),
-        { onConflict: "source_key" }
+        }
       );
-    if (linkError) throw linkError;
+    }
     linksUpserted += sourceLinks.length;
   }
 
@@ -556,19 +622,18 @@ async function upsertBook(book: LibriVoxBook, category: AudiobookSeedCategorySlu
       is_active: true,
     };
 
-    const { data: chapterRow, error: chapterError } = await supabaseAdmin
-      .from("audiobook_chapters")
-      .upsert(chapterPayload, { onConflict: "source_key" })
-      .select("id")
-      .single();
-
-    if (chapterError) throw chapterError;
+    const chapterRow = await updateThenInsertByColumn(
+      "audiobook_chapters",
+      "source_key",
+      chapterSourceKey,
+      chapterPayload
+    );
     chaptersUpserted += 1;
 
     const fileApproval = evaluateLibriVoxChapterAudio(audioUrl);
     const filePayload = {
       audiobook_id: audiobook.id,
-      chapter_id: chapterRow.id,
+      chapter_id: chapterRow.id as string,
       title: chapterTitle,
       audio_url: audioUrl,
       duration_seconds: normalizeSeconds(section.playtime) || 0,
@@ -580,11 +645,12 @@ async function upsertBook(book: LibriVoxBook, category: AudiobookSeedCategorySlu
       source_key: librivoxFileSourceKey(sourceId, chapterSourceId),
     };
 
-    const { error: fileError } = await supabaseAdmin
-      .from("audiobook_files")
-      .upsert(filePayload, { onConflict: "source_key" });
-
-    if (fileError) throw fileError;
+    await updateThenInsertByColumn(
+      "audiobook_files",
+      "source_key",
+      filePayload.source_key,
+      filePayload
+    );
     filesUpserted += 1;
   }
 

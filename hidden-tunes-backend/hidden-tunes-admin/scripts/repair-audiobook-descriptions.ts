@@ -52,6 +52,41 @@ loadEnvFile(path.join(adminRoot, ".env.production"));
 loadEnvFile(path.join(adminRoot, ".env.local"));
 loadEnvFile(path.join(adminRoot, ".env"));
 
+async function updateThenInsertExternalLink(
+  supabaseAdmin: Awaited<typeof import("../lib/supabaseAdmin")>["supabaseAdmin"],
+  payload: {
+    audiobook_id: string;
+    label: string;
+    url: string;
+    source_type: string;
+    source_key: string;
+  }
+) {
+  const { data: existing, error: selectError } = await supabaseAdmin
+    .from("audiobook_external_links")
+    .select("id")
+    .eq("source_key", payload.source_key)
+    .limit(1);
+
+  if (selectError) throw selectError;
+
+  if (existing && existing.length > 0) {
+    const { error: updateError } = await supabaseAdmin
+      .from("audiobook_external_links")
+      .update(payload)
+      .eq("source_key", payload.source_key);
+
+    if (updateError) throw updateError;
+    return;
+  }
+
+  const { error: insertError } = await supabaseAdmin
+    .from("audiobook_external_links")
+    .insert(payload);
+
+  if (insertError) throw insertError;
+}
+
 async function main() {
   const options = parseArgs(process.argv.slice(2));
   const { supabaseAdmin } = await import("../lib/supabaseAdmin");
@@ -96,22 +131,19 @@ async function main() {
       }
 
       if (cleaned.links.length > 0 && !options.dryRun) {
-        const { error: linkError } = await supabaseAdmin
-          .from("audiobook_external_links")
-          .upsert(
-            cleaned.links.map((link) => ({
+        try {
+          for (const link of cleaned.links) {
+            await updateThenInsertExternalLink(supabaseAdmin, {
               audiobook_id: row.id,
               label: link.label,
               url: link.url,
               source_type: "description",
               source_key: `description:${row.id}:${link.url}`,
-            })),
-            { onConflict: "source_key" }
-          );
-        if (linkError) {
-          report.errors.push(linkError.message);
-        } else {
+            });
+          }
           report.external_links_upserted += cleaned.links.length;
+        } catch (error) {
+          report.errors.push(error instanceof Error ? error.message : String(error));
         }
       }
     }
