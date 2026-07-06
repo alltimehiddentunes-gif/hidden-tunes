@@ -114,28 +114,43 @@ create trigger audiobook_import_runs_touch_updated_at
   before update on public.audiobook_import_runs
   for each row execute function public.audiobook_touch_updated_at();
 
-insert into public.audiobook_categories (name, slug, sort_order)
-values
-  ('Fiction', 'fiction', 10),
-  ('Classics', 'classics', 20),
-  ('Biography', 'biography', 30),
-  ('Children', 'children', 40),
-  ('History', 'history', 50),
-  ('Poetry', 'poetry', 60),
-  ('Philosophy', 'philosophy', 70),
-  ('Science', 'science', 80),
-  ('Religion', 'religion', 90),
-  ('Drama', 'drama', 100),
-  ('Mystery', 'mystery', 110),
-  ('Adventure', 'adventure', 120),
-  ('Education', 'education', 130),
-  ('Language', 'language', 140),
-  ('Short Stories', 'short-stories', 150),
-  ('Non-fiction', 'non-fiction', 160)
-on conflict (slug) do update
-set name = excluded.name,
-    sort_order = excluded.sort_order,
-    is_active = true;
+with seed(name, slug, sort_order) as (
+  values
+    ('Fiction', 'fiction', 10),
+    ('Classics', 'classics', 20),
+    ('Biography', 'biography', 30),
+    ('Children', 'children', 40),
+    ('History', 'history', 50),
+    ('Poetry', 'poetry', 60),
+    ('Philosophy', 'philosophy', 70),
+    ('Science', 'science', 80),
+    ('Religion', 'religion', 90),
+    ('Drama', 'drama', 100),
+    ('Mystery', 'mystery', 110),
+    ('Adventure', 'adventure', 120),
+    ('Education', 'education', 130),
+    ('Language', 'language', 140),
+    ('Short Stories', 'short-stories', 150),
+    ('Non-fiction', 'non-fiction', 160)
+),
+updated as (
+  update public.audiobook_categories category
+  set
+    name = seed.name,
+    sort_order = seed.sort_order,
+    is_active = true
+  from seed
+  where category.slug = seed.slug
+  returning category.slug
+)
+insert into public.audiobook_categories (name, slug, sort_order, is_active)
+select seed.name, seed.slug, seed.sort_order, true
+from seed
+where not exists (
+  select 1
+  from public.audiobook_categories category
+  where category.slug = seed.slug
+);
 
 notify pgrst, 'reload schema';
 
