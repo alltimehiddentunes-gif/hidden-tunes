@@ -7,9 +7,9 @@ import {
 } from "../constants/tvBrowseCategories";
 
 export const TV_CATALOG_BASE_URL = "https://admin.hiddentunes.com";
-export const TV_CATALOG_API_PATH = "/api/tv/videos";
+export const TV_CATALOG_API_PATH = "/api/tv/channels";
 export const TV_CATEGORIES_API_PATH = "/api/tv/categories";
-export const TV_PLAY_API_PATH = "/api/tv/videos";
+export const TV_PLAY_API_PATH = "/api/tv/channels";
 export const TV_DEFAULT_PAGE_LIMIT = 20;
 export const TV_LANE_PAGE_LIMIT = 12;
 export const TV_HOME_CACHE_KEY = "hidden_tunes_tv_home_cache_v2";

@@ -37,6 +37,7 @@ type ExpansionOptions = {
   reportOnly: boolean;
   probeOnly: boolean;
   probeLimit: number;
+  iptvLimit: number;
   concurrency: number;
 };
 
@@ -47,12 +48,18 @@ function parseArgs(argv: string[]): ExpansionOptions {
     reportOnly: argv.includes("--report-only"),
     probeOnly: argv.includes("--probe-only"),
     probeLimit: 0,
+    iptvLimit: 1_000,
     concurrency: 5,
   };
 
   const probeLimitIndex = argv.indexOf("--probe-limit");
   if (probeLimitIndex >= 0) {
     options.probeLimit = Number(argv[probeLimitIndex + 1] || 0);
+  }
+
+  const iptvLimitIndex = argv.indexOf("--iptv-limit");
+  if (iptvLimitIndex >= 0) {
+    options.iptvLimit = Math.max(1, Number(argv[iptvLimitIndex + 1] || 1_000));
   }
 
   const concurrencyIndex = argv.indexOf("--concurrency");
@@ -164,13 +171,13 @@ async function main() {
   ensureCuratedSeedJson();
 
   const pool = await buildTvCandidatePool({
-    iptvLimit: Math.max(400, TV_GROWTH_TARGET_STATIONS * 2),
+    iptvLimit: options.iptvLimit,
   });
 
   if (options.probeOnly) {
     ensureCuratedSeedJson();
     const pool = await buildTvCandidatePool({
-      iptvLimit: Math.max(400, TV_GROWTH_TARGET_STATIONS * 2),
+      iptvLimit: options.iptvLimit,
     });
     const prioritized = prioritizeTvCandidates(
       pool.candidates,

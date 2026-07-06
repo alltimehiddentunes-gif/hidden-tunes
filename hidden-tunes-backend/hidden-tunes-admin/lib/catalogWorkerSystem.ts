@@ -12,6 +12,7 @@ import {
   RADIO_WORKER_CATEGORIES,
 } from "@/lib/radioCatalogWorker";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { importTvLegalCatalogBatch } from "@/lib/tvLegalCatalogImport";
 
 export type CatalogWorkerSection =
   | "radio"
@@ -285,19 +286,12 @@ async function runMotivationBatch(context: BatchContext) {
 }
 
 async function runTvBatch(context: BatchContext) {
-  return runCommand(
-    "npx",
-    [
-      "tsx",
-      "scripts/run-tv-catalog-expansion.ts",
-      "--import",
-      "--probe-limit",
-      String(context.batchSize),
-      "--concurrency",
-      "2",
-    ],
-    { cwd: context.adminRoot, timeoutMs: context.timeoutMs }
-  );
+  const result = await importTvLegalCatalogBatch({
+    batchSize: context.batchSize,
+    offset: context.state.cursor,
+  });
+  context.state.cursor = result.nextOffset;
+  return result;
 }
 
 async function runRadioBatch(context: BatchContext) {
@@ -456,7 +450,7 @@ export async function verifyCatalogWorkers() {
     "radio_stations",
     "motivation_items",
     "lecture_items",
-    "tv_stations",
+    "tv_videos",
   ];
   const counts: Record<string, number | null> = {};
 

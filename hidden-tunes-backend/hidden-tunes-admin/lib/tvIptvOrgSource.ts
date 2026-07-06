@@ -21,7 +21,10 @@ type IptvOrgStream = {
   timeshift?: string;
 };
 
-export async function fetchIptvOrgCandidates(limit = 400) {
+export async function fetchIptvOrgCandidates(
+  limit = 400,
+  options: { offset?: number } = {}
+) {
   const [channelsResponse, streamsResponse] = await Promise.all([
     fetch(IPTV_ORG_CHANNELS_URL, {
       headers: { Accept: "application/json" },
@@ -48,11 +51,23 @@ export async function fetchIptvOrgCandidates(limit = 400) {
     channelById.set(channel.id, channel);
   }
 
+  const offset = Math.max(0, Math.floor(Number(options.offset || 0)));
   const candidates: TvGrowthCandidate[] = [];
   const seenUrls = new Set<string>();
+  let streamCursor = 0;
+  let scannedAfterOffset = 0;
+  let lastScannedOffset = offset;
 
   for (const stream of streams) {
     if (candidates.length >= limit) break;
+    if (streamCursor < offset) {
+      streamCursor += 1;
+      continue;
+    }
+
+    scannedAfterOffset += 1;
+    lastScannedOffset = streamCursor + 1;
+    streamCursor += 1;
 
     const channel = channelById.get(stream.channel);
     if (!channel) continue;
@@ -94,6 +109,9 @@ export async function fetchIptvOrgCandidates(limit = 400) {
 
   return {
     scannedStreams: streams.length,
+    offset,
+    scannedAfterOffset,
+    nextOffset: lastScannedOffset >= streams.length ? 0 : lastScannedOffset,
     candidates,
   };
 }

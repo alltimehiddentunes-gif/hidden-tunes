@@ -12,7 +12,7 @@ import {
 export const TV_RELIABILITY_THRESHOLD = 60;
 export const TV_AUTO_DISABLE_THRESHOLD = 30;
 export const TV_HEALTH_BATCH_SIZE = 75;
-export const TV_GROWTH_TARGET_STATIONS = 300;
+export const TV_GROWTH_TARGET_STATIONS = 40_000;
 
 export type TvHealthProbeResult = {
   playable: boolean;
