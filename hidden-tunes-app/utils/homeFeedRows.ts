@@ -26,7 +26,6 @@ type GenreSpotlight = {
 };
 
 export type HomeFeedRow =
-  | { key: string; kind: "discovery-modules-rail" }
   | { key: string; kind: "section-title"; title: string }
   | { key: string; kind: "song"; song: HiddenTunesNormalizedSong; sectionId: string }
   | { key: string; kind: "artists-rail" }
@@ -124,7 +123,6 @@ export function buildHomeFeedRows(input: BuildHomeFeedRowsInput): HomeFeedRow[] 
     rows.push({ key, kind: "launch-chips", title, chips });
   };
 
-  rows.push({ key: "discovery-modules-rail", kind: "discovery-modules-rail" });
   rows.push({ key: "recently-added", kind: "recently-added" });
 
   pushUniqueSongRows(
@@ -247,7 +245,7 @@ export function buildHomeFeedRows(input: BuildHomeFeedRowsInput): HomeFeedRow[] 
     }
 
     if (input.rankedArtistsCount > 0) {
-      rows.push({ key: "title-creators", kind: "section-title", title: "Featured Artists" });
+      rows.push({ key: "title-creators", kind: "section-title", title: "Creators In Your Orbit" });
       rows.push({ key: "rail-artists", kind: "artists-rail" });
     }
 

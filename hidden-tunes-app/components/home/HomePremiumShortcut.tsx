@@ -69,7 +69,7 @@ export const HomePremiumShortcut = memo(function HomePremiumShortcut({
           <Ionicons name={icon} size={23} color={color} />
         </View>
 
-        <Text ellipsizeMode="tail" numberOfLines={1} style={styles.title}>
+        <Text numberOfLines={1} style={styles.title}>
           {title}
         </Text>
       </TouchableOpacity>
@@ -102,7 +102,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "900",
     marginTop: 8,
-    textAlign: "center",
-    width: "100%",
   },
 });

@@ -52,10 +52,10 @@ export const LaunchContentChips = memo(function LaunchContentChips({
     >
       <Ionicons name={item.icon} size={16} color={COLORS.primary} />
       <View style={styles.chipCopy}>
-        <Text ellipsizeMode="tail" numberOfLines={1} style={styles.chipTitle}>
+        <Text numberOfLines={1} style={styles.chipTitle}>
           {item.title}
         </Text>
-        <Text ellipsizeMode="tail" numberOfLines={1} style={styles.chipSubtitle}>
+        <Text numberOfLines={1} style={styles.chipSubtitle}>
           {item.subtitle}
         </Text>
       </View>
@@ -97,7 +97,7 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   chip: {
-    width: 236,
+    width: 220,
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
