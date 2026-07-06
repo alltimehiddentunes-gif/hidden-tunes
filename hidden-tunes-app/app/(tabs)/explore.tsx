@@ -161,11 +161,15 @@ const CloudSongCard = memo(function CloudSongCard({
   badge: "PLAY" | "RECENT" | "SMART";
   onPress: (song: HiddenTunesNormalizedSong, badge: "PLAY" | "RECENT" | "SMART") => void;
 }) {
+  const handlePress = useCallback(() => {
+    onPress(song, badge);
+  }, [badge, onPress, song]);
+
   return (
     <TouchableOpacity
       activeOpacity={0.88}
       style={styles.cloudCard}
-      onPress={() => onPress(song, badge)}
+      onPress={handlePress}
     >
       <HTImage source={song} style={styles.cloudCover} />
 
@@ -213,15 +217,22 @@ const ExploreNavCard = memo(function ExploreNavCard({
   item,
   title,
   subtitle,
-  onPress,
+  route,
 }: {
   item: any;
   title: string;
   subtitle: string;
-  onPress: () => void;
+  route: "/cloud-playlist/[id]" | "/album/[id]";
 }) {
+  const handlePress = useCallback(() => {
+    router.push({
+      pathname: route,
+      params: { id: item.id },
+    } as any);
+  }, [item.id, route]);
+
   return (
-    <TouchableOpacity activeOpacity={0.88} style={styles.cloudCard} onPress={onPress}>
+    <TouchableOpacity activeOpacity={0.88} style={styles.cloudCard} onPress={handlePress}>
       <HTImage source={item} style={styles.cloudCover} />
       <Text numberOfLines={1} style={styles.cloudTitle}>
         {title}
@@ -235,13 +246,18 @@ const ExploreNavCard = memo(function ExploreNavCard({
 
 const ExploreArtistNavCard = memo(function ExploreArtistNavCard({
   item,
-  onPress,
 }: {
   item: any;
-  onPress: () => void;
 }) {
+  const handlePress = useCallback(() => {
+    router.push({
+      pathname: "/artist/[id]",
+      params: { id: item.id },
+    } as any);
+  }, [item.id]);
+
   return (
-    <TouchableOpacity activeOpacity={0.88} style={styles.artistCloudCard} onPress={onPress}>
+    <TouchableOpacity activeOpacity={0.88} style={styles.artistCloudCard} onPress={handlePress}>
       <HTImage source={item} style={styles.artistCloudImage} />
       <Text numberOfLines={1} style={styles.cloudTitle}>
         {item.name || "Artist"}
@@ -266,6 +282,10 @@ export default memo(function ExploreScreen() {
   const { playSong } = usePlayerActions();
   const { currentSong } = usePlayerNowPlaying();
   const { recentlyPlayed, favorites } = usePlayerState();
+  const initialExploreSongsRef = useRef<HiddenTunesNormalizedSong[] | null>(null);
+  if (initialExploreSongsRef.current === null) {
+    initialExploreSongsRef.current = buildInitialExploreSongs();
+  }
   const [onboardingPrefs, setOnboardingPrefs] = useState<OnboardingPreferences | null>(
     () => peekOnboardingPreferences()
   );
@@ -279,17 +299,20 @@ export default memo(function ExploreScreen() {
   const initialExploreLoadRef = useRef(false);
   const exploreHasSongsRef = useRef(false);
   const exploreSongCountRef = useRef(0);
+  const loadingMoreSongsRef = useRef(false);
   const loadExploreRef = useRef<
     (showLoader?: boolean, forceRefresh?: boolean) => Promise<void>
   >(async () => {});
 
   const [cloudSongs, setCloudSongs] = useState<HiddenTunesNormalizedSong[]>(
-    () => buildInitialExploreSongs()
+    () => initialExploreSongsRef.current || []
   );
   const [albums, setAlbums] = useState<HiddenTunesAlbum[]>([]);
   const [artists, setArtists] = useState<HiddenTunesArtist[]>([]);
   const [playlists, setPlaylists] = useState<HiddenTunesCloudPlaylist[]>([]);
-  const [loading, setLoading] = useState(() => buildInitialExploreSongs().length === 0);
+  const [loading, setLoading] = useState(
+    () => (initialExploreSongsRef.current || []).length === 0
+  );
   const [refreshing, setRefreshing] = useState(false);
   const [hasCheckedDiscoveryFallbacks, setHasCheckedDiscoveryFallbacks] =
     useState(false);
@@ -565,19 +588,25 @@ export default memo(function ExploreScreen() {
   }, [loadExplore]);
 
   const loadMoreSongs = useCallback(async () => {
-    if (loadingMoreSongs || !hasMoreSongs) return;
+    if (loadingMoreSongsRef.current || loadingMoreSongs || !hasMoreSongs) return;
 
     const nextPage = songPage + 1;
     if (nextPage > 1 && isWithinFirstInteractionWindow()) {
       return;
     }
 
+    loadingMoreSongsRef.current = true;
+
     try {
       setLoadingMoreSongs(true);
+      const pageAtStart = songPage;
       const page = await getHiddenTunesSongsPage({
         page: nextPage,
         limit: 30,
       });
+
+      if (!screenMountedRef.current || pageAtStart !== songPage) return;
+
       const nextSongs = capScreenCatalogSongs(
         dedupeSongs([
           ...cloudSongs,
@@ -606,6 +635,7 @@ export default memo(function ExploreScreen() {
       });
     } catch (error) {
     } finally {
+      loadingMoreSongsRef.current = false;
       setLoadingMoreSongs(false);
     }
   }, [cloudSongs, hasMoreSongs, loadingMoreSongs, songPage]);
@@ -887,12 +917,7 @@ export default memo(function ExploreScreen() {
         subtitle={
           Array.isArray(item.tracks) ? `${item.tracks.length} tracks` : "Playlist"
         }
-        onPress={() =>
-          router.push({
-            pathname: "/cloud-playlist/[id]",
-            params: { id: item.id },
-          } as any)
-        }
+        route="/cloud-playlist/[id]"
       />
     ),
     []
@@ -904,29 +929,14 @@ export default memo(function ExploreScreen() {
         item={item}
         title={(item as any).title || (item as any).name || "Album"}
         subtitle={item.artist || "Hidden Tunes"}
-        onPress={() =>
-          router.push({
-            pathname: "/album/[id]",
-            params: { id: item.id },
-          } as any)
-        }
+        route="/album/[id]"
       />
     ),
     []
   );
 
   const renderArtistItem = useCallback(
-    ({ item }: { item: HiddenTunesArtist }) => (
-      <ExploreArtistNavCard
-        item={item}
-        onPress={() =>
-          router.push({
-            pathname: "/artist/[id]",
-            params: { id: item.id },
-          } as any)
-        }
-      />
-    ),
+    ({ item }: { item: HiddenTunesArtist }) => <ExploreArtistNavCard item={item} />,
     []
   );
 

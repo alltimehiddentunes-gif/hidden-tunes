@@ -1,4 +1,4 @@
-import React, { memo } from "react";
+import React, { memo, useCallback } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -143,6 +143,86 @@ function stageVisible(mountStage: ExploreMountStage, minStage: ExploreMountStage
   return mountStage >= minStage;
 }
 
+const moodRoomKeyExtractor = (item: MoodRoomItem) => item.id;
+const smartRadioKeyExtractor = (entry: SmartRadioEntry) => entry.id;
+const moodCollectionKeyExtractor = (item: MoodCollectionItem) => item.id;
+const playlistKeyExtractor = (item: any) => `playlist-${item.id}`;
+const albumKeyExtractor = (item: any) => `album-${item.id}`;
+const artistKeyExtractor = (item: any) => `artist-${item.id}`;
+const FALLBACK_MOOD_WORLD_IDS = new Set([
+  "heartbreak-recovery",
+  "late-night-vibes",
+  "deep-focus",
+  "night-drive",
+]);
+
+const SmartRadioChip = memo(function SmartRadioChip({
+  entry,
+}: {
+  entry: SmartRadioEntry;
+}) {
+  const handlePress = useCallback(() => {
+    openSmartRadioEntry(entry);
+  }, [entry]);
+
+  return (
+    <TouchableOpacity
+      activeOpacity={0.88}
+      style={styles.smartRadioChip}
+      onPress={handlePress}
+    >
+      <Ionicons name="radio-outline" size={16} color={COLORS.primary} />
+      <View style={styles.smartRadioChipCopy}>
+        <Text numberOfLines={1} style={styles.smartRadioChipTitle}>
+          {entry.title}
+        </Text>
+        <Text numberOfLines={1} style={styles.smartRadioChipSubtitle}>
+          {entry.subtitle}
+        </Text>
+      </View>
+    </TouchableOpacity>
+  );
+});
+
+const MoodCollectionCard = memo(function MoodCollectionCard({
+  item,
+  onOpenLaunchWorld,
+}: {
+  item: MoodCollectionItem;
+  onOpenLaunchWorld: (worldId: string) => void;
+}) {
+  const handlePress = useCallback(() => {
+    onOpenLaunchWorld(item.worldId);
+  }, [item.worldId, onOpenLaunchWorld]);
+
+  return (
+    <TouchableOpacity
+      activeOpacity={0.88}
+      style={styles.moodCollectionCard}
+      onPress={handlePress}
+    >
+      {item.artwork[0] ? (
+        <HTImage uri={item.artwork[0]} style={styles.moodCollectionArt} />
+      ) : (
+        <LinearGradient
+          colors={item.gradient}
+          style={styles.moodCollectionArt}
+        >
+          <Ionicons name="musical-notes" size={22} color={COLORS.textMuted} />
+        </LinearGradient>
+      )}
+      <View style={styles.moodCollectionCopy}>
+        <Text numberOfLines={1} style={styles.moodCollectionTitle}>
+          {item.title}
+        </Text>
+        <Text numberOfLines={2} style={styles.moodCollectionSubtitle}>
+          {item.subtitle}
+        </Text>
+      </View>
+    </TouchableOpacity>
+  );
+});
+
 export const ExploreHeaderHero = memo(function ExploreHeaderHero({
   cloudSongsCount,
   onRefresh,
@@ -247,7 +327,7 @@ export const ExplorePrimaryRail = memo(function ExplorePrimaryRail({
           <FlatList
             horizontal
             data={moodRooms}
-            keyExtractor={(item) => item.id}
+            keyExtractor={moodRoomKeyExtractor}
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.moodRail}
             renderItem={renderMoodRoom}
@@ -382,6 +462,11 @@ export const ExploreDiscoveryRails = memo(function ExploreDiscoveryRails({
   renderRecentSong: ListRenderItem<HiddenTunesNormalizedSong>;
   renderCloudSong: ListRenderItem<HiddenTunesNormalizedSong>;
 }) {
+  const renderSmartRadioEntry = useCallback(
+    ({ item }: { item: SmartRadioEntry }) => <SmartRadioChip entry={item} />,
+    []
+  );
+
   const renderSongRail = (
     title: string,
     songs: HiddenTunesNormalizedSong[],
@@ -461,26 +546,10 @@ export const ExploreDiscoveryRails = memo(function ExploreDiscoveryRails({
           <FlatList
             horizontal
             data={smartRadioEntries}
-            keyExtractor={(entry) => entry.id}
+            keyExtractor={smartRadioKeyExtractor}
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.smartRadioRow}
-            renderItem={({ item: entry }) => (
-              <TouchableOpacity
-                activeOpacity={0.88}
-                style={styles.smartRadioChip}
-                onPress={() => openSmartRadioEntry(entry)}
-              >
-                <Ionicons name="radio-outline" size={16} color={COLORS.primary} />
-                <View style={styles.smartRadioChipCopy}>
-                  <Text numberOfLines={1} style={styles.smartRadioChipTitle}>
-                    {entry.title}
-                  </Text>
-                  <Text numberOfLines={1} style={styles.smartRadioChipSubtitle}>
-                    {entry.subtitle}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            )}
+            renderItem={renderSmartRadioEntry}
             initialNumToRender={horizontalRailTuning.initialNumToRender}
             maxToRenderPerBatch={horizontalRailTuning.maxToRenderPerBatch}
             windowSize={horizontalRailTuning.windowSize}
@@ -685,14 +754,15 @@ export const ExploreMoodCollectionsRail = memo(function ExploreMoodCollectionsRa
   moodCollections: MoodCollectionItem[];
   onOpenLaunchWorld: (worldId: string) => void;
 }) {
-  const moodWorldIds = new Set([
-    "heartbreak-recovery",
-    "late-night-vibes",
-    "deep-focus",
-    "night-drive",
-  ]);
+  const renderMoodCollection = useCallback(
+    ({ item }: { item: MoodCollectionItem }) => (
+      <MoodCollectionCard item={item} onOpenLaunchWorld={onOpenLaunchWorld} />
+    ),
+    [onOpenLaunchWorld]
+  );
+
   const fallbackWorlds = LAUNCH_EMOTIONAL_WORLDS.filter((world) =>
-    moodWorldIds.has(world.id)
+    FALLBACK_MOOD_WORLD_IDS.has(world.id)
   );
 
   if (moodCollections.length > 0) {
@@ -702,7 +772,7 @@ export const ExploreMoodCollectionsRail = memo(function ExploreMoodCollectionsRa
         <FlatList
           horizontal
           data={moodCollections}
-          keyExtractor={(item) => item.id}
+          keyExtractor={moodCollectionKeyExtractor}
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.moodRail}
           initialNumToRender={4}
@@ -710,32 +780,7 @@ export const ExploreMoodCollectionsRail = memo(function ExploreMoodCollectionsRa
           windowSize={5}
           updateCellsBatchingPeriod={50}
           removeClippedSubviews
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              activeOpacity={0.88}
-              style={styles.moodCollectionCard}
-              onPress={() => onOpenLaunchWorld(item.worldId)}
-            >
-              {item.artwork[0] ? (
-                <HTImage uri={item.artwork[0]} style={styles.moodCollectionArt} />
-              ) : (
-                <LinearGradient
-                  colors={item.gradient}
-                  style={styles.moodCollectionArt}
-                >
-                  <Ionicons name="musical-notes" size={22} color={COLORS.textMuted} />
-                </LinearGradient>
-              )}
-              <View style={styles.moodCollectionCopy}>
-                <Text numberOfLines={1} style={styles.moodCollectionTitle}>
-                  {item.title}
-                </Text>
-                <Text numberOfLines={2} style={styles.moodCollectionSubtitle}>
-                  {item.subtitle}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          )}
+          renderItem={renderMoodCollection}
         />
       </View>
     );
@@ -881,7 +926,7 @@ export const ExploreHeavySections = memo(function ExploreHeavySections({
           <FlatList
             horizontal
             data={playlists}
-            keyExtractor={(item: any) => `playlist-${item.id}`}
+            keyExtractor={playlistKeyExtractor}
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.cloudRow}
             initialNumToRender={horizontalRailTuning.initialNumToRender}
@@ -900,7 +945,7 @@ export const ExploreHeavySections = memo(function ExploreHeavySections({
           <FlatList
             horizontal
             data={rankedAlbums}
-            keyExtractor={(item: any) => `album-${item.id}`}
+            keyExtractor={albumKeyExtractor}
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.cloudRow}
             initialNumToRender={horizontalRailTuning.initialNumToRender}
@@ -919,7 +964,7 @@ export const ExploreHeavySections = memo(function ExploreHeavySections({
           <FlatList
             horizontal
             data={rankedArtists}
-            keyExtractor={(item: any) => `artist-${item.id}`}
+            keyExtractor={artistKeyExtractor}
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.cloudRow}
             initialNumToRender={horizontalRailTuning.initialNumToRender}
