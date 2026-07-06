@@ -8,7 +8,6 @@ import React, {
 } from "react";
 import {
   LayoutChangeEvent,
-  AppState,
   Pressable,
   StyleSheet,
   Text,
@@ -44,7 +43,6 @@ import HTImage from "./HTImage";
 import { FALLBACK_ARTWORK, getArtworkValue } from "../utils/artwork";
 import { isFastScrolling } from "../utils/performanceMode";
 import { useRuntimeRenderProbe } from "../utils/runtimeInstrumentation";
-import { useCpuRenderProbe } from "../utils/cpuIdleProfiling";
 import {
   isPodcastEpisodeSong,
   isRadioStreamSong,
@@ -334,7 +332,6 @@ const MiniPlayerMetadata = memo(function MiniPlayerMetadata({
 
 function MiniPlayer() {
   useRuntimeRenderProbe("MiniPlayer");
-  useCpuRenderProbe("MiniPlayer");
   const {
     currentSong,
     isPlaying,
@@ -395,36 +392,10 @@ function MiniPlayer() {
   useEffect(() => {
     if (currentSong) return undefined;
 
-    let timer: ReturnType<typeof setInterval> | null = null;
-
-    const clearPoll = () => {
-      if (!timer) return;
-      clearInterval(timer);
-      timer = null;
-    };
-
-    const startPoll = () => {
-      if (timer || AppState.currentState !== "active") return;
-      timer = setInterval(loadYouTubeMini, YOUTUBE_POLL_MS);
-    };
-
-    const syncPoll = () => {
-      if (AppState.currentState !== "active") {
-        clearPoll();
-        return;
-      }
-
-      startPoll();
-    };
-
-    syncPoll();
-    void loadYouTubeMini();
-
-    const appStateSubscription = AppState.addEventListener("change", syncPoll);
+    const timer = setInterval(loadYouTubeMini, YOUTUBE_POLL_MS);
 
     return () => {
-      appStateSubscription.remove();
-      clearPoll();
+      clearInterval(timer);
     };
   }, [currentSong, loadYouTubeMini]);
 

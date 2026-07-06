@@ -46,7 +46,6 @@ import { normalizeGenreName } from "../../utils/genreNormalization";
 import { isFastScrolling } from "../../utils/performanceMode";
 import { useRenderCountProbe } from "../../utils/performanceVerification";
 import { useRuntimeRenderProbe } from "../../utils/runtimeInstrumentation";
-import { useCpuRenderProbe } from "../../utils/cpuIdleProfiling";
 import { getPlaybackSurfaceMode } from "../../utils/playbackMode";
 
 type PlayerMetadataType = "album" | "mood" | "genre";
@@ -320,7 +319,6 @@ const PlayerProgressSection = memo(function PlayerProgressSection({
 export default function PlayerScreen() {
   useRenderCountProbe("PlayerScreen");
   useRuntimeRenderProbe("Player");
-  useCpuRenderProbe("Player");
 
   const {
     currentSong,

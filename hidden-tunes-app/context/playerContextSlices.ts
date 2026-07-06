@@ -7,7 +7,6 @@ import {
   useSyncExternalStore,
 } from "react";
 
-import { isHeavyPerfDiagnosticsEnabled } from "../utils/devDiagnostics";
 import { trackPlaybackSubscriberRender } from "../utils/playbackRenderDiagnostics";
 import {
   getNowPlayingSnapshot,
@@ -92,9 +91,9 @@ export const PlayerProgressContext = createContext<
 >(undefined);
 
 function usePlaybackRenderProbe(subscriber: string) {
-  if (isHeavyPerfDiagnosticsEnabled()) {
+  useEffect(() => {
     trackPlaybackSubscriberRender(subscriber);
-  }
+  });
 }
 
 function usePlayerActionsContext(): PlayerActionsContextValue {
