@@ -431,6 +431,7 @@ export const PODCAST_SEED_FEEDS: PodcastSeedFeed[] = [
 export function listPodcastSeedFeeds(options?: {
   categories?: PodcastSeedCategorySlug[];
   limit?: number;
+  offset?: number;
 }) {
   let feeds = PODCAST_SEED_FEEDS;
 
@@ -439,8 +440,11 @@ export function listPodcastSeedFeeds(options?: {
     feeds = feeds.filter((feed) => allowed.has(feed.category));
   }
 
-  if (options?.limit && options.limit > 0) {
-    feeds = feeds.slice(0, options.limit);
+  const offset = Math.max(0, Math.floor(Number(options?.offset || 0)));
+  const limit = Math.max(0, Math.floor(Number(options?.limit || 0)));
+
+  if (offset > 0 || limit > 0) {
+    feeds = feeds.slice(offset, limit > 0 ? offset + limit : undefined);
   }
 
   return feeds;
@@ -459,6 +463,7 @@ export function countPodcastSeedFeedsByCategory() {
 export function listMaturePodcastSeedFeeds(options?: {
   categories?: MaturePodcastSeedCategorySlug[];
   limit?: number;
+  offset?: number;
 }) {
   let feeds = MATURE_PODCAST_SEED_FEEDS;
 
@@ -467,8 +472,11 @@ export function listMaturePodcastSeedFeeds(options?: {
     feeds = feeds.filter((feed) => allowed.has(feed.matureCategory));
   }
 
-  if (options?.limit && options.limit > 0) {
-    feeds = feeds.slice(0, options.limit);
+  const offset = Math.max(0, Math.floor(Number(options?.offset || 0)));
+  const limit = Math.max(0, Math.floor(Number(options?.limit || 0)));
+
+  if (offset > 0 || limit > 0) {
+    feeds = feeds.slice(offset, limit > 0 ? offset + limit : undefined);
   }
 
   return feeds;

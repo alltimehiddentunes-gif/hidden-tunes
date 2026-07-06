@@ -17,6 +17,7 @@ export const PODCAST_SEED_DEFAULT_FEED_TIMEOUT_MS = 20_000;
 export type PodcastSeedIngestOptions = {
   auto_approve?: boolean;
   max_feeds?: number;
+  offset?: number;
   max_episodes_per_feed?: number;
   feed_timeout_ms?: number;
   categories?: PodcastSeedCategorySlug[];
@@ -119,9 +120,11 @@ export async function ingestPodcastSeedCatalog(
     1,
     Number(options.max_feeds || PODCAST_SEED_DEFAULT_MAX_FEEDS)
   );
+  const offset = Math.max(0, Math.floor(Number(options.offset || 0)));
   const feeds = listPodcastSeedFeeds({
     categories: options.categories,
     limit: maxFeeds,
+    offset,
   });
 
   const byCategory: Record<string, PodcastSeedCategorySummary> = {};
@@ -207,9 +210,11 @@ export async function ingestMaturePodcastSeedCatalog(
     1,
     Number(options.max_feeds || PODCAST_SEED_DEFAULT_MAX_FEEDS)
   );
+  const offset = Math.max(0, Math.floor(Number(options.offset || 0)));
   const feeds = listMaturePodcastSeedFeeds({
     categories: options.categories,
     limit: maxFeeds,
+    offset,
   });
 
   const byCategory: Record<string, PodcastSeedCategorySummary> = {};

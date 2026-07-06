@@ -38,6 +38,11 @@
     "audiobooks:import:librivox": "tsx scripts/run-audiobook-seed-ingest.ts",
     "audiobooks:repair-descriptions": "tsx scripts/repair-audiobook-descriptions.ts",
     "audiobooks:verify-production": "tsx scripts/verify-audiobook-production.ts",
+    "catalog-workers:start": "tsx scripts/catalog-workers.ts start",
+    "catalog-workers:status": "tsx scripts/catalog-workers.ts status",
+    "catalog-workers:logs": "tsx scripts/catalog-workers.ts logs",
+    "catalog-workers:stop": "tsx scripts/catalog-workers.ts stop",
+    "catalog-workers:verify": "tsx scripts/catalog-workers.ts verify",
     "test:motivation-public": "tsx scripts/test-motivation-public-metadata.ts",
     "verify:motivation-catalog": "tsx scripts/verify-motivation-catalog.ts",
     "verify:motivation-play-sample": "tsx scripts/verify-motivation-play-sample.ts"
