@@ -589,9 +589,12 @@ const SearchCatalogSongPressableRow = memo(function SearchCatalogSongPressableRo
   onRowPress: CatalogSongRowPressHandler;
   reserveRightActionsSpace?: boolean;
 }) {
-  const playable = normalizePlayableSong(song);
+  const playable = useMemo(() => normalizePlayableSong(song), [song]);
   const title = String(playable.title || "Unknown Song");
   const artistLine = subtitle || String(getArtist(playable));
+  const handlePress = useCallback(() => {
+    onRowPress(playable, index);
+  }, [index, onRowPress, playable]);
 
   return (
     <Pressable
@@ -603,7 +606,7 @@ const SearchCatalogSongPressableRow = memo(function SearchCatalogSongPressableRo
         active && styles.catalogSongRowActive,
         pressed && styles.catalogSongRowPressed,
       ]}
-      onPress={() => onRowPress(playable, index)}
+      onPress={handlePress}
     >
       <LinearGradient
         colors={GRADIENTS.card}
@@ -643,7 +646,7 @@ const SearchCatalogSongPressableRow = memo(function SearchCatalogSongPressableRo
   );
 });
 
-function SearchGroupedMainSongRow({
+const SearchGroupedMainSongRow = memo(function SearchGroupedMainSongRow({
   hit,
   index,
   active,
@@ -669,7 +672,7 @@ function SearchGroupedMainSongRow({
       />
     </View>
   );
-}
+});
 
 const SearchResultRow = memo(function SearchResultRow({
   item,
@@ -680,21 +683,33 @@ const SearchResultRow = memo(function SearchResultRow({
   index: number;
   handlersRef: React.RefObject<SearchRowHandlers>;
 }) {
-  const normalized = normalizeSearchTrack(item);
+  const normalized = useMemo(() => normalizeSearchTrack(item), [item]);
   const youtube = isYouTubeTrack(normalized);
-  const playable = normalizePlayableSong(normalized);
+  const playable = useMemo(() => normalizePlayableSong(normalized), [normalized]);
   const trackId = String(normalized.id || "");
   const { isActive, isPlaying } = useTrackPlaybackStatus(youtube ? "" : trackId);
   const artist = String(getArtist(normalized));
   const title = String(normalized.title || "Unknown Song");
 
-  const onCatalogSongPress: CatalogSongRowPressHandler = (song, rowIndex) => {
+  const onCatalogSongPress = useCallback<CatalogSongRowPressHandler>((song, rowIndex) => {
     handlersRef.current?.handleSongResultPress(song, rowIndex);
-  };
+  }, [handlersRef]);
 
-  const onTvPress = () => {
+  const onTvPress = useCallback(() => {
     handlersRef.current?.handlePress(item, index);
-  };
+  }, [handlersRef, index, item]);
+
+  const openArtist = useCallback(() => {
+    handlersRef.current?.openArtistFromTrack(item);
+  }, [handlersRef, item]);
+
+  const openAlbum = useCallback(() => {
+    handlersRef.current?.openAlbumFromTrack(item);
+  }, [handlersRef, item]);
+
+  const onPlayablePress = useCallback(() => {
+    onCatalogSongPress(playable, index);
+  }, [index, onCatalogSongPress, playable]);
 
   if (youtube) {
     return (
@@ -713,7 +728,7 @@ const SearchResultRow = memo(function SearchResultRow({
           <TouchableOpacity
             activeOpacity={0.7}
             style={styles.artistButton}
-            onPress={() => handlersRef.current?.openArtistFromTrack(item)}
+            onPress={openArtist}
           >
             <Ionicons name="person-outline" size={17} color={COLORS.text} />
           </TouchableOpacity>
@@ -721,7 +736,7 @@ const SearchResultRow = memo(function SearchResultRow({
           <TouchableOpacity
             activeOpacity={0.82}
             style={styles.albumButton}
-            onPress={() => handlersRef.current?.openAlbumFromTrack(item)}
+            onPress={openAlbum}
           >
             <Ionicons name="albums-outline" size={18} color={COLORS.text} />
           </TouchableOpacity>
@@ -760,7 +775,7 @@ const SearchResultRow = memo(function SearchResultRow({
         <TouchableOpacity
           activeOpacity={0.7}
           style={styles.artistButton}
-          onPress={() => handlersRef.current?.openArtistFromTrack(item)}
+          onPress={openArtist}
         >
           <Ionicons name="person-outline" size={17} color={COLORS.text} />
         </TouchableOpacity>
@@ -770,7 +785,7 @@ const SearchResultRow = memo(function SearchResultRow({
         <TouchableOpacity
           activeOpacity={0.82}
           style={styles.albumButton}
-          onPress={() => handlersRef.current?.openAlbumFromTrack(item)}
+          onPress={openAlbum}
         >
           <Ionicons name="albums-outline" size={18} color={COLORS.text} />
         </TouchableOpacity>
@@ -782,7 +797,7 @@ const SearchResultRow = memo(function SearchResultRow({
         ) : (
           <Pressable
             android_ripple={{ color: "rgba(168,85,247,0.2)" }}
-            onPress={() => onCatalogSongPress(playable, index)}
+            onPress={onPlayablePress}
             style={({ pressed }) => [
               styles.playButton,
               pressed && styles.playButtonPressed,
@@ -834,6 +849,7 @@ export default function SearchScreen() {
   const tvFetchGenerationRef = useRef(0);
   const tvFetchInFlightRef = useRef<string | null>(null);
   const fuzzySearchInFlightRef = useRef<string | null>(null);
+  const loadingMoreResultsRef = useRef(false);
   const lastCompletedSearchRef = useRef<{ key: string; at: number }>({
     key: "",
     at: 0,
@@ -921,13 +937,34 @@ export default function SearchScreen() {
     }).slice(0, 10);
   }, [query]);
 
-  const playableResults = useMemo(() => {
-    return dedupeByKey(
-      results
-        .filter((item) => !isYouTubeTrack(item))
-        .map((item) => normalizeNativeResult(item))
-    );
+  const resultPartitions = useMemo(() => {
+    const youtube: SearchResultTrack[] = [];
+    const hidden: SearchResultTrack[] = [];
+    const native: SearchResultTrack[] = [];
+
+    for (const item of results) {
+      if (isYouTubeTrack(item)) {
+        youtube.push(item);
+        continue;
+      }
+
+      native.push(item);
+
+      if (isHiddenTunesCatalogTrack(item)) {
+        hidden.push(item);
+      }
+    }
+
+    return { hidden, native, youtube };
   }, [results]);
+
+  const playableResults = useMemo(
+    () =>
+      dedupeByKey(
+        resultPartitions.native.map((item) => normalizeNativeResult(item))
+      ),
+    [resultPartitions.native]
+  );
 
   const continueListening = useMemo(() => {
     if (playableResults.length > 0) return playableResults.slice(0, 8);
@@ -1070,15 +1107,19 @@ export default function SearchScreen() {
     }
 
     if (collected.length < VISIBLE_SONG_LIMIT) {
-      for (const item of results) {
-        if (isYouTubeTrack(item)) continue;
-        addSong(item);
+      for (const item of resultPartitions.native) {
+        addSong(item as NativeSearchTrack);
         if (collected.length >= VISIBLE_SONG_LIMIT) break;
       }
     }
 
     return collected;
-  }, [groupedSearchResults, rankedCatalogSongHits, results, showGroupedSearch]);
+  }, [
+    groupedSearchResults,
+    rankedCatalogSongHits,
+    resultPartitions.native,
+    showGroupedSearch,
+  ]);
 
   const catalogLookupSources = useMemo(
     () => [remoteCatalogSongs, catalogSongsForSearch],
@@ -1086,20 +1127,21 @@ export default function SearchScreen() {
   );
 
   const listResults = useMemo(() => {
-    if (activeSource === "youtube") {
-      return results.filter((item) => isYouTubeTrack(item));
-    }
+    if (activeSource === "youtube") return resultPartitions.youtube;
 
     if (activeSource === "podcasts") {
       return [];
     }
 
-    if (activeSource === "hidden") {
-      return results.filter((item) => isHiddenTunesCatalogTrack(item));
-    }
+    if (activeSource === "hidden") return resultPartitions.hidden;
 
-    return results.filter((item) => !isYouTubeTrack(item));
-  }, [activeSource, results]);
+    return resultPartitions.native;
+  }, [
+    activeSource,
+    resultPartitions.hidden,
+    resultPartitions.native,
+    resultPartitions.youtube,
+  ]);
 
   const searchPlayQueue = useMemo(
     () => buildSearchPlayQueue(visibleSongResults, results, catalogLookupSources),
@@ -1572,10 +1614,9 @@ export default function SearchScreen() {
   }, [activeSource, query]);
 
   const buildYouTubeQueue = useCallback(() => {
-    const queue: YouTubeQueueItem[] = results
-      .filter((track) => isYouTubeTrack(track))
+    const queue: YouTubeQueueItem[] = resultPartitions.youtube
       .map((track) => {
-        const normalized = normalizeYouTubeResult(track);
+        const normalized = normalizeYouTubeResult(track as BackendYouTubeTrack);
         const videoId = getYoutubeVideoId(normalized);
 
         return {
@@ -1590,7 +1631,7 @@ export default function SearchScreen() {
       .filter((track) => track.videoId.length === 11);
 
     return dedupeByKey(queue);
-  }, [results]);
+  }, [resultPartitions.youtube]);
 
   async function searchTracks(
     text: string,
@@ -1786,6 +1827,7 @@ export default function SearchScreen() {
     const safeText = query.trim();
 
     if (
+      loadingMoreResultsRef.current ||
       loadingMoreResults ||
       !hasMoreHiddenResults ||
       safeText.length < API_SEARCH_MIN_CHARS ||
@@ -1797,10 +1839,14 @@ export default function SearchScreen() {
       return;
     }
 
+    loadingMoreResultsRef.current = true;
+
     try {
       setLoadingMoreResults(true);
 
       const nextPage = searchPage + 1;
+      const queryAtStart = safeText;
+      const requestIdAtStart = searchRequestIdRef.current;
       const page = await searchHiddenTunesSongsPage(safeText, nextPage, 30);
       const nextResults = page.songs.map((item: any) =>
         normalizeNativeResult({
@@ -1810,6 +1856,14 @@ export default function SearchScreen() {
           type: "r2",
         })
       );
+
+      if (
+        !screenMountedRef.current ||
+        requestIdAtStart !== searchRequestIdRef.current ||
+        queryAtStart !== query.trim()
+      ) {
+        return;
+      }
 
       setResults((current) =>
         orderFlatSearchResults(
@@ -1824,6 +1878,7 @@ export default function SearchScreen() {
       setHasMoreHiddenResults(page.hasMore);
     } catch (error) {
     } finally {
+      loadingMoreResultsRef.current = false;
       setLoadingMoreResults(false);
     }
   }, [
@@ -2075,7 +2130,7 @@ export default function SearchScreen() {
         <Text style={styles.smartChipText}>{text}</Text>
       </TouchableOpacity>
     ),
-    [activeSource]
+    [activeSource, commitSearch]
   );
 
   const openGroupedArtist = useCallback((artist: HiddenTunesArtist) => {
@@ -2161,6 +2216,21 @@ export default function SearchScreen() {
       openGroupedTv(video);
     },
     [openGroupedTv]
+  );
+
+  const handleUniversalSongPress = useCallback(
+    (song: any) => {
+      const playIndex = searchPlayQueue.findIndex(
+        (item) => String(item.id) === String(song?.id)
+      );
+      handleSongResultPress(song, playIndex >= 0 ? playIndex : 0);
+    },
+    [handleSongResultPress, searchPlayQueue]
+  );
+
+  const handleUniversalSuggestionPress = useCallback(
+    (text: string) => commitSearch(text, activeSource),
+    [activeSource, commitSearch]
   );
 
   const renderPremiumSearchEmpty = useCallback(() => {
@@ -2772,23 +2842,13 @@ export default function SearchScreen() {
                 <UniversalSearchGroupedResults
                   grouped={groupedForUniversalSearch}
                   query={trimmedQuery}
-                  onSongPress={(song) => {
-                    const playIndex = searchPlayQueue.findIndex(
-                      (item) => String(item.id) === String(song?.id)
-                    );
-                    handleSongResultPress(song, playIndex >= 0 ? playIndex : 0);
-                  }}
-                  onLyricPress={(song) => {
-                    const playIndex = searchPlayQueue.findIndex(
-                      (item) => String(item.id) === String(song?.id)
-                    );
-                    handleSongResultPress(song, playIndex >= 0 ? playIndex : 0);
-                  }}
+                  onSongPress={handleUniversalSongPress}
+                  onLyricPress={handleUniversalSongPress}
                   onArtistPress={handleArtistResultPress}
                   onAlbumPress={handleAlbumResultPress}
                   onGenrePress={handleGenreResultPress}
                   onTvPress={handleTvResultPress}
-                  onSuggestionPress={(text) => commitSearch(text, activeSource)}
+                  onSuggestionPress={handleUniversalSuggestionPress}
                   activeSongId={currentSongId}
                   isPlaying={isPlaying}
                   showEmpty={false}
