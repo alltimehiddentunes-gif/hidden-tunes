@@ -5,6 +5,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import RemoteMediaControlsBridge from "../components/RemoteMediaControlsBridge";
 import { PlayerProvider } from "../context/PlayerContext";
+import { TvPlaybackProvider } from "../context/TvPlaybackContext";
 import { preloadOnboardingStatus } from "../services/onboardingPreferences";
 import { hydrateHiddenTunesCatalogCache } from "../services/hiddenTunesApi";
 import { markAppMounted } from "../utils/startupDiagnostics";
@@ -55,16 +56,18 @@ function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <MemoizedPlayerProvider>
-        <RemoteMediaControlsBridge />
-        <Stack screenOptions={memoizedScreenOptions}>
-          <Stack.Screen name="index" />
-          <Stack.Screen name="onboarding" />
-          <Stack.Screen name="auth" />
-          <Stack.Screen name="downloads" />
-          <Stack.Screen name="lyrics" />
-          <Stack.Screen name="queue" />
-          <Stack.Screen name="(tabs)" />
-        </Stack>
+        <TvPlaybackProvider>
+          <RemoteMediaControlsBridge />
+          <Stack screenOptions={memoizedScreenOptions}>
+            <Stack.Screen name="index" />
+            <Stack.Screen name="onboarding" />
+            <Stack.Screen name="auth" />
+            <Stack.Screen name="downloads" />
+            <Stack.Screen name="lyrics" />
+            <Stack.Screen name="queue" />
+            <Stack.Screen name="(tabs)" />
+          </Stack>
+        </TvPlaybackProvider>
       </MemoizedPlayerProvider>
     </GestureHandlerRootView>
   );

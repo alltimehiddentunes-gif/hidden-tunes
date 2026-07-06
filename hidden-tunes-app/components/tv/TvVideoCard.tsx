@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, useCallback } from "react";
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 import { Image } from "expo-image";
@@ -22,6 +22,10 @@ function TvVideoCard({
   disabled = false,
   onPress,
 }: TvVideoCardProps) {
+  const handlePress = useCallback(() => {
+    onPress(video);
+  }, [onPress, video]);
+
   const thumbnail =
     video.logo ||
     video.thumbnail_url ||
@@ -39,7 +43,7 @@ function TvVideoCard({
     <TouchableOpacity
       activeOpacity={0.88}
       disabled={disabled}
-      onPress={() => onPress(video)}
+      onPress={handlePress}
       style={[styles.card, { width }, disabled && styles.cardDisabled]}
     >
       <View style={styles.thumbWrap}>
@@ -76,8 +80,15 @@ function TvVideoCard({
       {subtitle ? (
         <Text numberOfLines={1} style={styles.meta}>
           {subtitle}
+          {video.country ? ` - ${video.country}` : ""}
+          {video.language ? ` - ${video.language}` : ""}
         </Text>
       ) : null}
+
+      <View style={styles.liveRow}>
+        <View style={styles.liveDot} />
+        <Text style={styles.liveText}>LIVE</Text>
+      </View>
     </TouchableOpacity>
   );
 }
@@ -151,5 +162,25 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: "800",
     marginTop: 3,
+  },
+
+  liveRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    marginTop: 5,
+  },
+
+  liveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#ef4444",
+  },
+
+  liveText: {
+    color: COLORS.textMuted,
+    fontSize: 9,
+    fontWeight: "900",
   },
 });

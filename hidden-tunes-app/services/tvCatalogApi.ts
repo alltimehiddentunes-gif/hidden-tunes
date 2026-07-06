@@ -51,6 +51,8 @@ export type TvCatalogQuery = {
   mood?: string;
   format?: string;
   category?: string;
+  country?: string;
+  language?: string;
   featured?: boolean;
 };
 
@@ -265,9 +267,26 @@ function buildCatalogUrl(query: TvCatalogQuery = {}) {
   if (query.mood?.trim()) params.set("mood", query.mood.trim());
   if (query.format?.trim()) params.set("format", query.format.trim());
   if (query.category?.trim()) params.set("category", query.category.trim());
+  if (query.country?.trim()) params.set("country", query.country.trim());
+  if (query.language?.trim()) params.set("language", query.language.trim());
   if (query.featured) params.set("featured", "true");
 
   return `${TV_CATALOG_BASE_URL}${TV_CATALOG_API_PATH}?${params.toString()}`;
+}
+
+export async function getTvChannels(query: TvCatalogQuery = {}) {
+  return fetchTvCatalog(query);
+}
+
+export async function getTvChannelStream(channelId: string) {
+  const id = String(channelId || "").trim();
+  if (!id) return null;
+
+  return fetchTvPlayback({
+    id,
+    title: "Hidden Tunes TV",
+    categories: [],
+  });
 }
 
 export async function fetchTvCatalog(

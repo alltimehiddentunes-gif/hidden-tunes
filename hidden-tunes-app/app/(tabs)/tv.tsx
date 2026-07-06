@@ -3,7 +3,6 @@ import {
   ActivityIndicator,
   FlatList,
   InteractionManager,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -24,18 +23,18 @@ import TvVideoCard from "@/components/tv/TvVideoCard";
 import VideoDiscoverySection from "@/components/tv/VideoDiscoverySection";
 import { TESTER_COPY } from "@/constants/testerExperience";
 import { COLORS, GRADIENTS } from "@/constants/theme";
-import { usePlayerActions } from "@/context/PlayerContext";
+import { useTvPlayback } from "@/context/TvPlaybackContext";
 import {
   TV_DEFAULT_PAGE_LIMIT,
-  fetchTvCatalog,
   fetchTvCategories,
   fetchTvHomeLanes,
+  getTvChannels,
   loadTvHomeCache,
   type HiddenTunesTvVideo,
   type TvBrowseCategory,
   type TvHomeCachePayload,
 } from "@/services/tvCatalogApi";
-import { openHiddenTunesTvStation } from "@/utils/openHiddenTunesTvStation";
+import { getListPerformanceSettings, markFastScrolling } from "@/utils/performanceMode";
 
 const SEARCH_DEBOUNCE_MS = 300;
 
@@ -93,7 +92,7 @@ export default function HiddenTunesTVScreen() {
   );
   const [isLoadingCategory, setIsLoadingCategory] = useState(false);
 
-  const { stopPlayback } = usePlayerActions();
+  const { playTvChannel } = useTvPlayback();
 
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchRequestRef = useRef(0);
@@ -121,7 +120,7 @@ export default function HiddenTunesTVScreen() {
       ].filter(Boolean) as Array<{ category?: string; mood?: string }>;
 
       for (const query of attempts) {
-        const response = await fetchTvCatalog({
+        const response = await getTvChannels({
           page: 1,
           limit: TV_DEFAULT_PAGE_LIMIT,
           ...query,
@@ -164,9 +163,7 @@ export default function HiddenTunesTVScreen() {
       setOpeningStationId(video.id);
       setStatusMessage(TESTER_COPY.tvStationOpening);
 
-      const result = await openHiddenTunesTvStation(video, queueVideos, {
-        stopPlayback,
-      });
+      const result = await playTvChannel(video, queueVideos);
 
       setOpeningStationId(null);
 
@@ -177,7 +174,7 @@ export default function HiddenTunesTVScreen() {
 
       setStatusMessage(result.error || TESTER_COPY.tvStationUnavailable);
     },
-    [openingStationId, stopPlayback]
+    [openingStationId, playTvChannel]
   );
 
   const applyHomeCache = useCallback((cache: TvHomeCachePayload | null) => {
@@ -231,7 +228,7 @@ export default function HiddenTunesTVScreen() {
       }
 
       try {
-        const response = await fetchTvCatalog({
+        const response = await getTvChannels({
           q: clean,
           page,
           limit: TV_DEFAULT_PAGE_LIMIT,
@@ -369,6 +366,33 @@ export default function HiddenTunesTVScreen() {
     !isSearching && homeReady && !hasHomeContent && catalogEmpty;
   const showSearchEmpty =
     isSearching && !isRefreshingSearch && searchEmpty && query.trim().length > 0;
+  const searchListSettings = useMemo(
+    () => getListPerformanceSettings(searchResults.length),
+    [searchResults.length]
+  );
+  const homeListSettings = useMemo(
+    () => getListPerformanceSettings(categoryResults.length || lanes.length),
+    [categoryResults.length, lanes.length]
+  );
+
+  const renderSearchResult = useCallback(
+    ({ item }: { item: HiddenTunesTvVideo }) => (
+      <View style={styles.searchRow}>
+        <TvVideoCard
+          video={item}
+          width={searchCardWidth}
+          loading={openingStationId === item.id}
+          disabled={Boolean(openingStationId)}
+          onPress={(video) => {
+            void openTvVideo(video, searchResults);
+          }}
+        />
+      </View>
+    ),
+    [openTvVideo, openingStationId, searchCardWidth, searchResults]
+  );
+
+  const renderHomeShell = useCallback(() => null, []);
 
   return (
     <LinearGradient colors={GRADIENTS.main} style={styles.container}>
@@ -436,6 +460,14 @@ export default function HiddenTunesTVScreen() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          initialNumToRender={searchListSettings.initialNumToRender}
+          maxToRenderPerBatch={searchListSettings.maxToRenderPerBatch}
+          windowSize={searchListSettings.windowSize}
+          updateCellsBatchingPeriod={searchListSettings.updateCellsBatchingPeriod}
+          removeClippedSubviews
+          onScrollBeginDrag={() => markFastScrolling(true)}
+          onMomentumScrollBegin={() => markFastScrolling(true)}
+          onMomentumScrollEnd={() => markFastScrolling(false)}
           onEndReachedThreshold={0.35}
           onEndReached={loadMoreSearch}
           ListHeaderComponent={
@@ -480,95 +512,97 @@ export default function HiddenTunesTVScreen() {
               )}
             </View>
           }
-          renderItem={({ item }) => (
-            <View style={styles.searchRow}>
-              <TvVideoCard
-                video={item}
-                width={searchCardWidth}
-                loading={openingStationId === item.id}
-                disabled={Boolean(openingStationId)}
-                onPress={(video) => {
-                  void openTvVideo(video, searchResults);
-                }}
-              />
-            </View>
-          )}
+          renderItem={renderSearchResult}
         />
       ) : (
-        <ScrollView
+        <FlatList
+          data={[]}
+          renderItem={renderHomeShell}
+          keyExtractor={(_, index) => `tv-home-${index}`}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
-        >
-          {!homeReady && !hydratedFromCacheRef.current ? (
-            <View style={styles.loadingBox}>
-              <ActivityIndicator color={COLORS.primary} />
-              <Text style={styles.loadingText}>Loading Hidden Tunes TV...</Text>
-            </View>
-          ) : null}
-
-          {isRefreshingHome && homeReady ? (
-            <Text style={styles.refreshingText}>Refreshing catalog...</Text>
-          ) : null}
-
-          <TvLiveHomeSections
-            matureEnabled={matureTvEnabled}
-            onMatureEnabledChange={setMatureTvEnabled}
-          />
-
-          {browseCategories.length > 0 ? (
-            <TvBrowseCategories
-              categories={browseCategories}
-              activeCategory={activeBrowseCategory}
-              onSelectCategory={handleSelectBrowseCategory}
-            />
-          ) : null}
-
-          {isLoadingCategory ? (
-            <View style={styles.loadingBox}>
-              <ActivityIndicator color={COLORS.primary} />
-              <Text style={styles.loadingText}>Loading TV stations...</Text>
-            </View>
-          ) : null}
-
-          {categoryResults.length > 0 ? (
-            <View style={styles.categoryResultsSection}>
-              <Text style={styles.resultsTitle}>Category stations</Text>
-              {categoryResults.map((item) => (
-                <View key={item.id} style={styles.searchRow}>
-                  <TvVideoCard
-                    video={item}
-                    width={searchCardWidth}
-                    loading={openingStationId === item.id}
-                    disabled={Boolean(openingStationId)}
-                    onPress={(video) => {
-                      void openTvVideo(video, categoryResults);
-                    }}
-                  />
+          initialNumToRender={homeListSettings.initialNumToRender}
+          maxToRenderPerBatch={homeListSettings.maxToRenderPerBatch}
+          windowSize={homeListSettings.windowSize}
+          updateCellsBatchingPeriod={homeListSettings.updateCellsBatchingPeriod}
+          removeClippedSubviews
+          onScrollBeginDrag={() => markFastScrolling(true)}
+          onMomentumScrollBegin={() => markFastScrolling(true)}
+          onMomentumScrollEnd={() => markFastScrolling(false)}
+          ListHeaderComponent={
+            <>
+              {!homeReady && !hydratedFromCacheRef.current ? (
+                <View style={styles.loadingBox}>
+                  <ActivityIndicator color={COLORS.primary} />
+                  <Text style={styles.loadingText}>Loading Hidden Tunes TV...</Text>
                 </View>
-              ))}
-            </View>
-          ) : null}
+              ) : null}
 
-          {showCatalogEmpty ? (
-            <View style={styles.emptyBox}>
-              <Ionicons name="tv-outline" size={38} color={COLORS.textMuted} />
-              <Text style={styles.emptyTitle}>
-                Video Discovery catalog is being prepared. Add approved playable
-                videos from admin.
-              </Text>
-            </View>
-          ) : (
-            <VideoDiscoverySection
-              lanes={lanes}
-              openingStationId={openingStationId}
-              onPressVideo={(video, queueVideos) => {
-                void openTvVideo(video, queueVideos);
-              }}
-            />
-          )}
+              {isRefreshingHome && homeReady ? (
+                <Text style={styles.refreshingText}>Refreshing catalog...</Text>
+              ) : null}
 
-          <View style={{ height: 130 }} />
-        </ScrollView>
+              <TvLiveHomeSections
+                matureEnabled={matureTvEnabled}
+                onMatureEnabledChange={setMatureTvEnabled}
+              />
+
+              {browseCategories.length > 0 ? (
+                <TvBrowseCategories
+                  categories={browseCategories}
+                  activeCategory={activeBrowseCategory}
+                  onSelectCategory={handleSelectBrowseCategory}
+                />
+              ) : null}
+
+              {isLoadingCategory ? (
+                <View style={styles.loadingBox}>
+                  <ActivityIndicator color={COLORS.primary} />
+                  <Text style={styles.loadingText}>Loading TV stations...</Text>
+                </View>
+              ) : null}
+
+              {categoryResults.length > 0 ? (
+                <View style={styles.categoryResultsSection}>
+                  <Text style={styles.resultsTitle}>Category stations</Text>
+                  {categoryResults.map((item) => (
+                    <View key={item.id} style={styles.searchRow}>
+                      <TvVideoCard
+                        video={item}
+                        width={searchCardWidth}
+                        loading={openingStationId === item.id}
+                        disabled={Boolean(openingStationId)}
+                        onPress={(video) => {
+                          void openTvVideo(video, categoryResults);
+                        }}
+                      />
+                    </View>
+                  ))}
+                </View>
+              ) : null}
+
+              {showCatalogEmpty ? (
+                <View style={styles.emptyBox}>
+                  <Ionicons name="tv-outline" size={38} color={COLORS.textMuted} />
+                  <Text style={styles.emptyTitle}>
+                    Video Discovery catalog is being prepared. Add approved playable
+                    videos from admin.
+                  </Text>
+                </View>
+              ) : (
+                <VideoDiscoverySection
+                  lanes={lanes}
+                  openingStationId={openingStationId}
+                  onPressVideo={(video, queueVideos) => {
+                    void openTvVideo(video, queueVideos);
+                  }}
+                />
+              )}
+
+              <View style={{ height: 130 }} />
+            </>
+          }
+        />
       )}
     </LinearGradient>
   );

@@ -19,12 +19,18 @@ export const LIVE_TV_HOME_SECTIONS: Array<{
 }> = [
   { id: "featured", title: "Featured Live TV", featured: true },
   { id: "music", title: "Music TV", category: "music" },
+  { id: "sports", title: "Sports", category: "sports" },
   { id: "movie", title: "Movie Channels", category: "movie" },
+  { id: "kids", title: "Kids", category: "kids" },
   { id: "worship", title: "Worship / Gospel TV", category: "worship" },
   { id: "concerts", title: "Live Concerts", category: "concerts" },
   { id: "culture", title: "Culture & Arts", category: "culture" },
   { id: "documentary", title: "Documentaries", category: "documentary" },
   { id: "news", title: "News", category: "news" },
+  { id: "education", title: "Education", category: "education" },
+  { id: "government", title: "Government / Public Channels", category: "government" },
+  { id: "local", title: "Local TV", category: "local" },
+  { id: "international", title: "International", category: "international" },
 ];
 
 export function isTvChannelPlayable(channel: TVChannel, matureEnabled = false) {
