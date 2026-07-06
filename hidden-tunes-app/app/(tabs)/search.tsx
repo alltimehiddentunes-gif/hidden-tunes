@@ -811,6 +811,37 @@ const SearchResultRow = memo(function SearchResultRow({
   );
 });
 
+const SearchMoodRadioCard = memo(function SearchMoodRadioCard({
+  queryLabel,
+  onPress,
+}: {
+  queryLabel: string;
+  onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity
+      activeOpacity={0.86}
+      style={styles.radioCard}
+      onPress={onPress}
+    >
+      <View style={styles.radioIcon}>
+        <Ionicons name="radio" size={26} color={COLORS.primary} />
+      </View>
+
+      <View style={styles.radioInfo}>
+        <Text style={styles.radioTitle}>Start a mood radio</Text>
+        <Text style={styles.radioSubtitle} numberOfLines={1}>
+          Build a queue from {queryLabel}
+        </Text>
+      </View>
+
+      <View style={styles.radioButton}>
+        <Ionicons name="play" size={17} color="#000" />
+      </View>
+    </TouchableOpacity>
+  );
+});
+
 function SearchSkeletonRows() {
   return (
     <View style={styles.searchSkeletonList}>
@@ -989,6 +1020,7 @@ export default function SearchScreen() {
   const activeSearchQuery = rankedSearchQuery;
   const emptySearchMode = trimmedQuery.length < LOCAL_SEARCH_MIN_CHARS;
   const showGroupedSearch = activeSearchQuery.length >= LOCAL_SEARCH_MIN_CHARS;
+  const moodRadioQueryLabel = trimmedQuery || "afrobeats";
 
   const catalogSongsForSearch = useMemo(() => {
     if (remoteCatalogSongs.length > 0) {
@@ -1142,6 +1174,9 @@ export default function SearchScreen() {
     resultPartitions.native,
     resultPartitions.youtube,
   ]);
+
+  const showMoodRadioCard =
+    trimmedQuery.length >= LOCAL_SEARCH_MIN_CHARS || listResults.length > 0;
 
   const searchPlayQueue = useMemo(
     () => buildSearchPlayQueue(visibleSongResults, results, catalogLookupSources),
@@ -2704,27 +2739,6 @@ export default function SearchScreen() {
         })}
       </ScrollView>
 
-      <TouchableOpacity
-        activeOpacity={0.86}
-        style={styles.radioCard}
-        onPress={openSearchRadio}
-      >
-        <View style={styles.radioIcon}>
-          <Ionicons name="radio" size={26} color={COLORS.primary} />
-        </View>
-
-        <View style={styles.radioInfo}>
-          <Text style={styles.radioTitle}>Start a mood radio</Text>
-          <Text style={styles.radioSubtitle} numberOfLines={1}>
-            Build a queue from {query.trim() || "afrobeats"}
-          </Text>
-        </View>
-
-        <View style={styles.radioButton}>
-          <Ionicons name="play" size={17} color="#000" />
-        </View>
-      </TouchableOpacity>
-
       {loading && !showGroupedSearch ? (
         <View style={styles.loadingBox}>
           <View style={styles.loadingTitleRow}>
@@ -2762,6 +2776,13 @@ export default function SearchScreen() {
           ListHeaderComponent={
             <>
               {emptySearchMode && renderDiscovery()}
+
+              {showMoodRadioCard ? (
+                <SearchMoodRadioCard
+                  queryLabel={moodRadioQueryLabel}
+                  onPress={openSearchRadio}
+                />
+              ) : null}
 
               {matchedGenres.length > 0 && (
                 <View style={styles.genreSection}>
