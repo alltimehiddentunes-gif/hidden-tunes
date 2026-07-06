@@ -41,6 +41,7 @@ function loadEnvFile(filePath: string) {
   }
 }
 
+loadEnvFile(path.join(adminRoot, ".env.production"));
 loadEnvFile(path.join(adminRoot, ".env.local"));
 loadEnvFile(path.join(adminRoot, ".env"));
 

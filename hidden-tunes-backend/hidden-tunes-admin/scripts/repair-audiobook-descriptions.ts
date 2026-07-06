@@ -48,6 +48,7 @@ function parseArgs(argv: string[]) {
   return options;
 }
 
+loadEnvFile(path.join(adminRoot, ".env.production"));
 loadEnvFile(path.join(adminRoot, ".env.local"));
 loadEnvFile(path.join(adminRoot, ".env"));
 

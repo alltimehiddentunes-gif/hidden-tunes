@@ -7,10 +7,11 @@ import { fileURLToPath } from "node:url";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const adminRoot = path.resolve(scriptDir, "..");
-const migrationPath = path.join(
-  adminRoot,
-  "supabase/migrations/20260706123000_audiobook_catalog_production_schema_repair.sql"
-);
+const migrationPaths = [
+  "supabase/migrations/20260706123000_audiobook_catalog_production_schema_repair.sql",
+  "supabase/migrations/20260706130000_audiobook_catalog_upgrade.sql",
+  "supabase/migrations/20260706150000_audiobook_scale_import_and_description_repair.sql",
+].map((migration) => path.join(adminRoot, migration));
 
 function loadEnvFile(filePath) {
   if (!fs.existsSync(filePath)) return;
@@ -31,6 +32,7 @@ function loadEnvFile(filePath) {
   }
 }
 
+loadEnvFile(path.join(adminRoot, ".env.production"));
 loadEnvFile(path.join(adminRoot, ".env.local"));
 loadEnvFile(path.join(adminRoot, ".env"));
 
@@ -95,14 +97,9 @@ async function applyWithManagementApi(sql) {
 }
 
 async function main() {
-  let sql = fs.readFileSync(migrationPath, "utf8").trim();
-  const upgradePath = path.join(
-    adminRoot,
-    "supabase/migrations/20260706130000_audiobook_catalog_upgrade.sql"
-  );
-  if (fs.existsSync(upgradePath)) {
-    sql += `\n\n${fs.readFileSync(upgradePath, "utf8").trim()}`;
-  }
+  let sql = migrationPaths
+    .map((migrationPath) => fs.readFileSync(migrationPath, "utf8").trim())
+    .join("\n\n");
   if (!/notify\s+pgrst/i.test(sql)) {
     sql += "\n\nnotify pgrst, 'reload schema';\n";
   }
@@ -126,7 +123,7 @@ async function main() {
       pgResult,
       apiResult,
       manual:
-        "Apply supabase/migrations/20260706123000_audiobook_catalog_production_schema_repair.sql in Supabase SQL editor.",
+        "Apply supabase/migrations/20260706123000_audiobook_catalog_production_schema_repair.sql and supabase/migrations/20260706150000_audiobook_scale_import_and_description_repair.sql in Supabase SQL editor, or add DATABASE_URL/SUPABASE_DB_URL/SUPABASE_ACCESS_TOKEN.",
     })
   );
   process.exit(2);
