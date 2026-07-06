@@ -99,6 +99,7 @@ export type AudiobookSeedIngestResult = {
   books_imported: number;
   books_skipped: number;
   books_failed: number;
+  category_fetch_failed: number;
   authors_upserted: number;
   chapters_upserted: number;
   files_upserted: number;
@@ -470,10 +471,37 @@ async function upsertAuthor(book: LibriVoxBook) {
   if (existingError) throw existingError;
   if (existing?.id) return existing as { id: string; name: string };
 
+  const { data: existingBySlug, error: existingBySlugError } =
+    await supabaseAdmin
+      .from("audiobook_authors")
+      .select("id, name")
+      .eq("slug", slug)
+      .maybeSingle();
+
+  if (existingBySlugError) throw existingBySlugError;
+
+  if (existingBySlug?.id) {
+    const { data: updated, error: updateError } = await supabaseAdmin
+      .from("audiobook_authors")
+      .update({
+        name,
+        source_type: "librivox",
+        source_id: sourceId,
+        source_key: sourceKey,
+        is_active: true,
+      })
+      .eq("id", existingBySlug.id)
+      .select("id, name")
+      .single();
+
+    if (updateError) throw updateError;
+    return updated as { id: string; name: string };
+  }
+
   const data = await updateThenInsertByColumn(
     "audiobook_authors",
-    "source_key",
-    sourceKey,
+    "slug",
+    slug,
     {
       slug,
       name,
@@ -702,6 +730,7 @@ export async function ingestAudiobookSeedCatalog(
     books_imported: 0,
     books_skipped: 0,
     books_failed: 0,
+    category_fetch_failed: 0,
     authors_upserted: 0,
     chapters_upserted: 0,
     files_upserted: 0,
@@ -736,7 +765,7 @@ export async function ingestAudiobookSeedCatalog(
             timeoutMs,
           });
         } catch (error) {
-          result.books_failed += 1;
+          result.category_fetch_failed += 1;
           result.errors.push(
             serializeIngestError(error, {
               source_id: `category:${category}`,
