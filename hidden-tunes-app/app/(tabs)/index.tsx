@@ -45,7 +45,6 @@ import {
   refreshHiddenTunesSongs,
   type HiddenTunesNormalizedSong,
 } from "../../services/hiddenTunesApi";
-import { preloadImages } from "../../utils/imagePreloader";
 import { capScreenCatalogSongs, MAX_SCREEN_CATALOG_SONGS } from "../../utils/screenCatalogLimits";
 import {
   getSharedDiscoverySnapshot,
@@ -84,11 +83,6 @@ import {
   logBackgroundWork,
   scheduleDelayedNonEssentialWork,
 } from "../../utils/backgroundWork";
-import {
-  logAudioPreloadTargetSelected,
-  pickHomeAudioPreloadTarget,
-} from "../../utils/audioPreloadTargeting";
-import { scheduleDebouncedAudioPreload } from "../../utils/audioPreloadScheduler";
 import {
   getHorizontalListPerformanceSettings,
   getListPerformanceSettings,
@@ -201,7 +195,7 @@ function buildInitialHomeSongs() {
 function HomeScreen() {
   useRuntimeRenderProbe("Home");
 
-  const { playSong, preloadIdlePlayableTrack } = usePlayerActions();
+  const { playSong } = usePlayerActions();
   const { currentSong, isPlaying } = usePlayerNowPlaying();
   const { recentlyPlayed, favorites } = usePlayerState();
   const insets = useSafeAreaInsets();
@@ -257,6 +251,7 @@ function HomeScreen() {
   const [feedMountStage, setFeedMountStage] = useState<HomeFeedMountStage>(0);
   const deferredSectionsScheduledRef = useRef(false);
   const feedMountStageTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const loadingMoreSongsRef = useRef(false);
 
   const logHomeFeedStageReady = useCallback((stage: HomeFeedMountStage) => {
     if (typeof __DEV__ === "undefined" || !__DEV__) return;
@@ -336,12 +331,6 @@ function HomeScreen() {
       nextSongs.length >= 20 && nextSongs.length < MAX_SCREEN_CATALOG_SONGS
     );
 
-    const heroSong = nextSongs[0];
-    if (heroSong?.artwork) {
-      scheduleStartupTask("idle", "home_primary_artwork_prefetch", () =>
-        preloadImages([heroSong.artwork, heroSong.cover].filter(Boolean))
-      );
-    }
   }, []);
 
   const finishInitialHomeLoadGate = useCallback(() => {
@@ -1017,43 +1006,6 @@ function HomeScreen() {
     return sliced;
   }, [currentSong, defaultHeroTrack, featuredSongs, recentlyPlayed]);
 
-  const homeAudioPreloadTarget = useMemo(
-    () =>
-      pickHomeAudioPreloadTarget({
-        featuredCardSongs: heroCards.map((card) => card.song),
-        visibleCatalogSongs: visibleAllSongs,
-        heroFallback: defaultHeroTrack,
-      }),
-    [defaultHeroTrack, heroCards, visibleAllSongs]
-  );
-
-  useEffect(() => {
-    if (feedMountStage < 3 || !homeAudioPreloadTarget?.song?.id) return undefined;
-
-    const target = homeAudioPreloadTarget;
-    let cancelDebounce: (() => void) | undefined;
-
-    const cancelDelayed = scheduleDelayedNonEssentialWork(() => {
-      cancelDebounce = scheduleDebouncedAudioPreload(
-        `home:${target.song.id}:${target.tier}`,
-        () => {
-          logAudioPreloadTargetSelected("home", target);
-          scheduleStartupTask("idle", "home_idle_audio_preload", () => {
-            void preloadIdlePlayableTrack(target.song, {
-              source: `home:${target.tier}`,
-            });
-          });
-        },
-        { delayMs: 350 }
-      );
-    }, { delayMs: 1500 });
-
-    return () => {
-      cancelDelayed();
-      cancelDebounce?.();
-    };
-  }, [feedMountStage, homeAudioPreloadTarget, preloadIdlePlayableTrack]);
-
   const shouldAutoSlideHero =
     heroCards.length > 1 && !isPlaying;
   const firstHeroKey = heroCards[0]?.key;
@@ -1121,12 +1073,16 @@ function HomeScreen() {
   );
 
   const loadMoreCloudSongs = useCallback(async () => {
-    if (loadingMoreSongs) return;
+    if (loadingMoreSongsRef.current) return;
 
     if (visibleSongCount < featuredSongs.length) {
+      loadingMoreSongsRef.current = true;
       setVisibleSongCount((current) =>
         Math.min(featuredSongs.length, current + HOME_SONG_ROWS_INCREMENT)
       );
+      requestAnimationFrame(() => {
+        loadingMoreSongsRef.current = false;
+      });
       return;
     }
 
@@ -1138,6 +1094,7 @@ function HomeScreen() {
     }
 
     try {
+      loadingMoreSongsRef.current = true;
       setLoadingMoreSongs(true);
       const page = await getHiddenTunesSongsPage({
         page: nextPage,
@@ -1162,12 +1119,12 @@ function HomeScreen() {
       );
     } catch (error) {
     } finally {
+      loadingMoreSongsRef.current = false;
       setLoadingMoreSongs(false);
     }
   }, [
     featuredSongs,
     hasMoreSongPages,
-    loadingMoreSongs,
     songPage,
     visibleSongCount,
   ]);
