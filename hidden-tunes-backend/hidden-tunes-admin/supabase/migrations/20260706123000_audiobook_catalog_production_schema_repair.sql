@@ -468,7 +468,7 @@ begin
         (
           select chapter.title
           from public.audiobook_chapters chapter
-          where chapter.id = file.chapter_id
+          where file.chapter_id = chapter.id
           limit 1
         ),
         (
@@ -483,7 +483,7 @@ begin
         (
           select chapter.duration_seconds
           from public.audiobook_chapters chapter
-          where chapter.id = file.chapter_id
+          where file.chapter_id = chapter.id
           limit 1
         )
       ),
