@@ -1,8 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Image,
-  Linking,
   ScrollView,
   StyleSheet,
   Text,
@@ -11,16 +9,19 @@ import {
 } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
+import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 
 import { COLORS } from "../../constants/theme";
+import { usePlaybackRouter } from "../../hooks/usePlaybackRouter";
 import {
   fetchAudiobookDetail,
   fetchAudiobookPlay,
   formatAudiobookDuration,
 } from "../../services/audiobooksApi";
 import type { AudiobookDetail } from "../../types/audiobooks";
+import type { PodcastEpisode } from "../../types/podcast";
 
 function hasAbortError(error: unknown) {
   return error instanceof Error && error.name === "AbortError";
@@ -29,12 +30,14 @@ function hasAbortError(error: unknown) {
 export default function AudiobookDetailScreen() {
   const params = useLocalSearchParams<{ id?: string }>();
   const audiobookId = String(params.id || "").trim();
+  const { playPodcastEpisode } = usePlaybackRouter();
   const [detail, setDetail] = useState<AudiobookDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [playLoading, setPlayLoading] = useState(false);
   const [playError, setPlayError] = useState(false);
   const [resolvedAudioUrl, setResolvedAudioUrl] = useState<string | null>(null);
+  const playControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (!audiobookId) {
@@ -44,6 +47,7 @@ export default function AudiobookDetailScreen() {
     }
 
     const controller = new AbortController();
+    playControllerRef.current?.abort();
     setLoading(true);
     setError(false);
     setResolvedAudioUrl(null);
@@ -62,6 +66,13 @@ export default function AudiobookDetailScreen() {
     return () => controller.abort();
   }, [audiobookId]);
 
+  useEffect(
+    () => () => {
+      playControllerRef.current?.abort();
+    },
+    []
+  );
+
   const audiobook = detail?.audiobook;
   const meta = useMemo(
     () =>
@@ -76,20 +87,55 @@ export default function AudiobookDetailScreen() {
     [audiobook]
   );
 
+  const toPlayableAudiobook = useCallback(
+    (
+      play: Awaited<ReturnType<typeof fetchAudiobookPlay>>,
+      metadata?: AudiobookDetail["audiobook"]
+    ): PodcastEpisode => ({
+      id: play.audiobook_id || metadata?.id || audiobookId,
+      title: play.title || metadata?.title || "Hidden Tunes Audiobook",
+      podcastTitle:
+        metadata?.author_name ||
+        metadata?.series_title ||
+        "Hidden Tunes Audiobooks",
+      audioUrl: play.audio_url,
+      artworkUrl: metadata?.cover_url || undefined,
+      duration: play.file?.duration_seconds || metadata?.duration_seconds || undefined,
+      publishedAt: metadata?.published_at || undefined,
+      source: "podcast",
+    }),
+    [audiobookId]
+  );
+
   const resolvePlayUrl = async () => {
     if (!audiobookId || playLoading) return;
+    playControllerRef.current?.abort();
+    const controller = new AbortController();
+    playControllerRef.current = controller;
     setPlayLoading(true);
     setPlayError(false);
 
     try {
-      const play = await fetchAudiobookPlay(audiobookId);
+      const play = await fetchAudiobookPlay(audiobookId, controller.signal);
+      if (controller.signal.aborted) return;
       setResolvedAudioUrl(play.audio_url);
-      await Linking.openURL(play.audio_url);
-    } catch {
+      const playable = toPlayableAudiobook(play, audiobook);
+      const result = await playPodcastEpisode(playable, [playable]);
+      if (!result.ok) {
+        setPlayError(true);
+        setResolvedAudioUrl(null);
+        return;
+      }
+      router.push("/player" as any);
+    } catch (playLoadError) {
+      if (hasAbortError(playLoadError)) return;
       setPlayError(true);
       setResolvedAudioUrl(null);
     } finally {
-      setPlayLoading(false);
+      if (!controller.signal.aborted) setPlayLoading(false);
+      if (playControllerRef.current === controller) {
+        playControllerRef.current = null;
+      }
     }
   };
 
@@ -121,7 +167,13 @@ export default function AudiobookDetailScreen() {
             <View style={styles.hero}>
               <View style={styles.coverWrap}>
                 {audiobook.cover_url ? (
-                  <Image source={{ uri: audiobook.cover_url }} style={styles.coverImage} />
+                  <Image
+                    source={{ uri: audiobook.cover_url }}
+                    style={styles.coverImage}
+                    contentFit="cover"
+                    transition={120}
+                    recyclingKey={audiobook.id}
+                  />
                 ) : (
                   <Ionicons name="book-outline" size={42} color={COLORS.primary} />
                 )}
