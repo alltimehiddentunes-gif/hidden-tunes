@@ -12,6 +12,10 @@ const migrationPaths = [
   "supabase/migrations/20260706130000_audiobook_catalog_upgrade.sql",
   "supabase/migrations/20260706150000_audiobook_scale_import_and_description_repair.sql",
 ].map((migration) => path.join(adminRoot, migration));
+const generatedSqlPath = path.join(
+  adminRoot,
+  "supabase/generated/audiobook-production-migrations.sql"
+);
 
 function loadEnvFile(filePath) {
   if (!fs.existsSync(filePath)) return;
@@ -96,6 +100,34 @@ async function applyWithManagementApi(sql) {
   };
 }
 
+async function checkServiceRolePostgrest() {
+  const supabaseUrl = String(process.env.SUPABASE_URL || "").trim();
+  const serviceRoleKey = String(process.env.SUPABASE_SERVICE_ROLE_KEY || "").trim();
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    return {
+      ok: false,
+      skipped: true,
+      method: "service_role_postgrest",
+      reason: "SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is missing.",
+    };
+  }
+
+  return {
+    ok: false,
+    skipped: true,
+    method: "service_role_postgrest",
+    reason:
+      "Supabase service-role keys authenticate PostgREST table/RPC requests, but PostgREST does not expose arbitrary PostgreSQL DDL execution. This migration contains CREATE/ALTER/INDEX/TRIGGER statements, so it cannot be executed with only SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY unless the database already has a trusted SQL-exec RPC, which this project does not assume for safety.",
+  };
+}
+
+function writeSqlBundle(sql) {
+  fs.mkdirSync(path.dirname(generatedSqlPath), { recursive: true });
+  fs.writeFileSync(generatedSqlPath, `${sql.trim()}\n`, "utf8");
+  return path.relative(adminRoot, generatedSqlPath).replace(/\\/g, "/");
+}
+
 async function main() {
   let sql = migrationPaths
     .map((migrationPath) => fs.readFileSync(migrationPath, "utf8").trim())
@@ -116,14 +148,26 @@ async function main() {
     return;
   }
 
+  const serviceRoleResult = await checkServiceRolePostgrest();
+  const generated_sql = writeSqlBundle(sql);
+
   console.log(
     JSON.stringify({
       ok: false,
       applied: false,
       pgResult,
       apiResult,
+      serviceRoleResult,
+      generated_sql,
+      env: {
+        DATABASE_URL: Boolean(process.env.DATABASE_URL),
+        SUPABASE_DB_URL: Boolean(process.env.SUPABASE_DB_URL),
+        SUPABASE_ACCESS_TOKEN: Boolean(process.env.SUPABASE_ACCESS_TOKEN),
+        SUPABASE_URL: Boolean(process.env.SUPABASE_URL),
+        SUPABASE_SERVICE_ROLE_KEY: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
+      },
       manual:
-        "Apply supabase/migrations/20260706123000_audiobook_catalog_production_schema_repair.sql and supabase/migrations/20260706150000_audiobook_scale_import_and_description_repair.sql in Supabase SQL editor, or add DATABASE_URL/SUPABASE_DB_URL/SUPABASE_ACCESS_TOKEN.",
+        "Automatic DDL execution is unavailable with only SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY. Apply the generated SQL bundle in Supabase SQL Editor, or add DATABASE_URL/SUPABASE_DB_URL/SUPABASE_ACCESS_TOKEN and rerun this command.",
     })
   );
   process.exit(2);
