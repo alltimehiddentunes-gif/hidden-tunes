@@ -13,6 +13,10 @@ import Animated, {
 } from "react-native-reanimated";
 
 import { COLORS } from "../constants/theme";
+import {
+  shouldRunNonEssentialWork,
+  subscribeFastScrolling,
+} from "../utils/performanceMode";
 
 type LiveWaveformProps = {
   isPlaying?: boolean;
@@ -39,7 +43,10 @@ function LiveWaveform({
 }: LiveWaveformProps) {
   const progress = useSharedValue(0);
   const [appActive, setAppActive] = useState(AppState.currentState === "active");
-  const shouldAnimate = isPlaying && appActive;
+  const [nonEssentialWorkAllowed, setNonEssentialWorkAllowed] = useState(
+    shouldRunNonEssentialWork()
+  );
+  const shouldAnimate = isPlaying && appActive && nonEssentialWorkAllowed;
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (nextState) => {
@@ -49,6 +56,15 @@ function LiveWaveform({
     return () => {
       subscription.remove();
     };
+  }, []);
+
+  useEffect(() => {
+    const syncWorkAllowed = () => {
+      setNonEssentialWorkAllowed(shouldRunNonEssentialWork());
+    };
+
+    syncWorkAllowed();
+    return subscribeFastScrolling(syncWorkAllowed);
   }, []);
 
   useEffect(() => {

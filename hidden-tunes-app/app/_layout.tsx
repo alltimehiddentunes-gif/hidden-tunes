@@ -11,6 +11,7 @@ import { hydrateHiddenTunesCatalogCache } from "../services/hiddenTunesApi";
 import { markAppMounted } from "../utils/startupDiagnostics";
 import { scheduleStartupTask } from "../utils/startupScheduler";
 import { traceStartup } from "../utils/startupTrace";
+import { startCpuIdleProfiling } from "../utils/cpuIdleProfiling";
 import { startRuntimeInstrumentation } from "../utils/runtimeInstrumentation";
 
 traceStartup("app/_layout.tsx module evaluated");
@@ -35,6 +36,7 @@ function RootLayout() {
     traceStartup("RootLayout mounted");
     markAppMounted("root_layout");
     startRuntimeInstrumentation();
+    startCpuIdleProfiling();
 
     void preloadOnboardingStatus();
 

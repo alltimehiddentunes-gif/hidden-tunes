@@ -123,6 +123,7 @@ import {
   type HiddenTunesTvVideo,
 } from "../../services/tvCatalogApi";
 import { useRuntimeRenderProbe } from "../../utils/runtimeInstrumentation";
+import { useCpuRenderProbe } from "../../utils/cpuIdleProfiling";
 import {
   createTapGuardState,
   shouldIgnoreDuplicateTap,
@@ -861,6 +862,7 @@ function SearchSkeletonRows() {
 
 export default function SearchScreen() {
   useRuntimeRenderProbe("Search");
+  useCpuRenderProbe("Search");
   const { playSong, stopPlayback } = usePlayerActions();
   const { currentSongId, isPlaying } = usePlayerNowPlaying();
 

@@ -15,6 +15,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useLocalSearchParams } from "expo-router";
 
+import { useCpuRenderProbe } from "@/utils/cpuIdleProfiling";
+
 import TvBrowseCategories from "@/components/tv/TvBrowseCategories";
 import TvLiveHomeSections, {
   preloadMatureTvPreference,
@@ -61,6 +63,8 @@ function mergeUniqueVideos(
 }
 
 export default function HiddenTunesTVScreen() {
+  useCpuRenderProbe("TV");
+
   const { width: screenWidth } = useWindowDimensions();
   const params = useLocalSearchParams();
   const initialQuery = String(params.q || params.query || "").trim();

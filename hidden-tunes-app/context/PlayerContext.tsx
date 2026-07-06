@@ -14,7 +14,6 @@ import HiddenAudio, {
   isHiddenAudioNativeEngineAvailable,
   subscribeHiddenAudioNativeDiagnostics,
   subscribeHiddenAudioPlaybackEnded,
-  subscribeHiddenAudioProgress,
   subscribeHiddenAudioProgressChanged,
   subscribeHiddenAudioStateChanged,
 } from "../modules/HiddenAudio";
@@ -130,6 +129,7 @@ import {
   recordQueueReferenceChange,
 } from "../utils/playbackRenderDiagnostics";
 import { markPlaybackRestoreComplete } from "../utils/startupDiagnostics";
+import { useCpuContextProbe } from "../utils/cpuIdleProfiling";
 import {
   NowPlayingStoreSync,
   PlayerActionsContext,
@@ -1981,11 +1981,19 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       positionMillisRef.current = nextPosition;
 
       if (
-        now - lastPositionStateUpdateRef.current >= positionStateMinMs ||
-        Math.abs(nextPosition - previousPosition) > 1800
+        nextIsPlaying &&
+        (now - lastPositionStateUpdateRef.current >= positionStateMinMs ||
+          Math.abs(nextPosition - previousPosition) > 1800)
       ) {
         lastPositionStateUpdateRef.current = now;
         recordPlaybackProgressUpdate();
+        recordPlaybackReactStateUpdate("position");
+        setPositionMillisState(nextPosition);
+      } else if (
+        !nextIsPlaying &&
+        Math.abs(nextPosition - previousPosition) > 1800
+      ) {
+        lastPositionStateUpdateRef.current = now;
         recordPlaybackReactStateUpdate("position");
         setPositionMillisState(nextPosition);
       }
@@ -2088,9 +2096,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const startHiddenAudioPolling = useCallback(() => {
     stopHiddenAudioPolling();
 
+    if (!isPlayingRef.current) {
+      return;
+    }
+
     const poll = async () => {
       if (isTvPlayerOpen()) return;
       if (!hiddenAudioLoadedRef.current || trackPlayerActiveRef.current) {
+        return;
+      }
+      if (!isPlayingRef.current) {
         return;
       }
 
@@ -2123,7 +2138,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       }
     );
 
-    const unsubscribeProgress = subscribeHiddenAudioProgress(() => {});
     const unsubscribeState = subscribeHiddenAudioStateChanged(() => {});
     const unsubscribeDiagnostics = subscribeHiddenAudioNativeDiagnostics(() => {});
 
@@ -2135,7 +2149,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     return () => {
       recordListenerUnregister("hidden_audio_native_events", listenerId);
       unsubscribeProgressChanged();
-      unsubscribeProgress();
       unsubscribeState();
       unsubscribeDiagnostics();
       unsubscribePlaybackEnded();
@@ -3229,6 +3242,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         clearFinishWatchdog("pause");
         await HiddenAudio.pause();
         lastHiddenAudioPollPlayingRef.current = false;
+        stopHiddenAudioPolling();
         setIsPlaying(false);
       } else {
         await loadAndPlay(normalizeSong(song), { userInitiated: true });
@@ -3244,11 +3258,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       clearFinishWatchdog("pause");
       await HiddenAudio.pause();
       lastHiddenAudioPollPlayingRef.current = false;
+      stopHiddenAudioPolling();
       setIsPlaying(false);
     } else {
       await HiddenAudio.play();
       lastHiddenAudioPollPlayingRef.current = true;
       setIsPlaying(true);
+      void applyProgressUpdateInterval("toggle_play_resume");
     }
 
     logPauseResumeComplete({ engine: "hidden_audio" });
@@ -3258,6 +3274,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     clearFinishWatchdog,
     isLiveStreamSong,
     normalizeSong,
+    stopHiddenAudioPolling,
+    applyProgressUpdateInterval,
   ]);
 
   const seekTo = useCallback(
@@ -4039,6 +4057,15 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       currentLyricLine,
     }),
     [positionMillis, durationMillis, currentLyricLine]
+  );
+
+  useCpuContextProbe(
+    "PlayerState",
+    `${currentSong?.id || "none"}:${isPlaying ? 1 : 0}:${isLoading ? 1 : 0}`
+  );
+  useCpuContextProbe(
+    "PlayerProgress",
+    `${Math.floor(positionMillis / 5000)}:${Math.floor(durationMillis / 1000)}`
   );
 
   return (

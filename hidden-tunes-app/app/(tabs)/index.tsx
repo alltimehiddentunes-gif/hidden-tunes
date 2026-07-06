@@ -2,6 +2,7 @@
 import {
   ActivityIndicator,
   Animated,
+  AppState,
   Dimensions,
   Image,
   FlatList,
@@ -78,6 +79,7 @@ import {
   useRenderCountProbe,
 } from "../../utils/performanceVerification";
 import { useRuntimeRenderProbe } from "../../utils/runtimeInstrumentation";
+import { useCpuRenderProbe } from "../../utils/cpuIdleProfiling";
 import {
   isWithinFirstInteractionWindow,
   logBackgroundWork,
@@ -87,6 +89,8 @@ import {
   getHorizontalListPerformanceSettings,
   getListPerformanceSettings,
   markFastScrolling,
+  shouldRunNonEssentialWork,
+  subscribeFastScrolling,
 } from "../../utils/performanceMode";
 import {
   buildHomeFeedRows,
@@ -194,6 +198,7 @@ function buildInitialHomeSongs() {
 
 function HomeScreen() {
   useRuntimeRenderProbe("Home");
+  useCpuRenderProbe("Home");
 
   const { playSong } = usePlayerActions();
   const { currentSong, isPlaying } = usePlayerNowPlaying();
@@ -569,25 +574,59 @@ function HomeScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      const heroGlowLoop = Animated.loop(
-        Animated.sequence([
-          Animated.timing(heroGlowAnim, {
-            toValue: 1,
-            duration: 2600,
-            useNativeDriver: true,
-          }),
-          Animated.timing(heroGlowAnim, {
-            toValue: 0.42,
-            duration: 2600,
-            useNativeDriver: true,
-          }),
-        ])
-      );
+      let heroGlowLoop: Animated.CompositeAnimation | null = null;
 
-      heroGlowLoop.start();
+      const stopHeroGlow = () => {
+        heroGlowLoop?.stop();
+        heroGlowLoop = null;
+      };
+
+      const startHeroGlow = () => {
+        if (heroGlowLoop) return;
+
+        heroGlowLoop = Animated.loop(
+          Animated.sequence([
+            Animated.timing(heroGlowAnim, {
+              toValue: 1,
+              duration: 2600,
+              useNativeDriver: true,
+            }),
+            Animated.timing(heroGlowAnim, {
+              toValue: 0.42,
+              duration: 2600,
+              useNativeDriver: true,
+            }),
+          ])
+        );
+
+        heroGlowLoop.start();
+      };
+
+      const syncHeroGlow = () => {
+        if (shouldRunNonEssentialWork()) {
+          startHeroGlow();
+          return;
+        }
+
+        stopHeroGlow();
+        heroGlowAnim.stopAnimation();
+        heroGlowAnim.setValue(0.42);
+      };
+
+      syncHeroGlow();
+
+      const unsubscribeFastScroll = subscribeFastScrolling(() => {
+        syncHeroGlow();
+      });
+      const appStateSubscription = AppState.addEventListener("change", () => {
+        syncHeroGlow();
+      });
 
       return () => {
-        heroGlowLoop.stop();
+        unsubscribeFastScroll();
+        appStateSubscription.remove();
+        stopHeroGlow();
+        heroGlowAnim.stopAnimation();
       };
     }, [heroGlowAnim])
   );
@@ -1032,20 +1071,54 @@ function HomeScreen() {
     useCallback(() => {
       if (!shouldAutoSlideHero) return undefined;
 
-      const timer = setInterval(() => {
-        const nextIndex = (heroIndexRef.current + 1) % heroCards.length;
+      let timer: ReturnType<typeof setInterval> | null = null;
 
-        heroIndexRef.current = nextIndex;
-        setHeroIndex(nextIndex);
+      const clearHeroSlideTimer = () => {
+        if (!timer) return;
+        clearInterval(timer);
+        timer = null;
+      };
 
-        heroListRef.current?.scrollToOffset({
-          offset: HERO_CARD_WIDTH * nextIndex,
-          animated: true,
-        });
-      }, HERO_AUTO_SLIDE_MS);
+      const startHeroSlideTimer = () => {
+        if (timer || !shouldRunNonEssentialWork()) return;
+
+        timer = setInterval(() => {
+          if (!shouldRunNonEssentialWork()) return;
+
+          const nextIndex = (heroIndexRef.current + 1) % heroCards.length;
+
+          heroIndexRef.current = nextIndex;
+          setHeroIndex(nextIndex);
+
+          heroListRef.current?.scrollToOffset({
+            offset: HERO_CARD_WIDTH * nextIndex,
+            animated: true,
+          });
+        }, HERO_AUTO_SLIDE_MS);
+      };
+
+      const syncHeroSlideTimer = () => {
+        if (!shouldRunNonEssentialWork()) {
+          clearHeroSlideTimer();
+          return;
+        }
+
+        startHeroSlideTimer();
+      };
+
+      syncHeroSlideTimer();
+
+      const unsubscribeFastScroll = subscribeFastScrolling(() => {
+        syncHeroSlideTimer();
+      });
+      const appStateSubscription = AppState.addEventListener("change", () => {
+        syncHeroSlideTimer();
+      });
 
       return () => {
-        clearInterval(timer);
+        unsubscribeFastScroll();
+        appStateSubscription.remove();
+        clearHeroSlideTimer();
       };
     }, [heroCards.length, shouldAutoSlideHero])
   );

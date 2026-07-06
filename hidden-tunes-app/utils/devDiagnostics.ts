@@ -15,6 +15,12 @@ export const ENABLE_HEAVY_PERF_DIAGNOSTICS = false;
  */
 export const ENABLE_RUNTIME_INSTRUMENTATION = false;
 
+/**
+ * DEV idle CPU investigation — render/timer/listener summaries every 30s.
+ * Set false when the CPU audit is complete.
+ */
+export const ENABLE_CPU_IDLE_PROFILING = true;
+
 export function isDevEnvironment() {
   return typeof __DEV__ !== "undefined" && __DEV__;
 }
@@ -29,6 +35,10 @@ export function isHeavyPerfDiagnosticsEnabled() {
 
 export function isRuntimeInstrumentationEnabled() {
   return isDevEnvironment() && ENABLE_RUNTIME_INSTRUMENTATION;
+}
+
+export function isCpuIdleProfilingEnabled() {
+  return isDevEnvironment() && ENABLE_CPU_IDLE_PROFILING;
 }
 
 /** Verbose playback/progress/queue logs — opt-in only (runtime or heavy perf flags). */

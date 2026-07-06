@@ -1,7 +1,11 @@
-import React, { memo, useEffect, useMemo, useRef } from "react";
-import { Animated, StyleSheet, View } from "react-native";
+import React, { memo, useEffect, useMemo, useRef, useState } from "react";
+import { Animated, AppState, StyleSheet, View } from "react-native";
 
 import { COLORS } from "../constants/theme";
+import {
+  shouldRunNonEssentialWork,
+  subscribeFastScrolling,
+} from "../utils/performanceMode";
 
 type NeonEQProps = {
   isPlaying?: boolean;
@@ -14,6 +18,10 @@ function NeonEQ({ isPlaying = false, size = "medium" }: NeonEQProps) {
   const bars = useRef(
     Array.from({ length: BAR_COUNT }, () => new Animated.Value(0.25))
   ).current;
+  const [nonEssentialWorkAllowed, setNonEssentialWorkAllowed] = useState(
+    shouldRunNonEssentialWork()
+  );
+  const shouldAnimate = isPlaying && nonEssentialWorkAllowed;
 
   const dimensions = useMemo(() => {
     if (size === "large") {
@@ -40,8 +48,26 @@ function NeonEQ({ isPlaying = false, size = "medium" }: NeonEQProps) {
   }, [size]);
 
   useEffect(() => {
-    if (!isPlaying) {
-      bars.forEach((bar) => bar.stopAnimation());
+    const syncWorkAllowed = () => {
+      setNonEssentialWorkAllowed(shouldRunNonEssentialWork());
+    };
+
+    syncWorkAllowed();
+    const unsubscribeFastScroll = subscribeFastScrolling(syncWorkAllowed);
+    const appStateSubscription = AppState.addEventListener("change", syncWorkAllowed);
+
+    return () => {
+      unsubscribeFastScroll();
+      appStateSubscription.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!shouldAnimate) {
+      bars.forEach((bar) => {
+        bar.stopAnimation();
+        bar.setValue(0.25);
+      });
       return undefined;
     }
 
@@ -53,12 +79,12 @@ function NeonEQ({ isPlaying = false, size = "medium" }: NeonEQProps) {
           Animated.timing(bar, {
             toValue: index % 2 === 0 ? 0.95 : 0.62,
             duration: 360 + index * 70,
-            useNativeDriver: false,
+            useNativeDriver: true,
           }),
           Animated.timing(bar, {
             toValue: index % 2 === 0 ? 0.35 : 0.9,
             duration: 420 + index * 55,
-            useNativeDriver: false,
+            useNativeDriver: true,
           }),
         ])
       );
@@ -69,14 +95,16 @@ function NeonEQ({ isPlaying = false, size = "medium" }: NeonEQProps) {
     return () => {
       animations.forEach((animation) => animation.stop());
     };
-  }, [bars, isPlaying]);
+  }, [bars, shouldAnimate]);
 
   const containerStyle = useMemo(
     () => [styles.container, { height: dimensions.maxHeight, gap: dimensions.gap }],
     [dimensions.maxHeight, dimensions.gap]
   );
 
-  if (!isPlaying) {
+  const halfHeight = dimensions.maxHeight / 2;
+
+  if (!shouldAnimate) {
     return (
       <View style={containerStyle}>
         {Array.from({ length: BAR_COUNT }, (_, index) => (
@@ -97,25 +125,23 @@ function NeonEQ({ isPlaying = false, size = "medium" }: NeonEQProps) {
 
   return (
     <View style={containerStyle}>
-      {bars.map((bar, index) => {
-        const height = bar.interpolate({
-          inputRange: [0, 1],
-          outputRange: [dimensions.maxHeight * 0.25, dimensions.maxHeight],
-        });
-
-        return (
-          <Animated.View
-            key={index}
-            style={[
-              styles.bar,
-              {
-                width: dimensions.barWidth,
-                height,
-              },
-            ]}
-          />
-        );
-      })}
+      {bars.map((bar, index) => (
+        <Animated.View
+          key={index}
+          style={[
+            styles.bar,
+            {
+              width: dimensions.barWidth,
+              height: dimensions.maxHeight,
+              transform: [
+                { translateY: halfHeight },
+                { scaleY: bar },
+                { translateY: -halfHeight },
+              ],
+            },
+          ]}
+        />
+      ))}
     </View>
   );
 }
