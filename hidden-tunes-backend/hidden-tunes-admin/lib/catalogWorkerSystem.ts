@@ -7,9 +7,14 @@ import {
   ingestPodcastSeedCatalog,
 } from "@/lib/podcastSeedIngest";
 import { ingestLectureSeedCatalog } from "@/lib/lectureSeedIngest";
+import {
+  ingestRadioCatalogBatch,
+  RADIO_WORKER_CATEGORIES,
+} from "@/lib/radioCatalogWorker";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export type CatalogWorkerSection =
+  | "radio"
   | "audiobook"
   | "podcast"
   | "motivation"
@@ -19,13 +24,50 @@ export type CatalogWorkerSection =
 export const CATALOG_WORKERS: Array<{
   section: CatalogWorkerSection;
   pm2Name: string;
+  cron: string;
+  schedule: string;
 }> = [
-  { section: "audiobook", pm2Name: "hidden-tunes-audiobook-worker" },
-  { section: "podcast", pm2Name: "hidden-tunes-podcast-worker" },
-  { section: "motivation", pm2Name: "hidden-tunes-motivation-worker" },
-  { section: "lecture", pm2Name: "hidden-tunes-lecture-worker" },
-  { section: "tv", pm2Name: "hidden-tunes-tv-worker" },
+  {
+    section: "radio",
+    pm2Name: "hidden-tunes-radio-worker",
+    cron: "0 1 * * *",
+    schedule: "01:00 daily",
+  },
+  {
+    section: "audiobook",
+    pm2Name: "hidden-tunes-audiobook-worker",
+    cron: "0 3 * * *",
+    schedule: "03:00 daily",
+  },
+  {
+    section: "podcast",
+    pm2Name: "hidden-tunes-podcast-worker",
+    cron: "0 5 * * *",
+    schedule: "05:00 daily",
+  },
+  {
+    section: "motivation",
+    pm2Name: "hidden-tunes-motivation-worker",
+    cron: "0 7 * * *",
+    schedule: "07:00 daily",
+  },
+  {
+    section: "lecture",
+    pm2Name: "hidden-tunes-lecture-worker",
+    cron: "0 9 * * *",
+    schedule: "09:00 daily",
+  },
+  {
+    section: "tv",
+    pm2Name: "hidden-tunes-tv-worker",
+    cron: "0 11 * * *",
+    schedule: "11:00 daily",
+  },
 ];
+
+export function findCatalogWorker(section: CatalogWorkerSection) {
+  return CATALOG_WORKERS.find((worker) => worker.section === section) || null;
+}
 
 type WorkerState = {
   section: CatalogWorkerSection;
@@ -38,6 +80,7 @@ type WorkerState = {
   last_finished_at?: string;
   last_error?: string | null;
   last_result?: unknown;
+  last_run_mode?: "once" | "daemon";
 };
 
 type BatchContext = {
@@ -50,6 +93,8 @@ type BatchContext = {
 const DEFAULT_BATCH_SIZE = 15;
 const DEFAULT_SLEEP_MS = 60_000;
 const DEFAULT_TIMEOUT_MS = 120_000;
+const DEFAULT_MAX_BATCHES_PER_RUN = 8;
+const DEFAULT_MAX_RUNTIME_MS = 45 * 60_000;
 
 export function getAdminRoot() {
   return process.cwd();
@@ -255,7 +300,32 @@ async function runTvBatch(context: BatchContext) {
   );
 }
 
+async function runRadioBatch(context: BatchContext) {
+  const categoryIndex =
+    (context.state.category_index || 0) % RADIO_WORKER_CATEGORIES.length;
+  const result = await ingestRadioCatalogBatch({
+    categoryIndex,
+    offset: context.state.cursor,
+    batchSize: context.batchSize,
+    timeoutMs: context.timeoutMs,
+  });
+
+  advanceCursor(context.state, result.stations_found, context.batchSize);
+  if (
+    !result.table_available ||
+    result.stations_found < context.batchSize ||
+    result.errors.length > 0
+  ) {
+    context.state.category_index =
+      (categoryIndex + 1) % RADIO_WORKER_CATEGORIES.length;
+    context.state.cursor = 0;
+  }
+
+  return result;
+}
+
 async function runBatch(section: CatalogWorkerSection, context: BatchContext) {
+  if (section === "radio") return runRadioBatch(context);
   if (section === "audiobook") return runAudiobookBatch(context);
   if (section === "podcast") return runPodcastBatch(context);
   if (section === "lecture") return runLectureBatch(context);
@@ -263,7 +333,10 @@ async function runBatch(section: CatalogWorkerSection, context: BatchContext) {
   return runTvBatch(context);
 }
 
-export async function runCatalogWorker(section: CatalogWorkerSection) {
+export async function runCatalogWorker(
+  section: CatalogWorkerSection,
+  options: { mode?: "once" | "daemon" } = {}
+) {
   const adminRoot = getAdminRoot();
   const batchSize = parsePositiveEnv(
     "CATALOG_WORKER_BATCH_SIZE",
@@ -283,6 +356,20 @@ export async function runCatalogWorker(section: CatalogWorkerSection) {
     10_000,
     300_000
   );
+  const maxBatchesPerRun = parsePositiveEnv(
+    "CATALOG_WORKER_MAX_BATCHES",
+    DEFAULT_MAX_BATCHES_PER_RUN,
+    1,
+    20
+  );
+  const maxRuntimeMs = parsePositiveEnv(
+    "CATALOG_WORKER_MAX_RUNTIME_MS",
+    DEFAULT_MAX_RUNTIME_MS,
+    30 * 60_000,
+    60 * 60_000
+  );
+  const mode = options.mode || "once";
+  const runStartedAt = Date.now();
 
   let stopping = false;
   process.on("SIGINT", () => {
@@ -292,22 +379,48 @@ export async function runCatalogWorker(section: CatalogWorkerSection) {
     stopping = true;
   });
 
-  appendWorkerLog(section, "worker_start", { batchSize, sleepMs, timeoutMs }, adminRoot);
+  appendWorkerLog(
+    section,
+    "worker_start",
+    { batchSize, maxBatchesPerRun, maxRuntimeMs, mode, sleepMs, timeoutMs },
+    adminRoot
+  );
 
-  while (!stopping) {
+  let batchesThisRun = 0;
+  while (
+    !stopping &&
+    batchesThisRun < maxBatchesPerRun &&
+    Date.now() - runStartedAt < maxRuntimeMs
+  ) {
     const state = readWorkerState(section, adminRoot);
     state.last_started_at = new Date().toISOString();
     state.last_error = null;
+    state.last_run_mode = mode;
     writeWorkerState(state, adminRoot);
     appendWorkerLog(section, "batch_start", { cursor: state.cursor }, adminRoot);
 
     try {
-      const result = await runBatch(section, {
-        state,
-        batchSize,
-        timeoutMs,
-        adminRoot,
-      });
+      let result: unknown;
+      try {
+        result = await runBatch(section, {
+          state,
+          batchSize,
+          timeoutMs,
+          adminRoot,
+        });
+      } catch (error) {
+        appendWorkerLog(section, "batch_retry", {
+          cursor: state.cursor,
+          error: error instanceof Error ? error.message : String(error),
+        }, adminRoot);
+        await sleep(5_000);
+        result = await runBatch(section, {
+          state,
+          batchSize,
+          timeoutMs,
+          adminRoot,
+        });
+      }
       state.batches_completed += 1;
       state.last_result = result;
       state.last_finished_at = new Date().toISOString();
@@ -323,16 +436,24 @@ export async function runCatalogWorker(section: CatalogWorkerSection) {
       appendWorkerLog(section, "batch_error", { cursor: state.cursor, error: message }, adminRoot);
     }
 
-    if (!stopping) await sleep(sleepMs);
+    batchesThisRun += 1;
+    if (!stopping && batchesThisRun < maxBatchesPerRun) {
+      await sleep(sleepMs);
+    }
   }
 
-  appendWorkerLog(section, "worker_stop", {}, adminRoot);
+  appendWorkerLog(section, "worker_stop", {
+    batchesThisRun,
+    elapsedMs: Date.now() - runStartedAt,
+    mode,
+  }, adminRoot);
 }
 
 export async function verifyCatalogWorkers() {
   const tables = [
     "audiobooks",
     "podcast_episodes",
+    "radio_stations",
     "motivation_items",
     "lecture_items",
     "tv_stations",

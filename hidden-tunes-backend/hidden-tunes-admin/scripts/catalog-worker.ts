@@ -3,6 +3,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   CATALOG_WORKERS,
+  appendWorkerLog,
+  findCatalogWorker,
   runCatalogWorker,
   type CatalogWorkerSection,
 } from "@/lib/catalogWorkerSystem";
@@ -43,12 +45,31 @@ function parseSection(argv: string[]) {
   return section as CatalogWorkerSection;
 }
 
+function shouldRunForAssignedHour(section: CatalogWorkerSection) {
+  const worker = findCatalogWorker(section);
+  const hour = Number(worker?.cron.split(" ")[1]);
+  return Number.isFinite(hour) && new Date().getHours() === hour;
+}
+
 loadEnvFile(path.join(adminRoot, ".env.production"));
 loadEnvFile(path.join(adminRoot, ".env.local"));
 loadEnvFile(path.join(adminRoot, ".env"));
 process.chdir(adminRoot);
 
-runCatalogWorker(parseSection(process.argv.slice(2))).catch((error) => {
+const argv = process.argv.slice(2);
+const section = parseSection(argv);
+const scheduled = argv.includes("--scheduled");
+const daemon = argv.includes("--daemon");
+
+if (scheduled && !shouldRunForAssignedHour(section)) {
+  appendWorkerLog(section, "schedule_skip", {
+    reason: "not assigned worker hour",
+    schedule: findCatalogWorker(section)?.schedule,
+  });
+  process.exit(0);
+}
+
+runCatalogWorker(section, { mode: daemon ? "daemon" : "once" }).catch((error) => {
   console.error(error instanceof Error ? error.message : error);
   process.exit(1);
 });

@@ -60,11 +60,16 @@ function startWorkers() {
       "npx",
       "--name",
       worker.pm2Name,
+      "--cron-restart",
+      worker.cron,
+      "--no-autorestart",
+      "--time",
       "--",
       "tsx",
       "scripts/catalog-worker.ts",
       "--section",
       worker.section,
+      "--scheduled",
     ]);
   }
   runPm2(["save"]);
@@ -72,7 +77,12 @@ function startWorkers() {
     JSON.stringify(
       {
         ok: true,
-        started: CATALOG_WORKERS.map((worker) => worker.pm2Name),
+        scheduled: CATALOG_WORKERS.map((worker) => ({
+          name: worker.pm2Name,
+          section: worker.section,
+          cron: worker.cron,
+          schedule: worker.schedule,
+        })),
       },
       null,
       2
@@ -96,30 +106,49 @@ function stopWorkers() {
 }
 
 function showStatus() {
-  const pm2 = runPm2(["jlist"]);
-  const parsed = JSON.parse(pm2 || "[]") as Array<{
+  let pm2Available = true;
+  let parsed: Array<{
     name?: string;
     pm2_env?: { status?: string; restart_time?: number; unstable_restarts?: number };
     monit?: { memory?: number; cpu?: number };
-  }>;
+  }> = [];
+
+  try {
+    const pm2 = runPm2(["jlist"]);
+    parsed = JSON.parse(pm2 || "[]") as typeof parsed;
+  } catch (error) {
+    pm2Available = false;
+    console.error(
+      JSON.stringify({
+        warning: "PM2 is not available in this environment; showing saved worker state only.",
+        detail: error instanceof Error ? error.message : String(error),
+      })
+    );
+  }
+
   const byName = new Map(parsed.map((entry) => [entry.name, entry]));
 
   console.log(
     JSON.stringify(
-      CATALOG_WORKERS.map((worker) => ({
-        ...worker,
-        pm2: byName.get(worker.pm2Name)
-          ? {
-              status: byName.get(worker.pm2Name)?.pm2_env?.status,
-              restarts: byName.get(worker.pm2Name)?.pm2_env?.restart_time,
-              unstable_restarts:
-                byName.get(worker.pm2Name)?.pm2_env?.unstable_restarts,
-              memory: byName.get(worker.pm2Name)?.monit?.memory,
-              cpu: byName.get(worker.pm2Name)?.monit?.cpu,
-            }
-          : null,
-        state: readWorkerState(worker.section, adminRoot),
-      })),
+      {
+        pm2_available: pm2Available,
+        workers: CATALOG_WORKERS.map((worker) => ({
+          ...worker,
+          pm2: byName.get(worker.pm2Name)
+            ? {
+                status: byName.get(worker.pm2Name)?.pm2_env?.status,
+                schedule: worker.schedule,
+                cron: worker.cron,
+                restarts: byName.get(worker.pm2Name)?.pm2_env?.restart_time,
+                unstable_restarts:
+                  byName.get(worker.pm2Name)?.pm2_env?.unstable_restarts,
+                memory: byName.get(worker.pm2Name)?.monit?.memory,
+                cpu: byName.get(worker.pm2Name)?.monit?.cpu,
+              }
+            : null,
+          state: readWorkerState(worker.section, adminRoot),
+        })),
+      },
       null,
       2
     )
