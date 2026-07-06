@@ -22,7 +22,9 @@ import {
   HomeCatalogSongRow,
   HomeFeaturedCard,
 } from "../../components/catalog/HomePlaybackRows";
-import { EmotionalDiscoveryChips, SubtleRadioEntryLink, SubtleTvEntryLink, SubtlePodcastEntryLink } from "../../components/EmotionalDiscoveryChips";
+import { EmotionalDiscoveryChips } from "../../components/EmotionalDiscoveryChips";
+import { HomePremiumShortcut } from "../../components/home/HomePremiumShortcut";
+import { HOME_DISCOVERY_SHORTCUTS } from "../../constants/discoveryShortcuts";
 import MoodRoomCard from "../../components/explore/MoodRoomCard";
 import NeonEQ from "../../components/NeonEQ";
 import HTImage from "../../components/HTImage";
@@ -1626,13 +1628,7 @@ function HomeScreen() {
           );
 
         case "footer-spacer":
-          return (
-            <View style={styles.footerSpacer}>
-              <SubtleRadioEntryLink />
-              <SubtleTvEntryLink />
-              <SubtlePodcastEntryLink />
-            </View>
-          );
+          return <View style={styles.footerSpacer} />;
 
         default:
           return null;
@@ -1823,43 +1819,15 @@ function HomeScreen() {
           <Ionicons name="arrow-forward" size={18} color={COLORS.textMuted} />
         </TouchableOpacity>
 
-        <View style={styles.grid}>
-          {[
-            {
-              key: "premium-music",
-              icon: "headset" as const,
-              title: "Music",
-              color: COLORS.primary,
-              onPress: () => router.push("/music-feed" as any),
-            },
-            {
-              key: "premium-search",
-              icon: "search" as const,
-              title: "Search",
-              color: COLORS.cyan,
-              onPress: () => router.push("/search"),
-            },
-            {
-              key: "premium-queue",
-              icon: "list" as const,
-              title: "Queue",
-              color: COLORS.pink,
-              onPress: () => router.push("/queue"),
-            },
-            {
-              key: "premium-feelings",
-              icon: "heart" as const,
-              title: "Feelings",
-              color: "rgba(192,132,252,0.95)",
-              onPress: () => router.push("/explore"),
-            },
-          ].map((card) => (
-            <PremiumCard
-              key={card.key}
-              icon={card.icon}
-              title={card.title}
-              color={card.color}
-              onPress={card.onPress}
+        <View style={styles.homeShortcutGrid}>
+          {HOME_DISCOVERY_SHORTCUTS.map((shortcut) => (
+            <HomePremiumShortcut
+              key={shortcut.key}
+              layout="half"
+              icon={shortcut.icon}
+              title={shortcut.title}
+              color={shortcut.color}
+              onPress={() => router.push(shortcut.route as any)}
             />
           ))}
         </View>
@@ -1932,46 +1900,6 @@ function HomeScreen() {
 }
 
 export default memo(HomeScreen);
-
-const PremiumCard = memo(function PremiumCard({ icon, title, color, onPress }: any) {
-  const scaleAnim = useRef(new Animated.Value(1)).current;
-
-  const pressIn = useCallback(() => {
-    Animated.spring(scaleAnim, {
-      toValue: 0.94,
-      friction: 7,
-      tension: 90,
-      useNativeDriver: true,
-    }).start();
-  }, [scaleAnim]);
-
-  const pressOut = useCallback(() => {
-    Animated.spring(scaleAnim, {
-      toValue: 1,
-      friction: 7,
-      tension: 90,
-      useNativeDriver: true,
-    }).start();
-  }, [scaleAnim]);
-
-  return (
-    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-      <TouchableOpacity
-        style={styles.gridCard}
-        activeOpacity={0.88}
-        onPress={onPress}
-        onPressIn={pressIn}
-        onPressOut={pressOut}
-      >
-        <View style={[styles.iconCircle, { borderColor: color }]}>
-          <Ionicons name={icon} size={23} color={color} />
-        </View>
-
-        <Text style={styles.gridTitle}>{title}</Text>
-      </TouchableOpacity>
-    </Animated.View>
-  );
-});
 
 const styles = StyleSheet.create({
   container: {
@@ -2401,40 +2329,13 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 
-  grid: {
+  homeShortcutGrid: {
     flexDirection: "row",
+    flexWrap: "wrap",
     justifyContent: "space-between",
+    rowGap: 12,
     paddingHorizontal: 20,
     marginTop: 20,
-  },
-
-  gridCard: {
-    width: (width - 64) / 4,
-    height: 88,
-    backgroundColor: "rgba(255,255,255,0.055)",
-    borderRadius: 22,
-    padding: 10,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-  },
-
-  iconCircle: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.06)",
-  },
-
-  gridTitle: {
-    color: COLORS.text,
-    fontSize: 12,
-    fontWeight: "900",
-    marginTop: 8,
   },
 
   sectionRow: {
