@@ -1,4 +1,4 @@
-import React, { memo } from "react";
+import React, { memo, useCallback } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -18,11 +18,15 @@ export const RadioCategoryCard = memo(function RadioCategoryCard({
   stationCount,
   onPress,
 }: RadioCategoryCardProps) {
+  const handlePress = useCallback(() => {
+    onPress();
+  }, [onPress]);
+
   return (
     <TouchableOpacity
       activeOpacity={0.88}
       style={styles.card}
-      onPress={onPress}
+      onPress={handlePress}
     >
       <LinearGradient colors={category.gradient} style={styles.gradient}>
         <View style={styles.iconWrap}>
@@ -57,8 +61,12 @@ export const RadioStationCard = memo(function RadioStationCard({
   favicon,
   onPress,
 }: RadioStationCardProps) {
+  const handlePress = useCallback(() => {
+    onPress();
+  }, [onPress]);
+
   return (
-    <TouchableOpacity activeOpacity={0.88} style={styles.stationRow} onPress={onPress}>
+    <TouchableOpacity activeOpacity={0.88} style={styles.stationRow} onPress={handlePress}>
       {favicon ? (
         <HTImage uri={favicon} style={styles.stationArt} />
       ) : (

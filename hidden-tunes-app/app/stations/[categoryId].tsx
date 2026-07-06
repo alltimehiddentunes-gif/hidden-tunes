@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -33,6 +33,7 @@ import {
 import {
   createStableKeyExtractor,
   getListPerformanceSettings,
+  markFastScrolling,
 } from "../../utils/performanceMode";
 
 function stationSubtitle(station: HiddenTunesStation) {
@@ -57,17 +58,48 @@ export default function RadioCategoryScreen() {
   const [loading, setLoading] = useState(() => stations.length === 0);
   const [refreshing, setRefreshing] = useState(false);
   const [hasCheckedFallbacks, setHasCheckedFallbacks] = useState(false);
+  const screenMountedRef = useRef(true);
+  const stationLoadRequestRef = useRef(0);
+  const stationLoadInFlightRef = useRef("");
+
+  useEffect(() => {
+    screenMountedRef.current = true;
+    return () => {
+      screenMountedRef.current = false;
+      stationLoadRequestRef.current += 1;
+      stationLoadInFlightRef.current = "";
+    };
+  }, []);
 
   const loadStations = useCallback(
     async (forceRefresh = false) => {
       if (!categoryId) return;
 
+      const loadKey = `${categoryId}:${forceRefresh ? "refresh" : "cache"}`;
+      if (stationLoadInFlightRef.current === loadKey) return;
+
+      const requestId = ++stationLoadRequestRef.current;
+      stationLoadInFlightRef.current = loadKey;
+
       try {
         const next = await getRadioStationsForCategory(categoryId, {
           forceRefresh,
         });
+        if (
+          !screenMountedRef.current ||
+          requestId !== stationLoadRequestRef.current
+        ) {
+          return;
+        }
         setStations(next);
       } finally {
+        if (
+          !screenMountedRef.current ||
+          requestId !== stationLoadRequestRef.current
+        ) {
+          return;
+        }
+        stationLoadInFlightRef.current = "";
         setLoading(false);
         setRefreshing(false);
         setHasCheckedFallbacks(true);
@@ -80,7 +112,7 @@ export default function RadioCategoryScreen() {
     if (!categoryId || stations.length > 0) return;
 
     void hydrateCachedRadioStations(categoryId).then((cached) => {
-      if (!cached?.length) return;
+      if (!screenMountedRef.current || !cached?.length) return;
       setStations(cached);
       setLoading(false);
     });
@@ -139,6 +171,18 @@ export default function RadioCategoryScreen() {
   const keyExtractor = useMemo(
     () => createStableKeyExtractor("radio-station"),
     []
+  );
+
+  const renderStation = useCallback(
+    ({ item }: { item: HiddenTunesStation }) => (
+      <RadioStationCard
+        name={item.name}
+        subtitle={stationSubtitle(item)}
+        favicon={item.favicon}
+        onPress={() => openStation(item)}
+      />
+    ),
+    [openStation]
   );
 
   const showEmpty =
@@ -222,16 +266,12 @@ export default function RadioCategoryScreen() {
               </View>
             ) : null
           }
-          renderItem={({ item }) => (
-            <RadioStationCard
-              name={item.name}
-              subtitle={stationSubtitle(item)}
-              favicon={item.favicon}
-              onPress={() => openStation(item)}
-            />
-          )}
+          renderItem={renderStation}
           {...listPerformance}
           removeClippedSubviews
+          onScrollBeginDrag={() => markFastScrolling(true)}
+          onMomentumScrollBegin={() => markFastScrolling(true)}
+          onMomentumScrollEnd={() => markFastScrolling(false)}
         />
       )}
     </LinearGradient>

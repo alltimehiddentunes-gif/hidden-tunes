@@ -1,8 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
-  Image,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -16,6 +15,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { TESTER_COPY } from "../constants/testerExperience";
 import { COLORS, GRADIENTS } from "../constants/theme";
 import { usePlayerActions } from "../context/PlayerContext";
+import HTImage from "../components/HTImage";
 
 import {
   searchYouTubeBackend,
@@ -36,8 +36,21 @@ import {
   logTapToPlay,
   startPerformanceTimer,
 } from "../utils/performanceLogs";
+import {
+  createStableKeyExtractor,
+  getListPerformanceSettings,
+  markFastScrolling,
+} from "../utils/performanceMode";
 
 type RadioTrack = HiddenTunesNormalizedSong | BackendYouTubeTrack;
+
+type RadioTrackCardProps = {
+  item: RadioTrack;
+  index: number;
+  hasCloudSongs: boolean;
+  onCloudPress: (song: HiddenTunesNormalizedSong, index: number) => void;
+  onYouTubePress: (track: BackendYouTubeTrack, index: number) => void;
+};
 
 function cleanQuery(value: string) {
   return String(value || "")
@@ -157,9 +170,75 @@ function dedupeYouTubeTracks(tracks: Partial<BackendYouTubeTrack>[]) {
   return cleanTracks;
 }
 
+const RadioTrackCard = memo(function RadioTrackCard({
+  item,
+  index,
+  hasCloudSongs,
+  onCloudPress,
+  onYouTubePress,
+}: RadioTrackCardProps) {
+  const artwork = hasCloudSongs
+    ? getArtwork(item)
+    : getTrackThumbnail(item as BackendYouTubeTrack);
+
+  const handlePress = useCallback(() => {
+    if (hasCloudSongs) {
+      onCloudPress(item as HiddenTunesNormalizedSong, index);
+      return;
+    }
+
+    onYouTubePress(item as BackendYouTubeTrack, index);
+  }, [hasCloudSongs, index, item, onCloudPress, onYouTubePress]);
+
+  return (
+    <TouchableOpacity
+      activeOpacity={0.86}
+      style={styles.trackCard}
+      onPress={handlePress}
+    >
+      <Text style={styles.rank}>
+        {String(index + 1).padStart(2, "0")}
+      </Text>
+
+      <HTImage uri={artwork} style={styles.cover} />
+
+      <View style={styles.info}>
+        <Text style={styles.trackTitle} numberOfLines={1}>
+          {item.title || "Unknown Song"}
+        </Text>
+
+        <Text style={styles.artist} numberOfLines={1}>
+          {hasCloudSongs
+            ? (item as HiddenTunesNormalizedSong).artist
+            : getTrackArtist(item as BackendYouTubeTrack)}
+        </Text>
+
+        <View style={styles.metaRow}>
+          <Ionicons
+            name={hasCloudSongs ? "cloud-done" : "tv"}
+            size={13}
+            color={hasCloudSongs ? COLORS.primary : "#ff3b30"}
+          />
+          <Text style={styles.metaText}>
+            {hasCloudSongs ? "Hidden Tunes" : "Hidden Tunes TV"}
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.playCircle}>
+        <Ionicons name="play" size={16} color={COLORS.text} />
+      </View>
+    </TouchableOpacity>
+  );
+});
+
 export default function RadioScreen() {
   const params = useLocalSearchParams();
   const { playSong } = usePlayerActions();
+  const screenMountedRef = useRef(true);
+  const radioRequestRef = useRef(0);
+  const loadingRadioRef = useRef(false);
+  const radioInFlightKeyRef = useRef("");
 
   const title = String(params.title || "Hidden Tunes Radio");
   const artist = String(params.artist || "");
@@ -183,16 +262,9 @@ export default function RadioScreen() {
     return mood || guessMoodFromText(`${title} ${artist} ${query}`);
   }, [mood, title, artist, query]);
 
-  useEffect(() => {
-    loadRadio();
-  }, [query, artist, genre, mood]);
-
-  async function loadRadio() {
-    try {
-      setLoading(true);
-      setStatusText("Finding tracks for you...");
-
-      const searchQueries = Array.from(
+  const searchQueries = useMemo(
+    () =>
+      Array.from(
         new Set(
           [
             query,
@@ -207,7 +279,42 @@ export default function RadioScreen() {
             .map((item) => cleanQuery(String(item || "")))
             .filter(Boolean)
         )
-      ).slice(0, 4);
+      ).slice(0, 4),
+    [artist, genre, mood, query, radioGenre, radioMood, title]
+  );
+
+  const youtubeQueries = useMemo(
+    () =>
+      [
+        `${query} music`,
+        artist ? `${artist} songs` : "",
+        genre ? `${genre} music` : "",
+      ].filter(Boolean),
+    [artist, genre, query]
+  );
+
+  useEffect(() => {
+    screenMountedRef.current = true;
+    return () => {
+      screenMountedRef.current = false;
+      radioRequestRef.current += 1;
+      loadingRadioRef.current = false;
+    };
+  }, []);
+
+  const loadRadio = useCallback(async () => {
+    const loadKey = `${searchQueries.join("|")}::${youtubeQueries.join("|")}`;
+    if (loadingRadioRef.current && radioInFlightKeyRef.current === loadKey) {
+      return;
+    }
+
+    const requestId = ++radioRequestRef.current;
+    loadingRadioRef.current = true;
+    radioInFlightKeyRef.current = loadKey;
+
+    try {
+      setLoading(true);
+      setStatusText("Finding tracks for you...");
 
       let combinedCloudSongs: HiddenTunesNormalizedSong[] = [];
 
@@ -221,6 +328,10 @@ export default function RadioScreen() {
 
       const uniqueCloudSongs = dedupeSongs(combinedCloudSongs);
 
+      if (!screenMountedRef.current || requestId !== radioRequestRef.current) {
+        return;
+      }
+
       setCloudTracks(uniqueCloudSongs);
 
       if (uniqueCloudSongs.length > 0) {
@@ -231,18 +342,16 @@ export default function RadioScreen() {
 
       setStatusText("Expanding your station...");
 
-      const youtubeQueries = [
-        `${query} music`,
-        artist ? `${artist} songs` : "",
-        genre ? `${genre} music` : "",
-      ].filter(Boolean);
-
       const responses = await Promise.all(
         youtubeQueries.slice(0, 3).map((item) => searchYouTubeBackend(item))
       );
 
       const merged = responses.flat().filter(Boolean);
       const uniqueYouTube = dedupeYouTubeTracks(merged);
+
+      if (!screenMountedRef.current || requestId !== radioRequestRef.current) {
+        return;
+      }
 
       setYoutubeTracks(uniqueYouTube);
       setStatusText(
@@ -251,21 +360,54 @@ export default function RadioScreen() {
           : "No tracks found for this vibe"
       );
     } catch {
+      if (!screenMountedRef.current || requestId !== radioRequestRef.current) {
+        return;
+      }
+
       setCloudTracks([]);
       setYoutubeTracks([]);
       setStatusText(TESTER_COPY.radioLoadFailed);
     } finally {
+      if (!screenMountedRef.current || requestId !== radioRequestRef.current) {
+        return;
+      }
+
+      loadingRadioRef.current = false;
+      radioInFlightKeyRef.current = "";
       setLoading(false);
     }
-  }
+  }, [searchQueries, youtubeQueries]);
 
-  function openCloudTrack(song: HiddenTunesNormalizedSong, index: number) {
+  useEffect(() => {
+    void loadRadio();
+  }, [loadRadio]);
+
+  const cloudQueue = useMemo(
+    () => dedupeSongs(cloudTracks.map(safeSong)),
+    [cloudTracks]
+  );
+
+  const youtubeQueue = useMemo(
+    () =>
+      youtubeTracks
+        .map((item) => ({
+          id: getTrackVideoId(item),
+          videoId: getTrackVideoId(item),
+          title: String(item.title || "YouTube Music"),
+          artist: getTrackArtist(item),
+          channelTitle: String(item.channelTitle || getTrackArtist(item)),
+          thumbnail: getTrackThumbnail(item),
+        }))
+        .filter((item) => item.videoId.length === 11),
+    [youtubeTracks]
+  );
+
+  const openCloudTrack = useCallback((song: HiddenTunesNormalizedSong, index: number) => {
     try {
       const tapStartedAt = startPerformanceTimer();
-      const queue = dedupeSongs(cloudTracks.map(safeSong));
       const normalized = safeSong(song);
 
-      void playSong(normalized as any, queue as any, index)
+      void playSong(normalized as any, cloudQueue as any, index)
         .finally(() => {
           logTapToPlay("radio", tapStartedAt, { id: normalized.id });
         })
@@ -277,23 +419,12 @@ export default function RadioScreen() {
         router.push("/player" as any);
       });
     } catch {}
-  }
+  }, [cloudQueue, playSong]);
 
-  function openYouTubeTrack(track: BackendYouTubeTrack, index: number) {
+  const openYouTubeTrack = useCallback((track: BackendYouTubeTrack, index: number) => {
     const videoId = getTrackVideoId(track);
 
     if (!videoId) return;
-
-    const queue = youtubeTracks
-      .map((item) => ({
-        id: getTrackVideoId(item),
-        videoId: getTrackVideoId(item),
-        title: String(item.title || "YouTube Music"),
-        artist: getTrackArtist(item),
-        channelTitle: String(item.channelTitle || getTrackArtist(item)),
-        thumbnail: getTrackThumbnail(item),
-      }))
-      .filter((item) => item.videoId.length === 11);
 
     router.push({
       pathname: "/youtube-player",
@@ -305,12 +436,12 @@ export default function RadioScreen() {
         channelTitle: String(track.channelTitle || getTrackArtist(track)),
         thumbnail: getTrackThumbnail(track),
         startIndex: String(index),
-        queue: JSON.stringify(queue),
+        queue: JSON.stringify(youtubeQueue),
       },
     } as any);
-  }
+  }, [youtubeQueue]);
 
-  function playRadio() {
+  const playRadio = useCallback(() => {
     if (cloudTracks[0]) {
       openCloudTrack(cloudTracks[0], 0);
       return;
@@ -319,10 +450,33 @@ export default function RadioScreen() {
     if (youtubeTracks[0]) {
       openYouTubeTrack(youtubeTracks[0], 0);
     }
-  }
+  }, [cloudTracks, openCloudTrack, openYouTubeTrack, youtubeTracks]);
 
   const hasCloudSongs = cloudTracks.length > 0;
-  const activeTracks: RadioTrack[] = hasCloudSongs ? cloudTracks : youtubeTracks;
+  const activeTracks: RadioTrack[] = useMemo(
+    () => (hasCloudSongs ? cloudTracks : youtubeTracks),
+    [cloudTracks, hasCloudSongs, youtubeTracks]
+  );
+  const radioListPerformance = useMemo(
+    () => getListPerformanceSettings(activeTracks.length),
+    [activeTracks.length]
+  );
+  const radioTrackKeyExtractor = useMemo(
+    () => createStableKeyExtractor("radio-track"),
+    []
+  );
+  const renderRadioTrack = useCallback(
+    ({ item, index }: { item: RadioTrack; index: number }) => (
+      <RadioTrackCard
+        item={item}
+        index={index}
+        hasCloudSongs={hasCloudSongs}
+        onCloudPress={openCloudTrack}
+        onYouTubePress={openYouTubeTrack}
+      />
+    ),
+    [hasCloudSongs, openCloudTrack, openYouTubeTrack]
+  );
 
   return (
     <LinearGradient colors={GRADIENTS.main} style={styles.container}>
@@ -407,12 +561,17 @@ export default function RadioScreen() {
       ) : (
         <FlatList<RadioTrack>
           data={activeTracks}
-          keyExtractor={(item, index) => {
-            const videoId = "videoId" in item ? item.videoId : "";
-            return `${item.id || videoId || "radio"}-${index}`;
-          }}
+          keyExtractor={radioTrackKeyExtractor}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
+          initialNumToRender={radioListPerformance.initialNumToRender}
+          maxToRenderPerBatch={radioListPerformance.maxToRenderPerBatch}
+          windowSize={radioListPerformance.windowSize}
+          updateCellsBatchingPeriod={radioListPerformance.updateCellsBatchingPeriod}
+          removeClippedSubviews
+          onScrollBeginDrag={() => markFastScrolling(true)}
+          onMomentumScrollBegin={() => markFastScrolling(true)}
+          onMomentumScrollEnd={() => markFastScrolling(false)}
           ListHeaderComponent={
             <View style={styles.sectionHeader}>
               <View>
@@ -446,56 +605,7 @@ export default function RadioScreen() {
               </Text>
             </View>
           }
-          renderItem={({ item, index }) => {
-            const artwork = hasCloudSongs
-              ? getArtwork(item)
-              : getTrackThumbnail(item as BackendYouTubeTrack);
-
-            return (
-              <TouchableOpacity
-                activeOpacity={0.86}
-                style={styles.trackCard}
-                onPress={() =>
-                  hasCloudSongs
-                    ? openCloudTrack(item as HiddenTunesNormalizedSong, index)
-                    : openYouTubeTrack(item as BackendYouTubeTrack, index)
-                }
-              >
-                <Text style={styles.rank}>
-                  {String(index + 1).padStart(2, "0")}
-                </Text>
-
-                <Image source={{ uri: artwork }} style={styles.cover} />
-
-                <View style={styles.info}>
-                  <Text style={styles.trackTitle} numberOfLines={1}>
-                    {item.title || "Unknown Song"}
-                  </Text>
-
-                  <Text style={styles.artist} numberOfLines={1}>
-                    {hasCloudSongs
-                      ? item.artist
-                      : getTrackArtist(item as BackendYouTubeTrack)}
-                  </Text>
-
-                  <View style={styles.metaRow}>
-                    <Ionicons
-                      name={hasCloudSongs ? "cloud-done" : "tv"}
-                      size={13}
-                      color={hasCloudSongs ? COLORS.primary : "#ff3b30"}
-                    />
-                    <Text style={styles.metaText}>
-                      {hasCloudSongs ? "Hidden Tunes" : "Hidden Tunes TV"}
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={styles.playCircle}>
-                  <Ionicons name="play" size={16} color={COLORS.text} />
-                </View>
-              </TouchableOpacity>
-            );
-          }}
+          renderItem={renderRadioTrack}
         />
       )}
     </LinearGradient>
