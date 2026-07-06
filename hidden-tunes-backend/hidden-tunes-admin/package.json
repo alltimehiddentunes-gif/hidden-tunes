@@ -35,6 +35,9 @@
     "test:podcast-seed-catalog": "tsx scripts/test-podcast-seed-catalog.ts",
     "audiobook:seed-ingest": "tsx scripts/run-audiobook-seed-ingest.ts",
     "audiobook:seed-ingest:dry": "tsx scripts/run-audiobook-seed-ingest.ts --dry-run",
+    "audiobooks:import:librivox": "tsx scripts/run-audiobook-seed-ingest.ts",
+    "audiobooks:repair-descriptions": "tsx scripts/repair-audiobook-descriptions.ts",
+    "audiobooks:verify-production": "tsx scripts/verify-audiobook-production.ts",
     "test:motivation-public": "tsx scripts/test-motivation-public-metadata.ts",
     "verify:motivation-catalog": "tsx scripts/verify-motivation-catalog.ts",
     "verify:motivation-play-sample": "tsx scripts/verify-motivation-play-sample.ts"

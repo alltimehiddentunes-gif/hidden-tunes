@@ -13,6 +13,8 @@ const REQUIRED_TABLES = [
   "audiobooks",
   "audiobook_chapters",
   "audiobook_files",
+  "audiobook_external_links",
+  "audiobook_import_runs",
 ] as const;
 
 const REQUIRED_ENV = [
@@ -81,6 +83,7 @@ async function probeEndpoint(path: string) {
       success: body?.success === true,
       error: body?.error || null,
       details: body?.details || null,
+      body,
       sample_keys: Object.keys(body || {}).slice(0, 8),
       total:
         Number(body?.pagination?.total) ||
@@ -101,10 +104,32 @@ async function probeEndpoint(path: string) {
   }
 }
 
+async function scanAudiobookRows<T extends Record<string, unknown>>(
+  select: string,
+  onRows: (rows: T[]) => void | Promise<void>
+) {
+  const { supabaseAdmin } = await import("../lib/supabaseAdmin");
+  const pageSize = 1000;
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await supabaseAdmin
+      .from("audiobooks")
+      .select(select)
+      .range(from, from + pageSize - 1);
+    if (error) throw error;
+    const rows = (data || []) as unknown as T[];
+    if (rows.length === 0) break;
+    await onRows(rows);
+    if (rows.length < pageSize) break;
+  }
+}
+
 async function main() {
   const { supabaseAdmin } = await import("../lib/supabaseAdmin");
   const { AUDIOBOOK_CATEGORIES, listAudiobookCategories, listAudiobooks } =
     await import("../lib/audiobookCatalog");
+  const { hasMalformedAudiobookDescription } = await import(
+    "../lib/audiobookDescriptionSanitizer"
+  );
 
   const schemaMode = "modern";
 
@@ -131,30 +156,78 @@ async function main() {
     .eq("is_active", true)
     .eq("playback_status", "playable");
 
-  const endpoints = {
-    tree: await probeEndpoint("/api/audiobooks/tree"),
-    fiction: await probeEndpoint("/api/audiobooks/category/fiction?limit=1"),
-    search: await probeEndpoint("/api/audiobooks/search?q=adventure&limit=1"),
-  };
+  const { count: totalAudiobooks, error: totalAudiobooksError } =
+    await supabaseAdmin
+      .from("audiobooks")
+      .select("id", { count: "exact", head: true });
 
-  let samplePlay: Record<string, unknown> | null = null;
-  const fiction = await probeEndpoint("/api/audiobooks/category/fiction?limit=1");
-  const fictionBody = fiction as {
-    audiobooks?: Array<{ id?: string; audio_url?: string }>;
-  };
-  const sampleId = fictionBody.audiobooks?.[0]?.id || null;
+  const { count: totalChapters, error: totalChaptersError } = await supabaseAdmin
+    .from("audiobook_chapters")
+    .select("id", { count: "exact", head: true });
 
-  if (sampleId) {
-    const detail = await probeEndpoint(`/api/audiobooks/${encodeURIComponent(sampleId)}`);
-    const play = await probeEndpoint(
-      `/api/audiobooks/${encodeURIComponent(sampleId)}/play`
+  const { count: missingArtwork, error: missingArtworkError } =
+    await supabaseAdmin
+      .from("audiobooks")
+      .select("id", { count: "exact", head: true })
+      .or("cover_url.is.null,cover_url.eq.");
+
+  const sourceCounts: Record<string, number> = {};
+  let sourceCountsError: { error: string; code?: string } | null = null;
+  try {
+    await scanAudiobookRows<{ source_type?: string | null }>(
+      "source_type",
+      (rows) => {
+        for (const row of rows) {
+          const source = row.source_type || "unknown";
+          sourceCounts[source] = (sourceCounts[source] || 0) + 1;
+        }
+      }
     );
-    samplePlay = {
-      detail,
-      play_has_audio_url: Boolean((play as { audio_url?: string }).audio_url),
-      list_has_audio_url: Boolean(fictionBody.audiobooks?.[0]?.audio_url),
+  } catch (error) {
+    const record = error as { message?: string; code?: string };
+    sourceCountsError = { error: record.message || String(error), code: record.code };
+  }
+
+  let malformedDescriptionCount = 0;
+  let malformedDescriptionsError: { error: string; code?: string } | null = null;
+  try {
+    await scanAudiobookRows<{ description?: string | null }>(
+      "description",
+      (rows) => {
+        malformedDescriptionCount += rows.filter((row) =>
+          hasMalformedAudiobookDescription(row.description)
+        ).length;
+      }
+    );
+  } catch (error) {
+    const record = error as { message?: string; code?: string };
+    malformedDescriptionsError = {
+      error: record.message || String(error),
+      code: record.code,
     };
   }
+
+  let missingChapterCount = 0;
+  let missingChaptersError: { error: string; code?: string } | null = null;
+  try {
+    await scanAudiobookRows<{ chapter_count?: number | null }>(
+      "chapter_count",
+      (rows) => {
+        missingChapterCount += rows.filter(
+          (row) => Number(row.chapter_count || 0) <= 0
+        ).length;
+      }
+    );
+  } catch (error) {
+    const record = error as { message?: string; code?: string };
+    missingChaptersError = { error: record.message || String(error), code: record.code };
+  }
+
+  const endpoints = {
+    tree: await probeEndpoint("/api/audiobooks/tree"),
+    categories: await probeEndpoint("/api/audiobooks/categories"),
+    search: await probeEndpoint("/api/audiobooks/search?q=adventure&limit=1"),
+  };
 
   const { countAudiobooksForCategory } = await import("../lib/audiobookCatalog");
   const categoryCounts: Record<string, number> = {};
@@ -172,22 +245,56 @@ async function main() {
     }
   }
 
+  const populatedCategory =
+    AUDIOBOOK_CATEGORIES.find(
+      (entry) => entry.slug !== "mature" && (categoryCounts[entry.slug] || 0) > 0
+    )?.slug || "classics";
+  const populatedCategoryEndpoint = await probeEndpoint(
+    `/api/audiobooks/category/${encodeURIComponent(populatedCategory)}?limit=1`
+  );
+  const populatedBody = populatedCategoryEndpoint.body as {
+    audiobooks?: Array<{ id?: string; slug?: string; audio_url?: string }>;
+  };
+  const sampleId =
+    populatedBody.audiobooks?.[0]?.id || populatedBody.audiobooks?.[0]?.slug || null;
+
+  let samplePlay: Record<string, unknown> | null = null;
+  if (sampleId) {
+    const detail = await probeEndpoint(`/api/audiobooks/${encodeURIComponent(sampleId)}`);
+    const play = await probeEndpoint(
+      `/api/audiobooks/${encodeURIComponent(sampleId)}/play`
+    );
+    samplePlay = {
+      detail_status: detail.status,
+      detail_success: detail.success,
+      detail_has_audio_url: Boolean(
+        ((detail.body as { audiobook?: { audio_url?: string } }).audiobook || {})
+          .audio_url
+      ),
+      play_status: play.status,
+      play_success: play.success,
+      play_has_audio_url: Boolean((play.body as { audio_url?: string }).audio_url),
+      list_has_audio_url: Boolean(populatedBody.audiobooks?.[0]?.audio_url),
+    };
+  }
+
   const localTree = await listAudiobookCategories(false).catch((error) => ({
     error: serializeLocalError(error),
   }));
-  const localFictionResult = await listAudiobooks({
+  const localCategoryResult = await listAudiobooks({
     page: 1,
     limit: 1,
-    category: "fiction",
+    category: populatedCategory,
     mature: false,
   }).catch((error) => ({ error: serializeLocalError(error) }));
 
-  const localFiction =
-    "error" in localFictionResult
-      ? localFictionResult
+  const localCategory =
+    "error" in localCategoryResult
+      ? localCategoryResult
       : {
-          total: localFictionResult.pagination.total,
-          sample_title: localFictionResult.items[0]?.title || null,
+          category: populatedCategory,
+          total: localCategoryResult.pagination.total,
+          sample_title: localCategoryResult.items[0]?.title || null,
         };
 
   const report = {
@@ -196,15 +303,29 @@ async function main() {
     env,
     tables,
     database: {
+      total_audiobooks: totalAudiobooksError
+        ? { error: totalAudiobooksError.message, code: totalAudiobooksError.code }
+        : totalAudiobooks || 0,
+      total_chapters: totalChaptersError
+        ? { error: totalChaptersError.message, code: totalChaptersError.code }
+        : totalChapters || 0,
       public_books: publicBooksError
         ? { error: publicBooksError.message, code: publicBooksError.code }
         : publicBooks || 0,
       playable_files: playableFilesError
         ? { error: playableFilesError.message, code: playableFilesError.code }
         : playableFiles || 0,
+      source_counts: sourceCountsError || sourceCounts,
       category_counts: categoryCounts,
+      malformed_descriptions:
+        malformedDescriptionsError || malformedDescriptionCount,
+      missing_artwork: missingArtworkError
+        ? { error: missingArtworkError.message, code: missingArtworkError.code }
+        : missingArtwork || 0,
+      missing_chapters: missingChaptersError || missingChapterCount,
     },
     endpoints,
+    populated_category: populatedCategoryEndpoint,
     local_api: {
       tree: Array.isArray(localTree)
         ? {
@@ -212,7 +333,7 @@ async function main() {
             with_items: localTree.filter((entry) => entry.item_count > 0).length,
           }
         : localTree,
-      fiction: localFiction,
+      category: localCategory,
     },
     sample_play: samplePlay,
     migration_hint:
@@ -232,9 +353,13 @@ async function main() {
   const localOk =
     Array.isArray(localTree) &&
     localTree.some((entry) => entry.item_count > 0) &&
-    !("error" in localFiction) &&
-    "total" in localFiction &&
-    localFiction.total > 0;
+    !("error" in localCategory) &&
+    "total" in localCategory &&
+    localCategory.total > 0 &&
+    Boolean(samplePlay?.play_success) &&
+    samplePlay?.list_has_audio_url === false &&
+    samplePlay?.detail_has_audio_url === false &&
+    samplePlay?.play_has_audio_url === true;
 
   if (!tablesOk || !envOk) {
     process.exitCode = 2;

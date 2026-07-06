@@ -1,33 +1,27 @@
 import { cleanText, parsePositiveInt } from "@/lib/tvCatalog";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { cleanAudiobookDescription } from "@/lib/audiobookDescriptionSanitizer";
 
 export const AUDIOBOOK_DEFAULT_PAGE_SIZE = 40;
 export const AUDIOBOOK_MAX_PAGE_SIZE = 40;
 
 export const AUDIOBOOK_CATEGORIES = [
   { id: "fiction", slug: "fiction", name: "Fiction", sort_order: 10 },
-  { id: "non-fiction", slug: "non-fiction", name: "Non-fiction", sort_order: 20 },
-  { id: "business", slug: "business", name: "Business", sort_order: 30 },
-  {
-    id: "self-development",
-    slug: "self-development",
-    name: "Self Development",
-    sort_order: 40,
-  },
-  { id: "education", slug: "education", name: "Education", sort_order: 50 },
-  { id: "biography", slug: "biography", name: "Biography", sort_order: 60 },
-  { id: "history", slug: "history", name: "History", sort_order: 70 },
+  { id: "classics", slug: "classics", name: "Classics", sort_order: 20 },
+  { id: "biography", slug: "biography", name: "Biography", sort_order: 30 },
+  { id: "children", slug: "children", name: "Children", sort_order: 40 },
+  { id: "history", slug: "history", name: "History", sort_order: 50 },
+  { id: "poetry", slug: "poetry", name: "Poetry", sort_order: 60 },
+  { id: "philosophy", slug: "philosophy", name: "Philosophy", sort_order: 70 },
   { id: "science", slug: "science", name: "Science", sort_order: 80 },
-  { id: "faith", slug: "faith", name: "Faith", sort_order: 90 },
-  { id: "health", slug: "health", name: "Health", sort_order: 100 },
-  {
-    id: "language-learning",
-    slug: "language-learning",
-    name: "Language Learning",
-    sort_order: 110,
-  },
-  { id: "children", slug: "children", name: "Children", sort_order: 120 },
-  { id: "classics", slug: "classics", name: "Classics", sort_order: 130 },
+  { id: "religion", slug: "religion", name: "Religion", sort_order: 90 },
+  { id: "drama", slug: "drama", name: "Drama", sort_order: 100 },
+  { id: "mystery", slug: "mystery", name: "Mystery", sort_order: 110 },
+  { id: "adventure", slug: "adventure", name: "Adventure", sort_order: 120 },
+  { id: "education", slug: "education", name: "Education", sort_order: 130 },
+  { id: "language", slug: "language", name: "Language", sort_order: 140 },
+  { id: "short-stories", slug: "short-stories", name: "Short Stories", sort_order: 150 },
+  { id: "non-fiction", slug: "non-fiction", name: "Non-fiction", sort_order: 160 },
   { id: "mature", slug: "mature", name: "Mature", sort_order: 900 },
 ] as const;
 
@@ -179,7 +173,7 @@ export function toAudiobookPublicItem(
     slug: String(row.slug || "").trim(),
     title: String(row.title || "Untitled"),
     subtitle: cleanText(row.subtitle, 300),
-    description: cleanText(row.description, 1600),
+    description: cleanAudiobookDescription(row.description),
     cover_url: cleanText(row.cover_url, 2000),
     author_name: cleanText(row.author_name, 200),
     narrator_name: cleanText(row.narrator_name, 200),
@@ -205,7 +199,7 @@ export function toAudiobookPublicChapter(
     id: String(row.id || ""),
     audiobook_id: String(row.audiobook_id || ""),
     title: String(row.title || "Untitled"),
-    description: cleanText(row.description, 1000),
+    description: cleanAudiobookDescription(row.description),
     chapter_number: parseOptionalNumber(row.chapter_number),
     duration_seconds: parseOptionalNumber(row.duration_seconds),
     published_at: cleanText(row.published_at, 40),

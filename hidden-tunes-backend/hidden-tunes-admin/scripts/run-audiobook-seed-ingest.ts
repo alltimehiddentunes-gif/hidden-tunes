@@ -29,6 +29,8 @@ function parseArgs(argv: string[]) {
     categories?: string[];
     limit?: number;
     offset?: number;
+    all?: boolean;
+    batchSize?: number;
     dryRun?: boolean;
     timeoutMs?: number;
   } = {};
@@ -37,6 +39,10 @@ function parseArgs(argv: string[]) {
     const arg = argv[i];
     if (arg === "--dry-run") {
       options.dryRun = true;
+      continue;
+    }
+    if (arg === "--all") {
+      options.all = true;
       continue;
     }
     if (arg === "--categories" && argv[i + 1]) {
@@ -49,6 +55,11 @@ function parseArgs(argv: string[]) {
     }
     if (arg === "--limit" && argv[i + 1]) {
       options.limit = Number(argv[i + 1]);
+      i += 1;
+      continue;
+    }
+    if (arg === "--batch-size" && argv[i + 1]) {
+      options.batchSize = Number(argv[i + 1]);
       i += 1;
       continue;
     }
@@ -90,6 +101,8 @@ async function main() {
     categories: args.categories as never,
     limit: args.limit,
     offset: args.offset,
+    all: args.all,
+    batch_size: args.batchSize,
     dry_run: args.dryRun,
     timeout_ms: args.timeoutMs,
   });

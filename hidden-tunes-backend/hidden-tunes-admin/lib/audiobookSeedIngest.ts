@@ -3,34 +3,52 @@ import {
   evaluateLibriVoxAudiobook,
   evaluateLibriVoxChapterAudio,
 } from "@/lib/audiobookAutoApproval";
+import {
+  cleanAudiobookDescription,
+  sanitizeAudiobookDescription,
+} from "@/lib/audiobookDescriptionSanitizer";
 import { cleanText } from "@/lib/tvCatalog";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
-export const AUDIOBOOK_SEED_DEFAULT_LIMIT = 40;
-export const AUDIOBOOK_SEED_MAX_LIMIT = 200;
+export const AUDIOBOOK_IMPORT_DEFAULT_BATCH_SIZE = 500;
+export const AUDIOBOOK_IMPORT_MAX_BATCH_SIZE = 1000;
 export const AUDIOBOOK_SEED_DEFAULT_TIMEOUT_MS = 30_000;
 
 export type AudiobookSeedCategorySlug =
   | "fiction"
   | "classics"
   | "biography"
-  | "history"
-  | "education"
   | "children"
+  | "history"
+  | "poetry"
+  | "philosophy"
   | "science"
-  | "faith"
-  | "language-learning";
+  | "religion"
+  | "drama"
+  | "mystery"
+  | "adventure"
+  | "education"
+  | "language"
+  | "short-stories"
+  | "non-fiction";
 
 export const AUDIOBOOK_SEED_CATEGORIES: AudiobookSeedCategorySlug[] = [
   "fiction",
   "classics",
   "biography",
-  "history",
-  "education",
   "children",
+  "history",
+  "poetry",
+  "philosophy",
   "science",
-  "faith",
-  "language-learning",
+  "religion",
+  "drama",
+  "mystery",
+  "adventure",
+  "education",
+  "language",
+  "short-stories",
+  "non-fiction",
 ];
 
 const LIBRIVOX_BASE = "https://librivox.org/api/feed/audiobooks";
@@ -65,6 +83,8 @@ type LibriVoxBook = {
 export type AudiobookSeedIngestOptions = {
   limit?: number;
   offset?: number;
+  all?: boolean;
+  batch_size?: number;
   categories?: AudiobookSeedCategorySlug[];
   dry_run?: boolean;
   timeout_ms?: number;
@@ -82,6 +102,8 @@ export type AudiobookSeedIngestResult = {
   authors_upserted: number;
   chapters_upserted: number;
   files_upserted: number;
+  links_upserted: number;
+  import_run_id?: string | null;
   errors: Array<{
     source_id: string;
     title: string;
@@ -144,10 +166,19 @@ function slugify(value: unknown, fallback = "audiobook") {
   return slug || fallback;
 }
 
-function clampLimit(value: unknown) {
-  const parsed = Number(value || AUDIOBOOK_SEED_DEFAULT_LIMIT);
-  if (!Number.isFinite(parsed) || parsed < 1) return AUDIOBOOK_SEED_DEFAULT_LIMIT;
-  return Math.min(AUDIOBOOK_SEED_MAX_LIMIT, Math.floor(parsed));
+function normalizeTitleAuthorKey(title: unknown, author: unknown) {
+  return slugify(`${title || ""}-${author || ""}`, "audiobook-author-key").slice(
+    0,
+    240
+  );
+}
+
+function clampBatchSize(value: unknown) {
+  const parsed = Number(value || AUDIOBOOK_IMPORT_DEFAULT_BATCH_SIZE);
+  if (!Number.isFinite(parsed) || parsed < 1) {
+    return AUDIOBOOK_IMPORT_DEFAULT_BATCH_SIZE;
+  }
+  return Math.min(AUDIOBOOK_IMPORT_MAX_BATCH_SIZE, Math.floor(parsed));
 }
 
 function normalizeCategories(categories?: AudiobookSeedCategorySlug[]) {
@@ -161,12 +192,19 @@ function categoryToLibriVoxSearch(category: AudiobookSeedCategorySlug) {
     fiction: "fiction",
     classics: "classics",
     biography: "biography",
-    history: "history",
-    education: "education",
     children: "children",
+    history: "history",
+    poetry: "poetry",
+    philosophy: "philosophy",
     science: "science",
-    faith: "religion",
-    "language-learning": "language",
+    religion: "religion",
+    drama: "drama",
+    mystery: "mystery",
+    adventure: "adventure",
+    education: "education",
+    language: "language",
+    "short-stories": "short stories",
+    "non-fiction": "non-fiction",
   };
   return map[category];
 }
@@ -222,6 +260,59 @@ function mapGenres(book: LibriVoxBook, category: AudiobookSeedCategorySlug) {
   return Array.from(new Set([category, ...genres])).slice(0, 12);
 }
 
+async function startImportRun(options: {
+  dryRun: boolean;
+  all: boolean;
+  batchSize: number;
+  offset: number;
+  categories: AudiobookSeedCategorySlug[];
+}) {
+  if (options.dryRun) return null;
+
+  const { data, error } = await supabaseAdmin
+    .from("audiobook_import_runs")
+    .insert({
+      source: "librivox",
+      status: "running",
+      page_cursor: String(options.offset),
+      imported_count: 0,
+      skipped_count: 0,
+      failed_count: 0,
+      metadata: {
+        all: options.all,
+        batch_size: options.batchSize,
+        categories: options.categories,
+      },
+    })
+    .select("id")
+    .single();
+
+  if (error) throw error;
+  return String(data.id);
+}
+
+async function updateImportRun(
+  runId: string | null,
+  patch: {
+    status?: "running" | "completed" | "failed";
+    page_cursor?: string;
+    imported_count?: number;
+    skipped_count?: number;
+    failed_count?: number;
+    error?: string | null;
+  }
+) {
+  if (!runId) return;
+  await supabaseAdmin
+    .from("audiobook_import_runs")
+    .update({
+      ...patch,
+      finished_at: patch.status && patch.status !== "running" ? new Date().toISOString() : undefined,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", runId);
+}
+
 async function fetchLibriVoxBooks(options: {
   category?: AudiobookSeedCategorySlug;
   limit: number;
@@ -258,8 +349,8 @@ export function describeAudiobookSeedCatalog() {
     source: "librivox",
     license: "LibriVox public domain audiobooks",
     categories: AUDIOBOOK_SEED_CATEGORIES,
-    default_limit: AUDIOBOOK_SEED_DEFAULT_LIMIT,
-    max_limit: AUDIOBOOK_SEED_MAX_LIMIT,
+    default_batch_size: AUDIOBOOK_IMPORT_DEFAULT_BATCH_SIZE,
+    max_batch_size: AUDIOBOOK_IMPORT_MAX_BATCH_SIZE,
   };
 }
 
@@ -345,20 +436,22 @@ async function upsertBook(book: LibriVoxBook, category: AudiobookSeedCategorySlu
 
   const author = await upsertAuthor(book);
   const title = cleanText(book.title, 300) || `LibriVox Audiobook ${sourceId}`;
+  const sanitizedDescription = sanitizeAudiobookDescription(book.description);
   const slug = slugify(`${title}-${sourceId}`, "audiobook");
   const sourceKey = librivoxBookSourceKey(sourceId);
   const primaryAudioUrl = cleanHttpsUrl(playableSections[0]?.listen_url);
   const approval = evaluateLibriVoxAudiobook({
     title,
-    description: cleanText(book.description, 4000),
+    description: sanitizedDescription.text,
     playableSectionCount: playableSections.length,
     primaryAudioUrl,
   });
 
+  const normalizedTitleAuthor = normalizeTitleAuthorKey(title, author.name);
   const bookPayload = {
     slug,
     title,
-    description: cleanText(book.description, 4000),
+    description: cleanAudiobookDescription(book.description),
     cover_url: buildArchiveFallbackCover(book),
     author_id: author.id,
     author_name: author.name,
@@ -367,8 +460,10 @@ async function upsertBook(book: LibriVoxBook, category: AudiobookSeedCategorySlu
     language: cleanText(book.language, 40),
     publisher: "LibriVox",
     source_type: "librivox",
+    source_id: sourceId,
     source_url: cleanHttpsUrl(book.url_librivox) || cleanHttpsUrl(book.url_rss),
     source_key: sourceKey,
+    normalized_title_author: normalizedTitleAuthor,
     rights: "public_domain",
     duration_seconds: normalizeSeconds(book.totaltimesecs) || 0,
     chapter_count: playableSections.length,
@@ -381,16 +476,66 @@ async function upsertBook(book: LibriVoxBook, category: AudiobookSeedCategorySlu
     last_checked_at: new Date().toISOString(),
   };
 
-  const { data: audiobook, error } = await supabaseAdmin
-    .from("audiobooks")
-    .upsert(bookPayload, { onConflict: "source_key" })
-    .select("id")
-    .single();
+  const { data: existingBySource, error: existingBySourceError } =
+    await supabaseAdmin
+      .from("audiobooks")
+      .select("id")
+      .eq("source_key", sourceKey)
+      .maybeSingle();
+
+  if (existingBySourceError) throw existingBySourceError;
+
+  const { data: existingByTitleAuthor, error: existingByTitleAuthorError } =
+    existingBySource?.id
+      ? { data: null, error: null }
+      : await supabaseAdmin
+          .from("audiobooks")
+          .select("id")
+          .eq("normalized_title_author", normalizedTitleAuthor)
+          .maybeSingle();
+
+  if (existingByTitleAuthorError) throw existingByTitleAuthorError;
+
+  const existingId =
+    (existingBySource as { id?: string } | null)?.id ||
+    (existingByTitleAuthor as { id?: string } | null)?.id ||
+    null;
+
+  const mutation = existingId
+    ? supabaseAdmin.from("audiobooks").update(bookPayload).eq("id", existingId)
+    : supabaseAdmin.from("audiobooks").insert(bookPayload);
+
+  const { data: audiobook, error } = await mutation.select("id").single();
 
   if (error) throw error;
 
   let chaptersUpserted = 0;
   let filesUpserted = 0;
+  let linksUpserted = 0;
+
+  const sourceLinks = [
+    { label: "LibriVox", url: cleanHttpsUrl(book.url_librivox) },
+    { label: "Internet Archive", url: cleanHttpsUrl(book.url_iarchive) },
+    { label: "RSS", url: cleanHttpsUrl(book.url_rss) },
+    ...sanitizedDescription.links,
+  ].filter((link): link is { label: string; url: string } => Boolean(link.url));
+
+  if (sourceLinks.length > 0) {
+    const { error: linkError } = await supabaseAdmin
+      .from("audiobook_external_links")
+      .upsert(
+        sourceLinks.map((link) => ({
+          audiobook_id: audiobook.id,
+          label: link.label,
+          url: link.url,
+          source_type: "librivox",
+          source_key: `${sourceKey}:link:${link.url}`,
+        })),
+        { onConflict: "source_key" }
+      );
+    if (linkError) throw linkError;
+    linksUpserted += sourceLinks.length;
+  }
 
   for (let index = 0; index < playableSections.length; index += 1) {
     const section = playableSections[index];
@@ -404,6 +549,7 @@ async function upsertBook(book: LibriVoxBook, category: AudiobookSeedCategorySlu
     const chapterPayload = {
       audiobook_id: audiobook.id,
       title: chapterTitle,
+      description: "",
       chapter_number: index + 1,
       duration_seconds: normalizeSeconds(section.playtime) || 0,
       source_key: chapterSourceKey,
@@ -448,7 +594,14 @@ async function upsertBook(book: LibriVoxBook, category: AudiobookSeedCategorySlu
     .eq("id", audiobook.id);
 
   if (!approval.is_active || chaptersUpserted === 0 || filesUpserted === 0) {
-    await supabaseAdmin.from("audiobooks").delete().eq("id", audiobook.id);
+    await supabaseAdmin
+      .from("audiobooks")
+      .update({
+        is_active: false,
+        status: "rejected",
+        playback_status: "rejected",
+      })
+      .eq("id", audiobook.id);
     return { skipped: true as const };
   }
 
@@ -457,6 +610,7 @@ async function upsertBook(book: LibriVoxBook, category: AudiobookSeedCategorySlu
     authors_upserted: 1,
     chapters_upserted: chaptersUpserted,
     files_upserted: filesUpserted,
+    links_upserted: linksUpserted,
   };
 }
 
@@ -464,7 +618,8 @@ export async function ingestAudiobookSeedCatalog(
   options: AudiobookSeedIngestOptions = {}
 ): Promise<AudiobookSeedIngestResult> {
   const dryRun = options.dry_run === true;
-  const limit = clampLimit(options.limit);
+  const batchSize = clampBatchSize(options.batch_size || options.limit);
+  const maxBooks = options.all ? Number.POSITIVE_INFINITY : Math.max(1, Number(options.limit || batchSize));
   const offset = Math.max(0, Math.floor(Number(options.offset || 0)));
   const timeoutMs = Math.max(
     5_000,
@@ -484,6 +639,8 @@ export async function ingestAudiobookSeedCatalog(
     authors_upserted: 0,
     chapters_upserted: 0,
     files_upserted: 0,
+    links_upserted: 0,
+    import_run_id: null,
     errors: [],
   };
 
@@ -491,71 +648,107 @@ export async function ingestAudiobookSeedCatalog(
     result.categories_seeded = await seedCategories();
   }
 
-  const perCategoryLimit = Math.max(1, Math.ceil(limit / categories.length));
+  const importRunId = await startImportRun({
+    dryRun,
+    all: options.all === true,
+    batchSize,
+    offset,
+    categories,
+  });
+  result.import_run_id = importRunId;
 
-  for (const category of categories) {
-    let books: LibriVoxBook[] = [];
-    try {
-      try {
-        books = await fetchLibriVoxBooks({
-          category,
-          limit: perCategoryLimit,
-          offset,
-          timeoutMs,
-        });
-      } catch {
-        books = await fetchLibriVoxBooks({
-          limit: perCategoryLimit,
-          offset: offset + categories.indexOf(category) * perCategoryLimit,
-          timeoutMs,
-        });
-      }
-    } catch (error) {
-      result.books_failed += 1;
-      result.errors.push(
-        serializeIngestError(error, {
-          source_id: `category:${category}`,
-          title: category,
-          stage: "fetch_librivox_books",
-        })
-      );
-      continue;
-    }
-
-    for (const book of books) {
-      result.books_attempted += 1;
-      const sourceId = String(book.id || "");
-      const title = cleanText(book.title, 300) || "Untitled LibriVox Audiobook";
-
-      if (dryRun) {
-        result.books_skipped += 1;
-        continue;
-      }
-
-      try {
-        const imported = await upsertBook(book, category);
-        if (imported.skipped) {
-          result.books_skipped += 1;
-          continue;
+  try {
+    for (const category of categories) {
+      let nextOffset = offset;
+      while (result.books_attempted < maxBooks) {
+        let books: LibriVoxBook[] = [];
+        try {
+          books = await fetchLibriVoxBooks({
+            category,
+            limit: Math.min(batchSize, maxBooks - result.books_attempted),
+            offset: nextOffset,
+            timeoutMs,
+          });
+        } catch (error) {
+          result.books_failed += 1;
+          result.errors.push(
+            serializeIngestError(error, {
+              source_id: `category:${category}`,
+              title: category,
+              stage: "fetch_librivox_books",
+            })
+          );
+          break;
         }
 
-        result.books_imported += 1;
-        result.authors_upserted += imported.authors_upserted;
-        result.chapters_upserted += imported.chapters_upserted;
-        result.files_upserted += imported.files_upserted;
-      } catch (error) {
-        result.books_failed += 1;
-        result.errors.push(
-          serializeIngestError(error, {
-            source_id: sourceId,
-            title,
-            stage: "import_audiobook",
-          })
-        );
+        if (books.length === 0) break;
+
+        for (const book of books) {
+          if (result.books_attempted >= maxBooks) break;
+          result.books_attempted += 1;
+          const sourceId = String(book.id || "");
+          const title = cleanText(book.title, 300) || "Untitled LibriVox Audiobook";
+
+          if (dryRun) {
+            result.books_skipped += 1;
+            continue;
+          }
+
+          try {
+            const imported = await upsertBook(book, category);
+            if (imported.skipped) {
+              result.books_skipped += 1;
+              continue;
+            }
+
+            result.books_imported += 1;
+            result.authors_upserted += imported.authors_upserted;
+            result.chapters_upserted += imported.chapters_upserted;
+            result.files_upserted += imported.files_upserted;
+            result.links_upserted += imported.links_upserted;
+          } catch (error) {
+            result.books_failed += 1;
+            result.errors.push(
+              serializeIngestError(error, {
+                source_id: sourceId,
+                title,
+                stage: "import_audiobook",
+              })
+            );
+          }
+        }
+
+        nextOffset += books.length;
+        await updateImportRun(importRunId, {
+          status: "running",
+          page_cursor: `${category}:${nextOffset}`,
+          imported_count: result.books_imported,
+          skipped_count: result.books_skipped,
+          failed_count: result.books_failed,
+        });
+
+        if (!options.all || books.length < batchSize) break;
       }
     }
-  }
 
-  result.success = result.books_failed === 0;
+    result.success = result.books_failed === 0;
+    await updateImportRun(importRunId, {
+      status: result.success ? "completed" : "failed",
+      imported_count: result.books_imported,
+      skipped_count: result.books_skipped,
+      failed_count: result.books_failed,
+      error: result.errors[0]?.message || null,
+    });
+  } catch (error) {
+    result.success = false;
+    await updateImportRun(importRunId, {
+      status: "failed",
+      imported_count: result.books_imported,
+      skipped_count: result.books_skipped,
+      failed_count: result.books_failed,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    throw error;
+  }
   return result;
 }

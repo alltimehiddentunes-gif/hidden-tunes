@@ -9,7 +9,14 @@ import type {
 } from "../types/audiobooks";
 
 const AUDIOBOOK_API_BASE_URL = "https://admin.hiddentunes.com";
-const AUDIOBOOK_PAGE_LIMIT = 40;
+export const AUDIOBOOK_PAGE_LIMIT = 40;
+
+const AUDIOBOOK_CATEGORY_GRADIENTS = [
+  ["#1F2418", "#0A0F0B"],
+  ["#152333", "#07111A"],
+  ["#2A1B22", "#12080D"],
+  ["#182821", "#07120E"],
+] as const;
 
 type QueryValue = string | number | boolean | undefined | null;
 
@@ -29,6 +36,52 @@ function normalizeStringArray(value: unknown) {
   return value
     .map((entry) => cleanText(entry, 80))
     .filter((entry): entry is string => Boolean(entry));
+}
+
+function decodeAudiobookEntities(value: string) {
+  const named: Record<string, string> = {
+    amp: "&",
+    apos: "'",
+    gt: ">",
+    hellip: "...",
+    lt: "<",
+    mdash: "-",
+    nbsp: " ",
+    ndash: "-",
+    quot: "\"",
+  };
+
+  return value.replace(/&(#x?[0-9a-f]+|[a-z][a-z0-9]+);/gi, (match, entity) => {
+    const key = String(entity || "").toLowerCase();
+    if (key.startsWith("#x")) {
+      const parsed = Number.parseInt(key.slice(2), 16);
+      return Number.isFinite(parsed) ? String.fromCodePoint(parsed) : match;
+    }
+    if (key.startsWith("#")) {
+      const parsed = Number.parseInt(key.slice(1), 10);
+      return Number.isFinite(parsed) ? String.fromCodePoint(parsed) : match;
+    }
+    return named[key] || match;
+  });
+}
+
+function cleanAudiobookDescription(value: unknown, maxLength = 1600) {
+  const raw = cleanText(value, maxLength);
+  if (!raw) return null;
+
+  return decodeAudiobookEntities(
+    raw
+      .replace(/<a\b[^>]*href\s*=\s*["'][^"']+["'][^>]*>([\s\S]*?)<\/a>/gi, "$1")
+      .replace(/<\s*br\s*\/?\s*>/gi, "\n")
+      .replace(/<\/\s*p\s*>/gi, "\n\n")
+      .replace(/<\s*p\b[^>]*>/gi, "")
+      .replace(/<\/?\s*(em|i|strong|b)\b[^>]*>/gi, "")
+      .replace(/<[^>]+>/g, " ")
+  )
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/[ \t]{2,}/g, " ")
+    .trim() || null;
 }
 
 function buildAudiobookUrl(path: string, params?: Record<string, QueryValue>) {
@@ -143,7 +196,18 @@ function normalizeCategory(raw: Record<string, unknown>, index: number): Audiobo
     slug,
     name: cleanText(raw.name, 120) || title,
     title,
-    icon: cleanText(raw.icon, 80),
+    subtitle: cleanText(raw.subtitle, 180),
+    icon: cleanText(raw.icon, 80) || "book-outline",
+    artwork_url: cleanText(raw.artwork_url, 2000),
+    artworkUrl: cleanText(raw.artwork_url, 2000),
+    imageUrl: cleanText(raw.artwork_url, 2000),
+    gradient:
+      (Array.isArray(raw.gradient) && raw.gradient.length >= 2
+        ? [String(raw.gradient[0]), String(raw.gradient[1])]
+        : AUDIOBOOK_CATEGORY_GRADIENTS[index % AUDIOBOOK_CATEGORY_GRADIENTS.length]) as readonly [
+        string,
+        string
+      ],
     item_count: normalizeNumber(raw.item_count, 0),
     is_mature: raw.is_mature === true || slug === "mature",
   };
@@ -160,7 +224,7 @@ export function normalizeAudiobookItem(raw: Record<string, unknown>): AudiobookI
     slug,
     title,
     subtitle: cleanText(raw.subtitle, 300),
-    description: cleanText(raw.description, 1600),
+    description: cleanAudiobookDescription(raw.description, 1600),
     cover_url: cleanText(raw.cover_url, 2000),
     author_name: cleanText(raw.author_name, 200),
     narrator_name: cleanText(raw.narrator_name, 200),
@@ -194,7 +258,7 @@ function normalizeChapter(raw: Record<string, unknown>): AudiobookChapter | null
     id,
     audiobook_id: audiobookId,
     title,
-    description: cleanText(raw.description, 1000),
+    description: cleanAudiobookDescription(raw.description, 1000),
     chapter_number: Number.isFinite(Number(raw.chapter_number))
       ? Number(raw.chapter_number)
       : null,
