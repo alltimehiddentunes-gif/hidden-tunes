@@ -137,6 +137,108 @@ export function buildAlbumFavoriteItem(album: {
   };
 }
 
+export function buildPodcastShowFavoriteItem(show: {
+  id: string;
+  title?: string;
+  publisher?: string;
+  artworkUrl?: string;
+  feedUrl?: string;
+  websiteUrl?: string;
+  isExplicit?: boolean;
+  matureLevel?: string;
+}): UnifiedFavoriteItem {
+  return {
+    id: String(show.id),
+    type: "podcast_show",
+    title: String(show.title || "Podcast"),
+    subtitle: String(show.publisher || "Podcast"),
+    artwork: resolveArtwork({ artwork: show.artworkUrl, thumbnail: show.artworkUrl }),
+    source: "podcast",
+    addedAt: new Date().toISOString(),
+    metadata: {
+      publisher: show.publisher,
+      feedUrl: show.feedUrl,
+      websiteUrl: show.websiteUrl,
+      isExplicit: show.isExplicit,
+      matureLevel: show.matureLevel,
+    },
+  };
+}
+
+export function buildPodcastEpisodeFavoriteItem(episode: {
+  id: string;
+  showId?: string;
+  showTitle?: string;
+  publisher?: string;
+  title?: string;
+  artworkUrl?: string;
+  audioUrl?: string;
+  durationSeconds?: number;
+  publishedAt?: string;
+  episodeUrl?: string;
+  isExplicit?: boolean;
+  matureLevel?: string;
+}): UnifiedFavoriteItem {
+  return {
+    id: String(episode.id),
+    type: "podcast_episode",
+    title: String(episode.title || "Podcast Episode"),
+    subtitle: String(episode.showTitle || episode.publisher || "Podcast"),
+    artwork: resolveArtwork({ artwork: episode.artworkUrl, thumbnail: episode.artworkUrl }),
+    source: "podcast",
+    addedAt: new Date().toISOString(),
+    metadata: {
+      showId: episode.showId,
+      showTitle: episode.showTitle,
+      publisher: episode.publisher,
+      streamUrl: episode.audioUrl,
+      duration: episode.durationSeconds,
+      publishedAt: episode.publishedAt,
+      episodeUrl: episode.episodeUrl,
+      isExplicit: episode.isExplicit,
+      matureLevel: episode.matureLevel,
+    },
+  };
+}
+
+export function buildVideoFavoriteItem(video: {
+  id?: string;
+  title?: string;
+  creatorName?: string;
+  channelTitle?: string;
+  thumbnailUrl?: string;
+  externalVideoId?: string;
+  playbackUrl?: string;
+  embedUrl?: string;
+  videoSource?: string;
+  category?: string;
+  genre?: string;
+  mood?: string;
+  duration?: string | number;
+}): UnifiedFavoriteItem {
+  const creator = video.creatorName || video.channelTitle || "Hidden Tunes TV";
+  return {
+    id: String(video.id || video.externalVideoId || ""),
+    type: "video",
+    title: String(video.title || "Hidden Tunes TV"),
+    subtitle: String(creator),
+    artwork: resolveArtwork({ artwork: video.thumbnailUrl, thumbnail: video.thumbnailUrl }),
+    source: "video",
+    addedAt: new Date().toISOString(),
+    metadata: {
+      creatorName: creator,
+      videoId: video.externalVideoId,
+      playbackUrl: video.playbackUrl,
+      embedUrl: video.embedUrl,
+      videoSource: video.videoSource,
+      category: video.category,
+      genre: video.genre,
+      mood: video.mood,
+      duration: video.duration,
+    },
+  };
+}
+
 export function buildRadioStationFavoriteItem(
   station: RadioStationListItem | {
     id: string;

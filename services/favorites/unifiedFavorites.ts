@@ -97,6 +97,9 @@ function normalizeFavoriteItem(raw: unknown): UnifiedFavoriteItem | null {
     "artist",
     "album",
     "radio_station",
+    "podcast_show",
+    "podcast_episode",
+    "video",
   ];
 
   if (!allowed.includes(type)) return null;

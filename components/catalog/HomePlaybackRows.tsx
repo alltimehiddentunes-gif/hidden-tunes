@@ -33,6 +33,8 @@ import type { HiddenTunesNormalizedSong } from "../../services/hiddenTunesApi";
 import { getUserFacingArtist } from "../../services/ui/displayMetadata";
 import HTImage from "../HTImage";
 import NeonEQ from "../NeonEQ";
+import FavoriteButton from "../FavoriteButton";
+import { buildSongFavoriteItem } from "../../services/favorites/favoriteItemBuilders";
 import CatalogSongRow from "./CatalogSongRow";
 
 type HomeCatalogSongRowProps = {
@@ -205,6 +207,9 @@ export const HomeFeaturedCard = memo(function HomeFeaturedCard({
               color="#000"
             />
           </View>
+          <View style={styles.featuredFavoriteButton}>
+            <FavoriteButton item={buildSongFavoriteItem(item)} size={18} />
+          </View>
         </View>
       </View>
     </TouchableOpacity>
@@ -328,6 +333,17 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "flex-end",
+    gap: 8,
+  },
+  featuredFavoriteButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(0,0,0,0.42)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.14)",
   },
   autoNextPill: {
     flexDirection: "row",

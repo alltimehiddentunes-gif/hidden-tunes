@@ -31,10 +31,16 @@ type Props = {
   onRightPress?: () => void;
 };
 
-const CardArtGlow = memo(function CardArtGlow() {
+const CardArtGlow = memo(function CardArtGlow({ active = false }: { active?: boolean }) {
   const opacity = useSharedValue<number>(LUXURY_GLOW.opacityMin);
 
   useEffect(() => {
+    if (!active) {
+      cancelAnimation(opacity);
+      opacity.value = withTiming(LUXURY_GLOW.opacityMin, { duration: 220 });
+      return;
+    }
+
     opacity.value = withRepeat(
       withSequence(
         withTiming(LUXURY_GLOW.opacityMax, {
@@ -51,7 +57,7 @@ const CardArtGlow = memo(function CardArtGlow() {
     );
 
     return () => cancelAnimation(opacity);
-  }, [opacity]);
+  }, [active, opacity]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,

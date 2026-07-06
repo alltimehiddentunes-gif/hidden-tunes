@@ -33,8 +33,8 @@ import { EmotionalDiscoveryChips } from "@/components/EmotionalDiscoveryChips";
 import { HomeHeroCard, type HomeHeroCardData } from "@/components/home/HomeHeroCard";
 import { usePlayerFeedSnapshot } from "@/utils/playerFeedStore";
 import HTImage from "@/components/HTImage";
-import LiveWaveform from "@/components/LiveWaveform";
 import UnifiedMediaCard from "@/components/UnifiedMediaCard";
+import FavoriteButton from "@/components/FavoriteButton";
 import { HomeCatalogSongRow, HomeFeaturedCard } from "@/components/catalog/HomePlaybackRows";
 import {
   COLORS,
@@ -84,6 +84,7 @@ import {
   sortItemsByPreferredGenres,
 } from "@/utils/discoveryPreferences";
 import { getUserFacingArtist } from "@/services/ui/displayMetadata";
+import { buildAlbumFavoriteItem } from "@/services/favorites/favoriteItemBuilders";
 
 const CATALOG_PAGE_SIZE = 31;
 const HOME_SCROLL_SETTLE_MS = 520;
@@ -352,6 +353,17 @@ const AlbumRailCard = memo(function AlbumRailCard({
           contentFit="cover"
           contentPosition="center"
         />
+        <View style={styles.albumFavoriteButton}>
+          <FavoriteButton
+            item={buildAlbumFavoriteItem({
+              id: String(album.id),
+              title: album.title,
+              artist: album.artist,
+              artwork: album.artwork,
+            })}
+            size={18}
+          />
+        </View>
       </View>
       <Text numberOfLines={2} ellipsizeMode="tail" style={styles.albumTitle}>
         {album.title}
@@ -366,18 +378,25 @@ const PremiumHeroPressable = memo(function PremiumHeroPressable({
   children,
   height,
   isActive,
+  paused = false,
   onPress,
 }: {
   children: ReactNode;
   height: number;
   isActive: boolean;
+  paused?: boolean;
   onPress: () => void;
 }) {
   const scale = useSharedValue(1);
   const glow = useSharedValue<number>(LUXURY_GLOW.opacityMin);
+  const appActive = useAppActiveState();
 
   useEffect(() => {
     cancelAnimation(glow);
+    if (!appActive || paused) {
+      glow.value = withTiming(LUXURY_GLOW.opacityMin, { duration: 220 });
+      return;
+    }
     const peak = isActive ? LUXURY_GLOW.opacityMax + 0.06 : LUXURY_GLOW.opacityMax;
     const floor = isActive ? LUXURY_GLOW.opacityMin + 0.04 : LUXURY_GLOW.opacityMin;
 
@@ -397,7 +416,7 @@ const PremiumHeroPressable = memo(function PremiumHeroPressable({
     );
 
     return () => cancelAnimation(glow);
-  }, [glow, isActive]);
+  }, [appActive, glow, isActive, paused]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
@@ -505,6 +524,7 @@ const HomeHeroCarousel = memo(function HomeHeroCarousel({
         onPress={handleHeroPress}
         HeroPressable={PremiumHeroPressable}
         LuxuryPulse={HeroLuxuryPulse}
+        animationsPaused={animationsPaused}
         styles={styles}
       />
     ),
@@ -661,10 +681,11 @@ export default function MusicFeedScreen() {
   const homeVerticalScrollingRef = useRef(false);
   const homeScrollSettleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { width: viewportWidth } = useWindowDimensions();
-  const heroCardWidth = Math.min(540, Math.max(320, viewportWidth - 36));
-  const heroCardHeight = Math.min(430, Math.max(340, Math.round(heroCardWidth * 0.92)));
+  const heroCardWidth = Math.min(440, Math.max(304, viewportWidth - 64));
+  const heroCardHeight = Math.min(500, Math.max(382, Math.round(heroCardWidth * 1.16)));
   const railCardWidth = Math.min(252, Math.max(212, viewportWidth * 0.66));
   const searchPanelPadding = viewportWidth < 380 ? 10 : 12;
+  const homeEffectsPaused = homeAnimationsPaused || !homeFocused;
 
   const songs = catalog?.songs || [];
   const artists = catalog?.artists || [];
@@ -941,9 +962,9 @@ export default function MusicFeedScreen() {
   return (
     <AppShell>
       <LinearGradient colors={GRADIENTS.main} style={styles.container}>
-        <PremiumAmbientGlow style={styles.glowPurple} color="rgba(168,85,247,0.2)" paused={homeAnimationsPaused} />
-        <PremiumAmbientGlow style={styles.glowCyan} color="rgba(34,211,238,0.14)" paused={homeAnimationsPaused} />
-        <PremiumAmbientGlow style={styles.glowCenter} color="rgba(168,85,247,0.12)" paused={homeAnimationsPaused} />
+        <PremiumAmbientGlow style={styles.glowPurple} color="rgba(168,85,247,0.2)" paused={homeEffectsPaused} />
+        <PremiumAmbientGlow style={styles.glowCyan} color="rgba(34,211,238,0.14)" paused={homeEffectsPaused} />
+        <PremiumAmbientGlow style={styles.glowCenter} color="rgba(168,85,247,0.12)" paused={homeEffectsPaused} />
 
         <View style={styles.header}>
           <View style={styles.brandRow}>
@@ -1027,7 +1048,7 @@ export default function MusicFeedScreen() {
                     heroCardWidth={heroCardWidth}
                     heroCardHeight={heroCardHeight}
                     onPress={handleHeroPress}
-                    animationsPaused={homeAnimationsPaused}
+                    animationsPaused={homeEffectsPaused}
                     focused={homeFocused}
                   />
                 ) : null}
@@ -1180,7 +1201,7 @@ export default function MusicFeedScreen() {
                               artist={artist}
                               width={railCardWidth}
                               onPress={() => openArtist(artist)}
-                              animationsPaused={homeAnimationsPaused}
+                              animationsPaused={homeEffectsPaused}
                             />
                           ))}
                         </ScrollView>
@@ -1202,7 +1223,7 @@ export default function MusicFeedScreen() {
                               album={album}
                               width={railCardWidth}
                               onPress={() => openAlbum(album)}
-                              animationsPaused={homeAnimationsPaused}
+                              animationsPaused={homeEffectsPaused}
                             />
                           ))}
                         </ScrollView>
@@ -1390,8 +1411,8 @@ const styles = StyleSheet.create({
     top: 18,
     left: 8,
     right: 8,
-    height: 310,
-    borderRadius: 120,
+    height: 360,
+    borderRadius: 150,
     overflow: "hidden",
   },
   heroList: {
@@ -1401,11 +1422,11 @@ const styles = StyleSheet.create({
     marginRight: 14,
   },
   heroBorder: {
-    borderRadius: 36,
+    borderRadius: 38,
     padding: 2,
   },
   heroCard: {
-    borderRadius: 34,
+    borderRadius: 36,
     overflow: "hidden",
     backgroundColor: "rgba(18,7,31,0.44)",
     ...SHADOWS.premium,
@@ -1415,7 +1436,7 @@ const styles = StyleSheet.create({
     top: -24,
     left: -18,
     right: -18,
-    height: 120,
+    height: 92,
     backgroundColor: COLORS.primary,
     borderRadius: 70,
     zIndex: 1,
@@ -1427,9 +1448,9 @@ const styles = StyleSheet.create({
   },
   heroArtworkPanel: {
     flex: 1,
-    marginHorizontal: 9,
-    marginTop: 9,
-    marginBottom: 9,
+    marginHorizontal: 10,
+    marginTop: 10,
+    marginBottom: 10,
     minHeight: 260,
     borderRadius: 28,
     overflow: "hidden",
@@ -1443,7 +1464,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    height: "46%",
+    height: "40%",
     zIndex: 3,
   },
   heroTextBlock: {
@@ -1451,8 +1472,8 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    paddingHorizontal: 20,
-    paddingBottom: 18,
+    paddingHorizontal: 18,
+    paddingBottom: 16,
     paddingTop: 8,
     zIndex: 4,
   },
@@ -1473,8 +1494,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
     borderRadius: 999,
     backgroundColor: "rgba(0,0,0,0.58)",
     marginBottom: 8,
@@ -1487,9 +1508,9 @@ const styles = StyleSheet.create({
   },
   heroSong: {
     color: COLORS.text,
-    fontSize: 22,
+    fontSize: 21,
     fontWeight: "900",
-    lineHeight: 27,
+    lineHeight: 25,
     marginTop: 2,
   },
   heroArtist: {
@@ -1519,6 +1540,17 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "900",
     letterSpacing: 0.8,
+  },
+  heroFavoriteButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(0,0,0,0.42)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.14)",
+    marginLeft: 8,
   },
   heroCountPill: {
     paddingHorizontal: 12,
@@ -1937,6 +1969,20 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     marginBottom: 8,
     backgroundColor: "rgba(255,255,255,0.045)",
+  },
+  albumFavoriteButton: {
+    position: "absolute",
+    right: 7,
+    top: 7,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(0,0,0,0.45)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.14)",
+    zIndex: 4,
   },
   albumArtAura: {
     ...StyleSheet.flatten(StyleSheet.absoluteFill),

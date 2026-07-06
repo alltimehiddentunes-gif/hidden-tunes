@@ -8,6 +8,11 @@ import { COLORS } from "../../constants/theme";
 import type { PodcastCategoryDef } from "../../constants/podcastCategories";
 import type { PodcastEpisode, PodcastShow } from "../../types/podcast";
 import { isPlayablePodcastAudioUrl } from "../../utils/podcastPlaybackAdapter";
+import FavoriteButton from "../FavoriteButton";
+import {
+  buildPodcastEpisodeFavoriteItem,
+  buildPodcastShowFavoriteItem,
+} from "../../services/favorites/favoriteItemBuilders";
 
 function formatEpisodeDate(value?: string) {
   if (!value) return undefined;
@@ -75,6 +80,7 @@ export const PodcastShowCard = memo(function PodcastShowCard({
         </Text>
         {show.isExplicit ? <Text style={styles.explicitBadge}>EXPLICIT</Text> : null}
       </View>
+      <FavoriteButton item={buildPodcastShowFavoriteItem(show)} size={18} />
       <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
     </TouchableOpacity>
   );
@@ -150,6 +156,7 @@ export const PodcastEpisodeCard = memo(function PodcastEpisodeCard({
         </View>
       </View>
       <View style={styles.episodeActions}>
+        <FavoriteButton item={buildPodcastEpisodeFavoriteItem(episode)} size={18} />
         {showDownloadPlaceholder ? (
           <View
             style={styles.downloadPlaceholder}

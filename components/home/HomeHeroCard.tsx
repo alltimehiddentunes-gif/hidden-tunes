@@ -9,6 +9,8 @@ import { COLORS, GRADIENTS } from "../../constants/theme";
 import type { HiddenTunesNormalizedSong } from "../../services/hiddenTunesApi";
 import HTImage from "../HTImage";
 import NeonEQ from "../NeonEQ";
+import FavoriteButton from "../FavoriteButton";
+import { buildSongFavoriteItem } from "../../services/favorites/favoriteItemBuilders";
 
 export type HomeHeroCardData = {
   key: string;
@@ -31,10 +33,12 @@ type HomeHeroCardProps = {
   HeroPressable: React.ComponentType<{
     height: number;
     isActive: boolean;
+    paused?: boolean;
     onPress: () => void;
     children: React.ReactNode;
   }>;
   LuxuryPulse: React.ComponentType<{ style: object }>;
+  animationsPaused?: boolean;
   styles: {
     heroSlide: object;
     heroBorder: object;
@@ -52,6 +56,7 @@ type HomeHeroCardProps = {
     heroBottomRow: object;
     heroPlayButton: object;
     heroPlayText: object;
+    heroFavoriteButton: object;
     heroCountPill: object;
     heroCountText: object;
   };
@@ -67,6 +72,7 @@ export const HomeHeroCard = memo(function HomeHeroCard({
   onPress,
   HeroPressable,
   LuxuryPulse,
+  animationsPaused = false,
   styles,
 }: HomeHeroCardProps) {
   const { isActive, isPlaying } = useTrackPlaybackStatus(String(item.song?.id || ""));
@@ -77,6 +83,7 @@ export const HomeHeroCard = memo(function HomeHeroCard({
         <HeroPressable
           height={heroCardHeight}
           isActive={isActive || index === activeSlideIndex}
+          paused={animationsPaused}
           onPress={() => onPress(item)}
         >
           <View style={styles.heroInner}>
@@ -131,6 +138,10 @@ export const HomeHeroCard = memo(function HomeHeroCard({
                   <Text style={styles.heroPlayText}>
                     {isActive ? "OPEN PLAYER" : "PLAY"}
                   </Text>
+                </View>
+
+                <View style={styles.heroFavoriteButton}>
+                  <FavoriteButton item={buildSongFavoriteItem(item.song)} size={20} />
                 </View>
 
                 {totalCards > 1 ? (

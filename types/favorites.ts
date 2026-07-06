@@ -4,7 +4,10 @@ export type FavoriteItemType =
   | "song"
   | "artist"
   | "album"
-  | "radio_station";
+  | "radio_station"
+  | "podcast_show"
+  | "podcast_episode"
+  | "video";
 
 export type FavoriteItemMetadata = {
   artistName?: string;

@@ -1,5 +1,5 @@
 import { memo, useCallback } from "react";
-import { StyleSheet, TouchableOpacity } from "react-native";
+import { StyleSheet, TouchableOpacity, type GestureResponderEvent } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
 
@@ -28,7 +28,8 @@ function FavoriteButton({
   const { isFavorite, toggleFavorite } = useFavorites();
   const tapKey = item?.id && item?.type ? `${item.type}:${item.id}` : "";
 
-  const handlePress = useCallback(() => {
+  const handlePress = useCallback((event?: GestureResponderEvent) => {
+    event?.stopPropagation?.();
     if (!tapKey || !item?.id || !item?.type) return;
     if (!favoriteTapGuard(tapKey)) return;
     void toggleFavorite(item);
@@ -80,7 +81,8 @@ export const FavoriteToggleButton = memo(function FavoriteToggleButton({
   const { isFavorite, toggleFavorite } = useFavorites();
   const tapKey = id && type ? `${type}:${id}` : "";
 
-  const handlePress = useCallback(() => {
+  const handlePress = useCallback((event?: GestureResponderEvent) => {
+    event?.stopPropagation?.();
     if (!tapKey) return;
     if (!favoriteTapGuard(tapKey)) return;
     const item = buildItem();

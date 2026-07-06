@@ -7,6 +7,8 @@ import HTImage from "@/components/HTImage";
 import { COLORS } from "@/constants/theme";
 import type { HiddenTunesTvVideo } from "@/services/tvCatalogApi";
 import { getVideoDisplayCategory, getVideoDisplayCreator, normalizeVideoItem } from "@/services/videos/videoNormalizer";
+import FavoriteButton from "@/components/FavoriteButton";
+import { buildVideoFavoriteItem } from "@/services/favorites/favoriteItemBuilders";
 
 type TvVideoCardProps = {
   video: HiddenTunesTvVideo;
@@ -32,6 +34,9 @@ function TvVideoCard({ video, width = 168, onPress }: TvVideoCardProps) {
           style={styles.thumb}
           contentFit="cover"
         />
+        <View style={styles.videoFavoriteButton}>
+          <FavoriteButton item={buildVideoFavoriteItem(item)} size={18} />
+        </View>
         <View style={styles.playBadge}>
           <Ionicons name="play" size={14} color="#000" />
         </View>
@@ -74,6 +79,20 @@ const styles = StyleSheet.create({
   thumb: {
     width: "100%",
     height: "100%",
+  },
+
+  videoFavoriteButton: {
+    position: "absolute",
+    right: 8,
+    top: 8,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(0,0,0,0.48)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.14)",
   },
 
   playBadge: {
