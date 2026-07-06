@@ -253,6 +253,7 @@ function HomeScreen() {
   const [hasMoreSongPages, setHasMoreSongPages] = useState(true);
   const [loadingMoreSongs, setLoadingMoreSongs] = useState(false);
   const [heroIndex, setHeroIndex] = useState(0);
+  const [homeLogoFailed, setHomeLogoFailed] = useState(false);
   const [feedMountStage, setFeedMountStage] = useState<HomeFeedMountStage>(0);
   const deferredSectionsScheduledRef = useRef(false);
   const feedMountStageTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -1662,16 +1663,18 @@ function HomeScreen() {
         <View style={styles.header}>
           <View style={styles.brandRow}>
             <View style={styles.logoMark}>
-              <Image
-                source={require("../../assets/images/logo.png")}
-                style={styles.logoImage}
-                resizeMode="contain"
-              />
-            </View>
-            <View style={styles.headerCopy}>
-              <Text numberOfLines={1} ellipsizeMode="tail" style={styles.brandTitle}>
-                Hidden Tunes
-              </Text>
+              {homeLogoFailed ? (
+                <Text numberOfLines={1} style={styles.logoFallbackText}>
+                  HT
+                </Text>
+              ) : (
+                <Image
+                  source={require("../../assets/images/logo.png")}
+                  style={styles.logoImage}
+                  resizeMode="contain"
+                  onError={() => setHomeLogoFailed(true)}
+                />
+              )}
             </View>
           </View>
 
@@ -1936,7 +1939,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingTop: HOME_HEADER.contentPaddingTop,
-    paddingBottom: 2,
     paddingHorizontal: HOME_HEADER.contentPaddingHorizontal,
     marginBottom: HOME_HEADER.rowMarginBottom,
   },
@@ -1945,39 +1947,28 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     flex: 1,
-    gap: HOME_HEADER.brandGap,
-  },
-
-  headerCopy: {
-    flex: 1,
-    paddingRight: 8,
-    justifyContent: "center",
   },
 
   logoMark: {
-    width: HOME_HEADER.markWidth,
-    height: HOME_HEADER.markHeight,
-    borderRadius: HOME_HEADER.markRadius,
-    backgroundColor: "rgba(255,255,255,0.96)",
-    alignItems: "center",
+    width: 132,
+    height: 58,
+    alignItems: "flex-start",
     justifyContent: "center",
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.22)",
-    ...SHADOWS.premium,
+    backgroundColor: "transparent",
   },
 
   logoImage: {
-    width: HOME_HEADER.imageWidth,
-    height: HOME_HEADER.imageHeight,
+    width: "100%",
+    height: "100%",
+    backgroundColor: "transparent",
   },
 
-  brandTitle: {
+  logoFallbackText: {
     color: COLORS.text,
-    fontSize: HOME_HEADER.titleSize,
+    fontSize: 15,
     fontWeight: "900",
     letterSpacing: 0,
-    lineHeight: HOME_HEADER.titleLineHeight,
+    paddingHorizontal: 2,
   },
 
   searchButton: {
@@ -1986,9 +1977,14 @@ const styles = StyleSheet.create({
     borderRadius: HOME_HEADER.actionRadius,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(34,211,238,0.1)",
+    backgroundColor: "rgba(255,255,255,0.075)",
     borderWidth: 1,
-    borderColor: "rgba(34,211,238,0.22)",
+    borderColor: "rgba(255,255,255,0.13)",
+    shadowColor: COLORS.primary,
+    shadowOpacity: 0.16,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 4,
   },
 
   heroSubtitle: {
