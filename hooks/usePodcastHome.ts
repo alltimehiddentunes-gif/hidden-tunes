@@ -4,6 +4,7 @@ import {
   buildStaticPodcastHomeSync,
   getPodcastHomeShowSections,
 } from "../services/podcastService";
+import { fetchPodcastHomeMetadata } from "../services/podcastCatalogApi";
 import type { PodcastCategoryDef } from "../constants/podcastCategories";
 import type { PodcastEpisode, PodcastShow } from "../types/podcast";
 import { loadPodcastRecentlyPlayed } from "../services/podcastRecentlyPlayed";
@@ -54,11 +55,22 @@ export function usePodcastHome(): PodcastHomeState {
 
   const load = useCallback(async () => {
     const includeMature = shouldIncludeMaturePodcasts();
-    setState(createHomeState(includeMature));
+    const fallback = createHomeState(includeMature);
+    await Promise.resolve();
+    setState(fallback);
 
-    const recent = await loadRecentlyPlayedWithTimeout(8);
+    const [recent, backendHome] = await Promise.all([
+      loadRecentlyPlayedWithTimeout(8),
+      fetchPodcastHomeMetadata({
+        page: 1,
+        limit: 24,
+        includeMature,
+      }),
+    ]);
+
     setState((current) => ({
       ...current,
+      homeShowSections: backendHome.success ? backendHome.sections : current.homeShowSections,
       recentlyPlayed: recent,
       loading: false,
       error: null,
@@ -66,11 +78,14 @@ export function usePodcastHome(): PodcastHomeState {
   }, []);
 
   useEffect(() => {
-    void load();
+    const loadTimer = setTimeout(() => {
+      void load();
+    }, 0);
     const unsubscribe = subscribeMaturePodcastSettings(() => {
       void load();
     });
     return () => {
+      clearTimeout(loadTimer);
       unsubscribe();
     };
   }, [load]);
