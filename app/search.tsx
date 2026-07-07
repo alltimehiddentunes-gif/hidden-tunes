@@ -38,7 +38,7 @@ import {
   usePlayerActions,
 } from "../context/PlayerContext";
 import {
-  fetchHiddenTunesCatalog,
+  fetchHiddenTunesDiscoveryCatalog,
   getCachedHiddenTunesCatalog,
   isDerivedCatalogTrusted,
   type HiddenTunesAlbumCatalogItem,
@@ -358,7 +358,7 @@ export default function SearchScreen() {
 
       setLoading(true);
       try {
-        const data = await fetchHiddenTunesCatalog();
+        const data = await fetchHiddenTunesDiscoveryCatalog();
         if (!cancelled) setCatalog(data);
       } catch (error) {
         console.log("Search catalog load error:", error);
