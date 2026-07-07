@@ -1,6 +1,7 @@
 ﻿import {
   fetchAllHiddenTunesCatalogSongs,
   getHiddenTunesCatalogSnapshot,
+  getHiddenTunesSongsPage,
   type HiddenTunesNormalizedSong,
 } from "./hiddenTunesApi";
 
@@ -390,6 +391,7 @@ function buildCatalogFingerprint(songs: HiddenTunesSong[]) {
 }
 
 export const DISCOVERY_MIN_TRUSTED_CATALOG_SIZE = 50;
+export const DISCOVERY_CATALOG_PAGE_LIMIT = 60;
 
 function mapSnapshotSongs(snapshot: HiddenTunesNormalizedSong[]) {
   const seen = new Set<string>();
@@ -454,6 +456,42 @@ export function getCachedHiddenTunesCatalog() {
 export function clearHiddenTunesCatalogCache() {
   derivedCatalogCache = null;
   derivedCatalogFingerprint = "";
+}
+
+export async function fetchHiddenTunesDiscoveryCatalog(options?: {
+  forceRefresh?: boolean;
+}): Promise<HiddenTunesDerivedCatalog> {
+  if (options?.forceRefresh) {
+    clearHiddenTunesCatalogCache();
+  } else {
+    syncDerivedCatalogFromSnapshot();
+    if (derivedCatalogCache && isDerivedCatalogTrusted(derivedCatalogCache)) {
+      return derivedCatalogCache;
+    }
+  }
+
+  try {
+    const page = await getHiddenTunesSongsPage({
+      page: 1,
+      limit: DISCOVERY_CATALOG_PAGE_LIMIT,
+      forceRefresh: options?.forceRefresh,
+    });
+    const songs = page.songs.map((song, index) =>
+      mapNormalizedCatalogSong(song, index)
+    );
+
+    if (songs.length > 0) {
+      return rebuildDerivedCatalog(songs);
+    }
+  } catch (error) {
+    console.log("Hidden Tunes discovery catalog API error:", error);
+  }
+
+  if (derivedCatalogCache) {
+    return derivedCatalogCache;
+  }
+
+  return rebuildDerivedCatalog([]);
 }
 
 export async function fetchHiddenTunesCatalog(options?: {

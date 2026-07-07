@@ -24,7 +24,7 @@ import {
   usePlayerState,
 } from "../../context/PlayerContext";
 import {
-  fetchHiddenTunesCatalog,
+  fetchHiddenTunesDiscoveryCatalog,
   isDerivedCatalogTrusted,
   getCachedHiddenTunesCatalog,
   type HiddenTunesAlbumCatalogItem,
@@ -260,7 +260,7 @@ export default function WorldsIndexScreen() {
       const data =
         cached && isDerivedCatalogTrusted(cached)
           ? cached
-          : await fetchHiddenTunesCatalog();
+          : await fetchHiddenTunesDiscoveryCatalog();
       setCatalog(data);
       setMoodRooms(buildMoodRoomGroups(data.songs, 6));
     } catch {
