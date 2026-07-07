@@ -3,6 +3,23 @@
  * - developmentClient → includes expo-dev-client (Metro / dev launcher)
  * - preview / production / local standalone → direct app launch, no dev client
  */
+const { execSync } = require("child_process");
+
+function readShortGitCommit() {
+  if (process.env.EAS_BUILD_GIT_COMMIT_HASH) {
+    return String(process.env.EAS_BUILD_GIT_COMMIT_HASH).slice(0, 7);
+  }
+
+  try {
+    return execSync("git rev-parse --short HEAD", {
+      encoding: "utf8",
+      cwd: __dirname,
+    }).trim();
+  } catch {
+    return "unknown";
+  }
+}
+
 module.exports = ({ config }) => {
   const appJson = require("./app.json");
   const profile =
@@ -69,6 +86,7 @@ module.exports = ({ config }) => {
       ...appJson.expo.extra,
       ...config.extra,
       easBuildProfile: profile || "local",
+      gitCommit: readShortGitCommit(),
       isStandaloneBuild,
       isDevClientBuild,
     },

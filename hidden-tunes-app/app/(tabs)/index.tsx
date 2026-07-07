@@ -24,6 +24,7 @@ import {
 } from "../../components/catalog/HomePlaybackRows";
 import { EmotionalDiscoveryChips } from "../../components/EmotionalDiscoveryChips";
 import { HomePremiumShortcut } from "../../components/home/HomePremiumShortcut";
+import { HomeBuildMarker } from "../../components/home/HomeBuildMarker";
 import { HOME_DISCOVERY_SHORTCUTS } from "../../constants/discoveryShortcuts";
 import MoodRoomCard from "../../components/explore/MoodRoomCard";
 import NeonEQ from "../../components/NeonEQ";
@@ -567,31 +568,6 @@ function HomeScreen() {
     return cancel;
   }, [fadeAnim, hasInitialCachedCatalog, heroScale, slideAnim]);
 
-  useFocusEffect(
-    useCallback(() => {
-      const heroGlowLoop = Animated.loop(
-        Animated.sequence([
-          Animated.timing(heroGlowAnim, {
-            toValue: 1,
-            duration: 2600,
-            useNativeDriver: true,
-          }),
-          Animated.timing(heroGlowAnim, {
-            toValue: 0.42,
-            duration: 2600,
-            useNativeDriver: true,
-          }),
-        ])
-      );
-
-      heroGlowLoop.start();
-
-      return () => {
-        heroGlowLoop.stop();
-      };
-    }, [heroGlowAnim])
-  );
-
   const scheduleDeferredHomeSections = useCallback(() => {
     if (deferredSectionsScheduledRef.current) return;
     deferredSectionsScheduledRef.current = true;
@@ -621,11 +597,36 @@ function HomeScreen() {
     };
   }, []);
 
-  useEffect(() => {
-    if (featuredSongs.length > 0) {
+  useFocusEffect(
+    useCallback(() => {
       scheduleDeferredHomeSections();
-    }
-  }, [featuredSongs.length, scheduleDeferredHomeSections]);
+    }, [scheduleDeferredHomeSections])
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      const heroGlowLoop = Animated.loop(
+        Animated.sequence([
+          Animated.timing(heroGlowAnim, {
+            toValue: 1,
+            duration: 2600,
+            useNativeDriver: true,
+          }),
+          Animated.timing(heroGlowAnim, {
+            toValue: 0.42,
+            duration: 2600,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+
+      heroGlowLoop.start();
+
+      return () => {
+        heroGlowLoop.stop();
+      };
+    }, [heroGlowAnim])
+  );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -1791,6 +1792,8 @@ function HomeScreen() {
             />
           ))}
         </View>
+
+        <HomeBuildMarker />
       </>
     ),
     [
