@@ -32,7 +32,7 @@ import {
 } from "../services/playlists";
 
 import {
-  fetchHiddenTunesCatalog,
+  fetchHiddenTunesDiscoveryCatalog,
   getCachedHiddenTunesCatalog,
   type HiddenTunesCatalogPlaylist,
 } from "../services/hiddenTunes";
@@ -148,7 +148,7 @@ export default function PlaylistsScreen() {
     try {
       const [userData, catalog] = await Promise.all([
         getUserPlaylists(),
-        getCachedHiddenTunesCatalog() || (await fetchHiddenTunesCatalog()),
+        getCachedHiddenTunesCatalog() || (await fetchHiddenTunesDiscoveryCatalog()),
       ]);
 
       const safeUserPlaylists = Array.isArray(userData) ? userData : [];
