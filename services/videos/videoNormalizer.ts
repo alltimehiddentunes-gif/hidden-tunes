@@ -109,16 +109,19 @@ export function normalizeVideoItem(video: HiddenTunesTvVideo): VideoItem {
   const videoSource = normalizeVideoSource(raw.source_type);
   const sourceId = cleanText(raw.source_id, 500);
   const externalVideoId =
-    videoSource === "youtube" ? extractYouTubeId(sourceId || raw.source_url || raw.embed_url) : sourceId;
+    videoSource === "youtube"
+      ? extractYouTubeId(sourceId || raw.source_url || raw.embed_url)
+      : sourceId;
   const creatorName =
     optionalText(raw.channel_name, 200) ||
     optionalText(raw.creator_name, 200) ||
     optionalText(raw.creatorName, 200);
   const thumbnailUrl = resolveThumbnailUrl(
     videoSource,
-    cleanText(raw.thumbnail_url, 2000),
+    cleanText(raw.logo, 2000) || cleanText(raw.thumbnail_url, 2000),
     externalVideoId
   );
+  const categoryTags = Array.isArray(raw.categories) ? raw.categories : [];
 
   return {
     id: cleanText(raw.id, 500) || externalVideoId || sourceId,
@@ -136,11 +139,13 @@ export function normalizeVideoItem(video: HiddenTunesTvVideo): VideoItem {
         ? raw.duration
         : undefined,
     publishedAt: optionalText(raw.published_at || raw.publishedAt, 120),
-    category: optionalText(raw.category, 120),
+    category:
+      optionalText(raw.category, 120) ||
+      optionalText(categoryTags[0], 120),
     genre: optionalText(raw.genre, 120),
     mood: optionalText(raw.mood, 120),
     format: optionalText(raw.format, 120),
-    tags: normalizeTags(raw.tags),
+    tags: normalizeTags(raw.tags).length ? normalizeTags(raw.tags) : categoryTags,
     sourceMetadata: {
       sourceType: raw.source_type,
       hasSourceUrl: Boolean(cleanText(raw.source_url, 2000)),
@@ -162,7 +167,9 @@ export function getVideoDisplayCategory(video: VideoItem) {
 }
 
 export function isVideoItemPlayableInCurrentRoute(video: VideoItem) {
-  if (video.videoSource === "youtube") return Boolean(video.externalVideoId);
+  if (video.videoSource === "youtube") {
+    return Boolean(video.externalVideoId || video.playbackUrl || video.embedUrl);
+  }
   if (video.videoSource === "archive") return Boolean(video.embedUrl);
-  return false;
+  return Boolean(video.id);
 }

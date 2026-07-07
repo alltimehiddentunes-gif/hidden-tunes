@@ -1,6 +1,11 @@
 import { router } from "expo-router";
 
-import type { HiddenTunesTvVideo } from "../tvCatalogApi";
+import {
+  buildTvPlayerQueueItem,
+  fetchTvPlayback,
+  type HiddenTunesTvPlayback,
+  type HiddenTunesTvVideo,
+} from "../tvCatalogApi";
 import {
   getVideoDisplayCreator,
   isVideoItemPlayableInCurrentRoute,
@@ -13,64 +18,144 @@ type OpenVideoOptions = {
   startIndex?: number;
 };
 
+export type OpenVideoResult = { ok: true } | { ok: false; error: string };
+
 function isVideoItem(value: HiddenTunesTvVideo | VideoItem): value is VideoItem {
   return "videoSource" in value;
 }
 
-function toVideoItem(video: HiddenTunesTvVideo | VideoItem) {
-  return isVideoItem(video) ? video : normalizeVideoItem(video);
+function toHiddenTunesTvVideo(video: HiddenTunesTvVideo | VideoItem): HiddenTunesTvVideo {
+  if (!isVideoItem(video)) return video;
+
+  return {
+    id: video.id,
+    title: video.title,
+    categories: video.category ? [video.category] : [],
+    source_type: video.videoSource,
+    source_id: video.externalVideoId,
+    source_url: video.playbackUrl,
+    embed_url: video.embedUrl,
+    thumbnail_url: video.thumbnailUrl,
+    channel_name: video.creatorName,
+    category: video.category,
+    genre: video.genre,
+    mood: video.mood,
+    format: video.format,
+    tags: video.tags,
+  };
 }
 
-function buildRouteQueue(videos: HiddenTunesTvVideo[] | undefined) {
-  if (!videos?.length) return undefined;
-
-  const queue = videos
-    .map((video) => normalizeVideoItem(video))
-    .filter(isVideoItemPlayableInCurrentRoute)
-    .map((video) => ({
-      id: video.externalVideoId,
-      videoId: video.externalVideoId,
-      externalVideoId: video.externalVideoId,
-      videoSource: video.videoSource,
-      title: video.title,
-      artist: getVideoDisplayCreator(video),
-      channelTitle: getVideoDisplayCreator(video),
-      thumbnail: video.thumbnailUrl || "",
-      embedUrl: video.embedUrl,
-      playbackUrl: video.playbackUrl,
-    }));
-
-  return queue.length ? queue : undefined;
+function isArchiveVideo(video: HiddenTunesTvVideo) {
+  return video.source_type === "archive" || video.id.startsWith("archive-");
 }
 
-export function openVideoItem(videoInput: HiddenTunesTvVideo | VideoItem, options: OpenVideoOptions = {}) {
-  const video = toVideoItem(videoInput);
-  const queue = buildRouteQueue(options.queueVideos);
+function isHlsLikeSource(sourceType: string) {
+  const normalized = sourceType.trim().toLowerCase();
+  return (
+    normalized === "hls_stream" ||
+    normalized === "m3u_playlist" ||
+    normalized.endsWith("_stream")
+  );
+}
+
+async function resolvePlayback(video: HiddenTunesTvVideo): Promise<HiddenTunesTvPlayback | null> {
+  if (isArchiveVideo(video)) {
+    const sourceId = String(video.source_id || "").trim();
+    if (!sourceId) return null;
+
+    return {
+      id: video.id,
+      source_type: "archive",
+      source_id: sourceId,
+      stream_url:
+        video.source_url || `https://archive.org/details/${encodeURIComponent(sourceId)}`,
+      embed_url:
+        video.embed_url || `https://archive.org/embed/${encodeURIComponent(sourceId)}`,
+    };
+  }
+
+  return fetchTvPlayback(video);
+}
+
+function withPlayback(video: HiddenTunesTvVideo, playback: HiddenTunesTvPlayback): HiddenTunesTvVideo {
+  return {
+    ...video,
+    source_type: playback.source_type,
+    source_id: playback.source_id,
+    source_url: playback.stream_url,
+    embed_url: playback.embed_url,
+  };
+}
+
+function buildRouteQueue(
+  queueVideos: HiddenTunesTvVideo[],
+  tappedVideoId: string,
+  playback: HiddenTunesTvPlayback
+) {
+  return queueVideos
+    .map((video) =>
+      buildTvPlayerQueueItem(
+        video,
+        video.id === tappedVideoId ? playback : null
+      )
+    )
+    .filter((item) => item.videoId);
+}
+
+export async function openVideoItem(
+  videoInput: HiddenTunesTvVideo | VideoItem,
+  options: OpenVideoOptions = {}
+): Promise<OpenVideoResult> {
+  const rawVideo = toHiddenTunesTvVideo(videoInput);
+  const playback = await resolvePlayback(rawVideo);
+
+  if (!playback?.stream_url) {
+    return {
+      ok: false,
+      error: "This TV item isn't playable right now. Try another channel.",
+    };
+  }
+
+  if (isHlsLikeSource(playback.source_type)) {
+    return {
+      ok: false,
+      error: "This live stream isn't available in the mobile TV player yet.",
+    };
+  }
+
+  const enrichedVideo = withPlayback(rawVideo, playback);
+  const item = normalizeVideoItem(enrichedVideo);
+  const queueVideos = options.queueVideos?.length ? options.queueVideos : [rawVideo];
+  const queue = buildRouteQueue(queueVideos, rawVideo.id, playback);
   const routeVideoId =
-    video.videoSource === "youtube" ? video.externalVideoId || "" : video.externalVideoId || video.id;
+    item.videoSource === "youtube"
+      ? item.externalVideoId || playback.source_id
+      : playback.source_id || item.id;
   const startIndex =
     typeof options.startIndex === "number"
       ? options.startIndex
-      : Math.max(0, queue?.findIndex((item) => item.videoId === routeVideoId) ?? 0);
+      : Math.max(0, queue.findIndex((entry) => entry.videoId === routeVideoId));
 
   router.push({
     pathname: "/youtube-player",
     params: {
-      id: video.id,
+      id: rawVideo.id,
       videoId: routeVideoId,
-      externalVideoId: video.externalVideoId || "",
-      videoSource: video.videoSource,
-      title: video.title,
-      artist: getVideoDisplayCreator(video),
-      channelTitle: getVideoDisplayCreator(video),
-      thumbnail: video.thumbnailUrl || "",
-      embedUrl: video.embedUrl || "",
-      playbackUrl: video.playbackUrl || "",
-      category: video.category || "",
-      format: video.format || "",
-      startIndex: String(startIndex),
-      unsupportedVideo: isVideoItemPlayableInCurrentRoute(video) ? "0" : "1",
-      queue: queue ? JSON.stringify(queue) : "",
+      externalVideoId: item.externalVideoId || playback.source_id,
+      videoSource: item.videoSource,
+      title: item.title,
+      artist: getVideoDisplayCreator(item),
+      channelTitle: getVideoDisplayCreator(item),
+      thumbnail: item.thumbnailUrl || rawVideo.logo || rawVideo.thumbnail_url || "",
+      embedUrl: playback.embed_url || item.embedUrl || "",
+      playbackUrl: playback.stream_url || item.playbackUrl || "",
+      category: item.category || "",
+      format: item.format || "",
+      startIndex: String(startIndex >= 0 ? startIndex : 0),
+      unsupportedVideo: isVideoItemPlayableInCurrentRoute(item) ? "0" : "1",
+      queue: queue.length ? JSON.stringify(queue) : "",
     },
   } as any);
+
+  return { ok: true };
 }

@@ -5,25 +5,57 @@ import { fetchArchiveConcertVideos } from "./videos/archiveVideoDiscovery";
 
 export const TV_CATALOG_BASE_URL = "https://admin.hiddentunes.com";
 export const TV_CATALOG_API_PATH = "/api/tv/videos";
+export const TV_PLAY_API_PATH = "/api/tv/videos";
 export const TV_DEFAULT_PAGE_LIMIT = 20;
 export const TV_LANE_PAGE_LIMIT = 12;
-export const TV_HOME_CACHE_KEY = "hidden_tunes_tv_home_cache_v1";
+export const TV_HOME_CACHE_KEY = "hidden_tunes_tv_home_cache_v2";
 export const TV_HOME_CACHE_TTL_MS = 1000 * 60 * 60 * 12;
+
+const BLOCKED_BROWSE_KEYS = new Set([
+  "audioUrl",
+  "audio_url",
+  "source_url",
+  "sourceUrl",
+  "embed_url",
+  "embedUrl",
+  "stream_url",
+  "streamUrl",
+  "playbackUrl",
+  "backup_stream_url",
+  "hls_url",
+  "manifest_url",
+]);
 
 export type HiddenTunesTvVideo = {
   id: string;
   title: string;
+  description?: string | null;
+  logo?: string | null;
+  thumbnail_url?: string | null;
+  country?: string | null;
+  language?: string | null;
+  categories: string[];
+  reliability_score?: number;
+  is_featured?: boolean;
+  channel_name?: string | null;
+  source_type?: string;
+  source_id?: string;
+  /** Archive-only / legacy browse payloads — stripped from backend catalog rows */
+  source_url?: string;
+  embed_url?: string | null;
+  category?: string | null;
+  genre?: string | null;
+  mood?: string | null;
+  format?: string | null;
+  tags?: string[];
+};
+
+export type HiddenTunesTvPlayback = {
+  id: string;
   source_type: string;
   source_id: string;
-  source_url: string;
+  stream_url: string;
   embed_url: string | null;
-  thumbnail_url: string | null;
-  channel_name: string | null;
-  category: string | null;
-  genre: string | null;
-  mood: string | null;
-  format: string | null;
-  tags: string[];
 };
 
 export type TvCatalogQuery = {
@@ -34,6 +66,9 @@ export type TvCatalogQuery = {
   mood?: string;
   format?: string;
   category?: string;
+  country?: string;
+  language?: string;
+  featured?: boolean;
 };
 
 export type TvCatalogPagination = {
@@ -134,28 +169,100 @@ function normalizeTags(value: unknown) {
   return [];
 }
 
-export function normalizeTvCatalogVideo(raw: Record<string, unknown>): HiddenTunesTvVideo | null {
-  const id = String(raw.id || "").trim();
-  const sourceId = String(raw.source_id || "").trim();
-  const title = String(raw.title || "").trim();
+function stripBrowsableFields(raw: Record<string, unknown>) {
+  const cleaned: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(raw)) {
+    if (!BLOCKED_BROWSE_KEYS.has(key)) {
+      cleaned[key] = value;
+    }
+  }
+  return cleaned;
+}
 
-  if (!id || !sourceId || !title) return null;
+export function normalizeTvCatalogVideo(raw: Record<string, unknown>): HiddenTunesTvVideo | null {
+  const safe = stripBrowsableFields(raw);
+  const id = String(safe.id || "").trim();
+  const title = String(safe.title || "").trim();
+
+  if (!id || !title) return null;
+
+  const logo = cleanText(safe.logo, 2000) || cleanText(safe.thumbnail_url, 2000);
+  const categories = Array.isArray(safe.categories)
+    ? (safe.categories as unknown[])
+        .map((entry) => cleanText(entry, 120))
+        .filter(Boolean) as string[]
+    : [];
+
+  const category = cleanText(safe.category, 120);
+  const genre = cleanText(safe.genre, 120);
+  const mood = cleanText(safe.mood, 120);
+  const format = cleanText(safe.format, 120);
+
+  if (!categories.length) {
+    for (const value of [category, genre, mood, format]) {
+      if (value) categories.push(value);
+    }
+  }
 
   return {
     id,
     title,
-    source_type: String(raw.source_type || "youtube_video"),
-    source_id: sourceId,
-    source_url: String(raw.source_url || ""),
-    embed_url: cleanText(raw.embed_url, 2000),
-    thumbnail_url: cleanText(raw.thumbnail_url, 2000),
-    channel_name: cleanText(raw.channel_name, 200),
-    category: cleanText(raw.category, 120),
-    genre: cleanText(raw.genre, 120),
-    mood: cleanText(raw.mood, 120),
-    format: cleanText(raw.format, 120),
-    tags: normalizeTags(raw.tags),
+    description: cleanText(safe.description, 2000),
+    logo,
+    thumbnail_url: logo,
+    country: cleanText(safe.country, 120) || cleanText(safe.region, 120),
+    language: cleanText(safe.language, 80),
+    categories,
+    reliability_score:
+      typeof safe.reliability_score === "number"
+        ? safe.reliability_score
+        : Number(safe.reliability_score) || undefined,
+    is_featured: safe.is_featured === true,
+    channel_name: cleanText(safe.channel_name, 200),
+    source_type: cleanText(safe.source_type, 80) || undefined,
+    source_id: cleanText(safe.source_id, 120) || undefined,
+    category,
+    genre,
+    mood,
+    format,
+    tags: normalizeTags(safe.tags),
   };
+}
+
+function buildPlayUrl(videoId: string) {
+  return `${TV_CATALOG_BASE_URL}${TV_PLAY_API_PATH}/${encodeURIComponent(videoId)}/play`;
+}
+
+export async function fetchTvPlayback(
+  video: HiddenTunesTvVideo,
+  options?: { signal?: AbortSignal }
+): Promise<HiddenTunesTvPlayback | null> {
+  try {
+    const response = await fetch(buildPlayUrl(video.id), {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+      },
+      cache: "no-store",
+      signal: options?.signal,
+    });
+
+    const payload = (await response.json()) as Record<string, unknown>;
+    if (!response.ok || payload.success === false) return null;
+
+    const streamUrl = cleanText(payload.stream_url, 2000);
+    if (!streamUrl) return null;
+
+    return {
+      id: String(payload.id || video.id),
+      source_type: String(payload.source_type || video.source_type || "youtube_video"),
+      source_id: String(payload.source_id || video.source_id || video.id),
+      stream_url: streamUrl,
+      embed_url: cleanText(payload.embed_url, 2000),
+    };
+  } catch {
+    return null;
+  }
 }
 
 function buildCatalogUrl(query: TvCatalogQuery = {}) {
@@ -171,6 +278,9 @@ function buildCatalogUrl(query: TvCatalogQuery = {}) {
   if (query.mood?.trim()) params.set("mood", query.mood.trim());
   if (query.format?.trim()) params.set("format", query.format.trim());
   if (query.category?.trim()) params.set("category", query.category.trim());
+  if (query.country?.trim()) params.set("country", query.country.trim());
+  if (query.language?.trim()) params.set("language", query.language.trim());
+  if (query.featured) params.set("featured", "true");
 
   return `${TV_CATALOG_BASE_URL}${TV_CATALOG_API_PATH}?${params.toString()}`;
 }
@@ -367,26 +477,45 @@ export function mergeArchiveLaneIntoLanes(
   return [...lanes.filter((lane) => lane.id !== ARCHIVE_CONCERT_LANE_ID), archiveLane];
 }
 
-export function buildTvPlayerQueueItem(video: HiddenTunesTvVideo) {
-  const item = normalizeVideoItem(video);
+export function buildTvPlayerQueueItem(
+  video: HiddenTunesTvVideo,
+  playback?: HiddenTunesTvPlayback | null
+) {
+  const item = normalizeVideoItem(
+    playback
+      ? {
+          ...video,
+          source_type: playback.source_type,
+          source_id: playback.source_id,
+          source_url: playback.stream_url,
+          embed_url: playback.embed_url,
+        }
+      : video
+  );
   const creator = getVideoDisplayCreator(item);
+  const sourceId =
+    playback?.source_id || item.externalVideoId || video.source_id || video.id;
 
   return {
-    id: item.externalVideoId || item.id,
-    videoId: item.videoSource === "youtube" ? item.externalVideoId || "" : "",
-    externalVideoId: item.externalVideoId,
+    id: sourceId,
+    videoId: item.videoSource === "youtube" ? sourceId : sourceId,
+    externalVideoId: item.externalVideoId || sourceId,
     videoSource: item.videoSource,
     title: item.title,
     artist: creator,
     channelTitle: creator,
-    thumbnail: item.thumbnailUrl || "",
-    source_url: item.playbackUrl,
-    embed_url: item.embedUrl,
+    thumbnail: item.thumbnailUrl || video.logo || video.thumbnail_url || "",
+    source_url: playback?.stream_url || item.playbackUrl,
+    embed_url: playback?.embed_url || item.embedUrl,
+    playbackUrl: playback?.stream_url || item.playbackUrl,
   };
 }
 
-export function buildTvPlayerQueue(videos: HiddenTunesTvVideo[]) {
+export function buildTvPlayerQueue(
+  videos: HiddenTunesTvVideo[],
+  playbackById?: Record<string, HiddenTunesTvPlayback | null>
+) {
   return videos
-    .map((video) => buildTvPlayerQueueItem(video))
+    .map((video) => buildTvPlayerQueueItem(video, playbackById?.[video.id] || null))
     .filter((item) => item.videoId);
 }
