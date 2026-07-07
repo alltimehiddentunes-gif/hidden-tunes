@@ -84,6 +84,8 @@ import {
   sortItemsByPreferredGenres,
 } from "@/utils/discoveryPreferences";
 import { getUserFacingArtist } from "@/services/ui/displayMetadata";
+import { HOME_DISCOVERY_SHORTCUTS } from "@/constants/discoveryShortcuts";
+import { HomeDiscoveryShortcut } from "@/components/home/HomeDiscoveryShortcut";
 
 const CATALOG_PAGE_SIZE = 31;
 const HOME_SCROLL_SETTLE_MS = 520;
@@ -697,18 +699,6 @@ export default function MusicFeedScreen() {
     return () => task.cancel();
   }, [loadCatalog]);
 
-  useEffect(() => {
-    if (loading) {
-      setShowDeferredHomeSections(false);
-      return;
-    }
-
-    const interaction = InteractionManager.runAfterInteractions(() => {
-      setShowDeferredHomeSections(true);
-    });
-
-    return () => interaction.cancel();
-  }, [loading]);
 
   const refreshCatalog = useCallback(async () => {
     setRefreshing(true);
@@ -817,11 +807,34 @@ export default function MusicFeedScreen() {
   useFocusEffect(
     useCallback(() => {
       setHomeFocused(true);
+      const interaction = InteractionManager.runAfterInteractions(() => {
+        setShowDeferredHomeSections(true);
+      });
       return () => {
         setHomeFocused(false);
+        interaction.cancel();
       };
     }, [])
   );
+
+  const listeningBrief = useMemo(() => {
+    const current = playerFeed.currentSongMeta;
+    if (current?.title) {
+      return {
+        label: "Now Playing",
+        title: current.title,
+        subtitle: getUserFacingArtist(current) || "Hidden Tunes",
+        icon: "pulse" as const,
+      };
+    }
+
+    return {
+      label: "Now Playing",
+      title: "Nothing playing yet",
+      subtitle: "Tap a song to start listening",
+      icon: "musical-notes-outline" as const,
+    };
+  }, [playerFeed.currentSongMeta]);
 
   const heroCards = useMemo(
     () =>
@@ -971,20 +984,6 @@ export default function MusicFeedScreen() {
             <ActivityIndicator size="large" color={COLORS.primary} />
             <Text style={styles.loadingText}>Loading your music...</Text>
           </View>
-        ) : songs.length === 0 ? (
-          <View style={styles.center}>
-            <View style={styles.emptyIcon}>
-              <Ionicons name="musical-notes" size={58} color={COLORS.primary} />
-            </View>
-
-            <PremiumEmptyState
-              icon="musical-notes-outline"
-              title="Nothing here yet"
-              message={TESTER_COPY.catalogEmptyHome}
-              actionLabel="Refresh catalog"
-              onAction={() => void refreshCatalog()}
-            />
-          </View>
         ) : (
           <FlatList
             data={visibleCatalogSongs}
@@ -1006,6 +1005,19 @@ export default function MusicFeedScreen() {
                 onRefresh={refreshCatalog}
                 tintColor={COLORS.primary}
               />
+            }
+            ListEmptyComponent={
+              songs.length === 0 ? (
+                <View style={styles.catalogEmptyWrap}>
+                  <PremiumEmptyState
+                    icon="musical-notes-outline"
+                    title="Nothing here yet"
+                    message={TESTER_COPY.catalogEmptyHome}
+                    actionLabel="Refresh catalog"
+                    onAction={() => void refreshCatalog()}
+                  />
+                </View>
+              ) : null
             }
             ListHeaderComponent={
               <View>
@@ -1036,7 +1048,9 @@ export default function MusicFeedScreen() {
                     <View style={styles.premiumSignalRow}>
                       <View style={styles.premiumSignalPill}>
                         <Ionicons name="cloud-done" size={14} color={COLORS.primaryGlow} />
-                        <Text style={styles.premiumSignalText}>{songs.length.toLocaleString()}+ songs ready</Text>
+                        <Text style={styles.premiumSignalText}>
+                          {songs.length.toLocaleString()}+ songs ready
+                        </Text>
                       </View>
                       <View style={styles.premiumSignalPill}>
                         <Ionicons name="sparkles" size={14} color={COLORS.cyan} />
@@ -1044,23 +1058,40 @@ export default function MusicFeedScreen() {
                       </View>
                     </View>
 
-                    <View style={styles.quickGrid}>
-                      <TouchableOpacity activeOpacity={0.86} style={styles.quickButton} onPress={() => router.push("/playlists" as any)}>
-                        <Ionicons name="musical-notes" size={19} color={COLORS.primaryGlow} />
-                        <Text style={styles.quickText}>Music</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity activeOpacity={0.86} style={styles.quickButton} onPress={openSearch}>
-                        <Ionicons name="search" size={19} color={COLORS.cyan} />
-                        <Text style={styles.quickText}>Search</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity activeOpacity={0.86} style={styles.quickButton} onPress={() => router.push("/queue" as any)}>
-                        <Ionicons name="list" size={19} color={COLORS.primary} />
-                        <Text style={styles.quickText}>Queue</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity activeOpacity={0.86} style={styles.quickButton} onPress={() => router.push("/worlds" as any)}>
-                        <Ionicons name="heart" size={19} color="#F472B6" />
-                        <Text style={styles.quickText}>Feelings</Text>
-                      </TouchableOpacity>
+                    <TouchableOpacity
+                      activeOpacity={0.88}
+                      style={styles.listeningBrief}
+                      onPress={() =>
+                        playerFeed.currentSongMeta
+                          ? router.push("/player" as any)
+                          : openSearch()
+                      }
+                    >
+                      <View style={[styles.discoveryChip, { marginBottom: 0 }]}>
+                        <Ionicons name={listeningBrief.icon} size={16} color={COLORS.primary} />
+                      </View>
+                      <View style={styles.listeningBriefCopy}>
+                        <Text style={styles.listeningLabel}>{listeningBrief.label}</Text>
+                        <Text numberOfLines={1} style={styles.listeningTitle}>
+                          {listeningBrief.title}
+                        </Text>
+                        <Text numberOfLines={1} style={styles.listeningSubtitle}>
+                          {listeningBrief.subtitle}
+                        </Text>
+                      </View>
+                      <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
+                    </TouchableOpacity>
+
+                    <View style={styles.homeShortcutGrid}>
+                      {HOME_DISCOVERY_SHORTCUTS.map((shortcut) => (
+                        <HomeDiscoveryShortcut
+                          key={shortcut.key}
+                          icon={shortcut.icon}
+                          title={shortcut.title}
+                          color={shortcut.color}
+                          onPress={() => router.push(shortcut.route as any)}
+                        />
+                      ))}
                     </View>
                 </>
 
@@ -1092,7 +1123,7 @@ export default function MusicFeedScreen() {
                         </ScrollView>
                       </View>
                     ) : null}
-                    {recentlyAddedSongs.length > 0 ? (
+                    {showDeferredHomeSections ? (
                       <View style={styles.cinematicSection}>
                         <LinearGradient
                           pointerEvents="none"
@@ -1104,22 +1135,30 @@ export default function MusicFeedScreen() {
                             <Text style={styles.sectionEyebrow}>NEW</Text>
                             <Text style={styles.sectionTitle}>Recently Added</Text>
                           </View>
-                          <Text style={styles.sectionMeta}>Play</Text>
+                          {recentlyAddedSongs.length > 0 ? (
+                            <Text style={styles.sectionMeta}>Play</Text>
+                          ) : null}
                         </View>
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.featuredRow}>
-                          {recentlyAddedSongs.map((item, index) => (
-                            <HomeFeaturedCard
-                              key={`recently-${item.id}`}
-                              item={item as unknown as HiddenTunesNormalizedSong}
-                              index={index}
-                              onPress={(song) => playSongFromList(song as HiddenTunesSong, recentlyAddedSongs, {
-                                source: "recently_added",
-                                label: "Recently Added",
-                                railId: "recently_added",
-                              })}
-                            />
-                          ))}
-                        </ScrollView>
+                        {recentlyAddedSongs.length > 0 ? (
+                          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.featuredRow}>
+                            {recentlyAddedSongs.map((item, index) => (
+                              <HomeFeaturedCard
+                                key={`recently-${item.id}`}
+                                item={item as unknown as HiddenTunesNormalizedSong}
+                                index={index}
+                                onPress={(song) => playSongFromList(song as HiddenTunesSong, recentlyAddedSongs, {
+                                  source: "recently_added",
+                                  label: "Recently Added",
+                                  railId: "recently_added",
+                                })}
+                              />
+                            ))}
+                          </ScrollView>
+                        ) : (
+                          <Text style={styles.sectionEmptyMeta}>
+                            Your newest picks will appear here after the catalog loads.
+                          </Text>
+                        )}
                       </View>
                     ) : null}
 
@@ -1831,10 +1870,23 @@ const styles = StyleSheet.create({
     letterSpacing: 0.7,
     textTransform: "uppercase",
   },
-  quickGrid: {
+  homeShortcutGrid: {
     flexDirection: "row",
+    flexWrap: "wrap",
     gap: 10,
     marginBottom: SPACING.section,
+    justifyContent: "space-between",
+  },
+  catalogEmptyWrap: {
+    paddingTop: 8,
+    paddingBottom: 24,
+  },
+  sectionEmptyMeta: {
+    color: COLORS.textMuted,
+    fontSize: 13,
+    fontWeight: "700",
+    lineHeight: 18,
+    paddingRight: 12,
   },
   quickButton: {
     flex: 1,
