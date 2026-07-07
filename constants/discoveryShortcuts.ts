@@ -32,7 +32,7 @@ export const HOME_DISCOVERY_SHORTCUTS: DiscoveryShortcut[] = [
     icon: "book-outline",
     title: "Audiobooks",
     color: "rgba(251,191,36,0.95)",
-    route: "/library",
+    route: "/audiobooks",
   },
   {
     key: "home-more",

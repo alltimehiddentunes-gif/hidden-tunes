@@ -1,0 +1,433 @@
+import type {
+  AudiobookCategory,
+  AudiobookChapter,
+  AudiobookDetail,
+  AudiobookItem,
+  AudiobookPage,
+  AudiobookPagination,
+  AudiobookPlayResponse,
+} from "../types/audiobooks";
+
+export const AUDIOBOOK_CATALOG_BASE_URL = "https://admin.hiddentunes.com";
+export const AUDIOBOOK_PAGE_LIMIT = 40;
+
+const AUDIOBOOK_CATEGORY_GRADIENTS = [
+  ["#1F2418", "#0A0F0B"],
+  ["#152333", "#07111A"],
+  ["#2A1B22", "#12080D"],
+  ["#182821", "#07120E"],
+] as const;
+
+const BLOCKED_BROWSE_KEYS = new Set([
+  "audioUrl",
+  "audio_url",
+  "enclosureUrl",
+  "streamUrl",
+  "url",
+  "playbackUrl",
+  "file",
+  "files",
+]);
+
+const TREE_CACHE_TTL_MS = 5 * 60 * 1000;
+let cachedTree: AudiobookCategory[] | null = null;
+let cachedTreeAt = 0;
+
+type QueryValue = string | number | boolean | undefined | null;
+
+function cleanText(value: unknown, maxLength = 800) {
+  if (typeof value !== "string") return null;
+  const cleaned = value.trim().slice(0, maxLength);
+  return cleaned || null;
+}
+
+function normalizeNumber(value: unknown, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function normalizeStringArray(value: unknown) {
+  if (!Array.isArray(value)) return [] as string[];
+  return value
+    .map((entry) => cleanText(entry, 80))
+    .filter((entry): entry is string => Boolean(entry));
+}
+
+function stripBrowsableFields(raw: Record<string, unknown>) {
+  const cleaned: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(raw)) {
+    if (!BLOCKED_BROWSE_KEYS.has(key)) {
+      cleaned[key] = value;
+    }
+  }
+  return cleaned;
+}
+
+function decodeAudiobookEntities(value: string) {
+  const named: Record<string, string> = {
+    amp: "&",
+    apos: "'",
+    gt: ">",
+    hellip: "...",
+    lt: "<",
+    mdash: "-",
+    nbsp: " ",
+    ndash: "-",
+    quot: "\"",
+  };
+
+  return value.replace(/&(#x?[0-9a-f]+|[a-z][a-z0-9]+);/gi, (match, entity) => {
+    const key = String(entity || "").toLowerCase();
+    if (key.startsWith("#x")) {
+      const parsed = Number.parseInt(key.slice(2), 16);
+      return Number.isFinite(parsed) ? String.fromCodePoint(parsed) : match;
+    }
+    if (key.startsWith("#")) {
+      const parsed = Number.parseInt(key.slice(1), 10);
+      return Number.isFinite(parsed) ? String.fromCodePoint(parsed) : match;
+    }
+    return named[key] || match;
+  });
+}
+
+function cleanAudiobookDescription(value: unknown, maxLength = 1600) {
+  const raw = cleanText(value, maxLength);
+  if (!raw) return null;
+
+  return decodeAudiobookEntities(
+    raw
+      .replace(/<a\b[^>]*href\s*=\s*["'][^"']+["'][^>]*>([\s\S]*?)<\/a>/gi, "$1")
+      .replace(/<\s*br\s*\/?\s*>/gi, "\n")
+      .replace(/<\/\s*p\s*>/gi, "\n\n")
+      .replace(/<\s*p\b[^>]*>/gi, "")
+      .replace(/<\/?\s*(em|i|strong|b)\b[^>]*>/gi, "")
+      .replace(/<[^>]+>/g, " ")
+  )
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/[ \t]{2,}/g, " ")
+    .trim() || null;
+}
+
+function buildAudiobookUrl(path: string, params?: Record<string, QueryValue>) {
+  const url = new URL(`${AUDIOBOOK_CATALOG_BASE_URL}${path}`);
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === "") return;
+    url.searchParams.set(key, String(value));
+  });
+  return url.toString();
+}
+
+async function fetchAudiobookJson<T>(url: string, signal?: AbortSignal): Promise<T> {
+  const response = await fetch(url, {
+    method: "GET",
+    headers: { Accept: "application/json" },
+    cache: "no-store",
+    signal,
+  });
+
+  const contentType = response.headers.get("content-type") || "";
+  const isJson = contentType.toLowerCase().includes("application/json");
+
+  if (!response.ok) {
+    throw new Error(`audiobooks_api_${response.status}`);
+  }
+
+  if (!isJson) {
+    throw new Error("audiobooks_api_non_json_response");
+  }
+
+  const payload = (await response.json()) as T & {
+    success?: boolean;
+    error?: string;
+  };
+
+  if (payload.success === false) {
+    throw new Error(payload.error || "audiobooks_api_error");
+  }
+
+  return payload;
+}
+
+function clampPage(value?: number) {
+  return Math.max(1, Number(value || 1));
+}
+
+function clampLimit(value?: number) {
+  return Math.min(AUDIOBOOK_PAGE_LIMIT, Math.max(1, Number(value || AUDIOBOOK_PAGE_LIMIT)));
+}
+
+function emptyPagination(page = 1, limit = AUDIOBOOK_PAGE_LIMIT): AudiobookPagination {
+  return {
+    page,
+    limit,
+    total: 0,
+    totalPages: 0,
+    hasMore: false,
+  };
+}
+
+function normalizePagination(
+  raw: unknown,
+  fallback: { page: number; limit: number },
+  count: number
+): AudiobookPagination {
+  const pagination = (raw || {}) as Record<string, unknown>;
+  return {
+    page: normalizeNumber(pagination.page, fallback.page),
+    limit: normalizeNumber(pagination.limit, fallback.limit),
+    total: normalizeNumber(pagination.total, count),
+    totalPages: normalizeNumber(pagination.totalPages, 0),
+    hasMore: pagination.hasMore === true,
+  };
+}
+
+function normalizeCategory(raw: Record<string, unknown>, index: number): AudiobookCategory | null {
+  const slug = cleanText(raw.slug, 120);
+  const title = cleanText(raw.title || raw.name, 120);
+  if (!slug || !title) return null;
+
+  return {
+    id: cleanText(raw.id, 120) || slug || `audiobook-category-${index}`,
+    slug,
+    name: cleanText(raw.name, 120) || title,
+    title,
+    subtitle: cleanText(raw.subtitle, 180),
+    icon: cleanText(raw.icon, 80) || "book-outline",
+    artwork_url: cleanText(raw.artwork_url, 2000),
+    artworkUrl: cleanText(raw.artwork_url, 2000),
+    imageUrl: cleanText(raw.artwork_url, 2000),
+    gradient:
+      (Array.isArray(raw.gradient) && raw.gradient.length >= 2
+        ? [String(raw.gradient[0]), String(raw.gradient[1])]
+        : AUDIOBOOK_CATEGORY_GRADIENTS[index % AUDIOBOOK_CATEGORY_GRADIENTS.length]) as readonly [
+        string,
+        string,
+      ],
+    item_count: normalizeNumber(raw.item_count, 0),
+    is_mature: raw.is_mature === true || slug === "mature",
+  };
+}
+
+export function normalizeAudiobookItem(raw: Record<string, unknown>): AudiobookItem | null {
+  const safe = stripBrowsableFields(raw);
+  const id = cleanText(safe.id, 120);
+  const title = cleanText(safe.title, 300);
+  const slug = cleanText(safe.slug, 180) || id;
+  if (!id || !slug || !title) return null;
+
+  return {
+    id,
+    slug,
+    title,
+    subtitle: cleanText(safe.subtitle, 300),
+    description: cleanAudiobookDescription(safe.description, 1600),
+    cover_url: cleanText(safe.cover_url, 2000),
+    author_name: cleanText(safe.author_name, 200),
+    narrator_name: cleanText(safe.narrator_name, 200),
+    series_title: cleanText(safe.series_title, 200),
+    series_position: Number.isFinite(Number(safe.series_position))
+      ? Number(safe.series_position)
+      : null,
+    category_slug: cleanText(safe.category_slug, 120),
+    categories: normalizeStringArray(safe.categories),
+    language: cleanText(safe.language, 40),
+    publisher: cleanText(safe.publisher, 200),
+    duration_seconds: Number.isFinite(Number(safe.duration_seconds))
+      ? Number(safe.duration_seconds)
+      : null,
+    chapter_count: normalizeNumber(safe.chapter_count, 0),
+    is_featured: safe.is_featured === true,
+    is_verified: safe.is_verified === true,
+    published_at: cleanText(safe.published_at, 40),
+    created_at: cleanText(safe.created_at, 40),
+    is_mature: safe.is_mature === true,
+  };
+}
+
+function normalizeChapter(raw: Record<string, unknown>): AudiobookChapter | null {
+  const safe = stripBrowsableFields(raw);
+  const id = cleanText(safe.id, 120);
+  const audiobookId = cleanText(safe.audiobook_id, 120);
+  const title = cleanText(safe.title, 300);
+  if (!id || !audiobookId || !title) return null;
+
+  return {
+    id,
+    audiobook_id: audiobookId,
+    title,
+    description: cleanAudiobookDescription(safe.description, 1000),
+    chapter_number: Number.isFinite(Number(safe.chapter_number))
+      ? Number(safe.chapter_number)
+      : null,
+    duration_seconds: Number.isFinite(Number(safe.duration_seconds))
+      ? Number(safe.duration_seconds)
+      : null,
+    published_at: cleanText(safe.published_at, 40),
+    created_at: cleanText(safe.created_at, 40),
+  };
+}
+
+export function dedupeAudiobooks(items: AudiobookItem[]) {
+  const seen = new Set<string>();
+  const deduped: AudiobookItem[] = [];
+
+  for (const item of items) {
+    if (item.is_mature) continue;
+    const composite = `${item.slug}:${item.title.toLowerCase()}:${String(
+      item.author_name || ""
+    ).toLowerCase()}`;
+    if (seen.has(item.id) || seen.has(composite)) continue;
+    seen.add(item.id);
+    seen.add(composite);
+    deduped.push(item);
+  }
+
+  return deduped;
+}
+
+export function formatAudiobookDuration(seconds?: number | null) {
+  if (!seconds || seconds < 1) return null;
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.round((seconds % 3600) / 60);
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${Math.max(1, minutes)}m`;
+}
+
+export async function fetchAudiobookTree(signal?: AbortSignal): Promise<AudiobookCategory[]> {
+  const now = Date.now();
+  if (cachedTree && now - cachedTreeAt < TREE_CACHE_TTL_MS) {
+    return cachedTree;
+  }
+
+  const payload = await fetchAudiobookJson<{ categories?: Record<string, unknown>[] }>(
+    buildAudiobookUrl("/api/audiobooks/tree"),
+    signal
+  );
+
+  const categories = (payload.categories || [])
+    .map((category, index) => normalizeCategory(category, index))
+    .filter((category): category is AudiobookCategory => Boolean(category))
+    .filter((category) => !category.is_mature && category.slug !== "mature");
+
+  cachedTree = categories;
+  cachedTreeAt = now;
+  return categories;
+}
+
+export async function fetchAudiobookCategory(
+  slug: string,
+  options?: { page?: number; limit?: number; signal?: AbortSignal }
+): Promise<AudiobookPage> {
+  const page = clampPage(options?.page);
+  const limit = clampLimit(options?.limit);
+  const payload = await fetchAudiobookJson<{
+    audiobooks?: Record<string, unknown>[];
+    pagination?: Record<string, unknown>;
+  }>(
+    buildAudiobookUrl(`/api/audiobooks/category/${encodeURIComponent(slug)}`, {
+      page,
+      limit,
+    }),
+    options?.signal
+  );
+
+  const items = dedupeAudiobooks(
+    (payload.audiobooks || [])
+      .map((item) => normalizeAudiobookItem(item))
+      .filter((item): item is AudiobookItem => Boolean(item))
+  );
+
+  return {
+    items,
+    pagination: normalizePagination(payload.pagination, { page, limit }, items.length),
+  };
+}
+
+export async function searchAudiobooks(
+  q: string,
+  options?: { page?: number; limit?: number; signal?: AbortSignal }
+): Promise<AudiobookPage> {
+  const page = clampPage(options?.page);
+  const limit = clampLimit(options?.limit);
+  const query = q.trim();
+  if (!query) return { items: [], pagination: emptyPagination(page, limit) };
+
+  const payload = await fetchAudiobookJson<{
+    audiobooks?: Record<string, unknown>[];
+    pagination?: Record<string, unknown>;
+  }>(
+    buildAudiobookUrl("/api/audiobooks/search", {
+      q: query,
+      page,
+      limit,
+    }),
+    options?.signal
+  );
+
+  const items = dedupeAudiobooks(
+    (payload.audiobooks || [])
+      .map((item) => normalizeAudiobookItem(item))
+      .filter((item): item is AudiobookItem => Boolean(item))
+  );
+
+  return {
+    items,
+    pagination: normalizePagination(payload.pagination, { page, limit }, items.length),
+  };
+}
+
+export async function fetchAudiobookDetail(
+  id: string,
+  signal?: AbortSignal
+): Promise<AudiobookDetail> {
+  const payload = await fetchAudiobookJson<{
+    audiobook?: Record<string, unknown>;
+    chapters?: Record<string, unknown>[];
+  }>(buildAudiobookUrl(`/api/audiobooks/${encodeURIComponent(id)}`), signal);
+
+  const audiobook = payload.audiobook
+    ? normalizeAudiobookItem(payload.audiobook)
+    : null;
+  if (!audiobook || audiobook.is_mature) {
+    throw new Error("audiobook_not_found");
+  }
+
+  return {
+    audiobook,
+    chapters: (payload.chapters || [])
+      .map((chapter) => normalizeChapter(chapter))
+      .filter((chapter): chapter is AudiobookChapter => Boolean(chapter)),
+  };
+}
+
+export async function fetchAudiobookPlay(
+  id: string,
+  signal?: AbortSignal
+): Promise<AudiobookPlayResponse> {
+  const payload = await fetchAudiobookJson<Record<string, unknown>>(
+    buildAudiobookUrl(`/api/audiobooks/${encodeURIComponent(id)}/play`),
+    signal
+  );
+  const audioUrl = cleanText(payload.audio_url, 2000);
+  if (!audioUrl) throw new Error("audiobook_audio_unavailable");
+
+  const file = (payload.file || {}) as Record<string, unknown>;
+  return {
+    audiobook_id: String(payload.audiobook_id || id),
+    title: String(payload.title || "Audiobook"),
+    audio_url: audioUrl,
+    file: {
+      id: String(file.id || ""),
+      audiobook_id: String(file.audiobook_id || payload.audiobook_id || id),
+      title: cleanText(file.title, 300),
+      audio_url: cleanText(file.audio_url, 2000) || audioUrl,
+      duration_seconds: Number.isFinite(Number(file.duration_seconds))
+        ? Number(file.duration_seconds)
+        : null,
+      format: cleanText(file.format, 80),
+      mime_type: cleanText(file.mime_type, 120),
+      bitrate: Number.isFinite(Number(file.bitrate)) ? Number(file.bitrate) : null,
+    },
+  };
+}
