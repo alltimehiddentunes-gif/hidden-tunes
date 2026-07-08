@@ -1,8 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
-  Image,
   ScrollView,
   StyleSheet,
   Text,
@@ -15,6 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 
+import HTImage from "../../components/HTImage";
 import { COLORS } from "../../constants/theme";
 import {
   fetchAudiobookCategory,
@@ -35,7 +35,7 @@ function hasAbortError(error: unknown) {
   return error instanceof Error && error.name === "AbortError";
 }
 
-function AudiobookRow({ item }: { item: AudiobookItem }) {
+const AudiobookRow = memo(function AudiobookRow({ item }: { item: AudiobookItem }) {
   const meta = [
     item.author_name,
     formatAudiobookDuration(item.duration_seconds),
@@ -52,7 +52,13 @@ function AudiobookRow({ item }: { item: AudiobookItem }) {
     >
       <View style={styles.coverWrap}>
         {item.cover_url ? (
-          <Image source={{ uri: item.cover_url }} style={styles.coverImage} />
+          <HTImage
+            uri={item.cover_url}
+            style={styles.coverImage}
+            contentFit="cover"
+            maxDecodeWidth={136}
+            maxDecodeHeight={136}
+          />
         ) : (
           <Ionicons name="book-outline" size={26} color={COLORS.primary} />
         )}
@@ -75,7 +81,7 @@ function AudiobookRow({ item }: { item: AudiobookItem }) {
       <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
     </TouchableOpacity>
   );
-}
+});
 
 export default function AudiobooksHomeScreen() {
   const [categories, setCategories] = useState<AudiobookCategory[]>([]);
@@ -96,11 +102,23 @@ export default function AudiobooksHomeScreen() {
   const [searchError, setSearchError] = useState(false);
   const categoryRequestRef = useRef(0);
   const searchRequestRef = useRef(0);
+  const categoryPaginationRequestRef = useRef(0);
+  const searchPaginationRequestRef = useRef(0);
+  const selectedCategoryRef = useRef(selectedCategory);
+  const searchQueryRef = useRef(searchQuery);
 
   const isSearching = searchQuery.trim().length > 0;
   const listItems = isSearching ? searchItems : items;
   const canLoadMore = isSearching ? searchHasMore : hasMore;
   const isLoadingMore = isSearching ? searchLoadingMore : loadingMore;
+
+  useEffect(() => {
+    selectedCategoryRef.current = selectedCategory;
+  }, [selectedCategory]);
+
+  useEffect(() => {
+    searchQueryRef.current = searchQuery;
+  }, [searchQuery]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -223,9 +241,16 @@ export default function AudiobooksHomeScreen() {
       const query = searchQuery.trim();
       if (!query) return;
       const nextPage = searchPage + 1;
+      const requestId = ++searchPaginationRequestRef.current;
       setSearchLoadingMore(true);
       void searchAudiobooks(query, { page: nextPage, limit: PAGE_LIMIT })
         .then((result) => {
+          if (
+            requestId !== searchPaginationRequestRef.current ||
+            query !== searchQueryRef.current.trim()
+          ) {
+            return;
+          }
           setSearchItems((current) => {
             const seen = new Set(current.map(itemKey));
             return [
@@ -241,18 +266,34 @@ export default function AudiobooksHomeScreen() {
           setSearchHasMore(result.pagination.hasMore);
           setSearchPage(result.pagination.page);
         })
-        .catch(() => setSearchHasMore(false))
-        .finally(() => setSearchLoadingMore(false));
+        .catch(() => {
+          if (requestId === searchPaginationRequestRef.current) {
+            setSearchHasMore(false);
+          }
+        })
+        .finally(() => {
+          if (requestId === searchPaginationRequestRef.current) {
+            setSearchLoadingMore(false);
+          }
+        });
       return;
     }
 
     const nextPage = page + 1;
+    const categorySlug = selectedCategory;
+    const requestId = ++categoryPaginationRequestRef.current;
     setLoadingMore(true);
-    void fetchAudiobookCategory(selectedCategory, {
+    void fetchAudiobookCategory(categorySlug, {
       page: nextPage,
       limit: PAGE_LIMIT,
     })
       .then((result) => {
+        if (
+          requestId !== categoryPaginationRequestRef.current ||
+          categorySlug !== selectedCategoryRef.current
+        ) {
+          return;
+        }
         setItems((current) => {
           const seen = new Set(current.map(itemKey));
           return [
@@ -268,8 +309,16 @@ export default function AudiobooksHomeScreen() {
         setHasMore(result.pagination.hasMore);
         setPage(result.pagination.page);
       })
-      .catch(() => setHasMore(false))
-      .finally(() => setLoadingMore(false));
+      .catch(() => {
+        if (requestId === categoryPaginationRequestRef.current) {
+          setHasMore(false);
+        }
+      })
+      .finally(() => {
+        if (requestId === categoryPaginationRequestRef.current) {
+          setLoadingMore(false);
+        }
+      });
   }, [
     canLoadMore,
     isLoadingMore,
@@ -279,6 +328,11 @@ export default function AudiobooksHomeScreen() {
     searchQuery,
     selectedCategory,
   ]);
+  const renderItem = useCallback(
+    ({ item }: { item: AudiobookItem }) => <AudiobookRow item={item} />,
+    []
+  );
+  const keyExtractor = useCallback((item: AudiobookItem) => itemKey(item), []);
 
   return (
     <LinearGradient colors={["#101514", "#050706"]} style={styles.container}>
@@ -368,13 +422,15 @@ export default function AudiobooksHomeScreen() {
       ) : (
         <FlatList
           data={listItems}
-          keyExtractor={itemKey}
-          renderItem={({ item }) => <AudiobookRow item={item} />}
+          keyExtractor={keyExtractor}
+          renderItem={renderItem}
           contentContainerStyle={styles.listContent}
           onEndReached={loadMore}
           onEndReachedThreshold={0.45}
+          removeClippedSubviews
           initialNumToRender={10}
           maxToRenderPerBatch={10}
+          updateCellsBatchingPeriod={60}
           windowSize={7}
           ListEmptyComponent={
             <View style={styles.centerState}>
