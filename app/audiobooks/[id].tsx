@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  ScrollView,
+  FlatList,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -14,57 +14,79 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 
 import { COLORS } from "../../constants/theme";
-import { usePlaybackRouter } from "../../hooks/usePlaybackRouter";
+import { useAudiobookPlaybackActions } from "../../hooks/useAudiobookPlayback";
+import { usePlayerState } from "../../context/PlayerContext";
 import {
+  fetchAudiobookChapterQueuePlay,
   fetchAudiobookDetail,
-  fetchAudiobookPlay,
   formatAudiobookDuration,
 } from "../../services/audiobooksApi";
-import type { AudiobookDetail, AudiobookPlayResponse } from "../../types/audiobooks";
-import type { PodcastEpisode } from "../../types/podcast";
+import type { AudiobookChapter, AudiobookDetail } from "../../types/audiobooks";
+import { playAudiobookChapterQueue } from "../../utils/audiobookPlayback";
+import {
+  isAudiobookChapterAppSong,
+} from "../../utils/audiobookPlaybackAdapter";
 
 function hasAbortError(error: unknown) {
   return error instanceof Error && error.name === "AbortError";
 }
 
-function toPlayableAudiobook(
-  play: AudiobookPlayResponse,
-  audiobookId: string,
-  metadata?: AudiobookDetail["audiobook"]
-): PodcastEpisode {
-  const showTitle =
-    metadata?.author_name || metadata?.series_title || "Hidden Tunes Audiobooks";
-  const id = play.audiobook_id || metadata?.id || audiobookId;
-
-  return {
-    id,
-    showId: id,
-    showTitle,
-    publisher: metadata?.publisher || showTitle,
-    title: play.title || metadata?.title || "Hidden Tunes Audiobook",
-    description: metadata?.description || "",
-    artworkUrl: metadata?.cover_url || "",
-    audioUrl: play.audio_url,
-    durationSeconds: play.file?.duration_seconds || metadata?.duration_seconds || undefined,
-    publishedAt: metadata?.published_at || undefined,
-    language: metadata?.language || "en",
-    categories: metadata?.categories || [],
-    isExplicit: false,
-    matureLevel: "safe",
-    source: "podcast_rss",
-  };
-}
+const ChapterRow = memo(function ChapterRow({
+  chapter,
+  isPlaying,
+  isLoading,
+  onPress,
+}: {
+  chapter: AudiobookChapter;
+  isPlaying: boolean;
+  isLoading: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity
+      activeOpacity={0.86}
+      style={[styles.chapterRow, isPlaying && styles.chapterRowActive]}
+      onPress={onPress}
+      disabled={isLoading}
+    >
+      <View style={[styles.chapterBadge, isPlaying && styles.chapterBadgeActive]}>
+        {isLoading ? (
+          <ActivityIndicator size="small" color={isPlaying ? "#00130D" : COLORS.primary} />
+        ) : isPlaying ? (
+          <Ionicons name="volume-high" size={16} color="#00130D" />
+        ) : (
+          <Text style={styles.chapterNumber}>
+            {chapter.chapter_number ? String(chapter.chapter_number) : "-"}
+          </Text>
+        )}
+      </View>
+      <View style={styles.chapterCopy}>
+        <Text numberOfLines={2} style={[styles.chapterTitle, isPlaying && styles.chapterTitleActive]}>
+          {chapter.title}
+        </Text>
+        <Text style={styles.chapterMeta}>
+          {formatAudiobookDuration(chapter.duration_seconds) || "Chapter"}
+        </Text>
+      </View>
+      <Ionicons
+        name={isPlaying ? "pause-circle" : "play-circle"}
+        size={24}
+        color={isPlaying ? COLORS.primary : COLORS.textMuted}
+      />
+    </TouchableOpacity>
+  );
+});
 
 export default function AudiobookDetailScreen() {
   const params = useLocalSearchParams<{ id?: string }>();
   const audiobookId = String(params.id || "").trim();
-  const { playPodcastEpisode } = usePlaybackRouter();
+  const { playSong, seekTo } = useAudiobookPlaybackActions();
+  const { currentSong } = usePlayerState();
   const [detail, setDetail] = useState<AudiobookDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  const [playLoading, setPlayLoading] = useState(false);
   const [playError, setPlayError] = useState(false);
-  const [resolvedAudioUrl, setResolvedAudioUrl] = useState<string | null>(null);
+  const [loadingChapterId, setLoadingChapterId] = useState<string | null>(null);
   const playControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -78,7 +100,6 @@ export default function AudiobookDetailScreen() {
     playControllerRef.current?.abort();
     setLoading(true);
     setError(false);
-    setResolvedAudioUrl(null);
 
     void fetchAudiobookDetail(audiobookId, controller.signal)
       .then(setDetail)
@@ -102,6 +123,16 @@ export default function AudiobookDetailScreen() {
   );
 
   const audiobook = detail?.audiobook;
+  const chapters = detail?.chapters || [];
+  const firstChapter = chapters[0] || null;
+  const activeChapterId = useMemo(() => {
+    if (!isAudiobookChapterAppSong(currentSong)) return null;
+    const id = String(currentSong?.id || "");
+    return id.startsWith("audiobook-chapter-")
+      ? id.slice("audiobook-chapter-".length)
+      : null;
+  }, [currentSong]);
+
   const meta = useMemo(
     () =>
       [
@@ -111,45 +142,76 @@ export default function AudiobookDetailScreen() {
         audiobook?.language?.toUpperCase(),
       ]
         .filter(Boolean)
-        .join(" - "),
+        .join(" · "),
     [audiobook]
   );
 
-  const resolvePlayUrl = useCallback(async () => {
-    if (!audiobookId || playLoading) return;
-    playControllerRef.current?.abort();
-    const controller = new AbortController();
-    playControllerRef.current = controller;
-    setPlayLoading(true);
-    setPlayError(false);
+  const playChapter = useCallback(
+    async (chapterId: string, startPositionMillis = 0) => {
+      if (!audiobookId || !audiobook || !chapterId || loadingChapterId) return;
 
-    try {
-      const play = await fetchAudiobookPlay(audiobookId, controller.signal);
-      if (controller.signal.aborted) return;
-      setResolvedAudioUrl(play.audio_url);
-      const playable = toPlayableAudiobook(play, audiobookId, audiobook);
-      const result = await playPodcastEpisode(playable, [playable]);
-      if (!result.ok) {
+      playControllerRef.current?.abort();
+      const controller = new AbortController();
+      playControllerRef.current = controller;
+      setLoadingChapterId(chapterId);
+      setPlayError(false);
+
+      try {
+        const queue = await fetchAudiobookChapterQueuePlay(
+          audiobookId,
+          chapterId,
+          controller.signal
+        );
+        if (controller.signal.aborted) return;
+
+        const result = await playAudiobookChapterQueue({
+          book: queue.audiobook,
+          chapters: queue.chapters,
+          startChapterId: chapterId,
+          playSong,
+          seekTo,
+          startPositionMillis,
+        });
+
+        if (!result.ok) {
+          setPlayError(true);
+          return;
+        }
+
+        router.push("/player" as any);
+      } catch (playLoadError) {
+        if (hasAbortError(playLoadError)) return;
         setPlayError(true);
-        setResolvedAudioUrl(null);
-        return;
+      } finally {
+        if (!controller.signal.aborted) setLoadingChapterId(null);
+        if (playControllerRef.current === controller) {
+          playControllerRef.current = null;
+        }
       }
-      router.push("/player" as any);
-    } catch (playLoadError) {
-      if (hasAbortError(playLoadError)) return;
-      setPlayError(true);
-      setResolvedAudioUrl(null);
-    } finally {
-      if (!controller.signal.aborted) setPlayLoading(false);
-      if (playControllerRef.current === controller) {
-        playControllerRef.current = null;
-      }
-    }
-  }, [audiobook, audiobookId, playLoading, playPodcastEpisode]);
+    },
+    [audiobook, audiobookId, loadingChapterId, playSong, seekTo]
+  );
 
-  return (
-    <LinearGradient colors={["#101514", "#050706"]} style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
+  const playFromBeginning = useCallback(() => {
+    if (!firstChapter) return;
+    void playChapter(firstChapter.id, 0);
+  }, [firstChapter, playChapter]);
+
+  const renderChapter = useCallback(
+    ({ item }: { item: AudiobookChapter }) => (
+      <ChapterRow
+        chapter={item}
+        isPlaying={activeChapterId === item.id}
+        isLoading={loadingChapterId === item.id}
+        onPress={() => void playChapter(item.id, 0)}
+      />
+    ),
+    [activeChapterId, loadingChapterId, playChapter]
+  );
+
+  const listHeader = useMemo(
+    () => (
+      <View>
         <View style={styles.topBar}>
           <TouchableOpacity
             activeOpacity={0.84}
@@ -158,21 +220,13 @@ export default function AudiobookDetailScreen() {
           >
             <Ionicons name="chevron-back" size={24} color={COLORS.text} />
           </TouchableOpacity>
-          <Text style={styles.kicker}>AUDIOBOOK DETAIL</Text>
+          <Text style={styles.kicker}>AUDIOBOOK</Text>
         </View>
 
-        {loading ? (
-          <View style={styles.centerState}>
-            <ActivityIndicator color={COLORS.primary} />
-          </View>
-        ) : error || !audiobook ? (
-          <View style={styles.centerState}>
-            <Ionicons name="book-outline" size={30} color={COLORS.textMuted} />
-            <Text style={styles.stateText}>This audiobook could not be loaded.</Text>
-          </View>
-        ) : (
+        {audiobook ? (
           <>
             <View style={styles.hero}>
+              <View style={styles.coverAura} pointerEvents="none" />
               <View style={styles.coverWrap}>
                 {audiobook.cover_url ? (
                   <Image
@@ -198,23 +252,19 @@ export default function AudiobookDetailScreen() {
             <TouchableOpacity
               activeOpacity={0.86}
               style={styles.playButton}
-              onPress={resolvePlayUrl}
-              disabled={playLoading}
+              onPress={playFromBeginning}
+              disabled={!firstChapter || Boolean(loadingChapterId)}
             >
-              {playLoading ? (
+              {loadingChapterId && firstChapter && loadingChapterId === firstChapter.id ? (
                 <ActivityIndicator color="#00130D" />
               ) : (
                 <Ionicons name="play" size={18} color="#00130D" />
               )}
-              <Text style={styles.playButtonText}>
-                {playLoading ? "Resolving audio..." : "Play"}
-              </Text>
+              <Text style={styles.playButtonText}>Play From Beginning</Text>
             </TouchableOpacity>
 
             {playError ? (
-              <Text style={styles.playStatus}>Audio is unavailable for this audiobook.</Text>
-            ) : resolvedAudioUrl ? (
-              <Text style={styles.playStatus}>Audio URL resolved after tap.</Text>
+              <Text style={styles.playStatus}>This chapter could not be played right now.</Text>
             ) : null}
 
             {audiobook.description ? (
@@ -224,31 +274,63 @@ export default function AudiobookDetailScreen() {
               </View>
             ) : null}
 
-            <View style={styles.section}>
+            <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Chapters</Text>
-              {detail.chapters.length > 0 ? (
-                detail.chapters.map((chapter) => (
-                  <View key={chapter.id} style={styles.chapterRow}>
-                    <Text style={styles.chapterNumber}>
-                      {chapter.chapter_number ? String(chapter.chapter_number) : "-"}
-                    </Text>
-                    <View style={styles.chapterCopy}>
-                      <Text numberOfLines={2} style={styles.chapterTitle}>
-                        {chapter.title}
-                      </Text>
-                      <Text style={styles.chapterMeta}>
-                        {formatAudiobookDuration(chapter.duration_seconds) || "Chapter"}
-                      </Text>
-                    </View>
-                  </View>
-                ))
-              ) : (
-                <Text style={styles.stateText}>No chapter metadata available.</Text>
-              )}
+              <Text style={styles.sectionMeta}>{chapters.length} total</Text>
             </View>
           </>
-        )}
-      </ScrollView>
+        ) : null}
+      </View>
+    ),
+    [
+      audiobook,
+      chapters.length,
+      firstChapter,
+      loadingChapterId,
+      meta,
+      playError,
+      playFromBeginning,
+    ]
+  );
+
+  if (loading) {
+    return (
+      <LinearGradient colors={["#101514", "#050706"]} style={styles.container}>
+        <View style={styles.centerState}>
+          <ActivityIndicator color={COLORS.primary} />
+        </View>
+      </LinearGradient>
+    );
+  }
+
+  if (error || !audiobook) {
+    return (
+      <LinearGradient colors={["#101514", "#050706"]} style={styles.container}>
+        <View style={styles.centerState}>
+          <Ionicons name="book-outline" size={30} color={COLORS.textMuted} />
+          <Text style={styles.stateText}>This audiobook could not be loaded.</Text>
+        </View>
+      </LinearGradient>
+    );
+  }
+
+  return (
+    <LinearGradient colors={["#101514", "#050706"]} style={styles.container}>
+      <FlatList
+        data={chapters}
+        keyExtractor={(item) => item.id}
+        renderItem={renderChapter}
+        ListHeaderComponent={listHeader}
+        contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
+        initialNumToRender={14}
+        maxToRenderPerBatch={12}
+        windowSize={9}
+        removeClippedSubviews
+        ListEmptyComponent={
+          <Text style={styles.stateText}>No chapter metadata available.</Text>
+        }
+      />
     </LinearGradient>
   );
 }
@@ -257,7 +339,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  content: {
+  listContent: {
     paddingTop: 62,
     paddingHorizontal: 20,
     paddingBottom: 150,
@@ -287,17 +369,32 @@ const styles = StyleSheet.create({
     marginTop: 28,
     flexDirection: "row",
     alignItems: "center",
+    position: "relative",
+  },
+  coverAura: {
+    position: "absolute",
+    left: 8,
+    top: 8,
+    width: 118,
+    height: 118,
+    borderRadius: 16,
+    backgroundColor: "rgba(168,85,247,0.18)",
   },
   coverWrap: {
     width: 118,
     height: 118,
-    borderRadius: 8,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
     backgroundColor: "rgba(255,255,255,0.08)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
+    borderColor: "rgba(255,255,255,0.12)",
+    shadowColor: COLORS.primary,
+    shadowOpacity: 0.22,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 8,
   },
   coverImage: {
     width: "100%",
@@ -309,9 +406,10 @@ const styles = StyleSheet.create({
   },
   title: {
     color: COLORS.text,
-    fontSize: 25,
-    lineHeight: 30,
+    fontSize: 26,
+    lineHeight: 31,
     fontWeight: "900",
+    letterSpacing: -0.3,
   },
   subtitle: {
     marginTop: 8,
@@ -328,8 +426,8 @@ const styles = StyleSheet.create({
   },
   playButton: {
     marginTop: 24,
-    minHeight: 50,
-    borderRadius: 25,
+    minHeight: 52,
+    borderRadius: 26,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -343,7 +441,7 @@ const styles = StyleSheet.create({
   },
   playStatus: {
     marginTop: 10,
-    color: COLORS.textMuted,
+    color: "#fca5a5",
     textAlign: "center",
     fontSize: 12,
     fontWeight: "700",
@@ -351,11 +449,22 @@ const styles = StyleSheet.create({
   section: {
     marginTop: 28,
   },
+  sectionHeader: {
+    marginTop: 28,
+    marginBottom: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
   sectionTitle: {
     color: COLORS.text,
     fontSize: 18,
     fontWeight: "900",
-    marginBottom: 12,
+  },
+  sectionMeta: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    fontWeight: "700",
   },
   description: {
     color: COLORS.textMuted,
@@ -363,20 +472,43 @@ const styles = StyleSheet.create({
     lineHeight: 21,
   },
   chapterRow: {
-    minHeight: 62,
+    minHeight: 72,
     flexDirection: "row",
     alignItems: "center",
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(255,255,255,0.08)",
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    marginBottom: 8,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.04)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.07)",
+  },
+  chapterRowActive: {
+    backgroundColor: "rgba(168,85,247,0.14)",
+    borderColor: "rgba(168,85,247,0.34)",
+  },
+  chapterBadge: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+  },
+  chapterBadgeActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
   },
   chapterNumber: {
-    width: 34,
     color: COLORS.primary,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "900",
   },
   chapterCopy: {
     flex: 1,
+    marginHorizontal: 12,
   },
   chapterTitle: {
     color: COLORS.text,
@@ -384,15 +516,20 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     lineHeight: 19,
   },
+  chapterTitleActive: {
+    color: COLORS.primaryGlow,
+  },
   chapterMeta: {
     marginTop: 4,
     color: COLORS.textMuted,
     fontSize: 12,
+    fontWeight: "700",
   },
   centerState: {
-    minHeight: 360,
+    flex: 1,
     alignItems: "center",
     justifyContent: "center",
+    paddingHorizontal: 28,
   },
   stateText: {
     marginTop: 10,
