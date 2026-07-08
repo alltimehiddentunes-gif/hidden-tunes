@@ -14,13 +14,21 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 
 import { COLORS } from "../../constants/theme";
-import { useAudiobookPlaybackActions } from "../../hooks/useAudiobookPlayback";
+import {
+  useAudiobookPlaybackActions,
+  useAudiobookProgressTracker,
+} from "../../hooks/useAudiobookPlayback";
 import { usePlayerState } from "../../context/PlayerContext";
 import {
   fetchAudiobookChapterQueuePlay,
   fetchAudiobookDetail,
   formatAudiobookDuration,
 } from "../../services/audiobooksApi";
+import {
+  loadAudiobookProgress,
+  saveAudiobookProgress,
+  type AudiobookProgressEntry,
+} from "../../services/audiobookProgress";
 import type { AudiobookChapter, AudiobookDetail } from "../../types/audiobooks";
 import { playAudiobookChapterQueue } from "../../utils/audiobookPlayback";
 import {
@@ -35,11 +43,13 @@ const ChapterRow = memo(function ChapterRow({
   chapter,
   isPlaying,
   isLoading,
+  hasResume,
   onPress,
 }: {
   chapter: AudiobookChapter;
   isPlaying: boolean;
   isLoading: boolean;
+  hasResume?: boolean;
   onPress: () => void;
 }) {
   return (
@@ -66,6 +76,7 @@ const ChapterRow = memo(function ChapterRow({
         </Text>
         <Text style={styles.chapterMeta}>
           {formatAudiobookDuration(chapter.duration_seconds) || "Chapter"}
+          {hasResume ? " · Resume" : ""}
         </Text>
       </View>
       <Ionicons
@@ -87,6 +98,7 @@ export default function AudiobookDetailScreen() {
   const [error, setError] = useState(false);
   const [playError, setPlayError] = useState(false);
   const [loadingChapterId, setLoadingChapterId] = useState<string | null>(null);
+  const [savedProgress, setSavedProgress] = useState<AudiobookProgressEntry | null>(null);
   const playControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -125,6 +137,29 @@ export default function AudiobookDetailScreen() {
   const audiobook = detail?.audiobook;
   const chapters = detail?.chapters || [];
   const firstChapter = chapters[0] || null;
+
+  useAudiobookProgressTracker({
+    bookId: audiobook?.id || audiobookId,
+    chapters,
+    enabled: Boolean(audiobook?.id && chapters.length),
+  });
+
+  useEffect(() => {
+    if (!audiobook?.id) {
+      setSavedProgress(null);
+      return;
+    }
+
+    let cancelled = false;
+    void loadAudiobookProgress(audiobook.id).then((entry) => {
+      if (!cancelled) setSavedProgress(entry);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [audiobook?.id]);
+
   const activeChapterId = useMemo(() => {
     if (!isAudiobookChapterAppSong(currentSong)) return null;
     const id = String(currentSong?.id || "");
@@ -178,6 +213,23 @@ export default function AudiobookDetailScreen() {
           return;
         }
 
+        void saveAudiobookProgress({
+          bookId: queue.audiobook.id,
+          chapterId,
+          chapterNumber: result.chapter.chapter_number ?? null,
+          chapterTitle: result.chapter.title,
+          positionMillis: startPositionMillis,
+          updatedAt: Date.now(),
+        });
+        setSavedProgress({
+          bookId: queue.audiobook.id,
+          chapterId,
+          chapterNumber: result.chapter.chapter_number ?? null,
+          chapterTitle: result.chapter.title,
+          positionMillis: startPositionMillis,
+          updatedAt: Date.now(),
+        });
+
         router.push("/player" as any);
       } catch (playLoadError) {
         if (hasAbortError(playLoadError)) return;
@@ -197,16 +249,33 @@ export default function AudiobookDetailScreen() {
     void playChapter(firstChapter.id, 0);
   }, [firstChapter, playChapter]);
 
+  const continueListening = useCallback(() => {
+    if (!savedProgress?.chapterId) return;
+    void playChapter(savedProgress.chapterId, savedProgress.positionMillis);
+  }, [playChapter, savedProgress]);
+
+  const resumeChapterLabel = useMemo(() => {
+    if (!savedProgress) return null;
+    const chapter = chapters.find((item) => item.id === savedProgress.chapterId);
+    const chapterLabel =
+      chapter?.title ||
+      (savedProgress.chapterNumber
+        ? `Chapter ${savedProgress.chapterNumber}`
+        : "your last chapter");
+    return chapterLabel;
+  }, [chapters, savedProgress]);
+
   const renderChapter = useCallback(
     ({ item }: { item: AudiobookChapter }) => (
       <ChapterRow
         chapter={item}
         isPlaying={activeChapterId === item.id}
         isLoading={loadingChapterId === item.id}
+        hasResume={savedProgress?.chapterId === item.id && savedProgress.positionMillis > 0}
         onPress={() => void playChapter(item.id, 0)}
       />
     ),
-    [activeChapterId, loadingChapterId, playChapter]
+    [activeChapterId, loadingChapterId, playChapter, savedProgress]
   );
 
   const listHeader = useMemo(
@@ -263,6 +332,29 @@ export default function AudiobookDetailScreen() {
               <Text style={styles.playButtonText}>Play From Beginning</Text>
             </TouchableOpacity>
 
+            {savedProgress && resumeChapterLabel ? (
+              <TouchableOpacity
+                activeOpacity={0.86}
+                style={styles.resumeCard}
+                onPress={continueListening}
+                disabled={Boolean(loadingChapterId)}
+              >
+                <View style={styles.resumeIconWrap}>
+                  <Ionicons name="bookmark" size={18} color={COLORS.primaryGlow} />
+                </View>
+                <View style={styles.resumeCopy}>
+                  <Text style={styles.resumeEyebrow}>CONTINUE LISTENING</Text>
+                  <Text numberOfLines={2} style={styles.resumeTitle}>
+                    Resume {resumeChapterLabel}
+                  </Text>
+                  <Text style={styles.resumeMeta}>
+                    Saved at {formatAudiobookDuration(Math.floor(savedProgress.positionMillis / 1000)) || "0m"}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
+              </TouchableOpacity>
+            ) : null}
+
             {playError ? (
               <Text style={styles.playStatus}>This chapter could not be played right now.</Text>
             ) : null}
@@ -290,6 +382,9 @@ export default function AudiobookDetailScreen() {
       meta,
       playError,
       playFromBeginning,
+      resumeChapterLabel,
+      savedProgress,
+      continueListening,
     ]
   );
 
@@ -438,6 +533,49 @@ const styles = StyleSheet.create({
     color: "#00130D",
     fontSize: 15,
     fontWeight: "900",
+  },
+  resumeCard: {
+    marginTop: 14,
+    minHeight: 78,
+    borderRadius: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(168,85,247,0.1)",
+    borderWidth: 1,
+    borderColor: "rgba(168,85,247,0.24)",
+  },
+  resumeIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.06)",
+  },
+  resumeCopy: {
+    flex: 1,
+    marginHorizontal: 12,
+  },
+  resumeEyebrow: {
+    color: COLORS.primary,
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 1.2,
+  },
+  resumeTitle: {
+    marginTop: 4,
+    color: COLORS.text,
+    fontSize: 14,
+    fontWeight: "900",
+    lineHeight: 18,
+  },
+  resumeMeta: {
+    marginTop: 4,
+    color: COLORS.textMuted,
+    fontSize: 12,
+    fontWeight: "700",
   },
   playStatus: {
     marginTop: 10,

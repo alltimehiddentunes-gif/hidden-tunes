@@ -8,7 +8,7 @@ import {
   isPlayableAudiobookChapterAudioUrl,
 } from "./audiobookPlaybackAdapter";
 
-const AUDIOBOOK_QUEUE_CONTEXT = { source: "audiobook" as const, label: "Audiobooks" };
+const AUDIOBOOK_QUEUE_CONTEXT = { source: "unknown" as const, label: "Audiobooks" };
 
 type PlaySongFn = (
   song: AppSong,
