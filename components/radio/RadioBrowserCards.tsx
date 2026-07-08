@@ -116,8 +116,8 @@ function StationMetaChips({ item }: { item: RadioStationListItem }) {
 
   return (
     <View style={styles.chipRow}>
-      {chips.slice(0, 3).map((chip) => (
-        <View key={`${item.id}-${chip}`} style={styles.chip}>
+      {chips.slice(0, 3).map((chip, index) => (
+        <View key={`${item.id}-${chip}-${index}`} style={styles.chip}>
           <Text numberOfLines={1} style={styles.chipText}>
             {chip}
           </Text>
