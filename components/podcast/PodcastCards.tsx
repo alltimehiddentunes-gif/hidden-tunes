@@ -94,6 +94,8 @@ type PodcastEpisodeCardProps = {
   played?: boolean;
   showDownloadPlaceholder?: boolean;
   index?: number;
+  /** Metadata-only browse rows stay tappable; audio resolves on press. */
+  browseOnly?: boolean;
 };
 
 export const PodcastEpisodeCard = memo(function PodcastEpisodeCard({
@@ -104,11 +106,12 @@ export const PodcastEpisodeCard = memo(function PodcastEpisodeCard({
   played = false,
   showDownloadPlaceholder = true,
   index = 0,
+  browseOnly = false,
 }: PodcastEpisodeCardProps) {
-  const hasAudio = Boolean(
-    episode.audioUrl?.trim() && isPlayablePodcastAudioUrl(episode.audioUrl)
-  );
-  const isDisabled = disabled || !hasAudio;
+  const hasAudio =
+    browseOnly ||
+    Boolean(episode.audioUrl?.trim() && isPlayablePodcastAudioUrl(episode.audioUrl));
+  const isDisabled = disabled || (!browseOnly && !hasAudio);
   const durationLabel =
     typeof episode.durationSeconds === "number" && episode.durationSeconds > 0
       ? `${Math.round(episode.durationSeconds / 60)} min`
@@ -154,7 +157,7 @@ export const PodcastEpisodeCard = memo(function PodcastEpisodeCard({
           {dateLabel ? <Text style={styles.metaText}>{dateLabel}</Text> : null}
           {episode.isExplicit ? <Text style={styles.explicitBadge}>EXPLICIT</Text> : null}
           {played ? <Text style={styles.playedBadge}>PLAYED</Text> : null}
-          {!hasAudio ? (
+          {!hasAudio && !browseOnly ? (
             <Text style={styles.unavailableText}>
               {unavailableLabel || "Episode unavailable"}
             </Text>

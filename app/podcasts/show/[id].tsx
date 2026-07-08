@@ -27,6 +27,14 @@ import {
   unfollowPodcastShow,
 } from "../../../services/podcastLibrary";
 import {
+  fetchPodcastEpisodePlay,
+  fetchPodcastEpisodesByShow,
+  fetchPodcastShowById,
+  isBackendPodcastShowId,
+  PODCAST_CATALOG_PAGE_LIMIT,
+  type PodcastCatalogEpisodeMetadata,
+} from "../../../services/podcastCatalogApi";
+import {
   getPodcastEpisodes,
   getRelatedPodcastShows,
   PODCAST_SHOW_EPISODE_LIMIT,
@@ -51,20 +59,71 @@ function isEpisodePlayable(episode: PodcastEpisode) {
   return Boolean(episode.audioUrl?.trim() && isPlayablePodcastAudioUrl(episode.audioUrl));
 }
 
+function catalogEpisodeToDisplayEpisode(
+  metadata: PodcastCatalogEpisodeMetadata,
+  showTitle: string
+): PodcastEpisode {
+  return {
+    id: metadata.id,
+    showId: metadata.showId,
+    showTitle,
+    title: metadata.title,
+    description: metadata.description || "",
+    artworkUrl: metadata.artworkUrl || "",
+    audioUrl: "",
+    durationSeconds: metadata.durationSeconds,
+    publishedAt: metadata.publishedAt,
+    language: "unknown",
+    categories: [],
+    isExplicit: false,
+    matureLevel: "safe",
+    source: "podcast_rss",
+  };
+}
+
+function catalogEpisodeToPlayableEpisode(
+  metadata: PodcastCatalogEpisodeMetadata,
+  play: NonNullable<Awaited<ReturnType<typeof fetchPodcastEpisodePlay>>["play"]>,
+  showTitle: string
+): PodcastEpisode {
+  return {
+    id: play.id,
+    showId: play.showId || metadata.showId,
+    showTitle,
+    title: play.title || metadata.title,
+    description: metadata.description || "",
+    artworkUrl: metadata.artworkUrl || "",
+    audioUrl: play.audioUrl,
+    durationSeconds: play.durationSeconds ?? metadata.durationSeconds,
+    publishedAt: play.publishedAt ?? metadata.publishedAt,
+    language: "unknown",
+    categories: [],
+    isExplicit: false,
+    matureLevel: "safe",
+    source: "podcast_rss",
+  };
+}
+
 export default function PodcastShowScreen() {
   const params = useLocalSearchParams<{ id?: string }>();
   const showId = String(params.id || "").trim();
+  const isBackendShow = isBackendPodcastShowId(showId);
 
   const { playPodcastEpisodeFromShow } = usePlaybackRouter();
   const { consentVisible, runWithMaturePodcastConsent, cancelConsent, confirmConsent } =
     useMaturePodcastGate();
 
-  const staticShow = useMemo(() => resolvePodcastShowById(showId), [showId]);
+  const staticShow = useMemo(
+    () => (isBackendShow ? null : resolvePodcastShowById(showId)),
+    [isBackendShow, showId]
+  );
   const [show, setShow] = useState<PodcastShow | null>(staticShow);
   const [episodes, setEpisodes] = useState<PodcastEpisode[]>([]);
+  const [catalogEpisodes, setCatalogEpisodes] = useState<PodcastCatalogEpisodeMetadata[]>([]);
   const [episodesLoading, setEpisodesLoading] = useState(false);
   const [episodesError, setEpisodesError] = useState<string | null>(null);
   const [following, setFollowing] = useState(false);
+  const [resolvingEpisodeId, setResolvingEpisodeId] = useState<string | null>(null);
 
   const cleanedDescription = useMemo(
     () => cleanPodcastDescription(show?.description),
@@ -72,21 +131,80 @@ export default function PodcastShowScreen() {
   );
 
   const playableEpisodes = useMemo(
-    () => episodes.filter((episode) => isEpisodePlayable(episode)),
-    [episodes]
+    () => (isBackendShow ? [] : episodes.filter((episode) => isEpisodePlayable(episode))),
+    [episodes, isBackendShow]
   );
 
-  const latestEpisode = useMemo(
-    () => (playableEpisodes.length > 0 ? playableEpisodes[0] : null),
-    [playableEpisodes]
-  );
+  const latestEpisode = useMemo(() => {
+    if (isBackendShow) {
+      return catalogEpisodes[0]
+        ? catalogEpisodeToDisplayEpisode(catalogEpisodes[0], show?.title || "Podcast")
+        : null;
+    }
+    return playableEpisodes.length > 0 ? playableEpisodes[0] : null;
+  }, [catalogEpisodes, isBackendShow, playableEpisodes, show?.title]);
 
   const relatedShows = useMemo(
-    () => (show ? getRelatedPodcastShows(show, 5) : []),
-    [show]
+    () => (show && !isBackendShow ? getRelatedPodcastShows(show, 5) : []),
+    [isBackendShow, show]
   );
 
-  const loadEpisodes = useCallback(async () => {
+  const loadBackendShow = useCallback(async () => {
+    if (!showId) return;
+
+    setEpisodesLoading(true);
+    setEpisodesError(null);
+
+    try {
+      const [showResult, episodeResult] = await Promise.all([
+        fetchPodcastShowById(showId),
+        fetchPodcastEpisodesByShow(showId, 1, PODCAST_CATALOG_PAGE_LIMIT),
+      ]);
+
+      if (!showResult.success || !showResult.show) {
+        setShow(null);
+        setCatalogEpisodes([]);
+        setEpisodesError("This feed could not be loaded");
+        return;
+      }
+
+      const catalogShow = showResult.show;
+      setShow({
+        id: catalogShow.id,
+        title: catalogShow.title,
+        publisher: catalogShow.publisher || catalogShow.hostName || catalogShow.title,
+        description: catalogShow.description || "",
+        artworkUrl: catalogShow.artworkUrl || "",
+        feedUrl: "",
+        language: "unknown",
+        categories: catalogShow.categories,
+        isExplicit: false,
+        matureLevel: "safe",
+        source: "rss",
+      });
+
+      if (!episodeResult.success) {
+        setCatalogEpisodes([]);
+        setEpisodesError(episodeResult.error || "Episodes unavailable right now");
+        return;
+      }
+
+      setCatalogEpisodes(episodeResult.episodes);
+      if (!episodeResult.episodes.length) {
+        setEpisodesError("Episodes unavailable right now");
+      }
+    } catch {
+      setShow(null);
+      setCatalogEpisodes([]);
+      setEpisodesError("Episodes unavailable right now");
+    } finally {
+      setEpisodesLoading(false);
+      const followed = await getFollowedPodcastShows();
+      setFollowing(followed.some((item) => item.id === showId));
+    }
+  }, [showId]);
+
+  const loadRssShow = useCallback(async () => {
     if (!showId) return;
 
     const resolved = resolvePodcastShowById(showId);
@@ -138,9 +256,42 @@ export default function PodcastShowScreen() {
     }
   }, [showId]);
 
+  const loadEpisodes = useCallback(async () => {
+    if (isBackendShow) {
+      await loadBackendShow();
+      return;
+    }
+    await loadRssShow();
+  }, [isBackendShow, loadBackendShow, loadRssShow]);
+
   useEffect(() => {
     void loadEpisodes();
   }, [loadEpisodes]);
+
+  const playResolvedEpisode = useCallback(
+    async (metadata: PodcastCatalogEpisodeMetadata) => {
+      if (!show) return;
+
+      setResolvingEpisodeId(metadata.id);
+      try {
+        const resolved = await fetchPodcastEpisodePlay(metadata.id);
+        if (!resolved.success || !resolved.play?.audioUrl) {
+          Alert.alert("Unavailable", resolved.error || "This episode is unavailable.");
+          return;
+        }
+
+        const playable = catalogEpisodeToPlayableEpisode(metadata, resolved.play, show.title);
+        await runWithMaturePodcastConsent(playable, () =>
+          playPodcastEpisodeFromShow(playable, [playable]).then((result) => {
+            if (!result.ok) Alert.alert("Unavailable", result.error);
+          })
+        );
+      } finally {
+        setResolvingEpisodeId(null);
+      }
+    },
+    [playPodcastEpisodeFromShow, runWithMaturePodcastConsent, show]
+  );
 
   const playEpisode = useCallback(
     (episode: PodcastEpisode) => {
@@ -155,10 +306,21 @@ export default function PodcastShowScreen() {
 
   const playLatest = useCallback(() => {
     if (!latestEpisode) return;
+    if (isBackendShow && catalogEpisodes[0]) {
+      void playResolvedEpisode(catalogEpisodes[0]);
+      return;
+    }
     playEpisode(latestEpisode);
-  }, [latestEpisode, playEpisode]);
+  }, [catalogEpisodes, isBackendShow, latestEpisode, playEpisode, playResolvedEpisode]);
 
   const shuffleEpisodesPlay = useCallback(() => {
+    if (isBackendShow) {
+      if (!catalogEpisodes.length) return;
+      const pick = catalogEpisodes[Math.floor(Math.random() * catalogEpisodes.length)];
+      void playResolvedEpisode(pick);
+      return;
+    }
+
     if (!playableEpisodes.length) return;
     const shuffled = shuffleEpisodes(playableEpisodes);
     const first = shuffled[0];
@@ -167,7 +329,14 @@ export default function PodcastShowScreen() {
         if (!result.ok) Alert.alert("Unavailable", result.error);
       });
     });
-  }, [playPodcastEpisodeFromShow, playableEpisodes, runWithMaturePodcastConsent]);
+  }, [
+    catalogEpisodes,
+    isBackendShow,
+    playPodcastEpisodeFromShow,
+    playResolvedEpisode,
+    playableEpisodes,
+    runWithMaturePodcastConsent,
+  ]);
 
   const toggleFollow = useCallback(() => {
     if (!show) return;
@@ -187,13 +356,22 @@ export default function PodcastShowScreen() {
       <LinearGradient colors={["#030008", "#090214", "#000000"]} style={styles.screen}>
         <PodcastShowBackBar />
         <View style={styles.centerContent}>
-          <Text style={styles.emptyText}>This feed could not be loaded</Text>
+          {episodesLoading ? (
+            <ActivityIndicator color={COLORS.primary} size="large" />
+          ) : (
+            <Text style={styles.emptyText}>This feed could not be loaded</Text>
+          )}
         </View>
       </LinearGradient>
     );
   }
 
-  const latestUnavailable = !episodesLoading && episodes.length > 0 && !latestEpisode;
+  const latestUnavailable =
+    !isBackendShow && !episodesLoading && episodes.length > 0 && !latestEpisode;
+  const displayEpisodes = isBackendShow
+    ? catalogEpisodes.map((item) => catalogEpisodeToDisplayEpisode(item, show.title))
+    : episodes;
+  const hasEpisodes = displayEpisodes.length > 0;
 
   return (
     <LinearGradient colors={["#030008", "#090214", "#000000"]} style={styles.screen}>
@@ -246,11 +424,11 @@ export default function PodcastShowScreen() {
 
           <ScalePressable
             onPress={shuffleEpisodesPlay}
-            disabled={!playableEpisodes.length}
+            disabled={!hasEpisodes}
             accessibilityLabel="Shuffle loaded podcast episodes"
             style={[
               styles.shuffleButton,
-              !playableEpisodes.length && styles.shuffleButtonDisabled,
+              !hasEpisodes && styles.shuffleButtonDisabled,
             ]}
           >
             <Ionicons name="shuffle" size={16} color={COLORS.primaryGlow} />
@@ -270,15 +448,22 @@ export default function PodcastShowScreen() {
             </View>
           ) : null}
 
-          {!episodesLoading && episodes.length > 0 ? (
+          {!episodesLoading && hasEpisodes ? (
             <FadeInView delay={80}>
-              {episodes.map((episode, index) => (
+              {displayEpisodes.map((episode, index) => (
                 <PodcastEpisodeCard
                   key={episode.id}
                   episode={episode}
                   index={index}
-                  disabled={!isEpisodePlayable(episode)}
-                  onPress={() => playEpisode(episode)}
+                  browseOnly={isBackendShow}
+                  disabled={isBackendShow && resolvingEpisodeId === episode.id}
+                  onPress={() => {
+                    if (isBackendShow) {
+                      void playResolvedEpisode(catalogEpisodes[index]);
+                      return;
+                    }
+                    playEpisode(episode);
+                  }}
                 />
               ))}
             </FadeInView>

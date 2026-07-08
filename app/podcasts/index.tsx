@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import {
   Alert,
   ScrollView,
@@ -23,6 +23,11 @@ import { useMaturePodcastGate } from "../../hooks/useMaturePodcastGate";
 import { usePlaybackRouter } from "../../hooks/usePlaybackRouter";
 import { usePodcastHome } from "../../hooks/usePodcastHome";
 import { usePodcastLocalSearch } from "../../hooks/usePodcastLocalSearch";
+import {
+  BACKEND_PODCAST_CATEGORY_SLUGS,
+  getBackendPodcastCategoryLabel,
+  type BackendPodcastCategorySlug,
+} from "../../services/podcastCatalogApi";
 import type { PodcastEpisode } from "../../types/podcast";
 import { shouldIncludeMaturePodcasts } from "../../utils/maturePodcastSettings";
 import { safeRouterPush } from "../../utils/safeNavigation";
@@ -57,6 +62,19 @@ export default function PodcastHomeScreen() {
     safeRouterPush({ pathname: "/podcasts/show/[id]", params: { id: showId } });
   }, []);
 
+  const openBackendCategory = useCallback((slug: BackendPodcastCategorySlug) => {
+    safeRouterPush({ pathname: "/podcasts/category/[id]", params: { id: slug } });
+  }, []);
+
+  const backendCategories = useMemo(
+    () =>
+      BACKEND_PODCAST_CATEGORY_SLUGS.map((slug) => ({
+        slug,
+        title: getBackendPodcastCategoryLabel(slug),
+      })),
+    []
+  );
+
   return (
     <AppShell>
       <LinearGradient colors={["#030008", "#090214", "#000000"]} style={styles.screen}>
@@ -79,6 +97,25 @@ export default function PodcastHomeScreen() {
 
           {!hasQuery ? (
             <>
+              <View style={styles.sectionBlock}>
+                <SectionHeader title="Browse by Category" />
+                <View style={styles.categoryGrid}>
+                  {backendCategories.map((entry) => (
+                    <TouchableOpacity
+                      key={entry.slug}
+                      activeOpacity={0.88}
+                      style={styles.categoryChip}
+                      onPress={() => openBackendCategory(entry.slug)}
+                    >
+                      <Ionicons name="mic-outline" size={16} color={COLORS.primary} />
+                      <Text numberOfLines={1} style={styles.categoryChipText}>
+                        {entry.title}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
               {recentlyPlayed.length > 0 ? (
                 <View style={styles.sectionBlock}>
                   <SectionHeader title="Recently Played" />
@@ -161,4 +198,28 @@ const styles = StyleSheet.create({
   matureCopy: { flex: 1 },
   matureTitle: { color: COLORS.text, fontWeight: "800", fontSize: 15 },
   matureSubtitle: { color: COLORS.textMuted, fontSize: 12, marginTop: 3 },
+  categoryGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  categoryChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderWidth: 1,
+    borderColor: "rgba(168,85,247,0.18)",
+    maxWidth: "48%",
+    flexGrow: 1,
+  },
+  categoryChipText: {
+    color: COLORS.text,
+    fontSize: 13,
+    fontWeight: "700",
+    flexShrink: 1,
+  },
 });
