@@ -3,9 +3,9 @@ import {
   ActivityIndicator,
   FlatList,
   KeyboardAvoidingView,
+  ListRenderItemInfo,
   Linking,
   Platform,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -125,6 +125,27 @@ const SEARCH_EXTERNAL_CACHE_LIMIT = 16;
 const SEARCH_EXTERNAL_AUDIO_LIMIT = 16;
 const SEARCH_PROVIDER_QUERY_LIMIT = 8;
 const SEARCH_TV_LIMIT = 8;
+
+type SearchRenderBlock =
+  | "result-summary"
+  | "songs"
+  | "albums"
+  | "artists"
+  | "rooms"
+  | "stations"
+  | "playlists"
+  | "external-audio"
+  | "tv"
+  | "radio-loading"
+  | "radio"
+  | "podcasts-loading"
+  | "podcasts"
+  | "empty-results"
+  | "discovery-chips"
+  | "discovery-songs"
+  | "discovery-artists"
+  | "discovery-albums"
+  | "discovery-genres";
 
 const TRENDING_SEARCHES = [
   "Afrobeats",
@@ -1634,6 +1655,685 @@ export default function SearchScreen() {
     setSubmittedSearchQuery("");
   }, []);
 
+  const searchRenderBlocks = useMemo(() => {
+    const blocks: SearchRenderBlock[] = [];
+
+    if (showSearchResults) {
+      blocks.push("result-summary");
+      if (apkSongResults.length > 0) blocks.push("songs");
+      if (apkAlbumResults.length > 0) blocks.push("albums");
+      if (apkArtistResults.length > 0) blocks.push("artists");
+      if (apkRoomResults.length > 0) blocks.push("rooms");
+      if (apkStationResults.length > 0) blocks.push("stations");
+      if (apkPlaylistResults.length > 0) blocks.push("playlists");
+      if (apkExternalAudioResults.length > 0) blocks.push("external-audio");
+      if (apkTvResults.length > 0) blocks.push("tv");
+      if (cleanSubmittedSearchQuery.length >= 2 && deferredMedia.radioLoading) {
+        blocks.push("radio-loading");
+      }
+      if (
+        cleanSubmittedSearchQuery.length >= 2 &&
+        deferredMedia.radioReadyForQuery &&
+        deferredMedia.radioStations.length > 0
+      ) {
+        blocks.push("radio");
+      }
+      if (cleanSubmittedSearchQuery.length >= 2 && deferredPodcasts.loading) {
+        blocks.push("podcasts-loading");
+      }
+      if (
+        cleanSubmittedSearchQuery.length >= 2 &&
+        deferredPodcasts.readyForQuery &&
+        deferredPodcasts.results.length > 0
+      ) {
+        blocks.push("podcasts");
+      }
+      if (
+        apkResultCount === 0 &&
+        deferredMedia.radioStations.length === 0 &&
+        deferredPodcasts.results.length === 0 &&
+        !deferredMedia.radioLoading &&
+        !deferredPodcasts.loading
+      ) {
+        blocks.push("empty-results");
+      }
+    }
+
+    if (showDiscovery && !showSearchLoading) {
+      blocks.push("discovery-chips");
+      if (discoverySongs.length > 0) blocks.push("discovery-songs");
+      if (discoveryArtists.length > 0) blocks.push("discovery-artists");
+      if (discoveryAlbums.length > 0) blocks.push("discovery-albums");
+      if (discoveryGenres.length > 0) blocks.push("discovery-genres");
+    }
+
+    return blocks;
+  }, [
+    apkAlbumResults.length,
+    apkArtistResults.length,
+    apkExternalAudioResults.length,
+    apkPlaylistResults.length,
+    apkResultCount,
+    apkRoomResults.length,
+    apkSongResults.length,
+    apkStationResults.length,
+    apkTvResults.length,
+    cleanSubmittedSearchQuery.length,
+    deferredMedia.radioLoading,
+    deferredMedia.radioReadyForQuery,
+    deferredMedia.radioStations.length,
+    deferredPodcasts.loading,
+    deferredPodcasts.readyForQuery,
+    deferredPodcasts.results.length,
+    discoveryAlbums.length,
+    discoveryArtists.length,
+    discoveryGenres.length,
+    discoverySongs.length,
+    showDiscovery,
+    showSearchLoading,
+    showSearchResults,
+  ]);
+
+  const searchBlockKeyExtractor = useCallback((item: SearchRenderBlock) => item, []);
+
+  const renderSearchHeader = useCallback(
+    () => (
+      <>
+        <View style={styles.topBar}>
+          <TouchableOpacity style={styles.iconButton} onPress={() => router.back()} activeOpacity={0.85}>
+            <Ionicons name="chevron-back" size={24} color={COLORS.text} />
+          </TouchableOpacity>
+
+          <View style={styles.brandBlock}>
+            <Text style={styles.kicker}>DISCOVER</Text>
+            <Text style={styles.title}>Search</Text>
+          </View>
+
+          <View style={styles.iconSpacer} />
+        </View>
+
+        <View style={styles.searchPanel}>
+          <DebouncedSearchInput
+            value={searchQuery}
+            onImmediateChange={handleSearchImmediateChange}
+            onDebouncedChange={setSubmittedSearchQuery}
+            onClear={clearSearch}
+            placeholder="Find music"
+            placeholderTextColor={COLORS.textMuted}
+            style={styles.searchInput}
+            containerStyle={styles.searchInputShell}
+            autoFocus
+          />
+        </View>
+
+        {loading && songs.length === 0 && !hasSearchText ? (
+          <View style={styles.centerPanel}>
+            <ActivityIndicator size="large" color={COLORS.primary} />
+            <Text style={styles.loadingText}>Loading catalog...</Text>
+          </View>
+        ) : null}
+
+        {showSearchLoading ? (
+          <View style={styles.centerPanel}>
+            <ActivityIndicator size="small" color={COLORS.primary} />
+            <Text style={styles.loadingText}>Searching Hidden Tunes</Text>
+          </View>
+        ) : null}
+      </>
+    ),
+    [
+      clearSearch,
+      handleSearchImmediateChange,
+      hasSearchText,
+      loading,
+      searchQuery,
+      showSearchLoading,
+      songs.length,
+    ]
+  );
+
+  const renderSearchBlock = useCallback(
+    ({ item }: ListRenderItemInfo<SearchRenderBlock>) => {
+      switch (item) {
+        case "result-summary":
+          return (
+            <View style={styles.resultsPanel}>
+              <View style={styles.resultSummaryRow}>
+                <View>
+                  <Text style={styles.sectionEyebrow}>RESULTS</Text>
+                  <Text style={styles.sectionTitle}>{apkResultCount} match{apkResultCount === 1 ? "" : "es"}</Text>
+                </View>
+                {apkExternalAudioResults.length > 0 ? <Text style={styles.fallbackBadge}>More to discover</Text> : null}
+              </View>
+            </View>
+          );
+
+        case "songs":
+          return (
+            <View style={styles.sectionBlock}>
+              <Text style={styles.sectionEyebrow}>SONGS</Text>
+              {apkSongResults.slice(0, 18).map((song, index) => (
+                <SearchApkSongRow
+                  key={`song-${song.id}-${index}`}
+                  song={song as unknown as HiddenTunesNormalizedSong}
+                  onPress={() => playSearchResultSong(song, "song")}
+                  styles={styles}
+                />
+              ))}
+            </View>
+          );
+
+        case "albums":
+          return (
+            <View style={styles.sectionBlock}>
+              <Text style={styles.sectionEyebrow}>ALBUMS</Text>
+              <FlatList
+                horizontal
+                data={apkAlbumResults}
+                keyExtractor={(album) => String(album.id)}
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.rail}
+                initialNumToRender={4}
+                maxToRenderPerBatch={4}
+                windowSize={5}
+                removeClippedSubviews
+                renderItem={({ item: album }) => (
+                  <View style={styles.albumCardWrap}>
+                    <TouchableOpacity activeOpacity={0.88} style={styles.albumCard} onPress={() => playAlbumResult(album)}>
+                      <HTImage source={album} style={styles.albumImage} contentFit="cover" />
+                      <Text numberOfLines={2} style={styles.albumTitle}>{album.title}</Text>
+                      <Text numberOfLines={1} style={styles.albumArtist}>
+                        {getUserFacingArtist(album)}
+                      </Text>
+                    </TouchableOpacity>
+                    <FavoriteButton
+                      item={buildAlbumFavoriteItem({
+                        id: String(album.id),
+                        title: album.title,
+                        artist: album.artist,
+                        artwork: album.artwork,
+                      })}
+                      size={16}
+                    />
+                  </View>
+                )}
+              />
+            </View>
+          );
+
+        case "artists":
+          return (
+            <View style={styles.sectionBlock}>
+              <Text style={styles.sectionEyebrow}>ARTISTS</Text>
+              <FlatList
+                horizontal
+                data={apkArtistResults}
+                keyExtractor={(artist) => String(artist.id)}
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.rail}
+                initialNumToRender={4}
+                maxToRenderPerBatch={4}
+                windowSize={5}
+                removeClippedSubviews
+                renderItem={({ item: artist }) => (
+                  <View style={styles.albumCardWrap}>
+                    <TouchableOpacity activeOpacity={0.88} style={styles.artistCard} onPress={() => playArtistResult(artist)}>
+                      <HTImage source={artist} style={styles.artistImage} contentFit="cover" />
+                      <Text numberOfLines={2} style={styles.artistName}>{artist.name}</Text>
+                      <Text numberOfLines={1} style={styles.artistMeta}>{artist.songs.length} song{artist.songs.length === 1 ? "" : "s"}</Text>
+                    </TouchableOpacity>
+                    <FavoriteButton
+                      item={buildArtistFavoriteItem({
+                        id: String(artist.id),
+                        name: artist.name,
+                        artwork: artist.artwork,
+                      })}
+                      size={16}
+                    />
+                  </View>
+                )}
+              />
+            </View>
+          );
+
+        case "rooms":
+          return (
+            <View style={styles.sectionBlock}>
+              <Text style={styles.sectionEyebrow}>GENRES / ROOMS</Text>
+              <View style={styles.roomGrid}>
+                {apkRoomResults.map((genre) => (
+                  <TouchableOpacity key={genre.id} activeOpacity={0.86} style={styles.roomCard} onPress={() => playGenreResult(genre)}>
+                    <HTImage source={genre} style={styles.roomImage} contentFit="cover" />
+                    <LinearGradient pointerEvents="none" colors={["transparent", "rgba(0,0,0,0.74)"]} style={styles.roomShade} />
+                    <Text numberOfLines={1} style={styles.roomTitle}>{genre.title}</Text>
+                    <Text style={styles.roomMeta}>{genre.songs.length} tracks</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          );
+
+        case "stations":
+          return (
+            <View style={styles.sectionBlock}>
+              <Text style={styles.sectionEyebrow}>STATIONS / RADIO</Text>
+              <View style={styles.roomGrid}>
+                {apkStationResults.map((station) => (
+                  <TouchableOpacity
+                    key={`station-${station.id}`}
+                    activeOpacity={0.86}
+                    style={styles.roomCard}
+                    onPress={() => startSearchStation(station)}
+                  >
+                    {station.tracks[0] ? (
+                      <>
+                        <HTImage source={station.tracks[0]} style={styles.roomImage} contentFit="cover" />
+                        <LinearGradient pointerEvents="none" colors={["transparent", "rgba(0,0,0,0.74)"]} style={styles.roomShade} />
+                      </>
+                    ) : (
+                      <LinearGradient colors={GRADIENTS.card} style={styles.stationArt}>
+                        <Ionicons name="radio" size={28} color={COLORS.primaryGlow} />
+                      </LinearGradient>
+                    )}
+                    <Text numberOfLines={1} style={styles.roomTitle}>{station.title}</Text>
+                    <Text style={styles.roomMeta}>
+                      {getUserFacingRadioSubtitle({
+                        subtitle: station.subtitle,
+                        genre: station.kind === "room" ? "Mood room" : undefined,
+                      })}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          );
+
+        case "playlists":
+          return (
+            <View style={styles.sectionBlock}>
+              <Text style={styles.sectionEyebrow}>PLAYLISTS</Text>
+              <FlatList
+                horizontal
+                data={apkPlaylistResults}
+                keyExtractor={(playlist) => String(playlist.id)}
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.rail}
+                initialNumToRender={4}
+                maxToRenderPerBatch={4}
+                windowSize={5}
+                removeClippedSubviews
+                renderItem={({ item: playlist }) => (
+                  <TouchableOpacity
+                    activeOpacity={0.88}
+                    style={styles.albumCard}
+                    onPress={() => playPlaylistResult(playlist)}
+                  >
+                    <HTImage source={playlist} style={styles.albumImage} contentFit="cover" />
+                    <Text numberOfLines={2} style={styles.albumTitle}>{playlist.title}</Text>
+                    <Text numberOfLines={1} style={styles.albumArtist}>{playlist.description || "Collection"}</Text>
+                  </TouchableOpacity>
+                )}
+              />
+            </View>
+          );
+
+        case "external-audio":
+          return (
+            <View style={styles.sectionBlock}>
+              <Text style={styles.sectionEyebrow}>MORE LISTENING</Text>
+              {apkExternalAudioResults.map((song, index) => (
+                <TouchableOpacity
+                  key={`external-${song.id}-${index}`}
+                  activeOpacity={0.86}
+                  style={styles.songRow}
+                  onPress={() => playSearchResultSong(song, "external")}
+                >
+                  <LinearGradient colors={GRADIENTS.card} style={styles.coverBorder}>
+                    <HTImage source={song} style={styles.cover} contentFit="cover" />
+                  </LinearGradient>
+                  <View style={styles.songCopy}>
+                    <Text numberOfLines={1} style={styles.songTitle}>{song.title}</Text>
+                    <Text numberOfLines={1} style={styles.songArtist}>
+                      {getUserFacingArtist(song)}
+                    </Text>
+                    <Text numberOfLines={1} style={styles.songMeta}>
+                      {getUserFacingSongSubtitle(song)}
+                    </Text>
+                  </View>
+                  <FavoriteButton item={buildSongFavoriteItem(song)} size={18} />
+                  <View style={styles.playCircle}>
+                    <Ionicons
+                      name={(song as any).raw?.canPlayNatively === false ? "open-outline" : "play"}
+                      size={16}
+                      color={COLORS.text}
+                    />
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          );
+
+        case "tv":
+          return (
+            <View style={styles.sectionBlock}>
+              <Text style={styles.sectionEyebrow}>VIDEOS</Text>
+              {apkTvResults.map((hit, index) => {
+                const video = hit.payload as HiddenTunesTvVideo;
+                const normalizedItem = normalizeVideoItem(video);
+                const creator = getVideoDisplayCreator(normalizedItem);
+                const category =
+                  getVideoDisplayCategory(normalizedItem) ||
+                  getUserFacingVideoSubtitle(video, hit.subtitle) ||
+                  "Video";
+                return (
+                  <TouchableOpacity
+                    key={`tv-${video.id}-${index}`}
+                    activeOpacity={0.86}
+                    style={styles.songRow}
+                    onPress={() => openTv(video)}
+                  >
+                    <LinearGradient colors={GRADIENTS.card} style={styles.coverBorder}>
+                      <HTImage
+                        source={{ artwork: normalizedItem.thumbnailUrl || "" }}
+                        style={styles.cover}
+                        contentFit="cover"
+                      />
+                    </LinearGradient>
+                    <View style={styles.songCopy}>
+                      <Text numberOfLines={1} style={styles.songTitle}>{normalizedItem.title}</Text>
+                      <Text numberOfLines={1} style={styles.songArtist}>
+                        {creator}
+                      </Text>
+                      <Text numberOfLines={1} style={styles.songMeta}>{category}</Text>
+                    </View>
+                    <View style={styles.playCircle}>
+                      <Ionicons name="play" size={16} color={COLORS.text} />
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          );
+
+        case "radio-loading":
+          return (
+            <View style={styles.sectionBlock}>
+              <Text style={styles.sectionEyebrow}>RADIO STATIONS</Text>
+              <View style={styles.deferredLoadingRow}>
+                <ActivityIndicator size="small" color={COLORS.primary} />
+                <Text style={styles.deferredLoadingText}>Finding radio stations...</Text>
+              </View>
+            </View>
+          );
+
+        case "radio":
+          return (
+            <View style={styles.sectionBlock}>
+              <View style={styles.sectionHeaderRow}>
+                <Text style={styles.sectionEyebrow}>RADIO STATIONS</Text>
+                {deferredMedia.radioHasMore ? (
+                  <TouchableOpacity
+                    activeOpacity={0.86}
+                    onPress={() =>
+                      router.push({
+                        pathname: "/stations/search",
+                        params: { q: cleanSubmittedSearchQuery },
+                      } as any)
+                    }
+                  >
+                    <Text style={styles.seeMoreLink}>See more radio stations</Text>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+              {deferredMedia.radioStations.map((station) => (
+                <RadioStationCard
+                  key={`search-radio-${station.id}`}
+                  item={station}
+                  onPress={() => playSearchRadioStation(station)}
+                />
+              ))}
+            </View>
+          );
+
+        case "podcasts-loading":
+          return (
+            <View style={styles.sectionBlock}>
+              <Text style={styles.sectionEyebrow}>PODCASTS</Text>
+              <View style={styles.deferredLoadingRow}>
+                <ActivityIndicator size="small" color={COLORS.primary} />
+                <Text style={styles.deferredLoadingText}>Finding podcasts...</Text>
+              </View>
+            </View>
+          );
+
+        case "podcasts":
+          return (
+            <View style={styles.sectionBlock}>
+              <Text style={styles.sectionEyebrow}>PODCASTS</Text>
+              {deferredPodcasts.results.map((result, index) =>
+                result.kind === "show" && result.show ? (
+                  <PodcastShowCard
+                    key={`search-podcast-show-${result.show.id}-${index}`}
+                    show={result.show}
+                    onPress={() =>
+                      router.push({
+                        pathname: "/podcasts/show/[id]",
+                        params: { id: result.show!.id },
+                      } as any)
+                    }
+                  />
+                ) : result.episode ? (
+                  <PodcastEpisodeCard
+                    key={`search-podcast-episode-${result.episode.id}-${index}`}
+                    episode={result.episode}
+                    onPress={() => playSearchPodcastEpisode(result.episode!)}
+                  />
+                ) : null
+              )}
+            </View>
+          );
+
+        case "empty-results":
+          return (
+            <View style={styles.emptyPanel}>
+              <Ionicons name="search" size={34} color={COLORS.primaryGlow} />
+              <Text style={styles.emptyTitle}>No matches yet</Text>
+              <Text style={styles.emptyText}>Try another artist, genre, mood, or one of these searches.</Text>
+              <View style={[styles.chipRow, { justifyContent: "center", marginTop: 16 }]}>
+                {UNIVERSAL_SEARCH_EMPTY_SUGGESTIONS.slice(0, 4).map((chip) => (
+                  <TouchableOpacity
+                    key={chip}
+                    activeOpacity={0.86}
+                    style={styles.chipMuted}
+                    onPress={() => handleSuggestionPress(chip)}
+                  >
+                    <Text style={styles.chipMutedText}>{chip}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          );
+
+        case "discovery-chips":
+          return (
+            <View style={styles.discoveryPanel}>
+              <Text style={styles.sectionEyebrow}>TRENDING</Text>
+              <View style={styles.chipRow}>
+                {TRENDING_SEARCHES.map((chip) => (
+                  <TouchableOpacity
+                    key={chip}
+                    activeOpacity={0.86}
+                    style={styles.chip}
+                    onPress={() => handleSuggestionPress(chip)}
+                  >
+                    <Text style={styles.chipText}>{chip}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={[styles.sectionEyebrow, styles.sectionSpacing]}>TRY THESE</Text>
+              <View style={styles.chipRow}>
+                {UNIVERSAL_SEARCH_EMPTY_SUGGESTIONS.slice(0, 6).map((chip) => (
+                  <TouchableOpacity
+                    key={chip}
+                    activeOpacity={0.86}
+                    style={styles.chipMuted}
+                    onPress={() => handleSuggestionPress(chip)}
+                  >
+                    <Text style={styles.chipMutedText}>{chip}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          );
+
+        case "discovery-songs":
+          return (
+            <View style={styles.sectionBlock}>
+              <Text style={styles.sectionEyebrow}>FOR YOU</Text>
+              <Text style={styles.sectionTitle}>Quick picks</Text>
+              {discoverySongs.map((song, index) => (
+                <TouchableOpacity key={`pick-${song.id}-${index}`} activeOpacity={0.86} style={styles.songRow} onPress={() => playDiscoverySong(song, "Search Quick Picks")}>
+                  <LinearGradient colors={GRADIENTS.card} style={styles.coverBorder}>
+                    <HTImage source={song} style={styles.cover} contentFit="cover" />
+                  </LinearGradient>
+                  <View style={styles.songCopy}>
+                    <Text numberOfLines={1} style={styles.songTitle}>{song.title}</Text>
+                    <Text numberOfLines={1} style={styles.songArtist}>{getUserFacingArtist(song)}</Text>
+                    <Text numberOfLines={1} style={styles.songMeta}>{getUserFacingSongSubtitle(song)}</Text>
+                  </View>
+                  <View style={styles.playCircle}>
+                    <Ionicons name="play" size={16} color={COLORS.text} />
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          );
+
+        case "discovery-artists":
+          return (
+            <View style={styles.sectionBlock}>
+              <Text style={styles.sectionEyebrow}>ARTISTS</Text>
+              <Text style={styles.sectionTitle}>Popular artists</Text>
+              <FlatList
+                horizontal
+                data={discoveryArtists}
+                keyExtractor={(artist) => String(artist.id)}
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.rail}
+                initialNumToRender={4}
+                maxToRenderPerBatch={4}
+                windowSize={5}
+                removeClippedSubviews
+                renderItem={({ item: artist }) => (
+                  <TouchableOpacity
+                    activeOpacity={0.88}
+                    style={styles.artistCard}
+                    onPress={() => openArtist(artist)}
+                  >
+                    <HTImage source={artist} style={styles.artistImage} contentFit="cover" />
+                    <Text numberOfLines={2} style={styles.artistName}>
+                      {artist.name}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              />
+            </View>
+          );
+
+        case "discovery-albums":
+          return (
+            <View style={styles.sectionBlock}>
+              <Text style={styles.sectionEyebrow}>ALBUMS</Text>
+              <Text style={styles.sectionTitle}>Album spotlight</Text>
+              <FlatList
+                horizontal
+                data={discoveryAlbums}
+                keyExtractor={(album) => String(album.id)}
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.rail}
+                initialNumToRender={4}
+                maxToRenderPerBatch={4}
+                windowSize={5}
+                removeClippedSubviews
+                renderItem={({ item: album }) => (
+                  <TouchableOpacity
+                    activeOpacity={0.88}
+                    style={styles.albumCard}
+                    onPress={() => openAlbum(album)}
+                  >
+                    <HTImage source={album} style={styles.albumImage} contentFit="cover" />
+                    <Text numberOfLines={2} style={styles.albumTitle}>
+                      {album.title}
+                    </Text>
+                    <Text numberOfLines={1} style={styles.albumArtist}>
+                      {getUserFacingArtist(album)}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              />
+            </View>
+          );
+
+        case "discovery-genres":
+          return (
+            <View style={styles.sectionBlock}>
+              <Text style={styles.sectionEyebrow}>GENRES</Text>
+              <Text style={styles.sectionTitle}>Browse by mood & genre</Text>
+              <View style={styles.chipRow}>
+                {discoveryGenres.map((genre) => (
+                  <TouchableOpacity
+                    key={genre.id}
+                    activeOpacity={0.86}
+                    style={styles.genreChip}
+                    onPress={() => openGenre(genre)}
+                  >
+                    <Text style={styles.genreChipText}>{genre.title}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          );
+
+        default:
+          return null;
+      }
+    },
+    [
+      apkAlbumResults,
+      apkArtistResults,
+      apkExternalAudioResults,
+      apkPlaylistResults,
+      apkResultCount,
+      apkRoomResults,
+      apkSongResults,
+      apkStationResults,
+      apkTvResults,
+      cleanSubmittedSearchQuery,
+      deferredMedia.radioHasMore,
+      deferredMedia.radioStations,
+      deferredPodcasts.results,
+      discoveryAlbums,
+      discoveryArtists,
+      discoveryGenres,
+      discoverySongs,
+      handleSuggestionPress,
+      openAlbum,
+      openArtist,
+      openGenre,
+      openTv,
+      playAlbumResult,
+      playArtistResult,
+      playDiscoverySong,
+      playGenreResult,
+      playPlaylistResult,
+      playSearchPodcastEpisode,
+      playSearchRadioStation,
+      playSearchResultSong,
+      startSearchStation,
+    ]
+  );
+
   return (
     <AppShell>
       <LinearGradient colors={GRADIENTS.main} style={styles.screen}>
@@ -1644,7 +2344,11 @@ export default function SearchScreen() {
           style={styles.flex}
           behavior={Platform.OS === "ios" ? "padding" : undefined}
         >
-          <ScrollView
+          <FlatList
+            data={searchRenderBlocks}
+            keyExtractor={searchBlockKeyExtractor}
+            renderItem={renderSearchBlock}
+            ListHeaderComponent={renderSearchHeader}
             onScrollBeginDrag={() => markFastScrolling(true)}
             onMomentumScrollBegin={() => markFastScrolling(true)}
             onScrollEndDrag={() => markFastScrolling(false)}
@@ -1652,538 +2356,12 @@ export default function SearchScreen() {
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={styles.scrollContent}
-          >
-            <View style={styles.topBar}>
-              <TouchableOpacity style={styles.iconButton} onPress={() => router.back()} activeOpacity={0.85}>
-                <Ionicons name="chevron-back" size={24} color={COLORS.text} />
-              </TouchableOpacity>
-
-              <View style={styles.brandBlock}>
-                <Text style={styles.kicker}>DISCOVER</Text>
-                <Text style={styles.title}>Search</Text>
-              </View>
-
-              <View style={styles.iconSpacer} />
-            </View>
-
-            <View style={styles.searchPanel}>
-              <DebouncedSearchInput
-                value={searchQuery}
-                onImmediateChange={handleSearchImmediateChange}
-                onDebouncedChange={setSubmittedSearchQuery}
-                onClear={clearSearch}
-                placeholder="Find music"
-                placeholderTextColor={COLORS.textMuted}
-                style={styles.searchInput}
-                containerStyle={styles.searchInputShell}
-                autoFocus
-              />
-            </View>
-
-            {loading && songs.length === 0 && !hasSearchText ? (
-              <View style={styles.centerPanel}>
-                <ActivityIndicator size="large" color={COLORS.primary} />
-                <Text style={styles.loadingText}>Loading catalog...</Text>
-              </View>
-            ) : null}
-
-            {showSearchLoading ? (
-              <View style={styles.centerPanel}>
-                <ActivityIndicator size="small" color={COLORS.primary} />
-                <Text style={styles.loadingText}>Searching Hidden Tunes</Text>
-              </View>
-            ) : null}
-
-            {showSearchResults ? (
-              <View style={styles.resultsPanel}>
-                <View style={styles.resultSummaryRow}>
-                  <View>
-                    <Text style={styles.sectionEyebrow}>RESULTS</Text>
-                    <Text style={styles.sectionTitle}>{apkResultCount} match{apkResultCount === 1 ? "" : "es"}</Text>
-                  </View>
-                  {apkExternalAudioResults.length > 0 ? <Text style={styles.fallbackBadge}>More to discover</Text> : null}
-                </View>
-
-                {apkSongResults.length > 0 ? (
-                  <View style={styles.sectionBlock}>
-                    <Text style={styles.sectionEyebrow}>SONGS</Text>
-                    {apkSongResults.slice(0, 18).map((song, index) => (
-                      <SearchApkSongRow
-                        key={`song-${song.id}-${index}`}
-                        song={song as unknown as HiddenTunesNormalizedSong}
-                        onPress={() => playSearchResultSong(song, "song")}
-                        styles={styles}
-                      />
-                    ))}
-                  </View>
-                ) : null}
-
-                {apkAlbumResults.length > 0 ? (
-                  <View style={styles.sectionBlock}>
-                    <Text style={styles.sectionEyebrow}>ALBUMS</Text>
-                    <FlatList
-                      horizontal
-                      data={apkAlbumResults}
-                      keyExtractor={(album) => String(album.id)}
-                      showsHorizontalScrollIndicator={false}
-                      contentContainerStyle={styles.rail}
-                      initialNumToRender={4}
-                      maxToRenderPerBatch={4}
-                      windowSize={5}
-                      removeClippedSubviews
-                      renderItem={({ item: album }) => (
-                        <View style={styles.albumCardWrap}>
-                          <TouchableOpacity activeOpacity={0.88} style={styles.albumCard} onPress={() => playAlbumResult(album)}>
-                            <HTImage source={album} style={styles.albumImage} contentFit="cover" />
-                            <Text numberOfLines={2} style={styles.albumTitle}>{album.title}</Text>
-                            <Text numberOfLines={1} style={styles.albumArtist}>
-                              {getUserFacingArtist(album)}
-                            </Text>
-                          </TouchableOpacity>
-                          <FavoriteButton
-                            item={buildAlbumFavoriteItem({
-                              id: String(album.id),
-                              title: album.title,
-                              artist: album.artist,
-                              artwork: album.artwork,
-                            })}
-                            size={16}
-                          />
-                        </View>
-                      )}
-                    />
-                  </View>
-                ) : null}
-
-                {apkArtistResults.length > 0 ? (
-                  <View style={styles.sectionBlock}>
-                    <Text style={styles.sectionEyebrow}>ARTISTS</Text>
-                    <FlatList
-                      horizontal
-                      data={apkArtistResults}
-                      keyExtractor={(artist) => String(artist.id)}
-                      showsHorizontalScrollIndicator={false}
-                      contentContainerStyle={styles.rail}
-                      initialNumToRender={4}
-                      maxToRenderPerBatch={4}
-                      windowSize={5}
-                      removeClippedSubviews
-                      renderItem={({ item: artist }) => (
-                        <View style={styles.albumCardWrap}>
-                          <TouchableOpacity activeOpacity={0.88} style={styles.artistCard} onPress={() => playArtistResult(artist)}>
-                            <HTImage source={artist} style={styles.artistImage} contentFit="cover" />
-                            <Text numberOfLines={2} style={styles.artistName}>{artist.name}</Text>
-                            <Text numberOfLines={1} style={styles.artistMeta}>{artist.songs.length} song{artist.songs.length === 1 ? "" : "s"}</Text>
-                          </TouchableOpacity>
-                          <FavoriteButton
-                            item={buildArtistFavoriteItem({
-                              id: String(artist.id),
-                              name: artist.name,
-                              artwork: artist.artwork,
-                            })}
-                            size={16}
-                          />
-                        </View>
-                      )}
-                    />
-                  </View>
-                ) : null}
-
-                {apkRoomResults.length > 0 ? (
-                  <View style={styles.sectionBlock}>
-                    <Text style={styles.sectionEyebrow}>GENRES / ROOMS</Text>
-                    <View style={styles.roomGrid}>
-                      {apkRoomResults.map((genre) => (
-                        <TouchableOpacity key={genre.id} activeOpacity={0.86} style={styles.roomCard} onPress={() => playGenreResult(genre)}>
-                          <HTImage source={genre} style={styles.roomImage} contentFit="cover" />
-                          <LinearGradient pointerEvents="none" colors={["transparent", "rgba(0,0,0,0.74)"]} style={styles.roomShade} />
-                          <Text numberOfLines={1} style={styles.roomTitle}>{genre.title}</Text>
-                          <Text style={styles.roomMeta}>{genre.songs.length} tracks</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  </View>
-                ) : null}
-
-                {apkStationResults.length > 0 ? (
-                  <View style={styles.sectionBlock}>
-                    <Text style={styles.sectionEyebrow}>STATIONS / RADIO</Text>
-                    <View style={styles.roomGrid}>
-                      {apkStationResults.map((station) => (
-                        <TouchableOpacity
-                          key={`station-${station.id}`}
-                          activeOpacity={0.86}
-                          style={styles.roomCard}
-                          onPress={() => startSearchStation(station)}
-                        >
-                          {station.tracks[0] ? (
-                            <>
-                              <HTImage source={station.tracks[0]} style={styles.roomImage} contentFit="cover" />
-                              <LinearGradient pointerEvents="none" colors={["transparent", "rgba(0,0,0,0.74)"]} style={styles.roomShade} />
-                            </>
-                          ) : (
-                            <LinearGradient colors={GRADIENTS.card} style={styles.stationArt}>
-                              <Ionicons name="radio" size={28} color={COLORS.primaryGlow} />
-                            </LinearGradient>
-                          )}
-                          <Text numberOfLines={1} style={styles.roomTitle}>{station.title}</Text>
-                          <Text style={styles.roomMeta}>
-                            {getUserFacingRadioSubtitle({
-                              subtitle: station.subtitle,
-                              genre: station.kind === "room" ? "Mood room" : undefined,
-                            })}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  </View>
-                ) : null}
-
-                {apkPlaylistResults.length > 0 ? (
-                  <View style={styles.sectionBlock}>
-                    <Text style={styles.sectionEyebrow}>PLAYLISTS</Text>
-                    <FlatList
-                      horizontal
-                      data={apkPlaylistResults}
-                      keyExtractor={(playlist) => String(playlist.id)}
-                      showsHorizontalScrollIndicator={false}
-                      contentContainerStyle={styles.rail}
-                      initialNumToRender={4}
-                      maxToRenderPerBatch={4}
-                      windowSize={5}
-                      removeClippedSubviews
-                      renderItem={({ item: playlist }) => (
-                        <TouchableOpacity
-                          activeOpacity={0.88}
-                          style={styles.albumCard}
-                          onPress={() => playPlaylistResult(playlist)}
-                        >
-                          <HTImage source={playlist} style={styles.albumImage} contentFit="cover" />
-                          <Text numberOfLines={2} style={styles.albumTitle}>{playlist.title}</Text>
-                          <Text numberOfLines={1} style={styles.albumArtist}>{playlist.description || "Collection"}</Text>
-                        </TouchableOpacity>
-                      )}
-                    />
-                  </View>
-                ) : null}
-
-                {apkExternalAudioResults.length > 0 ? (
-                  <View style={styles.sectionBlock}>
-                    <Text style={styles.sectionEyebrow}>MORE LISTENING</Text>
-                    {apkExternalAudioResults.map((song, index) => (
-                      <TouchableOpacity
-                        key={`external-${song.id}-${index}`}
-                        activeOpacity={0.86}
-                        style={styles.songRow}
-                        onPress={() => playSearchResultSong(song, "external")}
-                      >
-                        <LinearGradient colors={GRADIENTS.card} style={styles.coverBorder}>
-                          <HTImage source={song} style={styles.cover} contentFit="cover" />
-                        </LinearGradient>
-                        <View style={styles.songCopy}>
-                          <Text numberOfLines={1} style={styles.songTitle}>{song.title}</Text>
-                          <Text numberOfLines={1} style={styles.songArtist}>
-                            {getUserFacingArtist(song)}
-                          </Text>
-                          <Text numberOfLines={1} style={styles.songMeta}>
-                            {getUserFacingSongSubtitle(song)}
-                          </Text>
-                        </View>
-                        <FavoriteButton item={buildSongFavoriteItem(song)} size={18} />
-                        <View style={styles.playCircle}>
-                          <Ionicons
-                            name={(song as any).raw?.canPlayNatively === false ? "open-outline" : "play"}
-                            size={16}
-                            color={COLORS.text}
-                          />
-                        </View>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                ) : null}
-
-                {apkTvResults.length > 0 ? (
-                  <View style={styles.sectionBlock}>
-                    <Text style={styles.sectionEyebrow}>VIDEOS</Text>
-                    {apkTvResults.map((hit, index) => {
-                      const video = hit.payload as HiddenTunesTvVideo;
-                      const item = normalizeVideoItem(video);
-                      const creator = getVideoDisplayCreator(item);
-                      const category =
-                        getVideoDisplayCategory(item) ||
-                        getUserFacingVideoSubtitle(video, hit.subtitle) ||
-                        "Video";
-                      return (
-                        <TouchableOpacity
-                          key={`tv-${video.id}-${index}`}
-                          activeOpacity={0.86}
-                          style={styles.songRow}
-                          onPress={() => openTv(video)}
-                        >
-                          <LinearGradient colors={GRADIENTS.card} style={styles.coverBorder}>
-                            <HTImage
-                              source={{ artwork: item.thumbnailUrl || "" }}
-                              style={styles.cover}
-                              contentFit="cover"
-                            />
-                          </LinearGradient>
-                          <View style={styles.songCopy}>
-                            <Text numberOfLines={1} style={styles.songTitle}>{item.title}</Text>
-                            <Text numberOfLines={1} style={styles.songArtist}>
-                              {creator}
-                            </Text>
-                            <Text numberOfLines={1} style={styles.songMeta}>{category}</Text>
-                          </View>
-                          <View style={styles.playCircle}>
-                            <Ionicons name="play" size={16} color={COLORS.text} />
-                          </View>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                ) : null}
-
-                {cleanSubmittedSearchQuery.length >= 2 && deferredMedia.radioLoading ? (
-                  <View style={styles.sectionBlock}>
-                    <Text style={styles.sectionEyebrow}>RADIO STATIONS</Text>
-                    <View style={styles.deferredLoadingRow}>
-                      <ActivityIndicator size="small" color={COLORS.primary} />
-                      <Text style={styles.deferredLoadingText}>Finding radio stations...</Text>
-                    </View>
-                  </View>
-                ) : null}
-
-                {cleanSubmittedSearchQuery.length >= 2 &&
-                deferredMedia.radioReadyForQuery &&
-                deferredMedia.radioStations.length > 0 ? (
-                  <View style={styles.sectionBlock}>
-                    <View style={styles.sectionHeaderRow}>
-                      <Text style={styles.sectionEyebrow}>RADIO STATIONS</Text>
-                      {deferredMedia.radioHasMore ? (
-                        <TouchableOpacity
-                          activeOpacity={0.86}
-                          onPress={() =>
-                            router.push({
-                              pathname: "/stations/search",
-                              params: { q: cleanSubmittedSearchQuery },
-                            } as any)
-                          }
-                        >
-                          <Text style={styles.seeMoreLink}>See more radio stations</Text>
-                        </TouchableOpacity>
-                      ) : null}
-                    </View>
-                    {deferredMedia.radioStations.map((station) => (
-                      <RadioStationCard
-                        key={`search-radio-${station.id}`}
-                        item={station}
-                        onPress={() => playSearchRadioStation(station)}
-                      />
-                    ))}
-                  </View>
-                ) : null}
-
-                {cleanSubmittedSearchQuery.length >= 2 && deferredPodcasts.loading ? (
-                  <View style={styles.sectionBlock}>
-                    <Text style={styles.sectionEyebrow}>PODCASTS</Text>
-                    <View style={styles.deferredLoadingRow}>
-                      <ActivityIndicator size="small" color={COLORS.primary} />
-                      <Text style={styles.deferredLoadingText}>Finding podcasts...</Text>
-                    </View>
-                  </View>
-                ) : null}
-
-                {cleanSubmittedSearchQuery.length >= 2 &&
-                deferredPodcasts.readyForQuery &&
-                deferredPodcasts.results.length > 0 ? (
-                  <View style={styles.sectionBlock}>
-                    <Text style={styles.sectionEyebrow}>PODCASTS</Text>
-                    {deferredPodcasts.results.map((result, index) =>
-                      result.kind === "show" && result.show ? (
-                        <PodcastShowCard
-                          key={`search-podcast-show-${result.show.id}-${index}`}
-                          show={result.show}
-                          onPress={() =>
-                            router.push({
-                              pathname: "/podcasts/show/[id]",
-                              params: { id: result.show!.id },
-                            } as any)
-                          }
-                        />
-                      ) : result.episode ? (
-                        <PodcastEpisodeCard
-                          key={`search-podcast-episode-${result.episode.id}-${index}`}
-                          episode={result.episode}
-                          onPress={() => playSearchPodcastEpisode(result.episode!)}
-                        />
-                      ) : null
-                    )}
-                  </View>
-                ) : null}
-
-                {apkResultCount === 0 &&
-                deferredMedia.radioStations.length === 0 &&
-                deferredPodcasts.results.length === 0 &&
-                !deferredMedia.radioLoading &&
-                !deferredPodcasts.loading ? (
-                  <View style={styles.emptyPanel}>
-                    <Ionicons name="search" size={34} color={COLORS.primaryGlow} />
-                    <Text style={styles.emptyTitle}>No matches yet</Text>
-                    <Text style={styles.emptyText}>Try another artist, genre, mood, or one of these searches.</Text>
-                    <View style={[styles.chipRow, { justifyContent: "center", marginTop: 16 }]}>
-                      {UNIVERSAL_SEARCH_EMPTY_SUGGESTIONS.slice(0, 4).map((chip) => (
-                        <TouchableOpacity
-                          key={chip}
-                          activeOpacity={0.86}
-                          style={styles.chipMuted}
-                          onPress={() => handleSuggestionPress(chip)}
-                        >
-                          <Text style={styles.chipMutedText}>{chip}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  </View>
-                ) : null}
-              </View>
-            ) : null}
-
-            {showDiscovery && !showSearchLoading ? (
-              <View style={styles.discoveryPanel}>
-                <Text style={styles.sectionEyebrow}>TRENDING</Text>
-                <View style={styles.chipRow}>
-                  {TRENDING_SEARCHES.map((chip) => (
-                    <TouchableOpacity
-                      key={chip}
-                      activeOpacity={0.86}
-                      style={styles.chip}
-                      onPress={() => handleSuggestionPress(chip)}
-                    >
-                      <Text style={styles.chipText}>{chip}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-
-                <Text style={[styles.sectionEyebrow, styles.sectionSpacing]}>TRY THESE</Text>
-                <View style={styles.chipRow}>
-                  {UNIVERSAL_SEARCH_EMPTY_SUGGESTIONS.slice(0, 6).map((chip) => (
-                    <TouchableOpacity
-                      key={chip}
-                      activeOpacity={0.86}
-                      style={styles.chipMuted}
-                      onPress={() => handleSuggestionPress(chip)}
-                    >
-                      <Text style={styles.chipMutedText}>{chip}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-
-                {discoverySongs.length > 0 ? (
-                  <View style={styles.sectionBlock}>
-                    <Text style={styles.sectionEyebrow}>FOR YOU</Text>
-                    <Text style={styles.sectionTitle}>Quick picks</Text>
-                    {discoverySongs.map((song, index) => (
-                      <TouchableOpacity key={`pick-${song.id}-${index}`} activeOpacity={0.86} style={styles.songRow} onPress={() => playDiscoverySong(song, "Search Quick Picks")}>
-                        <LinearGradient colors={GRADIENTS.card} style={styles.coverBorder}>
-                          <HTImage source={song} style={styles.cover} contentFit="cover" />
-                        </LinearGradient>
-                        <View style={styles.songCopy}>
-                          <Text numberOfLines={1} style={styles.songTitle}>{song.title}</Text>
-                          <Text numberOfLines={1} style={styles.songArtist}>{getUserFacingArtist(song)}</Text>
-                          <Text numberOfLines={1} style={styles.songMeta}>{getUserFacingSongSubtitle(song)}</Text>
-                        </View>
-                        <View style={styles.playCircle}>
-                          <Ionicons name="play" size={16} color={COLORS.text} />
-                        </View>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                ) : null}
-
-                {discoveryArtists.length > 0 ? (
-                  <View style={styles.sectionBlock}>
-                    <Text style={styles.sectionEyebrow}>ARTISTS</Text>
-                    <Text style={styles.sectionTitle}>Popular artists</Text>
-                    <FlatList
-                      horizontal
-                      data={discoveryArtists}
-                      keyExtractor={(artist) => String(artist.id)}
-                      showsHorizontalScrollIndicator={false}
-                      contentContainerStyle={styles.rail}
-                      initialNumToRender={4}
-                      maxToRenderPerBatch={4}
-                      windowSize={5}
-                      removeClippedSubviews
-                      renderItem={({ item: artist }) => (
-                        <TouchableOpacity
-                          activeOpacity={0.88}
-                          style={styles.artistCard}
-                          onPress={() => openArtist(artist)}
-                        >
-                          <HTImage source={artist} style={styles.artistImage} contentFit="cover" />
-                          <Text numberOfLines={2} style={styles.artistName}>
-                            {artist.name}
-                          </Text>
-                        </TouchableOpacity>
-                      )}
-                    />
-                  </View>
-                ) : null}
-
-                {discoveryAlbums.length > 0 ? (
-                  <View style={styles.sectionBlock}>
-                    <Text style={styles.sectionEyebrow}>ALBUMS</Text>
-                    <Text style={styles.sectionTitle}>Album spotlight</Text>
-                    <FlatList
-                      horizontal
-                      data={discoveryAlbums}
-                      keyExtractor={(album) => String(album.id)}
-                      showsHorizontalScrollIndicator={false}
-                      contentContainerStyle={styles.rail}
-                      initialNumToRender={4}
-                      maxToRenderPerBatch={4}
-                      windowSize={5}
-                      removeClippedSubviews
-                      renderItem={({ item: album }) => (
-                        <TouchableOpacity
-                          activeOpacity={0.88}
-                          style={styles.albumCard}
-                          onPress={() => openAlbum(album)}
-                        >
-                          <HTImage source={album} style={styles.albumImage} contentFit="cover" />
-                          <Text numberOfLines={2} style={styles.albumTitle}>
-                            {album.title}
-                          </Text>
-                          <Text numberOfLines={1} style={styles.albumArtist}>
-                            {getUserFacingArtist(album)}
-                          </Text>
-                        </TouchableOpacity>
-                      )}
-                    />
-                  </View>
-                ) : null}
-
-                {discoveryGenres.length > 0 ? (
-                  <View style={styles.sectionBlock}>
-                    <Text style={styles.sectionEyebrow}>GENRES</Text>
-                    <Text style={styles.sectionTitle}>Browse by mood & genre</Text>
-                    <View style={styles.chipRow}>
-                      {discoveryGenres.map((genre) => (
-                        <TouchableOpacity
-                          key={genre.id}
-                          activeOpacity={0.86}
-                          style={styles.genreChip}
-                          onPress={() => openGenre(genre)}
-                        >
-                          <Text style={styles.genreChipText}>{genre.title}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  </View>
-                ) : null}
-
-              </View>
-            ) : null}
-          </ScrollView>
+            initialNumToRender={5}
+            maxToRenderPerBatch={4}
+            updateCellsBatchingPeriod={50}
+            windowSize={7}
+            removeClippedSubviews
+          />
         </KeyboardAvoidingView>
       </LinearGradient>
       <MatureContentConsentModal
