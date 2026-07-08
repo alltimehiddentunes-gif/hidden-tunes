@@ -171,16 +171,25 @@ function MetadataEpisodeRow({ episode, index, onPress, playing }: MetadataEpisod
   );
 }
 
+function resolveRouteCategoryParam(value: string | string[] | undefined) {
+  if (Array.isArray(value)) return String(value[0] || "").trim();
+  return String(value || "").trim();
+}
+
 export default function PodcastCategoryScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ id?: string }>();
-  const categoryId = resolvePodcastCategoryId(String(params.id || ""));
+  const params = useLocalSearchParams<{ id?: string | string[] }>();
+  const rawCategoryId = resolveRouteCategoryParam(params.id);
+  const backendSlug = useMemo(
+    () => resolveBackendPodcastCategorySlug(rawCategoryId),
+    [rawCategoryId]
+  );
+  const categoryId = backendSlug ? rawCategoryId : resolvePodcastCategoryId(rawCategoryId);
   const category = useMemo(() => getPodcastCategory(categoryId), [categoryId]);
   const parentSection = useMemo(
     () => PODCAST_ROOT_SECTIONS.find((section) => section.id === categoryId),
     [categoryId]
   );
-  const backendSlug = useMemo(() => resolveBackendPodcastCategorySlug(categoryId), [categoryId]);
   const usesBackendEpisodes = Boolean(backendSlug);
 
   const { playPodcastEpisodeFromShow } = usePlaybackRouter();
@@ -334,9 +343,12 @@ export default function PodcastCategoryScreen() {
 
   if (!category && !parentSection && !backendSlug) {
     return (
-      <View style={styles.fallback}>
-        <Text style={styles.fallbackText}>Category not found</Text>
-      </View>
+      <LinearGradient colors={["#030008", "#090214", "#000000"]} style={styles.screen}>
+        <CategoryPodcastHeader title="Podcasts" subtitle="Category not found" kicker="PODCASTS" />
+        <View style={styles.fallback}>
+          <Text style={styles.fallbackText}>Category not found</Text>
+        </View>
+      </LinearGradient>
     );
   }
 
@@ -541,7 +553,7 @@ const styles = StyleSheet.create({
   section: { gap: 8 },
   sectionTitleWrap: { marginTop: 4 },
   sectionTitle: { color: COLORS.text, fontSize: 16, fontWeight: "800", marginBottom: 8 },
-  fallback: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#000" },
+  fallback: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24 },
   fallbackText: { color: COLORS.textMuted },
   centerState: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24, gap: 12 },
   stateText: { color: COLORS.textMuted },
