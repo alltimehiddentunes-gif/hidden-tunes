@@ -1,7 +1,7 @@
-import { memo, useEffect } from "react";
+import { memo, useCallback, useEffect } from "react";
 import {
+  FlatList,
   Image,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -173,7 +173,7 @@ const LibraryHeroGlow = memo(function LibraryHeroGlow() {
   );
 });
 
-function LibrarySectionCard({ section }: { section: LibrarySection }) {
+const LibrarySectionCard = memo(function LibrarySectionCard({ section }: { section: LibrarySection }) {
   return (
     <TouchableOpacity
       activeOpacity={0.9}
@@ -197,57 +197,79 @@ function LibrarySectionCard({ section }: { section: LibrarySection }) {
       </LinearGradient>
     </TouchableOpacity>
   );
+});
+
+function LibraryHero() {
+  return (
+    <LinearGradient colors={GRADIENTS.cardElevated} style={styles.hero}>
+      <LibraryHeroGlow />
+
+      <View style={styles.logoFrame}>
+        <Image
+          source={require("../assets/images/logo.png")}
+          style={styles.logoImage}
+          resizeMode="contain"
+        />
+      </View>
+
+      <Text style={styles.heroEyebrow}>HIDDEN TUNES</Text>
+      <Text numberOfLines={2} ellipsizeMode="tail" style={styles.heroTitle}>
+        Your Library
+      </Text>
+      <Text numberOfLines={2} ellipsizeMode="tail" style={styles.heroSubtitle}>
+        Playlists, favorites, live radio, and downloads in one place.
+      </Text>
+    </LinearGradient>
+  );
+}
+
+function LibraryRecentLink() {
+  return (
+    <TouchableOpacity
+      activeOpacity={0.88}
+      style={styles.recentLink}
+      onPress={() => router.push("/recently-played" as any)}
+    >
+      <Ionicons name="time" size={18} color={COLORS.cyan} />
+      <Text style={styles.recentLinkText}>Recently Played</Text>
+      <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
+    </TouchableOpacity>
+  );
 }
 
 export default function LibraryScreen() {
+  const renderGroup = useCallback(
+    ({ item: group }: { item: (typeof LIBRARY_GROUPS)[number] }) => (
+      <View style={styles.groupBlock}>
+        <Text style={styles.gridLabel}>{group.label}</Text>
+        <View style={styles.grid}>
+          {group.sections.map((section) => (
+            <LibrarySectionCard key={section.id} section={section} />
+          ))}
+        </View>
+      </View>
+    ),
+    []
+  );
+
+  const keyExtractor = useCallback((group: (typeof LIBRARY_GROUPS)[number]) => group.id, []);
+
   return (
     <AppShell>
       <LinearGradient colors={GRADIENTS.main} style={styles.container}>
-        <ScrollView
+        <FlatList
+          data={LIBRARY_GROUPS}
+          keyExtractor={keyExtractor}
+          renderItem={renderGroup}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
-        >
-          <LinearGradient colors={GRADIENTS.cardElevated} style={styles.hero}>
-            <LibraryHeroGlow />
-
-            <View style={styles.logoFrame}>
-              <Image
-                source={require("../assets/images/logo.png")}
-                style={styles.logoImage}
-                resizeMode="contain"
-              />
-            </View>
-
-            <Text style={styles.heroEyebrow}>HIDDEN TUNES</Text>
-            <Text numberOfLines={2} ellipsizeMode="tail" style={styles.heroTitle}>
-              Your Library
-            </Text>
-            <Text numberOfLines={2} ellipsizeMode="tail" style={styles.heroSubtitle}>
-              Playlists, favorites, live radio, and downloads in one place.
-            </Text>
-          </LinearGradient>
-
-          {LIBRARY_GROUPS.map((group) => (
-            <View key={group.id} style={styles.groupBlock}>
-              <Text style={styles.gridLabel}>{group.label}</Text>
-              <View style={styles.grid}>
-                {group.sections.map((section) => (
-                  <LibrarySectionCard key={section.id} section={section} />
-                ))}
-              </View>
-            </View>
-          ))}
-
-          <TouchableOpacity
-            activeOpacity={0.88}
-            style={styles.recentLink}
-            onPress={() => router.push("/recently-played" as any)}
-          >
-            <Ionicons name="time" size={18} color={COLORS.cyan} />
-            <Text style={styles.recentLinkText}>Recently Played</Text>
-            <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
-          </TouchableOpacity>
-        </ScrollView>
+          ListHeaderComponent={LibraryHero}
+          ListFooterComponent={LibraryRecentLink}
+          initialNumToRender={2}
+          maxToRenderPerBatch={2}
+          windowSize={3}
+          removeClippedSubviews
+        />
       </LinearGradient>
     </AppShell>
   );

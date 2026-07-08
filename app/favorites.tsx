@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo } from "react";
 import {
-  ScrollView,
+  SectionList,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
+  type SectionListRenderItemInfo,
 } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
@@ -33,7 +34,7 @@ type FavoriteSection = {
   id: string;
   title: string;
   type: FavoriteItemType;
-  items: UnifiedFavoriteItem[];
+  data: UnifiedFavoriteItem[];
 };
 
 const SECTION_ORDER: Array<{ type: FavoriteItemType; title: string }> = [
@@ -70,8 +71,8 @@ export default function FavoritesScreen() {
       id: type,
       type,
       title,
-      items: visibleFavorites.filter((item) => item.type === type),
-    })).filter((section) => section.items.length > 0) as FavoriteSection[];
+      data: visibleFavorites.filter((item) => item.type === type),
+    })).filter((section) => section.data.length > 0) as FavoriteSection[];
   }, [visibleFavorites]);
 
   const totalVisible = visibleFavorites.length;
@@ -157,49 +158,63 @@ export default function FavoritesScreen() {
     return "musical-notes";
   };
 
-  const renderFavoriteRow = (item: UnifiedFavoriteItem, index: number) => {
-    const isSong = item.type === "song";
-    const active = isSong && String(currentSong?.id || "") === String(item.id || "");
+  const renderFavoriteRow = useCallback(
+    ({ item }: SectionListRenderItemInfo<UnifiedFavoriteItem, FavoriteSection>) => {
+      const isSong = item.type === "song";
+      const active = isSong && String(currentSong?.id || "") === String(item.id || "");
 
-    return (
-      <TouchableOpacity
-        key={`${item.type}-${item.id}-${index}`}
-        style={[styles.row, active && styles.rowActive]}
-        activeOpacity={0.85}
-        onPress={() => openFavorite(item)}
-      >
-        <LinearGradient colors={GRADIENTS.neon} style={styles.coverBorder}>
-          <HTImage
-            source={{ artwork: item.artwork, cover: item.artwork, thumbnail: item.artwork }}
-            style={styles.cover}
-            contentFit="cover"
-          />
-        </LinearGradient>
+      return (
+        <TouchableOpacity
+          style={[styles.row, active && styles.rowActive]}
+          activeOpacity={0.85}
+          onPress={() => openFavorite(item)}
+        >
+          <LinearGradient colors={GRADIENTS.neon} style={styles.coverBorder}>
+            <HTImage
+              source={{ artwork: item.artwork, cover: item.artwork, thumbnail: item.artwork }}
+              style={styles.cover}
+              contentFit="cover"
+            />
+          </LinearGradient>
 
-        <View style={styles.copy}>
-          <View style={styles.badgeRow}>
-            <Ionicons name={typeIcon(item.type) as any} size={13} color={COLORS.primary} />
-            <Text style={styles.badgeText}>{item.source || "Hidden Tunes"}</Text>
-            <MatureContentBadge item={item.metadata} />
-          </View>
-          <Text numberOfLines={1} style={[styles.title, active && styles.titleActive]}>
-            {item.title}
-          </Text>
-          {item.subtitle ? (
-            <Text numberOfLines={1} style={styles.subtitle}>
-              {item.subtitle}
+          <View style={styles.copy}>
+            <View style={styles.badgeRow}>
+              <Ionicons name={typeIcon(item.type) as any} size={13} color={COLORS.primary} />
+              <Text style={styles.badgeText}>{item.source || "Hidden Tunes"}</Text>
+              <MatureContentBadge item={item.metadata} />
+            </View>
+            <Text numberOfLines={1} style={[styles.title, active && styles.titleActive]}>
+              {item.title}
             </Text>
-          ) : null}
-        </View>
+            {item.subtitle ? (
+              <Text numberOfLines={1} style={styles.subtitle}>
+                {item.subtitle}
+              </Text>
+            ) : null}
+          </View>
 
-        {active ? (
-          <NeonEQ isPlaying={isPlaying} size="small" />
-        ) : (
-          <FavoriteButton item={item} size={22} />
-        )}
-      </TouchableOpacity>
-    );
-  };
+          {active ? (
+            <NeonEQ isPlaying={isPlaying} size="small" />
+          ) : (
+            <FavoriteButton item={item} size={22} />
+          )}
+        </TouchableOpacity>
+      );
+    },
+    [currentSong?.id, isPlaying, openFavorite]
+  );
+
+  const renderSectionHeader = useCallback(
+    ({ section }: { section: FavoriteSection }) => (
+      <Text style={styles.sectionEyebrow}>{section.title.toUpperCase()}</Text>
+    ),
+    []
+  );
+
+  const favoriteKeyExtractor = useCallback(
+    (item: UnifiedFavoriteItem, index: number) => `${item.type}-${item.id}-${index}`,
+    []
+  );
 
   return (
     <AppShell>
@@ -228,21 +243,34 @@ export default function FavoritesScreen() {
             />
           </View>
         ) : (
-          <ScrollView
+          <SectionList
+            sections={sections}
+            keyExtractor={favoriteKeyExtractor}
+            renderItem={renderFavoriteRow}
+            renderSectionHeader={renderSectionHeader}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.listContent}
-          >
-            {sections.map((section) => (
-              <View key={section.id} style={styles.sectionBlock}>
-                <Text style={styles.sectionEyebrow}>{section.title.toUpperCase()}</Text>
-                {section.items.map((item, index) => renderFavoriteRow(item, index))}
-              </View>
-            ))}
-          </ScrollView>
+            stickySectionHeadersEnabled={false}
+            ItemSeparatorComponent={FavoriteItemSeparator}
+            SectionSeparatorComponent={FavoriteSectionSeparator}
+            initialNumToRender={10}
+            maxToRenderPerBatch={8}
+            updateCellsBatchingPeriod={50}
+            windowSize={7}
+            removeClippedSubviews
+          />
         )}
       </LinearGradient>
     </AppShell>
   );
+}
+
+function FavoriteItemSeparator() {
+  return <View style={styles.itemSeparator} />;
+}
+
+function FavoriteSectionSeparator() {
+  return <View style={styles.sectionSeparator} />;
 }
 
 const styles = StyleSheet.create({
@@ -299,10 +327,6 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingBottom: 180,
-    gap: 18,
-  },
-  sectionBlock: {
-    gap: 10,
   },
   sectionEyebrow: {
     color: COLORS.textMuted,
@@ -310,6 +334,12 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     letterSpacing: 1.4,
     marginBottom: 4,
+  },
+  itemSeparator: {
+    height: 10,
+  },
+  sectionSeparator: {
+    height: 18,
   },
   row: {
     backgroundColor: "rgba(255,255,255,0.055)",

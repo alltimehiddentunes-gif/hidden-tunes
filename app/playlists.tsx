@@ -5,7 +5,6 @@ import {
   Modal,
   Pressable,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -138,13 +137,7 @@ export default function PlaylistsScreen() {
   );
   const [renameText, setRenameText] = useState("");
 
-  useFocusEffect(
-    useCallback(() => {
-      loadPlaylists();
-    }, [])
-  );
-
-  async function loadPlaylists() {
+  const loadPlaylists = useCallback(async () => {
     try {
       const [userData, catalog] = await Promise.all([
         getUserPlaylists(),
@@ -165,16 +158,22 @@ export default function PlaylistsScreen() {
       setPlaylists([]);
       setSmartPlaylists([]);
     }
-  }
+  }, []);
 
-  async function handleRefresh() {
+  useFocusEffect(
+    useCallback(() => {
+      void loadPlaylists();
+    }, [loadPlaylists])
+  );
+
+  const handleRefresh = useCallback(async () => {
     try {
       setRefreshing(true);
       await loadPlaylists();
     } finally {
       setRefreshing(false);
     }
-  }
+  }, [loadPlaylists]);
 
   function openRenameModal(playlist: UserPlaylist) {
     setSelectedPlaylist(playlist);
@@ -261,7 +260,7 @@ export default function PlaylistsScreen() {
     [filteredPlaylists.length]
   );
 
-  function openPlaylist(playlist: LibraryPlaylist) {
+  const openPlaylist = useCallback((playlist: LibraryPlaylist) => {
     if (isCatalogSmartPlaylist(playlist)) {
       router.push({
         pathname: "/playlist/[id]",
@@ -279,13 +278,13 @@ export default function PlaylistsScreen() {
       pathname: "/playlist/[id]",
       params: { id: playlist.id },
     } as any);
-  }
+  }, []);
 
-  function confirmRenamePlaylist(playlist: UserPlaylist) {
+  const confirmRenamePlaylist = useCallback((playlist: UserPlaylist) => {
     openRenameModal(playlist);
-  }
+  }, []);
 
-  function renderPlaylistCard(item: LibraryPlaylist, smart = false) {
+  const renderPlaylistCard = useCallback((item: LibraryPlaylist, smart = false) => {
     return (
       <TouchableOpacity
         key={item.id}
@@ -339,7 +338,40 @@ export default function PlaylistsScreen() {
         />
       </TouchableOpacity>
     );
-  }
+  }, [confirmRenamePlaylist, openPlaylist]);
+
+  const renderPlaylistItem = useCallback(
+    ({ item }: { item: UserPlaylist }) => renderPlaylistCard(item, false),
+    [renderPlaylistCard]
+  );
+
+  const renderSmartPlaylistItem = useCallback(
+    ({ item }: { item: SmartPlaylist }) => (
+      <TouchableOpacity
+        activeOpacity={0.86}
+        style={styles.smartCard}
+        onPress={() => openPlaylist(item)}
+      >
+        <HTImage source={item} style={styles.smartCover} contentFit="cover" />
+
+        <View style={styles.smartMiniBadge}>
+          <Ionicons name="sparkles" size={10} color="#000" />
+          <Text style={styles.smartMiniBadgeText}>SMART</Text>
+        </View>
+
+        <Text style={styles.smartTitle} numberOfLines={2}>
+          {item.title}
+        </Text>
+
+        <Text style={styles.smartMeta} numberOfLines={1}>
+          {item.tracks.length} tracks
+        </Text>
+      </TouchableOpacity>
+    ),
+    [openPlaylist]
+  );
+
+  const playlistKeyExtractor = useCallback((item: LibraryPlaylist) => item.id, []);
 
   return (
     <AppShell>
@@ -453,35 +485,18 @@ export default function PlaylistsScreen() {
                   </Text>
                 </View>
 
-                <ScrollView
+                <FlatList
                   horizontal
+                  data={filteredSmartPlaylists}
+                  keyExtractor={playlistKeyExtractor}
+                  renderItem={renderSmartPlaylistItem}
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={styles.smartRow}
-                >
-                  {filteredSmartPlaylists.map((item) => (
-                    <TouchableOpacity
-                      key={item.id}
-                      activeOpacity={0.86}
-                      style={styles.smartCard}
-                      onPress={() => openPlaylist(item)}
-                    >
-                      <HTImage source={item} style={styles.smartCover} contentFit="cover" />
-
-                      <View style={styles.smartMiniBadge}>
-                        <Ionicons name="sparkles" size={10} color="#000" />
-                        <Text style={styles.smartMiniBadgeText}>SMART</Text>
-                      </View>
-
-                      <Text style={styles.smartTitle} numberOfLines={2}>
-                        {item.title}
-                      </Text>
-
-                      <Text style={styles.smartMeta} numberOfLines={1}>
-                        {item.tracks.length} tracks
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
+                  initialNumToRender={4}
+                  maxToRenderPerBatch={4}
+                  windowSize={5}
+                  removeClippedSubviews
+                />
               </>
             )}
 
@@ -526,7 +541,7 @@ export default function PlaylistsScreen() {
         windowSize={playlistListPerformance.windowSize}
         updateCellsBatchingPeriod={playlistListPerformance.updateCellsBatchingPeriod}
         removeClippedSubviews={playlistListPerformance.removeClippedSubviews}
-        renderItem={({ item }) => renderPlaylistCard(item, false)}
+        renderItem={renderPlaylistItem}
       />
 
       <Modal visible={renameVisible} transparent animationType="fade">
