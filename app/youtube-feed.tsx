@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  FlatList,
   ScrollView,
   StyleSheet,
   Text,
@@ -14,16 +13,18 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import AppShell from "../components/navigation/AppShell";
+import TvBrowseCategories from "../components/tv/TvBrowseCategories";
 import TvVideoCard from "../components/tv/TvVideoCard";
+import type { TvBrowseCategory } from "@/constants/tvBrowseCategories";
 import { COLORS, GRADIENTS } from "@/constants/theme";
 import {
-  ARCHIVE_CONCERT_LANE_ID,
   fetchArchiveConcertLane,
+  fetchTvCategories,
+  fetchTvCategoryLane,
   fetchTvHomeLanes,
   fetchTvSearchVideos,
+  filterAdminHomeLanes,
   loadTvHomeCache,
-  mergeArchiveLaneIntoLanes,
-  saveTvHomeCache,
   TV_LANE_PAGE_LIMIT,
   type HiddenTunesTvVideo,
   type TvHomeLane,
@@ -40,6 +41,11 @@ function displayLaneTitle(title: string) {
 
 export default function YouTubeFeedScreen() {
   const [lanes, setLanes] = useState<TvLane[]>([]);
+  const [browseCategories, setBrowseCategories] = useState<TvBrowseCategory[]>([]);
+  const [activeCategorySlug, setActiveCategorySlug] = useState<string | null>(null);
+  const [categoryLane, setCategoryLane] = useState<TvLane | null>(null);
+  const [categoryLaneLoading, setCategoryLaneLoading] = useState(false);
+  const [archiveLane, setArchiveLane] = useState<TvLane | null>(null);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [searching, setSearching] = useState(false);
@@ -52,77 +58,70 @@ export default function YouTubeFeedScreen() {
 
   const featuredLane = lanes.find((lane) => lane.id === "featured");
   const recentlyAddedLane = lanes.find((lane) => lane.id === "recent");
-  const channelLanes = lanes.filter((lane) => !["featured", "recent"].includes(lane.id));
+  const channelLanes = lanes.filter(
+    (lane) => !["featured", "recent"].includes(lane.id)
+  );
   const featuredVideo = featuredLane?.videos[0];
   const hasSearchText = query.trim().length > 0;
+
+  const loadArchiveLane = useCallback(async () => {
+    setArchiveLaneLoading(true);
+    try {
+      const lane = await fetchArchiveConcertLane();
+      setArchiveLane(lane.videos.length > 0 ? lane : null);
+    } catch {
+      setArchiveLane(null);
+    } finally {
+      setArchiveLaneLoading(false);
+    }
+  }, []);
 
   const loadTv = useCallback(async () => {
     setLoading(true);
     try {
       const cached = await loadTvHomeCache();
-      const cachedHasArchiveLane = cached?.lanes?.some(
-        (lane) => lane.id === ARCHIVE_CONCERT_LANE_ID && lane.videos.length > 0
-      );
       if (cached?.lanes?.length) {
-        setLanes(cached.lanes);
+        setLanes(filterAdminHomeLanes(cached.lanes));
         setLoading(false);
-
-        if (!cachedHasArchiveLane) {
-          setArchiveLaneLoading(true);
-        }
-
-        void fetchArchiveConcertLane()
-          .then((archiveLane) => {
-            setLanes((previous) => {
-              const next = mergeArchiveLaneIntoLanes(previous, archiveLane);
-              if (next.some((lane) => lane.videos.length > 0)) {
-                void saveTvHomeCache({
-                  version: 1,
-                  savedAt: new Date().toISOString(),
-                  lanes: next,
-                });
-              }
-              return next;
-            });
-          })
-          .finally(() => {
-            setArchiveLaneLoading(false);
-          });
-        return;
       }
 
-      const data = await fetchTvHomeLanes();
-      if (data.lanes.length) setLanes(data.lanes);
+      const [home, categories] = await Promise.all([
+        fetchTvHomeLanes(),
+        fetchTvCategories(),
+      ]);
 
-      setArchiveLaneLoading(true);
+      if (home.lanes.length) {
+        setLanes(filterAdminHomeLanes(home.lanes));
+      } else if (!cached?.lanes?.length) {
+        setLanes([]);
+      }
 
-      void fetchArchiveConcertLane()
-        .then((archiveLane) => {
-          setLanes((previous) => {
-            const next = mergeArchiveLaneIntoLanes(previous, archiveLane);
-            if (next.some((lane) => lane.videos.length > 0)) {
-              void saveTvHomeCache({
-                version: 1,
-                savedAt: new Date().toISOString(),
-                lanes: next,
-              });
-            }
-            return next;
-          });
-        })
-        .finally(() => {
-          setArchiveLaneLoading(false);
-        });
+      setBrowseCategories(categories);
+      void loadArchiveLane();
     } catch {
       setLanes([]);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [loadArchiveLane]);
 
   useEffect(() => {
     void loadTv();
   }, [loadTv]);
+
+  const handleSelectCategory = useCallback((category: TvBrowseCategory) => {
+    setActiveCategorySlug(category.slug);
+    setCategoryLaneLoading(true);
+    setCategoryLane(null);
+
+    void fetchTvCategoryLane(category)
+      .then((lane) => {
+        setCategoryLane(lane.videos.length > 0 ? lane : null);
+      })
+      .finally(() => {
+        setCategoryLaneLoading(false);
+      });
+  }, []);
 
   useEffect(() => {
     const clean = query.trim();
@@ -163,27 +162,46 @@ export default function YouTubeFeedScreen() {
   }, [query]);
 
   const openVideo = useCallback((video: HiddenTunesTvVideo, queueVideos?: HiddenTunesTvVideo[]) => {
-    openVideoItem(video, { queueVideos: queueVideos?.length ? queueVideos : [video] });
+    void openVideoItem(video, { queueVideos: queueVideos?.length ? queueVideos : [video] });
   }, []);
 
-  const renderLane = useCallback((lane: TvLane) => {
-    if (!lane.videos.length) return null;
-    return (
-      <View key={lane.id} style={styles.laneSection}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>{displayLaneTitle(lane.title)}</Text>
-          <Text style={styles.sectionMeta}>{lane.videos.length} ready</Text>
+  const renderLane = useCallback(
+    (lane: TvLane) => {
+      if (!lane.videos.length) return null;
+      return (
+        <View key={lane.id} style={styles.laneSection}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>{displayLaneTitle(lane.title)}</Text>
+            <Text style={styles.sectionMeta}>{lane.videos.length} ready</Text>
+          </View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.railContent}
+          >
+            {lane.videos.map((video) => (
+              <TvVideoCard
+                key={video.id}
+                video={video}
+                width={railCardWidth}
+                onPress={(item) => openVideo(item, lane.videos)}
+              />
+            ))}
+          </ScrollView>
         </View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.railContent}>
-          {lane.videos.map((video) => (
-            <TvVideoCard key={video.id} video={video} width={railCardWidth} onPress={(item) => openVideo(item, lane.videos)} />
-          ))}
-        </ScrollView>
-      </View>
-    );
-  }, [openVideo, railCardWidth]);
+      );
+    },
+    [openVideo, railCardWidth]
+  );
 
-  const searchLane = useMemo<TvLane>(() => ({ id: "search", title: "Search Results", videos: searchResults }), [searchResults]);
+  const searchLane = useMemo<TvLane>(
+    () => ({ id: "search", title: "Search Results", videos: searchResults }),
+    [searchResults]
+  );
+
+  const hasAdminContent =
+    lanes.some((lane) => lane.videos.length > 0) ||
+    Boolean(categoryLane?.videos.length);
 
   return (
     <AppShell>
@@ -238,33 +256,68 @@ export default function YouTubeFeedScreen() {
                 <View style={styles.emptyBox}>
                   <Ionicons name="search" size={42} color={COLORS.textMuted} />
                   <Text style={styles.emptyTitle}>No TV matches</Text>
-                  <Text style={styles.emptyText}>Try another artist, genre, or concert title.</Text>
+                  <Text style={styles.emptyText}>Try another channel, genre, or show title.</Text>
                 </View>
               ) : null}
             </View>
-          ) : lanes.some((lane) => lane.videos.length > 0) ? (
+          ) : (
             <>
-              {featuredVideo ? (
-                <View style={styles.featuredSection}>
-                  <Text style={styles.sectionEyebrow}>FEATURED NOW</Text>
-                  <TvVideoCard video={featuredVideo} width={featuredWidth} onPress={(item) => openVideo(item, featuredLane?.videos)} />
+              {browseCategories.length > 0 ? (
+                <TvBrowseCategories
+                  categories={browseCategories}
+                  activeCategory={activeCategorySlug}
+                  onSelectCategory={handleSelectCategory}
+                />
+              ) : null}
+
+              {categoryLaneLoading ? (
+                <View style={styles.centerBlock}>
+                  <ActivityIndicator size="small" color={COLORS.primary} />
+                  <Text style={styles.loadingText}>Loading category</Text>
+                </View>
+              ) : categoryLane ? (
+                renderLane(categoryLane)
+              ) : activeCategorySlug ? (
+                <View style={styles.emptyBox}>
+                  <Text style={styles.emptyTitle}>No stations in this category</Text>
+                  <Text style={styles.emptyText}>Try another TV category.</Text>
                 </View>
               ) : null}
-              {recentlyAddedLane ? renderLane(recentlyAddedLane) : null}
-              {channelLanes.map(renderLane)}
+
+              {hasAdminContent ? (
+                <>
+                  {featuredVideo ? (
+                    <View style={styles.featuredSection}>
+                      <Text style={styles.sectionEyebrow}>FEATURED NOW</Text>
+                      <TvVideoCard
+                        video={featuredVideo}
+                        width={featuredWidth}
+                        onPress={(item) => openVideo(item, featuredLane?.videos)}
+                      />
+                    </View>
+                  ) : null}
+                  {recentlyAddedLane ? renderLane(recentlyAddedLane) : null}
+                  {channelLanes.map(renderLane)}
+                </>
+              ) : !categoryLaneLoading && !activeCategorySlug ? (
+                <View style={styles.emptyBox}>
+                  <Ionicons name="tv" size={58} color={COLORS.primary} />
+                  <Text style={styles.emptyTitle}>No TV stations right now</Text>
+                  <Text style={styles.emptyText}>
+                    Hidden Tunes TV loads from the admin catalog when stations are playable.
+                  </Text>
+                </View>
+              ) : null}
+
               {archiveLaneLoading ? (
                 <View style={styles.centerBlock}>
                   <ActivityIndicator size="small" color={COLORS.primary} />
                   <Text style={styles.loadingText}>Loading concert vault</Text>
                 </View>
+              ) : archiveLane ? (
+                renderLane(archiveLane)
               ) : null}
             </>
-          ) : (
-            <View style={styles.emptyBox}>
-              <Ionicons name="tv" size={58} color={COLORS.primary} />
-              <Text style={styles.emptyTitle}>No TV videos right now</Text>
-              <Text style={styles.emptyText}>Hidden Tunes TV metadata will appear here when the backend returns videos.</Text>
-            </View>
           )}
         </ScrollView>
       </LinearGradient>
@@ -274,27 +327,86 @@ export default function YouTubeFeedScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, paddingTop: 52, paddingHorizontal: 18 },
-  glowPurple: { position: "absolute", top: -50, left: -90, width: 210, height: 210, borderRadius: 105, backgroundColor: "rgba(168,85,247,0.12)" },
-  glowCyan: { position: "absolute", top: 210, right: -120, width: 240, height: 240, borderRadius: 120, backgroundColor: "rgba(34,211,238,0.07)" },
+  glowPurple: {
+    position: "absolute",
+    top: -50,
+    left: -90,
+    width: 210,
+    height: 210,
+    borderRadius: 105,
+    backgroundColor: "rgba(168,85,247,0.12)",
+  },
+  glowCyan: {
+    position: "absolute",
+    top: 210,
+    right: -120,
+    width: 240,
+    height: 240,
+    borderRadius: 120,
+    backgroundColor: "rgba(34,211,238,0.07)",
+  },
   scrollContent: { paddingBottom: 150 },
   header: { flexDirection: "row", alignItems: "center", gap: 13, marginBottom: 16 },
-  headerIcon: { width: 44, height: 44, borderRadius: 17, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(168,85,247,0.13)", borderWidth: 1, borderColor: "rgba(168,85,247,0.24)" },
+  headerIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 17,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(168,85,247,0.13)",
+    borderWidth: 1,
+    borderColor: "rgba(168,85,247,0.24)",
+  },
   headerCopy: { flex: 1 },
   kicker: { color: COLORS.cyan, fontSize: 11, fontWeight: "900", letterSpacing: 1.8 },
   title: { color: COLORS.text, fontSize: 27, fontWeight: "900", marginTop: 3 },
-  searchShell: { minHeight: 50, borderRadius: 23, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", gap: 9, backgroundColor: "rgba(12,5,24,0.82)", borderWidth: 1, borderColor: "rgba(255,255,255,0.09)", marginBottom: 18 },
+  searchShell: {
+    minHeight: 50,
+    borderRadius: 23,
+    paddingHorizontal: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 9,
+    backgroundColor: "rgba(12,5,24,0.82)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.09)",
+    marginBottom: 18,
+  },
   searchInput: { flex: 1, color: COLORS.text, fontSize: 15, fontWeight: "700", paddingVertical: 0 },
-  centerBlock: { minHeight: 160, alignItems: "center", justifyContent: "center", gap: 10 },
+  centerBlock: { minHeight: 120, alignItems: "center", justifyContent: "center", gap: 10 },
   loadingText: { color: COLORS.textMuted, fontSize: 12, fontWeight: "800" },
   featuredSection: { marginBottom: 24 },
-  sectionEyebrow: { color: COLORS.primaryGlow, fontSize: 10, fontWeight: "900", letterSpacing: 1.5, marginBottom: 10 },
+  sectionEyebrow: {
+    color: COLORS.primaryGlow,
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 1.5,
+    marginBottom: 10,
+  },
   laneSection: { marginBottom: 24 },
-  sectionHeader: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", marginBottom: 12 },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
   sectionTitle: { color: COLORS.text, fontSize: 20, fontWeight: "900" },
   sectionMeta: { color: COLORS.textMuted, fontSize: 12, fontWeight: "800" },
   railContent: { paddingRight: 18 },
   searchResultsWrap: { minHeight: 180 },
-  emptyBox: { minHeight: 240, alignItems: "center", justifyContent: "center", paddingHorizontal: 20 },
-  emptyTitle: { color: COLORS.text, fontSize: 20, fontWeight: "900", marginTop: 14, textAlign: "center" },
-  emptyText: { color: COLORS.textMuted, textAlign: "center", fontSize: 13, lineHeight: 19, marginTop: 8 },
+  emptyBox: { minHeight: 180, alignItems: "center", justifyContent: "center", paddingHorizontal: 20 },
+  emptyTitle: {
+    color: COLORS.text,
+    fontSize: 20,
+    fontWeight: "900",
+    marginTop: 14,
+    textAlign: "center",
+  },
+  emptyText: {
+    color: COLORS.textMuted,
+    textAlign: "center",
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: 8,
+  },
 });

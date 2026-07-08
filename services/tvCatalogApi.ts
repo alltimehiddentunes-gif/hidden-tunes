@@ -1,15 +1,23 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+import {
+  buildTvBrowseCategoryFallback,
+  TV_LANE_FALLBACK_QUERIES,
+  type TvBrowseCategory,
+} from "../constants/tvBrowseCategories";
 import { getVideoDisplayCreator, normalizeVideoItem } from "./videos/videoNormalizer";
 import { fetchArchiveConcertVideos } from "./videos/archiveVideoDiscovery";
 
+export type { TvBrowseCategory };
+
 export const TV_CATALOG_BASE_URL = "https://admin.hiddentunes.com";
 export const TV_CATALOG_API_PATH = "/api/tv/videos";
+export const TV_CATEGORIES_API_PATH = "/api/tv/categories";
 export const TV_PLAY_API_PATH = "/api/tv/videos";
 export const TV_DEFAULT_PAGE_LIMIT = 20;
 export const TV_LANE_PAGE_LIMIT = 12;
-export const TV_HOME_CACHE_KEY = "hidden_tunes_tv_home_cache_v2";
-export const TV_HOME_CACHE_TTL_MS = 1000 * 60 * 60 * 12;
+export const TV_HOME_CACHE_KEY = "hidden_tunes_tv_home_cache_v3";
+export const TV_HOME_CACHE_TTL_MS = 1000 * 60 * 30;
 
 const BLOCKED_BROWSE_KEYS = new Set([
   "audioUrl",
@@ -102,48 +110,71 @@ export type TvHomeCachePayload = {
   }>;
 };
 
-export const TV_PREMIUM_LANES: TvCatalogLane[] = [
+export const TV_HOME_LANES: TvCatalogLane[] = [
   {
     id: "featured",
     title: "Featured Now",
-    query: { page: 1, limit: TV_LANE_PAGE_LIMIT },
+    query: { page: 1, limit: TV_LANE_PAGE_LIMIT, featured: true },
   },
   {
     id: "recent",
     title: "Recently Added",
-    query: { page: 2, limit: TV_LANE_PAGE_LIMIT },
+    query: { page: 1, limit: TV_LANE_PAGE_LIMIT },
   },
   {
-    id: "blues",
-    title: "Blues TV",
-    query: { page: 1, limit: TV_LANE_PAGE_LIMIT, genre: "Blues" },
+    id: "news",
+    title: "News",
+    query: { page: 1, limit: TV_LANE_PAGE_LIMIT, category: "News" },
   },
   {
-    id: "afro-soul",
-    title: "Afro Soul TV",
-    query: { page: 1, limit: TV_LANE_PAGE_LIMIT, genre: "Afro Soul" },
+    id: "sports",
+    title: "Sports",
+    query: { page: 1, limit: TV_LANE_PAGE_LIMIT, category: "Sports" },
   },
   {
-    id: "jazz",
-    title: "Jazz Lounge",
-    query: { page: 1, limit: TV_LANE_PAGE_LIMIT, genre: "Jazz" },
+    id: "movies",
+    title: "Movies",
+    query: { page: 1, limit: TV_LANE_PAGE_LIMIT, category: "Movies" },
   },
   {
-    id: "gospel",
-    title: "Gospel Inspiration",
-    query: { page: 1, limit: TV_LANE_PAGE_LIMIT, genre: "Gospel" },
+    id: "entertainment",
+    title: "Entertainment",
+    query: { page: 1, limit: TV_LANE_PAGE_LIMIT, category: "Entertainment" },
   },
   {
     id: "documentary",
-    title: "Documentary Nights",
-    query: { page: 1, limit: TV_LANE_PAGE_LIMIT, format: "Documentaries" },
+    title: "Documentary",
+    query: { page: 1, limit: TV_LANE_PAGE_LIMIT, category: "Documentary" },
   },
   {
-    id: "live",
-    title: "Live Performances",
-    query: { page: 1, limit: TV_LANE_PAGE_LIMIT, format: "Live Performances" },
+    id: "music-tv",
+    title: "Music TV",
+    query: { page: 1, limit: TV_LANE_PAGE_LIMIT, category: "Music TV" },
+  },
+  {
+    id: "motivation",
+    title: "Motivation",
+    query: { page: 1, limit: TV_LANE_PAGE_LIMIT, category: "Motivation" },
+  },
+  {
+    id: "faith",
+    title: "Faith & Worship",
+    query: { page: 1, limit: TV_LANE_PAGE_LIMIT, category: "Faith & Worship" },
+  },
+  {
+    id: "africa",
+    title: "Africa",
+    query: { page: 1, limit: TV_LANE_PAGE_LIMIT, category: "Africa" },
+  },
+  {
+    id: "emotional-worlds",
+    title: "Emotional Worlds",
+    query: { page: 1, limit: TV_LANE_PAGE_LIMIT, category: "Emotional Worlds" },
   },
 ];
+
+/** @deprecated Use TV_HOME_LANES */
+export const TV_PREMIUM_LANES = TV_HOME_LANES;
 
 function cleanText(value: unknown, maxLength = 500) {
   if (typeof value !== "string") return null;
@@ -387,15 +418,80 @@ export type TvHomeLane = {
   videos: HiddenTunesTvVideo[];
 };
 
-function dedupeTvVideos(videos: HiddenTunesTvVideo[]) {
-  const seen = new Set<string>();
+export async function fetchTvCategories(options?: {
+  signal?: AbortSignal;
+}): Promise<TvBrowseCategory[]> {
+  try {
+    const response = await fetch(`${TV_CATALOG_BASE_URL}${TV_CATEGORIES_API_PATH}`, {
+      method: "GET",
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+      signal: options?.signal,
+    });
 
-  return videos.filter((video) => {
-    const key = String(video.id || video.source_id || "").trim();
-    if (!key || seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
+    const payload = (await response.json()) as Record<string, unknown>;
+    if (!response.ok || payload.success === false) {
+      return buildTvBrowseCategoryFallback();
+    }
+
+    const categories = ((payload.categories || []) as Record<string, unknown>[])
+      .map((row) => {
+        const name = String(row.name || "").trim();
+        const slug = String(row.slug || row.id || "").trim();
+        if (!name || !slug) return null;
+
+        return {
+          id: slug,
+          name,
+          slug,
+          parentSlug: cleanText(row.parent_slug, 120) || null,
+        } satisfies TvBrowseCategory;
+      })
+      .filter((row): row is TvBrowseCategory => row !== null);
+
+    return categories.length ? categories : buildTvBrowseCategoryFallback();
+  } catch {
+    return buildTvBrowseCategoryFallback();
+  }
+}
+
+async function fetchLaneVideos(lane: TvCatalogLane, options?: { signal?: AbortSignal }) {
+  const attempts = [
+    lane.query,
+    ...(TV_LANE_FALLBACK_QUERIES[lane.id] || []).map((fallback) => ({
+      ...lane.query,
+      ...fallback,
+    })),
+  ];
+
+  for (const query of attempts) {
+    const response = await fetchTvCatalog(query, options);
+    if (response.success && response.videos.length > 0) {
+      return response.videos;
+    }
+  }
+
+  return [] as HiddenTunesTvVideo[];
+}
+
+export async function fetchTvCategoryLane(
+  category: TvBrowseCategory,
+  options?: { signal?: AbortSignal }
+): Promise<TvHomeLane> {
+  const response = await fetchTvCatalog(
+    {
+      page: 1,
+      limit: TV_LANE_PAGE_LIMIT,
+      category: category.name,
+    },
+    options
+  );
+
+  return {
+    id: `category-${category.slug}`,
+    title: category.name,
+    videos: response.success ? response.videos : [],
+  };
 }
 
 export async function fetchArchiveConcertLane(options?: {
@@ -422,29 +518,22 @@ export async function fetchTvSearchVideos(
   if (cleanQuery.length < 2) return [] as HiddenTunesTvVideo[];
 
   const limit = Math.max(1, Number(options?.limit || TV_LANE_PAGE_LIMIT * 2));
+  const backendResponse = await fetchTvCatalog(
+    { q: cleanQuery, page: 1, limit },
+    { signal: options?.signal }
+  );
 
-  const [backendResponse, archiveVideos] = await Promise.all([
-    fetchTvCatalog({ q: cleanQuery, page: 1, limit }, { signal: options?.signal }),
-    fetchArchiveConcertVideos({
-      query: cleanQuery,
-      signal: options?.signal,
-      rows: limit,
-      useCache: false,
-    }),
-  ]);
-
-  const backendVideos = backendResponse.success ? backendResponse.videos : [];
-  return dedupeTvVideos([...backendVideos, ...archiveVideos]).slice(0, limit);
+  return backendResponse.success ? backendResponse.videos.slice(0, limit) : [];
 }
 
-export async function fetchTvHomeLanes() {
+export async function fetchTvHomeLanes(options?: { signal?: AbortSignal }) {
   const laneResults = await Promise.all(
-    TV_PREMIUM_LANES.map(async (lane) => {
-      const response = await fetchTvCatalog(lane.query);
+    TV_HOME_LANES.map(async (lane) => {
+      const videos = await fetchLaneVideos(lane, options);
       return {
         id: lane.id,
         title: lane.title,
-        videos: response.success ? response.videos : [],
+        videos,
       };
     })
   );
@@ -466,15 +555,20 @@ export async function fetchTvHomeLanes() {
   };
 }
 
+export function filterAdminHomeLanes(lanes: TvHomeLane[]) {
+  return lanes.filter((lane) => lane.id !== ARCHIVE_CONCERT_LANE_ID);
+}
+
+/** @deprecated Archive lane is no longer merged into the admin home cache. */
 export function mergeArchiveLaneIntoLanes(
   lanes: TvHomeLane[],
   archiveLane: TvHomeLane
 ) {
   if (!archiveLane.videos.length) {
-    return lanes.filter((lane) => lane.id !== ARCHIVE_CONCERT_LANE_ID);
+    return filterAdminHomeLanes(lanes);
   }
 
-  return [...lanes.filter((lane) => lane.id !== ARCHIVE_CONCERT_LANE_ID), archiveLane];
+  return [...filterAdminHomeLanes(lanes), archiveLane];
 }
 
 export function buildTvPlayerQueueItem(

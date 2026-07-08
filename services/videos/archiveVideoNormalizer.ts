@@ -40,8 +40,6 @@ export function archiveVideoDocumentToTvVideo(
     title,
     source_type: "archive",
     source_id: identifier,
-    source_url: `https://archive.org/details/${encodedIdentifier}`,
-    embed_url: `https://archive.org/embed/${encodedIdentifier}`,
     thumbnail_url: `https://archive.org/services/img/${encodedIdentifier}`,
     channel_name: creator,
     categories: ["Concerts", "Live Performances", ...tags].slice(0, 16),

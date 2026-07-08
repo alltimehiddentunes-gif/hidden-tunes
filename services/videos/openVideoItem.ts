@@ -92,10 +92,8 @@ async function resolvePlayback(video: HiddenTunesTvVideo): Promise<HiddenTunesTv
       id: video.id,
       source_type: "archive",
       source_id: sourceId,
-      stream_url:
-        video.source_url || `https://archive.org/details/${encodeURIComponent(sourceId)}`,
-      embed_url:
-        video.embed_url || `https://archive.org/embed/${encodeURIComponent(sourceId)}`,
+      stream_url: `https://archive.org/details/${encodeURIComponent(sourceId)}`,
+      embed_url: `https://archive.org/embed/${encodeURIComponent(sourceId)}`,
     };
   }
 
