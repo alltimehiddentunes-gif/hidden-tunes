@@ -49,12 +49,14 @@ function isArchiveVideo(video: HiddenTunesTvVideo) {
   return video.source_type === "archive" || video.id.startsWith("archive-");
 }
 
-function isHlsLikeSource(sourceType: string) {
+function isHlsLikeSource(sourceType: string, streamUrl = "") {
   const normalized = sourceType.trim().toLowerCase();
+  const normalizedUrl = streamUrl.trim().toLowerCase();
   return (
     normalized === "hls_stream" ||
     normalized === "m3u_playlist" ||
-    normalized.endsWith("_stream")
+    normalized.endsWith("_stream") ||
+    /\.m3u8(?:$|[?#])/.test(normalizedUrl)
   );
 }
 
@@ -116,11 +118,18 @@ export async function openVideoItem(
     };
   }
 
-  if (isHlsLikeSource(playback.source_type)) {
-    return {
-      ok: false,
-      error: "This live stream isn't available in the mobile TV player yet.",
-    };
+  if (isHlsLikeSource(playback.source_type, playback.stream_url)) {
+    router.push({
+      pathname: "/tv-player",
+      params: {
+        id: rawVideo.id,
+        title: rawVideo.title || "Hidden Tunes TV",
+        streamUrl: playback.stream_url,
+        sourceType: playback.source_type,
+      },
+    } as any);
+
+    return { ok: true };
   }
 
   const enrichedVideo = withPlayback(rawVideo, playback);
