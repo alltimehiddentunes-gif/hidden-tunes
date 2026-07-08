@@ -1,6 +1,8 @@
 import type {
   AudiobookCategory,
   AudiobookChapter,
+  AudiobookChapterPlayItem,
+  AudiobookChapterQueuePlayResponse,
   AudiobookDetail,
   AudiobookItem,
   AudiobookPage,
@@ -398,6 +400,76 @@ export async function fetchAudiobookDetail(
     chapters: (payload.chapters || [])
       .map((chapter) => normalizeChapter(chapter))
       .filter((chapter): chapter is AudiobookChapter => Boolean(chapter)),
+  };
+}
+
+function normalizeChapterPlayItem(raw: Record<string, unknown>): AudiobookChapterPlayItem | null {
+  const chapter = normalizeChapter(raw);
+  if (!chapter) return null;
+
+  const audioUrl = cleanText(raw.audio_url, 2000);
+  if (!audioUrl) return null;
+
+  const file = (raw.file || {}) as Record<string, unknown>;
+  return {
+    ...chapter,
+    audio_url: audioUrl,
+    file: {
+      id: String(file.id || ""),
+      audiobook_id: String(file.audiobook_id || chapter.audiobook_id),
+      chapter_id: cleanText(file.chapter_id, 120) || chapter.id,
+      title: cleanText(file.title, 300) || chapter.title,
+      audio_url: cleanText(file.audio_url, 2000) || audioUrl,
+      duration_seconds: Number.isFinite(Number(file.duration_seconds))
+        ? Number(file.duration_seconds)
+        : chapter.duration_seconds,
+      format: cleanText(file.format, 80),
+      mime_type: cleanText(file.mime_type, 120),
+      bitrate: Number.isFinite(Number(file.bitrate)) ? Number(file.bitrate) : null,
+    },
+  };
+}
+
+export async function fetchAudiobookChapterQueuePlay(
+  bookId: string,
+  fromChapterId: string,
+  signal?: AbortSignal
+): Promise<AudiobookChapterQueuePlayResponse> {
+  const payload = await fetchAudiobookJson<{
+    audiobook_id?: string;
+    audiobook?: Record<string, unknown>;
+    from_chapter_id?: string;
+    start_index?: number;
+    chapters?: Record<string, unknown>[];
+  }>(
+    buildAudiobookUrl(
+      `/api/audiobooks/${encodeURIComponent(bookId)}/chapters/play`,
+      { from: fromChapterId }
+    ),
+    signal
+  );
+
+  const audiobook = payload.audiobook
+    ? normalizeAudiobookItem(payload.audiobook)
+    : null;
+  if (!audiobook || audiobook.is_mature) {
+    throw new Error("audiobook_not_found");
+  }
+
+  const chapters = (payload.chapters || [])
+    .map((chapter) => normalizeChapterPlayItem(chapter))
+    .filter((chapter): chapter is AudiobookChapterPlayItem => Boolean(chapter));
+
+  if (!chapters.length) {
+    throw new Error("audiobook_chapter_audio_unavailable");
+  }
+
+  return {
+    audiobook_id: String(payload.audiobook_id || audiobook.id),
+    audiobook,
+    from_chapter_id: String(payload.from_chapter_id || fromChapterId),
+    start_index: normalizeNumber(payload.start_index, 0),
+    chapters,
   };
 }
 

@@ -81,3 +81,26 @@ export type AudiobookPlayResponse = {
     bitrate?: number | null;
   };
 };
+
+export type AudiobookChapterPlayItem = AudiobookChapter & {
+  audio_url: string;
+  file?: {
+    id: string;
+    audiobook_id: string;
+    chapter_id?: string | null;
+    title?: string | null;
+    audio_url: string;
+    duration_seconds?: number | null;
+    format?: string | null;
+    mime_type?: string | null;
+    bitrate?: number | null;
+  };
+};
+
+export type AudiobookChapterQueuePlayResponse = {
+  audiobook_id: string;
+  audiobook: AudiobookItem;
+  from_chapter_id: string;
+  start_index: number;
+  chapters: AudiobookChapterPlayItem[];
+};
