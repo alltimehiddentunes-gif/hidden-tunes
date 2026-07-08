@@ -76,6 +76,21 @@ export type AudiobookPublicChapter = {
   created_at: string | null;
 };
 
+export type AudiobookChapterPlayItem = AudiobookPublicChapter & {
+  audio_url: string;
+  file?: {
+    id: string;
+    audiobook_id: string;
+    chapter_id: string | null;
+    title: string | null;
+    audio_url: string;
+    duration_seconds: number | null;
+    format: string | null;
+    mime_type: string | null;
+    bitrate: number | null;
+  };
+};
+
 export function parseAudiobookPage(value: string | null) {
   return parsePositiveInt(value, 1, 10_000);
 }
@@ -340,6 +355,88 @@ export async function loadAudiobookDetail(idParam: string, mature: boolean) {
     chapters: ((chapters || []) as Record<string, unknown>[]).map(
       toAudiobookPublicChapter
     ),
+  };
+}
+
+function toAudiobookPlayFile(row: Record<string, unknown>) {
+  const audioUrl = isPlayableAudiobookAudioUrl(row.audio_url);
+  if (!audioUrl) return null;
+
+  return {
+    id: String(row.id || ""),
+    audiobook_id: String(row.audiobook_id || ""),
+    chapter_id: cleanText(row.chapter_id, 120),
+    title: cleanText(row.title, 300),
+    audio_url: audioUrl,
+    duration_seconds: parseOptionalNumber(row.duration_seconds),
+    format: cleanText(row.format, 80),
+    mime_type: cleanText(row.mime_type, 120),
+    bitrate: parseOptionalNumber(row.bitrate),
+  };
+}
+
+export async function loadAudiobookChapterQueuePlayback(
+  idParam: string,
+  fromChapterId: string,
+  mature: boolean
+) {
+  const detail = await loadAudiobookDetail(idParam, mature);
+  if (!detail) return null;
+
+  const fromId = cleanText(fromChapterId, 120);
+  if (!fromId) return null;
+
+  const fromIndex = detail.chapters.findIndex((chapter) => chapter.id === fromId);
+  if (fromIndex < 0) return null;
+
+  const remaining = detail.chapters.slice(fromIndex);
+  const chapterIds = remaining.map((chapter) => chapter.id);
+  if (!chapterIds.length) {
+    return {
+      audiobook: detail.audiobook,
+      from_chapter_id: fromId,
+      start_index: fromIndex,
+      chapters: [] as AudiobookChapterPlayItem[],
+    };
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from("audiobook_files")
+    .select(`${AUDIOBOOK_PLAY_SELECT}, chapter_id`)
+    .eq("audiobook_id", detail.audiobook.id)
+    .eq("is_active", true)
+    .eq("playback_status", "playable")
+    .in("chapter_id", chapterIds)
+    .order("is_primary", { ascending: false })
+    .order("created_at", { ascending: true });
+
+  if (error) throw error;
+
+  const filesByChapter = new Map<string, ReturnType<typeof toAudiobookPlayFile>>();
+  for (const row of (data || []) as Record<string, unknown>[]) {
+    const chapterId = cleanText(row.chapter_id, 120);
+    if (!chapterId || filesByChapter.has(chapterId)) continue;
+    const file = toAudiobookPlayFile(row);
+    if (file) filesByChapter.set(chapterId, file);
+  }
+
+  const chapters: AudiobookChapterPlayItem[] = [];
+  for (const chapter of remaining) {
+    const file = filesByChapter.get(chapter.id);
+    if (!file) continue;
+    chapters.push({
+      ...chapter,
+      duration_seconds: chapter.duration_seconds ?? file.duration_seconds,
+      audio_url: file.audio_url,
+      file,
+    });
+  }
+
+  return {
+    audiobook: detail.audiobook,
+    from_chapter_id: fromId,
+    start_index: fromIndex,
+    chapters,
   };
 }
 
