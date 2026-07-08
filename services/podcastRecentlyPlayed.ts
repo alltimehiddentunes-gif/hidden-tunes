@@ -73,6 +73,14 @@ async function migrateLegacyRecentlyPlayed() {
   return valid;
 }
 
+async function purgeLegacyRecentlyPlayedStorage() {
+  try {
+    await AsyncStorage.removeItem(LEGACY_RECENT_KEY);
+  } catch {
+    // ignore storage errors
+  }
+}
+
 export async function loadPodcastRecentlyPlayed(limit = 20): Promise<PodcastEpisode[]> {
   try {
     const raw = await readStoredEpisodes(RECENT_KEY);
@@ -80,8 +88,11 @@ export async function loadPodcastRecentlyPlayed(limit = 20): Promise<PodcastEpis
 
     if (!items.length) {
       items = await migrateLegacyRecentlyPlayed();
-    } else if (raw.length !== items.length) {
-      await persistRecentlyPlayed(items);
+    } else {
+      await purgeLegacyRecentlyPlayedStorage();
+      if (raw.length !== items.length) {
+        await persistRecentlyPlayed(items);
+      }
     }
 
     return items.slice(0, limit);

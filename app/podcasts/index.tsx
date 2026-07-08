@@ -13,7 +13,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 
 import AppShell from "../../components/navigation/AppShell";
-import { PodcastEpisodeCard, PodcastShowCard } from "../../components/podcast/PodcastCards";
+import { PodcastEpisodeCard } from "../../components/podcast/PodcastCards";
 import MaturePodcastConsentModal from "../../components/podcast/MaturePodcastConsentModal";
 import PodcastScreenHeader from "../../components/podcast/PodcastScreenHeader";
 import PodcastSearchBar from "../../components/podcast/PodcastSearchBar";
@@ -46,7 +46,7 @@ export default function PodcastHomeScreen() {
   const { playPodcastEpisode } = usePlaybackRouter();
   const { consentVisible, runWithMaturePodcastConsent, cancelConsent, confirmConsent } =
     useMaturePodcastGate();
-  const { recentlyPlayed, homeShowSections, error } = usePodcastHome();
+  const { recentlyPlayed, error } = usePodcastHome();
   const { query, setQuery, results, hasQuery } = usePodcastLocalSearch();
 
   const openShow = useCallback((showId: string) => {
@@ -158,19 +158,6 @@ export default function PodcastHomeScreen() {
                   </View>
                 )}
               </View>
-
-              {homeShowSections.map((section) => (
-                <View key={section.id} style={styles.sectionBlock}>
-                  <SectionHeader title={section.title} />
-                  {section.shows.map((show) => (
-                    <PodcastShowCard
-                      key={`${section.id}-${show.id}`}
-                      show={show}
-                      onPress={() => openShow(show.id)}
-                    />
-                  ))}
-                </View>
-              ))}
 
               <TouchableOpacity
                 activeOpacity={0.88}
