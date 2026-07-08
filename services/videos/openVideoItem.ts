@@ -49,9 +49,9 @@ function isArchiveVideo(video: HiddenTunesTvVideo) {
   return video.source_type === "archive" || video.id.startsWith("archive-");
 }
 
-function isYouTubeLikeSource(sourceType: string, streamUrl = "", embedUrl = "") {
+function isYouTubeLikeSource(sourceType: string, streamUrl = "") {
   const normalized = sourceType.trim().toLowerCase();
-  const normalizedUrl = `${streamUrl} ${embedUrl}`.trim().toLowerCase();
+  const normalizedUrl = streamUrl.trim().toLowerCase();
 
   return (
     normalized === "youtube" ||
@@ -66,21 +66,21 @@ function shouldOpenTvPlayer(playback: HiddenTunesTvPlayback) {
 
   const normalized = playback.source_type.trim().toLowerCase();
   const normalizedUrl = playback.stream_url.trim().toLowerCase();
-
-  if (normalized === "archive") return false;
-  if (isYouTubeLikeSource(playback.source_type, playback.stream_url, playback.embed_url || "")) {
-    return false;
-  }
-
-  return (
+  const isHlsOrStream =
     normalized === "hls_stream" ||
     normalized === "m3u_playlist" ||
     normalized.includes("hls") ||
     normalized.includes("stream") ||
     normalized.endsWith("_stream") ||
-    /\.m3u8(?:$|[?#])/.test(normalizedUrl) ||
-    Boolean(playback.stream_url)
-  );
+    /\.m3u8(?:$|[?#])/.test(normalizedUrl);
+
+  if (normalized === "archive") return false;
+  if (isHlsOrStream) return true;
+  if (isYouTubeLikeSource(playback.source_type, playback.stream_url)) {
+    return false;
+  }
+
+  return Boolean(playback.stream_url);
 }
 
 async function resolvePlayback(video: HiddenTunesTvVideo): Promise<HiddenTunesTvPlayback | null> {
