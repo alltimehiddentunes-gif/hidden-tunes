@@ -108,6 +108,10 @@ export const PodcastEpisodeCard = memo(function PodcastEpisodeCard({
   index = 0,
   browseOnly = false,
 }: PodcastEpisodeCardProps) {
+  if (!episode?.id?.trim() || !episode?.title?.trim()) {
+    return null;
+  }
+
   const hasAudio =
     browseOnly ||
     Boolean(episode.audioUrl?.trim() && isPlayablePodcastAudioUrl(episode.audioUrl));

@@ -25,9 +25,11 @@ import { usePodcastHome } from "../../hooks/usePodcastHome";
 import { usePodcastLocalSearch } from "../../hooks/usePodcastLocalSearch";
 import {
   BACKEND_PODCAST_CATEGORY_SLUGS,
+  fetchPodcastEpisodePlay,
   getBackendPodcastCategoryLabel,
   type BackendPodcastCategorySlug,
 } from "../../services/podcastCatalogApi";
+import { isValidRecentlyPlayedPodcastEpisode } from "../../services/podcastRecentlyPlayed";
 import type { PodcastEpisode } from "../../types/podcast";
 import { shouldIncludeMaturePodcasts } from "../../utils/maturePodcastSettings";
 import { safeRouterPush } from "../../utils/safeNavigation";
@@ -47,17 +49,6 @@ export default function PodcastHomeScreen() {
   const { recentlyPlayed, homeShowSections, error } = usePodcastHome();
   const { query, setQuery, results, hasQuery } = usePodcastLocalSearch();
 
-  const playEpisode = useCallback(
-    (episode: PodcastEpisode) => {
-      runWithMaturePodcastConsent(episode, () => {
-        void playPodcastEpisode(episode).then((result) => {
-          if (!result.ok) Alert.alert("Unavailable", result.error);
-        });
-      });
-    },
-    [playPodcastEpisode, runWithMaturePodcastConsent]
-  );
-
   const openShow = useCallback((showId: string) => {
     safeRouterPush({ pathname: "/podcasts/show/[id]", params: { id: showId } });
   }, []);
@@ -73,6 +64,37 @@ export default function PodcastHomeScreen() {
         title: getBackendPodcastCategoryLabel(slug),
       })),
     []
+  );
+
+  const validRecentlyPlayed = useMemo(
+    () => recentlyPlayed.filter(isValidRecentlyPlayedPodcastEpisode),
+    [recentlyPlayed]
+  );
+
+  const playRecentEpisode = useCallback(
+    (episode: PodcastEpisode) => {
+      runWithMaturePodcastConsent(episode, () => {
+        void (async () => {
+          const resolved = await fetchPodcastEpisodePlay(episode.id);
+          if (!resolved.success || !resolved.play?.audioUrl) {
+            Alert.alert("Unavailable", resolved.error || "This episode is unavailable.");
+            return;
+          }
+
+          const playable: PodcastEpisode = {
+            ...episode,
+            audioUrl: resolved.play.audioUrl,
+            title: resolved.play.title || episode.title,
+            durationSeconds: resolved.play.durationSeconds ?? episode.durationSeconds,
+            publishedAt: resolved.play.publishedAt ?? episode.publishedAt,
+          };
+
+          const result = await playPodcastEpisode(playable);
+          if (!result.ok) Alert.alert("Unavailable", result.error);
+        })();
+      });
+    },
+    [playPodcastEpisode, runWithMaturePodcastConsent]
   );
 
   return (
@@ -116,18 +138,26 @@ export default function PodcastHomeScreen() {
                 </View>
               </View>
 
-              {recentlyPlayed.length > 0 ? (
-                <View style={styles.sectionBlock}>
-                  <SectionHeader title="Recently Played" />
-                  {recentlyPlayed.map((episode) => (
+              <View style={styles.sectionBlock}>
+                <SectionHeader title="Recently Played" />
+                {validRecentlyPlayed.length > 0 ? (
+                  validRecentlyPlayed.map((episode) => (
                     <PodcastEpisodeCard
                       key={`recent-${episode.id}`}
                       episode={episode}
-                      onPress={() => playEpisode(episode)}
+                      showDownloadPlaceholder={false}
+                      onPress={() => playRecentEpisode(episode)}
                     />
-                  ))}
-                </View>
-              ) : null}
+                  ))
+                ) : (
+                  <View style={styles.recentEmpty}>
+                    <Text style={styles.recentEmptyTitle}>No podcast plays yet</Text>
+                    <Text style={styles.recentEmptyText}>
+                      Play an episode and it will appear here.
+                    </Text>
+                  </View>
+                )}
+              </View>
 
               {homeShowSections.map((section) => (
                 <View key={section.id} style={styles.sectionBlock}>
@@ -221,5 +251,20 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "700",
     flexShrink: 1,
+  },
+  recentEmpty: {
+    paddingVertical: 14,
+    paddingHorizontal: 4,
+    gap: 6,
+  },
+  recentEmptyTitle: {
+    color: COLORS.text,
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  recentEmptyText: {
+    color: COLORS.textMuted,
+    fontSize: 13,
+    lineHeight: 18,
   },
 });
