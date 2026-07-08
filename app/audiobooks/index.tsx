@@ -128,11 +128,19 @@ export default function AudiobooksHomeScreen() {
       .then((nextCategories) => {
         setCategories(nextCategories);
         if (nextCategories.length > 0) {
-          setSelectedCategory((current) =>
-            nextCategories.some((category) => category.slug === current)
-              ? current
-              : nextCategories[0].slug
-          );
+          setSelectedCategory((current) => {
+            if (
+              nextCategories.some((category) => category.slug === current) &&
+              (nextCategories.find((category) => category.slug === current)?.item_count || 0) > 0
+            ) {
+              return current;
+            }
+
+            const firstPopulated =
+              nextCategories.find((category) => category.item_count > 0) ||
+              nextCategories[0];
+            return firstPopulated.slug;
+          });
         }
       })
       .catch((error) => {
