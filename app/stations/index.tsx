@@ -29,7 +29,7 @@ import { COLORS } from "../../constants/theme";
 import { useMatureContentGate } from "../../hooks/useMatureContentGate";
 import { usePlaybackRouter } from "../../hooks/usePlaybackRouter";
 import { useRadioHomeDiscovery } from "../../hooks/useRadioHomeDiscovery";
-import { ensureHiddenTunesStationStream, loadRadioCategoryPage } from "../../services/radio/radioBrowserApi";
+import { loadRadioCategoryPage } from "../../services/radio/radioBrowserApi";
 import { normalizeRadioStation } from "../../services/radio/radioNormalizer";
 import type { RadioStationListItem } from "../../types/radio";
 import { logVisibleFeatureChecklist } from "../../utils/visibleFeatureDiagnostics";
@@ -167,12 +167,6 @@ export default function RadioStationsHomeScreen() {
         station = resolved?.stations.find((entry) => entry.id === item.id) || null;
       }
 
-      if (!station) {
-        Alert.alert("Unavailable", "This station is unavailable right now.");
-        return;
-      }
-
-      station = await ensureHiddenTunesStationStream(station);
       if (!station) {
         Alert.alert("Unavailable", "This station is unavailable right now.");
         return;

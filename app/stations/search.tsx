@@ -24,7 +24,7 @@ import { useLazyRadioStationList } from "../../hooks/useLazyRadioStationList";
 import { useMatureContentGate } from "../../hooks/useMatureContentGate";
 import { useMatureContentSettings } from "../../hooks/useMatureContentSettings";
 import { usePlaybackRouter } from "../../hooks/usePlaybackRouter";
-import { ensureHiddenTunesStationStream, loadRadioSearchPage } from "../../services/radio/radioBrowserApi";
+import { loadRadioSearchPage } from "../../services/radio/radioBrowserApi";
 import { normalizeRadioSearchCacheKey } from "../../services/radio/radioCache";
 import { normalizeRadioStation } from "../../services/radio/radioNormalizer";
 import type { RadioStationListItem } from "../../types/radio";
@@ -78,13 +78,7 @@ export default function RadioSearchScreen() {
 
   const playStation = useCallback(
     async (item: RadioStationListItem) => {
-      let station = resolveStation(item.id);
-      if (!station) {
-        Alert.alert("Unavailable", "This station is unavailable right now.");
-        return;
-      }
-
-      station = await ensureHiddenTunesStationStream(station);
+      const station = resolveStation(item.id);
       if (!station) {
         Alert.alert("Unavailable", "This station is unavailable right now.");
         return;

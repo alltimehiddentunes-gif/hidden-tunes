@@ -11,23 +11,21 @@ import {
   type RadioHomeLaneId,
 } from "../../constants/radioFoundation";
 import { isMatureContentItem } from "../../types/matureContent";
-import type { HiddenTunesStation } from "../../types/radio";
+import type { HiddenTunesStation, RadioBrowserStationRaw } from "../../types/radio";
 import { logRadioDiscoveryFetch } from "../../utils/radioDiscoveryDiagnostics";
 import { shouldIncludeMatureInApi } from "../../utils/matureContentSettings";
-import {
-  ensureHiddenTunesStationStream,
-  fetchRadioCatalogSearchPage,
-  fetchRadioCatalogStationsPage,
-} from "./radioCatalogApi";
+import { normalizeRadioBrowserStation } from "./radioNormalizer";
 import {
   isMatureRadioCategory,
   loadMatureRadioCategoryPage,
 } from "../mature/matureRadioDiscovery";
 import {
+  enrichStationWithQuality,
   sortStationsByClicks,
   sortStationsByQuality,
   sortStationsByVotes,
 } from "./radioQualityScore";
+import { fetchExpandedRadioSearchPage } from "./radioSearchDiscovery";
 import {
   countCachedRadioStations,
   getRadioStationInflight,
@@ -38,6 +36,15 @@ import {
   setRadioStationInflight,
   writeCachedRadioStations,
 } from "./radioCache";
+
+const RADIO_BROWSER_SERVERS = [
+  "https://de1.api.radio-browser.info",
+  "https://nl1.api.radio-browser.info",
+  "https://at1.api.radio-browser.info",
+] as const;
+
+const RADIO_BROWSER_USER_AGENT = "HiddenTunes/1.0 (mobile radio browser)";
+const STATION_FETCH_TIMEOUT_MS = 12000;
 
 export const RADIO_STATION_PAGE_SIZE = MEDIA_DISCOVERY_PAGE_SIZE;
 const browseAbortControllers = new Map<string, AbortController>();
@@ -67,6 +74,98 @@ function endBrowseRequest(requestKey: string, signal: AbortSignal) {
   }
 }
 
+async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const parentSignal = init.signal;
+
+  const onAbort = () => controller.abort();
+  parentSignal?.addEventListener("abort", onAbort);
+
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+    parentSignal?.removeEventListener("abort", onAbort);
+  }
+}
+
+function buildCategoryPath(category: RadioCategory, offset: number, limit: number) {
+  const safeLimit = Math.max(1, Math.min(limit, 40));
+  const safeOffset = Math.max(0, offset);
+
+  if (category.useTopClick) {
+    return `/json/stations/topclick/${safeLimit + safeOffset}`;
+  }
+
+  if (category.useTopVotes) {
+    return `/json/stations/topvote/${safeLimit + safeOffset}`;
+  }
+
+  if (category.countryCode) {
+    return `/json/stations/bycountrycodeexact/${encodeURIComponent(
+      category.countryCode
+    )}?limit=${safeLimit}&offset=${safeOffset}&order=votes&reverse=true&hidebroken=true`;
+  }
+
+  const tag = encodeURIComponent(String(category.tag || category.id));
+  return `/json/stations/search?tag=${tag}&limit=${safeLimit}&offset=${safeOffset}&order=votes&reverse=true&hidebroken=true`;
+}
+
+function buildSearchPath(query: string, offset: number, limit: number) {
+  const safeLimit = Math.max(1, Math.min(limit, 40));
+  const safeOffset = Math.max(0, offset);
+  const safeQuery = encodeURIComponent(String(query || "").trim());
+
+  return `/json/stations/search?name=${safeQuery}&limit=${safeLimit}&offset=${safeOffset}&order=votes&reverse=true&hidebroken=true`;
+}
+
+async function fetchRadioBrowserJson(path: string, signal?: AbortSignal) {
+  let lastError: unknown = null;
+
+  for (const server of RADIO_BROWSER_SERVERS) {
+    if (signal?.aborted) {
+      const error = new Error("radio_browse_aborted");
+      error.name = "AbortError";
+      throw error;
+    }
+
+    try {
+      const response = await fetchWithTimeout(
+        `${server}${path}`,
+        {
+          headers: {
+            "User-Agent": RADIO_BROWSER_USER_AGENT,
+            Accept: "application/json",
+          },
+          signal,
+        },
+        STATION_FETCH_TIMEOUT_MS
+      );
+
+      if (!response.ok) {
+        lastError = new Error(`radio_browser_${response.status}`);
+        continue;
+      }
+
+      const text = await response.text();
+      if (!text.trim().startsWith("[")) {
+        lastError = new Error("radio_browser_invalid_json");
+        continue;
+      }
+
+      return JSON.parse(text) as RadioBrowserStationRaw[];
+    } catch (error) {
+      if ((error as Error)?.name === "AbortError") {
+        throw error;
+      }
+      lastError = error;
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error("radio_browser_failed");
+}
+
 function filterMatureStations(stations: HiddenTunesStation[]) {
   if (shouldIncludeMatureInApi()) return stations;
   return stations.filter((station) => !isMatureContentItem(station));
@@ -80,37 +179,50 @@ function dedupeRadioStations(stations: HiddenTunesStation[]) {
   for (const station of stations) {
     if (seenIds.has(station.id)) continue;
     const streamKey = station.streamUrl.trim().toLowerCase();
-    if (streamKey) {
-      if (seenStreams.has(streamKey)) continue;
-      seenStreams.add(streamKey);
-    }
+    if (seenStreams.has(streamKey)) continue;
     seenIds.add(station.id);
+    seenStreams.add(streamKey);
     deduped.push(station);
   }
 
   return deduped;
 }
 
-function curateCatalogStations(
-  stations: HiddenTunesStation[],
+function normalizeAndCurateStations(
+  raw: RadioBrowserStationRaw[],
   category: RadioCategory,
+  offset: number,
   limit: number
 ) {
-  let curated = dedupeRadioStations(stations);
+  let stations = dedupeRadioStations(
+    raw
+      .map((rawStation) => {
+        const base = normalizeRadioBrowserStation(rawStation, category.id);
+        if (!base) return null;
+        return enrichStationWithQuality(base, rawStation);
+      })
+      .filter((station): station is HiddenTunesStation => Boolean(station))
+  );
+
+  if (category.useTopClick || category.useTopVotes) {
+    if (offset > 0) {
+      stations = stations.slice(offset);
+    }
+  }
 
   if (category.laneKind === "featured") {
-    curated = sortStationsByQuality(
-      curated.filter((station) => (station.quality_score || 0) >= RADIO_FEATURED_MIN_QUALITY)
+    stations = sortStationsByQuality(
+      stations.filter((station) => (station.quality_score || 0) >= RADIO_FEATURED_MIN_QUALITY)
     );
   } else if (category.laneKind === "trending") {
-    curated = sortStationsByClicks(curated);
+    stations = sortStationsByClicks(stations);
   } else if (category.laneKind === "popular") {
-    curated = sortStationsByVotes(
-      curated.filter((station) => (station.quality_score || 0) >= RADIO_POPULAR_MIN_QUALITY)
+    stations = sortStationsByVotes(
+      stations.filter((station) => (station.quality_score || 0) >= RADIO_POPULAR_MIN_QUALITY)
     );
   }
 
-  return filterMatureStations(curated.slice(0, limit));
+  return filterMatureStations(stations.slice(0, limit));
 }
 
 function resolveCategoryCacheKey(categoryId: string) {
@@ -147,17 +259,12 @@ export async function fetchRadioStationsPage(
     return result.stations.slice(0, limit);
   }
 
-  const page = Math.floor(offset / limit) + 1;
-  const catalogResult = await fetchRadioCatalogStationsPage({
-    category,
-    page,
-    limit,
-    signal,
-  });
+  const raw = await fetchRadioBrowserJson(
+    buildCategoryPath(category, offset, limit),
+    signal
+  );
 
-  if (!catalogResult.success) return [];
-
-  return curateCatalogStations(catalogResult.stations, category, limit);
+  return normalizeAndCurateStations(raw, category, offset, limit);
 }
 
 export async function fetchRadioSearchPage(
@@ -169,18 +276,15 @@ export async function fetchRadioSearchPage(
   const safeQuery = String(query || "").trim();
   if (!safeQuery) return [];
 
-  const page = Math.floor(offset / limit) + 1;
-  const catalogResult = await fetchRadioCatalogSearchPage(safeQuery, {
-    page,
+  const stations = await fetchExpandedRadioSearchPage(
+    safeQuery,
+    offset,
     limit,
-    signal,
-  });
-
-  if (!catalogResult.success) return [];
-
-  return filterMatureStations(
-    dedupeRadioStations(catalogResult.stations).slice(0, limit)
+    (path, requestSignal) => fetchRadioBrowserJson(path, requestSignal ?? signal),
+    signal
   );
+
+  return stations;
 }
 
 type LoadRadioPageOptions = {
@@ -337,22 +441,13 @@ export async function resolveRadioStationForPlayback(
   stationId: string,
   fallback?: HiddenTunesStation | null
 ) {
-  let station: HiddenTunesStation | null = null;
-
-  if (fallback?.id === stationId) {
-    station = fallback;
+  if (fallback?.id === stationId && fallback.streamUrl) {
+    return fallback;
   }
 
-  if (!station) {
-    station = readCachedRadioStations(cacheKey)?.find((entry) => entry.id === stationId) || null;
-  }
+  const cached = readCachedRadioStations(cacheKey)?.find((station) => station.id === stationId);
+  if (cached) return cached;
 
-  if (!station) {
-    const hydrated = await hydrateCachedRadioStations(cacheKey);
-    station = hydrated?.find((entry) => entry.id === stationId) || fallback || null;
-  }
-
-  return ensureHiddenTunesStationStream(station);
+  const hydrated = await hydrateCachedRadioStations(cacheKey);
+  return hydrated?.find((station) => station.id === stationId) || fallback || null;
 }
-
-export { ensureHiddenTunesStationStream } from "./radioCatalogApi";

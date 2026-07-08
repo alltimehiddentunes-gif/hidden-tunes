@@ -22,7 +22,7 @@ import { TESTER_COPY } from "../../constants/testerExperience";
 import { useLazyRadioStationList } from "../../hooks/useLazyRadioStationList";
 import { useMatureContentGate } from "../../hooks/useMatureContentGate";
 import { usePlaybackRouter } from "../../hooks/usePlaybackRouter";
-import { ensureHiddenTunesStationStream, loadRadioCategoryPage } from "../../services/radio/radioBrowserApi";
+import { loadRadioCategoryPage } from "../../services/radio/radioBrowserApi";
 import { normalizeRadioStation } from "../../services/radio/radioNormalizer";
 import type { RadioStationListItem } from "../../types/radio";
 import { logRadioDiscoveryRender } from "../../utils/radioDiscoveryDiagnostics";
@@ -68,13 +68,7 @@ export default function RadioCategoryScreen() {
 
   const playStation = useCallback(
     async (item: RadioStationListItem) => {
-      let station = resolveStation(item.id);
-      if (!station) {
-        Alert.alert("Unavailable", "This station is unavailable right now.");
-        return;
-      }
-
-      station = await ensureHiddenTunesStationStream(station);
+      const station = resolveStation(item.id);
       if (!station) {
         Alert.alert("Unavailable", "This station is unavailable right now.");
         return;
