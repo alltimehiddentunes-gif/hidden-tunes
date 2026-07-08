@@ -85,7 +85,9 @@ import {
 } from "@/utils/discoveryPreferences";
 import { getUserFacingArtist } from "@/services/ui/displayMetadata";
 import { HOME_DISCOVERY_SHORTCUTS } from "@/constants/discoveryShortcuts";
+import { HOME_MORE_HUB_SHORTCUTS } from "@/constants/homeMoreHub";
 import { HomeDiscoveryShortcut } from "@/components/home/HomeDiscoveryShortcut";
+import { HomeDiscoveryChip } from "@/components/home/HomeDiscoveryChip";
 import {
   getSharedDiscoverySnapshot,
   MAX_DISCOVERY_INPUT_SONGS,
@@ -1119,6 +1121,31 @@ export default function MusicFeedScreen() {
 
                 {showDeferredHomeSections ? (
                 <>
+                    <View style={styles.cinematicSection}>
+                      <View style={styles.sectionHeaderRow}>
+                        <View>
+                          <Text style={styles.sectionEyebrow}>EXPLORE</Text>
+                          <Text style={styles.sectionTitle}>More</Text>
+                        </View>
+                      </View>
+                      <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={styles.discoveryRailRow}
+                      >
+                        {HOME_MORE_HUB_SHORTCUTS.map((shortcut) => (
+                          <HomeDiscoveryChip
+                            key={shortcut.key}
+                            icon={shortcut.icon}
+                            title={shortcut.title}
+                            subtitle={shortcut.subtitle}
+                            color={shortcut.color}
+                            onPress={() => router.push(shortcut.route as any)}
+                          />
+                        ))}
+                      </ScrollView>
+                    </View>
+
                     <EmotionalDiscoveryChips
                       style={styles.emotionalWorldsSection}
                       showGatewayRows={false}
