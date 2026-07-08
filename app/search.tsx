@@ -58,7 +58,6 @@ import {
   searchFreeMusicProviders,
 } from "../services/freeMusicProviders";
 import { fetchTvSearchVideos, type HiddenTunesTvVideo } from "../services/tvCatalogApi";
-import { ensureHiddenTunesStationStream } from "../services/radio/radioBrowserApi";
 import { normalizeRadioStation } from "../services/radio/radioNormalizer";
 import type { RadioStationListItem } from "../types/radio";
 import type { PodcastEpisode } from "../types/podcast";
@@ -1542,8 +1541,6 @@ export default function SearchScreen() {
       runWithMatureConsent(item, () => {
         void (async () => {
           let station = deferredMedia.resolveRadioStation(item.id);
-          if (!station || !mountedRef.current) return;
-          station = await ensureHiddenTunesStationStream(station);
           if (!station || !mountedRef.current) return;
           await playRadioStation(normalizeRadioStation(station));
         })();
