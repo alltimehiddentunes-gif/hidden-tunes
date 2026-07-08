@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   buildStaticPodcastHomeSync,
@@ -52,11 +52,23 @@ export function usePodcastHome(): PodcastHomeState {
   const [state, setState] = useState<Omit<PodcastHomeState, "refresh">>(() =>
     createHomeState(shouldIncludeMaturePodcasts())
   );
+  const mountedRef = useRef(false);
+  const loadGenerationRef = useRef(0);
+  const activeControllerRef = useRef<AbortController | null>(null);
 
   const load = useCallback(async () => {
+    activeControllerRef.current?.abort();
+    const controller = new AbortController();
+    activeControllerRef.current = controller;
+    const signal = controller.signal;
+    const generation = loadGenerationRef.current + 1;
+    loadGenerationRef.current = generation;
     const includeMature = shouldIncludeMaturePodcasts();
     const fallback = createHomeState(includeMature);
     await Promise.resolve();
+    if (!mountedRef.current || signal?.aborted || generation !== loadGenerationRef.current) {
+      return;
+    }
     setState(fallback);
 
     const [recent, backendHome] = await Promise.all([
@@ -65,8 +77,16 @@ export function usePodcastHome(): PodcastHomeState {
         page: 1,
         limit: 24,
         includeMature,
+        signal,
       }),
     ]);
+
+    if (!mountedRef.current || signal?.aborted || generation !== loadGenerationRef.current) {
+      return;
+    }
+    if (activeControllerRef.current === controller) {
+      activeControllerRef.current = null;
+    }
 
     setState((current) => ({
       ...current,
@@ -78,6 +98,7 @@ export function usePodcastHome(): PodcastHomeState {
   }, []);
 
   useEffect(() => {
+    mountedRef.current = true;
     const loadTimer = setTimeout(() => {
       void load();
     }, 0);
@@ -85,6 +106,9 @@ export function usePodcastHome(): PodcastHomeState {
       void load();
     });
     return () => {
+      mountedRef.current = false;
+      activeControllerRef.current?.abort();
+      activeControllerRef.current = null;
       clearTimeout(loadTimer);
       unsubscribe();
     };

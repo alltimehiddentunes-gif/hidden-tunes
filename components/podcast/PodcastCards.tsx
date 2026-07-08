@@ -60,7 +60,13 @@ export const PodcastShowCard = memo(function PodcastShowCard({
   return (
     <TouchableOpacity activeOpacity={0.88} style={styles.showRow} onPress={onPress}>
       {show.artworkUrl ? (
-        <HTImage uri={show.artworkUrl} style={styles.showArt} contentFit="cover" />
+        <HTImage
+          uri={show.artworkUrl}
+          style={styles.showArt}
+          contentFit="cover"
+          maxDecodeWidth={112}
+          maxDecodeHeight={112}
+        />
       ) : (
         <View style={styles.showArtFallback}>
           <Ionicons name="mic-outline" size={20} color={COLORS.textMuted} />
@@ -124,7 +130,13 @@ export const PodcastEpisodeCard = memo(function PodcastEpisodeCard({
       accessibilityState={{ disabled: isDisabled }}
     >
       {episode.artworkUrl ? (
-        <HTImage uri={episode.artworkUrl} style={styles.episodeArtLarge} contentFit="cover" />
+        <HTImage
+          uri={episode.artworkUrl}
+          style={styles.episodeArtLarge}
+          contentFit="cover"
+          maxDecodeWidth={128}
+          maxDecodeHeight={128}
+        />
       ) : (
         <View style={styles.episodeArtLargeFallback}>
           <Ionicons name="play-outline" size={20} color={COLORS.textMuted} />

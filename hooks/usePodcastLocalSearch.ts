@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { searchPodcasts } from "../services/podcastService";
 import type { PodcastSearchResult } from "../types/podcast";
@@ -12,9 +12,18 @@ type UsePodcastLocalSearchOptions = {
 
 export function usePodcastLocalSearch(options?: UsePodcastLocalSearchOptions) {
   const [query, setQuery] = useState("");
+  const [deferredQuery, setDeferredQuery] = useState("");
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDeferredQuery(query);
+    }, 180);
+
+    return () => clearTimeout(timer);
+  }, [query]);
 
   const results = useMemo(() => {
-    const trimmed = query.trim();
+    const trimmed = deferredQuery.trim();
     if (trimmed.length < 2) return [] as PodcastSearchResult[];
 
     const matureOnly = options?.matureOnly ?? false;
@@ -28,7 +37,7 @@ export function usePodcastLocalSearch(options?: UsePodcastLocalSearchOptions) {
       categoryIds: options?.categoryIds,
       limit: options?.limit ?? 20,
     });
-  }, [options?.categoryIds, options?.limit, options?.matureOnly, query]);
+  }, [deferredQuery, options?.categoryIds, options?.limit, options?.matureOnly]);
 
   return {
     query,

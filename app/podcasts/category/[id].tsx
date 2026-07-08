@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { FlatList, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
@@ -94,6 +94,54 @@ export default function PodcastCategoryScreen() {
   const title = parentSection?.title || category?.title || "Podcasts";
   const description = parentSection?.description || category?.description || "";
   const isEmpty = shows.length === 0;
+  const listData = hasQuery ? [] : shows;
+  const renderShow = useCallback(
+    ({ item }: { item: (typeof shows)[number] }) => (
+      <PodcastShowCard show={item} onPress={() => openShow(item.id)} />
+    ),
+    [openShow]
+  );
+  const renderHeader = useCallback(
+    () => (
+      <>
+        <PodcastSearchResults results={results} hasQuery={hasQuery} onOpenShow={openShow} />
+
+        {!hasQuery && parentSection && nonEmptyChildren.length > 0 ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Browse</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              {nonEmptyChildren.map((child: PodcastCategoryDef) => (
+                <PodcastCategoryCard
+                  key={child.id}
+                  category={child}
+                  onPress={() =>
+                    safeRouterPush({
+                      pathname: "/podcasts/category/[id]",
+                      params: { id: child.id },
+                    })
+                  }
+                />
+              ))}
+            </ScrollView>
+          </View>
+        ) : null}
+
+        {!hasQuery && shows.length > 0 ? (
+          <View style={styles.sectionTitleWrap}>
+            <Text style={styles.sectionTitle}>Shows</Text>
+          </View>
+        ) : null}
+      </>
+    ),
+    [hasQuery, nonEmptyChildren, openShow, parentSection, results, shows.length]
+  );
+  const renderEmpty = useCallback(
+    () =>
+      !hasQuery && isEmpty ? (
+        <PodcastEmptyCategoryState onBrowseAll={() => router.replace("/podcasts" as any)} />
+      ) : null,
+    [hasQuery, isEmpty]
+  );
 
   return (
     <LinearGradient colors={["#030008", "#090214", "#000000"]} style={styles.screen}>
@@ -101,44 +149,19 @@ export default function PodcastCategoryScreen() {
         <PodcastSearchBar value={query} onChangeText={setQuery} />
       </PodcastScreenHeader>
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <PodcastSearchResults results={results} hasQuery={hasQuery} onOpenShow={openShow} />
-
-        {!hasQuery ? (
-          <>
-            {parentSection && nonEmptyChildren.length > 0 ? (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Browse</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                  {nonEmptyChildren.map((child: PodcastCategoryDef) => (
-                    <PodcastCategoryCard
-                      key={child.id}
-                      category={child}
-                      onPress={() =>
-                        safeRouterPush({
-                          pathname: "/podcasts/category/[id]",
-                          params: { id: child.id },
-                        })
-                      }
-                    />
-                  ))}
-                </ScrollView>
-              </View>
-            ) : null}
-
-            {shows.length > 0 ? (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Shows</Text>
-                {shows.map((show) => (
-                  <PodcastShowCard key={show.id} show={show} onPress={() => openShow(show.id)} />
-                ))}
-              </View>
-            ) : isEmpty ? (
-              <PodcastEmptyCategoryState onBrowseAll={() => router.replace("/podcasts" as any)} />
-            ) : null}
-          </>
-        ) : null}
-      </ScrollView>
+      <FlatList
+        data={listData}
+        renderItem={renderShow}
+        keyExtractor={(item) => item.id}
+        ListHeaderComponent={renderHeader}
+        ListEmptyComponent={renderEmpty}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        removeClippedSubviews
+        initialNumToRender={12}
+        maxToRenderPerBatch={8}
+        windowSize={7}
+      />
     </LinearGradient>
   );
 }
@@ -147,6 +170,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   content: { paddingHorizontal: 18, paddingBottom: 120, gap: 20 },
   section: { gap: 8 },
+  sectionTitleWrap: { marginTop: 4 },
   sectionTitle: { color: COLORS.text, fontSize: 16, fontWeight: "800" },
   fallback: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#000" },
   fallbackText: { color: COLORS.textMuted },
