@@ -42,6 +42,7 @@ import {
   usePlayerActions,
   usePlayerProgress,
   usePlayerState,
+  type AppSong,
 } from "../context/PlayerContext";
 import {
   isRadioStreamSong,
@@ -72,6 +73,43 @@ function formatMiniTime(millis: number) {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
   return `${minutes}:${seconds < 10 ? "0" : ""}${seconds}`;
+}
+
+function getMiniPlayerPlayableUri(
+  song?: {
+    streamUrl?: string;
+    url?: string;
+    audioUrl?: string;
+    audio_url?: string;
+    previewUrl?: string;
+  } | null
+) {
+  const possible =
+    song?.streamUrl ||
+    song?.url ||
+    song?.audioUrl ||
+    song?.audio_url ||
+    song?.previewUrl;
+
+  if (typeof possible !== "string") return null;
+
+  const clean = possible.trim();
+  return clean.length > 0 ? clean : null;
+}
+
+function hasLoadedCurrentSong(song?: AppSong | null) {
+  if (!song) return false;
+
+  const id = String(song.id || "").trim();
+  if (!id) return false;
+
+  if (isRadioStreamSong(song)) return true;
+
+  return Boolean(getMiniPlayerPlayableUri(song));
+}
+
+function hasLoadedYoutubeMini(video?: YouTubeMini | null) {
+  return Boolean(String(video?.id || "").trim());
 }
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -388,6 +426,7 @@ function MiniPlayer() {
   const tapGuardRef = useRef(createTapGuard(420));
   const appActiveRef = useRef(isAppActiveForWork());
   const lastYouTubeJsonRef = useRef<string | null>(null);
+  const sessionYoutubeHydratedRef = useRef(false);
 
   const loadYouTubeMini = useCallback(async () => {
     try {
@@ -432,13 +471,34 @@ function MiniPlayer() {
   useEffect(() => {
     mountedRef.current = true;
 
-    if (isAppActiveForWork()) {
-      void loadYouTubeMini();
-    }
+    void (async () => {
+      if (currentSong) {
+        setYoutubeVideo(null);
+        lastYouTubeJsonRef.current = null;
+        return;
+      }
+
+      if (!sessionYoutubeHydratedRef.current) {
+        sessionYoutubeHydratedRef.current = true;
+        try {
+          await AsyncStorage.removeItem(YOUTUBE_MINI_KEY);
+        } catch {
+          // non-fatal
+        }
+        lastYouTubeJsonRef.current = null;
+        setYoutubeVideo(null);
+        return;
+      }
+
+      if (isAppActiveForWork()) {
+        await loadYouTubeMini();
+      }
+    })();
 
     const timer = setInterval(() => {
       if (!mountedRef.current || !appActiveRef.current) return;
       if (currentSong) return;
+      if (!sessionYoutubeHydratedRef.current) return;
       void loadYouTubeMini();
     }, YOUTUBE_POLL_MS);
 
@@ -448,8 +508,15 @@ function MiniPlayer() {
     };
   }, [currentSong, loadYouTubeMini]);
 
-  const isYoutubeMode = !currentSong && !!youtubeVideo;
+  useEffect(() => {
+    if (!currentSong) return;
+    setYoutubeVideo(null);
+    lastYouTubeJsonRef.current = null;
+  }, [currentSong]);
+
+  const isYoutubeMode = !currentSong && hasLoadedYoutubeMini(youtubeVideo);
   const isLiveRadioMode = isRadioStreamSong(currentSong);
+  const hasLoadedSong = hasLoadedCurrentSong(currentSong);
 
   const radioQueueLength = radioQueue?.length || 0;
   const youtubeQueueLength = youtubeQueue?.length || 0;
@@ -629,14 +696,14 @@ function MiniPlayer() {
   }, [currentSong?.id, currentSong?.title]);
 
   useEffect(() => {
-    if (!currentSong && !youtubeVideo) return;
+    if (!hasLoadedSong && !hasLoadedYoutubeMini(youtubeVideo)) return;
     logMiniPlayerControl("mini_player_touch_area_ready", {
-      hasSong: !!currentSong,
-      hasYoutube: !!youtubeVideo,
+      hasSong: hasLoadedSong,
+      hasYoutube: hasLoadedYoutubeMini(youtubeVideo),
     });
-  }, [currentSong, youtubeVideo]);
+  }, [hasLoadedSong, youtubeVideo]);
 
-  if (!currentSong && !youtubeVideo) return null;
+  if (!hasLoadedSong && !hasLoadedYoutubeMini(youtubeVideo)) return null;
 
   return (
     <Animated.View
