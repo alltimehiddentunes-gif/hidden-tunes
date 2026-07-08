@@ -49,14 +49,37 @@ function isArchiveVideo(video: HiddenTunesTvVideo) {
   return video.source_type === "archive" || video.id.startsWith("archive-");
 }
 
-function isHlsLikeSource(sourceType: string, streamUrl = "") {
+function isYouTubeLikeSource(sourceType: string, streamUrl = "", embedUrl = "") {
   const normalized = sourceType.trim().toLowerCase();
-  const normalizedUrl = streamUrl.trim().toLowerCase();
+  const normalizedUrl = `${streamUrl} ${embedUrl}`.trim().toLowerCase();
+
+  return (
+    normalized === "youtube" ||
+    normalized === "youtube_video" ||
+    normalizedUrl.includes("youtube.com") ||
+    normalizedUrl.includes("youtu.be")
+  );
+}
+
+function shouldOpenTvPlayer(playback: HiddenTunesTvPlayback) {
+  if (!playback.stream_url) return false;
+
+  const normalized = playback.source_type.trim().toLowerCase();
+  const normalizedUrl = playback.stream_url.trim().toLowerCase();
+
+  if (normalized === "archive") return false;
+  if (isYouTubeLikeSource(playback.source_type, playback.stream_url, playback.embed_url || "")) {
+    return false;
+  }
+
   return (
     normalized === "hls_stream" ||
     normalized === "m3u_playlist" ||
+    normalized.includes("hls") ||
+    normalized.includes("stream") ||
     normalized.endsWith("_stream") ||
-    /\.m3u8(?:$|[?#])/.test(normalizedUrl)
+    /\.m3u8(?:$|[?#])/.test(normalizedUrl) ||
+    Boolean(playback.stream_url)
   );
 }
 
@@ -118,7 +141,7 @@ export async function openVideoItem(
     };
   }
 
-  if (isHlsLikeSource(playback.source_type, playback.stream_url)) {
+  if (shouldOpenTvPlayer(playback)) {
     router.push({
       pathname: "/tv-player",
       params: {
