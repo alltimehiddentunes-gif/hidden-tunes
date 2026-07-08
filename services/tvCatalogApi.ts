@@ -264,10 +264,21 @@ function buildPlayUrl(videoId: string) {
   return `${TV_CATALOG_BASE_URL}${TV_PLAY_API_PATH}/${encodeURIComponent(videoId)}/play`;
 }
 
+const TV_PLAYBACK_CACHE_TTL_MS = 5 * 60 * 1000;
+const tvPlaybackCache = new Map<string, { value: HiddenTunesTvPlayback; at: number }>();
+
 export async function fetchTvPlayback(
   video: HiddenTunesTvVideo,
   options?: { signal?: AbortSignal }
 ): Promise<HiddenTunesTvPlayback | null> {
+  const cacheKey = String(video.id || "").trim();
+  if (cacheKey) {
+    const cached = tvPlaybackCache.get(cacheKey);
+    if (cached && Date.now() - cached.at < TV_PLAYBACK_CACHE_TTL_MS) {
+      return cached.value;
+    }
+  }
+
   try {
     const response = await fetch(buildPlayUrl(video.id), {
       method: "GET",
@@ -284,13 +295,19 @@ export async function fetchTvPlayback(
     const streamUrl = cleanText(payload.stream_url, 2000);
     if (!streamUrl) return null;
 
-    return {
+    const playback = {
       id: String(payload.id || video.id),
       source_type: String(payload.source_type || video.source_type || "youtube_video"),
       source_id: String(payload.source_id || video.source_id || video.id),
       stream_url: streamUrl,
       embed_url: cleanText(payload.embed_url, 2000),
     };
+
+    if (cacheKey) {
+      tvPlaybackCache.set(cacheKey, { value: playback, at: Date.now() });
+    }
+
+    return playback;
   } catch {
     return null;
   }

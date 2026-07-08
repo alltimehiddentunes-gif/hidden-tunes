@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  FlatList,
   ScrollView,
   StyleSheet,
   Text,
@@ -52,16 +53,22 @@ export default function YouTubeFeedScreen() {
   const [searchResults, setSearchResults] = useState<HiddenTunesTvVideo[]>([]);
   const [archiveLaneLoading, setArchiveLaneLoading] = useState(false);
   const tvSearchRequestIdRef = useRef(0);
+  const categoryRequestRef = useRef(0);
   const { width } = useWindowDimensions();
   const railCardWidth = Math.min(260, Math.max(178, width * 0.58));
   const featuredWidth = Math.max(300, width - 36);
 
-  const featuredLane = lanes.find((lane) => lane.id === "featured");
-  const recentlyAddedLane = lanes.find((lane) => lane.id === "recent");
-  const channelLanes = lanes.filter(
-    (lane) => !["featured", "recent"].includes(lane.id)
-  );
-  const featuredVideo = featuredLane?.videos[0];
+  const { featuredLane, recentlyAddedLane, channelLanes, featuredVideo } = useMemo(() => {
+    const featured = lanes.find((lane) => lane.id === "featured");
+    const recent = lanes.find((lane) => lane.id === "recent");
+    const channels = lanes.filter((lane) => !["featured", "recent"].includes(lane.id));
+    return {
+      featuredLane: featured,
+      recentlyAddedLane: recent,
+      channelLanes: channels,
+      featuredVideo: featured?.videos[0],
+    };
+  }, [lanes]);
   const hasSearchText = query.trim().length > 0;
 
   const loadArchiveLane = useCallback(async () => {
@@ -80,23 +87,31 @@ export default function YouTubeFeedScreen() {
     setLoading(true);
     try {
       const cached = await loadTvHomeCache();
-      if (cached?.lanes?.length) {
-        setLanes(filterAdminHomeLanes(cached.lanes));
+      const hasFreshCache = Boolean(cached?.lanes?.length);
+
+      if (hasFreshCache) {
+        setLanes(filterAdminHomeLanes(cached!.lanes));
         setLoading(false);
       }
 
-      const [home, categories] = await Promise.all([
-        fetchTvHomeLanes(),
-        fetchTvCategories(),
-      ]);
+      const categoriesPromise = fetchTvCategories();
 
-      if (home.lanes.length) {
-        setLanes(filterAdminHomeLanes(home.lanes));
-      } else if (!cached?.lanes?.length) {
-        setLanes([]);
+      if (!hasFreshCache) {
+        const home = await fetchTvHomeLanes();
+        if (home.lanes.length) {
+          setLanes(filterAdminHomeLanes(home.lanes));
+        } else {
+          setLanes([]);
+        }
+      } else {
+        void fetchTvHomeLanes().then((home) => {
+          if (home.lanes.length) {
+            setLanes(filterAdminHomeLanes(home.lanes));
+          }
+        });
       }
 
-      setBrowseCategories(categories);
+      setBrowseCategories(await categoriesPromise);
       void loadArchiveLane();
     } catch {
       setLanes([]);
@@ -110,16 +125,20 @@ export default function YouTubeFeedScreen() {
   }, [loadTv]);
 
   const handleSelectCategory = useCallback((category: TvBrowseCategory) => {
+    const requestId = ++categoryRequestRef.current;
     setActiveCategorySlug(category.slug);
     setCategoryLaneLoading(true);
     setCategoryLane(null);
 
     void fetchTvCategoryLane(category)
       .then((lane) => {
+        if (requestId !== categoryRequestRef.current) return;
         setCategoryLane(lane.videos.length > 0 ? lane : null);
       })
       .finally(() => {
-        setCategoryLaneLoading(false);
+        if (requestId === categoryRequestRef.current) {
+          setCategoryLaneLoading(false);
+        }
       });
   }, []);
 
@@ -174,20 +193,24 @@ export default function YouTubeFeedScreen() {
             <Text style={styles.sectionTitle}>{displayLaneTitle(lane.title)}</Text>
             <Text style={styles.sectionMeta}>{lane.videos.length} ready</Text>
           </View>
-          <ScrollView
+          <FlatList
             horizontal
+            data={lane.videos}
+            keyExtractor={(video) => video.id}
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.railContent}
-          >
-            {lane.videos.map((video) => (
+            initialNumToRender={4}
+            maxToRenderPerBatch={4}
+            windowSize={5}
+            removeClippedSubviews
+            renderItem={({ item }) => (
               <TvVideoCard
-                key={video.id}
-                video={video}
+                video={item}
                 width={railCardWidth}
-                onPress={(item) => openVideo(item, lane.videos)}
+                onPress={(pressed) => openVideo(pressed, lane.videos)}
               />
-            ))}
-          </ScrollView>
+            )}
+          />
         </View>
       );
     },

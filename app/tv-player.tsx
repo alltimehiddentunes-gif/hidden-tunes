@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
@@ -95,7 +96,14 @@ export default function TvPlayerScreen() {
   const title = readRouteParam(params.title).trim() || "Hidden Tunes TV";
   const streamUrl = readRouteParam(params.streamUrl).trim();
   const sourceType = readRouteParam(params.sourceType).trim() || "hls_stream";
-  const html = streamUrl ? buildHlsPlayerHtml(streamUrl, title) : "";
+  const html = useMemo(
+    () => (streamUrl ? buildHlsPlayerHtml(streamUrl, title) : ""),
+    [streamUrl, title]
+  );
+  const webViewSource = useMemo(
+    () => ({ html, baseUrl: "https://hiddentunes.com" as const }),
+    [html]
+  );
 
   return (
     <LinearGradient colors={GRADIENTS.main} style={styles.screen}>
@@ -124,7 +132,7 @@ export default function TvPlayerScreen() {
               javaScriptEnabled
               mediaPlaybackRequiresUserAction={false}
               originWhitelist={["*"]}
-              source={{ html, baseUrl: "https://hiddentunes.com" }}
+              source={webViewSource}
               style={styles.webView}
             />
           ) : (

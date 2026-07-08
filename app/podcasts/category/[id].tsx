@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -132,7 +132,12 @@ type MetadataEpisodeRowProps = {
   playing?: boolean;
 };
 
-function MetadataEpisodeRow({ episode, index, onPress, playing }: MetadataEpisodeRowProps) {
+const MetadataEpisodeRow = memo(function MetadataEpisodeRow({
+  episode,
+  index,
+  onPress,
+  playing,
+}: MetadataEpisodeRowProps) {
   const durationLabel = formatDuration(episode.durationSeconds);
   const dateLabel = formatEpisodeDate(episode.publishedAt);
 
@@ -169,7 +174,7 @@ function MetadataEpisodeRow({ episode, index, onPress, playing }: MetadataEpisod
       </View>
     </TouchableOpacity>
   );
-}
+});
 
 function resolveRouteCategoryParam(value: string | string[] | undefined) {
   if (Array.isArray(value)) return String(value[0] || "").trim();

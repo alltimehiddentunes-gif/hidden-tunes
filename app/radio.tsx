@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
-  Image,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -14,6 +13,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 
 import AppShell from "../components/navigation/AppShell";
+import HTImage from "../components/HTImage";
 import { TESTER_COPY } from "../constants/testerExperience";
 import { COLORS, GRADIENTS } from "../constants/theme";
 import { usePlayerActions } from "../context/PlayerContext";
@@ -278,7 +278,7 @@ export default function RadioScreen() {
     };
   }, [loadRadio]);
 
-  function openCloudTrack(song: HiddenTunesNormalizedSong, index: number) {
+  const openCloudTrack = useCallback((song: HiddenTunesNormalizedSong, index: number) => {
     try {
       const tapStartedAt = startPerformanceTimer();
       const queue = dedupeSongs(cloudTracks.map(safeSong));
@@ -302,9 +302,9 @@ export default function RadioScreen() {
         router.push("/music-feed" as any);
       });
     } catch {}
-  }
+  }, [cloudTracks, playSong]);
 
-  function openYouTubeTrack(track: BackendYouTubeTrack, index: number) {
+  const openYouTubeTrack = useCallback((track: BackendYouTubeTrack, index: number) => {
     const videoId = getTrackVideoId(track);
 
     if (!videoId) return;
@@ -333,7 +333,7 @@ export default function RadioScreen() {
         queue: JSON.stringify(queue),
       },
     } as any);
-  }
+  }, [youtubeTracks]);
 
   function playRadio() {
     if (cloudTracks[0]) {
@@ -348,6 +348,69 @@ export default function RadioScreen() {
 
   const hasCloudSongs = cloudTracks.length > 0;
   const activeTracks: RadioTrack[] = hasCloudSongs ? cloudTracks : youtubeTracks;
+
+  const keyExtractor = useCallback((item: RadioTrack, index: number) => {
+    const videoId = "videoId" in item ? item.videoId : "";
+    return `${item.id || videoId || "radio"}-${index}`;
+  }, []);
+
+  const renderRadioItem = useCallback(
+    ({ item, index }: { item: RadioTrack; index: number }) => {
+      const artwork = hasCloudSongs
+        ? getArtwork(item)
+        : getTrackThumbnail(item as BackendYouTubeTrack);
+
+      return (
+        <TouchableOpacity
+          activeOpacity={0.86}
+          style={styles.trackCard}
+          onPress={() =>
+            hasCloudSongs
+              ? openCloudTrack(item as HiddenTunesNormalizedSong, index)
+              : openYouTubeTrack(item as BackendYouTubeTrack, index)
+          }
+        >
+          <Text style={styles.rank}>{String(index + 1).padStart(2, "0")}</Text>
+
+          <HTImage
+            uri={artwork}
+            style={styles.cover}
+            contentFit="cover"
+            maxDecodeWidth={132}
+            maxDecodeHeight={132}
+          />
+
+          <View style={styles.info}>
+            <Text style={styles.trackTitle} numberOfLines={1}>
+              {item.title || "Unknown Song"}
+            </Text>
+
+            <Text style={styles.artist} numberOfLines={1}>
+              {hasCloudSongs
+                ? (item as HiddenTunesNormalizedSong).artist
+                : getTrackArtist(item as BackendYouTubeTrack)}
+            </Text>
+
+            <View style={styles.metaRow}>
+              <Ionicons
+                name={hasCloudSongs ? "cloud-done" : "tv"}
+                size={13}
+                color={hasCloudSongs ? COLORS.primary : "#ff3b30"}
+              />
+              <Text style={styles.metaText}>
+                {hasCloudSongs ? "Hidden Tunes" : "Hidden Tunes TV"}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.playCircle}>
+            <Ionicons name="play" size={16} color={COLORS.text} />
+          </View>
+        </TouchableOpacity>
+      );
+    },
+    [hasCloudSongs, openCloudTrack, openYouTubeTrack]
+  );
 
   return (
     <AppShell>
@@ -433,12 +496,15 @@ export default function RadioScreen() {
       ) : (
         <FlatList<RadioTrack>
           data={activeTracks}
-          keyExtractor={(item, index) => {
-            const videoId = "videoId" in item ? item.videoId : "";
-            return `${item.id || videoId || "radio"}-${index}`;
-          }}
+          keyExtractor={keyExtractor}
+          renderItem={renderRadioItem}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
+          initialNumToRender={8}
+          maxToRenderPerBatch={6}
+          windowSize={7}
+          removeClippedSubviews
+          updateCellsBatchingPeriod={50}
           ListHeaderComponent={
             <View style={styles.sectionHeader}>
               <View>
@@ -472,56 +538,6 @@ export default function RadioScreen() {
               </Text>
             </View>
           }
-          renderItem={({ item, index }) => {
-            const artwork = hasCloudSongs
-              ? getArtwork(item)
-              : getTrackThumbnail(item as BackendYouTubeTrack);
-
-            return (
-              <TouchableOpacity
-                activeOpacity={0.86}
-                style={styles.trackCard}
-                onPress={() =>
-                  hasCloudSongs
-                    ? openCloudTrack(item as HiddenTunesNormalizedSong, index)
-                    : openYouTubeTrack(item as BackendYouTubeTrack, index)
-                }
-              >
-                <Text style={styles.rank}>
-                  {String(index + 1).padStart(2, "0")}
-                </Text>
-
-                <Image source={{ uri: artwork }} style={styles.cover} />
-
-                <View style={styles.info}>
-                  <Text style={styles.trackTitle} numberOfLines={1}>
-                    {item.title || "Unknown Song"}
-                  </Text>
-
-                  <Text style={styles.artist} numberOfLines={1}>
-                    {hasCloudSongs
-                      ? item.artist
-                      : getTrackArtist(item as BackendYouTubeTrack)}
-                  </Text>
-
-                  <View style={styles.metaRow}>
-                    <Ionicons
-                      name={hasCloudSongs ? "cloud-done" : "tv"}
-                      size={13}
-                      color={hasCloudSongs ? COLORS.primary : "#ff3b30"}
-                    />
-                    <Text style={styles.metaText}>
-                      {hasCloudSongs ? "Hidden Tunes" : "Hidden Tunes TV"}
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={styles.playCircle}>
-                  <Ionicons name="play" size={16} color={COLORS.text} />
-                </View>
-              </TouchableOpacity>
-            );
-          }}
         />
       )}
       </LinearGradient>

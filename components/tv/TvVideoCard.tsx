@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, useMemo } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
@@ -15,10 +15,10 @@ type TvVideoCardProps = {
 };
 
 function TvVideoCard({ video, width = 168, onPress }: TvVideoCardProps) {
-  const item = normalizeVideoItem(video);
+  const item = useMemo(() => normalizeVideoItem(video), [video]);
   const thumbnail = item.thumbnailUrl || "";
-  const creator = getVideoDisplayCreator(item);
-  const category = getVideoDisplayCategory(item);
+  const creator = useMemo(() => getVideoDisplayCreator(item), [item]);
+  const category = useMemo(() => getVideoDisplayCategory(item), [item]);
 
   return (
     <TouchableOpacity
@@ -31,6 +31,8 @@ function TvVideoCard({ video, width = 168, onPress }: TvVideoCardProps) {
           uri={thumbnail}
           style={styles.thumb}
           contentFit="cover"
+          maxDecodeWidth={520}
+          maxDecodeHeight={320}
         />
         <View style={styles.playBadge}>
           <Ionicons name="play" size={14} color="#000" />

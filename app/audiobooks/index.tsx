@@ -155,7 +155,7 @@ export default function AudiobooksHomeScreen() {
   }, []);
 
   useEffect(() => {
-    if (!selectedCategory) return undefined;
+    if (!selectedCategory || searchQuery.trim()) return undefined;
     const controller = new AbortController();
     const requestId = ++categoryRequestRef.current;
 
@@ -187,7 +187,7 @@ export default function AudiobooksHomeScreen() {
       });
 
     return () => controller.abort();
-  }, [selectedCategory]);
+  }, [selectedCategory, searchQuery]);
 
   useEffect(() => {
     const query = searchQuery.trim();
