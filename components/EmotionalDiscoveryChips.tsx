@@ -18,12 +18,14 @@ type EmotionalDiscoveryChipsProps = {
   title?: string;
   subtitle?: string;
   style?: StyleProp<ViewStyle>;
+  showGatewayRows?: boolean;
 };
 
 export const EmotionalDiscoveryChips = memo(function EmotionalDiscoveryChips({
   title = "Emotional Worlds",
   subtitle = "Hidden Tunes rooms shaped by mood and feeling",
   style,
+  showGatewayRows = true,
 }: EmotionalDiscoveryChipsProps) {
   return (
     <View style={[styles.wrap, style]}>
@@ -34,37 +36,41 @@ export const EmotionalDiscoveryChips = memo(function EmotionalDiscoveryChips({
         </View>
       ) : null}
 
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Podcasts. Stories, interviews, and global voices"
-        style={({ pressed }) => [styles.liveRadioCard, pressed && styles.liveRadioCardPressed]}
-        onPress={() => router.push("/podcasts" as any)}
-      >
-        <View style={styles.liveRadioIcon}>
-          <Ionicons name="mic" size={18} color={COLORS.primary} />
-        </View>
-        <View style={styles.liveRadioCopy}>
-          <Text style={styles.liveRadioTitle}>Podcasts</Text>
-          <Text style={styles.liveRadioSubtitle}>Stories, interviews, and global voices</Text>
-        </View>
-        <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
-      </Pressable>
+      {showGatewayRows ? (
+        <>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Podcasts. Stories, interviews, and global voices"
+            style={({ pressed }) => [styles.liveRadioCard, pressed && styles.liveRadioCardPressed]}
+            onPress={() => router.push("/podcasts" as any)}
+          >
+            <View style={styles.liveRadioIcon}>
+              <Ionicons name="mic" size={18} color={COLORS.primary} />
+            </View>
+            <View style={styles.liveRadioCopy}>
+              <Text style={styles.liveRadioTitle}>Podcasts</Text>
+              <Text style={styles.liveRadioSubtitle}>Stories, interviews, and global voices</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
+          </Pressable>
 
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Live Radio. Thousands of live global stations"
-        style={({ pressed }) => [styles.liveRadioCard, pressed && styles.liveRadioCardPressed]}
-        onPress={() => router.push("/stations" as any)}
-      >
-        <View style={styles.liveRadioIcon}>
-          <Ionicons name="radio" size={18} color={COLORS.cyan} />
-        </View>
-        <View style={styles.liveRadioCopy}>
-          <Text style={styles.liveRadioTitle}>Live Radio</Text>
-          <Text style={styles.liveRadioSubtitle}>Thousands of live global stations</Text>
-        </View>
-        <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
-      </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Live Radio. Thousands of live global stations"
+            style={({ pressed }) => [styles.liveRadioCard, pressed && styles.liveRadioCardPressed]}
+            onPress={() => router.push("/stations" as any)}
+          >
+            <View style={styles.liveRadioIcon}>
+              <Ionicons name="radio" size={18} color={COLORS.cyan} />
+            </View>
+            <View style={styles.liveRadioCopy}>
+              <Text style={styles.liveRadioTitle}>Live Radio</Text>
+              <Text style={styles.liveRadioSubtitle}>Thousands of live global stations</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
+          </Pressable>
+        </>
+      ) : null}
 
       <View style={styles.chipWrap}>
         {EMOTIONAL_DISCOVERY_SHORTCUTS.map((item) => (

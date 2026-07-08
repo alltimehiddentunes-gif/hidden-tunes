@@ -85,17 +85,11 @@ import {
 } from "@/utils/discoveryPreferences";
 import { getUserFacingArtist } from "@/services/ui/displayMetadata";
 import { HOME_DISCOVERY_SHORTCUTS } from "@/constants/discoveryShortcuts";
-import { HOME_MORE_HUB_SHORTCUTS } from "@/constants/homeMoreHub";
 import { HomeDiscoveryShortcut } from "@/components/home/HomeDiscoveryShortcut";
-import { HomeDiscoveryChip } from "@/components/home/HomeDiscoveryChip";
-import { RadioStationRailCard } from "@/components/radio/RadioBrowserCards";
-import { PodcastCategoryCard } from "@/components/podcast/PodcastCards";
 import {
   getSharedDiscoverySnapshot,
   MAX_DISCOVERY_INPUT_SONGS,
 } from "@/services/discoveryCache";
-import { useHomeDiscoveryPreview } from "@/hooks/useHomeDiscoveryPreview";
-import { safeRouterPush } from "@/utils/safeNavigation";
 
 const CATALOG_PAGE_SIZE = 31;
 const HOME_SCROLL_SETTLE_MS = 520;
@@ -746,7 +740,6 @@ export default function MusicFeedScreen() {
       songsSignature,
     ]
   );
-  const homeDiscoveryPreview = useHomeDiscoveryPreview(showDeferredHomeSections);
   const moodGenreChips = useMemo(() => genres.slice(0, 4), [genres]);
   const recentlyAddedSongs = useMemo(
     () => (showDeferredHomeSections ? sharedDiscovery.recentlyDiscovered : []),
@@ -933,22 +926,6 @@ export default function MusicFeedScreen() {
 
   const openSearch = useCallback(() => {
     router.push("/search" as any);
-  }, []);
-
-  const openRadioHome = useCallback(() => {
-    safeRouterPush("/stations" as any);
-  }, []);
-
-  const openPodcastHome = useCallback(() => {
-    safeRouterPush("/podcasts" as any);
-  }, []);
-
-  const openPodcastShow = useCallback((showId: string) => {
-    safeRouterPush({ pathname: "/podcasts/show/[id]", params: { id: showId } });
-  }, []);
-
-  const openPodcastCategory = useCallback((categoryId: string) => {
-    safeRouterPush({ pathname: "/podcasts/category/[id]", params: { id: categoryId } });
   }, []);
 
   const playSongFromList = useCallback(
@@ -1142,160 +1119,10 @@ export default function MusicFeedScreen() {
 
                 {showDeferredHomeSections ? (
                 <>
-                    <View style={styles.cinematicSection}>
-                      <View style={styles.sectionHeaderRow}>
-                        <View>
-                          <Text style={styles.sectionEyebrow}>LIVE</Text>
-                          <Text style={styles.sectionTitle}>Radio</Text>
-                        </View>
-                        <TouchableOpacity activeOpacity={0.85} onPress={openRadioHome}>
-                          <Text style={styles.sectionMeta}>See all</Text>
-                        </TouchableOpacity>
-                      </View>
-                      {homeDiscoveryPreview.radioLoading ? (
-                        <ActivityIndicator color={COLORS.primary} style={styles.sectionLoader} />
-                      ) : homeDiscoveryPreview.radioStations.length > 0 ? (
-                        <ScrollView
-                          horizontal
-                          showsHorizontalScrollIndicator={false}
-                          contentContainerStyle={styles.discoveryRailRow}
-                        >
-                          {homeDiscoveryPreview.radioStations.map((station) => (
-                            <RadioStationRailCard
-                              key={`home-radio-${station.id}`}
-                              item={station}
-                              onPress={openRadioHome}
-                            />
-                          ))}
-                        </ScrollView>
-                      ) : (
-                        <Text style={styles.sectionEmptyMeta}>
-                          Featured stations load when you open Radio.
-                        </Text>
-                      )}
-                    </View>
-
-                    <View style={styles.cinematicSection}>
-                      <View style={styles.sectionHeaderRow}>
-                        <View>
-                          <Text style={styles.sectionEyebrow}>SHOWS</Text>
-                          <Text style={styles.sectionTitle}>Podcasts</Text>
-                        </View>
-                        <TouchableOpacity activeOpacity={0.85} onPress={openPodcastHome}>
-                          <Text style={styles.sectionMeta}>See all</Text>
-                        </TouchableOpacity>
-                      </View>
-                      {homeDiscoveryPreview.podcastFeatured.length > 0 ? (
-                        <ScrollView
-                          horizontal
-                          showsHorizontalScrollIndicator={false}
-                          contentContainerStyle={styles.discoveryRailRow}
-                        >
-                          {homeDiscoveryPreview.podcastFeatured.map((show) => (
-                            <TouchableOpacity
-                              key={`home-podcast-${show.id}`}
-                              activeOpacity={0.88}
-                              style={styles.podcastShowChip}
-                              onPress={() => openPodcastShow(show.id)}
-                            >
-                              {show.artworkUrl ? (
-                                <HTImage uri={show.artworkUrl} style={styles.podcastShowArt} contentFit="cover" />
-                              ) : (
-                                <View style={styles.podcastShowArtFallback}>
-                                  <Ionicons name="mic-outline" size={22} color={COLORS.textMuted} />
-                                </View>
-                              )}
-                              <Text numberOfLines={2} style={styles.podcastShowTitle}>
-                                {show.title}
-                              </Text>
-                              <Text numberOfLines={1} style={styles.podcastShowSubtitle}>
-                                {show.publisher}
-                              </Text>
-                            </TouchableOpacity>
-                          ))}
-                        </ScrollView>
-                      ) : null}
-                      {homeDiscoveryPreview.podcastCategories.length > 0 ? (
-                        <ScrollView
-                          horizontal
-                          showsHorizontalScrollIndicator={false}
-                          contentContainerStyle={styles.discoveryRailRow}
-                        >
-                          {homeDiscoveryPreview.podcastCategories.map((category) => (
-                            <PodcastCategoryCard
-                              key={`home-podcast-cat-${category.id}`}
-                              category={category}
-                              onPress={() => openPodcastCategory(category.id)}
-                            />
-                          ))}
-                        </ScrollView>
-                      ) : (
-                        <Text style={styles.sectionEmptyMeta}>
-                          Podcast shelves appear after discovery loads.
-                        </Text>
-                      )}
-                    </View>
-
-                    <View style={styles.cinematicSection}>
-                      <View style={styles.sectionHeaderRow}>
-                        <View>
-                          <Text style={styles.sectionEyebrow}>STORIES</Text>
-                          <Text style={styles.sectionTitle}>Audiobooks</Text>
-                        </View>
-                        <TouchableOpacity
-                          activeOpacity={0.85}
-                          onPress={() => router.push("/library" as any)}
-                        >
-                          <Text style={styles.sectionMeta}>Browse</Text>
-                        </TouchableOpacity>
-                      </View>
-                      {homeDiscoveryPreview.audiobookCategories.length > 0 ? (
-                        <ScrollView
-                          horizontal
-                          showsHorizontalScrollIndicator={false}
-                          contentContainerStyle={styles.discoveryRailRow}
-                        >
-                          {homeDiscoveryPreview.audiobookCategories.map((category) => (
-                            <PodcastCategoryCard
-                              key={`home-audiobook-${category.id}`}
-                              category={category}
-                              onPress={() => openPodcastCategory(category.id)}
-                            />
-                          ))}
-                        </ScrollView>
-                      ) : (
-                        <Text style={styles.sectionEmptyMeta}>
-                          Story and narrative shelves will appear here.
-                        </Text>
-                      )}
-                    </View>
-
-                    <View style={styles.cinematicSection}>
-                      <View style={styles.sectionHeaderRow}>
-                        <View>
-                          <Text style={styles.sectionEyebrow}>EXPLORE</Text>
-                          <Text style={styles.sectionTitle}>More</Text>
-                        </View>
-                      </View>
-                      <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        contentContainerStyle={styles.discoveryRailRow}
-                      >
-                        {HOME_MORE_HUB_SHORTCUTS.map((shortcut) => (
-                          <HomeDiscoveryChip
-                            key={shortcut.key}
-                            icon={shortcut.icon}
-                            title={shortcut.title}
-                            subtitle={shortcut.subtitle}
-                            color={shortcut.color}
-                            onPress={() => router.push(shortcut.route as any)}
-                          />
-                        ))}
-                      </ScrollView>
-                    </View>
-
-                    <EmotionalDiscoveryChips style={styles.emotionalWorldsSection} />
+                    <EmotionalDiscoveryChips
+                      style={styles.emotionalWorldsSection}
+                      showGatewayRows={false}
+                    />
 
                     {moodRooms.length > 0 ? (
                       <View style={styles.cinematicSection}>
