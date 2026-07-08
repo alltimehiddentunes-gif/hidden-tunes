@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -12,12 +13,12 @@ import {
 
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { router, useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import HTImage from "../../../components/HTImage";
 import { PodcastCategoryCard, PodcastShowCard } from "../../../components/podcast/PodcastCards";
 import PodcastEmptyCategoryState from "../../../components/podcast/PodcastEmptyCategoryState";
-import PodcastScreenHeader from "../../../components/podcast/PodcastScreenHeader";
 import PodcastSearchBar from "../../../components/podcast/PodcastSearchBar";
 import PodcastSearchResults from "../../../components/podcast/PodcastSearchResults";
 import {
@@ -48,6 +49,42 @@ import {
   subscribeMaturePodcastSettings,
 } from "../../../utils/maturePodcastSettings";
 import { safeRouterPush } from "../../../utils/safeNavigation";
+
+function CategoryPodcastHeader({
+  title,
+  subtitle,
+  kicker = "PODCASTS",
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  kicker?: string;
+  children?: ReactNode;
+}) {
+  const insets = useSafeAreaInsets();
+  const router = useRouter();
+
+  return (
+    <View style={[styles.headerWrap, { paddingTop: insets.top + 12 }]}>
+      <View style={styles.headerRow}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.backButton}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
+          <Ionicons name="chevron-back" size={24} color={COLORS.text} />
+        </TouchableOpacity>
+        <View style={styles.headerCopy}>
+          <Text style={styles.headerKicker}>{kicker}</Text>
+          <Text style={styles.headerTitle}>{title}</Text>
+          {subtitle ? <Text style={styles.headerSubtitle}>{subtitle}</Text> : null}
+        </View>
+      </View>
+      {children}
+    </View>
+  );
+}
 
 function formatEpisodeDate(value?: string) {
   if (!value) return undefined;
@@ -135,6 +172,7 @@ function MetadataEpisodeRow({ episode, index, onPress, playing }: MetadataEpisod
 }
 
 export default function PodcastCategoryScreen() {
+  const router = useRouter();
   const params = useLocalSearchParams<{ id?: string }>();
   const categoryId = resolvePodcastCategoryId(String(params.id || ""));
   const category = useMemo(() => getPodcastCategory(categoryId), [categoryId]);
@@ -311,7 +349,7 @@ export default function PodcastCategoryScreen() {
   if (usesBackendEpisodes) {
     return (
       <LinearGradient colors={["#030008", "#090214", "#000000"]} style={styles.screen}>
-        <PodcastScreenHeader
+        <CategoryPodcastHeader
           title={title}
           subtitle={description || "Playable Hidden Tunes podcast episodes"}
           kicker="PODCASTS"
@@ -441,9 +479,9 @@ export default function PodcastCategoryScreen() {
 
   return (
     <LinearGradient colors={["#030008", "#090214", "#000000"]} style={styles.screen}>
-      <PodcastScreenHeader title={title} subtitle={description} kicker="PODCASTS">
+      <CategoryPodcastHeader title={title} subtitle={description} kicker="PODCASTS">
         <PodcastSearchBar value={query} onChangeText={setQuery} />
-      </PodcastScreenHeader>
+      </CategoryPodcastHeader>
 
       <FlatList
         data={listData}
@@ -464,6 +502,41 @@ export default function PodcastCategoryScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
+  headerWrap: {
+    paddingHorizontal: 18,
+    paddingBottom: 8,
+    gap: 12,
+  },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+  },
+  backButton: {
+    padding: 4,
+    marginTop: 8,
+  },
+  headerCopy: {
+    flex: 1,
+  },
+  headerKicker: {
+    color: COLORS.primaryGlow,
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 1.4,
+  },
+  headerTitle: {
+    color: COLORS.text,
+    fontSize: 28,
+    fontWeight: "900",
+    marginTop: 4,
+  },
+  headerSubtitle: {
+    color: COLORS.textMuted,
+    fontSize: 13,
+    marginTop: 4,
+    lineHeight: 18,
+  },
   content: { paddingHorizontal: 18, paddingBottom: 120, gap: 12 },
   section: { gap: 8 },
   sectionTitleWrap: { marginTop: 4 },
