@@ -67,6 +67,8 @@ let coordinatedCatalogFirstPagePromise: Promise<HiddenTunesNormalizedSong[]> | n
   null;
 let songsBackgroundRefreshPromise: Promise<void> | null = null;
 let songsBackgroundRefreshAttemptTime = 0;
+let fullCatalogFetchPromise: Promise<HiddenTunesNormalizedSong[]> | null = null;
+const songsPageInflight = new Map<string, Promise<HiddenTunesSongPage>>();
 const endpointFailures = new Map<string, { failedAt: number; count: number }>();
 
 let artistsMemoryCache: HiddenTunesArtist[] | null = null;
@@ -657,13 +659,39 @@ async function readCachedSongsV4FromStorage(): Promise<HiddenTunesNormalizedSong
   }
 }
 
-function runCatalogBackgroundRefresh() {
-  if (!isAppActiveForWork()) return;
-  if (
+function getGlobalSongsPageInflightKey(page: number) {
+  return `global:page:${page}`;
+}
+
+function hasCatalogSongsFetchInflight() {
+  return Boolean(
+    fullCatalogFetchPromise ||
     songsBackgroundRefreshPromise ||
     songsFetchPromise ||
-    coordinatedCatalogFirstPagePromise
-  ) {
+    coordinatedCatalogFirstPagePromise ||
+    songsPageInflight.has(getGlobalSongsPageInflightKey(1))
+  );
+}
+
+function sliceSongPageToLimit(
+  pageResult: HiddenTunesSongPage,
+  limit: number
+): HiddenTunesSongPage {
+  if (pageResult.songs.length <= limit) {
+    return pageResult;
+  }
+
+  return {
+    ...pageResult,
+    songs: pageResult.songs.slice(0, limit),
+    limit,
+    hasMore: pageResult.songs.length > limit || pageResult.hasMore,
+  };
+}
+
+function runCatalogBackgroundRefresh() {
+  if (!isAppActiveForWork()) return;
+  if (hasCatalogSongsFetchInflight()) {
     return;
   }
 
@@ -788,57 +816,73 @@ export async function fetchAllHiddenTunesCatalogSongs(options?: {
 }): Promise<HiddenTunesNormalizedSong[]> {
   const forceRefresh = Boolean(options?.forceRefresh);
 
-  if (!forceRefresh) {
-    const cached = await hydrateHiddenTunesCatalogCache();
-    if (cached.length >= FULL_CATALOG_TRUSTED_CACHE_MIN) {
-      console.log(
-        `[HiddenTunes][catalog] using cached catalog (${cached.length} songs)`
-      );
-      return cached;
-    }
+  if (!forceRefresh && fullCatalogFetchPromise) {
+    return fullCatalogFetchPromise;
   }
 
-  let page = 1;
-  let hasMore = true;
+  const run = async (): Promise<HiddenTunesNormalizedSong[]> => {
+    if (!forceRefresh) {
+      const cached = await hydrateHiddenTunesCatalogCache();
+      if (cached.length >= FULL_CATALOG_TRUSTED_CACHE_MIN) {
+        console.log(
+          `[HiddenTunes][catalog] using cached catalog (${cached.length} songs)`
+        );
+        return cached;
+      }
+    }
 
-  try {
-    while (hasMore && page <= FULL_CATALOG_MAX_PAGES) {
-      const result = await getHiddenTunesSongsPage({
-        page,
-        limit: FULL_CATALOG_PAGE_LIMIT,
-        forceRefresh: forceRefresh && page === 1,
-      });
+    let page = 1;
+    let hasMore = true;
 
-      if (!result.songs.length) {
-        break;
+    try {
+      while (hasMore && page <= FULL_CATALOG_MAX_PAGES) {
+        const result = await getHiddenTunesSongsPage({
+          page,
+          limit: FULL_CATALOG_PAGE_LIMIT,
+          forceRefresh: forceRefresh && page === 1,
+        });
+
+        if (!result.songs.length) {
+          break;
+        }
+
+        hasMore = result.hasMore;
+        page = result.nextPage;
       }
 
-      hasMore = result.hasMore;
-      page = result.nextPage;
+      const merged = songsMemoryCache?.length
+        ? songsMemoryCache
+        : await hydrateHiddenTunesCatalogCache();
+
+      if (merged.length > 0) {
+        console.log(
+          `[HiddenTunes][catalog] loaded ${merged.length} songs from API (${HIDDEN_TUNES_API_BASE_URL})`
+        );
+        return merged;
+      }
+    } catch (error) {
+      console.log("Hidden Tunes full catalog API error:", error);
     }
 
-    const merged = songsMemoryCache?.length
-      ? songsMemoryCache
-      : await hydrateHiddenTunesCatalogCache();
-
-    if (merged.length > 0) {
+    const fallback = await hydrateHiddenTunesCatalogCache();
+    if (fallback.length > 0) {
       console.log(
-        `[HiddenTunes][catalog] loaded ${merged.length} songs from API (${HIDDEN_TUNES_API_BASE_URL})`
+        `[HiddenTunes][catalog] API fetch incomplete; using partial cache (${fallback.length} songs)`
       );
-      return merged;
     }
-  } catch (error) {
-    console.log("Hidden Tunes full catalog API error:", error);
+
+    return fallback;
+  };
+
+  if (forceRefresh) {
+    return run();
   }
 
-  const fallback = await hydrateHiddenTunesCatalogCache();
-  if (fallback.length > 0) {
-    console.log(
-      `[HiddenTunes][catalog] API fetch incomplete; using partial cache (${fallback.length} songs)`
-    );
-  }
+  fullCatalogFetchPromise = run().finally(() => {
+    fullCatalogFetchPromise = null;
+  });
 
-  return fallback;
+  return fullCatalogFetchPromise;
 }
 
 export function getHiddenTunesCatalogSnapshot(): HiddenTunesNormalizedSong[] {
@@ -936,11 +980,19 @@ async function fetchWithTimeout(
       throw error;
     }
 
-    const previous = endpointFailures.get(endpointKey);
-    endpointFailures.set(endpointKey, {
-      failedAt: Date.now(),
-      count: (previous?.count || 0) + 1,
-    });
+    const message = error instanceof Error ? error.message : String(error);
+    const isAbortError =
+      (error instanceof Error && error.name === "AbortError") ||
+      message.toLowerCase().includes("aborted") ||
+      message.toLowerCase().includes("canceled");
+
+    if (!isAbortError) {
+      const previous = endpointFailures.get(endpointKey);
+      endpointFailures.set(endpointKey, {
+        failedAt: Date.now(),
+        count: (previous?.count || 0) + 1,
+      });
+    }
     throw error;
   } finally {
     clearTimeout(timer);
@@ -1142,6 +1194,8 @@ export async function clearHiddenTunesSongsCache() {
   songsMemoryCacheTime = 0;
   songsFetchPromise = null;
   catalogStorageHydratePromise = null;
+  fullCatalogFetchPromise = null;
+  songsPageInflight.clear();
   await AsyncStorage.multiRemove([
     CACHE_KEY_V4,
     CACHE_TIME_KEY_V4,
@@ -1195,80 +1249,110 @@ export async function getHiddenTunesSongsPage(options?: {
   }
 
   const url = buildSongsUrl({ page, limit, query, artistId, albumId, genre });
+  const inflightKey = isGlobalCatalog
+    ? getGlobalSongsPageInflightKey(page)
+    : url;
+  const existingInflight = songsPageInflight.get(inflightKey);
 
-  try {
-    const refreshStart = startPerformanceTimer();
-    const response = await fetchWithTimeout(url);
+  if (existingInflight) {
+    const sharedPage = await existingInflight;
+    return sliceSongPageToLimit(sharedPage, limit);
+  }
 
-    if (!response.ok) {
-      throw new Error(`Hidden Tunes songs page API error: ${response.status}`);
-    }
+  const networkLimit =
+    isGlobalCatalog && page === 1 ? Math.max(limit, FULL_CATALOG_PAGE_LIMIT) : limit;
 
-    const data = await response.json();
-    const rawSongs = normalizeRawSongArray(data);
-    const normalized = rawSongs
-      .map((song: HiddenTunesCloudSong, index: number) =>
-        normalizeHiddenTunesSong(song, index + (page - 1) * limit)
-      )
-      .filter(Boolean) as HiddenTunesNormalizedSong[];
-    const songs = applySmartArtworkFallbacks(dedupeSongs(normalized));
-
-    if (isGlobalCatalog) {
-      const existing =
-        page === 1
-          ? []
-          : songsMemoryCache && songsMemoryCache.length > 0
-          ? songsMemoryCache
-          : await readCachedSongs();
-      const merged = page === 1 ? finalizeSongs(songs) : mergeSongPages(existing, songs);
-
-      await writeCachedSongs(merged);
-    }
-
-    logApiRefresh("catalog_page", refreshStart, {
+  const inflightPromise = (async (): Promise<HiddenTunesSongPage> => {
+    const requestUrl = buildSongsUrl({
       page,
-      limit,
-      count: songs.length,
-      scope: isGlobalCatalog ? "global" : "filtered",
+      limit: networkLimit,
+      query,
+      artistId,
+      albumId,
+      genre,
     });
 
-    return {
-      songs,
-      page,
-      limit,
-      hasMore: songs.length >= limit,
-      nextPage: page + 1,
-    };
-  } catch (error) {
-    console.log("Hidden Tunes songs page API error:", {
-      page,
-      limit,
-      url,
-      error: error instanceof Error ? error.message : String(error),
-    });
+    try {
+      const refreshStart = startPerformanceTimer();
+      const response = await fetchWithTimeout(requestUrl);
 
-    if (!isGlobalCatalog) {
-      return {
-        songs: [],
+      if (!response.ok) {
+        throw new Error(`Hidden Tunes songs page API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const rawSongs = normalizeRawSongArray(data);
+      const normalized = rawSongs
+        .map((song: HiddenTunesCloudSong, index: number) =>
+          normalizeHiddenTunesSong(song, index + (page - 1) * networkLimit)
+        )
+        .filter(Boolean) as HiddenTunesNormalizedSong[];
+      const songs = applySmartArtworkFallbacks(dedupeSongs(normalized));
+
+      if (isGlobalCatalog) {
+        const existing =
+          page === 1
+            ? []
+            : songsMemoryCache && songsMemoryCache.length > 0
+            ? songsMemoryCache
+            : await readCachedSongs();
+        const merged =
+          page === 1 ? finalizeSongs(songs) : mergeSongPages(existing, songs);
+
+        await writeCachedSongs(merged);
+      }
+
+      logApiRefresh("catalog_page", refreshStart, {
         page,
-        limit,
-        hasMore: false,
+        limit: networkLimit,
+        count: songs.length,
+        scope: isGlobalCatalog ? "global" : "filtered",
+      });
+
+      return {
+        songs,
+        page,
+        limit: networkLimit,
+        hasMore: songs.length >= networkLimit,
+        nextPage: page + 1,
+      };
+    } catch (error) {
+      console.log("Hidden Tunes songs page API error:", {
+        page,
+        limit: networkLimit,
+        url: requestUrl,
+        error: error instanceof Error ? error.message : String(error),
+      });
+
+      if (!isGlobalCatalog) {
+        return {
+          songs: [],
+          page,
+          limit: networkLimit,
+          hasMore: false,
+          nextPage: page + 1,
+        };
+      }
+
+      const cached = await readCachedSongs();
+      const start = (page - 1) * networkLimit;
+      const songs = cached.slice(start, start + networkLimit);
+
+      return {
+        songs,
+        page,
+        limit: networkLimit,
+        hasMore: start + networkLimit < cached.length,
         nextPage: page + 1,
       };
     }
+  })().finally(() => {
+    songsPageInflight.delete(inflightKey);
+  });
 
-    const cached = await readCachedSongs();
-    const start = (page - 1) * limit;
-    const songs = cached.slice(start, start + limit);
-
-    return {
-      songs,
-      page,
-      limit,
-      hasMore: start + limit < cached.length,
-      nextPage: page + 1,
-    };
-  }
+  songsPageInflight.set(inflightKey, inflightPromise);
+  const pageResult = await inflightPromise;
+  return sliceSongPageToLimit(pageResult, limit);
 }
 
 export async function getHiddenTunesSongs(options?: { forceRefresh?: boolean }) {

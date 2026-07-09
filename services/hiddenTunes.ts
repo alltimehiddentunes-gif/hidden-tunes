@@ -382,6 +382,7 @@ export async function fetchHiddenTunesSongs(options?: {
 
 let derivedCatalogCache: HiddenTunesDerivedCatalog | null = null;
 let derivedCatalogFingerprint = "";
+let catalogFetchInflight: Promise<HiddenTunesDerivedCatalog> | null = null;
 
 function buildCatalogFingerprint(songs: HiddenTunesSong[]) {
   if (!songs.length) return "empty";
@@ -456,6 +457,7 @@ export function getCachedHiddenTunesCatalog() {
 export function clearHiddenTunesCatalogCache() {
   derivedCatalogCache = null;
   derivedCatalogFingerprint = "";
+  catalogFetchInflight = null;
 }
 
 export async function fetchHiddenTunesDiscoveryCatalog(options?: {
@@ -504,25 +506,41 @@ export async function fetchHiddenTunesCatalog(options?: {
     if (derivedCatalogCache && isDerivedCatalogTrusted(derivedCatalogCache)) {
       return derivedCatalogCache;
     }
+
+    if (catalogFetchInflight) {
+      return catalogFetchInflight;
+    }
   }
 
-  const needsFullFetch =
-    options?.forceRefresh ||
-    !derivedCatalogCache ||
-    !isDerivedCatalogTrusted(derivedCatalogCache);
+  const run = async (): Promise<HiddenTunesDerivedCatalog> => {
+    const needsFullFetch =
+      options?.forceRefresh ||
+      !derivedCatalogCache ||
+      !isDerivedCatalogTrusted(derivedCatalogCache);
 
-  const songs = await fetchHiddenTunesSongs({
-    forceRefresh: needsFullFetch,
+    const songs = await fetchHiddenTunesSongs({
+      forceRefresh: needsFullFetch,
+    });
+    const fingerprint = buildCatalogFingerprint(songs);
+
+    if (
+      !needsFullFetch &&
+      derivedCatalogCache &&
+      derivedCatalogFingerprint === fingerprint
+    ) {
+      return derivedCatalogCache;
+    }
+
+    return rebuildDerivedCatalog(songs);
+  };
+
+  if (options?.forceRefresh) {
+    return run();
+  }
+
+  catalogFetchInflight = run().finally(() => {
+    catalogFetchInflight = null;
   });
-  const fingerprint = buildCatalogFingerprint(songs);
 
-  if (
-    !needsFullFetch &&
-    derivedCatalogCache &&
-    derivedCatalogFingerprint === fingerprint
-  ) {
-    return derivedCatalogCache;
-  }
-
-  return rebuildDerivedCatalog(songs);
+  return catalogFetchInflight;
 }
