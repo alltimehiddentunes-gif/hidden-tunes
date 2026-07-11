@@ -2,7 +2,7 @@ export const RADIO_PUBLIC_STATION_SELECT =
   "id, name, favicon_url, country, country_code, language, tags, bitrate, codec, votes, click_count, category_slug, categories, quality_score, reliability_score, is_featured, is_mature, content_rating";
 
 export const RADIO_PLAY_STATION_SELECT =
-  "id, name, stream_url, source_type, source_station_uuid, status, playback_status, is_active, is_verified, quality_score, reliability_score, quarantined_at, disabled_at";
+  "id, name, stream_url, source_type, source_station_uuid, status, playback_status, is_active, is_verified, is_mature, quality_score, reliability_score, quarantined_at, disabled_at";
 
 export const RADIO_DEFAULT_PAGE_SIZE = 40;
 export const RADIO_MAX_PAGE_SIZE = 40;
