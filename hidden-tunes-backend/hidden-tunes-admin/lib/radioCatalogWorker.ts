@@ -332,7 +332,7 @@ async function upsertSourceMapping(
   if (error) throw error;
 }
 
-async function updateThenInsertStation(
+export async function importNormalizedRadioStation(
   station: NormalizedRadioStation,
   options: { dryRun: boolean }
 ): Promise<{
@@ -472,7 +472,7 @@ export async function ingestRadioCatalogBatch(options: {
     result.stations_attempted += 1;
 
     try {
-      const writeResult = await updateThenInsertStation(station, { dryRun });
+      const writeResult = await importNormalizedRadioStation(station, { dryRun });
       if (writeResult.classification === "inserted") result.stations_inserted += 1;
       else if (writeResult.classification === "updated") result.stations_updated += 1;
       else if (writeResult.classification === "unchanged") result.stations_unchanged += 1;
