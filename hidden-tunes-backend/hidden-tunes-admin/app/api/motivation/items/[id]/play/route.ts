@@ -1,54 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { MOTIVATION_PLAY_SELECT } from "@/lib/motivationCatalog";
-import { isPublicMotivationRow } from "@/lib/motivationHealth";
+import {
+  jsonMotivationError,
+  resolveMotivationPlayback,
+} from "@/lib/motivationCatalog";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function jsonError(error: string, status: number, details?: unknown) {
-  return NextResponse.json(
-    {
-      success: false,
-      error,
-      details: details || null,
-    },
-    { status }
-  );
-}
+type RouteContext = {
+  params: Promise<{ id: string }>;
+};
 
-export async function GET(
-  _request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
+export async function GET(_request: NextRequest, context: RouteContext) {
   const { id } = await context.params;
-  const cleanId = String(id || "").trim();
+  const result = await resolveMotivationPlayback(String(id || ""));
 
-  if (!cleanId) {
-    return jsonError("Motivation item id is required.", 400);
-  }
-
-  const { data, error } = await supabaseAdmin
-    .from("motivation_items")
-    .select(MOTIVATION_PLAY_SELECT)
-    .eq("id", cleanId)
-    .maybeSingle();
-
-  if (error) {
-    return jsonError("Failed to load motivation play URL.", 500, error.message);
-  }
-
-  if (!data || !isPublicMotivationRow(data)) {
-    return jsonError("Motivation item not found or not currently playable.", 404);
+  if (!result.ok) {
+    return jsonMotivationError(result.error, result.status);
   }
 
   return NextResponse.json({
     success: true,
-    id: data.id,
-    source_type: data.source_type,
-    source_id: data.source_id,
-    stream_url: data.source_url,
-    embed_url: data.embed_url || null,
+    id: result.id,
+    source_type: result.source_type,
+    source_id: result.source_id,
+    media_type: result.media_type,
+    stream_url: result.stream_url,
+    embed_url: result.embed_url,
   });
 }

@@ -1,6 +1,8 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import {
   MOTIVATION_TARGET_ITEMS,
+  buildMotivationItemSlug,
+  resolveMotivationCategorySlug,
   toMotivationPublicItem,
   type MotivationItemRow,
 } from "@/lib/motivationCatalog";
@@ -74,12 +76,14 @@ function normalizeTitleKey(title: string | null | undefined, region?: string | n
 export function isPublicMotivationRow(row: {
   status?: string | null;
   is_active?: boolean | null;
+  is_verified?: boolean | null;
   playback_status?: string | null;
   reliability_score?: number | null;
 }) {
   return (
     row.status === "approved" &&
     row.is_active === true &&
+    row.is_verified === true &&
     row.playback_status === "playable" &&
     Number(row.reliability_score ?? 100) >= MOTIVATION_RELIABILITY_THRESHOLD
   );
@@ -92,14 +96,29 @@ export function applyMotivationHealthProbe(
 ): MotivationHealthUpdate {
   const currentScore = clampScore(Number(row.reliability_score ?? 100));
   const currentFailures = Math.max(0, Number(row.consecutive_failures ?? 0));
+  const isApproved = row.status === "approved";
 
   if (probe.playable) {
+    if (isApproved) {
+      return {
+        status: "approved",
+        playback_status: "playable",
+        reliability_score: clampScore(currentScore + 6),
+        consecutive_failures: 0,
+        is_active: true,
+        quarantined_at: null,
+        disabled_at: null,
+        last_health_checked_at: nowIso,
+        last_health_error: null,
+      };
+    }
+
     return {
-      status: "approved",
-      playback_status: "playable",
-      reliability_score: clampScore(currentScore + 6),
+      status: "pending",
+      playback_status: "unchecked",
+      reliability_score: clampScore(currentScore + 3),
       consecutive_failures: 0,
-      is_active: true,
+      is_active: false,
       quarantined_at: null,
       disabled_at: null,
       last_health_checked_at: nowIso,
@@ -311,6 +330,12 @@ export async function importMotivationCandidates(
       const approved = probe.playable;
       const nowIso = new Date().toISOString();
 
+      const categoryLabel = candidate.category || "Motivation";
+      const categorySlug = resolveMotivationCategorySlug(
+        candidate.category,
+        candidate.subcategory
+      );
+
       const { error } = await supabaseAdmin.from("motivation_items").insert({
         source_type: candidate.source_type,
         source_id: candidate.source_id,
@@ -320,12 +345,16 @@ export async function importMotivationCandidates(
           (candidate.source_type === "youtube_video"
             ? buildYouTubeEmbedUrl(candidate.source_id)
             : null),
+        slug: buildMotivationItemSlug(candidate.title, candidate.source_id),
         title: candidate.title,
         description: candidate.description || null,
         thumbnail_url: candidate.thumbnail_url || null,
         channel_name: candidate.channel_name || null,
-        category: candidate.category || "Motivation",
+        speaker_name: candidate.channel_name || null,
+        category: categoryLabel,
         subcategory: candidate.subcategory || null,
+        category_slug: categorySlug,
+        categories: [categorySlug],
         tags: candidate.tags?.length ? candidate.tags : ["Motivation"],
         language: candidate.language || null,
         region: candidate.region || null,
@@ -381,7 +410,7 @@ export async function runMotivationVerification(limit = MOTIVATION_VERIFY_BATCH_
   let checked = 0;
   let playable = 0;
   let failed = 0;
-  let newlyApproved = 0;
+  let healthImproved = 0;
   let hidden = 0;
 
   for (const row of (data || []) as MotivationItemRow[]) {
@@ -396,20 +425,22 @@ export async function runMotivationVerification(limit = MOTIVATION_VERIFY_BATCH_
     checked += 1;
     if (probe.playable) {
       playable += 1;
-      if (row.status !== "approved" || row.is_active !== true) newlyApproved += 1;
+      if (row.status === "pending") healthImproved += 1;
     } else {
       failed += 1;
       if (!update.is_active) hidden += 1;
     }
   }
 
-  return { checked, playable, failed, newlyApproved, hidden };
+  return { checked, playable, failed, healthImproved, hidden, newlyApproved: 0 };
 }
 
 export async function getMotivationStatusSummary() {
   const { data, error } = await supabaseAdmin
     .from("motivation_items")
-    .select("status, playback_status, is_active, reliability_score, quarantined_at, category");
+    .select(
+      "status, playback_status, is_active, is_verified, reliability_score, quarantined_at, category"
+    );
   if (error) throw new Error(error.message);
 
   const rows = (data || []) as Array<Record<string, unknown>>;
@@ -417,6 +448,7 @@ export async function getMotivationStatusSummary() {
     isPublicMotivationRow({
       status: String(row.status || ""),
       is_active: row.is_active === true,
+      is_verified: row.is_verified === true,
       playback_status: String(row.playback_status || ""),
       reliability_score: Number(row.reliability_score ?? 100),
     })
@@ -436,6 +468,7 @@ export async function getMotivationStatusSummary() {
       !isPublicMotivationRow({
         status: String(row.status || ""),
         is_active: row.is_active === true,
+        is_verified: row.is_verified === true,
         playback_status: String(row.playback_status || ""),
         reliability_score: Number(row.reliability_score ?? 100),
       })

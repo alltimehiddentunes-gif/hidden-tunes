@@ -3,9 +3,11 @@ import assert from "node:assert/strict";
 import {
   encodeMotivationCursor,
   decodeMotivationCursor,
+  isValidMotivationUuid,
   toMotivationPublicItem,
 } from "../lib/motivationCatalog";
 import {
+  applyMotivationHealthProbe,
   isPublicMotivationRow,
   MOTIVATION_RELIABILITY_THRESHOLD,
   toMotivationPublicMetadata,
@@ -13,6 +15,18 @@ import {
 import { validatePublicTvUrl } from "../lib/tvStationHealth";
 
 function main() {
+  assert.equal(isValidMotivationUuid(""), false);
+  assert.equal(isValidMotivationUuid("not-a-uuid"), false);
+  assert.equal(isValidMotivationUuid("00000000-0000-4000-8000-000000000000"), true);
+  assert.equal(
+    isValidMotivationUuid("550e8400-e29b-41d4-a716-446655440000"),
+    true
+  );
+  assert.equal(
+    isValidMotivationUuid("550e8400-e29b-41d4-a716"),
+    false
+  );
+
   const row = {
     id: "motivation-uuid",
     title: "Stay Focused",
@@ -49,10 +63,21 @@ function main() {
     isPublicMotivationRow({
       status: "approved",
       is_active: true,
+      is_verified: true,
       playback_status: "playable",
       reliability_score: MOTIVATION_RELIABILITY_THRESHOLD,
     }),
     true
+  );
+  assert.equal(
+    isPublicMotivationRow({
+      status: "approved",
+      is_active: true,
+      is_verified: false,
+      playback_status: "playable",
+      reliability_score: MOTIVATION_RELIABILITY_THRESHOLD,
+    }),
+    false
   );
 
   const cursor = encodeMotivationCursor({
@@ -65,11 +90,27 @@ function main() {
 
   assert.equal(validatePublicTvUrl("http://127.0.0.1/video.mp4").ok, false);
 
+  const pendingProbe = applyMotivationHealthProbe(
+    { status: "pending", reliability_score: 40, consecutive_failures: 0 },
+    { playable: true, playback_status: "playable", reason: "ok" }
+  );
+  assert.equal(pendingProbe.status, "pending");
+  assert.equal(pendingProbe.is_active, false);
+  assert.equal(pendingProbe.playback_status, "unchecked");
+
+  const approvedProbe = applyMotivationHealthProbe(
+    { status: "approved", reliability_score: 80, consecutive_failures: 0 },
+    { playable: true, playback_status: "playable", reason: "ok" }
+  );
+  assert.equal(approvedProbe.status, "approved");
+  assert.equal(approvedProbe.is_active, true);
+
   console.log(
     JSON.stringify(
       {
         ok: true,
         publicFields: Object.keys(item),
+        uuidChecks: "pass",
       },
       null,
       2

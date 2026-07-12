@@ -97,7 +97,17 @@ async function applyWithManagementApi(sql) {
 }
 
 async function main() {
-  const sql = fs.readFileSync(migrationPath, "utf8");
+  let sql = fs.readFileSync(migrationPath, "utf8");
+  const parityPath = path.join(
+    adminRoot,
+    "supabase/migrations/20260707120000_motivation_catalog_parity.sql"
+  );
+  if (fs.existsSync(parityPath)) {
+    sql += `\n\n${fs.readFileSync(parityPath, "utf8")}`;
+  }
+  if (!/notify\s+pgrst/i.test(sql)) {
+    sql += "\n\nnotify pgrst, 'reload schema';\n";
+  }
   const pgResult = await applyWithPg(sql);
   if (pgResult.ok) {
     console.log(JSON.stringify({ success: true, method: pgResult.method }, null, 2));

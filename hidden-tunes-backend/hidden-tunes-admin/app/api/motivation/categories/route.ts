@@ -1,30 +1,20 @@
 import { NextResponse } from "next/server";
 
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import {
+  jsonMotivationError,
+  listMotivationCategories,
+  serializeMotivationError,
+} from "@/lib/motivationCatalog";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const { data, error } = await supabaseAdmin
-    .from("motivation_categories")
-    .select("id, name, slug, description, sort_order")
-    .eq("is_active", true)
-    .order("sort_order", { ascending: true });
-
-  if (error) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Failed to load motivation categories.",
-        details: error.message,
-      },
-      { status: 500 }
-    );
+  try {
+    const categories = await listMotivationCategories();
+    return NextResponse.json({ success: true, categories });
+  } catch (error) {
+    console.error("[motivation] categories failed", serializeMotivationError(error));
+    return jsonMotivationError("Failed to load motivation categories.", 500, error);
   }
-
-  return NextResponse.json({
-    success: true,
-    categories: data || [],
-  });
 }
