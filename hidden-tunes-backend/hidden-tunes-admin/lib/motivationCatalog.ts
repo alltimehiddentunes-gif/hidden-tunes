@@ -53,7 +53,7 @@ export const MOTIVATION_CATEGORIES = [
   { id: "short-motivationals", slug: "short-motivationals", name: "Short Motivationals", sort_order: 140 },
 ] as const;
 
-export const MOTIVATION_TARGET_ITEMS = 5000;
+export const MOTIVATION_TARGET_ITEMS = 200_000;
 export const MOTIVATION_RELIABILITY_THRESHOLD = 60;
 
 export type MotivationPagination = {
@@ -306,6 +306,7 @@ export function applyPublicMotivationFilters(query: any, options: {
     .eq("is_verified", true)
     .eq("playback_status", "playable")
     .eq("is_mature", false)
+    .eq("content_classification", "accept")
     .gte("reliability_score", MOTIVATION_RELIABILITY_THRESHOLD);
 
   if (options.featuredOnly) next = next.eq("is_featured", true);
@@ -383,12 +384,14 @@ function isPromotedMotivationItem(row: {
   is_verified?: boolean | null;
   playback_status?: string | null;
   reliability_score?: number | null;
+  content_classification?: string | null;
 }) {
   return (
     row.status === "approved" &&
     row.is_active === true &&
     row.is_verified === true &&
     row.playback_status === "playable" &&
+    (row.content_classification == null || row.content_classification === "accept") &&
     Number(row.reliability_score ?? 100) >= MOTIVATION_RELIABILITY_THRESHOLD
   );
 }

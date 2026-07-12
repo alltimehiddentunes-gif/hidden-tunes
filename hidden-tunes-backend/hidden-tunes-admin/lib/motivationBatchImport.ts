@@ -8,15 +8,27 @@ import {
 } from "@/lib/motivationExpansionCheckpoint";
 import { buildArchiveMotivationCandidates } from "@/lib/motivationArchiveSource";
 import {
+  dedupeMotivationCandidatesBounded,
+  loadMotivationDedupeKeysForCandidates,
+} from "@/lib/motivationBoundedDedupe";
+import {
+  classifyMotivationContent,
+  contentClassificationBlocksImport,
+  type MotivationContentDecision,
+} from "@/lib/motivationContentClassifier";
+import {
   buildMotivationItemSlug,
   resolveMotivationCategorySlug,
 } from "@/lib/motivationCatalog";
 import {
-  dedupeMotivationCandidates,
   probeMotivationItem,
   type MotivationGrowthCandidate,
   type MotivationProbeResult,
 } from "@/lib/motivationHealth";
+import {
+  normalizeMotivationMetadata,
+  sanitizeMotivationDurationSeconds,
+} from "@/lib/motivationMetadataNormalize";
 import {
   mapCandidateToRegistrySource,
   verifyArchiveItemRights,
@@ -29,6 +41,7 @@ export type MotivationBatchImportOptions = {
   batchNumber?: number;
   examineLimit?: number;
   dryRun?: boolean;
+  queryFamily?: string;
   sourceRequestConcurrency?: number;
   writeChunkSize?: number;
   mediaValidationConcurrency?: number;
@@ -59,6 +72,10 @@ export type MotivationBatchImportResult = {
   public_promotions: number;
   duplicate_records: number;
   dedupe_matches: number;
+  classified_accept: number;
+  classified_hold: number;
+  classified_reject: number;
+  classified_routed: number;
   sources_used: string[];
   checkpoint_id: string | null;
   errors: string[];
@@ -105,37 +122,53 @@ async function loadEnabledSources() {
   return data || [];
 }
 
-async function loadDedupeKeys() {
-  const { data, error } = await supabaseAdmin
-    .from("motivation_items")
-    .select("id, source_type, source_id, source_url, title, region, source_key");
-  if (error) throw new Error(error.message);
+function normalizeCandidate(candidate: MotivationGrowthCandidate): MotivationGrowthCandidate {
+  const normalized = normalizeMotivationMetadata({
+    title: candidate.title,
+    description: candidate.description,
+    creator: candidate.creator_name || candidate.channel_name,
+    speaker: candidate.speaker_name,
+    channel: candidate.channel_name,
+    tags: candidate.tags,
+    subjects: candidate.subjects,
+    language: candidate.language,
+    country: candidate.region,
+    fileNames: candidate.file_names,
+  });
 
-  const { data: files, error: filesError } = await supabaseAdmin
-    .from("motivation_files")
-    .select("item_id")
-    .eq("is_primary", true);
-  if (filesError) throw new Error(filesError.message);
+  const classification = classifyMotivationContent({
+    title: normalized.title,
+    description: normalized.description,
+    subjects: normalized.subjects,
+    tags: normalized.tags,
+    creator: normalized.creator,
+    speaker: normalized.speaker,
+    channel: normalized.channel,
+    collection: candidate.collection,
+    provider: candidate.provider,
+    sourceType: candidate.source_type,
+    runtimeSeconds: candidate.duration_seconds,
+    language: normalized.language,
+    category: candidate.category,
+    fileNames: normalized.fileNames,
+  });
 
-  const itemIdsWithPrimaryFile = new Set(
-    (files || []).map((row) => String(row.item_id))
-  );
-
-  const sourceKeys = new Set<string>();
-  const urlKeys = new Set<string>();
-  const titleRegionKeys = new Set<string>();
-
-  for (const row of (data || []) as Array<Record<string, unknown>>) {
-    if (!itemIdsWithPrimaryFile.has(String(row.id || ""))) continue;
-    sourceKeys.add(`${row.source_type || ""}:${row.source_id || ""}`);
-    sourceKeys.add(String(row.source_key || `${row.source_type || ""}:${row.source_id || ""}`));
-    urlKeys.add(String(row.source_url || "").trim().replace(/\/+$/, "").toLowerCase());
-    titleRegionKeys.add(
-      `${String(row.title || "").trim().toLowerCase()}::${String(row.region || "").trim().toLowerCase()}`
-    );
-  }
-
-  return { sourceKeys, urlKeys, titleRegionKeys };
+  return {
+    ...candidate,
+    title: normalized.title || candidate.title,
+    description: normalized.description || candidate.description || null,
+    creator_name: normalized.creator,
+    channel_name: normalized.channel,
+    speaker_name: normalized.speaker,
+    tags: normalized.tags.length ? normalized.tags : candidate.tags,
+    language: normalized.language || candidate.language,
+    region: normalized.country || candidate.region,
+    duration_seconds: sanitizeMotivationDurationSeconds(candidate.duration_seconds),
+    content_classification: classification.decision,
+    content_classification_reason: classification.reason,
+    content_classification_confidence: Math.round(classification.confidence * 100),
+    normalized_title_hash: normalized.titleHash,
+  };
 }
 
 async function upsertCheckpoint(payload: Record<string, unknown>) {
@@ -206,6 +239,10 @@ export async function runMotivationBatchImport(
     public_promotions: 0,
     duplicate_records: 0,
     dedupe_matches: 0,
+    classified_accept: 0,
+    classified_hold: 0,
+    classified_reject: 0,
+    classified_routed: 0,
     sources_used: [],
     checkpoint_id: null,
     errors: [],
@@ -227,6 +264,7 @@ export async function runMotivationBatchImport(
       rowsPerPage: 20,
       maxPagesPerQuery: 3,
       concurrency: sourceConcurrency,
+      queryFamily: options.queryFamily,
     });
   } catch (error) {
     result.errors.push(error instanceof Error ? error.message : String(error));
@@ -236,11 +274,31 @@ export async function runMotivationBatchImport(
   result.candidates_fetched = candidates.length;
   result.records_examined = Math.min(candidates.length, examineLimit);
 
-  const existing = await loadDedupeKeys();
-  const uniqueCandidates = dedupeMotivationCandidates(candidates, existing).slice(0, examineLimit);
-  result.dedupe_matches = Math.max(0, candidates.length - uniqueCandidates.length);
+  const normalizedCandidates = candidates.map(normalizeCandidate);
+  for (const candidate of normalizedCandidates) {
+    const decision = candidate.content_classification || "hold";
+    if (decision === "accept") result.classified_accept += 1;
+    else if (decision === "hold") result.classified_hold += 1;
+    else if (decision === "reject") result.classified_reject += 1;
+    else result.classified_routed += 1;
+  }
+
+  const classifiableCandidates = normalizedCandidates.filter(
+    (candidate) =>
+      !contentClassificationBlocksImport(
+        (candidate.content_classification || "hold") as MotivationContentDecision
+      )
+  );
+
+  const existing = await loadMotivationDedupeKeysForCandidates(classifiableCandidates);
+  const uniqueCandidates = dedupeMotivationCandidatesBounded(classifiableCandidates, existing).slice(
+    0,
+    examineLimit
+  );
+  result.dedupe_matches = Math.max(0, classifiableCandidates.length - uniqueCandidates.length);
   result.duplicate_records = result.dedupe_matches;
   result.records_skipped = result.dedupe_matches;
+  result.records_rejected += normalizedCandidates.length - classifiableCandidates.length;
 
   const rightsChecked = await mapWithConcurrency(uniqueCandidates, sourceConcurrency, async (candidate) => {
     const registrySource = mapCandidateToRegistrySource(
@@ -401,7 +459,8 @@ export async function runMotivationBatchImport(
         description: candidate.description || null,
         thumbnail_url: candidate.thumbnail_url || null,
         channel_name: candidate.channel_name || null,
-        speaker_name: candidate.channel_name || null,
+        speaker_name: candidate.speaker_name || null,
+        creator_name: candidate.creator_name || null,
         category: candidate.category || "Motivation",
         subcategory: candidate.subcategory || null,
         category_slug: categorySlug,
@@ -411,6 +470,10 @@ export async function runMotivationBatchImport(
         region: candidate.region || null,
         duration_seconds: candidate.duration_seconds ?? null,
         source_key: sourceKey,
+        content_classification: candidate.content_classification || "hold",
+        content_classification_reason: candidate.content_classification_reason || null,
+        content_classification_confidence: candidate.content_classification_confidence ?? null,
+        normalized_title_hash: candidate.normalized_title_hash || null,
         status: "pending",
         playback_status: "unchecked",
         is_active: false,

@@ -29,15 +29,25 @@ export type MotivationGrowthCandidate = {
   description?: string | null;
   thumbnail_url?: string | null;
   channel_name?: string | null;
+  creator_name?: string | null;
+  speaker_name?: string | null;
   category?: string | null;
   subcategory?: string | null;
   tags?: string[];
+  subjects?: string[];
   language?: string | null;
   region?: string | null;
   duration_seconds?: number | null;
   is_featured?: boolean;
   source_key?: string | null;
   sort_order?: number | null;
+  collection?: string | null;
+  provider?: string | null;
+  file_names?: string[];
+  content_classification?: string | null;
+  content_classification_reason?: string | null;
+  content_classification_confidence?: number | null;
+  normalized_title_hash?: string | null;
 };
 
 export type MotivationProbeResult = {
@@ -79,12 +89,14 @@ export function isPublicMotivationRow(row: {
   is_verified?: boolean | null;
   playback_status?: string | null;
   reliability_score?: number | null;
+  content_classification?: string | null;
 }) {
   return (
     row.status === "approved" &&
     row.is_active === true &&
     row.is_verified === true &&
     row.playback_status === "playable" &&
+    (row.content_classification == null || row.content_classification === "accept") &&
     Number(row.reliability_score ?? 100) >= MOTIVATION_RELIABILITY_THRESHOLD
   );
 }
@@ -288,8 +300,14 @@ export function dedupeMotivationCandidates(
 
 export async function importMotivationCandidates(
   candidates: MotivationGrowthCandidate[],
-  options?: { verifyConcurrency?: number }
+  options?: { verifyConcurrency?: number; allowLegacyAutoApprove?: boolean }
 ) {
+  if (options?.allowLegacyAutoApprove !== true) {
+    throw new Error(
+      "Legacy motivation import auto-approve path is disabled. Use runMotivationBatchImport or motivation:expansion instead."
+    );
+  }
+
   const existing = await loadDedupeKeys();
   const uniqueCandidates = dedupeMotivationCandidates(candidates, existing);
   const concurrency = Math.max(1, options?.verifyConcurrency ?? MOTIVATION_IMPORT_CONCURRENCY);

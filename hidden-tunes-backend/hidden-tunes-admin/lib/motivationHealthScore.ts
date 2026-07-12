@@ -11,6 +11,7 @@ export type MotivationHealthScoreInput = {
   category_valid: boolean;
   maturity_valid: boolean;
   registry_valid: boolean;
+  content_classification_pass?: boolean;
 };
 
 export type MotivationHealthScoreResult = {
@@ -68,6 +69,10 @@ export function computeMotivationHealthScore(
   if (!input.category_valid) reasons.push("Category invalid.");
   if (!input.maturity_valid) reasons.push("Maturity policy blocks public promotion.");
 
+  if (input.content_classification_pass === false) {
+    reasons.push("Content classification is not accept.");
+  }
+
   const score = clampScore(
     Object.values(components).reduce((sum, value) => sum + value, 0)
   );
@@ -77,6 +82,7 @@ export function computeMotivationHealthScore(
     !input.rights_pass ||
     !input.registry_valid ||
     !input.primary_file_pass ||
+    input.content_classification_pass === false ||
     input.duplicate_classification === "exact" ||
     input.duplicate_classification === "strong";
 

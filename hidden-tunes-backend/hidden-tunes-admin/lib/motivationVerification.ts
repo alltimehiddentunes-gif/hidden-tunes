@@ -3,6 +3,7 @@ import {
   duplicateClassificationBlocksPromotion,
   normalizeCanonicalSourceUrl,
 } from "@/lib/motivationDuplicates";
+import { contentClassificationAllowsPublic, type MotivationContentDecision } from "@/lib/motivationContentClassifier";
 import { probeMotivationItem } from "@/lib/motivationHealth";
 import { computeMotivationHealthScore } from "@/lib/motivationHealthScore";
 import { verifyArchiveItemRights } from "@/lib/motivationItemRights";
@@ -54,6 +55,8 @@ export type MotivationVerificationItem = {
   is_mature?: boolean | null;
   status?: string | null;
   description?: string | null;
+  content_classification?: string | null;
+  content_classification_reason?: string | null;
 };
 
 function evidence(
@@ -170,6 +173,21 @@ export async function buildMotivationVerificationEvidence(
         ? "Required metadata fields present."
         : "Metadata incomplete for promotion review.",
       "motivationVerification",
+      checkedAt
+    )
+  );
+
+  const classificationDecision = String(item.content_classification || "hold") as MotivationContentDecision;
+  const classificationPass = contentClassificationAllowsPublic(classificationDecision);
+  checks.push(
+    evidence(
+      "content_classification",
+      classificationPass ? "pass" : "fail",
+      classificationPass
+        ? "Content classified as motivational accept."
+        : item.content_classification_reason ||
+          `Content classification ${classificationDecision} blocks promotion.`,
+      "motivationContentClassifier",
       checkedAt
     )
   );
@@ -302,6 +320,7 @@ export async function buildMotivationVerificationEvidence(
     category_valid: categoryKnown,
     maturity_valid: item.is_mature !== true,
     registry_valid: registryValidation.ok,
+    content_classification_pass: classificationPass,
   });
 
   checks.push(
@@ -334,6 +353,7 @@ export async function buildMotivationVerificationEvidence(
     !mediaPass ||
     !primaryFilePass ||
     !categoryKnown ||
+    !classificationPass ||
     item.is_mature === true
   ) {
     eligibility = "blocked";
