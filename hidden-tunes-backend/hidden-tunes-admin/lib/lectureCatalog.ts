@@ -57,7 +57,7 @@ export const LECTURE_CATEGORIES = [
 ] as const;
 
 export const LECTURE_PUBLIC_LIST_SELECT =
-  "id, slug, title, subtitle, description, instructor_name, speaker_name, creator_name, category_slug, categories, topic_tags, difficulty, lesson_count, duration_seconds, artwork_url, cover_url, language, source_type, source_url, rights, is_featured, is_verified, published_at, created_at";
+  "id, slug, title, subtitle, description, instructor_name, speaker_name, creator_name, category_slug, categories, topic_tags, difficulty, lesson_count, duration_seconds, artwork_url, cover_url, language, source_type, rights, is_featured, is_verified, published_at, created_at";
 
 export const LECTURE_FILE_PUBLIC_SELECT =
   "id, item_id, title, lesson_number, media_type, mime_type, duration_seconds, is_primary, created_at";
@@ -68,8 +68,8 @@ export const LECTURE_PLAY_SELECT =
 export type LecturePagination = {
   page: number;
   limit: number;
-  total: number;
-  totalPages: number;
+  total?: number | null;
+  totalPages?: number | null;
   hasMore: boolean;
 };
 
@@ -92,7 +92,6 @@ export type LecturePublicItem = {
   cover_url: string | null;
   language: string | null;
   source_type: string | null;
-  source_url: string | null;
   rights: string | null;
   is_featured: boolean;
   is_verified: boolean;
@@ -123,15 +122,16 @@ export function parseLectureLimit(value: string | null) {
 export function buildLecturePagination(
   page: number,
   limit: number,
-  total: number
+  total: number | null,
+  hasMore?: boolean
 ): LecturePagination {
-  const totalPages = total > 0 ? Math.ceil(total / limit) : 0;
+  const totalPages = typeof total === "number" && total > 0 ? Math.ceil(total / limit) : null;
   return {
     page,
     limit,
     total,
     totalPages,
-    hasMore: page < totalPages,
+    hasMore: typeof hasMore === "boolean" ? hasMore : Boolean(totalPages && page < totalPages),
   };
 }
 
@@ -216,7 +216,6 @@ export function toLecturePublicItem(row: Record<string, unknown>): LecturePublic
     cover_url: cleanText(row.cover_url, 2000),
     language: cleanText(row.language, 40),
     source_type: cleanText(row.source_type, 80),
-    source_url: cleanText(row.source_url, 2000),
     rights: cleanText(row.rights, 200),
     is_featured: Boolean(row.is_featured),
     is_verified: Boolean(row.is_verified),
@@ -285,7 +284,10 @@ export function applyPublicLectureFilters(query: any, options: {
   let next = query
     .eq("status", "approved")
     .eq("is_active", true)
+    .eq("is_public", true)
     .eq("playback_status", "playable")
+    .eq("playable_status", "playable")
+    .eq("is_verified", true)
     .eq("is_mature", false);
 
   if (options.category) {
@@ -310,13 +312,16 @@ export async function searchLectureItems(options: {
   categorySlug?: string | null;
 }) {
   const from = (options.page - 1) * options.limit;
-  const to = from + options.limit - 1;
+  const to = from + options.limit;
 
   let query = supabaseAdmin
     .from("lecture_items")
-    .select(LECTURE_PUBLIC_LIST_SELECT, { count: "exact" })
+    .select(LECTURE_PUBLIC_LIST_SELECT)
+    .order("is_featured", { ascending: false })
+    .order("sort_order", { ascending: true, nullsFirst: false })
     .order("published_at", { ascending: false, nullsFirst: false })
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false });
 
   query = applyPublicLectureFilters(query, {
     category: options.categorySlug || null,
@@ -326,13 +331,15 @@ export async function searchLectureItems(options: {
   const { data, error, count } = await query.range(from, to);
   if (error) throw error;
 
+  const rows = ((data || []) as Record<string, unknown>[]).slice(0, options.limit);
+  const hasMore = (data || []).length > options.limit;
   const items = dedupeLectures(
-    ((data || []) as Record<string, unknown>[]).map(toLecturePublicItem)
+    rows.map(toLecturePublicItem)
   );
 
   return {
     items,
-    pagination: buildLecturePagination(options.page, options.limit, count || 0),
+    pagination: buildLecturePagination(options.page, options.limit, null, hasMore),
   };
 }
 
@@ -351,7 +358,10 @@ export async function listLectureItemsByCategory(options: {
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-export async function getLectureItemById(idOrSlug: string) {
+export async function getLectureItemById(
+  idOrSlug: string,
+  options?: { page?: number; limit?: number }
+) {
   const cleaned = String(idOrSlug || "").trim();
   if (!cleaned) return null;
 
@@ -360,7 +370,10 @@ export async function getLectureItemById(idOrSlug: string) {
     .select(LECTURE_PUBLIC_LIST_SELECT)
     .eq("status", "approved")
     .eq("is_active", true)
+    .eq("is_public", true)
     .eq("playback_status", "playable")
+    .eq("playable_status", "playable")
+    .eq("is_verified", true)
     .eq("is_mature", false);
 
   query = UUID_RE.test(cleaned) ? query.eq("id", cleaned) : query.eq("slug", cleaned);
@@ -370,33 +383,92 @@ export async function getLectureItemById(idOrSlug: string) {
   if (!data) return null;
 
   const lecture = toLecturePublicItem(data as Record<string, unknown>);
+  const page = Math.max(1, Number(options?.page || 1));
+  const limit = Math.min(
+    LECTURE_MAX_PAGE_SIZE,
+    Math.max(1, Number(options?.limit || LECTURE_DEFAULT_PAGE_SIZE))
+  );
+  const offset = (page - 1) * limit;
+
   const { data: files, error: fileError } = await supabaseAdmin
     .from("lecture_files")
     .select(LECTURE_FILE_PUBLIC_SELECT)
     .eq("item_id", lecture.id)
     .eq("is_active", true)
+    .eq("is_verified", true)
     .eq("playback_status", "playable")
+    .eq("playable_status", "playable")
     .order("lesson_number", { ascending: true, nullsFirst: false })
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: true })
+    .order("id", { ascending: true })
+    .range(offset, offset + limit);
 
   if (fileError) throw fileError;
 
+  const visibleFiles = ((files || []) as Record<string, unknown>[]).slice(0, limit);
+  const hasMore = (files || []).length > limit;
+
   return {
     lecture,
-    lessons: ((files || []) as Record<string, unknown>[]).map(toLecturePublicFile),
+    lessons: visibleFiles.map(toLecturePublicFile),
+    pagination: buildLecturePagination(page, limit, null, hasMore),
   };
 }
 
-export async function getLecturePlayableItem(idOrSlug: string) {
-  const detail = await getLectureItemById(idOrSlug);
+function buildLecturePlayableMedia(row: Record<string, unknown>) {
+  const audioUrl = isPlayableLectureUrl(row.audio_url);
+  const videoUrl = isPlayableLectureUrl(row.video_url);
+  if (!audioUrl && !videoUrl) return null;
+
+  return {
+    id: String(row.id || ""),
+    item_id: String(row.item_id || ""),
+    title: cleanText(row.title, 300),
+    lesson_number: parseOptionalNumber(row.lesson_number),
+    media_type: cleanText(row.media_type, 40) || (audioUrl ? "audio" : "video"),
+    audio_url: audioUrl,
+    video_url: videoUrl,
+    mime_type: cleanText(row.mime_type, 120),
+    duration_seconds: parseOptionalNumber(row.duration_seconds),
+  };
+}
+
+export async function getLecturePlayableItem(idOrSlug: string, lessonId?: string | null) {
+  const cleanedLessonId = String(lessonId || "").trim();
+  const detail = await getLectureItemById(idOrSlug, { page: 1, limit: 1 });
   if (!detail) return null;
+
+  if (cleanedLessonId) {
+    if (!UUID_RE.test(cleanedLessonId)) {
+      return { ...detail, media: null };
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from("lecture_files")
+      .select(LECTURE_PLAY_SELECT)
+      .eq("id", cleanedLessonId)
+      .eq("item_id", detail.lecture.id)
+      .eq("is_active", true)
+      .eq("is_verified", true)
+      .eq("playback_status", "playable")
+      .eq("playable_status", "playable")
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!data) return { ...detail, media: null };
+
+    const media = buildLecturePlayableMedia(data as Record<string, unknown>);
+    return { ...detail, media };
+  }
 
   const { data, error } = await supabaseAdmin
     .from("lecture_files")
     .select(LECTURE_PLAY_SELECT)
     .eq("item_id", detail.lecture.id)
     .eq("is_active", true)
+    .eq("is_verified", true)
     .eq("playback_status", "playable")
+    .eq("playable_status", "playable")
     .order("is_primary", { ascending: false })
     .order("lesson_number", { ascending: true, nullsFirst: false })
     .order("created_at", { ascending: true })
@@ -406,25 +478,8 @@ export async function getLecturePlayableItem(idOrSlug: string) {
   if (error) throw error;
   if (!data) return { ...detail, media: null };
 
-  const row = data as Record<string, unknown>;
-  const audioUrl = isPlayableLectureUrl(row.audio_url);
-  const videoUrl = isPlayableLectureUrl(row.video_url);
-  if (!audioUrl && !videoUrl) return { ...detail, media: null };
-
-  return {
-    ...detail,
-    media: {
-      id: String(row.id || ""),
-      item_id: String(row.item_id || ""),
-      title: cleanText(row.title, 300),
-      lesson_number: parseOptionalNumber(row.lesson_number),
-      media_type: cleanText(row.media_type, 40) || (audioUrl ? "audio" : "video"),
-      audio_url: audioUrl,
-      video_url: videoUrl,
-      mime_type: cleanText(row.mime_type, 120),
-      duration_seconds: parseOptionalNumber(row.duration_seconds),
-    },
-  };
+  const media = buildLecturePlayableMedia(data as Record<string, unknown>);
+  return { ...detail, media };
 }
 
 export async function countLecturesForCategory(slug: string) {
@@ -439,13 +494,8 @@ export async function countLecturesForCategory(slug: string) {
 }
 
 export async function listLectureCategories() {
-  const rows = [];
-  for (const category of LECTURE_CATEGORIES) {
-    rows.push({
-      ...category,
-      title: category.name,
-      item_count: await countLecturesForCategory(category.slug),
-    });
-  }
-  return rows;
+  return LECTURE_CATEGORIES.map((category) => ({
+    ...category,
+    title: category.name,
+  }));
 }
