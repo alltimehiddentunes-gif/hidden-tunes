@@ -90,6 +90,54 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function stripMotivationQualityColumns(payload: Record<string, unknown>) {
+  const next = { ...payload };
+  delete next.content_classification;
+  delete next.content_classification_reason;
+  delete next.content_classification_confidence;
+  delete next.normalized_title_hash;
+  return next;
+}
+
+function isMissingMotivationQualityColumnError(message: string) {
+  return /content_classification|normalized_title_hash|schema cache/i.test(message);
+}
+
+async function upsertMotivationItemRow(
+  existingItemId: string | undefined,
+  itemPayload: Record<string, unknown>
+) {
+  if (existingItemId) {
+    let { error } = await supabaseAdmin
+      .from("motivation_items")
+      .update(itemPayload)
+      .eq("id", existingItemId);
+    if (error && isMissingMotivationQualityColumnError(error.message)) {
+      ({ error } = await supabaseAdmin
+        .from("motivation_items")
+        .update(stripMotivationQualityColumns(itemPayload))
+        .eq("id", existingItemId));
+    }
+    if (error) return { ok: false as const, error: error.message, itemId: existingItemId };
+    return { ok: true as const, itemId: existingItemId, updated: true };
+  }
+
+  let { data, error } = await supabaseAdmin
+    .from("motivation_items")
+    .insert(itemPayload)
+    .select("id")
+    .single();
+  if (error && isMissingMotivationQualityColumnError(error.message)) {
+    ({ data, error } = await supabaseAdmin
+      .from("motivation_items")
+      .insert(stripMotivationQualityColumns(itemPayload))
+      .select("id")
+      .single());
+  }
+  if (error) return { ok: false as const, error: error.message, itemId: "" };
+  return { ok: true as const, itemId: String(data.id), updated: false };
+}
+
 async function mapWithConcurrency<T, R>(
   items: T[],
   concurrency: number,
@@ -489,35 +537,17 @@ export async function runMotivationBatchImport(
 
       let itemId = existingItem?.id ? String(existingItem.id) : "";
 
-      if (existingItem?.id) {
-        const { error: updateError } = await supabaseAdmin
-          .from("motivation_items")
-          .update(itemPayload)
-          .eq("id", existingItem.id);
-        if (updateError) {
-          result.records_rejected += 1;
-          result.errors.push(updateError.message);
-          fileCheckpoint = markMotivationCheckpointItemFailed(fileCheckpoint, sourceKey);
-          writeMotivationExpansionCheckpoint(fileCheckpoint);
-          continue;
-        }
-        result.records_updated += 1;
-      } else {
-        const { data: inserted, error: insertError } = await supabaseAdmin
-          .from("motivation_items")
-          .insert(itemPayload)
-          .select("id")
-          .single();
-        if (insertError) {
-          result.records_rejected += 1;
-          result.errors.push(insertError.message);
-          fileCheckpoint = markMotivationCheckpointItemFailed(fileCheckpoint, sourceKey);
-          writeMotivationExpansionCheckpoint(fileCheckpoint);
-          continue;
-        }
-        itemId = String(inserted.id);
-        result.records_inserted += 1;
+      const upsert = await upsertMotivationItemRow(existingItem?.id ? String(existingItem.id) : undefined, itemPayload);
+      if (!upsert.ok) {
+        result.records_rejected += 1;
+        result.errors.push(upsert.error);
+        fileCheckpoint = markMotivationCheckpointItemFailed(fileCheckpoint, sourceKey);
+        writeMotivationExpansionCheckpoint(fileCheckpoint);
+        continue;
       }
+      itemId = upsert.itemId;
+      if (upsert.updated) result.records_updated += 1;
+      else result.records_inserted += 1;
 
       const filePayload = mediaFilePayload(itemId, candidate, probe);
       const { data: existingFile } = await supabaseAdmin
