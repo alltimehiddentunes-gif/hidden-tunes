@@ -24,6 +24,12 @@ export const ARCHIVE_MOTIVATION_QUERY_FAMILIES: Record<string, string[]> = {
   leadership: [
     '(subject:leadership OR subject:"business motivation" OR subject:entrepreneurship OR subject:"career development") AND mediatype:movies -course -lecture -tutorial -playlist',
   ],
+  commencement: [
+    '(subject:"commencement address" OR subject:"commencement speech" OR subject:"graduation speech") AND mediatype:movies -course -lecture -tutorial -playlist -documentary',
+  ],
+  discipline: [
+    '(subject:discipline OR subject:"self control" OR subject:consistency OR subject:habits) AND (subject:motivation OR subject:"personal development") AND mediatype:movies -course -lecture -tutorial -playlist',
+  ],
   fitness: [
     '(subject:"fitness motivation" OR subject:"sports motivation" OR subject:"gym motivation") AND mediatype:movies -course -lecture -tutorial -playlist',
   ],
