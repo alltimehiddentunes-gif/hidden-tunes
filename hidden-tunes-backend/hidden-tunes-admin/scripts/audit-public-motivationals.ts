@@ -111,9 +111,10 @@ async function auditPublicPage(
 
   query = applyPublicMotivationFilters(query, {});
 
-  let { data, error } = await query.range(from, to);
-  if (error && String(error.message).includes("content_classification")) {
-    let fallback = supabaseAdmin
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let response: any = await query.range(from, to);
+  if (response.error && String(response.error.message).includes("content_classification")) {
+    response = await supabaseAdmin
       .from("motivation_items")
       .select(
         "id, title, description, status, is_active, is_verified, playback_status, reliability_score, source_id, source_type, speaker_name, channel_name, creator_name, tags, category, subcategory, language, region, duration_seconds"
@@ -125,10 +126,11 @@ async function auditPublicPage(
       .eq("is_mature", false)
       .gte("reliability_score", MOTIVATION_RELIABILITY_THRESHOLD)
       .order("created_at", { ascending: true })
-      .order("id", { ascending: true });
-    ({ data, error } = await fallback.range(from, to));
+      .order("id", { ascending: true })
+      .range(from, to);
   }
-  if (error) throw new Error(error.message);
+  if (response.error) throw new Error(response.error.message);
+  const data = (response.data || []) as Array<Record<string, unknown>>;
 
   const rows: AuditRow[] = [];
 
@@ -160,7 +162,9 @@ async function auditPublicPage(
     const title = normalized.title || String(row.title || "");
     const watchlist = watchlistLabel(title, normalized.description, String(row.source_id || ""));
 
-    const storedClassification = String(row.content_classification || "unknown");
+    const storedClassification = String(
+      (row as Record<string, unknown>).content_classification || "unknown"
+    );
     const needsManualReview =
       classification.decision !== "accept" ||
       (storedClassification !== "unknown" &&
@@ -175,7 +179,7 @@ async function auditPublicPage(
       is_active: row.is_active === true,
       is_verified: row.is_verified === true,
       playback_status: String(row.playback_status || ""),
-      content_classification: storedClassification,
+      content_classification: String(row.content_classification || "unknown"),
       classifier_decision: classification.decision,
       classifier_confidence: classification.confidence,
       classifier_reason: classification.reason,

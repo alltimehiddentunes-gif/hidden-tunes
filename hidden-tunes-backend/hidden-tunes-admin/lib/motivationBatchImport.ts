@@ -135,6 +135,7 @@ async function upsertMotivationItemRow(
       .single());
   }
   if (error) return { ok: false as const, error: error.message, itemId: "" };
+  if (!data?.id) return { ok: false as const, error: "Insert returned no item id.", itemId: "" };
   return { ok: true as const, itemId: String(data.id), updated: false };
 }
 
