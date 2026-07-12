@@ -49,6 +49,16 @@ export type LectureSeedIngestResult = {
   errors: Array<{ source_key: string; title: string; message: string }>;
 };
 
+function serializeUnknownError(error: unknown): string {
+  if (error instanceof Error) return error.message;
+
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return String(error);
+  }
+}
+
 const ARCHIVE_SEED_DEFS: ArchiveLectureSeedDef[] = [
   {
     archive_id: "captainsofindustry_1110_librivox",
@@ -470,11 +480,16 @@ export async function ingestLectureSeedCatalog(
         last_checked_at: new Date().toISOString(),
       };
 
-      const { data: lecture, error } = await supabaseAdmin
-        .from("lecture_items")
-        .upsert(payload, { onConflict: "source_key" })
-        .select("id")
-        .single();
+      const writeQuery = existing?.id
+        ? supabaseAdmin
+            .from("lecture_items")
+            .update(payload)
+            .eq("id", existing.id)
+            .select("id")
+            .single()
+        : supabaseAdmin.from("lecture_items").insert(payload).select("id").single();
+
+      const { data: lecture, error } = await writeQuery;
 
       if (error) throw error;
       if (existing?.id) result.items_updated += 1;
@@ -507,9 +522,14 @@ export async function ingestLectureSeedCatalog(
           source_key: file.source_key,
         };
 
-        const { error: fileError } = await supabaseAdmin
-          .from("lecture_files")
-          .upsert(filePayload, { onConflict: "source_key" });
+        const fileWriteQuery = existingFile?.id
+          ? supabaseAdmin
+              .from("lecture_files")
+              .update(filePayload)
+              .eq("id", existingFile.id)
+          : supabaseAdmin.from("lecture_files").insert(filePayload);
+
+        const { error: fileError } = await fileWriteQuery;
 
         if (fileError) throw fileError;
         if (existingFile?.id) result.files_updated += 1;
@@ -519,7 +539,7 @@ export async function ingestLectureSeedCatalog(
       result.errors.push({
         source_key: seed.source_key,
         title: seed.title,
-        message: error instanceof Error ? error.message : String(error),
+        message: serializeUnknownError(error),
       });
     }
   }
