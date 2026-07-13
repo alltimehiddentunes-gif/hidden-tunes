@@ -1,4 +1,6 @@
 #!/usr/bin/env npx tsx
+export {};
+
 /**
  * Verify TV list + play contract and print per-station results.
  * Usage: npx tsx scripts/verify-tv-public-catalog.ts [baseUrl]
