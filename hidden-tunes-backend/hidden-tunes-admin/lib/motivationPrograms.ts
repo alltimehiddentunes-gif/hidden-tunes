@@ -78,9 +78,8 @@ export function toMotivationSessionPublic(row: Record<string, unknown>) {
   };
 }
 
-function applyPublicProgramFilters(query: ReturnType<typeof supabaseAdmin.from>) {
-  const next: any = query as any;
-  return next
+function applyPublicProgramFilters(query: any) {
+  return query
     .eq("is_public", true)
     .eq("is_active", true)
     .eq("status", "published")
