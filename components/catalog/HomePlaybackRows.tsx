@@ -139,12 +139,14 @@ type HomeFeaturedCardProps = {
   item: HiddenTunesNormalizedSong;
   index: number;
   onPress: (song: HiddenTunesNormalizedSong) => void;
+  fillWidth?: boolean;
 };
 
 export const HomeFeaturedCard = memo(function HomeFeaturedCard({
   item,
   index,
   onPress,
+  fillWidth = false,
 }: HomeFeaturedCardProps) {
   const { isActive, isPlaying } = useTrackPlaybackStatus(String(item.id));
 
@@ -155,7 +157,11 @@ export const HomeFeaturedCard = memo(function HomeFeaturedCard({
   return (
     <TouchableOpacity
       activeOpacity={0.9}
-      style={[styles.featuredCard, isActive && styles.featuredCardActive]}
+      style={[
+        styles.featuredCard,
+        fillWidth && styles.featuredCardGrid,
+        isActive && styles.featuredCardActive,
+      ]}
       onPress={handlePress}
     >
       <FeaturedCardGlow active={isActive} />
@@ -232,6 +238,12 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: "rgba(168,85,247,0.34)",
     ...SHADOWS.premium,
+  },
+  featuredCardGrid: {
+    width: "100%",
+    height: 240,
+    marginRight: 0,
+    borderRadius: 28,
   },
   featuredCardActive: {
     borderColor: "rgba(168,85,247,0.72)",

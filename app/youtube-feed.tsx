@@ -14,6 +14,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { PremiumContentGrid } from "@/components/catalog/PremiumContentGrid";
+import AppShell from "../components/navigation/AppShell";
 import TvBrowseCategories from "../components/tv/TvBrowseCategories";
 import TvVideoCard from "../components/tv/TvVideoCard";
 import type { TvBrowseCategory } from "@/constants/tvBrowseCategories";
@@ -386,6 +387,7 @@ export default function YouTubeFeedScreen() {
     Boolean(categoryLane?.videos.length);
 
   return (
+    <AppShell>
       <LinearGradient colors={GRADIENTS.main} style={styles.container}>
         <View style={styles.glowPurple} />
         <View style={styles.glowCyan} />
@@ -484,6 +486,7 @@ export default function YouTubeFeedScreen() {
         </ScrollView>
         )}
       </LinearGradient>
+    </AppShell>
   );
 }
 
