@@ -14,6 +14,11 @@ import {
 import { TV_NAV_STALE } from "@/utils/tvPlayabilityGate";
 import { tvVideoToQueueItem, tvVideosToQueueItems } from "@/utils/tvStationItem";
 
+let tvDiscoveryOpenInFlight: {
+  stationId: string;
+  promise: Promise<TvStationPlayResult>;
+} | null = null;
+
 export type OpenTvDiscoveryOptions = {
   queueVideos?: HiddenTunesTvVideo[];
   startIndex?: number;
@@ -34,7 +39,31 @@ function defaultLaunchContext(video: HiddenTunesTvVideo): TvDiscoveryLaunchConte
   };
 }
 
-export async function openTvDiscoveryStation(
+function buildTvPlayerRouteParams(
+  result: Extract<TvStationPlayResult, { ok: true }>,
+  launch?: Pick<TvDiscoveryLaunchContext, "contextTitle" | "browseReturnPath">
+) {
+  const session = getTvDiscoverySession();
+
+  return {
+    id: result.station.stationId,
+    title: result.station.stationName,
+    streamUrl: result.streamUrl,
+    sourceType: result.sourceType,
+    contextTitle: launch?.contextTitle || session?.contextTitle || "",
+    hierarchyLabel: result.station.hierarchyLabel,
+    country: result.station.country,
+    category: result.station.category,
+    artwork: result.station.artwork,
+    resolutionSequence: String(result.resolutionSequence),
+    browseReturnPath:
+      launch?.browseReturnPath ||
+      session?.originalContext.browseReturnPath ||
+      "/youtube-feed",
+  };
+}
+
+async function openTvDiscoveryStationInternal(
   video: HiddenTunesTvVideo,
   options: OpenTvDiscoveryOptions = {}
 ): Promise<TvStationPlayResult> {
@@ -84,39 +113,46 @@ export async function openTvDiscoveryStation(
 
   router.push({
     pathname: "/tv-player",
-    params: {
-      id: result.station.stationId,
-      title: result.station.stationName,
-      streamUrl: result.streamUrl,
-      sourceType: result.sourceType,
-      contextTitle: launch.contextTitle,
-      hierarchyLabel: result.station.hierarchyLabel,
-      country: result.station.country,
-      category: result.station.category,
-      artwork: result.station.artwork,
-      resolutionSequence: String(result.resolutionSequence),
-      browseReturnPath: launch.browseReturnPath || "/youtube-feed",
-    },
+    params: buildTvPlayerRouteParams(result, launch),
   } as any);
 
   return result;
 }
 
+export async function openTvDiscoveryStation(
+  video: HiddenTunesTvVideo,
+  options: OpenTvDiscoveryOptions = {}
+): Promise<TvStationPlayResult> {
+  const queueVideos = options.queueVideos?.length ? options.queueVideos : [video];
+  const startIndex =
+    typeof options.startIndex === "number"
+      ? options.startIndex
+      : Math.max(
+          0,
+          queueVideos.findIndex((entry) => entry.id === video.id)
+        );
+  const anchorId = (queueVideos[startIndex >= 0 ? startIndex : 0] || video).id;
+
+  if (tvDiscoveryOpenInFlight?.stationId === anchorId) {
+    return tvDiscoveryOpenInFlight.promise;
+  }
+
+  const promise = openTvDiscoveryStationInternal(video, options);
+  tvDiscoveryOpenInFlight = { stationId: anchorId, promise };
+
+  try {
+    return await promise;
+  } finally {
+    if (tvDiscoveryOpenInFlight?.promise === promise) {
+      tvDiscoveryOpenInFlight = null;
+    }
+  }
+}
+
 export function replaceTvPlayerRoute(result: Extract<TvStationPlayResult, { ok: true }>) {
-  router.replace({
-    pathname: "/tv-player",
-    params: {
-      id: result.station.stationId,
-      title: result.station.stationName,
-      streamUrl: result.streamUrl,
-      sourceType: result.sourceType,
-      contextTitle: getTvDiscoverySession()?.contextTitle || "",
-      hierarchyLabel: result.station.hierarchyLabel,
-      country: result.station.country,
-      category: result.station.category,
-      artwork: result.station.artwork,
-      resolutionSequence: String(result.resolutionSequence),
-      browseReturnPath: getTvDiscoverySession()?.originalContext.browseReturnPath || "/youtube-feed",
-    },
-  } as any);
+  try {
+    router.setParams(buildTvPlayerRouteParams(result) as any);
+  } catch {
+    // Route params are optional metadata when the player is not focused.
+  }
 }

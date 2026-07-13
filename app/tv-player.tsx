@@ -69,6 +69,16 @@ function logTvNext(event: string, details: Record<string, unknown> = {}) {
   console.log(`[tv_next] ${event}`, details);
 }
 
+function isPreResolvedInitialStation(station: TvDisplayStation) {
+  const session = getTvDiscoverySession();
+  if (!session?.pendingCandidateStation) return false;
+
+  return (
+    session.pendingCandidateStation.stationId === station.stationId &&
+    session.pendingStreamUrl.trim() === station.streamUrl.trim()
+  );
+}
+
 function resultToCandidate(
   result: Extract<TvStationPlayResult, { ok: true }>,
   contextTitle: string,
@@ -119,6 +129,7 @@ const TvStreamPlayer = memo(function TvStreamPlayer({
         const payload = JSON.parse(event.nativeEvent.data) as {
           type?: string;
           reason?: string;
+          playing?: boolean;
         };
         if (payload.type === "tv_ready") {
           onPlaybackReady();
@@ -334,6 +345,22 @@ export default function TvPlayerScreen() {
     setStreamMounted(true);
   }, []);
 
+  const confirmResolvedInitialStation = useCallback(
+    (station: TvDisplayStation) => {
+      confirmTvSessionActiveStation();
+      confirmedRef.current = station;
+      candidateRef.current = null;
+      setConfirmed(station);
+      setCandidate(null);
+      setPhase("idle");
+      setArtworkFailed(false);
+      setIsStreamPlaying(true);
+      setStreamMounted(true);
+      syncPositionLabel();
+    },
+    [syncPositionLabel]
+  );
+
   const applyPlayResult = useCallback(
     (result: TvStationPlayResult) => {
       if (!result.ok) return false;
@@ -456,8 +483,20 @@ export default function TvPlayerScreen() {
       return;
     }
 
+    if (isPreResolvedInitialStation(initialCandidate)) {
+      confirmResolvedInitialStation(initialCandidate);
+      return;
+    }
+
     beginCandidate(initialCandidate);
-  }, [beginCandidate, params, routeContextTitle, routeHierarchyLabel, runRecoveryLoop]);
+  }, [
+    beginCandidate,
+    confirmResolvedInitialStation,
+    params,
+    routeContextTitle,
+    routeHierarchyLabel,
+    runRecoveryLoop,
+  ]);
 
   useEffect(() => {
     syncPositionLabel();
