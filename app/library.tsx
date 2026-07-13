@@ -21,7 +21,6 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 
-import AppShell from "../components/navigation/AppShell";
 
 import {
   COLORS,
@@ -32,6 +31,7 @@ import {
   SPACING,
   TYPOGRAPHY,
 } from "../constants/theme";
+import { HOME_MORE_HUB_SHORTCUTS } from "../constants/homeMoreHub";
 
 type LibrarySection = {
   id: string;
@@ -44,17 +44,21 @@ type LibrarySection = {
 
 const LIBRARY_GROUPS: { id: string; label: string; sections: LibrarySection[] }[] = [
   {
+    id: "more",
+    label: "More",
+    sections: HOME_MORE_HUB_SHORTCUTS.map((shortcut) => ({
+      id: shortcut.key,
+      title: shortcut.title,
+      eyebrow: shortcut.subtitle,
+      icon: shortcut.icon,
+      href: shortcut.route,
+      accent: shortcut.color,
+    })),
+  },
+  {
     id: "your-music",
     label: "Your Music",
     sections: [
-      {
-        id: "playlists",
-        title: "Playlists",
-        eyebrow: "CURATED",
-        icon: "musical-notes",
-        href: "/playlists",
-        accent: COLORS.pink,
-      },
       {
         id: "favorites",
         title: "Favorites",
@@ -255,7 +259,6 @@ export default function LibraryScreen() {
   const keyExtractor = useCallback((group: (typeof LIBRARY_GROUPS)[number]) => group.id, []);
 
   return (
-    <AppShell>
       <LinearGradient colors={GRADIENTS.main} style={styles.container}>
         <FlatList
           data={LIBRARY_GROUPS}
@@ -271,7 +274,6 @@ export default function LibraryScreen() {
           removeClippedSubviews
         />
       </LinearGradient>
-    </AppShell>
   );
 }
 

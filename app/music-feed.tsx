@@ -28,7 +28,6 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 
-import AppShell from "@/components/navigation/AppShell";
 import { EmotionalDiscoveryChips } from "@/components/EmotionalDiscoveryChips";
 import { HomeHeroCard, type HomeHeroCardData } from "@/components/home/HomeHeroCard";
 import { usePlayerFeedSnapshot } from "@/utils/playerFeedStore";
@@ -36,6 +35,7 @@ import HTImage from "@/components/HTImage";
 import LiveWaveform from "@/components/LiveWaveform";
 import UnifiedMediaCard from "@/components/UnifiedMediaCard";
 import { HomeCatalogSongRow, HomeFeaturedCard } from "@/components/catalog/HomePlaybackRows";
+import { PremiumContentGrid } from "@/components/catalog/PremiumContentGrid";
 import {
   COLORS,
   GRADIENTS,
@@ -76,8 +76,9 @@ import {
   useAppActiveState,
 } from "@/utils/performanceMode";
 import { logPerformanceOffscreenWorkPaused } from "@/utils/performanceLogs";
+import { navigateToRoute } from "@/utils/primaryNavigation";
 import { TESTER_COPY } from "@/constants/testerExperience";
-import { openVideoItem } from "@/services/videos/openVideoItem";
+import { openVideoItemWithAlert } from "@/services/videos/openVideoItem";
 import PremiumEmptyState from "@/components/PremiumEmptyState";
 import {
   hydrateDiscoveryPreferredGenres,
@@ -85,9 +86,7 @@ import {
 } from "@/utils/discoveryPreferences";
 import { getUserFacingArtist } from "@/services/ui/displayMetadata";
 import { HOME_DISCOVERY_SHORTCUTS } from "@/constants/discoveryShortcuts";
-import { HOME_MORE_HUB_SHORTCUTS } from "@/constants/homeMoreHub";
 import { HomeDiscoveryShortcut } from "@/components/home/HomeDiscoveryShortcut";
-import { HomeDiscoveryChip } from "@/components/home/HomeDiscoveryChip";
 import {
   getSharedDiscoverySnapshot,
   MAX_DISCOVERY_INPUT_SONGS,
@@ -95,6 +94,7 @@ import {
 
 const CATALOG_PAGE_SIZE = 31;
 const HOME_SCROLL_SETTLE_MS = 520;
+const HOME_SECTION_PREVIEW_LIMIT = 8;
 
 type CatalogGroup = {
   id: string;
@@ -182,6 +182,14 @@ function buildOpenRooms(songs: HiddenTunesSong[]) {
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
+const HOME_CONTINUOUS_MOTION_ENABLED = false;
+const HOME_HERO_AUTO_SLIDE_ENABLED = false;
+
+function getInitialHomeCatalog() {
+  const cached = getCachedHiddenTunesCatalog();
+  return cached && isDerivedCatalogTrusted(cached) ? cached : null;
+}
+
 const PremiumAmbientGlow = memo(function PremiumAmbientGlow({
   style,
   color,
@@ -195,7 +203,7 @@ const PremiumAmbientGlow = memo(function PremiumAmbientGlow({
   const opacity = useSharedValue<number>(LUXURY_GLOW.opacityMin);
 
   useEffect(() => {
-    if (!appActive || paused) {
+    if (!HOME_CONTINUOUS_MOTION_ENABLED || !appActive || paused) {
       cancelAnimation(opacity);
       opacity.value = withTiming(LUXURY_GLOW.opacityMin, { duration: 220 });
       return;
@@ -243,7 +251,7 @@ const PremiumLuxuryPulse = memo(function PremiumLuxuryPulse({
   const scale = useSharedValue<number>(LUXURY_GLOW.scaleMin);
 
   useEffect(() => {
-    if (!appActive || paused) {
+    if (!HOME_CONTINUOUS_MOTION_ENABLED || !appActive || paused) {
       cancelAnimation(opacity);
       cancelAnimation(scale);
       opacity.value = withTiming(LUXURY_GLOW.opacityMin, { duration: 220 });
@@ -301,12 +309,12 @@ const PremiumLuxuryPulse = memo(function PremiumLuxuryPulse({
 
 const CreatorRailCard = memo(function CreatorRailCard({
   artist,
-  width,
+  width = "100%",
   onPress,
   animationsPaused = false,
 }: {
   artist: HiddenTunesArtistCatalogItem;
-  width: number;
+  width?: number | "100%";
   onPress: () => void;
   animationsPaused?: boolean;
 }) {
@@ -337,12 +345,12 @@ const CreatorRailCard = memo(function CreatorRailCard({
 
 const AlbumRailCard = memo(function AlbumRailCard({
   album,
-  width,
+  width = "100%",
   onPress,
   animationsPaused = false,
 }: {
   album: HiddenTunesAlbumCatalogItem;
-  width: number;
+  width?: number | "100%";
   onPress: () => void;
   animationsPaused?: boolean;
 }) {
@@ -374,11 +382,13 @@ const PremiumHeroPressable = memo(function PremiumHeroPressable({
   children,
   height,
   isActive,
+  animationsPaused = false,
   onPress,
 }: {
   children: ReactNode;
   height: number;
   isActive: boolean;
+  animationsPaused?: boolean;
   onPress: () => void;
 }) {
   const scale = useSharedValue(1);
@@ -386,6 +396,11 @@ const PremiumHeroPressable = memo(function PremiumHeroPressable({
 
   useEffect(() => {
     cancelAnimation(glow);
+    if (!HOME_CONTINUOUS_MOTION_ENABLED || animationsPaused) {
+      glow.value = withTiming(LUXURY_GLOW.opacityMin, { duration: 220 });
+      return;
+    }
+
     const peak = isActive ? LUXURY_GLOW.opacityMax + 0.06 : LUXURY_GLOW.opacityMax;
     const floor = isActive ? LUXURY_GLOW.opacityMin + 0.04 : LUXURY_GLOW.opacityMin;
 
@@ -405,7 +420,7 @@ const PremiumHeroPressable = memo(function PremiumHeroPressable({
     );
 
     return () => cancelAnimation(glow);
-  }, [glow, isActive]);
+  }, [animationsPaused, glow, isActive]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
@@ -455,7 +470,7 @@ const HomeHeroCarousel = memo(function HomeHeroCarousel({
   const heroListRef = useRef<FlatList<HeroCard> | null>(null);
 
   useEffect(() => {
-    if (cards.length <= 1) return;
+    if (!HOME_HERO_AUTO_SLIDE_ENABLED || cards.length <= 1) return;
 
     let timer: ReturnType<typeof setInterval> | null = null;
     const interaction = InteractionManager.runAfterInteractions(() => {
@@ -494,6 +509,30 @@ const HomeHeroCarousel = memo(function HomeHeroCarousel({
     [onPress]
   );
 
+  const HeroPressable = useCallback(
+    ({
+      children,
+      height,
+      isActive,
+      onPress,
+    }: {
+      children: ReactNode;
+      height: number;
+      isActive: boolean;
+      onPress: () => void;
+    }) => (
+      <PremiumHeroPressable
+        height={height}
+        isActive={isActive}
+        animationsPaused={animationsPaused}
+        onPress={onPress}
+      >
+        {children}
+      </PremiumHeroPressable>
+    ),
+    [animationsPaused]
+  );
+
   const HeroLuxuryPulse = useCallback(
     ({ style }: { style: object }) => (
       <PremiumLuxuryPulse style={style} paused={animationsPaused} />
@@ -511,12 +550,12 @@ const HomeHeroCarousel = memo(function HomeHeroCarousel({
         totalCards={cards.length}
         activeSlideIndex={heroIndex}
         onPress={handleHeroPress}
-        HeroPressable={PremiumHeroPressable}
+        HeroPressable={HeroPressable}
         LuxuryPulse={HeroLuxuryPulse}
         styles={styles}
       />
     ),
-    [HeroLuxuryPulse, cards.length, handleHeroPress, heroCardHeight, heroCardWidth, heroIndex]
+    [HeroLuxuryPulse, HeroPressable, cards.length, handleHeroPress, heroCardHeight, heroCardWidth, heroIndex]
   );
 
   if (!cards.length) return null;
@@ -657,21 +696,29 @@ function findSongIndex(songs: HiddenTunesSong[], song: { id?: string }) {
 export default function MusicFeedScreen() {
   const { playSong } = usePlayerActions();
   const playerFeed = usePlayerFeedSnapshot();
+  const initialCatalogStateRef = useRef<HiddenTunesDerivedCatalog | null | undefined>(undefined);
+  if (initialCatalogStateRef.current === undefined) {
+    initialCatalogStateRef.current = getInitialHomeCatalog();
+  }
 
-  const [catalog, setCatalog] = useState<HiddenTunesDerivedCatalog | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [catalog, setCatalog] = useState<HiddenTunesDerivedCatalog | null>(
+    () => initialCatalogStateRef.current || null
+  );
+  const [loading, setLoading] = useState(() => !initialCatalogStateRef.current);
   const [refreshing, setRefreshing] = useState(false);
   const [visibleCatalogCount, setVisibleCatalogCount] = useState(CATALOG_PAGE_SIZE);
   const [showDeferredHomeSections, setShowDeferredHomeSections] = useState(false);
   const [homeLogoFailed, setHomeLogoFailed] = useState(false);
   const [homeAnimationsPaused, setHomeAnimationsPaused] = useState(false);
   const [homeFocused, setHomeFocused] = useState(true);
+  const mountedRef = useRef(true);
+  const loadedHomeOnceRef = useRef(Boolean(initialCatalogStateRef.current));
+  const catalogRequestRef = useRef<Promise<void> | null>(null);
   const homeVerticalScrollingRef = useRef(false);
   const homeScrollSettleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { width: viewportWidth } = useWindowDimensions();
   const heroCardWidth = Math.min(540, Math.max(320, viewportWidth - 36));
   const heroCardHeight = Math.min(430, Math.max(340, Math.round(heroCardWidth * 0.92)));
-  const railCardWidth = Math.min(252, Math.max(212, viewportWidth * 0.66));
   const searchPanelPadding = viewportWidth < 380 ? 10 : 12;
 
   const songs = catalog?.songs || [];
@@ -679,30 +726,58 @@ export default function MusicFeedScreen() {
   const albums = catalog?.albums || [];
   const genres = catalog?.genres || [];
   const playlists = catalog?.playlists || [];
+  const showBlockingLoader = loading && !catalog;
+  const homeMotionPaused =
+    homeAnimationsPaused || !homeFocused || !HOME_CONTINUOUS_MOTION_ENABLED;
 
   const loadCatalog = useCallback(async () => {
+    if (catalogRequestRef.current) {
+      return catalogRequestRef.current;
+    }
+
     void hydrateDiscoveryPreferredGenres();
     const cached = getCachedHiddenTunesCatalog();
     if (cached && isDerivedCatalogTrusted(cached)) {
-      setCatalog(cached);
-      setLoading(false);
+      if (mountedRef.current) {
+        setCatalog(cached);
+        setLoading(false);
+      }
+      loadedHomeOnceRef.current = true;
       return;
     }
 
-    setLoading(true);
-    try {
-      const data = await fetchHiddenTunesCatalog();
-      setCatalog(data);
-    } finally {
-      setLoading(false);
+    if (!loadedHomeOnceRef.current && mountedRef.current) {
+      setLoading(true);
     }
+
+    const request = (async () => {
+      try {
+        const data = await fetchHiddenTunesCatalog();
+        loadedHomeOnceRef.current = true;
+        if (mountedRef.current) {
+          setCatalog(data);
+        }
+      } finally {
+        catalogRequestRef.current = null;
+        if (mountedRef.current) {
+          setLoading(false);
+        }
+      }
+    })();
+
+    catalogRequestRef.current = request;
+    return request;
   }, []);
 
   useEffect(() => {
+    mountedRef.current = true;
     const task = InteractionManager.runAfterInteractions(() => {
       void loadCatalog();
     });
-    return () => task.cancel();
+    return () => {
+      mountedRef.current = false;
+      task.cancel();
+    };
   }, [loadCatalog]);
 
 
@@ -756,18 +831,18 @@ export default function MusicFeedScreen() {
     [showDeferredHomeSections, songsSignature]
   );
   const visibleArtists = useMemo(
-    () => (showDeferredHomeSections ? artists.slice(0, 12) : []),
+    () => (showDeferredHomeSections ? artists.slice(0, HOME_SECTION_PREVIEW_LIMIT) : []),
     [artists, showDeferredHomeSections]
   );
   const visibleAlbums = useMemo(
-    () => (showDeferredHomeSections ? albums.slice(0, 12) : []),
+    () => (showDeferredHomeSections ? albums.slice(0, HOME_SECTION_PREVIEW_LIMIT) : []),
     [albums, showDeferredHomeSections]
   );
   const genreSignature = useMemo(() => buildSongListSignature(genres), [genres]);
   const visibleGenres = useMemo(
     () =>
       showDeferredHomeSections
-        ? sortItemsByPreferredGenres(genres).slice(0, 10)
+        ? sortItemsByPreferredGenres(genres).slice(0, HOME_SECTION_PREVIEW_LIMIT)
         : [],
     [genreSignature, showDeferredHomeSections]
   );
@@ -786,7 +861,10 @@ export default function MusicFeedScreen() {
       const artist = String(song.artist || "").toLowerCase();
       return recentArtists.has(artist) || favoriteArtists.has(artist);
     });
-    return uniqSongs(candidates.length ? candidates : songs.slice(8, 24)).slice(0, 12);
+    return uniqSongs(candidates.length ? candidates : songs.slice(8, 24)).slice(
+      0,
+      HOME_SECTION_PREVIEW_LIMIT
+    );
   }, [favoriteArtistSignature, recentArtistSignature, showDeferredHomeSections, songsSignature]);
 
   const smartQueueSongs = useMemo(() => {
@@ -794,7 +872,10 @@ export default function MusicFeedScreen() {
     const queueSongs = Array.isArray(playerFeed.activeQueue)
       ? (playerFeed.activeQueue as HiddenTunesSong[])
       : [];
-    return uniqSongs((queueSongs.length ? queueSongs : songs.slice(12, 30)).filter(Boolean)).slice(0, 12);
+    return uniqSongs((queueSongs.length ? queueSongs : songs.slice(12, 30)).filter(Boolean)).slice(
+      0,
+      HOME_SECTION_PREVIEW_LIMIT
+    );
   }, [activeQueueSignature, playerFeed.activeQueue, showDeferredHomeSections, songsSignature]);
 
   useEffect(() => {
@@ -923,11 +1004,11 @@ export default function MusicFeedScreen() {
   }, []);
 
   const openTv = useCallback((video: any) => {
-    openVideoItem(video);
+    void openVideoItemWithAlert(video);
   }, []);
 
   const openSearch = useCallback(() => {
-    router.push("/search" as any);
+    navigateToRoute("/search", { source: "music-feed.headerSearch" });
   }, []);
 
   const playSongFromList = useCallback(
@@ -975,12 +1056,155 @@ export default function MusicFeedScreen() {
     [playCatalogSong]
   );
 
+  const renderMoodRoomGridItem = useCallback(
+    ({ item: room }: { item: CatalogGroup }) => (
+      <View style={styles.gridCell}>
+        <TouchableOpacity
+          activeOpacity={0.88}
+          style={[styles.roomCard, styles.roomCardGrid]}
+          onPress={() => openGenre(room)}
+        >
+          <HTImage
+            source={resolveGroupArtworkSource(room)}
+            style={styles.roomImage}
+            contentFit="cover"
+          />
+          <LinearGradient
+            pointerEvents="none"
+            colors={["transparent", "rgba(0,0,0,0.2)", "rgba(0,0,0,0.72)"]}
+            style={styles.roomShade}
+          />
+          <Text numberOfLines={1} style={styles.roomTitle}>
+            {room.title}
+          </Text>
+          <Text numberOfLines={1} style={styles.roomSubtitle}>
+            {room.subtitle}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    ),
+    [openGenre]
+  );
+
+  const renderRecentlyAddedGridItem = useCallback(
+    ({ item, index }: { item: HiddenTunesSong; index: number }) => (
+      <View style={styles.gridCell}>
+        <HomeFeaturedCard
+          item={item as unknown as HiddenTunesNormalizedSong}
+          index={index}
+          fillWidth
+          onPress={(song) =>
+            playSongFromList(song as HiddenTunesSong, recentlyAddedSongs, {
+              source: "recently_added",
+              label: "Recently Added",
+              railId: "recently_added",
+            })
+          }
+        />
+      </View>
+    ),
+    [playSongFromList, recentlyAddedSongs]
+  );
+
+  const renderBecauseYouListenedGridItem = useCallback(
+    ({ item, index }: { item: HiddenTunesSong; index: number }) => (
+      <View style={styles.gridCell}>
+        <HomeFeaturedCard
+          item={item as unknown as HiddenTunesNormalizedSong}
+          index={index}
+          fillWidth
+          onPress={(song) =>
+            playSongFromList(song as HiddenTunesSong, becauseYouListened, {
+              source: "because_you_listened",
+              label: "Because You Listened",
+              railId: "because_you_listened",
+            })
+          }
+        />
+      </View>
+    ),
+    [becauseYouListened, playSongFromList]
+  );
+
+  const renderCreatorGridItem = useCallback(
+    ({ item: artist }: { item: HiddenTunesArtistCatalogItem }) => (
+      <View style={styles.gridCell}>
+        <CreatorRailCard
+          artist={artist}
+          onPress={() => openArtist(artist)}
+          animationsPaused={homeMotionPaused}
+        />
+      </View>
+    ),
+    [homeMotionPaused, openArtist]
+  );
+
+  const renderAlbumGridItem = useCallback(
+    ({ item: album }: { item: HiddenTunesAlbumCatalogItem }) => (
+      <View style={styles.gridCell}>
+        <AlbumRailCard
+          album={album}
+          onPress={() => openAlbum(album)}
+          animationsPaused={homeMotionPaused}
+        />
+      </View>
+    ),
+    [homeMotionPaused, openAlbum]
+  );
+
+  const renderOpenRoomGridItem = useCallback(
+    ({ item: room }: { item: CatalogGroup }) => (
+      <View style={styles.gridCell}>
+        <TouchableOpacity
+          activeOpacity={0.88}
+          style={[styles.roomCard, styles.roomCardGrid]}
+          onPress={() => openGenre(room)}
+        >
+          <HTImage
+            source={resolveGroupArtworkSource(room)}
+            style={styles.roomImage}
+            contentFit="cover"
+          />
+          <LinearGradient
+            pointerEvents="none"
+            colors={["transparent", "rgba(0,0,0,0.2)", "rgba(0,0,0,0.72)"]}
+            style={styles.roomShade}
+          />
+          <Text numberOfLines={1} style={styles.roomTitle}>
+            {room.title}
+          </Text>
+          <Text numberOfLines={1} style={styles.roomSubtitle}>
+            {room.subtitle}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    ),
+    [openGenre]
+  );
+
+  const renderGenreGridItem = useCallback(
+    ({ item: genre }: { item: HiddenTunesGenreCatalogItem }) => (
+      <View style={styles.gridCell}>
+        <View style={styles.surfaceCardShellGrid}>
+          <UnifiedMediaCard
+            title={genre.title}
+            subtitle={`${genre.songs.length} song${genre.songs.length === 1 ? "" : "s"}`}
+            image={genre}
+            rightIcon="sparkles"
+            onPress={() => openGenre(genre)}
+            onRightPress={() => openGenre(genre)}
+          />
+        </View>
+      </View>
+    ),
+    [openGenre]
+  );
+
   return (
-    <AppShell>
       <LinearGradient colors={GRADIENTS.main} style={styles.container}>
-        <PremiumAmbientGlow style={styles.glowPurple} color="rgba(168,85,247,0.2)" paused={homeAnimationsPaused} />
-        <PremiumAmbientGlow style={styles.glowCyan} color="rgba(34,211,238,0.14)" paused={homeAnimationsPaused} />
-        <PremiumAmbientGlow style={styles.glowCenter} color="rgba(168,85,247,0.12)" paused={homeAnimationsPaused} />
+        <PremiumAmbientGlow style={styles.glowPurple} color="rgba(168,85,247,0.2)" paused={homeMotionPaused} />
+        <PremiumAmbientGlow style={styles.glowCyan} color="rgba(34,211,238,0.14)" paused={homeMotionPaused} />
+        <PremiumAmbientGlow style={styles.glowCenter} color="rgba(168,85,247,0.12)" paused={homeMotionPaused} />
 
         <View style={styles.header}>
           <View style={styles.brandRow}>
@@ -1003,7 +1227,7 @@ export default function MusicFeedScreen() {
           </TouchableOpacity>
         </View>
 
-        {loading ? (
+        {showBlockingLoader ? (
           <View style={styles.center}>
             <ActivityIndicator size="large" color={COLORS.primary} />
             <Text style={styles.loadingText}>Loading your music...</Text>
@@ -1063,7 +1287,7 @@ export default function MusicFeedScreen() {
                     heroCardWidth={heroCardWidth}
                     heroCardHeight={heroCardHeight}
                     onPress={handleHeroPress}
-                    animationsPaused={homeAnimationsPaused}
+                    animationsPaused={homeMotionPaused}
                     focused={homeFocused}
                   />
                 ) : null}
@@ -1113,7 +1337,11 @@ export default function MusicFeedScreen() {
                           icon={shortcut.icon}
                           title={shortcut.title}
                           color={shortcut.color}
-                          onPress={() => router.push(shortcut.route as any)}
+                          onPress={() =>
+                            navigateToRoute(shortcut.route, {
+                              source: "music-feed.discoveryShortcut",
+                            })
+                          }
                         />
                       ))}
                     </View>
@@ -1121,31 +1349,6 @@ export default function MusicFeedScreen() {
 
                 {showDeferredHomeSections ? (
                 <>
-                    <View style={styles.cinematicSection}>
-                      <View style={styles.sectionHeaderRow}>
-                        <View>
-                          <Text style={styles.sectionEyebrow}>EXPLORE</Text>
-                          <Text style={styles.sectionTitle}>More</Text>
-                        </View>
-                      </View>
-                      <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        contentContainerStyle={styles.discoveryRailRow}
-                      >
-                        {HOME_MORE_HUB_SHORTCUTS.map((shortcut) => (
-                          <HomeDiscoveryChip
-                            key={shortcut.key}
-                            icon={shortcut.icon}
-                            title={shortcut.title}
-                            subtitle={shortcut.subtitle}
-                            color={shortcut.color}
-                            onPress={() => router.push(shortcut.route as any)}
-                          />
-                        ))}
-                      </ScrollView>
-                    </View>
-
                     <EmotionalDiscoveryChips
                       style={styles.emotionalWorldsSection}
                       showGatewayRows={false}
@@ -1155,24 +1358,15 @@ export default function MusicFeedScreen() {
                       <View style={styles.cinematicSection}>
                         <Text style={styles.sectionEyebrow}>FOR YOUR MOOD</Text>
                         <Text style={styles.sectionTitle}>Mood Rooms</Text>
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.surfaceRow}>
-                          {moodRooms.map((room) => (
-                            <TouchableOpacity key={room.id} activeOpacity={0.88} style={styles.roomCard} onPress={() => openGenre(room)}>
-                              <HTImage
-                                source={resolveGroupArtworkSource(room)}
-                                style={styles.roomImage}
-                                contentFit="cover"
-                              />
-                              <LinearGradient
-                                pointerEvents="none"
-                                colors={["transparent", "rgba(0,0,0,0.2)", "rgba(0,0,0,0.72)"]}
-                                style={styles.roomShade}
-                              />
-                              <Text numberOfLines={1} style={styles.roomTitle}>{room.title}</Text>
-                              <Text numberOfLines={1} style={styles.roomSubtitle}>{room.subtitle}</Text>
-                            </TouchableOpacity>
-                          ))}
-                        </ScrollView>
+                        <PremiumContentGrid
+                          data={moodRooms}
+                          keyExtractor={(room) => room.id}
+                          renderItem={renderMoodRoomGridItem}
+                          maxItems={HOME_SECTION_PREVIEW_LIMIT}
+                          scrollEnabled={false}
+                          horizontalPadding={0}
+                          listKey="home-mood-rooms"
+                        />
                       </View>
                     ) : null}
                     {showDeferredHomeSections ? (
@@ -1192,20 +1386,15 @@ export default function MusicFeedScreen() {
                           ) : null}
                         </View>
                         {recentlyAddedSongs.length > 0 ? (
-                          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.featuredRow}>
-                            {recentlyAddedSongs.map((item, index) => (
-                              <HomeFeaturedCard
-                                key={`recently-${item.id}`}
-                                item={item as unknown as HiddenTunesNormalizedSong}
-                                index={index}
-                                onPress={(song) => playSongFromList(song as HiddenTunesSong, recentlyAddedSongs, {
-                                  source: "recently_added",
-                                  label: "Recently Added",
-                                  railId: "recently_added",
-                                })}
-                              />
-                            ))}
-                          </ScrollView>
+                          <PremiumContentGrid
+                            data={recentlyAddedSongs}
+                            keyExtractor={(item) => `recently-${item.id}`}
+                            renderItem={renderRecentlyAddedGridItem}
+                            maxItems={HOME_SECTION_PREVIEW_LIMIT}
+                            scrollEnabled={false}
+                            horizontalPadding={0}
+                            listKey="home-recently-added"
+                          />
                         ) : (
                           <Text style={styles.sectionEmptyMeta}>
                             Your newest picks will appear here after the catalog loads.
@@ -1218,20 +1407,15 @@ export default function MusicFeedScreen() {
                       <View style={styles.cinematicSection}>
                         <Text style={styles.sectionEyebrow}>LISTENER</Text>
                         <Text style={styles.sectionTitle}>Because You Listened</Text>
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.featuredRow}>
-                          {becauseYouListened.map((item, index) => (
-                            <HomeFeaturedCard
-                              key={`because-${item.id}`}
-                              item={item as unknown as HiddenTunesNormalizedSong}
-                              index={index}
-                              onPress={(song) => playSongFromList(song as HiddenTunesSong, becauseYouListened, {
-                                source: "because_you_listened",
-                                label: "Because You Listened",
-                                railId: "because_you_listened",
-                              })}
-                            />
-                          ))}
-                        </ScrollView>
+                        <PremiumContentGrid
+                          data={becauseYouListened}
+                          keyExtractor={(item) => `because-${item.id}`}
+                          renderItem={renderBecauseYouListenedGridItem}
+                          maxItems={HOME_SECTION_PREVIEW_LIMIT}
+                          scrollEnabled={false}
+                          horizontalPadding={0}
+                          listKey="home-because-you-listened"
+                        />
                       </View>
                     ) : null}
 
@@ -1260,21 +1444,15 @@ export default function MusicFeedScreen() {
                       <View style={styles.cinematicSection}>
                         <Text style={styles.sectionEyebrow}>CREATORS</Text>
                         <Text style={styles.sectionTitle}>Creators In Your Orbit</Text>
-                        <ScrollView
-                          horizontal
-                          showsHorizontalScrollIndicator={false}
-                          contentContainerStyle={styles.surfaceRow}
-                        >
-                          {visibleArtists.map((artist) => (
-                            <CreatorRailCard
-                              key={artist.id}
-                              artist={artist}
-                              width={railCardWidth}
-                              onPress={() => openArtist(artist)}
-                              animationsPaused={homeAnimationsPaused}
-                            />
-                          ))}
-                        </ScrollView>
+                        <PremiumContentGrid
+                          data={visibleArtists}
+                          keyExtractor={(artist) => artist.id}
+                          renderItem={renderCreatorGridItem}
+                          maxItems={HOME_SECTION_PREVIEW_LIMIT}
+                          scrollEnabled={false}
+                          horizontalPadding={0}
+                          listKey="home-creators"
+                        />
                       </View>
                     ) : null}
 
@@ -1282,21 +1460,15 @@ export default function MusicFeedScreen() {
                       <View style={styles.cinematicSection}>
                         <Text style={styles.sectionEyebrow}>COLLECTIONS</Text>
                         <Text style={styles.sectionTitle}>Albums Worth Staying With</Text>
-                        <ScrollView
-                          horizontal
-                          showsHorizontalScrollIndicator={false}
-                          contentContainerStyle={styles.surfaceRow}
-                        >
-                          {visibleAlbums.map((album) => (
-                            <AlbumRailCard
-                              key={album.id}
-                              album={album}
-                              width={railCardWidth}
-                              onPress={() => openAlbum(album)}
-                              animationsPaused={homeAnimationsPaused}
-                            />
-                          ))}
-                        </ScrollView>
+                        <PremiumContentGrid
+                          data={visibleAlbums}
+                          keyExtractor={(album) => album.id}
+                          renderItem={renderAlbumGridItem}
+                          maxItems={HOME_SECTION_PREVIEW_LIMIT}
+                          scrollEnabled={false}
+                          horizontalPadding={0}
+                          listKey="home-albums"
+                        />
                       </View>
                     ) : null}
 
@@ -1304,24 +1476,15 @@ export default function MusicFeedScreen() {
                       <View style={styles.cinematicSection}>
                         <Text style={styles.sectionEyebrow}>ROOMS</Text>
                         <Text style={styles.sectionTitle}>Open Rooms</Text>
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.surfaceRow}>
-                          {openRooms.map((room) => (
-                            <TouchableOpacity key={room.id} activeOpacity={0.88} style={styles.roomCard} onPress={() => openGenre(room)}>
-                              <HTImage
-                                source={resolveGroupArtworkSource(room)}
-                                style={styles.roomImage}
-                                contentFit="cover"
-                              />
-                              <LinearGradient
-                                pointerEvents="none"
-                                colors={["transparent", "rgba(0,0,0,0.2)", "rgba(0,0,0,0.72)"]}
-                                style={styles.roomShade}
-                              />
-                              <Text numberOfLines={1} style={styles.roomTitle}>{room.title}</Text>
-                              <Text numberOfLines={1} style={styles.roomSubtitle}>{room.subtitle}</Text>
-                            </TouchableOpacity>
-                          ))}
-                        </ScrollView>
+                        <PremiumContentGrid
+                          data={openRooms}
+                          keyExtractor={(room) => room.id}
+                          renderItem={renderOpenRoomGridItem}
+                          maxItems={HOME_SECTION_PREVIEW_LIMIT}
+                          scrollEnabled={false}
+                          horizontalPadding={0}
+                          listKey="home-open-rooms"
+                        />
                       </View>
                     ) : null}
 
@@ -1329,24 +1492,15 @@ export default function MusicFeedScreen() {
                       <View style={styles.cinematicSection}>
                         <Text style={styles.sectionEyebrow}>GENRES</Text>
                         <Text style={styles.sectionTitle}>Mood Rooms / Genre Spotlights</Text>
-                        <ScrollView
-                          horizontal
-                          showsHorizontalScrollIndicator={false}
-                          contentContainerStyle={styles.surfaceRow}
-                        >
-                          {visibleGenres.map((genre) => (
-                            <View key={genre.id} style={[styles.surfaceCardShell, { width: railCardWidth }]}>
-                              <UnifiedMediaCard
-                                title={genre.title}
-                                subtitle={`${genre.songs.length} song${genre.songs.length === 1 ? "" : "s"}`}
-                                image={genre}
-                                rightIcon="sparkles"
-                                onPress={() => openGenre(genre)}
-                                onRightPress={() => openGenre(genre)}
-                              />
-                            </View>
-                          ))}
-                        </ScrollView>
+                        <PremiumContentGrid
+                          data={visibleGenres}
+                          keyExtractor={(genre) => genre.id}
+                          renderItem={renderGenreGridItem}
+                          maxItems={HOME_SECTION_PREVIEW_LIMIT}
+                          scrollEnabled={false}
+                          horizontalPadding={0}
+                          listKey="home-genre-spotlights"
+                        />
                       </View>
                     ) : null}
                 </>
@@ -1381,7 +1535,6 @@ export default function MusicFeedScreen() {
           />
         )}
       </LinearGradient>
-    </AppShell>
   );
 }
 
@@ -1860,8 +2013,15 @@ const styles = StyleSheet.create({
     paddingRight: 18,
     paddingLeft: 2,
   },
+  gridCell: {
+    flex: 1,
+    minWidth: 0,
+  },
   surfaceCardShell: {
     width: 244,
+  },
+  surfaceCardShellGrid: {
+    width: "100%",
   },
   brandRow: {
     flexDirection: "row",
@@ -2013,6 +2173,11 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(18,7,31,0.42)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.11)",
+  },
+  roomCardGrid: {
+    width: "100%",
+    height: undefined,
+    aspectRatio: 172 / 148,
   },
   roomImage: {
     ...StyleSheet.flatten(StyleSheet.absoluteFill),
