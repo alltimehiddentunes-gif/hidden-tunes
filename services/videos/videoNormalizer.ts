@@ -1,5 +1,5 @@
 import type { HiddenTunesTvVideo } from "../tvCatalogApi";
-import { FALLBACK_ARTWORK } from "../../utils/artwork";
+import { resolveTvArtworkUrl } from "../../utils/tvArtwork";
 import { isTechnicalDisplayText } from "../ui/displayMetadata";
 
 export type VideoSource =
@@ -101,7 +101,7 @@ function resolveThumbnailUrl(videoSource: VideoSource, thumbnailUrl: string, ext
   if (videoSource === "youtube" && externalVideoId) {
     return `https://img.youtube.com/vi/${externalVideoId}/hqdefault.jpg`;
   }
-  return FALLBACK_ARTWORK;
+  return "";
 }
 
 export function normalizeVideoItem(video: HiddenTunesTvVideo): VideoItem {
@@ -116,11 +116,14 @@ export function normalizeVideoItem(video: HiddenTunesTvVideo): VideoItem {
     optionalText(raw.channel_name, 200) ||
     optionalText(raw.creator_name, 200) ||
     optionalText(raw.creatorName, 200);
-  const thumbnailUrl = resolveThumbnailUrl(
-    videoSource,
-    cleanText(raw.logo, 2000) || cleanText(raw.thumbnail_url, 2000),
-    externalVideoId
-  );
+  const resolvedTvArtwork = resolveTvArtworkUrl(video);
+  const thumbnailUrl =
+    resolvedTvArtwork ||
+    resolveThumbnailUrl(
+      videoSource,
+      cleanText(raw.logo, 2000) || cleanText(raw.thumbnail_url, 2000),
+      externalVideoId
+    );
   const categoryTags = Array.isArray(raw.categories) ? raw.categories : [];
 
   return {
@@ -157,7 +160,7 @@ export function normalizeVideoItem(video: HiddenTunesTvVideo): VideoItem {
 export function getVideoDisplayCreator(video: VideoItem) {
   const creator = video.creatorName || video.channelTitle || "";
   if (creator && !isTechnicalDisplayText(creator)) return creator;
-  return "Hidden Tunes TV";
+  return "";
 }
 
 export function getVideoDisplayCategory(video: VideoItem) {

@@ -13,7 +13,7 @@ import {
 
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import AppShell from "../components/navigation/AppShell";
+import { PremiumContentGrid } from "@/components/catalog/PremiumContentGrid";
 import TvBrowseCategories from "../components/tv/TvBrowseCategories";
 import TvVideoCard from "../components/tv/TvVideoCard";
 import type { TvBrowseCategory } from "@/constants/tvBrowseCategories";
@@ -30,9 +30,12 @@ import {
   type HiddenTunesTvVideo,
   type TvHomeLane,
 } from "@/services/tvCatalogApi";
-import { openVideoItem } from "@/services/videos/openVideoItem";
+import { openVideoItemWithAlert } from "@/services/videos/openVideoItem";
+import { buildTvDiscoveryLaunchContext } from "@/utils/tvDiscoveryLaunchContext";
+import { warmTvPlaybackFailureStore } from "@/utils/tvPlaybackFailureStore";
 
 type TvLane = TvHomeLane;
+const TV_LANE_PREVIEW_LIMIT = 8;
 
 function displayLaneTitle(title: string) {
   if (title === "Documentary Nights") return "Documentary";
@@ -55,8 +58,13 @@ export default function YouTubeFeedScreen() {
   const tvSearchRequestIdRef = useRef(0);
   const categoryRequestRef = useRef(0);
   const { width } = useWindowDimensions();
-  const railCardWidth = Math.min(260, Math.max(178, width * 0.58));
   const featuredWidth = Math.max(300, width - 36);
+  const searchGridColumns = width < 340 ? 1 : 2;
+  const searchGridGap = 12;
+  const searchGridCardWidth = Math.max(
+    136,
+    (width - 36 - searchGridGap * (searchGridColumns - 1)) / searchGridColumns - 12
+  );
 
   const { featuredLane, recentlyAddedLane, channelLanes, featuredVideo } = useMemo(() => {
     const featured = lanes.find((lane) => lane.id === "featured");
@@ -121,8 +129,27 @@ export default function YouTubeFeedScreen() {
   }, [loadArchiveLane]);
 
   useEffect(() => {
+    void warmTvPlaybackFailureStore();
     void loadTv();
   }, [loadTv]);
+
+  const removeQuarantinedChannel = useCallback((channelId: string) => {
+    setSearchResults((current) => current.filter((video) => video.id !== channelId));
+    setCategoryLane((current) =>
+      current
+        ? {
+            ...current,
+            videos: current.videos.filter((video) => video.id !== channelId),
+          }
+        : current
+    );
+    setLanes((current) =>
+      current.map((lane) => ({
+        ...lane,
+        videos: lane.videos.filter((video) => video.id !== channelId),
+      }))
+    );
+  }, []);
 
   const handleSelectCategory = useCallback((category: TvBrowseCategory) => {
     const requestId = ++categoryRequestRef.current;
@@ -180,12 +207,86 @@ export default function YouTubeFeedScreen() {
     };
   }, [query]);
 
-  const openVideo = useCallback((video: HiddenTunesTvVideo, queueVideos?: HiddenTunesTvVideo[]) => {
-    void openVideoItem(video, { queueVideos: queueVideos?.length ? queueVideos : [video] });
-  }, []);
+  const openVideo = useCallback(
+    (
+      video: HiddenTunesTvVideo,
+      queueVideos?: HiddenTunesTvVideo[],
+      launchOptions?: {
+        query?: string;
+        lane?: TvLane;
+        categorySlug?: string;
+        categoryTitle?: string;
+      }
+    ) => {
+      const queue = queueVideos?.length ? queueVideos : [video];
+      const startIndex = Math.max(0, queue.findIndex((entry) => entry.id === video.id));
+      const discoveryContext = buildTvDiscoveryLaunchContext(video, {
+        query: launchOptions?.query,
+        laneId: launchOptions?.lane?.id,
+        laneTitle: launchOptions?.lane?.title,
+        categorySlug: launchOptions?.categorySlug,
+        categoryTitle: launchOptions?.categoryTitle,
+        browseReturnPath: "/youtube-feed",
+      });
+
+      void openVideoItemWithAlert(video, {
+        queueVideos: queue,
+        startIndex,
+        discoveryContext,
+        onQuarantined: removeQuarantinedChannel,
+      });
+    },
+    [removeQuarantinedChannel]
+  );
+
+  const renderTopChrome = useCallback(
+    () => (
+      <>
+        <View style={styles.header}>
+          <View style={styles.headerIcon}>
+            <Ionicons name="tv" size={23} color={COLORS.primaryGlow} />
+          </View>
+          <View style={styles.headerCopy}>
+            <Text style={styles.kicker}>CURATED</Text>
+            <Text style={styles.title}>Hidden Tunes TV</Text>
+          </View>
+        </View>
+
+        <View style={styles.searchShell}>
+          <Ionicons name="search" size={18} color={COLORS.cyan} />
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Search TV"
+            placeholderTextColor={COLORS.textMuted}
+            autoCapitalize="none"
+            autoCorrect={false}
+            style={styles.searchInput}
+          />
+          {query.length > 0 ? (
+            <TouchableOpacity activeOpacity={0.8} hitSlop={8} onPress={() => setQuery("")}>
+              <Ionicons name="close-circle" size={20} color={COLORS.textMuted} />
+            </TouchableOpacity>
+          ) : null}
+        </View>
+      </>
+    ),
+    [query]
+  );
+
+  const activeCategory = useMemo(
+    () => browseCategories.find((entry) => entry.slug === activeCategorySlug) || null,
+    [activeCategorySlug, browseCategories]
+  );
 
   const renderLane = useCallback(
-    (lane: TvLane) => {
+    (
+      lane: TvLane,
+      categoryMeta?: {
+        slug: string;
+        title: string;
+      }
+    ) => {
       if (!lane.videos.length) return null;
       return (
         <View key={lane.id} style={styles.laneSection}>
@@ -193,33 +294,91 @@ export default function YouTubeFeedScreen() {
             <Text style={styles.sectionTitle}>{displayLaneTitle(lane.title)}</Text>
             <Text style={styles.sectionMeta}>{lane.videos.length} ready</Text>
           </View>
-          <FlatList
-            horizontal
+          <PremiumContentGrid
             data={lane.videos}
             keyExtractor={(video) => video.id}
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.railContent}
-            initialNumToRender={4}
-            maxToRenderPerBatch={4}
-            windowSize={5}
-            removeClippedSubviews
             renderItem={({ item }) => (
-              <TvVideoCard
-                video={item}
-                width={railCardWidth}
-                onPress={(pressed) => openVideo(pressed, lane.videos)}
-              />
+              <View style={styles.gridCell}>
+                <TvVideoCard
+                  video={item}
+                  fillWidth
+                  onPress={(pressed) =>
+                    openVideo(pressed, lane.videos, {
+                      lane,
+                      categorySlug: categoryMeta?.slug,
+                      categoryTitle: categoryMeta?.title,
+                    })
+                  }
+                />
+              </View>
             )}
+            maxItems={TV_LANE_PREVIEW_LIMIT}
+            scrollEnabled={false}
+            horizontalPadding={0}
+            listKey={`tv-lane-${lane.id}`}
           />
         </View>
       );
     },
-    [openVideo, railCardWidth]
+    [openVideo]
   );
 
-  const searchLane = useMemo<TvLane>(
-    () => ({ id: "search", title: "Search Results", videos: searchResults }),
-    [searchResults]
+  const renderSearchResult = useCallback(
+    ({ item }: { item: HiddenTunesTvVideo }) => (
+      <View style={styles.searchGridItem}>
+        <TvVideoCard
+          video={item}
+          width={searchGridCardWidth}
+          onPress={(pressed) => openVideo(pressed, searchResults, { query: query.trim() })}
+        />
+      </View>
+    ),
+    [openVideo, searchGridCardWidth, searchResults]
+  );
+
+  const renderSearchHeader = useCallback(
+    () => (
+      <View>
+        {renderTopChrome()}
+        {searchResults.length > 0 ? (
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Search Results</Text>
+            <Text style={styles.sectionMeta}>{searchResults.length} ready</Text>
+          </View>
+        ) : null}
+      </View>
+    ),
+    [renderTopChrome, searchResults.length]
+  );
+
+  const renderSearchEmpty = useCallback(
+    () => (
+      <View style={styles.searchResultsWrap}>
+        {searching ? (
+          <View style={styles.centerBlock}>
+            <ActivityIndicator size="small" color={COLORS.primary} />
+            <Text style={styles.loadingText}>Searching</Text>
+          </View>
+        ) : query.trim().length >= 2 ? (
+          <View style={styles.emptyBox}>
+            <Ionicons name="search" size={42} color={COLORS.textMuted} />
+            <Text style={styles.emptyTitle}>No TV matches</Text>
+            <Text style={styles.emptyText}>Try another channel, genre, or show title.</Text>
+          </View>
+        ) : null}
+      </View>
+    ),
+    [query, searching]
+  );
+
+  const renderSearchFooter = useCallback(
+    () =>
+      searching && searchResults.length > 0 ? (
+        <View style={styles.searchFooter}>
+          <ActivityIndicator size="small" color={COLORS.primary} />
+        </View>
+      ) : null,
+    [searchResults.length, searching]
   );
 
   const hasAdminContent =
@@ -227,61 +386,36 @@ export default function YouTubeFeedScreen() {
     Boolean(categoryLane?.videos.length);
 
   return (
-    <AppShell>
       <LinearGradient colors={GRADIENTS.main} style={styles.container}>
         <View style={styles.glowPurple} />
         <View style={styles.glowCyan} />
 
+        {hasSearchText ? (
+          <FlatList
+            key={`tv-search-${searchGridColumns}`}
+            data={searchResults}
+            numColumns={searchGridColumns}
+            keyExtractor={(video) => video.id}
+            renderItem={renderSearchResult}
+            ListHeaderComponent={renderSearchHeader}
+            ListEmptyComponent={renderSearchEmpty}
+            ListFooterComponent={renderSearchFooter}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.scrollContent}
+            columnWrapperStyle={searchGridColumns > 1 ? styles.searchGridRow : undefined}
+            initialNumToRender={8}
+            maxToRenderPerBatch={8}
+            windowSize={7}
+            removeClippedSubviews
+          />
+        ) : (
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-          <View style={styles.header}>
-            <View style={styles.headerIcon}>
-              <Ionicons name="tv" size={23} color={COLORS.primaryGlow} />
-            </View>
-            <View style={styles.headerCopy}>
-              <Text style={styles.kicker}>CURATED</Text>
-              <Text style={styles.title}>Hidden Tunes TV</Text>
-            </View>
-          </View>
-
-          <View style={styles.searchShell}>
-            <Ionicons name="search" size={18} color={COLORS.cyan} />
-            <TextInput
-              value={query}
-              onChangeText={setQuery}
-              placeholder="Search TV"
-              placeholderTextColor={COLORS.textMuted}
-              autoCapitalize="none"
-              autoCorrect={false}
-              style={styles.searchInput}
-            />
-            {query.length > 0 ? (
-              <TouchableOpacity activeOpacity={0.8} hitSlop={8} onPress={() => setQuery("")}>
-                <Ionicons name="close-circle" size={20} color={COLORS.textMuted} />
-              </TouchableOpacity>
-            ) : null}
-          </View>
+          {renderTopChrome()}
 
           {loading ? (
             <View style={styles.centerBlock}>
               <ActivityIndicator size="large" color={COLORS.primary} />
               <Text style={styles.loadingText}>Loading TV</Text>
-            </View>
-          ) : hasSearchText ? (
-            <View style={styles.searchResultsWrap}>
-              {searching ? (
-                <View style={styles.centerBlock}>
-                  <ActivityIndicator size="small" color={COLORS.primary} />
-                  <Text style={styles.loadingText}>Searching</Text>
-                </View>
-              ) : searchResults.length > 0 ? (
-                renderLane(searchLane)
-              ) : query.trim().length >= 2 ? (
-                <View style={styles.emptyBox}>
-                  <Ionicons name="search" size={42} color={COLORS.textMuted} />
-                  <Text style={styles.emptyTitle}>No TV matches</Text>
-                  <Text style={styles.emptyText}>Try another channel, genre, or show title.</Text>
-                </View>
-              ) : null}
             </View>
           ) : (
             <>
@@ -299,7 +433,10 @@ export default function YouTubeFeedScreen() {
                   <Text style={styles.loadingText}>Loading category</Text>
                 </View>
               ) : categoryLane ? (
-                renderLane(categoryLane)
+                renderLane(categoryLane, activeCategory ? {
+                  slug: activeCategory.slug,
+                  title: activeCategory.name,
+                } : undefined)
               ) : activeCategorySlug ? (
                 <View style={styles.emptyBox}>
                   <Text style={styles.emptyTitle}>No stations in this category</Text>
@@ -315,12 +452,14 @@ export default function YouTubeFeedScreen() {
                       <TvVideoCard
                         video={featuredVideo}
                         width={featuredWidth}
-                        onPress={(item) => openVideo(item, featuredLane?.videos)}
+                        onPress={(item) =>
+                          openVideo(item, featuredLane?.videos, { lane: featuredLane })
+                        }
                       />
                     </View>
                   ) : null}
                   {recentlyAddedLane ? renderLane(recentlyAddedLane) : null}
-                  {channelLanes.map(renderLane)}
+                  {channelLanes.map((lane) => renderLane(lane))}
                 </>
               ) : !categoryLaneLoading && !activeCategorySlug ? (
                 <View style={styles.emptyBox}>
@@ -343,8 +482,8 @@ export default function YouTubeFeedScreen() {
             </>
           )}
         </ScrollView>
+        )}
       </LinearGradient>
-    </AppShell>
   );
 }
 
@@ -407,6 +546,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   laneSection: { marginBottom: 24 },
+  gridCell: { flex: 1, minWidth: 0 },
   sectionHeader: {
     flexDirection: "row",
     alignItems: "flex-end",
@@ -417,6 +557,9 @@ const styles = StyleSheet.create({
   sectionMeta: { color: COLORS.textMuted, fontSize: 12, fontWeight: "800" },
   railContent: { paddingRight: 18 },
   searchResultsWrap: { minHeight: 180 },
+  searchGridRow: { gap: 12 },
+  searchGridItem: { marginBottom: 22 },
+  searchFooter: { paddingVertical: 18, alignItems: "center" },
   emptyBox: { minHeight: 180, alignItems: "center", justifyContent: "center", paddingHorizontal: 20 },
   emptyTitle: {
     color: COLORS.text,

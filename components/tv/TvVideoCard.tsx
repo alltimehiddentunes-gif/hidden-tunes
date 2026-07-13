@@ -1,39 +1,69 @@
-import { memo, useMemo } from "react";
+import { memo, useMemo, useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
-
-import HTImage from "@/components/HTImage";
+import { Image } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
 import { COLORS } from "@/constants/theme";
 import type { HiddenTunesTvVideo } from "@/services/tvCatalogApi";
-import { getVideoDisplayCategory, getVideoDisplayCreator, normalizeVideoItem } from "@/services/videos/videoNormalizer";
+import { normalizeVideoItem } from "@/services/videos/videoNormalizer";
+import {
+  getTvChannelInitials,
+  getTvDisplayChannelName,
+  getTvDisplaySubtitle,
+  markTvArtworkLoadFailure,
+  resolveTvArtworkUrl,
+  shouldShowTvVerifiedBadge,
+} from "@/utils/tvArtwork";
 
 type TvVideoCardProps = {
   video: HiddenTunesTvVideo;
-  width?: number;
+  width?: number | "100%";
+  fillWidth?: boolean;
   onPress: (video: HiddenTunesTvVideo) => void;
 };
 
-function TvVideoCard({ video, width = 168, onPress }: TvVideoCardProps) {
+function TvVideoCard({ video, width = 168, fillWidth = false, onPress }: TvVideoCardProps) {
   const item = useMemo(() => normalizeVideoItem(video), [video]);
-  const thumbnail = item.thumbnailUrl || "";
-  const creator = useMemo(() => getVideoDisplayCreator(item), [item]);
-  const category = useMemo(() => getVideoDisplayCategory(item), [item]);
+  const artworkUrl = useMemo(() => resolveTvArtworkUrl(video), [video]);
+  const [artworkFailed, setArtworkFailed] = useState(false);
+  const channelName = useMemo(() => getTvDisplayChannelName(video), [video]);
+  const subtitle = useMemo(() => getTvDisplaySubtitle(video), [video]);
+  const showVerified = useMemo(() => shouldShowTvVerifiedBadge(video), [video]);
+  const initials = useMemo(() => getTvChannelInitials(item.title), [item.title]);
+  const showArtwork = Boolean(artworkUrl) && !artworkFailed;
 
   return (
     <TouchableOpacity
       activeOpacity={0.88}
       onPress={() => onPress(video)}
-      style={[styles.card, { width }]}
+      style={[styles.card, fillWidth ? styles.cardFill : { width }]}
     >
       <View style={styles.thumbWrap}>
-        <HTImage
-          uri={thumbnail}
-          style={styles.thumb}
-          contentFit="cover"
-          maxDecodeWidth={520}
-          maxDecodeHeight={320}
-        />
+        {showArtwork ? (
+          <Image
+            source={{ uri: artworkUrl }}
+            style={styles.thumb}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+            onError={() => {
+              markTvArtworkLoadFailure(artworkUrl);
+              setArtworkFailed(true);
+            }}
+          />
+        ) : (
+          <LinearGradient colors={["#1a1030", "#0d1828"]} style={styles.thumb}>
+            <Text style={styles.initials}>{initials}</Text>
+          </LinearGradient>
+        )}
+
+        {showVerified ? (
+          <View style={styles.verifiedBadge}>
+            <Ionicons name="checkmark-circle" size={12} color={COLORS.cyan} />
+            <Text style={styles.verifiedText}>Verified</Text>
+          </View>
+        ) : null}
+
         <View style={styles.playBadge}>
           <Ionicons name="play" size={14} color="#000" />
         </View>
@@ -43,13 +73,15 @@ function TvVideoCard({ video, width = 168, onPress }: TvVideoCardProps) {
         {item.title}
       </Text>
 
-      <Text numberOfLines={1} style={styles.channel}>
-        {creator}
-      </Text>
+      {channelName ? (
+        <Text numberOfLines={1} style={styles.channel}>
+          {channelName}
+        </Text>
+      ) : null}
 
-      {category ? (
+      {subtitle ? (
         <Text numberOfLines={1} style={styles.meta}>
-          {category}
+          {subtitle}
         </Text>
       ) : null}
     </TouchableOpacity>
@@ -61,6 +93,10 @@ export default memo(TvVideoCard);
 const styles = StyleSheet.create({
   card: {
     marginRight: 12,
+  },
+  cardFill: {
+    width: "100%",
+    marginRight: 0,
   },
 
   thumbWrap: {
@@ -76,6 +112,37 @@ const styles = StyleSheet.create({
   thumb: {
     width: "100%",
     height: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  initials: {
+    color: COLORS.primaryGlow,
+    fontSize: 28,
+    fontWeight: "900",
+    letterSpacing: 1,
+  },
+
+  verifiedBadge: {
+    position: "absolute",
+    top: 8,
+    left: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: "rgba(0,0,0,0.62)",
+    borderWidth: 1,
+    borderColor: "rgba(34,211,238,0.24)",
+  },
+
+  verifiedText: {
+    color: COLORS.cyan,
+    fontSize: 9,
+    fontWeight: "900",
+    letterSpacing: 0.6,
   },
 
   playBadge: {

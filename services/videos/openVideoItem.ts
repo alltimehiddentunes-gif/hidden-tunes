@@ -1,3 +1,4 @@
+import { Platform } from "react-native";
 import { router } from "expo-router";
 
 import {
@@ -6,16 +7,30 @@ import {
   type HiddenTunesTvPlayback,
   type HiddenTunesTvVideo,
 } from "../tvCatalogApi";
+import { openTvDiscoveryStation } from "../tvDiscoveryOpen";
+import type { TvDiscoveryLaunchContext } from "@/types/tvDiscovery";
 import {
   getVideoDisplayCreator,
   isVideoItemPlayableInCurrentRoute,
   normalizeVideoItem,
   type VideoItem,
 } from "./videoNormalizer";
+import {
+  clearTvPlaybackFailure,
+  getTvPlaybackFailureCount,
+  recordTvPlaybackFailure,
+} from "../../utils/tvPlaybackFailureStore";
+import {
+  isBrowsePlayableTvVideo,
+  isPlatformBlockedStreamUrl,
+  isResolvedStreamPlayable,
+  TV_LOCAL_QUARANTINE_THRESHOLD,
+} from "../../utils/tvPlayabilityGate";
 
 type OpenVideoOptions = {
   queueVideos?: HiddenTunesTvVideo[];
   startIndex?: number;
+  discoveryContext?: TvDiscoveryLaunchContext;
 };
 
 export type OpenVideoResult = { ok: true } | { ok: false; error: string };
@@ -59,6 +74,25 @@ function isYouTubeLikeSource(sourceType: string, streamUrl = "") {
     normalizedUrl.includes("youtube.com") ||
     normalizedUrl.includes("youtu.be")
   );
+}
+
+function isHttpOnlyStream(url: string) {
+  try {
+    return new URL(url).protocol === "http:";
+  } catch {
+    return false;
+  }
+}
+
+function blockedMobileStreamMessage(streamUrl: string) {
+  if (!isPlatformBlockedStreamUrl(streamUrl)) return "";
+  if (Platform.OS === "ios" && isHttpOnlyStream(streamUrl)) {
+    return "http_stream_blocked_ios";
+  }
+  if (Platform.OS === "android" && isHttpOnlyStream(streamUrl)) {
+    return "http_stream_blocked_android";
+  }
+  return "stream_blocked";
 }
 
 function shouldOpenTvPlayer(playback: HiddenTunesTvPlayback) {
@@ -125,32 +159,99 @@ function buildRouteQueue(
     .filter((item) => item.videoId);
 }
 
+function shouldUseTvDiscoveryPlayer(video: HiddenTunesTvVideo) {
+  if (isArchiveVideo(video)) return false;
+
+  const sourceType = String(video.source_type || "").trim().toLowerCase();
+  const sourceUrl = String(video.source_url || "").trim().toLowerCase();
+
+  if (isYouTubeLikeSource(sourceType, sourceUrl)) return false;
+  if (video.id.startsWith("iptv-org-")) return true;
+
+  if (
+    sourceType === "hls_stream" ||
+    sourceType === "m3u_playlist" ||
+    sourceType.includes("hls") ||
+    sourceType.includes("stream") ||
+    sourceType === "iptv" ||
+    sourceType === "iptv_channel"
+  ) {
+    return true;
+  }
+
+  if (/\.m3u8(?:$|[?#])/.test(sourceUrl)) return true;
+
+  return !sourceType || sourceType === "live_tv";
+}
+
+async function openLiveTvDiscovery(
+  rawVideo: HiddenTunesTvVideo,
+  options: OpenVideoOptions
+): Promise<OpenVideoResult> {
+  if (!isBrowsePlayableTvVideo(rawVideo)) {
+    await markPlaybackFailure(rawVideo.id);
+    return { ok: false, error: "station_not_playable" };
+  }
+
+  const result = await openTvDiscoveryStation(rawVideo, {
+    queueVideos: options.queueVideos,
+    startIndex: options.startIndex,
+    discoveryContext: options.discoveryContext,
+  });
+
+  if (!result.ok) {
+    await markPlaybackFailure(rawVideo.id);
+    return { ok: false, error: result.error };
+  }
+
+  return { ok: true };
+}
+
+async function markPlaybackFailure(channelId: string) {
+  return recordTvPlaybackFailure(channelId);
+}
+
 export async function openVideoItem(
   videoInput: HiddenTunesTvVideo | VideoItem,
   options: OpenVideoOptions = {}
 ): Promise<OpenVideoResult> {
   const rawVideo = toHiddenTunesTvVideo(videoInput);
-  const playback = await resolvePlayback(rawVideo);
 
-  if (!playback?.stream_url) {
+  if (shouldUseTvDiscoveryPlayer(rawVideo)) {
+    return openLiveTvDiscovery(rawVideo, options);
+  }
+
+  let playback: HiddenTunesTvPlayback | null = null;
+  try {
+    playback = await resolvePlayback(rawVideo);
+  } catch {
+    await markPlaybackFailure(rawVideo.id);
     return {
       ok: false,
-      error: "This TV item isn't playable right now. Try another channel.",
+      error: "This TV channel could not be resolved right now. Try another channel.",
+    };
+  }
+
+  if (!playback?.stream_url || !isResolvedStreamPlayable(playback)) {
+    await markPlaybackFailure(rawVideo.id);
+    return {
+      ok: false,
+      error: "stream_unavailable",
+    };
+  }
+
+  const blockedMessage = blockedMobileStreamMessage(playback.stream_url);
+  if (blockedMessage) {
+    await markPlaybackFailure(rawVideo.id);
+    return {
+      ok: false,
+      error: blockedMessage,
     };
   }
 
   if (shouldOpenTvPlayer(playback)) {
-    router.push({
-      pathname: "/tv-player",
-      params: {
-        id: rawVideo.id,
-        title: rawVideo.title || "Hidden Tunes TV",
-        streamUrl: playback.stream_url,
-        sourceType: playback.source_type,
-      },
-    } as any);
-
-    return { ok: true };
+    await clearTvPlaybackFailure(rawVideo.id);
+    return openLiveTvDiscovery(rawVideo, options);
   }
 
   const enrichedVideo = withPlayback(rawVideo, playback);
@@ -165,6 +266,8 @@ export async function openVideoItem(
     typeof options.startIndex === "number"
       ? options.startIndex
       : Math.max(0, queue.findIndex((entry) => entry.videoId === routeVideoId));
+
+  await clearTvPlaybackFailure(rawVideo.id);
 
   router.push({
     pathname: "/youtube-player",
@@ -188,4 +291,24 @@ export async function openVideoItem(
   } as any);
 
   return { ok: true };
+}
+
+export async function openVideoItemWithAlert(
+  videoInput: HiddenTunesTvVideo | VideoItem,
+  options: OpenVideoOptions & {
+    onQuarantined?: (channelId: string) => void;
+  } = {}
+): Promise<OpenVideoResult> {
+  const rawVideo = toHiddenTunesTvVideo(videoInput);
+  const result = await openVideoItem(videoInput, options);
+
+  if (!result.ok) {
+    const failures = await getTvPlaybackFailureCount(rawVideo.id);
+    if (failures >= TV_LOCAL_QUARANTINE_THRESHOLD) {
+      options.onQuarantined?.(rawVideo.id);
+    }
+    return result;
+  }
+
+  return result;
 }

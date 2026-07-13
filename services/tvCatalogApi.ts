@@ -1,10 +1,18 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Platform } from "react-native";
 
 import {
   buildTvBrowseCategoryFallback,
   TV_LANE_FALLBACK_QUERIES,
   type TvBrowseCategory,
 } from "../constants/tvBrowseCategories";
+import { filterPublicTvCatalogVideos } from "../utils/tvCatalogQuality";
+import {
+  detectTvCatalogMetadataMode,
+  isResolvedStreamPlayable,
+  type TvStationMetadataMode,
+} from "../utils/tvPlayabilityGate";
+import { resolveTvArtworkUrl } from "../utils/tvArtwork";
 import { getVideoDisplayCreator, normalizeVideoItem } from "./videos/videoNormalizer";
 import { fetchArchiveConcertVideos } from "./videos/archiveVideoDiscovery";
 
@@ -48,8 +56,27 @@ export type HiddenTunesTvVideo = {
   channel_name?: string | null;
   source_type?: string;
   source_id?: string;
+  /** Server-side catalog flags when exposed by the API */
+  public?: boolean;
+  verified?: boolean;
+  playable?: boolean;
+  disabled?: boolean;
+  is_active?: boolean;
+  status?: string | null;
+  playback_status?: string | null;
+  ios_playable?: boolean;
+  android_playable?: boolean;
+  stream_protocol?: string | null;
+  stream_is_https?: boolean;
+  requires_https?: boolean;
+  last_validated_at?: string | null;
+  last_validation_result?: string | null;
+  failure_count?: number;
+  last_health_checked_at?: string | null;
+  quarantined_at?: string | null;
+  metadataMode?: TvStationMetadataMode;
   /** Archive-only / legacy browse payloads — stripped from backend catalog rows */
-  source_url?: string;
+  source_url?: string | null;
   embed_url?: string | null;
   category?: string | null;
   genre?: string | null;
@@ -90,6 +117,7 @@ export type TvCatalogPagination = {
 export type TvCatalogResponse = {
   success: boolean;
   videos: HiddenTunesTvVideo[];
+  metadataMode?: TvStationMetadataMode;
   pagination: TvCatalogPagination;
   error?: string;
 };
@@ -210,6 +238,35 @@ function stripBrowsableFields(raw: Record<string, unknown>) {
   return cleaned;
 }
 
+function pickTvArtworkUrl(raw: Record<string, unknown>) {
+  const candidates = [
+    raw.logo,
+    raw.logo_url,
+    raw.thumbnail_url,
+    raw.thumbnailUrl,
+    raw.artwork_url,
+    raw.image_url,
+    raw.icon_url,
+    raw.favicon_url,
+    raw.poster_url,
+    raw.channel_logo,
+    raw.source_logo,
+  ];
+
+  for (const candidate of candidates) {
+    const url = cleanText(candidate, 2000);
+    if (url) return url;
+  }
+
+  return null;
+}
+
+function readOptionalBoolean(value: unknown) {
+  if (value === true || value === "true" || value === 1 || value === "1") return true;
+  if (value === false || value === "false" || value === 0 || value === "0") return false;
+  return undefined;
+}
+
 export function normalizeTvCatalogVideo(raw: Record<string, unknown>): HiddenTunesTvVideo | null {
   const safe = stripBrowsableFields(raw);
   const id = String(safe.id || "").trim();
@@ -217,7 +274,6 @@ export function normalizeTvCatalogVideo(raw: Record<string, unknown>): HiddenTun
 
   if (!id || !title) return null;
 
-  const logo = cleanText(safe.logo, 2000) || cleanText(safe.thumbnail_url, 2000);
   const categories = Array.isArray(safe.categories)
     ? (safe.categories as unknown[])
         .map((entry) => cleanText(entry, 120))
@@ -235,12 +291,12 @@ export function normalizeTvCatalogVideo(raw: Record<string, unknown>): HiddenTun
     }
   }
 
-  return {
+  const draft: HiddenTunesTvVideo = {
     id,
     title,
     description: cleanText(safe.description, 2000),
-    logo,
-    thumbnail_url: logo,
+    logo: pickTvArtworkUrl(safe),
+    thumbnail_url: pickTvArtworkUrl(safe),
     country: cleanText(safe.country, 120) || cleanText(safe.region, 120),
     language: cleanText(safe.language, 80),
     categories,
@@ -252,16 +308,44 @@ export function normalizeTvCatalogVideo(raw: Record<string, unknown>): HiddenTun
     channel_name: cleanText(safe.channel_name, 200),
     source_type: cleanText(safe.source_type, 80) || undefined,
     source_id: cleanText(safe.source_id, 120) || undefined,
+    public: readOptionalBoolean(safe.public),
+    verified: readOptionalBoolean(safe.verified),
+    playable: readOptionalBoolean(safe.playable),
+    disabled: readOptionalBoolean(safe.disabled),
+    is_active: readOptionalBoolean(safe.is_active),
+    status: cleanText(safe.status, 80),
+    playback_status: cleanText(safe.playback_status, 80),
+    ios_playable: readOptionalBoolean(safe.ios_playable),
+    android_playable: readOptionalBoolean(safe.android_playable),
+    stream_protocol: cleanText(safe.stream_protocol, 40),
+    stream_is_https: readOptionalBoolean(safe.stream_is_https),
+    requires_https: readOptionalBoolean(safe.requires_https),
+    last_validated_at: cleanText(safe.last_validated_at, 80),
+    last_validation_result: cleanText(safe.last_validation_result, 200),
+    failure_count:
+      typeof safe.failure_count === "number"
+        ? safe.failure_count
+        : Number(safe.failure_count) || undefined,
+    last_health_checked_at: cleanText(safe.last_health_checked_at, 80),
+    quarantined_at: cleanText(safe.quarantined_at, 80),
     category,
     genre,
     mood,
     format,
     tags: normalizeTags(safe.tags),
   };
+
+  const artwork = resolveTvArtworkUrl(draft);
+  return {
+    ...draft,
+    logo: artwork || draft.logo,
+    thumbnail_url: artwork || draft.thumbnail_url,
+  };
 }
 
 function buildPlayUrl(videoId: string) {
-  return `${TV_CATALOG_BASE_URL}${TV_PLAY_API_PATH}/${encodeURIComponent(videoId)}/play`;
+  const params = new URLSearchParams({ platform: resolveTvClientPlatform() });
+  return `${TV_CATALOG_BASE_URL}${TV_PLAY_API_PATH}/${encodeURIComponent(videoId)}/play?${params.toString()}`;
 }
 
 const TV_PLAYBACK_CACHE_TTL_MS = 5 * 60 * 1000;
@@ -275,7 +359,10 @@ export async function fetchTvPlayback(
   if (cacheKey) {
     const cached = tvPlaybackCache.get(cacheKey);
     if (cached && Date.now() - cached.at < TV_PLAYBACK_CACHE_TTL_MS) {
-      return cached.value;
+      if (isResolvedStreamPlayable(cached.value)) {
+        return cached.value;
+      }
+      tvPlaybackCache.delete(cacheKey);
     }
   }
 
@@ -303,6 +390,10 @@ export async function fetchTvPlayback(
       embed_url: cleanText(payload.embed_url, 2000),
     };
 
+    if (!isResolvedStreamPlayable(playback)) {
+      return null;
+    }
+
     if (cacheKey) {
       tvPlaybackCache.set(cacheKey, { value: playback, at: Date.now() });
     }
@@ -313,6 +404,10 @@ export async function fetchTvPlayback(
   }
 }
 
+function resolveTvClientPlatform() {
+  return Platform.OS === "ios" ? "ios" : "android";
+}
+
 function buildCatalogUrl(query: TvCatalogQuery = {}) {
   const params = new URLSearchParams();
   const page = Math.max(1, Number(query.page || 1));
@@ -320,6 +415,7 @@ function buildCatalogUrl(query: TvCatalogQuery = {}) {
 
   params.set("page", String(page));
   params.set("limit", String(limit));
+  params.set("platform", resolveTvClientPlatform());
 
   if (query.q?.trim()) params.set("q", query.q.trim());
   if (query.genre?.trim()) params.set("genre", query.genre.trim());
@@ -366,15 +462,21 @@ export async function fetchTvCatalog(
       };
     }
 
-    const videos = ((payload.videos || []) as Record<string, unknown>[])
+    const normalizedVideos = ((payload.videos || []) as Record<string, unknown>[])
       .map((row) => normalizeTvCatalogVideo(row))
       .filter((row): row is HiddenTunesTvVideo => row !== null);
+    const metadataMode = detectTvCatalogMetadataMode(normalizedVideos);
+    const videos = filterPublicTvCatalogVideos(normalizedVideos, metadataMode).map((video) => ({
+      ...video,
+      metadataMode,
+    }));
 
     const paginationRaw = (payload.pagination || {}) as Record<string, unknown>;
 
     return {
       success: true,
       videos,
+      metadataMode,
       pagination: {
         page: Number(paginationRaw.page || query.page || 1),
         limit: Number(paginationRaw.limit || query.limit || TV_DEFAULT_PAGE_LIMIT),
@@ -408,13 +510,21 @@ export async function loadTvHomeCache() {
     if (!parsed?.lanes?.length) return null;
 
     const savedAt = new Date(parsed.savedAt).getTime();
-    if (!Number.isFinite(savedAt)) return parsed;
+    if (!Number.isFinite(savedAt)) {
+      return {
+        ...parsed,
+        lanes: filterAdminHomeLanes(parsed.lanes),
+      };
+    }
 
     if (Date.now() - savedAt > TV_HOME_CACHE_TTL_MS) {
       return null;
     }
 
-    return parsed;
+    return {
+      ...parsed,
+      lanes: filterAdminHomeLanes(parsed.lanes),
+    };
   } catch {
     return null;
   }
@@ -433,6 +543,7 @@ export type TvHomeLane = {
   id: string;
   title: string;
   videos: HiddenTunesTvVideo[];
+  metadataMode?: TvStationMetadataMode;
 };
 
 export async function fetchTvCategories(options?: {
@@ -484,11 +595,17 @@ async function fetchLaneVideos(lane: TvCatalogLane, options?: { signal?: AbortSi
   for (const query of attempts) {
     const response = await fetchTvCatalog(query, options);
     if (response.success && response.videos.length > 0) {
-      return response.videos;
+      return {
+        videos: response.videos,
+        metadataMode: response.metadataMode,
+      };
     }
   }
 
-  return [] as HiddenTunesTvVideo[];
+  return {
+    videos: [] as HiddenTunesTvVideo[],
+    metadataMode: "quality_metadata" as TvStationMetadataMode,
+  };
 }
 
 export async function fetchTvCategoryLane(
@@ -508,6 +625,7 @@ export async function fetchTvCategoryLane(
     id: `category-${category.slug}`,
     title: category.name,
     videos: response.success ? response.videos : [],
+    metadataMode: response.metadataMode,
   };
 }
 
@@ -546,11 +664,12 @@ export async function fetchTvSearchVideos(
 export async function fetchTvHomeLanes(options?: { signal?: AbortSignal }) {
   const laneResults = await Promise.all(
     TV_HOME_LANES.map(async (lane) => {
-      const videos = await fetchLaneVideos(lane, options);
+      const result = await fetchLaneVideos(lane, options);
       return {
         id: lane.id,
         title: lane.title,
-        videos,
+        videos: result.videos,
+        metadataMode: result.metadataMode,
       };
     })
   );
@@ -573,7 +692,12 @@ export async function fetchTvHomeLanes(options?: { signal?: AbortSignal }) {
 }
 
 export function filterAdminHomeLanes(lanes: TvHomeLane[]) {
-  return lanes.filter((lane) => lane.id !== ARCHIVE_CONCERT_LANE_ID);
+  return lanes
+    .filter((lane) => lane.id !== ARCHIVE_CONCERT_LANE_ID)
+    .map((lane) => ({
+      ...lane,
+      videos: filterPublicTvCatalogVideos(lane.videos),
+    }));
 }
 
 /** @deprecated Archive lane is no longer merged into the admin home cache. */
