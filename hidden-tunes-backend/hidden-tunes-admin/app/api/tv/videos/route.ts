@@ -13,6 +13,7 @@ export const dynamic = "force-dynamic";
 
 const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 50;
+const TV_HEALTH_FRESHNESS_MS = 7 * 24 * 60 * 60 * 1000;
 
 function jsonError(error: string, status: number, details?: unknown) {
   return NextResponse.json(
@@ -36,6 +37,7 @@ export async function GET(request: NextRequest) {
   const limit = parsePositiveInt(params.get("limit"), DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE);
   const from = (page - 1) * limit;
   const to = from + limit - 1;
+  const healthCutoff = new Date(Date.now() - TV_HEALTH_FRESHNESS_MS).toISOString();
 
   let query = supabaseAdmin
     .from("tv_videos")
@@ -44,6 +46,9 @@ export async function GET(request: NextRequest) {
     .eq("is_active", true)
     .eq("playback_status", "playable")
     .gte("reliability_score", TV_RELIABILITY_THRESHOLD)
+    .is("disabled_at", null)
+    .is("quarantined_at", null)
+    .gte("last_health_checked_at", healthCutoff)
     .order("created_at", { ascending: false });
 
   const category = cleanFilter(params.get("category"));
