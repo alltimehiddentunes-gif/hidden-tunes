@@ -5,7 +5,7 @@
 set -euo pipefail
 
 PROJECT_DIR="/var/www/hidden-tunes/hidden-tunes-backend/hidden-tunes-admin"
-EXPECTED_COMMIT="797a2d6"
+EXPECTED_COMMIT="5fa65d1"
 
 echo "============================================================================="
 echo "Hidden Tunes — Motivationals Expansion Deployment"
