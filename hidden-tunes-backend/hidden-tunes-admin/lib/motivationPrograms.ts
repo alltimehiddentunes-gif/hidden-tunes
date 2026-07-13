@@ -79,7 +79,8 @@ export function toMotivationSessionPublic(row: Record<string, unknown>) {
 }
 
 function applyPublicProgramFilters(query: ReturnType<typeof supabaseAdmin.from>) {
-  return query
+  const next: any = query as any;
+  return next
     .eq("is_public", true)
     .eq("is_active", true)
     .eq("status", "published")
