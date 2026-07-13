@@ -5,7 +5,9 @@
 set -euo pipefail
 
 PROJECT_DIR="/var/www/hidden-tunes/hidden-tunes-backend/hidden-tunes-admin"
-EXPECTED_COMMIT="8f6e354"
+# Baseline commit that includes Motivationals expansion SQL + manual deploy package.
+# HEAD must be this commit or a descendant (newer main is OK).
+MIN_COMMIT="${MOTIVATION_DEPLOY_MIN_COMMIT:-5fa65d1}"
 
 echo "============================================================================="
 echo "Hidden Tunes — Motivationals Expansion Deployment"
@@ -32,14 +34,24 @@ git rev-parse HEAD
 git log -1 --oneline
 
 CURRENT_SHORT="$(git rev-parse --short HEAD)"
-if [[ "${CURRENT_SHORT}" != "${EXPECTED_COMMIT}" ]]; then
-  echo "WARNING: HEAD (${CURRENT_SHORT}) does not match expected (${EXPECTED_COMMIT})."
+MIN_SHORT="$(git rev-parse --short "${MIN_COMMIT}" 2>/dev/null || true)"
+if [[ -z "${MIN_SHORT}" ]]; then
+  echo "WARNING: MIN_COMMIT (${MIN_COMMIT}) not found in this repo."
+  read -r -p "Continue anyway? [y/N] " CONFIRM
+  if [[ "${CONFIRM}" != "y" && "${CONFIRM}" != "Y" ]]; then
+    echo "Aborted."
+    exit 1
+  fi
+elif ! git merge-base --is-ancestor "${MIN_COMMIT}" HEAD; then
+  echo "WARNING: HEAD (${CURRENT_SHORT}) is not at or after Motivationals baseline (${MIN_SHORT})."
   echo "Confirm you intend to deploy this commit before continuing."
   read -r -p "Continue anyway? [y/N] " CONFIRM
   if [[ "${CONFIRM}" != "y" && "${CONFIRM}" != "Y" ]]; then
     echo "Aborted."
     exit 1
   fi
+elif [[ "${CURRENT_SHORT}" != "${MIN_SHORT}" ]]; then
+  echo "HEAD (${CURRENT_SHORT}) is newer than baseline (${MIN_SHORT}) — OK to deploy."
 fi
 
 echo ""
