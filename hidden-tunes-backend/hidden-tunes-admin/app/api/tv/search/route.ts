@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { parsePositiveInt } from "@/lib/tvCatalog";
 import { runTvLiveSearch } from "@/lib/tvSearch";
+import { parseTvClientPlatform } from "@/lib/tvPlatformPolicy";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -29,6 +30,7 @@ function cleanQuery(value: string | null) {
 export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
   const query = cleanQuery(params.get("q"));
+  const platform = parseTvClientPlatform(request);
 
   if (!query) {
     return jsonError("Search query q is required.", 400);
@@ -44,6 +46,7 @@ export async function GET(request: NextRequest) {
       page,
       limit,
       pageToken,
+      platform,
     });
 
     const hasMore = Boolean(result.nextPageToken) || page * limit < result.total;

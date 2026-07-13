@@ -2,7 +2,14 @@
 -- Safe to run more than once; restores the public TV route schema contract.
 
 alter table public.tv_videos
-  add column if not exists reliability_score integer not null default 100;
+  add column if not exists reliability_score integer not null default 0;
+
+alter table public.tv_videos
+  alter column reliability_score set default 0;
+
+update public.tv_videos
+set reliability_score = 0
+where reliability_score is null;
 
 do $$
 begin
@@ -26,9 +33,5 @@ create index if not exists tv_videos_public_reliable_idx
     and is_active = true
     and playback_status = 'playable'
     and reliability_score >= 60;
-
-update public.tv_videos
-set reliability_score = coalesce(reliability_score, 100)
-where reliability_score is null;
 
 notify pgrst, 'reload schema';

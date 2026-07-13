@@ -16,9 +16,27 @@ type StationTestResult = {
   title: string;
   listHasStreamFields: boolean;
   playOk: boolean;
+  playUrlIsHttps: boolean;
   playError?: string;
   legacyFallback: boolean;
 };
+
+const REQUIRED_QUALITY_FIELDS = [
+  "public",
+  "verified",
+  "playable",
+  "disabled",
+  "ios_playable",
+  "android_playable",
+  "stream_protocol",
+  "stream_is_https",
+  "last_validated_at",
+  "last_validation_result",
+  "failure_count",
+  "playback_status",
+  "last_health_checked_at",
+  "quarantined_at",
+] as const;
 
 function hasForbiddenStreamFields(row: StationRow) {
   return (
@@ -27,6 +45,10 @@ function hasForbiddenStreamFields(row: StationRow) {
     Boolean(String(row.source_url || "").trim()) ||
     Boolean(String(row.embed_url || "").trim())
   );
+}
+
+function missingQualityFields(row: StationRow) {
+  return REQUIRED_QUALITY_FIELDS.filter((field) => !(field in row));
 }
 
 async function fetchJson(path: string) {
@@ -47,13 +69,79 @@ async function fetchJson(path: string) {
   return { response, payload };
 }
 
+async function verifyBrowse(platform: "ios" | "android") {
+  const listResult = await fetchJson(
+    `/api/tv/videos?platform=${platform}&limit=40&page=1`
+  );
+
+  if (!listResult.response.ok || listResult.payload.success === false) {
+    throw new Error(`${platform} browse failed: ${JSON.stringify(listResult.payload)}`);
+  }
+
+  const stations = (listResult.payload.videos || []) as StationRow[];
+  const ids = new Set<string>();
+  const issues: string[] = [];
+
+  for (const station of stations) {
+    const id = String(station.id || "").trim();
+    if (!id) {
+      issues.push("row missing id");
+      continue;
+    }
+    if (ids.has(id)) issues.push(`duplicate id ${id}`);
+    ids.add(id);
+
+    if (hasForbiddenStreamFields(station)) {
+      issues.push(`${id} exposes stream fields in browse`);
+    }
+
+    const missing = missingQualityFields(station);
+    if (missing.length) {
+      issues.push(`${id} missing quality fields: ${missing.join(", ")}`);
+    }
+
+    if (station.public !== true) issues.push(`${id} public !== true`);
+    if (station.playable !== true) issues.push(`${id} playable !== true`);
+    if (station.disabled === true) issues.push(`${id} disabled`);
+    if (station.quarantined_at) issues.push(`${id} quarantined`);
+    if (station.playback_status !== "playable") {
+      issues.push(`${id} playback_status !== playable`);
+    }
+
+    if (platform === "ios") {
+      if (station.ios_playable !== true) issues.push(`${id} ios_playable !== true`);
+      if (station.stream_is_https !== true) issues.push(`${id} stream_is_https !== true`);
+      if (String(station.stream_protocol || "").toLowerCase() === "http") {
+        issues.push(`${id} http protocol in ios browse`);
+      }
+    } else {
+      if (station.android_playable !== true) {
+        issues.push(`${id} android_playable !== true`);
+      }
+    }
+  }
+
+  return {
+    platform,
+    count: stations.length,
+    total: Number(
+      (listResult.payload.pagination as StationRow | undefined)?.total || stations.length
+    ),
+    duplicateIds: stations.length - ids.size,
+    issues,
+    stations,
+  };
+}
+
 async function main() {
   const report = {
     baseUrl: BASE_URL,
-    publicCount: 0,
+    iosBrowse: null as Awaited<ReturnType<typeof verifyBrowse>> | null,
+    androidBrowse: null as Awaited<ReturnType<typeof verifyBrowse>> | null,
     tested: 0,
     playSuccess: 0,
     playFailed: 0,
+    playHttpFailures: 0,
     legacyFallbackSuccess: 0,
     listHasStreamUrl: false,
     hasMotivationCategory: false,
@@ -92,25 +180,20 @@ async function main() {
       fallbackNames.some((name) => /music tv/i.test(name));
   }
 
-  const listResult = await fetchJson("/api/tv/videos?limit=50&page=1");
-  if (!listResult.response.ok || listResult.payload.success === false) {
-    console.error("List endpoint failed:", listResult.payload);
+  try {
+    report.iosBrowse = await verifyBrowse("ios");
+    report.androidBrowse = await verifyBrowse("android");
+    report.listHasStreamUrl = report.iosBrowse.issues.some((issue) =>
+      issue.includes("stream fields")
+    );
+    report.failures.push(...report.iosBrowse.issues, ...report.androidBrowse.issues);
+  } catch (error) {
+    report.failures.push(String(error));
+    console.error(JSON.stringify(report, null, 2));
     process.exit(1);
   }
 
-  const stations = (listResult.payload.videos || []) as StationRow[];
-  report.publicCount = Number(
-    (listResult.payload.pagination as StationRow | undefined)?.total ||
-      stations.length
-  );
-
-  for (const station of stations) {
-    if (hasForbiddenStreamFields(station)) {
-      report.listHasStreamUrl = true;
-    }
-  }
-
-  const sample = stations.slice(0, 10);
+  const sample = (report.iosBrowse?.stations || []).slice(0, 50);
 
   for (const station of sample) {
     const id = String(station.id || "").trim();
@@ -124,22 +207,28 @@ async function main() {
       title,
       listHasStreamFields: hasForbiddenStreamFields(station),
       playOk: false,
+      playUrlIsHttps: false,
       legacyFallback: false,
     };
 
     try {
       const playResult = await fetchJson(
-        `/api/tv/videos/${encodeURIComponent(id)}/play`
+        `/api/tv/videos/${encodeURIComponent(id)}/play?platform=ios`
       );
+
+      const streamUrl = String(playResult.payload.stream_url || "").trim();
+      result.playUrlIsHttps = streamUrl.startsWith("https://");
 
       if (
         playResult.response.ok &&
         playResult.payload.success !== false &&
-        String(playResult.payload.stream_url || "").trim()
+        streamUrl &&
+        result.playUrlIsHttps
       ) {
         result.playOk = true;
         report.playSuccess += 1;
       } else {
+        if (streamUrl && !result.playUrlIsHttps) report.playHttpFailures += 1;
         result.playError = String(
           playResult.payload.error || playResult.response.status
         );
@@ -164,6 +253,16 @@ async function main() {
   }
 
   console.log(JSON.stringify(report, null, 2));
+
+  if (
+    report.failures.length > 0 ||
+    report.playHttpFailures > 0 ||
+    report.playFailed > 0
+  ) {
+    process.exit(1);
+  }
 }
 
 void main();
+
+export {};

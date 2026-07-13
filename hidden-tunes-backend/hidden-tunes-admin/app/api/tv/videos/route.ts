@@ -5,8 +5,13 @@ import {
   TV_PUBLIC_VIDEO_SELECT,
   TvPublicVideo,
   parsePositiveInt,
+  toTvPublicStation,
 } from "@/lib/tvCatalog";
-import { TV_RELIABILITY_THRESHOLD, toTvPublicMetadata } from "@/lib/tvStationHealth";
+import {
+  applyTvPublicCatalogFilters,
+  parseTvClientPlatform,
+  type SupabaseFilterQuery,
+} from "@/lib/tvPlatformPolicy";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -36,15 +41,13 @@ export async function GET(request: NextRequest) {
   const limit = parsePositiveInt(params.get("limit"), DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE);
   const from = (page - 1) * limit;
   const to = from + limit - 1;
+  const platform = parseTvClientPlatform(request);
 
   let query = supabaseAdmin
     .from("tv_videos")
-    .select(TV_PUBLIC_VIDEO_SELECT, { count: "exact" })
-    .eq("status", "approved")
-    .eq("is_active", true)
-    .eq("playback_status", "playable")
-    .gte("reliability_score", TV_RELIABILITY_THRESHOLD)
-    .order("created_at", { ascending: false });
+    .select(TV_PUBLIC_VIDEO_SELECT, { count: "exact" }) as unknown as SupabaseFilterQuery;
+
+  applyTvPublicCatalogFilters(query, platform);
 
   const category = cleanFilter(params.get("category"));
   const genre = cleanFilter(params.get("genre"));
@@ -67,12 +70,12 @@ export async function GET(request: NextRequest) {
 
   if (searchQuery) {
     const escaped = searchQuery.replace(/[%_]/g, "\\$&");
-    query = query.or(
-      `title.ilike.%${escaped}%,channel_name.ilike.%${escaped}%`
-    );
+    query = query.or(`title.ilike.%${escaped}%,channel_name.ilike.%${escaped}%`);
   }
 
-  const { data, error, count } = await query.range(from, to);
+  const { data, error, count } = await query
+    .order("created_at", { ascending: false })
+    .range(from, to);
 
   if (error) {
     return jsonError("Failed to load public TV catalog.", 500, error.message);
@@ -81,12 +84,13 @@ export async function GET(request: NextRequest) {
   const total = count || 0;
   const totalPages = total > 0 ? Math.ceil(total / limit) : 0;
   const videos = ((data || []) as Record<string, unknown>[]).map((row) =>
-    toTvPublicMetadata(row)
+    toTvPublicStation(row)
   ) as TvPublicVideo[];
 
   return NextResponse.json({
     success: true,
     videos,
+    platform,
     pagination: {
       page,
       limit,

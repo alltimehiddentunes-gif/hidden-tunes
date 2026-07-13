@@ -129,7 +129,7 @@ export const TV_VIDEO_SELECT =
   "id, source_type, source_id, source_url, embed_url, title, description, thumbnail_url, duration_seconds, channel_name, category, genre, mood, format, tags, language, region, published_at, status, playback_status, is_active, is_featured, reliability_score, consecutive_failures, quarantined_at, disabled_at, last_health_checked_at, last_health_error, source_key, imported_from_source_id, created_at, updated_at";
 
 export const TV_PUBLIC_VIDEO_SELECT =
-  "id, title, description, thumbnail_url, channel_name, category, genre, mood, format, tags, language, region, reliability_score, is_featured";
+  "id, title, description, thumbnail_url, channel_name, category, genre, mood, format, tags, language, region, reliability_score, is_featured, status, playback_status, is_active, disabled_at, quarantined_at, consecutive_failures, last_health_checked_at, last_health_error, last_validation_result, ios_playable, android_playable, stream_protocol, stream_is_https";
 
 export type TvPublicStation = {
   id: string;
@@ -141,6 +141,20 @@ export type TvPublicStation = {
   categories: string[];
   reliability_score: number;
   is_featured: boolean;
+  public: boolean;
+  verified: boolean;
+  playable: boolean;
+  disabled: boolean;
+  ios_playable: boolean;
+  android_playable: boolean;
+  stream_protocol: string | null;
+  stream_is_https: boolean;
+  last_validated_at: string | null;
+  last_validation_result: string | null;
+  failure_count: number;
+  playback_status: string | null;
+  last_health_checked_at: string | null;
+  quarantined_at: string | null;
 };
 
 /** @deprecated Use TvPublicStation — kept for internal callers during migration. */
@@ -171,6 +185,27 @@ export function toTvPublicStation(row: Record<string, unknown>): TvPublicStation
       Math.min(100, Math.round(Number(row.reliability_score ?? 0)))
     ),
     is_featured: row.is_featured === true,
+    public:
+      row.status === "approved" &&
+      row.is_active === true &&
+      row.playback_status === "playable" &&
+      !row.disabled_at &&
+      !row.quarantined_at,
+    verified: row.status === "approved",
+    playable: row.playback_status === "playable",
+    disabled: Boolean(row.disabled_at) || row.is_active === false,
+    ios_playable: row.ios_playable === true,
+    android_playable: row.android_playable === true,
+    stream_protocol: cleanText(row.stream_protocol, 40),
+    stream_is_https: row.stream_is_https === true,
+    last_validated_at: cleanText(row.last_health_checked_at, 80),
+    last_validation_result:
+      cleanText(row.last_validation_result, 200) ||
+      cleanText(row.last_health_error, 200),
+    failure_count: Math.max(0, Number(row.consecutive_failures ?? 0)),
+    playback_status: cleanText(row.playback_status, 80),
+    last_health_checked_at: cleanText(row.last_health_checked_at, 80),
+    quarantined_at: cleanText(row.quarantined_at, 80),
   };
 }
 

@@ -1,5 +1,10 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import {
+  classifyStreamUrl,
+  derivePlatformPlayability,
+  probeStreamUrl,
+} from "@/lib/tvStreamProtocol";
+import {
   TV_PUBLIC_VIDEO_SELECT,
   TV_VIDEO_SOURCE_TYPE,
   TvPublicVideo,
@@ -18,17 +23,12 @@ export type TvHealthProbeResult = {
   playable: boolean;
   playback_status: string;
   reason: string;
-};
-
-export type TvHealthUpdate = {
-  playback_status: string;
-  reliability_score: number;
-  consecutive_failures: number;
-  is_active: boolean;
-  quarantined_at: string | null;
-  disabled_at: string | null;
-  last_health_checked_at: string;
-  last_health_error: string | null;
+  ios_playable?: boolean;
+  android_playable?: boolean;
+  stream_protocol?: string | null;
+  stream_is_https?: boolean;
+  validated_stream_url?: string | null;
+  last_validation_result?: string | null;
 };
 
 export type TvHealthRow = Pick<
@@ -45,6 +45,23 @@ export type TvHealthRow = Pick<
 > & {
   reliability_score?: number | null;
   consecutive_failures?: number | null;
+};
+
+export type TvHealthUpdate = {
+  playback_status: string;
+  reliability_score: number;
+  consecutive_failures: number;
+  is_active: boolean;
+  quarantined_at: string | null;
+  disabled_at: string | null;
+  last_health_checked_at: string;
+  last_health_error: string | null;
+  last_validation_result: string | null;
+  ios_playable: boolean;
+  android_playable: boolean;
+  stream_protocol: string | null;
+  stream_is_https: boolean;
+  validated_stream_url: string | null;
 };
 
 export type TvGrowthCandidate = {
@@ -174,6 +191,12 @@ export function applyTvHealthProbe(
       disabled_at: null,
       last_health_checked_at: nowIso,
       last_health_error: null,
+      last_validation_result: probe.last_validation_result || "playable",
+      ios_playable: probe.ios_playable === true,
+      android_playable: probe.android_playable === true,
+      stream_protocol: probe.stream_protocol || null,
+      stream_is_https: probe.stream_is_https === true,
+      validated_stream_url: probe.validated_stream_url || null,
     };
   }
 
@@ -190,6 +213,12 @@ export function applyTvHealthProbe(
     disabled_at: autoDisabled ? nowIso : null,
     last_health_checked_at: nowIso,
     last_health_error: probe.reason,
+    last_validation_result: probe.last_validation_result || probe.reason,
+    ios_playable: false,
+    android_playable: false,
+    stream_protocol: probe.stream_protocol || null,
+    stream_is_https: probe.stream_is_https === true,
+    validated_stream_url: null,
   };
 }
 
@@ -220,61 +249,68 @@ export function detectTvStreamPayload(
 export async function probeTvStation(row: TvHealthRow): Promise<TvHealthProbeResult> {
   if (String(row.source_type || "").startsWith("youtube")) {
     const metadata = await fetchYouTubeOEmbedMetadata(String(row.source_id || ""));
-    return metadata
-      ? {
-          playable: true,
-          playback_status: "playable",
-          reason: "YouTube oEmbed check passed.",
-        }
-      : {
-          playable: false,
-          playback_status: "failed",
-          reason: "YouTube oEmbed check failed.",
-        };
-  }
-
-  const urlCheck = validatePublicTvUrl(row.source_url || row.embed_url);
-  if (!urlCheck.ok) {
-    return { playable: false, playback_status: "blocked", reason: urlCheck.reason };
-  }
-
-  try {
-    const response = await fetch(urlCheck.url, {
-      method: "GET",
-      headers: { Accept: "application/vnd.apple.mpegurl,application/x-mpegURL,*/*" },
-      cache: "no-store",
-      signal: AbortSignal.timeout(12_000),
+    const playable = Boolean(metadata);
+    const platform = derivePlatformPlayability({
+      sourceType: String(row.source_type || "youtube_video"),
+      classification: {
+        ok: true,
+        protocol: "youtube",
+        streamIsHttps: true,
+        normalizedUrl: String(row.source_url || ""),
+        reason: "youtube",
+      },
+      probePlayable: playable,
     });
-    if (!response.ok) {
-      return {
-        playable: false,
-        playback_status: "failed",
-        reason: `Stream probe returned HTTP ${response.status}.`,
-      };
-    }
 
-    const contentType = response.headers.get("content-type");
-    const bodySample = await response.text();
-    const details = detectTvStreamPayload(contentType, bodySample);
-    const urlLooksLikeHls = /\.m3u8(?:\?|$)/i.test(urlCheck.url);
-
-    if (!details.isVideoLike && !urlLooksLikeHls) {
-      return {
-        playable: false,
-        playback_status: "failed",
-        reason: "Stream probe did not detect HLS or video payload.",
-      };
-    }
-
-    const suffix = details.isHlsManifest ? "HLS manifest detected." : "Stream probe passed.";
-    return { playable: true, playback_status: "playable", reason: suffix };
-  } catch (error) {
     return {
-      playable: false,
-      playback_status: "failed",
-      reason: error instanceof Error ? error.message : "Stream probe failed.",
+      playable,
+      playback_status: playable ? "playable" : "failed",
+      reason: playable ? "YouTube oEmbed check passed." : "YouTube oEmbed check failed.",
+      ios_playable: platform.iosPlayable,
+      android_playable: platform.androidPlayable,
+      stream_protocol: "youtube",
+      stream_is_https: true,
+      validated_stream_url: cleanText(row.source_url, 2000),
+      last_validation_result: platform.lastValidationResult,
     };
   }
+
+  const rawUrl = String(row.source_url || row.embed_url || "").trim();
+  const classification = classifyStreamUrl(rawUrl);
+  if (!classification.ok) {
+    return {
+      playable: false,
+      playback_status: "blocked",
+      reason: classification.reason,
+      ios_playable: false,
+      android_playable: false,
+      stream_protocol: classification.protocol,
+      stream_is_https: classification.streamIsHttps,
+      last_validation_result: classification.reason,
+    };
+  }
+
+  const probe = await probeStreamUrl(classification.normalizedUrl);
+  const platform = derivePlatformPlayability({
+    sourceType: String(row.source_type || ""),
+    classification: probe,
+    probePlayable: probe.playable,
+  });
+
+  return {
+    playable: probe.playable && (platform.iosPlayable || platform.androidPlayable),
+    playback_status:
+      probe.playable && (platform.iosPlayable || platform.androidPlayable)
+        ? "playable"
+        : "failed",
+    reason: probe.reason,
+    ios_playable: platform.iosPlayable,
+    android_playable: platform.androidPlayable,
+    stream_protocol: probe.protocol,
+    stream_is_https: probe.streamIsHttps,
+    validated_stream_url: probe.playable ? probe.finalUrl : null,
+    last_validation_result: platform.lastValidationResult,
+  };
 }
 
 export async function runTvStationHealthChecks(limit = TV_HEALTH_BATCH_SIZE) {

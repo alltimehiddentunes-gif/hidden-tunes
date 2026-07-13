@@ -12,9 +12,14 @@ import {
   inferCategoryGenreMoodFormat,
   normalizeTvTags,
   parsePositiveInt,
-  toTvPublicVideo,
+  toTvPublicStation,
 } from "@/lib/tvCatalog";
-import { TV_RELIABILITY_THRESHOLD, toTvPublicMetadata } from "@/lib/tvStationHealth";
+import { TV_RELIABILITY_THRESHOLD } from "@/lib/tvStationHealth";
+import {
+  applyTvPublicCatalogFilters,
+  type SupabaseFilterQuery,
+  type TvClientPlatform,
+} from "@/lib/tvPlatformPolicy";
 
 const YOUTUBE_SEARCH_API = "https://www.googleapis.com/youtube/v3/search";
 const DEFAULT_LIMIT = 20;
@@ -81,26 +86,41 @@ function mapYouTubeSearchItem(item: YouTubeSearchItem): TvPublicVideo | null {
     categories,
     reliability_score: TV_RELIABILITY_THRESHOLD,
     is_featured: false,
+    public: true,
+    verified: true,
+    playable: true,
+    disabled: false,
+    ios_playable: true,
+    android_playable: true,
+    stream_protocol: "youtube",
+    stream_is_https: true,
+    last_validated_at: new Date().toISOString(),
+    last_validation_result: "youtube_search",
+    failure_count: 0,
+    playback_status: "playable",
+    last_health_checked_at: new Date().toISOString(),
+    quarantined_at: null,
   };
 }
 
 export async function searchTvCatalogPlayable(
   query: string,
   page: number,
-  limit: number
+  limit: number,
+  platform: import("@/lib/tvPlatformPolicy").TvClientPlatform = "cross"
 ) {
   const escaped = query.replace(/[%_]/g, "\\$&");
   const from = (page - 1) * limit;
   const to = from + limit - 1;
 
-  const { data, error, count } = await supabaseAdmin
+  let dbQuery = supabaseAdmin
     .from("tv_videos")
-    .select(TV_PUBLIC_VIDEO_SELECT, { count: "exact" })
-    .eq("status", "approved")
-    .eq("is_active", true)
-    .eq("playback_status", "playable")
-    .gte("reliability_score", TV_RELIABILITY_THRESHOLD)
-    .or(`title.ilike.%${escaped}%,channel_name.ilike.%${escaped}%`)
+    .select(TV_PUBLIC_VIDEO_SELECT, { count: "exact" }) as unknown as SupabaseFilterQuery;
+
+  applyTvPublicCatalogFilters(dbQuery, platform);
+  dbQuery.or(`title.ilike.%${escaped}%,channel_name.ilike.%${escaped}%`);
+
+  const { data, error, count } = await dbQuery
     .order("created_at", { ascending: false })
     .range(from, to);
 
@@ -109,7 +129,7 @@ export async function searchTvCatalogPlayable(
   }
 
   const videos = ((data || []) as Record<string, unknown>[]).map((row) =>
-    toTvPublicMetadata(row)
+    toTvPublicStation(row)
   );
 
   return {
@@ -211,10 +231,12 @@ export async function runTvLiveSearch(options: {
   page?: number;
   limit?: number;
   pageToken?: string | null;
+  platform?: TvClientPlatform;
 }): Promise<TvSearchResult> {
   const query = cleanText(options.query, 200) || "";
   const page = parsePositiveInt(String(options.page || 1), 1, 10_000);
   const limit = parsePositiveInt(String(options.limit || DEFAULT_LIMIT), DEFAULT_LIMIT, MAX_LIMIT);
+  const platform = options.platform || "cross";
   if (!query) {
     return {
       videos: [],
@@ -227,7 +249,7 @@ export async function runTvLiveSearch(options: {
     };
   }
 
-  const catalog = await searchTvCatalogPlayable(query, page, limit);
+  const catalog = await searchTvCatalogPlayable(query, page, limit, platform);
   const videos = dedupeBySourceId(catalog.videos);
   const catalogTotal = catalog.total;
   const hasMore = page * limit < catalogTotal;
