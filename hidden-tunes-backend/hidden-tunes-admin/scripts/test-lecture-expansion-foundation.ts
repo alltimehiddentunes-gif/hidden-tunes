@@ -17,13 +17,19 @@ const normalized = normalizeLectureWorkerOptions({
   maxPages: 999,
   maxRuntimeMinutes: 999,
   concurrency: 999,
+  requestTimeoutMs: 999_999,
+  leaseSeconds: 999_999,
 });
 
-assert.equal(normalized.batchSize, 250);
-assert.equal(normalized.maxPrograms, 10_000);
-assert.equal(normalized.maxPages, 100);
+assert.equal(normalized.batchSize, 100);
+assert.equal(normalized.maxPrograms, 500);
+assert.equal(normalized.maxPages, 10);
 assert.equal(normalized.maxRuntimeMinutes, 45);
-assert.equal(normalized.concurrency, 5);
+assert.equal(normalized.sourceConcurrency, 3);
+assert.equal(normalized.programConcurrency, 6);
+assert.equal(normalized.mediaConcurrency, 6);
+assert.equal(normalized.requestTimeoutMs, 30_000);
+assert.equal(normalized.leaseSeconds, 900);
 
 const minimums = normalizeLectureWorkerOptions({
   batchSize: 0,
@@ -31,12 +37,18 @@ const minimums = normalizeLectureWorkerOptions({
   maxPages: 0,
   maxRuntimeMinutes: 0,
   concurrency: 0,
+  requestTimeoutMs: 1,
+  leaseSeconds: 1,
 });
 
 assert.equal(minimums.batchSize, 1);
 assert.equal(minimums.maxPrograms, 1);
 assert.equal(minimums.maxPages, 1);
 assert.equal(minimums.maxRuntimeMinutes, 1);
-assert.equal(minimums.concurrency, 1);
+assert.equal(minimums.sourceConcurrency, 1);
+assert.equal(minimums.programConcurrency, 1);
+assert.equal(minimums.mediaConcurrency, 1);
+assert.equal(minimums.requestTimeoutMs, 2_000);
+assert.equal(minimums.leaseSeconds, 30);
 
 console.log("Lecture expansion foundation tests passed.");

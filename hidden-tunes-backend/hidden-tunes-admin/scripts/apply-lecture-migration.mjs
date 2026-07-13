@@ -7,10 +7,33 @@ import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const adminRoot = path.resolve(__dirname, "..");
-const migrationPath = path.join(
-  adminRoot,
-  "supabase/migrations/20260707130000_lecture_catalog.sql"
-);
+function readOption(name) {
+  const equalsArg = process.argv.find((arg) => arg.startsWith(`${name}=`));
+  if (equalsArg) return equalsArg.slice(name.length + 1);
+  const index = process.argv.indexOf(name);
+  if (index === -1) return undefined;
+  return process.argv[index + 1];
+}
+
+function resolveMigrationPath() {
+  const requested = readOption("--file") || readOption("--migration");
+  if (!requested) {
+    return path.join(adminRoot, "supabase/migrations/20260707130000_lecture_catalog.sql");
+  }
+
+  const normalized = requested.replace(/\\/g, "/");
+  const candidate = path.isAbsolute(requested)
+    ? requested
+    : path.join(adminRoot, normalized.startsWith("supabase/") ? normalized : `supabase/migrations/${normalized}`);
+  const resolved = path.resolve(candidate);
+  const migrationRoot = path.resolve(adminRoot, "supabase/migrations");
+  if (!resolved.startsWith(migrationRoot)) {
+    throw new Error(`Refusing to apply migration outside ${migrationRoot}`);
+  }
+  return resolved;
+}
+
+const migrationPath = resolveMigrationPath();
 
 function loadEnvFile(filePath) {
   if (!fs.existsSync(filePath)) return;
@@ -97,6 +120,22 @@ async function applyWithManagementApi(sql) {
   return { ok: true, method: "management_api", result: body };
 }
 
+function expectedTablesForMigration(filePath) {
+  const name = path.basename(filePath);
+  if (name === "20260712210000_lecture_expansion_worker.sql") {
+    return [
+      "lecture_categories",
+      "lecture_items",
+      "lecture_files",
+      "lecture_import_jobs",
+      "lecture_media_validations",
+      "lecture_expansion_quarantine",
+      "lecture_verification_history",
+    ];
+  }
+  return ["lecture_categories", "lecture_items", "lecture_files"];
+}
+
 async function verifyTables() {
   const supabaseUrl = String(process.env.SUPABASE_URL || "").trim();
   const serviceKey = String(process.env.SUPABASE_SERVICE_ROLE_KEY || "").trim();
@@ -109,7 +148,7 @@ async function verifyTables() {
     Authorization: `Bearer ${serviceKey}`,
   };
 
-  const tables = ["lecture_categories", "lecture_items", "lecture_files"];
+  const tables = expectedTablesForMigration(migrationPath);
   const counts = {};
   for (const table of tables) {
     const response = await fetch(
