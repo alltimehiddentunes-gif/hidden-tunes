@@ -1,3 +1,5 @@
+export {};
+
 const baseUrl = (process.env.ARTIST_VERIFY_BASE_URL || "https://admin.hiddentunes.com").replace(/\/$/, "");
 const artistRef = process.env.ARTIST_VERIFY_ARTIST_ID || process.env.ARTIST_VERIFY_ARTIST_SLUG || "";
 
