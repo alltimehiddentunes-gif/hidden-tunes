@@ -78,6 +78,7 @@
     "verify:motivation-catalog": "tsx scripts/verify-motivation-catalog.ts",
     "verify:motivation-play-sample": "tsx scripts/verify-motivation-play-sample.ts",
     "test:artist-profile": "tsx scripts/test-artist-profile.ts",
+    "test:music-delivery": "tsx scripts/test-music-delivery.ts",
     "verify:artist-production": "tsx scripts/verify-artist-production.ts"
   },
   "dependencies": {
