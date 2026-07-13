@@ -253,6 +253,43 @@ export const NAVIGATION_ITEMS: AppNavigationItem[] = [
   },
 ];
 
+/** Keep in sync with AppShell `styles.navBar` (minHeight + vertical padding). */
+export const MOBILE_BOTTOM_NAV_BAR_MIN_HEIGHT = 53;
+export const MOBILE_BOTTOM_NAV_VERTICAL_PADDING = 10;
+export const MOBILE_BOTTOM_NAV_BAR_HEIGHT =
+  MOBILE_BOTTOM_NAV_BAR_MIN_HEIGHT + MOBILE_BOTTOM_NAV_VERTICAL_PADDING;
+
+/** Reserved shell space when MiniPlayer is visible on supported routes. */
+export const MOBILE_MINI_PLAYER_SHELL_SPACE = 150;
+
+export function getMobileSafeAreaBottomInset(safeAreaBottom: number): number {
+  return Math.max(safeAreaBottom, 8);
+}
+
+export function getMobileBottomNavContentInset(safeAreaBottom: number): number {
+  return (
+    MOBILE_BOTTOM_NAV_BAR_HEIGHT +
+    getMobileSafeAreaBottomInset(safeAreaBottom)
+  );
+}
+
+export function getMobileShellContentPaddingBottom(
+  safeAreaBottom: number,
+  includeMiniPlayerSpace: boolean
+): number {
+  const bottomOffset = getMobileSafeAreaBottomInset(safeAreaBottom);
+  if (includeMiniPlayerSpace) {
+    return MOBILE_MINI_PLAYER_SHELL_SPACE + bottomOffset;
+  }
+  return getMobileBottomNavContentInset(safeAreaBottom);
+}
+
+/** Scroll tail room once AppShell reserves the bottom nav + safe area. */
+export function getMobileScrollTailPadding(safeAreaBottom: number): number {
+  const bottomOffset = getMobileSafeAreaBottomInset(safeAreaBottom);
+  return Math.max(24, 150 - MOBILE_BOTTOM_NAV_BAR_HEIGHT - bottomOffset);
+}
+
 export const MOBILE_BOTTOM_NAV_ITEMS = NAVIGATION_ITEMS.filter(
   (item) => item.mobileVisible
 );

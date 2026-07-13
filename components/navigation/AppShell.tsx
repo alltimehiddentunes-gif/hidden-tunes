@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
-import { usePathname, useRouter } from "expo-router";
-import { ReactNode, useMemo, useRef } from "react";
+import { usePathname } from "expo-router";
+import { ReactNode, useMemo, useRef, useSyncExternalStore } from "react";
 import {
   Platform,
   Pressable,
@@ -16,8 +16,17 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { COLORS } from "../../constants/theme";
 import MiniPlayer from "../MiniPlayer";
 import PremiumBackground, { type PremiumBackgroundVariant } from "../PremiumBackground";
-import { MOBILE_BOTTOM_NAV_ITEMS, type AppNavigationItem } from "./navigationConfig";
+import {
+  getMobileShellContentPaddingBottom,
+  MOBILE_BOTTOM_NAV_ITEMS,
+  type AppNavigationItem,
+} from "./navigationConfig";
 import { createKeyedTapGuard } from "../../utils/tapGuard";
+import {
+  getNowPlayingSnapshot,
+  subscribeNowPlaying,
+} from "../../utils/nowPlayingStore";
+import { navigatePrimaryDestination } from "../../utils/primaryNavigation";
 
 const MINI_PLAYER_ROUTES = [
   "/music-feed",
@@ -33,8 +42,6 @@ const MINI_PLAYER_ROUTES = [
   "/player",
   "/cloud-playlists",
 ] as const;
-
-const MINI_PLAYER_SPACE = 150;
 
 function isActiveRoute(pathname: string, item: AppNavigationItem) {
   return item.matches.some((route) => {
@@ -79,12 +86,21 @@ export default function AppShell({
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
 }) {
-  const router = useRouter();
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
   const navTapGuardRef = useRef(createKeyedTapGuard(360));
+  const nowPlaying = useSyncExternalStore(
+    subscribeNowPlaying,
+    getNowPlayingSnapshot,
+    getNowPlayingSnapshot
+  );
   const bottomOffset = Math.max(insets.bottom, 8);
-  const showMiniPlayer = isMiniPlayerRoute(pathname);
+  const showMiniPlayer =
+    isMiniPlayerRoute(pathname) && Boolean(nowPlaying.currentSongId);
+  const shellContentPaddingBottom = getMobileShellContentPaddingBottom(
+    insets.bottom,
+    showMiniPlayer
+  );
   const backgroundVariant = getBackgroundVariant(pathname);
 
   const items = useMemo(
@@ -102,7 +118,7 @@ export default function AppShell({
       <View
         style={[
           styles.content,
-          showMiniPlayer && { paddingBottom: MINI_PLAYER_SPACE + bottomOffset },
+          { paddingBottom: shellContentPaddingBottom },
         ]}
       >
         {children}
@@ -128,7 +144,10 @@ export default function AppShell({
                 onPress={() => {
                   if (item.active) return;
                   if (!navTapGuardRef.current(item.route)) return;
-                  router.push(item.route as any);
+                  navigatePrimaryDestination(item.route, {
+                    from: pathname,
+                    source: "AppShell.bottomNav",
+                  });
                 }}
                 style={({ pressed }) => [
                   styles.navItem,

@@ -13,8 +13,10 @@ import Constants from "expo-constants";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useFocusEffect } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import AppShell from "../components/navigation/AppShell";
+import { getMobileScrollTailPadding } from "../components/navigation/navigationConfig";
 import MatureContentConsentModal from "../components/mature/MatureContentConsentModal";
 import MaturePodcastConsentModal from "../components/podcast/MaturePodcastConsentModal";
 import { COLORS, GRADIENTS } from "../constants/theme";
@@ -232,6 +234,11 @@ function ProfileRow({
 }
 
 export default function ProfileScreen() {
+  const insets = useSafeAreaInsets();
+  const scrollTailPadding = useMemo(
+    () => getMobileScrollTailPadding(insets.bottom),
+    [insets.bottom]
+  );
   const { recentlyPlayed, activeQueue, songs, onlineSongs } = usePlayerState();
   const { favorites: unifiedFavorites } = useFavorites();
   const { enabled, enableWithConsent, disable } = useMatureContentSettings();
@@ -376,7 +383,10 @@ export default function ProfileScreen() {
 
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.content}
+          contentContainerStyle={[
+            styles.content,
+            { paddingBottom: scrollTailPadding },
+          ]}
         >
           <View style={styles.topBar}>
             <Text style={styles.kicker}>PROFILE</Text>
@@ -545,7 +555,6 @@ const styles = StyleSheet.create({
   content: {
     paddingTop: 56,
     paddingHorizontal: 20,
-    paddingBottom: 152,
   },
   glowPurple: {
     position: "absolute",

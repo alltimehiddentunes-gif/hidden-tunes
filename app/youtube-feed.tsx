@@ -12,8 +12,10 @@ import {
 
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { PremiumContentGrid } from "@/components/catalog/PremiumContentGrid";
 import AppShell from "../components/navigation/AppShell";
+import { getMobileScrollTailPadding } from "../components/navigation/navigationConfig";
 import TvBrowseCategories from "../components/tv/TvBrowseCategories";
 import TvVideoCard from "../components/tv/TvVideoCard";
 import type { TvBrowseCategory } from "@/constants/tvBrowseCategories";
@@ -44,6 +46,11 @@ function displayLaneTitle(title: string) {
 }
 
 export default function YouTubeFeedScreen() {
+  const insets = useSafeAreaInsets();
+  const scrollTailPadding = useMemo(
+    () => getMobileScrollTailPadding(insets.bottom),
+    [insets.bottom]
+  );
   const [lanes, setLanes] = useState<TvLane[]>([]);
   const [browseCategories, setBrowseCategories] = useState<TvBrowseCategory[]>([]);
   const [activeCategorySlug, setActiveCategorySlug] = useState<string | null>(null);
@@ -334,7 +341,10 @@ export default function YouTubeFeedScreen() {
         <View style={styles.glowPurple} />
         <View style={styles.glowCyan} />
 
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: scrollTailPadding }}
+        >
           {renderTopChrome()}
 
           {loading ? (
@@ -453,7 +463,6 @@ const styles = StyleSheet.create({
     borderRadius: 120,
     backgroundColor: "rgba(34,211,238,0.07)",
   },
-  scrollContent: { paddingBottom: 150 },
   header: { flexDirection: "row", alignItems: "center", gap: 13, marginBottom: 16 },
   headerIcon: {
     width: 44,
