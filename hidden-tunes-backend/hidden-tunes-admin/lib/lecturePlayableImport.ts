@@ -205,16 +205,19 @@ type ImportSummary = {
   runId: string;
   applyWrites: boolean;
   targetItems: number;
-  totalLegalPlayableBefore: number;
-  totalLegalPlayableAfter: number;
+  totalPublicProgramsBefore: number;
+  totalPublicProgramsAfter: number;
   remainingToTarget: number;
   discovered: number;
   directMediaResolved: number;
   rightsPassed: number;
   probePassed: number;
   duplicatesSkipped: number;
-  pendingInserted: number;
-  pendingUpdated: number;
+  programsInserted: number;
+  programsUpdated: number;
+  programsPublished: number;
+  lessonsFilesInserted: number;
+  lessonsFilesUpdated: number;
   failedMedia: number;
   failedRights: number;
   unsupportedFiles: number;
@@ -306,11 +309,17 @@ function stableFileKey(sourceKey: string, identifier: string, fileId: string) {
   return `${sourceKey}:${identifier}:${fileId}`.slice(0, 500);
 }
 
-async function countLegalPlayableImported() {
+async function countPublicLecturePrograms() {
   const { count, error } = await supabaseAdmin
     .from("lecture_items")
     .select("id", { count: "exact", head: true })
-    .eq("legal_playable_verified", true);
+    .eq("status", "approved")
+    .eq("is_active", true)
+    .eq("is_public", true)
+    .eq("is_verified", true)
+    .eq("is_mature", false)
+    .eq("playback_status", "playable")
+    .eq("playable_status", "playable");
   if (error) throw error;
   return count || 0;
 }
@@ -652,6 +661,8 @@ async function existingSourceKeys(keys: string[]) {
 async function writeBatch(candidates: VerifiedCandidate[], options: NormalizedOptions) {
   let inserted = 0;
   let updated = 0;
+  let filesInserted = 0;
+  let filesUpdated = 0;
 
   for (const candidate of candidates) {
     const itemPayload = {
@@ -692,17 +703,18 @@ async function writeBatch(candidates: VerifiedCandidate[], options: NormalizedOp
         checkedAt: nowIso(),
       },
       rights_verified_at: nowIso(),
-      status: "pending",
+      status: "approved",
       playable_status: "playable",
       playback_status: "playable",
-      is_active: false,
-      is_public: false,
-      is_verified: false,
-      published_at: null,
+      is_active: true,
+      is_public: true,
+      is_verified: true,
+      is_mature: false,
+      published_at: nowIso(),
       verification_state: "verified",
       verified_media_count: 1,
       legal_playable_verified: true,
-      import_state: "pending_enrichment",
+      import_state: "promoted",
       subject_slug: candidate.subjectSlug,
       subsubject_slug: null,
       provisional_subject: candidate.provisionalSubject,
@@ -777,6 +789,8 @@ async function writeBatch(candidates: VerifiedCandidate[], options: NormalizedOp
       ? await supabaseAdmin.from("lecture_files").update(filePayload).eq("id", existingFile.data.id).select("id").single()
       : await supabaseAdmin.from("lecture_files").insert(filePayload).select("id").single();
     if (fileWrite.error) throw fileWrite.error;
+    if (existingFile.data) filesUpdated += 1;
+    else filesInserted += 1;
 
     await supabaseAdmin.from("lecture_verification_history").insert({
       lecture_item_id: itemWrite.data.id,
@@ -794,7 +808,7 @@ async function writeBatch(candidates: VerifiedCandidate[], options: NormalizedOp
     });
   }
 
-  return { inserted, updated };
+  return { inserted, updated, filesInserted, filesUpdated };
 }
 
 async function saveReport(summary: ImportSummary, options: NormalizedOptions) {
@@ -821,21 +835,24 @@ export async function runLecturePlayableImport(optionsInput: LecturePlayableImpo
   const options = normalizeLecturePlayableImportOptions(optionsInput);
   const runId = `lecture-playable-${new Date().toISOString().replace(/[:.]/g, "-")}-${crypto.randomUUID().slice(0, 8)}`;
   const start = Date.now();
-  const before = await countLegalPlayableImported();
+  const before = await countPublicLecturePrograms();
   const summary: ImportSummary = {
     runId,
     applyWrites: options.applyWrites,
     targetItems: options.targetItems,
-    totalLegalPlayableBefore: before,
-    totalLegalPlayableAfter: before,
+    totalPublicProgramsBefore: before,
+    totalPublicProgramsAfter: before,
     remainingToTarget: Math.max(0, options.targetItems - before),
     discovered: 0,
     directMediaResolved: 0,
     rightsPassed: 0,
     probePassed: 0,
     duplicatesSkipped: 0,
-    pendingInserted: 0,
-    pendingUpdated: 0,
+    programsInserted: 0,
+    programsUpdated: 0,
+    programsPublished: 0,
+    lessonsFilesInserted: 0,
+    lessonsFilesUpdated: 0,
     failedMedia: 0,
     failedRights: 0,
     unsupportedFiles: 0,
@@ -919,18 +936,21 @@ export async function runLecturePlayableImport(optionsInput: LecturePlayableImpo
           const unique = verified.filter((candidate) => !existing.has(candidate.sourceKeyValue));
           summary.duplicatesSkipped += verified.length - unique.length;
 
-          let write = { inserted: 0, updated: 0 };
+          let write = { inserted: 0, updated: 0, filesInserted: 0, filesUpdated: 0 };
           if (options.applyWrites && unique.length > 0) {
             for (let index = 0; index < unique.length; index += options.insertBatchSize) {
               write = await writeBatch(unique.slice(index, index + options.insertBatchSize), options);
-              summary.pendingInserted += write.inserted;
-              summary.pendingUpdated += write.updated;
-              console.log(`[lectures] write batch inserted=${write.inserted} updated=${write.updated}`);
+              summary.programsInserted += write.inserted;
+              summary.programsUpdated += write.updated;
+              summary.programsPublished += write.inserted + write.updated;
+              summary.lessonsFilesInserted += write.filesInserted;
+              summary.lessonsFilesUpdated += write.filesUpdated;
+              console.log(`[lectures] write batch programsInserted=${write.inserted} programsUpdated=${write.updated} lessonsFilesInserted=${write.filesInserted} lessonsFilesUpdated=${write.filesUpdated}`);
             }
           }
 
-          const after = options.applyWrites ? await countLegalPlayableImported() : before;
-          summary.totalLegalPlayableAfter = after;
+          const after = options.applyWrites ? await countPublicLecturePrograms() : before;
+          summary.totalPublicProgramsAfter = after;
           summary.remainingToTarget = Math.max(0, options.targetItems - after);
           const lastCandidate = candidates.length > 0 ? candidates[candidates.length - 1] : null;
           if (options.applyWrites) {
@@ -964,12 +984,15 @@ export async function runLecturePlayableImport(optionsInput: LecturePlayableImpo
             pageCandidates: docs.length,
             directMediaResolved: verified.length,
             duplicatesSkipped: verified.length - unique.length,
-            pendingInserted: options.applyWrites ? write.inserted : 0,
-            pendingUpdated: options.applyWrites ? write.updated : 0,
+            programsInserted: options.applyWrites ? write.inserted : 0,
+            programsUpdated: options.applyWrites ? write.updated : 0,
+            programsPublished: options.applyWrites ? write.inserted + write.updated : 0,
+            lessonsFilesInserted: options.applyWrites ? write.filesInserted : 0,
+            lessonsFilesUpdated: options.applyWrites ? write.filesUpdated : 0,
             elapsedMs: Date.now() - pageStarted,
             recordsPerMinute: docs.length ? Math.round((docs.length / Math.max(1, Date.now() - pageStarted)) * 60_000) : 0,
             checkpointSaved: options.applyWrites,
-            currentPlayableLegalDatabaseTotal: after,
+            currentPublicLecturePrograms: after,
             targetRemaining: summary.remainingToTarget,
           });
           console.log(`[lectures] page complete family="${queryFamily}" page=${page} verified=${unique.length} checkpointSaved=${options.applyWrites} total=${after} remaining=${summary.remainingToTarget}`);
@@ -984,9 +1007,9 @@ export async function runLecturePlayableImport(optionsInput: LecturePlayableImpo
   }
 
   await saveReport(summary, options);
-  summary.totalLegalPlayableAfter = options.applyWrites ? await countLegalPlayableImported() : before;
-  summary.remainingToTarget = Math.max(0, options.targetItems - summary.totalLegalPlayableAfter);
-  console.log(`[lectures] complete run=${runId} applyWrites=${options.applyWrites} inserted=${summary.pendingInserted} verified=${summary.probePassed} elapsedMs=${Date.now() - start}`);
+  summary.totalPublicProgramsAfter = options.applyWrites ? await countPublicLecturePrograms() : before;
+  summary.remainingToTarget = Math.max(0, options.targetItems - summary.totalPublicProgramsAfter);
+  console.log(`[lectures] complete run=${runId} applyWrites=${options.applyWrites} programsInserted=${summary.programsInserted} programsPublished=${summary.programsPublished} verified=${summary.probePassed} elapsedMs=${Date.now() - start}`);
   return { success: true, targetReached: summary.remainingToTarget <= 0, summary };
 }
 
