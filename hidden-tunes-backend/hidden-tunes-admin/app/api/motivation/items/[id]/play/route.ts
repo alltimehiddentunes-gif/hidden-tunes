@@ -22,11 +22,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
 
   return NextResponse.json({
     success: true,
-    id: result.id,
-    source_type: result.source_type,
-    source_id: result.source_id,
-    media_type: result.media_type,
-    stream_url: result.stream_url,
-    embed_url: result.embed_url,
+    item: result.item,
+    playback: result.playback,
   });
 }

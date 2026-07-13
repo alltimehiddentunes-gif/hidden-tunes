@@ -363,12 +363,28 @@ export function isValidMotivationUuid(value: string) {
 export type MotivationPlayResolution =
   | {
       ok: true;
-      id: string;
-      source_type: string;
-      source_id: string;
-      media_type: string;
-      stream_url: string;
-      embed_url: string | null;
+      item: {
+        id: string;
+        program_id: string | null;
+        category_id: string | null;
+        category_slug: string | null;
+        title: string;
+        subtitle: string | null;
+        creator: string | null;
+        artwork_url: string | null;
+        media_type: string;
+        duration_seconds: number | null;
+        season_number: number | null;
+        episode_number: number | null;
+      };
+      playback: {
+        url: string;
+        delivery_type: string;
+        mime_type: string | null;
+        quality: string;
+        expires_at: string | null;
+        embed_url: string | null;
+      };
     }
   | {
       ok: false;
@@ -408,7 +424,7 @@ export async function resolveMotivationPlayback(itemId: string): Promise<Motivat
   const { data: item, error: itemError } = await supabaseAdmin
     .from("motivation_items")
     .select(
-      "id, source_type, source_id, embed_url, status, is_active, is_verified, playback_status, reliability_score, is_mature"
+      "id, program_id, category_slug, title, subtitle, thumbnail_url, artwork_url, channel_name, speaker_name, creator_name, duration_seconds, season_number, episode_number, source_type, source_id, embed_url, status, is_active, is_verified, playback_status, reliability_score, is_mature, media_type, content_classification"
     )
     .eq("id", cleaned)
     .maybeSingle();
@@ -436,7 +452,9 @@ export async function resolveMotivationPlayback(itemId: string): Promise<Motivat
 
   const { data: file, error: fileError } = await supabaseAdmin
     .from("motivation_files")
-    .select("id, audio_url, video_url, media_type, playback_status, is_active, is_primary")
+    .select(
+      "id, audio_url, video_url, media_type, mime_type, playback_status, is_active, is_primary, delivery_type, quality_label"
+    )
     .eq("item_id", cleaned)
     .eq("is_active", true)
     .eq("playback_status", "playable")
@@ -470,12 +488,41 @@ export async function resolveMotivationPlayback(itemId: string): Promise<Motivat
 
   return {
     ok: true,
-    id: cleaned,
-    source_type: String(item.source_type || ""),
-    source_id: String(item.source_id || ""),
-    media_type: mediaType,
-    stream_url: streamUrl,
-    embed_url: cleanText((item as { embed_url?: string | null }).embed_url, 2000) || null,
+    item: {
+      id: cleaned,
+      program_id: cleanText((item as { program_id?: string }).program_id, 80),
+      category_id: null,
+      category_slug: cleanText((item as { category_slug?: string }).category_slug, 120),
+      title: String(item.title || "Untitled"),
+      subtitle: cleanText((item as { subtitle?: string | null }).subtitle, 240),
+      creator:
+        cleanText((item as { speaker_name?: string }).speaker_name, 200) ||
+        cleanText((item as { creator_name?: string }).creator_name, 200) ||
+        cleanText((item as { channel_name?: string }).channel_name, 200),
+      artwork_url:
+        cleanText((item as { artwork_url?: string }).artwork_url, 2000) ||
+        cleanText((item as { thumbnail_url?: string }).thumbnail_url, 2000),
+      media_type: mediaType,
+      duration_seconds: Number.isFinite(Number(item.duration_seconds))
+        ? Math.max(0, Number(item.duration_seconds))
+        : null,
+      season_number:
+        (item as { season_number?: number | null }).season_number == null
+          ? null
+          : Math.max(0, Number((item as { season_number?: number }).season_number)),
+      episode_number:
+        (item as { episode_number?: number | null }).episode_number == null
+          ? null
+          : Math.max(0, Number((item as { episode_number?: number }).episode_number)),
+    },
+    playback: {
+      url: streamUrl,
+      delivery_type: cleanText((file as { delivery_type?: string }).delivery_type, 40) || "progressive",
+      mime_type: cleanText((file as { mime_type?: string }).mime_type, 120),
+      quality: cleanText((file as { quality_label?: string }).quality_label, 40) || "standard",
+      expires_at: null,
+      embed_url: cleanText((item as { embed_url?: string | null }).embed_url, 2000) || null,
+    },
   };
 }
 

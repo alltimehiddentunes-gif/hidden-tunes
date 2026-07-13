@@ -47,6 +47,7 @@ export async function GET(request: NextRequest) {
       .eq("is_verified", true)
       .eq("playback_status", "playable")
       .eq("is_mature", false)
+      .eq("content_classification", "accept")
       .gte("reliability_score", MOTIVATION_RELIABILITY_THRESHOLD)
       .order("sort_order", { ascending: false })
       .order("created_at", { ascending: false })
