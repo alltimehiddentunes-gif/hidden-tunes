@@ -119,6 +119,7 @@ export type HiddenTunesCloudSong = {
   is_public?: boolean;
   created_at?: string | null;
   updated_at?: string | null;
+  playback_path?: string | null;
   [key: string]: any;
 };
 
@@ -146,6 +147,7 @@ export type HiddenTunesNormalizedSong = {
   isPublic?: boolean;
   createdAt?: string;
   updatedAt?: string;
+  playbackPath?: string;
   raw?: HiddenTunesCloudSong;
 };
 
@@ -1185,6 +1187,7 @@ export function normalizeHiddenTunesSong(
     isPublic: song.is_public ?? song.isOnline ?? true,
     createdAt: song.created_at || undefined,
     updatedAt: song.updated_at || undefined,
+    playbackPath: cleanString(song.playback_path, "") || undefined,
     raw: song,
   };
 }

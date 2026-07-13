@@ -12,6 +12,7 @@ import { router } from "expo-router";
 import { AppState, AppStateStatus, InteractionManager, Platform } from "react-native";
 
 import { BackendYouTubeTrack } from "../services/youtubeBackend";
+import { resolveHiddenTunesMusicPlayback } from "../services/musicDelivery";
 
 import {
   buildPersonalRadioQueue,
@@ -223,6 +224,9 @@ export type AppSong = {
   streamUrl?: string;
   audioUrl?: string;
   audio_url?: string;
+  playbackPath?: string;
+  playback_path?: string;
+  raw?: Record<string, unknown>;
   source?: string;
   sourceName?: string;
   type?: "local" | "audius" | "archive" | "youtube_video" | "r2" | string;
@@ -4656,7 +4660,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       let requestId = 0;
 
       try {
-        const normalizedSong = normalizeSong(song);
+        let normalizedSong = normalizeSong(song);
+        normalizedSong = normalizeSong(
+          await resolveHiddenTunesMusicPlayback(normalizedSong)
+        );
         const recoveryQueueSnapshot = activeQueueRef.current.slice();
         const recoveryQueueIndexSnapshot = activeQueueIndexRef.current;
         const recoveryQueueModeSnapshot = activeQueueModeRef.current;

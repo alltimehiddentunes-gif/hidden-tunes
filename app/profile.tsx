@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import {
+  Alert,
   Image,
   ScrollView,
   StyleSheet,
@@ -32,6 +33,11 @@ import {
   getStoredUserRole,
   type UserRole,
 } from "../services/onboardingPreferences";
+import {
+  getMusicQualityMode,
+  setMusicQualityMode,
+  type MusicQualityMode,
+} from "../services/musicDelivery";
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
@@ -204,6 +210,13 @@ const ROLE_COPY: Record<
   },
 };
 
+const MUSIC_QUALITY_OPTIONS: { mode: MusicQualityMode; label: string }[] = [
+  { mode: "data_saver", label: "Data Saver" },
+  { mode: "automatic", label: "Automatic" },
+  { mode: "high_quality", label: "High" },
+  { mode: "lossless", label: "Lossless" },
+];
+
 function ProfileRow({
   icon,
   title,
@@ -243,6 +256,7 @@ export default function ProfileScreen() {
     useState(false);
   const [userRole, setUserRole] = useState<UserRole>("listener");
   const [downloadsCount, setDownloadsCount] = useState<number | null>(null);
+  const [musicQuality, setMusicQuality] = useState<MusicQualityMode>("automatic");
 
   const roleCopy = ROLE_COPY[userRole];
 
@@ -320,12 +334,23 @@ export default function ProfileScreen() {
   useFocusEffect(
     useCallback(() => {
       void refreshProfileData();
+      void getMusicQualityMode().then(setMusicQuality);
       setMaturePodcastsEnabled(shouldIncludeMaturePodcasts());
       return subscribeMaturePodcastSettings(() => {
         setMaturePodcastsEnabled(shouldIncludeMaturePodcasts());
       });
     }, [refreshProfileData])
   );
+
+  const selectMusicQuality = useCallback(async (mode: MusicQualityMode) => {
+    setMusicQuality(mode);
+    try {
+      await setMusicQualityMode(mode);
+    } catch {
+      setMusicQuality("automatic");
+      Alert.alert("Quality unavailable", "Hidden Tunes could not save this preference.");
+    }
+  }, []);
 
   const openRoute = useCallback((href: ProfileRoute) => {
     router.push(href as never);
@@ -470,6 +495,35 @@ export default function ProfileScreen() {
                 }}
                 thumbColor={maturePodcastsEnabled ? COLORS.danger : "#f4f3f4"}
               />
+            </View>
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Music Quality</Text>
+            <Text style={styles.qualityDescription}>
+              Automatic balances sound quality with connection speed. Data Saver uses
+              the smallest prepared rendition.
+            </Text>
+            <View style={styles.qualityGrid}>
+              {MUSIC_QUALITY_OPTIONS.map((option) => {
+                const isActive = musicQuality === option.mode;
+                return (
+                  <TouchableOpacity
+                    key={option.mode}
+                    style={[styles.qualityOption, isActive && styles.qualityOptionActive]}
+                    onPress={() => void selectMusicQuality(option.mode)}
+                  >
+                    <Text
+                      style={[
+                        styles.qualityOptionText,
+                        isActive && styles.qualityOptionTextActive,
+                      ]}
+                    >
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </View>
 
@@ -710,6 +764,37 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "900",
     marginBottom: 12,
+  },
+  qualityDescription: {
+    color: COLORS.textMuted,
+    fontSize: 13,
+    lineHeight: 19,
+    marginBottom: 14,
+  },
+  qualityGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  qualityOption: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+  },
+  qualityOptionActive: {
+    backgroundColor: "rgba(168,85,247,0.18)",
+    borderColor: "rgba(168,85,247,0.55)",
+  },
+  qualityOptionText: {
+    color: COLORS.textMuted,
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  qualityOptionTextActive: {
+    color: COLORS.text,
   },
   item: {
     flexDirection: "row",
