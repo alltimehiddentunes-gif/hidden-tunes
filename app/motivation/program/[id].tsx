@@ -13,6 +13,7 @@ import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 
+import AppShell from "@/components/navigation/AppShell";
 import { COLORS, GRADIENTS } from "@/constants/theme";
 import { usePlayerState } from "@/context/PlayerContext";
 import {
@@ -134,69 +135,77 @@ export default function MotivationProgramScreen() {
 
   if (loading || !program) {
     return (
-      <View style={styles.loadingWrap}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
-      </View>
+      <AppShell>
+        <View style={styles.loadingWrap}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+        </View>
+      </AppShell>
     );
   }
 
   const startItemId = resumeItemId || items[0]?.id;
 
   return (
-    <LinearGradient colors={GRADIENTS.main} style={styles.screen}>
-      <FlatList
-        data={items}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.content}
-        ListHeaderComponent={
-          <View style={styles.hero}>
-            <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-              <Ionicons name="chevron-back" size={22} color={COLORS.text} />
-            </TouchableOpacity>
-            {program.artwork_url ? (
-              <Image source={{ uri: program.artwork_url }} style={styles.heroArt} contentFit="cover" />
-            ) : null}
-            <Text style={styles.heroTitle}>{program.title}</Text>
-            {program.subtitle ? <Text style={styles.heroSubtitle}>{program.subtitle}</Text> : null}
-            {program.description ? (
-              <Text style={styles.heroDescription}>{program.description}</Text>
-            ) : null}
-            <View style={styles.heroActions}>
-              {startItemId ? (
-                <TouchableOpacity
-                  style={styles.primaryButton}
-                  activeOpacity={0.88}
-                  onPress={() => void playFrom(startItemId)}
-                >
-                  <Text style={styles.primaryButtonText}>
-                    {resumeItemId ? "Continue Listening" : "Play"}
-                  </Text>
-                </TouchableOpacity>
+    <AppShell>
+      <LinearGradient colors={GRADIENTS.main} style={styles.screen}>
+        <FlatList
+          data={items}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.content}
+          ListHeaderComponent={
+            <View style={styles.hero}>
+              <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+                <Ionicons name="chevron-back" size={22} color={COLORS.text} />
+              </TouchableOpacity>
+              {program.artwork_url ? (
+                <Image
+                  source={{ uri: program.artwork_url }}
+                  style={styles.heroArt}
+                  contentFit="cover"
+                />
               ) : null}
-              {items[0]?.id ? (
-                <TouchableOpacity
-                  style={styles.secondaryButton}
-                  activeOpacity={0.88}
-                  onPress={() => void playFrom(items[0].id)}
-                >
-                  <Text style={styles.secondaryButtonText}>Play from Beginning</Text>
-                </TouchableOpacity>
+              <Text style={styles.heroTitle}>{program.title}</Text>
+              {program.subtitle ? <Text style={styles.heroSubtitle}>{program.subtitle}</Text> : null}
+              {program.description ? (
+                <Text style={styles.heroDescription}>{program.description}</Text>
               ) : null}
+              <View style={styles.heroActions}>
+                {startItemId ? (
+                  <TouchableOpacity
+                    style={styles.primaryButton}
+                    activeOpacity={0.88}
+                    onPress={() => void playFrom(startItemId)}
+                  >
+                    <Text style={styles.primaryButtonText}>
+                      {resumeItemId ? "Continue Listening" : "Play"}
+                    </Text>
+                  </TouchableOpacity>
+                ) : null}
+                {items[0]?.id ? (
+                  <TouchableOpacity
+                    style={styles.secondaryButton}
+                    activeOpacity={0.88}
+                    onPress={() => void playFrom(items[0].id)}
+                  >
+                    <Text style={styles.secondaryButtonText}>Play from Beginning</Text>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+              <Text style={styles.sectionTitle}>Sessions</Text>
             </View>
-            <Text style={styles.sectionTitle}>Sessions</Text>
-          </View>
-        }
-        renderItem={({ item }) => (
-          <SessionRow
-            item={item}
-            isPlaying={activeItemId === item.id}
-            isLoading={isLoading && playingItemId === item.id}
-            hasResume={resumeItemId === item.id}
-            onPress={() => void playFrom(item.id)}
-          />
-        )}
-      />
-    </LinearGradient>
+          }
+          renderItem={({ item }) => (
+            <SessionRow
+              item={item}
+              isPlaying={activeItemId === item.id}
+              isLoading={isLoading && playingItemId === item.id}
+              hasResume={resumeItemId === item.id}
+              onPress={() => void playFrom(item.id)}
+            />
+          )}
+        />
+      </LinearGradient>
+    </AppShell>
   );
 }
 

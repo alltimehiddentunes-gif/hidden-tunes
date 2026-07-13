@@ -15,6 +15,7 @@ import { router } from "expo-router";
 
 import HTImage from "@/components/HTImage";
 import { PremiumContentGrid } from "@/components/catalog/PremiumContentGrid";
+import AppShell from "@/components/navigation/AppShell";
 import { MOTIVATION_DEFAULT_CATEGORY_SLUG } from "@/constants/motivationCatalog";
 import { COLORS, GRADIENTS } from "@/constants/theme";
 import { useMountedRef } from "@/hooks/useMountedRef";
@@ -317,43 +318,47 @@ export default function MotivationHomeScreen() {
 
   if (loading) {
     return (
-      <View style={styles.loadingWrap}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
-      </View>
+      <AppShell>
+        <View style={styles.loadingWrap}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+        </View>
+      </AppShell>
     );
   }
 
   return (
-    <LinearGradient colors={GRADIENTS.main} style={styles.screen}>
-      <FlatList
-        data={sections}
-        keyExtractor={(item) => item.key}
-        renderItem={({ item }) => renderSection(item.key)}
-        contentContainerStyle={styles.content}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={() => {
-              setRefreshing(true);
-              void loadHome();
-            }}
-            tintColor={COLORS.primary}
-          />
-        }
-        ListHeaderComponent={
-          <View style={styles.hero}>
-            <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-              <Ionicons name="chevron-back" size={22} color={COLORS.text} />
-            </TouchableOpacity>
-            <Text style={styles.heroEyebrow}>Hidden Tunes</Text>
-            <Text style={styles.heroTitle}>Motivationals</Text>
-            <Text style={styles.heroSubtitle}>
-              Speeches, affirmations, and guided motivation — metadata first, playback on tap.
-            </Text>
-          </View>
-        }
-      />
-    </LinearGradient>
+    <AppShell>
+      <LinearGradient colors={GRADIENTS.main} style={styles.screen}>
+        <FlatList
+          data={sections}
+          keyExtractor={(item) => item.key}
+          renderItem={({ item }) => renderSection(item.key)}
+          contentContainerStyle={styles.content}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => {
+                setRefreshing(true);
+                void loadHome();
+              }}
+              tintColor={COLORS.primary}
+            />
+          }
+          ListHeaderComponent={
+            <View style={styles.hero}>
+              <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+                <Ionicons name="chevron-back" size={22} color={COLORS.text} />
+              </TouchableOpacity>
+              <Text style={styles.heroEyebrow}>Hidden Tunes</Text>
+              <Text style={styles.heroTitle}>Motivationals</Text>
+              <Text style={styles.heroSubtitle}>
+                Speeches, affirmations, and guided motivation — metadata first, playback on tap.
+              </Text>
+            </View>
+          }
+        />
+      </LinearGradient>
+    </AppShell>
   );
 }
 

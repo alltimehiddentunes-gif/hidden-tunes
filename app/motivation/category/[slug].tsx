@@ -14,6 +14,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 
 import HTImage from "@/components/HTImage";
+import AppShell from "@/components/navigation/AppShell";
 import { COLORS, GRADIENTS } from "@/constants/theme";
 import { useMountedRef } from "@/hooks/useMountedRef";
 import {
@@ -97,54 +98,56 @@ export default function MotivationCategoryScreen() {
   }, []);
 
   return (
-    <LinearGradient colors={GRADIENTS.main} style={styles.screen}>
-      <FlatList
-        data={items}
-        numColumns={2}
-        key="motivation-category-grid"
-        columnWrapperStyle={styles.columnWrap}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.content}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={() => {
-              setRefreshing(true);
-              void loadPage(1, "replace");
-            }}
-            tintColor={COLORS.primary}
-          />
-        }
-        onEndReached={() => {
-          if (!loadingMore && hasMore) void loadPage(page + 1, "append");
-        }}
-        onEndReachedThreshold={0.4}
-        ListHeaderComponent={
-          <View style={styles.header}>
-            <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-              <Ionicons name="chevron-back" size={22} color={COLORS.text} />
-            </TouchableOpacity>
-            <Text style={styles.title}>{title}</Text>
-            <Text style={styles.subtitle}>Vertical catalog grid · 40 items per page</Text>
-          </View>
-        }
-        renderItem={({ item }) => (
-          <CategoryItemCard item={item} onPress={() => openItem(item.id)} />
-        )}
-        ListFooterComponent={
-          loadingMore ? (
-            <ActivityIndicator style={styles.footerLoader} color={COLORS.primary} />
-          ) : null
-        }
-        ListEmptyComponent={
-          loading ? (
-            <ActivityIndicator color={COLORS.primary} style={styles.emptyLoader} />
-          ) : (
-            <Text style={styles.emptyText}>No motivationals in this category yet.</Text>
-          )
-        }
-      />
-    </LinearGradient>
+    <AppShell>
+      <LinearGradient colors={GRADIENTS.main} style={styles.screen}>
+        <FlatList
+          data={items}
+          numColumns={2}
+          key="motivation-category-grid"
+          columnWrapperStyle={styles.columnWrap}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.content}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => {
+                setRefreshing(true);
+                void loadPage(1, "replace");
+              }}
+              tintColor={COLORS.primary}
+            />
+          }
+          onEndReached={() => {
+            if (!loadingMore && hasMore) void loadPage(page + 1, "append");
+          }}
+          onEndReachedThreshold={0.4}
+          ListHeaderComponent={
+            <View style={styles.header}>
+              <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+                <Ionicons name="chevron-back" size={22} color={COLORS.text} />
+              </TouchableOpacity>
+              <Text style={styles.title}>{title}</Text>
+              <Text style={styles.subtitle}>Vertical catalog grid · 40 items per page</Text>
+            </View>
+          }
+          renderItem={({ item }) => (
+            <CategoryItemCard item={item} onPress={() => openItem(item.id)} />
+          )}
+          ListFooterComponent={
+            loadingMore ? (
+              <ActivityIndicator style={styles.footerLoader} color={COLORS.primary} />
+            ) : null
+          }
+          ListEmptyComponent={
+            loading ? (
+              <ActivityIndicator color={COLORS.primary} style={styles.emptyLoader} />
+            ) : (
+              <Text style={styles.emptyText}>No motivationals in this category yet.</Text>
+            )
+          }
+        />
+      </LinearGradient>
+    </AppShell>
   );
 }
 
