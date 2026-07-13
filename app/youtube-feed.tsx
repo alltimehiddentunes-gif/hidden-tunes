@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  FlatList,
   ScrollView,
   StyleSheet,
   Text,
@@ -60,12 +59,6 @@ export default function YouTubeFeedScreen() {
   const categoryRequestRef = useRef(0);
   const { width } = useWindowDimensions();
   const featuredWidth = Math.max(300, width - 36);
-  const searchGridColumns = width < 340 ? 1 : 2;
-  const searchGridGap = 12;
-  const searchGridCardWidth = Math.max(
-    136,
-    (width - 36 - searchGridGap * (searchGridColumns - 1)) / searchGridColumns - 12
-  );
 
   const { featuredLane, recentlyAddedLane, channelLanes, featuredVideo } = useMemo(() => {
     const featured = lanes.find((lane) => lane.id === "featured");
@@ -286,6 +279,7 @@ export default function YouTubeFeedScreen() {
       categoryMeta?: {
         slug: string;
         title: string;
+        query?: string;
       }
     ) => {
       if (!lane.videos.length) return null;
@@ -308,12 +302,13 @@ export default function YouTubeFeedScreen() {
                       lane,
                       categorySlug: categoryMeta?.slug,
                       categoryTitle: categoryMeta?.title,
+                      query: categoryMeta?.query,
                     })
                   }
                 />
               </View>
             )}
-            maxItems={TV_LANE_PREVIEW_LIMIT}
+            maxItems={lane.id === "search" ? lane.videos.length : TV_LANE_PREVIEW_LIMIT}
             scrollEnabled={false}
             horizontalPadding={0}
             listKey={`tv-lane-${lane.id}`}
@@ -324,62 +319,9 @@ export default function YouTubeFeedScreen() {
     [openVideo]
   );
 
-  const renderSearchResult = useCallback(
-    ({ item }: { item: HiddenTunesTvVideo }) => (
-      <View style={styles.searchGridItem}>
-        <TvVideoCard
-          video={item}
-          width={searchGridCardWidth}
-          onPress={(pressed) => openVideo(pressed, searchResults, { query: query.trim() })}
-        />
-      </View>
-    ),
-    [openVideo, searchGridCardWidth, searchResults]
-  );
-
-  const renderSearchHeader = useCallback(
-    () => (
-      <View>
-        {renderTopChrome()}
-        {searchResults.length > 0 ? (
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Search Results</Text>
-            <Text style={styles.sectionMeta}>{searchResults.length} ready</Text>
-          </View>
-        ) : null}
-      </View>
-    ),
-    [renderTopChrome, searchResults.length]
-  );
-
-  const renderSearchEmpty = useCallback(
-    () => (
-      <View style={styles.searchResultsWrap}>
-        {searching ? (
-          <View style={styles.centerBlock}>
-            <ActivityIndicator size="small" color={COLORS.primary} />
-            <Text style={styles.loadingText}>Searching</Text>
-          </View>
-        ) : query.trim().length >= 2 ? (
-          <View style={styles.emptyBox}>
-            <Ionicons name="search" size={42} color={COLORS.textMuted} />
-            <Text style={styles.emptyTitle}>No TV matches</Text>
-            <Text style={styles.emptyText}>Try another channel, genre, or show title.</Text>
-          </View>
-        ) : null}
-      </View>
-    ),
-    [query, searching]
-  );
-
-  const renderSearchFooter = useCallback(
-    () =>
-      searching && searchResults.length > 0 ? (
-        <View style={styles.searchFooter}>
-          <ActivityIndicator size="small" color={COLORS.primary} />
-        </View>
-      ) : null,
-    [searchResults.length, searching]
+  const searchLane = useMemo<TvLane>(
+    () => ({ id: "search", title: "Search Results", videos: searchResults }),
+    [searchResults]
   );
 
   const hasAdminContent =
@@ -392,25 +334,6 @@ export default function YouTubeFeedScreen() {
         <View style={styles.glowPurple} />
         <View style={styles.glowCyan} />
 
-        {hasSearchText ? (
-          <FlatList
-            key={`tv-search-${searchGridColumns}`}
-            data={searchResults}
-            numColumns={searchGridColumns}
-            keyExtractor={(video) => video.id}
-            renderItem={renderSearchResult}
-            ListHeaderComponent={renderSearchHeader}
-            ListEmptyComponent={renderSearchEmpty}
-            ListFooterComponent={renderSearchFooter}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.scrollContent}
-            columnWrapperStyle={searchGridColumns > 1 ? styles.searchGridRow : undefined}
-            initialNumToRender={8}
-            maxToRenderPerBatch={8}
-            windowSize={7}
-            removeClippedSubviews
-          />
-        ) : (
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
           {renderTopChrome()}
 
@@ -418,6 +341,27 @@ export default function YouTubeFeedScreen() {
             <View style={styles.centerBlock}>
               <ActivityIndicator size="large" color={COLORS.primary} />
               <Text style={styles.loadingText}>Loading TV</Text>
+            </View>
+          ) : hasSearchText ? (
+            <View style={styles.searchResultsWrap}>
+              {searching ? (
+                <View style={styles.centerBlock}>
+                  <ActivityIndicator size="small" color={COLORS.primary} />
+                  <Text style={styles.loadingText}>Searching</Text>
+                </View>
+              ) : searchResults.length > 0 ? (
+                renderLane(searchLane, {
+                  slug: "search",
+                  title: "Search Results",
+                  query: query.trim(),
+                })
+              ) : query.trim().length >= 2 ? (
+                <View style={styles.emptyBox}>
+                  <Ionicons name="search" size={42} color={COLORS.textMuted} />
+                  <Text style={styles.emptyTitle}>No TV matches</Text>
+                  <Text style={styles.emptyText}>Try another channel, genre, or show title.</Text>
+                </View>
+              ) : null}
             </View>
           ) : (
             <>
@@ -484,7 +428,6 @@ export default function YouTubeFeedScreen() {
             </>
           )}
         </ScrollView>
-        )}
       </LinearGradient>
     </AppShell>
   );
@@ -560,9 +503,6 @@ const styles = StyleSheet.create({
   sectionMeta: { color: COLORS.textMuted, fontSize: 12, fontWeight: "800" },
   railContent: { paddingRight: 18 },
   searchResultsWrap: { minHeight: 180 },
-  searchGridRow: { gap: 12 },
-  searchGridItem: { marginBottom: 22 },
-  searchFooter: { paddingVertical: 18, alignItems: "center" },
   emptyBox: { minHeight: 180, alignItems: "center", justifyContent: "center", paddingHorizontal: 20 },
   emptyTitle: {
     color: COLORS.text,
