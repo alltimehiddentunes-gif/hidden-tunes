@@ -122,7 +122,7 @@ export function useEducationalProgressTracker(args?: UseEducationalProgressTrack
       updatedAt: now,
     });
   }, [
-    activeQueueContext?.contextId,
+    activeQueueContext,
     args?.educatorName,
     args?.enabled,
     args?.programArtwork,

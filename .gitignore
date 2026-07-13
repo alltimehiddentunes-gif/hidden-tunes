@@ -31,7 +31,12 @@ yarn-error.*
 *.pem
 
 # local env files
+.env
 .env*.local
+
+# logs and coverage
+*.log
+coverage/
 
 # typescript
 *.tsbuildinfo
@@ -41,3 +46,8 @@ app-example
 # generated native folders
 /ios
 /android
+android/.gradle/
+android/app/build/
+android/build/
+ios/Pods/
+ios/build/
