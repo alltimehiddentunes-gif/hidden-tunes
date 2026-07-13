@@ -36,6 +36,7 @@ import LiveWaveform from "@/components/LiveWaveform";
 import UnifiedMediaCard from "@/components/UnifiedMediaCard";
 import { HomeCatalogSongRow, HomeFeaturedCard } from "@/components/catalog/HomePlaybackRows";
 import { PremiumContentGrid } from "@/components/catalog/PremiumContentGrid";
+import AppShell from "@/components/navigation/AppShell";
 import {
   COLORS,
   GRADIENTS,
@@ -1201,6 +1202,7 @@ export default function MusicFeedScreen() {
   );
 
   return (
+    <AppShell>
       <LinearGradient colors={GRADIENTS.main} style={styles.container}>
         <PremiumAmbientGlow style={styles.glowPurple} color="rgba(168,85,247,0.2)" paused={homeMotionPaused} />
         <PremiumAmbientGlow style={styles.glowCyan} color="rgba(34,211,238,0.14)" paused={homeMotionPaused} />
@@ -1535,6 +1537,7 @@ export default function MusicFeedScreen() {
           />
         )}
       </LinearGradient>
+    </AppShell>
   );
 }
 

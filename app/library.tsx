@@ -31,6 +31,7 @@ import {
   SPACING,
   TYPOGRAPHY,
 } from "../constants/theme";
+import AppShell from "../components/navigation/AppShell";
 import { HOME_MORE_HUB_SHORTCUTS } from "../constants/homeMoreHub";
 
 type LibrarySection = {
@@ -259,6 +260,7 @@ export default function LibraryScreen() {
   const keyExtractor = useCallback((group: (typeof LIBRARY_GROUPS)[number]) => group.id, []);
 
   return (
+    <AppShell>
       <LinearGradient colors={GRADIENTS.main} style={styles.container}>
         <FlatList
           data={LIBRARY_GROUPS}
@@ -274,6 +276,7 @@ export default function LibraryScreen() {
           removeClippedSubviews
         />
       </LinearGradient>
+    </AppShell>
   );
 }
 
