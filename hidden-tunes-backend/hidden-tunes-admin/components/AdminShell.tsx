@@ -36,6 +36,12 @@ const NAV_ITEMS = [
     roles: "all",
   },
   {
+    href: "/admin/artists",
+    label: "Artists",
+    description: "Artist profile manager",
+    roles: "all",
+  },
+  {
     href: "/admin/creator/lyrics",
     label: "Creator Lyrics",
     description: "Plain & synced lyrics",

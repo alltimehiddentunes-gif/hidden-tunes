@@ -76,7 +76,9 @@
     "motivation:audit-public": "tsx scripts/audit-public-motivationals.ts",
     "test:motivation-expansion-safety": "tsx scripts/test-motivation-expansion-safety.ts",
     "verify:motivation-catalog": "tsx scripts/verify-motivation-catalog.ts",
-    "verify:motivation-play-sample": "tsx scripts/verify-motivation-play-sample.ts"
+    "verify:motivation-play-sample": "tsx scripts/verify-motivation-play-sample.ts",
+    "test:artist-profile": "tsx scripts/test-artist-profile.ts",
+    "verify:artist-production": "tsx scripts/verify-artist-production.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1045.0",
