@@ -1,13 +1,4 @@
--- =============================================================================
--- Hidden Tunes — Motivationals Quality Migration Verification (READ-ONLY)
--- =============================================================================
--- Run in Supabase SQL Editor AFTER motivation-expansion-quality-production.sql
--- All queries are read-only. Safe to rerun.
--- =============================================================================
-
--- ---------------------------------------------------------------------------
--- 1. Column existence (all eight quality columns)
--- ---------------------------------------------------------------------------
+-- 1. Verify all quality columns exist on public.motivation_items
 
 select
   column_name,
@@ -29,11 +20,7 @@ where table_schema = 'public'
   )
 order by column_name;
 
--- Expect 8 rows.
-
--- ---------------------------------------------------------------------------
--- 2. Index existence
--- ---------------------------------------------------------------------------
+-- 2. Verify indexes exist
 
 select
   indexname,
@@ -48,45 +35,84 @@ where schemaname = 'public'
   )
 order by indexname;
 
--- Expect 3 rows.
+-- 3. Database totals
 
--- ---------------------------------------------------------------------------
--- 3. Status counts
--- ---------------------------------------------------------------------------
-
-select
-  count(*) as database_total,
-  count(*) filter (where status = 'approved') as approved,
-  count(*) filter (where status = 'pending') as pending,
-  count(*) filter (where is_active = true) as active,
-  count(*) filter (where is_verified = true) as verified,
-  count(*) filter (where playback_status = 'playable') as playable,
-  count(*) filter (where health_status = 'healthy') as healthy,
-  count(*) filter (where content_classification = 'accept') as content_classification_accept,
-  count(*) filter (where content_classification = 'hold') as content_classification_hold,
-  count(*) filter (where content_classification = 'reject') as content_classification_reject,
-  count(*) filter (where content_classification = 'route_lectures') as route_lectures,
-  count(*) filter (where content_classification = 'route_podcasts') as route_podcasts,
-  count(*) filter (where content_classification = 'route_films') as route_films
+select count(*) as database_total
 from public.motivation_items;
 
--- ---------------------------------------------------------------------------
--- 4. Healthy public count (milestone metric)
--- ---------------------------------------------------------------------------
+-- 4. Approved count
 
-select count(*) as healthy_public_total
+select count(*) as approved
 from public.motivation_items
-where status = 'approved'
-  and is_active = true
-  and is_verified = true
-  and playback_status = 'playable'
-  and is_mature = false
-  and content_classification = 'accept'
-  and reliability_score >= 60;
+where status = 'approved';
 
--- ---------------------------------------------------------------------------
--- 5. Unsafe public rows (browse-visible but failing quality gates)
--- ---------------------------------------------------------------------------
+-- 5. Pending count
+
+select count(*) as pending
+from public.motivation_items
+where status = 'pending';
+
+-- 6. Active count
+
+select count(*) as active
+from public.motivation_items
+where is_active = true;
+
+-- 7. Verified count
+
+select count(*) as verified
+from public.motivation_items
+where is_verified = true;
+
+-- 8. Playable count
+
+select count(*) as playable
+from public.motivation_items
+where playback_status = 'playable';
+
+-- 9. Healthy count
+
+select count(*) as healthy
+from public.motivation_items
+where health_status = 'healthy';
+
+-- 10. accept count
+
+select count(*) as accept
+from public.motivation_items
+where content_classification = 'accept';
+
+-- 11. hold count
+
+select count(*) as hold
+from public.motivation_items
+where content_classification = 'hold';
+
+-- 12. reject count
+
+select count(*) as reject
+from public.motivation_items
+where content_classification = 'reject';
+
+-- 13. route_lectures count
+
+select count(*) as route_lectures
+from public.motivation_items
+where content_classification = 'route_lectures';
+
+-- 14. route_podcasts count
+
+select count(*) as route_podcasts
+from public.motivation_items
+where content_classification = 'route_podcasts';
+
+-- 15. route_films count
+
+select count(*) as route_films
+from public.motivation_items
+where content_classification = 'route_films';
+
+-- 16. Public rows violating approved + active + verified + playable + content_classification = accept
 
 select
   id,
@@ -96,7 +122,12 @@ select
   is_verified,
   playback_status,
   content_classification,
-  reliability_score
+  reliability_score,
+  health_status,
+  rights_status,
+  media_probe_status,
+  category_slug,
+  source_key
 from public.motivation_items
 where status = 'approved'
   and is_active = true
@@ -108,11 +139,7 @@ where status = 'approved'
   )
 order by title;
 
--- Expect 0 rows after manual demotion of misclassified public items.
-
--- ---------------------------------------------------------------------------
--- 6. Questionable existing public items (watchlist)
--- ---------------------------------------------------------------------------
+-- 17. Full review query for watchlist titles
 
 select
   id,
