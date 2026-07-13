@@ -18,29 +18,89 @@ export const ARCHIVE_MOTIVATION_QUERY_FAMILIES: Record<string, string[]> = {
     '(subject:"motivational speaking" OR subject:"inspirational speech" OR subject:"commencement address" OR subject:"keynote speech") AND mediatype:movies -course -lecture -tutorial -playlist -trailer',
     '(subject:speeches OR subject:"public speaking") AND mediatype:movies -course -lecture -documentary -news',
   ],
-  mindset: [
-    '(subject:motivation OR subject:"personal development" OR subject:"self help" OR subject:mindset OR subject:discipline) AND mediatype:movies -course -lecture -tutorial -playlist',
+  "motivational-speeches": [
+    '(subject:"motivational speaking" OR subject:"inspirational speech" OR subject:"keynote speech") AND mediatype:movies -course -lecture -tutorial -playlist',
   ],
-  leadership: [
-    '(subject:leadership OR subject:"business motivation" OR subject:entrepreneurship OR subject:"career development") AND mediatype:movies -course -lecture -tutorial -playlist',
+  "commencement-speeches": [
+    '(subject:"commencement address" OR subject:"commencement speech" OR subject:"graduation speech") AND mediatype:movies -course -lecture -tutorial -playlist -documentary',
   ],
   commencement: [
     '(subject:"commencement address" OR subject:"commencement speech" OR subject:"graduation speech") AND mediatype:movies -course -lecture -tutorial -playlist -documentary',
   ],
+  leadership: [
+    '(subject:leadership OR subject:"business motivation" OR subject:entrepreneurship OR subject:"career development") AND mediatype:movies -course -lecture -tutorial -playlist',
+  ],
+  mindset: [
+    '(subject:motivation OR subject:"personal development" OR subject:"self help" OR subject:mindset OR subject:discipline) AND mediatype:movies -course -lecture -tutorial -playlist',
+  ],
   discipline: [
     '(subject:discipline OR subject:"self control" OR subject:consistency OR subject:habits) AND (subject:motivation OR subject:"personal development") AND mediatype:movies -course -lecture -tutorial -playlist',
   ],
+  success: [
+    '(subject:success OR subject:"winning mindset" OR subject:achievement) AND (subject:motivation OR subject:"personal development") AND mediatype:movies -course -lecture -tutorial -playlist',
+  ],
+  "personal-development": [
+    '(subject:"personal development" OR subject:"personal growth" OR subject:"self development") AND mediatype:movies -course -lecture -tutorial -playlist',
+  ],
+  "self-improvement": [
+    '(subject:"self improvement" OR subject:"self help" OR subject:"self-improvement") AND mediatype:movies -course -lecture -tutorial -playlist',
+  ],
+  confidence: [
+    '(subject:confidence OR subject:"self belief" OR subject:"self-esteem") AND (subject:motivation OR subject:"personal development") AND mediatype:movies -course -lecture -tutorial -playlist',
+  ],
+  productivity: [
+    '(subject:productivity OR subject:"time management" OR subject:"deep work") AND (subject:motivation OR subject:"personal development") AND mediatype:movies -course -lecture -tutorial -playlist',
+  ],
   fitness: [
+    '(subject:"fitness motivation" OR subject:"sports motivation" OR subject:"gym motivation") AND mediatype:movies -course -lecture -tutorial -playlist',
+  ],
+  "fitness-motivation": [
     '(subject:"fitness motivation" OR subject:"sports motivation" OR subject:"gym motivation") AND mediatype:movies -course -lecture -tutorial -playlist',
   ],
   faith: [
     '(subject:"faith and purpose" OR subject:"spiritual motivation" OR subject:"healing and recovery") AND mediatype:movies -course -lecture -tutorial -playlist -documentary',
   ],
+  "faith-motivation": [
+    '(subject:"faith and purpose" OR subject:"spiritual motivation" OR subject:"healing and recovery") AND mediatype:movies -course -lecture -tutorial -playlist -documentary',
+  ],
+  "inspirational-talks": [
+    '(subject:"inspirational talk" OR subject:"inspirational speech" OR subject:"inspirational message") AND mediatype:movies -course -lecture -tutorial -playlist',
+  ],
+  "life-advice": [
+    '(subject:"life advice" OR subject:"life lessons" OR subject:"life wisdom") AND (subject:motivation OR subject:inspiration) AND mediatype:movies -course -lecture -tutorial -playlist',
+  ],
+  "career-motivation": [
+    '(subject:"career motivation" OR subject:"career development" OR subject:"professional growth") AND mediatype:movies -course -lecture -tutorial -playlist',
+  ],
+  "business-motivation": [
+    '(subject:"business motivation" OR subject:entrepreneurship OR subject:"business success") AND mediatype:movies -course -lecture -tutorial -playlist',
+  ],
+  "study-motivation": [
+    '(subject:"study motivation" OR subject:"academic motivation" OR subject:"learning motivation") AND mediatype:movies -course -lecture -tutorial -playlist',
+  ],
+  "historical-speeches": [
+    '(subject:"historical speech" OR subject:"famous speech" OR subject:"great speeches") AND mediatype:movies -course -lecture -tutorial -playlist -documentary',
+  ],
+  "public-domain-speeches": [
+    '(subject:speeches OR subject:"public speaking") AND (licenseurl:*publicdomain* OR licenseurl:*creativecommons*) AND mediatype:movies -course -lecture -tutorial -playlist',
+  ],
   prelinger: [
     'collection:prelinger AND (subject:inspiration OR subject:guidance OR subject:"personal growth") AND mediatype:movies -course -lecture -tutorial -playlist',
   ],
+  "opensource-video": [
+    'collection:opensource_movies AND (subject:motivation OR subject:inspiration OR subject:success OR subject:leadership) -course -lecture -tutorial -playlist -documentary',
+  ],
   opensource: [
     'collection:opensource_movies AND (subject:motivation OR subject:inspiration OR subject:success OR subject:leadership) -course -lecture -tutorial -playlist -documentary',
+  ],
+  "opensource-audio": [
+    'collection:opensource_audio AND (subject:motivation OR subject:inspiration OR subject:speech OR subject:leadership) -course -lecture -tutorial -playlist',
+  ],
+  "community-audio": [
+    'collection:community_audio AND (subject:motivation OR subject:inspiration OR subject:speech OR subject:"personal development") -course -lecture -tutorial -playlist',
+  ],
+  "community-video": [
+    'collection:community_media AND (subject:motivation OR subject:inspiration OR subject:speech OR subject:leadership) -course -lecture -tutorial -playlist',
   ],
 };
 
