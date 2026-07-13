@@ -17,6 +17,7 @@ const migrationFiles = [
   "20260702120000_tv_public_categories.sql",
   "20260702130000_tv_public_category_expansion.sql",
   "20260708120000_tv_reliability_score_repair.sql",
+  "20260712140000_tv_platform_quality_gate.sql",
 ];
 
 function loadEnvFile(filePath) {
