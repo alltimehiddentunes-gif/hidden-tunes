@@ -38,7 +38,9 @@ import {
 } from "@/utils/tvDiscoveryNavigation";
 import { buildTvStreamPlayerHtml } from "@/utils/tvPlayerHtml";
 import {
+  pauseTvWebViewPlayback,
   releaseTvPlayerRuntime,
+  resumeTvWebViewPlayback,
   stopTvWebViewPlayback,
 } from "@/utils/tvPlayerLifecycle";
 import type { TvStationPlayResult } from "@/types/tvDiscovery";
@@ -91,6 +93,7 @@ type TvStreamPlayerProps = {
   webViewRef: React.RefObject<WebView | null>;
   onPlaybackReady: () => void;
   onPlaybackFailed: (reason: string) => void;
+  onPlayingStateChange?: (playing: boolean) => void;
 };
 
 const TvStreamPlayer = memo(function TvStreamPlayer({
@@ -99,6 +102,7 @@ const TvStreamPlayer = memo(function TvStreamPlayer({
   webViewRef,
   onPlaybackReady,
   onPlaybackFailed,
+  onPlayingStateChange,
 }: TvStreamPlayerProps) {
   const html = useMemo(
     () => (streamUrl ? buildTvStreamPlayerHtml(streamUrl) : ""),
@@ -120,6 +124,10 @@ const TvStreamPlayer = memo(function TvStreamPlayer({
           onPlaybackReady();
           return;
         }
+        if (payload.type === "tv_playing") {
+          onPlayingStateChange?.(Boolean(payload.playing));
+          return;
+        }
         if (payload.type === "tv_error") {
           onPlaybackFailed(String(payload.reason || "playback_error"));
         }
@@ -127,7 +135,7 @@ const TvStreamPlayer = memo(function TvStreamPlayer({
         onPlaybackFailed("invalid_player_message");
       }
     },
-    [onPlaybackFailed, onPlaybackReady]
+    [onPlaybackFailed, onPlaybackReady, onPlayingStateChange]
   );
 
   if (!streamUrl) return null;
@@ -238,12 +246,15 @@ export default function TvPlayerScreen() {
   const confirmedRef = useRef<TvDisplayStation | null>(null);
   const recoveryLoopRef = useRef(false);
   const bootstrappedRef = useRef(false);
+  const isStreamPlayingRef = useRef(true);
+  const wasPlayingBeforeBackgroundRef = useRef(true);
 
   const [confirmed, setConfirmed] = useState<TvDisplayStation | null>(null);
   const [candidate, setCandidate] = useState<TvDisplayStation | null>(null);
   const [phase, setPhase] = useState<PlayerPhase>("loading");
   const [artworkFailed, setArtworkFailed] = useState(false);
   const [streamMounted, setStreamMounted] = useState(true);
+  const [isStreamPlaying, setIsStreamPlaying] = useState(true);
   const [appActive, setAppActive] = useState(AppState.currentState === "active");
   const [positionLabel, setPositionLabel] = useState("");
 
@@ -291,6 +302,7 @@ export default function TvPlayerScreen() {
     setCandidate(null);
     setPhase("idle");
     setArtworkFailed(false);
+    setIsStreamPlaying(true);
     syncPositionLabel();
     logTvNext("tv_next_playback_confirmed", {
       stationId: pending.stationId,
@@ -452,18 +464,41 @@ export default function TvPlayerScreen() {
   }, [confirmed?.stationId, syncPositionLabel]);
 
   useEffect(() => {
+    isStreamPlayingRef.current = isStreamPlaying;
+  }, [isStreamPlaying]);
+
+  useEffect(() => {
+    if (phase !== "loading" || !candidate) return;
+
+    const timer = setTimeout(() => {
+      if (candidateRef.current) {
+        void handleCandidateFailure("probe_timeout");
+      }
+    }, 20000);
+
+    return () => clearTimeout(timer);
+  }, [candidate?.stationId, candidate?.streamUrl, handleCandidateFailure, phase]);
+
+  useEffect(() => {
     const subscription = AppState.addEventListener("change", (nextState) => {
       const active = nextState === "active";
       setAppActive(active);
       if (!active) {
-        stopAllStreams();
-      } else if ((phase === "idle" || confirmed?.streamUrl) && (confirmed || candidate)) {
+        wasPlayingBeforeBackgroundRef.current = isStreamPlayingRef.current;
+        pauseTvWebViewPlayback(displayWebViewRef);
+        setIsStreamPlaying(false);
+        return;
+      }
+
+      if (confirmedRef.current?.streamUrl && wasPlayingBeforeBackgroundRef.current) {
         setStreamMounted(true);
+        resumeTvWebViewPlayback(displayWebViewRef);
+        setIsStreamPlaying(true);
       }
     });
 
     return () => subscription.remove();
-  }, [candidate, confirmed, phase, stopAllStreams]);
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -486,6 +521,25 @@ export default function TvPlayerScreen() {
     }
     setArtworkFailed(true);
   }, [confirmed?.artwork]);
+
+  const handlePlayingStateChange = useCallback((playing: boolean) => {
+    setIsStreamPlaying(playing);
+  }, []);
+
+  const toggleStreamPlayback = useCallback(() => {
+    if (!confirmedRef.current?.streamUrl || phase === "exhausted" || phase === "loading") {
+      return;
+    }
+
+    if (isStreamPlaying) {
+      pauseTvWebViewPlayback(displayWebViewRef);
+      setIsStreamPlaying(false);
+      return;
+    }
+
+    resumeTvWebViewPlayback(displayWebViewRef);
+    setIsStreamPlaying(true);
+  }, [isStreamPlaying, phase]);
 
   const navigateStation = useCallback(
     async (direction: "next" | "previous") => {
@@ -601,6 +655,7 @@ export default function TvPlayerScreen() {
                   webViewRef={displayWebViewRef}
                   onPlaybackReady={isInitialProbe ? handleCandidateReady : () => {}}
                   onPlaybackFailed={isInitialProbe ? handleCandidateFailure : () => {}}
+                  onPlayingStateChange={handlePlayingStateChange}
                 />
               ) : null}
               {showBackgroundProbe && backgroundProbe ? (
@@ -611,6 +666,7 @@ export default function TvPlayerScreen() {
                     webViewRef={stagingWebViewRef}
                     onPlaybackReady={handleCandidateReady}
                     onPlaybackFailed={handleCandidateFailure}
+                    onPlayingStateChange={() => {}}
                   />
                 </View>
               ) : null}
@@ -657,7 +713,27 @@ export default function TvPlayerScreen() {
                   ]}
                 >
                   <Ionicons name="play-skip-back" size={22} color={COLORS.text} />
-                  <Text style={styles.controlLabel}>Previous Station</Text>
+                  <Text style={styles.controlLabel}>Previous</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  accessibilityLabel={isStreamPlaying ? "Pause station" : "Resume station"}
+                  disabled={isLoading || phase === "exhausted"}
+                  onPress={toggleStreamPlayback}
+                  style={[
+                    styles.controlButton,
+                    styles.controlButtonCenter,
+                    (isLoading || phase === "exhausted") && styles.controlButtonDisabled,
+                  ]}
+                >
+                  <Ionicons
+                    name={isStreamPlaying ? "pause" : "play"}
+                    size={24}
+                    color={COLORS.text}
+                  />
+                  <Text style={styles.controlLabel}>
+                    {isStreamPlaying ? "Pause" : "Resume"}
+                  </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -671,9 +747,7 @@ export default function TvPlayerScreen() {
                   ]}
                 >
                   <Ionicons name="play-skip-forward" size={22} color={COLORS.backgroundDeep} />
-                  <Text style={[styles.controlLabel, styles.controlLabelPrimary]}>
-                    Next Station
-                  </Text>
+                  <Text style={[styles.controlLabel, styles.controlLabelPrimary]}>Next</Text>
                 </TouchableOpacity>
               </View>
             </>
@@ -742,13 +816,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   stagingWebView: {
-    height: 1,
-    left: 0,
+    height: 360,
+    left: -2000,
     opacity: 0,
     overflow: "hidden",
     position: "absolute",
     top: 0,
-    width: 1,
+    width: 640,
   },
   loadingOverlay: {
     ...StyleSheet.absoluteFill,
@@ -907,8 +981,11 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.08)",
     borderRadius: 18,
     flex: 1,
-    gap: 8,
-    paddingVertical: 16,
+    gap: 6,
+    paddingVertical: 14,
+  },
+  controlButtonCenter: {
+    backgroundColor: "rgba(255,255,255,0.12)",
   },
   controlButtonPrimary: {
     backgroundColor: COLORS.primary,

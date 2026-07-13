@@ -4,6 +4,27 @@ import type WebView from "react-native-webview";
 import { clearTvDiscoverySession } from "@/services/tvDiscoverySessionStore";
 import { cancelTvDiscoveryResolution } from "@/services/tvDiscoveryAbort";
 
+export const TV_PLAYER_PAUSE_SCRIPT = `(function () {
+  var video = document.getElementById("hiddenTunesTvPlayer");
+  if (!video) return false;
+  try {
+    video.pause();
+  } catch (e) {}
+  return true;
+})();`;
+
+export const TV_PLAYER_PLAY_SCRIPT = `(function () {
+  var video = document.getElementById("hiddenTunesTvPlayer");
+  if (!video) return false;
+  try {
+    var playPromise = video.play();
+    if (playPromise && playPromise.catch) {
+      playPromise.catch(function () {});
+    }
+  } catch (e) {}
+  return true;
+})();`;
+
 export const TV_PLAYER_STOP_SCRIPT = `(function () {
   var video = document.getElementById("hiddenTunesTvPlayer");
   if (!video) return true;
@@ -22,6 +43,28 @@ export const TV_PLAYER_STOP_SCRIPT = `(function () {
   } catch (e) {}
   return true;
 })();`;
+
+export function pauseTvWebViewPlayback(webViewRef: RefObject<WebView | null>) {
+  const webView = webViewRef.current;
+  if (!webView) return;
+
+  try {
+    webView.injectJavaScript(TV_PLAYER_PAUSE_SCRIPT);
+  } catch {
+    // WebView may already be destroyed.
+  }
+}
+
+export function resumeTvWebViewPlayback(webViewRef: RefObject<WebView | null>) {
+  const webView = webViewRef.current;
+  if (!webView) return;
+
+  try {
+    webView.injectJavaScript(TV_PLAYER_PLAY_SCRIPT);
+  } catch {
+    // WebView may already be destroyed.
+  }
+}
 
 export function stopTvWebViewPlayback(webViewRef: RefObject<WebView | null>) {
   const webView = webViewRef.current;

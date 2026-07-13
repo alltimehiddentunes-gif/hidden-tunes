@@ -58,6 +58,20 @@ export function buildTvStreamPlayerHtml(streamUrl: string) {
         post({ type: "tv_error", reason: reason || "playback_error" });
       }
 
+      function notifyPlayingState(playing) {
+        post({ type: "tv_playing", playing: !!playing });
+      }
+
+      video.addEventListener("playing", function () {
+        notifyPlayingState(true);
+      });
+      video.addEventListener("pause", function () {
+        notifyPlayingState(false);
+      });
+      video.addEventListener("play", function () {
+        notifyPlayingState(true);
+      });
+
       video.addEventListener("playing", notifyReady);
       video.addEventListener("timeupdate", function () {
         if (video.currentTime > 0.25) notifyReady();
