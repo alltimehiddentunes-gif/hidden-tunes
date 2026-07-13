@@ -8,8 +8,8 @@ PROJECT_DIR="/var/www/hidden-tunes/hidden-tunes-backend/hidden-tunes-admin"
 LOCK_FILE="/tmp/hidden-tunes-motivation-expansion.lock"
 APPLY_WRITES="${APPLY_WRITES:-false}"
 BATCH_NUMBER="${BATCH_NUMBER:-20}"
-LIMIT="${LIMIT:-100}"
-FAMILIES=(leadership mindset speeches commencement)
+LIMIT="${LIMIT:-200}"
+FAMILIES=(speeches commencement leadership mindset discipline fitness faith prelinger opensource)
 
 cleanup() {
   rm -f "${LOCK_FILE}"

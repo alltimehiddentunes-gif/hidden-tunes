@@ -44,7 +44,7 @@ export async function runMotivationExpansionBatch(
   options: MotivationExpansionRunOptions = {}
 ): Promise<MotivationExpansionReport> {
   const batchNumber = Math.max(0, Number(options.batchNumber ?? 0));
-  const examineLimit = Math.max(1, Math.min(500, Number(options.examineLimit ?? 100)));
+  const examineLimit = Math.max(1, Math.min(250, Number(options.examineLimit ?? 100)));
   const dryRun = options.dryRun === true;
   const queryFamily =
     options.queryFamily ||

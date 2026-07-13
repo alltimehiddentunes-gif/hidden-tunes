@@ -62,10 +62,10 @@ async function main() {
 
   const archiveTarget = Math.max(0, options.target - merged.length);
   if (archiveTarget > 0) {
-    const archiveCandidates = await buildArchiveMotivationCandidates({
+    const archiveResult = await buildArchiveMotivationCandidates({
       target: archiveTarget,
     });
-    for (const candidate of archiveCandidates) push(candidate);
+    for (const candidate of archiveResult.candidates) push(candidate);
   }
 
   fs.mkdirSync(path.dirname(options.output), { recursive: true });

@@ -81,7 +81,7 @@ export type MotivationBatchImportResult = {
   errors: string[];
 };
 
-const DEFAULT_EXAMINE_LIMIT = 100;
+const DEFAULT_EXAMINE_LIMIT = 200;
 const DEFAULT_WRITE_CHUNK = 100;
 const DEFAULT_SOURCE_CONCURRENCY = 2;
 const DEFAULT_MEDIA_CONCURRENCY = 2;
@@ -257,7 +257,7 @@ export async function runMotivationBatchImport(
   options: MotivationBatchImportOptions = {}
 ): Promise<MotivationBatchImportResult> {
   const batchNumber = Math.max(0, Number(options.batchNumber ?? 0));
-  const examineLimit = Math.max(1, Math.min(100, Number(options.examineLimit ?? DEFAULT_EXAMINE_LIMIT)));
+  const examineLimit = Math.max(1, Math.min(250, Number(options.examineLimit ?? DEFAULT_EXAMINE_LIMIT)));
   const dryRun = options.dryRun === true;
   const writeChunkSize = Math.max(50, Math.min(200, Number(options.writeChunkSize ?? DEFAULT_WRITE_CHUNK)));
   const sourceConcurrency = Math.max(1, Math.min(4, Number(options.sourceRequestConcurrency ?? DEFAULT_SOURCE_CONCURRENCY)));
@@ -307,14 +307,35 @@ export async function runMotivationBatchImport(
   }
 
   let candidates: MotivationGrowthCandidate[] = [];
-  try {
-    candidates = await buildArchiveMotivationCandidates({
-      target: examineLimit,
-      rowsPerPage: 20,
-      maxPagesPerQuery: 3,
-      concurrency: sourceConcurrency,
-      queryFamily: options.queryFamily,
+  const queryFamily = options.queryFamily || "speeches";
+  const expansionSourceKey = `archive:expansion:${queryFamily}`;
+  let expansionCheckpoint =
+    loadMotivationExpansionCheckpoint(batchNumber, expansionSourceKey)?.checkpoint ||
+    createMotivationExpansionCheckpoint({
+      batch_number: batchNumber,
+      source_key: expansionSourceKey,
     });
+  const startPage = Math.max(1, Number(expansionCheckpoint.source_page || 0) + 1);
+  const rowsPerPage = Math.max(20, Math.min(50, Math.ceil(examineLimit / 4)));
+  const maxPagesPerQuery = Math.max(3, Math.ceil(examineLimit / rowsPerPage) + 1);
+
+  try {
+    const archiveResult = await buildArchiveMotivationCandidates({
+      target: examineLimit,
+      rowsPerPage,
+      maxPagesPerQuery,
+      startPage,
+      concurrency: sourceConcurrency,
+      queryFamily,
+    });
+    candidates = archiveResult.candidates;
+
+    if (!dryRun && archiveResult.endPage >= startPage) {
+      expansionCheckpoint.source_page = archiveResult.endPage;
+      expansionCheckpoint.source_cursor = String(archiveResult.endPage + 1);
+      expansionCheckpoint.updated_at = new Date().toISOString();
+      writeMotivationExpansionCheckpoint(expansionCheckpoint);
+    }
   } catch (error) {
     result.errors.push(error instanceof Error ? error.message : String(error));
     return result;
@@ -442,7 +463,7 @@ export async function runMotivationBatchImport(
   }
 
   if (accepted.length === 0) {
-    result.errors.push("No accepted Batch 0 records to insert.");
+    result.success = result.errors.length === 0;
     return result;
   }
 
@@ -618,6 +639,6 @@ export async function runMotivationBatchImport(
     completed_at: new Date().toISOString(),
   });
 
-  result.success = result.errors.length === 0 && (result.records_inserted + result.records_updated) > 0;
+  result.success = result.errors.length === 0;
   return result;
 }

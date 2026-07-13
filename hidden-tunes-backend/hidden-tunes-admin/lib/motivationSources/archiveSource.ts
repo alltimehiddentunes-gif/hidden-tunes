@@ -345,17 +345,26 @@ export class ArchiveMotivationSource implements MotivationSourceAdapter {
   }
 }
 
+export type ArchiveMotivationCandidateBuildResult = {
+  candidates: MotivationGrowthCandidate[];
+  startPage: number;
+  endPage: number;
+  pagesExamined: number;
+};
+
 export async function buildArchiveMotivationCandidates(options?: {
   target?: number;
   rowsPerPage?: number;
   maxPagesPerQuery?: number;
+  startPage?: number;
   concurrency?: number;
   queryFamily?: string;
-}) {
+}): Promise<ArchiveMotivationCandidateBuildResult> {
   const adapter = new ArchiveMotivationSource();
   const target = options?.target ?? 6000;
   const rowsPerPage = options?.rowsPerPage ?? 100;
   const maxPagesPerQuery = options?.maxPagesPerQuery ?? 60;
+  const startPage = Math.max(1, Number(options?.startPage ?? 1));
   const concurrency = options?.concurrency ?? 4;
   const queryFamilies = options?.queryFamily
     ? [options.queryFamily]
@@ -363,9 +372,14 @@ export async function buildArchiveMotivationCandidates(options?: {
 
   const candidates: MotivationGrowthCandidate[] = [];
   const seen = new Set<string>();
+  let endPage = Math.max(0, startPage - 1);
+  let pagesExamined = 0;
 
   for (const queryFamily of queryFamilies) {
-    for (let page = 1; page <= maxPagesPerQuery && candidates.length < target; page += 1) {
+    const lastPage = startPage + maxPagesPerQuery - 1;
+    for (let page = startPage; page <= lastPage && candidates.length < target; page += 1) {
+      pagesExamined += 1;
+      endPage = page;
       const pageResult = await adapter.discoverPage({
         target: Math.min(rowsPerPage, target - candidates.length),
         queryFamily,
@@ -386,5 +400,10 @@ export async function buildArchiveMotivationCandidates(options?: {
     }
   }
 
-  return candidates;
+  return {
+    candidates,
+    startPage,
+    endPage,
+    pagesExamined,
+  };
 }
