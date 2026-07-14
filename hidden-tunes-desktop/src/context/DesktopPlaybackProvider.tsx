@@ -435,7 +435,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
 
       setIsLoading(true)
       void service
-        .play(instantUrl, { instant: true })
+        .play(instantUrl)
         .then(() => {
           if (
             pendingResumeSeconds

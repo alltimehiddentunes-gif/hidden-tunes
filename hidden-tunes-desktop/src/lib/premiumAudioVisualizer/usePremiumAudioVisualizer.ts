@@ -55,7 +55,8 @@ export function usePremiumAudioVisualizerBoot(): void {
   useEffect(() => {
     premiumAudioVisualizerEngine.start()
     return () => {
-      premiumAudioVisualizerEngine.destroy()
+      // Never tear down the shared playback Web Audio graph on React remount/HMR.
+      premiumAudioVisualizerEngine.stop()
     }
   }, [])
 }

@@ -1,8 +1,15 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { AppErrorBoundary } from './components/AppErrorBoundary'
+import { premiumAudioVisualizerEngine } from './lib/premiumAudioVisualizer'
 import './index.css'
 import App from './App.tsx'
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeunload', () => {
+    premiumAudioVisualizerEngine.destroy()
+  })
+}
 
 function showBootstrapError(message: string) {
   const root = document.getElementById('root')

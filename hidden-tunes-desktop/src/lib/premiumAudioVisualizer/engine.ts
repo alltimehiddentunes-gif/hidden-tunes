@@ -304,10 +304,6 @@ export class PremiumAudioVisualizerEngine {
         return
       }
 
-      if (!audio.crossOrigin) {
-        audio.crossOrigin = 'anonymous'
-      }
-
       const context = new AudioContextCtor()
       const analyser = context.createAnalyser()
       analyser.fftSize = 256

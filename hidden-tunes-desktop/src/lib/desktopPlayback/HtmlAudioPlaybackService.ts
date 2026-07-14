@@ -219,9 +219,8 @@ export class HtmlAudioPlaybackService {
       this.lastUrl = normalized
       this.audio.load()
 
-      if (!options?.instant) {
-        await this.waitForCanPlay()
-      }
+      const canPlayTimeoutMs = options?.instant ? 8000 : undefined
+      await this.waitForCanPlay(canPlayTimeoutMs)
 
       logPlaybackDiagnostics('before play (new src)', this.audio, normalized)
       await this.audio.play()
