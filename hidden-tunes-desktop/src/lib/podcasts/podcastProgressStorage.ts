@@ -74,6 +74,49 @@ export type PodcastHistoryEntry = {
 
 const listeners = new Set<() => void>()
 
+export type PodcastLocalSnapshot = {
+  continueListening: PodcastProgressEntry[]
+  recentlyPlayed: PodcastHistoryEntry[]
+}
+
+let cachedLocalSnapshot: PodcastLocalSnapshot | null = null
+
+function snapshotSignature(snapshot: PodcastLocalSnapshot) {
+  const continueSig = snapshot.continueListening
+    .map(
+      (entry) =>
+        `${entry.episodeId}:${entry.positionSeconds}:${entry.completed}:${entry.updatedAt}`,
+    )
+    .join('|')
+  const recentSig = snapshot.recentlyPlayed
+    .map((entry) => `${entry.episodeId}:${entry.playedAt}:${entry.completed}`)
+    .join('|')
+  return `${continueSig}::${recentSig}`
+}
+
+function buildPodcastLocalSnapshot(): PodcastLocalSnapshot {
+  return {
+    continueListening: listPodcastContinueListening(),
+    recentlyPlayed: listPodcastRecentlyPlayed(),
+  }
+}
+
+function refreshPodcastLocalSnapshot(): PodcastLocalSnapshot {
+  const next = buildPodcastLocalSnapshot()
+  if (cachedLocalSnapshot && snapshotSignature(cachedLocalSnapshot) === snapshotSignature(next)) {
+    return cachedLocalSnapshot
+  }
+  cachedLocalSnapshot = next
+  return cachedLocalSnapshot
+}
+
+export function getPodcastLocalSnapshot(): PodcastLocalSnapshot {
+  if (!cachedLocalSnapshot) {
+    cachedLocalSnapshot = buildPodcastLocalSnapshot()
+  }
+  return cachedLocalSnapshot
+}
+
 export function subscribePodcastLocalState(listener: () => void) {
   listeners.add(listener)
   return () => {
@@ -82,6 +125,9 @@ export function subscribePodcastLocalState(listener: () => void) {
 }
 
 function notifyPodcastLocalState() {
+  const previous = cachedLocalSnapshot
+  const next = refreshPodcastLocalSnapshot()
+  if (previous === next) return
   listeners.forEach((listener) => listener())
 }
 
@@ -247,8 +293,27 @@ export function buildPodcastProgressEntryFromSong(
   }
 }
 
+function progressEntryMateriallyChanged(
+  existing: PodcastProgressEntry,
+  next: PodcastProgressEntry,
+) {
+  return (
+    existing.positionSeconds !== next.positionSeconds
+    || existing.completed !== next.completed
+    || existing.durationSeconds !== next.durationSeconds
+    || existing.episodeTitle !== next.episodeTitle
+    || existing.showTitle !== next.showTitle
+    || existing.artworkUrl !== next.artworkUrl
+    || existing.showId !== next.showId
+  )
+}
+
 export function upsertPodcastProgress(entry: PodcastProgressEntry) {
   const store = readPodcastProgressStore()
+  const existing = store[entry.episodeId]
+  if (existing && !progressEntryMateriallyChanged(existing, entry)) {
+    return
+  }
   store[entry.episodeId] = entry
   writePodcastProgressStore(store)
 }
@@ -298,12 +363,29 @@ export function listPodcastProgressForShow(showId: string) {
     .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt))
 }
 
-export function recordPodcastHistory(entry: PodcastHistoryEntry) {
-  const history = readPodcastHistoryStore().filter(
-    (item) => item.episodeId !== entry.episodeId,
+function historyEntryMateriallyChanged(
+  existing: PodcastHistoryEntry,
+  next: PodcastHistoryEntry,
+) {
+  return (
+    existing.playedAt !== next.playedAt
+    || existing.completed !== next.completed
+    || existing.episodeTitle !== next.episodeTitle
+    || existing.showTitle !== next.showTitle
+    || existing.artworkUrl !== next.artworkUrl
+    || existing.durationSeconds !== next.durationSeconds
   )
-  history.unshift(entry)
-  writePodcastHistoryStore(history)
+}
+
+export function recordPodcastHistory(entry: PodcastHistoryEntry) {
+  const history = readPodcastHistoryStore()
+  const existing = history.find((item) => item.episodeId === entry.episodeId)
+  if (existing && !historyEntryMateriallyChanged(existing, entry)) {
+    return
+  }
+  const nextHistory = history.filter((item) => item.episodeId !== entry.episodeId)
+  nextHistory.unshift(entry)
+  writePodcastHistoryStore(nextHistory)
 }
 
 export function progressEntryToEpisodeMeta(
