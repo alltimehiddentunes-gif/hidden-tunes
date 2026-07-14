@@ -55,7 +55,7 @@ export function usePremiumAudioVisualizerBoot(): void {
   useEffect(() => {
     premiumAudioVisualizerEngine.start()
     return () => {
-      premiumAudioVisualizerEngine.stop()
+      premiumAudioVisualizerEngine.destroy()
     }
   }, [])
 }

@@ -494,15 +494,16 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
         })
         .catch((err) => {
           cancelUpgradeSession()
+          const message = err instanceof Error ? err.message : String(err)
           if (import.meta.env.DEV) {
             console.error('[ht-playback] play() failed', {
               audioUrl: instantUrl,
-              error: err instanceof Error ? err.message : String(err),
+              error: message,
             })
           }
           setIsPlaying(false)
           setIsLoading(false)
-          setError(playbackErrorMessage(song))
+          setError(message || playbackErrorMessage(song))
         })
     },
     [audioQualityMode, cancelUpgradeSession, emitPositionSeconds, getService],

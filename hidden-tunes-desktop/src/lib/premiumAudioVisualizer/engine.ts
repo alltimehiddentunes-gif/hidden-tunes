@@ -123,9 +123,17 @@ export class PremiumAudioVisualizerEngine {
     this.syncMotionLoop()
   }
 
+  /**
+   * Stops animation loops only. Never tears down the Web Audio graph — the shared
+   * playback element can only be connected to MediaElementSource once per lifetime.
+   */
   stop(): void {
     this.stopMotionLoop()
     this.stopIdleDecay()
+  }
+
+  destroy(): void {
+    this.stop()
     this.teardownAudioGraph()
   }
 
@@ -159,6 +167,12 @@ export class PremiumAudioVisualizerEngine {
 
     this.stopIdleDecay()
 
+    const hasConsumers = this.registrations.size > 0 || this.subscribers.size > 0
+    if (!hasConsumers) {
+      this.stopMotionLoop()
+      return
+    }
+
     if (this.rafId == null) {
       this.rafId = requestAnimationFrame(this.tick)
     }
@@ -179,7 +193,14 @@ export class PremiumAudioVisualizerEngine {
       return
     }
 
+    const hasConsumers = this.registrations.size > 0 || this.subscribers.size > 0
+    if (!hasConsumers) {
+      this.stopMotionLoop()
+      return
+    }
+
     this.rafId = requestAnimationFrame(this.tick)
+
     this.frameSkip = (this.frameSkip + 1) % 2
     if (this.frameSkip !== 0 && this.snapshot.isFallback) return
 
@@ -436,13 +457,29 @@ export class PremiumAudioVisualizerEngine {
     }
   }
 
+  private readLivePositionSeconds(): number {
+    const audio = this.connectedAudio ?? findPlaybackAudio()
+    if (!audio) return this.playback.positionSeconds
+    const currentTime = audio.currentTime
+    return Number.isFinite(currentTime) ? currentTime : this.playback.positionSeconds
+  }
+
+  private readLiveDurationSeconds(): number {
+    const audio = this.connectedAudio ?? findPlaybackAudio()
+    if (audio) {
+      const duration = audio.duration
+      if (Number.isFinite(duration) && duration > 0) return duration
+    }
+    return this.playback.durationSeconds
+  }
+
   private sampleFallbackFrame(reducedMotion: boolean, forceFallback = false): void {
     const seed = this.playback.trackId ?? 'idle-visualizer'
     const baseHeights = buildSeededWaveformHeights(seed, DEFAULT_BAR_COUNT)
+    const durationSeconds = this.readLiveDurationSeconds()
+    const positionSeconds = this.readLivePositionSeconds()
     const progressRatio =
-      this.playback.durationSeconds > 0
-        ? this.playback.positionSeconds / this.playback.durationSeconds
-        : 0
+      durationSeconds > 0 ? positionSeconds / durationSeconds : 0
     const motionScale = reducedMotion ? 0 : this.playback.isPlaying ? 1 : 0
 
     this.fallbackPhase += this.playback.isPlaying ? 0.045 : 0
