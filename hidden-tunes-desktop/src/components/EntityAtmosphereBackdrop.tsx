@@ -29,7 +29,13 @@ export const EntityAtmosphereBackdrop = memo(function EntityAtmosphereBackdrop({
       aria-hidden="true"
     >
       {artworkUrl ? (
-        <img src={artworkUrl} alt="" className="entity-atmosphere-img" decoding="async" />
+        <img
+          src={artworkUrl}
+          alt=""
+          className="entity-atmosphere-img"
+          decoding="async"
+          loading="lazy"
+        />
       ) : (
         <span className="entity-atmosphere-initials">{initials}</span>
       )}

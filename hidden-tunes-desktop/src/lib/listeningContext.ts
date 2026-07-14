@@ -1,7 +1,7 @@
 import type { ApiSong } from './api'
 import type { QueueContext } from './desktopPlayback/types'
-import { buildEmotionalLanes } from './emotionalDiscovery'
-import { buildListeningScenes } from './sceneListening'
+import { buildEmotionalLanes, type BuiltEmotionalLane } from './emotionalDiscovery'
+import { buildListeningScenes, type BuiltListeningScene } from './sceneListening'
 import {
   getTimeAwareHomeScene,
   resolveVisualScene,
@@ -22,20 +22,73 @@ export type ListeningContextLines = {
   contextPills: string[]
 }
 
+type ListeningCatalogIndex = {
+  lanes: BuiltEmotionalLane[]
+  scenes: BuiltListeningScene[]
+  laneByTrackId: Map<string, BuiltEmotionalLane>
+  sceneByTrackId: Map<string, BuiltListeningScene>
+  sceneById: Map<string, BuiltListeningScene>
+}
+
+let cachedCatalogRef: ApiSong[] | null = null
+let cachedCatalogIndex: ListeningCatalogIndex | null = null
+
+function getListeningCatalogIndex(catalog: ApiSong[]): ListeningCatalogIndex {
+  if (cachedCatalogRef === catalog && cachedCatalogIndex) {
+    return cachedCatalogIndex
+  }
+
+  const lanes = buildEmotionalLanes(catalog, { minTracks: 1 })
+  const scenes = buildListeningScenes(catalog, { minTracks: 1 })
+  const laneByTrackId = new Map<string, BuiltEmotionalLane>()
+  const sceneByTrackId = new Map<string, BuiltListeningScene>()
+  const sceneById = new Map<string, BuiltListeningScene>()
+
+  for (const lane of lanes) {
+    for (const trackId of lane.songIds) {
+      if (!laneByTrackId.has(trackId)) {
+        laneByTrackId.set(trackId, lane)
+      }
+    }
+  }
+
+  for (const scene of scenes) {
+    sceneById.set(scene.id, scene)
+    for (const trackId of scene.songIds) {
+      if (!sceneByTrackId.has(trackId)) {
+        sceneByTrackId.set(trackId, scene)
+      }
+    }
+  }
+
+  cachedCatalogRef = catalog
+  cachedCatalogIndex = {
+    lanes,
+    scenes,
+    laneByTrackId,
+    sceneByTrackId,
+    sceneById,
+  }
+  return cachedCatalogIndex
+}
+
+export function getListeningScenesForCatalog(catalog: ApiSong[]): BuiltListeningScene[] {
+  return getListeningCatalogIndex(catalog).scenes
+}
+
 function findPrimaryLaneForTrack(catalog: ApiSong[], trackId: string) {
-  return (
-    buildEmotionalLanes(catalog, { minTracks: 1 }).find((lane) =>
-      lane.songIds.includes(trackId),
-    ) ?? null
-  )
+  return getListeningCatalogIndex(catalog).laneByTrackId.get(trackId) ?? null
 }
 
 function findPrimarySceneForTrack(catalog: ApiSong[], trackId: string) {
-  return (
-    buildListeningScenes(catalog, { minTracks: 1 }).find((scene) =>
-      scene.songIds.includes(trackId),
-    ) ?? null
-  )
+  return getListeningCatalogIndex(catalog).sceneByTrackId.get(trackId) ?? null
+}
+
+export function findListeningSceneById(
+  catalog: ApiSong[],
+  sceneId: string,
+): BuiltListeningScene | null {
+  return getListeningCatalogIndex(catalog).sceneById.get(sceneId) ?? null
 }
 
 function resolveTrackMood(track: ApiSong): ListeningMood | undefined {

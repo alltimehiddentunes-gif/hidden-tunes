@@ -68,6 +68,8 @@ export class PremiumAudioVisualizerEngine {
   private smoothedBars = new Float32Array(DEFAULT_BAR_COUNT)
   private cinematicSmoothedBars = new Float32Array(CINEMATIC_BAR_COUNT)
   private fallbackPhase = 0
+  private lastGlobalCssSignature = ''
+  private lastAppliedProgressPercent = new Map<PremiumWaveformRegistration, number>()
 
   private snapshot: PremiumVisualizerSnapshot = {
     waveformBars: EMPTY_BARS,
@@ -115,6 +117,7 @@ export class PremiumAudioVisualizerEngine {
     this.syncMotionLoop()
     return () => {
       this.registrations.delete(registration)
+      this.lastAppliedProgressPercent.delete(registration)
       this.syncMotionLoop()
     }
   }
@@ -201,8 +204,8 @@ export class PremiumAudioVisualizerEngine {
 
     this.rafId = requestAnimationFrame(this.tick)
 
-    this.frameSkip = (this.frameSkip + 1) % 2
-    if (this.frameSkip !== 0 && this.snapshot.isFallback) return
+    this.frameSkip = (this.frameSkip + 1) % 3
+    if (this.frameSkip !== 0) return
 
     this.ensureAudioGraph()
     this.sampleFrame()
@@ -559,13 +562,21 @@ export class PremiumAudioVisualizerEngine {
           ? this.cinematicSmoothedBars
           : this.smoothedBars
 
+      const progressChanged =
+        this.lastAppliedProgressPercent.get(registration) !== registration.progressPercent
+      if (progressChanged) {
+        this.lastAppliedProgressPercent.set(registration, registration.progressPercent)
+      }
+
       registration.bars.forEach((bar, index) => {
         const base = (registration.baseHeights[index] ?? 40) / 100
         const reactive = sampleReactiveValue(values, registration.barCount, index) * reactiveMix
         const scale = Math.max(0.12, base * (0.42 + reactive * (0.95 + energy * 0.35)))
         bar.style.setProperty('--ht-bar-scale', scale.toFixed(3))
-        const barProgress = ((index + 0.5) / registration.barCount) * 100
-        bar.classList.toggle('is-played', barProgress <= registration.progressPercent)
+        if (progressChanged) {
+          const barProgress = ((index + 0.5) / registration.barCount) * 100
+          bar.classList.toggle('is-played', barProgress <= registration.progressPercent)
+        }
       })
     })
   }
@@ -574,6 +585,19 @@ export class PremiumAudioVisualizerEngine {
     if (typeof document === 'undefined') return
     const root = document.documentElement
     const energy = this.snapshot.energyLevel
+    const signature = [
+      energy.toFixed(2),
+      this.snapshot.bassEnergy.toFixed(2),
+      this.snapshot.midEnergy.toFixed(2),
+      this.snapshot.trebleEnergy.toFixed(2),
+      this.snapshot.isAudioReactive ? '1' : '0',
+      this.snapshot.isFallback ? '1' : '0',
+      this.playback.isPlaying ? '1' : '0',
+    ].join('|')
+
+    if (signature === this.lastGlobalCssSignature) return
+    this.lastGlobalCssSignature = signature
+
     root.style.setProperty('--ht-audio-energy', energy.toFixed(3))
     root.style.setProperty('--ht-audio-bass', this.snapshot.bassEnergy.toFixed(3))
     root.style.setProperty('--ht-audio-mid', this.snapshot.midEnergy.toFixed(3))

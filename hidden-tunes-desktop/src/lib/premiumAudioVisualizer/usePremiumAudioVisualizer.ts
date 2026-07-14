@@ -2,7 +2,7 @@ import { useEffect, useSyncExternalStore } from 'react'
 import { premiumAudioVisualizerEngine } from './engine'
 import type { PremiumVisualizerSnapshot } from './types'
 
-const THROTTLE_MS = 120
+const THROTTLE_MS = 200
 
 let lastEmit = 0
 let pending = 0

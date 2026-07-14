@@ -64,7 +64,7 @@ import type {
 const DesktopPlaybackContext = createContext<DesktopPlaybackContextValue | null>(null)
 const DesktopPlaybackProgressContext = createContext<DesktopPlaybackProgressState | null>(null)
 
-const POSITION_UI_THROTTLE_MS = 250
+const POSITION_UI_THROTTLE_MS = 500
 
 const DEFAULT_QUEUE_CONTEXT: QueueContext = 'manual'
 const DEFAULT_QUEUE_SEED_TYPE: QueueSeedType = 'manual'

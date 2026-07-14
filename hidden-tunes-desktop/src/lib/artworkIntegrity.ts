@@ -216,9 +216,9 @@ export function enrichCatalogArtwork(
   songs: ApiSong[],
   albums: ApiAlbum[],
   artists: ApiArtist[],
-): { songs: ApiSong[]; albums: ApiAlbum[]; artists: ApiArtist[] } {
-  const provisionalIndexes = buildCatalogIndexes(songs, albums, artists)
-  const context = buildArtworkContext(provisionalIndexes, albums, artists)
+): { songs: ApiSong[]; albums: ApiAlbum[]; artists: ApiArtist[]; indexes: CatalogIndexes } {
+  const indexes = buildCatalogIndexes(songs, albums, artists)
+  const context = buildArtworkContext(indexes, albums, artists)
 
   const enrichedArtists = artists.map((artist) => ({
     ...artist,
@@ -230,7 +230,7 @@ export function enrichCatalogArtwork(
     artwork: getArtworkForAlbum(album, context),
   }))
 
-  const enrichedContext = buildArtworkContext(provisionalIndexes, enrichedAlbums, enrichedArtists)
+  const enrichedContext = buildArtworkContext(indexes, enrichedAlbums, enrichedArtists)
   const enrichedSongs = songs.map((song) => ({
     ...song,
     artwork: getArtworkForSong(song, enrichedContext),
@@ -240,6 +240,7 @@ export function enrichCatalogArtwork(
     songs: enrichedSongs,
     albums: enrichedAlbums,
     artists: enrichedArtists,
+    indexes,
   }
 }
 

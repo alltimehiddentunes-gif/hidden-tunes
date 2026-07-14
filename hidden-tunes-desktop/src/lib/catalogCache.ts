@@ -241,13 +241,22 @@ export function readCachedCatalog(): CachedCatalogRecord | null {
 }
 
 export function writeCachedCatalog(bundle: CatalogBundle): void {
-  try {
-    if (typeof localStorage === 'undefined') return
-    const sanitized = sanitizeBundle(bundle)
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(sanitized))
-  } catch {
-    // Storage may be unavailable or full — ignore safely.
+  const write = () => {
+    try {
+      if (typeof localStorage === 'undefined') return
+      const sanitized = sanitizeBundle(bundle)
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(sanitized))
+    } catch {
+      // Storage may be unavailable or full — ignore safely.
+    }
   }
+
+  if (typeof globalThis.requestIdleCallback === 'function') {
+    globalThis.requestIdleCallback(write, { timeout: 4000 })
+    return
+  }
+
+  globalThis.setTimeout(write, 0)
 }
 
 export function clearCachedCatalog(): void {

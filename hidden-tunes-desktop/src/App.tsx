@@ -53,7 +53,6 @@ import {
   QUEUE_CONTEXT_LABELS,
 } from './lib/playerQueueDisplay'
 import {
-  buildCatalogIndexes,
   buildQueueSeedPool,
   CATALOG_DETAIL_TRACK_PREVIEW_LIMIT,
   capSongPool,
@@ -146,6 +145,7 @@ import {
 import {
   buildListeningContext,
   deriveListeningAtmosphere,
+  getListeningScenesForCatalog,
   type ListeningContextLines,
 } from './lib/listeningContext'
 import {
@@ -948,6 +948,7 @@ function CatalogProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let active = true
+    const controller = new AbortController()
 
     if (catalogSessionFetchDone && reloadKey === 0 && catalogMemoryCache) {
       applyBundle(
@@ -956,14 +957,17 @@ function CatalogProvider({ children }: { children: ReactNode }) {
         readCachedCatalog()?.cachedAt ?? null,
       )
       setLoading(false)
-      return
+      return () => {
+        active = false
+        controller.abort()
+      }
     }
 
     setLoading(true)
     setError(null)
 
     const fetchStarted = performance.now()
-    fetchCatalogBundle()
+    fetchCatalogBundle(controller.signal)
       .then((bundle) => {
         if (!active) return
         writeCachedCatalog(bundle)
@@ -979,6 +983,7 @@ function CatalogProvider({ children }: { children: ReactNode }) {
       })
       .catch((err) => {
         if (!active) return
+        if (err instanceof DOMException && err.name === 'AbortError') return
         catalogSessionFetchDone = true
 
         if (catalogSourceRef.current !== 'none') {
@@ -1001,6 +1006,7 @@ function CatalogProvider({ children }: { children: ReactNode }) {
 
     return () => {
       active = false
+      controller.abort()
     }
   }, [reloadKey, applyBundle])
 
@@ -1009,10 +1015,7 @@ function CatalogProvider({ children }: { children: ReactNode }) {
     [displaySongs, albums, artists],
   )
 
-  const catalogIndexes = useMemo(
-    () => buildCatalogIndexes(enrichedCatalog.songs, enrichedCatalog.albums, enrichedCatalog.artists),
-    [enrichedCatalog.albums, enrichedCatalog.artists, enrichedCatalog.songs],
-  )
+  const catalogIndexes = enrichedCatalog.indexes
 
   const artworkContext = useMemo(
     () => buildArtworkContext(catalogIndexes, enrichedCatalog.albums, enrichedCatalog.artists),
@@ -3456,6 +3459,11 @@ function EmotionalWorldsPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
     })
   }, [playableCards, showCatalogSkeleton])
 
+  const listeningScenesById = useMemo(() => {
+    const scenes = getListeningScenesForCatalog(songs)
+    return new Map(scenes.map((scene) => [scene.id, scene]))
+  }, [songs])
+
   const playWorld = useCallback(
     (card: EmotionalWorldCardSpec) => {
       const tracks = filterSongsByListeningScene(songs, card.sceneId)
@@ -3569,7 +3577,7 @@ function EmotionalWorldsPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
                 title: card.title,
                 sceneId: card.sceneId,
               })
-              const scene = buildListeningScenes(songs).find((entry) => entry.id === card.sceneId)
+              const scene = listeningScenesById.get(card.sceneId)
               const visualSceneId = scene?.visualSceneId ?? resolveVisualScene({
                 seed: card.title,
                 mood: scene?.mood ?? 'violet',
@@ -6120,6 +6128,7 @@ const PlayerBar = memo(function PlayerBar({
   const volumeBeforeMuteRef = useRef(1)
   const isSeekingRef = useRef(false)
   const isAdjustingVolumeRef = useRef(false)
+  const [scrubSeconds, setScrubSeconds] = useState<number | null>(null)
 
   const hasPlayback = Boolean(currentTrack && currentQueue.length > 0 && currentIndex >= 0)
   const displayTrack = hasPlayback ? (track ?? currentTrack) : null
@@ -6134,7 +6143,7 @@ const PlayerBar = memo(function PlayerBar({
     )
     : null
   const progressMax = durationSeconds > 0 ? durationSeconds : 0
-  const progressValue = progressMax > 0 ? Math.min(positionSeconds, progressMax) : 0
+  const progressValue = scrubSeconds ?? (progressMax > 0 ? Math.min(positionSeconds, progressMax) : 0)
   const progressPercent =
     progressMax > 0 ? Math.min(100, (progressValue / progressMax) * 100) : 0
   const volumePercent = Math.min(100, Math.max(0, volume * 100))
@@ -6219,19 +6228,22 @@ const PlayerBar = memo(function PlayerBar({
     if (seconds == null) return
     isSeekingRef.current = true
     event.currentTarget.setPointerCapture(event.pointerId)
+    setScrubSeconds(seconds)
     seekTo(seconds)
   }
 
   const handleSeekPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (!isSeekingRef.current) return
     const seconds = resolveSeekSeconds(event.clientX)
-    if (seconds != null) seekTo(seconds)
+    if (seconds != null) setScrubSeconds(seconds)
   }
 
   const handleSeekPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (!isSeekingRef.current) return
     isSeekingRef.current = false
     event.currentTarget.releasePointerCapture(event.pointerId)
+    if (scrubSeconds != null) seekTo(scrubSeconds)
+    setScrubSeconds(null)
   }
 
   const handleVolumeClick = (event: ReactMouseEvent<HTMLDivElement>) => {
@@ -6448,13 +6460,14 @@ const QueueUpNextPanel = memo(function QueueUpNextPanel({
   const volumeTrackRef = useRef<HTMLDivElement>(null)
   const isSeekingRef = useRef(false)
   const isAdjustingVolumeRef = useRef(false)
+  const [scrubSeconds, setScrubSeconds] = useState<number | null>(null)
 
   const activeTrack =
     currentIndex >= 0 ? (currentTrack ?? currentQueue[currentIndex] ?? null) : null
   const hasPlayback = Boolean(activeTrack && currentQueue.length > 0 && currentIndex >= 0)
   const upcomingTracks = getUpcomingTracks()
   const liveProgressMax = hasPlayback && durationSeconds > 0 ? durationSeconds : 0
-  const liveProgressValue = liveProgressMax > 0 ? Math.min(positionSeconds, liveProgressMax) : 0
+  const liveProgressValue = scrubSeconds ?? (liveProgressMax > 0 ? Math.min(positionSeconds, liveProgressMax) : 0)
   const progressMax = liveProgressMax
   const progressValue = liveProgressValue
   const progressPercent = progressMax > 0
@@ -6524,19 +6537,22 @@ const QueueUpNextPanel = memo(function QueueUpNextPanel({
     if (seconds == null) return
     isSeekingRef.current = true
     event.currentTarget.setPointerCapture(event.pointerId)
+    setScrubSeconds(seconds)
     seekTo(seconds)
   }
 
   const handleSeekPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (!isSeekingRef.current) return
     const seconds = resolveSeekSeconds(event.clientX)
-    if (seconds != null) seekTo(seconds)
+    if (seconds != null) setScrubSeconds(seconds)
   }
 
   const handleSeekPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (!isSeekingRef.current) return
     isSeekingRef.current = false
     event.currentTarget.releasePointerCapture(event.pointerId)
+    if (scrubSeconds != null) seekTo(scrubSeconds)
+    setScrubSeconds(null)
   }
 
   const resolveVolume = useCallback((clientX: number) => {

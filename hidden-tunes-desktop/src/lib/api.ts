@@ -354,9 +354,18 @@ function normalizeArtist(row: unknown): ApiArtist | null {
   }
 }
 
-async function apiRequest<T>(path: string): Promise<T> {
+async function apiRequest<T>(path: string, externalSignal?: AbortSignal): Promise<T> {
   const controller = new AbortController()
   const timeout = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+
+  const abortFromExternal = () => controller.abort()
+  if (externalSignal) {
+    if (externalSignal.aborted) {
+      controller.abort()
+    } else {
+      externalSignal.addEventListener('abort', abortFromExternal)
+    }
+  }
 
   try {
     const response = await fetch(`${API_BASE_URL}${path}`, {
@@ -378,30 +387,37 @@ async function apiRequest<T>(path: string): Promise<T> {
     return payload as T
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') {
+      if (externalSignal?.aborted) throw error
       throw new Error('Request timed out — the API may be waking up. Try again.')
     }
     if (error instanceof Error) throw error
     throw new Error('Unexpected network error')
   } finally {
     window.clearTimeout(timeout)
+    if (externalSignal) {
+      externalSignal.removeEventListener('abort', abortFromExternal)
+    }
   }
 }
 
 export async function fetchSongs(
   options?: PaginationOptions,
+  signal?: AbortSignal,
 ): Promise<ApiSong[]> {
   const query = buildQuery(options)
-  const payload = await apiRequest<unknown>(`/api/songs?${query.toString()}`)
+  const payload = await apiRequest<unknown>(`/api/songs?${query.toString()}`, signal)
   const rows = Array.isArray(payload) ? payload : []
   return rows.map(normalizeSong).filter((song): song is ApiSong => Boolean(song))
 }
 
 export async function fetchAlbums(
   options?: PaginationOptions,
+  signal?: AbortSignal,
 ): Promise<ApiAlbum[]> {
   const query = buildQuery(options)
   const payload = await apiRequest<{ albums?: unknown[] }>(
     `/api/albums?${query.toString()}`,
+    signal,
   )
   const rows = Array.isArray(payload?.albums) ? payload.albums : []
   return rows.map(normalizeAlbum).filter((album): album is ApiAlbum => Boolean(album))
@@ -409,10 +425,12 @@ export async function fetchAlbums(
 
 export async function fetchArtists(
   options?: PaginationOptions,
+  signal?: AbortSignal,
 ): Promise<ApiArtist[]> {
   const query = buildQuery({ ...options, limit: options?.limit ?? 48 })
   const payload = await apiRequest<{ artists?: unknown[] }>(
     `/api/artists?${query.toString()}`,
+    signal,
   )
   const rows = Array.isArray(payload?.artists) ? payload.artists : []
   return rows
@@ -420,14 +438,14 @@ export async function fetchArtists(
     .filter((artist): artist is ApiArtist => Boolean(artist))
 }
 
-export async function fetchCatalogBundle(): Promise<CatalogBundle> {
+export async function fetchCatalogBundle(signal?: AbortSignal): Promise<CatalogBundle> {
   // Partial catalog today: songs page 1 + embedded artist tracks.
   // Search uses metadata-first cached entries; playback URLs resolve on tap.
   // Future: `/api/catalog/metadata` for paginated 100k-song metadata.
   const [songs, albums, artists] = await Promise.all([
-    fetchSongs({ limit: 100, page: 1 }),
-    fetchAlbums({ limit: 100, page: 1 }),
-    fetchArtists({ limit: 48, page: 1 }),
+    fetchSongs({ limit: 100, page: 1 }, signal),
+    fetchAlbums({ limit: 100, page: 1 }, signal),
+    fetchArtists({ limit: 48, page: 1 }, signal),
   ])
   return { songs, albums, artists }
 }
