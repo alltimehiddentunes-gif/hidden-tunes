@@ -14,6 +14,10 @@ const STORAGE_PREFIX = 'ht-desktop:'
 
 export const DESKTOP_PREFERENCE_KEYS = {
   activePage: 'active-page',
+  audioQualityMode: 'audio-quality-mode',
+  atmosphereEnabled: 'atmosphere-enabled',
+  atmosphereId: 'atmosphere-id',
+  atmosphereIntensity: 'atmosphere-intensity',
   discoverSearch: 'discover-search',
   discoverSort: 'discover-sort',
   artistsSearch: 'artists-search',
@@ -37,6 +41,22 @@ const PAGE_IDS = [
 ] as const
 
 export type StoredPageId = (typeof PAGE_IDS)[number]
+
+export const AUDIO_QUALITY_MODES = [
+  'auto',
+  'data-saver',
+  'standard',
+  'high-quality',
+] as const
+
+export type AudioQualityMode = (typeof AUDIO_QUALITY_MODES)[number]
+
+export const AUDIO_QUALITY_MODE_LABELS: Record<AudioQualityMode, string> = {
+  auto: 'Auto',
+  'data-saver': 'Data Saver',
+  standard: 'Standard',
+  'high-quality': 'High Quality',
+}
 
 export function getStoredPreference<T>(key: string, fallback: T): T {
   try {
@@ -94,6 +114,15 @@ export function parseStoredArtistSort(value: unknown): ArtistSort | null {
 
 export function parseStoredAlbumSort(value: unknown): AlbumSort | null {
   return value === 'latest' || value === 'az' ? value : null
+}
+
+export function parseStoredAudioQualityMode(
+  value: unknown,
+): AudioQualityMode | null {
+  return typeof value === 'string' &&
+    AUDIO_QUALITY_MODES.includes(value as AudioQualityMode)
+    ? (value as AudioQualityMode)
+    : null
 }
 
 function readValidatedPreference<T>(

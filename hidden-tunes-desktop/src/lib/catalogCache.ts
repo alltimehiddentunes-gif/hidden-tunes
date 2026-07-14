@@ -1,4 +1,5 @@
-import type { ApiAlbum, ApiArtist, ApiSong, CatalogBundle } from './api'
+import type { ApiAlbum, ApiArtist, ApiSong, CatalogBundle, SongAudioVersions } from './api'
+import { buildAudioVersionsFromLegacy } from './audioVersions'
 
 const STORAGE_KEY = 'ht-desktop:catalog-cache'
 
@@ -22,6 +23,67 @@ function sanitizeArtwork(value: unknown): string | null {
   return trimmed
 }
 
+function sanitizeAudioUrl(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+  if (!trimmed.startsWith('http')) return null
+  return trimmed
+}
+
+function sanitizeDurationSeconds(value: unknown): number | null {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
+    return null
+  }
+  return value
+}
+
+function sanitizeAudioVersionSource(raw: unknown) {
+  const record = asRecord(raw)
+  if (!record) return undefined
+
+  const url = sanitizeAudioUrl(record.url)
+  if (!url) return undefined
+
+  return {
+    url,
+    codec: typeof record.codec === 'string' ? record.codec : undefined,
+    bitrateKbps:
+      typeof record.bitrateKbps === 'number' && Number.isFinite(record.bitrateKbps)
+        ? record.bitrateKbps
+        : undefined,
+    fileSizeBytes:
+      typeof record.fileSizeBytes === 'number' && Number.isFinite(record.fileSizeBytes)
+        ? record.fileSizeBytes
+        : undefined,
+    durationSeconds: sanitizeDurationSeconds(record.durationSeconds) ?? undefined,
+    offlineEligible:
+      typeof record.offlineEligible === 'boolean' ? record.offlineEligible : undefined,
+  }
+}
+
+function sanitizeAudioVersions(raw: unknown): SongAudioVersions | undefined {
+  const record = asRecord(raw)
+  if (!record) return undefined
+
+  const versions: SongAudioVersions = {
+    ultraLight: sanitizeAudioVersionSource(record.ultraLight),
+    standard: sanitizeAudioVersionSource(record.standard),
+    highQuality: sanitizeAudioVersionSource(record.highQuality),
+    lossless: sanitizeAudioVersionSource(record.lossless),
+  }
+
+  if (
+    versions.ultraLight ||
+    versions.standard ||
+    versions.highQuality ||
+    versions.lossless
+  ) {
+    return versions
+  }
+
+  return undefined
+}
+
 function sanitizeSong(raw: unknown): ApiSong | null {
   const record = asRecord(raw)
   if (!record || typeof record.id !== 'string' || typeof record.title !== 'string') {
@@ -31,9 +93,66 @@ function sanitizeSong(raw: unknown): ApiSong | null {
   return {
     id: record.id,
     title: record.title,
-    artist: typeof record.artist === 'string' ? record.artist : '',
+    artist: typeof record.artist === 'string' ? record.artist.trim() : '',
+    artistId:
+      typeof record.artistId === 'string'
+        ? record.artistId
+        : typeof record.artist_id === 'string'
+          ? record.artist_id
+          : null,
     album: typeof record.album === 'string' ? record.album : '',
+    albumId:
+      typeof record.albumId === 'string'
+        ? record.albumId
+        : typeof record.album_id === 'string'
+          ? record.album_id
+          : null,
+    genre:
+      typeof record.genre === 'string'
+        ? record.genre
+        : typeof record.category === 'string'
+          ? record.category
+          : null,
+    mood: typeof record.mood === 'string' ? record.mood : null,
+    tags: Array.isArray(record.tags)
+      ? record.tags.filter((tag): tag is string => typeof tag === 'string' && tag.trim().length > 0)
+      : [],
+    description: typeof record.description === 'string' ? record.description : null,
     artwork: sanitizeArtwork(record.artwork),
+    previewUrl:
+      sanitizeAudioUrl(record.previewUrl) ??
+      sanitizeAudioUrl(record.preview_url),
+    audioUrl:
+      sanitizeAudioUrl(record.audioUrl) ??
+      sanitizeAudioUrl(record.streamUrl) ??
+      sanitizeAudioUrl(record.stream_url) ??
+      sanitizeAudioUrl(record.url) ??
+      sanitizeAudioUrl(record.audio_url),
+    highQualityUrl:
+      sanitizeAudioUrl(record.highQualityUrl) ??
+      sanitizeAudioUrl(record.high_quality_url),
+    audioVersions:
+      sanitizeAudioVersions(record.audioVersions) ??
+      buildAudioVersionsFromLegacy({
+        previewUrl:
+          sanitizeAudioUrl(record.previewUrl) ??
+          sanitizeAudioUrl(record.preview_url),
+        streamUrl:
+          sanitizeAudioUrl(record.streamUrl) ??
+          sanitizeAudioUrl(record.stream_url) ??
+          sanitizeAudioUrl(record.url),
+        audioUrl:
+          sanitizeAudioUrl(record.audioUrl) ??
+          sanitizeAudioUrl(record.audio_url),
+        highQualityUrl:
+          sanitizeAudioUrl(record.highQualityUrl) ??
+          sanitizeAudioUrl(record.high_quality_url),
+        losslessUrl:
+          sanitizeAudioUrl(record.losslessUrl) ??
+          sanitizeAudioUrl(record.lossless_url),
+        durationSeconds: sanitizeDurationSeconds(record.durationSeconds),
+      }),
+    durationSeconds: sanitizeDurationSeconds(record.durationSeconds),
     createdAt: typeof record.createdAt === 'string' ? record.createdAt : null,
   }
 }
@@ -60,11 +179,15 @@ function sanitizeArtist(raw: unknown): ApiArtist | null {
     return null
   }
 
+  const tracks = sanitizeList(record.tracks, sanitizeSong)
+
   return {
     id: record.id,
-    name: record.name,
+    name: record.name.trim(),
     artwork: sanitizeArtwork(record.artwork),
-    songCount: typeof record.songCount === 'number' ? record.songCount : 0,
+    songCount:
+      typeof record.songCount === 'number' ? record.songCount : tracks.length,
+    tracks,
   }
 }
 

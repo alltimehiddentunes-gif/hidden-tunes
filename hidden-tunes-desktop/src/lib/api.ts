@@ -5,7 +5,13 @@ import {
 
 export type { AudioVersionSource, SongAudioVersions } from './audioVersions'
 
-export const API_BASE_URL = 'https://hidden-tunes-api.onrender.com'
+/**
+ * Express music catalog API (Render today → api.hiddentunes.com on VPS).
+ * Override with VITE_EXPRESS_CATALOG_API_URL at build time.
+ */
+export const API_BASE_URL =
+  import.meta.env.VITE_EXPRESS_CATALOG_API_URL?.trim() ||
+  'https://hidden-tunes-api.onrender.com'
 
 const REQUEST_TIMEOUT_MS = 20_000
 
