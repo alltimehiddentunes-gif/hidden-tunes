@@ -1,7 +1,13 @@
 import type { TvExpansion25kSourceState } from "@/lib/tvExpansion25k/checkpoint";
+import { appendRejectedCandidateLog } from "@/lib/tvExpansion25k/expansionLogs";
+import {
+  allocateSourceLimits,
+  orderSourcesForBatch,
+} from "@/lib/tvExpansion25k/sourceScheduler";
 import { TV_EXPANSION_SOURCE_ADAPTERS } from "@/lib/tvExpansion25k/sources/registry";
 import { filterFingerprintRejected, recordRejectedFingerprints } from "@/lib/tvExpansion25k/sources/shared/fingerprintCache";
-import { filterCandidatesPreProbe } from "@/lib/tvExpansion25k/sources/shared/preProbeFilter";
+import { filterCandidatesPreProbe, preProbeRejectReason } from "@/lib/tvExpansion25k/sources/shared/preProbeFilter";
+import { createInitialSourceCursor, type TvExpansionSourceCursor } from "@/lib/tvExpansion25k/sources/types";
 import type { TvGrowthCandidate } from "@/lib/tvStationHealth";
 
 export type TvSourceDiscoveryDetail = {
@@ -9,10 +15,12 @@ export type TvSourceDiscoveryDetail = {
   preRejected: number;
   fingerprintSkipped: number;
   unsupported: number;
+  allocated?: number;
   error?: string;
   cursor?: string;
   page?: number;
   exhausted?: boolean;
+  status?: string;
 };
 
 export type TvRegistryDiscoveryResult = {
@@ -21,30 +29,56 @@ export type TvRegistryDiscoveryResult = {
   nextSourceState: TvExpansion25kSourceState;
 };
 
+function normalizeCursor(
+  adapterId: string,
+  cursor: TvExpansionSourceCursor | undefined
+): TvExpansionSourceCursor {
+  const base = cursor || createInitialSourceCursor(adapterId);
+  return {
+    ...createInitialSourceCursor(adapterId),
+    ...base,
+    source: adapterId,
+    status: base.status || (base.exhausted ? "exhausted" : "active"),
+    processedFixedIds: base.processedFixedIds || [],
+  };
+}
+
+function classifyErrorStatus(message: string): TvExpansionSourceCursor["status"] {
+  const lower = message.toLowerCase();
+  if (lower.includes("rate limit") || lower.includes("429")) return "rate_limited";
+  if (lower.includes("timeout") || lower.includes("econnreset") || lower.includes("503")) {
+    return "temporarily_failed";
+  }
+  return "temporarily_failed";
+}
+
 export async function discoverFromRegisteredSources(
   sourceState: TvExpansion25kSourceState,
   batchSize: number,
   batchNumber: number,
   adminRoot = process.cwd()
 ): Promise<TvRegistryDiscoveryResult> {
-  const perSourceLimit = Math.max(25, Math.ceil(batchSize / 3));
   const candidates: TvGrowthCandidate[] = [];
   const sources: Record<string, TvSourceDiscoveryDetail> = {};
-  const adapterCursors = { ...sourceState.adapterCursors };
+  const adapterCursors: Record<string, TvExpansionSourceCursor> = {
+    ...sourceState.adapterCursors,
+  };
 
-  for (const adapter of TV_EXPANSION_SOURCE_ADAPTERS) {
-    const cursor = adapterCursors[adapter.id] || {
-      source: adapter.id,
-      cursor: "0",
-      page: 0,
-      processed: 0,
-      accepted: 0,
-      rejected: 0,
-      exhausted: false,
-      lastError: null,
-    };
+  const orderedAdapters = orderSourcesForBatch(TV_EXPANSION_SOURCE_ADAPTERS, batchNumber);
+  const activeAdapterIds = orderedAdapters
+    .filter((adapter) => {
+      const cursor = normalizeCursor(adapter.id, adapterCursors[adapter.id]);
+      return cursor.status !== "exhausted" && cursor.status !== "disabled_for_safety" && !cursor.exhausted;
+    })
+    .map((adapter) => adapter.id);
 
-    if (cursor.exhausted) {
+  const allocation = allocateSourceLimits(batchSize, activeAdapterIds.length > 0 ? activeAdapterIds : orderedAdapters.map((a) => a.id));
+
+  for (const adapter of orderedAdapters) {
+    const cursor = normalizeCursor(adapter.id, adapterCursors[adapter.id]);
+    adapterCursors[adapter.id] = cursor;
+
+    if (cursor.exhausted || cursor.status === "exhausted" || cursor.status === "disabled_for_safety") {
       sources[adapter.id] = {
         discovered: 0,
         preRejected: 0,
@@ -54,26 +88,27 @@ export async function discoverFromRegisteredSources(
         cursor: cursor.cursor,
         page: cursor.page,
         exhausted: true,
+        status: cursor.status,
       };
       continue;
     }
 
-    if (candidates.length >= batchSize) {
+    const limit = allocation.get(adapter.id) || 0;
+    if (limit <= 0) {
       sources[adapter.id] = {
         discovered: 0,
         preRejected: 0,
         fingerprintSkipped: 0,
         unsupported: 0,
-        error: "deferred_batch_full",
+        error: "deferred_no_allocation",
         cursor: cursor.cursor,
         page: cursor.page,
         exhausted: cursor.exhausted,
+        status: cursor.status,
+        allocated: 0,
       };
       continue;
     }
-
-    const remaining = batchSize - candidates.length;
-    const limit = Math.min(perSourceLimit, remaining);
 
     try {
       const result = await adapter.discover({
@@ -84,6 +119,15 @@ export async function discoverFromRegisteredSources(
 
       const fingerprint = filterFingerprintRejected(result.candidates, adminRoot);
       const preProbe = filterCandidatesPreProbe(fingerprint.accepted);
+
+      for (const candidate of fingerprint.accepted) {
+        if (preProbeRejectReason(candidate)) {
+          appendRejectedCandidateLog(
+            { source: adapter.id, reason: "pre_probe_rejected", candidate },
+            adminRoot
+          );
+        }
+      }
 
       const rejectedForFingerprint = result.candidates.filter(
         (candidate) =>
@@ -97,10 +141,18 @@ export async function discoverFromRegisteredSources(
         recordRejectedFingerprints(rejectedForFingerprint, adminRoot);
       }
 
+      const nextStatus: TvExpansionSourceCursor["status"] = result.nextCursor.exhausted
+        ? "exhausted"
+        : result.stats.error
+          ? classifyErrorStatus(result.stats.error)
+          : "active";
+
       adapterCursors[adapter.id] = {
         ...result.nextCursor,
+        status: nextStatus,
         accepted: cursor.accepted,
         rejected: cursor.rejected + preProbe.rejected + fingerprint.skipped,
+        processedFixedIds: result.nextCursor.processedFixedIds || cursor.processedFixedIds,
       };
 
       candidates.push(...preProbe.accepted);
@@ -114,11 +166,15 @@ export async function discoverFromRegisteredSources(
         cursor: result.nextCursor.cursor,
         page: result.nextCursor.page,
         exhausted: result.nextCursor.exhausted,
+        status: nextStatus,
+        allocated: limit,
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
+      const status = classifyErrorStatus(message);
       adapterCursors[adapter.id] = {
         ...cursor,
+        status,
         lastError: message,
       };
       sources[adapter.id] = {
@@ -130,6 +186,8 @@ export async function discoverFromRegisteredSources(
         cursor: cursor.cursor,
         page: cursor.page,
         exhausted: cursor.exhausted,
+        status,
+        allocated: limit,
       };
     }
   }
@@ -147,6 +205,6 @@ export async function discoverFromRegisteredSources(
 export function allRegisteredSourcesExhausted(sourceState: TvExpansion25kSourceState) {
   return TV_EXPANSION_SOURCE_ADAPTERS.every((adapter) => {
     const cursor = sourceState.adapterCursors[adapter.id];
-    return cursor?.exhausted === true;
+    return cursor?.exhausted === true || cursor?.status === "exhausted";
   });
 }

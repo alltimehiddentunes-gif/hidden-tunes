@@ -93,6 +93,7 @@ function migrateLegacyCheckpoint(legacy: LegacyCheckpointV1): TvExpansion25kChec
     ...adapterCursors["iptv-org"],
     cursor: String(legacy.sources.iptvOrgOffset || 0),
     exhausted: legacy.sources.iptvOrgExhausted === true,
+    status: legacy.sources.iptvOrgExhausted ? "exhausted" : "active",
     processed: legacy.sources.iptvOrgOffset || 0,
     lastError: legacy.sources.lastErrors?.["iptv-org"] || null,
   };
@@ -100,6 +101,7 @@ function migrateLegacyCheckpoint(legacy: LegacyCheckpointV1): TvExpansion25kChec
   adapterCursors["curated-seeds"] = {
     ...adapterCursors["curated-seeds"],
     exhausted: legacy.sources.curatedSeedsAttempted === true,
+    status: legacy.sources.curatedSeedsAttempted ? "exhausted" : "active",
     cursor: legacy.sources.curatedSeedsAttempted ? "done" : "0",
     lastError: legacy.sources.lastErrors?.["curated-seeds"] || null,
   };
@@ -107,6 +109,7 @@ function migrateLegacyCheckpoint(legacy: LegacyCheckpointV1): TvExpansion25kChec
   adapterCursors["youtube-starter"] = {
     ...adapterCursors["youtube-starter"],
     exhausted: legacy.sources.youtubeStarterAttempted === true,
+    status: legacy.sources.youtubeStarterAttempted ? "exhausted" : "active",
     cursor: legacy.sources.youtubeStarterAttempted ? "done" : "0",
     lastError: legacy.sources.lastErrors?.["youtube-starter"] || null,
   };
@@ -158,10 +161,19 @@ export function loadTvExpansion25kCheckpoint(adminRoot = process.cwd()): TvExpan
   if (parsed.version === 2) {
     const checkpoint = parsed as TvExpansion25kCheckpoint;
     const defaults = initialAdapterCursors();
-    checkpoint.sources.adapterCursors = {
-      ...defaults,
-      ...checkpoint.sources.adapterCursors,
-    };
+    const merged: Record<string, TvExpansionSourceCursor> = {};
+    for (const [id, defaultCursor] of Object.entries(defaults)) {
+      const existing = checkpoint.sources.adapterCursors[id];
+      merged[id] = {
+        ...defaultCursor,
+        ...existing,
+        status:
+          existing?.status ||
+          (existing?.exhausted ? "exhausted" : defaultCursor.status),
+        processedFixedIds: existing?.processedFixedIds || [],
+      };
+    }
+    checkpoint.sources.adapterCursors = merged;
     return checkpoint;
   }
 
@@ -175,7 +187,10 @@ export function saveTvExpansion25kCheckpoint(
   const filePath = statePath(adminRoot);
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   checkpoint.updatedAt = new Date().toISOString();
-  fs.writeFileSync(filePath, `${JSON.stringify(checkpoint, null, 2)}\n`, "utf8");
+  const payload = `${JSON.stringify(checkpoint, null, 2)}\n`;
+  const tempPath = `${filePath}.tmp`;
+  fs.writeFileSync(tempPath, payload, "utf8");
+  fs.renameSync(tempPath, filePath);
 }
 
 export function appendTvExpansion25kBatchLog(

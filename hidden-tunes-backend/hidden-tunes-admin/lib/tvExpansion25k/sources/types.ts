@@ -1,5 +1,12 @@
 import type { TvGrowthCandidate } from "@/lib/tvStationHealth";
 
+export type TvExpansionSourceStatus =
+  | "active"
+  | "temporarily_failed"
+  | "rate_limited"
+  | "exhausted"
+  | "disabled_for_safety";
+
 export type TvExpansionSourceCursor = {
   source: string;
   cursor: string;
@@ -8,7 +15,9 @@ export type TvExpansionSourceCursor = {
   accepted: number;
   rejected: number;
   exhausted: boolean;
+  status: TvExpansionSourceStatus;
   lastError: string | null;
+  processedFixedIds?: string[];
 };
 
 export type TvExpansionSourceDiscoveryStats = {
@@ -85,6 +94,8 @@ export function createInitialSourceCursor(source: string): TvExpansionSourceCurs
     accepted: 0,
     rejected: 0,
     exhausted: false,
+    status: "active",
     lastError: null,
+    processedFixedIds: [],
   };
 }

@@ -15,6 +15,7 @@ import {
   allTvExpansionSourcesExhausted,
   discoverTvExpansionCandidates,
 } from "@/lib/tvExpansion25k/discoverCandidates";
+import { updateSourceSummary } from "@/lib/tvExpansion25k/expansionLogs";
 import { getTvPlatformEligibleCount } from "@/lib/tvExpansion25k/platformCount";
 import { importVerifiedTvGrowthCandidates, runTvStationHealthChecks } from "@/lib/tvStationHealth";
 
@@ -142,6 +143,31 @@ export async function runTvExpansion25kBatch(
 
   saveTvExpansion25kCheckpoint(nextCheckpoint, adminRoot);
   appendTvExpansion25kBatchLog(report, adminRoot);
+
+  const sourceSummaryUpdates: Record<
+    string,
+    {
+      candidates?: number;
+      probePasses?: number;
+      imports?: number;
+      rejects?: number;
+      lastError?: string | null;
+      exhausted?: boolean;
+    }
+  > = {};
+
+  for (const [source, detail] of Object.entries(discovery.sources)) {
+    if (detail.error === "deferred_no_allocation" || detail.error === "exhausted") continue;
+    sourceSummaryUpdates[source] = {
+      candidates: detail.discovered || 0,
+      rejects: (detail.preRejected || 0) + (detail.fingerprintSkipped || 0),
+      lastError: detail.error || null,
+      exhausted: detail.exhausted === true,
+    };
+  }
+  if (Object.keys(sourceSummaryUpdates).length > 0) {
+    updateSourceSummary(sourceSummaryUpdates, adminRoot);
+  }
 
   if (platformEligibleAfter >= TV_EXPANSION_25K_TARGET) {
     return {
