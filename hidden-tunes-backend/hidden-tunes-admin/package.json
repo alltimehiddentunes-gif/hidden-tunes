@@ -14,6 +14,7 @@
     "tv:health": "tsx scripts/run-tv-health-checks.ts",
     "tv:growth": "tsx scripts/run-tv-growth-job.ts",
     "tv:expand": "tsx scripts/run-tv-catalog-expansion.ts",
+    "tv:expand:25k": "npx tsx scripts/run-tv-expansion-25k.ts",
     "tv:import:legal": "tsx scripts/run-tv-legal-catalog-import.ts",
     "tv:extract-seeds": "tsx scripts/extract-mobile-tv-seeds.ts",
     "test:tv-health": "tsx scripts/test-tv-station-health.ts",
