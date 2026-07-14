@@ -12,8 +12,6 @@ import { ArtworkImage } from '../ArtworkImage'
 import { PlayerLyricsPanel } from '../PlayerLyricsPanel'
 import { PlayerModeLauncher } from '../PlayerModeLauncher'
 import { PlayerModeSwitcher } from '../PlayerModeSwitcher'
-import { EntityAtmosphereBackdrop } from '../EntityAtmosphereBackdrop'
-import { resolvePlayerBackground } from '../../lib/artworkIntegrity'
 import {
   AUDIO_QUALITY_MODE_LABELS,
   AUDIO_QUALITY_MODES,
@@ -222,12 +220,7 @@ export const PremiumFullscreenShell = memo(function PremiumFullscreenShell({
       data-loading={isLoading && isActive ? 'true' : 'false'}
       data-active={isActive ? 'true' : 'false'}
     >
-      <EntityAtmosphereBackdrop
-        className="premium-shell-bg"
-        artworkUrl={resolvePlayerBackground('master')}
-        label={displayTitle}
-        variant="player"
-      />
+      <div className="premium-shell-bg entity-atmosphere entity-atmosphere--placeholder" aria-hidden="true" />
       <div className="premium-shell-veil" aria-hidden="true" />
 
       <header className="premium-shell-topbar">

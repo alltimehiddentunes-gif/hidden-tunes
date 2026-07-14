@@ -372,14 +372,6 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
             )
 
       if (selection) {
-        logAudioVersionSelection({
-          selectedTier: selection.tier,
-          qualityMode: audioQualityMode,
-          ...audioVersionAvailability(song.audioVersions),
-        })
-      }
-
-      if (selection) {
         const diagnosticsBase = buildUpgradeDiagnosticsContext({
           trackId: song.id,
           trackTitle: song.title,
@@ -390,24 +382,32 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
           targetUrl: upgradeTarget?.url,
         })
 
-        if (upgradeTarget) {
-          logAudioUpgrade('target-selected', diagnosticsBase)
-        } else if (audioQualityMode === 'data-saver') {
-          logAudioUpgrade('upgrade-blocked-data-saver', {
-            ...diagnosticsBase,
-            reason: 'quality-mode-disallows-upgrade',
+        queueMicrotask(() => {
+          logAudioVersionSelection({
+            selectedTier: selection.tier,
+            qualityMode: audioQualityMode,
+            ...audioVersionAvailability(song.audioVersions),
           })
-        } else if (audioQualityMode === 'standard') {
-          logAudioUpgrade('upgrade-blocked-standard', {
-            ...diagnosticsBase,
-            reason: 'quality-mode-disallows-upgrade',
-          })
-        } else {
-          logAudioUpgrade('upgrade-skipped', {
-            ...diagnosticsBase,
-            reason: 'already-at-target-or-unavailable',
-          })
-        }
+
+          if (upgradeTarget) {
+            logAudioUpgrade('target-selected', diagnosticsBase)
+          } else if (audioQualityMode === 'data-saver') {
+            logAudioUpgrade('upgrade-blocked-data-saver', {
+              ...diagnosticsBase,
+              reason: 'quality-mode-disallows-upgrade',
+            })
+          } else if (audioQualityMode === 'standard') {
+            logAudioUpgrade('upgrade-blocked-standard', {
+              ...diagnosticsBase,
+              reason: 'quality-mode-disallows-upgrade',
+            })
+          } else {
+            logAudioUpgrade('upgrade-skipped', {
+              ...diagnosticsBase,
+              reason: 'already-at-target-or-unavailable',
+            })
+          }
+        })
       }
 
       currentTrackRef.current = song
@@ -513,112 +513,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
     (song: ApiSong) => {
       const generation = ++mediaResolveGenerationRef.current
 
-      void (async () => {
-        let resolvedSong = song
-
-        if (isRadioQueueSong(song)) {
-          const hasStream = Boolean(
-            song.audioUrl?.startsWith('http') || song.previewUrl?.startsWith('http'),
-          )
-          if (!hasStream) {
-            const stationId = extractRadioStationId(song.id)
-            if (!stationId) {
-              setError('Unable to play this station.')
-              return
-            }
-
-            setIsLoading(true)
-            setError(null)
-
-            try {
-              const streamUrl = await resolveRadioPlayUrl(stationId)
-              if (generation !== mediaResolveGenerationRef.current) return
-              if (currentTrackRef.current?.id !== song.id) return
-              if (!streamUrl) {
-                setIsLoading(false)
-                setError('This station is not currently playable.')
-                return
-              }
-
-              resolvedSong = {
-                ...song,
-                audioUrl: streamUrl,
-                previewUrl: streamUrl,
-              }
-
-              const queue = queueRef.current
-              const queueIndex = queue.findIndex((entry) => entry.id === song.id)
-              if (queueIndex >= 0) {
-                const updatedQueue = [...queue]
-                updatedQueue[queueIndex] = resolvedSong
-                queueRef.current = updatedQueue
-                setCurrentQueue(updatedQueue)
-              }
-            } catch (error) {
-              if (generation !== mediaResolveGenerationRef.current) return
-              if (currentTrackRef.current?.id !== song.id) return
-              setIsLoading(false)
-              setError(
-                error instanceof Error
-                  ? error.message
-                  : 'This station stream is unavailable right now.',
-              )
-              return
-            }
-          }
-        }
-
-        if (isPodcastQueueSong(song)) {
-          const hasAudio = Boolean(
-            song.audioUrl?.startsWith('http') || song.previewUrl?.startsWith('http'),
-          )
-          if (!hasAudio) {
-            const episodeId = extractPodcastEpisodeId(song.id)
-            if (!episodeId) {
-              setError('Unable to play this podcast episode.')
-              return
-            }
-
-            setIsLoading(true)
-            setError(null)
-
-            try {
-              const play = await resolvePodcastPlayUrl(episodeId)
-              if (generation !== mediaResolveGenerationRef.current) return
-              if (currentTrackRef.current?.id !== song.id) return
-              if (!play?.audioUrl?.startsWith('http')) {
-                setIsLoading(false)
-                setError('This podcast episode is not currently playable.')
-                return
-              }
-
-              resolvedSong = patchPodcastEpisodeWithPlayUrl(song, play)
-
-              const queue = queueRef.current
-              const queueIndex = queue.findIndex((entry) => entry.id === song.id)
-              if (queueIndex >= 0) {
-                const updatedQueue = [...queue]
-                updatedQueue[queueIndex] = resolvedSong
-                queueRef.current = updatedQueue
-                setCurrentQueue(updatedQueue)
-              }
-            } catch (error) {
-              if (generation !== mediaResolveGenerationRef.current) return
-              if (currentTrackRef.current?.id !== song.id) return
-              setIsLoading(false)
-              setError(
-                error instanceof Error
-                  ? error.message
-                  : 'This podcast episode is unavailable right now.',
-              )
-              return
-            }
-          }
-        }
-
-        if (generation !== mediaResolveGenerationRef.current) return
-        if (currentTrackRef.current?.id !== song.id) return
-
+      const preparePodcastProgress = (resolvedSong: ApiSong) => {
         if (isPodcastQueueSong(resolvedSong)) {
           podcastProgressTrackIdRef.current = resolvedSong.id
           podcastProgressLastWriteRef.current = 0
@@ -633,10 +528,121 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
           if (historySeed) {
             recordPodcastHistory(progressEntryToHistoryEntry(historySeed))
           }
-        } else {
-          podcastProgressTrackIdRef.current = null
+          return
         }
 
+        podcastProgressTrackIdRef.current = null
+      }
+
+      const needsRadioResolve = isRadioQueueSong(song)
+        && !Boolean(song.audioUrl?.startsWith('http') || song.previewUrl?.startsWith('http'))
+      const needsPodcastResolve = isPodcastQueueSong(song)
+        && !Boolean(song.audioUrl?.startsWith('http') || song.previewUrl?.startsWith('http'))
+
+      if (!needsRadioResolve && !needsPodcastResolve) {
+        if (generation !== mediaResolveGenerationRef.current) return
+        if (currentTrackRef.current?.id !== song.id) return
+        preparePodcastProgress(song)
+        startPlayback(song)
+        return
+      }
+
+      setIsLoading(true)
+      setError(null)
+
+      void (async () => {
+        let resolvedSong = song
+
+        if (needsRadioResolve) {
+          const stationId = extractRadioStationId(song.id)
+          if (!stationId) {
+            setError('Unable to play this station.')
+            setIsLoading(false)
+            return
+          }
+
+          try {
+            const streamUrl = await resolveRadioPlayUrl(stationId)
+            if (generation !== mediaResolveGenerationRef.current) return
+            if (currentTrackRef.current?.id !== song.id) return
+            if (!streamUrl) {
+              setIsLoading(false)
+              setError('This station is not currently playable.')
+              return
+            }
+
+            resolvedSong = {
+              ...song,
+              audioUrl: streamUrl,
+              previewUrl: streamUrl,
+            }
+
+            const queue = queueRef.current
+            const queueIndex = queue.findIndex((entry) => entry.id === song.id)
+            if (queueIndex >= 0) {
+              const updatedQueue = [...queue]
+              updatedQueue[queueIndex] = resolvedSong
+              queueRef.current = updatedQueue
+              setCurrentQueue(updatedQueue)
+            }
+          } catch (error) {
+            if (generation !== mediaResolveGenerationRef.current) return
+            if (currentTrackRef.current?.id !== song.id) return
+            setIsLoading(false)
+            setError(
+              error instanceof Error
+                ? error.message
+                : 'This station stream is unavailable right now.',
+            )
+            return
+          }
+        }
+
+        if (needsPodcastResolve) {
+          const episodeId = extractPodcastEpisodeId(song.id)
+          if (!episodeId) {
+            setError('Unable to play this podcast episode.')
+            setIsLoading(false)
+            return
+          }
+
+          try {
+            const play = await resolvePodcastPlayUrl(episodeId)
+            if (generation !== mediaResolveGenerationRef.current) return
+            if (currentTrackRef.current?.id !== song.id) return
+            if (!play?.audioUrl?.startsWith('http')) {
+              setIsLoading(false)
+              setError('This podcast episode is not currently playable.')
+              return
+            }
+
+            resolvedSong = patchPodcastEpisodeWithPlayUrl(song, play)
+
+            const queue = queueRef.current
+            const queueIndex = queue.findIndex((entry) => entry.id === song.id)
+            if (queueIndex >= 0) {
+              const updatedQueue = [...queue]
+              updatedQueue[queueIndex] = resolvedSong
+              queueRef.current = updatedQueue
+              setCurrentQueue(updatedQueue)
+            }
+          } catch (error) {
+            if (generation !== mediaResolveGenerationRef.current) return
+            if (currentTrackRef.current?.id !== song.id) return
+            setIsLoading(false)
+            setError(
+              error instanceof Error
+                ? error.message
+                : 'This podcast episode is unavailable right now.',
+            )
+            return
+          }
+        }
+
+        if (generation !== mediaResolveGenerationRef.current) return
+        if (currentTrackRef.current?.id !== song.id) return
+
+        preparePodcastProgress(resolvedSong)
         startPlayback(resolvedSong)
       })()
     },
@@ -910,8 +916,6 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       const playableQueue = queue.filter(Boolean)
       if (playableQueue.length === 0) return
 
-      flushPodcastProgress(true)
-
       const safeIndex = Math.min(
         playableQueue.length - 1,
         Math.max(0, Number.isFinite(startIndex) ? startIndex : 0),
@@ -925,6 +929,18 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
         resolvedIndex = 0
       }
 
+      const targetTrack = resolvedQueue[resolvedIndex]
+      setIsLoading(true)
+      setError(null)
+      currentTrackRef.current = targetTrack
+      setCurrentTrack(targetTrack)
+
+      if (isPodcastQueueSong(targetTrack)) {
+        flushPodcastProgress(true)
+      } else {
+        queueMicrotask(() => flushPodcastProgress(true))
+      }
+
       const nextSeedType = seedMetadata?.seedType ?? contextToSeedType(context)
       queueSeedTypeRef.current = nextSeedType
       queueSeedIdRef.current = seedMetadata?.seedId
@@ -932,14 +948,16 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       queueCandidatePoolsRef.current = seedMetadata?.candidatePools
 
       applyQueueState(resolvedQueue, resolvedIndex)
-      currentTrackRef.current = resolvedQueue[resolvedIndex]
-      setCurrentTrack(resolvedQueue[resolvedIndex])
       setQueueContext(context)
       setQueueSeedType(nextSeedType)
       setQueueSeedId(seedMetadata?.seedId)
       setQueueTitle(nextQueueTitle)
-      extendQueueIfNeeded(resolvedQueue, resolvedIndex)
-      playSong(resolvedQueue[resolvedIndex])
+
+      playSong(targetTrack)
+
+      queueMicrotask(() => {
+        extendQueueIfNeeded(resolvedQueue, resolvedIndex)
+      })
     },
     [applyQueueState, extendQueueIfNeeded, flushPodcastProgress, playSong],
   )
@@ -963,8 +981,10 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
     }
 
     applyQueueState(queue, nextIndex)
-    const extendedQueue = extendQueueIfNeeded(queue, nextIndex)
-    playSong(extendedQueue[nextIndex])
+    playSong(queue[nextIndex])
+    queueMicrotask(() => {
+      extendQueueIfNeeded(queue, nextIndex)
+    })
   }, [applyQueueState, extendQueueIfNeeded, playSong])
 
   const previous = useCallback(() => {
@@ -974,16 +994,20 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       if (repeatModeRef.current === 'all' && queue.length > 1) {
         const lastIndex = queue.length - 1
         applyQueueState(queue, lastIndex)
-        extendQueueIfNeeded(queue, lastIndex)
         playSong(queue[lastIndex])
+        queueMicrotask(() => {
+          extendQueueIfNeeded(queue, lastIndex)
+        })
       }
       return
     }
     if (previousIndex >= queue.length) return
 
     applyQueueState(queue, previousIndex)
-    extendQueueIfNeeded(queue, previousIndex)
     playSong(queue[previousIndex])
+    queueMicrotask(() => {
+      extendQueueIfNeeded(queue, previousIndex)
+    })
   }, [applyQueueState, extendQueueIfNeeded, playSong])
 
   const getUpcomingTracks = useCallback(() => {
@@ -997,8 +1021,10 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       const queue = queueRef.current
       if (index < 0 || index >= queue.length) return
       applyQueueState(queue, index)
-      extendQueueIfNeeded(queue, index)
       playSong(queue[index])
+      queueMicrotask(() => {
+        extendQueueIfNeeded(queue, index)
+      })
     },
     [applyQueueState, extendQueueIfNeeded, playSong],
   )

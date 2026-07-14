@@ -1,6 +1,7 @@
 import {
   createContext,
   memo,
+  startTransition,
   useCallback,
   useContext,
   useEffect,
@@ -2612,10 +2613,17 @@ function PopularWorldsSection({
                 className="world-card"
                 data-scene={sceneId}
               >
-                <button
-                  type="button"
+                <div
+                  role="button"
+                  tabIndex={0}
                   className="world-card-select"
                   onClick={() => onBrowseWorlds?.()}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault()
+                      onBrowseWorlds?.()
+                    }
+                  }}
                 >
                   <div className="world-card-art">
                     {worldArt ? (
@@ -2660,7 +2668,7 @@ function PopularWorldsSection({
                     <h3>{presentation.title}</h3>
                     <p>{presentation.subtitle}</p>
                   </div>
-                </button>
+                </div>
               </article>
             )
           })}
@@ -6993,6 +7001,7 @@ function AppShell() {
     && currentQueue.length > 0
     && Boolean(currentTrack ?? currentQueue[currentIndex])
   const { songs } = useCatalog()
+  const songsById = useMemo(() => new Map(songs.map((song) => [song.id, song])), [songs])
   const [activePage, setActivePage] = usePersistedPreference(
     DESKTOP_PREFERENCE_KEYS.activePage,
     'home' as PageId,
@@ -7044,7 +7053,6 @@ function AppShell() {
   const playerPreferredTrack = currentTrack ?? desktopSelectedTrack
 
   const {
-    scheduleAutoOpenPlayerAfterSongTap,
     cancelAutoOpenPlayer,
     openPreferredNowPlayingPage,
   } = useAutoOpenPreferredPlayer({
@@ -7094,18 +7102,19 @@ function AppShell() {
       queueTitle?: string,
       seedMetadata?: QueueSeedMetadata,
     ) => {
-      const resolved = songs.find((entry) => entry.id === song.id) ?? song
+      const resolved = songsById.get(song.id) ?? song
       const playableQueue = queue.length > 0
-        ? queue.map((entry) => songs.find((songEntry) => songEntry.id === entry.id) ?? entry)
+        ? queue.map((entry) => songsById.get(entry.id) ?? entry)
         : [resolved]
       const selectedIndex = playableQueue.findIndex((entry) => entry.id === resolved.id)
       const safeIndex = selectedIndex >= 0 ? selectedIndex : Math.max(0, Math.min(startIndex, playableQueue.length - 1))
 
-      openSong(resolved)
       playQueue(playableQueue, safeIndex, context, queueTitle, seedMetadata)
-      scheduleAutoOpenPlayerAfterSongTap(resolved.id)
+      startTransition(() => {
+        openSong(resolved)
+      })
     },
-    [openSong, playQueue, scheduleAutoOpenPlayerAfterSongTap, songs],
+    [openSong, playQueue, songsById],
   )
 
   const playRadioStation = useCallback(

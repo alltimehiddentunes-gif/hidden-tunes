@@ -4,7 +4,6 @@ import {
   useDesktopPlaybackProgress,
 } from '../context/DesktopPlaybackProvider'
 import { premiumAudioVisualizerEngine } from '../lib/premiumAudioVisualizer'
-import { usePremiumAudioVisualizerBoot } from '../lib/premiumAudioVisualizer/usePremiumAudioVisualizer'
 
 export function PremiumAudioVisualizerProvider({ children }: { children: ReactNode }) {
   const {
@@ -14,7 +13,17 @@ export function PremiumAudioVisualizerProvider({ children }: { children: ReactNo
   } = useDesktopPlayback()
   const { durationSeconds } = useDesktopPlaybackProgress()
 
-  usePremiumAudioVisualizerBoot()
+  useEffect(() => {
+    if (!isPlaying) {
+      premiumAudioVisualizerEngine.stop()
+      return
+    }
+
+    premiumAudioVisualizerEngine.start()
+    return () => {
+      premiumAudioVisualizerEngine.stop()
+    }
+  }, [isPlaying])
 
   useEffect(() => {
     premiumAudioVisualizerEngine.setPlaybackState({
