@@ -1,9 +1,11 @@
 import { communityTvAdapter } from "@/lib/tvExpansion25k/sources/communityTv";
+import { culturalBroadcastersAdapter } from "@/lib/tvExpansion25k/sources/culturalBroadcasters";
 import { curatedSeedsAdapter } from "@/lib/tvExpansion25k/sources/curatedSeedsAdapter";
 import { educationTvAdapter } from "@/lib/tvExpansion25k/sources/educationTv";
 import { freeTvLegalAdapter } from "@/lib/tvExpansion25k/sources/freeTvLegalAdapter";
 import { governmentTvAdapter } from "@/lib/tvExpansion25k/sources/governmentTv";
 import { iptvOrgAdapter } from "@/lib/tvExpansion25k/sources/iptvOrgAdapter";
+import { municipalTvAdapter } from "@/lib/tvExpansion25k/sources/municipalTv";
 import { musicTvAdapter } from "@/lib/tvExpansion25k/sources/musicTv";
 import { newsBroadcastersAdapter } from "@/lib/tvExpansion25k/sources/newsBroadcasters";
 import { officialBroadcastersAdapter } from "@/lib/tvExpansion25k/sources/officialBroadcasters";
@@ -13,6 +15,7 @@ import { parliamentaryTvAdapter } from "@/lib/tvExpansion25k/sources/parliamenta
 import { publicBroadcastersAdapter } from "@/lib/tvExpansion25k/sources/publicBroadcasters";
 import { regionalTvAdapter } from "@/lib/tvExpansion25k/sources/regionalTv";
 import { religiousBroadcastersAdapter } from "@/lib/tvExpansion25k/sources/religiousBroadcasters";
+import { sportsBroadcastersAdapter } from "@/lib/tvExpansion25k/sources/sportsBroadcasters";
 import { createInitialSourceCursor, type TvExpansionSourceAdapter } from "@/lib/tvExpansion25k/sources/types";
 import { universityTvAdapter } from "@/lib/tvExpansion25k/sources/universityTv";
 import { youtubeStarterAdapter } from "@/lib/tvExpansion25k/sources/youtubeStarterAdapter";
@@ -23,16 +26,19 @@ export const TV_EXPANSION_SOURCE_ADAPTERS: TvExpansionSourceAdapter[] = [
   officialBroadcastersAdapter,
   publicBroadcastersAdapter,
   governmentTvAdapter,
+  parliamentaryTvAdapter,
   regionalTvAdapter,
   communityTvAdapter,
+  municipalTvAdapter,
   educationTvAdapter,
-  officialFastProvidersAdapter,
-  officialYouTubeLiveAdapter,
-  religiousBroadcastersAdapter,
-  musicTvAdapter,
-  newsBroadcastersAdapter,
-  parliamentaryTvAdapter,
   universityTvAdapter,
+  officialFastProvidersAdapter,
+  newsBroadcastersAdapter,
+  sportsBroadcastersAdapter,
+  musicTvAdapter,
+  culturalBroadcastersAdapter,
+  religiousBroadcastersAdapter,
+  officialYouTubeLiveAdapter,
   curatedSeedsAdapter,
   youtubeStarterAdapter,
 ];
