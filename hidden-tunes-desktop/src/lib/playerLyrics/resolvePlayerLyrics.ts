@@ -9,8 +9,7 @@ import type {
 const UNAVAILABLE_TITLE = 'Lyrics unavailable'
 
 const UNAVAILABLE_DETAIL =
-  'Synced lyrics are not available for this track in the desktop catalog yet. '
-  + 'Lyrics licensing and sync will arrive in a future catalog update.'
+  'Synced lyrics are not currently available for this track.'
 
 const LOADING_TITLE = 'Loading lyrics'
 const LOADING_DETAIL = 'Checking for lyrics on this track…'
@@ -100,7 +99,7 @@ function buildUnavailableState(track: PlayerLyricsTrackInput | null): PlayerLyri
     sourceLabel: resolveSourceLabel(track?.lyricsSource ?? null),
     emptyTitle: track ? UNAVAILABLE_TITLE : NO_TRACK_TITLE,
     emptyDetail: track ? UNAVAILABLE_DETAIL : NO_TRACK_DETAIL,
-    credit: artist ? `Written by ${artist}` : null,
+    credit: null,
     trackTitle: track?.title ?? null,
     trackArtist: artist,
   }

@@ -362,7 +362,7 @@ const PSD_PLAYER_ARTIST = 'Wills Afrobeats'
 const PSD_PLAYER_SOURCE_ALBUM = 'Night Drive'
 const PSD_PLAYER_POSITION_SECONDS = 108
 const PSD_PLAYER_DURATION_SECONDS = 236
-const PSD_PLAYER_TABS = ['LYRICS', 'QUEUE', 'DETAILS'] as const
+const PSD_PLAYER_TABS = ['QUEUE', 'LYRICS', 'DETAILS'] as const
 const PSD_PLAYER_LYRICS_LINES = [
   { tier: 'dimmed', text: 'In the quiet of the evening' },
   { tier: 'dimmed', text: 'When the world slows down' },
@@ -7098,7 +7098,7 @@ function PlayerUpNextEmptyState({ className = '' }: { className?: string }) {
   )
 }
 
-function PlayerQueuePanel() {
+function PlayerQueuePanel({ showHeader = false }: { showHeader?: boolean }) {
   const { currentQueue, currentIndex, playQueueAtIndex } = useDesktopPlayback()
   const queueRows = useMemo(
     () => buildPlayerQueueRows(currentQueue, currentIndex),
@@ -7117,6 +7117,12 @@ function PlayerQueuePanel() {
 
   return (
     <div className="player-queue-panel" role="tabpanel" aria-label="Queue">
+      {showHeader ? (
+        <header className="player-queue-panel-header">
+          <h3 className="player-queue-panel-title">Queue</h3>
+          <span className="player-queue-panel-count">{queueRows.length} tracks</span>
+        </header>
+      ) : null}
       <ol className="player-queue-list">
         {queueRows.map((row) => (
           <li
@@ -7294,8 +7300,8 @@ type PlayerShellModeProps = {
 
 const CinemaPlayerShell = memo(function CinemaPlayerShell({
   onClose,
-  onOpenLyrics,
-  onOpenWaveform,
+  onOpenLyrics: _onOpenLyrics,
+  onOpenWaveform: _onOpenWaveform,
   preferredTrack = null,
   activePlayerMode,
   onSwitchPlayerMode,
@@ -7312,10 +7318,8 @@ const CinemaPlayerShell = memo(function CinemaPlayerShell({
     isActive,
     isPlaying,
     isLoading,
-    liveProgressMax,
     progressMax,
     progressValue,
-    progressPercent,
     displayTitle,
     displayArtist,
     displayAlbum,
@@ -7329,9 +7333,58 @@ const CinemaPlayerShell = memo(function CinemaPlayerShell({
   } = usePlayerShellState(preferredTrack)
 
   const volumeTrackRef = useRef<HTMLDivElement>(null)
+  const progressTrackRef = useRef<HTMLDivElement>(null)
   const isAdjustingVolumeRef = useRef(false)
-  const [playerTab, setPlayerTab] = useState<'lyrics' | 'queue' | 'details'>('lyrics')
+  const isSeekingRef = useRef(false)
+  const [playerTab, setPlayerTab] = useState<'lyrics' | 'queue' | 'details'>('queue')
+  const [scrubSeconds, setScrubSeconds] = useState<number | null>(null)
   const volumePercent = Math.min(100, Math.max(0, volume * 100))
+  const dockProgressValue = scrubSeconds ?? progressValue
+  const dockProgressPercent = progressMax > 0
+    ? Math.min(100, (dockProgressValue / progressMax) * 100)
+    : 0
+
+  const resolveSeekSeconds = useCallback(
+    (clientX: number) => {
+      const trackEl = progressTrackRef.current
+      if (!trackEl || progressMax <= 0) return null
+      const rect = trackEl.getBoundingClientRect()
+      if (rect.width <= 0) return null
+      const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width))
+      return ratio * progressMax
+    },
+    [progressMax],
+  )
+
+  const handleSeekClick = (event: ReactMouseEvent<HTMLDivElement>) => {
+    if (!isActive || progressMax <= 0 || isLoading || isSeekingRef.current) return
+    const seconds = resolveSeekSeconds(event.clientX)
+    if (seconds != null) seekTo(seconds)
+  }
+
+  const handleSeekPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!isActive || progressMax <= 0 || isLoading) return
+    const seconds = resolveSeekSeconds(event.clientX)
+    if (seconds == null) return
+    isSeekingRef.current = true
+    event.currentTarget.setPointerCapture(event.pointerId)
+    setScrubSeconds(seconds)
+    seekTo(seconds)
+  }
+
+  const handleSeekPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!isSeekingRef.current) return
+    const seconds = resolveSeekSeconds(event.clientX)
+    if (seconds != null) setScrubSeconds(seconds)
+  }
+
+  const handleSeekPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!isSeekingRef.current) return
+    isSeekingRef.current = false
+    event.currentTarget.releasePointerCapture(event.pointerId)
+    if (scrubSeconds != null) seekTo(scrubSeconds)
+    setScrubSeconds(null)
+  }
 
   const resolveVolume = useCallback((clientX: number) => {
     const trackEl = volumeTrackRef.current
@@ -7438,16 +7491,19 @@ const CinemaPlayerShell = memo(function CinemaPlayerShell({
           </div>
 
           <div className="psd-player-master-meta">
-            <div className="psd-player-master-badge">
-              <PsdWaveformStrip className="psd-player-master-badge-wave" />
-              <span>MASTER</span>
-            </div>
-            <h2 className="psd-player-track-title">{displayTitle}</h2>
+            {qualityLabel ? (
+              <span className="psd-player-master-quality" aria-label="Audio quality">
+                {qualityLabel}
+              </span>
+            ) : null}
+            <h2 className="psd-player-track-title psd-player-track-title--master">{displayTitle}</h2>
             <p className="psd-player-track-artist psd-player-track-artist--master">
               <span>{displayArtist}</span>
               <PsdIconVerified className="psd-player-verified" />
             </p>
-
+            {displayAlbum ? (
+              <p className="psd-player-track-album">{displayAlbum}</p>
+            ) : null}
           </div>
         </div>
 
@@ -7470,103 +7526,111 @@ const CinemaPlayerShell = memo(function CinemaPlayerShell({
             })}
           </div>
 
-          {playerTab === 'lyrics' ? (
-            <div className="psd-player-master-lyrics" role="tabpanel" aria-label="Lyrics">
-              <PlayerLyricsPanel
+          <div className="psd-player-master-panel">
+            {playerTab === 'queue' ? <PlayerQueuePanel showHeader /> : null}
+
+            {playerTab === 'lyrics' ? (
+              <div className="psd-player-master-lyrics" role="tabpanel" aria-label="Lyrics">
+                <PlayerLyricsPanel
+                  track={displayTrack}
+                  positionSeconds={isActive ? positionSeconds : 0}
+                  isLoading={isLoading && isActive}
+                  variant="embed"
+                />
+              </div>
+            ) : null}
+
+            {playerTab === 'details' ? (
+              <PlayerDetailsPanel
                 track={displayTrack}
-                positionSeconds={isActive ? positionSeconds : 0}
-                isLoading={isLoading && isActive}
-                variant="embed"
+                albumLabel={displayAlbum}
+                qualityLabel={qualityLabel}
               />
-            </div>
-          ) : null}
-
-          {playerTab === 'queue' ? <PlayerQueuePanel /> : null}
-
-          {playerTab === 'details' ? (
-            <PlayerDetailsPanel
-              track={displayTrack}
-              albumLabel={displayAlbum}
-              qualityLabel={qualityLabel}
-            />
-          ) : null}
+            ) : null}
+          </div>
         </div>
       </div>
 
       <div className="psd-player-master-bottom">
-        <div className="psd-player-master-waveform-row">
-          <span className="psd-player-master-time">{formatPlaybackTime(progressValue)}</span>
-          <div
-            className="psd-player-waveform-wrap psd-player-waveform-wrap--master"
-            style={{ ['--psd-player-progress' as string]: `${progressPercent}%` }}
-          >
-            <PremiumReactiveWaveform
-              trackId={activeTrackId}
-              progressPercent={progressPercent}
-              progressMax={liveProgressMax}
-              isLoading={isLoading && isActive}
-              onSeek={seekTo}
-              className="psd-player-waveform psd-player-waveform--master"
-              barCount={72}
-            />
-          </div>
-          <span className="psd-player-master-time">{formatPlaybackTime(progressMax)}</span>
-          {qualityLabel ? (
-            <div className="psd-player-master-badges" aria-label="Audio quality">
-              <span className="psd-player-master-badge-pill">{qualityLabel}</span>
-            </div>
-          ) : null}
-        </div>
-
-        <FullPlayerTransportControls activeTrackId={activeTrackId} />
-
-        <footer className="psd-player-master-footer">
-          <div className="psd-player-master-volume">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-              <path d="M11 5L6 9H3v6h3l5 4V5z" />
-              <path d="M15.54 8.46a5 5 0 010 7.07M19.07 4.93a10 10 0 010 14.14" />
-            </svg>
+        <div className="psd-player-master-dock">
+          <div className="psd-player-master-progress-row">
+            <span className="psd-player-master-time">{formatPlaybackTime(dockProgressValue)}</span>
             <div
-              ref={volumeTrackRef}
-              className="psd-player-master-volume-track"
-              style={{ ['--volume-handle' as string]: `${volumePercent}%` }}
+              ref={progressTrackRef}
+              className={`psd-player-master-progress-track${progressMax > 0 && isActive ? ' is-interactive' : ''}`}
+              style={{ ['--psd-player-progress' as string]: `${dockProgressPercent}%` }}
               role="slider"
-              aria-label="Volume"
+              aria-label="Playback position"
               aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={Math.round(volumePercent)}
-              onClick={handleVolumeClick}
-              onPointerDown={handleVolumePointerDown}
-              onPointerMove={handleVolumePointerMove}
-              onPointerUp={handleVolumePointerUp}
-              onPointerCancel={handleVolumePointerUp}
+              aria-valuemax={Math.round(progressMax)}
+              aria-valuenow={Math.round(dockProgressValue)}
+              aria-disabled={!isActive || progressMax <= 0 || isLoading}
+              onClick={handleSeekClick}
+              onPointerDown={handleSeekPointerDown}
+              onPointerMove={handleSeekPointerMove}
+              onPointerUp={handleSeekPointerUp}
+              onPointerCancel={handleSeekPointerUp}
             >
-              <div className="psd-player-master-volume-fill" style={{ width: `${volumePercent}%` }} />
+              <div
+                className="psd-player-master-progress-fill"
+                style={{ width: `${dockProgressPercent}%` }}
+              />
             </div>
+            <span className="psd-player-master-time">{formatPlaybackTime(progressMax)}</span>
           </div>
 
-          <div className="psd-player-master-utilities" role="toolbar" aria-label="Player utilities">
-            <button type="button" className="psd-player-master-utility" aria-label="Live waveform" onClick={onOpenWaveform}>
-              <PsdIconEqualizer className="psd-player-master-utility-icon" />
-            </button>
-            <button
-              type="button"
-              className="psd-player-master-utility"
-              aria-label="Queue"
-              onClick={() => setPlayerTab('queue')}
-            >
+          <div className="psd-player-master-controls-row">
+            <div className="psd-player-master-volume">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-                <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
-                <path d="M6 9l4 3-4 3V9z" fill="currentColor" stroke="none" />
+                <path d="M11 5L6 9H3v6h3l5 4V5z" />
+                <path d="M15.54 8.46a5 5 0 010 7.07M19.07 4.93a10 10 0 010 14.14" />
               </svg>
-            </button>
-            <button type="button" className="psd-player-master-utility" aria-label="Open lyrics" onClick={onOpenLyrics}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-                <path d="M9 3H3v6M15 3h6v6M9 21H3v-6M15 21h6v-6" />
-              </svg>
-            </button>
+              <div
+                ref={volumeTrackRef}
+                className="psd-player-master-volume-track"
+                style={{ ['--volume-handle' as string]: `${volumePercent}%` }}
+                role="slider"
+                aria-label="Volume"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={Math.round(volumePercent)}
+                onClick={handleVolumeClick}
+                onPointerDown={handleVolumePointerDown}
+                onPointerMove={handleVolumePointerMove}
+                onPointerUp={handleVolumePointerUp}
+                onPointerCancel={handleVolumePointerUp}
+              >
+                <div className="psd-player-master-volume-fill" style={{ width: `${volumePercent}%` }} />
+              </div>
+            </div>
+
+            <FullPlayerTransportControls activeTrackId={activeTrackId} />
+
+            <div className="psd-player-master-utilities" role="toolbar" aria-label="Player utilities">
+              <button
+                type="button"
+                className="psd-player-master-utility"
+                aria-label="Queue"
+                onClick={() => setPlayerTab('queue')}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+                  <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
+                  <path d="M6 9l4 3-4 3V9z" fill="currentColor" stroke="none" />
+                </svg>
+              </button>
+              <button type="button" className="psd-player-master-utility" aria-label="Lyrics" onClick={() => setPlayerTab('lyrics')}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+                  <path d="M4 6h16M4 12h10M4 18h14" />
+                </svg>
+              </button>
+              <button type="button" className="psd-player-master-utility" aria-label="Exit fullscreen player" onClick={onClose}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+                  <path d="M9 3H3v6M15 3h6v6M9 21H3v-6M15 21h6v-6" />
+                </svg>
+              </button>
+            </div>
           </div>
-        </footer>
+        </div>
       </div>
     </div>
   )
