@@ -54,6 +54,7 @@ import {
 } from '../lib/podcasts/podcastProgressStorage'
 import type {
   DesktopPlaybackContextValue,
+  DesktopPlaybackProgressState,
   QueueCandidatePools,
   QueueContext,
   QueueSeedMetadata,
@@ -61,6 +62,9 @@ import type {
 } from '../lib/desktopPlayback/types'
 
 const DesktopPlaybackContext = createContext<DesktopPlaybackContextValue | null>(null)
+const DesktopPlaybackProgressContext = createContext<DesktopPlaybackProgressState | null>(null)
+
+const POSITION_UI_THROTTLE_MS = 250
 
 const DEFAULT_QUEUE_CONTEXT: QueueContext = 'manual'
 const DEFAULT_QUEUE_SEED_TYPE: QueueSeedType = 'manual'
@@ -130,6 +134,14 @@ export function useDesktopPlayback() {
   return value
 }
 
+export function useDesktopPlaybackProgress() {
+  const value = useContext(DesktopPlaybackProgressContext)
+  if (!value) {
+    throw new Error('useDesktopPlaybackProgress must be used within DesktopPlaybackProvider')
+  }
+  return value
+}
+
 export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
   const serviceRef = useRef<HtmlAudioPlaybackService | null>(null)
   const queueRef = useRef<ApiSong[]>([])
@@ -171,6 +183,9 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null)
   const [positionSeconds, setPositionSeconds] = useState(0)
   const [durationSeconds, setDurationSeconds] = useState(0)
+  const positionSecondsRef = useRef(0)
+  const lastPositionEmitRef = useRef(0)
+  const lastEmittedPositionRef = useRef(0)
   const [volume, setVolumeState] = useState(1)
   const [shuffleEnabled, setShuffleEnabled] = useState(false)
   const [repeatMode, setRepeatMode] = useState<'off' | 'all' | 'one'>('off')
@@ -191,6 +206,25 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     audioQualityModeRef.current = audioQualityMode
   }, [audioQualityMode])
+
+  const emitPositionSeconds = useCallback((seconds: number, force = false) => {
+    if (!Number.isFinite(seconds)) return
+    const safeSeconds = Math.max(0, seconds)
+    positionSecondsRef.current = safeSeconds
+
+    const now = performance.now()
+    if (
+      !force
+      && now - lastPositionEmitRef.current < POSITION_UI_THROTTLE_MS
+      && Math.abs(safeSeconds - lastEmittedPositionRef.current) < 1
+    ) {
+      return
+    }
+
+    lastPositionEmitRef.current = now
+    lastEmittedPositionRef.current = safeSeconds
+    setPositionSeconds(safeSeconds)
+  }, [])
 
   const cancelUpgradeSession = useCallback(
     (
@@ -379,7 +413,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       currentTrackRef.current = song
       setCurrentTrack(song)
       setError(null)
-      setPositionSeconds(0)
+      emitPositionSeconds(0, true)
       setDurationSeconds(
         song.durationSeconds != null && song.durationSeconds > 0
           ? song.durationSeconds
@@ -419,7 +453,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
             )
             if (safeResume >= PODCAST_MIN_CONTINUE_SECONDS / 2) {
               service.seekTo(safeResume)
-              setPositionSeconds(safeResume)
+              emitPositionSeconds(safeResume, true)
             }
           }
 
@@ -471,7 +505,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
           setError(playbackErrorMessage(song))
         })
     },
-    [audioQualityMode, cancelUpgradeSession, getService],
+    [audioQualityMode, cancelUpgradeSession, emitPositionSeconds, getService],
   )
 
   const playSong = useCallback(
@@ -713,7 +747,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
     }
 
     const onTimeUpdate = () => {
-      setPositionSeconds(audio.currentTime)
+      emitPositionSeconds(audio.currentTime)
       maybeUpgradeAfterStablePlayback()
       flushPodcastProgressRef.current()
     }
@@ -793,7 +827,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       }
 
       setIsPlaying(false)
-      setPositionSeconds(0)
+      emitPositionSeconds(0, true)
     }
     const onError = () => {
       cancelUpgradeSession('upgrade-cancelled-track-changed', 'media-error')
@@ -1049,9 +1083,9 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
 
       const clamped = Math.min(max, Math.max(0, seconds))
       getService().seekTo(clamped)
-      setPositionSeconds(clamped)
+      emitPositionSeconds(clamped, true)
     },
-    [currentTrack, durationSeconds, getService],
+    [currentTrack, durationSeconds, emitPositionSeconds, getService],
   )
 
   const setVolume = useCallback(
@@ -1076,8 +1110,6 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       isPlaying,
       isLoading,
       error,
-      positionSeconds,
-      durationSeconds,
       volume,
       audioQualityMode,
       shuffleEnabled,
@@ -1108,8 +1140,6 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       isPlaying,
       isLoading,
       error,
-      positionSeconds,
-      durationSeconds,
       volume,
       audioQualityMode,
       shuffleEnabled,
@@ -1131,9 +1161,19 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
     ],
   )
 
+  const progressValue = useMemo<DesktopPlaybackProgressState>(
+    () => ({
+      positionSeconds,
+      durationSeconds,
+    }),
+    [durationSeconds, positionSeconds],
+  )
+
   return (
     <DesktopPlaybackContext.Provider value={value}>
-      {children}
+      <DesktopPlaybackProgressContext.Provider value={progressValue}>
+        {children}
+      </DesktopPlaybackProgressContext.Provider>
     </DesktopPlaybackContext.Provider>
   )
 }

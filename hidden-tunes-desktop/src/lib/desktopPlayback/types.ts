@@ -36,6 +36,11 @@ export type QueueSeedMetadata = {
   candidatePools?: QueueCandidatePools
 }
 
+export type DesktopPlaybackProgressState = {
+  positionSeconds: number
+  durationSeconds: number
+}
+
 export type DesktopPlaybackState = {
   currentTrack: ApiSong | null
   currentQueue: ApiSong[]
@@ -47,8 +52,6 @@ export type DesktopPlaybackState = {
   isPlaying: boolean
   isLoading: boolean
   error: string | null
-  positionSeconds: number
-  durationSeconds: number
   volume: number
   audioQualityMode: AudioQualityMode
   shuffleEnabled: boolean

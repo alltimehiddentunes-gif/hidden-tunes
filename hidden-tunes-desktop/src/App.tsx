@@ -114,6 +114,7 @@ import { PremiumReactiveWaveform } from './components/PremiumReactiveWaveform'
 import {
   DesktopPlaybackProvider,
   useDesktopPlayback,
+  useDesktopPlaybackProgress,
 } from './context/DesktopPlaybackProvider'
 import { AtmosphereProvider, useAtmosphere } from './context/AtmosphereContext'
 import { resolveAtmosphereForWorld } from './lib/atmosphereManager'
@@ -5988,14 +5989,13 @@ const PlayerBar = memo(function PlayerBar({
     isPlaying,
     isLoading,
     error,
-    positionSeconds,
-    durationSeconds,
     volume,
     audioQualityMode,
     setAudioQualityMode,
     seekTo,
     setVolume,
   } = useDesktopPlayback()
+  const { positionSeconds, durationSeconds } = useDesktopPlaybackProgress()
 
   const progressTrackRef = useRef<HTMLDivElement>(null)
   const volumeTrackRef = useRef<HTMLDivElement>(null)
@@ -6313,8 +6313,6 @@ const QueueUpNextPanel = memo(function QueueUpNextPanel({
     queueTitle,
     isPlaying,
     isLoading,
-    positionSeconds,
-    durationSeconds,
     audioQualityMode,
     getUpcomingTracks,
     playQueueAtIndex,
@@ -6323,6 +6321,7 @@ const QueueUpNextPanel = memo(function QueueUpNextPanel({
     volume,
     setVolume,
   } = useDesktopPlayback()
+  const { positionSeconds, durationSeconds } = useDesktopPlaybackProgress()
 
   const listScrollRef = useRef<HTMLOListElement>(null)
   const progressTrackRef = useRef<HTMLDivElement>(null)
@@ -6844,11 +6843,10 @@ function DetailTopBar({
 
 function usePlayerShellState(preferredTrack: ApiSong | null = null) {
   const playback = useDesktopPlayback()
+  const { positionSeconds, durationSeconds } = useDesktopPlaybackProgress()
   const {
     currentTrack,
     queueTitle,
-    positionSeconds,
-    durationSeconds,
     audioQualityMode,
     getUpcomingTracks,
   } = playback
@@ -6882,6 +6880,8 @@ function usePlayerShellState(preferredTrack: ApiSong | null = null) {
 
   return {
     ...playback,
+    positionSeconds,
+    durationSeconds,
     displayTrack,
     isActive,
     liveProgressMax,
