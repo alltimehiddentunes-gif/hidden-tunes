@@ -34,10 +34,10 @@ function formatFetchFailure(error: unknown) {
     return 'Request timed out. Try again.'
   }
   if (error instanceof TypeError && /failed to fetch/i.test(error.message)) {
-    return 'Unable to reach the radio catalog from the desktop shell. Reload the app and try again.'
+    return 'Unable to reach the catalog from the desktop shell. Reload the app and try again.'
   }
   if (error instanceof Error) return error.message
-  return 'Unexpected radio network error'
+  return 'Unexpected catalog network error'
 }
 
 export async function requestCatalogJsonWithFallback(

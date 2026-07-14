@@ -9,6 +9,7 @@ export type QueueContext =
   | 'mood'
   | 'manual'
   | 'radio'
+  | 'podcast'
   | 'scene'
   | 'smart'
 

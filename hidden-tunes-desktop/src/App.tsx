@@ -155,7 +155,12 @@ import { overlayPhaseDataAttr } from './lib/playerOverlayTransition'
 import { usePlayerOverlayController } from './lib/usePlayerOverlayController'
 import { useAutoOpenPreferredPlayer } from './lib/useAutoOpenPreferredPlayer'
 import { RadioPage } from './components/radio/RadioPage'
+import { PodcastsPage } from './components/podcasts/PodcastsPage'
+import { PodcastShowPage } from './components/podcasts/PodcastShowPage'
 import { buildRadioQueueSongs } from './lib/radio/radioPlaybackAdapter'
+import { buildPodcastQueueSongs } from './lib/podcasts/podcastPlaybackAdapter'
+import { setPendingPodcastResumeSeconds } from './lib/podcasts/podcastPlaybackSession'
+import type { PodcastEpisodeMeta, PodcastShowMeta } from './lib/podcasts/types'
 import type { RadioStationMeta } from './lib/radio/types'
 import './App.css'
 
@@ -1072,6 +1077,7 @@ type PageId = StoredPageId
 type NavKey =
   | 'home'
   | 'radio'
+  | 'podcasts'
   | 'worlds'
   | 'search'
   | 'library'
@@ -1087,6 +1093,7 @@ type NavKey =
 const PSD_DESTINATION_NAV_KEYS: NavKey[] = [
   'home',
   'radio',
+  'podcasts',
   'worlds',
   'search',
   'library',
@@ -1102,6 +1109,7 @@ const PSD_DESTINATION_NAV_KEYS: NavKey[] = [
 const TOP_BAR_PLACEHOLDERS: Partial<Record<NavKey, string>> = {
   home: 'Search songs, artists, moods…',
   radio: 'Search stations, genres, countries…',
+  podcasts: 'Search podcasts, episodes, categories…',
   worlds: 'Search emotional worlds…',
   search: 'Search songs, artists, albums…',
   library: 'Search songs, artists, albums, playlists...',
@@ -1226,6 +1234,18 @@ const SIDEBAR_NAV: SidebarNavItem[] = [
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
         <circle cx="12" cy="12" r="2" />
         <path d="M16 8a6 6 0 010 8M19 5a10 10 0 010 14" />
+      </svg>
+    ),
+  },
+  {
+    key: 'podcasts',
+    page: 'podcasts',
+    label: 'Podcasts',
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
+        <path d="M12 14a3 3 0 100-6 3 3 0 000 6z" />
+        <path d="M16 8a5 5 0 010 8M19 5a8 8 0 010 14" />
+        <path d="M8 16a5 5 0 010-8M5 19a8 8 0 010-14" />
       </svg>
     ),
   },
@@ -6748,7 +6768,7 @@ const QueueUpNextPanel = memo(function QueueUpNextPanel({
   )
 })
 
-type ActiveView = 'page' | 'song' | 'album' | 'artist' | 'mood'
+type ActiveView = 'page' | 'song' | 'album' | 'artist' | 'mood' | 'podcast-show'
 
 function ListeningContextStrip({
   lines,
@@ -10050,13 +10070,18 @@ function CatalogDetailRouter({
   setPlaylistsQuery,
   libraryQuery = '',
   radioQuery = '',
+  podcastsQuery = '',
   onPlayRadioStation,
+  selectedPodcastShowId = null,
+  onOpenPodcastShow,
+  onPlayPodcastEpisode,
 }: {
   activeView: ActiveView
   selectedSong: ApiSong | null
   selectedAlbum: ApiAlbum | null
   selectedArtist: ApiArtist | null
   selectedMood: MoodRoom | null
+  selectedPodcastShowId?: string | null
   desktopSelectedTrack: ApiSong | null
   onBack: () => void
   activePage: PageId
@@ -10065,6 +10090,17 @@ function CatalogDetailRouter({
   onOpenAlbum: (album: ApiAlbum) => void
   onOpenArtist: (artist: ApiArtist) => void
   onOpenMood: (mood: MoodRoom) => void
+  onOpenPodcastShow?: (showId: string) => void
+  onPlayPodcastEpisode?: (
+    episode: PodcastEpisodeMeta,
+    queue: PodcastEpisodeMeta[],
+    startIndex: number,
+    queueTitle: string,
+    options?: {
+      show?: PodcastShowMeta | null
+      resumePositionSeconds?: number | null
+    },
+  ) => void
   onOpenCinema?: () => void
   discoverQuery: string
   setDiscoverQuery: (value: string) => void
@@ -10079,6 +10115,7 @@ function CatalogDetailRouter({
   setPlaylistsQuery?: (value: string) => void
   libraryQuery?: string
   radioQuery?: string
+  podcastsQuery?: string
   onPlayRadioStation?: (
     station: RadioStationMeta,
     queue: RadioStationMeta[],
@@ -10128,6 +10165,17 @@ function CatalogDetailRouter({
     )
   }
 
+  if (activeView === 'podcast-show' && selectedPodcastShowId) {
+    return (
+      <PodcastShowPage
+        showId={selectedPodcastShowId}
+        onBack={onBack}
+        onPlayPodcastEpisode={onPlayPodcastEpisode ?? (() => {})}
+        ArtworkImage={ArtworkImage}
+      />
+    )
+  }
+
   return (
     <PageContent
       page={activePage}
@@ -10149,7 +10197,10 @@ function CatalogDetailRouter({
       setPlaylistsQuery={setPlaylistsQuery}
       libraryQuery={libraryQuery}
       radioQuery={radioQuery}
+      podcastsQuery={podcastsQuery}
       onPlayRadioStation={onPlayRadioStation}
+      onOpenPodcastShow={onOpenPodcastShow}
+      onPlayPodcastEpisode={onPlayPodcastEpisode}
     />
   )
 }
@@ -10174,7 +10225,10 @@ function PageContent({
   setPlaylistsQuery,
   libraryQuery = '',
   radioQuery = '',
+  podcastsQuery = '',
   onPlayRadioStation,
+  onOpenPodcastShow,
+  onPlayPodcastEpisode,
 }: {
   page: PageId
   activeNavKey: NavKey
@@ -10182,6 +10236,17 @@ function PageContent({
   onOpenAlbum: (album: ApiAlbum) => void
   onOpenArtist: (artist: ApiArtist) => void
   onOpenMood: (mood: MoodRoom) => void
+  onOpenPodcastShow?: (showId: string) => void
+  onPlayPodcastEpisode?: (
+    episode: PodcastEpisodeMeta,
+    queue: PodcastEpisodeMeta[],
+    startIndex: number,
+    queueTitle: string,
+    options?: {
+      show?: PodcastShowMeta | null
+      resumePositionSeconds?: number | null
+    },
+  ) => void
   discoverQuery: string
   setDiscoverQuery: (value: string) => void
   albumsQuery: string
@@ -10195,6 +10260,7 @@ function PageContent({
   setPlaylistsQuery?: (value: string) => void
   libraryQuery?: string
   radioQuery?: string
+  podcastsQuery?: string
   onPlayRadioStation?: (
     station: RadioStationMeta,
     queue: RadioStationMeta[],
@@ -10226,6 +10292,15 @@ function PageContent({
         <RadioPage
           query={radioQuery ?? ''}
           onPlayRadioStation={onPlayRadioStation ?? (() => {})}
+          ArtworkImage={ArtworkImage}
+        />
+      )
+    case 'podcasts':
+      return (
+        <PodcastsPage
+          query={podcastsQuery ?? ''}
+          onOpenPodcastShow={onOpenPodcastShow ?? (() => {})}
+          onPlayPodcastEpisode={onPlayPodcastEpisode ?? (() => {})}
           ArtworkImage={ArtworkImage}
         />
       )
@@ -10323,6 +10398,7 @@ function AppShell() {
   const [selectedAlbum, setSelectedAlbum] = useState<ApiAlbum | null>(null)
   const [selectedArtist, setSelectedArtist] = useState<ApiArtist | null>(null)
   const [selectedMood, setSelectedMood] = useState<MoodRoom | null>(null)
+  const [selectedPodcastShowId, setSelectedPodcastShowId] = useState<string | null>(null)
   const [desktopSelectedTrack, setDesktopSelectedTrack] = useState<ApiSong | null>(null)
   const [waveformOpen, setWaveformOpen] = useState(false)
   const [lyricsOpen, setLyricsOpen] = useState(false)
@@ -10339,6 +10415,7 @@ function AppShell() {
   const [playlistsQuery, setPlaylistsQuery] = useState('')
   const [libraryQuery, setLibraryQuery] = useState('')
   const [radioQuery, setRadioQuery] = useState('')
+  const [podcastsQuery, setPodcastsQuery] = useState('')
   const [discoverQuery, setDiscoverQuery] = usePersistedPreference(
     DESKTOP_PREFERENCE_KEYS.discoverSearch,
     '',
@@ -10393,6 +10470,7 @@ function AppShell() {
     setSelectedAlbum(null)
     setSelectedArtist(null)
     setSelectedMood(null)
+    setSelectedPodcastShowId(null)
     setActiveView('song')
   }, [])
 
@@ -10448,12 +10526,47 @@ function AppShell() {
     [playQueue],
   )
 
+  const playPodcastEpisode = useCallback(
+    (
+      _episode: PodcastEpisodeMeta,
+      queue: PodcastEpisodeMeta[],
+      startIndex: number,
+      queueTitle: string,
+      options?: {
+        show?: PodcastShowMeta | null
+        resumePositionSeconds?: number | null
+      },
+    ) => {
+      const showMap = new Map<string, PodcastShowMeta>()
+      if (options?.show?.id) {
+        showMap.set(options.show.id, options.show)
+      }
+
+      const apiQueue = buildPodcastQueueSongs(
+        queue,
+        showMap.size > 0 ? showMap : undefined,
+      )
+      if (apiQueue.length === 0) return
+
+      const safeIndex = Math.max(0, Math.min(startIndex, apiQueue.length - 1))
+      const track = apiQueue[safeIndex]
+      setDesktopSelectedTrack(track)
+      setPendingPodcastResumeSeconds(options?.resumePositionSeconds ?? null)
+      playQueue(apiQueue, safeIndex, 'podcast', queueTitle, {
+        seedType: 'manual',
+        seedTracks: apiQueue,
+      })
+    },
+    [playQueue],
+  )
+
   const openAlbum = useCallback((album: ApiAlbum) => {
     cancelAutoOpenPlayer()
     setSelectedAlbum(album)
     setSelectedSong(null)
     setSelectedArtist(null)
     setSelectedMood(null)
+    setSelectedPodcastShowId(null)
     setActiveView('album')
   }, [cancelAutoOpenPlayer])
 
@@ -10463,6 +10576,7 @@ function AppShell() {
     setSelectedSong(null)
     setSelectedAlbum(null)
     setSelectedMood(null)
+    setSelectedPodcastShowId(null)
     setActiveView('artist')
   }, [cancelAutoOpenPlayer])
 
@@ -10472,7 +10586,20 @@ function AppShell() {
     setSelectedSong(null)
     setSelectedAlbum(null)
     setSelectedArtist(null)
+    setSelectedPodcastShowId(null)
     setActiveView('mood')
+  }, [cancelAutoOpenPlayer])
+
+  const openPodcastShow = useCallback((showId: string) => {
+    cancelAutoOpenPlayer()
+    const cleanId = showId.trim()
+    if (!cleanId) return
+    setSelectedPodcastShowId(cleanId)
+    setSelectedSong(null)
+    setSelectedAlbum(null)
+    setSelectedArtist(null)
+    setSelectedMood(null)
+    setActiveView('podcast-show')
   }, [cancelAutoOpenPlayer])
 
   const backToPage = useCallback(() => {
@@ -10481,6 +10608,7 @@ function AppShell() {
     setSelectedAlbum(null)
     setSelectedArtist(null)
     setSelectedMood(null)
+    setSelectedPodcastShowId(null)
   }, [])
 
   const navigateNav = useCallback((navKey: NavKey) => {
@@ -10536,6 +10664,7 @@ function AppShell() {
                       || activeNavKey === 'downloads'
                       || activeNavKey === 'playlists'
                       || activeNavKey === 'radio'
+                      || activeNavKey === 'podcasts'
                       ? 'search'
                       : 'default'
                   }
@@ -10556,6 +10685,8 @@ function AppShell() {
                                   ? playlistsQuery
                                   : activeNavKey === 'radio'
                                     ? radioQuery
+                                    : activeNavKey === 'podcasts'
+                                      ? podcastsQuery
                                   : undefined
                   }
                   onSearchChange={
@@ -10575,6 +10706,8 @@ function AppShell() {
                                   ? setPlaylistsQuery
                                   : activeNavKey === 'radio'
                                     ? setRadioQuery
+                                    : activeNavKey === 'podcasts'
+                                      ? setPodcastsQuery
                                   : undefined
                   }
                 />
@@ -10588,6 +10721,7 @@ function AppShell() {
                   selectedAlbum={selectedAlbum}
                   selectedArtist={selectedArtist}
                   selectedMood={selectedMood}
+                  selectedPodcastShowId={selectedPodcastShowId}
                   desktopSelectedTrack={desktopSelectedTrack}
                   onBack={backToPageWithCancel}
                   activePage={activePage}
@@ -10596,6 +10730,7 @@ function AppShell() {
                   onOpenAlbum={openAlbum}
                   onOpenArtist={openArtist}
                   onOpenMood={openMood}
+                  onOpenPodcastShow={openPodcastShow}
                   onOpenCinema={openCinemaPlayer}
                   discoverQuery={discoverQuery}
                   setDiscoverQuery={setDiscoverQuery}
@@ -10610,7 +10745,9 @@ function AppShell() {
                   setPlaylistsQuery={setPlaylistsQuery}
                   libraryQuery={libraryQuery}
                   radioQuery={radioQuery}
+                  podcastsQuery={podcastsQuery}
                   onPlayRadioStation={playRadioStation}
+                  onPlayPodcastEpisode={playPodcastEpisode}
                 />
               </div>
             </main>

@@ -5,6 +5,8 @@ import {
   type AudioVersionTier,
   type PlayableUrlInput,
 } from './audioVersions'
+import { isPodcastQueueSong } from './podcasts/podcastPlaybackAdapter'
+import { isRadioQueueSong } from './radio/radioPlaybackAdapter'
 import type { AudioQualityMode } from './localPreferences'
 
 export const PLAYER_IDLE_TITLE = 'Nothing playing'
@@ -75,6 +77,9 @@ export function resolvePlayerQualityLabel(
   isActive: boolean,
 ): string | null {
   if (!isActive) return null
+
+  if (track && isPodcastQueueSong(track as ApiSong)) return 'Podcast'
+  if (track && isRadioQueueSong(track as ApiSong)) return 'Live'
 
   if (track) {
     const selection = selectPlayableUrlForQualityMode(track, audioQualityMode)

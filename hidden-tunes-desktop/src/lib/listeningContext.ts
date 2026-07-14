@@ -114,6 +114,12 @@ export function buildListeningContext(input: {
     } else {
       pills.push('Radio station')
     }
+  } else if (queueContext === 'podcast') {
+    if (queueTitle) {
+      pills.push(queueTitle)
+    } else {
+      pills.push('Podcast episode')
+    }
   } else if (queueTitle?.startsWith('In this scene')) {
     pills.push(queueTitle)
   } else if (queueTitle?.startsWith('For this mood')) {
@@ -124,6 +130,7 @@ export function buildListeningContext(input: {
 
   const suppressLaneScenePills =
     queueContext === 'radio'
+    || queueContext === 'podcast'
     || Boolean(queueTitle?.startsWith('In this scene'))
     || Boolean(queueTitle?.startsWith('For this mood'))
 

@@ -33,6 +33,25 @@ import {
   extractRadioStationId,
   isRadioQueueSong,
 } from '../lib/radio/radioPlaybackAdapter'
+import { resolvePodcastPlayUrl } from '../lib/podcasts/podcastCatalogApi'
+import {
+  consumePendingPodcastResumeSeconds,
+} from '../lib/podcasts/podcastPlaybackSession'
+import {
+  extractPodcastEpisodeId,
+  isPodcastQueueSong,
+  patchPodcastEpisodeWithPlayUrl,
+} from '../lib/podcasts/podcastPlaybackAdapter'
+import {
+  buildPodcastProgressEntryFromSong,
+  isPodcastEpisodeCompleted,
+  PODCAST_PROGRESS_THROTTLE_MS,
+  PODCAST_MIN_CONTINUE_SECONDS,
+  progressEntryToHistoryEntry,
+  recordPodcastHistory,
+  removePodcastProgress,
+  upsertPodcastProgress,
+} from '../lib/podcasts/podcastProgressStorage'
 import type {
   DesktopPlaybackContextValue,
   QueueCandidatePools,
@@ -93,6 +112,16 @@ function contextToSeedType(context: QueueContext): QueueSeedType {
   return 'manual'
 }
 
+function playbackErrorMessage(song: ApiSong | null) {
+  if (isRadioQueueSong(song)) {
+    return 'This station stream is unavailable right now.'
+  }
+  if (isPodcastQueueSong(song)) {
+    return 'This podcast episode is unavailable right now.'
+  }
+  return 'Unable to play this track.'
+}
+
 export function useDesktopPlayback() {
   const value = useContext(DesktopPlaybackContext)
   if (!value) {
@@ -110,6 +139,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
   const queueSeedTracksRef = useRef<ApiSong[]>([])
   const queueCandidatePoolsRef = useRef<QueueCandidatePools | undefined>(undefined)
   const playSongRef = useRef<(song: ApiSong) => void>(() => undefined)
+  const flushPodcastProgressRef = useRef<(force?: boolean) => void>(() => undefined)
   const currentTrackRef = useRef<ApiSong | null>(null)
   const audioQualityModeRef = useRef<AudioQualityMode>('auto')
   const upgradeSessionRef = useRef<UpgradeSession | null>(null)
@@ -117,6 +147,10 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
   const unshuffledQueueRef = useRef<ApiSong[]>([])
   const shuffleEnabledRef = useRef(false)
   const repeatModeRef = useRef<'off' | 'all' | 'one'>('off')
+  const mediaResolveGenerationRef = useRef(0)
+  const podcastProgressTrackIdRef = useRef<string | null>(null)
+  const podcastProgressLastWriteRef = useRef(0)
+  const podcastProgressLastPositionRef = useRef(0)
 
   const getService = useCallback(() => {
     if (!serviceRef.current) {
@@ -192,6 +226,63 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
     [],
   )
 
+  const persistPodcastProgress = useCallback(
+    (
+      song: ApiSong,
+      positionSeconds: number,
+      durationSeconds: number,
+      options?: { force?: boolean; completed?: boolean },
+    ) => {
+      if (!isPodcastQueueSong(song)) return
+
+      const completed =
+        options?.completed === true
+        || isPodcastEpisodeCompleted(positionSeconds, durationSeconds)
+
+      const entry = buildPodcastProgressEntryFromSong(
+        song,
+        positionSeconds,
+        durationSeconds,
+        completed,
+      )
+      if (!entry) return
+
+      if (completed) {
+        removePodcastProgress(entry.episodeId)
+        recordPodcastHistory(progressEntryToHistoryEntry(entry))
+        return
+      }
+
+      upsertPodcastProgress(entry)
+    },
+    [],
+  )
+
+  const flushPodcastProgress = useCallback(
+    (force = false) => {
+      const track = currentTrackRef.current
+      if (!track || !isPodcastQueueSong(track)) return
+
+      const audio = getService().getAudioElement()
+      const position = audio.currentTime
+      const duration =
+        Number.isFinite(audio.duration) && audio.duration > 0
+          ? audio.duration
+          : durationSeconds
+
+      if (!force) {
+        const elapsed = performance.now() - podcastProgressLastWriteRef.current
+        const positionDelta = Math.abs(position - podcastProgressLastPositionRef.current)
+        if (elapsed < PODCAST_PROGRESS_THROTTLE_MS && positionDelta < 2) return
+      }
+
+      podcastProgressLastWriteRef.current = performance.now()
+      podcastProgressLastPositionRef.current = position
+      persistPodcastProgress(track, position, duration, { force })
+    },
+    [durationSeconds, getService, persistPodcastProgress],
+  )
+
   const applyQueueState = useCallback((queue: ApiSong[], index: number) => {
     queueRef.current = queue
     queueIndexRef.current = index
@@ -237,11 +328,14 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       cancelUpgradeSession('upgrade-cancelled-session-replaced', 'new-track-playback')
       const selection = selectPlayableUrlForQualityMode(song, audioQualityMode)
       const instantUrl = selection?.url ?? null
-      const upgradeTarget = resolveUpgradeTargetForQualityMode(
-        song,
-        selection,
-        audioQualityMode,
-      )
+      const upgradeTarget =
+        isPodcastQueueSong(song) || isRadioQueueSong(song)
+          ? null
+          : resolveUpgradeTargetForQualityMode(
+              song,
+              selection,
+              audioQualityMode,
+            )
 
       if (selection) {
         logAudioVersionSelection({
@@ -297,19 +391,45 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
         service.stop()
         setIsPlaying(false)
         setIsLoading(false)
-        setError(
-          isRadioQueueSong(song)
-            ? 'This station stream is unavailable right now.'
-            : 'Unable to play this track.',
-        )
+        setError(playbackErrorMessage(song))
         return
       }
+
+      const pendingResumeSeconds = isPodcastQueueSong(song)
+        ? consumePendingPodcastResumeSeconds()
+        : null
 
       setIsLoading(true)
       void service
         .play(instantUrl, { instant: true })
         .then(() => {
-          if (selection && upgradeTarget && currentTrackRef.current?.id === song.id) {
+          if (
+            pendingResumeSeconds
+            && isPodcastQueueSong(song)
+            && currentTrackRef.current?.id === song.id
+          ) {
+            const audio = service.getAudioElement()
+            const maxDuration =
+              Number.isFinite(audio.duration) && audio.duration > 0
+                ? audio.duration
+                : song.durationSeconds ?? pendingResumeSeconds
+            const safeResume = Math.min(
+              Math.max(0, pendingResumeSeconds),
+              maxDuration > 1 ? maxDuration - 1 : pendingResumeSeconds,
+            )
+            if (safeResume >= PODCAST_MIN_CONTINUE_SECONDS / 2) {
+              service.seekTo(safeResume)
+              setPositionSeconds(safeResume)
+            }
+          }
+
+          if (
+            selection
+            && upgradeTarget
+            && !isPodcastQueueSong(song)
+            && !isRadioQueueSong(song)
+            && currentTrackRef.current?.id === song.id
+          ) {
             upgradeSessionRef.current = {
               sessionId: ++upgradeSessionIdRef.current,
               trackId: song.id,
@@ -348,11 +468,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
           }
           setIsPlaying(false)
           setIsLoading(false)
-          setError(
-            isRadioQueueSong(song)
-              ? 'This station stream is unavailable right now.'
-              : 'Unable to play this track.',
-          )
+          setError(playbackErrorMessage(song))
         })
     },
     [audioQualityMode, cancelUpgradeSession, getService],
@@ -360,6 +476,8 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
 
   const playSong = useCallback(
     (song: ApiSong) => {
+      const generation = ++mediaResolveGenerationRef.current
+
       void (async () => {
         let resolvedSong = song
 
@@ -379,6 +497,8 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
 
             try {
               const streamUrl = await resolveRadioPlayUrl(stationId)
+              if (generation !== mediaResolveGenerationRef.current) return
+              if (currentTrackRef.current?.id !== song.id) return
               if (!streamUrl) {
                 setIsLoading(false)
                 setError('This station is not currently playable.')
@@ -400,6 +520,8 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
                 setCurrentQueue(updatedQueue)
               }
             } catch (error) {
+              if (generation !== mediaResolveGenerationRef.current) return
+              if (currentTrackRef.current?.id !== song.id) return
               setIsLoading(false)
               setError(
                 error instanceof Error
@@ -411,6 +533,75 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
           }
         }
 
+        if (isPodcastQueueSong(song)) {
+          const hasAudio = Boolean(
+            song.audioUrl?.startsWith('http') || song.previewUrl?.startsWith('http'),
+          )
+          if (!hasAudio) {
+            const episodeId = extractPodcastEpisodeId(song.id)
+            if (!episodeId) {
+              setError('Unable to play this podcast episode.')
+              return
+            }
+
+            setIsLoading(true)
+            setError(null)
+
+            try {
+              const play = await resolvePodcastPlayUrl(episodeId)
+              if (generation !== mediaResolveGenerationRef.current) return
+              if (currentTrackRef.current?.id !== song.id) return
+              if (!play?.audioUrl?.startsWith('http')) {
+                setIsLoading(false)
+                setError('This podcast episode is not currently playable.')
+                return
+              }
+
+              resolvedSong = patchPodcastEpisodeWithPlayUrl(song, play)
+
+              const queue = queueRef.current
+              const queueIndex = queue.findIndex((entry) => entry.id === song.id)
+              if (queueIndex >= 0) {
+                const updatedQueue = [...queue]
+                updatedQueue[queueIndex] = resolvedSong
+                queueRef.current = updatedQueue
+                setCurrentQueue(updatedQueue)
+              }
+            } catch (error) {
+              if (generation !== mediaResolveGenerationRef.current) return
+              if (currentTrackRef.current?.id !== song.id) return
+              setIsLoading(false)
+              setError(
+                error instanceof Error
+                  ? error.message
+                  : 'This podcast episode is unavailable right now.',
+              )
+              return
+            }
+          }
+        }
+
+        if (generation !== mediaResolveGenerationRef.current) return
+        if (currentTrackRef.current?.id !== song.id) return
+
+        if (isPodcastQueueSong(resolvedSong)) {
+          podcastProgressTrackIdRef.current = resolvedSong.id
+          podcastProgressLastWriteRef.current = 0
+          podcastProgressLastPositionRef.current = 0
+
+          const historySeed = buildPodcastProgressEntryFromSong(
+            resolvedSong,
+            0,
+            resolvedSong.durationSeconds ?? 0,
+            false,
+          )
+          if (historySeed) {
+            recordPodcastHistory(progressEntryToHistoryEntry(historySeed))
+          }
+        } else {
+          podcastProgressTrackIdRef.current = null
+        }
+
         startPlayback(resolvedSong)
       })()
     },
@@ -420,6 +611,18 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     playSongRef.current = playSong
   }, [playSong])
+
+  useEffect(() => {
+    flushPodcastProgressRef.current = flushPodcastProgress
+  }, [flushPodcastProgress])
+
+  useEffect(() => {
+    const onBeforeUnload = () => {
+      flushPodcastProgressRef.current(true)
+    }
+    window.addEventListener('beforeunload', onBeforeUnload)
+    return () => window.removeEventListener('beforeunload', onBeforeUnload)
+  }, [])
 
   useEffect(() => {
     const service = getService()
@@ -512,6 +715,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
     const onTimeUpdate = () => {
       setPositionSeconds(audio.currentTime)
       maybeUpgradeAfterStablePlayback()
+      flushPodcastProgressRef.current()
     }
     const onPlay = () => {
       setIsPlaying(true)
@@ -520,6 +724,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
     }
     const onPause = () => {
       setIsPlaying(false)
+      flushPodcastProgressRef.current(true)
       if (!audio.ended && !upgradeSessionRef.current?.attempted) {
         cancelUpgradeSession('upgrade-cancelled-pause', 'playback-paused-before-upgrade')
       }
@@ -540,6 +745,19 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       syncDuration()
     }
     const onEnded = () => {
+      const endedTrack = currentTrackRef.current
+      if (endedTrack && isPodcastQueueSong(endedTrack)) {
+        const duration =
+          Number.isFinite(audio.duration) && audio.duration > 0
+            ? audio.duration
+            : endedTrack.durationSeconds ?? audio.currentTime
+        persistPodcastProgress(endedTrack, duration, duration, {
+          force: true,
+          completed: true,
+        })
+        podcastProgressTrackIdRef.current = null
+      }
+
       cancelUpgradeSession('upgrade-cancelled-track-changed', 'track-ended')
       const queue = queueRef.current
       const currentIndexValue = queueIndexRef.current
@@ -611,11 +829,13 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
         return
       }
 
-      setError(
-        track && isRadioQueueSong(track)
-          ? 'This station stream is unavailable right now.'
-          : 'Unable to play this track.',
-      )
+      if (track && isPodcastQueueSong(track)) {
+        flushPodcastProgressRef.current(true)
+        setError(playbackErrorMessage(track))
+        return
+      }
+
+      setError(playbackErrorMessage(track))
     }
 
     audio.addEventListener('timeupdate', onTimeUpdate)
@@ -642,7 +862,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       service.destroy()
       serviceRef.current = null
     }
-  }, [cancelUpgradeSession, extendQueueIfNeeded, getService])
+  }, [cancelUpgradeSession, extendQueueIfNeeded, getService, persistPodcastProgress])
 
   const playQueue = useCallback(
     (
@@ -654,6 +874,8 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
     ) => {
       const playableQueue = queue.filter(Boolean)
       if (playableQueue.length === 0) return
+
+      flushPodcastProgress(true)
 
       const safeIndex = Math.min(
         playableQueue.length - 1,
@@ -684,7 +906,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       extendQueueIfNeeded(resolvedQueue, resolvedIndex)
       playSong(resolvedQueue[resolvedIndex])
     },
-    [applyQueueState, extendQueueIfNeeded, playSong],
+    [applyQueueState, extendQueueIfNeeded, flushPodcastProgress, playSong],
   )
 
   const playTrack = useCallback(
