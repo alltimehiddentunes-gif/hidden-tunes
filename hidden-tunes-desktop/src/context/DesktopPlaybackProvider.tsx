@@ -28,6 +28,11 @@ import {
 } from '../lib/desktopPlayback/audioUpgradeDiagnostics'
 import { HtmlAudioPlaybackService } from '../lib/desktopPlayback/HtmlAudioPlaybackService'
 import { buildRelatedQueue } from '../lib/desktopPlayback/queueIntelligence'
+import { resolveRadioPlayUrl } from '../lib/radio/radioCatalogApi'
+import {
+  extractRadioStationId,
+  isRadioQueueSong,
+} from '../lib/radio/radioPlaybackAdapter'
 import type {
   DesktopPlaybackContextValue,
   QueueCandidatePools,
@@ -226,7 +231,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
     return extendedQueue
   }, [])
 
-  const playSong = useCallback(
+  const startPlayback = useCallback(
     (song: ApiSong) => {
       const service = getService()
       cancelUpgradeSession('upgrade-cancelled-session-replaced', 'new-track-playback')
@@ -292,7 +297,11 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
         service.stop()
         setIsPlaying(false)
         setIsLoading(false)
-        setError('Unable to play this track.')
+        setError(
+          isRadioQueueSong(song)
+            ? 'This station stream is unavailable right now.'
+            : 'Unable to play this track.',
+        )
         return
       }
 
@@ -339,10 +348,73 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
           }
           setIsPlaying(false)
           setIsLoading(false)
-          setError('Unable to play this track.')
+          setError(
+            isRadioQueueSong(song)
+              ? 'This station stream is unavailable right now.'
+              : 'Unable to play this track.',
+          )
         })
     },
     [audioQualityMode, cancelUpgradeSession, getService],
+  )
+
+  const playSong = useCallback(
+    (song: ApiSong) => {
+      void (async () => {
+        let resolvedSong = song
+
+        if (isRadioQueueSong(song)) {
+          const hasStream = Boolean(
+            song.audioUrl?.startsWith('http') || song.previewUrl?.startsWith('http'),
+          )
+          if (!hasStream) {
+            const stationId = extractRadioStationId(song.id)
+            if (!stationId) {
+              setError('Unable to play this station.')
+              return
+            }
+
+            setIsLoading(true)
+            setError(null)
+
+            try {
+              const streamUrl = await resolveRadioPlayUrl(stationId)
+              if (!streamUrl) {
+                setIsLoading(false)
+                setError('This station is not currently playable.')
+                return
+              }
+
+              resolvedSong = {
+                ...song,
+                audioUrl: streamUrl,
+                previewUrl: streamUrl,
+              }
+
+              const queue = queueRef.current
+              const queueIndex = queue.findIndex((entry) => entry.id === song.id)
+              if (queueIndex >= 0) {
+                const updatedQueue = [...queue]
+                updatedQueue[queueIndex] = resolvedSong
+                queueRef.current = updatedQueue
+                setCurrentQueue(updatedQueue)
+              }
+            } catch (error) {
+              setIsLoading(false)
+              setError(
+                error instanceof Error
+                  ? error.message
+                  : 'This station stream is unavailable right now.',
+              )
+              return
+            }
+          }
+        }
+
+        startPlayback(resolvedSong)
+      })()
+    },
+    [startPlayback],
   )
 
   useEffect(() => {
@@ -519,7 +591,31 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
           networkState: audio.networkState,
         })
       }
-      setError('Unable to play this track.')
+
+      const track = currentTrackRef.current
+      const queue = queueRef.current
+      const currentIndexValue = queueIndexRef.current
+
+      if (
+        track
+        && isRadioQueueSong(track)
+        && currentIndexValue + 1 < queue.length
+      ) {
+        setError('Station unavailable — trying next.')
+        const nextIndex = currentIndexValue + 1
+        queueIndexRef.current = nextIndex
+        setCurrentIndex(nextIndex)
+        currentTrackRef.current = queue[nextIndex]
+        setCurrentTrack(queue[nextIndex])
+        playSongRef.current(queue[nextIndex])
+        return
+      }
+
+      setError(
+        track && isRadioQueueSong(track)
+          ? 'This station stream is unavailable right now.'
+          : 'Unable to play this track.',
+      )
     }
 
     audio.addEventListener('timeupdate', onTimeUpdate)

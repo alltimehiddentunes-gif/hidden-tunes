@@ -154,6 +154,9 @@ import { acquirePlayerOverlayScrollLock } from './lib/playerOverlayChrome'
 import { overlayPhaseDataAttr } from './lib/playerOverlayTransition'
 import { usePlayerOverlayController } from './lib/usePlayerOverlayController'
 import { useAutoOpenPreferredPlayer } from './lib/useAutoOpenPreferredPlayer'
+import { RadioPage } from './components/radio/RadioPage'
+import { buildRadioQueueSongs } from './lib/radio/radioPlaybackAdapter'
+import type { RadioStationMeta } from './lib/radio/types'
 import './App.css'
 
 const LIBRARY_TABS = ['Overview', 'Songs', 'Albums', 'Artists', 'Playlists'] as const
@@ -1068,6 +1071,7 @@ type PageId = StoredPageId
 
 type NavKey =
   | 'home'
+  | 'radio'
   | 'worlds'
   | 'search'
   | 'library'
@@ -1082,6 +1086,7 @@ type NavKey =
 
 const PSD_DESTINATION_NAV_KEYS: NavKey[] = [
   'home',
+  'radio',
   'worlds',
   'search',
   'library',
@@ -1096,6 +1101,7 @@ const PSD_DESTINATION_NAV_KEYS: NavKey[] = [
 
 const TOP_BAR_PLACEHOLDERS: Partial<Record<NavKey, string>> = {
   home: 'Search songs, artists, moods…',
+  radio: 'Search stations, genres, countries…',
   worlds: 'Search emotional worlds…',
   search: 'Search songs, artists, albums…',
   library: 'Search songs, artists, albums, playlists...',
@@ -1209,6 +1215,17 @@ const SIDEBAR_NAV: SidebarNavItem[] = [
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
         <path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1V9.5z" />
+      </svg>
+    ),
+  },
+  {
+    key: 'radio',
+    page: 'radio',
+    label: 'Radio',
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
+        <circle cx="12" cy="12" r="2" />
+        <path d="M16 8a6 6 0 010 8M19 5a10 10 0 010 14" />
       </svg>
     ),
   },
@@ -10032,6 +10049,8 @@ function CatalogDetailRouter({
   playlistsQuery = '',
   setPlaylistsQuery,
   libraryQuery = '',
+  radioQuery = '',
+  onPlayRadioStation,
 }: {
   activeView: ActiveView
   selectedSong: ApiSong | null
@@ -10059,6 +10078,13 @@ function CatalogDetailRouter({
   playlistsQuery?: string
   setPlaylistsQuery?: (value: string) => void
   libraryQuery?: string
+  radioQuery?: string
+  onPlayRadioStation?: (
+    station: RadioStationMeta,
+    queue: RadioStationMeta[],
+    startIndex: number,
+    queueTitle: string,
+  ) => void
 }) {
   if (activeView === 'song' && selectedSong) {
     return (
@@ -10122,6 +10148,8 @@ function CatalogDetailRouter({
       playlistsQuery={playlistsQuery}
       setPlaylistsQuery={setPlaylistsQuery}
       libraryQuery={libraryQuery}
+      radioQuery={radioQuery}
+      onPlayRadioStation={onPlayRadioStation}
     />
   )
 }
@@ -10145,6 +10173,8 @@ function PageContent({
   playlistsQuery = '',
   setPlaylistsQuery,
   libraryQuery = '',
+  radioQuery = '',
+  onPlayRadioStation,
 }: {
   page: PageId
   activeNavKey: NavKey
@@ -10164,6 +10194,13 @@ function PageContent({
   playlistsQuery?: string
   setPlaylistsQuery?: (value: string) => void
   libraryQuery?: string
+  radioQuery?: string
+  onPlayRadioStation?: (
+    station: RadioStationMeta,
+    queue: RadioStationMeta[],
+    startIndex: number,
+    queueTitle: string,
+  ) => void
 }) {
   void _onOpenMood
   void onPlaylistBack
@@ -10182,6 +10219,14 @@ function PageContent({
           onOpenArtist={onOpenArtist}
           onOpenAlbum={onOpenAlbum}
           onNavigateNav={onNavigateNav}
+        />
+      )
+    case 'radio':
+      return (
+        <RadioPage
+          query={radioQuery ?? ''}
+          onPlayRadioStation={onPlayRadioStation ?? (() => {})}
+          ArtworkImage={ArtworkImage}
         />
       )
     case 'discover':
@@ -10293,6 +10338,7 @@ function AppShell() {
   const [downloadsQuery, setDownloadsQuery] = useState('')
   const [playlistsQuery, setPlaylistsQuery] = useState('')
   const [libraryQuery, setLibraryQuery] = useState('')
+  const [radioQuery, setRadioQuery] = useState('')
   const [discoverQuery, setDiscoverQuery] = usePersistedPreference(
     DESKTOP_PREFERENCE_KEYS.discoverSearch,
     '',
@@ -10379,6 +10425,27 @@ function AppShell() {
       scheduleAutoOpenPlayerAfterSongTap(resolved.id)
     },
     [openSong, playQueue, scheduleAutoOpenPlayerAfterSongTap, songs],
+  )
+
+  const playRadioStation = useCallback(
+    (
+      _station: RadioStationMeta,
+      queue: RadioStationMeta[],
+      startIndex: number,
+      queueTitle: string,
+    ) => {
+      const apiQueue = buildRadioQueueSongs(queue)
+      if (apiQueue.length === 0) return
+
+      const safeIndex = Math.max(0, Math.min(startIndex, apiQueue.length - 1))
+      const track = apiQueue[safeIndex]
+      setDesktopSelectedTrack(track)
+      playQueue(apiQueue, safeIndex, 'radio', queueTitle, {
+        seedType: 'manual',
+        seedTracks: apiQueue,
+      })
+    },
+    [playQueue],
   )
 
   const openAlbum = useCallback((album: ApiAlbum) => {
@@ -10468,6 +10535,7 @@ function AppShell() {
                       || activeNavKey === 'recent'
                       || activeNavKey === 'downloads'
                       || activeNavKey === 'playlists'
+                      || activeNavKey === 'radio'
                       ? 'search'
                       : 'default'
                   }
@@ -10486,6 +10554,8 @@ function AppShell() {
                                 ? downloadsQuery
                                 : activeNavKey === 'playlists'
                                   ? playlistsQuery
+                                  : activeNavKey === 'radio'
+                                    ? radioQuery
                                   : undefined
                   }
                   onSearchChange={
@@ -10503,6 +10573,8 @@ function AppShell() {
                                 ? setDownloadsQuery
                                 : activeNavKey === 'playlists'
                                   ? setPlaylistsQuery
+                                  : activeNavKey === 'radio'
+                                    ? setRadioQuery
                                   : undefined
                   }
                 />
@@ -10537,6 +10609,8 @@ function AppShell() {
                   playlistsQuery={playlistsQuery}
                   setPlaylistsQuery={setPlaylistsQuery}
                   libraryQuery={libraryQuery}
+                  radioQuery={radioQuery}
+                  onPlayRadioStation={playRadioStation}
                 />
               </div>
             </main>
