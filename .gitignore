@@ -28,7 +28,11 @@ yarn-error.*
 
 # macOS
 .DS_Store
+Thumbs.db
 *.pem
+
+# local safety snapshots (never commit)
+.local-safety/
 
 # local env files
 .env
