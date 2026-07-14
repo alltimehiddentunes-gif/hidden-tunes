@@ -50,7 +50,6 @@ import {
   PLAYER_QUEUE_EMPTY_TITLE,
   PLAYER_QUEUE_PANEL_EMPTY_DETAIL,
   PLAYER_QUEUE_PANEL_EMPTY_TITLE,
-  QUEUE_CONTEXT_LABELS,
 } from './lib/playerQueueDisplay'
 import {
   buildQueueSeedPool,
@@ -123,10 +122,6 @@ import {
   type VisualSceneId,
 } from './lib/visualScenes'
 import {
-  analyzeQueueSnapshot,
-  describeQueueInsight,
-} from './lib/queueSnapshot'
-import {
   buildEmotionalLanes,
   findEmotionalLane,
 } from './lib/emotionalDiscovery'
@@ -143,10 +138,7 @@ import {
   type BuiltRadioStation,
 } from './lib/desktopRadio'
 import {
-  buildListeningContext,
-  deriveListeningAtmosphere,
   getListeningScenesForCatalog,
-  type ListeningContextLines,
 } from './lib/listeningContext'
 import {
   type NowPlayingStyle,
@@ -6105,13 +6097,10 @@ const PlayerBar = memo(function PlayerBar({
   track: ApiSong | null
   onOpenPlayerByStyle: (style: NowPlayingStyle) => void
 }) {
-  const { songs } = useCatalog()
   const {
     currentTrack,
     currentQueue,
     currentIndex,
-    queueContext,
-    queueTitle,
     isPlaying,
     isLoading,
     error,
@@ -6134,63 +6123,11 @@ const PlayerBar = memo(function PlayerBar({
   const displayTrack = hasPlayback ? (track ?? currentTrack) : null
   const title = displayTrack?.title ?? 'Nothing playing'
   const artist = displayTrack?.artist ?? 'Select a song to begin'
-  const albumLabel = displayTrack?.album ?? (hasPlayback ? queueTitle ?? null : null)
-  const qualityLabel = hasPlayback
-    ? (
-      resolveSearchRowQualityBadge(displayTrack) !== 'SONG'
-        ? resolveSearchRowQualityBadge(displayTrack)
-        : AUDIO_QUALITY_MODE_LABELS[audioQualityMode]
-    )
-    : null
   const progressMax = durationSeconds > 0 ? durationSeconds : 0
   const progressValue = scrubSeconds ?? (progressMax > 0 ? Math.min(positionSeconds, progressMax) : 0)
   const progressPercent =
     progressMax > 0 ? Math.min(100, (progressValue / progressMax) * 100) : 0
   const volumePercent = Math.min(100, Math.max(0, volume * 100))
-  const showQueuePosition = currentQueue.length > 1 && currentIndex >= 0
-  const queueLabel = QUEUE_CONTEXT_LABELS[queueContext]
-  const isBarActive = hasPlayback && Boolean(displayTrack && currentTrack?.id === displayTrack.id)
-
-  const barQueueSnapshot = useMemo(
-    () =>
-      isBarActive
-        ? analyzeQueueSnapshot({
-            queue: currentQueue,
-            currentIndex,
-            currentTrack,
-          })
-        : null,
-    [currentIndex, currentQueue, currentTrack, isBarActive],
-  )
-
-  const barQueueInsight = useMemo(
-    () => (barQueueSnapshot ? describeQueueInsight(barQueueSnapshot) : null),
-    [barQueueSnapshot],
-  )
-
-  const playerListeningContext = useMemo(
-    () =>
-      buildListeningContext({
-        track: displayTrack,
-        catalog: songs,
-        queueContext,
-        queueTitle,
-        queueInsight: barQueueInsight,
-        isPlaying,
-        isLoading,
-        isActive: isBarActive,
-      }),
-    [
-      barQueueInsight,
-      displayTrack,
-      isBarActive,
-      isLoading,
-      isPlaying,
-      queueContext,
-      queueTitle,
-      songs,
-    ],
-  )
 
   const volumeLevel =
     volume <= 0 ? 'muted' : volume < 0.35 ? 'low' : volume > 0.7 ? 'high' : 'normal'
@@ -6303,17 +6240,6 @@ const PlayerBar = memo(function PlayerBar({
         <div className="player-meta">
           <h4>{title}</h4>
           <p>{artist}</p>
-          {albumLabel ? <p className="player-album-label">{albumLabel}</p> : null}
-          {qualityLabel ? <span className="player-quality-pill">{qualityLabel}</span> : null}
-          {showQueuePosition ? (
-            <p className="player-queue-position">
-              {queueLabel} · Track {currentIndex + 1} of {currentQueue.length}
-            </p>
-          ) : null}
-          <ListeningContextStrip
-            lines={playerListeningContext}
-            className="listening-context-strip listening-context-strip--player"
-          />
           {error ? <p className="player-error">{error}</p> : null}
         </div>
       </div>
@@ -6430,555 +6356,73 @@ const PlayerBar = memo(function PlayerBar({
 
 const QueueUpNextPanel = memo(function QueueUpNextPanel({
   onOpenPlayerByStyle,
-  onNavigateNav,
-  activeNavKey,
 }: {
   onOpenPlayerByStyle: (style: NowPlayingStyle) => void
   onNavigateNav?: (navKey: NavKey) => void
   activeNavKey?: NavKey
 }) {
-  const isLuxuryRail = activeNavKey === 'albums' || activeNavKey === 'playlists'
   const {
     currentTrack,
     currentQueue,
     currentIndex,
-    queueTitle,
-    isPlaying,
-    isLoading,
-    audioQualityMode,
-    getUpcomingTracks,
-    playQueueAtIndex,
     clearUpcomingQueue,
-    seekTo,
-    volume,
-    setVolume,
+    getUpcomingTracks,
   } = useDesktopPlayback()
-  const { positionSeconds, durationSeconds } = useDesktopPlaybackProgress()
-
-  const listScrollRef = useRef<HTMLOListElement>(null)
-  const progressTrackRef = useRef<HTMLDivElement>(null)
-  const volumeTrackRef = useRef<HTMLDivElement>(null)
-  const isSeekingRef = useRef(false)
-  const isAdjustingVolumeRef = useRef(false)
-  const [scrubSeconds, setScrubSeconds] = useState<number | null>(null)
 
   const activeTrack =
     currentIndex >= 0 ? (currentTrack ?? currentQueue[currentIndex] ?? null) : null
   const hasPlayback = Boolean(activeTrack && currentQueue.length > 0 && currentIndex >= 0)
-  const upcomingTracks = getUpcomingTracks()
-  const liveProgressMax = hasPlayback && durationSeconds > 0 ? durationSeconds : 0
-  const liveProgressValue = scrubSeconds ?? (liveProgressMax > 0 ? Math.min(positionSeconds, liveProgressMax) : 0)
-  const progressMax = liveProgressMax
-  const progressValue = liveProgressValue
-  const progressPercent = progressMax > 0
-    ? Math.min(100, (progressValue / progressMax) * 100)
-    : 0
-  const volumePercent = Math.min(100, Math.max(0, volume * 100))
-  const activeTrackId = activeTrack?.id ?? null
 
-  const displayTitle = hasPlayback ? (activeTrack?.title ?? 'Unknown track') : 'Nothing playing'
-  const displayArtist = hasPlayback
-    ? (activeTrack?.artist ?? 'Unknown artist')
-    : 'Select a song to start'
-  const displayAlbum = hasPlayback
-    ? (activeTrack?.album ?? queueTitle ?? null)
-    : null
-  const railQualityLabel = hasPlayback
-    ? (
-      resolveSearchRowQualityBadge(activeTrack) !== 'SONG'
-        ? resolveSearchRowQualityBadge(activeTrack)
-        : AUDIO_QUALITY_MODE_LABELS[audioQualityMode]
-    )
-    : null
-  const canClearQueue = upcomingTracks.length > 0
-
-  const queueRows = useMemo(
-    () => buildPlayerUpNextRows(upcomingTracks, currentIndex, upcomingTracks.length),
-    [currentIndex, upcomingTracks],
+  const queueStats = useMemo(
+    () => buildPlayerQueueStats(currentQueue, currentIndex),
+    [currentIndex, currentQueue],
   )
 
-  useEffect(() => {
-    if (!listScrollRef.current) return
-    listScrollRef.current.scrollTop = 0
-  }, [activeTrackId, currentIndex])
+  const canClearQueue = getUpcomingTracks().length > 0
 
   const handleClearQueue = useCallback(() => {
     clearUpcomingQueue()
   }, [clearUpcomingQueue])
 
-  const handleQueueRowClick = useCallback(
-    (queueIndex: number) => {
-      playQueueAtIndex(queueIndex)
-    },
-    [playQueueAtIndex],
-  )
-
-  const resolveSeekSeconds = useCallback(
-    (clientX: number) => {
-      const trackEl = progressTrackRef.current
-      if (!trackEl || liveProgressMax <= 0) return null
-      const rect = trackEl.getBoundingClientRect()
-      if (rect.width <= 0) return null
-      const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width))
-      return ratio * liveProgressMax
-    },
-    [liveProgressMax],
-  )
-
-  const handleSeekClick = (event: ReactMouseEvent<HTMLDivElement>) => {
-    if (!hasPlayback || liveProgressMax <= 0 || isLoading || isSeekingRef.current) return
-    const seconds = resolveSeekSeconds(event.clientX)
-    if (seconds != null) seekTo(seconds)
-  }
-
-  const handleSeekPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (!hasPlayback || liveProgressMax <= 0 || isLoading) return
-    const seconds = resolveSeekSeconds(event.clientX)
-    if (seconds == null) return
-    isSeekingRef.current = true
-    event.currentTarget.setPointerCapture(event.pointerId)
-    setScrubSeconds(seconds)
-    seekTo(seconds)
-  }
-
-  const handleSeekPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (!isSeekingRef.current) return
-    const seconds = resolveSeekSeconds(event.clientX)
-    if (seconds != null) setScrubSeconds(seconds)
-  }
-
-  const handleSeekPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (!isSeekingRef.current) return
-    isSeekingRef.current = false
-    event.currentTarget.releasePointerCapture(event.pointerId)
-    if (scrubSeconds != null) seekTo(scrubSeconds)
-    setScrubSeconds(null)
-  }
-
-  const resolveVolume = useCallback((clientX: number) => {
-    const trackEl = volumeTrackRef.current
-    if (!trackEl) return null
-    const rect = trackEl.getBoundingClientRect()
-    if (rect.width <= 0) return null
-    const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width))
-    return ratio
-  }, [])
-
-  const handleVolumeClick = (event: ReactMouseEvent<HTMLDivElement>) => {
-    if (isAdjustingVolumeRef.current) return
-    const nextVolume = resolveVolume(event.clientX)
-    if (nextVolume != null) setVolume(nextVolume)
-  }
-
-  const handleVolumePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const nextVolume = resolveVolume(event.clientX)
-    if (nextVolume == null) return
-    isAdjustingVolumeRef.current = true
-    event.currentTarget.setPointerCapture(event.pointerId)
-    setVolume(nextVolume)
-  }
-
-  const handleVolumePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (!isAdjustingVolumeRef.current) return
-    const nextVolume = resolveVolume(event.clientX)
-    if (nextVolume != null) setVolume(nextVolume)
-  }
-
-  const handleVolumePointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (!isAdjustingVolumeRef.current) return
-    isAdjustingVolumeRef.current = false
-    event.currentTarget.releasePointerCapture(event.pointerId)
-  }
-
-  const queueEmptyState = (
-    <div className="queue-empty rail-queue-empty player-queue-empty--premium">
-      <p className="player-queue-empty-eyebrow">UP NEXT</p>
-      <p className="queue-empty-title">{PLAYER_QUEUE_EMPTY_TITLE}</p>
-      <p className="queue-empty-detail">
-        {hasPlayback
-          ? PLAYER_QUEUE_EMPTY_DETAIL
-          : PLAYER_QUEUE_PANEL_EMPTY_DETAIL}
-      </p>
-    </div>
-  )
-
-  if (isLuxuryRail) {
-    return (
-      <aside
-        className={`queue-rail now-playing-rail now-playing-rail--albums-luxury${activeNavKey === 'playlists' ? ' now-playing-rail--playlists-luxury' : ''}`}
-        aria-label="Now playing"
-        data-playing={isPlaying ? 'true' : 'false'}
-        data-loading={isLoading ? 'true' : 'false'}
-        data-idle={hasPlayback ? 'false' : 'true'}
-      >
-        <div className="now-playing-rail-inner">
-          <header className="albums-rail-header">
-            <h2 className="albums-rail-title">Now Playing</h2>
-            <span className="albums-rail-waveform-icon" aria-hidden="true">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
-                <path d="M4 14V10M8 16V8M12 18V6M16 14V10M20 16V8" />
-              </svg>
-            </span>
-          </header>
-
-          <section className="albums-rail-stage" aria-label="Current track">
-            <div className="albums-rail-art-shell">
-              <span className="albums-rail-art-glow" aria-hidden="true" />
-              <span className="albums-rail-vinyl premium-vinyl-disc" aria-hidden="true" />
-              <div className="albums-rail-art-frame">
-                <ArtworkImage
-                  src={activeTrack?.artwork ?? null}
-                  alt=""
-                  seed={activeTrack?.id ?? 'now-playing'}
-                  label={displayTitle}
-                  priority
-                />
-                {isLoading ? (
-                  <span className="albums-rail-art-spinner player-spinner" aria-hidden="true" />
-                ) : null}
-              </div>
-            </div>
-
-            <div className="albums-rail-track-row">
-              <div className="albums-rail-track-copy">
-                <h3 className="albums-rail-track-title">{displayTitle}</h3>
-                <p className="albums-rail-track-artist">
-                  <span>{displayArtist}</span>
-                </p>
-                {displayAlbum ? (
-                  <p className="albums-rail-track-album">{displayAlbum}</p>
-                ) : null}
-              </div>
-            </div>
-
-            <div
-              className="albums-rail-waveform-wrap"
-              style={{ ['--albums-rail-progress' as string]: `${progressPercent}%` }}
-            >
-              <PremiumReactiveWaveform
-                trackId={activeTrackId}
-                progressPercent={progressPercent}
-                progressMax={liveProgressMax}
-                isLoading={isLoading && hasPlayback}
-                onSeek={seekTo}
-                className="albums-rail-waveform"
-              />
-            </div>
-
-            <div className="albums-rail-transport-wrap">
-              <FullPlayerTransportControls
-                activeTrackId={activeTrack?.id ?? null}
-                hideDecorativeControls
-              />
-            </div>
-
-            {hasPlayback && railQualityLabel ? (
-              <div className="albums-rail-badges">
-                <span className="albums-rail-quality-pill">{railQualityLabel}</span>
-              </div>
-            ) : null}
-
-            <div className="albums-rail-player-launcher">
-              <PlayerModeLauncher
-                hasPlayback={hasPlayback}
-                onOpenPlayerByStyle={onOpenPlayerByStyle}
-                variant="sidebar"
-              />
-            </div>
-          </section>
-
-          <section className="albums-rail-up-next" aria-label="Up next">
-            <div className="albums-rail-up-next-header">
-              <h3 className="albums-rail-up-next-title">Up Next</h3>
-              {canClearQueue ? (
-                <button
-                  type="button"
-                  className="albums-rail-up-next-clear"
-                  onClick={handleClearQueue}
-                >
-                  Clear
-                </button>
-              ) : null}
-            </div>
-
-            {queueRows.length === 0 ? (
-              queueEmptyState
-            ) : (
-              <ol className="albums-rail-up-next-list" ref={listScrollRef}>
-                {queueRows.map((row) => (
-                  <li className="albums-rail-up-next-item" key={row.key}>
-                    <button
-                      type="button"
-                      className="albums-rail-up-next-button"
-                      onClick={() => handleQueueRowClick(row.queueIndex)}
-                    >
-                      <div className="albums-rail-up-next-thumb" aria-hidden="true">
-                        <ArtworkImage
-                          src={row.track.artwork ?? null}
-                          alt=""
-                          seed={row.track.id}
-                          label={row.title}
-                        />
-                      </div>
-                      <div className="albums-rail-up-next-copy">
-                        <span className="albums-rail-up-next-track">{row.title}</span>
-                        <span className="albums-rail-up-next-artist">{row.artist}</span>
-                      </div>
-                      <span className="albums-rail-up-next-duration">{row.duration}</span>
-                    </button>
-                  </li>
-                ))}
-              </ol>
-            )}
-          </section>
-        </div>
-      </aside>
-    )
-  }
+  if (!hasPlayback) return null
 
   return (
-    <aside
-      className="queue-rail now-playing-rail now-playing-rail--psd"
-      aria-label="Now playing"
-      data-playing={isPlaying ? 'true' : 'false'}
-      data-loading={isLoading ? 'true' : 'false'}
-      data-idle={hasPlayback ? 'false' : 'true'}
-    >
-      <div className="now-playing-rail-inner">
-        <header className="rail-psd-header">
-          <h2 className="rail-psd-title">Now Playing</h2>
-        </header>
-
-        <section className="rail-psd-stage" aria-label="Current track">
-          {!hasPlayback ? (
-            <div className="rail-psd-idle-state">
-              <div className="rail-psd-idle-emblem" aria-hidden="true">
-                <BrandWaveformMark className="brand-waveform" />
-              </div>
-              <h3 className="rail-psd-idle-title">Nothing playing</h3>
-              <p className="rail-psd-idle-copy">
-                Pick a song, station, or podcast episode to fill the Now Playing panel.
-              </p>
-              {onNavigateNav ? (
-                <div className="rail-psd-idle-actions">
-                  <button
-                    type="button"
-                    className="rail-psd-idle-btn"
-                    onClick={() => onNavigateNav('search')}
-                  >
-                    Browse Music
-                  </button>
-                  <button
-                    type="button"
-                    className="rail-psd-idle-btn"
-                    onClick={() => onNavigateNav('radio')}
-                  >
-                    Radio
-                  </button>
-                  <button
-                    type="button"
-                    className="rail-psd-idle-btn"
-                    onClick={() => onNavigateNav('podcasts')}
-                  >
-                    Podcasts
-                  </button>
-                </div>
-              ) : null}
-            </div>
-          ) : (
-            <>
-          <div className="rail-psd-art-shell">
-            <span className="rail-psd-art-glow" aria-hidden="true" />
-            <span className="rail-psd-vinyl premium-vinyl-disc" aria-hidden="true" />
-            <div className="rail-psd-art-frame">
-              <ArtworkImage
-                src={activeTrack?.artwork ?? null}
-                alt=""
-                seed={activeTrack?.id ?? 'rail-now-playing'}
-                label={displayTitle}
-                priority
-              />
-              {isLoading ? (
-                <span className="rail-psd-art-spinner player-spinner" aria-hidden="true" />
-              ) : null}
-            </div>
-          </div>
-
-          <div className="rail-psd-track-head">
-            <div className="rail-psd-title-row">
-              <h3 className="rail-psd-track-title">{displayTitle}</h3>
-            </div>
-            <p className="rail-psd-track-artist">
-              <span>{displayArtist}</span>
-            </p>
-            {displayAlbum ? (
-              <p className="rail-psd-track-album">{displayAlbum}</p>
-            ) : null}
-          </div>
-
-          {hasPlayback && railQualityLabel ? (
-            <div className="rail-psd-quality-row">
-              <span className="rail-psd-hq-pill">{railQualityLabel}</span>
-            </div>
-          ) : null}
-
-          <div
-            className="rail-psd-progress-wrap"
-            style={{ ['--rail-psd-progress' as string]: `${progressPercent}%` }}
+    <aside className="queue-rail queue-rail--workspace" aria-label="Up next queue">
+      <header className="queue-rail-header queue-rail-header--workspace">
+        <div className="queue-rail-header-copy">
+          <h2>Up Next</h2>
+          <span className="queue-rail-stats">
+            {queueStats.songCount} tracks · {queueStats.remainingCount} remaining · {queueStats.remainingDurationLabel}
+          </span>
+        </div>
+        {canClearQueue ? (
+          <button
+            type="button"
+            className="queue-rail-clear"
+            onClick={handleClearQueue}
           >
-            <div
-              ref={progressTrackRef}
-              className={
-                'rail-psd-progress-track'
-                + (liveProgressMax > 0 && hasPlayback ? ' is-interactive' : '')
-              }
-              role="slider"
-              aria-label="Seek position"
-              aria-valuemin={0}
-              aria-valuemax={Math.round(progressMax)}
-              aria-valuenow={Math.round(progressValue)}
-              aria-disabled={!hasPlayback || liveProgressMax <= 0 || isLoading}
-              onClick={handleSeekClick}
-              onPointerDown={handleSeekPointerDown}
-              onPointerMove={handleSeekPointerMove}
-              onPointerUp={handleSeekPointerUp}
-              onPointerCancel={handleSeekPointerUp}
-            >
-              <div className="rail-psd-progress-fill" style={{ width: `${progressPercent}%` }} />
-            </div>
-            <div className="rail-psd-progress-times" aria-hidden="true">
-              <span>{formatPlaybackTime(progressValue)}</span>
-              <span>{formatPlaybackTime(progressMax)}</span>
-            </div>
-          </div>
+            Clear
+          </button>
+        ) : null}
+      </header>
 
-          <div className="rail-psd-transport-wrap">
-            <FullPlayerTransportControls
-              activeTrackId={activeTrack?.id ?? null}
-              hideDecorativeControls
-            />
-          </div>
-            </>
-          )}
-        </section>
-
-        <section className="rail-psd-queue-section" aria-label="Next in queue">
-          <div className="rail-psd-queue-header">
-            <h3 className="rail-psd-queue-title">Next In Queue</h3>
-            {canClearQueue ? (
-              <button
-                type="button"
-                className="rail-psd-queue-clear"
-                onClick={handleClearQueue}
-              >
-                Clear
-              </button>
-            ) : null}
-          </div>
-
-          {queueRows.length === 0 ? (
-            queueEmptyState
-          ) : (
-            <ol className="rail-psd-queue-list" ref={listScrollRef}>
-              {queueRows.map((row) => (
-                <li className="rail-psd-queue-item" key={row.key}>
-                  <button
-                    type="button"
-                    className="rail-psd-queue-button"
-                    onClick={() => handleQueueRowClick(row.queueIndex)}
-                  >
-                    <div className="rail-psd-queue-thumb" aria-hidden="true">
-                      <ArtworkImage
-                        src={row.track.artwork ?? null}
-                        alt=""
-                        seed={row.track.id}
-                        label={row.title}
-                      />
-                    </div>
-                    <div className="rail-psd-queue-copy">
-                      <span className="rail-psd-queue-track">{row.title}</span>
-                      <span className="rail-psd-queue-artist">{row.artist}</span>
-                    </div>
-                    <span className="rail-psd-queue-duration">{row.duration}</span>
-                  </button>
-                </li>
-              ))}
-            </ol>
-          )}
-        </section>
-
-        <footer className="rail-psd-footer">
-          <div className="rail-psd-volume" role="group" aria-label="Volume">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-              <path d="M11 5L6 9H2v6h4l5 4V5z" />
-              <path d="M15.54 8.46a5 5 0 010 7.07" />
-            </svg>
-            <div
-              ref={volumeTrackRef}
-              className="rail-psd-volume-track"
-              style={{ ['--rail-psd-volume' as string]: `${volumePercent}%` }}
-              role="slider"
-              aria-label="Volume"
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={Math.round(volumePercent)}
-              onClick={handleVolumeClick}
-              onPointerDown={handleVolumePointerDown}
-              onPointerMove={handleVolumePointerMove}
-              onPointerUp={handleVolumePointerUp}
-              onPointerCancel={handleVolumePointerUp}
-            >
-              <div className="rail-psd-volume-fill" style={{ width: `${volumePercent}%` }} />
-            </div>
-          </div>
-          <PlayerModeLauncher
-            hasPlayback={hasPlayback}
-            onOpenPlayerByStyle={onOpenPlayerByStyle}
-            variant="sidebar"
-          />
-        </footer>
+      <div className="queue-rail-queue-body">
+        <PlayerQueuePanel />
       </div>
+
+      <footer className="queue-rail-footer queue-rail-footer--workspace">
+        <PlayerModeLauncher
+          hasPlayback={hasPlayback}
+          onOpenPlayerByStyle={onOpenPlayerByStyle}
+          variant="sidebar"
+        />
+      </footer>
     </aside>
   )
 })
 
+
 type ActiveView = 'page' | 'song' | 'album' | 'artist' | 'mood' | 'podcast-show'
-
-function ListeningContextStrip({
-  lines,
-  className = 'listening-context-strip',
-}: {
-  lines: ListeningContextLines
-  className?: string
-}) {
-  if (
-    !lines.atmosphereLine
-    && lines.contextPills.length === 0
-    && !lines.insightLine
-  ) {
-    return null
-  }
-
-  return (
-    <div className={className}>
-      {lines.atmosphereLine ? (
-        <p className="listening-context-atmosphere">{lines.atmosphereLine}</p>
-      ) : null}
-      {lines.contextPills.length > 0 ? (
-        <div className="listening-context-pills">
-          {lines.contextPills.map((pill) => (
-            <span className="listening-context-pill" key={pill}>
-              {pill}
-            </span>
-          ))}
-        </div>
-      ) : null}
-      {lines.insightLine ? (
-        <p className="listening-context-insight">{lines.insightLine}</p>
-      ) : null}
-    </div>
-  )
-}
 
 function formatDateLabel(value: string | null) {
   if (!value) return null
@@ -9823,7 +9267,7 @@ const FullscreenLyricsShell = memo(function FullscreenLyricsShell({
   )
 })
 
-function SongDetailView({
+function PlayerWorkspace({
   song,
   onBack,
   onOpenCinema,
@@ -9832,129 +9276,78 @@ function SongDetailView({
   onBack: () => void
   onOpenCinema?: () => void
 }) {
-  const { songs } = useCatalog()
   const {
     currentTrack,
-    currentQueue,
-    currentIndex,
-    queueContext,
     queueTitle,
     isPlaying,
     isLoading,
+    audioQualityMode,
   } = useDesktopPlayback()
 
-  const created = formatDateLabel(song.createdAt)
   const isActive = currentTrack?.id === song.id
-
-  const stageAtmosphere = useMemo(
-    () => deriveListeningAtmosphere(song, songs),
-    [song, songs],
-  )
-
-  const stageQueueSnapshot = useMemo(
-    () =>
-      isActive
-        ? analyzeQueueSnapshot({
-            queue: currentQueue,
-            currentIndex,
-            currentTrack,
-          })
-        : null,
-    [currentIndex, currentQueue, currentTrack, isActive],
-  )
-
-  const stageQueueInsight = useMemo(
-    () => (stageQueueSnapshot ? describeQueueInsight(stageQueueSnapshot) : null),
-    [stageQueueSnapshot],
-  )
-
-  const stageListeningContext = useMemo(
-    () =>
-      buildListeningContext({
-        track: song,
-        catalog: songs,
-        queueContext,
-        queueTitle,
-        queueInsight: stageQueueInsight,
-        isPlaying,
-        isLoading,
-        isActive,
-      }),
-    [
-      isActive,
-      isLoading,
-      isPlaying,
-      queueContext,
-      queueTitle,
-      song,
-      songs,
-      stageQueueInsight,
-    ],
-  )
+  const qualityLabel =
+    resolveSearchRowQualityBadge(song) !== 'SONG'
+      ? resolveSearchRowQualityBadge(song)
+      : isActive
+        ? AUDIO_QUALITY_MODE_LABELS[audioQualityMode]
+        : null
+  const albumLabel = song.album ?? (isActive ? queueTitle ?? null : null)
 
   return (
-    <PageFrame>
-      <DetailTopBar title="Song" onBack={onBack} />
-      <div
-        className="listening-stage"
-        data-playing={isActive && isPlaying ? 'true' : 'false'}
-        data-loading={isActive && isLoading ? 'true' : 'false'}
-        data-scene={stageAtmosphere.sceneId}
-        data-mood={stageAtmosphere.mood}
-      >
-        <EntityAtmosphereBackdrop
-          className="listening-stage-art-backdrop"
-          artworkUrl={song.artwork}
-          label={song.title}
-          variant="panel"
-        />
-        <div className="listening-stage-veil" aria-hidden="true" />
+    <div
+      className="player-workspace"
+      data-playing={isActive && isPlaying ? 'true' : 'false'}
+      data-loading={isActive && isLoading ? 'true' : 'false'}
+      data-active={isActive ? 'true' : 'false'}
+    >
+      <header className="player-workspace-toolbar">
+        <button type="button" className="player-workspace-back" onClick={onBack}>
+          <span aria-hidden="true">←</span>
+          Back
+        </button>
         {onOpenCinema ? (
           <button
             type="button"
-            className="cinema-entry-btn"
+            className="player-workspace-fullscreen"
             onClick={onOpenCinema}
             aria-label="Open fullscreen player"
-            title="Fullscreen"
           >
-            <span className="cinema-entry-btn-icon" aria-hidden="true">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
-                <path d="M9 3H3v6M15 3h6v6M9 21H3v-6M15 21h6v-6" />
-              </svg>
-            </span>
-            <span className="cinema-entry-btn-label">Fullscreen</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+              <path d="M9 3H3v6M15 3h6v6M9 21H3v-6M15 21h6v-6" />
+            </svg>
+            Fullscreen
           </button>
         ) : null}
-        <section
-          className="detail-hero detail-hero--song"
-          data-playing={isActive && isPlaying ? 'true' : 'false'}
-          data-loading={isActive && isLoading ? 'true' : 'false'}
-        >
-          <div className="detail-artwork-stage">
-            <span className="detail-artwork-aura" aria-hidden="true" />
-            <div className="detail-artwork">
-              <ArtworkImage src={song.artwork} alt="" seed={song.id} priority />
-            </div>
-          </div>
-          <div className="detail-hero-copy">
-            <p className="detail-eyebrow">{stageListeningContext.eyebrow}</p>
-            <h1 className="detail-h1">{song.title}</h1>
-            <p className="detail-byline">
-              <span className="detail-pill">{song.artist}</span>
-              <span className="detail-pill detail-pill--muted">{song.album}</span>
-            </p>
-            <ListeningContextStrip lines={stageListeningContext} />
-            {created ? (
-              <p className="detail-stats">Added {created}</p>
+      </header>
+
+      <div className="player-workspace-grid">
+        <section className="player-workspace-art" aria-label="Artwork">
+          <div className="player-workspace-art-frame">
+            <ArtworkImage src={song.artwork} alt="" seed={song.id} priority />
+            {isActive && isLoading ? (
+              <span className="player-workspace-art-spinner player-spinner" aria-hidden="true" />
             ) : null}
-            <PlaybackTransportControls
-              activeTrackId={song.id}
-              className="detail-controls"
-            />
           </div>
         </section>
+
+        <section className="player-workspace-info" aria-label="Now playing">
+          <p className="player-workspace-eyebrow">Now Playing</p>
+          <h1 className="player-workspace-title">{song.title}</h1>
+          <p className="player-workspace-artist">{song.artist}</p>
+          {albumLabel ? (
+            <p className="player-workspace-album">{albumLabel}</p>
+          ) : null}
+          {qualityLabel ? (
+            <span className="player-workspace-quality">{qualityLabel}</span>
+          ) : null}
+          <PlaybackTransportControls
+            activeTrackId={song.id}
+            className="player-workspace-controls"
+            showShuffleRepeat
+          />
+        </section>
       </div>
-    </PageFrame>
+    </div>
   )
 }
 
@@ -10364,7 +9757,7 @@ function CatalogDetailRouter({
 }) {
   if (activeView === 'song' && selectedSong) {
     return (
-      <SongDetailView
+      <PlayerWorkspace
         song={selectedSong}
         onBack={onBack}
         onOpenCinema={onOpenCinema}
@@ -10624,7 +10017,10 @@ function App() {
 }
 
 function AppShell() {
-  const { currentTrack, playQueue, isPlaying, isLoading } = useDesktopPlayback()
+  const { currentTrack, currentQueue, currentIndex, playQueue, isPlaying, isLoading } = useDesktopPlayback()
+  const hasQueueRail = currentIndex >= 0
+    && currentQueue.length > 0
+    && Boolean(currentTrack ?? currentQueue[currentIndex])
   const { songs } = useCatalog()
   const [activePage, setActivePage] = usePersistedPreference(
     DESKTOP_PREFERENCE_KEYS.activePage,
@@ -10875,7 +10271,10 @@ function AppShell() {
       <div className="app-shell">
         <Sidebar activeNavKey={activeNavKey} onNavigateNav={navigateNav} />
         <div className="main-area">
-          <div className="main-composition">
+          <div
+            className="main-composition"
+            data-queue-expanded={hasQueueRail ? 'true' : 'false'}
+          >
             <main
               className={`main-scroll${
                 activeNavKey === 'home' && activeView === 'page' ? ' main-scroll--home' : ''
@@ -10883,6 +10282,8 @@ function AppShell() {
                 activeNavKey === 'worlds' && activeView === 'page' ? ' main-scroll--mood' : ''
               }${
                 isPsdDestinationNav(activeNavKey) && activeView === 'page' ? ' main-scroll--psd' : ''
+              }${
+                activeView === 'song' ? ' main-scroll--player-workspace' : ''
               }`}
             >
               {isPsdDestinationNav(activeNavKey) && activeView === 'page' ? (

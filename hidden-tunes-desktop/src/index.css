@@ -56,7 +56,7 @@
   --sidebar-width: 236px;
   --queue-rail-width: 310px;
   --right-rail-width: 310px;
-  --footer-player-height: 90px;
+  --footer-player-height: 72px;
   --player-height: var(--footer-player-height);
   --content-max: min(100%, 1480px);
   --content-max-home: 100%;
