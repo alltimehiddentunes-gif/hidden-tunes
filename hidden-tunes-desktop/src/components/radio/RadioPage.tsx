@@ -104,6 +104,7 @@ export const RadioPage = memo(function RadioPage({
     loading,
     stationsLoading,
     error,
+    stationsError,
     selectedCountry,
     setSelectedCountry,
     selectedGenre,
@@ -146,7 +147,11 @@ export const RadioPage = memo(function RadioPage({
     [activeTab, playStation, visibleStations],
   )
 
-  const showEmpty = !loading && !stationsLoading && visibleStations.length === 0 && !error
+  const showEmpty =
+    !loading
+    && !stationsLoading
+    && visibleStations.length === 0
+    && !error
 
   return (
     <div className="radio-destination">
@@ -180,14 +185,14 @@ export const RadioPage = memo(function RadioPage({
             Retry
           </button>
         </section>
-      ) : null}
-
-      {loading ? (
+      ) : loading ? (
         <section className="radio-status" aria-busy="true">
           <p>Loading radio catalog…</p>
         </section>
       ) : null}
 
+      {!error && !loading ? (
+        <>
       {featuredStations.length > 0 && activeTab !== 'countries' ? (
         <section className="radio-section" aria-labelledby="radio-featured-heading">
           <div className="radio-section-header">
@@ -273,7 +278,16 @@ export const RadioPage = memo(function RadioPage({
 
         {showEmpty ? (
           <div className="radio-status radio-status--empty" role="status">
-            <p>No playable stations match this view right now.</p>
+            <p>
+              {stationsError
+                ? stationsError
+                : 'No playable stations match this view right now.'}
+            </p>
+            {stationsError ? (
+              <button type="button" className="btn-secondary btn-sm" onClick={() => void retry()}>
+                Retry
+              </button>
+            ) : null}
           </div>
         ) : (
           <div className="radio-station-grid">
@@ -289,6 +303,8 @@ export const RadioPage = memo(function RadioPage({
           </div>
         )}
       </section>
+        </>
+      ) : null}
 
       {activeRadioStationId && isPlaying ? (
         <p className="radio-now-playing-hint" role="status">

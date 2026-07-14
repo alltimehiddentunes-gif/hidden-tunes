@@ -1,6 +1,7 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, ipcMain } = require('electron');
 const fs = require('fs');
 const path = require('path');
+const { fetchApprovedCatalog } = require('./catalogBridge');
 
 const isDev = !app.isPackaged;
 const WINDOW_TITLE = 'Hidden Tunes Desktop';
@@ -122,6 +123,7 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      preload: path.join(__dirname, 'preload.js'),
     },
   });
 
@@ -159,6 +161,14 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  ipcMain.handle('ht-catalog-get', async (_event, path) => {
+    const cleanPath = typeof path === 'string' ? path.trim() : ''
+    if (!cleanPath.startsWith('/api/')) {
+      throw new Error('Catalog path is not allowed.')
+    }
+    return fetchApprovedCatalog(cleanPath)
+  })
+
   createWindow();
 
   app.on('activate', () => {

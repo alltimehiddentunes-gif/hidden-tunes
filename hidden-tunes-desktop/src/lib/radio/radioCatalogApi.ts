@@ -1,3 +1,4 @@
+import { requestCatalogJsonWithFallback } from '../desktopCatalogBridge'
 import type {
   RadioCategoryMeta,
   RadioCountryMeta,
@@ -9,11 +10,13 @@ import type {
 /**
  * Public catalog API (Next.js admin) — same host as TV/Motivationals mobile adapters.
  * Override with VITE_CATALOG_ADMIN_API_URL at build time.
+ * In Electron, requests route through the main-process catalog bridge to avoid CORS.
  */
 export const RADIO_CATALOG_BASE_URL =
-  import.meta.env.VITE_CATALOG_ADMIN_API_URL?.trim() || 'https://admin.hiddentunes.com'
+  import.meta.env.VITE_CATALOG_ADMIN_API_URL?.trim().replace(/\/+$/, '')
+  || 'https://admin.hiddentunes.com'
 
-const REQUEST_TIMEOUT_MS = 20_000
+export const RADIO_REQUEST_TIMEOUT_MS = 20_000
 
 type PaginationOptions = {
   page?: number
@@ -32,36 +35,21 @@ function buildQuery(
 }
 
 async function radioRequest<T>(path: string): Promise<T> {
-  const controller = new AbortController()
-  const timeout = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+  const { payload, status } = await requestCatalogJsonWithFallback(
+    RADIO_CATALOG_BASE_URL,
+    path,
+    RADIO_REQUEST_TIMEOUT_MS,
+  )
 
-  try {
-    const response = await fetch(`${RADIO_CATALOG_BASE_URL}${path}`, {
-      method: 'GET',
-      headers: { Accept: 'application/json' },
-      signal: controller.signal,
-    })
-
-    const payload = await response.json().catch(() => null)
-
-    if (!response.ok) {
-      const message =
-        (payload && typeof payload === 'object' && 'error' in payload
-          ? String((payload as { error?: unknown }).error)
-          : null) || `Radio request failed (${response.status})`
-      throw new Error(message)
-    }
-
-    return payload as T
-  } catch (error) {
-    if (error instanceof DOMException && error.name === 'AbortError') {
-      throw new Error('Radio request timed out. Try again.')
-    }
-    if (error instanceof Error) throw error
-    throw new Error('Unexpected radio network error')
-  } finally {
-    window.clearTimeout(timeout)
+  if (status < 200 || status >= 300) {
+    const message =
+      (payload && typeof payload === 'object' && 'error' in payload
+        ? String((payload as { error?: unknown }).error)
+        : null) || `Radio request failed (${status})`
+    throw new Error(message)
   }
+
+  return payload as T
 }
 
 function normalizeStringArray(value: unknown): string[] {

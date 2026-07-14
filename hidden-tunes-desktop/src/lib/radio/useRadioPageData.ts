@@ -21,6 +21,7 @@ const TAB_CATEGORY_MAP: Partial<Record<RadioTabId, string>> = {
 }
 
 const GENRE_CARD_IDS = ['pop', 'rock', 'hip hop', 'r&b', 'electronic', 'jazz'] as const
+const SEARCH_DEBOUNCE_MS = 280
 
 function titleCaseCategory(value: string) {
   return value
@@ -28,6 +29,10 @@ function titleCaseCategory(value: string) {
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ')
+}
+
+function readError(reason: unknown, fallback: string) {
+  return reason instanceof Error ? reason.message : fallback
 }
 
 export function useRadioPageData(activeTab: RadioTabId, searchQuery: string) {
@@ -38,34 +43,65 @@ export function useRadioPageData(activeTab: RadioTabId, searchQuery: string) {
   const [loading, setLoading] = useState(true)
   const [stationsLoading, setStationsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [stationsError, setStationsError] = useState<string | null>(null)
   const [selectedCountry, setSelectedCountry] = useState<string | null>(null)
   const [selectedGenre, setSelectedGenre] = useState<string | null>(null)
-  const requestRef = useRef(0)
+  const bootstrapRequestRef = useRef(0)
+  const browseRequestRef = useRef(0)
 
   const trimmedSearch = searchQuery.trim()
 
   const loadBootstrap = useCallback(async () => {
-    const requestId = ++requestRef.current
+    const requestId = ++bootstrapRequestRef.current
     setLoading(true)
     setError(null)
+    setStationsError(null)
 
     try {
-      const [nextCategories, nextCountries, featured] = await Promise.all([
+      const [categoriesResult, countriesResult, featuredResult] = await Promise.allSettled([
         fetchRadioCategories(),
         fetchRadioCountries(),
         fetchRadioStations({ featured: true, limit: 12 }),
       ])
 
-      if (requestId !== requestRef.current) return
+      if (requestId !== bootstrapRequestRef.current) return
 
-      setCategories(nextCategories)
-      setCountries(nextCountries.slice(0, 12))
-      setFeaturedStations(featured.stations)
+      const failures: string[] = []
+
+      if (categoriesResult.status === 'fulfilled') {
+        setCategories(categoriesResult.value)
+      } else {
+        failures.push(readError(categoriesResult.reason, 'Failed to load categories.'))
+        setCategories([])
+      }
+
+      if (countriesResult.status === 'fulfilled') {
+        setCountries(countriesResult.value.slice(0, 12))
+      } else {
+        failures.push(readError(countriesResult.reason, 'Failed to load countries.'))
+        setCountries([])
+      }
+
+      if (featuredResult.status === 'fulfilled') {
+        setFeaturedStations(featuredResult.value.stations)
+      } else {
+        failures.push(readError(featuredResult.reason, 'Failed to load featured stations.'))
+        setFeaturedStations([])
+      }
+
+      const hasRenderableData =
+        (categoriesResult.status === 'fulfilled' && categoriesResult.value.length > 0)
+        || (countriesResult.status === 'fulfilled' && countriesResult.value.length > 0)
+        || (featuredResult.status === 'fulfilled' && featuredResult.value.stations.length > 0)
+
+      if (!hasRenderableData) {
+        setError(failures[0] ?? 'Failed to load radio catalog.')
+      }
     } catch (err) {
-      if (requestId !== requestRef.current) return
-      setError(err instanceof Error ? err.message : 'Failed to load radio catalog.')
+      if (requestId !== bootstrapRequestRef.current) return
+      setError(readError(err, 'Failed to load radio catalog.'))
     } finally {
-      if (requestId === requestRef.current) {
+      if (requestId === bootstrapRequestRef.current) {
         setLoading(false)
       }
     }
@@ -85,11 +121,13 @@ export function useRadioPageData(activeTab: RadioTabId, searchQuery: string) {
   }, [activeTab])
 
   useEffect(() => {
-    const requestId = ++requestRef.current
-    setStationsLoading(true)
-    setError(null)
+    if (loading) return
 
-    const timer = window.setTimeout(() => {
+    const requestId = ++browseRequestRef.current
+    setStationsLoading(true)
+    setStationsError(null)
+
+    const timer = globalThis.setTimeout(() => {
       void (async () => {
         try {
           const category =
@@ -106,22 +144,22 @@ export function useRadioPageData(activeTab: RadioTabId, searchQuery: string) {
             query: trimmedSearch || undefined,
           })
 
-          if (requestId !== requestRef.current) return
+          if (requestId !== browseRequestRef.current) return
           setBrowseStations(response.stations)
         } catch (err) {
-          if (requestId !== requestRef.current) return
+          if (requestId !== browseRequestRef.current) return
           setBrowseStations([])
-          setError(err instanceof Error ? err.message : 'Failed to load stations.')
+          setStationsError(readError(err, 'Failed to load stations.'))
         } finally {
-          if (requestId === requestRef.current) {
+          if (requestId === browseRequestRef.current) {
             setStationsLoading(false)
           }
         }
       })()
-    }, trimmedSearch ? 280 : 0)
+    }, trimmedSearch ? SEARCH_DEBOUNCE_MS : 0)
 
-    return () => window.clearTimeout(timer)
-  }, [activeTab, selectedCountry, selectedGenre, trimmedSearch])
+    return () => globalThis.clearTimeout(timer)
+  }, [activeTab, loading, selectedCountry, selectedGenre, trimmedSearch])
 
   const genreCards = useMemo(() => {
     const byId = new Map(categories.map((entry) => [entry.id.toLowerCase(), entry]))
@@ -163,6 +201,7 @@ export function useRadioPageData(activeTab: RadioTabId, searchQuery: string) {
     loading,
     stationsLoading,
     error,
+    stationsError,
     selectedCountry,
     setSelectedCountry,
     selectedGenre,
