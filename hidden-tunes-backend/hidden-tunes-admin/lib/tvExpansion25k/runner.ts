@@ -48,6 +48,7 @@ export async function runTvExpansion25kBatch(
   execute: boolean,
   adminRoot: string
 ) {
+  const startedAt = Date.now();
   const batchNumber = checkpoint.batchNumber + 1;
   const batchSize = getTvExpansionBatchSize(batchNumber);
   const platformEligibleBefore = await getTvPlatformEligibleCount();
@@ -62,7 +63,12 @@ export async function runTvExpansion25kBatch(
     };
   }
 
-  const discovery = await discoverTvExpansionCandidates(checkpoint.sources, batchSize);
+  const discovery = await discoverTvExpansionCandidates(
+    checkpoint.sources,
+    batchSize,
+    batchNumber,
+    adminRoot
+  );
   const prefilter = await prefilterNewTvCandidates(discovery.candidates);
 
   let importResult = {
@@ -77,7 +83,7 @@ export async function runTvExpansion25kBatch(
     importResult = await importVerifiedTvGrowthCandidates(prefilter.accepted);
 
     if (importResult.imported > 0) {
-      const healthLimit = Math.max(75, Math.min(importResult.imported * 3, 500));
+      const healthLimit = Math.min(Math.max(importResult.imported, 10), 50);
       healthResult = await runTvStationHealthChecks(healthLimit);
     }
   } else if (execute) {
@@ -93,12 +99,19 @@ export async function runTvExpansion25kBatch(
     ? await getTvPlatformEligibleCount()
     : platformEligibleBefore;
 
+  const providerErrors = Object.entries(discovery.sources)
+    .filter(([, value]) => value.error && value.error !== "exhausted" && value.error !== "deferred_batch_full")
+    .map(([source, value]) => `${source}: ${value.error}`);
+
   const report: TvExpansion25kBatchReport = {
     batchNumber,
     batchSize,
     at: new Date().toISOString(),
+    durationMs: Date.now() - startedAt,
     discovered: discovery.candidates.length,
     preDedupeRemoved: prefilter.removed,
+    preProbeRejected: discovery.preProbeRejected,
+    fingerprintSkipped: discovery.fingerprintSkipped,
     importFound: importResult.found,
     importUnique: importResult.unique,
     importImported: importResult.imported,
@@ -109,6 +122,8 @@ export async function runTvExpansion25kBatch(
     platformEligibleBefore,
     platformEligibleAfter,
     sources: discovery.sources,
+    providerErrors,
+    cumulativeImported: checkpoint.totalImported + importResult.imported,
   };
 
   const nextCheckpoint: TvExpansion25kCheckpoint = {
@@ -215,7 +230,7 @@ export async function runTvExpansion25k(
             checkpoint: {
               batchNumber: checkpoint.batchNumber,
               totalImported: checkpoint.totalImported,
-              sources: checkpoint.sources,
+              adapterCursors: checkpoint.sources.adapterCursors,
             },
           },
           null,
@@ -238,9 +253,6 @@ export async function runTvExpansion25k(
       if (isDestructiveErrorMessage(message)) {
         throw error;
       }
-
-      checkpoint.sources.lastErrors.runner = message;
-      saveTvExpansion25kCheckpoint(checkpoint, adminRoot);
 
       console.error(
         JSON.stringify(
