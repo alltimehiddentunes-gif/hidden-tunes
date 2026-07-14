@@ -6,10 +6,8 @@ import type {
   SyncedLyricLine,
 } from './types'
 
-const UNAVAILABLE_TITLE = 'Lyrics unavailable'
-
-const UNAVAILABLE_DETAIL =
-  'Synced lyrics are not currently available for this track.'
+const UNAVAILABLE_TITLE = 'Lyrics unavailable.'
+const UNAVAILABLE_DETAIL = ''
 
 const LOADING_TITLE = 'Loading lyrics'
 const LOADING_DETAIL = 'Checking for lyrics on this track…'
@@ -148,7 +146,7 @@ export function resolvePlayerLyrics(
       sourceLabel: resolveSourceLabel(track.lyricsSource ?? null),
       emptyTitle: UNAVAILABLE_TITLE,
       emptyDetail: UNAVAILABLE_DETAIL,
-      credit: track.artist ? `Written by ${track.artist}` : null,
+      credit: null,
       trackTitle: track.title,
       trackArtist: track.artist,
     }
@@ -167,7 +165,7 @@ export function resolvePlayerLyrics(
       sourceLabel: resolveSourceLabel(track.lyricsSource ?? null),
       emptyTitle: UNAVAILABLE_TITLE,
       emptyDetail: UNAVAILABLE_DETAIL,
-      credit: track.artist ? `Written by ${track.artist}` : null,
+      credit: null,
       trackTitle: track.title,
       trackArtist: track.artist,
     }
