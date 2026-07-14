@@ -1079,6 +1079,7 @@ type NavKey =
   | 'home'
   | 'radio'
   | 'podcasts'
+  | 'tv'
   | 'worlds'
   | 'search'
   | 'library'
@@ -1095,6 +1096,7 @@ const PSD_DESTINATION_NAV_KEYS: NavKey[] = [
   'home',
   'radio',
   'podcasts',
+  'tv',
   'worlds',
   'search',
   'library',
@@ -1111,6 +1113,7 @@ const TOP_BAR_PLACEHOLDERS: Partial<Record<NavKey, string>> = {
   home: 'Search songs, artists, moods…',
   radio: 'Search stations, genres, countries…',
   podcasts: 'Search podcasts, episodes, categories…',
+  tv: 'Search shows, channels, live events…',
   worlds: 'Search emotional worlds…',
   search: 'Search songs, artists, albums…',
   library: 'Search songs, artists, albums, playlists...',
@@ -1151,6 +1154,8 @@ function resolvePageFromNavKey(navKey: NavKey): PageId {
     case 'downloads':
     case 'premium':
       return 'library'
+    case 'tv':
+      return 'tv'
     default:
       return navKey as PageId
   }
@@ -1159,10 +1164,267 @@ function resolvePageFromNavKey(navKey: NavKey): PageId {
 
 type SidebarNavItem = {
   key: string
-  page: PageId
+  navKey?: NavKey
+  page?: PageId
   label: string
   icon: ReactNode
+  disabled?: boolean
 }
+
+function isSidebarNavActive(item: SidebarNavItem, activeNavKey: NavKey) {
+  return item.navKey != null && item.navKey === activeNavKey
+}
+
+function SidebarNavIcon({ children }: { children: ReactNode }) {
+  return (
+    <span className="sidebar-nav-icon" aria-hidden="true">
+      {children}
+    </span>
+  )
+}
+
+const SIDEBAR_PRIMARY_NAV: SidebarNavItem[] = [
+  {
+    key: 'home',
+    navKey: 'home',
+    page: 'home',
+    label: 'Home',
+    icon: (
+      <SidebarNavIcon>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
+          <path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1V9.5z" />
+        </svg>
+      </SidebarNavIcon>
+    ),
+  },
+  {
+    key: 'radio',
+    navKey: 'radio',
+    page: 'radio',
+    label: 'Radio',
+    icon: (
+      <SidebarNavIcon>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
+          <circle cx="12" cy="12" r="2" />
+          <path d="M16 8a6 6 0 010 8M19 5a10 10 0 010 14" />
+        </svg>
+      </SidebarNavIcon>
+    ),
+  },
+  {
+    key: 'podcasts',
+    navKey: 'podcasts',
+    page: 'podcasts',
+    label: 'Podcasts',
+    icon: (
+      <SidebarNavIcon>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
+          <path d="M12 14a3 3 0 100-6 3 3 0 000 6z" />
+          <path d="M16 8a5 5 0 010 8M19 5a8 8 0 010 14" />
+          <path d="M8 16a5 5 0 010-8M5 19a8 8 0 010-14" />
+        </svg>
+      </SidebarNavIcon>
+    ),
+  },
+  {
+    key: 'tv',
+    navKey: 'tv',
+    page: 'tv',
+    label: 'TV',
+    icon: (
+      <SidebarNavIcon>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
+          <rect x="3" y="6" width="18" height="12" rx="2" />
+          <path d="M8 20h8" />
+        </svg>
+      </SidebarNavIcon>
+    ),
+  },
+  {
+    key: 'audiobooks',
+    label: 'Audiobooks',
+    disabled: true,
+    icon: (
+      <SidebarNavIcon>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
+          <path d="M5 4h10a3 3 0 013 3v13H8a3 3 0 00-3 3V4z" />
+          <path d="M8 4v16" />
+        </svg>
+      </SidebarNavIcon>
+    ),
+  },
+  {
+    key: 'motivationals',
+    label: 'Motivationals',
+    disabled: true,
+    icon: (
+      <SidebarNavIcon>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
+          <path d="M12 3l2.2 6.8H21l-5.5 4 2.1 6.7L12 16.8 6.4 20.5l2.1-6.7L3 9.8h6.8L12 3z" />
+        </svg>
+      </SidebarNavIcon>
+    ),
+  },
+  {
+    key: 'lectures',
+    label: 'Lectures',
+    disabled: true,
+    icon: (
+      <SidebarNavIcon>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
+          <path d="M4 19V5h4l2 14 4-14h4v14" />
+        </svg>
+      </SidebarNavIcon>
+    ),
+  },
+]
+
+const SIDEBAR_LIBRARY_NAV: SidebarNavItem[] = [
+  {
+    key: 'worlds',
+    navKey: 'worlds',
+    page: 'mood',
+    label: 'Emotional Worlds',
+    icon: (
+      <SidebarNavIcon>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
+          <circle cx="12" cy="12" r="8.5" />
+          <path d="M8.5 12c1.2-2.2 2.4-3.3 3.5-3.3s2.3 1.1 3.5 3.3" />
+          <path d="M12 3v2M12 19v2M3 12h2M19 12h2" />
+        </svg>
+      </SidebarNavIcon>
+    ),
+  },
+  {
+    key: 'search',
+    navKey: 'search',
+    page: 'discover',
+    label: 'Search',
+    icon: (
+      <SidebarNavIcon>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
+          <circle cx="11" cy="11" r="7" />
+          <path d="M20 20l-3.5-3.5" />
+        </svg>
+      </SidebarNavIcon>
+    ),
+  },
+  {
+    key: 'library',
+    navKey: 'library',
+    page: 'library',
+    label: 'My Library',
+    icon: (
+      <SidebarNavIcon>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
+          <path d="M4 19V5h4l2 14 4-14h4v14" />
+        </svg>
+      </SidebarNavIcon>
+    ),
+  },
+  {
+    key: 'playlists',
+    navKey: 'playlists',
+    page: 'playlists',
+    label: 'Playlists',
+    icon: (
+      <SidebarNavIcon>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
+          <path d="M9 6h12M9 12h12M9 18h12M3 6h.01M3 12h.01M3 18h.01" />
+        </svg>
+      </SidebarNavIcon>
+    ),
+  },
+  {
+    key: 'artists',
+    navKey: 'artists',
+    page: 'artists',
+    label: 'Artists',
+    icon: (
+      <SidebarNavIcon>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
+          <circle cx="12" cy="8" r="4" />
+          <path d="M6 20c0-3.3 2.7-6 6-6s6 2.7 6 6" />
+        </svg>
+      </SidebarNavIcon>
+    ),
+  },
+  {
+    key: 'albums',
+    navKey: 'albums',
+    page: 'albums',
+    label: 'Albums',
+    icon: (
+      <SidebarNavIcon>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
+          <rect x="3" y="3" width="18" height="18" rx="2" />
+          <circle cx="12" cy="12" r="3" />
+        </svg>
+      </SidebarNavIcon>
+    ),
+  },
+  {
+    key: 'liked',
+    navKey: 'liked',
+    page: 'library',
+    label: 'Liked Songs',
+    icon: (
+      <SidebarNavIcon>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
+          <path d="M12 20.8l-1.1-1C6.4 15.36 3 12.28 3 8.5 3 6 5 4 7.5 4c1.74 0 3.41 1.01 4.5 2.36C13.09 5.01 14.76 4 16.5 4 19 4 21 6 21 8.5c0 3.78-3.4 6.86-7.9 11.3L12 20.8z" />
+        </svg>
+      </SidebarNavIcon>
+    ),
+  },
+  {
+    key: 'recent',
+    navKey: 'recent',
+    page: 'library',
+    label: 'Recently Played',
+    icon: (
+      <SidebarNavIcon>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
+          <circle cx="12" cy="12" r="8.5" />
+          <path d="M12 7v5l3 2" />
+        </svg>
+      </SidebarNavIcon>
+    ),
+  },
+  {
+    key: 'downloads',
+    navKey: 'downloads',
+    page: 'library',
+    label: 'Downloads',
+    icon: (
+      <SidebarNavIcon>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
+          <path d="M12 4v10" />
+          <path d="M8.5 10.5L12 14l3.5-3.5" />
+          <path d="M5 18h14" />
+        </svg>
+      </SidebarNavIcon>
+    ),
+  },
+  {
+    key: 'settings',
+    navKey: 'settings',
+    page: 'settings',
+    label: 'Settings',
+    icon: (
+      <SidebarNavIcon>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
+          <circle cx="12" cy="12" r="3" />
+          <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+        </svg>
+      </SidebarNavIcon>
+    ),
+  },
+]
+
+const SIDEBAR_NAV_GROUPS = [
+  { label: 'Primary', items: SIDEBAR_PRIMARY_NAV },
+  { label: 'Music Library', items: SIDEBAR_LIBRARY_NAV },
+] as const
 
 type Mood = 'violet' | 'cyan' | 'rose' | 'mint'
 
@@ -1208,159 +1470,9 @@ function BrandWaveformMark({ className }: { className?: string }) {
   )
 }
 
-function isSidebarNavActive(item: SidebarNavItem, activeNavKey: NavKey) {
-  return item.key === activeNavKey
-}
-
 function moodRoomScene(room: Pick<MoodRoom, 'title' | 'mood' | 'sceneId'>): VisualSceneId {
   return room.sceneId ?? resolveVisualScene({ seed: room.title, mood: room.mood })
 }
-
-const SIDEBAR_NAV: SidebarNavItem[] = [
-  {
-    key: 'home',
-    page: 'home',
-    label: 'Home',
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
-        <path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1V9.5z" />
-      </svg>
-    ),
-  },
-  {
-    key: 'radio',
-    page: 'radio',
-    label: 'Radio',
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
-        <circle cx="12" cy="12" r="2" />
-        <path d="M16 8a6 6 0 010 8M19 5a10 10 0 010 14" />
-      </svg>
-    ),
-  },
-  {
-    key: 'podcasts',
-    page: 'podcasts',
-    label: 'Podcasts',
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
-        <path d="M12 14a3 3 0 100-6 3 3 0 000 6z" />
-        <path d="M16 8a5 5 0 010 8M19 5a8 8 0 010 14" />
-        <path d="M8 16a5 5 0 010-8M5 19a8 8 0 010-14" />
-      </svg>
-    ),
-  },
-  {
-    key: 'worlds',
-    page: 'mood',
-    label: 'Emotional Worlds',
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
-        <circle cx="12" cy="12" r="8.5" />
-        <path d="M8.5 12c1.2-2.2 2.4-3.3 3.5-3.3s2.3 1.1 3.5 3.3" />
-        <path d="M12 3v2M12 19v2M3 12h2M19 12h2" />
-      </svg>
-    ),
-  },
-  {
-    key: 'search',
-    page: 'discover',
-    label: 'Search',
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
-        <circle cx="11" cy="11" r="7" />
-        <path d="M20 20l-3.5-3.5" />
-      </svg>
-    ),
-  },
-  {
-    key: 'library',
-    page: 'library',
-    label: 'My Library',
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
-        <path d="M4 19V5h4l2 14 4-14h4v14" />
-      </svg>
-    ),
-  },
-  {
-    key: 'playlists',
-    page: 'playlists',
-    label: 'Playlists',
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
-        <path d="M9 6h12M9 12h12M9 18h12M3 6h.01M3 12h.01M3 18h.01" />
-      </svg>
-    ),
-  },
-  {
-    key: 'artists',
-    page: 'artists',
-    label: 'Artists',
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
-        <circle cx="12" cy="8" r="4" />
-        <path d="M6 20c0-3.3 2.7-6 6-6s6 2.7 6 6" />
-      </svg>
-    ),
-  },
-  {
-    key: 'albums',
-    page: 'albums',
-    label: 'Albums',
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
-        <rect x="3" y="3" width="18" height="18" rx="2" />
-        <circle cx="12" cy="12" r="3" />
-      </svg>
-    ),
-  },
-  {
-    key: 'liked',
-    page: 'library',
-    label: 'Liked Songs',
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
-        <path d="M12 20.8l-1.1-1C6.4 15.36 3 12.28 3 8.5 3 6 5 4 7.5 4c1.74 0 3.41 1.01 4.5 2.36C13.09 5.01 14.76 4 16.5 4 19 4 21 6 21 8.5c0 3.78-3.4 6.86-7.9 11.3L12 20.8z" />
-      </svg>
-    ),
-  },
-  {
-    key: 'recent',
-    page: 'library',
-    label: 'Recent Played',
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
-        <circle cx="12" cy="12" r="8.5" />
-        <path d="M12 7v5l3 2" />
-      </svg>
-    ),
-  },
-  {
-    key: 'downloads',
-    page: 'library',
-    label: 'Downloads',
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
-        <path d="M12 4v10" />
-        <path d="M8.5 10.5L12 14l3.5-3.5" />
-        <path d="M5 18h14" />
-      </svg>
-    ),
-  },
-  {
-    key: 'settings',
-    page: 'settings',
-    label: 'Settings',
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
-        <circle cx="12" cy="12" r="3" />
-        <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
-      </svg>
-    ),
-  },
-]
-
 
 const TV_SHOWS = [
   { title: 'Live from the Mood Room', subtitle: 'Session 07 · Violet hour', mood: 'violet' as Mood },
@@ -1800,7 +1912,7 @@ function PageFrame({
   )
 }
 
-function HomeTopBar({
+const HomeTopBar = memo(function HomeTopBar({
   placeholder = 'Search songs, artists, moods…',
   onOpenDiscover,
   onSearchSubmit,
@@ -1870,9 +1982,9 @@ function HomeTopBar({
       ) : null}
     </header>
   )
-}
+})
 
-function CatalogStaleBanner() {
+const CatalogStaleBanner = memo(function CatalogStaleBanner() {
   const { catalogStatus, songs, albums, artists } = useCatalog()
   const hasCatalogData = songs.length > 0 || albums.length > 0 || artists.length > 0
   const showBanner = catalogStatus === 'refresh_failed' && hasCatalogData
@@ -1886,9 +1998,9 @@ function CatalogStaleBanner() {
       </span>
     </div>
   )
-}
+})
 
-function CatalogStatusBar() {
+const CatalogStatusBar = memo(function CatalogStatusBar() {
   const { catalogStatus, cachedAt, loading, refreshCatalog, loaded } = useCatalog()
   const savedLabel = formatSavedCatalogTime(cachedAt)
 
@@ -1915,7 +2027,7 @@ function CatalogStatusBar() {
       </button>
     </div>
   )
-}
+})
 
 function CatalogStatusSettings({
   cacheNotice,
@@ -2360,21 +2472,32 @@ const Sidebar = memo(function Sidebar({
       </div>
 
       <nav className="sidebar-nav" aria-label="Main navigation">
-        {SIDEBAR_NAV.map((item) => {
-          const isActive = isSidebarNavActive(item, activeNavKey)
-          return (
-            <button
-              key={item.key}
-              type="button"
-              className={`nav-item${isActive ? ' active' : ''}`}
-              aria-current={isActive ? 'page' : undefined}
-              onClick={() => onNavigateNav(item.key as NavKey)}
-            >
-              {item.icon}
-              <span>{item.label}</span>
-            </button>
-          )
-        })}
+        {SIDEBAR_NAV_GROUPS.map((group) => (
+          <div className="sidebar-nav-group" key={group.label}>
+            <span className="sidebar-nav-group-label">{group.label}</span>
+            {group.items.map((item) => {
+              const isActive = isSidebarNavActive(item, activeNavKey)
+              return (
+                <button
+                  key={item.key}
+                  type="button"
+                  className={`nav-item${isActive ? ' active' : ''}${item.disabled ? ' is-disabled' : ''}`}
+                  aria-current={isActive ? 'page' : undefined}
+                  aria-disabled={item.disabled ? true : undefined}
+                  disabled={item.disabled}
+                  onClick={() => {
+                    if (!item.disabled && item.navKey) {
+                      onNavigateNav(item.navKey)
+                    }
+                  }}
+                >
+                  {item.icon}
+                  <span>{item.label}</span>
+                </button>
+              )
+            })}
+          </div>
+        ))}
       </nav>
 
       <div className="sidebar-bottom">
@@ -2405,12 +2528,7 @@ const Sidebar = memo(function Sidebar({
           <div className="sidebar-user-copy">
             <span className="sidebar-user-name">Hidden Listener</span>
             <span className="sidebar-user-badge">
-              <span className="sidebar-user-badge-check" aria-hidden="true">
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z" />
-                </svg>
-              </span>
-              Premium User
+              Local profile
             </span>
           </div>
         </div>
@@ -6300,9 +6418,11 @@ const PlayerBar = memo(function PlayerBar({
 
 const QueueUpNextPanel = memo(function QueueUpNextPanel({
   onOpenPlayerByStyle,
+  onNavigateNav,
   activeNavKey,
 }: {
   onOpenPlayerByStyle: (style: NowPlayingStyle) => void
+  onNavigateNav?: (navKey: NavKey) => void
   activeNavKey?: NavKey
 }) {
   const isLuxuryRail = activeNavKey === 'albums' || activeNavKey === 'playlists'
@@ -6614,6 +6734,43 @@ const QueueUpNextPanel = memo(function QueueUpNextPanel({
         </header>
 
         <section className="rail-psd-stage" aria-label="Current track">
+          {!hasPlayback ? (
+            <div className="rail-psd-idle-state">
+              <div className="rail-psd-idle-emblem" aria-hidden="true">
+                <BrandWaveformMark className="brand-waveform" />
+              </div>
+              <h3 className="rail-psd-idle-title">Nothing playing</h3>
+              <p className="rail-psd-idle-copy">
+                Pick a song, station, or podcast episode to fill the Now Playing panel.
+              </p>
+              {onNavigateNav ? (
+                <div className="rail-psd-idle-actions">
+                  <button
+                    type="button"
+                    className="rail-psd-idle-btn"
+                    onClick={() => onNavigateNav('search')}
+                  >
+                    Browse Music
+                  </button>
+                  <button
+                    type="button"
+                    className="rail-psd-idle-btn"
+                    onClick={() => onNavigateNav('radio')}
+                  >
+                    Radio
+                  </button>
+                  <button
+                    type="button"
+                    className="rail-psd-idle-btn"
+                    onClick={() => onNavigateNav('podcasts')}
+                  >
+                    Podcasts
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          ) : (
+            <>
           <div className="rail-psd-art-shell">
             <span className="rail-psd-art-glow" aria-hidden="true" />
             <span className="rail-psd-vinyl premium-vinyl-disc" aria-hidden="true" />
@@ -6685,6 +6842,8 @@ const QueueUpNextPanel = memo(function QueueUpNextPanel({
               hideDecorativeControls
             />
           </div>
+            </>
+          )}
         </section>
 
         <section className="rail-psd-queue-section" aria-label="Next in queue">
@@ -10753,6 +10912,7 @@ function AppShell() {
             </main>
             <QueueUpNextPanel
               onOpenPlayerByStyle={openPlayerByStyleNow}
+              onNavigateNav={navigateNav}
               activeNavKey={activeNavKey}
             />
           </div>
