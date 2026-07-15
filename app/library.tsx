@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect } from "react";
+import { memo, useCallback, useEffect, useMemo } from "react";
 import {
   FlatList,
   Image,
@@ -33,6 +33,8 @@ import {
 } from "../constants/theme";
 import AppShell from "../components/navigation/AppShell";
 import { HOME_MORE_HUB_SHORTCUTS } from "../constants/homeMoreHub";
+import { useLocalization } from "../localization";
+import type { TranslationKey } from "../localization";
 
 type LibrarySection = {
   id: string;
@@ -43,88 +45,46 @@ type LibrarySection = {
   accent: string;
 };
 
-const LIBRARY_GROUPS: { id: string; label: string; sections: LibrarySection[] }[] = [
-  {
-    id: "more",
-    label: "More",
-    sections: HOME_MORE_HUB_SHORTCUTS.map((shortcut) => ({
-      id: shortcut.key,
-      title: shortcut.title,
-      eyebrow: shortcut.subtitle,
-      icon: shortcut.icon,
-      href: shortcut.route,
-      accent: shortcut.color,
-    })),
+type LibraryGroup = {
+  id: string;
+  label: string;
+  sections: LibrarySection[];
+};
+
+const HUB_TRANSLATION_KEYS: Record<
+  string,
+  { title: TranslationKey; subtitle: TranslationKey }
+> = {
+  "more-tv": { title: "library.hub.tv", subtitle: "library.hub.tvSubtitle" },
+  "more-worlds": {
+    title: "library.hub.feelings",
+    subtitle: "library.hub.feelingsSubtitle",
   },
-  {
-    id: "your-music",
-    label: "Your Music",
-    sections: [
-      {
-        id: "favorites",
-        title: "Favorites",
-        eyebrow: "SAVED",
-        icon: "heart",
-        href: "/favorites",
-        accent: "#F472B6",
-      },
-      {
-        id: "downloads",
-        title: "Downloads",
-        eyebrow: "OFFLINE",
-        icon: "cloud-download",
-        href: "/downloads",
-        accent: COLORS.blue,
-      },
-    ],
+  "more-motivation": {
+    title: "library.hub.motivationals",
+    subtitle: "library.hub.motivationalsSubtitle",
   },
-  {
-    id: "collection",
-    label: "Collection",
-    sections: [
-      {
-        id: "podcasts",
-        title: "Podcasts",
-        eyebrow: "STORIES",
-        icon: "mic",
-        href: "/podcasts",
-        accent: COLORS.cyan,
-      },
-      {
-        id: "personal-radio",
-        title: "Personal Radio",
-        eyebrow: "SMART MIX",
-        icon: "infinite-outline",
-        href: "/radio",
-        accent: COLORS.pink,
-      },
-      {
-        id: "live-radio",
-        title: "Live Radio",
-        eyebrow: "LIVE STATIONS",
-        icon: "radio",
-        href: "/stations",
-        accent: COLORS.primary,
-      },
-      {
-        id: "albums",
-        title: "Albums",
-        eyebrow: "RELEASES",
-        icon: "albums",
-        href: "/music-feed",
-        accent: COLORS.primaryGlow,
-      },
-      {
-        id: "artists",
-        title: "Artists",
-        eyebrow: "CREATORS",
-        icon: "people",
-        href: "/music-feed",
-        accent: COLORS.cyan,
-      },
-    ],
+  "more-lectures": {
+    title: "library.hub.lectures",
+    subtitle: "library.hub.lecturesSubtitle",
   },
-];
+  "more-search": {
+    title: "library.hub.search",
+    subtitle: "library.hub.searchSubtitle",
+  },
+  "more-queue": {
+    title: "library.hub.queue",
+    subtitle: "library.hub.queueSubtitle",
+  },
+  "more-library": {
+    title: "library.hub.library",
+    subtitle: "library.hub.librarySubtitle",
+  },
+  "more-playlists": {
+    title: "library.hub.playlists",
+    subtitle: "library.hub.playlistsSubtitle",
+  },
+};
 
 const LibraryHeroGlow = memo(function LibraryHeroGlow() {
   const opacity = useSharedValue<number>(LUXURY_GLOW.opacityMin);
@@ -184,6 +144,8 @@ const LibrarySectionCard = memo(function LibrarySectionCard({ section }: { secti
       activeOpacity={0.9}
       style={styles.sectionCard}
       onPress={() => router.push(section.href as any)}
+      accessibilityRole="button"
+      accessibilityLabel={section.title}
     >
       <LinearGradient colors={GRADIENTS.cardElevated} style={styles.sectionSurface}>
         <LinearGradient
@@ -204,7 +166,15 @@ const LibrarySectionCard = memo(function LibrarySectionCard({ section }: { secti
   );
 });
 
-function LibraryHero() {
+function LibraryHero({
+  eyebrow,
+  title,
+  subtitle,
+}: {
+  eyebrow: string;
+  title: string;
+  subtitle: string;
+}) {
   return (
     <LinearGradient colors={GRADIENTS.cardElevated} style={styles.hero}>
       <LibraryHeroGlow />
@@ -217,34 +187,138 @@ function LibraryHero() {
         />
       </View>
 
-      <Text style={styles.heroEyebrow}>HIDDEN TUNES</Text>
+      <Text style={styles.heroEyebrow}>{eyebrow}</Text>
       <Text numberOfLines={2} ellipsizeMode="tail" style={styles.heroTitle}>
-        Your Library
+        {title}
       </Text>
       <Text numberOfLines={2} ellipsizeMode="tail" style={styles.heroSubtitle}>
-        Playlists, favorites, live radio, and downloads in one place.
+        {subtitle}
       </Text>
     </LinearGradient>
   );
 }
 
-function LibraryRecentLink() {
+function LibraryRecentLink({ label }: { label: string }) {
   return (
     <TouchableOpacity
       activeOpacity={0.88}
       style={styles.recentLink}
       onPress={() => router.push("/recently-played" as any)}
+      accessibilityRole="button"
+      accessibilityLabel={label}
     >
       <Ionicons name="time" size={18} color={COLORS.cyan} />
-      <Text style={styles.recentLinkText}>Recently Played</Text>
+      <Text style={styles.recentLinkText}>{label}</Text>
       <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
     </TouchableOpacity>
   );
 }
 
 export default function LibraryScreen() {
+  const { t } = useLocalization();
+
+  const libraryGroups = useMemo<LibraryGroup[]>(
+    () => [
+      {
+        id: "more",
+        label: t("library.more"),
+        sections: HOME_MORE_HUB_SHORTCUTS.map((shortcut) => {
+          const keys = HUB_TRANSLATION_KEYS[shortcut.key];
+          return {
+            id: shortcut.key,
+            title: keys ? t(keys.title) : shortcut.title,
+            eyebrow: keys ? t(keys.subtitle) : shortcut.subtitle,
+            icon: shortcut.icon,
+            href: shortcut.route,
+            accent: shortcut.color,
+          };
+        }),
+      },
+      {
+        id: "your-music",
+        label: t("library.yourMusic"),
+        sections: [
+          {
+            id: "favorites",
+            title: t("library.favorites"),
+            eyebrow: t("library.favoritesEyebrow"),
+            icon: "heart",
+            href: "/favorites",
+            accent: "#F472B6",
+          },
+          {
+            id: "downloads",
+            title: t("library.downloads"),
+            eyebrow: t("library.downloadsEyebrow"),
+            icon: "cloud-download",
+            href: "/downloads",
+            accent: COLORS.blue,
+          },
+        ],
+      },
+      {
+        id: "collection",
+        label: t("library.collection"),
+        sections: [
+          {
+            id: "podcasts",
+            title: t("library.podcasts"),
+            eyebrow: t("library.podcastsEyebrow"),
+            icon: "mic",
+            href: "/podcasts",
+            accent: COLORS.cyan,
+          },
+          {
+            id: "personal-radio",
+            title: t("library.personalRadio"),
+            eyebrow: t("library.personalRadioEyebrow"),
+            icon: "infinite-outline",
+            href: "/radio",
+            accent: COLORS.pink,
+          },
+          {
+            id: "live-radio",
+            title: t("library.liveRadio"),
+            eyebrow: t("library.liveRadioEyebrow"),
+            icon: "radio",
+            href: "/stations",
+            accent: COLORS.primary,
+          },
+          {
+            id: "albums",
+            title: t("library.albums"),
+            eyebrow: t("library.albumsEyebrow"),
+            icon: "albums",
+            href: "/music-feed",
+            accent: COLORS.primaryGlow,
+          },
+          {
+            id: "artists",
+            title: t("library.artists"),
+            eyebrow: t("library.artistsEyebrow"),
+            icon: "people",
+            href: "/music-feed",
+            accent: COLORS.cyan,
+          },
+        ],
+      },
+    ],
+    [t]
+  );
+
+  const heroCopy = useMemo(
+    () => ({
+      eyebrow: t("library.heroEyebrow"),
+      title: t("library.heroTitle"),
+      subtitle: t("library.heroSubtitle"),
+    }),
+    [t]
+  );
+
+  const recentLinkLabel = t("library.recentlyPlayedLink");
+
   const renderGroup = useCallback(
-    ({ item: group }: { item: (typeof LIBRARY_GROUPS)[number] }) => (
+    ({ item: group }: { item: LibraryGroup }) => (
       <View style={styles.groupBlock}>
         <Text style={styles.gridLabel}>{group.label}</Text>
         <View style={styles.grid}>
@@ -257,19 +331,35 @@ export default function LibraryScreen() {
     []
   );
 
-  const keyExtractor = useCallback((group: (typeof LIBRARY_GROUPS)[number]) => group.id, []);
+  const keyExtractor = useCallback((group: LibraryGroup) => group.id, []);
+
+  const listHeader = useMemo(
+    () => (
+      <LibraryHero
+        eyebrow={heroCopy.eyebrow}
+        title={heroCopy.title}
+        subtitle={heroCopy.subtitle}
+      />
+    ),
+    [heroCopy.eyebrow, heroCopy.subtitle, heroCopy.title]
+  );
+
+  const listFooter = useMemo(
+    () => <LibraryRecentLink label={recentLinkLabel} />,
+    [recentLinkLabel]
+  );
 
   return (
     <AppShell>
       <LinearGradient colors={GRADIENTS.main} style={styles.container}>
         <FlatList
-          data={LIBRARY_GROUPS}
+          data={libraryGroups}
           keyExtractor={keyExtractor}
           renderItem={renderGroup}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
-          ListHeaderComponent={LibraryHero}
-          ListFooterComponent={LibraryRecentLink}
+          ListHeaderComponent={listHeader}
+          ListFooterComponent={listFooter}
           initialNumToRender={2}
           maxToRenderPerBatch={2}
           windowSize={3}
