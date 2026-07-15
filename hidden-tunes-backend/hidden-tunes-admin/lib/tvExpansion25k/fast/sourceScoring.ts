@@ -1,6 +1,7 @@
 import type { TvExpansion25kSourceState } from "@/lib/tvExpansion25k/checkpoint";
 import type { TvExpansionSourceAdapter } from "@/lib/tvExpansion25k/sources/types";
 import { getWave4SourceWeight } from "@/lib/tvExpansion25k/wave4/scheduler";
+import { getSourceYield } from "@/lib/tvExpansion25k/fast/sourceYieldMemory";
 import type { TvSourceDiscoveryDetail } from "@/lib/tvExpansion25k/sourceDiscovery";
 
 export type SourceScoreInput = {
@@ -55,6 +56,26 @@ export function scoreSource(input: SourceScoreInput): SourceScore {
     if (lastDetail.error && lastDetail.error !== "deferred_no_allocation") {
       score *= 0.6;
     }
+  }
+
+  const yieldStats = getSourceYield(adapter.id);
+  if (yieldStats) {
+    if (yieldStats.verificationAttempted >= 10) {
+      score *= Math.max(0.05, yieldStats.passRate);
+      if (yieldStats.passRate < 0.02) {
+        score *= 0.15;
+      } else if (yieldStats.passRate >= 0.2) {
+        score += 12;
+      }
+      if (yieldStats.terminalFailureRate > 0.95) {
+        score *= 0.2;
+      }
+    }
+  }
+
+  // Deprioritize low-provenance community playlists until they show verified yield.
+  if (adapter.id.includes("community") && (!yieldStats || yieldStats.passRate < 0.05)) {
+    score *= 0.35;
   }
 
   return { sourceId: adapter.id, score, skip: score <= 0, reason: "active" };
