@@ -137,6 +137,7 @@ export const TvPage = memo(function TvPage({
     hasMore,
     loadMore,
     retry,
+    resetCatalogQuery,
   } = useTvPageData(activeFilter, query)
 
   const activeTvChannelId = useMemo(() => {
@@ -175,6 +176,21 @@ export const TvPage = memo(function TvPage({
     toggleTvFavorite(channelId)
     setFavoriteRevision((value) => value + 1)
   }, [])
+
+  const handleFilterChange = useCallback((filter: TvFilterId) => {
+    setActiveFilter(filter)
+    resetCatalogQuery()
+  }, [resetCatalogQuery])
+
+  const handleCategorySelect = useCallback((label: string) => {
+    setSelectedCategory((current) => (current === label ? null : label))
+    resetCatalogQuery()
+  }, [resetCatalogQuery, setSelectedCategory])
+
+  const handleRegionSelect = useCallback((name: string) => {
+    setSelectedRegion((current) => (current === name ? null : name))
+    resetCatalogQuery()
+  }, [resetCatalogQuery, setSelectedRegion])
 
   useEffect(() => {
     const node = loadMoreRef.current
@@ -253,7 +269,7 @@ export const TvPage = memo(function TvPage({
             role="tab"
             aria-selected={activeFilter === chip.id}
             className={`tv-tab${activeFilter === chip.id ? ' is-active' : ''}`}
-            onClick={() => setActiveFilter(chip.id)}
+            onClick={() => handleFilterChange(chip.id)}
           >
             {chip.label}
           </button>
@@ -287,9 +303,7 @@ export const TvPage = memo(function TvPage({
                     type="button"
                     className={`tv-genre-card${selectedCategory === category.label ? ' is-active' : ''}`}
                     onClick={() => {
-                      setSelectedCategory(
-                        selectedCategory === category.label ? null : category.label,
-                      )
+                      handleCategorySelect(category.label)
                       setActiveFilter('all')
                     }}
                   >
@@ -336,11 +350,7 @@ export const TvPage = memo(function TvPage({
                     key={category.id}
                     type="button"
                     className={`tv-genre-card${selectedCategory === category.label ? ' is-active' : ''}`}
-                    onClick={() => {
-                      setSelectedCategory(
-                        selectedCategory === category.label ? null : category.label,
-                      )
-                    }}
+                    onClick={() => handleCategorySelect(category.label)}
                   >
                     <span className="tv-genre-icon" aria-hidden="true">{category.icon}</span>
                     <strong>{category.label}</strong>
@@ -362,9 +372,7 @@ export const TvPage = memo(function TvPage({
                     key={region.id}
                     type="button"
                     className={`tv-region-card${selectedRegion === region.name ? ' is-active' : ''}`}
-                    onClick={() => {
-                      setSelectedRegion(selectedRegion === region.name ? null : region.name)
-                    }}
+                    onClick={() => handleRegionSelect(region.name)}
                   >
                     <span className="tv-region-code" aria-hidden="true">
                       {region.code ?? regionCode(region.name)}
@@ -407,7 +415,7 @@ export const TvPage = memo(function TvPage({
                     type="button"
                     className="btn-secondary btn-sm"
                     onClick={() => {
-                      setActiveFilter('all')
+                      handleFilterChange('all')
                       setSelectedCategory(null)
                       setSelectedRegion(null)
                     }}

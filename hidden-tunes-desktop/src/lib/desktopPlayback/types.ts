@@ -84,6 +84,8 @@ export type DesktopPlaybackActions = {
   setVolume: (volume: number) => void
   setAudioQualityMode: (mode: AudioQualityMode) => void
   setAudiobookPlaybackRate: (rate: AudiobookPlaybackRate) => void
+  stopPlayback: () => void
+  mountTvVideo: (container: HTMLElement | null) => void
 }
 
 export type DesktopPlaybackContextValue = DesktopPlaybackState & DesktopPlaybackActions

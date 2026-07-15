@@ -63,7 +63,8 @@ import {
   patchAudiobookQueueWithResolvedChapters,
 } from '../lib/audiobooks/audiobookPlaybackAdapter'
 import { resolveTvPlayUrl } from '../lib/tv/tvCatalogApi'
-import { HtmlVideoPlaybackService } from '../lib/tv/HtmlVideoPlaybackService'
+import { acquireTvVideoPlaybackService } from '../lib/tv/tvVideoPlayback'
+import type { HtmlVideoPlaybackService } from '../lib/tv/HtmlVideoPlaybackService'
 import {
   extractTvChannelId,
   isTvQueueSong,
@@ -214,7 +215,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
 
   const getVideoService = useCallback(() => {
     if (!videoServiceRef.current) {
-      videoServiceRef.current = new HtmlVideoPlaybackService()
+      videoServiceRef.current = acquireTvVideoPlaybackService()
     }
     return videoServiceRef.current
   }, [])
@@ -1310,8 +1311,8 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       video.removeEventListener('waiting', onWaiting)
       video.removeEventListener('canplay', onCanPlay)
       video.removeEventListener('error', onError)
-      videoService.destroy()
-      videoServiceRef.current = null
+      videoService.releaseSource()
+      videoService.unmount()
     }
   }, [getVideoService])
 
@@ -1607,6 +1608,35 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
     [getService, getVideoService],
   )
 
+  const stopPlayback = useCallback(() => {
+    cancelUpgradeSession()
+    if (document.pictureInPictureElement) {
+      void document.exitPictureInPicture().catch(() => undefined)
+    }
+    if (document.fullscreenElement) {
+      void document.exitFullscreen().catch(() => undefined)
+    }
+
+    if (activeMediaRef.current === 'video') {
+      getVideoService().stop()
+      activeMediaRef.current = 'audio'
+    } else {
+      getService().stop()
+    }
+
+    setIsPlaying(false)
+    setIsLoading(false)
+    setError(null)
+    emitPositionSeconds(0, true)
+    setDurationSeconds(0)
+    currentTrackRef.current = null
+    setCurrentTrack(null)
+  }, [cancelUpgradeSession, emitPositionSeconds, getService, getVideoService])
+
+  const mountTvVideo = useCallback((container: HTMLElement | null) => {
+    getVideoService().mount(container)
+  }, [getVideoService])
+
   const value = useMemo<DesktopPlaybackContextValue>(
     () => ({
       currentTrack,
@@ -1640,6 +1670,8 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       setVolume,
       setAudioQualityMode,
       setAudiobookPlaybackRate: handleAudiobookPlaybackRate,
+      stopPlayback,
+      mountTvVideo,
     }),
     [
       currentTrack,
@@ -1673,6 +1705,8 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       setVolume,
       setAudioQualityMode,
       handleAudiobookPlaybackRate,
+      stopPlayback,
+      mountTvVideo,
     ],
   )
 

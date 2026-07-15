@@ -95,7 +95,28 @@ export function useTvPageData(activeFilter: TvFilterId, searchQuery: string) {
   const trimmedSearch = searchQuery.trim()
   const isSearchMode = trimmedSearch.length >= TV_SEARCH_MIN_LENGTH
 
+  const effectiveSelectedCategory =
+    activeFilter === 'genres' ? selectedCategory : null
+  const effectiveSelectedRegion = activeFilter === 'all' ? selectedRegion : null
+
+  const catalogQueryKey = [
+    activeFilter,
+    effectiveSelectedCategory ?? '',
+    effectiveSelectedRegion ?? '',
+    trimmedSearch,
+  ].join('|')
+
+  const catalogQueryKeyRef = useRef(catalogQueryKey)
+
+  const resetCatalogQuery = useCallback(() => {
+    setPage(1)
+    setCatalogChannels([])
+    setHasMore(false)
+    setCatalogError(null)
+  }, [])
+
   const loadBootstrap = useCallback(async () => {
+    await Promise.resolve()
     const requestId = ++bootstrapRequestRef.current
     setLoading(true)
     setError(null)
@@ -177,23 +198,19 @@ export function useTvPageData(activeFilter: TvFilterId, searchQuery: string) {
   }, [])
 
   useEffect(() => {
-    void loadBootstrap()
+    const timer = globalThis.setTimeout(() => {
+      void loadBootstrap()
+    }, 0)
+    return () => globalThis.clearTimeout(timer)
   }, [loadBootstrap])
 
   useEffect(() => {
-    if (activeFilter !== 'genres') {
-      setSelectedCategory(null)
-    }
-    if (activeFilter !== 'all') {
-      setSelectedRegion(null)
-    }
-  }, [activeFilter])
-
-  useEffect(() => {
-    setPage(1)
-    setCatalogChannels([])
-    setHasMore(false)
-  }, [activeFilter, selectedCategory, selectedRegion, trimmedSearch])
+    if (catalogQueryKeyRef.current === catalogQueryKey) return
+    catalogQueryKeyRef.current = catalogQueryKey
+    queueMicrotask(() => {
+      resetCatalogQuery()
+    })
+  }, [catalogQueryKey, resetCatalogQuery])
 
   useEffect(() => {
     if (loading) return
@@ -203,42 +220,48 @@ export function useTvPageData(activeFilter: TvFilterId, searchQuery: string) {
     catalogAbortRef.current = abort
 
     const requestId = ++catalogRequestRef.current
-    setCatalogLoading(page === 1)
-    setLoadingMore(page > 1)
-    setCatalogError(null)
+    const requestPage = page
 
     const timer = globalThis.setTimeout(() => {
+      queueMicrotask(() => {
+        setCatalogLoading(requestPage === 1)
+        setLoadingMore(requestPage > 1)
+        setCatalogError(null)
+      })
+
       void (async () => {
         try {
           const category =
-            selectedCategory
+            effectiveSelectedCategory
             ?? resolveFilterCategory(activeFilter, categories)
             ?? undefined
 
           const response = isSearchMode
             ? await searchTvChannels(trimmedSearch, {
-                page,
+                page: requestPage,
                 limit: TV_PAGE_SIZE,
                 signal: abort.signal,
               })
             : await fetchTvChannels({
-                page,
+                page: requestPage,
                 limit: TV_PAGE_SIZE,
                 featured: activeFilter === 'featured' ? true : undefined,
                 category: category ?? undefined,
-                country: selectedRegion ?? undefined,
+                country: effectiveSelectedRegion ?? undefined,
                 signal: abort.signal,
               })
 
           if (requestId !== catalogRequestRef.current) return
 
           setCatalogChannels((previous) =>
-            dedupeChannels(page === 1 ? response.channels : [...previous, ...response.channels]),
+            dedupeChannels(
+              requestPage === 1 ? response.channels : [...previous, ...response.channels],
+            ),
           )
           setHasMore(response.pagination.hasMore)
 
           if (
-            page === 1
+            requestPage === 1
             && response.channels.length > 0
             && !heroChannel
             && activeFilter === 'all'
@@ -249,7 +272,7 @@ export function useTvPageData(activeFilter: TvFilterId, searchQuery: string) {
         } catch (err) {
           if (requestId !== catalogRequestRef.current) return
           if (err instanceof DOMException && err.name === 'AbortError') return
-          if (page === 1) {
+          if (requestPage === 1) {
             setCatalogChannels([])
           }
           setCatalogError(readError(err, 'Failed to load TV channels.'))
@@ -268,13 +291,14 @@ export function useTvPageData(activeFilter: TvFilterId, searchQuery: string) {
     }
   }, [
     activeFilter,
+    catalogQueryKey,
     categories,
+    effectiveSelectedCategory,
+    effectiveSelectedRegion,
     heroChannel,
     isSearchMode,
     loading,
     page,
-    selectedCategory,
-    selectedRegion,
     trimmedSearch,
   ])
 
@@ -346,5 +370,6 @@ export function useTvPageData(activeFilter: TvFilterId, searchQuery: string) {
     hasMore,
     loadMore,
     retry: loadBootstrap,
+    resetCatalogQuery,
   }
 }

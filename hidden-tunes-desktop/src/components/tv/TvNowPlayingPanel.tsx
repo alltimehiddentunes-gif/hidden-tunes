@@ -1,17 +1,13 @@
 import { memo, useCallback, useMemo } from 'react'
 import { useDesktopPlayback } from '../../context/DesktopPlaybackProvider'
-import { ArtworkImage } from '../ArtworkImage'
 import { isTvQueueSong } from '../../lib/tv/tvPlaybackAdapter'
 import { isTvFavorite, toggleTvFavorite } from '../../lib/tv/tvLocalState'
+import { acquireTvVideoPlaybackService } from '../../lib/tv/tvVideoPlayback'
+import { TvVideoSurface } from './TvVideoSurface'
 
 type TvNowPlayingPanelProps = {
   onBrowseAll: () => void
   onBrowseFeatured: () => void
-}
-
-function getVideoElement(): HTMLVideoElement | null {
-  const node = document.querySelector('video[data-ht-tv-playback="true"]')
-  return node instanceof HTMLVideoElement ? node : null
 }
 
 export const TvNowPlayingPanel = memo(function TvNowPlayingPanel({
@@ -29,52 +25,61 @@ export const TvNowPlayingPanel = memo(function TvNowPlayingPanel({
     setVolume,
     pause,
     resume,
-    queueContext,
+    stopPlayback,
   } = useDesktopPlayback()
 
   const activeTrack =
     currentIndex >= 0 ? (currentTrack ?? currentQueue[currentIndex] ?? null) : null
   const isTvActive = Boolean(activeTrack && isTvQueueSong(activeTrack))
 
+  const channelId = activeTrack?.id.replace(/^tv-/, '') ?? ''
+  const pipSupported = useMemo(() => acquireTvVideoPlaybackService().supportsPictureInPicture(), [])
+
   const isFavorite = useMemo(() => {
-    if (!activeTrack) return false
-    const channelId = activeTrack.id.replace(/^tv-/, '')
+    if (!channelId) return false
     return isTvFavorite(channelId)
-  }, [activeTrack])
+  }, [channelId])
 
   const handleToggleFavorite = useCallback(() => {
-    if (!activeTrack) return
-    const channelId = activeTrack.id.replace(/^tv-/, '')
+    if (!channelId) return
     toggleTvFavorite(channelId)
-  }, [activeTrack])
+  }, [channelId])
+
+  const handlePlayPause = useCallback(() => {
+    if (isLoading) return
+    if (isPlaying) {
+      pause()
+      return
+    }
+    void resume()
+  }, [isLoading, isPlaying, pause, resume])
 
   const handleStop = useCallback(() => {
-    const video = getVideoElement()
-    if (video) {
-      video.pause()
-      video.removeAttribute('src')
-      video.load()
-    }
-    pause()
-  }, [pause])
+    void stopPlayback()
+  }, [stopPlayback])
 
   const handleFullscreen = useCallback(async () => {
-    const video = getVideoElement()
-    if (!video) return
+    const surface = document.querySelector('.tv-video-surface')
+    if (!(surface instanceof HTMLElement)) return
     try {
       if (document.fullscreenElement) {
         await document.exitFullscreen()
         return
       }
-      await video.requestFullscreen()
+      await surface.requestFullscreen()
     } catch {
-      // Fullscreen may be unavailable — ignore safely.
+      const video = acquireTvVideoPlaybackService().getVideoElement()
+      try {
+        await video.requestFullscreen()
+      } catch {
+        // Fullscreen may be unavailable — ignore safely.
+      }
     }
   }, [])
 
   const handlePictureInPicture = useCallback(async () => {
-    const video = getVideoElement()
-    if (!video || !document.pictureInPictureEnabled) return
+    if (!pipSupported) return
+    const video = acquireTvVideoPlaybackService().getVideoElement()
     try {
       if (document.pictureInPictureElement) {
         await document.exitPictureInPicture()
@@ -84,13 +89,13 @@ export const TvNowPlayingPanel = memo(function TvNowPlayingPanel({
     } catch {
       // PiP may be unavailable in this Electron build.
     }
-  }, [])
+  }, [pipSupported])
 
   const handleMuteToggle = useCallback(() => {
     setVolume(volume <= 0 ? 0.85 : 0)
   }, [setVolume, volume])
 
-  if (!isTvActive) {
+  if (!isTvActive || !activeTrack) {
     return (
       <aside className="tv-rail tv-rail--discover" aria-label="TV discovery">
         <header className="tv-rail-header">
@@ -118,68 +123,39 @@ export const TvNowPlayingPanel = memo(function TvNowPlayingPanel({
         <span className="tv-live-badge">LIVE</span>
       </header>
 
-      <div className="tv-rail-art">
-        <ArtworkImage
-          src={activeTrack?.artwork ?? null}
-          alt=""
-          seed={activeTrack?.id ?? 'tv-rail'}
-          label={activeTrack?.title ?? 'TV'}
-          priority
-        />
-      </div>
+      <TvVideoSurface
+        channelId={channelId}
+        title={activeTrack.title}
+        artworkUrl={activeTrack.artwork}
+        isLoading={isLoading}
+        isPlaying={isPlaying}
+        error={error}
+        volume={volume}
+        onPlayPause={handlePlayPause}
+        onMuteToggle={handleMuteToggle}
+        onVolumeChange={setVolume}
+        onStop={handleStop}
+        onFullscreen={() => void handleFullscreen()}
+        onPictureInPicture={() => void handlePictureInPicture()}
+        pipSupported={pipSupported}
+        volumeMuted={volume <= 0}
+      />
 
       <div className="tv-rail-meta">
-        <h3>{activeTrack?.title}</h3>
-        <p>{activeTrack?.artist}</p>
-        {queueContext === 'tv' ? (
-          <p className="tv-rail-status">
-            {isLoading ? 'Connecting…' : isPlaying ? 'Live' : 'Paused'}
-          </p>
-        ) : null}
-        {error ? <p className="tv-rail-error" role="alert">{error}</p> : null}
-      </div>
-
-      <div className="tv-rail-controls" role="group" aria-label="TV playback controls">
-        <button
-          type="button"
-          className={`tv-rail-btn${isFavorite ? ' is-active' : ''}`}
-          onClick={handleToggleFavorite}
-          aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
-        >
-          ♥
-        </button>
-        <button
-          type="button"
-          className="tv-rail-btn tv-rail-btn--gold"
-          onClick={() => {
-            if (isLoading) return
-            if (isPlaying) {
-              pause()
-              return
-            }
-            void resume()
-          }}
-          aria-label={isPlaying ? 'Pause' : 'Play'}
-        >
-          {isPlaying ? '❚❚' : '▶'}
-        </button>
-        <button type="button" className="tv-rail-btn" onClick={handleStop} aria-label="Stop">
-          ■
-        </button>
-        <button type="button" className="tv-rail-btn" onClick={handleMuteToggle} aria-label={volume <= 0 ? 'Unmute' : 'Mute'}>
-          {volume <= 0 ? '🔇' : '🔊'}
-        </button>
-        <button type="button" className="tv-rail-btn" onClick={() => void handleFullscreen()} aria-label="Fullscreen">
-          ⛶
-        </button>
-        <button
-          type="button"
-          className="tv-rail-btn"
-          onClick={() => void handlePictureInPicture()}
-          aria-label="Picture in picture"
-        >
-          ⧉
-        </button>
+        <div className="tv-rail-meta-row">
+          <div>
+            <h3>{activeTrack.title}</h3>
+            <p>{activeTrack.artist}</p>
+          </div>
+          <button
+            type="button"
+            className={`tv-favorite-btn tv-favorite-btn--inline${isFavorite ? ' is-active' : ''}`}
+            onClick={handleToggleFavorite}
+            aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+          >
+            ♥
+          </button>
+        </div>
       </div>
 
       <section className="tv-rail-section" aria-labelledby="tv-upnext-heading">

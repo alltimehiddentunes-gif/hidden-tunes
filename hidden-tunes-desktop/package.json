@@ -13,9 +13,11 @@
     "build": "tsc -b && vite build",
     "dist": "npm run build && electron-builder",
     "lint": "eslint .",
+    "verify:tv-hls": "electron scripts/verify-tv-hls-playback.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
+    "hls.js": "^1.6.16",
     "react": "^19.2.6",
     "react-dom": "^19.2.6"
   },
