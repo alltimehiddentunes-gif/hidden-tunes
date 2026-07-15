@@ -1,5 +1,6 @@
 import { memo, useCallback, useState, type ComponentType } from 'react'
 import {
+  audiobookCategoryLabel,
   formatAudiobookBookSubtitle,
   formatAudiobookDuration,
 } from '../../lib/audiobooks/audiobookFormatters'
@@ -157,69 +158,74 @@ export const AudiobooksPage = memo(function AudiobooksPage({
     [onPlayAudiobookChapter],
   )
 
+  const heroProgress = heroBook ? getAudiobookProgress(heroBook.id) : null
+
   return (
     <div className="audiobooks-destination">
-      <section className="audiobooks-hero" aria-labelledby="audiobooks-page-heading">
-        <div className="audiobooks-hero-backdrop" aria-hidden="true" />
-        <div className="audiobooks-hero-copy">
-          <h1 id="audiobooks-page-heading">Audiobooks</h1>
-          <p>Long-form listening for focus, travel, and quiet hours.</p>
-        </div>
+      <section className="audiobooks-hero" aria-labelledby="audiobooks-hero-title">
         {heroBook ? (
-          <div className="audiobooks-hero-feature">
-            <ArtworkImage
-              src={heroBook.coverUrl}
-              alt=""
-              seed={heroBook.id}
-              label={heroBook.title}
-              priority
-            />
-            <div className="audiobooks-hero-feature-copy">
+          <div className="audiobooks-hero-grid">
+            <div className="audiobooks-hero-cover">
+              <ArtworkImage
+                src={heroBook.coverUrl}
+                alt=""
+                seed={heroBook.id}
+                label={heroBook.title}
+                priority
+              />
+            </div>
+
+            <div className="audiobooks-hero-main">
               <span className="audiobooks-hero-eyebrow">
-                {heroBook.categorySlug ?? heroBook.categories[0] ?? 'Featured'}
+                {audiobookCategoryLabel(heroBook.categorySlug ?? heroBook.categories[0] ?? null)}
               </span>
-              <h2>{heroBook.title}</h2>
-              <p>{heroBook.authorName ?? 'Unknown author'}</p>
-              {heroBook.description ? <p className="audiobooks-hero-description">{heroBook.description.slice(0, 180)}</p> : null}
-              <div className="audiobooks-hero-actions">
+              <h2 id="audiobooks-hero-title">{heroBook.title}</h2>
+              <p className="audiobooks-hero-author">
+                {heroBook.authorName ?? 'Unknown author'}
+                {heroBook.narratorName && heroBook.narratorName !== heroBook.authorName
+                  ? ` · Narrated by ${heroBook.narratorName}`
+                  : ''}
+              </p>
+              <ul className="audiobooks-hero-meta">
+                {heroBook.language ? <li>{heroBook.language}</li> : null}
+                {heroBook.chapterCount > 0 ? (
+                  <li>{heroBook.chapterCount} {heroBook.chapterCount === 1 ? 'chapter' : 'chapters'}</li>
+                ) : null}
+                {heroBook.durationSeconds ? (
+                  <li>{formatAudiobookDuration(heroBook.durationSeconds)}</li>
+                ) : null}
+              </ul>
+              {heroBook.description ? (
+                <p className="audiobooks-hero-description">{heroBook.description.slice(0, 220)}</p>
+              ) : null}
+            </div>
+
+            <div className="audiobooks-hero-actions-col">
+              {heroProgress ? (
                 <button
                   type="button"
                   className="btn-primary btn-sm"
-                  onClick={() => onOpenBook(heroBook.id)}
+                  onClick={() => resumeBook(heroBook.id)}
                 >
-                  View Book
+                  Resume
                 </button>
-              </div>
+              ) : null}
+              <button
+                type="button"
+                className="btn-secondary btn-sm"
+                onClick={() => onOpenBook(heroBook.id)}
+              >
+                View Book
+              </button>
             </div>
           </div>
-        ) : null}
+        ) : (
+          <div className="audiobooks-hero-fallback">
+            <h1 id="audiobooks-hero-title">Audiobooks</h1>
+            <p>Long-form listening for focus, travel, and quiet hours.</p>
+          </div>
+        )}
       </section>
-
-      {categories.length > 0 ? (
-        <div className="audiobooks-tabs" role="tablist" aria-label="Audiobook categories">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={categorySlug === null}
-            className={`audiobooks-tab${categorySlug === null ? ' is-active' : ''}`}
-            onClick={() => setCategorySlug(null)}
-          >
-            All
-          </button>
-          {categories.map((category) => (
-            <button
-              key={category.id}
-              type="button"
-              role="tab"
-              aria-selected={categorySlug === category.slug}
-              className={`audiobooks-tab${categorySlug === category.slug ? ' is-active' : ''}`}
-              onClick={() => setCategorySlug(category.slug)}
-            >
-              {category.title}
-            </button>
-          ))}
-        </div>
-      ) : null}
 
       {error ? (
         <section className="audiobooks-status audiobooks-status--error" role="alert">
@@ -237,47 +243,43 @@ export const AudiobooksPage = memo(function AudiobooksPage({
             <section className="audiobooks-section" aria-labelledby="audiobooks-continue-heading">
               <h2 id="audiobooks-continue-heading">Continue Listening</h2>
               <div className="audiobooks-continue-rail">
-                {continueListening.map((entry) => (
-                  <article key={entry.bookId} className="audiobooks-continue-card">
-                    <ArtworkImage
-                      src={entry.artworkUrl}
-                      alt=""
-                      seed={entry.bookId}
-                      label={entry.bookTitle}
-                    />
-                    <div>
-                      <h3>{entry.bookTitle}</h3>
-                      <p>{entry.chapterTitle}</p>
-                      <p>{formatAudiobookDuration(entry.durationSeconds)}</p>
-                    </div>
-                    <button
-                      type="button"
-                      className="btn-primary btn-sm"
-                      onClick={() => resumeBook(entry.bookId)}
-                    >
-                      Resume
-                    </button>
-                  </article>
-                ))}
-              </div>
-            </section>
-          ) : null}
-
-          {recentlyPlayed.length > 0 ? (
-            <section className="audiobooks-section" aria-labelledby="audiobooks-recent-heading">
-              <h2 id="audiobooks-recent-heading">Recently Played</h2>
-              <div className="audiobooks-recent-list">
-                {recentlyPlayed.map((entry) => (
-                  <button
-                    key={`${entry.bookId}:${entry.chapterId}`}
-                    type="button"
-                    className="audiobooks-recent-row"
-                    onClick={() => onOpenBook(entry.bookId)}
-                  >
-                    <strong>{entry.bookTitle}</strong>
-                    <span>{entry.chapterTitle}</span>
-                  </button>
-                ))}
+                {continueListening.map((entry) => {
+                  const percent =
+                    entry.durationSeconds && entry.durationSeconds > 0
+                      ? Math.min(100, Math.round((entry.positionSeconds / entry.durationSeconds) * 100))
+                      : 0
+                  return (
+                    <article key={entry.bookId} className="audiobooks-continue-card">
+                      <div className="audiobooks-continue-art">
+                        <ArtworkImage
+                          src={entry.artworkUrl}
+                          alt=""
+                          seed={entry.bookId}
+                          label={entry.bookTitle}
+                        />
+                      </div>
+                      <div className="audiobooks-continue-copy">
+                        <h3>{entry.bookTitle}</h3>
+                        <p>{entry.chapterTitle}</p>
+                        {percent > 0 ? (
+                          <div className="audiobooks-continue-progress" aria-hidden="true">
+                            <span style={{ width: `${percent}%` }} />
+                          </div>
+                        ) : null}
+                        <span className="audiobooks-continue-meta">
+                          {formatAudiobookDuration(entry.durationSeconds)}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        className="btn-primary btn-sm"
+                        onClick={() => resumeBook(entry.bookId)}
+                      >
+                        Resume
+                      </button>
+                    </article>
+                  )
+                })}
               </div>
             </section>
           ) : null}
@@ -334,6 +336,54 @@ export const AudiobooksPage = memo(function AudiobooksPage({
                     progressPercent={0}
                     ArtworkImage={ArtworkImage}
                   />
+                ))}
+              </div>
+            </section>
+          ) : null}
+
+          {categories.length > 0 && !filteredView ? (
+            <section className="audiobooks-section" aria-labelledby="audiobooks-categories-heading">
+              <h2 id="audiobooks-categories-heading">Categories</h2>
+              <div className="audiobooks-category-grid">
+                <button
+                  type="button"
+                  className={`audiobooks-category-card${categorySlug === null ? ' is-active' : ''}`}
+                  onClick={() => setCategorySlug(null)}
+                >
+                  <strong>All Audiobooks</strong>
+                  <span>Browse the full catalog</span>
+                </button>
+                {categories.map((category) => (
+                  <button
+                    key={category.id}
+                    type="button"
+                    className={`audiobooks-category-card${categorySlug === category.slug ? ' is-active' : ''}`}
+                    onClick={() => setCategorySlug(category.slug)}
+                  >
+                    <strong>{category.title}</strong>
+                    {category.itemCount > 0 ? (
+                      <span>{category.itemCount.toLocaleString()} books</span>
+                    ) : null}
+                  </button>
+                ))}
+              </div>
+            </section>
+          ) : null}
+
+          {recentlyPlayed.length > 0 && !filteredView ? (
+            <section className="audiobooks-section" aria-labelledby="audiobooks-recent-heading">
+              <h2 id="audiobooks-recent-heading">Recently Played</h2>
+              <div className="audiobooks-recent-list">
+                {recentlyPlayed.map((entry) => (
+                  <button
+                    key={`${entry.bookId}:${entry.chapterId}`}
+                    type="button"
+                    className="audiobooks-recent-row"
+                    onClick={() => onOpenBook(entry.bookId)}
+                  >
+                    <strong>{entry.bookTitle}</strong>
+                    <span>{entry.chapterTitle}</span>
+                  </button>
                 ))}
               </div>
             </section>
