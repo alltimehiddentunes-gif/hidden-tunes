@@ -48,4 +48,10 @@ next-env.d.ts
 /data/podcast-mass-expansion/final-report.json
 /data/podcast-mass-expansion/batch-reports/
 
+# podcast pending promotion runtime artifacts
+/data/podcast-pending-promotion/state.json
+/data/podcast-pending-promotion/batch-log.jsonl
+/data/podcast-pending-promotion/final-report.json
+/data/podcast-pending-promotion/batch-reports/
+
 .vercel
