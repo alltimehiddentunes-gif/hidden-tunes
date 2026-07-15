@@ -9,6 +9,10 @@ import type { TvDedupeCache } from "@/lib/tvExpansion25k/fast/dedupeCache";
 import { guardDatabaseWrite } from "@/lib/tvExpansion25k/fast/dryRunGuard";
 import { DomainConcurrencyLimiter } from "@/lib/tvExpansion25k/fast/domainLimiter";
 import { mapWithConcurrency } from "@/lib/tvExpansion25k/fast/workerPool";
+import {
+  TvVerificationDiagnostics,
+  type TvVerificationDiagnosticsSummary,
+} from "@/lib/tvExpansion25k/fast/verificationDiagnostics";
 
 export type BulkImportResult = {
   found: number;
@@ -23,7 +27,17 @@ export type BulkImportResult = {
   insertChunkCount: number;
   largestChunk: number;
   schemaValidationFailures: number;
+  verificationDiagnostics: TvVerificationDiagnosticsSummary;
+  perSourceDiagnostics: Record<string, TvVerificationDiagnosticsSummary>;
+  preVerificationRejected?: number;
 };
+
+function sourceIdFromCandidate(candidate: TvGrowthCandidate) {
+  const key = String(candidate.source_key || "");
+  const colon = key.indexOf(":");
+  if (colon > 0) return key.slice(0, colon);
+  return "unknown";
+}
 
 function buildInsertRow(
   candidate: TvGrowthCandidate,
@@ -91,10 +105,20 @@ function validateInsertRow(row: ReturnType<typeof buildInsertRow>) {
 
 async function verifyCandidate(
   candidate: TvGrowthCandidate,
-  hostLimiter: DomainConcurrencyLimiter
+  hostLimiter: DomainConcurrencyLimiter,
+  diagnostics: TvVerificationDiagnostics,
+  perSourceDiagnostics: Map<string, TvVerificationDiagnostics>
 ) {
+  const sourceId = sourceIdFromCandidate(candidate);
+  const sourceDiagnostics = perSourceDiagnostics.get(sourceId) || new TvVerificationDiagnostics();
+  perSourceDiagnostics.set(sourceId, sourceDiagnostics);
+
+  const started = Date.now();
   const urlCheck = validatePublicTvUrl(candidate.source_url);
   if (!urlCheck.ok) {
+    const durationMs = Date.now() - started;
+    diagnostics.recordFailure(urlCheck.reason, String(candidate.source_url || ""), candidate.country, durationMs);
+    sourceDiagnostics.recordFailure(urlCheck.reason, String(candidate.source_url || ""), candidate.country, durationMs);
     return { ok: false as const, candidate, reason: urlCheck.reason };
   }
 
@@ -113,10 +137,16 @@ async function verifyCandidate(
       consecutive_failures: 0,
     });
 
+    const durationMs = Date.now() - started;
     if (!probe.playable) {
+      const reason = probe.reason || probe.last_validation_result || "unknown_failure";
+      diagnostics.recordFailure(reason, urlCheck.url, candidate.country || candidate.region, durationMs);
+      sourceDiagnostics.recordFailure(reason, urlCheck.url, candidate.country || candidate.region, durationMs);
       return { ok: false as const, candidate, reason: probe.reason };
     }
 
+    diagnostics.recordPass(durationMs);
+    sourceDiagnostics.recordPass(durationMs);
     return {
       ok: true as const,
       candidate,
@@ -124,6 +154,14 @@ async function verifyCandidate(
       probe,
     };
   });
+}
+
+function summarizePerSourceDiagnostics(perSourceDiagnostics: Map<string, TvVerificationDiagnostics>) {
+  const summary: Record<string, TvVerificationDiagnosticsSummary> = {};
+  for (const [sourceId, diagnostics] of perSourceDiagnostics.entries()) {
+    summary[sourceId] = diagnostics.summary();
+  }
+  return summary;
 }
 
 /**
@@ -152,6 +190,9 @@ export async function bulkImportVerifiedCandidates(
   let verificationChecks = 0;
   let databaseRoundTrips = 0;
   let schemaValidationFailures = 0;
+  const diagnostics = new TvVerificationDiagnostics();
+  const perSourceDiagnostics = new Map<string, TvVerificationDiagnostics>();
+  const emptyDiagnostics = diagnostics.summary();
 
   const importOptions = options.importOptions || {};
   if (importOptions.isMature && !importOptions.matureSourceApproved) {
@@ -168,6 +209,8 @@ export async function bulkImportVerifiedCandidates(
       insertChunkCount: 0,
       largestChunk: 0,
       schemaValidationFailures: 0,
+      verificationDiagnostics: emptyDiagnostics,
+      perSourceDiagnostics: {},
     };
   }
 
@@ -185,6 +228,8 @@ export async function bulkImportVerifiedCandidates(
       insertChunkCount: 0,
       largestChunk: 0,
       schemaValidationFailures: 0,
+      verificationDiagnostics: emptyDiagnostics,
+      perSourceDiagnostics: {},
     };
   }
 
@@ -200,7 +245,7 @@ export async function bulkImportVerifiedCandidates(
     options.verifyConcurrency,
     async (candidate) => {
       verificationChecks += 1;
-      const result = await verifyCandidate(candidate, hostLimiter);
+      const result = await verifyCandidate(candidate, hostLimiter, diagnostics, perSourceDiagnostics);
       if (result.ok) {
         verified.push({
           candidate: result.candidate,
@@ -249,6 +294,8 @@ export async function bulkImportVerifiedCandidates(
       insertChunkCount: chunkCount,
       largestChunk,
       schemaValidationFailures,
+      verificationDiagnostics: diagnostics.summary(),
+      perSourceDiagnostics: summarizePerSourceDiagnostics(perSourceDiagnostics),
     };
   }
 
@@ -283,5 +330,7 @@ export async function bulkImportVerifiedCandidates(
     insertChunkCount: chunkCount,
     largestChunk,
     schemaValidationFailures,
+    verificationDiagnostics: diagnostics.summary(),
+    perSourceDiagnostics: summarizePerSourceDiagnostics(perSourceDiagnostics),
   };
 }
