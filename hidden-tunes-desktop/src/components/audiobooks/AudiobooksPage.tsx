@@ -31,57 +31,38 @@ type AudiobooksPageProps = {
 function BookCard({
   book,
   onOpen,
-  onPlay,
-  tuning,
   progressPercent,
   ArtworkImage,
 }: {
   book: AudiobookBookMeta
   onOpen: (bookId: string) => void
-  onPlay: () => void
-  tuning: boolean
   progressPercent: number
   ArtworkImage: ComponentType<ArtworkImageProps>
 }) {
   return (
     <article className="audiobook-book-card">
-      <div
-        role="button"
-        tabIndex={0}
+      <button
+        type="button"
         className="audiobook-book-card-hit"
         onClick={() => onOpen(book.id)}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault()
-            onOpen(book.id)
-          }
-        }}
+        aria-label={`Open ${book.title}`}
       >
         <div className="audiobook-book-card-art">
           <ArtworkImage src={book.coverUrl} alt="" seed={book.id} label={book.title} />
           {progressPercent > 0 ? (
             <span className="audiobook-progress-pill">{progressPercent}%</span>
           ) : null}
-          <button
-            type="button"
-            className="audiobook-book-card-play"
-            disabled={tuning}
-            aria-label={`Play ${book.title}`}
-            onClick={(event) => {
-              event.stopPropagation()
-              onPlay()
-            }}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <span className="audiobook-book-card-play" aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
               <path d="M8 5v14l11-7z" />
             </svg>
-          </button>
+          </span>
         </div>
         <div className="audiobook-book-card-copy">
           <h3>{book.title}</h3>
           <p>{formatAudiobookBookSubtitle(book)}</p>
         </div>
-      </div>
+      </button>
     </article>
   )
 }
@@ -93,7 +74,6 @@ export const AudiobooksPage = memo(function AudiobooksPage({
   ArtworkImage,
 }: AudiobooksPageProps) {
   const [categorySlug, setCategorySlug] = useState<string | null>(null)
-  const [tuningBookId, setTuningBookId] = useState<string | null>(null)
   const { continueListening, recentlyPlayed } = useAudiobookLocalState()
 
   const {
@@ -149,11 +129,9 @@ export const AudiobooksPage = memo(function AudiobooksPage({
         publishedAt: null,
         createdAt: null,
       }
-      setTuningBookId(book.id)
       onPlayAudiobookChapter(book, chapter, [chapter], 0, book.title, {
         resumePositionSeconds: progress.positionSeconds,
       })
-      window.setTimeout(() => setTuningBookId(null), 800)
     },
     [onPlayAudiobookChapter],
   )
@@ -293,8 +271,6 @@ export const AudiobooksPage = memo(function AudiobooksPage({
                     key={book.id}
                     book={book}
                     onOpen={onOpenBook}
-                    onPlay={() => onOpenBook(book.id)}
-                    tuning={tuningBookId === book.id}
                     progressPercent={0}
                     ArtworkImage={ArtworkImage}
                   />
@@ -312,8 +288,6 @@ export const AudiobooksPage = memo(function AudiobooksPage({
                     key={book.id}
                     book={book}
                     onOpen={onOpenBook}
-                    onPlay={() => onOpenBook(book.id)}
-                    tuning={tuningBookId === book.id}
                     progressPercent={0}
                     ArtworkImage={ArtworkImage}
                   />
@@ -331,8 +305,6 @@ export const AudiobooksPage = memo(function AudiobooksPage({
                     key={book.id}
                     book={book}
                     onOpen={onOpenBook}
-                    onPlay={() => onOpenBook(book.id)}
-                    tuning={tuningBookId === book.id}
                     progressPercent={0}
                     ArtworkImage={ArtworkImage}
                   />
@@ -418,8 +390,6 @@ export const AudiobooksPage = memo(function AudiobooksPage({
                         key={book.id}
                         book={book}
                         onOpen={onOpenBook}
-                        onPlay={() => onOpenBook(book.id)}
-                        tuning={tuningBookId === book.id}
                         progressPercent={percent}
                         ArtworkImage={ArtworkImage}
                       />

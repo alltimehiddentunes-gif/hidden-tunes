@@ -24234,13 +24234,16 @@
   position: absolute;
   right: 10px;
   bottom: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  border: 0;
   background: rgba(12, 10, 18, 0.82);
   color: #fff;
   opacity: 0;
+  pointer-events: none;
   transition: opacity 160ms ease;
 }
 
