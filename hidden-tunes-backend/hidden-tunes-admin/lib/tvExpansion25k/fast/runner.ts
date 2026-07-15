@@ -302,7 +302,7 @@ export async function runTvFastExpansion(
     }
   }
 
-  assertDryRunNoWrites(limits.dryRun);
+  assertDryRunNoWrites(limits.dryRun !== false);
   logFastStage("run_complete");
 
   return {
