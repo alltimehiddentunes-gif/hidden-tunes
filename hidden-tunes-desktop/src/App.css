@@ -24419,6 +24419,11 @@
   }
 }
 
+.audiobooks-load-sentinel {
+  width: 100%;
+  height: 1px;
+}
+
 .audiobook-book-page {
   display: flex;
   flex-direction: column;
@@ -24877,6 +24882,107 @@
   display: flex;
   justify-content: center;
   margin-top: 8px;
+}
+
+.motivationals-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  align-items: center;
+}
+
+.motivationals-filter-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.motivationals-filter-chip {
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(245, 243, 250, 0.72);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.motivationals-filter-chip.is-active {
+  border-color: rgba(251, 191, 36, 0.45);
+  background: rgba(251, 191, 36, 0.12);
+  color: rgba(255, 248, 230, 0.95);
+}
+
+.motivationals-filter-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: rgba(245, 243, 250, 0.62);
+}
+
+.motivationals-filter-select select {
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  color: inherit;
+}
+
+.motivationals-media-badge,
+.motivationals-duration-pill {
+  position: absolute;
+  z-index: 2;
+  padding: 3px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  background: rgba(12, 10, 18, 0.78);
+  color: rgba(245, 243, 250, 0.92);
+}
+
+.motivationals-media-badge {
+  top: 8px;
+  left: 8px;
+}
+
+.motivationals-duration-pill {
+  top: 8px;
+  right: 8px;
+}
+
+.motivationals-hero-meta {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: rgba(245, 243, 250, 0.55);
+}
+
+.motivationals-speaker-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.motivationals-speaker-chip {
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.025);
+  font-size: 12px;
+  color: rgba(245, 243, 250, 0.72);
+}
+
+.motivationals-load-more-sentinel {
+  width: 100%;
+  height: 1px;
+}
+
+.motivationals-end-state {
+  margin: 10px 0 0;
+  text-align: center;
+  font-size: 12px;
+  color: rgba(245, 243, 250, 0.45);
 }
 
 .motivational-program-page {

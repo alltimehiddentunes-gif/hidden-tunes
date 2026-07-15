@@ -19,12 +19,28 @@ function readError(reason: unknown, fallback: string) {
   return reason instanceof Error ? reason.message : fallback
 }
 
-export function useAudiobooksPageData(searchQuery: string, categorySlug: string | null) {
+function dedupeBooks(previous: AudiobookBookMeta[], incoming: AudiobookBookMeta[]) {
+  const seen = new Set(previous.map((book) => book.id))
+  const merged = [...previous]
+  for (const book of incoming) {
+    if (seen.has(book.id)) continue
+    seen.add(book.id)
+    merged.push(book)
+  }
+  return merged
+}
+
+export function useAudiobooksPageData(
+  searchQuery: string,
+  categorySlug: string | null,
+  languageFilter: string | null = null,
+) {
   const [categories, setCategories] = useState<AudiobookCategoryMeta[]>([])
   const [featuredBooks, setFeaturedBooks] = useState<AudiobookBookMeta[]>([])
   const [browseBooks, setBrowseBooks] = useState<AudiobookBookMeta[]>([])
   const [searchBooks, setSearchBooks] = useState<AudiobookBookMeta[]>([])
   const [pagination, setPagination] = useState<AudiobookPagination | null>(null)
+  const [browseCursor, setBrowseCursor] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [contentLoading, setContentLoading] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
@@ -33,9 +49,10 @@ export function useAudiobooksPageData(searchQuery: string, categorySlug: string 
   const bootstrapRef = useRef(0)
   const browseRef = useRef(0)
   const browseAbortRef = useRef<AbortController | null>(null)
+  const loadMoreRef = useRef(0)
 
   const trimmedSearch = searchQuery.trim()
-  const filteredView = trimmedSearch.length > 0 || Boolean(categorySlug)
+  const filteredView = trimmedSearch.length > 0 || Boolean(categorySlug) || Boolean(languageFilter)
 
   useEffect(() => {
     const requestId = ++bootstrapRef.current
@@ -57,6 +74,7 @@ export function useAudiobooksPageData(searchQuery: string, categorySlug: string 
             : featuredResponse.books.slice(0, FEATURED_LIMIT),
         )
         setBrowseBooks(browseResponse.books)
+        setBrowseCursor(browseResponse.pagination.nextCursor ?? null)
         setPagination(browseResponse.pagination)
       })
       .catch((reason) => {
@@ -92,13 +110,21 @@ export function useAudiobooksPageData(searchQuery: string, categorySlug: string 
         ? searchAudiobooks(trimmedSearch, { page: 1, limit: BROWSE_LIMIT }, controller.signal)
         : categorySlug
           ? fetchAudiobookCategory(categorySlug, { page: 1, limit: BROWSE_LIMIT }, controller.signal)
-          : fetchAudiobookBooks({ page: 1, limit: BROWSE_LIMIT }, controller.signal)
+          : fetchAudiobookBooks(
+              {
+                page: 1,
+                limit: BROWSE_LIMIT,
+                language: languageFilter,
+              },
+              controller.signal,
+            )
 
       request
         .then((response) => {
           if (requestId !== browseRef.current) return
           setSearchBooks(response.books)
           setPagination(response.pagination)
+          setBrowseCursor(response.pagination.nextCursor ?? null)
         })
         .catch((reason) => {
           if (requestId !== browseRef.current) return
@@ -115,32 +141,60 @@ export function useAudiobooksPageData(searchQuery: string, categorySlug: string 
       window.clearTimeout(timer)
       controller.abort()
     }
-  }, [categorySlug, filteredView, trimmedSearch])
+  }, [categorySlug, filteredView, languageFilter, trimmedSearch])
 
   const loadMore = useCallback(() => {
     if (!pagination?.hasMore || loadingMore) return
-    const nextPage = pagination.page + 1
+    const requestId = ++loadMoreRef.current
     const controller = new AbortController()
     setLoadingMore(true)
 
     const request = trimmedSearch
-      ? searchAudiobooks(trimmedSearch, { page: nextPage, limit: BROWSE_LIMIT }, controller.signal)
+      ? searchAudiobooks(
+          trimmedSearch,
+          { page: (pagination.page || 1) + 1, limit: BROWSE_LIMIT },
+          controller.signal,
+        )
       : categorySlug
-        ? fetchAudiobookCategory(categorySlug, { page: nextPage, limit: BROWSE_LIMIT }, controller.signal)
-        : fetchAudiobookBooks({ page: nextPage, limit: BROWSE_LIMIT }, controller.signal)
+        ? fetchAudiobookCategory(
+            categorySlug,
+            { page: (pagination.page || 1) + 1, limit: BROWSE_LIMIT },
+            controller.signal,
+          )
+        : fetchAudiobookBooks(
+            {
+              page: (pagination.page || 1) + 1,
+              limit: BROWSE_LIMIT,
+              cursor: browseCursor,
+              language: languageFilter,
+            },
+            controller.signal,
+          )
 
     request
       .then((response) => {
+        if (requestId !== loadMoreRef.current) return
         setPagination(response.pagination)
+        setBrowseCursor(response.pagination.nextCursor ?? null)
         if (filteredView) {
-          setSearchBooks((previous) => [...previous, ...response.books])
+          setSearchBooks((previous) => dedupeBooks(previous, response.books))
         } else {
-          setBrowseBooks((previous) => [...previous, ...response.books])
+          setBrowseBooks((previous) => dedupeBooks(previous, response.books))
         }
       })
       .catch(() => undefined)
-      .finally(() => setLoadingMore(false))
-  }, [categorySlug, filteredView, loadingMore, pagination, trimmedSearch])
+      .finally(() => {
+        if (requestId === loadMoreRef.current) setLoadingMore(false)
+      })
+  }, [
+    browseCursor,
+    categorySlug,
+    filteredView,
+    languageFilter,
+    loadingMore,
+    pagination,
+    trimmedSearch,
+  ])
 
   const visibleBooks = useMemo(
     () => (filteredView ? searchBooks : browseBooks),
@@ -166,6 +220,14 @@ export function useAudiobooksPageData(searchQuery: string, categorySlug: string 
     [browseBooks, featuredBooks],
   )
 
+  const languageOptions = useMemo(() => {
+    const values = new Set<string>()
+    for (const book of browseBooks) {
+      if (book.language?.trim()) values.add(book.language.trim())
+    }
+    return [...values].sort((a, b) => a.localeCompare(b))
+  }, [browseBooks])
+
   return {
     categories,
     featuredBooks,
@@ -181,6 +243,7 @@ export function useAudiobooksPageData(searchQuery: string, categorySlug: string 
     error,
     contentError,
     filteredView,
+    languageOptions,
     loadMore,
   }
 }

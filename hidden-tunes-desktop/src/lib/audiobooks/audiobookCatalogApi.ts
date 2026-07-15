@@ -96,8 +96,12 @@ function normalizePagination(
   const hasMore = typeof record.hasMore === 'boolean'
     ? record.hasMore
     : page < totalPages
+  const nextCursor =
+    typeof record.nextCursor === 'string'
+      ? record.nextCursor
+      : null
 
-  return { page, limit, total, totalPages, hasMore }
+  return { page, limit, total, totalPages, hasMore, nextCursor }
 }
 
 export function normalizeAudiobookBook(row: Record<string, unknown>): AudiobookBookMeta | null {
@@ -236,7 +240,14 @@ export async function fetchAudiobookCategories(signal?: AbortSignal): Promise<Au
 }
 
 export async function fetchAudiobookBooks(
-  options?: { page?: number; limit?: number; category?: string | null },
+  options?: {
+    page?: number
+    limit?: number
+    cursor?: string | null
+    category?: string | null
+    language?: string | null
+    completeOnly?: boolean
+  },
   signal?: AbortSignal,
 ): Promise<AudiobookBooksResponse> {
   const page = clampPage(options?.page)
@@ -244,16 +255,28 @@ export async function fetchAudiobookBooks(
   const query = buildQuery({
     page,
     limit,
+    cursor: options?.cursor ?? undefined,
     category: options?.category ?? undefined,
+    language: options?.language ?? undefined,
+    complete_only: options?.completeOnly ? 'true' : undefined,
   })
   const payload = await audiobookRequest<{
     success?: boolean
     category?: Record<string, unknown>
     audiobooks?: unknown[]
+    items?: unknown[]
     pagination?: unknown
+    nextCursor?: string | null
+    hasMore?: boolean
   }>(`/api/audiobooks?${query.toString()}`, signal)
 
-  const books = (Array.isArray(payload.audiobooks) ? payload.audiobooks : [])
+  const rawBooks = Array.isArray(payload.audiobooks)
+    ? payload.audiobooks
+    : Array.isArray(payload.items)
+      ? payload.items
+      : []
+
+  const books = rawBooks
     .map((row) =>
       row && typeof row === 'object'
         ? normalizeAudiobookBook(row as Record<string, unknown>)

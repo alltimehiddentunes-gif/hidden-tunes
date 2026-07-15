@@ -1,4 +1,4 @@
-import { memo, useCallback, useState, type ComponentType } from 'react'
+import { memo, useCallback, useEffect, useRef, useState, type ComponentType } from 'react'
 import {
   audiobookCategoryLabel,
   formatAudiobookBookSubtitle,
@@ -74,6 +74,8 @@ export const AudiobooksPage = memo(function AudiobooksPage({
   ArtworkImage,
 }: AudiobooksPageProps) {
   const [categorySlug, setCategorySlug] = useState<string | null>(null)
+  const [languageFilter, setLanguageFilter] = useState<string | null>(null)
+  const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null)
   const { continueListening, recentlyPlayed } = useAudiobookLocalState()
 
   const {
@@ -90,8 +92,24 @@ export const AudiobooksPage = memo(function AudiobooksPage({
     error,
     contentError,
     filteredView,
+    languageOptions,
     loadMore,
-  } = useAudiobooksPageData(query, categorySlug)
+  } = useAudiobooksPageData(query, categorySlug, languageFilter)
+
+  useEffect(() => {
+    const node = loadMoreSentinelRef.current
+    if (!node || !pagination?.hasMore) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) loadMore()
+      },
+      { rootMargin: '240px 0px' },
+    )
+
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [loadMore, pagination?.hasMore])
 
   const resumeBook = useCallback(
     (bookId: string) => {
@@ -342,6 +360,31 @@ export const AudiobooksPage = memo(function AudiobooksPage({
             </section>
           ) : null}
 
+          {languageOptions.length > 0 && !query.trim() ? (
+            <section className="audiobooks-section" aria-labelledby="audiobooks-languages-heading">
+              <h2 id="audiobooks-languages-heading">Languages</h2>
+              <div className="audiobooks-category-grid">
+                <button
+                  type="button"
+                  className={`audiobooks-category-card${languageFilter === null ? ' is-active' : ''}`}
+                  onClick={() => setLanguageFilter(null)}
+                >
+                  <strong>All Languages</strong>
+                </button>
+                {languageOptions.map((language) => (
+                  <button
+                    key={language}
+                    type="button"
+                    className={`audiobooks-category-card${languageFilter === language ? ' is-active' : ''}`}
+                    onClick={() => setLanguageFilter(language)}
+                  >
+                    <strong>{language}</strong>
+                  </button>
+                ))}
+              </div>
+            </section>
+          ) : null}
+
           {recentlyPlayed.length > 0 && !filteredView ? (
             <section className="audiobooks-section" aria-labelledby="audiobooks-recent-heading">
               <h2 id="audiobooks-recent-heading">Recently Played</h2>
@@ -396,6 +439,7 @@ export const AudiobooksPage = memo(function AudiobooksPage({
                     )
                   })}
                 </div>
+                <div ref={loadMoreSentinelRef} className="audiobooks-load-sentinel" aria-hidden="true" />
                 {pagination?.hasMore ? (
                   <div className="audiobooks-section-actions">
                     <button

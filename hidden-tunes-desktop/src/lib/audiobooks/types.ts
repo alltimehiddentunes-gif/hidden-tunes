@@ -4,6 +4,7 @@ export type AudiobookPagination = {
   total: number
   totalPages: number
   hasMore: boolean
+  nextCursor?: string | null
 }
 
 /** Metadata-only — no playable URLs in browse responses. */
