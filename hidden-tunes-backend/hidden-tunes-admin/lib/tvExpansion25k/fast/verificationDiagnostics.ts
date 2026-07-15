@@ -156,6 +156,12 @@ export function classifyVerificationFailure(rawReason: string): {
   if (lower.includes("platform") || lower.includes("ios_playable") || lower.includes("android")) {
     return { reason: "platform_not_playable", class: "terminal" };
   }
+  if (lower.includes("http_or_insecure") || lower.includes("insecure")) {
+    return { reason: "unsupported_protocol", class: "terminal" };
+  }
+  if (lower.includes("probe_failed") || lower.includes("manifest") && lower.includes("fail")) {
+    return { reason: "invalid_hls_manifest", class: "terminal" };
+  }
   if (lower.includes("probe_passed")) {
     return { reason: "unknown_failure", class: "verifier_suspect" };
   }
