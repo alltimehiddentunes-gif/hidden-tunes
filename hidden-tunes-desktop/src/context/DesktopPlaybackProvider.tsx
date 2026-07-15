@@ -12,8 +12,10 @@ import type { ApiSong } from '../lib/api'
 import {
   DESKTOP_PREFERENCE_KEYS,
   parseStoredAudioQualityMode,
+  parseStoredAudiobookPlaybackRate,
   usePersistedPreference,
   type AudioQualityMode,
+  type AudiobookPlaybackRate,
 } from '../lib/localPreferences'
 import {
   audioVersionAvailability,
@@ -52,6 +54,32 @@ import {
   removePodcastProgress,
   upsertPodcastProgress,
 } from '../lib/podcasts/podcastProgressStorage'
+import { resolveAudiobookChapterPlay } from '../lib/audiobooks/audiobookCatalogApi'
+import { consumePendingAudiobookResumeSeconds } from '../lib/audiobooks/audiobookPlaybackSession'
+import {
+  isAudiobookQueueSong,
+  parseAudiobookSongId,
+  patchAudiobookChapterWithPlayUrl,
+  patchAudiobookQueueWithResolvedChapters,
+} from '../lib/audiobooks/audiobookPlaybackAdapter'
+import { resolveTvPlayUrl } from '../lib/tv/tvCatalogApi'
+import { HtmlVideoPlaybackService } from '../lib/tv/HtmlVideoPlaybackService'
+import {
+  extractTvChannelId,
+  isTvQueueSong,
+} from '../lib/tv/tvPlaybackAdapter'
+import { recordTvHistory } from '../lib/tv/tvLocalState'
+import {
+  AUDIOBOOK_PREVIOUS_RESTART_SECONDS,
+  AUDIOBOOK_PROGRESS_THROTTLE_MS,
+  AUDIOBOOK_MIN_CONTINUE_SECONDS,
+  buildAudiobookProgressEntryFromSong,
+  isAudiobookChapterCompleted,
+  progressEntryToHistoryEntry as audiobookProgressEntryToHistoryEntry,
+  recordAudiobookHistory,
+  removeAudiobookProgress,
+  upsertAudiobookProgress,
+} from '../lib/audiobooks/audiobookProgressStorage'
 import type {
   DesktopPlaybackContextValue,
   DesktopPlaybackProgressState,
@@ -120,8 +148,14 @@ function playbackErrorMessage(song: ApiSong | null) {
   if (isRadioQueueSong(song)) {
     return 'This station stream is unavailable right now.'
   }
+  if (isTvQueueSong(song)) {
+    return 'This TV channel is unavailable right now.'
+  }
   if (isPodcastQueueSong(song)) {
     return 'This podcast episode is unavailable right now.'
+  }
+  if (isAudiobookQueueSong(song)) {
+    return 'This audiobook chapter is unavailable right now.'
   }
   return 'Unable to play this track.'
 }
@@ -144,14 +178,18 @@ export function useDesktopPlaybackProgress() {
 
 export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
   const serviceRef = useRef<HtmlAudioPlaybackService | null>(null)
+  const videoServiceRef = useRef<HtmlVideoPlaybackService | null>(null)
+  const activeMediaRef = useRef<'audio' | 'video'>('audio')
   const queueRef = useRef<ApiSong[]>([])
   const queueIndexRef = useRef(-1)
   const queueSeedTypeRef = useRef<QueueSeedType>(DEFAULT_QUEUE_SEED_TYPE)
   const queueSeedIdRef = useRef<string | undefined>(undefined)
   const queueSeedTracksRef = useRef<ApiSong[]>([])
   const queueCandidatePoolsRef = useRef<QueueCandidatePools | undefined>(undefined)
+  const queueContextRef = useRef<QueueContext>(DEFAULT_QUEUE_CONTEXT)
   const playSongRef = useRef<(song: ApiSong) => void>(() => undefined)
   const flushPodcastProgressRef = useRef<(force?: boolean) => void>(() => undefined)
+  const flushAudiobookProgressRef = useRef<(force?: boolean) => void>(() => undefined)
   const currentTrackRef = useRef<ApiSong | null>(null)
   const audioQualityModeRef = useRef<AudioQualityMode>('auto')
   const upgradeSessionRef = useRef<UpgradeSession | null>(null)
@@ -163,6 +201,9 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
   const podcastProgressTrackIdRef = useRef<string | null>(null)
   const podcastProgressLastWriteRef = useRef(0)
   const podcastProgressLastPositionRef = useRef(0)
+  const audiobookProgressTrackIdRef = useRef<string | null>(null)
+  const audiobookProgressLastWriteRef = useRef(0)
+  const audiobookProgressLastPositionRef = useRef(0)
 
   const getService = useCallback(() => {
     if (!serviceRef.current) {
@@ -170,6 +211,22 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
     }
     return serviceRef.current
   }, [])
+
+  const getVideoService = useCallback(() => {
+    if (!videoServiceRef.current) {
+      videoServiceRef.current = new HtmlVideoPlaybackService()
+    }
+    return videoServiceRef.current
+  }, [])
+
+  const stopInactiveMedia = useCallback((target: 'audio' | 'video') => {
+    activeMediaRef.current = target
+    if (target === 'video') {
+      getService().stop()
+      return
+    }
+    getVideoService().releaseSource()
+  }, [getService, getVideoService])
 
   const [currentTrack, setCurrentTrack] = useState<ApiSong | null>(null)
   const [currentQueue, setCurrentQueue] = useState<ApiSong[]>([])
@@ -194,6 +251,16 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
     'auto',
     parseStoredAudioQualityMode,
   )
+  const [audiobookPlaybackRate, setAudiobookPlaybackRate] = usePersistedPreference(
+    DESKTOP_PREFERENCE_KEYS.audiobookPlaybackRate,
+    1 as AudiobookPlaybackRate,
+    parseStoredAudiobookPlaybackRate,
+  )
+  const audiobookPlaybackRateRef = useRef(audiobookPlaybackRate)
+
+  useEffect(() => {
+    audiobookPlaybackRateRef.current = audiobookPlaybackRate
+  }, [audiobookPlaybackRate])
 
   useEffect(() => {
     shuffleEnabledRef.current = shuffleEnabled
@@ -317,11 +384,73 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
     [durationSeconds, getService, persistPodcastProgress],
   )
 
+  const persistAudiobookProgress = useCallback(
+    (
+      song: ApiSong,
+      positionSeconds: number,
+      durationSeconds: number,
+      options?: { force?: boolean; completed?: boolean },
+    ) => {
+      if (!isAudiobookQueueSong(song)) return
+
+      const completed =
+        options?.completed === true
+        || isAudiobookChapterCompleted(positionSeconds, durationSeconds)
+
+      const entry = buildAudiobookProgressEntryFromSong(
+        song,
+        positionSeconds,
+        durationSeconds,
+        completed,
+      )
+      if (!entry) return
+
+      if (completed) {
+        removeAudiobookProgress(entry.bookId)
+        recordAudiobookHistory(audiobookProgressEntryToHistoryEntry(entry))
+        return
+      }
+
+      upsertAudiobookProgress(entry)
+    },
+    [],
+  )
+
+  const flushAudiobookProgress = useCallback(
+    (force = false) => {
+      const track = currentTrackRef.current
+      if (!track || !isAudiobookQueueSong(track)) return
+
+      const audio = getService().getAudioElement()
+      const position = audio.currentTime
+      const duration =
+        Number.isFinite(audio.duration) && audio.duration > 0
+          ? audio.duration
+          : durationSeconds
+
+      if (!force) {
+        const elapsed = performance.now() - audiobookProgressLastWriteRef.current
+        const positionDelta = Math.abs(position - audiobookProgressLastPositionRef.current)
+        if (elapsed < AUDIOBOOK_PROGRESS_THROTTLE_MS && positionDelta < 2) return
+      }
+
+      audiobookProgressLastWriteRef.current = performance.now()
+      audiobookProgressLastPositionRef.current = position
+      persistAudiobookProgress(track, position, duration, { force })
+    },
+    [durationSeconds, getService, persistAudiobookProgress],
+  )
+
   const applyQueueState = useCallback((queue: ApiSong[], index: number) => {
     queueRef.current = queue
     queueIndexRef.current = index
     setCurrentQueue(queue)
     setCurrentIndex(index)
+  }, [])
+
+  const setQueueContextState = useCallback((context: QueueContext) => {
+    queueContextRef.current = context
+    setQueueContext(context)
   }, [])
 
   const extendQueueIfNeeded = useCallback((queue: ApiSong[], index: number) => {
@@ -358,12 +487,59 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
 
   const startPlayback = useCallback(
     (song: ApiSong) => {
+      if (isTvQueueSong(song)) {
+        stopInactiveMedia('video')
+        const videoService = getVideoService()
+        const streamUrl = song.audioUrl?.trim() || song.previewUrl?.trim() || ''
+
+        currentTrackRef.current = song
+        setCurrentTrack(song)
+        setError(null)
+        emitPositionSeconds(0, true)
+        setDurationSeconds(0)
+
+        if (!streamUrl.startsWith('http')) {
+          videoService.releaseSource()
+          setIsPlaying(false)
+          setIsLoading(false)
+          setError(playbackErrorMessage(song))
+          return
+        }
+
+        videoService.setVolume(volume)
+        setIsLoading(true)
+        void videoService
+          .play(streamUrl)
+          .then(() => {
+            if (currentTrackRef.current?.id !== song.id) return
+            recordTvHistory({
+              channelId: extractTvChannelId(song.id) ?? song.id,
+              title: song.title,
+              channelName: song.artist,
+              artworkUrl: song.artwork,
+            })
+          })
+          .catch((err) => {
+            if (currentTrackRef.current?.id !== song.id) return
+            videoService.releaseSource()
+            const message = err instanceof Error ? err.message : String(err)
+            if (import.meta.env.DEV) {
+              console.error('[ht-tv-playback] play() failed', { error: message })
+            }
+            setIsPlaying(false)
+            setIsLoading(false)
+            setError(message || playbackErrorMessage(song))
+          })
+        return
+      }
+
+      stopInactiveMedia('audio')
       const service = getService()
       cancelUpgradeSession('upgrade-cancelled-session-replaced', 'new-track-playback')
       const selection = selectPlayableUrlForQualityMode(song, audioQualityMode)
       const instantUrl = selection?.url ?? null
       const upgradeTarget =
-        isPodcastQueueSong(song) || isRadioQueueSong(song)
+        isPodcastQueueSong(song) || isRadioQueueSong(song) || isAudiobookQueueSong(song) || isTvQueueSong(song)
           ? null
           : resolveUpgradeTargetForQualityMode(
               song,
@@ -431,7 +607,15 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
 
       const pendingResumeSeconds = isPodcastQueueSong(song)
         ? consumePendingPodcastResumeSeconds()
-        : null
+        : isAudiobookQueueSong(song)
+          ? consumePendingAudiobookResumeSeconds()
+          : null
+
+      if (isAudiobookQueueSong(song)) {
+        service.setPlaybackRate(audiobookPlaybackRateRef.current)
+      } else {
+        service.setPlaybackRate(1)
+      }
 
       setIsLoading(true)
       void service
@@ -458,10 +642,31 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
           }
 
           if (
+            pendingResumeSeconds
+            && isAudiobookQueueSong(song)
+            && currentTrackRef.current?.id === song.id
+          ) {
+            const audio = service.getAudioElement()
+            const maxDuration =
+              Number.isFinite(audio.duration) && audio.duration > 0
+                ? audio.duration
+                : song.durationSeconds ?? pendingResumeSeconds
+            const safeResume = Math.min(
+              Math.max(0, pendingResumeSeconds),
+              maxDuration > 1 ? maxDuration - 1 : pendingResumeSeconds,
+            )
+            if (safeResume >= AUDIOBOOK_MIN_CONTINUE_SECONDS / 2) {
+              service.seekTo(safeResume)
+              emitPositionSeconds(safeResume, true)
+            }
+          }
+
+          if (
             selection
             && upgradeTarget
             && !isPodcastQueueSong(song)
             && !isRadioQueueSong(song)
+            && !isAudiobookQueueSong(song)
             && currentTrackRef.current?.id === song.id
           ) {
             upgradeSessionRef.current = {
@@ -506,7 +711,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
           setError(message || playbackErrorMessage(song))
         })
     },
-    [audioQualityMode, cancelUpgradeSession, emitPositionSeconds, getService],
+    [audioQualityMode, cancelUpgradeSession, emitPositionSeconds, getService, getVideoService, stopInactiveMedia, volume],
   )
 
   const playSong = useCallback(
@@ -534,15 +739,41 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
         podcastProgressTrackIdRef.current = null
       }
 
+      const prepareAudiobookProgress = (resolvedSong: ApiSong) => {
+        if (isAudiobookQueueSong(resolvedSong)) {
+          audiobookProgressTrackIdRef.current = resolvedSong.id
+          audiobookProgressLastWriteRef.current = 0
+          audiobookProgressLastPositionRef.current = 0
+
+          const historySeed = buildAudiobookProgressEntryFromSong(
+            resolvedSong,
+            0,
+            resolvedSong.durationSeconds ?? 0,
+            false,
+          )
+          if (historySeed) {
+            recordAudiobookHistory(audiobookProgressEntryToHistoryEntry(historySeed))
+          }
+          return
+        }
+
+        audiobookProgressTrackIdRef.current = null
+      }
+
       const needsRadioResolve = isRadioQueueSong(song)
+        && !Boolean(song.audioUrl?.startsWith('http') || song.previewUrl?.startsWith('http'))
+      const needsTvResolve = isTvQueueSong(song)
         && !Boolean(song.audioUrl?.startsWith('http') || song.previewUrl?.startsWith('http'))
       const needsPodcastResolve = isPodcastQueueSong(song)
         && !Boolean(song.audioUrl?.startsWith('http') || song.previewUrl?.startsWith('http'))
+      const needsAudiobookResolve = isAudiobookQueueSong(song)
+        && !Boolean(song.audioUrl?.startsWith('http') || song.previewUrl?.startsWith('http'))
 
-      if (!needsRadioResolve && !needsPodcastResolve) {
+      if (!needsRadioResolve && !needsTvResolve && !needsPodcastResolve && !needsAudiobookResolve) {
         if (generation !== mediaResolveGenerationRef.current) return
         if (currentTrackRef.current?.id !== song.id) return
         preparePodcastProgress(song)
+        prepareAudiobookProgress(song)
         startPlayback(song)
         return
       }
@@ -598,6 +829,51 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
           }
         }
 
+        if (needsTvResolve) {
+          const channelId = extractTvChannelId(song.id)
+          if (!channelId) {
+            setError('Unable to play this TV channel.')
+            setIsLoading(false)
+            return
+          }
+
+          try {
+            const play = await resolveTvPlayUrl(channelId)
+            if (generation !== mediaResolveGenerationRef.current) return
+            if (currentTrackRef.current?.id !== song.id) return
+            if (!play?.streamUrl?.startsWith('http')) {
+              setIsLoading(false)
+              setError('This TV channel is not currently playable.')
+              return
+            }
+
+            resolvedSong = {
+              ...song,
+              audioUrl: play.streamUrl,
+              previewUrl: play.streamUrl,
+            }
+
+            const queue = queueRef.current
+            const queueIndex = queue.findIndex((entry) => entry.id === song.id)
+            if (queueIndex >= 0) {
+              const updatedQueue = [...queue]
+              updatedQueue[queueIndex] = resolvedSong
+              queueRef.current = updatedQueue
+              setCurrentQueue(updatedQueue)
+            }
+          } catch (error) {
+            if (generation !== mediaResolveGenerationRef.current) return
+            if (currentTrackRef.current?.id !== song.id) return
+            setIsLoading(false)
+            setError(
+              error instanceof Error
+                ? error.message
+                : 'This TV channel is unavailable right now.',
+            )
+            return
+          }
+        }
+
         if (needsPodcastResolve) {
           const episodeId = extractPodcastEpisodeId(song.id)
           if (!episodeId) {
@@ -639,10 +915,62 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
           }
         }
 
+        if (needsAudiobookResolve) {
+          const ids = parseAudiobookSongId(song.id)
+          if (!ids) {
+            setError('Unable to play this audiobook chapter.')
+            setIsLoading(false)
+            return
+          }
+
+          try {
+            const play = await resolveAudiobookChapterPlay(ids.bookId, ids.chapterId)
+            if (generation !== mediaResolveGenerationRef.current) return
+            if (currentTrackRef.current?.id !== song.id) return
+            if (!play || play.chapters.length === 0) {
+              setIsLoading(false)
+              setError('This audiobook chapter is not currently playable.')
+              return
+            }
+
+            const firstChapter = play.chapters[0]
+            resolvedSong = patchAudiobookChapterWithPlayUrl(song, {
+              audioUrl: firstChapter.audioUrl,
+              durationSeconds: firstChapter.durationSeconds,
+            })
+
+            const queue = queueRef.current
+            const queueIndex = queue.findIndex((entry) => entry.id === song.id)
+            const patchStartIndex = queueIndex >= 0 ? queueIndex : Math.max(0, play.startIndex)
+            const patchedQueue = patchAudiobookQueueWithResolvedChapters(
+              queue,
+              play.audiobook,
+              play.chapters,
+              patchStartIndex,
+            )
+            queueRef.current = patchedQueue
+            setCurrentQueue(patchedQueue)
+            if (queueIndex >= 0) {
+              resolvedSong = patchedQueue[queueIndex] ?? resolvedSong
+            }
+          } catch (error) {
+            if (generation !== mediaResolveGenerationRef.current) return
+            if (currentTrackRef.current?.id !== song.id) return
+            setIsLoading(false)
+            setError(
+              error instanceof Error
+                ? error.message
+                : 'This audiobook chapter is unavailable right now.',
+            )
+            return
+          }
+        }
+
         if (generation !== mediaResolveGenerationRef.current) return
         if (currentTrackRef.current?.id !== song.id) return
 
         preparePodcastProgress(resolvedSong)
+        prepareAudiobookProgress(resolvedSong)
         startPlayback(resolvedSong)
       })()
     },
@@ -658,8 +986,13 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
   }, [flushPodcastProgress])
 
   useEffect(() => {
+    flushAudiobookProgressRef.current = flushAudiobookProgress
+  }, [flushAudiobookProgress])
+
+  useEffect(() => {
     const onBeforeUnload = () => {
       flushPodcastProgressRef.current(true)
+      flushAudiobookProgressRef.current(true)
     }
     window.addEventListener('beforeunload', onBeforeUnload)
     return () => window.removeEventListener('beforeunload', onBeforeUnload)
@@ -757,20 +1090,25 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       emitPositionSeconds(audio.currentTime)
       maybeUpgradeAfterStablePlayback()
       flushPodcastProgressRef.current()
+      flushAudiobookProgressRef.current()
     }
     const onPlay = () => {
+      if (activeMediaRef.current !== 'audio') return
       setIsPlaying(true)
       setIsLoading(false)
       setError(null)
     }
     const onPause = () => {
+      if (activeMediaRef.current !== 'audio') return
       setIsPlaying(false)
       flushPodcastProgressRef.current(true)
+      flushAudiobookProgressRef.current(true)
       if (!audio.ended && !upgradeSessionRef.current?.attempted) {
         cancelUpgradeSession('upgrade-cancelled-pause', 'playback-paused-before-upgrade')
       }
     }
     const onWaiting = () => {
+      if (activeMediaRef.current !== 'audio') return
       markUpgradeUnstable('waiting')
       setIsLoading(true)
     }
@@ -797,6 +1135,18 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
           completed: true,
         })
         podcastProgressTrackIdRef.current = null
+      }
+
+      if (endedTrack && isAudiobookQueueSong(endedTrack)) {
+        const duration =
+          Number.isFinite(audio.duration) && audio.duration > 0
+            ? audio.duration
+            : endedTrack.durationSeconds ?? audio.currentTime
+        persistAudiobookProgress(endedTrack, duration, duration, {
+          force: true,
+          completed: true,
+        })
+        audiobookProgressTrackIdRef.current = null
       }
 
       cancelUpgradeSession('upgrade-cancelled-track-changed', 'track-ended')
@@ -876,6 +1226,12 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
         return
       }
 
+      if (track && isAudiobookQueueSong(track)) {
+        flushAudiobookProgressRef.current(true)
+        setError(playbackErrorMessage(track))
+        return
+      }
+
       setError(playbackErrorMessage(track))
     }
 
@@ -903,7 +1259,61 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       service.destroy()
       serviceRef.current = null
     }
-  }, [cancelUpgradeSession, extendQueueIfNeeded, getService, persistPodcastProgress])
+  }, [cancelUpgradeSession, extendQueueIfNeeded, getService, persistAudiobookProgress, persistPodcastProgress])
+
+  useEffect(() => {
+    const videoService = getVideoService()
+    const video = videoService.getVideoElement()
+
+    const onPlay = () => {
+      if (activeMediaRef.current !== 'video') return
+      setIsPlaying(true)
+      setIsLoading(false)
+      setError(null)
+    }
+    const onPause = () => {
+      if (activeMediaRef.current !== 'video') return
+      setIsPlaying(false)
+    }
+    const onWaiting = () => {
+      if (activeMediaRef.current !== 'video') return
+      setIsLoading(true)
+    }
+    const onCanPlay = () => {
+      if (activeMediaRef.current !== 'video') return
+      setIsLoading(false)
+    }
+    const onError = () => {
+      if (activeMediaRef.current !== 'video') return
+      const track = currentTrackRef.current
+      videoService.releaseSource()
+      setIsPlaying(false)
+      setIsLoading(false)
+      if (import.meta.env.DEV && video.error) {
+        console.error('[ht-tv-playback] media error', {
+          code: video.error.code,
+          message: video.error.message,
+        })
+      }
+      setError(playbackErrorMessage(track))
+    }
+
+    video.addEventListener('play', onPlay)
+    video.addEventListener('pause', onPause)
+    video.addEventListener('waiting', onWaiting)
+    video.addEventListener('canplay', onCanPlay)
+    video.addEventListener('error', onError)
+
+    return () => {
+      video.removeEventListener('play', onPlay)
+      video.removeEventListener('pause', onPause)
+      video.removeEventListener('waiting', onWaiting)
+      video.removeEventListener('canplay', onCanPlay)
+      video.removeEventListener('error', onError)
+      videoService.destroy()
+      videoServiceRef.current = null
+    }
+  }, [getVideoService])
 
   const playQueue = useCallback(
     (
@@ -924,7 +1334,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       unshuffledQueueRef.current = playableQueue
       let resolvedQueue = playableQueue
       let resolvedIndex = safeIndex
-      if (shuffleEnabledRef.current && playableQueue.length > 1) {
+      if (shuffleEnabledRef.current && playableQueue.length > 1 && context !== 'audiobook' && context !== 'tv' && context !== 'radio') {
         resolvedQueue = shuffleQueueFromIndex(playableQueue, safeIndex)
         resolvedIndex = 0
       }
@@ -937,8 +1347,13 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
 
       if (isPodcastQueueSong(targetTrack)) {
         flushPodcastProgress(true)
+      } else if (isAudiobookQueueSong(targetTrack)) {
+        flushAudiobookProgress(true)
       } else {
-        queueMicrotask(() => flushPodcastProgress(true))
+        queueMicrotask(() => {
+          flushPodcastProgress(true)
+          flushAudiobookProgress(true)
+        })
       }
 
       const nextSeedType = seedMetadata?.seedType ?? contextToSeedType(context)
@@ -948,7 +1363,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       queueCandidatePoolsRef.current = seedMetadata?.candidatePools
 
       applyQueueState(resolvedQueue, resolvedIndex)
-      setQueueContext(context)
+      setQueueContextState(context)
       setQueueSeedType(nextSeedType)
       setQueueSeedId(seedMetadata?.seedId)
       setQueueTitle(nextQueueTitle)
@@ -959,7 +1374,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
         extendQueueIfNeeded(resolvedQueue, resolvedIndex)
       })
     },
-    [applyQueueState, extendQueueIfNeeded, flushPodcastProgress, playSong],
+    [applyQueueState, extendQueueIfNeeded, flushAudiobookProgress, flushPodcastProgress, playSong, setQueueContextState],
   )
 
   const playTrack = useCallback(
@@ -988,6 +1403,16 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
   }, [applyQueueState, extendQueueIfNeeded, playSong])
 
   const previous = useCallback(() => {
+    const track = currentTrackRef.current
+    if (track && isAudiobookQueueSong(track)) {
+      if (positionSecondsRef.current > AUDIOBOOK_PREVIOUS_RESTART_SECONDS) {
+        getService().seekTo(0)
+        emitPositionSeconds(0, true)
+        flushAudiobookProgressRef.current(true)
+        return
+      }
+    }
+
     const queue = queueRef.current
     const previousIndex = queueIndexRef.current - 1
     if (previousIndex < 0) {
@@ -1008,7 +1433,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
     queueMicrotask(() => {
       extendQueueIfNeeded(queue, previousIndex)
     })
-  }, [applyQueueState, extendQueueIfNeeded, playSong])
+  }, [applyQueueState, emitPositionSeconds, extendQueueIfNeeded, getService, playSong])
 
   const getUpcomingTracks = useCallback(() => {
     const nextIndex = queueIndexRef.current + 1
@@ -1039,11 +1464,13 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
     queueSeedTracksRef.current = trimmed
     queueSeedTypeRef.current = 'manual'
     setCurrentQueue(trimmed)
-    setQueueContext('manual')
+    setQueueContextState('manual')
     setQueueSeedType('manual')
-  }, [])
+  }, [setQueueContextState])
 
   const toggleShuffle = useCallback(() => {
+    if (queueContextRef.current === 'audiobook') return
+
     setShuffleEnabled((enabled) => {
       const next = !enabled
       const queue = queueRef.current
@@ -1078,11 +1505,37 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
 
   const pause = useCallback(() => {
     cancelUpgradeSession()
+    if (activeMediaRef.current === 'video') {
+      getVideoService().pause()
+      return
+    }
     getService().pause()
-  }, [cancelUpgradeSession, getService])
+  }, [cancelUpgradeSession, getService, getVideoService])
 
   const resume = useCallback(() => {
-    if (!currentTrack || !selectPlayableUrlForQualityMode(currentTrack, audioQualityMode)) {
+    if (!currentTrack) {
+      setError('Unable to play this track.')
+      return
+    }
+
+    if (isTvQueueSong(currentTrack)) {
+      const streamUrl = currentTrack.audioUrl?.trim() || currentTrack.previewUrl?.trim() || ''
+      if (!streamUrl.startsWith('http')) {
+        setError('Unable to play this TV channel.')
+        return
+      }
+      setIsLoading(true)
+      void getVideoService()
+        .resume()
+        .catch(() => {
+          setIsPlaying(false)
+          setIsLoading(false)
+          setError('Unable to resume TV playback.')
+        })
+      return
+    }
+
+    if (!selectPlayableUrlForQualityMode(currentTrack, audioQualityMode)) {
       setError('Unable to play this track.')
       return
     }
@@ -1096,7 +1549,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
         cancelUpgradeSession()
         setError('Unable to resume playback.')
       })
-  }, [audioQualityMode, cancelUpgradeSession, currentTrack, getService])
+  }, [audioQualityMode, cancelUpgradeSession, currentTrack, getService, getVideoService])
 
   const seekTo = useCallback(
     (seconds: number) => {
@@ -1111,18 +1564,47 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       const clamped = Math.min(max, Math.max(0, seconds))
       getService().seekTo(clamped)
       emitPositionSeconds(clamped, true)
+      if (isAudiobookQueueSong(currentTrack)) {
+        flushAudiobookProgressRef.current(true)
+      }
+      if (isPodcastQueueSong(currentTrack)) {
+        flushPodcastProgressRef.current(true)
+      }
     },
     [currentTrack, durationSeconds, emitPositionSeconds, getService],
+  )
+
+  const skipRelative = useCallback(
+    (deltaSeconds: number) => {
+      if (!Number.isFinite(deltaSeconds)) return
+      const base = positionSecondsRef.current
+      seekTo(base + deltaSeconds)
+    },
+    [seekTo],
+  )
+
+  const handleAudiobookPlaybackRate = useCallback(
+    (rate: AudiobookPlaybackRate) => {
+      setAudiobookPlaybackRate(rate)
+      if (isAudiobookQueueSong(currentTrackRef.current)) {
+        getService().setPlaybackRate(rate)
+      }
+    },
+    [getService, setAudiobookPlaybackRate],
   )
 
   const setVolume = useCallback(
     (nextVolume: number) => {
       if (!Number.isFinite(nextVolume)) return
       const clamped = Math.min(1, Math.max(0, nextVolume))
-      getService().setVolume(clamped)
+      if (activeMediaRef.current === 'video') {
+        getVideoService().setVolume(clamped)
+      } else {
+        getService().setVolume(clamped)
+      }
       setVolumeState(clamped)
     },
-    [getService],
+    [getService, getVideoService],
   )
 
   const value = useMemo<DesktopPlaybackContextValue>(
@@ -1141,6 +1623,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       audioQualityMode,
       shuffleEnabled,
       repeatMode,
+      audiobookPlaybackRate,
       playTrack,
       playQueue,
       next,
@@ -1153,8 +1636,10 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       pause,
       resume,
       seekTo,
+      skipRelative,
       setVolume,
       setAudioQualityMode,
+      setAudiobookPlaybackRate: handleAudiobookPlaybackRate,
     }),
     [
       currentTrack,
@@ -1171,6 +1656,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       audioQualityMode,
       shuffleEnabled,
       repeatMode,
+      audiobookPlaybackRate,
       playTrack,
       playQueue,
       next,
@@ -1183,8 +1669,10 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       pause,
       resume,
       seekTo,
+      skipRelative,
       setVolume,
       setAudioQualityMode,
+      handleAudiobookPlaybackRate,
     ],
   )
 

@@ -20734,6 +20734,557 @@
   }
 }
 
+/* —— TV destination —— */
+.page-view[data-page='tv'] {
+  padding-bottom: clamp(18px, 2.5vw, 28px);
+}
+
+.tv-destination {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(18px, 2.4vw, 28px);
+}
+
+.tv-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: clamp(20px, 2.6vw, 28px);
+  min-height: clamp(220px, 26vw, 320px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    radial-gradient(ellipse 72% 88% at 88% 42%, rgba(236, 72, 153, 0.14), transparent 58%),
+    radial-gradient(ellipse 58% 72% at 12% 18%, rgba(168, 85, 247, 0.24), transparent 62%),
+    linear-gradient(135deg, rgba(18, 14, 28, 0.96), rgba(8, 8, 12, 0.98));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 24px 56px rgba(0, 0, 0, 0.28);
+}
+
+.tv-hero-backdrop {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.tv-hero-backdrop-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.34;
+  filter: saturate(1.05) contrast(1.05);
+}
+
+.tv-hero-copy {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-height: inherit;
+  padding: clamp(22px, 3vw, 34px);
+}
+
+.tv-hero-copy h1 {
+  margin: 0;
+  font-size: clamp(2rem, 3.4vw, 2.75rem);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: rgba(245, 243, 250, 0.96);
+}
+
+.tv-hero-copy > p {
+  margin: 8px 0 0;
+  font-size: clamp(0.95rem, 1.4vw, 1.08rem);
+  color: rgba(245, 243, 250, 0.58);
+}
+
+.tv-hero-feature {
+  margin-top: 18px;
+  max-width: 56ch;
+}
+
+.tv-hero-feature h2 {
+  margin: 10px 0 0;
+  font-size: clamp(1.35rem, 2.2vw, 1.85rem);
+  font-weight: 620;
+  color: rgba(245, 243, 250, 0.94);
+}
+
+.tv-hero-meta,
+.tv-hero-brand {
+  margin: 8px 0 0;
+  color: rgba(245, 243, 250, 0.62);
+  font-size: 0.92rem;
+}
+
+.tv-hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.tv-hero-watch {
+  min-width: 148px;
+}
+
+.tv-tabs {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
+}
+
+.tv-tab {
+  flex: 0 0 auto;
+  padding: 9px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(245, 243, 250, 0.62);
+  font-size: 12px;
+  font-weight: 560;
+  cursor: pointer;
+  transition:
+    border-color 0.2s var(--ease-out),
+    background 0.2s var(--ease-out),
+    color 0.2s var(--ease-out);
+}
+
+.tv-tab.is-active,
+.tv-tab:hover {
+  border-color: rgba(168, 85, 247, 0.42);
+  background: rgba(168, 85, 247, 0.16);
+  color: rgba(245, 243, 250, 0.94);
+}
+
+.tv-tab.is-active {
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.92), rgba(124, 58, 237, 0.72));
+  border-color: rgba(168, 85, 247, 0.72);
+  box-shadow: 0 0 18px rgba(168, 85, 247, 0.22);
+}
+
+.tv-section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.tv-section-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.tv-section-header h2 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 620;
+  color: rgba(245, 243, 250, 0.92);
+}
+
+.tv-section-meta {
+  font-size: 0.82rem;
+  color: rgba(245, 243, 250, 0.48);
+}
+
+.tv-section-meta--centered {
+  text-align: center;
+  margin-top: 8px;
+}
+
+.tv-status {
+  padding: 18px 20px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(245, 243, 250, 0.72);
+}
+
+.tv-status--error {
+  border-color: rgba(239, 68, 68, 0.28);
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.tv-status--empty {
+  text-align: center;
+}
+
+.tv-live-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.92), rgba(236, 72, 153, 0.82));
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.tv-live-badge--hero {
+  font-size: 11px;
+}
+
+.tv-station-rail {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(220px, 260px);
+  gap: 14px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+}
+
+.tv-station-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+.tv-station-card {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.tv-station-card--skeleton .tv-station-card-art,
+.tv-station-card--skeleton .tv-station-card-copy span {
+  background: linear-gradient(90deg, rgba(255,255,255,0.04), rgba(255,255,255,0.08), rgba(255,255,255,0.04));
+  animation: tv-skeleton 1.4s ease-in-out infinite;
+}
+
+.tv-station-card--skeleton .tv-station-card-art {
+  aspect-ratio: 16 / 10;
+}
+
+.tv-station-card--skeleton .tv-station-card-copy span {
+  display: block;
+  height: 12px;
+  border-radius: 6px;
+  margin-top: 8px;
+}
+
+@keyframes tv-skeleton {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+
+.tv-station-card-hit {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tv-station-card-hit:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+.tv-station-card-art {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+}
+
+.tv-station-card-art .art-frame,
+.tv-station-card-art .art-frame--square {
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+}
+
+.tv-station-card-play {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(234, 179, 8, 0.95), rgba(245, 158, 11, 0.88));
+  color: #111;
+  box-shadow: 0 8px 20px rgba(234, 179, 8, 0.24);
+}
+
+.tv-station-card-copy {
+  padding: 12px 12px 14px;
+}
+
+.tv-station-card-copy h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 620;
+  color: rgba(245, 243, 250, 0.94);
+}
+
+.tv-station-card-copy p {
+  margin: 6px 0 0;
+  font-size: 0.78rem;
+  color: rgba(245, 243, 250, 0.52);
+}
+
+.tv-favorite-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(8, 8, 12, 0.55);
+  color: rgba(245, 243, 250, 0.72);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.tv-favorite-btn.is-active {
+  color: rgba(234, 179, 8, 0.95);
+  border-color: rgba(234, 179, 8, 0.42);
+}
+
+.tv-favorite-btn--hero {
+  position: static;
+}
+
+.tv-genre-grid,
+.tv-region-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+.tv-genre-grid--compact {
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+}
+
+.tv-genre-card,
+.tv-region-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(245, 243, 250, 0.88);
+  cursor: pointer;
+  text-align: left;
+}
+
+.tv-genre-card.is-active,
+.tv-region-card.is-active,
+.tv-genre-card:hover,
+.tv-region-card:hover {
+  border-color: rgba(168, 85, 247, 0.42);
+  background: rgba(168, 85, 247, 0.1);
+}
+
+.tv-genre-icon,
+.tv-region-code {
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.tv-genre-card strong,
+.tv-region-card strong {
+  font-size: 0.92rem;
+}
+
+.tv-genre-card span:last-child,
+.tv-region-card span:last-child {
+  font-size: 0.76rem;
+  color: rgba(245, 243, 250, 0.52);
+}
+
+.tv-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.tv-rail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.tv-rail-header h2 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 620;
+}
+
+.tv-rail-art {
+  border-radius: 16px;
+  overflow: hidden;
+  aspect-ratio: 16 / 10;
+}
+
+.tv-rail-meta h3 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.tv-rail-meta p {
+  margin: 6px 0 0;
+  color: rgba(245, 243, 250, 0.58);
+  font-size: 0.86rem;
+}
+
+.tv-rail-status {
+  color: rgba(168, 85, 247, 0.88);
+}
+
+.tv-rail-error {
+  color: rgba(239, 68, 68, 0.88);
+}
+
+.tv-rail-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tv-rail-btn {
+  min-width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(245, 243, 250, 0.86);
+  cursor: pointer;
+}
+
+.tv-rail-btn--gold {
+  background: linear-gradient(135deg, rgba(234, 179, 8, 0.95), rgba(245, 158, 11, 0.88));
+  color: #111;
+  border-color: transparent;
+}
+
+.tv-rail-section h3 {
+  margin: 0 0 8px;
+  font-size: 0.92rem;
+}
+
+.tv-rail-note {
+  margin: 0;
+  font-size: 0.82rem;
+  color: rgba(245, 243, 250, 0.48);
+}
+
+.tv-discover-links {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tv-discover-links--compact {
+  gap: 8px;
+}
+
+.tv-discover-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(245, 243, 250, 0.9);
+  cursor: pointer;
+  text-align: left;
+}
+
+.tv-discover-card span {
+  font-size: 0.78rem;
+  color: rgba(245, 243, 250, 0.52);
+}
+
+.tv-now-playing-hint {
+  margin: 0;
+  font-size: 0.82rem;
+  color: rgba(245, 243, 250, 0.48);
+}
+
+.tv-load-more-sentinel {
+  height: 1px;
+}
+
+.progress-wrap--live {
+  align-items: center;
+}
+
+.progress-track--live {
+  flex: 1;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.progress-fill--live {
+  width: 38%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(234, 179, 8, 0.95), rgba(168, 85, 247, 0.82));
+  animation: tv-live-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes tv-live-pulse {
+  0%, 100% { transform: translateX(0); opacity: 0.85; }
+  50% { transform: translateX(120%); opacity: 1; }
+}
+
+.progress-time--live,
+.progress-time--live-edge {
+  min-width: 56px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: rgba(234, 179, 8, 0.92);
+}
+
+.player-quality-live {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: rgba(234, 179, 8, 0.92);
+}
+
+@media (max-width: 1100px) {
+  .tv-genre-grid,
+  .tv-region-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progress-fill--live,
+  .tv-station-card--skeleton .tv-station-card-art,
+  .tv-station-card--skeleton .tv-station-card-copy span {
+    animation: none;
+  }
+}
+
 /* —— Podcasts destination (Phase 11 Milestone 2) —— */
 .page-view[data-page='podcasts'] {
   padding-bottom: clamp(18px, 2.5vw, 28px);
@@ -22293,5 +22844,460 @@
 
   .premium-shell-utilities {
     justify-content: center;
+  }
+}
+
+/* —— Audiobooks destination —— */
+.page-view[data-page='audiobooks'] {
+  padding-bottom: clamp(18px, 2.5vw, 28px);
+}
+
+.audiobooks-destination {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(18px, 2.4vw, 28px);
+}
+
+.audiobooks-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: clamp(20px, 2.6vw, 28px);
+  min-height: clamp(160px, 20vw, 240px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    radial-gradient(ellipse 68% 82% at 82% 38%, rgba(59, 130, 246, 0.18), transparent 58%),
+    radial-gradient(ellipse 54% 68% at 14% 22%, rgba(255, 186, 61, 0.1), transparent 62%),
+    linear-gradient(135deg, rgba(18, 14, 28, 0.96), rgba(8, 8, 12, 0.98));
+}
+
+.audiobooks-hero-backdrop {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.5) 0%, transparent 55%, rgba(0, 0, 0, 0.25) 100%);
+}
+
+.audiobooks-hero-copy {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: clamp(22px, 3vw, 34px);
+}
+
+.audiobooks-hero-copy h1 {
+  margin: 0;
+  font-size: clamp(1.75rem, 3vw, 2.5rem);
+}
+
+.audiobooks-hero-feature {
+  display: grid;
+  grid-template-columns: minmax(96px, 120px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.audiobooks-hero-feature .art-frame,
+.audiobooks-hero-feature .art-frame--square {
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  max-width: 120px;
+  border-radius: 12px;
+}
+
+.audiobooks-hero-eyebrow {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(245, 243, 250, 0.5);
+}
+
+.audiobooks-hero-description {
+  margin: 8px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: rgba(245, 243, 250, 0.62);
+  max-width: 56ch;
+}
+
+.audiobooks-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.audiobooks-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.audiobooks-tab {
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(245, 243, 250, 0.72);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.audiobooks-tab.is-active {
+  border-color: rgba(59, 130, 246, 0.45);
+  background: rgba(59, 130, 246, 0.14);
+  color: rgba(245, 243, 250, 0.95);
+}
+
+.audiobooks-section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.audiobooks-section-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.audiobooks-section-header h2,
+.audiobooks-section h2 {
+  margin: 0;
+  font-size: clamp(1.1rem, 1.8vw, 1.35rem);
+}
+
+.audiobooks-book-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+  gap: 14px;
+}
+
+.audiobook-book-card {
+  position: relative;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.025);
+  overflow: hidden;
+  transition: border-color 160ms ease, transform 160ms ease;
+}
+
+.audiobook-book-card:hover {
+  border-color: rgba(255, 255, 255, 0.14);
+  transform: translateY(-2px);
+}
+
+.audiobook-book-card-hit {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.audiobook-book-card-art {
+  position: relative;
+  aspect-ratio: 2 / 3;
+}
+
+.audiobook-book-card-art .art-frame,
+.audiobook-book-card-art .art-frame--square {
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+}
+
+.audiobook-book-card-play {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 0;
+  background: rgba(12, 10, 18, 0.82);
+  color: #fff;
+  opacity: 0;
+  transition: opacity 160ms ease;
+}
+
+.audiobook-book-card:hover .audiobook-book-card-play,
+.audiobook-book-card:focus-within .audiobook-book-card-play {
+  opacity: 1;
+}
+
+.audiobook-progress-pill {
+  position: absolute;
+  left: 8px;
+  top: 8px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  background: rgba(12, 10, 18, 0.78);
+  color: rgba(255, 214, 120, 0.9);
+}
+
+.audiobook-book-card-copy {
+  padding: 10px 12px 12px;
+}
+
+.audiobook-book-card-copy h3 {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.audiobook-book-card-copy p,
+.audiobook-book-card-copy span {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: rgba(245, 243, 250, 0.48);
+  display: block;
+}
+
+.audiobooks-continue-rail {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.audiobooks-continue-card {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.audiobooks-recent-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.audiobooks-recent-row {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.02);
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+}
+
+.audiobooks-status {
+  padding: 16px 18px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.audiobooks-status--error {
+  border-color: rgba(239, 68, 68, 0.35);
+  color: rgba(252, 165, 165, 0.92);
+}
+
+.audiobooks-status--empty {
+  color: rgba(245, 243, 250, 0.55);
+}
+
+.audiobooks-section-actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 8px;
+}
+
+.audiobook-book-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.audiobook-book-back {
+  align-self: flex-start;
+}
+
+.audiobook-book-hero {
+  display: grid;
+  grid-template-columns: minmax(140px, 200px) minmax(0, 1fr);
+  gap: clamp(16px, 2.5vw, 28px);
+  align-items: start;
+}
+
+.audiobook-book-cover .art-frame,
+.audiobook-book-cover .art-frame--square {
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  border-radius: 14px;
+}
+
+.audiobook-book-hero-copy h1 {
+  margin: 0;
+  font-size: clamp(1.5rem, 2.8vw, 2.2rem);
+}
+
+.audiobook-book-subtitle {
+  margin: 8px 0 0;
+  color: rgba(245, 243, 250, 0.62);
+}
+
+.audiobook-book-description {
+  margin: 12px 0 0;
+  max-width: 72ch;
+  line-height: 1.55;
+  color: rgba(245, 243, 250, 0.58);
+}
+
+.audiobook-book-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.audiobook-book-meta span {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(245, 243, 250, 0.62);
+}
+
+.audiobook-book-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.audiobook-chapter-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.audiobook-chapter-row {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.audiobook-chapter-row.is-active {
+  border-color: rgba(59, 130, 246, 0.4);
+  background: rgba(59, 130, 246, 0.08);
+}
+
+.audiobook-chapter-row.is-completed {
+  opacity: 0.72;
+}
+
+.audiobook-chapter-row-art .art-frame,
+.audiobook-chapter-row-art .art-frame--square {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+}
+
+.audiobook-chapter-row-copy h3 {
+  margin: 0;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.audiobook-chapter-row-copy p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: rgba(245, 243, 250, 0.88);
+  word-break: break-word;
+}
+
+.audiobook-chapter-row-copy span {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: rgba(245, 243, 250, 0.45);
+}
+
+.audiobook-chapter-badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  background: rgba(59, 130, 246, 0.18);
+  color: rgba(191, 219, 254, 0.95);
+}
+
+.audiobook-chapter-progress {
+  margin-top: 8px;
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.audiobook-chapter-progress span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, rgba(59, 130, 246, 0.9), rgba(168, 85, 247, 0.85));
+}
+
+.audiobook-chapter-row-play {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 0;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  cursor: pointer;
+}
+
+.player-meta-subtitle {
+  margin: 2px 0 0;
+  font-size: 11px;
+  color: rgba(245, 243, 250, 0.45);
+}
+
+.premium-shell-speed-select {
+  min-width: 72px;
+}
+
+@media (max-width: 1266px) {
+  .audiobook-book-hero {
+    grid-template-columns: minmax(120px, 160px) minmax(0, 1fr);
+  }
+
+  .audiobooks-hero-feature {
+    grid-template-columns: minmax(80px, 96px) minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .audiobook-book-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .audiobook-book-cover {
+    max-width: 180px;
   }
 }

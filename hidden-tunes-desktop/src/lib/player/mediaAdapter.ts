@@ -1,7 +1,9 @@
 import type { ApiSong } from '../api'
 import type { QueueContext } from '../desktopPlayback/types'
 import { isPodcastQueueSong } from '../podcasts/podcastPlaybackAdapter'
+import { isAudiobookQueueSong } from '../audiobooks/audiobookPlaybackAdapter'
 import { isRadioQueueSong } from '../radio/radioPlaybackAdapter'
+import { isTvQueueSong } from '../tv/tvPlaybackAdapter'
 import {
   resolvePlayerArtist,
   resolvePlayerQualityLabel,
@@ -39,6 +41,7 @@ export type PlayerMediaAdapter = {
   showQualitySelector: boolean
   defaultTab: PlayerShellTab
   tabs: PlayerShellTab[]
+  queueTabLabel: string
   detailFields: PlayerDetailField[]
 }
 
@@ -54,9 +57,12 @@ function inferKindFromContext(
   queueTitle: string | null,
 ): PlayerMediaKind {
   if (track && isRadioQueueSong(track)) return 'radio'
+  if (track && isTvQueueSong(track)) return 'tv'
   if (track && isPodcastQueueSong(track)) return 'podcast'
+  if (track && isAudiobookQueueSong(track)) return 'audiobook'
   if (queueContext === 'radio') return 'radio'
   if (queueContext === 'podcast') return 'podcast'
+  if (queueContext === 'audiobook') return 'audiobook'
 
   const titleHint = (queueTitle ?? '').toLowerCase()
   if (titleHint.includes('audiobook')) return 'audiobook'
@@ -179,9 +185,9 @@ export function resolvePlayerMediaAdapter(input: {
   const liveIndicator = kind === 'radio' || kind === 'tv'
   const seekable = kind !== 'radio' && kind !== 'tv'
   const showDuration = seekable && Boolean(track?.durationSeconds && track.durationSeconds > 0)
-  const showShuffleRepeat = kind === 'music' || kind === 'audiobook' || kind === 'motivational' || kind === 'lecture'
+  const showShuffleRepeat = kind === 'music' || kind === 'motivational' || kind === 'lecture'
   const showLyrics = kind === 'music' || kind === 'motivational'
-  const showQualitySelector = kind === 'music' || kind === 'audiobook'
+  const showQualitySelector = kind === 'music'
 
   const centerEyebrow = kind === 'radio'
     ? 'Live Radio'
@@ -213,6 +219,7 @@ export function resolvePlayerMediaAdapter(input: {
     showQualitySelector,
     defaultTab: 'queue',
     tabs,
+    queueTabLabel: kind === 'audiobook' ? 'Chapters' : 'Queue',
     detailFields: track
       ? buildDetailFields(track, albumLabel, qualityLabel, sourceLabel, kind)
       : [],

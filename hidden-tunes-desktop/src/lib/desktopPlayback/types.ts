@@ -1,5 +1,5 @@
 import type { ApiSong } from '../api'
-import type { AudioQualityMode } from '../localPreferences'
+import type { AudioQualityMode, AudiobookPlaybackRate } from '../localPreferences'
 
 export type QueueContext =
   | 'home'
@@ -10,6 +10,8 @@ export type QueueContext =
   | 'manual'
   | 'radio'
   | 'podcast'
+  | 'audiobook'
+  | 'tv'
   | 'scene'
   | 'smart'
 
@@ -56,6 +58,7 @@ export type DesktopPlaybackState = {
   audioQualityMode: AudioQualityMode
   shuffleEnabled: boolean
   repeatMode: RepeatMode
+  audiobookPlaybackRate: AudiobookPlaybackRate
 }
 
 export type DesktopPlaybackActions = {
@@ -77,8 +80,10 @@ export type DesktopPlaybackActions = {
   pause: () => void
   resume: () => void
   seekTo: (seconds: number) => void
+  skipRelative: (deltaSeconds: number) => void
   setVolume: (volume: number) => void
   setAudioQualityMode: (mode: AudioQualityMode) => void
+  setAudiobookPlaybackRate: (rate: AudiobookPlaybackRate) => void
 }
 
 export type DesktopPlaybackContextValue = DesktopPlaybackState & DesktopPlaybackActions

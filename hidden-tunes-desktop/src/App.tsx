@@ -93,6 +93,10 @@ import { ArtworkImage } from './components/ArtworkImage'
 import { PremiumFullscreenShell } from './components/player/PremiumFullscreenShell'
 import { PlayerQueuePanel } from './components/player/PlayerShellPanels'
 import { formatPlaybackTime } from './lib/player/formatPlaybackTime'
+import { resolvePlayerShellMetadata, resolvePlayerSubtitle } from './lib/playerDisplayMetadata'
+import { isAudiobookQueueSong } from './lib/audiobooks/audiobookPlaybackAdapter'
+import { isPodcastQueueSong } from './lib/podcasts/podcastPlaybackAdapter'
+import { isRadioQueueSong } from './lib/radio/radioPlaybackAdapter'
 import { getPreferredNowPlayingStyle } from './lib/nowPlayingStyle'
 import { PlayerModeLauncher } from './components/PlayerModeLauncher'
 import { PremiumAudioVisualizerProvider } from './components/PremiumAudioVisualizerProvider'
@@ -133,13 +137,26 @@ import {
 import { usePlayerOverlayController } from './lib/usePlayerOverlayController'
 import { useAutoOpenPreferredPlayer } from './lib/useAutoOpenPreferredPlayer'
 import { RadioPage } from './components/radio/RadioPage'
+import { TvPage } from './components/tv/TvPage'
+import { TvNowPlayingPanel } from './components/tv/TvNowPlayingPanel'
 import { PodcastsPage } from './components/podcasts/PodcastsPage'
 import { PodcastShowPage } from './components/podcasts/PodcastShowPage'
+import { AudiobooksPage } from './components/audiobooks/AudiobooksPage'
+import { AudiobookBookPage } from './components/audiobooks/AudiobookBookPage'
 import { buildRadioQueueSongs } from './lib/radio/radioPlaybackAdapter'
+import { buildTvQueueSongs, isTvQueueSong } from './lib/tv/tvPlaybackAdapter'
 import { buildPodcastQueueSongs } from './lib/podcasts/podcastPlaybackAdapter'
+import { buildAudiobookQueueSongs } from './lib/audiobooks/audiobookPlaybackAdapter'
 import { setPendingPodcastResumeSeconds } from './lib/podcasts/podcastPlaybackSession'
+import { setPendingAudiobookResumeSeconds } from './lib/audiobooks/audiobookPlaybackSession'
 import type { PodcastEpisodeMeta, PodcastShowMeta } from './lib/podcasts/types'
+import type {
+  AudiobookBookMeta,
+  AudiobookChapterMeta,
+  PlayAudiobookChapterHandler,
+} from './lib/audiobooks/types'
 import type { RadioStationMeta } from './lib/radio/types'
+import type { TvChannelMeta } from './lib/tv/types'
 import './App.css'
 
 const LIBRARY_TABS = ['Overview', 'Songs', 'Albums', 'Artists', 'Playlists'] as const
@@ -1061,6 +1078,7 @@ type NavKey =
   | 'home'
   | 'radio'
   | 'podcasts'
+  | 'audiobooks'
   | 'tv'
   | 'worlds'
   | 'search'
@@ -1078,6 +1096,7 @@ const PSD_DESTINATION_NAV_KEYS: NavKey[] = [
   'home',
   'radio',
   'podcasts',
+  'audiobooks',
   'tv',
   'worlds',
   'search',
@@ -1095,6 +1114,7 @@ const TOP_BAR_PLACEHOLDERS: Partial<Record<NavKey, string>> = {
   home: 'Search songs, artists, moods…',
   radio: 'Search stations, genres, countries…',
   podcasts: 'Search podcasts, episodes, categories…',
+  audiobooks: 'Search audiobooks, authors, narrators…',
   tv: 'Search shows, channels, live events…',
   worlds: 'Search emotional worlds…',
   search: 'Search songs, artists, albums…',
@@ -1224,8 +1244,9 @@ const SIDEBAR_PRIMARY_NAV: SidebarNavItem[] = [
   },
   {
     key: 'audiobooks',
+    navKey: 'audiobooks',
+    page: 'audiobooks',
     label: 'Audiobooks',
-    disabled: true,
     icon: (
       <SidebarNavIcon>
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
@@ -1455,13 +1476,6 @@ function BrandWaveformMark({ className }: { className?: string }) {
 function moodRoomScene(room: Pick<MoodRoom, 'title' | 'mood' | 'sceneId'>): VisualSceneId {
   return room.sceneId ?? resolveVisualScene({ seed: room.title, mood: room.mood })
 }
-
-const TV_SHOWS = [
-  { title: 'Live from the Mood Room', subtitle: 'Session 07 · Violet hour', mood: 'violet' as Mood },
-  { title: 'Artist Residency', subtitle: 'Luna Veil · Behind the feeling', mood: 'rose' as Mood },
-  { title: 'Visual Album Night', subtitle: 'Noir Ensemble · Full film', mood: 'cyan' as Mood },
-  { title: 'Hidden Sessions', subtitle: 'Exclusive desktop premiere', mood: 'mint' as Mood },
-]
 
 function MusicNoteIcon({ className }: { className?: string }) {
   return (
@@ -5477,44 +5491,6 @@ function PremiumPage({ onNavigateNav }: { onNavigateNav: (navKey: NavKey) => voi
 
 
 
-function TvPage() {
-  return (
-    <PageFrame>
-      <PageHeader
-        eyebrow="Visual stories"
-        title="Hidden Tunes TV"
-        description="Cinematic sessions, residencies, and visual albums — the moving image of emotion."
-      />
-      <section className="tv-featured" aria-label="Featured broadcast">
-        <div className="tv-featured-bg" />
-        <div className="tv-featured-inner">
-          <p className="hero-eyebrow">Now premiering</p>
-          <h2>Mood Room Live — Violet Hour</h2>
-          <p className="page-description">An immersive 48-minute session · UI preview only</p>
-          <button type="button" className="btn-primary">
-            Watch preview
-          </button>
-        </div>
-      </section>
-      <div className="card-row">
-        {TV_SHOWS.map((show) => (
-          <article key={show.title} className="discovery-card tv-card" data-mood={show.mood}>
-            <div className="card-art tv-card-art">
-              <svg className="play-badge" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d="M8 5v14l11-7L8 5z" />
-              </svg>
-            </div>
-            <div className="card-info">
-              <h3>{show.title}</h3>
-              <p>{show.subtitle}</p>
-            </div>
-          </article>
-        ))}
-      </div>
-    </PageFrame>
-  )
-}
-
 function AudioQualitySelector({
   value,
   onChange,
@@ -5887,6 +5863,7 @@ const PlayerBar = memo(function PlayerBar({
     currentTrack,
     currentQueue,
     currentIndex,
+    queueTitle,
     isPlaying,
     isLoading,
     error,
@@ -5907,9 +5884,25 @@ const PlayerBar = memo(function PlayerBar({
 
   const hasPlayback = Boolean(currentTrack && currentQueue.length > 0 && currentIndex >= 0)
   const displayTrack = hasPlayback ? (track ?? currentTrack) : null
-  const title = displayTrack?.title ?? 'Nothing playing'
-  const artist = displayTrack?.artist ?? 'Select a song to begin'
-  const progressMax = durationSeconds > 0 ? durationSeconds : 0
+  const shellMetadata = useMemo(
+    () => resolvePlayerShellMetadata({
+      currentTrack: displayTrack,
+      preferredTrack: null,
+      queueTitle,
+      audioQualityMode,
+    }),
+    [audioQualityMode, displayTrack, queueTitle],
+  )
+  const title = shellMetadata.displayTitle
+  const artist = shellMetadata.displayArtist
+  const subtitle = resolvePlayerSubtitle(displayTrack)
+  const showShuffleRepeat = Boolean(displayTrack)
+    && !isAudiobookQueueSong(displayTrack)
+    && !isPodcastQueueSong(displayTrack)
+    && !isRadioQueueSong(displayTrack)
+    && !isTvQueueSong(displayTrack)
+  const isTvLive = Boolean(displayTrack && isTvQueueSong(displayTrack))
+  const progressMax = isTvLive ? 0 : (durationSeconds > 0 ? durationSeconds : 0)
   const progressValue = scrubSeconds ?? (progressMax > 0 ? Math.min(positionSeconds, progressMax) : 0)
   const progressPercent =
     progressMax > 0 ? Math.min(100, (progressValue / progressMax) * 100) : 0
@@ -6026,41 +6019,59 @@ const PlayerBar = memo(function PlayerBar({
         <div className="player-meta">
           <h4>{title}</h4>
           <p>{artist}</p>
+          {subtitle ? <p className="player-meta-subtitle">{subtitle}</p> : null}
           {error ? <p className="player-error">{error}</p> : null}
         </div>
       </div>
 
       <div className="player-center">
-        <PlaybackTransportControls activeTrackId={displayTrack?.id ?? null} showShuffleRepeat />
+        <PlaybackTransportControls
+          activeTrackId={displayTrack?.id ?? null}
+          showShuffleRepeat={showShuffleRepeat}
+        />
         <div
-          className="progress-wrap"
+          className={`progress-wrap${isTvLive ? ' progress-wrap--live' : ''}`}
           role="group"
-          aria-label="Playback progress"
+          aria-label={isTvLive ? 'Live TV status' : 'Playback progress'}
         >
-          <span className="progress-time">{formatPlaybackTime(progressValue)}</span>
-          <div
-            ref={progressTrackRef}
-            className={`progress-track${progressMax > 0 && displayTrack ? ' progress-track--interactive' : ''}`}
-            role="slider"
-            aria-label="Seek position"
-            aria-valuemin={0}
-            aria-valuemax={Math.round(progressMax)}
-            aria-valuenow={Math.round(progressValue)}
-            aria-disabled={!displayTrack || progressMax <= 0 || isLoading}
-            onClick={handleSeekClick}
-            onPointerDown={handleSeekPointerDown}
-            onPointerMove={handleSeekPointerMove}
-            onPointerUp={handleSeekPointerUp}
-            onPointerCancel={handleSeekPointerUp}
-          >
-            <div
-              className="progress-fill"
-              style={{ width: `${progressPercent}%` }}
-            />
-          </div>
-          <span className="progress-time">
-            {progressMax > 0 ? formatPlaybackTime(progressMax) : '—'}
-          </span>
+          {isTvLive ? (
+            <>
+              <span className="progress-time progress-time--live">LIVE</span>
+              <div className="progress-track progress-track--live" aria-hidden="true">
+                <div className="progress-fill progress-fill--live" />
+              </div>
+              <span className="progress-time progress-time--live-edge">
+                {isLoading ? 'Connecting' : isPlaying ? 'On air' : 'Paused'}
+              </span>
+            </>
+          ) : (
+            <>
+              <span className="progress-time">{formatPlaybackTime(progressValue)}</span>
+              <div
+                ref={progressTrackRef}
+                className={`progress-track${progressMax > 0 && displayTrack ? ' progress-track--interactive' : ''}`}
+                role="slider"
+                aria-label="Seek position"
+                aria-valuemin={0}
+                aria-valuemax={Math.round(progressMax)}
+                aria-valuenow={Math.round(progressValue)}
+                aria-disabled={!displayTrack || progressMax <= 0 || isLoading}
+                onClick={handleSeekClick}
+                onPointerDown={handleSeekPointerDown}
+                onPointerMove={handleSeekPointerMove}
+                onPointerUp={handleSeekPointerUp}
+                onPointerCancel={handleSeekPointerUp}
+              >
+                <div
+                  className="progress-fill"
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
+              <span className="progress-time">
+                {progressMax > 0 ? formatPlaybackTime(progressMax) : '—'}
+              </span>
+            </>
+          )}
         </div>
       </div>
 
@@ -6071,11 +6082,15 @@ const PlayerBar = memo(function PlayerBar({
           variant="footer"
         />
         <div className="player-quality">
-          <AudioQualitySelector
-            value={audioQualityMode}
-            onChange={setAudioQualityMode}
-            compact
-          />
+          {isTvLive ? (
+            <span className="player-quality-live" aria-label="Live TV">LIVE TV</span>
+          ) : (
+            <AudioQualitySelector
+              value={audioQualityMode}
+              onChange={setAudioQualityMode}
+              compact
+            />
+          )}
         </div>
         <div className={`player-volume player-volume--${volumeLevel}`}>
         <button
@@ -6208,7 +6223,7 @@ const QueueUpNextPanel = memo(function QueueUpNextPanel({
 })
 
 
-type ActiveView = 'page' | 'song' | 'album' | 'artist' | 'mood' | 'podcast-show'
+type ActiveView = 'page' | 'song' | 'album' | 'artist' | 'mood' | 'podcast-show' | 'audiobook-book'
 
 function formatDateLabel(value: string | null) {
   if (!value) return null
@@ -6682,10 +6697,16 @@ function CatalogDetailRouter({
   libraryQuery = '',
   radioQuery = '',
   podcastsQuery = '',
+  audiobooksQuery = '',
+  tvQuery = '',
   onPlayRadioStation,
+  onPlayTvChannel,
   selectedPodcastShowId = null,
+  selectedAudiobookId = null,
   onOpenPodcastShow,
+  onOpenAudiobookBook,
   onPlayPodcastEpisode,
+  onPlayAudiobookChapter,
 }: {
   activeView: ActiveView
   selectedSong: ApiSong | null
@@ -6693,6 +6714,7 @@ function CatalogDetailRouter({
   selectedArtist: ApiArtist | null
   selectedMood: MoodRoom | null
   selectedPodcastShowId?: string | null
+  selectedAudiobookId?: string | null
   desktopSelectedTrack: ApiSong | null
   onBack: () => void
   activePage: PageId
@@ -6702,6 +6724,7 @@ function CatalogDetailRouter({
   onOpenArtist: (artist: ApiArtist) => void
   onOpenMood: (mood: MoodRoom) => void
   onOpenPodcastShow?: (showId: string) => void
+  onOpenAudiobookBook?: (bookId: string) => void
   onPlayPodcastEpisode?: (
     episode: PodcastEpisodeMeta,
     queue: PodcastEpisodeMeta[],
@@ -6712,6 +6735,7 @@ function CatalogDetailRouter({
       resumePositionSeconds?: number | null
     },
   ) => void
+  onPlayAudiobookChapter?: PlayAudiobookChapterHandler
   onOpenCinema?: () => void
   discoverQuery: string
   setDiscoverQuery: (value: string) => void
@@ -6727,9 +6751,17 @@ function CatalogDetailRouter({
   libraryQuery?: string
   radioQuery?: string
   podcastsQuery?: string
+  audiobooksQuery?: string
+  tvQuery?: string
   onPlayRadioStation?: (
     station: RadioStationMeta,
     queue: RadioStationMeta[],
+    startIndex: number,
+    queueTitle: string,
+  ) => void
+  onPlayTvChannel?: (
+    channel: TvChannelMeta,
+    queue: TvChannelMeta[],
     startIndex: number,
     queueTitle: string,
   ) => void
@@ -6787,6 +6819,17 @@ function CatalogDetailRouter({
     )
   }
 
+  if (activeView === 'audiobook-book' && selectedAudiobookId) {
+    return (
+      <AudiobookBookPage
+        bookId={selectedAudiobookId}
+        onBack={onBack}
+        onPlayAudiobookChapter={onPlayAudiobookChapter ?? (() => {})}
+        ArtworkImage={ArtworkImage}
+      />
+    )
+  }
+
   return (
     <PageContent
       page={activePage}
@@ -6809,9 +6852,14 @@ function CatalogDetailRouter({
       libraryQuery={libraryQuery}
       radioQuery={radioQuery}
       podcastsQuery={podcastsQuery}
+      audiobooksQuery={audiobooksQuery}
+      tvQuery={tvQuery}
       onPlayRadioStation={onPlayRadioStation}
+      onPlayTvChannel={onPlayTvChannel}
       onOpenPodcastShow={onOpenPodcastShow}
+      onOpenAudiobookBook={onOpenAudiobookBook}
       onPlayPodcastEpisode={onPlayPodcastEpisode}
+      onPlayAudiobookChapter={onPlayAudiobookChapter}
     />
   )
 }
@@ -6837,9 +6885,14 @@ function PageContent({
   libraryQuery = '',
   radioQuery = '',
   podcastsQuery = '',
+  audiobooksQuery = '',
+  tvQuery = '',
   onPlayRadioStation,
+  onPlayTvChannel,
   onOpenPodcastShow,
+  onOpenAudiobookBook,
   onPlayPodcastEpisode,
+  onPlayAudiobookChapter,
 }: {
   page: PageId
   activeNavKey: NavKey
@@ -6848,6 +6901,7 @@ function PageContent({
   onOpenArtist: (artist: ApiArtist) => void
   onOpenMood: (mood: MoodRoom) => void
   onOpenPodcastShow?: (showId: string) => void
+  onOpenAudiobookBook?: (bookId: string) => void
   onPlayPodcastEpisode?: (
     episode: PodcastEpisodeMeta,
     queue: PodcastEpisodeMeta[],
@@ -6858,6 +6912,7 @@ function PageContent({
       resumePositionSeconds?: number | null
     },
   ) => void
+  onPlayAudiobookChapter?: PlayAudiobookChapterHandler
   discoverQuery: string
   setDiscoverQuery: (value: string) => void
   albumsQuery: string
@@ -6872,9 +6927,17 @@ function PageContent({
   libraryQuery?: string
   radioQuery?: string
   podcastsQuery?: string
+  audiobooksQuery?: string
+  tvQuery?: string
   onPlayRadioStation?: (
     station: RadioStationMeta,
     queue: RadioStationMeta[],
+    startIndex: number,
+    queueTitle: string,
+  ) => void
+  onPlayTvChannel?: (
+    channel: TvChannelMeta,
+    queue: TvChannelMeta[],
     startIndex: number,
     queueTitle: string,
   ) => void
@@ -6912,6 +6975,15 @@ function PageContent({
           query={podcastsQuery ?? ''}
           onOpenPodcastShow={onOpenPodcastShow ?? (() => {})}
           onPlayPodcastEpisode={onPlayPodcastEpisode ?? (() => {})}
+          ArtworkImage={ArtworkImage}
+        />
+      )
+    case 'audiobooks':
+      return (
+        <AudiobooksPage
+          query={audiobooksQuery ?? ''}
+          onOpenBook={onOpenAudiobookBook ?? (() => {})}
+          onPlayAudiobookChapter={onPlayAudiobookChapter ?? (() => {})}
           ArtworkImage={ArtworkImage}
         />
       )
@@ -6964,7 +7036,13 @@ function PageContent({
         />
       )
     case 'tv':
-      return <TvPage />
+      return (
+        <TvPage
+          query={tvQuery ?? ''}
+          onPlayTvChannel={onPlayTvChannel ?? (() => {})}
+          ArtworkImage={ArtworkImage}
+        />
+      )
     case 'settings':
       return <SettingsPage onOpenPlayerByStyle={onOpenPlayerByStyle} />
     default:
@@ -7014,6 +7092,7 @@ function AppShell() {
   const [selectedArtist, setSelectedArtist] = useState<ApiArtist | null>(null)
   const [selectedMood, setSelectedMood] = useState<MoodRoom | null>(null)
   const [selectedPodcastShowId, setSelectedPodcastShowId] = useState<string | null>(null)
+  const [selectedAudiobookId, setSelectedAudiobookId] = useState<string | null>(null)
   const [desktopSelectedTrack, setDesktopSelectedTrack] = useState<ApiSong | null>(null)
   const [lyricsOpen, setLyricsOpen] = useState(false)
   const {
@@ -7030,6 +7109,8 @@ function AppShell() {
   const [libraryQuery, setLibraryQuery] = useState('')
   const [radioQuery, setRadioQuery] = useState('')
   const [podcastsQuery, setPodcastsQuery] = useState('')
+  const [audiobooksQuery, setAudiobooksQuery] = useState('')
+  const [tvQuery, setTvQuery] = useState('')
   const [discoverQuery, setDiscoverQuery] = usePersistedPreference(
     DESKTOP_PREFERENCE_KEYS.discoverSearch,
     '',
@@ -7082,6 +7163,7 @@ function AppShell() {
     setSelectedArtist(null)
     setSelectedMood(null)
     setSelectedPodcastShowId(null)
+    setSelectedAudiobookId(null)
     setActiveView('song')
   }, [])
 
@@ -7172,6 +7254,53 @@ function AppShell() {
     [playQueue],
   )
 
+  const playAudiobookChapter = useCallback<PlayAudiobookChapterHandler>(
+    (
+      book: AudiobookBookMeta,
+      _chapter: AudiobookChapterMeta,
+      queue: AudiobookChapterMeta[],
+      startIndex: number,
+      queueTitle: string,
+      options?: {
+        resumePositionSeconds?: number | null
+      },
+    ) => {
+      const apiQueue = buildAudiobookQueueSongs(book, queue)
+      if (apiQueue.length === 0) return
+
+      const safeIndex = Math.max(0, Math.min(startIndex, apiQueue.length - 1))
+      const track = apiQueue[safeIndex]
+      setDesktopSelectedTrack(track)
+      setPendingAudiobookResumeSeconds(options?.resumePositionSeconds ?? null)
+      playQueue(apiQueue, safeIndex, 'audiobook', queueTitle, {
+        seedType: 'manual',
+        seedTracks: apiQueue,
+      })
+    },
+    [playQueue],
+  )
+
+  const playTvChannel = useCallback(
+    (
+      _channel: TvChannelMeta,
+      queue: TvChannelMeta[],
+      startIndex: number,
+      queueTitle: string,
+    ) => {
+      const apiQueue = buildTvQueueSongs(queue)
+      if (apiQueue.length === 0) return
+
+      const safeIndex = Math.max(0, Math.min(startIndex, apiQueue.length - 1))
+      const track = apiQueue[safeIndex]
+      setDesktopSelectedTrack(track)
+      playQueue(apiQueue, safeIndex, 'tv', queueTitle, {
+        seedType: 'manual',
+        seedTracks: apiQueue,
+      })
+    },
+    [playQueue],
+  )
+
   const openAlbum = useCallback((album: ApiAlbum) => {
     cancelAutoOpenPlayer()
     setSelectedAlbum(album)
@@ -7179,6 +7308,7 @@ function AppShell() {
     setSelectedArtist(null)
     setSelectedMood(null)
     setSelectedPodcastShowId(null)
+    setSelectedAudiobookId(null)
     setActiveView('album')
   }, [cancelAutoOpenPlayer])
 
@@ -7189,6 +7319,7 @@ function AppShell() {
     setSelectedAlbum(null)
     setSelectedMood(null)
     setSelectedPodcastShowId(null)
+    setSelectedAudiobookId(null)
     setActiveView('artist')
   }, [cancelAutoOpenPlayer])
 
@@ -7199,6 +7330,7 @@ function AppShell() {
     setSelectedAlbum(null)
     setSelectedArtist(null)
     setSelectedPodcastShowId(null)
+    setSelectedAudiobookId(null)
     setActiveView('mood')
   }, [cancelAutoOpenPlayer])
 
@@ -7207,11 +7339,25 @@ function AppShell() {
     const cleanId = showId.trim()
     if (!cleanId) return
     setSelectedPodcastShowId(cleanId)
+    setSelectedAudiobookId(null)
     setSelectedSong(null)
     setSelectedAlbum(null)
     setSelectedArtist(null)
     setSelectedMood(null)
     setActiveView('podcast-show')
+  }, [cancelAutoOpenPlayer])
+
+  const openAudiobookBook = useCallback((bookId: string) => {
+    cancelAutoOpenPlayer()
+    const cleanId = bookId.trim()
+    if (!cleanId) return
+    setSelectedAudiobookId(cleanId)
+    setSelectedPodcastShowId(null)
+    setSelectedSong(null)
+    setSelectedAlbum(null)
+    setSelectedArtist(null)
+    setSelectedMood(null)
+    setActiveView('audiobook-book')
   }, [cancelAutoOpenPlayer])
 
   const backToPage = useCallback(() => {
@@ -7221,6 +7367,7 @@ function AppShell() {
     setSelectedArtist(null)
     setSelectedMood(null)
     setSelectedPodcastShowId(null)
+    setSelectedAudiobookId(null)
   }, [])
 
   const navigateNav = useCallback((navKey: NavKey) => {
@@ -7282,6 +7429,8 @@ function AppShell() {
                       || activeNavKey === 'playlists'
                       || activeNavKey === 'radio'
                       || activeNavKey === 'podcasts'
+                      || activeNavKey === 'audiobooks'
+                      || activeNavKey === 'tv'
                       ? 'search'
                       : 'default'
                   }
@@ -7304,6 +7453,10 @@ function AppShell() {
                                     ? radioQuery
                                     : activeNavKey === 'podcasts'
                                       ? podcastsQuery
+                                      : activeNavKey === 'audiobooks'
+                                        ? audiobooksQuery
+                                        : activeNavKey === 'tv'
+                                          ? tvQuery
                                   : undefined
                   }
                   onSearchChange={
@@ -7325,6 +7478,10 @@ function AppShell() {
                                     ? setRadioQuery
                                     : activeNavKey === 'podcasts'
                                       ? setPodcastsQuery
+                                      : activeNavKey === 'audiobooks'
+                                        ? setAudiobooksQuery
+                                        : activeNavKey === 'tv'
+                                          ? setTvQuery
                                   : undefined
                   }
                 />
@@ -7339,6 +7496,7 @@ function AppShell() {
                   selectedArtist={selectedArtist}
                   selectedMood={selectedMood}
                   selectedPodcastShowId={selectedPodcastShowId}
+                  selectedAudiobookId={selectedAudiobookId}
                   desktopSelectedTrack={desktopSelectedTrack}
                   onBack={backToPageWithCancel}
                   activePage={activePage}
@@ -7348,6 +7506,7 @@ function AppShell() {
                   onOpenArtist={openArtist}
                   onOpenMood={openMood}
                   onOpenPodcastShow={openPodcastShow}
+                  onOpenAudiobookBook={openAudiobookBook}
                   onOpenCinema={openCinemaPlayer}
                   discoverQuery={discoverQuery}
                   setDiscoverQuery={setDiscoverQuery}
@@ -7363,16 +7522,27 @@ function AppShell() {
                   libraryQuery={libraryQuery}
                   radioQuery={radioQuery}
                   podcastsQuery={podcastsQuery}
+                  audiobooksQuery={audiobooksQuery}
+                  tvQuery={tvQuery}
                   onPlayRadioStation={playRadioStation}
+                  onPlayTvChannel={playTvChannel}
                   onPlayPodcastEpisode={playPodcastEpisode}
+                  onPlayAudiobookChapter={playAudiobookChapter}
                 />
               </div>
             </main>
-            <QueueUpNextPanel
-              onOpenPlayerByStyle={openPlayerByStyleNow}
-              onNavigateNav={navigateNav}
-              activeNavKey={activeNavKey}
-            />
+            {activeNavKey === 'tv' ? (
+              <TvNowPlayingPanel
+                onBrowseAll={() => navigateNav('tv')}
+                onBrowseFeatured={() => navigateNav('tv')}
+              />
+            ) : (
+              <QueueUpNextPanel
+                onOpenPlayerByStyle={openPlayerByStyleNow}
+                onNavigateNav={navigateNav}
+                activeNavKey={activeNavKey}
+              />
+            )}
           </div>
         </div>
       </div>
