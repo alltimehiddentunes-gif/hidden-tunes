@@ -195,6 +195,26 @@ export const WAVE4_SOURCE_RECORDS: Wave4SourceRecord[] = [
     approvalStatus: "approved",
     contentScope: "normal",
   },
+  {
+    adapterName: "Official FAST providers (wave4)",
+    adapterId: "official-fast-providers-wave4",
+    upstreamOrganisation: "Samsung TV Plus and Pluto TV",
+    baseDomain: "jmp2.uk, samsung.com, pluto.tv",
+    dataOrigin: "Public FAST channel catalogs residual to earlier waves",
+    accessMethod: "Build-time gzip JSON catalog fetch + JSON snapshot adapter",
+    termsLicensingStatus: "Official free ad-supported FAST catalogs",
+    robotsOrApiRestrictions: "Catalog CDN rate limits",
+    geographicalScope: "Global FAST regions",
+    categories: "General, Entertainment, News, Kids",
+    estimatedCandidateCount: "500–3000 unseen",
+    expectedStreamFormats: "HLS via FAST redirectors",
+    updateFrequency: "Weekly catalog refresh",
+    deduplicationRisk: "Medium — prior Pluto/Samsung adapters may overlap",
+    implementationComplexity: "Medium",
+    classification: "Independent licensed provider",
+    approvalStatus: "approved",
+    contentScope: "normal",
+  },
 ];
 
 export const WAVE4_INDEPENDENT_SOURCE_IDS = WAVE4_SOURCE_RECORDS.filter(

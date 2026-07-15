@@ -3,6 +3,7 @@ import educationCultureWave4Data from "@/lib/tvExpansion25k/sources/data/worldwa
 import freeCommunityPlaylistsWave4Data from "@/lib/tvExpansion25k/sources/data/worldwave4/freeCommunityPlaylistsWave4.json";
 import internationalNewsWave4Data from "@/lib/tvExpansion25k/sources/data/worldwave4/internationalNewsWave4.json";
 import iptvOrgGithubCountriesWave4Data from "@/lib/tvExpansion25k/sources/data/worldwave4/iptvOrgGithubCountriesWave4.json";
+import officialFastProvidersWave4Data from "@/lib/tvExpansion25k/sources/data/worldwave4/officialFastProvidersWave4.json";
 import parliamentGovernmentWave4Data from "@/lib/tvExpansion25k/sources/data/worldwave4/parliamentGovernmentWave4.json";
 import regionalCommunityWave4Data from "@/lib/tvExpansion25k/sources/data/worldwave4/regionalCommunityWave4.json";
 import religiousEducationWave4Data from "@/lib/tvExpansion25k/sources/data/worldwave4/religiousEducationWave4.json";
@@ -70,6 +71,14 @@ export const educationCultureWave4Adapter = createWorldwaveJsonAdapter({
   entries: asEntries(educationCultureWave4Data as FixedStreamEntry[]),
 });
 
+export const officialFastProvidersWave4Adapter = createWorldwaveJsonAdapter({
+  id: "official-fast-providers-wave4",
+  label: "Official FAST provider catalogs (wave4)",
+  legalBasis:
+    "Samsung TV Plus and Pluto TV free FAST channel catalogs via public metadata (wave4 residual).",
+  entries: asEntries(officialFastProvidersWave4Data as FixedStreamEntry[]),
+});
+
 export const WORLDWAVE4_SOURCE_ADAPTERS = [
   iptvOrgGithubCountriesWave4Adapter,
   countryOfficialManifestsWave4Adapter,
@@ -79,6 +88,7 @@ export const WORLDWAVE4_SOURCE_ADAPTERS = [
   regionalCommunityWave4Adapter,
   freeCommunityPlaylistsWave4Adapter,
   educationCultureWave4Adapter,
+  officialFastProvidersWave4Adapter,
 ];
 
 export { WAVE4_INDEPENDENT_SOURCE_IDS } from "@/lib/tvExpansion25k/sources/worldwave4/wave4SourceMetadata";

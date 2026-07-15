@@ -75,14 +75,15 @@ export const TV_SOURCE_WAVE3_WEIGHTS: Record<string, number> = {
 
 export const TV_SOURCE_WAVE4_WEIGHTS: Record<string, number> = {
   ...Object.fromEntries(Object.keys(TV_SOURCE_WAVE3_WEIGHTS).map((id) => [id, 0])),
-  "iptv-org-github-countries-wave4": 18,
+  "iptv-org-github-countries-wave4": 8,
   "country-official-manifests-wave4": 16,
   "parliament-government-wave4": 10,
-  "international-news-wave4": 12,
-  "religious-education-wave4": 8,
-  "regional-community-wave4": 12,
-  "free-community-playlists-wave4": 10,
+  "international-news-wave4": 14,
+  "religious-education-wave4": 10,
+  "regional-community-wave4": 6,
+  "free-community-playlists-wave4": 5,
   "education-culture-wave4": 8,
+  "official-fast-providers-wave4": 18,
 };
 
 /** @deprecated Use getActiveSourceWeightMap() */

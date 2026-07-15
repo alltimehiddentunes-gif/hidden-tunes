@@ -34,6 +34,9 @@ const COMMUNITY_PLAYLIST_URLS = [
   "https://raw.githubusercontent.com/FreeViewPlus/UK-Channels/master/playlist.m3u8",
 ];
 
+const MJH_PLUTO_CATALOG = "https://i.mjh.nz/PlutoTV/.channels.json.gz";
+const MJH_SAMSUNG_CATALOG = "https://i.mjh.nz/SamsungTVPlus/.channels.json.gz";
+
 function slugify(value: string) {
   return value.replace(/\W+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").toLowerCase();
 }
@@ -65,7 +68,8 @@ async function loadIptvOrgCountryStreams(seen: Set<string>) {
   const batchSeen = new Set<string>();
 
   for (const country of WORLDWIDE_COUNTRY_CODES) {
-    const countryCode = country.code;
+    // iptv-org publishes lowercase filenames (us.m3u), not uppercase.
+    const countryCode = country.code.toLowerCase();
     const m3uUrl = `${IPTV_ORG_STREAMS_BASE}/${countryCode}.m3u`;
     try {
       const text = await fetchText(m3uUrl);
@@ -78,7 +82,7 @@ async function loadIptvOrgCountryStreams(seen: Set<string>) {
           id: slugify(`iptv-org-${countryCode}-${row.tvgId || row.title}`),
           title: row.title,
           url: row.url,
-          country: normalizeWave4CountryCode(row.tvgCountry, countryCode),
+          country: normalizeWave4CountryCode(row.tvgCountry, country.code),
           language: row.tvgLanguage || null,
           category: row.groupTitle || "General",
           website: "https://github.com/iptv-org/iptv",
@@ -88,6 +92,116 @@ async function loadIptvOrgCountryStreams(seen: Set<string>) {
       }
     } catch {
       // Country M3U may not exist — skip.
+    }
+  }
+
+  return entries;
+}
+
+type MjhChannel = {
+  name?: string;
+  logo?: string;
+  group?: string;
+  groups?: string[];
+  license_url?: string;
+};
+
+type MjhCatalog = {
+  slug?: string;
+  regions?: Record<string, { name?: string; channels?: Record<string, MjhChannel> }>;
+  channels?: Record<string, MjhChannel>;
+};
+
+async function fetchGzJson(url: string) {
+  const { fetchGzJson: sharedFetch } = await import(
+    "../lib/tvExpansion25k/sources/shared/gzJsonFetch"
+  );
+  return sharedFetch(url) as Promise<MjhCatalog>;
+}
+
+function regionCountryCode(regionKey: string) {
+  const map: Record<string, string> = {
+    us: "US",
+    ca: "CA",
+    gb: "GB",
+    uk: "GB",
+    au: "AU",
+    de: "DE",
+    es: "ES",
+    fr: "FR",
+    it: "IT",
+    br: "BR",
+    mx: "MX",
+    all: "INT",
+  };
+  return map[regionKey.toLowerCase()] || regionKey.slice(0, 2).toUpperCase();
+}
+
+async function loadOfficialFastEntries(seen: Set<string>) {
+  const entries: ReturnType<typeof seedToEntry>[] = [];
+  const batchSeen = new Set<string>();
+
+  const catalogs: Array<{
+    catalogUrl: string;
+    provider: string;
+    website: string;
+    streamUrlForId: (id: string, catalog: MjhCatalog) => string;
+    skip?: (channel: MjhChannel) => boolean;
+  }> = [
+    {
+      catalogUrl: MJH_PLUTO_CATALOG,
+      provider: "pluto",
+      website: "https://pluto.tv/live-tv",
+      streamUrlForId: (id) => `https://jmp2.uk/plu-${id}.m3u8`,
+    },
+    {
+      catalogUrl: MJH_SAMSUNG_CATALOG,
+      provider: "samsung-tv-plus",
+      website: "https://www.samsung.com/us/tvs/tvplus/",
+      streamUrlForId: (id, catalog) =>
+        `https://jmp2.uk/${(catalog.slug || "stvp-{id}").replace("{id}", id)}`,
+      skip: (channel) => Boolean(channel.license_url),
+    },
+  ];
+
+  for (const source of catalogs) {
+    try {
+      const catalog = await fetchGzJson(source.catalogUrl);
+      const push = (channelId: string, channel: MjhChannel, country: string) => {
+        if (source.skip?.(channel)) return;
+        const title = String(channel.name || channelId).trim();
+        if (!title) return;
+        const url = source.streamUrlForId(channelId, catalog);
+        if (!url.startsWith("https://")) return;
+        const urlKey = url.toLowerCase();
+        if (seen.has(urlKey) || batchSeen.has(urlKey)) return;
+        batchSeen.add(urlKey);
+        entries.push({
+          id: slugify(`fast-${source.provider}-${channelId}`),
+          title,
+          url,
+          country: normalizeWave4CountryCode(country),
+          language: null,
+          category: channel.group || channel.groups?.[0] || "General",
+          website: source.website,
+          channelName: title,
+          legalBasis: `${source.provider} official free FAST catalog via public channel metadata (wave4).`,
+        });
+      };
+
+      if (catalog.regions) {
+        for (const [regionKey, region] of Object.entries(catalog.regions)) {
+          for (const [channelId, channel] of Object.entries(region.channels || {})) {
+            push(channelId, channel, regionCountryCode(regionKey));
+          }
+        }
+      } else if (catalog.channels) {
+        for (const [channelId, channel] of Object.entries(catalog.channels)) {
+          push(channelId, channel, "US");
+        }
+      }
+    } catch {
+      // Offline build continues without FAST catalog snapshot.
     }
   }
 
@@ -155,6 +269,7 @@ async function buildWave4SourceFiles(seen: Set<string>) {
     educationCulture,
     iptvOrgCountries,
     communityPlaylists,
+    officialFast,
   ] = await Promise.all([
     Promise.resolve(
       filterUnseenWave4Entries(WAVE4_COUNTRY_OFFICIAL_MANIFESTS.map(seedToEntry), seen)
@@ -165,6 +280,7 @@ async function buildWave4SourceFiles(seen: Set<string>) {
     Promise.resolve(filterUnseenWave4Entries(WAVE4_EDUCATION_CULTURE.map(seedToEntry), seen)),
     loadIptvOrgCountryStreams(seen).then((rows) => filterUnseenWave4Entries(rows, seen)),
     loadCommunityPlaylists(seen).then((rows) => filterUnseenWave4Entries(rows, seen)),
+    loadOfficialFastEntries(seen).then((rows) => filterUnseenWave4Entries(rows, seen)),
   ]);
 
   const regionalCommunity = partitionRegional([...communityPlaylists, ...iptvOrgCountries.slice(0, 2000)]);
@@ -176,16 +292,20 @@ async function buildWave4SourceFiles(seen: Set<string>) {
     internationalNewsWave4: writeJsonAtomic("internationalNewsWave4", internationalNews),
     religiousEducationWave4: writeJsonAtomic("religiousEducationWave4", religiousEducation),
     educationCultureWave4: writeJsonAtomic("educationCultureWave4", educationCulture),
+    officialFastProvidersWave4: writeJsonAtomic("officialFastProvidersWave4", officialFast),
     freeCommunityPlaylistsWave4: writeJsonAtomic("freeCommunityPlaylistsWave4", communityPlaylists),
     regionalCommunityWave4: writeJsonAtomic("regionalCommunityWave4", regionalCommunity),
   };
 
-  return { counts, independentCandidates:
-    counts.countryOfficialManifestsWave4 +
-    counts.parliamentGovernmentWave4 +
-    counts.internationalNewsWave4 +
-    counts.religiousEducationWave4 +
-    counts.educationCultureWave4,
+  return {
+    counts,
+    independentCandidates:
+      counts.countryOfficialManifestsWave4 +
+      counts.parliamentGovernmentWave4 +
+      counts.internationalNewsWave4 +
+      counts.religiousEducationWave4 +
+      counts.educationCultureWave4 +
+      counts.officialFastProvidersWave4,
     totalNewCandidates: Object.values(counts).reduce((sum, value) => sum + value, 0),
   };
 }

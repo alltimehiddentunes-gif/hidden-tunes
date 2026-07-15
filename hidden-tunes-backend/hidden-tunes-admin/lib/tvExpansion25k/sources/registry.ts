@@ -140,6 +140,7 @@ export const TV_EXPANSION_WAVE4_ACTIVE_SOURCE_IDS = [
   "regional-community-wave4",
   "free-community-playlists-wave4",
   "education-culture-wave4",
+  "official-fast-providers-wave4",
 ] as const;
 
 export const TV_EXPANSION_WAVE4_MATURE_SOURCE_IDS = [] as const;

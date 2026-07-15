@@ -185,6 +185,17 @@ export const WAVE4_INTERNATIONAL_NEWS: Wave4SeedEntry[] = [
     channelName: "CGTN",
     legalBasis: "CGTN official public international news HLS.",
   },
+  {
+    id: "cgtn-documentary",
+    title: "CGTN Documentary",
+    url: "https://news.cgtn.com/resource/live/document/cgtn-doc.m3u8",
+    country: "CN",
+    language: "en",
+    category: "News",
+    website: "https://www.cgtn.com/",
+    channelName: "CGTN Documentary",
+    legalBasis: "CGTN official public documentary live HLS.",
+  },
 ];
 
 export const WAVE4_RELIGIOUS_EDUCATION: Wave4SeedEntry[] = [

@@ -32,6 +32,8 @@ const WAVE4_JSON: Record<string, string> = {
     "lib/tvExpansion25k/sources/data/worldwave4/freeCommunityPlaylistsWave4.json",
   "education-culture-wave4":
     "lib/tvExpansion25k/sources/data/worldwave4/educationCultureWave4.json",
+  "official-fast-providers-wave4":
+    "lib/tvExpansion25k/sources/data/worldwave4/officialFastProvidersWave4.json",
 };
 
 function inventorySize(sourceId: string) {

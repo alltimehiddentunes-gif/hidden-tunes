@@ -46,7 +46,7 @@ if [ "$phase" = "dryrun1" ]; then
   export TV_PER_HOST_CONCURRENCY=2
   export TV_IMPORT_BATCH_SIZE=500
   export TV_VERIFY_BATCH_SIZE=100
-  timeout 900 npm run tv:expand:fast -- --source international-news-wave4 --max-batches 1
+  timeout 900 npm run tv:expand:fast -- --source official-fast-providers-wave4 --max-batches 1
   exit $?
 fi
 
@@ -54,7 +54,7 @@ if [ "$phase" = "dryrun2" ]; then
   export TV_DISCOVERY_CONCURRENCY=6
   export TV_VERIFY_CONCURRENCY=16
   export TV_PER_HOST_CONCURRENCY=2
-  timeout 900 npm run tv:expand:fast -- --source religious-education-wave4 --max-batches 1
+  timeout 900 npm run tv:expand:fast -- --source international-news-wave4 --max-batches 1
   exit $?
 fi
 
