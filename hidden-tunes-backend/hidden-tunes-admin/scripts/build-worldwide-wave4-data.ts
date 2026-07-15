@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 
 import { WAVE4_SOURCE_RECORDS } from "../lib/tvExpansion25k/sources/worldwave4/wave4SourceMetadata";
 import { parseM3uPlaylist } from "../lib/tvExpansion25k/sources/shared/m3uParser";
-import { regionForCountryCode, WORLDWIDE_COUNTRY_CODES } from "../lib/tvExpansion25k/worldwide/countryCodes";
+import { regionForCountryCode, WORLDWIDE_COUNTRY_CODES, normalizeWave4CountryCode } from "../lib/tvExpansion25k/worldwide/countryCodes";
 import {
   filterUnseenWave4Entries,
   loadWave4SeenUrls,
@@ -64,7 +64,8 @@ async function loadIptvOrgCountryStreams(seen: Set<string>) {
   const entries: ReturnType<typeof seedToEntry>[] = [];
   const batchSeen = new Set<string>();
 
-  for (const countryCode of WORLDWIDE_COUNTRY_CODES) {
+  for (const country of WORLDWIDE_COUNTRY_CODES) {
+    const countryCode = country.code;
     const m3uUrl = `${IPTV_ORG_STREAMS_BASE}/${countryCode}.m3u`;
     try {
       const text = await fetchText(m3uUrl);
@@ -77,7 +78,7 @@ async function loadIptvOrgCountryStreams(seen: Set<string>) {
           id: slugify(`iptv-org-${countryCode}-${row.tvgId || row.title}`),
           title: row.title,
           url: row.url,
-          country: typeof row.tvgCountry === "string" ? row.tvgCountry : countryCode,
+          country: normalizeWave4CountryCode(row.tvgCountry, countryCode),
           language: row.tvgLanguage || null,
           category: row.groupTitle || "General",
           website: "https://github.com/iptv-org/iptv",
@@ -109,7 +110,7 @@ async function loadCommunityPlaylists(seen: Set<string>) {
           id: slugify(`community-${row.tvgId || row.title}`),
           title: row.title,
           url: row.url,
-          country: row.tvgCountry || null,
+          country: normalizeWave4CountryCode(row.tvgCountry),
           language: row.tvgLanguage || null,
           category: row.groupTitle || "Community",
           website: playlistUrl,

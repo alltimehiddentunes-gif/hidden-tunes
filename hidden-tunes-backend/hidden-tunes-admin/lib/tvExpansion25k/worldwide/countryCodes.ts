@@ -152,6 +152,36 @@ export const WORLDWIDE_COUNTRY_CODES: Array<{ code: string; name: string; region
   { code: "XK", name: "Kosovo", region: "Europe" },
 ];
 
+const COUNTRY_CODE_SET = new Set(WORLDWIDE_COUNTRY_CODES.map((entry) => entry.code));
+
+export type Wave4CountryCode = string | null;
+
+/** Normalize M3U / seed country values to a known ISO alpha-2 code or null. */
+export function normalizeWave4CountryCode(
+  value: string | null | undefined,
+  fallbackCode?: string | null
+): Wave4CountryCode {
+  const candidates = [value, fallbackCode]
+    .map((item) => String(item || "").trim().toUpperCase())
+    .filter(Boolean);
+
+  for (const raw of candidates) {
+    const token = raw.split(/[,;/|]/)[0]?.trim() || "";
+    if (!token) continue;
+    if (COUNTRY_CODE_SET.has(token)) return token;
+    if (token.length === 3) {
+      const alpha2 = token.slice(0, 2);
+      if (COUNTRY_CODE_SET.has(alpha2)) return alpha2;
+    }
+  }
+
+  return null;
+}
+
+export function isKnownCountryCode(code: string | null | undefined) {
+  return COUNTRY_CODE_SET.has(String(code || "").trim().toUpperCase());
+}
+
 export function regionForCountryCode(code: string | null | undefined) {
   const row = WORLDWIDE_COUNTRY_CODES.find((entry) => entry.code === String(code || "").toUpperCase());
   return row?.region || "International";
