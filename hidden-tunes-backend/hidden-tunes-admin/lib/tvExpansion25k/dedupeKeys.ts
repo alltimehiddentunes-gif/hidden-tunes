@@ -14,11 +14,17 @@ function normalizeTitleKey(title: string | null | undefined, country?: string | 
     .replace(/\s+/g, " ")}::${String(country || "").trim().toLowerCase()}`;
 }
 
+export type TvDedupeKeyIndex = {
+  sourceKeys: Set<string>;
+  urlKeys: Set<string>;
+  titleCountryKeys: Set<string>;
+};
+
 /**
  * Paginated dedupe key load for expansion pre-filtering.
  * Additive safety layer — does not replace importVerifiedTvGrowthCandidates dedup.
  */
-export async function loadAllTvDedupeKeys() {
+export async function loadAllTvDedupeKeys(): Promise<TvDedupeKeyIndex> {
   const sourceKeys = new Set<string>();
   const urlKeys = new Set<string>();
   const titleCountryKeys = new Set<string>();
@@ -52,8 +58,11 @@ export async function loadAllTvDedupeKeys() {
   return { sourceKeys, urlKeys, titleCountryKeys };
 }
 
-export async function prefilterNewTvCandidates(candidates: TvGrowthCandidate[]) {
-  const existing = await loadAllTvDedupeKeys();
+export async function prefilterNewTvCandidates(
+  candidates: TvGrowthCandidate[],
+  existingKeys?: TvDedupeKeyIndex
+) {
+  const existing = existingKeys || (await loadAllTvDedupeKeys());
   const before = candidates.length;
   const accepted = dedupeTvGrowthCandidates(candidates, existing);
   return {
