@@ -20,6 +20,12 @@ export type TvPlatformEligibilityRow = {
   stream_is_https?: boolean | null;
   last_health_checked_at?: string | null;
   last_validation_result?: string | null;
+  is_mature?: boolean | null;
+  mature_source_approved?: boolean | null;
+};
+
+export type TvPublicCatalogFilterOptions = {
+  includeMature?: boolean;
 };
 
 export function parseTvClientPlatform(
@@ -106,7 +112,8 @@ export type SupabaseFilterQuery = {
 export function applyTvPublicCatalogFilters(
   query: SupabaseFilterQuery,
   platform: TvClientPlatform,
-  now = new Date()
+  now = new Date(),
+  options: TvPublicCatalogFilterOptions = {}
 ): void {
   const cutoff = getValidationFreshnessCutoff(now);
 
@@ -119,6 +126,12 @@ export function applyTvPublicCatalogFilters(
     .is("quarantined_at", null)
     .gte("last_health_checked_at", cutoff);
 
+  if (options.includeMature) {
+    query.eq("is_mature", true).eq("mature_source_approved", true);
+  } else {
+    query.eq("is_mature", false);
+  }
+
   if (platform === "ios") {
     query.eq("ios_playable", true).eq("stream_is_https", true);
   } else if (platform === "android") {
@@ -126,6 +139,20 @@ export function applyTvPublicCatalogFilters(
   } else {
     query.eq("ios_playable", true).eq("android_playable", true).eq("stream_is_https", true);
   }
+}
+
+export function parseIncludeMatureParam(
+  request?: Pick<NextRequest, "nextUrl" | "headers">
+) {
+  const raw = String(
+    request?.nextUrl?.searchParams?.get("includeMature") ||
+      request?.nextUrl?.searchParams?.get("include_mature") ||
+      request?.headers?.get("x-hidden-tunes-include-mature") ||
+      ""
+  )
+    .trim()
+    .toLowerCase();
+  return raw === "true" || raw === "1" || raw === "yes";
 }
 
 export function isPlayUrlAllowedForPlatform(

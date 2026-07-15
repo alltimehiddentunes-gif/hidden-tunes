@@ -179,7 +179,7 @@ export async function runTvExpansion25kBatch(
     };
   }
 
-  if (allTvExpansionSourcesExhausted(nextCheckpoint.sources)) {
+  if (allTvExpansionSourcesExhausted(nextCheckpoint.sources, adminRoot)) {
     return {
       done: true,
       reason: "sources_exhausted",

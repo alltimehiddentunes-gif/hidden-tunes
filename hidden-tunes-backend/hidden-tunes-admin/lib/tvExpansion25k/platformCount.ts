@@ -4,19 +4,42 @@ import {
   type SupabaseFilterQuery,
 } from "@/lib/tvPlatformPolicy";
 
-/**
- * Accurate platform-eligible count using the same filters as the public TV API.
- * Additive helper for expansion reporting — does not modify existing health summary.
- */
-export async function getTvPlatformEligibleCount() {
+export type TvPlatformEligibleCounts = {
+  normalPlatformEligible: number;
+  maturePlatformEligible: number;
+  combinedPlatformEligible: number;
+};
+
+async function countEligible(includeMature: boolean) {
   let query = supabaseAdmin
     .from("tv_videos")
     .select("id", { count: "exact", head: true }) as unknown as SupabaseFilterQuery;
 
-  applyTvPublicCatalogFilters(query, "cross");
+  applyTvPublicCatalogFilters(query, "cross", new Date(), { includeMature });
 
   const { count, error } = await query.range(0, 0);
   if (error) throw new Error(error.message);
-
   return count ?? 0;
+}
+
+/**
+ * Accurate platform-eligible counts using the same filters as the public TV API.
+ */
+export async function getTvPlatformEligibleCounts(): Promise<TvPlatformEligibleCounts> {
+  const [normalPlatformEligible, maturePlatformEligible] = await Promise.all([
+    countEligible(false),
+    countEligible(true),
+  ]);
+
+  return {
+    normalPlatformEligible,
+    maturePlatformEligible,
+    combinedPlatformEligible: normalPlatformEligible + maturePlatformEligible,
+  };
+}
+
+/** Backward-compatible normal-only eligible count. */
+export async function getTvPlatformEligibleCount() {
+  const counts = await getTvPlatformEligibleCounts();
+  return counts.normalPlatformEligible;
 }

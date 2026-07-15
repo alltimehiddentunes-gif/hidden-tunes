@@ -55,6 +55,9 @@ export async function discoverTvExpansionCandidates(
   };
 }
 
-export function allTvExpansionSourcesExhausted(sourceState: TvExpansion25kSourceState) {
-  return allRegisteredSourcesExhausted(sourceState);
+export function allTvExpansionSourcesExhausted(
+  sourceState: TvExpansion25kSourceState,
+  adminRoot = process.cwd()
+) {
+  return allRegisteredSourcesExhausted(sourceState, adminRoot);
 }

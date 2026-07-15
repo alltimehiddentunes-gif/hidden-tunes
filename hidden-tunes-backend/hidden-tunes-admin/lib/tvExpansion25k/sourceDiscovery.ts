@@ -2,9 +2,13 @@ import type { TvExpansion25kSourceState } from "@/lib/tvExpansion25k/checkpoint"
 import { appendRejectedCandidateLog } from "@/lib/tvExpansion25k/expansionLogs";
 import {
   allocateSourceLimits,
+  listActiveWeightedSourceIds,
   orderSourcesForBatch,
 } from "@/lib/tvExpansion25k/sourceScheduler";
-import { TV_EXPANSION_SOURCE_ADAPTERS } from "@/lib/tvExpansion25k/sources/registry";
+import {
+  TV_EXPANSION_SOURCE_ADAPTERS,
+} from "@/lib/tvExpansion25k/sources/registry";
+import type { TvExpansionSourceAdapter } from "@/lib/tvExpansion25k/sources/types";
 import { filterFingerprintRejected, recordRejectedFingerprints } from "@/lib/tvExpansion25k/sources/shared/fingerprintCache";
 import { filterCandidatesPreProbe, preProbeRejectReason } from "@/lib/tvExpansion25k/sources/shared/preProbeFilter";
 import { createInitialSourceCursor, type TvExpansionSourceCursor } from "@/lib/tvExpansion25k/sources/types";
@@ -52,7 +56,8 @@ function classifyErrorStatus(message: string): TvExpansionSourceCursor["status"]
   return "temporarily_failed";
 }
 
-export async function discoverFromRegisteredSources(
+export async function discoverFromAdapters(
+  adapters: TvExpansionSourceAdapter[],
   sourceState: TvExpansion25kSourceState,
   batchSize: number,
   batchNumber: number,
@@ -64,7 +69,7 @@ export async function discoverFromRegisteredSources(
     ...sourceState.adapterCursors,
   };
 
-  const orderedAdapters = orderSourcesForBatch(TV_EXPANSION_SOURCE_ADAPTERS, batchNumber);
+  const orderedAdapters = orderSourcesForBatch(adapters, batchNumber, adminRoot);
   const activeAdapterIds = orderedAdapters
     .filter((adapter) => {
       const cursor = normalizeCursor(adapter.id, adapterCursors[adapter.id]);
@@ -72,7 +77,11 @@ export async function discoverFromRegisteredSources(
     })
     .map((adapter) => adapter.id);
 
-  const allocation = allocateSourceLimits(batchSize, activeAdapterIds.length > 0 ? activeAdapterIds : orderedAdapters.map((a) => a.id));
+  const allocation = allocateSourceLimits(
+    batchSize,
+    activeAdapterIds.length > 0 ? activeAdapterIds : orderedAdapters.map((a) => a.id),
+    adminRoot
+  );
 
   for (const adapter of orderedAdapters) {
     const cursor = normalizeCursor(adapter.id, adapterCursors[adapter.id]);
@@ -202,9 +211,42 @@ export async function discoverFromRegisteredSources(
   };
 }
 
-export function allRegisteredSourcesExhausted(sourceState: TvExpansion25kSourceState) {
-  return TV_EXPANSION_SOURCE_ADAPTERS.every((adapter) => {
-    const cursor = sourceState.adapterCursors[adapter.id];
+export async function discoverFromRegisteredSources(
+  sourceState: TvExpansion25kSourceState,
+  batchSize: number,
+  batchNumber: number,
+  adminRoot = process.cwd()
+): Promise<TvRegistryDiscoveryResult> {
+  return discoverFromAdapters(
+    TV_EXPANSION_SOURCE_ADAPTERS,
+    sourceState,
+    batchSize,
+    batchNumber,
+    adminRoot
+  );
+}
+
+export function allRegisteredSourcesExhausted(
+  sourceState: TvExpansion25kSourceState,
+  adminRoot = process.cwd()
+) {
+  const activeIds = listActiveWeightedSourceIds(adminRoot);
+  if (activeIds.length === 0) return true;
+  return activeIds.every((id) => {
+    const cursor = sourceState.adapterCursors[id];
+    return cursor?.exhausted === true || cursor?.status === "exhausted";
+  });
+}
+
+export function allAdaptersExhausted(
+  adapterCursors: Record<string, TvExpansionSourceCursor | undefined>,
+  adapterIds: string[],
+  weightForId: (id: string) => number
+) {
+  const activeIds = adapterIds.filter((id) => weightForId(id) > 0);
+  if (activeIds.length === 0) return true;
+  return activeIds.every((id) => {
+    const cursor = adapterCursors[id];
     return cursor?.exhausted === true || cursor?.status === "exhausted";
   });
 }
