@@ -6,6 +6,7 @@ import {
 } from "../lib/tvPlatformPolicy";
 
 function testNormalCatalogExcludesMature() {
+  process.env.TV_MATURE_ISOLATION_ENABLED = "true";
   const filters: Array<{ op: string; column: string; value: unknown }> = [];
   const query = {
     eq(column: string, value: unknown) {
