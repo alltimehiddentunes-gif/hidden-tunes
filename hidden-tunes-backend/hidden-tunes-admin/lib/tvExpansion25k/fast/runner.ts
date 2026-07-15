@@ -33,6 +33,8 @@ import {
   getDryRunWriteMetrics,
   resetDryRunWriteCounters,
 } from "@/lib/tvExpansion25k/fast/dryRunGuard";
+import { filterCandidatesPreVerification, preVerificationRejectReason } from "@/lib/tvExpansion25k/fast/preVerificationFilter";
+import { recordSourceYield } from "@/lib/tvExpansion25k/fast/sourceYieldMemory";
 import { logFastStage } from "@/lib/tvExpansion25k/fast/stageLog";
 
 export type TvFastExpansionResult = {
@@ -113,8 +115,12 @@ export async function runTvFastExpansionBatch(
   const prefilter = await dedupeCache.prefilter(discovery.candidates);
   timer.close("dedupe");
 
+  timer.mark("preVerification");
+  const preVerification = filterCandidatesPreVerification(prefilter.accepted);
+  timer.close("preVerification");
+
   timer.mark("verification");
-  const importResult = await bulkImportVerifiedCandidates(prefilter.accepted, dedupeCache, {
+  const importResult = await bulkImportVerifiedCandidates(preVerification.accepted, dedupeCache, {
     dryRun: limits.dryRun,
     verifyConcurrency: runtime.activeVerifyConcurrency,
     perHostConcurrency: runtime.perHostConcurrency,
@@ -126,6 +132,45 @@ export async function runTvFastExpansionBatch(
     },
   });
   timer.close("verification");
+
+  function sourceIdFromCandidate(candidate: { source_key?: string | null }) {
+    const key = String(candidate.source_key || "");
+    const colon = key.indexOf(":");
+    return colon > 0 ? key.slice(0, colon) : "unknown";
+  }
+
+  const prefilterRejectedBySource: Record<string, number> = {};
+  for (const candidate of prefilter.accepted) {
+    const sourceId = sourceIdFromCandidate(candidate);
+    if (preVerificationRejectReason(candidate)) {
+      prefilterRejectedBySource[sourceId] = (prefilterRejectedBySource[sourceId] || 0) + 1;
+    }
+  }
+
+  for (const [sourceId, detail] of Object.entries(discovery.sources)) {
+    if (!detail.discovered) continue;
+    const sourceDiag = importResult.perSourceDiagnostics[sourceId];
+    const verificationAttempted = sourceDiag?.total || 0;
+    const verificationPassed = sourceDiag?.passed || 0;
+    const verificationFailed = sourceDiag?.failed || 0;
+    const passRate =
+      verificationAttempted > 0 ? verificationPassed / verificationAttempted : 0;
+    recordSourceYield({
+      sourceId,
+      raw: detail.discovered,
+      unique: Math.max(0, detail.discovered - (detail.fingerprintSkipped || 0) - (detail.preRejected || 0)),
+      prefilterRejected: prefilterRejectedBySource[sourceId] || 0,
+      verificationAttempted,
+      verificationPassed,
+      verificationFailed,
+      passRate,
+      terminalFailureRate:
+        verificationAttempted > 0 && sourceDiag
+          ? sourceDiag.terminal / verificationAttempted
+          : 0,
+      at: new Date().toISOString(),
+    });
+  }
 
   const countsAfter = limits.dryRun ? countsBefore : await getTvPlatformEligibleCounts();
   const preProbeRejected = Object.values(discovery.sources).reduce(
@@ -145,7 +190,7 @@ export async function runTvFastExpansionBatch(
 
   const timing = timer.report({
     candidatesProcessed: discovery.candidates.length,
-    uniqueCandidates: prefilter.accepted.length,
+    uniqueCandidates: preVerification.accepted.length,
     verificationChecks: importResult.verificationChecks,
     databaseRoundTrips: importResult.databaseRoundTrips + 1,
   });
@@ -164,8 +209,8 @@ export async function runTvFastExpansionBatch(
     importImported: importResult.imported,
     importRejected: importResult.rejected,
     healthChecked: importResult.verificationChecks,
-    healthPlayable: importResult.imported,
-    healthFailed: importResult.rejected,
+    healthPlayable: limits.dryRun ? importResult.wouldInsert : importResult.imported,
+    healthFailed: importResult.verificationDiagnostics.failed,
     platformEligibleBefore: countsBefore.normalPlatformEligible,
     platformEligibleAfter: countsAfter.normalPlatformEligible,
     sources: discovery.sources,
@@ -201,7 +246,10 @@ export async function runTvFastExpansionBatch(
       batch: batchNumber,
       durationMs: timing.totalMs,
       discovered: discovery.candidates.length,
-      unique: prefilter.accepted.length,
+      unique: preVerification.accepted.length,
+      preVerificationRejected: preVerification.rejected,
+      wouldInsert: importResult.wouldInsert,
+      verificationDiagnostics: importResult.verificationDiagnostics,
       imported: importResult.imported,
       rejected: importResult.rejected,
       candidatesPerMin: throughputPerMinute(discovery.candidates.length, timing.totalMs),
