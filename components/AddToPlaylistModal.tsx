@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -21,6 +21,7 @@ import {
   getUserPlaylists,
   type UserPlaylist,
 } from "../services/playlists";
+import { useLocalization } from "@/localization";
 
 type Props = {
   visible: boolean;
@@ -35,6 +36,21 @@ export default function AddToPlaylistModal({
   onClose,
   onAdded,
 }: Props) {
+  const { t } = useLocalization();
+  const musicUi = useMemo(
+    () => ({
+      addToPlaylist: t("music.actions.addToPlaylist"),
+      newPlaylistPlaceholder: t("music.actions.newPlaylistPlaceholder"),
+      noPlaylistsTitle: t("music.actions.noPlaylistsTitle"),
+      noPlaylistsDescription: t("music.actions.noPlaylistsDescription"),
+      formatTracks: (count: number) =>
+        count === 1
+          ? t("music.counts.oneTrack", { count })
+          : t("music.counts.tracks", { count }),
+    }),
+    [t]
+  );
+
   const [loading, setLoading] = useState(false);
   const [playlists, setPlaylists] = useState<UserPlaylist[]>([]);
   const [newTitle, setNewTitle] = useState("");
@@ -96,7 +112,7 @@ export default function AddToPlaylistModal({
         <Pressable style={styles.sheet}>
           <View style={styles.header}>
             <View>
-              <Text style={styles.title}>Add to Playlist</Text>
+              <Text style={styles.title}>{musicUi.addToPlaylist}</Text>
 
               <Text style={styles.subtitle} numberOfLines={1}>
                 {track?.title || "Unknown Song"}
@@ -112,7 +128,7 @@ export default function AddToPlaylistModal({
             <TextInput
               value={newTitle}
               onChangeText={setNewTitle}
-              placeholder="New playlist name"
+              placeholder={musicUi.newPlaylistPlaceholder}
               placeholderTextColor={COLORS.textMuted}
               style={styles.input}
             />
@@ -147,11 +163,9 @@ export default function AddToPlaylistModal({
                     color={COLORS.textMuted}
                   />
 
-                  <Text style={styles.emptyTitle}>No playlists yet</Text>
+                  <Text style={styles.emptyTitle}>{musicUi.noPlaylistsTitle}</Text>
 
-                  <Text style={styles.emptyText}>
-                    Create your first playlist above.
-                  </Text>
+                  <Text style={styles.emptyText}>{musicUi.noPlaylistsDescription}</Text>
                 </View>
               }
               renderItem={({ item }) => (
@@ -174,8 +188,7 @@ export default function AddToPlaylistModal({
                     </Text>
 
                     <Text style={styles.playlistMeta}>
-                      {item.tracks.length} track
-                      {item.tracks.length === 1 ? "" : "s"}
+                      {musicUi.formatTracks(item.tracks.length)}
                     </Text>
                   </View>
 

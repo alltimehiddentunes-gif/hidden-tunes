@@ -73,6 +73,7 @@ import {
   loadAlbumDetailSnapshot,
   saveAlbumDetailSnapshot,
 } from "../../utils/detailSnapshots";
+import { useLocalization } from "@/localization";
 
 function getArtwork(item: any) {
   return getArtworkUri(item);
@@ -240,7 +241,39 @@ export default function AlbumScreen() {
   const { id } = useLocalSearchParams();
   const { playSong, preloadIdlePlayableTrack } = usePlayerActions();
   const { currentSong, isPlaying } = usePlayerNowPlaying();
+  const { t } = useLocalization();
   const screenStartedAt = useRef(startPerformanceTimer()).current;
+
+  const musicUi = useMemo(
+    () => ({
+      albumExperience: t("music.album.albumExperience"),
+      playAlbum: t("music.album.playAlbum"),
+      tracklist: t("music.album.tracklist"),
+      tracklistSubtitle: t("music.album.tracklistSubtitle"),
+      openingExperience: t("music.album.openingExperience"),
+      checkingCached: t("music.album.checkingCached"),
+      unavailableTitle: t("music.album.unavailableTitle"),
+      unavailableDescription: t("music.album.unavailableDescription"),
+      goBack: t("music.common.goBack"),
+      emptyReleaseTitle: t("music.album.emptyReleaseTitle"),
+      emptyReleaseDescription: t("music.album.emptyReleaseDescription"),
+      formatTracks: (count: number) =>
+        count === 1
+          ? t("music.counts.oneTrack", { count })
+          : t("music.counts.tracks", { count }),
+      albumMeta: (trackCount: number, durationLabel: string, genre?: string) => {
+        const tracksLabel =
+          trackCount === 1
+            ? t("music.counts.oneTrack", { count: trackCount })
+            : t("music.counts.tracks", { count: trackCount });
+        const parts = [tracksLabel];
+        if (durationLabel) parts.push(durationLabel);
+        if (genre) parts.push(genre);
+        return parts.join(" • ");
+      },
+    }),
+    [t]
+  );
 
   const [album, setAlbum] = useState<HiddenTunesAlbum | null>(null);
   const [loading, setLoading] = useState(true);
@@ -578,7 +611,7 @@ export default function AlbumScreen() {
       <LinearGradient colors={GRADIENTS.main as any} style={styles.center}>
         <PremiumBackground variant="entity" />
         <ActivityIndicator color={COLORS.primary} />
-        <Text style={styles.loadingText}>Opening album experience...</Text>
+        <Text style={styles.loadingText}>{musicUi.openingExperience}</Text>
       </LinearGradient>
     );
   }
@@ -588,12 +621,12 @@ export default function AlbumScreen() {
       <LinearGradient colors={GRADIENTS.main as any} style={styles.center}>
         <PremiumBackground variant="entity" />
         <Ionicons name="disc-outline" size={64} color={COLORS.textMuted} />
-        <Text style={styles.emptyTitle}>Album unavailable</Text>
-        <Text style={styles.emptyText}>Refresh the catalog or return to Search.</Text>
+        <Text style={styles.emptyTitle}>{musicUi.unavailableTitle}</Text>
+        <Text style={styles.emptyText}>{musicUi.unavailableDescription}</Text>
 
         <TouchableOpacity style={styles.emptyButton} onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={18} color="#000" />
-          <Text style={styles.emptyButtonText}>Go Back</Text>
+          <Text style={styles.emptyButtonText}>{musicUi.goBack}</Text>
         </TouchableOpacity>
       </LinearGradient>
     );
@@ -604,7 +637,7 @@ export default function AlbumScreen() {
       <LinearGradient colors={GRADIENTS.main as any} style={styles.center}>
         <PremiumBackground variant="entity" />
         <ActivityIndicator color={COLORS.primary} />
-        <Text style={styles.loadingText}>Checking cached album...</Text>
+        <Text style={styles.loadingText}>{musicUi.checkingCached}</Text>
       </LinearGradient>
     );
   }
@@ -658,7 +691,7 @@ export default function AlbumScreen() {
 
               <View style={styles.albumBadge}>
                 <Ionicons name="cloud-done" size={14} color={COLORS.primary} />
-                <Text style={styles.albumBadgeText}>ALBUM EXPERIENCE</Text>
+                <Text style={styles.albumBadgeText}>{musicUi.albumExperience}</Text>
               </View>
 
               <Text style={styles.title}>{album.title}</Text>
@@ -678,9 +711,11 @@ export default function AlbumScreen() {
               </TouchableOpacity>
 
               <Text style={styles.meta}>
-                {tracks.length} track{tracks.length === 1 ? "" : "s"}
-                {totalDuration > 0 ? ` • ${formatDuration(totalDuration)}` : ""}
-                {album.genre ? ` • ${album.genre}` : ""}
+                {musicUi.albumMeta(
+                  tracks.length,
+                  totalDuration > 0 ? formatDuration(totalDuration) : "",
+                  album.genre
+                )}
               </Text>
 
               <View style={styles.actionRow}>
@@ -690,7 +725,7 @@ export default function AlbumScreen() {
                   disabled={!tracks.length}
                 >
                   <Ionicons name="play" size={20} color="#000" />
-                  <Text style={styles.playText}>Play Album</Text>
+                  <Text style={styles.playText}>{musicUi.playAlbum}</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -717,18 +752,16 @@ export default function AlbumScreen() {
             </View>
 
             <View style={styles.trackHeader}>
-              <Text style={styles.trackHeaderTitle}>Tracklist</Text>
-              <Text style={styles.trackHeaderSub}>Start the release from any song</Text>
+              <Text style={styles.trackHeaderTitle}>{musicUi.tracklist}</Text>
+              <Text style={styles.trackHeaderSub}>{musicUi.tracklistSubtitle}</Text>
             </View>
           </>
         }
         ListEmptyComponent={
           <View style={styles.emptyTracks}>
             <Ionicons name="musical-notes-outline" size={52} color={COLORS.textMuted} />
-            <Text style={styles.emptyTitle}>This release is waiting for tracks</Text>
-            <Text style={styles.emptyText}>
-              Check back after the catalog refreshes.
-            </Text>
+            <Text style={styles.emptyTitle}>{musicUi.emptyReleaseTitle}</Text>
+            <Text style={styles.emptyText}>{musicUi.emptyReleaseDescription}</Text>
           </View>
         }
         renderItem={({ item, index }) => {

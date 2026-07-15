@@ -34,6 +34,8 @@ import {
   type HiddenTunesDerivedCatalog,
   type HiddenTunesSong,
 } from "../services/hiddenTunes";
+import { useLocalization } from "@/localization";
+import { RELATED_SONGS_LABEL } from "@/utils/entityResolution";
 
 function clean(value: string) {
   return String(value || "").trim().toLowerCase();
@@ -66,8 +68,84 @@ function formatDuration(seconds?: number) {
 export default function GenreScreen() {
   const params = useLocalSearchParams();
   const { playSong } = usePlayerActions();
+  const { t } = useLocalization();
 
   const title = String(params.title || params.query || "Genre");
+  const displayTitle =
+    String(params.title || params.query || "").trim() ||
+    t("music.genre.fallbackGenre");
+  const isMood = String(params.type || "genre") === "mood";
+
+  const musicUi = useMemo(
+    () => ({
+      station: t("music.genre.station"),
+      room: t("music.genre.room"),
+      genreRoom: t("music.genre.genreRoom"),
+      moodRoom: t("music.genre.moodRoom"),
+      radioStation: t("music.genre.radioStation"),
+      moodRoomTag: t("music.genre.moodRoomTag"),
+      startRadio: t("music.genre.startRadio"),
+      featured: t("music.genre.featured"),
+      featuredSubtitle: t("music.genre.featuredSubtitle"),
+      albums: t("music.genre.albums"),
+      albumsSubtitle: t("music.genre.albumsSubtitle"),
+      artistsInRoom: t("music.genre.artistsInRoom"),
+      artistsSubtitle: t("music.genre.artistsSubtitle"),
+      songs: t("music.common.songs"),
+      relatedSongs: t("music.common.relatedSongs"),
+      songsTaggedInCatalog: t("music.common.songsTaggedInCatalog"),
+      refresh: t("music.common.refresh"),
+      loadingNamed: (name: string) => t("music.common.loadingNamed", { name }),
+      emptyTitle: t("music.genre.emptyTitle"),
+      emptyDescription: t("music.genre.emptyDescription"),
+      formatSongs: (count: number) =>
+        count === 1
+          ? t("music.counts.oneSong", { count })
+          : t("music.counts.songs", { count }),
+      formatArtists: (count: number) =>
+        count === 1
+          ? t("music.counts.oneArtist", { count })
+          : t("music.counts.artists", { count }),
+      formatReleases: (count: number) =>
+        count === 1
+          ? t("music.counts.oneRelease", { count })
+          : t("music.counts.releases", { count }),
+      formatTracks: (count: number) =>
+        count === 1
+          ? t("music.counts.oneTrack", { count })
+          : t("music.counts.tracks", { count }),
+      heroMeta: (songCount: number, artistCount: number, releaseCount: number) =>
+        t("music.counts.genreHeroMeta", {
+          songs:
+            songCount === 1
+              ? t("music.counts.oneSong", { count: songCount })
+              : t("music.counts.songs", { count: songCount }),
+          artists:
+            artistCount === 1
+              ? t("music.counts.oneArtist", { count: artistCount })
+              : t("music.counts.artists", { count: artistCount }),
+          releases:
+            releaseCount === 1
+              ? t("music.counts.oneRelease", { count: releaseCount })
+              : t("music.counts.releases", { count: releaseCount }),
+        }),
+      sectionTitle: (recoveryLabel?: string) =>
+        recoveryLabel === RELATED_SONGS_LABEL
+          ? t("music.common.relatedSongs")
+          : recoveryLabel || t("music.common.songs"),
+      sectionSubtitle: (recoveryLabel: string | undefined, trackCount: number) => {
+        if (recoveryLabel === RELATED_SONGS_LABEL) {
+          return trackCount === 1
+            ? t("music.counts.relatedSongsFromCatalog", { count: trackCount })
+            : t("music.counts.relatedSongsFromCatalogPlural", { count: trackCount });
+        }
+        return trackCount === 1
+          ? t("music.counts.songsFound", { count: trackCount })
+          : t("music.counts.songsFoundPlural", { count: trackCount });
+      },
+    }),
+    [t]
+  );
   const [catalog, setCatalog] = useState<HiddenTunesDerivedCatalog | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -200,9 +278,9 @@ export default function GenreScreen() {
         </TouchableOpacity>
 
         <View style={styles.headerText}>
-          <Text style={styles.kicker}>{String(params.type || "genre") === "mood" ? "ROOM" : "STATION"}</Text>
-          <Text style={styles.title} numberOfLines={1}>{title}</Text>
-          <Text style={styles.subtitle} numberOfLines={1}>Songs tagged in the current catalog</Text>
+          <Text style={styles.kicker}>{isMood ? musicUi.room : musicUi.station}</Text>
+          <Text style={styles.title} numberOfLines={1}>{displayTitle}</Text>
+          <Text style={styles.subtitle} numberOfLines={1}>{musicUi.songsTaggedInCatalog}</Text>
         </View>
 
         <TouchableOpacity style={styles.refreshButton} onPress={onRefresh} activeOpacity={0.85}>
@@ -213,7 +291,7 @@ export default function GenreScreen() {
       {loading ? (
         <View style={styles.loader}>
           <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.loadingText}>Loading {title}...</Text>
+          <Text style={styles.loadingText}>{musicUi.loadingNamed(displayTitle)}</Text>
         </View>
       ) : (
         <FlatList
@@ -239,15 +317,15 @@ export default function GenreScreen() {
                 </View>
                 <View style={styles.roomBadge}>
                   <Ionicons name={String(params.type || "genre") === "mood" ? "sparkles" : "radio"} size={13} color={COLORS.primaryGlow} />
-                  <Text style={styles.roomBadgeText}>{String(params.type || "genre") === "mood" ? "MOOD ROOM" : "GENRE ROOM"}</Text>
+                  <Text style={styles.roomBadgeText}>{isMood ? musicUi.moodRoom : musicUi.genreRoom}</Text>
                 </View>
-                <Text style={styles.heroTitle} numberOfLines={2}>{title}</Text>
+                <Text style={styles.heroTitle} numberOfLines={2}>{displayTitle}</Text>
                 <Text style={styles.heroSubtitle} numberOfLines={2}>
-                  {tracks.length} song{tracks.length === 1 ? "" : "s"} • {artists.length} artist{artists.length === 1 ? "" : "s"} • {albums.length} release{albums.length === 1 ? "" : "s"}
+                  {musicUi.heroMeta(tracks.length, artists.length, albums.length)}
                 </Text>
                 <View style={styles.tagRow}>
-                  <Text style={styles.tagPill}>{String(params.type || "genre") === "mood" ? "Mood Room" : "Radio Station"}</Text>
-                  <Text style={styles.tagPill}>{tracks.length} track{tracks.length === 1 ? "" : "s"}</Text>
+                  <Text style={styles.tagPill}>{isMood ? musicUi.moodRoomTag : musicUi.radioStation}</Text>
+                  <Text style={styles.tagPill}>{musicUi.formatTracks(tracks.length)}</Text>
                 </View>
                 <TouchableOpacity
                   activeOpacity={0.86}
@@ -256,15 +334,15 @@ export default function GenreScreen() {
                   onPress={startRadioSession}
                 >
                   <Ionicons name="radio" size={18} color="#000" />
-                  <Text style={styles.playButtonText}>Start Radio</Text>
+                  <Text style={styles.playButtonText}>{musicUi.startRadio}</Text>
                 </TouchableOpacity>
               </LinearGradient>
 
               {featuredSongs.length > 0 && (
                 <View style={styles.albumSection}>
                   <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Featured</Text>
-                    <Text style={styles.sectionSub}>Artwork-rich starters for this room</Text>
+                    <Text style={styles.sectionTitle}>{musicUi.featured}</Text>
+                    <Text style={styles.sectionSub}>{musicUi.featuredSubtitle}</Text>
                   </View>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.albumRow}>
                     {featuredSongs.map((song, index) => (
@@ -281,8 +359,8 @@ export default function GenreScreen() {
               {albums.length > 0 && (
                 <View style={styles.albumSection}>
                   <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Albums</Text>
-                    <Text style={styles.sectionSub}>Releases connected to this tag</Text>
+                    <Text style={styles.sectionTitle}>{musicUi.albums}</Text>
+                    <Text style={styles.sectionSub}>{musicUi.albumsSubtitle}</Text>
                   </View>
 
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.albumRow}>
@@ -300,15 +378,15 @@ export default function GenreScreen() {
               {artists.length > 0 && (
                 <View style={styles.albumSection}>
                   <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Artists In The Room</Text>
-                    <Text style={styles.sectionSub}>Creators represented in this sound</Text>
+                    <Text style={styles.sectionTitle}>{musicUi.artistsInRoom}</Text>
+                    <Text style={styles.sectionSub}>{musicUi.artistsSubtitle}</Text>
                   </View>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.albumRow}>
                     {artists.map((artist) => (
                       <TouchableOpacity key={artist.name} activeOpacity={0.86} style={styles.artistCard} onPress={() => openArtist(artist.name)}>
                         <HTImage source={artist.artworkSource} candidates={tracks} style={styles.artistImage} contentFit="cover" />
                         <Text style={styles.albumTitle} numberOfLines={1}>{artist.name}</Text>
-                        <Text style={styles.albumArtist} numberOfLines={1}>{artist.songCount} song{artist.songCount === 1 ? "" : "s"}</Text>
+                        <Text style={styles.albumArtist} numberOfLines={1}>{musicUi.formatSongs(artist.songCount)}</Text>
                       </TouchableOpacity>
                     ))}
                   </ScrollView>
@@ -316,11 +394,9 @@ export default function GenreScreen() {
               )}
 
               <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>{recoveryLabel || "Songs"}</Text>
+                <Text style={styles.sectionTitle}>{musicUi.sectionTitle(recoveryLabel)}</Text>
                 <Text style={styles.sectionSub}>
-                  {recoveryLabel
-                    ? `${tracks.length} related song${tracks.length === 1 ? "" : "s"} from the catalog`
-                    : `${tracks.length} song${tracks.length === 1 ? "" : "s"} found`}
+                  {musicUi.sectionSubtitle(recoveryLabel, tracks.length)}
                 </Text>
               </View>
             </>
@@ -329,9 +405,9 @@ export default function GenreScreen() {
             <View style={styles.empty}>
               <PremiumEmptyState
                 icon="sparkles-outline"
-                title="No tracks in this room yet"
-                message="When songs match this genre or mood, this room will fill with artwork-rich recommendations."
-                actionLabel="Refresh"
+                title={musicUi.emptyTitle}
+                message={musicUi.emptyDescription}
+                actionLabel={musicUi.refresh}
                 onAction={onRefresh}
               />
             </View>

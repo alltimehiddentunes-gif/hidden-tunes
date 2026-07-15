@@ -57,6 +57,7 @@ import {
   loadArtistDetailSnapshot,
   saveArtistDetailSnapshot,
 } from "../../utils/detailSnapshots";
+import { useLocalization } from "@/localization";
 
 function getArtwork(item: any) {
   return getArtworkUri(item);
@@ -130,7 +131,52 @@ export default function ArtistScreen() {
   const { id } = useLocalSearchParams();
   const { playSong } = usePlayerActions();
   const { currentSong, isPlaying } = usePlayerNowPlaying();
+  const { t } = useLocalization();
   const screenStartedAt = useRef(startPerformanceTimer()).current;
+
+  const musicUi = useMemo(
+    () => ({
+      creatorWorld: t("music.artist.creatorWorld"),
+      playArtist: t("music.artist.playArtist"),
+      openingWorld: t("music.artist.openingWorld"),
+      checkingCached: t("music.artist.checkingCached"),
+      unavailableTitle: t("music.artist.unavailableTitle"),
+      unavailableDescription: t("music.artist.unavailableDescription"),
+      goBack: t("music.common.goBack"),
+      releases: t("music.artist.releases"),
+      releasesSubtitle: t("music.artist.releasesSubtitle"),
+      essentialTracks: t("music.artist.essentialTracks"),
+      essentialTracksSubtitle: t("music.artist.essentialTracksSubtitle"),
+      noSongsTitle: t("music.artist.noSongsTitle"),
+      noSongsDescription: t("music.artist.noSongsDescription"),
+      formatSongs: (count: number) =>
+        count === 1
+          ? t("music.counts.oneSong", { count })
+          : t("music.counts.songs", { count }),
+      formatAlbums: (count: number) =>
+        count === 1
+          ? t("music.counts.oneAlbum", { count })
+          : t("music.counts.albums", { count }),
+      formatTracks: (count: number) =>
+        count === 1
+          ? t("music.counts.oneTrack", { count })
+          : t("music.counts.tracks", { count }),
+      artistMeta: (songCount: number, albumCount: number, genre?: string) => {
+        const base = t("music.counts.songMeta", {
+          songs:
+            songCount === 1
+              ? t("music.counts.oneSong", { count: songCount })
+              : t("music.counts.songs", { count: songCount }),
+          albums:
+            albumCount === 1
+              ? t("music.counts.oneAlbum", { count: albumCount })
+              : t("music.counts.albums", { count: albumCount }),
+        });
+        return genre ? `${base} • ${genre}` : base;
+      },
+    }),
+    [t]
+  );
 
   const [artist, setArtist] = useState<HiddenTunesArtist | null>(null);
   const [loading, setLoading] = useState(true);
@@ -423,7 +469,7 @@ export default function ArtistScreen() {
       <LinearGradient colors={GRADIENTS.main as any} style={styles.center}>
         <PremiumBackground variant="entity" />
         <ActivityIndicator color={COLORS.primary} />
-        <Text style={styles.loadingText}>Opening artist world...</Text>
+        <Text style={styles.loadingText}>{musicUi.openingWorld}</Text>
       </LinearGradient>
     );
   }
@@ -433,12 +479,12 @@ export default function ArtistScreen() {
       <LinearGradient colors={GRADIENTS.main as any} style={styles.center}>
         <PremiumBackground variant="entity" />
         <Ionicons name="person-circle-outline" size={70} color={COLORS.textMuted} />
-        <Text style={styles.emptyTitle}>Artist world unavailable</Text>
-        <Text style={styles.emptyText}>Refresh the catalog or return to Search.</Text>
+        <Text style={styles.emptyTitle}>{musicUi.unavailableTitle}</Text>
+        <Text style={styles.emptyText}>{musicUi.unavailableDescription}</Text>
 
         <TouchableOpacity style={styles.emptyButton} onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={18} color="#000" />
-          <Text style={styles.emptyButtonText}>Go Back</Text>
+          <Text style={styles.emptyButtonText}>{musicUi.goBack}</Text>
         </TouchableOpacity>
       </LinearGradient>
     );
@@ -449,7 +495,7 @@ export default function ArtistScreen() {
       <LinearGradient colors={GRADIENTS.main as any} style={styles.center}>
         <PremiumBackground variant="entity" />
         <ActivityIndicator color={COLORS.primary} />
-        <Text style={styles.loadingText}>Checking cached artist...</Text>
+        <Text style={styles.loadingText}>{musicUi.checkingCached}</Text>
       </LinearGradient>
     );
   }
@@ -504,15 +550,13 @@ export default function ArtistScreen() {
 
           <View style={styles.artistBadge}>
             <Ionicons name="cloud-done" size={14} color={COLORS.primary} />
-            <Text style={styles.artistBadgeText}>CREATOR WORLD</Text>
+            <Text style={styles.artistBadgeText}>{musicUi.creatorWorld}</Text>
           </View>
 
           <Text style={styles.name}>{artist.name}</Text>
 
           <Text style={styles.meta}>
-            {tracks.length} song{tracks.length === 1 ? "" : "s"} •{" "}
-            {albums.length} album{albums.length === 1 ? "" : "s"}
-            {artist.genre ? ` • ${artist.genre}` : ""}
+            {musicUi.artistMeta(tracks.length, albums.length, artist.genre)}
           </Text>
 
           <View style={styles.actionRow}>
@@ -522,7 +566,7 @@ export default function ArtistScreen() {
               disabled={!tracks.length}
             >
               <Ionicons name="play" size={20} color="#000" />
-              <Text style={styles.playText}>Play Artist</Text>
+              <Text style={styles.playText}>{musicUi.playArtist}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -550,8 +594,8 @@ export default function ArtistScreen() {
         {albums.length > 0 && (
           <>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Releases</Text>
-              <Text style={styles.sectionSub}>Albums and projects from this creator</Text>
+              <Text style={styles.sectionTitle}>{musicUi.releases}</Text>
+              <Text style={styles.sectionSub}>{musicUi.releasesSubtitle}</Text>
             </View>
 
             <FlatList
@@ -582,7 +626,7 @@ export default function ArtistScreen() {
                   </Text>
 
                   <Text style={styles.albumSub} numberOfLines={1}>
-                    {item.tracks.length} track{item.tracks.length === 1 ? "" : "s"}
+                    {musicUi.formatTracks(item.tracks.length)}
                   </Text>
                 </TouchableOpacity>
               )}
@@ -591,18 +635,16 @@ export default function ArtistScreen() {
         )}
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Essential Tracks</Text>
-          <Text style={styles.sectionSub}>Start a queue from this artist world</Text>
+          <Text style={styles.sectionTitle}>{musicUi.essentialTracks}</Text>
+          <Text style={styles.sectionSub}>{musicUi.essentialTracksSubtitle}</Text>
         </View>
           </>
         }
         ListEmptyComponent={
           <View style={styles.emptyTracks}>
             <Ionicons name="musical-notes-outline" size={52} color={COLORS.textMuted} />
-            <Text style={styles.emptyTitle}>No songs here yet</Text>
-            <Text style={styles.emptyText}>
-              This artist world is still waiting for tracks.
-            </Text>
+            <Text style={styles.emptyTitle}>{musicUi.noSongsTitle}</Text>
+            <Text style={styles.emptyText}>{musicUi.noSongsDescription}</Text>
           </View>
         }
       />

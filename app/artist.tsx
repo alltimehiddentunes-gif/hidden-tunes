@@ -23,7 +23,7 @@ import {
   logEntityArtworkResolved,
   logEntityTapReceived,
 } from "../utils/entityDiagnostics";
-import { resolveArtistEntity } from "../utils/entityResolution";
+import { resolveArtistEntity, RELATED_SONGS_LABEL } from "../utils/entityResolution";
 import {
   fetchHiddenTunesCatalog,
   getCachedHiddenTunesCatalog,
@@ -33,6 +33,7 @@ import {
   type HiddenTunesDerivedCatalog,
   type HiddenTunesSong,
 } from "../services/hiddenTunes";
+import { useLocalization } from "@/localization";
 
 function clean(value: string) {
   return String(value || "").trim().toLowerCase();
@@ -57,7 +58,58 @@ function formatDuration(seconds?: number) {
 export default function ArtistScreen() {
   const params = useLocalSearchParams();
   const { playSong } = usePlayerActions();
+  const { t } = useLocalization();
   const artistName = String(params.artist || "Unknown Artist");
+
+  const musicUi = useMemo(
+    () => ({
+      kicker: t("music.artist.kicker"),
+      playArtist: t("music.artist.playArtist"),
+      albums: t("music.artist.albums"),
+      albumsDerivedSubtitle: t("music.artist.albumsDerivedSubtitle"),
+      songs: t("music.common.songs"),
+      relatedSongs: t("music.common.relatedSongs"),
+      hiddenTunesCatalog: t("music.common.hiddenTunesCatalog"),
+      playableTracks: t("music.common.playableTracks"),
+      refresh: t("music.common.refresh"),
+      loadingNamed: (name: string) => t("music.common.loadingNamed", { name }),
+      noSongsForArtistTitle: t("music.artist.noSongsForArtistTitle"),
+      noSongsForArtistDescription: t("music.artist.noSongsForArtistDescription"),
+      formatSongs: (count: number) =>
+        count === 1
+          ? t("music.counts.oneSong", { count })
+          : t("music.counts.songs", { count }),
+      artistSubtitle: (songCount: number, albumCount: number) =>
+        t("music.counts.songMeta", {
+          songs:
+            songCount === 1
+              ? t("music.counts.oneSong", { count: songCount })
+              : t("music.counts.songs", { count: songCount }),
+          albums:
+            albumCount === 1
+              ? t("music.counts.oneAlbum", { count: albumCount })
+              : t("music.counts.albums", { count: albumCount }),
+        }) + ` • ${t("music.common.hiddenTunesCatalog")}`,
+      sectionTitle: (recoveryLabel?: string) =>
+        recoveryLabel === RELATED_SONGS_LABEL
+          ? t("music.common.relatedSongs")
+          : recoveryLabel || t("music.common.songs"),
+      sectionSubtitle: (recoveryLabel: string | undefined, trackCount: number) => {
+        const countLabel =
+          trackCount === 1
+            ? t("music.counts.oneSong", { count: trackCount })
+            : t("music.counts.songs", { count: trackCount });
+        if (recoveryLabel === RELATED_SONGS_LABEL) {
+          return `${t("music.common.relatedSongs")} • ${countLabel}`;
+        }
+        if (recoveryLabel) {
+          return `${recoveryLabel} • ${countLabel}`;
+        }
+        return t("music.common.playableTracks");
+      },
+    }),
+    [t]
+  );
 
   const [catalog, setCatalog] = useState<HiddenTunesDerivedCatalog | null>(null);
   const [loading, setLoading] = useState(true);
@@ -171,10 +223,10 @@ export default function ArtistScreen() {
                 />
               </View>
 
-              <Text style={styles.kicker}>ARTIST</Text>
+              <Text style={styles.kicker}>{musicUi.kicker}</Text>
               <Text style={styles.artistName} numberOfLines={2}>{artist?.name || artistName}</Text>
               <Text style={styles.subtitle} numberOfLines={2}>
-                {tracks.length} song{tracks.length === 1 ? "" : "s"} • {albums.length} album{albums.length === 1 ? "" : "s"} • Hidden Tunes catalog
+                {musicUi.artistSubtitle(tracks.length, albums.length)}
               </Text>
 
               <View style={styles.actionRow}>
@@ -185,7 +237,7 @@ export default function ArtistScreen() {
                   onPress={() => tracks[0] && handlePlaySong(tracks[0], 0)}
                 >
                   <Ionicons name="play" size={18} color="#000" />
-                  <Text style={styles.playButtonText}>Play Artist</Text>
+                  <Text style={styles.playButtonText}>{musicUi.playArtist}</Text>
                 </TouchableOpacity>
               </View>
             </LinearGradient>
@@ -193,15 +245,15 @@ export default function ArtistScreen() {
             {loading ? (
               <View style={styles.loader}>
                 <ActivityIndicator size="large" color={COLORS.primary} />
-                <Text style={styles.loadingText}>Loading {artistName}...</Text>
+                <Text style={styles.loadingText}>{musicUi.loadingNamed(artistName)}</Text>
               </View>
             ) : (
               <>
                 {albums.length > 0 && (
                   <View style={styles.albumSection}>
                     <View style={styles.sectionHeader}>
-                      <Text style={styles.sectionTitle}>Albums</Text>
-                      <Text style={styles.sectionSub}>Derived from this artist's songs</Text>
+                      <Text style={styles.sectionTitle}>{musicUi.albums}</Text>
+                      <Text style={styles.sectionSub}>{musicUi.albumsDerivedSubtitle}</Text>
                     </View>
 
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.albumRow}>
@@ -217,11 +269,9 @@ export default function ArtistScreen() {
                 )}
 
                 <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>{recoveryLabel || "Songs"}</Text>
+                  <Text style={styles.sectionTitle}>{musicUi.sectionTitle(recoveryLabel)}</Text>
                   <Text style={styles.sectionSub}>
-                    {recoveryLabel
-                      ? `${recoveryLabel} • ${tracks.length} song${tracks.length === 1 ? "" : "s"}`
-                      : "Playable Hidden Tunes tracks"}
+                    {musicUi.sectionSubtitle(recoveryLabel, tracks.length)}
                   </Text>
                 </View>
               </>
@@ -234,9 +284,9 @@ export default function ArtistScreen() {
               <Ionicons name="person-circle-outline" size={60} color={COLORS.textMuted} />
               <PremiumEmptyState
                 icon="person-circle-outline"
-                title="No songs for this artist yet"
-                message="When the catalog includes tracks for this artist, they will appear here with artwork and playback-ready rows."
-                actionLabel="Refresh"
+                title={musicUi.noSongsForArtistTitle}
+                message={musicUi.noSongsForArtistDescription}
+                actionLabel={musicUi.refresh}
                 onAction={loadArtistCatalog}
               />
             </View>

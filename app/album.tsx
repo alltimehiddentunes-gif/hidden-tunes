@@ -40,6 +40,7 @@ import {
   type HiddenTunesDerivedCatalog,
   type HiddenTunesSong,
 } from "../services/hiddenTunes";
+import { useLocalization } from "@/localization";
 
 function clean(value: string) {
   return String(value || "").trim().toLowerCase();
@@ -104,6 +105,56 @@ function sortAlbumSongs(songs: HiddenTunesSong[]) {
 export default function AlbumScreen() {
   const params = useLocalSearchParams();
   const { playSong } = usePlayerActions();
+  const { t } = useLocalization();
+
+  const musicUi = useMemo(
+    () => ({
+      kicker: t("music.album.kicker"),
+      playAlbum: t("music.album.playAlbum"),
+      tracks: t("music.album.tracks"),
+      loading: t("music.album.loading"),
+      catalogReady: t("music.common.catalogReady"),
+      albumSession: t("music.common.albumSession"),
+      relatedSongs: t("music.common.relatedSongs"),
+      syncingTitle: t("music.album.syncingTitle"),
+      syncingDescription: t("music.album.syncingDescription"),
+      formatTracks: (count: number) =>
+        count === 1
+          ? t("music.counts.oneTrack", { count })
+          : t("music.counts.tracks", { count }),
+      formatSongs: (count: number) =>
+        count === 1
+          ? t("music.counts.oneSong", { count })
+          : t("music.counts.songs", { count }),
+      sessionHeaderTitle: (recoveryLabel?: string) =>
+        recoveryLabel === RELATED_SONGS_LABEL
+          ? t("music.common.relatedSongs")
+          : recoveryLabel || t("music.common.albumSession"),
+      sessionHeaderSubtitle: (recoveryLabel: string | undefined, count: number) => {
+        if (recoveryLabel === RELATED_SONGS_LABEL) {
+          return count === 1
+            ? t("music.counts.relatedTracksFromCatalog", { count })
+            : t("music.counts.relatedTracksFromCatalogPlural", { count });
+        }
+        return count === 1
+          ? t("music.counts.tracksQueuedInAlbumOrder", { count })
+          : t("music.counts.tracksQueuedInAlbumOrderPlural", { count });
+      },
+      sectionSubtitle: (recoveryLabel: string | undefined, trackCount: number) => {
+        if (recoveryLabel === RELATED_SONGS_LABEL) {
+          const countLabel =
+            trackCount === 1
+              ? t("music.counts.oneSong", { count: trackCount })
+              : t("music.counts.songs", { count: trackCount });
+          return `${t("music.common.relatedSongs")} • ${countLabel}`;
+        }
+        return trackCount === 1
+          ? t("music.counts.songsFromCurrentCatalog", { count: trackCount })
+          : t("music.counts.songsFromCurrentCatalogPlural", { count: trackCount });
+      },
+    }),
+    [t]
+  );
 
   const albumTitle = String(params.album || params.title || "Singles");
   const artistName = String(params.artist || "Unknown Artist");
@@ -160,10 +211,8 @@ export default function AlbumScreen() {
       {
         type: "header" as const,
         id: "album-session-header",
-        title: recoveryLabel || "Album Session",
-        subtitle: recoveryLabel
-          ? `${tracks.length} related track${tracks.length === 1 ? "" : "s"} from the catalog`
-          : `${tracks.length} track${tracks.length === 1 ? "" : "s"} queued in album order`,
+        title: musicUi.sessionHeaderTitle(recoveryLabel),
+        subtitle: musicUi.sessionHeaderSubtitle(recoveryLabel, tracks.length),
       },
       ...tracks.map((song, index) => ({
         type: "track" as const,
@@ -172,7 +221,7 @@ export default function AlbumScreen() {
         index,
       })),
     ];
-  }, [tracks, recoveryLabel]);
+  }, [musicUi, tracks, recoveryLabel]);
 
   const totalDuration = useMemo(
     () => tracks.reduce((total, song) => total + getSongDurationSeconds(song), 0),
@@ -288,7 +337,7 @@ export default function AlbumScreen() {
           </View>
         )}
 
-        <Text style={[styles.kicker, !shouldShowLargeArtwork && styles.compactKicker]}>ALBUM</Text>
+        <Text style={[styles.kicker, !shouldShowLargeArtwork && styles.compactKicker]}>{musicUi.kicker}</Text>
         <Text
           style={[styles.albumTitle, !shouldShowLargeArtwork && styles.compactAlbumTitle]}
           numberOfLines={shouldShowLargeArtwork ? 2 : 1}
@@ -297,8 +346,8 @@ export default function AlbumScreen() {
         </Text>
         <Text style={styles.artist} numberOfLines={1}>{album?.artist || artistName}</Text>
         <View style={styles.heroMetaRow}>
-          <Text style={styles.heroMetaPill}>{tracks.length} track{tracks.length === 1 ? "" : "s"}</Text>
-          <Text style={styles.heroMetaPill}>{totalDuration > 0 ? formatDuration(totalDuration) : "Catalog ready"}</Text>
+          <Text style={styles.heroMetaPill}>{musicUi.formatTracks(tracks.length)}</Text>
+          <Text style={styles.heroMetaPill}>{totalDuration > 0 ? formatDuration(totalDuration) : musicUi.catalogReady}</Text>
         </View>
 
         <View style={styles.actionRow}>
@@ -309,7 +358,7 @@ export default function AlbumScreen() {
               onPress={() => tracks[0] && handlePlaySong(tracks[0], 0)}
             >
               <Ionicons name="play" size={18} color="#000" />
-              <Text style={styles.playButtonText}>Play Album</Text>
+              <Text style={styles.playButtonText}>{musicUi.playAlbum}</Text>
             </TouchableOpacity>
           ) : null}
 
@@ -321,18 +370,16 @@ export default function AlbumScreen() {
       </View>
 
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Tracks</Text>
+        <Text style={styles.sectionTitle}>{musicUi.tracks}</Text>
         <Text style={styles.sectionSub} numberOfLines={1}>
-          {recoveryLabel
-            ? `${recoveryLabel} • ${tracks.length} song${tracks.length === 1 ? "" : "s"}`
-            : `${tracks.length} song${tracks.length === 1 ? "" : "s"} from the current catalog`}
+          {musicUi.sectionSubtitle(recoveryLabel, tracks.length)}
         </Text>
       </View>
 
       {loading ? (
         <View style={styles.loader}>
           <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.loadingText}>Loading...</Text>
+          <Text style={styles.loadingText}>{musicUi.loading}</Text>
         </View>
       ) : (
         <FlatList
@@ -351,8 +398,8 @@ export default function AlbumScreen() {
                   <Ionicons name="albums-outline" size={20} color={COLORS.primaryGlow} />
                 </View>
                 <View style={styles.emptyCopy}>
-                  <Text style={styles.emptyTitle}>Tracks are still syncing</Text>
-                  <Text style={styles.emptyText}>Refresh to check the catalog again.</Text>
+                  <Text style={styles.emptyTitle}>{musicUi.syncingTitle}</Text>
+                  <Text style={styles.emptyText}>{musicUi.syncingDescription}</Text>
                 </View>
                 <TouchableOpacity activeOpacity={0.86} style={styles.emptyRefresh} onPress={loadAlbumCatalog}>
                   <Ionicons name="reload" size={16} color={COLORS.text} />
