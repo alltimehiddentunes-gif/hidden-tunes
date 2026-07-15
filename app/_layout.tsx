@@ -6,6 +6,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import RemoteMediaControlsBridge from "../components/RemoteMediaControlsBridge";
 import { isHiddenAudioPocRoute } from "../constants/playbackConfig";
 import { PlayerProvider } from "../context/PlayerContext";
+import LocalizationProvider from "../localization/LocalizationProvider";
 import { markAppMounted } from "../utils/startupDiagnostics";
 import { startRuntimeInstrumentation } from "../utils/runtimeInstrumentation";
 
@@ -61,14 +62,16 @@ function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      {skipLegacyPlayback ? (
-        stack
-      ) : (
-        <MemoizedPlayerProvider>
-          <RemoteMediaControlsBridge />
-          {stack}
-        </MemoizedPlayerProvider>
-      )}
+      <LocalizationProvider>
+        {skipLegacyPlayback ? (
+          stack
+        ) : (
+          <MemoizedPlayerProvider>
+            <RemoteMediaControlsBridge />
+            {stack}
+          </MemoizedPlayerProvider>
+        )}
+      </LocalizationProvider>
     </GestureHandlerRootView>
   );
 }

@@ -26,7 +26,9 @@
                     "ios":  "expo run:ios",
                     "web":  "node --max-old-space-size=4096 ./node_modules/expo/bin/cli start --web --max-workers 1",
                     "lint":  "expo lint",
-                    "typecheck":  "tsc --noEmit"
+                    "typecheck":  "tsc --noEmit",
+                    "test:localization":  "npx tsx scripts/test-localization.mjs",
+                    "validate:localization":  "npx tsx scripts/validate-localization.mjs"
                 },
     "dependencies":  {
                          "@expo/config":  "~56.0.9",
