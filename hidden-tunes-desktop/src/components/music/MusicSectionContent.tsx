@@ -13,6 +13,7 @@ import {
 import type { MusicSectionId } from '../../lib/music/types'
 import { resolveRecentlyPlayedSongs } from '../../lib/home/musicHomeSections'
 import { useMusicLocalState } from '../../lib/home/useMusicLocalState'
+import { useMusicLikes } from '../../lib/home/useMusicLikes'
 import { EDITORIAL_PLAYLIST_SPECS, resolveEditorialPlaylistTracks } from '../../lib/home/editorialPlaylists'
 import { ArtworkImage } from '../ArtworkImage'
 import { MusicPageSection } from './MusicPageSection'
@@ -50,6 +51,7 @@ export const MusicSectionContent = memo(function MusicSectionContent({
   onBrowseSearch,
 }: MusicSectionContentProps) {
   const { recentlyPlayed } = useMusicLocalState()
+  const { likedSongIds } = useMusicLikes()
   const queuePools = useMemo(() => buildQueueCandidatePools(indexes), [indexes])
 
   const playFromQueue = useCallback(
@@ -77,6 +79,12 @@ export const MusicSectionContent = memo(function MusicSectionContent({
   const recentSongs = useMemo(
     () => resolveRecentlyPlayedSongs(recentlyPlayed, indexes.songsById, 32),
     [indexes.songsById, recentlyPlayed],
+  )
+  const likedSongs = useMemo(
+    () => likedSongIds
+      .map((songId) => indexes.songsById.get(songId))
+      .filter((song): song is ApiSong => Boolean(song)),
+    [indexes.songsById, likedSongIds],
   )
 
   const editorialPlaylists = useMemo(() => {
@@ -270,23 +278,29 @@ export const MusicSectionContent = memo(function MusicSectionContent({
         <div className="music-section-page">
           <header className="music-section-page-header">
             <h1>Liked Songs</h1>
-            <p>Browse songs from your catalog. Dedicated liked-state sync is not connected yet.</p>
+            <p>Songs you heart on this device. Cloud sync is not connected yet.</p>
           </header>
-          <div className="music-discover-song-grid">
-            {allSongs.slice(0, 32).map((song) => (
-              <button
-                key={song.id}
-                type="button"
-                className="music-discover-song-chip"
-                onClick={() => playFromQueue(song, allSongs, 'Liked Songs')}
-                aria-label={`Play ${song.title} by ${song.artist}`}
-              >
-                <ArtworkImage src={song.artwork} alt="" seed={song.id} label={song.title} />
-                <strong>{song.title}</strong>
-                <span>{song.artist}</span>
-              </button>
-            ))}
-          </div>
+          {likedSongs.length > 0 ? (
+            <div className="music-discover-song-grid">
+              {likedSongs.map((song) => (
+                <button
+                  key={song.id}
+                  type="button"
+                  className="music-discover-song-chip"
+                  onClick={() => playFromQueue(song, likedSongs, 'Liked Songs')}
+                  aria-label={`Play ${song.title} by ${song.artist}`}
+                >
+                  <ArtworkImage src={song.artwork} alt="" seed={song.id} label={song.title} />
+                  <strong>{song.title}</strong>
+                  <span>{song.artist}</span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="music-section-empty">
+              No liked songs yet. Tap the heart on the player bar while music is playing.
+            </p>
+          )}
         </div>
       )
 

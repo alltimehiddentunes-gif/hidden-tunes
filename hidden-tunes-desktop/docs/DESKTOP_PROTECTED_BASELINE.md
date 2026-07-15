@@ -132,6 +132,23 @@ Additive protections inside `DesktopPlaybackProvider` (no architecture rewrite):
 | `npm run build` | Must remain PASS |
 | `npm run verify:playback-mutex` | Must PASS |
 
+## Phase D — Music depth (2026-07-15)
+
+Library authenticity without cloud/auth:
+
+| Area | Change |
+|------|--------|
+| Liked Songs | Local liked IDs (`musicLikesStorage`) + player-bar heart; Favorites / Music Liked no longer fake catalog rows |
+| Recently Played | Driven by `musicProgressStorage` history on both sidebar Recent and Music section |
+| Library playlists | Editorial scene playlists (`EDITORIAL_PLAYLIST_SPECS`) instead of fake curated slices |
+| Album / Artist | Full-queue Play/Shuffle; Show all for long lists; track taps seed full album/artist queue |
+| Downloads | Honest empty (“not connected”) — no PSD fake download library |
+| Queue | Clear upcoming already available in Up Next rail (unchanged) |
+
+| Check | Result |
+|-------|--------|
+| `npm run build` | Must remain PASS |
+
 ## Known unresolved issues (later phases)
 
 - **Lint:** Pre-existing ESLint errors/warnings (mostly React hooks rules in `App.tsx` and hooks modules).
