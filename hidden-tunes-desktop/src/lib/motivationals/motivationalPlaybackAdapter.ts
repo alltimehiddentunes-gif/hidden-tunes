@@ -26,6 +26,20 @@ export function isMotivationalQueueSong(song: ApiSong | null | undefined) {
   return Boolean(song?.id?.startsWith(MOTIVATIONAL_SONG_ID_PREFIX))
 }
 
+export function isMotivationalVideoSong(song: ApiSong | null | undefined) {
+  return Boolean(
+    isMotivationalQueueSong(song)
+    && song?.tags?.some((tag) => tag === 'motivational-video' || tag === 'motivational-stream'),
+  )
+}
+
+function motivationalTagsForMediaType(mediaType?: string | null) {
+  const tags = ['motivational']
+  const cleaned = String(mediaType || '').trim().toLowerCase()
+  if (cleaned === 'video' || cleaned === 'stream') tags.push('motivational-video')
+  return tags
+}
+
 export function motivationalSessionToApiSong(
   session: MotivationalSessionMeta,
   program: MotivationalProgramMeta,
@@ -44,7 +58,7 @@ export function motivationalSessionToApiSong(
     albumId: programId,
     genre,
     mood: null,
-    tags: ['motivational'].filter(Boolean),
+    tags: motivationalTagsForMediaType(session.mediaType),
     description: session.description ?? program.description,
     artwork: session.artworkUrl ?? program.artworkUrl,
     previewUrl: resolvedAudio,
@@ -72,15 +86,22 @@ export function buildMotivationalQueueSongs(
 
 export function patchMotivationalSessionWithPlayUrl(
   song: ApiSong,
-  play: { audioUrl: string; durationSeconds?: number | null },
+  play: {
+    audioUrl: string
+    durationSeconds?: number | null
+    mediaType?: string | null
+  },
 ): ApiSong {
   const normalizedAudio = play.audioUrl.trim().startsWith('http') ? play.audioUrl.trim() : null
   if (!normalizedAudio) return song
+
+  const tags = motivationalTagsForMediaType(play.mediaType)
 
   return {
     ...song,
     audioUrl: normalizedAudio,
     previewUrl: normalizedAudio,
+    tags,
     durationSeconds:
       play.durationSeconds != null && play.durationSeconds > 0
         ? play.durationSeconds

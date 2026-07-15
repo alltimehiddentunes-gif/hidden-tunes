@@ -65,6 +65,14 @@ function cleanDescription(value: unknown, maxLength = 1600): string | null {
   ) || null
 }
 
+function normalizeMediaType(value: unknown): 'audio' | 'video' | 'stream' | 'embed' {
+  const cleaned = typeof value === 'string' ? value.trim().toLowerCase() : ''
+  if (cleaned === 'video' || cleaned === 'stream' || cleaned === 'embed' || cleaned === 'audio') {
+    return cleaned
+  }
+  return 'audio'
+}
+
 function clampPage(page?: number) {
   return Math.max(page ?? 1, 1)
 }
@@ -123,6 +131,7 @@ export function normalizeMotivationalProgram(row: Record<string, unknown>): Moti
       : null,
     isFeatured: row.is_featured === true,
     publishedAt: cleanText(row.published_at, 40),
+    mediaType: normalizeMediaType(row.media_type),
   }
 }
 
@@ -167,6 +176,7 @@ export function normalizeMotivationalSession(row: Record<string, unknown>): Moti
     sortOrder: Number.isFinite(Number(row.sort_order)) ? Number(row.sort_order) : 0,
     publishedAt: cleanText(row.published_at, 40),
     isFeatured: row.is_featured === true,
+    mediaType: normalizeMediaType(row.media_type),
   }
 }
 
@@ -276,6 +286,9 @@ export async function fetchMotivationalItems(
     category?: string | null
     featuredOnly?: boolean
     searchQuery?: string | null
+    mediaType?: 'audio' | 'video' | null
+    language?: string | null
+    country?: string | null
   },
   signal?: AbortSignal,
 ): Promise<MotivationalItemsResponse> {
@@ -286,6 +299,9 @@ export async function fetchMotivationalItems(
     category: options?.category ?? undefined,
     featured: options?.featuredOnly ? 'true' : undefined,
     q: options?.searchQuery ?? undefined,
+    mediaType: options?.mediaType ?? undefined,
+    language: options?.language ?? undefined,
+    country: options?.country ?? undefined,
   })
   const payload = await motivationalRequest<{
     success?: boolean
@@ -442,6 +458,7 @@ export function sessionToStandaloneProgram(session: MotivationalSessionMeta): Mo
     isFeatured: session.isFeatured,
     publishedAt: session.publishedAt,
     isStandaloneItem: true,
+    mediaType: session.mediaType,
   }
 }
 
@@ -595,10 +612,18 @@ export async function resolveMotivationalPlay(
 
   if (!audioUrl.startsWith('http')) return null
 
+  const mediaType = normalizeMediaType(item?.media_type ?? playback?.media_type)
+  const mimeType =
+    typeof playback?.mime_type === 'string' ? playback.mime_type.trim() : null
+
   return {
     success: payload.success === true,
     sessionId: typeof item?.id === 'string' ? item.id : cleanId,
     audioUrl,
+    mediaType,
+    mimeType,
+    width: Number.isFinite(Number(playback?.width)) ? Number(playback?.width) : null,
+    height: Number.isFinite(Number(playback?.height)) ? Number(playback?.height) : null,
     durationSeconds: Number.isFinite(Number(item?.duration_seconds))
       ? Math.max(0, Number(item?.duration_seconds))
       : null,

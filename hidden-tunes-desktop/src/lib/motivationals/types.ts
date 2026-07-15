@@ -26,6 +26,7 @@ export type MotivationalProgramMeta = {
   publishedAt: string | null
   /** True when browse row maps a single catalog item, not a multi-session program. */
   isStandaloneItem?: boolean
+  mediaType?: 'audio' | 'video' | 'stream' | 'embed'
 }
 
 /** Metadata-only session — audio resolves on play. */
@@ -47,6 +48,7 @@ export type MotivationalSessionMeta = {
   sortOrder: number
   publishedAt: string | null
   isFeatured: boolean
+  mediaType?: 'audio' | 'video' | 'stream' | 'embed'
 }
 
 export type MotivationalCategoryMeta = {
@@ -90,6 +92,10 @@ export type MotivationalPlayResponse = {
   success: boolean
   sessionId: string
   audioUrl: string
+  mediaType: 'audio' | 'video' | 'stream' | 'embed'
+  mimeType: string | null
+  width: number | null
+  height: number | null
   durationSeconds: number | null
   artworkUrl: string | null
   title: string

@@ -14,7 +14,10 @@ import type {
 
 const SEARCH_DEBOUNCE_MS = 280
 const FEATURED_LIMIT = 12
+const SECTION_LIMIT = 12
 const BROWSE_LIMIT = 40
+
+export type MotivationalsMediaFilter = 'all' | 'audio' | 'video'
 
 type BrowsePagination = MotivationalPagination & { nextCursor?: string | null }
 
@@ -33,9 +36,25 @@ function dedupePrograms(programs: MotivationalProgramMeta[]) {
   return next
 }
 
-export function useMotivationalsPageData(searchQuery: string, categorySlug: string | null) {
+function isVideoProgram(program: MotivationalProgramMeta) {
+  return program.mediaType === 'video' || program.mediaType === 'stream'
+}
+
+function isAudioProgram(program: MotivationalProgramMeta) {
+  return !isVideoProgram(program)
+}
+
+export function useMotivationalsPageData(
+  searchQuery: string,
+  categorySlug: string | null,
+  mediaFilter: MotivationalsMediaFilter = 'all',
+  languageFilter: string | null = null,
+  countryFilter: string | null = null,
+) {
   const [categories, setCategories] = useState<MotivationalCategoryMeta[]>([])
   const [featuredPrograms, setFeaturedPrograms] = useState<MotivationalProgramMeta[]>([])
+  const [audioPrograms, setAudioPrograms] = useState<MotivationalProgramMeta[]>([])
+  const [videoPrograms, setVideoPrograms] = useState<MotivationalProgramMeta[]>([])
   const [browsePrograms, setBrowsePrograms] = useState<MotivationalProgramMeta[]>([])
   const [filteredPrograms, setFilteredPrograms] = useState<MotivationalProgramMeta[]>([])
   const [pagination, setPagination] = useState<BrowsePagination | null>(null)
@@ -48,10 +67,18 @@ export function useMotivationalsPageData(searchQuery: string, categorySlug: stri
   const [contentError, setContentError] = useState<string | null>(null)
   const bootstrapRef = useRef(0)
   const browseRef = useRef(0)
+  const loadMoreRef = useRef(0)
   const browseAbortRef = useRef<AbortController | null>(null)
 
   const trimmedSearch = searchQuery.trim()
-  const filteredView = trimmedSearch.length > 0 || Boolean(categorySlug)
+  const filteredView =
+    trimmedSearch.length > 0
+    || Boolean(categorySlug)
+    || mediaFilter !== 'all'
+    || Boolean(languageFilter)
+    || Boolean(countryFilter)
+
+  const browseMediaType = mediaFilter === 'audio' || mediaFilter === 'video' ? mediaFilter : null
 
   useEffect(() => {
     const requestId = ++bootstrapRef.current
@@ -62,15 +89,24 @@ export function useMotivationalsPageData(searchQuery: string, categorySlug: stri
       setError(null)
 
       try {
-        const [nextCategories, featuredResponse, browseResponse, itemsResponse] = await Promise.all([
-          fetchMotivationalCategories(controller.signal),
-          fetchMotivationalPrograms(
-            { page: 1, limit: FEATURED_LIMIT, featuredOnly: true },
-            controller.signal,
-          ),
-          fetchMotivationalPrograms({ page: 1, limit: BROWSE_LIMIT }, controller.signal),
-          fetchMotivationalItems({ limit: BROWSE_LIMIT }, controller.signal),
-        ])
+        const [nextCategories, featuredResponse, browseResponse, itemsResponse, audioResponse, videoResponse] =
+          await Promise.all([
+            fetchMotivationalCategories(controller.signal),
+            fetchMotivationalPrograms(
+              { page: 1, limit: FEATURED_LIMIT, featuredOnly: true },
+              controller.signal,
+            ),
+            fetchMotivationalPrograms({ page: 1, limit: BROWSE_LIMIT }, controller.signal),
+            fetchMotivationalItems({ limit: BROWSE_LIMIT }, controller.signal),
+            fetchMotivationalItems(
+              { limit: SECTION_LIMIT, mediaType: 'audio' },
+              controller.signal,
+            ),
+            fetchMotivationalItems(
+              { limit: SECTION_LIMIT, mediaType: 'video' },
+              controller.signal,
+            ),
+          ])
 
         if (requestId !== bootstrapRef.current) return
 
@@ -85,6 +121,12 @@ export function useMotivationalsPageData(searchQuery: string, categorySlug: stri
               ? featuredResponse.programs.slice(0, FEATURED_LIMIT)
               : browseResponse.programs.filter((program) => program.isFeatured).slice(0, FEATURED_LIMIT),
           )
+          setAudioPrograms(
+            browseResponse.programs.filter(isAudioProgram).slice(0, SECTION_LIMIT),
+          )
+          setVideoPrograms(
+            browseResponse.programs.filter(isVideoProgram).slice(0, SECTION_LIMIT),
+          )
           setBrowsePrograms(browseResponse.programs)
           setPagination(browseResponse.pagination)
           setBrowseCursor(null)
@@ -97,6 +139,8 @@ export function useMotivationalsPageData(searchQuery: string, categorySlug: stri
             ? featuredItems.slice(0, FEATURED_LIMIT)
             : itemsResponse.programs.slice(0, FEATURED_LIMIT),
         )
+        setAudioPrograms(audioResponse.programs.slice(0, SECTION_LIMIT))
+        setVideoPrograms(videoResponse.programs.slice(0, SECTION_LIMIT))
         setBrowsePrograms(itemsResponse.programs)
         setPagination(itemsResponse.pagination)
         setBrowseCursor(itemsResponse.pagination.nextCursor)
@@ -138,7 +182,14 @@ export function useMotivationalsPageData(searchQuery: string, categorySlug: stri
               )
             : useItemsCatalog
               ? await fetchMotivationalItems(
-                  { limit: BROWSE_LIMIT, category: categorySlug },
+                  {
+                    limit: BROWSE_LIMIT,
+                    cursor: null,
+                    category: categorySlug,
+                    mediaType: browseMediaType,
+                    language: languageFilter,
+                    country: countryFilter,
+                  },
                   controller.signal,
                 ).then((itemsResponse) => ({
                   programs: itemsResponse.programs,
@@ -173,10 +224,19 @@ export function useMotivationalsPageData(searchQuery: string, categorySlug: stri
       window.clearTimeout(timer)
       controller.abort()
     }
-  }, [categorySlug, filteredView, trimmedSearch, useItemsCatalog])
+  }, [
+    browseMediaType,
+    categorySlug,
+    countryFilter,
+    filteredView,
+    languageFilter,
+    trimmedSearch,
+    useItemsCatalog,
+  ])
 
   const loadMore = useCallback(() => {
     if (!pagination?.hasMore || loadingMore) return
+    const requestId = ++loadMoreRef.current
     const controller = new AbortController()
     setLoadingMore(true)
 
@@ -198,6 +258,9 @@ export function useMotivationalsPageData(searchQuery: string, categorySlug: stri
                   limit: BROWSE_LIMIT,
                   cursor: browseCursor,
                   category: categorySlug,
+                  mediaType: browseMediaType,
+                  language: languageFilter,
+                  country: countryFilter,
                 },
                 controller.signal,
               ).then((itemsResponse) => ({
@@ -218,6 +281,8 @@ export function useMotivationalsPageData(searchQuery: string, categorySlug: stri
                 nextCursor: null as string | null,
               }))
 
+        if (requestId !== loadMoreRef.current) return
+
         setPagination(response.pagination)
         setBrowseCursor(response.nextCursor)
         if (filteredView) {
@@ -228,13 +293,16 @@ export function useMotivationalsPageData(searchQuery: string, categorySlug: stri
       } catch {
         // Ignore pagination failures.
       } finally {
-        setLoadingMore(false)
+        if (requestId === loadMoreRef.current) setLoadingMore(false)
       }
     })()
   }, [
     browseCursor,
+    browseMediaType,
     categorySlug,
+    countryFilter,
     filteredView,
+    languageFilter,
     loadingMore,
     pagination,
     trimmedSearch,
@@ -251,12 +319,28 @@ export function useMotivationalsPageData(searchQuery: string, categorySlug: stri
     [browsePrograms, featuredPrograms],
   )
 
+  const popularSpeakers = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const program of browsePrograms) {
+      const speaker = program.subtitle?.trim()
+      if (!speaker) continue
+      counts.set(speaker, (counts.get(speaker) || 0) + 1)
+    }
+    return [...counts.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .slice(0, 12)
+      .map(([name]) => name)
+  }, [browsePrograms])
+
   return {
     categories,
     featuredPrograms,
+    audioPrograms,
+    videoPrograms,
     browsePrograms,
     visiblePrograms,
     heroProgram,
+    popularSpeakers,
     pagination,
     loading,
     contentLoading,
