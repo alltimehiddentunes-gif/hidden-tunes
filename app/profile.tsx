@@ -34,6 +34,8 @@ import {
   getStoredUserRole,
   type UserRole,
 } from "../services/onboardingPreferences";
+import { useLocalization } from "../localization";
+import { getLocaleNativeName } from "../localization";
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
@@ -52,7 +54,8 @@ type ProfileRoute =
   | "/stations"
   | "/music-feed"
   | "/worlds"
-  | "/youtube-feed";
+  | "/youtube-feed"
+  | "/language";
 
 type ProfileAction = {
   label: string;
@@ -68,143 +71,38 @@ type ProfileShortcut = {
   href: ProfileRoute;
 };
 
-const PROFILE_ACTIONS: ProfileAction[] = [
-  {
-    label: "Account",
-    description: "Sign in or create an account (optional)",
-    icon: "person-add-outline",
-    href: "/auth",
-  },
-  {
-    label: "Downloads",
-    description: "View saved offline music",
-    icon: "download-outline",
-    href: "/downloads",
-  },
-  {
-    label: "Diagnostics",
-    description: "Open playback diagnostic logs",
-    icon: "pulse-outline",
-    href: "/playback-diagnostics",
-  },
-  {
-    label: "Privacy",
-    description: "Read the Hidden Tunes privacy policy",
-    icon: "shield-checkmark-outline",
-    href: "/privacy",
-  },
-];
-
-const LIBRARY_SHORTCUTS: ProfileShortcut[] = [
-  {
-    title: "Your Library",
-    subtitle: "Albums, playlists, favorites, and radio",
-    icon: "library-outline",
-    href: "/library",
-  },
-  {
-    title: "Search",
-    subtitle: "Find songs, artists, moods, and lyrics",
-    icon: "search-outline",
-    href: "/search",
-  },
-  {
-    title: "Favorites",
-    subtitle: "Songs you have saved",
-    icon: "heart-outline",
-    href: "/favorites",
-  },
-  {
-    title: "Playlists",
-    subtitle: "Your library and smart playlists",
-    icon: "albums-outline",
-    href: "/playlists",
-  },
-  {
-    title: "Downloads",
-    subtitle: "Offline listening",
-    icon: "download-outline",
-    href: "/downloads",
-  },
-  {
-    title: "Recently Played",
-    subtitle: "Listening history",
-    icon: "time-outline",
-    href: "/recently-played",
-  },
-  {
-    title: "Queue",
-    subtitle: "Up next",
-    icon: "list-outline",
-    href: "/queue",
-  },
-];
-
-const DISCOVERY_SHORTCUTS: ProfileShortcut[] = [
-  {
-    title: "Home",
-    subtitle: "Browse the music catalog",
-    icon: "home-outline",
-    href: "/music-feed",
-  },
-  {
-    title: "Worlds",
-    subtitle: "Explore mood worlds",
-    icon: "sparkles-outline",
-    href: "/worlds",
-  },
-  {
-    title: "Personal Radio",
-    subtitle: "Your smart endless music mix",
-    icon: "infinite-outline",
-    href: "/radio",
-  },
-  {
-    title: "Live Radio",
-    subtitle: "Thousands of live global stations",
-    icon: "radio",
-    href: "/stations",
-  },
-  {
-    title: "Hidden Tunes TV",
-    subtitle: "Video and TV feed",
-    icon: "tv-outline",
-    href: "/youtube-feed",
-  },
-];
-
-const ROLE_COPY: Record<
-  UserRole,
-  { label: string; eyebrow: string; description: string }
-> = {
-  listener: {
-    label: "Listener",
-    eyebrow: "Personal listening",
-    description:
-      "Library, downloads, favorites, and discovery — no account required.",
-  },
-  artist: {
-    label: "Artist",
-    eyebrow: "Creator studio",
-    description:
-      "Local listening profile with creator-oriented discovery shortcuts.",
-  },
-  uploader: {
-    label: "Uploader",
-    eyebrow: "Catalog workspace",
-    description: "Manage listening and catalog flows from your device library.",
-  },
-  admin: {
-    label: "Admin",
-    eyebrow: "Operations",
-    description: "Quick access to library, diagnostics, and discovery tools.",
-  },
-  owner: {
-    label: "Owner",
-    eyebrow: "Owner console",
-    description: "High-level library and playback shortcuts on this device.",
-  },
+const PROFILE_ACTION_ICONS = {
+  account: "person-add-outline" as IconName,
+  downloads: "download-outline" as IconName,
+  diagnostics: "pulse-outline" as IconName,
+  privacy: "shield-checkmark-outline" as IconName,
 };
+
+const LIBRARY_SHORTCUT_DEFS: { key: string; icon: IconName; href: ProfileRoute }[] = [
+  { key: "library", icon: "library-outline", href: "/library" },
+  { key: "search", icon: "search-outline", href: "/search" },
+  { key: "favorites", icon: "heart-outline", href: "/favorites" },
+  { key: "playlists", icon: "albums-outline", href: "/playlists" },
+  { key: "downloads", icon: "download-outline", href: "/downloads" },
+  { key: "recentlyPlayed", icon: "time-outline", href: "/recently-played" },
+  { key: "queue", icon: "list-outline", href: "/queue" },
+];
+
+const DISCOVERY_SHORTCUT_DEFS: { key: string; icon: IconName; href: ProfileRoute }[] = [
+  { key: "home", icon: "home-outline", href: "/music-feed" },
+  { key: "worlds", icon: "sparkles-outline", href: "/worlds" },
+  { key: "radio", icon: "infinite-outline", href: "/radio" },
+  { key: "liveRadio", icon: "radio", href: "/stations" },
+  { key: "tv", icon: "tv-outline", href: "/youtube-feed" },
+];
+
+const USER_ROLES: UserRole[] = [
+  "listener",
+  "artist",
+  "uploader",
+  "admin",
+  "owner",
+];
 
 function ProfileRow({
   icon,
@@ -235,6 +133,7 @@ function ProfileRow({
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
+  const { locale, t } = useLocalization();
   const scrollTailPadding = useMemo(
     () => getMobileScrollTailPadding(insets.bottom),
     [insets.bottom]
@@ -251,7 +150,69 @@ export default function ProfileScreen() {
   const [userRole, setUserRole] = useState<UserRole>("listener");
   const [downloadsCount, setDownloadsCount] = useState<number | null>(null);
 
-  const roleCopy = ROLE_COPY[userRole];
+  const roleCopy = useMemo(() => {
+    const roleKey = USER_ROLES.includes(userRole) ? userRole : "listener";
+    return {
+      label: t(`profile.roles.${roleKey}.label`),
+      eyebrow: t(`profile.roles.${roleKey}.eyebrow`),
+      description: t(`profile.roles.${roleKey}.description`),
+    };
+  }, [t, userRole]);
+
+  const profileActions = useMemo<ProfileAction[]>(
+    () => [
+      {
+        label: t("profile.account"),
+        description: t("profile.accountDescription"),
+        icon: PROFILE_ACTION_ICONS.account,
+        href: "/auth",
+      },
+      {
+        label: t("profile.downloadsTitle"),
+        description: t("profile.downloadsDescription"),
+        icon: PROFILE_ACTION_ICONS.downloads,
+        href: "/downloads",
+      },
+      {
+        label: t("profile.diagnostics"),
+        description: t("profile.diagnosticsDescription"),
+        icon: PROFILE_ACTION_ICONS.diagnostics,
+        href: "/playback-diagnostics",
+      },
+      {
+        label: t("profile.privacy"),
+        description: t("profile.privacyDescription"),
+        icon: PROFILE_ACTION_ICONS.privacy,
+        href: "/privacy",
+      },
+    ],
+    [t]
+  );
+
+  const libraryShortcuts = useMemo<ProfileShortcut[]>(
+    () =>
+      LIBRARY_SHORTCUT_DEFS.map((item) => ({
+        title:
+          item.key === "search"
+            ? t("navigation.search")
+            : t(`profile.${item.key}Title` as "profile.libraryTitle"),
+        subtitle: t(`profile.${item.key}Subtitle` as "profile.librarySubtitle"),
+        icon: item.icon,
+        href: item.href,
+      })),
+    [t]
+  );
+
+  const discoveryShortcuts = useMemo<ProfileShortcut[]>(
+    () =>
+      DISCOVERY_SHORTCUT_DEFS.map((item) => ({
+        title: t(`profile.${item.key}Title`),
+        subtitle: t(`profile.${item.key}Subtitle`),
+        icon: item.icon,
+        href: item.href,
+      })),
+    [t]
+  );
 
   const catalogTrackCount = useMemo(() => {
     const ids = new Set<string>();
@@ -271,31 +232,37 @@ export default function ProfileScreen() {
     if (downloadsCount !== null) {
       cards.push({
         value: String(downloadsCount),
-        label: downloadsCount === 1 ? "Download" : "Downloads",
+        label:
+          downloadsCount === 1
+            ? t("profile.statDownload")
+            : t("profile.statDownloads"),
       });
     }
 
     cards.push({
       value: String(unifiedFavorites.length),
-      label: unifiedFavorites.length === 1 ? "Favorite" : "Favorites",
+      label:
+        unifiedFavorites.length === 1
+          ? t("profile.statFavorite")
+          : t("profile.statFavorites"),
     });
 
     cards.push({
       value: String(recentlyPlayed.length),
-      label: "Recent",
+      label: t("profile.statRecent"),
     });
 
     if (activeQueue.length > 0) {
       cards.push({
         value: String(activeQueue.length),
-        label: activeQueue.length === 1 ? "In queue" : "In queue",
+        label: t("profile.statInQueue"),
       });
     }
 
     if (catalogTrackCount > 0) {
       cards.push({
         value: String(catalogTrackCount),
-        label: catalogTrackCount === 1 ? "Catalog" : "Catalog",
+        label: t("profile.statCatalog"),
       });
     }
 
@@ -304,6 +271,7 @@ export default function ProfileScreen() {
     activeQueue.length,
     catalogTrackCount,
     downloadsCount,
+    t,
     unifiedFavorites.length,
     recentlyPlayed.length,
   ]);
@@ -389,7 +357,7 @@ export default function ProfileScreen() {
           ]}
         >
           <View style={styles.topBar}>
-            <Text style={styles.kicker}>PROFILE</Text>
+            <Text style={styles.kicker}>{t("profile.kicker")}</Text>
           </View>
 
           <LinearGradient colors={GRADIENTS.card} style={styles.heroCard}>
@@ -400,20 +368,18 @@ export default function ProfileScreen() {
               style={styles.logo}
             />
 
-            <Text style={styles.heroName}>Hidden Tunes</Text>
+            <Text style={styles.heroName}>{t("profile.heroName")}</Text>
 
-            <Text style={styles.heroSubtitle}>
-              Premium music discovery powered by live streaming
-            </Text>
+            <Text style={styles.heroSubtitle}>{t("profile.heroSubtitle")}</Text>
 
             <View style={styles.rolePill}>
               <Ionicons name="person-circle" size={17} color="#000" />
-              <Text style={styles.rolePillText}>{roleCopy.label} profile</Text>
+              <Text style={styles.rolePillText}>
+                {t("profile.roleProfile", { role: roleCopy.label })}
+              </Text>
             </View>
 
-            <Text style={styles.guestNote}>
-              Guest listening · sign in optional
-            </Text>
+            <Text style={styles.guestNote}>{t("profile.guestNote")}</Text>
           </LinearGradient>
 
           {statCards.length > 0 ? (
@@ -429,12 +395,25 @@ export default function ProfileScreen() {
 
           <View style={styles.dashboardHero}>
             <Text style={styles.dashboardEyebrow}>{roleCopy.eyebrow}</Text>
-            <Text style={styles.dashboardTitle}>{roleCopy.label} space</Text>
+            <Text style={styles.dashboardTitle}>
+              {t("profile.roleSpace", { role: roleCopy.label })}
+            </Text>
             <Text style={styles.dashboardDescription}>{roleCopy.description}</Text>
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Content preferences</Text>
+            <Text style={styles.sectionTitle}>{t("settings.language")}</Text>
+
+            <ProfileRow
+              icon="language-outline"
+              title={t("settings.language")}
+              subtitle={getLocaleNativeName(locale)}
+              onPress={() => openRoute("/language")}
+            />
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>{t("profile.contentPreferences")}</Text>
 
             <View style={styles.settingRow}>
               <LinearGradient colors={GRADIENTS.card} style={styles.itemIcon}>
@@ -442,9 +421,9 @@ export default function ProfileScreen() {
               </LinearGradient>
 
               <View style={styles.itemTextWrap}>
-                <Text style={styles.itemTitle}>Show 18+ Content</Text>
+                <Text style={styles.itemTitle}>{t("profile.showMatureContent")}</Text>
                 <Text style={styles.itemSubtitle}>
-                  Include mature radio stations
+                  {t("profile.showMatureContentSubtitle")}
                 </Text>
               </View>
 
@@ -465,9 +444,9 @@ export default function ProfileScreen() {
               </LinearGradient>
 
               <View style={styles.itemTextWrap}>
-                <Text style={styles.itemTitle}>Mature Podcasts 18+</Text>
+                <Text style={styles.itemTitle}>{t("profile.maturePodcasts")}</Text>
                 <Text style={styles.itemSubtitle}>
-                  Explicit podcast categories and search results
+                  {t("profile.maturePodcastsSubtitle")}
                 </Text>
               </View>
 
@@ -484,9 +463,9 @@ export default function ProfileScreen() {
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Account & tools</Text>
+            <Text style={styles.sectionTitle}>{t("profile.accountAndTools")}</Text>
 
-            {PROFILE_ACTIONS.map((action) => (
+            {profileActions.map((action) => (
               <ProfileRow
                 key={action.href}
                 icon={action.icon}
@@ -498,9 +477,9 @@ export default function ProfileScreen() {
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Your library</Text>
+            <Text style={styles.sectionTitle}>{t("profile.yourLibrary")}</Text>
 
-            {LIBRARY_SHORTCUTS.map((shortcut) => (
+            {libraryShortcuts.map((shortcut) => (
               <ProfileRow
                 key={shortcut.href + shortcut.title}
                 icon={shortcut.icon}
@@ -512,9 +491,9 @@ export default function ProfileScreen() {
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Discovery</Text>
+            <Text style={styles.sectionTitle}>{t("profile.discovery")}</Text>
 
-            {DISCOVERY_SHORTCUTS.map((shortcut) => (
+            {discoveryShortcuts.map((shortcut) => (
               <ProfileRow
                 key={shortcut.href}
                 icon={shortcut.icon}
@@ -528,7 +507,9 @@ export default function ProfileScreen() {
           {appVersion ? (
             <View style={styles.versionRow}>
               <Ionicons name="information-circle-outline" size={18} color={COLORS.textMuted} />
-              <Text style={styles.versionText}>Hidden Tunes v{appVersion}</Text>
+              <Text style={styles.versionText}>
+                {t("profile.appVersion", { version: appVersion })}
+              </Text>
             </View>
           ) : null}
         </ScrollView>
