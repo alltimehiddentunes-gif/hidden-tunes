@@ -59,6 +59,7 @@ export type DesktopPlaybackState = {
   audioQualityMode: AudioQualityMode
   shuffleEnabled: boolean
   repeatMode: RepeatMode
+  autoNextEnabled: boolean
   audiobookPlaybackRate: AudiobookPlaybackRate
 }
 
@@ -76,6 +77,9 @@ export type DesktopPlaybackActions = {
   getUpcomingTracks: () => ApiSong[]
   playQueueAtIndex: (index: number) => void
   clearUpcomingQueue: () => void
+  removeUpcomingAtIndex: (index: number) => void
+  moveQueueItem: (fromIndex: number, toIndex: number) => void
+  setAutoNextEnabled: (enabled: boolean) => void
   toggleShuffle: () => void
   toggleRepeat: () => void
   pause: () => void

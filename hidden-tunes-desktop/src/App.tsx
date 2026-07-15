@@ -92,6 +92,7 @@ import { AtmosphereSettingsPanel } from './components/AtmosphereSettingsPanel'
 import { PreferredPlayerStyleSelector } from './components/PreferredPlayerStyleSelector'
 import { ArtworkImage } from './components/ArtworkImage'
 import { PremiumFullscreenShell } from './components/player/PremiumFullscreenShell'
+import { MusicNowPlayingPage } from './components/player/MusicNowPlayingPage'
 import { PlayerQueuePanel } from './components/player/PlayerShellPanels'
 import { formatPlaybackTime } from './lib/player/formatPlaybackTime'
 import { resolvePlayerShellMetadata, resolvePlayerSubtitle } from './lib/playerDisplayMetadata'
@@ -137,6 +138,8 @@ import {
 } from './lib/nowPlayingStyle'
 import { usePlayerOverlayController } from './lib/usePlayerOverlayController'
 import { useAutoOpenPreferredPlayer } from './lib/useAutoOpenPreferredPlayer'
+import { createMusicNavigationStack, toMusicNavView } from './lib/musicNavigationStack'
+import { isMusicSectionNavActive } from './lib/musicNavActive'
 import { RadioPage } from './components/radio/RadioPage'
 import { TvPage } from './components/tv/TvPage'
 import { TvNowPlayingPanel } from './components/tv/TvNowPlayingPanel'
@@ -144,7 +147,6 @@ import { PodcastsPage } from './components/podcasts/PodcastsPage'
 import { PodcastShowPage } from './components/podcasts/PodcastShowPage'
 import { AudiobooksPage } from './components/audiobooks/AudiobooksPage'
 import { AudiobookBookPage } from './components/audiobooks/AudiobookBookPage'
-import { MusicHomePage } from './components/home/MusicHomePage'
 import { GlobalTopNav } from './components/music/GlobalTopNav'
 import { MusicWorkspace } from './components/music/MusicWorkspace'
 import type { MusicSectionId } from './lib/music/types'
@@ -1118,8 +1120,17 @@ type SidebarNavItem = {
   disabled?: boolean
 }
 
-function isSidebarNavActive(item: SidebarNavItem, activeNavKey: NavKey) {
-  return item.navKey != null && item.navKey === activeNavKey
+function isSidebarNavActive(
+  item: SidebarNavItem,
+  activeNavKey: NavKey,
+  activeView: ActiveView,
+  activePage: PageId,
+) {
+  if (item.navKey == null) return false
+  if (item.navKey === 'music') {
+    return isMusicSectionNavActive(activeNavKey, activeView, activePage)
+  }
+  return item.navKey === activeNavKey
 }
 
 function SidebarNavIcon({ children }: { children: ReactNode }) {
@@ -2365,9 +2376,13 @@ function RadioFoundationSection({
 
 const Sidebar = memo(function Sidebar({
   activeNavKey,
+  activeView,
+  activePage,
   onNavigateNav,
 }: {
   activeNavKey: NavKey
+  activeView: ActiveView
+  activePage: PageId
   onNavigateNav: (navKey: NavKey) => void
 }) {
   return (
@@ -2385,7 +2400,7 @@ const Sidebar = memo(function Sidebar({
           <div className="sidebar-nav-group" key={group.label}>
             <span className="sidebar-nav-group-label">{group.label}</span>
             {group.items.map((item) => {
-              const isActive = isSidebarNavActive(item, activeNavKey)
+              const isActive = isSidebarNavActive(item, activeNavKey, activeView, activePage)
               return (
                 <button
                   key={item.key}
@@ -2656,13 +2671,11 @@ function HomePage({
   onOpenArtist,
   onOpenAlbum,
   onNavigateNav,
-  onBrowseSearch,
 }: {
   onOpenSong: QueueSongHandler
   onOpenArtist: (artist: ApiArtist) => void
   onOpenAlbum: (album: ApiAlbum) => void
   onNavigateNav: (navKey: NavKey) => void
-  onBrowseSearch: (query: string) => void
 }) {
   const {
     songs,
@@ -2676,33 +2689,132 @@ function HomePage({
     retry,
   } = useCatalog()
 
+  const heroQueue = useMemo(() => sortSongsList(songs, 'latest').slice(0, 12), [songs])
+  const trendingSongs = useMemo(() => sortSongsList(songs, 'latest').slice(0, 6), [songs])
+  const featuredArtists = useMemo(
+    () => sortArtistsList(artists, 'tracks').slice(0, 6),
+    [artists],
+  )
+  const newAlbums = useMemo(
+    () => sortAlbumsList(albums, 'latest').slice(0, 6),
+    [albums],
+  )
+  const queuePools = useMemo(() => buildQueueCandidatePools(indexes), [indexes])
+
+  const playFromQueue = useCallback(
+    (song: ApiSong, queue: ApiSong[], queueTitle: string) => {
+      const queueIndex = Math.max(0, queue.findIndex((entry) => entry.id === song.id))
+      onOpenSong(song, queue.length > 0 ? queue : [song], queueIndex, 'home', queueTitle, {
+        seedType: 'home',
+        seedTracks: buildQueueSeedPool('home', queue, indexes, song),
+        candidatePools: queuePools,
+      })
+    },
+    [indexes, onOpenSong, queuePools],
+  )
+
+  const playHero = useCallback(() => {
+    const song = heroQueue[0]
+    if (!song) return
+    playFromQueue(song, heroQueue, 'Home')
+  }, [heroQueue, playFromQueue])
+
+  const playTrendingSong = useCallback(
+    (song: ApiSong) => {
+      const queue = trendingSongs.length > 0 ? trendingSongs : [song]
+      playFromQueue(song, queue, 'Trending Now')
+    },
+    [playFromQueue, trendingSongs],
+  )
+
+  const playWorld = useCallback(
+    (scene: BuiltListeningScene) => {
+      const tracks = filterSongsByListeningScene(songs, scene.id)
+      if (tracks.length === 0) return
+      playFromQueue(tracks[0], tracks, resolveWorldPresentation(scene).title)
+    },
+    [playFromQueue, songs],
+  )
+
   return (
     <div className="home-destination">
       <PageFrame cinematic>
-        <MusicHomePage
-          songs={songs}
-          albums={albums}
-          artists={artists}
-          artistNames={artistNames}
-          indexes={indexes}
-          showCatalogSkeleton={showCatalogSkeleton}
-          showCatalogError={showCatalogError}
-          error={error}
-          retry={retry}
-          onOpenSong={onOpenSong}
-          onOpenArtist={onOpenArtist}
-          onOpenAlbum={onOpenAlbum}
-          onNavigateNav={onNavigateNav}
-          onBrowseSearch={onBrowseSearch}
+        <Hero
+          onPlay={playHero}
+          onExploreWorlds={() => onNavigateNav('worlds')}
+          canPlay={heroQueue.length > 0}
         />
+        <PopularWorldsSection
+          songs={songs}
+          loading={showCatalogSkeleton}
+          onPlayWorld={playWorld}
+          onBrowseWorlds={() => onNavigateNav('worlds')}
+        />
+        <div className="home-secondary" aria-label="Featured from your catalog">
+          {trendingSongs.length > 0 || showCatalogSkeleton ? (
+            <CatalogSection
+              title="Trending Now"
+              hint="Curated for the moment"
+              loading={showCatalogSkeleton}
+              error={showCatalogError ? error : null}
+              onRetry={retry}
+              count={trendingSongs.length}
+              onViewAll={() => onNavigateNav('search')}
+            >
+              <ApiSongGrid
+                songs={trendingSongs}
+                onSelect={(song) => playTrendingSong(song)}
+                listKey="home-trending"
+                paginate={false}
+                showEmpty={false}
+              />
+            </CatalogSection>
+          ) : null}
+
+          {featuredArtists.length > 0 || showCatalogSkeleton ? (
+            <CatalogSection
+              title="Featured Artists"
+              hint="Voices in your library"
+              loading={showCatalogSkeleton}
+              error={showCatalogError ? error : null}
+              onRetry={retry}
+              count={featuredArtists.length}
+              onViewAll={() => onNavigateNav('artists')}
+            >
+              <ApiArtistGrid
+                artists={featuredArtists}
+                onSelect={onOpenArtist}
+                listKey="home-artists"
+                paginate={false}
+              />
+            </CatalogSection>
+          ) : null}
+
+          {newAlbums.length > 0 || showCatalogSkeleton ? (
+            <CatalogSection
+              title="New Albums"
+              hint="Fresh from your catalog"
+              loading={showCatalogSkeleton}
+              error={showCatalogError ? error : null}
+              onRetry={retry}
+              count={newAlbums.length}
+              onViewAll={() => onNavigateNav('albums')}
+            >
+              <ApiAlbumGrid
+                albums={newAlbums}
+                artistNames={artistNames}
+                indexes={indexes}
+                onSelect={onOpenAlbum}
+                listKey="home-albums"
+                paginate={false}
+              />
+            </CatalogSection>
+          ) : null}
+        </div>
       </PageFrame>
     </div>
   )
 }
-
-void Hero
-void PopularWorldsSection
-void CatalogSection
 
 function MusicPage({
   musicSection,
@@ -5767,9 +5879,11 @@ const PlaybackTransportControls = memo(function PlaybackTransportControls({
 const PlayerBar = memo(function PlayerBar({
   track,
   onOpenPlayerByStyle,
+  onOpenNowPlaying,
 }: {
   track: ApiSong | null
   onOpenPlayerByStyle: (style: NowPlayingStyle) => void
+  onOpenNowPlaying?: () => void
 }) {
   const {
     currentTrack,
@@ -5910,6 +6024,11 @@ const PlayerBar = memo(function PlayerBar({
           ? 'paused'
           : 'idle'
 
+  const handleOpenNowPlaying = () => {
+    if (!hasPlayback) return
+    onOpenNowPlaying?.()
+  }
+
   return (
     <footer
       className={`player-bar player-bar--${barState}`}
@@ -5918,7 +6037,19 @@ const PlayerBar = memo(function PlayerBar({
       data-loading={isLoading ? 'true' : 'false'}
       data-idle={hasPlayback ? 'false' : 'true'}
     >
-      <div className="player-track">
+      <div
+        className={`player-track${onOpenNowPlaying ? ' player-track--interactive' : ''}`}
+        role={onOpenNowPlaying ? 'button' : undefined}
+        tabIndex={onOpenNowPlaying && hasPlayback ? 0 : undefined}
+        aria-label={onOpenNowPlaying && hasPlayback ? 'Open now playing' : undefined}
+        onClick={onOpenNowPlaying ? handleOpenNowPlaying : undefined}
+        onKeyDown={onOpenNowPlaying ? (event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault()
+            handleOpenNowPlaying()
+          }
+        } : undefined}
+      >
         <div className="player-artwork" aria-hidden="true">
           <ArtworkImage
             src={displayTrack?.artwork ?? null}
@@ -5936,7 +6067,7 @@ const PlayerBar = memo(function PlayerBar({
         </div>
       </div>
 
-      <div className="player-center">
+      <div className="player-center" onClick={(event) => event.stopPropagation()}>
         <PlaybackTransportControls
           activeTrackId={displayTrack?.id ?? null}
           showShuffleRepeat={showShuffleRepeat}
@@ -5987,12 +6118,25 @@ const PlayerBar = memo(function PlayerBar({
         </div>
       </div>
 
-      <div className="player-right">
+      <div className="player-right" onClick={(event) => event.stopPropagation()}>
         <PlayerModeLauncher
           hasPlayback={hasPlayback}
           onOpenPlayerByStyle={onOpenPlayerByStyle}
           variant="footer"
         />
+        {onOpenNowPlaying ? (
+          <button
+            type="button"
+            className="player-open-now-playing"
+            aria-label="Open now playing"
+            disabled={!hasPlayback}
+            onClick={handleOpenNowPlaying}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+              <path d="M9 3H3v6M15 3h6v6M9 21H3v-6M15 21h6v-6" />
+            </svg>
+          </button>
+        ) : null}
         <div className="player-quality">
           {isTvLive ? (
             <span className="player-quality-live" aria-label="Live TV">LIVE TV</span>
@@ -6172,90 +6316,6 @@ function DetailTopBar({
   )
 }
 
-
-function PlayerWorkspace({
-  song,
-  onBack,
-  onOpenCinema,
-}: {
-  song: ApiSong
-  onBack: () => void
-  onOpenCinema?: () => void
-}) {
-  const {
-    currentTrack,
-    queueTitle,
-    isPlaying,
-    isLoading,
-    audioQualityMode,
-  } = useDesktopPlayback()
-
-  const isActive = currentTrack?.id === song.id
-  const qualityLabel =
-    resolveSearchRowQualityBadge(song) !== 'SONG'
-      ? resolveSearchRowQualityBadge(song)
-      : isActive
-        ? AUDIO_QUALITY_MODE_LABELS[audioQualityMode]
-        : null
-  const albumLabel = song.album ?? (isActive ? queueTitle ?? null : null)
-
-  return (
-    <div
-      className="player-workspace"
-      data-playing={isActive && isPlaying ? 'true' : 'false'}
-      data-loading={isActive && isLoading ? 'true' : 'false'}
-      data-active={isActive ? 'true' : 'false'}
-    >
-      <header className="player-workspace-toolbar">
-        <button type="button" className="player-workspace-back" onClick={onBack}>
-          <span aria-hidden="true">←</span>
-          Back
-        </button>
-        {onOpenCinema ? (
-          <button
-            type="button"
-            className="player-workspace-fullscreen"
-            onClick={onOpenCinema}
-            aria-label="Open fullscreen player"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-              <path d="M9 3H3v6M15 3h6v6M9 21H3v-6M15 21h6v-6" />
-            </svg>
-            Fullscreen
-          </button>
-        ) : null}
-      </header>
-
-      <div className="player-workspace-grid">
-        <section className="player-workspace-art" aria-label="Artwork">
-          <div className="player-workspace-art-frame">
-            <ArtworkImage src={song.artwork} alt="" seed={song.id} priority />
-            {isActive && isLoading ? (
-              <span className="player-workspace-art-spinner player-spinner" aria-hidden="true" />
-            ) : null}
-          </div>
-        </section>
-
-        <section className="player-workspace-info" aria-label="Now playing">
-          <p className="player-workspace-eyebrow">Now Playing</p>
-          <h1 className="player-workspace-title">{song.title}</h1>
-          <p className="player-workspace-artist">{song.artist}</p>
-          {albumLabel ? (
-            <p className="player-workspace-album">{albumLabel}</p>
-          ) : null}
-          {qualityLabel ? (
-            <span className="player-workspace-quality">{qualityLabel}</span>
-          ) : null}
-          <PlaybackTransportControls
-            activeTrackId={song.id}
-            className="player-workspace-controls"
-            showShuffleRepeat
-          />
-        </section>
-      </div>
-    </div>
-  )
-}
 
 function AlbumDetailView({
   album,
@@ -6594,7 +6654,9 @@ function CatalogDetailRouter({
   onOpenAlbum,
   onOpenArtist,
   onOpenMood,
-  onOpenCinema,
+  onOpenAlbumById,
+  onOpenArtistById,
+  onBrowseMusic,
   discoverQuery,
   setDiscoverQuery,
   albumsQuery,
@@ -6657,7 +6719,9 @@ function CatalogDetailRouter({
   ) => void
   onPlayAudiobookChapter?: PlayAudiobookChapterHandler
   onPlayMotivationalSession?: PlayMotivationalSessionHandler
-  onOpenCinema?: () => void
+  onOpenAlbumById?: (albumId: string) => void
+  onOpenArtistById?: (artistId: string) => void
+  onBrowseMusic?: () => void
   discoverQuery: string
   setDiscoverQuery: (value: string) => void
   albumsQuery: string
@@ -6690,12 +6754,15 @@ function CatalogDetailRouter({
   musicSection?: MusicSectionId
   onMusicSectionChange?: (section: MusicSectionId) => void
 }) {
-  if (activeView === 'song' && selectedSong) {
+  if (activeView === 'song') {
     return (
-      <PlayerWorkspace
-        song={selectedSong}
+      <MusicNowPlayingPage
+        song={selectedSong ?? desktopSelectedTrack}
+        searchQuery={discoverQuery}
         onBack={onBack}
-        onOpenCinema={onOpenCinema}
+        onBrowseMusic={onBrowseMusic}
+        onOpenAlbum={onOpenAlbumById}
+        onOpenArtist={onOpenArtistById}
       />
     )
   }
@@ -6909,10 +6976,6 @@ function PageContent({
           onOpenArtist={onOpenArtist}
           onOpenAlbum={onOpenAlbum}
           onNavigateNav={onNavigateNav}
-          onBrowseSearch={(query) => {
-            setDiscoverQuery(query)
-            onNavigateNav('search')
-          }}
         />
       )
     case 'music':
@@ -7030,10 +7093,6 @@ function PageContent({
           onOpenArtist={onOpenArtist}
           onOpenAlbum={onOpenAlbum}
           onNavigateNav={onNavigateNav}
-          onBrowseSearch={(query) => {
-            setDiscoverQuery(query)
-            onNavigateNav('search')
-          }}
         />
       )
   }
@@ -7057,11 +7116,12 @@ function App() {
 
 function AppShell() {
   const { currentTrack, currentQueue, currentIndex, playQueue, isPlaying, isLoading } = useDesktopPlayback()
-  const hasQueueRail = currentIndex >= 0
-    && currentQueue.length > 0
-    && Boolean(currentTrack ?? currentQueue[currentIndex])
-  const { songs } = useCatalog()
+  const { songs, albums, artists } = useCatalog()
   const songsById = useMemo(() => new Map(songs.map((song) => [song.id, song])), [songs])
+  const albumsById = useMemo(() => new Map(albums.map((album) => [album.id, album])), [albums])
+  const artistsById = useMemo(() => new Map(artists.map((artist) => [artist.id, artist])), [artists])
+  const musicNavStackRef = useRef(createMusicNavigationStack())
+  const mainScrollRef = useRef<HTMLElement>(null)
   const [activePage, setActivePage] = usePersistedPreference(
     DESKTOP_PREFERENCE_KEYS.activePage,
     'home' as PageId,
@@ -7107,6 +7167,11 @@ function AppShell() {
   )
   const [musicSection, setMusicSection] = useState<MusicSectionId>('discover')
 
+  const showQueueRail = activeView !== 'song'
+  const hasQueueRail = showQueueRail && currentIndex >= 0
+    && currentQueue.length > 0
+    && Boolean(currentTrack ?? currentQueue[currentIndex])
+
   const anyPlayerOverlayOpen =
     anyPlayerShellVisible
     || lyricsOpen
@@ -7120,7 +7185,6 @@ function AppShell() {
 
   const {
     cancelAutoOpenPlayer,
-    openPreferredNowPlayingPage,
   } = useAutoOpenPreferredPlayer({
     isPlaying,
     isLoading,
@@ -7137,20 +7201,100 @@ function AppShell() {
     openPlayerByStyle(style)
   }, [cancelAutoOpenPlayer, openPlayerByStyle])
 
-  const openCinemaPlayer = useCallback(() => {
-    openPreferredNowPlayingPage()
-  }, [openPreferredNowPlayingPage])
+  const captureMusicNavFrame = useCallback(() => ({
+    view: toMusicNavView(activeView),
+    activePage,
+    activeNavKey,
+    musicSection,
+    discoverQuery,
+    selectedAlbumId: selectedAlbum?.id ?? null,
+    selectedArtistId: selectedArtist?.id ?? null,
+    selectedMoodTitle: selectedMood?.title ?? null,
+    scrollY: mainScrollRef.current?.scrollTop ?? 0,
+  }), [
+    activeNavKey,
+    activePage,
+    activeView,
+    discoverQuery,
+    musicSection,
+    selectedAlbum,
+    selectedArtist,
+    selectedMood,
+  ])
+
+  const backFromNowPlaying = useCallback(() => {
+    cancelAutoOpenPlayer()
+    setSelectedSong(null)
+    const frame = musicNavStackRef.current.pop()
+    if (!frame) {
+      setActiveView('page')
+      setActivePage('music')
+      setActiveNavKey('music')
+      setMusicSection('discover')
+      return
+    }
+
+    setActivePage(frame.activePage as PageId)
+    setActiveNavKey(frame.activeNavKey as NavKey)
+    if (frame.musicSection) {
+      setMusicSection(frame.musicSection as MusicSectionId)
+    }
+    if (frame.discoverQuery != null) {
+      setDiscoverQuery(frame.discoverQuery)
+    }
+
+    if (frame.view === 'album') {
+      setSelectedAlbum(frame.selectedAlbumId ? albumsById.get(frame.selectedAlbumId) ?? null : null)
+      setSelectedArtist(null)
+      setSelectedMood(null)
+    } else if (frame.view === 'artist') {
+      setSelectedArtist(frame.selectedArtistId ? artistsById.get(frame.selectedArtistId) ?? null : null)
+      setSelectedAlbum(null)
+      setSelectedMood(null)
+    } else if (frame.view === 'mood') {
+      setSelectedAlbum(null)
+      setSelectedArtist(null)
+      setSelectedMood((previous) => (
+        previous?.title === frame.selectedMoodTitle ? previous : null
+      ))
+    } else {
+      setSelectedAlbum(null)
+      setSelectedArtist(null)
+      setSelectedMood(null)
+    }
+
+    setActiveView(frame.view)
+
+    requestAnimationFrame(() => {
+      mainScrollRef.current?.scrollTo({ top: frame.scrollY, behavior: 'auto' })
+    })
+  }, [
+    albumsById,
+    artistsById,
+    cancelAutoOpenPlayer,
+    setActivePage,
+    setDiscoverQuery,
+  ])
 
   const openSong = useCallback((song: ApiSong) => {
+    if (activeView !== 'song') {
+      musicNavStackRef.current.push(captureMusicNavFrame())
+    }
     setDesktopSelectedTrack(song)
     setSelectedSong(song)
-    setSelectedAlbum(null)
-    setSelectedArtist(null)
-    setSelectedMood(null)
-    setSelectedPodcastShowId(null)
-    setSelectedAudiobookId(null)
     setActiveView('song')
-  }, [])
+  }, [activeView, captureMusicNavFrame])
+
+  const openNowPlayingPage = useCallback(() => {
+    if (!currentTrack) return
+    cancelAutoOpenPlayer()
+    if (activeView !== 'song') {
+      musicNavStackRef.current.push(captureMusicNavFrame())
+    }
+    setDesktopSelectedTrack(currentTrack)
+    setSelectedSong(currentTrack)
+    setActiveView('song')
+  }, [activeView, cancelAutoOpenPlayer, captureMusicNavFrame, currentTrack])
 
   useEffect(() => {
     if (!currentTrack) return
@@ -7334,6 +7478,16 @@ function AppShell() {
     setActiveView('artist')
   }, [cancelAutoOpenPlayer])
 
+  const openAlbumById = useCallback((albumId: string) => {
+    const album = albumsById.get(albumId)
+    if (album) openAlbum(album)
+  }, [albumsById, openAlbum])
+
+  const openArtistById = useCallback((artistId: string) => {
+    const artist = artistsById.get(artistId)
+    if (artist) openArtist(artist)
+  }, [artistsById, openArtist])
+
   const openMood = useCallback((mood: MoodRoom) => {
     cancelAutoOpenPlayer()
     setSelectedMood(mood)
@@ -7403,6 +7557,7 @@ function AppShell() {
     setActivePage(page)
     setActiveNavKey(navKey)
     if (navKey === 'music') {
+      musicNavStackRef.current.clear()
       setMusicSection('discover')
     }
     backToPage()
@@ -7425,11 +7580,24 @@ function AppShell() {
     backToPage()
   }, [backToPage, cancelAutoOpenPlayer])
 
+  const handleDetailBack = useCallback(() => {
+    if (activeView === 'song') {
+      backFromNowPlaying()
+      return
+    }
+    backToPageWithCancel()
+  }, [activeView, backFromNowPlaying, backToPageWithCancel])
+
   return (
     <>
       <div className={`app-shell${activeNavKey === 'music' && activeView === 'page' ? ' app-shell--music' : ''}`}>
         {activeNavKey !== 'music' || activeView !== 'page' ? (
-          <Sidebar activeNavKey={activeNavKey} onNavigateNav={navigateNav} />
+          <Sidebar
+            activeNavKey={activeNavKey}
+            activeView={activeView}
+            activePage={activePage}
+            onNavigateNav={navigateNav}
+          />
         ) : null}
         <div className="main-area">
           <div
@@ -7437,6 +7605,7 @@ function AppShell() {
             data-queue-expanded={hasQueueRail ? 'true' : 'false'}
           >
             <main
+              ref={mainScrollRef}
               className={`main-scroll${
                 activeNavKey === 'home' && activeView === 'page' ? ' main-scroll--home' : ''
               }${
@@ -7446,7 +7615,7 @@ function AppShell() {
               }${
                 isPsdDestinationNav(activeNavKey) && activeView === 'page' ? ' main-scroll--psd' : ''
               }${
-                activeView === 'song' ? ' main-scroll--player-workspace' : ''
+                activeView === 'song' ? ' main-scroll--music-now-playing' : ''
               }`}
             >
               {isPsdDestinationNav(activeNavKey) && activeView === 'page' ? (
@@ -7554,17 +7723,19 @@ function AppShell() {
                   selectedAudiobookId={selectedAudiobookId}
                   selectedMotivationalProgramId={selectedMotivationalProgramId}
                   desktopSelectedTrack={desktopSelectedTrack}
-                  onBack={backToPageWithCancel}
+                  onBack={handleDetailBack}
                   activePage={activePage}
                   activeNavKey={activeNavKey}
                   onOpenSong={selectAndPlay}
                   onOpenAlbum={openAlbum}
                   onOpenArtist={openArtist}
+                  onOpenAlbumById={openAlbumById}
+                  onOpenArtistById={openArtistById}
+                  onBrowseMusic={() => navigateNav('music')}
                   onOpenMood={openMood}
                   onOpenPodcastShow={openPodcastShow}
                   onOpenAudiobookBook={openAudiobookBook}
                   onOpenMotivationalProgram={openMotivationalProgram}
-                  onOpenCinema={openCinemaPlayer}
                   discoverQuery={discoverQuery}
                   setDiscoverQuery={setDiscoverQuery}
                   albumsQuery={albumsQuery}
@@ -7597,13 +7768,13 @@ function AppShell() {
                 onBrowseAll={() => navigateNav('tv')}
                 onBrowseFeatured={() => navigateNav('tv')}
               />
-            ) : (
+            ) : hasQueueRail ? (
               <QueueUpNextPanel
                 onOpenPlayerByStyle={openPlayerByStyleNow}
                 onNavigateNav={navigateNav}
                 activeNavKey={activeNavKey}
               />
-            )}
+            ) : null}
           </div>
         </div>
       </div>
@@ -7611,6 +7782,7 @@ function AppShell() {
         <PlayerBar
           track={playerPreferredTrack}
           onOpenPlayerByStyle={openPlayerByStyleNow}
+          onOpenNowPlaying={openNowPlayingPage}
         />
       ) : null}
       {(anyPlayerShellVisible || lyricsOpen) ? (

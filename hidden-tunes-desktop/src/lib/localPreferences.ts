@@ -18,6 +18,7 @@ export type AudiobookPlaybackRate = (typeof AUDIOBOOK_PLAYBACK_RATES)[number]
 
 export const DESKTOP_PREFERENCE_KEYS = {
   activePage: 'active-page',
+  autoNextEnabled: 'auto-next-enabled',
   audioQualityMode: 'audio-quality-mode',
   audiobookPlaybackRate: 'audiobook-playback-rate',
   atmosphereEnabled: 'atmosphere-enabled',
@@ -133,6 +134,10 @@ export function parseStoredAudioQualityMode(
     AUDIO_QUALITY_MODES.includes(value as AudioQualityMode)
     ? (value as AudioQualityMode)
     : null
+}
+
+export function parseStoredBoolean(value: unknown): boolean | null {
+  return typeof value === 'boolean' ? value : null
 }
 
 export function parseStoredAudiobookPlaybackRate(
