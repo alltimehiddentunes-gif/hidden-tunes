@@ -2414,6 +2414,23 @@
   min-width: 0;
 }
 
+.player-like-btn {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  color: rgba(245, 243, 250, 0.55);
+}
+
+.player-like-btn:hover {
+  color: rgba(245, 243, 250, 0.92);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.player-like-btn.is-liked {
+  color: #ff6b8a;
+}
+
 .player-meta h4 {
   font-size: 14px;
   font-weight: 600;
@@ -25650,7 +25667,6 @@
     grid-template-columns: 1fr;
   }
 }
-
 
 /* —— Lecture detail / play page —— */
 .lecture-detail-page {

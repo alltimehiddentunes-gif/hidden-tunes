@@ -155,6 +155,14 @@ import {
   resolveEditorialPlaylistSpec,
   resolveEditorialPlaylistTracks,
 } from './lib/home/editorialPlaylists'
+import { useMusicLikes } from './lib/home/useMusicLikes'
+import { useMusicLocalState } from './lib/home/useMusicLocalState'
+import { isMusicCatalogSong } from './lib/home/isMusicCatalogSong'
+import {
+  formatLikedDateLabel,
+  formatPlayedAgoLabel,
+  shuffleSongQueue,
+} from './lib/home/musicLibraryHelpers'
 import { MotivationalsPage } from './components/motivationals/MotivationalsPage'
 import { MotivationalProgramPage } from './components/motivationals/MotivationalProgramPage'
 import { LecturesPage } from './components/lectures/LecturesPage'
@@ -209,14 +217,7 @@ const LIBRARY_CARD_TONES = [
   'rain',
 ] as const
 
-const LIBRARY_CURATED_PLAYLISTS = [
-  { title: 'Deep Focus', tone: 'forest' },
-  { title: 'Afro Vibes', tone: 'afro' },
-  { title: 'Chill & Relax', tone: 'lounge' },
-  { title: 'Workout Mix', tone: 'run' },
-  { title: 'Late Night Drive', tone: 'drive' },
-  { title: 'Rainy Day Comfort', tone: 'rain' },
-] as const
+const LIBRARY_PLAYLIST_TONES = ['forest', 'afro', 'lounge', 'run', 'drive', 'rain'] as const
 
 const LIBRARY_RECENT_PREVIEW = 6
 const LIBRARY_TAB_LIMIT = 24
@@ -480,34 +481,7 @@ const PSD_PLAYER5_STATS = {
   likes: '128',
 } as const
 
-const PSD_LIKED_META = '482 songs • 28h 47m'
-const PSD_LIKED_DESCRIPTION = 'All your favorite tracks in one place.'
-
-const PSD_LIKED_TABLE_ROWS = [
-  { key: 'ls1', title: 'Midnight Reflection', artist: 'Wills Afrobeats', album: 'Reflections at Midnight', dateAdded: 'May 12, 2024', duration: '3:56', active: true },
-  { key: 'ls2', title: 'Afro Sunset', artist: 'Wills Afrobeats', album: 'Afro Sunset', dateAdded: 'May 10, 2024', duration: '3:21' },
-  { key: 'ls3', title: 'Love Vibes', artist: 'Wills Afrobeats', album: 'Love & Rhythm', dateAdded: 'May 9, 2024', duration: '3:44' },
-  { key: 'ls4', title: 'Rain & Reflection', artist: 'Wills Afrobeats', album: 'Rain & Reflection', dateAdded: 'May 8, 2024', duration: '4:12' },
-  { key: 'ls5', title: 'Night Drive', artist: 'Wills Afrobeats', album: 'Vibes from Lagos', dateAdded: 'May 6, 2024', duration: '4:01' },
-  { key: 'ls6', title: 'Healing Slowly', artist: 'Wills Afrobeats', album: 'The Beginning', dateAdded: 'May 5, 2024', duration: '3:48' },
-  { key: 'ls7', title: 'Jazz Café', artist: 'Wills Afrobeats', album: 'Jazz Café', dateAdded: 'May 3, 2024', duration: '3:36' },
-  { key: 'ls8', title: 'Deep Focus', artist: 'Wills Afrobeats', album: 'Deep Focus', dateAdded: 'May 1, 2024', duration: '4:20' },
-  { key: 'ls9', title: 'Moments of Us', artist: 'Wills Afrobeats', album: 'Moments of Us', dateAdded: 'Apr 30, 2024', duration: '3:52' },
-  { key: 'ls10', title: 'Lost In The Moment', artist: 'Zonkeelsy', album: 'Lost In The Moment', dateAdded: 'Apr 28, 2024', duration: '3:12' },
-] as const
-
-const PSD_RECENT_TABLE_ROWS = [
-  { key: 'rp1', title: 'Falling Slowly', subtitle: 'Wills Afrobeats', artist: 'Wills Afrobeats', itemType: 'Song', played: '2 min ago', duration: '3:42' },
-  { key: 'rp2', title: 'Midnight Reflection', subtitle: 'Wills Afrobeats', artist: 'Wills Afrobeats', itemType: 'Song', played: '8 min ago', duration: '3:56' },
-  { key: 'rp3', title: 'Afro Sunset', subtitle: 'Wills Afrobeats', artist: 'Wills Afrobeats', itemType: 'Song', played: '15 min ago', duration: '3:21' },
-  { key: 'rp4', title: 'Night Drive', subtitle: 'Wills Afrobeats', artist: 'Wills Afrobeats', itemType: 'Song', played: '24 min ago', duration: '4:01' },
-  { key: 'rp5', title: 'Chill & Relax', subtitle: 'Playlist • 40 songs', artist: '', itemType: 'Playlist', played: '37 min ago', duration: '—' },
-  { key: 'rp6', title: 'Healing Slowly', subtitle: 'Wills Afrobeats', artist: 'Wills Afrobeats', itemType: 'Song', played: '1 hour ago', duration: '3:48' },
-  { key: 'rp7', title: 'Love Vibes', subtitle: 'Wills Afrobeats', artist: 'Wills Afrobeats', itemType: 'Song', played: '1 hour ago', duration: '3:44' },
-  { key: 'rp8', title: 'Workout Mix', subtitle: 'Playlist • 25 songs', artist: '', itemType: 'Playlist', played: '2 hours ago', duration: '—' },
-  { key: 'rp9', title: 'Live in Accra', subtitle: 'Wills Afrobeats', artist: '', itemType: 'Album', played: '3 hours ago', duration: '—' },
-  { key: 'rp10', title: 'Rainy Day Comfort', subtitle: 'Wills Afrobeats', artist: 'Wills Afrobeats', itemType: 'Song', played: '4 hours ago', duration: '4:05' },
-] as const
+const PSD_LIKED_DESCRIPTION = 'Songs you heart on this device. Likes stay local until cloud sync ships.'
 
 const PSD_DOWNLOADS_STORAGE_PERCENT = 72
 const PSD_DOWNLOADS_PLAYLISTS = [
@@ -617,8 +591,12 @@ void [
   PSD_PLAYER5_LIBRARY_NAV,
   PSD_ALBUMS_SUBTITLE,
   PSD_ALBUMS_FOOTER_COUNT,
-  PSD_LIKED_META,
+  PSD_LIKED_DESCRIPTION,
   PSD_DOWNLOADS_STORAGE_PERCENT,
+  PSD_DOWNLOADS_PLAYLISTS,
+  PSD_DOWNLOADS_ALBUMS,
+  PSD_DOWNLOADS_SONGS,
+  PSD_DOWNLOADS_TABS,
 ]
 
 function PsdWaveformStrip({ className = '' }: { className?: string }) {
@@ -3747,21 +3725,22 @@ function LibraryPage({
   )
 
   const playlistCards = useMemo(
-    () => LIBRARY_CURATED_PLAYLISTS.map((playlist, index) => {
-      const sliceStart = index * 4
-      const playlistSongs = filteredSongs.slice(sliceStart, sliceStart + 12)
+    () => EDITORIAL_PLAYLIST_SPECS.map((spec, index) => {
+      const playlistSongs = resolveEditorialPlaylistTracks(filteredSongs, spec.sceneId).slice(0, 24)
       const coverArt = getArtworkForPlaylist(
-        { title: playlist.title, songs: playlistSongs },
+        { title: spec.title, songs: playlistSongs },
         artworkContext,
       )
       return {
-        ...playlist,
+        id: spec.id,
+        title: spec.title,
+        tone: LIBRARY_PLAYLIST_TONES[index % LIBRARY_PLAYLIST_TONES.length],
         songCount: playlistSongs.length,
         countLabel: `${playlistSongs.length} ${playlistSongs.length === 1 ? 'song' : 'songs'}`,
         collage: getArtworkForPlaylistCollage(playlistSongs, artworkContext),
         coverArt,
       }
-    }),
+    }).filter((playlist) => playlist.songCount >= 4),
     [artworkContext, filteredSongs],
   )
 
@@ -3770,9 +3749,9 @@ function LibraryPage({
       songCount: songs.length,
       albumCount: albums.length,
       artistCount: artists.length,
-      playlistCount: LIBRARY_CURATED_PLAYLISTS.length,
+      playlistCount: playlistCards.length,
     }),
-    [albums.length, artists.length, songs.length],
+    [albums.length, artists.length, playlistCards.length, songs.length],
   )
 
   const queuePools = useMemo(() => buildQueueCandidatePools(indexes), [indexes])
@@ -4042,7 +4021,7 @@ function LibraryPage({
         {showPlaylists && playlistCards.some((playlist) => playlist.songCount > 0) ? (
           <section className="psd-library-section psd-library-section--playlists" aria-labelledby="your-playlists-heading">
             <header className="psd-library-section-header">
-              <h2 id="your-playlists-heading">Your Playlists</h2>
+              <h2 id="your-playlists-heading">Editorial Playlists</h2>
               {tab === 'Overview' ? (
                 <button
                   type="button"
@@ -4056,7 +4035,7 @@ function LibraryPage({
             <div className="psd-library-card-row">
               {playlistCards.filter((playlist) => playlist.songCount > 0).map((playlist) => (
                 <button
-                  key={playlist.title}
+                  key={playlist.id}
                   type="button"
                   className="psd-library-cover-card psd-library-cover-card--playlist"
                   data-tone={playlist.tone}
@@ -4832,53 +4811,41 @@ function PlaylistsPage({
 
 
 function LikedPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
-  const { songs, indexes } = useCatalog()
-  const likedSongs = useMemo(() => sortSongsList([...songs], 'latest'), [songs])
+  const { indexes } = useCatalog()
+  const { likedSongIds, likedAtById, toggleLiked } = useMusicLikes()
   const queuePools = useMemo(() => buildQueueCandidatePools(indexes), [indexes])
 
-  const resolveLikedSongAtIndex = useCallback(
-    (index: number) => {
-      const row = PSD_LIKED_TABLE_ROWS[index]
-      if (!row) return null
-      const exact = likedSongs.find(
-        (song) =>
-          song.title.toLowerCase() === row.title.toLowerCase()
-          && song.artist.toLowerCase() === row.artist.toLowerCase(),
-      )
-      return exact ?? likedSongs[index] ?? null
-    },
-    [likedSongs],
+  const likedSongs = useMemo(
+    () => likedSongIds
+      .map((songId) => indexes.songsById.get(songId))
+      .filter((song): song is ApiSong => Boolean(song)),
+    [indexes.songsById, likedSongIds],
   )
 
-  const playLikedSong = useCallback(
-    (index: number) => {
-      const song = resolveLikedSongAtIndex(index)
-      if (!song) return
-      const queue = likedSongs.length > 0 ? likedSongs : [song]
-      const queueIndex = Math.max(0, queue.findIndex((entry) => entry.id === song.id))
-      onOpenSong(song, queue, queueIndex, 'manual', 'Liked Songs', {
+  const playLikedQueue = useCallback(
+    (song: ApiSong | null, shuffle: boolean) => {
+      if (likedSongs.length === 0) return
+      const queue = shuffle ? shuffleSongQueue(likedSongs) : likedSongs
+      const startSong = shuffle ? queue[0]! : (song ?? queue[0]!)
+      const queueIndex = Math.max(0, queue.findIndex((entry) => entry.id === startSong.id))
+      onOpenSong(startSong, queue, queueIndex, 'manual', 'Liked Songs', {
         seedType: 'manual',
-        seedTracks: buildQueueSeedPool('manual', queue, indexes, song),
+        seedTracks: buildQueueSeedPool('manual', queue, indexes, startSong),
         candidatePools: queuePools,
       })
     },
-    [indexes, likedSongs, onOpenSong, queuePools, resolveLikedSongAtIndex],
+    [indexes, likedSongs, onOpenSong, queuePools],
   )
-
-  const playAllLiked = useCallback(() => {
-    playLikedSong(0)
-  }, [playLikedSong])
 
   const likedMeta = useMemo(() => {
     const count = likedSongs.length
+    if (count === 0) return '0 songs'
     const totalSeconds = likedSongs.reduce((sum, song) => sum + (song.durationSeconds ?? 0), 0)
     const hours = Math.floor(totalSeconds / 3600)
     const minutes = Math.floor((totalSeconds % 3600) / 60)
     const durationLabel = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`
     return `${count} ${count === 1 ? 'song' : 'songs'} • ${durationLabel}`
   }, [likedSongs])
-
-  const visibleLikedSongs = likedSongs.slice(0, PSD_LIKED_TABLE_ROWS.length)
 
   return (
     <div className="psd-liked-destination">
@@ -4891,7 +4858,6 @@ function LikedPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
                 <path d="M12 20.8l-1.1-1C6.4 15.36 3 12.28 3 8.5 3 6 5 4 7.5 4c1.74 0 3.41 1.01 4.5 2.36C13.09 5.01 14.76 4 16.5 4 19 4 21 6 21 8.5c0 3.78-3.4 6.86-7.9 11.3L12 20.8z" />
               </svg>
             </div>
-
           </div>
 
           <div className="psd-liked-hero-copy">
@@ -4900,13 +4866,23 @@ function LikedPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
             <p className="psd-liked-page-description">{PSD_LIKED_DESCRIPTION}</p>
             <div className="psd-liked-hero-toolbar">
               <div className="psd-liked-hero-actions">
-                <button type="button" className="psd-liked-btn psd-liked-btn--play" onClick={playAllLiked}>
+                <button
+                  type="button"
+                  className="psd-liked-btn psd-liked-btn--play"
+                  disabled={likedSongs.length === 0}
+                  onClick={() => playLikedQueue(likedSongs[0] ?? null, false)}
+                >
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                     <path d="M8 5v14l11-7z" />
                   </svg>
                   Play
                 </button>
-                <button type="button" className="psd-liked-btn psd-liked-btn--shuffle" onClick={playAllLiked}>
+                <button
+                  type="button"
+                  className="psd-liked-btn psd-liked-btn--shuffle"
+                  disabled={likedSongs.length === 0}
+                  onClick={() => playLikedQueue(null, true)}
+                >
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
                     <path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5" />
                   </svg>
@@ -4918,33 +4894,39 @@ function LikedPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
         </section>
 
         <section className="psd-liked-table-section" aria-label="Liked songs">
-          <div className="psd-liked-table-wrap">
-            <table className="psd-liked-table">
-              <thead>
-                <tr>
-                  <th scope="col" className="psd-liked-col-index">#</th>
-                  <th scope="col" className="psd-liked-col-title">TITLE</th>
-                  <th scope="col" className="psd-liked-col-artist">ARTIST</th>
-                  <th scope="col" className="psd-liked-col-album">ALBUM</th>
-                  <th scope="col" className="psd-liked-col-date">DATE ADDED</th>
-                  <th scope="col" className="psd-liked-col-duration" aria-label="Duration">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-                      <circle cx="12" cy="12" r="9" />
-                      <path d="M12 7v5l3 2" />
-                    </svg>
-                  </th>
-                  <th scope="col" className="psd-liked-col-menu"><span className="sr-only">Actions</span></th>
-                </tr>
-              </thead>
-              <tbody>
-                {visibleLikedSongs.map((song, index) => (
+          {likedSongs.length === 0 ? (
+            <CatalogEmpty
+              title="No liked songs yet"
+              detail="Tap the heart on the player bar while a music track is playing to save it here."
+            />
+          ) : (
+            <div className="psd-liked-table-wrap">
+              <table className="psd-liked-table">
+                <thead>
+                  <tr>
+                    <th scope="col" className="psd-liked-col-index">#</th>
+                    <th scope="col" className="psd-liked-col-title">TITLE</th>
+                    <th scope="col" className="psd-liked-col-artist">ARTIST</th>
+                    <th scope="col" className="psd-liked-col-album">ALBUM</th>
+                    <th scope="col" className="psd-liked-col-date">DATE ADDED</th>
+                    <th scope="col" className="psd-liked-col-duration" aria-label="Duration">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+                        <circle cx="12" cy="12" r="9" />
+                        <path d="M12 7v5l3 2" />
+                      </svg>
+                    </th>
+                    <th scope="col" className="psd-liked-col-menu"><span className="sr-only">Actions</span></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {likedSongs.map((song, index) => (
                     <tr key={song.id} className="psd-liked-table-row">
                       <td className="psd-liked-col-index">{index + 1}</td>
                       <td className="psd-liked-col-title">
                         <button
                           type="button"
                           className="psd-liked-title-btn"
-                          onClick={() => playLikedSong(index)}
+                          onClick={() => playLikedQueue(song, false)}
                         >
                           <span className="psd-liked-row-thumb">
                             <ArtworkImage
@@ -4964,21 +4946,31 @@ function LikedPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
                       </td>
                       <td className="psd-liked-col-artist">{song.artist}</td>
                       <td className="psd-liked-col-album">{song.album ?? '—'}</td>
-                      <td className="psd-liked-col-date">—</td>
+                      <td className="psd-liked-col-date">{formatLikedDateLabel(likedAtById[song.id])}</td>
                       <td className="psd-liked-col-duration">{formatSongDurationLabel(song)}</td>
-                      <td className="psd-liked-col-menu" aria-hidden="true" />
+                      <td className="psd-liked-col-menu">
+                        <button
+                          type="button"
+                          className="control-btn"
+                          aria-label={`Remove ${song.title} from liked songs`}
+                          onClick={() => toggleLiked(song.id)}
+                        >
+                          <PsdIconHeart />
+                        </button>
+                      </td>
                     </tr>
                   ))}
-              </tbody>
-            </table>
-          </div>
+                </tbody>
+              </table>
+            </div>
+          )}
         </section>
       </PageFrame>
     </div>
   )
 }
 
-/* Phase 42O: Recently Played page exact PSD reconstruction */
+/* Phase D: Recently Played from device music history */
 function RecentPage({
   onOpenSong,
   query = '',
@@ -4986,90 +4978,96 @@ function RecentPage({
   onOpenSong: QueueSongHandler
   query?: string
 }) {
-  const { songs, indexes } = useCatalog()
-  const recentSongs = useMemo(() => sortSongsList([...songs], 'latest'), [songs])
+  const { indexes } = useCatalog()
+  const { recentlyPlayed } = useMusicLocalState()
   const queuePools = useMemo(() => buildQueueCandidatePools(indexes), [indexes])
 
-  const resolveRecentSongAtIndex = useCallback(
-    (index: number) => {
-      const row = PSD_RECENT_TABLE_ROWS[index]
-      if (!row || row.itemType !== 'Song') return null
-      const exact = recentSongs.find(
-        (song) => song.title.toLowerCase() === row.title.toLowerCase(),
-      )
-      return exact ?? recentSongs[index] ?? null
-    },
-    [recentSongs],
-  )
+  const recentRows = useMemo(() => {
+    return recentlyPlayed
+      .map((entry) => {
+        const song = indexes.songsById.get(entry.songId)
+        if (!song) return null
+        return { entry, song }
+      })
+      .filter((row): row is { entry: (typeof recentlyPlayed)[number]; song: ApiSong } => Boolean(row))
+  }, [indexes.songsById, recentlyPlayed])
 
   const playRecentSong = useCallback(
-    (index: number) => {
-      const song = resolveRecentSongAtIndex(index)
-      if (!song) return
-      const queue = recentSongs.length > 0 ? recentSongs : [song]
+    (song: ApiSong) => {
+      const queue = recentRows.map((row) => row.song)
+      if (queue.length === 0) return
       const queueIndex = Math.max(0, queue.findIndex((entry) => entry.id === song.id))
-      onOpenSong(song, queue, queueIndex, 'manual', 'Recent Plays', {
+      onOpenSong(song, queue, queueIndex, 'manual', 'Recently Played', {
         seedType: 'manual',
         seedTracks: buildQueueSeedPool('manual', queue, indexes, song),
         candidatePools: queuePools,
       })
     },
-    [indexes, onOpenSong, queuePools, recentSongs, resolveRecentSongAtIndex],
+    [indexes, onOpenSong, queuePools, recentRows],
   )
 
   const normalizedQuery = query.trim().toLowerCase()
-  const visibleSongs = useMemo(() => {
-    const base = recentSongs.slice(0, 10)
-    if (!normalizedQuery) return base
-    return base.filter((song) => {
+  const visibleRows = useMemo(() => {
+    if (!normalizedQuery) return recentRows
+    return recentRows.filter(({ song }) => {
       const haystack = [song.title, song.artist, song.album ?? ''].join(' ').toLowerCase()
       return haystack.includes(normalizedQuery)
     })
-  }, [normalizedQuery, recentSongs])
+  }, [normalizedQuery, recentRows])
 
   return (
     <div className="psd-recent-destination">
       <PageFrame cinematic>
         <header className="psd-recent-header" aria-labelledby="recent-heading">
           <h1 id="recent-heading" className="psd-recent-page-title">Recently Played</h1>
-          <p className="psd-recent-page-subtitle">Your recent music activity</p>
+          <p className="psd-recent-page-subtitle">Music you have listened to on this device</p>
         </header>
 
         <section className="psd-recent-table-section" aria-label="Recently played items">
-          <div className="psd-recent-table-wrap">
-            <table className="psd-recent-table">
-              <thead>
-                <tr>
-                  <th scope="col" className="psd-recent-col-index">#</th>
-                  <th scope="col" className="psd-recent-col-title">TITLE</th>
-                  <th scope="col" className="psd-recent-col-artist">ARTIST</th>
-                  <th scope="col" className="psd-recent-col-type">TYPE</th>
-                  <th scope="col" className="psd-recent-col-played">
-                    <span className="psd-recent-played-label">
-                      PLAYED
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                        <path d="M6 9l6 6 6-6" />
+          {visibleRows.length === 0 ? (
+            <CatalogEmpty
+              title={normalizedQuery ? 'No matching recent plays' : 'No recent plays yet'}
+              detail={
+                normalizedQuery
+                  ? `Nothing in your play history matched "${query.trim()}".`
+                  : 'Play music to build your recently played list on this device.'
+              }
+            />
+          ) : (
+            <div className="psd-recent-table-wrap">
+              <table className="psd-recent-table">
+                <thead>
+                  <tr>
+                    <th scope="col" className="psd-recent-col-index">#</th>
+                    <th scope="col" className="psd-recent-col-title">TITLE</th>
+                    <th scope="col" className="psd-recent-col-artist">ARTIST</th>
+                    <th scope="col" className="psd-recent-col-type">TYPE</th>
+                    <th scope="col" className="psd-recent-col-played">
+                      <span className="psd-recent-played-label">
+                        PLAYED
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                          <path d="M6 9l6 6 6-6" />
+                        </svg>
+                      </span>
+                    </th>
+                    <th scope="col" className="psd-recent-col-duration" aria-label="Duration">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+                        <circle cx="12" cy="12" r="9" />
+                        <path d="M12 7v5l3 2" />
                       </svg>
-                    </span>
-                  </th>
-                  <th scope="col" className="psd-recent-col-duration" aria-label="Duration">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-                      <circle cx="12" cy="12" r="9" />
-                      <path d="M12 7v5l3 2" />
-                    </svg>
-                  </th>
-                  <th scope="col" className="psd-recent-col-menu"><span className="sr-only">Actions</span></th>
-                </tr>
-              </thead>
-              <tbody>
-                {visibleSongs.map((song, index) => (
-                    <tr key={song.id} className="psd-recent-table-row">
+                    </th>
+                    <th scope="col" className="psd-recent-col-menu"><span className="sr-only">Actions</span></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibleRows.map(({ entry, song }, index) => (
+                    <tr key={`${song.id}-${entry.playedAt}`} className="psd-recent-table-row">
                       <td className="psd-recent-col-index">{index + 1}</td>
                       <td className="psd-recent-col-title">
                         <button
                           type="button"
                           className="psd-recent-title-btn"
-                          onClick={() => playRecentSong(index)}
+                          onClick={() => playRecentSong(song)}
                         >
                           <span className="psd-recent-row-thumb">
                             <ArtworkImage
@@ -5092,25 +5090,25 @@ function RecentPage({
                           <span>Song</span>
                         </span>
                       </td>
-                      <td className="psd-recent-col-played">—</td>
+                      <td className="psd-recent-col-played">{formatPlayedAgoLabel(entry.playedAt)}</td>
                       <td className="psd-recent-col-duration">{formatSongDurationLabel(song)}</td>
                       <td className="psd-recent-col-menu" aria-hidden="true" />
                     </tr>
                   ))}
-              </tbody>
-            </table>
-            <p className="psd-recent-table-footer">
-              {visibleSongs.length === 0 ? "No recent plays yet" : `Showing ${visibleSongs.length} recently played songs`}
-            </p>
-          </div>
+                </tbody>
+              </table>
+              <p className="psd-recent-table-footer">
+                Showing {visibleRows.length} recently played {visibleRows.length === 1 ? 'song' : 'songs'}
+              </p>
+            </div>
+          )}
         </section>
       </PageFrame>
     </div>
   )
 }
 
-/* Phase 42X-FIX-2: Downloads page desktop shell + PSD content */
-
+/* Phase D: Downloads stay honest until offline sync ships */
 function DownloadsPage({
   onOpenSong,
   query = '',
@@ -5118,191 +5116,23 @@ function DownloadsPage({
   onOpenSong: QueueSongHandler
   query?: string
 }) {
+  void onOpenSong
   void query
-  const { songs, albums, indexes, artworkContext } = useCatalog()
-  const queuePools = useMemo(() => buildQueueCandidatePools(indexes), [indexes])
-  const [activeTab, setActiveTab] = useState<(typeof PSD_DOWNLOADS_TABS)[number]>('All')
-
-  const resolveSong = useCallback(
-    (title: string, index = 0) => songs.find((song) => song.title.toLowerCase() === title.toLowerCase()) ?? songs[index] ?? null,
-    [songs],
-  )
-
-  const resolveDownloadAlbum = useCallback(
-    (title: string, index = 0) => albums.find((album) => album.title.toLowerCase() === title.toLowerCase()) ?? albums[index] ?? null,
-    [albums],
-  )
-
-  const playShuffleAll = useCallback(() => {
-    const firstSong = resolveSong(PSD_DOWNLOADS_SONGS[0].title) ?? songs[0]
-    if (!firstSong) return
-    const queue = songs.length > 0 ? songs : [firstSong]
-    const queueIndex = Math.max(0, queue.findIndex((entry) => entry.id === firstSong.id))
-    onOpenSong(firstSong, queue, queueIndex, 'manual', 'Downloads', {
-      seedType: 'manual',
-      seedTracks: buildQueueSeedPool('manual', queue, indexes, firstSong),
-      candidatePools: queuePools,
-    })
-  }, [indexes, onOpenSong, queuePools, resolveSong, songs])
-
-  const showPlaylists = activeTab === 'All' || activeTab === 'Playlists'
-  const showAlbums = activeTab === 'All' || activeTab === 'Albums'
-  const showSongs = activeTab === 'All' || activeTab === 'Songs'
 
   return (
     <div className="psd-downloads-destination">
       <PageFrame cinematic>
         <h1 className="psd-downloads-title">Downloads</h1>
-
-        <section className="psd-downloads-storage" aria-label="Offline downloads preview">
+        <section className="psd-downloads-storage" aria-label="Offline downloads status">
           <div className="psd-downloads-storage-copy">
-            <strong>Offline downloads preview</strong>
-            <span>Device download storage and sync are not connected in this desktop build yet.</span>
+            <strong>Offline downloads are not connected</strong>
+            <span>Device download storage and sync are not available in this desktop build yet.</span>
           </div>
         </section>
-
-        <div className="psd-downloads-tabs" role="tablist" aria-label="Download categories">
-          {PSD_DOWNLOADS_TABS.map((tab) => (
-            <button
-              key={tab}
-              type="button"
-              role="tab"
-              aria-selected={activeTab === tab}
-              className={`psd-downloads-tab${activeTab === tab ? ' is-active' : ''}`}
-              onClick={() => setActiveTab(tab)}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
-
-        <div className="psd-downloads-controls">
-          <button type="button" className="psd-downloads-shuffle-all" onClick={playShuffleAll}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-              <path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5" />
-            </svg>
-            Shuffle All
-          </button>
-
-        </div>
-
-        {showPlaylists ? (
-          <section className="psd-downloads-section" aria-label="Downloaded playlists">
-            <h2 className="psd-downloads-section-title">Playlists ({PSD_DOWNLOADS_PLAYLISTS.length})</h2>
-            <ul className="psd-downloads-list">
-              {PSD_DOWNLOADS_PLAYLISTS.map((row, index) => {
-                const playlistSongs = songs.slice(index * 4, index * 4 + 8)
-                return (
-                <li key={row.key} className="psd-downloads-row">
-                  <span className="psd-downloads-row-art">
-                    <ArtworkCollage
-                      urls={getArtworkForPlaylistCollage(playlistSongs, artworkContext)}
-                      seed={row.key}
-                      label={row.title}
-                    />
-                  </span>
-                  <div className="psd-downloads-row-copy">
-                    <p className="psd-downloads-row-title">
-                      {row.title}
-                      <svg className="psd-downloads-row-badge" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                        <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                      </svg>
-                    </p>
-                    <span className="psd-downloads-row-meta">{row.meta}</span>
-                    <span className="psd-downloads-row-status">Downloaded</span>
-                  </div>
-                  <span className="psd-downloads-row-check" aria-hidden="true">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <circle cx="12" cy="12" r="9" />
-                      <path d="M8 12l2.5 2.5L16 9" />
-                    </svg>
-                  </span>
-                </li>
-                )
-              })}
-            </ul>
-          </section>
-        ) : null}
-
-        {showAlbums ? (
-          <section className="psd-downloads-section" aria-label="Downloaded albums">
-            <h2 className="psd-downloads-section-title">Albums ({PSD_DOWNLOADS_ALBUMS.length})</h2>
-            <ul className="psd-downloads-list">
-              {PSD_DOWNLOADS_ALBUMS.map((row, index) => {
-                const album = resolveDownloadAlbum(row.title, index)
-                return (
-                <li key={row.key} className="psd-downloads-row">
-                  <span className="psd-downloads-row-art">
-                    <ArtworkImage
-                      src={album?.artwork ?? null}
-                      alt=""
-                      seed={album?.id ?? row.key}
-                      label={album?.title ?? row.title}
-                    />
-                  </span>
-                  <div className="psd-downloads-row-copy">
-                    <p className="psd-downloads-row-title">
-                      {album?.title ?? row.title}
-                      <svg className="psd-downloads-row-badge" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                        <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                      </svg>
-                    </p>
-                    <span className="psd-downloads-row-meta">{row.artist}</span>
-                    <span className="psd-downloads-row-meta">{row.meta}</span>
-                    <span className="psd-downloads-row-status">Downloaded</span>
-                  </div>
-                  <span className="psd-downloads-row-check" aria-hidden="true">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <circle cx="12" cy="12" r="9" />
-                      <path d="M8 12l2.5 2.5L16 9" />
-                    </svg>
-                  </span>
-                </li>
-                )
-              })}
-            </ul>
-          </section>
-        ) : null}
-
-        {showSongs ? (
-          <section className="psd-downloads-section" aria-label="Downloaded songs">
-            <h2 className="psd-downloads-section-title">Songs ({PSD_DOWNLOADS_SONGS.length})</h2>
-            <ul className="psd-downloads-list">
-              {PSD_DOWNLOADS_SONGS.map((row, index) => {
-                const song = resolveSong(row.title, index)
-                return (
-                <li key={row.key} className="psd-downloads-row">
-                  <span className="psd-downloads-row-art">
-                    <ArtworkImage
-                      src={song?.artwork ?? null}
-                      alt=""
-                      seed={song?.id ?? row.key}
-                      label={song?.title ?? row.title}
-                    />
-                  </span>
-                  <div className="psd-downloads-row-copy">
-                    <p className="psd-downloads-row-title">
-                      {song?.title ?? row.title}
-                      <svg className="psd-downloads-row-badge" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                        <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                      </svg>
-                    </p>
-                    <span className="psd-downloads-row-meta">
-                      {song ? `${song.artist}${song.album ? ` • ${song.album}` : ''}` : row.meta}
-                    </span>
-                  </div>
-                  <span className="psd-downloads-row-check" aria-hidden="true">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <circle cx="12" cy="12" r="9" />
-                      <path d="M8 12l2.5 2.5L16 9" />
-                    </svg>
-                  </span>
-                </li>
-                )
-              })}
-            </ul>
-          </section>
-        ) : null}
+        <CatalogEmpty
+          title="No downloaded content"
+          detail="When offline downloads ship, your saved playlists, albums, and songs will appear here."
+        />
       </PageFrame>
     </div>
   )
@@ -5906,6 +5736,7 @@ const PlayerBar = memo(function PlayerBar({
     setVolume,
   } = useDesktopPlayback()
   const { positionSeconds, durationSeconds } = useDesktopPlaybackProgress()
+  const { isLiked, toggleLiked } = useMusicLikes()
 
   const progressTrackRef = useRef<HTMLDivElement>(null)
   const volumeTrackRef = useRef<HTMLDivElement>(null)
@@ -5933,6 +5764,8 @@ const PlayerBar = memo(function PlayerBar({
     && !isPodcastQueueSong(displayTrack)
     && !isRadioQueueSong(displayTrack)
     && !isTvQueueSong(displayTrack)
+  const canLikeTrack = Boolean(displayTrack && isMusicCatalogSong(displayTrack))
+  const trackLiked = canLikeTrack ? isLiked(displayTrack!.id) : false
   const isTvLive = Boolean(displayTrack && isTvQueueSong(displayTrack))
   const progressMax = isTvLive ? 0 : (durationSeconds > 0 ? durationSeconds : 0)
   const progressValue = scrubSeconds ?? (progressMax > 0 ? Math.min(positionSeconds, progressMax) : 0)
@@ -6054,6 +5887,19 @@ const PlayerBar = memo(function PlayerBar({
           {subtitle ? <p className="player-meta-subtitle">{subtitle}</p> : null}
           {error ? <p className="player-error">{error}</p> : null}
         </div>
+        {canLikeTrack ? (
+          <button
+            type="button"
+            className={`control-btn player-like-btn${trackLiked ? ' is-liked' : ''}`}
+            aria-label={trackLiked ? `Remove ${title} from liked songs` : `Like ${title}`}
+            aria-pressed={trackLiked}
+            onClick={() => displayTrack && toggleLiked(displayTrack.id)}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill={trackLiked ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+              <path d="M12 20.8l-1.1-1C6.4 15.36 3 12.28 3 8.5 3 6 5 4 7.5 4c1.74 0 3.41 1.01 4.5 2.36C13.09 5.01 14.76 4 16.5 4 19 4 21 6 21 8.5c0 3.78-3.4 6.86-7.9 11.3L12 20.8z" />
+            </svg>
+          </button>
+        ) : null}
       </div>
 
       <div className="player-center">
@@ -6407,15 +6253,16 @@ function AlbumDetailView({
   )
 
   const artwork = album.artwork
+  const [showAllTracks, setShowAllTracks] = useState(false)
   const tracks = useMemo(
-    () => albumSongs.slice(0, CATALOG_DETAIL_TRACK_PREVIEW_LIMIT),
-    [albumSongs],
+    () => (showAllTracks ? albumSongs : albumSongs.slice(0, CATALOG_DETAIL_TRACK_PREVIEW_LIMIT)),
+    [albumSongs, showAllTracks],
   )
   const queuePools = useMemo(() => buildQueueCandidatePools(indexes), [indexes])
   const playAlbumSong = useCallback(
-    (song: ApiSong, index: number) => onOpenSong(
+    (song: ApiSong, index: number, queue = albumSongs) => onOpenSong(
       song,
-      tracks,
+      queue,
       index,
       'album',
       album.title,
@@ -6426,7 +6273,15 @@ function AlbumDetailView({
         candidatePools: queuePools,
       },
     ),
-    [album.id, album.title, albumSongs, onOpenSong, queuePools, tracks],
+    [album.id, album.title, albumSongs, onOpenSong, queuePools],
+  )
+  const playAlbum = useCallback(
+    (shuffle: boolean) => {
+      if (albumSongs.length === 0) return
+      const queue = shuffle ? shuffleSongQueue(albumSongs) : albumSongs
+      playAlbumSong(queue[0]!, 0, queue)
+    },
+    [albumSongs, playAlbumSong],
   )
 
   return (
@@ -6449,12 +6304,39 @@ function AlbumDetailView({
             {albumSongs.length} {albumSongs.length === 1 ? 'track' : 'tracks'}
             {created ? ` · Added ${created}` : ''}
           </p>
+          <div className="detail-hero-actions">
+            <button
+              type="button"
+              className="btn-primary btn-sm"
+              disabled={albumSongs.length === 0}
+              onClick={() => playAlbum(false)}
+            >
+              Play
+            </button>
+            <button
+              type="button"
+              className="btn-secondary btn-sm"
+              disabled={albumSongs.length === 0}
+              onClick={() => playAlbum(true)}
+            >
+              Shuffle
+            </button>
+          </div>
         </div>
       </section>
 
       <section className="detail-panel">
         <div className="detail-panel-header">
           <h3>Track list</h3>
+          {albumSongs.length > CATALOG_DETAIL_TRACK_PREVIEW_LIMIT ? (
+            <button
+              type="button"
+              className="btn-secondary btn-sm"
+              onClick={() => setShowAllTracks((value) => !value)}
+            >
+              {showAllTracks ? 'Show less' : `Show all ${albumSongs.length}`}
+            </button>
+          ) : null}
         </div>
         {tracks.length === 0 ? (
           <CatalogEmpty title="No verified tracks" detail="Only identity-matched album tracks are shown here." />
@@ -6466,7 +6348,10 @@ function AlbumDetailView({
                   type="button"
                   className="detail-track detail-track-button"
                   data-selected={selectedTrackId === track.id ? 'true' : undefined}
-                  onClick={() => playAlbumSong(track, index)}
+                  onClick={() => {
+                    const fullIndex = albumSongs.findIndex((entry) => entry.id === track.id)
+                    playAlbumSong(track, fullIndex >= 0 ? fullIndex : index, albumSongs)
+                  }}
                   aria-label={`Open ${track.title} by ${track.artist}`}
                 >
                   <span className="detail-track-index">{String(index + 1).padStart(2, '0')}</span>
@@ -6503,12 +6388,16 @@ function ArtistDetailView({
     )
     return sortSongsList(byArtist, 'latest')
   }, [artist, indexes.songsByArtistId, indexes.songsByArtistName])
-  const topSongs = useMemo(() => artistSongs.slice(0, 12), [artistSongs])
+  const [showAllSongs, setShowAllSongs] = useState(false)
+  const topSongs = useMemo(
+    () => (showAllSongs ? artistSongs : artistSongs.slice(0, 12)),
+    [artistSongs, showAllSongs],
+  )
   const queuePools = useMemo(() => buildQueueCandidatePools(indexes), [indexes])
   const playArtistSong = useCallback(
-    (song: ApiSong, index: number) => onOpenSong(
+    (song: ApiSong, index: number, queue = artistSongs) => onOpenSong(
       song,
-      topSongs,
+      queue,
       index,
       'artist',
       artist.name,
@@ -6519,7 +6408,15 @@ function ArtistDetailView({
         candidatePools: queuePools,
       },
     ),
-    [artist.id, artist.name, artistSongs, onOpenSong, queuePools, topSongs],
+    [artist.id, artist.name, artistSongs, onOpenSong, queuePools],
+  )
+  const playArtist = useCallback(
+    (shuffle: boolean) => {
+      if (artistSongs.length === 0) return
+      const queue = shuffle ? shuffleSongQueue(artistSongs) : artistSongs
+      playArtistSong(queue[0]!, 0, queue)
+    },
+    [artistSongs, playArtistSong],
   )
 
   const artistAlbums = useMemo(
@@ -6546,10 +6443,18 @@ function ArtistDetailView({
             <button
               type="button"
               className="btn-primary btn-sm"
-              disabled={topSongs.length === 0}
-              onClick={() => topSongs[0] && playArtistSong(topSongs[0], 0)}
+              disabled={artistSongs.length === 0}
+              onClick={() => playArtist(false)}
             >
               Play
+            </button>
+            <button
+              type="button"
+              className="btn-secondary btn-sm"
+              disabled={artistSongs.length === 0}
+              onClick={() => playArtist(true)}
+            >
+              Shuffle
             </button>
           </div>
         </div>
@@ -6557,15 +6462,28 @@ function ArtistDetailView({
 
       <section className="detail-panel">
         <div className="detail-panel-header">
-          <h3>Top songs</h3>
-          <span>From cached catalog</span>
+          <h3>{showAllSongs ? 'All songs' : 'Top songs'}</h3>
+          {artistSongs.length > 12 ? (
+            <button
+              type="button"
+              className="btn-secondary btn-sm"
+              onClick={() => setShowAllSongs((value) => !value)}
+            >
+              {showAllSongs ? 'Show less' : `Show all ${artistSongs.length}`}
+            </button>
+          ) : (
+            <span>From cached catalog</span>
+          )}
         </div>
         {topSongs.length === 0 ? (
           <CatalogEmpty title="No verified songs" detail="Only identity-matched artist tracks are shown here." />
         ) : (
           <ApiSongGrid
             songs={topSongs}
-            onSelect={playArtistSong}
+            onSelect={(song, index) => {
+              const fullIndex = artistSongs.findIndex((entry) => entry.id === song.id)
+              playArtistSong(song, fullIndex >= 0 ? fullIndex : index, artistSongs)
+            }}
             listKey={`artist-songs-${artist.id}`}
             paginate={false}
             showEmpty={false}
