@@ -13,6 +13,7 @@ import {
   DESKTOP_PREFERENCE_KEYS,
   parseStoredAudioQualityMode,
   parseStoredAudiobookPlaybackRate,
+  parseStoredBoolean,
   usePersistedPreference,
   type AudioQualityMode,
   type AudiobookPlaybackRate,
@@ -230,6 +231,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
   const upgradeSessionIdRef = useRef(0)
   const unshuffledQueueRef = useRef<ApiSong[]>([])
   const shuffleEnabledRef = useRef(false)
+  const autoNextEnabledRef = useRef(true)
   const repeatModeRef = useRef<'off' | 'all' | 'one'>('off')
   const mediaResolveGenerationRef = useRef(0)
   const podcastProgressTrackIdRef = useRef<string | null>(null)
@@ -296,6 +298,11 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
     1 as AudiobookPlaybackRate,
     parseStoredAudiobookPlaybackRate,
   )
+  const [autoNextEnabled, setAutoNextEnabled] = usePersistedPreference(
+    DESKTOP_PREFERENCE_KEYS.autoNextEnabled,
+    true,
+    parseStoredBoolean,
+  )
   const audiobookPlaybackRateRef = useRef(audiobookPlaybackRate)
 
   useEffect(() => {
@@ -309,6 +316,10 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     repeatModeRef.current = repeatMode
   }, [repeatMode])
+
+  useEffect(() => {
+    autoNextEnabledRef.current = autoNextEnabled
+  }, [autoNextEnabled])
 
   useEffect(() => {
     audioQualityModeRef.current = audioQualityMode
@@ -611,7 +622,8 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
     if (
       queue.length === 0 ||
       index !== queue.length - 1 ||
-      queueSeedTypeRef.current === 'manual'
+      queueSeedTypeRef.current === 'manual' ||
+      !autoNextEnabledRef.current
     ) {
       return queue
     }
@@ -666,12 +678,14 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
           .play(streamUrl)
           .then(() => {
             if (currentTrackRef.current?.id !== song.id) return
-            recordTvHistory({
-              channelId: extractTvChannelId(song.id) ?? song.id,
-              title: song.title,
-              channelName: song.artist,
-              artworkUrl: song.artwork,
-            })
+            if (isTvQueueSong(song)) {
+              recordTvHistory({
+                channelId: extractTvChannelId(song.id) ?? song.id,
+                title: song.title,
+                channelName: song.artist,
+                artworkUrl: song.artwork,
+              })
+            }
           })
           .catch((err) => {
             if (currentTrackRef.current?.id !== song.id) return
@@ -1791,6 +1805,38 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
     setQueueSeedType('manual')
   }, [setQueueContextState])
 
+  const removeUpcomingAtIndex = useCallback((index: number) => {
+    const queue = queueRef.current
+    const currentIdx = queueIndexRef.current
+    if (index <= currentIdx || index < 0 || index >= queue.length) return
+
+    const nextQueue = [...queue.slice(0, index), ...queue.slice(index + 1)]
+    queueRef.current = nextQueue
+    setCurrentQueue(nextQueue)
+  }, [])
+
+  const moveQueueItem = useCallback((fromIndex: number, toIndex: number) => {
+    const queue = queueRef.current
+    const currentIdx = queueIndexRef.current
+    if (
+      fromIndex <= currentIdx
+      || toIndex <= currentIdx
+      || fromIndex < 0
+      || toIndex < 0
+      || fromIndex >= queue.length
+      || toIndex >= queue.length
+      || fromIndex === toIndex
+    ) {
+      return
+    }
+
+    const nextQueue = [...queue]
+    const [item] = nextQueue.splice(fromIndex, 1)
+    nextQueue.splice(toIndex, 0, item)
+    queueRef.current = nextQueue
+    setCurrentQueue(nextQueue)
+  }, [])
+
   const toggleShuffle = useCallback(() => {
     if (queueContextRef.current === 'audiobook') return
     if (queueContextRef.current === 'motivational') return
@@ -1976,6 +2022,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       audioQualityMode,
       shuffleEnabled,
       repeatMode,
+      autoNextEnabled,
       audiobookPlaybackRate,
       playTrack,
       playQueue,
@@ -1984,6 +2031,9 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       getUpcomingTracks,
       playQueueAtIndex,
       clearUpcomingQueue,
+      removeUpcomingAtIndex,
+      moveQueueItem,
+      setAutoNextEnabled,
       toggleShuffle,
       toggleRepeat,
       pause,
@@ -2011,6 +2061,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       audioQualityMode,
       shuffleEnabled,
       repeatMode,
+      autoNextEnabled,
       audiobookPlaybackRate,
       playTrack,
       playQueue,
@@ -2019,6 +2070,9 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       getUpcomingTracks,
       playQueueAtIndex,
       clearUpcomingQueue,
+      removeUpcomingAtIndex,
+      moveQueueItem,
+      setAutoNextEnabled,
       toggleShuffle,
       toggleRepeat,
       pause,
