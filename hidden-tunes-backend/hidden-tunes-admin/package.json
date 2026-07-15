@@ -21,6 +21,9 @@
     "tv:expand:wave4:build": "npx tsx scripts/build-worldwide-wave4-data.ts",
     "tv:expand:wave4:activate": "npx tsx scripts/activate-worldwave4.ts",
     "tv:expand:wave4": "npx tsx scripts/run-tv-expansion-wave4.ts",
+    "tv:expand:fast": "npx tsx scripts/run-tv-expansion-fast.ts",
+    "tv:expand:fast:benchmark": "npx tsx scripts/benchmark-tv-expansion-pipeline.ts",
+    "test:tv-expansion-fast": "npx tsx scripts/test-tv-expansion-fast.ts",
     "test:tv-wave4": "npx tsx scripts/test-tv-wave4-foundation.ts",
     "test:tv-mature": "npx tsx scripts/test-tv-mature-isolation.ts",
     "tv:import:legal": "tsx scripts/run-tv-legal-catalog-import.ts",
@@ -113,7 +116,16 @@
     "verify:motivation-catalog": "tsx scripts/verify-motivation-catalog.ts",
     "verify:motivation-play-sample": "tsx scripts/verify-motivation-play-sample.ts",
     "test:artist-profile": "tsx scripts/test-artist-profile.ts",
-    "verify:artist-production": "tsx scripts/verify-artist-production.ts"
+    "verify:artist-production": "tsx scripts/verify-artist-production.ts",
+    "radio:mature:expand": "tsx scripts/run-radio-mature-expansion.ts --execute",
+    "radio:mature:expand:dry": "tsx scripts/run-radio-mature-expansion.ts",
+    "radio:mature:verify": "tsx scripts/run-radio-mature-verify.ts --execute",
+    "radio:mature:verify:dry": "tsx scripts/run-radio-mature-verify.ts",
+    "radio:mature:promote": "tsx scripts/run-radio-mature-promote.ts --execute",
+    "radio:mature:pipeline": "tsx scripts/run-radio-mature-pipeline.ts --execute",
+    "radio:mature:pipeline:dry": "tsx scripts/run-radio-mature-pipeline.ts",
+    "test:radio-mature": "tsx scripts/test-radio-mature-isolation.ts",
+    "radio:mature:apply-migration": "node scripts/apply-radio-mature-migration.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1045.0",

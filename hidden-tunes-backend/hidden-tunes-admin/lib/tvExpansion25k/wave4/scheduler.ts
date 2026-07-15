@@ -1,9 +1,4 @@
-import {
-  listActiveWeightedSourceIds,
-  TV_SOURCE_WAVE4_WEIGHTS,
-  allocateSourceLimits,
-  orderSourcesForBatch,
-} from "@/lib/tvExpansion25k/sourceScheduler";
+import { TV_SOURCE_WAVE4_WEIGHTS } from "@/lib/tvExpansion25k/sourceScheduler";
 import type { TvExpansionSourceAdapter } from "@/lib/tvExpansion25k/sources/types";
 
 export function getWave4SourceWeight(adapterId: string) {
@@ -11,11 +6,13 @@ export function getWave4SourceWeight(adapterId: string) {
 }
 
 export function orderWave4SourcesForBatch(adapters: TvExpansionSourceAdapter[], batchNumber: number) {
-  return orderSourcesForBatch(
-    adapters,
-    batchNumber,
-    process.cwd() // wave 4 weights are fixed in TV_SOURCE_WAVE4_WEIGHTS
-  );
+  const active = adapters.filter((adapter) => getWave4SourceWeight(adapter.id) > 0);
+  if (active.length === 0) return adapters;
+
+  const start = batchNumber % active.length;
+  const rotated = [...active.slice(start), ...active.slice(0, start)];
+  const remainder = adapters.filter((adapter) => !rotated.includes(adapter));
+  return [...rotated, ...remainder];
 }
 
 export function allocateWave4SourceLimits(batchSize: number, adapterIds: string[]) {
@@ -48,7 +45,9 @@ export function allocateWave4SourceLimits(batchSize: number, adapterIds: string[
 }
 
 export function listWave4ActiveWeightedSourceIds() {
-  return listActiveWeightedSourceIds();
+  return Object.entries(TV_SOURCE_WAVE4_WEIGHTS)
+    .filter(([, weight]) => weight > 0)
+    .map(([id]) => id);
 }
 
 export function allWave4SourcesExhausted(

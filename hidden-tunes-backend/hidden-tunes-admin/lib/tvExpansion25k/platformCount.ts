@@ -18,7 +18,9 @@ async function countEligible(includeMature: boolean) {
   applyTvPublicCatalogFilters(query, "cross", new Date(), { includeMature });
 
   const { count, error } = await query.range(0, 0);
-  if (error) throw new Error(error.message);
+  if (error) {
+    throw new Error(error.message || `platform count query failed (${includeMature ? "mature" : "normal"})`);
+  }
   return count ?? 0;
 }
 
