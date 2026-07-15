@@ -106,24 +106,57 @@ export async function loadMotivationDedupeKeysForCandidates(
   const urlKeyList = [...urlKeys];
 
   const chunkSize = 100;
-  for (let offset = 0; offset < sourceKeyList.length; offset += chunkSize) {
-    const chunk = sourceKeyList.slice(offset, offset + chunkSize);
-    const { data, error } = await supabaseAdmin
-      .from("motivation_items")
-      .select("id, source_key, source_type, source_id, source_url, title, region, speaker_name, creator_name")
-      .in("source_key", chunk);
-    if (error) throw new Error(error.message);
-    mergeRowsIntoDedupeSet((data || []) as Array<Record<string, unknown>>, existing);
+  const urlChunkSize = 25;
+
+  async function queryWithRetry<T>(runner: () => Promise<T>, attempts = 2): Promise<T> {
+    let lastError: unknown = null;
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
+      try {
+        return await runner();
+      } catch (error) {
+        lastError = error;
+        const delayMs = Math.min(15_000, 1000 * 2 ** attempt);
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
+    }
+    throw lastError instanceof Error ? lastError : new Error(String(lastError));
   }
 
-  for (let offset = 0; offset < urlKeyList.length; offset += chunkSize) {
-    const chunk = urlKeyList.slice(offset, offset + chunkSize);
-    const { data, error } = await supabaseAdmin
-      .from("motivation_items")
-      .select("id, source_key, source_type, source_id, source_url, title, region, speaker_name, creator_name")
-      .in("source_url", chunk);
-    if (error) throw new Error(error.message);
-    mergeRowsIntoDedupeSet((data || []) as Array<Record<string, unknown>>, existing);
+  async function queryChunkWithFallback(
+    column: "source_key" | "source_url",
+    chunk: string[]
+  ) {
+    try {
+      const { data, error } = await queryWithRetry(async () =>
+        supabaseAdmin
+          .from("motivation_items")
+          .select("id, source_key, source_type, source_id, source_url, title, region, speaker_name, creator_name")
+          .in(column, chunk)
+      );
+      if (error) throw new Error(error.message);
+      mergeRowsIntoDedupeSet((data || []) as Array<Record<string, unknown>>, existing);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(
+        JSON.stringify({
+          motivation_dedupe_lookup: true,
+          status: "degraded",
+          column,
+          chunk_size: chunk.length,
+          error: message,
+        })
+      );
+    }
+  }
+
+  for (let offset = 0; offset < sourceKeyList.length; offset += chunkSize) {
+    const chunk = sourceKeyList.slice(offset, offset + chunkSize);
+    await queryChunkWithFallback("source_key", chunk);
+  }
+
+  for (let offset = 0; offset < urlKeyList.length; offset += urlChunkSize) {
+    const chunk = urlKeyList.slice(offset, offset + urlChunkSize);
+    await queryChunkWithFallback("source_url", chunk);
   }
 
   return existing;
