@@ -29,24 +29,16 @@ export function SectionHero({
       aria-labelledby={resolvedTitleId}
     >
       {artwork ? (
-        <>
-          <div
-            className="sectionHeroBlur"
-            style={{ backgroundImage: `url(${artwork})` }}
-            aria-hidden="true"
-          />
-          <img
-            className="sectionHeroArtwork"
-            src={artwork}
-            alt={artworkAlt}
-            aria-hidden={!artworkAlt}
-            style={artworkStyle}
-          />
-        </>
+        <img
+          className="sectionHeroArtwork"
+          src={artwork}
+          alt={artworkAlt}
+          aria-hidden={!artworkAlt}
+          style={artworkStyle}
+        />
       ) : null}
 
       <div className="sectionHeroGradient" aria-hidden="true" />
-      <div className="sectionHeroVignette" aria-hidden="true" />
 
       <div className="sectionHeroContent">
         <h1 id={resolvedTitleId}>{title}</h1>

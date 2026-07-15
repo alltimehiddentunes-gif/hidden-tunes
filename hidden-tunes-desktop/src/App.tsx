@@ -158,6 +158,8 @@ import { MotivationalsPage } from './components/motivationals/MotivationalsPage'
 import { MotivationalProgramPage } from './components/motivationals/MotivationalProgramPage'
 import { LecturesPage } from './components/lectures/LecturesPage'
 import { LectureSeriesPage } from './components/lectures/LectureSeriesPage'
+import { useDiscoverLectureSearch } from './lib/lectures/useDiscoverLectureSearch'
+import { formatLectureSeriesSubtitle } from './lib/lectures/lectureFormatters'
 import { buildRadioQueueSongs } from './lib/radio/radioPlaybackAdapter'
 import { buildTvQueueSongs, isTvQueueSong } from './lib/tv/tvPlaybackAdapter'
 import { buildPodcastQueueSongs } from './lib/podcasts/podcastPlaybackAdapter'
@@ -2827,6 +2829,7 @@ function DiscoverPage({
   onOpenArtist,
   onOpenAlbum,
   onNavigateNav,
+  onOpenLectureSeries,
   query: externalQuery,
   setQuery: externalSetQuery,
 }: {
@@ -2834,6 +2837,7 @@ function DiscoverPage({
   onOpenArtist: (artist: ApiArtist) => void
   onOpenAlbum: (album: ApiAlbum) => void
   onNavigateNav: (navKey: NavKey) => void
+  onOpenLectureSeries?: (seriesId: string) => void
   query?: string
   setQuery?: (value: string) => void
 }) {
@@ -2886,6 +2890,11 @@ function DiscoverPage({
   const trimmedQuery = debouncedQuery.trim()
   const hasEvaluatedQuery = trimmedQuery.length > 0
   const queuePools = useMemo(() => buildQueueCandidatePools(indexes), [indexes])
+  const {
+    courses: lectureCourses,
+    speakers: lectureSpeakers,
+    hasResults: hasLectureResults,
+  } = useDiscoverLectureSearch(debouncedQuery)
 
   const playDiscoverSong = useCallback(
     (song: ApiSong, index: number) => {
@@ -2968,14 +2977,25 @@ function DiscoverPage({
     hasEvaluatedQuery &&
     visibleSongs.length === 0 &&
     matchedArtists.length === 0 &&
-    matchedAlbums.length === 0
+    matchedAlbums.length === 0 &&
+    !hasLectureResults
 
   const isSongActive = useCallback(
     (songId: string) => currentTrack?.id === songId && isPlaying,
     [currentTrack?.id, isPlaying],
   )
 
-  void onNavigateNav
+  const openLectureFromDiscover = useCallback(
+    (seriesId: string) => {
+      if (onOpenLectureSeries) {
+        onOpenLectureSeries(seriesId)
+        return
+      }
+      onNavigateNav('lectures')
+    },
+    [onNavigateNav, onOpenLectureSeries],
+  )
+
   void setQuery
 
   return (
@@ -3199,6 +3219,81 @@ function DiscoverPage({
                   </section>
                 ) : null}
               </div>
+            ) : null}
+
+            {searchTab === 'all' && hasEvaluatedQuery && lectureCourses.length > 0 ? (
+              <section className="psd-search-songs-panel" aria-labelledby="search-lectures-heading">
+                <header className="psd-search-section-header">
+                  <h2 id="search-lectures-heading">Courses</h2>
+                  <button
+                    type="button"
+                    className="psd-search-view-all"
+                    onClick={() => onNavigateNav('lectures')}
+                  >
+                    View all Lectures
+                  </button>
+                </header>
+                <div className="psd-search-side-card">
+                  {lectureCourses.map((series) => (
+                    <button
+                      key={series.id}
+                      type="button"
+                      className="psd-search-side-row"
+                      onClick={() => openLectureFromDiscover(series.id)}
+                    >
+                      <span className="psd-search-side-art">
+                        <ArtworkImage
+                          src={series.artworkUrl}
+                          alt=""
+                          seed={series.id}
+                          label={series.title}
+                        />
+                      </span>
+                      <span className="psd-search-side-copy">
+                        <strong>{series.title}</strong>
+                        <span>{formatLectureSeriesSubtitle(series)}</span>
+                      </span>
+                      <PsdIconChevronRight className="psd-search-side-chevron" />
+                    </button>
+                  ))}
+                </div>
+              </section>
+            ) : null}
+
+            {searchTab === 'all' && hasEvaluatedQuery && lectureSpeakers.length > 0 ? (
+              <section className="psd-search-songs-panel" aria-labelledby="search-lecture-speakers-heading">
+                <header className="psd-search-section-header">
+                  <h2 id="search-lecture-speakers-heading">Speakers</h2>
+                </header>
+                <div className="psd-search-side-card">
+                  {lectureSpeakers.map((speaker) => (
+                    <button
+                      key={speaker.name}
+                      type="button"
+                      className="psd-search-side-row"
+                      onClick={() => openLectureFromDiscover(speaker.seriesId)}
+                    >
+                      <span className="psd-search-side-avatar">
+                        <ArtworkImage
+                          src={speaker.artworkUrl}
+                          alt=""
+                          seed={speaker.seriesId}
+                          label={speaker.name}
+                        />
+                      </span>
+                      <span className="psd-search-side-copy">
+                        <strong>{speaker.name}</strong>
+                        <span>
+                          {speaker.courseCount === 1
+                            ? '1 course'
+                            : `${speaker.courseCount} courses`}
+                        </span>
+                      </span>
+                      <PsdIconChevronRight className="psd-search-side-chevron" />
+                    </button>
+                  ))}
+                </div>
+              </section>
             ) : null}
           </>
         )}
@@ -7022,6 +7117,7 @@ function PageContent({
           onOpenArtist={onOpenArtist}
           onOpenAlbum={onOpenAlbum}
           onNavigateNav={onNavigateNav}
+          onOpenLectureSeries={onOpenLectureSeries}
           query={discoverQuery}
           setQuery={setDiscoverQuery}
         />
