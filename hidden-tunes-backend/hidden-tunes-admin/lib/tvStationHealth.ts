@@ -84,6 +84,15 @@ export type TvGrowthCandidate = {
   tags?: string[];
   is_featured?: boolean;
   source_key?: string | null;
+  is_mature?: boolean;
+  mature_rating?: string | null;
+  mature_source_approved?: boolean;
+};
+
+export type TvGrowthImportOptions = {
+  isMature?: boolean;
+  matureSourceApproved?: boolean;
+  matureRating?: string | null;
 };
 
 export type TvStreamProbeDetails = {
@@ -403,12 +412,26 @@ export function dedupeTvGrowthCandidates(
   return accepted;
 }
 
-export async function importVerifiedTvGrowthCandidates(candidates: TvGrowthCandidate[]) {
+export async function importVerifiedTvGrowthCandidates(
+  candidates: TvGrowthCandidate[],
+  options: TvGrowthImportOptions = {}
+) {
   const existing = await loadDedupeKeys();
   const uniqueCandidates = dedupeTvGrowthCandidates(candidates, existing);
 
   let imported = 0;
   let rejected = candidates.length - uniqueCandidates.length;
+  const isMature = options.isMature === true;
+  const matureSourceApproved = options.matureSourceApproved === true;
+
+  if (isMature && !matureSourceApproved) {
+    return {
+      found: candidates.length,
+      unique: uniqueCandidates.length,
+      imported: 0,
+      rejected: candidates.length,
+    };
+  }
 
   for (const candidate of uniqueCandidates) {
     const urlCheck = validatePublicTvUrl(candidate.source_url);
@@ -474,6 +497,15 @@ export async function importVerifiedTvGrowthCandidates(candidates: TvGrowthCandi
       reliability_score: 100,
       consecutive_failures: 0,
       last_health_checked_at: new Date().toISOString(),
+      ios_playable: probe.ios_playable === true,
+      android_playable: probe.android_playable === true,
+      stream_is_https: probe.stream_is_https === true,
+      stream_protocol: probe.stream_protocol || null,
+      validated_stream_url: probe.validated_stream_url || urlCheck.url,
+      last_validation_result: probe.last_validation_result || null,
+      is_mature: isMature || candidate.is_mature === true,
+      mature_rating: options.matureRating || candidate.mature_rating || null,
+      mature_source_approved: matureSourceApproved || candidate.mature_source_approved === true,
     });
 
     if (error) rejected += 1;

@@ -5,6 +5,7 @@ import { probeStreamUrl } from "@/lib/tvStreamProtocol";
 import {
   isPlayUrlAllowedForPlatform,
   isTvStationEligibleForPlatform,
+  parseIncludeMatureParam,
   parseTvClientPlatform,
 } from "@/lib/tvPlatformPolicy";
 
@@ -12,7 +13,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const TV_PLAY_SELECT =
-  "id, source_type, source_id, source_url, embed_url, status, is_active, playback_status, reliability_score, consecutive_failures, disabled_at, quarantined_at, ios_playable, android_playable, stream_is_https, last_health_checked_at, last_validation_result, validated_stream_url";
+  "id, source_type, source_id, source_url, embed_url, status, is_active, playback_status, reliability_score, consecutive_failures, disabled_at, quarantined_at, ios_playable, android_playable, stream_is_https, last_health_checked_at, last_validation_result, validated_stream_url, is_mature, mature_source_approved";
 
 function jsonError(error: string, status: number, details?: unknown) {
   return NextResponse.json(
@@ -49,6 +50,13 @@ export async function GET(
 
   if (!data || !isTvStationEligibleForPlatform(data, platform)) {
     return jsonError("TV station not found or not currently playable.", 404);
+  }
+
+  if (data.is_mature === true) {
+    const includeMature = parseIncludeMatureParam(request);
+    if (!includeMature || data.mature_source_approved !== true) {
+      return jsonError("Forbidden.", 403);
+    }
   }
 
   const sourceType = String(data.source_type || "");

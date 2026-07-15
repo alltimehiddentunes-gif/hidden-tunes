@@ -1,0 +1,24 @@
+[
+  {
+    "id": "bundestag-de",
+    "title": "Bundestag TV",
+    "url": "https://bundestag-live.akamaized.net/hls/live/2013925/bundestag/bundestag_main.m3u8",
+    "country": "DE",
+    "language": null,
+    "category": "Parliament",
+    "website": "https://www.bundestag.de/",
+    "channelName": "Bundestag",
+    "legalBasis": "German Bundestag official parliamentary live stream."
+  },
+  {
+    "id": "europarl",
+    "title": "Europarl TV",
+    "url": "https://europarl-live.akamaized.net/hls/live/2013925/europarltv/europarltv_main.m3u8",
+    "country": "EU",
+    "language": null,
+    "category": "Parliament",
+    "website": "https://www.europarl.europa.eu/",
+    "channelName": "Europarl TV",
+    "legalBasis": "European Parliament official public live coverage."
+  }
+]

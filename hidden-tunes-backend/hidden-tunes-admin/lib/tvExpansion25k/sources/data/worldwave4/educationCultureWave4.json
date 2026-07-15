@@ -1,0 +1,24 @@
+[
+  {
+    "id": "smithsonian-channel",
+    "title": "Smithsonian Channel",
+    "url": "https://smithsonianaus-samsungau.amagi.tv/playlist.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "Culture",
+    "website": "https://www.smithsonianchannel.com/",
+    "channelName": "Smithsonian Channel",
+    "legalBasis": "Smithsonian Channel official licensed FAST distribution feed."
+  },
+  {
+    "id": "arte-de",
+    "title": "ARTE",
+    "url": "https://arte-live.akamaized.net/hls/live/2013930/arte/arte_main.m3u8",
+    "country": "DE",
+    "language": null,
+    "category": "Culture",
+    "website": "https://www.arte.tv/",
+    "channelName": "ARTE",
+    "legalBasis": "ARTE official Franco-German public cultural broadcaster HLS."
+  }
+]

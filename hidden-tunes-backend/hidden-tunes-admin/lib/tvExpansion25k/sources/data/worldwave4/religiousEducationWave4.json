@@ -1,0 +1,35 @@
+[
+  {
+    "id": "ewtn-us",
+    "title": "EWTN",
+    "url": "https://ewtn-samsunguk.amagi.tv/playlist.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "Religious",
+    "website": "https://www.ewtn.com/",
+    "channelName": "EWTN",
+    "legalBasis": "EWTN official licensed religious broadcaster FAST/HLS feed."
+  },
+  {
+    "id": "nasa-tv-public",
+    "title": "NASA TV Public",
+    "url": "https://ntv1.akamaized.net/hls/live/2014075/NASA-NTV1-HLS/master.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "Education",
+    "website": "https://www.nasa.gov/nasa-tv/",
+    "channelName": "NASA TV",
+    "legalBasis": "NASA official public education and science live stream."
+  },
+  {
+    "id": "un-web-tv",
+    "title": "UN Web TV",
+    "url": "https://webtv.un.org/playlist/directory/allEvents.m3u8",
+    "country": "INT",
+    "language": null,
+    "category": "Education",
+    "website": "https://webtv.un.org/",
+    "channelName": "UN Web TV",
+    "legalBasis": "United Nations official public web television directory."
+  }
+]

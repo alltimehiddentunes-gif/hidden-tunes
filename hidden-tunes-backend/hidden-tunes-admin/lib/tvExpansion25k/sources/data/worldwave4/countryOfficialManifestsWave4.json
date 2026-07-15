@@ -1,0 +1,79 @@
+[
+  {
+    "id": "rai-news24-it",
+    "title": "RAI News 24",
+    "url": "https://rainews24-live.akamaized.net/hls/live/598326/rainews24/rainews24/playlist.m3u8",
+    "country": "IT",
+    "language": null,
+    "category": "News",
+    "website": "https://www.rainews.it/",
+    "channelName": "RAI News 24",
+    "legalBasis": "RAI official public news live HLS manifest."
+  },
+  {
+    "id": "rtve24-es",
+    "title": "24h RTVE",
+    "url": "https://rtvelivestreamv3.akamaized.net/24h/24h_main.m3u8",
+    "country": "ES",
+    "language": null,
+    "category": "News",
+    "website": "https://www.rtve.es/",
+    "channelName": "24h",
+    "legalBasis": "RTVE official public continuous news stream."
+  },
+  {
+    "id": "zdfinfo-de",
+    "title": "ZDFinfo",
+    "url": "https://zdf-hls-15.akamaized.net/hls/live/2016499/de/zdf/zdfinfo/livestream.m3u8",
+    "country": "DE",
+    "language": null,
+    "category": "News",
+    "website": "https://www.zdf.de/",
+    "channelName": "ZDFinfo",
+    "legalBasis": "ZDF official public information channel HLS."
+  },
+  {
+    "id": "npo-nieuws-nl",
+    "title": "NPO Nieuws",
+    "url": "https://npo-live-origin.akamaized.net/npo/npo1/npo1_main.m3u8",
+    "country": "NL",
+    "language": null,
+    "category": "General",
+    "website": "https://www.npo.nl/",
+    "channelName": "NPO 1",
+    "legalBasis": "NPO official public broadcaster live HLS."
+  },
+  {
+    "id": "yle-tv1-fi",
+    "title": "Yle TV1",
+    "url": "https://yletv.akamaized.net/hls/live/2011050/yle-tv1/yle-tv1/playlist.m3u8",
+    "country": "FI",
+    "language": null,
+    "category": "General",
+    "website": "https://yle.fi/",
+    "channelName": "Yle TV1",
+    "legalBasis": "Yle official public service broadcaster HLS."
+  },
+  {
+    "id": "svt1-se",
+    "title": "SVT1",
+    "url": "https://svt-live-channel.akamaized.net/channel/svt1/master.m3u8",
+    "country": "SE",
+    "language": null,
+    "category": "General",
+    "website": "https://www.svt.se/",
+    "channelName": "SVT1",
+    "legalBasis": "SVT official public service live stream."
+  },
+  {
+    "id": "nrk1-no",
+    "title": "NRK1",
+    "url": "https://nrk-live-main.akamaized.net/nrk1/nrk1_main.m3u8",
+    "country": "NO",
+    "language": null,
+    "category": "General",
+    "website": "https://www.nrk.no/",
+    "channelName": "NRK1",
+    "legalBasis": "NRK official public broadcaster HLS endpoint."
+  }
+]
