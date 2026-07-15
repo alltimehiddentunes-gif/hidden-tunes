@@ -74,6 +74,7 @@ import {
 } from "../services/universalSearchService";
 import type { HiddenTunesGenre } from "../utils/genres";
 import { UNIVERSAL_SEARCH_EMPTY_SUGGESTIONS } from "../utils/universalSearch";
+import { useLocalization } from "../localization";
 import {
   buildRelatedInternalDiscovery,
   buildSearchStations,
@@ -305,6 +306,60 @@ export default function SearchScreen() {
     confirmConsent: confirmMaturePodcastConsent,
   } = useMaturePodcastGate();
   const playerFeed = usePlayerFeedSnapshot();
+  const { t } = useLocalization();
+
+  const searchUi = useMemo(
+    () => ({
+      kicker: t("search.kicker"),
+      title: t("search.title"),
+      placeholder: t("search.placeholderFind"),
+      loadingCatalog: t("search.loadingCatalog"),
+      searchingHiddenTunes: t("search.searchingHiddenTunes"),
+      results: t("search.results"),
+      moreToDiscover: t("search.moreToDiscover"),
+      collection: t("search.collection"),
+      moodRoom: t("search.moodRoom"),
+      video: t("search.video"),
+      findingRadioStations: t("search.findingRadioStations"),
+      findingPodcasts: t("search.findingPodcasts"),
+      seeMoreRadioStations: t("search.seeMoreRadioStations"),
+      noMatchesTitle: t("search.noMatchesTitle"),
+      noMatchesDescription: t("search.noMatchesDescription"),
+      trending: t("search.trending"),
+      tryThese: t("search.tryThese"),
+      forYou: t("search.forYou"),
+      quickPicks: t("search.quickPicks"),
+      popularArtists: t("search.popularArtists"),
+      albumSpotlight: t("search.albumSpotlight"),
+      browseByMoodGenre: t("search.browseByMoodGenre"),
+      quickPicksSource: t("search.quickPicksSource"),
+      sections: {
+        songs: t("search.sections.songs"),
+        albums: t("search.sections.albums"),
+        artists: t("search.sections.artists"),
+        genresRooms: t("search.sections.genresRooms"),
+        stationsRadio: t("search.sections.stationsRadio"),
+        playlists: t("search.sections.playlists"),
+        moreListening: t("search.sections.moreListening"),
+        videos: t("search.sections.videos"),
+        radioStations: t("search.sections.radioStations"),
+        podcasts: t("search.sections.podcasts"),
+        genres: t("search.sections.genres"),
+      },
+      formatMatchCount: (count: number) =>
+        t(count === 1 ? "search.matchSingular" : "search.matchPlural", { count }),
+      formatTrackCount: (count: number) => t("search.trackCount", { count }),
+      formatSongCount: (count: number) => t("search.songCount", { count }),
+      formatSearchQueueLabel: (query: string) =>
+        query
+          ? t("search.searchQueryLabel", { query })
+          : t("search.searchResultsLabel"),
+    }),
+    [t]
+  );
+
+  const searchUiRef = useRef(searchUi);
+  searchUiRef.current = searchUi;
 
   const [catalog, setCatalog] = useState<HiddenTunesDerivedCatalog | null>(null);
   const [loading, setLoading] = useState(true);
@@ -1099,7 +1154,9 @@ export default function SearchScreen() {
       });
       void playSong(queueSong, queue, Math.max(queueIndex, 0), {
         source: "search",
-        label: submittedSearchQuery || searchQuery ? `Search: ${submittedSearchQuery || searchQuery}` : "Search Results",
+        label: searchUiRef.current.formatSearchQueueLabel(
+          submittedSearchQuery || searchQuery
+        ),
         searchQuery: submittedSearchQuery || searchQuery,
         artistName: queueSong.artist,
         genre: queueSong.genre,
@@ -1656,8 +1713,8 @@ export default function SearchScreen() {
               </TouchableOpacity>
 
               <View style={styles.brandBlock}>
-                <Text style={styles.kicker}>DISCOVER</Text>
-                <Text style={styles.title}>Search</Text>
+                <Text style={styles.kicker}>{searchUi.kicker}</Text>
+                <Text style={styles.title}>{searchUi.title}</Text>
               </View>
 
               <View style={styles.iconSpacer} />
@@ -1669,7 +1726,7 @@ export default function SearchScreen() {
                 onImmediateChange={handleSearchImmediateChange}
                 onDebouncedChange={setSubmittedSearchQuery}
                 onClear={clearSearch}
-                placeholder="Find music"
+                placeholder={searchUi.placeholder}
                 placeholderTextColor={COLORS.textMuted}
                 style={styles.searchInput}
                 containerStyle={styles.searchInputShell}
@@ -1680,14 +1737,14 @@ export default function SearchScreen() {
             {loading && songs.length === 0 && !hasSearchText ? (
               <View style={styles.centerPanel}>
                 <ActivityIndicator size="large" color={COLORS.primary} />
-                <Text style={styles.loadingText}>Loading catalog...</Text>
+                <Text style={styles.loadingText}>{searchUi.loadingCatalog}</Text>
               </View>
             ) : null}
 
             {showSearchLoading ? (
               <View style={styles.centerPanel}>
                 <ActivityIndicator size="small" color={COLORS.primary} />
-                <Text style={styles.loadingText}>Searching Hidden Tunes</Text>
+                <Text style={styles.loadingText}>{searchUi.searchingHiddenTunes}</Text>
               </View>
             ) : null}
 
@@ -1695,15 +1752,19 @@ export default function SearchScreen() {
               <View style={styles.resultsPanel}>
                 <View style={styles.resultSummaryRow}>
                   <View>
-                    <Text style={styles.sectionEyebrow}>RESULTS</Text>
-                    <Text style={styles.sectionTitle}>{apkResultCount} match{apkResultCount === 1 ? "" : "es"}</Text>
+                    <Text style={styles.sectionEyebrow}>{searchUi.results}</Text>
+                    <Text style={styles.sectionTitle}>
+                      {searchUi.formatMatchCount(apkResultCount)}
+                    </Text>
                   </View>
-                  {apkExternalAudioResults.length > 0 ? <Text style={styles.fallbackBadge}>More to discover</Text> : null}
+                  {apkExternalAudioResults.length > 0 ? (
+                    <Text style={styles.fallbackBadge}>{searchUi.moreToDiscover}</Text>
+                  ) : null}
                 </View>
 
                 {apkSongResults.length > 0 ? (
                   <View style={styles.sectionBlock}>
-                    <Text style={styles.sectionEyebrow}>SONGS</Text>
+                    <Text style={styles.sectionEyebrow}>{searchUi.sections.songs}</Text>
                     {apkSongResults.slice(0, 18).map((song, index) => (
                       <SearchApkSongRow
                         key={`song-${song.id}-${index}`}
@@ -1717,7 +1778,7 @@ export default function SearchScreen() {
 
                 {apkAlbumResults.length > 0 ? (
                   <View style={styles.sectionBlock}>
-                    <Text style={styles.sectionEyebrow}>ALBUMS</Text>
+                    <Text style={styles.sectionEyebrow}>{searchUi.sections.albums}</Text>
                     <FlatList
                       horizontal
                       data={apkAlbumResults}
@@ -1754,7 +1815,7 @@ export default function SearchScreen() {
 
                 {apkArtistResults.length > 0 ? (
                   <View style={styles.sectionBlock}>
-                    <Text style={styles.sectionEyebrow}>ARTISTS</Text>
+                    <Text style={styles.sectionEyebrow}>{searchUi.sections.artists}</Text>
                     <FlatList
                       horizontal
                       data={apkArtistResults}
@@ -1770,7 +1831,9 @@ export default function SearchScreen() {
                           <TouchableOpacity activeOpacity={0.88} style={styles.artistCard} onPress={() => playArtistResult(artist)}>
                             <HTImage source={artist} style={styles.artistImage} contentFit="cover" />
                             <Text numberOfLines={2} style={styles.artistName}>{artist.name}</Text>
-                            <Text numberOfLines={1} style={styles.artistMeta}>{artist.songs.length} song{artist.songs.length === 1 ? "" : "s"}</Text>
+                            <Text numberOfLines={1} style={styles.artistMeta}>
+                              {searchUi.formatSongCount(artist.songs.length)}
+                            </Text>
                           </TouchableOpacity>
                           <FavoriteButton
                             item={buildArtistFavoriteItem({
@@ -1788,14 +1851,16 @@ export default function SearchScreen() {
 
                 {apkRoomResults.length > 0 ? (
                   <View style={styles.sectionBlock}>
-                    <Text style={styles.sectionEyebrow}>GENRES / ROOMS</Text>
+                    <Text style={styles.sectionEyebrow}>{searchUi.sections.genresRooms}</Text>
                     <View style={styles.roomGrid}>
                       {apkRoomResults.map((genre) => (
                         <TouchableOpacity key={genre.id} activeOpacity={0.86} style={styles.roomCard} onPress={() => playGenreResult(genre)}>
                           <HTImage source={genre} style={styles.roomImage} contentFit="cover" />
                           <LinearGradient pointerEvents="none" colors={["transparent", "rgba(0,0,0,0.74)"]} style={styles.roomShade} />
                           <Text numberOfLines={1} style={styles.roomTitle}>{genre.title}</Text>
-                          <Text style={styles.roomMeta}>{genre.songs.length} tracks</Text>
+                          <Text style={styles.roomMeta}>
+                            {searchUi.formatTrackCount(genre.songs.length)}
+                          </Text>
                         </TouchableOpacity>
                       ))}
                     </View>
@@ -1804,7 +1869,7 @@ export default function SearchScreen() {
 
                 {apkStationResults.length > 0 ? (
                   <View style={styles.sectionBlock}>
-                    <Text style={styles.sectionEyebrow}>STATIONS / RADIO</Text>
+                    <Text style={styles.sectionEyebrow}>{searchUi.sections.stationsRadio}</Text>
                     <View style={styles.roomGrid}>
                       {apkStationResults.map((station) => (
                         <TouchableOpacity
@@ -1827,7 +1892,7 @@ export default function SearchScreen() {
                           <Text style={styles.roomMeta}>
                             {getUserFacingRadioSubtitle({
                               subtitle: station.subtitle,
-                              genre: station.kind === "room" ? "Mood room" : undefined,
+                              genre: station.kind === "room" ? searchUi.moodRoom : undefined,
                             })}
                           </Text>
                         </TouchableOpacity>
@@ -1838,7 +1903,7 @@ export default function SearchScreen() {
 
                 {apkPlaylistResults.length > 0 ? (
                   <View style={styles.sectionBlock}>
-                    <Text style={styles.sectionEyebrow}>PLAYLISTS</Text>
+                    <Text style={styles.sectionEyebrow}>{searchUi.sections.playlists}</Text>
                     <FlatList
                       horizontal
                       data={apkPlaylistResults}
@@ -1857,7 +1922,9 @@ export default function SearchScreen() {
                         >
                           <HTImage source={playlist} style={styles.albumImage} contentFit="cover" />
                           <Text numberOfLines={2} style={styles.albumTitle}>{playlist.title}</Text>
-                          <Text numberOfLines={1} style={styles.albumArtist}>{playlist.description || "Collection"}</Text>
+                          <Text numberOfLines={1} style={styles.albumArtist}>
+                            {playlist.description || searchUi.collection}
+                          </Text>
                         </TouchableOpacity>
                       )}
                     />
@@ -1866,7 +1933,7 @@ export default function SearchScreen() {
 
                 {apkExternalAudioResults.length > 0 ? (
                   <View style={styles.sectionBlock}>
-                    <Text style={styles.sectionEyebrow}>MORE LISTENING</Text>
+                    <Text style={styles.sectionEyebrow}>{searchUi.sections.moreListening}</Text>
                     {apkExternalAudioResults.map((song, index) => (
                       <TouchableOpacity
                         key={`external-${song.id}-${index}`}
@@ -1901,7 +1968,7 @@ export default function SearchScreen() {
 
                 {apkTvResults.length > 0 ? (
                   <View style={styles.sectionBlock}>
-                    <Text style={styles.sectionEyebrow}>VIDEOS</Text>
+                    <Text style={styles.sectionEyebrow}>{searchUi.sections.videos}</Text>
                     {apkTvResults.map((hit, index) => {
                       const video = hit.payload as HiddenTunesTvVideo;
                       const item = normalizeVideoItem(video);
@@ -1909,7 +1976,7 @@ export default function SearchScreen() {
                       const category =
                         getVideoDisplayCategory(item) ||
                         getUserFacingVideoSubtitle(video, hit.subtitle) ||
-                        "Video";
+                        searchUi.video;
                       return (
                         <TouchableOpacity
                           key={`tv-${video.id}-${index}`}
@@ -1942,10 +2009,12 @@ export default function SearchScreen() {
 
                 {cleanSubmittedSearchQuery.length >= 2 && deferredMedia.radioLoading ? (
                   <View style={styles.sectionBlock}>
-                    <Text style={styles.sectionEyebrow}>RADIO STATIONS</Text>
+                    <Text style={styles.sectionEyebrow}>{searchUi.sections.radioStations}</Text>
                     <View style={styles.deferredLoadingRow}>
                       <ActivityIndicator size="small" color={COLORS.primary} />
-                      <Text style={styles.deferredLoadingText}>Finding radio stations...</Text>
+                      <Text style={styles.deferredLoadingText}>
+                        {searchUi.findingRadioStations}
+                      </Text>
                     </View>
                   </View>
                 ) : null}
@@ -1955,7 +2024,7 @@ export default function SearchScreen() {
                 deferredMedia.radioStations.length > 0 ? (
                   <View style={styles.sectionBlock}>
                     <View style={styles.sectionHeaderRow}>
-                      <Text style={styles.sectionEyebrow}>RADIO STATIONS</Text>
+                      <Text style={styles.sectionEyebrow}>{searchUi.sections.radioStations}</Text>
                       {deferredMedia.radioHasMore ? (
                         <TouchableOpacity
                           activeOpacity={0.86}
@@ -1966,7 +2035,7 @@ export default function SearchScreen() {
                             } as any)
                           }
                         >
-                          <Text style={styles.seeMoreLink}>See more radio stations</Text>
+                          <Text style={styles.seeMoreLink}>{searchUi.seeMoreRadioStations}</Text>
                         </TouchableOpacity>
                       ) : null}
                     </View>
@@ -1982,10 +2051,12 @@ export default function SearchScreen() {
 
                 {cleanSubmittedSearchQuery.length >= 2 && deferredPodcasts.loading ? (
                   <View style={styles.sectionBlock}>
-                    <Text style={styles.sectionEyebrow}>PODCASTS</Text>
+                    <Text style={styles.sectionEyebrow}>{searchUi.sections.podcasts}</Text>
                     <View style={styles.deferredLoadingRow}>
                       <ActivityIndicator size="small" color={COLORS.primary} />
-                      <Text style={styles.deferredLoadingText}>Finding podcasts...</Text>
+                      <Text style={styles.deferredLoadingText}>
+                        {searchUi.findingPodcasts}
+                      </Text>
                     </View>
                   </View>
                 ) : null}
@@ -1994,7 +2065,7 @@ export default function SearchScreen() {
                 deferredPodcasts.readyForQuery &&
                 deferredPodcasts.results.length > 0 ? (
                   <View style={styles.sectionBlock}>
-                    <Text style={styles.sectionEyebrow}>PODCASTS</Text>
+                    <Text style={styles.sectionEyebrow}>{searchUi.sections.podcasts}</Text>
                     {deferredPodcasts.results.map((result, index) =>
                       result.kind === "show" && result.show ? (
                         <PodcastShowCard
@@ -2025,8 +2096,8 @@ export default function SearchScreen() {
                 !deferredPodcasts.loading ? (
                   <View style={styles.emptyPanel}>
                     <Ionicons name="search" size={34} color={COLORS.primaryGlow} />
-                    <Text style={styles.emptyTitle}>No matches yet</Text>
-                    <Text style={styles.emptyText}>Try another artist, genre, mood, or one of these searches.</Text>
+                    <Text style={styles.emptyTitle}>{searchUi.noMatchesTitle}</Text>
+                    <Text style={styles.emptyText}>{searchUi.noMatchesDescription}</Text>
                     <View style={[styles.chipRow, { justifyContent: "center", marginTop: 16 }]}>
                       {UNIVERSAL_SEARCH_EMPTY_SUGGESTIONS.slice(0, 4).map((chip) => (
                         <TouchableOpacity
@@ -2046,7 +2117,7 @@ export default function SearchScreen() {
 
             {showDiscovery && !showSearchLoading ? (
               <View style={styles.discoveryPanel}>
-                <Text style={styles.sectionEyebrow}>TRENDING</Text>
+                <Text style={styles.sectionEyebrow}>{searchUi.trending}</Text>
                 <View style={styles.chipRow}>
                   {TRENDING_SEARCHES.map((chip) => (
                     <TouchableOpacity
@@ -2060,7 +2131,7 @@ export default function SearchScreen() {
                   ))}
                 </View>
 
-                <Text style={[styles.sectionEyebrow, styles.sectionSpacing]}>TRY THESE</Text>
+                <Text style={[styles.sectionEyebrow, styles.sectionSpacing]}>{searchUi.tryThese}</Text>
                 <View style={styles.chipRow}>
                   {UNIVERSAL_SEARCH_EMPTY_SUGGESTIONS.slice(0, 6).map((chip) => (
                     <TouchableOpacity
@@ -2076,10 +2147,10 @@ export default function SearchScreen() {
 
                 {discoverySongs.length > 0 ? (
                   <View style={styles.sectionBlock}>
-                    <Text style={styles.sectionEyebrow}>FOR YOU</Text>
-                    <Text style={styles.sectionTitle}>Quick picks</Text>
+                    <Text style={styles.sectionEyebrow}>{searchUi.forYou}</Text>
+                    <Text style={styles.sectionTitle}>{searchUi.quickPicks}</Text>
                     {discoverySongs.map((song, index) => (
-                      <TouchableOpacity key={`pick-${song.id}-${index}`} activeOpacity={0.86} style={styles.songRow} onPress={() => playDiscoverySong(song, "Search Quick Picks")}>
+                      <TouchableOpacity key={`pick-${song.id}-${index}`} activeOpacity={0.86} style={styles.songRow} onPress={() => playDiscoverySong(song, searchUi.quickPicksSource)}>
                         <LinearGradient colors={GRADIENTS.card} style={styles.coverBorder}>
                           <HTImage source={song} style={styles.cover} contentFit="cover" />
                         </LinearGradient>
@@ -2098,8 +2169,8 @@ export default function SearchScreen() {
 
                 {discoveryArtists.length > 0 ? (
                   <View style={styles.sectionBlock}>
-                    <Text style={styles.sectionEyebrow}>ARTISTS</Text>
-                    <Text style={styles.sectionTitle}>Popular artists</Text>
+                    <Text style={styles.sectionEyebrow}>{searchUi.sections.artists}</Text>
+                    <Text style={styles.sectionTitle}>{searchUi.popularArtists}</Text>
                     <FlatList
                       horizontal
                       data={discoveryArtists}
@@ -2128,8 +2199,8 @@ export default function SearchScreen() {
 
                 {discoveryAlbums.length > 0 ? (
                   <View style={styles.sectionBlock}>
-                    <Text style={styles.sectionEyebrow}>ALBUMS</Text>
-                    <Text style={styles.sectionTitle}>Album spotlight</Text>
+                    <Text style={styles.sectionEyebrow}>{searchUi.sections.albums}</Text>
+                    <Text style={styles.sectionTitle}>{searchUi.albumSpotlight}</Text>
                     <FlatList
                       horizontal
                       data={discoveryAlbums}
@@ -2161,8 +2232,8 @@ export default function SearchScreen() {
 
                 {discoveryGenres.length > 0 ? (
                   <View style={styles.sectionBlock}>
-                    <Text style={styles.sectionEyebrow}>GENRES</Text>
-                    <Text style={styles.sectionTitle}>Browse by mood & genre</Text>
+                    <Text style={styles.sectionEyebrow}>{searchUi.sections.genres}</Text>
+                    <Text style={styles.sectionTitle}>{searchUi.browseByMoodGenre}</Text>
                     <View style={styles.chipRow}>
                       {discoveryGenres.map((genre) => (
                         <TouchableOpacity
