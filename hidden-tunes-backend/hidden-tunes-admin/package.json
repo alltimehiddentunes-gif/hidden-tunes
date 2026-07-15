@@ -57,6 +57,7 @@
     "podcasts:expand:resume": "tsx scripts/run-podcasts-expand.ts --loop --resume",
     "podcasts:expand:dry": "tsx scripts/run-podcasts-expand.ts --dry-run --max-batches=1",
     "podcasts:expand:status": "tsx scripts/run-podcast-expansion-status.ts",
+    "podcasts:expand:diagnose": "tsx scripts/run-podcasts-expand-diagnose.ts",
     "podcasts:promote-pending": "tsx scripts/run-podcasts-promote-pending.ts",
     "podcasts:promote-pending:status": "tsx scripts/run-podcasts-promote-pending-status.ts",
     "test:podcast-pending-promotion": "tsx scripts/test-podcast-pending-promotion-safety.ts",
