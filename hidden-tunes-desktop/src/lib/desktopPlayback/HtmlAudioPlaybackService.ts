@@ -49,6 +49,7 @@ function clampSeekSeconds(seconds: number, duration: number): number {
 
 type PlayOptions = {
   instant?: boolean
+  startupTimeoutMs?: number
 }
 
 const UPGRADE_SOURCE_TIMEOUT_MS = 10000
@@ -219,7 +220,8 @@ export class HtmlAudioPlaybackService {
       this.lastUrl = normalized
       this.audio.load()
 
-      const canPlayTimeoutMs = options?.instant ? 8000 : undefined
+      const canPlayTimeoutMs =
+        options?.startupTimeoutMs ?? (options?.instant ? 8000 : undefined)
       await this.waitForCanPlay(canPlayTimeoutMs)
 
       logPlaybackDiagnostics('before play (new src)', this.audio, normalized)

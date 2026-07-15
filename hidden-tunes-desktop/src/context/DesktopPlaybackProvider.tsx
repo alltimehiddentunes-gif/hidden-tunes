@@ -693,7 +693,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       const selection = selectPlayableUrlForQualityMode(song, audioQualityMode)
       const instantUrl = selection?.url ?? null
       const upgradeTarget =
-        isPodcastQueueSong(song) || isRadioQueueSong(song) || isAudiobookQueueSong(song) || isTvQueueSong(song)
+        isPodcastQueueSong(song) || isRadioQueueSong(song) || isAudiobookQueueSong(song) || isMotivationalQueueSong(song) || isTvQueueSong(song)
           ? null
           : resolveUpgradeTargetForQualityMode(
               song,
@@ -774,8 +774,11 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       }
 
       setIsLoading(true)
+      const motivationalPlayOptions = isMotivationalQueueSong(song)
+        ? { startupTimeoutMs: 15000 }
+        : undefined
       void service
-        .play(instantUrl)
+        .play(instantUrl, motivationalPlayOptions)
         .then(() => {
           if (
             pendingResumeSeconds
@@ -885,7 +888,10 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
           }
           setIsPlaying(false)
           setIsLoading(false)
-          setError(message || playbackErrorMessage(song))
+          const unavailable =
+            isMotivationalQueueSong(song)
+            && (message.includes('Timed out') || message.includes('MEDIA_ERR'))
+          setError(unavailable ? 'This item is currently unavailable.' : message || playbackErrorMessage(song))
         })
     },
     [audioQualityMode, cancelUpgradeSession, emitPositionSeconds, getService, getVideoService, stopInactiveMedia, volume],
