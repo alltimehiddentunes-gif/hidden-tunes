@@ -64,24 +64,36 @@ export function useLecturesPageData(
       setLoading(true)
       setError(null)
       try {
-        const [nextCategories, browseResponse] = await Promise.all([
-          fetchLectureCategories(controller.signal),
-          fetchLectureItems({ page: 1, limit: BROWSE_LIMIT }, controller.signal),
-        ])
+        const nextCategories = await fetchLectureCategories(controller.signal)
+        if (requestId !== bootstrapRef.current) return
+        setCategories(nextCategories)
 
+        // Sample a few categories (page size 8 each) for a diversified home — never full catalog.
+        const sampleSlugs = nextCategories.slice(0, 5).map((category) => category.slug)
+        const categoryPages = await Promise.all(
+          sampleSlugs.map((slug) =>
+            fetchLectureCategory(slug, { page: 1, limit: 8 }, controller.signal),
+          ),
+        )
         if (requestId !== bootstrapRef.current) return
 
-        setCategories(nextCategories)
-        const all = browseResponse.series
-        setFeaturedSeries(all.filter((series) => series.isFeatured).slice(0, FEATURED_LIMIT))
+        const all = dedupeSeries(categoryPages.flatMap((page) => page.series))
+        const featured = all.filter((series) => series.isFeatured).slice(0, FEATURED_LIMIT)
+        setFeaturedSeries(featured.length > 0 ? featured : all.slice(0, FEATURED_LIMIT))
         setPopularSeries(all.slice(0, SECTION_LIMIT))
         setRecentSeries(
           [...all]
             .sort((a, b) => Date.parse(b.publishedAt ?? '') - Date.parse(a.publishedAt ?? ''))
             .slice(0, SECTION_LIMIT),
         )
-        setBrowseSeries(all)
-        setPagination(browseResponse.pagination)
+        setBrowseSeries(all.slice(0, BROWSE_LIMIT))
+        setPagination({
+          page: 1,
+          limit: BROWSE_LIMIT,
+          total: null,
+          totalPages: null,
+          hasMore: nextCategories.length > sampleSlugs.length || all.length >= BROWSE_LIMIT,
+        })
       } catch (reason) {
         if (requestId !== bootstrapRef.current) return
         if (reason instanceof DOMException && reason.name === 'AbortError') return
