@@ -1,0 +1,12 @@
+[
+  {
+    "id": "aljazeera-english",
+    "title": "Al Jazeera English",
+    "url": "https://live-hls-web-aje.getaj.net/AJE/index.m3u8",
+    "country": "QA",
+    "category": "News",
+    "website": "https://www.aljazeera.com/live/",
+    "channelName": "Al Jazeera English",
+    "legalBasis": "Al Jazeera Media Network official public live HLS."
+  }
+]

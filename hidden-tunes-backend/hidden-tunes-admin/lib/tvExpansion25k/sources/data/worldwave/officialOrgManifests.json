@@ -1,0 +1,42 @@
+[
+  {
+    "id": "aljazeera-english",
+    "title": "Al Jazeera English",
+    "url": "https://live-hls-web-aje.getaj.net/AJE/index.m3u8",
+    "country": "QA",
+    "category": "News",
+    "website": "https://www.aljazeera.com/live/",
+    "channelName": "Al Jazeera English",
+    "legalBasis": "Al Jazeera Media Network official public live HLS."
+  },
+  {
+    "id": "euronews-en",
+    "title": "Euronews English",
+    "url": "https://rakuten-euronews-english-en.adaptive.akamaized.net/hls/live/2031024/rakuten-euronews_english/playlist.m3u8",
+    "country": "FR",
+    "category": "News",
+    "website": "https://www.euronews.com/live",
+    "channelName": "Euronews English",
+    "legalBasis": "Euronews official public live HLS distribution."
+  },
+  {
+    "id": "nhk-world",
+    "title": "NHK World Japan",
+    "url": "https://nhkworld.webcdn.stream.ne.jp/www11/nhkworld-tv/index.m3u8",
+    "country": "JP",
+    "category": "News",
+    "website": "https://www3.nhk.or.jp/nhkworld/",
+    "channelName": "NHK World Japan",
+    "legalBasis": "NHK official public live HLS."
+  },
+  {
+    "id": "arirang-world",
+    "title": "Arirang World",
+    "url": "https://amdlive-ch01-ctn.akamaized.net/arirang_1ch/smil:arirang_1ch.smil/playlist.m3u8",
+    "country": "KR",
+    "category": "Culture",
+    "website": "https://www.arirang.com/",
+    "channelName": "Arirang TV",
+    "legalBasis": "Arirang official public live HLS."
+  }
+]

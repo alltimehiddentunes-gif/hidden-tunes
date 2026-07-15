@@ -1,0 +1,12 @@
+[
+  {
+    "id": "cpac-ca",
+    "title": "CPAC Canada",
+    "url": "https://live.cpac.ca/live/cpac.m3u8",
+    "country": "CA",
+    "category": "Parliament",
+    "website": "https://www.cpac.ca/",
+    "channelName": "CPAC",
+    "legalBasis": "Cable Public Affairs Channel official parliamentary coverage."
+  }
+]

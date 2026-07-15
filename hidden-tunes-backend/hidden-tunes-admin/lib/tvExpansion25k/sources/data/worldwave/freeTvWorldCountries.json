@@ -1,0 +1,92 @@
+[
+  {
+    "id": "fr-tv5mondeinfo-fr",
+    "title": "TV5 Monde Info",
+    "url": "https://ott.tv5monde.com/Content/HLS/Live/channel(info",
+    "country": "FR",
+    "category": "General",
+    "website": null,
+    "channelName": "TV5 Monde Info",
+    "legalBasis": "Free-TV/IPTV country directory entry for officially free-to-air television."
+  },
+  {
+    "id": "fr-tv5mondefrancebelgiumswitzerland-fr",
+    "title": "TV5 Monde FBS",
+    "url": "https://ott.tv5monde.com/Content/HLS/Live/channel(fbs",
+    "country": "FR",
+    "category": "General",
+    "website": null,
+    "channelName": "TV5 Monde FBS",
+    "legalBasis": "Free-TV/IPTV country directory entry for officially free-to-air television."
+  },
+  {
+    "id": "fr-tv5mondeeurope-fr",
+    "title": "TV5 Monde Europe",
+    "url": "https://ott.tv5monde.com/Content/HLS/Live/channel(europe",
+    "country": "FR",
+    "category": "General",
+    "website": null,
+    "channelName": "TV5 Monde Europe",
+    "legalBasis": "Free-TV/IPTV country directory entry for officially free-to-air television."
+  },
+  {
+    "id": "jp-gstv-jp",
+    "title": "GSTV",
+    "url": "https://gstv-tnz-gsmediastreaming.preview-jpea.channel.media.azure.net/dfd06b62-e9d1-4a7f-bcbb-89d2ecbc82ee/preview.ism/manifest(format=mpd-time-csf,audio-only=false",
+    "country": "JP",
+    "category": "General",
+    "website": null,
+    "channelName": "GSTV",
+    "legalBasis": "Free-TV/IPTV country directory entry for officially free-to-air television."
+  },
+  {
+    "id": "gb-tjc-uk",
+    "title": "TJC",
+    "url": "https://cdn-shop-lc-01.akamaized.net/Content/HLS_HLS/Live/channel(TJCOTT",
+    "country": "GB",
+    "category": "General",
+    "website": null,
+    "channelName": "TJC",
+    "legalBasis": "Free-TV/IPTV country directory entry for officially free-to-air television."
+  },
+  {
+    "id": "gb-skynews-uk",
+    "title": "Sky News",
+    "url": "https://linear021-gb-hls1-prd-ak.cdn.skycdp.com/Content/HLS_001_hd/Live/channel(skynews",
+    "country": "GB",
+    "category": "General",
+    "website": null,
+    "channelName": "Sky News",
+    "legalBasis": "Free-TV/IPTV country directory entry for officially free-to-air television."
+  },
+  {
+    "id": "zz-grande-fratello-vip-regia-1",
+    "title": "Grande Fratello Vip Regia 1",
+    "url": "https://live3.msf.cdn.mediaset.net/content/dash_d0_clr_vos/live/channel(b7",
+    "country": "ZZ",
+    "category": "General",
+    "website": null,
+    "channelName": "Grande Fratello Vip Regia 1",
+    "legalBasis": "Free-TV/IPTV country directory entry for officially free-to-air television."
+  },
+  {
+    "id": "zz-grande-fratello-vip-regia-2",
+    "title": "Grande Fratello Vip Regia 2",
+    "url": "https://live3.msf.cdn.mediaset.net/content/dash_d0_clr_vos/live/channel(b8",
+    "country": "ZZ",
+    "category": "General",
+    "website": null,
+    "channelName": "Grande Fratello Vip Regia 2",
+    "legalBasis": "Free-TV/IPTV country directory entry for officially free-to-air television."
+  },
+  {
+    "id": "zz-grande-fratello-vip-regia-un-ora-fa",
+    "title": "Grande Fratello Vip Regia un'ora fa",
+    "url": "https://live3.msf.cdn.mediaset.net/content/dash_d0_clr_vos/live/channel(b9",
+    "country": "ZZ",
+    "category": "General",
+    "website": null,
+    "channelName": "Grande Fratello Vip Regia un'ora fa",
+    "legalBasis": "Free-TV/IPTV country directory entry for officially free-to-air television."
+  }
+]

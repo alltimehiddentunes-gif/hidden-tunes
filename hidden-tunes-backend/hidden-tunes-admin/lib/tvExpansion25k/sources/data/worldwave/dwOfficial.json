@@ -1,0 +1,35 @@
+[
+  {
+    "id": "dw-german",
+    "title": "DW DE",
+    "url": "https://dwamdstream105.akamaized.net/hls/live/2015530/dwstream105/index.m3u8",
+    "country": "DE",
+    "language": "de",
+    "category": "News",
+    "website": "https://www.dw.com/en/live-tv/channel-english/s-9097",
+    "channelName": "Deutsche Welle DE",
+    "legalBasis": "Deutsche Welle official public live HLS."
+  },
+  {
+    "id": "dw-spanish",
+    "title": "DW ES",
+    "url": "https://dwamdstream106.akamaized.net/hls/live/2015531/dwstream106/index.m3u8",
+    "country": "DE",
+    "language": "es",
+    "category": "News",
+    "website": "https://www.dw.com/en/live-tv/channel-english/s-9097",
+    "channelName": "Deutsche Welle ES",
+    "legalBasis": "Deutsche Welle official public live HLS."
+  },
+  {
+    "id": "dw-arabic",
+    "title": "DW AR",
+    "url": "https://dwamdstream104.akamaized.net/hls/live/2015527/dwstream104/index.m3u8",
+    "country": "DE",
+    "language": "ar",
+    "category": "News",
+    "website": "https://www.dw.com/en/live-tv/channel-english/s-9097",
+    "channelName": "Deutsche Welle AR",
+    "legalBasis": "Deutsche Welle official public live HLS."
+  }
+]

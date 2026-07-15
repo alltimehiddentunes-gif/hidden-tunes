@@ -1,0 +1,389 @@
+[
+  {
+    "id": "YDvsBbKf-g0",
+    "title": "NASA TV Public",
+    "url": "https://www.youtube.com/watch?v=YDvsBbKf-g0",
+    "country": "US",
+    "category": "Science",
+    "website": "https://www.nasa.gov/nasa-live/",
+    "channelName": "NASA"
+  },
+  {
+    "id": "21X5lGlwtXk",
+    "title": "DW English Live",
+    "url": "https://www.youtube.com/watch?v=21X5lGlwtXk",
+    "country": "DE",
+    "category": "News",
+    "website": "https://www.dw.com/en/live-tv/",
+    "channelName": "DW News"
+  },
+  {
+    "id": "pn88cL_yFag",
+    "title": "DW Deutsch Live",
+    "url": "https://www.youtube.com/watch?v=pn88cL_yFag",
+    "country": "DE",
+    "category": "News",
+    "website": "https://www.dw.com/de/live-tv/",
+    "channelName": "DW Deutsch"
+  },
+  {
+    "id": "z7Vq4LBSdP0",
+    "title": "France 24 English",
+    "url": "https://www.youtube.com/watch?v=z7Vq4LBSdP0",
+    "country": "FR",
+    "category": "News",
+    "website": "https://www.france24.com/en/live",
+    "channelName": "FRANCE 24 English"
+  },
+  {
+    "id": "iOsW4q0EC98",
+    "title": "France 24 Francais",
+    "url": "https://www.youtube.com/watch?v=iOsW4q0EC98",
+    "country": "FR",
+    "category": "News",
+    "website": "https://www.france24.com/fr/direct",
+    "channelName": "FRANCE 24"
+  },
+  {
+    "id": "wM0g8EoUZ_E",
+    "title": "Al Jazeera English",
+    "url": "https://www.youtube.com/watch?v=wM0g8EoUZ_E",
+    "country": "QA",
+    "category": "News",
+    "website": "https://www.aljazeera.com/live/",
+    "channelName": "Al Jazeera English"
+  },
+  {
+    "id": "9Auq9mYxFEE",
+    "title": "Sky News",
+    "url": "https://www.youtube.com/watch?v=9Auq9mYxFEE",
+    "country": "GB",
+    "category": "News",
+    "website": "https://news.sky.com/watch-live",
+    "channelName": "Sky News"
+  },
+  {
+    "id": "iEpJwuex6KE",
+    "title": "ABC News Live",
+    "url": "https://www.youtube.com/watch?v=iEpJwuex6KE",
+    "country": "US",
+    "category": "News",
+    "website": "https://abcnews.go.com/Live",
+    "channelName": "ABC News"
+  },
+  {
+    "id": "DrQ7PB8upFE",
+    "title": "NBC News NOW",
+    "url": "https://www.youtube.com/watch?v=DrQ7PB8upFE",
+    "country": "US",
+    "category": "News",
+    "website": "https://www.nbcnews.com/now",
+    "channelName": "NBC News"
+  },
+  {
+    "id": "BxwR25qQ8gU",
+    "title": "CBS News Live",
+    "url": "https://www.youtube.com/watch?v=BxwR25qQ8gU",
+    "country": "US",
+    "category": "News",
+    "website": "https://www.cbsnews.com/live/",
+    "channelName": "CBS News"
+  },
+  {
+    "id": "pgcEUCtrpS0",
+    "title": "Euronews English",
+    "url": "https://www.youtube.com/watch?v=pgcEUCtrpS0",
+    "country": "FR",
+    "category": "News",
+    "website": "https://www.euronews.com/live",
+    "channelName": "euronews (in English)"
+  },
+  {
+    "id": "CbZDTFaKtNs",
+    "title": "TRT World",
+    "url": "https://www.youtube.com/watch?v=CbZDTFaKtNs",
+    "country": "TR",
+    "category": "News",
+    "website": "https://www.trtworld.com/live",
+    "channelName": "TRT World"
+  },
+  {
+    "id": "v-g-Hy0zxnY",
+    "title": "WION Live",
+    "url": "https://www.youtube.com/watch?v=v-g-Hy0zxnY",
+    "country": "IN",
+    "category": "News",
+    "website": "https://www.wionews.com/live-tv",
+    "channelName": "WION"
+  },
+  {
+    "id": "EFDrMaaFOIw",
+    "title": "Arirang TV",
+    "url": "https://www.youtube.com/watch?v=EFDrMaaFOIw",
+    "country": "KR",
+    "category": "Culture",
+    "website": "https://www.arirang.com/",
+    "channelName": "Arirang TV"
+  },
+  {
+    "id": "f0l2RhUUYHs",
+    "title": "NHK World Japan",
+    "url": "https://www.youtube.com/watch?v=f0l2RhUUYHs",
+    "country": "JP",
+    "category": "News",
+    "website": "https://www3.nhk.or.jp/nhkworld/",
+    "channelName": "NHK WORLD-JAPAN"
+  },
+  {
+    "id": "lzThT5YcJ3Y",
+    "title": "CGTN",
+    "url": "https://www.youtube.com/watch?v=lzThT5YcJ3Y",
+    "country": "CN",
+    "category": "News",
+    "website": "https://www.cgtn.com/live",
+    "channelName": "CGTN"
+  },
+  {
+    "id": "XWq5kGrakGg",
+    "title": "CNA Live",
+    "url": "https://www.youtube.com/watch?v=XWq5kGrakGg",
+    "country": "SG",
+    "category": "News",
+    "website": "https://www.channelnewsasia.com/watch",
+    "channelName": "CNA"
+  },
+  {
+    "id": "4nMfRqTj1fA",
+    "title": "LiveNOW from FOX",
+    "url": "https://www.youtube.com/watch?v=4nMfRqTj1fA",
+    "country": "US",
+    "category": "News",
+    "website": "https://livenowfox.com/",
+    "channelName": "LiveNOW from FOX"
+  },
+  {
+    "id": "8WX6YL9JMTQ",
+    "title": "GB News Live",
+    "url": "https://www.youtube.com/watch?v=8WX6YL9JMTQ",
+    "country": "GB",
+    "category": "News",
+    "website": "https://www.gbnews.com/watch/live",
+    "channelName": "GB News"
+  },
+  {
+    "id": "3cz2yKnP5p4",
+    "title": "TalkTV Live",
+    "url": "https://www.youtube.com/watch?v=3cz2yKnP5p4",
+    "country": "GB",
+    "category": "News",
+    "website": "https://talk.tv/watch/live",
+    "channelName": "TalkTV"
+  },
+  {
+    "id": "8Osgv0Qnok0",
+    "title": "Fox Weather Live",
+    "url": "https://www.youtube.com/watch?v=8Osgv0Qnok0",
+    "country": "US",
+    "category": "Weather",
+    "website": "https://www.foxweather.com/live",
+    "channelName": "FOX Weather"
+  },
+  {
+    "id": "iEpSIXj5H9U",
+    "title": "Bloomberg TV",
+    "url": "https://www.youtube.com/watch?v=iEpSIXj5H9U",
+    "country": "US",
+    "category": "Business",
+    "website": "https://www.bloomberg.com/live/us",
+    "channelName": "Bloomberg Television"
+  },
+  {
+    "id": "uF6H1WFRD7w",
+    "title": "TODAY All Day",
+    "url": "https://www.youtube.com/watch?v=uF6H1WFRD7w",
+    "country": "US",
+    "category": "Entertainment",
+    "website": "https://www.today.com/",
+    "channelName": "TODAY"
+  },
+  {
+    "id": "Ap-6Mj0E7Og",
+    "title": "India Today Live",
+    "url": "https://www.youtube.com/watch?v=Ap-6Mj0E7Og",
+    "country": "IN",
+    "category": "News",
+    "website": "https://www.indiatoday.in/live-tv",
+    "channelName": "India Today"
+  },
+  {
+    "id": "O3DPwlYFe3E",
+    "title": "Geo News Live",
+    "url": "https://www.youtube.com/watch?v=O3DPwlYFe3E",
+    "country": "PK",
+    "category": "News",
+    "website": "https://www.geo.tv/live/Geo-News",
+    "channelName": "Geo News"
+  },
+  {
+    "id": "VwRQ6SG-NBk",
+    "title": "ARY News Live",
+    "url": "https://www.youtube.com/watch?v=VwRQ6SG-NBk",
+    "country": "PK",
+    "category": "News",
+    "website": "https://arynews.tv/live/",
+    "channelName": "ARY News"
+  },
+  {
+    "id": "n0dZ6yF7S0Y",
+    "title": "Africanews English",
+    "url": "https://www.youtube.com/watch?v=n0dZ6yF7S0Y",
+    "country": "FR",
+    "category": "News",
+    "website": "https://www.africanews.com/live/",
+    "channelName": "Africanews"
+  },
+  {
+    "id": "ddFvjfvjabg",
+    "title": "ABC News Australia",
+    "url": "https://www.youtube.com/watch?v=ddFvjfvjabg",
+    "country": "AU",
+    "category": "News",
+    "website": "https://www.abc.net.au/news/live/",
+    "channelName": "ABC News (Australia)"
+  },
+  {
+    "id": "8ht-UxKb83o",
+    "title": "Sky News Australia",
+    "url": "https://www.youtube.com/watch?v=8ht-UxKb83o",
+    "country": "AU",
+    "category": "News",
+    "website": "https://www.skynews.com.au/",
+    "channelName": "Sky News Australia"
+  },
+  {
+    "id": "9NyxcX3rkrs",
+    "title": "Global News Live",
+    "url": "https://www.youtube.com/watch?v=9NyxcX3rkrs",
+    "country": "CA",
+    "category": "News",
+    "website": "https://globalnews.ca/live/national/",
+    "channelName": "Global News"
+  },
+  {
+    "id": "wMuG0E-lw3E",
+    "title": "CPAC Canada",
+    "url": "https://www.youtube.com/watch?v=wMuG0E-lw3E",
+    "country": "CA",
+    "category": "Parliament",
+    "website": "https://www.cpac.ca/",
+    "channelName": "CPAC"
+  },
+  {
+    "id": "4eG2wf8H5y0",
+    "title": "CBC News Live",
+    "url": "https://www.youtube.com/watch?v=4eG2wf8H5y0",
+    "country": "CA",
+    "category": "News",
+    "website": "https://www.cbc.ca/news/live",
+    "channelName": "CBC News"
+  },
+  {
+    "id": "HoZk0618nNA",
+    "title": "TeleSUR English",
+    "url": "https://www.youtube.com/watch?v=HoZk0618nNA",
+    "country": "VE",
+    "category": "News",
+    "website": "https://www.telesurenglish.net/",
+    "channelName": "teleSUR English"
+  },
+  {
+    "id": "ysNT8hM4Cec",
+    "title": "Rai News 24",
+    "url": "https://www.youtube.com/watch?v=ysNT8hM4Cec",
+    "country": "IT",
+    "category": "News",
+    "website": "https://www.rainews.it/",
+    "channelName": "Rainews24"
+  },
+  {
+    "id": "5l-steN7Xf0",
+    "title": "RTVE 24h",
+    "url": "https://www.youtube.com/watch?v=5l-steN7Xf0",
+    "country": "ES",
+    "category": "News",
+    "website": "https://www.rtve.es/play/videos/directo/24h/",
+    "channelName": "RTVE"
+  },
+  {
+    "id": "TKfS5z0Fz24",
+    "title": "Record News Brasil",
+    "url": "https://www.youtube.com/watch?v=TKfS5z0Fz24",
+    "country": "BR",
+    "category": "News",
+    "website": "https://recordnews.r7.com/",
+    "channelName": "Record News"
+  },
+  {
+    "id": "L8R4c0qG9dY",
+    "title": "GloboNews",
+    "url": "https://www.youtube.com/watch?v=L8R4c0qG9dY",
+    "country": "BR",
+    "category": "News",
+    "website": "https://globoplay.globo.com/agora-na-tv/",
+    "channelName": "GloboNews"
+  },
+  {
+    "id": "0L14NczjxyM",
+    "title": "SABC News Live",
+    "url": "https://www.youtube.com/watch?v=0L14NczjxyM",
+    "country": "ZA",
+    "category": "News",
+    "website": "https://www.sabcnews.com/sabcnews/live/",
+    "channelName": "SABC News"
+  },
+  {
+    "id": "1w7OgIMMRc4",
+    "title": "Channels TV Nigeria",
+    "url": "https://www.youtube.com/watch?v=1w7OgIMMRc4",
+    "country": "NG",
+    "category": "News",
+    "website": "https://www.channelstv.com/live/",
+    "channelName": "Channels Television"
+  },
+  {
+    "id": "2QyX9GboL_w",
+    "title": "Arise News Nigeria",
+    "url": "https://www.youtube.com/watch?v=2QyX9GboL_w",
+    "country": "NG",
+    "category": "News",
+    "website": "https://www.arise.tv/live/",
+    "channelName": "Arise News"
+  },
+  {
+    "id": "zQYN-wzwqcM",
+    "title": "Parliament UK Live",
+    "url": "https://www.youtube.com/watch?v=zQYN-wzwqcM",
+    "country": "GB",
+    "category": "Parliament",
+    "website": "https://www.parliamentlive.tv/",
+    "channelName": "UK Parliament"
+  },
+  {
+    "id": "nGDQLowE3hE",
+    "title": "European Parliament Live",
+    "url": "https://www.youtube.com/watch?v=nGDQLowE3hE",
+    "country": "EU",
+    "category": "Parliament",
+    "website": "https://multimedia.europarl.europa.eu/en/webstreaming",
+    "channelName": "European Parliament"
+  },
+  {
+    "id": "jfKfPfyJRdk",
+    "title": "Lofi Girl",
+    "url": "https://www.youtube.com/watch?v=jfKfPfyJRdk",
+    "country": "FR",
+    "category": "Music",
+    "website": "https://www.youtube.com/@LofiGirl",
+    "channelName": "Lofi Girl"
+  }
+]

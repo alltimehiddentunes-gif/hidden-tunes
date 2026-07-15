@@ -1,0 +1,371 @@
+[
+  {
+    "id": "cdtv-chile",
+    "title": "CDTV Chile Camara",
+    "url": "https://camara.03.cl.cdnz.cl/camara19/live/playlist.m3u8",
+    "country": "CL",
+    "category": "Parliament",
+    "website": "https://www.camara.cl/",
+    "channelName": "CDTV"
+  },
+  {
+    "id": "canal-congreso-co",
+    "title": "Canal Congreso Colombia",
+    "url": "https://canalcongreso.tv/live/canalcongreso.m3u8",
+    "country": "CO",
+    "category": "Parliament",
+    "website": "https://canalcongreso.gov.co/",
+    "channelName": "Canal Congreso"
+  },
+  {
+    "id": "canal-del-congreso-mx",
+    "title": "Canal del Congreso Mexico",
+    "url": "https://canaldelcongreso.gob.mx/live/stream.m3u8",
+    "country": "MX",
+    "category": "Parliament",
+    "website": "https://canaldelcongreso.gob.mx/",
+    "channelName": "Canal del Congreso"
+  },
+  {
+    "id": "congreso-peru",
+    "title": "TV Congreso Peru",
+    "url": "https://congreso-stream.s3.amazonaws.com/hls/live.m3u8",
+    "country": "PE",
+    "category": "Parliament",
+    "website": "https://www.congreso.gob.pe/",
+    "channelName": "TV Congreso"
+  },
+  {
+    "id": "parliament-uk-hls",
+    "title": "UK Parliament Live",
+    "url": "https://parliamentlive.tv/hls/parliamentlive.m3u8",
+    "country": "GB",
+    "category": "Parliament",
+    "website": "https://www.parliamentlive.tv/",
+    "channelName": "Parliament UK"
+  },
+  {
+    "id": "cpac-ca",
+    "title": "CPAC Canada",
+    "url": "https://live-stream.cpac.ca/live/playlist.m3u8",
+    "country": "CA",
+    "category": "Parliament",
+    "website": "https://www.cpac.ca/",
+    "channelName": "CPAC"
+  },
+  {
+    "id": "sansad-tv-in",
+    "title": "Sansad TV India",
+    "url": "https://sansadtv.nic.in/live/sansadtv.m3u8",
+    "country": "IN",
+    "category": "Parliament",
+    "website": "https://sansadtv.nic.in/",
+    "channelName": "Sansad TV"
+  },
+  {
+    "id": "un-web-tv",
+    "title": "UN Web TV",
+    "url": "https://webtv.un.org/live/playlist.m3u8",
+    "country": "INT",
+    "category": "Government",
+    "website": "https://media.un.org/en/webtv",
+    "channelName": "UN Web TV"
+  },
+  {
+    "id": "europarl-live",
+    "title": "European Parliament Live",
+    "url": "https://multimedia.europarl.europa.eu/live/live-hls.m3u8",
+    "country": "EU",
+    "category": "Parliament",
+    "website": "https://multimedia.europarl.europa.eu/en/webstreaming",
+    "channelName": "European Parliament"
+  },
+  {
+    "id": "cspan-live",
+    "title": "C-SPAN Live",
+    "url": "https://sk-cdn.net/cspan/live/cspan/playlist.m3u8",
+    "country": "US",
+    "category": "Parliament",
+    "website": "https://www.c-span.org/",
+    "channelName": "C-SPAN"
+  },
+  {
+    "id": "cspan2-live",
+    "title": "C-SPAN 2 Live",
+    "url": "https://sk-cdn.net/cspan/live/cspan2/playlist.m3u8",
+    "country": "US",
+    "category": "Parliament",
+    "website": "https://www.c-span.org/",
+    "channelName": "C-SPAN 2"
+  },
+  {
+    "id": "cspan3-live",
+    "title": "C-SPAN 3 Live",
+    "url": "https://sk-cdn.net/cspan/live/cspan3/playlist.m3u8",
+    "country": "US",
+    "category": "Parliament",
+    "website": "https://www.c-span.org/",
+    "channelName": "C-SPAN 3"
+  },
+  {
+    "id": "gov-uk-parliament",
+    "title": "UK Parliament Commons",
+    "url": "https://parliamentlive.tv/hls/commons/playlist.m3u8",
+    "country": "GB",
+    "category": "Parliament",
+    "website": "https://www.parliamentlive.tv/Commons",
+    "channelName": "House of Commons"
+  },
+  {
+    "id": "gov-uk-lords",
+    "title": "UK Parliament Lords",
+    "url": "https://parliamentlive.tv/hls/lords/playlist.m3u8",
+    "country": "GB",
+    "category": "Parliament",
+    "website": "https://www.parliamentlive.tv/Lords",
+    "channelName": "House of Lords"
+  },
+  {
+    "id": "brasil-tv-camara",
+    "title": "TV Camara Brazil",
+    "url": "https://stream3.camara.gov.br/tv1/manifest.m3u8",
+    "country": "BR",
+    "category": "Parliament",
+    "website": "https://www.camara.leg.br/tvcamara",
+    "channelName": "TV Camara"
+  },
+  {
+    "id": "brasil-tv-senado",
+    "title": "TV Senado Brazil",
+    "url": "https://stream3.senado.leg.br/tv1/manifest.m3u8",
+    "country": "BR",
+    "category": "Parliament",
+    "website": "https://www12.senado.leg.br/tv",
+    "channelName": "TV Senado"
+  },
+  {
+    "id": "arg-congreso",
+    "title": "Congreso Argentina TV",
+    "url": "https://streaming.congreso.gob.ar/live/congreso.m3u8",
+    "country": "AR",
+    "category": "Parliament",
+    "website": "https://www.congreso.gob.ar/",
+    "channelName": "Congreso TV"
+  },
+  {
+    "id": "ecuador-asamblea",
+    "title": "Asamblea Ecuador TV",
+    "url": "https://asamblea-stream.ec/live/asamblea.m3u8",
+    "country": "EC",
+    "category": "Parliament",
+    "website": "https://www.asambleanacional.gob.ec/",
+    "channelName": "Asamblea TV"
+  },
+  {
+    "id": "uruguay-parlamento",
+    "title": "Parlamento Uruguay TV",
+    "url": "https://parlamento.gub.uy/live/stream.m3u8",
+    "country": "UY",
+    "category": "Parliament",
+    "website": "https://www.parlamento.gub.uy/",
+    "channelName": "Parlamento TV"
+  },
+  {
+    "id": "costa-rica-asamblea",
+    "title": "Asamblea Costa Rica TV",
+    "url": "https://asamblea.go.cr/live/stream.m3u8",
+    "country": "CR",
+    "category": "Parliament",
+    "website": "https://www.asamblea.go.cr/",
+    "channelName": "Asamblea TV"
+  },
+  {
+    "id": "canal-parlamento",
+    "title": "Canal Parlamento",
+    "url": "https://congresodirecto.akamaized.net/hls/live/2037973/canalparlamento/master.m3u8",
+    "country": "SP",
+    "category": "Parliament",
+    "website": "https://www.congreso.es/actualidad/canal-parlamento",
+    "channelName": "Canal Parlamento"
+  },
+  {
+    "id": "congreso-de-los-diputados",
+    "title": "Congreso de los Diputados",
+    "url": "https://congresodirecto.akamaized.net/hls/live/2038274/canal1/master.m3u8",
+    "country": "SP",
+    "category": "Parliament",
+    "website": "https://www.congreso.es/es/congreso-en-directo",
+    "channelName": "Congreso de los Diputados"
+  },
+  {
+    "id": "congreso-de-los-diputados",
+    "title": "Congreso de los Diputados",
+    "url": "https://congresodirecto.akamaized.net/hls/live/2038275/canal2/master.m3u8",
+    "country": "SP",
+    "category": "Parliament",
+    "website": "https://www.congreso.es/es/congreso-en-directo",
+    "channelName": "Congreso de los Diputados"
+  },
+  {
+    "id": "congreso-de-los-diputados",
+    "title": "Congreso de los Diputados",
+    "url": "https://congresodirecto.akamaized.net/hls/live/2038276/canal3/master.m3u8",
+    "country": "SP",
+    "category": "Parliament",
+    "website": "https://www.congreso.es/es/congreso-en-directo",
+    "channelName": "Congreso de los Diputados"
+  },
+  {
+    "id": "congreso-de-los-diputados",
+    "title": "Congreso de los Diputados",
+    "url": "https://congresodirecto.akamaized.net/hls/live/2038277/canal4/master.m3u8",
+    "country": "SP",
+    "category": "Parliament",
+    "website": "https://www.congreso.es/es/congreso-en-directo",
+    "channelName": "Congreso de los Diputados"
+  },
+  {
+    "id": "congreso-de-los-diputados",
+    "title": "Congreso de los Diputados",
+    "url": "https://congresodirecto.akamaized.net/hls/live/2038278/canal5/master.m3u8",
+    "country": "SP",
+    "category": "Parliament",
+    "website": "https://www.congreso.es/es/congreso-en-directo",
+    "channelName": "Congreso de los Diputados"
+  },
+  {
+    "id": "senado",
+    "title": "Senado",
+    "url": "https://senadolive.akamaized.net/hls/live/2006551/punto1/master.m3u8",
+    "country": "SP",
+    "category": "Parliament",
+    "website": "https://www.senado.es/web/actividadparlamentaria/actualidad/senadoendirecto/index.html",
+    "channelName": "Senado"
+  },
+  {
+    "id": "senado",
+    "title": "Senado",
+    "url": "https://senadolive.akamaized.net/hls/live/2006591/punto2/master.m3u8",
+    "country": "SP",
+    "category": "Parliament",
+    "website": "https://www.senado.es/web/actividadparlamentaria/actualidad/senadoendirecto/index.html",
+    "channelName": "Senado"
+  },
+  {
+    "id": "senado",
+    "title": "Senado",
+    "url": "https://senadolive.akamaized.net/hls/live/2006592/punto3/master.m3u8",
+    "country": "SP",
+    "category": "Parliament",
+    "website": "https://www.senado.es/web/actividadparlamentaria/actualidad/senadoendirecto/index.html",
+    "channelName": "Senado"
+  },
+  {
+    "id": "senado",
+    "title": "Senado",
+    "url": "https://senadolive.akamaized.net/hls/live/2006593/punto4/master.m3u8",
+    "country": "SP",
+    "category": "Parliament",
+    "website": "https://www.senado.es/web/actividadparlamentaria/actualidad/senadoendirecto/index.html",
+    "channelName": "Senado"
+  },
+  {
+    "id": "senado",
+    "title": "Senado",
+    "url": "https://senadolive.akamaized.net/hls/live/2006594/punto5/master.m3u8",
+    "country": "SP",
+    "category": "Parliament",
+    "website": "https://www.senado.es/web/actividadparlamentaria/actualidad/senadoendirecto/index.html",
+    "channelName": "Senado"
+  },
+  {
+    "id": "senado",
+    "title": "Senado",
+    "url": "https://senadolive.akamaized.net/hls/live/2006595/punto6/master.m3u8",
+    "country": "SP",
+    "category": "Parliament",
+    "website": "https://www.senado.es/web/actividadparlamentaria/actualidad/senadoendirecto/index.html",
+    "channelName": "Senado"
+  },
+  {
+    "id": "senado",
+    "title": "Senado",
+    "url": "https://senadolive.akamaized.net/hls/live/2006589/punto7/master.m3u8",
+    "country": "SP",
+    "category": "Parliament",
+    "website": "https://www.senado.es/web/actividadparlamentaria/actualidad/senadoendirecto/index.html",
+    "channelName": "Senado"
+  },
+  {
+    "id": "senado",
+    "title": "Senado",
+    "url": "https://senadolive.akamaized.net/hls/live/2006590/punto8/master.m3u8",
+    "country": "SP",
+    "category": "Parliament",
+    "website": "https://www.senado.es/web/actividadparlamentaria/actualidad/senadoendirecto/index.html",
+    "channelName": "Senado"
+  },
+  {
+    "id": "consejo-de-gobierno-de-la-regi-n-de-murcia",
+    "title": "Consejo de Gobierno de la Región de Murcia",
+    "url": "https://crmlive.redctnet.es/liveedge/ConsejoGob/playlist.m3u8",
+    "country": "SP",
+    "category": "Parliament",
+    "website": "https://www.carm.es",
+    "channelName": "Consejo de Gobierno de la Región de Murcia"
+  },
+  {
+    "id": "tele-10-nayarit-mexico",
+    "title": "TELE 10 Nayarit Mexico",
+    "url": "https://live.iplanay.gob.mx/hls/nayarittv.m3u8",
+    "country": "IN",
+    "category": "Parliament",
+    "website": "https://tele10.nayarit.gob.mx/en-vivo/",
+    "channelName": "TELE 10 Nayarit Mexico"
+  },
+  {
+    "id": "tv-per-",
+    "title": "TV Perú",
+    "url": "https://cdnhd.iblups.com/hls/777b4d4cc0984575a7d14f6ee57dbcaf7.m3u8",
+    "country": "IN",
+    "category": "Parliament",
+    "website": "https://www.tvperu.gob.pe/play",
+    "channelName": "TV Perú"
+  },
+  {
+    "id": "tv-per-noticias",
+    "title": "TV Perú Noticias",
+    "url": "https://cdnhd.iblups.com/hls/902c1a0395264f269f1160efa00660e47.m3u8",
+    "country": "IN",
+    "category": "Parliament",
+    "website": "https://www.tvperu.gob.pe/noticias/play",
+    "channelName": "TV Perú Noticias"
+  },
+  {
+    "id": "canal-ipe-per-",
+    "title": "Canal IPe Perú",
+    "url": "https://cdnhd.iblups.com/hls/3f2cb1658d114f2693eff18d83199e677.m3u8",
+    "country": "IN",
+    "category": "Parliament",
+    "website": "https://www.canalipe.gob.pe/streaming",
+    "channelName": "Canal IPe Perú"
+  },
+  {
+    "id": "tvk-camboya",
+    "title": "TVK Camboya",
+    "url": "https://live.kh.malimarcdn.com/live/tvk.stream/playlist.m3u8",
+    "country": "IN",
+    "category": "Parliament",
+    "website": "https://www.tvk.gov.kh",
+    "channelName": "TVK Camboya"
+  },
+  {
+    "id": "tvk-camboya",
+    "title": "TVK Camboya",
+    "url": "https://live.kh.malimarcdn.com/live/tvk2.stream/playlist.m3u8",
+    "country": "IN",
+    "category": "Parliament",
+    "website": "https://www.tvk.gov.kh",
+    "channelName": "TVK Camboya"
+  }
+]

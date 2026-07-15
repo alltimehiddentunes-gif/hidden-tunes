@@ -1,0 +1,12 @@
+[
+  {
+    "id": "rai-news24",
+    "title": "Rai News 24",
+    "url": "https://rainews1-live.akamaized.net/hls/live/598326/rainews1/rainews1/playlist.m3u8",
+    "country": "IT",
+    "category": "News",
+    "website": "https://www.rainews.it/",
+    "channelName": "Rai News 24",
+    "legalBasis": "Rai official public live HLS."
+  }
+]

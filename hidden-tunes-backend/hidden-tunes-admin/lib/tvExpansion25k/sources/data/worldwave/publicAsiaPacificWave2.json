@@ -1,0 +1,32 @@
+[
+  {
+    "id": "jp-gstv-jp",
+    "title": "GSTV",
+    "url": "https://gstv-tnz-gsmediastreaming.preview-jpea.channel.media.azure.net/dfd06b62-e9d1-4a7f-bcbb-89d2ecbc82ee/preview.ism/manifest(format=mpd-time-csf,audio-only=false",
+    "country": "JP",
+    "category": "General",
+    "website": null,
+    "channelName": "GSTV",
+    "legalBasis": "Free-TV/IPTV country directory entry for officially free-to-air television."
+  },
+  {
+    "id": "nhk-world",
+    "title": "NHK World Japan",
+    "url": "https://nhkworld.webcdn.stream.ne.jp/www11/nhkworld-tv/index.m3u8",
+    "country": "JP",
+    "category": "News",
+    "website": "https://www3.nhk.or.jp/nhkworld/",
+    "channelName": "NHK World Japan",
+    "legalBasis": "NHK official public live HLS."
+  },
+  {
+    "id": "arirang-world",
+    "title": "Arirang World",
+    "url": "https://amdlive-ch01-ctn.akamaized.net/arirang_1ch/smil:arirang_1ch.smil/playlist.m3u8",
+    "country": "KR",
+    "category": "Culture",
+    "website": "https://www.arirang.com/",
+    "channelName": "Arirang TV",
+    "legalBasis": "Arirang official public live HLS."
+  }
+]

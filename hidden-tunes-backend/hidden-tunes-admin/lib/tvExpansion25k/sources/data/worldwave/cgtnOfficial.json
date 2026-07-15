@@ -1,0 +1,22 @@
+[
+  {
+    "id": "cgtn-francais",
+    "title": "CGTN Francais",
+    "url": "https://news.cgtn.com/resource/live/french/cgtn-fr.m3u8",
+    "country": "CN",
+    "category": "News",
+    "website": "https://www.cgtn.com/tv",
+    "channelName": "CGTN Francais",
+    "legalBasis": "CGTN official public live HLS resource."
+  },
+  {
+    "id": "cgtn-russian",
+    "title": "CGTN Russian",
+    "url": "https://news.cgtn.com/resource/live/russian/cgtn-rus.m3u8",
+    "country": "CN",
+    "category": "News",
+    "website": "https://www.cgtn.com/tv",
+    "channelName": "CGTN Russian",
+    "legalBasis": "CGTN official public live HLS resource."
+  }
+]
