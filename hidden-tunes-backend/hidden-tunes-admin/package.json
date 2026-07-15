@@ -29,6 +29,8 @@
     "test:tv-verification-diagnostics": "npx tsx scripts/test-tv-verification-diagnostics.ts",
     "test:tv-mature": "npx tsx scripts/test-tv-mature-isolation.ts",
     "tv:expand:wave4:yield-audit": "npx tsx scripts/audit-tv-wave4-verification-yield.ts",
+    "tv:expand:wave4:unique-projection": "npx tsx scripts/audit-tv-wave4-unique-projection.ts",
+    "tv:expand:wave4:execute-readiness": "npx tsx scripts/report-tv-wave4-execute-readiness.ts",
     "tv:expand:wave4:verifier-parity": "npx tsx scripts/compare-tv-verifier-parity.ts",
     "tv:expand:mature:migration-audit": "npx tsx scripts/audit-tv-mature-migration-readiness.ts",
     "tv:import:legal": "tsx scripts/run-tv-legal-catalog-import.ts",
@@ -130,7 +132,16 @@
     "radio:mature:pipeline": "tsx scripts/run-radio-mature-pipeline.ts --execute",
     "radio:mature:pipeline:dry": "tsx scripts/run-radio-mature-pipeline.ts",
     "test:radio-mature": "tsx scripts/test-radio-mature-isolation.ts",
-    "radio:mature:apply-migration": "node scripts/apply-radio-mature-migration.mjs"
+    "radio:mature:apply-migration": "node scripts/apply-radio-mature-migration.mjs",
+    "radio:mature:probe": "node scripts/probe-radio-mature-schema.mjs",
+    "radio:mature:pipeline:reset": "tsx scripts/run-radio-mature-pipeline.ts --execute --reset",
+    "lectures:expand": "tsx scripts/run-lectures-expand.ts --resume --all-sources",
+    "lectures:expand:status": "tsx scripts/run-lectures-expand-status.ts",
+    "lectures:expand:dry": "tsx scripts/run-lectures-expand.ts --dry-run --max-batches=1 --batch-size=5",
+    "lectures:verify": "tsx scripts/run-lectures-verify.ts",
+    "lectures:promote": "tsx scripts/run-lecture-import-worker.ts --validate-media --publish-valid",
+    "lectures:report": "tsx scripts/run-lectures-report.ts",
+    "test:lectures-expansion-worldwide": "tsx scripts/test-lectures-expansion-worldwide.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1045.0",

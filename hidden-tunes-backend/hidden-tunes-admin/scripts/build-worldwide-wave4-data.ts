@@ -205,7 +205,17 @@ async function loadOfficialFastEntries(seen: Set<string>) {
     }
   }
 
-  return entries;
+  return entries.sort((a, b) => {
+    const rank = (country: string | null | undefined) => {
+      const code = String(country || "").toUpperCase();
+      const preferred = ["US", "GB", "CA", "AU", "DE", "FR", "IT", "ES", "BR", "MX", "IN"];
+      const index = preferred.indexOf(code);
+      return index === -1 ? preferred.length + 1 : index;
+    };
+    const byCountry = rank(a.country) - rank(b.country);
+    if (byCountry !== 0) return byCountry;
+    return String(a.title || "").localeCompare(String(b.title || ""));
+  });
 }
 
 async function loadCommunityPlaylists(seen: Set<string>) {
