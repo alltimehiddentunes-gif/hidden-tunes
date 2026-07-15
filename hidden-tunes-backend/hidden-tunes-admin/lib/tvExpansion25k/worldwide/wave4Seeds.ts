@@ -14,6 +14,16 @@ export type Wave4SeedEntry = {
 
 export const WAVE4_COUNTRY_OFFICIAL_MANIFESTS: Wave4SeedEntry[] = [
   {
+    id: "tv5monde-info",
+    title: "TV5MONDE Info",
+    url: "https://ott.tv5monde.com/Content/HLS/Live/channel(info)/variant.m3u8",
+    country: "FR",
+    category: "News",
+    website: "https://information.tv5monde.com/",
+    channelName: "TV5MONDE Info",
+    legalBasis: "TV5MONDE official international public news stream.",
+  },
+  {
     id: "rai-news24-it",
     title: "RAI News 24",
     url: "https://rainews24-live.akamaized.net/hls/live/598326/rainews24/rainews24/playlist.m3u8",
@@ -42,16 +52,6 @@ export const WAVE4_COUNTRY_OFFICIAL_MANIFESTS: Wave4SeedEntry[] = [
     website: "https://www.zdf.de/",
     channelName: "ZDFinfo",
     legalBasis: "ZDF official public information channel HLS.",
-  },
-  {
-    id: "tv5monde-info",
-    title: "TV5MONDE Info",
-    url: "https://ott.tv5monde.com/Content/HLS/Live/channel(info)/variant.m3u8",
-    country: "FR",
-    category: "News",
-    website: "https://information.tv5monde.com/",
-    channelName: "TV5MONDE Info",
-    legalBasis: "TV5MONDE official international public news stream.",
   },
   {
     id: "npo-nieuws-nl",
@@ -107,16 +107,6 @@ export const WAVE4_PARLIAMENT_GOVERNMENT: Wave4SeedEntry[] = [
     legalBasis: "German Bundestag official parliamentary live stream.",
   },
   {
-    id: "senado-br",
-    title: "TV Senado Brasil",
-    url: "https://stream3.camara.gov.br/tv2/manifest.m3u8",
-    country: "BR",
-    category: "Parliament",
-    website: "https://www12.senado.leg.br/",
-    channelName: "TV Senado",
-    legalBasis: "Brazilian Senate official public television stream.",
-  },
-  {
     id: "europarl",
     title: "Europarl TV",
     url: "https://europarl-live.akamaized.net/hls/live/2013925/europarltv/europarltv_main.m3u8",
@@ -163,6 +153,28 @@ export const WAVE4_INTERNATIONAL_NEWS: Wave4SeedEntry[] = [
     legalBasis: "Deutsche Welle official multilingual public news stream.",
   },
   {
+    id: "dw-de",
+    title: "DW Deutsch",
+    url: "https://dwamdstream103.akamaized.net/hls/live/2015526/dwstream103/index.m3u8",
+    country: "DE",
+    language: "de",
+    category: "News",
+    website: "https://www.dw.com/",
+    channelName: "DW Deutsch",
+    legalBasis: "Deutsche Welle official German-language public news stream.",
+  },
+  {
+    id: "aljazeera-ar",
+    title: "Al Jazeera Arabic",
+    url: "https://live-hls-web-aja.getaj.net/AJA/01.m3u8",
+    country: "QA",
+    language: "ar",
+    category: "News",
+    website: "https://www.aljazeera.net/",
+    channelName: "Al Jazeera",
+    legalBasis: "Al Jazeera Media Network official public Arabic live HLS.",
+  },
+  {
     id: "cgtn-en",
     title: "CGTN English",
     url: "https://news.cgtn.com/resource/live/english/cgtn-news.m3u8",
@@ -173,30 +185,9 @@ export const WAVE4_INTERNATIONAL_NEWS: Wave4SeedEntry[] = [
     channelName: "CGTN",
     legalBasis: "CGTN official public international news HLS.",
   },
-  {
-    id: "nhk-world-jp",
-    title: "NHK World Japan",
-    url: "https://nhkworld.webcdn.stream.ne.jp/www11/nhkworld-tv/index.m3u8",
-    country: "JP",
-    language: "en",
-    category: "News",
-    website: "https://www3.nhk.or.jp/nhkworld/",
-    channelName: "NHK World",
-    legalBasis: "NHK official international public broadcast stream.",
-  },
 ];
 
 export const WAVE4_RELIGIOUS_EDUCATION: Wave4SeedEntry[] = [
-  {
-    id: "ewtn-us",
-    title: "EWTN",
-    url: "https://ewtn-samsunguk.amagi.tv/playlist.m3u8",
-    country: "US",
-    category: "Religious",
-    website: "https://www.ewtn.com/",
-    channelName: "EWTN",
-    legalBasis: "EWTN official licensed religious broadcaster FAST/HLS feed.",
-  },
   {
     id: "nasa-tv-public",
     title: "NASA TV Public",
@@ -206,6 +197,16 @@ export const WAVE4_RELIGIOUS_EDUCATION: Wave4SeedEntry[] = [
     website: "https://www.nasa.gov/nasa-tv/",
     channelName: "NASA TV",
     legalBasis: "NASA official public education and science live stream.",
+  },
+  {
+    id: "nasa-tv-media",
+    title: "NASA TV Media",
+    url: "https://ntv2.akamaized.net/hls/live/2013923/NASA-NTV2-HLS/master.m3u8",
+    country: "US",
+    category: "Education",
+    website: "https://www.nasa.gov/nasa-tv/",
+    channelName: "NASA TV Media",
+    legalBasis: "NASA official public media channel HLS.",
   },
   {
     id: "un-web-tv",

@@ -1,5 +1,27 @@
 [
   {
+    "id": "dw-de",
+    "title": "DW Deutsch",
+    "url": "https://dwamdstream103.akamaized.net/hls/live/2015526/dwstream103/index.m3u8",
+    "country": "DE",
+    "language": "de",
+    "category": "News",
+    "website": "https://www.dw.com/",
+    "channelName": "DW Deutsch",
+    "legalBasis": "Deutsche Welle official German-language public news stream."
+  },
+  {
+    "id": "aljazeera-ar",
+    "title": "Al Jazeera Arabic",
+    "url": "https://live-hls-web-aja.getaj.net/AJA/01.m3u8",
+    "country": "QA",
+    "language": "ar",
+    "category": "News",
+    "website": "https://www.aljazeera.net/",
+    "channelName": "Al Jazeera",
+    "legalBasis": "Al Jazeera Media Network official public Arabic live HLS."
+  },
+  {
     "id": "cgtn-en",
     "title": "CGTN English",
     "url": "https://news.cgtn.com/resource/live/english/cgtn-news.m3u8",
