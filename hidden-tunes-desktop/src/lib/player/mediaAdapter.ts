@@ -2,6 +2,7 @@ import type { ApiSong } from '../api'
 import type { QueueContext } from '../desktopPlayback/types'
 import { isPodcastQueueSong } from '../podcasts/podcastPlaybackAdapter'
 import { isAudiobookQueueSong } from '../audiobooks/audiobookPlaybackAdapter'
+import { isMotivationalQueueSong } from '../motivationals/motivationalPlaybackAdapter'
 import { isRadioQueueSong } from '../radio/radioPlaybackAdapter'
 import { isTvQueueSong } from '../tv/tvPlaybackAdapter'
 import {
@@ -60,9 +61,11 @@ function inferKindFromContext(
   if (track && isTvQueueSong(track)) return 'tv'
   if (track && isPodcastQueueSong(track)) return 'podcast'
   if (track && isAudiobookQueueSong(track)) return 'audiobook'
+  if (track && isMotivationalQueueSong(track)) return 'motivational'
   if (queueContext === 'radio') return 'radio'
   if (queueContext === 'podcast') return 'podcast'
   if (queueContext === 'audiobook') return 'audiobook'
+  if (queueContext === 'motivational') return 'motivational'
 
   const titleHint = (queueTitle ?? '').toLowerCase()
   if (titleHint.includes('audiobook')) return 'audiobook'
@@ -186,7 +189,7 @@ export function resolvePlayerMediaAdapter(input: {
   const seekable = kind !== 'radio' && kind !== 'tv'
   const showDuration = seekable && Boolean(track?.durationSeconds && track.durationSeconds > 0)
   const showShuffleRepeat = kind === 'music' || kind === 'motivational' || kind === 'lecture'
-  const showLyrics = kind === 'music' || kind === 'motivational'
+  const showLyrics = kind === 'music'
   const showQualitySelector = kind === 'music'
 
   const centerEyebrow = kind === 'radio'

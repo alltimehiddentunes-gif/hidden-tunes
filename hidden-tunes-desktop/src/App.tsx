@@ -154,18 +154,27 @@ import {
   resolveEditorialPlaylistSpec,
   resolveEditorialPlaylistTracks,
 } from './lib/home/editorialPlaylists'
+import { MotivationalsPage } from './components/motivationals/MotivationalsPage'
+import { MotivationalProgramPage } from './components/motivationals/MotivationalProgramPage'
 import { buildRadioQueueSongs } from './lib/radio/radioPlaybackAdapter'
 import { buildTvQueueSongs, isTvQueueSong } from './lib/tv/tvPlaybackAdapter'
 import { buildPodcastQueueSongs } from './lib/podcasts/podcastPlaybackAdapter'
 import { buildAudiobookQueueSongs } from './lib/audiobooks/audiobookPlaybackAdapter'
+import { buildMotivationalQueueSongs } from './lib/motivationals/motivationalPlaybackAdapter'
 import { setPendingPodcastResumeSeconds } from './lib/podcasts/podcastPlaybackSession'
 import { setPendingAudiobookResumeSeconds } from './lib/audiobooks/audiobookPlaybackSession'
+import { setPendingMotivationalResumeSeconds } from './lib/motivationals/motivationalPlaybackSession'
 import type { PodcastEpisodeMeta, PodcastShowMeta } from './lib/podcasts/types'
 import type {
   AudiobookBookMeta,
   AudiobookChapterMeta,
   PlayAudiobookChapterHandler,
 } from './lib/audiobooks/types'
+import type {
+  MotivationalProgramMeta,
+  MotivationalSessionMeta,
+  PlayMotivationalSessionHandler,
+} from './lib/motivationals/types'
 import type { RadioStationMeta } from './lib/radio/types'
 import type { TvChannelMeta } from './lib/tv/types'
 import './App.css'
@@ -1010,6 +1019,7 @@ type NavKey =
   | 'radio'
   | 'podcasts'
   | 'audiobooks'
+  | 'motivationals'
   | 'tv'
   | 'worlds'
   | 'search'
@@ -1029,6 +1039,7 @@ const PSD_DESTINATION_NAV_KEYS: NavKey[] = [
   'radio',
   'podcasts',
   'audiobooks',
+  'motivationals',
   'tv',
   'worlds',
   'search',
@@ -1048,6 +1059,7 @@ const TOP_BAR_PLACEHOLDERS: Partial<Record<NavKey, string>> = {
   radio: 'Search stations, genres, countries…',
   podcasts: 'Search podcasts, episodes, categories…',
   audiobooks: 'Search audiobooks, authors, narrators…',
+  motivationals: 'Search motivationals, speakers, topics…',
   tv: 'Search shows, channels, live events…',
   worlds: 'Search emotional worlds…',
   search: 'Search songs, artists, albums…',
@@ -1204,8 +1216,9 @@ const SIDEBAR_PRIMARY_NAV: SidebarNavItem[] = [
   },
   {
     key: 'motivationals',
+    navKey: 'motivationals',
+    page: 'motivationals',
     label: 'Motivationals',
-    disabled: true,
     icon: (
       <SidebarNavIcon>
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
@@ -6122,7 +6135,7 @@ const QueueUpNextPanel = memo(function QueueUpNextPanel({
 })
 
 
-type ActiveView = 'page' | 'song' | 'album' | 'artist' | 'mood' | 'podcast-show' | 'audiobook-book'
+type ActiveView = 'page' | 'song' | 'album' | 'artist' | 'mood' | 'podcast-show' | 'audiobook-book' | 'motivational-program'
 
 function formatDateLabel(value: string | null) {
   if (!value) return null
@@ -6597,17 +6610,21 @@ function CatalogDetailRouter({
   radioQuery = '',
   podcastsQuery = '',
   audiobooksQuery = '',
+  motivationalsQuery = '',
   tvQuery = '',
   onPlayRadioStation,
   onPlayTvChannel,
   selectedPodcastShowId = null,
   selectedAudiobookId = null,
+  selectedMotivationalProgramId = null,
   onOpenPodcastShow,
   onOpenAudiobookBook,
+  onOpenMotivationalProgram,
   onPlayPodcastEpisode,
   onPlayAudiobookChapter,
   musicSection = 'discover',
   onMusicSectionChange,
+  onPlayMotivationalSession,
 }: {
   activeView: ActiveView
   selectedSong: ApiSong | null
@@ -6616,6 +6633,7 @@ function CatalogDetailRouter({
   selectedMood: MoodRoom | null
   selectedPodcastShowId?: string | null
   selectedAudiobookId?: string | null
+  selectedMotivationalProgramId?: string | null
   desktopSelectedTrack: ApiSong | null
   onBack: () => void
   activePage: PageId
@@ -6626,6 +6644,7 @@ function CatalogDetailRouter({
   onOpenMood: (mood: MoodRoom) => void
   onOpenPodcastShow?: (showId: string) => void
   onOpenAudiobookBook?: (bookId: string) => void
+  onOpenMotivationalProgram?: (programId: string) => void
   onPlayPodcastEpisode?: (
     episode: PodcastEpisodeMeta,
     queue: PodcastEpisodeMeta[],
@@ -6637,6 +6656,7 @@ function CatalogDetailRouter({
     },
   ) => void
   onPlayAudiobookChapter?: PlayAudiobookChapterHandler
+  onPlayMotivationalSession?: PlayMotivationalSessionHandler
   onOpenCinema?: () => void
   discoverQuery: string
   setDiscoverQuery: (value: string) => void
@@ -6653,6 +6673,7 @@ function CatalogDetailRouter({
   radioQuery?: string
   podcastsQuery?: string
   audiobooksQuery?: string
+  motivationalsQuery?: string
   tvQuery?: string
   onPlayRadioStation?: (
     station: RadioStationMeta,
@@ -6733,6 +6754,17 @@ function CatalogDetailRouter({
     )
   }
 
+  if (activeView === 'motivational-program' && selectedMotivationalProgramId) {
+    return (
+      <MotivationalProgramPage
+        programId={selectedMotivationalProgramId}
+        onBack={onBack}
+        onPlayMotivationalSession={onPlayMotivationalSession ?? (() => {})}
+        ArtworkImage={ArtworkImage}
+      />
+    )
+  }
+
   return (
     <PageContent
       page={activePage}
@@ -6756,15 +6788,18 @@ function CatalogDetailRouter({
       radioQuery={radioQuery}
       podcastsQuery={podcastsQuery}
       audiobooksQuery={audiobooksQuery}
+      motivationalsQuery={motivationalsQuery}
       tvQuery={tvQuery}
       onPlayRadioStation={onPlayRadioStation}
       onPlayTvChannel={onPlayTvChannel}
       onOpenPodcastShow={onOpenPodcastShow}
       onOpenAudiobookBook={onOpenAudiobookBook}
+      onOpenMotivationalProgram={onOpenMotivationalProgram}
       onPlayPodcastEpisode={onPlayPodcastEpisode}
       onPlayAudiobookChapter={onPlayAudiobookChapter}
       musicSection={musicSection}
       onMusicSectionChange={onMusicSectionChange}
+      onPlayMotivationalSession={onPlayMotivationalSession}
     />
   )
 }
@@ -6791,15 +6826,18 @@ function PageContent({
   radioQuery = '',
   podcastsQuery = '',
   audiobooksQuery = '',
+  motivationalsQuery = '',
   tvQuery = '',
   onPlayRadioStation,
   onPlayTvChannel,
   onOpenPodcastShow,
   onOpenAudiobookBook,
+  onOpenMotivationalProgram,
   onPlayPodcastEpisode,
   onPlayAudiobookChapter,
   musicSection = 'discover',
   onMusicSectionChange,
+  onPlayMotivationalSession,
 }: {
   page: PageId
   activeNavKey: NavKey
@@ -6809,6 +6847,7 @@ function PageContent({
   onOpenMood: (mood: MoodRoom) => void
   onOpenPodcastShow?: (showId: string) => void
   onOpenAudiobookBook?: (bookId: string) => void
+  onOpenMotivationalProgram?: (programId: string) => void
   onPlayPodcastEpisode?: (
     episode: PodcastEpisodeMeta,
     queue: PodcastEpisodeMeta[],
@@ -6820,6 +6859,7 @@ function PageContent({
     },
   ) => void
   onPlayAudiobookChapter?: PlayAudiobookChapterHandler
+  onPlayMotivationalSession?: PlayMotivationalSessionHandler
   discoverQuery: string
   setDiscoverQuery: (value: string) => void
   albumsQuery: string
@@ -6835,6 +6875,7 @@ function PageContent({
   radioQuery?: string
   podcastsQuery?: string
   audiobooksQuery?: string
+  motivationalsQuery?: string
   tvQuery?: string
   onPlayRadioStation?: (
     station: RadioStationMeta,
@@ -6912,6 +6953,15 @@ function PageContent({
           query={audiobooksQuery ?? ''}
           onOpenBook={onOpenAudiobookBook ?? (() => {})}
           onPlayAudiobookChapter={onPlayAudiobookChapter ?? (() => {})}
+          ArtworkImage={ArtworkImage}
+        />
+      )
+    case 'motivationals':
+      return (
+        <MotivationalsPage
+          query={motivationalsQuery ?? ''}
+          onOpenProgram={onOpenMotivationalProgram ?? (() => {})}
+          onPlayMotivationalSession={onPlayMotivationalSession ?? (() => {})}
           ArtworkImage={ArtworkImage}
         />
       )
@@ -7025,6 +7075,7 @@ function AppShell() {
   const [selectedMood, setSelectedMood] = useState<MoodRoom | null>(null)
   const [selectedPodcastShowId, setSelectedPodcastShowId] = useState<string | null>(null)
   const [selectedAudiobookId, setSelectedAudiobookId] = useState<string | null>(null)
+  const [selectedMotivationalProgramId, setSelectedMotivationalProgramId] = useState<string | null>(null)
   const [desktopSelectedTrack, setDesktopSelectedTrack] = useState<ApiSong | null>(null)
   const [lyricsOpen, setLyricsOpen] = useState(false)
   const {
@@ -7042,6 +7093,7 @@ function AppShell() {
   const [radioQuery, setRadioQuery] = useState('')
   const [podcastsQuery, setPodcastsQuery] = useState('')
   const [audiobooksQuery, setAudiobooksQuery] = useState('')
+  const [motivationalsQuery, setMotivationalsQuery] = useState('')
   const [tvQuery, setTvQuery] = useState('')
   const [discoverQuery, setDiscoverQuery] = usePersistedPreference(
     DESKTOP_PREFERENCE_KEYS.discoverSearch,
@@ -7213,6 +7265,32 @@ function AppShell() {
     [playQueue],
   )
 
+  const playMotivationalSession = useCallback<PlayMotivationalSessionHandler>(
+    (
+      program: MotivationalProgramMeta,
+      _session: MotivationalSessionMeta,
+      queue: MotivationalSessionMeta[],
+      startIndex: number,
+      queueTitle: string,
+      options?: {
+        resumePositionSeconds?: number | null
+      },
+    ) => {
+      const apiQueue = buildMotivationalQueueSongs(program, queue)
+      if (apiQueue.length === 0) return
+
+      const safeIndex = Math.max(0, Math.min(startIndex, apiQueue.length - 1))
+      const track = apiQueue[safeIndex]
+      setDesktopSelectedTrack(track)
+      setPendingMotivationalResumeSeconds(options?.resumePositionSeconds ?? null)
+      playQueue(apiQueue, safeIndex, 'motivational', queueTitle, {
+        seedType: 'manual',
+        seedTracks: apiQueue,
+      })
+    },
+    [playQueue],
+  )
+
   const playTvChannel = useCallback(
     (
       _channel: TvChannelMeta,
@@ -7285,12 +7363,27 @@ function AppShell() {
     const cleanId = bookId.trim()
     if (!cleanId) return
     setSelectedAudiobookId(cleanId)
+    setSelectedMotivationalProgramId(null)
     setSelectedPodcastShowId(null)
     setSelectedSong(null)
     setSelectedAlbum(null)
     setSelectedArtist(null)
     setSelectedMood(null)
     setActiveView('audiobook-book')
+  }, [cancelAutoOpenPlayer])
+
+  const openMotivationalProgram = useCallback((programId: string) => {
+    cancelAutoOpenPlayer()
+    const cleanId = programId.trim()
+    if (!cleanId) return
+    setSelectedMotivationalProgramId(cleanId)
+    setSelectedAudiobookId(null)
+    setSelectedPodcastShowId(null)
+    setSelectedSong(null)
+    setSelectedAlbum(null)
+    setSelectedArtist(null)
+    setSelectedMood(null)
+    setActiveView('motivational-program')
   }, [cancelAutoOpenPlayer])
 
   const backToPage = useCallback(() => {
@@ -7301,6 +7394,7 @@ function AppShell() {
     setSelectedMood(null)
     setSelectedPodcastShowId(null)
     setSelectedAudiobookId(null)
+    setSelectedMotivationalProgramId(null)
   }, [])
 
   const navigateNav = useCallback((navKey: NavKey) => {
@@ -7315,7 +7409,7 @@ function AppShell() {
   }, [backToPage, cancelAutoOpenPlayer, setActivePage])
 
   const handleGlobalNav = useCallback((navKey: GlobalNavKey) => {
-    if (navKey === 'motivationals' || navKey === 'lectures') return
+    if (navKey === 'lectures') return
     navigateNav(navKey as NavKey)
   }, [navigateNav])
 
@@ -7382,6 +7476,7 @@ function AppShell() {
                       || activeNavKey === 'radio'
                       || activeNavKey === 'podcasts'
                       || activeNavKey === 'audiobooks'
+                      || activeNavKey === 'motivationals'
                       || activeNavKey === 'tv'
                       ? 'search'
                       : 'default'
@@ -7409,8 +7504,10 @@ function AppShell() {
                                       ? podcastsQuery
                                       : activeNavKey === 'audiobooks'
                                         ? audiobooksQuery
-                                        : activeNavKey === 'tv'
-                                          ? tvQuery
+                                        : activeNavKey === 'motivationals'
+                                          ? motivationalsQuery
+                                          : activeNavKey === 'tv'
+                                            ? tvQuery
                                   : undefined
                   }
                   onSearchChange={
@@ -7436,8 +7533,10 @@ function AppShell() {
                                       ? setPodcastsQuery
                                       : activeNavKey === 'audiobooks'
                                         ? setAudiobooksQuery
-                                        : activeNavKey === 'tv'
-                                          ? setTvQuery
+                                        : activeNavKey === 'motivationals'
+                                          ? setMotivationalsQuery
+                                          : activeNavKey === 'tv'
+                                            ? setTvQuery
                                   : undefined
                   }
                 />
@@ -7453,6 +7552,7 @@ function AppShell() {
                   selectedMood={selectedMood}
                   selectedPodcastShowId={selectedPodcastShowId}
                   selectedAudiobookId={selectedAudiobookId}
+                  selectedMotivationalProgramId={selectedMotivationalProgramId}
                   desktopSelectedTrack={desktopSelectedTrack}
                   onBack={backToPageWithCancel}
                   activePage={activePage}
@@ -7463,6 +7563,7 @@ function AppShell() {
                   onOpenMood={openMood}
                   onOpenPodcastShow={openPodcastShow}
                   onOpenAudiobookBook={openAudiobookBook}
+                  onOpenMotivationalProgram={openMotivationalProgram}
                   onOpenCinema={openCinemaPlayer}
                   discoverQuery={discoverQuery}
                   setDiscoverQuery={setDiscoverQuery}
@@ -7479,6 +7580,7 @@ function AppShell() {
                   radioQuery={radioQuery}
                   podcastsQuery={podcastsQuery}
                   audiobooksQuery={audiobooksQuery}
+                  motivationalsQuery={motivationalsQuery}
                   tvQuery={tvQuery}
                   onPlayRadioStation={playRadioStation}
                   onPlayTvChannel={playTvChannel}
@@ -7486,6 +7588,7 @@ function AppShell() {
                   onPlayAudiobookChapter={playAudiobookChapter}
                   musicSection={musicSection}
                   onMusicSectionChange={setMusicSection}
+                  onPlayMotivationalSession={playMotivationalSession}
                 />
               </div>
             </main>

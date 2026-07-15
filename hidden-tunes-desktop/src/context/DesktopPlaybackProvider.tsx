@@ -91,6 +91,24 @@ import {
   removeAudiobookProgress,
   upsertAudiobookProgress,
 } from '../lib/audiobooks/audiobookProgressStorage'
+import { resolveMotivationalPlay } from '../lib/motivationals/motivationalCatalogApi'
+import { consumePendingMotivationalResumeSeconds } from '../lib/motivationals/motivationalPlaybackSession'
+import {
+  isMotivationalQueueSong,
+  parseMotivationalSongId,
+  patchMotivationalSessionWithPlayUrl,
+} from '../lib/motivationals/motivationalPlaybackAdapter'
+import {
+  MOTIVATIONAL_PREVIOUS_RESTART_SECONDS,
+  MOTIVATIONAL_PROGRESS_THROTTLE_MS,
+  MOTIVATIONAL_MIN_CONTINUE_SECONDS,
+  buildMotivationalProgressEntryFromSong,
+  isMotivationalSessionCompleted,
+  progressEntryToHistoryEntry as motivationalProgressEntryToHistoryEntry,
+  recordMotivationalHistory,
+  removeMotivationalProgress,
+  upsertMotivationalProgress,
+} from '../lib/motivationals/motivationalProgressStorage'
 import type {
   DesktopPlaybackContextValue,
   DesktopPlaybackProgressState,
@@ -168,6 +186,9 @@ function playbackErrorMessage(song: ApiSong | null) {
   if (isAudiobookQueueSong(song)) {
     return 'This audiobook chapter is unavailable right now.'
   }
+  if (isMotivationalQueueSong(song)) {
+    return 'This item is currently unavailable.'
+  }
   return 'Unable to play this track.'
 }
 
@@ -201,6 +222,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
   const playSongRef = useRef<(song: ApiSong) => void>(() => undefined)
   const flushPodcastProgressRef = useRef<(force?: boolean) => void>(() => undefined)
   const flushAudiobookProgressRef = useRef<(force?: boolean) => void>(() => undefined)
+  const flushMotivationalProgressRef = useRef<(force?: boolean) => void>(() => undefined)
   const flushMusicProgressRef = useRef<(force?: boolean) => void>(() => undefined)
   const currentTrackRef = useRef<ApiSong | null>(null)
   const audioQualityModeRef = useRef<AudioQualityMode>('auto')
@@ -216,6 +238,9 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
   const audiobookProgressTrackIdRef = useRef<string | null>(null)
   const audiobookProgressLastWriteRef = useRef(0)
   const audiobookProgressLastPositionRef = useRef(0)
+  const motivationalProgressTrackIdRef = useRef<string | null>(null)
+  const motivationalProgressLastWriteRef = useRef(0)
+  const motivationalProgressLastPositionRef = useRef(0)
   const musicProgressTrackIdRef = useRef<string | null>(null)
   const musicProgressLastWriteRef = useRef(0)
   const musicProgressLastPositionRef = useRef(0)
@@ -456,6 +481,63 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
     [durationSeconds, getService, persistAudiobookProgress],
   )
 
+  const persistMotivationalProgress = useCallback(
+    (
+      song: ApiSong,
+      positionSeconds: number,
+      durationSeconds: number,
+      options?: { force?: boolean; completed?: boolean },
+    ) => {
+      if (!isMotivationalQueueSong(song)) return
+
+      const completed =
+        options?.completed === true
+        || isMotivationalSessionCompleted(positionSeconds, durationSeconds)
+
+      const entry = buildMotivationalProgressEntryFromSong(
+        song,
+        positionSeconds,
+        durationSeconds,
+        completed,
+      )
+      if (!entry) return
+
+      if (completed) {
+        removeMotivationalProgress(entry.programId)
+        recordMotivationalHistory(motivationalProgressEntryToHistoryEntry(entry))
+        return
+      }
+
+      upsertMotivationalProgress(entry)
+    },
+    [],
+  )
+
+  const flushMotivationalProgress = useCallback(
+    (force = false) => {
+      const track = currentTrackRef.current
+      if (!track || !isMotivationalQueueSong(track)) return
+
+      const audio = getService().getAudioElement()
+      const position = audio.currentTime
+      const duration =
+        Number.isFinite(audio.duration) && audio.duration > 0
+          ? audio.duration
+          : durationSeconds
+
+      if (!force) {
+        const elapsed = performance.now() - motivationalProgressLastWriteRef.current
+        const positionDelta = Math.abs(position - motivationalProgressLastPositionRef.current)
+        if (elapsed < MOTIVATIONAL_PROGRESS_THROTTLE_MS && positionDelta < 2) return
+      }
+
+      motivationalProgressLastWriteRef.current = performance.now()
+      motivationalProgressLastPositionRef.current = position
+      persistMotivationalProgress(track, position, duration, { force })
+    },
+    [durationSeconds, getService, persistMotivationalProgress],
+  )
+
   const persistMusicProgress = useCallback(
     (
       song: ApiSong,
@@ -681,7 +763,9 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
         ? consumePendingPodcastResumeSeconds()
         : isAudiobookQueueSong(song)
           ? consumePendingAudiobookResumeSeconds()
-          : null
+          : isMotivationalQueueSong(song)
+            ? consumePendingMotivationalResumeSeconds()
+            : null
 
       if (isAudiobookQueueSong(song)) {
         service.setPlaybackRate(audiobookPlaybackRateRef.current)
@@ -734,11 +818,32 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
           }
 
           if (
+            pendingResumeSeconds
+            && isMotivationalQueueSong(song)
+            && currentTrackRef.current?.id === song.id
+          ) {
+            const audio = service.getAudioElement()
+            const maxDuration =
+              Number.isFinite(audio.duration) && audio.duration > 0
+                ? audio.duration
+                : song.durationSeconds ?? pendingResumeSeconds
+            const safeResume = Math.min(
+              Math.max(0, pendingResumeSeconds),
+              maxDuration > 1 ? maxDuration - 1 : pendingResumeSeconds,
+            )
+            if (safeResume >= MOTIVATIONAL_MIN_CONTINUE_SECONDS / 2) {
+              service.seekTo(safeResume)
+              emitPositionSeconds(safeResume, true)
+            }
+          }
+
+          if (
             selection
             && upgradeTarget
             && !isPodcastQueueSong(song)
             && !isRadioQueueSong(song)
             && !isAudiobookQueueSong(song)
+            && !isMotivationalQueueSong(song)
             && currentTrackRef.current?.id === song.id
           ) {
             upgradeSessionRef.current = {
@@ -832,6 +937,27 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
         audiobookProgressTrackIdRef.current = null
       }
 
+      const prepareMotivationalProgress = (resolvedSong: ApiSong) => {
+        if (isMotivationalQueueSong(resolvedSong)) {
+          motivationalProgressTrackIdRef.current = resolvedSong.id
+          motivationalProgressLastWriteRef.current = 0
+          motivationalProgressLastPositionRef.current = 0
+
+          const historySeed = buildMotivationalProgressEntryFromSong(
+            resolvedSong,
+            0,
+            resolvedSong.durationSeconds ?? 0,
+            false,
+          )
+          if (historySeed) {
+            recordMotivationalHistory(motivationalProgressEntryToHistoryEntry(historySeed))
+          }
+          return
+        }
+
+        motivationalProgressTrackIdRef.current = null
+      }
+
       const prepareMusicProgress = (resolvedSong: ApiSong) => {
         if (isMusicCatalogSong(resolvedSong)) {
           musicProgressTrackIdRef.current = resolvedSong.id
@@ -861,12 +987,15 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
         && !Boolean(song.audioUrl?.startsWith('http') || song.previewUrl?.startsWith('http'))
       const needsAudiobookResolve = isAudiobookQueueSong(song)
         && !Boolean(song.audioUrl?.startsWith('http') || song.previewUrl?.startsWith('http'))
+      const needsMotivationalResolve = isMotivationalQueueSong(song)
+        && !Boolean(song.audioUrl?.startsWith('http') || song.previewUrl?.startsWith('http'))
 
-      if (!needsRadioResolve && !needsTvResolve && !needsPodcastResolve && !needsAudiobookResolve) {
+      if (!needsRadioResolve && !needsTvResolve && !needsPodcastResolve && !needsAudiobookResolve && !needsMotivationalResolve) {
         if (generation !== mediaResolveGenerationRef.current) return
         if (currentTrackRef.current?.id !== song.id) return
         preparePodcastProgress(song)
         prepareAudiobookProgress(song)
+        prepareMotivationalProgress(song)
         prepareMusicProgress(song)
         startPlayback(song)
         return
@@ -1060,11 +1189,56 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
           }
         }
 
+        if (needsMotivationalResolve) {
+          const ids = parseMotivationalSongId(song.id)
+          if (!ids) {
+            setError('Unable to play this motivational session.')
+            setIsLoading(false)
+            return
+          }
+
+          try {
+            const play = await resolveMotivationalPlay(ids.sessionId)
+            if (generation !== mediaResolveGenerationRef.current) return
+            if (currentTrackRef.current?.id !== song.id) return
+            if (!play?.audioUrl?.startsWith('http')) {
+              setIsLoading(false)
+              setError('This item is currently unavailable.')
+              return
+            }
+
+            resolvedSong = patchMotivationalSessionWithPlayUrl(song, {
+              audioUrl: play.audioUrl,
+              durationSeconds: play.durationSeconds,
+            })
+
+            const queue = queueRef.current
+            const queueIndex = queue.findIndex((entry) => entry.id === song.id)
+            if (queueIndex >= 0) {
+              const updatedQueue = [...queue]
+              updatedQueue[queueIndex] = resolvedSong
+              queueRef.current = updatedQueue
+              setCurrentQueue(updatedQueue)
+            }
+          } catch (error) {
+            if (generation !== mediaResolveGenerationRef.current) return
+            if (currentTrackRef.current?.id !== song.id) return
+            setIsLoading(false)
+            setError(
+              error instanceof Error
+                ? error.message
+                : 'This item is currently unavailable.',
+            )
+            return
+          }
+        }
+
         if (generation !== mediaResolveGenerationRef.current) return
         if (currentTrackRef.current?.id !== song.id) return
 
         preparePodcastProgress(resolvedSong)
         prepareAudiobookProgress(resolvedSong)
+        prepareMotivationalProgress(resolvedSong)
         prepareMusicProgress(resolvedSong)
         startPlayback(resolvedSong)
       })()
@@ -1085,6 +1259,10 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
   }, [flushAudiobookProgress])
 
   useEffect(() => {
+    flushMotivationalProgressRef.current = flushMotivationalProgress
+  }, [flushMotivationalProgress])
+
+  useEffect(() => {
     flushMusicProgressRef.current = flushMusicProgress
   }, [flushMusicProgress])
 
@@ -1092,6 +1270,8 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
     const onBeforeUnload = () => {
       flushPodcastProgressRef.current(true)
       flushAudiobookProgressRef.current(true)
+      flushMotivationalProgressRef.current(true)
+      flushMusicProgressRef.current(true)
       flushMusicProgressRef.current(true)
     }
     window.addEventListener('beforeunload', onBeforeUnload)
@@ -1191,6 +1371,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       maybeUpgradeAfterStablePlayback()
       flushPodcastProgressRef.current()
       flushAudiobookProgressRef.current()
+      flushMotivationalProgressRef.current()
       flushMusicProgressRef.current()
     }
     const onPlay = () => {
@@ -1204,6 +1385,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       setIsPlaying(false)
       flushPodcastProgressRef.current(true)
       flushAudiobookProgressRef.current(true)
+      flushMotivationalProgressRef.current(true)
       flushMusicProgressRef.current(true)
       if (!audio.ended && !upgradeSessionRef.current?.attempted) {
         cancelUpgradeSession('upgrade-cancelled-pause', 'playback-paused-before-upgrade')
@@ -1249,6 +1431,18 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
           completed: true,
         })
         audiobookProgressTrackIdRef.current = null
+      }
+
+      if (endedTrack && isMotivationalQueueSong(endedTrack)) {
+        const duration =
+          Number.isFinite(audio.duration) && audio.duration > 0
+            ? audio.duration
+            : endedTrack.durationSeconds ?? audio.currentTime
+        persistMotivationalProgress(endedTrack, duration, duration, {
+          force: true,
+          completed: true,
+        })
+        motivationalProgressTrackIdRef.current = null
       }
 
       if (endedTrack && isMusicCatalogSong(endedTrack)) {
@@ -1448,7 +1642,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       unshuffledQueueRef.current = playableQueue
       let resolvedQueue = playableQueue
       let resolvedIndex = safeIndex
-      if (shuffleEnabledRef.current && playableQueue.length > 1 && context !== 'audiobook' && context !== 'tv' && context !== 'radio') {
+      if (shuffleEnabledRef.current && playableQueue.length > 1 && context !== 'audiobook' && context !== 'motivational' && context !== 'tv' && context !== 'radio') {
         resolvedQueue = shuffleQueueFromIndex(playableQueue, safeIndex)
         resolvedIndex = 0
       }
@@ -1527,6 +1721,15 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       }
     }
 
+    if (track && isMotivationalQueueSong(track)) {
+      if (positionSecondsRef.current > MOTIVATIONAL_PREVIOUS_RESTART_SECONDS) {
+        getService().seekTo(0)
+        emitPositionSeconds(0, true)
+        flushMotivationalProgressRef.current(true)
+        return
+      }
+    }
+
     const queue = queueRef.current
     const previousIndex = queueIndexRef.current - 1
     if (previousIndex < 0) {
@@ -1584,6 +1787,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
 
   const toggleShuffle = useCallback(() => {
     if (queueContextRef.current === 'audiobook') return
+    if (queueContextRef.current === 'motivational') return
 
     setShuffleEnabled((enabled) => {
       const next = !enabled
