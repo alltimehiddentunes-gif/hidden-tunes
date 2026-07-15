@@ -109,6 +109,26 @@ import {
   removeMotivationalProgress,
   upsertMotivationalProgress,
 } from '../lib/motivationals/motivationalProgressStorage'
+import { resolveLecturePlay, searchLectureContinuation, fetchAllLectureSeriesSessions } from '../lib/lectures/lectureCatalogApi'
+import { consumePendingLectureResumeSeconds } from '../lib/lectures/lecturePlaybackSession'
+import {
+  isLectureQueueSong,
+  isLectureVideoSong,
+  parseLectureSongId,
+  patchLectureSessionWithPlayUrl,
+  buildLectureQueueSongs,
+} from '../lib/lectures/lecturePlaybackAdapter'
+import {
+  LECTURE_PREVIOUS_RESTART_SECONDS,
+  LECTURE_PROGRESS_THROTTLE_MS,
+  LECTURE_MIN_CONTINUE_SECONDS,
+  buildLectureProgressEntryFromSong,
+  isLectureSessionCompleted,
+  progressEntryToHistoryEntry as lectureProgressEntryToHistoryEntry,
+  recordLectureHistory,
+  removeLectureProgress,
+  upsertLectureProgress,
+} from '../lib/lectures/lectureProgressStorage'
 import type {
   DesktopPlaybackContextValue,
   DesktopPlaybackProgressState,
@@ -189,6 +209,9 @@ function playbackErrorMessage(song: ApiSong | null) {
   if (isMotivationalQueueSong(song)) {
     return 'This item is currently unavailable.'
   }
+  if (isLectureQueueSong(song)) {
+    return 'This lecture session is currently unavailable.'
+  }
   return 'Unable to play this track.'
 }
 
@@ -223,6 +246,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
   const flushPodcastProgressRef = useRef<(force?: boolean) => void>(() => undefined)
   const flushAudiobookProgressRef = useRef<(force?: boolean) => void>(() => undefined)
   const flushMotivationalProgressRef = useRef<(force?: boolean) => void>(() => undefined)
+  const flushLectureProgressRef = useRef<(force?: boolean) => void>(() => undefined)
   const flushMusicProgressRef = useRef<(force?: boolean) => void>(() => undefined)
   const currentTrackRef = useRef<ApiSong | null>(null)
   const audioQualityModeRef = useRef<AudioQualityMode>('auto')
@@ -241,6 +265,9 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
   const motivationalProgressTrackIdRef = useRef<string | null>(null)
   const motivationalProgressLastWriteRef = useRef(0)
   const motivationalProgressLastPositionRef = useRef(0)
+  const lectureProgressTrackIdRef = useRef<string | null>(null)
+  const lectureProgressLastWriteRef = useRef(0)
+  const lectureProgressLastPositionRef = useRef(0)
   const musicProgressTrackIdRef = useRef<string | null>(null)
   const musicProgressLastWriteRef = useRef(0)
   const musicProgressLastPositionRef = useRef(0)
@@ -538,6 +565,70 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
     [durationSeconds, getService, persistMotivationalProgress],
   )
 
+  const persistLectureProgress = useCallback(
+    (
+      song: ApiSong,
+      positionSeconds: number,
+      durationSeconds: number,
+      options?: { force?: boolean; completed?: boolean },
+    ) => {
+      if (!isLectureQueueSong(song)) return
+
+      const completed =
+        options?.completed === true
+        || isLectureSessionCompleted(positionSeconds, durationSeconds)
+
+      const entry = buildLectureProgressEntryFromSong(
+        song,
+        positionSeconds,
+        durationSeconds,
+        completed,
+        null,
+        null,
+        song.genre ?? null,
+      )
+      if (!entry) return
+
+      if (completed) {
+        removeLectureProgress(entry.seriesId)
+        recordLectureHistory(lectureProgressEntryToHistoryEntry(entry))
+        return
+      }
+
+      upsertLectureProgress(entry)
+    },
+    [],
+  )
+
+  const flushLectureProgress = useCallback(
+    (force = false) => {
+      const track = currentTrackRef.current
+      if (!track || !isLectureQueueSong(track)) return
+
+      const position = isLectureVideoSong(track)
+        ? getVideoService().getVideoElement().currentTime
+        : getService().getAudioElement().currentTime
+      const rawDuration = isLectureVideoSong(track)
+        ? getVideoService().getVideoElement().duration
+        : getService().getAudioElement().duration
+      const duration =
+        Number.isFinite(rawDuration) && rawDuration > 0
+          ? rawDuration
+          : durationSeconds
+
+      if (!force) {
+        const elapsed = performance.now() - lectureProgressLastWriteRef.current
+        const positionDelta = Math.abs(position - lectureProgressLastPositionRef.current)
+        if (elapsed < LECTURE_PROGRESS_THROTTLE_MS && positionDelta < 2) return
+      }
+
+      lectureProgressLastWriteRef.current = performance.now()
+      lectureProgressLastPositionRef.current = position
+      persistLectureProgress(track, position, duration, { force })
+    },
+    [durationSeconds, getService, getVideoService, persistLectureProgress],
+  )
+
   const persistMusicProgress = useCallback(
     (
       song: ApiSong,
@@ -641,7 +732,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
 
   const startPlayback = useCallback(
     (song: ApiSong) => {
-      if (isTvQueueSong(song)) {
+      if (isTvQueueSong(song) || isLectureVideoSong(song)) {
         stopInactiveMedia('video')
         const videoService = getVideoService()
         const streamUrl = song.audioUrl?.trim() || song.previewUrl?.trim() || ''
@@ -666,19 +757,21 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
           .play(streamUrl)
           .then(() => {
             if (currentTrackRef.current?.id !== song.id) return
-            recordTvHistory({
-              channelId: extractTvChannelId(song.id) ?? song.id,
-              title: song.title,
-              channelName: song.artist,
-              artworkUrl: song.artwork,
-            })
+            if (isTvQueueSong(song)) {
+              recordTvHistory({
+                channelId: extractTvChannelId(song.id) ?? song.id,
+                title: song.title,
+                channelName: song.artist,
+                artworkUrl: song.artwork,
+              })
+            }
           })
           .catch((err) => {
             if (currentTrackRef.current?.id !== song.id) return
             videoService.releaseSource()
             const message = err instanceof Error ? err.message : String(err)
             if (import.meta.env.DEV) {
-              console.error('[ht-tv-playback] play() failed', { error: message })
+              console.error('[ht-video-playback] play() failed', { error: message })
             }
             setIsPlaying(false)
             setIsLoading(false)
@@ -693,7 +786,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       const selection = selectPlayableUrlForQualityMode(song, audioQualityMode)
       const instantUrl = selection?.url ?? null
       const upgradeTarget =
-        isPodcastQueueSong(song) || isRadioQueueSong(song) || isAudiobookQueueSong(song) || isMotivationalQueueSong(song) || isTvQueueSong(song)
+        isPodcastQueueSong(song) || isRadioQueueSong(song) || isAudiobookQueueSong(song) || isMotivationalQueueSong(song) || isLectureQueueSong(song) || isTvQueueSong(song)
           ? null
           : resolveUpgradeTargetForQualityMode(
               song,
@@ -765,7 +858,9 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
           ? consumePendingAudiobookResumeSeconds()
           : isMotivationalQueueSong(song)
             ? consumePendingMotivationalResumeSeconds()
-            : null
+            : isLectureQueueSong(song)
+              ? consumePendingLectureResumeSeconds()
+              : null
 
       if (isAudiobookQueueSong(song)) {
         service.setPlaybackRate(audiobookPlaybackRateRef.current)
@@ -841,12 +936,34 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
           }
 
           if (
+            pendingResumeSeconds
+            && isLectureQueueSong(song)
+            && !isLectureVideoSong(song)
+            && currentTrackRef.current?.id === song.id
+          ) {
+            const audio = service.getAudioElement()
+            const maxDuration =
+              Number.isFinite(audio.duration) && audio.duration > 0
+                ? audio.duration
+                : song.durationSeconds ?? pendingResumeSeconds
+            const safeResume = Math.min(
+              Math.max(0, pendingResumeSeconds),
+              maxDuration > 1 ? maxDuration - 1 : pendingResumeSeconds,
+            )
+            if (safeResume >= LECTURE_MIN_CONTINUE_SECONDS / 2) {
+              service.seekTo(safeResume)
+              emitPositionSeconds(safeResume, true)
+            }
+          }
+
+          if (
             selection
             && upgradeTarget
             && !isPodcastQueueSong(song)
             && !isRadioQueueSong(song)
             && !isAudiobookQueueSong(song)
             && !isMotivationalQueueSong(song)
+            && !isLectureQueueSong(song)
             && currentTrackRef.current?.id === song.id
           ) {
             upgradeSessionRef.current = {
@@ -964,6 +1081,30 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
         motivationalProgressTrackIdRef.current = null
       }
 
+      const prepareLectureProgress = (resolvedSong: ApiSong) => {
+        if (isLectureQueueSong(resolvedSong)) {
+          lectureProgressTrackIdRef.current = resolvedSong.id
+          lectureProgressLastWriteRef.current = 0
+          lectureProgressLastPositionRef.current = 0
+
+          const historySeed = buildLectureProgressEntryFromSong(
+            resolvedSong,
+            0,
+            resolvedSong.durationSeconds ?? 0,
+            false,
+            null,
+            null,
+            resolvedSong.genre ?? null,
+          )
+          if (historySeed) {
+            recordLectureHistory(lectureProgressEntryToHistoryEntry(historySeed))
+          }
+          return
+        }
+
+        lectureProgressTrackIdRef.current = null
+      }
+
       const prepareMusicProgress = (resolvedSong: ApiSong) => {
         if (isMusicCatalogSong(resolvedSong)) {
           musicProgressTrackIdRef.current = resolvedSong.id
@@ -995,13 +1136,16 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
         && !Boolean(song.audioUrl?.startsWith('http') || song.previewUrl?.startsWith('http'))
       const needsMotivationalResolve = isMotivationalQueueSong(song)
         && !Boolean(song.audioUrl?.startsWith('http') || song.previewUrl?.startsWith('http'))
+      const needsLectureResolve = isLectureQueueSong(song)
+        && !Boolean(song.audioUrl?.startsWith('http') || song.previewUrl?.startsWith('http'))
 
-      if (!needsRadioResolve && !needsTvResolve && !needsPodcastResolve && !needsAudiobookResolve && !needsMotivationalResolve) {
+      if (!needsRadioResolve && !needsTvResolve && !needsPodcastResolve && !needsAudiobookResolve && !needsMotivationalResolve && !needsLectureResolve) {
         if (generation !== mediaResolveGenerationRef.current) return
         if (currentTrackRef.current?.id !== song.id) return
         preparePodcastProgress(song)
         prepareAudiobookProgress(song)
         prepareMotivationalProgress(song)
+        prepareLectureProgress(song)
         prepareMusicProgress(song)
         startPlayback(song)
         return
@@ -1239,12 +1383,58 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
           }
         }
 
+        if (needsLectureResolve) {
+          const ids = parseLectureSongId(song.id)
+          if (!ids) {
+            setError('Unable to play this lecture session.')
+            setIsLoading(false)
+            return
+          }
+
+          try {
+            const play = await resolveLecturePlay(ids.seriesId, ids.sessionId)
+            if (generation !== mediaResolveGenerationRef.current) return
+            if (currentTrackRef.current?.id !== song.id) return
+            if (!play?.playbackUrl?.startsWith('http')) {
+              setIsLoading(false)
+              setError('This lecture session is currently unavailable.')
+              return
+            }
+
+            resolvedSong = patchLectureSessionWithPlayUrl(song, {
+              playbackUrl: play.playbackUrl,
+              durationSeconds: play.durationSeconds,
+              mediaType: play.mediaType,
+            })
+
+            const queue = queueRef.current
+            const queueIndex = queue.findIndex((entry) => entry.id === song.id)
+            if (queueIndex >= 0) {
+              const updatedQueue = [...queue]
+              updatedQueue[queueIndex] = resolvedSong
+              queueRef.current = updatedQueue
+              setCurrentQueue(updatedQueue)
+            }
+          } catch (error) {
+            if (generation !== mediaResolveGenerationRef.current) return
+            if (currentTrackRef.current?.id !== song.id) return
+            setIsLoading(false)
+            setError(
+              error instanceof Error
+                ? error.message
+                : 'This lecture session is currently unavailable.',
+            )
+            return
+          }
+        }
+
         if (generation !== mediaResolveGenerationRef.current) return
         if (currentTrackRef.current?.id !== song.id) return
 
         preparePodcastProgress(resolvedSong)
         prepareAudiobookProgress(resolvedSong)
         prepareMotivationalProgress(resolvedSong)
+        prepareLectureProgress(resolvedSong)
         prepareMusicProgress(resolvedSong)
         startPlayback(resolvedSong)
       })()
@@ -1269,6 +1459,10 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
   }, [flushMotivationalProgress])
 
   useEffect(() => {
+    flushLectureProgressRef.current = flushLectureProgress
+  }, [flushLectureProgress])
+
+  useEffect(() => {
     flushMusicProgressRef.current = flushMusicProgress
   }, [flushMusicProgress])
 
@@ -1277,7 +1471,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       flushPodcastProgressRef.current(true)
       flushAudiobookProgressRef.current(true)
       flushMotivationalProgressRef.current(true)
-      flushMusicProgressRef.current(true)
+      flushLectureProgressRef.current(true)
       flushMusicProgressRef.current(true)
     }
     window.addEventListener('beforeunload', onBeforeUnload)
@@ -1378,6 +1572,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       flushPodcastProgressRef.current()
       flushAudiobookProgressRef.current()
       flushMotivationalProgressRef.current()
+      flushLectureProgressRef.current()
       flushMusicProgressRef.current()
     }
     const onPlay = () => {
@@ -1451,6 +1646,18 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
         motivationalProgressTrackIdRef.current = null
       }
 
+      if (endedTrack && isLectureQueueSong(endedTrack)) {
+        const duration =
+          Number.isFinite(audio.duration) && audio.duration > 0
+            ? audio.duration
+            : endedTrack.durationSeconds ?? audio.currentTime
+        persistLectureProgress(endedTrack, duration, duration, {
+          force: true,
+          completed: true,
+        })
+        lectureProgressTrackIdRef.current = null
+      }
+
       if (endedTrack && isMusicCatalogSong(endedTrack)) {
         const duration =
           Number.isFinite(audio.duration) && audio.duration > 0
@@ -1494,6 +1701,67 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
         queueIndexRef.current = 0
         setCurrentIndex(0)
         playSongRef.current(queue[0])
+        return
+      }
+
+      if (
+        endedTrack
+        && isLectureQueueSong(endedTrack)
+        && queueContextRef.current === 'lecture'
+      ) {
+        const playedSeriesIds = new Set(
+          queue
+            .filter((entry) => isLectureQueueSong(entry) && entry.albumId)
+            .map((entry) => entry.albumId as string),
+        )
+        const currentSeriesId = endedTrack.albumId ?? parseLectureSongId(endedTrack.id)?.seriesId
+        if (currentSeriesId) playedSeriesIds.add(currentSeriesId)
+
+        void (async () => {
+          try {
+            const continuationSeries = await searchLectureContinuation(
+              {
+                id: currentSeriesId ?? '',
+                slug: currentSeriesId ?? '',
+                title: endedTrack.album ?? 'Lecture course',
+                subtitle: null,
+                description: null,
+                artworkUrl: endedTrack.artwork,
+                speaker: endedTrack.artist ? { name: endedTrack.artist } : null,
+                institution: null,
+                category: endedTrack.genre
+                  ? { id: endedTrack.genre, slug: endedTrack.genre, name: endedTrack.genre }
+                  : null,
+                subject: endedTrack.mood,
+                language: null,
+                country: null,
+                sessionCount: 0,
+                totalDurationSeconds: null,
+                isFeatured: false,
+                isVerified: true,
+                publishedAt: null,
+                difficulty: null,
+                topicTags: [],
+                mediaType: null,
+              },
+              playedSeriesIds,
+            )
+            if (!continuationSeries) return
+
+            const sessions = await fetchAllLectureSeriesSessions(continuationSeries.id)
+            if (sessions.length === 0) return
+
+            const appended = buildLectureQueueSongs(continuationSeries, sessions)
+            const merged = [...queue, ...appended]
+            queueRef.current = merged
+            setCurrentQueue(merged)
+            queueIndexRef.current = queue.length
+            setCurrentIndex(queue.length)
+            playSongRef.current(appended[0])
+          } catch {
+            // Continue learning fallback is best-effort only.
+          }
+        })()
         return
       }
 
@@ -1648,7 +1916,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       unshuffledQueueRef.current = playableQueue
       let resolvedQueue = playableQueue
       let resolvedIndex = safeIndex
-      if (shuffleEnabledRef.current && playableQueue.length > 1 && context !== 'audiobook' && context !== 'motivational' && context !== 'tv' && context !== 'radio') {
+      if (shuffleEnabledRef.current && playableQueue.length > 1 && context !== 'audiobook' && context !== 'motivational' && context !== 'lecture' && context !== 'tv' && context !== 'radio') {
         resolvedQueue = shuffleQueueFromIndex(playableQueue, safeIndex)
         resolvedIndex = 0
       }
@@ -1736,6 +2004,19 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       }
     }
 
+    if (track && isLectureQueueSong(track)) {
+      if (positionSecondsRef.current > LECTURE_PREVIOUS_RESTART_SECONDS) {
+        if (isLectureVideoSong(track)) {
+          getVideoService().getVideoElement().currentTime = 0
+        } else {
+          getService().seekTo(0)
+        }
+        emitPositionSeconds(0, true)
+        flushLectureProgressRef.current(true)
+        return
+      }
+    }
+
     const queue = queueRef.current
     const previousIndex = queueIndexRef.current - 1
     if (previousIndex < 0) {
@@ -1794,6 +2075,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
   const toggleShuffle = useCallback(() => {
     if (queueContextRef.current === 'audiobook') return
     if (queueContextRef.current === 'motivational') return
+    if (queueContextRef.current === 'lecture') return
 
     setShuffleEnabled((enabled) => {
       const next = !enabled
@@ -1842,10 +2124,10 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       return
     }
 
-    if (isTvQueueSong(currentTrack)) {
+    if (isTvQueueSong(currentTrack) || isLectureVideoSong(currentTrack)) {
       const streamUrl = currentTrack.audioUrl?.trim() || currentTrack.previewUrl?.trim() || ''
       if (!streamUrl.startsWith('http')) {
-        setError('Unable to play this TV channel.')
+        setError(isTvQueueSong(currentTrack) ? 'Unable to play this TV channel.' : 'Unable to play this lecture video.')
         return
       }
       setIsLoading(true)
@@ -1854,7 +2136,11 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
         .catch(() => {
           setIsPlaying(false)
           setIsLoading(false)
-          setError('Unable to resume TV playback.')
+          setError(
+            isTvQueueSong(currentTrack)
+              ? 'Unable to resume TV playback.'
+              : 'Unable to resume lecture video playback.',
+          )
         })
       return
     }

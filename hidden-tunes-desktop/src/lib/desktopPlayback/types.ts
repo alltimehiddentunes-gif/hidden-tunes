@@ -12,6 +12,7 @@ export type QueueContext =
   | 'podcast'
   | 'audiobook'
   | 'motivational'
+  | 'lecture'
   | 'tv'
   | 'scene'
   | 'smart'

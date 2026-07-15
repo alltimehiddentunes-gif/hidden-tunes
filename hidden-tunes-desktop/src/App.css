@@ -21370,7 +21370,6 @@
   padding-bottom: clamp(18px, 2.5vw, 28px);
 }
 
-
 .sectionHero {
   position: relative;
   width: 100%;
@@ -25272,5 +25271,409 @@
 
   .motivational-program-cover {
     max-width: 180px;
+  }
+}
+
+/* —— Lectures destination —— */
+.page-view[data-page='lectures'] {
+  padding-bottom: clamp(18px, 2.5vw, 28px);
+}
+
+.lectures-destination {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(18px, 2.4vw, 28px);
+}
+
+.lectures-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: clamp(20px, 2.6vw, 28px);
+  min-height: clamp(160px, 20vw, 240px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    radial-gradient(ellipse 68% 82% at 82% 38%, rgba(56, 189, 248, 0.14), transparent 58%),
+    radial-gradient(ellipse 54% 68% at 14% 22%, rgba(59, 130, 246, 0.1), transparent 62%),
+    linear-gradient(135deg, rgba(10, 16, 28, 0.96), rgba(8, 8, 12, 0.98));
+}
+
+.lectures-hero-backdrop,
+.lectures-hero-copy,
+.lectures-hero-feature,
+.lectures-hero-eyebrow,
+.lectures-hero-description,
+.lectures-hero-actions,
+.lectures-section,
+.lectures-section-header,
+.lectures-program-grid,
+.lectures-program-card,
+.lectures-program-card-hit,
+.lectures-program-card-art,
+.lectures-program-card-play,
+.lectures-program-card-copy,
+.lectures-media-badge,
+.lectures-duration-pill,
+.lectures-progress-pill,
+.lectures-tabs,
+.lectures-tab,
+.lectures-category-grid,
+.lectures-category-chip,
+.lectures-continue-rail,
+.lectures-continue-card,
+.lectures-recent-list,
+.lectures-recent-row,
+.lectures-btn,
+.lectures-empty-state,
+.lectures-error-state,
+.lectures-load-sentinel,
+.lectures-loading-more,
+.lectures-series-page,
+.lectures-series-hero,
+.lectures-series-hero-art,
+.lectures-series-hero-copy,
+.lectures-series-description,
+.lectures-series-meta,
+.lectures-meta-pill,
+.lectures-session-list,
+.lectures-session-row,
+.lectures-session-row-art,
+.lectures-session-row-copy,
+.lectures-session-row-play,
+.lectures-session-badge,
+.lectures-session-progress,
+.lectures-back-btn,
+.lectures-skeleton-art,
+.lectures-skeleton-line {
+  /* base hooks */
+}
+
+.lectures-hero-backdrop {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.5) 0%, transparent 55%, rgba(0, 0, 0, 0.25) 100%);
+}
+
+.lectures-hero-copy {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: clamp(22px, 3vw, 34px);
+}
+
+.lectures-hero-copy h1 {
+  margin: 0;
+  font-size: clamp(1.75rem, 3vw, 2.5rem);
+}
+
+.lectures-hero-feature {
+  display: grid;
+  grid-template-columns: minmax(96px, 120px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+  position: relative;
+  z-index: 1;
+  padding: 0 clamp(22px, 3vw, 34px) clamp(22px, 3vw, 34px);
+}
+
+.lectures-hero-eyebrow {
+  display: inline-block;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(125, 211, 252, 0.9);
+}
+
+.lectures-hero-description,
+.lectures-series-description {
+  margin: 8px 0 0;
+  color: rgba(245, 243, 250, 0.58);
+  line-height: 1.5;
+}
+
+.lectures-hero-actions,
+.lectures-series-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.lectures-btn {
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 10px 16px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.lectures-btn--primary {
+  background: linear-gradient(135deg, #38bdf8, #2563eb);
+  color: #fff;
+  border-color: transparent;
+}
+
+.lectures-btn--ghost {
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(245, 243, 250, 0.88);
+}
+
+.lectures-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.lectures-tab {
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(245, 243, 250, 0.72);
+  padding: 8px 14px;
+  cursor: pointer;
+}
+
+.lectures-tab.is-active {
+  background: rgba(56, 189, 248, 0.16);
+  border-color: rgba(56, 189, 248, 0.35);
+  color: #fff;
+}
+
+.lectures-section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.lectures-section-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.lectures-program-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 16px;
+}
+
+.lectures-program-card {
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+
+.lectures-program-card-hit {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
+  cursor: pointer;
+}
+
+.lectures-program-card-art {
+  position: relative;
+}
+
+.lectures-program-card-art .art-frame,
+.lectures-program-card-art .art-frame--square {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 12px;
+}
+
+.lectures-program-card-play {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 0;
+  background: rgba(12, 10, 18, 0.82);
+  color: #fff;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.lectures-program-card:hover .lectures-program-card-play,
+.lectures-program-card:focus-within .lectures-program-card-play {
+  opacity: 1;
+}
+
+.lectures-media-badge,
+.lectures-duration-pill,
+.lectures-progress-pill,
+.lectures-meta-pill {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  background: rgba(0, 0, 0, 0.62);
+}
+
+.lectures-duration-pill {
+  top: auto;
+  bottom: 10px;
+  left: auto;
+  right: 10px;
+}
+
+.lectures-progress-pill {
+  top: auto;
+  bottom: 10px;
+  left: 10px;
+}
+
+.lectures-program-card-copy h3 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.lectures-program-card-copy p {
+  margin: 4px 0 0;
+  color: rgba(245, 243, 250, 0.58);
+  font-size: 0.82rem;
+}
+
+.lectures-category-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.lectures-category-chip {
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(245, 243, 250, 0.82);
+  padding: 8px 14px;
+  cursor: pointer;
+}
+
+.lectures-category-chip.is-active {
+  background: rgba(56, 189, 248, 0.14);
+  border-color: rgba(56, 189, 248, 0.35);
+}
+
+.lectures-continue-rail {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(240px, 280px);
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.lectures-continue-card,
+.lectures-recent-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  padding: 10px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.lectures-recent-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lectures-series-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.lectures-series-hero {
+  display: grid;
+  grid-template-columns: minmax(140px, 220px) minmax(0, 1fr);
+  gap: 20px;
+}
+
+.lectures-session-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.lectures-session-row {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.lectures-session-row.is-active {
+  border-color: rgba(56, 189, 248, 0.35);
+}
+
+.lectures-session-progress {
+  margin-top: 8px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.lectures-session-progress span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #38bdf8, #2563eb);
+}
+
+.lectures-empty-state,
+.lectures-error-state {
+  padding: 24px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.lectures-program-card--skeleton .lectures-skeleton-art {
+  aspect-ratio: 1;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.lectures-skeleton-line {
+  height: 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  margin-top: 8px;
+}
+
+.lectures-skeleton-line--title {
+  width: 72%;
+  height: 14px;
+}
+
+.lectures-back-btn {
+  align-self: flex-start;
+  border: 0;
+  background: transparent;
+  color: rgba(245, 243, 250, 0.72);
+  cursor: pointer;
+}
+
+@media (max-width: 900px) {
+  .lectures-series-hero,
+  .lectures-hero-feature {
+    grid-template-columns: 1fr;
   }
 }

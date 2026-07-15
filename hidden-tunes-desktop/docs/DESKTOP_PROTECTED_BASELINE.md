@@ -22,8 +22,9 @@ The following files and subsystems are considered production-stable for Phase A 
 | Podcast catalog | `src/lib/podcasts/podcastCatalogApi.ts` |
 | Audiobook catalog | `src/lib/audiobooks/audiobookCatalogApi.ts` |
 | Motivationals catalog | `src/lib/motivationals/motivationalCatalogApi.ts` |
+| Lectures catalog | `src/lib/lectures/lectureCatalogApi.ts`, `src/lib/lectures/lecturePlaybackAdapter.ts` |
 | TV catalog + HLS | `src/lib/tv/tvCatalogApi.ts`, `src/lib/tv/HtmlVideoPlaybackService.ts` |
-| Local progress | `src/lib/home/musicProgressStorage.ts`, `src/lib/podcasts/podcastProgressStorage.ts`, `src/lib/audiobooks/audiobookProgressStorage.ts`, `src/lib/motivationals/motivationalProgressStorage.ts` |
+| Local progress | `src/lib/home/musicProgressStorage.ts`, `src/lib/podcasts/podcastProgressStorage.ts`, `src/lib/audiobooks/audiobookProgressStorage.ts`, `src/lib/motivationals/motivationalProgressStorage.ts`, `src/lib/lectures/lectureProgressStorage.ts` |
 | Catalog cache | `src/lib/catalogCache.ts` |
 
 **Rules for later phases**
@@ -109,7 +110,7 @@ Do not revert, reformat, or fold into Phase A unless explicitly requested.
 
 - **Lint:** 39 ESLint errors, 4 warnings (mostly React hooks rules in `App.tsx` and hooks modules).
 - **Motivationals:** Uncommitted WIP; continuation/resume behavior incomplete.
-- **Lectures:** Nav item disabled; section not started.
+- **Lectures:** Desktop section WIP in progress (browse UI + playback wiring present). Production `/api/lectures/*` browse/detail/play verified. Catalog browse in browser-only Vite still requires Electron IPC. Not yet committed as a protected release slice.
 - **Global search:** Music-only (songs, artists, albums); no cross-section unified search.
 - **Library:** Several sub-views are placeholders (Downloads, cloud sync).
 - **Authentication:** Not implemented; no login, subscription, or cloud library sync.

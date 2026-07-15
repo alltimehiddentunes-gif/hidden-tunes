@@ -3,6 +3,7 @@ import type { QueueContext } from '../desktopPlayback/types'
 import { isPodcastQueueSong } from '../podcasts/podcastPlaybackAdapter'
 import { isAudiobookQueueSong } from '../audiobooks/audiobookPlaybackAdapter'
 import { isMotivationalQueueSong } from '../motivationals/motivationalPlaybackAdapter'
+import { isLectureQueueSong } from '../lectures/lecturePlaybackAdapter'
 import { isRadioQueueSong } from '../radio/radioPlaybackAdapter'
 import { isTvQueueSong } from '../tv/tvPlaybackAdapter'
 import {
@@ -62,10 +63,12 @@ function inferKindFromContext(
   if (track && isPodcastQueueSong(track)) return 'podcast'
   if (track && isAudiobookQueueSong(track)) return 'audiobook'
   if (track && isMotivationalQueueSong(track)) return 'motivational'
+  if (track && isLectureQueueSong(track)) return 'lecture'
   if (queueContext === 'radio') return 'radio'
   if (queueContext === 'podcast') return 'podcast'
   if (queueContext === 'audiobook') return 'audiobook'
   if (queueContext === 'motivational') return 'motivational'
+  if (queueContext === 'lecture') return 'lecture'
 
   const titleHint = (queueTitle ?? '').toLowerCase()
   if (titleHint.includes('audiobook')) return 'audiobook'

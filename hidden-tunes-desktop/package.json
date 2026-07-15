@@ -14,6 +14,7 @@
     "dist": "npm run build && electron-builder",
     "lint": "eslint .",
     "verify:tv-hls": "electron scripts/verify-tv-hls-playback.mjs",
+    "verify:lecture-play": "node scripts/verify-lecture-playback.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

@@ -46,6 +46,7 @@ const PAGE_IDS = [
   'playlists',
   'audiobooks',
   'motivationals',
+  'lectures',
   'tv',
   'settings',
 ] as const

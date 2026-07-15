@@ -35,8 +35,8 @@ const GLOBAL_NAV_ITEMS: Array<{
   { navKey: 'podcasts', label: 'Podcasts' },
   { navKey: 'audiobooks', label: 'Audiobooks' },
   { navKey: 'tv', label: 'TV' },
-  { navKey: 'motivationals', label: 'Motivationals', disabled: true },
-  { navKey: 'lectures', label: 'Lectures', disabled: true },
+  { navKey: 'motivationals', label: 'Motivationals' },
+  { navKey: 'lectures', label: 'Lectures' },
 ]
 
 export const GlobalTopNav = memo(function GlobalTopNav({
