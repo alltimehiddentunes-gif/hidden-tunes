@@ -1,9 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 import {
+  cleanAudiobookFilter,
   jsonAudiobookError,
   loadAudiobookDetail,
   logAudiobookError,
+  parseAudiobookLimit,
 } from "@/lib/audiobookCatalog";
 
 export const runtime = "nodejs";
@@ -13,11 +15,17 @@ type RouteContext = {
   params: Promise<{ id: string }>;
 };
 
-export async function GET(_request: Request, context: RouteContext) {
+export async function GET(request: NextRequest, context: RouteContext) {
   const { id } = await context.params;
+  const params = request.nextUrl.searchParams;
+  const chapterLimit = parseAudiobookLimit(params.get("chapter_limit"));
+  const chapterCursor = cleanAudiobookFilter(params.get("chapter_cursor"));
 
   try {
-    const detail = await loadAudiobookDetail(id, false);
+    const detail = await loadAudiobookDetail(id, false, {
+      chapterLimit,
+      chapterCursor,
+    });
     if (!detail) return jsonAudiobookError("Audiobook not found.", 404);
 
     return NextResponse.json({ success: true, ...detail });

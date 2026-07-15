@@ -40,6 +40,13 @@ export type AudiobookPagination = {
   total: number;
   totalPages: number;
   hasMore: boolean;
+  nextCursor?: string | null;
+};
+
+type AudiobookCursorPayload = {
+  published_at: string | null;
+  created_at: string | null;
+  id: string;
 };
 
 export type AudiobookPublicItem = {
@@ -106,7 +113,8 @@ export function parseAudiobookLimit(value: string | null) {
 export function buildAudiobookPagination(
   page: number,
   limit: number,
-  total: number
+  total: number,
+  nextCursor?: string | null
 ): AudiobookPagination {
   const totalPages = total > 0 ? Math.ceil(total / limit) : 0;
   return {
@@ -114,8 +122,37 @@ export function buildAudiobookPagination(
     limit,
     total,
     totalPages,
-    hasMore: page < totalPages,
+    hasMore: nextCursor ? true : page < totalPages,
+    nextCursor: nextCursor ?? null,
   };
+}
+
+export function encodeAudiobookCursor(payload: AudiobookCursorPayload) {
+  return Buffer.from(JSON.stringify(payload)).toString("base64url");
+}
+
+export function decodeAudiobookCursor(cursor: string | null | undefined) {
+  const cleaned = cleanText(cursor, 500);
+  if (!cleaned) return null;
+  try {
+    const parsed = JSON.parse(
+      Buffer.from(cleaned, "base64url").toString("utf8")
+    ) as AudiobookCursorPayload;
+    if (!parsed?.id) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function buildAudiobookNextCursor(items: AudiobookPublicItem[]) {
+  const last = items[items.length - 1];
+  if (!last) return null;
+  return encodeAudiobookCursor({
+    published_at: last.published_at,
+    created_at: last.created_at,
+    id: last.id,
+  });
 }
 
 export function cleanAudiobookFilter(value: string | null) {
@@ -264,6 +301,10 @@ function escapeIlikePattern(value: string) {
 export function applyPublicAudiobookFilters(query: any, options: {
   category?: string | null;
   searchQuery?: string | null;
+  language?: string | null;
+  author?: string | null;
+  narrator?: string | null;
+  completeOnly?: boolean;
   mature: boolean;
 }) {
   let next = query
@@ -284,44 +325,105 @@ export function applyPublicAudiobookFilters(query: any, options: {
     );
   }
 
+  if (options.language) {
+    next = next.ilike("language", `%${escapeIlikePattern(options.language)}%`);
+  }
+
+  if (options.author) {
+    next = next.ilike("author_name", `%${escapeIlikePattern(options.author)}%`);
+  }
+
+  if (options.narrator) {
+    next = next.ilike("narrator_name", `%${escapeIlikePattern(options.narrator)}%`);
+  }
+
+  if (options.completeOnly) {
+    next = next.eq("is_complete", true);
+  }
+
   return next;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function applyAudiobookCursorFilter(query: any, cursor: AudiobookCursorPayload | null) {
+  if (!cursor) return query;
+  const publishedAt = cursor.published_at || "1970-01-01T00:00:00.000Z";
+  const createdAt = cursor.created_at || publishedAt;
+  return query.or(
+    `published_at.lt.${publishedAt},and(published_at.eq.${publishedAt},created_at.lt.${createdAt}),and(published_at.eq.${publishedAt},created_at.eq.${createdAt},id.lt.${cursor.id})`
+  );
 }
 
 export async function listAudiobooks(options: {
   page: number;
   limit: number;
+  cursor?: string | null;
   category?: string | null;
   searchQuery?: string | null;
+  language?: string | null;
+  author?: string | null;
+  narrator?: string | null;
+  completeOnly?: boolean;
+  includeTotal?: boolean;
   mature: boolean;
 }) {
-  const from = (options.page - 1) * options.limit;
-  const to = from + options.limit - 1;
+  const cursorPayload = decodeAudiobookCursor(options.cursor);
+  const useCursor = Boolean(cursorPayload);
+  const fetchLimit = options.limit + 1;
 
   let query = supabaseAdmin
     .from("audiobooks")
-    .select(AUDIOBOOK_PUBLIC_LIST_SELECT, { count: "exact" })
+    .select(
+      AUDIOBOOK_PUBLIC_LIST_SELECT,
+      options.includeTotal === true ? { count: "exact" } : undefined
+    )
     .order("published_at", { ascending: false, nullsFirst: false })
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false });
 
   query = applyPublicAudiobookFilters(query, options);
+  query = applyAudiobookCursorFilter(query, cursorPayload);
 
-  const { data, error, count } = await query.range(from, to);
+  if (useCursor) {
+    query = query.limit(fetchLimit);
+  } else {
+    const from = (options.page - 1) * options.limit;
+    const to = from + fetchLimit - 1;
+    query = query.range(from, to);
+  }
+
+  const { data, error, count } = await query;
   if (error) throw error;
 
-  const items = dedupeAudiobooks(
+  const mapped = dedupeAudiobooks(
     ((data || []) as Record<string, unknown>[]).map(toAudiobookPublicItem)
   );
+  const hasMore = mapped.length > options.limit;
+  const items = hasMore ? mapped.slice(0, options.limit) : mapped;
+  const nextCursor = hasMore ? buildAudiobookNextCursor(items) : null;
 
   return {
     items,
-    pagination: buildAudiobookPagination(options.page, options.limit, count || 0),
+    pagination: {
+      ...buildAudiobookPagination(
+        options.page,
+        options.limit,
+        count || 0,
+        nextCursor
+      ),
+      hasMore: Boolean(nextCursor),
+    },
   };
 }
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-export async function loadAudiobookDetail(idParam: string, mature: boolean) {
+export async function loadAudiobookDetail(
+  idParam: string,
+  mature: boolean,
+  options?: { chapterLimit?: number; chapterCursor?: string | null }
+) {
   const cleaned = String(idParam || "").trim();
   if (!cleaned) return null;
 
@@ -340,21 +442,45 @@ export async function loadAudiobookDetail(idParam: string, mature: boolean) {
   if (!data) return null;
 
   const audiobook = toAudiobookPublicItem(data as Record<string, unknown>);
-  const { data: chapters, error: chapterError } = await supabaseAdmin
+  const chapterLimit = Math.max(
+    1,
+    Math.min(AUDIOBOOK_MAX_PAGE_SIZE, Number(options?.chapterLimit || AUDIOBOOK_DEFAULT_PAGE_SIZE))
+  );
+  const chapterOffset = Math.max(0, Number(options?.chapterCursor || 0));
+  const fetchChapterLimit = chapterLimit + 1;
+
+  const chapterQuery = supabaseAdmin
     .from("audiobook_chapters")
     .select(AUDIOBOOK_CHAPTER_PUBLIC_SELECT)
     .eq("audiobook_id", audiobook.id)
     .eq("is_active", true)
     .order("chapter_number", { ascending: true })
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: true })
+    .range(chapterOffset, chapterOffset + fetchChapterLimit - 1);
 
+  const { data: chapters, error: chapterError } = await chapterQuery;
   if (chapterError) throw chapterError;
+
+  const chapterItems = ((chapters || []) as Record<string, unknown>[]).map(
+    toAudiobookPublicChapter
+  );
+  const hasMoreChapters = chapterItems.length > chapterLimit;
+  const trimmedChapters = hasMoreChapters
+    ? chapterItems.slice(0, chapterLimit)
+    : chapterItems;
+  const nextChapterCursor = hasMoreChapters
+    ? String(chapterOffset + chapterLimit)
+    : null;
 
   return {
     audiobook,
-    chapters: ((chapters || []) as Record<string, unknown>[]).map(
-      toAudiobookPublicChapter
-    ),
+    chapters: trimmedChapters,
+    chapterPagination: {
+      limit: chapterLimit,
+      offset: chapterOffset,
+      hasMore: hasMoreChapters,
+      nextCursor: nextChapterCursor,
+    },
   };
 }
 
