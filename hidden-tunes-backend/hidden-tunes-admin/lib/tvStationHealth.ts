@@ -13,6 +13,7 @@ import {
   fetchYouTubeOEmbedMetadata,
   toTvPublicStation,
 } from "@/lib/tvCatalog";
+import { isTvMatureColumnEnabled } from "@/lib/tvPlatformPolicy";
 
 export const TV_RELIABILITY_THRESHOLD = 60;
 export const TV_AUTO_DISABLE_THRESHOLD = 30;

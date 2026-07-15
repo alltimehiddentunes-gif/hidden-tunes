@@ -5,6 +5,7 @@ import {
   probeTvStation,
   validatePublicTvUrl,
 } from "@/lib/tvStationHealth";
+import { isTvMatureColumnEnabled } from "@/lib/tvPlatformPolicy";
 import type { TvDedupeCache } from "@/lib/tvExpansion25k/fast/dedupeCache";
 import { guardDatabaseWrite } from "@/lib/tvExpansion25k/fast/dryRunGuard";
 import { DomainConcurrencyLimiter } from "@/lib/tvExpansion25k/fast/domainLimiter";
@@ -90,9 +91,14 @@ function buildInsertRow(
     stream_protocol: probe.stream_protocol || null,
     validated_stream_url: probe.validated_stream_url || url,
     last_validation_result: probe.last_validation_result || null,
-    is_mature: isMature || candidate.is_mature === true,
-    mature_rating: options.matureRating || candidate.mature_rating || null,
-    mature_source_approved: matureSourceApproved || candidate.mature_source_approved === true,
+    ...(isTvMatureColumnEnabled()
+      ? {
+          is_mature: isMature || candidate.is_mature === true,
+          mature_rating: options.matureRating || candidate.mature_rating || null,
+          mature_source_approved:
+            matureSourceApproved || candidate.mature_source_approved === true,
+        }
+      : {}),
   };
 }
 
@@ -314,6 +320,15 @@ export async function bulkImportVerifiedCandidates(
     const { error } = await supabaseAdmin.from("tv_videos").insert(chunk);
     if (error) {
       rejected += chunk.length;
+      console.error(
+        JSON.stringify({
+          event: "tv_fast_insert_error",
+          chunkSize: chunk.length,
+          message: error.message,
+          code: (error as { code?: string }).code || null,
+          details: (error as { details?: string }).details || null,
+        })
+      );
     } else {
       imported += chunk.length;
       dedupeCache.registerAccepted(
