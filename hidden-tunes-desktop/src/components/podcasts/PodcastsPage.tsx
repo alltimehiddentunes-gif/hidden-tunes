@@ -18,6 +18,8 @@ import type {
 } from '../../lib/podcasts/types'
 import { usePodcastLocalState } from '../../lib/podcasts/usePodcastLocalState'
 import { usePodcastsPageData } from '../../lib/podcasts/usePodcastsPageData'
+import podcastsArtwork from '../../assets/section-headers/podcasts-microphone.png'
+import { SectionHero } from '../SectionHero'
 
 const VISIBLE_TAB_COUNT = 7
 
@@ -203,13 +205,14 @@ export const PodcastsPage = memo(function PodcastsPage({
 
   return (
     <div className="podcasts-destination">
-      <section className="podcasts-hero" aria-labelledby="podcasts-page-heading">
-        <div className="podcasts-hero-backdrop" aria-hidden="true" />
-        <div className="podcasts-hero-copy">
-          <h1 id="podcasts-page-heading">Podcasts</h1>
-          <p>Stories. Ideas. Conversations. For every mood and every moment.</p>
-        </div>
-      </section>
+      <SectionHero
+        title="Podcasts"
+        subtitle="Stories. Ideas. Conversations. For every mood and every moment."
+        artwork={podcastsArtwork}
+        artworkAlt=""
+        objectPosition="42% center"
+        titleId="podcasts-page-heading"
+      />
 
       {showPageContent ? (
         <div className="podcasts-tabs" role="tablist" aria-label="Podcast categories">

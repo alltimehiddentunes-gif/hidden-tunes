@@ -2,6 +2,8 @@ import { memo, useCallback, useMemo, useState, type ComponentType } from 'react'
 import { useDesktopPlayback } from '../../context/DesktopPlaybackProvider'
 import type { RadioStationMeta, RadioTabId } from '../../lib/radio/types'
 import { useRadioPageData } from '../../lib/radio/useRadioPageData'
+import radioArtwork from '../../assets/section-headers/radio-headphones.png'
+import { SectionHero } from '../SectionHero'
 
 const RADIO_TABS: { id: RadioTabId; label: string }[] = [
   { id: 'all', label: 'All Stations' },
@@ -155,13 +157,14 @@ export const RadioPage = memo(function RadioPage({
 
   return (
     <div className="radio-destination">
-      <section className="radio-hero" aria-labelledby="radio-page-heading">
-        <div className="radio-hero-backdrop" aria-hidden="true" />
-        <div className="radio-hero-copy">
-          <h1 id="radio-page-heading">Radio</h1>
-          <p>Tuned to the world. Always on.</p>
-        </div>
-      </section>
+      <SectionHero
+        title="Radio"
+        subtitle="Tuned to the world. Always on."
+        artwork={radioArtwork}
+        artworkAlt=""
+        objectPosition="60% center"
+        titleId="radio-page-heading"
+      />
 
       <div className="radio-tabs" role="tablist" aria-label="Radio categories">
         {RADIO_TABS.map((tab) => (

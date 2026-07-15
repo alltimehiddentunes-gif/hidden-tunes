@@ -3,6 +3,8 @@ import { useDesktopPlayback } from '../../context/DesktopPlaybackProvider'
 import type { TvChannelMeta, TvFilterId } from '../../lib/tv/types'
 import { useTvPageData } from '../../lib/tv/useTvPageData'
 import { isTvFavorite, toggleTvFavorite } from '../../lib/tv/tvLocalState'
+import tvArtwork from '../../assets/section-headers/tv-lakeside-cabin.png'
+import { SectionHero } from '../SectionHero'
 
 type ArtworkImageProps = {
   src: string | null
@@ -123,7 +125,6 @@ export const TvPage = memo(function TvPage({
     catalogChannels,
     browseCategories,
     regions,
-    heroChannel,
     filterChips,
     loading,
     catalogLoading,
@@ -217,49 +218,14 @@ export const TvPage = memo(function TvPage({
 
   return (
     <div className="tv-destination">
-      <section className="tv-hero" aria-labelledby="tv-page-heading">
-        <div className="tv-hero-backdrop" aria-hidden="true">
-          {heroChannel?.artworkUrl ? (
-            <img src={heroChannel.artworkUrl} alt="" className="tv-hero-backdrop-img" loading="lazy" />
-          ) : null}
-        </div>
-        <div className="tv-hero-copy">
-          <h1 id="tv-page-heading">TV</h1>
-          <p>Tuned to the world. Always on.</p>
-          {heroChannel ? (
-            <div className="tv-hero-feature">
-              <span className="tv-live-badge tv-live-badge--hero">LIVE</span>
-              <h2>{heroChannel.channelName ?? heroChannel.title}</h2>
-              <p className="tv-hero-meta">{formatChannelMeta(heroChannel)}</p>
-              <div className="tv-hero-actions">
-                <button
-                  type="button"
-                  className="btn-primary tv-hero-watch"
-                  onClick={() => {
-                    const queue = featuredChannels.length > 0 ? featuredChannels : [heroChannel]
-                    void playChannel(heroChannel, queue, 'Featured Channels')
-                  }}
-                  disabled={tuningChannelId === heroChannel.id}
-                >
-                  Watch Now
-                </button>
-                <button
-                  type="button"
-                  className={`tv-favorite-btn tv-favorite-btn--hero${favoriteIds.has(heroChannel.id) ? ' is-active' : ''}`}
-                  onClick={() => handleToggleFavorite(heroChannel.id)}
-                  aria-label={favoriteIds.has(heroChannel.id) ? 'Remove from favorites' : 'Add to favorites'}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill={favoriteIds.has(heroChannel.id) ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-                    <path d="M12 21s-7-4.5-9.5-9C1 8 3 4 7 4c2 0 3.5 1.5 5 3 1.5-1.5 3-3 5-3 4 0 6 4 3.5 8C19 16.5 12 21 12 21z" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-          ) : (
-            <p className="tv-hero-brand">Hidden Tunes TV — browse live channels from around the world.</p>
-          )}
-        </div>
-      </section>
+      <SectionHero
+        title="TV"
+        subtitle="Tuned to the world. Always on."
+        artwork={tvArtwork}
+        artworkAlt=""
+        objectPosition="center center"
+        titleId="tv-page-heading"
+      />
 
       <div className="tv-tabs" role="tablist" aria-label="TV categories">
         {filterChips.map((chip) => (

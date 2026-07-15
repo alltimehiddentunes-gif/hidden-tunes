@@ -3,7 +3,6 @@ import { fetchMotivationalProgram } from '../../lib/motivationals/motivationalCa
 import {
   formatMotivationalDuration,
   formatMotivationalProgramSubtitle,
-  motivationalCategoryLabel,
 } from '../../lib/motivationals/motivationalFormatters'
 import { getMotivationalProgress } from '../../lib/motivationals/motivationalProgressStorage'
 import type {
@@ -13,6 +12,8 @@ import type {
 } from '../../lib/motivationals/types'
 import { useMotivationalLocalState } from '../../lib/motivationals/useMotivationalLocalState'
 import { useMotivationalsPageData } from '../../lib/motivationals/useMotivationalsPageData'
+import motivationalsArtwork from '../../assets/section-headers/motivationals-mountain.png'
+import { SectionHero } from '../SectionHero'
 
 type ArtworkImageProps = {
   src: string | null
@@ -101,7 +102,6 @@ export const MotivationalsPage = memo(function MotivationalsPage({
     categories,
     featuredPrograms,
     visiblePrograms,
-    heroProgram,
     pagination,
     loading,
     contentLoading,
@@ -198,51 +198,14 @@ export const MotivationalsPage = memo(function MotivationalsPage({
 
   return (
     <div className="motivationals-destination">
-      <section className="motivationals-hero" aria-labelledby="motivationals-page-heading">
-        <div className="motivationals-hero-backdrop" aria-hidden="true" />
-        <div className="motivationals-hero-copy">
-          <h1 id="motivationals-page-heading">Motivationals</h1>
-          <p>Premium mindset, discipline, and growth sessions for focused listening.</p>
-        </div>
-        {heroProgram ? (
-          <div className="motivationals-hero-feature">
-            <ArtworkImage
-              src={heroProgram.artworkUrl}
-              alt=""
-              seed={heroProgram.id}
-              label={heroProgram.title}
-              priority
-            />
-            <div className="motivationals-hero-feature-copy">
-              <span className="motivationals-hero-eyebrow">
-                {motivationalCategoryLabel(heroProgram.categorySlug)}
-              </span>
-              <h2>{heroProgram.title}</h2>
-              <p>{heroProgram.subtitle ?? formatMotivationalProgramSubtitle(heroProgram)}</p>
-              {heroProgram.description ? (
-                <p className="motivationals-hero-description">{heroProgram.description.slice(0, 180)}</p>
-              ) : null}
-              <div className="motivationals-hero-actions">
-                <button
-                  type="button"
-                  className="btn-primary btn-sm"
-                  disabled={tuningProgramId === heroProgram.id}
-                  onClick={() => playProgram(heroProgram)}
-                >
-                  Play
-                </button>
-                <button
-                  type="button"
-                  className="btn-secondary btn-sm"
-                  onClick={() => onOpenProgram(heroProgram.id)}
-                >
-                  View Program
-                </button>
-              </div>
-            </div>
-          </div>
-        ) : null}
-      </section>
+      <SectionHero
+        title="Motivationals"
+        subtitle="Premium mindset, discipline, and growth sessions for focused listening."
+        artwork={motivationalsArtwork}
+        artworkAlt=""
+        objectPosition="center 42%"
+        titleId="motivationals-page-heading"
+      />
 
       {categories.length > 0 ? (
         <div className="motivationals-tabs" role="tablist" aria-label="Motivational categories">

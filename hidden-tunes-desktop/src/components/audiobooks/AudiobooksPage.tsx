@@ -1,6 +1,5 @@
 import { memo, useCallback, useEffect, useRef, useState, type ComponentType } from 'react'
 import {
-  audiobookCategoryLabel,
   formatAudiobookBookSubtitle,
   formatAudiobookDuration,
 } from '../../lib/audiobooks/audiobookFormatters'
@@ -12,6 +11,7 @@ import type {
 } from '../../lib/audiobooks/types'
 import { useAudiobookLocalState } from '../../lib/audiobooks/useAudiobookLocalState'
 import { useAudiobooksPageData } from '../../lib/audiobooks/useAudiobooksPageData'
+import { SectionHero } from '../SectionHero'
 
 type ArtworkImageProps = {
   src: string | null
@@ -84,7 +84,6 @@ export const AudiobooksPage = memo(function AudiobooksPage({
     visibleBooks,
     newBooks,
     popularBooks,
-    heroBook,
     pagination,
     loading,
     contentLoading,
@@ -154,74 +153,13 @@ export const AudiobooksPage = memo(function AudiobooksPage({
     [onPlayAudiobookChapter],
   )
 
-  const heroProgress = heroBook ? getAudiobookProgress(heroBook.id) : null
-
   return (
     <div className="audiobooks-destination">
-      <section className="audiobooks-hero" aria-labelledby="audiobooks-hero-title">
-        {heroBook ? (
-          <div className="audiobooks-hero-grid">
-            <div className="audiobooks-hero-cover">
-              <ArtworkImage
-                src={heroBook.coverUrl}
-                alt=""
-                seed={heroBook.id}
-                label={heroBook.title}
-                priority
-              />
-            </div>
-
-            <div className="audiobooks-hero-main">
-              <span className="audiobooks-hero-eyebrow">
-                {audiobookCategoryLabel(heroBook.categorySlug ?? heroBook.categories[0] ?? null)}
-              </span>
-              <h2 id="audiobooks-hero-title">{heroBook.title}</h2>
-              <p className="audiobooks-hero-author">
-                {heroBook.authorName ?? 'Unknown author'}
-                {heroBook.narratorName && heroBook.narratorName !== heroBook.authorName
-                  ? ` · Narrated by ${heroBook.narratorName}`
-                  : ''}
-              </p>
-              <ul className="audiobooks-hero-meta">
-                {heroBook.language ? <li>{heroBook.language}</li> : null}
-                {heroBook.chapterCount > 0 ? (
-                  <li>{heroBook.chapterCount} {heroBook.chapterCount === 1 ? 'chapter' : 'chapters'}</li>
-                ) : null}
-                {heroBook.durationSeconds ? (
-                  <li>{formatAudiobookDuration(heroBook.durationSeconds)}</li>
-                ) : null}
-              </ul>
-              {heroBook.description ? (
-                <p className="audiobooks-hero-description">{heroBook.description.slice(0, 220)}</p>
-              ) : null}
-            </div>
-
-            <div className="audiobooks-hero-actions-col">
-              {heroProgress ? (
-                <button
-                  type="button"
-                  className="btn-primary btn-sm"
-                  onClick={() => resumeBook(heroBook.id)}
-                >
-                  Resume
-                </button>
-              ) : null}
-              <button
-                type="button"
-                className="btn-secondary btn-sm"
-                onClick={() => onOpenBook(heroBook.id)}
-              >
-                View Book
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="audiobooks-hero-fallback">
-            <h1 id="audiobooks-hero-title">Audiobooks</h1>
-            <p>Long-form listening for focus, travel, and quiet hours.</p>
-          </div>
-        )}
-      </section>
+      <SectionHero
+        title="Audiobooks"
+        subtitle="Long-form listening for focus, travel, and quiet hours."
+        titleId="audiobooks-hero-title"
+      />
 
       {error ? (
         <section className="audiobooks-status audiobooks-status--error" role="alert">
