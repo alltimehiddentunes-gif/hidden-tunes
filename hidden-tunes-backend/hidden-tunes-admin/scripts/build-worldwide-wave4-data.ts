@@ -135,58 +135,63 @@ function partitionRegional(entries: ReturnType<typeof seedToEntry>[]) {
   return regional;
 }
 
-function writeJson(name: string, rows: unknown[]) {
+function writeJsonAtomic(name: string, rows: unknown[]) {
   fs.mkdirSync(dataDir, { recursive: true });
-  fs.writeFileSync(path.join(dataDir, `${name}.json`), `${JSON.stringify(rows, null, 2)}\n`, "utf8");
+  const finalPath = path.join(dataDir, `${name}.json`);
+  const tempPath = `${finalPath}.tmp`;
+  fs.writeFileSync(tempPath, `${JSON.stringify(rows, null, 2)}\n`, "utf8");
+  JSON.parse(fs.readFileSync(tempPath, "utf8"));
+  fs.renameSync(tempPath, finalPath);
   return rows.length;
 }
 
-async function main() {
-  const seen = loadWave4SeenUrls(adminRoot);
+async function buildWave4SourceFiles(seen: Set<string>) {
+  const [
+    officialManifests,
+    parliament,
+    internationalNews,
+    religiousEducation,
+    educationCulture,
+    iptvOrgCountries,
+    communityPlaylists,
+  ] = await Promise.all([
+    Promise.resolve(
+      filterUnseenWave4Entries(WAVE4_COUNTRY_OFFICIAL_MANIFESTS.map(seedToEntry), seen)
+    ),
+    Promise.resolve(filterUnseenWave4Entries(WAVE4_PARLIAMENT_GOVERNMENT.map(seedToEntry), seen)),
+    Promise.resolve(filterUnseenWave4Entries(WAVE4_INTERNATIONAL_NEWS.map(seedToEntry), seen)),
+    Promise.resolve(filterUnseenWave4Entries(WAVE4_RELIGIOUS_EDUCATION.map(seedToEntry), seen)),
+    Promise.resolve(filterUnseenWave4Entries(WAVE4_EDUCATION_CULTURE.map(seedToEntry), seen)),
+    loadIptvOrgCountryStreams(seen).then((rows) => filterUnseenWave4Entries(rows, seen)),
+    loadCommunityPlaylists(seen).then((rows) => filterUnseenWave4Entries(rows, seen)),
+  ]);
 
-  const officialManifests = filterUnseenWave4Entries(
-    WAVE4_COUNTRY_OFFICIAL_MANIFESTS.map(seedToEntry),
-    seen
-  );
-  const parliament = filterUnseenWave4Entries(
-    WAVE4_PARLIAMENT_GOVERNMENT.map(seedToEntry),
-    seen
-  );
-  const internationalNews = filterUnseenWave4Entries(
-    WAVE4_INTERNATIONAL_NEWS.map(seedToEntry),
-    seen
-  );
-  const religiousEducation = filterUnseenWave4Entries(
-    WAVE4_RELIGIOUS_EDUCATION.map(seedToEntry),
-    seen
-  );
-  const educationCulture = filterUnseenWave4Entries(
-    WAVE4_EDUCATION_CULTURE.map(seedToEntry),
-    seen
-  );
-
-  const iptvOrgCountries = filterUnseenWave4Entries(await loadIptvOrgCountryStreams(seen), seen);
-  const communityPlaylists = filterUnseenWave4Entries(await loadCommunityPlaylists(seen), seen);
   const regionalCommunity = partitionRegional([...communityPlaylists, ...iptvOrgCountries.slice(0, 2000)]);
 
   const counts = {
-    iptvOrgGithubCountriesWave4: writeJson("iptvOrgGithubCountriesWave4", iptvOrgCountries),
-    countryOfficialManifestsWave4: writeJson("countryOfficialManifestsWave4", officialManifests),
-    parliamentGovernmentWave4: writeJson("parliamentGovernmentWave4", parliament),
-    internationalNewsWave4: writeJson("internationalNewsWave4", internationalNews),
-    religiousEducationWave4: writeJson("religiousEducationWave4", religiousEducation),
-    educationCultureWave4: writeJson("educationCultureWave4", educationCulture),
-    freeCommunityPlaylistsWave4: writeJson("freeCommunityPlaylistsWave4", communityPlaylists),
-    regionalCommunityWave4: writeJson("regionalCommunityWave4", regionalCommunity),
+    iptvOrgGithubCountriesWave4: writeJsonAtomic("iptvOrgGithubCountriesWave4", iptvOrgCountries),
+    countryOfficialManifestsWave4: writeJsonAtomic("countryOfficialManifestsWave4", officialManifests),
+    parliamentGovernmentWave4: writeJsonAtomic("parliamentGovernmentWave4", parliament),
+    internationalNewsWave4: writeJsonAtomic("internationalNewsWave4", internationalNews),
+    religiousEducationWave4: writeJsonAtomic("religiousEducationWave4", religiousEducation),
+    educationCultureWave4: writeJsonAtomic("educationCultureWave4", educationCulture),
+    freeCommunityPlaylistsWave4: writeJsonAtomic("freeCommunityPlaylistsWave4", communityPlaylists),
+    regionalCommunityWave4: writeJsonAtomic("regionalCommunityWave4", regionalCommunity),
   };
 
-  const totalNewCandidates = Object.values(counts).reduce((sum, value) => sum + value, 0);
-  const independentCandidates =
+  return { counts, independentCandidates:
     counts.countryOfficialManifestsWave4 +
     counts.parliamentGovernmentWave4 +
     counts.internationalNewsWave4 +
     counts.religiousEducationWave4 +
-    counts.educationCultureWave4;
+    counts.educationCultureWave4,
+    totalNewCandidates: Object.values(counts).reduce((sum, value) => sum + value, 0),
+  };
+}
+
+async function main() {
+  const seen = loadWave4SeenUrls(adminRoot);
+  const { counts, independentCandidates, totalNewCandidates } = await buildWave4SourceFiles(seen);
 
   const report = {
     at: new Date().toISOString(),
