@@ -145,10 +145,11 @@ import { PodcastShowPage } from './components/podcasts/PodcastShowPage'
 import { AudiobooksPage } from './components/audiobooks/AudiobooksPage'
 import { AudiobookBookPage } from './components/audiobooks/AudiobookBookPage'
 import { MusicHomePage } from './components/home/MusicHomePage'
+import { LaunchGate } from './components/LaunchGate'
 import { GlobalTopNav } from './components/music/GlobalTopNav'
 import { MusicWorkspace } from './components/music/MusicWorkspace'
 import type { MusicSectionId } from './lib/music/types'
-import type { GlobalNavKey } from './lib/music/navTypes'
+import { PRIMARY_SECTION_NAV, type GlobalNavKey } from './lib/music/navTypes'
 import {
   EDITORIAL_PLAYLIST_SPECS,
   resolveEditorialPlaylistSpec,
@@ -1402,6 +1403,17 @@ const SIDEBAR_NAV_GROUPS = [
   { label: 'Primary', items: SIDEBAR_PRIMARY_NAV },
   { label: 'Music Library', items: SIDEBAR_LIBRARY_NAV },
 ] as const
+
+if (import.meta.env.DEV) {
+  const sidebarPrimaryKeys = SIDEBAR_PRIMARY_NAV.map((item) => item.navKey).join(',')
+  const sharedPrimaryKeys = PRIMARY_SECTION_NAV.map((item) => item.navKey).join(',')
+  if (sidebarPrimaryKeys !== sharedPrimaryKeys) {
+    console.warn('[nav] Sidebar Primary order drifted from PRIMARY_SECTION_NAV.', {
+      sidebarPrimaryKeys,
+      sharedPrimaryKeys,
+    })
+  }
+}
 
 type Mood = 'violet' | 'cyan' | 'rose' | 'mint'
 
@@ -7185,6 +7197,17 @@ function PageContent({
   }
 }
 
+function AppBootShell() {
+  const { loading, songs, loaded, error } = useCatalog()
+  // Dismiss splash when cache/live data exists, load finished, or catalog failed.
+  const hasCatalogData = songs.length > 0 || loaded || Boolean(error)
+  return (
+    <LaunchGate loading={loading} hasCatalogData={hasCatalogData}>
+      <AppShell />
+    </LaunchGate>
+  )
+}
+
 function App() {
   return (
     <PreferencesResetProvider>
@@ -7192,7 +7215,7 @@ function App() {
         <AtmosphereProvider>
           <PremiumAudioVisualizerProvider>
             <CatalogProvider>
-              <AppShell />
+              <AppBootShell />
             </CatalogProvider>
           </PremiumAudioVisualizerProvider>
         </AtmosphereProvider>
@@ -7639,7 +7662,11 @@ function AppShell() {
               }`}
             >
               {isPsdDestinationNav(activeNavKey) && activeView === 'page' ? (
-                <GlobalTopNav activeNavKey={activeNavKey} onNavigateNav={handleGlobalNav} />
+                <GlobalTopNav
+                  activeNavKey={activeNavKey}
+                  onNavigateNav={handleGlobalNav}
+                  onOpenProfile={() => navigateNav('settings')}
+                />
               ) : null}
               {isPsdDestinationNav(activeNavKey) && activeView === 'page' ? (
                 <HomeTopBar

@@ -106,15 +106,24 @@ Do not revert, reformat, or fold into Phase A unless explicitly requested.
 
 ---
 
-## Known unresolved issues (out of Phase A scope)
+## Phase B — Core desktop shell (2026-07-15)
 
-- **Lint:** 39 ESLint errors, 4 warnings (mostly React hooks rules in `App.tsx` and hooks modules).
-- **Motivationals:** Uncommitted WIP; continuation/resume behavior incomplete.
-- **Lectures:** Desktop section WIP in progress (browse UI + playback wiring present). Production `/api/lectures/*` browse/detail/play verified. Catalog browse in browser-only Vite still requires Electron IPC. Not yet committed as a protected release slice.
-- **Global search:** Music-only (songs, artists, albums); no cross-section unified search.
+| Check | Result |
+|-------|--------|
+| LaunchGate wired | **YES** — wraps AppShell after CatalogProvider; dismisses when catalog loaded or data present |
+| Primary nav alignment | **YES** — `PRIMARY_SECTION_NAV` shared by GlobalTopNav + Sidebar Primary order |
+| Dead top-nav actions | Notifications disabled (“coming soon”); Profile opens Settings |
+| Build | Must remain PASS |
+
+## Known unresolved issues (later phases)
+
+- **Lint:** Pre-existing ESLint errors/warnings (mostly React hooks rules in `App.tsx` and hooks modules).
+- **Motivationals:** Continuation/resume hierarchy still incomplete (browse filters shipped).
+- **Lectures:** Shipped for browse/play; browser-only Vite catalog still needs Electron IPC.
+- **Global search:** Still music-first; Discover now also surfaces lecture courses as a secondary group.
 - **Library:** Several sub-views are placeholders (Downloads, cloud sync).
 - **Authentication:** Not implemented; no login, subscription, or cloud library sync.
-- **Packaging / release:** `npm run dist` exists but release signing and distribution not validated in Phase A.
+- **Packaging / release:** `npm run dist` exists but release signing and distribution not validated.
 - **Catalog in browser-only dev:** Admin catalog APIs require Electron shell for IPC-proxied fetches.
 
 ---

@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { LaunchScreen } from './LaunchScreen'
 
 const MIN_VISIBLE_MS = 650
+const MAX_VISIBLE_MS = 8_000
 const FADE_MS = 480
 
 type LaunchPhase = 'visible' | 'fading' | 'hidden'
@@ -19,6 +20,7 @@ type LaunchGateProps = {
 export function LaunchGate({ children, loading, hasCatalogData }: LaunchGateProps) {
   const [phase, setPhase] = useState<LaunchPhase>('visible')
   const [minElapsed, setMinElapsed] = useState(false)
+  const [forceReady, setForceReady] = useState(false)
 
   useEffect(() => {
     removeHtmlSplash()
@@ -29,17 +31,27 @@ export function LaunchGate({ children, loading, hasCatalogData }: LaunchGateProp
     return () => window.clearTimeout(id)
   }, [])
 
-  const ready = minElapsed && (!loading || hasCatalogData)
+  useEffect(() => {
+    const id = window.setTimeout(() => setForceReady(true), MAX_VISIBLE_MS)
+    return () => window.clearTimeout(id)
+  }, [])
+
+  const ready =
+    forceReady || (minElapsed && (!loading || hasCatalogData))
 
   useEffect(() => {
-    if (!ready || phase !== 'visible') return undefined
+    if (!ready || phase !== 'visible') return
     setPhase('fading')
+  }, [ready, phase])
+
+  useEffect(() => {
+    if (phase !== 'fading') return undefined
     const id = window.setTimeout(() => {
       setPhase('hidden')
       removeHtmlSplash()
     }, FADE_MS)
     return () => window.clearTimeout(id)
-  }, [ready, phase])
+  }, [phase])
 
   if (phase === 'hidden') {
     return children

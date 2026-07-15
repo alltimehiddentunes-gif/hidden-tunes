@@ -1,9 +1,10 @@
 import { memo } from 'react'
-import type { GlobalNavKey } from '../../lib/music/navTypes'
+import { PRIMARY_SECTION_NAV, type GlobalNavKey } from '../../lib/music/navTypes'
 
 type GlobalTopNavProps = {
   activeNavKey: GlobalNavKey | string
   onNavigateNav: (navKey: GlobalNavKey) => void
+  onOpenProfile?: () => void
 }
 
 function BrandWaveformMark() {
@@ -24,24 +25,10 @@ function BrandWaveformMark() {
   )
 }
 
-const GLOBAL_NAV_ITEMS: Array<{
-  navKey: GlobalNavKey
-  label: string
-  disabled?: boolean
-}> = [
-  { navKey: 'home', label: 'Home' },
-  { navKey: 'music', label: 'Music' },
-  { navKey: 'radio', label: 'Radio' },
-  { navKey: 'podcasts', label: 'Podcasts' },
-  { navKey: 'audiobooks', label: 'Audiobooks' },
-  { navKey: 'tv', label: 'TV' },
-  { navKey: 'motivationals', label: 'Motivationals' },
-  { navKey: 'lectures', label: 'Lectures' },
-]
-
 export const GlobalTopNav = memo(function GlobalTopNav({
   activeNavKey,
   onNavigateNav,
+  onOpenProfile,
 }: GlobalTopNavProps) {
   return (
     <header className="global-top-nav" aria-label="Application sections">
@@ -50,20 +37,15 @@ export const GlobalTopNav = memo(function GlobalTopNav({
         <span className="global-top-nav-wordmark">Hidden Tunes</span>
       </div>
       <nav className="global-top-nav-links" aria-label="Major sections">
-        {GLOBAL_NAV_ITEMS.map((item) => {
+        {PRIMARY_SECTION_NAV.map((item) => {
           const isActive = item.navKey === activeNavKey
-            || (item.navKey === 'music' && activeNavKey === 'music')
           return (
             <button
               key={item.navKey}
               type="button"
-              className={`global-top-nav-link${isActive ? ' is-active' : ''}${item.disabled ? ' is-disabled' : ''}`}
+              className={`global-top-nav-link${isActive ? ' is-active' : ''}`}
               aria-current={isActive ? 'page' : undefined}
-              aria-disabled={item.disabled ? true : undefined}
-              disabled={item.disabled}
-              onClick={() => {
-                if (!item.disabled) onNavigateNav(item.navKey)
-              }}
+              onClick={() => onNavigateNav(item.navKey)}
             >
               {item.label}
             </button>
@@ -71,13 +53,25 @@ export const GlobalTopNav = memo(function GlobalTopNav({
         })}
       </nav>
       <div className="global-top-nav-actions" aria-label="Account actions">
-        <button type="button" className="global-top-nav-icon" aria-label="Notifications">
+        <button
+          type="button"
+          className="global-top-nav-icon is-disabled"
+          aria-label="Notifications coming soon"
+          title="Notifications coming soon"
+          disabled
+        >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
             <path d="M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 00-5-5.9V4a1 1 0 00-2 0v1.1A6 6 0 006 11v3.2c0 .5-.2 1-.6 1.4L4 17h5" />
             <path d="M10 20a2 2 0 004 0" />
           </svg>
         </button>
-        <button type="button" className="global-top-nav-profile" aria-label="Profile">
+        <button
+          type="button"
+          className="global-top-nav-profile"
+          aria-label="Open settings"
+          title="Settings"
+          onClick={() => onOpenProfile?.()}
+        >
           <span aria-hidden="true">H</span>
         </button>
       </div>
