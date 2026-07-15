@@ -40,6 +40,7 @@ import {
   buildPlayerQueueStats,
 } from './lib/playerQueueDisplay'
 import {
+  buildQueueCandidatePools,
   buildQueueSeedPool,
   CATALOG_DETAIL_TRACK_PREVIEW_LIMIT,
   capSongPool,
@@ -143,6 +144,12 @@ import { PodcastsPage } from './components/podcasts/PodcastsPage'
 import { PodcastShowPage } from './components/podcasts/PodcastShowPage'
 import { AudiobooksPage } from './components/audiobooks/AudiobooksPage'
 import { AudiobookBookPage } from './components/audiobooks/AudiobookBookPage'
+import { MusicHomePage } from './components/home/MusicHomePage'
+import {
+  EDITORIAL_PLAYLIST_SPECS,
+  resolveEditorialPlaylistSpec,
+  resolveEditorialPlaylistTracks,
+} from './lib/home/editorialPlaylists'
 import { buildRadioQueueSongs } from './lib/radio/radioPlaybackAdapter'
 import { buildTvQueueSongs, isTvQueueSong } from './lib/tv/tvPlaybackAdapter'
 import { buildPodcastQueueSongs } from './lib/podcasts/podcastPlaybackAdapter'
@@ -203,79 +210,6 @@ function filterSongsByLibraryQuery(songs: ApiSong[], query: string) {
       .toLowerCase()
     return haystack.includes(normalized)
   })
-}
-
-type EditorialPlaylistSpec = {
-  id: string
-  title: string
-  aliases?: readonly string[]
-  description: string
-  owner: string
-  sceneId: string
-  showMoon?: boolean
-}
-
-const EDITORIAL_PLAYLIST_SPECS: EditorialPlaylistSpec[] = [
-  {
-    id: 'night-drive',
-    title: 'Night Drive',
-    aliases: ['late night drive'],
-    description: 'Late nights, open roads and the perfect soundtrack.',
-    owner: 'Hidden Tunes',
-    sceneId: 'midnight-drive',
-    showMoon: true,
-  },
-  {
-    id: 'deep-focus',
-    title: 'Deep Focus',
-    description: 'Clear headspace and steady concentration.',
-    owner: 'Hidden Tunes',
-    sceneId: 'focus-room',
-  },
-  {
-    id: 'afro-vibes',
-    title: 'Afro Vibes',
-    description: 'Warm grooves and golden-hour rhythm.',
-    owner: 'Hidden Tunes',
-    sceneId: 'sunday-morning',
-  },
-  {
-    id: 'chill-relax',
-    title: 'Chill & Relax',
-    aliases: ['chill vibes'],
-    description: 'Soft calm for unwinding and reflection.',
-    owner: 'Hidden Tunes',
-    sceneId: 'heartbreak-recovery',
-  },
-  {
-    id: 'workout-mix',
-    title: 'Workout Mix',
-    description: 'High-energy momentum to keep you moving.',
-    owner: 'Hidden Tunes',
-    sceneId: 'city-lights',
-  },
-  {
-    id: 'rainy-day-comfort',
-    title: 'Rainy Day Comfort',
-    description: 'Rain-lit calm and gentle comfort.',
-    owner: 'Hidden Tunes',
-    sceneId: 'rainy-window',
-  },
-]
-
-function resolveEditorialPlaylistSpec(query: string): EditorialPlaylistSpec {
-  const normalized = query.trim().toLowerCase()
-  if (!normalized) return EDITORIAL_PLAYLIST_SPECS[0]
-  const matched = EDITORIAL_PLAYLIST_SPECS.find((spec) => {
-    if (spec.id.toLowerCase() === normalized) return true
-    if (spec.title.toLowerCase() === normalized) return true
-    return spec.aliases?.some((alias) => alias.toLowerCase() === normalized) ?? false
-  })
-  return matched ?? EDITORIAL_PLAYLIST_SPECS[0]
-}
-
-function resolveEditorialPlaylistTracks(songs: ApiSong[], sceneId: string) {
-  return sortSongsList(filterSongsByListeningScene(songs, sceneId), 'latest')
 }
 
 function formatPlaylistDurationLabel(songs: ApiSong[]) {
@@ -827,14 +761,6 @@ function useDebouncedValue<T>(value: T, delayMs: number) {
   }, [value, delayMs])
 
   return debounced
-}
-
-function buildQueueCandidatePools(indexes: CatalogIndexes) {
-  return {
-    songsByGenre: indexes.songsByGenre,
-    songsByArtistId: indexes.songsByArtistId,
-    songsByAlbumName: indexes.songsByAlbumName,
-  }
 }
 
 type CatalogContextValue = {
@@ -2697,11 +2623,13 @@ function HomePage({
   onOpenArtist,
   onOpenAlbum,
   onNavigateNav,
+  onBrowseSearch,
 }: {
   onOpenSong: QueueSongHandler
   onOpenArtist: (artist: ApiArtist) => void
   onOpenAlbum: (album: ApiAlbum) => void
   onNavigateNav: (navKey: NavKey) => void
+  onBrowseSearch: (query: string) => void
 }) {
   const {
     songs,
@@ -2715,133 +2643,33 @@ function HomePage({
     retry,
   } = useCatalog()
 
-  const heroQueue = useMemo(() => sortSongsList(songs, 'latest').slice(0, 12), [songs])
-  const trendingSongs = useMemo(() => sortSongsList(songs, 'latest').slice(0, 6), [songs])
-  const featuredArtists = useMemo(
-    () => sortArtistsList(artists, 'tracks').slice(0, 6),
-    [artists],
-  )
-  const newAlbums = useMemo(
-    () => sortAlbumsList(albums, 'latest').slice(0, 6),
-    [albums],
-  )
-  const queuePools = useMemo(() => buildQueueCandidatePools(indexes), [indexes])
-
-  const playFromQueue = useCallback(
-    (song: ApiSong, queue: ApiSong[], queueTitle: string) => {
-      const queueIndex = Math.max(0, queue.findIndex((entry) => entry.id === song.id))
-      onOpenSong(song, queue.length > 0 ? queue : [song], queueIndex, 'home', queueTitle, {
-        seedType: 'home',
-        seedTracks: buildQueueSeedPool('home', queue, indexes, song),
-        candidatePools: queuePools,
-      })
-    },
-    [indexes, onOpenSong, queuePools],
-  )
-
-  const playHero = useCallback(() => {
-    const song = heroQueue[0]
-    if (!song) return
-    playFromQueue(song, heroQueue, 'Home')
-  }, [heroQueue, playFromQueue])
-
-  const playTrendingSong = useCallback(
-    (song: ApiSong) => {
-      const queue = trendingSongs.length > 0 ? trendingSongs : [song]
-      playFromQueue(song, queue, 'Trending Now')
-    },
-    [playFromQueue, trendingSongs],
-  )
-
-  const playWorld = useCallback(
-    (scene: BuiltListeningScene) => {
-      const tracks = filterSongsByListeningScene(songs, scene.id)
-      if (tracks.length === 0) return
-      playFromQueue(tracks[0], tracks, resolveWorldPresentation(scene).title)
-    },
-    [playFromQueue, songs],
-  )
-
   return (
     <div className="home-destination">
       <PageFrame cinematic>
-        <Hero
-          onPlay={playHero}
-          onExploreWorlds={() => onNavigateNav('worlds')}
-          canPlay={heroQueue.length > 0}
-        />
-        <PopularWorldsSection
+        <MusicHomePage
           songs={songs}
-          loading={showCatalogSkeleton}
-          onPlayWorld={playWorld}
-          onBrowseWorlds={() => onNavigateNav('worlds')}
+          albums={albums}
+          artists={artists}
+          artistNames={artistNames}
+          indexes={indexes}
+          showCatalogSkeleton={showCatalogSkeleton}
+          showCatalogError={showCatalogError}
+          error={error}
+          retry={retry}
+          onOpenSong={onOpenSong}
+          onOpenArtist={onOpenArtist}
+          onOpenAlbum={onOpenAlbum}
+          onNavigateNav={onNavigateNav}
+          onBrowseSearch={onBrowseSearch}
         />
-        <div className="home-secondary" aria-label="Featured from your catalog">
-          {trendingSongs.length > 0 || showCatalogSkeleton ? (
-            <CatalogSection
-              title="Trending Now"
-              hint="Curated for the moment"
-              loading={showCatalogSkeleton}
-              error={showCatalogError ? error : null}
-              onRetry={retry}
-              count={trendingSongs.length}
-              onViewAll={() => onNavigateNav('search')}
-            >
-              <ApiSongGrid
-                songs={trendingSongs}
-                onSelect={(song) => playTrendingSong(song)}
-                listKey="home-trending"
-                paginate={false}
-                showEmpty={false}
-              />
-            </CatalogSection>
-          ) : null}
-
-          {featuredArtists.length > 0 || showCatalogSkeleton ? (
-            <CatalogSection
-              title="Featured Artists"
-              hint="Voices in your library"
-              loading={showCatalogSkeleton}
-              error={showCatalogError ? error : null}
-              onRetry={retry}
-              count={featuredArtists.length}
-              onViewAll={() => onNavigateNav('artists')}
-            >
-              <ApiArtistGrid
-                artists={featuredArtists}
-                onSelect={onOpenArtist}
-                listKey="home-artists"
-                paginate={false}
-              />
-            </CatalogSection>
-          ) : null}
-
-          {newAlbums.length > 0 || showCatalogSkeleton ? (
-            <CatalogSection
-              title="New Albums"
-              hint="Fresh from your catalog"
-              loading={showCatalogSkeleton}
-              error={showCatalogError ? error : null}
-              onRetry={retry}
-              count={newAlbums.length}
-              onViewAll={() => onNavigateNav('albums')}
-            >
-              <ApiAlbumGrid
-                albums={newAlbums}
-                artistNames={artistNames}
-                indexes={indexes}
-                onSelect={onOpenAlbum}
-                listKey="home-albums"
-                paginate={false}
-              />
-            </CatalogSection>
-          ) : null}
-        </div>
       </PageFrame>
     </div>
   )
 }
 
+void Hero
+void PopularWorldsSection
+void CatalogSection
 
 const SEARCH_SONG_PREVIEW_LIMIT = 5
 const SEARCH_SONG_EXPANDED_LIMIT = 24
@@ -6959,6 +6787,10 @@ function PageContent({
           onOpenArtist={onOpenArtist}
           onOpenAlbum={onOpenAlbum}
           onNavigateNav={onNavigateNav}
+          onBrowseSearch={(query) => {
+            setDiscoverQuery(query)
+            onNavigateNav('search')
+          }}
         />
       )
     case 'radio':
@@ -7052,6 +6884,10 @@ function PageContent({
           onOpenArtist={onOpenArtist}
           onOpenAlbum={onOpenAlbum}
           onNavigateNav={onNavigateNav}
+          onBrowseSearch={(query) => {
+            setDiscoverQuery(query)
+            onNavigateNav('search')
+          }}
         />
       )
   }

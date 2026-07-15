@@ -62,6 +62,16 @@ import {
   patchAudiobookChapterWithPlayUrl,
   patchAudiobookQueueWithResolvedChapters,
 } from '../lib/audiobooks/audiobookPlaybackAdapter'
+import { isMusicCatalogSong } from '../lib/home/isMusicCatalogSong'
+import {
+  buildMusicProgressEntryFromSong,
+  isMusicTrackCompleted,
+  MUSIC_PROGRESS_THROTTLE_MS,
+  progressEntryToHistoryEntry as musicProgressEntryToHistoryEntry,
+  recordMusicHistory,
+  removeMusicProgress,
+  upsertMusicProgress,
+} from '../lib/home/musicProgressStorage'
 import { resolveTvPlayUrl } from '../lib/tv/tvCatalogApi'
 import { acquireTvVideoPlaybackService } from '../lib/tv/tvVideoPlayback'
 import type { HtmlVideoPlaybackService } from '../lib/tv/HtmlVideoPlaybackService'
@@ -191,6 +201,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
   const playSongRef = useRef<(song: ApiSong) => void>(() => undefined)
   const flushPodcastProgressRef = useRef<(force?: boolean) => void>(() => undefined)
   const flushAudiobookProgressRef = useRef<(force?: boolean) => void>(() => undefined)
+  const flushMusicProgressRef = useRef<(force?: boolean) => void>(() => undefined)
   const currentTrackRef = useRef<ApiSong | null>(null)
   const audioQualityModeRef = useRef<AudioQualityMode>('auto')
   const upgradeSessionRef = useRef<UpgradeSession | null>(null)
@@ -205,6 +216,9 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
   const audiobookProgressTrackIdRef = useRef<string | null>(null)
   const audiobookProgressLastWriteRef = useRef(0)
   const audiobookProgressLastPositionRef = useRef(0)
+  const musicProgressTrackIdRef = useRef<string | null>(null)
+  const musicProgressLastWriteRef = useRef(0)
+  const musicProgressLastPositionRef = useRef(0)
 
   const getService = useCallback(() => {
     if (!serviceRef.current) {
@@ -440,6 +454,63 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       persistAudiobookProgress(track, position, duration, { force })
     },
     [durationSeconds, getService, persistAudiobookProgress],
+  )
+
+  const persistMusicProgress = useCallback(
+    (
+      song: ApiSong,
+      positionSeconds: number,
+      durationSeconds: number,
+      options?: { force?: boolean; completed?: boolean },
+    ) => {
+      if (!isMusicCatalogSong(song)) return
+
+      const completed =
+        options?.completed === true
+        || isMusicTrackCompleted(positionSeconds, durationSeconds)
+
+      const entry = buildMusicProgressEntryFromSong(
+        song,
+        positionSeconds,
+        durationSeconds,
+        completed,
+      )
+      if (!entry) return
+
+      if (completed) {
+        removeMusicProgress(entry.songId)
+        recordMusicHistory(musicProgressEntryToHistoryEntry(entry))
+        return
+      }
+
+      upsertMusicProgress(entry)
+    },
+    [],
+  )
+
+  const flushMusicProgress = useCallback(
+    (force = false) => {
+      const track = currentTrackRef.current
+      if (!track || !isMusicCatalogSong(track)) return
+
+      const audio = getService().getAudioElement()
+      const position = audio.currentTime
+      const duration =
+        Number.isFinite(audio.duration) && audio.duration > 0
+          ? audio.duration
+          : durationSeconds
+
+      if (!force) {
+        const elapsed = performance.now() - musicProgressLastWriteRef.current
+        const positionDelta = Math.abs(position - musicProgressLastPositionRef.current)
+        if (elapsed < MUSIC_PROGRESS_THROTTLE_MS && positionDelta < 2) return
+      }
+
+      musicProgressLastWriteRef.current = performance.now()
+      musicProgressLastPositionRef.current = position
+      persistMusicProgress(track, position, duration, { force })
+    },
+    [durationSeconds, getService, persistMusicProgress],
   )
 
   const applyQueueState = useCallback((queue: ApiSong[], index: number) => {
@@ -761,6 +832,27 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
         audiobookProgressTrackIdRef.current = null
       }
 
+      const prepareMusicProgress = (resolvedSong: ApiSong) => {
+        if (isMusicCatalogSong(resolvedSong)) {
+          musicProgressTrackIdRef.current = resolvedSong.id
+          musicProgressLastWriteRef.current = 0
+          musicProgressLastPositionRef.current = 0
+
+          const historySeed = buildMusicProgressEntryFromSong(
+            resolvedSong,
+            0,
+            resolvedSong.durationSeconds ?? 0,
+            false,
+          )
+          if (historySeed) {
+            recordMusicHistory(musicProgressEntryToHistoryEntry(historySeed))
+          }
+          return
+        }
+
+        musicProgressTrackIdRef.current = null
+      }
+
       const needsRadioResolve = isRadioQueueSong(song)
         && !Boolean(song.audioUrl?.startsWith('http') || song.previewUrl?.startsWith('http'))
       const needsTvResolve = isTvQueueSong(song)
@@ -775,6 +867,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
         if (currentTrackRef.current?.id !== song.id) return
         preparePodcastProgress(song)
         prepareAudiobookProgress(song)
+        prepareMusicProgress(song)
         startPlayback(song)
         return
       }
@@ -972,6 +1065,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
 
         preparePodcastProgress(resolvedSong)
         prepareAudiobookProgress(resolvedSong)
+        prepareMusicProgress(resolvedSong)
         startPlayback(resolvedSong)
       })()
     },
@@ -991,9 +1085,14 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
   }, [flushAudiobookProgress])
 
   useEffect(() => {
+    flushMusicProgressRef.current = flushMusicProgress
+  }, [flushMusicProgress])
+
+  useEffect(() => {
     const onBeforeUnload = () => {
       flushPodcastProgressRef.current(true)
       flushAudiobookProgressRef.current(true)
+      flushMusicProgressRef.current(true)
     }
     window.addEventListener('beforeunload', onBeforeUnload)
     return () => window.removeEventListener('beforeunload', onBeforeUnload)
@@ -1092,6 +1191,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       maybeUpgradeAfterStablePlayback()
       flushPodcastProgressRef.current()
       flushAudiobookProgressRef.current()
+      flushMusicProgressRef.current()
     }
     const onPlay = () => {
       if (activeMediaRef.current !== 'audio') return
@@ -1104,6 +1204,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       setIsPlaying(false)
       flushPodcastProgressRef.current(true)
       flushAudiobookProgressRef.current(true)
+      flushMusicProgressRef.current(true)
       if (!audio.ended && !upgradeSessionRef.current?.attempted) {
         cancelUpgradeSession('upgrade-cancelled-pause', 'playback-paused-before-upgrade')
       }
@@ -1148,6 +1249,18 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
           completed: true,
         })
         audiobookProgressTrackIdRef.current = null
+      }
+
+      if (endedTrack && isMusicCatalogSong(endedTrack)) {
+        const duration =
+          Number.isFinite(audio.duration) && audio.duration > 0
+            ? audio.duration
+            : endedTrack.durationSeconds ?? audio.currentTime
+        persistMusicProgress(endedTrack, duration, duration, {
+          force: true,
+          completed: true,
+        })
+        musicProgressTrackIdRef.current = null
       }
 
       cancelUpgradeSession('upgrade-cancelled-track-changed', 'track-ended')

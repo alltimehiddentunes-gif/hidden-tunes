@@ -432,6 +432,14 @@ export function capSongPool(songs: ApiSong[], limit = CATALOG_QUEUE_CANDIDATE_PO
   return songs.length <= limit ? songs : songs.slice(0, limit)
 }
 
+export function buildQueueCandidatePools(indexes: CatalogIndexes) {
+  return {
+    songsByGenre: indexes.songsByGenre,
+    songsByArtistId: indexes.songsByArtistId,
+    songsByAlbumName: indexes.songsByAlbumName,
+  }
+}
+
 export function buildQueueSeedPool(
   seedType: 'home' | 'discover' | 'artist' | 'album' | 'mood' | 'manual',
   contextSongs: ApiSong[],

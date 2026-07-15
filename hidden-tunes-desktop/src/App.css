@@ -7754,6 +7754,390 @@
   position: relative;
 }
 
+.music-home {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(22px, 3vw, 34px);
+  padding-bottom: clamp(24px, 4vw, 40px);
+}
+
+.music-home-hero {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(220px, 320px) 1fr;
+  gap: clamp(16px, 2.4vw, 28px);
+  align-items: end;
+  min-height: clamp(220px, 28vh, 320px);
+  margin-inline: calc(-1 * clamp(16px, 2.4vw, 28px));
+  width: calc(100% + 2 * clamp(16px, 2.4vw, 28px));
+  padding: clamp(18px, 2.8vw, 28px);
+  border-radius: 0;
+  overflow: hidden;
+  background: linear-gradient(135deg, rgba(18, 14, 28, 0.96), rgba(10, 10, 16, 0.92));
+}
+
+.music-home-hero--skeleton {
+  min-height: clamp(220px, 28vh, 320px);
+  background: rgba(255, 255, 255, 0.04);
+  animation: tv-skeleton 1.4s ease-in-out infinite;
+}
+
+.music-home-hero-art {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 18px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.music-home-hero-art .art-frame {
+  width: 100%;
+  height: 100%;
+}
+
+.music-home-hero-veil {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 40%, rgba(0, 0, 0, 0.45));
+  pointer-events: none;
+}
+
+.music-home-hero-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 1;
+}
+
+.music-home-hero-eyebrow {
+  margin: 0;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(234, 179, 8, 0.9);
+}
+
+.music-home-hero-copy h1 {
+  margin: 0;
+  font-size: clamp(1.6rem, 3vw, 2.4rem);
+  line-height: 1.1;
+}
+
+.music-home-hero-subtitle {
+  margin: 0;
+  color: rgba(245, 243, 250, 0.68);
+  font-size: 0.95rem;
+  max-width: 48ch;
+}
+
+.music-home-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.music-home-section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.music-home-section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.music-home-section-header h2 {
+  margin: 0;
+  font-size: clamp(1.05rem, 1.6vw, 1.25rem);
+  font-weight: 620;
+}
+
+.music-home-section-hint {
+  margin: 4px 0 0;
+  font-size: 0.82rem;
+  color: rgba(245, 243, 250, 0.52);
+}
+
+.music-home-view-all {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(245, 243, 250, 0.82);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.music-home-section-error {
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.music-home-skeleton {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.music-home-skeleton-card {
+  aspect-ratio: 1;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  animation: tv-skeleton 1.4s ease-in-out infinite;
+}
+
+.music-home-continue-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.music-home-continue-card,
+.music-home-mix-card,
+.music-home-song-card,
+.music-home-album-card,
+.music-home-artist-card,
+.music-home-genre-card,
+.music-home-mood-card,
+.music-home-explore-card {
+  border: none;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+}
+
+.music-home-continue-hit,
+.music-home-mix-hit,
+.music-home-mood-hit {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  gap: 12px;
+  align-items: center;
+  padding: 10px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  color: inherit;
+  cursor: pointer;
+}
+
+.music-home-continue-copy,
+.music-home-mix-copy,
+.music-home-mood-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.music-home-continue-copy strong,
+.music-home-mix-copy h3,
+.music-home-mood-copy h3 {
+  font-size: 0.92rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.music-home-continue-copy span,
+.music-home-mix-copy p,
+.music-home-mix-copy span,
+.music-home-mood-copy p,
+.music-home-mood-copy span {
+  font-size: 0.78rem;
+  color: rgba(245, 243, 250, 0.56);
+}
+
+.music-home-progress {
+  margin-top: 6px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+
+.music-home-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, rgba(234, 179, 8, 0.95), rgba(168, 85, 247, 0.88));
+}
+
+.music-home-rail,
+.music-home-song-rail {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(132px, 160px);
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
+}
+
+.music-home-song-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.music-home-song-card strong {
+  font-size: 0.86rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.music-home-song-card span {
+  font-size: 0.76rem;
+  color: rgba(245, 243, 250, 0.56);
+}
+
+.music-home-artist-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(108px, 1fr));
+  gap: 14px;
+}
+
+.music-home-artist-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.music-home-artist-card strong {
+  font-size: 0.84rem;
+  text-align: center;
+}
+
+.music-home-artist-card span {
+  font-size: 0.74rem;
+  color: rgba(245, 243, 250, 0.52);
+}
+
+.music-home-album-grid,
+.music-home-genre-grid,
+.music-home-mood-grid,
+.music-home-explore-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.music-home-album-grid {
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+}
+
+.music-home-genre-grid {
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+}
+
+.music-home-mood-grid {
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+
+.music-home-explore-grid {
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+}
+
+.music-home-album-card,
+.music-home-genre-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.music-home-album-card strong,
+.music-home-genre-copy strong {
+  font-size: 0.9rem;
+}
+
+.music-home-album-card span,
+.music-home-album-card em,
+.music-home-genre-copy span {
+  font-size: 0.76rem;
+  color: rgba(245, 243, 250, 0.56);
+  font-style: normal;
+}
+
+.music-home-genre-card {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  min-height: 108px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.music-home-genre-card .art-frame {
+  position: absolute;
+  inset: 0;
+}
+
+.music-home-genre-fallback {
+  display: grid;
+  place-items: center;
+  min-height: 108px;
+  font-size: 1.6rem;
+  font-weight: 700;
+  background: rgba(168, 85, 247, 0.14);
+}
+
+.music-home-genre-copy {
+  position: relative;
+  z-index: 1;
+  margin-top: auto;
+  padding: 12px;
+  background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.72));
+}
+
+.music-home-mood-card--violet { --mood-accent: rgba(168, 85, 247, 0.35); }
+.music-home-mood-card--cyan { --mood-accent: rgba(34, 211, 238, 0.28); }
+.music-home-mood-card--rose { --mood-accent: rgba(244, 114, 182, 0.28); }
+.music-home-mood-card--mint { --mood-accent: rgba(52, 211, 153, 0.28); }
+
+.music-home-mood-hit {
+  border-color: var(--mood-accent, rgba(255, 255, 255, 0.08));
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.03), var(--mood-accent, transparent));
+}
+
+.music-home-explore-card {
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.025);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.music-home-explore-card strong {
+  font-size: 0.88rem;
+}
+
+.music-home-explore-card span {
+  font-size: 0.74rem;
+  color: rgba(245, 243, 250, 0.5);
+}
+
+@media (max-width: 860px) {
+  .music-home-hero {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .music-home-hero-art {
+    max-width: 220px;
+  }
+}
+
 .main-scroll--home .catalog-stale-banner {
   display: none;
 }
@@ -23439,6 +23823,460 @@
   }
 
   .audiobook-book-cover {
+    max-width: 180px;
+  }
+}
+
+/* —— Motivationals destination —— */
+.page-view[data-page='motivationals'] {
+  padding-bottom: clamp(18px, 2.5vw, 28px);
+}
+
+.motivationals-destination {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(18px, 2.4vw, 28px);
+}
+
+.motivationals-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: clamp(20px, 2.6vw, 28px);
+  min-height: clamp(160px, 20vw, 240px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    radial-gradient(ellipse 68% 82% at 82% 38%, rgba(245, 158, 11, 0.16), transparent 58%),
+    radial-gradient(ellipse 54% 68% at 14% 22%, rgba(251, 191, 36, 0.1), transparent 62%),
+    linear-gradient(135deg, rgba(22, 16, 10, 0.96), rgba(8, 8, 12, 0.98));
+}
+
+.motivationals-hero-backdrop {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.5) 0%, transparent 55%, rgba(0, 0, 0, 0.25) 100%);
+}
+
+.motivationals-hero-copy {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: clamp(22px, 3vw, 34px);
+}
+
+.motivationals-hero-copy h1 {
+  margin: 0;
+  font-size: clamp(1.75rem, 3vw, 2.5rem);
+}
+
+.motivationals-hero-feature {
+  display: grid;
+  grid-template-columns: minmax(96px, 120px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+  position: relative;
+  z-index: 1;
+  padding: 0 clamp(22px, 3vw, 34px) clamp(22px, 3vw, 34px);
+}
+
+.motivationals-hero-feature .art-frame,
+.motivationals-hero-feature .art-frame--square {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 12px;
+}
+
+.motivationals-hero-eyebrow {
+  display: inline-block;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(251, 191, 36, 0.85);
+}
+
+.motivationals-hero-description {
+  margin: 8px 0 0;
+  color: rgba(245, 243, 250, 0.58);
+  line-height: 1.5;
+}
+
+.motivationals-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.motivationals-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.motivationals-tab {
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+  color: rgba(245, 243, 250, 0.62);
+  cursor: pointer;
+}
+
+.motivationals-tab.is-active {
+  border-color: rgba(251, 191, 36, 0.35);
+  background: rgba(251, 191, 36, 0.1);
+  color: rgba(255, 244, 214, 0.95);
+}
+
+.motivationals-section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.motivationals-section-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.motivationals-section-header h2,
+.motivationals-section h2 {
+  margin: 0;
+  font-size: clamp(1.1rem, 1.8vw, 1.35rem);
+}
+
+.motivationals-program-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+  gap: 14px;
+}
+
+.motivationals-program-card {
+  position: relative;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.025);
+  overflow: hidden;
+  transition: border-color 160ms ease, transform 160ms ease;
+}
+
+.motivationals-program-card:hover {
+  border-color: rgba(255, 255, 255, 0.14);
+  transform: translateY(-2px);
+}
+
+.motivationals-program-card-hit {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.motivationals-program-card-art {
+  position: relative;
+  aspect-ratio: 1;
+}
+
+.motivationals-program-card-art .art-frame,
+.motivationals-program-card-art .art-frame--square {
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+}
+
+.motivationals-program-card-play {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 0;
+  background: rgba(12, 10, 18, 0.82);
+  color: #fff;
+  opacity: 0;
+  transition: opacity 160ms ease;
+}
+
+.motivationals-program-card:hover .motivationals-program-card-play,
+.motivationals-program-card:focus-within .motivationals-program-card-play {
+  opacity: 1;
+}
+
+.motivationals-progress-pill {
+  position: absolute;
+  left: 8px;
+  top: 8px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  background: rgba(12, 10, 18, 0.78);
+  color: rgba(251, 191, 36, 0.92);
+}
+
+.motivationals-program-card-copy {
+  padding: 10px 12px 12px;
+}
+
+.motivationals-program-card-copy h3 {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.motivationals-program-card-copy p {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: rgba(245, 243, 250, 0.48);
+}
+
+.motivationals-continue-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.motivationals-continue-card {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.motivationals-continue-progress {
+  margin-top: 6px;
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.motivationals-continue-progress span {
+  display: block;
+  height: 100%;
+  background: rgba(251, 191, 36, 0.85);
+}
+
+.motivationals-recent-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.motivationals-recent-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.02);
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+}
+
+.motivationals-status {
+  padding: 16px 18px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.motivationals-status--error {
+  border-color: rgba(239, 68, 68, 0.35);
+  color: rgba(252, 165, 165, 0.92);
+}
+
+.motivationals-status--empty {
+  color: rgba(245, 243, 250, 0.55);
+}
+
+.motivationals-section-actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 8px;
+}
+
+.motivational-program-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.motivational-program-back {
+  align-self: flex-start;
+}
+
+.motivational-program-hero {
+  display: grid;
+  grid-template-columns: minmax(140px, 200px) minmax(0, 1fr);
+  gap: clamp(16px, 2.5vw, 28px);
+  align-items: start;
+}
+
+.motivational-program-cover .art-frame,
+.motivational-program-cover .art-frame--square {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 14px;
+}
+
+.motivational-program-hero-copy h1 {
+  margin: 0;
+  font-size: clamp(1.5rem, 2.8vw, 2.2rem);
+}
+
+.motivational-program-subtitle {
+  margin: 8px 0 0;
+  color: rgba(245, 243, 250, 0.62);
+}
+
+.motivational-program-description {
+  margin: 12px 0 0;
+  max-width: 72ch;
+  line-height: 1.55;
+  color: rgba(245, 243, 250, 0.58);
+}
+
+.motivational-program-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.motivational-program-meta span {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(245, 243, 250, 0.55);
+}
+
+.motivational-program-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.motivational-session-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.motivational-session-row {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.motivational-session-row.is-active {
+  border-color: rgba(251, 191, 36, 0.35);
+  background: rgba(251, 191, 36, 0.06);
+}
+
+.motivational-session-row-art .art-frame,
+.motivational-session-row-art .art-frame--square {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+}
+
+.motivational-session-row-copy h3 {
+  margin: 0;
+  font-size: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.motivational-session-row-copy p {
+  margin: 4px 0 0;
+  font-size: 13px;
+}
+
+.motivational-session-row-copy span {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: rgba(245, 243, 250, 0.48);
+}
+
+.motivational-session-description {
+  margin-top: 4px !important;
+  font-size: 11px !important;
+  color: rgba(245, 243, 250, 0.42) !important;
+}
+
+.motivational-session-badge {
+  padding: 2px 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  background: rgba(251, 191, 36, 0.15);
+  color: rgba(251, 191, 36, 0.92);
+}
+
+.motivational-session-progress {
+  margin-top: 6px;
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.motivational-session-progress span {
+  display: block;
+  height: 100%;
+  background: rgba(251, 191, 36, 0.85);
+}
+
+.motivational-session-row-play {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 0;
+  background: rgba(12, 10, 18, 0.82);
+  color: #fff;
+  cursor: pointer;
+}
+
+@media (max-width: 1266px) {
+  .motivational-program-hero {
+    grid-template-columns: minmax(120px, 160px) minmax(0, 1fr);
+  }
+
+  .motivationals-hero-feature {
+    grid-template-columns: minmax(80px, 96px) minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .motivational-program-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .motivational-program-cover {
     max-width: 180px;
   }
 }
