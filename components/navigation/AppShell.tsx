@@ -27,6 +27,8 @@ import {
   subscribeNowPlaying,
 } from "../../utils/nowPlayingStore";
 import { navigatePrimaryDestination } from "../../utils/primaryNavigation";
+import { useLocalization } from "../../localization";
+import { getNavigationLabelKey } from "../../localization/navigationLabels";
 
 const MINI_PLAYER_ROUTES = [
   "/music-feed",
@@ -87,6 +89,7 @@ export default function AppShell({
   style?: StyleProp<ViewStyle>;
 }) {
   const pathname = usePathname();
+  const { t } = useLocalization();
   const insets = useSafeAreaInsets();
   const navTapGuardRef = useRef(createKeyedTapGuard(360));
   const nowPlaying = useSyncExternalStore(
@@ -107,9 +110,10 @@ export default function AppShell({
     () =>
       MOBILE_BOTTOM_NAV_ITEMS.map((item) => ({
         ...item,
+        label: t(getNavigationLabelKey(item.id)),
         active: isActiveRoute(pathname, item),
       })),
-    [pathname]
+    [pathname, t]
   );
 
   return (
@@ -138,7 +142,7 @@ export default function AppShell({
           <View style={styles.navBar}>
             {items.map((item) => (
               <Pressable
-                key={item.label}
+                key={item.id}
                 accessibilityRole="button"
                 accessibilityLabel={`${item.label} tab`}
                 onPress={() => {

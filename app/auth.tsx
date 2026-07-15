@@ -15,9 +15,11 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 
 import { COLORS, GRADIENTS } from "../constants/theme";
+import { useLocalization } from "../localization";
 
 export default function AuthScreen() {
   const [mode, setMode] = useState<"login" | "signup">("login");
+  const { t } = useLocalization();
 
   return (
     <LinearGradient colors={GRADIENTS.main} style={styles.container}>
@@ -35,24 +37,22 @@ export default function AuthScreen() {
             style={styles.logo}
             resizeMode="contain"
           />
-          <Text style={styles.brand}>Hidden Tunes</Text>
+          <Text style={styles.brand}>{t("profile.heroName")}</Text>
         </View>
 
         <View style={styles.card}>
           <Text style={styles.title}>
-            {mode === "login" ? "Welcome back" : "Create account"}
+            {mode === "login" ? t("auth.welcomeBack") : t("auth.createAccount")}
           </Text>
 
           <Text style={styles.subtitle}>
-            {mode === "login"
-              ? "Sign in to continue your listening world."
-              : "Join Hidden Tunes and save your music journey."}
+            {mode === "login" ? t("auth.loginSubtitle") : t("auth.signupSubtitle")}
           </Text>
 
           <View style={styles.inputBox}>
             <Ionicons name="mail-outline" size={20} color={COLORS.textMuted} />
             <TextInput
-              placeholder="Email address"
+              placeholder={t("auth.emailPlaceholder")}
               placeholderTextColor={COLORS.textMuted}
               style={styles.input}
               keyboardType="email-address"
@@ -63,7 +63,7 @@ export default function AuthScreen() {
           <View style={styles.inputBox}>
             <Ionicons name="lock-closed-outline" size={20} color={COLORS.textMuted} />
             <TextInput
-              placeholder="Password"
+              placeholder={t("auth.passwordPlaceholder")}
               placeholderTextColor={COLORS.textMuted}
               style={styles.input}
               secureTextEntry
@@ -74,7 +74,7 @@ export default function AuthScreen() {
             <View style={styles.inputBox}>
               <Ionicons name="person-outline" size={20} color={COLORS.textMuted} />
               <TextInput
-                placeholder="Display name"
+                placeholder={t("auth.displayNamePlaceholder")}
                 placeholderTextColor={COLORS.textMuted}
                 style={styles.input}
               />
@@ -87,7 +87,7 @@ export default function AuthScreen() {
             onPress={() => router.replace("/music-feed")}
           >
             <Text style={styles.mainButtonText}>
-              {mode === "login" ? "Sign In" : "Create Account"}
+              {mode === "login" ? t("auth.signIn") : t("auth.createAccountButton")}
             </Text>
           </TouchableOpacity>
 
@@ -96,9 +96,7 @@ export default function AuthScreen() {
             onPress={() => setMode(mode === "login" ? "signup" : "login")}
           >
             <Text style={styles.switchText}>
-              {mode === "login"
-                ? "New here? Create an account"
-                : "Already have an account? Sign in"}
+              {mode === "login" ? t("auth.switchToSignup") : t("auth.switchToLogin")}
             </Text>
           </TouchableOpacity>
         </View>
