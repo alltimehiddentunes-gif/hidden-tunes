@@ -6899,6 +6899,7 @@ function CatalogDetailRouter({
         seriesId={selectedLectureSeriesId}
         onBack={onBack}
         onPlayLectureSession={onPlayLectureSession ?? (() => {})}
+        onOpenSeries={onOpenLectureSeries}
         ArtworkImage={ArtworkImage}
       />
     )
