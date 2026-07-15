@@ -145,6 +145,10 @@ import { PodcastShowPage } from './components/podcasts/PodcastShowPage'
 import { AudiobooksPage } from './components/audiobooks/AudiobooksPage'
 import { AudiobookBookPage } from './components/audiobooks/AudiobookBookPage'
 import { MusicHomePage } from './components/home/MusicHomePage'
+import { GlobalTopNav } from './components/music/GlobalTopNav'
+import { MusicWorkspace } from './components/music/MusicWorkspace'
+import type { MusicSectionId } from './lib/music/types'
+import type { GlobalNavKey } from './lib/music/navTypes'
 import {
   EDITORIAL_PLAYLIST_SPECS,
   resolveEditorialPlaylistSpec,
@@ -1002,6 +1006,7 @@ type PageId = StoredPageId
 
 type NavKey =
   | 'home'
+  | 'music'
   | 'radio'
   | 'podcasts'
   | 'audiobooks'
@@ -1020,6 +1025,7 @@ type NavKey =
 
 const PSD_DESTINATION_NAV_KEYS: NavKey[] = [
   'home',
+  'music',
   'radio',
   'podcasts',
   'audiobooks',
@@ -1038,6 +1044,7 @@ const PSD_DESTINATION_NAV_KEYS: NavKey[] = [
 
 const TOP_BAR_PLACEHOLDERS: Partial<Record<NavKey, string>> = {
   home: 'Search songs, artists, moods…',
+  music: 'Search songs, artists, albums…',
   radio: 'Search stations, genres, countries…',
   podcasts: 'Search podcasts, episodes, categories…',
   audiobooks: 'Search audiobooks, authors, narrators…',
@@ -1121,6 +1128,19 @@ const SIDEBAR_PRIMARY_NAV: SidebarNavItem[] = [
       <SidebarNavIcon>
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
           <path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1V9.5z" />
+        </svg>
+      </SidebarNavIcon>
+    ),
+  },
+  {
+    key: 'music',
+    navKey: 'music',
+    page: 'music',
+    label: 'Music',
+    icon: (
+      <SidebarNavIcon>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 3v10.55A4 4 0 1014 17V7h4V3h-6z" />
         </svg>
       </SidebarNavIcon>
     ),
@@ -2670,6 +2690,57 @@ function HomePage({
 void Hero
 void PopularWorldsSection
 void CatalogSection
+
+function MusicPage({
+  musicSection,
+  onMusicSectionChange,
+  onOpenSong,
+  onOpenArtist,
+  onOpenAlbum,
+  onBrowseSearch,
+  onOpenSettings,
+}: {
+  musicSection: MusicSectionId
+  onMusicSectionChange: (section: MusicSectionId) => void
+  onOpenSong: QueueSongHandler
+  onOpenArtist: (artist: ApiArtist) => void
+  onOpenAlbum: (album: ApiAlbum) => void
+  onBrowseSearch: (query: string) => void
+  onOpenSettings: () => void
+}) {
+  const {
+    songs,
+    albums,
+    artists,
+    indexes,
+    showCatalogSkeleton,
+    showCatalogError,
+    error,
+    retry,
+  } = useCatalog()
+
+  return (
+    <div className="music-destination">
+      <MusicWorkspace
+        musicSection={musicSection}
+        onMusicSectionChange={onMusicSectionChange}
+        songs={songs}
+        albums={albums}
+        artists={artists}
+        indexes={indexes}
+        showCatalogSkeleton={showCatalogSkeleton}
+        showCatalogError={showCatalogError}
+        error={error}
+        retry={retry}
+        onOpenSong={onOpenSong}
+        onOpenArtist={onOpenArtist}
+        onOpenAlbum={onOpenAlbum}
+        onBrowseSearch={onBrowseSearch}
+        onOpenSettings={onOpenSettings}
+      />
+    </div>
+  )
+}
 
 const SEARCH_SONG_PREVIEW_LIMIT = 5
 const SEARCH_SONG_EXPANDED_LIMIT = 24
@@ -6535,6 +6606,8 @@ function CatalogDetailRouter({
   onOpenAudiobookBook,
   onPlayPodcastEpisode,
   onPlayAudiobookChapter,
+  musicSection = 'discover',
+  onMusicSectionChange,
 }: {
   activeView: ActiveView
   selectedSong: ApiSong | null
@@ -6593,6 +6666,8 @@ function CatalogDetailRouter({
     startIndex: number,
     queueTitle: string,
   ) => void
+  musicSection?: MusicSectionId
+  onMusicSectionChange?: (section: MusicSectionId) => void
 }) {
   if (activeView === 'song' && selectedSong) {
     return (
@@ -6688,6 +6763,8 @@ function CatalogDetailRouter({
       onOpenAudiobookBook={onOpenAudiobookBook}
       onPlayPodcastEpisode={onPlayPodcastEpisode}
       onPlayAudiobookChapter={onPlayAudiobookChapter}
+      musicSection={musicSection}
+      onMusicSectionChange={onMusicSectionChange}
     />
   )
 }
@@ -6721,6 +6798,8 @@ function PageContent({
   onOpenAudiobookBook,
   onPlayPodcastEpisode,
   onPlayAudiobookChapter,
+  musicSection = 'discover',
+  onMusicSectionChange,
 }: {
   page: PageId
   activeNavKey: NavKey
@@ -6769,6 +6848,8 @@ function PageContent({
     startIndex: number,
     queueTitle: string,
   ) => void
+  musicSection?: MusicSectionId
+  onMusicSectionChange?: (section: MusicSectionId) => void
 }) {
   void _onOpenMood
   void onPlaylistBack
@@ -6791,6 +6872,21 @@ function PageContent({
             setDiscoverQuery(query)
             onNavigateNav('search')
           }}
+        />
+      )
+    case 'music':
+      return (
+        <MusicPage
+          musicSection={musicSection}
+          onMusicSectionChange={onMusicSectionChange ?? (() => undefined)}
+          onOpenSong={onOpenSong}
+          onOpenArtist={onOpenArtist}
+          onOpenAlbum={onOpenAlbum}
+          onBrowseSearch={(query) => {
+            setDiscoverQuery(query)
+            onNavigateNav('search')
+          }}
+          onOpenSettings={() => onNavigateNav('settings')}
         />
       )
     case 'radio':
@@ -6957,6 +7053,7 @@ function AppShell() {
     '',
     parseStoredSearchTerm,
   )
+  const [musicSection, setMusicSection] = useState<MusicSectionId>('discover')
 
   const anyPlayerOverlayOpen =
     anyPlayerShellVisible
@@ -7211,8 +7308,16 @@ function AppShell() {
     const page = resolvePageFromNavKey(navKey)
     setActivePage(page)
     setActiveNavKey(navKey)
+    if (navKey === 'music') {
+      setMusicSection('discover')
+    }
     backToPage()
   }, [backToPage, cancelAutoOpenPlayer, setActivePage])
+
+  const handleGlobalNav = useCallback((navKey: GlobalNavKey) => {
+    if (navKey === 'motivationals' || navKey === 'lectures') return
+    navigateNav(navKey as NavKey)
+  }, [navigateNav])
 
   const navigatePage = useCallback((page: PageId, navKey?: NavKey) => {
     cancelAutoOpenPlayer()
@@ -7228,8 +7333,10 @@ function AppShell() {
 
   return (
     <>
-      <div className="app-shell">
-        <Sidebar activeNavKey={activeNavKey} onNavigateNav={navigateNav} />
+      <div className={`app-shell${activeNavKey === 'music' && activeView === 'page' ? ' app-shell--music' : ''}`}>
+        {activeNavKey !== 'music' || activeView !== 'page' ? (
+          <Sidebar activeNavKey={activeNavKey} onNavigateNav={navigateNav} />
+        ) : null}
         <div className="main-area">
           <div
             className="main-composition"
@@ -7239,6 +7346,8 @@ function AppShell() {
               className={`main-scroll${
                 activeNavKey === 'home' && activeView === 'page' ? ' main-scroll--home' : ''
               }${
+                activeNavKey === 'music' && activeView === 'page' ? ' main-scroll--music' : ''
+              }${
                 activeNavKey === 'worlds' && activeView === 'page' ? ' main-scroll--mood' : ''
               }${
                 isPsdDestinationNav(activeNavKey) && activeView === 'page' ? ' main-scroll--psd' : ''
@@ -7247,16 +7356,23 @@ function AppShell() {
               }`}
             >
               {isPsdDestinationNav(activeNavKey) && activeView === 'page' ? (
+                <GlobalTopNav activeNavKey={activeNavKey} onNavigateNav={handleGlobalNav} />
+              ) : null}
+              {isPsdDestinationNav(activeNavKey) && activeView === 'page' ? (
                 <HomeTopBar
                   placeholder={TOP_BAR_PLACEHOLDERS[activeNavKey]}
                   onOpenDiscover={() => navigatePage('discover', 'search')}
                   onSearchSubmit={(query) => {
-                    if (activeNavKey === 'home' && query) {
+                    if ((activeNavKey === 'home' || activeNavKey === 'music') && query) {
                       setDiscoverQuery(query)
+                    }
+                    if (activeNavKey === 'music' && query) {
+                      navigatePage('discover', 'search')
                     }
                   }}
                   variant={
                     activeNavKey === 'search'
+                      || activeNavKey === 'music'
                       || activeNavKey === 'albums'
                       || activeNavKey === 'liked'
                       || activeNavKey === 'library'
@@ -7273,7 +7389,9 @@ function AppShell() {
                   searchValue={
                     activeNavKey === 'search'
                       ? discoverQuery
-                      : activeNavKey === 'albums'
+                      : activeNavKey === 'music'
+                        ? discoverQuery
+                        : activeNavKey === 'albums'
                         ? albumsQuery
                         : activeNavKey === 'liked'
                           ? likedQuery
@@ -7298,7 +7416,9 @@ function AppShell() {
                   onSearchChange={
                     activeNavKey === 'search'
                       ? setDiscoverQuery
-                      : activeNavKey === 'albums'
+                      : activeNavKey === 'music'
+                        ? setDiscoverQuery
+                        : activeNavKey === 'albums'
                         ? setAlbumsQuery
                         : activeNavKey === 'liked'
                           ? setLikedQuery
@@ -7364,6 +7484,8 @@ function AppShell() {
                   onPlayTvChannel={playTvChannel}
                   onPlayPodcastEpisode={playPodcastEpisode}
                   onPlayAudiobookChapter={playAudiobookChapter}
+                  musicSection={musicSection}
+                  onMusicSectionChange={setMusicSection}
                 />
               </div>
             </main>

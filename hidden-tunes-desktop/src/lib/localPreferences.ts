@@ -35,6 +35,7 @@ const ALL_PREFERENCE_KEYS = Object.values(DESKTOP_PREFERENCE_KEYS)
 
 const PAGE_IDS = [
   'home',
+  'music',
   'radio',
   'podcasts',
   'discover',
