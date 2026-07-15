@@ -8,6 +8,7 @@ import {
   PODCAST_EXPANSION_TARGET_STANDARD,
 } from "@/lib/podcastExpansionConstants";
 import { getPodcastMassExpansionCounts } from "@/lib/podcastMassExpansionStatus";
+import type { PodcastCatalogKind } from "@/lib/podcastSourceRegistry";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const adminRoot = path.resolve(scriptDir, "..");
@@ -50,6 +51,11 @@ async function main() {
   const batchSize = Number(readArg("batch-size") || 750);
   const maxBatches = Number(readArg("max-batches") || 10_000);
   const source = readArg("source");
+  const catalogArg = readArg("catalog");
+  const catalog =
+    catalogArg === "mature" || catalogArg === "standard"
+      ? (catalogArg as PodcastCatalogKind)
+      : undefined;
   const dryRun = hasFlag("dry-run");
   const resume = hasFlag("resume") || !hasFlag("no-resume");
   const loop = hasFlag("loop") || maxBatches > 1;
@@ -70,6 +76,7 @@ async function main() {
         max_batches: maxBatches,
         batch_size: batchSize,
         source: source || "auto",
+        catalog: catalog || "auto",
       },
       null,
       2
@@ -83,6 +90,7 @@ async function main() {
         batch_size: batchSize,
         max_batches: maxBatches,
         source: source || undefined,
+        catalog,
         resume,
         dry_run: dryRun,
         admin_root: adminRoot,
@@ -94,6 +102,7 @@ async function main() {
             target_mature: targetMature,
             batch_size: batchSize,
             source: source || undefined,
+            catalog,
             resume,
             dry_run: dryRun,
             admin_root: adminRoot,

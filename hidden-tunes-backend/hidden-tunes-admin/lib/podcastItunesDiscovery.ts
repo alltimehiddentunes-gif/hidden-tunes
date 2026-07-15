@@ -114,6 +114,7 @@ export async function discoverPodcastFeedsFromItunes(options?: {
   batch?: number;
   query?: string;
   language?: string;
+  country?: string;
 }) {
   const target = Math.max(1, Number(options?.limit || 120));
   const perQuery = Math.min(200, Math.max(5, Number(options?.per_query || 100)));
@@ -136,8 +137,8 @@ export async function discoverPodcastFeedsFromItunes(options?: {
       url.searchParams.set("entity", "podcast");
       url.searchParams.set("limit", String(perQuery));
       if (offset > 0) url.searchParams.set("offset", String(offset));
-      if (options?.language) {
-        url.searchParams.set("country", options.language.slice(0, 2).toUpperCase());
+      if (options?.country) {
+        url.searchParams.set("country", options.country.toUpperCase());
       }
 
       const response = await fetch(url.toString(), {
@@ -183,6 +184,7 @@ export async function discoverMaturePodcastFeedsFromItunes(options?: {
   offsets?: number[];
   query?: string;
   language?: string;
+  country?: string;
 }) {
   const target = Math.max(1, Number(options?.limit || 120));
   const perQuery = Math.min(200, Math.max(5, Number(options?.per_query || 100)));
@@ -208,8 +210,8 @@ export async function discoverMaturePodcastFeedsFromItunes(options?: {
       url.searchParams.set("entity", "podcast");
       url.searchParams.set("limit", String(perQuery));
       if (offset > 0) url.searchParams.set("offset", String(offset));
-      if (options?.language) {
-        url.searchParams.set("country", options.language.slice(0, 2).toUpperCase());
+      if (options?.country) {
+        url.searchParams.set("country", options.country.toUpperCase());
       }
 
       const response = await fetch(url.toString(), {

@@ -11,11 +11,13 @@ import type { PodcastCatalogKind, PodcastSourceRegistryEntry } from "@/lib/podca
 import {
   formatSourceCursor,
   parseSourceCursor,
+  PODCAST_EXPANSION_ITUNES_COUNTRIES,
   PODCAST_EXPANSION_LANGUAGES,
   PODCAST_MATURE_INDEX_QUERIES,
   PODCAST_MATURE_ITUNES_QUERIES,
   PODCAST_STANDARD_INDEX_QUERIES,
   PODCAST_STANDARD_ITUNES_QUERIES,
+  resolveItunesCountryForIndex,
 } from "@/lib/podcastSourceRegistry";
 
 export type PodcastDiscoveryResult = {
@@ -24,6 +26,7 @@ export type PodcastDiscoveryResult = {
   exhausted: boolean;
   query_used: string | null;
   language_used: string | null;
+  country_used: string | null;
 };
 
 function queriesForSource(source: PodcastSourceRegistryEntry) {
@@ -44,7 +47,7 @@ async function discoverFromItunes(
   const queries = queriesForSource(source);
   const cursor = parseSourceCursor(source.checkpoint_cursor || "0:0:0");
   const query = queries[cursor.queryIndex % queries.length] || queries[0];
-  const language = PODCAST_EXPANSION_LANGUAGES[cursor.languageIndex % PODCAST_EXPANSION_LANGUAGES.length];
+  const country = resolveItunesCountryForIndex(cursor.languageIndex);
 
   const discover =
     source.catalog === "mature"
@@ -56,7 +59,7 @@ async function discoverFromItunes(
     per_query: 100,
     offsets: [cursor.offset, cursor.offset + 100, cursor.offset + 200],
     query,
-    language,
+    country,
   });
 
   let nextQueryIndex = cursor.queryIndex;
@@ -70,7 +73,7 @@ async function discoverFromItunes(
     if (nextQueryIndex >= queries.length) {
       nextQueryIndex = 0;
       nextLanguageIndex += 1;
-      if (nextLanguageIndex >= PODCAST_EXPANSION_LANGUAGES.length) {
+      if (nextLanguageIndex >= PODCAST_EXPANSION_ITUNES_COUNTRIES.length) {
         exhausted = true;
       }
     }
@@ -85,7 +88,8 @@ async function discoverFromItunes(
     }),
     exhausted,
     query_used: query,
-    language_used: language,
+    language_used: null,
+    country_used: country,
   };
 }
 
@@ -133,6 +137,7 @@ async function discoverFromPodcastIndexByTerm(
     exhausted,
     query_used: query,
     language_used: language,
+    country_used: null,
   };
 }
 
@@ -156,6 +161,7 @@ async function discoverFromPodcastIndexRecent(
     exhausted: feeds.length === 0 && since > 0,
     query_used: "recent",
     language_used: null,
+    country_used: null,
   };
 }
 

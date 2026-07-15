@@ -47,6 +47,102 @@ export const PODCAST_EXPANSION_LANGUAGES = [
   "he",
 ] as const;
 
+/** Valid iTunes Search API storefront country codes for worldwide podcast discovery. */
+export const PODCAST_EXPANSION_ITUNES_COUNTRIES = [
+  // North America
+  "US",
+  "CA",
+  "MX",
+  // Caribbean / Central America
+  "JM",
+  "TT",
+  "CR",
+  "PA",
+  // South America
+  "BR",
+  "AR",
+  "CL",
+  "CO",
+  "PE",
+  "VE",
+  "EC",
+  "UY",
+  // Western Europe
+  "GB",
+  "IE",
+  "FR",
+  "DE",
+  "ES",
+  "PT",
+  "IT",
+  "NL",
+  "BE",
+  "AT",
+  "CH",
+  // Nordic
+  "SE",
+  "NO",
+  "DK",
+  "FI",
+  "IS",
+  // Eastern Europe
+  "PL",
+  "CZ",
+  "HU",
+  "RO",
+  "BG",
+  "UA",
+  "RU",
+  // Balkans
+  "GR",
+  "TR",
+  "HR",
+  "RS",
+  "SI",
+  // Middle East
+  "AE",
+  "SA",
+  "IL",
+  "JO",
+  "EG",
+  // Africa
+  "ZA",
+  "NG",
+  "KE",
+  "GH",
+  "MA",
+  // South Asia
+  "IN",
+  "PK",
+  "BD",
+  "LK",
+  // Southeast Asia
+  "ID",
+  "MY",
+  "SG",
+  "TH",
+  "VN",
+  "PH",
+  // East Asia
+  "JP",
+  "KR",
+  "TW",
+  "HK",
+  // Oceania
+  "AU",
+  "NZ",
+] as const;
+
+export type PodcastExpansionItunesCountry =
+  (typeof PODCAST_EXPANSION_ITUNES_COUNTRIES)[number];
+
+export function resolveItunesCountryForIndex(index: number): PodcastExpansionItunesCountry {
+  const normalized = Math.max(0, index);
+  return PODCAST_EXPANSION_ITUNES_COUNTRIES[
+    normalized % PODCAST_EXPANSION_ITUNES_COUNTRIES.length
+  ];
+}
+
 export const PODCAST_STANDARD_ITUNES_QUERIES = [
   "music podcast",
   "news podcast",
