@@ -159,8 +159,14 @@ export function classifyVerificationFailure(rawReason: string): {
   if (lower.includes("http_or_insecure") || lower.includes("insecure")) {
     return { reason: "unsupported_protocol", class: "terminal" };
   }
-  if (lower.includes("probe_failed") || lower.includes("manifest") && lower.includes("fail")) {
+  if (lower.includes("probe_failed") || (lower.includes("manifest") && lower.includes("fail"))) {
     return { reason: "invalid_hls_manifest", class: "terminal" };
+  }
+  if (lower.includes("fetch failed") || lower.includes("network") || lower.includes("econnrefused")) {
+    return { reason: "connection_reset", class: "retryable" };
+  }
+  if (lower.includes("youtube") && lower.includes("fail")) {
+    return { reason: "html_instead_of_media", class: "terminal" };
   }
   if (lower.includes("probe_passed")) {
     return { reason: "unknown_failure", class: "verifier_suspect" };

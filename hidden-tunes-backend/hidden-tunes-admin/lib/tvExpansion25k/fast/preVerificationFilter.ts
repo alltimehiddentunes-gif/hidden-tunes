@@ -13,6 +13,7 @@ export type PreVerificationRejectReason =
   | "drm_scheme"
   | "audio_only_file"
   | "static_media_file"
+  | "page_platform_url"
   | "missing_identity";
 
 const PLACEHOLDER_HOSTS = new Set([
@@ -24,6 +25,22 @@ const PLACEHOLDER_HOSTS = new Set([
   "0.0.0.0",
   "test",
   "invalid",
+]);
+
+/** Page hosts that are not direct HLS unless source_type is youtube_video. */
+const PAGE_PLATFORM_HOSTS = new Set([
+  "www.youtube.com",
+  "youtube.com",
+  "m.youtube.com",
+  "youtu.be",
+  "www.twitch.tv",
+  "twitch.tv",
+  "www.dailymotion.com",
+  "dailymotion.com",
+  "www.facebook.com",
+  "facebook.com",
+  "www.instagram.com",
+  "instagram.com",
 ]);
 
 const DEAD_MARKERS = /\/(?:offline|removed|deleted|disabled|dead|placeholder)(?:\/|$|\?)/i;
@@ -56,6 +73,15 @@ export function preVerificationRejectReason(
   if (PLACEHOLDER_HOSTS.has(host) || host.endsWith(".example.com")) return "placeholder_domain";
   if (host === "example.org" || host.endsWith(".example.org")) return "example_domain";
   if (host === "example.net" || host.endsWith(".example.net")) return "example_domain";
+
+  const sourceType = String(candidate.source_type || "").toLowerCase();
+  if (
+    PAGE_PLATFORM_HOSTS.has(host) &&
+    !sourceType.startsWith("youtube") &&
+    !/\.m3u8(?:\?|$)/i.test(parsed.pathname)
+  ) {
+    return "page_platform_url";
+  }
 
   if (LOGIN_MARKERS.test(parsed.pathname) || LOGIN_MARKERS.test(rawUrl)) return "login_url";
   if (PAYMENT_MARKERS.test(parsed.pathname) || PAYMENT_MARKERS.test(rawUrl)) return "payment_url";

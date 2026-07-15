@@ -139,7 +139,14 @@ async function verifyCandidate(
 
     const durationMs = Date.now() - started;
     if (!probe.playable) {
-      const reason = probe.reason || probe.last_validation_result || "unknown_failure";
+      const reason =
+        (probe.last_validation_result &&
+        probe.last_validation_result !== "platform_playable" &&
+        probe.reason === "probe_passed"
+          ? probe.last_validation_result
+          : probe.reason) ||
+        probe.last_validation_result ||
+        "unknown_failure";
       diagnostics.recordFailure(reason, urlCheck.url, candidate.country || candidate.region, durationMs);
       sourceDiagnostics.recordFailure(reason, urlCheck.url, candidate.country || candidate.region, durationMs);
       return { ok: false as const, candidate, reason: probe.reason };

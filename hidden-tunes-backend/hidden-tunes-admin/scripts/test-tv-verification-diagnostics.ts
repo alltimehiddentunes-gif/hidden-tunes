@@ -11,6 +11,8 @@ function testFailureClassification() {
   assert.equal(classifyVerificationFailure("http_429").class, "retryable");
   assert.equal(classifyVerificationFailure("too_many_redirects").reason, "too_many_redirects");
   assert.equal(classifyVerificationFailure("unsupported_payload").reason, "html_instead_of_media");
+  assert.equal(classifyVerificationFailure("fetch failed").reason, "connection_reset");
+  assert.equal(classifyVerificationFailure("fetch failed").class, "retryable");
 }
 
 function testPreVerificationRejectsPlaceholder() {
@@ -52,9 +54,31 @@ function testPreVerificationFilterBatch() {
   assert.equal(result.rejected, 1);
 }
 
+function testPreVerificationRejectsPagePlatform() {
+  assert.equal(
+    preVerificationRejectReason({
+      source_type: "hls_stream",
+      source_id: "yt",
+      source_url: "https://www.youtube.com/watch?v=abc123",
+      title: "YouTube page",
+    }),
+    "page_platform_url"
+  );
+  assert.equal(
+    preVerificationRejectReason({
+      source_type: "youtube_video",
+      source_id: "abc123",
+      source_url: "https://www.youtube.com/watch?v=abc123",
+      title: "YouTube official",
+    }),
+    null
+  );
+}
+
 testFailureClassification();
 testPreVerificationRejectsPlaceholder();
 testPreVerificationAllowsHls();
 testPreVerificationFilterBatch();
+testPreVerificationRejectsPagePlatform();
 
-console.log(JSON.stringify({ ok: true, tests: 4 }, null, 2));
+console.log(JSON.stringify({ ok: true, tests: 5 }, null, 2));
