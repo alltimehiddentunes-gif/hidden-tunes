@@ -12,9 +12,14 @@ import type { AlbumSort, ArtistSort, SongSort } from './api'
 
 const STORAGE_PREFIX = 'ht-desktop:'
 
+export const AUDIOBOOK_PLAYBACK_RATES = [0.75, 1, 1.25, 1.5, 1.75, 2] as const
+
+export type AudiobookPlaybackRate = (typeof AUDIOBOOK_PLAYBACK_RATES)[number]
+
 export const DESKTOP_PREFERENCE_KEYS = {
   activePage: 'active-page',
   audioQualityMode: 'audio-quality-mode',
+  audiobookPlaybackRate: 'audiobook-playback-rate',
   atmosphereEnabled: 'atmosphere-enabled',
   atmosphereId: 'atmosphere-id',
   atmosphereIntensity: 'atmosphere-intensity',
@@ -38,6 +43,7 @@ const PAGE_IDS = [
   'artists',
   'albums',
   'playlists',
+  'audiobooks',
   'tv',
   'settings',
 ] as const
@@ -124,6 +130,15 @@ export function parseStoredAudioQualityMode(
   return typeof value === 'string' &&
     AUDIO_QUALITY_MODES.includes(value as AudioQualityMode)
     ? (value as AudioQualityMode)
+    : null
+}
+
+export function parseStoredAudiobookPlaybackRate(
+  value: unknown,
+): AudiobookPlaybackRate | null {
+  const numeric = typeof value === 'number' ? value : Number(value)
+  return AUDIOBOOK_PLAYBACK_RATES.includes(numeric as AudiobookPlaybackRate)
+    ? (numeric as AudiobookPlaybackRate)
     : null
 }
 

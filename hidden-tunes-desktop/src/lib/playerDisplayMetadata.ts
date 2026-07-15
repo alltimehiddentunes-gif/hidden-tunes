@@ -6,6 +6,7 @@ import {
   type PlayableUrlInput,
 } from './audioVersions'
 import { isPodcastQueueSong } from './podcasts/podcastPlaybackAdapter'
+import { isAudiobookQueueSong } from './audiobooks/audiobookPlaybackAdapter'
 import { isRadioQueueSong } from './radio/radioPlaybackAdapter'
 import type { AudioQualityMode } from './localPreferences'
 
@@ -41,9 +42,29 @@ export function resolvePlayerTitle(track: ApiSong | null | undefined): string {
   return normalizeText(track.title) ?? PLAYER_UNKNOWN_TITLE
 }
 
+function resolveAudiobookNarrator(track: ApiSong): string | null {
+  const tag = track.tags.find((entry) => entry.startsWith('narrator:'))
+  if (!tag) return null
+  return tag.slice('narrator:'.length).trim() || null
+}
+
 export function resolvePlayerArtist(track: ApiSong | null | undefined): string {
   if (!track) return PLAYER_IDLE_ARTIST
+  if (isAudiobookQueueSong(track)) {
+    const bookTitle = normalizeText(track.album)
+    if (bookTitle) return bookTitle
+  }
   return normalizeText(track.artist) ?? PLAYER_UNKNOWN_ARTIST
+}
+
+export function resolvePlayerSubtitle(track: ApiSong | null | undefined): string | null {
+  if (!track || !isAudiobookQueueSong(track)) return null
+  const author = normalizeText(track.artist)
+  const narrator = resolveAudiobookNarrator(track)
+  if (author && narrator && author !== narrator) {
+    return `${author} · Narrated by ${narrator}`
+  }
+  return author ?? (narrator ? `Narrated by ${narrator}` : null)
 }
 
 export function resolvePlayerAlbum(
@@ -79,6 +100,7 @@ export function resolvePlayerQualityLabel(
   if (!isActive) return null
 
   if (track && isPodcastQueueSong(track as ApiSong)) return 'Podcast'
+  if (track && isAudiobookQueueSong(track as ApiSong)) return 'Audiobook'
   if (track && isRadioQueueSong(track as ApiSong)) return 'Live'
 
   if (track) {

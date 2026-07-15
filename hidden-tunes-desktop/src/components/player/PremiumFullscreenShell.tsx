@@ -15,7 +15,9 @@ import { PlayerModeSwitcher } from '../PlayerModeSwitcher'
 import {
   AUDIO_QUALITY_MODE_LABELS,
   AUDIO_QUALITY_MODES,
+  AUDIOBOOK_PLAYBACK_RATES,
   type AudioQualityMode,
+  type AudiobookPlaybackRate,
 } from '../../lib/localPreferences'
 import type { NowPlayingStyle } from '../../lib/nowPlayingStyle'
 import { overlayPhaseDataAttr } from '../../lib/playerOverlayTransition'
@@ -88,6 +90,7 @@ export const PremiumFullscreenShell = memo(function PremiumFullscreenShell({
     qualityLabel,
     activeTrackId,
     seekTo,
+    skipRelative,
     volume,
     setVolume,
     positionSeconds,
@@ -95,6 +98,8 @@ export const PremiumFullscreenShell = memo(function PremiumFullscreenShell({
     queueTitle,
     audioQualityMode,
     setAudioQualityMode,
+    audiobookPlaybackRate,
+    setAudiobookPlaybackRate,
   } = shell
 
   const volumeTrackRef = useRef<HTMLDivElement>(null)
@@ -309,7 +314,7 @@ export const PremiumFullscreenShell = memo(function PremiumFullscreenShell({
                 aria-selected={playerTab === tab}
                 onClick={() => setPlayerTab(tab)}
               >
-                {SHELL_TABS[tab]}
+                {tab === 'queue' ? adapter.queueTabLabel : SHELL_TABS[tab]}
               </button>
             ))}
           </div>
@@ -407,6 +412,43 @@ export const PremiumFullscreenShell = memo(function PremiumFullscreenShell({
           />
 
           <div className="premium-shell-utilities" role="toolbar" aria-label="Player utilities">
+            {adapter.kind === 'audiobook' ? (
+              <>
+                <button
+                  type="button"
+                  className="premium-shell-utility"
+                  aria-label="Rewind 30 seconds"
+                  onClick={() => skipRelative(-30)}
+                  disabled={!isActive}
+                >
+                  −30s
+                </button>
+                <button
+                  type="button"
+                  className="premium-shell-utility"
+                  aria-label="Forward 30 seconds"
+                  onClick={() => skipRelative(30)}
+                  disabled={!isActive}
+                >
+                  +30s
+                </button>
+                <select
+                  className="audio-quality-select premium-shell-quality-select premium-shell-speed-select"
+                  value={audiobookPlaybackRate}
+                  onChange={(event) =>
+                    setAudiobookPlaybackRate(Number(event.target.value) as AudiobookPlaybackRate)
+                  }
+                  aria-label="Playback speed"
+                  disabled={!isActive}
+                >
+                  {AUDIOBOOK_PLAYBACK_RATES.map((rate) => (
+                    <option key={rate} value={rate}>
+                      {rate === 1 ? '1×' : `${rate}×`}
+                    </option>
+                  ))}
+                </select>
+              </>
+            ) : null}
             <PlayerModeLauncher
               hasPlayback={isActive}
               onOpenPlayerByStyle={onSwitchPlayerMode}

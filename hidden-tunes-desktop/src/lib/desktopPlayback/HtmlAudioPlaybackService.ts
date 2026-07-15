@@ -359,6 +359,17 @@ export class HtmlAudioPlaybackService {
     return clampVolume(this.audio.volume)
   }
 
+  setPlaybackRate(rate: number): void {
+    const normalized = Number.isFinite(rate) ? Math.min(3, Math.max(0.5, rate)) : 1
+    this.audio.playbackRate = normalized
+    this.audio.defaultPlaybackRate = normalized
+  }
+
+  getPlaybackRate(): number {
+    const rate = this.audio.playbackRate
+    return Number.isFinite(rate) && rate > 0 ? rate : 1
+  }
+
   stop(): void {
     this.upgradeToken += 1
     this.pauseSerial += 1
