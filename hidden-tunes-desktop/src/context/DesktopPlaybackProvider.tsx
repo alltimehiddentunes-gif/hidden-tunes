@@ -66,12 +66,20 @@ import { isMusicCatalogSong } from '../lib/home/isMusicCatalogSong'
 import {
   buildMusicProgressEntryFromSong,
   isMusicTrackCompleted,
+  MUSIC_MIN_CONTINUE_SECONDS,
   MUSIC_PROGRESS_THROTTLE_MS,
   progressEntryToHistoryEntry as musicProgressEntryToHistoryEntry,
   recordMusicHistory,
   removeMusicProgress,
   upsertMusicProgress,
 } from '../lib/home/musicProgressStorage'
+import { consumePendingMusicResumeSeconds } from '../lib/music/musicPlaybackSession'
+import {
+  bindMediaSessionActions,
+  updateMediaSessionMetadata,
+  updateMediaSessionPlaybackState,
+  updateMediaSessionPositionState,
+} from '../lib/desktopPlayback/bindMediaSession'
 import { resolveTvPlayUrl } from '../lib/tv/tvCatalogApi'
 import { acquireTvVideoPlaybackService } from '../lib/tv/tvVideoPlayback'
 import type { HtmlVideoPlaybackService } from '../lib/tv/HtmlVideoPlaybackService'
@@ -95,6 +103,7 @@ import { resolveMotivationalPlay } from '../lib/motivationals/motivationalCatalo
 import { consumePendingMotivationalResumeSeconds } from '../lib/motivationals/motivationalPlaybackSession'
 import {
   isMotivationalQueueSong,
+  isMotivationalVideoSong,
   parseMotivationalSongId,
   patchMotivationalSessionWithPlayUrl,
 } from '../lib/motivationals/motivationalPlaybackAdapter'
@@ -213,6 +222,11 @@ function playbackErrorMessage(song: ApiSong | null) {
     return 'This lecture session is currently unavailable.'
   }
   return 'Unable to play this track.'
+}
+
+/** TV, lecture video, and motivational video share the single video element path. */
+function usesDesktopVideoPath(song: ApiSong | null | undefined) {
+  return isTvQueueSong(song) || isLectureVideoSong(song) || isMotivationalVideoSong(song)
 }
 
 export function useDesktopPlayback() {
@@ -545,11 +559,15 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       const track = currentTrackRef.current
       if (!track || !isMotivationalQueueSong(track)) return
 
-      const audio = getService().getAudioElement()
-      const position = audio.currentTime
+      const position = isMotivationalVideoSong(track)
+        ? getVideoService().getVideoElement().currentTime
+        : getService().getAudioElement().currentTime
+      const rawDuration = isMotivationalVideoSong(track)
+        ? getVideoService().getVideoElement().duration
+        : getService().getAudioElement().duration
       const duration =
-        Number.isFinite(audio.duration) && audio.duration > 0
-          ? audio.duration
+        Number.isFinite(rawDuration) && rawDuration > 0
+          ? rawDuration
           : durationSeconds
 
       if (!force) {
@@ -562,7 +580,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       motivationalProgressLastPositionRef.current = position
       persistMotivationalProgress(track, position, duration, { force })
     },
-    [durationSeconds, getService, persistMotivationalProgress],
+    [durationSeconds, getService, getVideoService, persistMotivationalProgress],
   )
 
   const persistLectureProgress = useCallback(
@@ -732,7 +750,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
 
   const startPlayback = useCallback(
     (song: ApiSong) => {
-      if (isTvQueueSong(song) || isLectureVideoSong(song)) {
+      if (usesDesktopVideoPath(song)) {
         stopInactiveMedia('video')
         const videoService = getVideoService()
         const streamUrl = song.audioUrl?.trim() || song.previewUrl?.trim() || ''
@@ -741,7 +759,11 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
         setCurrentTrack(song)
         setError(null)
         emitPositionSeconds(0, true)
-        setDurationSeconds(0)
+        setDurationSeconds(
+          song.durationSeconds != null && song.durationSeconds > 0
+            ? song.durationSeconds
+            : 0,
+        )
 
         if (!streamUrl.startsWith('http')) {
           videoService.releaseSource()
@@ -750,6 +772,12 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
           setError(playbackErrorMessage(song))
           return
         }
+
+        const pendingResumeSeconds = isLectureVideoSong(song)
+          ? consumePendingLectureResumeSeconds()
+          : isMotivationalVideoSong(song)
+            ? consumePendingMotivationalResumeSeconds()
+            : null
 
         videoService.setVolume(volume)
         setIsLoading(true)
@@ -764,6 +792,25 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
                 channelName: song.artist,
                 artworkUrl: song.artwork,
               })
+            }
+
+            if (pendingResumeSeconds == null) return
+
+            const video = videoService.getVideoElement()
+            const maxDuration =
+              Number.isFinite(video.duration) && video.duration > 0
+                ? video.duration
+                : song.durationSeconds ?? pendingResumeSeconds
+            const safeResume = Math.min(
+              Math.max(0, pendingResumeSeconds),
+              maxDuration > 1 ? maxDuration - 1 : pendingResumeSeconds,
+            )
+            const minContinue = isLectureVideoSong(song)
+              ? LECTURE_MIN_CONTINUE_SECONDS / 2
+              : MOTIVATIONAL_MIN_CONTINUE_SECONDS / 2
+            if (safeResume >= minContinue) {
+              video.currentTime = safeResume
+              emitPositionSeconds(safeResume, true)
             }
           })
           .catch((err) => {
@@ -860,7 +907,9 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
             ? consumePendingMotivationalResumeSeconds()
             : isLectureQueueSong(song)
               ? consumePendingLectureResumeSeconds()
-              : null
+              : isMusicCatalogSong(song)
+                ? consumePendingMusicResumeSeconds()
+                : null
 
       if (isAudiobookQueueSong(song)) {
         service.setPlaybackRate(audiobookPlaybackRateRef.current)
@@ -951,6 +1000,26 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
               maxDuration > 1 ? maxDuration - 1 : pendingResumeSeconds,
             )
             if (safeResume >= LECTURE_MIN_CONTINUE_SECONDS / 2) {
+              service.seekTo(safeResume)
+              emitPositionSeconds(safeResume, true)
+            }
+          }
+
+          if (
+            pendingResumeSeconds
+            && isMusicCatalogSong(song)
+            && currentTrackRef.current?.id === song.id
+          ) {
+            const audio = service.getAudioElement()
+            const maxDuration =
+              Number.isFinite(audio.duration) && audio.duration > 0
+                ? audio.duration
+                : song.durationSeconds ?? pendingResumeSeconds
+            const safeResume = Math.min(
+              Math.max(0, pendingResumeSeconds),
+              maxDuration > 1 ? maxDuration - 1 : pendingResumeSeconds,
+            )
+            if (safeResume >= MUSIC_MIN_CONTINUE_SECONDS / 2) {
               service.seekTo(safeResume)
               emitPositionSeconds(safeResume, true)
             }
@@ -1587,6 +1656,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       flushPodcastProgressRef.current(true)
       flushAudiobookProgressRef.current(true)
       flushMotivationalProgressRef.current(true)
+      flushLectureProgressRef.current(true)
       flushMusicProgressRef.current(true)
       if (!audio.ended && !upgradeSessionRef.current?.attempted) {
         cancelUpgradeSession('upgrade-cancelled-pause', 'playback-paused-before-upgrade')
@@ -1847,6 +1917,19 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
     const videoService = getVideoService()
     const video = videoService.getVideoElement()
 
+    const syncVideoDuration = () => {
+      if (activeMediaRef.current !== 'video') return
+      if (Number.isFinite(video.duration) && video.duration > 0) {
+        setDurationSeconds(video.duration)
+      }
+    }
+
+    const onTimeUpdate = () => {
+      if (activeMediaRef.current !== 'video') return
+      emitPositionSeconds(video.currentTime)
+      flushLectureProgressRef.current()
+      flushMotivationalProgressRef.current()
+    }
     const onPlay = () => {
       if (activeMediaRef.current !== 'video') return
       setIsPlaying(true)
@@ -1856,6 +1939,8 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
     const onPause = () => {
       if (activeMediaRef.current !== 'video') return
       setIsPlaying(false)
+      flushLectureProgressRef.current(true)
+      flushMotivationalProgressRef.current(true)
     }
     const onWaiting = () => {
       if (activeMediaRef.current !== 'video') return
@@ -1864,6 +1949,64 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
     const onCanPlay = () => {
       if (activeMediaRef.current !== 'video') return
       setIsLoading(false)
+      syncVideoDuration()
+    }
+    const onLoadedMetadata = () => {
+      syncVideoDuration()
+    }
+    const onEnded = () => {
+      if (activeMediaRef.current !== 'video') return
+      const endedTrack = currentTrackRef.current
+
+      if (endedTrack && isLectureQueueSong(endedTrack)) {
+        const duration =
+          Number.isFinite(video.duration) && video.duration > 0
+            ? video.duration
+            : endedTrack.durationSeconds ?? video.currentTime
+        persistLectureProgress(endedTrack, duration, duration, {
+          force: true,
+          completed: true,
+        })
+        lectureProgressTrackIdRef.current = null
+      }
+
+      if (endedTrack && isMotivationalQueueSong(endedTrack)) {
+        const duration =
+          Number.isFinite(video.duration) && video.duration > 0
+            ? video.duration
+            : endedTrack.durationSeconds ?? video.currentTime
+        persistMotivationalProgress(endedTrack, duration, duration, {
+          force: true,
+          completed: true,
+        })
+        motivationalProgressTrackIdRef.current = null
+      }
+
+      const queue = queueRef.current
+      const currentIndexValue = queueIndexRef.current
+
+      if (repeatModeRef.current === 'one' && currentIndexValue >= 0 && queue[currentIndexValue]) {
+        playSongRef.current(queue[currentIndexValue])
+        return
+      }
+
+      const nextIndex = currentIndexValue + 1
+      if (nextIndex < queue.length) {
+        queueIndexRef.current = nextIndex
+        setCurrentIndex(nextIndex)
+        playSongRef.current(queue[nextIndex])
+        return
+      }
+
+      if (repeatModeRef.current === 'all' && queue.length > 0) {
+        queueIndexRef.current = 0
+        setCurrentIndex(0)
+        playSongRef.current(queue[0])
+        return
+      }
+
+      setIsPlaying(false)
+      emitPositionSeconds(0, true)
     }
     const onError = () => {
       if (activeMediaRef.current !== 'video') return
@@ -1880,22 +2023,28 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       setError(playbackErrorMessage(track))
     }
 
+    video.addEventListener('timeupdate', onTimeUpdate)
     video.addEventListener('play', onPlay)
     video.addEventListener('pause', onPause)
     video.addEventListener('waiting', onWaiting)
     video.addEventListener('canplay', onCanPlay)
+    video.addEventListener('loadedmetadata', onLoadedMetadata)
+    video.addEventListener('ended', onEnded)
     video.addEventListener('error', onError)
 
     return () => {
+      video.removeEventListener('timeupdate', onTimeUpdate)
       video.removeEventListener('play', onPlay)
       video.removeEventListener('pause', onPause)
       video.removeEventListener('waiting', onWaiting)
       video.removeEventListener('canplay', onCanPlay)
+      video.removeEventListener('loadedmetadata', onLoadedMetadata)
+      video.removeEventListener('ended', onEnded)
       video.removeEventListener('error', onError)
       videoService.releaseSource()
       videoService.unmount()
     }
-  }, [getVideoService])
+  }, [emitPositionSeconds, getVideoService, persistLectureProgress, persistMotivationalProgress])
 
   const playQueue = useCallback(
     (
@@ -1997,7 +2146,11 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
 
     if (track && isMotivationalQueueSong(track)) {
       if (positionSecondsRef.current > MOTIVATIONAL_PREVIOUS_RESTART_SECONDS) {
-        getService().seekTo(0)
+        if (isMotivationalVideoSong(track)) {
+          getVideoService().getVideoElement().currentTime = 0
+        } else {
+          getService().seekTo(0)
+        }
         emitPositionSeconds(0, true)
         flushMotivationalProgressRef.current(true)
         return
@@ -2037,7 +2190,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
     queueMicrotask(() => {
       extendQueueIfNeeded(queue, previousIndex)
     })
-  }, [applyQueueState, emitPositionSeconds, extendQueueIfNeeded, getService, playSong])
+  }, [applyQueueState, emitPositionSeconds, extendQueueIfNeeded, getService, getVideoService, playSong])
 
   const getUpcomingTracks = useCallback(() => {
     const nextIndex = queueIndexRef.current + 1
@@ -2124,10 +2277,16 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       return
     }
 
-    if (isTvQueueSong(currentTrack) || isLectureVideoSong(currentTrack)) {
+    if (usesDesktopVideoPath(currentTrack)) {
       const streamUrl = currentTrack.audioUrl?.trim() || currentTrack.previewUrl?.trim() || ''
       if (!streamUrl.startsWith('http')) {
-        setError(isTvQueueSong(currentTrack) ? 'Unable to play this TV channel.' : 'Unable to play this lecture video.')
+        setError(
+          isTvQueueSong(currentTrack)
+            ? 'Unable to play this TV channel.'
+            : isMotivationalVideoSong(currentTrack)
+              ? 'Unable to play this motivational video.'
+              : 'Unable to play this lecture video.',
+        )
         return
       }
       setIsLoading(true)
@@ -2139,7 +2298,9 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
           setError(
             isTvQueueSong(currentTrack)
               ? 'Unable to resume TV playback.'
-              : 'Unable to resume lecture video playback.',
+              : isMotivationalVideoSong(currentTrack)
+                ? 'Unable to resume motivational video playback.'
+                : 'Unable to resume lecture video playback.',
           )
         })
       return
@@ -2165,6 +2326,26 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
     (seconds: number) => {
       if (!currentTrack || !Number.isFinite(seconds)) return
 
+      if (usesDesktopVideoPath(currentTrack)) {
+        const video = getVideoService().getVideoElement()
+        const max =
+          durationSeconds > 0
+            ? durationSeconds
+            : video.duration
+        if (!Number.isFinite(max) || max <= 0) return
+
+        const clamped = Math.min(max, Math.max(0, seconds))
+        video.currentTime = clamped
+        emitPositionSeconds(clamped, true)
+        if (isLectureQueueSong(currentTrack)) {
+          flushLectureProgressRef.current(true)
+        }
+        if (isMotivationalQueueSong(currentTrack)) {
+          flushMotivationalProgressRef.current(true)
+        }
+        return
+      }
+
       const max =
         durationSeconds > 0
           ? durationSeconds
@@ -2180,8 +2361,17 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       if (isPodcastQueueSong(currentTrack)) {
         flushPodcastProgressRef.current(true)
       }
+      if (isLectureQueueSong(currentTrack)) {
+        flushLectureProgressRef.current(true)
+      }
+      if (isMotivationalQueueSong(currentTrack)) {
+        flushMotivationalProgressRef.current(true)
+      }
+      if (isMusicCatalogSong(currentTrack)) {
+        flushMusicProgressRef.current(true)
+      }
     },
-    [currentTrack, durationSeconds, emitPositionSeconds, getService],
+    [currentTrack, durationSeconds, emitPositionSeconds, getService, getVideoService],
   )
 
   const skipRelative = useCallback(
@@ -2245,6 +2435,49 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
   const mountTvVideo = useCallback((container: HTMLElement | null) => {
     getVideoService().mount(container)
   }, [getVideoService])
+
+  useEffect(() => {
+    return bindMediaSessionActions({
+      play: () => {
+        void resume()
+      },
+      pause: () => {
+        pause()
+      },
+      previoustrack: () => {
+        previous()
+      },
+      nexttrack: () => {
+        next()
+      },
+      seekbackward: (details) => {
+        skipRelative(-(details.seekOffset ?? 10))
+      },
+      seekforward: (details) => {
+        skipRelative(details.seekOffset ?? 10)
+      },
+      seekto: (details) => {
+        if (typeof details.seekTime === 'number') {
+          seekTo(details.seekTime)
+        }
+      },
+    })
+  }, [next, pause, previous, resume, seekTo, skipRelative])
+
+  useEffect(() => {
+    updateMediaSessionMetadata(currentTrack)
+  }, [currentTrack])
+
+  useEffect(() => {
+    updateMediaSessionPlaybackState(isPlaying)
+  }, [isPlaying])
+
+  useEffect(() => {
+    updateMediaSessionPositionState({
+      duration: durationSeconds,
+      position: positionSeconds,
+    })
+  }, [durationSeconds, isPlaying, positionSeconds])
 
   const value = useMemo<DesktopPlaybackContextValue>(
     () => ({

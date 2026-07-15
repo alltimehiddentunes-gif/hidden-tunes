@@ -18,6 +18,7 @@ import {
   resolveRecentlyPlayedSongs,
 } from '../../lib/home/musicHomeSections'
 import { useMusicLocalState } from '../../lib/home/useMusicLocalState'
+import { setPendingMusicResumeSeconds } from '../../lib/music/musicPlaybackSession'
 import { ArtworkImage } from '../ArtworkImage'
 
 type QueueSongHandler = (
@@ -225,7 +226,13 @@ export const MusicHomePage = memo(function MusicHomePage({
               <button
                 type="button"
                 className="psd-btn psd-btn--gold"
-                onClick={() => playFromQueue(hero.song, hero.queue, hero.queueTitle)}
+                onClick={() => {
+                  const progress = continueListening.find((entry) => entry.songId === hero.song.id)
+                  if (progress) {
+                    setPendingMusicResumeSeconds(progress.positionSeconds)
+                  }
+                  playFromQueue(hero.song, hero.queue, hero.queueTitle)
+                }}
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                   <path d="M8 5v14l11-7z" />
@@ -252,7 +259,10 @@ export const MusicHomePage = memo(function MusicHomePage({
                 <button
                   type="button"
                   className="music-home-continue-hit"
-                  onClick={() => playFromQueue(song, [song], 'Continue Listening')}
+                  onClick={() => {
+                    setPendingMusicResumeSeconds(entry.positionSeconds)
+                    playFromQueue(song, [song], 'Continue Listening')
+                  }}
                   aria-label={`Resume ${song.title} by ${song.artist}`}
                 >
                   <ArtworkImage src={song.artwork} alt="" seed={song.id} label={song.title} />

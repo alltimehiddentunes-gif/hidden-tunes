@@ -15,6 +15,7 @@
     "lint": "eslint .",
     "verify:tv-hls": "electron scripts/verify-tv-hls-playback.mjs",
     "verify:lecture-play": "node scripts/verify-lecture-playback.mjs",
+    "verify:playback-mutex": "node scripts/verify-playback-mutex.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

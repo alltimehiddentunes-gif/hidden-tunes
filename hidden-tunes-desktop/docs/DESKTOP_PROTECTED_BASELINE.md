@@ -115,6 +115,23 @@ Do not revert, reformat, or fold into Phase A unless explicitly requested.
 | Dead top-nav actions | Notifications disabled (“coming soon”); Profile opens Settings |
 | Build | Must remain PASS |
 
+## Phase C — Unified playback (2026-07-15)
+
+Additive protections inside `DesktopPlaybackProvider` (no architecture rewrite):
+
+| Area | Change |
+|------|--------|
+| Dual-stream mutex | Motivational video now uses the shared video path with TV/lecture video (`usesDesktopVideoPath`) |
+| Resume | Music continue/hero seeks via `musicPlaybackSession`; lecture + motivational **video** apply pending resume on the video element |
+| Progress flush | Lecture flushed on audio pause; video `timeupdate`/`pause` flush lecture + motivational; video seek/ended persist completion |
+| MediaSession | `bindMediaSession.ts` wires play/pause/next/previous/seek to OS media keys (Chromium/Electron) |
+| Guard script | `npm run verify:playback-mutex` |
+
+| Check | Result |
+|-------|--------|
+| `npm run build` | Must remain PASS |
+| `npm run verify:playback-mutex` | Must PASS |
+
 ## Known unresolved issues (later phases)
 
 - **Lint:** Pre-existing ESLint errors/warnings (mostly React hooks rules in `App.tsx` and hooks modules).
