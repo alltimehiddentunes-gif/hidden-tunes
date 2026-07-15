@@ -1,6 +1,7 @@
 import { XMLParser } from "fast-xml-parser";
 
 import {
+  PODCAST_EXPANSION_MAX_INGEST_EPISODES,
   PODCAST_MAX_INGEST_EPISODES,
   slugifyPodcast,
   validatePodcastFeedUrl,
@@ -625,10 +626,15 @@ export async function ingestPodcastFeed(
   );
   const parsed = parsePodcastFeedXml(xml);
 
-  const maxEpisodes = Math.min(
-    PODCAST_MAX_INGEST_EPISODES,
-    Math.max(1, Number(options.max_episodes || PODCAST_MAX_INGEST_EPISODES))
+  const requestedMax = Math.max(
+    1,
+    Number(options.max_episodes || PODCAST_MAX_INGEST_EPISODES)
   );
+  const maxCap =
+    requestedMax > PODCAST_MAX_INGEST_EPISODES
+      ? PODCAST_EXPANSION_MAX_INGEST_EPISODES
+      : PODCAST_MAX_INGEST_EPISODES;
+  const maxEpisodes = Math.min(maxCap, requestedMax);
   parsed.episodes = parsed.episodes.slice(0, maxEpisodes);
 
   if (options.category_slug) {

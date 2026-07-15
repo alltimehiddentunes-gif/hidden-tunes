@@ -6,6 +6,7 @@ import {
   ingestMaturePodcastSeedCatalog,
   ingestPodcastSeedCatalog,
 } from "@/lib/podcastSeedIngest";
+import { runPodcastFeedRefreshBatch } from "@/lib/podcastFeedRefreshWorker";
 import { ingestLectureSeedCatalog } from "@/lib/lectureSeedIngest";
 import {
   ingestRadioCatalogBatch,
@@ -255,7 +256,11 @@ async function runPodcastBatch(context: BatchContext) {
   if (matureResult.feeds_attempted < context.batchSize) {
     context.state.mature_cursor = 0;
   }
-  return { podcast: result, mature_podcast: matureResult };
+  const refreshResult = await runPodcastFeedRefreshBatch({
+    limit: Math.max(context.batchSize, 25),
+    stale_hours: 24,
+  });
+  return { podcast: result, mature_podcast: matureResult, refresh: refreshResult };
 }
 
 async function runLectureBatch(context: BatchContext) {

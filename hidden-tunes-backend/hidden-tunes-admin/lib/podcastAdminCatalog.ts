@@ -17,6 +17,7 @@ export const PODCAST_ADMIN_EPISODE_LIST_SELECT =
   "id, show_id, title, description, artwork_url, audio_url, duration_seconds, published_at, episode_number, season_number, status, playback_status, is_verified, is_active, last_checked_at, created_at, updated_at";
 
 export const PODCAST_MAX_INGEST_EPISODES = 200;
+export const PODCAST_EXPANSION_MAX_INGEST_EPISODES = 5_000;
 
 export type PodcastAdminShow = {
   id: string;

@@ -41,4 +41,11 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# podcast mass expansion runtime artifacts
+/data/podcast-mass-expansion/state.json
+/data/podcast-mass-expansion/source-registry.json
+/data/podcast-mass-expansion/batch-log.jsonl
+/data/podcast-mass-expansion/final-report.json
+/data/podcast-mass-expansion/batch-reports/
+
 .vercel
