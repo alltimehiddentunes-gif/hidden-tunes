@@ -78,7 +78,6 @@ import {
 } from "@/utils/performanceMode";
 import { logPerformanceOffscreenWorkPaused } from "@/utils/performanceLogs";
 import { navigateToRoute } from "@/utils/primaryNavigation";
-import { TESTER_COPY } from "@/constants/testerExperience";
 import { openVideoItemWithAlert } from "@/services/videos/openVideoItem";
 import PremiumEmptyState from "@/components/PremiumEmptyState";
 import {
@@ -88,6 +87,8 @@ import {
 import { getUserFacingArtist } from "@/services/ui/displayMetadata";
 import { HOME_DISCOVERY_SHORTCUTS } from "@/constants/discoveryShortcuts";
 import { HomeDiscoveryShortcut } from "@/components/home/HomeDiscoveryShortcut";
+import { useLocalization } from "@/localization";
+import type { TranslationKey } from "@/localization";
 import {
   getSharedDiscoverySnapshot,
   MAX_DISCOVERY_INPUT_SONGS,
@@ -313,11 +314,13 @@ const CreatorRailCard = memo(function CreatorRailCard({
   width = "100%",
   onPress,
   animationsPaused = false,
+  songCountLabel,
 }: {
   artist: HiddenTunesArtistCatalogItem;
   width?: number | "100%";
   onPress: () => void;
   animationsPaused?: boolean;
+  songCountLabel: string;
 }) {
   return (
     <TouchableOpacity
@@ -338,7 +341,7 @@ const CreatorRailCard = memo(function CreatorRailCard({
         {artist.name}
       </Text>
       <Text numberOfLines={1} style={styles.creatorMeta}>
-        {artist.songs.length} song{artist.songs.length === 1 ? "" : "s"}
+        {songCountLabel}
       </Text>
     </TouchableOpacity>
   );
@@ -456,6 +459,7 @@ const HomeHeroCarousel = memo(function HomeHeroCarousel({
   cards,
   heroCardWidth,
   heroCardHeight,
+  heroActionLabels,
   onPress,
   animationsPaused,
   focused,
@@ -463,6 +467,11 @@ const HomeHeroCarousel = memo(function HomeHeroCarousel({
   cards: HeroCard[];
   heroCardWidth: number;
   heroCardHeight: number;
+  heroActionLabels: {
+    nowPlayingActive: string;
+    openPlayer: string;
+    play: string;
+  };
   onPress: (card: HeroCard) => void;
   animationsPaused: boolean;
   focused: boolean;
@@ -550,13 +559,23 @@ const HomeHeroCarousel = memo(function HomeHeroCarousel({
         heroCardHeight={heroCardHeight}
         totalCards={cards.length}
         activeSlideIndex={heroIndex}
+        heroActionLabels={heroActionLabels}
         onPress={handleHeroPress}
         HeroPressable={HeroPressable}
         LuxuryPulse={HeroLuxuryPulse}
         styles={styles}
       />
     ),
-    [HeroLuxuryPulse, HeroPressable, cards.length, handleHeroPress, heroCardHeight, heroCardWidth, heroIndex]
+    [
+      HeroLuxuryPulse,
+      HeroPressable,
+      cards.length,
+      handleHeroPress,
+      heroActionLabels,
+      heroCardHeight,
+      heroCardWidth,
+      heroIndex,
+    ]
   );
 
   if (!cards.length) return null;
@@ -598,11 +617,41 @@ const HomeHeroCarousel = memo(function HomeHeroCarousel({
 
 type HeroCard = HomeHeroCardData;
 
+const HOME_SHORTCUT_KEYS: Record<string, TranslationKey> = {
+  "home-radio": "home.shortcuts.radio",
+  "home-podcasts": "home.shortcuts.podcasts",
+  "home-audiobooks": "home.shortcuts.audiobooks",
+  "home-more": "home.shortcuts.more",
+};
+
+const ROOM_DISPLAY_KEYS: Record<string, TranslationKey> = {
+  healing: "home.rooms.healing",
+  "late-night": "home.rooms.lateNight",
+  calm: "home.rooms.calm",
+  energy: "home.rooms.energy",
+  "calm-instrumentals": "home.rooms.calmInstrumentals",
+  "night-drive": "home.rooms.nightDrive",
+  "worship-focus": "home.rooms.worshipFocus",
+  "healing-room": "home.rooms.healingRoom",
+};
+
+type HeroCardLabels = {
+  nowPlaying: string;
+  featured: string;
+  pick: string;
+  recentlyPlayed: string;
+  nowPlayingFallback: string;
+  editorPick: string;
+  genreSpotlight: string;
+  inRotation: string;
+};
+
 function buildHeroCards(
   songs: HiddenTunesSong[],
   featuredSongs: HiddenTunesSong[],
   currentSong: { id?: string; title?: string; artist?: string } | null,
-  recentlyPlayed: Array<{ id?: string; title?: string; artist?: string }>
+  recentlyPlayed: Array<{ id?: string; title?: string; artist?: string }>,
+  labels: HeroCardLabels
 ): HeroCard[] {
   const cards: HeroCard[] = [];
   const primary = featuredSongs[0] || songs[0];
@@ -617,8 +666,8 @@ function buildHeroCards(
 
     cards.push({
       key: `current-${match.id}`,
-      label: "NOW PLAYING",
-      title: currentSong.title || match.title || "Now playing",
+      label: labels.nowPlaying,
+      title: currentSong.title || match.title || labels.nowPlayingFallback,
       subtitle:
         getUserFacingArtist(currentSong) ||
         getUserFacingArtist(match) ||
@@ -632,7 +681,7 @@ function buildHeroCards(
   if (primary) {
     cards.push({
       key: `featured-${primary.id}`,
-      label: "FEATURED",
+      label: labels.featured,
       title: primary.title,
       subtitle: getUserFacingArtist(primary) || "Hidden Tunes",
       song: primary as unknown as HiddenTunesNormalizedSong,
@@ -643,9 +692,9 @@ function buildHeroCards(
   if (pick && String(pick.id) !== String(primary?.id)) {
     cards.push({
       key: `pick-${pick.id}`,
-      label: "PICK",
+      label: labels.pick,
       title: pick.title,
-      subtitle: getUserFacingArtist(pick) || "Editor pick",
+      subtitle: getUserFacingArtist(pick) || labels.editorPick,
       song: pick as unknown as HiddenTunesNormalizedSong,
       icon: "cloud-done",
     });
@@ -656,7 +705,7 @@ function buildHeroCards(
       key: `genre-${genreSong.id}`,
       label: String(genreSong.genre || "GENRE").toUpperCase(),
       title: genreSong.title,
-      subtitle: getUserFacingArtist(genreSong) || "Genre spotlight",
+      subtitle: getUserFacingArtist(genreSong) || labels.genreSpotlight,
       song: genreSong as unknown as HiddenTunesNormalizedSong,
       icon: "albums",
     });
@@ -669,12 +718,12 @@ function buildHeroCards(
     if (recentSong) {
       cards.push({
         key: `recent-${recentSong.id}`,
-        label: "RECENTLY PLAYED",
+        label: labels.recentlyPlayed,
         title: recent.title || recentSong.title,
         subtitle:
           getUserFacingArtist(recent) ||
           getUserFacingArtist(recentSong) ||
-          "In rotation",
+          labels.inRotation,
         song: recentSong as unknown as HiddenTunesNormalizedSong,
         icon: "time",
       });
@@ -697,6 +746,87 @@ function findSongIndex(songs: HiddenTunesSong[], song: { id?: string }) {
 export default function MusicFeedScreen() {
   const { playSong } = usePlayerActions();
   const playerFeed = usePlayerFeedSnapshot();
+  const { t } = useLocalization();
+
+  const homeUi = useMemo(
+    () => ({
+      loadingMusic: t("home.loadingMusic"),
+      searchLauncher: t("home.searchLauncher"),
+      loadMore: t("home.loadMore"),
+      emptyTitle: t("home.emptyTitle"),
+      emptyCatalogMessage: t("home.emptyCatalogMessage"),
+      refreshCatalog: t("home.refreshCatalog"),
+      emotionalWorldsTitle: t("home.emotionalWorlds.title"),
+      emotionalWorldsSubtitle: t("home.emotionalWorlds.subtitle"),
+      heroLabels: {
+        nowPlaying: t("home.hero.nowPlaying"),
+        featured: t("home.hero.featured"),
+        pick: t("home.hero.pick"),
+        recentlyPlayed: t("home.hero.recentlyPlayed"),
+        nowPlayingFallback: t("home.hero.nowPlayingFallback"),
+        editorPick: t("home.hero.editorPick"),
+        genreSpotlight: t("home.hero.genreSpotlight"),
+        inRotation: t("home.hero.inRotation"),
+      },
+      heroActions: {
+        nowPlayingActive: t("home.hero.nowPlayingActive"),
+        openPlayer: t("home.hero.openPlayer"),
+        play: t("home.hero.play"),
+      },
+      listening: {
+        nowPlaying: t("home.listening.nowPlaying"),
+        nothingPlaying: t("home.listening.nothingPlaying"),
+        tapToStart: t("home.listening.tapToStart"),
+      },
+      signals: {
+        curatedRooms: t("home.signals.curatedRooms"),
+        songsReady: (count: string) => t("home.signals.songsReady", { count }),
+      },
+      sections: {
+        forYourMood: t("home.sections.forYourMood"),
+        moodRooms: t("home.sections.moodRooms"),
+        new: t("home.sections.new"),
+        recentlyAdded: t("home.sections.recentlyAdded"),
+        play: t("home.sections.play"),
+        listener: t("home.sections.listener"),
+        becauseYouListened: t("home.sections.becauseYouListened"),
+        next: t("home.sections.next"),
+        smartMusicQueue: t("home.sections.smartMusicQueue"),
+        creators: t("home.sections.creators"),
+        creatorsInOrbit: t("home.sections.creatorsInOrbit"),
+        collections: t("home.sections.collections"),
+        albumsWorthStaying: t("home.sections.albumsWorthStaying"),
+        rooms: t("home.sections.rooms"),
+        openRooms: t("home.sections.openRooms"),
+        genres: t("home.sections.genres"),
+        moodGenreSpotlights: t("home.sections.moodGenreSpotlights"),
+        fullCatalog: t("home.sections.fullCatalog"),
+        allSongs: t("home.sections.allSongs"),
+      },
+      recentlyAddedEmpty: t("home.recentlyAddedEmpty"),
+      queueLabels: {
+        fullCatalog: t("home.queueLabels.fullCatalog"),
+        recentlyAdded: t("home.queueLabels.recentlyAdded"),
+        becauseYouListened: t("home.queueLabels.becauseYouListened"),
+        smartMusicQueue: t("home.queueLabels.smartMusicQueue"),
+      },
+      formatSongCount: (count: number) => t("home.songCount", { count }),
+      roomTitle: (roomId: string, fallback: string) => {
+        const key = ROOM_DISPLAY_KEYS[roomId];
+        return key ? t(key) : fallback;
+      },
+      shortcutTitle: (shortcutKey: string, fallback: string) => {
+        const key = HOME_SHORTCUT_KEYS[shortcutKey];
+        return key ? t(key) : fallback;
+      },
+      shortcutAccessibility: (title: string) =>
+        t("home.accessibility.openShortcut", { title }),
+    }),
+    [t]
+  );
+
+  const homeUiRef = useRef(homeUi);
+  homeUiRef.current = homeUi;
   const initialCatalogStateRef = useRef<HiddenTunesDerivedCatalog | null | undefined>(undefined);
   if (initialCatalogStateRef.current === undefined) {
     initialCatalogStateRef.current = getInitialHomeCatalog();
@@ -927,7 +1057,7 @@ export default function MusicFeedScreen() {
     const current = playerFeed.currentSongMeta;
     if (current?.title) {
       return {
-        label: "Now Playing",
+        label: homeUi.listening.nowPlaying,
         title: current.title,
         subtitle: getUserFacingArtist(current) || "Hidden Tunes",
         icon: "pulse" as const,
@@ -935,12 +1065,12 @@ export default function MusicFeedScreen() {
     }
 
     return {
-      label: "Now Playing",
-      title: "Nothing playing yet",
-      subtitle: "Tap a song to start listening",
+      label: homeUi.listening.nowPlaying,
+      title: homeUi.listening.nothingPlaying,
+      subtitle: homeUi.listening.tapToStart,
       icon: "musical-notes-outline" as const,
     };
-  }, [playerFeed.currentSongMeta]);
+  }, [homeUi.listening, playerFeed.currentSongMeta]);
 
   const heroCards = useMemo(
     () =>
@@ -948,9 +1078,10 @@ export default function MusicFeedScreen() {
         songs,
         featuredSongs,
         playerFeed.currentSongMeta,
-        playerFeed.recentHead
+        playerFeed.recentHead,
+        homeUi.heroLabels
       ),
-    [featuredSongs, playerFeed.currentSongMeta, playerFeed.recentHead, songs]
+    [featuredSongs, homeUi.heroLabels, playerFeed.currentSongMeta, playerFeed.recentHead, songs]
   );
 
   const playCatalogSong = useCallback(
@@ -959,7 +1090,7 @@ export default function MusicFeedScreen() {
       const catalogSong = index >= 0 ? songs[index] : (song as HiddenTunesSong);
       void playSong(catalogSong, songs, Math.max(index, 0), {
         source: "full_catalog",
-        label: "Full Catalog",
+        label: homeUiRef.current.queueLabels.fullCatalog,
         genre: catalogSong.genre,
         mood: catalogSong.mood,
         artistName: catalogSong.artist,
@@ -1076,10 +1207,10 @@ export default function MusicFeedScreen() {
             style={styles.roomShade}
           />
           <Text numberOfLines={1} style={styles.roomTitle}>
-            {room.title}
+            {homeUiRef.current.roomTitle(room.id, room.title)}
           </Text>
           <Text numberOfLines={1} style={styles.roomSubtitle}>
-            {room.subtitle}
+            {homeUiRef.current.formatSongCount(room.songs.length)}
           </Text>
         </TouchableOpacity>
       </View>
@@ -1097,7 +1228,7 @@ export default function MusicFeedScreen() {
           onPress={(song) =>
             playSongFromList(song as HiddenTunesSong, recentlyAddedSongs, {
               source: "recently_added",
-              label: "Recently Added",
+              label: homeUiRef.current.queueLabels.recentlyAdded,
               railId: "recently_added",
             })
           }
@@ -1117,7 +1248,7 @@ export default function MusicFeedScreen() {
           onPress={(song) =>
             playSongFromList(song as HiddenTunesSong, becauseYouListened, {
               source: "because_you_listened",
-              label: "Because You Listened",
+              label: homeUiRef.current.queueLabels.becauseYouListened,
               railId: "because_you_listened",
             })
           }
@@ -1134,6 +1265,7 @@ export default function MusicFeedScreen() {
           artist={artist}
           onPress={() => openArtist(artist)}
           animationsPaused={homeMotionPaused}
+          songCountLabel={homeUiRef.current.formatSongCount(artist.songs.length)}
         />
       </View>
     ),
@@ -1172,10 +1304,10 @@ export default function MusicFeedScreen() {
             style={styles.roomShade}
           />
           <Text numberOfLines={1} style={styles.roomTitle}>
-            {room.title}
+            {homeUiRef.current.roomTitle(room.id, room.title)}
           </Text>
           <Text numberOfLines={1} style={styles.roomSubtitle}>
-            {room.subtitle}
+            {homeUiRef.current.formatSongCount(room.songs.length)}
           </Text>
         </TouchableOpacity>
       </View>
@@ -1189,7 +1321,7 @@ export default function MusicFeedScreen() {
         <View style={styles.surfaceCardShellGrid}>
           <UnifiedMediaCard
             title={genre.title}
-            subtitle={`${genre.songs.length} song${genre.songs.length === 1 ? "" : "s"}`}
+            subtitle={homeUiRef.current.formatSongCount(genre.songs.length)}
             image={genre}
             rightIcon="sparkles"
             onPress={() => openGenre(genre)}
@@ -1232,7 +1364,7 @@ export default function MusicFeedScreen() {
         {showBlockingLoader ? (
           <View style={styles.center}>
             <ActivityIndicator size="large" color={COLORS.primary} />
-            <Text style={styles.loadingText}>Loading your music...</Text>
+            <Text style={styles.loadingText}>{homeUi.loadingMusic}</Text>
           </View>
         ) : (
           <FlatList
@@ -1261,9 +1393,9 @@ export default function MusicFeedScreen() {
                 <View style={styles.catalogEmptyWrap}>
                   <PremiumEmptyState
                     icon="musical-notes-outline"
-                    title="Nothing here yet"
-                    message={TESTER_COPY.catalogEmptyHome}
-                    actionLabel="Refresh catalog"
+                    title={homeUi.emptyTitle}
+                    message={homeUi.emptyCatalogMessage}
+                    actionLabel={homeUi.refreshCatalog}
                     onAction={() => void refreshCatalog()}
                   />
                 </View>
@@ -1278,7 +1410,7 @@ export default function MusicFeedScreen() {
                 >
                   <Ionicons name="search" size={21} color={COLORS.cyan} />
                   <View style={styles.searchLauncherCopy}>
-                    <Text style={styles.searchLauncherTitle}>Search Hidden Tunes...</Text>
+                    <Text style={styles.searchLauncherTitle}>{homeUi.searchLauncher}</Text>
                   </View>
                   <Ionicons name="sparkles" size={18} color={COLORS.primaryGlow} />
                 </TouchableOpacity>
@@ -1288,6 +1420,7 @@ export default function MusicFeedScreen() {
                     cards={heroCards}
                     heroCardWidth={heroCardWidth}
                     heroCardHeight={heroCardHeight}
+                    heroActionLabels={homeUi.heroActions}
                     onPress={handleHeroPress}
                     animationsPaused={homeMotionPaused}
                     focused={homeFocused}
@@ -1299,12 +1432,12 @@ export default function MusicFeedScreen() {
                       <View style={styles.premiumSignalPill}>
                         <Ionicons name="cloud-done" size={14} color={COLORS.primaryGlow} />
                         <Text style={styles.premiumSignalText}>
-                          {songs.length.toLocaleString()}+ songs ready
+                          {homeUi.signals.songsReady(songs.length.toLocaleString())}
                         </Text>
                       </View>
                       <View style={styles.premiumSignalPill}>
                         <Ionicons name="sparkles" size={14} color={COLORS.cyan} />
-                        <Text style={styles.premiumSignalText}>Curated rooms</Text>
+                        <Text style={styles.premiumSignalText}>{homeUi.signals.curatedRooms}</Text>
                       </View>
                     </View>
 
@@ -1337,8 +1470,11 @@ export default function MusicFeedScreen() {
                         <HomeDiscoveryShortcut
                           key={shortcut.key}
                           icon={shortcut.icon}
-                          title={shortcut.title}
+                          title={homeUi.shortcutTitle(shortcut.key, shortcut.title)}
                           color={shortcut.color}
+                          accessibilityLabel={homeUi.shortcutAccessibility(
+                            homeUi.shortcutTitle(shortcut.key, shortcut.title)
+                          )}
                           onPress={() =>
                             navigateToRoute(shortcut.route, {
                               source: "music-feed.discoveryShortcut",
@@ -1354,12 +1490,14 @@ export default function MusicFeedScreen() {
                     <EmotionalDiscoveryChips
                       style={styles.emotionalWorldsSection}
                       showGatewayRows={false}
+                      title={homeUi.emotionalWorldsTitle}
+                      subtitle={homeUi.emotionalWorldsSubtitle}
                     />
 
                     {moodRooms.length > 0 ? (
                       <View style={styles.cinematicSection}>
-                        <Text style={styles.sectionEyebrow}>FOR YOUR MOOD</Text>
-                        <Text style={styles.sectionTitle}>Mood Rooms</Text>
+                        <Text style={styles.sectionEyebrow}>{homeUi.sections.forYourMood}</Text>
+                        <Text style={styles.sectionTitle}>{homeUi.sections.moodRooms}</Text>
                         <PremiumContentGrid
                           data={moodRooms}
                           keyExtractor={(room) => room.id}
@@ -1380,11 +1518,11 @@ export default function MusicFeedScreen() {
                         />
                         <View style={styles.sectionHeaderRow}>
                           <View>
-                            <Text style={styles.sectionEyebrow}>NEW</Text>
-                            <Text style={styles.sectionTitle}>Recently Added</Text>
+                            <Text style={styles.sectionEyebrow}>{homeUi.sections.new}</Text>
+                            <Text style={styles.sectionTitle}>{homeUi.sections.recentlyAdded}</Text>
                           </View>
                           {recentlyAddedSongs.length > 0 ? (
-                            <Text style={styles.sectionMeta}>Play</Text>
+                            <Text style={styles.sectionMeta}>{homeUi.sections.play}</Text>
                           ) : null}
                         </View>
                         {recentlyAddedSongs.length > 0 ? (
@@ -1399,7 +1537,7 @@ export default function MusicFeedScreen() {
                           />
                         ) : (
                           <Text style={styles.sectionEmptyMeta}>
-                            Your newest picks will appear here after the catalog loads.
+                            {homeUi.recentlyAddedEmpty}
                           </Text>
                         )}
                       </View>
@@ -1407,8 +1545,8 @@ export default function MusicFeedScreen() {
 
                     {becauseYouListened.length > 0 ? (
                       <View style={styles.cinematicSection}>
-                        <Text style={styles.sectionEyebrow}>LISTENER</Text>
-                        <Text style={styles.sectionTitle}>Because You Listened</Text>
+                        <Text style={styles.sectionEyebrow}>{homeUi.sections.listener}</Text>
+                        <Text style={styles.sectionTitle}>{homeUi.sections.becauseYouListened}</Text>
                         <PremiumContentGrid
                           data={becauseYouListened}
                           keyExtractor={(item) => `because-${item.id}`}
@@ -1423,8 +1561,8 @@ export default function MusicFeedScreen() {
 
                     {smartQueueSongs.length > 0 ? (
                       <View style={styles.cinematicSection}>
-                        <Text style={styles.sectionEyebrow}>NEXT</Text>
-                        <Text style={styles.sectionTitle}>Smart Music Queue</Text>
+                        <Text style={styles.sectionEyebrow}>{homeUi.sections.next}</Text>
+                        <Text style={styles.sectionTitle}>{homeUi.sections.smartMusicQueue}</Text>
                         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.featuredRow}>
                           {smartQueueSongs.map((item, index) => (
                             <HomeFeaturedCard
@@ -1433,7 +1571,7 @@ export default function MusicFeedScreen() {
                               index={index}
                               onPress={(song) => playSongFromList(song as HiddenTunesSong, smartQueueSongs, {
                                 source: "smart_queue",
-                                label: "Smart Music Queue",
+                                label: homeUiRef.current.queueLabels.smartMusicQueue,
                                 railId: "smart_queue",
                               })}
                             />
@@ -1444,8 +1582,8 @@ export default function MusicFeedScreen() {
 
                     {visibleArtists.length > 0 ? (
                       <View style={styles.cinematicSection}>
-                        <Text style={styles.sectionEyebrow}>CREATORS</Text>
-                        <Text style={styles.sectionTitle}>Creators In Your Orbit</Text>
+                        <Text style={styles.sectionEyebrow}>{homeUi.sections.creators}</Text>
+                        <Text style={styles.sectionTitle}>{homeUi.sections.creatorsInOrbit}</Text>
                         <PremiumContentGrid
                           data={visibleArtists}
                           keyExtractor={(artist) => artist.id}
@@ -1460,8 +1598,8 @@ export default function MusicFeedScreen() {
 
                     {visibleAlbums.length > 0 ? (
                       <View style={styles.cinematicSection}>
-                        <Text style={styles.sectionEyebrow}>COLLECTIONS</Text>
-                        <Text style={styles.sectionTitle}>Albums Worth Staying With</Text>
+                        <Text style={styles.sectionEyebrow}>{homeUi.sections.collections}</Text>
+                        <Text style={styles.sectionTitle}>{homeUi.sections.albumsWorthStaying}</Text>
                         <PremiumContentGrid
                           data={visibleAlbums}
                           keyExtractor={(album) => album.id}
@@ -1476,8 +1614,8 @@ export default function MusicFeedScreen() {
 
                     {openRooms.length > 0 ? (
                       <View style={styles.cinematicSection}>
-                        <Text style={styles.sectionEyebrow}>ROOMS</Text>
-                        <Text style={styles.sectionTitle}>Open Rooms</Text>
+                        <Text style={styles.sectionEyebrow}>{homeUi.sections.rooms}</Text>
+                        <Text style={styles.sectionTitle}>{homeUi.sections.openRooms}</Text>
                         <PremiumContentGrid
                           data={openRooms}
                           keyExtractor={(room) => room.id}
@@ -1492,8 +1630,8 @@ export default function MusicFeedScreen() {
 
                     {visibleGenres.length > 0 ? (
                       <View style={styles.cinematicSection}>
-                        <Text style={styles.sectionEyebrow}>GENRES</Text>
-                        <Text style={styles.sectionTitle}>Mood Rooms / Genre Spotlights</Text>
+                        <Text style={styles.sectionEyebrow}>{homeUi.sections.genres}</Text>
+                        <Text style={styles.sectionTitle}>{homeUi.sections.moodGenreSpotlights}</Text>
                         <PremiumContentGrid
                           data={visibleGenres}
                           keyExtractor={(genre) => genre.id}
@@ -1510,8 +1648,8 @@ export default function MusicFeedScreen() {
 
                 <View style={styles.catalogHeaderRow}>
                   <View>
-                    <Text style={styles.sectionEyebrow}>FULL CATALOG</Text>
-                    <Text style={[styles.sectionTitle, styles.songsSectionTitle]}>All Songs</Text>
+                    <Text style={styles.sectionEyebrow}>{homeUi.sections.fullCatalog}</Text>
+                    <Text style={[styles.sectionTitle, styles.songsSectionTitle]}>{homeUi.sections.allSongs}</Text>
                   </View>
                   <Text style={styles.catalogCount}>{Math.min(visibleCatalogCount, songs.length)}/{songs.length}</Text>
                 </View>
@@ -1528,7 +1666,7 @@ export default function MusicFeedScreen() {
                     )
                   }
                 >
-                  <Text style={styles.loadMoreText}>Load More</Text>
+                  <Text style={styles.loadMoreText}>{homeUi.loadMore}</Text>
                   <Ionicons name="chevron-down" size={18} color="#000" />
                 </TouchableOpacity>
               ) : null

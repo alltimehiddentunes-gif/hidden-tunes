@@ -27,6 +27,11 @@ type HomeHeroCardProps = {
   heroCardHeight: number;
   totalCards: number;
   activeSlideIndex: number;
+  heroActionLabels: {
+    nowPlayingActive: string;
+    openPlayer: string;
+    play: string;
+  };
   onPress: (item: HomeHeroCardData) => void;
   HeroPressable: React.ComponentType<{
     height: number;
@@ -64,6 +69,7 @@ export const HomeHeroCard = memo(function HomeHeroCard({
   heroCardHeight,
   totalCards,
   activeSlideIndex,
+  heroActionLabels,
   onPress,
   HeroPressable,
   LuxuryPulse,
@@ -110,7 +116,7 @@ export const HomeHeroCard = memo(function HomeHeroCard({
                   <Ionicons name={item.icon} size={12} color={COLORS.primary} />
                 )}
                 <Text style={styles.liveText}>
-                  {isActive ? "Now Playing" : item.label}
+                  {isActive ? heroActionLabels.nowPlayingActive : item.label}
                 </Text>
               </View>
 
@@ -129,7 +135,7 @@ export const HomeHeroCard = memo(function HomeHeroCard({
                     color="#000"
                   />
                   <Text style={styles.heroPlayText}>
-                    {isActive ? "OPEN PLAYER" : "PLAY"}
+                    {isActive ? heroActionLabels.openPlayer : heroActionLabels.play}
                   </Text>
                 </View>
 

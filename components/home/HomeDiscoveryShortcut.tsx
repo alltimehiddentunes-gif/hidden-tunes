@@ -18,6 +18,7 @@ export type HomeDiscoveryShortcutProps = {
   icon: ComponentProps<typeof Ionicons>["name"];
   title: string;
   color: string;
+  accessibilityLabel?: string;
   onPress: () => void;
 };
 
@@ -25,12 +26,15 @@ export const HomeDiscoveryShortcut = memo(function HomeDiscoveryShortcut({
   icon,
   title,
   color,
+  accessibilityLabel,
   onPress,
 }: HomeDiscoveryShortcutProps) {
   return (
     <TouchableOpacity
       style={[styles.card, { width: CARD_WIDTH }]}
       activeOpacity={0.88}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? title}
       onPress={onPress}
     >
       <View style={[styles.iconCircle, { borderColor: color }]}>
