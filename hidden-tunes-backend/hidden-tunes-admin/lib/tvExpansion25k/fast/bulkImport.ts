@@ -139,10 +139,13 @@ export async function bulkImportVerifiedCandidates(
     perHostConcurrency: number;
     importBatchSize: number;
     importOptions?: TvGrowthImportOptions;
+    skipPrefilter?: boolean;
   }
 ): Promise<BulkImportResult> {
   const dryRun = options.dryRun === true;
-  const prefilter = await dedupeCache.prefilter(candidates);
+  const prefilter = options.skipPrefilter
+    ? { accepted: candidates, removed: 0 }
+    : await dedupeCache.prefilter(candidates);
   const uniqueCandidates = prefilter.accepted;
   let rejected = candidates.length - uniqueCandidates.length;
   let imported = 0;

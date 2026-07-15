@@ -119,6 +119,7 @@ export async function runTvFastExpansionBatch(
     verifyConcurrency: runtime.activeVerifyConcurrency,
     perHostConcurrency: runtime.perHostConcurrency,
     importBatchSize: runtime.importBatchSize,
+    skipPrefilter: true,
     importOptions: {
       isMature: checkpoint.contentScope === "mature",
       matureSourceApproved: false,
