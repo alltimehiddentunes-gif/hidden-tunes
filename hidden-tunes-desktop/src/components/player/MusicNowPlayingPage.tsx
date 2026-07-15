@@ -78,6 +78,7 @@ export const MusicNowPlayingPage = memo(function MusicNowPlayingPage({
   } = useDesktopPlayback()
 
   const { isFullscreen, toggleFullscreen } = useNativeFullscreenToggle()
+  const [queueOpen, setQueueOpen] = useState(true)
   const displayTrack = currentTrack ?? song
   const isActive = Boolean(displayTrack && currentTrack?.id === displayTrack.id)
   const title = displayTrack ? resolvePlayerTitle(displayTrack) : 'Nothing is playing'
@@ -147,6 +148,7 @@ export const MusicNowPlayingPage = memo(function MusicNowPlayingPage({
       data-playing={isActive && isPlaying ? 'true' : 'false'}
       data-loading={isActive && isLoading ? 'true' : 'false'}
       data-active={isActive ? 'true' : 'false'}
+      data-queue-open={queueOpen ? 'true' : 'false'}
     >
       <header className="music-now-playing-toolbar">
         <button type="button" className="music-now-playing-back" onClick={onBack}>
@@ -154,17 +156,29 @@ export const MusicNowPlayingPage = memo(function MusicNowPlayingPage({
           Back
         </button>
         <p className="music-now-playing-toolbar-title">Now Playing</p>
-        <button
-          type="button"
-          className="music-now-playing-fullscreen"
-          onClick={() => { void toggleFullscreen() }}
-          aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-            <path d="M9 3H3v6M15 3h6v6M9 21H3v-6M15 21h6v-6" />
-          </svg>
-          {isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
-        </button>
+        <div className="music-now-playing-toolbar-actions">
+          <button
+            type="button"
+            className="music-now-playing-queue-toggle"
+            onClick={() => setQueueOpen((open) => !open)}
+            aria-expanded={queueOpen}
+            aria-controls="music-now-playing-up-next"
+            aria-label={queueOpen ? 'Hide queue' : 'Show queue'}
+          >
+            Queue
+          </button>
+          <button
+            type="button"
+            className="music-now-playing-fullscreen"
+            onClick={() => { void toggleFullscreen() }}
+            aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+              <path d="M9 3H3v6M15 3h6v6M9 21H3v-6M15 21h6v-6" />
+            </svg>
+            {isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+          </button>
+        </div>
       </header>
 
       <div className="music-now-playing-layout">
@@ -264,13 +278,15 @@ export const MusicNowPlayingPage = memo(function MusicNowPlayingPage({
           )}
         </section>
 
-        <UpNextPanel
-          currentTrack={displayTrack}
-          isPlaying={isPlaying}
-          isLoading={isLoading}
-          isActive={isActive}
-          onBrowseMusic={onBrowseMusic}
-        />
+        <div id="music-now-playing-up-next" className="music-now-playing-queue-slot">
+          <UpNextPanel
+            currentTrack={displayTrack}
+            isPlaying={isPlaying}
+            isLoading={isLoading}
+            isActive={isActive}
+            onBrowseMusic={onBrowseMusic}
+          />
+        </div>
       </div>
     </div>
   )

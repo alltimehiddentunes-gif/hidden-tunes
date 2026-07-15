@@ -96,7 +96,6 @@ import { resolveMotivationalPlay } from '../lib/motivationals/motivationalCatalo
 import { consumePendingMotivationalResumeSeconds } from '../lib/motivationals/motivationalPlaybackSession'
 import {
   isMotivationalQueueSong,
-  isMotivationalVideoSong,
   parseMotivationalSongId,
   patchMotivationalSessionWithPlayUrl,
 } from '../lib/motivationals/motivationalPlaybackAdapter'
@@ -654,7 +653,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
 
   const startPlayback = useCallback(
     (song: ApiSong) => {
-      if (isTvQueueSong(song) || isMotivationalVideoSong(song)) {
+      if (isTvQueueSong(song)) {
         stopInactiveMedia('video')
         const videoService = getVideoService()
         const streamUrl = song.audioUrl?.trim() || song.previewUrl?.trim() || ''
@@ -1231,16 +1230,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
             resolvedSong = patchMotivationalSessionWithPlayUrl(song, {
               audioUrl: play.audioUrl,
               durationSeconds: play.durationSeconds,
-              mediaType: play.mediaType,
             })
-
-            if (isMotivationalVideoSong(resolvedSong)) {
-              if (generation !== mediaResolveGenerationRef.current) return
-              if (currentTrackRef.current?.id !== song.id) return
-              prepareMotivationalProgress(resolvedSong)
-              startPlayback(resolvedSong)
-              return
-            }
 
             const queue = queueRef.current
             const queueIndex = queue.findIndex((entry) => entry.id === song.id)
@@ -1898,7 +1888,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       return
     }
 
-    if (isTvQueueSong(currentTrack) || isMotivationalVideoSong(currentTrack)) {
+    if (isTvQueueSong(currentTrack)) {
       const streamUrl = currentTrack.audioUrl?.trim() || currentTrack.previewUrl?.trim() || ''
       if (!streamUrl.startsWith('http')) {
         setError('Unable to play this TV channel.')

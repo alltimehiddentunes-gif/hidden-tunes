@@ -111,7 +111,6 @@ export const UpNextPanel = memo(function UpNextPanel({
     queueSeedType,
     autoNextEnabled,
     setAutoNextEnabled,
-    getUpcomingTracks,
     clearUpcomingQueue,
     playQueueAtIndex,
     removeUpcomingAtIndex,
@@ -120,8 +119,8 @@ export const UpNextPanel = memo(function UpNextPanel({
 
   const [menuOpen, setMenuOpen] = useState(false)
   const upcomingTracks = useMemo(
-    () => getUpcomingTracks(),
-    [getUpcomingTracks],
+    () => (currentIndex >= 0 ? currentQueue.slice(currentIndex + 1) : []),
+    [currentIndex, currentQueue],
   )
   const upcomingRows = useMemo(
     () => buildPlayerUpNextRows(upcomingTracks, currentIndex, 200),
@@ -223,13 +222,14 @@ export const UpNextPanel = memo(function UpNextPanel({
           <span>Based on: {autoNextBasis}</span>
         </div>
         <label className="music-up-next-toggle">
+          <span className="sr-only">{autoNextEnabled ? 'Auto next on' : 'Auto next off'}</span>
           <input
             type="checkbox"
             checked={autoNextEnabled}
             onChange={(event) => setAutoNextEnabled(event.target.checked)}
+            aria-label={autoNextEnabled ? 'Disable Auto Next' : 'Enable Auto Next'}
           />
-          <span aria-hidden="true" />
-          <span className="sr-only">{autoNextEnabled ? 'Auto next on' : 'Auto next off'}</span>
+          <span className="music-up-next-toggle-track" aria-hidden="true" />
         </label>
       </section>
 

@@ -25201,14 +25201,34 @@
   border-radius: var(--radius-sm);
 }
 
-.music-now-playing-fullscreen {
+.music-now-playing-toolbar-actions {
   justify-self: end;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.music-now-playing-queue-toggle {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(245, 243, 250, 0.78);
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
 }
 
 .music-now-playing-back:hover,
-.music-now-playing-fullscreen:hover {
+.music-now-playing-fullscreen:hover,
+.music-now-playing-queue-toggle:hover {
   color: var(--text-primary);
   background: rgba(255, 255, 255, 0.06);
+}
+
+.music-now-playing-queue-slot {
+  min-height: 0;
+  height: 100%;
 }
 
 .music-now-playing-toolbar-title {
@@ -25511,7 +25531,7 @@
   cursor: pointer;
 }
 
-.music-up-next-toggle span:last-of-type {
+.music-up-next-toggle-track {
   display: block;
   width: 100%;
   height: 100%;
@@ -25520,7 +25540,7 @@
   transition: background 160ms ease;
 }
 
-.music-up-next-toggle span:last-of-type::after {
+.music-up-next-toggle-track::after {
   content: '';
   position: absolute;
   top: 3px;
@@ -25532,12 +25552,17 @@
   transition: transform 160ms ease;
 }
 
-.music-up-next-toggle input:checked + span {
+.music-up-next-toggle input:checked + .music-up-next-toggle-track {
   background: rgba(168, 85, 247, 0.72);
 }
 
-.music-up-next-toggle input:checked + span::after {
+.music-up-next-toggle input:checked + .music-up-next-toggle-track::after {
   transform: translateX(20px);
+}
+
+.music-up-next-toggle input:focus-visible + .music-up-next-toggle-track {
+  outline: 2px solid rgba(251, 191, 36, 0.75);
+  outline-offset: 2px;
 }
 
 .music-up-next-list-wrap {
@@ -25725,6 +25750,10 @@
     min-height: calc(100vh - var(--footer-player-height) - 24px);
   }
 
+  .music-now-playing-queue-toggle {
+    display: inline-flex;
+  }
+
   .music-now-playing-layout {
     grid-template-columns: 1fr;
     grid-template-areas:
@@ -25736,6 +25765,15 @@
   .music-now-playing-art-frame {
     width: min(100%, 420px);
     margin: 0 auto;
+  }
+
+  .music-now-playing-queue-slot {
+    display: none;
+    grid-area: queue;
+  }
+
+  .music-now-playing-page[data-queue-open='true'] .music-now-playing-queue-slot {
+    display: block;
   }
 
   .music-up-next-panel {
