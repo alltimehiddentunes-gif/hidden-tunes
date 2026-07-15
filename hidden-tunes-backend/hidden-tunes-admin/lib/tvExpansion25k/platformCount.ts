@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import {
   applyTvPublicCatalogFilters,
+  isTvMatureColumnEnabled,
   type SupabaseFilterQuery,
 } from "@/lib/tvPlatformPolicy";
 
@@ -28,10 +29,10 @@ async function countEligible(includeMature: boolean) {
  * Accurate platform-eligible counts using the same filters as the public TV API.
  */
 export async function getTvPlatformEligibleCounts(): Promise<TvPlatformEligibleCounts> {
-  const [normalPlatformEligible, maturePlatformEligible] = await Promise.all([
-    countEligible(false),
-    countEligible(true),
-  ]);
+  const normalPlatformEligible = await countEligible(false);
+  const maturePlatformEligible = isTvMatureColumnEnabled()
+    ? await countEligible(true)
+    : 0;
 
   return {
     normalPlatformEligible,

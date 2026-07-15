@@ -109,6 +109,10 @@ export type SupabaseFilterQuery = {
   ) => Promise<{ data: unknown; error: { message: string } | null; count: number | null }>;
 };
 
+export function isTvMatureColumnEnabled() {
+  return process.env.TV_MATURE_ISOLATION_ENABLED === "true";
+}
+
 export function applyTvPublicCatalogFilters(
   query: SupabaseFilterQuery,
   platform: TvClientPlatform,
@@ -126,10 +130,12 @@ export function applyTvPublicCatalogFilters(
     .is("quarantined_at", null)
     .gte("last_health_checked_at", cutoff);
 
-  if (options.includeMature) {
-    query.eq("is_mature", true).eq("mature_source_approved", true);
-  } else {
-    query.eq("is_mature", false);
+  if (isTvMatureColumnEnabled()) {
+    if (options.includeMature) {
+      query.eq("is_mature", true).eq("mature_source_approved", true);
+    } else {
+      query.eq("is_mature", false);
+    }
   }
 
   if (platform === "ios") {
