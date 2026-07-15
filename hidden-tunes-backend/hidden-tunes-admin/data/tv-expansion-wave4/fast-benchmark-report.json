@@ -1,0 +1,47 @@
+﻿{
+  "at": "2026-07-15T15:36:29.775Z",
+  "before": {
+    "sourceConcurrency": 1,
+    "verificationConcurrency": 1,
+    "batchSize": 500,
+    "candidatesPerMinute": 65431,
+    "averageBatchDurationMs": 121
+  },
+  "after": {
+    "sourceConcurrency": 8,
+    "verificationConcurrency": 24,
+    "batchSize": 500,
+    "candidatesPerMinute": 65654,
+    "averageBatchDurationMs": 121
+  },
+  "discovery": {
+    "before": {
+      "label": "serial-equivalent",
+      "concurrency": 1,
+      "durationMs": 121,
+      "candidates": 132,
+      "sourcesActive": 7,
+      "candidatesPerMin": 65431
+    },
+    "after": {
+      "label": "parallel",
+      "concurrency": 8,
+      "durationMs": 121,
+      "candidates": 132,
+      "sourcesActive": 7,
+      "candidatesPerMin": 65654
+    }
+  },
+  "improvement": {
+    "discoverySpeedMultiplier": 1,
+    "syntheticParallelMultiplier": 4.6
+  },
+  "synthetic": {
+    "adapterCount": 8,
+    "simulatedSourceDelayMs": 40,
+    "serialMs": 422,
+    "parallelMs": 92,
+    "discoverySpeedMultiplier": 4.6
+  },
+  "note": "Serial-equivalent uses concurrency=1 on the Wave 4 parallel discovery path. Same checkpoint and inventory for both runs."
+}
