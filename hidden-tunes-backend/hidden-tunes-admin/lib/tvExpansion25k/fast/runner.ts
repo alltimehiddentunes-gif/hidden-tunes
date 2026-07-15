@@ -286,7 +286,7 @@ export async function runTvFastExpansion(
     reason = result.reason;
 
     if (result.done) {
-      assertDryRunNoWrites(limits.dryRun);
+      assertDryRunNoWrites(limits.dryRun !== false);
       logFastStage("run_complete");
       return {
         mode: limits.dryRun ? "dry-run" : "execute",
