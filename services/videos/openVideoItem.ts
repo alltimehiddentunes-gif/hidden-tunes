@@ -1,4 +1,4 @@
-import { Platform } from "react-native";
+import { Alert, Platform } from "react-native";
 import { router } from "expo-router";
 
 import {
@@ -34,6 +34,22 @@ type OpenVideoOptions = {
 };
 
 export type OpenVideoResult = { ok: true } | { ok: false; error: string };
+
+function tvPlaybackErrorMessage(error: string) {
+  switch (error) {
+    case "station_not_playable":
+      return "This TV channel is not available right now.";
+    case "stream_unavailable":
+      return "This TV channel could not be resolved right now. Try another channel.";
+    case "http_stream_blocked_ios":
+    case "http_stream_blocked_android":
+      return "This stream is not supported on your device.";
+    case "stream_blocked":
+      return "This stream is blocked on your device.";
+    default:
+      return error.trim() || "This TV channel is unavailable right now.";
+  }
+}
 
 function isVideoItem(value: HiddenTunesTvVideo | VideoItem): value is VideoItem {
   return "videoSource" in value;
@@ -307,6 +323,7 @@ export async function openVideoItemWithAlert(
     if (failures >= TV_LOCAL_QUARANTINE_THRESHOLD) {
       options.onQuarantined?.(rawVideo.id);
     }
+    Alert.alert("Unavailable", tvPlaybackErrorMessage(result.error));
     return result;
   }
 

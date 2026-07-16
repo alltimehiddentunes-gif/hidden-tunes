@@ -378,7 +378,20 @@ export async function fetchTvPlayback(
     const payload = (json && typeof json === "object" ? json : {}) as Record<string, unknown>;
     if (!response.ok || payload.success === false) return null;
 
-    const streamUrl = cleanText(payload.stream_url, 2000);
+    const streamUrl = cleanText(
+      payload.stream_url ??
+        payload.streamUrl ??
+        payload.playback_url ??
+        payload.playbackUrl ??
+        payload.video_url ??
+        payload.videoUrl ??
+        payload.hls_url ??
+        payload.hlsUrl ??
+        payload.source_url ??
+        payload.sourceUrl ??
+        payload.url,
+      2000
+    );
     if (!streamUrl) return null;
 
     const playback = {
