@@ -3,6 +3,46 @@ import { createClient, SupabaseClient } from "@supabase/supabase-js";
 let cachedClient: SupabaseClient | null = null;
 let cachedClientKey = "";
 
+/** Hard ceiling so hung PostgREST/upstream calls cannot stall Next.js routes forever. */
+export const SUPABASE_FETCH_TIMEOUT_MS = 12_000;
+
+function createTimedFetch(timeoutMs: number): typeof fetch {
+  return async (input, init) => {
+    const controller = new AbortController();
+    const parentSignal = init?.signal;
+    let timedOut = false;
+
+    const onParentAbort = () => controller.abort();
+    if (parentSignal?.aborted) {
+      controller.abort();
+    } else {
+      parentSignal?.addEventListener("abort", onParentAbort, { once: true });
+    }
+
+    const timer = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, timeoutMs);
+
+    try {
+      return await fetch(input, {
+        ...init,
+        signal: controller.signal,
+      });
+    } catch (error) {
+      if (timedOut) {
+        const timeoutError = new Error(`supabase_fetch_timeout_${timeoutMs}ms`);
+        timeoutError.name = "TimeoutError";
+        throw timeoutError;
+      }
+      throw error;
+    } finally {
+      clearTimeout(timer);
+      parentSignal?.removeEventListener("abort", onParentAbort);
+    }
+  };
+}
+
 export function getSupabaseAdminConfig() {
   const supabaseUrl =
     process.env.SUPABASE_URL?.trim() ||
@@ -32,13 +72,16 @@ export function getSupabaseAdmin() {
     );
   }
 
-  const clientKey = `${supabaseUrl}:${serviceRoleKey}`;
+  const clientKey = `${supabaseUrl}:${serviceRoleKey}:t${SUPABASE_FETCH_TIMEOUT_MS}`;
 
   if (!cachedClient || cachedClientKey !== clientKey) {
     cachedClient = createClient(supabaseUrl, serviceRoleKey, {
       auth: {
         persistSession: false,
         autoRefreshToken: false,
+      },
+      global: {
+        fetch: createTimedFetch(SUPABASE_FETCH_TIMEOUT_MS),
       },
     });
     cachedClientKey = clientKey;

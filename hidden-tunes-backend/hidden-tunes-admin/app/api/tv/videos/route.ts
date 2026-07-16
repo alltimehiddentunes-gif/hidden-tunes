@@ -40,12 +40,12 @@ export async function GET(request: NextRequest) {
   const page = parsePositiveInt(params.get("page"), 1, 10_000);
   const limit = parsePositiveInt(params.get("limit"), DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE);
   const from = (page - 1) * limit;
-  const to = from + limit - 1;
+  const to = from + limit; // fetch one extra row for hasMore (avoid exact count)
   const platform = parseTvClientPlatform(request);
 
   let query = supabaseAdmin
     .from("tv_videos")
-    .select(TV_PUBLIC_VIDEO_SELECT, { count: "exact" }) as unknown as SupabaseFilterQuery;
+    .select(TV_PUBLIC_VIDEO_SELECT) as unknown as SupabaseFilterQuery;
 
   applyTvPublicCatalogFilters(query, platform);
 
@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
     query = query.or(`title.ilike.%${escaped}%,channel_name.ilike.%${escaped}%`);
   }
 
-  const { data, error, count } = await query
+  const { data, error } = await query
     .order("created_at", { ascending: false })
     .range(from, to);
 
@@ -81,11 +81,12 @@ export async function GET(request: NextRequest) {
     return jsonError("Failed to load public TV catalog.", 500, error.message);
   }
 
-  const total = count || 0;
-  const totalPages = total > 0 ? Math.ceil(total / limit) : 0;
-  const videos = ((data || []) as Record<string, unknown>[]).map((row) =>
-    toTvPublicStation(row)
-  ) as TvPublicVideo[];
+  const rows = ((data || []) as Record<string, unknown>[]);
+  const hasMore = rows.length > limit;
+  const pageRows = hasMore ? rows.slice(0, limit) : rows;
+  const videos = pageRows.map((row) => toTvPublicStation(row)) as TvPublicVideo[];
+  const total = from + videos.length + (hasMore ? 1 : 0);
+  const totalPages = hasMore ? page + 1 : page;
 
   return NextResponse.json({
     success: true,
@@ -96,7 +97,7 @@ export async function GET(request: NextRequest) {
       limit,
       total,
       totalPages,
-      hasMore: page < totalPages,
+      hasMore,
     },
   });
 }
