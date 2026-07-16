@@ -36,6 +36,7 @@ function cleanFilter(value: string | null) {
 }
 
 export async function GET(request: NextRequest) {
+  try {
   const params = request.nextUrl.searchParams;
   const page = parsePositiveInt(params.get("page"), 1, 10_000);
   const limit = parsePositiveInt(params.get("limit"), DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE);
@@ -100,4 +101,8 @@ export async function GET(request: NextRequest) {
       hasMore,
     },
   });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown database error.";
+    return jsonError("Failed to load public TV catalog.", 504, message);
+  }
 }
