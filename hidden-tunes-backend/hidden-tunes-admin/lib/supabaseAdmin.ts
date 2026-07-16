@@ -19,18 +19,31 @@ function createTimedFetch(timeoutMs: number): typeof fetch {
       parentSignal?.addEventListener("abort", onParentAbort, { once: true });
     }
 
+    let raceTimer: ReturnType<typeof setTimeout> | null = null;
     const timer = setTimeout(() => {
       timedOut = true;
       controller.abort();
     }, timeoutMs);
 
+    const timeoutPromise = new Promise<Response>((_resolve, reject) => {
+      raceTimer = setTimeout(() => {
+        timedOut = true;
+        const timeoutError = new Error(`supabase_fetch_timeout_${timeoutMs}ms`);
+        timeoutError.name = "TimeoutError";
+        reject(timeoutError);
+      }, timeoutMs);
+    });
+
     try {
-      return await fetch(input, {
-        ...init,
-        signal: controller.signal,
-      });
+      return await Promise.race([
+        fetch(input, {
+          ...init,
+          signal: controller.signal,
+        }),
+        timeoutPromise,
+      ]);
     } catch (error) {
-      if (timedOut) {
+      if (timedOut || (error instanceof Error && error.name === "TimeoutError")) {
         const timeoutError = new Error(`supabase_fetch_timeout_${timeoutMs}ms`);
         timeoutError.name = "TimeoutError";
         throw timeoutError;
@@ -38,6 +51,7 @@ function createTimedFetch(timeoutMs: number): typeof fetch {
       throw error;
     } finally {
       clearTimeout(timer);
+      if (raceTimer) clearTimeout(raceTimer);
       parentSignal?.removeEventListener("abort", onParentAbort);
     }
   };
@@ -72,7 +86,7 @@ export function getSupabaseAdmin() {
     );
   }
 
-  const clientKey = `${supabaseUrl}:${serviceRoleKey}:t${SUPABASE_FETCH_TIMEOUT_MS}`;
+  const clientKey = `${supabaseUrl}:${serviceRoleKey}:t${SUPABASE_FETCH_TIMEOUT_MS}:race`;
 
   if (!cachedClient || cachedClientKey !== clientKey) {
     cachedClient = createClient(supabaseUrl, serviceRoleKey, {
