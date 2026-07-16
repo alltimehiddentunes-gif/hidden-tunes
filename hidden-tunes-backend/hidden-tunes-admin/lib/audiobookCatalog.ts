@@ -620,13 +620,12 @@ export async function listAudiobookCategories(mature: boolean) {
     ? AUDIOBOOK_CATEGORIES
     : AUDIOBOOK_CATEGORIES.filter((category) => category.slug !== "mature");
 
-  const rows = [];
-  for (const category of categories) {
-    rows.push({
-      ...category,
-      title: category.name,
-      item_count: await countAudiobooksForCategory(category.slug, mature),
-    });
-  }
-  return rows;
+  // Avoid sequential exact COUNT(*) queries per category on browse/tree.
+  // Those saturates PostgREST on large catalogs. Category pages still apply
+  // the real filters when opened; item_count remains informational.
+  return categories.map((category) => ({
+    ...category,
+    title: category.name,
+    item_count: 0,
+  }));
 }
