@@ -11,6 +11,11 @@ import type {
 import {
   orderEducationalSessions,
 } from "@/utils/educationalOrdering";
+import {
+  catalogJsonFetch,
+  isCatalogAbortError,
+  isCatalogTimeoutError,
+} from "./catalogJsonFetch";
 
 export const LECTURES_CATEGORIES_API_PATH = "/api/lectures/categories";
 export const LECTURES_CATEGORY_API_PATH = "/api/lectures/category";
@@ -223,18 +228,23 @@ export function lessonToEducationalSession(
 }
 
 async function fetchLectureJson<T>(url: string, signal?: AbortSignal): Promise<T> {
-  const response = await fetch(url, {
-    method: "GET",
-    headers: { Accept: "application/json" },
-    cache: "no-store",
-    signal,
-  });
-
-  const body = (await response.json()) as T & { success?: boolean; error?: string };
-  if (!response.ok || body.success === false) {
-    throw new Error(body.error || "Lecture request failed.");
+  try {
+    const { response, json } = await catalogJsonFetch(url, { signal });
+    const body = (json && typeof json === "object" ? json : {}) as T & {
+      success?: boolean;
+      error?: string;
+    };
+    if (!response.ok || body.success === false) {
+      throw new Error(body.error || "Lecture request failed.");
+    }
+    return body;
+  } catch (error) {
+    if (isCatalogAbortError(error)) throw error;
+    if (isCatalogTimeoutError(error)) {
+      throw new Error("Lecture catalog request timed out.");
+    }
+    throw error;
   }
-  return body;
 }
 
 export async function fetchEducationalCategories(options?: { signal?: AbortSignal }) {

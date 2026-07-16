@@ -56,8 +56,10 @@ export default function YouTubeFeedScreen() {
   const [activeCategorySlug, setActiveCategorySlug] = useState<string | null>(null);
   const [categoryLane, setCategoryLane] = useState<TvLane | null>(null);
   const [categoryLaneLoading, setCategoryLaneLoading] = useState(false);
+  const [categoryLaneError, setCategoryLaneError] = useState<string | null>(null);
   const [archiveLane, setArchiveLane] = useState<TvLane | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [searching, setSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<HiddenTunesTvVideo[]>([]);
@@ -94,6 +96,7 @@ export default function YouTubeFeedScreen() {
 
   const loadTv = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const cached = await loadTvHomeCache();
       const hasFreshCache = Boolean(cached?.lanes?.length);
@@ -107,15 +110,21 @@ export default function YouTubeFeedScreen() {
 
       if (!hasFreshCache) {
         const home = await fetchTvHomeLanes();
-        if (home.lanes.length) {
+        if (home.hasAnyVideos) {
           setLanes(filterAdminHomeLanes(home.lanes));
+          setLoadError(null);
+        } else if (home.transportError) {
+          setLanes([]);
+          setLoadError(home.transportError);
         } else {
           setLanes([]);
+          setLoadError(null);
         }
       } else {
         void fetchTvHomeLanes().then((home) => {
-          if (home.lanes.length) {
+          if (home.hasAnyVideos) {
             setLanes(filterAdminHomeLanes(home.lanes));
+            setLoadError(null);
           }
         });
       }
@@ -123,7 +132,8 @@ export default function YouTubeFeedScreen() {
       setBrowseCategories(await categoriesPromise);
       void loadArchiveLane();
     } catch {
-      setLanes([]);
+      setLanes((current) => current);
+      setLoadError((current) => current || "TV catalog could not be loaded right now.");
     } finally {
       setLoading(false);
     }
@@ -157,11 +167,18 @@ export default function YouTubeFeedScreen() {
     setActiveCategorySlug(category.slug);
     setCategoryLaneLoading(true);
     setCategoryLane(null);
+    setCategoryLaneError(null);
 
     void fetchTvCategoryLane(category)
       .then((lane) => {
         if (requestId !== categoryRequestRef.current) return;
-        setCategoryLane(lane.videos.length > 0 ? lane : null);
+        if (lane.videos.length > 0) {
+          setCategoryLane(lane);
+          setCategoryLaneError(null);
+        } else {
+          setCategoryLane(null);
+          setCategoryLaneError(lane.transportError || null);
+        }
       })
       .finally(() => {
         if (requestId === categoryRequestRef.current) {
@@ -395,8 +412,14 @@ export default function YouTubeFeedScreen() {
                 } : undefined)
               ) : activeCategorySlug ? (
                 <View style={styles.emptyBox}>
-                  <Text style={styles.emptyTitle}>No stations in this category</Text>
-                  <Text style={styles.emptyText}>Try another TV category.</Text>
+                  <Text style={styles.emptyTitle}>
+                    {categoryLaneError
+                      ? "Category unavailable"
+                      : "No stations in this category"}
+                  </Text>
+                  <Text style={styles.emptyText}>
+                    {categoryLaneError || "Try another TV category."}
+                  </Text>
                 </View>
               ) : null}
 
@@ -419,11 +442,27 @@ export default function YouTubeFeedScreen() {
                 </>
               ) : !categoryLaneLoading && !activeCategorySlug ? (
                 <View style={styles.emptyBox}>
-                  <Ionicons name="tv" size={58} color={COLORS.primary} />
-                  <Text style={styles.emptyTitle}>No TV stations right now</Text>
-                  <Text style={styles.emptyText}>
-                    Hidden Tunes TV loads from the admin catalog when stations are playable.
+                  <Ionicons
+                    name={loadError ? "cloud-offline-outline" : "tv"}
+                    size={58}
+                    color={COLORS.primary}
+                  />
+                  <Text style={styles.emptyTitle}>
+                    {loadError ? "TV catalog unavailable" : "No TV stations right now"}
                   </Text>
+                  <Text style={styles.emptyText}>
+                    {loadError ||
+                      "Hidden Tunes TV loads from the admin catalog when stations are playable."}
+                  </Text>
+                  {loadError ? (
+                    <TouchableOpacity
+                      activeOpacity={0.88}
+                      style={styles.retryButton}
+                      onPress={() => void loadTv()}
+                    >
+                      <Text style={styles.retryText}>Retry</Text>
+                    </TouchableOpacity>
+                  ) : null}
                 </View>
               ) : null}
 
@@ -527,4 +566,14 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     marginTop: 8,
   },
+  retryButton: {
+    marginTop: 16,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: "rgba(168,85,247,0.22)",
+    borderWidth: 1,
+    borderColor: "rgba(168,85,247,0.35)",
+  },
+  retryText: { color: COLORS.text, fontSize: 13, fontWeight: "800" },
 });

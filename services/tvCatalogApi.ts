@@ -15,6 +15,11 @@ import {
 import { resolveTvArtworkUrl } from "../utils/tvArtwork";
 import { getVideoDisplayCreator, normalizeVideoItem } from "./videos/videoNormalizer";
 import { fetchArchiveConcertVideos } from "./videos/archiveVideoDiscovery";
+import {
+  catalogJsonFetch,
+  isCatalogAbortError,
+  isCatalogTimeoutError,
+} from "./catalogJsonFetch";
 
 export type { TvBrowseCategory };
 
@@ -367,16 +372,10 @@ export async function fetchTvPlayback(
   }
 
   try {
-    const response = await fetch(buildPlayUrl(video.id), {
-      method: "GET",
-      headers: {
-        Accept: "application/json",
-      },
-      cache: "no-store",
+    const { response, json } = await catalogJsonFetch(buildPlayUrl(video.id), {
       signal: options?.signal,
     });
-
-    const payload = (await response.json()) as Record<string, unknown>;
+    const payload = (json && typeof json === "object" ? json : {}) as Record<string, unknown>;
     if (!response.ok || payload.success === false) return null;
 
     const streamUrl = cleanText(payload.stream_url, 2000);
@@ -399,7 +398,8 @@ export async function fetchTvPlayback(
     }
 
     return playback;
-  } catch {
+  } catch (error) {
+    if (isCatalogAbortError(error)) throw error;
     return null;
   }
 }
@@ -434,30 +434,23 @@ export async function fetchTvCatalog(
   options?: { signal?: AbortSignal }
 ): Promise<TvCatalogResponse> {
   const url = buildCatalogUrl(query);
+  const emptyPagination = {
+    page: query.page || 1,
+    limit: query.limit || TV_DEFAULT_PAGE_LIMIT,
+    total: 0,
+    totalPages: 0,
+    hasMore: false,
+  };
 
   try {
-    const response = await fetch(url, {
-      method: "GET",
-      headers: {
-        Accept: "application/json",
-      },
-      cache: "no-store",
-      signal: options?.signal,
-    });
-
-    const payload = (await response.json()) as Record<string, unknown>;
+    const { response, json } = await catalogJsonFetch(url, { signal: options?.signal });
+    const payload = (json && typeof json === "object" ? json : {}) as Record<string, unknown>;
 
     if (!response.ok || payload.success === false) {
       return {
         success: false,
         videos: [],
-        pagination: {
-          page: query.page || 1,
-          limit: query.limit || TV_DEFAULT_PAGE_LIMIT,
-          total: 0,
-          totalPages: 0,
-          hasMore: false,
-        },
+        pagination: emptyPagination,
         error: String(payload.error || "Failed to load TV catalog."),
       };
     }
@@ -485,18 +478,23 @@ export async function fetchTvCatalog(
         hasMore: Boolean(paginationRaw.hasMore),
       },
     };
-  } catch {
+  } catch (error) {
+    if (isCatalogAbortError(error)) {
+      return {
+        success: false,
+        videos: [],
+        pagination: emptyPagination,
+        error: "aborted",
+      };
+    }
+
     return {
       success: false,
       videos: [],
-      pagination: {
-        page: query.page || 1,
-        limit: query.limit || TV_DEFAULT_PAGE_LIMIT,
-        total: 0,
-        totalPages: 0,
-        hasMore: false,
-      },
-      error: "Network error while loading TV catalog.",
+      pagination: emptyPagination,
+      error: isCatalogTimeoutError(error)
+        ? "Request timed out while loading TV catalog."
+        : "Network error while loading TV catalog.",
     };
   }
 }
@@ -550,14 +548,11 @@ export async function fetchTvCategories(options?: {
   signal?: AbortSignal;
 }): Promise<TvBrowseCategory[]> {
   try {
-    const response = await fetch(`${TV_CATALOG_BASE_URL}${TV_CATEGORIES_API_PATH}`, {
-      method: "GET",
-      headers: { Accept: "application/json" },
-      cache: "no-store",
-      signal: options?.signal,
-    });
-
-    const payload = (await response.json()) as Record<string, unknown>;
+    const { response, json } = await catalogJsonFetch(
+      `${TV_CATALOG_BASE_URL}${TV_CATEGORIES_API_PATH}`,
+      { signal: options?.signal }
+    );
+    const payload = (json && typeof json === "object" ? json : {}) as Record<string, unknown>;
     if (!response.ok || payload.success === false) {
       return buildTvBrowseCategoryFallback();
     }
@@ -578,9 +573,19 @@ export async function fetchTvCategories(options?: {
       .filter((row): row is TvBrowseCategory => row !== null);
 
     return categories.length ? categories : buildTvBrowseCategoryFallback();
-  } catch {
+  } catch (error) {
+    if (isCatalogAbortError(error)) throw error;
     return buildTvBrowseCategoryFallback();
   }
+}
+
+function isTvTransportFailure(error?: string) {
+  if (!error || error === "aborted") return false;
+  return (
+    error.includes("timed out") ||
+    error.includes("Network error") ||
+    error.includes("Failed to load TV catalog")
+  );
 }
 
 async function fetchLaneVideos(lane: TvCatalogLane, options?: { signal?: AbortSignal }) {
@@ -592,26 +597,38 @@ async function fetchLaneVideos(lane: TvCatalogLane, options?: { signal?: AbortSi
     })),
   ];
 
+  let transportError: string | undefined;
+
   for (const query of attempts) {
     const response = await fetchTvCatalog(query, options);
     if (response.success && response.videos.length > 0) {
       return {
         videos: response.videos,
         metadataMode: response.metadataMode,
+        transportError: undefined as string | undefined,
       };
+    }
+
+    if (!response.success && response.error && response.error !== "aborted") {
+      transportError = response.error;
+      // Hung/unreachable backends should not burn sequential fallback timeouts.
+      if (isTvTransportFailure(response.error)) {
+        break;
+      }
     }
   }
 
   return {
     videos: [] as HiddenTunesTvVideo[],
     metadataMode: "quality_metadata" as TvStationMetadataMode,
+    transportError,
   };
 }
 
 export async function fetchTvCategoryLane(
   category: TvBrowseCategory,
   options?: { signal?: AbortSignal }
-): Promise<TvHomeLane> {
+): Promise<TvHomeLane & { transportError?: string }> {
   const response = await fetchTvCatalog(
     {
       page: 1,
@@ -626,6 +643,10 @@ export async function fetchTvCategoryLane(
     title: category.name,
     videos: response.success ? response.videos : [],
     metadataMode: response.metadataMode,
+    transportError:
+      !response.success && response.error && response.error !== "aborted"
+        ? response.error
+        : undefined,
   };
 }
 
@@ -670,6 +691,7 @@ export async function fetchTvHomeLanes(options?: { signal?: AbortSignal }) {
         title: lane.title,
         videos: result.videos,
         metadataMode: result.metadataMode,
+        transportError: result.transportError,
       };
     })
   );
@@ -677,7 +699,7 @@ export async function fetchTvHomeLanes(options?: { signal?: AbortSignal }) {
   const payload: TvHomeCachePayload = {
     version: 1,
     savedAt: new Date().toISOString(),
-    lanes: laneResults,
+    lanes: laneResults.map(({ transportError: _ignored, ...lane }) => lane),
   };
 
   const hasAnyVideos = laneResults.some((lane) => lane.videos.length > 0);
@@ -685,9 +707,14 @@ export async function fetchTvHomeLanes(options?: { signal?: AbortSignal }) {
     await saveTvHomeCache(payload);
   }
 
+  const transportError = !hasAnyVideos
+    ? laneResults.find((lane) => lane.transportError)?.transportError
+    : undefined;
+
   return {
-    lanes: laneResults,
+    lanes: payload.lanes,
     hasAnyVideos,
+    transportError,
   };
 }
 

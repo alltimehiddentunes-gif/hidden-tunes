@@ -121,7 +121,7 @@ export default function AudiobookDetailScreen() {
         setError(true);
       })
       .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
+        setLoading(false);
       });
 
     return () => controller.abort();

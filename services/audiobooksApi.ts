@@ -9,6 +9,11 @@ import type {
   AudiobookPagination,
   AudiobookPlayResponse,
 } from "../types/audiobooks";
+import {
+  catalogJsonFetch,
+  isCatalogAbortError,
+  isCatalogTimeoutError,
+} from "./catalogJsonFetch";
 
 export const AUDIOBOOK_CATALOG_BASE_URL = "https://admin.hiddentunes.com";
 export const AUDIOBOOK_PAGE_LIMIT = 40;
@@ -121,34 +126,29 @@ function buildAudiobookUrl(path: string, params?: Record<string, QueryValue>) {
 }
 
 async function fetchAudiobookJson<T>(url: string, signal?: AbortSignal): Promise<T> {
-  const response = await fetch(url, {
-    method: "GET",
-    headers: { Accept: "application/json" },
-    cache: "no-store",
-    signal,
-  });
+  try {
+    const { response, json } = await catalogJsonFetch(url, { signal });
+    const payload = (json && typeof json === "object" ? json : {}) as T & {
+      success?: boolean;
+      error?: string;
+    };
 
-  const contentType = response.headers.get("content-type") || "";
-  const isJson = contentType.toLowerCase().includes("application/json");
+    if (!response.ok) {
+      throw new Error(`audiobooks_api_${response.status}`);
+    }
 
-  if (!response.ok) {
-    throw new Error(`audiobooks_api_${response.status}`);
+    if (payload.success === false) {
+      throw new Error(payload.error || "audiobooks_api_error");
+    }
+
+    return payload;
+  } catch (error) {
+    if (isCatalogAbortError(error)) throw error;
+    if (isCatalogTimeoutError(error)) {
+      throw new Error("audiobooks_api_timeout");
+    }
+    throw error;
   }
-
-  if (!isJson) {
-    throw new Error("audiobooks_api_non_json_response");
-  }
-
-  const payload = (await response.json()) as T & {
-    success?: boolean;
-    error?: string;
-  };
-
-  if (payload.success === false) {
-    throw new Error(payload.error || "audiobooks_api_error");
-  }
-
-  return payload;
 }
 
 function clampPage(value?: number) {

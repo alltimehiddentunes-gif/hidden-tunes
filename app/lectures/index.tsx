@@ -140,6 +140,7 @@ export default function LecturesHomeScreen() {
 
   const categoryRequestRef = useRef(0);
   const searchRequestRef = useRef(0);
+  const searchPagingRequestRef = useRef(0);
   const browseAbortRef = useRef<AbortController | null>(null);
   const railsAbortRef = useRef<AbortController | null>(null);
   const searchPagingAbortRef = useRef<AbortController | null>(null);
@@ -262,6 +263,7 @@ export default function LecturesHomeScreen() {
           if (hasAbortError(error) || requestId !== searchRequestRef.current) return;
           setSearchItems([]);
           setSearchHasMore(false);
+          setLoadError("Lectures search could not be completed right now.");
         })
         .finally(() => {
           if (requestId === searchRequestRef.current) setSearchLoading(false);
@@ -285,7 +287,7 @@ export default function LecturesHomeScreen() {
     setLoadingMore(true);
 
     if (isSearching) {
-      const requestId = ++searchRequestRef.current;
+      const requestId = ++searchPagingRequestRef.current;
       searchPagingAbortRef.current?.abort();
       const controller = new AbortController();
       searchPagingAbortRef.current = controller;
@@ -294,7 +296,7 @@ export default function LecturesHomeScreen() {
         signal: controller.signal,
       })
         .then((result) => {
-          if (requestId !== searchRequestRef.current || controller.signal.aborted) return;
+          if (requestId !== searchPagingRequestRef.current || controller.signal.aborted) return;
           setSearchItems((current) =>
             filterEducationalBrowseItems([...current, ...result.items])
           );
@@ -305,7 +307,7 @@ export default function LecturesHomeScreen() {
           if (hasAbortError(error)) return;
         })
         .finally(() => {
-          if (requestId === searchRequestRef.current) setLoadingMore(false);
+          if (requestId === searchPagingRequestRef.current) setLoadingMore(false);
         });
       return;
     }
@@ -420,7 +422,9 @@ export default function LecturesHomeScreen() {
             </View>
           ) : (
             <View style={styles.center}>
-              <Text style={styles.emptyTitle}>No lectures found</Text>
+              <Text style={styles.emptyTitle}>
+                {loadError ? "Lectures unavailable" : "No lectures found"}
+              </Text>
               <Text style={styles.emptyText}>{loadError || "Try another subject or search."}</Text>
             </View>
           )

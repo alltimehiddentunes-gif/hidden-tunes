@@ -1,4 +1,8 @@
 import type { PodcastMatureLevel, PodcastShow } from "../types/podcast";
+import {
+  catalogJsonFetch,
+  isCatalogTimeoutError,
+} from "./catalogJsonFetch";
 
 export const PODCAST_CATALOG_BASE_URL = "https://admin.hiddentunes.com";
 export const PODCAST_HOME_API_PATH = "/api/podcasts/shows";
@@ -361,6 +365,21 @@ function buildCatalogUrl(
   return url.toString();
 }
 
+function podcastTransportError(error: unknown, fallback: string) {
+  if (isCatalogTimeoutError(error)) {
+    return "Request timed out while contacting the podcast catalog.";
+  }
+  return fallback;
+}
+
+async function fetchPodcastCatalogPayload(url: string, signal?: AbortSignal) {
+  const { response, json } = await catalogJsonFetch(url, { signal });
+  return {
+    response,
+    payload: (json && typeof json === "object" ? json : {}) as Record<string, unknown>,
+  };
+}
+
 function buildPodcastHomeUrl(options?: { page?: number; limit?: number; includeMature?: boolean }) {
   const params = new URLSearchParams();
   params.set("page", String(Math.max(1, Number(options?.page || 1))));
@@ -400,12 +419,9 @@ export function isBackendPodcastShowId(showId: string) {
 
 export async function fetchPodcastCategories(): Promise<PodcastCatalogCategoriesResponse> {
   try {
-    const response = await fetch(buildCatalogUrl(PODCAST_CATEGORIES_API_PATH), {
-      method: "GET",
-      headers: { Accept: "application/json" },
-      cache: "no-store",
-    });
-    const payload = (await response.json()) as Record<string, unknown>;
+    const { response, payload } = await fetchPodcastCatalogPayload(
+      buildCatalogUrl(PODCAST_CATEGORIES_API_PATH)
+    );
 
     if (!response.ok || payload.success === false) {
       return {
@@ -423,11 +439,11 @@ export async function fetchPodcastCategories(): Promise<PodcastCatalogCategories
       success: true,
       categories,
     };
-  } catch {
+  } catch (error) {
     return {
       success: false,
       categories: [],
-      error: "Network error while loading podcast categories.",
+      error: podcastTransportError(error, "Network error while loading podcast categories."),
     };
   }
 }
@@ -451,19 +467,13 @@ export async function fetchPodcastEpisodesByCategory(
   }
 
   try {
-    const response = await fetch(
+    const { response, payload } = await fetchPodcastCatalogPayload(
       buildCatalogUrl(PODCAST_EPISODES_API_PATH, {
         category: slug,
         page: safePage,
         limit: safeLimit,
-      }),
-      {
-        method: "GET",
-        headers: { Accept: "application/json" },
-        cache: "no-store",
-      }
+      })
     );
-    const payload = (await response.json()) as Record<string, unknown>;
 
     if (!response.ok || payload.success === false) {
       return {
@@ -483,12 +493,12 @@ export async function fetchPodcastEpisodesByCategory(
       episodes,
       pagination: parsePagination(payload, safePage, safeLimit, episodes.length),
     };
-  } catch {
+  } catch (error) {
     return {
       success: false,
       episodes: [],
       pagination: emptyPagination(safePage, safeLimit),
-      error: "Network error while loading podcast episodes.",
+      error: podcastTransportError(error, "Network error while loading podcast episodes."),
     };
   }
 }
@@ -512,19 +522,13 @@ export async function fetchPodcastShowsByCategory(
   }
 
   try {
-    const response = await fetch(
+    const { response, payload } = await fetchPodcastCatalogPayload(
       buildCatalogUrl(PODCAST_SHOWS_API_PATH, {
         category: slug,
         page: safePage,
         limit: safeLimit,
-      }),
-      {
-        method: "GET",
-        headers: { Accept: "application/json" },
-        cache: "no-store",
-      }
+      })
     );
-    const payload = (await response.json()) as Record<string, unknown>;
 
     if (!response.ok || payload.success === false) {
       return {
@@ -544,12 +548,12 @@ export async function fetchPodcastShowsByCategory(
       shows,
       pagination: parsePagination(payload, safePage, safeLimit, shows.length),
     };
-  } catch {
+  } catch (error) {
     return {
       success: false,
       shows: [],
       pagination: emptyPagination(safePage, safeLimit),
-      error: "Network error while loading podcast shows.",
+      error: podcastTransportError(error, "Network error while loading podcast shows."),
     };
   }
 }
@@ -573,19 +577,13 @@ export async function fetchPodcastEpisodesByShow(
   }
 
   try {
-    const response = await fetch(
+    const { response, payload } = await fetchPodcastCatalogPayload(
       buildCatalogUrl(PODCAST_EPISODES_API_PATH, {
         show_id: id,
         page: safePage,
         limit: safeLimit,
-      }),
-      {
-        method: "GET",
-        headers: { Accept: "application/json" },
-        cache: "no-store",
-      }
+      })
     );
-    const payload = (await response.json()) as Record<string, unknown>;
 
     if (!response.ok || payload.success === false) {
       return {
@@ -605,12 +603,12 @@ export async function fetchPodcastEpisodesByShow(
       episodes,
       pagination: parsePagination(payload, safePage, safeLimit, episodes.length),
     };
-  } catch {
+  } catch (error) {
     return {
       success: false,
       episodes: [],
       pagination: emptyPagination(safePage, safeLimit),
-      error: "Network error while loading podcast episodes.",
+      error: podcastTransportError(error, "Network error while loading podcast episodes."),
     };
   }
 }
@@ -624,15 +622,9 @@ export async function fetchPodcastShowById(
   }
 
   try {
-    const response = await fetch(
-      buildCatalogUrl(`${PODCAST_SHOWS_API_PATH}/${encodeURIComponent(id)}`),
-      {
-        method: "GET",
-        headers: { Accept: "application/json" },
-        cache: "no-store",
-      }
+    const { response, payload } = await fetchPodcastCatalogPayload(
+      buildCatalogUrl(`${PODCAST_SHOWS_API_PATH}/${encodeURIComponent(id)}`)
     );
-    const payload = (await response.json()) as Record<string, unknown>;
 
     if (!response.ok || payload.success === false) {
       return {
@@ -648,11 +640,11 @@ export async function fetchPodcastShowById(
       show,
       error: show ? undefined : "Podcast show not found.",
     };
-  } catch {
+  } catch (error) {
     return {
       success: false,
       show: null,
-      error: "Network error while loading podcast show.",
+      error: podcastTransportError(error, "Network error while loading podcast show."),
     };
   }
 }
@@ -668,15 +660,9 @@ export async function fetchPodcastEpisodePlay(episodeId: string): Promise<{
   }
 
   try {
-    const response = await fetch(
-      buildCatalogUrl(`${PODCAST_EPISODES_API_PATH}/${encodeURIComponent(id)}/play`),
-      {
-        method: "GET",
-        headers: { Accept: "application/json" },
-        cache: "no-store",
-      }
+    const { response, payload } = await fetchPodcastCatalogPayload(
+      buildCatalogUrl(`${PODCAST_EPISODES_API_PATH}/${encodeURIComponent(id)}/play`)
     );
-    const payload = (await response.json()) as Record<string, unknown>;
 
     if (!response.ok || payload.success === false) {
       return {
@@ -709,11 +695,11 @@ export async function fetchPodcastEpisodePlay(episodeId: string): Promise<{
         publishedAt: cleanOptionalString(payload.published_at ?? payload.publishedAt),
       },
     };
-  } catch {
+  } catch (error) {
     return {
       success: false,
       play: null,
-      error: "Network error while resolving podcast playback.",
+      error: podcastTransportError(error, "Network error while resolving podcast playback."),
     };
   }
 }
@@ -725,13 +711,10 @@ export async function fetchPodcastHomeMetadata(options?: {
   signal?: AbortSignal;
 }): Promise<PodcastHomeMetadataResponse> {
   try {
-    const response = await fetch(buildPodcastHomeUrl(options), {
-      method: "GET",
-      headers: { Accept: "application/json" },
-      cache: "no-store",
-      signal: options?.signal,
-    });
-    const payload = (await response.json()) as Record<string, unknown>;
+    const { response, payload } = await fetchPodcastCatalogPayload(
+      buildPodcastHomeUrl(options),
+      options?.signal
+    );
 
     if (!response.ok || payload.success === false) {
       return {
@@ -761,11 +744,11 @@ export async function fetchPodcastHomeMetadata(options?: {
       sections,
       error: sections.length > 0 ? undefined : "Podcast metadata response was empty.",
     };
-  } catch {
+  } catch (error) {
     return {
       success: false,
       sections: [],
-      error: "Network error while loading podcast metadata.",
+      error: podcastTransportError(error, "Network error while loading podcast metadata."),
     };
   }
 }

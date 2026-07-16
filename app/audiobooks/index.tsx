@@ -148,7 +148,7 @@ export default function AudiobooksHomeScreen() {
         setCategories([]);
       })
       .finally(() => {
-        if (!controller.signal.aborted) setLoadingCategories(false);
+        setLoadingCategories(false);
       });
 
     return () => controller.abort();
@@ -181,7 +181,7 @@ export default function AudiobooksHomeScreen() {
         setLoadError(true);
       })
       .finally(() => {
-        if (!controller.signal.aborted && requestId === categoryRequestRef.current) {
+        if (requestId === categoryRequestRef.current) {
           setLoadingItems(false);
         }
       });
@@ -223,7 +223,7 @@ export default function AudiobooksHomeScreen() {
           setSearchError(true);
         })
         .finally(() => {
-          if (!controller.signal.aborted && requestId === searchRequestRef.current) {
+          if (requestId === searchRequestRef.current) {
             setSearchLoading(false);
           }
         });
