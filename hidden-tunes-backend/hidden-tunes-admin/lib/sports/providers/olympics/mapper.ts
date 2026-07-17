@@ -1,7 +1,7 @@
 import { evaluateOlympicsVideoRights } from "./rights";
 import { buildOlympicsEmbedUrl, buildOlympicsWatchUrl } from "./client";
 import type { OlympicsVideoRecord } from "./types";
-import { OLYMPICS_PROVIDER_SLUG } from "./types";
+import { OLYMPICS_PROVIDER_SLUG, OLYMPICS_YOUTUBE_CHANNEL_ID } from "./types";
 
 export type CanonicalOlympicsVideo = {
   providerSlug: typeof OLYMPICS_PROVIDER_SLUG;
@@ -63,6 +63,12 @@ export function mapOlympicsVideoToCanonical(
   if (!nativeId) return null;
 
   if (!String(video.title || "").trim()) return null;
+
+  const channelId = String(video.channelId || "").trim();
+  if (channelId && channelId !== OLYMPICS_YOUTUBE_CHANNEL_ID) {
+    // Reject unofficial re-uploads / foreign channels even if embeddable.
+    return null;
+  }
 
   const rights = evaluateOlympicsVideoRights(video);
   const isLive =
