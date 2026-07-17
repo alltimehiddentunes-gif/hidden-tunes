@@ -2877,6 +2877,30 @@
   grid-template-columns: 132px 1fr;
 }
 
+.detail-artist-about {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 14px;
+  max-width: 46rem;
+}
+
+.detail-artist-about-text {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.55;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.detail-artist-about-text.is-expanded {
+  display: block;
+  -webkit-line-clamp: unset;
+  overflow: visible;
+}
+
 .detail-hero--mood {
   grid-template-columns: 1fr;
   min-height: clamp(300px, 34vw, 420px);

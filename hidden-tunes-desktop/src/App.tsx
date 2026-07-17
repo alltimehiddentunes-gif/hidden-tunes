@@ -37,6 +37,12 @@ import {
 } from './lib/songMetadata'
 import { withDevAudioVersionTestSongs } from './lib/devAudioVersionTestHarness'
 import {
+  fetchArtistAbout,
+  fetchArtistProfileShell,
+  fetchArtistReleases,
+  type ArtistProfileShell,
+} from './services/artistProfileApi'
+import {
   buildPlayerQueueStats,
 } from './lib/playerQueueDisplay'
 import {
@@ -6385,7 +6391,6 @@ function AlbumDetailView({
 function ArtistDetailView({
   artist,
   onBack,
-  onOpenSong,
   onOpenAlbum,
 }: {
   artist: ApiArtist
@@ -6393,7 +6398,12 @@ function ArtistDetailView({
   onOpenSong: QueueSongHandler
   onOpenAlbum: (album: ApiAlbum) => void
 }) {
+  const { playQueue } = useDesktopPlayback()
   const { artistNames, indexes } = useCatalog()
+  const [profileShell, setProfileShell] = useState<ArtistProfileShell | null>(null)
+  const [profileBio, setProfileBio] = useState<string | null>(null)
+  const [profileAlbums, setProfileAlbums] = useState<ApiAlbum[] | null>(null)
+  const [aboutExpanded, setAboutExpanded] = useState(false)
 
   const artistSongs = useMemo(() => {
     const byArtist = resolveSongsForArtist(
@@ -6409,21 +6419,67 @@ function ArtistDetailView({
     [artistSongs, showAllSongs],
   )
   const queuePools = useMemo(() => buildQueueCandidatePools(indexes), [indexes])
+
+  useEffect(() => {
+    const abortController = new AbortController()
+    setProfileShell(null)
+    setProfileBio(null)
+    setProfileAlbums(null)
+    setAboutExpanded(false)
+
+    void (async () => {
+      try {
+        const shell = await fetchArtistProfileShell(artist.id, {
+          signal: abortController.signal,
+        })
+        if (abortController.signal.aborted) return
+        setProfileShell(shell)
+
+        const [releasesPage, about] = await Promise.all([
+          fetchArtistReleases(shell.artist.id, {
+            limit: 24,
+            signal: abortController.signal,
+          }).catch(() => null),
+          fetchArtistAbout(shell.artist.id, {
+            signal: abortController.signal,
+          }).catch(() => null),
+        ])
+        if (abortController.signal.aborted) return
+
+        if (releasesPage?.items?.length) {
+          setProfileAlbums(
+            releasesPage.items.map((release) => ({
+              id: release.id,
+              title: release.title,
+              artwork: release.artwork,
+              releaseYear: release.release_year,
+              createdAt: release.created_at,
+              artistId: release.artist_id || artist.id,
+            })),
+          )
+        }
+
+        const bio = String(about?.bio || shell.artist.bio || '').trim()
+        setProfileBio(bio || null)
+      } catch {
+        // Keep catalog-backed artist page when profile API is unavailable.
+      }
+    })()
+
+    return () => abortController.abort()
+  }, [artist.id])
+
   const playArtistSong = useCallback(
-    (song: ApiSong, index: number, queue = artistSongs) => onOpenSong(
-      song,
-      queue,
-      index,
-      'artist',
-      artist.name,
-      {
+    (song: ApiSong, index: number, queue = artistSongs) => {
+      const safeIndex = Math.max(0, Math.min(index, queue.length - 1))
+      playQueue(queue, safeIndex, 'artist', artist.name, {
         seedType: 'artist',
         seedId: artist.id,
         seedTracks: capSongPool(artistSongs),
         candidatePools: queuePools,
-      },
-    ),
-    [artist.id, artist.name, artistSongs, onOpenSong, queuePools],
+      })
+    },
+    [artist.id, artist.name, artistSongs, playQueue, queuePools],
   )
   const playArtist = useCallback(
     (shuffle: boolean) => {
@@ -6434,10 +6490,13 @@ function ArtistDetailView({
     [artistSongs, playArtistSong],
   )
 
-  const artistAlbums = useMemo(
+  const catalogAlbums = useMemo(
     () => resolveAlbumsForArtist(artist, indexes.albumsByArtistId).slice(0, 12),
     [artist, indexes.albumsByArtistId],
   )
+  const artistAlbums = profileAlbums && profileAlbums.length > 0 ? profileAlbums : catalogAlbums
+  const genreLabel = profileShell?.artist.genres?.slice(0, 3).join(' · ') || null
+  const trackLabel = showAllSongs ? 'All songs' : 'Essential tracks'
 
   return (
     <PageFrame>
@@ -6447,13 +6506,32 @@ function ArtistDetailView({
           <ArtistAvatar artist={artist} />
         </div>
         <div className="detail-hero-copy">
-          <p className="detail-eyebrow">Artist</p>
-          <h1 className="detail-h1">{artist.name}</h1>
+          <p className="detail-eyebrow">
+            {profileShell?.artist.is_verified ? 'Verified artist' : 'Artist'}
+          </p>
+          <h1 className="detail-h1">{profileShell?.artist.name || artist.name}</h1>
           <p className="detail-stats">
             {artist.songCount || artistSongs.length}{' '}
             {(artist.songCount || artistSongs.length) === 1 ? 'track' : 'tracks'} · {artistAlbums.length}{' '}
             {artistAlbums.length === 1 ? 'album' : 'albums'}
+            {genreLabel ? ` · ${genreLabel}` : ''}
           </p>
+          {profileBio ? (
+            <div className="detail-artist-about">
+              <p className={aboutExpanded ? 'detail-artist-about-text is-expanded' : 'detail-artist-about-text'}>
+                {profileBio}
+              </p>
+              {profileBio.length > 180 ? (
+                <button
+                  type="button"
+                  className="btn-secondary btn-sm"
+                  onClick={() => setAboutExpanded((value) => !value)}
+                >
+                  {aboutExpanded ? 'See less' : 'See more'}
+                </button>
+              ) : null}
+            </div>
+          ) : null}
           <div className="detail-hero-actions">
             <button
               type="button"
@@ -6477,7 +6555,7 @@ function ArtistDetailView({
 
       <section className="detail-panel">
         <div className="detail-panel-header">
-          <h3>{showAllSongs ? 'All songs' : 'Top songs'}</h3>
+          <h3>{trackLabel}</h3>
           {artistSongs.length > 12 ? (
             <button
               type="button"
@@ -6487,7 +6565,7 @@ function ArtistDetailView({
               {showAllSongs ? 'Show less' : `Show all ${artistSongs.length}`}
             </button>
           ) : (
-            <span>From cached catalog</span>
+            <span>Latest from catalog</span>
           )}
         </div>
         {topSongs.length === 0 ? (
@@ -6509,7 +6587,7 @@ function ArtistDetailView({
       <section className="detail-panel">
         <div className="detail-panel-header">
           <h3>Albums</h3>
-          <span>From cached catalog</span>
+          <span>{profileAlbums?.length ? 'From artist profile' : 'From cached catalog'}</span>
         </div>
         {artistAlbums.length === 0 ? (
           <CatalogEmpty title="No verified albums" detail="Only identity-matched artist albums are shown here." />
