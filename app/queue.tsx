@@ -38,6 +38,15 @@ function getArtist(song: AppSong) {
 }
 
 function getSessionContextLabel(context: PlaybackQueueContext, currentSong: AppSong | null) {
+  if (context.source === "motivation" || context.queueType === "motivation") {
+    return (
+      context.contextTitle ||
+      context.albumTitle ||
+      context.label ||
+      currentSong?.album ||
+      "Motivationals"
+    );
+  }
   if (context.albumTitle) return context.albumTitle;
   if (context.label) return context.label;
   if (context.genre) return context.genre;
@@ -47,6 +56,9 @@ function getSessionContextLabel(context: PlaybackQueueContext, currentSong: AppS
 }
 
 function getSessionKind(context: PlaybackQueueContext) {
+  if (context.source === "motivation" || context.queueType === "motivation") {
+    return "Motivationals Session";
+  }
   if (context.source === "album") return "Album Session";
   if (context.source === "radio") return "Radio Session";
   if (context.source === "genre") return "Genre Station";

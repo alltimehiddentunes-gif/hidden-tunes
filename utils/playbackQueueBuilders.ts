@@ -67,6 +67,24 @@ function isPlayableSong(song: QueueBuildSong) {
   return Boolean(getPlayableUri(song)) && !isYouTubeSong(song);
 }
 
+/** Motivationals metadata queue entries intentionally lack stream URLs until resolve-on-demand. */
+function isMotivationDomainSong(song: QueueBuildSong) {
+  const id = text(song.id);
+  if (id.startsWith("motivation-item-")) return true;
+  return lower(song.sourceName) === "motivationals";
+}
+
+function isMotivationQueueContext(context: PlaybackQueueContext) {
+  const typed = context as PlaybackQueueContext & {
+    queueType?: string;
+    contextType?: string;
+  };
+  if (typed.queueType === "motivation") return true;
+  if (context.source === "motivation") return true;
+  if (lower(context.label) === "motivationals") return true;
+  return false;
+}
+
 function songArtist(song: QueueBuildSong) {
   return lower(song.artist || song.user?.name || song.channelTitle);
 }
@@ -342,6 +360,38 @@ export function buildContextualPlaybackQueue(options: {
   const seed = song;
   const catalog = getCatalogPlayable();
   const preferredGenres = getDiscoveryPreferredGenres();
+
+  // Motivationals sessions must never expand into the Music discovery catalog.
+  // Metadata-only up-next rows are valid and must be preserved for resolve-on-demand.
+  if (
+    isMotivationQueueContext(context) ||
+    isMotivationDomainSong(seed) ||
+    (providedQueue || []).some(isMotivationDomainSong)
+  ) {
+    const motivationProvided = dedupeSongs(
+      (providedQueue || []).filter((entry) => !isYouTubeSong(entry))
+    );
+    const placed = ensureSongInQueue(
+      motivationProvided.length ? motivationProvided : isMotivationDomainSong(seed) ? [seed] : [],
+      seed
+    );
+    const activeIndex =
+      requestedIndex === undefined
+        ? placed.activeIndex
+        : Math.max(0, Math.min(requestedIndex, placed.queue.length - 1));
+    return {
+      queue: placed.queue,
+      activeIndex,
+      builtFrom: "motivation_domain_preserved",
+      expanded: false,
+      diagnostics: {
+        motivation_domain_guard: true,
+        motivation_provided_length: motivationProvided.length,
+        discovery_catalog_size: catalog.length,
+      },
+    };
+  }
+
   const provided = dedupeSongs((providedQueue || []).filter(isPlayableSong));
 
   if (context.source === "queue" && provided.length > 0) {

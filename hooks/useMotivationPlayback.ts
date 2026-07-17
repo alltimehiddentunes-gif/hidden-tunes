@@ -57,9 +57,20 @@ export function useMotivationPlaybackBinding() {
     const songId = currentSong?.id || null;
     if (!songId || resolvingRef.current === songId) return;
     resolvingRef.current = songId;
-    void MotivationPlaybackController.resolveCurrentIfNeeded(songId).finally(() => {
-      if (resolvingRef.current === songId) resolvingRef.current = null;
-    });
+    void MotivationPlaybackController.resolveCurrentIfNeeded(songId)
+      .catch((error) => {
+        if (__DEV__) {
+          console.warn("[motivation] resolve-on-demand failed", {
+            songId,
+            sessionKind: "motivation",
+            operation: "resolveCurrentIfNeeded",
+            message: error instanceof Error ? error.message : String(error),
+          });
+        }
+      })
+      .finally(() => {
+        if (resolvingRef.current === songId) resolvingRef.current = null;
+      });
   }, [activeQueueContext, currentSong, currentSong?.id, currentSong?.streamUrl, currentSong?.url]);
 
   useEffect(() => {

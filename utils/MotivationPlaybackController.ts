@@ -12,6 +12,7 @@ import {
   motivationItemToAppSong,
   motivationItemToMetadataAppSong,
   MOTIVATION_MAX_AUTO_NEXT_FAILURES,
+  assertMotivationQueueIntegrity,
   orderMotivationItems,
 } from "@/utils/motivationPlaybackAdapter";
 import {
@@ -114,7 +115,16 @@ export const MotivationPlaybackController = {
       let resolved: Awaited<ReturnType<typeof fetchMotivationItemPlayback>>;
       try {
         resolved = await fetchMotivationItemPlayback(item.id);
-      } catch {
+      } catch (error) {
+        if (__DEV__) {
+          console.warn("[motivation] playback resolve failed", {
+            itemId: item.id,
+            sessionKind: "motivation",
+            operation: "fetchMotivationItemPlayback",
+            endpoint: `/api/motivation/items/${item.id}/play`,
+            message: error instanceof Error ? error.message : String(error),
+          });
+        }
         return this.skipToNext("playback_resolve_failed", requestId, generation);
       }
       if (!isMotivationAudioPlayback(resolved.mediaType, resolved.playableUrl)) {
@@ -127,18 +137,33 @@ export const MotivationPlaybackController = {
           : motivationItemToMetadataAppSong(session.program, entry)
       );
       const playableSong = motivationItemToAppSong(session.program, item, resolved.playableUrl);
+      const queueContext = buildMotivationQueueContext({
+        contextType: session.contextType,
+        contextId: session.programId,
+        contextTitle: session.program.title,
+        label: session.program.title || "Motivationals",
+        artistName: item.speaker_name || item.channel_name || session.program.subtitle,
+      });
+      assertMotivationQueueIntegrity(queueSongs, queueContext);
 
-      await bindings.playSong(
-        playableSong,
-        queueSongs,
-        session.currentItemIndex,
-        buildMotivationQueueContext({
-          contextType: session.contextType,
-          contextId: session.programId,
-          contextTitle: session.program.title,
-          label: "Motivationals",
-        })
-      );
+      try {
+        await bindings.playSong(
+          playableSong,
+          queueSongs,
+          session.currentItemIndex,
+          queueContext
+        );
+      } catch (error) {
+        if (__DEV__) {
+          console.warn("[motivation] playSong failed", {
+            itemId: item.id,
+            sessionKind: "motivation",
+            operation: "playCurrentItem",
+            message: error instanceof Error ? error.message : String(error),
+          });
+        }
+        throw error;
+      }
 
       void recordMotivationRecentlyPlayed(item);
       setMotivationActiveItem(item.id, session.currentItemIndex);
@@ -253,17 +278,15 @@ export const MotivationPlaybackController = {
       ...additions,
       ...queue.slice(index + 1),
     ]);
-    await bindings.playSong(
-      currentSong,
-      nextQueue,
-      index,
-      buildMotivationQueueContext({
-        contextType: "program",
-        contextId: program.id,
-        contextTitle: program.title,
-        label: "Motivationals",
-      })
-    );
+    const queueContext = buildMotivationQueueContext({
+      contextType: "program",
+      contextId: program.id,
+      contextTitle: program.title,
+      label: program.title || "Motivationals",
+      artistName: program.subtitle,
+    });
+    assertMotivationQueueIntegrity(nextQueue, queueContext);
+    await bindings.playSong(currentSong, nextQueue, index, queueContext);
     return true;
   },
 
@@ -291,17 +314,15 @@ export const MotivationPlaybackController = {
       .filter((song) => !existing.has(song.id));
     if (!additions.length) return true;
     const nextQueue = [...queue, ...additions];
-    await bindings.playSong(
-      currentSong,
-      nextQueue,
-      index,
-      buildMotivationQueueContext({
-        contextType: "program",
-        contextId: program.id,
-        contextTitle: program.title,
-        label: "Motivationals",
-      })
-    );
+    const queueContext = buildMotivationQueueContext({
+      contextType: "program",
+      contextId: program.id,
+      contextTitle: program.title,
+      label: program.title || "Motivationals",
+      artistName: program.subtitle,
+    });
+    assertMotivationQueueIntegrity(nextQueue, queueContext);
+    await bindings.playSong(currentSong, nextQueue, index, queueContext);
     return true;
   },
 };

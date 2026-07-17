@@ -262,6 +262,7 @@ export type PlaybackQueueContext = {
     | "android_auto"
     | "carplay"
     | "queue"
+    | "motivation"
     | "unknown";
   label?: string;
   albumId?: string;
@@ -272,6 +273,11 @@ export type PlaybackQueueContext = {
   mood?: string;
   searchQuery?: string;
   railId?: string;
+  /** Domain marker preserved for vertical sessions (Motivationals, etc.). */
+  queueType?: string;
+  contextType?: string;
+  contextId?: string;
+  contextTitle?: string;
 };
 
 type LegacyPlaybackStatus = {
@@ -509,6 +515,10 @@ function normalizePlaybackQueueContext(
     mood: cleanContextValue(context.mood),
     searchQuery: cleanContextValue(context.searchQuery),
     railId: cleanContextValue(context.railId),
+    queueType: cleanContextValue(context.queueType),
+    contextType: cleanContextValue(context.contextType),
+    contextId: cleanContextValue(context.contextId),
+    contextTitle: cleanContextValue(context.contextTitle),
   };
 }
 
@@ -525,9 +535,23 @@ function isBoundedPlaybackContext(
     case "radio":
     case "queue":
       return false;
+    case "motivation":
+      return true;
     default:
       return true;
   }
+}
+
+function isMotivationPlaybackDomain(
+  context?: PlaybackQueueContext | null,
+  song?: AppSong | null
+): boolean {
+  if (context?.source === "motivation") return true;
+  if (context?.queueType === "motivation") return true;
+  if (String(context?.label || "").toLowerCase() === "motivationals") return true;
+  if (String(song?.id || "").startsWith("motivation-item-")) return true;
+  if (String(song?.sourceName || "").toLowerCase() === "motivationals") return true;
+  return false;
 }
 
 function contextMatchesSong(song: AppSong, context: PlaybackQueueContext) {
@@ -5429,6 +5453,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       if (!current) return false;
 
       const context = activeQueueContextRef.current;
+      // Music Smart continuation must never append into Motivationals (or other vertical) sessions.
+      if (isMotivationPlaybackDomain(context, current)) {
+        logLockscreenPlaybackDiagnostic("smart_continuation_blocked_domain", {
+          contextSource: context.source,
+          queueType: context.queueType || null,
+          currentSongId: current.id,
+        });
+        return false;
+      }
+
       const memory = await getSmartQueue();
       const currentQueue = activeQueueRef.current.filter(
         (song) => !isYouTubeSong(song)

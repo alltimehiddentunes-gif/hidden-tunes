@@ -2,7 +2,10 @@ import type { AppSong } from "@/context/PlayerContext";
 import type { PlaybackQueueContext } from "@/context/PlayerContext";
 import type { MotivationItem, MotivationProgram } from "@/types/motivation";
 import { orderMotivationEpisodes } from "@/utils/motivationGrouping";
-import { formatMotivationEpisodeTitle } from "@/utils/motivationPresentation";
+import {
+  extractMotivationProgramTitle,
+  formatMotivationEpisodeTitle,
+} from "@/utils/motivationPresentation";
 
 export const MOTIVATION_ITEM_SONG_PREFIX = "motivation-item-";
 export const MOTIVATION_QUEUE_TYPE = "motivation";
@@ -34,22 +37,34 @@ export function isMotivationAudioPlayback(mediaType: string, playableUrl: string
   return false;
 }
 
+function motivationDisplayArtist(item: MotivationItem) {
+  return item.speaker_name || item.channel_name || "Hidden Tunes Motivationals";
+}
+
+function motivationDisplayTitle(item: MotivationItem) {
+  const formatted = formatMotivationEpisodeTitle(item.title);
+  const program = extractMotivationProgramTitle(item.title);
+  // Prefer a meaningful work title over a generic "Episode N" label.
+  if (/^episode\s+\d+$/i.test(formatted) && program) return program;
+  return formatted || program || "Motivation";
+}
+
 export function motivationItemToAppSong(
   program: Pick<MotivationProgram, "title" | "artwork_url" | "category_slug">,
   item: MotivationItem,
   playableUrl: string
 ): AppSong {
-  const artist = item.speaker_name || item.channel_name || "Hidden Tunes Motivation";
+  const artist = motivationDisplayArtist(item);
   const artwork = item.artwork || program.artwork_url || "";
+  const title = motivationDisplayTitle(item);
 
-  const title = formatMotivationEpisodeTitle(item.title);
   return {
     id: motivationItemSongId(item.id),
     title,
     artist,
-    album: program.title,
+    album: program.title || extractMotivationProgramTitle(item.title),
     user: { name: artist },
-    channelTitle: program.title,
+    channelTitle: program.title || extractMotivationProgramTitle(item.title),
     artworkUrl: artwork,
     coverUrl: artwork,
     thumbnail: artwork,
@@ -58,7 +73,7 @@ export function motivationItemToAppSong(
     url: playableUrl,
     audioUrl: playableUrl,
     duration: item.duration_seconds || undefined,
-    genre: item.category_slug || program.category_slug || "Motivation",
+    genre: "Motivationals",
     source: "hidden-tunes",
     sourceName: "Motivationals",
     type: "r2",
@@ -70,16 +85,16 @@ export function motivationItemToMetadataAppSong(
   program: Pick<MotivationProgram, "title" | "artwork_url" | "category_slug">,
   item: MotivationItem
 ): AppSong {
-  const artist = item.speaker_name || item.channel_name || "Hidden Tunes Motivation";
+  const artist = motivationDisplayArtist(item);
   const artwork = item.artwork || program.artwork_url || "";
-  const title = formatMotivationEpisodeTitle(item.title);
+  const title = motivationDisplayTitle(item);
   return {
     id: motivationItemSongId(item.id),
     title,
     artist,
-    album: program.title,
+    album: program.title || extractMotivationProgramTitle(item.title),
     user: { name: artist },
-    channelTitle: program.title,
+    channelTitle: program.title || extractMotivationProgramTitle(item.title),
     artworkUrl: artwork,
     coverUrl: artwork,
     thumbnail: artwork,
@@ -88,7 +103,7 @@ export function motivationItemToMetadataAppSong(
     url: "",
     audioUrl: "",
     duration: item.duration_seconds || undefined,
-    genre: item.category_slug || program.category_slug || "Motivation",
+    genre: "Motivationals",
     source: "hidden-tunes",
     sourceName: "Motivationals",
     type: "r2",
@@ -108,21 +123,46 @@ export function buildMotivationQueueContext(input: {
   contextId?: string;
   contextTitle?: string;
   label?: string;
+  artistName?: string | null;
 }): MotivationQueueContext {
+  const programTitle = String(input.contextTitle || "").trim();
   return {
-    source: "unknown",
-    label: input.label || "Motivationals",
+    source: "motivation",
+    label: input.label || programTitle || "Motivationals",
+    albumId: input.contextId,
+    albumTitle: programTitle || undefined,
+    artistName: input.artistName || undefined,
     queueType: MOTIVATION_QUEUE_TYPE,
     contextType: input.contextType,
     contextId: input.contextId,
-    contextTitle: input.contextTitle,
+    contextTitle: programTitle || undefined,
   };
 }
 
 export function isMotivationQueueContext(
   context?: PlaybackQueueContext | null
 ): context is MotivationQueueContext {
-  return Boolean(context && (context as MotivationQueueContext).queueType === MOTIVATION_QUEUE_TYPE);
+  if (!context) return false;
+  if ((context as MotivationQueueContext).queueType === MOTIVATION_QUEUE_TYPE) return true;
+  if (context.source === "motivation") return true;
+  return false;
+}
+
+export function assertMotivationQueueIntegrity(
+  queue: AppSong[],
+  context?: PlaybackQueueContext | null
+) {
+  if (!__DEV__) return;
+  if (!isMotivationQueueContext(context)) return;
+  const foreign = queue.filter((song) => !isMotivationItemAppSong(song));
+  if (foreign.length) {
+    console.warn("[motivation] queue integrity: rejecting foreign items", {
+      foreignCount: foreign.length,
+      sampleIds: foreign.slice(0, 5).map((song) => song.id),
+      sessionKind: context.source,
+      queueType: (context as MotivationQueueContext).queueType,
+    });
+  }
 }
 
 export function orderMotivationItems(items: MotivationItem[]) {

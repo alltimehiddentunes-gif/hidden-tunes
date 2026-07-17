@@ -115,7 +115,7 @@ export function extractVolumeNumberFromTitle(rawTitle?: string | null): number |
 
 /**
  * User-facing episode title. Collapses Archive/LibriVox technical right-hand titles
- * such as "The Blue Wound — bluewound 01 garrett 128kb" into "Episode 1".
+ * such as "The Blue Wound — bluewound 01 garrett 128kb" into the work title.
  */
 export function formatMotivationEpisodeTitle(rawTitle?: string | null): string {
   const cleaned = sanitizeMotivationTitle(rawTitle);
@@ -128,7 +128,8 @@ export function formatMotivationEpisodeTitle(rawTitle?: string | null): string {
       /\b(?:mono|stereo|garrett|librivox)\b/i.test(right) ||
       /^[a-z0-9]+(?:\s+\d+)+\s+[a-z]+$/i.test(right.trim());
     if (looksTechnical) {
-      return episode != null ? `Episode ${episode}` : program;
+      // Prefer the real work title over a generic "Episode N" label.
+      return program || (episode != null ? `Episode ${episode}` : cleaned);
     }
   }
   return cleaned;
@@ -160,6 +161,14 @@ export function isLikelyMisplacedAudiobook(item: {
   if (
     /librivox recording of/i.test(String(item.description || "")) &&
     hasFiction &&
+    !isSelfHelp
+  ) {
+    return true;
+  }
+  // Known misplaced novel titles that arrived via broad librivox ingest.
+  if (
+    hasLibrivox &&
+    /\bthe blue wound\b/i.test(String(item.title || "")) &&
     !isSelfHelp
   ) {
     return true;
