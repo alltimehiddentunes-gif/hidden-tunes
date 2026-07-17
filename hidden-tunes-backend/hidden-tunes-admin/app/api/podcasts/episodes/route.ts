@@ -76,18 +76,12 @@ async function resolveShowIdsForCategory(
   return ((data || []) as { id: string }[]).map((row) => row.id);
 }
 
-async function resolvePublicCatalogShowIds(options?: { includeMature?: boolean }) {
-  const { data, error } = await applyPublicShowFilters(
-    supabaseAdmin.from("podcast_shows").select("id").limit(MAX_CATEGORY_SHOW_IDS),
-    { includeMature: options?.includeMature }
-  );
-
-  if (error) {
-    throw error;
-  }
-
-  return ((data || []) as { id: string }[]).map((row) => row.id);
-}
+/**
+ * Unfiltered general browse must not resolve hundreds of show UUIDs into a
+ * PostgREST `in.(...)` filter — that produces ~15KB request URLs and fails
+ * with undici `TypeError: fetch failed`. Filter via an inner join instead.
+ */
+const EPISODE_LIST_WITH_PUBLIC_SHOW_SELECT = `${PODCAST_PUBLIC_EPISODE_LIST_SELECT}, show:podcast_shows!inner(id, status, is_active, feed_status, is_mature)`;
 
 export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
@@ -107,7 +101,6 @@ export async function GET(request: NextRequest) {
 
   try {
     let categoryShowIds: string[] | null = null;
-    let catalogShowIds: string[] | null = null;
 
     if (category) {
       categoryShowIds = await resolveShowIdsForCategory(category, {
@@ -139,22 +132,14 @@ export async function GET(request: NextRequest) {
       showId = resolvedShowId;
     }
 
-    if (!includeMature && !categoryShowIds && !showId) {
-      catalogShowIds = await resolvePublicCatalogShowIds({ includeMature: false });
-
-      if (catalogShowIds.length === 0) {
-        return NextResponse.json({
-          success: true,
-          episodes: [],
-          shows: [],
-          pagination: buildPodcastPagination(page, limit, 0),
-        });
-      }
-    }
-
+    const useShowJoin = !showId && !categoryShowIds;
     let query = supabaseAdmin
       .from("podcast_episodes")
-      .select(PODCAST_PUBLIC_EPISODE_LIST_SELECT)
+      .select(
+        useShowJoin
+          ? EPISODE_LIST_WITH_PUBLIC_SHOW_SELECT
+          : PODCAST_PUBLIC_EPISODE_LIST_SELECT
+      )
       .order("published_at", { ascending: false, nullsFirst: false })
       .order("created_at", { ascending: false });
 
@@ -165,8 +150,14 @@ export async function GET(request: NextRequest) {
 
     if (categoryShowIds) {
       query = query.in("show_id", categoryShowIds);
-    } else if (catalogShowIds) {
-      query = query.in("show_id", catalogShowIds);
+    } else if (useShowJoin) {
+      query = query
+        .eq("show.status", "approved")
+        .eq("show.is_active", true)
+        .eq("show.feed_status", "active");
+      if (!includeMature) {
+        query = query.eq("show.is_mature", false);
+      }
     }
 
     const { data, error } = await query.range(from, to);
@@ -213,7 +204,18 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Unknown database error.";
+    const isTimeout =
+      error instanceof Error &&
+      (error.name === "TimeoutError" ||
+        message.includes("supabase_fetch_timeout"));
+    const isFetchFailed =
+      error instanceof Error &&
+      (error.name === "TypeError" || message.includes("fetch failed"));
 
-    return jsonPodcastError("Failed to load podcast episodes.", 500, message);
+    return jsonPodcastError(
+      "Failed to load podcast episodes.",
+      isTimeout || isFetchFailed ? 504 : 500,
+      message
+    );
   }
 }
