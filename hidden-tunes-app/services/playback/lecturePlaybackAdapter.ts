@@ -12,27 +12,35 @@ export type LecturePlayableItem = {
   playbackUrl: string;
 };
 
-export const LECTURE_SONG_ID_PREFIX = "lecture:";
-
+/**
+ * Stable player id. Colons are avoided because PlayerContext sanitizes ids.
+ * Canonical form for docs/tests: lecture:{lectureId}:item:{itemId}
+ */
 export function buildLectureCanonicalId(lectureId: string, itemId: string) {
-  return `${LECTURE_SONG_ID_PREFIX}${lectureId}:item:${itemId}`;
+  return `lecture-${lectureId}--${itemId}`;
+}
+
+export function toLectureCanonicalLabel(lectureId: string, itemId: string) {
+  return `lecture:${lectureId}:item:${itemId}`;
 }
 
 export function parseLectureCanonicalId(
   songId: string
 ): { lectureId: string; itemId: string } | null {
   const raw = String(songId || "").trim();
-  if (!raw.startsWith(LECTURE_SONG_ID_PREFIX)) return null;
+  // Preferred runtime id: lecture-{uuid}--{uuid}
+  const runtime = raw.match(/^lecture-(.+)--(.+)$/i);
+  if (runtime?.[1] && runtime?.[2]) {
+    return { lectureId: runtime[1], itemId: runtime[2] };
+  }
 
-  const payload = raw.slice(LECTURE_SONG_ID_PREFIX.length);
-  const marker = ":item:";
-  const markerIndex = payload.indexOf(marker);
-  if (markerIndex <= 0) return null;
+  // Documented / sanitized label forms
+  const labeled = raw.match(/^lecture[:\-]+(.+?)[:\-]+item[:\-]+(.+)$/i);
+  if (labeled?.[1] && labeled?.[2]) {
+    return { lectureId: labeled[1], itemId: labeled[2] };
+  }
 
-  const lectureId = payload.slice(0, markerIndex).trim();
-  const itemId = payload.slice(markerIndex + marker.length).trim();
-  if (!lectureId || !itemId) return null;
-  return { lectureId, itemId };
+  return null;
 }
 
 export function isLectureQueueSong(song?: AppSong | null) {
@@ -55,6 +63,7 @@ export function lectureItemToAppSong(item: LecturePlayableItem): AppSong {
     album: item.seriesTitle || undefined,
     albumId: item.lectureId,
     audioUrl: playbackUrl,
+    audio_url: playbackUrl,
     streamUrl: playbackUrl,
     url: playbackUrl,
     artworkUrl: item.artworkUrl || undefined,

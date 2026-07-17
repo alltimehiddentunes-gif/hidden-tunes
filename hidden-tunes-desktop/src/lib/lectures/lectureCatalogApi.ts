@@ -342,34 +342,47 @@ export async function resolveLecturePlay(
   if (!cleanSeriesId || !cleanLessonId) return null
 
   const query = buildQuery({ lessonId: cleanLessonId })
-  const payload = await lectureRequest<{
-    success?: boolean
-    programId?: string
-    sessionId?: string
-    title?: string
-    mediaType?: string
-    playableUrl?: string
-    mimeType?: string
-    durationSeconds?: number | null
-  }>(
+  const payload = await lectureRequest<Record<string, unknown>>(
     `/api/lectures/items/${encodeURIComponent(cleanSeriesId)}/play?${query.toString()}`,
     signal,
   )
 
-  const playbackUrl = typeof payload.playableUrl === 'string' ? payload.playableUrl.trim() : ''
-  if (!playbackUrl.startsWith('http')) return null
+  const readString = (...candidates: unknown[]) => {
+    for (const value of candidates) {
+      if (typeof value === 'string' && value.trim()) return value.trim()
+    }
+    return null
+  }
+
+  const playbackUrl = readString(
+    payload.playableUrl,
+    payload.playback_url,
+    payload.playbackUrl,
+    payload.playable_url,
+    payload.stream_url,
+    payload.audio_url,
+    payload.video_url,
+  )
+  if (!playbackUrl?.startsWith('http')) return null
+
+  const durationRaw = payload.durationSeconds ?? payload.duration_seconds
+  const durationSeconds = Number.isFinite(Number(durationRaw))
+    ? Math.max(0, Number(durationRaw))
+    : null
 
   return {
     success: payload.success === true,
-    seriesId: payload.programId ?? cleanSeriesId,
-    itemId: payload.sessionId ?? cleanLessonId,
-    mediaType: normalizeMediaType(payload.mediaType),
+    seriesId:
+      readString(payload.programId, payload.program_id, payload.lecture_id)
+      ?? cleanSeriesId,
+    itemId:
+      readString(payload.sessionId, payload.session_id, payload.item_id)
+      ?? cleanLessonId,
+    mediaType: normalizeMediaType(payload.mediaType ?? payload.media_type),
     playbackUrl,
-    mimeType: cleanText(payload.mimeType, 120),
-    durationSeconds: Number.isFinite(Number(payload.durationSeconds))
-      ? Math.max(0, Number(payload.durationSeconds))
-      : null,
-    title: typeof payload.title === 'string' ? payload.title : 'Lecture session',
+    mimeType: cleanText(payload.mimeType ?? payload.mime_type, 120),
+    durationSeconds,
+    title: readString(payload.title) ?? 'Lecture session',
   }
 }
 

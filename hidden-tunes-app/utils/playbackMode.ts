@@ -6,9 +6,16 @@ import {
 
 export type PlaybackSurfaceMode = "music" | "podcast" | "radio";
 
+function isLectureQueueSong(song?: AppSong | null) {
+  if (!song) return false;
+  if (song.source === "lecture" || song.type === "lecture") return true;
+  return String(song.id || "").startsWith("lecture");
+}
+
 export function getPlaybackSurfaceMode(song?: AppSong | null): PlaybackSurfaceMode {
   if (isRadioStreamSong(song)) return "radio";
-  if (isPodcastEpisodeSong(song)) return "podcast";
+  // Lectures share the bounded podcast-style queue (no smart music autoplay extend).
+  if (isPodcastEpisodeSong(song) || isLectureQueueSong(song)) return "podcast";
   return "music";
 }
 

@@ -22164,6 +22164,32 @@
   color: rgba(245, 243, 250, 0.52);
 }
 
+.tv-station-card-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.tv-station-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: rgba(245, 243, 250, 0.82);
+}
+
+.tv-station-pill--verified {
+  border-color: rgba(134, 239, 172, 0.28);
+  background: rgba(34, 197, 94, 0.14);
+  color: rgba(170, 230, 190, 0.92);
+}
+
 .tv-favorite-btn {
   position: absolute;
   top: 10px;
@@ -25538,6 +25564,35 @@
 .lectures-program-card:hover .lectures-program-card-play,
 .lectures-program-card:focus-within .lectures-program-card-play {
   opacity: 1;
+}
+
+.lectures-program-card-open {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  border: 0;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(12, 10, 18, 0.82);
+  color: #fff;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.lectures-program-card:hover .lectures-program-card-open,
+.lectures-program-card:focus-within .lectures-program-card-open {
+  opacity: 1;
+}
+
+.lectures-play-error {
+  margin: 0 0 14px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(248, 113, 113, 0.14);
+  color: #fecaca;
+  font-size: 13px;
 }
 
 .lectures-media-badge,

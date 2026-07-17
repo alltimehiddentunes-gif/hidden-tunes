@@ -58,11 +58,12 @@ function SeriesCard({
         role="button"
         tabIndex={0}
         className="lectures-program-card-hit"
-        onClick={() => onOpen(series.id)}
+        aria-label={`Play ${series.title}`}
+        onClick={() => onPlay()}
         onKeyDown={(event) => {
           if (event.key === 'Enter' || event.key === ' ') {
             event.preventDefault()
-            onOpen(series.id)
+            onPlay()
           }
         }}
       >
@@ -89,6 +90,17 @@ function SeriesCard({
               <path d="M8 5v14l11-7z" />
             </svg>
           </button>
+          <button
+            type="button"
+            className="lectures-program-card-open"
+            aria-label={`Open ${series.title} details`}
+            onClick={(event) => {
+              event.stopPropagation()
+              onOpen(series.id)
+            }}
+          >
+            Details
+          </button>
         </div>
         <div className="lectures-program-card-copy">
           <h3>{series.title}</h3>
@@ -109,6 +121,7 @@ export const LecturesPage = memo(function LecturesPage({
   const [mediaFilter, setMediaFilter] = useState<LecturesMediaFilter>('all')
   const [languageFilter, setLanguageFilter] = useState<string | null>(null)
   const [tuningSeriesId, setTuningSeriesId] = useState<string | null>(null)
+  const [playError, setPlayError] = useState<string | null>(null)
   const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null)
   const { continueLearning, recentlyPlayed } = useLectureLocalState()
 
@@ -153,9 +166,13 @@ export const LecturesPage = memo(function LecturesPage({
   const playSeries = useCallback(
     async (series: LectureSeries) => {
       setTuningSeriesId(series.id)
+      setPlayError(null)
       try {
         const sessions = await fetchAllLectureSeriesSessions(series.id)
-        if (sessions.length === 0) return
+        if (sessions.length === 0) {
+          setPlayError('This lecture has no playable sessions yet.')
+          return
+        }
 
         const progress = getLectureProgress(series.id)
         const resumeSession = progress
@@ -173,6 +190,12 @@ export const LecturesPage = memo(function LecturesPage({
               ? progress.positionSeconds
               : null,
         })
+      } catch (reason) {
+        setPlayError(
+          reason instanceof Error
+            ? reason.message
+            : 'This lecture couldn\u2019t be played right now.',
+        )
       } finally {
         window.setTimeout(() => setTuningSeriesId(null), 800)
       }
@@ -186,18 +209,31 @@ export const LecturesPage = memo(function LecturesPage({
       if (!progress) return
 
       setTuningSeriesId(seriesId)
+      setPlayError(null)
       try {
         const detail = await fetchLectureSeriesDetails(seriesId)
-        if (!detail) return
+        if (!detail) {
+          setPlayError('This lecture could not be loaded.')
+          return
+        }
         const session =
           detail.sessions.find((entry) => entry.id === progress.sessionId) ?? detail.sessions[0]
-        if (!session) return
+        if (!session) {
+          setPlayError('This lecture session could not be selected.')
+          return
+        }
 
         const sessions = await fetchAllLectureSeriesSessions(seriesId)
         const startIndex = Math.max(0, sessions.findIndex((entry) => entry.id === session.id))
         onPlayLectureSession(detail.series, session, sessions.slice(startIndex), 0, detail.series.title, {
           resumePositionSeconds: progress.positionSeconds,
         })
+      } catch (reason) {
+        setPlayError(
+          reason instanceof Error
+            ? reason.message
+            : 'This lecture couldn\u2019t be played right now.',
+        )
       } finally {
         window.setTimeout(() => setTuningSeriesId(null), 800)
       }
@@ -251,6 +287,12 @@ export const LecturesPage = memo(function LecturesPage({
         subtitle="Premium courses, academic lectures, and educational sessions for focused learning."
         titleId="lectures-page-heading"
       />
+
+      {playError ? (
+        <p className="lectures-play-error" role="alert">
+          {playError}
+        </p>
+      ) : null}
 
       {!filteredView && continueLearning.length > 0 ? (
         <section className="lectures-section">

@@ -1,4 +1,5 @@
 import { router } from "expo-router";
+import { Alert } from "react-native";
 
 import {
   fetchLectureLessons,
@@ -13,8 +14,6 @@ import {
 } from "../services/lectures/lecturePlaybackGuard";
 import {
   buildLectureCanonicalId,
-  buildLectureSessionSongs,
-  isLectureVideoItem,
   type LecturePlayableItem,
 } from "../services/playback/lecturePlaybackAdapter";
 import type { PlaybackRouteResult } from "../types/media";
@@ -49,8 +48,16 @@ function toPlayableItem(
   };
 }
 
+function reportLecturePlayFailure(message: string) {
+  if (typeof __DEV__ !== "undefined" && __DEV__) {
+    console.warn("[lectures] tap-to-play failed", message);
+  }
+  Alert.alert("Lecture unavailable", message);
+}
+
 /**
  * Resolves one lecture lesson and starts shared-player playback.
+ * Progressive MP3 and MP4 both use HiddenAudio / MiniPlayer (not TV).
  * Same item already loading is ignored (no second resolve/load).
  */
 export async function openHiddenTunesLectureSeries(
@@ -59,6 +66,7 @@ export async function openHiddenTunesLectureSeries(
   options?: {
     lessonId?: string | null;
     signal?: AbortSignal;
+    silent?: boolean;
   }
 ): Promise<LectureOpenResult> {
   let resolverCalls = 0;
@@ -66,12 +74,9 @@ export async function openHiddenTunesLectureSeries(
 
   const lectureId = String(series.id || "").trim();
   if (!lectureId) {
-    return {
-      ok: false,
-      error: "This lecture is missing an id.",
-      resolverCalls,
-      playerLoads,
-    };
+    const error = "This lecture is missing an id.";
+    if (!options?.silent) reportLecturePlayFailure(error);
+    return { ok: false, error, resolverCalls, playerLoads };
   }
 
   try {
@@ -84,12 +89,9 @@ export async function openHiddenTunesLectureSeries(
     const resolvedSeries = detail.series || series;
 
     if (!lessons.length) {
-      return {
-        ok: false,
-        error: "This lecture has no playable sessions.",
-        resolverCalls,
-        playerLoads,
-      };
+      const error = "This lecture has no playable sessions.";
+      if (!options?.silent) reportLecturePlayFailure(error);
+      return { ok: false, error, resolverCalls, playerLoads };
     }
 
     const selected =
@@ -98,12 +100,9 @@ export async function openHiddenTunesLectureSeries(
         : null) || selectPrimaryLectureLesson(lessons);
 
     if (!selected) {
-      return {
-        ok: false,
-        error: "This lecture session could not be selected.",
-        resolverCalls,
-        playerLoads,
-      };
+      const error = "This lecture session could not be selected.";
+      if (!options?.silent) reportLecturePlayFailure(error);
+      return { ok: false, error, resolverCalls, playerLoads };
     }
 
     const canonicalId = buildLectureCanonicalId(lectureId, selected.id);
@@ -125,42 +124,18 @@ export async function openHiddenTunesLectureSeries(
       );
 
       const playable = toPlayableItem(resolvedSeries, selected, playback);
-
-      if (isLectureVideoItem(playable)) {
-        // Progressive lecture video uses the same TV progressive path as Motivationals.
-        router.push({
-          pathname: "/tv-player",
-          params: {
-            id: canonicalId,
-            name: playable.title,
-            streamUrl: playable.playbackUrl,
-            logoUrl: playable.artworkUrl || "",
-            sourceLabel: playable.speakerName || playable.seriesTitle || "Lecture",
-            streamType: "mp4",
-          },
-        });
-        playerLoads += 1;
-        return { ok: true, resolverCalls, playerLoads };
-      }
-
-      const session = buildLectureSessionSongs([playable], canonicalId);
-      if (!session.songs.length) {
-        return {
-          ok: false,
-          error: "This lecture session is currently unavailable.",
-          resolverCalls,
-          playerLoads,
-        };
+      if (!playable.playbackUrl.startsWith("http")) {
+        const error = "This lecture session is currently unavailable.";
+        if (!options?.silent) reportLecturePlayFailure(error);
+        return { ok: false, error, resolverCalls, playerLoads };
       }
 
       const result = await deps.playLectureSession([playable], canonicalId);
       if (!result.ok) {
-        return {
-          ok: false,
-          error: result.error || "This lecture session is currently unavailable.",
-          resolverCalls,
-          playerLoads,
-        };
+        const error =
+          result.error || "This lecture session is currently unavailable.";
+        if (!options?.silent) reportLecturePlayFailure(error);
+        return { ok: false, error, resolverCalls, playerLoads };
       }
 
       playerLoads += 1;
@@ -174,13 +149,7 @@ export async function openHiddenTunesLectureSeries(
       error instanceof Error
         ? error.message
         : "This lecture could not be played right now.";
-    if (typeof __DEV__ !== "undefined" && __DEV__) {
-      console.warn("[lectures] tap-to-play failed", {
-        lectureId,
-        lessonId: options?.lessonId ?? null,
-        message,
-      });
-    }
+    if (!options?.silent) reportLecturePlayFailure(message);
     return {
       ok: false,
       error: message,

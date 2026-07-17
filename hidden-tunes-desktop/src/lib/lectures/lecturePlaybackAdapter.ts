@@ -23,19 +23,33 @@ export function isLectureQueueSong(song: ApiSong | null | undefined) {
   return Boolean(song?.id?.startsWith(LECTURE_SONG_ID_PREFIX))
 }
 
+function lectureTagsForMediaType(mediaType?: string | null) {
+  const tags = ['lecture']
+  // Progressive lecture MP4s play through the shared audio element so list-tap
+  // and MiniPlayer work without requiring a mounted video surface.
+  // Keep a non-routing marker for UI copy only.
+  if (String(mediaType || '').trim().toLowerCase() === 'video') {
+    tags.push('lecture-progressive-video')
+  }
+  return tags
+}
+
 export function isLectureVideoSong(song: ApiSong | null | undefined) {
+  // Visual video routing is reserved for explicitly tagged lecture-video songs.
+  // Progressive archive MP4 lectures intentionally use the audio path.
   return Boolean(
     isLectureQueueSong(song)
     && song?.tags?.some((tag) => tag === 'lecture-video'),
   )
 }
 
-function lectureTagsForMediaType(mediaType?: string | null) {
-  const tags = ['lecture']
-  if (String(mediaType || '').trim().toLowerCase() === 'video') {
-    tags.push('lecture-video')
-  }
-  return tags
+export function isLectureProgressiveVideoSong(song: ApiSong | null | undefined) {
+  return Boolean(
+    isLectureQueueSong(song)
+    && song?.tags?.some(
+      (tag) => tag === 'lecture-progressive-video' || tag === 'lecture-video',
+    ),
+  )
 }
 
 export function lectureSessionToApiSong(
