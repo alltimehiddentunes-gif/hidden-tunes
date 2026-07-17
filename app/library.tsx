@@ -33,8 +33,21 @@ import {
 } from "../constants/theme";
 import AppShell from "../components/navigation/AppShell";
 import { HOME_MORE_HUB_SHORTCUTS } from "../constants/homeMoreHub";
+import { isSportsClientEnabled } from "../constants/sportsFlags";
 import { useLocalization } from "../localization";
 import type { TranslationKey } from "../localization";
+
+/**
+ * Dev-only Sports Preview entry. Never added to HOME_MORE_HUB_SHORTCUTS.
+ * Visible only when mobile pilot + full UI flags are explicitly enabled in __DEV__.
+ */
+function isSportsPreviewVisible(): boolean {
+  return (
+    __DEV__ &&
+    isSportsClientEnabled("sports_mobile_pilot_enabled") &&
+    isSportsClientEnabled("sports_full_ui_enabled")
+  );
+}
 
 type LibrarySection = {
   id: string;
@@ -222,17 +235,31 @@ export default function LibraryScreen() {
       {
         id: "more",
         label: t("library.more"),
-        sections: HOME_MORE_HUB_SHORTCUTS.map((shortcut) => {
-          const keys = HUB_TRANSLATION_KEYS[shortcut.key];
-          return {
-            id: shortcut.key,
-            title: keys ? t(keys.title) : shortcut.title,
-            eyebrow: keys ? t(keys.subtitle) : shortcut.subtitle,
-            icon: shortcut.icon,
-            href: shortcut.route,
-            accent: shortcut.color,
-          };
-        }),
+        sections: [
+          ...HOME_MORE_HUB_SHORTCUTS.map((shortcut) => {
+            const keys = HUB_TRANSLATION_KEYS[shortcut.key];
+            return {
+              id: shortcut.key,
+              title: keys ? t(keys.title) : shortcut.title,
+              eyebrow: keys ? t(keys.subtitle) : shortcut.subtitle,
+              icon: shortcut.icon,
+              href: shortcut.route,
+              accent: shortcut.color,
+            };
+          }),
+          ...(isSportsPreviewVisible()
+            ? [
+                {
+                  id: "sports-preview",
+                  title: "Sports Preview",
+                  eyebrow: "Dev-only live Sports pilot",
+                  icon: "football-outline" as keyof typeof Ionicons.glyphMap,
+                  href: "/sports",
+                  accent: COLORS.cyan,
+                },
+              ]
+            : []),
+        ],
       },
       {
         id: "your-music",

@@ -17,6 +17,7 @@
   "exclude": [
     "navigation-old",
     "hidden-tunes-desktop",
-    "node_modules"
+    "node_modules",
+    "scripts/test-sports-frontend.ts"
   ]
 }
