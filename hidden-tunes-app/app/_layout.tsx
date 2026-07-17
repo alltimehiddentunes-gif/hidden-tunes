@@ -65,6 +65,8 @@ function RootLayout() {
             <Stack.Screen name="downloads" />
             <Stack.Screen name="lyrics" />
             <Stack.Screen name="queue" />
+            <Stack.Screen name="discovery/index" />
+            <Stack.Screen name="motivation/index" />
             <Stack.Screen name="(tabs)" />
           </Stack>
         </TvPlaybackProvider>

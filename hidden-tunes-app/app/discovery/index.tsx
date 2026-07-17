@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
@@ -6,12 +6,41 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 
 import { HomePremiumShortcut } from "../../components/home/HomePremiumShortcut";
-import { MORE_HUB_SHORTCUTS } from "../../constants/discoveryShortcuts";
+import {
+  MOTIVATION_HREF,
+  MORE_HUB_SHORTCUTS,
+} from "../../constants/discoveryShortcuts";
 import { COLORS } from "../../constants/theme";
+import {
+  createTapGuardState,
+  shouldIgnoreDuplicateTap,
+} from "../../utils/tapPressGuard";
+
+function isValidInternalHref(href?: string | null): href is `/${string}` {
+  return typeof href === "string" && href.startsWith("/") && href.length > 1;
+}
 
 export default function DiscoveryHubScreen() {
-  const openShortcut = useCallback((route: string) => {
-    router.push(route as any);
+  const tapGuardRef = useRef(createTapGuardState());
+
+  const openShortcut = useCallback((key: string, href?: string) => {
+    // Motivationals must always resolve to the real Expo Router screen.
+    const target = key === "more-motivation" ? MOTIVATION_HREF : href;
+
+    if (!isValidInternalHref(target)) {
+      console.warn("[More navigation] Blocked invalid shortcut route", {
+        key,
+        href,
+        target,
+      });
+      return;
+    }
+
+    if (shouldIgnoreDuplicateTap(tapGuardRef.current, `more:${key}:${target}`)) {
+      return;
+    }
+
+    router.push({ pathname: target } as never);
   }, []);
 
   return (
@@ -46,7 +75,7 @@ export default function DiscoveryHubScreen() {
               icon={shortcut.icon}
               title={shortcut.title}
               color={shortcut.color}
-              onPress={() => openShortcut(shortcut.route)}
+              onPress={() => openShortcut(shortcut.key, shortcut.href)}
             />
           ))}
         </View>

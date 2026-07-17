@@ -1788,7 +1788,7 @@ function HomeScreen() {
               icon={shortcut.icon}
               title={shortcut.title}
               color={shortcut.color}
-              onPress={() => router.push(shortcut.route as any)}
+              onPress={() => router.push(shortcut.href as never)}
             />
           ))}
         </View>
