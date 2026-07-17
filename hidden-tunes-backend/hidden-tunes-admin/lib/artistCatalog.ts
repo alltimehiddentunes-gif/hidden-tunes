@@ -487,6 +487,137 @@ export async function isViewerFollowingArtist(artistId: string, viewerUserId: st
   return rows.length > 0;
 }
 
+export async function countArtistFollowers(artistId: string) {
+  return safeExactCount("artist_followers", [{ column: "artist_id", value: artistId }]);
+}
+
+export async function artistFollowersTableAvailable() {
+  const { error } = await supabaseAdmin.from("artist_followers").select("artist_id").limit(1);
+  if (!error) return true;
+  if (isMissingArtistSchemaError(error)) return false;
+  throw new Error(error.message);
+}
+
+export async function loadArtistFollowState(artistId: string, viewerUserId: string | null) {
+  const available = await artistFollowersTableAvailable();
+  if (!available) {
+    return {
+      available: false as const,
+      artist_id: artistId,
+      is_following: false,
+      follower_count: 0,
+    };
+  }
+
+  const [is_following, follower_count] = await Promise.all([
+    isViewerFollowingArtist(artistId, viewerUserId),
+    countArtistFollowers(artistId),
+  ]);
+
+  return {
+    available: true as const,
+    artist_id: artistId,
+    is_following,
+    follower_count,
+  };
+}
+
+export async function followArtist(artistId: string, userId: string) {
+  const artist = await resolveArtistRef(artistId);
+  if (!artist) {
+    const notFound = new Error("Artist not found.");
+    (notFound as Error & { status?: number }).status = 404;
+    throw notFound;
+  }
+
+  const canonicalId = String(artist.id);
+  const { error } = await supabaseAdmin.from("artist_followers").upsert(
+    { artist_id: canonicalId, user_id: userId },
+    { onConflict: "artist_id,user_id", ignoreDuplicates: true },
+  );
+
+  if (error) {
+    if (isMissingArtistSchemaError(error)) {
+      const unavailable = new Error(
+        "Artist follow is unavailable until profile infrastructure is applied.",
+      );
+      (unavailable as Error & { status?: number }).status = 503;
+      throw unavailable;
+    }
+    // Unique/duplicate races still count as success (idempotent follow).
+    const message = String(error.message || "").toLowerCase();
+    const code = String((error as { code?: unknown }).code || "");
+    if (code === "23505" || message.includes("duplicate")) {
+      invalidateArtistCache(canonicalId);
+      return {
+        followed: true,
+        artist_id: canonicalId,
+        follower_count: await countArtistFollowers(canonicalId),
+      };
+    }
+    throw new Error(error.message);
+  }
+
+  invalidateArtistCache(canonicalId);
+  return {
+    followed: true,
+    artist_id: canonicalId,
+    follower_count: await countArtistFollowers(canonicalId),
+  };
+}
+
+export async function unfollowArtist(artistId: string, userId: string) {
+  const artist = await resolveArtistRef(artistId);
+  if (!artist) {
+    const notFound = new Error("Artist not found.");
+    (notFound as Error & { status?: number }).status = 404;
+    throw notFound;
+  }
+
+  const canonicalId = String(artist.id);
+  const { error } = await supabaseAdmin
+    .from("artist_followers")
+    .delete()
+    .eq("artist_id", canonicalId)
+    .eq("user_id", userId);
+
+  if (error) {
+    if (isMissingArtistSchemaError(error)) {
+      const unavailable = new Error(
+        "Artist unfollow is unavailable until profile infrastructure is applied.",
+      );
+      (unavailable as Error & { status?: number }).status = 503;
+      throw unavailable;
+    }
+    throw new Error(error.message);
+  }
+
+  // Missing row is still success (idempotent unfollow).
+  invalidateArtistCache(canonicalId);
+  return {
+    followed: false,
+    artist_id: canonicalId,
+    follower_count: await countArtistFollowers(canonicalId),
+  };
+}
+
+export async function getViewerFromAuthorizationHeader(authorization: string | null) {
+  const token = String(authorization || "").replace(/^Bearer\s+/i, "").trim();
+  if (!token) return null;
+  const config = getSupabaseAdminConfig();
+  const anonKey =
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() ||
+    process.env.SUPABASE_ANON_KEY?.trim() ||
+    "";
+  if (!config.supabaseUrl || !anonKey) return null;
+  const client = createClient(config.supabaseUrl, anonKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const { data, error } = await client.auth.getUser(token);
+  if (error || !data.user) return null;
+  return data.user as User;
+}
+
 export async function loadArtistProfileShell(ref: string, viewerUserId: string | null = null) {
   const cacheKey = `artist:shell:${ref}:${viewerUserId || "anon"}`;
   return withArtistCache(cacheKey, async () => {
@@ -494,11 +625,12 @@ export async function loadArtistProfileShell(ref: string, viewerUserId: string |
     if (!artistRow) return null;
     const artistId = String(artistRow.id);
     const statistics = await loadArtistStatistics(artistId);
-    const [artist, featured_release, sections, is_following] = await Promise.all([
+    const [artist, featured_release, sections, is_following, follow_available] = await Promise.all([
       loadArtistIdentity(artistRow),
       loadFeaturedRelease(artistRow),
       loadProfileSections(artistId, statistics),
       isViewerFollowingArtist(artistId, viewerUserId),
+      artistFollowersTableAvailable().catch(() => false),
     ]);
 
     return {
@@ -515,7 +647,7 @@ export async function loadArtistProfileShell(ref: string, viewerUserId: string |
         refreshed_at: statistics.refreshed_at ? String(statistics.refreshed_at) : null,
       },
       featured_release,
-      viewer: { is_following },
+      viewer: { is_following, follow_available },
       sections,
     };
   });
@@ -1120,57 +1252,6 @@ export async function loadArtistRelatedContent(artistId: string, limitInput?: nu
     throw new Error(error.message);
   }
   return data || [];
-}
-
-export async function followArtist(artistId: string, userId: string) {
-  const artist = await resolveArtistRef(artistId);
-  if (!artist) {
-    const notFound = new Error("Artist not found.");
-    (notFound as Error & { status?: number }).status = 404;
-    throw notFound;
-  }
-  const { error } = await supabaseAdmin.from("artist_followers").upsert({ artist_id: artistId, user_id: userId });
-  if (error) {
-    if (isMissingArtistSchemaError(error)) {
-      const unavailable = new Error("Artist follow is unavailable until profile infrastructure is applied.");
-      (unavailable as Error & { status?: number }).status = 503;
-      throw unavailable;
-    }
-    throw new Error(error.message);
-  }
-  invalidateArtistCache(artistId);
-  return { followed: true };
-}
-
-export async function unfollowArtist(artistId: string, userId: string) {
-  const { error } = await supabaseAdmin.from("artist_followers").delete().eq("artist_id", artistId).eq("user_id", userId);
-  if (error) {
-    if (isMissingArtistSchemaError(error)) {
-      const unavailable = new Error("Artist unfollow is unavailable until profile infrastructure is applied.");
-      (unavailable as Error & { status?: number }).status = 503;
-      throw unavailable;
-    }
-    throw new Error(error.message);
-  }
-  invalidateArtistCache(artistId);
-  return { followed: false };
-}
-
-export async function getViewerFromAuthorizationHeader(authorization: string | null) {
-  const token = String(authorization || "").replace(/^Bearer\s+/i, "").trim();
-  if (!token) return null;
-  const config = getSupabaseAdminConfig();
-  const anonKey =
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() ||
-    process.env.SUPABASE_ANON_KEY?.trim() ||
-    "";
-  if (!config.supabaseUrl || !anonKey) return null;
-  const client = createClient(config.supabaseUrl, anonKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-  const { data, error } = await client.auth.getUser(token);
-  if (error || !data.user) return null;
-  return data.user as User;
 }
 
 export async function loadArtistStatsOnly(ref: string) {

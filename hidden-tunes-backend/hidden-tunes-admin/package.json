@@ -132,6 +132,7 @@
     "artist:similar": "tsx scripts/run-artist-similar-scores.ts",
     "artist:similar:dry": "tsx scripts/run-artist-similar-scores.ts --dry-run",
     "test:artist-similar": "tsx scripts/test-artist-similar.ts",
+    "test:artist-follow": "tsx scripts/test-artist-follow.ts",
     "verify:artist-production": "tsx scripts/verify-artist-production.ts",
     "radio:mature:expand": "tsx scripts/run-radio-mature-expansion.ts --execute",
     "radio:mature:expand:dry": "tsx scripts/run-radio-mature-expansion.ts",

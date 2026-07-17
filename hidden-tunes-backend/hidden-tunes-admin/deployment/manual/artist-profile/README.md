@@ -25,6 +25,8 @@ If credentials are unavailable, paste `01_artist_profile_infrastructure.sql` the
 
 Artist Profile pages do **not** require the ranking or similarity jobs. Without ranking rows or play signals, track sections stay labeled **Essential tracks**. Without similar rows, the Similar Artists section stays hidden/empty.
 
+Artist Follow uses `artist_followers` (user_id + artist_id primary key). Authenticated `POST/DELETE /api/artists/:uuid/follow` are idempotent. Unauthenticated follow/unfollow returns **401**. If the follow table is absent, profile shell still loads and Follow controls degrade to unavailable (**503** on mutate).
+
 ## Schema snapshot
 
 See `SCHEMA-SNAPSHOT-20260717.json` for the pre-repair production schema probe.

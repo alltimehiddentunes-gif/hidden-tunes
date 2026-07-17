@@ -46,7 +46,7 @@ export type ArtistProfileShell = {
   artist: ArtistProfileIdentity;
   statistics: ArtistProfileStatistics;
   featured_release: ArtistProfileRelease | null;
-  viewer: { is_following: boolean };
+  viewer: { is_following: boolean; follow_available?: boolean };
   sections: ArtistProfileSection[];
 };
 
@@ -342,7 +342,10 @@ export async function fetchArtistProfileShell(
       refreshed_at: statistics.refreshed_at ? String(statistics.refreshed_at) : null,
     },
     featured_release: normalizeRelease(profile?.featured_release),
-    viewer: { is_following: viewer.is_following === true },
+    viewer: {
+      is_following: viewer.is_following === true,
+      follow_available: viewer.follow_available !== false,
+    },
     sections: sections
       .map((section) => {
         const row = asObject(section);
@@ -468,4 +471,99 @@ export async function fetchArtistStats(
     collaboration_count: Number(statistics.collaboration_count) || 0,
     refreshed_at: statistics.refreshed_at ? String(statistics.refreshed_at) : null,
   };
+}
+
+export type ArtistFollowState = {
+  artist_id: string;
+  is_following: boolean;
+  follower_count: number;
+  available: boolean;
+};
+
+const followStateSessionCache = new Map<string, ArtistFollowState>();
+
+export function getCachedArtistFollowState(artistId: string) {
+  return followStateSessionCache.get(String(artistId || "")) || null;
+}
+
+export function setCachedArtistFollowState(state: ArtistFollowState) {
+  const id = String(state.artist_id || "").trim();
+  if (!id) return;
+  followStateSessionCache.set(id, {
+    artist_id: id,
+    is_following: state.is_following === true,
+    follower_count: Math.max(0, Number(state.follower_count) || 0),
+    available: state.available !== false,
+  });
+}
+
+function normalizeFollowPayload(
+  payload: Record<string, unknown>,
+  fallbackArtistId: string,
+): ArtistFollowState {
+  const follow = asObject(payload.follow) || payload;
+  const artistId = String(follow.artist_id || fallbackArtistId);
+  const state: ArtistFollowState = {
+    artist_id: artistId,
+    is_following:
+      follow.is_following === true ||
+      follow.followed === true ||
+      payload.followed === true,
+    follower_count: Math.max(
+      0,
+      Number(follow.follower_count ?? payload.follower_count) || 0,
+    ),
+    available: follow.available !== false && payload.available !== false,
+  };
+  setCachedArtistFollowState(state);
+  return state;
+}
+
+export async function fetchArtistFollowState(
+  ref: string,
+  options: RequestOptions = {},
+): Promise<ArtistFollowState> {
+  const payload = await artistProfileRequest<Record<string, unknown>>(
+    `/api/artists/${encodeURIComponent(ref)}/follow`,
+    options,
+  );
+  return normalizeFollowPayload(payload, ref);
+}
+
+export async function followArtistProfile(
+  artistId: string,
+  options: RequestOptions = {},
+): Promise<ArtistFollowState> {
+  const payload = await artistProfileRequest<Record<string, unknown>>(
+    `/api/artists/${encodeURIComponent(artistId)}/follow`,
+    { ...options, method: "POST" },
+  );
+  return normalizeFollowPayload(
+    {
+      ...payload,
+      followed: true,
+      is_following: true,
+      available: true,
+    },
+    artistId,
+  );
+}
+
+export async function unfollowArtistProfile(
+  artistId: string,
+  options: RequestOptions = {},
+): Promise<ArtistFollowState> {
+  const payload = await artistProfileRequest<Record<string, unknown>>(
+    `/api/artists/${encodeURIComponent(artistId)}/follow`,
+    { ...options, method: "DELETE" },
+  );
+  return normalizeFollowPayload(
+    {
+      ...payload,
+      followed: false,
+      is_following: false,
+      available: true,
+    },
+    artistId,
+  );
 }
