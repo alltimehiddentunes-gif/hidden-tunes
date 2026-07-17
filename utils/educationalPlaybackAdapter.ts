@@ -22,18 +22,53 @@ export function isEducationalSessionAppSong(song?: AppSong | null) {
   return Boolean(parseEducationalSessionSongId(song?.id));
 }
 
-export function isEducationalAudioPlayback(mediaType: string, playableUrl: string) {
-  const type = String(mediaType || "").toLowerCase();
+export function isEducationalProgressiveMediaUrl(playableUrl: string) {
   const url = String(playableUrl || "").trim();
-  if (type === "audio") return true;
-  // Progressive lecture MP4s are playable as shared-audio sources on HiddenAudio.
-  if (type === "video" && /^https:\/\/.+\.mp4(?:\?|$)/i.test(url)) return true;
-  return /^https:\/\/.+\.(mp3|m4a|aac|wav|ogg|mp4)(?:\?|$)/i.test(url);
+  if (!/^https:\/\//i.test(url)) return false;
+  // Match extension in the path (before query). Avoid treating HLS/DASH as progressive.
+  if (/\.(m3u8|mpd)(?:\?|$)/i.test(url)) return false;
+  return /\.(mp3|m4a|aac|wav|ogg|mp4)(?:\?|$)/i.test(url);
+}
+
+/**
+ * Lectures progressive MP3/MP4 play through shared HiddenAudio — never TV.
+ * Scoped to educational playback only (callers must already be on the lecture path).
+ */
+export function isEducationalAudioPlayback(
+  mediaType: string,
+  playableUrl: string,
+  mimeType?: string | null
+) {
+  const type = String(mediaType || "").toLowerCase();
+  const mime = String(mimeType || "").toLowerCase();
+  const url = String(playableUrl || "").trim();
+
+  if (type === "audio") return Boolean(url);
+  if (mime.startsWith("audio/")) return Boolean(url);
+  if (isEducationalProgressiveMediaUrl(url)) return true;
+  // Progressive lecture MP4 often arrives as mediaType=video + mime video/mp4.
+  if ((type === "video" || mime === "video/mp4" || mime.startsWith("video/")) && isEducationalProgressiveMediaUrl(url)) {
+    return true;
+  }
+  return false;
+}
+
+/** Lectures must never open /tv-player. Progressive media uses shared audio. */
+export function shouldRouteLectureToTvPlayer(
+  mediaType: string,
+  playableUrl: string,
+  mimeType?: string | null
+) {
+  void mediaType;
+  void playableUrl;
+  void mimeType;
+  return false;
 }
 
 export function isEducationalVideoPlayback(mediaType: string, playableUrl: string) {
+  if (isEducationalProgressiveMediaUrl(playableUrl)) return false;
   if (String(mediaType || "").toLowerCase() === "video") return true;
-  return /\.mp4(?:\?|$)/i.test(playableUrl) || playableUrl.includes("youtube");
+  return playableUrl.includes("youtube") || /\.m3u8(?:\?|$)/i.test(playableUrl);
 }
 
 export function educationalSessionToAppSong(

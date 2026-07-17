@@ -7,12 +7,27 @@ function assert(cond, msg) {
   if (!cond) throw new Error(msg);
 }
 
-function isEducationalAudioPlayback(mediaType, playableUrl) {
-  const type = String(mediaType || "").toLowerCase();
+function isEducationalProgressiveMediaUrl(playableUrl) {
   const url = String(playableUrl || "").trim();
-  if (type === "audio") return true;
-  if (type === "video" && /^https:\/\/.+\.mp4(?:\?|$)/i.test(url)) return true;
-  return /^https:\/\/.+\.(mp3|m4a|aac|wav|ogg|mp4)(?:\?|$)/i.test(url);
+  if (!/^https:\/\//i.test(url)) return false;
+  if (/\.(m3u8|mpd)(?:\?|$)/i.test(url)) return false;
+  return /\.(mp3|m4a|aac|wav|ogg|mp4)(?:\?|$)/i.test(url);
+}
+
+function isEducationalAudioPlayback(mediaType, playableUrl, mimeType) {
+  const type = String(mediaType || "").toLowerCase();
+  const mime = String(mimeType || "").toLowerCase();
+  const url = String(playableUrl || "").trim();
+  if (type === "audio") return Boolean(url);
+  if (mime.startsWith("audio/")) return Boolean(url);
+  if (isEducationalProgressiveMediaUrl(url)) return true;
+  if (
+    (type === "video" || mime === "video/mp4" || mime.startsWith("video/")) &&
+    isEducationalProgressiveMediaUrl(url)
+  ) {
+    return true;
+  }
+  return false;
 }
 
 function mapPlayBody(body) {
@@ -42,8 +57,8 @@ function mapPlayBody(body) {
     directMediaType === "video"
       ? directPlayableUrl || mediaVideoUrl
       : mediaVideoUrl || (/\.mp4(?:\?|$)/i.test(directPlayableUrl) ? directPlayableUrl : "");
-  if (audioUrl) return { mediaType: "audio", playableUrl: audioUrl };
-  if (videoUrl) return { mediaType: "video", playableUrl: videoUrl };
+  if (audioUrl) return { mediaType: "audio", playableUrl: audioUrl, mimeType: body.mimeType || null };
+  if (videoUrl) return { mediaType: "video", playableUrl: videoUrl, mimeType: body.mimeType || null };
   throw new Error("Educational playback is unavailable.");
 }
 
@@ -53,7 +68,7 @@ const mp4Url =
 const signedMp3 = "https://cdn.example.com/path/file.mp3?X-Amz-Signature=REDACTED&Expires=1";
 
 assert(isEducationalAudioPlayback("audio", mp3Url) === true, "mp3 audio gate");
-assert(isEducationalAudioPlayback("video", mp4Url) === true, "progressive mp4 gate");
+assert(isEducationalAudioPlayback("video", mp4Url, "video/mp4") === true, "progressive mp4 gate");
 assert(isEducationalAudioPlayback("video", "https://cdn.example.com/x.m3u8") === false, "hls video rejected");
 assert(isEducationalAudioPlayback("audio", signedMp3) === true, "signed mp3 accepted via mediaType");
 assert(isEducationalAudioPlayback("", signedMp3) === true, "signed mp3 accepted via extension");
@@ -83,7 +98,7 @@ assert(snake.playableUrl.includes("?X-Amz-Signature="), "query params preserved"
 assert(isEducationalAudioPlayback(snake.mediaType, snake.playableUrl), "snake signed mp3 playable");
 
 assert(
-  isEducationalAudioPlayback(camelMp4.mediaType, camelMp4.playableUrl),
+  isEducationalAudioPlayback(camelMp4.mediaType, camelMp4.playableUrl, camelMp4.mimeType),
   "mapped progressive mp4 passes shared-audio gate"
 );
 

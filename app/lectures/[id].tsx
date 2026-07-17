@@ -34,7 +34,6 @@ import {
   nextEducationalPlayGeneration,
 } from "@/utils/educationalPlayback";
 import { mergeEducationalSessions } from "@/utils/educationalOrdering";
-import { openEducationalVideoSession } from "@/utils/educationalVideoPlayback";
 import { lectureTrace } from "@/utils/lectureTapTrace";
 
 function hasAbortError(error: unknown) {
@@ -257,12 +256,13 @@ export default function EducationalProgramDetailScreen() {
         if (controller.signal.aborted || isEducationalPlayGenerationStale(generation)) return;
 
         if (!result.ok) {
-          if (result.requiresVideo && result.session) {
-            await openEducationalVideoSession(program, result.session);
-            return;
-          }
+          // Never fall back to /tv-player for lectures — that opens Hidden Tunes TV
+          // with no TV session ("No more playable stations...").
           setPlayError(true);
-          setPlayErrorText(result.error || "This lesson could not start right now.");
+          setPlayErrorText(
+            result.error ||
+              "This lesson could not start right now. Progressive lectures play in the audio player."
+          );
           return;
         }
 

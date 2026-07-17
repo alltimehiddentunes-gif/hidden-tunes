@@ -69,7 +69,7 @@ async function resolveEducationalSessionPlayItem(
   signal?: AbortSignal
 ): Promise<EducationalSessionPlayItem | null> {
   const resolved = await fetchEducationalSessionPlayback(program.id, session.id, signal);
-  if (!isEducationalAudioPlayback(resolved.mediaType, resolved.playableUrl)) {
+  if (!isEducationalAudioPlayback(resolved.mediaType, resolved.playableUrl, resolved.mimeType)) {
     return null;
   }
 
@@ -271,7 +271,7 @@ export const EducationalPlaybackController = {
     }
   ): Promise<
     | { ok: true; session: EducationalSessionPlayItem; song: AppSong }
-    | { ok: false; error: string; requiresVideo?: boolean; session?: EducationalSession }
+    | { ok: false; error: string; session?: EducationalSession }
   > {
     const tapId = options?.tapId || `lecture-${Date.now()}`;
 
@@ -346,16 +346,17 @@ export const EducationalPlaybackController = {
         return { ok: false, error: "Playback request was superseded." };
       }
 
-      if (!isEducationalAudioPlayback(resolved.mediaType, resolved.playableUrl)) {
+      if (!isEducationalAudioPlayback(resolved.mediaType, resolved.playableUrl, resolved.mimeType)) {
         lectureTrace("LECTURE_ERROR", tapId, {
-          error: "requires_video_player",
+          error: "unsupported_lecture_media",
           mediaType: resolved.mediaType,
+          mimeType: resolved.mimeType,
           ...lectureUrlDiagnostics(resolved.playableUrl),
         });
         return {
           ok: false,
-          error: "This lesson requires the video player.",
-          requiresVideo: true,
+          error:
+            "This lesson format is not supported in Lectures playback yet. Progressive MP3/MP4 lectures play as audio.",
           session: metadata,
         };
       }
